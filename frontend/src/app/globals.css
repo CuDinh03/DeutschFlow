@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-der:    #3b82f6;
+    --color-die:    #ef4444;
+    --color-das:    #22c55e;
+    --color-plural: #a855f7;
+  }
+}
+
+@layer components {
+  .word-block {
+    @apply inline-flex items-center px-3 py-1.5 rounded-lg font-medium text-white cursor-grab active:cursor-grabbing select-none transition-transform hover:scale-105;
+  }
+  .word-block-der    { background-color: var(--color-der); }
+  .word-block-die    { background-color: var(--color-die); }
+  .word-block-das    { background-color: var(--color-das); }
+  .word-block-plural { background-color: var(--color-plural); }
+}

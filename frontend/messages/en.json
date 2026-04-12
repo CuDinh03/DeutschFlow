@@ -1,0 +1,26 @@
+{
+  "auth": {
+    "login": "Login",
+    "register": "Register",
+    "logout": "Logout",
+    "email": "Email",
+    "password": "Password",
+    "displayName": "Display name",
+    "loginTitle": "Welcome back",
+    "registerTitle": "Create account",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "save": "Save",
+    "cancel": "Cancel"
+  },
+  "gender": {
+    "DER": "der (masculine)",
+    "DIE": "die (feminine)",
+    "DAS": "das (neuter)",
+    "PLURAL": "Plural"
+  }
+}
