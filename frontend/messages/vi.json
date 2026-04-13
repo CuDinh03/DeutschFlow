@@ -22,5 +22,24 @@
     "DIE": "die (cái)",
     "DAS": "das (trung)",
     "PLURAL": "Số nhiều"
+  },
+  "onboarding": {
+    "title": "Cá nhân hoá lộ trình học",
+    "subtitle": "Trả lời vài câu hỏi để hệ thống tạo lộ trình phù hợp với bạn.",
+    "goalType": "Mục tiêu học",
+    "goalWork": "Phục vụ công việc",
+    "goalCert": "Ôn thi chứng chỉ",
+    "targetLevel": "Mục tiêu CEFR",
+    "currentLevel": "Trình độ hiện tại (tự đánh giá)",
+    "ageRange": "Độ tuổi",
+    "industry": "Chuyên ngành / Lĩnh vực",
+    "interests": "Sở thích",
+    "learningSpeed": "Khả năng tiếp thu",
+    "sessionsPerWeek": "Số buổi/tuần",
+    "minutesPerSession": "Phút/buổi",
+    "examType": "Loại chứng chỉ (tuỳ chọn)",
+    "submit": "Tạo lộ trình",
+    "submitting": "Đang tạo lộ trình...",
+    "error": "Không thể tạo lộ trình. Vui lòng thử lại."
   }
 }

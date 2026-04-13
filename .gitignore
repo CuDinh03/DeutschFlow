@@ -2,8 +2,23 @@
 # SECRETS — KHÔNG BAO GIỜ COMMIT
 # ============================================================
 .env
-.env.example
+.# env variants (ignore all, except .env.example)
+.env.*
+!.env.example
 *.env.local
+
+# --- key/cert/keystore ---
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.jks
+
+# --- credentials/secrets files ---
+credentials*.json
+service-account*.json
+**/secrets.*
 
 # ============================================================
 # DOCS (nội bộ, không push lên git)

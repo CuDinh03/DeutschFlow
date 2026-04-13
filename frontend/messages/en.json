@@ -22,5 +22,24 @@
     "DIE": "die (feminine)",
     "DAS": "das (neuter)",
     "PLURAL": "Plural"
+  },
+  "onboarding": {
+    "title": "Personalize your learning plan",
+    "subtitle": "Answer a few questions so we can tailor an effective plan for you.",
+    "goalType": "Goal",
+    "goalWork": "For work",
+    "goalCert": "For certification",
+    "targetLevel": "Target CEFR level",
+    "currentLevel": "Current level (self-assessed)",
+    "ageRange": "Age range",
+    "industry": "Industry / Field",
+    "interests": "Interests",
+    "learningSpeed": "Learning speed",
+    "sessionsPerWeek": "Sessions per week",
+    "minutesPerSession": "Minutes per session",
+    "examType": "Exam type (optional)",
+    "submit": "Create plan",
+    "submitting": "Creating plan...",
+    "error": "Could not create plan. Please try again."
   }
 }

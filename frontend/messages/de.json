@@ -22,5 +22,24 @@
     "DIE": "die (feminin)",
     "DAS": "das (neutrum)",
     "PLURAL": "Plural"
+  },
+  "onboarding": {
+    "title": "Lernplan personalisieren",
+    "subtitle": "Beantworte ein paar Fragen, damit wir deinen Lernplan anpassen können.",
+    "goalType": "Ziel",
+    "goalWork": "Für den Job",
+    "goalCert": "Für ein Zertifikat",
+    "targetLevel": "Zielniveau (CEFR)",
+    "currentLevel": "Aktuelles Niveau (Selbsteinschätzung)",
+    "ageRange": "Altersgruppe",
+    "industry": "Branche / Fachgebiet",
+    "interests": "Interessen",
+    "learningSpeed": "Lerntempo",
+    "sessionsPerWeek": "Einheiten pro Woche",
+    "minutesPerSession": "Minuten pro Einheit",
+    "examType": "Prüfungstyp (optional)",
+    "submit": "Plan erstellen",
+    "submitting": "Plan wird erstellt...",
+    "error": "Plan konnte nicht erstellt werden. Bitte erneut versuchen."
   }
 }

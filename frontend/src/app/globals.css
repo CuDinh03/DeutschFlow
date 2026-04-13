@@ -4,19 +4,228 @@
 
 @layer base {
   :root {
-    --color-der:    #3b82f6;
-    --color-die:    #ef4444;
-    --color-das:    #22c55e;
-    --color-plural: #a855f7;
+    /* Brand Colors */
+    --navy-blue: #00305E;
+    --navy-blue-dark: #001F3F;
+    --navy-blue-light: #004080;
+    --vibrant-yellow: #FFCE00;
+    --vibrant-yellow-dark: #E6B800;
+    --vibrant-yellow-light: #FFD633;
+
+    /* Gender Colors (German Grammar) */
+    --gender-der: #3B82F6;      /* Blue-500 - Masculine */
+    --gender-die: #EF4444;      /* Red-500 - Feminine */
+    --gender-das: #22C55E;      /* Green-500 - Neuter */
+    --gender-plural: #A855F7;   /* Purple-500 - Plural */
+
+    /* Semantic Colors */
+    --background: #FFFFFF;
+    --foreground: #0A0A0A;
+    --card: #FFFFFF;
+    --card-foreground: #0A0A0A;
+    --popover: #FFFFFF;
+    --popover-foreground: #0A0A0A;
+    
+    --primary: #00305E;
+    --primary-foreground: #FFFFFF;
+    --primary-hover: #001F3F;
+    
+    --secondary: #F5F5F5;
+    --secondary-foreground: #0A0A0A;
+    
+    --accent: #FFCE00;
+    --accent-foreground: #00305E;
+    --accent-hover: #E6B800;
+    
+    --muted: #F5F5F5;
+    --muted-foreground: #737373;
+    
+    --destructive: #EF4444;
+    --destructive-foreground: #FFFFFF;
+    
+    --success: #22C55E;
+    --success-foreground: #FFFFFF;
+    
+    --info: #3B82F6;
+    --info-foreground: #FFFFFF;
+    
+    --warning: #F59E0B;
+    --warning-foreground: #FFFFFF;
+    
+    --border: #E5E5E5;
+    --input-background: #FFFFFF;
+    --ring: #FFCE00;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+
+    /* Border Radius */
+    --radius-sm: 8px;
+    --radius-md: 10px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-full: 9999px;
+
+    /* Spacing Scale */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+    --spacing-2xl: 48px;
+  }
+
+  .dark {
+    --background: #0A0A0A;
+    --foreground: #FAFAFA;
+    --card: #171717;
+    --card-foreground: #FAFAFA;
+    --popover: #171717;
+    --popover-foreground: #FAFAFA;
+    
+    --primary: #004080;
+    --primary-foreground: #FFFFFF;
+    --primary-hover: #00305E;
+    
+    --secondary: #262626;
+    --secondary-foreground: #FAFAFA;
+    
+    --muted: #262626;
+    --muted-foreground: #A3A3A3;
+    
+    --border: #262626;
+    --input-background: #171717;
+    --ring: #FFD633;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
 @layer components {
-  .word-block {
-    @apply inline-flex items-center px-3 py-1.5 rounded-lg font-medium text-white cursor-grab active:cursor-grabbing select-none transition-transform hover:scale-105;
+  /* Gender Badge Components */
+  .gender-badge {
+    @apply inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-medium;
   }
-  .word-block-der    { background-color: var(--color-der); }
-  .word-block-die    { background-color: var(--color-die); }
-  .word-block-das    { background-color: var(--color-das); }
-  .word-block-plural { background-color: var(--color-plural); }
+  
+  .gender-der {
+    @apply bg-[var(--gender-der)] text-white;
+  }
+  
+  .gender-die {
+    @apply bg-[var(--gender-die)] text-white;
+  }
+  
+  .gender-das {
+    @apply bg-[var(--gender-das)] text-white;
+  }
+  
+  .gender-plural {
+    @apply bg-[var(--gender-plural)] text-white;
+  }
+
+  /* Button Variants */
+  .btn {
+    @apply inline-flex items-center justify-center rounded-[var(--radius-lg)] 
+           font-medium transition-all duration-200 
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring 
+           disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply btn bg-[var(--primary)] text-[var(--primary-foreground)] 
+           hover:bg-[var(--primary-hover)] shadow-[var(--shadow-md)];
+  }
+
+  .btn-accent {
+    @apply btn bg-[var(--accent)] text-[var(--accent-foreground)] 
+           hover:bg-[var(--accent-hover)] shadow-[var(--shadow-md)];
+  }
+
+  .btn-secondary {
+    @apply btn bg-[var(--secondary)] text-[var(--secondary-foreground)] 
+           hover:bg-[var(--muted)] shadow-[var(--shadow-sm)];
+  }
+
+  .btn-outline {
+    @apply btn border-2 border-[var(--primary)] text-[var(--primary)] 
+           hover:bg-[var(--primary)] hover:text-white;
+  }
+
+  .btn-destructive {
+    @apply btn bg-[var(--destructive)] text-[var(--destructive-foreground)] 
+           hover:opacity-90 shadow-[var(--shadow-md)];
+  }
+
+  .btn-sm {
+    @apply px-4 py-2 text-sm;
+  }
+
+  .btn-md {
+    @apply px-6 py-3 text-base;
+  }
+
+  .btn-lg {
+    @apply px-8 py-4 text-lg;
+  }
+
+  /* Card Component */
+  .card {
+    @apply bg-[var(--card)] text-[var(--card-foreground)] 
+           rounded-[var(--radius-lg)] shadow-[var(--shadow-md)] 
+           hover:shadow-[var(--shadow-lg)] transition-shadow;
+  }
+
+  /* Input Component */
+  .input {
+    @apply w-full px-4 py-3 rounded-[var(--radius-lg)] 
+           border border-[var(--border)] bg-[var(--input-background)] 
+           text-[var(--foreground)] placeholder:text-[var(--muted-foreground)]
+           focus:outline-none focus:ring-2 focus:ring-[var(--ring)] 
+           focus:border-transparent transition-all;
+  }
+
+  /* Label Component */
+  .label {
+    @apply block mb-2 text-sm font-medium text-[var(--foreground)];
+  }
+
+  /* Badge Component */
+  .badge {
+    @apply inline-flex items-center px-3 py-1 rounded-[var(--radius-full)] 
+           text-sm font-medium;
+  }
+
+  .badge-primary {
+    @apply badge bg-[var(--primary)] text-[var(--primary-foreground)];
+  }
+
+  .badge-accent {
+    @apply badge bg-[var(--accent)] text-[var(--accent-foreground)];
+  }
+
+  .badge-success {
+    @apply badge bg-[var(--success)] text-[var(--success-foreground)];
+  }
+
+  .badge-muted {
+    @apply badge bg-[var(--muted)] text-[var(--muted-foreground)];
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
 }

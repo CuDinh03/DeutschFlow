@@ -14,23 +14,42 @@ Nền tảng học tiếng Đức kết hợp mã hóa màu sắc theo giống t
 
 - Java 17+, Maven 3.8+
 - Node.js 18+
-- Docker Desktop
+- MySQL 8.0 (local hoặc remote)
 
-## Chạy nhanh
+## Cấu hình môi trường
 
 ```bash
-# 1. Cấu hình môi trường
 cp .env.example .env
-# Điền DB_PASSWORD, DB_ROOT_PASSWORD, JWT_SECRET vào .env
+```
 
-# 2. Khởi động MySQL
-docker-compose up -d
+Cập nhật tối thiểu các biến sau trong `.env`:
 
-# 3. Chạy Backend
+- `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD`
+- `JWT_SECRET` (ít nhất 32 ký tự)
+
+## Chạy local không Docker
+
+```bash
+# 1. Chạy Backend
 cd backend && ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
 
-# 4. Chạy Frontend
+# 2. Chạy Frontend
 cd frontend && npm install && npm run dev
 ```
 
 Truy cập: `http://localhost:3000`
+
+> Demo users chỉ được seed khi chạy profile `local` (migration-local).  
+> Môi trường shared/prod sẽ tự dọn các tài khoản demo bằng migration `V11`.
+
+## Tùy chọn: chạy MySQL bằng Docker
+
+Nếu bạn không có MySQL local, có thể dùng Docker chỉ cho DB:
+
+```bash
+# chuẩn bị env
+cp .env.example .env
+# điền DB_ROOT_PASSWORD, DB_USERNAME, DB_PASSWORD trước khi chạy
+
+docker compose up -d
+```

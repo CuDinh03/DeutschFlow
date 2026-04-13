@@ -53,16 +53,45 @@ public class User implements UserDetails {
         createdAt = LocalDateTime.now();
     }
 
-    // --- UserDetails ---
+    // --- UserDetails Implementation ---
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
+        // Đảm bảo có prefix ROLE_ để khớp với hasRole() trong SecurityConfig
         return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
     }
 
-    @Override public String getPassword() { return passwordHash; }
-    @Override public String getUsername() { return email; }
-    @Override public boolean isEnabled()  { return isActive; }
+    @Override 
+    public String getPassword() { 
+        return passwordHash; 
+    }
 
+    @Override 
+    public String getUsername() { 
+        return email; 
+    }
+
+    @Override
+    public boolean isAccountNonExpired() {
+        return true; // Mặc định là không hết hạn
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return true; // Mặc định là không bị khóa
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true; // Mặc định mật khẩu không hết hạn
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return isActive;
+    }
+
+    // --- Enums ---
     public enum Role   { STUDENT, TEACHER, ADMIN }
     public enum Locale { vi, en, de }
 }

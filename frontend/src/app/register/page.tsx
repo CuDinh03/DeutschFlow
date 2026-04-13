@@ -25,7 +25,29 @@ export default function RegisterPage() {
       const { data } = await api.post('/auth/register', form)
       localStorage.setItem('accessToken', data.accessToken)
       localStorage.setItem('refreshToken', data.refreshToken)
-      router.push('/dashboard')
+      
+      // Lấy thông tin user để redirect theo role (mặc định STUDENT)
+      const userRes = await api.get('/auth/me')
+      const user = userRes.data
+      
+      // Redirect theo role
+      switch (user.role) {
+        case 'ADMIN':
+          router.push('/admin')
+          break
+        case 'TEACHER':
+          router.push('/teacher')
+          break
+        case 'STUDENT':
+        default:
+          try {
+            await api.get('/plan/me')
+            router.push('/student')
+          } catch {
+            router.push('/onboarding')
+          }
+          break
+      }
     } catch (err: unknown) {
       const res = (err as { response?: { data?: { detail?: string; errors?: FieldErrors } } })?.response?.data
       if (res?.errors) setFieldErrors(res.errors)
@@ -35,62 +57,104 @@ export default function RegisterPage() {
     }
   }
 
-  const field = (name: keyof typeof form, label: string, type = 'text') => (
+  const field = (name: keyof typeof form, label: string, type = 'text', placeholder = '') => (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <label className="label">{label}</label>
       <input
         type={type}
         required
         value={form[name]}
         onChange={e => setForm(f => ({ ...f, [name]: e.target.value }))}
-        className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${fieldErrors[name] ? 'border-red-400' : 'border-gray-300'}`}
+        className={`input ${fieldErrors[name] ? 'border-destructive focus:ring-destructive' : ''}`}
+        placeholder={placeholder}
       />
-      {fieldErrors[name] && <p className="mt-1 text-xs text-red-600">{fieldErrors[name]}</p>}
+      {fieldErrors[name] && (
+        <p className="mt-2 text-sm text-destructive flex items-center gap-1">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          {fieldErrors[name]}
+        </p>
+      )}
     </div>
   )
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-md p-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('registerTitle')}</h1>
-
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
-            {error}
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      {/* Background Gradient */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary-hover to-navy-blue-dark opacity-5 pointer-events-none" />
+      
+      <div className="relative w-full max-w-md">
+        {/* Logo */}
+        <div className="flex items-center justify-center gap-3 mb-8">
+          <div className="w-12 h-12 rounded-lg bg-accent flex items-center justify-center shadow-md">
+            <span className="text-accent-foreground font-bold text-2xl">D</span>
           </div>
-        )}
+          <h1 className="text-3xl font-bold text-foreground">DeutschFlow</h1>
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {field('displayName', t('displayName'))}
-          {field('email', t('email'), 'email')}
-          {field('password', t('password'), 'password')}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Ngôn ngữ giao diện</label>
-            <select
-              value={form.locale}
-              onChange={e => setForm(f => ({ ...f, locale: e.target.value }))}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        {/* Card */}
+        <div className="card p-8">
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold text-foreground mb-2">{t('registerTitle')}</h2>
+            <p className="text-muted-foreground">Bắt đầu hành trình học tiếng Đức của bạn</p>
+          </div>
+
+          {error && (
+            <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg text-sm flex items-start gap-3">
+              <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>{error}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {field('displayName', t('displayName'), 'text', 'Nguyễn Văn A')}
+            {field('email', t('email'), 'email', 'email@example.com')}
+            {field('password', t('password'), 'password', 'Tối thiểu 6 ký tự')}
+            
+            <div>
+              <label className="label">Ngôn ngữ giao diện</label>
+              <select
+                value={form.locale}
+                onChange={e => setForm(f => ({ ...f, locale: e.target.value }))}
+                className="input"
+              >
+                <option value="vi">🇻🇳 Tiếng Việt</option>
+                <option value="en">🇬🇧 English</option>
+                <option value="de">🇩🇪 Deutsch</option>
+              </select>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn-primary btn-md w-full"
             >
-              <option value="vi">Tiếng Việt</option>
-              <option value="en">English</option>
-              <option value="de">Deutsch</option>
-            </select>
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 rounded-lg transition-colors disabled:opacity-50"
-          >
-            {loading ? '...' : t('register')}
-          </button>
-        </form>
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Đang tạo tài khoản...
+                </span>
+              ) : (
+                t('register')
+              )}
+            </button>
+          </form>
 
-        <p className="mt-4 text-sm text-center text-gray-600">
-          {t('hasAccount')}{' '}
-          <Link href="/login" className="text-blue-500 hover:underline font-medium">
-            {t('login')}
-          </Link>
-        </p>
+          <div className="mt-6 pt-6 border-t border-border">
+            <p className="text-sm text-center text-muted-foreground">
+              {t('hasAccount')}{' '}
+              <Link href="/login" className="text-primary hover:text-primary-hover font-semibold transition-colors">
+                {t('login')}
+              </Link>
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   )
