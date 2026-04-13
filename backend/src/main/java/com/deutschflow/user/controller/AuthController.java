@@ -4,6 +4,7 @@ import com.deutschflow.user.dto.AuthResponse;
 import com.deutschflow.user.dto.LoginRequest;
 import com.deutschflow.user.dto.RefreshRequest;
 import com.deutschflow.user.dto.RegisterRequest;
+import com.deutschflow.user.dto.UpdateLocaleRequest;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.service.AuthService;
 import jakarta.validation.Valid;
@@ -57,5 +58,12 @@ public class AuthController {
                 user.getRole().name(),
                 user.getLocale().name()
         );
+    }
+
+    /** 200 OK — cập nhật ngôn ngữ giao diện (vi | en | de) */
+    @PatchMapping("/me/locale")
+    public AuthResponse patchLocale(@AuthenticationPrincipal User user,
+                                    @Valid @RequestBody UpdateLocaleRequest request) {
+        return authService.updateLocale(user, request.locale());
     }
 }

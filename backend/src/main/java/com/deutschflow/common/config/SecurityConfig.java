@@ -34,6 +34,7 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/auth/me", "/api/auth/me/**").authenticated()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/quiz/*/join").permitAll()  // guest join
                         .requestMatchers("/ws/**").permitAll()             // WebSocket handshake

@@ -94,6 +94,14 @@ public class AuthService {
         refreshTokenRepository.revokeAllByUserId(userId);
     }
 
+    @Transactional
+    public AuthResponse updateLocale(User user, String locale) {
+        User.Locale loc = User.Locale.valueOf(locale.trim().toLowerCase());
+        user.setLocale(loc);
+        userRepository.save(user);
+        return buildAuthResponse(user);
+    }
+
     // --- private ---
 
     private AuthResponse buildAuthResponse(User user) {

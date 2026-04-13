@@ -24,6 +24,10 @@ public class LearningPlanService {
 
     private final UserLearningProfileRepository profileRepository;
     private final LearningPlanRepository planRepository;
+    private final com.deutschflow.user.repository.LearningSessionProgressRepository progressRepository;
+    private final com.deutschflow.user.repository.LearningSessionStateRepository sessionStateRepository;
+    private final com.deutschflow.user.repository.LearningSessionAttemptRepository sessionAttemptRepository;
+    private final SessionExerciseService sessionExerciseService;
     private final ObjectMapper objectMapper;
 
     @Transactional
@@ -91,12 +95,484 @@ public class LearningPlanService {
         LearningPlan plan = planRepository.findByUserId(user.getId())
                 .orElseThrow(() -> new NotFoundException("Learning plan not found"));
         Map<String, Object> planObj = fromJsonMap(plan.getPlanJson());
+        enrichMissingSessionDetails(planObj);
+        attachProgressSummary(user.getId(), planObj);
         return new LearningPlanResponse(plan.getWeeklyMinutes(), plan.getWeeksTotal(), planObj);
     }
 
     @Transactional(readOnly = true)
     public boolean hasPlan(User user) {
         return planRepository.findByUserId(user.getId()).isPresent();
+    }
+
+    @Transactional
+    public void markSessionCompleted(User user, int week, int sessionIndex, Double abilityScore, Double timeSeconds) {
+        if (week < 1 || sessionIndex < 1) {
+            throw new BadRequestException("Invalid week/sessionIndex");
+        }
+        var p = progressRepository.findByUserIdAndWeekNumberAndSessionIndex(user.getId(), week, sessionIndex)
+                .orElse(com.deutschflow.user.entity.LearningSessionProgress.builder()
+                        .user(user)
+                        .weekNumber(week)
+                        .sessionIndex(sessionIndex)
+                        .build());
+        p.setStatus(com.deutschflow.user.entity.LearningSessionProgress.Status.COMPLETED);
+        p.setAbilityScore(abilityScore);
+        p.setTimeSeconds(timeSeconds);
+        p.setCompletedAt(java.time.LocalDateTime.now());
+        progressRepository.save(p);
+    }
+
+    @Transactional
+    public void markTheoryViewed(User user, int week, int sessionIndex) {
+        if (week < 1 || sessionIndex < 1) {
+            throw new BadRequestException("Invalid week/sessionIndex");
+        }
+        var st = sessionStateRepository.findByUserIdAndWeekNumberAndSessionIndex(user.getId(), week, sessionIndex)
+                .orElse(com.deutschflow.user.entity.LearningSessionState.builder()
+                        .user(user)
+                        .weekNumber(week)
+                        .sessionIndex(sessionIndex)
+                        .build());
+        if (st.getStartedAt() == null) st.setStartedAt(java.time.LocalDateTime.now());
+        st.setLastSeenAt(java.time.LocalDateTime.now());
+        st.setTheoryViewed(true);
+        sessionStateRepository.save(st);
+    }
+
+    @Transactional(readOnly = true)
+    @SuppressWarnings("unchecked")
+    public com.deutschflow.user.dto.SessionDetailResponse getSessionDetail(User user, int week, int sessionIndex) {
+        LearningPlan plan = planRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new NotFoundException("Learning plan not found"));
+        Map<String, Object> planObj = fromJsonMap(plan.getPlanJson());
+        enrichMissingSessionDetails(planObj);
+
+        Map<String, Object> session = findSession(planObj, week, sessionIndex);
+        boolean theoryGatePassed = sessionStateRepository
+                .findByUserIdAndWeekNumberAndSessionIndex(user.getId(), week, sessionIndex)
+                .map(com.deutschflow.user.entity.LearningSessionState::isTheoryViewed)
+                .orElse(false);
+        return sessionExerciseService.buildSession(
+                user, plan, planObj, week, sessionIndex, session, user.getLocale().name().toLowerCase(), theoryGatePassed, false);
+    }
+
+    @Transactional
+    public com.deutschflow.user.dto.SessionSubmitResponse submitSession(User user, com.deutschflow.user.dto.SessionSubmitRequest req) {
+        String phase = req.phase() == null || req.phase().isBlank()
+                ? "MAIN"
+                : req.phase().trim().toUpperCase(Locale.ROOT);
+
+        LearningPlan plan = planRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new NotFoundException("Learning plan not found"));
+        Map<String, Object> planObj = fromJsonMap(plan.getPlanJson());
+        enrichMissingSessionDetails(planObj);
+        int week = req.week();
+        int sessionIndex = req.sessionIndex();
+        Map<String, Object> session = findSession(planObj, week, sessionIndex);
+        String uiLang = user.getLocale().name().toLowerCase(Locale.ROOT);
+
+        if ("THEORY_GATE".equals(phase)) {
+            return submitTheoryGate(user, plan, planObj, week, sessionIndex, session, uiLang, req);
+        }
+        return submitMainSession(user, plan, planObj, week, sessionIndex, session, uiLang, req);
+    }
+
+    private com.deutschflow.user.dto.SessionSubmitResponse submitTheoryGate(
+            User user,
+            LearningPlan plan,
+            Map<String, Object> planObj,
+            int week,
+            int sessionIndex,
+            Map<String, Object> session,
+            String uiLang,
+            com.deutschflow.user.dto.SessionSubmitRequest req
+    ) {
+        com.deutschflow.user.entity.LearningSessionState st = sessionStateRepository
+                .findByUserIdAndWeekNumberAndSessionIndex(user.getId(), week, sessionIndex)
+                .orElse(null);
+        if (st == null) {
+            st = com.deutschflow.user.entity.LearningSessionState.builder()
+                    .user(user)
+                    .weekNumber(week)
+                    .sessionIndex(sessionIndex)
+                    .theoryViewed(false)
+                    .build();
+            st = sessionStateRepository.save(st);
+        }
+        if (st.isTheoryViewed()) {
+            throw new BadRequestException("Theory practice for this session is already completed");
+        }
+        if (req.exerciseIds() != null && !req.exerciseIds().isEmpty()) {
+            throw new BadRequestException("exerciseIds must not be sent for theory gate submit");
+        }
+
+        var detail = sessionExerciseService.buildSession(user, plan, planObj, week, sessionIndex, session, uiLang, false, true);
+        List<String> requiredIds = detail.theoryGateExercises().stream()
+                .map(com.deutschflow.user.dto.SessionDetailResponse.ExerciseItem::id)
+                .toList();
+        requireAnswersForIds(requiredIds, req.answers());
+
+        int total = requiredIds.size();
+        int correct = 0;
+        List<com.deutschflow.user.dto.SessionSubmitResponse.Mistake> mistakes = new ArrayList<>();
+        for (String exId : requiredIds) {
+            var ex = detail.theoryGateExercises().stream().filter(e -> e.id().equals(exId)).findFirst().orElseThrow();
+            Object raw = req.answers().get(ex.id());
+            if (sessionExerciseService.isAnswerCorrect(ex, raw)) {
+                correct++;
+            } else {
+                mistakes.add(buildMistake(ex, raw));
+            }
+        }
+        int scorePercent = total == 0 ? 0 : (int) Math.round((correct * 100.0) / total);
+        boolean gateCompleted = scorePercent == 100;
+
+        List<com.deutschflow.user.dto.SessionSubmitResponse.ItemResult> itemResults = new ArrayList<>();
+        for (String exId : requiredIds) {
+            var ex = detail.theoryGateExercises().stream().filter(e -> e.id().equals(exId)).findFirst().orElseThrow();
+            boolean ok = sessionExerciseService.isAnswerCorrect(ex, req.answers().get(exId));
+            String expl = gateCompleted ? explanationOrDefault(ex) : null;
+            itemResults.add(new com.deutschflow.user.dto.SessionSubmitResponse.ItemResult(exId, ok, expl));
+        }
+
+        if (gateCompleted) {
+            st.setTheoryViewed(true);
+            st.setLastSeenAt(java.time.LocalDateTime.now());
+            if (st.getStartedAt() == null) {
+                st.setStartedAt(java.time.LocalDateTime.now());
+            }
+            sessionStateRepository.save(st);
+        }
+
+        return new com.deutschflow.user.dto.SessionSubmitResponse(
+                scorePercent,
+                scorePercent >= 60,
+                gateCompleted,
+                "THEORY_GATE",
+                List.of(),
+                mistakes,
+                List.of(),
+                itemResults,
+                null,
+                null
+        );
+    }
+
+    private com.deutschflow.user.dto.SessionSubmitResponse submitMainSession(
+            User user,
+            LearningPlan plan,
+            Map<String, Object> planObj,
+            int week,
+            int sessionIndex,
+            Map<String, Object> session,
+            String uiLang,
+            com.deutschflow.user.dto.SessionSubmitRequest req
+    ) {
+        var st = sessionStateRepository.findByUserIdAndWeekNumberAndSessionIndex(user.getId(), week, sessionIndex)
+                .orElseThrow(() -> new BadRequestException("Complete the theory practice (10 exercises) before main exercises"));
+        if (!st.isTheoryViewed()) {
+            throw new BadRequestException("Complete the theory practice (10 exercises) before main exercises");
+        }
+
+        var detail = sessionExerciseService.buildSession(user, plan, planObj, week, sessionIndex, session, uiLang, true, true);
+
+        List<String> requiredIds = resolveRequiredExerciseIds(st, req, detail);
+
+        int total = requiredIds.size();
+        int correct = 0;
+        List<com.deutschflow.user.dto.SessionSubmitResponse.Mistake> mistakes = new ArrayList<>();
+        for (String exId : requiredIds) {
+            var ex = detail.exercises().stream().filter(e -> e.id().equals(exId)).findFirst().orElse(null);
+            if (ex == null) {
+                throw new BadRequestException("Invalid exerciseIds");
+            }
+            Object raw = req.answers().get(ex.id());
+            if (sessionExerciseService.isAnswerCorrect(ex, raw)) {
+                correct++;
+            } else {
+                mistakes.add(buildMistake(ex, raw));
+            }
+        }
+        int scorePercent = total == 0 ? 0 : (int) Math.round((correct * 100.0) / total);
+        boolean passed60 = scorePercent >= 60;
+
+        int attemptNo = sessionAttemptRepository.maxAttemptNo(user.getId(), week, sessionIndex) + 1;
+        String mistakesJson = toJson(mistakes);
+        sessionAttemptRepository.save(com.deutschflow.user.entity.LearningSessionAttempt.builder()
+                .user(user)
+                .weekNumber(week)
+                .sessionIndex(sessionIndex)
+                .attemptNo(attemptNo)
+                .scorePercent(scorePercent)
+                .mistakesJson(mistakes.isEmpty() ? null : mistakesJson)
+                .build());
+
+        boolean completed = scorePercent == 100;
+        String mode = (st.getReinforcementJson() != null) ? "REINFORCEMENT" : "MAIN";
+
+        List<com.deutschflow.user.dto.SessionSubmitResponse.ItemResult> itemResults = new ArrayList<>();
+        for (String exId : requiredIds) {
+            var ex = detail.exercises().stream().filter(e -> e.id().equals(exId)).findFirst().orElseThrow();
+            boolean ok = sessionExerciseService.isAnswerCorrect(ex, req.answers().get(exId));
+            String expl = completed ? explanationOrDefault(ex) : null;
+            itemResults.add(new com.deutschflow.user.dto.SessionSubmitResponse.ItemResult(exId, ok, expl));
+        }
+
+        List<com.deutschflow.user.dto.SessionDetailResponse.ExerciseItem> reinforcementExercises = new ArrayList<>();
+        List<String> nextRequiredIds = List.of();
+        Integer nextWeek = null;
+        Integer nextSession = null;
+
+        if (completed) {
+            st.setReinforcementJson(null);
+            st.setLastSeenAt(java.time.LocalDateTime.now());
+            sessionStateRepository.save(st);
+            markSessionCompleted(user, week, sessionIndex, null, null);
+            int[] n = computeNextSessionPointer(planObj, plan, week, sessionIndex);
+            if (n != null) {
+                nextWeek = n[0];
+                nextSession = n[1];
+            }
+        } else {
+            nextRequiredIds = mistakes.stream().map(com.deutschflow.user.dto.SessionSubmitResponse.Mistake::exerciseId).toList();
+            reinforcementExercises = nextRequiredIds.stream()
+                    .map(id -> sessionExerciseService.getExerciseById(
+                            user, plan, planObj, week, sessionIndex, session, id, uiLang))
+                    .toList();
+            st.setReinforcementJson(toJson(nextRequiredIds));
+            st.setLastSeenAt(java.time.LocalDateTime.now());
+            sessionStateRepository.save(st);
+        }
+
+        return new com.deutschflow.user.dto.SessionSubmitResponse(
+                scorePercent,
+                passed60,
+                completed,
+                mode,
+                completed ? List.of() : nextRequiredIds,
+                mistakes,
+                reinforcementExercises,
+                itemResults,
+                nextWeek,
+                nextSession
+        );
+    }
+
+    private void requireAnswersForIds(List<String> requiredIds, Map<String, Object> answers) {
+        if (answers == null) {
+            throw new BadRequestException("answers is required");
+        }
+        for (String id : requiredIds) {
+            if (!answers.containsKey(id)) {
+                throw new BadRequestException("Missing answer for exercise " + id);
+            }
+            Object v = answers.get(id);
+            if (v == null) {
+                throw new BadRequestException("Missing answer for exercise " + id);
+            }
+            if (v instanceof String s && s.trim().isEmpty()) {
+                throw new BadRequestException("Missing answer for exercise " + id);
+            }
+        }
+    }
+
+    private com.deutschflow.user.dto.SessionSubmitResponse.Mistake buildMistake(
+            com.deutschflow.user.dto.SessionDetailResponse.ExerciseItem ex,
+            Object raw
+    ) {
+        Integer chosenIdx = null;
+        String chosenTxt = null;
+        String fmt = ex.format();
+        if ("TEXT".equals(fmt) || "SPEAK_REPEAT".equals(fmt) || "ORDER_DRAG".equals(fmt)) {
+            chosenTxt = raw == null ? "" : String.valueOf(raw);
+        } else {
+            if (raw instanceof Number n) {
+                chosenIdx = n.intValue();
+            } else {
+                try {
+                    chosenIdx = Integer.parseInt(String.valueOf(raw).trim());
+                } catch (Exception e) {
+                    chosenIdx = -1;
+                }
+            }
+        }
+        int corr = ex.correctOptionIndex() != null ? ex.correctOptionIndex() : -1;
+        return new com.deutschflow.user.dto.SessionSubmitResponse.Mistake(ex.id(), corr, chosenIdx, chosenTxt);
+    }
+
+    private String explanationOrDefault(com.deutschflow.user.dto.SessionDetailResponse.ExerciseItem ex) {
+        if (ex.explanation() != null && !ex.explanation().isBlank()) {
+            return ex.explanation();
+        }
+        return "Trả lời đúng theo yêu cầu của câu hỏi.";
+    }
+
+    private int[] computeNextSessionPointer(Map<String, Object> planObj, LearningPlan plan, int week, int sessionIndex) {
+        int spw = extractSessionsPerWeek(planObj);
+        if (spw < 1) {
+            return null;
+        }
+        int nw = week;
+        int ni = sessionIndex + 1;
+        if (ni > spw) {
+            nw++;
+            ni = 1;
+        }
+        if (nw > plan.getWeeksTotal()) {
+            return null;
+        }
+        try {
+            findSession(planObj, nw, ni);
+        } catch (NotFoundException e) {
+            return null;
+        }
+        return new int[]{nw, ni};
+    }
+
+    private List<String> resolveRequiredExerciseIds(com.deutschflow.user.entity.LearningSessionState st,
+                                                    com.deutschflow.user.dto.SessionSubmitRequest req,
+                                                    com.deutschflow.user.dto.SessionDetailResponse detail) {
+        // If server has reinforcement set, enforce it.
+        if (st.getReinforcementJson() != null && !st.getReinforcementJson().isBlank()) {
+            List<String> saved = fromJsonList(st.getReinforcementJson());
+            if (saved.isEmpty()) return saved;
+            // Client must submit exactly these ids; otherwise reject.
+            if (req.exerciseIds() == null || !req.exerciseIds().equals(saved)) {
+                throw new BadRequestException("Reinforcement required. Please submit the required exerciseIds.");
+            }
+            return saved;
+        }
+
+        // Otherwise: main submission requires all exercises in the session.
+        return detail.exercises().stream().map(com.deutschflow.user.dto.SessionDetailResponse.ExerciseItem::id).toList();
+    }
+
+    private List<String> fromJsonList(String json) {
+        try {
+            return objectMapper.readValue(json, new com.fasterxml.jackson.core.type.TypeReference<List<String>>() {});
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> findSession(Map<String, Object> planObj, int week, int sessionIndex) {
+        Object weeksObj = planObj.get("weeks");
+        if (!(weeksObj instanceof List<?> weeks)) throw new NotFoundException("Session not found");
+        for (Object wObj : weeks) {
+            if (!(wObj instanceof Map<?, ?>)) continue;
+            Map<String, Object> w = (Map<String, Object>) wObj;
+            int wn = safeInt(w.get("week"), -1);
+            if (wn != week) continue;
+            Object sessionsObj = w.get("sessions");
+            if (!(sessionsObj instanceof List<?> sessions)) break;
+            for (Object sObj : sessions) {
+                if (!(sObj instanceof Map<?, ?>)) continue;
+                Map<String, Object> s = (Map<String, Object>) sObj;
+                int idx = safeInt(s.get("index"), -1);
+                if (idx == sessionIndex) return s;
+            }
+        }
+        throw new NotFoundException("Session not found");
+    }
+
+    private void attachProgressSummary(Long userId, Map<String, Object> planObj) {
+        var completed = progressRepository.findCompletedByUserId(userId);
+        int completedCount = completed.size();
+
+        int currentWeek = 1;
+        int currentSessionIndex = 1;
+        if (!completed.isEmpty()) {
+            var latest = completed.get(0);
+            int sessionsPerWeek = extractSessionsPerWeek(planObj);
+            int nextIndex = latest.getSessionIndex() + 1;
+            int nextWeek = latest.getWeekNumber();
+            if (sessionsPerWeek > 0 && nextIndex > sessionsPerWeek) {
+                nextWeek = nextWeek + 1;
+                nextIndex = 1;
+            }
+            currentWeek = nextWeek;
+            currentSessionIndex = nextIndex;
+        }
+
+        planObj.put("progress", new LinkedHashMap<>(Map.of(
+                "completedSessions", completedCount,
+                "currentWeek", currentWeek,
+                "currentSessionIndex", currentSessionIndex
+        )));
+    }
+
+    @SuppressWarnings("unchecked")
+    private int extractSessionsPerWeek(Map<String, Object> planObj) {
+        Object weeksObj = planObj.get("weeks");
+        if (!(weeksObj instanceof List<?> weeks) || weeks.isEmpty()) return -1;
+        Object w0 = weeks.get(0);
+        if (!(w0 instanceof Map<?, ?>)) return -1;
+        Object sessionsObj = ((Map<String, Object>) w0).get("sessions");
+        if (!(sessionsObj instanceof List<?> sessions)) return -1;
+        return sessions.size();
+    }
+
+    @SuppressWarnings("unchecked")
+    private void enrichMissingSessionDetails(Map<String, Object> planObj) {
+        Object weeksObj = planObj.get("weeks");
+        if (!(weeksObj instanceof List<?> weeks)) return;
+
+        for (Object wObj : weeks) {
+            if (!(wObj instanceof Map<?, ?> w)) continue;
+            Object sessionsObj = ((Map<String, Object>) w).get("sessions");
+            if (!(sessionsObj instanceof List<?> sessions)) continue;
+
+            for (Object sObj : sessions) {
+                if (!(sObj instanceof Map<?, ?>)) continue;
+                Map<String, Object> s = (Map<String, Object>) sObj;
+                if (s.get("details") != null) continue;
+
+                String type = String.valueOf(s.getOrDefault("type", "GRAMMAR"));
+                int minutes = safeInt(s.getOrDefault("minutes", 25), 25);
+                int difficulty = safeInt(s.getOrDefault("difficulty", 3), 3);
+
+                s.put("details", buildSessionDetailsFallback(type, minutes, difficulty));
+            }
+        }
+    }
+
+    private int safeInt(Object v, int fallback) {
+        if (v == null) return fallback;
+        if (v instanceof Number n) return n.intValue();
+        try {
+            return Integer.parseInt(String.valueOf(v));
+        } catch (Exception ignored) {
+            return fallback;
+        }
+    }
+
+    private Map<String, Object> buildSessionDetailsFallback(String type, int minutes, int difficulty) {
+        List<String> theory = new ArrayList<>();
+        List<Map<String, Object>> exercises = new ArrayList<>();
+
+        if ("GRAMMAR".equals(type)) {
+            theory.add("Articles (der/die/das, ein/eine) + basic sentence order (V2).");
+            exercises.add(ex("Choose the correct article (DER/DIE/DAS)", "GRAMMAR", difficulty, Math.max(5, minutes / 3)));
+            exercises.add(ex("Word order: build 5 sentences (S-V-O)", "GRAMMAR", difficulty, Math.max(5, minutes / 3)));
+        } else if ("PRACTICE".equals(type)) {
+            theory.add("Practice vocabulary-in-context + grammar micro-drills.");
+            exercises.add(ex("Vocabulary in short sentences (10 items)", "VOCABULARY", difficulty, Math.max(6, minutes / 2)));
+            exercises.add(ex("Mini quiz: article + noun (10 items)", "GRAMMAR", difficulty, Math.max(6, minutes / 2)));
+        } else if ("SPEAKING".equals(type)) {
+            theory.add("Speaking drills: shadowing + role-play.");
+            exercises.add(ex("Role-play dialogue (2 rounds)", "SPEAKING", difficulty, Math.max(8, minutes)));
+        } else { // REVIEW
+            theory.add("Review: mixed recall + quick test.");
+            exercises.add(ex("Mixed review quiz (15 items)", "REVIEW", difficulty, Math.max(6, minutes)));
+        }
+
+        return new LinkedHashMap<>(Map.of(
+                "title", type + " session",
+                "theory", theory,
+                "exercises", exercises
+        ));
     }
 
     private Map<String, Object> generatePlan(UserLearningProfile profile) {
@@ -153,27 +629,29 @@ public class LearningPlanService {
     }
 
     private Map<String, Object> buildSession(int index, UserLearningProfile profile) {
-        String type;
-        if (profile.getGoalType() == UserLearningProfile.GoalType.WORK) {
-            type = (index % 3 == 0) ? "SPEAKING" : "VOCAB";
-        } else {
-            type = (index % 2 == 0) ? "GRAMMAR" : "MOCK";
-        }
+        // NOTE: Plan is for learning sessions. Vocabulary lookup is a separate feature (/student/vocabulary).
+        String type = switch (index % 4) {
+            case 1 -> "GRAMMAR";
+            case 2 -> "PRACTICE";
+            case 3 -> "SPEAKING";
+            default -> "REVIEW";
+        };
 
         List<String> tags = new ArrayList<>();
         if (profile.getIndustry() != null) tags.add(profile.getIndustry());
         tags.add(profile.getTargetLevel().name());
 
         List<String> skills = switch (type) {
-            case "VOCAB" -> List.of("VOCABULARY");
             case "GRAMMAR" -> List.of("GRAMMAR");
+            case "PRACTICE" -> List.of("GRAMMAR", "VOCABULARY");
             case "SPEAKING" -> List.of("SPEAKING", "LISTENING");
-            case "MOCK" -> List.of("GRAMMAR", "VOCABULARY", "LISTENING", "SPEAKING");
-            default -> List.of("VOCABULARY");
+            case "REVIEW" -> List.of("REVIEW");
+            default -> List.of("GRAMMAR");
         };
 
         int difficulty = estimateSessionDifficulty(type, profile);
         Map<String, Object> contentRef = buildContentRef(type, profile);
+        Map<String, Object> details = buildSessionDetails(type, profile, difficulty);
 
         return new LinkedHashMap<>(Map.of(
                 "index", index,
@@ -182,7 +660,49 @@ public class LearningPlanService {
                 "tags", tags,
                 "skills", skills,
                 "difficulty", difficulty,
-                "contentRef", contentRef
+                "contentRef", contentRef,
+                "details", details
+        ));
+    }
+
+    private Map<String, Object> buildSessionDetails(String type, UserLearningProfile profile, int difficulty) {
+        int minutes = profile.getMinutesPerSession();
+        String cefr = profile.getTargetLevel().name();
+        String industry = profile.getIndustry() != null ? profile.getIndustry() : "GENERAL";
+
+        List<String> theory = new ArrayList<>();
+        List<Map<String, Object>> exercises = new ArrayList<>();
+
+        if ("GRAMMAR".equals(type)) {
+            theory.add("Definite/indefinite articles (der/die/das, ein/eine)");
+            theory.add("Basic word order (SVO) in Hauptsatz");
+            exercises.add(ex("Article pick (DER/DIE/DAS)", "GRAMMAR", difficulty, Math.max(5, minutes / 3)));
+            exercises.add(ex("Fill the blank: Ich ___ Student.", "GRAMMAR", difficulty, Math.max(5, minutes / 3)));
+        } else if ("PRACTICE".equals(type)) {
+            theory.add("High-frequency phrases for " + industry);
+            exercises.add(ex("Vocabulary-in-context (short sentences)", "VOCABULARY", difficulty, Math.max(6, minutes / 2)));
+            exercises.add(ex("Mini quiz: choose correct article + noun", "GRAMMAR", difficulty, Math.max(6, minutes / 2)));
+        } else if ("SPEAKING".equals(type)) {
+            theory.add("Speaking drills (shadowing) at " + cefr);
+            exercises.add(ex("Dialogue role-play (contextual)", "SPEAKING", difficulty, Math.max(8, minutes)));
+        } else { // REVIEW
+            theory.add("Spaced review (SRS-style) + quick recap");
+            exercises.add(ex("Review quiz (mixed)", "REVIEW", difficulty, Math.max(6, minutes)));
+        }
+
+        return new LinkedHashMap<>(Map.of(
+                "title", type + " session",
+                "theory", theory,
+                "exercises", exercises
+        ));
+    }
+
+    private Map<String, Object> ex(String title, String skill, int difficulty, int minutes) {
+        return new LinkedHashMap<>(Map.of(
+                "title", title,
+                "skill", skill,
+                "difficulty", difficulty,
+                "minutes", minutes
         ));
     }
 
@@ -195,7 +715,6 @@ public class LearningPlanService {
             case C1 -> 8;
             case C2 -> 9;
         };
-        if ("MOCK".equals(type)) base += 1;
         if ("SPEAKING".equals(type)) base += 1;
         if (profile.getLearningSpeed() == UserLearningProfile.LearningSpeed.FAST) base += 1;
         if (profile.getLearningSpeed() == UserLearningProfile.LearningSpeed.SLOW) base -= 1;
@@ -206,20 +725,19 @@ public class LearningPlanService {
         String cefr = profile.getTargetLevel().name();
         String industry = profile.getIndustry();
 
-        if ("VOCAB".equals(type)) {
-            return new LinkedHashMap<>(Map.of(
-                    "module", "VOCABULARY",
-                    "cefr", cefr,
-                    "topics", industry != null ? List.of(industry) : List.of("GENERAL"),
-                    "suggestedTags", industry != null ? List.of(industry, "A1_BASE") : List.of("A1_BASE")
-            ));
-        }
-
         if ("GRAMMAR".equals(type)) {
             return new LinkedHashMap<>(Map.of(
                     "module", "GRAMMAR",
                     "cefr", cefr,
                     "topics", List.of("ARTICLES", "BASIC_WORD_ORDER")
+            ));
+        }
+
+        if ("PRACTICE".equals(type)) {
+            return new LinkedHashMap<>(Map.of(
+                    "module", "PRACTICE",
+                    "cefr", cefr,
+                    "topics", industry != null ? List.of(industry) : List.of("GENERAL")
             ));
         }
 
@@ -233,7 +751,7 @@ public class LearningPlanService {
         }
 
         return new LinkedHashMap<>(Map.of(
-                "module", "MIXED",
+                "module", "REVIEW",
                 "cefr", cefr
         ));
     }
