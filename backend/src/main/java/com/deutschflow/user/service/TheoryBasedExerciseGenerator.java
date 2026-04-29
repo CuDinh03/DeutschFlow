@@ -40,8 +40,34 @@ public final class TheoryBasedExerciseGenerator {
             String uiLang,
             ObjectMapper objectMapper
     ) {
+        return generate(userId, week, sessionIndex, sessionType, current, previous,
+                industry, interestTags, minutes, difficulty, uiLang, objectMapper,
+                List.of(), 0);
+    }
+
+    /**
+     * Overload với dbVocabs (từ DB thực) và attemptCount (để seed khác nhau mỗi lần làm lại).
+     * attemptCount > 0 → seed khác → bài tập khác nhau.
+     */
+    public static List<SessionDetailResponse.ExerciseItem> generate(
+            long userId,
+            int week,
+            int sessionIndex,
+            String sessionType,
+            SessionDetailResponse.TheoryLesson current,
+            SessionDetailResponse.TheoryLesson previous,
+            String industry,
+            List<String> interestTags,
+            int minutes,
+            int difficulty,
+            String uiLang,
+            ObjectMapper objectMapper,
+            List<SourceVocab> dbVocabs,
+            int attemptCount
+    ) {
         String lang = uiLang == null ? "vi" : uiLang.trim().toLowerCase(Locale.ROOT);
-        long seed = userId * 7919L + week * 1301L + sessionIndex * 97L;
+        // Seed thay đổi theo attemptCount → mỗi lần làm lại bài tập khác nhau
+        long seed = userId * 7919L + week * 1301L + sessionIndex * 97L + attemptCount * 3571L;
         Random rnd = new Random(seed);
 
         List<SourcePhrase> phrases = new ArrayList<>();
@@ -50,10 +76,17 @@ public final class TheoryBasedExerciseGenerator {
         if (previous != null) {
             collect(previous, phrases, vocabs, "prev");
         }
-        vocabs.addAll(industryVocabs(industry, rnd));
+        // Ưu tiên từ DB thực (industry/interests) trước hardcoded
+        if (!dbVocabs.isEmpty()) {
+            List<SourceVocab> shuffled = new ArrayList<>(dbVocabs);
+            Collections.shuffle(shuffled, rnd);
+            vocabs.addAll(shuffled.subList(0, Math.min(8, shuffled.size())));
+        } else {
+            vocabs.addAll(industryVocabs(industry, rnd));
+        }
 
         if (phrases.isEmpty() && vocabs.isEmpty()) {
-            return fallbackBank(lang, week, sessionIndex, difficulty, minutes, 0);
+            return fallbackBank(lang, week, sessionIndex, difficulty, minutes, attemptCount);
         }
 
         int targetCount = Math.min(14, Math.max(12, Math.max(6, minutes / 4)));
@@ -660,7 +693,7 @@ public final class TheoryBasedExerciseGenerator {
 
     private record SourcePhrase(String text, String meaning, String tag) {}
 
-    private record SourceVocab(String german, String meaning, String exampleDe, String tag) {}
+    public record SourceVocab(String german, String meaning, String exampleDe, String tag) {}
 
     private static void collect(SessionDetailResponse.TheoryLesson tl, List<SourcePhrase> phrases, List<SourceVocab> vocabs, String tag) {
         if (tl == null) return;

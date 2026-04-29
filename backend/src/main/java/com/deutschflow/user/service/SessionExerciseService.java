@@ -5,15 +5,20 @@ import com.deutschflow.user.dto.SessionDetailResponse;
 import com.deutschflow.user.entity.LearningPlan;
 import com.deutschflow.user.entity.LearningSessionState;
 import com.deutschflow.user.entity.User;
+import com.deutschflow.user.repository.LearningSessionAttemptRepository;
 import com.deutschflow.user.repository.LearningSessionStateRepository;
 import com.deutschflow.user.repository.UserLearningProfileRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Random;
 
 @Service
 @RequiredArgsConstructor
@@ -22,6 +27,9 @@ public class SessionExerciseService {
     private final TheoryLessonLoader theoryLessonLoader;
     private final UserLearningProfileRepository profileRepository;
     private final LearningSessionStateRepository sessionStateRepository;
+    private final LearningSessionAttemptRepository attemptRepository;
+    private final PersonalizationRulesetService personalizationRulesetService;
+    private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
 
     public SessionDetailResponse buildSession(
@@ -52,9 +60,16 @@ public class SessionExerciseService {
         }
 
         var profile = profileRepository.findByUserId(user.getId()).orElse(null);
-        String industry = profile != null ? profile.getIndustry() : null;
+        String industry = profile == null ? null : personalizationRulesetService.industryOrDefault(profile);
         List<String> interests = TheoryBasedExerciseGenerator.parseInterestTags(
                 profile != null ? profile.getInterestsJson() : null, objectMapper);
+
+        // Lấy số lần đã làm session này → seed khác nhau mỗi lần
+        int attemptCount = attemptRepository.maxAttemptNo(user.getId(), week, sessionIndex);
+
+        // Fetch vocabulary từ DB theo industry/interests
+        List<TheoryBasedExerciseGenerator.SourceVocab> dbVocabs =
+                fetchPersonalizedVocab(user.getId(), industry, interests, week, sessionIndex, attemptCount);
 
         List<SessionDetailResponse.ExerciseItem> theoryGateExercises = TheoryBasedExerciseGenerator.generateTheoryGate(
                 user.getId(),
@@ -81,7 +96,9 @@ public class SessionExerciseService {
                 minutes,
                 difficulty,
                 uiLang,
-                objectMapper
+                objectMapper,
+                dbVocabs,
+                attemptCount
         );
 
         List<SessionDetailResponse.ExerciseItem> gateOut = includeSensitiveContent
@@ -103,6 +120,129 @@ public class SessionExerciseService {
                 theoryGatePassed,
                 mainOut
         );
+    }
+
+    /**
+     * Fetch từ vựng cá nhân hóa từ DB dựa trên industry và interests của user.
+     * Mỗi lần gọi với attemptCount khác nhau → shuffle khác → bài tập không lặp.
+     */
+    private List<TheoryBasedExerciseGenerator.SourceVocab> fetchPersonalizedVocab(
+            long userId, String industry, List<String> interests, int week, int sessionIndex, int attemptCount
+    ) {
+        try {
+            List<TheoryBasedExerciseGenerator.SourceVocab> result = new ArrayList<>();
+
+            // 1. Từ theo industry (tag hoặc base_form keyword)
+            if (industry != null && !industry.isBlank() && !"GENERAL".equals(industry)) {
+                String indLower = industry.toLowerCase(Locale.ROOT);
+                List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                        """
+                        SELECT w.base_form, t_vi.meaning as vi, t_en.meaning as en, t_de.example as ex_de
+                        FROM words w
+                        LEFT JOIN word_translations t_vi ON t_vi.word_id = w.id AND t_vi.locale = 'vi'
+                        LEFT JOIN word_translations t_en ON t_en.word_id = w.id AND t_en.locale = 'en'
+                        LEFT JOIN word_translations t_de ON t_de.word_id = w.id AND t_de.locale = 'de'
+                        WHERE (
+                          LOWER(w.base_form) LIKE ? OR
+                          EXISTS (SELECT 1 FROM word_tags wt JOIN tags tg ON tg.id = wt.tag_id
+                                  WHERE wt.word_id = w.id AND LOWER(tg.name) LIKE ?)
+                        )
+                        AND (t_vi.meaning IS NOT NULL OR t_en.meaning IS NOT NULL)
+                        AND w.cefr_level IN ('A1','A2','B1')
+                        ORDER BY RAND(? + ?)
+                        LIMIT 12
+                        """,
+                        "%" + indLower + "%", "%" + indLower + "%",
+                        userId + week * 100L + sessionIndex * 10L, attemptCount
+                );
+                for (Map<String, Object> row : rows) {
+                    String german = str(row.get("base_form"));
+                    String meaning = firstNonBlank(str(row.get("vi")), str(row.get("en")));
+                    String exDe = str(row.get("ex_de"));
+                    if (!german.isBlank() && !meaning.isBlank()) {
+                        result.add(new TheoryBasedExerciseGenerator.SourceVocab(german, meaning, exDe, "job"));
+                    }
+                }
+            }
+
+            // 2. Từ theo interests
+            for (String interest : interests) {
+                if (result.size() >= 16) break;
+                String intLower = interest.toLowerCase(Locale.ROOT);
+                List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                        """
+                        SELECT w.base_form, t_vi.meaning as vi, t_en.meaning as en, t_de.example as ex_de
+                        FROM words w
+                        LEFT JOIN word_translations t_vi ON t_vi.word_id = w.id AND t_vi.locale = 'vi'
+                        LEFT JOIN word_translations t_en ON t_en.word_id = w.id AND t_en.locale = 'en'
+                        LEFT JOIN word_translations t_de ON t_de.word_id = w.id AND t_de.locale = 'de'
+                        WHERE EXISTS (
+                          SELECT 1 FROM word_tags wt JOIN tags tg ON tg.id = wt.tag_id
+                          WHERE wt.word_id = w.id AND LOWER(tg.name) LIKE ?
+                        )
+                        AND (t_vi.meaning IS NOT NULL OR t_en.meaning IS NOT NULL)
+                        AND w.cefr_level IN ('A1','A2','B1')
+                        ORDER BY RAND(? + ?)
+                        LIMIT 6
+                        """,
+                        "%" + intLower + "%",
+                        userId + week * 100L + sessionIndex * 10L, attemptCount
+                );
+                for (Map<String, Object> row : rows) {
+                    String german = str(row.get("base_form"));
+                    String meaning = firstNonBlank(str(row.get("vi")), str(row.get("en")));
+                    String exDe = str(row.get("ex_de"));
+                    if (!german.isBlank() && !meaning.isBlank()) {
+                        result.add(new TheoryBasedExerciseGenerator.SourceVocab(german, meaning, exDe, "interest"));
+                    }
+                }
+            }
+
+            // 3. Nếu chưa đủ → lấy từ phổ biến theo CEFR level của user
+            if (result.size() < 8) {
+                List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                        """
+                        SELECT w.base_form, t_vi.meaning as vi, t_en.meaning as en, t_de.example as ex_de
+                        FROM words w
+                        LEFT JOIN word_translations t_vi ON t_vi.word_id = w.id AND t_vi.locale = 'vi'
+                        LEFT JOIN word_translations t_en ON t_en.word_id = w.id AND t_en.locale = 'en'
+                        LEFT JOIN word_translations t_de ON t_de.word_id = w.id AND t_de.locale = 'de'
+                        WHERE w.cefr_level = 'A1'
+                        AND (t_vi.meaning IS NOT NULL OR t_en.meaning IS NOT NULL)
+                        AND t_de.example IS NOT NULL AND t_de.example != ''
+                        ORDER BY RAND(? + ?)
+                        LIMIT ?
+                        """,
+                        userId + week * 100L + sessionIndex * 10L, attemptCount,
+                        16 - result.size()
+                );
+                for (Map<String, Object> row : rows) {
+                    String german = str(row.get("base_form"));
+                    String meaning = firstNonBlank(str(row.get("vi")), str(row.get("en")));
+                    String exDe = str(row.get("ex_de"));
+                    if (!german.isBlank() && !meaning.isBlank()) {
+                        result.add(new TheoryBasedExerciseGenerator.SourceVocab(german, meaning, exDe, "general"));
+                    }
+                }
+            }
+
+            // Shuffle với seed phụ thuộc attemptCount
+            Collections.shuffle(result, new Random(userId * 31L + attemptCount * 997L));
+            return result;
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
+    private static String str(Object v) {
+        return v == null ? "" : String.valueOf(v).trim();
+    }
+
+    private static String firstNonBlank(String... vals) {
+        for (String v : vals) {
+            if (v != null && !v.isBlank()) return v;
+        }
+        return "";
     }
 
     private static SessionDetailResponse.ExerciseItem withoutExplanation(SessionDetailResponse.ExerciseItem ex) {

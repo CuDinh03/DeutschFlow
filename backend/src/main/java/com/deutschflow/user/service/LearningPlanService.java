@@ -21,6 +21,11 @@ import java.util.*;
 @Service
 @RequiredArgsConstructor
 public class LearningPlanService {
+    private final UserLearningProfileService userLearningProfileService;
+    private final LearningPlanBlueprintBuilder learningPlanBlueprintBuilder;
+    private final StoredLearningPlanSupport storedLearningPlanSupport;
+    private final LearningSessionProgressService learningSessionProgressService;
+    private final LearningSessionWorkflowService learningSessionWorkflowService;
 
     private final UserLearningProfileRepository profileRepository;
     private final LearningPlanRepository planRepository;
@@ -32,59 +37,22 @@ public class LearningPlanService {
 
     @Transactional
     public LearningPlanResponse saveProfileAndGeneratePlan(User user, OnboardingProfileRequest req) {
-        if (req.sessionsPerWeek() == null || req.minutesPerSession() == null) {
-            throw new BadRequestException("sessionsPerWeek and minutesPerSession are required");
-        }
-
-        UserLearningProfile.GoalType goalType = parseEnum(UserLearningProfile.GoalType.class, req.goalType(), "goalType");
-        UserLearningProfile.TargetLevel targetLevel = parseEnum(UserLearningProfile.TargetLevel.class, req.targetLevel(), "targetLevel");
-        UserLearningProfile.CurrentLevel currentLevel = (req.currentLevel() == null || req.currentLevel().isBlank())
-                ? UserLearningProfile.CurrentLevel.A0
-                : parseEnum(UserLearningProfile.CurrentLevel.class, req.currentLevel(), "currentLevel");
-
-        UserLearningProfile.AgeRange ageRange = (req.ageRange() == null || req.ageRange().isBlank())
-                ? null
-                : parseEnum(UserLearningProfile.AgeRange.class, req.ageRange(), "ageRange");
-
-        UserLearningProfile.LearningSpeed learningSpeed = (req.learningSpeed() == null || req.learningSpeed().isBlank())
-                ? UserLearningProfile.LearningSpeed.NORMAL
-                : parseEnum(UserLearningProfile.LearningSpeed.class, req.learningSpeed(), "learningSpeed");
-
-        String interestsJson = toJsonOrNull(req.interests());
-        String workUseCasesJson = toJsonOrNull(req.workUseCases());
-
-        UserLearningProfile profile = profileRepository.findByUserId(user.getId())
-                .orElse(UserLearningProfile.builder().user(user).build());
-
-        profile.setGoalType(goalType);
-        profile.setTargetLevel(targetLevel);
-        profile.setCurrentLevel(currentLevel);
-        profile.setAgeRange(ageRange);
-        profile.setInterestsJson(interestsJson);
-        profile.setIndustry(blankToNull(req.industry()));
-        profile.setWorkUseCasesJson(workUseCasesJson);
-        profile.setExamType(blankToNull(req.examType()));
-        profile.setSessionsPerWeek(req.sessionsPerWeek());
-        profile.setMinutesPerSession(req.minutesPerSession());
-        profile.setLearningSpeed(learningSpeed);
-
-        profile = profileRepository.save(profile);
-
-        Map<String, Object> plan = generatePlan(profile);
+        UserLearningProfile profile = userLearningProfileService.upsertProfile(user, req);
+        Map<String, Object> plan = learningPlanBlueprintBuilder.build(profile);
         int weeklyMinutes = profile.getSessionsPerWeek() * profile.getMinutesPerSession();
         int weeksTotal = (int) plan.getOrDefault("weeksTotal", 8);
 
         LearningPlan lp = planRepository.findByUserId(user.getId())
                 .orElse(LearningPlan.builder().user(user).build());
         lp.setProfile(profile);
-        lp.setGoalType(goalType);
-        lp.setTargetLevel(targetLevel);
-        lp.setCurrentLevel(currentLevel);
+        lp.setGoalType(profile.getGoalType());
+        lp.setTargetLevel(profile.getTargetLevel());
+        lp.setCurrentLevel(profile.getCurrentLevel());
         lp.setSessionsPerWeek(profile.getSessionsPerWeek());
         lp.setMinutesPerSession(profile.getMinutesPerSession());
         lp.setWeeklyMinutes(weeklyMinutes);
         lp.setWeeksTotal(weeksTotal);
-        lp.setPlanJson(toJson(plan));
+        lp.setPlanJson(storedLearningPlanSupport.toJson(plan));
 
         planRepository.save(lp);
         return new LearningPlanResponse(weeklyMinutes, weeksTotal, plan);
@@ -94,9 +62,9 @@ public class LearningPlanService {
     public LearningPlanResponse getMyPlan(User user) {
         LearningPlan plan = planRepository.findByUserId(user.getId())
                 .orElseThrow(() -> new NotFoundException("Learning plan not found"));
-        Map<String, Object> planObj = fromJsonMap(plan.getPlanJson());
-        enrichMissingSessionDetails(planObj);
-        attachProgressSummary(user.getId(), planObj);
+        Map<String, Object> planObj = storedLearningPlanSupport.fromJsonMap(plan.getPlanJson());
+        storedLearningPlanSupport.enrichMissingSessionDetails(planObj);
+        learningSessionProgressService.attachProgressSummary(user.getId(), planObj);
         return new LearningPlanResponse(plan.getWeeklyMinutes(), plan.getWeeksTotal(), planObj);
     }
 
@@ -107,75 +75,23 @@ public class LearningPlanService {
 
     @Transactional
     public void markSessionCompleted(User user, int week, int sessionIndex, Double abilityScore, Double timeSeconds) {
-        if (week < 1 || sessionIndex < 1) {
-            throw new BadRequestException("Invalid week/sessionIndex");
-        }
-        var p = progressRepository.findByUserIdAndWeekNumberAndSessionIndex(user.getId(), week, sessionIndex)
-                .orElse(com.deutschflow.user.entity.LearningSessionProgress.builder()
-                        .user(user)
-                        .weekNumber(week)
-                        .sessionIndex(sessionIndex)
-                        .build());
-        p.setStatus(com.deutschflow.user.entity.LearningSessionProgress.Status.COMPLETED);
-        p.setAbilityScore(abilityScore);
-        p.setTimeSeconds(timeSeconds);
-        p.setCompletedAt(java.time.LocalDateTime.now());
-        progressRepository.save(p);
+        learningSessionProgressService.markSessionCompleted(user, week, sessionIndex, abilityScore, timeSeconds);
     }
 
     @Transactional
     public void markTheoryViewed(User user, int week, int sessionIndex) {
-        if (week < 1 || sessionIndex < 1) {
-            throw new BadRequestException("Invalid week/sessionIndex");
-        }
-        var st = sessionStateRepository.findByUserIdAndWeekNumberAndSessionIndex(user.getId(), week, sessionIndex)
-                .orElse(com.deutschflow.user.entity.LearningSessionState.builder()
-                        .user(user)
-                        .weekNumber(week)
-                        .sessionIndex(sessionIndex)
-                        .build());
-        if (st.getStartedAt() == null) st.setStartedAt(java.time.LocalDateTime.now());
-        st.setLastSeenAt(java.time.LocalDateTime.now());
-        st.setTheoryViewed(true);
-        sessionStateRepository.save(st);
+        learningSessionWorkflowService.markTheoryViewed(user, week, sessionIndex);
     }
 
     @Transactional(readOnly = true)
     @SuppressWarnings("unchecked")
     public com.deutschflow.user.dto.SessionDetailResponse getSessionDetail(User user, int week, int sessionIndex) {
-        LearningPlan plan = planRepository.findByUserId(user.getId())
-                .orElseThrow(() -> new NotFoundException("Learning plan not found"));
-        Map<String, Object> planObj = fromJsonMap(plan.getPlanJson());
-        enrichMissingSessionDetails(planObj);
-
-        Map<String, Object> session = findSession(planObj, week, sessionIndex);
-        boolean theoryGatePassed = sessionStateRepository
-                .findByUserIdAndWeekNumberAndSessionIndex(user.getId(), week, sessionIndex)
-                .map(com.deutschflow.user.entity.LearningSessionState::isTheoryViewed)
-                .orElse(false);
-        return sessionExerciseService.buildSession(
-                user, plan, planObj, week, sessionIndex, session, user.getLocale().name().toLowerCase(), theoryGatePassed, false);
+        return learningSessionWorkflowService.getSessionDetail(user, week, sessionIndex);
     }
 
     @Transactional
     public com.deutschflow.user.dto.SessionSubmitResponse submitSession(User user, com.deutschflow.user.dto.SessionSubmitRequest req) {
-        String phase = req.phase() == null || req.phase().isBlank()
-                ? "MAIN"
-                : req.phase().trim().toUpperCase(Locale.ROOT);
-
-        LearningPlan plan = planRepository.findByUserId(user.getId())
-                .orElseThrow(() -> new NotFoundException("Learning plan not found"));
-        Map<String, Object> planObj = fromJsonMap(plan.getPlanJson());
-        enrichMissingSessionDetails(planObj);
-        int week = req.week();
-        int sessionIndex = req.sessionIndex();
-        Map<String, Object> session = findSession(planObj, week, sessionIndex);
-        String uiLang = user.getLocale().name().toLowerCase(Locale.ROOT);
-
-        if ("THEORY_GATE".equals(phase)) {
-            return submitTheoryGate(user, plan, planObj, week, sessionIndex, session, uiLang, req);
-        }
-        return submitMainSession(user, plan, planObj, week, sessionIndex, session, uiLang, req);
+        return learningSessionWorkflowService.submitSession(user, req);
     }
 
     private com.deutschflow.user.dto.SessionSubmitResponse submitTheoryGate(
