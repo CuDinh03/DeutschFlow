@@ -2,7 +2,7 @@
 # SECRETS — KHÔNG BAO GIỜ COMMIT
 # ============================================================
 .env
-.# env variants (ignore all, except .env.example)
+# env variants (ignore all, except .env.example)
 .env.*
 !.env.example
 *.env.local
@@ -18,7 +18,15 @@
 # --- credentials/secrets files ---
 credentials*.json
 service-account*.json
+serviceAccount*.json
+firebase-adminsdk*.json
+google-credentials*.json
+client_secret*.json
+*-credentials.json
 **/secrets.*
+
+# Cursor / internal tooling (never commit)
+.kiro/
 
 # ============================================================
 # DOCS (nội bộ, không push lên git)
@@ -26,6 +34,9 @@ service-account*.json
 docs/
 backend/src/main/resources/application-local.yml
 backend/src/main/resources/application-secret.yml
+# prevent accidental commit of other local configs
+backend/src/main/resources/application-*.yml
+!backend/src/main/resources/application.yml
 
 # ============================================================
 # Java / Maven
@@ -44,6 +55,8 @@ frontend/.next/
 frontend/out/
 frontend/.env.local
 frontend/.env.production
+**/*.tsbuildinfo
+*.log
 
 # ============================================================
 # IDE
@@ -52,8 +65,13 @@ frontend/.env.production
 *.iml
 .vscode/settings.json
 *.DS_Store
+# macOS Finder duplicates (e.g. "file 2.java")
+*\ 2.*
 
 # ============================================================
 # Docker
 # ============================================================
 mysql_data/
+
+# Archives / exports
+*.zip

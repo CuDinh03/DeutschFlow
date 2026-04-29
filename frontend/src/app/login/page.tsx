@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
+import { setTokens } from '@/lib/authSession'
 
 type FieldErrors = Record<string, string>
 
@@ -23,9 +24,12 @@ export default function LoginPage() {
     setFieldErrors({})
     try {
       const { data } = await api.post('/auth/login', form)
-      localStorage.setItem('accessToken', data.accessToken)
-      localStorage.setItem('refreshToken', data.refreshToken)
-      
+      setTokens(data)
+      if (data.locale && ['vi', 'en', 'de'].includes(data.locale)) {
+        document.cookie = `locale=${data.locale};path=/;max-age=31536000;SameSite=Lax`
+      }
+      router.refresh()
+
       // Lấy thông tin user để redirect theo role
       const userRes = await api.get('/auth/me')
       const user = userRes.data
@@ -42,7 +46,7 @@ export default function LoginPage() {
         default:
           try {
             await api.get('/plan/me')
-            router.push('/student')
+            router.push('/dashboard')
           } catch {
             router.push('/onboarding')
           }
@@ -51,18 +55,18 @@ export default function LoginPage() {
     } catch (err: unknown) {
       const res = (err as { response?: { data?: { detail?: string; errors?: FieldErrors } } })?.response?.data
       if (res?.errors) setFieldErrors(res.errors)
-      else setError(res?.detail ?? 'Login failed')
+      else setError(res?.detail ?? t('loginFailed'))
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="auth-shell">
       {/* Background Gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary-hover to-navy-blue-dark opacity-5 pointer-events-none" />
       
-      <div className="relative w-full max-w-md">
+      <div className="auth-container">
         {/* Logo */}
         <div className="flex items-center justify-center gap-3 mb-8">
           <div className="w-12 h-12 rounded-lg bg-accent flex items-center justify-center shadow-md">
@@ -72,14 +76,14 @@ export default function LoginPage() {
         </div>
 
         {/* Card */}
-        <div className="card p-8">
+        <div className="auth-card">
           <div className="mb-6">
             <h2 className="text-2xl font-bold text-foreground mb-2">{t('loginTitle')}</h2>
-            <p className="text-muted-foreground">Tiếp tục hành trình học tiếng Đức của bạn</p>
+            <p className="text-muted-foreground">{t('subtitleLogin')}</p>
           </div>
 
           {error && (
-            <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg text-sm flex items-start gap-3">
+            <div className="mb-6 alert-error flex items-start gap-3">
               <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -88,7 +92,7 @@ export default function LoginPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
+            <div className="form-field">
               <label className="label">{t('email')}</label>
               <input
                 type="email"
@@ -96,10 +100,10 @@ export default function LoginPage() {
                 value={form.email}
                 onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                 className={`input ${fieldErrors.email ? 'border-destructive focus:ring-destructive' : ''}`}
-                placeholder="student@deutschflow.com"
+                placeholder={t('placeholderLoginEmail')}
               />
               {fieldErrors.email && (
-                <p className="mt-2 text-sm text-destructive flex items-center gap-1">
+                <p className="form-error">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
@@ -108,7 +112,7 @@ export default function LoginPage() {
               )}
             </div>
 
-            <div>
+            <div className="form-field">
               <label className="label">{t('password')}</label>
               <input
                 type="password"
@@ -116,10 +120,10 @@ export default function LoginPage() {
                 value={form.password}
                 onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
                 className={`input ${fieldErrors.password ? 'border-destructive focus:ring-destructive' : ''}`}
-                placeholder="••••••••"
+                placeholder={t('passwordMaskPlaceholder')}
               />
               {fieldErrors.password && (
-                <p className="mt-2 text-sm text-destructive flex items-center gap-1">
+                <p className="form-error">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
@@ -139,7 +143,7 @@ export default function LoginPage() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
-                  Đang đăng nhập...
+                  {t('loggingIn')}
                 </span>
               ) : (
                 t('login')
@@ -158,12 +162,15 @@ export default function LoginPage() {
 
           {/* Demo Accounts Info */}
           <div className="mt-6 p-4 bg-muted rounded-lg">
-            <p className="text-xs font-semibold text-foreground mb-2">Tài khoản demo:</p>
+            <p className="text-xs font-semibold text-foreground mb-2">{t('demoAccountsTitle')}</p>
             <div className="space-y-1 text-xs text-muted-foreground">
               <p>• student@deutschflow.com</p>
               <p>• teacher@deutschflow.com</p>
               <p>• admin@deutschflow.com</p>
-              <p className="mt-2 font-medium">Password: <code className="bg-background px-2 py-0.5 rounded">password123</code></p>
+              <p className="mt-2 font-medium">
+                {t('demoPasswordLabel')}{' '}
+                <code className="bg-background px-2 py-0.5 rounded">password123</code>
+              </p>
             </div>
           </div>
         </div>

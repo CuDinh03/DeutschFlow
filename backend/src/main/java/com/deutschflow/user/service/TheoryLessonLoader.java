@@ -110,15 +110,35 @@ public class TheoryLessonLoader {
         List<SessionDetailResponse.VocabLine> out = new ArrayList<>();
         if (arr == null || !arr.isArray()) return out;
         for (JsonNode n : arr) {
+            String german = n.path("german").asText("");
+            String article = leadingArticle(german);
+            String gender = null;
+            if ("der".equals(article)) {
+                gender = "DER";
+            } else if ("die".equals(article)) {
+                gender = "DIE";
+            } else if ("das".equals(article)) {
+                gender = "DAS";
+            }
             out.add(new SessionDetailResponse.VocabLine(
-                    n.path("german").asText(""),
+                    german,
                     text(n.get("meaning"), lang),
                     n.path("exampleDe").asText(""),
                     text(n.get("exampleTranslation"), lang),
-                    n.path("speakDe").asText("")
+                    n.path("speakDe").asText(""),
+                    gender,
+                    article
             ));
         }
         return out;
+    }
+
+    private static String leadingArticle(String german) {
+        String normalized = german == null ? "" : german.trim().toLowerCase(Locale.ROOT);
+        if (normalized.startsWith("der ")) return "der";
+        if (normalized.startsWith("die ")) return "die";
+        if (normalized.startsWith("das ")) return "das";
+        return null;
     }
 
     private static List<SessionDetailResponse.PhraseLine> phrases(JsonNode arr, String lang) {

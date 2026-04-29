@@ -34,7 +34,9 @@ public record SessionDetailResponse(
             String meaning,
             String exampleDe,
             String exampleTranslation,
-            String speakDe
+            String speakDe,
+            String gender,
+            String article
     ) {}
 
     public record PhraseLine(

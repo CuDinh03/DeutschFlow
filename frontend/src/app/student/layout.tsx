@@ -1,0 +1,14 @@
+'use client'
+
+import LanguageSwitcher from '@/components/LanguageSwitcher'
+
+export default function StudentLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="relative min-h-screen">
+      <div className="fixed top-3 right-3 z-[60]">
+        <LanguageSwitcher />
+      </div>
+      {children}
+    </div>
+  )
+}

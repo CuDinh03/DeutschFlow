@@ -1,307 +1,136 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Activity, AlertTriangle, BookOpen, Database, Loader2, TrendingUp, Users } from 'lucide-react'
+import { motion } from 'framer-motion'
+import AdminShell from '@/components/admin/AdminShell'
+import useAdminData from '@/hooks/useAdminData'
 import api from '@/lib/api'
-import {
-  LayoutDashboard,
-  Users,
-  BookOpen,
-  Settings,
-  Shield,
-  Bell,
-  Menu,
-  X,
-  LogOut,
-  TrendingUp,
-  Database,
-  Activity,
-  AlertCircle,
-  CheckCircle2,
-  UserPlus,
-} from 'lucide-react'
 
-type User = {
-  userId: number
-  email: string
-  displayName: string
-  role: string
-  locale: string
+type Overview = {
+  userCount: number; teacherCount: number; studentCount: number
+  classCount: number; quizCount: number; activeQuizCount: number
+  avgQuizScore: number; totalWords: number; wordsWithMeaning: number
+  wordsNeedingEnrichment: number
 }
 
-const navItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'users', label: 'Người dùng', icon: Users },
-  { id: 'content', label: 'Nội dung', icon: BookOpen },
-  { id: 'system', label: 'Hệ thống', icon: Database },
-  { id: 'settings', label: 'Cài đặt', icon: Settings },
-]
+export default function AdminOverviewPage() {
+  const { data: ov, loading, refreshing, error, lastSyncedAt, reload } =
+    useAdminData<Overview | null>({
+      initialData: null,
+      errorMessage: 'Không thể tải tổng quan.',
+      fetchData: async () => {
+        const res = await api.get('/admin/reports/overview')
+        return res.data as Overview
+      },
+    })
 
-export default function AdminPage() {
-  const router = useRouter()
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [activeNav, setActiveNav] = useState('dashboard')
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const enrichPct = ov ? Math.round((ov.wordsWithMeaning / Math.max(ov.totalWords, 1)) * 100) : 0
 
-  useEffect(() => {
-    const token = localStorage.getItem('accessToken')
-    if (!token) {
-      router.push('/login')
-      return
-    }
-
-    api
-      .get('/auth/me')
-      .then((res) => {
-        const userData = res.data
-        if (userData.role !== 'ADMIN') {
-          // Redirect nếu không phải admin
-          router.push(`/${userData.role.toLowerCase()}`)
-          return
-        }
-        setUser(userData)
-      })
-      .catch(() => {
-        localStorage.removeItem('accessToken')
-        localStorage.removeItem('refreshToken')
-        router.push('/login')
-      })
-      .finally(() => setLoading(false))
-  }, [router])
-
-  const handleLogout = () => {
-    localStorage.removeItem('accessToken')
-    localStorage.removeItem('refreshToken')
-    router.push('/')
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <svg className="animate-spin h-12 w-12 text-primary" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            />
-          </svg>
-          <p className="text-muted-foreground">Đang tải...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (!user) return null
-
-  const firstName = user.displayName.split(' ')[0]
+  const cards = ov ? [
+    {
+      label: 'Tổng người dùng', value: ov.userCount.toLocaleString(),
+      sub: `${ov.teacherCount} giáo viên · ${ov.studentCount} học sinh`,
+      icon: Users, bg: '#EEF4FF', color: '#00305E',
+    },
+    {
+      label: 'Lớp học', value: ov.classCount.toLocaleString(),
+      sub: `${ov.quizCount} quiz · ${ov.activeQuizCount} đang chạy`,
+      icon: BookOpen, bg: '#ECFDF5', color: '#10b981',
+    },
+    {
+      label: 'Tổng từ vựng', value: ov.totalWords.toLocaleString(),
+      sub: `${ov.wordsWithMeaning.toLocaleString()} có nghĩa (${enrichPct}%)`,
+      icon: Database, bg: '#FFFBEB', color: '#f59e0b',
+    },
+    {
+      label: 'Cần enrich', value: ov.wordsNeedingEnrichment.toLocaleString(),
+      sub: 'Chưa có nghĩa tiếng Anh',
+      icon: AlertTriangle, bg: '#FEF2F2', color: '#ef4444',
+    },
+    {
+      label: 'Điểm quiz TB', value: ov.avgQuizScore ? ov.avgQuizScore.toFixed(1) : '—',
+      sub: 'Trung bình tất cả phiên',
+      icon: Activity, bg: '#F5F3FF', color: '#7c3aed',
+    },
+  ] : []
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
-      {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 bg-black/40 z-20 lg:hidden" onClick={() => setSidebarOpen(false)} />
-      )}
+    <AdminShell title="Tổng quan" subtitle="Số liệu thực từ database"
+      activeNav="overview" error={error} refreshing={refreshing}
+      onRefresh={() => reload({ silent: true })} lastSyncedAt={lastSyncedAt}>
 
-      {/* Sidebar */}
-      <aside
-        className={`fixed lg:relative z-30 flex flex-col h-full w-64 bg-primary text-primary-foreground transition-transform duration-300 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-        }`}
-      >
-        <div className="flex items-center gap-3 px-6 py-6 border-b border-white/10">
-          <div className="w-10 h-10 rounded-lg bg-accent flex items-center justify-center flex-shrink-0">
-            <Shield size={20} className="text-accent-foreground" />
-          </div>
-          <span className="font-bold text-xl">Admin Panel</span>
-          <button className="ml-auto lg:hidden text-white/60 hover:text-white" onClick={() => setSidebarOpen(false)}>
-            <X size={20} />
-          </button>
+      {loading ? (
+        <div className="flex items-center justify-center h-48 text-[#94A3B8]">
+          <Loader2 size={24} className="animate-spin mr-2" /> Đang tải...
         </div>
-
-        <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto">
-          {navItems.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              onClick={() => {
-                setActiveNav(id)
-                setSidebarOpen(false)
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 text-left ${
-                activeNav === id
-                  ? 'bg-accent text-accent-foreground shadow-md'
-                  : 'text-white/70 hover:bg-white/10 hover:text-white'
-              }`}
-            >
-              <Icon size={19} className="flex-shrink-0" />
-              <span className="font-medium text-sm">{label}</span>
-            </button>
-          ))}
-        </nav>
-
-        <div className="px-3 pb-6 space-y-2">
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-white/70 hover:bg-white/10 hover:text-white transition-all"
-          >
-            <LogOut size={19} />
-            <span className="font-medium text-sm">Đăng xuất</span>
-          </button>
-          
-          <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-white/8 border border-white/10">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-accent to-accent-hover flex items-center justify-center flex-shrink-0">
-              <span className="text-accent-foreground font-bold text-sm">
-                {user.displayName.charAt(0).toUpperCase()}
-              </span>
-            </div>
-            <div className="min-w-0">
-              <p className="font-semibold text-sm text-white truncate">{user.displayName}</p>
-              <p className="text-white/50 text-xs">Administrator</p>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top Bar */}
-        <header className="bg-card border-b border-border px-6 py-4 flex items-center justify-between flex-shrink-0 shadow-sm">
-          <div className="flex items-center gap-4">
-            <button
-              className="lg:hidden p-2 rounded-lg hover:bg-muted text-muted-foreground"
-              onClick={() => setSidebarOpen(true)}
-            >
-              <Menu size={20} />
-            </button>
-            <div>
-              <h1 className="text-xl text-foreground">
-                Xin chào, <span className="text-primary font-semibold">{firstName}</span>! 👋
-              </h1>
-              <p className="text-muted-foreground text-sm mt-0.5">Quản trị hệ thống DeutschFlow</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button className="relative p-2.5 rounded-lg bg-muted hover:bg-muted/80 transition-colors">
-              <Bell size={18} className="text-muted-foreground" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-destructive rounded-full border border-card" />
-            </button>
-
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-primary-hover flex items-center justify-center flex-shrink-0">
-              <span className="text-white font-bold text-sm">{user.displayName.charAt(0).toUpperCase()}</span>
-            </div>
-          </div>
-        </header>
-
-        {/* Scrollable Main */}
-        <main className="flex-1 overflow-y-auto px-6 py-6">
-          {/* System Status */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            {[
-              { icon: Users, label: 'Tổng người dùng', value: '156', color: 'text-info', bg: 'bg-info/10', status: 'up' },
-              { icon: BookOpen, label: 'Từ vựng', value: '80', color: 'text-success', bg: 'bg-success/10', status: 'up' },
-              { icon: Activity, label: 'Uptime', value: '99.9%', color: 'text-success', bg: 'bg-success/10', status: 'ok' },
-              { icon: Database, label: 'Database', value: '45 MB', color: 'text-accent', bg: 'bg-accent/10', status: 'ok' },
-            ].map(({ icon: Icon, label, value, color, bg, status }) => (
-              <div key={label} className="card p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <div className={`w-9 h-9 rounded-lg ${bg} flex items-center justify-center`}>
-                    <Icon size={18} className={color} />
+      ) : (
+        <div className="space-y-5">
+          {/* Metric cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+            {cards.map(({ label, value, sub, icon: Icon, bg, color }, i) => (
+              <motion.div key={label}
+                initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.06 }}
+                className="bg-white rounded-[16px] p-5 border border-[#E2E8F0] shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-[10px] flex items-center justify-center" style={{ backgroundColor: bg }}>
+                    <Icon size={18} style={{ color }} />
                   </div>
-                  {status === 'ok' && <CheckCircle2 size={16} className="text-success" />}
-                  {status === 'up' && <TrendingUp size={16} className="text-success" />}
                 </div>
-                <p className="text-muted-foreground text-xs mb-0.5">{label}</p>
-                <p className="font-bold text-foreground text-base">{value}</p>
-              </div>
+                <p className="text-[#0F172A] text-2xl font-extrabold">{value}</p>
+                <p className="text-[#64748B] text-xs font-medium mt-0.5">{label}</p>
+                <p className="text-[#94A3B8] text-xs mt-1">{sub}</p>
+              </motion.div>
             ))}
           </div>
 
-          {/* Quick Actions */}
-          <div className="grid md:grid-cols-3 gap-6 mb-6">
-            <button className="card p-6 text-left hover:shadow-xl transition-all">
-              <UserPlus size={24} className="text-primary mb-3" />
-              <h3 className="font-semibold text-foreground mb-1">Thêm người dùng</h3>
-              <p className="text-sm text-muted-foreground">Tạo tài khoản mới cho học sinh hoặc giáo viên</p>
-            </button>
-
-            <button className="card p-6 text-left hover:shadow-xl transition-all">
-              <BookOpen size={24} className="text-success mb-3" />
-              <h3 className="font-semibold text-foreground mb-1">Import từ vựng</h3>
-              <p className="text-sm text-muted-foreground">Thêm từ vựng mới từ Wiktionary hoặc CSV</p>
-            </button>
-
-            <button className="card p-6 text-left hover:shadow-xl transition-all">
-              <Database size={24} className="text-accent mb-3" />
-              <h3 className="font-semibold text-foreground mb-1">Backup dữ liệu</h3>
-              <p className="text-sm text-muted-foreground">Sao lưu database và cấu hình hệ thống</p>
-            </button>
-          </div>
-
-          {/* Recent Users */}
-          <div className="card p-6 mb-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="font-semibold text-foreground">Người dùng mới</h3>
-              <button className="text-primary text-sm font-medium hover:text-primary-hover">
-                Xem tất cả
-              </button>
-            </div>
-            <div className="space-y-3">
-              {[
-                { name: 'Nguyễn Văn A', email: 'nguyenvana@example.com', role: 'STUDENT', date: '2 giờ trước' },
-                { name: 'Trần Thị B', email: 'tranthib@example.com', role: 'STUDENT', date: '5 giờ trước' },
-                { name: 'Lê Văn C', email: 'levanc@example.com', role: 'TEACHER', date: '1 ngày trước' },
-                { name: 'Phạm Thị D', email: 'phamthid@example.com', role: 'STUDENT', date: '2 ngày trước' },
-              ].map((u) => (
-                <div key={u.email} className="flex items-center gap-4 p-3 bg-muted rounded-lg">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary-hover flex items-center justify-center flex-shrink-0">
-                    <span className="text-white font-bold text-sm">{u.name.charAt(0)}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-foreground">{u.name}</p>
-                    <p className="text-sm text-muted-foreground truncate">{u.email}</p>
-                  </div>
-                  <div className="text-right">
-                    <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                      u.role === 'TEACHER' ? 'bg-accent/10 text-accent' : 'bg-info/10 text-info'
-                    }`}>
-                      {u.role}
-                    </span>
-                    <p className="text-xs text-muted-foreground mt-1">{u.date}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* System Alerts */}
-          <div className="card p-6">
-            <div className="flex items-center gap-2 mb-6">
-              <AlertCircle size={20} className="text-warning" />
-              <h3 className="font-semibold text-foreground">Cảnh báo hệ thống</h3>
-            </div>
-            <div className="space-y-3">
-              <div className="flex items-start gap-3 p-4 bg-success/10 border border-success/20 rounded-lg">
-                <CheckCircle2 size={18} className="text-success flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-medium text-foreground">Database backup thành công</p>
-                  <p className="text-sm text-muted-foreground">Backup tự động đã hoàn tất lúc 03:00 AM</p>
-                </div>
+          {/* Vocabulary coverage bar */}
+          {ov && (
+            <div className="bg-white rounded-[16px] p-5 border border-[#E2E8F0] shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-semibold text-[#0F172A]">Độ phủ nghĩa từ vựng</p>
+                <span className="text-sm font-bold" style={{ color: enrichPct >= 80 ? '#10b981' : enrichPct >= 50 ? '#f59e0b' : '#ef4444' }}>
+                  {enrichPct}%
+                </span>
               </div>
-              
-              <div className="flex items-start gap-3 p-4 bg-info/10 border border-info/20 rounded-lg">
-                <Activity size={18} className="text-info flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-medium text-foreground">Cập nhật hệ thống</p>
-                  <p className="text-sm text-muted-foreground">Phiên bản mới v1.2.0 đã sẵn sàng để cài đặt</p>
-                </div>
+              <div className="h-3 bg-[#F1F4F9] rounded-full overflow-hidden">
+                <motion.div className="h-full rounded-full"
+                  style={{ background: enrichPct >= 80 ? '#10b981' : enrichPct >= 50 ? '#f59e0b' : '#ef4444' }}
+                  initial={{ width: 0 }}
+                  animate={{ width: `${enrichPct}%` }}
+                  transition={{ duration: 0.8, ease: 'easeOut' }} />
               </div>
+              <p className="text-[#94A3B8] text-xs mt-2">
+                {ov.wordsWithMeaning.toLocaleString()} / {ov.totalWords.toLocaleString()} từ có nghĩa thực
+                {ov.wordsNeedingEnrichment > 0 && (
+                  <span className="text-amber-600 ml-2">· {ov.wordsNeedingEnrichment.toLocaleString()} từ cần enrich thêm</span>
+                )}
+              </p>
             </div>
+          )}
+
+          {/* Quick links */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {[
+              { href: '/admin/users', label: 'Quản lý người dùng', desc: 'Xem, phân quyền tài khoản', icon: Users, color: '#00305E' },
+              { href: '/admin/vocabulary', label: 'Quản lý từ vựng', desc: 'Xem, enrich, reset từ vựng', icon: Database, color: '#f59e0b' },
+              { href: '/admin/reports', label: 'Báo cáo & Telemetry', desc: 'API metrics, tiến độ học', icon: TrendingUp, color: '#10b981' },
+            ].map(({ href, label, desc, icon: Icon, color }) => (
+              <a key={href} href={href}
+                className="bg-white rounded-[16px] p-5 border border-[#E2E8F0] shadow-sm hover:shadow-md hover:border-[#00305E]/20 transition-all flex items-center gap-4">
+                <div className="w-11 h-11 rounded-[12px] flex items-center justify-center flex-shrink-0"
+                  style={{ backgroundColor: color + '15' }}>
+                  <Icon size={20} style={{ color }} />
+                </div>
+                <div>
+                  <p className="font-semibold text-[#0F172A] text-sm">{label}</p>
+                  <p className="text-[#94A3B8] text-xs mt-0.5">{desc}</p>
+                </div>
+              </a>
+            ))}
           </div>
-        </main>
-      </div>
-    </div>
+        </div>
+      )}
+    </AdminShell>
   )
 }

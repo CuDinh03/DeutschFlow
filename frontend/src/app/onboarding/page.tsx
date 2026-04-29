@@ -13,13 +13,8 @@ type Current = 'A0' | Cefr
 type AgeRange = 'UNDER_18' | 'AGE_18_24' | 'AGE_25_34' | 'AGE_35_44' | 'AGE_45_PLUS'
 type LearningSpeed = 'SLOW' | 'NORMAL' | 'FAST'
 
-const INTERESTS = [
-  { id: 'TRAVEL', labelVi: 'Du lịch', labelEn: 'Travel', labelDe: 'Reisen' },
-  { id: 'BUSINESS', labelVi: 'Công việc', labelEn: 'Business', labelDe: 'Business' },
-  { id: 'TECH', labelVi: 'Công nghệ', labelEn: 'Tech', labelDe: 'Technik' },
-  { id: 'HEALTH', labelVi: 'Sức khoẻ', labelEn: 'Health', labelDe: 'Gesundheit' },
-  { id: 'EDUCATION', labelVi: 'Giáo dục', labelEn: 'Education', labelDe: 'Bildung' },
-]
+const INTEREST_IDS = ['TRAVEL', 'BUSINESS', 'TECH', 'HEALTH', 'EDUCATION'] as const
+const AGE_OPTIONS: AgeRange[] = ['UNDER_18', 'AGE_18_24', 'AGE_25_34', 'AGE_35_44', 'AGE_45_PLUS']
 
 export default function OnboardingPage() {
   const t = useTranslations('onboarding')
@@ -46,10 +41,9 @@ export default function OnboardingPage() {
     [form.sessionsPerWeek, form.minutesPerSession]
   )
 
-  const interestLabel = (x: (typeof INTERESTS)[number]) => {
-    // Minimal: keep Vi copy since app default is vi; translations can be refined later.
-    return x.labelVi
-  }
+  const interestLabel = (id: (typeof INTEREST_IDS)[number]) => t(`interestsLabels.${id}` as never)
+
+  const ageOptionLabel = (value: AgeRange) => t(`age_${value}` as never)
 
   const toggleInterest = (id: string) => {
     setForm((f) => ({
@@ -77,7 +71,7 @@ export default function OnboardingPage() {
         minutesPerSession: Number(form.minutesPerSession),
         learningSpeed: form.learningSpeed,
       })
-      router.push('/student')
+      router.push('/dashboard')
     } catch (err: unknown) {
       const res = (err as { response?: { data?: { detail?: string; errors?: FieldErrors } } })?.response?.data
       if (res?.errors) setFieldErrors(res.errors)
@@ -88,25 +82,25 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="auth-shell">
       <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary-hover to-navy-blue-dark opacity-5 pointer-events-none" />
 
       <div className="relative w-full max-w-2xl">
-        <div className="card p-8">
+        <div className="auth-card">
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
             <p className="text-muted-foreground mt-1">{t('subtitle')}</p>
           </div>
 
           {error && (
-            <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg text-sm">
+            <div className="mb-6 alert-error">
               {error}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid md:grid-cols-2 gap-5">
-              <div>
+            <div className="form-grid-2">
+              <div className="form-field">
                 <label className="label">{t('goalType')}</label>
                 <select
                   value={form.goalType}
@@ -118,7 +112,7 @@ export default function OnboardingPage() {
                 </select>
               </div>
 
-              <div>
+              <div className="form-field">
                 <label className="label">{t('targetLevel')}</label>
                 <select
                   value={form.targetLevel}
@@ -133,7 +127,7 @@ export default function OnboardingPage() {
                 </select>
               </div>
 
-              <div>
+              <div className="form-field">
                 <label className="label">{t('currentLevel')}</label>
                 <select
                   value={form.currentLevel}
@@ -148,51 +142,51 @@ export default function OnboardingPage() {
                 </select>
               </div>
 
-              <div>
+              <div className="form-field">
                 <label className="label">{t('ageRange')}</label>
                 <select
                   value={form.ageRange}
                   onChange={(e) => setForm((f) => ({ ...f, ageRange: e.target.value as AgeRange }))}
                   className="input"
                 >
-                  <option value="UNDER_18">&lt; 18</option>
-                  <option value="AGE_18_24">18–24</option>
-                  <option value="AGE_25_34">25–34</option>
-                  <option value="AGE_35_44">35–44</option>
-                  <option value="AGE_45_PLUS">45+</option>
+                  {AGE_OPTIONS.map((value) => (
+                    <option key={value} value={value}>
+                      {ageOptionLabel(value)}
+                    </option>
+                  ))}
                 </select>
               </div>
 
-              <div className="md:col-span-2">
+              <div className="md:col-span-2 form-field">
                 <label className="label">{t('industry')}</label>
                 <input
                   value={form.industry}
                   onChange={(e) => setForm((f) => ({ ...f, industry: e.target.value }))}
                   className={`input ${fieldErrors.industry ? 'border-destructive focus:ring-destructive' : ''}`}
-                  placeholder="VD: IT, Điều dưỡng, Du lịch..."
+                  placeholder={t('industryPlaceholder')}
                 />
-                {fieldErrors.industry && <p className="mt-2 text-sm text-destructive">{fieldErrors.industry}</p>}
+                {fieldErrors.industry && <p className="form-error">{fieldErrors.industry}</p>}
               </div>
             </div>
 
-            <div>
+            <div className="form-field">
               <label className="label">{t('interests')}</label>
               <div className="grid sm:grid-cols-2 gap-3">
-                {INTERESTS.map((x) => (
-                  <label key={x.id} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-background">
+                {INTEREST_IDS.map((id) => (
+                  <label key={id} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-background">
                     <input
                       type="checkbox"
-                      checked={form.interests.includes(x.id)}
-                      onChange={() => toggleInterest(x.id)}
+                      checked={form.interests.includes(id)}
+                      onChange={() => toggleInterest(id)}
                     />
-                    <span className="text-sm text-foreground">{interestLabel(x)}</span>
+                    <span className="text-sm text-foreground">{interestLabel(id)}</span>
                   </label>
                 ))}
               </div>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-5">
-              <div>
+            <div className="form-grid-3">
+              <div className="form-field">
                 <label className="label">{t('sessionsPerWeek')}</label>
                 <input
                   type="number"
@@ -202,10 +196,10 @@ export default function OnboardingPage() {
                   onChange={(e) => setForm((f) => ({ ...f, sessionsPerWeek: Number(e.target.value) }))}
                   className={`input ${fieldErrors.sessionsPerWeek ? 'border-destructive focus:ring-destructive' : ''}`}
                 />
-                {fieldErrors.sessionsPerWeek && <p className="mt-2 text-sm text-destructive">{fieldErrors.sessionsPerWeek}</p>}
+                {fieldErrors.sessionsPerWeek && <p className="form-error">{fieldErrors.sessionsPerWeek}</p>}
               </div>
 
-              <div>
+              <div className="form-field">
                 <label className="label">{t('minutesPerSession')}</label>
                 <input
                   type="number"
@@ -215,43 +209,38 @@ export default function OnboardingPage() {
                   onChange={(e) => setForm((f) => ({ ...f, minutesPerSession: Number(e.target.value) }))}
                   className={`input ${fieldErrors.minutesPerSession ? 'border-destructive focus:ring-destructive' : ''}`}
                 />
-                {fieldErrors.minutesPerSession && <p className="mt-2 text-sm text-destructive">{fieldErrors.minutesPerSession}</p>}
+                {fieldErrors.minutesPerSession && <p className="form-error">{fieldErrors.minutesPerSession}</p>}
               </div>
 
-              <div>
+              <div className="form-field">
                 <label className="label">{t('learningSpeed')}</label>
                 <select
                   value={form.learningSpeed}
                   onChange={(e) => setForm((f) => ({ ...f, learningSpeed: e.target.value as LearningSpeed }))}
                   className="input"
                 >
-                  <option value="SLOW">Slow</option>
-                  <option value="NORMAL">Normal</option>
-                  <option value="FAST">Fast</option>
+                  <option value="SLOW">{t('learningSpeedSlow')}</option>
+                  <option value="NORMAL">{t('learningSpeedNormal')}</option>
+                  <option value="FAST">{t('learningSpeedFast')}</option>
                 </select>
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-sm text-muted-foreground">
-              <span>
-                Cường độ: <span className="text-foreground font-medium">{form.sessionsPerWeek} buổi/tuần</span> ·{' '}
-                <span className="text-foreground font-medium">{form.minutesPerSession} phút</span>
-              </span>
-              <span>
-                Tổng: <span className="text-foreground font-medium">{weeklyMinutes} phút/tuần</span>
-              </span>
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
+              <span>{t('intensityLine', { sessions: form.sessionsPerWeek, minutes: form.minutesPerSession })}</span>
+              <span>{t('weeklyTotalLine', { total: weeklyMinutes })}</span>
             </div>
 
             {form.goalType === 'CERT' && (
-              <div>
+              <div className="form-field">
                 <label className="label">{t('examType')}</label>
                 <input
                   value={form.examType}
                   onChange={(e) => setForm((f) => ({ ...f, examType: e.target.value }))}
                   className={`input ${fieldErrors.examType ? 'border-destructive focus:ring-destructive' : ''}`}
-                  placeholder="VD: Goethe, TELC..."
+                  placeholder={t('examTypePlaceholder')}
                 />
-                {fieldErrors.examType && <p className="mt-2 text-sm text-destructive">{fieldErrors.examType}</p>}
+                {fieldErrors.examType && <p className="form-error">{fieldErrors.examType}</p>}
               </div>
             )}
 
@@ -264,4 +253,3 @@ export default function OnboardingPage() {
     </div>
   )
 }
-
