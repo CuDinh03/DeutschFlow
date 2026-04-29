@@ -1,0 +1,2260 @@
+{
+  "lessons": {
+    "GRAMMAR:0": {
+      "title": {
+        "vi": "Mạo từ xác định và không xác định: der / die / das và ein / eine",
+        "en": "Definite and indefinite articles: der / die / das and ein / eine",
+        "de": "Bestimmte und unbestimmte Artikel: der / die / das und ein / eine"
+      },
+      "overview": {
+        "vi": "Bài này giúp bạn nhận biết giống từ (nam, nữ, trung) qua mạo từ và dùng der/die/das với danh từ xác định, ein/eine/ein với danh từ chưa xác định ở mức A1.",
+        "en": "This lesson helps you spot grammatical gender (masculine, feminine, neuter) through articles and use der/die/das for something specific and ein/eine/ein for something non-specific at A1 level.",
+        "de": "In dieser Lektion lernst du, das Genus (maskulin, feminin, neutral) an den Artikeln zu erkennen und bestimmte Artikel (der/die/das) sowie unbestimmte Artikel (ein/eine/ein) auf A1-Niveau zu verwenden."
+      },
+      "focusBullets": [
+        {
+          "vi": "der dùng với danh từ giống đực, die với giống cái, das với giống trung (thường gặp: der Mann, die Frau, das Kind).",
+          "en": "der goes with masculine nouns, die with feminine, das with neuter (common examples: der Mann, die Frau, das Kind).",
+          "de": "der steht vor maskulinen, die vor femininen und das vor neutralen Substantiven (typisch: der Mann, die Frau, das Kind)."
+        },
+        {
+          "vi": "ein dùng với giống đực/trung, eine với giống cái khi nói về một người/vật chưa được xác định rõ (ein Buch, eine Tasche).",
+          "en": "ein is used with masculine/neuter and eine with feminine when you mean “a/one” in a general way (ein Buch, eine Tasche).",
+          "de": "ein steht vor maskulinen/neutralen und eine vor femininen Substantiven, wenn etwas noch nicht genauer bekannt ist (ein Buch, eine Tasche)."
+        },
+        {
+          "vi": "Ở A1, hãy học cả cụm “mạo từ + danh từ” như một khối để nhớ giống nhanh hơn.",
+          "en": "At A1, learn article + noun as a chunk so gender sticks faster.",
+          "de": "Auf A1-Niveau lernst du Artikel + Substantiv als Einheit, damit du das Genus schneller merkst."
+        }
+      ],
+      "vocabulary": [
+        {
+          "german": "der Mann",
+          "meaning": {
+            "vi": "người đàn ông",
+            "en": "the man",
+            "de": "der Mann"
+          },
+          "exampleDe": "Der Mann ist hier.",
+          "exampleTranslation": {
+            "vi": "Người đàn ông ở đây.",
+            "en": "The man is here.",
+            "de": "Der Mann ist hier."
+          },
+          "speakDe": "Der Mann ist hier."
+        },
+        {
+          "german": "die Frau",
+          "meaning": {
+            "vi": "người phụ nữ",
+            "en": "the woman",
+            "de": "die Frau"
+          },
+          "exampleDe": "Die Frau liest ein Buch.",
+          "exampleTranslation": {
+            "vi": "Người phụ nữ đang đọc một cuốn sách.",
+            "en": "The woman is reading a book.",
+            "de": "Die Frau liest ein Buch."
+          },
+          "speakDe": "Die Frau liest ein Buch."
+        },
+        {
+          "german": "das Kind",
+          "meaning": {
+            "vi": "đứa trẻ",
+            "en": "the child",
+            "de": "das Kind"
+          },
+          "exampleDe": "Das Kind spielt im Park.",
+          "exampleTranslation": {
+            "vi": "Đứa trẻ chơi ở công viên.",
+            "en": "The child is playing in the park.",
+            "de": "Das Kind spielt im Park."
+          },
+          "speakDe": "Das Kind spielt im Park."
+        },
+        {
+          "german": "ein Buch",
+          "meaning": {
+            "vi": "một cuốn sách",
+            "en": "a book",
+            "de": "ein Buch"
+          },
+          "exampleDe": "Ich habe ein Buch.",
+          "exampleTranslation": {
+            "vi": "Tôi có một cuốn sách.",
+            "en": "I have a book.",
+            "de": "Ich habe ein Buch."
+          },
+          "speakDe": "Ich habe ein Buch."
+        },
+        {
+          "german": "eine Tasche",
+          "meaning": {
+            "vi": "một cái túi",
+            "en": "a bag",
+            "de": "eine Tasche"
+          },
+          "exampleDe": "Das ist eine Tasche.",
+          "exampleTranslation": {
+            "vi": "Đó là một cái túi.",
+            "en": "That is a bag.",
+            "de": "Das ist eine Tasche."
+          },
+          "speakDe": "Das ist eine Tasche."
+        }
+      ],
+      "phrases": [
+        {
+          "german": "Der Stuhl ist neu.",
+          "meaning": {
+            "vi": "Cái ghế mới.",
+            "en": "The chair is new.",
+            "de": "Der Stuhl ist neu."
+          },
+          "speakDe": "Der Stuhl ist neu."
+        },
+        {
+          "german": "Die Lampe ist an.",
+          "meaning": {
+            "vi": "Cái đèn đang bật.",
+            "en": "The lamp is on.",
+            "de": "Die Lampe ist an."
+          },
+          "speakDe": "Die Lampe ist an."
+        },
+        {
+          "german": "Das Fenster ist offen.",
+          "meaning": {
+            "vi": "Cửa sổ đang mở.",
+            "en": "The window is open.",
+            "de": "Das Fenster ist offen."
+          },
+          "speakDe": "Das Fenster ist offen."
+        },
+        {
+          "german": "Ich sehe einen Hund.",
+          "meaning": {
+            "vi": "Tôi thấy một con chó.",
+            "en": "I see a dog.",
+            "de": "Ich sehe einen Hund."
+          },
+          "speakDe": "Ich sehe einen Hund."
+        }
+      ],
+      "examples": [
+        {
+          "german": "Der Kaffee ist heiß.",
+          "translation": {
+            "vi": "Cà phê nóng.",
+            "en": "The coffee is hot.",
+            "de": "Der Kaffee ist heiß."
+          },
+          "note": {
+            "vi": "der + Kaffee (giống đực).",
+            "en": "der + Kaffee (masculine).",
+            "de": "der + Kaffee (maskulin)."
+          },
+          "speakDe": "Der Kaffee ist heiß."
+        },
+        {
+          "german": "Die Milch ist kalt.",
+          "translation": {
+            "vi": "Sữa lạnh.",
+            "en": "The milk is cold.",
+            "de": "Die Milch ist kalt."
+          },
+          "note": {
+            "vi": "die + Milch (giống cái).",
+            "en": "die + Milch (feminine).",
+            "de": "die + Milch (feminin)."
+          },
+          "speakDe": "Die Milch ist kalt."
+        },
+        {
+          "german": "Das Brot schmeckt gut.",
+          "translation": {
+            "vi": "Bánh mì ngon.",
+            "en": "The bread tastes good.",
+            "de": "Das Brot schmeckt gut."
+          },
+          "note": {
+            "vi": "das + Brot (giống trung).",
+            "en": "das + Brot (neuter).",
+            "de": "das + Brot (neutral)."
+          },
+          "speakDe": "Das Brot schmeckt gut."
+        }
+      ]
+    },
+    "GRAMMAR:1": {
+      "title": {
+        "vi": "Trật tự V2: động từ ở vị trí thứ hai",
+        "en": "V2 word order: the verb in second position",
+        "de": "Verbzweitstellung (V2): das Verb steht an Position 2"
+      },
+      "overview": {
+        "vi": "Trong câu trần thuật, động từ chia luôn đứng ở vị trí thứ hai; phần chủ ngữ có thể đứng trước hoặc sau tùy nhấn mạnh, phần còn lại thường nằm cuối câu.",
+        "en": "In declarative sentences, the finite verb is always in second position; the subject may come before or after depending on emphasis, and other information often comes at the end.",
+        "de": "In Aussagesätzen steht das finite Verb an zweiter Stelle; das Subjekt kann je nach Betonung vorne oder später stehen, weiteres Material steht oft am Satzende."
+      },
+      "focusBullets": [
+        {
+          "vi": "Vị trí “thứ hai” tính theo mảng thông tin đầu tiên (có thể là chủ ngữ, trạng ngữ thời gian, hoặc từ đệm như Heute).",
+          "en": "“Second” counts the first information chunk (subject, a time adverbial, or a starter like Heute).",
+          "de": "„Zweite Stelle“ zählt die erste Informationseinheit (Subjekt, Zeitangabe oder Satzanfang wie Heute)."
+        },
+        {
+          "vi": "Nếu bạn đưa trạng ngữ lên đầu, chủ ngữ thường đứng ngay sau động từ (đảo ngữ phổ biến ở A1).",
+          "en": "If you start with an adverbial, the subject often comes right after the verb (a common A1 inversion).",
+          "de": "Wenn du mit einer Adverbialbestimmung beginnst, steht das Subjekt oft direkt hinter dem Verb (typische Umstellung auf A1)."
+        },
+        {
+          "vi": "Đừng nhầm: động từ “thứ hai” không phải là từ thứ hai theo từng chữ, mà theo cụm đầu tiên.",
+          "en": "Don’t confuse this: “second” is not the second word by spelling, but the second slot after the first chunk.",
+          "de": "„Zweite Stelle“ meint nicht das zweite Wort buchstäblich, sondern die zweite Satzposition nach dem ersten Block."
+        }
+      ],
+      "vocabulary": [
+        {
+          "german": "lernen",
+          "meaning": {
+            "vi": "học",
+            "en": "to learn",
+            "de": "lernen"
+          },
+          "exampleDe": "Ich lerne Deutsch.",
+          "exampleTranslation": {
+            "vi": "Tôi học tiếng Đức.",
+            "en": "I am learning German.",
+            "de": "Ich lerne Deutsch."
+          },
+          "speakDe": "Ich lerne Deutsch."
+        },
+        {
+          "german": "arbeiten",
+          "meaning": {
+            "vi": "làm việc",
+            "en": "to work",
+            "de": "arbeiten"
+          },
+          "exampleDe": "Mein Bruder arbeitet heute.",
+          "exampleTranslation": {
+            "vi": "Anh trai tôi làm việc hôm nay.",
+            "en": "My brother is working today.",
+            "de": "Mein Bruder arbeitet heute."
+          },
+          "speakDe": "Mein Bruder arbeitet heute."
+        },
+        {
+          "german": "wohnen",
+          "meaning": {
+            "vi": "sống, ở",
+            "en": "to live (reside)",
+            "de": "wohnen"
+          },
+          "exampleDe": "Wir wohnen in Berlin.",
+          "exampleTranslation": {
+            "vi": "Chúng tôi sống ở Berlin.",
+            "en": "We live in Berlin.",
+            "de": "Wir wohnen in Berlin."
+          },
+          "speakDe": "Wir wohnen in Berlin."
+        },
+        {
+          "german": "kommen",
+          "meaning": {
+            "vi": "đến",
+            "en": "to come",
+            "de": "kommen"
+          },
+          "exampleDe": "Sie kommt aus Vietnam.",
+          "exampleTranslation": {
+            "vi": "Cô ấy đến từ Việt Nam.",
+            "en": "She comes from Vietnam.",
+            "de": "Sie kommt aus Vietnam."
+          },
+          "speakDe": "Sie kommt aus Vietnam."
+        },
+        {
+          "german": "essen",
+          "meaning": {
+            "vi": "ăn",
+            "en": "to eat",
+            "de": "essen"
+          },
+          "exampleDe": "Heute esse ich zu Hause.",
+          "exampleTranslation": {
+            "vi": "Hôm nay tôi ăn ở nhà.",
+            "en": "Today I eat at home.",
+            "de": "Heute esse ich zu Hause."
+          },
+          "speakDe": "Heute esse ich zu Hause."
+        }
+      ],
+      "phrases": [
+        {
+          "german": "Heute bin ich müde.",
+          "meaning": {
+            "vi": "Hôm nay tôi mệt.",
+            "en": "Today I am tired.",
+            "de": "Heute bin ich müde."
+          },
+          "speakDe": "Heute bin ich müde."
+        },
+        {
+          "german": "In der Schule lerne ich viel.",
+          "meaning": {
+            "vi": "Ở trường tôi học nhiều.",
+            "en": "At school I learn a lot.",
+            "de": "In der Schule lerne ich viel."
+          },
+          "speakDe": "In der Schule lerne ich viel."
+        },
+        {
+          "german": "Am Wochenende schlafe ich lange.",
+          "meaning": {
+            "vi": "Cuối tuần tôi ngủ lâu.",
+            "en": "At the weekend I sleep a long time.",
+            "de": "Am Wochenende schlafe ich lange."
+          },
+          "speakDe": "Am Wochenende schlafe ich lange."
+        },
+        {
+          "german": "Jetzt gehe ich nach Hause.",
+          "meaning": {
+            "vi": "Bây giờ tôi về nhà.",
+            "en": "Now I am going home.",
+            "de": "Jetzt gehe ich nach Hause."
+          },
+          "speakDe": "Jetzt gehe ich nach Hause."
+        }
+      ],
+      "examples": [
+        {
+          "german": "Ich trinke gern Wasser.",
+          "translation": {
+            "vi": "Tôi thích uống nước.",
+            "en": "I like to drink water.",
+            "de": "Ich trinke gern Wasser."
+          },
+          "note": {
+            "vi": "Động từ chia đứng sau chủ ngữ ở vị trí thứ hai.",
+            "en": "The conjugated verb comes right after the subject in second position.",
+            "de": "Das finite Verb steht direkt nach dem Subjekt an zweiter Stelle."
+          },
+          "speakDe": "Ich trinke gern Wasser."
+        },
+        {
+          "german": "Morgens trinke ich Kaffee.",
+          "translation": {
+            "vi": "Buổi sáng tôi uống cà phê.",
+            "en": "In the mornings I drink coffee.",
+            "de": "Morgens trinke ich Kaffee."
+          },
+          "note": {
+            "vi": "Trạng ngữ thời gian lên đầu → động từ vẫn ở vị trí thứ hai.",
+            "en": "Time first → the verb still stays in second position.",
+            "de": "Zeitangabe am Anfang → das Verb bleibt an zweiter Stelle."
+          },
+          "speakDe": "Morgens trinke ich Kaffee."
+        },
+        {
+          "german": "Im Kurs lernen wir Grammatik.",
+          "translation": {
+            "vi": "Trong khóa học chúng ta học ngữ pháp.",
+            "en": "In the course we learn grammar.",
+            "de": "Im Kurs lernen wir Grammatik."
+          },
+          "note": {
+            "vi": "Chủ ngữ đứng sau động từ khi phần đầu là Im Kurs.",
+            "en": "The subject follows the verb when the sentence starts with Im Kurs.",
+            "de": "Das Subjekt steht hinter dem Verb, wenn der Satz mit Im Kurs beginnt."
+          },
+          "speakDe": "Im Kurs lernen wir Grammatik."
+        }
+      ]
+    },
+    "GRAMMAR:2": {
+      "title": {
+        "vi": "Câu hỏi W-: Wer, Was, Wo, Wann, Wie…",
+        "en": "W-questions: Wer, Was, Wo, Wann, Wie…",
+        "de": "W-Fragen: Wer, Was, Wo, Wann, Wie…"
+      },
+      "overview": {
+        "vi": "Câu hỏi thông tin thường bắt đầu bằng từ W-; sau từ hỏi là động từ chia, rồi đến chủ ngữ trong nhiều mẫu A1.",
+        "en": "Information questions usually start with a W-word; in many A1 patterns the finite verb comes next, then the subject.",
+        "de": "Informationsfragen beginnen oft mit einem W-Wort; in vielen A1-Mustern folgt das finite Verb, danach das Subjekt."
+      },
+      "focusBullets": [
+        {
+          "vi": "Wer hỏi về người; Was hỏi về sự vật/sự việc; Wo hỏi địa điểm; Wann hỏi thời gian; Wie hỏi cách thức/trạng thái.",
+          "en": "Wer asks about people; Was about things/events; Wo about place; Wann about time; Wie about manner/state.",
+          "de": "Wer fragt nach Personen, Was nach Sachen/Ereignissen, Wo nach dem Ort, Wann nach der Zeit, Wie nach Art und Weise."
+        },
+        {
+          "vi": "Ở A1, bạn có thể nhớ mẫu: W-Wort + động từ chia + chủ ngữ + … (trừ khi có từ đệm đặc biệt).",
+          "en": "At A1, a useful frame is: W-word + finite verb + subject + … (unless there is a special starter).",
+          "de": "Auf A1 hilft das Muster: W-Wort + finites Verb + Subjekt + … (außer bei besonderen Satzanfängen)."
+        },
+        {
+          "vi": "Câu hỏi có/không (Ja/Nein) khác câu W-: chúng bắt đầu bằng động từ (Kommst du…?).",
+          "en": "Yes/No questions are different from W-questions: they start with the verb (Kommst du…?).",
+          "de": "Ja/Nein-Fragen sind anders als W-Fragen: Sie beginnen mit dem Verb (Kommst du…?)."
+        }
+      ],
+      "vocabulary": [
+        {
+          "german": "wer",
+          "meaning": {
+            "vi": "ai",
+            "en": "who",
+            "de": "wer"
+          },
+          "exampleDe": "Wer ist das?",
+          "exampleTranslation": {
+            "vi": "Đó là ai?",
+            "en": "Who is that?",
+            "de": "Wer ist das?"
+          },
+          "speakDe": "Wer ist das?"
+        },
+        {
+          "german": "was",
+          "meaning": {
+            "vi": "cái gì",
+            "en": "what",
+            "de": "was"
+          },
+          "exampleDe": "Was machst du?",
+          "exampleTranslation": {
+            "vi": "Bạn đang làm gì?",
+            "en": "What are you doing?",
+            "de": "Was machst du?"
+          },
+          "speakDe": "Was machst du?"
+        },
+        {
+          "german": "wo",
+          "meaning": {
+            "vi": "ở đâu",
+            "en": "where",
+            "de": "wo"
+          },
+          "exampleDe": "Wo wohnst du?",
+          "exampleTranslation": {
+            "vi": "Bạn sống ở đâu?",
+            "en": "Where do you live?",
+            "de": "Wo wohnst du?"
+          },
+          "speakDe": "Wo wohnst du?"
+        },
+        {
+          "german": "wann",
+          "meaning": {
+            "vi": "khi nào",
+            "en": "when",
+            "de": "wann"
+          },
+          "exampleDe": "Wann beginnt der Kurs?",
+          "exampleTranslation": {
+            "vi": "Khóa học bắt đầu khi nào?",
+            "en": "When does the course start?",
+            "de": "Wann beginnt der Kurs?"
+          },
+          "speakDe": "Wann beginnt der Kurs?"
+        },
+        {
+          "german": "wie",
+          "meaning": {
+            "vi": "thế nào",
+            "en": "how",
+            "de": "wie"
+          },
+          "exampleDe": "Wie heißt du?",
+          "exampleTranslation": {
+            "vi": "Bạn tên là gì?",
+            "en": "What is your name? (lit. How are you called?)",
+            "de": "Wie heißt du?"
+          },
+          "speakDe": "Wie heißt du?"
+        }
+      ],
+      "phrases": [
+        {
+          "german": "Woher kommst du?",
+          "meaning": {
+            "vi": "Bạn đến từ đâu?",
+            "en": "Where do you come from?",
+            "de": "Woher kommst du?"
+          },
+          "speakDe": "Woher kommst du?"
+        },
+        {
+          "german": "Warum lernst du Deutsch?",
+          "meaning": {
+            "vi": "Tại sao bạn học tiếng Đức?",
+            "en": "Why are you learning German?",
+            "de": "Warum lernst du Deutsch?"
+          },
+          "speakDe": "Warum lernst du Deutsch?"
+        },
+        {
+          "german": "Wie viel kostet das Ticket?",
+          "meaning": {
+            "vi": "Vé giá bao nhiêu?",
+            "en": "How much does the ticket cost?",
+            "de": "Wie viel kostet das Ticket?"
+          },
+          "speakDe": "Wie viel kostet das Ticket?"
+        },
+        {
+          "german": "Wohin gehst du?",
+          "meaning": {
+            "vi": "Bạn đi đâu?",
+            "en": "Where are you going (to)?",
+            "de": "Wohin gehst du?"
+          },
+          "speakDe": "Wohin gehst du?"
+        }
+      ],
+      "examples": [
+        {
+          "german": "Was ist dein Hobby?",
+          "translation": {
+            "vi": "Sở thích của bạn là gì?",
+            "en": "What is your hobby?",
+            "de": "Was ist dein Hobby?"
+          },
+          "note": {
+            "vi": "Was + động từ + chủ ngữ trong câu hỏi thông tin.",
+            "en": "Was + verb + subject in an information question.",
+            "de": "Was + Verb + Subjekt in einer Informationsfrage."
+          },
+          "speakDe": "Was ist dein Hobby?"
+        },
+        {
+          "german": "Wann hast du Zeit?",
+          "translation": {
+            "vi": "Khi nào bạn rảnh?",
+            "en": "When do you have time?",
+            "de": "Wann hast du Zeit?"
+          },
+          "note": {
+            "vi": "Wann hỏi thời gian; động từ chia đứng ngay sau Wann.",
+            "en": "Wann asks about time; the finite verb comes right after Wann.",
+            "de": "Wann fragt nach der Zeit; das finite Verb folgt direkt."
+          },
+          "speakDe": "Wann hast du Zeit?"
+        },
+        {
+          "german": "Wo ist die Toilette?",
+          "translation": {
+            "vi": "Nhà vệ sinh ở đâu?",
+            "en": "Where is the toilet?",
+            "de": "Wo ist die Toilette?"
+          },
+          "note": {
+            "vi": "Wo + động từ + chủ ngữ: mẫu rất thường gặp khi đi du lịch.",
+            "en": "Wo + verb + subject: a very common travel pattern.",
+            "de": "Wo + Verb + Subjekt: ein sehr häufiges Muster auf Reisen."
+          },
+          "speakDe": "Wo ist die Toilette?"
+        }
+      ]
+    },
+    "PRACTICE:0": {
+      "title": {
+        "vi": "Lịch sự với möchten và bitte",
+        "en": "Politeness with möchten and bitte",
+        "de": "Höflichkeit mit möchten und bitte"
+      },
+      "overview": {
+        "vi": "Ở A1, möchten diễn đạt mong muốn lịch sự hơn will; bitte dùng khi nhờ vả, đáp lại cảm ơn, hoặc làm câu yêu cầu nhẹ nhàng hơn.",
+        "en": "At A1, möchten expresses a polite wish compared to wollen; bitte is used for requests, replying to thanks, or softening an instruction.",
+        "de": "Auf A1 drückt möchten einen höflicheren Wunsch aus als wollen; bitte benutzt man bei Bitten, auf Dankeschön oder um eine Aufforderung freundlicher zu machen."
+      },
+      "focusBullets": [
+        {
+          "vi": "Mẫu hay gặp: Ich möchte + danh từ/động từ nguyên mẫu (Ich möchte ein Ticket / Ich möchte zahlen).",
+          "en": "Common pattern: Ich möchte + noun/infinitive (Ich möchte ein Ticket / Ich möchte zahlen).",
+          "de": "Häufiges Muster: Ich möchte + Nomen/Infinitiv (Ich möchte ein Ticket / Ich möchte zahlen)."
+        },
+        {
+          "vi": "Bitte có thể đứng đầu câu yêu cầu hoặc cuối câu để nhấn mạnh sự lịch sự.",
+          "en": "Bitte can start a request or come at the end to sound more polite.",
+          "de": "Bitte kann einen Befehl/Aufforderung einleiten oder am Ende stehen, um höflicher zu klingen."
+        },
+        {
+          "vi": "Ở tình huống phục vụ, kết hợp Bitte danke cơ bản giúp giao tiếp tự nhiên hơn.",
+          "en": "In service situations, combining Bitte and Danke makes interactions feel natural.",
+          "de": "Im Service kombiniert man Bitte und Danke, damit es natürlich klingt."
+        }
+      ],
+      "vocabulary": [
+        {
+          "german": "möchten",
+          "meaning": {
+            "vi": "muốn (lịch sự)",
+            "en": "would like to / want (polite)",
+            "de": "möchten"
+          },
+          "exampleDe": "Ich möchte einen Kaffee, bitte.",
+          "exampleTranslation": {
+            "vi": "Tôi muốn một ly cà phê, làm ơn.",
+            "en": "I would like a coffee, please.",
+            "de": "Ich möchte einen Kaffee, bitte."
+          },
+          "speakDe": "Ich möchte einen Kaffee, bitte."
+        },
+        {
+          "german": "bestellen",
+          "meaning": {
+            "vi": "gọi món, đặt hàng",
+            "en": "to order",
+            "de": "bestellen"
+          },
+          "exampleDe": "Wir möchten bestellen.",
+          "exampleTranslation": {
+            "vi": "Chúng tôi muốn gọi món.",
+            "en": "We would like to order.",
+            "de": "Wir möchten bestellen."
+          },
+          "speakDe": "Wir möchten bestellen."
+        },
+        {
+          "german": "helfen",
+          "meaning": {
+            "vi": "giúp",
+            "en": "to help",
+            "de": "helfen"
+          },
+          "exampleDe": "Können Sie mir bitte helfen?",
+          "exampleTranslation": {
+            "vi": "Bạn có thể giúp tôi được không?",
+            "en": "Could you help me, please?",
+            "de": "Können Sie mir bitte helfen?"
+          },
+          "speakDe": "Können Sie mir bitte helfen?"
+        },
+        {
+          "german": "zahlen",
+          "meaning": {
+            "vi": "thanh toán",
+            "en": "to pay",
+            "de": "zahlen"
+          },
+          "exampleDe": "Ich möchte bitte zahlen.",
+          "exampleTranslation": {
+            "vi": "Tôi muốn thanh toán.",
+            "en": "I would like to pay, please.",
+            "de": "Ich möchte bitte zahlen."
+          },
+          "speakDe": "Ich möchte bitte zahlen."
+        },
+        {
+          "german": "langsamer",
+          "meaning": {
+            "vi": "chậm hơn",
+            "en": "more slowly",
+            "de": "langsamer"
+          },
+          "exampleDe": "Bitte sprechen Sie langsamer.",
+          "exampleTranslation": {
+            "vi": "Làm ơn nói chậm hơn.",
+            "en": "Please speak more slowly.",
+            "de": "Bitte sprechen Sie langsamer."
+          },
+          "speakDe": "Bitte sprechen Sie langsamer."
+        }
+      ],
+      "phrases": [
+        {
+          "german": "Ich möchte das Menü, bitte.",
+          "meaning": {
+            "vi": "Tôi muốn xem thực đơn, làm ơn.",
+            "en": "I would like the menu, please.",
+            "de": "Ich möchte das Menü, bitte."
+          },
+          "speakDe": "Ich möchte das Menü, bitte."
+        },
+        {
+          "german": "Bitte einen Tisch für zwei.",
+          "meaning": {
+            "vi": "Làm ơn một bàn cho hai người.",
+            "en": "A table for two, please.",
+            "de": "Bitte einen Tisch für zwei."
+          },
+          "speakDe": "Bitte einen Tisch für zwei."
+        },
+        {
+          "german": "Könnten Sie das wiederholen, bitte?",
+          "meaning": {
+            "vi": "Bạn có thể nhắc lại được không?",
+            "en": "Could you repeat that, please?",
+            "de": "Könnten Sie das wiederholen, bitte?"
+          },
+          "speakDe": "Könnten Sie das wiederholen, bitte?"
+        },
+        {
+          "german": "Danke, bitte schön.",
+          "meaning": {
+            "vi": "Cảm ơn, không có chi (đáp lại).",
+            "en": "Thank you — you're welcome (service style).",
+            "de": "Danke, bitte schön."
+          },
+          "speakDe": "Danke, bitte schön."
+        }
+      ],
+      "examples": [
+        {
+          "german": "Ich möchte ein Wasser und ein Brot.",
+          "translation": {
+            "vi": "Tôi muốn một chai nước và một ổ bánh mì.",
+            "en": "I would like a water and a bread roll.",
+            "de": "Ich möchte ein Wasser und ein Brot."
+          },
+          "note": {
+            "vi": "möchten + danh từ: cách gọi món lịch sự.",
+            "en": "möchten + noun: a polite way to order.",
+            "de": "möchten + Nomen: höflich bestellen."
+          },
+          "speakDe": "Ich möchte ein Wasser und ein Brot."
+        },
+        {
+          "german": "Bitte bringen Sie die Rechnung.",
+          "translation": {
+            "vi": "Làm ơn mang hóa đơn giúp tôi.",
+            "en": "Please bring the bill.",
+            "de": "Bitte bringen Sie die Rechnung."
+          },
+          "note": {
+            "vi": "bitte + câu yêu cầu ở mức Sie.",
+            "en": "bitte + request at Sie level.",
+            "de": "bitte + Aufforderung auf Sie-Ebene."
+          },
+          "speakDe": "Bitte bringen Sie die Rechnung."
+        },
+        {
+          "german": "Ich möchte gern üben, bitte.",
+          "translation": {
+            "vi": "Tôi muốn luyện tập, làm ơn.",
+            "en": "I would like to practice, please.",
+            "de": "Ich möchte gern üben, bitte."
+          },
+          "note": {
+            "vi": "gern làm câu mong muốn nghe tự nhiên, thân thiện hơn.",
+            "en": "gern makes the wish sound natural and friendly.",
+            "de": "gern macht den Wunsch freundlicher und natürlicher."
+          },
+          "speakDe": "Ich möchte gern üben, bitte."
+        }
+      ]
+    },
+    "PRACTICE:1": {
+      "title": {
+        "vi": "Phủ định: nicht vs kein / keine",
+        "en": "Negation: nicht vs kein / keine",
+        "de": "Verneinung: nicht vs kein / keine"
+      },
+      "overview": {
+        "vi": "nicht thường phủ định động từ, tính từ, hoặc toàn bộ ý câu; kein/keine phủ định danh từ khi trước đó không có mạo từ xác định (hoặc khi nói “không có…”).",
+        "en": "nicht often negates the verb, an adjective, or the whole idea; kein/keine negates a noun when you mean “no/not any …” without a definite article in the same slot.",
+        "de": "nicht verneint oft das Verb, ein Adjektiv oder die ganze Aussage; kein/keine verneint ein Nomen, wenn du „kein/keine …“ meinst (ohne bestimmten Artikel in derselben Rolle)."
+      },
+      "focusBullets": [
+        {
+          "vi": "keine dùng với danh từ số nhiều và danh từ giống cái số ít (Ich habe keine Zeit).",
+          "en": "keine is used with plural nouns and feminine singular nouns (Ich habe keine Zeit).",
+          "de": "keine steht vor Plural und femininen Singular (Ich habe keine Zeit)."
+        },
+        {
+          "vi": "kein dùng với giống đực/trung số ít (Ich habe kein Auto).",
+          "en": "kein is used with masculine/neuter singular nouns (Ich habe kein Auto).",
+          "de": "kein steht vor maskulinem/neutralem Singular (Ich habe kein Auto)."
+        },
+        {
+          "vi": "nicht hay đứng cuối câu hoặc ngay trước phần bị phủ định rõ rệt (Ich komme nicht / Das ist nicht teuer).",
+          "en": "nicht often sits at the end of the sentence or right before what is negated (Ich komme nicht / Das ist nicht teuer).",
+          "de": "nicht steht oft am Satzende oder direkt vor dem verneinten Teil (Ich komme nicht / Das ist nicht teuer)."
+        }
+      ],
+      "vocabulary": [
+        {
+          "german": "nicht",
+          "meaning": {
+            "vi": "không (phủ định chung)",
+            "en": "not",
+            "de": "nicht"
+          },
+          "exampleDe": "Ich verstehe das nicht.",
+          "exampleTranslation": {
+            "vi": "Tôi không hiểu điều đó.",
+            "en": "I do not understand that.",
+            "de": "Ich verstehe das nicht."
+          },
+          "speakDe": "Ich verstehe das nicht."
+        },
+        {
+          "german": "kein",
+          "meaning": {
+            "vi": "không có (với danh từ đực/trung số ít)",
+            "en": "no (masc./neut. singular)",
+            "de": "kein"
+          },
+          "exampleDe": "Ich habe kein Geld.",
+          "exampleTranslation": {
+            "vi": "Tôi không có tiền.",
+            "en": "I have no money.",
+            "de": "Ich habe kein Geld."
+          },
+          "speakDe": "Ich habe kein Geld."
+        },
+        {
+          "german": "keine",
+          "meaning": {
+            "vi": "không có (với danh từ cái số ít hoặc số nhiều)",
+            "en": "no (fem. singular / plural)",
+            "de": "keine"
+          },
+          "exampleDe": "Ich habe keine Karte.",
+          "exampleTranslation": {
+            "vi": "Tôi không có thẻ.",
+            "en": "I do not have a card.",
+            "de": "Ich habe keine Karte."
+          },
+          "speakDe": "Ich habe keine Karte."
+        },
+        {
+          "german": "hungrig",
+          "meaning": {
+            "vi": "đói",
+            "en": "hungry",
+            "de": "hungrig"
+          },
+          "exampleDe": "Ich bin nicht hungrig.",
+          "exampleTranslation": {
+            "vi": "Tôi không đói.",
+            "en": "I am not hungry.",
+            "de": "Ich bin nicht hungrig."
+          },
+          "speakDe": "Ich bin nicht hungrig."
+        },
+        {
+          "german": "Zeit",
+          "meaning": {
+            "vi": "thời gian",
+            "en": "time",
+            "de": "die Zeit"
+          },
+          "exampleDe": "Heute habe ich keine Zeit.",
+          "exampleTranslation": {
+            "vi": "Hôm nay tôi không có thời gian.",
+            "en": "Today I have no time.",
+            "de": "Heute habe ich keine Zeit."
+          },
+          "speakDe": "Heute habe ich keine Zeit."
+        }
+      ],
+      "phrases": [
+        {
+          "german": "Ich spreche kein Deutsch.",
+          "meaning": {
+            "vi": "Tôi không nói tiếng Đức.",
+            "en": "I do not speak German.",
+            "de": "Ich spreche kein Deutsch."
+          },
+          "speakDe": "Ich spreche kein Deutsch."
+        },
+        {
+          "german": "Das ist nicht schwer.",
+          "meaning": {
+            "vi": "Điều đó không khó.",
+            "en": "That is not difficult.",
+            "de": "Das ist nicht schwer."
+          },
+          "speakDe": "Das ist nicht schwer."
+        },
+        {
+          "german": "Ich habe keine Hausaufgaben.",
+          "meaning": {
+            "vi": "Tôi không có bài tập về nhà.",
+            "en": "I have no homework.",
+            "de": "Ich habe keine Hausaufgaben."
+          },
+          "speakDe": "Ich habe keine Hausaufgaben."
+        },
+        {
+          "german": "Ich möchte keinen Zucker.",
+          "meaning": {
+            "vi": "Tôi không muốn đường.",
+            "en": "I do not want any sugar.",
+            "de": "Ich möchte keinen Zucker."
+          },
+          "speakDe": "Ich möchte keinen Zucker."
+        }
+      ],
+      "examples": [
+        {
+          "german": "Ich trinke keinen Kaffee.",
+          "translation": {
+            "vi": "Tôi không uống cà phê.",
+            "en": "I do not drink coffee.",
+            "de": "Ich trinke keinen Kaffee."
+          },
+          "note": {
+            "vi": "keinen + Kaffee (đực, Akkusativ sau trinken).",
+            "en": "keinen + Kaffee (masculine, accusative after trinken).",
+            "de": "keinen + Kaffee (maskulin, Akkusativ nach trinken)."
+          },
+          "speakDe": "Ich trinke keinen Kaffee."
+        },
+        {
+          "german": "Ich trinke nicht gern Tee.",
+          "translation": {
+            "vi": "Tôi không thích uống trà.",
+            "en": "I do not like to drink tea.",
+            "de": "Ich trinke nicht gern Tee."
+          },
+          "note": {
+            "vi": "nicht bám vào gern để phủ định sở thích.",
+            "en": "nicht negates gern to express dislike.",
+            "de": "nicht verneint gern, um auszudrücken, dass man etwas nicht gern mag."
+          },
+          "speakDe": "Ich trinke nicht gern Tee."
+        },
+        {
+          "german": "Das ist kein Problem.",
+          "translation": {
+            "vi": "Đó không phải là vấn đề.",
+            "en": "That is not a problem.",
+            "de": "Das ist kein Problem."
+          },
+          "note": {
+            "vi": "kein + Problem (trung tính) trong cố định thường gặp.",
+            "en": "kein + Problem (neuter) in a common fixed phrase.",
+            "de": "kein + Problem (neutral) in einer festen Redewendung."
+          },
+          "speakDe": "Das ist kein Problem."
+        }
+      ]
+    },
+    "PRACTICE:2": {
+      "title": {
+        "vi": "Thời gian và lịch trình (A1)",
+        "en": "Time and schedules (A1)",
+        "de": "Uhrzeit und Alltagsplan (A1)"
+      },
+      "overview": {
+        "vi": "Bạn học cách nói giờ (um … Uhr), các ngày trong tuần (am Montag), và các khung thời gian quen thuộc (morgens, abends) để mô tả thói quen.",
+        "en": "You learn telling time (um … Uhr), weekdays (am Montag), and common time frames (morgens, abends) to describe routines.",
+        "de": "Du lernst die Uhrzeit (um … Uhr), Wochentage (am Montag) und typische Tageszeiten (morgens, abends), um Routinen zu beschreiben."
+      },
+      "focusBullets": [
+        {
+          "vi": "um + giờ: um acht Uhr (lúc 8 giờ).",
+          "en": "um + clock time: um acht Uhr (at eight o’clock).",
+          "de": "um + Uhrzeit: um acht Uhr."
+        },
+        {
+          "vi": "am + ngày trong tuần: am Dienstag (vào thứ Ba).",
+          "en": "am + weekday: am Dienstag (on Tuesday).",
+          "de": "am + Wochentag: am Dienstag."
+        },
+        {
+          "vi": "morgens / nachmittags / abends mô tả phần lớn trong ngày, thường đi với thói quen.",
+          "en": "morgens / nachmittags / abends describe parts of the day, often with habits.",
+          "de": "morgens / nachmittags / abends beschreiben Tagesabschnitte, oft mit Gewohnheiten."
+        }
+      ],
+      "vocabulary": [
+        {
+          "german": "Uhr",
+          "meaning": {
+            "vi": "giờ (đồng hồ)",
+            "en": "o’clock",
+            "de": "die Uhr"
+          },
+          "exampleDe": "Es ist drei Uhr.",
+          "exampleTranslation": {
+            "vi": "Bây giờ là ba giờ.",
+            "en": "It is three o’clock.",
+            "de": "Es ist drei Uhr."
+          },
+          "speakDe": "Es ist drei Uhr."
+        },
+        {
+          "german": "Montag",
+          "meaning": {
+            "vi": "thứ Hai",
+            "en": "Monday",
+            "de": "der Montag"
+          },
+          "exampleDe": "Am Montag habe ich Deutschkurs.",
+          "exampleTranslation": {
+            "vi": "Thứ Hai tôi có khóa tiếng Đức.",
+            "en": "On Monday I have a German class.",
+            "de": "Am Montag habe ich Deutschkurs."
+          },
+          "speakDe": "Am Montag habe ich Deutschkurs."
+        },
+        {
+          "german": "Wochenende",
+          "meaning": {
+            "vi": "cuối tuần",
+            "en": "weekend",
+            "de": "das Wochenende"
+          },
+          "exampleDe": "Am Wochenende ruhe ich mich aus.",
+          "exampleTranslation": {
+            "vi": "Cuối tuần tôi nghỉ ngơi.",
+            "en": "At the weekend I rest.",
+            "de": "Am Wochenende ruhe ich mich aus."
+          },
+          "speakDe": "Am Wochenende ruhe ich mich aus."
+        },
+        {
+          "german": "pünktlich",
+          "meaning": {
+            "vi": "đúng giờ",
+            "en": "punctual / on time",
+            "de": "pünktlich"
+          },
+          "exampleDe": "Der Bus ist pünktlich.",
+          "exampleTranslation": {
+            "vi": "Xe buýt đúng giờ.",
+            "en": "The bus is on time.",
+            "de": "Der Bus ist pünktlich."
+          },
+          "speakDe": "Der Bus ist pünktlich."
+        },
+        {
+          "german": "Termin",
+          "meaning": {
+            "vi": "cuộc hẹn",
+            "en": "appointment",
+            "de": "der Termin"
+          },
+          "exampleDe": "Ich habe einen Termin um zehn Uhr.",
+          "exampleTranslation": {
+            "vi": "Tôi có cuộc hẹn lúc mười giờ.",
+            "en": "I have an appointment at ten o’clock.",
+            "de": "Ich habe einen Termin um zehn Uhr."
+          },
+          "speakDe": "Ich habe einen Termin um zehn Uhr."
+        }
+      ],
+      "phrases": [
+        {
+          "german": "Ich stehe um sieben Uhr auf.",
+          "meaning": {
+            "vi": "Tôi dậy lúc bảy giờ.",
+            "en": "I get up at seven o’clock.",
+            "de": "Ich stehe um sieben Uhr auf."
+          },
+          "speakDe": "Ich stehe um sieben Uhr auf."
+        },
+        {
+          "german": "Am Mittag esse ich in der Mensa.",
+          "meaning": {
+            "vi": "Buổi trưa tôi ăn ở căng-tin.",
+            "en": "At noon I eat in the cafeteria.",
+            "de": "Am Mittag esse ich in der Mensa."
+          },
+          "speakDe": "Am Mittag esse ich in der Mensa."
+        },
+        {
+          "german": "Heute Abend koche ich zu Hause.",
+          "meaning": {
+            "vi": "Tối nay tôi nấu ăn ở nhà.",
+            "en": "This evening I cook at home.",
+            "de": "Heute Abend koche ich zu Hause."
+          },
+          "speakDe": "Heute Abend koche ich zu Hause."
+        },
+        {
+          "german": "Der Zug fährt um Viertel nach acht.",
+          "meaning": {
+            "vi": "Tàu chạy lúc tám giờ mười lăm phút.",
+            "en": "The train leaves at a quarter past eight.",
+            "de": "Der Zug fährt um Viertel nach acht."
+          },
+          "speakDe": "Der Zug fährt um Viertel nach acht."
+        }
+      ],
+      "examples": [
+        {
+          "german": "Ich beginne um neun Uhr mit der Arbeit.",
+          "translation": {
+            "vi": "Tôi bắt đầu làm việc lúc chín giờ.",
+            "en": "I start work at nine o’clock.",
+            "de": "Ich beginne um neun Uhr mit der Arbeit."
+          },
+          "note": {
+            "vi": "um + giờ + mit: cách nói bắt đầu một hoạt động.",
+            "en": "um + time + mit: how to say you start an activity.",
+            "de": "um + Uhrzeit + mit: Start einer Aktivität beschreiben."
+          },
+          "speakDe": "Ich beginne um neun Uhr mit der Arbeit."
+        },
+        {
+          "german": "Am Freitag treffe ich Freunde.",
+          "translation": {
+            "vi": "Thứ Sáu tôi gặp bạn bè.",
+            "en": "On Friday I meet friends.",
+            "de": "Am Freitag treffe ich Freunde."
+          },
+          "note": {
+            "vi": "am + thứ trong tuần để nói lịch cố định.",
+            "en": "am + weekday for a fixed routine.",
+            "de": "am + Wochentag für feste Routinen."
+          },
+          "speakDe": "Am Freitag treffe ich Freunde."
+        },
+        {
+          "german": "Morgens lese ich die Nachrichten.",
+          "translation": {
+            "vi": "Buổi sáng tôi đọc tin tức.",
+            "en": "In the morning I read the news.",
+            "de": "Morgens lese ich die Nachrichten."
+          },
+          "note": {
+            "vi": "Morgens ở đầu câu → V2 (lese).",
+            "en": "Morgens at the start → V2 (lese).",
+            "de": "Morgens am Satzanfang → V2 (lese)."
+          },
+          "speakDe": "Morgens lese ich die Nachrichten."
+        }
+      ]
+    },
+    "SPEAKING:0": {
+      "title": {
+        "vi": "Chào hỏi: du và Sie",
+        "en": "Greetings: du and Sie",
+        "de": "Begrüßungen: du und Sie"
+      },
+      "overview": {
+        "vi": "Bạn học các cách chào theo thời điểm trong ngày và phân biệt xưng hô thân (du) với xưng hô trang trọng (Sie) trong tình huống lớp học, cửa hàng, và gặp người lạ.",
+        "en": "You learn time-of-day greetings and when to use informal du versus formal Sie in class, shops, and with strangers.",
+        "de": "Du lernst Tageszeiten-Begrüßungen und wann du informell du und formell Sie benutzt – im Kurs, im Laden und bei Fremden."
+      },
+      "focusBullets": [
+        {
+          "vi": "Sie + động từ chia dùng với người lớn/người lạ/trong phục vụ; du dùng với bạn bè, trẻ em, hoặc khi người Đức mời bạn xưng du.",
+          "en": "Sie + verb is for adults/strangers/service; du is for friends, children, or when someone offers du.",
+          "de": "Sie + Verb für Erwachsene/Fremde/Service; du für Freunde, Kinder oder wenn man du anbietet."
+        },
+        {
+          "vi": "Guten Morgen / Guten Tag / Guten Abend phù hợp theo buổi; Hallo trung tính hơn.",
+          "en": "Guten Morgen / Guten Tag / Guten Abend match the time of day; Hallo is more neutral.",
+          "de": "Guten Morgen / Guten Tag / Guten Abend passen zur Tageszeit; Hallo ist neutraler."
+        },
+        {
+          "vi": "Auf Wiedersehen / Tschüss: mức độ trang trọng khác nhau; trong lớp bạn thường nghe beides.",
+          "en": "Auf Wiedersehen / Tschüss differ in formality; you hear both in class.",
+          "de": "Auf Wiedersehen / Tschüss sind unterschiedlich formell; im Kurs hörst du beides."
+        }
+      ],
+      "vocabulary": [
+        {
+          "german": "Guten Tag",
+          "meaning": {
+            "vi": "xin chào (ban ngày)",
+            "en": "good day / hello",
+            "de": "Guten Tag"
+          },
+          "exampleDe": "Guten Tag, wie geht es Ihnen?",
+          "exampleTranslation": {
+            "vi": "Xin chào, bạn khỏe không?",
+            "en": "Good day, how are you?",
+            "de": "Guten Tag, wie geht es Ihnen?"
+          },
+          "speakDe": "Guten Tag, wie geht es Ihnen?"
+        },
+        {
+          "german": "Hallo",
+          "meaning": {
+            "vi": "chào",
+            "en": "hello",
+            "de": "Hallo"
+          },
+          "exampleDe": "Hallo, wie geht's?",
+          "exampleTranslation": {
+            "vi": "Chào, bạn thế nào?",
+            "en": "Hi, how’s it going?",
+            "de": "Hallo, wie geht's?"
+          },
+          "speakDe": "Hallo, wie geht's?"
+        },
+        {
+          "german": "danke",
+          "meaning": {
+            "vi": "cảm ơn",
+            "en": "thanks",
+            "de": "danke"
+          },
+          "exampleDe": "Danke sehr!",
+          "exampleTranslation": {
+            "vi": "Cảm ơn nhiều!",
+            "en": "Thank you very much!",
+            "de": "Danke sehr!"
+          },
+          "speakDe": "Danke sehr!"
+        },
+        {
+          "german": "bitte",
+          "meaning": {
+            "vi": "làm ơn / không có chi",
+            "en": "please / you’re welcome",
+            "de": "bitte"
+          },
+          "exampleDe": "Bitte schön!",
+          "exampleTranslation": {
+            "vi": "Không có chi!",
+            "en": "You’re welcome!",
+            "de": "Bitte schön!"
+          },
+          "speakDe": "Bitte schön!"
+        },
+        {
+          "german": "Tschüss",
+          "meaning": {
+            "vi": "tạm biệt (thân mật)",
+            "en": "bye (informal)",
+            "de": "Tschüss"
+          },
+          "exampleDe": "Tschüss, bis morgen!",
+          "exampleTranslation": {
+            "vi": "Tạm biệt, hẹn mai gặp!",
+            "en": "Bye, see you tomorrow!",
+            "de": "Tschüss, bis morgen!"
+          },
+          "speakDe": "Tschüss, bis morgen!"
+        }
+      ],
+      "phrases": [
+        {
+          "german": "Guten Morgen, Frau Meyer!",
+          "meaning": {
+            "vi": "Chào buổi sáng, bà Meyer!",
+            "en": "Good morning, Ms Meyer!",
+            "de": "Guten Morgen, Frau Meyer!"
+          },
+          "speakDe": "Guten Morgen, Frau Meyer!"
+        },
+        {
+          "german": "Wie geht es dir?",
+          "meaning": {
+            "vi": "Bạn khỏe không? (du)",
+            "en": "How are you? (informal)",
+            "de": "Wie geht es dir?"
+          },
+          "speakDe": "Wie geht es dir?"
+        },
+        {
+          "german": "Wie geht es Ihnen?",
+          "meaning": {
+            "vi": "Ngài/Bà khỏe không? (Sie)",
+            "en": "How are you? (formal)",
+            "de": "Wie geht es Ihnen?"
+          },
+          "speakDe": "Wie geht es Ihnen?"
+        },
+        {
+          "german": "Auf Wiedersehen und schönen Tag!",
+          "meaning": {
+            "vi": "Tạm biệt và chúc một ngày tốt lành!",
+            "en": "Goodbye and have a nice day!",
+            "de": "Auf Wiedersehen und schönen Tag!"
+          },
+          "speakDe": "Auf Wiedersehen und schönen Tag!"
+        }
+      ],
+      "examples": [
+        {
+          "german": "Guten Tag, ich heiße Lan.",
+          "translation": {
+            "vi": "Xin chào, tôi tên là Lan.",
+            "en": "Good day, my name is Lan.",
+            "de": "Guten Tag, ich heiße Lan."
+          },
+          "note": {
+            "vi": "Mở đầu lịch sự trước khi tự giới thiệu.",
+            "en": "A polite opener before introducing yourself.",
+            "de": "Höflicher Einstieg vor der Vorstellung."
+          },
+          "speakDe": "Guten Tag, ich heiße Lan."
+        },
+        {
+          "german": "Darf ich Sie duzen?",
+          "translation": {
+            "vi": "Tôi có thể xưng “du” với bạn được không?",
+            "en": "May I use du with you?",
+            "de": "Darf ich Sie duzen?"
+          },
+          "note": {
+            "vi": "Câu hỏi lịch sự khi muốn chuyển sang xưng du.",
+            "en": "A polite question when you want to switch to du.",
+            "de": "Höfliche Frage, wenn du zu du wechseln willst."
+          },
+          "speakDe": "Darf ich Sie duzen?"
+        },
+        {
+          "german": "Hallo zusammen, ich bin neu hier.",
+          "translation": {
+            "vi": "Chào mọi người, tôi mới ở đây.",
+            "en": "Hi everyone, I am new here.",
+            "de": "Hallo zusammen, ich bin neu hier."
+          },
+          "note": {
+            "vi": "Hallo zusammen thường dùng trong lớp/nhóm nhỏ.",
+            "en": "Hallo zusammen is common in class/small groups.",
+            "de": "Hallo zusammen ist typisch im Kurs/in kleinen Gruppen."
+          },
+          "speakDe": "Hallo zusammen, ich bin neu hier."
+        }
+      ]
+    },
+    "SPEAKING:1": {
+      "title": {
+        "vi": "Chỉ đường (A1)",
+        "en": "Giving directions (A1)",
+        "de": "Wegbeschreibung (A1)"
+      },
+      "overview": {
+        "vi": "Bạn học các từ chỉ phương hướng cơ bản và cách nhờ giúp lịch sự khi bị lạc ở thành phố, gần ga tàu, hoặc trong tòa nhà.",
+        "en": "You learn basic direction words and polite ways to ask for help when you are lost in a city, near a station, or inside a building.",
+        "de": "Du lernst einfache Richtungswörter und höfliche Bitten um Hilfe, wenn du dich in der Stadt, am Bahnhof oder im Gebäude verirrst."
+      },
+      "focusBullets": [
+        {
+          "vi": "links / rechts / geradeaus là nền tảng; kết hợp bitte để nghe thân thiện hơn.",
+          "en": "links / rechts / geradeaus are core; add bitte to sound friendly.",
+          "de": "links / rechts / geradeaus sind die Basis; bitte macht es freundlicher."
+        },
+        {
+          "vi": "Entschuldigung mở đầu câu hỏi đường rất tự nhiên.",
+          "en": "Entschuldigung is a natural starter for asking directions.",
+          "de": "Entschuldigung ist ein natürlicher Beginn für den Weg."
+        },
+        {
+          "vi": "Wo ist…? hỏi vị trí; Wie komme ich…? hỏi cách đi.",
+          "en": "Wo ist…? asks where something is; Wie komme ich…? asks how to get there.",
+          "de": "Wo ist…? fragt nach dem Ort; Wie komme ich…? fragt nach dem Weg."
+        }
+      ],
+      "vocabulary": [
+        {
+          "german": "links",
+          "meaning": {
+            "vi": "bên trái",
+            "en": "left",
+            "de": "links"
+          },
+          "exampleDe": "Gehen Sie bitte links.",
+          "exampleTranslation": {
+            "vi": "Làm ơn đi bên trái.",
+            "en": "Please go left.",
+            "de": "Gehen Sie bitte links."
+          },
+          "speakDe": "Gehen Sie bitte links."
+        },
+        {
+          "german": "rechts",
+          "meaning": {
+            "vi": "bên phải",
+            "en": "right",
+            "de": "rechts"
+          },
+          "exampleDe": "Die Apotheke ist rechts.",
+          "exampleTranslation": {
+            "vi": "Hiệu thuốc ở bên phải.",
+            "en": "The pharmacy is on the right.",
+            "de": "Die Apotheke ist rechts."
+          },
+          "speakDe": "Die Apotheke ist rechts."
+        },
+        {
+          "german": "geradeaus",
+          "meaning": {
+            "vi": "thẳng",
+            "en": "straight ahead",
+            "de": "geradeaus"
+          },
+          "exampleDe": "Gehen Sie geradeaus bis zur Ampel.",
+          "exampleTranslation": {
+            "vi": "Đi thẳng đến đèn giao thông.",
+            "en": "Go straight ahead to the traffic lights.",
+            "de": "Gehen Sie geradeaus bis zur Ampel."
+          },
+          "speakDe": "Gehen Sie geradeaus bis zur Ampel."
+        },
+        {
+          "german": "die Ecke",
+          "meaning": {
+            "vi": "góc phố",
+            "en": "the corner",
+            "de": "die Ecke"
+          },
+          "exampleDe": "An der Ecke ist ein Supermarkt.",
+          "exampleTranslation": {
+            "vi": "Ở góc phố có siêu thị.",
+            "en": "At the corner there is a supermarket.",
+            "de": "An der Ecke ist ein Supermarkt."
+          },
+          "speakDe": "An der Ecke ist ein Supermarkt."
+        },
+        {
+          "german": "die Haltestelle",
+          "meaning": {
+            "vi": "điểm dừng (xe buýt/tram)",
+            "en": "the stop (bus/tram)",
+            "de": "die Haltestelle"
+          },
+          "exampleDe": "Wo ist die nächste Haltestelle?",
+          "exampleTranslation": {
+            "vi": "Điểm dừng gần nhất ở đâu?",
+            "en": "Where is the next stop?",
+            "de": "Wo ist die nächste Haltestelle?"
+          },
+          "speakDe": "Wo ist die nächste Haltestelle?"
+        }
+      ],
+      "phrases": [
+        {
+          "german": "Entschuldigung, wo ist der Bahnhof?",
+          "meaning": {
+            "vi": "Xin lỗi, nhà ga ở đâu?",
+            "en": "Excuse me, where is the train station?",
+            "de": "Entschuldigung, wo ist der Bahnhof?"
+          },
+          "speakDe": "Entschuldigung, wo ist der Bahnhof?"
+        },
+        {
+          "german": "Gehen Sie hier lang, bitte.",
+          "meaning": {
+            "vi": "Làm ơn đi theo hướng này.",
+            "en": "Please go this way.",
+            "de": "Gehen Sie hier lang, bitte."
+          },
+          "speakDe": "Gehen Sie hier lang, bitte."
+        },
+        {
+          "german": "Es ist nicht weit.",
+          "meaning": {
+            "vi": "Không xa đâu.",
+            "en": "It is not far.",
+            "de": "Es ist nicht weit."
+          },
+          "speakDe": "Es ist nicht weit."
+        },
+        {
+          "german": "Können Sie das auf der Karte zeigen?",
+          "meaning": {
+            "vi": "Bạn có thể chỉ trên bản đồ được không?",
+            "en": "Can you show it on the map?",
+            "de": "Können Sie das auf der Karte zeigen?"
+          },
+          "speakDe": "Können Sie das auf der Karte zeigen?"
+        }
+      ],
+      "examples": [
+        {
+          "german": "Entschuldigung, wie komme ich zum Supermarkt?",
+          "translation": {
+            "vi": "Xin lỗi, làm sao để đến siêu thị?",
+            "en": "Excuse me, how do I get to the supermarket?",
+            "de": "Entschuldigung, wie komme ich zum Supermarkt?"
+          },
+          "note": {
+            "vi": "Wie komme ich…? là mẫu hỏi đường rất thực dụng.",
+            "en": "Wie komme ich…? is a very practical asking-for-directions frame.",
+            "de": "Wie komme ich…? ist ein sehr praktisches Muster für den Weg."
+          },
+          "speakDe": "Entschuldigung, wie komme ich zum Supermarkt?"
+        },
+        {
+          "german": "Gehen Sie geradeaus und dann links.",
+          "translation": {
+            "vi": "Đi thẳng rồi rẽ trái.",
+            "en": "Go straight ahead and then left.",
+            "de": "Gehen Sie geradeaus und dann links."
+          },
+          "note": {
+            "vi": "Hai bước chỉ đường: thẳng + rẽ.",
+            "en": "Two-step directions: straight + turn.",
+            "de": "Zwei Schritte: geradeaus + abbiegen."
+          },
+          "speakDe": "Gehen Sie geradeaus und dann links."
+        },
+        {
+          "german": "Der Eingang ist neben der Tür.",
+          "translation": {
+            "vi": "Lối vào ở cạnh cánh cửa.",
+            "en": "The entrance is next to the door.",
+            "de": "Der Eingang ist neben der Tür."
+          },
+          "note": {
+            "vi": "neben diễn tả vị trí cạnh nhau.",
+            "en": "neben describes “next to”.",
+            "de": "neben beschreibt „neben“."
+          },
+          "speakDe": "Der Eingang ist neben der Tür."
+        }
+      ]
+    },
+    "SPEAKING:2": {
+      "title": {
+        "vi": "Tự giới thiệu (A1)",
+        "en": "Introducing yourself (A1)",
+        "de": "Sich vorstellen (A1)"
+      },
+      "overview": {
+        "vi": "Bạn luyện nói các thông tin cơ bản: tên, tuổi, quốc tịch/nơi đến, nghề nghiệp hoặc vai trò học viên, và sở thích đơn giản.",
+        "en": "You practice saying basics: name, age, nationality/where you are from, job or student role, and a simple hobby.",
+        "de": "Du übst die Basics: Name, Alter, Herkunft/Nationalität, Beruf oder Rolle als Studentin/Student und ein einfaches Hobby."
+      },
+      "focusBullets": [
+        {
+          "vi": "Ich heiße… / Mein Name ist… đều rất phổ biến.",
+          "en": "Ich heiße… / Mein Name ist… are both very common.",
+          "de": "Ich heiße… / Mein Name ist… sind beide sehr üblich."
+        },
+        {
+          "vi": "Ich komme aus… nói nơi bạn đến; Ich wohne in… nói nơi bạn đang sống.",
+          "en": "Ich komme aus… says where you are from; Ich wohne in… says where you live.",
+          "de": "Ich komme aus… = Herkunft; Ich wohne in… = Wohnort."
+        },
+        {
+          "vi": "Ich bin Student / Studentin: giới tính ngữ pháp khác với giới tính sinh học — học cả cụm.",
+          "en": "Ich bin Student / Studentin: grammatical gender differs from biological sex — learn the chunk.",
+          "de": "Student/Studentin: grammatisches Genus ist nicht gleich biologischem Geschlecht – lerne die Wendung."
+        }
+      ],
+      "vocabulary": [
+        {
+          "german": "heißen",
+          "meaning": {
+            "vi": "tên là",
+            "en": "to be called",
+            "de": "heißen"
+          },
+          "exampleDe": "Ich heiße Minh.",
+          "exampleTranslation": {
+            "vi": "Tôi tên là Minh.",
+            "en": "My name is Minh.",
+            "de": "Ich heiße Minh."
+          },
+          "speakDe": "Ich heiße Minh."
+        },
+        {
+          "german": "kommen",
+          "meaning": {
+            "vi": "đến từ",
+            "en": "to come (from)",
+            "de": "kommen"
+          },
+          "exampleDe": "Ich komme aus Hanoi.",
+          "exampleTranslation": {
+            "vi": "Tôi đến từ Hà Nội.",
+            "en": "I come from Hanoi.",
+            "de": "Ich komme aus Hanoi."
+          },
+          "speakDe": "Ich komme aus Hanoi."
+        },
+        {
+          "german": "wohnen",
+          "meaning": {
+            "vi": "sống ở",
+            "en": "to live (in)",
+            "de": "wohnen"
+          },
+          "exampleDe": "Ich wohne in München.",
+          "exampleTranslation": {
+            "vi": "Tôi sống ở München.",
+            "en": "I live in Munich.",
+            "de": "Ich wohne in München."
+          },
+          "speakDe": "Ich wohne in München."
+        },
+        {
+          "german": "lernen",
+          "meaning": {
+            "vi": "học",
+            "en": "to learn",
+            "de": "lernen"
+          },
+          "exampleDe": "Ich lerne Deutsch für die Arbeit.",
+          "exampleTranslation": {
+            "vi": "Tôi học tiếng Đức vì công việc.",
+            "en": "I learn German for work.",
+            "de": "Ich lerne Deutsch für die Arbeit."
+          },
+          "speakDe": "Ich lerne Deutsch für die Arbeit."
+        },
+        {
+          "german": "Hobby",
+          "meaning": {
+            "vi": "sở thích",
+            "en": "hobby",
+            "de": "das Hobby"
+          },
+          "exampleDe": "Mein Hobby ist Musik hören.",
+          "exampleTranslation": {
+            "vi": "Sở thích của tôi là nghe nhạc.",
+            "en": "My hobby is listening to music.",
+            "de": "Mein Hobby ist Musik hören."
+          },
+          "speakDe": "Mein Hobby ist Musik hören."
+        }
+      ],
+      "phrases": [
+        {
+          "german": "Ich bin zweiundzwanzig Jahre alt.",
+          "meaning": {
+            "vi": "Tôi hai mươi hai tuổi.",
+            "en": "I am twenty-two years old.",
+            "de": "Ich bin zweiundzwanzig Jahre alt."
+          },
+          "speakDe": "Ich bin zweiundzwanzig Jahre alt."
+        },
+        {
+          "german": "Ich studiere Informatik.",
+          "meaning": {
+            "vi": "Tôi học ngành công nghệ thông tin.",
+            "en": "I study computer science.",
+            "de": "Ich studiere Informatik."
+          },
+          "speakDe": "Ich studiere Informatik."
+        },
+        {
+          "german": "Ich interessiere mich für Sport.",
+          "meaning": {
+            "vi": "Tôi thích thể thao.",
+            "en": "I am interested in sports.",
+            "de": "Ich interessiere mich für Sport."
+          },
+          "speakDe": "Ich interessiere mich für Sport."
+        },
+        {
+          "german": "Freut mich, Sie kennenzulernen.",
+          "meaning": {
+            "vi": "Rất vui được gặp bạn.",
+            "en": "Nice to meet you.",
+            "de": "Freut mich, Sie kennenzulernen."
+          },
+          "speakDe": "Freut mich, Sie kennenzulernen."
+        }
+      ],
+      "examples": [
+        {
+          "german": "Hallo, ich heiße Anna und ich komme aus Polen.",
+          "translation": {
+            "vi": "Chào, tôi tên Anna và tôi đến từ Ba Lan.",
+            "en": "Hi, my name is Anna and I come from Poland.",
+            "de": "Hallo, ich heiße Anna und ich komme aus Polen."
+          },
+          "note": {
+            "vi": "Hai mệnh đề nối bằng und trong tự giới thiệu.",
+            "en": "Two clauses joined with und in a self-intro.",
+            "de": "Zwei Teile mit und in der Vorstellung."
+          },
+          "speakDe": "Hallo, ich heiße Anna und ich komme aus Polen."
+        },
+        {
+          "german": "Ich bin Studentin und wohne in Berlin.",
+          "translation": {
+            "vi": "Tôi là sinh viên nữ và sống ở Berlin.",
+            "en": "I am a student and I live in Berlin.",
+            "de": "Ich bin Studentin und wohne in Berlin."
+          },
+          "note": {
+            "vi": "Studentin khớp với giống cái ngữ pháp.",
+            "en": "Studentin matches feminine grammatical gender.",
+            "de": "Studentin = feminines grammatisches Genus."
+          },
+          "speakDe": "Ich bin Studentin und wohne in Berlin."
+        },
+        {
+          "german": "Ich lerne Deutsch, weil ich in Deutschland arbeite.",
+          "translation": {
+            "vi": "Tôi học tiếng Đức vì tôi làm việc ở Đức.",
+            "en": "I learn German because I work in Germany.",
+            "de": "Ich lerne Deutsch, weil ich in Deutschland arbeite."
+          },
+          "note": {
+            "vi": "weil giới thiệu lý do đơn giản (A1+ nhưng rất hữu ích).",
+            "en": "weil introduces a simple reason (A1+ but very useful).",
+            "de": "weil führt einen einfachen Grund ein (A1+, aber sehr nützlich)."
+          },
+          "speakDe": "Ich lerne Deutsch, weil ich in Deutschland arbeite."
+        }
+      ]
+    },
+    "REVIEW:0": {
+      "title": {
+        "vi": "Ôn tập trộn A1",
+        "en": "Mixed A1 review",
+        "de": "Gemischte A1-Wiederholung"
+      },
+      "overview": {
+        "vi": "Bài ôn kết hợp chào hỏi, câu đơn giản, thời gian, và nhu cầu hàng ngày để bạn nói một đoạn ngắn mạch lạc hơn.",
+        "en": "This review mixes greetings, simple sentences, time, and daily needs so you can speak a short coherent paragraph.",
+        "de": "Diese Wiederholung verbindet Begrüßungen, einfache Sätze, Zeit und Alltagsbedürfnisse – für einen kurzen, zusammenhängenden Text."
+      },
+      "focusBullets": [
+        {
+          "vi": "Nối ý bằng und / aber / denn ở mức đơn giản để tránh câu từng chữ rời rạc.",
+          "en": "Link ideas with und / aber / denn at a simple level instead of choppy one-word answers.",
+          "de": "Verknüpfe Ideen mit und / aber / denn statt nur Ein-Wort-Antworten."
+        },
+        {
+          "vi": "Nhớ V2: nếu bắt đầu bằng Heute… thì động từ vẫn ở vị trí thứ hai.",
+          "en": "Remember V2: if you start with Heute…, the verb still goes second.",
+          "de": "Denk an V2: Wenn du mit Heute… beginnst, steht das Verb trotzdem an zweiter Stelle."
+        },
+        {
+          "vi": "Kết hợp möchten + bitte khi nói nhu cầu để nghe tự nhiên trong cửa hàng.",
+          "en": "Combine möchten + bitte for needs to sound natural in shops.",
+          "de": "Kombiniere möchten + bitte im Laden, damit es natürlich klingt."
+        }
+      ],
+      "vocabulary": [
+        {
+          "german": "und",
+          "meaning": {
+            "vi": "và",
+            "en": "and",
+            "de": "und"
+          },
+          "exampleDe": "Ich lerne Deutsch und Englisch.",
+          "exampleTranslation": {
+            "vi": "Tôi học tiếng Đức và tiếng Anh.",
+            "en": "I learn German and English.",
+            "de": "Ich lerne Deutsch und Englisch."
+          },
+          "speakDe": "Ich lerne Deutsch und Englisch."
+        },
+        {
+          "german": "aber",
+          "meaning": {
+            "vi": "nhưng",
+            "en": "but",
+            "de": "aber"
+          },
+          "exampleDe": "Ich bin müde, aber ich gehe mit.",
+          "exampleTranslation": {
+            "vi": "Tôi mệt nhưng tôi vẫn đi cùng.",
+            "en": "I am tired, but I am coming along.",
+            "de": "Ich bin müde, aber ich gehe mit."
+          },
+          "speakDe": "Ich bin müde, aber ich gehe mit."
+        },
+        {
+          "german": "gern",
+          "meaning": {
+            "vi": "thích, sẵn lòng",
+            "en": "gladly / like to",
+            "de": "gern"
+          },
+          "exampleDe": "Ich esse gern Obst.",
+          "exampleTranslation": {
+            "vi": "Tôi thích ăn trái cây.",
+            "en": "I like to eat fruit.",
+            "de": "Ich esse gern Obst."
+          },
+          "speakDe": "Ich esse gern Obst."
+        },
+        {
+          "german": "helfen",
+          "meaning": {
+            "vi": "giúp",
+            "en": "to help",
+            "de": "helfen"
+          },
+          "exampleDe": "Kannst du mir helfen?",
+          "exampleTranslation": {
+            "vi": "Bạn có thể giúp tôi không?",
+            "en": "Can you help me?",
+            "de": "Kannst du mir helfen?"
+          },
+          "speakDe": "Kannst du mir helfen?"
+        },
+        {
+          "german": "verstehen",
+          "meaning": {
+            "vi": "hiểu",
+            "en": "to understand",
+            "de": "verstehen"
+          },
+          "exampleDe": "Ich verstehe nur ein bisschen.",
+          "exampleTranslation": {
+            "vi": "Tôi chỉ hiểu một chút.",
+            "en": "I only understand a little.",
+            "de": "Ich verstehe nur ein bisschen."
+          },
+          "speakDe": "Ich verstehe nur ein bisschen."
+        }
+      ],
+      "phrases": [
+        {
+          "german": "Guten Tag, ich möchte ein Ticket, bitte.",
+          "meaning": {
+            "vi": "Xin chào, tôi muốn mua một vé, làm ơn.",
+            "en": "Good day, I would like a ticket, please.",
+            "de": "Guten Tag, ich möchte ein Ticket, bitte."
+          },
+          "speakDe": "Guten Tag, ich möchte ein Ticket, bitte."
+        },
+        {
+          "german": "Heute habe ich viel Stress, aber ich übe trotzdem.",
+          "meaning": {
+            "vi": "Hôm nay tôi căng thẳng nhưng tôi vẫn luyện tập.",
+            "en": "Today I am stressed, but I still practice.",
+            "de": "Heute habe ich viel Stress, aber ich übe trotzdem."
+          },
+          "speakDe": "Heute habe ich viel Stress, aber ich übe trotzdem."
+        },
+        {
+          "german": "Ich bin neu und kenne die Stadt noch nicht.",
+          "meaning": {
+            "vi": "Tôi mới đến và chưa quen thành phố.",
+            "en": "I am new and I do not know the city yet.",
+            "de": "Ich bin neu und kenne die Stadt noch nicht."
+          },
+          "speakDe": "Ich bin neu und kenne die Stadt noch nicht."
+        },
+        {
+          "german": "Können wir langsam sprechen, bitte?",
+          "meaning": {
+            "vi": "Chúng ta có thể nói chậm được không?",
+            "en": "Can we speak slowly, please?",
+            "de": "Können wir langsam sprechen, bitte?"
+          },
+          "speakDe": "Können wir langsam sprechen, bitte?"
+        }
+      ],
+      "examples": [
+        {
+          "german": "Guten Abend, ich heiße Tom und ich wohne in Hamburg.",
+          "translation": {
+            "vi": "Chào buổi tối, tôi tên Tom và tôi sống ở Hamburg.",
+            "en": "Good evening, my name is Tom and I live in Hamburg.",
+            "de": "Guten Abend, ich heiße Tom und ich wohne in Hamburg."
+          },
+          "note": {
+            "vi": "Ôn chào hỏi + tự giới thiệu + nơi ở trong một câu.",
+            "en": "Review greeting + self-intro + place in one sentence.",
+            "de": "Wiederholung: Begrüßung + Vorstellung + Wohnort in einem Satz."
+          },
+          "speakDe": "Guten Abend, ich heiße Tom und ich wohne in Hamburg."
+        },
+        {
+          "german": "Ich habe keine Zeit, aber ich lerne jeden Tag ein bisschen.",
+          "translation": {
+            "vi": "Tôi không có thời gian nhưng tôi học mỗi ngày một chút.",
+            "en": "I have no time, but I learn a little every day.",
+            "de": "Ich habe keine Zeit, aber ich lerne jeden Tag ein bisschen."
+          },
+          "note": {
+            "vi": "keine + Zeit + aber: phủ định và nối ý.",
+            "en": "keine + Zeit + aber: negation and contrast.",
+            "de": "keine + Zeit + aber: Verneinung und Kontrast."
+          },
+          "speakDe": "Ich habe keine Zeit, aber ich lerne jeden Tag ein bisschen."
+        },
+        {
+          "german": "Entschuldigung, ich verstehe das nicht. Können Sie das wiederholen?",
+          "translation": {
+            "vi": "Xin lỗi, tôi không hiểu. Bạn có thể nhắc lại không?",
+            "en": "Sorry, I do not understand that. Could you repeat it?",
+            "de": "Entschuldigung, ich verstehe das nicht. Können Sie das wiederholen?"
+          },
+          "note": {
+            "vi": "Cụm xin lỗi + phủ định + nhờ lặp lại: rất thực tế.",
+            "en": "Sorry + negation + ask to repeat: very practical.",
+            "de": "Entschuldigung + Verneinung + Bitte um Wiederholung: sehr praktisch."
+          },
+          "speakDe": "Entschuldigung, ich verstehe das nicht. Können Sie das wiederholen?"
+        }
+      ]
+    },
+    "REVIEW:1": {
+      "title": {
+        "vi": "Động từ thường gặp (sein, haben, gehen, kommen, machen)",
+        "en": "Common verbs (sein, haben, gehen, kommen, machen)",
+        "de": "Häufige Verben (sein, haben, gehen, kommen, machen)"
+      },
+      "overview": {
+        "vi": "Bạn ôn năm động từ lõi của A1 với các nghĩa cơ bản và mẫu câu quen thuộc, để ghép nhanh thành hội thoại ngắn.",
+        "en": "You review five core A1 verbs with basic meanings and familiar frames so you can build short dialogues quickly.",
+        "de": "Du wiederholst fünf zentrale A1-Verben mit Grundbedeutungen und typischen Mustern – für kurze Dialoge."
+      },
+      "focusBullets": [
+        {
+          "vi": "sein: trạng thái/nghề (Ich bin müde / Ich bin Lehrerin).",
+          "en": "sein: states/jobs (Ich bin müde / Ich bin Lehrerin).",
+          "de": "sein: Zustand/Beruf (Ich bin müde / Ich bin Lehrerin)."
+        },
+        {
+          "vi": "haben: sở hữu/nhu cầu (Ich habe Zeit / Ich habe Hunger).",
+          "en": "haben: possession/needs (Ich habe Zeit / Ich habe Hunger).",
+          "de": "haben: Besitz/Bedürfnis (Ich habe Zeit / Ich habe Hunger)."
+        },
+        {
+          "vi": "gehen/kommen/machen: chuyển động và hoạt động hàng ngày (Ich gehe… / Ich komme… / Ich mache…).",
+          "en": "gehen/kommen/machen: movement and daily activities (Ich gehe… / Ich komme… / Ich mache…).",
+          "de": "gehen/kommen/machen: Bewegung und Alltag (Ich gehe… / Ich komme… / Ich mache…)."
+        }
+      ],
+      "vocabulary": [
+        {
+          "german": "sein",
+          "meaning": {
+            "vi": "là",
+            "en": "to be",
+            "de": "sein"
+          },
+          "exampleDe": "Ich bin nervös vor dem Test.",
+          "exampleTranslation": {
+            "vi": "Tôi lo lắng trước bài kiểm tra.",
+            "en": "I am nervous before the test.",
+            "de": "Ich bin nervös vor dem Test."
+          },
+          "speakDe": "Ich bin nervös vor dem Test."
+        },
+        {
+          "german": "haben",
+          "meaning": {
+            "vi": "có",
+            "en": "to have",
+            "de": "haben"
+          },
+          "exampleDe": "Ich habe heute frei.",
+          "exampleTranslation": {
+            "vi": "Hôm nay tôi được nghỉ.",
+            "en": "I have the day off today.",
+            "de": "Ich habe heute frei."
+          },
+          "speakDe": "Ich habe heute frei."
+        },
+        {
+          "german": "gehen",
+          "meaning": {
+            "vi": "đi",
+            "en": "to go",
+            "de": "gehen"
+          },
+          "exampleDe": "Ich gehe zu Fuß.",
+          "exampleTranslation": {
+            "vi": "Tôi đi bộ.",
+            "en": "I go on foot.",
+            "de": "Ich gehe zu Fuß."
+          },
+          "speakDe": "Ich gehe zu Fuß."
+        },
+        {
+          "german": "kommen",
+          "meaning": {
+            "vi": "đến",
+            "en": "to come",
+            "de": "kommen"
+          },
+          "exampleDe": "Ich komme gleich.",
+          "exampleTranslation": {
+            "vi": "Tôi đến ngay.",
+            "en": "I am coming in a moment.",
+            "de": "Ich komme gleich."
+          },
+          "speakDe": "Ich komme gleich."
+        },
+        {
+          "german": "machen",
+          "meaning": {
+            "vi": "làm",
+            "en": "to do / to make",
+            "de": "machen"
+          },
+          "exampleDe": "Ich mache meine Hausaufgaben.",
+          "exampleTranslation": {
+            "vi": "Tôi làm bài tập về nhà.",
+            "en": "I do my homework.",
+            "de": "Ich mache meine Hausaufgaben."
+          },
+          "speakDe": "Ich mache meine Hausaufgaben."
+        }
+      ],
+      "phrases": [
+        {
+          "german": "Ich bin müde und habe Durst.",
+          "meaning": {
+            "vi": "Tôi mệt và khát.",
+            "en": "I am tired and thirsty.",
+            "de": "Ich bin müde und habe Durst."
+          },
+          "speakDe": "Ich bin müde und habe Durst."
+        },
+        {
+          "german": "Wir gehen heute ins Museum.",
+          "meaning": {
+            "vi": "Hôm nay chúng tôi đi bảo tàng.",
+            "en": "Today we are going to the museum.",
+            "de": "Wir gehen heute ins Museum."
+          },
+          "speakDe": "Wir gehen heute ins Museum."
+        },
+        {
+          "german": "Ich komme aus Österreich.",
+          "meaning": {
+            "vi": "Tôi đến từ Áo.",
+            "en": "I come from Austria.",
+            "de": "Ich komme aus Österreich."
+          },
+          "speakDe": "Ich komme aus Österreich."
+        },
+        {
+          "german": "Was machst du heute Abend?",
+          "meaning": {
+            "vi": "Tối nay bạn làm gì?",
+            "en": "What are you doing this evening?",
+            "de": "Was machst du heute Abend?"
+          },
+          "speakDe": "Was machst du heute Abend?"
+        }
+      ],
+      "examples": [
+        {
+          "german": "Ich bin Student und habe viele Fragen.",
+          "translation": {
+            "vi": "Tôi là sinh viên và có nhiều câu hỏi.",
+            "en": "I am a student and I have many questions.",
+            "de": "Ich bin Student und habe viele Fragen."
+          },
+          "note": {
+            "vi": "sein + danh từ nghề + haben + đối tượng.",
+            "en": "sein + job noun + haben + object.",
+            "de": "sein + Beruf + haben + Objekt."
+          },
+          "speakDe": "Ich bin Student und habe viele Fragen."
+        },
+        {
+          "german": "Ich gehe zur Arbeit und komme um sechs Uhr nach Hause.",
+          "translation": {
+            "vi": "Tôi đi làm và về nhà lúc sáu giờ.",
+            "en": "I go to work and come home at six o’clock.",
+            "de": "Ich gehe zur Arbeit und komme um sechs Uhr nach Hause."
+          },
+          "note": {
+            "vi": "zur Arbeit: giới từ + danh từ ở dạng thường gặp.",
+            "en": "zur Arbeit: common preposition + noun chunk.",
+            "de": "zur Arbeit: typische Präposition + Nomen."
+          },
+          "speakDe": "Ich gehe zur Arbeit und komme um sechs Uhr nach Hause."
+        },
+        {
+          "german": "Ich mache Sport, weil ich gesund bleiben möchte.",
+          "translation": {
+            "vi": "Tôi tập thể thao vì tôi muốn khỏe mạnh.",
+            "en": "I do sports because I want to stay healthy.",
+            "de": "Ich mache Sport, weil ich gesund bleiben möchte."
+          },
+          "note": {
+            "vi": "machen + Sport: cụm cố định rất A1.",
+            "en": "machen + Sport: a very A1-like collocation.",
+            "de": "machen + Sport: typische A1-Wortverbindung."
+          },
+          "speakDe": "Ich mache Sport, weil ich gesund bleiben möchte."
+        }
+      ]
+    },
+    "REVIEW:2": {
+      "title": {
+        "vi": "Akkusativ cơ bản và trật tự thông tin (TMP)",
+        "en": "Basic accusative and information order (TMP)",
+        "de": "Akkusativ Grundlagen und Informationsreihenfolge (TMP)"
+      },
+      "overview": {
+        "vi": "Bạn ôn tân ngữ (Akkusativ) với các mạo từ quen thuộc (den/die/das, einen/eine/ein) và gợi ý trật tự thời gian–cách–nơi để câu dài nghe tự nhiên hơn.",
+        "en": "You review the accusative object with common articles (den/die/das, einen/eine/ein) and a light TMP hint (time–manner–place) for more natural longer sentences.",
+        "de": "Du wiederholst das Akkusativobjekt mit den bekannten Artikeln (den/die/das, einen/eine/ein) und einem leichten TMP-Hinweis (Zeit – Art und Weise – Ort) für natürlichere längere Sätze."
+      },
+      "focusBullets": [
+        {
+          "vi": "Nhiều động từ tác động lên người/vật đứng làm tân ngữ: Ich sehe den Bus.",
+          "en": "Many verbs “act on” someone/something as the accusative object: Ich sehe den Bus.",
+          "de": "Viele Verben haben ein Akkusativobjekt: Ich sehe den Bus."
+        },
+        {
+          "vi": "den dùng với giống đực ở tân ngữ; die với giống cái; das với giống trung (ở mức ôn A1).",
+          "en": "den for masculine accusative; die for feminine; das for neuter (A1 review level).",
+          "de": "den maskulin im Akkusativ, die feminin, das neutral (A1-Wiederholung)."
+        },
+        {
+          "vi": "Gợi ý TMP: thường nói thời gian trước, cách làm ở giữa, địa điểm sau (không phải quy tắc tuyệt đối).",
+          "en": "TMP tip: often time first, manner in the middle, place last (not an absolute rule).",
+          "de": "TMP-Tipp: oft Zeit – Art und Weise – Ort (kein absolutes Gesetz)."
+        }
+      ],
+      "vocabulary": [
+        {
+          "german": "sehen",
+          "meaning": {
+            "vi": "nhìn thấy",
+            "en": "to see",
+            "de": "sehen"
+          },
+          "exampleDe": "Ich sehe den Lehrer.",
+          "exampleTranslation": {
+            "vi": "Tôi thấy giáo viên.",
+            "en": "I see the teacher.",
+            "de": "Ich sehe den Lehrer."
+          },
+          "speakDe": "Ich sehe den Lehrer."
+        },
+        {
+          "german": "kaufen",
+          "meaning": {
+            "vi": "mua",
+            "en": "to buy",
+            "de": "kaufen"
+          },
+          "exampleDe": "Ich kaufe ein Brot.",
+          "exampleTranslation": {
+            "vi": "Tôi mua một ổ bánh mì.",
+            "en": "I buy a bread roll.",
+            "de": "Ich kaufe ein Brot."
+          },
+          "speakDe": "Ich kaufe ein Brot."
+        },
+        {
+          "german": "finden",
+          "meaning": {
+            "vi": "tìm thấy",
+            "en": "to find",
+            "de": "finden"
+          },
+          "exampleDe": "Ich finde die Schlüssel nicht.",
+          "exampleTranslation": {
+            "vi": "Tôi không tìm thấy chìa khóa.",
+            "en": "I cannot find the keys.",
+            "de": "Ich finde die Schlüssel nicht."
+          },
+          "speakDe": "Ich finde die Schlüssel nicht."
+        },
+        {
+          "german": "mit dem Bus",
+          "meaning": {
+            "vi": "bằng xe buýt",
+            "en": "by bus",
+            "de": "mit dem Bus"
+          },
+          "exampleDe": "Ich fahre mit dem Bus zur Uni.",
+          "exampleTranslation": {
+            "vi": "Tôi đi xe buýt đến trường đại học.",
+            "en": "I go to university by bus.",
+            "de": "Ich fahre mit dem Bus zur Uni."
+          },
+          "speakDe": "Ich fahre mit dem Bus zur Uni."
+        },
+        {
+          "german": "schnell",
+          "meaning": {
+            "vi": "nhanh",
+            "en": "fast / quickly",
+            "de": "schnell"
+          },
+          "exampleDe": "Ich esse schnell ein Sandwich.",
+          "exampleTranslation": {
+            "vi": "Tôi ăn nhanh một chiếc sandwich.",
+            "en": "I quickly eat a sandwich.",
+            "de": "Ich esse schnell ein Sandwich."
+          },
+          "speakDe": "Ich esse schnell ein Sandwich."
+        }
+      ],
+      "phrases": [
+        {
+          "german": "Ich sehe den Zug, aber er ist voll.",
+          "meaning": {
+            "vi": "Tôi thấy chuyến tàu nhưng nó đông.",
+            "en": "I see the train, but it is full.",
+            "de": "Ich sehe den Zug, aber er ist voll."
+          },
+          "speakDe": "Ich sehe den Zug, aber er ist voll."
+        },
+        {
+          "german": "Ich kaufe eine Zeitung und ein Wasser.",
+          "meaning": {
+            "vi": "Tôi mua một tờ báo và một chai nước.",
+            "en": "I buy a newspaper and a water.",
+            "de": "Ich kaufe eine Zeitung und ein Wasser."
+          },
+          "speakDe": "Ich kaufe eine Zeitung und ein Wasser."
+        },
+        {
+          "german": "Heute fahre ich mit dem Fahrrad zur Arbeit.",
+          "meaning": {
+            "vi": "Hôm nay tôi đạp xe đi làm.",
+            "en": "Today I ride my bike to work.",
+            "de": "Heute fahre ich mit dem Fahrrad zur Arbeit."
+          },
+          "speakDe": "Heute fahre ich mit dem Fahrrad zur Arbeit."
+        },
+        {
+          "german": "Ich packe meine Sachen und rufe ein Taxi.",
+          "meaning": {
+            "vi": "Tôi thu dọn đồ và gọi taxi.",
+            "en": "I pack my things and call a taxi.",
+            "de": "Ich packe meine Sachen und rufe ein Taxi."
+          },
+          "speakDe": "Ich packe meine Sachen und rufe ein Taxi."
+        }
+      ],
+      "examples": [
+        {
+          "german": "Ich kaufe den Kaffee und trinke ihn im Park.",
+          "translation": {
+            "vi": "Tôi mua cà phê và uống ở công viên.",
+            "en": "I buy the coffee and drink it in the park.",
+            "de": "Ich kaufe den Kaffee und trinke ihn im Park."
+          },
+          "note": {
+            "vi": "den Kaffee: tân ngữ giống đực sau kaufen.",
+            "en": "den Kaffee: masculine accusative after kaufen.",
+            "de": "den Kaffee: maskulines Akkusativobjekt nach kaufen."
+          },
+          "speakDe": "Ich kaufe den Kaffee und trinke ihn im Park."
+        },
+        {
+          "german": "Am Samstag gehe ich mit Freunden ins Kino.",
+          "translation": {
+            "vi": "Thứ Bảy tôi đi xem phim với bạn bè.",
+            "en": "On Saturday I go to the cinema with friends.",
+            "de": "Am Samstag gehe ich mit Freunden ins Kino."
+          },
+          "note": {
+            "vi": "Thời gian trước (am Samstag), cách (mit Freunden), địa điểm (ins Kino).",
+            "en": "Time first (am Samstag), manner (mit Freunden), place (ins Kino).",
+            "de": "Zeit (am Samstag), Art und Weise (mit Freunden), Ort (ins Kino)."
+          },
+          "speakDe": "Am Samstag gehe ich mit Freunden ins Kino."
+        },
+        {
+          "german": "Ich suche meinen Pass und finde ihn nicht.",
+          "translation": {
+            "vi": "Tôi tìm hộ chiếu của mình nhưng không thấy.",
+            "en": "I look for my passport and cannot find it.",
+            "de": "Ich suche meinen Pass und finde ihn nicht."
+          },
+          "note": {
+            "vi": "meinen Pass: tính từ sở hữu + danh từ ở tân ngữ (ôn A1).",
+            "en": "meinen Pass: possessive + noun in accusative (A1 review).",
+            "de": "meinen Pass: Possessivartikel + Nomen im Akkusativ (A1-Wiederholung)."
+          },
+          "speakDe": "Ich suche meinen Pass und finde ihn nicht."
+        }
+      ]
+    }
+  }
+}

@@ -4,6 +4,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -64,14 +66,20 @@ public class GlobalExceptionHandler {
                 ex.getMessage(), request.getRequestURI(), null);
     }
 
+    // --- 401/403 — let Spring Security handle these, do NOT swallow them ---
+    @ExceptionHandler({AccessDeniedException.class, AuthenticationException.class})
+    public void rethrowSecurityExceptions(RuntimeException ex) throws RuntimeException {
+        throw ex;
+    }
+
     // --- 500 fallback ---
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ProblemDetail> handleGeneral(Exception ex,
                                                        HttpServletRequest request) {
-        // Không expose stack trace ra ngoài
+        // Debug mode — show real exception
+        String detail = ex.getClass().getSimpleName() + ": " + ex.getMessage();
         return problem(HttpStatus.INTERNAL_SERVER_ERROR, "internal-error", "Internal Server Error",
-                "An unexpected error occurred. Please try again later.",
-                request.getRequestURI(), null);
+                detail, request.getRequestURI(), null);
     }
 
     // --- builder ---

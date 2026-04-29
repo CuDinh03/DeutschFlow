@@ -7,12 +7,14 @@ import com.deutschflow.user.service.LearningPlanService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/onboarding")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('STUDENT')")
 public class OnboardingController {
 
     private final LearningPlanService learningPlanService;

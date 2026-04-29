@@ -5,8 +5,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.util.UriComponentsBuilder;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,10 +58,10 @@ public class DeepLTranslationService {
             headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
             headers.set("Authorization", "DeepL-Auth-Key " + apiKey);
 
-            // Build request body
+            String encodedText = URLEncoder.encode(text, StandardCharsets.UTF_8);
             String requestBody = String.format(
                     "text=%s&source_lang=DE&target_lang=%s&formality=default",
-                    text, targetLang.toUpperCase()
+                    encodedText, targetLang.toUpperCase()
             );
 
             HttpEntity<String> request = new HttpEntity<>(requestBody, headers);
