@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
+import { syncAuthCookies } from '@/lib/authSession'
 
 type FieldErrors = Record<string, string>
 
@@ -25,7 +26,12 @@ export default function RegisterPage() {
       const { data } = await api.post('/auth/register', form)
       localStorage.setItem('accessToken', data.accessToken)
       localStorage.setItem('refreshToken', data.refreshToken)
-      
+      syncAuthCookies(data)
+      if (form.locale && ['vi', 'en', 'de'].includes(form.locale)) {
+        document.cookie = `locale=${form.locale};path=/;max-age=31536000;SameSite=Lax`
+      }
+      router.refresh()
+
       // Lấy thông tin user để redirect theo role (mặc định STUDENT)
       const userRes = await api.get('/auth/me')
       const user = userRes.data
@@ -51,14 +57,14 @@ export default function RegisterPage() {
     } catch (err: unknown) {
       const res = (err as { response?: { data?: { detail?: string; errors?: FieldErrors } } })?.response?.data
       if (res?.errors) setFieldErrors(res.errors)
-      else setError(res?.detail ?? 'Registration failed')
+      else setError(res?.detail ?? t('registerFailed'))
     } finally {
       setLoading(false)
     }
   }
 
   const field = (name: keyof typeof form, label: string, type = 'text', placeholder = '') => (
-    <div>
+    <div className="form-field">
       <label className="label">{label}</label>
       <input
         type={type}
@@ -69,7 +75,7 @@ export default function RegisterPage() {
         placeholder={placeholder}
       />
       {fieldErrors[name] && (
-        <p className="mt-2 text-sm text-destructive flex items-center gap-1">
+        <p className="form-error">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
@@ -80,11 +86,11 @@ export default function RegisterPage() {
   )
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="auth-shell">
       {/* Background Gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary-hover to-navy-blue-dark opacity-5 pointer-events-none" />
       
-      <div className="relative w-full max-w-md">
+      <div className="auth-container">
         {/* Logo */}
         <div className="flex items-center justify-center gap-3 mb-8">
           <div className="w-12 h-12 rounded-lg bg-accent flex items-center justify-center shadow-md">
@@ -94,14 +100,14 @@ export default function RegisterPage() {
         </div>
 
         {/* Card */}
-        <div className="card p-8">
+        <div className="auth-card">
           <div className="mb-6">
             <h2 className="text-2xl font-bold text-foreground mb-2">{t('registerTitle')}</h2>
-            <p className="text-muted-foreground">Bắt đầu hành trình học tiếng Đức của bạn</p>
+            <p className="text-muted-foreground">{t('subtitleRegister')}</p>
           </div>
 
           {error && (
-            <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg text-sm flex items-start gap-3">
+            <div className="mb-6 alert-error flex items-start gap-3">
               <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -110,12 +116,12 @@ export default function RegisterPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {field('displayName', t('displayName'), 'text', 'Nguyễn Văn A')}
-            {field('email', t('email'), 'email', 'email@example.com')}
-            {field('password', t('password'), 'password', 'Tối thiểu 6 ký tự')}
+            {field('displayName', t('displayName'), 'text', t('placeholderDisplayName'))}
+            {field('email', t('email'), 'email', t('placeholderEmail'))}
+            {field('password', t('password'), 'password', t('passwordHint'))}
             
-            <div>
-              <label className="label">Ngôn ngữ giao diện</label>
+            <div className="form-field">
+              <label className="label">{t('uiLanguage')}</label>
               <select
                 value={form.locale}
                 onChange={e => setForm(f => ({ ...f, locale: e.target.value }))}
@@ -125,6 +131,7 @@ export default function RegisterPage() {
                 <option value="en">🇬🇧 English</option>
                 <option value="de">🇩🇪 Deutsch</option>
               </select>
+              <p className="form-help">VI / EN / DE</p>
             </div>
 
             <button
@@ -138,7 +145,7 @@ export default function RegisterPage() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
-                  Đang tạo tài khoản...
+                  {t('creatingAccount')}
                 </span>
               ) : (
                 t('register')
