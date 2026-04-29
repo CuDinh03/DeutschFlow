@@ -27,6 +27,7 @@ spring:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
+    repair-on-migrate: true
     encoding: UTF-8
 
   messages:
@@ -47,12 +48,80 @@ app:
     access-token-expiry-ms: ${JWT_ACCESS_TOKEN_EXPIRY_MS:900000}
     refresh-token-expiry-ms: ${JWT_REFRESH_TOKEN_EXPIRY_MS:604800000}
 
-  openai:
-    api-key: ${OPENAI_API_KEY:}
-    model: ${OPENAI_MODEL:gpt-4o}
+  # AI Speaking Practice — Groq (Llama 4 Scout, free tier)
+  # Set GROQ_API_KEY in .env: https://console.groq.com/keys
+  ai:
+    groq:
+      api-key: ${GROQ_API_KEY:}
+      model: ${GROQ_MODEL:meta-llama/llama-4-scout-17b-16e-instruct}
 
   deepl:
     api-key: ${DEEPL_API_KEY:}
+    # Gợi ý: DeepL Free ~500.000 ký tự/tháng — import 10k từ + ví dụ có thể vượt quota; dùng
+    # app.vocabulary.cefr-curated.deepl-max-chars-per-run và/hoặc tắt enrich-after-upsert cho đợt đầu.
+
+  vocabulary:
+    # Từ điển TSV trên classpath — không gọi API; mở rộng bằng cách thêm dòng vào file.
+    local-lexicon:
+      resource: ${LOCAL_LEXICON_RESOURCE:wordlists/local_lexicon.tsv}
+    goethe:
+      auto-import-on-startup: ${GOETHE_AUTO_IMPORT_ON_STARTUP:true}
+      # Wordlist trích từ PDF Goethe (A1/A2/B1) → goethe_official_wordlist.tsv; nạp ví dụ DE + CEFR.
+      official-wordlist:
+        auto-import-on-startup: ${GOETHE_OFFICIAL_WORDLIST_AUTO_IMPORT:true}
+      # classpath = file trong JAR; remote = tải wordlist từ GitHub (HTTP).
+      wordlist-source: ${GOETHE_WORDLIST_SOURCE:classpath}
+      # local_only = chỉ local_lexicon.tsv; online = DeepL + tuỳ chọn Wiktionary.
+      enrich-source: ${GOETHE_ENRICH_SOURCE:local_only}
+      enrich-with-deepl: ${GOETHE_ENRICH_WITH_DEEPL:true}
+      enrich-with-wiktionary: ${GOETHE_ENRICH_WITH_WIKTIONARY:false}
+    # Wordlist theo cấp A1–C1 (~10k), dedup ưu tiên cấp cao; pad từ de_50k nếu thiếu quota.
+    cefr-curated:
+      # Nạp từ wordlists/cefr_a1_patsy.txt, goethe_sorted.txt, de_50k.txt khi start (sau Goethe + official TSV).
+      auto-import-on-startup: ${CEFR_CURATED_AUTO_IMPORT_STARTUP:true}
+      # false = không enrich (DeepL) lúc bootstrap; bật true nếu muốn làm đầy nghĩa/ví dụ ngay (chậm, tốn quota).
+      auto-import-enrich: ${CEFR_CURATED_AUTO_IMPORT_ENRICH:false}
+      target-total: ${CEFR_CURATED_TARGET_TOTAL:10000}
+      quota-a1: ${CEFR_CURATED_QUOTA_A1:2000}
+      quota-a2: ${CEFR_CURATED_QUOTA_A2:2000}
+      quota-b1: ${CEFR_CURATED_QUOTA_B1:2000}
+      quota-b2: ${CEFR_CURATED_QUOTA_B2:2000}
+      quota-c1: ${CEFR_CURATED_QUOTA_C1:2000}
+      # false = chỉ đọc wordlists trên classpath (offline).
+      use-remote-sources: ${CEFR_CURATED_REMOTE_SOURCES:false}
+      classpath-a1: ${CEFR_CURATED_CLASSPATH_A1:wordlists/cefr_a1_patsy.txt}
+      classpath-b1: ${CEFR_CURATED_CLASSPATH_B1:wordlists/goethe_sorted.txt}
+      classpath-freq: ${CEFR_CURATED_CLASSPATH_FREQ:wordlists/de_50k.txt}
+      classpath-a2: ${CEFR_CURATED_CLASSPATH_A2:}
+      classpath-b2: ${CEFR_CURATED_CLASSPATH_B2:}
+      classpath-c1: ${CEFR_CURATED_CLASSPATH_C1:}
+      url-a1: ${CEFR_CURATED_URL_A1:}
+      url-a2: ${CEFR_CURATED_URL_A2:}
+      url-b1: ${CEFR_CURATED_URL_B1:}
+      url-b2: ${CEFR_CURATED_URL_B2:}
+      url-c1: ${CEFR_CURATED_URL_C1:}
+      fallback-frequency-url: ${CEFR_CURATED_FREQ_URL:}
+      enrich-after-upsert: ${CEFR_CURATED_ENRICH_AFTER_UPSERT:true}
+      deepl-max-chars-per-run: ${CEFR_CURATED_DEEPL_MAX_CHARS:450000}
+    # Làm đầy words.phonetic từ Wiktionary; resume qua bảng vocabulary_import_state.
+    ipa-batch:
+      words-per-run: ${IPA_BATCH_WORDS_PER_RUN:200}
+      request-delay-ms: ${IPA_BATCH_REQUEST_DELAY_MS:800}
+    wiktionary-scheduler:
+      enabled: ${WIKTIONARY_SCHEDULER_ENABLED:true}
+      batch-size: ${WIKTIONARY_SCHEDULER_BATCH_SIZE:200}
+      delay-ms: ${WIKTIONARY_SCHEDULER_DELAY_MS:5000}
+    glosbe:
+      enabled: ${GLOSBE_IMPORT_ENABLED:false}
+      base-url: ${GLOSBE_BASE_URL:https://vi.glosbe.com/de/vi}
+      max-pages-per-run: ${GLOSBE_MAX_PAGES_PER_RUN:30}
+      max-words-per-run: ${GLOSBE_MAX_WORDS_PER_RUN:300}
+      request-delay-ms: ${GLOSBE_REQUEST_DELAY_MS:400}
+      cron: ${GLOSBE_IMPORT_CRON:0 30 2 * * *}
+    glosbe-vi:
+      enabled: ${GLOSBE_VI_ENABLED:true}
+      batch-size: ${GLOSBE_VI_BATCH_SIZE:30}
+      delay-ms: ${GLOSBE_VI_DELAY_MS:5000}
 
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
