@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import api from '@/lib/api'
+import api, { httpStatus } from '@/lib/api'
 
 export default function TeacherReportsPage() {
   const router = useRouter()
@@ -22,8 +22,8 @@ export default function TeacherReportsPage() {
         }
         const res = await api.get('/teacher/reports/overview')
         setOverview(res.data)
-      } catch (e: any) {
-        if (e?.response?.status === 401) {
+      } catch (e: unknown) {
+        if (httpStatus(e) === 401) {
           router.push('/login')
           return
         }

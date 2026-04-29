@@ -34,8 +34,8 @@ export default function AdminUsersPage() {
     try {
       await api.patch(`/admin/users/${id}/role`, { role })
       await reload({ silent: true })
-    } catch (e: any) {
-      // let hook refresh display generic error state on next cycle
+    } catch {
+      // hook refresh will display generic error state on next cycle
     }
   }
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import api from '@/lib/api'
+import api, { httpStatus, apiMessage } from '@/lib/api'
 
 type Classroom = {
   id: number
@@ -30,8 +30,8 @@ export default function TeacherClassesPage() {
       }
       const res = await api.get('/teacher/classes')
       setItems(res.data ?? [])
-    } catch (e: any) {
-      if (e?.response?.status === 401) {
+    } catch (e: unknown) {
+      if (httpStatus(e) === 401) {
         router.push('/login')
         return
       }
@@ -52,8 +52,8 @@ export default function TeacherClassesPage() {
       await api.post('/teacher/classes', { name: newName.trim() })
       setNewName('')
       await load()
-    } catch (e: any) {
-      setError(e?.response?.data?.detail ?? 'Tao lop that bai.')
+    } catch (e: unknown) {
+      setError(apiMessage(e))
     }
   }
 
@@ -62,8 +62,8 @@ export default function TeacherClassesPage() {
     try {
       await api.delete(`/teacher/classes/${id}`)
       await load()
-    } catch (e: any) {
-      setError(e?.response?.data?.detail ?? 'Xoa lop that bai.')
+    } catch (e: unknown) {
+      setError(apiMessage(e))
     }
   }
 
@@ -75,8 +75,8 @@ export default function TeacherClassesPage() {
       await api.post(`/teacher/classes/${id}/students`, { email })
       setStudentEmail((prev) => ({ ...prev, [id]: '' }))
       await load()
-    } catch (e: any) {
-      setError(e?.response?.data?.detail ?? 'Them hoc vien that bai.')
+    } catch (e: unknown) {
+      setError(apiMessage(e))
     }
   }
 

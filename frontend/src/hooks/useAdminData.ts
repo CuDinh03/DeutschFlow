@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import api from '@/lib/api'
-import { clearAuthCookies } from '@/lib/authSession'
+import api, { httpStatus } from '@/lib/api'
+import { clearTokens } from '@/lib/authSession'
 
 type UseAdminDataOptions<T> = {
   initialData: T
@@ -53,12 +53,10 @@ export default function useAdminData<T>({
       const next = await fetchDataRef.current()
       setData(next)
       setLastSyncedAt(new Date())
-    } catch (e: any) {
-      if (e?.message === 'redirected') return
-      if (e?.response?.status === 401) {
-        localStorage.removeItem('accessToken')
-        localStorage.removeItem('refreshToken')
-        clearAuthCookies()
+    } catch (e: unknown) {
+      if (e instanceof Error && e.message === 'redirected') return
+      if (httpStatus(e) === 401) {
+        clearTokens()
         router.push('/login')
         return
       }

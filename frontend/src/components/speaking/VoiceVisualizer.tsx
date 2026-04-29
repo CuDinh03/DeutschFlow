@@ -1,15 +1,46 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
 import { SessionState, CYAN, PURPLE } from "./types";
 
 const BAR_COLORS = ["#22D3EE", "#38BDF8", "#818CF8", "#A78BFA", "#818CF8", "#38BDF8", "#22D3EE"];
 const BASE_AMPLITUDES = [0.32, 0.54, 0.72, 1.0, 0.72, 0.54, 0.32];
+const BAR_COUNT = BAR_COLORS.length;
 
-export function VoiceVisualizer({ state }: { state: SessionState }) {
+interface Props {
+  state: SessionState;
+  /** Live AnalyserNode from MediaStream — when provided, bars use real frequency data */
+  analyser?: AnalyserNode | null;
+}
+
+export function VoiceVisualizer({ state, analyser }: Props) {
   const isActive     = state === "listening" || state === "ai-speaking";
   const isAI         = state === "ai-speaking";
   const isProcessing = state === "processing";
+
+  // Real-time bar heights from analyser (0–255, normalised to 0–1)
+  const [realBars, setRealBars] = useState<number[]>(Array(BAR_COUNT).fill(0));
+  const rafRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (!analyser) {
+      setRealBars(Array(BAR_COUNT).fill(0));
+      return;
+    }
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    const tick = () => {
+      analyser.getByteFrequencyData(data);
+      // Sample evenly across the frequency bins
+      const step = Math.floor(data.length / BAR_COUNT);
+      setRealBars(
+        Array.from({ length: BAR_COUNT }, (_, i) => (data[i * step] ?? 0) / 255)
+      );
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    tick();
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [analyser]);
 
   return (
     <div className="flex flex-col items-center gap-3">
@@ -26,9 +57,14 @@ export function VoiceVisualizer({ state }: { state: SessionState }) {
           animate={{ opacity: isActive ? [0.5, 1, 0.5] : 0 }}
           transition={{ duration: 1.5, repeat: Infinity }}
         />
+
         <div className="flex items-end justify-center gap-[5px] relative z-10" style={{ height: 80 }}>
           {BAR_COLORS.map((color, i) => {
             const baseH = BASE_AMPLITUDES[i] * 32;
+            const realH = analyser && state === "listening"
+              ? Math.max(4, realBars[i] * 80)
+              : null;
+
             return (
               <motion.div
                 key={i}
@@ -38,8 +74,10 @@ export function VoiceVisualizer({ state }: { state: SessionState }) {
                   background: `linear-gradient(180deg, ${color}, ${color}88)`,
                   boxShadow: isActive ? `0 0 10px ${color}90, 0 0 20px ${color}50` : "none",
                   originY: 1,
+                  // When we have real data, bypass Framer Motion animation
+                  height: realH ?? undefined,
                 }}
-                animate={
+                animate={realH !== null ? undefined : (
                   isProcessing
                     ? { height: [baseH * 0.3, baseH * 0.5, baseH * 0.3] }
                     : isActive
@@ -47,7 +85,7 @@ export function VoiceVisualizer({ state }: { state: SessionState }) {
                       ? { height: [baseH * 0.9, baseH * 2.2, baseH * 1.2, baseH * 2.8, baseH * 0.9] }
                       : { height: [baseH, baseH * 3.2, baseH * 1.4, baseH * 2.6, baseH] }
                     : { height: [baseH * 0.4, baseH * 0.7, baseH * 0.4] }
-                }
+                )}
                 transition={{
                   duration: isActive ? (isAI ? 1.1 : 0.65) : 1.8,
                   repeat: Infinity,

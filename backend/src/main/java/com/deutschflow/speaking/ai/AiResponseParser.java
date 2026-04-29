@@ -30,7 +30,7 @@ public class AiResponseParser {
             return fallback("");
         }
 
-        String cleaned = stripMarkdownFences(rawJson.trim());
+        String cleaned = extractJsonObject(stripMarkdownFences(rawJson.trim()));
 
         try {
             JsonNode root = objectMapper.readTree(cleaned);
@@ -60,6 +60,27 @@ public class AiResponseParser {
             log.warn("Failed to parse OpenAI JSON response, using fallback. Error: {}", e.getMessage());
             return fallback(rawJson);
         }
+    }
+
+    /**
+     * Extracts the first complete JSON object {...} from an arbitrary string.
+     * This handles cases where the AI prefixes the JSON with plain-text before it.
+     */
+    private String extractJsonObject(String input) {
+        int start = input.indexOf('{');
+        if (start < 0) return input; // no JSON found, return as-is
+        int depth = 0;
+        for (int i = start; i < input.length(); i++) {
+            char c = input.charAt(i);
+            if (c == '{') depth++;
+            else if (c == '}') {
+                depth--;
+                if (depth == 0) return input.substring(start, i + 1);
+            }
+        }
+        // Unbalanced braces — try substring from first { to last }
+        int end = input.lastIndexOf('}');
+        return (end > start) ? input.substring(start, end + 1) : input;
     }
 
     /**

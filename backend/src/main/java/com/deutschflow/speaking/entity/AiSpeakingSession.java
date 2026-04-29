@@ -24,6 +24,10 @@ public class AiSpeakingSession {
     @Column(name = "topic", length = 200)
     private String topic;
 
+    /** CEFR level selected by the user for this session (e.g. A1, A2, B1, B2). */
+    @Column(name = "cefr_level", length = 8)
+    private String cefrLevel;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     @Builder.Default

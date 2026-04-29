@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import api from '@/lib/api'
+import api, { apiMessage } from '@/lib/api'
 import AdminShell from '@/components/admin/AdminShell'
 import useAdminData from '@/hooks/useAdminData'
 
@@ -219,9 +219,8 @@ export default function AdminReportsPage() {
                       setWiktionaryResult(res.data)
                       // refresh reports silently after kicking job
                       reload({ silent: true })
-                    } catch (e: any) {
-                      const msg = e?.response?.data?.message || e?.message || 'Khong the chay Wiktionary enrich.'
-                      setWiktionaryError(String(msg))
+                    } catch (e: unknown) {
+                      setWiktionaryError(apiMessage(e))
                     } finally {
                       setWiktionaryRunning(false)
                     }

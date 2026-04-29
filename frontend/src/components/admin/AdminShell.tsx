@@ -2,7 +2,7 @@
 
 import { ReactNode, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { clearAuthCookies } from '@/lib/authSession'
+import { clearTokens } from '@/lib/authSession'
 import { BarChart3, BookOpen, Database, LayoutDashboard, LogOut, Menu, RefreshCw, Users, X } from 'lucide-react'
 
 export type AdminNavId = 'overview' | 'students' | 'classes' | 'vocabulary' | 'reports'
@@ -40,9 +40,7 @@ export default function AdminShell({
   ]
 
   const handleLogout = () => {
-    localStorage.removeItem('accessToken')
-    localStorage.removeItem('refreshToken')
-    clearAuthCookies()
+    clearTokens()
     router.push('/login')
   }
 

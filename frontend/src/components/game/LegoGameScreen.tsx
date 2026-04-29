@@ -6,6 +6,7 @@ import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, useDraggable, us
 import { CSS } from '@dnd-kit/utilities'
 import { ArrowRight, Check, ChevronLeft, Heart, Lightbulb, Loader2, Star, Volume2, X } from 'lucide-react'
 import api from '@/lib/api'
+import { getAccessToken } from '@/lib/authSession'
 import { speakGerman } from '@/lib/speechDe'
 import {
   buildStandaloneQuestions,
@@ -165,8 +166,7 @@ export default function LegoGameScreen() {
   const variant = sessionVariants[sessionType]
 
   useEffect(() => {
-    const token = localStorage.getItem('accessToken')
-    if (!token) {
+    if (!getAccessToken()) {
       router.push('/login')
       return
     }
@@ -316,7 +316,7 @@ export default function LegoGameScreen() {
             >
               Chơi lại
             </button>
-            <button className="btn-outline btn-md" onClick={() => router.push('/student')}>
+            <button className="btn-outline btn-md" onClick={() => router.push('/dashboard')}>
               Về dashboard
             </button>
           </div>
@@ -331,7 +331,7 @@ export default function LegoGameScreen() {
         <div className="max-w-lg w-full bg-white border-2 border-[#E2E8F0] rounded-2xl p-6 text-center shadow-lg">
           <h2 className="text-xl font-bold text-[#00305E] mb-2">Không có dữ liệu game</h2>
           <p className="text-slate-600 mb-4">Không có câu hỏi cho chế độ luyện tập hiện tại.</p>
-          <button className="btn-outline btn-md" onClick={() => router.push('/student')}>
+          <button className="btn-outline btn-md" onClick={() => router.push('/dashboard')}>
             Về dashboard
           </button>
         </div>
@@ -350,7 +350,7 @@ export default function LegoGameScreen() {
         }}
       >
         <header className="bg-white/90 backdrop-blur border-b border-[#E2E8F0] px-5 py-4 flex items-center gap-4 flex-shrink-0">
-          <button onClick={() => router.push('/student')} className="flex items-center gap-1.5 px-3 py-2 rounded-[10px] text-[#64748B] hover:bg-[#F5F7FA]">
+          <button onClick={() => router.push('/dashboard')} className="flex items-center gap-1.5 px-3 py-2 rounded-[10px] text-[#64748B] hover:bg-[#F5F7FA]">
             <ChevronLeft size={16} /> Verlassen
           </button>
           <div className="flex-1">

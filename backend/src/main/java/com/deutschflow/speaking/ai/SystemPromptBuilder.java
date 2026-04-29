@@ -1,14 +1,17 @@
 package com.deutschflow.speaking.ai;
 
+import com.deutschflow.speaking.dto.WeakPoint;
 import com.deutschflow.user.entity.UserLearningProfile;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Builds the dynamic system prompt for the DeutschFlow AI speaking practice feature.
- * The prompt instructs GPT-4o to act as a German teacher and always respond in the
- * defined JSON schema.
+ * The prompt instructs the model to act as a German teacher and always respond in the
+ * defined JSON schema. It injects the user's profile, known interests, current session
+ * topic, and top grammar weak points so the AI can ask targeted follow-up questions.
  */
 @Component
 public class SystemPromptBuilder {
@@ -30,35 +33,61 @@ public class SystemPromptBuilder {
             """;
 
     /**
-     * Builds a personalized system prompt based on the user's learning profile and known interests.
+     * Builds a personalized system prompt based on the user's learning profile,
+     * known interests, session topic, and historical grammar weak points.
      *
      * @param profile        the user's learning profile (must not be null)
-     * @param knownInterests list of known user interests (may be empty, must not be null)
+     * @param knownInterests list of known user interests (may be empty)
+     * @param topic          the session topic (may be null)
+     * @param weakPoints     top recurring grammar error types (may be empty)
      * @return a non-empty system prompt string
      */
-    public String buildSystemPrompt(UserLearningProfile profile, List<String> knownInterests) {
-        String level = profile.getTargetLevel() != null
-                ? profile.getTargetLevel().name()
-                : "B1";
+    public String buildSystemPrompt(UserLearningProfile profile,
+                                    List<String> knownInterests,
+                                    String topic,
+                                    List<WeakPoint> weakPoints,
+                                    String sessionCefrLevel) {
+        String level = (sessionCefrLevel != null && !sessionCefrLevel.isBlank())
+                ? sessionCefrLevel.toUpperCase()
+                : (profile.getTargetLevel() != null ? profile.getTargetLevel().name() : "B1");
         String industry = profile.getIndustry() != null && !profile.getIndustry().isBlank()
                 ? profile.getIndustry()
                 : "nicht angegeben";
 
-        String interestSection = "";
-        if (knownInterests != null && !knownInterests.isEmpty()) {
-            interestSection = "- Bekannte Interessen: " + String.join(", ", knownInterests);
+        String interestSection = (knownInterests != null && !knownInterests.isEmpty())
+                ? "- Bekannte Interessen: " + String.join(", ", knownInterests)
+                : "";
+
+        String topicSection = (topic != null && !topic.isBlank())
+                ? "- Aktuelles Gesprächsthema: " + topic
+                : "";
+
+        String weakPointsSection = "";
+        if (weakPoints != null && !weakPoints.isEmpty()) {
+            String list = weakPoints.stream()
+                    .map(wp -> wp.grammarPoint() + " (" + wp.count() + "x)")
+                    .collect(Collectors.joining(", "));
+            weakPointsSection = """
+                    Schwächen des Lerners (häufigste Fehlerquellen, die du gezielt trainieren sollst):
+                    %s
+                    WICHTIG: Stelle gezielt Folgefragen und Satzaufgaben, die genau diese Schwachstellen
+                    testen, um den Lerner zu verbessern. Korrigiere diese Fehler besonders sorgfältig.
+                    """.formatted(list);
         }
 
         return """
                 Du bist "DeutschFlow AI", ein virtueller muttersprachlicher Deutschlehrer,
                 spezialisiert auf Sprechreflextraining für Vietnamesen.
                 Du hast eine geduldige, ermutigende Persönlichkeit und bist sehr feinfühlig beim Erkennen von Fehlern.
-                
+
                 Benutzerprofil:
                 - Zielsprachniveau: %s
                 - Beruf: %s
                 %s
-                
+                %s
+
+                %s
+
                 Gesprächsregeln:
                 1. Kommuniziere zu 100%% auf Deutsch. Nur Fehlererklärungen auf Vietnamesisch.
                 2. Verwende %s-Niveau: klarer Wortschatz, moderate Satzstruktur.
@@ -67,16 +96,28 @@ public class SystemPromptBuilder {
                 4. Beende immer mit einer offenen Frage zum aktuellen Thema, um das Gespräch fortzuführen.
                 5. Wenn du persönliche Informationen über den Benutzer entdeckst (Hobbys, Beruf, Interessen),
                    speichere sie im Feld user_interest_detected.
-                
+
                 %s
-                """.formatted(level, industry, interestSection, level, JSON_SCHEMA_INSTRUCTION);
+                """.formatted(level, industry, interestSection, topicSection,
+                weakPointsSection, level, JSON_SCHEMA_INSTRUCTION);
+    }
+
+    /**
+     * Overload for backward-compatibility: no topic, no weak points.
+     */
+    public String buildSystemPrompt(UserLearningProfile profile,
+                                    List<String> knownInterests,
+                                    String topic,
+                                    List<WeakPoint> weakPoints) {
+        return buildSystemPrompt(profile, knownInterests, topic, weakPoints, null);
+    }
+
+    public String buildSystemPrompt(UserLearningProfile profile, List<String> knownInterests) {
+        return buildSystemPrompt(profile, knownInterests, null, List.of(), null);
     }
 
     /**
      * Builds an optional topic context string to prepend to the first user message.
-     *
-     * @param topic the conversation topic (may be null or blank)
-     * @return a topic context string, or empty string if no topic
      */
     public String buildTopicContext(String topic) {
         if (topic == null || topic.isBlank()) {

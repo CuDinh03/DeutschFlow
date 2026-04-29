@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import api from '@/lib/api'
+import api, { httpStatus } from '@/lib/api'
+import { getAccessToken } from '@/lib/authSession'
 import { primeGermanVoices, speakGerman } from '@/lib/speechDe'
 import { genderBgClass, inferGenderFromGermanText } from '@/lib/constants'
 import { GripVertical, Lock, Sparkles, Volume2, X } from 'lucide-react'
@@ -402,16 +403,15 @@ export default function SessionDetailPage() {
     if (didInitialLoadRef.current) return
     didInitialLoadRef.current = true
 
-    const token = localStorage.getItem('accessToken')
-    if (!token) {
+    if (!getAccessToken()) {
       router.push('/login')
       return
     }
 
     primeGermanVoices()
     loadDetail()
-      .catch((e: any) => {
-        const status = Number(e?.response?.status ?? 0)
+      .catch((e: unknown) => {
+        const status = httpStatus(e)
         if (status === 401) {
           router.push('/login')
           return
@@ -521,8 +521,8 @@ export default function SessionDetailPage() {
               onClick={() => {
                 setLoading(true)
                 loadDetail()
-                  .catch((e: any) => {
-                    const status = Number(e?.response?.status ?? 0)
+                  .catch((e: unknown) => {
+                    const status = httpStatus(e)
                     if (status === 401) {
                       router.push('/login')
                       return

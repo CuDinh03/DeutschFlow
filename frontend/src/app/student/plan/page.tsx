@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import api from '@/lib/api'
+import api, { httpStatus } from '@/lib/api'
+import { getAccessToken } from '@/lib/authSession'
 import { BookOpen, Check, ChevronLeft, Flame, Lock, Play, Sparkles, Star, Target, Trophy } from 'lucide-react'
 
 type Session = {
@@ -61,8 +62,7 @@ export default function StudentPlanPage() {
   const [apiError, setApiError] = useState<string>('')
 
   useEffect(() => {
-    const token = localStorage.getItem('accessToken')
-    if (!token) {
+    if (!getAccessToken()) {
       router.push('/login')
       return
     }
@@ -70,8 +70,8 @@ export default function StudentPlanPage() {
     api
       .get('/plan/me')
       .then((res) => setPlan(res.data?.plan ?? null))
-      .catch((err: any) => {
-        const status = err?.response?.status
+      .catch((err: unknown) => {
+        const status = httpStatus(err)
         if (status === 404) {
           router.push('/onboarding')
           return
@@ -136,7 +136,7 @@ export default function StudentPlanPage() {
         <div className="relative max-w-5xl mx-auto px-5 py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <button
-              onClick={() => router.push('/student')}
+              onClick={() => router.push('/dashboard')}
               className="flex items-center gap-1.5 px-3 py-2 rounded-[10px] text-white/70 hover:text-white hover:bg-white/10 transition-colors text-sm font-medium"
             >
               <ChevronLeft size={16} /> Dashboard

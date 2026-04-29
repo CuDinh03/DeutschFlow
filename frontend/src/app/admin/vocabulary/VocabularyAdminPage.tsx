@@ -7,7 +7,7 @@ import {
   Database, Filter, Loader2, Pencil, RefreshCw, RotateCcw,
   Save, Search, X, XCircle, Zap,
 } from 'lucide-react'
-import api from '@/lib/api'
+import api, { apiMessage } from '@/lib/api'
 import AdminShell from '@/components/admin/AdminShell'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -81,8 +81,8 @@ function EditWordCard({
       await api.patch(`/admin/vocabulary/${word.id}`, form)
       setSaved(true)
       setTimeout(() => { setSaved(false); onSaved(); onClose() }, 800)
-    } catch (e: any) {
-      setError(e?.response?.data?.detail ?? e.message ?? 'Lỗi khi lưu')
+    } catch (e: unknown) {
+      setError(apiMessage(e))
     } finally { setSaving(false) }
   }
 
@@ -242,6 +242,77 @@ function EditWordCard({
   )
 }
 
+// ─── Auto Topic Tagging Panel ─────────────────────────────────────────────────
+
+function AutoTagPanel({ onDone }: { onDone: () => void }) {
+  const [limit, setLimit] = useState(100)
+  const [dryRun, setDryRun] = useState(true)
+  const [resetTags, setResetTags] = useState(false)
+  const [running, setRunning] = useState(false)
+  const [result, setResult] = useState<Record<string, unknown> | null>(null)
+  const [error, setError] = useState('')
+
+  const run = async () => {
+    setRunning(true); setResult(null); setError('')
+    try {
+      const data = await adminPost('/admin/vocabulary/auto-tag/batch', { limit, dryRun, resetTags })
+      setResult(data)
+      if (!dryRun) onDone()
+    } catch (e: unknown) { setError(apiMessage(e)) }
+    finally { setRunning(false) }
+  }
+
+  return (
+    <div className="bg-white rounded-[16px] border border-[#E2E8F0] shadow-sm overflow-hidden">
+      <div className="px-5 py-4 flex items-center gap-3 border-b border-[#F1F5F9]">
+        <div className="w-9 h-9 rounded-[10px] flex items-center justify-center bg-purple-50">
+          <span className="text-lg">🏷️</span>
+        </div>
+        <div>
+          <h3 className="font-semibold text-[#0F172A] text-sm">AI Auto-Tagging theo chủ đề</h3>
+          <p className="text-[#94A3B8] text-xs">Dùng LLM phân loại từ vào taxonomy (Alltag, Reise, Beruf...)</p>
+        </div>
+      </div>
+      <div className="px-5 py-4 flex flex-wrap gap-3 items-end">
+        <div>
+          <label className="text-xs text-[#64748B] font-medium block mb-1">Limit</label>
+          <input type="number" className="border border-[#E2E8F0] rounded-lg px-3 py-1.5 text-sm w-24 focus:outline-none focus:border-purple-400"
+            value={limit} onChange={e => setLimit(Number(e.target.value))} />
+        </div>
+        <label className="flex items-center gap-1.5 text-sm text-[#475569] cursor-pointer">
+          <input type="checkbox" checked={dryRun} onChange={e => setDryRun(e.target.checked)} className="rounded" />
+          Dry Run (preview only)
+        </label>
+        <label className="flex items-center gap-1.5 text-sm text-[#475569] cursor-pointer">
+          <input type="checkbox" checked={resetTags} onChange={e => setResetTags(e.target.checked)} className="rounded" />
+          Reset existing tags
+        </label>
+        <button onClick={run} disabled={running}
+          className="px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
+          style={{ background: dryRun ? '#f3e8ff' : 'linear-gradient(135deg,#a78bfa,#7c3aed)', color: dryRun ? '#7c3aed' : 'white' }}>
+          {running ? 'Running…' : dryRun ? '🔍 Preview' : '🚀 Apply'}
+        </button>
+      </div>
+      {error && <p className="px-5 pb-3 text-xs text-red-500">{error}</p>}
+      {result && (
+        <div className="px-5 pb-4 space-y-1">
+          <p className="text-xs text-[#64748B]">✓ Processed: {String(result.wordsProcessed)} · Tagged: {String(result.wordsTagged)} · Tag links: {String(result.tagLinksCreated)}</p>
+          {Array.isArray(result.preview) && result.preview.length > 0 && (
+            <div className="mt-2 max-h-48 overflow-y-auto rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-3 text-xs space-y-1">
+              {(result.preview as Array<{baseForm: string; tags: string[]}>).slice(0, 50).map((p, i) => (
+                <div key={i} className="flex gap-2">
+                  <span className="font-semibold text-[#0F172A] min-w-[120px]">{p.baseForm}</span>
+                  <span className="text-purple-600">{p.tags.join(', ')}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Glosbe VI Panel ──────────────────────────────────────────────────────────
 
 function GlosbeViPanel({ onDone }: { onDone: () => void }) {
@@ -256,7 +327,7 @@ function GlosbeViPanel({ onDone }: { onDone: () => void }) {
     try {
       const data = await adminPost('/admin/vocabulary/glosbe-vi/enrich/batch', { limit, resetCursor })
       setResult(data); onDone()
-    } catch (e: any) { setError(e.message ?? 'Lỗi') }
+    } catch (e: unknown) { setError(apiMessage(e)) }
     finally { setRunning(false) }
   }
 
@@ -385,7 +456,7 @@ export default function VocabularyAdminPage() {
     try {
       const data = await adminPost('/admin/vocabulary/wiktionary/enrich/batch', { limit: batchLimit, resetCursor })
       setBatchResult(data); fetchWords(page)
-    } catch (e: any) { setBatchError(e.message ?? 'Lỗi') }
+    } catch (e: unknown) { setBatchError(apiMessage(e)) }
     finally { setBatchRunning(false) }
   }
 
@@ -394,7 +465,7 @@ export default function VocabularyAdminPage() {
     try {
       const data = await adminPost('/admin/vocabulary/reset', { wiktionaryLimit })
       setResetResult(data); setConfirmed(false); fetchWords(0)
-    } catch (e: any) { setResetError(e.message ?? 'Lỗi') }
+    } catch (e: unknown) { setResetError(apiMessage(e)) }
     finally { setResetRunning(false) }
   }
 
@@ -632,6 +703,9 @@ export default function VocabularyAdminPage() {
             )}
           </div>
         </div>
+
+        {/* Auto Topic Tagging */}
+        <AutoTagPanel onDone={() => fetchWords(page)} />
 
         {/* Glosbe VI Enrich */}
         <GlosbeViPanel onDone={() => fetchWords(page)} />

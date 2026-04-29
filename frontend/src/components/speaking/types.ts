@@ -31,6 +31,10 @@ export interface AiMessageBubble {
   correction?: string | null;
   explanationVi?: string | null;
   grammarPoint?: string | null;
+  newWord?: string | null;
+  userInterestDetected?: string | null;
+  /** True while the assistant message is still streaming (ghost text) */
+  isStreaming?: boolean;
 }
 
 // ─── Color tokens shared across components ─────────────────────────────────

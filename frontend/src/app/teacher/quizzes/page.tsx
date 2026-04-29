@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import api from '@/lib/api'
+import api, { httpStatus, apiMessage } from '@/lib/api'
 
 type Quiz = {
   id: number
@@ -36,8 +36,8 @@ export default function TeacherQuizzesPage() {
       }
       const res = await api.get('/teacher/quizzes')
       setItems(res.data ?? [])
-    } catch (e: any) {
-      if (e?.response?.status === 401) {
+    } catch (e: unknown) {
+      if (httpStatus(e) === 401) {
         router.push('/login')
         return
       }
@@ -58,8 +58,8 @@ export default function TeacherQuizzesPage() {
       await api.post('/teacher/quizzes', { title: title.trim(), quizType })
       setTitle('')
       await load()
-    } catch (e: any) {
-      setError(e?.response?.data?.detail ?? 'Tao quiz that bai.')
+    } catch (e: unknown) {
+      setError(apiMessage(e))
     }
   }
 
@@ -68,8 +68,8 @@ export default function TeacherQuizzesPage() {
     try {
       await api.post(`/teacher/quizzes/${id}/${action}`)
       await load()
-    } catch (e: any) {
-      setError(e?.response?.data?.detail ?? 'Cap nhat trang thai that bai.')
+    } catch (e: unknown) {
+      setError(apiMessage(e))
     }
   }
 
@@ -91,8 +91,8 @@ export default function TeacherQuizzesPage() {
       setChoiceA((prev) => ({ ...prev, [id]: '' }))
       setChoiceB((prev) => ({ ...prev, [id]: '' }))
       await load()
-    } catch (e: any) {
-      setError(e?.response?.data?.detail ?? 'Them cau hoi that bai.')
+    } catch (e: unknown) {
+      setError(apiMessage(e))
     }
   }
 

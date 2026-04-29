@@ -1,13 +1,12 @@
 package com.deutschflow.common.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
-import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -23,7 +22,6 @@ import java.util.stream.Collectors;
  * Error responses: trả về ProblemDetail với Content-Type: application/problem+json.
  */
 @RestControllerAdvice
-@Slf4j
 public class GlobalExceptionHandler {
 
     private static final String BASE_TYPE = "https://deutschflow.com/errors/";
@@ -52,28 +50,12 @@ public class GlobalExceptionHandler {
                 "One or more fields are invalid.", request.getRequestURI(), errors);
     }
 
-    // --- 409 Conflict ---
-    @ExceptionHandler(ConflictException.class)
-    public ResponseEntity<ProblemDetail> handleConflict(ConflictException ex,
-                                                        HttpServletRequest request) {
-        return problem(HttpStatus.CONFLICT, "conflict", "Conflict",
-                ex.getMessage(), request.getRequestURI(), null);
-    }
-
     // --- 403 Forbidden ---
     @ExceptionHandler(ForbiddenException.class)
     public ResponseEntity<ProblemDetail> handleForbidden(ForbiddenException ex,
                                                          HttpServletRequest request) {
         return problem(HttpStatus.FORBIDDEN, "forbidden", "Forbidden",
                 ex.getMessage(), request.getRequestURI(), null);
-    }
-
-    @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<ProblemDetail> handleAccessDenied(AccessDeniedException ex,
-                                                            HttpServletRequest request) {
-        return problem(HttpStatus.FORBIDDEN, "forbidden", "Forbidden",
-                "You do not have permission to access this resource.",
-                request.getRequestURI(), null);
     }
 
     // --- 404 Not Found ---
@@ -84,27 +66,20 @@ public class GlobalExceptionHandler {
                 ex.getMessage(), request.getRequestURI(), null);
     }
 
-    /**
-     * Client aborted the connection (browser tab refresh/navigation, proxy timeout, etc.).
-     * This is not a server error and we cannot write a response anyway.
-     */
-    @ExceptionHandler(AsyncRequestNotUsableException.class)
-    public ResponseEntity<Void> handleClientAbort(AsyncRequestNotUsableException ex,
-                                                  HttpServletRequest request) {
-        // Keep logs clean: this happens when the client disconnects mid-response.
-        log.debug("Client aborted connection at {}: {}", request.getRequestURI(), ex.getMessage());
-        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    // --- 401/403 — let Spring Security handle these, do NOT swallow them ---
+    @ExceptionHandler({AccessDeniedException.class, AuthenticationException.class})
+    public void rethrowSecurityExceptions(RuntimeException ex) throws RuntimeException {
+        throw ex;
     }
 
     // --- 500 fallback ---
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ProblemDetail> handleGeneral(Exception ex,
                                                        HttpServletRequest request) {
-        log.error("Unhandled exception at {}", request.getRequestURI(), ex);
-        // Không expose stack trace ra ngoài
+        // Debug mode — show real exception
+        String detail = ex.getClass().getSimpleName() + ": " + ex.getMessage();
         return problem(HttpStatus.INTERNAL_SERVER_ERROR, "internal-error", "Internal Server Error",
-                "An unexpected error occurred. Please try again later.",
-                request.getRequestURI(), null);
+                detail, request.getRequestURI(), null);
     }
 
     // --- builder ---

@@ -3,20 +3,9 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { BookOpen, Clock, TrendingUp, Check, AlertTriangle, RotateCcw, Download } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { AiMessageBubble, Exchange, CYAN, PURPLE, MINT, glass } from "./types";
 
-const LEARNED_VOCAB = [
-  { german: "das Hilfsverb",     phonetic: "/ˈhɪlfsˌvɛʁp/",        vietnamese: "động từ trợ giúp",    level: "B1" },
-  { german: "die Kontraktion",   phonetic: "/kɔntʁakˈtsi̯oːn/",    vietnamese: "sự rút gọn",          level: "A2" },
-  { german: "das Bewegungsverb", phonetic: "/bəˈveːɡʊŋsˌvɛʁp/",   vietnamese: "động từ chuyển động", level: "B1" },
-  { german: "die Wortstellung",  phonetic: "/ˈvɔʁtˌʃtɛlʊŋ/",       vietnamese: "trật tự từ trong câu",level: "B2" },
-];
-
-const COMMON_MISTAKES = [
-  { label: "'haben' vs 'sein' als Hilfsverb", detail: "Bewegungsverben → immer 'sein' verwenden",          count: 3, severity: "high"   },
-  { label: "Kontraktion 'in das' → 'ins'",    detail: "Präposition + bestimmter Artikel zusammenziehen",   count: 2, severity: "medium" },
-  { label: "Modalverb-Konjugation",           detail: "'wir müssen' nicht 'wir muss'",                     count: 1, severity: "low"    },
-];
 
 interface SessionSummaryProps {
   realMessages: AiMessageBubble[];
@@ -29,6 +18,35 @@ interface SessionSummaryProps {
 export function SessionSummary({
   realMessages, mockExchanges, duration, onRestart, onExit,
 }: SessionSummaryProps) {
+  const t = useTranslations("speaking");
+
+  // Derive vocabulary from actual messages (newWord fields)
+  const learnedVocab = realMessages
+    .filter((m) => m.role === "ASSISTANT" && m.newWord)
+    .map((m) => m.newWord as string);
+
+  // Derive common mistakes from actual messages (grammarPoint + correction)
+  const mistakeMap = new Map<string, { label: string; detail: string; count: number; severity: string }>();
+  realMessages
+    .filter((m) => m.role === "ASSISTANT" && m.correction && m.grammarPoint)
+    .forEach((m) => {
+      const key = m.grammarPoint!;
+      const existing = mistakeMap.get(key);
+      if (existing) {
+        existing.count++;
+      } else {
+        mistakeMap.set(key, {
+          label: key,
+          detail: m.correction ?? "",
+          count: 1,
+          severity: "medium",
+        });
+      }
+    });
+  const commonMistakes = Array.from(mistakeMap.values())
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+
   const totalExchanges = realMessages.filter((m) => m.role === "ASSISTANT").length || mockExchanges.length;
   const errorCount     = realMessages.filter((m) => m.role === "ASSISTANT" && m.correction).length
                          || mockExchanges.filter((e) => e.hasError).length;
@@ -69,8 +87,8 @@ export function SessionSummary({
           transition={{ type: "spring", stiffness: 300, damping: 18, delay: 0.1 }}>
           🎯
         </motion.div>
-        <h2 className="text-white font-extrabold text-xl">Sitzung beendet!</h2>
-        <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.5)" }}>Klasse Arbeit, du machst große Fortschritte!</p>
+        <h2 className="text-white font-extrabold text-xl">{t("summaryTitle")}</h2>
+        <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.5)" }}>{t("summarySubtitle")}</p>
       </div>
 
       {/* Score card */}
@@ -97,10 +115,10 @@ export function SessionSummary({
           </div>
           <div className="flex-1 grid grid-cols-2 gap-2.5">
             {[
-              { icon: Clock,         label: "Dauer",      value: duration,            color: CYAN      },
-              { icon: TrendingUp,    label: "Austausche", value: `${totalExchanges}`, color: PURPLE    },
-              { icon: Check,         label: "Perfekt",    value: `${perfectCount}`,   color: MINT      },
-              { icon: AlertTriangle, label: "Fehler",     value: `${errorCount}`,     color: "#F87171" },
+              { icon: Clock,         label: t("summaryDuration"),  value: duration,            color: CYAN      },
+              { icon: TrendingUp,    label: t("summaryExchanges"), value: `${totalExchanges}`, color: PURPLE    },
+              { icon: Check,         label: t("summaryPerfect"),   value: `${perfectCount}`,   color: MINT      },
+              { icon: AlertTriangle, label: t("summaryErrors"),    value: `${errorCount}`,     color: "#F87171" },
             ].map(({ icon: Icon, label, value, color }) => (
               <div key={label} className="rounded-[12px] p-2.5 flex flex-col gap-1"
                 style={{ background: "rgba(255,255,255,0.06)" }}>
@@ -113,9 +131,9 @@ export function SessionSummary({
         </div>
         <div className="mt-4">
           <div className="flex justify-between mb-1.5">
-            <span className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>Fluency Score</span>
+            <span className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>{t("summaryFluency")}</span>
             <span className="text-xs font-bold" style={{ color: fluencyScore >= 85 ? MINT : fluencyScore >= 65 ? "#FBBF24" : "#F87171" }}>
-              {fluencyScore >= 85 ? "Ausgezeichnet" : fluencyScore >= 65 ? "Gut" : "Üben"}
+              {fluencyScore >= 85 ? t("fluencyExcellent") : fluencyScore >= 65 ? t("fluencyGood") : t("fluencyPractice")}
             </span>
           </div>
           <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.1)" }}>
@@ -127,68 +145,68 @@ export function SessionSummary({
         </div>
       </div>
 
-      {/* Vocabulary */}
-      <div className="rounded-[20px] overflow-hidden" style={glass}>
-        <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
-          <BookOpen size={14} style={{ color: CYAN }} />
-          <span className="text-white font-semibold text-sm">Neues Vokabular</span>
-          <span className="ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full"
-            style={{ background: `${CYAN}20`, color: CYAN }}>{LEARNED_VOCAB.length} Wörter</span>
-        </div>
-        {LEARNED_VOCAB.map((v, i) => (
-          <motion.div key={v.german} className="flex items-start gap-3 px-4 py-3"
-            style={{ borderTop: i > 0 ? "1px solid rgba(255,255,255,0.05)" : "none" }}
-            initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.6 + i * 0.08 }}>
-            <div className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0" style={{ background: CYAN }} />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-baseline gap-2 flex-wrap">
-                <span className="font-bold text-sm text-white">{v.german}</span>
-                <span className="text-[10px] font-mono" style={{ color: "rgba(255,255,255,0.35)" }}>{v.phonetic}</span>
-                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-                  style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.5)" }}>{v.level}</span>
-              </div>
-              <p className="text-xs mt-0.5 italic" style={{ color: MINT }}>{v.vietnamese}</p>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-
-      {/* Common mistakes */}
-      <div className="rounded-[20px] overflow-hidden" style={glass}>
-        <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
-          <AlertTriangle size={14} className="text-[#FBBF24]" />
-          <span className="text-white font-semibold text-sm">Häufige Fehler</span>
-        </div>
-        {COMMON_MISTAKES.map((m, i) => {
-          const sev = ({ high: "#F87171", medium: "#FB923C", low: "#FBBF24" } as Record<string,string>)[m.severity];
-          return (
-            <motion.div key={m.label} className="flex items-start gap-3 px-4 py-3"
+      {/* Vocabulary (from real messages) */}
+      {learnedVocab.length > 0 && (
+        <div className="rounded-[20px] overflow-hidden" style={glass}>
+          <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+            <BookOpen size={14} style={{ color: CYAN }} />
+            <span className="text-white font-semibold text-sm">{t("summaryNewVocab")}</span>
+            <span className="ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full"
+              style={{ background: `${CYAN}20`, color: CYAN }}>
+              {t("summaryWordsCount", { n: learnedVocab.length })}
+            </span>
+          </div>
+          {learnedVocab.map((word, i) => (
+            <motion.div key={i} className="flex items-center gap-3 px-4 py-3"
               style={{ borderTop: i > 0 ? "1px solid rgba(255,255,255,0.05)" : "none" }}
-              initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.8 + i * 0.08 }}>
-              <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-bold mt-0.5"
-                style={{ background: `${sev}20`, color: sev, border: `1px solid ${sev}40` }}>{m.count}×</div>
-              <div>
-                <p className="text-sm font-semibold text-white">{m.label}</p>
-                <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>{m.detail}</p>
-              </div>
+              initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.6 + i * 0.08 }}>
+              <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: CYAN }} />
+              <span className="font-bold text-sm text-white">{word}</span>
             </motion.div>
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      )}
+
+      {/* Common mistakes (from real messages) */}
+      {commonMistakes.length > 0 && (
+        <div className="rounded-[20px] overflow-hidden" style={glass}>
+          <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+            <AlertTriangle size={14} className="text-[#FBBF24]" />
+            <span className="text-white font-semibold text-sm">{t("summaryCommonMistakes")}</span>
+          </div>
+          {commonMistakes.map((m, i) => {
+            const sev = ({ high: "#F87171", medium: "#FB923C", low: "#FBBF24" } as Record<string, string>)[m.severity] ?? "#FB923C";
+            return (
+              <motion.div key={m.label} className="flex items-start gap-3 px-4 py-3"
+                style={{ borderTop: i > 0 ? "1px solid rgba(255,255,255,0.05)" : "none" }}
+                initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.8 + i * 0.08 }}>
+                <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-bold mt-0.5"
+                  style={{ background: `${sev}20`, color: sev, border: `1px solid ${sev}40` }}>
+                  {m.count}×
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-white">{m.label}</p>
+                  <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>{m.detail}</p>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Action buttons */}
       <div className="flex gap-3 px-1 pb-2">
         <button onClick={onRestart}
           className="flex items-center justify-center gap-2 flex-1 py-3 rounded-[14px] font-semibold text-sm transition-all"
           style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.12)" }}>
-          <RotateCcw size={14} /> Neu starten
+          <RotateCcw size={14} /> {t("summaryRestart")}
         </button>
         <button onClick={onExit}
           className="flex items-center justify-center gap-2 flex-[2] py-3 rounded-[14px] font-bold text-sm transition-all"
           style={{ background: `linear-gradient(135deg, ${CYAN}, ${PURPLE})`, color: "white", boxShadow: `0 5px 0 0 rgba(0,0,0,0.3), 0 8px 20px rgba(34,211,238,0.25)` }}>
-          <Download size={14} /> Sitzung speichern
+          <Download size={14} /> {t("summarySave")}
         </button>
       </div>
     </motion.div>

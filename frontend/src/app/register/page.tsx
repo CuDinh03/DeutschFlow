@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
-import { syncAuthCookies } from '@/lib/authSession'
+import { setTokens } from '@/lib/authSession'
 
 type FieldErrors = Record<string, string>
 
@@ -24,9 +24,7 @@ export default function RegisterPage() {
     setFieldErrors({})
     try {
       const { data } = await api.post('/auth/register', form)
-      localStorage.setItem('accessToken', data.accessToken)
-      localStorage.setItem('refreshToken', data.refreshToken)
-      syncAuthCookies(data)
+      setTokens(data)
       if (form.locale && ['vi', 'en', 'de'].includes(form.locale)) {
         document.cookie = `locale=${form.locale};path=/;max-age=31536000;SameSite=Lax`
       }
@@ -48,7 +46,7 @@ export default function RegisterPage() {
         default:
           try {
             await api.get('/plan/me')
-            router.push('/student')
+            router.push('/dashboard')
           } catch {
             router.push('/onboarding')
           }

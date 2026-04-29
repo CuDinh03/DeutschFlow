@@ -3,19 +3,29 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
-  ChevronLeft, Settings, Zap, Clock, AlertTriangle, Send, X,
+  ChevronLeft, Settings, Zap, Clock, AlertTriangle, Send, X, Eye, EyeOff,
 } from "lucide-react";
-import { aiSpeakingApi, AiSpeakingSession, AiChatResponse } from "@/lib/aiSpeakingApi";
+import { aiSpeakingApi, chatStream, AiSpeakingSession, AiChatResponse } from "@/lib/aiSpeakingApi";
 import { speakGerman, primeGermanVoices } from "@/lib/speechDe";
+import { startRecorder, RecorderHandle } from "@/lib/voiceRecorder";
 import {
   SessionState, AiMessageBubble, Exchange,
   CYAN, PURPLE, glass,
-  VoiceVisualizer, MicButton, RealChatBubble, SessionSummary, WelcomeScreen,
-} from "@/components/speaking";
+} from "@/components/speaking/types";
+import { VoiceVisualizer } from "@/components/speaking/VoiceVisualizer";
+import { MicButton } from "@/components/speaking/MicButton";
+import { RealChatBubble } from "@/components/speaking/RealChatBubble";
+import { SessionSummary } from "@/components/speaking/SessionSummary";
+import { WelcomeScreen } from "@/components/speaking/WelcomeScreen";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
+
+const SHOW_EXPLANATIONS_KEY = "df_speaking_showExplanations";
 
 export default function SpeakingPage() {
   const router = useRouter();
+  const t = useTranslations("speaking");
 
   // Session
   const [session,      setSession]      = useState<AiSpeakingSession | null>(null);
@@ -31,10 +41,33 @@ export default function SpeakingPage() {
   // Timer
   const [seconds, setSeconds] = useState(0);
 
-  const chatRef  = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const stateRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Explanation toggle (persisted)
+  const [showExplanations, setShowExplanations] = useState(true);
+
+  // Live analyser for real-time waveform
+  const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
+
+  const chatRef      = useRef<HTMLDivElement>(null);
+  const inputRef     = useRef<HTMLTextAreaElement>(null);
+  const timerRef     = useRef<ReturnType<typeof setInterval> | null>(null);
+  const recorderRef  = useRef<RecorderHandle | null>(null);
+  const streamCtrl   = useRef<AbortController | null>(null);
+
+  // Load persisted explanation toggle
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(SHOW_EXPLANATIONS_KEY);
+      if (stored !== null) setShowExplanations(stored === "true");
+    } catch { /* SSR guard */ }
+  }, []);
+
+  const toggleExplanations = () => {
+    setShowExplanations((prev) => {
+      const next = !prev;
+      try { localStorage.setItem(SHOW_EXPLANATIONS_KEY, String(next)); } catch { /* ignore */ }
+      return next;
+    });
+  };
 
   useEffect(() => { primeGermanVoices(); }, []);
 
@@ -55,82 +88,134 @@ export default function SpeakingPage() {
     `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
   // ── Start session ─────────────────────────────────────────────────────────────
-  const handleStartSession = useCallback(async (topic?: string) => {
+  const handleStartSession = useCallback(async (topic?: string, cefrLevel?: string) => {
     setIsStarting(true);
     setError(null);
     try {
-      const res = await aiSpeakingApi.createSession(topic);
+      const res = await aiSpeakingApi.createSession(topic, cefrLevel);
       setSession(res.data);
       setRealMessages([]);
       setSeconds(0);
       setSessionState("idle");
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      setError(msg ?? "Fehler beim Starten der Sitzung.");
+      setError(msg ?? t("errorStart"));
     } finally {
       setIsStarting(false);
     }
-  }, []);
+  }, [t]);
 
-  // ── Send text message ─────────────────────────────────────────────────────────
-  const handleSendText = useCallback(async () => {
-    if (!session || !inputText.trim() || sessionState === "sending") return;
-    const text = inputText.trim();
+  // ── Streaming send ─────────────────────────────────────────────────────────────
+  const handleSendText = useCallback((overrideText?: string) => {
+    const text = (overrideText ?? inputText).trim();
+    if (!session || !text || sessionState === "sending" || sessionState === "processing") return;
     setInputText("");
     setSessionState("sending");
     setError(null);
 
-    const tempId = Date.now();
-    setRealMessages((prev) => [...prev, { id: tempId, role: "USER", userText: text }]);
+    const tempUserId = Date.now();
+    setRealMessages((prev) => [...prev, { id: tempUserId, role: "USER", userText: text }]);
 
-    try {
-      const res = await aiSpeakingApi.chat(session.id, text);
-      const d: AiChatResponse = res.data;
-      setRealMessages((prev) => [
-        ...prev,
-        {
-          id: d.messageId, role: "ASSISTANT",
-          aiSpeechDe: d.aiSpeechDe,
-          correction: d.correction,
-          explanationVi: d.explanationVi,
-          grammarPoint: d.grammarPoint,
-        },
-      ]);
-    } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      setError(msg ?? "Fehler beim Senden.");
-      setRealMessages((prev) => prev.filter((m) => m.id !== tempId));
-    } finally {
-      setSessionState("idle");
-      setTimeout(() => inputRef.current?.focus(), 50);
-    }
-  }, [session, inputText, sessionState]);
+    // Create a placeholder ASSISTANT bubble for ghost text
+    const tempAiId = tempUserId + 1;
+    setRealMessages((prev) => [
+      ...prev,
+      { id: tempAiId, role: "ASSISTANT", aiSpeechDe: "", isStreaming: true },
+    ]);
 
-  // ── Mic toggle (simulated STT — Whisper integration TODO) ────────────────────
-  const handleMicToggle = useCallback(() => {
-    if (!session) return;
-    if (sessionState === "idle") {
-      setSessionState("listening");
-      stateRef.current = setTimeout(() => {
-        setSessionState("processing");
-        setTimeout(() => {
-          setSessionState("ai-speaking");
-          setTimeout(() => setSessionState("idle"), 2800);
-        }, 1400);
-      }, 2800);
-    } else if (sessionState === "listening") {
-      clearTimeout(stateRef.current!);
-      setSessionState("processing");
-      setTimeout(() => {
+    streamCtrl.current?.abort();
+    streamCtrl.current = chatStream(
+      session.id,
+      text,
+      (delta) => {
+        // Append token to the streaming bubble
+        setRealMessages((prev) =>
+          prev.map((m) =>
+            m.id === tempAiId
+              ? { ...m, aiSpeechDe: (m.aiSpeechDe ?? "") + delta }
+              : m
+          )
+        );
+      },
+      (meta: AiChatResponse) => {
+        // Replace temp bubble with final data
+        setRealMessages((prev) =>
+          prev.map((m) =>
+            m.id === tempAiId
+              ? {
+                  id: meta.messageId,
+                  role: "ASSISTANT",
+                  aiSpeechDe: meta.aiSpeechDe,
+                  correction: meta.correction,
+                  explanationVi: meta.explanationVi,
+                  grammarPoint: meta.grammarPoint,
+                  newWord: meta.learningStatus?.newWord,
+                  userInterestDetected: meta.learningStatus?.userInterestDetected,
+                  isStreaming: false,
+                }
+              : m
+          )
+        );
         setSessionState("ai-speaking");
-        setTimeout(() => setSessionState("idle"), 2800);
-      }, 1400);
+        // Auto-play TTS — text already displayed, audio plays in parallel
+        speakGerman(meta.aiSpeechDe);
+        setTimeout(() => setSessionState("idle"), 200);
+        setTimeout(() => inputRef.current?.focus(), 250);
+      },
+      (errMsg) => {
+        setError(errMsg ?? t("errorSend"));
+        setRealMessages((prev) => prev.filter((m) => m.id !== tempAiId && m.id !== tempUserId));
+        setSessionState("idle");
+      }
+    );
+  }, [session, inputText, sessionState, t]);
+
+  // ── Real mic toggle ─────────────────────────────────────────────────────────────
+  const handleMicToggle = useCallback(async () => {
+    if (!session) return;
+
+    if (sessionState === "idle") {
+      // Start recording
+      try {
+        const handle = await startRecorder((blob) => {
+          // Recording stopped — upload for transcription
+          setSessionState("processing");
+          setAnalyser(null);
+          recorderRef.current = null;
+
+          aiSpeakingApi.transcribe(blob)
+            .then((res) => {
+              const transcript = res.data.transcript?.trim();
+              if (transcript) {
+                setInputText(transcript);
+                // Auto-send
+                handleSendText(transcript);
+              } else {
+                setError(t("transcriptionFailed"));
+                setSessionState("idle");
+              }
+            })
+            .catch(() => {
+              setError(t("transcriptionFailed"));
+              setSessionState("idle");
+            });
+        });
+        recorderRef.current = handle;
+        setAnalyser(handle.analyser);
+        setSessionState("listening");
+      } catch {
+        setError(t("microphoneDenied"));
+      }
+    } else if (sessionState === "listening") {
+      // Stop recording — triggers the onStop callback above
+      recorderRef.current?.stop();
     }
-  }, [session, sessionState]);
+  }, [session, sessionState, t, handleSendText]);
 
   // ── End session ──────────────────────────────────────────────────────────────
   const handleEnd = useCallback(async () => {
-    clearTimeout(stateRef.current!);
+    recorderRef.current?.stop();
+    streamCtrl.current?.abort();
     if (session) {
       try { await aiSpeakingApi.endSession(session.id); } catch { /* ignore */ }
     }
@@ -144,6 +229,7 @@ export default function SpeakingPage() {
     setSeconds(0);
     setSessionState("idle");
     setError(null);
+    setAnalyser(null);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -166,6 +252,11 @@ export default function SpeakingPage() {
           background: "radial-gradient(circle, rgba(45,212,191,0.12) 0%, transparent 70%)", filter: "blur(35px)" }} />
       </div>
 
+      {/* Language switcher (fixed top-right) */}
+      <div className="fixed top-3 right-3 z-[60]">
+        <LanguageSwitcher />
+      </div>
+
       {/* Phone frame */}
       <div className="relative w-full sm:max-w-[420px] min-h-screen sm:min-h-0 flex flex-col sm:rounded-[40px] sm:overflow-hidden"
         style={{ background: "rgba(10,22,40,0.6)", backdropFilter: "blur(40px)", WebkitBackdropFilter: "blur(40px)",
@@ -178,13 +269,15 @@ export default function SpeakingPage() {
             className="flex items-center gap-1.5 py-1.5 px-2 rounded-[10px] transition-colors"
             style={{ color: "rgba(255,255,255,0.5)" }}>
             <ChevronLeft size={16} />
-            <span className="text-xs">Zurück</span>
+            <span className="text-xs">{t("back")}</span>
           </button>
           <div className="flex items-center gap-2">
-            <span className="px-3 py-1.5 rounded-full text-xs font-bold"
-              style={{ background: `linear-gradient(135deg, ${CYAN}25, ${PURPLE}25)`, border: `1px solid ${CYAN}40`, color: CYAN }}>
-              B1
-            </span>
+            {session?.cefrLevel && (
+              <span className="px-3 py-1.5 rounded-full text-xs font-bold"
+                style={{ background: `linear-gradient(135deg, ${CYAN}25, ${PURPLE}25)`, border: `1px solid ${CYAN}40`, color: CYAN }}>
+                {session.cefrLevel}
+              </span>
+            )}
             {session && (
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full"
                 style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}>
@@ -196,9 +289,20 @@ export default function SpeakingPage() {
               </div>
             )}
           </div>
-          <button className="p-2 rounded-[10px] transition-colors" style={{ color: "rgba(255,255,255,0.4)" }}>
-            <Settings size={16} />
-          </button>
+          <div className="flex items-center gap-1">
+            {/* Explanation toggle */}
+            {session && sessionState !== "summary" && (
+              <button onClick={toggleExplanations}
+                className="p-2 rounded-[10px] transition-colors"
+                title={showExplanations ? t("hideExplanations") : t("showExplanations")}
+                style={{ color: showExplanations ? CYAN : "rgba(255,255,255,0.4)" }}>
+                {showExplanations ? <Eye size={16} /> : <EyeOff size={16} />}
+              </button>
+            )}
+            <button className="p-2 rounded-[10px] transition-colors" style={{ color: "rgba(255,255,255,0.4)" }}>
+              <Settings size={16} />
+            </button>
+          </div>
         </div>
 
         {/* Error banner */}
@@ -240,32 +344,17 @@ export default function SpeakingPage() {
                   <div className="rounded-[16px] px-5 py-4 text-center max-w-[260px]"
                     style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
                     <div className="text-2xl mb-2">🎙️</div>
-                    <p className="text-xs font-semibold text-white mb-1">Sitzung gestartet!</p>
+                    <p className="text-xs font-semibold text-white mb-1">{t("sessionStarted")}</p>
                     <p className="text-[11px] leading-relaxed" style={{ color: "rgba(255,255,255,0.45)" }}>
-                      Tippe eine Nachricht oder drücke den Mikrofon-Knopf.
+                      {t("sessionStartedHint")}
                     </p>
                   </div>
                 </motion.div>
               )}
 
               {realMessages.map((msg) => (
-                <RealChatBubble key={msg.id} msg={msg} />
+                <RealChatBubble key={msg.id} msg={msg} showExplanations={showExplanations} />
               ))}
-
-              {(sessionState === "processing" || sessionState === "sending") && (
-                <motion.div className="flex items-center gap-2.5"
-                  initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center"
-                    style={{ background: `linear-gradient(145deg, ${CYAN}, ${PURPLE})` }}>🤖</div>
-                  <div className="rounded-[14px] rounded-tl-[4px] px-4 py-3 flex items-center gap-1.5"
-                    style={{ background: "rgba(34,211,238,0.09)", border: `1px solid rgba(34,211,238,0.2)` }}>
-                    {[0, 0.2, 0.4].map((d) => (
-                      <motion.div key={d} className="w-1.5 h-1.5 rounded-full" style={{ background: CYAN }}
-                        animate={{ y: [0, -5, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: d }} />
-                    ))}
-                  </div>
-                </motion.div>
-              )}
             </div>
 
             {/* Bottom controls */}
@@ -273,15 +362,15 @@ export default function SpeakingPage() {
               style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
 
               <div className="rounded-[20px] p-4 mb-3 flex flex-col items-center gap-1" style={glass}>
-                <VoiceVisualizer state={sessionState} />
+                <VoiceVisualizer state={sessionState} analyser={analyser} />
                 <AnimatePresence mode="wait">
                   {sessionState === "idle" && (
                     <motion.div key="prompt" className="mt-2 rounded-[12px] px-4 py-2 text-center max-w-[280px]"
                       style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
                       initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}>
                       <p className="text-xs leading-snug" style={{ color: "rgba(255,255,255,0.55)" }}>
-                        <span style={{ color: CYAN }}>Thema:</span>{" "}
-                        {session.topic ? session.topic : "Freies Gespräch — sprich über alles!"}
+                        <span style={{ color: CYAN }}>{t("topicLabel")}:</span>{" "}
+                        {session.topic ? session.topic : t("freeTopic")}
                       </p>
                     </motion.div>
                   )}
@@ -289,7 +378,13 @@ export default function SpeakingPage() {
                     <motion.p key="listen" className="text-xs mt-2 font-semibold" style={{ color: "#F87171" }}
                       initial={{ opacity: 0 }} animate={{ opacity: [1, 0.5, 1] }} exit={{ opacity: 0 }}
                       transition={{ duration: 0.8, repeat: Infinity }}>
-                      Spreche jetzt auf Deutsch...
+                      {t("statusListening")}
+                    </motion.p>
+                  )}
+                  {sessionState === "processing" && (
+                    <motion.p key="proc" className="text-xs mt-2 font-semibold" style={{ color: CYAN }}
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                      {t("transcribing")}
                     </motion.p>
                   )}
                 </AnimatePresence>
@@ -301,7 +396,7 @@ export default function SpeakingPage() {
                   <textarea ref={inputRef} value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Schreib auf Deutsch… (Enter zum Senden)"
+                    placeholder={t("inputPlaceholder")}
                     rows={1} disabled={isMicDisabled}
                     className="w-full px-3 py-2.5 rounded-[12px] text-sm outline-none resize-none"
                     style={{
@@ -315,7 +410,7 @@ export default function SpeakingPage() {
                       el.style.height = Math.min(el.scrollHeight, 100) + "px";
                     }} />
                 </div>
-                <motion.button onClick={handleSendText}
+                <motion.button onClick={() => handleSendText()}
                   disabled={!inputText.trim() || isMicDisabled}
                   className="flex-shrink-0 w-10 h-10 rounded-[12px] flex items-center justify-center"
                   style={{
@@ -338,7 +433,7 @@ export default function SpeakingPage() {
                 <button onClick={handleEnd}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-[12px] text-sm font-medium transition-colors"
                   style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.1)" }}>
-                  <X size={14} /> Beenden
+                  <X size={14} /> {t("endButton")}
                 </button>
                 <MicButton state={sessionState} onToggle={handleMicToggle} />
                 <div className="flex items-center gap-1.5 px-4 py-2 rounded-[12px]"
@@ -352,11 +447,11 @@ export default function SpeakingPage() {
               </div>
 
               <p className="text-center text-[10px] mt-2" style={{ color: "rgba(255,255,255,0.25)" }}>
-                {sessionState === "idle"        && "Tippe oder drücke den Knopf und sprich frei"}
-                {sessionState === "listening"   && "Drücke erneut zum Stoppen"}
-                {sessionState === "processing"  && "KI verarbeitet deine Eingabe..."}
-                {sessionState === "ai-speaking" && "KI spricht..."}
-                {sessionState === "sending"     && "Nachricht wird gesendet..."}
+                {sessionState === "idle"        && t("statusIdle")}
+                {sessionState === "listening"   && t("statusListeningStop")}
+                {sessionState === "processing"  && t("transcribing")}
+                {sessionState === "ai-speaking" && t("statusAiSpeaking")}
+                {sessionState === "sending"     && t("statusSending")}
               </p>
             </div>
           </>

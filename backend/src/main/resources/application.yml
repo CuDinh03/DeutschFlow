@@ -54,6 +54,7 @@ app:
     groq:
       api-key: ${GROQ_API_KEY:}
       model: ${GROQ_MODEL:meta-llama/llama-4-scout-17b-16e-instruct}
+      whisper-model: ${GROQ_WHISPER_MODEL:whisper-large-v3}
 
   deepl:
     api-key: ${DEEPL_API_KEY:}

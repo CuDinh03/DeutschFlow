@@ -3,25 +3,35 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Plus, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { CYAN, PURPLE, glass } from "./types";
 
 const SUGGESTED_TOPICS = [
-  { label: "Alltag",   emoji: "🏠", desc: "Tägliches Leben"  },
-  { label: "Reise",    emoji: "✈️", desc: "Reisen & Urlaub"  },
-  { label: "Beruf",    emoji: "💼", desc: "Arbeit & Karriere" },
-  { label: "Freizeit", emoji: "🎮", desc: "Hobbys & Spaß"    },
-  { label: "Essen",    emoji: "🍽️", desc: "Essen & Trinken"  },
-  { label: "Familie",  emoji: "👨‍👩‍👧", desc: "Familie & Freunde"},
-];
+  { id: "Alltag",   emoji: "🏠", labelKey: "topicAlltag",   descKey: "topicAlltagDesc"   },
+  { id: "Reise",    emoji: "✈️", labelKey: "topicReise",    descKey: "topicReiseDesc"    },
+  { id: "Beruf",    emoji: "💼", labelKey: "topicBeruf",    descKey: "topicBerufDesc"    },
+  { id: "Freizeit", emoji: "🎮", labelKey: "topicFreizeit", descKey: "topicFreizeitDesc" },
+  { id: "Essen",    emoji: "🍽️", labelKey: "topicEssen",    descKey: "topicEssenDesc"    },
+  { id: "Familie",  emoji: "👨‍👩‍👧", labelKey: "topicFamilie",  descKey: "topicFamilieDesc"  },
+] as const;
+
+const CEFR_LEVELS = [
+  { id: "A1", emoji: "🌱", color: "#4ade80", desc: "cefrA1Desc" },
+  { id: "A2", emoji: "🌿", color: "#22d3ee", desc: "cefrA2Desc" },
+  { id: "B1", emoji: "🌟", color: "#a78bfa", desc: "cefrB1Desc" },
+  { id: "B2", emoji: "🚀", color: "#f59e0b", desc: "cefrB2Desc" },
+] as const;
 
 interface WelcomeScreenProps {
-  onStart: (topic?: string) => void;
+  onStart: (topic?: string, cefrLevel?: string) => void;
   isStarting: boolean;
 }
 
 export function WelcomeScreen({ onStart, isStarting }: WelcomeScreenProps) {
-  const [selected, setSelected] = useState<string | null>(null);
-  const [custom, setCustom]     = useState("");
+  const t = useTranslations("speaking");
+  const [selected, setSelected]   = useState<string | null>(null);
+  const [custom, setCustom]       = useState("");
+  const [cefrLevel, setCefrLevel] = useState<string>("B1");
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-5 flex flex-col gap-4"
@@ -34,44 +44,63 @@ export function WelcomeScreen({ onStart, isStarting }: WelcomeScreenProps) {
         <div className="relative z-10">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold mb-3"
             style={{ background: `${CYAN}20`, border: `1px solid ${CYAN}40`, color: CYAN }}>
-            ✨ KI-gestützt · Groq Llama 4 Scout
+            ✨ {t("welcomeBadge")}
           </div>
-          <h2 className="text-white font-extrabold text-xl mb-1">Sprich Deutsch mit KI</h2>
+          <h2 className="text-white font-extrabold text-xl mb-1">{t("welcomeTitle")}</h2>
           <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.6)" }}>
-            Dein persönlicher Tutor korrigiert Fehler und erklärt Grammatik auf Vietnamesisch.
+            {t("welcomeSubtitle")}
           </p>
           <div className="flex flex-wrap gap-2 mt-3">
-            {["Sofortige Korrekturen", "Grammatik-Tipps", "Natürliche Gespräche"].map((t) => (
-              <span key={t} className="text-[11px] px-2.5 py-1 rounded-full"
+            {[t("tagInstantCorrection"), t("tagGrammarTips"), t("tagNaturalChat")].map((label) => (
+              <span key={label} className="text-[11px] px-2.5 py-1 rounded-full"
                 style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.7)", border: "1px solid rgba(255,255,255,0.1)" }}>
-                {t}
+                {label}
               </span>
             ))}
           </div>
         </div>
       </div>
 
+      {/* CEFR Level selector */}
+      <div className="rounded-[20px] p-4" style={glass}>
+        <p className="text-xs font-semibold mb-3" style={{ color: "rgba(255,255,255,0.5)" }}>{t("chooseLevel")}</p>
+        <div className="grid grid-cols-4 gap-2">
+          {CEFR_LEVELS.map(({ id, emoji, color, desc }) => (
+            <button key={id} onClick={() => setCefrLevel(id)}
+              className="flex flex-col items-center gap-1.5 p-3 rounded-[14px] transition-all"
+              style={{
+                background: cefrLevel === id ? `${color}20` : "rgba(255,255,255,0.05)",
+                border: cefrLevel === id ? `1px solid ${color}60` : "1px solid rgba(255,255,255,0.08)",
+              }}>
+              <span className="text-lg">{emoji}</span>
+              <span className="text-xs font-extrabold" style={{ color: cefrLevel === id ? color : "rgba(255,255,255,0.7)" }}>{id}</span>
+              <span className="text-[9px] leading-tight text-center" style={{ color: "rgba(255,255,255,0.35)" }}>{t(desc)}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Topic grid */}
       <div className="rounded-[20px] p-4" style={glass}>
-        <p className="text-xs font-semibold mb-3" style={{ color: "rgba(255,255,255,0.5)" }}>THEMA WÄHLEN</p>
+        <p className="text-xs font-semibold mb-3" style={{ color: "rgba(255,255,255,0.5)" }}>{t("chooseTopic")}</p>
         <div className="grid grid-cols-3 gap-2 mb-4">
-          {SUGGESTED_TOPICS.map(({ label, emoji, desc }) => (
-            <button key={label} onClick={() => { setSelected(label); setCustom(""); }}
+          {SUGGESTED_TOPICS.map(({ id, emoji, labelKey, descKey }) => (
+            <button key={id} onClick={() => { setSelected(id); setCustom(""); }}
               className="flex flex-col items-center gap-1 p-3 rounded-[14px] transition-all"
               style={{
-                background: selected === label && !custom ? `${CYAN}15` : "rgba(255,255,255,0.05)",
-                border: selected === label && !custom ? `1px solid ${CYAN}50` : "1px solid rgba(255,255,255,0.08)",
+                background: selected === id && !custom ? `${CYAN}15` : "rgba(255,255,255,0.05)",
+                border: selected === id && !custom ? `1px solid ${CYAN}50` : "1px solid rgba(255,255,255,0.08)",
               }}>
               <span className="text-xl">{emoji}</span>
-              <span className="text-[11px] font-semibold" style={{ color: selected === label && !custom ? CYAN : "rgba(255,255,255,0.8)" }}>{label}</span>
-              <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.35)" }}>{desc}</span>
+              <span className="text-[11px] font-semibold" style={{ color: selected === id && !custom ? CYAN : "rgba(255,255,255,0.8)" }}>{t(labelKey)}</span>
+              <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.35)" }}>{t(descKey)}</span>
             </button>
           ))}
         </div>
         <div className="relative">
           <input type="text" value={custom}
             onChange={(e) => { setCustom(e.target.value); if (e.target.value) setSelected(null); }}
-            placeholder="Eigenes Thema eingeben…"
+            placeholder={t("customTopicPlaceholder")}
             className="w-full px-4 py-2.5 pr-8 rounded-[12px] text-sm outline-none"
             style={{
               background: "rgba(255,255,255,0.06)", border: `1px solid ${custom ? CYAN + "50" : "rgba(255,255,255,0.1)"}`,
@@ -88,7 +117,7 @@ export function WelcomeScreen({ onStart, isStarting }: WelcomeScreenProps) {
 
       {/* Start button */}
       <motion.button
-        onClick={() => onStart(custom.trim() || selected || undefined)}
+        onClick={() => onStart(custom.trim() || selected || undefined, cefrLevel)}
         disabled={isStarting}
         className="w-full flex items-center justify-center gap-2 py-4 rounded-[16px] font-bold text-sm"
         style={{
@@ -105,12 +134,16 @@ export function WelcomeScreen({ onStart, isStarting }: WelcomeScreenProps) {
             <motion.div className="w-4 h-4 rounded-full border-2"
               style={{ borderColor: "rgba(255,255,255,0.3)", borderTopColor: "white" }}
               animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }} />
-            Sitzung wird gestartet…
+            {t("starting")}
           </>
         ) : (
           <>
             <Plus size={18} />
-            Neue Sitzung starten
+            {t("newSession")}
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold"
+              style={{ background: "rgba(0,0,0,0.25)" }}>
+              {cefrLevel}
+            </span>
             {(selected || custom) && (
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold"
                 style={{ background: "rgba(0,0,0,0.25)" }}>

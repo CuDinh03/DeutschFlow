@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { isAxiosError } from 'axios'
 import api from '@/lib/api'
+import { getAccessToken } from '@/lib/authSession'
 import { speakGerman, primeGermanVoices } from '@/lib/speechDe'
 import { inferGenderFromGermanText, normalizeGenderCode } from '@/lib/constants'
 import {
@@ -21,6 +22,7 @@ import {
   LayoutGrid,
   Layers,
   List,
+  Mic,
   Pause,
   Play,
   Search,
@@ -78,6 +80,7 @@ type TagItem = {
   id: number
   name: string
   color?: string | null
+  localizedLabel?: string | null
 }
 
 type Me = {
@@ -225,10 +228,6 @@ const CATEGORY_KEYWORDS: Record<Exclude<CategoryOption, 'Alle'>, string[]> = {
   ],
 }
 
-const ENABLE_CATEGORY_DEBUG =
-  process.env.NODE_ENV === 'development' &&
-  (process.env.NEXT_PUBLIC_DEBUG_CATEGORY_MAP === '1' || process.env.NEXT_PUBLIC_DEBUG_CATEGORY_MAP === 'true')
-
 type CategoryScoreBreakdown = Record<Exclude<CategoryOption, 'Alle'>, number>
 
 function scoreCategory(
@@ -278,19 +277,6 @@ function detectCategory(item: WordListItem): CategoryOption {
   }
 
   const { winner, bestScore, breakdown } = scoreCategory(blob, tokens, tags)
-
-  if (ENABLE_CATEGORY_DEBUG) {
-    const compactWord = String(item.baseForm || '').trim()
-    // Dev-only trace for fast UAT tuning of category dictionary.
-    console.debug('[vocab-category-map]', {
-      word: compactWord,
-      dtype: item.dtype,
-      tags,
-      winner: bestScore > 0 ? winner : 'Alltag',
-      bestScore,
-      breakdown,
-    })
-  }
 
   if (bestScore > 0) return winner
   return 'Alltag'
@@ -819,8 +805,7 @@ export default function StudentVocabularyPage() {
   }, [q])
 
   useEffect(() => {
-    const token = localStorage.getItem('accessToken')
-    if (!token) {
+    if (!getAccessToken()) {
       router.push('/login')
       return
     }
@@ -836,7 +821,7 @@ export default function StudentVocabularyPage() {
         }
         setMe(meRes.data)
 
-        const tagsRes = await api.get<TagItem[]>('/tags')
+        const tagsRes = await api.get<TagItem[]>('/tags', { params: { locale: uiLocale || meRes.data.locale || 'vi' } })
         setTags(tagsRes.data ?? [])
 
         const { data } = await api.get<WordListResponse>('/words', {
@@ -922,12 +907,12 @@ export default function StudentVocabularyPage() {
     <div className="min-h-screen flex flex-col bg-[#F1F4F9]">
       <header className="bg-white border-b border-[#E2E8F0]">
         <div className="max-w-7xl mx-auto px-5 py-3.5 flex items-center gap-4">
-          <button onClick={() => router.push('/student')} className="flex items-center gap-2 text-[#00305E] font-semibold">
+          <button onClick={() => router.push('/dashboard')} className="flex items-center gap-2 text-[#00305E] font-semibold">
             <ArrowLeft size={17} />
             {t('back')}
           </button>
           <div className="hidden md:flex items-center gap-1 bg-[#F5F7FA] rounded-xl p-1 border border-[#E2E8F0]">
-            <button onClick={() => router.push('/student')} className="px-3 py-2 rounded-lg text-sm font-semibold text-[#64748B]">Dashboard</button>
+            <button onClick={() => router.push('/dashboard')} className="px-3 py-2 rounded-lg text-sm font-semibold text-[#64748B]">Dashboard</button>
             <button className="px-3 py-2 rounded-lg text-sm font-semibold bg-white text-[#00305E] shadow-sm">Vokabular</button>
           </div>
           <div className="flex-1" />
@@ -947,21 +932,32 @@ export default function StudentVocabularyPage() {
                 {total} Wörter · {filtered.filter((item) => item.category === 'IT').length} IT-Begriffe
               </p>
             </div>
-            <div className="flex items-center gap-1 bg-[#F5F7FA] rounded-xl p-0.5 border border-[#E2E8F0]">
+            <div className="flex items-center gap-2">
+              {/* Vocab practice shortcut */}
               <button
-                type="button"
-                onClick={() => setViewMode('grid')}
-                className={`p-2 rounded-lg ${viewMode === 'grid' ? 'bg-white text-[#00305E] shadow-sm' : 'text-[#94A3B8]'}`}
-              >
-                <LayoutGrid size={15} />
+                onClick={() => router.push('/student/vocab-practice')}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all hover:scale-105"
+                style={{ background: 'linear-gradient(135deg, #22d3ee, #a78bfa)', color: 'white', boxShadow: '0 2px 8px rgba(34,211,238,0.4)' }}
+                title={t('practiceSpeak')}>
+                <Mic size={13} />
+                {t('practiceSpeak')}
               </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('list')}
-                className={`p-2 rounded-lg ${viewMode === 'list' ? 'bg-white text-[#00305E] shadow-sm' : 'text-[#94A3B8]'}`}
-              >
-                <List size={15} />
-              </button>
+              <div className="flex items-center gap-1 bg-[#F5F7FA] rounded-xl p-0.5 border border-[#E2E8F0]">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('grid')}
+                  className={`p-2 rounded-lg ${viewMode === 'grid' ? 'bg-white text-[#00305E] shadow-sm' : 'text-[#94A3B8]'}`}
+                >
+                  <LayoutGrid size={15} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('list')}
+                  className={`p-2 rounded-lg ${viewMode === 'list' ? 'bg-white text-[#00305E] shadow-sm' : 'text-[#94A3B8]'}`}
+                >
+                  <List size={15} />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1064,7 +1060,7 @@ export default function StudentVocabularyPage() {
                 <select className="input mt-1" value={tag} onChange={(e) => setTag(e.target.value)}>
                   <option value="">{t('allTags')}</option>
                   {tags.map((tagItem) => (
-                    <option key={tagItem.id} value={tagItem.name}>{tagItem.name}</option>
+                    <option key={tagItem.id} value={tagItem.name}>{tagItem.localizedLabel ?? tagItem.name}</option>
                   ))}
                 </select>
               </div>

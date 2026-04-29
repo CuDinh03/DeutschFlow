@@ -71,7 +71,7 @@ export default function OnboardingPage() {
         minutesPerSession: Number(form.minutesPerSession),
         learningSpeed: form.learningSpeed,
       })
-      router.push('/student')
+      router.push('/dashboard')
     } catch (err: unknown) {
       const res = (err as { response?: { data?: { detail?: string; errors?: FieldErrors } } })?.response?.data
       if (res?.errors) setFieldErrors(res.errors)

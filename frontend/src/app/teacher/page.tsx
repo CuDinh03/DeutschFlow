@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import api from '@/lib/api'
-import { clearAuthCookies } from '@/lib/authSession'
+import api, { httpStatus, apiMessage } from '@/lib/api'
+import { clearTokens } from '@/lib/authSession'
 
 export default function TeacherPage() {
   const router = useRouter()
@@ -31,11 +31,9 @@ export default function TeacherPage() {
       setOverview(ov.data)
       setClasses(cls.data ?? [])
       setQuizzes(qz.data ?? [])
-    } catch (e: any) {
-      if (e?.response?.status === 401) {
-        localStorage.removeItem('accessToken')
-        localStorage.removeItem('refreshToken')
-        clearAuthCookies()
+    } catch (e: unknown) {
+      if (httpStatus(e) === 401) {
+        clearTokens()
         router.push('/login')
         return
       }
@@ -50,9 +48,7 @@ export default function TeacherPage() {
   }, [])
 
   const handleLogout = () => {
-    localStorage.removeItem('accessToken')
-    localStorage.removeItem('refreshToken')
-    clearAuthCookies()
+    clearTokens()
     router.push('/')
   }
 
@@ -63,8 +59,8 @@ export default function TeacherPage() {
       await api.post('/teacher/classes', { name: name.trim() })
       setName('')
       await load()
-    } catch (e: any) {
-      setError(e?.response?.data?.detail ?? 'Tao lop that bai.')
+    } catch (e: unknown) {
+      setError(apiMessage(e))
     }
   }
 

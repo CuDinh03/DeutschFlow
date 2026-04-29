@@ -3,17 +3,19 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, Play, Pause } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { speakGerman } from "@/lib/speechDe";
 import { Exchange, MINT, glass } from "./types";
 
-const ERROR_TYPE_LABELS: Record<string, { label: string; color: string }> = {
-  auxiliary:   { label: "Hilfsverb",   color: "#F87171" },
-  preposition: { label: "Präposition", color: "#FB923C" },
-  grammar:     { label: "Grammatik",   color: "#FBBF24" },
-  vocab:       { label: "Vokabular",   color: "#A78BFA" },
+const ERROR_TYPE_KEYS: Record<string, { tKey: string; color: string }> = {
+  auxiliary:   { tKey: "errTypeAuxiliary",   color: "#F87171" },
+  preposition: { tKey: "errTypePreposition", color: "#FB923C" },
+  grammar:     { tKey: "errTypeGrammar",     color: "#FBBF24" },
+  vocab:       { tKey: "errTypeVocab",       color: "#A78BFA" },
 };
 
 export function CorrectionCard({ exchange }: { exchange: Exchange }) {
+  const t = useTranslations("speaking");
   const [view, setView]               = useState<"original" | "corrected">("original");
   const [isPlayingOrig, setPlayingOrig] = useState(false);
   const [isPlayingCorr, setPlayingCorr] = useState(false);
@@ -38,7 +40,7 @@ export function CorrectionCard({ exchange }: { exchange: Exchange }) {
             className="flex-1 py-2.5 text-xs font-semibold transition-all relative"
             style={{ color: view === tab ? "white" : "rgba(255,255,255,0.4)" }}
           >
-            {tab === "original" ? "Deine Aussprache" : "KI-Korrektur"}
+            {tab === "original" ? t("tabOriginal") : t("tabCorrected")}
             {view === tab && (
               <motion.div
                 className="absolute bottom-0 left-4 right-4 h-0.5 rounded-full"
@@ -89,11 +91,11 @@ export function CorrectionCard({ exchange }: { exchange: Exchange }) {
               </div>
               <div className="flex flex-wrap gap-1.5 mt-3">
                 {exchange.segments.filter((s) => s.isError && s.errorType).map((s, i) => {
-                  const conf = ERROR_TYPE_LABELS[s.errorType!];
+                  const conf = ERROR_TYPE_KEYS[s.errorType!];
                   return (
                     <span key={i} className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
                       style={{ background: `${conf.color}20`, color: conf.color, border: `1px solid ${conf.color}40` }}>
-                      {conf.label}: "{s.text}" → "{s.correction}"
+                      {t(conf.tKey)}: "{s.text}" → "{s.correction}"
                     </span>
                   );
                 })}
@@ -112,7 +114,7 @@ export function CorrectionCard({ exchange }: { exchange: Exchange }) {
                   </p>
                   <div className="flex items-center gap-1.5 mt-2">
                     <Check size={11} style={{ color: MINT }} />
-                    <span className="text-[10px]" style={{ color: MINT }}>Grammatisch korrekt</span>
+                    <span className="text-[10px]" style={{ color: MINT }}>{t("grammarCorrect")}</span>
                   </div>
                 </div>
                 <button
@@ -136,7 +138,7 @@ export function CorrectionCard({ exchange }: { exchange: Exchange }) {
                       animate={{ height: [h, h * 1.8, h] }}
                       transition={{ duration: 0.4, repeat: Infinity, delay: i * 0.05 }} />
                   ))}
-                  <span className="ml-1.5 text-[10px] self-center" style={{ color: MINT }}>Aussprache...</span>
+                  <span className="ml-1.5 text-[10px] self-center" style={{ color: MINT }}>{t("playingPronunciation")}</span>
                 </motion.div>
               )}
             </motion.div>

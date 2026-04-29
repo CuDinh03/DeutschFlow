@@ -8,6 +8,7 @@ import com.deutschflow.vocabulary.service.GoetheOfficialWordlistImportService;
 import com.deutschflow.vocabulary.service.GoetheVocabularyAutoImportService;
 import com.deutschflow.vocabulary.service.OfficialCefrVocabularyImportService;
 import com.deutschflow.vocabulary.service.VocabularyCleanupService;
+import com.deutschflow.vocabulary.service.VocabularyAutoTaggingService;
 import com.deutschflow.vocabulary.service.VocabularyResetService;
 import com.deutschflow.vocabulary.service.WiktionaryIpaBatchService;
 import com.deutschflow.vocabulary.service.WiktionaryEnrichmentBatchService;
@@ -38,6 +39,7 @@ public class AdminManagementController {
     private final WiktionaryEnrichmentBatchService wiktionaryEnrichmentBatchService;
     private final VocabularyCleanupService vocabularyCleanupService;
     private final VocabularyResetService vocabularyResetService;
+    private final VocabularyAutoTaggingService vocabularyAutoTaggingService;
     private final AuditLogService auditLogService;
 
     @GetMapping("/reports/overview")
@@ -326,6 +328,29 @@ public class AdminManagementController {
                 "concatenated-lemmas",
                 Map.of("limit", result.get("limit"), "dryRun", dryRun, "matched", result.get("matched"), "deleted", result.get("deleted"))
         );
+        return result;
+    }
+
+    @PostMapping("/vocabulary/auto-tag/batch")
+    public Map<String, Object> autoTagBatch(
+            @RequestParam(required = false) Integer limit,
+            @RequestParam(defaultValue = "true")  boolean dryRun,
+            @RequestParam(defaultValue = "false") boolean resetTags,
+            Authentication authentication
+    ) {
+        Map<String, Object> result = vocabularyAutoTaggingService.runBatch(limit, dryRun, resetTags);
+        if (!dryRun) {
+            auditLogService.log(
+                    "admin.vocabulary.auto-tag.batch.triggered",
+                    null,
+                    actorEmail(authentication),
+                    actorRole(authentication),
+                    "VOCABULARY_TAGGING",
+                    "auto-tag",
+                    Map.of("limit", String.valueOf(limit), "resetTags", resetTags,
+                            "wordsTagged", result.getOrDefault("wordsTagged", 0))
+            );
+        }
         return result;
     }
 
