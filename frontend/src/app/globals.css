@@ -187,6 +187,87 @@
            hover:shadow-[var(--shadow-lg)] transition-shadow;
   }
 
+  /* Layout Primitives */
+  .page-shell {
+    @apply min-h-screen bg-background px-4 py-6 sm:px-6 lg:px-8;
+  }
+
+  .page-container {
+    @apply mx-auto w-full max-w-6xl;
+  }
+
+  .page-header {
+    @apply mb-6 flex flex-wrap items-start justify-between gap-3;
+  }
+
+  .page-title {
+    @apply text-2xl font-bold text-foreground;
+  }
+
+  .page-subtitle {
+    @apply mt-1 text-sm text-muted-foreground;
+  }
+
+  .section-card {
+    @apply card p-5;
+  }
+
+  .list-item {
+    @apply rounded-[12px] border border-border bg-background p-3;
+  }
+
+  .alert-error {
+    @apply rounded-[12px] border border-[var(--destructive)] bg-red-50 px-4 py-3 text-sm text-[var(--destructive)];
+  }
+
+  .empty-state {
+    @apply section-card text-sm text-muted-foreground;
+  }
+
+  .form-grid {
+    @apply grid gap-3 md:grid-cols-4;
+  }
+
+  .form-row {
+    @apply flex flex-wrap items-center gap-2;
+  }
+
+  .auth-shell {
+    @apply min-h-screen flex items-center justify-center bg-background p-4;
+  }
+
+  .auth-container {
+    @apply relative w-full max-w-md;
+  }
+
+  .auth-card {
+    @apply card p-8;
+  }
+
+  .form-field {
+    @apply space-y-2;
+  }
+
+  .form-help {
+    @apply text-xs text-muted-foreground;
+  }
+
+  .form-error {
+    @apply flex items-center gap-1 text-sm text-[var(--destructive)];
+  }
+
+  .form-grid-2 {
+    @apply grid gap-5 md:grid-cols-2;
+  }
+
+  .form-grid-3 {
+    @apply grid gap-5 md:grid-cols-3;
+  }
+
+  .section-title {
+    @apply text-lg font-semibold text-foreground;
+  }
+
   /* Input Component */
   .input {
     @apply w-full px-4 py-3 rounded-[var(--radius-lg)] 

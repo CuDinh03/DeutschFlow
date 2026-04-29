@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
+import { clearAuthCookies } from '@/lib/authSession'
 import {
   BookOpen,
   Mic2,
@@ -37,6 +38,7 @@ export default function HomePage() {
           // Token không hợp lệ, xóa và ở lại trang chủ
           localStorage.removeItem('accessToken')
           localStorage.removeItem('refreshToken')
+          clearAuthCookies()
         })
     }
   }, [router])
