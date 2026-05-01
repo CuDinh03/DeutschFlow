@@ -1,4 +1,3 @@
--- Track per-error-code success streaks to enable cooldown after repeated correct repairs
+-- Track per-error-code success streaks to enable cooldown correct repairs
 ALTER TABLE speaking_user_state
-    ADD COLUMN focus_success_streak_json JSON NULL;
-
+    ADD COLUMN focus_success_streak_json JSONB NULL;

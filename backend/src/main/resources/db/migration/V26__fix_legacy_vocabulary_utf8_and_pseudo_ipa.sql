@@ -1,6 +1,6 @@
 -- V24 backfilled usage_note without Vietnamese diacritics; clear so API can serve UTF-8 templates.
 UPDATE words w
-SET w.usage_note = NULL
+SET usage_note = NULL
 WHERE w.usage_note IS NOT NULL
   AND (
     w.usage_note LIKE 'Danh tu tieng%'

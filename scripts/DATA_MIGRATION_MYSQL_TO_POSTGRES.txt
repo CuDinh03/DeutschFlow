@@ -1,0 +1,42 @@
+Migrating existing MySQL data to PostgreSQL (DeutschFlow)
+=========================================================
+
+Prerequisites: MySQL reachable, PostgreSQL reachable, pgloader installed
+(https://pgloader.readthedocs.io/) or Docker image dimitri/pgloader.
+
+IMPORTANT
+---------
+- Rotate any database password leaked into chat/logs.
+- Prefer a dedicated database (e.g. deutschflow) instead of the cluster "postgres"
+  DB unless you intentionally keep everything in template DB "postgres".
+
+Path A — Schema from Flyway, then load data only (recommended when schemas match)
+----------------------------------------------------------------------------------
+1. On PostgreSQL:
+   DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;
+2. Point .env at PostgreSQL (DB_HOST, DB_PORT=5432, DB_NAME, DB_USERNAME, DB_PASSWORD).
+3. Start the Spring Boot app once (or run Flyway) so all V1..V47 migrations apply.
+4. Truncate seed tables OR use pgloader "data only" with matching column layout.
+   Easiest operational path for large mixed data is Path B.
+
+Path B — One-shot pgloader copy (whole database)
+-------------------------------------------------
+Creates tables on PostgreSQL from MySQL layouts; then align Flyway:
+1. mysqldump --no-data deutschflow > /tmp/mysql_schema.sql (backup/reference)
+2. pgloader mysql://USER:PASSWORD@HOST:3306/deutschflow
+           postgresql://USER:PASSWORD@HOST:5432/TARGET_DB
+
+3. If flyway_schema_history was copied but checksums differ after SQL edits locally:
+   mvn flyway:repair -Dflyway.url=jdbc:postgresql://... -Dflyway.user=... -Dflyway.password=...
+
+4. Hibernate ddl-auto validate must match copied schema types (JSON/jsonb, booleans).
+
+Path C — Logical export via CSV (small datasets)
+-----------------------------------------------
+COPY (SELECT ...) TO PROGRAM for table-by-table; import with COPY FROM.
+
+After migration
+---------------
+VACUUM ANALYZE; reset sequences if manual inserts skipped SERIAL:
+  SELECT SETVAL(pg_get_serial_sequence('users','id'), (SELECT COALESCE(MAX(id),1) FROM users));
+

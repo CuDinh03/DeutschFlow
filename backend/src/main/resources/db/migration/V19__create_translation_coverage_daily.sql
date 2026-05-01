@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS word_translation_coverage_daily (
+CREATE TABLE IF NOT EXISTS word_translation_coverage_daily  (
   snapshot_date DATE NOT NULL PRIMARY KEY,
   total_words BIGINT NOT NULL,
   words_with_de BIGINT NOT NULL,
@@ -9,6 +9,6 @@ CREATE TABLE IF NOT EXISTS word_translation_coverage_daily (
   vi_coverage_percent DECIMAL(5,2) NOT NULL,
   en_coverage_percent DECIMAL(5,2) NOT NULL,
   all_locales_coverage_percent DECIMAL(5,2) NOT NULL,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

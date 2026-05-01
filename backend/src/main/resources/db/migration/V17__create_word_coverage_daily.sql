@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS word_coverage_daily (
+CREATE TABLE IF NOT EXISTS word_coverage_daily  (
     snapshot_date DATE PRIMARY KEY,
     total_words BIGINT NOT NULL,
     noun_words BIGINT NOT NULL,
@@ -11,7 +11,6 @@ CREATE TABLE IF NOT EXISTS word_coverage_daily (
     verb_words BIGINT NOT NULL,
     verb_rows BIGINT NOT NULL,
     verb_coverage_percent DECIMAL(6,2) NOT NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-

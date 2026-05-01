@@ -1,6 +1,6 @@
 -- Phase 1: normalized observations + skill aggregates (dual-write with user_grammar_errors)
-CREATE TABLE user_error_observations (
-    id BIGINT NOT NULL AUTO_INCREMENT,
+CREATE TABLE user_error_observations  (
+    id BIGSERIAL,
     user_id BIGINT NOT NULL,
     message_id BIGINT NOT NULL,
     session_id BIGINT NOT NULL,
@@ -11,30 +11,32 @@ CREATE TABLE user_error_observations (
     corrected_span VARCHAR(500) NULL,
     rule_vi_short VARCHAR(500) NULL,
     example_correct_de VARCHAR(500) NULL,
-    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     CONSTRAINT fk_obs_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
     CONSTRAINT fk_obs_session FOREIGN KEY (session_id) REFERENCES ai_speaking_sessions (id) ON DELETE CASCADE,
     CONSTRAINT fk_obs_message FOREIGN KEY (message_id) REFERENCES ai_speaking_messages (id) ON DELETE CASCADE,
-    UNIQUE KEY uk_obs_message_code (message_id, error_code),
-    KEY idx_obs_user_code_created (user_id, error_code, created_at DESC)
+    CONSTRAINT uk_obs_message_code UNIQUE (message_id, error_code)
 );
+CREATE INDEX IF NOT EXISTS idx_obs_user_code_created ON user_error_observations (user_id, error_code, created_at DESC);
 
-CREATE TABLE user_error_skills (
-    id BIGINT NOT NULL AUTO_INCREMENT,
+
+CREATE TABLE user_error_skills  (
+    id BIGSERIAL,
     user_id BIGINT NOT NULL,
     error_code VARCHAR(80) NOT NULL,
     total_count INT NOT NULL DEFAULT 0,
-    last_seen_at DATETIME(6) NOT NULL,
+    last_seen_at TIMESTAMP(6) NOT NULL,
     last_severity VARCHAR(16) NOT NULL,
     open_count INT NOT NULL DEFAULT 0,
     resolved_count INT NOT NULL DEFAULT 0,
     priority_score DECIMAL(8,3) NOT NULL DEFAULT 0,
     PRIMARY KEY (id),
-    UNIQUE KEY uk_skill_user_code (user_id, error_code),
-    KEY idx_skill_user_priority (user_id, priority_score DESC),
+    CONSTRAINT uk_skill_user_code UNIQUE (user_id, error_code),
     CONSTRAINT fk_skill_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );
+CREATE INDEX IF NOT EXISTS idx_skill_user_priority ON user_error_skills (user_id, priority_score DESC);
+
 
 -- Backfill skills from historical grammar errors (one row per user + code)
 INSERT INTO user_error_skills (user_id, error_code, total_count, last_seen_at, last_severity, open_count, resolved_count, priority_score)

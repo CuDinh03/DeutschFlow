@@ -378,6 +378,7 @@ public class AdminManagementService {
     @Transactional(readOnly = true)
     public List<Map<String, Object>> grammarFeedbackCoverage(int days) {
         int safeDays = Math.max(1, Math.min(days, 365));
+        LocalDateTime from = LocalDateTime.now().minusDays((long) safeDays);
         return jdbcTemplate.query("""
                 SELECT
                   DATE(created_at) AS snapshotDate,
@@ -386,7 +387,7 @@ public class AdminManagementService {
                   SUM(items_with_feedback) AS itemsWithFeedback,
                   ROUND(100.0 * SUM(items_with_feedback) / NULLIF(SUM(total_items), 0), 2) AS coveragePercent
                 FROM grammar_feedback_events
-                WHERE created_at >= (NOW() - INTERVAL ? DAY)
+                WHERE created_at >= ?
                 GROUP BY DATE(created_at)
                 ORDER BY snapshotDate ASC
                 """, (rs, rowNum) -> {
@@ -397,7 +398,7 @@ public class AdminManagementService {
             row.put("itemsWithFeedback", rs.getLong("itemsWithFeedback"));
             row.put("coveragePercent", rs.getDouble("coveragePercent"));
             return row;
-        }, safeDays);
+        }, from);
     }
 
     @Transactional(readOnly = true)

@@ -1,36 +1,32 @@
--- Starter weekly prompts so dev/staging has a prompt on first boot (idempotent).
--- Uses MySQL server's calendar for "this Monday"; production may prefer admin CRUD for full control.
-
+-- Weekly speaking seed (PostgreSQL)
 INSERT INTO weekly_speaking_prompts (
     week_start_date, cefr_band, title, prompt_de, mandatory_points_json, optional_points_json, is_active
 )
-SELECT DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY),
+SELECT DATE_TRUNC('week', CURRENT_TIMESTAMP::TIMESTAMP)::DATE,
        'B1',
        'Woche im Überblick',
        'Sprechen Sie etwa 1–2 Minuten auf Deutsch: Was haben Sie diese Woche gemacht? Nennen Sie mindestens eine Arbeitssache und eine Freizeitsache.',
-       JSON_ARRAY('Arbeit oder Lernen nennen', 'Freizeit oder Hobby nennen', 'Zeitmarker wie „diese Woche“ verwenden'),
-       JSON_ARRAY('Kurz sagen, wie es war (gut/mühsam)'),
+       json_build_array('Arbeit oder Lernen nennen', 'Freizeit oder Hobby nennen', 'Zeitmarker wie „diese Woche“ verwenden')::jsonb,
+       json_build_array('Kurz sagen, wie es war (gut/mühsam)')::jsonb,
        TRUE
-FROM DUAL
 WHERE NOT EXISTS (
     SELECT 1 FROM weekly_speaking_prompts w
-    WHERE w.week_start_date = DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)
+    WHERE w.week_start_date = DATE_TRUNC('week', CURRENT_TIMESTAMP::TIMESTAMP)::DATE
       AND w.cefr_band = 'B1'
 );
 
 INSERT INTO weekly_speaking_prompts (
     week_start_date, cefr_band, title, prompt_de, mandatory_points_json, optional_points_json, is_active
 )
-SELECT DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY),
+SELECT DATE_TRUNC('week', CURRENT_TIMESTAMP::TIMESTAMP)::DATE,
        'A2',
        'Meine Woche (einfach)',
        'Erzählen Sie in sehr einfachen Sätzen: Was haben Sie diese Woche gemacht?',
-       JSON_ARRAY('Mindestens zwei Aktivitäten nennen', 'Ein Satz über Montag oder Wochenende'),
-       JSON_ARRAY('Ein Adjektiv: gut, müde, interessant'),
+       json_build_array('Mindestens zwei Aktivitäten nennen', 'Ein Satz über Montag oder Wochenende')::jsonb,
+       json_build_array('Ein Adjektiv: gut, müde, interessant')::jsonb,
        TRUE
-FROM DUAL
 WHERE NOT EXISTS (
     SELECT 1 FROM weekly_speaking_prompts w
-    WHERE w.week_start_date = DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)
+    WHERE w.week_start_date = DATE_TRUNC('week', CURRENT_TIMESTAMP::TIMESTAMP)::DATE
       AND w.cefr_band = 'A2'
 );

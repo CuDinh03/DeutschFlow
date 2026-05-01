@@ -1,15 +1,16 @@
 -- Subscription plans and per-user subscriptions (admin-managed tiers + overrides)
-CREATE TABLE subscription_plans (
+CREATE TABLE subscription_plans  (
     code VARCHAR(32) NOT NULL PRIMARY KEY,
     name VARCHAR(64) NOT NULL,
     monthly_token_limit BIGINT NOT NULL,
-    features_json JSON NULL,
-    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    features_json JSONB NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE user_subscriptions (
-    id BIGINT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+
+CREATE TABLE user_subscriptions  (
+    id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL,
     plan_code VARCHAR(32) NOT NULL,
     status VARCHAR(16) NOT NULL,
@@ -17,16 +18,16 @@ CREATE TABLE user_subscriptions (
     ends_at TIMESTAMP NULL,
     monthly_token_limit_override BIGINT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_user_subscriptions_user_status (user_id, status),
-    INDEX idx_user_subscriptions_user_plan (user_id, plan_code),
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_user_subscriptions_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
     CONSTRAINT fk_user_subscriptions_plan FOREIGN KEY (plan_code) REFERENCES subscription_plans (code)
 );
+CREATE INDEX IF NOT EXISTS idx_user_subscriptions_user_status ON user_subscriptions (user_id, status);
+CREATE INDEX IF NOT EXISTS idx_user_subscriptions_user_plan ON user_subscriptions (user_id, plan_code);
+
 
 -- Seed default plans (safe to re-run? Flyway runs once; insert-only is fine)
 INSERT INTO subscription_plans (code, name, monthly_token_limit, features_json, is_active) VALUES
-('FREE', 'Free', 20000, JSON_OBJECT('streaming', FALSE), 1),
-('PRO', 'Pro', 200000, JSON_OBJECT('streaming', TRUE), 1),
-('INTERNAL', 'Internal', 999999999, JSON_OBJECT('streaming', TRUE), 1);
-
+('FREE', 'Free', 20000, json_build_object('streaming', FALSE), TRUE),
+('PRO', 'Pro', 200000, json_build_object('streaming', TRUE), TRUE),
+('INTERNAL', 'Internal', 999999999, json_build_object('streaming', TRUE), TRUE);

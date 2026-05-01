@@ -21,7 +21,7 @@ INSERT INTO tags (name, color) VALUES
   ('Natur',         '#86efac'),
   ('Kultur',        '#e879f9'),
   ('Gefühle',       '#fca5a5')
-ON DUPLICATE KEY UPDATE color = VALUES(color);
+ON CONFLICT (name) DO UPDATE SET color = EXCLUDED.color;
 
 -- Vietnamese translations
 INSERT INTO tag_translations (tag_id, locale, label)
@@ -43,7 +43,7 @@ SELECT id, 'vi', label FROM (
   UNION ALL SELECT id, 'Văn hóa'        FROM tags WHERE name = 'Kultur'
   UNION ALL SELECT id, 'Cảm xúc'        FROM tags WHERE name = 'Gefühle'
 ) x
-ON DUPLICATE KEY UPDATE label = VALUES(label);
+ON CONFLICT (tag_id, locale) DO UPDATE SET label = EXCLUDED.label;
 
 -- English translations
 INSERT INTO tag_translations (tag_id, locale, label)
@@ -65,4 +65,4 @@ SELECT id, 'en', label FROM (
   UNION ALL SELECT id, 'Culture'        FROM tags WHERE name = 'Kultur'
   UNION ALL SELECT id, 'Emotions'       FROM tags WHERE name = 'Gefühle'
 ) x
-ON DUPLICATE KEY UPDATE label = VALUES(label);
+ON CONFLICT (tag_id, locale) DO UPDATE SET label = EXCLUDED.label;

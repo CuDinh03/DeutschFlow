@@ -27,92 +27,72 @@ INSERT INTO words (dtype, base_form, cefr_level, created_at, updated_at) VALUES
 ('Noun', 'Flughafen', 'A1', NOW(), NOW());
 
 -- Get IDs for masculine nouns
-SET @tisch_id = (SELECT id FROM words WHERE base_form = 'Tisch' AND dtype = 'Noun');
-SET @stuhl_id = (SELECT id FROM words WHERE base_form = 'Stuhl' AND dtype = 'Noun');
-SET @mann_id = (SELECT id FROM words WHERE base_form = 'Mann' AND dtype = 'Noun');
-SET @vater_id = (SELECT id FROM words WHERE base_form = 'Vater' AND dtype = 'Noun');
-SET @sohn_id = (SELECT id FROM words WHERE base_form = 'Sohn' AND dtype = 'Noun');
-SET @bruder_id = (SELECT id FROM words WHERE base_form = 'Bruder' AND dtype = 'Noun');
-SET @freund_id = (SELECT id FROM words WHERE base_form = 'Freund' AND dtype = 'Noun');
-SET @tag_id = (SELECT id FROM words WHERE base_form = 'Tag' AND dtype = 'Noun');
-SET @morgen_id = (SELECT id FROM words WHERE base_form = 'Morgen' AND dtype = 'Noun');
-SET @abend_id = (SELECT id FROM words WHERE base_form = 'Abend' AND dtype = 'Noun');
-SET @name_id = (SELECT id FROM words WHERE base_form = 'Name' AND dtype = 'Noun');
-SET @kaffee_id = (SELECT id FROM words WHERE base_form = 'Kaffee' AND dtype = 'Noun');
-SET @tee_id = (SELECT id FROM words WHERE base_form = 'Tee' AND dtype = 'Noun');
-SET @apfel_id = (SELECT id FROM words WHERE base_form = 'Apfel' AND dtype = 'Noun');
-SET @kuchen_id = (SELECT id FROM words WHERE base_form = 'Kuchen' AND dtype = 'Noun');
-SET @wein_id = (SELECT id FROM words WHERE base_form = 'Wein' AND dtype = 'Noun');
-SET @kaese_id = (SELECT id FROM words WHERE base_form = 'Käse' AND dtype = 'Noun');
-SET @fisch_id = (SELECT id FROM words WHERE base_form = 'Fisch' AND dtype = 'Noun');
-SET @bahnhof_id = (SELECT id FROM words WHERE base_form = 'Bahnhof' AND dtype = 'Noun');
-SET @flughafen_id = (SELECT id FROM words WHERE base_form = 'Flughafen' AND dtype = 'Noun');
 
 -- Noun details (Masculine)
 INSERT INTO nouns (id, gender, plural_form, genitive_form, noun_type) VALUES
-(@tisch_id, 'DER', 'Tische', 'Tisches', 'STARK'),
-(@stuhl_id, 'DER', 'Stühle', 'Stuhles', 'STARK'),
-(@mann_id, 'DER', 'Männer', 'Mannes', 'STARK'),
-(@vater_id, 'DER', 'Väter', 'Vaters', 'STARK'),
-(@sohn_id, 'DER', 'Söhne', 'Sohnes', 'STARK'),
-(@bruder_id, 'DER', 'Brüder', 'Bruders', 'STARK'),
-(@freund_id, 'DER', 'Freunde', 'Freundes', 'STARK'),
-(@tag_id, 'DER', 'Tage', 'Tages', 'STARK'),
-(@morgen_id, 'DER', 'Morgen', 'Morgens', 'STARK'),
-(@abend_id, 'DER', 'Abende', 'Abends', 'STARK'),
-(@name_id, 'DER', 'Namen', 'Namens', 'SCHWACH'),
-(@kaffee_id, 'DER', 'Kaffees', 'Kaffees', 'STARK'),
-(@tee_id, 'DER', 'Tees', 'Tees', 'STARK'),
-(@apfel_id, 'DER', 'Äpfel', 'Apfels', 'STARK'),
-(@kuchen_id, 'DER', 'Kuchen', 'Kuchens', 'STARK'),
-(@wein_id, 'DER', 'Weine', 'Weines', 'STARK'),
-(@kaese_id, 'DER', 'Käse', 'Käses', 'STARK'),
-(@fisch_id, 'DER', 'Fische', 'Fisches', 'STARK'),
-(@bahnhof_id, 'DER', 'Bahnhöfe', 'Bahnhofs', 'STARK'),
-(@flughafen_id, 'DER', 'Flughäfen', 'Flughafens', 'STARK');
+((SELECT id FROM words WHERE base_form = 'Tisch' AND dtype = 'Noun'), 'DER', 'Tische', 'Tisches', 'STARK'),
+((SELECT id FROM words WHERE base_form = 'Stuhl' AND dtype = 'Noun'), 'DER', 'Stühle', 'Stuhles', 'STARK'),
+((SELECT id FROM words WHERE base_form = 'Mann' AND dtype = 'Noun'), 'DER', 'Männer', 'Mannes', 'STARK'),
+((SELECT id FROM words WHERE base_form = 'Vater' AND dtype = 'Noun'), 'DER', 'Väter', 'Vaters', 'STARK'),
+((SELECT id FROM words WHERE base_form = 'Sohn' AND dtype = 'Noun'), 'DER', 'Söhne', 'Sohnes', 'STARK'),
+((SELECT id FROM words WHERE base_form = 'Bruder' AND dtype = 'Noun'), 'DER', 'Brüder', 'Bruders', 'STARK'),
+((SELECT id FROM words WHERE base_form = 'Freund' AND dtype = 'Noun'), 'DER', 'Freunde', 'Freundes', 'STARK'),
+((SELECT id FROM words WHERE base_form = 'Tag' AND dtype = 'Noun'), 'DER', 'Tage', 'Tages', 'STARK'),
+((SELECT id FROM words WHERE base_form = 'Morgen' AND dtype = 'Noun'), 'DER', 'Morgen', 'Morgens', 'STARK'),
+((SELECT id FROM words WHERE base_form = 'Abend' AND dtype = 'Noun'), 'DER', 'Abende', 'Abends', 'STARK'),
+((SELECT id FROM words WHERE base_form = 'Name' AND dtype = 'Noun'), 'DER', 'Namen', 'Namens', 'SCHWACH'),
+((SELECT id FROM words WHERE base_form = 'Kaffee' AND dtype = 'Noun'), 'DER', 'Kaffees', 'Kaffees', 'STARK'),
+((SELECT id FROM words WHERE base_form = 'Tee' AND dtype = 'Noun'), 'DER', 'Tees', 'Tees', 'STARK'),
+((SELECT id FROM words WHERE base_form = 'Apfel' AND dtype = 'Noun'), 'DER', 'Äpfel', 'Apfels', 'STARK'),
+((SELECT id FROM words WHERE base_form = 'Kuchen' AND dtype = 'Noun'), 'DER', 'Kuchen', 'Kuchens', 'STARK'),
+((SELECT id FROM words WHERE base_form = 'Wein' AND dtype = 'Noun'), 'DER', 'Weine', 'Weines', 'STARK'),
+((SELECT id FROM words WHERE base_form = 'Käse' AND dtype = 'Noun'), 'DER', 'Käse', 'Käses', 'STARK'),
+((SELECT id FROM words WHERE base_form = 'Fisch' AND dtype = 'Noun'), 'DER', 'Fische', 'Fisches', 'STARK'),
+((SELECT id FROM words WHERE base_form = 'Bahnhof' AND dtype = 'Noun'), 'DER', 'Bahnhöfe', 'Bahnhofs', 'STARK'),
+((SELECT id FROM words WHERE base_form = 'Flughafen' AND dtype = 'Noun'), 'DER', 'Flughäfen', 'Flughafens', 'STARK');
 
 -- Translations (Masculine nouns)
 INSERT INTO word_translations (word_id, locale, meaning, example) VALUES
-(@tisch_id, 'vi', 'cái bàn', 'Der Tisch ist groß. (Cái bàn rất lớn.)'),
-(@tisch_id, 'en', 'table', 'The table is big.'),
-(@stuhl_id, 'vi', 'cái ghế', 'Der Stuhl ist bequem. (Cái ghế rất thoải mái.)'),
-(@stuhl_id, 'en', 'chair', 'The chair is comfortable.'),
-(@mann_id, 'vi', 'người đàn ông', 'Der Mann arbeitet. (Người đàn ông đang làm việc.)'),
-(@mann_id, 'en', 'man', 'The man is working.'),
-(@vater_id, 'vi', 'người cha', 'Mein Vater ist Lehrer. (Cha tôi là giáo viên.)'),
-(@vater_id, 'en', 'father', 'My father is a teacher.'),
-(@sohn_id, 'vi', 'con trai', 'Mein Sohn ist 5 Jahre alt. (Con trai tôi 5 tuổi.)'),
-(@sohn_id, 'en', 'son', 'My son is 5 years old.'),
-(@bruder_id, 'vi', 'anh/em trai', 'Mein Bruder wohnt in Berlin. (Anh trai tôi sống ở Berlin.)'),
-(@bruder_id, 'en', 'brother', 'My brother lives in Berlin.'),
-(@freund_id, 'vi', 'bạn trai/bạn bè', 'Das ist mein Freund. (Đây là bạn tôi.)'),
-(@freund_id, 'en', 'friend (male)', 'This is my friend.'),
-(@tag_id, 'vi', 'ngày', 'Guten Tag! (Chào ngày tốt lành!)'),
-(@tag_id, 'en', 'day', 'Good day!'),
-(@morgen_id, 'vi', 'buổi sáng', 'Guten Morgen! (Chào buổi sáng!)'),
-(@morgen_id, 'en', 'morning', 'Good morning!'),
-(@abend_id, 'vi', 'buổi tối', 'Guten Abend! (Chào buổi tối!)'),
-(@abend_id, 'en', 'evening', 'Good evening!'),
-(@name_id, 'vi', 'tên', 'Wie ist dein Name? (Tên bạn là gì?)'),
-(@name_id, 'en', 'name', 'What is your name?'),
-(@kaffee_id, 'vi', 'cà phê', 'Ich trinke Kaffee. (Tôi uống cà phê.)'),
-(@kaffee_id, 'en', 'coffee', 'I drink coffee.'),
-(@tee_id, 'vi', 'trà', 'Möchtest du Tee? (Bạn muốn trà không?)'),
-(@tee_id, 'en', 'tea', 'Would you like tea?'),
-(@apfel_id, 'vi', 'quả táo', 'Der Apfel ist rot. (Quả táo màu đỏ.)'),
-(@apfel_id, 'en', 'apple', 'The apple is red.'),
-(@kuchen_id, 'vi', 'bánh ngọt', 'Der Kuchen schmeckt gut. (Bánh ngon.)'),
-(@kuchen_id, 'en', 'cake', 'The cake tastes good.'),
-(@wein_id, 'vi', 'rượu vang', 'Ich trinke Wein. (Tôi uống rượu vang.)'),
-(@wein_id, 'en', 'wine', 'I drink wine.'),
-(@kaese_id, 'vi', 'phô mai', 'Der Käse ist lecker. (Phô mai ngon.)'),
-(@kaese_id, 'en', 'cheese', 'The cheese is delicious.'),
-(@fisch_id, 'vi', 'cá', 'Ich esse Fisch. (Tôi ăn cá.)'),
-(@fisch_id, 'en', 'fish', 'I eat fish.'),
-(@bahnhof_id, 'vi', 'ga tàu', 'Wo ist der Bahnhof? (Ga tàu ở đâu?)'),
-(@bahnhof_id, 'en', 'train station', 'Where is the train station?'),
-(@flughafen_id, 'vi', 'sân bay', 'Der Flughafen ist groß. (Sân bay rất lớn.)'),
-(@flughafen_id, 'en', 'airport', 'The airport is big.');
+((SELECT id FROM words WHERE base_form = 'Tisch' AND dtype = 'Noun'), 'vi', 'cái bàn', 'Der Tisch ist groß. (Cái bàn rất lớn.)'),
+((SELECT id FROM words WHERE base_form = 'Tisch' AND dtype = 'Noun'), 'en', 'table', 'The table is big.'),
+((SELECT id FROM words WHERE base_form = 'Stuhl' AND dtype = 'Noun'), 'vi', 'cái ghế', 'Der Stuhl ist bequem. (Cái ghế rất thoải mái.)'),
+((SELECT id FROM words WHERE base_form = 'Stuhl' AND dtype = 'Noun'), 'en', 'chair', 'The chair is comfortable.'),
+((SELECT id FROM words WHERE base_form = 'Mann' AND dtype = 'Noun'), 'vi', 'người đàn ông', 'Der Mann arbeitet. (Người đàn ông đang làm việc.)'),
+((SELECT id FROM words WHERE base_form = 'Mann' AND dtype = 'Noun'), 'en', 'man', 'The man is working.'),
+((SELECT id FROM words WHERE base_form = 'Vater' AND dtype = 'Noun'), 'vi', 'người cha', 'Mein Vater ist Lehrer. (Cha tôi là giáo viên.)'),
+((SELECT id FROM words WHERE base_form = 'Vater' AND dtype = 'Noun'), 'en', 'father', 'My father is a teacher.'),
+((SELECT id FROM words WHERE base_form = 'Sohn' AND dtype = 'Noun'), 'vi', 'con trai', 'Mein Sohn ist 5 Jahre alt. (Con trai tôi 5 tuổi.)'),
+((SELECT id FROM words WHERE base_form = 'Sohn' AND dtype = 'Noun'), 'en', 'son', 'My son is 5 years old.'),
+((SELECT id FROM words WHERE base_form = 'Bruder' AND dtype = 'Noun'), 'vi', 'anh/em trai', 'Mein Bruder wohnt in Berlin. (Anh trai tôi sống ở Berlin.)'),
+((SELECT id FROM words WHERE base_form = 'Bruder' AND dtype = 'Noun'), 'en', 'brother', 'My brother lives in Berlin.'),
+((SELECT id FROM words WHERE base_form = 'Freund' AND dtype = 'Noun'), 'vi', 'bạn trai/bạn bè', 'Das ist mein Freund. (Đây là bạn tôi.)'),
+((SELECT id FROM words WHERE base_form = 'Freund' AND dtype = 'Noun'), 'en', 'friend (male)', 'This is my friend.'),
+((SELECT id FROM words WHERE base_form = 'Tag' AND dtype = 'Noun'), 'vi', 'ngày', 'Guten Tag! (Chào ngày tốt lành!)'),
+((SELECT id FROM words WHERE base_form = 'Tag' AND dtype = 'Noun'), 'en', 'day', 'Good day!'),
+((SELECT id FROM words WHERE base_form = 'Morgen' AND dtype = 'Noun'), 'vi', 'buổi sáng', 'Guten Morgen! (Chào buổi sáng!)'),
+((SELECT id FROM words WHERE base_form = 'Morgen' AND dtype = 'Noun'), 'en', 'morning', 'Good morning!'),
+((SELECT id FROM words WHERE base_form = 'Abend' AND dtype = 'Noun'), 'vi', 'buổi tối', 'Guten Abend! (Chào buổi tối!)'),
+((SELECT id FROM words WHERE base_form = 'Abend' AND dtype = 'Noun'), 'en', 'evening', 'Good evening!'),
+((SELECT id FROM words WHERE base_form = 'Name' AND dtype = 'Noun'), 'vi', 'tên', 'Wie ist dein Name? (Tên bạn là gì?)'),
+((SELECT id FROM words WHERE base_form = 'Name' AND dtype = 'Noun'), 'en', 'name', 'What is your name?'),
+((SELECT id FROM words WHERE base_form = 'Kaffee' AND dtype = 'Noun'), 'vi', 'cà phê', 'Ich trinke Kaffee. (Tôi uống cà phê.)'),
+((SELECT id FROM words WHERE base_form = 'Kaffee' AND dtype = 'Noun'), 'en', 'coffee', 'I drink coffee.'),
+((SELECT id FROM words WHERE base_form = 'Tee' AND dtype = 'Noun'), 'vi', 'trà', 'Möchtest du Tee? (Bạn muốn trà không?)'),
+((SELECT id FROM words WHERE base_form = 'Tee' AND dtype = 'Noun'), 'en', 'tea', 'Would you like tea?'),
+((SELECT id FROM words WHERE base_form = 'Apfel' AND dtype = 'Noun'), 'vi', 'quả táo', 'Der Apfel ist rot. (Quả táo màu đỏ.)'),
+((SELECT id FROM words WHERE base_form = 'Apfel' AND dtype = 'Noun'), 'en', 'apple', 'The apple is red.'),
+((SELECT id FROM words WHERE base_form = 'Kuchen' AND dtype = 'Noun'), 'vi', 'bánh ngọt', 'Der Kuchen schmeckt gut. (Bánh ngon.)'),
+((SELECT id FROM words WHERE base_form = 'Kuchen' AND dtype = 'Noun'), 'en', 'cake', 'The cake tastes good.'),
+((SELECT id FROM words WHERE base_form = 'Wein' AND dtype = 'Noun'), 'vi', 'rượu vang', 'Ich trinke Wein. (Tôi uống rượu vang.)'),
+((SELECT id FROM words WHERE base_form = 'Wein' AND dtype = 'Noun'), 'en', 'wine', 'I drink wine.'),
+((SELECT id FROM words WHERE base_form = 'Käse' AND dtype = 'Noun'), 'vi', 'phô mai', 'Der Käse ist lecker. (Phô mai ngon.)'),
+((SELECT id FROM words WHERE base_form = 'Käse' AND dtype = 'Noun'), 'en', 'cheese', 'The cheese is delicious.'),
+((SELECT id FROM words WHERE base_form = 'Fisch' AND dtype = 'Noun'), 'vi', 'cá', 'Ich esse Fisch. (Tôi ăn cá.)'),
+((SELECT id FROM words WHERE base_form = 'Fisch' AND dtype = 'Noun'), 'en', 'fish', 'I eat fish.'),
+((SELECT id FROM words WHERE base_form = 'Bahnhof' AND dtype = 'Noun'), 'vi', 'ga tàu', 'Wo ist der Bahnhof? (Ga tàu ở đâu?)'),
+((SELECT id FROM words WHERE base_form = 'Bahnhof' AND dtype = 'Noun'), 'en', 'train station', 'Where is the train station?'),
+((SELECT id FROM words WHERE base_form = 'Flughafen' AND dtype = 'Noun'), 'vi', 'sân bay', 'Der Flughafen ist groß. (Sân bay rất lớn.)'),
+((SELECT id FROM words WHERE base_form = 'Flughafen' AND dtype = 'Noun'), 'en', 'airport', 'The airport is big.');
 
 -- Common Nouns (Feminine - DIE)
 INSERT INTO words (dtype, base_form, cefr_level, created_at, updated_at) VALUES
@@ -137,87 +117,66 @@ INSERT INTO words (dtype, base_form, cefr_level, created_at, updated_at) VALUES
 ('Noun', 'Suppe', 'A1', NOW(), NOW()),
 ('Noun', 'Pizza', 'A1', NOW(), NOW());
 
-SET @frau_id = (SELECT id FROM words WHERE base_form = 'Frau' AND dtype = 'Noun');
-SET @mutter_id = (SELECT id FROM words WHERE base_form = 'Mutter' AND dtype = 'Noun');
-SET @tochter_id = (SELECT id FROM words WHERE base_form = 'Tochter' AND dtype = 'Noun');
-SET @schwester_id = (SELECT id FROM words WHERE base_form = 'Schwester' AND dtype = 'Noun');
-SET @freundin_id = (SELECT id FROM words WHERE base_form = 'Freundin' AND dtype = 'Noun');
-SET @familie_id = (SELECT id FROM words WHERE base_form = 'Familie' AND dtype = 'Noun');
-SET @schule_id = (SELECT id FROM words WHERE base_form = 'Schule' AND dtype = 'Noun');
-SET @strasse_id = (SELECT id FROM words WHERE base_form = 'Straße' AND dtype = 'Noun');
-SET @stadt_id = (SELECT id FROM words WHERE base_form = 'Stadt' AND dtype = 'Noun');
-SET @wohnung_id = (SELECT id FROM words WHERE base_form = 'Wohnung' AND dtype = 'Noun');
-SET @tuer_id = (SELECT id FROM words WHERE base_form = 'Tür' AND dtype = 'Noun');
-SET @uhr_id = (SELECT id FROM words WHERE base_form = 'Uhr' AND dtype = 'Noun');
-SET @nummer_id = (SELECT id FROM words WHERE base_form = 'Nummer' AND dtype = 'Noun');
-SET @frage_id = (SELECT id FROM words WHERE base_form = 'Frage' AND dtype = 'Noun');
-SET @antwort_id = (SELECT id FROM words WHERE base_form = 'Antwort' AND dtype = 'Noun');
-SET @sprache_id = (SELECT id FROM words WHERE base_form = 'Sprache' AND dtype = 'Noun');
-SET @milch_id = (SELECT id FROM words WHERE base_form = 'Milch' AND dtype = 'Noun');
-SET @butter_id = (SELECT id FROM words WHERE base_form = 'Butter' AND dtype = 'Noun');
-SET @suppe_id = (SELECT id FROM words WHERE base_form = 'Suppe' AND dtype = 'Noun');
-SET @pizza_id = (SELECT id FROM words WHERE base_form = 'Pizza' AND dtype = 'Noun');
-
 INSERT INTO nouns (id, gender, plural_form, genitive_form, noun_type) VALUES
-(@frau_id, 'DIE', 'Frauen', 'Frau', 'SCHWACH'),
-(@mutter_id, 'DIE', 'Mütter', 'Mutter', 'STARK'),
-(@tochter_id, 'DIE', 'Töchter', 'Tochter', 'STARK'),
-(@schwester_id, 'DIE', 'Schwestern', 'Schwester', 'SCHWACH'),
-(@freundin_id, 'DIE', 'Freundinnen', 'Freundin', 'SCHWACH'),
-(@familie_id, 'DIE', 'Familien', 'Familie', 'SCHWACH'),
-(@schule_id, 'DIE', 'Schulen', 'Schule', 'SCHWACH'),
-(@strasse_id, 'DIE', 'Straßen', 'Straße', 'SCHWACH'),
-(@stadt_id, 'DIE', 'Städte', 'Stadt', 'STARK'),
-(@wohnung_id, 'DIE', 'Wohnungen', 'Wohnung', 'SCHWACH'),
-(@tuer_id, 'DIE', 'Türen', 'Tür', 'SCHWACH'),
-(@uhr_id, 'DIE', 'Uhren', 'Uhr', 'SCHWACH'),
-(@nummer_id, 'DIE', 'Nummern', 'Nummer', 'SCHWACH'),
-(@frage_id, 'DIE', 'Fragen', 'Frage', 'SCHWACH'),
-(@antwort_id, 'DIE', 'Antworten', 'Antwort', 'SCHWACH'),
-(@sprache_id, 'DIE', 'Sprachen', 'Sprache', 'SCHWACH'),
-(@milch_id, 'DIE', 'Milch', 'Milch', 'STARK'),
-(@butter_id, 'DIE', 'Butter', 'Butter', 'STARK'),
-(@suppe_id, 'DIE', 'Suppen', 'Suppe', 'SCHWACH'),
-(@pizza_id, 'DIE', 'Pizzas', 'Pizza', 'SCHWACH');
+((SELECT id FROM words WHERE base_form = 'Frau' AND dtype = 'Noun'), 'DIE', 'Frauen', 'Frau', 'SCHWACH'),
+((SELECT id FROM words WHERE base_form = 'Mutter' AND dtype = 'Noun'), 'DIE', 'Mütter', 'Mutter', 'STARK'),
+((SELECT id FROM words WHERE base_form = 'Tochter' AND dtype = 'Noun'), 'DIE', 'Töchter', 'Tochter', 'STARK'),
+((SELECT id FROM words WHERE base_form = 'Schwester' AND dtype = 'Noun'), 'DIE', 'Schwestern', 'Schwester', 'SCHWACH'),
+((SELECT id FROM words WHERE base_form = 'Freundin' AND dtype = 'Noun'), 'DIE', 'Freundinnen', 'Freundin', 'SCHWACH'),
+((SELECT id FROM words WHERE base_form = 'Familie' AND dtype = 'Noun'), 'DIE', 'Familien', 'Familie', 'SCHWACH'),
+((SELECT id FROM words WHERE base_form = 'Schule' AND dtype = 'Noun'), 'DIE', 'Schulen', 'Schule', 'SCHWACH'),
+((SELECT id FROM words WHERE base_form = 'Straße' AND dtype = 'Noun'), 'DIE', 'Straßen', 'Straße', 'SCHWACH'),
+((SELECT id FROM words WHERE base_form = 'Stadt' AND dtype = 'Noun'), 'DIE', 'Städte', 'Stadt', 'STARK'),
+((SELECT id FROM words WHERE base_form = 'Wohnung' AND dtype = 'Noun'), 'DIE', 'Wohnungen', 'Wohnung', 'SCHWACH'),
+((SELECT id FROM words WHERE base_form = 'Tür' AND dtype = 'Noun'), 'DIE', 'Türen', 'Tür', 'SCHWACH'),
+((SELECT id FROM words WHERE base_form = 'Uhr' AND dtype = 'Noun'), 'DIE', 'Uhren', 'Uhr', 'SCHWACH'),
+((SELECT id FROM words WHERE base_form = 'Nummer' AND dtype = 'Noun'), 'DIE', 'Nummern', 'Nummer', 'SCHWACH'),
+((SELECT id FROM words WHERE base_form = 'Frage' AND dtype = 'Noun'), 'DIE', 'Fragen', 'Frage', 'SCHWACH'),
+((SELECT id FROM words WHERE base_form = 'Antwort' AND dtype = 'Noun'), 'DIE', 'Antworten', 'Antwort', 'SCHWACH'),
+((SELECT id FROM words WHERE base_form = 'Sprache' AND dtype = 'Noun'), 'DIE', 'Sprachen', 'Sprache', 'SCHWACH'),
+((SELECT id FROM words WHERE base_form = 'Milch' AND dtype = 'Noun'), 'DIE', 'Milch', 'Milch', 'STARK'),
+((SELECT id FROM words WHERE base_form = 'Butter' AND dtype = 'Noun'), 'DIE', 'Butter', 'Butter', 'STARK'),
+((SELECT id FROM words WHERE base_form = 'Suppe' AND dtype = 'Noun'), 'DIE', 'Suppen', 'Suppe', 'SCHWACH'),
+((SELECT id FROM words WHERE base_form = 'Pizza' AND dtype = 'Noun'), 'DIE', 'Pizzas', 'Pizza', 'SCHWACH');
 
 INSERT INTO word_translations (word_id, locale, meaning, example) VALUES
-(@frau_id, 'vi', 'người phụ nữ', 'Die Frau ist nett. (Người phụ nữ rất tốt bụng.)'),
-(@frau_id, 'en', 'woman', 'The woman is nice.'),
-(@mutter_id, 'vi', 'người mẹ', 'Meine Mutter kocht gut. (Mẹ tôi nấu ăn ngon.)'),
-(@mutter_id, 'en', 'mother', 'My mother cooks well.'),
-(@tochter_id, 'vi', 'con gái', 'Meine Tochter ist 3 Jahre alt. (Con gái tôi 3 tuổi.)'),
-(@tochter_id, 'en', 'daughter', 'My daughter is 3 years old.'),
-(@schwester_id, 'vi', 'chị/em gái', 'Meine Schwester studiert. (Chị gái tôi đang học đại học.)'),
-(@schwester_id, 'en', 'sister', 'My sister is studying.'),
-(@freundin_id, 'vi', 'bạn gái', 'Das ist meine Freundin. (Đây là bạn gái tôi.)'),
-(@freundin_id, 'en', 'friend (female)', 'This is my girlfriend.'),
-(@familie_id, 'vi', 'gia đình', 'Meine Familie ist groß. (Gia đình tôi đông người.)'),
-(@familie_id, 'en', 'family', 'My family is big.'),
-(@schule_id, 'vi', 'trường học', 'Die Schule beginnt um 8 Uhr. (Trường học bắt đầu lúc 8 giờ.)'),
-(@schule_id, 'en', 'school', 'School starts at 8 o''clock.'),
-(@strasse_id, 'vi', 'con đường', 'Die Straße ist lang. (Con đường rất dài.)'),
-(@strasse_id, 'en', 'street', 'The street is long.'),
-(@stadt_id, 'vi', 'thành phố', 'Die Stadt ist schön. (Thành phố rất đẹp.)'),
-(@stadt_id, 'en', 'city', 'The city is beautiful.'),
-(@wohnung_id, 'vi', 'căn hộ', 'Die Wohnung ist klein. (Căn hộ nhỏ.)'),
-(@wohnung_id, 'en', 'apartment', 'The apartment is small.'),
-(@tuer_id, 'vi', 'cánh cửa', 'Die Tür ist offen. (Cửa đang mở.)'),
-(@tuer_id, 'en', 'door', 'The door is open.'),
-(@uhr_id, 'vi', 'đồng hồ', 'Wie viel Uhr ist es? (Mấy giờ rồi?)'),
-(@uhr_id, 'en', 'clock/watch', 'What time is it?'),
-(@nummer_id, 'vi', 'số', 'Was ist deine Nummer? (Số của bạn là gì?)'),
-(@nummer_id, 'en', 'number', 'What is your number?'),
-(@frage_id, 'vi', 'câu hỏi', 'Ich habe eine Frage. (Tôi có một câu hỏi.)'),
-(@frage_id, 'en', 'question', 'I have a question.'),
-(@antwort_id, 'vi', 'câu trả lời', 'Die Antwort ist richtig. (Câu trả lời đúng.)'),
-(@antwort_id, 'en', 'answer', 'The answer is correct.'),
-(@sprache_id, 'vi', 'ngôn ngữ', 'Deutsch ist eine Sprache. (Tiếng Đức là một ngôn ngữ.)'),
-(@sprache_id, 'en', 'language', 'German is a language.'),
-(@milch_id, 'vi', 'sữa', 'Ich trinke Milch. (Tôi uống sữa.)'),
-(@milch_id, 'en', 'milk', 'I drink milk.'),
-(@butter_id, 'vi', 'bơ', 'Ich esse Brot mit Butter. (Tôi ăn bánh mì với bơ.)'),
-(@butter_id, 'en', 'butter', 'I eat bread with butter.'),
-(@suppe_id, 'vi', 'súp', 'Die Suppe ist heiß. (Súp nóng.)'),
-(@suppe_id, 'en', 'soup', 'The soup is hot.'),
-(@pizza_id, 'vi', 'pizza', 'Ich esse Pizza. (Tôi ăn pizza.)'),
-(@pizza_id, 'en', 'pizza', 'I eat pizza.');
+((SELECT id FROM words WHERE base_form = 'Frau' AND dtype = 'Noun'), 'vi', 'người phụ nữ', 'Die Frau ist nett. (Người phụ nữ rất tốt bụng.)'),
+((SELECT id FROM words WHERE base_form = 'Frau' AND dtype = 'Noun'), 'en', 'woman', 'The woman is nice.'),
+((SELECT id FROM words WHERE base_form = 'Mutter' AND dtype = 'Noun'), 'vi', 'người mẹ', 'Meine Mutter kocht gut. (Mẹ tôi nấu ăn ngon.)'),
+((SELECT id FROM words WHERE base_form = 'Mutter' AND dtype = 'Noun'), 'en', 'mother', 'My mother cooks well.'),
+((SELECT id FROM words WHERE base_form = 'Tochter' AND dtype = 'Noun'), 'vi', 'con gái', 'Meine Tochter ist 3 Jahre alt. (Con gái tôi 3 tuổi.)'),
+((SELECT id FROM words WHERE base_form = 'Tochter' AND dtype = 'Noun'), 'en', 'daughter', 'My daughter is 3 years old.'),
+((SELECT id FROM words WHERE base_form = 'Schwester' AND dtype = 'Noun'), 'vi', 'chị/em gái', 'Meine Schwester studiert. (Chị gái tôi đang học đại học.)'),
+((SELECT id FROM words WHERE base_form = 'Schwester' AND dtype = 'Noun'), 'en', 'sister', 'My sister is studying.'),
+((SELECT id FROM words WHERE base_form = 'Freundin' AND dtype = 'Noun'), 'vi', 'bạn gái', 'Das ist meine Freundin. (Đây là bạn gái tôi.)'),
+((SELECT id FROM words WHERE base_form = 'Freundin' AND dtype = 'Noun'), 'en', 'friend (female)', 'This is my girlfriend.'),
+((SELECT id FROM words WHERE base_form = 'Familie' AND dtype = 'Noun'), 'vi', 'gia đình', 'Meine Familie ist groß. (Gia đình tôi đông người.)'),
+((SELECT id FROM words WHERE base_form = 'Familie' AND dtype = 'Noun'), 'en', 'family', 'My family is big.'),
+((SELECT id FROM words WHERE base_form = 'Schule' AND dtype = 'Noun'), 'vi', 'trường học', 'Die Schule beginnt um 8 Uhr. (Trường học bắt đầu lúc 8 giờ.)'),
+((SELECT id FROM words WHERE base_form = 'Schule' AND dtype = 'Noun'), 'en', 'school', 'School starts at 8 o''clock.'),
+((SELECT id FROM words WHERE base_form = 'Straße' AND dtype = 'Noun'), 'vi', 'con đường', 'Die Straße ist lang. (Con đường rất dài.)'),
+((SELECT id FROM words WHERE base_form = 'Straße' AND dtype = 'Noun'), 'en', 'street', 'The street is long.'),
+((SELECT id FROM words WHERE base_form = 'Stadt' AND dtype = 'Noun'), 'vi', 'thành phố', 'Die Stadt ist schön. (Thành phố rất đẹp.)'),
+((SELECT id FROM words WHERE base_form = 'Stadt' AND dtype = 'Noun'), 'en', 'city', 'The city is beautiful.'),
+((SELECT id FROM words WHERE base_form = 'Wohnung' AND dtype = 'Noun'), 'vi', 'căn hộ', 'Die Wohnung ist klein. (Căn hộ nhỏ.)'),
+((SELECT id FROM words WHERE base_form = 'Wohnung' AND dtype = 'Noun'), 'en', 'apartment', 'The apartment is small.'),
+((SELECT id FROM words WHERE base_form = 'Tür' AND dtype = 'Noun'), 'vi', 'cánh cửa', 'Die Tür ist offen. (Cửa đang mở.)'),
+((SELECT id FROM words WHERE base_form = 'Tür' AND dtype = 'Noun'), 'en', 'door', 'The door is open.'),
+((SELECT id FROM words WHERE base_form = 'Uhr' AND dtype = 'Noun'), 'vi', 'đồng hồ', 'Wie viel Uhr ist es? (Mấy giờ rồi?)'),
+((SELECT id FROM words WHERE base_form = 'Uhr' AND dtype = 'Noun'), 'en', 'clock/watch', 'What time is it?'),
+((SELECT id FROM words WHERE base_form = 'Nummer' AND dtype = 'Noun'), 'vi', 'số', 'Was ist deine Nummer? (Số của bạn là gì?)'),
+((SELECT id FROM words WHERE base_form = 'Nummer' AND dtype = 'Noun'), 'en', 'number', 'What is your number?'),
+((SELECT id FROM words WHERE base_form = 'Frage' AND dtype = 'Noun'), 'vi', 'câu hỏi', 'Ich habe eine Frage. (Tôi có một câu hỏi.)'),
+((SELECT id FROM words WHERE base_form = 'Frage' AND dtype = 'Noun'), 'en', 'question', 'I have a question.'),
+((SELECT id FROM words WHERE base_form = 'Antwort' AND dtype = 'Noun'), 'vi', 'câu trả lời', 'Die Antwort ist richtig. (Câu trả lời đúng.)'),
+((SELECT id FROM words WHERE base_form = 'Antwort' AND dtype = 'Noun'), 'en', 'answer', 'The answer is correct.'),
+((SELECT id FROM words WHERE base_form = 'Sprache' AND dtype = 'Noun'), 'vi', 'ngôn ngữ', 'Deutsch ist eine Sprache. (Tiếng Đức là một ngôn ngữ.)'),
+((SELECT id FROM words WHERE base_form = 'Sprache' AND dtype = 'Noun'), 'en', 'language', 'German is a language.'),
+((SELECT id FROM words WHERE base_form = 'Milch' AND dtype = 'Noun'), 'vi', 'sữa', 'Ich trinke Milch. (Tôi uống sữa.)'),
+((SELECT id FROM words WHERE base_form = 'Milch' AND dtype = 'Noun'), 'en', 'milk', 'I drink milk.'),
+((SELECT id FROM words WHERE base_form = 'Butter' AND dtype = 'Noun'), 'vi', 'bơ', 'Ich esse Brot mit Butter. (Tôi ăn bánh mì với bơ.)'),
+((SELECT id FROM words WHERE base_form = 'Butter' AND dtype = 'Noun'), 'en', 'butter', 'I eat bread with butter.'),
+((SELECT id FROM words WHERE base_form = 'Suppe' AND dtype = 'Noun'), 'vi', 'súp', 'Die Suppe ist heiß. (Súp nóng.)'),
+((SELECT id FROM words WHERE base_form = 'Suppe' AND dtype = 'Noun'), 'en', 'soup', 'The soup is hot.'),
+((SELECT id FROM words WHERE base_form = 'Pizza' AND dtype = 'Noun'), 'vi', 'pizza', 'Ich esse Pizza. (Tôi ăn pizza.)'),
+((SELECT id FROM words WHERE base_form = 'Pizza' AND dtype = 'Noun'), 'en', 'pizza', 'I eat pizza.');

@@ -1,7 +1,6 @@
--- V47: Minimal Bildung (Education) ↔ word coverage for learner practice (A1 seeds from V9/V10).
--- Many environments had taxonomy tag Bildung without word_tags; this attaches common school/study lemmas.
+-- V47: Bildung ↔ word_tags (PostgreSQL)
 
-INSERT IGNORE INTO word_tags (word_id, tag_id)
+INSERT INTO word_tags (word_id, tag_id)
 SELECT w.id, t.id
 FROM words w
 INNER JOIN tags t ON t.name = 'Bildung'
@@ -13,4 +12,5 @@ WHERE w.cefr_level = 'A1'
     'Sprache',
     'Buch',
     'lernen'
-  );
+  )
+ON CONFLICT DO NOTHING;

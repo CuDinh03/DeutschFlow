@@ -75,3 +75,4 @@ mysql_data/
 
 # Archives / exports
 *.zip
+postgres_data/

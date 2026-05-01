@@ -1,14 +1,16 @@
--- Structured errors[] + drill repair status (roadmap Phase 0/1)
+-- Structured errors + drill repair status (PostgreSQL)
 ALTER TABLE user_grammar_errors
-  MODIFY COLUMN severity VARCHAR(32) NOT NULL DEFAULT 'medium';
+  ALTER COLUMN severity TYPE VARCHAR(32) USING severity::varchar,
+  ALTER COLUMN severity SET NOT NULL,
+  ALTER COLUMN severity SET DEFAULT 'medium';
 
 ALTER TABLE user_grammar_errors
-  ADD COLUMN error_code VARCHAR(80) NULL AFTER grammar_point,
-  ADD COLUMN confidence DECIMAL(4,3) NULL AFTER error_code,
-  ADD COLUMN wrong_span VARCHAR(500) NULL AFTER confidence,
-  ADD COLUMN corrected_span VARCHAR(500) NULL AFTER wrong_span,
-  ADD COLUMN rule_vi_short VARCHAR(500) NULL AFTER corrected_span,
-  ADD COLUMN example_correct_de VARCHAR(500) NULL AFTER rule_vi_short,
-  ADD COLUMN repair_status VARCHAR(16) NOT NULL DEFAULT 'OPEN' AFTER example_correct_de;
+  ADD COLUMN IF NOT EXISTS error_code VARCHAR(80) NULL,
+  ADD COLUMN IF NOT EXISTS confidence DECIMAL(4,3) NULL,
+  ADD COLUMN IF NOT EXISTS wrong_span VARCHAR(500) NULL,
+  ADD COLUMN IF NOT EXISTS corrected_span VARCHAR(500) NULL,
+  ADD COLUMN IF NOT EXISTS rule_vi_short VARCHAR(500) NULL,
+  ADD COLUMN IF NOT EXISTS example_correct_de VARCHAR(500) NULL,
+  ADD COLUMN IF NOT EXISTS repair_status VARCHAR(16) NOT NULL DEFAULT 'OPEN';
 
-CREATE INDEX idx_uge_user_error_created ON user_grammar_errors (user_id, error_code, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_uge_user_error_created ON user_grammar_errors (user_id, error_code, created_at DESC);

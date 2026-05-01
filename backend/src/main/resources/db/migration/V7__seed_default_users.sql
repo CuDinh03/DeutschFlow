@@ -13,7 +13,7 @@ VALUES
      'STUDENT',
      'vi',
      TRUE,
-     CURRENT_TIMESTAMP(6)),
+     CURRENT_TIMESTAMP),
 
     ('teacher@deutschflow.com',
      '$2a$10$5154iPnLlw5eoluwel66s.vNb5B6nA2lqUVYTbBxogJ/n8zLesHrW',
@@ -21,7 +21,7 @@ VALUES
      'TEACHER',
      'en',
      TRUE,
-     CURRENT_TIMESTAMP(6)),
+     CURRENT_TIMESTAMP),
 
     ('admin@deutschflow.com',
      '$2a$10$5154iPnLlw5eoluwel66s.vNb5B6nA2lqUVYTbBxogJ/n8zLesHrW',
@@ -29,4 +29,4 @@ VALUES
      'ADMIN',
      'de',
      TRUE,
-     CURRENT_TIMESTAMP(6));
+     CURRENT_TIMESTAMP);

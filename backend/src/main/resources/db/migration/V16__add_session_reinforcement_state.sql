@@ -3,5 +3,4 @@
 -- ============================================================
 
 ALTER TABLE learning_session_state
-    ADD COLUMN reinforcement_json JSON NULL AFTER theory_viewed;
-
+    ADD COLUMN reinforcement_json JSONB NULL;

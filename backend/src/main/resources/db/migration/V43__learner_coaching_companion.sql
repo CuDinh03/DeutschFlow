@@ -2,65 +2,68 @@
 -- reminder scheduling, curated resource whitelist + weekly digest entries.
 -- See docs/COACHING_COMPANION_DESIGN.md.
 
-CREATE TABLE learner_period_check_ins (
-    id BIGINT NOT NULL AUTO_INCREMENT,
+CREATE TABLE learner_period_check_ins  (
+    id BIGSERIAL,
     user_id BIGINT NOT NULL,
-    period_type ENUM('WEEK', 'MONTH', 'QUARTER', 'YEAR', 'ADHOC') NOT NULL,
-    period_start DATE NOT NULL COMMENT 'Inclusive VN-calendar boundary for this reflection window.',
-    period_end_exclusive DATE NOT NULL COMMENT 'Exclusive end consistent with quota-style half-open intervals.',
-    mood_score TINYINT NULL COMMENT 'Optional 1-5 learner mood.',
-    reflection_text MEDIUMTEXT NOT NULL COMMENT 'Learner self-attestation before / during period summary.',
-    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-    updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    period_type VARCHAR(64) NOT NULL,
+    period_start DATE NOT NULL,
+    period_end_exclusive DATE NOT NULL,
+    mood_score SMALLINT NULL,
+    reflection_text TEXT NOT NULL,
+    created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    UNIQUE KEY uk_lpci_user_period (user_id, period_type, period_start),
-    KEY idx_lpci_user_created (user_id, created_at DESC),
+    CONSTRAINT uk_lpci_user_period UNIQUE (user_id, period_type, period_start),
     CONSTRAINT fk_lpci_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
+CREATE INDEX IF NOT EXISTS idx_lpci_user_created ON learner_period_check_ins (user_id, created_at DESC);
 
-CREATE TABLE learner_progress_reports (
-    id BIGINT NOT NULL AUTO_INCREMENT,
+
+CREATE TABLE learner_progress_reports  (
+    id BIGSERIAL,
     user_id BIGINT NOT NULL,
-    period_type ENUM('WEEK', 'MONTH', 'QUARTER', 'YEAR') NOT NULL,
+    period_type VARCHAR(64) NOT NULL,
     period_start DATE NOT NULL,
     period_end_exclusive DATE NOT NULL,
     timezone VARCHAR(64) NOT NULL DEFAULT 'Asia/Ho_Chi_Minh',
     learner_check_in_id BIGINT NULL,
-    status VARCHAR(24) NOT NULL DEFAULT 'DRAFT' COMMENT 'DRAFT, READY, FAILED',
-    metrics_json JSON NOT NULL COMMENT 'Frozen aggregates for the reporting window.',
-    highlights_json JSON NULL COMMENT 'Structured strengths ("điểm sáng") before remediation section.',
-    focus_errors_json JSON NULL COMMENT 'Structured errors + remediation hints.',
-    guidance_markdown MEDIUMTEXT NULL COMMENT 'Tutor narrative: strengths first, then fixes, roadmap, encouragement.',
-    next_steps_json JSON NULL COMMENT 'Action items for upcoming period.',
+    status VARCHAR(24) NOT NULL DEFAULT 'DRAFT',
+    metrics_json JSONB NOT NULL,
+    highlights_json JSONB NULL,
+    focus_errors_json JSONB NULL,
+    guidance_markdown TEXT NULL,
+    next_steps_json JSONB NULL,
     model_name VARCHAR(128) NULL,
     prompt_version VARCHAR(32) NULL,
     generation_error VARCHAR(768) NULL,
-    generated_at DATETIME(6) NULL,
-    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-    updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    generated_at TIMESTAMP(6) NULL,
+    created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    UNIQUE KEY uk_lpr_user_period (user_id, period_type, period_start),
-    KEY idx_lpr_user_status_gen (user_id, status, generated_at DESC),
+    CONSTRAINT uk_lpr_user_period UNIQUE (user_id, period_type, period_start),
     CONSTRAINT fk_lpr_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
     CONSTRAINT fk_lpr_checkin FOREIGN KEY (learner_check_in_id)
         REFERENCES learner_period_check_ins (id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
+CREATE INDEX IF NOT EXISTS idx_lpr_user_status_gen ON learner_progress_reports (user_id, status, generated_at DESC);
 
-CREATE TABLE learner_report_feedback (
-    id BIGINT NOT NULL AUTO_INCREMENT,
+
+CREATE TABLE learner_report_feedback  (
+    id BIGSERIAL,
     report_id BIGINT NOT NULL,
     user_id BIGINT NOT NULL,
-    rating TINYINT NOT NULL COMMENT '1-5 usefulness / satisfaction.',
+    rating SMALLINT NOT NULL,
     comment_text TEXT NULL,
-    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    UNIQUE KEY uk_lrf_report_user (report_id, user_id),
-    KEY idx_lrf_user_created (user_id, created_at DESC),
+    CONSTRAINT uk_lrf_report_user UNIQUE (report_id, user_id),
     CONSTRAINT fk_lrf_report FOREIGN KEY (report_id) REFERENCES learner_progress_reports (id) ON DELETE CASCADE,
     CONSTRAINT fk_lrf_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
+CREATE INDEX IF NOT EXISTS idx_lrf_user_created ON learner_report_feedback (user_id, created_at DESC);
 
-CREATE TABLE user_coach_preferences (
+
+CREATE TABLE user_coach_preferences  (
     user_id BIGINT NOT NULL,
     exercise_reminder_enabled BOOLEAN NOT NULL DEFAULT TRUE,
     coach_encouragement_enabled BOOLEAN NOT NULL DEFAULT TRUE,
@@ -69,76 +72,81 @@ CREATE TABLE user_coach_preferences (
     quiet_hours_start_local TIME NULL,
     quiet_hours_end_local TIME NULL,
     timezone VARCHAR(64) NOT NULL DEFAULT 'Asia/Ho_Chi_Minh',
-    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-    updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id),
     CONSTRAINT fk_ucp_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
-CREATE TABLE coach_in_app_notifications (
-    id BIGINT NOT NULL AUTO_INCREMENT,
+
+CREATE TABLE coach_in_app_notifications  (
+    id BIGSERIAL,
     user_id BIGINT NOT NULL,
-    kind VARCHAR(32) NOT NULL COMMENT 'REMINDER_EXERCISE, ENCOURAGEMENT, REPORT_READY, RESOURCE_DIGEST, GENERIC.',
+    kind VARCHAR(32) NOT NULL,
     title VARCHAR(240) NOT NULL,
-    body MEDIUMTEXT NOT NULL,
-    action_path VARCHAR(512) NULL COMMENT 'In-app route slug, e.g. /coach/reports/123.',
-    dedupe_key VARCHAR(128) NULL COMMENT 'Optional idempotency per user/week.',
-    read_at DATETIME(6) NULL,
-    expires_at DATETIME(6) NULL,
-    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    body TEXT NOT NULL,
+    action_path VARCHAR(512) NULL,
+    dedupe_key VARCHAR(128) NULL,
+    read_at TIMESTAMP(6) NULL,
+    expires_at TIMESTAMP(6) NULL,
+    created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    UNIQUE KEY uk_cin_user_dedupe (user_id, dedupe_key),
-    KEY idx_cin_user_unread (user_id, read_at, created_at DESC),
+    CONSTRAINT uk_cin_user_dedupe UNIQUE (user_id, dedupe_key),
     CONSTRAINT fk_cin_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
+CREATE INDEX IF NOT EXISTS idx_cin_user_unread ON coach_in_app_notifications (user_id, read_at, created_at DESC);
 
-CREATE TABLE coach_scheduled_deliveries (
-    id BIGINT NOT NULL AUTO_INCREMENT,
+
+CREATE TABLE coach_scheduled_deliveries  (
+    id BIGSERIAL,
     user_id BIGINT NOT NULL,
-    delivery_kind VARCHAR(32) NOT NULL COMMENT 'REMINDER_REVIEW_TASK, DIGEST_RESOURCES, ENCOURAGEMENT, REPORT_READY_FANOUT.',
-    fire_at DATETIME(6) NOT NULL,
-    status ENUM('PENDING', 'PROCESSING', 'SENT', 'FAILED', 'CANCELLED') NOT NULL DEFAULT 'PENDING',
-    payload_json JSON NULL,
+    delivery_kind VARCHAR(32) NOT NULL,
+    fire_at TIMESTAMP(6) NOT NULL,
+    status VARCHAR(64) NOT NULL DEFAULT 'PENDING',
+    payload_json JSONB NULL,
     last_error VARCHAR(512) NULL,
-    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-    processed_at DATETIME(6) NULL,
+    created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    processed_at TIMESTAMP(6) NULL,
     PRIMARY KEY (id),
-    KEY idx_csd_fire_pending (fire_at, status),
-    KEY idx_csd_user (user_id, status),
     CONSTRAINT fk_csd_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
+CREATE INDEX IF NOT EXISTS idx_csd_fire_pending ON coach_scheduled_deliveries (fire_at, status);
+CREATE INDEX IF NOT EXISTS idx_csd_user ON coach_scheduled_deliveries (user_id, status);
 
-CREATE TABLE curated_resource_channels (
-    id BIGINT NOT NULL AUTO_INCREMENT,
+
+CREATE TABLE curated_resource_channels  (
+    id BIGSERIAL,
     code VARCHAR(64) NOT NULL,
     display_name VARCHAR(200) NOT NULL,
-    description_text MEDIUMTEXT NULL,
+    description_text TEXT NULL,
     homepage_url VARCHAR(1024) NOT NULL,
-    audience VARCHAR(24) NOT NULL DEFAULT 'GENERAL' COMMENT 'GENERAL, STUDENT, JOBSEEKER.',
-    language_tags_json JSON NULL,
+    audience VARCHAR(24) NOT NULL DEFAULT 'GENERAL',
+    language_tags_json JSONB NULL,
     sort_order INT NOT NULL DEFAULT 0,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-    updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    UNIQUE KEY uk_crc_code (code)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    CONSTRAINT uk_crc_code UNIQUE (code)
+);
 
-CREATE TABLE curated_resource_entries (
-    id BIGINT NOT NULL AUTO_INCREMENT,
+
+CREATE TABLE curated_resource_entries  (
+    id BIGSERIAL,
     channel_id BIGINT NOT NULL,
-    digest_week_start DATE NOT NULL COMMENT 'VN Monday anchor for weekly roundup.',
+    digest_week_start DATE NOT NULL,
     headline VARCHAR(360) NOT NULL,
-    summary_text MEDIUMTEXT NOT NULL,
+    summary_text TEXT NOT NULL,
     canonical_url VARCHAR(1024) NOT NULL,
     source_published_date DATE NULL,
     attribution_note VARCHAR(256) NULL,
-    created_by VARCHAR(24) NOT NULL DEFAULT 'ADMIN' COMMENT 'ADMIN, IMPORT.',
+    created_by VARCHAR(24) NOT NULL DEFAULT 'ADMIN',
     is_visible BOOLEAN NOT NULL DEFAULT TRUE,
-    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-    updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    KEY idx_cre_week_visible (digest_week_start, is_visible),
-    UNIQUE KEY uk_cre_week_url (digest_week_start, canonical_url(255)),
     CONSTRAINT fk_cre_channel FOREIGN KEY (channel_id) REFERENCES curated_resource_channels (id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_cre_week_url ON curated_resource_entries (digest_week_start, LEFT(canonical_url, 255));
+CREATE INDEX IF NOT EXISTS idx_cre_week_visible ON curated_resource_entries (digest_week_start, is_visible);

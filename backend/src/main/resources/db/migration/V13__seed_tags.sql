@@ -7,29 +7,33 @@ INSERT INTO tags (name, color) VALUES
 ('TRAVEL', '#0ea5e9'),
 ('BUSINESS', '#f59e0b'),
 ('TECH', '#8b5cf6')
-ON DUPLICATE KEY UPDATE color = VALUES(color);
+ON CONFLICT (name) DO UPDATE SET color = EXCLUDED.color;
 
 -- Map a small subset of A1 words to tags (idempotent)
-INSERT IGNORE INTO word_tags (word_id, tag_id)
+INSERT INTO word_tags (word_id, tag_id)
 SELECT w.id, t.id
 FROM words w
 JOIN tags t ON t.name = 'TRAVEL'
-WHERE w.base_form IN ('Bahnhof', 'Flughafen', 'Land');
+WHERE w.base_form IN ('Bahnhof', 'Flughafen', 'Land')
+ON CONFLICT DO NOTHING;
 
-INSERT IGNORE INTO word_tags (word_id, tag_id)
+INSERT INTO word_tags (word_id, tag_id)
 SELECT w.id, t.id
 FROM words w
 JOIN tags t ON t.name = 'BUSINESS'
-WHERE w.base_form IN ('arbeiten', 'Geld');
+WHERE w.base_form IN ('arbeiten', 'Geld')
+ON CONFLICT DO NOTHING;
 
-INSERT IGNORE INTO word_tags (word_id, tag_id)
+INSERT INTO word_tags (word_id, tag_id)
 SELECT w.id, t.id
 FROM words w
 JOIN tags t ON t.name = 'TECH'
-WHERE w.base_form IN ('Handy');
+WHERE w.base_form IN ('Handy')
+ON CONFLICT DO NOTHING;
 
-INSERT IGNORE INTO word_tags (word_id, tag_id)
+INSERT INTO word_tags (word_id, tag_id)
 SELECT w.id, t.id
 FROM words w
 JOIN tags t ON t.name = 'GENERAL'
-WHERE w.cefr_level = 'A1';
+WHERE w.cefr_level = 'A1'
+ON CONFLICT DO NOTHING;
