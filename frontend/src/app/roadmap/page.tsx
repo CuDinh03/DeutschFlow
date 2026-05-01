@@ -1,8 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { LucideIcon } from "lucide-react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import api, { httpStatus } from "@/lib/api";
+import { getAccessToken, clearTokens } from "@/lib/authSession";
+import { StudentShell } from "@/components/layouts/StudentShell";
 import {
   Lock,
   Check,
@@ -11,14 +16,13 @@ import {
   Trophy,
   ChevronLeft,
   Play,
-  BookOpen,
   Zap,
   Map,
   Target,
-  Users,
+  BarChart3,
 } from "lucide-react";
 
-// ─── Level Data ───────────────────────────────────────────────────────────────
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 type LevelState = "completed" | "current" | "locked";
 
@@ -37,125 +41,98 @@ interface Level {
   description: string;
 }
 
-const LEVELS: Level[] = [
-  {
-    id: 1,
-    title: "Grammatik Basics",
-    subtitle: "A1 · Grammatik",
-    emoji: "📖",
-    state: "completed",
-    xpReward: 500,
-    lessonsTotal: 10,
-    lessonsCompleted: 10,
-    category: "Grammatik",
-    color: "#10B981",
-    shadowColor: "#059669",
-    description: "Artikel, Verben & Satzstruktur",
-  },
-  {
-    id: 2,
-    title: "Alltags-Vokabular",
-    subtitle: "A1 · Vokabular",
-    emoji: "🗣️",
-    state: "completed",
-    xpReward: 400,
-    lessonsTotal: 8,
-    lessonsCompleted: 8,
-    category: "Vokabular",
-    color: "#10B981",
-    shadowColor: "#059669",
-    description: "Familie, Essen, Farben & Zahlen",
-  },
-  {
-    id: 3,
-    title: "IT-Technologie",
-    subtitle: "A2 · Fachvokabular",
-    emoji: "💻",
-    state: "current",
-    xpReward: 600,
-    lessonsTotal: 12,
-    lessonsCompleted: 4,
-    category: "IT",
-    color: "#FFCE00",
-    shadowColor: "#C9A200",
-    description: "Code, Software & Tech-Begriffe",
-  },
-  {
-    id: 4,
-    title: "Badminton & Sport",
-    subtitle: "A2 · Sport",
-    emoji: "🏸",
-    state: "locked",
-    xpReward: 400,
-    lessonsTotal: 8,
-    lessonsCompleted: 0,
-    category: "Sport",
-    color: "#94A3B8",
-    shadowColor: "#64748B",
-    description: "Sport, Fitness & Gesundheit",
-  },
-  {
-    id: 5,
-    title: "Business Deutsch",
-    subtitle: "B1 · Beruf",
-    emoji: "💼",
-    state: "locked",
-    xpReward: 700,
-    lessonsTotal: 15,
-    lessonsCompleted: 0,
-    category: "Business",
-    color: "#94A3B8",
-    shadowColor: "#64748B",
-    description: "Meetings, E-Mails & Präsentationen",
-  },
-  {
-    id: 6,
-    title: "Redewendungen",
-    subtitle: "B1 · Phrasen",
-    emoji: "💬",
-    state: "locked",
-    xpReward: 500,
-    lessonsTotal: 10,
-    lessonsCompleted: 0,
-    category: "Phrasen",
-    color: "#94A3B8",
-    shadowColor: "#64748B",
-    description: "Idiome & kulturelle Ausdrücke",
-  },
-  {
-    id: 7,
-    title: "Kultur & Geschichte",
-    subtitle: "B2 · Kultur",
-    emoji: "🏛️",
-    state: "locked",
-    xpReward: 800,
-    lessonsTotal: 12,
-    lessonsCompleted: 0,
-    category: "Kultur",
-    color: "#94A3B8",
-    shadowColor: "#64748B",
-    description: "Deutsche Geschichte & Traditionen",
-  },
-  {
-    id: 8,
-    title: "C1 Meister",
-    subtitle: "C1 · Fortgeschritten",
-    emoji: "🏆",
-    state: "locked",
-    xpReward: 1000,
-    lessonsTotal: 20,
-    lessonsCompleted: 0,
-    category: "Meister",
-    color: "#94A3B8",
-    shadowColor: "#64748B",
-    description: "Fortgeschrittene Grammatik & Stil",
-  },
-];
+type PlanSession = {
+  index: number;
+  type: string;
+  minutes?: number;
+  difficulty?: number;
+  skills?: string[];
+};
 
-const totalXP = LEVELS.filter((l) => l.state === "completed").reduce(
-  (s, l) => s + l.xpReward,
-  0
-);
+type PlanWeek = {
+  week: number;
+  objectives?: string[];
+  sessions?: PlanSession[];
+};
+
+type Plan = {
+  weeks?: PlanWeek[];
+  weeklyMinutes?: number;
+  targetLevel?: string;
+  progress?: {
+    currentWeek?: number;
+    currentSessionIndex?: number;
+    completedSessions?: number;
+  };
+};
+
+type AuthUser = {
+  userId: number;
+  email: string;
+  displayName: string;
+  role: string;
+  locale: string;
+};
+
+type DashboardStats = {
+  streakDays?: number;
+  planProgressPercent?: number;
+};
+
+const EMOJIS = ["📖", "🗣️", "💻", "🏸", "💼", "💬", "🏛️", "🏆", "🎯", "📚", "✨", "🎓"];
+
+function weekState(week: number, currentWeek: number): LevelState {
+  if (week < currentWeek) return "completed";
+  if (week === currentWeek) return "current";
+  return "locked";
+}
+
+function buildLevelsFromPlan(
+  plan: Plan | null,
+  tr: (key: string, values?: Record<string, string | number>) => string,
+): Level[] {
+  if (!plan?.weeks?.length) return [];
+  const weeks = [...plan.weeks].sort((a, b) => Number(a.week) - Number(b.week));
+  const cw = Number(plan.progress?.currentWeek ?? 1);
+  const csi = Number(plan.progress?.currentSessionIndex ?? 1);
+
+  return weeks.map((w, idx) => {
+    const weekNum = Number(w.week);
+    const state = weekState(weekNum, cw);
+    const sessions = w.sessions ?? [];
+    const lessonsTotal = Math.max(1, sessions.length);
+    let lessonsCompleted = 0;
+    if (state === "completed") {
+      lessonsCompleted = lessonsTotal;
+    } else if (state === "current") {
+      lessonsCompleted = sessions.filter((s) => Number(s.index) < csi).length;
+    }
+    const objectives = w.objectives ?? [];
+    const title = tr("weekTitle", { week: weekNum });
+    const subtitle = objectives[0] ? String(objectives[0]) : tr("weekDefaultSubtitle");
+    const description =
+      objectives.length > 1 ? objectives.slice(0, 3).join(" · ") : objectives[0] ? String(objectives[0]) : tr("weekNoObjectives");
+    const xpReward = 250 + lessonsTotal * 45 + weekNum * 30;
+    const emoji = EMOJIS[idx % EMOJIS.length];
+    const color = state === "completed" ? "#10B981" : state === "current" ? "#FFCE00" : "#94A3B8";
+    const shadowColor = state === "completed" ? "#059669" : state === "current" ? "#C9A200" : "#64748B";
+    const category = sessions[0]?.type ?? "LESSON";
+    return {
+      id: weekNum,
+      title,
+      subtitle,
+      emoji,
+      state,
+      xpReward,
+      lessonsTotal,
+      lessonsCompleted,
+      category,
+      color,
+      shadowColor,
+      description,
+    };
+  });
+}
 
 // ─── Node Component ───────────────────────────────────────────────────────────
 
@@ -185,16 +162,13 @@ function LevelNode({
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: index * 0.1, duration: 0.4, ease: "easeOut" }}
     >
-      {/* Left Info Card (odd index) */}
       <div className="flex-1 flex justify-end pr-5">
-        {isLeft && (
-          <InfoCard level={level} onClick={onClick} selected={selected} />
-        )}
+        {isLeft && <InfoCard level={level} onClick={onClick} selected={selected} />}
       </div>
 
-      {/* Center Node */}
       <div className="flex flex-col items-center relative z-10">
         <motion.button
+          type="button"
           onClick={!isLocked ? onClick : undefined}
           className="relative flex items-center justify-center rounded-full transition-all"
           style={{
@@ -203,35 +177,22 @@ function LevelNode({
             background: isCompleted
               ? "linear-gradient(145deg, #34D399, #10B981)"
               : isCurrent
-              ? "linear-gradient(145deg, #FFD940, #FFCE00)"
-              : "linear-gradient(145deg, #E2E8F0, #CBD5E1)",
+                ? "linear-gradient(145deg, #FFD940, #FFCE00)"
+                : "linear-gradient(145deg, #E2E8F0, #CBD5E1)",
             boxShadow: isCompleted
               ? `0 6px 0 0 ${level.shadowColor}, 0 10px 28px rgba(16,185,129,0.3), inset 0 1px 0 rgba(255,255,255,0.4)`
               : isCurrent
-              ? `0 6px 0 0 ${level.shadowColor}, 0 10px 28px rgba(255,206,0,0.4), inset 0 1px 0 rgba(255,255,255,0.5)`
-              : `0 4px 0 0 #94A3B8, 0 6px 16px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.3)`,
-            border: selected
-              ? "3px solid white"
-              : isCurrent
-              ? "3px solid rgba(255,255,255,0.6)"
-              : "3px solid rgba(255,255,255,0.3)",
+                ? `0 6px 0 0 ${level.shadowColor}, 0 10px 28px rgba(255,206,0,0.4), inset 0 1px 0 rgba(255,255,255,0.5)`
+                : `0 4px 0 0 #94A3B8, 0 6px 16px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.3)`,
+            border: selected ? "3px solid white" : isCurrent ? "3px solid rgba(255,255,255,0.6)" : "3px solid rgba(255,255,255,0.3)",
             cursor: isLocked ? "not-allowed" : "pointer",
             filter: selected ? "brightness(1.08)" : "none",
           }}
           whileHover={!isLocked ? { scale: 1.06, y: -2 } : {}}
           whileTap={!isLocked ? { scale: 0.96, y: 4 } : {}}
-          animate={
-            isCurrent
-              ? { scale: [1, 1.05, 1] }
-              : {}
-          }
-          transition={
-            isCurrent
-              ? { repeat: Infinity, duration: 2.5, ease: "easeInOut" }
-              : {}
-          }
+          animate={isCurrent ? { scale: [1, 1.05, 1] } : {}}
+          transition={isCurrent ? { repeat: Infinity, duration: 2.5, ease: "easeInOut" } : {}}
         >
-          {/* Shine */}
           <div
             className="absolute top-1.5 left-1/2 -translate-x-1/2 rounded-full"
             style={{
@@ -241,17 +202,10 @@ function LevelNode({
             }}
           />
 
-          {isCompleted && (
-            <Check size={28} className="text-white" strokeWidth={3} />
-          )}
-          {isCurrent && (
-            <span className="text-2xl">{level.emoji}</span>
-          )}
-          {isLocked && (
-            <Lock size={20} className="text-[#94A3B8]" />
-          )}
+          {isCompleted && <Check size={28} className="text-white" strokeWidth={3} />}
+          {isCurrent && <span className="text-2xl">{level.emoji}</span>}
+          {isLocked && <Lock size={20} className="text-[#94A3B8]" />}
 
-          {/* Pulse ring for current */}
           {isCurrent && (
             <motion.div
               className="absolute inset-0 rounded-full"
@@ -262,7 +216,6 @@ function LevelNode({
           )}
         </motion.button>
 
-        {/* Level number badge */}
         <div
           className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold"
           style={{
@@ -275,11 +228,8 @@ function LevelNode({
         </div>
       </div>
 
-      {/* Right Info Card (even index) */}
       <div className="flex-1 pl-5">
-        {!isLeft && (
-          <InfoCard level={level} onClick={onClick} selected={selected} />
-        )}
+        {!isLeft && <InfoCard level={level} onClick={onClick} selected={selected} />}
       </div>
     </motion.div>
   );
@@ -294,28 +244,28 @@ function InfoCard({
   onClick: () => void;
   selected: boolean;
 }) {
+  const t = useTranslations("roadmap");
   const isLocked = level.state === "locked";
   const isCurrent = level.state === "current";
   const isCompleted = level.state === "completed";
+  const pct = Math.round((level.lessonsCompleted / Math.max(1, level.lessonsTotal)) * 100);
 
   return (
     <motion.div
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (!isLocked && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
+          onClick();
+        }
+      }}
       onClick={!isLocked ? onClick : undefined}
       className="rounded-[16px] p-4 max-w-[210px] w-full transition-all duration-200"
       style={{
-        background: selected
-          ? isCurrent
-            ? "#FFF8E1"
-            : isCompleted
-            ? "#ECFDF5"
-            : "white"
-          : "white",
-        border: selected
-          ? `2px solid ${level.color}`
-          : "2px solid #E2E8F0",
-        boxShadow: selected
-          ? `0 6px 20px rgba(0,48,94,0.12), 0 0 0 1px ${level.color}30`
-          : "0 2px 10px rgba(0,48,94,0.06)",
+        background: selected ? (isCurrent ? "#FFF8E1" : isCompleted ? "#ECFDF5" : "white") : "white",
+        border: selected ? `2px solid ${level.color}` : "2px solid #E2E8F0",
+        boxShadow: selected ? `0 6px 20px rgba(0,48,94,0.12), 0 0 0 1px ${level.color}30` : "0 2px 10px rgba(0,48,94,0.06)",
         cursor: isLocked ? "default" : "pointer",
         opacity: isLocked ? 0.6 : 1,
       }}
@@ -324,10 +274,7 @@ function InfoCard({
       <div className="flex items-center gap-2 mb-2">
         <span className="text-xl">{level.emoji}</span>
         <div>
-          <p
-            className="font-bold text-sm leading-tight"
-            style={{ color: isLocked ? "#94A3B8" : "#0F172A" }}
-          >
+          <p className="font-bold text-sm leading-tight" style={{ color: isLocked ? "#94A3B8" : "#0F172A" }}>
             {level.title}
           </p>
           <p className="text-[10px]" style={{ color: "#94A3B8" }}>
@@ -343,7 +290,7 @@ function InfoCard({
       {isLocked ? (
         <div className="flex items-center gap-1.5">
           <Lock size={11} className="text-[#94A3B8]" />
-          <span className="text-[11px] text-[#94A3B8]">Gesperrt</span>
+          <span className="text-[11px] text-[#94A3B8]">{t("lockedBadge")}</span>
         </div>
       ) : isCompleted ? (
         <div className="space-y-1.5">
@@ -351,7 +298,7 @@ function InfoCard({
             <div className="h-full bg-[#10B981] rounded-full" style={{ width: "100%" }} />
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-[11px] text-[#10B981] font-semibold">Abgeschlossen ✓</span>
+            <span className="text-[11px] text-[#10B981] font-semibold">{t("completedBadge")}</span>
             <span className="text-[11px] font-bold" style={{ color: "#FFCE00" }}>
               +{level.xpReward} XP
             </span>
@@ -360,16 +307,11 @@ function InfoCard({
       ) : (
         <div className="space-y-1.5">
           <div className="w-full h-1.5 rounded-full bg-[#FEF9C3] overflow-hidden">
-            <div
-              className="h-full bg-[#FFCE00] rounded-full"
-              style={{
-                width: `${Math.round((level.lessonsCompleted / level.lessonsTotal) * 100)}%`,
-              }}
-            />
+            <div className="h-full bg-[#FFCE00] rounded-full" style={{ width: `${pct}%` }} />
           </div>
           <div className="flex items-center justify-between">
             <span className="text-[11px] text-[#92400E]">
-              {level.lessonsCompleted}/{level.lessonsTotal} Lektionen
+              {t("lessonsProgress", { done: level.lessonsCompleted, total: level.lessonsTotal })}
             </span>
             <span className="text-[11px] text-[#94A3B8]">+{level.xpReward} XP</span>
           </div>
@@ -378,8 +320,6 @@ function InfoCard({
     </motion.div>
   );
 }
-
-// ─── Connector Line Between Nodes ─────────────────────────────────────────────
 
 function Connector({ fromState, toState }: { fromState: LevelState; toState: LevelState }) {
   const bothDone = fromState === "completed" && toState === "completed";
@@ -390,23 +330,13 @@ function Connector({ fromState, toState }: { fromState: LevelState; toState: Lev
       <div
         className="w-0.5 h-full"
         style={{
-          background: bothDone
-            ? "#10B981"
-            : toCurrent
-            ? "linear-gradient(180deg, #10B981 0%, #FFCE00 100%)"
-            : "#E2E8F0",
-          boxShadow: bothDone
-            ? "0 0 6px rgba(16,185,129,0.4)"
-            : toCurrent
-            ? "0 0 6px rgba(255,206,0,0.3)"
-            : "none",
+          background: bothDone ? "#10B981" : toCurrent ? "linear-gradient(180deg, #10B981 0%, #FFCE00 100%)" : "#E2E8F0",
+          boxShadow: bothDone ? "0 0 6px rgba(16,185,129,0.4)" : toCurrent ? "0 0 6px rgba(255,206,0,0.3)" : "none",
         }}
       />
     </div>
   );
 }
-
-// ─── Stats Bento Cards ────────────────────────────────────────────────────────
 
 function StatCard({
   icon: Icon,
@@ -417,7 +347,7 @@ function StatCard({
   iconColor,
   delay,
 }: {
-  icon: any;
+  icon: LucideIcon;
   label: string;
   value: string;
   sub: string;
@@ -433,10 +363,7 @@ function StatCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.35 }}
     >
-      <div
-        className="w-10 h-10 rounded-[12px] flex items-center justify-center mb-3"
-        style={{ background: iconBg }}
-      >
+      <div className="w-10 h-10 rounded-[12px] flex items-center justify-center mb-3" style={{ background: iconBg }}>
         <Icon size={18} style={{ color: iconColor }} />
       </div>
       <p className="text-[#64748B] text-xs mb-0.5">{label}</p>
@@ -446,53 +373,189 @@ function StatCard({
   );
 }
 
-// ─── Main Roadmap Page ────────────────────────────────────────────────────────
+function RotateCcwIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="1 4 1 10 7 10" />
+      <path d="M3.51 15a9 9 0 1 0 .49-3.8" />
+    </svg>
+  );
+}
+
+// ─── Main Roadmap Page ───────────────────────────────────────────────────────
 
 export default function RoadmapPage() {
   const router = useRouter();
-  const [selectedLevel, setSelectedLevel] = useState<number | null>(3);
+  const t = useTranslations("roadmap");
+  const tStudent = useTranslations("student");
+  const tErr = useTranslations("errors");
 
-  const selected = LEVELS.find((l) => l.id === selectedLevel);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [plan, setPlan] = useState<Plan | null>(null);
+  const [dashboard, setDashboard] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState("");
+  const [selectedLevel, setSelectedLevel] = useState<number | null>(null);
 
-  return (
-    <div
-      className="min-h-screen flex flex-col overflow-y-auto"
-      style={{
-        background: "#F1F4F9",
-        backgroundImage:
-          "radial-gradient(circle, rgba(0,48,94,0.04) 1px, transparent 1px)",
-        backgroundSize: "24px 24px",
-      }}
-    >
-      {/* ── Banner ─────────────────────────────────────────────────────────── */}
+  const levels = useMemo(() => buildLevelsFromPlan(plan, t), [plan, t]);
+
+  const totalXP = useMemo(() => levels.filter((l) => l.state === "completed").reduce((s, l) => s + l.xpReward, 0), [levels]);
+
+  const totalLessonsDone = useMemo(() => levels.reduce((s, l) => s + l.lessonsCompleted, 0), [levels]);
+  const totalLessonsAll = useMemo(() => levels.reduce((s, l) => s + l.lessonsTotal, 0), [levels]);
+
+  const currentWeek = Number(plan?.progress?.currentWeek ?? 1);
+  const currentSessionIndex = Number(plan?.progress?.currentSessionIndex ?? 1);
+  const targetLevel = plan?.targetLevel ?? "A1";
+
+  const streak = dashboard?.streakDays ?? 0;
+  const planPct = Math.round(Number(dashboard?.planProgressPercent ?? 0));
+
+  const lessonsPct = totalLessonsAll > 0 ? Math.round((totalLessonsDone / totalLessonsAll) * 100) : 0;
+
+  const selected = levels.find((l) => l.id === selectedLevel) ?? null;
+
+  const currentLevelMeta = useMemo(() => levels.find((l) => l.state === "current"), [levels]);
+
+  const handleLogout = useCallback(() => {
+    clearTokens();
+    router.push("/");
+  }, [router]);
+
+  useEffect(() => {
+    if (!getAccessToken()) {
+      router.push("/login");
+      return;
+    }
+
+    api
+      .get("/auth/me")
+      .then((res) => {
+        const userData: AuthUser = res.data;
+        if (userData.role !== "STUDENT") {
+          router.push(`/${userData.role.toLowerCase()}`);
+          return Promise.reject(new Error("redirect"));
+        }
+        setUser(userData);
+        return Promise.all([api.get("/plan/me"), api.get("/student/dashboard").catch(() => ({ data: null }))]);
+      })
+      .then((res) => {
+        if (!res) return;
+        const [planRes, dashRes] = res;
+        if (planRes?.data?.plan) setPlan(planRes.data.plan);
+        if (dashRes?.data) setDashboard(dashRes.data);
+      })
+      .catch((err: unknown) => {
+        if (err instanceof Error && err.message === "redirect") return;
+        const status = httpStatus(err);
+        if (status === 404) {
+          router.push("/onboarding");
+          return;
+        }
+        if (status === 401 || status === 403) {
+          clearTokens();
+          router.push("/login");
+          return;
+        }
+        setApiError(tErr("backendUnreachable"));
+      })
+      .finally(() => setLoading(false));
+  }, [router, tErr]);
+
+  useEffect(() => {
+    if (!levels.length) return;
+    setSelectedLevel((prev) => {
+      if (prev != null && levels.some((l) => l.id === prev)) return prev;
+      return currentLevelMeta?.id ?? levels[0].id;
+    });
+  }, [levels, currentLevelMeta]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F5F7FA]">
+        <div className="flex flex-col items-center gap-4">
+          <svg className="animate-spin h-12 w-12 text-[#00305E]" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            />
+          </svg>
+          <p className="text-[#64748B]">{t("loading")}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) return null;
+
+  const initials = user.displayName
+    .split(" ")
+    .map((p) => p.charAt(0))
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  const completedWeeks = levels.filter((l) => l.state === "completed").length;
+  const firstWeek = levels[0]?.id ?? 1;
+  const lastWeek = levels[levels.length - 1]?.id ?? 1;
+
+  const heroRight = (
+    <div className="flex items-center gap-3 flex-shrink-0">
+      <div
+        className="flex items-center gap-2 px-3 py-2 rounded-[12px]"
+        style={{
+          background: "rgba(255,206,0,0.15)",
+          border: "1.5px solid rgba(255,206,0,0.4)",
+        }}
+      >
+        <Star size={16} fill="#FFCE00" className="text-[#FFCE00]" />
+        <span className="font-extrabold text-[#00305E] text-sm">{totalXP.toLocaleString()}</span>
+        <span className="text-[#64748B] text-xs">{t("xpShort")}</span>
+      </div>
+    </div>
+  );
+
+  const inner = !levels.length ? (
+    <div className="rounded-[16px] border border-[#E2E8F0] bg-white p-8 text-center shadow-[0_2px_8px_rgba(0,48,94,0.06)]">
+      <p className="font-semibold text-[#0F172A] mb-2">{t("emptyTitle")}</p>
+      <p className="text-sm text-[#64748B] mb-4">{t("emptyHint")}</p>
+      <button
+        type="button"
+        onClick={() => router.push("/onboarding")}
+        className="px-4 py-2 rounded-[12px] bg-[#00305E] text-white text-sm font-semibold"
+      >
+        {t("emptyCta")}
+      </button>
+    </div>
+  ) : (
+    <>
       <motion.div
-        className="relative overflow-hidden flex-shrink-0"
+        className="relative overflow-hidden flex-shrink-0 rounded-[16px] mb-6"
         style={{
           background: "linear-gradient(135deg, #00305E 0%, #004080 60%, #0052A3 100%)",
-          borderBottom: "3px solid rgba(255,206,0,0.3)",
+          border: "2px solid rgba(255,206,0,0.25)",
         }}
-        initial={{ opacity: 0, y: -20 }}
+        initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        {/* Decorative circles */}
         <div className="absolute -top-12 -right-12 w-52 h-52 rounded-full bg-white/5" />
         <div className="absolute -bottom-16 right-32 w-40 h-40 rounded-full bg-[#FFCE00]/8" />
-        <div className="absolute top-0 left-1/3 w-64 h-64 rounded-full bg-white/3" />
 
-        <div className="relative max-w-5xl mx-auto px-5 py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
+        <div className="relative px-5 py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4 min-w-0">
             <button
-              onClick={() => router.push("/")}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-[10px] text-white/70 hover:text-white hover:bg-white/10 transition-colors text-sm font-medium"
+              type="button"
+              onClick={() => router.push("/dashboard")}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-[10px] text-white/70 hover:text-white hover:bg-white/10 transition-colors text-sm font-medium flex-shrink-0"
             >
-              <ChevronLeft size={16} /> Dashboard
+              <ChevronLeft size={16} /> {t("heroBack")}
             </button>
-
-            <div className="w-px h-8 bg-white/20" />
-
-            <div className="flex items-center gap-3">
+            <div className="w-px h-8 bg-white/20 flex-shrink-0" />
+            <div className="flex items-center gap-3 min-w-0">
               <div
-                className="w-10 h-10 rounded-[12px] flex items-center justify-center text-xl"
+                className="w-10 h-10 rounded-[12px] flex items-center justify-center text-xl flex-shrink-0"
                 style={{
                   background: "linear-gradient(145deg, #FFD940, #FFCE00)",
                   boxShadow: "0 4px 0 0 #C9A200, 0 6px 14px rgba(255,206,0,0.3)",
@@ -500,17 +563,14 @@ export default function RoadmapPage() {
               >
                 🗺️
               </div>
-              <div>
-                <h1 className="text-white font-extrabold text-xl tracking-tight">
-                  My Deutsch Journey
-                </h1>
-                <p className="text-white/60 text-xs">Dein Lernpfad · A1 → C1</p>
+              <div className="min-w-0">
+                <h2 className="text-white font-extrabold text-lg sm:text-xl tracking-tight truncate">{t("heroTitle")}</h2>
+                <p className="text-white/60 text-xs truncate">{t("heroTagline")}</p>
               </div>
             </div>
           </div>
 
-          {/* XP Score */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
             <div
               className="flex items-center gap-2 px-4 py-2.5 rounded-[14px]"
               style={{
@@ -520,7 +580,7 @@ export default function RoadmapPage() {
             >
               <Star size={16} fill="#FFCE00" className="text-[#FFCE00]" />
               <span className="font-extrabold text-white">{totalXP.toLocaleString()}</span>
-              <span className="text-white/60 text-xs">XP</span>
+              <span className="text-white/60 text-xs">{t("xpShort")}</span>
             </div>
             <div
               className="flex items-center gap-2 px-4 py-2.5 rounded-[14px]"
@@ -530,53 +590,82 @@ export default function RoadmapPage() {
               }}
             >
               <Flame size={16} fill="#F97316" className="text-orange-400" />
-              <span className="font-extrabold text-white">14</span>
-              <span className="text-white/60 text-xs">Tage</span>
+              <span className="font-extrabold text-white">{streak}</span>
+              <span className="text-white/60 text-xs">{t("streakShort")}</span>
             </div>
           </div>
         </div>
 
-        {/* Level progress strip */}
         <div className="relative max-w-5xl mx-auto px-5 pb-4">
           <div className="flex gap-1.5">
-            {LEVELS.map((l) => (
+            {levels.map((l) => (
               <div
                 key={l.id}
                 className="flex-1 h-1.5 rounded-full"
                 style={{
                   background:
-                    l.state === "completed"
-                      ? "#FFCE00"
-                      : l.state === "current"
-                      ? "rgba(255,206,0,0.4)"
-                      : "rgba(255,255,255,0.12)",
+                    l.state === "completed" ? "#FFCE00" : l.state === "current" ? "rgba(255,206,0,0.4)" : "rgba(255,255,255,0.12)",
                 }}
               />
             ))}
           </div>
           <div className="flex justify-between mt-1">
-            <span className="text-white/40 text-[10px]">A1</span>
-            <span className="text-white/40 text-[10px]">A2</span>
-            <span className="text-white/40 text-[10px]">B1</span>
-            <span className="text-white/40 text-[10px]">B2</span>
-            <span className="text-white/40 text-[10px]">C1</span>
+            <span className="text-white/40 text-[10px]">{t("weekStripStart", { week: firstWeek })}</span>
+            <span className="text-white/40 text-[10px] hidden sm:inline">···</span>
+            <span className="text-white/40 text-[10px]">{t("weekStripEnd", { week: lastWeek })}</span>
           </div>
         </div>
       </motion.div>
 
-      {/* ── Bento Grid Body ─────────────────────────────────────────────────── */}
-      <div className="flex-1 max-w-5xl mx-auto w-full px-4 sm:px-5 py-6 grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
-
-        {/* ── Left Stats Column ──────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
         <div className="hidden lg:flex flex-col gap-4 order-last lg:order-first">
-          <StatCard icon={Trophy} label="Stufe erreicht" value="A2" sub="IT-Technologie aktiv" iconBg="#FFF8E1" iconColor="#D97706" delay={0.1} />
-          <StatCard icon={Star} label="Gesamt-XP" value={`${totalXP}`} sub="+600 XP erreichbar" iconBg="#EEF4FF" iconColor="#00305E" delay={0.17} />
-          <StatCard icon={Flame} label="Tages-Serie" value="14 Tage 🔥" sub="Weiter so!" iconBg="#FFF4EC" iconColor="#F97316" delay={0.24} />
-          <StatCard icon={Target} label="Lektionen gesamt" value="23 / 95" sub="24% abgeschlossen" iconBg="#F0FDF4" iconColor="#10B981" delay={0.31} />
-          <StatCard icon={Users} label="Platzierung" value="#234" sub="Top 12% global" iconBg="#F5F3FF" iconColor="#7C3AED" delay={0.38} />
+          <StatCard
+            icon={Trophy}
+            label={t("statStage")}
+            value={targetLevel}
+            sub={t("statStageSub", { week: currentLevelMeta?.id ?? currentWeek })}
+            iconBg="#FFF8E1"
+            iconColor="#D97706"
+            delay={0.1}
+          />
+          <StatCard
+            icon={Star}
+            label={t("statTotalXp")}
+            value={`${totalXP}`}
+            sub={t("statTotalXpSub")}
+            iconBg="#EEF4FF"
+            iconColor="#00305E"
+            delay={0.17}
+          />
+          <StatCard
+            icon={Flame}
+            label={t("statStreak")}
+            value={tStudent("streakDays", { n: streak })}
+            sub={t("statStreakSub")}
+            iconBg="#FFF4EC"
+            iconColor="#F97316"
+            delay={0.24}
+          />
+          <StatCard
+            icon={Target}
+            label={t("statLessons")}
+            value={`${totalLessonsDone} / ${totalLessonsAll}`}
+            sub={t("statLessonsSub", { done: totalLessonsDone, total: totalLessonsAll, pct: lessonsPct })}
+            iconBg="#F0FDF4"
+            iconColor="#10B981"
+            delay={0.31}
+          />
+          <StatCard
+            icon={BarChart3}
+            label={t("statPlanProgress")}
+            value={`${planPct}%`}
+            sub={t("statPlanProgressSub", { pct: planPct })}
+            iconBg="#F5F3FF"
+            iconColor="#7C3AED"
+            delay={0.38}
+          />
         </div>
 
-        {/* ── Roadmap Center Column ─────────────────────────────────────── */}
         <div className="lg:col-span-2 order-first lg:order-none">
           <motion.div
             className="rounded-[20px] p-5 sm:p-6"
@@ -591,9 +680,9 @@ export default function RoadmapPage() {
           >
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="font-bold text-[#0F172A]">Lernpfad</h2>
+                <h2 className="font-bold text-[#0F172A]">{t("pathTitle")}</h2>
                 <p className="text-[#94A3B8] text-xs mt-0.5">
-                  {LEVELS.filter((l) => l.state === "completed").length} von {LEVELS.length} Level abgeschlossen
+                  {t("levelsSummary", { done: completedWeeks, total: levels.length })}
                 </p>
               </div>
               <div
@@ -605,13 +694,12 @@ export default function RoadmapPage() {
                 }}
               >
                 <Map size={12} />
-                A1 → C1
+                {t("rangeBadge", { from: "A1", to: targetLevel })}
               </div>
             </div>
 
-            {/* Roadmap Path */}
             <div className="flex flex-col items-stretch">
-              {LEVELS.map((level, i) => (
+              {levels.map((level, i) => (
                 <div key={level.id}>
                   <LevelNode
                     level={level}
@@ -620,28 +708,20 @@ export default function RoadmapPage() {
                     onClick={() => setSelectedLevel(level.id === selectedLevel ? null : level.id)}
                     selected={selectedLevel === level.id}
                   />
-                  {i < LEVELS.length - 1 && (
-                    <Connector fromState={level.state} toState={LEVELS[i + 1].state} />
-                  )}
+                  {i < levels.length - 1 && <Connector fromState={level.state} toState={levels[i + 1].state} />}
                 </div>
               ))}
             </div>
 
-            {/* ── Action Panel ─────────────────────────────────────────── */}
             {selected && (
               <motion.div
                 className="mt-6 rounded-[16px] p-4"
                 style={{
-                  background: selected.state === "completed"
-                    ? "#F0FDF4"
-                    : selected.state === "current"
-                    ? "#FFF8E1"
-                    : "#F8FAFC",
-                  border: `2px solid ${selected.state === "completed"
-                    ? "#BBF7D0"
-                    : selected.state === "current"
-                    ? "#FDE68A"
-                    : "#E2E8F0"}`,
+                  background:
+                    selected.state === "completed" ? "#F0FDF4" : selected.state === "current" ? "#FFF8E1" : "#F8FAFC",
+                  border: `2px solid ${
+                    selected.state === "completed" ? "#BBF7D0" : selected.state === "current" ? "#FDE68A" : "#E2E8F0"
+                  }`,
                 }}
                 initial={{ opacity: 0, y: 10, height: 0 }}
                 animate={{ opacity: 1, y: 0, height: "auto" }}
@@ -663,33 +743,22 @@ export default function RoadmapPage() {
                   <div
                     className="px-2.5 py-1 rounded-full text-xs font-bold"
                     style={{
-                      background:
-                        selected.state === "completed"
-                          ? "#10B981"
-                          : selected.state === "current"
-                          ? "#FFCE00"
-                          : "#E2E8F0",
-                      color:
-                        selected.state === "completed"
-                          ? "white"
-                          : selected.state === "current"
-                          ? "#00305E"
-                          : "#94A3B8",
+                      background: selected.state === "completed" ? "#10B981" : selected.state === "current" ? "#FFCE00" : "#E2E8F0",
+                      color: selected.state === "completed" ? "white" : selected.state === "current" ? "#00305E" : "#94A3B8",
                     }}
                   >
                     +{selected.xpReward} XP
                   </div>
                 </div>
 
-                {/* Progress bar */}
-                {!selected.state.includes("locked") && (
+                {selected.state !== "locked" && (
                   <div className="mb-4">
                     <div className="flex justify-between mb-1.5">
                       <span className="text-xs text-[#64748B]">
-                        {selected.lessonsCompleted}/{selected.lessonsTotal} Lektionen
+                        {t("lessonsProgress", { done: selected.lessonsCompleted, total: selected.lessonsTotal })}
                       </span>
                       <span className="text-xs font-semibold" style={{ color: selected.color }}>
-                        {Math.round((selected.lessonsCompleted / selected.lessonsTotal) * 100)}%
+                        {Math.round((selected.lessonsCompleted / Math.max(1, selected.lessonsTotal)) * 100)}%
                       </span>
                     </div>
                     <div className="h-2.5 rounded-full overflow-hidden bg-white/60">
@@ -698,7 +767,7 @@ export default function RoadmapPage() {
                         style={{ background: selected.color }}
                         initial={{ width: 0 }}
                         animate={{
-                          width: `${Math.round((selected.lessonsCompleted / selected.lessonsTotal) * 100)}%`,
+                          width: `${Math.round((selected.lessonsCompleted / Math.max(1, selected.lessonsTotal)) * 100)}%`,
                         }}
                         transition={{ duration: 0.6, ease: "easeOut" }}
                       />
@@ -706,10 +775,12 @@ export default function RoadmapPage() {
                   </div>
                 )}
 
-                {/* CTA button */}
                 {selected.state === "current" && (
                   <button
-                    onClick={() => router.push("/game")}
+                    type="button"
+                    onClick={() =>
+                      router.push(`/student/plan/week/${selected.id}/session/${selected.id === currentWeek ? currentSessionIndex : 1}`)
+                    }
                     className="w-full flex items-center justify-center gap-2 py-3 rounded-[14px] font-bold text-sm transition-all"
                     style={{
                       background: "#00305E",
@@ -717,12 +788,13 @@ export default function RoadmapPage() {
                       boxShadow: "0 5px 0 0 #002447, 0 8px 20px rgba(0,48,94,0.25)",
                     }}
                   >
-                    <Play size={16} fill="white" /> Lektion fortsetzen
+                    <Play size={16} fill="white" /> {t("continueLesson")}
                   </button>
                 )}
                 {selected.state === "completed" && (
                   <button
-                    onClick={() => router.push("/game")}
+                    type="button"
+                    onClick={() => router.push(`/student/plan/week/${selected.id}/session/1`)}
                     className="w-full flex items-center justify-center gap-2 py-3 rounded-[14px] font-bold text-sm transition-all"
                     style={{
                       background: "#10B981",
@@ -730,7 +802,7 @@ export default function RoadmapPage() {
                       boxShadow: "0 5px 0 0 #059669, 0 8px 20px rgba(16,185,129,0.25)",
                     }}
                   >
-                    <RotateCcwIcon /> Wiederholen
+                    <RotateCcwIcon /> {t("repeatLesson")}
                   </button>
                 )}
                 {selected.state === "locked" && (
@@ -738,32 +810,83 @@ export default function RoadmapPage() {
                     className="w-full flex items-center justify-center gap-2 py-3 rounded-[14px] text-sm font-semibold"
                     style={{ background: "#F5F7FA", color: "#94A3B8", border: "2px solid #E2E8F0" }}
                   >
-                    <Lock size={14} /> Noch gesperrt — schließe vorherige Level ab
+                    <Lock size={14} /> {t("lockedCta")}
                   </div>
                 )}
               </motion.div>
             )}
           </motion.div>
 
-          {/* ── Mobile Stats Row ──────────────────────────────────────── */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 lg:hidden">
-            <StatCard icon={Trophy} label="Stufe" value="A2" sub="Aktuell" iconBg="#FFF8E1" iconColor="#D97706" delay={0} />
-            <StatCard icon={Star} label="Gesamt-XP" value={`${totalXP}`} sub="Punkte" iconBg="#EEF4FF" iconColor="#00305E" delay={0.05} />
-            <StatCard icon={Flame} label="Serie" value="14 🔥" sub="Tage" iconBg="#FFF4EC" iconColor="#F97316" delay={0.1} />
-            <StatCard icon={Zap} label="Lektionen" value="23" sub="Abgeschlossen" iconBg="#F0FDF4" iconColor="#10B981" delay={0.15} />
+            <StatCard
+              icon={Trophy}
+              label={t("mobileStatStage")}
+              value={targetLevel}
+              sub={t("mobileStatStageSub")}
+              iconBg="#FFF8E1"
+              iconColor="#D97706"
+              delay={0}
+            />
+            <StatCard
+              icon={Star}
+              label={t("statTotalXp")}
+              value={`${totalXP}`}
+              sub={t("mobileStatXpSub")}
+              iconBg="#EEF4FF"
+              iconColor="#00305E"
+              delay={0.05}
+            />
+            <StatCard
+              icon={Flame}
+              label={t("statStreak")}
+              value={`${streak} 🔥`}
+              sub={t("mobileStatStreakSub")}
+              iconBg="#FFF4EC"
+              iconColor="#F97316"
+              delay={0.1}
+            />
+            <StatCard
+              icon={Zap}
+              label={t("statLessons")}
+              value={`${totalLessonsDone}`}
+              sub={t("mobileStatLessonsSub")}
+              iconBg="#F0FDF4"
+              iconColor="#10B981"
+              delay={0.15}
+            />
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
-}
 
-// small helper to avoid import confusion
-function RotateCcwIcon() {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="1 4 1 10 7 10"></polyline>
-      <path d="M3.51 15a9 9 0 1 0 .49-3.8"></path>
-    </svg>
+    <StudentShell
+      activeSection="roadmap"
+      user={{ displayName: user.displayName, role: user.role }}
+      targetLevel={targetLevel}
+      streakDays={streak}
+      initials={initials}
+      onLogout={handleLogout}
+      headerTitle={t("pageTitle")}
+      headerSubtitle={t("pageSubtitle")}
+      headerRight={levels.length ? heroRight : undefined}
+    >
+      {apiError && (
+        <div className="mb-6 p-4 rounded-[12px] border border-red-200 bg-red-50 text-red-700 text-sm">{apiError}</div>
+      )}
+      <div
+        className="min-h-0 flex flex-col"
+        style={{
+          background: "#F1F4F9",
+          backgroundImage: "radial-gradient(circle, rgba(0,48,94,0.04) 1px, transparent 1px)",
+          backgroundSize: "24px 24px",
+          margin: "-24px -24px 0",
+          padding: "24px",
+        }}
+      >
+        {inner}
+      </div>
+    </StudentShell>
   );
 }

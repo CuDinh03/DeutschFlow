@@ -22,6 +22,9 @@ app:
     secret: test-secret-key-with-at-least-32-bytes!!
     access-token-expiry-ms: 900000
     refresh-token-expiry-ms: 604800000
+  speaking:
+    adaptive:
+      enabled: true
   vocabulary:
     goethe:
       auto-import-on-startup: false

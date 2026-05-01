@@ -23,6 +23,17 @@ export interface Exchange {
   score: number;
 }
 
+/** Mirrors {@link import('@/lib/aiSpeakingApi').ErrorItem} for chat bubbles */
+export interface StructuredErrorItem {
+  errorCode: string;
+  severity: string;
+  confidence?: number | null;
+  wrongSpan?: string | null;
+  correctedSpan?: string | null;
+  ruleViShort?: string | null;
+  exampleCorrectDe?: string | null;
+}
+
 export interface AiMessageBubble {
   id: number;
   role: "USER" | "ASSISTANT";
@@ -33,6 +44,7 @@ export interface AiMessageBubble {
   grammarPoint?: string | null;
   newWord?: string | null;
   userInterestDetected?: string | null;
+  errors?: StructuredErrorItem[];
   /** True while the assistant message is still streaming (ghost text) */
   isStreaming?: boolean;
 }

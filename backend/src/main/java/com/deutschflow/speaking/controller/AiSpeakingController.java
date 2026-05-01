@@ -2,12 +2,19 @@ package com.deutschflow.speaking.controller;
 
 import com.deutschflow.speaking.RateLimiterService;
 import com.deutschflow.speaking.ai.GroqWhisperClient;
+import com.deutschflow.common.quota.AiUsageLedgerService;
+import com.deutschflow.common.quota.QuotaService;
+import com.deutschflow.common.quota.RequestContext;
 import com.deutschflow.speaking.dto.*;
+import com.deutschflow.speaking.util.TranscribeUploads;
 import com.deutschflow.speaking.exception.AiServiceException;
 import com.deutschflow.speaking.service.AiSpeakingService;
+import com.deutschflow.speaking.service.WeeklySpeakingService;
 import com.deutschflow.user.entity.User;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -15,12 +22,18 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.InputStream;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 
 /**
@@ -31,7 +44,11 @@ import java.util.regex.Pattern;
 @RestController
 @RequestMapping("/api/ai-speaking")
 @RequiredArgsConstructor
+@Slf4j
 public class AiSpeakingController {
+
+    @Value("${app.ai.transcribe.max-bytes:8388608}")
+    private long transcribeMaxBytes;
 
     private static final List<Pattern> PROMPT_INJECTION_PATTERNS = List.of(
             Pattern.compile("ignore\\s+(previous|all)\\s+instructions", Pattern.CASE_INSENSITIVE),
@@ -44,8 +61,13 @@ public class AiSpeakingController {
     );
 
     private final AiSpeakingService aiSpeakingService;
+    private final WeeklySpeakingService weeklySpeakingService;
     private final RateLimiterService rateLimiterService;
     private final GroqWhisperClient whisperClient;
+    private final QuotaService quotaService;
+    private final AiUsageLedgerService aiUsageLedgerService;
+    @Qualifier("speakingStreamExecutor")
+    private final ThreadPoolTaskExecutor speakingStreamExecutor;
 
     /**
      * POST /api/ai-speaking/sessions — Create a new speaking practice session.
@@ -116,11 +138,28 @@ public class AiSpeakingController {
             return emitter;
         }
 
-        SseEmitter emitter = new SseEmitter(60_000L);
-        // Run in separate thread so controller returns immediately
-        new Thread(() ->
-                aiSpeakingService.chatStream(user.getId(), sessionId, request.userMessage(), emitter))
-                .start();
+        SseEmitter emitter = new SseEmitter(90_000L);
+        AtomicBoolean streamCancelled = new AtomicBoolean(false);
+        emitter.onTimeout(() -> {
+            streamCancelled.set(true);
+            log.debug("[SSE] emitter timeout sessionId={}", sessionId);
+        });
+        emitter.onCompletion(() -> streamCancelled.set(true));
+        emitter.onError(e -> streamCancelled.set(true));
+
+        speakingStreamExecutor.execute(() -> {
+            try {
+                aiSpeakingService.chatStream(
+                        user.getId(), sessionId, request.userMessage(), emitter, streamCancelled);
+            } catch (Exception ex) {
+                log.error("[SSE] Stream worker failed", ex);
+                try {
+                    emitter.completeWithError(ex);
+                } catch (Exception ignored) {
+                    // already completed
+                }
+            }
+        });
         return emitter;
     }
 
@@ -158,7 +197,42 @@ public class AiSpeakingController {
      * POST /api/ai-speaking/transcribe — Transcribe audio via Groq Whisper STT.
      * Accepts multipart audio file (webm, mp4, wav); returns { "transcript": "..." }.
      */
+    /**
+     * GET /api/ai-speaking/weekly/current-prompt — Active weekly theme for the current VN Monday week.
+     */
+    @GetMapping("/weekly/current-prompt")
+    public WeeklySpeakingDtos.WeeklyPromptResponse weeklyCurrentPrompt(
+            @AuthenticationPrincipal User user,
+            @RequestParam(required = false) String cefrBand) {
+        return weeklySpeakingService.getCurrentPrompt(user.getId(), cefrBand);
+    }
+
+    /**
+     * POST /api/ai-speaking/weekly/submissions — Grade transcript with 4-axis rubric (one submission per prompt per user).
+     */
+    @PostMapping("/weekly/submissions")
+    public WeeklySpeakingDtos.WeeklySubmissionResponse weeklySubmit(
+            @AuthenticationPrincipal User user,
+            @Valid @RequestBody WeeklySpeakingDtos.WeeklySubmissionRequest body) {
+        return weeklySpeakingService.submit(user.getId(), body);
+    }
+
+    @GetMapping("/weekly/me/submissions")
+    public Page<WeeklySpeakingDtos.WeeklySubmissionListItem> weeklyMySubmissions(
+            @AuthenticationPrincipal User user,
+            @PageableDefault(size = 15) Pageable pageable) {
+        return weeklySpeakingService.listMySubmissions(user.getId(), pageable);
+    }
+
+    @GetMapping("/weekly/me/submissions/{submissionId}")
+    public WeeklySpeakingDtos.WeeklySubmissionDetailDto weeklyMySubmissionDetail(
+            @AuthenticationPrincipal User user,
+            @PathVariable long submissionId) {
+        return weeklySpeakingService.getSubmissionForUser(user.getId(), submissionId);
+    }
+
     @PostMapping(value = "/transcribe", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Transactional(rollbackFor = Exception.class)
     public ResponseEntity<?> transcribe(
             @AuthenticationPrincipal User user,
             @RequestParam("audio") MultipartFile audio) {
@@ -166,12 +240,58 @@ public class AiSpeakingController {
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                     .body(Map.of("error", "Rate limit exceeded."));
         }
+        quotaService.assertAllowed(user.getId(), Instant.now(), 1L);
+        if (audio.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Audio file is empty."));
+        }
+        if (audio.getSize() > transcribeMaxBytes) {
+            return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                    .body(Map.of("error", "Audio file exceeds maximum allowed size."));
+        }
+        String contentType = audio.getContentType();
+        if (!TranscribeUploads.isAllowedAudioContentType(contentType)) {
+            return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+                    .body(Map.of("error", "Unsupported audio content type."));
+        }
         try {
+            byte[] audioBytes;
+            try (InputStream in = audio.getInputStream()) {
+                if (audio.getSize() >= 0) {
+                    audioBytes = in.readAllBytes();
+                    if (audioBytes.length > transcribeMaxBytes) {
+                        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                                .body(Map.of("error", "Audio file exceeds maximum allowed size."));
+                    }
+                } else {
+                    audioBytes = TranscribeUploads.readAtMost(in, transcribeMaxBytes);
+                }
+            }
             String transcript = whisperClient.transcribe(
-                    audio.getBytes(),
+                    audioBytes,
                     audio.getOriginalFilename() != null ? audio.getOriginalFilename() : "voice.webm",
                     "de");
+            // Best-effort ledger entry; Whisper doesn't return token usage reliably, estimate from transcript length.
+            try {
+                int completionTokens = Math.max(1, (int) Math.ceil((transcript == null ? 0 : transcript.length()) / 4.0));
+                int promptTokens = 1;
+                aiUsageLedgerService.record(
+                        user.getId(),
+                        "GROQ",
+                        whisperClient.getWhisperModel(),
+                        promptTokens,
+                        completionTokens,
+                        promptTokens + completionTokens,
+                        "SPEAKING_TRANSCRIBE",
+                        RequestContext.requestIdOrNull(),
+                        null
+                );
+            } catch (Exception ledgerEx) {
+                log.warn("Skip token usage ledger due to error: {}", ledgerEx.getMessage());
+            }
             return ResponseEntity.ok(Map.of("transcript", transcript));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                    .body(Map.of("error", ex.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                     .body(Map.of("error", e.getMessage()));

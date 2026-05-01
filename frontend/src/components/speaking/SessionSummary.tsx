@@ -1,11 +1,73 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { BookOpen, Clock, TrendingUp, Check, AlertTriangle, RotateCcw, Download } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { AiMessageBubble, Exchange, CYAN, PURPLE, MINT, glass } from "./types";
+import { getErrorSnippet } from "@/lib/errors/errorTaxonomy";
+import ErrorRepairDrill from "@/components/errors/ErrorRepairDrill";
 
+type MistakeRow = {
+  key: string;
+  errorCode?: string;
+  title: string;
+  detail: string;
+  count: number;
+  severity: string;
+  exampleCorrect?: string;
+  ruleVi?: string;
+};
+
+function severityBucket(sev: string | undefined): string {
+  const u = sev?.toUpperCase() ?? "";
+  if (u.includes("BLOCK")) return "high";
+  if (u.includes("MAJOR")) return "medium";
+  return "low";
+}
+
+function buildMistakes(messages: AiMessageBubble[], locale: string): MistakeRow[] {
+  const map = new Map<string, MistakeRow>();
+  for (const m of messages) {
+    if (m.role !== "ASSISTANT") continue;
+    if (m.errors?.length) {
+      for (const e of m.errors) {
+        const code = e.errorCode;
+        const prev = map.get(code);
+        const title = getErrorSnippet(code, locale).title;
+        if (prev) {
+          prev.count++;
+        } else {
+          map.set(code, {
+            key: code,
+            errorCode: code,
+            title,
+            detail: e.ruleViShort ?? e.correctedSpan ?? "",
+            count: 1,
+            severity: severityBucket(e.severity),
+            exampleCorrect: e.exampleCorrectDe ?? undefined,
+            ruleVi: e.ruleViShort ?? undefined,
+          });
+        }
+      }
+    } else if (m.correction && m.grammarPoint) {
+      const key = `legacy:${m.grammarPoint}`;
+      const prev = map.get(key);
+      if (prev) prev.count++;
+      else
+        map.set(key, {
+          key,
+          title: m.grammarPoint,
+          detail: m.correction,
+          count: 1,
+          severity: "medium",
+        });
+    }
+  }
+  return Array.from(map.values())
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+}
 
 interface SessionSummaryProps {
   realMessages: AiMessageBubble[];
@@ -19,37 +81,28 @@ export function SessionSummary({
   realMessages, mockExchanges, duration, onRestart, onExit,
 }: SessionSummaryProps) {
   const t = useTranslations("speaking");
+  const locale = useLocale();
+  const reduceMotion = useReducedMotion();
+
+  const [drillOpen, setDrillOpen] = useState(false);
+  const [drillCode, setDrillCode] = useState("");
+  const [drillExample, setDrillExample] = useState<string | undefined>();
+  const [drillRule, setDrillRule] = useState<string | undefined>();
 
   // Derive vocabulary from actual messages (newWord fields)
   const learnedVocab = realMessages
     .filter((m) => m.role === "ASSISTANT" && m.newWord)
     .map((m) => m.newWord as string);
 
-  // Derive common mistakes from actual messages (grammarPoint + correction)
-  const mistakeMap = new Map<string, { label: string; detail: string; count: number; severity: string }>();
-  realMessages
-    .filter((m) => m.role === "ASSISTANT" && m.correction && m.grammarPoint)
-    .forEach((m) => {
-      const key = m.grammarPoint!;
-      const existing = mistakeMap.get(key);
-      if (existing) {
-        existing.count++;
-      } else {
-        mistakeMap.set(key, {
-          label: key,
-          detail: m.correction ?? "",
-          count: 1,
-          severity: "medium",
-        });
-      }
-    });
-  const commonMistakes = Array.from(mistakeMap.values())
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 5);
+  const commonMistakes = buildMistakes(realMessages, locale);
 
   const totalExchanges = realMessages.filter((m) => m.role === "ASSISTANT").length || mockExchanges.length;
-  const errorCount     = realMessages.filter((m) => m.role === "ASSISTANT" && m.correction).length
-                         || mockExchanges.filter((e) => e.hasError).length;
+  const errorCount =
+    realMessages.filter(
+      (m) =>
+        m.role === "ASSISTANT" &&
+        ((m.errors && m.errors.length > 0) || !!m.correction)
+    ).length || mockExchanges.filter((e) => e.hasError).length;
   const perfectCount   = totalExchanges - errorCount;
   const fluencyScore   = totalExchanges > 0
     ? Math.round((perfectCount / totalExchanges) * 100)
@@ -78,13 +131,20 @@ export function SessionSummary({
 
   return (
     <motion.div className="flex flex-col gap-5 pb-6"
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}>
+      initial={reduceMotion ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={reduceMotion ? { duration: 0 } : { duration: 0.4 }}>
       {/* Header */}
       <div className="text-center pt-2">
         <motion.div className="w-14 h-14 rounded-full mx-auto mb-3 flex items-center justify-center text-2xl"
           style={{ background: `linear-gradient(145deg, ${CYAN}, ${PURPLE})`, boxShadow: `0 6px 0 0 rgba(0,0,0,0.3), 0 10px 28px rgba(34,211,238,0.3)` }}
-          initial={{ scale: 0 }} animate={{ scale: 1 }}
-          transition={{ type: "spring", stiffness: 300, damping: 18, delay: 0.1 }}>
+          initial={reduceMotion ? false : { scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={
+            reduceMotion
+              ? { duration: 0 }
+              : { type: "spring", stiffness: 300, damping: 18, delay: 0.1 }
+          }>
           🎯
         </motion.div>
         <h2 className="text-white font-extrabold text-xl">{t("summaryTitle")}</h2>
@@ -139,8 +199,11 @@ export function SessionSummary({
           <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.1)" }}>
             <motion.div className="h-full rounded-full"
               style={{ background: `linear-gradient(90deg, ${CYAN}, ${PURPLE})`, boxShadow: `0 0 8px ${CYAN}60` }}
-              initial={{ width: 0 }} animate={{ width: `${fluencyScore}%` }}
-              transition={{ duration: 1, delay: 0.5, ease: "easeOut" }} />
+              initial={reduceMotion ? false : { width: 0 }}
+              animate={{ width: `${fluencyScore}%` }}
+              transition={
+                reduceMotion ? { duration: 0 } : { duration: 1, delay: 0.5, ease: "easeOut" }
+              } />
           </div>
         </div>
       </div>
@@ -159,8 +222,11 @@ export function SessionSummary({
           {learnedVocab.map((word, i) => (
             <motion.div key={i} className="flex items-center gap-3 px-4 py-3"
               style={{ borderTop: i > 0 ? "1px solid rgba(255,255,255,0.05)" : "none" }}
-              initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.6 + i * 0.08 }}>
+              initial={reduceMotion ? false : { opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={
+                reduceMotion ? { duration: 0 } : { delay: 0.6 + i * 0.08 }
+              }>
               <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: CYAN }} />
               <span className="font-bold text-sm text-white">{word}</span>
             </motion.div>
@@ -178,17 +244,34 @@ export function SessionSummary({
           {commonMistakes.map((m, i) => {
             const sev = ({ high: "#F87171", medium: "#FB923C", low: "#FBBF24" } as Record<string, string>)[m.severity] ?? "#FB923C";
             return (
-              <motion.div key={m.label} className="flex items-start gap-3 px-4 py-3"
+              <motion.div key={m.key} className="flex items-start gap-3 px-4 py-3"
                 style={{ borderTop: i > 0 ? "1px solid rgba(255,255,255,0.05)" : "none" }}
-                initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.8 + i * 0.08 }}>
+                initial={reduceMotion ? false : { opacity: 0, x: 8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={
+                  reduceMotion ? { duration: 0 } : { delay: 0.8 + i * 0.08 }
+                }>
                 <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-bold mt-0.5"
                   style={{ background: `${sev}20`, color: sev, border: `1px solid ${sev}40` }}>
                   {m.count}×
                 </div>
-                <div>
-                  <p className="text-sm font-semibold text-white">{m.label}</p>
-                  <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>{m.detail}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-white">{m.title}</p>
+                  <p className="text-xs mt-0.5 break-words" style={{ color: "rgba(255,255,255,0.45)" }}>{m.detail}</p>
+                  {m.errorCode && i < 3 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDrillCode(m.errorCode!);
+                        setDrillExample(m.exampleCorrect);
+                        setDrillRule(m.ruleVi);
+                        setDrillOpen(true);
+                      }}
+                      className="mt-2 text-[11px] font-bold px-3 py-1.5 rounded-full"
+                      style={{ background: `${CYAN}22`, color: CYAN, border: `1px solid ${CYAN}44` }}>
+                      {t("repairNow")}
+                    </button>
+                  )}
                 </div>
               </motion.div>
             );
@@ -196,17 +279,30 @@ export function SessionSummary({
         </div>
       )}
 
+      <ErrorRepairDrill
+        open={drillOpen}
+        onClose={() => setDrillOpen(false)}
+        errorCode={drillCode}
+        exampleCorrectDe={drillExample}
+        ruleViShort={drillRule}
+      />
+
       {/* Action buttons */}
       <div className="flex gap-3 px-1 pb-2">
-        <button onClick={onRestart}
+        <button
+          type="button"
+          onClick={onRestart}
           className="flex items-center justify-center gap-2 flex-1 py-3 rounded-[14px] font-semibold text-sm transition-all"
           style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.12)" }}>
-          <RotateCcw size={14} /> {t("summaryRestart")}
+          <RotateCcw size={14} aria-hidden /> {t("summaryRestart")}
         </button>
-        <button onClick={onExit}
+        <button
+          type="button"
+          onClick={onExit}
+          aria-label={t("summaryExit")}
           className="flex items-center justify-center gap-2 flex-[2] py-3 rounded-[14px] font-bold text-sm transition-all"
           style={{ background: `linear-gradient(135deg, ${CYAN}, ${PURPLE})`, color: "white", boxShadow: `0 5px 0 0 rgba(0,0,0,0.3), 0 8px 20px rgba(34,211,238,0.25)` }}>
-          <Download size={14} /> {t("summarySave")}
+          <Download size={14} aria-hidden /> {t("summaryExit")}
         </button>
       </div>
     </motion.div>

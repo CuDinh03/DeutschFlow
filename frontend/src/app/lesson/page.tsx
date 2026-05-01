@@ -1,8 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import api from "@/lib/api";
+import { getAccessToken } from "@/lib/authSession";
 import {
   X,
   Lightbulb,
@@ -157,14 +160,17 @@ type CheckState = "idle" | "correct" | "incorrect";
 function CompletionScreen({
   score,
   total,
+  streakDays,
   onRestart,
   onExit,
 }: {
   score: number;
   total: number;
+  streakDays: number;
   onRestart: () => void;
   onExit: () => void;
 }) {
+  const t = useTranslations("lesson");
   const pct = Math.round((score / total) * 100);
   const perfect = score === total;
   const good = pct >= 75;
@@ -191,7 +197,7 @@ function CompletionScreen({
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.35 }}
       >
-        {perfect ? "Perfekt! 🎉" : good ? "Sehr gut! 👏" : "Weiter üben! 💪"}
+        {perfect ? t("perfect") : good ? t("great") : t("keepTrying")}
       </motion.h2>
 
       <motion.p
@@ -200,9 +206,7 @@ function CompletionScreen({
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.45 }}
       >
-        Du hast <span className="font-bold text-[#00305E]">{score}</span> von{" "}
-        <span className="font-bold text-[#00305E]">{total}</span> Fragen richtig
-        beantwortet.
+        {t("resultLine", { score, total })}
       </motion.p>
 
       {/* Stats Row */}
@@ -213,9 +217,9 @@ function CompletionScreen({
         transition={{ delay: 0.55 }}
       >
         {[
-          { label: "Genauigkeit", value: `${pct}%`, color: "#00305E" },
-          { label: "XP verdient", value: `+${score * 15}`, color: "#FFCE00" },
-          { label: "Serie", value: "14 🔥", color: "#f97316" },
+          { label: t("statAccuracy"), value: `${pct}%`, color: "#00305E" },
+          { label: t("statXp"), value: `+${score * 15}`, color: "#FFCE00" },
+          { label: t("statStreak"), value: `${streakDays} 🔥`, color: "#f97316" },
         ].map(({ label, value, color }) => (
           <div
             key={label}
@@ -243,13 +247,13 @@ function CompletionScreen({
           className="flex items-center gap-2 px-6 py-3 rounded-[12px] bg-[#F5F7FA] hover:bg-[#E2E8F0] text-[#00305E] font-semibold transition-colors border border-[#E2E8F0]"
         >
           <RotateCcw size={16} />
-          Nochmal üben
+          {t("again")}
         </button>
         <button
           onClick={onExit}
           className="flex items-center gap-2 px-8 py-3 rounded-[12px] bg-[#00305E] hover:bg-[#002447] text-white font-semibold transition-colors shadow-md"
         >
-          Zum Dashboard
+          {t("toDashboard")}
           <ArrowRight size={16} />
         </button>
       </motion.div>
@@ -265,6 +269,7 @@ function ExitModal({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const t = useTranslations("lesson");
   return (
     <motion.div
       className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center px-4"
@@ -282,22 +287,22 @@ function ExitModal({
         <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
           <X size={24} className="text-red-500" />
         </div>
-        <h3 className="text-lg text-[#1A1A1A] mb-2">Lektion verlassen?</h3>
+        <h3 className="text-lg text-[#1A1A1A] mb-2">{t("exitTitle")}</h3>
         <p className="text-[#64748B] text-sm mb-6">
-          Dein Fortschritt in dieser Lektion geht verloren.
+          {t("exitBody")}
         </p>
         <div className="flex gap-3">
           <button
             onClick={onCancel}
             className="flex-1 py-3 rounded-[12px] bg-[#F5F7FA] hover:bg-[#E2E8F0] text-[#1A1A1A] font-semibold text-sm transition-colors border border-[#E2E8F0]"
           >
-            Weiterlernen
+            {t("stay")}
           </button>
           <button
             onClick={onConfirm}
             className="flex-1 py-3 rounded-[12px] bg-red-500 hover:bg-red-600 text-white font-semibold text-sm transition-colors"
           >
-            Verlassen
+            {t("confirmExit")}
           </button>
         </div>
       </motion.div>
@@ -313,6 +318,7 @@ function HintPopover({
   hint: string;
   onClose: () => void;
 }) {
+  const t = useTranslations("lesson");
   return (
     <motion.div
       className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 bg-[#00305E] text-white rounded-[12px] px-4 py-3 shadow-xl z-10 w-72 text-sm text-center"
@@ -327,15 +333,24 @@ function HintPopover({
         onClick={onClose}
         className="mt-2 text-[#FFCE00] text-xs font-semibold hover:underline"
       >
-        Schließen
+        {t("hintClose")}
       </button>
     </motion.div>
   );
 }
 
+type LessonPlan = {
+  targetLevel?: string;
+  progress?: { currentWeek?: number; currentSessionIndex?: number };
+};
+
 // ─── Main Lesson Component ───────────────────────────────────────────────────────
 export default function LessonPage() {
   const router = useRouter();
+  const t = useTranslations("lesson");
+  const [plan, setPlan] = useState<LessonPlan | null>(null);
+  const [streakDays, setStreakDays] = useState(0);
+  const [validating, setValidating] = useState(false);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [checkState, setCheckState] = useState<CheckState>("idle");
@@ -350,6 +365,27 @@ export default function LessonPage() {
   const totalQuestions = questions.length;
   const progressPct = (questionIndex / totalQuestions) * 100;
 
+  useEffect(() => {
+    if (!getAccessToken()) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const [p, d] = await Promise.all([
+          api.get<{ plan?: LessonPlan }>("/plan/me").catch(() => null),
+          api.get<{ streakDays?: number }>("/student/dashboard").catch(() => null),
+        ]);
+        if (cancelled) return;
+        if (p?.data?.plan) setPlan(p.data.plan);
+        setStreakDays(Number(d?.data?.streakDays ?? 0));
+      } catch {
+        /* optional */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Reset state when question changes
   useEffect(() => {
     setSelectedOption(null);
@@ -357,16 +393,33 @@ export default function LessonPage() {
     setShowHint(false);
   }, [questionIndex]);
 
-  const handleCheck = () => {
+  const handleCheck = useCallback(async () => {
     if (selectedOption === null) return;
-    const isCorrect = selectedOption === q.correct;
-    setCheckState(isCorrect ? "correct" : "incorrect");
-    if (isCorrect) {
-      setScore((s) => s + 1);
-    } else {
-      setLives((l) => Math.max(0, l - 1));
+    const current = questions[questionIndex];
+    const chosen = current.options[selectedOption] ?? "";
+    const expected = current.options[current.correct] ?? "";
+    setValidating(true);
+    try {
+      const { data } = await api.post<{ valid: boolean }>("/grammar/validate", {
+        answer: chosen,
+        expected,
+        joiner: " ",
+        sessionType: "LESSON",
+        level: plan?.targetLevel ?? current.level,
+      });
+      const ok = Boolean(data?.valid);
+      setCheckState(ok ? "correct" : "incorrect");
+      if (ok) setScore((s) => s + 1);
+      else setLives((l) => Math.max(0, l - 1));
+    } catch {
+      const ok = selectedOption === current.correct;
+      setCheckState(ok ? "correct" : "incorrect");
+      if (ok) setScore((s) => s + 1);
+      else setLives((l) => Math.max(0, l - 1));
+    } finally {
+      setValidating(false);
     }
-  };
+  }, [selectedOption, questionIndex, plan]);
 
   const handleNext = () => {
     if (questionIndex + 1 >= totalQuestions) {
@@ -428,7 +481,7 @@ export default function LessonPage() {
           className="flex items-center gap-2 px-3.5 py-2 rounded-[10px] text-[#64748B] hover:bg-[#F5F7FA] hover:text-[#1A1A1A] transition-colors text-sm font-medium flex-shrink-0"
         >
           <X size={16} />
-          <span className="hidden sm:inline">Verlassen</span>
+          <span className="hidden sm:inline">{t("leave")}</span>
         </button>
 
         {/* Progress Bar */}
@@ -443,7 +496,7 @@ export default function LessonPage() {
           </div>
           <div className="flex items-center justify-between">
             <span className="text-[#94A3B8] text-xs">
-              Frage {questionIndex + 1} von {totalQuestions}
+              {t("questionProgress", { n: questionIndex + 1, total: totalQuestions })}
             </span>
             <span className="text-[#00305E] text-xs font-semibold">
               {Math.round(progressPct)}%
@@ -474,15 +527,25 @@ export default function LessonPage() {
         {/* Streak */}
         <div className="hidden sm:flex items-center gap-1.5 bg-[#FFF8E1] rounded-[10px] px-3 py-1.5 border border-[#FFCE00]/30 flex-shrink-0">
           <Flame size={15} className="text-orange-500" fill="#f97316" />
-          <span className="text-[#00305E] text-xs font-bold">14</span>
+          <span className="text-[#00305E] text-xs font-bold">{streakDays}</span>
         </div>
       </header>
+
+      {plan?.progress ? (
+        <p className="text-center text-[11px] text-[#94A3B8] -mt-2 mb-2 px-4">
+          {t("planContext", {
+            week: plan.progress.currentWeek ?? 1,
+            session: plan.progress.currentSessionIndex ?? 1,
+          })}
+        </p>
+      ) : null}
 
       {/* ── Main Body ───────────────────────────────────────────────────────── */}
       {completed ? (
         <CompletionScreen
           score={score}
           total={totalQuestions}
+          streakDays={streakDays}
           onRestart={handleRestart}
           onExit={() => router.push("/")}
         />
@@ -519,7 +582,7 @@ export default function LessonPage() {
                     <div className="w-8 h-8 rounded-full bg-[#00305E]/8 group-hover:bg-[#00305E]/15 flex items-center justify-center transition-colors">
                       <Volume2 size={14} />
                     </div>
-                    Anhören
+                    {t("listen")}
                   </button>
                 )}
 
@@ -637,7 +700,7 @@ export default function LessonPage() {
                       className={showHint ? "text-[#FFCE00]" : ""}
                       fill={showHint ? "#FFCE00" : "none"}
                     />
-                    Hinweis anzeigen
+                    {t("hintShow")}
                   </button>
                 </div>
               )}
@@ -685,12 +748,12 @@ export default function LessonPage() {
                       }`}
                     >
                       {checkState === "correct"
-                        ? "Richtig! 🎉"
-                        : "Nicht ganz…"}
+                        ? t("correctTitle")
+                        : t("wrongTitle")}
                     </p>
                     {checkState === "incorrect" && (
                       <p className="text-[#991B1B] text-sm mb-1">
-                        Richtige Antwort:{" "}
+                        {t("correctAnswerLabel")}{" "}
                         <strong>{q.options[q.correct]}</strong>
                       </p>
                     )}
@@ -718,8 +781,8 @@ export default function LessonPage() {
                   whileTap={{ scale: 0.98 }}
                 >
                   {questionIndex + 1 >= totalQuestions
-                    ? "Abschließen"
-                    : "Weiter"}
+                    ? t("finish")
+                    : t("continue")}
                   <ArrowRight size={16} />
                 </motion.button>
               </div>
@@ -733,13 +796,13 @@ export default function LessonPage() {
             >
               <div className="max-w-2xl mx-auto">
                 <motion.button
-                  onClick={handleCheck}
-                  disabled={selectedOption === null}
+                  onClick={() => void handleCheck()}
+                  disabled={selectedOption === null || validating}
                   className={`w-full py-4 rounded-[14px] font-semibold text-base transition-all duration-200 ${checkBtnStyle()}`}
-                  whileHover={selectedOption !== null ? { scale: 1.01 } : {}}
-                  whileTap={selectedOption !== null ? { scale: 0.99 } : {}}
+                  whileHover={selectedOption !== null && !validating ? { scale: 1.01 } : {}}
+                  whileTap={selectedOption !== null && !validating ? { scale: 0.99 } : {}}
                 >
-                  Antwort prüfen
+                  {validating ? t("checking") : t("checkAnswer")}
                 </motion.button>
               </div>
             </motion.div>

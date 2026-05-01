@@ -6,6 +6,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Parses the raw JSON string returned by OpenAI into an {@link AiResponseDto}.
  *
@@ -26,8 +29,15 @@ public class AiResponseParser {
      * @return a non-null {@link AiResponseDto} with at least {@code aiSpeechDe} set
      */
     public AiResponseDto parse(String rawJson) {
+        return parseWithOutcome(rawJson).dto();
+    }
+
+    /**
+     * Like {@link #parse(String)} but exposes {@link AiParseStatus} for metrics.
+     */
+    public AiParseOutcome parseWithOutcome(String rawJson) {
         if (rawJson == null) {
-            return fallback("");
+            return new AiParseOutcome(fallback(""), AiParseStatus.FALLBACK_NULL_INPUT);
         }
 
         String cleaned = extractJsonObject(stripMarkdownFences(rawJson.trim()));
@@ -48,17 +58,21 @@ public class AiResponseParser {
                 userInterestDetected = textOrNull(learningStatus, "user_interest_detected");
             }
 
+            List<ErrorItem> errors = parseErrorsArray(root.get("errors"));
+
             // If ai_speech_de is missing or blank, fall back to raw text
             if (aiSpeechDe == null || aiSpeechDe.isBlank()) {
                 log.warn("OpenAI response parsed but ai_speech_de is missing/blank — using fallback");
-                return fallback(rawJson);
+                return new AiParseOutcome(fallback(rawJson), AiParseStatus.FALLBACK_MISSING_AI_SPEECH);
             }
 
-            return new AiResponseDto(aiSpeechDe, correction, explanationVi, grammarPoint, newWord, userInterestDetected);
+            var dto = new AiResponseDto(
+                    aiSpeechDe, correction, explanationVi, grammarPoint, newWord, userInterestDetected, errors);
+            return new AiParseOutcome(dto, AiParseStatus.STRUCTURED);
 
         } catch (Exception e) {
             log.warn("Failed to parse OpenAI JSON response, using fallback. Error: {}", e.getMessage());
-            return fallback(rawJson);
+            return new AiParseOutcome(fallback(rawJson), AiParseStatus.FALLBACK_PARSE_ERROR);
         }
     }
 
@@ -118,6 +132,45 @@ public class AiResponseParser {
      */
     private AiResponseDto fallback(String rawText) {
         String speech = (rawText == null || rawText.isBlank()) ? "..." : rawText;
-        return new AiResponseDto(speech, null, null, null, null, null);
+        return new AiResponseDto(speech, null, null, null, null, null, List.of());
+    }
+
+    /**
+     * Parses {@code errors} JSON array; drops entries with unknown {@code error_code} (not in {@link ErrorCatalog}).
+     */
+    private List<ErrorItem> parseErrorsArray(JsonNode errorsNode) {
+        if (errorsNode == null || !errorsNode.isArray()) {
+            return List.of();
+        }
+        List<ErrorItem> out = new ArrayList<>();
+        for (JsonNode item : errorsNode) {
+            if (item == null || item.isNull()) continue;
+            String code = textOrNull(item, "error_code");
+            if (code == null || !ErrorCatalog.isValid(code)) {
+                if (code != null) {
+                    log.debug("Dropped error with unknown error_code: {}", code);
+                }
+                continue;
+            }
+            String severity = textOrNull(item, "severity");
+            if (severity == null) severity = "MINOR";
+
+            Double confidence = null;
+            JsonNode confNode = item.get("confidence");
+            if (confNode != null && confNode.isNumber()) {
+                confidence = Math.max(0.0, Math.min(1.0, confNode.asDouble()));
+            }
+
+            out.add(new ErrorItem(
+                    code.trim(),
+                    severity,
+                    confidence,
+                    textOrNull(item, "wrong_span"),
+                    textOrNull(item, "corrected_span"),
+                    textOrNull(item, "rule_vi_short"),
+                    textOrNull(item, "example_correct_de")
+            ));
+        }
+        return out;
     }
 }

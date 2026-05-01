@@ -4,8 +4,8 @@ import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages } from 'next-intl/server'
 import './globals.css'
 
-const inter = Inter({ 
-  subsets: ['latin'],
+const inter = Inter({
+  subsets: ['latin', 'latin-ext', 'vietnamese'],
   display: 'swap',
   variable: '--font-inter',
 })

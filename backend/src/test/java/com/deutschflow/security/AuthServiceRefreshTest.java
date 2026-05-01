@@ -9,12 +9,14 @@ import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.RefreshTokenRepository;
 import com.deutschflow.user.repository.UserRepository;
 import com.deutschflow.user.service.AuthService;
+import com.deutschflow.user.service.StudentTrialSubscriptionProvisioner;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -36,11 +38,15 @@ class AuthServiceRefreshTest {
     @Mock
     private RefreshTokenRepository refreshTokenRepository;
     @Mock
+    private JdbcTemplate jdbcTemplate;
+    @Mock
     private PasswordEncoder passwordEncoder;
     @Mock
     private JwtService jwtService;
     @Mock
     private AuthenticationManager authenticationManager;
+    @Mock
+    private StudentTrialSubscriptionProvisioner studentTrialSubscriptionProvisioner;
 
     @InjectMocks
     private AuthService authService;

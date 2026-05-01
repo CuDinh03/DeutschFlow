@@ -1,12 +1,17 @@
 package com.deutschflow.speaking;
 
+import com.deutschflow.speaking.ai.AiChatCompletionResult;
 import com.deutschflow.speaking.ai.OpenAiChatClient;
+import com.deutschflow.speaking.ai.TokenUsage;
 import com.deutschflow.speaking.dto.AiSpeakingChatResponse;
 import com.deutschflow.speaking.dto.AiSpeakingMessageDto;
 import com.deutschflow.speaking.dto.AiSpeakingSessionDto;
 import com.deutschflow.speaking.entity.AiSpeakingSession.SessionStatus;
 import com.deutschflow.speaking.repository.AiSpeakingMessageRepository;
 import com.deutschflow.speaking.repository.AiSpeakingSessionRepository;
+import com.deutschflow.common.quota.QuotaSnapshot;
+import com.deutschflow.common.quota.QuotaService;
+import com.deutschflow.common.quota.QuotaVnCalendar;
 import com.deutschflow.speaking.service.AiSpeakingService;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserLearningProfileRepository;
@@ -21,13 +26,15 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 /**
@@ -47,6 +54,7 @@ class AiSpeakingIntegrationTest {
               "correction": null,
               "explanation_vi": null,
               "grammar_point": null,
+              "errors": [],
               "learning_status": {
                 "new_word": null,
                 "user_interest_detected": null
@@ -58,8 +66,9 @@ class AiSpeakingIntegrationTest {
             {
               "ai_speech_de": "Ach so, du warst in der Schule! War es interessant?",
               "correction": "Ich bin gestern in die Schule gegangen.",
-              "explanation_vi": "Dùng 'sein' thay vì 'haben' với động từ chỉ sự di chuyển.",
+              "explanation_vi": "Dung sein statt haben bei Bewegungsverben.",
               "grammar_point": "Perfekt mit sein/haben",
+              "errors": [],
               "learning_status": {
                 "new_word": "Unterricht",
                 "user_interest_detected": "Lernalltag"
@@ -85,6 +94,9 @@ class AiSpeakingIntegrationTest {
     @MockBean
     private OpenAiChatClient openAiChatClient;
 
+    @MockBean
+    private QuotaService quotaService;
+
     private User userA;
     private User userB;
 
@@ -105,8 +117,43 @@ class AiSpeakingIntegrationTest {
                 .role(User.Role.STUDENT)
                 .build());
 
-        when(openAiChatClient.chatCompletion(any(), anyString(), anyDouble()))
-                .thenReturn(VALID_AI_RESPONSE);
+        lenient().when(quotaService.assertAllowed(anyLong(), any(Instant.class), anyLong())).thenAnswer(inv -> {
+            Instant requested = inv.getArgument(1);
+            Instant[] bounds = QuotaVnCalendar.vnDayBoundsInclusiveExclusive(requested);
+            return new QuotaSnapshot(
+                    "INTERNAL",
+                    true,
+                    bounds[0],
+                    bounds[1],
+                    0L,
+                    0L,
+                    0L,
+                    0L,
+                    999_999_999L,
+                    Instant.EPOCH,
+                    null);
+        });
+
+        when(openAiChatClient.chatCompletion(any(), any(), anyDouble(), any()))
+                .thenReturn(new AiChatCompletionResult(
+                        VALID_AI_RESPONSE,
+                        TokenUsage.exact(10, 10, 20),
+                        "GROQ",
+                        "test-model"
+                ));
+        when(openAiChatClient.chatCompletionStream(any(), any(), anyDouble(), any(), any(), any(), any()))
+                .thenAnswer(invocation -> {
+                    java.util.function.Consumer<String> onToken = invocation.getArgument(4);
+                    java.util.function.Consumer<AiChatCompletionResult> onComplete = invocation.getArgument(5);
+                    onToken.accept(VALID_AI_RESPONSE);
+                    onComplete.accept(new AiChatCompletionResult(
+                            VALID_AI_RESPONSE,
+                            TokenUsage.estimated(10, 10, 20),
+                            "GROQ",
+                            "test-model"
+                    ));
+                    return true;
+                });
     }
 
     // =========================================================================
@@ -115,7 +162,7 @@ class AiSpeakingIntegrationTest {
 
     @Test
     void createSession_shouldPersistSessionWithActiveStatus() {
-        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), "Mein Alltag");
+        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), "Mein Alltag", null);
 
         assertThat(session.id()).isNotNull();
         assertThat(session.status()).isEqualTo("ACTIVE");
@@ -126,7 +173,7 @@ class AiSpeakingIntegrationTest {
 
     @Test
     void createSession_withNullTopic_shouldSucceed() {
-        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null);
+        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null, null);
 
         assertThat(session.id()).isNotNull();
         assertThat(session.topic()).isNull();
@@ -134,7 +181,7 @@ class AiSpeakingIntegrationTest {
 
     @Test
     void endSession_shouldTransitionToEndedStatus() {
-        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null);
+        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null, null);
 
         AiSpeakingSessionDto ended = aiSpeakingService.endSession(userA.getId(), session.id());
 
@@ -148,7 +195,7 @@ class AiSpeakingIntegrationTest {
 
     @Test
     void chat_shouldPersistTwoMessagesAndReturnResponse() {
-        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null);
+        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null, null);
         long initialCount = messageRepository.count();
 
         AiSpeakingChatResponse response = aiSpeakingService.chat(
@@ -164,7 +211,7 @@ class AiSpeakingIntegrationTest {
 
     @Test
     void chat_shouldIncrementMessageCountByTwo() {
-        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null);
+        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null, null);
 
         aiSpeakingService.chat(userA.getId(), session.id(), "Hallo!");
 
@@ -174,15 +221,21 @@ class AiSpeakingIntegrationTest {
 
     @Test
     void chat_withCorrectionResponse_shouldReturnCorrectionFields() {
-        when(openAiChatClient.chatCompletion(any(), anyString(), anyDouble()))
-                .thenReturn(AI_RESPONSE_WITH_CORRECTION);
+        when(openAiChatClient.chatCompletion(any(), any(), anyDouble(), any()))
+                .thenReturn(new AiChatCompletionResult(
+                        AI_RESPONSE_WITH_CORRECTION,
+                        TokenUsage.exact(10, 10, 20),
+                        "GROQ",
+                        "test-model"
+                ));
 
-        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null);
+        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null, null);
         AiSpeakingChatResponse response = aiSpeakingService.chat(
                 userA.getId(), session.id(), "Ich habe gestern gehen in die Schule.");
 
         assertThat(response.correction()).isEqualTo("Ich bin gestern in die Schule gegangen.");
         assertThat(response.explanationVi()).contains("sein");
+        assertThat(response.errors()).isEmpty();
         assertThat(response.grammarPoint()).isEqualTo("Perfekt mit sein/haben");
         assertThat(response.learningStatus().newWord()).isEqualTo("Unterricht");
         assertThat(response.learningStatus().userInterestDetected()).isEqualTo("Lernalltag");
@@ -190,7 +243,7 @@ class AiSpeakingIntegrationTest {
 
     @Test
     void chat_withNoErrors_shouldReturnNullCorrectionFields() {
-        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null);
+        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null, null);
         AiSpeakingChatResponse response = aiSpeakingService.chat(
                 userA.getId(), session.id(), "Ich lerne Deutsch.");
 
@@ -205,7 +258,7 @@ class AiSpeakingIntegrationTest {
 
     @Test
     void getMessages_shouldReturnMessagesInChronologicalOrder() {
-        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null);
+        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null, null);
         aiSpeakingService.chat(userA.getId(), session.id(), "Erste Nachricht");
         aiSpeakingService.chat(userA.getId(), session.id(), "Zweite Nachricht");
 
@@ -223,9 +276,9 @@ class AiSpeakingIntegrationTest {
 
     @Test
     void getSessions_shouldReturnOnlyUserOwnSessions() {
-        aiSpeakingService.createSession(userA.getId(), "Session A1");
-        aiSpeakingService.createSession(userA.getId(), "Session A2");
-        aiSpeakingService.createSession(userB.getId(), "Session B1");
+        aiSpeakingService.createSession(userA.getId(), "Session A1", null);
+        aiSpeakingService.createSession(userA.getId(), "Session A2", null);
+        aiSpeakingService.createSession(userB.getId(), "Session B1", null);
 
         Page<AiSpeakingSessionDto> sessionsA = aiSpeakingService.getSessions(
                 userA.getId(), PageRequest.of(0, 10));
@@ -241,7 +294,7 @@ class AiSpeakingIntegrationTest {
 
     @Test
     void chat_withWrongUser_shouldThrowNotFoundException() {
-        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null);
+        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null, null);
 
         assertThatThrownBy(() ->
                 aiSpeakingService.chat(userB.getId(), session.id(), "Hallo!"))
@@ -250,7 +303,7 @@ class AiSpeakingIntegrationTest {
 
     @Test
     void getMessages_withWrongUser_shouldThrowNotFoundException() {
-        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null);
+        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null, null);
 
         assertThatThrownBy(() ->
                 aiSpeakingService.getMessages(userB.getId(), session.id()))
@@ -259,7 +312,7 @@ class AiSpeakingIntegrationTest {
 
     @Test
     void endSession_withWrongUser_shouldThrowNotFoundException() {
-        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null);
+        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null, null);
 
         assertThatThrownBy(() ->
                 aiSpeakingService.endSession(userB.getId(), session.id()))
@@ -272,7 +325,7 @@ class AiSpeakingIntegrationTest {
 
     @Test
     void chat_onEndedSession_shouldThrowConflictException() {
-        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null);
+        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null, null);
         aiSpeakingService.endSession(userA.getId(), session.id());
 
         assertThatThrownBy(() ->
@@ -282,7 +335,7 @@ class AiSpeakingIntegrationTest {
 
     @Test
     void endSession_onAlreadyEndedSession_shouldThrowConflictException() {
-        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null);
+        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null, null);
         aiSpeakingService.endSession(userA.getId(), session.id());
 
         assertThatThrownBy(() ->

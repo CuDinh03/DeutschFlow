@@ -35,6 +35,15 @@ spring:
     encoding: UTF-8
     default-locale: vi
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+
 server:
   port: ${SERVER_PORT:8080}
   servlet:
@@ -48,6 +57,11 @@ app:
     access-token-expiry-ms: ${JWT_ACCESS_TOKEN_EXPIRY_MS:900000}
     refresh-token-expiry-ms: ${JWT_REFRESH_TOKEN_EXPIRY_MS:604800000}
 
+  speaking:
+    adaptive:
+      # When false: policy is minimal, turn evaluator skips state updates (rollback-friendly).
+      enabled: ${APP_SPEAKING_ADAPTIVE_ENABLED:true}
+
   # AI Speaking Practice — Groq (Llama 4 Scout, free tier)
   # Set GROQ_API_KEY in .env: https://console.groq.com/keys
   ai:
@@ -55,6 +69,8 @@ app:
       api-key: ${GROQ_API_KEY:}
       model: ${GROQ_MODEL:meta-llama/llama-4-scout-17b-16e-instruct}
       whisper-model: ${GROQ_WHISPER_MODEL:whisper-large-v3}
+    transcribe:
+      max-bytes: ${AI_TRANSCRIBE_MAX_BYTES:8388608}
 
   deepl:
     api-key: ${DEEPL_API_KEY:}
@@ -62,6 +78,8 @@ app:
     # app.vocabulary.cefr-curated.deepl-max-chars-per-run và/hoặc tắt enrich-after-upsert cho đợt đầu.
 
   vocabulary:
+    # Prod / staging: cân nhắc đặt GOETHE_*_ON_STARTUP, CEFR_CURATED_*, GLOSBE_* thành false và chạy import qua admin
+    # để tránh spike DB + DeepL quota; scheduler Glosbe-VI / Wiktionary vẫn có giới hạn batch-size/delay-ms trong profile.
     # Từ điển TSV trên classpath — không gọi API; mở rộng bằng cách thêm dòng vào file.
     local-lexicon:
       resource: ${LOCAL_LEXICON_RESOURCE:wordlists/local_lexicon.tsv}

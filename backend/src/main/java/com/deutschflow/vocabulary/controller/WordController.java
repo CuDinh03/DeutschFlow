@@ -23,6 +23,8 @@ public class WordController {
     public WordListResponse list(
             @RequestParam(required = false) String cefr,
             @RequestParam(required = false) String q,
+            @RequestParam(required = false) String topic,
+            @RequestParam(required = false) String focus,
             @RequestParam(required = false) String tag,
             @RequestParam(required = false) String dtype,
             @RequestParam(required = false) String gender,
@@ -30,7 +32,7 @@ public class WordController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        return wordQueryService.listWords(cefr, q, tag, dtype, gender, locale, page, size);
+        return wordQueryService.listWords(cefr, q, topic, focus, tag, dtype, gender, locale, page, size);
     }
 
     @GetMapping("/coverage")

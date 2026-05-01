@@ -19,8 +19,9 @@ public class TagController {
 
     @GetMapping
     public List<TagItem> list(
-            @RequestParam(required = false, defaultValue = "de") String locale) {
-        return tagQueryService.listTags(locale);
+            @RequestParam(required = false, defaultValue = "de") String locale,
+            @RequestParam(required = false, defaultValue = "false") boolean topicsOnly) {
+        return tagQueryService.listTags(locale, topicsOnly);
     }
 }
 

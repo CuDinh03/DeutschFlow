@@ -10,6 +10,7 @@ import com.deutschflow.user.entity.RefreshToken;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.RefreshTokenRepository;
 import com.deutschflow.user.repository.UserRepository;
+import org.springframework.jdbc.core.JdbcTemplate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -19,6 +20,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -28,9 +31,11 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final JdbcTemplate jdbcTemplate;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+    private final StudentTrialSubscriptionProvisioner studentTrialSubscriptionProvisioner;
 
     @Value("${app.jwt.refresh-token-expiry-ms}")
     private long refreshTokenExpiryMs;
@@ -55,6 +60,9 @@ public class AuthService {
                 .build();
 
         userRepository.save(user);
+        Instant start = Instant.now();
+        studentTrialSubscriptionProvisioner.provisionSevenDayTrial(
+                user.getId(), start, start.plus(Duration.ofDays(7)));
         return buildAuthResponse(user);
     }
 
@@ -69,6 +77,17 @@ public class AuthService {
 
         var user = userRepository.findByEmail(request.email())
                 .orElseThrow(() -> new BadRequestException("Invalid email or password"));
+
+        if (user.getRole() == User.Role.STUDENT) {
+            Integer subCount = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM user_subscriptions WHERE user_id = ?",
+                    Integer.class, user.getId());
+            if (subCount != null && subCount == 0) {
+                Instant start = Instant.now();
+                studentTrialSubscriptionProvisioner.provisionSevenDayTrial(
+                        user.getId(), start, start.plus(Duration.ofDays(7)));
+            }
+        }
 
         refreshTokenRepository.revokeAllByUserId(user.getId());
         return buildAuthResponse(user);

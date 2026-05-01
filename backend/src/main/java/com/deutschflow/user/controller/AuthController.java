@@ -7,6 +7,8 @@ import com.deutschflow.user.dto.RegisterRequest;
 import com.deutschflow.user.dto.UpdateLocaleRequest;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.service.AuthService;
+import com.deutschflow.user.service.AuthRateLimiterService;
+import com.deutschflow.common.exception.RateLimitExceededException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -14,12 +16,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class AuthController {
 
     private final AuthService authService;
+    private final AuthRateLimiterService authRateLimiterService;
 
     /** 201 Created — tài khoản mới */
     @PostMapping("/register")
@@ -30,7 +35,14 @@ public class AuthController {
 
     /** 200 OK — đăng nhập thành công */
     @PostMapping("/login")
-    public AuthResponse login(@Valid @RequestBody LoginRequest request) {
+    public AuthResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
+        String ip = resolveClientIp(httpRequest);
+        if (!authRateLimiterService.allow(ip, request.email())) {
+            throw new RateLimitExceededException(
+                    "Too many login attempts. Please try again later.",
+                    authRateLimiterService.retryAfterSeconds()
+            );
+        }
         return authService.login(request);
     }
 
@@ -65,5 +77,14 @@ public class AuthController {
     public AuthResponse patchLocale(@AuthenticationPrincipal User user,
                                     @Valid @RequestBody UpdateLocaleRequest request) {
         return authService.updateLocale(user, request.locale());
+    }
+
+    private static String resolveClientIp(HttpServletRequest request) {
+        if (request == null) return null;
+        String forwarded = request.getHeader("X-Forwarded-For");
+        if (forwarded != null && !forwarded.isBlank()) {
+            return forwarded.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
     }
 }

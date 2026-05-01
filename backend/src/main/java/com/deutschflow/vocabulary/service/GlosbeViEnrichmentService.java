@@ -88,7 +88,11 @@ public class GlosbeViEnrichmentService {
                       AND LOWER(t.meaning) NOT LIKE 'not in wordlists%'
                       AND LOWER(t.meaning) NOT LIKE 'chưa có trong%'
                   )
-                ORDER BY w.id ASC
+                ORDER BY
+                  CASE COALESCE(NULLIF(TRIM(w.cefr_level), ''), 'ZZ')
+                    WHEN 'A1' THEN 1 WHEN 'A2' THEN 2 WHEN 'B1' THEN 3 WHEN 'B2' THEN 4 WHEN 'C1' THEN 5 WHEN 'C2' THEN 6
+                    ELSE 99 END,
+                  w.id ASC
                 LIMIT ?
                 """,
                 (rs, rn) -> rs.getLong("id"),

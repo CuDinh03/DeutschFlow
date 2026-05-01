@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import api, { httpStatus } from '@/lib/api'
+import api, { apiMessage, httpStatus } from '@/lib/api'
 import { clearTokens } from '@/lib/authSession'
 
 type UseAdminDataOptions<T> = {
@@ -60,7 +60,12 @@ export default function useAdminData<T>({
         router.push('/login')
         return
       }
-      setError(errorMessageRef.current)
+      const detail = apiMessage(e)
+      setError(
+        detail && !detail.includes(errorMessageRef.current)
+          ? `${errorMessageRef.current} — ${detail}`
+          : detail || errorMessageRef.current,
+      )
     } finally {
       if (!silent) setLoading(false)
       setRefreshing(false)

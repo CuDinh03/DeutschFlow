@@ -1,6 +1,8 @@
 package com.deutschflow.user.repository;
 
 import com.deutschflow.user.entity.LearningSessionAttempt;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
@@ -14,5 +16,7 @@ public interface LearningSessionAttemptRepository extends JpaRepository<Learning
 
     List<LearningSessionAttempt> findByUserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtAsc(
             Long userId, LocalDateTime weekStartInclusive, LocalDateTime weekEndExclusive);
+
+    Page<LearningSessionAttempt> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
 }
 

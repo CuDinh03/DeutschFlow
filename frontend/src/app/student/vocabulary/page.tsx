@@ -1,17 +1,16 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { isAxiosError } from 'axios'
 import api from '@/lib/api'
-import { getAccessToken } from '@/lib/authSession'
+import { getAccessToken, clearTokens } from '@/lib/authSession'
+import { StudentShell } from '@/components/layouts/StudentShell'
 import { speakGerman, primeGermanVoices } from '@/lib/speechDe'
 import { inferGenderFromGermanText, normalizeGenderCode } from '@/lib/constants'
 import {
   AlignLeft,
-  ArrowLeft,
-  Bell,
   BookOpen,
   Bookmark,
   BookmarkCheck,
@@ -84,6 +83,7 @@ type TagItem = {
 }
 
 type Me = {
+  displayName: string
   locale: string
   role: string
 }
@@ -736,7 +736,7 @@ function VocabCard({
 
       <div className="px-4 pb-3">
         <h3 className="font-extrabold text-lg text-[#00305E] tracking-tight">{item.word}</h3>
-        <p className="text-[11px] text-[#94A3B8] font-mono">{item.phonetic}</p>
+        {item.phonetic ? <p className="text-[11px] text-[#94A3B8] font-mono">{item.phonetic}</p> : null}
       </div>
       <div className="mx-4 h-px bg-[#EEF2F6]" />
       <div className="px-4 py-3">
@@ -761,6 +761,8 @@ export default function StudentVocabularyPage() {
   const uiLocale = useLocale()
   const router = useRouter()
   const [me, setMe] = useState<Me | null>(null)
+  const [targetLevel, setTargetLevel] = useState('A1')
+  const [streakDays, setStreakDays] = useState(0)
   const [items, setItems] = useState<VocabCardItem[]>([])
   const [loading, setLoading] = useState(true)
   const [q, setQ] = useState('')
@@ -821,7 +823,16 @@ export default function StudentVocabularyPage() {
         }
         setMe(meRes.data)
 
-        const tagsRes = await api.get<TagItem[]>('/tags', { params: { locale: uiLocale || meRes.data.locale || 'vi' } })
+        const [planRes, dashRes] = await Promise.all([
+          api.get<{ plan?: { targetLevel?: string } }>('/plan/me').catch(() => null),
+          api.get<{ streakDays?: number }>('/student/dashboard').catch(() => null),
+        ])
+        setTargetLevel(planRes?.data?.plan?.targetLevel ?? 'A1')
+        setStreakDays(Number(dashRes?.data?.streakDays ?? 0))
+
+        const tagsRes = await api.get<TagItem[]>('/tags', {
+          params: { locale: uiLocale || meRes.data.locale || 'vi', topicsOnly: 'true' },
+        })
         setTags(tagsRes.data ?? [])
 
         const { data } = await api.get<WordListResponse>('/words', {
@@ -903,44 +914,78 @@ export default function StudentVocabularyPage() {
     }, 230)
   }
 
-  return (
-    <div className="min-h-screen flex flex-col bg-[#F1F4F9]">
-      <header className="bg-white border-b border-[#E2E8F0]">
-        <div className="max-w-7xl mx-auto px-5 py-3.5 flex items-center gap-4">
-          <button onClick={() => router.push('/dashboard')} className="flex items-center gap-2 text-[#00305E] font-semibold">
-            <ArrowLeft size={17} />
-            {t('back')}
-          </button>
-          <div className="hidden md:flex items-center gap-1 bg-[#F5F7FA] rounded-xl p-1 border border-[#E2E8F0]">
-            <button onClick={() => router.push('/dashboard')} className="px-3 py-2 rounded-lg text-sm font-semibold text-[#64748B]">Dashboard</button>
-            <button className="px-3 py-2 rounded-lg text-sm font-semibold bg-white text-[#00305E] shadow-sm">Vokabular</button>
-          </div>
-          <div className="flex-1" />
-          <button className="relative p-2 rounded-lg hover:bg-[#F5F7FA] text-[#94A3B8]">
-            <Bell size={18} />
-            <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500" />
-          </button>
-        </div>
-      </header>
+  const handleLogout = useCallback(() => {
+    clearTokens()
+    router.push('/')
+  }, [router])
 
+  if (loading && !me) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F5F7FA]">
+        <p className="text-[#64748B]">{t('loading')}</p>
+      </div>
+    )
+  }
+
+  if (!me) return null
+
+  const initials = me.displayName
+    .split(' ')
+    .map((p) => p.charAt(0))
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
+
+  const itCount = filtered.filter((item) => item.category === 'IT').length
+
+  return (
+    <StudentShell
+      activeSection="vocabulary"
+      user={{ displayName: me.displayName, role: me.role }}
+      targetLevel={targetLevel}
+      streakDays={streakDays}
+      initials={initials}
+      onLogout={handleLogout}
+      headerTitle={t('pageHeroTitle')}
+      headerSubtitle={t('subtitle')}
+    >
+      <div className="flex flex-col bg-[#F1F4F9] -mx-6 -mt-6">
       <section className="bg-white border-b border-[#E2E8F0]">
         <div className="max-w-7xl mx-auto px-5 py-4">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h1 className="text-[#00305E] font-extrabold text-xl tracking-tight">Deutsches Vokabular</h1>
-              <p className="text-[#94A3B8] text-xs mt-0.5">
-                {total} Wörter · {filtered.filter((item) => item.category === 'IT').length} IT-Begriffe
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
+          <div className="flex items-start justify-between mb-4 gap-3 flex-wrap">
+            <p className="text-[#94A3B8] text-xs max-w-xl">
+              {t('pageHeroSubtitle', { total, itCount })}
+            </p>
+            <div className="flex items-center gap-2 ml-auto">
               {/* Vocab practice shortcut */}
               <button
-                onClick={() => router.push('/student/vocab-practice')}
+                type="button"
+                onClick={() => {
+                  const p = new URLSearchParams()
+                  if (cefr) p.set('cefr', cefr)
+                  if (tag) p.set('topic', tag)
+                  const qs = p.toString()
+                  router.push('/student/vocab-practice' + (qs ? '?' + qs : ''))
+                }}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all hover:scale-105"
                 style={{ background: 'linear-gradient(135deg, #22d3ee, #a78bfa)', color: 'white', boxShadow: '0 2px 8px rgba(34,211,238,0.4)' }}
                 title={t('practiceSpeak')}>
                 <Mic size={13} />
                 {t('practiceSpeak')}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const p = new URLSearchParams()
+                  if (cefr) p.set('cefr', cefr)
+                  if (tag) p.set('tag', tag)
+                  const qs = p.toString()
+                  router.push('/student/swipe-cards' + (qs ? '?' + qs : ''))
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all hover:scale-105 bg-white border border-[#E2E8F0] text-[#475569]"
+                title={t('swipeCards')}>
+                <Layers size={13} />
+                {t('swipeCards')}
               </button>
               <div className="flex items-center gap-1 bg-[#F5F7FA] rounded-xl p-0.5 border border-[#E2E8F0]">
                 <button
@@ -995,7 +1040,7 @@ export default function StudentVocabularyPage() {
               onClick={() => setShowFilters((prev) => !prev)}
             >
               <Filter size={14} />
-              Filter
+              {t('filterButton')}
               <ChevronDown size={13} />
             </button>
             <button type="button" className="btn-primary btn-md" onClick={reload} disabled={loading}>
@@ -1030,7 +1075,7 @@ export default function StudentVocabularyPage() {
               <div>
                 <label className="text-xs text-[#64748B] font-semibold">CEFR</label>
                 <select className="input mt-1" value={cefr} onChange={(e) => setCefr(e.target.value)}>
-                  <option value="">Tất cả</option>
+                  <option value="">{t('allLevels')}</option>
                   {['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map((x) => (
                     <option key={x} value={x}>{x}</option>
                   ))}
@@ -1083,8 +1128,8 @@ export default function StudentVocabularyPage() {
             <div className="w-16 h-16 rounded-full bg-[#F1F4F9] flex items-center justify-center mb-4">
               <Search size={24} className="text-[#CBD5E1]" />
             </div>
-            <p className="text-[#64748B] font-semibold mb-1">Keine Wörter gefunden</p>
-            <p className="text-[#94A3B8] text-sm">Versuche einen anderen Suchbegriff oder Filter.</p>
+            <p className="text-[#64748B] font-semibold mb-1">{t('emptyTitle')}</p>
+            <p className="text-[#94A3B8] text-sm">{t('emptyHint')}</p>
           </div>
         ) : (
           <>
@@ -1127,7 +1172,7 @@ export default function StudentVocabularyPage() {
                     </span>
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-sm text-[#00305E] truncate">{item.word}</p>
-                      <p className="text-xs text-[#94A3B8] font-mono">{item.phonetic}</p>
+                      {item.phonetic ? <p className="text-xs text-[#94A3B8] font-mono">{item.phonetic}</p> : null}
                     </div>
                     <p className="hidden md:block text-sm text-[#334155] flex-1">{item.english}</p>
                     <button
@@ -1210,7 +1255,8 @@ export default function StudentVocabularyPage() {
           animation: dfModalOut 220ms cubic-bezier(0.5, 0, 0.8, 0.2) both;
         }
       `}</style>
-    </div>
+      </div>
+    </StudentShell>
   )
 }
 

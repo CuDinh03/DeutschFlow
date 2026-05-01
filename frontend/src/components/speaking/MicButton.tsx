@@ -1,7 +1,8 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Mic, MicOff } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { SessionState, CYAN, PURPLE } from "./types";
 
 interface MicButtonProps {
@@ -10,24 +11,30 @@ interface MicButtonProps {
 }
 
 export function MicButton({ state, onToggle }: MicButtonProps) {
+  const t = useTranslations("speaking");
+  const reduceMotion = useReducedMotion();
   const isListening = state === "listening";
   const isDisabled  = state === "processing" || state === "ai-speaking" || state === "sending";
 
   return (
     <div className="relative flex items-center justify-center">
-      {isListening && [0, 0.25, 0.55].map((delay, i) => (
+      {isListening && !reduceMotion && [0, 0.25, 0.55].map((delay, i) => (
         <motion.div key={i} className="absolute rounded-full"
           style={{ width: 88, height: 88, border: "2px solid rgba(239,68,68,0.5)" }}
           animate={{ scale: [1, 2.8], opacity: [0.7, 0] }}
           transition={{ duration: 1.6, repeat: Infinity, delay, ease: "easeOut" }} />
       ))}
-      {!isListening && !isDisabled && (
+      {!isListening && !isDisabled && !reduceMotion && (
         <motion.div className="absolute rounded-full"
           style={{ width: 88, height: 88, background: `radial-gradient(circle, rgba(34,211,238,0.15) 0%, transparent 70%)` }}
           animate={{ scale: [1, 1.25, 1], opacity: [0.6, 1, 0.6] }}
           transition={{ duration: 2.5, repeat: Infinity }} />
       )}
       <motion.button
+        type="button"
+        aria-label={isListening ? t("micPressToStop") : t("micPressToRecord")}
+        aria-pressed={isListening}
+        disabled={isDisabled}
         onClick={() => !isDisabled && onToggle()}
         className="relative z-10 flex items-center justify-center rounded-full"
         style={{
@@ -44,8 +51,8 @@ export function MicButton({ state, onToggle }: MicButtonProps) {
           cursor: isDisabled ? "not-allowed" : "pointer",
           opacity: isDisabled ? 0.5 : 1,
         }}
-        whileHover={!isDisabled ? { scale: 1.05 } : {}}
-        whileTap={!isDisabled ? { scale: 0.92, y: 3 } : {}}
+        whileHover={!isDisabled && !reduceMotion ? { scale: 1.05 } : {}}
+        whileTap={!isDisabled && !reduceMotion ? { scale: 0.92, y: 3 } : {}}
       >
         <div className="absolute top-2.5 left-1/2 -translate-x-1/2 rounded-full"
           style={{ width: "55%", height: 4, background: "rgba(255,255,255,0.3)" }} />

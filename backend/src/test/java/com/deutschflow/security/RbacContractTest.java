@@ -22,7 +22,7 @@ class RbacContractTest {
     @Test
     void adminReportShouldRequireAuthentication() throws Exception {
         mockMvc.perform(get("/api/admin/reports/student-plan-progress"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isForbidden());
     }
 
     @Test

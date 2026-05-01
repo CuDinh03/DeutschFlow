@@ -7,6 +7,7 @@ import {
   Database, Filter, Loader2, Pencil, RefreshCw, RotateCcw,
   Save, Search, X, XCircle, Zap,
 } from 'lucide-react'
+import { useLocale } from 'next-intl'
 import api, { apiMessage } from '@/lib/api'
 import AdminShell from '@/components/admin/AdminShell'
 
@@ -21,6 +22,7 @@ type WordItem = {
   nounDetails?: { pluralForm?: string | null; genitiveForm?: string | null } | null
 }
 type WordListResponse = { items: WordItem[]; page: number; size: number; total: number }
+type TagItem = { id: number; name: string; color?: string | null; localizedLabel?: string | null }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -36,6 +38,11 @@ async function adminPost(path: string, params?: Record<string, string | number |
   const qs = params ? '?' + new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)])).toString() : ''
   const res = await api.post(path + qs)
   return res.data
+}
+
+async function adminGet(path: string) {
+  const res = await api.get(path)
+  return res.data as Record<string, unknown>
 }
 
 // ─── Edit Card ────────────────────────────────────────────────────────────────
@@ -251,16 +258,40 @@ function AutoTagPanel({ onDone }: { onDone: () => void }) {
   const [running, setRunning] = useState(false)
   const [result, setResult] = useState<Record<string, unknown> | null>(null)
   const [error, setError] = useState('')
+  const [taxSummary, setTaxSummary] = useState<Record<string, unknown> | null>(null)
+
+  const refreshTaxSummary = useCallback(() => {
+    adminGet('/admin/vocabulary/taxonomy-summary').then(setTaxSummary).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    refreshTaxSummary()
+  }, [refreshTaxSummary, result])
 
   const run = async () => {
-    setRunning(true); setResult(null); setError('')
+    if (!dryRun && resetTags) {
+      const ok =
+        typeof window !== 'undefined' &&
+        window.confirm(
+          'Sẽ xóa liên kết chủ đề taxonomy (chỉ tag is_topic_taxonomy) trước khi gán lại. Hãy sao lưu DB. Tiếp tục?',
+        )
+      if (!ok) return
+    }
+    setRunning(true)
+    setResult(null)
+    setError('')
     try {
       const data = await adminPost('/admin/vocabulary/auto-tag/batch', { limit, dryRun, resetTags })
       setResult(data)
       if (!dryRun) onDone()
-    } catch (e: unknown) { setError(apiMessage(e)) }
-    finally { setRunning(false) }
+    } catch (e: unknown) {
+      setError(apiMessage(e))
+    } finally {
+      setRunning(false)
+    }
   }
+
+  const pct = taxSummary?.percentWordsWithTopicTag != null ? String(taxSummary.percentWordsWithTopicTag) : null
 
   return (
     <div className="bg-white rounded-[16px] border border-[#E2E8F0] shadow-sm overflow-hidden">
@@ -270,7 +301,17 @@ function AutoTagPanel({ onDone }: { onDone: () => void }) {
         </div>
         <div>
           <h3 className="font-semibold text-[#0F172A] text-sm">AI Auto-Tagging theo chủ đề</h3>
-          <p className="text-[#94A3B8] text-xs">Dùng LLM phân loại từ vào taxonomy (Alltag, Reise, Beruf...)</p>
+          <p className="text-[#94A3B8] text-xs">
+            Keyword rules + LLM. Reset chỉ xóa facet chủ đề (không đụng tag nguồn import như GOETHE_AUTO).
+            {taxSummary && (
+              <>
+                {' '}
+                · Topic tags: {String(taxSummary.topicTagCount ?? '—')} · Độ phủ:&nbsp;
+                {pct}%
+                ({String(taxSummary.wordsWithTopicTag ?? '—')} / {String(taxSummary.totalWords ?? '—')} từ)
+              </>
+            )}
+          </p>
         </div>
       </div>
       <div className="px-5 py-4 flex flex-wrap gap-3 items-end">
@@ -285,7 +326,7 @@ function AutoTagPanel({ onDone }: { onDone: () => void }) {
         </label>
         <label className="flex items-center gap-1.5 text-sm text-[#475569] cursor-pointer">
           <input type="checkbox" checked={resetTags} onChange={e => setResetTags(e.target.checked)} className="rounded" />
-          Reset existing tags
+          Reset topic taxonomy links
         </label>
         <button onClick={run} disabled={running}
           className="px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
@@ -296,15 +337,29 @@ function AutoTagPanel({ onDone }: { onDone: () => void }) {
       {error && <p className="px-5 pb-3 text-xs text-red-500">{error}</p>}
       {result && (
         <div className="px-5 pb-4 space-y-1">
-          <p className="text-xs text-[#64748B]">✓ Processed: {String(result.wordsProcessed)} · Tagged: {String(result.wordsTagged)} · Tag links: {String(result.tagLinksCreated)}</p>
+          <p className="text-xs text-[#64748B]">
+            ✓ Processed: {String(result.wordsProcessed)} · Tagged: {String(result.wordsTagged)} · Tag links:&nbsp;
+            {String(result.tagLinksCreated)} · Keyword hits: {String(result.keywordClassifiedWords ?? 0)}
+          </p>
           {Array.isArray(result.preview) && result.preview.length > 0 && (
             <div className="mt-2 max-h-48 overflow-y-auto rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-3 text-xs space-y-1">
-              {(result.preview as Array<{baseForm: string; tags: string[]}>).slice(0, 50).map((p, i) => (
-                <div key={i} className="flex gap-2">
-                  <span className="font-semibold text-[#0F172A] min-w-[120px]">{p.baseForm}</span>
-                  <span className="text-purple-600">{p.tags.join(', ')}</span>
-                </div>
-              ))}
+              {(
+                result.preview as Array<{
+                  wordId?: number
+                  baseForm: string
+                  tags: string[]
+                  source?: string
+                }>
+              )
+                .slice(0, 50)
+                .map((p, i) => (
+                  <div key={i} className="flex flex-wrap gap-x-2 gap-y-1">
+                    <span className="font-semibold text-[#0F172A] min-w-[100px]">{p.baseForm}</span>
+                    {p.wordId != null ? <span className="text-slate-400">#{p.wordId}</span> : null}
+                    <span className="text-[10px] uppercase text-slate-500">{p.source ?? ''}</span>
+                    <span className="text-purple-600">{p.tags.join(', ')}</span>
+                  </div>
+                ))}
             </div>
           )}
         </div>
@@ -392,6 +447,7 @@ function GlosbeViPanel({ onDone }: { onDone: () => void }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function VocabularyAdminPage() {
+  const uiLocale = useLocale()
   const [words, setWords] = useState<WordItem[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(0)
@@ -400,6 +456,8 @@ export default function VocabularyAdminPage() {
   const [cefr, setCefr] = useState('')
   const [dtype, setDtype] = useState('')
   const [gender, setGender] = useState('')
+  const [tag, setTag] = useState('')
+  const [tags, setTags] = useState<TagItem[]>([])
 
   const [editWord, setEditWord] = useState<WordItem | null>(null)
   const [enrichingId, setEnrichingId] = useState<number | null>(null)
@@ -416,18 +474,27 @@ export default function VocabularyAdminPage() {
   const [resetError, setResetError] = useState('')
   const [confirmed, setConfirmed] = useState(false)
 
-  const fetchWords = useCallback(async (p = 0, overrides?: { cefr?: string; dtype?: string; gender?: string; q?: string }) => {
+  // load tags for topic filter
+  useEffect(() => {
+    api.get<TagItem[]>('/tags', { params: { locale: uiLocale } })
+      .then(r => setTags(r.data ?? []))
+      .catch(() => setTags([]))
+  }, [uiLocale])
+
+  const fetchWords = useCallback(async (p = 0, overrides?: { cefr?: string; dtype?: string; gender?: string; q?: string; tag?: string }) => {
     setLoading(true)
     try {
       const activeCefr  = overrides?.cefr   !== undefined ? overrides.cefr   : cefr
       const activeDtype = overrides?.dtype  !== undefined ? overrides.dtype  : dtype
       const activeGender = overrides?.gender !== undefined ? overrides.gender : gender
       const activeQ     = overrides?.q      !== undefined ? overrides.q      : q
-      const params: Record<string, string> = { page: String(p), size: String(PAGE_SIZE), locale: 'vi' }
+      const activeTag   = overrides?.tag    !== undefined ? overrides.tag    : tag
+      const params: Record<string, string> = { page: String(p), size: String(PAGE_SIZE), locale: uiLocale }
       if (activeQ)      params.q      = activeQ
       if (activeCefr)   params.cefr   = activeCefr
       if (activeDtype)  params.dtype  = activeDtype
       if (activeGender) params.gender = activeGender
+      if (activeTag)    params.tag    = activeTag
       const res = await api.get('/words', { params })
       const data: WordListResponse = res.data
       setWords(data.items)
@@ -435,7 +502,7 @@ export default function VocabularyAdminPage() {
       setPage(p)
     } catch { setWords([]) }
     finally { setLoading(false) }
-  }, [q, cefr, dtype, gender])
+  }, [q, cefr, dtype, gender, tag, uiLocale])
 
   useEffect(() => { fetchWords(0) }, [fetchWords])
 
@@ -513,6 +580,13 @@ export default function VocabularyAdminPage() {
             <select value={gender} onChange={e => { setGender(e.target.value); fetchWords(0, { gender: e.target.value }) }}
               className="pl-3 pr-7 py-2 rounded-[8px] border border-[#E2E8F0] text-sm focus:outline-none focus:ring-2 focus:ring-[#00305E]/15 bg-white">
               {['', 'DER', 'DIE', 'DAS'].map(o => <option key={o} value={o}>{o || 'Giống'}</option>)}
+            </select>
+            <select value={tag} onChange={e => { setTag(e.target.value); fetchWords(0, { tag: e.target.value }) }}
+              className="pl-3 pr-7 py-2 rounded-[8px] border border-[#E2E8F0] text-sm focus:outline-none focus:ring-2 focus:ring-[#00305E]/15 bg-white min-w-[160px]">
+              <option value="">Chủ đề</option>
+              {tags.map(t => (
+                <option key={t.id} value={t.name}>{t.localizedLabel ?? t.name}</option>
+              ))}
             </select>
             <button onClick={() => fetchWords(0)} disabled={loading}
               className="flex items-center gap-1.5 px-4 py-2 rounded-[8px] bg-[#00305E] text-white text-sm font-semibold hover:bg-[#002447] transition-colors disabled:opacity-60">

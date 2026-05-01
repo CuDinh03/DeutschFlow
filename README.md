@@ -5,10 +5,11 @@ Nền tảng học tiếng Đức kết hợp mã hóa màu sắc theo giống t
 ## Tech Stack
 
 - **Backend:** Java 17 + Spring Boot 3.2
-- **Frontend:** Next.js 14 + TypeScript + Tailwind CSS
+- **Frontend (production):** Next.js 14 + TypeScript + Tailwind CSS — thư mục [`frontend/`](frontend/)
+- **UI export (prototype):** Vite bundle trong [`deutschflowUI/ui/`](deutschflowUI/ui/) — bám design Figma, **không** thay thế app Next.js trong `frontend/`.
 - **Database:** MySQL 8.0
 - **Realtime:** STOMP over WebSocket
-- **AI:** OpenAI GPT-4o + Whisper
+- **AI:** Provider cấu hình được (ví dụ Groq/OpenAI); STT Whisper API phía server; quota token theo gói (xem SRS §5.7)
 
 ## Yêu cầu
 

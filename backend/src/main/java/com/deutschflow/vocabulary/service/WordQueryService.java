@@ -40,6 +40,8 @@ public class WordQueryService {
 
     public WordListResponse listWords(String cefr,
                                      String q,
+                                     String topic,
+                                     String focus,
                                      String tag,
                                      String dtype,
                                      String gender,
@@ -50,6 +52,9 @@ public class WordQueryService {
         String normalizedCefr = (cefr == null || cefr.isBlank()) ? null : cefr.trim().toUpperCase(Locale.ROOT);
         String normalizedDtype = (dtype == null || dtype.isBlank()) ? null : dtype.trim();
         String query = (q == null || q.isBlank()) ? null : q.trim();
+        if (query == null && topic != null && !topic.isBlank()) {
+            query = topic.trim();
+        }
         String normalizedTag = (tag == null || tag.isBlank()) ? null : tag.trim();
         String normalizedGender = (gender == null || gender.isBlank()) ? null : gender.trim().toUpperCase(Locale.ROOT);
 
@@ -71,12 +76,12 @@ public class WordQueryService {
 
         if (normalizedCefr != null) {
             // Cumulative mode: A2 includes A1+A2, B1 includes A1+A2+B1, ...
-            where.append("""
-                    AND FIELD(w.cefr_level, 'A1','A2','B1','B2','C1','C2') > 0
-                    AND FIELD(w.cefr_level, 'A1','A2','B1','B2','C1','C2')
-                        <= FIELD(?, 'A1','A2','B1','B2','C1','C2')
-                    """);
-            filterParams.add(normalizedCefr);
+            // Build IN (...) in Java — portable on MySQL and H2 (JDBC "? inside CASE expr" breaks on H2).
+            List<String> cumulative = cumulativeCefrLevelsIncluding(normalizedCefr);
+            where.append(" AND w.cefr_level IN (");
+            where.append(String.join(",", Collections.nCopies(cumulative.size(), "?")));
+            where.append(") ");
+            filterParams.addAll(cumulative);
         }
 
         if (normalizedDtype != null) {
@@ -90,6 +95,23 @@ public class WordQueryService {
         if (query != null) {
             where.append(" AND w.base_form LIKE ? ");
             filterParams.add("%" + query + "%");
+        }
+
+        String focusTail = focusCodeTail(focus);
+        if (focusTail != null) {
+            where.append("""
+                    AND (
+                      EXISTS (
+                        SELECT 1 FROM word_tags wt_fc
+                        JOIN tags tg_fc ON tg_fc.id = wt_fc.tag_id
+                        WHERE wt_fc.word_id = w.id AND LOWER(tg_fc.name) LIKE ?
+                      )
+                      OR LOWER(w.base_form) LIKE ?
+                    )
+                    """);
+            String pat = "%" + focusTail.toLowerCase(Locale.ROOT) + "%";
+            filterParams.add(pat);
+            filterParams.add(pat);
         }
 
         if (normalizedTag != null) {
@@ -154,7 +176,9 @@ public class WordQueryService {
                   t_loc.meaning, t_en.meaning, t_de.meaning,
                   t_loc.example, t_en.example, t_de.example, n.gender
                 ORDER BY
-                  FIELD(w.cefr_level, 'A1','A2','B1','B2','C1','C2'),
+                  CASE w.cefr_level
+                    WHEN 'A1' THEN 1 WHEN 'A2' THEN 2 WHEN 'B1' THEN 3 WHEN 'B2' THEN 4 WHEN 'C1' THEN 5 WHEN 'C2' THEN 6
+                    ELSE 99 END,
                   w.base_form
                 LIMIT ? OFFSET ?
                 """;
@@ -225,6 +249,20 @@ public class WordQueryService {
         });
 
         return new WordListResponse(items, page, size, total);
+    }
+
+    /** Last segment of an error code (e.g. {@code VERB.CONJ} → {@code conj}) for loose tag/word match. */
+    private static String focusCodeTail(String focus) {
+        if (focus == null || focus.isBlank()) {
+            return null;
+        }
+        String f = focus.trim();
+        int dot = f.lastIndexOf('.');
+        String tail = (dot >= 0 ? f.substring(dot + 1) : f).trim();
+        if (tail.isBlank()) {
+            return null;
+        }
+        return tail.length() > 48 ? tail.substring(0, 48) : tail;
     }
 
     public WordCoverageResponse coverage() {
@@ -695,6 +733,16 @@ public class WordQueryService {
 
     private static double round2(double v) {
         return Math.round(v * 100.0) / 100.0;
+    }
+
+    /** Cumulative CEFR: B1 ⇒ A1+A2+B1. {@code cap} must already satisfy {@link #ALLOWED_CEFR}. */
+    private static List<String> cumulativeCefrLevelsIncluding(String cap) {
+        String[] order = {"A1", "A2", "B1", "B2", "C1", "C2"};
+        int end = Arrays.asList(order).indexOf(cap);
+        if (end < 0) {
+            throw new IllegalArgumentException("Invalid CEFR cap: " + cap);
+        }
+        return Arrays.asList(Arrays.copyOfRange(order, 0, end + 1));
     }
 }
 

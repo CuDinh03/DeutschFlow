@@ -1,5 +1,6 @@
+import axios from 'axios'
 import api from './api'
-import { getAccessToken } from './authSession'
+import { getAccessToken, getRefreshToken, setTokens, clearTokens } from './authSession'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -19,6 +20,29 @@ export interface LearningStatus {
   userInterestDetected: string | null
 }
 
+/** Structured error from AI (canonical error_code whitelist on backend) */
+export interface ErrorItem {
+  errorCode: string
+  severity: string
+  confidence: number | null
+  wrongSpan: string | null
+  correctedSpan: string | null
+  ruleViShort: string | null
+  exampleCorrectDe: string | null
+}
+
+/** Adaptive hints from backend (`meta.adaptive` on chat / SSE done). */
+export interface AdaptiveMeta {
+  enabled: boolean
+  cefrEffective: string
+  difficultyKnob: number
+  focusCodes: string[]
+  targetStructures: string[]
+  topicSuggestion: string | null
+  forceRepairBeforeContinue: boolean
+  primaryRepairErrorCode: string | null
+}
+
 export interface AiChatResponse {
   messageId: number
   sessionId: number
@@ -27,6 +51,8 @@ export interface AiChatResponse {
   explanationVi: string | null
   grammarPoint: string | null
   learningStatus: LearningStatus
+  errors: ErrorItem[]
+  adaptive?: AdaptiveMeta | null
 }
 
 export interface AiMessage {
@@ -40,6 +66,8 @@ export interface AiMessage {
   newWord: string | null
   userInterestDetected: string | null
   createdAt: string
+  /** Present on newer API responses; empty array when none */
+  errors?: ErrorItem[]
 }
 
 export interface SessionsPage {
@@ -49,6 +77,12 @@ export interface SessionsPage {
   number: number
 }
 
+/** Passed to onError when refresh fails or no refresh token — page should not fallback */
+export const AI_SPEAKING_UNAUTHORIZED = 'unauthorized'
+
+/** Stream idle timeout — map to `speaking.errors.streamStalled` in the UI */
+export const AI_SPEAKING_STREAM_STALLED = 'STREAM_STALLED'
+
 // ─── Streaming helpers ────────────────────────────────────────────────────────
 
 /** Base URL without /api prefix, for raw fetch with SSE */
@@ -56,6 +90,96 @@ const API_BASE =
   typeof window !== 'undefined'
     ? `${window.location.origin}/api`
     : 'http://localhost:8080/api'
+
+const STALL_MS = 45_000
+
+/**
+ * Incrementally extracts the JSON string value of `field` (e.g. ai_speech_de) from streamed
+ * Groq deltas that append to a growing JSON object. Emits only newly visible German text.
+ */
+function createSpeechStreamer(field: string): (delta: string) => string {
+  let buf = ''
+  let openIdx = -1
+  let cursor = 0
+  const escapedField = field.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const keyRe = new RegExp(`"${escapedField}"\\s*:\\s*"`)
+
+  return (delta: string): string => {
+    buf += delta
+    if (openIdx < 0) {
+      const m = keyRe.exec(buf)
+      if (!m) return ''
+      openIdx = m.index + m[0].length
+    }
+    let i = openIdx + cursor
+    let out = ''
+    while (i < buf.length) {
+      const ch = buf[i]
+      if (ch === '\\' && i + 1 < buf.length) {
+        const esc = buf[i + 1]
+        const map: Record<string, string> = {
+          '"': '"',
+          '\\': '\\',
+          '/': '/',
+          n: '\n',
+          t: '\t',
+          r: '\r',
+          b: '\b',
+          f: '\f',
+        }
+        if (esc in map) {
+          out += map[esc]
+          i += 2
+          continue
+        }
+        if (esc === 'u' && i + 6 <= buf.length) {
+          const hex = buf.slice(i + 2, i + 6)
+          const code = parseInt(hex, 16)
+          if (!Number.isNaN(code)) {
+            out += String.fromCharCode(code)
+            i += 6
+            continue
+          }
+        }
+        break
+      }
+      if (ch === '"') break
+      out += ch
+      i += 1
+    }
+    cursor = i - openIdx
+    return out
+  }
+}
+
+function buildStreamHeaders(accessToken: string | null): Record<string, string> {
+  const h: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'text/event-stream',
+    'Cache-Control': 'no-cache',
+  }
+  if (accessToken) h.Authorization = `Bearer ${accessToken}`
+  return h
+}
+
+function parseSseDataLines(lines: string[]): { eventName: string; data: string } {
+  let eventName = ''
+  const dataParts: string[] = []
+  for (const raw of lines) {
+    const line = raw.replace(/\r$/, '')
+    if (!line || line.startsWith(':')) continue
+    if (line.startsWith('event:')) {
+      eventName = line.slice(6).trim()
+      continue
+    }
+    if (line.startsWith('data:')) {
+      const rest = line.slice(5)
+      const payload = rest.startsWith(' ') ? rest.slice(1) : rest
+      dataParts.push(payload)
+    }
+  }
+  return { eventName, data: dataParts.join('\n') }
+}
 
 /**
  * Streams a chat response via SSE.
@@ -71,66 +195,167 @@ export function chatStream(
   onError: (err: string) => void
 ): AbortController {
   const ctrl = new AbortController()
-  const token = getAccessToken()
+  const url = `${API_BASE}/ai-speaking/sessions/${sessionId}/chat/stream`
+  const body = JSON.stringify({ userMessage })
 
-  fetch(`${API_BASE}/ai-speaking/sessions/${sessionId}/chat/stream`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': token ? `Bearer ${token}` : '',
-      'Accept': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-    },
-    body: JSON.stringify({ userMessage }),
-    signal: ctrl.signal,
-  })
-    .then(async (res) => {
+  let settled = false
+  let stallTimer: ReturnType<typeof setTimeout> | null = null
+
+  const clearStall = () => {
+    if (stallTimer) {
+      clearTimeout(stallTimer)
+      stallTimer = null
+    }
+  }
+
+  const bumpStall = (reader: ReadableStreamDefaultReader<Uint8Array>) => {
+    clearStall()
+    stallTimer = setTimeout(() => {
+      void reader.cancel().catch(() => {})
+      if (!settled) {
+        settled = true
+        onError(AI_SPEAKING_STREAM_STALLED)
+      }
+    }, STALL_MS)
+  }
+
+  const finishOk = () => {
+    settled = true
+    clearStall()
+  }
+
+  void (async () => {
+    try {
+      const doFetch = (accessToken: string | null) =>
+        fetch(url, {
+          method: 'POST',
+          headers: buildStreamHeaders(accessToken),
+          body,
+          signal: ctrl.signal,
+        })
+
+      let res = await doFetch(getAccessToken())
+
+      if (res.status === 401) {
+        const rt = getRefreshToken()
+        if (!rt) {
+          if (!settled) {
+            settled = true
+            onError(AI_SPEAKING_UNAUTHORIZED)
+          }
+          return
+        }
+        try {
+          const { data } = await axios.post<{ accessToken?: string; refreshToken?: string | null }>(
+            '/api/auth/refresh',
+            { refreshToken: rt }
+          )
+          setTokens(data)
+          const newToken = data.accessToken ?? null
+          res = await doFetch(newToken)
+        } catch {
+          clearTokens()
+          if (typeof window !== 'undefined') window.location.href = '/login'
+          if (!settled) {
+            settled = true
+            onError(AI_SPEAKING_UNAUTHORIZED)
+          }
+          return
+        }
+      }
+
+      if (res.status === 401) {
+        clearTokens()
+        if (typeof window !== 'undefined') window.location.href = '/login'
+        if (!settled) {
+          settled = true
+          onError(AI_SPEAKING_UNAUTHORIZED)
+        }
+        return
+      }
+
       if (!res.ok || !res.body) {
-        onError(`HTTP ${res.status}`)
+        if (!settled) {
+          settled = true
+          onError(`HTTP ${res.status}`)
+        }
         return
       }
 
       const reader = res.body.getReader()
       const dec = new TextDecoder()
       let buf = ''
+      const speechStreamer = createSpeechStreamer('ai_speech_de')
 
-      while (true) {
-        const { value, done } = await reader.read()
-        if (done) break
-        buf += dec.decode(value, { stream: true })
+      bumpStall(reader)
 
-        // Process complete SSE frames (delimited by double newline)
-        const frames = buf.split('\n\n')
-        buf = frames.pop() ?? ''
+      const dispatchFrame = (frame: string) => {
+        if (!frame.trim()) return
+        const frameLines = frame.split('\n')
+        const { eventName, data } = parseSseDataLines(frameLines)
 
-        for (const frame of frames) {
-          if (!frame.trim()) continue
-          const lines = frame.split('\n')
-          let eventName = ''
-          let data = ''
-          for (const line of lines) {
-            if (line.startsWith('event:')) eventName = line.slice(6).trim()
-            if (line.startsWith('data:')) data = line.slice(5).trim()
-          }
-          if (eventName === 'token' && data) {
-            onToken(data)
-          } else if (eventName === 'done' && data) {
-            try {
-              onDone(JSON.parse(data) as AiChatResponse)
-            } catch {
+        if (eventName === 'token' && data) {
+          const visible = speechStreamer(data)
+          if (visible) onToken(visible)
+        } else if (eventName === 'done' && data) {
+          try {
+            onDone(JSON.parse(data) as AiChatResponse)
+            finishOk()
+          } catch (e) {
+            if (typeof console !== 'undefined' && typeof console.warn === 'function') {
+              console.warn('[chatStream] Failed to parse done payload', e)
+            }
+            if (!settled) {
+              settled = true
+              clearStall()
               onError('Failed to parse done payload')
             }
-          } else if (eventName === 'error' && data) {
+          }
+        } else if (eventName === 'error' && data) {
+          if (!settled) {
+            settled = true
+            clearStall()
             onError(data)
           }
         }
       }
-    })
-    .catch((err) => {
-      if ((err as Error).name !== 'AbortError') {
-        onError((err as Error).message ?? 'Stream error')
+
+      while (true) {
+        const { value, done } = await reader.read()
+        if (done) break
+        bumpStall(reader)
+        buf += dec.decode(value, { stream: true })
+
+        const frames = buf.split('\n\n')
+        buf = frames.pop() ?? ''
+
+        for (const frame of frames) {
+          dispatchFrame(frame)
+        }
       }
-    })
+
+      if (buf.trim()) {
+        dispatchFrame(buf)
+      }
+
+      clearStall()
+      if (!settled && !ctrl.signal.aborted) {
+        settled = true
+        onError('Stream ended without a complete response')
+      }
+    } catch (err: unknown) {
+      if (settled) return
+      const e = err as Error
+      if (e.name === 'AbortError') return
+      const msg =
+        e instanceof TypeError && e.message === 'Failed to fetch'
+          ? 'Network error or backend unreachable'
+          : e.message ?? 'Stream error'
+      settled = true
+      clearStall()
+      onError(msg)
+    }
+  })()
 
   return ctrl
 }
@@ -145,10 +370,25 @@ export const aiSpeakingApi = {
     api.post<AiChatResponse>(`/ai-speaking/sessions/${sessionId}/chat`, { userMessage }),
 
   transcribe: (audioBlob: Blob) => {
+    const mime = String(audioBlob.type || '').toLowerCase()
+    const ext =
+      mime.includes('mp4') || mime.includes('m4a')
+        ? 'mp4'
+        : mime.includes('ogg')
+          ? 'ogg'
+          : mime.includes('webm')
+            ? 'webm'
+            : 'webm'
+    const filename = `voice.${ext}`
     const fd = new FormData()
-    fd.append('audio', audioBlob, 'voice.webm')
+    fd.append('audio', audioBlob, filename)
+    const token = getAccessToken()
     return api.post<{ transcript: string }>('/ai-speaking/transcribe', fd, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        // Ensure axios doesn't keep JSON content-type for multipart requests
+        'Content-Type': undefined as unknown as string,
+      },
     })
   },
 

@@ -3,9 +3,34 @@
 import { ReactNode, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { clearTokens } from '@/lib/authSession'
-import { BarChart3, BookOpen, Database, LayoutDashboard, LogOut, Menu, RefreshCw, Users, X } from 'lucide-react'
+import {
+  BarChart3,
+  BookOpen,
+  Bot,
+  Coins,
+  Database,
+  LayoutDashboard,
+  LineChart,
+  LogOut,
+  Menu,
+  PieChart,
+  RefreshCw,
+  Settings,
+  Users,
+  X,
+} from 'lucide-react'
 
-export type AdminNavId = 'overview' | 'students' | 'classes' | 'vocabulary' | 'reports'
+export type AdminNavId =
+  | 'overview'
+  | 'revenue'
+  | 'tokenAnalytics'
+  | 'students'
+  | 'plans'
+  | 'classes'
+  | 'vocabulary'
+  | 'reports'
+  | 'aiConfig'
+  | 'settings'
 
 type AdminShellProps = {
   title: string
@@ -32,11 +57,16 @@ export default function AdminShell({
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const navItems: Array<{ id: AdminNavId; label: string; href: string; icon: any }> = [
-    { id: 'overview',    label: 'Tổng quan',    href: '/admin',            icon: LayoutDashboard },
-    { id: 'students',    label: 'Người dùng',   href: '/admin/users',      icon: Users },
-    { id: 'classes',     label: 'Lớp học',      href: '/admin/classes',    icon: BookOpen },
-    { id: 'vocabulary',  label: 'Từ vựng',      href: '/admin/vocabulary', icon: Database },
-    { id: 'reports',     label: 'Báo cáo',      href: '/admin/reports',    icon: BarChart3 },
+    { id: 'overview',       label: 'Tổng quan',         href: '/admin',               icon: LayoutDashboard },
+    { id: 'revenue',       label: 'Doanh thu (mock)',  href: '/admin/revenue',       icon: LineChart },
+    { id: 'tokenAnalytics',label: 'Phân bổ token',      href: '/admin/token-analytics', icon: PieChart },
+    { id: 'students',      label: 'Người dùng',        href: '/admin/users',         icon: Users },
+    { id: 'plans',         label: 'Gói & token',       href: '/admin/plans',          icon: Coins },
+    { id: 'classes',       label: 'Lớp học',           href: '/admin/classes',        icon: BookOpen },
+    { id: 'vocabulary',    label: 'Từ vựng',           href: '/admin/vocabulary',     icon: Database },
+    { id: 'reports',       label: 'Báo cáo',           href: '/admin/reports',        icon: BarChart3 },
+    { id: 'aiConfig',      label: 'Cấu hình AI',       href: '/admin/ai-config',      icon: Bot },
+    { id: 'settings',      label: 'Cài đặt',           href: '/admin/settings',       icon: Settings },
   ]
 
   const handleLogout = () => {

@@ -5,6 +5,7 @@ import jakarta.servlet.DispatcherType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -17,8 +18,11 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+import java.util.Arrays;
 
 @Configuration
 @EnableWebSecurity
@@ -28,21 +32,52 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
     private final UserDetailsService userDetailsService; // inject từ UserDetailsServiceConfig
+    private final Environment environment;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        boolean isLocalProfile = Arrays.stream(environment.getActiveProfiles())
+                .anyMatch(p -> p.equalsIgnoreCase("local") || p.equalsIgnoreCase("dev") || p.equalsIgnoreCase("test"));
+
         return http
                 .csrf(AbstractHttpConfigurer::disable)
+                .cors(c -> {})
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        // Allow async dispatch (SseEmitter) to pass without re-authentication
-                        .dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
-                        .requestMatchers("/api/auth/me", "/api/auth/me/**").authenticated()
-                        .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/quiz/*/join").permitAll()  // guest join
-                        .requestMatchers("/ws/**").permitAll()             // WebSocket handshake
-                        .anyRequest().authenticated()
+                .httpBasic(AbstractHttpConfigurer::disable)
+                .formLogin(AbstractHttpConfigurer::disable)
+                .logout(AbstractHttpConfigurer::disable)
+                .headers(h -> h
+                        .frameOptions(f -> f.deny())
+                        .referrerPolicy(r -> r.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER))
+                        .contentSecurityPolicy(csp -> csp.policyDirectives(
+                                "default-src 'none'; " +
+                                "frame-ancestors 'none'; " +
+                                "base-uri 'none'; " +
+                                "form-action 'none'"))
+                        .permissionsPolicy(p -> p.policy("geolocation=(), microphone=(), camera=()"))
                 )
+                .authorizeHttpRequests(auth -> {
+                        // Allow async dispatch (SseEmitter) to pass without re-authentication
+                        auth.dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll();
+                        // Auth endpoints: only login/register/refresh are public
+                        auth.requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/refresh").permitAll();
+                        auth.requestMatchers("/api/auth/logout").authenticated();
+                        auth.requestMatchers("/api/auth/me", "/api/auth/me/**").authenticated();
+                        auth.requestMatchers("/api/quiz/*/join").permitAll();  // guest join
+                        auth.requestMatchers("/ws/**").permitAll();            // WebSocket handshake
+
+                        // Keep health open; restrict prometheus + OpenAPI unless local/dev
+                        auth.requestMatchers("/actuator/health").permitAll();
+                        if (isLocalProfile) {
+                                auth.requestMatchers("/actuator/prometheus").permitAll();
+                                auth.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll();
+                        } else {
+                                auth.requestMatchers("/actuator/prometheus").hasRole("ADMIN");
+                                auth.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").hasRole("ADMIN");
+                        }
+
+                        auth.anyRequest().authenticated();
+                })
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();

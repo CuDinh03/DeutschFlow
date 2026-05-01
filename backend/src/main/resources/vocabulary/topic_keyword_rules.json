@@ -1,0 +1,18 @@
+{
+  "Alltag": ["alltag", "morgens", "heute", "helfen", "freund"],
+  "Reise": ["bahnhof", "flughafen", "hotel", "reise", "flug", "pass", "koffer", "urlaub", "ticket", "zug"],
+  "Beruf": ["arbeit", "büro", "buero", "kollege", "chef", "meeting", "bewerbung", "gehalt", "firma", "unternehmen"],
+  "Familie": ["familie", "mutter", "vater", "kind", "sohn", "tochter"],
+  "Essen": ["restaurant", "küche", "kuche", "brot", "kaffee", "frühstück", "fruhstuck", "essen", "trinken"],
+  "Gesundheit": ["krank", "gesund", "arzt", "krankenhaus", "kopfweh", "medizin"],
+  "Wohnen": ["wohnung", "haus", "miet", "zimmer"],
+  "Bildung": ["schule", "studium", "universität", "univ", "prüfung", "prufung", "buch", "lernen"],
+  "Freizeit": ["freizeit", "sport", "hobby", "fernseh", "kino", "spiel"],
+  "Technik": ["computer", "software", "internet", "passwort", "handy", "app", "server", "email", "digital"],
+  "Finanzen": ["geld", "bank", "konto", "kredit", "kosten", "zins", "euro"],
+  "Einkaufen": ["supermarkt", "kaufen", "geschäft", "geschaft", "markt"],
+  "Verkehr": ["straße", "strasse", "auto", "fahren", "verkehr", "park"],
+  "Natur": ["baum", "wetter", "wasser", "berg", "wald"],
+  "Kultur": ["museum", "konzert", "theater", "musik"],
+  "Gefühle": ["froh", "traur", "ängstlich", "angstlich", "glücklich", "glucklich"]
+}

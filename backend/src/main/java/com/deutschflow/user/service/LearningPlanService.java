@@ -2,6 +2,7 @@ package com.deutschflow.user.service;
 
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.user.dto.LearningSessionAttemptSummaryDto;
 import com.deutschflow.user.dto.LearningPlanResponse;
 import com.deutschflow.user.dto.OnboardingProfileRequest;
 import com.deutschflow.user.entity.LearningPlan;
@@ -13,6 +14,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +36,7 @@ public class LearningPlanService {
     private final com.deutschflow.user.repository.LearningSessionStateRepository sessionStateRepository;
     private final com.deutschflow.user.repository.LearningSessionAttemptRepository sessionAttemptRepository;
     private final SessionExerciseService sessionExerciseService;
+    private final WeakPointGrammarPlanInjector weakPointGrammarPlanInjector;
     private final ObjectMapper objectMapper;
 
     @Transactional
@@ -65,7 +69,28 @@ public class LearningPlanService {
         Map<String, Object> planObj = storedLearningPlanSupport.fromJsonMap(plan.getPlanJson());
         storedLearningPlanSupport.enrichMissingSessionDetails(planObj);
         learningSessionProgressService.attachProgressSummary(user.getId(), planObj);
+        weakPointGrammarPlanInjector.injectWeakPointGrammarSession(user.getId(), planObj, false);
         return new LearningPlanResponse(plan.getWeeklyMinutes(), plan.getWeeksTotal(), planObj);
+    }
+
+    /**
+     * Persists an adaptive weak-point mini-session into stored {@code plan_json} (max once per 24h when enforced in injector).
+     */
+    @Transactional
+    public WeakPointGrammarPlanInjector.InjectionResult persistAdaptiveRefresh(User user) {
+        LearningPlan lp = planRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new NotFoundException("Learning plan not found"));
+        Map<String, Object> planObj = storedLearningPlanSupport.fromJsonMap(lp.getPlanJson());
+        storedLearningPlanSupport.enrichMissingSessionDetails(planObj);
+        learningSessionProgressService.attachProgressSummary(user.getId(), planObj);
+        WeakPointGrammarPlanInjector.InjectionResult res =
+                weakPointGrammarPlanInjector.injectWeakPointGrammarSession(user.getId(), planObj, true);
+        if (res.injected()) {
+            planObj.remove("progress");
+            lp.setPlanJson(storedLearningPlanSupport.toJson(planObj));
+            planRepository.save(lp);
+        }
+        return res;
     }
 
     @Transactional(readOnly = true)
@@ -756,6 +781,35 @@ public class LearningPlanService {
             return objectMapper.readValue(json, new TypeReference<>() {});
         } catch (Exception e) {
             return Map.of();
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public Page<LearningSessionAttemptSummaryDto> listMyAttempts(User user, Pageable pageable) {
+        return sessionAttemptRepository.findByUserIdOrderByCreatedAtDesc(user.getId(), pageable).map(a ->
+                new LearningSessionAttemptSummaryDto(
+                        a.getId(),
+                        a.getWeekNumber(),
+                        a.getSessionIndex(),
+                        a.getAttemptNo(),
+                        a.getScorePercent(),
+                        a.getCreatedAt(),
+                        countMistakeEntries(a.getMistakesJson())
+                ));
+    }
+
+    private Integer countMistakeEntries(String mistakesJson) {
+        if (mistakesJson == null || mistakesJson.isBlank()) {
+            return null;
+        }
+        try {
+            var n = objectMapper.readTree(mistakesJson);
+            if (!n.isArray()) {
+                return null;
+            }
+            return n.size();
+        } catch (JsonProcessingException e) {
+            return null;
         }
     }
 }

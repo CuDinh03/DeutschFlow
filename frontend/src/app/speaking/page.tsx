@@ -1,19 +1,30 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { useRouter } from "next/navigation";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   ChevronLeft, Settings, Zap, Clock, AlertTriangle, Send, X, Eye, EyeOff,
 } from "lucide-react";
-import { aiSpeakingApi, chatStream, AiSpeakingSession, AiChatResponse } from "@/lib/aiSpeakingApi";
+import {
+  aiSpeakingApi,
+  chatStream,
+  AiSpeakingSession,
+  AiChatResponse,
+  AI_SPEAKING_UNAUTHORIZED,
+  AI_SPEAKING_STREAM_STALLED,
+} from "@/lib/aiSpeakingApi";
+import ErrorRepairDrill from "@/components/errors/ErrorRepairDrill";
 import { speakGerman, primeGermanVoices } from "@/lib/speechDe";
 import { startRecorder, RecorderHandle } from "@/lib/voiceRecorder";
+import api, { apiMessage } from "@/lib/api";
+import { getAccessToken } from "@/lib/authSession";
 import {
   SessionState, AiMessageBubble, Exchange,
   CYAN, PURPLE, glass,
 } from "@/components/speaking/types";
+import type { ErrorItem } from "@/lib/aiSpeakingApi";
 import { VoiceVisualizer } from "@/components/speaking/VoiceVisualizer";
 import { MicButton } from "@/components/speaking/MicButton";
 import { RealChatBubble } from "@/components/speaking/RealChatBubble";
@@ -25,7 +36,23 @@ const SHOW_EXPLANATIONS_KEY = "df_speaking_showExplanations";
 
 export default function SpeakingPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const t = useTranslations("speaking");
+  const reduceMotion = useReducedMotion();
+  const deeplinkTopic = (searchParams.get("topic") ?? "").trim();
+  const deeplinkCefr = (searchParams.get("cefr") ?? "").trim();
+  const deeplinkStarted = useRef(false);
+
+  const [repairGate, setRepairGate] = useState<{
+    code: string;
+    exampleCorrectDe?: string;
+    ruleViShort?: string;
+  } | null>(null);
+
+  const streamErrLabel = useCallback(
+    (msg: string) => (msg === AI_SPEAKING_STREAM_STALLED ? t("errors.streamStalled") : msg),
+    [t],
+  );
 
   // Session
   const [session,      setSession]      = useState<AiSpeakingSession | null>(null);
@@ -46,6 +73,11 @@ export default function SpeakingPage() {
 
   // Live analyser for real-time waveform
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
+
+  const [planBands, setPlanBands] = useState<{
+    planCurrentLevel: string | null;
+    planTargetLevel: string | null;
+  }>({ planCurrentLevel: null, planTargetLevel: null });
 
   const chatRef      = useRef<HTMLDivElement>(null);
   const inputRef     = useRef<HTMLTextAreaElement>(null);
@@ -70,6 +102,43 @@ export default function SpeakingPage() {
   };
 
   useEffect(() => { primeGermanVoices(); }, []);
+
+  useEffect(() => {
+    if (!getAccessToken()) return;
+    let cancelled = false;
+    api
+      .get<{ plan?: { currentLevel?: string; targetLevel?: string } }>("/plan/me")
+      .then((res) => {
+        if (cancelled) return;
+        const p = res.data?.plan;
+        setPlanBands({
+          planCurrentLevel: typeof p?.currentLevel === "string" ? p.currentLevel : null,
+          planTargetLevel: typeof p?.targetLevel === "string" ? p.targetLevel : null,
+        });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const applyAdaptiveAfterTurn = useCallback((meta: AiChatResponse) => {
+    const ad = meta.adaptive;
+    if (ad?.forceRepairBeforeContinue && ad.primaryRepairErrorCode) {
+      const errs = meta.errors ?? [];
+      const primary = ad.primaryRepairErrorCode;
+      const blk =
+        errs.find((e) => e.severity === "BLOCKING" && e.errorCode === primary) ??
+        errs.find((e) => e.severity === "BLOCKING");
+      setRepairGate({
+        code: primary,
+        exampleCorrectDe: blk?.exampleCorrectDe ?? undefined,
+        ruleViShort: blk?.ruleViShort ?? undefined,
+      });
+    } else {
+      setRepairGate(null);
+    }
+  }, []);
 
   useEffect(() => {
     if (!session || sessionState === "summary") {
@@ -105,10 +174,20 @@ export default function SpeakingPage() {
     }
   }, [t]);
 
+  useEffect(() => {
+    if (deeplinkStarted.current || !deeplinkTopic || session) return;
+    deeplinkStarted.current = true;
+    void handleStartSession(deeplinkTopic, deeplinkCefr || undefined).catch(() => {
+      deeplinkStarted.current = false;
+    });
+  }, [deeplinkTopic, deeplinkCefr, session, handleStartSession]);
+
   // ── Streaming send ─────────────────────────────────────────────────────────────
   const handleSendText = useCallback((overrideText?: string) => {
+    if (repairGate) return;
     const text = (overrideText ?? inputText).trim();
-    if (!session || !text || sessionState === "sending" || sessionState === "processing") return;
+    // Allow mic transcription to send even while we are in "processing"
+    if (!session || !text || sessionState === "sending" || (!overrideText && sessionState === "processing")) return;
     setInputText("");
     setSessionState("sending");
     setError(null);
@@ -139,40 +218,89 @@ export default function SpeakingPage() {
       },
       (meta: AiChatResponse) => {
         // Replace temp bubble with final data
+        const errs: ErrorItem[] = meta.errors ?? [];
         setRealMessages((prev) =>
-          prev.map((m) =>
-            m.id === tempAiId
-              ? {
-                  id: meta.messageId,
-                  role: "ASSISTANT",
-                  aiSpeechDe: meta.aiSpeechDe,
-                  correction: meta.correction,
-                  explanationVi: meta.explanationVi,
-                  grammarPoint: meta.grammarPoint,
-                  newWord: meta.learningStatus?.newWord,
-                  userInterestDetected: meta.learningStatus?.userInterestDetected,
-                  isStreaming: false,
-                }
-              : m
-          )
+          prev.map((m) => {
+            if (m.id === tempUserId && m.role === "USER") {
+              return { ...m, errors: errs.length > 0 ? errs : undefined };
+            }
+            if (m.id === tempAiId) {
+              return {
+                id: meta.messageId,
+                role: "ASSISTANT",
+                aiSpeechDe: meta.aiSpeechDe,
+                correction: meta.correction,
+                explanationVi: meta.explanationVi,
+                grammarPoint: meta.grammarPoint,
+                newWord: meta.learningStatus?.newWord,
+                userInterestDetected: meta.learningStatus?.userInterestDetected,
+                errors: errs.length > 0 ? errs : undefined,
+                isStreaming: false,
+              };
+            }
+            return m;
+          }),
         );
         setSessionState("ai-speaking");
+        applyAdaptiveAfterTurn(meta);
         // Auto-play TTS — text already displayed, audio plays in parallel
         speakGerman(meta.aiSpeechDe);
         setTimeout(() => setSessionState("idle"), 200);
         setTimeout(() => inputRef.current?.focus(), 250);
       },
       (errMsg) => {
-        setError(errMsg ?? t("errorSend"));
-        setRealMessages((prev) => prev.filter((m) => m.id !== tempAiId && m.id !== tempUserId));
-        setSessionState("idle");
-      }
+        if (errMsg === AI_SPEAKING_UNAUTHORIZED) {
+          setRealMessages((prev) => prev.filter((m) => m.id !== tempAiId && m.id !== tempUserId));
+          setSessionState("idle");
+          return;
+        }
+        void aiSpeakingApi
+          .chat(session.id, text)
+          .then((response) => {
+            const meta = response.data;
+            const errs: ErrorItem[] = meta.errors ?? [];
+            setRealMessages((prev) =>
+              prev.map((m) => {
+                if (m.id === tempUserId && m.role === "USER") {
+                  return { ...m, errors: errs.length > 0 ? errs : undefined };
+                }
+                if (m.id === tempAiId) {
+                  return {
+                    id: meta.messageId,
+                    role: "ASSISTANT",
+                    aiSpeechDe: meta.aiSpeechDe,
+                    correction: meta.correction,
+                    explanationVi: meta.explanationVi,
+                    grammarPoint: meta.grammarPoint,
+                    newWord: meta.learningStatus?.newWord,
+                    userInterestDetected: meta.learningStatus?.userInterestDetected,
+                    errors: errs.length > 0 ? errs : undefined,
+                    isStreaming: false,
+                  };
+                }
+                return m;
+              }),
+            );
+            setError(t("streamFallback"));
+            setTimeout(() => setError(null), 4000);
+            setSessionState("ai-speaking");
+            applyAdaptiveAfterTurn(meta);
+            speakGerman(meta.aiSpeechDe);
+            setTimeout(() => setSessionState("idle"), 200);
+            setTimeout(() => inputRef.current?.focus(), 250);
+          })
+          .catch(() => {
+            setError(streamErrLabel(errMsg ?? t("errorSend")));
+            setRealMessages((prev) => prev.filter((m) => m.id !== tempAiId && m.id !== tempUserId));
+            setSessionState("idle");
+          });
+      },
     );
-  }, [session, inputText, sessionState, t]);
+  }, [session, inputText, sessionState, t, streamErrLabel, repairGate, applyAdaptiveAfterTurn]);
 
   // ── Real mic toggle ─────────────────────────────────────────────────────────────
   const handleMicToggle = useCallback(async () => {
-    if (!session) return;
+    if (!session || repairGate) return;
 
     if (sessionState === "idle") {
       // Start recording
@@ -195,8 +323,9 @@ export default function SpeakingPage() {
                 setSessionState("idle");
               }
             })
-            .catch(() => {
-              setError(t("transcriptionFailed"));
+            .catch((e) => {
+              const msg = apiMessage(e);
+              setError(msg && msg !== "Lỗi không xác định" ? msg : t("transcriptionFailed"));
               setSessionState("idle");
             });
         });
@@ -210,7 +339,7 @@ export default function SpeakingPage() {
       // Stop recording — triggers the onStop callback above
       recorderRef.current?.stop();
     }
-  }, [session, sessionState, t, handleSendText]);
+  }, [session, sessionState, t, handleSendText, repairGate]);
 
   // ── End session ──────────────────────────────────────────────────────────────
   const handleEnd = useCallback(async () => {
@@ -230,13 +359,18 @@ export default function SpeakingPage() {
     setSessionState("idle");
     setError(null);
     setAnalyser(null);
+    setRepairGate(null);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendText(); }
   };
 
-  const isMicDisabled = sessionState === "processing" || sessionState === "ai-speaking" || sessionState === "sending";
+  const isMicDisabled =
+    sessionState === "processing" ||
+    sessionState === "ai-speaking" ||
+    sessionState === "sending" ||
+    !!repairGate;
 
   return (
     <div className="min-h-screen flex items-start justify-center py-0 sm:py-8 sm:px-4"
@@ -265,10 +399,13 @@ export default function SpeakingPage() {
         {/* Top Bar */}
         <div className="flex items-center justify-between px-5 pt-5 pb-4 flex-shrink-0"
           style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-          <button onClick={() => router.push("/dashboard")}
+          <button
+            type="button"
+            onClick={() => router.push("/dashboard")}
+            aria-label={t("back")}
             className="flex items-center gap-1.5 py-1.5 px-2 rounded-[10px] transition-colors"
             style={{ color: "rgba(255,255,255,0.5)" }}>
-            <ChevronLeft size={16} />
+            <ChevronLeft size={16} aria-hidden />
             <span className="text-xs">{t("back")}</span>
           </button>
           <div className="flex items-center gap-2">
@@ -292,20 +429,39 @@ export default function SpeakingPage() {
           <div className="flex items-center gap-1">
             {/* Explanation toggle */}
             {session && sessionState !== "summary" && (
-              <button onClick={toggleExplanations}
+              <button
+                type="button"
+                onClick={toggleExplanations}
                 className="p-2 rounded-[10px] transition-colors"
                 title={showExplanations ? t("hideExplanations") : t("showExplanations")}
+                aria-label={showExplanations ? t("hideExplanations") : t("showExplanations")}
+                aria-pressed={showExplanations}
                 style={{ color: showExplanations ? CYAN : "rgba(255,255,255,0.4)" }}>
-                {showExplanations ? <Eye size={16} /> : <EyeOff size={16} />}
+                {showExplanations ? <Eye size={16} aria-hidden /> : <EyeOff size={16} aria-hidden />}
               </button>
             )}
-            <button className="p-2 rounded-[10px] transition-colors" style={{ color: "rgba(255,255,255,0.4)" }}>
-              <Settings size={16} />
+            <button
+              type="button"
+              className="p-2 rounded-[10px] transition-colors"
+              style={{ color: "rgba(255,255,255,0.4)" }}
+              aria-label={t("settingsAria")}>
+              <Settings size={16} aria-hidden />
             </button>
           </div>
         </div>
 
         {/* Error banner */}
+        <AnimatePresence>
+          {repairGate && session && (
+            <motion.div className="mx-4 mt-3 flex items-center gap-2 px-3 py-2.5 rounded-[12px]"
+              style={{ background: "rgba(34,211,238,0.12)", border: "1px solid rgba(34,211,238,0.35)" }}
+              initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
+              <AlertTriangle size={14} className="text-cyan-300 flex-shrink-0" />
+              <p className="text-cyan-100 text-xs flex-1">{t("forceRepairBanner")}</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <AnimatePresence>
           {error && (
             <motion.div className="mx-4 mt-3 flex items-center gap-2 px-3 py-2.5 rounded-[12px]"
@@ -313,8 +469,12 @@ export default function SpeakingPage() {
               initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
               <AlertTriangle size={14} className="text-red-400 flex-shrink-0" />
               <p className="text-red-300 text-xs flex-1">{error}</p>
-              <button onClick={() => setError(null)} style={{ color: "rgba(255,255,255,0.4)" }}>
-                <X size={14} />
+              <button
+                type="button"
+                onClick={() => setError(null)}
+                aria-label={t("dismissError")}
+                style={{ color: "rgba(255,255,255,0.4)" }}>
+                <X size={14} aria-hidden />
               </button>
             </motion.div>
           )}
@@ -322,7 +482,14 @@ export default function SpeakingPage() {
 
         {/* Content */}
         {!session ? (
-          <WelcomeScreen onStart={handleStartSession} isStarting={isStarting} />
+          <WelcomeScreen
+            onStart={handleStartSession}
+            isStarting={isStarting}
+            initialTopic={deeplinkTopic || null}
+            initialCefr={deeplinkCefr || null}
+            planCurrentLevel={planBands.planCurrentLevel}
+            planTargetLevel={planBands.planTargetLevel}
+          />
         ) : sessionState === "summary" ? (
           <div className="flex-1 overflow-y-auto px-4 pt-4" ref={chatRef} style={{ scrollbarWidth: "none" }}>
             <SessionSummary
@@ -376,8 +543,12 @@ export default function SpeakingPage() {
                   )}
                   {sessionState === "listening" && (
                     <motion.p key="listen" className="text-xs mt-2 font-semibold" style={{ color: "#F87171" }}
-                      initial={{ opacity: 0 }} animate={{ opacity: [1, 0.5, 1] }} exit={{ opacity: 0 }}
-                      transition={{ duration: 0.8, repeat: Infinity }}>
+                      initial={{ opacity: 0 }}
+                      animate={reduceMotion ? { opacity: 1 } : { opacity: [1, 0.5, 1] }}
+                      exit={{ opacity: 0 }}
+                      transition={
+                        reduceMotion ? { duration: 0 } : { duration: 0.8, repeat: Infinity }
+                      }>
                       {t("statusListening")}
                     </motion.p>
                   )}
@@ -410,7 +581,10 @@ export default function SpeakingPage() {
                       el.style.height = Math.min(el.scrollHeight, 100) + "px";
                     }} />
                 </div>
-                <motion.button onClick={() => handleSendText()}
+                <motion.button
+                  type="button"
+                  aria-label={t("sendMessage")}
+                  onClick={() => handleSendText()}
                   disabled={!inputText.trim() || isMicDisabled}
                   className="flex-shrink-0 w-10 h-10 rounded-[12px] flex items-center justify-center"
                   style={{
@@ -419,21 +593,31 @@ export default function SpeakingPage() {
                       : "rgba(255,255,255,0.08)",
                     opacity: !inputText.trim() || isMicDisabled ? 0.4 : 1,
                   }}
-                  whileTap={inputText.trim() && !isMicDisabled ? { scale: 0.9 } : {}}>
+                  whileTap={
+                    !reduceMotion && inputText.trim() && !isMicDisabled ? { scale: 0.9 } : {}
+                  }>
                   {sessionState === "sending"
                     ? <motion.div className="w-4 h-4 rounded-full border-2"
                         style={{ borderColor: "rgba(255,255,255,0.3)", borderTopColor: "white" }}
-                        animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }} />
-                    : <Send size={16} className="text-white" />}
+                        animate={reduceMotion ? { rotate: 0 } : { rotate: 360 }}
+                        transition={
+                          reduceMotion
+                            ? { duration: 0 }
+                            : { duration: 0.8, repeat: Infinity, ease: "linear" }
+                        } />
+                    : <Send size={16} className="text-white" aria-hidden />}
                 </motion.button>
               </div>
 
               {/* Mic row */}
               <div className="flex items-center justify-between px-2">
-                <button onClick={handleEnd}
+                <button
+                  type="button"
+                  onClick={handleEnd}
+                  aria-label={t("endButton")}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-[12px] text-sm font-medium transition-colors"
                   style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.1)" }}>
-                  <X size={14} /> {t("endButton")}
+                  <X size={14} aria-hidden /> {t("endButton")}
                 </button>
                 <MicButton state={sessionState} onToggle={handleMicToggle} />
                 <div className="flex items-center gap-1.5 px-4 py-2 rounded-[12px]"
@@ -457,6 +641,17 @@ export default function SpeakingPage() {
           </>
         )}
       </div>
+
+      {repairGate && (
+        <ErrorRepairDrill
+          open
+          blocking
+          onClose={() => setRepairGate(null)}
+          errorCode={repairGate.code}
+          exampleCorrectDe={repairGate.exampleCorrectDe}
+          ruleViShort={repairGate.ruleViShort}
+        />
+      )}
     </div>
   );
 }

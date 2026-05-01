@@ -3,6 +3,7 @@ package com.deutschflow.admin.service;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.telemetry.ApiTelemetryService;
+import com.deutschflow.common.quota.QuotaService;
 import com.deutschflow.user.service.PersonalizationRulesetService;
 import com.deutschflow.vocabulary.service.WordQueryService;
 import com.deutschflow.user.entity.User;
@@ -23,6 +24,8 @@ import java.util.Set;
 import java.time.LocalDate;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +36,7 @@ public class AdminManagementService {
     private final ApiTelemetryService apiTelemetryService;
     private final WordQueryService wordQueryService;
     private final PersonalizationRulesetService personalizationRulesetService;
+    private final QuotaService quotaService;
 
     @Transactional(readOnly = true)
     public Map<String, Object> overview() {
@@ -85,11 +89,146 @@ public class AdminManagementService {
 
     @Transactional(readOnly = true)
     public List<Map<String, Object>> listUsers() {
-        return jdbcTemplate.queryForList("""
+        List<Map<String, Object>> users = jdbcTemplate.queryForList("""
                 SELECT id, email, display_name AS displayName, role, is_active AS isActive, created_at AS createdAt
                 FROM users
                 ORDER BY created_at DESC
                 """);
+        for (Map<String, Object> u : users) {
+            long userId = toLong(u.get("id"));
+            try {
+                var snap = quotaService.getSnapshot(userId, Instant.now());
+                u.put("planCode", snap.planCode());
+                u.put("monthlyTokenLimit", snap.monthlyTokenLimit());
+                u.put("dailyTokenGrant", snap.dailyTokenGrant());
+                u.put("usedThisMonth", snap.usedThisMonth());
+                u.put("remainingThisMonth", snap.remainingThisMonth());
+                u.put("walletBalance", snap.walletBalance());
+                u.put("walletCap", snap.walletCap());
+                u.put("unlimitedInternal", snap.unlimitedInternal());
+                u.put("quotaPeriodStartUtc", snap.periodStartUtc());
+                u.put("quotaPeriodEndUtc", snap.periodEndUtc());
+                u.put("subscriptionStartsAtUtc", snap.subscriptionStartsAtUtc());
+                u.put("subscriptionEndsAtUtc", snap.subscriptionEndsAtUtc());
+            } catch (Exception ignored) {
+                // keep base user row even if quota lookup fails
+            }
+        }
+        return users;
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> listPlans() {
+        return jdbcTemplate.queryForList("""
+                SELECT code, name,
+                       monthly_token_limit AS monthlyTokenLimit,
+                       daily_token_grant AS dailyTokenGrant,
+                       wallet_cap_days AS walletCapDays,
+                       features_json AS featuresJson,
+                       is_active AS isActive,
+                       created_at AS createdAt
+                FROM subscription_plans
+                ORDER BY code ASC
+                """);
+    }
+
+    @Transactional
+    public Map<String, Object> updateUserPlan(Long userId,
+                                              String planCode,
+                                              Long monthlyTokenLimitOverride,
+                                              String startsAtIso,
+                                              String endsAtIso) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+        String code = planCode == null ? "" : planCode.trim().toUpperCase();
+        if (code.isBlank()) {
+            throw new BadRequestException("planCode is required");
+        }
+        Integer exists = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM subscription_plans WHERE code = ?",
+                Integer.class, code);
+        if (exists == null || exists <= 0) {
+            throw new BadRequestException("Invalid planCode");
+        }
+
+        Instant now = Instant.now();
+        Instant startsAt = parseInstantOrDefault(startsAtIso, now);
+        Instant endsAt = endsAtIso == null || endsAtIso.isBlank() ? null : parseInstantOrDefault(endsAtIso, null);
+
+        // End existing ACTIVE subscriptions by setting ends_at = startsAt and status=ENDED.
+        jdbcTemplate.update("""
+                UPDATE user_subscriptions
+                SET status = 'ENDED', ends_at = ?, updated_at = NOW()
+                WHERE user_id = ? AND status = 'ACTIVE'
+                """, Timestamp.from(startsAt), userId);
+
+        jdbcTemplate.update("""
+                INSERT INTO user_subscriptions (
+                  user_id, plan_code, status, starts_at, ends_at, monthly_token_limit_override
+                ) VALUES (?, ?, 'ACTIVE', ?, ?, ?)
+                """,
+                userId, code,
+                Timestamp.from(startsAt),
+                endsAt == null ? null : Timestamp.from(endsAt),
+                monthlyTokenLimitOverride
+        );
+
+        jdbcTemplate.update("DELETE FROM user_ai_token_wallets WHERE user_id = ?", userId);
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("id", user.getId());
+        out.put("email", user.getEmail());
+        out.put("displayName", user.getDisplayName());
+        out.put("planCode", code);
+        out.put("monthlyTokenLimitOverride", monthlyTokenLimitOverride);
+        out.put("startsAtUtc", startsAt);
+        out.put("endsAtUtc", endsAt);
+        return out;
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> userQuota(Long userId) {
+        userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+        var snap = quotaService.getSnapshot(userId, Instant.now());
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("userId", userId);
+        out.put("planCode", snap.planCode());
+        out.put("unlimitedInternal", snap.unlimitedInternal());
+        out.put("dailyTokenGrant", snap.dailyTokenGrant());
+        out.put("usedToday", snap.usedToday());
+        out.put("walletBalance", snap.walletBalance());
+        out.put("walletCap", snap.walletCap());
+        out.put("monthlyTokenLimit", snap.monthlyTokenLimit());
+        out.put("usedThisMonth", snap.usedThisMonth());
+        out.put("remainingThisMonth", snap.remainingThisMonth());
+        out.put("periodStartUtc", snap.periodStartUtc());
+        out.put("periodEndUtc", snap.periodEndUtc());
+        out.put("subscriptionStartsAtUtc", snap.subscriptionStartsAtUtc());
+        out.put("subscriptionEndsAtUtc", snap.subscriptionEndsAtUtc());
+        return out;
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> userUsage(Long userId, String fromIso, String toIso, Integer limit) {
+        userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+        Instant now = Instant.now();
+        Instant from = parseInstantOrDefault(fromIso, now.minusSeconds(7L * 86400L));
+        Instant to = parseInstantOrDefault(toIso, now);
+        int cap = (limit == null || limit < 1) ? 200 : Math.min(limit, 2000);
+        return jdbcTemplate.queryForList("""
+                SELECT id, user_id AS userId, provider, model,
+                       prompt_tokens AS promptTokens,
+                       completion_tokens AS completionTokens,
+                       total_tokens AS totalTokens,
+                       feature, request_id AS requestId, session_id AS sessionId,
+                       created_at AS createdAt
+                FROM ai_token_usage_events
+                WHERE user_id = ?
+                  AND created_at >= ?
+                  AND created_at <= ?
+                ORDER BY created_at DESC
+                LIMIT ?
+                """, userId, Timestamp.from(from), Timestamp.from(to), cap);
     }
 
     @Transactional
@@ -340,6 +479,15 @@ public class AdminManagementService {
             return Long.parseLong(String.valueOf(raw));
         } catch (Exception e) {
             return 0L;
+        }
+    }
+
+    private static Instant parseInstantOrDefault(String iso, Instant defaultValue) {
+        if (iso == null || iso.isBlank()) return defaultValue;
+        try {
+            return Instant.parse(iso.trim());
+        } catch (DateTimeParseException e) {
+            return defaultValue;
         }
     }
 

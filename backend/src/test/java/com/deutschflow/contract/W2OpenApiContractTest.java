@@ -34,6 +34,6 @@ class W2OpenApiContractTest {
     @Test
     void shouldKeepSecuredEndpointUnauthorizedWithoutToken() throws Exception {
         mockMvc.perform(get("/api/plan/me"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isForbidden());
     }
 }

@@ -1,36 +1,31 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import api, { httpStatus } from "@/lib/api";
+import api, { apiMessage, httpStatus } from "@/lib/api";
 import { getAccessToken, clearTokens } from "@/lib/authSession";
+import { errorSkillsApi, type ErrorSkillDto } from "@/lib/errors/drillApi";
+import { reviewTasksApi, type ErrorReviewTaskDto } from "@/lib/reviewTasksApi";
+import { todayApi, type TodayPlan } from "@/lib/todayApi";
+import { planApi } from "@/lib/planApi";
 import {
-  LayoutDashboard,
   BookOpen,
   Mic2,
-  BookMarked,
-  Settings,
-  Flame,
-  Bell,
   ChevronRight,
   Play,
   Clock,
   Target,
   Trophy,
   Zap,
-  Menu,
-  X,
-  ShieldCheck,
-  Gamepad2,
-  Map,
-  Library,
+  Flame,
   TrendingUp,
-  LogOut,
   Headphones,
   Sparkles,
   GraduationCap,
+  RefreshCw,
 } from "lucide-react";
+import { StudentShell } from "@/components/layouts/StudentShell";
 import {
   BarChart,
   Bar,
@@ -151,11 +146,15 @@ export default function Dashboard() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [plan, setPlan] = useState<Plan | null>(null);
   const [dashboard, setDashboard] = useState<DashboardStats | null>(null);
+  const [topErrors, setTopErrors] = useState<ErrorSkillDto[]>([]);
+  const [reviewTasksToday, setReviewTasksToday] = useState<ErrorReviewTaskDto[]>([]);
+  const [todayPlan, setTodayPlan] = useState<TodayPlan | null>(null);
+  const [adaptiveRefreshing, setAdaptiveRefreshing] = useState(false);
+  const [adaptiveFeedback, setAdaptiveFeedback] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState<string>("");
-
-  const [activeNav, setActiveNav] = useState("dashboard");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [reviewCompletingId, setReviewCompletingId] = useState<number | null>(null);
+  const [reviewCompleteErr, setReviewCompleteErr] = useState<string>("");
 
   useEffect(() => {
     if (!getAccessToken()) {
@@ -172,13 +171,24 @@ export default function Dashboard() {
           return Promise.reject(new Error("redirect"));
         }
         setUser(userData);
-        return Promise.all([api.get("/plan/me"), api.get("/student/dashboard")]);
+        return Promise.all([
+          api.get("/plan/me"),
+          api.get("/student/dashboard"),
+          errorSkillsApi.getMine(30).catch(() => ({ data: [] as ErrorSkillDto[] })),
+          reviewTasksApi.getToday().catch(() => ({ data: [] as ErrorReviewTaskDto[] })),
+          todayApi.getMe().catch(() => ({ data: null as TodayPlan | null })),
+        ]);
       })
       .then((res) => {
         if (!res) return;
-        const [planRes, dashRes] = res;
+        const [planRes, dashRes, skillsRes, reviewRes, todayRes] = res;
         if (planRes?.data?.plan) setPlan(planRes.data.plan);
         if (dashRes?.data) setDashboard(dashRes.data);
+        const skills = Array.isArray(skillsRes?.data) ? skillsRes.data : [];
+        setTopErrors(skills.slice(0, 3));
+        const tasks = Array.isArray(reviewRes?.data) ? reviewRes.data : [];
+        setReviewTasksToday(tasks);
+        setTodayPlan(todayRes?.data ?? null);
       })
       .catch((err: unknown) => {
         if (err instanceof Error && err.message === "redirect") return;
@@ -197,28 +207,50 @@ export default function Dashboard() {
       .finally(() => setLoading(false));
   }, [router, tErr]);
 
+  const handleReviewTaskComplete = useCallback(
+    async (taskId: number, passed: boolean) => {
+      setReviewCompleteErr("");
+      setReviewCompletingId(taskId);
+      try {
+        await reviewTasksApi.complete(taskId, passed);
+        setReviewTasksToday((prev) => prev.filter((x) => x.id !== taskId));
+      } catch (e: unknown) {
+        setReviewCompleteErr(apiMessage(e));
+      } finally {
+        setReviewCompletingId(null);
+      }
+    },
+    [],
+  );
+
+  const handleAdaptiveRefresh = useCallback(async () => {
+    setAdaptiveRefreshing(true);
+    setAdaptiveFeedback(null);
+    try {
+      const { data } = await planApi.refreshAdaptive();
+      if (data.injected) {
+        setAdaptiveFeedback(t("todayHeroAdaptiveInjected"));
+      } else if (data.reason === "COOLDOWN_24H") {
+        setAdaptiveFeedback(t("todayHeroAdaptiveCooldown"));
+      } else if (data.reason === "DEDUP_WEEK_CODE") {
+        setAdaptiveFeedback(t("todayHeroAdaptiveDedup"));
+      } else if (data.reason === "NO_SKILLS") {
+        setAdaptiveFeedback(t("todayHeroAdaptiveNoSkills"));
+      } else {
+        setAdaptiveFeedback(t("todayHeroAdaptiveNoop", { reason: data.reason }));
+      }
+      const planRes = await api.get<{ plan?: Plan }>("/plan/me");
+      if (planRes?.data?.plan) setPlan(planRes.data.plan);
+    } catch {
+      setAdaptiveFeedback(tErr("backendUnreachable"));
+    } finally {
+      setAdaptiveRefreshing(false);
+    }
+  }, [t, tErr]);
+
   const handleLogout = () => {
     clearTokens();
     router.push("/");
-  };
-
-  const navItems = useMemo(
-    () => [
-      { id: "dashboard", label: t("navDashboard"), icon: LayoutDashboard },
-      { id: "courses", label: t("navMyCourses"), icon: BookOpen },
-      { id: "speaking", label: t("navSpeaking"), icon: Mic2 },
-      { id: "vocabulary", label: t("navVocabulary"), icon: BookMarked },
-      { id: "settings", label: t("navSettings"), icon: Settings },
-    ],
-    [t],
-  );
-
-  const handleNavClick = (id: string) => {
-    setActiveNav(id);
-    setSidebarOpen(false);
-    if (id === "courses") router.push("/student/plan");
-    else if (id === "speaking") router.push("/speaking");
-    else if (id === "vocabulary") router.push("/student/vocabulary");
   };
 
   const progress = plan?.progress ?? {};
@@ -238,7 +270,8 @@ export default function Dashboard() {
 
   const recommendedSessions = useMemo<PlanSession[]>(() => {
     const sessions = currentWeekBlock?.sessions ?? [];
-    return sessions.slice(0, 4);
+    // Keep "learning path" recommendations separate from "topic practice".
+    return sessions.filter((s) => s.type !== "PRACTICE").slice(0, 4);
   }, [currentWeekBlock]);
 
   const weeklyChartData = useMemo(() => {
@@ -342,163 +375,20 @@ export default function Dashboard() {
   const weeklyTarget = d?.weeklyTargetMinutes ?? (Number(plan?.weeklyMinutes) || 0);
 
   return (
-    <div className="flex h-screen bg-[#F5F7FA] overflow-hidden">
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/40 z-20 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <aside
-        className={`fixed lg:relative z-30 flex flex-col h-full w-64 bg-[#00305E] text-white transition-transform duration-300
-          ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
-      >
-        <div className="flex items-center gap-3 px-6 py-6 border-b border-white/10">
-          <div className="w-9 h-9 rounded-[10px] bg-[#FFCE00] flex items-center justify-center flex-shrink-0">
-            <span className="text-[#00305E] font-extrabold text-lg leading-none">D</span>
-          </div>
-          <span className="font-bold text-xl tracking-tight">DeutschFlow</span>
-          <button
-            className="ml-auto lg:hidden text-white/60 hover:text-white"
-            onClick={() => setSidebarOpen(false)}
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto">
-          {navItems.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              onClick={() => handleNavClick(id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-[12px] transition-all duration-200 text-left group
-                ${
-                  activeNav === id
-                    ? "bg-[#FFCE00] text-[#00305E] shadow-md"
-                    : "text-white/70 hover:bg-white/10 hover:text-white"
-                }`}
-            >
-              <Icon size={19} className="flex-shrink-0" />
-              <span className="font-medium text-sm">{label}</span>
-              {activeNav === id && (
-                <ChevronRight size={14} className="ml-auto text-[#00305E]/60" />
-              )}
-            </button>
-          ))}
-
-          <div className="my-3 border-t border-white/10" />
-
-          <button
-            onClick={() => {
-              router.push("/student/plan");
-              setSidebarOpen(false);
-            }}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-[12px] text-white/70 hover:bg-white/10 hover:text-white transition-all duration-200 text-left"
-          >
-            <Map size={19} className="flex-shrink-0" />
-            <span className="font-medium text-sm">{t("navLearningPath")}</span>
-            <span className="ml-auto text-[10px] font-bold bg-[#FFCE00] text-[#00305E] px-1.5 py-0.5 rounded-full">
-              {t("newBadge")}
-            </span>
-          </button>
-
-          <button
-            onClick={() => {
-              router.push("/student/vocabulary");
-              setSidebarOpen(false);
-            }}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-[12px] text-white/70 hover:bg-white/10 hover:text-white transition-all duration-200 text-left"
-          >
-            <Library size={19} className="flex-shrink-0" />
-            <span className="font-medium text-sm">{t("navVocabularyShort")}</span>
-          </button>
-
-          <button
-            onClick={() => {
-              router.push("/student/game");
-              setSidebarOpen(false);
-            }}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-[12px] text-white/70 hover:bg-white/10 hover:text-white transition-all duration-200 text-left"
-          >
-            <Gamepad2 size={19} className="flex-shrink-0" />
-            <span className="font-medium text-sm">{t("navLegoGame")}</span>
-          </button>
-        </nav>
-
-        <div className="px-3 pb-6">
-          <button
-            onClick={handleLogout}
-            className="mb-2 w-full flex items-center gap-3 px-4 py-3 rounded-[12px] text-white/70 hover:bg-white/10 hover:text-white transition-all duration-200 text-left"
-          >
-            <LogOut size={19} className="flex-shrink-0" />
-            <span className="font-medium text-sm">{t("logout")}</span>
-          </button>
-
-          <div className="flex items-center gap-3 px-4 py-3 rounded-[12px] bg-white/8 border border-white/10">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#FFCE00] to-[#E6B900] flex items-center justify-center flex-shrink-0">
-              <span className="text-[#00305E] font-bold text-sm">{initials}</span>
-            </div>
-            <div className="min-w-0">
-              <p className="font-semibold text-sm text-white truncate">{user.displayName}</p>
-              <p className="text-white/50 text-xs">
-                {t("roleLevel", { role: user.role, level: targetLevel })}
-              </p>
-            </div>
-          </div>
-
-          {user.role === "ADMIN" && (
-            <button
-              onClick={() => router.push("/admin")}
-              className="mt-2 w-full flex items-center gap-2 px-4 py-2 rounded-[10px] text-white/40 hover:text-white/70 hover:bg-white/8 transition-colors text-xs"
-            >
-              <ShieldCheck size={13} />
-              {t("navAdminDashboard")}
-            </button>
-          )}
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white border-b border-[#E2E8F0] px-6 py-4 flex items-center justify-between flex-shrink-0 shadow-[0_1px_3px_rgba(0,48,94,0.06)]">
-          <div className="flex items-center gap-4">
-            <button
-              className="lg:hidden p-2 rounded-[10px] hover:bg-[#F5F7FA] text-[#64748B]"
-              onClick={() => setSidebarOpen(true)}
-            >
-              <Menu size={20} />
-            </button>
-            <div>
-              <h1 className="text-xl text-[#1A1A1A]">
-                {t("greeting", { name: firstName })} <span aria-hidden>👋</span>
-              </h1>
-              <p className="text-[#64748B] text-sm mt-0.5">{t("subtitle")}</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 bg-[#FFF8E1] border border-[#FFCE00]/40 rounded-[12px] px-3 py-2">
-              <Flame size={18} className="text-orange-500" fill="#f97316" />
-              <span className="font-bold text-[#00305E] text-sm">
-                {t("streakDays", { n: streak })}
-              </span>
-              <span className="text-[#64748B] text-xs hidden sm:inline">
-                {t("streakBadgeShort")}
-              </span>
-            </div>
-            <button className="relative p-2.5 rounded-[12px] bg-[#F5F7FA] hover:bg-[#E2E8F0] transition-colors">
-              <Bell size={18} className="text-[#64748B]" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#FFCE00] rounded-full border border-white" />
-            </button>
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#00305E] to-[#004080] flex items-center justify-center flex-shrink-0">
-              <span className="text-white font-bold text-sm">{initials}</span>
-            </div>
-          </div>
-        </header>
-
-        <main className="flex-1 overflow-y-auto px-6 py-6">
+    <StudentShell
+      activeSection="dashboard"
+      user={{ displayName: user.displayName, role: user.role }}
+      targetLevel={targetLevel}
+      streakDays={streak}
+      initials={initials}
+      onLogout={handleLogout}
+      headerTitle={
+        <>
+          {t("greeting", { name: firstName })} <span aria-hidden>👋</span>
+        </>
+      }
+      headerSubtitle={t("subtitle")}
+    >
           {apiError && (
             <div className="mb-6 p-4 rounded-[12px] border border-red-200 bg-red-50 text-red-700 text-sm">
               {apiError}
@@ -746,6 +636,194 @@ export default function Dashboard() {
             </ResponsiveContainer>
           </div>
 
+          {todayPlan && (
+            <div className="mb-6 rounded-[16px] border border-[#00305E]/15 bg-gradient-to-br from-[#00305E] to-[#0a4d8c] p-5 shadow-[0_8px_24px_rgba(0,48,94,0.15)] text-white">
+              <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+                <div>
+                  <p className="text-[#FFCE00] text-xs font-semibold uppercase tracking-wide mb-1">
+                    {t("todayHeroBadge")}
+                  </p>
+                  <h3 className="text-lg font-bold">{t("todayHeroTitle")}</h3>
+                  <p className="text-white/75 text-sm mt-1">
+                    {t("todayHeroMeta", {
+                      roll: todayPlan.progress.rollingAccuracyPercent,
+                      streak: todayPlan.progress.streakDays,
+                      weak: todayPlan.progress.topWeakErrorCode ?? "—",
+                    })}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void handleAdaptiveRefresh()}
+                  disabled={adaptiveRefreshing}
+                  className="inline-flex items-center gap-2 rounded-[10px] border border-white/25 bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/15 disabled:opacity-50"
+                >
+                  <RefreshCw size={14} className={adaptiveRefreshing ? "animate-spin" : ""} aria-hidden />
+                  {t("todayHeroAdaptiveSave")}
+                </button>
+              </div>
+              {adaptiveFeedback && (
+                <p className="text-xs text-[#FFCE00]/95 mb-3 leading-snug">{adaptiveFeedback}</p>
+              )}
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-[12px] bg-white/10 border border-white/15 p-4">
+                  <p className="text-white/70 text-xs font-semibold mb-2">{t("todayHeroRepair")}</p>
+                  {todayPlan.dueRepairTasks.length === 0 ? (
+                    <p className="text-sm text-white/60">{t("todayHeroRepairEmpty")}</p>
+                  ) : (
+                    <ul className="space-y-1.5 text-sm">
+                      {todayPlan.dueRepairTasks.slice(0, 5).map((task) => (
+                        <li key={task.id} className="font-mono text-[#FFCE00]/95 truncate" title={task.errorCode}>
+                          {task.errorCode}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div className="rounded-[12px] bg-white/10 border border-white/15 p-4 flex flex-col">
+                  <p className="text-white/70 text-xs font-semibold mb-2">{t("todayHeroSpeaking")}</p>
+                  <p className="text-xs text-white/55 mb-1">{t("todayHeroSpeakingHint")}</p>
+                  <p className="text-sm font-medium line-clamp-2">
+                    {todayPlan.recommendedSpeaking.topic ?? "—"}
+                  </p>
+                  <p className="text-xs text-white/55 mt-1">
+                    {todayPlan.recommendedSpeaking.cefrLevel ?? ""}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => router.push(todayPlan.recommendedSpeaking.href)}
+                    className="mt-auto pt-3 text-left text-sm font-semibold text-[#FFCE00] flex items-center gap-1"
+                  >
+                    {t("todayHeroOpen")} <ChevronRight size={14} />
+                  </button>
+                </div>
+                <div className="rounded-[12px] bg-white/10 border border-[#22D3EE]/25 p-4 flex flex-col">
+                  <p className="text-white/70 text-xs font-semibold mb-2">{t("todayHeroWeekly")}</p>
+                  <p className="text-xs text-white/55 mb-1">{t("todayHeroWeeklyHint")}</p>
+                  <p className="text-sm font-medium line-clamp-2">
+                    {todayPlan.recommendedWeeklySpeaking?.cefrLevel
+                      ? `CEFR ${todayPlan.recommendedWeeklySpeaking.cefrLevel}`
+                      : "—"}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      router.push(todayPlan.recommendedWeeklySpeaking?.href ?? "/student/weekly-speaking")
+                    }
+                    className="mt-auto pt-3 text-left text-sm font-semibold text-[#FFCE00] flex items-center gap-1"
+                  >
+                    {t("todayHeroOpen")} <ChevronRight size={14} />
+                  </button>
+                </div>
+                <div className="rounded-[12px] bg-white/10 border border-white/15 p-4 flex flex-col">
+                  <p className="text-white/70 text-xs font-semibold mb-2">{t("todayHeroVocab")}</p>
+                  <p className="text-sm font-medium line-clamp-2">
+                    {todayPlan.recommendedVocabPractice.topic ?? "—"}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => router.push(todayPlan.recommendedVocabPractice.href)}
+                    className="mt-auto pt-3 text-left text-sm font-semibold text-[#FFCE00] flex items-center gap-1"
+                  >
+                    {t("todayHeroOpen")} <ChevronRight size={14} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="mb-6 rounded-[16px] border border-[#E2E8F0] bg-white p-5 shadow-[0_2px_8px_rgba(0,48,94,0.06)]">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-[#1A1A1A]">{t("reviewTasksTitle")}</h3>
+              <button
+                type="button"
+                onClick={() => router.push("/speaking")}
+                className="text-[#00305E] text-sm font-medium hover:text-[#004080] flex items-center gap-1"
+              >
+                {t("reviewTasksOpenSpeaking")}
+                <ChevronRight size={14} />
+              </button>
+            </div>
+            {reviewCompleteErr && (
+              <p className="text-sm text-red-600 mb-3">{reviewCompleteErr}</p>
+            )}
+            {reviewTasksToday.length === 0 ? (
+              <p className="text-sm text-[#64748B]">{t("reviewTasksEmpty")}</p>
+            ) : (
+              <ul className="space-y-2">
+                {reviewTasksToday.map((task) => (
+                  <li
+                    key={task.id}
+                    className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-2 rounded-[12px] border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm"
+                  >
+                    <div className="flex flex-wrap items-center gap-2 min-w-0">
+                      <span className="font-medium text-[#00305E]">{task.errorCode}</span>
+                      <span className="text-[#64748B] text-xs">
+                        {task.taskType === "REWRITE"
+                          ? t("reviewTaskTypeRewrite")
+                          : task.taskType}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-2 justify-end">
+                      <button
+                        type="button"
+                        disabled={reviewCompletingId === task.id}
+                        onClick={() => void handleReviewTaskComplete(task.id, true)}
+                        className="text-xs font-semibold px-3 py-1.5 rounded-[8px] bg-[#00305E] text-white hover:bg-[#004080] disabled:opacity-50"
+                      >
+                        {reviewCompletingId === task.id ? t("reviewTaskSaving") : t("reviewTaskPassed")}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={reviewCompletingId === task.id}
+                        onClick={() => void handleReviewTaskComplete(task.id, false)}
+                        className="text-xs font-semibold px-3 py-1.5 rounded-[8px] border border-[#CBD5E1] text-[#475569] hover:bg-white disabled:opacity-50"
+                      >
+                        {t("reviewTaskNotYet")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/student/errors`)}
+                        className="text-xs font-semibold px-3 py-1.5 rounded-[8px] border border-[#00305E]/20 text-[#00305E] hover:bg-[#00305E]/5"
+                      >
+                        {t("reviewTaskOpenDrill")}
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {topErrors.length > 0 && (
+            <div className="mb-6 rounded-[16px] border border-[#E2E8F0] bg-white p-5 shadow-[0_2px_8px_rgba(0,48,94,0.06)]">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-[#1A1A1A]">{t("topErrorsTitle")}</h3>
+                <button
+                  type="button"
+                  onClick={() => router.push("/student/errors")}
+                  className="text-[#00305E] text-sm font-medium hover:text-[#004080] flex items-center gap-1"
+                >
+                  {t("topErrorsViewAll")}
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {topErrors.map((e) => (
+                  <button
+                    key={e.errorCode}
+                    type="button"
+                    onClick={() => router.push("/student/errors")}
+                    className="rounded-full border border-[#E2E8F0] bg-[#F5F7FA] px-3 py-1.5 text-xs font-medium text-[#00305E] hover:bg-[#E2E8F0]"
+                  >
+                    {e.errorCode}
+                    <span className="text-[#64748B]"> · {e.count}×</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Recommended (real plan sessions) */}
           {recommendedSessions.length > 0 && (
             <div>
@@ -824,8 +902,53 @@ export default function Dashboard() {
               </div>
             </div>
           )}
-        </main>
-      </div>
-    </div>
+
+          {/* Topic practice (separate from learning path) */}
+          <div className="mt-8">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-[#1A1A1A]">{t("topicPracticeTitle")}</h3>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+              <button
+                type="button"
+                onClick={() => router.push("/student/vocab-practice")}
+                className="text-left bg-white rounded-[12px] overflow-hidden shadow-[0_2px_8px_rgba(0,48,94,0.06)] border border-[#E2E8F0] hover:shadow-[0_6px_18px_rgba(0,48,94,0.12)] hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group"
+              >
+                <div className="relative h-32 bg-gradient-to-br from-[#F59E0B] to-[#B45309] flex items-center justify-center overflow-hidden">
+                  <Trophy className="text-white/95" size={48} strokeWidth={1.5} />
+                  <span className="absolute bottom-2.5 right-2.5 bg-white/90 backdrop-blur text-[#00305E] text-xs font-bold px-2 py-0.5 rounded-full">
+                    {targetLevel}
+                  </span>
+                </div>
+                <div className="p-3.5">
+                  <h4 className="font-semibold text-[#1A1A1A] text-sm mb-1 leading-snug">
+                    {t("topicPracticeVocabTitle")}
+                  </h4>
+                  <p className="text-xs text-[#64748B] line-clamp-2">{t("topicPracticeVocabDesc")}</p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => router.push("/speaking")}
+                className="text-left bg-white rounded-[12px] overflow-hidden shadow-[0_2px_8px_rgba(0,48,94,0.06)] border border-[#E2E8F0] hover:shadow-[0_6px_18px_rgba(0,48,94,0.12)] hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group"
+              >
+                <div className="relative h-32 bg-gradient-to-br from-[#8B5CF6] to-[#6D28D9] flex items-center justify-center overflow-hidden">
+                  <Mic2 className="text-white/95" size={48} strokeWidth={1.5} />
+                  <span className="absolute bottom-2.5 right-2.5 bg-white/90 backdrop-blur text-[#00305E] text-xs font-bold px-2 py-0.5 rounded-full">
+                    {targetLevel}
+                  </span>
+                </div>
+                <div className="p-3.5">
+                  <h4 className="font-semibold text-[#1A1A1A] text-sm mb-1 leading-snug">
+                    {t("topicPracticeSpeakingTitle")}
+                  </h4>
+                  <p className="text-xs text-[#64748B] line-clamp-2">{t("topicPracticeSpeakingDesc")}</p>
+                </div>
+              </button>
+            </div>
+          </div>
+    </StudentShell>
   );
 }

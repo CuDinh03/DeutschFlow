@@ -1,7 +1,8 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { SessionState, CYAN, PURPLE } from "./types";
 
 const BAR_COLORS = ["#22D3EE", "#38BDF8", "#818CF8", "#A78BFA", "#818CF8", "#38BDF8", "#22D3EE"];
@@ -15,6 +16,8 @@ interface Props {
 }
 
 export function VoiceVisualizer({ state, analyser }: Props) {
+  const t = useTranslations("speaking.recorder");
+  const reduceMotion = useReducedMotion();
   const isActive     = state === "listening" || state === "ai-speaking";
   const isAI         = state === "ai-speaking";
   const isProcessing = state === "processing";
@@ -54,8 +57,12 @@ export function VoiceVisualizer({ state, analyser }: Props) {
               : "transparent",
             filter: "blur(20px)",
           }}
-          animate={{ opacity: isActive ? [0.5, 1, 0.5] : 0 }}
-          transition={{ duration: 1.5, repeat: Infinity }}
+          animate={{ opacity: isActive ? (reduceMotion ? 0.85 : [0.5, 1, 0.5]) : 0 }}
+          transition={
+            reduceMotion
+              ? { duration: 0 }
+              : { duration: 1.5, repeat: Infinity }
+          }
         />
 
         <div className="flex items-end justify-center gap-[5px] relative z-10" style={{ height: 80 }}>
@@ -77,22 +84,30 @@ export function VoiceVisualizer({ state, analyser }: Props) {
                   // When we have real data, bypass Framer Motion animation
                   height: realH ?? undefined,
                 }}
-                animate={realH !== null ? undefined : (
-                  isProcessing
-                    ? { height: [baseH * 0.3, baseH * 0.5, baseH * 0.3] }
-                    : isActive
-                    ? isAI
-                      ? { height: [baseH * 0.9, baseH * 2.2, baseH * 1.2, baseH * 2.8, baseH * 0.9] }
-                      : { height: [baseH, baseH * 3.2, baseH * 1.4, baseH * 2.6, baseH] }
-                    : { height: [baseH * 0.4, baseH * 0.7, baseH * 0.4] }
-                )}
-                transition={{
-                  duration: isActive ? (isAI ? 1.1 : 0.65) : 1.8,
-                  repeat: Infinity,
-                  repeatType: "mirror",
-                  ease: "easeInOut",
-                  delay: i * (isActive ? 0.06 : 0.15),
-                }}
+                animate={
+                  realH !== null
+                    ? undefined
+                    : reduceMotion
+                      ? { height: isActive ? baseH * (isAI ? 1.8 : 2.2) : baseH * 0.55 }
+                      : isProcessing
+                        ? { height: [baseH * 0.3, baseH * 0.5, baseH * 0.3] }
+                        : isActive
+                          ? isAI
+                            ? { height: [baseH * 0.9, baseH * 2.2, baseH * 1.2, baseH * 2.8, baseH * 0.9] }
+                            : { height: [baseH, baseH * 3.2, baseH * 1.4, baseH * 2.6, baseH] }
+                          : { height: [baseH * 0.4, baseH * 0.7, baseH * 0.4] }
+                }
+                transition={
+                  reduceMotion || realH !== null
+                    ? { duration: 0 }
+                    : {
+                        duration: isActive ? (isAI ? 1.1 : 0.65) : 1.8,
+                        repeat: Infinity,
+                        repeatType: "mirror",
+                        ease: "easeInOut",
+                        delay: i * (isActive ? 0.06 : 0.15),
+                      }
+                }
               />
             );
           })}
@@ -101,31 +116,38 @@ export function VoiceVisualizer({ state, analyser }: Props) {
 
       <motion.div
         key={state}
-        initial={{ opacity: 0, y: 4 }}
+        initial={reduceMotion ? false : { opacity: 0, y: 4 }}
         animate={{ opacity: 1, y: 0 }}
+        transition={reduceMotion ? { duration: 0 } : undefined}
         className="flex items-center gap-2"
       >
         {isProcessing ? (
           <motion.div
             className="w-3 h-3 rounded-full border-2"
             style={{ borderColor: CYAN, borderTopColor: "transparent" }}
-            animate={{ rotate: 360 }}
-            transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
+            animate={reduceMotion ? { rotate: 0 } : { rotate: 360 }}
+            transition={
+              reduceMotion
+                ? { duration: 0 }
+                : { duration: 0.8, repeat: Infinity, ease: "linear" }
+            }
           />
         ) : (
           <motion.div
             className="w-1.5 h-1.5 rounded-full"
             style={{ background: isActive ? (isAI ? PURPLE : CYAN) : "rgba(255,255,255,0.3)" }}
-            animate={{ opacity: isActive ? [1, 0.3, 1] : 1 }}
-            transition={{ duration: 0.9, repeat: Infinity }}
+            animate={reduceMotion ? { opacity: 1 } : { opacity: isActive ? [1, 0.3, 1] : 1 }}
+            transition={
+              reduceMotion ? { duration: 0 } : { duration: 0.9, repeat: Infinity }
+            }
           />
         )}
         <span className="text-xs font-medium" style={{ color: "rgba(255,255,255,0.55)" }}>
-          {state === "idle"        && "Bereit zum Sprechen"}
-          {state === "listening"   && "Aufnahme läuft..."}
-          {state === "processing"  && "KI analysiert..."}
-          {state === "ai-speaking" && "KI antwortet..."}
-          {state === "sending"     && "Nachricht wird gesendet..."}
+          {state === "idle"        && t("idle")}
+          {state === "listening"   && t("listening")}
+          {state === "processing"  && t("processing")}
+          {state === "ai-speaking" && t("aiSpeaking")}
+          {state === "sending"     && t("sending")}
         </span>
       </motion.div>
     </div>

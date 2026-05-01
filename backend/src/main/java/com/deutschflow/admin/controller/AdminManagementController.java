@@ -8,6 +8,7 @@ import com.deutschflow.vocabulary.service.GoetheOfficialWordlistImportService;
 import com.deutschflow.vocabulary.service.GoetheVocabularyAutoImportService;
 import com.deutschflow.vocabulary.service.OfficialCefrVocabularyImportService;
 import com.deutschflow.vocabulary.service.VocabularyCleanupService;
+import com.deutschflow.vocabulary.service.TagQueryService;
 import com.deutschflow.vocabulary.service.VocabularyAutoTaggingService;
 import com.deutschflow.vocabulary.service.VocabularyResetService;
 import com.deutschflow.vocabulary.service.WiktionaryIpaBatchService;
@@ -17,7 +18,9 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import com.deutschflow.user.entity.User;
 
 import java.io.IOException;
 import java.util.List;
@@ -40,7 +43,13 @@ public class AdminManagementController {
     private final VocabularyCleanupService vocabularyCleanupService;
     private final VocabularyResetService vocabularyResetService;
     private final VocabularyAutoTaggingService vocabularyAutoTaggingService;
+    private final TagQueryService tagQueryService;
     private final AuditLogService auditLogService;
+
+    @GetMapping("/vocabulary/taxonomy-summary")
+    public Map<String, Object> vocabularyTopicTaxonomySummary() {
+        return tagQueryService.topicTaxonomyCoverageSummary();
+    }
 
     @GetMapping("/reports/overview")
     public Map<String, Object> overview() {
@@ -99,6 +108,11 @@ public class AdminManagementController {
         return adminManagementService.listUsers();
     }
 
+    @GetMapping("/plans")
+    public List<Map<String, Object>> plans() {
+        return adminManagementService.listPlans();
+    }
+
     @PatchMapping("/users/{userId}/role")
     public Map<String, Object> updateRole(
             @PathVariable Long userId,
@@ -116,6 +130,51 @@ public class AdminManagementController {
                 Map.of("newRole", String.valueOf(updated.get("role")))
         );
         return updated;
+    }
+
+    @PatchMapping("/users/{userId}/plan")
+    public Map<String, Object> updatePlan(
+            @PathVariable Long userId,
+            @Valid @RequestBody UpdatePlanRequest req,
+            Authentication authentication
+    ) {
+        Map<String, Object> updated = adminManagementService.updateUserPlan(
+                userId,
+                req.planCode(),
+                req.monthlyTokenLimitOverride(),
+                req.startsAtUtc(),
+                req.endsAtUtc()
+        );
+        auditLogService.log(
+                "admin.user.plan.updated",
+                null,
+                actorEmail(authentication),
+                actorRole(authentication),
+                "USER",
+                String.valueOf(userId),
+                Map.of(
+                        "planCode", String.valueOf(updated.get("planCode")),
+                        "monthlyTokenLimitOverride", String.valueOf(updated.get("monthlyTokenLimitOverride")),
+                        "startsAtUtc", String.valueOf(updated.get("startsAtUtc")),
+                        "endsAtUtc", String.valueOf(updated.get("endsAtUtc"))
+                )
+        );
+        return updated;
+    }
+
+    @GetMapping("/users/{userId}/quota")
+    public Map<String, Object> userQuota(@PathVariable Long userId) {
+        return adminManagementService.userQuota(userId);
+    }
+
+    @GetMapping("/users/{userId}/usage")
+    public List<Map<String, Object>> userUsage(
+            @PathVariable Long userId,
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to,
+            @RequestParam(required = false) Integer limit
+    ) {
+        return adminManagementService.userUsage(userId, from, to, limit);
     }
 
     @GetMapping("/classes")
@@ -333,12 +392,15 @@ public class AdminManagementController {
 
     @PostMapping("/vocabulary/auto-tag/batch")
     public Map<String, Object> autoTagBatch(
+            @AuthenticationPrincipal User user,
             @RequestParam(required = false) Integer limit,
             @RequestParam(defaultValue = "true")  boolean dryRun,
             @RequestParam(defaultValue = "false") boolean resetTags,
             Authentication authentication
     ) {
-        Map<String, Object> result = vocabularyAutoTaggingService.runBatch(limit, dryRun, resetTags);
+        Map<String, Object> result = vocabularyAutoTaggingService.runBatch(
+                user == null ? 0L : user.getId(),
+                limit, dryRun, resetTags);
         if (!dryRun) {
             auditLogService.log(
                     "admin.vocabulary.auto-tag.batch.triggered",
@@ -419,6 +481,12 @@ public class AdminManagementController {
     }
 
     public record UpdateRoleRequest(@NotBlank(message = "role is required") String role) {}
+    public record UpdatePlanRequest(
+            @NotBlank(message = "planCode is required") String planCode,
+            Long monthlyTokenLimitOverride,
+            String startsAtUtc,
+            String endsAtUtc
+    ) {}
 
     private String actorEmail(Authentication authentication) {
         return authentication == null ? null : authentication.getName();

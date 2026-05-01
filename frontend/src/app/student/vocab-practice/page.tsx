@@ -1,13 +1,14 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, CheckCircle2, ChevronRight, Eye, EyeOff, Mic, MicOff, RefreshCw, SkipForward, Trophy, Volume2, XCircle } from 'lucide-react'
 import api from '@/lib/api'
 import { speakGerman, primeGermanVoices } from '@/lib/speechDe'
 import { getAccessToken } from '@/lib/authSession'
+import { isAcceptedHeardForWord } from '@/lib/scoring/textScoring'
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
@@ -48,43 +49,16 @@ interface PracticeResult {
   correct: boolean
 }
 
+interface WordListApiResponse {
+  items: WordItem[]
+  page: number
+  size: number
+  total: number
+}
+
 type Screen = 'setup' | 'practicing' | 'summary'
 type MicState = 'idle' | 'listening' | 'processing'
 type Verdict  = 'correct' | 'wrong' | null
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function normalizeWord(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/\b(der|die|das|ein|eine|einen|einem|einer|eines)\b/g, '')
-    .replace(/[^a-zäöüß\s]/gi, '')
-    .trim()
-    .replace(/\s+/g, ' ')
-}
-
-function levenshtein(a: string, b: string): number {
-  const m = a.length, n = b.length
-  const dp: number[][] = Array.from({ length: m + 1 }, (_, i) =>
-    Array.from({ length: n + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0))
-  )
-  for (let i = 1; i <= m; i++)
-    for (let j = 1; j <= n; j++)
-      dp[i][j] = a[i - 1] === b[j - 1]
-        ? dp[i - 1][j - 1]
-        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1])
-  return dp[m][n]
-}
-
-function isAccepted(heard: string, word: WordItem): boolean {
-  const target  = normalizeWord(word.baseForm)
-  const attempt = normalizeWord(heard)
-  if (!attempt || !target) return false
-  if (attempt === target) return true
-  // allow 1 edit for short words, 2 for longer
-  const threshold = target.length <= 5 ? 1 : 2
-  return levenshtein(attempt, target) <= threshold
-}
 
 function genderColor(g?: string | null): string {
   if (g === 'DER') return '#60a5fa'
@@ -97,8 +71,12 @@ function genderColor(g?: string | null): string {
 
 export default function VocabPracticePage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const t      = useTranslations('vocabPractice')
   const locale = useLocale()
+  const urlTopic = (searchParams.get('topic') ?? '').trim()
+  const urlFocus = (searchParams.get('focus') ?? '').trim()
+  const urlCefr = (searchParams.get('cefr') ?? '').trim().toUpperCase()
 
   // — Auth guard
   useEffect(() => {
@@ -120,29 +98,96 @@ export default function VocabPracticePage() {
   const [showMeaning, setShowMeaning] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState<string | null>(null)
+  const [previewTotal, setPreviewTotal] = useState<number | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
 
   const recognitionRef = useRef<SpeechRecognition | null>(null)
+  const setupStartAnchorRef = useRef<HTMLDivElement | null>(null)
 
-  // ── Load tags (localized by current UI locale)
+  const buildWordsParams = useCallback(
+    (size: string): Record<string, string> => {
+      const params: Record<string, string> = {
+        cefr: selCefr,
+        locale,
+        size,
+        page: '0',
+      }
+      if (selTag) params.tag = selTag
+      if (urlTopic) params.topic = urlTopic
+      if (urlFocus) params.focus = urlFocus
+      return params
+    },
+    [selCefr, selTag, locale, urlTopic, urlFocus],
+  )
+
+  const scrollSetupStartIntoView = useCallback(() => {
+    queueMicrotask(() => {
+      setupStartAnchorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
+  }, [])
+
+  // ── Deeplink level (?cefr=)
   useEffect(() => {
-    api.get<TagItem[]>('/tags', { params: { locale } }).then(r => setTags(r.data)).catch(() => {})
+    if (urlCefr === 'A1' || urlCefr === 'A2' || urlCefr === 'B1' || urlCefr === 'B2') {
+      setSelCefr(urlCefr)
+    }
+  }, [urlCefr])
+
+  // ── Load tags (localized — topic taxonomy only for learner pickers)
+  useEffect(() => {
+    api
+      .get<TagItem[]>('/tags', { params: { locale, topicsOnly: 'true' } })
+      .then(r => setTags(r.data))
+      .catch(() => {})
   }, [locale])
+
+  // Lightweight total for UX: backend already returns cumulative CEFR + tag filter.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !getAccessToken()) return
+    let alive = true
+    const tid = window.setTimeout(() => {
+      ;(async () => {
+        setPreviewLoading(true)
+        try {
+          const res = await api.get<WordListApiResponse>('/words', { params: buildWordsParams('1') })
+          if (!alive) return
+          const n = res.data.total
+          setPreviewTotal(Number.isFinite(n) ? n : null)
+        } catch {
+          if (!alive) return
+          setPreviewTotal(null)
+        } finally {
+          if (alive) setPreviewLoading(false)
+        }
+      })()
+    }, 280)
+    return () => {
+      alive = false
+      window.clearTimeout(tid)
+    }
+  }, [buildWordsParams])
+
+  // Deeplink: ?topic= matches a tag name → preselect tag; else topic is passed as search to /words
+  useEffect(() => {
+    if (!urlTopic || tags.length === 0) return
+    const match = tags.find(
+      (tg) => tg.name.toLowerCase() === urlTopic.toLowerCase() || (tg.localizedLabel ?? '').toLowerCase() === urlTopic.toLowerCase(),
+    )
+    if (match) setSelTag(match.name)
+  }, [urlTopic, tags])
 
   // ── Start practice
   const handleStart = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const params: Record<string, string> = {
-        cefr:   selCefr,
-        locale: locale,
-        size:   '30',
-        page:   '0',
-      }
-      if (selTag) params.tag = selTag
-      const res = await api.get<{ items: WordItem[] }>('/words', { params })
+      const res = await api.get<WordListApiResponse>('/words', { params: buildWordsParams('30') })
       const list = res.data.items
-      if (list.length === 0) { setError(t('noWords')); return }
+      if (list.length === 0) {
+        setError(t('noWords'))
+        scrollSetupStartIntoView()
+        return
+      }
       // shuffle
       const shuffled = [...list].sort(() => Math.random() - 0.5)
       setWords(shuffled)
@@ -155,10 +200,11 @@ export default function VocabPracticePage() {
       setTimeout(() => speakGerman((shuffled[0].article ? shuffled[0].article + ' ' : '') + shuffled[0].baseForm), 500)
     } catch {
       setError(t('loadError'))
+      scrollSetupStartIntoView()
     } finally {
       setLoading(false)
     }
-  }, [selCefr, selTag, locale, t])
+  }, [buildWordsParams, t, scrollSetupStartIntoView])
 
   // ── TTS
   const handleListen = useCallback(() => {
@@ -175,9 +221,10 @@ export default function VocabPracticePage() {
       return
     }
 
-    const SR = (typeof window !== 'undefined')
-      ? (window.SpeechRecognition ?? (window as unknown as { webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition)
-      : null
+    const SR =
+      typeof window !== 'undefined'
+        ? window.SpeechRecognition ?? window.webkitSpeechRecognition
+        : null
 
     if (!SR) { setError(t('speechNotSupported')); return }
 
@@ -188,7 +235,8 @@ export default function VocabPracticePage() {
     rec.maxAlternatives = 3
 
     rec.onstart = () => setMicState('listening')
-    rec.onend   = () => { if (micState === 'listening') setMicState('idle') }
+    rec.onend = () =>
+      setMicState((prev) => (prev === 'listening' ? 'idle' : prev))
     rec.onerror = (e: SpeechRecognitionErrorEvent) => {
       setMicState('idle')
       if (e.error !== 'no-speech') setError(t('micError'))
@@ -199,7 +247,7 @@ export default function VocabPracticePage() {
       const transcript = e.results[0][0].transcript.trim()
       setHeard(transcript)
       const word = words[idx]
-      const ok   = isAccepted(transcript, word)
+      const ok   = isAcceptedHeardForWord(transcript, word.baseForm)
       setVerdict(ok ? 'correct' : 'wrong')
       setShowMeaning(true)
       setResults(prev => [...prev, { word, heard: transcript, correct: ok }])
@@ -289,11 +337,19 @@ export default function VocabPracticePage() {
         {/* ── Error banner */}
         <AnimatePresence>
           {error && (
-            <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            <motion.div
+              role="alert"
+              aria-live="assertive"
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
               className="mx-4 mt-3 px-4 py-2 rounded-[12px] text-xs flex items-center justify-between"
-              style={{ background: `${RED}18`, border: `1px solid ${RED}40`, color: RED }}>
+              style={{ background: `${RED}18`, border: `1px solid ${RED}40`, color: RED }}
+            >
               {error}
-              <button onClick={() => setError(null)} className="ml-2 opacity-60 hover:opacity-100">✕</button>
+              <button type="button" onClick={() => setError(null)} className="ml-2 opacity-60 hover:opacity-100">
+                ✕
+              </button>
             </motion.div>
           )}
         </AnimatePresence>
@@ -376,7 +432,21 @@ export default function VocabPracticePage() {
                     </button>
                   ))}
                 </div>
+                <p className="text-[11px] mt-3 leading-snug" style={{ color: 'rgba(255,255,255,0.38)' }}>
+                  {previewLoading ? t('wordCountChecking') : previewTotal !== null ? t('wordCountPreview', { count: previewTotal }) : null}
+                </p>
               </div>
+
+              <div ref={setupStartAnchorRef}>
+                {error && error !== t('noWords') && (
+                  <div
+                    className="mb-3 mx-0 px-4 py-2.5 rounded-[12px] text-xs"
+                    style={{ background: `${RED}18`, border: `1px solid ${RED}40`, color: RED }}
+                    aria-hidden="true"
+                  >
+                    {error}
+                  </div>
+                )}
 
               {/* Start button */}
               <motion.button
@@ -409,6 +479,7 @@ export default function VocabPracticePage() {
                   </>
                 )}
               </motion.button>
+              </div>
             </motion.div>
           )}
 

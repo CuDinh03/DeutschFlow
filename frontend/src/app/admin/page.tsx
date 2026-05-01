@@ -1,7 +1,21 @@
 'use client'
 
-import { Activity, AlertTriangle, BookOpen, Database, Loader2, TrendingUp, Users } from 'lucide-react'
+import {
+  Activity,
+  AlertTriangle,
+  BookOpen,
+  Bot,
+  Coins,
+  Database,
+  LineChart,
+  Loader2,
+  PieChart,
+  Settings,
+  TrendingUp,
+  Users,
+} from 'lucide-react'
 import { motion } from 'framer-motion'
+import { useTranslations } from 'next-intl'
 import AdminShell from '@/components/admin/AdminShell'
 import useAdminData from '@/hooks/useAdminData'
 import api from '@/lib/api'
@@ -14,10 +28,11 @@ type Overview = {
 }
 
 export default function AdminOverviewPage() {
+  const t = useTranslations('adminOverview')
   const { data: ov, loading, refreshing, error, lastSyncedAt, reload } =
     useAdminData<Overview | null>({
       initialData: null,
-      errorMessage: 'Không thể tải tổng quan.',
+      errorMessage: t('error'),
       fetchData: async () => {
         const res = await api.get('/admin/reports/overview')
         return res.data as Overview
@@ -28,40 +43,40 @@ export default function AdminOverviewPage() {
 
   const cards = ov ? [
     {
-      label: 'Tổng người dùng', value: ov.userCount.toLocaleString(),
-      sub: `${ov.teacherCount} giáo viên · ${ov.studentCount} học sinh`,
+      label: t('cardUsers'), value: ov.userCount.toLocaleString(),
+      sub: t('cardUsersSub', { teachers: ov.teacherCount, students: ov.studentCount }),
       icon: Users, bg: '#EEF4FF', color: '#00305E',
     },
     {
-      label: 'Lớp học', value: ov.classCount.toLocaleString(),
-      sub: `${ov.quizCount} quiz · ${ov.activeQuizCount} đang chạy`,
+      label: t('cardClasses'), value: ov.classCount.toLocaleString(),
+      sub: t('cardClassesSub', { quizzes: ov.quizCount, active: ov.activeQuizCount }),
       icon: BookOpen, bg: '#ECFDF5', color: '#10b981',
     },
     {
-      label: 'Tổng từ vựng', value: ov.totalWords.toLocaleString(),
-      sub: `${ov.wordsWithMeaning.toLocaleString()} có nghĩa (${enrichPct}%)`,
+      label: t('cardWords'), value: ov.totalWords.toLocaleString(),
+      sub: t('cardWordsSub', { withMeaning: ov.wordsWithMeaning.toLocaleString(), pct: enrichPct }),
       icon: Database, bg: '#FFFBEB', color: '#f59e0b',
     },
     {
-      label: 'Cần enrich', value: ov.wordsNeedingEnrichment.toLocaleString(),
-      sub: 'Chưa có nghĩa tiếng Anh',
+      label: t('cardEnrich'), value: ov.wordsNeedingEnrichment.toLocaleString(),
+      sub: t('cardEnrichSub'),
       icon: AlertTriangle, bg: '#FEF2F2', color: '#ef4444',
     },
     {
-      label: 'Điểm quiz TB', value: ov.avgQuizScore ? ov.avgQuizScore.toFixed(1) : '—',
-      sub: 'Trung bình tất cả phiên',
+      label: t('cardQuiz'), value: ov.avgQuizScore ? ov.avgQuizScore.toFixed(1) : '—',
+      sub: t('cardQuizSub'),
       icon: Activity, bg: '#F5F3FF', color: '#7c3aed',
     },
   ] : []
 
   return (
-    <AdminShell title="Tổng quan" subtitle="Số liệu thực từ database"
+    <AdminShell title={t('title')} subtitle={t('subtitle')}
       activeNav="overview" error={error} refreshing={refreshing}
       onRefresh={() => reload({ silent: true })} lastSyncedAt={lastSyncedAt}>
 
       {loading ? (
         <div className="flex items-center justify-center h-48 text-[#94A3B8]">
-          <Loader2 size={24} className="animate-spin mr-2" /> Đang tải...
+          <Loader2 size={24} className="animate-spin mr-2" /> {t('loading')}
         </div>
       ) : (
         <div className="space-y-5">
@@ -88,7 +103,7 @@ export default function AdminOverviewPage() {
           {ov && (
             <div className="bg-white rounded-[16px] p-5 border border-[#E2E8F0] shadow-sm">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-semibold text-[#0F172A]">Độ phủ nghĩa từ vựng</p>
+                <p className="text-sm font-semibold text-[#0F172A]">{t('coverageTitle')}</p>
                 <span className="text-sm font-bold" style={{ color: enrichPct >= 80 ? '#10b981' : enrichPct >= 50 ? '#f59e0b' : '#ef4444' }}>
                   {enrichPct}%
                 </span>
@@ -101,20 +116,25 @@ export default function AdminOverviewPage() {
                   transition={{ duration: 0.8, ease: 'easeOut' }} />
               </div>
               <p className="text-[#94A3B8] text-xs mt-2">
-                {ov.wordsWithMeaning.toLocaleString()} / {ov.totalWords.toLocaleString()} từ có nghĩa thực
+                {t('coverageLine', { withMeaning: ov.wordsWithMeaning.toLocaleString(), total: ov.totalWords.toLocaleString() })}
                 {ov.wordsNeedingEnrichment > 0 && (
-                  <span className="text-amber-600 ml-2">· {ov.wordsNeedingEnrichment.toLocaleString()} từ cần enrich thêm</span>
+                  <span className="text-amber-600 ml-2">{t('coverageNeed', { n: ov.wordsNeedingEnrichment.toLocaleString() })}</span>
                 )}
               </p>
             </div>
           )}
 
           {/* Quick links */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { href: '/admin/users', label: 'Quản lý người dùng', desc: 'Xem, phân quyền tài khoản', icon: Users, color: '#00305E' },
-              { href: '/admin/vocabulary', label: 'Quản lý từ vựng', desc: 'Xem, enrich, reset từ vựng', icon: Database, color: '#f59e0b' },
-              { href: '/admin/reports', label: 'Báo cáo & Telemetry', desc: 'API metrics, tiến độ học', icon: TrendingUp, color: '#10b981' },
+              { href: '/admin/users', label: t('linkUsers'), desc: t('linkUsersDesc'), icon: Users, color: '#00305E' },
+              { href: '/admin/plans', label: t('linkPlans'), desc: t('linkPlansDesc'), icon: Coins, color: '#0ea5e9' },
+              { href: '/admin/revenue', label: t('linkRevenue'), desc: t('linkRevenueDesc'), icon: LineChart, color: '#6366f1' },
+              { href: '/admin/token-analytics', label: t('linkTokens'), desc: t('linkTokensDesc'), icon: PieChart, color: '#f43f5e' },
+              { href: '/admin/vocabulary', label: t('linkVocab'), desc: t('linkVocabDesc'), icon: Database, color: '#f59e0b' },
+              { href: '/admin/reports', label: t('linkReports'), desc: t('linkReportsDesc'), icon: TrendingUp, color: '#10b981' },
+              { href: '/admin/ai-config', label: t('linkAi'), desc: t('linkAiDesc'), icon: Bot, color: '#8b5cf6' },
+              { href: '/admin/settings', label: t('linkSettings'), desc: t('linkSettingsDesc'), icon: Settings, color: '#64748B' },
             ].map(({ href, label, desc, icon: Icon, color }) => (
               <a key={href} href={href}
                 className="bg-white rounded-[16px] p-5 border border-[#E2E8F0] shadow-sm hover:shadow-md hover:border-[#00305E]/20 transition-all flex items-center gap-4">

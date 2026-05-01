@@ -44,12 +44,9 @@ export default function LoginPage() {
           break
         case 'STUDENT':
         default:
-          try {
-            await api.get('/plan/me')
-            router.push('/dashboard')
-          } catch {
-            router.push('/onboarding')
-          }
+          // Luôn về dashboard: trang đó chỉ chuyển /onboarding khi /plan/me trả 404 (đúng nghĩa chưa onboarding).
+          // Không được gọi /plan/me ở đây + catch moọi lỗi → dễ đẩy nhầm (lỗi mạng/500/user đã có lộ trình).
+          router.push('/dashboard')
           break
       }
     } catch (err: unknown) {
@@ -160,19 +157,7 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Demo Accounts Info */}
-          <div className="mt-6 p-4 bg-muted rounded-lg">
-            <p className="text-xs font-semibold text-foreground mb-2">{t('demoAccountsTitle')}</p>
-            <div className="space-y-1 text-xs text-muted-foreground">
-              <p>• student@deutschflow.com</p>
-              <p>• teacher@deutschflow.com</p>
-              <p>• admin@deutschflow.com</p>
-              <p className="mt-2 font-medium">
-                {t('demoPasswordLabel')}{' '}
-                <code className="bg-background px-2 py-0.5 rounded">password123</code>
-              </p>
-            </div>
-          </div>
+          {/* Demo accounts intentionally not shown in UI */}
         </div>
       </div>
     </div>

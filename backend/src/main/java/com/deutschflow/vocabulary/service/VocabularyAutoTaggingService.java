@@ -1,5 +1,7 @@
 package com.deutschflow.vocabulary.service;
 
+import com.deutschflow.common.quota.AiUsageLedgerService;
+import com.deutschflow.common.quota.RequestContext;
 import com.deutschflow.speaking.ai.ChatMessage;
 import com.deutschflow.speaking.ai.OpenAiChatClient;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -14,12 +16,10 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Auto-classifies words into topic taxonomy tags using the LLM.
+ * Auto-classifies words into topic taxonomy tags: keyword overlap first (cheap),
+ * then LLM batch for lemmas not matched by rules.
  *
- * <p>The canonical tag names are German (e.g. "Reise", "Beruf").
- * Words are processed in batches; the LLM returns a JSON mapping
- * word_id → list of tags. Only tags present in the taxonomy are
- * applied; unknown tags are silently discarded.
+ * <p>Taxonomy scope = tags where {@code is_topic_taxonomy = 1}.
  */
 @Service
 @RequiredArgsConstructor
@@ -32,6 +32,8 @@ public class VocabularyAutoTaggingService {
     private final OpenAiChatClient llmClient;
     private final ObjectMapper objectMapper;
     private final TagQueryService tagQueryService;
+    private final TopicKeywordRuleService topicKeywordRuleService;
+    private final AiUsageLedgerService aiUsageLedgerService;
 
     // ──────────────────────────────────────────────────────────────────────────
     // Public API
@@ -45,34 +47,64 @@ public class VocabularyAutoTaggingService {
      * @param resetTags if true, clears existing taxonomy tags from all words first
      * @return summary map with counts and (when dryRun) preview data
      */
-    public Map<String, Object> runBatch(Integer limit, boolean dryRun, boolean resetTags) {
-        List<String> taxonomy = tagQueryService.listTagNames();
+    @Transactional(rollbackFor = Exception.class)
+    public Map<String, Object> runBatch(long actorUserId, Integer limit, boolean dryRun, boolean resetTags) {
+        List<String> taxonomy = tagQueryService.listTopicTaxonomyTagNames();
         if (taxonomy.isEmpty()) {
-            return Map.of("status", "error", "message", "No taxonomy tags found in DB. Run V31 migration first.");
+            return Map.of(
+                    "status", "error",
+                    "message", "No topic taxonomy tags (is_topic_taxonomy=1). Run V31+V46 migrations.");
         }
 
         if (resetTags && !dryRun) {
-            clearTaxonomyTags(taxonomy);
-            log.info("[AutoTag] Cleared taxonomy tags from word_tags");
+            clearTopicTaxonomyLinks();
+            log.info("[AutoTag] Cleared topic taxonomy links from word_tags");
         }
 
         List<Map<String, Object>> words = fetchUntaggedWords(limit == null ? 10_000 : limit);
-        log.info("[AutoTag] Processing {} untagged words (dryRun={})", words.size(), dryRun);
+        log.info("[AutoTag] Processing {} words without topic tags (dryRun={})", words.size(), dryRun);
 
         int totalTagged = 0;
         int totalTagLinks = 0;
+        int keywordTaggedWords = 0;
         List<Map<String, Object>> preview = new ArrayList<>();
+        Set<String> taxSet = new HashSet<>(taxonomy);
 
         int batchSize = DEFAULT_BATCH_SIZE;
         for (int i = 0; i < words.size(); i += batchSize) {
             List<Map<String, Object>> batch = words.subList(i, Math.min(i + batchSize, words.size()));
-            Map<Long, List<String>> assignments = classifyBatch(batch, taxonomy);
-            if (assignments.isEmpty()) continue;
+
+            Map<Long, List<String>> assignments = new LinkedHashMap<>();
+            Set<Long> solvedByKeyword = new HashSet<>();
+            List<Map<String, Object>> llmTodo = new ArrayList<>();
+
+            for (Map<String, Object> row : batch) {
+                long wordId = ((Number) row.get("id")).longValue();
+                String baseForm = Objects.toString(row.get("base_form"), "");
+                String meaning = row.get("meaning") != null ? Objects.toString(row.get("meaning"), "") : "";
+                List<String> fromRules = topicKeywordRuleService.inferTags(baseForm, meaning, taxSet);
+                if (!fromRules.isEmpty()) {
+                    assignments.put(wordId, fromRules);
+                    solvedByKeyword.add(wordId);
+                } else {
+                    llmTodo.add(row);
+                }
+            }
+
+            if (!llmTodo.isEmpty()) {
+                Map<Long, List<String>> fromLlm = classifyBatch(actorUserId, llmTodo, taxonomy);
+                for (var e : fromLlm.entrySet()) {
+                    assignments.putIfAbsent(e.getKey(), e.getValue());
+                }
+            }
+
+            keywordTaggedWords += solvedByKeyword.size();
 
             for (var entry : assignments.entrySet()) {
                 long wordId = entry.getKey();
                 List<String> tags = entry.getValue();
                 if (tags.isEmpty()) continue;
+
                 totalTagged++;
                 totalTagLinks += tags.size();
 
@@ -83,7 +115,8 @@ public class VocabularyAutoTaggingService {
                     preview.add(Map.of(
                             "wordId", wordId,
                             "baseForm", w.map(r -> r.get("base_form")).orElse("?"),
-                            "tags", tags
+                            "tags", tags,
+                            "source", solvedByKeyword.contains(wordId) ? "keyword" : "llm"
                     ));
                 } else {
                     applyTags(wordId, tags, taxonomy);
@@ -98,6 +131,7 @@ public class VocabularyAutoTaggingService {
         result.put("wordsProcessed", words.size());
         result.put("wordsTagged", totalTagged);
         result.put("tagLinksCreated", totalTagLinks);
+        result.put("keywordClassifiedWords", keywordTaggedWords);
         if (dryRun) result.put("preview", preview);
         return result;
     }
@@ -106,7 +140,7 @@ public class VocabularyAutoTaggingService {
     // Private helpers
     // ──────────────────────────────────────────────────────────────────────────
 
-    /** Words that currently have zero taxonomy tags assigned. */
+    /** Words with no topic-taxonomy tags (may still carry import/source tags). */
     private List<Map<String, Object>> fetchUntaggedWords(int limit) {
         String sql = """
                 SELECT w.id, w.base_form, w.cefr_level,
@@ -117,7 +151,7 @@ public class VocabularyAutoTaggingService {
                 LEFT JOIN word_translations wt_de ON wt_de.word_id = w.id AND wt_de.locale = 'de'
                 WHERE NOT EXISTS (
                     SELECT 1 FROM word_tags wt2
-                    JOIN tags t2 ON t2.id = wt2.tag_id
+                    JOIN tags t2 ON t2.id = wt2.tag_id AND t2.is_topic_taxonomy = 1
                     WHERE wt2.word_id = w.id
                 )
                 ORDER BY w.id
@@ -126,28 +160,57 @@ public class VocabularyAutoTaggingService {
         return jdbc.queryForList(sql, limit);
     }
 
-    /** Remove word_tags rows for taxonomy tags only (leaves custom/other tags intact). */
-    private void clearTaxonomyTags(List<String> taxonomy) {
-        String placeholders = taxonomy.stream().map(t -> "?").collect(Collectors.joining(","));
-        jdbc.update(
-                "DELETE wt FROM word_tags wt JOIN tags t ON t.id = wt.tag_id WHERE t.name IN (" + placeholders + ")",
-                taxonomy.toArray()
-        );
+    /** Deletes only topic-facet rows; leaves import/other tags intact. */
+    private void clearTopicTaxonomyLinks() {
+        jdbc.update("""
+                DELETE wt FROM word_tags wt
+                INNER JOIN tags t ON t.id = wt.tag_id
+                WHERE t.is_topic_taxonomy = 1
+                """);
     }
 
     /**
      * Calls the LLM with a batch of words and parses the tag assignments.
      * Returns a map of word_id → list of valid taxonomy tag names.
      */
-    private Map<Long, List<String>> classifyBatch(List<Map<String, Object>> batch, List<String> taxonomy) {
+    /**
+     * LLM tagging for admin-maintained vocab is platform spend (same OpenAI/Groq key as learners),
+     * not debited against the invoking admin user's learner quota. Admins commonly sit on plan
+     * {@code DEFAULT} with {@code daily_token_grant = 0}; pre-checking their quota silently
+     * dropped every classification (keywords could still succeed).
+     */
+    private Map<Long, List<String>> classifyBatch(long actorUserId, List<Map<String, Object>> batch, List<String> taxonomy) {
+        if (batch.isEmpty()) {
+            return Map.of();
+        }
         String systemPrompt = buildSystemPrompt(taxonomy);
         String userPrompt   = buildUserPrompt(batch);
 
         try {
-            String raw = llmClient.chatCompletion(
+            int maxTokens = 600;
+            var ai = llmClient.chatCompletion(
                     List.of(new ChatMessage("system", systemPrompt),
                             new ChatMessage("user", userPrompt)),
-                    null, 0.0);
+                    null, 0.0, maxTokens);
+            String raw = ai.content();
+
+            try {
+                if (ai.usage() != null) {
+                    aiUsageLedgerService.record(
+                            actorUserId,
+                            ai.provider(),
+                            ai.model(),
+                            ai.usage().promptTokens(),
+                            ai.usage().completionTokens(),
+                            ai.usage().totalTokens(),
+                            "VOCAB_AUTO_TAG",
+                            RequestContext.requestIdOrNull(),
+                            null
+                    );
+                }
+            } catch (Exception ledgerEx) {
+                log.warn("[AutoTag] Skip token usage ledger due to error: {}", ledgerEx.getMessage());
+            }
 
             return parseResponse(raw, taxonomy);
         } catch (Exception e) {
@@ -172,8 +235,8 @@ public class VocabularyAutoTaggingService {
         StringBuilder sb = new StringBuilder("Classify these German words:\n");
         for (Map<String, Object> row : batch) {
             long id      = ((Number) row.get("id")).longValue();
-            String form  = (String) row.get("base_form");
-            String meaning = row.get("meaning") != null ? (String) row.get("meaning") : "";
+            String form = Objects.toString(row.get("base_form"), "");
+            String meaning = row.get("meaning") != null ? Objects.toString(row.get("meaning"), "") : "";
             sb.append(id).append(": ").append(form);
             if (!meaning.isBlank()) sb.append(" — ").append(meaning);
             sb.append('\n');
@@ -222,7 +285,11 @@ public class VocabularyAutoTaggingService {
     /** Ensures tags exist in DB and inserts word_tags rows. */
     @Transactional
     protected void applyTags(long wordId, List<String> tagNames, List<String> taxonomy) {
+        Set<String> allowed = new HashSet<>(taxonomy);
         for (String tagName : tagNames) {
+            if (!allowed.contains(tagName)) {
+                continue;
+            }
             // Get or create tag (taxonomy tags are seeded in V31 — this is a safety net)
             Long tagId = jdbc.query(
                     "SELECT id FROM tags WHERE name = ?",

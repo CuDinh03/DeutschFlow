@@ -44,12 +44,7 @@ export default function RegisterPage() {
           break
         case 'STUDENT':
         default:
-          try {
-            await api.get('/plan/me')
-            router.push('/dashboard')
-          } catch {
-            router.push('/onboarding')
-          }
+          router.push('/dashboard')
           break
       }
     } catch (err: unknown) {

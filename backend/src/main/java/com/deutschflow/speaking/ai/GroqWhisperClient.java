@@ -44,6 +44,10 @@ public class GroqWhisperClient {
         log.info("GroqWhisperClient initialized — model: {}", whisperModel);
     }
 
+    public String getWhisperModel() {
+        return whisperModel;
+    }
+
     /**
      * Transcribes audio bytes using Groq Whisper.
      *

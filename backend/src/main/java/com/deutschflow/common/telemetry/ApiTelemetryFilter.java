@@ -40,6 +40,7 @@ public class ApiTelemetryFilter extends OncePerRequestFilter {
         long startedAt = System.currentTimeMillis();
         String requestId = resolveRequestId(request);
         response.setHeader("X-Request-Id", requestId);
+        request.setAttribute("requestId", requestId);
 
         try {
             filterChain.doFilter(request, response);

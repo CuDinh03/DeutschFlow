@@ -17,6 +17,9 @@ export function apiMessage(e: unknown): string {
   if (isAxiosErr(e)) {
     const d = e.response?.data
     if (d && typeof d === 'object' && 'message' in d) return String(d.message)
+    if (d && typeof d === 'object' && 'error' in d) return String((d as { error?: unknown }).error)
+    if (d && typeof d === 'object' && 'detail' in d) return String((d as { detail?: unknown }).detail)
+    if (d && typeof d === 'object' && 'title' in d) return String((d as { title?: unknown }).title)
     return e.message ?? 'Lỗi không xác định'
   }
   if (e instanceof Error) return e.message

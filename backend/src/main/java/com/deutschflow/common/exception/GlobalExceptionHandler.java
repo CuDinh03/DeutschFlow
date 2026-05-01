@@ -1,5 +1,7 @@
 package com.deutschflow.common.exception;
 
+import com.deutschflow.common.quota.QuotaExceededException;
+import com.deutschflow.common.exception.RateLimitExceededException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -32,7 +34,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ProblemDetail> handleBadRequest(BadRequestException ex,
                                                           HttpServletRequest request) {
         return problem(HttpStatus.BAD_REQUEST, "bad-request", "Bad Request",
-                ex.getMessage(), request.getRequestURI(), null);
+                ex.getMessage(), request.getRequestURI(), null, null);
     }
 
     // --- 400 Validation (JSR-303) ---
@@ -47,7 +49,7 @@ public class GlobalExceptionHandler {
                 ));
 
         return problem(HttpStatus.BAD_REQUEST, "validation-error", "Validation Failed",
-                "One or more fields are invalid.", request.getRequestURI(), errors);
+                "One or more fields are invalid.", request.getRequestURI(), errors, null);
     }
 
     // --- 403 Forbidden ---
@@ -55,7 +57,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ProblemDetail> handleForbidden(ForbiddenException ex,
                                                          HttpServletRequest request) {
         return problem(HttpStatus.FORBIDDEN, "forbidden", "Forbidden",
-                ex.getMessage(), request.getRequestURI(), null);
+                ex.getMessage(), request.getRequestURI(), null, null);
     }
 
     // --- 404 Not Found ---
@@ -63,7 +65,62 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ProblemDetail> handleNotFound(NotFoundException ex,
                                                         HttpServletRequest request) {
         return problem(HttpStatus.NOT_FOUND, "not-found", "Not Found",
-                ex.getMessage(), request.getRequestURI(), null);
+                ex.getMessage(), request.getRequestURI(), null, null);
+    }
+
+    // --- 409 Conflict ---
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ProblemDetail> handleConflict(ConflictException ex,
+                                                        HttpServletRequest request) {
+        return problem(HttpStatus.CONFLICT, "conflict", "Conflict",
+                ex.getMessage(), request.getRequestURI(), null, null);
+    }
+
+    // --- 429 Quota exceeded ---
+    @ExceptionHandler(QuotaExceededException.class)
+    public ResponseEntity<ProblemDetail> handleQuotaExceeded(QuotaExceededException ex,
+                                                             HttpServletRequest request) {
+        Map<String, Object> ext = null;
+        if (ex.getSnapshot() != null) {
+            var s = ex.getSnapshot();
+            ext = new java.util.LinkedHashMap<>();
+            ext.put("planCode", s.planCode());
+            ext.put("unlimitedInternal", s.unlimitedInternal());
+            ext.put("dailyTokenGrant", s.dailyTokenGrant());
+            ext.put("walletBalance", s.walletBalance());
+            ext.put("walletCap", s.walletCap());
+            ext.put("usedToday", s.usedToday());
+            ext.put("monthlyTokenLimit", s.monthlyTokenLimit());
+            ext.put("usedThisMonth", s.usedThisMonth());
+            ext.put("remainingThisMonth", s.remainingThisMonth());
+            ext.put("periodStartUtc", s.periodStartUtc());
+            ext.put("periodEndUtc", s.periodEndUtc());
+            ext.put("subscriptionStartsAtUtc", s.subscriptionStartsAtUtc());
+            ext.put("subscriptionEndsAtUtc", s.subscriptionEndsAtUtc());
+        }
+        return problem(HttpStatus.TOO_MANY_REQUESTS, "quota-exceeded", "Quota Exceeded",
+                ex.getMessage(), request.getRequestURI(), null, ext);
+    }
+
+    // --- 429 Rate limit exceeded ---
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<ProblemDetail> handleRateLimitExceeded(RateLimitExceededException ex,
+                                                                 HttpServletRequest request) {
+        int retryAfter = Math.max(1, ex.getRetryAfterSeconds());
+        var body = new ProblemDetail(
+                BASE_TYPE + "rate-limit-exceeded",
+                "Rate Limit Exceeded",
+                HttpStatus.TOO_MANY_REQUESTS.value(),
+                ex.getMessage(),
+                request.getRequestURI(),
+                LocalDateTime.now(),
+                null,
+                Map.of("retryAfterSeconds", retryAfter)
+        );
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", String.valueOf(retryAfter))
+                .contentType(PROBLEM_JSON)
+                .body(body);
     }
 
     // --- 401/403 — let Spring Security handle these, do NOT swallow them ---
@@ -79,7 +136,7 @@ public class GlobalExceptionHandler {
         // Debug mode — show real exception
         String detail = ex.getClass().getSimpleName() + ": " + ex.getMessage();
         return problem(HttpStatus.INTERNAL_SERVER_ERROR, "internal-error", "Internal Server Error",
-                detail, request.getRequestURI(), null);
+                detail, request.getRequestURI(), null, null);
     }
 
     // --- builder ---
@@ -88,7 +145,8 @@ public class GlobalExceptionHandler {
                                                   String title,
                                                   String detail,
                                                   String instance,
-                                                  Map<String, String> errors) {
+                                                  Map<String, String> errors,
+                                                  Map<String, Object> extensions) {
         var body = new ProblemDetail(
                 BASE_TYPE + errorCode,
                 title,
@@ -96,7 +154,8 @@ public class GlobalExceptionHandler {
                 detail,
                 instance,
                 LocalDateTime.now(),
-                errors
+                errors,
+                extensions
         );
         return ResponseEntity.status(status).contentType(PROBLEM_JSON).body(body);
     }
@@ -112,6 +171,7 @@ public class GlobalExceptionHandler {
             String detail,
             String instance,
             LocalDateTime timestamp,
-            Map<String, String> errors   // nullable
+            Map<String, String> errors,           // nullable
+            Map<String, Object> extensions        // nullable
     ) {}
 }
