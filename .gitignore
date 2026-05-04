@@ -1,0 +1,86 @@
+# ============================================================
+# SECRETS — KHÔNG BAO GIỜ COMMIT
+# ============================================================
+.env
+# env variants (ignore all, except .env.example)
+.env.*
+!.env.example
+*.env.local
+
+# --- key/cert/keystore ---
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.jks
+
+# --- credentials/secrets files ---
+credentials*.json
+service-account*.json
+serviceAccount*.json
+firebase-adminsdk*.json
+google-credentials*.json
+client_secret*.json
+*-credentials.json
+**/secrets.*
+
+# Cursor / internal tooling (never commit)
+.kiro/
+
+# ============================================================
+# DOCS (nội bộ, không push lên git)
+# ============================================================
+docs/
+backend/src/main/resources/application-local.yml
+backend/src/main/resources/application-secret.yml
+# prevent accidental commit of other local configs
+backend/src/main/resources/application-*.yml
+!backend/src/main/resources/application.yml
+
+# ============================================================
+# Java / Maven
+# ============================================================
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+*.class
+*.jar
+*.war
+
+# ============================================================
+# Node / Next.js
+# ============================================================
+frontend/node_modules/
+frontend/.next/
+# accidental duplicate build dir (must never commit)
+frontend/.next 2/
+.next 2/
+frontend/out/
+frontend/.env.local
+frontend/.env.production
+**/*.tsbuildinfo
+*.log
+
+# ============================================================
+# IDE
+# ============================================================
+.idea/
+*.iml
+.vscode/settings.json
+*.DS_Store
+# macOS Finder duplicates (e.g. "file 2.java")
+*\ 2.*
+
+# ============================================================
+# Docker
+# ============================================================
+mysql_data/
+
+# Archives / exports
+*.zip
+postgres_data/
+
+# Python / ML — never commit (GitHub 100MB limit; venv & weights are huge)
+ai-server/.venv/
+**/.venv/
+deutschflow_model/

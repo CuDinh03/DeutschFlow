@@ -1,0 +1,42 @@
+package com.deutschflow.notification.controller;
+
+import com.deutschflow.unittest.support.MockMvcWithValidation;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.web.servlet.MockMvc;
+
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+import com.deutschflow.notification.NotificationRateLimiterService;
+import com.deutschflow.notification.service.UserNotificationService;
+import com.deutschflow.notification.sse.NotificationSseBroadcaster;
+
+@ExtendWith(MockitoExtension.class)
+class UserNotificationControllerUnitTest {
+
+    private MockMvc mvc;
+    @Mock
+    com.deutschflow.notification.service.UserNotificationService userNotificationService;
+    @Mock
+    com.deutschflow.notification.sse.NotificationSseBroadcaster notificationSseBroadcaster;
+    @Mock
+    com.deutschflow.notification.NotificationRateLimiterService notificationRateLimiterService;
+
+    @InjectMocks
+    UserNotificationController controller;
+
+    @BeforeEach
+    void setup() {
+        mvc = MockMvcWithValidation.standaloneWithAdvice(controller);
+    }
+
+    @Test
+    void controllerConstructedAndMockMvcInitialized() {
+        assertNotNull(controller);
+        assertNotNull(mvc);
+    }
+}

@@ -1,0 +1,50 @@
+# Integration tests: real PostgreSQL via Testcontainers (see AbstractPostgresIntegrationTest).
+# Do not add H2 or classpath schema-test.sql on this branch.
+
+spring:
+  datasource:
+    # Satisfies application.yml env placeholders until @DynamicPropertySource overrides these.
+    url: jdbc:postgresql://127.0.0.1:5432/deutschflow_test_placeholder
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    encoding: UTF-8
+  sql:
+    init:
+      mode: never
+
+app:
+  flyway:
+    repair-before-migrate: false
+  jwt:
+    secret: test-secret-key-with-at-least-32-bytes!!
+    access-token-expiry-ms: 900000
+    refresh-token-expiry-ms: 604800000
+  speaking:
+    adaptive:
+      enabled: true
+  vocabulary:
+    deepl-lemma-backfill:
+      enabled: false
+    enrichment-auto-stop-enabled: false
+    goethe:
+      auto-import-on-startup: false
+      official-wordlist:
+        auto-import-on-startup: false
+    cefr-curated:
+      auto-import-on-startup: false
+      enrich-after-upsert: false
+    wiktionary-scheduler:
+      enabled: false
+    glosbe-vi:
+      enabled: false
