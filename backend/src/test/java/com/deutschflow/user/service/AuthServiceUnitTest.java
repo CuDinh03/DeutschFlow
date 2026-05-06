@@ -20,7 +20,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
+
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -139,8 +139,8 @@ class AuthServiceUnitTest {
                 .displayName("S")
                 .role(User.Role.STUDENT)
                 .build();
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(7L)))
-                .thenReturn(List.of("B1"));
+        when(jdbcTemplate.queryForList(anyString(), eq(7L)))
+                .thenReturn(List.of(java.util.Map.of("target_level", "B1", "industry", "IT")));
         var res = authService.me(u);
         assertEquals("B1", res.learningTargetLevel());
     }
