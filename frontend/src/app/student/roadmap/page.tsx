@@ -22,6 +22,7 @@ import {
 import { StudentShell } from "@/components/layouts/StudentShell";
 import { useStudentPracticeSession } from "@/hooks/useStudentPracticeSession";
 import api from "@/lib/api";
+import { logout } from "@/lib/authSession";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
