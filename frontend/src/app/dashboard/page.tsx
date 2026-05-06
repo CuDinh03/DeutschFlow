@@ -10,7 +10,7 @@ import {
 import api from "@/lib/api";
 import { TodayPlanDto } from "@/types/today-plan";
 import { StudentShell } from "@/components/layouts/StudentShell";
-import { clearTokens } from "@/lib/authSession";
+import { clearTokens, logout } from "@/lib/authSession";
 
 interface UserProfile {
   displayName: string;
@@ -100,8 +100,7 @@ export default function DashboardPage() {
   useEffect(() => { load(); }, []);
 
   const handleLogout = () => {
-    clearTokens();
-    router.push("/login");
+    logout();
   };
 
   if (loading || !profile) {

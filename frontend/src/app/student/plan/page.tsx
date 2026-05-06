@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import api, { httpStatus } from '@/lib/api'
-import { getAccessToken, clearTokens } from '@/lib/authSession'
+import { getAccessToken, clearTokens, logout } from '@/lib/authSession'
 import { StudentShell } from '@/components/layouts/StudentShell'
 import { BookOpen, Trophy, Target, Sparkles, Check, Play, Lock } from 'lucide-react'
 
@@ -125,8 +125,7 @@ export default function StudentPlanPage() {
       streakDays={streakDays}
       initials={initials}
       onLogout={() => {
-        clearTokens()
-        router.push('/login')
+        logout()
       }}
       headerTitle={t('navMyCourses')}
     >

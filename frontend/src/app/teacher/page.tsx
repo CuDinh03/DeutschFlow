@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import api, { httpStatus, apiMessage } from '@/lib/api'
-import { clearTokens } from '@/lib/authSession'
+import { clearTokens, logout } from '@/lib/authSession'
 
 export default function TeacherPage() {
   const router = useRouter()
@@ -33,8 +33,7 @@ export default function TeacherPage() {
       setQuizzes(qz.data ?? [])
     } catch (e: unknown) {
       if (httpStatus(e) === 401) {
-        clearTokens()
-        router.push('/login')
+        logout()
         return
       }
       setError('Khong the tai du lieu giao vien.')

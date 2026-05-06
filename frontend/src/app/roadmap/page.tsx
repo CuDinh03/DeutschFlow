@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import api, { httpStatus } from "@/lib/api";
-import { getAccessToken, clearTokens } from "@/lib/authSession";
+import { getAccessToken, clearTokens, logout } from "@/lib/authSession";
 import { StudentShell } from "@/components/layouts/StudentShell";
 import {
   Lock,
@@ -453,8 +453,7 @@ export default function RoadmapPage() {
           return;
         }
         if (status === 401 || status === 403) {
-          clearTokens();
-          router.push("/login");
+          logout();
           return;
         }
         setApiError(tErr("backendUnreachable"));

@@ -1,5 +1,5 @@
 'use client'
-
+import { logout } from '@/lib/authSession'
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { BarChart2, TrendingUp, Loader2, RefreshCw, BookOpen } from 'lucide-react'
@@ -159,7 +159,7 @@ export default function VocabAnalyticsPage() {
       targetLevel={targetLevel}
       streakDays={streakDays}
       initials={initials}
-      onLogout={() => {}}
+      onLogout={() => { logout() }}
       headerTitle="Thống kê từ vựng"
       headerSubtitle="Phân tích độ phủ từ vựng theo cấp độ CEFR"
     >

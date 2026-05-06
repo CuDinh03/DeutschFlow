@@ -89,9 +89,42 @@ export function setTokens(response: AuthLikeResponse): void {
 export function clearTokens(): void {
   localStorage.removeItem(ACCESS_TOKEN_KEY)
   localStorage.removeItem(REFRESH_TOKEN_KEY)
+  // Clear ALL localStorage keys to avoid stale user state between sessions
+  const keysToRemove: string[] = []
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i)
+    if (key) keysToRemove.push(key)
+  }
+  keysToRemove.forEach(k => localStorage.removeItem(k))
+  // Clear cookies
   setCookie(AUTH_ACCESS_COOKIE, '', 0)
   setCookie(AUTH_ROLE_COOKIE, '', 0)
   setCookie(AUTH_LOGGED_IN_COOKIE, '', 0)
+}
+
+/**
+ * Full logout: revoke refresh token on server, clear local state,
+ * then hard-reload to /login to wipe all React in-memory state.
+ * Use this instead of calling clearTokens() + router.push().
+ */
+export async function logout(): Promise<void> {
+  // 1. Revoke refresh token on the backend (best-effort, don't block on error)
+  try {
+    const token = localStorage.getItem(ACCESS_TOKEN_KEY)
+    if (token) {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(3000),
+      })
+    }
+  } catch {
+    // ignore network errors — still clear locally
+  }
+  // 2. Clear all local tokens and storage
+  clearTokens()
+  // 3. Hard redirect — reloads the page, wiping ALL React state
+  window.location.href = '/login'
 }
 
 // ─── Legacy aliases (kept for backward compat) ───────────────────────────────

@@ -1,5 +1,5 @@
 'use client'
-
+import { logout } from '@/lib/authSession'
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -279,7 +279,7 @@ export default function ReviewQueuePage() {
       targetLevel={targetLevel}
       streakDays={streakDays}
       initials={initials}
-      onLogout={() => {}}
+      onLogout={() => { logout() }}
       headerTitle="Ôn tập hôm nay"
       headerSubtitle="Spaced repetition — ôn đúng lúc, nhớ mãi mãi"
     >

@@ -1,5 +1,5 @@
 'use client'
-
+import { logout } from '@/lib/authSession'
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import {
@@ -56,7 +56,7 @@ export default function TutorProfilePage() {
       targetLevel={targetLevel}
       streakDays={streakDays}
       initials={initials}
-      onLogout={() => {}}
+      onLogout={() => { logout() }}
       headerTitle="Hồ sơ gia sư"
       headerSubtitle="Kai Müller — Chuyên gia Backend & Tiếng Đức"
     >

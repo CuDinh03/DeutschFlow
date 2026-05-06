@@ -1,5 +1,5 @@
 'use client'
-
+import { logout } from '@/lib/authSession'
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -133,7 +133,7 @@ export default function ErrorLibraryPage() {
       targetLevel={targetLevel}
       streakDays={streakDays}
       initials={initials}
-      onLogout={() => {}}
+      onLogout={() => { logout() }}
       headerTitle="Thư viện lỗi"
       headerSubtitle="Vết sẹo ngữ pháp — Càng nhớ lâu, càng giỏi nhanh"
     >

@@ -1,5 +1,5 @@
 'use client'
-
+import { logout } from '@/lib/authSession'
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Trophy, Loader2, RefreshCw, Crown, Medal, Star, Zap } from 'lucide-react'
@@ -75,7 +75,7 @@ export default function LeaderboardPage() {
       targetLevel={targetLevel}
       streakDays={streakDays}
       initials={initials}
-      onLogout={() => {}}
+      onLogout={() => { logout() }}
       headerTitle="Bảng xếp hạng"
       headerSubtitle="Top học viên tích lũy XP nhiều nhất"
     >

@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, CheckCircle2, ChevronRight, Eye, EyeOff, Mic, MicOff, RefreshCw, SkipForward, Trophy, Volume2, XCircle } from 'lucide-react'
 import api from '@/lib/api'
 import { speakGerman, primeGermanVoices } from '@/lib/speechDe'
-import { getAccessToken, clearTokens } from '@/lib/authSession'
+import { getAccessToken, clearTokens, logout } from '@/lib/authSession'
 import { isAcceptedHeardForWord } from '@/lib/scoring/textScoring'
 import { StudentShell } from '@/components/layouts/StudentShell'
 import { PracticeGlassSkeleton } from '@/components/practice/PracticeGlassSkeleton'
@@ -350,8 +350,7 @@ export default function VocabPracticePage() {
       streakDays={streakDays}
       initials={initials}
       onLogout={() => {
-        clearTokens()
-        router.push('/login')
+        logout()
       }}
       headerTitle={t('title')}
       headerSubtitle={`CEFR · ${selCefr} → ${targetLevel}`}

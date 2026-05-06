@@ -3,7 +3,7 @@
 import { ReactNode, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { clearTokens } from '@/lib/authSession'
+import { logout } from '@/lib/authSession'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import {
   BarChart3,
@@ -73,8 +73,7 @@ export default function AdminShell({
   ], [t])
 
   const handleLogout = () => {
-    clearTokens()
-    router.push('/login')
+    logout()
   }
 
   return (

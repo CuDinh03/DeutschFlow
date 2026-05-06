@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import api from "@/lib/api";
-import { clearTokens, getAccessToken } from "@/lib/authSession";
+import { clearTokens, getAccessToken, logout } from "@/lib/authSession";
 import { StudentShell } from "@/components/layouts/StudentShell";
 import { BadgePercent } from "lucide-react";
 

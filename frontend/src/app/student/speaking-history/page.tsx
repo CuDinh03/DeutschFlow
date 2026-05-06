@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import api from "@/lib/api";
 import { StudentShell } from "@/components/layouts/StudentShell";
-import { clearTokens } from "@/lib/authSession";
+import { clearTokens, logout } from "@/lib/authSession";
 
 interface SessionMessage {
   id: number;

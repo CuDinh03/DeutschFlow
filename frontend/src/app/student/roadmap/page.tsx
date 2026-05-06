@@ -221,7 +221,7 @@ export default function RoadmapPage() {
       targetLevel={targetLevel}
       streakDays={streakDays}
       initials={initials}
-      onLogout={() => {}}
+      onLogout={() => { logout() }}
       headerTitle="Lộ trình học tập"
       headerSubtitle="A1 → C1 Roadmap"
     >

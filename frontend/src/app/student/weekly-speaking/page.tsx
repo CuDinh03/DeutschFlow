@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import api from '@/lib/api'
-import { clearTokens, getAccessToken } from '@/lib/authSession'
+import { clearTokens, getAccessToken, logout } from '@/lib/authSession'
 import { StudentShell } from '@/components/layouts/StudentShell'
 import { WeeklyChallengeCard } from '@/components/speaking/WeeklyChallengeCard'
 import {

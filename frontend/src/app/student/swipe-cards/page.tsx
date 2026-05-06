@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { motion, useAnimation, useMotionValue, useTransform } from "framer-motion";
 import api from "@/lib/api";
-import { clearTokens } from "@/lib/authSession";
+import { clearTokens, logout } from "@/lib/authSession";
 import { StudentShell } from "@/components/layouts/StudentShell";
 import { PracticeGlassSkeleton } from "@/components/practice/PracticeGlassSkeleton";
 import { useStudentPracticeSession } from "@/hooks/useStudentPracticeSession";
@@ -566,8 +566,7 @@ export default function SwipeCardsPage() {
   const [mode, setMode] = useState<CardMode>("flip");
 
   const handleLogout = useCallback(() => {
-    clearTokens();
-    router.push("/login");
+    logout();
   }, [router]);
 
   useEffect(() => {

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import api, { httpStatus } from '@/lib/api'
-import { getAccessToken, clearTokens } from '@/lib/authSession'
+import { getAccessToken, clearTokens, logout } from '@/lib/authSession'
 import { StudentShell } from '@/components/layouts/StudentShell'
 import { primeGermanVoices, speakGerman } from '@/lib/speechDe'
 import { genderBgClass, inferGenderFromGermanText } from '@/lib/constants'
@@ -584,8 +584,7 @@ export default function SessionDetailPage() {
           streakDays={streakDays}
           initials={shellInitials}
           onLogout={() => {
-            clearTokens()
-            router.push('/login')
+            logout()
           }}
           headerTitle={t('weekSession', { week, session: sessionIndex })}
         >
@@ -957,8 +956,7 @@ export default function SessionDetailPage() {
       streakDays={streakDays}
       initials={shellInitials}
       onLogout={() => {
-        clearTokens()
-        router.push('/login')
+        logout()
       }}
       headerTitle={t('weekSession', { week: detail.week, session: detail.sessionIndex })}
       headerSubtitle={t('meta', { type: detail.type, minutes: detail.minutes, difficulty: detail.difficulty })}
