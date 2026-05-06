@@ -118,3 +118,5 @@ frontend/response.html
 # Tạm thời bỏ qua nếu cần (uncomment dưới đây)
 # ============================================================
 # frontend/public/companions/
+
+deutschflow-key.pem
