@@ -1,10 +1,11 @@
 # SRS — DeutschFlow (Software Requirements Specification)
 
-**Phiên bản:** 1.5  
-**Ngày:** 2026-05-06  
+**Phiên bản:** 1.6  
+**Ngày:** 2026-05-07  
 **Ngôn ngữ:** Tiếng Việt  
 
-**Changelog v1.5:** Triển khai **AI Interview Mode v2**. Bổ sung luồng phỏng vấn 5 phase chuẩn HR (Greeting, Ice-breaker, Hard Skills, Soft Skills/STAR, Abschluss); logic adaptive (giảm độ khó nếu fail 2/4 câu hard skills); UI chọn `Position` (vị trí theo domain) và `Experience Level` (0-6M đến 5Y+); Smart Suggestion Timer theo kinh nghiệm (70s cho junior, 10s cho senior); Tự động generate AI Evaluation Report (tiếng Việt + từ khóa Đức) 1200 token khi kết thúc phỏng vấn với 4 categories, German language assessment, remediation và verdict (PASS/FAIL).
+**Changelog v1.6:** Triển khai **Production Stabilization & Brand Identity**. (1) **Hệ thống Logo Bauhaus** — Component `DeutschFlowLogo` 3 biến thể (`horizontal` / `vertical` / `icon-only`); `DeutschFlowLoader` thay thế Loader2 spinner; `DeutschFlowSplash` màn hình intro; áp dụng toàn bộ: Login, Register, Landing page, StudentShell sidebar, AdminShell sidebar, Dashboard loading state. (2) **Logout tập trung** — Hàm `logout()` trong `authSession.ts`: gọi `POST /api/auth/logout` revoke refresh token trên server, xóa toàn bộ localStorage (không chỉ 2 key token), xóa cookies, hard redirect `window.location.href` thay `router.push` để wipe React state — ngăn state của user cũ rò rỉ sang session kế tiếp; fix 6 page có `onLogout={() => {}}` (no-op) và 13+ page dùng `clearTokens() + router.push()`. (3) **HikariCP Keepalive** — Thêm `keepalive-time: 120s` và `connection-test-query: SELECT 1` vào `application.yml`; ngăn stale connection khi AWS NLB cắt TCP idle sau 350 giây — loại bỏ lỗi "Connection is not available, request timed out after 20000ms" sau khi hệ thống idle ban đêm. (4) **Production Deployment** — AWS Amplify (Frontend, CI/CD auto-deploy từ branch `main`), AWS EC2 t2.micro (Backend Docker), AWS RDS PostgreSQL (Database), Cloudflare Flexible SSL, Nginx reverse proxy port 80→8080; domain `https://mydeutschflow.com` và `http://api.mydeutschflow.com`.
+
 
 **Changelog v1.4:** Triển khai toàn bộ Architectural Remediation Plan — (1) **Production Cache Layer**: Caffeine 6 caches mới (`aiVocabCache` 24h, `ttsAudio` 24h, `aiVocabShort` 6h, `aiVocabQuiz` 1h, `achievements` 60min, `weeklyPrompts` 30min); `@Cacheable` cho `AIVocabularyService` (7 methods) + `ElevenLabsTtsService`; admin purge endpoint `POST /api/admin/cache/purge`; (2) **XP Leaderboard**: `GET /api/xp/leaderboard?limit=N`, `LeaderboardDto`, JPQL GROUP BY query trên `UserXpEvent`; (3) **AI Vocab security**: `@PreAuthorize("isAuthenticated()")` cho `AIVocabularyController`; (4) **Frontend FE-BE Gap Resolution**: 4 API adapters (`vocabAiApi.ts`, `reviewApi.ts`, `xpApi.ts`, `aiToolsApi.ts`); 6 màn hình mới (VocabAI Panel §23, Review Queue §24, Vocab Analytics §25, XP Leaderboard §26, Quick AI Toolbar §27, Error Drill rewired); `StudentShell` +3 nav items; (5) §22 cập nhật "Đã triển khai" và bổ sung §23-27.
 
@@ -43,6 +44,9 @@
 25. Module VOCAB ANALYTICS Dashboard *(v1.4)*  
 26. Module XP LEADERBOARD *(v1.4)*  
 27. Module QUICK AI TOOLBAR *(v1.4)*  
+28. Production Deployment & Infrastructure *(v1.6)*  
+29. Brand Identity & Logo System *(v1.6)*  
+30. Auth & Session Management — Logout Flow *(v1.6)*  
 
 ---
 
@@ -91,6 +95,9 @@ DeutschFlow là nền tảng học tiếng Đức (CEFR) kết hợp:
 | **Vocab Analytics** *(v1.4)* | SVG charts: độ phủ từ theo CEFR + lịch sử; `GET /api/words/coverage`, `GET /api/words/coverage/history`; `/student/vocab-analytics` |
 | **XP Leaderboard** *(v1.4)* | Top 20 users theo XP; `GET /api/xp/leaderboard?limit=N`; medals top 3; highlight user hiện tại; `/student/leaderboard` |
 | **Quick AI Toolbar** *(v1.4)* | Floating toolbar 4 tools: DE→EN, EN→DE, sửa ngữ pháp, giải thích; `POST /api/ai/translate/*`, `/api/ai/grammar/*`; Ctrl+Enter hotkey |
+| **DeutschFlow Logo System** *(v1.6)* | Component `DeutschFlowLogo` Bauhaus-inspired: `horizontal` (sidebar + auth), `vertical` (splash), `icon-only` (loader); `DeutschFlowLoader` (icon spin); `DeutschFlowSplash` (full-page intro); áp dụng toàn bộ: Login, Register, Landing, StudentShell, AdminShell, Dashboard |
+| **Production Deployment** *(v1.6)* | AWS Amplify (FE CI/CD), AWS EC2 t2.micro + Docker (BE), AWS RDS PostgreSQL 18.3, Cloudflare Flexible SSL, Nginx port 80→8080; domain `mydeutschflow.com` / `api.mydeutschflow.com` |
+| **Logout Flow** *(v1.6)* | `logout()` centralized: revoke refresh token server-side (`POST /api/auth/logout`), xóa toàn bộ localStorage, xóa cookies, hard redirect; fix no-op handlers trên 6 page; ngăn state bleed giữa các session |
 
 
 **Ngoài phạm vi (hiện tại)**
@@ -1218,6 +1225,207 @@ Công cụ AI tức thì ở mọi màn hình vocabulary — dịch và kiểm t
 
 - Manual QA: dịch 1 câu DE→EN → copy kết quả.
 - Manual QA: nhập câu sai ngữ pháp → verify corrected.
+
+---
+
+
+*Tài liệu này mô tả yêu cầu và hợp đồng dữ liệu theo trạng thái hiện tại của codebase DeutschFlow; khi API thay đổi, cần cập nhật phiên bản SRS.*
+
+---
+
+## 28. Production Deployment & Infrastructure *(v1.6)*
+
+### 28.1 Kiến trúc triển khai
+
+```
+User Browser
+    │ HTTPS
+    ▼
+Cloudflare (Flexible SSL, proxy mode)
+    │
+    ├─► AWS Amplify ──── mydeutschflow.com (Frontend Next.js 14)
+    │                    CI/CD tự động từ branch main
+    │
+    └─► Nginx (EC2) ─── api.mydeutschflow.com
+            │ port 80 → 8080
+            ▼
+        Docker Container (Spring Boot)
+            │
+            ▼
+        AWS RDS PostgreSQL 18.3
+        (deutschflow.cs7y6k2kosr4.us-east-1.rds.amazonaws.com)
+```
+
+### 28.2 Chi tiết hạ tầng
+
+| Thành phần | Dịch vụ | Chi tiết |
+|---|---|---|
+| Frontend | AWS Amplify | Auto-deploy từ `main`; build Next.js 14 SSR |
+| Backend | AWS EC2 t2.micro | Docker container; `NEXT_PUBLIC_BACKEND_URL=http://api.mydeutschflow.com` |
+| Database | AWS RDS PostgreSQL 18.3 | 69 bảng, Flyway migrations, db: `deutschflow` |
+| Reverse Proxy | Nginx | Port 80 → 8080; cho phép Cloudflare Flexible SSL |
+| DNS/SSL | Cloudflare | Flexible mode; proxy enabled cho cả 2 domain |
+| Source control | GitHub | Branch `AI_model` → merge force vào `main` khi deploy |
+
+### 28.3 Biến môi trường production quan trọng
+
+| Biến | Mô tả |
+|---|---|
+| `DB_HOST`, `DB_USERNAME`, `DB_PASSWORD` | Thông tin kết nối RDS |
+| `JWT_SECRET` | Khóa ký JWT |
+| `CORS_ALLOWED_ORIGINS` | `https://mydeutschflow.com,https://www.mydeutschflow.com,...` |
+| `NEXT_PUBLIC_BACKEND_URL` | `http://api.mydeutschflow.com` (hardcode trong `amplify.yml`) |
+| `ELEVENLABS_API_KEY`, `GROQ_API_KEY` | Khóa AI services |
+
+### 28.4 Quy trình deploy backend (sau thay đổi code)
+
+```bash
+# Trên máy local
+git add . && git commit -m "feat: ..." && git push
+git push origin AI_model:main --force
+
+# Trên EC2
+ssh -i deutschflow-key.pem ubuntu@3.82.43.113
+cd ~/deutschflow && git pull
+docker compose up --build -d
+```
+
+### 28.5 HikariCP Connection Pool (v1.6 fix)
+
+Vấn đề: AWS NLB cắt TCP connection idle sau 350 giây → HikariCP giữ "stale connection" → timeout 20s khi request.
+
+Fix trong `application.yml`:
+```yaml
+hikari:
+  keepalive-time: 120000      # Gửi SELECT 1 mỗi 2 phút (< 350s NLB timeout)
+  connection-test-query: SELECT 1  # Validate trước khi đưa cho thread
+  max-lifetime: 1800000       # Tái tạo connection sau 30 phút
+```
+
+---
+
+## 29. Brand Identity & Logo System *(v1.6)*
+
+### 29.1 Tổng quan
+
+Logo DeutschFlow được thiết kế theo phong cách **Bauhaus** — hình học đơn giản, chức năng, biểu tượng hóa chữ "D" với mũi tên đỏ (flow) và hình vuông vàng (Bauhaus element).
+
+### 29.2 Component `DeutschFlowLogo`
+
+**File:** `frontend/src/components/ui/DeutschFlowLogo.tsx`
+
+**Nguồn gốc:** Chuyển thể từ `CompleteBauhausLogo.tsx` trong thư mục design concepts.
+
+#### Các biến thể (variants)
+
+| Variant | Mô tả | Dùng ở |
+|---|---|---|
+| `horizontal` *(default)* | Icon D-shape + "myDeutschFlow" ngang | Login, Register, Landing nav/footer, StudentShell sidebar, AdminShell sidebar |
+| `vertical` | Icon + text xếp dọc | Splash screen, onboarding |
+| `icon-only` | Chỉ icon D-shape | Loading states, favicon |
+
+#### Props
+
+| Prop | Type | Default | Mô tả |
+|---|---|---|---|
+| `variant` | `'horizontal' \| 'vertical' \| 'icon-only'` | `'horizontal'` | Kiểu hiển thị |
+| `size` | `number` | `200` | Kích thước cơ sở (px) |
+| `animated` | `boolean` | `true` | Bật hiệu ứng draw-in khi mount |
+| `spin` | `boolean` | `false` | Xoay icon (dùng cho loading) |
+
+#### Màu sắc thương hiệu
+
+| Yếu tố | Màu |
+|---|---|
+| D-shape outline | `#00305E` (Navy Blue) |
+| "Flow" text | `#DA291C` (Red) |
+| Triangle (mũi tên) | `#DA291C` (Red) |
+| Square (Bauhaus) | `#FFCD00` (Yellow) |
+
+### 29.3 Exports bổ sung
+
+| Export | Mô tả |
+|---|---|
+| `DeutschFlowLoader` | Full loading state: icon spin + label text |
+| `DeutschFlowSplash` | Full-page splash: vertical logo + fade-out sau 2.4s |
+
+### 29.4 Áp dụng trong codebase
+
+- **Login page** (`/login`): horizontal, size=220, animated
+- **Register page** (`/register`): horizontal, size=220, animated
+- **Landing page** (`/`): navbar (size=180, animated) + footer (size=160, no-anim)
+- **StudentShell** sidebar: horizontal, size=160, no-anim
+- **AdminShell** sidebar: horizontal, size=150, no-anim
+- **Dashboard** loading: `<DeutschFlowLoader>` thay Loader2 spinner
+
+---
+
+## 30. Auth & Session Management — Logout Flow *(v1.6)*
+
+### 30.1 Vấn đề đã giải quyết
+
+Khi đăng xuất student rồi đăng nhập admin, hệ thống bị lỗi do:
+1. `clearTokens()` chỉ xóa 2 key localStorage → các key khác (state cache, preferences) vẫn còn
+2. `router.push('/login')` là **soft navigation** → React component tree không unmount → state user cũ còn trong memory
+3. **6 page** có `onLogout={() => {}}` (hàm rỗng) — bấm logout không làm gì
+4. Refresh token không bị revoke trên server → vẫn có thể dùng lại
+
+### 30.2 Giải pháp: `logout()` centralized
+
+**File:** `frontend/src/lib/authSession.ts`
+
+```typescript
+export async function logout(): Promise<void> {
+  // 1. Revoke refresh token trên server (best-effort)
+  const token = localStorage.getItem('accessToken')
+  if (token) {
+    await fetch('/api/auth/logout', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(3000),
+    })
+  }
+  // 2. Xóa TOÀN BỘ localStorage (không chỉ token keys)
+  clearTokens() // → xóa tất cả keys
+  // 3. Hard redirect → reload page, wipe toàn bộ React state
+  window.location.href = '/login'
+}
+```
+
+### 30.3 `clearTokens()` (v1.6 cập nhật)
+
+```typescript
+export function clearTokens(): void {
+  // Xóa TẤT CẢ keys trong localStorage (không chỉ accessToken/refreshToken)
+  const keysToRemove = []
+  for (let i = 0; i < localStorage.length; i++) keysToRemove.push(localStorage.key(i))
+  keysToRemove.forEach(k => localStorage.removeItem(k))
+  // Expire cookies
+  setCookie(AUTH_ACCESS_COOKIE, '', 0)
+  setCookie(AUTH_ROLE_COOKIE, '', 0)
+  setCookie(AUTH_LOGGED_IN_COOKIE, '', 0)
+}
+```
+
+### 30.4 Backend API
+
+| Endpoint | Auth | Mô tả |
+|---|---|---|
+| `POST /api/auth/logout` | Bearer token | Revoke toàn bộ refresh tokens của user trong DB |
+
+### 30.5 Danh sách page đã fix
+
+| Page | Trước | Sau |
+|---|---|---|
+| `/dashboard` | `clearTokens() + router.push()` | `logout()` |
+| `/student/vocab-analytics` | `onLogout={() => {}}` *(no-op)* | `logout()` |
+| `/student/roadmap` | `onLogout={() => {}}` *(no-op)* | `logout()` |
+| `/student/leaderboard` | `onLogout={() => {}}` *(no-op)* | `logout()` |
+| `/student/tutor` | `onLogout={() => {}}` *(no-op)* | `logout()` |
+| `/student/review-queue` | `onLogout={() => {}}` *(no-op)* | `logout()` |
+| `/student/errors` | `onLogout={() => {}}` *(no-op)* | `logout()` |
+| `/roadmap`, `/student/plan`, `/speaking`, `/teacher`, v.v. | `clearTokens() + router.push()` | `logout()` |
+| `AdminShell` | `clearTokens() + router.push()` | `logout()` |
 
 ---
 
