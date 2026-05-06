@@ -139,7 +139,7 @@ class AuthServiceUnitTest {
                 .displayName("S")
                 .role(User.Role.STUDENT)
                 .build();
-        when(jdbcTemplate.queryForList(anyString(), eq(7L)))
+        when(jdbcTemplate.queryForList(anyString(), any(Object[].class)))
                 .thenReturn(List.of(java.util.Map.of("target_level", "B1", "industry", "IT")));
         var res = authService.me(u);
         assertEquals("B1", res.learningTargetLevel());
