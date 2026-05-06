@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
 import { setTokens } from '@/lib/authSession'
+import { DeutschFlowLogo } from '@/components/ui/DeutschFlowLogo'
 
 type FieldErrors = Record<string, string>
 
@@ -63,12 +64,8 @@ export default function LoginPage() {
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary-hover/8 to-navy-blue-dark/10" />
 
       <div className="auth-container relative z-10">
-        {/* Logo */}
-        <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="w-12 h-12 rounded-lg bg-accent flex items-center justify-center shadow-md">
-            <span className="text-accent-foreground font-bold text-2xl">D</span>
-          </div>
-          <h1 className="text-3xl font-bold text-foreground">DeutschFlow</h1>
+        <div className="flex items-center justify-center mb-8">
+          <DeutschFlowLogo variant="horizontal" size={220} animated />
         </div>
 
         {/* Card */}

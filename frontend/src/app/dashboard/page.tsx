@@ -11,6 +11,7 @@ import api from "@/lib/api";
 import { TodayPlanDto } from "@/types/today-plan";
 import { StudentShell } from "@/components/layouts/StudentShell";
 import { clearTokens, logout } from "@/lib/authSession";
+import { DeutschFlowLoader } from "@/components/ui/DeutschFlowLogo";
 
 interface UserProfile {
   displayName: string;
@@ -106,10 +107,7 @@ export default function DashboardPage() {
   if (loading || !profile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F1F4F9]">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 size={32} className="animate-spin text-[#00305E]" />
-          <p className="text-[#64748B] text-sm">Đang tải dữ liệu hôm nay...</p>
-        </div>
+        <DeutschFlowLoader label="Đang tải dữ liệu hôm nay..." />
       </div>
     );
   }

@@ -4,6 +4,7 @@ import { ReactNode, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { logout } from '@/lib/authSession'
+import { DeutschFlowLogo } from '@/components/ui/DeutschFlowLogo'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import {
   BarChart3,
@@ -86,14 +87,8 @@ export default function AdminShell({
         sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
       }`}>
         {/* Logo */}
-        <div className="flex items-center gap-2.5 px-5 py-5 border-b border-white/10">
-          <div className="w-8 h-8 rounded-[8px] bg-[#FFCE00] flex items-center justify-center flex-shrink-0">
-            <span className="text-[#00305E] font-extrabold text-base leading-none">D</span>
-          </div>
-          <div>
-            <span className="font-bold text-white text-base tracking-tight">DeutschFlow</span>
-            <div className="text-white/40 text-[10px] leading-tight font-medium tracking-widest uppercase">Admin</div>
-          </div>
+        <div className="flex items-center gap-2 px-4 py-4 border-b border-white/10">
+          <DeutschFlowLogo variant="horizontal" size={150} animated={false} />
           <button className="ml-auto lg:hidden text-white/50 hover:text-white" onClick={() => setSidebarOpen(false)}>
             <X size={18} />
           </button>

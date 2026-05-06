@@ -8,6 +8,7 @@ import { StudentBottomNav } from "@/components/layouts/StudentBottomNav";
 import { cn } from "@/lib/utils";
 import { isStudentImmersivePath } from "@/lib/studentImmersiveRoutes";
 import type { LucideIcon } from "lucide-react";
+import { DeutschFlowLogo } from "@/components/ui/DeutschFlowLogo";
 import {
   LayoutDashboard,
   BookOpen,
@@ -175,11 +176,13 @@ export function StudentShell({
           className={`fixed lg:relative z-30 flex flex-col h-full w-64 bg-[#00305E]/95 backdrop-blur-md border-r border-white/10 text-white transition-transform duration-300 shadow-xl shadow-black/10
             ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
         >
-          <div className="flex items-center gap-3 px-6 py-5 border-b border-white/10">
-            <div className="w-9 h-9 rounded-[10px] bg-[#FFCE00] flex items-center justify-center flex-shrink-0">
-              <span className="text-[#00305E] font-extrabold text-lg leading-none">D</span>
-            </div>
-            <span className="font-bold text-xl tracking-tight">DeutschFlow</span>
+          <div className="flex items-center gap-2 px-4 py-5 border-b border-white/10">
+            <DeutschFlowLogo
+              variant="horizontal"
+              size={160}
+              animated={false}
+              className="[&_path]:stroke-white [&_text]:fill-white [&_text:last-child]:fill-[#FFCD00]"
+            />
             <button type="button" className="ml-auto lg:hidden text-white/60 hover:text-white" onClick={() => setSidebarOpen(false)}>
               <X size={20} />
             </button>

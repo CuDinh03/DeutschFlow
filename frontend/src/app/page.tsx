@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
 import { getAccessToken, clearTokens } from '@/lib/authSession'
+import { DeutschFlowLogo } from '@/components/ui/DeutschFlowLogo'
 import {
   BookOpen,
   Mic2,
@@ -44,12 +45,7 @@ export default function HomePage() {
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-accent flex items-center justify-center">
-              <span className="text-accent-foreground font-bold text-xl">D</span>
-            </div>
-            <span className="font-bold text-xl text-foreground">DeutschFlow</span>
-          </div>
+          <DeutschFlowLogo variant="horizontal" size={180} animated />
           
           <div className="flex items-center gap-4">
             <Link href="/login" className="btn-secondary btn-sm">
@@ -243,12 +239,7 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="py-12 px-6 border-t border-border">
         <div className="max-w-7xl mx-auto text-center text-muted-foreground">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
-              <span className="text-accent-foreground font-bold">D</span>
-            </div>
-            <span className="font-bold text-foreground">DeutschFlow</span>
-          </div>
+          <DeutschFlowLogo variant="horizontal" size={160} animated={false} className="mx-auto mb-4" />
           <p className="text-sm">© 2026 DeutschFlow. Học tiếng Đức thông minh với AI.</p>
         </div>
       </footer>
