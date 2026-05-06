@@ -43,7 +43,7 @@ public class User implements UserDetails {
 
     @Column(name = "is_active", nullable = false)
     @Builder.Default
-    private boolean isActive = true;
+    private boolean active = true;
 
     @Column(name = "notification_timezone", length = 50)
     @Builder.Default
@@ -92,7 +92,7 @@ public class User implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return isActive;
+        return active;
     }
 
     // --- Enums ---

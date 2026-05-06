@@ -84,3 +84,37 @@ postgres_data/
 ai-server/.venv/
 **/.venv/
 deutschflow_model/
+
+# ============================================================
+# VOICE FILES — Binary audio (WAV/MP3 reference recordings)
+# Lưu trên cloud storage (S3 / ElevenLabs), không commit vào git
+# ============================================================
+voice/
+frontend/public/voices/
+
+# ============================================================
+# WORD DATA & SCRIPTS — Dữ liệu thô nội bộ
+# (PDF, TSV, HTML scrapes, Python extract scripts)
+# ============================================================
+wordsDeutsch/
+
+# ============================================================
+# TEMP / DEBUG files
+# ============================================================
+frontend/int.html
+frontend/response.html
+*.html
+# Cho phép HTML trong public/ (assets tĩnh hợp lệ)
+!frontend/public/**/*.html
+
+# ============================================================
+# PRODUCTION ENV — file thật (không commit, chỉ commit .example)
+# ============================================================
+.env.production
+# .env.production.example được phép commit (không có secret)
+
+# ============================================================
+# COMPANION IMAGES — nếu dùng ảnh lớn (>1MB) thì dùng Git LFS
+# Tạm thời bỏ qua nếu cần (uncomment dưới đây)
+# ============================================================
+# frontend/public/companions/
