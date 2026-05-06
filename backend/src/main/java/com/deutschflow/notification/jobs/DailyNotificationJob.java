@@ -42,7 +42,7 @@ public class DailyNotificationJob {
     public void checkAndSendDailyNotifications() {
         log.debug("[DailyNotificationJob] Hourly check started");
 
-        List<User> students = userRepository.findByRoleAndIsActiveTrue(User.Role.STUDENT);
+        List<User> students = userRepository.findByRoleAndActiveTrue(User.Role.STUDENT);
 
         for (User student : students) {
             try {
