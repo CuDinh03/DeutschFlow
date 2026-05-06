@@ -135,24 +135,28 @@ public class AuthService {
     @Transactional(readOnly = true)
     public AuthResponse me(User user) {
         String learningTargetLevel = null;
+        String industry = null;
         if (user.getRole() == User.Role.STUDENT) {
-            List<String> rows = jdbcTemplate.query(
+            List<java.util.Map<String, Object>> rows = jdbcTemplate.queryForList(
                     """
-                            SELECT target_level FROM user_learning_profiles
+                            SELECT target_level, industry FROM user_learning_profiles
                             WHERE user_id = ?
                             LIMIT 1
                             """,
-                    (rs, rowNum) -> rs.getString(1),
                     user.getId());
-            learningTargetLevel = rows.isEmpty() ? null : rows.get(0);
+            if (!rows.isEmpty()) {
+                var row = rows.get(0);
+                learningTargetLevel = (String) row.get("target_level");
+                industry = (String) row.get("industry");
+            }
         }
-        return buildAuthResponse(user, learningTargetLevel, false);
+        return buildAuthResponse(user, learningTargetLevel, industry, false);
     }
 
     // --- private ---
 
     /** @param attachTokens tokens on login/register/refresh — {@code false} for {@link #me} */
-    private AuthResponse buildAuthResponse(User user, String learningTargetLevel, boolean attachTokens) {
+    private AuthResponse buildAuthResponse(User user, String learningTargetLevel, String industry, boolean attachTokens) {
         if (attachTokens) {
             String accessToken = jwtService.generateAccessToken(user);
             String refreshToken = createRefreshToken(user);
@@ -164,7 +168,8 @@ public class AuthService {
                     user.getDisplayName(),
                     user.getRole().name(),
                     user.getLocale().name(),
-                    learningTargetLevel
+                    learningTargetLevel,
+                    industry
             );
         }
         return new AuthResponse(
@@ -175,12 +180,13 @@ public class AuthService {
                 user.getDisplayName(),
                 user.getRole().name(),
                 user.getLocale().name(),
-                learningTargetLevel
+                learningTargetLevel,
+                industry
         );
     }
 
     private AuthResponse buildAuthResponse(User user) {
-        return buildAuthResponse(user, null, true);
+        return buildAuthResponse(user, null, null, true);
     }
 
     private String createRefreshToken(User user) {

@@ -15,7 +15,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public interface AiSpeakingService {
 
-    AiSpeakingSessionDto createSession(Long userId, String topic, String cefrLevel, String persona, String responseSchema);
+    AiSpeakingSessionDto createSession(Long userId, String topic, String cefrLevel, String persona,
+                                       String responseSchema, String sessionMode,
+                                       String interviewPosition, String experienceLevel);
 
     AiSpeakingChatResponse chat(Long userId, Long sessionId, String userMessage);
 

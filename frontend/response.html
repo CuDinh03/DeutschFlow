@@ -1,0 +1,41 @@
+* Host localhost:3000 was resolved.
+* IPv6: ::1
+* IPv4: 127.0.0.1
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0*   Trying [::1]:3000...
+* Connected to localhost (::1) port 3000
+> GET /dashboard HTTP/1.1
+> Host: localhost:3000
+> User-Agent: curl/8.7.1
+> Accept: */*
+> 
+* Request completely sent off
+< HTTP/1.1 404 Not Found
+< Cache-Control: no-store, must-revalidate
+< X-Powered-By: Next.js
+< ETag: "gc11zvi16kcl"
+< Content-Type: text/html; charset=utf-8
+< Content-Length: 453
+< Vary: Accept-Encoding
+< Date: Wed, 06 May 2026 13:11:30 GMT
+< Connection: keep-alive
+< Keep-Alive: timeout=5
+< 
+{ [453 bytes data]
+100   453  100   453    0     0  53175      0 --:--:-- --:--:-- --:--:-- 56625
+* Connection #0 to host localhost left intact
+
+              <pre>missing required error components, refreshing...</pre>
+              <script>
+                async function check() {
+                  const res = await fetch(location.href).catch(() => ({}))
+
+                  if (res.status === 200) {
+                    location.reload()
+                  } else {
+                    setTimeout(check, 1000)
+                  }
+                }
+                check()
+              </script>

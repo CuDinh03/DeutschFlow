@@ -7,6 +7,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { LukasCharacter } from "./characters/LukasCharacter";
 import { EmmaCharacter } from "./characters/EmmaCharacter";
 import { HannaCharacter } from "./characters/HannaCharacter";
+import { KlausCharacter } from "./characters/KlausCharacter";
 import type { SpeakingPersonaVisualId } from "./personaTheme";
 
 interface Props {
@@ -26,7 +27,9 @@ export function SpeakingCharacterFloat({ personaId, isTalking, entered, glow }: 
         ? EmmaCharacter
         : personaId === "HANNA"
           ? HannaCharacter
-          : LukasCharacter;
+          : personaId === "KLAUS"
+            ? KlausCharacter
+            : LukasCharacter;
 
   const expression =
     personaId === "EMMA"

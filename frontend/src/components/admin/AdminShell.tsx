@@ -1,7 +1,8 @@
 'use client'
 
-import { ReactNode, useState } from 'react'
+import { ReactNode, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { clearTokens } from '@/lib/authSession'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import {
@@ -55,20 +56,21 @@ export default function AdminShell({
   lastSyncedAt,
 }: AdminShellProps) {
   const router = useRouter()
+  const t = useTranslations('adminNav')
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  const navItems: Array<{ id: AdminNavId; label: string; href: string; icon: any }> = [
-    { id: 'overview',       label: 'Tổng quan',         href: '/admin',               icon: LayoutDashboard },
-    { id: 'revenue',       label: 'Doanh thu (ước tính)', href: '/admin/revenue',       icon: LineChart },
-    { id: 'tokenAnalytics',label: 'Phân bổ token',      href: '/admin/token-analytics', icon: PieChart },
-    { id: 'students',      label: 'Người dùng',        href: '/admin/users',         icon: Users },
-    { id: 'plans',         label: 'Gói & token',       href: '/admin/plans',          icon: Coins },
-    { id: 'classes',       label: 'Lớp học',           href: '/admin/classes',        icon: BookOpen },
-    { id: 'vocabulary',    label: 'Từ vựng',           href: '/admin/vocabulary',     icon: Database },
-    { id: 'reports',       label: 'Báo cáo',           href: '/admin/reports',        icon: BarChart3 },
-    { id: 'aiConfig',      label: 'Cấu hình AI',       href: '/admin/ai-config',      icon: Bot },
-    { id: 'settings',      label: 'Cài đặt',           href: '/admin/settings',       icon: Settings },
-  ]
+  const navItems = useMemo(() => [
+    { id: 'overview' as const,       label: t('overview'),         href: '/admin',               icon: LayoutDashboard },
+    { id: 'revenue' as const,       label: t('revenue'), href: '/admin/revenue',       icon: LineChart },
+    { id: 'tokenAnalytics' as const,label: t('tokenAnalytics'),      href: '/admin/token-analytics', icon: PieChart },
+    { id: 'students' as const,      label: t('students'),        href: '/admin/users',         icon: Users },
+    { id: 'plans' as const,         label: t('plans'),       href: '/admin/plans',          icon: Coins },
+    { id: 'classes' as const,       label: t('classes'),           href: '/admin/classes',        icon: BookOpen },
+    { id: 'vocabulary' as const,    label: t('vocabulary'),           href: '/admin/vocabulary',     icon: Database },
+    { id: 'reports' as const,       label: t('reports'),       href: '/admin/reports',        icon: BarChart3 },
+    { id: 'aiConfig' as const,      label: t('aiConfig'),       href: '/admin/ai-config',      icon: Bot },
+    { id: 'settings' as const,      label: t('settings'),           href: '/admin/settings',       icon: Settings },
+  ], [t])
 
   const handleLogout = () => {
     clearTokens()
@@ -119,7 +121,7 @@ export default function AdminShell({
           <button onClick={handleLogout}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-[10px] text-white/70 hover:bg-white/10 hover:text-white transition-colors text-left">
             <LogOut size={17} />
-            <span className="font-medium text-sm">Đăng xuất</span>
+            <span className="font-medium text-sm">{t('logout')}</span>
           </button>
         </div>
       </aside>
@@ -138,14 +140,14 @@ export default function AdminShell({
             <NotificationBell buttonClassName="p-2 rounded-[8px] border border-[#E2E8F0] bg-[#FAFBFC] hover:bg-[#F5F7FA] transition-colors" />
             {lastSyncedAt && (
               <p className="hidden md:block text-xs text-[#94A3B8]">
-                Cập nhật: {lastSyncedAt.toLocaleTimeString('vi-VN')}
+                {t('lastUpdated')}: {lastSyncedAt.toLocaleTimeString()}
               </p>
             )}
             {onRefresh && (
               <button onClick={onRefresh} disabled={refreshing}
                 className="inline-flex items-center gap-1.5 px-3 h-9 rounded-[8px] border border-[#E2E8F0] bg-[#FAFBFC] text-sm text-[#64748B] hover:bg-[#F5F7FA] transition-colors">
                 <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
-                {refreshing ? 'Đang tải...' : 'Làm mới'}
+                {refreshing ? t('refreshing') : t('refresh')}
               </button>
             )}
           </div>

@@ -10,6 +10,8 @@ import { StudentShell } from '@/components/layouts/StudentShell'
 import { useVocabulary, useVocabularyReload } from '@/hooks/useVocabulary'
 import { speakGerman, primeGermanVoices } from '@/lib/speechDe'
 import { inferGenderFromGermanText, normalizeGenderCode } from '@/lib/constants'
+import { VocabAiPanel } from '@/components/vocabulary/VocabAiPanel'
+import { QuickAiToolbar } from '@/components/vocabulary/QuickAiToolbar'
 import {
   AlignLeft,
   BookOpen,
@@ -668,6 +670,9 @@ function DetailModal({
             </button>
           </div>
         </div>
+
+        {/* AI Insights Panel */}
+        <VocabAiPanel word={item.word} meaning={item.meaning} />
       </div>
     </div>
   )
@@ -1260,7 +1265,9 @@ export default function StudentVocabularyPage() {
         }
       `}</style>
       </div>
+      <QuickAiToolbar />
     </StudentShell>
   )
 }
+
 

@@ -5,6 +5,8 @@ import com.deutschflow.speaking.dto.AiSpeakingChatResponse;
 import com.deutschflow.speaking.dto.AiSpeakingMessageDto;
 import com.deutschflow.speaking.dto.AiSpeakingSessionDto;
 import com.deutschflow.speaking.dto.CreateSessionRequest;
+import com.deutschflow.common.quota.QuotaService;
+import com.deutschflow.speaking.dto.AiSpeakingQuotaDto;
 import com.deutschflow.speaking.service.AiSpeakingService;
 import com.deutschflow.user.entity.User;
 import jakarta.validation.Valid;
@@ -19,6 +21,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -33,6 +36,14 @@ public class AiSessionController {
 
     private final AiSpeakingService aiSpeakingService;
     private final com.deutschflow.speaking.ai.GroqWhisperClient groqWhisperClient;
+    private final QuotaService quotaService;
+
+    @GetMapping("/quota")
+    public AiSpeakingQuotaDto quota(@AuthenticationPrincipal User user) {
+        var s = quotaService.getSnapshotReadOnly(user.getId(), Instant.now());
+        boolean can = s.unlimitedInternal() || s.remainingSpendable() > 0L;
+        return new AiSpeakingQuotaDto(can, s.remainingSpendable(), s.planCode());
+    }
 
     @PostMapping("/sessions")
     public AiSpeakingSessionDto createSession(
@@ -44,7 +55,10 @@ public class AiSessionController {
                 request.topic(),
                 request.cefrLevel(),
                 request.persona(),
-                request.responseSchema());
+                request.responseSchema(),
+                request.sessionMode(),
+                request.interviewPosition(),
+                request.experienceLevel());
     }
 
     @PostMapping("/transcribe")

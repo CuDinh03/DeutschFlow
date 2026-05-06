@@ -10,6 +10,18 @@ export type SpeakingPersonaId = 'DEFAULT' | 'LUKAS' | 'EMMA' | 'HANNA' | 'KLAUS'
 /** Parallel JSON contracts (backend SpeakingResponseSchema). */
 export type SpeakingResponseSchemaId = 'V1' | 'V2'
 
+/** Matches backend SpeakingSessionMode. */
+export type SpeakingSessionMode = 'COMMUNICATION' | 'INTERVIEW'
+
+/** Experience level for interview mode. */
+export type ExperienceLevel = '0-6M' | '6-12M' | '1-2Y' | '3Y' | '5Y'
+
+export interface AiSpeakingQuota {
+  canStartSession: boolean
+  remainingSpendable: number
+  planCode: string
+}
+
 export interface AiSpeakingSession {
   id: number
   topic: string | null
@@ -18,12 +30,20 @@ export interface AiSpeakingSession {
   persona: SpeakingPersonaId | string | null
   /** V1 = full tutor JSON; V2 = compact content/translation/feedback/action. */
   responseSchema: SpeakingResponseSchemaId | string | null
+  /** COMMUNICATION (default) vs INTERVIEW (simulated job/study interview). */
+  sessionMode?: SpeakingSessionMode | string | null
   status: 'ACTIVE' | 'ENDED'
   startedAt: string
   lastActivityAt: string | null
   endedAt: string | null
   messageCount: number
   initialAiMessage?: AiChatResponse | null
+  /** Interview mode: position applied for. */
+  interviewPosition?: string | null
+  /** Interview mode: candidate experience level. */
+  experienceLevel?: string | null
+  /** Interview mode: JSON evaluation report (populated on endSession). */
+  interviewReportJson?: string | null
 }
 
 export interface LearningStatus {
@@ -55,12 +75,12 @@ export interface AdaptiveMeta {
 }
 
 export interface Suggestion {
-  germanText: string
-  vietnameseTranslation: string
+  german_text: string
+  vietnamese_translation: string
   level: string
-  whyToUse: string
-  usageContext: string
-  legoStructure: string
+  why_to_use: string
+  usage_context: string
+  lego_structure: string
 }
 
 export interface AiChatResponse {
@@ -392,17 +412,25 @@ export function chatStream(
 // ─── API calls ────────────────────────────────────────────────────────────────
 
 export const aiSpeakingApi = {
+  getQuota: () => api.get<AiSpeakingQuota>('/ai-speaking/quota'),
+
   createSession: (
     topic?: string,
     cefrLevel?: string,
     persona?: SpeakingPersonaId | string,
     responseSchema?: SpeakingResponseSchemaId | string,
+    sessionMode?: SpeakingSessionMode | string | null,
+    interviewPosition?: string | null,
+    experienceLevel?: ExperienceLevel | string | null,
   ) =>
     api.post<AiSpeakingSession>('/ai-speaking/sessions', {
       topic: topic ?? null,
       cefrLevel: cefrLevel ?? null,
       persona: persona ?? null,
       responseSchema: responseSchema ?? null,
+      sessionMode: sessionMode ?? null,
+      interviewPosition: interviewPosition ?? null,
+      experienceLevel: experienceLevel ?? null,
     }),
 
   chat: (sessionId: number, userMessage: string) =>

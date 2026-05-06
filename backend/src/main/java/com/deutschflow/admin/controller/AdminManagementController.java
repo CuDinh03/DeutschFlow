@@ -18,6 +18,8 @@ import com.deutschflow.vocabulary.service.WiktionaryEnrichmentBatchService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.CacheManager;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -49,6 +51,44 @@ public class AdminManagementController {
     private final TagQueryService tagQueryService;
     private final AuditLogService auditLogService;
     private final UserNotificationService userNotificationService;
+    private final CacheManager cacheManager;
+
+    // ── Cache Management ──────────────────────────────────────────────────
+
+    /**
+     * Force-clear a named Caffeine cache.
+     * POST /api/admin/cache/purge?name={cacheName}
+     *
+     * Available cache names:
+     *   tags, words, subscriptionPlans, curriculum, achievements,
+     *   weeklyPrompts, aiVocabCache, aiVocabShort, aiVocabQuiz, ttsAudio
+     *
+     * Use this as an emergency safety valve when stale cached data
+     * needs to be evicted immediately (e.g. after a bulk vocab import).
+     */
+    @PostMapping("/cache/purge")
+    public ResponseEntity<Map<String, Object>> purgeCache(
+            @RequestParam String name,
+            Authentication authentication
+    ) {
+        var cache = cacheManager.getCache(name);
+        if (cache == null) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "status", "error",
+                "message", "Cache '" + name + "' not found. Available: " + cacheManager.getCacheNames()
+            ));
+        }
+        cache.clear();
+        auditLogService.log("admin.cache.purged", null,
+                actorEmail(authentication), actorRole(authentication),
+                "CACHE", name, Map.of("action", "clear"));
+        return ResponseEntity.ok(Map.of(
+            "status", "ok",
+            "cache", name,
+            "message", "Cache '" + name + "' cleared successfully."
+        ));
+    }
+
 
     @GetMapping("/vocabulary/taxonomy-summary")
     public Map<String, Object> vocabularyTopicTaxonomySummary() {

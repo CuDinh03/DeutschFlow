@@ -36,12 +36,12 @@ export interface StructuredErrorItem {
 }
 
 export interface Suggestion {
-  germanText: string;
-  vietnameseTranslation: string;
+  german_text: string;
+  vietnamese_translation: string;
   level: string;
-  whyToUse: string;
-  usageContext: string;
-  legoStructure: string;
+  why_to_use: string;
+  usage_context: string;
+  lego_structure: string;
 }
 
 /** Re-export shape from AI speaking API (`meta.adaptive` on chat / SSE done). */

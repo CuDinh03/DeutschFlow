@@ -2,6 +2,8 @@ package com.deutschflow.vocabulary.service;
 
 import com.deutschflow.vocabulary.dto.TagItem;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
@@ -16,6 +18,7 @@ public class TagQueryService {
     private final JdbcTemplate jdbcTemplate;
 
     /** Returns all tags. Localized label falls back to the German canonical name. */
+    @Cacheable(value = "tags", key = "#locale + '_all'")
     public List<TagItem> listTags(String locale) {
         return listTags(locale, false);
     }
@@ -23,6 +26,7 @@ public class TagQueryService {
     /**
      * @param topicsOnly when true, returns only tags flagged as V31 topic taxonomy (student pickers).
      */
+    @Cacheable(value = "tags", key = "#locale + '_' + #topicsOnly")
     public List<TagItem> listTags(String locale, boolean topicsOnly) {
         String loc = locale == null ? "de" : locale;
         String sql = topicsOnly
@@ -50,19 +54,28 @@ public class TagQueryService {
     }
 
     /** Convenience overload without locale — returns German labels. */
+    @Cacheable(value = "tags", key = "'de_all'")
     public List<TagItem> listTags() {
         return listTags("de");
     }
 
     /** Returns all tag names (admin / diagnostics). */
+    @Cacheable(value = "tags", key = "'names_all'")
     public List<String> listTagNames() {
         return jdbcTemplate.queryForList("SELECT name FROM tags ORDER BY name", String.class);
     }
 
     /** Topic facet used by auto-tag prompts and reset scope (V31 + is_topic_taxonomy). */
+    @Cacheable(value = "tags", key = "'topic_names'")
     public List<String> listTopicTaxonomyTagNames() {
         return jdbcTemplate.queryForList(
                 "SELECT name FROM tags WHERE is_topic_taxonomy IS TRUE ORDER BY name", String.class);
+    }
+
+    /** Evict all tag caches — call after any tag create/update/delete. */
+    @CacheEvict(value = "tags", allEntries = true)
+    public void evictAllTagCaches() {
+        // triggered by name — annotated method auto-evicts cache
     }
 
     /** Admin: quick coverage for topic taxonomy vs total words. */
@@ -91,4 +104,3 @@ public class TagQueryService {
         return m;
     }
 }
-

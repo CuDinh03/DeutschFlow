@@ -110,6 +110,19 @@ app:
       whisper-model: ${GROQ_WHISPER_MODEL:whisper-large-v3}
     transcribe:
       max-bytes: ${AI_TRANSCRIBE_MAX_BYTES:8388608}
+    # ElevenLabs TTS — voice cloning for Lukas / Emma / Anna / Klaus personas.
+    elevenlabs:
+      api-key: ${ELEVENLABS_API_KEY:}
+      # Voice IDs obtained after uploading reference WAV to ElevenLabs dashboard.
+      voices:
+        LUKAS: ${ELEVENLABS_VOICE_LUKAS:}
+        EMMA: ${ELEVENLABS_VOICE_EMMA:}
+        ANNA: ${ELEVENLABS_VOICE_ANNA:}
+        HANNA: ${ELEVENLABS_VOICE_ANNA:}
+        KLAUS: ${ELEVENLABS_VOICE_KLAUS:}
+      # Model: eleven_multilingual_v2 supports German natively.
+      model-id: ${ELEVENLABS_MODEL_ID:eleven_multilingual_v2}
+      timeout-ms: ${ELEVENLABS_TIMEOUT_MS:15000}
 
   deepl:
     api-key: ${DEEPL_API_KEY:}

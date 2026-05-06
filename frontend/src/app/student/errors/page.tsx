@@ -1,262 +1,320 @@
-"use client";
+'use client'
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useLocale, useTranslations } from "next-intl";
-import { motion, useReducedMotion } from "framer-motion";
-import { AlertTriangle, ArrowRight, RefreshCw } from "lucide-react";
-import api from "@/lib/api";
-import { getAccessToken, clearTokens } from "@/lib/authSession";
-import { errorSkillsApi, type ErrorSkillDto } from "@/lib/errors/drillApi";
-import { getErrorSnippet } from "@/lib/errors/errorTaxonomy";
-import ErrorRepairDrill from "@/components/errors/ErrorRepairDrill";
-import { StudentShell } from "@/components/layouts/StudentShell";
-import { toastApiError } from "@/lib/toastApiError";
+import { useState, useEffect, useCallback } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import {
+  Search, Shield, Zap, RotateCcw, BookOpen, CheckCircle2,
+  AlertTriangle, Loader2, RefreshCw, Calendar, Clock,
+} from 'lucide-react'
+import { StudentShell } from '@/components/layouts/StudentShell'
+import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
+import { reviewApi, type ErrorReviewTaskDto } from '@/lib/reviewApi'
+import api from '@/lib/api'
+import ErrorRepairDrill from '@/components/errors/ErrorRepairDrill'
 
-const GLASS_ENTER = {
-  initial: { opacity: 0, y: 22 },
-  animate: { opacity: 1, y: 0 },
-  transition: { type: "spring" as const, stiffness: 380, damping: 34, mass: 0.85 },
-};
+// ─── Types ─────────────────────────────────────────────────────────────────
 
-function formatSeen(iso: string | undefined, locale: string) {
-  if (!iso) return "—";
-  try {
-    const d = new Date(iso);
-    return new Intl.DateTimeFormat(locale === "vi" ? "vi-VN" : locale === "de" ? "de-DE" : "en-GB", {
-      dateStyle: "medium",
-      timeStyle: "short",
-    }).format(d);
-  } catch {
-    return iso;
-  }
+interface ErrorSkillDto {
+  errorCode: string
+  count: number
+  lastSeenAt: string
+  priorityScore: number
+  sampleWrong?: string
+  sampleCorrected?: string
+  ruleViShort?: string
 }
 
-export default function StudentErrorsPage() {
-  const router = useRouter();
-  const t = useTranslations("student");
-  const locale = useLocale();
-  const reduceMotion = useReducedMotion();
-  const [me, setMe] = useState<{ displayName: string; role: string } | null>(null);
-  const [targetLevel, setTargetLevel] = useState("A1");
-  const [streakDays, setStreakDays] = useState(0);
-  const [skills, setSkills] = useState<ErrorSkillDto[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [drillOpen, setDrillOpen] = useState(false);
-  const [drillCode, setDrillCode] = useState("");
-  const [drillExample, setDrillExample] = useState<string | undefined>();
-  const [drillRule, setDrillRule] = useState<string | undefined>();
+// ─── Color helpers ──────────────────────────────────────────────────────────
 
-  const sortedSkills = useMemo(
-    () => [...skills].sort((a, b) => (b.priorityScore ?? 0) - (a.priorityScore ?? 0) || b.count - a.count),
-    [skills],
-  );
+const CAT_COLORS: Record<string, { bg: string; text: string; label: string }> = {
+  ARTIKEL:   { bg: '#EBF5FB', text: '#2D9CDB', label: 'Artikel'   },
+  KASUS:     { bg: '#FDEAEA', text: '#EB5757', label: 'Kasus'     },
+  VERB:      { bg: '#F4EDFF', text: '#9B51E0', label: 'Verb'      },
+  PRAEP:     { bg: '#FFF3E0', text: '#F57C00', label: 'Präp.'     },
+  ADJEKTIV:  { bg: '#E8F5E9', text: '#388E3C', label: 'Adjektiv'  },
+}
 
-  const loadAll = useCallback(async () => {
-    setLoading(true);
+function catStyle(code: string) {
+  // Try prefix match (e.g. "CASE.PREP_DAT" → "KASUS")
+  const upper = code.toUpperCase()
+  if (upper.startsWith('CASE'))  return CAT_COLORS.KASUS
+  if (upper.startsWith('VERB'))  return CAT_COLORS.VERB
+  if (upper.startsWith('ART'))   return CAT_COLORS.ARTIKEL
+  if (upper.startsWith('PRAEP') || upper.startsWith('PREP')) return CAT_COLORS.PRAEP
+  if (upper.startsWith('ADJ'))   return CAT_COLORS.ADJEKTIV
+  return { bg: '#F1F5F9', text: '#475569', label: 'Khác' }
+}
+
+// ─── Main component ─────────────────────────────────────────────────────────
+
+export default function ErrorLibraryPage() {
+  const { me, loading: sessionLoading, targetLevel, streakDays, initials } = useStudentPracticeSession()
+
+  const [errors, setErrors] = useState<ErrorSkillDto[]>([])
+  const [tasks, setTasks] = useState<ErrorReviewTaskDto[]>([])
+  const [search, setSearch] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [repairedCodes, setRepairedCodes] = useState<Set<string>>(new Set())
+  const [completingTask, setCompletingTask] = useState<number | null>(null)
+  const [completedTasks, setCompletedTasks] = useState<Set<number>>(new Set())
+  const [error, setError] = useState<string | null>(null)
+  const [activeDrillError, setActiveDrillError] = useState<ErrorSkillDto | null>(null)
+
+  // ── Fetch data ──────────────────────────────────────────────────────────
+  const fetchData = useCallback(async () => {
+    setLoading(true)
+    setError(null)
     try {
-      const [meRes, planRes, dashRes, errorsRes] = await Promise.all([
-        api.get("/auth/me"),
-        api.get<{ plan?: { targetLevel?: string } }>("/plan/me").catch(() => null),
-        api.get<{ streakDays?: number }>("/student/dashboard").catch(() => null),
-        errorSkillsApi.getMine(30),
-      ]);
-      setMe(meRes.data);
-      setTargetLevel(planRes?.data?.plan?.targetLevel ?? "A1");
-      setStreakDays(Number(dashRes?.data?.streakDays ?? 0));
-      setSkills(Array.isArray(errorsRes.data) ? errorsRes.data : []);
-    } catch (err) {
-      console.error("ErrorsPage fetch failed", err);
-      toastApiError(err, { locale });
+      const [skillsRes, tasksRes] = await Promise.allSettled([
+        api.get<ErrorSkillDto[]>('/error-skills/me', { params: { days: 30 } }),
+        reviewApi.getTodayTasks(),
+      ])
+      if (skillsRes.status === 'fulfilled') setErrors(skillsRes.value.data)
+      if (tasksRes.status === 'fulfilled') setTasks(tasksRes.value)
+    } catch {
+      setError('Không thể tải dữ liệu. Vui lòng thử lại.')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  }, [locale]);
+  }, [])
 
-  useEffect(() => {
-    if (!getAccessToken()) {
-      router.replace("/login");
-      return;
+  useEffect(() => { fetchData() }, [fetchData])
+
+  // ── Repair attempt ──────────────────────────────────────────────────────
+  const handleRepair = (err: ErrorSkillDto) => {
+    setActiveDrillError(err)
+  }
+
+  const handleDrillClose = (passed: boolean) => {
+    if (activeDrillError && passed) {
+      // The ErrorRepairDrill handles the actual API call to mark it resolved internally on pass.
+      // So when the modal closes and tells us it passed, we mark it as repaired in the UI.
+      setRepairedCodes(prev => new Set(Array.from(prev).concat(activeDrillError.errorCode)))
     }
-    void loadAll();
-  }, [router, loadAll]);
+    setActiveDrillError(null)
+  }
 
-  const initials = useMemo(() => {
-    return (me?.displayName ?? "U")
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  }, [me?.displayName]);
+  // ── Complete review task ────────────────────────────────────────────────
+  const handleCompleteTask = async (taskId: number, passed: boolean) => {
+    setCompletingTask(taskId)
+    try {
+      await reviewApi.completeTask(taskId, passed)
+      setCompletedTasks(prev => new Set(Array.from(prev).concat(taskId)))
+    } catch {
+      // silent
+    } finally {
+      setCompletingTask(null)
+    }
+  }
 
-  if (!me && !loading) return null;
+  // ── Filter ──────────────────────────────────────────────────────────────
+  const filtered = errors.filter(e =>
+    !search || e.errorCode.toLowerCase().includes(search.toLowerCase())
+  )
 
-  const glassMotionProps = reduceMotion
-    ? { initial: false as const }
-    : {
-        initial: GLASS_ENTER.initial,
-        animate: GLASS_ENTER.animate,
-        transition: GLASS_ENTER.transition,
-      };
+  const pendingTasks = tasks.filter(t => !completedTasks.has(t.id))
+
+  if (sessionLoading || !me) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#F1F4F9]">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+          className="w-8 h-8 border-4 border-[#00305E] border-t-transparent rounded-full"
+        />
+      </div>
+    )
+  }
 
   return (
     <StudentShell
       activeSection="errors"
-      user={me || { displayName: "User", role: "STUDENT" }}
+      user={me}
       targetLevel={targetLevel}
       streakDays={streakDays}
       initials={initials}
-      onLogout={() => {
-        clearTokens();
-        router.push("/login");
-      }}
-      headerTitle={t("navMyErrors")}
-      headerSubtitle={t("errorLibrarySubtitle")}
+      onLogout={() => {}}
+      headerTitle="Thư viện lỗi"
+      headerSubtitle="Vết sẹo ngữ pháp — Càng nhớ lâu, càng giỏi nhanh"
     >
-      <div className="mx-auto max-w-5xl space-y-6">
-        <motion.div
-          {...glassMotionProps}
-          className="df-glass-subtle overflow-hidden rounded-[22px] border-2 border-amber-400/35 bg-gradient-to-br from-amber-50/95 via-white/90 to-orange-50/40 p-6 shadow-lg shadow-amber-900/10"
-        >
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex gap-4">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-amber-400/40 bg-amber-500/15">
-                <AlertTriangle className="text-amber-700" size={28} strokeWidth={2.2} aria-hidden />
-              </div>
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-wide text-amber-900/80">{t("todayTasksErrorBadge")}</p>
-                <h1 className="text-2xl font-bold tracking-tight text-[#0f172a]">{t("errorLibraryTitle")}</h1>
-                <p className="mt-1 max-w-xl text-sm text-[#64748B]">{t("errorLibrarySubtitle")}</p>
-              </div>
+      <div className="max-w-2xl mx-auto space-y-6">
+
+        {/* ── Today's review tasks ───────────────────────────────────────── */}
+        {pendingTasks.length > 0 && (
+          <div className="bg-gradient-to-br from-[#FFF8E1] to-[#FFFDE7] rounded-3xl p-5 border border-[#FDE68A] shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <Calendar size={18} className="text-[#F59E0B]" />
+              <h2 className="font-bold text-[#92400E]">Ôn tập hôm nay ({pendingTasks.length})</h2>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => router.push("/speaking")}
-                className="inline-flex items-center gap-2 rounded-xl border border-amber-300/70 bg-white/90 px-4 py-2.5 text-sm font-semibold text-amber-950 shadow-sm transition hover:bg-white"
-              >
-                {t("reviewTasksOpenSpeaking")}
-                <ArrowRight size={16} />
-              </button>
-              <button
-                type="button"
-                disabled={loading}
-                onClick={() => void loadAll()}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-[#334155] hover:bg-slate-50 disabled:opacity-50"
-              >
-                <RefreshCw size={16} className={loading ? "animate-spin" : ""} aria-hidden />
-                {t("retry")}
-              </button>
+            <div className="space-y-3">
+              {pendingTasks.map(task => (
+                <div key={task.id} className="bg-white rounded-2xl p-4 border border-[#FDE68A] flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-bold text-sm text-[#0F172A]">{task.errorCode}</p>
+                    <p className="text-xs text-[#64748B] flex items-center gap-1 mt-0.5">
+                      <Clock size={11} /> Interval: {task.intervalDays} ngày
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleCompleteTask(task.id, false)}
+                      disabled={completingTask === task.id}
+                      className="px-3 py-1.5 rounded-xl bg-red-50 text-red-600 font-bold text-xs border border-red-200 hover:bg-red-100 transition-all"
+                    >
+                      ✗ Chưa nhớ
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCompleteTask(task.id, true)}
+                      disabled={completingTask === task.id}
+                      className="px-3 py-1.5 rounded-xl bg-green-50 text-green-600 font-bold text-xs border border-green-200 hover:bg-green-100 transition-all"
+                    >
+                      {completingTask === task.id
+                        ? <Loader2 size={12} className="animate-spin" />
+                        : '✓ Đã nhớ'}
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        </motion.div>
+        )}
 
-        {loading ? (
-          <motion.div
-            {...(reduceMotion ? {} : { initial: { opacity: 0, y: 16 }, animate: { opacity: 1, y: 0 }, transition: GLASS_ENTER.transition })}
-            className="flex justify-center py-24"
+        {/* ── Search + reload ────────────────────────────────────────────── */}
+        <div className="flex gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#94A3B8]" size={18} />
+            <input
+              type="text"
+              placeholder="Tìm kiếm mã lỗi..."
+              className="w-full bg-white border border-[#E2E8F0] rounded-2xl py-3 pl-12 pr-4 text-[#0F172A] placeholder:text-[#94A3B8] outline-none focus:border-[#00305E] transition-all shadow-sm"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={fetchData}
+            className="w-12 h-12 rounded-2xl bg-white border border-[#E2E8F0] text-[#64748B] hover:text-[#00305E] hover:border-[#00305E] flex items-center justify-center shadow-sm transition-all"
           >
-            <div className="h-11 w-11 animate-spin rounded-full border-4 border-[#00305E]/15 border-t-[#00305E]" />
-          </motion.div>
-        ) : sortedSkills.length === 0 ? (
-          <motion.div
-            {...glassMotionProps}
-            className="df-glass-subtle rounded-[22px] border-2 border-dashed border-amber-200/80 bg-white/70 px-6 py-16 text-center shadow-md shadow-amber-900/5"
-          >
-            <p className="text-[#64748B]">{t("errorLibraryEmpty")}</p>
-          </motion.div>
-        ) : (
-          <motion.ul
-            variants={
-              reduceMotion
-                ? undefined
-                : {
-                    hidden: {},
-                    show: {
-                      transition: { staggerChildren: 0.07, delayChildren: 0.05 },
-                    },
-                  }
-            }
-            initial={reduceMotion ? undefined : "hidden"}
-            animate={reduceMotion ? undefined : "show"}
-            className="grid grid-cols-1 gap-4 md:grid-cols-2"
-          >
-            {sortedSkills.map((s) => {
-              const snippet = getErrorSnippet(s.errorCode, locale);
+            <RefreshCw size={16} />
+          </button>
+        </div>
+
+        {/* ── Loading / error states ─────────────────────────────────────── */}
+        {loading && (
+          <div className="flex items-center justify-center py-16 gap-3 text-[#64748B]">
+            <Loader2 size={22} className="animate-spin text-[#00305E]" />
+            <span className="text-sm">Đang tải dữ liệu lỗi...</span>
+          </div>
+        )}
+
+        {!loading && error && (
+          <div className="text-center py-10">
+            <AlertTriangle size={36} className="text-amber-400 mx-auto mb-3" />
+            <p className="text-sm text-[#64748B] mb-4">{error}</p>
+            <button type="button" onClick={fetchData} className="px-4 py-2 rounded-xl bg-[#00305E] text-white font-bold text-sm">
+              Thử lại
+            </button>
+          </div>
+        )}
+
+        {!loading && !error && filtered.length === 0 && (
+          <div className="text-center py-14">
+            <CheckCircle2 size={48} className="text-green-400 mx-auto mb-4" />
+            <p className="font-bold text-[#0F172A] mb-1">Tuyệt vời! Chưa ghi nhận lỗi nào.</p>
+            <p className="text-sm text-[#64748B]">Hãy luyện nói để AI ghi lại các lỗi ngữ pháp của bạn.</p>
+          </div>
+        )}
+
+        {/* ── Error cards ────────────────────────────────────────────────── */}
+        <AnimatePresence>
+          <div className="space-y-4">
+            {!loading && filtered.map((err, idx) => {
+              const style = catStyle(err.errorCode)
+              const repaired = repairedCodes.has(err.errorCode)
+
               return (
-                <motion.li
-                  key={s.errorCode}
-                  variants={
-                    reduceMotion
-                      ? undefined
-                      : {
-                          hidden: { opacity: 0, y: 24 },
-                          show: {
-                            opacity: 1,
-                            y: 0,
-                            transition: { type: "spring", stiffness: 420, damping: 32 },
-                          },
-                        }
-                  }
-                  className="group df-glass-subtle flex flex-col rounded-[20px] border-2 border-amber-200/80 bg-white/85 p-5 shadow-md shadow-amber-900/5 backdrop-blur-md transition hover:border-amber-400/50 hover:shadow-lg"
+                <motion.div
+                  key={err.errorCode}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ delay: idx * 0.06 }}
+                  className={`bg-white rounded-3xl p-5 shadow-md border relative overflow-hidden transition-all ${repaired ? 'border-green-200 bg-green-50/30' : 'border-slate-200'}`}
                 >
-                  <div className="mb-3 flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <h2 className="text-lg font-bold text-[#0f172a] group-hover:text-[#92400e]">{snippet.title}</h2>
-                      <p className="font-mono text-[10px] uppercase tracking-wider text-amber-800/80">{s.errorCode}</p>
+                  {/* left accent bar */}
+                  <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-3xl" style={{ background: style.text }} />
+
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold px-2 py-1 rounded-full uppercase" style={{ background: style.bg, color: style.text }}>
+                        {style.label}
+                      </span>
+                      {repaired && (
+                        <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-green-100 text-green-600">
+                          ✓ Đã sửa
+                        </span>
+                      )}
                     </div>
-                    <span className="shrink-0 rounded-full border border-amber-300/60 bg-amber-50 px-3 py-1 text-xs font-bold text-amber-950">
-                      {t("errorLibraryCount")} ×{s.count}
+                    <span className="text-[10px] font-bold bg-slate-100 text-slate-500 px-2 py-1 rounded-full">
+                      Gặp {err.count} lần
                     </span>
                   </div>
 
-                  <p className="mb-3 text-xs text-[#64748B]">
-                    {t("errorLibraryLastSeen")}:{" "}
-                    <span className="font-medium text-[#334155]">{formatSeen(s.lastSeenAt, locale)}</span>
-                  </p>
+                  {/* Error code */}
+                  <div className="mb-3">
+                    <p className="font-mono font-bold text-[#0F172A] text-sm">{err.errorCode}</p>
+                    {err.lastSeenAt && (
+                      <p className="text-xs text-[#94A3B8] mt-0.5 flex items-center gap-1">
+                        <Clock size={11} /> Gặp lần cuối: {new Date(err.lastSeenAt).toLocaleDateString('vi-VN')}
+                      </p>
+                    )}
+                  </div>
 
-                  {(s.ruleViShort || s.sampleCorrected) && (
-                    <div className="mb-4 space-y-2 rounded-xl border border-amber-100 bg-amber-50/80 p-3 text-sm text-[#475569]">
-                      {s.ruleViShort ? (
-                        <p>
-                          <span className="font-semibold text-amber-950">{t("errorLibraryRule")}:</span> {s.ruleViShort}
-                        </p>
-                      ) : null}
-                      {s.sampleCorrected ? (
-                        <p className="font-medium text-emerald-800">
-                          <span className="text-emerald-950">{t("errorLibrarySampleFix")}:</span> {s.sampleCorrected}
-                        </p>
-                      ) : null}
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 mt-3">
+                    <div className="flex items-center gap-1.5 flex-1 text-[#64748B]">
+                      <Shield size={13} className="text-[#00305E]" />
+                      <span className="text-xs font-semibold">Lỗi ngữ pháp đã ghi nhận</span>
                     </div>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDrillCode(s.errorCode);
-                      setDrillExample(s.sampleCorrected ?? undefined);
-                      setDrillRule(s.ruleViShort ?? undefined);
-                      setDrillOpen(true);
-                    }}
-                    className="mt-auto w-full rounded-xl bg-[#00305E] py-3 text-sm font-bold text-white shadow-md transition hover:bg-[#004080]"
-                  >
-                    {t("practiceTwoMin")}
-                  </button>
-                </motion.li>
-              );
+                    <button
+                      type="button"
+                      onClick={() => handleRepair(err)}
+                      disabled={repaired}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all ${
+                        repaired
+                          ? 'bg-green-100 text-green-600 cursor-default'
+                          : 'bg-[#00305E] text-white hover:bg-[#004b90] active:scale-95'
+                      }`}
+                    >
+                      {repaired
+                          ? <><CheckCircle2 size={12} /> Đã sửa</>
+                          : <><RotateCcw size={12} /> Luyện sửa lỗi</>}
+                    </button>
+                  </div>
+                </motion.div>
+              )
             })}
-          </motion.ul>
+          </div>
+        </AnimatePresence>
+
+        {/* Empty tasks notice */}
+        {!loading && pendingTasks.length === 0 && tasks.length > 0 && (
+          <div className="text-center py-4 text-sm text-green-600 font-semibold bg-green-50 rounded-2xl border border-green-100">
+            🎉 Bạn đã hoàn thành tất cả bài ôn tập hôm nay!
+          </div>
         )}
       </div>
 
       <ErrorRepairDrill
-        open={drillOpen}
-        onClose={() => setDrillOpen(false)}
-        errorCode={drillCode}
-        exampleCorrectDe={drillExample}
-        ruleViShort={drillRule}
+        open={!!activeDrillError}
+        onClose={handleDrillClose}
+        errorCode={activeDrillError?.errorCode || ''}
+        exampleCorrectDe={activeDrillError?.sampleCorrected}
+        ruleViShort={activeDrillError?.ruleViShort}
       />
     </StudentShell>
-  );
+  )
 }

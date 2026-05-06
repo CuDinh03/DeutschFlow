@@ -6,6 +6,7 @@ import { normalizeSpeakingPersona, type SpeakingPersonaVisualId } from "./person
 import { EmmaCharacter } from "./characters/EmmaCharacter";
 import { HannaCharacter } from "./characters/HannaCharacter";
 import { LukasCharacter } from "./characters/LukasCharacter";
+import { KlausCharacter } from "./characters/KlausCharacter";
 
 interface Props {
   personaId?: string | null;
@@ -43,7 +44,9 @@ export function PersonaAvatar({ personaId, isTalking, className }: Props) {
         ? "56, 189, 248"
         : id === "HANNA"
           ? "45, 212, 191"
-          : "34, 211, 238";
+          : id === "KLAUS"
+            ? "185, 28, 28"
+            : "34, 211, 238";
 
   const expressionTalking = isTalking ?? false;
 
@@ -88,10 +91,10 @@ export function PersonaAvatar({ personaId, isTalking, className }: Props) {
           <div
             className={cn(
               "rounded-[1.75rem] bg-gradient-to-b from-white/12 to-white/[0.04] border border-white/18 backdrop-blur-md overflow-hidden shadow-inner shadow-white/5",
-              (id === "LUKAS" || id === "EMMA" || id === "HANNA") && "p-0",
+              (id === "LUKAS" || id === "EMMA" || id === "HANNA" || id === "KLAUS") && "p-0",
             )}
           >
-            {id === "LUKAS" || id === "EMMA" || id === "HANNA" ? (
+            {id === "LUKAS" || id === "EMMA" || id === "HANNA" || id === "KLAUS" ? (
               <div className="w-full aspect-[280/500] max-h-[min(48vh,400px)] min-h-0">
                 {id === "LUKAS" ? (
                   <LukasCharacter
@@ -105,8 +108,14 @@ export function PersonaAvatar({ personaId, isTalking, className }: Props) {
                     isTalking={expressionTalking}
                     className="h-full w-full drop-shadow-xl"
                   />
-                ) : (
+                ) : id === "HANNA" ? (
                   <HannaCharacter
+                    expression={expressionTalking ? "talking" : "neutral"}
+                    isTalking={expressionTalking}
+                    className="h-full w-full drop-shadow-xl"
+                  />
+                ) : (
+                  <KlausCharacter
                     expression={expressionTalking ? "talking" : "neutral"}
                     isTalking={expressionTalking}
                     className="h-full w-full drop-shadow-xl"

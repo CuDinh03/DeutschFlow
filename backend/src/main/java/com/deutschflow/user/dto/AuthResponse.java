@@ -13,5 +13,7 @@ public record AuthResponse(
         String role,
         String locale,
         /** Target CEFR from {@code user_learning_profiles} for students; null otherwise or if missing */
-        String learningTargetLevel
+        String learningTargetLevel,
+        /** Industry from {@code user_learning_profiles} for students; null otherwise or if missing */
+        String industry
 ) {}

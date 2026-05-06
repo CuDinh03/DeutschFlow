@@ -38,6 +38,23 @@ public class AiSpeakingSession {
     @Builder.Default
     private String responseSchema = "V1";
 
+    /** {@link com.deutschflow.speaking.contract.SpeakingSessionMode}: COMMUNICATION | INTERVIEW. */
+    @Column(name = "session_mode", length = 20, nullable = false)
+    @Builder.Default
+    private String sessionMode = "COMMUNICATION";
+
+    /** Interview mode: the position the candidate is applying for (e.g. "Backend Developer"). */
+    @Column(name = "interview_position", length = 100)
+    private String interviewPosition;
+
+    /** Interview mode: candidate experience level (e.g. "0-6M", "1-2Y", "5Y"). */
+    @Column(name = "experience_level", length = 20)
+    private String experienceLevel;
+
+    /** Interview mode: JSON evaluation report generated on session end. */
+    @Column(name = "interview_report_json", columnDefinition = "TEXT")
+    private String interviewReportJson;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     @Builder.Default

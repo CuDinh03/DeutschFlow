@@ -1,6 +1,7 @@
 package com.deutschflow.speaking.ai;
 
 import com.deutschflow.speaking.contract.SpeakingResponseSchema;
+import com.deutschflow.speaking.contract.SpeakingSessionMode;
 import com.deutschflow.speaking.dto.SpeakingPolicy;
 import com.deutschflow.speaking.dto.WeakPoint;
 import com.deutschflow.speaking.persona.SpeakingPersona;
@@ -92,7 +93,7 @@ public class SystemPromptBuilder {
                 ? SpeakingCefrSupport.clampBand(sessionCefrLevel)
                 : SpeakingCefrSupport.floorPracticeBand(profile);
 
-        return buildInternal(profile, knownInterests, topic, weakPoints, level, null, persona, SpeakingResponseSchema.V1);
+        return buildInternal(profile, knownInterests, topic, weakPoints, level, null, persona, SpeakingResponseSchema.V1, SpeakingSessionMode.COMMUNICATION, null, null);
     }
 
     public String buildSystemPrompt(UserLearningProfile profile,
@@ -102,11 +103,22 @@ public class SystemPromptBuilder {
                                     String sessionCefrLevel,
                                     SpeakingPersona persona,
                                     SpeakingResponseSchema responseSchema) {
+        return buildSystemPrompt(profile, knownInterests, topic, weakPoints, sessionCefrLevel, persona, responseSchema, SpeakingSessionMode.COMMUNICATION);
+    }
+
+    public String buildSystemPrompt(UserLearningProfile profile,
+                                    List<String> knownInterests,
+                                    String topic,
+                                    List<WeakPoint> weakPoints,
+                                    String sessionCefrLevel,
+                                    SpeakingPersona persona,
+                                    SpeakingResponseSchema responseSchema,
+                                    SpeakingSessionMode sessionMode) {
         String level = (sessionCefrLevel != null && !sessionCefrLevel.isBlank())
                 ? SpeakingCefrSupport.clampBand(sessionCefrLevel)
                 : SpeakingCefrSupport.floorPracticeBand(profile);
 
-        return buildInternal(profile, knownInterests, topic, weakPoints, level, null, persona, responseSchema);
+        return buildInternal(profile, knownInterests, topic, weakPoints, level, null, persona, responseSchema, sessionMode, null, null);
     }
 
     public String buildSystemPrompt(UserLearningProfile profile,
@@ -136,12 +148,38 @@ public class SystemPromptBuilder {
                                     SpeakingPolicy policy,
                                     SpeakingPersona persona,
                                     SpeakingResponseSchema responseSchema) {
+        return buildSystemPrompt(profile, knownInterests, topic, weakPoints, sessionCefrLevel, policy, persona, responseSchema, SpeakingSessionMode.COMMUNICATION);
+    }
+
+    public String buildSystemPrompt(UserLearningProfile profile,
+                                    List<String> knownInterests,
+                                    String topic,
+                                    List<WeakPoint> weakPoints,
+                                    String sessionCefrLevel,
+                                    SpeakingPolicy policy,
+                                    SpeakingPersona persona,
+                                    SpeakingResponseSchema responseSchema,
+                                    SpeakingSessionMode sessionMode) {
+        return buildSystemPrompt(profile, knownInterests, topic, weakPoints, sessionCefrLevel, policy, persona, responseSchema, sessionMode, null, null);
+    }
+
+    public String buildSystemPrompt(UserLearningProfile profile,
+                                    List<String> knownInterests,
+                                    String topic,
+                                    List<WeakPoint> weakPoints,
+                                    String sessionCefrLevel,
+                                    SpeakingPolicy policy,
+                                    SpeakingPersona persona,
+                                    SpeakingResponseSchema responseSchema,
+                                    SpeakingSessionMode sessionMode,
+                                    String interviewPosition,
+                                    String experienceLevel) {
         String level = (policy != null && policy.enabled()) ? policy.cefrEffective() :
                 (sessionCefrLevel != null && !sessionCefrLevel.isBlank())
                 ? SpeakingCefrSupport.clampBand(sessionCefrLevel)
                 : SpeakingCefrSupport.floorPracticeBand(profile);
 
-        return buildInternal(profile, knownInterests, topic, weakPoints, level, policy, persona, responseSchema);
+        return buildInternal(profile, knownInterests, topic, weakPoints, level, policy, persona, responseSchema, sessionMode, interviewPosition, experienceLevel);
     }
 
     private void appendCompressedLearnerContext(StringBuilder sb,
@@ -220,19 +258,50 @@ public class SystemPromptBuilder {
                                  String level,
                                  SpeakingPolicy policy,
                                  SpeakingPersona persona,
-                                 SpeakingResponseSchema responseSchema) {
+                                 SpeakingResponseSchema responseSchema,
+                                 SpeakingSessionMode sessionMode,
+                                 String interviewPosition,
+                                 String experienceLevel) {
 
-        String industry = profile.getIndustry() != null && !profile.getIndustry().isBlank() ? profile.getIndustry() : "không có";
+        boolean hasIndustry = profile.getIndustry() != null && !profile.getIndustry().isBlank();
+        String industry = hasIndustry ? profile.getIndustry() : null;
         String topicSection = (topic != null && !topic.isBlank()) ? topic : "Allgemeines Gespräch";
 
         StringBuilder sb = new StringBuilder();
+
+        // ── Mode-specific preamble ──────────────────────────────────────
+        if (sessionMode == SpeakingSessionMode.INTERVIEW) {
+            String pos = (interviewPosition != null && !interviewPosition.isBlank()) ? interviewPosition : "Allgemeine Position";
+            String exp = (experienceLevel != null && !experienceLevel.isBlank()) ? experienceLevel : "unbekannt";
+            appendInterviewPreamble(sb, persona, level, pos, exp, industry, hasIndustry);
+
+        } else {
+            // ── COMMUNICATION MODE ──────────────────────────────────────
+            sb.append("COMMUNICATION MODE — Alltagsgespräch / Freundliches Gespräch (KEIN Interview, KEINE Bewerbungsfragen).\n");
+            sb.append("Du bist ein freundlicher Gesprächspartner. Führe ein natürliches, entspanntes Gespräch über den Alltag.\n");
+            sb.append("WICHTIG: Stelle KEINE Interviewfragen (z.B. 'Was sind Ihre Stärken?', 'Warum bewerben Sie sich?').\n");
+            sb.append("Stattdessen: offene, neugierige Fragen wie ein Freund/eine Freundin (z.B. 'Was hast du heute gemacht?', 'Was kochst du gern?').\n");
+            if (hasIndustry) {
+                sb.append("KONTEXTINFO BERUF: Der Lernende arbeitet als '").append(industry).append("'.\n");
+                sb.append("Du WEISST das bereits — frage NICHT 'Was ist dein Beruf?'. ");
+                sb.append("Beziehe den Beruf natürlich in das Gespräch ein: z.B. Alltag bei der Arbeit, ");
+                sb.append("was man nach Feierabend macht, Lieblingsaspekte des Berufs, Kollegen, Arbeitserfahrungen.\n");
+                sb.append("Die 3 'suggestions' sollen alltagsnahe Antworten sein, die zum Beruf '")
+                        .append(industry).append("' passen — NICHT Bewerbungsantworten.\n");
+            } else {
+                sb.append("Der Lernende hat keinen Beruf angegeben. Führe ein allgemeines Alltagsgespräch.\n");
+            }
+            sb.append("\n");
+        }
+
         sb.append("Du bist \"DeutschFlow AI Tutor\", một chuyên gia ngôn ngữ học tiếng Đức kiêm trợ lý sư phạm chuyên sâu.\n");
         sb.append("Nhiệm vụ của bạn là đồng hành cùng người dùng, giúp họ sửa lỗi và phát triển tư duy ngôn ngữ trình độ ").append(level).append(".\n\n");
 
         sb.append("Ngữ cảnh:\n");
         sb.append("- Target_Topic: ").append(topicSection).append("\n");
         sb.append("- User_Level: ").append(level).append("\n");
-        sb.append("- Nghề nghiệp: ").append(industry).append("\n");
+        sb.append("- Nghề nghiệp: ").append(hasIndustry ? industry : "(chưa xác định)").append("\n");
+        sb.append("- Session_Mode: ").append(sessionMode.name()).append("\n");
 
         appendCompressedLearnerContext(sb, knownInterests, weakPoints);
         appendAdaptivePolicy(sb, policy);
@@ -260,9 +329,16 @@ public class SystemPromptBuilder {
             sb.append("   ON_TOPIC_NEEDS_IMPROVEMENT: thematisch passend, aber sprachlich schwach oder sehr kurz.\n");
             sb.append("   EXCELLENT: passend + sprachlich solide auf ").append(level).append(".\n");
             sb.append("   similarity_score: 1.0 = klar on-topic; unter ~0,35 bei off-topic Tendenz → eher OFF_TOPIC.\n");
-            sb.append("2. Gesprächsführung: In \"ai_speech_de\" kurze Rückmeldung UND eine Folgefrage/Aufforderung zum Target_Topic — nicht nur loben.\n");
-            sb.append("3. Fehlererkennung: konservativ; keine rein stilistischen Varianten. Akzeptabel korrekt → errors=[].\n");
-            sb.append("4. Scaffolding: genau 3 suggestions; Stufen ").append(level).append(" einhalten.\n");
+            sb.append("2. Gesprächsführung (KRITISCH — Konversationsfluss):\n");
+            sb.append("   - Lies die LETZTE User-Antwort genau und reagiere DIREKT darauf: nimm ein konkretes Detail, Wort oder eine Idee aus der Antwort auf.\n");
+            sb.append("   - Beispiel: User sagt \"Ich koche gerne Pasta\" → antworte mit Bezug auf Pasta/Kochen, NICHT mit einem völlig neuen Thema.\n");
+            sb.append("   - Struktur in ai_speech_de: (1) kurze natürliche Reaktion auf das Gesagte → (2) eine Folgefrage, die aus dem Kontext der Antwort entsteht.\n");
+            sb.append("   - NIEMALS eine Folgefrage stellen, die ignoriert, was der Lernende gerade gesagt hat.\n");
+            sb.append("   - Das Gespräch soll sich wie ein echter Dialog anfühlen, nicht wie ein Interview mit vorgefertigten Fragen.\n");
+
+            sb.append("3. Fehlererkennung: konservativ. IGNORE capitalization (Groß-/Kleinschreibung) and missing punctuation (Satzzeichen) — if these are the ONLY mistakes, return errors=[]! Keine rein stilistischen Varianten. Akzeptabel korrekt → errors=[].\n");
+            sb.append("   ZERO-ARTICLE: Akzeptiere unbedingt den Nullartikel bei unzählbaren Nomen (z.B. Kaffee, Tee, Wasser) in generellem Kontext (z.B. 'ich trinke gerne Kaffee' ist KORREKT). Melde hier KEINEN 'fehlender Artikel' Fehler!\n");
+            sb.append("4. Scaffolding: genau 3 suggestions; Stufen ").append(level).append(" einhalten. WICHTIG: Die suggestions MÜSSEN inhaltlich sinnvoll, thematisch passend UND grammatikalisch zu 100% fehlerfrei sein (z.B. korrekte Wortstellung TeKaMoLo). Generiere KEINE fehlerhaften Vorschläge!\n");
             sb.append("5. Vietnamesische Kurzhinweise in feedback/explanation_vi/why_to_use wo nötig.\n\n");
 
             sb.append("Sprachliche Deckel: nicht über ").append(level).append(" hinaus.\n\n");
@@ -271,6 +347,109 @@ public class SystemPromptBuilder {
         }
 
         return sb.toString();
+    }
+
+    private void appendInterviewPreamble(StringBuilder sb, SpeakingPersona persona, String level,
+                                          String position, String experienceLevel,
+                                          String industry, boolean hasIndustry) {
+        String personaRole = switch (persona) {
+            case LUKAS -> "Senior Tech Lead bei einem Berliner Startup";
+            case EMMA -> "Business Development Managerin in einer Münchner Agentur";
+            case HANNA -> "Studienberaterin und Karriere-Coach an einer deutschen Universität";
+            case KLAUS -> "Küchenchef (Head Chef) in einem Sternerestaurant in München";
+            default -> "HR-Managerin bei einem deutschen Unternehmen";
+        };
+
+        sb.append("INTERVIEW MODE — Professionelle Bewerbungsgespräch-Simulation.\n\n");
+
+        // == ROLE ==
+        sb.append("== DEINE ROLLE ==\n");
+        sb.append("Du bist ").append(persona.displayName()).append(", ").append(personaRole).append(".\n");
+        sb.append("Du hast über 10 Jahre Erfahrung in deinem Bereich und führst ein realistisches Bewerbungsgespräch.\n");
+        sb.append("Position: \"").append(position).append("\"\n");
+        sb.append("Erfahrungslevel des Kandidaten: ").append(experienceLevel).append("\n");
+        sb.append("Sprachniveau: ").append(level).append("\n");
+        if (hasIndustry) {
+            sb.append("Branche des Kandidaten: ").append(industry).append("\n");
+        }
+        sb.append("\n");
+
+        // == DOMAIN FOCUS ==
+        sb.append("== FACHDOMÄNE ==\n");
+        sb.append(interviewPersonaFocus(persona, level)).append("\n\n");
+
+        // == CONVERSATION STRUCTURE ==
+        sb.append("== GESPRÄCHSSTRUKTUR (halte dich STRIKT daran) ==\n\n");
+
+        sb.append("PHASE 1 — BEGRÜSSUNG & SELBSTVORSTELLUNG (Turn 1):\n");
+        sb.append("- Stelle dich kurz vor: Name, Rolle, Unternehmen.\n");
+        sb.append("- Bitte den Kandidaten, sich vorzustellen.\n");
+        sb.append("- Erwarte: Gegenwart (aktuelle Rolle) → Vergangenheit (Erfahrung) → Zukunft (warum diese Stelle).\n\n");
+
+        sb.append("PHASE 2 — ICE-BREAKER (Turn 2–3):\n");
+        sb.append("- 2 lockere, aber professionelle Fragen zum Einstieg.\n");
+        sb.append("- Ziel: Kandidat entspannen, erste Eindrücke sammeln.\n\n");
+
+        sb.append("PHASE 3 — FACHLICHE KOMPETENZ / HARD SKILLS (Turn 4–7):\n");
+        sb.append("- 4 tiefgreifende Fragen zur Eignung für \"").append(position).append("\".\n");
+        sb.append("- Mindestens 1 Case Study / Praxisszenario.\n");
+        sb.append("- ADAPTIVE REGEL: Wenn der Kandidat bei 2 von 4 Fragen nicht ausreichend antwortet, ");
+        sb.append("stelle EINE zusätzliche Frage auf NIEDRIGEREM Niveau (einfachere Formulierung, grundlegenderes Konzept).\n\n");
+
+        sb.append("PHASE 4 — SOFT SKILLS & STAR (Turn 8–10):\n");
+        sb.append("- 3 Verhaltensfragen nach der STAR-Methode (Situation-Task-Action-Result).\n");
+        sb.append("- Themen: Stressbewältigung, Teamkonflikte, Fehlermanagement.\n");
+        sb.append("- Wenn der Kandidat nicht in STAR antwortet, hilf sanft: 'Können Sie ein konkretes Beispiel nennen? Was war die Situation, Ihre Aufgabe, Ihr Handeln und das Ergebnis?'\n\n");
+
+        sb.append("PHASE 5 — ABSCHLUSS (nach allen Fragen oder bei Red Flags):\n");
+        sb.append("- 'Haben Sie noch Fragen an uns?' oder 'Gibt es etwas, das Sie noch hinzufügen möchten?'\n");
+        sb.append("- Bedanke dich professionell. Informiere über 'nächste Schritte'.\n\n");
+
+        // == RESPONSE RULES ==
+        sb.append("== ANTWORTREGELN ==\n");
+        sb.append("1. KONVERSATIONSFLUSS: Reagiere in ai_speech_de IMMER ZUERST auf das, was der Kandidat gerade gesagt hat ");
+        sb.append("(z.B. 'Das ist ein interessanter Punkt zu...' / 'Danke für diese Einblicke...'). ");
+        sb.append("DANN stelle die nächste Frage.\n");
+        sb.append("2. feedback-Feld: knappes Feedback auf Vietnamesisch (freundlich-professionell).\n");
+        sb.append("3. correction-Feld: nur bei klaren sprachlichen Fehlern eine professionellere Formulierung vorschlagen.\n");
+        sb.append("4. NIEMALS vorgefertigte Fragen stellen, die die Antwort des Kandidaten ignorieren.\n\n");
+
+        // == SUGGESTIONS ==
+        sb.append("== SUGGESTIONS (KRITISCH) ==\n");
+        sb.append("Generiere IMMER genau 3 'suggestions' als Antwortvorschläge für den Kandidaten.\n");
+        if ("0-6M".equals(experienceLevel) || "6-12M".equals(experienceLevel)) {
+            sb.append("ERFAHRUNGSLEVEL 0-12 Monate: Die suggestions sollen DETAILLIERTE, ausformulierte Antworten sein.\n");
+            sb.append("- Jede Suggestion ist eine komplette Beispielantwort (2-3 Sätze), bám sát câu hỏi và thực tế.\n");
+            sb.append("- Formuliere so, als ob du dem Kandidaten ein Skript zum Vorlesen gibst.\n");
+        } else {
+            sb.append("ERFAHRUNGSLEVEL 1+ Jahre: Die suggestions sollen nur RICHTUNGSHINWEISE sein.\n");
+            sb.append("- Jede Suggestion ist 1 kurzer Satz mit der Kernidee / dem Ansatz.\n");
+            sb.append("- Formuliere als Denkanstoß, nicht als fertige Antwort.\n");
+        }
+        sb.append("- Alle suggestions müssen fachspezifisch für \"").append(position).append("\" sein.\n");
+        sb.append("- Grammatikalisch zu 100% korrekt auf Niveau ").append(level).append(".\n\n");
+
+        // == EARLY ENDING ==
+        sb.append("== VORZEITIGES BEENDEN ==\n");
+        sb.append("Bei schwerwiegenden Red Flags (z.B. grundlegende Kompetenzlücken, respektlose Haltung, ");
+        sb.append("offensichtliche Lügen):\n");
+        sb.append("- Überspringe verbleibende Fragen.\n");
+        sb.append("- Sage: 'Vielen Dank für Ihre bisherigen Antworten. Lassen Sie uns zur letzten Phase übergehen — haben Sie noch Fragen an uns?'\n\n");
+
+        // == TIME LIMIT ==
+        sb.append("== ZEITLIMIT ==\n");
+        sb.append("Das Gespräch ist auf maximal 30 Minuten begrenzt. Achte auf eine gute Zeitverteilung.\n\n");
+    }
+
+    private String interviewPersonaFocus(SpeakingPersona persona, String level) {
+        return switch (persona) {
+            case DEFAULT -> "Fokus: allgemeine Bewerbungs-/Strukturfragen passend zu " + level + " (Team, Stärken, kurze STAR-Antworten).";
+            case LUKAS -> "Domäne IT/Software: Systemdesign auf " + level + ", Teamarbeit, Debugging, Code-Review-Kultur, Agile/Jira, Bewerbung in Startup-Kontext.";
+            case EMMA -> "Domäne Business & Kundenkontakt: Pitch, Situationsfragen, Höflichkeit, klare Nutzenargumente — nicht nur Smalltalk.";
+            case HANNA -> "Domäne Studentenleben & Organisation: Zeitmanagement, WG/Uni, nachhaltiger Alltag, Studium vs. Job, Stressbewältigung.";
+            case KLAUS -> "Domäne Gastronomie & Profiküche (Deutschland): Kochtechniken (z. B. Garstufen, Saucengrund), Hygiene & HACCP/IFS-Themen angepasst an "
+                    + level + ", Teamarbeit in der Brigade, Schichtwechsel, Stress in der Rush — realistische Küchen-Interviewfragen.";
+        };
     }
 
     public String buildSystemPrompt(UserLearningProfile profile, List<String> knownInterests, String topic, List<WeakPoint> weakPoints) {

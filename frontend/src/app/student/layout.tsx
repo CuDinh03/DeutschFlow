@@ -1,6 +1,6 @@
 'use client'
 
-import LanguageSwitcher from '@/components/LanguageSwitcher'
+import LanguageSwitcher from '@/components/ui/LanguageSwitcher'
 
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
   return (

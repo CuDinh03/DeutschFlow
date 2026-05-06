@@ -29,8 +29,7 @@ export default function HomePage() {
     if (getAccessToken()) {
       api.get('/auth/me')
         .then((res) => {
-          const user = res.data
-          router.push(`/${user.role.toLowerCase()}`)
+          router.push(`/dashboard`)
         })
         .catch(() => {
           clearTokens()

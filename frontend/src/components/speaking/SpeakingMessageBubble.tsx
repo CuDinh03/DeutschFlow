@@ -27,6 +27,8 @@ export interface SpeakingMessageBubbleProps {
   personaId?: string | null;
   /** UIDemo AIChat-style assistant bubble colors (V2 companion layout). */
   personaV2Tokens?: PersonaV2VisualTokens | null;
+  /** Interview mode: emphasize long AI prompts with stream-ghost styling (e.g. multi-sentence questions). */
+  interviewGhost?: boolean;
 }
 
 export function SpeakingMessageBubble({
@@ -38,6 +40,7 @@ export function SpeakingMessageBubble({
   appearance = "light",
   personaId,
   personaV2Tokens,
+  interviewGhost = false,
 }: SpeakingMessageBubbleProps) {
   const t = useTranslations("speaking");
   const reduceMotion = useReducedMotion();
@@ -168,7 +171,8 @@ export function SpeakingMessageBubble({
         <div
           className={cn(
             "rounded-2xl rounded-tl-md px-4 py-4 border backdrop-blur-md transition-shadow duration-300",
-            msg.isStreaming && "shadow-[0_0_32px_rgba(34,211,238,0.12)] df-stream-ghost",
+            (msg.isStreaming || interviewGhost) &&
+              "shadow-[0_0_32px_rgba(34,211,238,0.12)] df-stream-ghost",
           )}
           style={
             d
@@ -323,7 +327,7 @@ export function SpeakingMessageBubble({
                 <div key={idx} className="group relative">
                   <motion.button
                     type="button"
-                    onClick={() => onSuggestionClick?.(s.germanText)}
+                    onClick={() => onSuggestionClick?.(s.german_text)}
                     whileHover={{ scale: 1.01 }}
                     className={
                       d
@@ -335,16 +339,16 @@ export function SpeakingMessageBubble({
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
                           <p className="text-[14px] font-medium" style={{ color: L.ink }}>
-                            {s.germanText}
+                            {s.german_text}
                           </p>
-                          {s.legoStructure && (
+                          {s.lego_structure && (
                             <span className="text-[8px] font-mono px-1.5 py-0.5 rounded bg-slate-100/10 text-white/40 border border-white/10">
-                              {s.legoStructure}
+                              {s.lego_structure}
                             </span>
                           )}
                         </div>
                         <p className="text-[12px]" style={{ color: L.inkMuted }}>
-                          {s.vietnameseTranslation}
+                          {s.vietnamese_translation}
                         </p>
                       </div>
                       <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-white/10 text-white/60">
@@ -363,11 +367,11 @@ export function SpeakingMessageBubble({
                       <div className="invisible group-hover/info:visible absolute bottom-full right-0 mb-2 w-64 p-4 rounded-xl bg-[#0f172a] border border-white/10 shadow-2xl z-20 backdrop-blur-md">
                         <div className="mb-3 pb-3 border-b border-white/5">
                           <p className="text-[10px] font-bold text-cyan-400 uppercase mb-1">Tại sao dùng câu này?</p>
-                          <p className="text-[12px] text-white/80 leading-relaxed">{s.whyToUse}</p>
+                          <p className="text-[12px] text-white/80 leading-relaxed">{s.why_to_use}</p>
                         </div>
                         <div>
                           <p className="text-[10px] font-bold text-purple-400 uppercase mb-1">Hoàn cảnh sử dụng:</p>
-                          <p className="text-[12px] text-white/60 leading-relaxed">{s.usageContext}</p>
+                          <p className="text-[12px] text-white/60 leading-relaxed">{s.usage_context}</p>
                         </div>
                       </div>
                     </div>

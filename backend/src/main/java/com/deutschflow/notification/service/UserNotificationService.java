@@ -134,6 +134,76 @@ public class UserNotificationService {
         }
     }
 
+    // ── v1.4 — Gamification & engagement notifications ──────────────────
+
+    /**
+     * Called from XpService when a student unlocks a new achievement.
+     */
+    @Transactional
+    public void onAchievementUnlocked(Long userId, String achievementCode, String achievementName,
+                                       String iconEmoji, int xpReward) {
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null || !user.isActive()) return;
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("achievementCode", achievementCode);
+        payload.put("achievementName", achievementName);
+        payload.put("iconEmoji", iconEmoji);
+        payload.put("xpReward", xpReward);
+
+        insert(user, NotificationType.ACHIEVEMENT_UNLOCKED, payload);
+        log.info("[notifications] ACHIEVEMENT_UNLOCKED for user {} — {}", userId, achievementCode);
+    }
+
+    /**
+     * Called from XpService when a student levels up.
+     */
+    @Transactional
+    public void onLevelUp(Long userId, int oldLevel, int newLevel, long totalXp) {
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null || !user.isActive()) return;
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("oldLevel", oldLevel);
+        payload.put("newLevel", newLevel);
+        payload.put("totalXp", totalXp);
+
+        insert(user, NotificationType.LEVEL_UP, payload);
+        log.info("[notifications] LEVEL_UP for user {} — Lv.{} → Lv.{}", userId, oldLevel, newLevel);
+    }
+
+    /**
+     * Called from scheduled job: student has N review cards due today.
+     */
+    @Transactional
+    public void onReviewDue(Long userId, int dueCount) {
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null || !user.isActive()) return;
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("dueCount", dueCount);
+        payload.put("message", "Bạn có " + dueCount + " thẻ cần ôn tập hôm nay");
+
+        insert(user, NotificationType.REVIEW_DUE, payload);
+    }
+
+    /**
+     * Called from scheduled job: student hasn't studied today — streak at risk.
+     */
+    @Transactional
+    public void onStreakReminder(Long userId, int currentStreak) {
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null || !user.isActive()) return;
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("currentStreak", currentStreak);
+        payload.put("message", currentStreak > 0
+                ? "Đừng quên học hôm nay! Chuỗi hiện tại: " + currentStreak + " ngày"
+                : "Hãy bắt đầu học ngay để xây dựng chuỗi streak!");
+
+        insert(user, NotificationType.STREAK_REMINDER, payload);
+    }
+
     private void insert(User recipient, NotificationType type, Map<String, Object> payload) {
         notificationRepository.save(UserNotification.builder()
                 .recipient(recipient)

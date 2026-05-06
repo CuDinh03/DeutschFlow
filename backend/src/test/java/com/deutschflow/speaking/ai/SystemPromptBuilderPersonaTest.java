@@ -42,7 +42,7 @@ class SystemPromptBuilderPersonaTest {
         String p = builder.buildSystemPrompt(
                 minimalProfile(), List.of(), "Familie", List.of(), "B2", SpeakingPersona.KLAUS);
         assertThat(p).contains("PERSONA (Klaus");
-        assertThat(p).contains("Nachbar");
+        assertThat(p).contains("Küchenchef");
     }
 
     @Test

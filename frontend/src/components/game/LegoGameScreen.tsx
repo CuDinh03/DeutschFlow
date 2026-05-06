@@ -1,14 +1,16 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, useDraggable, useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
-import { ArrowRight, Check, Heart, Lightbulb, Loader2, Star, Volume2, X } from 'lucide-react'
+import { ArrowRight, Check, Heart, Lightbulb, Star, Volume2, X } from 'lucide-react'
 import api from '@/lib/api'
-import { getAccessToken, clearTokens } from '@/lib/authSession'
+import { clearTokens } from '@/lib/authSession'
 import { speakGerman } from '@/lib/speechDe'
+import { PracticeGlassSkeleton } from '@/components/practice/PracticeGlassSkeleton'
 import { StudentShell } from '@/components/layouts/StudentShell'
+import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
 import {
   fetchVocabGameQuestions,
   isCorrectLocal,
@@ -139,9 +141,12 @@ function Slot({
 export default function LegoGameScreen() {
   const router = useRouter()
 
+  const { me, loading: sessionLoading, targetLevel, practiceFloorLevel, streakDays, initials, reload } =
+    useStudentPracticeSession()
+
   const [index, setIndex] = useState(0)
   const sessionType = 'GENERAL'
-  const [loading, setLoading] = useState(true)
+  const [questionsLoading, setQuestionsLoading] = useState(true)
   const [questions, setQuestions] = useState<GameQuestion[]>([])
   const [lives, setLives] = useState(3)
   const [score, setScore] = useState(0)
@@ -152,11 +157,6 @@ export default function LegoGameScreen() {
   const [showHint, setShowHint] = useState(false)
   const [done, setDone] = useState(false)
   const [validatorErrors, setValidatorErrors] = useState<string[]>([])
-
-  // User info for Shell
-  const [me, setMe] = useState<{ displayName: string; role: string } | null>(null)
-  const [targetLevel, setTargetLevel] = useState('A1')
-  const [streakDays, setStreakDays] = useState(0)
 
   const q = questions[index]
   const usedIds = useMemo(() => new Set(slotWordIds.filter(Boolean) as string[]), [slotWordIds])
@@ -170,53 +170,39 @@ export default function LegoGameScreen() {
   const progress = questions.length > 0 ? Math.round((index / questions.length) * 100) : 0
   const variant = sessionVariants[sessionType]
 
-  useEffect(() => {
-    if (!getAccessToken()) {
-      router.push('/login')
-      return
-    }
+  const loadQuestions = useCallback(async () => {
+    if (!me) return
+    setQuestionsLoading(true)
+    try {
+      const uiLocale = (me.locale || 'vi').toLowerCase()
+      const mapped = await fetchVocabGameQuestions(
+        (path: string, params?: Record<string, string>) =>
+          api.get(path, { params }).then((r) => r.data),
+        {
+          locale: uiLocale,
+          cefr: practiceFloorLevel,
+          count: 12,
+        },
+      )
 
-    async function boot() {
-      try {
-        const [meRes, planRes, dashRes] = await Promise.all([
-          api.get('/auth/me'),
-          api.get<{ plan?: { targetLevel?: string; currentLevel?: string } }>('/plan/me').catch(() => null),
-          api.get<{ streakDays?: number }>('/student/dashboard').catch(() => null),
-        ])
-
-        const userData = meRes.data
-        setMe(userData)
-        setTargetLevel(planRes?.data?.plan?.targetLevel ?? 'A1')
-        setStreakDays(Number(dashRes?.data?.streakDays ?? 0))
-
-        const uiLocale = (userData.locale || 'vi').toLowerCase()
-        const cefr = planRes?.data?.plan?.currentLevel || 'A1'
-
-        const mapped = await fetchVocabGameQuestions(
-          (path: string, params?: Record<string, string>) =>
-            api.get(path, { params }).then((r) => r.data),
-          {
-            locale: uiLocale,
-            cefr,
-            count: 12,
-          }
-        )
-
-        setQuestions(mapped)
-        if (mapped.length > 0) {
-          const slotCount = tokenizeForSlots(mapped[0]!.answerCanonical, mapped[0]!.joiner).length
-          setSlots(new Array(slotCount).fill(null))
-          setSlotWordIds(new Array(slotCount).fill(null))
-        }
-      } catch (err) {
-        console.error('Game boot failed', err)
-      } finally {
-        setLoading(false)
+      setQuestions(mapped)
+      if (mapped.length > 0) {
+        const slotCount = tokenizeForSlots(mapped[0]!.answerCanonical, mapped[0]!.joiner).length
+        setSlots(new Array(slotCount).fill(null))
+        setSlotWordIds(new Array(slotCount).fill(null))
       }
+    } catch (err) {
+      console.error('Game boot failed', err)
+      setQuestions([])
+    } finally {
+      setQuestionsLoading(false)
     }
+  }, [me, practiceFloorLevel])
 
-    boot()
-  }, [router])
+  useEffect(() => {
+    if (!me || sessionLoading) return
+    void loadQuestions()
+  }, [loadQuestions, me, sessionLoading])
 
   useEffect(() => {
     if (!q) return
@@ -318,33 +304,58 @@ export default function LegoGameScreen() {
     setIndex((i) => i + 1)
   }
 
-  const initials = useMemo(() => {
-    return (me?.displayName ?? 'U')
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2)
-  }, [me])
-
-  if (loading || !me) {
+  if (sessionLoading) {
     return (
-      <div className="min-h-screen bg-[#F8FAFF] flex items-center justify-center">
-        <div className="flex items-center gap-2 text-[#00305E]">
-          <Loader2 className="w-5 h-5 animate-spin" />
-          <span>Laden...</span>
-        </div>
+      <div className="df-page-mesh flex min-h-screen flex-col items-center justify-center px-4 py-10">
+        <PracticeGlassSkeleton className="max-w-lg" blocks={4} />
       </div>
+    )
+  }
+
+  if (!me) {
+    return (
+      <div className="df-page-mesh flex min-h-screen flex-col items-center justify-center gap-4 px-4 py-10">
+        <p className="max-w-md text-center text-sm text-[#64748B]">Could not load your profile.</p>
+        <button
+          type="button"
+          className="rounded-[14px] bg-[#00305E] px-5 py-2.5 text-sm font-bold text-white shadow-md"
+          onClick={() => void reload()}
+        >
+          Retry
+        </button>
+      </div>
+    )
+  }
+
+  if (questionsLoading) {
+    return (
+      <StudentShell
+        activeSection="game"
+        user={{ displayName: me.displayName, role: me.role }}
+        targetLevel={targetLevel}
+        streakDays={streakDays}
+        initials={initials}
+        onLogout={() => {
+          clearTokens()
+          router.push('/login')
+        }}
+        headerTitle="Trò chơi Lego"
+      >
+        <div className="flex min-h-[40vh] flex-col items-center justify-center gap-4 py-12">
+          <PracticeGlassSkeleton className="max-w-lg" blocks={4} />
+        </div>
+      </StudentShell>
     )
   }
 
   return (
     <StudentShell
       activeSection="game"
-      user={me}
+      user={{ displayName: me.displayName, role: me.role }}
       targetLevel={targetLevel}
       streakDays={streakDays}
       initials={initials}
+      hideBottomNav={!done && !!q}
       onLogout={() => {
         clearTokens()
         router.push('/login')
@@ -354,7 +365,7 @@ export default function LegoGameScreen() {
       <DndContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
         <div className="max-w-5xl mx-auto flex flex-col h-full">
           {done ? (
-            <div className="bg-white border-2 border-[#E2E8F0] rounded-2xl p-8 text-center shadow-lg">
+            <div className="bg-white border-2 border-[#E2E8F0] rounded-2xl p-8 text-center shadow-lg df-glass-subtle">
               <h2 className="text-2xl font-bold text-[#00305E] mb-2">Hoàn thành {variant.title}</h2>
               <p className="text-slate-600 mb-1">Điểm của bạn: <b>{score}</b></p>
               <p className="text-slate-600 mb-6">Bạn đã hoàn thành chế độ chơi độc lập.</p>
@@ -379,7 +390,7 @@ export default function LegoGameScreen() {
               </div>
             </div>
           ) : !q ? (
-            <div className="bg-white border-2 border-[#E2E8F0] rounded-2xl p-8 text-center shadow-lg">
+            <div className="bg-white border-2 border-[#E2E8F0] rounded-2xl p-8 text-center shadow-lg df-glass-subtle">
               <h2 className="text-xl font-bold text-[#00305E] mb-2">Không có dữ liệu game</h2>
               <p className="text-slate-600 mb-6">Không có câu hỏi cho chế độ luyện tập hiện tại.</p>
               <button 
@@ -418,9 +429,11 @@ export default function LegoGameScreen() {
 
               <h2 className="text-3xl font-bold text-[#00305E] mb-1">Baue den deutschen Satz! 🧱</h2>
               <p className="text-xl text-[#64748B] mb-4">{variant.subtitle}</p>
-              <p className="text-lg text-slate-700 mb-8 p-4 bg-white rounded-2xl border border-[#E2E8F0] shadow-sm">{q.prompt}</p>
+              <p className="text-lg text-slate-700 mb-8 p-4 bg-white rounded-2xl border border-[#E2E8F0] shadow-sm df-glass-subtle">
+                {q.prompt}
+              </p>
 
-              <div className="bg-white rounded-3xl p-8 mb-8 border-2 border-[#E2E8F0] shadow-md">
+              <div className="bg-white rounded-3xl p-8 mb-8 border-2 border-[#E2E8F0] shadow-md df-glass-subtle">
                 <div className="flex flex-wrap items-center gap-2 mb-6">
                   {q.audioGerman ? (
                     <button

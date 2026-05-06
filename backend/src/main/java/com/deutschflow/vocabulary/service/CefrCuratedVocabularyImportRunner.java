@@ -3,20 +3,23 @@ package com.deutschflow.vocabulary.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.core.annotation.Order;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 /**
  * Nạp wordlist CEFR (~10k) từ classpath: {@code cefr_a1_patsy.txt}, {@code goethe_sorted.txt}, {@code de_50k.txt} (pad).
  * Chạy sau Goethe bulk và sau {@link GoetheOfficialWordlistImportRunner}.
+ *
+ * Chạy bất đồng bộ (importExecutor) để không block HTTP thread pool.
  */
 @Component
 @Order(30)
 @RequiredArgsConstructor
 @Slf4j
-public class CefrCuratedVocabularyImportRunner implements ApplicationRunner {
+public class CefrCuratedVocabularyImportRunner {
 
     private final OfficialCefrVocabularyImportService officialCefrVocabularyImportService;
 
@@ -29,13 +32,14 @@ public class CefrCuratedVocabularyImportRunner implements ApplicationRunner {
     @Value("${app.vocabulary.cefr-curated.auto-import-enrich:false}")
     private boolean autoImportEnrich;
 
-    @Override
-    public void run(ApplicationArguments args) {
+    @Async("importExecutor")
+    @EventListener(ApplicationReadyEvent.class)
+    public void onApplicationReady() {
         if (!autoImportOnStartup) {
             return;
         }
         log.info(
-                "Auto-import CEFR curated vocabulary on startup is enabled (enrich={}).",
+                "Auto-import CEFR curated vocabulary on startup is enabled (enrich={}). Running in background...",
                 autoImportEnrich
         );
         try {
@@ -48,7 +52,7 @@ public class CefrCuratedVocabularyImportRunner implements ApplicationRunner {
                     result.get("enrichAfterUpsertApplied")
             );
         } catch (Exception ex) {
-            log.error("CEFR curated vocabulary auto-import failed.", ex);
+            log.warn("CEFR curated vocabulary auto-import failed (non-fatal): {}", ex.getMessage());
         }
     }
 }

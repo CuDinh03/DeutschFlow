@@ -15,4 +15,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query(value = "SELECT id FROM users WHERE role = :role AND is_active IS TRUE ORDER BY id ASC",
             nativeQuery = true)
     List<Long> findActiveIdsByRole(@Param("role") String role);
+
+    List<User> findByRoleAndIsActiveTrue(User.Role role);
 }

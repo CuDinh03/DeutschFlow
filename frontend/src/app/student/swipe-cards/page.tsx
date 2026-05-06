@@ -5,8 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { motion, useAnimation, useMotionValue, useTransform } from "framer-motion";
 import api from "@/lib/api";
-import { getAccessToken, clearTokens } from "@/lib/authSession";
+import { clearTokens } from "@/lib/authSession";
 import { StudentShell } from "@/components/layouts/StudentShell";
+import { PracticeGlassSkeleton } from "@/components/practice/PracticeGlassSkeleton";
+import { useStudentPracticeSession } from "@/hooks/useStudentPracticeSession";
 import { speakGerman, primeGermanVoices } from "@/lib/speechDe";
 import { ChevronLeft, Check, RefreshCw, RotateCcw, Volume2, X } from "lucide-react";
 
@@ -539,11 +541,23 @@ export default function SwipeCardsPage() {
   const urlCefrQ = (searchParams.get("cefr") ?? "").trim().toUpperCase();
   const urlTagQ = (searchParams.get("tag") ?? "").trim();
 
-  const [me, setMe] = useState<{ displayName: string; role: string } | null>(null);
-  const [targetLevel, setTargetLevel] = useState("A1");
-  const [streakDays, setStreakDays] = useState(0);
+  const { me, loading: sessionLoading, targetLevel: planTargetLevel, practiceFloorLevel, streakDays, initials, reload } =
+    useStudentPracticeSession();
+
+  const deckCefr = useMemo(() => {
+    const allowed = ["A1", "A2", "B1", "B2"] as const;
+    const fromUrl = urlCefrQ as (typeof allowed)[number];
+    if ((allowed as readonly string[]).includes(urlCefrQ)) return fromUrl;
+    return practiceFloorLevel;
+  }, [practiceFloorLevel, urlCefrQ]);
+
+  const shellTargetLevel = useMemo(() => {
+    const allowed = ["A1", "A2", "B1", "B2"];
+    return allowed.includes(urlCefrQ) ? urlCefrQ : planTargetLevel;
+  }, [planTargetLevel, urlCefrQ]);
+
   const [deck, setDeck] = useState<SwipeCard[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [deckLoading, setDeckLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [poolTotal, setPoolTotal] = useState<number | null>(null);
   const [learnedIds, setLearnedIds] = useState<Set<number>>(new Set());
@@ -553,7 +567,7 @@ export default function SwipeCardsPage() {
 
   const handleLogout = useCallback(() => {
     clearTokens();
-    router.push("/");
+    router.push("/login");
   }, [router]);
 
   useEffect(() => {
@@ -561,38 +575,22 @@ export default function SwipeCardsPage() {
   }, []);
 
   useEffect(() => {
-    if (!getAccessToken()) {
-      router.push("/login");
-      return;
-    }
+    if (!me || sessionLoading) return;
     let cancelled = false;
+    setDeckLoading(true);
+    setLoadError("");
     (async () => {
       try {
-        const meRes = await api.get<{ displayName: string; role: string }>("/auth/me");
-        if (meRes.data.role !== "STUDENT") {
-          router.push(`/${String(meRes.data.role).toLowerCase()}`);
-          return;
-        }
+        const wordsRes = await api.get<{ items: WordRow[]; total: number }>("/words", {
+          params: {
+            size: 20,
+            page: 0,
+            locale: uiLocale || "de",
+            cefr: deckCefr,
+            ...(urlTagQ ? { tag: urlTagQ } : {}),
+          },
+        });
         if (cancelled) return;
-        setMe(meRes.data);
-        const band = ["A1", "A2", "B1", "B2"].includes(urlCefrQ) ? urlCefrQ : "";
-        const [planRes, dashRes, wordsRes] = await Promise.all([
-          api.get<{ plan?: { targetLevel?: string } }>("/plan/me").catch(() => null),
-          api.get<{ streakDays?: number }>("/student/dashboard").catch(() => null),
-          api.get<{ items: WordRow[]; total: number }>("/words", {
-            params: {
-              size: 20,
-              page: 0,
-              locale: uiLocale || "de",
-              ...(band ? { cefr: band } : {}),
-              ...(urlTagQ ? { tag: urlTagQ } : {}),
-            },
-          }),
-        ]);
-        if (cancelled) return;
-        const planFallback = planRes?.data?.plan?.targetLevel ?? "A1";
-        setTargetLevel(band || planFallback);
-        setStreakDays(Number(dashRes?.data?.streakDays ?? 0));
         const loc = uiLocale || "de";
         setPoolTotal(Number.isFinite(wordsRes.data.total) ? wordsRes.data.total : null);
         const cards = shuffle((wordsRes.data.items ?? []).map((w) => mapWordToSwipe(w, loc)));
@@ -600,13 +598,13 @@ export default function SwipeCardsPage() {
       } catch {
         if (!cancelled) setLoadError(t("loadError"));
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setDeckLoading(false);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [router, uiLocale, t, urlCefrQ, urlTagQ]);
+  }, [deckCefr, me, sessionLoading, t, uiLocale, urlTagQ]);
 
   const remaining = useMemo(
     () => deck.filter((c) => !learnedIds.has(c.id) && !reviewIds.has(c.id)),
@@ -641,22 +639,28 @@ export default function SwipeCardsPage() {
     setDeck((d) => shuffle([...d]));
   };
 
-  if (loading && !me) {
+  if (sessionLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F5F7FA]">
-        <p className="text-slate-500">{t("loading")}</p>
+      <div className="df-page-mesh flex min-h-screen flex-col items-center justify-center px-4 py-10">
+        <PracticeGlassSkeleton className="max-w-md" />
       </div>
     );
   }
 
-  if (!me) return null;
-
-  const initials = me.displayName
-    .split(" ")
-    .map((p) => p.charAt(0))
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+  if (!me) {
+    return (
+      <div className="df-page-mesh flex min-h-screen flex-col items-center justify-center gap-4 px-4 py-10">
+        <p className="max-w-md text-center text-sm text-[#64748B]">Could not load your profile.</p>
+        <button
+          type="button"
+          className="rounded-[14px] bg-[#00305E] px-5 py-2.5 text-sm font-bold text-white shadow-md"
+          onClick={() => void reload()}
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   const pct = total > 0 ? Math.round((learnedIds.size / total) * 100) : 0;
   const c = currentCard ? COLOR[currentCard.type] : COLOR.masculine;
@@ -665,14 +669,22 @@ export default function SwipeCardsPage() {
     <StudentShell
       activeSection="swipe"
       user={{ displayName: me.displayName, role: me.role }}
-      targetLevel={targetLevel}
+      targetLevel={shellTargetLevel}
       streakDays={streakDays}
       initials={initials}
       onLogout={handleLogout}
       headerTitle={t("title")}
       headerSubtitle={mode === "type" ? t("subtitleType") : t("subtitleFlip")}
+      hideBottomNav={!showComplete && deck.length > 0 && !loadError}
     >
-      <div className="max-w-md mx-auto w-full -mx-2 sm:mx-auto min-h-[70vh] flex flex-col bg-[#F5F5F5] rounded-[20px] overflow-hidden border border-slate-200 shadow-sm">
+      <div className="max-w-md mx-auto w-full -mx-2 sm:mx-auto min-h-[70vh] flex flex-col df-glass-subtle rounded-[20px] overflow-hidden border border-slate-200/80 shadow-sm bg-[#F5F7FA]/95">
+        {deckLoading ? (
+          <div className="flex flex-1 flex-col items-center justify-center px-6 py-16 gap-4">
+            <PracticeGlassSkeleton className="max-w-[320px] border-white/60" blocks={4} />
+            <p className="text-xs text-slate-500">{t("loading")}</p>
+          </div>
+        ) : (
+          <>
         {poolTotal != null ? (
           <p className="text-[11px] text-center text-slate-500 px-3 pt-2 pb-1 bg-[#fafafa]">
             {t("wordsInPool", { count: poolTotal })}
@@ -786,6 +798,8 @@ export default function SwipeCardsPage() {
             </div>
             <p className="text-center text-[11px] text-slate-400 mt-4 px-2">{mode === "type" ? t("typeHint") : t("swipeHint")}</p>
           </div>
+        )}
+          </>
         )}
       </div>
     </StudentShell>

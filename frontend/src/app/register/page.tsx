@@ -44,7 +44,8 @@ export default function RegisterPage() {
           break
         case 'STUDENT':
         default:
-          router.push('/dashboard')
+          // Người dùng mới → đi qua Onboarding để chọn mục tiêu & lộ trình
+          router.push('/onboarding')
           break
       }
     } catch (err: unknown) {

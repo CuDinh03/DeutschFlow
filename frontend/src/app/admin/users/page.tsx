@@ -1,246 +1,278 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import Link from 'next/link'
-import api, { apiMessage } from '@/lib/api'
-import { Search } from 'lucide-react'
-import AdminShell from '@/components/admin/AdminShell'
-import useAdminData from '@/hooks/useAdminData'
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import api, { apiMessage } from "@/lib/api";
+import { Search, Shield, ShieldAlert, KeyRound, AlertTriangle, Clock, Zap, Database } from "lucide-react";
+import AdminShell from "@/components/admin/AdminShell";
+import useAdminData from "@/hooks/useAdminData";
+import { motion, AnimatePresence } from "framer-motion";
+
+// ─── Palette (từ UI Demo) ──────────────────────────────────────────────────────
+const P = {
+  navy: "#00305E",
+  navyLt: "#EBF2FA",
+  blue: "#2D9CDB",
+  blueLt: "#EBF5FB",
+  red: "#EB5757",
+  redLt: "#FDEAEA",
+  green: "#27AE60",
+  greenLt: "#E8F8F0",
+  yellow: "#FFCE00",
+  yellowLt: "#FFF8E1",
+  purple: "#9B51E0",
+  purpleLt: "#F4EDFF",
+  orange: "#F2994A",
+  orangeLt: "#FEF3E8",
+  bg: "#F5F5F5",
+  white: "#FFFFFF",
+  text: "#0F172A",
+  muted: "#64748B",
+  border: "#E2E8F0",
+};
 
 type AdminUser = {
-  id: number
-  email: string
-  displayName: string
-  role: 'ADMIN' | 'TEACHER' | 'STUDENT'
-  isActive: boolean
-  planCode?: string
-  monthlyTokenLimit?: number
-  usedThisMonth?: number
-  remainingThisMonth?: number
-  dailyTokenGrant?: number
-  walletBalance?: number
-  walletCap?: number
-  usedToday?: number
-  quotaKind?: string
-  usageLast30Days?: number
-  quotaPeriodStartUtc?: string
-  quotaPeriodEndUtc?: string
-  subscriptionStartsAtUtc?: string | null
-  subscriptionEndsAtUtc?: string | null
-}
+  id: number;
+  email: string;
+  displayName: string;
+  role: "ADMIN" | "TEACHER" | "STUDENT";
+  isActive: boolean;
+  planCode?: string;
+  monthlyTokenLimit?: number;
+  usedThisMonth?: number;
+  remainingThisMonth?: number;
+  dailyTokenGrant?: number;
+  walletBalance?: number;
+  walletCap?: number;
+  usedToday?: number;
+  quotaKind?: string;
+  usageLast30Days?: number;
+  quotaPeriodStartUtc?: string;
+  quotaPeriodEndUtc?: string;
+  subscriptionStartsAtUtc?: string | null;
+  subscriptionEndsAtUtc?: string | null;
+};
 
 type QuotaDetail = {
-  userId: number
-  planCode?: string
-  quotaKind?: string
-  unlimitedInternal?: boolean
-  dailyTokenGrant?: number
-  usedToday?: number
-  walletBalance?: number
-  walletCap?: number
-  monthlyTokenLimit?: number
-  usedThisMonth?: number
-  remainingThisMonth?: number
-  remainingSpendable?: number
-  usageLast30Days?: number
-  usageLedgerWindowDays?: number
-  usageLedgerSinceUtc?: string
-  periodStartUtc?: string
-  periodEndUtc?: string
-  subscriptionStartsAtUtc?: string | null
-  subscriptionEndsAtUtc?: string | null
-}
+  userId: number;
+  planCode?: string;
+  quotaKind?: string;
+  unlimitedInternal?: boolean;
+  dailyTokenGrant?: number;
+  usedToday?: number;
+  walletBalance?: number;
+  walletCap?: number;
+  monthlyTokenLimit?: number;
+  usedThisMonth?: number;
+  remainingThisMonth?: number;
+  remainingSpendable?: number;
+  usageLast30Days?: number;
+  usageLedgerWindowDays?: number;
+  usageLedgerSinceUtc?: string;
+  periodStartUtc?: string;
+  periodEndUtc?: string;
+  subscriptionStartsAtUtc?: string | null;
+  subscriptionEndsAtUtc?: string | null;
+};
 
 type PlanRow = {
-  code: string
-  name: string
-  monthlyTokenLimit: number
-  isActive: boolean
-}
+  code: string;
+  name: string;
+  monthlyTokenLimit: number;
+  isActive: boolean;
+};
 
 type UsageRow = {
-  id: number
-  userId: number
-  provider?: string
-  model?: string
-  promptTokens?: number
-  completionTokens?: number
-  totalTokens?: number
-  feature?: string
-  requestId?: string
-  sessionId?: number
-  createdAt?: string
-}
+  id: number;
+  userId: number;
+  provider?: string;
+  model?: string;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  feature?: string;
+  requestId?: string;
+  sessionId?: number;
+  createdAt?: string;
+};
 
 function fmt(n: number | undefined) {
-  return Number(n ?? 0).toLocaleString('vi-VN')
+  return Number(n ?? 0).toLocaleString("vi-VN");
 }
 
 function shortIso(iso: string | null | undefined) {
-  if (iso == null || String(iso).trim() === '') return null
+  if (iso == null || String(iso).trim() === "") return null;
   try {
-    const d = new Date(String(iso))
-    if (Number.isNaN(d.getTime())) return String(iso).slice(0, 19).replace('T', ' ')
-    return d.toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })
+    const d = new Date(String(iso));
+    if (Number.isNaN(d.getTime())) return String(iso).slice(0, 19).replace("T", " ");
+    return d.toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short" });
   } catch {
-    return String(iso)
+    return String(iso);
   }
 }
 
 function quotaKindVi(k: string | undefined): string {
   switch (k) {
-    case 'WALLET':
-      return 'Ví (PRO/PREMIUM/ULTRA)'
-    case 'FREE_DAY':
-      return 'FREE / ngày VN'
-    case 'INTERNAL_UNLIMITED':
-      return 'Nội bộ không giới hạn'
+    case "WALLET":
+      return "Ví (PRO/PREMIUM/ULTRA)";
+    case "FREE_DAY":
+      return "FREE / ngày VN";
+    case "INTERNAL_UNLIMITED":
+      return "Nội bộ không giới hạn";
     default:
-      return 'Không quota'
+      return "Không quota";
   }
 }
 
-export default function AdminUsersPage() {
-  const [items, setItems] = useState<AdminUser[]>([])
-  const [query, setQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
-  const [roleErrorId, setRoleErrorId] = useState<number | null>(null)
-  const [plans, setPlans] = useState<PlanRow[]>([])
-  const [detailUser, setDetailUser] = useState<AdminUser | null>(null)
-  const [planCode, setPlanCode] = useState('FREE')
-  const [overrideLimit, setOverrideLimit] = useState('')
-  const [usage, setUsage] = useState<UsageRow[]>([])
-  const [usageLoading, setUsageLoading] = useState(false)
-  const [saveLoading, setSaveLoading] = useState(false)
-  const [modalError, setModalError] = useState('')
-  const [startsAtUtcInput, setStartsAtUtcInput] = useState('')
-  const [endsAtUtcInput, setEndsAtUtcInput] = useState('')
+// Generate initials from name (e.g., "Nguyen Van A" -> "NA")
+function getInitials(name: string | undefined | null) {
+  if (!name) return "U";
+  const parts = name.trim().split(" ");
+  if (parts.length === 0) return "U";
+  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
 
-  const [quotaDetail, setQuotaDetail] = useState<QuotaDetail | null>(null)
-  const [quotaLoading, setQuotaLoading] = useState(false)
+export default function AdminUsersPage() {
+  const [items, setItems] = useState<AdminUser[]>([]);
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [roleErrorId, setRoleErrorId] = useState<number | null>(null);
+  const [plans, setPlans] = useState<PlanRow[]>([]);
+  const [detailUser, setDetailUser] = useState<AdminUser | null>(null);
+  const [planCode, setPlanCode] = useState("FREE");
+  const [overrideLimit, setOverrideLimit] = useState("");
+  const [usage, setUsage] = useState<UsageRow[]>([]);
+  const [usageLoading, setUsageLoading] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [modalError, setModalError] = useState("");
+  const [startsAtUtcInput, setStartsAtUtcInput] = useState("");
+  const [endsAtUtcInput, setEndsAtUtcInput] = useState("");
+
+  const [quotaDetail, setQuotaDetail] = useState<QuotaDetail | null>(null);
+  const [quotaLoading, setQuotaLoading] = useState(false);
 
   const { data, loading, refreshing, error, lastSyncedAt, reload } = useAdminData<AdminUser[]>({
     initialData: [],
-    errorMessage: 'Không thể tải danh sách người dùng.',
+    errorMessage: "Không thể tải danh sách người dùng.",
     fetchData: async () => {
-      const res = await api.get('/admin/users')
-      return (res.data ?? []) as AdminUser[]
+      const res = await api.get("/admin/users");
+      return (res.data ?? []) as AdminUser[];
     },
-  })
+  });
 
   useEffect(() => {
-    setItems(data)
-  }, [data])
+    setItems(data);
+  }, [data]);
 
   useEffect(() => {
-    let cancelled = false
+    let cancelled = false;
     api
-      .get('/admin/plans')
+      .get("/admin/plans")
       .then((res) => {
-        if (!cancelled) setPlans((res.data ?? []) as PlanRow[])
+        if (!cancelled) setPlans((res.data ?? []) as PlanRow[]);
       })
-      .catch(() => {})
+      .catch(() => {});
     return () => {
-      cancelled = true
-    }
-  }, [])
+      cancelled = true;
+    };
+  }, []);
 
   const updateRole = async (id: number, role: string) => {
-    setRoleErrorId(null)
+    setRoleErrorId(null);
     try {
-      await api.patch(`/admin/users/${id}/role`, { role })
-      await reload({ silent: true })
+      await api.patch(`/admin/users/${id}/role`, { role });
+      await reload({ silent: true });
     } catch (e: unknown) {
-      setRoleErrorId(id)
-      console.error(apiMessage(e))
+      setRoleErrorId(id);
+      console.error(apiMessage(e));
     }
-  }
+  };
 
   const openDetail = async (u: AdminUser) => {
-    setDetailUser(u)
-    setPlanCode((u.planCode || 'FREE').toUpperCase())
-    setOverrideLimit('')
+    setDetailUser(u);
+    setPlanCode((u.planCode || "FREE").toUpperCase());
+    setOverrideLimit("");
     setStartsAtUtcInput(
-      u.subscriptionStartsAtUtc != null && String(u.subscriptionStartsAtUtc).trim() !== ''
+      u.subscriptionStartsAtUtc != null && String(u.subscriptionStartsAtUtc).trim() !== ""
         ? String(u.subscriptionStartsAtUtc)
         : new Date().toISOString()
-    )
-    setEndsAtUtcInput(u.subscriptionEndsAtUtc != null ? String(u.subscriptionEndsAtUtc) : '')
-    setModalError('')
-    setUsage([])
-    setQuotaDetail(null)
-    setQuotaLoading(true)
-    setUsageLoading(true)
+    );
+    setEndsAtUtcInput(u.subscriptionEndsAtUtc != null ? String(u.subscriptionEndsAtUtc) : "");
+    setModalError("");
+    setUsage([]);
+    setQuotaDetail(null);
+    setQuotaLoading(true);
+    setUsageLoading(true);
     try {
       const [usageRes, quotaRes] = await Promise.allSettled([
         api.get(`/admin/users/${u.id}/usage`, { params: { limit: 200 } }),
         api.get<QuotaDetail>(`/admin/users/${u.id}/quota`),
-      ])
-      if (usageRes.status === 'fulfilled') {
-        setUsage((usageRes.value.data ?? []) as UsageRow[])
+      ]);
+      if (usageRes.status === "fulfilled") {
+        setUsage((usageRes.value.data ?? []) as UsageRow[]);
       } else {
-        setUsage([])
+        setUsage([]);
       }
-      if (quotaRes.status === 'fulfilled') {
-        setQuotaDetail(quotaRes.value.data ?? null)
+      if (quotaRes.status === "fulfilled") {
+        setQuotaDetail(quotaRes.value.data ?? null);
       } else {
-        setQuotaDetail(null)
+        setQuotaDetail(null);
       }
-      if (usageRes.status === 'rejected') {
-        setModalError(apiMessage(usageRes.reason))
-      } else if (quotaRes.status === 'rejected') {
-        setModalError(apiMessage(quotaRes.reason))
+      if (usageRes.status === "rejected") {
+        setModalError(apiMessage(usageRes.reason));
+      } else if (quotaRes.status === "rejected") {
+        setModalError(apiMessage(quotaRes.reason));
       }
     } catch (e: unknown) {
-      setModalError(apiMessage(e))
+      setModalError(apiMessage(e));
     } finally {
-      setUsageLoading(false)
-      setQuotaLoading(false)
+      setUsageLoading(false);
+      setQuotaLoading(false);
     }
-  }
+  };
 
   const savePlan = async () => {
-    if (!detailUser) return
-    setSaveLoading(true)
-    setModalError('')
+    if (!detailUser) return;
+    setSaveLoading(true);
+    setModalError("");
     try {
       await api.patch(`/admin/users/${detailUser.id}/plan`, {
         planCode,
         monthlyTokenLimitOverride: overrideLimit.trim() ? Number(overrideLimit.trim()) : null,
         startsAtUtc: startsAtUtcInput.trim() || new Date().toISOString(),
         endsAtUtc: endsAtUtcInput.trim() ? endsAtUtcInput.trim() : null,
-      })
-      await reload({ silent: true })
-      setDetailUser(null)
+      });
+      await reload({ silent: true });
+      setDetailUser(null);
     } catch (e: unknown) {
-      setModalError(apiMessage(e))
+      setModalError(apiMessage(e));
     } finally {
-      setSaveLoading(false)
+      setSaveLoading(false);
     }
-  }
+  };
 
   const filteredItems = items.filter((u) => {
-    const q = query.trim().toLowerCase()
+    const q = query.trim().toLowerCase();
     const matchesQ =
       !q ||
       u.displayName.toLowerCase().includes(q) ||
       u.email.toLowerCase().includes(q) ||
       String(u.id).includes(q) ||
       u.role.toLowerCase().includes(q) ||
-      (u.planCode || '').toLowerCase().includes(q)
-    const matchesStatus =
-      statusFilter === 'all' || (statusFilter === 'active' ? u.isActive : !u.isActive)
-    return matchesQ && matchesStatus
-  })
+      (u.planCode || "").toLowerCase().includes(q);
+    const matchesStatus = statusFilter === "all" || (statusFilter === "active" ? u.isActive : !u.isActive);
+    return matchesQ && matchesStatus;
+  });
 
   const listHint = (() => {
     if (error && items.length === 0 && !loading) {
-      return 'Kiểm tra Spring Boot (thường :8080), biến NEXT_PUBLIC_BACKEND_URL / BACKEND_URL trên Next, và JWT tài khoản ADMIN.'
+      return "Kiểm tra Spring Boot (thường :8080), biến NEXT_PUBLIC_BACKEND_URL / BACKEND_URL trên Next, và JWT tài khoản ADMIN.";
     }
-    return null
-  })()
+    return null;
+  })();
 
-  if (loading) return <div className="page-shell text-muted-foreground">Đang tải người dùng…</div>
+  if (loading) return <div className="page-shell text-muted-foreground p-8">Đang tải người dùng…</div>;
 
   return (
     <AdminShell
@@ -253,318 +285,383 @@ export default function AdminUsersPage() {
       lastSyncedAt={lastSyncedAt}
     >
       {listHint && error && (
-        <p className="mb-3 rounded-[10px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">{listHint}</p>
+        <div className="mb-4 rounded-[12px] p-3 text-sm flex items-start gap-2" style={{ background: P.redLt, color: P.red, border: `1.5px solid ${P.red}40` }}>
+          <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" />
+          <p>{listHint}</p>
+        </div>
       )}
 
-      <div className="section-card rounded-[14px] border border-[#E2E8F0]">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-3">
-          <div className="relative md:w-[320px]">
-            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Tìm theo tên, email, role, plan…"
-              className="w-full input pl-8 h-9 py-1 text-sm"
-            />
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex rounded-[8px] border border-[#E2E8F0] bg-[#F8FAFC] p-0.5 text-xs font-semibold">
-              {(['all', 'active', 'inactive'] as const).map((k) => (
-                <button
-                  key={k}
-                  type="button"
-                  onClick={() => setStatusFilter(k)}
-                  className={`rounded-[6px] px-2.5 py-1.5 transition-colors ${
-                    statusFilter === k ? 'bg-[#00305E] text-white' : 'text-[#64748B] hover:bg-white'
-                  }`}
-                >
-                  {k === 'all' ? 'Tất cả' : k === 'active' ? 'Đang hoạt động' : 'Không hoạt động'}
-                </button>
-              ))}
-            </div>
-            <Link
-              href="/admin/plans"
-              className="text-xs font-semibold text-[#00305E] underline-offset-2 hover:underline"
-            >
-              Danh sách gói & hạn mức token
-            </Link>
-          </div>
+      {/* ── Toolbar ──────────────────────────────────────────────────────────── */}
+      <div className="flex flex-col md:flex-row gap-3 mb-5">
+        <div className="flex-1 flex items-center gap-2 px-3 py-2.5 bg-white rounded-[12px] transition-shadow focus-within:shadow-[0_2px_8px_rgba(0,48,94,0.06)]" style={{ border: `1.5px solid ${P.border}` }}>
+          <Search size={15} style={{ color: P.muted }} />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Tìm theo tên, email, role, plan…"
+            className="flex-1 bg-transparent outline-none text-sm font-medium"
+            style={{ color: P.text }}
+          />
         </div>
-
-        {filteredItems.length === 0 ? (
-          <div className="empty-state text-sm text-muted-foreground">
-            {error && items.length === 0 ? (
-              <>Chưa có dữ liệu do lỗi tải. Xem báo đỏ phía trên hoặc bấm làm mới.</>
-            ) : items.length === 0 ? (
-              <>Chưa có người dùng trong hệ thống.</>
-            ) : (
-              <>Không có người dùng phù hợp bộ lọc hoặc từ khóa.</>
-            )}
+        
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex p-1 rounded-[12px] bg-white" style={{ border: `1.5px solid ${P.border}` }}>
+            {(["all", "active", "inactive"] as const).map((k) => (
+              <button
+                key={k}
+                onClick={() => setStatusFilter(k)}
+                className="px-3 py-1.5 rounded-[8px] text-xs font-bold transition-colors"
+                style={{
+                  background: statusFilter === k ? P.navy : "transparent",
+                  color: statusFilter === k ? P.white : P.muted,
+                }}
+              >
+                {k === "all" ? "Tất cả" : k === "active" ? "Aktiv" : "Inaktiv"}
+              </button>
+            ))}
           </div>
-        ) : (
-          <div className="space-y-3">
+          <Link
+            href="/admin/plans"
+            className="px-4 py-2 rounded-[12px] text-xs font-bold transition-colors"
+            style={{ background: P.navyLt, color: P.navy }}
+          >
+            Gói & Hạn mức
+          </Link>
+        </div>
+      </div>
+
+      {/* ── User List (Cards) ────────────────────────────────────────────────── */}
+      {filteredItems.length === 0 ? (
+        <div className="py-12 text-center text-sm font-medium rounded-[20px] bg-white" style={{ color: P.muted, border: `1.5px dashed ${P.border}` }}>
+          {error && items.length === 0 ? (
+            "Chưa có dữ liệu do lỗi tải. Bấm làm mới phía trên."
+          ) : items.length === 0 ? (
+            "Hệ thống chưa có người dùng nào."
+          ) : (
+            "Không có người dùng phù hợp với bộ lọc."
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <AnimatePresence>
             {filteredItems.map((u) => (
-              <div key={u.id} className="list-item flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-foreground">{u.displayName}</p>
-                  <p className="text-sm text-muted-foreground">
-                    #{u.id} · {u.email} · {u.isActive ? 'Active' : 'Inactive'}
-                  </p>
-                  <p className="text-xs text-[#64748B] mt-1 leading-snug">
-                    <span className="font-medium text-[#00305E]">{u.planCode ?? '—'}</span>
-                    {u.quotaKind != null && (
-                      <>
-                        {' · '}
-                        <span>{quotaKindVi(u.quotaKind)}</span>
-                      </>
-                    )}
-                    {' · '}30&nbsp;ngày (ledger): {fmt(u.usageLast30Days)}
-                    {' · '}Hôm&nbsp;nay (VN): {fmt(u.usedToday ?? u.usedThisMonth)}
-                    {' · '}Còn chi tiêu: {fmt(u.remainingThisMonth)}
-                    {Number(u.walletCap ?? 0) > 0 ? (
-                      <>
-                        {' · '}Trần ví: {fmt(u.walletCap)} (+{fmt(u.dailyTokenGrant)}/ngày)
-                      </>
-                    ) : u.quotaKind === 'FREE_DAY' ? (
-                      <>
-                        {' · '}Hạn/ngày: {fmt(u.dailyTokenGrant)}
-                      </>
-                    ) : null}
-                  </p>
-                  {(shortIso(u.subscriptionStartsAtUtc) || u.subscriptionEndsAtUtc != null) && (
-                    <p className="text-[11px] text-[#475569] mt-0.5">
-                      Đăng ký:&nbsp;
-                      {shortIso(u.subscriptionStartsAtUtc) ?? '?'}
-                      {' → '}
-                      {shortIso(u.subscriptionEndsAtUtc) ?? 'Không có ngày kết thúc'}
+              <motion.div
+                key={u.id}
+                layout
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="bg-white rounded-[20px] p-4 flex flex-col transition-shadow hover:shadow-[0_4px_24px_rgba(0,48,94,0.06)]"
+                style={{ border: `1.5px solid ${P.border}` }}
+              >
+                {/* Header: Avatar, Info, Status */}
+                <div className="flex items-start gap-3 mb-4">
+                  <div
+                    className="w-11 h-11 rounded-full flex items-center justify-center text-sm font-black text-white flex-shrink-0"
+                    style={{ background: `linear-gradient(135deg, ${P.navy}, ${P.blue})` }}
+                  >
+                    {getInitials(u.displayName)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold text-sm truncate" style={{ color: P.text }}>{u.displayName}</p>
+                      <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black tracking-wider flex-shrink-0"
+                        style={{
+                          background: u.role === "ADMIN" ? P.redLt : u.role === "TEACHER" ? P.purpleLt : P.navyLt,
+                          color: u.role === "ADMIN" ? P.red : u.role === "TEACHER" ? P.purple : P.navy,
+                        }}>
+                        {u.role}
+                      </span>
+                    </div>
+                    <p className="text-[11px] truncate mt-0.5" style={{ color: P.muted }}>
+                      #{u.id} · {u.email}
                     </p>
-                  )}
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <span className="flex items-center gap-1 text-[10px] font-bold" style={{ color: u.isActive ? P.green : P.red }}>
+                        <div className="w-1.5 h-1.5 rounded-full" style={{ background: u.isActive ? P.green : P.red }} />
+                        {u.isActive ? "Aktiv" : "Inaktiv"}
+                      </span>
+                      {u.planCode && (
+                        <span className="flex items-center gap-1 text-[10px] font-semibold" style={{ color: P.orange }}>
+                          <span className="text-orange-300">•</span> {u.planCode}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex rounded-full bg-[#EEF4FF] px-2 py-0.5 text-xs font-semibold text-[#00305E]">
-                    {u.role}
-                  </span>
+
+                {/* Stats Row */}
+                <div className="grid grid-cols-3 gap-2 mb-4 mt-auto">
+                  {[
+                    { label: "Ledger 30d", val: fmt(u.usageLast30Days), color: P.purple, bg: P.purpleLt },
+                    { label: "Hôm nay", val: fmt(u.usedToday ?? u.usedThisMonth), color: P.blue, bg: P.blueLt },
+                    { label: "Còn lại", val: fmt(u.remainingThisMonth), color: P.green, bg: P.greenLt },
+                  ].map(({ label, val, color, bg }) => (
+                    <div key={label} className="rounded-[12px] p-2 text-center flex flex-col justify-center" style={{ background: bg, border: `1.5px solid ${color}30` }}>
+                      <p className="font-black text-xs leading-none mb-1" style={{ color }}>{val}</p>
+                      <p className="text-[9px] font-bold uppercase tracking-wide leading-none opacity-70" style={{ color }}>{label}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Sub info */}
+                {u.quotaKind && (
+                  <p className="text-[10px] font-medium mb-3 text-center" style={{ color: P.muted }}>
+                    Quota: {quotaKindVi(u.quotaKind)}
+                    {Number(u.walletCap ?? 0) > 0 ? ` (Trần ${fmt(u.walletCap)})` : ""}
+                  </p>
+                )}
+
+                {/* Actions */}
+                <div className="flex items-center gap-2 mt-auto pt-3" style={{ borderTop: `1px solid ${P.border}` }}>
                   <select
-                    className={`input py-1 px-2 text-sm ${roleErrorId === u.id ? 'border-red-400 ring-1 ring-red-200' : ''}`}
+                    className="flex-1 outline-none text-xs font-bold py-2 px-2 rounded-[10px] appearance-none cursor-pointer text-center"
+                    style={{
+                      background: P.bg,
+                      color: P.navy,
+                      border: roleErrorId === u.id ? `1.5px solid ${P.red}` : `1px solid ${P.border}`,
+                    }}
                     value={u.role}
                     onChange={(e) => updateRole(u.id, e.target.value)}
-                    aria-invalid={roleErrorId === u.id}
                   >
                     <option value="STUDENT">STUDENT</option>
                     <option value="TEACHER">TEACHER</option>
                     <option value="ADMIN">ADMIN</option>
                   </select>
-                  {roleErrorId === u.id && (
-                    <span className="text-[10px] text-red-600">Không đổi được role — xem Network / Console</span>
-                  )}
                   <button
-                    type="button"
                     onClick={() => openDetail(u)}
-                    className="rounded-[8px] bg-[#00305E] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#002447]"
+                    className="flex-[2] py-2 px-3 rounded-[10px] text-xs font-bold text-center transition-all hover:opacity-90 flex justify-center items-center gap-1.5"
+                    style={{ background: P.navy, color: P.white, boxShadow: "0 2px 8px rgba(0,48,94,0.15)" }}
                   >
-                    Chi tiết quota
+                    <Database size={12} /> Chi tiết Quota
                   </button>
                 </div>
-              </div>
+              </motion.div>
             ))}
-          </div>
-        )}
-      </div>
-
-      {/* Modal: plan + usage */}
-      {detailUser && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <button
-            type="button"
-            className="absolute inset-0 bg-black/40"
-            aria-label="Đóng"
-            onClick={() => setDetailUser(null)}
-          />
-          <div className="relative z-10 w-full max-w-3xl max-h-[90vh] overflow-hidden rounded-[14px] border border-[#E2E8F0] bg-white shadow-xl flex flex-col">
-            <div className="flex items-start justify-between gap-3 border-b border-[#E2E8F0] px-4 py-3">
-              <div>
-                <p className="font-bold text-foreground">{detailUser.displayName}</p>
-                <p className="text-xs text-muted-foreground">
-                  #{detailUser.id} · {detailUser.email}
-                </p>
-              </div>
-              <button
-                type="button"
-                className="text-sm text-muted-foreground hover:text-foreground"
-                onClick={() => setDetailUser(null)}
-              >
-                Đóng
-              </button>
-            </div>
-            <div className="overflow-y-auto px-4 py-4 space-y-4 flex-1">
-              {modalError && (
-                <div className="rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                  {modalError}
-                </div>
-              )}
-              <div className="rounded-[10px] border border-[#00305E]/20 bg-[#F0F7FF] p-4 space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[#00305E]">
-                    Chi tiết quota AI (GET /quota)
-                  </p>
-                  {quotaLoading ? (
-                    <span className="text-[11px] text-muted-foreground">Đang tải…</span>
-                  ) : null}
-                </div>
-                {quotaDetail ? (
-                  <>
-                    <p className="text-sm text-muted-foreground">
-                      Cơ chế:{' '}
-                      <span className="font-semibold text-foreground">{quotaKindVi(quotaDetail.quotaKind)}</span>
-                      {quotaDetail.unlimitedInternal ? (
-                        <span className="ml-2 text-emerald-700 font-medium">Không giới hạn chi tiêu</span>
-                      ) : null}
-                    </p>
-                    <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                      <dt className="text-muted-foreground">Đã dùng · 30 ngày (ledger)</dt>
-                      <dd className="font-semibold tabular-nums">{fmt(quotaDetail.usageLast30Days)}</dd>
-                      <dt className="text-muted-foreground">Đã dùng · hôm nay (VN)</dt>
-                      <dd className="font-semibold tabular-nums">{fmt(quotaDetail.usedToday ?? quotaDetail.usedThisMonth)}</dd>
-                      <dt className="text-muted-foreground">Còn chi tiêu được</dt>
-                      <dd className="font-semibold tabular-nums text-emerald-800">
-                        {quotaDetail.unlimitedInternal ? '—' : fmt(quotaDetail.remainingSpendable ?? quotaDetail.remainingThisMonth)}
-                      </dd>
-                      <dt className="text-muted-foreground">Trần ví (wallet cap)</dt>
-                      <dd className="tabular-nums">{fmt(quotaDetail.walletCap)}</dd>
-                      <dt className="text-muted-foreground">Cộng mỗi ngày vào ví</dt>
-                      <dd className="tabular-nums">{fmt(quotaDetail.dailyTokenGrant)}</dd>
-                      <dt className="text-muted-foreground">Số dư ví hiện tại</dt>
-                      <dd className="tabular-nums">{fmt(quotaDetail.walletBalance)}</dd>
-                      <dt className="text-muted-foreground">Khung quota (VN đêm → UTC instant)</dt>
-                      <dd className="text-[11px] font-mono text-muted-foreground break-all">
-                        {quotaDetail.periodStartUtc ?? '—'} → {quotaDetail.periodEndUtc ?? '—'}
-                      </dd>
-                    </dl>
-                    <p className="text-[10px] text-muted-foreground pt-2 border-t border-[#00305E]/10">
-                      Ledger tổng hợp từ {quotaDetail.usageLedgerSinceUtc ?? '—'} (cửa sổ {quotaDetail.usageLedgerWindowDays ?? 30}{' '}
-                      ngày). Trường legacy <span className="font-mono">usedThisMonth</span> trong JSON = chỉ hôm nay (VN).
-                    </p>
-                  </>
-                ) : !quotaLoading ? (
-                  <p className="text-sm text-muted-foreground">Chưa tải được snapshot quota.</p>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Đang lấy dữ liệu…</p>
-                )}
-              </div>
-              <div className="rounded-[10px] border border-[#E2E8F0] bg-[#F8FAFC] p-4 space-y-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-[#64748B]">Đổi gói</p>
-                {detailUser && (
-                  <p className="text-xs text-muted-foreground">
-                    Gói hiện tại trên máy chủ: <span className="font-mono font-semibold text-foreground">{detailUser.planCode ?? '—'}</span>{' '}
-                    · Bắt đầu: {shortIso(detailUser.subscriptionStartsAtUtc) ?? '—'} · Kết thúc:&nbsp;
-                    {shortIso(detailUser.subscriptionEndsAtUtc) ?? 'Mở (null)'}
-                  </p>
-                )}
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="block text-sm sm:col-span-2">
-                    <span className="text-muted-foreground">
-                      Ngày bắt đầu đăng ký (UTC, ISO‑8601) — ví dụ 2027-06-01T00:00:00Z
-                    </span>
-                    <input
-                      className="input mt-1 w-full py-2 text-sm font-mono"
-                      value={startsAtUtcInput}
-                      onChange={(e) => setStartsAtUtcInput(e.target.value)}
-                      placeholder='2027-06-01T00:00:00Z'
-                    />
-                  </label>
-                  <label className="block text-sm sm:col-span-2">
-                    <span className="text-muted-foreground">
-                      Ngày kết thúc đăng ký (để trống = không hạn đến khi đổi gói)
-                    </span>
-                    <input
-                      className="input mt-1 w-full py-2 text-sm font-mono"
-                      value={endsAtUtcInput}
-                      onChange={(e) => setEndsAtUtcInput(e.target.value)}
-                      placeholder=""
-                    />
-                  </label>
-                  <label className="block text-sm">
-                    <span className="text-muted-foreground">Plan code</span>
-                    <select
-                      className="input mt-1 w-full py-2 text-sm"
-                      value={planCode}
-                      onChange={(e) => setPlanCode(e.target.value)}
-                    >
-                      {plans.map((p) => (
-                        <option key={p.code} value={p.code}>
-                          {p.code} — {p.name}
-                        </option>
-                      ))}
-                      {plans.length === 0 && <option value="FREE">FREE</option>}
-                    </select>
-                  </label>
-                  <label className="block text-sm">
-                    <span className="text-muted-foreground">Override token/tháng (tuỳ chọn)</span>
-                    <input
-                      className="input mt-1 w-full py-2 text-sm"
-                      placeholder="Để trống = theo gói"
-                      value={overrideLimit}
-                      onChange={(e) => setOverrideLimit(e.target.value)}
-                    />
-                  </label>
-                </div>
-                <button
-                  type="button"
-                  disabled={saveLoading}
-                  onClick={savePlan}
-                  className="rounded-[8px] bg-[#FFCE00] px-4 py-2 text-sm font-semibold text-[#00305E] disabled:opacity-60"
-                >
-                  {saveLoading ? 'Đang lưu…' : 'Lưu gói'}
-                </button>
-                <p className="text-[10px] text-muted-foreground font-mono">PATCH /api/admin/users/:id/plan</p>
-              </div>
-
-              <div>
-                <p className="text-sm font-semibold text-foreground mb-2">Nhật ký usage (200 bản ghi gần nhất)</p>
-                {usageLoading ? (
-                  <p className="text-sm text-muted-foreground">Đang tải…</p>
-                ) : (
-                  <div className="overflow-x-auto rounded-[10px] border border-[#E2E8F0]">
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="bg-[#F8FAFC] text-left font-semibold text-[#64748B]">
-                          <th className="px-2 py-2">Thời điểm</th>
-                          <th className="px-2 py-2">Feature</th>
-                          <th className="px-2 py-2">Provider / Model</th>
-                          <th className="px-2 py-2">Tokens</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {usage.length === 0 ? (
-                          <tr>
-                            <td colSpan={4} className="px-2 py-6 text-center text-muted-foreground">
-                              Chưa có sự kiện usage.
-                            </td>
-                          </tr>
-                        ) : (
-                          usage.map((r) => (
-                            <tr key={r.id} className="border-t border-[#E2E8F0]">
-                              <td className="px-2 py-2 text-muted-foreground whitespace-nowrap">
-                                {r.createdAt ? String(r.createdAt) : '—'}
-                              </td>
-                              <td className="px-2 py-2 font-medium">{r.feature ?? '—'}</td>
-                              <td className="px-2 py-2 text-muted-foreground">
-                                {[r.provider, r.model].filter(Boolean).join(' / ') || '—'}
-                              </td>
-                              <td className="px-2 py-2 font-semibold">{fmt(r.totalTokens)}</td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-                <p className="text-[10px] text-muted-foreground mt-2 font-mono">GET /api/admin/users/:id/usage?limit=200</p>
-              </div>
-            </div>
-          </div>
+          </AnimatePresence>
         </div>
       )}
+
+      {/* ── Modal: Detail & Quota ──────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {detailUser && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              onClick={() => setDetailUser(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.95 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="relative z-10 w-full max-w-3xl max-h-[90vh] flex flex-col rounded-[24px] bg-white overflow-hidden shadow-2xl"
+            >
+              {/* Modal Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: P.border }}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-black text-white"
+                    style={{ background: `linear-gradient(135deg, ${P.navy}, ${P.blue})` }}>
+                    {getInitials(detailUser.displayName)}
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base" style={{ color: P.text }}>{detailUser.displayName}</h3>
+                    <p className="text-xs" style={{ color: P.muted }}>#{detailUser.id} · {detailUser.email}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setDetailUser(null)}
+                  className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors text-slate-400"
+                >
+                  <AlertTriangle size={18} className="hidden" /> {/* just for import use */}
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M13 1L1 13M1 1L13 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5" style={{ background: P.bg }}>
+                {modalError && (
+                  <div className="rounded-[12px] p-3 text-sm font-medium flex items-center gap-2" style={{ background: P.redLt, color: P.red, border: `1.5px solid ${P.red}40` }}>
+                    <ShieldAlert size={16} /> {modalError}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                  {/* Quota Details */}
+                  <div className="rounded-[16px] bg-white p-5 shadow-sm" style={{ border: `1.5px solid ${P.border}` }}>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <Zap size={16} style={{ color: P.blue }} />
+                        <h4 className="font-bold text-sm" style={{ color: P.text }}>Chi tiết Quota</h4>
+                      </div>
+                      {quotaLoading && <span className="text-[10px] font-bold text-blue-500 animate-pulse">Đang tải...</span>}
+                    </div>
+
+                    {quotaDetail ? (
+                      <div className="space-y-4">
+                        <div className="p-3 rounded-[12px]" style={{ background: P.blueLt, border: `1px solid ${P.blue}30` }}>
+                          <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: P.blue }}>Cơ chế</p>
+                          <p className="font-bold text-sm" style={{ color: P.text }}>
+                            {quotaKindVi(quotaDetail.quotaKind)}
+                            {quotaDetail.unlimitedInternal && <span className="ml-2 px-1.5 py-0.5 rounded-[6px] text-[10px] bg-green-100 text-green-700 border border-green-200">Không giới hạn</span>}
+                          </p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <p className="text-[10px] font-bold uppercase" style={{ color: P.muted }}>Ledger 30 ngày</p>
+                            <p className="font-black" style={{ color: P.text }}>{fmt(quotaDetail.usageLast30Days)}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold uppercase" style={{ color: P.muted }}>Hôm nay (VN)</p>
+                            <p className="font-black" style={{ color: P.text }}>{fmt(quotaDetail.usedToday ?? quotaDetail.usedThisMonth)}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold uppercase" style={{ color: P.muted }}>Còn chi tiêu được</p>
+                            <p className="font-black" style={{ color: P.green }}>{quotaDetail.unlimitedInternal ? "—" : fmt(quotaDetail.remainingSpendable ?? quotaDetail.remainingThisMonth)}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold uppercase" style={{ color: P.muted }}>Trần ví (Cap)</p>
+                            <p className="font-black" style={{ color: P.text }}>{fmt(quotaDetail.walletCap)}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold uppercase" style={{ color: P.muted }}>Cộng mỗi ngày</p>
+                            <p className="font-black" style={{ color: P.text }}>{fmt(quotaDetail.dailyTokenGrant)}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold uppercase" style={{ color: P.muted }}>Số dư ví hiện tại</p>
+                            <p className="font-black" style={{ color: P.text }}>{fmt(quotaDetail.walletBalance)}</p>
+                          </div>
+                        </div>
+                        <div className="pt-3 border-t mt-2" style={{ borderColor: P.border }}>
+                          <p className="text-[10px] font-medium" style={{ color: P.muted }}>
+                            Khung: <span className="font-mono">{quotaDetail.periodStartUtc ?? "—"} → {quotaDetail.periodEndUtc ?? "—"}</span>
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs italic" style={{ color: P.muted }}>{!quotaLoading ? "Chưa có snapshot quota." : ""}</p>
+                    )}
+                  </div>
+
+                  {/* Plan Update */}
+                  <div className="rounded-[16px] bg-white p-5 shadow-sm" style={{ border: `1.5px solid ${P.border}` }}>
+                    <div className="flex items-center gap-2 mb-4">
+                      <KeyRound size={16} style={{ color: P.orange }} />
+                      <h4 className="font-bold text-sm" style={{ color: P.text }}>Đổi gói Đăng ký</h4>
+                    </div>
+
+                    <div className="p-3 mb-4 rounded-[12px] text-xs" style={{ background: P.orangeLt, border: `1px solid ${P.orange}30` }}>
+                      <p style={{ color: P.text }} className="font-medium">
+                        Gói hiện tại: <span className="font-bold">{detailUser.planCode ?? "—"}</span>
+                      </p>
+                      <p style={{ color: P.text, marginTop: 4 }}>
+                        Từ: {shortIso(detailUser.subscriptionStartsAtUtc) ?? "—"}
+                        <br />Đến: {shortIso(detailUser.subscriptionEndsAtUtc) ?? "Vô thời hạn"}
+                      </p>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase block mb-1" style={{ color: P.muted }}>Ngày bắt đầu (UTC)</label>
+                        <input
+                          className="w-full px-3 py-2 rounded-[10px] text-sm font-mono outline-none focus:ring-2 focus:ring-blue-100 transition-shadow"
+                          style={{ border: `1px solid ${P.border}`, background: P.bg }}
+                          value={startsAtUtcInput} onChange={(e) => setStartsAtUtcInput(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase block mb-1" style={{ color: P.muted }}>Ngày kết thúc (Bỏ trống = Vô thời hạn)</label>
+                        <input
+                          className="w-full px-3 py-2 rounded-[10px] text-sm font-mono outline-none focus:ring-2 focus:ring-blue-100 transition-shadow"
+                          style={{ border: `1px solid ${P.border}`, background: P.bg }}
+                          value={endsAtUtcInput} onChange={(e) => setEndsAtUtcInput(e.target.value)}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[10px] font-bold uppercase block mb-1" style={{ color: P.muted }}>Plan Code</label>
+                          <select
+                            className="w-full px-3 py-2 rounded-[10px] text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100 transition-shadow appearance-none"
+                            style={{ border: `1px solid ${P.border}`, background: P.bg, color: P.navy }}
+                            value={planCode} onChange={(e) => setPlanCode(e.target.value)}
+                          >
+                            {plans.map((p) => (
+                              <option key={p.code} value={p.code}>{p.code}</option>
+                            ))}
+                            {plans.length === 0 && <option value="FREE">FREE</option>}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase block mb-1" style={{ color: P.muted }}>Override Limit</label>
+                          <input
+                            className="w-full px-3 py-2 rounded-[10px] text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100 transition-shadow"
+                            style={{ border: `1px solid ${P.border}`, background: P.bg }}
+                            placeholder="Tuỳ chọn"
+                            value={overrideLimit} onChange={(e) => setOverrideLimit(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      disabled={saveLoading}
+                      onClick={savePlan}
+                      className="w-full mt-4 py-2.5 rounded-[10px] text-sm font-bold transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+                      style={{ background: P.yellow, color: P.navy, boxShadow: "0 2px 8px rgba(255, 206, 0, 0.2)" }}
+                    >
+                      {saveLoading ? "Đang lưu..." : "Lưu Thay Đổi"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Usage Log Table */}
+                <div className="rounded-[16px] bg-white p-5 shadow-sm" style={{ border: `1.5px solid ${P.border}` }}>
+                  <div className="flex items-center gap-2 mb-4">
+                    <Clock size={16} style={{ color: P.purple }} />
+                    <h4 className="font-bold text-sm" style={{ color: P.text }}>Nhật ký Usage (200 gần nhất)</h4>
+                  </div>
+                  
+                  {usageLoading ? (
+                    <div className="py-8 text-center text-sm font-medium animate-pulse" style={{ color: P.muted }}>Đang tải lịch sử...</div>
+                  ) : (
+                    <div className="overflow-x-auto rounded-[12px] border" style={{ borderColor: P.border }}>
+                      <table className="w-full text-xs text-left">
+                        <thead style={{ background: P.navyLt }}>
+                          <tr>
+                            <th className="px-4 py-3 font-bold text-[10px] uppercase tracking-wider" style={{ color: P.navy }}>Thời điểm</th>
+                            <th className="px-4 py-3 font-bold text-[10px] uppercase tracking-wider" style={{ color: P.navy }}>Tính năng</th>
+                            <th className="px-4 py-3 font-bold text-[10px] uppercase tracking-wider" style={{ color: P.navy }}>Provider/Model</th>
+                            <th className="px-4 py-3 font-bold text-[10px] uppercase tracking-wider" style={{ color: P.navy }}>Tokens</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y" style={{ borderColor: P.border }}>
+                          {usage.length === 0 ? (
+                            <tr>
+                              <td colSpan={4} className="px-4 py-6 text-center italic" style={{ color: P.muted }}>Không có lịch sử usage.</td>
+                            </tr>
+                          ) : (
+                            usage.map((r, i) => (
+                              <tr key={r.id} style={{ background: i % 2 === 0 ? P.white : "#FAFCFF" }} className="hover:bg-slate-50 transition-colors">
+                                <td className="px-4 py-3 whitespace-nowrap" style={{ color: P.muted }}>{r.createdAt ? String(r.createdAt) : "—"}</td>
+                                <td className="px-4 py-3 font-semibold" style={{ color: P.text }}>{r.feature ?? "—"}</td>
+                                <td className="px-4 py-3 text-[11px]" style={{ color: P.muted }}>{[r.provider, r.model].filter(Boolean).join(" / ") || "—"}</td>
+                                <td className="px-4 py-3 font-black" style={{ color: P.blue }}>{fmt(r.totalTokens)}</td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </AdminShell>
-  )
+  );
 }

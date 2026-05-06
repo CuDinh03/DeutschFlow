@@ -41,6 +41,14 @@ function summarizeNotification(t: (key: string, values?: Record<string, string>)
         plan: String(p.planCode ?? ""),
         actor: String(p.actingAdminEmail ?? ""),
       });
+    case "ACHIEVEMENT_UNLOCKED":
+      return `🏆 Bạn đã mở khóa huy hiệu "${String(p.achievementName ?? "")}"! +${String(p.xpReward ?? 0)} XP`;
+    case "LEVEL_UP":
+      return `⬆️ Chúc mừng! Bạn đã lên Level ${String(p.newLevel ?? "")}!`;
+    case "REVIEW_DUE":
+      return `📚 ${String(p.message ?? `Có ${String(p.dueCount ?? 0)} thẻ cần ôn tập hôm nay`)}`;
+    case "STREAK_REMINDER":
+      return `🔔 ${String(p.message ?? "Đừng quên học hôm nay!")}`;
     default:
       return item.type;
   }

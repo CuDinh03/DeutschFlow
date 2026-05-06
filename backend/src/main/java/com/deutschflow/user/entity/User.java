@@ -45,6 +45,10 @@ public class User implements UserDetails {
     @Builder.Default
     private boolean isActive = true;
 
+    @Column(name = "notification_timezone", length = 50)
+    @Builder.Default
+    private String notificationTimezone = "Asia/Ho_Chi_Minh";
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

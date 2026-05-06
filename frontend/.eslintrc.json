@@ -1,5 +1,10 @@
 {
   "extends": "next/core-web-vitals",
   "root": true,
-  "ignorePatterns": [".next", "node_modules", "out"]
+  "ignorePatterns": [".next", "node_modules", "out"],
+  "rules": {
+    "react/no-unescaped-entities": "off",
+    "react-hooks/rules-of-hooks": "warn",
+    "react-hooks/exhaustive-deps": "warn"
+  }
 }

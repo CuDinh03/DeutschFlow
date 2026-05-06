@@ -12,6 +12,7 @@ import com.deutschflow.speaking.ai.ErrorItem;
 import com.deutschflow.speaking.ai.OpenAiChatClient;
 import com.deutschflow.speaking.ai.SystemPromptBuilder;
 import com.deutschflow.speaking.contract.SpeakingResponseSchema;
+import com.deutschflow.speaking.contract.SpeakingSessionMode;
 import com.deutschflow.speaking.persona.SpeakingPersona;
 import com.deutschflow.speaking.dto.AdaptiveMetaDto;
 import com.deutschflow.speaking.dto.AiSpeakingChatResponse;
@@ -47,6 +48,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.deutschflow.common.quota.AiUsageLedgerService;
 import com.deutschflow.common.quota.QuotaService;
 import com.deutschflow.common.quota.RequestContext;
+import com.deutschflow.gamification.service.XpService;
 import com.deutschflow.training.service.TrainingDatasetService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -99,9 +101,13 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
     private final QuotaService quotaService;
     private final AiUsageLedgerService aiUsageLedgerService;
     private final TrainingDatasetService trainingDatasetService;
+    private final XpService xpService;
+    private final InterviewEvaluationService interviewEvaluationService;
 
     @Override
-    public AiSpeakingSessionDto createSession(Long userId, String topic, String cefrLevel, String personaRaw, String responseSchemaRaw) {
+    public AiSpeakingSessionDto createSession(Long userId, String topic, String cefrLevel, String personaRaw,
+                                              String responseSchemaRaw, String sessionModeRaw,
+                                              String interviewPosition, String experienceLevel) {
         UserLearningProfile p = profileRepository.findByUserId(userId).orElse(null);
         String resolved =
                 (cefrLevel == null || cefrLevel.isBlank())
@@ -109,12 +115,16 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
                         : SpeakingCefrSupport.clampToProfileRange(cefrLevel, p);
         SpeakingPersona persona = SpeakingPersona.fromApi(personaRaw);
         SpeakingResponseSchema responseSchema = SpeakingResponseSchema.fromApi(responseSchemaRaw);
+        SpeakingSessionMode sessionMode = SpeakingSessionMode.fromApi(sessionModeRaw);
         AiSpeakingSession session = AiSpeakingSession.builder()
                 .userId(userId)
                 .topic(topic)
                 .cefrLevel(resolved)
                 .persona(persona.name())
                 .responseSchema(responseSchema.name())
+                .sessionMode(sessionMode.name())
+                .interviewPosition(sessionMode == SpeakingSessionMode.INTERVIEW ? interviewPosition : null)
+                .experienceLevel(sessionMode == SpeakingSessionMode.INTERVIEW ? experienceLevel : null)
                 .status(SessionStatus.ACTIVE)
                 .messageCount(0)
                 .build();
@@ -122,7 +132,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
 
         // Tự động sinh lời chào cá nhân hóa
         AiSpeakingChatResponse greeting =
-                generateInitialGreeting(userId, session.getId(), topic, resolved, persona, responseSchema);
+                generateInitialGreeting(userId, session.getId(), topic, resolved, persona, responseSchema, sessionMode);
 
         return toSessionDto(session, greeting);
     }
@@ -133,7 +143,8 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
             String topic,
             String cefrLevel,
             SpeakingPersona persona,
-            SpeakingResponseSchema responseSchema) {
+            SpeakingResponseSchema responseSchema,
+            SpeakingSessionMode sessionMode) {
         AiSpeakingSession sessionRow = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new NotFoundException("Session not found"));
         UserLearningProfile profile = profileRepository.findByUserId(userId).orElse(defaultProfile());
@@ -143,14 +154,15 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         SpeakingPolicy policy = adaptivePolicyService.computePolicy(userId, sessionRow, profile, knownInterests);
         String systemPrompt = policy.enabled()
                 ? promptBuilder.buildSystemPrompt(
-                profile, knownInterests, topic, weakPoints, cefrLevel, policy, persona, responseSchema)
+                profile, knownInterests, topic, weakPoints, cefrLevel, policy, persona, responseSchema, sessionMode)
                 : promptBuilder.buildSystemPrompt(
-                profile, knownInterests, topic, weakPoints, cefrLevel, persona, responseSchema);
+                profile, knownInterests, topic, weakPoints, cefrLevel, persona, responseSchema, sessionMode);
 
-        // Specialized instruction for greeting
-        String industry = profile.getIndustry() != null && !profile.getIndustry().isBlank() ? profile.getIndustry() : "không xác định";
+        // Specialized instruction for greeting — pass null if no industry so persona can differentiate
+        String industry = profile.getIndustry() != null && !profile.getIndustry().isBlank() ? profile.getIndustry() : null;
         String weakPointsStr = weakPoints.stream().map(WeakPoint::grammarPoint).collect(Collectors.joining(", "));
-        String greetingInstruction = persona.buildGreetingInstruction(topic, industry, weakPointsStr);
+        String greetingInstruction = persona.buildGreetingInstruction(topic, industry, weakPointsStr, sessionMode,
+                sessionRow.getInterviewPosition());
 
         List<ChatMessage> messages = List.of(
                 new ChatMessage("system", systemPrompt),
@@ -259,8 +271,11 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         List<AiSpeakingMessage> recentMessages =
                 messageRepository.findTop10BySessionIdOrderByCreatedAtDesc(sessionId);
         Collections.reverse(recentMessages);
-        if (recentMessages.size() > 6) {
-            recentMessages = new ArrayList<>(recentMessages.subList(recentMessages.size() - 6, recentMessages.size()));
+        // Interview mode needs more context for phase tracking
+        SpeakingSessionMode sessionMode = SpeakingSessionMode.fromApi(session.getSessionMode());
+        int maxHistory = sessionMode == SpeakingSessionMode.INTERVIEW ? 10 : 6;
+        if (recentMessages.size() > maxHistory) {
+            recentMessages = new ArrayList<>(recentMessages.subList(recentMessages.size() - maxHistory, recentMessages.size()));
         }
 
         UserLearningProfile effectiveProfile = profile != null ? profile : defaultProfile();
@@ -269,9 +284,10 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         SpeakingPolicy policy = adaptivePolicyService.computePolicy(userId, session, effectiveProfile, knownInterests);
         String systemPrompt = policy.enabled()
                 ? promptBuilder.buildSystemPrompt(
-                effectiveProfile, knownInterests, session.getTopic(), weakPoints, session.getCefrLevel(), policy, persona, responseSchema)
+                effectiveProfile, knownInterests, session.getTopic(), weakPoints, session.getCefrLevel(), policy, persona, responseSchema, sessionMode,
+                session.getInterviewPosition(), session.getExperienceLevel())
                 : promptBuilder.buildSystemPrompt(
-                effectiveProfile, knownInterests, session.getTopic(), weakPoints, session.getCefrLevel(), persona, responseSchema);
+                effectiveProfile, knownInterests, session.getTopic(), weakPoints, session.getCefrLevel(), persona, responseSchema, sessionMode);
 
         List<ChatMessage> openAiMessages = new ArrayList<>();
         openAiMessages.add(new ChatMessage("system", systemPrompt));
@@ -369,6 +385,10 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         session.setLastActivityAt(LocalDateTime.now());
         session.setMessageCount(prep.messageCountBaseline() + 2);
         sessionRepository.save(session);
+
+        // Award XP for speaking turn (non-blocking: catch any failure)
+        try { xpService.awardSpeakingTurn(prep.userId(), prep.sessionId(), assistantMsg.getId()); }
+        catch (Exception xpEx) { log.debug("[XP] awardSpeakingTurn skipped: {}", xpEx.getMessage()); }
 
         AdaptiveMetaDto adaptive = AdaptiveMetaDto.fromPolicyAndResponse(prep.policy(), parsed);
         if (adaptive != null && adaptive.forceRepairBeforeContinue()) {
@@ -538,7 +558,25 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         }
         session.setStatus(SessionStatus.ENDED);
         session.setEndedAt(LocalDateTime.now());
+
+        // Generate interview evaluation report if INTERVIEW mode
+        if ("INTERVIEW".equals(session.getSessionMode())) {
+            try {
+                String report = interviewEvaluationService.generateReport(session, userId);
+                if (report != null) {
+                    session.setInterviewReportJson(report);
+                }
+            } catch (Exception e) {
+                log.warn("Failed to generate interview report for session {}: {}", sessionId, e.getMessage());
+            }
+        }
+
         session = sessionRepository.save(session);
+
+        // Award XP for session completion (non-blocking)
+        try { xpService.awardSessionComplete(userId, sessionId); }
+        catch (Exception xpEx) { log.debug("[XP] awardSessionComplete skipped: {}", xpEx.getMessage()); }
+
         return toSessionDto(session);
     }
 
@@ -767,12 +805,16 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
                 s.getCefrLevel(),
                 s.getPersona(),
                 s.getResponseSchema(),
+                s.getSessionMode(),
                 s.getStatus().name(),
                 s.getStartedAt(),
                 s.getLastActivityAt(),
                 s.getEndedAt(),
                 s.getMessageCount(),
-                initialAiMessage);
+                initialAiMessage,
+                s.getInterviewPosition(),
+                s.getExperienceLevel(),
+                s.getInterviewReportJson());
     }
 
     private AiSpeakingMessageDto toMessageDto(AiSpeakingMessage m, List<UserGrammarError> grammarRows) {

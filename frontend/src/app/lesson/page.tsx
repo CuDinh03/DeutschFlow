@@ -1,11 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
-import api from "@/lib/api";
-import { getAccessToken } from "@/lib/authSession";
 import {
   X,
   Lightbulb,
@@ -69,88 +66,6 @@ const questions = [
       'Nach dem unbestimmten Artikel "ein" erhält ein neutrales Nomen (das Auto) die Endung "-es".',
     hint: '"Das Auto" ist neutral. Welche Endung bekommt "groß" nach "ein"?',
   },
-  {
-    id: 4,
-    type: "grammar-rule",
-    category: "Wortstellung",
-    level: "A2",
-    instruction: "Welche Satzstellung ist grammatikalisch korrekt?",
-    questionParts: [
-      "Der Zug kommt wegen des Sturms zu spät.",
-    ],
-    blank: null,
-    options: [
-      "Der Zug kommt wegen des Sturms zu spät.",
-      "Der Zug wegen des Sturms kommt zu spät.",
-      "Wegen des Sturms der Zug kommt zu spät.",
-      "Zu spät kommt der Zug des Sturms wegen.",
-    ],
-    correct: 0,
-    explanation:
-      'Im deutschen Hauptsatz steht das Verb an zweiter Stelle. Adverbiale Phrasen wie "wegen des Sturms" können am Anfang oder Ende stehen, aber das Verb bleibt an Position 2.',
-    hint: 'Im Deutschen steht das konjugierte Verb immer an zweiter Position im Hauptsatz.',
-  },
-  {
-    id: 5,
-    type: "translation",
-    category: "Vokabular",
-    level: "A1",
-    instruction: "Was bedeutet das folgende Wort auf Englisch?",
-    questionParts: ['"Schmettерling"'],
-    blank: null,
-    options: ["Butterfly", "Dragonfly", "Beetle", "Grasshopper"],
-    correct: 0,
-    explanation:
-      '"Schmetterling" ist das deutsche Wort für "butterfly" — eines der schönsten Wörter der deutschen Sprache!',
-    hint: 'Dieses Tier hat farbenfrohe Flügel und fliegt von Blume zu Blume.',
-  },
-  {
-    id: 6,
-    type: "fill-blank",
-    category: "Dativ",
-    level: "B1",
-    instruction: "Wähle den richtigen Artikel im Dativ",
-    questionParts: ["Ich gebe ", " Frau das Buch."],
-    blank: "___",
-    options: ["die", "der", "den", "das"],
-    correct: 1,
-    explanation:
-      '"Die Frau" ist feminin. Im Dativ wird der bestimmte Artikel feminin zu "der".',
-    hint: '"Die Frau" ist feminin — wie verändert sich der Artikel im Dativ?',
-  },
-  {
-    id: 7,
-    type: "translation",
-    category: "Redewendungen",
-    level: "B1",
-    instruction: "Wähle die beste Übersetzung",
-    questionParts: ['"Das ist mir Wurst."'],
-    blank: null,
-    options: [
-      "I don't care.",
-      "I love sausages.",
-      "That's my favourite meal.",
-      "This is very important.",
-    ],
-    correct: 0,
-    explanation:
-      '"Das ist mir Wurst" ist eine umgangssprachliche Redewendung. Sie bedeutet, dass einem etwas egal ist — wie Wurst, die immer gleich schmeckt!',
-    hint: 'Diese Redewendung drückt Gleichgültigkeit gegenüber etwas aus.',
-  },
-  {
-    id: 8,
-    type: "fill-blank",
-    category: "Konjunktiv",
-    level: "B1",
-    instruction: "Ergänze den Satz korrekt",
-    questionParts: ["Wenn ich Zeit hätte, ", " ich mehr lesen."],
-    blank: "___",
-    options: ["würde", "werde", "will", "hätte"],
-    correct: 0,
-    explanation:
-      'Im Konjunktiv II (irreale Bedingungssätze) verwendet man "würde + Infinitiv" im Hauptsatz, wenn der Kontext unrealistisch oder hypothetisch ist.',
-    hint: '"Wenn ... hätte" signalisiert den Konjunktiv II. Welches Hilfsverb nutzt man im Hauptsatz?',
-  },
 ];
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -160,17 +75,14 @@ type CheckState = "idle" | "correct" | "incorrect";
 function CompletionScreen({
   score,
   total,
-  streakDays,
   onRestart,
   onExit,
 }: {
   score: number;
   total: number;
-  streakDays: number;
   onRestart: () => void;
   onExit: () => void;
 }) {
-  const t = useTranslations("lesson");
   const pct = Math.round((score / total) * 100);
   const perfect = score === total;
   const good = pct >= 75;
@@ -192,12 +104,12 @@ function CompletionScreen({
       </motion.div>
 
       <motion.h2
-        className="text-3xl text-[#00305E] mb-2"
+        className="text-3xl font-bold text-[#00305E] mb-2"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.35 }}
       >
-        {perfect ? t("perfect") : good ? t("great") : t("keepTrying")}
+        {perfect ? "Perfekt! 🎉" : good ? "Sehr gut! 👏" : "Weiter üben! 💪"}
       </motion.h2>
 
       <motion.p
@@ -206,10 +118,11 @@ function CompletionScreen({
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.45 }}
       >
-        {t("resultLine", { score, total })}
+        Du hast <span className="font-bold text-[#00305E]">{score}</span> von{" "}
+        <span className="font-bold text-[#00305E]">{total}</span> Fragen richtig
+        beantwortet.
       </motion.p>
 
-      {/* Stats Row */}
       <motion.div
         className="flex gap-6 mb-10"
         initial={{ opacity: 0, y: 10 }}
@@ -217,9 +130,9 @@ function CompletionScreen({
         transition={{ delay: 0.55 }}
       >
         {[
-          { label: t("statAccuracy"), value: `${pct}%`, color: "#00305E" },
-          { label: t("statXp"), value: `+${score * 15}`, color: "#FFCE00" },
-          { label: t("statStreak"), value: `${streakDays} 🔥`, color: "#f97316" },
+          { label: "Genauigkeit", value: `${pct}%`, color: "#00305E" },
+          { label: "XP verdient", value: `+${score * 15}`, color: "#FFCE00" },
+          { label: "Serie", value: "14 🔥", color: "#f97316" },
         ].map(({ label, value, color }) => (
           <div
             key={label}
@@ -247,13 +160,13 @@ function CompletionScreen({
           className="flex items-center gap-2 px-6 py-3 rounded-[12px] bg-[#F5F7FA] hover:bg-[#E2E8F0] text-[#00305E] font-semibold transition-colors border border-[#E2E8F0]"
         >
           <RotateCcw size={16} />
-          {t("again")}
+          Nochmal üben
         </button>
         <button
           onClick={onExit}
           className="flex items-center gap-2 px-8 py-3 rounded-[12px] bg-[#00305E] hover:bg-[#002447] text-white font-semibold transition-colors shadow-md"
         >
-          {t("toDashboard")}
+          Zum Dashboard
           <ArrowRight size={16} />
         </button>
       </motion.div>
@@ -269,7 +182,6 @@ function ExitModal({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
-  const t = useTranslations("lesson");
   return (
     <motion.div
       className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center px-4"
@@ -287,22 +199,22 @@ function ExitModal({
         <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
           <X size={24} className="text-red-500" />
         </div>
-        <h3 className="text-lg text-[#1A1A1A] mb-2">{t("exitTitle")}</h3>
+        <h3 className="text-lg font-bold text-[#1A1A1A] mb-2">Lektion verlassen?</h3>
         <p className="text-[#64748B] text-sm mb-6">
-          {t("exitBody")}
+          Dein Fortschritt in dieser Lektion geht verloren.
         </p>
         <div className="flex gap-3">
           <button
             onClick={onCancel}
             className="flex-1 py-3 rounded-[12px] bg-[#F5F7FA] hover:bg-[#E2E8F0] text-[#1A1A1A] font-semibold text-sm transition-colors border border-[#E2E8F0]"
           >
-            {t("stay")}
+            Weiterlernen
           </button>
           <button
             onClick={onConfirm}
             className="flex-1 py-3 rounded-[12px] bg-red-500 hover:bg-red-600 text-white font-semibold text-sm transition-colors"
           >
-            {t("confirmExit")}
+            Verlassen
           </button>
         </div>
       </motion.div>
@@ -318,7 +230,6 @@ function HintPopover({
   hint: string;
   onClose: () => void;
 }) {
-  const t = useTranslations("lesson");
   return (
     <motion.div
       className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 bg-[#00305E] text-white rounded-[12px] px-4 py-3 shadow-xl z-10 w-72 text-sm text-center"
@@ -333,24 +244,14 @@ function HintPopover({
         onClick={onClose}
         className="mt-2 text-[#FFCE00] text-xs font-semibold hover:underline"
       >
-        {t("hintClose")}
+        Schließen
       </button>
     </motion.div>
   );
 }
 
-type LessonPlan = {
-  targetLevel?: string;
-  progress?: { currentWeek?: number; currentSessionIndex?: number };
-};
-
-// ─── Main Lesson Component ───────────────────────────────────────────────────────
 export default function LessonPage() {
   const router = useRouter();
-  const t = useTranslations("lesson");
-  const [plan, setPlan] = useState<LessonPlan | null>(null);
-  const [streakDays, setStreakDays] = useState(0);
-  const [validating, setValidating] = useState(false);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [checkState, setCheckState] = useState<CheckState>("idle");
@@ -366,60 +267,21 @@ export default function LessonPage() {
   const progressPct = (questionIndex / totalQuestions) * 100;
 
   useEffect(() => {
-    if (!getAccessToken()) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const [p, d] = await Promise.all([
-          api.get<{ plan?: LessonPlan }>("/plan/me").catch(() => null),
-          api.get<{ streakDays?: number }>("/student/dashboard").catch(() => null),
-        ]);
-        if (cancelled) return;
-        if (p?.data?.plan) setPlan(p.data.plan);
-        setStreakDays(Number(d?.data?.streakDays ?? 0));
-      } catch {
-        /* optional */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // Reset state when question changes
-  useEffect(() => {
     setSelectedOption(null);
     setCheckState("idle");
     setShowHint(false);
   }, [questionIndex]);
 
-  const handleCheck = useCallback(async () => {
+  const handleCheck = () => {
     if (selectedOption === null) return;
-    const current = questions[questionIndex];
-    const chosen = current.options[selectedOption] ?? "";
-    const expected = current.options[current.correct] ?? "";
-    setValidating(true);
-    try {
-      const { data } = await api.post<{ valid: boolean }>("/grammar/validate", {
-        answer: chosen,
-        expected,
-        joiner: " ",
-        sessionType: "LESSON",
-        level: plan?.targetLevel ?? current.level,
-      });
-      const ok = Boolean(data?.valid);
-      setCheckState(ok ? "correct" : "incorrect");
-      if (ok) setScore((s) => s + 1);
-      else setLives((l) => Math.max(0, l - 1));
-    } catch {
-      const ok = selectedOption === current.correct;
-      setCheckState(ok ? "correct" : "incorrect");
-      if (ok) setScore((s) => s + 1);
-      else setLives((l) => Math.max(0, l - 1));
-    } finally {
-      setValidating(false);
+    const isCorrect = selectedOption === q.correct;
+    setCheckState(isCorrect ? "correct" : "incorrect");
+    if (isCorrect) {
+      setScore((s) => s + 1);
+    } else {
+      setLives((l) => Math.max(0, l - 1));
     }
-  }, [selectedOption, questionIndex, plan]);
+  };
 
   const handleNext = () => {
     if (questionIndex + 1 >= totalQuestions) {
@@ -440,7 +302,6 @@ export default function LessonPage() {
     setCompleted(false);
   };
 
-  // Check button styles
   const checkBtnStyle = () => {
     if (checkState === "correct")
       return "bg-[#10B981] hover:bg-[#059669] text-white shadow-[0_4px_16px_rgba(16,185,129,0.35)]";
@@ -451,7 +312,6 @@ export default function LessonPage() {
     return "bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed";
   };
 
-  // Option styles
   const optionStyle = (idx: number) => {
     const base =
       "w-full flex items-center gap-4 px-5 py-4 rounded-[14px] border-2 text-left transition-all duration-200 font-medium text-sm group";
@@ -474,18 +334,15 @@ export default function LessonPage() {
   return (
     <div className="min-h-screen bg-white flex flex-col overflow-hidden">
       {/* ── Top Bar ─────────────────────────────────────────────────────────── */}
-      <header className="flex items-center gap-4 px-6 py-4 border-b border-[#F0F4F8] flex-shrink-0">
-        {/* Exit Button */}
+      <header className="flex items-center gap-3 px-4 py-3 border-b border-[#F0F4F8] flex-shrink-0">
         <button
           onClick={() => setShowExitModal(true)}
-          className="flex items-center gap-2 px-3.5 py-2 rounded-[10px] text-[#64748B] hover:bg-[#F5F7FA] hover:text-[#1A1A1A] transition-colors text-sm font-medium flex-shrink-0"
+          className="flex items-center gap-2 px-3 py-2 rounded-[10px] text-[#64748B] hover:bg-[#F5F7FA] transition-colors text-sm font-medium flex-shrink-0"
         >
           <X size={16} />
-          <span className="hidden sm:inline">{t("leave")}</span>
         </button>
 
-        {/* Progress Bar */}
-        <div className="flex-1 flex flex-col gap-1.5">
+        <div className="flex-1 flex flex-col gap-1">
           <div className="h-3 bg-[#F0F4F8] rounded-full overflow-hidden">
             <motion.div
               className="h-full bg-[#FFCE00] rounded-full"
@@ -494,75 +351,34 @@ export default function LessonPage() {
               transition={{ duration: 0.5, ease: "easeOut" }}
             />
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-[#94A3B8] text-xs">
-              {t("questionProgress", { n: questionIndex + 1, total: totalQuestions })}
-            </span>
-            <span className="text-[#00305E] text-xs font-semibold">
-              {Math.round(progressPct)}%
-            </span>
-          </div>
         </div>
 
-        {/* Lives */}
         <div className="flex items-center gap-1 flex-shrink-0">
           {Array.from({ length: 3 }).map((_, i) => (
-            <motion.div
-              key={i}
-              animate={i >= lives ? { scale: [1, 1.3, 1] } : {}}
-              transition={{ duration: 0.3 }}
-            >
-              <Heart
-                size={20}
-                className={
-                  i < lives
-                    ? "text-red-500 fill-red-500"
-                    : "text-[#E2E8F0] fill-[#E2E8F0]"
-                }
-              />
+            <motion.div key={i} animate={i >= lives ? { scale: [1, 1.3, 1] } : {}}>
+              <Heart size={18} className={i < lives ? "text-red-500 fill-red-500" : "text-[#E2E8F0] fill-[#E2E8F0]"} />
             </motion.div>
           ))}
         </div>
-
-        {/* Streak */}
-        <div className="hidden sm:flex items-center gap-1.5 bg-[#FFF8E1] rounded-[10px] px-3 py-1.5 border border-[#FFCE00]/30 flex-shrink-0">
-          <Flame size={15} className="text-orange-500" fill="#f97316" />
-          <span className="text-[#00305E] text-xs font-bold">{streakDays}</span>
-        </div>
       </header>
-
-      {plan?.progress ? (
-        <p className="text-center text-[11px] text-[#94A3B8] -mt-2 mb-2 px-4">
-          {t("planContext", {
-            week: plan.progress.currentWeek ?? 1,
-            session: plan.progress.currentSessionIndex ?? 1,
-          })}
-        </p>
-      ) : null}
 
       {/* ── Main Body ───────────────────────────────────────────────────────── */}
       {completed ? (
         <CompletionScreen
           score={score}
           total={totalQuestions}
-          streakDays={streakDays}
           onRestart={handleRestart}
-          onExit={() => router.push("/")}
+          onExit={() => router.push("/dashboard")}
         />
       ) : (
-        <div className="flex-1 flex flex-col max-w-2xl mx-auto w-full px-4 sm:px-6 py-6 sm:py-8">
-          {/* Category badge */}
+        <div className="flex-1 flex flex-col max-w-[430px] mx-auto w-full px-4 py-5">
           <div className="flex items-center gap-2 mb-6">
             <span className="inline-flex items-center gap-1.5 bg-[#EEF4FF] text-[#00305E] text-xs font-semibold px-3 py-1.5 rounded-full border border-[#00305E]/15">
               <BookOpen size={12} />
               {q.category}
             </span>
-            <span className="bg-[#FFCE00]/20 text-[#00305E] text-xs font-bold px-2.5 py-1 rounded-full">
-              {q.level}
-            </span>
           </div>
 
-          {/* ── Question Card ─────────────────────────────────────────────── */}
           <AnimatePresence mode="wait">
             <motion.div
               key={q.id}
@@ -571,22 +387,9 @@ export default function LessonPage() {
               exit={{ opacity: 0, x: direction * -40 }}
               transition={{ duration: 0.28, ease: "easeOut" }}
             >
-              {/* Instruction */}
               <p className="text-[#64748B] text-sm mb-3">{q.instruction}</p>
 
-              {/* Question display */}
               <div className="bg-gradient-to-br from-[#F8FAFF] to-[#F0F4FF] rounded-[20px] p-6 sm:p-8 mb-6 border border-[#E2E8F0] shadow-[0_2px_12px_rgba(0,48,94,0.06)]">
-                {/* Audio icon for translation tasks */}
-                {q.type === "translation" && (
-                  <button className="flex items-center gap-2 mb-4 text-[#00305E]/60 hover:text-[#00305E] text-xs font-medium transition-colors group">
-                    <div className="w-8 h-8 rounded-full bg-[#00305E]/8 group-hover:bg-[#00305E]/15 flex items-center justify-center transition-colors">
-                      <Volume2 size={14} />
-                    </div>
-                    {t("listen")}
-                  </button>
-                )}
-
-                {/* Question text with blank highlight */}
                 <p className="text-[#1A1A1A] text-xl sm:text-2xl leading-relaxed">
                   {q.questionParts.map((part, i) => (
                     <span key={i}>
@@ -594,23 +397,11 @@ export default function LessonPage() {
                       {i < q.questionParts.length - 1 && q.blank && (
                         <span className="inline-flex items-center mx-1">
                           {checkState !== "idle" ? (
-                            <motion.span
-                              initial={{ scale: 0.8 }}
-                              animate={{ scale: 1 }}
-                              className={`inline-block px-3 py-0.5 rounded-[8px] font-bold text-lg ${
-                                checkState === "correct"
-                                  ? "bg-[#10B981] text-white"
-                                  : "bg-[#EF4444] text-white"
-                              }`}
-                            >
+                            <motion.span className={`inline-block px-3 py-0.5 rounded-[8px] font-bold text-lg ${checkState === "correct" ? "bg-[#10B981] text-white" : "bg-[#EF4444] text-white"}`}>
                               {q.options[selectedOption ?? 0]}
                             </motion.span>
                           ) : selectedOption !== null ? (
-                            <motion.span
-                              initial={{ scale: 0.8 }}
-                              animate={{ scale: 1 }}
-                              className="inline-block px-3 py-0.5 rounded-[8px] bg-[#00305E] text-white font-bold text-lg"
-                            >
+                            <motion.span className="inline-block px-3 py-0.5 rounded-[8px] bg-[#00305E] text-white font-bold text-lg">
                               {q.options[selectedOption]}
                             </motion.span>
                           ) : (
@@ -623,84 +414,28 @@ export default function LessonPage() {
                 </p>
               </div>
 
-              {/* ── Answer Options ─────────────────────────────────────────── */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
                 {q.options.map((option, idx) => (
                   <motion.button
                     key={idx}
-                    onClick={() => {
-                      if (checkState === "idle") setSelectedOption(idx);
-                    }}
+                    onClick={() => { if (checkState === "idle") setSelectedOption(idx); }}
                     className={optionStyle(idx)}
-                    whileHover={
-                      checkState === "idle" && selectedOption !== idx
-                        ? { scale: 1.01 }
-                        : {}
-                    }
-                    whileTap={checkState === "idle" ? { scale: 0.99 } : {}}
                     disabled={checkState !== "idle"}
                   >
-                    {/* Letter badge */}
-                    <span
-                      className={`w-7 h-7 rounded-[8px] flex items-center justify-center text-xs font-bold flex-shrink-0 transition-colors ${
-                        checkState !== "idle"
-                          ? idx === q.correct
-                            ? "bg-[#10B981] text-white"
-                            : idx === selectedOption
-                              ? "bg-[#EF4444] text-white"
-                              : "bg-[#F5F7FA] text-[#94A3B8]"
-                          : selectedOption === idx
-                            ? "bg-[#00305E] text-white"
-                            : "bg-[#F5F7FA] text-[#64748B] group-hover:bg-[#00305E]/10"
-                      }`}
-                    >
+                    <span className={`w-7 h-7 rounded-[8px] flex items-center justify-center text-xs font-bold flex-shrink-0 transition-colors ${checkState !== "idle" ? (idx === q.correct ? "bg-[#10B981] text-white" : (idx === selectedOption ? "bg-[#EF4444] text-white" : "bg-[#F5F7FA] text-[#94A3B8]")) : (selectedOption === idx ? "bg-[#00305E] text-white" : "bg-[#F5F7FA] text-[#64748B] group-hover:bg-[#00305E]/10")}}`}>
                       {optionLabels[idx]}
                     </span>
                     <span className="flex-1 leading-snug">{option}</span>
-                    {/* State icons */}
-                    {checkState !== "idle" && idx === q.correct && (
-                      <CheckCircle
-                        size={18}
-                        className="text-[#10B981] flex-shrink-0"
-                      />
-                    )}
-                    {checkState !== "idle" &&
-                      idx === selectedOption &&
-                      idx !== q.correct && (
-                        <XCircle
-                          size={18}
-                          className="text-[#EF4444] flex-shrink-0"
-                        />
-                      )}
                   </motion.button>
                 ))}
               </div>
 
-              {/* ── Hint Button ────────────────────────────────────────────── */}
               {checkState === "idle" && (
                 <div className="flex justify-center mb-2 relative">
-                  <AnimatePresence>
-                    {showHint && (
-                      <HintPopover
-                        hint={q.hint}
-                        onClose={() => setShowHint(false)}
-                      />
-                    )}
-                  </AnimatePresence>
-                  <button
-                    onClick={() => setShowHint((v) => !v)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-[10px] text-sm font-medium transition-all duration-200 ${
-                      showHint
-                        ? "bg-[#FFF8E1] text-[#B45309] border border-[#FFCE00]/50"
-                        : "text-[#64748B] hover:bg-[#F5F7FA] hover:text-[#1A1A1A] border border-transparent"
-                    }`}
-                  >
-                    <Lightbulb
-                      size={15}
-                      className={showHint ? "text-[#FFCE00]" : ""}
-                      fill={showHint ? "#FFCE00" : "none"}
-                    />
-                    {t("hintShow")}
+                  {showHint && <HintPopover hint={q.hint} onClose={() => setShowHint(false)} />}
+                  <button onClick={() => setShowHint((v) => !v)} className={`flex items-center gap-2 px-4 py-2 rounded-[10px] text-sm font-medium transition-all duration-200 ${showHint ? "bg-[#FFF8E1] text-[#B45309] border border-[#FFCE00]/50" : "text-[#64748B] hover:bg-[#F5F7FA] hover:text-[#1A1A1A] border border-transparent"}`}>
+                    <Lightbulb size={15} fill={showHint ? "#FFCE00" : "none"} className={showHint ? "text-[#FFCE00]" : ""} />
+                    Hinweis anzeigen
                   </button>
                 </div>
               )}
@@ -711,114 +446,33 @@ export default function LessonPage() {
 
       {/* ── Feedback Panel + Check Button ─────────────────────────────────── */}
       {!completed && (
-        <AnimatePresence>
-          {checkState !== "idle" ? (
-            <motion.div
-              key="feedback"
-              initial={{ y: "100%", opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: "100%", opacity: 0 }}
-              transition={{ type: "spring", stiffness: 280, damping: 28 }}
-              className={`flex-shrink-0 border-t-2 ${
-                checkState === "correct"
-                  ? "bg-[#F0FDF4] border-[#10B981]"
-                  : "bg-[#FEF2F2] border-[#EF4444]"
-              }`}
-            >
-              <div className="max-w-2xl mx-auto px-4 sm:px-6 py-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                {/* Left: result */}
-                <div className="flex items-start gap-3 flex-1 min-w-0">
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      checkState === "correct" ? "bg-[#10B981]" : "bg-[#EF4444]"
-                    }`}
-                  >
-                    {checkState === "correct" ? (
-                      <CheckCircle size={22} className="text-white" />
-                    ) : (
-                      <XCircle size={22} className="text-white" />
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <p
-                      className={`font-bold text-base mb-0.5 ${
-                        checkState === "correct"
-                          ? "text-[#065F46]"
-                          : "text-[#991B1B]"
-                      }`}
-                    >
-                      {checkState === "correct"
-                        ? t("correctTitle")
-                        : t("wrongTitle")}
-                    </p>
-                    {checkState === "incorrect" && (
-                      <p className="text-[#991B1B] text-sm mb-1">
-                        {t("correctAnswerLabel")}{" "}
-                        <strong>{q.options[q.correct]}</strong>
-                      </p>
-                    )}
-                    <p
-                      className={`text-sm leading-snug ${
-                        checkState === "correct"
-                          ? "text-[#047857]"
-                          : "text-[#B91C1C]"
-                      }`}
-                    >
-                      {q.explanation}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Right: Continue button */}
-                <motion.button
+        <div className="flex-shrink-0 bg-white border-t border-[#F0F4F8] px-4 sm:px-6 py-4">
+          <div className="max-w-2xl mx-auto">
+            {checkState === "idle" ? (
+              <button
+                onClick={handleCheck}
+                disabled={selectedOption === null}
+                className={`w-full py-4 rounded-[14px] font-semibold text-base transition-all duration-200 ${checkBtnStyle()}`}
+              >
+                Antwort prüfen
+              </button>
+            ) : (
+              <div className={`p-4 rounded-xl mb-4 ${checkState === "correct" ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"}`}>
+                <p className="font-bold mb-1">{checkState === "correct" ? "Richtig! 🎉" : "Nicht ganz…"}</p>
+                <p className="text-sm">{q.explanation}</p>
+                <button
                   onClick={handleNext}
-                  className={`flex items-center gap-2 px-6 py-3 rounded-[12px] font-semibold text-sm flex-shrink-0 transition-colors ${
-                    checkState === "correct"
-                      ? "bg-[#10B981] hover:bg-[#059669] text-white shadow-md"
-                      : "bg-[#EF4444] hover:bg-[#DC2626] text-white shadow-md"
-                  }`}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  className="mt-4 w-full py-3 bg-[#00305E] text-white rounded-xl font-bold"
                 >
-                  {questionIndex + 1 >= totalQuestions
-                    ? t("finish")
-                    : t("continue")}
-                  <ArrowRight size={16} />
-                </motion.button>
+                  Weiter
+                </button>
               </div>
-            </motion.div>
-          ) : (
-            <motion.div
-              key="check"
-              className="flex-shrink-0 bg-white border-t border-[#F0F4F8] px-4 sm:px-6 py-4"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-            >
-              <div className="max-w-2xl mx-auto">
-                <motion.button
-                  onClick={() => void handleCheck()}
-                  disabled={selectedOption === null || validating}
-                  className={`w-full py-4 rounded-[14px] font-semibold text-base transition-all duration-200 ${checkBtnStyle()}`}
-                  whileHover={selectedOption !== null && !validating ? { scale: 1.01 } : {}}
-                  whileTap={selectedOption !== null && !validating ? { scale: 0.99 } : {}}
-                >
-                  {validating ? t("checking") : t("checkAnswer")}
-                </motion.button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            )}
+          </div>
+        </div>
       )}
 
-      {/* ── Exit Modal ──────────────────────────────────────────────────────── */}
-      <AnimatePresence>
-        {showExitModal && (
-          <ExitModal
-            onConfirm={() => router.push("/")}
-            onCancel={() => setShowExitModal(false)}
-          />
-        )}
-      </AnimatePresence>
+      {showExitModal && <ExitModal onConfirm={() => router.push("/dashboard")} onCancel={() => setShowExitModal(false)} />}
     </div>
   );
 }

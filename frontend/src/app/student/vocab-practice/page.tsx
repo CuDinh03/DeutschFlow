@@ -1,14 +1,20 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import type React from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, CheckCircle2, ChevronRight, Eye, EyeOff, Mic, MicOff, RefreshCw, SkipForward, Trophy, Volume2, XCircle } from 'lucide-react'
 import api from '@/lib/api'
 import { speakGerman, primeGermanVoices } from '@/lib/speechDe'
-import { getAccessToken } from '@/lib/authSession'
+import { getAccessToken, clearTokens } from '@/lib/authSession'
 import { isAcceptedHeardForWord } from '@/lib/scoring/textScoring'
+import { StudentShell } from '@/components/layouts/StudentShell'
+import { PracticeGlassSkeleton } from '@/components/practice/PracticeGlassSkeleton'
+import { KlausCharacter } from '@/components/speaking/characters/KlausCharacter'
+import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
+import { shouldShowKlausChefGuide } from '@/lib/restaurantTopicCoach'
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
@@ -78,11 +84,12 @@ export default function VocabPracticePage() {
   const urlFocus = (searchParams.get('focus') ?? '').trim()
   const urlCefr = (searchParams.get('cefr') ?? '').trim().toUpperCase()
 
-  // — Auth guard
+  const { me, loading: authLoading, targetLevel, practiceFloorLevel, streakDays, initials, reload } =
+    useStudentPracticeSession()
+
   useEffect(() => {
-    if (!getAccessToken()) router.replace('/login')
     primeGermanVoices()
-  }, [router])
+  }, [])
 
   // ── State
   const [screen,  setScreen]  = useState<Screen>('setup')
@@ -100,6 +107,11 @@ export default function VocabPracticePage() {
   const [error,   setError]   = useState<string | null>(null)
   const [previewTotal, setPreviewTotal] = useState<number | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
+
+  const showKlausCoach = useMemo(
+    () => shouldShowKlausChefGuide({ selTag, urlTopic, tags }),
+    [selTag, urlTopic, tags],
+  )
 
   const recognitionRef = useRef<SpeechRecognition | null>(null)
   const setupStartAnchorRef = useRef<HTMLDivElement | null>(null)
@@ -132,6 +144,12 @@ export default function VocabPracticePage() {
       setSelCefr(urlCefr)
     }
   }, [urlCefr])
+
+  useEffect(() => {
+    if (urlCefr === 'A1' || urlCefr === 'A2' || urlCefr === 'B1' || urlCefr === 'B2') return
+    const p = practiceFloorLevel
+    if (p === 'A1' || p === 'A2' || p === 'B1' || p === 'B2') setSelCefr(p)
+  }, [practiceFloorLevel, urlCefr])
 
   // ── Load tags (localized — topic taxonomy only for learner pickers)
   useEffect(() => {
@@ -299,18 +317,75 @@ export default function VocabPracticePage() {
   // RENDER
   // ────────────────────────────────────────────────────────────────────────────
 
+  if (authLoading) {
+    return (
+      <div className="df-page-mesh flex min-h-screen flex-col items-center justify-center px-4 py-10">
+        <PracticeGlassSkeleton className="max-w-[430px]" />
+      </div>
+    )
+  }
+
+  if (!me) {
+    return (
+      <div className="df-page-mesh flex min-h-screen flex-col items-center justify-center gap-4 px-4 py-10">
+        <p className="max-w-md text-center text-sm text-[#64748B]">
+          Could not load your profile. Check your connection and try again.
+        </p>
+        <button
+          type="button"
+          className="rounded-[14px] bg-[#00305E] px-5 py-2.5 text-sm font-bold text-white shadow-md"
+          onClick={() => void reload()}
+        >
+          Retry
+        </button>
+      </div>
+    )
+  }
+
   return (
-    <div className="min-h-screen flex items-start justify-center py-0 sm:py-8 sm:px-4"
-      style={{ background: 'linear-gradient(160deg, #070B14 0%, #0A1628 40%, #0D0A2E 100%)', minHeight: '100vh' }}>
+    <StudentShell
+      activeSection="vocabulary"
+      user={{ displayName: me.displayName, role: me.role }}
+      targetLevel={targetLevel}
+      streakDays={streakDays}
+      initials={initials}
+      onLogout={() => {
+        clearTokens()
+        router.push('/login')
+      }}
+      headerTitle={t('title')}
+      headerSubtitle={`CEFR · ${selCefr} → ${targetLevel}`}
+      hideBottomNav={screen === 'practicing'}
+    >
+      <div className="relative mx-auto flex w-full max-w-[430px] flex-1 flex-col min-h-0 pb-2">
+        {showKlausCoach && (screen === 'setup' || screen === 'practicing') ? (
+          <div className="pointer-events-none fixed bottom-6 right-4 z-30 w-[100px] sm:w-[115px] md:right-10">
+            <KlausCharacter
+              expression={micState === 'listening' ? 'talking' : 'neutral'}
+              isTalking={micState === 'listening'}
+              className="drop-shadow-2xl opacity-95"
+            />
+          </div>
+        ) : null}
 
-      {/* Glow orbs */}
-      <div className="fixed top-20 left-1/4 w-64 h-64 rounded-full pointer-events-none"
-        style={{ background: `radial-gradient(circle, ${CYAN}15 0%, transparent 70%)`, filter: 'blur(40px)' }} />
-      <div className="fixed bottom-32 right-1/4 w-48 h-48 rounded-full pointer-events-none"
-        style={{ background: `radial-gradient(circle, ${PURPLE}15 0%, transparent 70%)`, filter: 'blur(40px)' }} />
+        <div
+          className="relative flex min-h-[70vh] w-full flex-col overflow-hidden rounded-[22px] border border-white/20 df-glass-subtle shadow-xl sm:min-h-[min(88vh,820px)]"
+          style={{ background: 'linear-gradient(160deg, #070B14 0%, #0A1628 40%, #0D0A2E 100%)' }}
+        >
+          {/* Glow orbs */}
+          <div
+            className="pointer-events-none absolute -top-8 left-1/4 h-64 w-64 rounded-full opacity-90"
+            style={{ background: `radial-gradient(circle, ${CYAN}15 0%, transparent 70%)`, filter: 'blur(40px)' }}
+          />
+          <div
+            className="pointer-events-none absolute bottom-10 right-1/4 h-48 w-48 rounded-full opacity-90"
+            style={{ background: `radial-gradient(circle, ${PURPLE}15 0%, transparent 70%)`, filter: 'blur(40px)' }}
+          />
 
-      <div className="w-full max-w-[430px] min-h-screen sm:min-h-0 flex flex-col"
-        style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '0 0 0 0', ...({} as React.CSSProperties) }}>
+          <div
+            className="relative flex w-full flex-1 flex-col min-h-0"
+            style={{ background: 'rgba(255,255,255,0.02)', ...({} as React.CSSProperties) }}
+          >
 
         {/* ── Top bar */}
         <div className="flex items-center justify-between px-5 pt-5 pb-4 flex-shrink-0"
@@ -362,8 +437,10 @@ export default function VocabPracticePage() {
               style={{ scrollbarWidth: 'none' }}>
 
               {/* Hero */}
-              <div className="rounded-[20px] p-5 relative overflow-hidden"
-                style={{ background: `linear-gradient(135deg, rgba(34,211,238,0.15), rgba(167,139,250,0.15))`, border: `1px solid rgba(34,211,238,0.2)` }}>
+              <div
+                className="df-glass-subtle relative overflow-hidden rounded-[20px] border border-cyan-400/20 p-5"
+                style={{ background: `linear-gradient(135deg, rgba(34,211,238,0.15), rgba(167,139,250,0.15))` }}
+              >
                 <div className="absolute -top-6 -right-6 w-32 h-32 rounded-full"
                   style={{ background: `radial-gradient(circle, rgba(34,211,238,0.2) 0%, transparent 70%)`, filter: 'blur(20px)' }} />
                 <div className="relative z-10">
@@ -387,7 +464,7 @@ export default function VocabPracticePage() {
               </div>
 
               {/* CEFR Level */}
-              <div className="rounded-[20px] p-4" style={glass}>
+              <div className="df-glass-subtle rounded-[20px] border border-white/10 p-4" style={glass}>
                 <p className="text-xs font-semibold mb-3" style={{ color: 'rgba(255,255,255,0.5)' }}>{t('chooseLevel')}</p>
                 <div className="grid grid-cols-4 gap-2">
                   {CEFR_LEVELS.map(({ id, emoji, color, desc }) => (
@@ -408,7 +485,7 @@ export default function VocabPracticePage() {
               </div>
 
               {/* Topic tags */}
-              <div className="rounded-[20px] p-4" style={glass}>
+              <div className="df-glass-subtle rounded-[20px] border border-white/10 p-4" style={glass}>
                 <p className="text-xs font-semibold mb-3" style={{ color: 'rgba(255,255,255,0.5)' }}>{t('chooseTopic')}</p>
                 <div className="flex flex-wrap gap-2">
                   <button onClick={() => setSelTag('')}
@@ -750,7 +827,9 @@ export default function VocabPracticePage() {
             </motion.div>
           )}
         </AnimatePresence>
+          </div>
+        </div>
       </div>
-    </div>
+    </StudentShell>
   )
 }

@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { LukasCharacter } from "./characters/LukasCharacter";
 import { EmmaCharacter } from "./characters/EmmaCharacter";
 import { HannaCharacter } from "./characters/HannaCharacter";
+import { KlausCharacter } from "./characters/KlausCharacter";
 import { normalizeSpeakingPersona, type SpeakingPersonaVisualId } from "./personaTheme";
 
 interface Props {
@@ -19,6 +20,7 @@ export function SpeakingPersonaMiniAvatar({ personaId, chatBusy, className }: Pr
   const exprLukas = chatBusy ? ("talking" as const) : ("neutral" as const);
   const exprEmma = chatBusy ? ("talking" as const) : ("idle" as const);
   const exprHanna = chatBusy ? ("talking" as const) : ("neutral" as const);
+  const exprKlaus = chatBusy ? ("talking" as const) : ("neutral" as const);
 
   const inner = (pid: SpeakingPersonaVisualId) => {
     if (pid === "EMMA") {
@@ -26,6 +28,9 @@ export function SpeakingPersonaMiniAvatar({ personaId, chatBusy, className }: Pr
     }
     if (pid === "HANNA") {
       return <HannaCharacter expression={exprHanna} className="block h-[200px] w-[200px] max-w-none" />;
+    }
+    if (pid === "KLAUS") {
+      return <KlausCharacter expression={exprKlaus} className="block h-[200px] w-[200px] max-w-none" />;
     }
     return <LukasCharacter expression={exprLukas} className="block h-[200px] w-[200px] max-w-none" />;
   };

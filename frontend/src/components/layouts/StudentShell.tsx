@@ -7,6 +7,7 @@ import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { StudentBottomNav } from "@/components/layouts/StudentBottomNav";
 import { cn } from "@/lib/utils";
 import { isStudentImmersivePath } from "@/lib/studentImmersiveRoutes";
+import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard,
   BookOpen,
@@ -20,15 +21,18 @@ import {
   ShieldCheck,
   Gamepad2,
   Map,
-  Library,
   LogOut,
-  Mic,
   Repeat2,
   AlertTriangle,
-  BadgePercent,
   Calendar,
   History,
+  Users,
+  Trophy,
+  BarChart2,
+  Brain,
+  Briefcase,
 } from "lucide-react";
+import { XpLevelPill } from "@/components/gamification/XpLevelPill";
 
 export type StudentShellSection =
   | "dashboard"
@@ -43,7 +47,28 @@ export type StudentShellSection =
   | "errors"
   | "myPlan"
   | "weeklySpeaking"
-  | "exerciseHistory";
+  | "exerciseHistory"
+  | "tutor"
+  | "webDashboard"
+  | "speakingHistory"
+  | "interviews"
+  | "review-queue"
+  | "vocab-analytics"
+  | "leaderboard";
+
+type NavItem = {
+  id: StudentShellSection;
+  label: string;
+  icon: LucideIcon;
+  href: string;
+  badge?: ReactNode;
+};
+
+type NavGroup = {
+  groupKey: string;
+  label: string;
+  items: NavItem[];
+};
 
 type Props = {
   activeSection: StudentShellSection;
@@ -58,6 +83,10 @@ type Props = {
   headerRight?: ReactNode;
   /** Full-bleed content (hide white app bar — e.g. AI Chat V2 companion) */
   hideAppHeader?: boolean;
+  /** Hide bottom tab bar (e.g. immersive interview session) */
+  hideBottomNav?: boolean;
+  /** Hide sidebar completely (e.g. for Onboarding wizard) */
+  hideSidebar?: boolean;
   children: ReactNode;
 };
 
@@ -72,26 +101,60 @@ export function StudentShell({
   headerSubtitle,
   headerRight,
   hideAppHeader,
+  hideBottomNav,
+  hideSidebar,
   children,
 }: Props) {
   const t = useTranslations("student");
   const router = useRouter();
   const pathname = usePathname();
-  const showMobileBottomPad = !isStudentImmersivePath(pathname);
+  const showMobileBottomPad = !isStudentImmersivePath(pathname) && !hideBottomNav;
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const navItems = useMemo(
+  const navGroups = useMemo<NavGroup[]>(
     () => [
-      { id: "dashboard" as const, label: t("navDashboard"), icon: LayoutDashboard, href: "/dashboard" },
-      { id: "courses" as const, label: t("navMyCourses"), icon: BookOpen, href: "/student/plan" },
-      { id: "roadmap" as const, label: t("navLearningPath"), icon: Map, href: "/roadmap" },
-      { id: "speaking" as const, label: t("navSpeaking"), icon: Mic2, href: "/speaking" },
-      { id: "vocabulary" as const, label: t("navVocabulary"), icon: BookMarked, href: "/student/vocabulary" },
-      { id: "weeklySpeaking" as const, label: t("navWeeklySpeaking"), icon: Calendar, href: "/student/weekly-speaking" },
-      { id: "swipe" as const, label: t("navSwipeLearn"), icon: Repeat2, href: "/student/swipe-cards" },
-      { id: "errors" as const, label: t("navMyErrors"), icon: AlertTriangle, href: "/student/errors" },
-      { id: "game" as const, label: t("navLegoGame"), icon: Gamepad2, href: "/student/game" },
-      { id: "settings" as const, label: t("navSettings"), icon: Settings, href: "/dashboard" },
+      {
+        groupKey: "learn",
+        label: t("navGroupLearn"),
+        items: [
+          { id: "dashboard" as const, label: t("navDashboard"), icon: LayoutDashboard, href: "/dashboard" },
+          { id: "courses" as const, label: t("navMyCourses"), icon: BookOpen, href: "/student/plan" },
+          { id: "roadmap" as const, label: t("navLearningPath"), icon: Map, href: "/student/roadmap",
+            badge: <span className="text-[9px] font-bold bg-[#FFCE00]/20 text-[#FFCE00] px-1.5 py-0.5 rounded-full border border-[#FFCE00]/30">{t("newBadge")}</span> },
+          { id: "vocabulary" as const, label: t("navVocabulary"), icon: BookMarked, href: "/student/vocabulary" },
+          { id: "vocab-analytics" as const, label: "Thống kê từ vựng", icon: BarChart2 as any, href: "/student/vocab-analytics" },
+        ],
+      },
+      {
+        groupKey: "practice",
+        label: t("navGroupPractice"),
+        items: [
+          { id: "speaking" as const, label: t("navSpeaking"), icon: Mic2, href: "/speaking",
+            badge: <span className="text-[9px] font-bold bg-[#22D3EE]/20 text-[#22D3EE] px-1.5 py-0.5 rounded-full border border-[#22D3EE]/30">AI</span> },
+          { id: "swipe" as const, label: t("navSwipeLearn"), icon: Repeat2, href: "/student/swipe-cards" },
+          { id: "game" as const, label: t("navLegoGame"), icon: Gamepad2, href: "/student/game" },
+          { id: "weeklySpeaking" as const, label: t("navWeeklySpeaking"), icon: Calendar, href: "/student/weekly-speaking" },
+        ],
+      },
+      {
+        groupKey: "review",
+        label: t("navGroupReview"),
+        items: [
+          { id: "errors" as const, label: t("navMyErrors"), icon: AlertTriangle, href: "/student/errors" },
+          { id: "review-queue" as const, label: "Ôn tập hôm nay", icon: Brain, href: "/student/review-queue" },
+          { id: "speakingHistory" as const, label: t("navSpeakingHistory"), icon: History, href: "/student/speaking-history" },
+          { id: "interviews" as const, label: "Kết quả phỏng vấn", icon: Briefcase, href: "/student/interviews" },
+        ],
+      },
+      {
+        groupKey: "profile",
+        label: t("navGroupProfile"),
+        items: [
+          { id: "tutor" as const, label: t("navTutorProfile"), icon: Users, href: "/student/tutor" },
+          { id: "leaderboard" as const, label: "Bảng xếp hạng", icon: Trophy, href: "/student/leaderboard" },
+          { id: "settings" as const, label: t("navSettings"), icon: Settings, href: "/dashboard" },
+        ],
+      },
     ],
     [t],
   );
@@ -101,92 +164,95 @@ export function StudentShell({
     setSidebarOpen(false);
   };
 
-  const isPrimaryActive = (id: StudentShellSection) => activeSection === id;
-
   return (
     <div className="flex h-screen overflow-hidden df-page-mesh">
-      {sidebarOpen && (
+      {!hideSidebar && sidebarOpen && (
         <div className="fixed inset-0 bg-black/40 z-20 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      <aside
-        className={`fixed lg:relative z-30 flex flex-col h-full w-64 bg-[#00305E]/95 backdrop-blur-md border-r border-white/10 text-white transition-transform duration-300 shadow-xl shadow-black/10
-          ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
-      >
-        <div className="flex items-center gap-3 px-6 py-6 border-b border-white/10">
-          <div className="w-9 h-9 rounded-[10px] bg-[#FFCE00] flex items-center justify-center flex-shrink-0">
-            <span className="text-[#00305E] font-extrabold text-lg leading-none">D</span>
+      {!hideSidebar && (
+        <aside
+          className={`fixed lg:relative z-30 flex flex-col h-full w-64 bg-[#00305E]/95 backdrop-blur-md border-r border-white/10 text-white transition-transform duration-300 shadow-xl shadow-black/10
+            ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
+        >
+          <div className="flex items-center gap-3 px-6 py-5 border-b border-white/10">
+            <div className="w-9 h-9 rounded-[10px] bg-[#FFCE00] flex items-center justify-center flex-shrink-0">
+              <span className="text-[#00305E] font-extrabold text-lg leading-none">D</span>
+            </div>
+            <span className="font-bold text-xl tracking-tight">DeutschFlow</span>
+            <button type="button" className="ml-auto lg:hidden text-white/60 hover:text-white" onClick={() => setSidebarOpen(false)}>
+              <X size={20} />
+            </button>
           </div>
-          <span className="font-bold text-xl tracking-tight">DeutschFlow</span>
-          <button type="button" className="ml-auto lg:hidden text-white/60 hover:text-white" onClick={() => setSidebarOpen(false)}>
-            <X size={20} />
-          </button>
-        </div>
 
-        <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto custom-scrollbar">
-          {navItems.map(({ id, label, icon: Icon, href }) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => go(href)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-[12px] transition-all duration-200 text-left group
-                ${
-                  isPrimaryActive(id)
-                    ? "bg-[#FFCE00] text-[#00305E] shadow-md"
-                    : "text-white/70 hover:bg-white/10 hover:text-white"
-                }`}
-            >
-              <Icon size={19} className="flex-shrink-0" />
-              <div className="flex-1 flex items-center justify-between min-w-0">
-                <span className="font-medium text-sm truncate">{label}</span>
-                {id === "speaking" && (
-                  <span className="text-[10px] font-bold bg-[#22D3EE]/20 text-[#22D3EE] px-1.5 py-0.5 rounded-full border border-[#22D3EE]/30 ml-2 flex-shrink-0">
-                    AI
-                  </span>
-                )}
-                {id === "roadmap" && (
-                  <span className="text-[10px] font-bold bg-[#FFCE00]/20 text-[#FFCE00] px-1.5 py-0.5 rounded-full border border-[#FFCE00]/30 ml-2 flex-shrink-0">
-                    {t("newBadge")}
-                  </span>
-                )}
-                {isPrimaryActive(id) && <ChevronRight size={14} className="text-[#00305E]/60 ml-2" />}
+          <nav className="flex-1 px-3 py-4 space-y-5 overflow-y-auto custom-scrollbar">
+            {navGroups.map(({ groupKey, label, items }) => (
+              <div key={groupKey}>
+                {/* Section header */}
+                <p className="px-4 mb-1.5 text-[10px] font-bold tracking-widest text-white/30 uppercase select-none">
+                  {label}
+                </p>
+                <div className="space-y-0.5">
+                  {items.map(({ id, label: itemLabel, icon: Icon, href, badge }) => {
+                    const active = activeSection === id;
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => go(href)}
+                        className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-[12px] transition-all duration-200 text-left group
+                          ${active
+                            ? "bg-[#FFCE00] text-[#00305E] shadow-md"
+                            : "text-white/70 hover:bg-white/10 hover:text-white"
+                          }`}
+                      >
+                        <Icon size={17} className="flex-shrink-0" />
+                        <div className="flex-1 flex items-center justify-between min-w-0">
+                          <span className="font-medium text-sm truncate">{itemLabel}</span>
+                          {badge && !active && badge}
+                          {active && <ChevronRight size={13} className="text-[#00305E]/60 ml-2" />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </button>
-          ))}
-        </nav>
+            ))}
+          </nav>
 
-        <div className="px-3 pb-6">
-          <button
-            type="button"
-            onClick={onLogout}
-            className="mb-2 w-full flex items-center gap-3 px-4 py-3 rounded-[12px] text-white/70 hover:bg-white/10 hover:text-white transition-all duration-200 text-left"
-          >
-            <LogOut size={19} className="flex-shrink-0" />
-            <span className="font-medium text-sm">{t("logout")}</span>
-          </button>
-
-          <div className="flex items-center gap-3 px-4 py-3 rounded-[12px] bg-white/8 border border-white/10">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#FFCE00] to-[#E6B900] flex items-center justify-center flex-shrink-0">
-              <span className="text-[#00305E] font-bold text-sm">{initials}</span>
-            </div>
-            <div className="min-w-0">
-              <p className="font-semibold text-sm text-white truncate">{user.displayName}</p>
-              <p className="text-white/50 text-[10px] truncate">{t("roleLevel", { role: user.role, level: targetLevel })}</p>
-            </div>
-          </div>
-
-          {user.role === "ADMIN" && (
+          <div className="px-3 pb-5">
             <button
               type="button"
-              onClick={() => go("/admin")}
-              className="mt-2 w-full flex items-center gap-2 px-4 py-2 rounded-[10px] text-white/40 hover:text-white/70 hover:bg-white/8 transition-colors text-xs"
+              onClick={onLogout}
+              className="mb-2 w-full flex items-center gap-3 px-4 py-2.5 rounded-[12px] text-white/70 hover:bg-white/10 hover:text-white transition-all duration-200 text-left"
             >
-              <ShieldCheck size={13} />
-              {t("navAdminDashboard")}
+              <LogOut size={17} className="flex-shrink-0" />
+              <span className="font-medium text-sm">{t("logout")}</span>
             </button>
-          )}
-        </div>
-      </aside>
+
+            <div className="flex items-center gap-3 px-4 py-3 rounded-[12px] bg-white/8 border border-white/10">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#FFCE00] to-[#E6B900] flex items-center justify-center flex-shrink-0">
+                <span className="text-[#00305E] font-bold text-sm">{initials}</span>
+              </div>
+              <div className="min-w-0">
+                <p className="font-semibold text-sm text-white truncate">{user.displayName}</p>
+                <p className="text-white/50 text-[10px] truncate">{t("roleLevel", { role: user.role, level: targetLevel })}</p>
+              </div>
+            </div>
+
+            {user.role === "ADMIN" && (
+              <button
+                type="button"
+                onClick={() => go("/admin")}
+                className="mt-2 w-full flex items-center gap-2 px-4 py-2 rounded-[10px] text-white/40 hover:text-white/70 hover:bg-white/8 transition-colors text-xs"
+              >
+                <ShieldCheck size={13} />
+                {t("navAdminDashboard")}
+              </button>
+            )}
+          </div>
+        </aside>
+      )}
 
       <div className="flex-1 flex flex-col overflow-hidden">
         {!hideAppHeader && (
@@ -203,7 +269,9 @@ export function StudentShell({
 
             <div className="flex items-center gap-3 flex-shrink-0">
               {headerRight}
+              <XpLevelPill />
               <div className="flex items-center gap-2 bg-[#FFF8E1] border border-[#FFCE00]/40 rounded-[12px] px-3 py-2">
+
                 <Flame size={18} className="text-orange-500" fill="#f97316" />
                 <span className="font-bold text-[#00305E] text-sm">{t("streakDays", { n: streakDays })}</span>
                 <span className="text-[#64748B] text-xs hidden sm:inline">{t("streakBadgeShort")}</span>
@@ -231,7 +299,7 @@ export function StudentShell({
         </main>
       </div>
 
-      <StudentBottomNav onOpenMenu={() => setSidebarOpen(true)} />
+      {!hideBottomNav && <StudentBottomNav onOpenMenu={() => setSidebarOpen(true)} />}
     </div>
   );
 }

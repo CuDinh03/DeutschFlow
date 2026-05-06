@@ -5,18 +5,22 @@ import com.deutschflow.vocabulary.service.AIVocabularyService.QuizQuestion;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
 
 /**
- * REST API for AI-powered vocabulary features
+ * REST API for AI-powered vocabulary features.
+ * All endpoints require authentication to prevent abuse of AI quota.
+ * Responses are cached in AIVocabularyService via @Cacheable.
  */
 @Slf4j
 @RestController
 @RequestMapping("/api/vocabulary/ai")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class AIVocabularyController {
     
     private final AIVocabularyService aiVocabularyService;

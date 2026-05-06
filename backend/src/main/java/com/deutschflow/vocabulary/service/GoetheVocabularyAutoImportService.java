@@ -417,14 +417,14 @@ public class GoetheVocabularyAutoImportService {
                 ON CONFLICT (word_id, locale) DO UPDATE SET
                   meaning = CASE
                     WHEN (word_translations.meaning IS NULL OR TRIM(word_translations.meaning) = '' OR word_translations.meaning LIKE 'Not in wordlists/local_lexicon.tsv%%' OR word_translations.meaning LIKE 'Chưa có trong wordlists/local_lexicon.tsv%%')
-                      AND (? IS NOT NULL AND TRIM(?) <> '')
-                    THEN ?
+                      AND (CAST(? AS TEXT) IS NOT NULL AND TRIM(CAST(? AS TEXT)) <> '')
+                    THEN CAST(? AS TEXT)
                     ELSE word_translations.meaning
                   END,
                   example = CASE
                     WHEN (word_translations.example IS NULL OR TRIM(word_translations.example) = '' OR word_translations.example LIKE 'Beispiel: Das Wort %%')
-                      AND (? IS NOT NULL AND TRIM(?) <> '')
-                    THEN ?
+                      AND (CAST(? AS TEXT) IS NOT NULL AND TRIM(CAST(? AS TEXT)) <> '')
+                    THEN CAST(? AS TEXT)
                     ELSE word_translations.example
                   END
                 """,

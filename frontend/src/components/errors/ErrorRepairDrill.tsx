@@ -13,7 +13,7 @@ import { Mic, Loader2 } from "lucide-react";
 
 interface Props {
   open: boolean;
-  onClose: () => void;
+  onClose: (passed: boolean) => void;
   errorCode: string;
   /** Prefer API-provided example sentence */
   exampleCorrectDe?: string | null;
@@ -93,7 +93,7 @@ export default function ErrorRepairDrill({
         setTimeout(() => {
           setAttempt("");
           setResult("idle");
-          onClose();
+          onClose(true);
         }, 500);
       }
     } else {
@@ -103,9 +103,10 @@ export default function ErrorRepairDrill({
 
   const handleClose = () => {
     if (blocking && result !== "pass") return;
+    const isPassed = result === "pass";
     setAttempt("");
     setResult("idle");
-    onClose();
+    onClose(isPassed);
   };
 
   return (

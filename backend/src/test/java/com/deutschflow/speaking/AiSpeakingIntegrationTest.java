@@ -160,7 +160,7 @@ class AiSpeakingIntegrationTest extends AbstractPostgresIntegrationTest {
 
     @Test
     void createSession_shouldPersistSessionWithActiveStatus() {
-        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), "Mein Alltag", null, null, null);
+        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), "Mein Alltag", null, null, null, null, null, null);
 
         assertThat(session.id()).isNotNull();
         assertThat(session.status()).isEqualTo("ACTIVE");
@@ -171,7 +171,7 @@ class AiSpeakingIntegrationTest extends AbstractPostgresIntegrationTest {
 
     @Test
     void createSession_withNullTopic_shouldSucceed() {
-        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null, null, null, null);
+        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null, null, null, null, null, null, null);
 
         assertThat(session.id()).isNotNull();
         assertThat(session.topic()).isNull();
@@ -179,7 +179,7 @@ class AiSpeakingIntegrationTest extends AbstractPostgresIntegrationTest {
 
     @Test
     void endSession_shouldTransitionToEndedStatus() {
-        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null, null, null, null);
+        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null, null, null, null, null, null, null);
 
         AiSpeakingSessionDto ended = aiSpeakingService.endSession(userA.getId(), session.id());
 
@@ -193,7 +193,7 @@ class AiSpeakingIntegrationTest extends AbstractPostgresIntegrationTest {
 
     @Test
     void chat_shouldPersistTwoMessagesAndReturnResponse() {
-        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null, null, null, null);
+        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null, null, null, null, null, null, null);
         long initialCount = messageRepository.count();
 
         AiSpeakingChatResponse response = aiSpeakingService.chat(
@@ -209,7 +209,7 @@ class AiSpeakingIntegrationTest extends AbstractPostgresIntegrationTest {
 
     @Test
     void chat_shouldIncrementMessageCountByTwo() {
-        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null, null, null, null);
+        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null, null, null, null, null, null, null);
 
         aiSpeakingService.chat(userA.getId(), session.id(), "Hallo!");
 
@@ -227,7 +227,7 @@ class AiSpeakingIntegrationTest extends AbstractPostgresIntegrationTest {
                         "test-model"
                 ));
 
-        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null, null, null, null);
+        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null, null, null, null, null, null, null);
         AiSpeakingChatResponse response = aiSpeakingService.chat(
                 userA.getId(), session.id(), "Ich habe gestern gehen in die Schule.");
 
@@ -241,7 +241,7 @@ class AiSpeakingIntegrationTest extends AbstractPostgresIntegrationTest {
 
     @Test
     void chat_withNoErrors_shouldReturnNullCorrectionFields() {
-        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null, null, null, null);
+        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null, null, null, null, null, null, null);
         AiSpeakingChatResponse response = aiSpeakingService.chat(
                 userA.getId(), session.id(), "Ich lerne Deutsch.");
 
@@ -256,7 +256,7 @@ class AiSpeakingIntegrationTest extends AbstractPostgresIntegrationTest {
 
     @Test
     void getMessages_shouldReturnMessagesInChronologicalOrder() {
-        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null, null, null, null);
+        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null, null, null, null, null, null, null);
         aiSpeakingService.chat(userA.getId(), session.id(), "Erste Nachricht");
         aiSpeakingService.chat(userA.getId(), session.id(), "Zweite Nachricht");
 
@@ -274,9 +274,9 @@ class AiSpeakingIntegrationTest extends AbstractPostgresIntegrationTest {
 
     @Test
     void getSessions_shouldReturnOnlyUserOwnSessions() {
-        aiSpeakingService.createSession(userA.getId(), "Session A1", null, null, null);
-        aiSpeakingService.createSession(userA.getId(), "Session A2", null, null, null);
-        aiSpeakingService.createSession(userB.getId(), "Session B1", null, null, null);
+        aiSpeakingService.createSession(userA.getId(), "Session A1", null, null, null, null, null, null);
+        aiSpeakingService.createSession(userA.getId(), "Session A2", null, null, null, null, null, null);
+        aiSpeakingService.createSession(userB.getId(), "Session B1", null, null, null, null, null, null);
 
         Page<AiSpeakingSessionDto> sessionsA = aiSpeakingService.getSessions(
                 userA.getId(), PageRequest.of(0, 10));
@@ -292,7 +292,7 @@ class AiSpeakingIntegrationTest extends AbstractPostgresIntegrationTest {
 
     @Test
     void chat_withWrongUser_shouldThrowNotFoundException() {
-        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null, null, null, null);
+        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null, null, null, null, null, null, null);
 
         assertThatThrownBy(() ->
                 aiSpeakingService.chat(userB.getId(), session.id(), "Hallo!"))
@@ -301,7 +301,7 @@ class AiSpeakingIntegrationTest extends AbstractPostgresIntegrationTest {
 
     @Test
     void getMessages_withWrongUser_shouldThrowNotFoundException() {
-        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null, null, null, null);
+        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null, null, null, null, null, null, null);
 
         assertThatThrownBy(() ->
                 aiSpeakingService.getMessages(userB.getId(), session.id()))
@@ -310,7 +310,7 @@ class AiSpeakingIntegrationTest extends AbstractPostgresIntegrationTest {
 
     @Test
     void endSession_withWrongUser_shouldThrowNotFoundException() {
-        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null, null, null, null);
+        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null, null, null, null, null, null, null);
 
         assertThatThrownBy(() ->
                 aiSpeakingService.endSession(userB.getId(), session.id()))
@@ -323,7 +323,7 @@ class AiSpeakingIntegrationTest extends AbstractPostgresIntegrationTest {
 
     @Test
     void chat_onEndedSession_shouldThrowConflictException() {
-        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null, null, null, null);
+        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null, null, null, null, null, null, null);
         aiSpeakingService.endSession(userA.getId(), session.id());
 
         assertThatThrownBy(() ->
@@ -333,7 +333,7 @@ class AiSpeakingIntegrationTest extends AbstractPostgresIntegrationTest {
 
     @Test
     void endSession_onAlreadyEndedSession_shouldThrowConflictException() {
-        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null, null, null, null);
+        AiSpeakingSessionDto session = aiSpeakingService.createSession(userA.getId(), null, null, null, null, null, null, null);
         aiSpeakingService.endSession(userA.getId(), session.id());
 
         assertThatThrownBy(() ->

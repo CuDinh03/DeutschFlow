@@ -25,7 +25,7 @@ export function StudentBottomNav({
 
   const items: Item[] = [
     { href: "/dashboard", id: "dash", icon: LayoutDashboard },
-    { href: "/roadmap", id: "road", icon: Map },
+    { href: "/student/roadmap", id: "road", icon: Map },
     { href: "/speaking", id: "speak", icon: Mic2 },
     { href: "/student/plan", id: "plan", icon: BookOpen },
   ];

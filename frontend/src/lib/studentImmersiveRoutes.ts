@@ -7,6 +7,7 @@ const PREFIXES = [
   "/student/vocab-practice",
   "/student/swipe-cards",
   "/student/game",
+  "/student/roadmap",
   /** Learning-plan session runner — exercises + optional speaking */
   "/student/plan/week",
 ] as const;

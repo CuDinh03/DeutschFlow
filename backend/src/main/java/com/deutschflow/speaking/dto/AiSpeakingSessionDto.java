@@ -8,10 +8,17 @@ public record AiSpeakingSessionDto(
         String cefrLevel,
         String persona,
         String responseSchema,
+        String sessionMode,
         String status,
         LocalDateTime startedAt,
         LocalDateTime lastActivityAt,
         LocalDateTime endedAt,
         int messageCount,
-        AiSpeakingChatResponse initialAiMessage
+        AiSpeakingChatResponse initialAiMessage,
+        /** Interview mode only: position applied for. */
+        String interviewPosition,
+        /** Interview mode only: candidate experience level. */
+        String experienceLevel,
+        /** Interview mode only: JSON evaluation report (populated on endSession). */
+        String interviewReportJson
 ) {}
