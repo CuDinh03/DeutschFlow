@@ -251,6 +251,11 @@ public class SystemPromptBuilder {
         }
     }
 
+    /** Returns true if this persona speaks Vietnamese as the primary language. */
+    private static boolean isVietnamesePersona(SpeakingPersona persona) {
+        return persona == SpeakingPersona.TUAN || persona == SpeakingPersona.LAN || persona == SpeakingPersona.MINH;
+    }
+
     private String buildInternal(UserLearningProfile profile,
                                  List<String> knownInterests,
                                  String topic,
@@ -266,6 +271,7 @@ public class SystemPromptBuilder {
         boolean hasIndustry = profile.getIndustry() != null && !profile.getIndustry().isBlank();
         String industry = hasIndustry ? profile.getIndustry() : null;
         String topicSection = (topic != null && !topic.isBlank()) ? topic : "Allgemeines Gespräch";
+        boolean isVietnamese = isVietnamesePersona(persona);
 
         StringBuilder sb = new StringBuilder();
 
@@ -275,8 +281,24 @@ public class SystemPromptBuilder {
             String exp = (experienceLevel != null && !experienceLevel.isBlank()) ? experienceLevel : "unbekannt";
             appendInterviewPreamble(sb, persona, level, pos, exp, industry, hasIndustry);
 
+        } else if (sessionMode == SpeakingSessionMode.LESSON && isVietnamese) {
+            // ── LESSON MODE (Vietnamese personas) ──────────────────────
+            sb.append("CHẾ ĐỘ LESSON — Giảng dạy từ vựng/bảng chữ cái tiếng Đức bằng tiếng Việt.\n");
+            sb.append("NGÔN NGỮ CHÍNH: tiếng VIỆT. Chỉ dùng tiếng Đức trong trường (ai_speech_de) để dạy từ vựng.\n");
+            sb.append("TUYỆT ĐỐI KHÔNG dùng tiếng Đức làm ngôn ngữ giao tiếp chính. Mọi giải thích, feedback đều bằng tiếng Việt.\n");
+            sb.append("Chủ đề bài học: ").append(topicSection).append("\n\n");
+
+        } else if (isVietnamese) {
+            // ── COMMUNICATION MODE (Vietnamese personas) ────────────────
+            sb.append("CHẾ ĐỘ GIAO TIẾP — Cuộc trò chuyện thân thiện về nước Đức bằng tiếng VIỆT.\n");
+            sb.append("NGÔN NGỮ CHÍNH: tiếng VIỆT. Tuyệt đối không nói tiếng Đức làm ngôn ngữ chính.\n");
+            sb.append("Chỉ lồng ghép từ/cụm tiếng Đức (in đậm) vào câu tiếng Việt để giảng dạy.\n");
+            sb.append("Ví dụ đúng: 'Ở Đức khi gặp nhau người ta hay nói **Hallo** (xin chào) hoặc **Guten Morgen** (chào buổi sáng).\n");
+            sb.append("Ví dụ SAI: 'Hallo! Heute lernen wir...' — tức là nói toàn tiếng Đức là SAI.\n");
+            sb.append("Mỗi câu trả lời phải: (1) chủ yếu tiếng Việt, (2) có 1-2 từ Đức mới kèm giải thích.\n\n");
+
         } else {
-            // ── COMMUNICATION MODE ──────────────────────────────────────
+            // ── COMMUNICATION MODE (German personas) ───────────────────
             sb.append("COMMUNICATION MODE — Alltagsgespräch / Freundliches Gespräch (KEIN Interview, KEINE Bewerbungsfragen).\n");
             sb.append("Du bist ein freundlicher Gesprächspartner. Führe ein natürliches, entspanntes Gespräch über den Alltag.\n");
             sb.append("WICHTIG: Stelle KEINE Interviewfragen (z.B. 'Was sind Ihre Stärken?', 'Warum bewerben Sie sich?').\n");
@@ -343,7 +365,21 @@ public class SystemPromptBuilder {
 
             sb.append("Sprachliche Deckel: nicht über ").append(level).append(" hinaus.\n\n");
 
-            sb.append(JSON_SCHEMA_INSTRUCTION.formatted(level, ErrorCatalog.codesCompactForPrompt()));
+            // For Vietnamese personas: override ai_speech_de description in schema to clarify it holds Vietnamese + German words
+            if (isVietnamese) {
+                String viSchema = JSON_SCHEMA_INSTRUCTION
+                    .replace(
+                        "\"ai_speech_de\": \"Deutsch, Tutor-Antwort + kurze Folgefrage zum Target_Topic\"",
+                        "\"ai_speech_de\": \"TIẾNG VIỆT LÀ CHÍNH — câu trả lời bằng tiếng Việt, lồng 1-2 từ Đức in **bold**, kèm giải thích nghĩa. KHÔNG được dùng tiếng Đức làm ngôn ngữ chính.\""
+                    )
+                    .formatted(level, ErrorCatalog.codesCompactForPrompt());
+                sb.append(viSchema);
+                sb.append("\nLƯU Ý QUAN TRỌNG NHẤT: Trường ai_speech_de phải chứa câu tiếng VIỆT, không phải tiếng Đức. ");
+                sb.append("Ví dụ: 'Chào bạn! Hôm nay mình học chữ **A** trong tiếng Đức nhé!' — ĐÂY LÀ ĐÚNG.\n");
+                sb.append("Ví dụ: 'Hallo! Heute lernen wir das Alphabet!' — ĐÂY LÀ SAI.\n");
+            } else {
+                sb.append(JSON_SCHEMA_INSTRUCTION.formatted(level, ErrorCatalog.codesCompactForPrompt()));
+            }
         }
 
         return sb.toString();
@@ -449,6 +485,11 @@ public class SystemPromptBuilder {
             case HANNA -> "Domäne Studentenleben & Organisation: Zeitmanagement, WG/Uni, nachhaltiger Alltag, Studium vs. Job, Stressbewältigung.";
             case KLAUS -> "Domäne Gastronomie & Profiküche (Deutschland): Kochtechniken (z. B. Garstufen, Saucengrund), Hygiene & HACCP/IFS-Themen angepasst an "
                     + level + ", Teamarbeit in der Brigade, Schichtwechsel, Stress in der Rush — realistische Küchen-Interviewfragen.";
+            case LENA, THOMAS, PETRA -> "Domäne Verkauf/Einzelhandel: Kundenberatung, Kassensystem, Warenkunde, Reklamation, Teamarbeit im Laden — passend zu " + level + ".";
+            case SARAH, SCHNEIDER, WEBER -> "Domäne Medizin/Gesundheitswesen: Patientenaufnahme, Terminvergabe, Untersuchungsabläufe, Fachbegriffe — passend zu " + level + ".";
+            case MAX, OLIVER -> "Domäne Maschinenbau/Fertigung: Maschinenkenntnis, Sicherheitsvorschriften, CNC-Programmierung, Qualitätskontrolle — passend zu " + level + ".";
+            case NIKLAS, NINA -> "Domäne Service/Gastronomie/Hotellerie: Gastfreundschaft, Bestellungsaufnahme, Check-in/Check-out, Beschwerdemanagement — passend zu " + level + ".";
+            case TUAN, LAN, MINH -> "Fokus: allgemeine Bewerbungs-/Strukturfragen passend zu " + level + ".";
         };
     }
 

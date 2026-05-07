@@ -11,7 +11,7 @@ export type SpeakingPersonaId = 'DEFAULT' | 'LUKAS' | 'EMMA' | 'HANNA' | 'KLAUS'
 export type SpeakingResponseSchemaId = 'V1' | 'V2'
 
 /** Matches backend SpeakingSessionMode. */
-export type SpeakingSessionMode = 'COMMUNICATION' | 'INTERVIEW'
+export type SpeakingSessionMode = 'COMMUNICATION' | 'INTERVIEW' | 'LESSON'
 
 /** Experience level for interview mode. */
 export type ExperienceLevel = '0-6M' | '6-12M' | '1-2Y' | '3Y' | '5Y'

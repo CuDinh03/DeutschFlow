@@ -4,20 +4,23 @@ import { PersonaToken } from "@/lib/personas";
 import { LukasCharacter } from "@/components/speaking/characters/LukasCharacter";
 import { EmmaCharacter } from "@/components/speaking/characters/EmmaCharacter";
 import { KlausCharacter } from "@/components/speaking/characters/KlausCharacter";
+import Image from "next/image";
 
 interface PersonaCardProps {
   persona: PersonaToken;
   isSelected: boolean;
-  /** Card stagger index for entrance animation */
   index: number;
   onClick: () => void;
 }
 
+const SVG_PERSONAS = new Set(["lukas", "emma", "klaus"]);
+
 export function PersonaCard({ persona, isSelected, index, onClick }: PersonaCardProps) {
   type CharProps = { expression: string; isTalking: boolean; style?: React.CSSProperties; className?: string };
-  // Determine component and base expression
-  let CharComponent: React.ComponentType<CharProps> = LukasCharacter as React.ComponentType<CharProps>;
+
+  let CharComponent: React.ComponentType<CharProps> | null = null;
   let expression = "idle";
+  const hasSvg = SVG_PERSONAS.has(persona.id);
 
   if (persona.id === "lukas") {
     CharComponent = LukasCharacter as React.ComponentType<CharProps>;
@@ -28,15 +31,14 @@ export function PersonaCard({ persona, isSelected, index, onClick }: PersonaCard
   } else if (persona.id === "klaus") {
     CharComponent = KlausCharacter as React.ComponentType<CharProps>;
     expression = isSelected ? "winking" : "idle";
-  } else {
-    CharComponent = EmmaCharacter as React.ComponentType<CharProps>;
-    expression = isSelected ? "smiling" : "idle";
   }
 
   return (
     <motion.button
-      className="flex-1 flex flex-col rounded-[24px] overflow-hidden relative cursor-pointer text-left h-[420px]"
+      className="flex flex-col rounded-[20px] overflow-hidden relative cursor-pointer text-left"
       style={{
+        width: "calc(50% - 6px)",
+        height: hasSvg ? 380 : 320,
         background: isSelected
           ? `linear-gradient(180deg, ${persona.bg} 0%, rgba(10,10,28,0.92) 100%)`
           : "rgba(20,20,42,0.9)",
@@ -47,15 +49,14 @@ export function PersonaCard({ persona, isSelected, index, onClick }: PersonaCard
       }}
       initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.12, type: "spring", stiffness: 260, damping: 24 }}
+      transition={{ delay: index * 0.08, type: "spring", stiffness: 260, damping: 24 }}
       whileTap={{ scale: 0.97 }}
       onClick={onClick}
     >
-      {/* ── Selected glow ring pulse ──────────────────────────────── */}
       <AnimatePresence>
         {isSelected && (
           <motion.div
-            className="absolute inset-0 rounded-[22px] pointer-events-none"
+            className="absolute inset-0 rounded-[18px] pointer-events-none"
             style={{ border: `2px solid ${persona.accent}` }}
             initial={{ opacity: 0.5, scale: 1 }}
             animate={{ opacity: [0.5, 0.15, 0.5], scale: [1, 1.01, 1] }}
@@ -65,36 +66,38 @@ export function PersonaCard({ persona, isSelected, index, onClick }: PersonaCard
         )}
       </AnimatePresence>
 
-      {/* ── Character illustration ────────────────────────────────── */}
-      <div className="flex-1 relative flex items-end justify-center pt-4 px-2">
-        {/* Glow beneath character */}
+      {/* ── Character illustration ── */}
+      <div className="flex-1 relative flex items-end justify-center pt-4 px-2 overflow-hidden">
         <AnimatePresence>
           {isSelected && (
             <motion.div
               className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3/4 h-24 rounded-full"
               style={{ background: persona.glow, filter: "blur(30px)" }}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.6 }}
-              exit={{ opacity: 0 }}
+              initial={{ opacity: 0 }} animate={{ opacity: 0.6 }} exit={{ opacity: 0 }}
             />
           )}
         </AnimatePresence>
 
-        {/* Float animation */}
         <motion.div
           className="w-full flex justify-center"
           animate={isSelected ? { y: [0, -6, 0] } : { y: 0 }}
-          transition={
-            isSelected
-              ? { duration: 2.8, repeat: Infinity, ease: "easeInOut" }
-              : { duration: 0.3 }
-          }
+          transition={isSelected ? { duration: 2.8, repeat: Infinity, ease: "easeInOut" } : { duration: 0.3 }}
         >
-          <CharComponent
-            expression={expression as never}
-            isTalking={false}
-            style={{ height: 260, maxWidth: "100%", objectFit: "contain" }}
-          />
+          {hasSvg && CharComponent ? (
+            <CharComponent
+              expression={expression as never}
+              isTalking={false}
+              style={{ height: hasSvg ? 220 : 180, maxWidth: "100%", objectFit: "contain" }}
+            />
+          ) : (
+            <Image
+              src={`/companions/${persona.id}.png`}
+              alt={persona.name}
+              width={200} height={200}
+              className="rounded-xl object-cover"
+              style={{ height: 180, width: "auto", maxWidth: "100%" }}
+            />
+          )}
         </motion.div>
       </div>
 
