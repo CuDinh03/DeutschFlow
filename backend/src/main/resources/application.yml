@@ -17,20 +17,20 @@ spring:
     # "Failed to obtain JDBC Connection" + ~30s timeouts often mean Postgres down/saturated or pool exhausted.
     hikari:
       pool-name: DeutschFlowPool
-      maximum-pool-size: ${DB_POOL_MAX_SIZE:15}
-      minimum-idle: ${DB_POOL_MIN_IDLE:3}
-      connection-timeout: ${DB_POOL_CONNECTION_TIMEOUT_MS:30000}
-      idle-timeout: ${DB_POOL_IDLE_TIMEOUT_MS:300000}
-      max-lifetime: ${DB_POOL_MAX_LIFETIME_MS:900000}
-      # Gửi SELECT 1 mỗi 60 giây để giữ TCP connection qua AWS VPC firewall
-      # AWS NLB idle TCP timeout = 350s → keepalive << 350s là bắt buộc
-      keepalive-time: ${DB_POOL_KEEPALIVE_MS:60000}
-      # Validate connection trước khi đưa cho thread (phát hiện stale conn)
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:10}
+      minimum-idle: ${DB_POOL_MIN_IDLE:2}
+      connection-timeout: ${DB_POOL_CONNECTION_TIMEOUT_MS:20000}
+      # Recycle idle connections nhanh hơn để tránh RDS drop stale conn
+      idle-timeout: ${DB_POOL_IDLE_TIMEOUT_MS:180000}
+      # Renew connection trước khi RDS max_lifetime (AWS default 8h)
+      max-lifetime: ${DB_POOL_MAX_LIFETIME_MS:600000}
+      # Keepalive 30s — AWS RDS idle TCP timeout thường 300s, giữ conn sống
+      keepalive-time: ${DB_POOL_KEEPALIVE_MS:30000}
+      # Validate trước khi dùng — phát hiện stale conn ngay
       connection-test-query: SELECT 1
-      # Timeout cho validation query — fail nhanh nếu conn đã chết
-      validation-timeout: ${DB_POOL_VALIDATION_TIMEOUT_MS:5000}
-      # Phát hiện connection leak — log warning nếu conn giữ quá 30s
-      leak-detection-threshold: ${DB_POOL_LEAK_DETECTION_MS:30000}
+      validation-timeout: ${DB_POOL_VALIDATION_TIMEOUT_MS:3000}
+      # Cảnh báo leak nếu conn giữ > 20s
+      leak-detection-threshold: ${DB_POOL_LEAK_DETECTION_MS:20000}
       auto-commit: true
 
   jpa:

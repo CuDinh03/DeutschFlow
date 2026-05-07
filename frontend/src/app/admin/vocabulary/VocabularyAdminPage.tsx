@@ -510,12 +510,12 @@ export default function VocabularyAdminPage() {
       if (activeDtype)  params.dtype  = activeDtype
       if (activeGender) params.gender = activeGender
       if (activeTag)    params.tag    = activeTag
-      const res = await api.get('/words', { params })
+      const res = await api.get('/words', { params, timeout: 8000 })
       const data: WordListResponse = res.data
       setWords(data.items)
       setTotal(data.total)
       setPage(p)
-    } catch { setWords([]) }
+    } catch { setWords([]); setTotal(0) }
     finally { setLoading(false) }
   }, [q, cefr, dtype, gender, tag, uiLocale])
 

@@ -28,7 +28,9 @@ export function apiMessage(e: unknown): string {
 
 const api = axios.create({
   baseURL: '/api',
-  timeout: 20000,   // 20s — AI speaking evaluation cần thêm thời gian
+  // 8s default — admin pages fail fast instead of freezing
+  // AI speaking streams use { timeout: 0 } explicitly via longRunning flag
+  timeout: 8000,
   headers: {
     'Content-Type': 'application/json',
     // Cache-Control removed: Next.js response headers đã handle per-route
