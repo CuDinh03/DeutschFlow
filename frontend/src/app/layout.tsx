@@ -17,15 +17,15 @@ export const metadata: Metadata = {
   description: 'Learn German with color-coded grammar, AI speaking coach, and spaced repetition',
   icons: {
     icon: [
-      { url: '/favicon.png', type: 'image/png' },
+      { url: '/icon.svg', type: 'image/svg+xml' },
     ],
-    shortcut: '/favicon.png',
-    apple: '/favicon.png',
+    shortcut: '/icon.svg',
+    apple: '/icon.svg',
   },
   openGraph: {
     title: 'DeutschFlow',
     description: 'Learn German with AI',
-    images: ['/favicon.png'],
+    images: ['/icon.svg'],
   },
 }
 
