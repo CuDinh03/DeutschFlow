@@ -75,7 +75,7 @@ jobs:
           java-version: "17"
           cache: maven
 
-      # ubuntu-latest runner has Docker daemon built in — Testcontainers uses it directly
+      # ubuntu-latest có Docker daemon sẵn — Testcontainers dùng trực tiếp
       - name: Run integration tests (Failsafe — Testcontainers)
         working-directory: backend
         run: ./mvnw -B verify -DskipUnitTests=true
@@ -88,59 +88,41 @@ jobs:
           path: backend/target/failsafe-reports/
           retention-days: 7
 
-  # ─── Stage 4: Auto Deploy to EC2 ────────────────────────────────
-  # Strategy: Self-hosted runner on EC2 (runner agent runs ON EC2, no inbound SSH needed)
-  # Setup: See DEPLOYMENT.md → "Setup Self-Hosted Runner" section
-  # Fallback: If runner not available, add EC2 SG rule: port 22 from 0.0.0.0/0
+  # ─── Stage 4: Auto Deploy to EC2 ─────────────────────────────────
+  # Self-hosted runner chạy TRÊN EC2 — kết nối ra GitHub, không cần inbound SSH
+  # Prereq: Cài runner trên EC2 theo hướng dẫn DEPLOYMENT.md
   deploy:
     name: 🚀 Deploy to EC2
     needs: unit-tests
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ec2]
     timeout-minutes: 12
-    environment: production
     steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          port: 22
-          timeout: 60s
-          command_timeout: 600s
-          script_stop: true
-          script: |
-            set -e
-            cd /home/ubuntu/DeutschFlow
+      - name: Build & restart container
+        run: |
+          set -e
+          cd /home/ubuntu/DeutschFlow
+          git pull origin main
 
-            echo "📥 Pulling latest code..."
-            git pull origin main
+          echo "🔨 Building Docker image..."
+          sudo docker build -t deutschflow-backend:latest ./backend
 
-            echo "🔨 Building Docker image..."
-            sudo docker build -t deutschflow-backend:latest ./backend
+          echo "♻️ Restarting container..."
+          sudo docker rm -f deutschflow-backend 2>/dev/null || true
+          sudo docker run -d \
+            --name deutschflow-backend \
+            --memory="1500m" \
+            --cpus="1.8" \
+            --env-file /home/ubuntu/DeutschFlow/.env.production \
+            -p 8080:8080 \
+            --restart unless-stopped \
+            deutschflow-backend:latest
 
-            echo "♻️ Restarting container..."
-            sudo docker rm -f deutschflow-backend 2>/dev/null || true
-            sudo docker run -d \
-              --name deutschflow-backend \
-              --memory="1500m" \
-              --cpus="1.8" \
-              --env-file /home/ubuntu/DeutschFlow/.env.production \
-              -p 8080:8080 \
-              --restart unless-stopped \
-              deutschflow-backend:latest
+          echo "⏳ Waiting for Spring Boot..."
+          sleep 45
 
-            echo "⏳ Waiting for Spring Boot to start..."
-            sleep 45
-
-            echo "🔍 Health check..."
-            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/actuator/health)
-            if [ "$HTTP_STATUS" -ne 200 ]; then
-              echo "❌ Health check failed (HTTP $HTTP_STATUS)"
-              sudo docker logs deutschflow-backend --tail 30
-              exit 1
-            fi
-
-            echo "✅ Deploy successful! Health: HTTP $HTTP_STATUS"
-            sudo docker stats deutschflow-backend --no-stream --format "CPU: {{.CPUPerc}} | MEM: {{.MemUsage}}"
+          echo "🔍 Health check..."
+          HTTP=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/actuator/health)
+          [ "$HTTP" -eq 200 ] || { sudo docker logs deutschflow-backend --tail 30; exit 1; }
+          echo "✅ Deploy OK — HTTP $HTTP"
+          sudo docker stats deutschflow-backend --no-stream --format "CPU: {{.CPUPerc}} | MEM: {{.MemUsage}}"
