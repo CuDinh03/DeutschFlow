@@ -4,17 +4,23 @@ applications:
       phases:
         preBuild:
           commands:
+            # NODE_ENV=production để npm ci bỏ qua devDependencies nếu cần
+            # --prefer-offline: tận dụng cache Amplify đã lưu từ lần trước
             - npm ci --cache .npm --prefer-offline
         build:
           commands:
-            - NEXT_PUBLIC_BACKEND_URL=http://api.mydeutschflow.com npm run build
+            # HTTPS (không phải http) — Amplify serve qua HTTPS
+            - NEXT_PUBLIC_BACKEND_URL=https://api.mydeutschflow.com npm run build
       artifacts:
         baseDirectory: .next
         files:
           - '**/*'
       cache:
         paths:
+          # Build cache Next.js — quan trọng nhất, tăng tốc incremental builds
           - .next/cache/**/*
+          # npm cache để npm ci --prefer-offline hoạt động
           - .npm/**/*
+          # node_modules cache — tránh phải download lại toàn bộ khi chỉ thay đổi code
           - node_modules/**/*
     appRoot: frontend
