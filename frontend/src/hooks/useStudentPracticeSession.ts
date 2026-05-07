@@ -37,8 +37,13 @@ function pickCefrBand(...candidates: (string | null | undefined)[]): string {
 /**
  * Shared `/auth/me` + `/plan/me` + `/student/dashboard` fetch for practice routes using {@link StudentShell}.
  */
-export function useStudentPracticeSession(options?: { requireStudent?: boolean }) {
+export function useStudentPracticeSession(options?: {
+  requireStudent?: boolean;
+  /** Set true on /onboarding page to avoid redirect loop */
+  skipOnboardingCheck?: boolean;
+}) {
   const requireStudent = options?.requireStudent ?? true;
+  const skipOnboardingCheck = options?.skipOnboardingCheck ?? false;
   const router = useRouter();
   const locale = useLocale();
   const [me, setMe] = useState<PracticeSessionUser | null>(null);
@@ -59,6 +64,15 @@ export function useStudentPracticeSession(options?: { requireStudent?: boolean }
       if (requireStudent && userData.role !== "STUDENT") {
         router.replace(`/${String(userData.role).toLowerCase()}`);
         return;
+      }
+
+      // Onboarding guard — redirect students who haven't completed onboarding
+      if (requireStudent && !skipOnboardingCheck) {
+        const statusRes = await api.get<{ hasPlan: boolean }>("/onboarding/status").catch(() => null);
+        if (statusRes?.data?.hasPlan === false) {
+          router.replace("/onboarding");
+          return;
+        }
       }
 
       const [planRes, dashRes] = await Promise.all([
@@ -85,7 +99,7 @@ export function useStudentPracticeSession(options?: { requireStudent?: boolean }
     } finally {
       setLoading(false);
     }
-  }, [locale, requireStudent, router]);
+  }, [locale, requireStudent, skipOnboardingCheck, router]);
 
   useEffect(() => {
     void load();

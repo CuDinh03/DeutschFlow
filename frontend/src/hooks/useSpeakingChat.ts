@@ -15,6 +15,7 @@ import { apiMessage, httpStatus } from "@/lib/api";
 import { toastApiError } from "@/lib/toastApiError";
 import { speakGerman } from "@/lib/speechDe";
 import { startRecorder, type RecorderHandle } from "@/lib/voiceRecorder";
+import { recordAbilityScore, scorePercentToItem } from "@/lib/abilityApi";
 
 export type RepairGateState = {
   code: string;
@@ -84,6 +85,7 @@ export function useSpeakingChat(opts: {
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [repairGate, setRepairGate] = useState<RepairGateState>(null);
   const [pendingAdaptiveRepairMsgId, setPendingAdaptiveRepairMsgId] = useState<number | null>(null);
+  const sessionStartRef = useRef<number>(Date.now());
 
   const streamCtrl = useRef<AbortController | null>(null);
   const recorderRef = useRef<RecorderHandle | null>(null);
@@ -270,6 +272,22 @@ export function useSpeakingChat(opts: {
     setError(null);
     try {
       await aiSpeakingApi.endSession(session.id);
+      // Record ability score based on error rate across messages
+      const userMessages = realMessages.filter((m) => m.role === "USER");
+      const totalMsgs = userMessages.length;
+      if (totalMsgs > 0) {
+        const items = realMessages
+          .filter((m) => m.role === "ASSISTANT")
+          .map((m) => {
+            const errorCount = m.errors?.length ?? 0;
+            const scorePercent = errorCount === 0 ? 90 : errorCount === 1 ? 70 : 50;
+            return scorePercentToItem(scorePercent, 1.0);
+          });
+        if (items.length > 0) {
+          const elapsed = Math.max(1, (Date.now() - sessionStartRef.current) / 1000);
+          void recordAbilityScore(items, elapsed);
+        }
+      }
       setSessionState("summary");
     } catch (err: unknown) {
       setError(apiMessage(err));
@@ -280,7 +298,7 @@ export function useSpeakingChat(opts: {
     } finally {
       setEndingSession(false);
     }
-  }, [session, endingSession, sessionState, setSessionState, locale]);
+  }, [session, endingSession, sessionState, setSessionState, locale, realMessages]);
 
   const handleStartRecord = useCallback(async () => {
     try {

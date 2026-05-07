@@ -34,6 +34,7 @@ export type AdminNavId =
   | 'reports'
   | 'aiConfig'
   | 'settings'
+  | 'weekly-speaking'
 
 type AdminShellProps = {
   title: string
@@ -70,6 +71,7 @@ export default function AdminShell({
     { id: 'vocabulary' as const,    label: t('vocabulary'),           href: '/admin/vocabulary',     icon: Database },
     { id: 'reports' as const,       label: t('reports'),       href: '/admin/reports',        icon: BarChart3 },
     { id: 'aiConfig' as const,      label: t('aiConfig'),       href: '/admin/ai-config',      icon: Bot },
+    { id: 'weekly-speaking' as const, label: 'Weekly Speaking',   href: '/admin/weekly-speaking', icon: BarChart3 },
     { id: 'settings' as const,      label: t('settings'),           href: '/admin/settings',       icon: Settings },
   ], [t])
 

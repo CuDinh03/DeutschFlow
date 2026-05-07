@@ -55,7 +55,9 @@ export type StudentShellSection =
   | "interviews"
   | "review-queue"
   | "vocab-analytics"
-  | "leaderboard";
+  | "leaderboard"
+  | "grammar-practice"
+  | "curriculum";
 
 type NavItem = {
   id: StudentShellSection;
@@ -124,6 +126,8 @@ export function StudentShell({
             badge: <span className="text-[9px] font-bold bg-[#FFCE00]/20 text-[#FFCE00] px-1.5 py-0.5 rounded-full border border-[#FFCE00]/30">{t("newBadge")}</span> },
           { id: "vocabulary" as const, label: t("navVocabulary"), icon: BookMarked, href: "/student/vocabulary" },
           { id: "vocab-analytics" as const, label: "Thống kê từ vựng", icon: BarChart2 as any, href: "/student/vocab-analytics" },
+          { id: "grammar-practice" as const, label: "Luyện ngữ pháp AI", icon: Brain, href: "/student/grammar-practice" },
+          { id: "curriculum" as const, label: "Giáo trình A1", icon: BookOpen, href: "/student/curriculum" },
         ],
       },
       {

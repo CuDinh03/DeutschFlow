@@ -4,13 +4,14 @@ import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Search, Shield, Zap, RotateCcw, BookOpen, CheckCircle2,
-  AlertTriangle, Loader2, RefreshCw, Calendar, Clock,
+  AlertTriangle, Loader2, RefreshCw, Calendar, Clock, Brain, X,
 } from 'lucide-react'
 import { StudentShell } from '@/components/layouts/StudentShell'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
 import { reviewApi, type ErrorReviewTaskDto } from '@/lib/reviewApi'
 import api from '@/lib/api'
 import ErrorRepairDrill from '@/components/errors/ErrorRepairDrill'
+import { localAiApi } from '@/lib/localAiApi'
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -59,6 +60,10 @@ export default function ErrorLibraryPage() {
   const [completedTasks, setCompletedTasks] = useState<Set<number>>(new Set())
   const [error, setError] = useState<string | null>(null)
   const [activeDrillError, setActiveDrillError] = useState<ErrorSkillDto | null>(null)
+  // AI Error Practice panel
+  const [aiPracticeError, setAiPracticeError] = useState<ErrorSkillDto | null>(null)
+  const [aiPracticeLoading, setAiPracticeLoading] = useState(false)
+  const [aiPracticeResult, setAiPracticeResult] = useState<string | null>(null)
 
   // ── Fetch data ──────────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
@@ -83,6 +88,20 @@ export default function ErrorLibraryPage() {
   // ── Repair attempt ──────────────────────────────────────────────────────
   const handleRepair = (err: ErrorSkillDto) => {
     setActiveDrillError(err)
+  }
+
+  const handleAiPractice = async (err: ErrorSkillDto) => {
+    setAiPracticeError(err)
+    setAiPracticeResult(null)
+    setAiPracticeLoading(true)
+    try {
+      const res = await localAiApi.errorPractice(err.errorCode, 3)
+      setAiPracticeResult(res.data.exercises ?? null)
+    } catch {
+      setAiPracticeResult('Không thể tạo bài luyện. Thử lại sau.')
+    } finally {
+      setAiPracticeLoading(false)
+    }
   }
 
   const handleDrillClose = (passed: boolean) => {
@@ -274,11 +293,18 @@ export default function ErrorLibraryPage() {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-2 mt-3">
+                  <div className="flex items-center gap-2 mt-3 flex-wrap">
                     <div className="flex items-center gap-1.5 flex-1 text-[#64748B]">
                       <Shield size={13} className="text-[#00305E]" />
                       <span className="text-xs font-semibold">Lỗi ngữ pháp đã ghi nhận</span>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => void handleAiPractice(err)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 active:scale-95"
+                    >
+                      <Brain size={12} /> Luyện AI
+                    </button>
                     <button
                       type="button"
                       onClick={() => handleRepair(err)}
@@ -315,6 +341,53 @@ export default function ErrorLibraryPage() {
         exampleCorrectDe={activeDrillError?.sampleCorrected}
         ruleViShort={activeDrillError?.ruleViShort}
       />
+
+      {/* AI Practice slide panel */}
+      <AnimatePresence>
+        {aiPracticeError && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 px-4"
+            onClick={() => { setAiPracticeError(null); setAiPracticeResult(null); }}
+          >
+            <motion.div
+              initial={{ y: 60, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 60, opacity: 0 }}
+              className="bg-white rounded-3xl p-5 w-full max-w-lg max-h-[80vh] overflow-y-auto shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="font-bold text-[#0F172A]">Luyện sửa lỗi AI 🤖</p>
+                  <p className="text-xs text-[#94A3B8] font-mono">{aiPracticeError.errorCode}</p>
+                </div>
+                <button type="button" onClick={() => { setAiPracticeError(null); setAiPracticeResult(null); }}
+                  className="p-1.5 rounded-lg hover:bg-[#F1F5F9]">
+                  <X size={16} className="text-[#94A3B8]" />
+                </button>
+              </div>
+
+              {aiPracticeLoading ? (
+                <div className="flex items-center justify-center py-10 gap-3">
+                  <Loader2 size={22} className="animate-spin text-purple-500" />
+                  <span className="text-sm text-[#64748B]">AI đang tạo bài luyện...</span>
+                </div>
+              ) : aiPracticeResult ? (
+                <div className="space-y-3">
+                  {aiPracticeResult.split(/\n(?=\d+\.)/).filter(Boolean).map((block, i) => (
+                    <div key={i} className="bg-[#F8FAFC] rounded-2xl p-4 border border-[#E2E8F0]">
+                      <pre className="text-sm text-[#0F172A] whitespace-pre-wrap font-sans leading-relaxed">{block.trim()}</pre>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </StudentShell>
   )
 }
