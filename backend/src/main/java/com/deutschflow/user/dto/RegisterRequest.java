@@ -11,6 +11,11 @@ public record RegisterRequest(
         @NotBlank(message = "Email is required")
         String email,
 
+        @NotBlank(message = "Số điện thoại không được để trống")
+        @Pattern(regexp = "^0[35789]\\d{8}$",
+                message = "Số điện thoại không hợp lệ (VD: 0912345678, phải là số VN 10 chữ số)")
+        String phoneNumber,
+
         @NotBlank(message = "Password is required")
         @Size(min = 6, max = 100, message = "Password must be between 6 and 100 characters")
         String password,

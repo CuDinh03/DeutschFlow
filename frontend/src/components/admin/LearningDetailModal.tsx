@@ -57,45 +57,173 @@ function SectionCard({ children, title, icon }: { children: React.ReactNode; tit
   );
 }
 
-function ProfileTab({ d }: { d: LearningDetail }) {
+type EditProfileForm = {
+  goalType: string; targetLevel: string; currentLevel: string;
+  learningSpeed: string; industry: string;
+  sessionsPerWeek: string; minutesPerSession: string;
+};
+
+function ProfileTab({ d, userId, onSaved }: { d: LearningDetail; userId: number; onSaved: () => void }) {
   const p = d.learningProfile;
-  if (p.notConfigured) return <p className="text-sm italic" style={{ color: P.muted }}>Người dùng chưa thiết lập hồ sơ học tập.</p>;
-  const rows: [string, unknown][] = [
-    ["Mục tiêu", p.goalType === "WORK" ? "Công việc" : p.goalType === "CERT" ? "Lấy chứng chỉ" : String(p.goalType ?? "—")],
-    ["Cấp độ hiện tại", p.currentLevel ?? "—"],
-    ["Cấp độ mục tiêu", p.targetLevel ?? "—"],
-    ["Ngành nghề", p.industry ?? "—"],
-    ["Kỳ thi", p.examType ?? "—"],
-    ["Buổi/tuần", p.sessionsPerWeek ?? "—"],
-    ["Phút/buổi", p.minutesPerSession ?? "—"],
-    ["Tốc độ học", p.learningSpeed === "SLOW" ? "Chậm" : p.learningSpeed === "FAST" ? "Nhanh" : "Bình thường"],
-    ["Độ tuổi", String(p.ageRange ?? "—").replace("_", " ")],
-  ];
-  const interests = Array.isArray(p.interests) ? (p.interests as string[]) : [];
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState('');
+  const [form, setForm] = useState<EditProfileForm>({
+    goalType: String(p.goalType ?? 'WORK'),
+    targetLevel: String(p.targetLevel ?? 'B1'),
+    currentLevel: String(p.currentLevel ?? 'A0'),
+    learningSpeed: String(p.learningSpeed ?? 'NORMAL'),
+    industry: String(p.industry ?? ''),
+    sessionsPerWeek: String(p.sessionsPerWeek ?? '3'),
+    minutesPerSession: String(p.minutesPerSession ?? '30'),
+  });
+
+  const fld = (key: keyof EditProfileForm) => (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) =>
+    setForm(f => ({ ...f, [key]: e.target.value }));
+
+  const handleSave = async () => {
+    setSaving(true); setSaveErr('');
+    try {
+      await api.put(`/admin/users/${userId}/learning-profile`, {
+        goalType: form.goalType,
+        targetLevel: form.targetLevel,
+        currentLevel: form.currentLevel,
+        learningSpeed: form.learningSpeed,
+        industry: form.industry || null,
+        sessionsPerWeek: Number(form.sessionsPerWeek),
+        minutesPerSession: Number(form.minutesPerSession),
+      });
+      setEditing(false);
+      onSaved();
+    } catch (e) {
+      setSaveErr(apiMessage(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const selCls = 'w-full rounded-[8px] border px-2 py-1.5 text-xs font-medium outline-none focus:ring-2';
+  const selStyle = { borderColor: P.border, background: P.white, color: P.text };
+
+  if (editing) {
+    return (
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <p className="text-[10px] font-bold mb-1" style={{ color: P.muted }}>MỤC TIÊU</p>
+            <select value={form.goalType} onChange={fld('goalType')} className={selCls} style={selStyle}>
+              <option value="WORK">💼 Công việc</option>
+              <option value="CERT">📜 Lấy chứng chỉ</option>
+            </select>
+          </div>
+          <div>
+            <p className="text-[10px] font-bold mb-1" style={{ color: P.muted }}>TỐC ĐỘ HỌC</p>
+            <select value={form.learningSpeed} onChange={fld('learningSpeed')} className={selCls} style={selStyle}>
+              <option value="SLOW">🐢 Chậm</option>
+              <option value="NORMAL">🚶 Bình thường</option>
+              <option value="FAST">🚀 Nhanh</option>
+            </select>
+          </div>
+          <div>
+            <p className="text-[10px] font-bold mb-1" style={{ color: P.muted }}>CẤP ĐỘ HIỆN TẠI</p>
+            <select value={form.currentLevel} onChange={fld('currentLevel')} className={selCls} style={selStyle}>
+              {['A0','A1','A2','B1','B2','C1','C2'].map(l => <option key={l}>{l}</option>)}
+            </select>
+          </div>
+          <div>
+            <p className="text-[10px] font-bold mb-1" style={{ color: P.muted }}>MỤC TIÊU CẤP ĐỘ</p>
+            <select value={form.targetLevel} onChange={fld('targetLevel')} className={selCls} style={selStyle}>
+              {['A1','A2','B1','B2','C1','C2'].map(l => <option key={l}>{l}</option>)}
+            </select>
+          </div>
+          <div>
+            <p className="text-[10px] font-bold mb-1" style={{ color: P.muted }}>BUỔI/TUẦN</p>
+            <input type="number" min={1} max={14} value={form.sessionsPerWeek} onChange={fld('sessionsPerWeek')}
+              className={selCls} style={selStyle} />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold mb-1" style={{ color: P.muted }}>PHÚT/BUỔI</p>
+            <input type="number" min={10} max={180} value={form.minutesPerSession} onChange={fld('minutesPerSession')}
+              className={selCls} style={selStyle} />
+          </div>
+        </div>
+        <div>
+          <p className="text-[10px] font-bold mb-1" style={{ color: P.muted }}>NGÀNH NGHỀ</p>
+          <input type="text" value={form.industry} onChange={fld('industry')} placeholder="IT, MEDICINE, EDUCATION..."
+            className={selCls} style={selStyle} />
+        </div>
+        {saveErr && <p className="text-xs font-medium" style={{ color: P.red }}>{saveErr}</p>}
+        <div className="flex gap-2 pt-1">
+          <button onClick={handleSave} disabled={saving}
+            className="flex-1 py-2 rounded-[10px] text-xs font-bold transition-opacity"
+            style={{ background: P.navy, color: P.white, opacity: saving ? 0.6 : 1 }}>
+            {saving ? 'Đang lưu…' : '💾 Lưu hồ sơ'}
+          </button>
+          <button onClick={() => { setEditing(false); setSaveErr(''); }}
+            className="px-4 py-2 rounded-[10px] text-xs font-bold"
+            style={{ background: P.bg, color: P.muted, border: `1px solid ${P.border}` }}>
+            Hủy
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        <Stat label="Cấp hiện tại" value={String(p.currentLevel ?? "—")} color={P.blue} />
-        <Stat label="Mục tiêu" value={String(p.targetLevel ?? "—")} color={P.green} />
-        <Stat label="Tốc độ" value={p.learningSpeed === "SLOW" ? "Chậm" : p.learningSpeed === "FAST" ? "Nhanh" : "TB"} color={P.orange} />
-      </div>
-      <div className="overflow-x-auto rounded-[10px] border" style={{ borderColor: P.border }}>
-        <table className="w-full text-xs">
-          <tbody>{rows.map(([k, v], i) => (
-            <tr key={k} style={{ background: i % 2 === 0 ? P.white : "#FAFCFF" }}>
-              <td className="px-3 py-2 font-semibold" style={{ color: P.muted }}>{k}</td>
-              <td className="px-3 py-2 font-bold" style={{ color: P.text }}>{String(v)}</td>
-            </tr>
-          ))}</tbody>
-        </table>
-      </div>
-      {interests.length > 0 && (
-        <div>
-          <p className="text-[10px] font-bold uppercase mb-1.5" style={{ color: P.muted }}>Sở thích</p>
-          <div className="flex flex-wrap gap-1.5">{interests.map(i => (
-            <span key={i} className="px-2 py-1 rounded-full text-[10px] font-bold" style={{ background: P.purpleLt, color: P.purple }}>{i}</span>
-          ))}</div>
+      {p.notConfigured ? (
+        <div className="rounded-[14px] p-5 text-center" style={{ border: `2px dashed ${P.border}` }}>
+          <p className="text-sm font-medium mb-1" style={{ color: P.muted }}>Người dùng chưa thiết lập hồ sơ học tập.</p>
+          <p className="text-xs mb-3" style={{ color: P.muted }}>Admin có thể tạo hồ sơ thay cho người dùng.</p>
+          <button onClick={() => setEditing(true)}
+            className="px-4 py-2 rounded-[10px] text-xs font-bold"
+            style={{ background: P.navy, color: P.white }}>
+            ✏️ Tạo hồ sơ học tập
+          </button>
         </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <Stat label="Cấp hiện tại" value={String(p.currentLevel ?? '—')} color={P.blue} />
+            <Stat label="Mục tiêu" value={String(p.targetLevel ?? '—')} color={P.green} />
+            <Stat label="Tốc độ" value={p.learningSpeed === 'SLOW' ? 'Chậm' : p.learningSpeed === 'FAST' ? 'Nhanh' : 'TB'} color={P.orange} />
+          </div>
+          <div className="overflow-x-auto rounded-[10px] border" style={{ borderColor: P.border }}>
+            <table className="w-full text-xs">
+              <tbody>{[
+                ['Mục tiêu', p.goalType === 'WORK' ? 'Công việc' : p.goalType === 'CERT' ? 'Lấy chứng chỉ' : String(p.goalType ?? '—')],
+                ['Cấp độ hiện tại', p.currentLevel ?? '—'],
+                ['Cấp độ mục tiêu', p.targetLevel ?? '—'],
+                ['Ngành nghề', p.industry ?? '—'],
+                ['Kỳ thi', p.examType ?? '—'],
+                ['Buổi/tuần', p.sessionsPerWeek ?? '—'],
+                ['Phút/buổi', p.minutesPerSession ?? '—'],
+                ['Tốc độ học', p.learningSpeed === 'SLOW' ? 'Chậm' : p.learningSpeed === 'FAST' ? 'Nhanh' : 'Bình thường'],
+                ['Độ tuổi', String(p.ageRange ?? '—').replace('_', ' ')],
+              ].map(([k, v], i) => (
+                <tr key={String(k)} style={{ background: i % 2 === 0 ? P.white : '#FAFCFF' }}>
+                  <td className="px-3 py-2 font-semibold" style={{ color: P.muted }}>{k}</td>
+                  <td className="px-3 py-2 font-bold" style={{ color: P.text }}>{String(v)}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+          {Array.isArray(p.interests) && (p.interests as string[]).length > 0 && (
+            <div>
+              <p className="text-[10px] font-bold uppercase mb-1.5" style={{ color: P.muted }}>Sở thích</p>
+              <div className="flex flex-wrap gap-1.5">{(p.interests as string[]).map(i => (
+                <span key={i} className="px-2 py-1 rounded-full text-[10px] font-bold" style={{ background: '#F4EDFF', color: P.purple }}>{i}</span>
+              ))}</div>
+            </div>
+          )}
+          <div className="flex justify-end pt-1">
+            <button onClick={() => setEditing(true)}
+              className="px-4 py-2 rounded-[10px] text-xs font-bold transition-all hover:opacity-80"
+              style={{ background: P.navyLt, color: P.navy, border: `1px solid ${P.navy}30` }}>
+              ✏️ Chỉnh sửa hồ sơ
+            </button>
+          </div>
+        </>
       )}
     </div>
   );
@@ -347,7 +475,13 @@ export default function LearningDetailModal({ userId, userName, onClose }: { use
           {error && <p className="text-sm text-center py-8" style={{ color: P.red }}>{error}</p>}
           {detail && !loading && (
             <>
-              {tab === "profile" && <ProfileTab d={detail} />}
+              {tab === "profile" && <ProfileTab d={detail} userId={userId} onSaved={() => {
+                setDetail(null); setLoading(true); setError(null);
+                api.get(`/admin/users/${userId}/learning-detail`, { timeout: 8000 })
+                  .then(r => setDetail(r.data))
+                  .catch(e => setError(apiMessage(e)))
+                  .finally(() => setLoading(false));
+              }} />}
               {tab === "xp" && <XpTab d={detail} />}
               {tab === "speaking" && <SpeakingTab d={detail} />}
               {tab === "vocab" && <VocabTab d={detail} />}

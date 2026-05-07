@@ -13,7 +13,7 @@ type FieldErrors = Record<string, string>
 export default function RegisterPage() {
   const t = useTranslations('auth')
   const router = useRouter()
-  const [form, setForm] = useState({ email: '', password: '', displayName: '', locale: 'vi' })
+  const [form, setForm] = useState({ email: '', phoneNumber: '', password: '', displayName: '', locale: 'vi' })
   const [error, setError] = useState('')
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [loading, setLoading] = useState(false)
@@ -108,6 +108,32 @@ export default function RegisterPage() {
           <form onSubmit={handleSubmit} className="space-y-5">
             {field('displayName', t('displayName'), 'text', t('placeholderDisplayName'))}
             {field('email', t('email'), 'email', t('placeholderEmail'))}
+
+            {/* Phone number field — VN format */}
+            <div className="form-field">
+              <label className="label">Số điện thoại <span className="text-destructive">*</span></label>
+              <input
+                type="tel"
+                required
+                value={form.phoneNumber}
+                onChange={e => setForm(f => ({ ...f, phoneNumber: e.target.value }))}
+                className={`input ${fieldErrors['phoneNumber'] ? 'border-destructive focus:ring-destructive' : ''}`}
+                placeholder="0912345678"
+                maxLength={10}
+                pattern="^0[35789]\d{8}$"
+              />
+              {fieldErrors['phoneNumber'] ? (
+                <p className="form-error">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  {fieldErrors['phoneNumber']}
+                </p>
+              ) : (
+                <p className="form-help">Số VN 10 chữ số, bắt đầu bằng 03/05/07/08/09</p>
+              )}
+            </div>
+
             {field('password', t('password'), 'password', t('passwordHint'))}
             
             <div className="form-field">

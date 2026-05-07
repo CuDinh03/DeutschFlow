@@ -6,6 +6,7 @@ import com.deutschflow.common.telemetry.ApiTelemetryService;
 import com.deutschflow.common.config.VocabularyEnrichmentProperties;
 import com.deutschflow.common.quota.QuotaService;
 import com.deutschflow.common.quota.QuotaSnapshot;
+import com.deutschflow.admin.dto.AdminUpdateLearningProfileRequest;
 import com.deutschflow.gamification.service.XpService;
 import com.deutschflow.speaking.repository.UserErrorSkillRepository;
 import com.deutschflow.speaking.repository.UserGrammarErrorRepository;
@@ -942,6 +943,62 @@ public class AdminManagementService {
         out.put("vocabularySrs", vocab);
 
         return out;
+    }
+
+    // ── Admin Update Learning Profile ─────────────────────────────────────────
+
+    /**
+     * Upsert a user's learning profile from the admin panel.
+     * All fields are optional — only non-null values will be applied.
+     */
+    @Transactional
+    public Map<String, Object> adminUpdateLearningProfile(Long userId, AdminUpdateLearningProfileRequest req) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+
+        UserLearningProfile profile = learningProfileRepository.findByUserId(userId)
+                .orElseGet(() -> {
+                    // Create a minimal default profile
+                    return UserLearningProfile.builder()
+                            .user(user)
+                            .goalType(UserLearningProfile.GoalType.WORK)
+                            .targetLevel(UserLearningProfile.TargetLevel.B1)
+                            .currentLevel(UserLearningProfile.CurrentLevel.A0)
+                            .sessionsPerWeek(3)
+                            .minutesPerSession(30)
+                            .learningSpeed(UserLearningProfile.LearningSpeed.NORMAL)
+                            .build();
+                });
+
+        // Apply partial updates
+        if (req.goalType() != null)
+            profile.setGoalType(UserLearningProfile.GoalType.valueOf(req.goalType()));
+        if (req.targetLevel() != null)
+            profile.setTargetLevel(UserLearningProfile.TargetLevel.valueOf(req.targetLevel()));
+        if (req.currentLevel() != null)
+            profile.setCurrentLevel(UserLearningProfile.CurrentLevel.valueOf(req.currentLevel()));
+        if (req.learningSpeed() != null)
+            profile.setLearningSpeed(UserLearningProfile.LearningSpeed.valueOf(req.learningSpeed()));
+        if (req.industry() != null)
+            profile.setIndustry(req.industry());
+        if (req.sessionsPerWeek() != null)
+            profile.setSessionsPerWeek(req.sessionsPerWeek());
+        if (req.minutesPerSession() != null)
+            profile.setMinutesPerSession(req.minutesPerSession());
+
+        learningProfileRepository.save(profile);
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("success", true);
+        result.put("userId", userId);
+        result.put("goalType", profile.getGoalType().name());
+        result.put("targetLevel", profile.getTargetLevel().name());
+        result.put("currentLevel", profile.getCurrentLevel().name());
+        result.put("learningSpeed", profile.getLearningSpeed().name());
+        result.put("industry", profile.getIndustry());
+        result.put("sessionsPerWeek", profile.getSessionsPerWeek());
+        result.put("minutesPerSession", profile.getMinutesPerSession());
+        return result;
     }
 }
 

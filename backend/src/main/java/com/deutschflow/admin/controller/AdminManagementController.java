@@ -1,6 +1,7 @@
 package com.deutschflow.admin.controller;
 
 import com.deutschflow.admin.service.AdminManagementService;
+import com.deutschflow.admin.dto.AdminUpdateLearningProfileRequest;
 import com.deutschflow.notification.service.UserNotificationService;
 import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.vocabulary.service.DeepLLemmaBackfillService;
@@ -246,6 +247,14 @@ public class AdminManagementController {
     @GetMapping("/users/{userId}/learning-detail")
     public Map<String, Object> userLearningDetail(@PathVariable Long userId) {
         return adminManagementService.userLearningDetail(userId);
+    }
+
+    @PutMapping("/users/{userId}/learning-profile")
+    public Map<String, Object> updateLearningProfile(
+            @PathVariable Long userId,
+            @RequestBody @Valid AdminUpdateLearningProfileRequest request
+    ) {
+        return adminManagementService.adminUpdateLearningProfile(userId, request);
     }
 
     @PostMapping("/vocabulary/glosbe-vi/enrich/batch")

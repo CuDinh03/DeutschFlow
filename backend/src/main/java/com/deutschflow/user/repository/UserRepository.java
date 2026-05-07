@@ -11,6 +11,7 @@ import java.util.Optional;
 public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmail(String email);
     boolean existsByEmail(String email);
+    boolean existsByPhoneNumber(String phoneNumber);
 
     @Query(value = "SELECT id FROM users WHERE role = :role AND is_active IS TRUE ORDER BY id ASC",
             nativeQuery = true)

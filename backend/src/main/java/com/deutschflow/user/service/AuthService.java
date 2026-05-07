@@ -49,7 +49,11 @@ public class AuthService {
     @Transactional
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.email())) {
-            throw new BadRequestException("Email already in use");
+            throw new BadRequestException("Email này đã được đăng ký, vui lòng dùng email khác.");
+        }
+        if (request.phoneNumber() != null && !request.phoneNumber().isBlank()
+                && userRepository.existsByPhoneNumber(request.phoneNumber())) {
+            throw new BadRequestException("Số điện thoại này đã được đăng ký, vui lòng dùng số khác.");
         }
 
         // locale đã được validate bởi @Pattern trong DTO, default về vi nếu null
@@ -59,6 +63,7 @@ public class AuthService {
 
         var user = User.builder()
                 .email(request.email())
+                .phoneNumber(request.phoneNumber())
                 .passwordHash(passwordEncoder.encode(request.password()))
                 .displayName(request.displayName())
                 .role(User.Role.STUDENT)
