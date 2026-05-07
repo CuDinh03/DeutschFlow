@@ -16,7 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
-class QuotaExceededHandlerTest extends AbstractPostgresIntegrationTest {
+class QuotaExceededHandlerIntegrationTest extends AbstractPostgresIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;

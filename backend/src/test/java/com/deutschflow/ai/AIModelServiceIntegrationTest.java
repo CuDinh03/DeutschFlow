@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @SpringBootTest
 @ActiveProfiles("test")
 @Disabled("Requires AI server to be running - enable manually for integration testing")
-class AIModelServiceTest {
+class AIModelServiceIntegrationTest {
     
     @Autowired
     private AIModelService aiModelService;

@@ -20,7 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest(properties = {
         "app.speaking.adaptive.enabled=true"
 })
-class TurnEvaluatorCooldownTest extends AbstractPostgresIntegrationTest {
+class TurnEvaluatorCooldownIntegrationTest extends AbstractPostgresIntegrationTest {
 
     @Autowired TurnEvaluatorService turnEvaluatorService;
     @Autowired SpeakingUserStateRepository stateRepository;

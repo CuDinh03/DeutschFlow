@@ -1,16 +1,34 @@
 package com.deutschflow.speaking.ai;
 
 import com.deutschflow.speaking.persona.SpeakingPersona;
+import com.deutschflow.system.service.SystemConfigService;
 import com.deutschflow.user.entity.UserLearningProfile;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 
 class SystemPromptBuilderPersonaTest {
 
-    private final SystemPromptBuilder builder = new SystemPromptBuilder();
+    @Mock
+    private SystemConfigService systemConfigService;
+
+    private SystemPromptBuilder builder;
+
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+        // Return default base prompt for any getString() call
+        lenient().when(systemConfigService.getString(anyString(), anyString()))
+                .thenAnswer(inv -> inv.getArgument(1));
+        builder = new SystemPromptBuilder(systemConfigService);
+    }
 
     private static UserLearningProfile minimalProfile() {
         return UserLearningProfile.builder()

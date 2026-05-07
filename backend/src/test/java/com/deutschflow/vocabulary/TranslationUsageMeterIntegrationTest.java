@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
 @EnabledIf("com.deutschflow.testsupport.TestcontainersPostgresConditions#integrationPostgresAvailable")
-class TranslationUsageMeterTest extends AbstractPostgresIntegrationTest {
+class TranslationUsageMeterIntegrationTest extends AbstractPostgresIntegrationTest {
 
     private static final String PROVIDER = "USAGE_METER_IT";
     private static final YearMonth YM = YearMonth.of(2030, 4);

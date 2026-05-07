@@ -14,7 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
 @Transactional
-class OfficialCefrVocabularyImportServiceTest extends AbstractPostgresIntegrationTest {
+class OfficialCefrVocabularyImportServiceIntegrationTest extends AbstractPostgresIntegrationTest {
 
     @Autowired
     private OfficialCefrVocabularyImportService officialCefrVocabularyImportService;
