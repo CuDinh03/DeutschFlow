@@ -61,11 +61,19 @@ export default function useAdminData<T>({
         router.push('/login')
         return
       }
+      const status = httpStatus(e)
       const detail = apiMessage(e)
+      // Map technical errors to friendly Vietnamese messages
+      const friendlyMsg =
+        status === 502 || status === 503
+          ? 'Backend đang khởi động lại, vui lòng thử lại sau ít phút.'
+          : status === 504 || (e instanceof Error && e.message?.includes('timeout'))
+          ? 'Kết nối quá thời gian, vui lòng thử lại.'
+          : detail || errorMessageRef.current
       setError(
-        detail && !detail.includes(errorMessageRef.current)
-          ? `${errorMessageRef.current} — ${detail}`
-          : detail || errorMessageRef.current,
+        friendlyMsg !== errorMessageRef.current
+          ? `${errorMessageRef.current} — ${friendlyMsg}`
+          : friendlyMsg,
       )
     } finally {
       if (!silent) setLoading(false)

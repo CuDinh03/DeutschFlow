@@ -13,8 +13,20 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: 'DeutschFlow',
-  description: 'Learn German with color-coded grammar and AI',
+  title: 'DeutschFlow — Learn German with AI',
+  description: 'Learn German with color-coded grammar, AI speaking coach, and spaced repetition',
+  icons: {
+    icon: [
+      { url: '/favicon.png', type: 'image/png' },
+    ],
+    shortcut: '/favicon.png',
+    apple: '/favicon.png',
+  },
+  openGraph: {
+    title: 'DeutschFlow',
+    description: 'Learn German with AI',
+    images: ['/favicon.png'],
+  },
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

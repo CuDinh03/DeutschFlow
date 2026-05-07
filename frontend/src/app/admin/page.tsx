@@ -34,7 +34,7 @@ export default function AdminOverviewPage() {
       initialData: null,
       errorMessage: t('error'),
       fetchData: async () => {
-        const res = await api.get('/admin/reports/overview')
+        const res = await api.get('/admin/reports/overview', { timeout: 8000 })
         return res.data as Overview
       },
     })
