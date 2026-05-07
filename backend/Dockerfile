@@ -39,10 +39,6 @@ EXPOSE 8080
 
 # JVM tuning cho container:
 # -XX:MaxRAMPercentage=75  => Chỉ dùng 75% RAM của container (an toàn cho t3.medium 4GB)
-# -XX:+UseContainerSupport => Nhận diện giới hạn RAM từ Docker cgroup
-# -Djava.security.egd=... => Tăng tốc khởi động bằng cách dùng /dev/urandom (không block)
-ENTRYPOINT ["java", \
-  "-XX:+UseContainerSupport", \
-  "-XX:MaxRAMPercentage=75.0", \
-  "-Djava.security.egd=file:/dev/./urandom", \
-  "-jar", "app.jar"]
+# -XX:+UseContainerSupport => Nhận diện giới hạn RAM từ Docker cgroup (cần kết hợp --memory trong docker run)
+# -Djava.security.egd=... => Tăng tốc khởi động bằng cách dùng /dev/urandom
+ENTRYPOINT ["sh", "-c", "java -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Djava.security.egd=file:/dev/./urandom $JAVA_OPTS -jar app.jar \"$@\""]

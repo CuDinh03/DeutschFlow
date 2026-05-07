@@ -59,9 +59,10 @@ sudo docker rm -f deutschflow-backend
 # Rebuild image với code mới (bỏ qua tests vì đã test local)
 sudo docker build -t deutschflow-backend:latest ./backend
 
-# Chạy container mới với env production
+# Chạy container mới với env production (Giới hạn RAM 1200MB để tránh sập EC2)
 sudo docker run -d \
   --name deutschflow-backend \
+  --memory="1200m" \
   --env-file /home/ubuntu/DeutschFlow/.env.production \
   -p 8080:8080 \
   --restart unless-stopped \
@@ -119,6 +120,7 @@ ssh -i "$PEM" -o StrictHostKeyChecking=no "$EC2" << 'ENDSSH'
   sudo docker rm -f deutschflow-backend 2>/dev/null || true
   sudo docker run -d \
     --name deutschflow-backend \
+    --memory="1200m" \
     --env-file /home/ubuntu/DeutschFlow/.env.production \
     -p 8080:8080 \
     --restart unless-stopped \
