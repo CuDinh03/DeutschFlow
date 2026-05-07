@@ -781,59 +781,54 @@ public class AdminManagementService {
             xp.put("level", summary.level());
             xp.put("progressInLevel", summary.progressInLevel());
             xp.put("xpNeededForNext", summary.xpNeededForNext());
-            xp.put("achievementsUnlocked", summary.allAchievements() != null
-                    ? summary.allAchievements().stream().filter(a -> a.unlocked()).count() : 0);
-            xp.put("achievementsTotal", summary.allAchievements() != null ? summary.allAchievements().size() : 0);
+            var allAch = summary.allAchievements();
+            if (allAch != null) {
+                xp.put("achievementsUnlocked", allAch.stream().filter(a -> a.unlocked()).count());
+                xp.put("achievementsTotal", allAch.size());
+                // Full achievement list with details for admin display
+                xp.put("achievements", allAch.stream().map(a -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("code", a.code());
+                    m.put("nameVi", a.nameVi());
+                    m.put("descriptionVi", a.descriptionVi());
+                    m.put("iconEmoji", a.iconEmoji());
+                    m.put("xpReward", a.xpReward());
+                    m.put("rarity", a.rarity());
+                    m.put("unlocked", a.unlocked());
+                    return m;
+                }).toList());
+            } else {
+                xp.put("achievementsUnlocked", 0);
+                xp.put("achievementsTotal", 0);
+                xp.put("achievements", List.of());
+            }
         } catch (Exception e) {
             xp.put("error", "Failed to load XP: " + e.getMessage());
+            xp.put("achievements", List.of());
         }
         out.put("xpGamification", xp);
 
         // ── 3. Streak ──
         Map<String, Object> streak = new LinkedHashMap<>();
         try {
-            Integer streakDays = jdbcTemplate.queryForObject("""
-                    WITH completion_dates AS (
-                        SELECT DISTINCT DATE(completed_at) AS d
-                        FROM learning_session_progress
-                        WHERE user_id = ? AND status = 'COMPLETED' AND completed_at IS NOT NULL
-                    )
-                    SELECT COUNT(*) FROM (
-                        SELECT d, d - ROW_NUMBER() OVER (ORDER BY d) * INTERVAL '1 day' AS grp
-                        FROM completion_dates
-                    ) sub
-                    WHERE grp = (
-                        SELECT d - ROW_NUMBER() OVER (ORDER BY d) * INTERVAL '1 day'
-                        FROM completion_dates
-                        WHERE d >= CURRENT_DATE - INTERVAL '1 day'
-                        ORDER BY d DESC
-                        LIMIT 1
-                    )
-                    """, Integer.class, userId);
-            streak.put("currentStreak", streakDays != null ? streakDays : 0);
-        } catch (Exception e) {
-            // Fallback: simpler counting
-            try {
-                Integer simpleDays = jdbcTemplate.queryForObject("""
-                        SELECT COUNT(DISTINCT DATE(completed_at))
-                        FROM learning_session_progress
-                        WHERE user_id = ? AND status = 'COMPLETED' AND completed_at IS NOT NULL
-                          AND completed_at >= CURRENT_DATE - INTERVAL '30 days'
-                        """, Integer.class, userId);
-                streak.put("currentStreak", simpleDays != null ? simpleDays : 0);
-                streak.put("note", "simplified_30d_count");
-            } catch (Exception e2) {
-                streak.put("currentStreak", 0);
-            }
-        }
-
-        try {
+            // Simplified: count distinct days in last 90 days where user completed a session
+            // The complex recursive CTE caused timeouts; this is fast enough for admin view
             Integer totalCompletedSessions = jdbcTemplate.queryForObject(
                     "SELECT COUNT(*) FROM learning_session_progress WHERE user_id = ? AND status = 'COMPLETED'",
                     Integer.class, userId);
+            Integer recentDays = jdbcTemplate.queryForObject("""
+                    SELECT COUNT(DISTINCT DATE(completed_at))
+                    FROM learning_session_progress
+                    WHERE user_id = ? AND status = 'COMPLETED'
+                      AND completed_at IS NOT NULL
+                      AND completed_at >= CURRENT_DATE - INTERVAL '90 days'
+                    """, Integer.class, userId);
+            streak.put("currentStreak", recentDays != null ? recentDays : 0);
             streak.put("totalCompletedSessions", totalCompletedSessions != null ? totalCompletedSessions : 0);
         } catch (Exception e) {
+            streak.put("currentStreak", 0);
             streak.put("totalCompletedSessions", 0);
+            streak.put("error", e.getMessage());
         }
         out.put("streak", streak);
 

@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import api, { apiMessage } from "@/lib/api";
-import { BookOpen, Brain, Flame, Mic, Star, Target, Trophy, X } from "lucide-react";
+import api, { apiMessage, isAxiosErr } from "@/lib/api";
+import { BookOpen, Brain, Flame, Lock, Mic, Star, Target, Trophy, Unlock, X } from "lucide-react";
+import { CompleteBauhausLogo } from "@/components/BauhausLogo";
 
 const P = {
   navy: "#00305E", navyLt: "#EBF2FA", blue: "#2D9CDB", blueLt: "#EBF5FB",
@@ -12,9 +13,14 @@ const P = {
   muted: "#64748B", border: "#E2E8F0",
 };
 
+type AchievementItem = {
+  code: string; nameVi: string; descriptionVi: string;
+  iconEmoji: string; xpReward: number; rarity: string; unlocked: boolean;
+};
+
 type LearningDetail = {
   learningProfile: Record<string, unknown>;
-  xpGamification: Record<string, unknown>;
+  xpGamification: Record<string, unknown> & { achievements?: AchievementItem[] };
   streak: Record<string, unknown>;
   speakingAi: Record<string, unknown>;
   vocabularySrs: Record<string, unknown>;
@@ -95,6 +101,13 @@ function ProfileTab({ d }: { d: LearningDetail }) {
   );
 }
 
+const RARITY_STYLE: Record<string, { bg: string; color: string; label: string }> = {
+  COMMON:    { bg: '#F1F5F9', color: '#64748B', label: 'Thường' },
+  RARE:      { bg: '#EFF6FF', color: '#2D9CDB', label: 'Hiếm' },
+  EPIC:      { bg: '#F4EDFF', color: '#9B51E0', label: 'Epic' },
+  LEGENDARY: { bg: '#FFF8E1', color: '#F59E0B', label: 'Huyền thoại' },
+};
+
 function XpTab({ d }: { d: LearningDetail }) {
   const xp = d.xpGamification;
   const s = d.streak;
@@ -103,6 +116,9 @@ function XpTab({ d }: { d: LearningDetail }) {
   const progress = Number(xp.progressInLevel ?? 0);
   const needed = Number(xp.xpNeededForNext ?? 100);
   const pct = needed > 0 ? Math.min(100, Math.round((progress / needed) * 100)) : 0;
+  const achievements: AchievementItem[] = Array.isArray(xp.achievements) ? xp.achievements : [];
+  const unlocked = achievements.filter(a => a.unlocked);
+  const locked = achievements.filter(a => !a.unlocked);
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -119,13 +135,60 @@ function XpTab({ d }: { d: LearningDetail }) {
           <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${P.blue}, ${P.purple})` }} />
         </div>
       </SectionCard>
-      <SectionCard title="Thành tựu" icon={<Trophy size={14} style={{ color: P.orange }} />}>
-        <div className="flex items-center gap-4 text-sm">
-          <span className="font-black" style={{ color: P.green }}>{fmt(Number(xp.achievementsUnlocked ?? 0))}</span>
-          <span style={{ color: P.muted }}>/</span>
-          <span className="font-bold" style={{ color: P.text }}>{fmt(Number(xp.achievementsTotal ?? 0))}</span>
-          <span className="text-[10px]" style={{ color: P.muted }}>đã mở khóa</span>
-        </div>
+
+      <SectionCard title={`Thành tựu — ${unlocked.length} / ${achievements.length > 0 ? achievements.length : (xp.achievementsTotal ?? 14)} đã mở khóa`} icon={<Trophy size={14} style={{ color: P.orange }} />}>
+        {achievements.length === 0 ? (
+          <p className="text-xs italic" style={{ color: P.muted }}>Đang tải dữ liệu thành tựu…</p>
+        ) : (
+          <div className="space-y-3">
+            {/* Unlocked */}
+            {unlocked.length > 0 && (
+              <div>
+                <p className="text-[10px] font-bold uppercase mb-2 flex items-center gap-1" style={{ color: P.green }}>
+                  <Unlock size={10} /> Đã mở khóa ({unlocked.length})
+                </p>
+                <div className="grid grid-cols-1 gap-1.5">
+                  {unlocked.map(a => {
+                    const rs = RARITY_STYLE[a.rarity] ?? RARITY_STYLE.COMMON;
+                    return (
+                      <div key={a.code} className="flex items-center gap-3 rounded-[10px] px-3 py-2" style={{ background: rs.bg, border: `1px solid ${rs.color}30` }}>
+                        <span className="text-xl leading-none">{a.iconEmoji}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold truncate" style={{ color: P.text }}>{a.nameVi}</p>
+                          <p className="text-[10px] truncate" style={{ color: P.muted }}>{a.descriptionVi}</p>
+                        </div>
+                        <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: rs.color + '20', color: rs.color }}>{rs.label}</span>
+                          <span className="text-[9px] font-bold" style={{ color: P.purple }}>+{a.xpReward} XP</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {/* Locked */}
+            {locked.length > 0 && (
+              <div>
+                <p className="text-[10px] font-bold uppercase mb-2 flex items-center gap-1" style={{ color: P.muted }}>
+                  <Lock size={10} /> Chưa mở ({locked.length})
+                </p>
+                <div className="grid grid-cols-1 gap-1.5">
+                  {locked.map(a => (
+                    <div key={a.code} className="flex items-center gap-3 rounded-[10px] px-3 py-2 opacity-50" style={{ background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                      <span className="text-xl leading-none grayscale">{a.iconEmoji}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold truncate" style={{ color: P.muted }}>{a.nameVi}</p>
+                        <p className="text-[10px] truncate" style={{ color: P.muted }}>{a.descriptionVi}</p>
+                      </div>
+                      <Lock size={12} style={{ color: P.muted, flexShrink: 0 }} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </SectionCard>
     </div>
   );
@@ -233,9 +296,17 @@ export default function LearningDetailModal({ userId, userName, onClose }: { use
     let cancel = false;
     setLoading(true);
     setError(null);
-    api.get(`/admin/users/${userId}/learning-detail`)
+    api.get(`/admin/users/${userId}/learning-detail`, { timeout: 8000 })
       .then(r => { if (!cancel) setDetail(r.data) })
-      .catch(e => { if (!cancel) setError(apiMessage(e)) })
+      .catch(e => {
+        if (!cancel) {
+          const isTimeout = isAxiosErr(e) && e.code === 'ECONNABORTED';
+          setError(isTimeout
+            ? 'Backend đang tải dữ liệu, vui lòng thử lại.'
+            : apiMessage(e)
+          );
+        }
+      })
       .finally(() => { if (!cancel) setLoading(false) });
     return () => { cancel = true };
   }, [userId]);
@@ -267,7 +338,12 @@ export default function LearningDetailModal({ userId, userName, onClose }: { use
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-5" style={{ background: P.bg }}>
-          {loading && <p className="text-sm animate-pulse text-center py-12" style={{ color: P.muted }}>Đang tải hồ sơ học tập...</p>}
+          {loading && (
+            <div className="flex flex-col items-center justify-center py-12 gap-4">
+              <CompleteBauhausLogo variant="icon-only" size={120} animated />
+              <p className="text-xs font-medium animate-pulse" style={{ color: P.muted }}>Đang tải hồ sơ học tập...</p>
+            </div>
+          )}
           {error && <p className="text-sm text-center py-8" style={{ color: P.red }}>{error}</p>}
           {detail && !loading && (
             <>
