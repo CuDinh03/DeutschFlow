@@ -212,6 +212,8 @@ export default function LegoGameScreen() {
     setChecked('idle')
     setShowHint(false)
     setValidatorErrors([])
+  // q is questions[index] — q?.id uniquely identifies the question; suppressing exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, q?.id])
 
   const resetQuestion = () => {

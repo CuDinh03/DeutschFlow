@@ -167,7 +167,7 @@ function SpeakingTab({ d }: { d: LearningDetail }) {
                   <td className="px-3 py-2 font-semibold" style={{ color: P.text }}>{String(e.errorCode ?? "—")}</td>
                   <td className="px-3 py-2" style={{ color: P.muted }}>
                     <span className="line-through text-red-400">{String(e.wrongSpan ?? "")}</span>
-                    {e.correctedSpan && <> → <span className="text-green-600 font-semibold">{String(e.correctedSpan)}</span></>}
+                    {e.correctedSpan != null && Boolean(e.correctedSpan) && <> → <span className="text-green-600 font-semibold">{String(e.correctedSpan)}</span></>}
                   </td>
                   <td className="px-3 py-2">
                     <span className="px-1.5 py-0.5 rounded text-[9px] font-bold" style={{
