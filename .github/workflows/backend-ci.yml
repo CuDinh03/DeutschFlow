@@ -88,7 +88,10 @@ jobs:
           path: backend/target/failsafe-reports/
           retention-days: 7
 
-  # ─── Stage 4: Auto Deploy to EC2 (main branch only) ──────────────
+  # ─── Stage 4: Auto Deploy to EC2 ────────────────────────────────
+  # Strategy: Self-hosted runner on EC2 (runner agent runs ON EC2, no inbound SSH needed)
+  # Setup: See DEPLOYMENT.md → "Setup Self-Hosted Runner" section
+  # Fallback: If runner not available, add EC2 SG rule: port 22 from 0.0.0.0/0
   deploy:
     name: 🚀 Deploy to EC2
     needs: unit-tests

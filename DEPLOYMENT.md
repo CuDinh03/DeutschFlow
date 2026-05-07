@@ -339,3 +339,77 @@ DeutschFlow/
 | 2026-05-07 | v1.0.1 | Fix `isActiveTrue→activeTrue` repository method | CuDinh03 |
 | 2026-05-07 | v1.0.2 | Fix Mockito varargs test mock | CuDinh03 |
 | 2026-05-07 | v1.0.3 | Fix amplify.yml build path | CuDinh03 |
+| 2026-05-07 | v1.1.0 | 20 CCU optimization: Tomcat/HikariCP/JVM/G1GC/Indexes | CuDinh03 |
+| 2026-05-07 | v1.2.0 | CI/CD restructure: auto-deploy, unit/integration split | CuDinh03 |
+
+---
+
+## 🤖 Setup Self-Hosted Runner trên EC2 (Cho CI Auto Deploy)
+
+Vấn đề: GitHub Actions không SSH được vào EC2 vì Security Group chặn port 22 từ IP động.
+Giải pháp: Cài **GitHub Actions self-hosted runner** trực tiếp trên EC2 — runner tự kết nối ra GitHub, không cần inbound SSH.
+
+### Bước 1: Lấy token trên GitHub
+
+```
+GitHub → DeutschFlow repo → Settings → Actions → Runners → "New self-hosted runner"
+Chọn: Linux / x64
+Copy lệnh "Configure" (có token)
+```
+
+### Bước 2: Cài runner trên EC2
+
+```bash
+ssh -i deutschflow-key.pem ubuntu@3.82.43.113
+
+# Tạo thư mục runner
+mkdir -p /home/ubuntu/actions-runner && cd /home/ubuntu/actions-runner
+
+# Download runner (kiểm tra version mới nhất tại github.com/actions/runner/releases)
+curl -o actions-runner-linux-x64-2.323.0.tar.gz -L \
+  https://github.com/actions/runner/releases/download/v2.323.0/actions-runner-linux-x64-2.323.0.tar.gz
+tar xzf ./actions-runner-linux-x64-2.323.0.tar.gz
+
+# Configure (dán lệnh từ GitHub với token)
+./config.sh --url https://github.com/CuDinh03/DeutschFlow \
+  --token <TOKEN_TỪ_GITHUB> \
+  --name "ec2-deutschflow" \
+  --labels "ec2,production" \
+  --unattended
+
+# Cài làm systemd service (auto-start khi EC2 reboot)
+sudo ./svc.sh install
+sudo ./svc.sh start
+sudo ./svc.sh status
+```
+
+### Bước 3: Cập nhật workflow để dùng self-hosted runner
+
+Sau khi runner online, đổi deploy job trong `backend-ci.yml`:
+```yaml
+deploy:
+  runs-on: [self-hosted, ec2]   # ← thay ubuntu-latest
+  steps:
+    - name: Pull & restart
+      run: |
+        cd /home/ubuntu/DeutschFlow
+        git pull origin main
+        sudo docker build -t deutschflow-backend:latest ./backend
+        sudo docker rm -f deutschflow-backend || true
+        sudo docker run -d --name deutschflow-backend \
+          --memory="1500m" --cpus="1.8" \
+          --env-file /home/ubuntu/DeutschFlow/.env.production \
+          -p 8080:8080 --restart unless-stopped \
+          deutschflow-backend:latest
+        sleep 45
+        curl -f http://localhost:8080/actuator/health
+```
+
+### Phương án thay thế: Mở port 22 từ 0.0.0.0/0
+
+Nếu không muốn cài runner, vào AWS Console:
+```
+EC2 → Security Groups → SG của EC2 → Inbound rules → Edit
+Add rule: SSH | TCP | Port 22 | Source: 0.0.0.0/0
+```
+> ⚠️ Key-based auth vẫn an toàn, nhưng self-hosted runner là giải pháp tốt hơn lâu dài.
