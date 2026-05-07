@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import api, { httpStatus, apiMessage } from '@/lib/api'
 
@@ -19,7 +19,7 @@ export default function TeacherClassesPage() {
   const [newName, setNewName] = useState('')
   const [studentEmail, setStudentEmail] = useState<Record<number, string>>({})
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
@@ -39,11 +39,11 @@ export default function TeacherClassesPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [router])
 
   useEffect(() => {
     load()
-  }, [])
+  }, [load])
 
   const createClass = async () => {
     if (!newName.trim()) return

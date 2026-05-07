@@ -111,7 +111,9 @@ export default function AIChatInterface() {
     };
   }, [messages, streamStatus, suggestionDelayMs]);
 
-  if (!selectedCompanion) return null;
+
+  // NOTE: selectedCompanion guard moved below all hooks to satisfy rules-of-hooks
+  // (useCallback + useEffect must be called unconditionally every render)
 
   // ─── Handle Send Message ───────────────────────────────────
   const handleSendMessage = async (e?: React.FormEvent) => {
@@ -197,6 +199,8 @@ export default function AIChatInterface() {
   };
 
   // ─── Handle Speak (TTS replay) ─────────────────────────────
+  // NOTE: useCallback placed here (after all other hooks) — selectedCompanion
+  // guard is already enforced by the early return above, so hook order is stable
   const handleSpeak = useCallback(
     (text: string) => {
       // Find message id matching this text
@@ -264,6 +268,9 @@ export default function AIChatInterface() {
       stopSpeaking();
     };
   }, [stopListening, stopSpeaking]);
+
+  // Guard: if no companion selected, redirect was already triggered by useEffect above
+  if (!selectedCompanion) return null;
 
   // ─── SUMMARY VIEW ──────────────────────────────────────────
   if (viewMode === "summary") {

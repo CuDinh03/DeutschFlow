@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import api, { httpStatus, apiMessage } from '@/lib/api'
 import { clearTokens, logout } from '@/lib/authSession'
@@ -14,7 +14,7 @@ export default function TeacherPage() {
   const [quizzes, setQuizzes] = useState<any[]>([])
   const [name, setName] = useState('')
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
@@ -40,11 +40,11 @@ export default function TeacherPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [router])
 
   useEffect(() => {
     load()
-  }, [])
+  }, [load])
 
   const handleLogout = () => {
     clearTokens()

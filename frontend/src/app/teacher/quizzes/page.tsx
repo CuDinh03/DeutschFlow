@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import api, { httpStatus, apiMessage } from '@/lib/api'
 
@@ -25,7 +25,7 @@ export default function TeacherQuizzesPage() {
   const [choiceA, setChoiceA] = useState<Record<number, string>>({})
   const [choiceB, setChoiceB] = useState<Record<number, string>>({})
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
@@ -45,11 +45,11 @@ export default function TeacherQuizzesPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [router])
 
   useEffect(() => {
     load()
-  }, [])
+  }, [load])
 
   const createQuiz = async () => {
     if (!title.trim()) return

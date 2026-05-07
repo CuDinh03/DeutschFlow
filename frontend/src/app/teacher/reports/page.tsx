@@ -32,7 +32,7 @@ export default function TeacherReportsPage() {
         setLoading(false)
       }
     })()
-  }, [])
+  }, [router])
 
   if (loading) {
     return <div className="page-shell text-muted-foreground">Dang tai bao cao...</div>

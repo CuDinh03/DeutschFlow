@@ -567,7 +567,7 @@ export default function SwipeCardsPage() {
 
   const handleLogout = useCallback(() => {
     logout();
-  }, [router]);
+  }, []); // router is stable (Next.js guarantee) — not needed in deps
 
   useEffect(() => {
     primeGermanVoices();
