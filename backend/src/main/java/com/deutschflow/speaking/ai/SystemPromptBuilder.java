@@ -15,7 +15,11 @@ import java.util.List;
  * Builds the dynamic system prompt for the "DeutschFlow AI Tutor".
  */
 @Component
+@lombok.RequiredArgsConstructor
 public class SystemPromptBuilder {
+
+    private final com.deutschflow.system.service.SystemConfigService systemConfigService;
+
 
     /**
      * Compact V1 JSON contract — keys must stay aligned with {@link com.deutschflow.speaking.ai.AiResponseDto}
@@ -316,8 +320,8 @@ public class SystemPromptBuilder {
             sb.append("\n");
         }
 
-        sb.append("Du bist \"DeutschFlow AI Tutor\", một chuyên gia ngôn ngữ học tiếng Đức kiêm trợ lý sư phạm chuyên sâu.\n");
-        sb.append("Nhiệm vụ của bạn là đồng hành cùng người dùng, giúp họ sửa lỗi và phát triển tư duy ngôn ngữ trình độ ").append(level).append(".\n\n");
+        String baseSystemPrompt = systemConfigService.getString("ai.systemPrompt", "Du bist \"DeutschFlow AI Tutor\", một chuyên gia ngôn ngữ học tiếng Đức kiêm trợ lý sư phạm chuyên sâu.\nNhiệm vụ của bạn là đồng hành cùng người dùng, giúp họ sửa lỗi và phát triển tư duy ngôn ngữ trình độ {level}.\n\n");
+        sb.append(baseSystemPrompt.replace("{level}", level)).append("\n\n");
 
         sb.append("Ngữ cảnh:\n");
         sb.append("- Target_Topic: ").append(topicSection).append("\n");

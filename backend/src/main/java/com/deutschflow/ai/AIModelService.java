@@ -32,6 +32,13 @@ public class AIModelService {
      * Generate với custom parameters
      */
     public String generate(String instruction, String input, int maxTokens, double temperature) {
+        return generate(instruction, input, maxTokens, temperature, 0.9);
+    }
+
+    /**
+     * Generate với custom parameters including top_p
+     */
+    public String generate(String instruction, String input, int maxTokens, double temperature, double topP) {
         try {
             String url = aiServerUrl + "/generate";
             
@@ -40,7 +47,8 @@ public class AIModelService {
                 "instruction", instruction,
                 "input", input,
                 "max_tokens", maxTokens,
-                "temperature", temperature
+                "temperature", temperature,
+                "top_p", topP
             );
             
             // Headers

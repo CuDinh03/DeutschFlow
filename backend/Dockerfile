@@ -37,8 +37,11 @@ USER app
 
 EXPOSE 8080
 
-# JVM tuning cho container:
-# -XX:MaxRAMPercentage=75  => Chỉ dùng 75% RAM của container (an toàn cho t3.medium 4GB)
-# -XX:+UseContainerSupport => Nhận diện giới hạn RAM từ Docker cgroup (cần kết hợp --memory trong docker run)
-# -Djava.security.egd=... => Tăng tốc khởi động bằng cách dùng /dev/urandom
-ENTRYPOINT ["sh", "-c", "java -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Djava.security.egd=file:/dev/./urandom $JAVA_OPTS -jar app.jar \"$@\""]
+# JVM tuning cho container (20 CCU on t3.medium):
+# -XX:MaxRAMPercentage=75  => Chỉ dùng 75% RAM container cho heap
+# -XX:+UseContainerSupport => Nhận diện giới hạn RAM từ Docker cgroup
+# -XX:+UseG1GC             => G1 collector — low-pause cho interactive workload
+# -XX:MaxGCPauseMillis=200 => Target GC pause ≤ 200ms
+# -XX:+UseStringDeduplication => Giảm heap cho chuỗi trùng lặp (vocab, prompts)
+# -Djava.security.egd=...  => Tăng tốc khởi động bằng /dev/urandom
+ENTRYPOINT ["sh", "-c", "java -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication -Djava.security.egd=file:/dev/./urandom $JAVA_OPTS -jar app.jar \"$@\""]

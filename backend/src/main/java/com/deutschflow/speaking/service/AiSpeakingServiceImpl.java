@@ -103,6 +103,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
     private final TrainingDatasetService trainingDatasetService;
     private final XpService xpService;
     private final InterviewEvaluationService interviewEvaluationService;
+    private final com.deutschflow.system.service.SystemConfigService systemConfigService;
 
     @Override
     public AiSpeakingSessionDto createSession(Long userId, String topic, String cefrLevel, String personaRaw,
@@ -170,11 +171,13 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         );
 
         var greetSnapshot = quotaService.assertAllowed(userId, Instant.now(), 1L);
+        int maxTokensConfig = systemConfigService.getInteger("ai.maxTokens", SPEAKING_MAX_COMPLETION_TOKENS);
         int greetMaxTokens = (int) Math.max(1L,
-                Math.min(SPEAKING_MAX_COMPLETION_TOKENS, greetSnapshot.remainingThisMonth()));
+                Math.min(maxTokensConfig, greetSnapshot.remainingThisMonth()));
 
+        Double tempConfig = systemConfigService.getDouble("ai.temperature", GREETING_TEMPERATURE);
         AiChatCompletionResult result = openAiChatClient.chatCompletion(
-                messages, null, GREETING_TEMPERATURE, greetMaxTokens);
+                messages, null, tempConfig, greetMaxTokens);
         AiResponseDto parsed = responseParser.parseWithOutcome(result.content(), responseSchema).dto();
 
         // Save AI message
@@ -232,8 +235,9 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         SpeakingChatPrep prep =
                 Objects.requireNonNull(transactionTemplate.execute(status -> prepareSpeakingChatTurn(userId, sessionId, userMessage)));
 
+        Double tempConfig = systemConfigService.getDouble("ai.temperature", SPEAKING_CHAT_TEMPERATURE);
         AiChatCompletionResult ai = openAiChatClient.chatCompletion(
-                prep.openAiMessages(), null, SPEAKING_CHAT_TEMPERATURE, prep.maxTokens());
+                prep.openAiMessages(), null, tempConfig, prep.maxTokens());
 
         AiParseOutcome parseOutcome = responseParser.parseWithOutcome(ai.content(), prep.responseSchema());
         speakingMetrics.recordAiParseOutcome(parseOutcome.status());
@@ -301,8 +305,9 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         openAiMessages.add(new ChatMessage("user", userMessage));
 
         var snapshot = quotaService.assertAllowed(userId, Instant.now(), 1L);
+        int maxTokensConfig = systemConfigService.getInteger("ai.maxTokens", SPEAKING_MAX_COMPLETION_TOKENS);
         int maxTokens = (int) Math.max(1L,
-                Math.min(SPEAKING_MAX_COMPLETION_TOKENS, snapshot.remainingThisMonth()));
+                Math.min(maxTokensConfig, snapshot.remainingThisMonth()));
 
         return new SpeakingChatPrep(
                 userId,
@@ -452,7 +457,8 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
 
             Instant streamStart = Instant.now();
 
-            boolean finished = openAiChatClient.chatCompletionStream(prep.openAiMessages(), null, SPEAKING_CHAT_TEMPERATURE, prep.maxTokens(),
+            Double tempConfig = systemConfigService.getDouble("ai.temperature", SPEAKING_CHAT_TEMPERATURE);
+            boolean finished = openAiChatClient.chatCompletionStream(prep.openAiMessages(), null, tempConfig, prep.maxTokens(),
                     token -> {
                         try {
                             emitter.send(SseEmitter.event().name("token").data(token));

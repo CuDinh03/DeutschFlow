@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import api, { apiMessage } from "@/lib/api";
-import { Search, Shield, ShieldAlert, KeyRound, AlertTriangle, Clock, Zap, Database } from "lucide-react";
+import { Search, Shield, ShieldAlert, KeyRound, AlertTriangle, Clock, Zap, Database, BookOpen } from "lucide-react";
+import LearningDetailModal from "@/components/admin/LearningDetailModal";
 import AdminShell from "@/components/admin/AdminShell";
 import useAdminData from "@/hooks/useAdminData";
 import { motion, AnimatePresence } from "framer-motion";
@@ -151,6 +152,7 @@ export default function AdminUsersPage() {
 
   const [quotaDetail, setQuotaDetail] = useState<QuotaDetail | null>(null);
   const [quotaLoading, setQuotaLoading] = useState(false);
+  const [learningUser, setLearningUser] = useState<AdminUser | null>(null);
 
   const { data, loading, refreshing, error, lastSyncedAt, reload } = useAdminData<AdminUser[]>({
     initialData: [],
@@ -429,11 +431,18 @@ export default function AdminUsersPage() {
                     <option value="ADMIN">ADMIN</option>
                   </select>
                   <button
+                    onClick={() => setLearningUser(u)}
+                    className="flex-1 py-2 px-3 rounded-[10px] text-xs font-bold text-center transition-all hover:opacity-90 flex justify-center items-center gap-1.5"
+                    style={{ background: P.purpleLt, color: P.purple, border: `1px solid ${P.purple}30` }}
+                  >
+                    <BookOpen size={12} /> Hồ sơ
+                  </button>
+                  <button
                     onClick={() => openDetail(u)}
-                    className="flex-[2] py-2 px-3 rounded-[10px] text-xs font-bold text-center transition-all hover:opacity-90 flex justify-center items-center gap-1.5"
+                    className="flex-1 py-2 px-3 rounded-[10px] text-xs font-bold text-center transition-all hover:opacity-90 flex justify-center items-center gap-1.5"
                     style={{ background: P.navy, color: P.white, boxShadow: "0 2px 8px rgba(0,48,94,0.15)" }}
                   >
-                    <Database size={12} /> Chi tiết Quota
+                    <Database size={12} /> Quota
                   </button>
                 </div>
               </motion.div>
@@ -662,6 +671,15 @@ export default function AdminUsersPage() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* ── Modal: Learning Detail ──────────────────────────────────────────── */}
+      {learningUser && (
+        <LearningDetailModal
+          userId={learningUser.id}
+          userName={learningUser.displayName}
+          onClose={() => setLearningUser(null)}
+        />
+      )}
     </AdminShell>
   );
 }

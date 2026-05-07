@@ -33,13 +33,13 @@ public class AsyncConfig {
         return exec;
     }
 
-    /** AI API calls (Groq chat, ElevenLabs TTS) — 6 threads max. */
+    /** AI API calls (Groq chat, ElevenLabs TTS) — 10 threads max for 20 CCU. */
     @Bean(name = "aiExecutor")
     public Executor aiExecutor() {
         var exec = new ThreadPoolTaskExecutor();
-        exec.setCorePoolSize(3);
-        exec.setMaxPoolSize(6);
-        exec.setQueueCapacity(50);
+        exec.setCorePoolSize(5);
+        exec.setMaxPoolSize(10);
+        exec.setQueueCapacity(30);
         exec.setThreadNamePrefix("ai-call-");
         exec.setWaitForTasksToCompleteOnShutdown(true);
         exec.setAwaitTerminationSeconds(15);

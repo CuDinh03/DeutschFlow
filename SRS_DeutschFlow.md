@@ -1,8 +1,10 @@
 # SRS — DeutschFlow (Software Requirements Specification)
 
-**Phiên bản:** 1.6  
+**Phiên bản:** 1.7  
 **Ngày:** 2026-05-07  
 **Ngôn ngữ:** Tiếng Việt  
+
+**Changelog v1.7:** Mở rộng Curriculum Phase 2 và Nâng cấp AI Speaking. (1) **Curriculum Phase 2**: Áp dụng DAG-based skill tree (Days 15-28), mở rộng các node ngữ pháp (Modalverben, Akkusativ, Trennbare Verben). (2) **Template & Context Injection**: Tự động sinh nội dung học cá nhân hoá theo ngành nghề của user (IT, Medicine, Education) dựa trên `UserLearningProfile`. (3) **AI Speaking Enhancements**: Tích hợp giọng đọc nhân bản từ ElevenLabs cho 4 Personas; thêm Character profile images trên UI chọn Persona. (4) **AI Error Remediation & Evaluator Cooldown**: Cải thiện logic bắt lỗi, ngăn chặn over-correction; `TurnEvaluator` lưu lại các mã cooldown (như `CASE.PREP_DAT_MIT`) vào `SpeakingUserState` để giới hạn tần suất đánh giá một lỗi trong phiên hội thoại.
 
 **Changelog v1.6:** Triển khai **Production Stabilization & Brand Identity**. (1) **Hệ thống Logo Bauhaus** — Component `DeutschFlowLogo` 3 biến thể (`horizontal` / `vertical` / `icon-only`); `DeutschFlowLoader` thay thế Loader2 spinner; `DeutschFlowSplash` màn hình intro; áp dụng toàn bộ: Login, Register, Landing page, StudentShell sidebar, AdminShell sidebar, Dashboard loading state. (2) **Logout tập trung** — Hàm `logout()` trong `authSession.ts`: gọi `POST /api/auth/logout` revoke refresh token trên server, xóa toàn bộ localStorage (không chỉ 2 key token), xóa cookies, hard redirect `window.location.href` thay `router.push` để wipe React state — ngăn state của user cũ rò rỉ sang session kế tiếp; fix 6 page có `onLogout={() => {}}` (no-op) và 13+ page dùng `clearTokens() + router.push()`. (3) **HikariCP Keepalive** — Thêm `keepalive-time: 120s` và `connection-test-query: SELECT 1` vào `application.yml`; ngăn stale connection khi AWS NLB cắt TCP idle sau 350 giây — loại bỏ lỗi "Connection is not available, request timed out after 20000ms" sau khi hệ thống idle ban đêm. (4) **Production Deployment** — AWS Amplify (Frontend, CI/CD auto-deploy từ branch `main`), AWS EC2 t2.micro (Backend Docker), AWS RDS PostgreSQL (Database), Cloudflare Flexible SSL, Nginx reverse proxy port 80→8080; domain `https://mydeutschflow.com` và `http://api.mydeutschflow.com`.
 
@@ -47,6 +49,7 @@
 28. Production Deployment & Infrastructure *(v1.6)*  
 29. Brand Identity & Logo System *(v1.6)*  
 30. Auth & Session Management — Logout Flow *(v1.6)*  
+31. Curriculum Phase 2 & DAG Skill Tree *(v1.7)*
 
 ---
 
@@ -263,7 +266,7 @@ Xác thực người dùng và áp quyền theo role cho route FE và API BE.
 
 ### 6.1 Mục tiêu
 
-Thu thập profile để cá nhân hoá nội dung, **system prompt AI** và giao diện. Onboarding là luồng bắt buộc cho user mới sau đăng ký.
+Thu thập profile để cá nhân hoá nội dung, **system prompt AI**, giao diện, và làm cơ sở cho **Template & Context Injection** (sinh nội dung bài tập theo ngữ cảnh ngành nghề của người học). Onboarding là luồng bắt buộc cho user mới sau đăng ký.
 
 ### 6.2 Onboarding Wizard (Frontend — v1.3)
 
@@ -594,6 +597,7 @@ Frontend nhận camelCase (theo client types), ví dụ:
   - **Structured**: với mỗi phần tử trong `errors[]`, ghi **một row** (idempotent theo `message_id` + `error_code`).
   - Cột bổ sung: `error_code`, `confidence`, `wrong_span`, `corrected_span`, `rule_vi_short`, `example_correct_de`, `repair_status` (`OPEN` | `RESOLVED` | `SNOOZED`).
 - `user_learning_profiles`: merge interest phát hiện.
+- **`speaking_user_states` *(v1.7)***: Bảng lưu trữ trạng thái người dùng xuyên suốt các phiên (session state), bao gồm lịch sử lỗi đã gặp và các mã **Evaluator Cooldown** (xem §10.5b).
 
 ### 10.5 Error Skills API (tổng hợp lỗi & sửa drill)
 
@@ -630,6 +634,15 @@ Bảng `error_review_tasks` + scheduler nội bộ; **khác** hàng ôn `learnin
 
 - `GET /api/review-tasks/me/today` — tối đa 5 task đến hạn (`PENDING`, `dueAt` ≤ now).
 - `POST /api/review-tasks/{taskId}/complete` — body `{ "passed": true|false }`; 204 khi thành công.
+
+### 10.5b AI Error-Remediation & Evaluator Cooldown *(v1.7)*
+
+**Mục tiêu**: Ngăn chặn tình trạng AI "over-correction" (bắt lỗi quá gắt gao liên tục) đối với các lỗi ngữ pháp cơ bản, gây giảm tự tin và làm đứt đoạn mạch hội thoại.
+
+**Logic Cooldown**:
+- Sau khi đánh giá một lỗi (ví dụ: thiếu giới từ Dativ, sai trật tự từ) với `error_code` xác định (vd: `CASE.PREP_DAT_MIT`), `TurnEvaluatorService` sẽ ghi một mã cooldown vào `SpeakingUserState`.
+- AI Speaking Pipeline sẽ kiểm tra `SpeakingUserState` trước mỗi lượt phản hồi. Nếu một lỗi đang trong thời gian cooldown (e.g., đã nhắc nhở trong 3 lượt hội thoại gần nhất), hệ thống sẽ bỏ qua hoặc giảm độ ưu tiên nhắc nhở lỗi đó.
+- Cấu trúc: `TurnEvaluatorCooldownTest` và `turnEvaluatorService` kết hợp cùng `SpeakingUserState` để duy trì chính sách này.
 
 ### 10.6 Error handling
 
@@ -670,14 +683,17 @@ Ghi nhận bổ sung (logging/telemetry HTTP): filter telemetry toàn cục, STT
 
 - `error.skills.list` / `error.skills.repair_attempt` (theo implement logging)
 
-### 10.9 AI Interview Mode (v2)
+### 10.9 AI Interview Mode (v2) & Persona Selection
 
-Module AI Speaking hỗ trợ chế độ phỏng vấn (INTERVIEW) với cấu trúc và flow chuyên nghiệp, mô phỏng quá trình tuyển dụng thực tế.
+Module AI Speaking hỗ trợ chế độ phỏng vấn (INTERVIEW) với cấu trúc và flow chuyên nghiệp, mô phỏng quá trình tuyển dụng thực tế, cũng như chọn nhân vật giao tiếp (COMMUNICATION).
 
-**1. Setup Flow (CompanionSelect)**
-Người dùng chọn `Session Mode` = `INTERVIEW`. Frontend sẽ yêu cầu cung cấp thêm thông tin:
-- **Position**: Vị trí ứng tuyển (có danh sách gợi ý tuỳ thuộc vào Persona — vd: Lukas có IT/Software, Klaus có Gastronomy).
-- **Experience Level**: Mức kinh nghiệm từ `0-6M`, `6-12M`, `1-2Y`, `3Y`, `5Y+`.
+**1. Setup Flow (CompanionSelect & Persona)**
+Người dùng chọn `Session Mode` = `INTERVIEW` hoặc `COMMUNICATION`.
+- Giao diện chọn **Persona** sẽ hiển thị **Character profile images** trực quan cho từng nhân vật (Lukas, Emma, Anna, Klaus). Mỗi nhân vật đại diện cho một phong cách hội thoại và tính cách riêng biệt.
+- **Giọng đọc nhân bản (Cloned Voices)**: Tích hợp trực tiếp **ElevenLabs** API để áp dụng các giọng đọc đã được tuỳ chỉnh cho từng Persona, giúp tăng độ chân thực và cảm xúc cho AI.
+- Nếu là `INTERVIEW`, frontend sẽ yêu cầu cung cấp thêm thông tin:
+  - **Position**: Vị trí ứng tuyển (có danh sách gợi ý tuỳ thuộc vào Persona — vd: Lukas có IT/Software, Klaus có Gastronomy).
+  - **Experience Level**: Mức kinh nghiệm từ `0-6M`, `6-12M`, `1-2Y`, `3Y`, `5Y+`.
 
 **2. 5-Phase Interview Structure**
 System prompt của LLM được thiết kế để ép buộc AI tuân thủ flow 5 giai đoạn:
@@ -1430,3 +1446,22 @@ export function clearTokens(): void {
 ---
 
 *Tài liệu này mô tả yêu cầu và hợp đồng dữ liệu theo trạng thái hiện tại của codebase DeutschFlow; khi API thay đổi, cần cập nhật phiên bản SRS.*
+
+---
+
+## 31. Curriculum Phase 2 & DAG Skill Tree *(v1.7)*
+
+### 31.1 DAG-based Skill Tree Migration
+
+Bản cập nhật V62 mở rộng giáo trình sang **Phase 2 (Days 15-28)** với cấu trúc mạng lưới (DAG) thay vì tuyến tính.
+- Các node học tập được phân bổ đa chiều, cho phép học viên mở khoá nội dung tuỳ theo lộ trình và độ thành thạo (Ability Score).
+- Nội dung trọng tâm ngữ pháp mới: **Modalverben** (Động từ khuyết thiếu), **Akkusativ** (Cách 4), **Trennbare Verben** (Động từ tách rời).
+
+### 31.2 Template & Context Injection
+
+**Mục tiêu**: Tăng tính thực tiễn của bài học dựa trên hồ sơ người dùng (`UserLearningProfile`).
+- Dựa trên trường thông tin `industry` và `interests` thu thập từ lúc Onboarding (vd: IT, Medicine, Education), hệ thống tự động sinh (inject) các bài học và bài tập theo đúng ngữ cảnh ngành nghề đó.
+- *Ví dụ*: Với bài học về "Trennbare Verben" (Động từ tách rời):
+  - User làm IT sẽ học với ngữ cảnh: "Ich *schalte* den Computer *ein*." (Tôi bật máy tính).
+  - User làm Y tế sẽ học với ngữ cảnh: "Der Arzt *bereitet* die Operation *vor*." (Bác sĩ chuẩn bị ca mổ).
+- Tích hợp sâu với các endpoint của Skill Tree Service và lộ trình Today / Adaptive.

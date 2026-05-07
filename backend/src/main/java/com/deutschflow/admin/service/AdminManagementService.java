@@ -6,6 +6,12 @@ import com.deutschflow.common.telemetry.ApiTelemetryService;
 import com.deutschflow.common.config.VocabularyEnrichmentProperties;
 import com.deutschflow.common.quota.QuotaService;
 import com.deutschflow.common.quota.QuotaSnapshot;
+import com.deutschflow.gamification.service.XpService;
+import com.deutschflow.speaking.repository.UserErrorSkillRepository;
+import com.deutschflow.speaking.repository.UserGrammarErrorRepository;
+import com.deutschflow.user.entity.UserLearningProfile;
+import com.deutschflow.user.repository.LearningReviewItemRepository;
+import com.deutschflow.user.repository.UserLearningProfileRepository;
 import com.deutschflow.user.service.PersonalizationRulesetService;
 import com.deutschflow.vocabulary.service.EnrichmentSuspendGate;
 import com.deutschflow.vocabulary.service.TranslationUsageMeter;
@@ -14,6 +20,7 @@ import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,6 +54,11 @@ public class AdminManagementService {
     private final TranslationUsageMeter translationUsageMeter;
     private final EnrichmentSuspendGate enrichmentSuspendGate;
     private final VocabularyEnrichmentProperties vocabularyEnrichmentProperties;
+    private final UserLearningProfileRepository learningProfileRepository;
+    private final XpService xpService;
+    private final UserGrammarErrorRepository grammarErrorRepository;
+    private final UserErrorSkillRepository errorSkillRepository;
+    private final LearningReviewItemRepository reviewItemRepository;
 
     @Transactional(readOnly = true)
     public Map<String, Object> overview() {
@@ -718,6 +730,223 @@ public class AdminManagementService {
 
     private static double round2(double value) {
         return Math.round(value * 100.0) / 100.0;
+    }
+
+    // ── Admin User Learning Detail ────────────────────────────────────────
+
+    /**
+     * Comprehensive learning detail for admin user inspection.
+     * Aggregates data from: learning profile, XP/streak, grammar errors, error skills, SRS items.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> userLearningDetail(Long userId) {
+        userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+
+        Map<String, Object> out = new LinkedHashMap<>();
+
+        // ── 1. Learning Profile ──
+        Map<String, Object> profile = new LinkedHashMap<>();
+        learningProfileRepository.findByUserId(userId).ifPresentOrElse(p -> {
+            profile.put("goalType", p.getGoalType() != null ? p.getGoalType().name() : null);
+            profile.put("targetLevel", p.getTargetLevel() != null ? p.getTargetLevel().name() : null);
+            profile.put("currentLevel", p.getCurrentLevel() != null ? p.getCurrentLevel().name() : null);
+            profile.put("industry", p.getIndustry());
+            profile.put("examType", p.getExamType());
+            profile.put("sessionsPerWeek", p.getSessionsPerWeek());
+            profile.put("minutesPerSession", p.getMinutesPerSession());
+            profile.put("learningSpeed", p.getLearningSpeed() != null ? p.getLearningSpeed().name() : null);
+            profile.put("ageRange", p.getAgeRange() != null ? p.getAgeRange().name() : null);
+            // Parse interests
+            try {
+                if (p.getInterestsJson() != null && !p.getInterestsJson().isBlank()) {
+                    profile.put("interests", objectMapper.readValue(p.getInterestsJson(), List.class));
+                } else {
+                    profile.put("interests", List.of());
+                }
+            } catch (Exception e) {
+                profile.put("interests", List.of());
+            }
+            profile.put("updatedAt", p.getUpdatedAt());
+        }, () -> {
+            profile.put("notConfigured", true);
+        });
+        out.put("learningProfile", profile);
+
+        // ── 2. XP & Gamification ──
+        Map<String, Object> xp = new LinkedHashMap<>();
+        try {
+            var summary = xpService.getSummary(userId);
+            xp.put("totalXp", summary.totalXp());
+            xp.put("level", summary.level());
+            xp.put("progressInLevel", summary.progressInLevel());
+            xp.put("xpNeededForNext", summary.xpNeededForNext());
+            xp.put("achievementsUnlocked", summary.allAchievements() != null
+                    ? summary.allAchievements().stream().filter(a -> a.unlocked()).count() : 0);
+            xp.put("achievementsTotal", summary.allAchievements() != null ? summary.allAchievements().size() : 0);
+        } catch (Exception e) {
+            xp.put("error", "Failed to load XP: " + e.getMessage());
+        }
+        out.put("xpGamification", xp);
+
+        // ── 3. Streak ──
+        Map<String, Object> streak = new LinkedHashMap<>();
+        try {
+            Integer streakDays = jdbcTemplate.queryForObject("""
+                    WITH completion_dates AS (
+                        SELECT DISTINCT DATE(completed_at) AS d
+                        FROM learning_session_progress
+                        WHERE user_id = ? AND status = 'COMPLETED' AND completed_at IS NOT NULL
+                    )
+                    SELECT COUNT(*) FROM (
+                        SELECT d, d - ROW_NUMBER() OVER (ORDER BY d) * INTERVAL '1 day' AS grp
+                        FROM completion_dates
+                    ) sub
+                    WHERE grp = (
+                        SELECT d - ROW_NUMBER() OVER (ORDER BY d) * INTERVAL '1 day'
+                        FROM completion_dates
+                        WHERE d >= CURRENT_DATE - INTERVAL '1 day'
+                        ORDER BY d DESC
+                        LIMIT 1
+                    )
+                    """, Integer.class, userId);
+            streak.put("currentStreak", streakDays != null ? streakDays : 0);
+        } catch (Exception e) {
+            // Fallback: simpler counting
+            try {
+                Integer simpleDays = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(DISTINCT DATE(completed_at))
+                        FROM learning_session_progress
+                        WHERE user_id = ? AND status = 'COMPLETED' AND completed_at IS NOT NULL
+                          AND completed_at >= CURRENT_DATE - INTERVAL '30 days'
+                        """, Integer.class, userId);
+                streak.put("currentStreak", simpleDays != null ? simpleDays : 0);
+                streak.put("note", "simplified_30d_count");
+            } catch (Exception e2) {
+                streak.put("currentStreak", 0);
+            }
+        }
+
+        try {
+            Integer totalCompletedSessions = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM learning_session_progress WHERE user_id = ? AND status = 'COMPLETED'",
+                    Integer.class, userId);
+            streak.put("totalCompletedSessions", totalCompletedSessions != null ? totalCompletedSessions : 0);
+        } catch (Exception e) {
+            streak.put("totalCompletedSessions", 0);
+        }
+        out.put("streak", streak);
+
+        // ── 4. Speaking Stats ──
+        Map<String, Object> speaking = new LinkedHashMap<>();
+        try {
+            Integer totalSessions = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM ai_speaking_sessions WHERE user_id = ?",
+                    Integer.class, userId);
+            Integer totalMessages = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM ai_speaking_messages m JOIN ai_speaking_sessions s ON s.id = m.session_id WHERE s.user_id = ?",
+                    Integer.class, userId);
+            speaking.put("totalSessions", totalSessions != null ? totalSessions : 0);
+            speaking.put("totalMessages", totalMessages != null ? totalMessages : 0);
+        } catch (Exception e) {
+            speaking.put("totalSessions", 0);
+            speaking.put("totalMessages", 0);
+        }
+
+        // Top 5 weak points (grammar errors)
+        try {
+            var weakPoints = grammarErrorRepository.findTopWeakPoints(userId, PageRequest.of(0, 5));
+            speaking.put("topWeakPoints", weakPoints.stream().map(wp -> Map.of(
+                    "grammarPoint", wp.grammarPoint(),
+                    "count", wp.count()
+            )).toList());
+        } catch (Exception e) {
+            speaking.put("topWeakPoints", List.of());
+        }
+
+        // Recent errors (last 10)
+        try {
+            var recentErrors = grammarErrorRepository.findTop20ByUserIdOrderByCreatedAtDesc(userId);
+            speaking.put("recentErrors", recentErrors.stream().limit(10).map(err -> {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("id", err.getId());
+                m.put("errorCode", err.getErrorCode() != null ? err.getErrorCode() : err.getGrammarPoint());
+                m.put("severity", err.getSeverity());
+                m.put("wrongSpan", err.getWrongSpan());
+                m.put("correctedSpan", err.getCorrectedSpan());
+                m.put("ruleViShort", err.getRuleViShort());
+                m.put("repairStatus", err.getRepairStatus());
+                m.put("createdAt", err.getCreatedAt());
+                return m;
+            }).toList());
+        } catch (Exception e) {
+            speaking.put("recentErrors", List.of());
+        }
+
+        // Error skills (priority-sorted)
+        try {
+            var skills = errorSkillRepository.findByUserIdOrderByPriorityScoreDesc(userId);
+            speaking.put("errorSkills", skills.stream().limit(10).map(s -> {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("errorCode", s.getErrorCode());
+                m.put("totalCount", s.getTotalCount());
+                m.put("openCount", s.getOpenCount());
+                m.put("resolvedCount", s.getResolvedCount());
+                m.put("lastSeverity", s.getLastSeverity());
+                m.put("priorityScore", s.getPriorityScore());
+                m.put("lastSeenAt", s.getLastSeenAt());
+                return m;
+            }).toList());
+        } catch (Exception e) {
+            speaking.put("errorSkills", List.of());
+        }
+        out.put("speakingAi", speaking);
+
+        // ── 5. Vocabulary SRS ──
+        Map<String, Object> vocab = new LinkedHashMap<>();
+        try {
+            long totalItems = reviewItemRepository.countByUserId(userId);
+            vocab.put("totalItems", totalItems);
+
+            // Due today
+            Integer dueToday = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM learning_review_items WHERE user_id = ? AND due_at <= NOW()",
+                    Integer.class, userId);
+            vocab.put("dueToday", dueToday != null ? dueToday : 0);
+
+            // Mastered (repetitions >= 5)
+            Integer mastered = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM learning_review_items WHERE user_id = ? AND repetitions >= 5",
+                    Integer.class, userId);
+            vocab.put("mastered", mastered != null ? mastered : 0);
+
+            // Learning (repetitions 1-4)
+            Integer learning = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM learning_review_items WHERE user_id = ? AND repetitions BETWEEN 1 AND 4",
+                    Integer.class, userId);
+            vocab.put("learning", learning != null ? learning : 0);
+
+            // New (repetitions = 0)
+            Integer newItems = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM learning_review_items WHERE user_id = ? AND repetitions = 0",
+                    Integer.class, userId);
+            vocab.put("newItems", newItems != null ? newItems : 0);
+
+            // Type breakdown
+            Integer wordCount = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM learning_review_items WHERE user_id = ? AND item_type = 'WORD'",
+                    Integer.class, userId);
+            Integer grammarCount = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM learning_review_items WHERE user_id = ? AND item_type = 'GRAMMAR'",
+                    Integer.class, userId);
+            vocab.put("wordCount", wordCount != null ? wordCount : 0);
+            vocab.put("grammarCount", grammarCount != null ? grammarCount : 0);
+        } catch (Exception e) {
+            vocab.put("error", "Failed to load SRS: " + e.getMessage());
+        }
+        out.put("vocabularySrs", vocab);
+
+        return out;
     }
 }
 

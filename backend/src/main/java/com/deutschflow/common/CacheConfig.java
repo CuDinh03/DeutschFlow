@@ -107,12 +107,18 @@ public class CacheConfig {
                         .expireAfterWrite(24, TimeUnit.HOURS)
                         .recordStats());
 
+        var systemConfig = buildCache("systemConfig",
+                Caffeine.newBuilder()
+                        .maximumSize(50)
+                        .expireAfterWrite(1, TimeUnit.HOURS)
+                        .recordStats());
+
         var mgr = new SimpleCacheManager();
         mgr.setCaches(List.of(
                 tags, words, plans, curriculum,
                 achievements, weeklyPrompts,
                 aiVocabCache, aiVocabShort, aiVocabQuiz,
-                ttsAudio
+                ttsAudio, systemConfig
         ));
         return mgr;
     }

@@ -243,6 +243,11 @@ public class AdminManagementController {
         return adminManagementService.listClasses();
     }
 
+    @GetMapping("/users/{userId}/learning-detail")
+    public Map<String, Object> userLearningDetail(@PathVariable Long userId) {
+        return adminManagementService.userLearningDetail(userId);
+    }
+
     @PostMapping("/vocabulary/glosbe-vi/enrich/batch")
     public Map<String, Object> runGlosbeViBatch(
             @RequestParam(required = false) Integer limit,

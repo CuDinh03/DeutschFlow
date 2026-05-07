@@ -8,8 +8,14 @@ import useAdminData from '@/hooks/useAdminData'
 import { ADMIN_AI_SYSTEM_PROMPT_DEFAULT } from '@/lib/adminAiDefaults'
 import { apiMessage, isAxiosErr } from '@/lib/api'
 import { localAiApi, type AIHealthStatus } from '@/lib/localAiApi'
+import api from '@/lib/api'
 
-type VoidOk = { _: true }
+type AiConfigDto = {
+  prompt: string
+  temperature: number
+  maxTokens: number
+  topP: number
+}
 
 export default function AdminAiConfigPage() {
   const t = useTranslations('adminAi')
@@ -21,13 +27,27 @@ export default function AdminAiConfigPage() {
   const [health, setHealth] = useState<AIHealthStatus | null>(null)
   const [healthLoading, setHealthLoading] = useState(false)
   const [healthError, setHealthError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
 
-  const { loading, error, refreshing, lastSyncedAt, reload } = useAdminData<VoidOk>({
-    initialData: { _: true },
+  const { data: config, loading, error, refreshing, lastSyncedAt, reload } = useAdminData<AiConfigDto>({
+    initialData: { prompt: ADMIN_AI_SYSTEM_PROMPT_DEFAULT, temperature: 0.7, maxTokens: 1024, topP: 0.9 },
     errorMessage: t('error'),
-    fetchData: async () => ({ _: true }),
+    fetchData: async () => {
+      const res = await api.get('/admin/ai-config')
+      return res.data
+    },
     intervalMs: 600_000,
   })
+
+  // Sync state when data is loaded
+  useEffect(() => {
+    if (config) {
+      setPrompt(config.prompt)
+      setTemperature(config.temperature)
+      setMaxTokens(config.maxTokens)
+      setTopP(config.topP)
+    }
+  }, [config])
 
   const loadHealth = useCallback(async () => {
     setHealthLoading(true)
@@ -48,9 +68,17 @@ export default function AdminAiConfigPage() {
     void loadHealth()
   }, [loadHealth])
 
-  const handleSave = () => {
-    setSavedFlash(true)
-    window.setTimeout(() => setSavedFlash(false), 2200)
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      await api.put('/admin/ai-config', { prompt, temperature, maxTokens, topP })
+      setSavedFlash(true)
+      window.setTimeout(() => setSavedFlash(false), 2200)
+    } catch (e) {
+      alert(apiMessage(e))
+    } finally {
+      setSaving(false)
+    }
   }
 
   const modelLoaded = health?.model_loaded === true
@@ -140,12 +168,13 @@ export default function AdminAiConfigPage() {
                 <button
                   type="button"
                   onClick={handleSave}
+                  disabled={saving}
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-xs font-bold text-white ${
                     savedFlash ? 'bg-emerald-600' : 'bg-[#00305E]'
-                  }`}
+                  } disabled:opacity-70`}
                 >
-                  {savedFlash ? <Check size={12} /> : <Save size={12} />}
-                  {savedFlash ? t('saved') : t('save')}
+                  {saving ? <RefreshCw size={12} className="animate-spin" /> : savedFlash ? <Check size={12} /> : <Save size={12} />}
+                  {saving ? t('loading') : savedFlash ? t('saved') : t('save')}
                 </button>
               </div>
             </div>

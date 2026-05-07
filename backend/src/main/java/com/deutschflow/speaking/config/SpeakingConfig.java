@@ -13,9 +13,9 @@ public class SpeakingConfig {
     @Bean(name = "speakingStreamExecutor", destroyMethod = "shutdown")
     public ThreadPoolTaskExecutor speakingStreamExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(8);
-        executor.setMaxPoolSize(32);
-        executor.setQueueCapacity(64);
+        executor.setCorePoolSize(5);
+        executor.setMaxPoolSize(15);
+        executor.setQueueCapacity(20);
         executor.setKeepAliveSeconds(60);
         executor.setThreadNamePrefix("sse-speak-");
         executor.setWaitForTasksToCompleteOnShutdown(true);
