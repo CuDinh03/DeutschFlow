@@ -59,7 +59,7 @@ jobs:
           path: backend/target/surefire-reports/
           retention-days: 7
 
-  # ─── Stage 3: Integration Tests (main branch only) ────────────────
+  # ─── Stage 3: Integration Tests (main only) ───────────────────────
   integration-tests:
     name: 🐘 Integration Tests
     needs: unit-tests
@@ -75,7 +75,8 @@ jobs:
           java-version: "17"
           cache: maven
 
-      - name: Run integration tests (Failsafe — Testcontainers + Docker)
+      # ubuntu-latest runner has Docker daemon built in — Testcontainers uses it directly
+      - name: Run integration tests (Failsafe — Testcontainers)
         working-directory: backend
         run: ./mvnw -B verify -DskipUnitTests=true
 
@@ -93,7 +94,7 @@ jobs:
     needs: unit-tests
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     environment: production
     steps:
       - name: Deploy via SSH
@@ -102,8 +103,10 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          timeout: 60s
+          command_timeout: 600s
           script_stop: true
-          timeout: 300s
           script: |
             set -e
             cd /home/ubuntu/DeutschFlow
