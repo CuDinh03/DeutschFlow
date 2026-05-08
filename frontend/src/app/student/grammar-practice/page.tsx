@@ -31,7 +31,7 @@ export default function GrammarPracticePage() {
   const [cefr, setCefr] = useState("A1");
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<unknown>(null);
+  const [result, setResult] = useState<Record<string, unknown> | null>(null);
   const [suggestions, setSuggestions] = useState<{ topic: string; description: string; example: string }[]>([]);
   const [sessionStart] = useState(() => Date.now());
 
@@ -58,7 +58,7 @@ export default function GrammarPracticePage() {
     setLoading(true); setResult(null);
     const endpoint = tab === "correct" ? "/grammar/ai/correct" : tab === "explain" ? "/grammar/ai/explain" : "/grammar/ai/analyze";
     try {
-      const { data } = await api.post(endpoint, { text, cefrLevel: cefr });
+      const { data } = await api.post<Record<string, unknown>>(endpoint, { text, cefrLevel: cefr });
       setResult(data);
       const score = tab === "analyze" ? Number((data as { score?: number })?.score ?? 70) : (data as { errors?: unknown[] })?.errors?.length ? 60 : 90;
       await recordAbilityScore([scorePercentToItem(score)], Math.max(1, (Date.now() - sessionStart) / 1000));
@@ -192,7 +192,7 @@ export default function GrammarPracticePage() {
               </button>
             </div>
 
-            {result && (
+            {result != null && (
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                 className="bg-white rounded-2xl p-4 border border-[#E2E8F0]">
                 <p className="text-xs text-[#94A3B8] font-medium mb-3 uppercase tracking-wide">Kết quả</p>
