@@ -496,17 +496,19 @@ public class SkillTreeService {
             case "COMPLETED" -> "completed_at";
             default -> null;
         };
-        String setTimestamp = timestampCol != null
-                ? ", " + timestampCol + " = COALESCE(" + timestampCol + ", NOW())"
+        // Build the SET clause inline to avoid SQL syntax errors from string concatenation
+        String timestampSet = timestampCol != null
+                ? ", " + timestampCol + " = COALESCE(skill_tree_user_progress." + timestampCol + ", NOW())"
                 : "";
 
-        jdbcTemplate.update("""
+        String sql = """
                 INSERT INTO skill_tree_user_progress (user_id, node_id, status, created_at, updated_at)
                 VALUES (?, ?, ?, NOW(), NOW())
                 ON CONFLICT (user_id, node_id)
                 DO UPDATE SET status = ?, updated_at = NOW()
-                """ + setTimestamp,
-                userId, nodeId, status, status);
+                """ + timestampSet;
+
+        jdbcTemplate.update(sql, userId, nodeId, status, status);
     }
 
     private int safeInt(Object v, int fallback) {
