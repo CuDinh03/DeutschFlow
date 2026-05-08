@@ -597,17 +597,10 @@ export default function RoadmapPage() {
 
   const handleStartNode = useCallback(
     (node: SkillTreeNode) => {
-      if (node.day_number && node.week_number) {
-        // CORE_TRUNK: đi đến bài học theo tuần/ngày
-        router.push(`/student/plan/week/${node.week_number}/session/${node.day_number}`);
-      } else if (node.day_number) {
-        // Có day_number nhưng không có week_number → fallback tuần 1
-        router.push(`/student/plan/week/1/session/${node.day_number}`);
-      }
-      // SATELLITE_LEAF hoặc node không có day_number:
-      // Không navigate — user phải dùng nút "Mở khóa bài chuyên ngành" trong NodeDetailPanel
+      // Chọn node để hiển thị chi tiết trong panel bên phải
+      setSelectedNode(node);
     },
-    [router]
+    []
   );
 
   // Backend unreachable — show error + retry instead of infinite spinner
