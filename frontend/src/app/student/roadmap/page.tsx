@@ -515,7 +515,7 @@ function NodeDetailPanel({
 
 export default function RoadmapPage() {
   const router = useRouter();
-  const { me, loading: meLoading, targetLevel, streakDays, initials } =
+  const { me, loading: meLoading, loadError: meError, targetLevel, streakDays, initials, reload: reloadMe } =
     useStudentPracticeSession();
 
   const [nodes, setNodes] = useState<SkillTreeNode[]>([]);
@@ -597,15 +597,39 @@ export default function RoadmapPage() {
 
   const handleStartNode = useCallback(
     (node: SkillTreeNode) => {
-      // Navigate to the lesson for this day
-      if (node.day_number) {
-        router.push(`/student/plan/week/${node.week_number ?? 1}/session/${node.day_number}`);
-      } else {
-        router.push("/lesson");
+      if (node.day_number && node.week_number) {
+        // CORE_TRUNK: đi đến bài học theo tuần/ngày
+        router.push(`/student/plan/week/${node.week_number}/session/${node.day_number}`);
+      } else if (node.day_number) {
+        // Có day_number nhưng không có week_number → fallback tuần 1
+        router.push(`/student/plan/week/1/session/${node.day_number}`);
       }
+      // SATELLITE_LEAF hoặc node không có day_number:
+      // Không navigate — user phải dùng nút "Mở khóa bài chuyên ngành" trong NodeDetailPanel
     },
     [router]
   );
+
+  // Backend unreachable — show error + retry instead of infinite spinner
+  if (!meLoading && meError && !me) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen gap-5 bg-[#F1F4F9] px-6">
+        <div className="w-16 h-16 rounded-2xl bg-red-100 flex items-center justify-center">
+          <AlertCircle size={32} className="text-red-500" />
+        </div>
+        <div className="text-center">
+          <p className="font-bold text-[#0F172A] text-lg mb-1">Không thể tải lộ trình</p>
+          <p className="text-sm text-[#64748B] max-w-xs">{meError}</p>
+        </div>
+        <button
+          onClick={() => void reloadMe()}
+          className="flex items-center gap-2 px-5 py-3 bg-[#00305E] text-white rounded-xl text-sm font-bold shadow-md active:scale-95 transition-all"
+        >
+          <RefreshCw size={15} /> Thử lại
+        </button>
+      </div>
+    );
+  }
 
   if (meLoading || !me) {
     return (

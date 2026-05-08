@@ -44,8 +44,11 @@ public class SkillTreeService {
     // 1. GET SKILL TREE — Trả về toàn bộ cây cho user
     // ─────────────────────────────────────────────────────────────
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<Map<String, Object>> getSkillTreeForUser(long userId) {
+        // Auto-unlock node đầu tiên cho user mới (chưa có bất kỳ progress nào)
+        autoUnlockFirstNodeIfNeeded(userId);
+
         // Lấy tất cả nodes + progress của user (LEFT JOIN để bao gồm cả LOCKED nodes)
         // Cast TEXT[] → TEXT và JSONB → TEXT để tránh lỗi serialization Jackson
         return jdbcTemplate.queryForList("""
@@ -79,6 +82,32 @@ public class SkillTreeService {
                 WHERE n.is_active = TRUE
                 ORDER BY n.sort_order ASC, n.day_number ASC
                 """, userId, userId);
+    }
+
+    /**
+     * Nếu user chưa có bất kỳ progress nào → unlock node đầu tiên (sort_order = 1)
+     * để user mới thấy điểm bắt đầu là UNLOCKED thay vì toàn bộ LOCKED.
+     */
+    private void autoUnlockFirstNodeIfNeeded(long userId) {
+        Integer existingProgress = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM skill_tree_user_progress WHERE user_id = ?",
+                Integer.class, userId);
+
+        if (existingProgress != null && existingProgress > 0) return; // Đã có progress → không cần
+
+        // Lấy node đầu tiên (sort_order nhỏ nhất, CORE_TRUNK)
+        List<Map<String, Object>> firstNodes = jdbcTemplate.queryForList("""
+                SELECT id FROM skill_tree_nodes
+                WHERE is_active = TRUE AND node_type = 'CORE_TRUNK'
+                ORDER BY sort_order ASC, day_number ASC
+                LIMIT 1
+                """);
+
+        if (firstNodes.isEmpty()) return;
+
+        long firstNodeId = ((Number) firstNodes.get(0).get("id")).longValue();
+        log.info("[SkillTree] Auto-unlocking first node {} for new user {}", firstNodeId, userId);
+        upsertProgress(userId, firstNodeId, "UNLOCKED");
     }
 
     // ─────────────────────────────────────────────────────────────

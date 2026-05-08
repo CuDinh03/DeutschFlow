@@ -51,6 +51,7 @@ export function useStudentPracticeSession(options?: {
   const [practiceFloorLevel, setPracticeFloorLevel] = useState("A1");
   const [streakDays, setStreakDays] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!getAccessToken()) {
@@ -58,6 +59,7 @@ export function useStudentPracticeSession(options?: {
       return;
     }
     setLoading(true);
+    setLoadError(null);
     try {
       const meRes = await api.get<PracticeSessionUser>("/auth/me");
       const userData = meRes.data;
@@ -95,6 +97,13 @@ export function useStudentPracticeSession(options?: {
         router.replace("/login");
         return;
       }
+      // Network error / timeout / server down — expose error so UI can show retry
+      const isTimeout = (err as { code?: string })?.code === "ECONNABORTED" || st === 0;
+      setLoadError(
+        isTimeout
+          ? "Không kết nối được server. Vui lòng kiểm tra kết nối và thử lại."
+          : `Lỗi server (${st || "unknown"}). Vui lòng thử lại.`
+      );
       setMe(null);
     } finally {
       setLoading(false);
@@ -116,5 +125,5 @@ export function useStudentPracticeSession(options?: {
     [me?.displayName],
   );
 
-  return { me, loading, targetLevel, practiceFloorLevel, streakDays, initials, reload: load };
+  return { me, loading, loadError, targetLevel, practiceFloorLevel, streakDays, initials, reload: load };
 }
