@@ -80,6 +80,22 @@ public class SkillTreeController {
     }
 
     // ─────────────────────────────────────────────────────────────
+    // GET /api/skill-tree/node/{nodeId}/session — Lấy nội dung bài học
+    // Trả về toàn bộ content_json (all-in-one, ~30KB → Gzip ~5KB)
+    // Frontend lưu vào Zustand store → phân phối zero-latency
+    // ─────────────────────────────────────────────────────────────
+
+    @GetMapping("/node/{nodeId}/session")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> getNodeSession(
+            @AuthenticationPrincipal User user,
+            @PathVariable long nodeId
+    ) {
+        Map<String, Object> session = skillTreeService.getNodeSession(user.getId(), nodeId);
+        return ResponseEntity.ok(session);
+    }
+
+    // ─────────────────────────────────────────────────────────────
     // POST /api/skill-tree/{nodeId}/submit — Nộp bài tập
     // ─────────────────────────────────────────────────────────────
 

@@ -114,6 +114,52 @@ public class SkillTreeService {
     }
 
     // ─────────────────────────────────────────────────────────────
+    // 1b. GET NODE SESSION — Trả về content_json cho trang học
+    //     All-in-one: ~30KB → Gzip ~5KB. FE lưu Zustand.
+    // ─────────────────────────────────────────────────────────────
+
+    public Map<String, Object> getNodeSession(long userId, long nodeId) {
+        Map<String, Object> node = loadNodeOrThrow(nodeId);
+
+        // Auto-unlock nếu dependencies met
+        boolean depsMet = checkDependenciesMet(userId, nodeId);
+        if (depsMet) {
+            upsertProgress(userId, nodeId, "IN_PROGRESS");
+        }
+
+        // Parse content_json
+        String contentJsonStr = (String) node.get("content_json");
+        Object contentParsed = null;
+        if (contentJsonStr != null && !contentJsonStr.isBlank()) {
+            try {
+                contentParsed = objectMapper.readValue(contentJsonStr, Object.class);
+            } catch (Exception e) {
+                log.warn("[SkillTree] Failed to parse content_json for node={}", nodeId, e);
+            }
+        }
+
+        // Build response
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("nodeId", node.get("id"));
+        result.put("titleDe", node.get("title_de"));
+        result.put("titleVi", node.get("title_vi"));
+        result.put("descriptionVi", node.get("description_vi"));
+        result.put("emoji", node.get("emoji"));
+        result.put("phase", node.get("phase"));
+        result.put("cefrLevel", node.get("cefr_level"));
+        result.put("difficulty", node.get("difficulty"));
+        result.put("xpReward", node.get("xp_reward"));
+        result.put("moduleNumber", node.get("module_number"));
+        result.put("moduleTitleVi", node.get("module_title_vi"));
+        result.put("sessionType", node.get("session_type"));
+        result.put("content", contentParsed);
+        result.put("hasContent", contentParsed != null);
+        result.put("dependenciesMet", depsMet);
+
+        return result;
+    }
+
+    // ─────────────────────────────────────────────────────────────
     // 2. UNLOCK NODE — Mở khóa Nhánh phụ (SATELLITE_LEAF)
     // ─────────────────────────────────────────────────────────────
 
@@ -450,8 +496,11 @@ public class SkillTreeService {
                        phase, day_number, week_number, cefr_level, difficulty,
                        xp_reward, energy_cost, industry, industry_vocab_percent,
                        vocab_strategy, content_json::text AS content_json, content_hash,
+                       module_number, module_title_vi, module_title_de, session_type,
+                       satellite_status, creator_user_id,
                        array_to_json(core_topics)::text AS core_topics,
-                       array_to_json(grammar_points)::text AS grammar_points
+                       array_to_json(grammar_points)::text AS grammar_points,
+                       array_to_json(tags)::text AS tags
                 FROM skill_tree_nodes WHERE id = ? AND is_active = TRUE
                 """, nodeId);
         if (rows.isEmpty()) throw new NotFoundException("Node not found: " + nodeId);

@@ -597,14 +597,8 @@ export default function RoadmapPage() {
 
   const handleStartNode = useCallback(
     (node: SkillTreeNode) => {
-      if (node.day_number && node.week_number) {
-        // Tính sessionIndex trong tuần: day 1→s1, day 8→s1, day 15→s1
-        const sessionIndex = node.day_number - (node.week_number - 1) * 7;
-        router.push(`/student/plan/week/${node.week_number}/session/${sessionIndex}`);
-      } else {
-        // SATELLITE_LEAF hoặc node không có day_number → chỉ hiện detail panel
-        setSelectedNode(node);
-      }
+      // Navigate to unified learning page
+      router.push(`/student/learn/node/${node.id}`);
     },
     [router]
   );
