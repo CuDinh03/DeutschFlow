@@ -32,7 +32,9 @@ set -e
 
 echo "📥 [1/5] Pulling latest code from GitHub..."
 cd /home/ubuntu/DeutschFlow
-git pull origin main
+git fetch origin AI_model
+git checkout AI_model
+git pull origin AI_model
 
 echo ""
 echo "🔨 [2/5] Building Docker image (skip tests)..."
@@ -58,7 +60,7 @@ sleep 45
 
 echo ""
 echo "🔍 Health check..."
-HEALTH=$(curl -s http://localhost:8080/actuator/health)
+HEALTH=$(curl -s http://localhost:8080/actuator/health || true)
 echo "Response: $HEALTH"
 
 if echo "$HEALTH" | grep -q '"UP"'; then
