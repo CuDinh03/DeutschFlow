@@ -369,10 +369,6 @@ export default function SessionDetailPage() {
   const [loadError, setLoadError] = useState('')
   const [detail, setDetail] = useState<Detail | null>(null)
   const didInitialLoadRef = useRef(false)
-  /** Tracks whether POST /plan/sessions/{w}/{s}/theory/viewed has been fired this mount */
-  const theoryViewedFiredRef = useRef(false)
-  /** Ref attached to bottom of theory content for IntersectionObserver */
-  const theoryEndRef = useRef<HTMLDivElement | null>(null)
   const [answers, setAnswers] = useState<Record<string, number | string>>({})
   const [gateAnswers, setGateAnswers] = useState<Record<string, number | string>>({})
   const [dragOrders, setDragOrders] = useState<Record<string, string[]>>({})
@@ -475,26 +471,6 @@ export default function SessionDetailPage() {
       return next
     })
   }, [theoryGatePassed])
-
-  // ── Theory viewed tracking ─────────────────────────────────────────────────
-  // Fire POST once when user scrolls past the theory section end marker
-  useEffect(() => {
-    if (!detail || theoryViewedFiredRef.current) return
-    const el = theoryEndRef.current
-    if (!el) return
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting && !theoryViewedFiredRef.current) {
-          theoryViewedFiredRef.current = true
-          observer.disconnect()
-          api.post(`/plan/sessions/${week}/${sessionIndex}/theory/viewed`).catch(() => {})
-        }
-      },
-      { threshold: 0.5 }
-    )
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [detail, week, sessionIndex])
 
   const canSubmitGate = useMemo(() => {
     if (!detail || theoryGatePassed) return false
@@ -751,8 +727,6 @@ export default function SessionDetailPage() {
               {(!detail.theory || detail.theory.length === 0) && <li className="text-sm text-muted-foreground">—</li>}
             </ul>
           )}
-          {/* Theory end marker for IntersectionObserver */}
-          <div ref={theoryEndRef} className="h-px" aria-hidden />
         </div>
 
         {!theoryGatePassed ? (

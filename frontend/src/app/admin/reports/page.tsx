@@ -422,83 +422,9 @@ export default function AdminReportsPage() {
               </table>
             )}
           </div>
-          {/* Training Dataset Export */}
-          <TrainingDatasetSection />
         </div>
       )}
     </AdminShell>
   )
 }
 
-function TrainingDatasetSection() {
-  const [stats, setStats] = useState<{ totalConversations?: number; totalErrors?: number; lastUpdated?: string } | null>(null)
-  const [loadingStats, setLoadingStats] = useState(false)
-  const [downloading, setDownloading] = useState<string | null>(null)
-
-  const loadStats = async () => {
-    setLoadingStats(true)
-    try {
-      const res = await api.get('/admin/training-dataset/stats')
-      setStats(res.data)
-    } catch { setStats(null) }
-    finally { setLoadingStats(false) }
-  }
-
-  useEffect(() => { void loadStats() }, [])
-
-  const download = async (path: string, filename: string) => {
-    setDownloading(path)
-    try {
-      const res = await api.get(`/admin/training-dataset/${path}`, { responseType: 'blob' })
-      const url = URL.createObjectURL(res.data as Blob)
-      const a = document.createElement('a')
-      a.href = url; a.download = filename; a.click()
-      URL.revokeObjectURL(url)
-    } catch (e) { console.error(e) }
-    finally { setDownloading(null) }
-  }
-
-  return (
-    <div className="section-card space-y-3">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-base font-semibold">Training Dataset Export</p>
-          <p className="text-xs text-muted-foreground">Xuất dữ liệu conversations & errors để fine-tune AI</p>
-        </div>
-        <button className="btn-outline btn-sm" onClick={() => void loadStats()} disabled={loadingStats}>
-          {loadingStats ? 'Đang tải...' : 'Làm mới stats'}
-        </button>
-      </div>
-
-      {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-          <div className="rounded-lg border border-border p-3 bg-muted/20">
-            <p className="text-xs text-muted-foreground">Tổng conversations</p>
-            <p className="text-xl font-bold">{stats.totalConversations ?? '—'}</p>
-          </div>
-          <div className="rounded-lg border border-border p-3 bg-muted/20">
-            <p className="text-xs text-muted-foreground">Tổng errors</p>
-            <p className="text-xl font-bold">{stats.totalErrors ?? '—'}</p>
-          </div>
-          {stats.lastUpdated && (
-            <div className="rounded-lg border border-border p-3 bg-muted/20">
-              <p className="text-xs text-muted-foreground">Cập nhật lúc</p>
-              <p className="text-sm font-medium">{new Date(stats.lastUpdated).toLocaleString()}</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="flex flex-wrap gap-2">
-        <button className="btn-outline btn-sm" disabled={!!downloading}
-          onClick={() => void download('export/conversations', 'training_conversations.json')}>
-          {downloading === 'export/conversations' ? 'Đang tải...' : '⬇ Export Conversations'}
-        </button>
-        <button className="btn-outline btn-sm" disabled={!!downloading}
-          onClick={() => void download('export/errors', 'training_errors.json')}>
-          {downloading === 'export/errors' ? 'Đang tải...' : '⬇ Export Errors'}
-        </button>
-      </div>
-    </div>
-  )
-}
