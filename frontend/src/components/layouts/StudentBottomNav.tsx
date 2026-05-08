@@ -50,13 +50,13 @@ export function StudentBottomNav({
             onClick={() => router.push(href)}
             className={cn(
               "relative flex h-full min-h-0 flex-1 flex-col items-center justify-center gap-1 transition-colors",
-              active ? "text-[#00305E]" : "text-[#94A3B8]",
+              active ? "text-[var(--brand-black)]" : "text-[#94A3B8]",
             )}
           >
             <motion.div
               className="relative flex h-8 w-10 items-center justify-center rounded-[12px]"
               animate={{
-                background: active ? "#00305E" : "rgba(0,0,0,0)",
+                background: active ? "var(--brand-black)" : "rgba(0,0,0,0)",
                 scale: active ? 1.05 : 1,
               }}
               transition={{ type: "spring", stiffness: 320, damping: 24 }}
@@ -65,7 +65,7 @@ export function StudentBottomNav({
                 size={18}
                 strokeWidth={active ? 2.5 : 2}
                 className="relative z-10"
-                style={{ color: active ? "#FFCE00" : "#94A3B8" }}
+                style={{ color: active ? "#FFCD00" : "#94A3B8" }}
               />
             </motion.div>
             <span className="text-[10px] font-bold leading-none">

@@ -11,7 +11,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 // ─── Palette (từ UI Demo) ──────────────────────────────────────────────────────
 const P = {
-  navy: "#00305E",
+  navy: "#121212",
   navyLt: "#EBF2FA",
   blue: "#2D9CDB",
   blueLt: "#EBF5FB",
@@ -19,7 +19,7 @@ const P = {
   redLt: "#FDEAEA",
   green: "#27AE60",
   greenLt: "#E8F8F0",
-  yellow: "#FFCE00",
+  yellow: "#FFCD00",
   yellowLt: "#FFF8E1",
   purple: "#9B51E0",
   purpleLt: "#F4EDFF",

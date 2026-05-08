@@ -220,7 +220,7 @@ export default function HomePage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 px-6 bg-gradient-to-br from-primary via-primary-hover to-navy-blue-dark text-white">
+      <section className="py-20 px-6 bg-gradient-to-br from-primary via-primary-hover to-brand-black-dark text-white">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-4xl font-bold mb-6">
             Sẵn sàng bắt đầu hành trình học tiếng Đức?

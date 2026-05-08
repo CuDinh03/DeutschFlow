@@ -45,7 +45,7 @@ export default function AdminOverviewPage() {
     {
       label: t('cardUsers'), value: ov.userCount.toLocaleString(),
       sub: t('cardUsersSub', { teachers: ov.teacherCount, students: ov.studentCount }),
-      icon: Users, bg: '#EEF4FF', color: '#00305E',
+      icon: Users, bg: '#EEF4FF', color: '#121212',
     },
     {
       label: t('cardClasses'), value: ov.classCount.toLocaleString(),
@@ -127,7 +127,7 @@ export default function AdminOverviewPage() {
           {/* Quick links */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { href: '/admin/users', label: t('linkUsers'), desc: t('linkUsersDesc'), icon: Users, color: '#00305E' },
+              { href: '/admin/users', label: t('linkUsers'), desc: t('linkUsersDesc'), icon: Users, color: '#121212' },
               { href: '/admin/plans', label: t('linkPlans'), desc: t('linkPlansDesc'), icon: Coins, color: '#0ea5e9' },
               { href: '/admin/revenue', label: t('linkRevenue'), desc: t('linkRevenueDesc'), icon: LineChart, color: '#6366f1' },
               { href: '/admin/token-analytics', label: t('linkTokens'), desc: t('linkTokensDesc'), icon: PieChart, color: '#f43f5e' },
@@ -137,7 +137,7 @@ export default function AdminOverviewPage() {
               { href: '/admin/settings', label: t('linkSettings'), desc: t('linkSettingsDesc'), icon: Settings, color: '#64748B' },
             ].map(({ href, label, desc, icon: Icon, color }) => (
               <a key={href} href={href}
-                className="bg-white rounded-[16px] p-5 border border-[#E2E8F0] shadow-sm hover:shadow-md hover:border-[#00305E]/20 transition-all flex items-center gap-4">
+                className="bg-white rounded-[16px] p-5 border border-[#E2E8F0] shadow-sm hover:shadow-md hover:border-[#121212]/20 transition-all flex items-center gap-4">
                 <div className="w-11 h-11 rounded-[12px] flex items-center justify-center flex-shrink-0"
                   style={{ backgroundColor: color + '15' }}>
                   <Icon size={20} style={{ color }} />

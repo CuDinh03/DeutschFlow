@@ -326,7 +326,7 @@ export default function AdminReportsPage() {
                       </td>
                       <td className="py-2 pr-4">{row.completedSessions}</td>
                       <td className="py-2 pr-4">
-                        <span className="inline-flex rounded-full bg-[#EEF4FF] px-2 py-0.5 text-xs font-semibold text-[#00305E]">
+                        <span className="inline-flex rounded-full bg-[#EEF4FF] px-2 py-0.5 text-xs font-semibold text-[#121212]">
                           {row.planProgressPercent}%
                         </span>
                       </td>

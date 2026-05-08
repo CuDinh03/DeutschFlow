@@ -84,7 +84,7 @@ export default function AdminWeeklySpeakingPage() {
         <div className="flex justify-between items-center">
           <p className="text-sm text-muted-foreground">{(prompts ?? []).length} prompts</p>
           <button type="button" onClick={openCreate}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#00305E] text-white text-sm font-semibold hover:bg-[#004080] transition-colors">
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#121212] text-white text-sm font-semibold hover:bg-[#1E1E1E] transition-colors">
             <Plus size={14} /> Tạo mới
           </button>
         </div>
@@ -92,7 +92,7 @@ export default function AdminWeeklySpeakingPage() {
         {/* Form */}
         {showForm && (
           <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-2xl p-5 border-2 border-[#00305E]/20 space-y-3">
+            className="bg-white rounded-2xl p-5 border-2 border-[#121212]/20 space-y-3">
             <div className="flex items-center justify-between">
               <p className="font-bold text-[#0F172A]">{editingId ? "Sửa Prompt" : "Tạo Prompt mới"}</p>
               <button type="button" onClick={() => setShowForm(false)}><X size={16} className="text-[#94A3B8]" /></button>
@@ -131,7 +131,7 @@ export default function AdminWeeklySpeakingPage() {
               <label htmlFor="isActive" className="text-sm text-[#475569]">Kích hoạt</label>
             </div>
             <button type="button" onClick={handleSave} disabled={saving || !form.topicDe.trim()}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#00305E] text-white text-sm font-bold disabled:opacity-50">
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#121212] text-white text-sm font-bold disabled:opacity-50">
               {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
               {saving ? "Đang lưu..." : "Lưu"}
             </button>
@@ -140,18 +140,18 @@ export default function AdminWeeklySpeakingPage() {
 
         {/* List */}
         {loading ? (
-          <div className="flex justify-center py-12"><Loader2 size={24} className="animate-spin text-[#00305E]" /></div>
+          <div className="flex justify-center py-12"><Loader2 size={24} className="animate-spin text-[#121212]" /></div>
         ) : (
           <div className="space-y-2">
             {(prompts ?? []).map(p => (
               <div key={p.id} className="bg-white rounded-2xl p-4 border border-[#E2E8F0] flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#EEF4FF] flex items-center justify-center flex-shrink-0 font-bold text-[#00305E] text-sm">
+                <div className="w-10 h-10 rounded-xl bg-[#EEF4FF] flex items-center justify-center flex-shrink-0 font-bold text-[#121212] text-sm">
                   W{p.weekNumber}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="font-semibold text-sm text-[#0F172A]">{p.topicVi}</p>
-                    <span className="text-[10px] bg-[#EEF4FF] text-[#00305E] px-2 py-0.5 rounded-full font-bold">{p.cefrLevel}</span>
+                    <span className="text-[10px] bg-[#EEF4FF] text-[#121212] px-2 py-0.5 rounded-full font-bold">{p.cefrLevel}</span>
                     {!p.isActive && <span className="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full">Tắt</span>}
                   </div>
                   <p className="text-xs text-[#64748B] mt-0.5 italic">{p.topicDe}</p>

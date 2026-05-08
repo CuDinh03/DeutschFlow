@@ -51,19 +51,19 @@ function SessionCard({ session, onSelect }: { session: SpeakingSession; onSelect
     <motion.button
       initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
       onClick={onSelect}
-      className="w-full text-left bg-white border border-[#E2E8F0] rounded-[16px] p-5 hover:border-[#00305E]/40 hover:shadow-md transition-all"
+      className="w-full text-left bg-white border border-[#E2E8F0] rounded-[16px] p-5 hover:border-[#121212]/40 hover:shadow-md transition-all"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded-[8px] bg-[#00305E]/8 flex items-center justify-center">
-              <Mic2 size={16} className="text-[#00305E]" />
+            <div className="w-8 h-8 rounded-[8px] bg-[#121212]/8 flex items-center justify-center">
+              <Mic2 size={16} className="text-[#121212]" />
             </div>
             <span className="font-semibold text-[#0F172A] text-sm truncate">
               {session.topic ?? "Không có chủ đề"} — {session.cefrLevel ?? "?"}
             </span>
             {session.persona && (
-              <span className="text-[10px] bg-[#FFCE00]/20 text-[#00305E] px-2 py-0.5 rounded-full font-medium border border-[#FFCE00]/30">
+              <span className="text-[10px] bg-[#FFCD00]/20 text-[#121212] px-2 py-0.5 rounded-full font-medium border border-[#FFCD00]/30">
                 {session.persona}
               </span>
             )}
@@ -100,14 +100,14 @@ function MessageBubble({ msg }: { msg: SessionMessage }) {
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"} gap-2`}>
       {!isUser && (
-        <div className="w-7 h-7 rounded-full bg-[#00305E] flex items-center justify-center flex-shrink-0 mt-1">
+        <div className="w-7 h-7 rounded-full bg-[#121212] flex items-center justify-center flex-shrink-0 mt-1">
           <Mic2 size={13} className="text-white" />
         </div>
       )}
       <div className={`max-w-[80%] ${isUser ? "items-end" : "items-start"} flex flex-col gap-1`}>
         <div className={`rounded-[16px] px-4 py-3 text-sm ${
           isUser
-            ? "bg-[#00305E] text-white rounded-br-sm"
+            ? "bg-[#121212] text-white rounded-br-sm"
             : "bg-white border border-[#E2E8F0] text-[#0F172A] rounded-bl-sm"
         }`}>
           {isUser ? msg.userMessage : msg.aiSpeechDe}
@@ -210,7 +210,7 @@ export default function SpeakingHistoryPage() {
   if (loading || !profile) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 size={28} className="animate-spin text-[#00305E]" />
+        <Loader2 size={28} className="animate-spin text-[#121212]" />
       </div>
     );
   }
@@ -231,7 +231,7 @@ export default function SpeakingHistoryPage() {
         {selected && (
           <button
             onClick={() => { setSelected(null); setMessages([]); }}
-            className="flex items-center gap-1.5 text-sm text-[#64748B] hover:text-[#00305E] mb-5 transition-colors"
+            className="flex items-center gap-1.5 text-sm text-[#64748B] hover:text-[#121212] mb-5 transition-colors"
           >
             <ArrowLeft size={15} /> Danh sách phiên
           </button>
@@ -246,7 +246,7 @@ export default function SpeakingHistoryPage() {
               </div>
               <button
                 onClick={() => router.push("/speaking")}
-                className="text-sm font-semibold text-[#00305E] hover:underline flex items-center gap-1"
+                className="text-sm font-semibold text-[#121212] hover:underline flex items-center gap-1"
               >
                 <Mic2 size={13} /> Bắt đầu phiên mới
               </button>
@@ -256,7 +256,7 @@ export default function SpeakingHistoryPage() {
                 <Mic2 size={40} className="mx-auto mb-3 opacity-30" />
                 <p className="font-medium">Chưa có phiên nào</p>
                 <p className="text-sm mt-1">Hãy bắt đầu luyện nói với AI!</p>
-                <button onClick={() => router.push("/speaking")} className="mt-4 bg-[#00305E] text-white rounded-[12px] px-5 py-2 text-sm font-semibold hover:bg-[#004080]">
+                <button onClick={() => router.push("/speaking")} className="mt-4 bg-[#121212] text-white rounded-[12px] px-5 py-2 text-sm font-semibold hover:bg-[#1E1E1E]">
                   Bắt đầu ngay
                 </button>
               </div>
@@ -270,7 +270,7 @@ export default function SpeakingHistoryPage() {
           <div className="space-y-3">
             {loadingMsgs ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 size={24} className="animate-spin text-[#00305E]" />
+                <Loader2 size={24} className="animate-spin text-[#121212]" />
               </div>
             ) : messages.length === 0 ? (
               <div className="text-center py-12 text-[#94A3B8]">

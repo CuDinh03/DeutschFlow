@@ -187,7 +187,7 @@ export default function DashboardPage() {
             <button
               onClick={() => load(true)}
               disabled={refreshing}
-              className="flex items-center gap-1.5 text-xs text-[#64748B] hover:text-[#00305E] transition-colors"
+              className="flex items-center gap-1.5 text-xs text-[#64748B] hover:text-[#121212] transition-colors"
             >
               <RefreshCw size={12} className={refreshing ? "animate-spin" : ""} />
               Làm mới
@@ -252,7 +252,7 @@ export default function DashboardPage() {
               <div className="px-4 py-3 border-t border-[#F1F4F9]">
                 <button
                   onClick={() => router.push("/student/errors")}
-                  className="text-xs font-semibold text-[#00305E] hover:underline flex items-center gap-1"
+                  className="text-xs font-semibold text-[#121212] hover:underline flex items-center gap-1"
                 >
                   Xem toàn bộ lỗi <ArrowRight size={11} />
                 </button>

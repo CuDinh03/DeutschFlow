@@ -79,7 +79,7 @@ export default function GrammarPracticePage() {
     finally { setCulturalLoading(false); }
   };
 
-  if (meLoading || !me) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="animate-spin text-[#00305E]" size={28} /></div>;
+  if (meLoading || !me) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="animate-spin text-[#121212]" size={28} /></div>;
 
   return (
     <StudentShell activeSection="grammar-practice" user={me} targetLevel={targetLevel} streakDays={streakDays} initials={initials} onLogout={() => { logout(); }} headerTitle="Luyện ngữ pháp AI" headerSubtitle="Sửa lỗi · Giải thích · Phân tích · Văn hóa">
@@ -90,7 +90,7 @@ export default function GrammarPracticePage() {
             {CEFR.map(l => (
               <button key={l} type="button" onClick={() => setCefr(l)}
                 className="px-4 py-2 rounded-xl text-sm font-bold transition-all"
-                style={{ background: l === cefr ? "#00305E" : "#EEF4FF", color: l === cefr ? "white" : "#00305E" }}>
+                style={{ background: l === cefr ? "#121212" : "#EEF4FF", color: l === cefr ? "white" : "#121212" }}>
                 {l}
               </button>
             ))}
@@ -102,7 +102,7 @@ export default function GrammarPracticePage() {
           {TABS.map(t => (
             <button key={t.id} type="button" onClick={() => { setTab(t.id); setResult(null); setCulturalResult(null); }}
               className="flex-1 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap flex-shrink-0 min-w-[56px]"
-              style={{ background: tab === t.id ? "#00305E" : "transparent", color: tab === t.id ? "white" : "#64748B" }}>
+              style={{ background: tab === t.id ? "#121212" : "transparent", color: tab === t.id ? "white" : "#64748B" }}>
               {t.label}
             </button>
           ))}
@@ -112,12 +112,12 @@ export default function GrammarPracticePage() {
         {tab === "suggestions" && (
           <div className="space-y-3">
             <div className="flex justify-end">
-              <button type="button" onClick={() => void loadSuggestions()} className="text-xs text-[#00305E] flex items-center gap-1"><RotateCcw size={11} /> Làm mới</button>
+              <button type="button" onClick={() => void loadSuggestions()} className="text-xs text-[#121212] flex items-center gap-1"><RotateCcw size={11} /> Làm mới</button>
             </div>
-            {loading ? <div className="flex justify-center py-12"><Loader2 size={24} className="animate-spin text-[#00305E]" /></div> :
+            {loading ? <div className="flex justify-center py-12"><Loader2 size={24} className="animate-spin text-[#121212]" /></div> :
               suggestions.map((s, i) => (
                 <motion.div key={i} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-                  className="bg-white rounded-2xl p-4 border border-[#E2E8F0] cursor-pointer hover:border-[#00305E]/30"
+                  className="bg-white rounded-2xl p-4 border border-[#E2E8F0] cursor-pointer hover:border-[#121212]/30"
                   onClick={() => { setText(s.example ?? ""); setTab("correct"); }}>
                   <p className="font-semibold text-sm text-[#0F172A]">{s.topic}</p>
                   <p className="text-xs text-[#64748B] mt-1">{s.description}</p>
@@ -142,7 +142,7 @@ export default function GrammarPracticePage() {
                 />
                 <button type="button" onClick={() => void runCultural()} disabled={culturalLoading || !culturalTopic.trim()}
                   className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm disabled:opacity-50"
-                  style={{ background: "#00305E", color: "white" }}>
+                  style={{ background: "#121212", color: "white" }}>
                   {culturalLoading ? <Loader2 size={14} className="animate-spin" /> : <Globe size={14} />}
                 </button>
               </div>
@@ -150,7 +150,7 @@ export default function GrammarPracticePage() {
               <div className="flex flex-wrap gap-1.5 mt-3">
                 {CULTURAL_CHIPS.map(chip => (
                   <button key={chip} type="button" onClick={() => void runCultural(chip)}
-                    className="text-[11px] px-2.5 py-1 rounded-full bg-[#EEF4FF] text-[#00305E] font-medium hover:bg-[#DBEAFE] transition-colors">
+                    className="text-[11px] px-2.5 py-1 rounded-full bg-[#EEF4FF] text-[#121212] font-medium hover:bg-[#DBEAFE] transition-colors">
                     {chip}
                   </button>
                 ))}
@@ -159,7 +159,7 @@ export default function GrammarPracticePage() {
 
             {culturalLoading && (
               <div className="flex items-center justify-center py-10 gap-3">
-                <Loader2 size={22} className="animate-spin text-[#00305E]" />
+                <Loader2 size={22} className="animate-spin text-[#121212]" />
                 <span className="text-sm text-[#64748B]">AI đang tra cứu văn hóa Đức...</span>
               </div>
             )}
@@ -186,7 +186,7 @@ export default function GrammarPracticePage() {
                 className="w-full resize-none text-sm text-[#0F172A] placeholder-[#CBD5E1] outline-none min-h-[90px]" rows={4} />
               <button type="button" onClick={run} disabled={loading || !text.trim()}
                 className="mt-3 flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm disabled:opacity-50"
-                style={{ background: "#00305E", color: "white" }}>
+                style={{ background: "#121212", color: "white" }}>
                 {loading ? <Loader2 size={14} className="animate-spin" /> : tab === "correct" ? <CheckCircle2 size={14} /> : tab === "explain" ? <BookOpen size={14} /> : <Brain size={14} />}
                 {loading ? "Đang xử lý..." : tab === "correct" ? "Sửa lỗi" : tab === "explain" ? "Giải thích" : "Phân tích"}
               </button>

@@ -178,7 +178,7 @@ export default function StudentWeeklySpeakingPage() {
           <select
             value={cefPick}
             onChange={(e) => setCefPick(e.target.value)}
-            className="w-full max-w-xs rounded-[10px] border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm text-[#00305E] font-semibold"
+            className="w-full max-w-xs rounded-[10px] border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm text-[#121212] font-semibold"
           >
             {bandOptions.map((b) => (
               <option key={b} value={b}>
@@ -212,7 +212,7 @@ export default function StudentWeeklySpeakingPage() {
                     onClick={() => void toggleExpand(row.id)}
                     className="w-full text-left px-3 py-2.5 flex flex-wrap justify-between gap-2 hover:bg-[#F1F5F9]"
                   >
-                    <span className="font-medium text-[#00305E] text-sm">{row.promptTitle}</span>
+                    <span className="font-medium text-[#121212] text-sm">{row.promptTitle}</span>
                     <span className="text-xs text-[#64748B]">
                       {row.weekStartDate} · {row.cefrBand}
                       {row.taskScoreOrNull != null ? ` · ${row.taskScoreOrNull}/5` : ''}
@@ -237,7 +237,7 @@ export default function StudentWeeklySpeakingPage() {
                               {detail.rubricPayloadRawOrNull}
                             </pre>
                           )}
-                          <p className="text-xs font-semibold text-[#00305E]">{tSpeak('weeklyYourTranscript')}</p>
+                          <p className="text-xs font-semibold text-[#121212]">{tSpeak('weeklyYourTranscript')}</p>
                           <p className="text-[#334155] text-xs whitespace-pre-wrap border border-[#E2E8F0] rounded-[8px] p-2 bg-[#FAFAFA]">
                             {detail.transcript}
                           </p>

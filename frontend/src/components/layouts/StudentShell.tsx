@@ -123,7 +123,7 @@ export function StudentShell({
           { id: "dashboard" as const, label: t("navDashboard"), icon: LayoutDashboard, href: "/dashboard" },
           { id: "courses" as const, label: t("navMyCourses"), icon: BookOpen, href: "/student/plan" },
           { id: "roadmap" as const, label: t("navLearningPath"), icon: Map, href: "/student/roadmap",
-            badge: <span className="text-[9px] font-bold bg-[#FFCE00]/20 text-[#FFCE00] px-1.5 py-0.5 rounded-full border border-[#FFCE00]/30">{t("newBadge")}</span> },
+            badge: <span className="text-[9px] font-bold bg-[#FFCD00]/20 text-[#FFCD00] px-1.5 py-0.5 rounded-full border border-[#FFCD00]/30">{t("newBadge")}</span> },
           { id: "vocabulary" as const, label: t("navVocabulary"), icon: BookMarked, href: "/student/vocabulary" },
           { id: "vocab-analytics" as const, label: "Thống kê từ vựng", icon: BarChart2 as any, href: "/student/vocab-analytics" },
           { id: "grammar-practice" as const, label: "Luyện ngữ pháp AI", icon: Brain, href: "/student/grammar-practice" },
@@ -177,7 +177,7 @@ export function StudentShell({
 
       {!hideSidebar && (
         <aside
-          className={`fixed lg:relative z-30 flex flex-col h-full w-64 bg-[#00305E]/95 backdrop-blur-md border-r border-white/10 text-white transition-transform duration-300 shadow-xl shadow-black/10
+          className={`fixed lg:relative z-30 flex flex-col h-full w-64 bg-[var(--brand-black)] backdrop-blur-md border-r border-white/10 text-[var(--sidebar-foreground)] transition-transform duration-300 shadow-xl shadow-black/10
             ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
         >
           <div className="flex items-center gap-2 px-4 py-5 border-b border-white/10">
@@ -185,7 +185,6 @@ export function StudentShell({
               variant="horizontal"
               size={160}
               animated={false}
-              className="[&_path]:stroke-white [&_text]:fill-white [&_text:last-child]:fill-[#FFCD00]"
             />
             <button type="button" className="ml-auto lg:hidden text-white/60 hover:text-white" onClick={() => setSidebarOpen(false)}>
               <X size={20} />
@@ -209,7 +208,7 @@ export function StudentShell({
                         onClick={() => go(href)}
                         className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-[12px] transition-all duration-200 text-left group
                           ${active
-                            ? "bg-[#FFCE00] text-[#00305E] shadow-md"
+                            ? "bg-[var(--brand-yellow)] text-[var(--brand-black)] shadow-md"
                             : "text-white/70 hover:bg-white/10 hover:text-white"
                           }`}
                       >
@@ -217,7 +216,7 @@ export function StudentShell({
                         <div className="flex-1 flex items-center justify-between min-w-0">
                           <span className="font-medium text-sm truncate">{itemLabel}</span>
                           {badge && !active && badge}
-                          {active && <ChevronRight size={13} className="text-[#00305E]/60 ml-2" />}
+                          {active && <ChevronRight size={13} className="text-[var(--brand-black)]/60 ml-2" />}
                         </div>
                       </button>
                     );
@@ -238,8 +237,8 @@ export function StudentShell({
             </button>
 
             <div className="flex items-center gap-3 px-4 py-3 rounded-[12px] bg-white/8 border border-white/10">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#FFCE00] to-[#E6B900] flex items-center justify-center flex-shrink-0">
-                <span className="text-[#00305E] font-bold text-sm">{initials}</span>
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[var(--brand-yellow)] to-[var(--brand-yellow-dark)] flex items-center justify-center flex-shrink-0">
+                <span className="text-[var(--brand-black)] font-bold text-sm">{initials}</span>
               </div>
               <div className="min-w-0">
                 <p className="font-semibold text-sm text-white truncate">{user.displayName}</p>
@@ -277,15 +276,15 @@ export function StudentShell({
             <div className="flex items-center gap-3 flex-shrink-0">
               {headerRight}
               <XpLevelPill />
-              <div className="flex items-center gap-2 bg-[#FFF8E1] border border-[#FFCE00]/40 rounded-[12px] px-3 py-2">
+              <div className="flex items-center gap-2 bg-[#FFF8E1] border border-[#FFCD00]/40 rounded-[12px] px-3 py-2">
 
                 <Flame size={18} className="text-orange-500" fill="#f97316" />
-                <span className="font-bold text-[#00305E] text-sm">{t("streakDays", { n: streakDays })}</span>
+                <span className="font-bold text-[var(--brand-black)] text-sm">{t("streakDays", { n: streakDays })}</span>
                 <span className="text-[#64748B] text-xs hidden sm:inline">{t("streakBadgeShort")}</span>
               </div>
               <NotificationBell buttonClassName="p-2.5 rounded-[12px] bg-[#F5F7FA] hover:bg-[#E2E8F0] transition-colors" />
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#00305E] to-[#004080] flex items-center justify-center flex-shrink-0">
-                <span className="text-white font-bold text-sm">{initials}</span>
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[var(--brand-black)] to-[var(--brand-black-dark)] flex items-center justify-center flex-shrink-0">
+                <span className="text-[var(--brand-yellow)] font-bold text-sm">{initials}</span>
               </div>
             </div>
           </header>

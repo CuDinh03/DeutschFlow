@@ -4,20 +4,23 @@
 
 /**
  * Design tokens aligned with `uidemo/deutschflow_UI_DEMO/src/styles/theme.css`
- * (DeutschFlow UI demo — navy #00305E + yellow #FFCE00, slate neutrals).
+ * (DeutschFlow UI demo — navy #121212 + yellow #FFCD00, slate neutrals).
  */
 
 @layer base {
   :root {
     --font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 
-    /* Brand */
-    --navy-blue: #00305E;
-    --navy-blue-dark: #002447;
-    --navy-blue-light: #004080;
-    --vibrant-yellow: #FFCE00;
-    --vibrant-yellow-dark: #E6B900;
-    --vibrant-yellow-light: #FFD633;
+    /* Brand - Bauhaus Inspired */
+    --brand-black: #121212;
+    --brand-black-dark: #000000;
+    --brand-black-light: #1E1E1E;
+    --brand-yellow: #FFCD00;
+    --brand-yellow-dark: #E6B800;
+    --brand-yellow-light: #FFD633;
+    --brand-red: #DA291C;
+    --brand-red-dark: #B92318;
+    --brand-red-light: #E05349;
 
     /* Gender Colors (German Grammar) */
     --gender-der: #3b82f6;
@@ -33,21 +36,21 @@
     --popover: #ffffff;
     --popover-foreground: #1a1a1a;
 
-    --primary: #00305e;
-    --primary-foreground: #ffffff;
-    --primary-hover: #002447;
+    --primary: var(--brand-yellow);
+    --primary-foreground: var(--brand-black-dark);
+    --primary-hover: var(--brand-yellow-dark);
 
     --secondary: #f0f4f8;
-    --secondary-foreground: #00305e;
+    --secondary-foreground: var(--brand-black);
 
-    --accent: #ffce00;
-    --accent-foreground: #00305e;
-    --accent-hover: #e6b900;
+    --accent: var(--brand-red);
+    --accent-foreground: #ffffff;
+    --accent-hover: var(--brand-red-dark);
 
     --muted: #f5f7fa;
     --muted-foreground: #64748b;
 
-    --destructive: #dc2626;
+    --destructive: var(--brand-red);
     --destructive-foreground: #ffffff;
 
     --success: #10b981;
@@ -63,22 +66,22 @@
     --input: #e2e8f0;
     --input-background: #ffffff;
     --switch-background: #cbd5e1;
-    --ring: #00305e;
+    --ring: var(--brand-yellow);
 
-    --chart-1: #00305e;
-    --chart-2: #ffce00;
+    --chart-1: var(--brand-black);
+    --chart-2: var(--brand-yellow);
     --chart-3: #3b82f6;
     --chart-4: #10b981;
     --chart-5: #8b5cf6;
 
-    --sidebar: #00305e;
+    --sidebar: var(--brand-black);
     --sidebar-foreground: #ffffff;
-    --sidebar-primary: #ffce00;
-    --sidebar-primary-foreground: #00305e;
-    --sidebar-accent: #004080;
+    --sidebar-primary: var(--brand-yellow);
+    --sidebar-primary-foreground: var(--brand-black-dark);
+    --sidebar-accent: var(--brand-black-light);
     --sidebar-accent-foreground: #ffffff;
-    --sidebar-border: #004080;
-    --sidebar-ring: #ffce00;
+    --sidebar-border: var(--brand-black-light);
+    --sidebar-ring: var(--brand-yellow);
 
     --shadow-sm: 0 1px 2px 0 rgba(0, 48, 94, 0.05);
     --shadow-md: 0 4px 6px -1px rgba(0, 48, 94, 0.08), 0 2px 4px -1px rgba(0, 48, 94, 0.04);
@@ -108,21 +111,21 @@
     --popover: #1a2942;
     --popover-foreground: #f8fafc;
 
-    --primary: #3d6db5;
-    --primary-foreground: #ffffff;
-    --primary-hover: #2a5a9e;
+    --primary: var(--brand-yellow);
+    --primary-foreground: var(--brand-black-dark);
+    --primary-hover: var(--brand-yellow-dark);
 
     --secondary: #1a2942;
     --secondary-foreground: #f8fafc;
 
-    --accent: #ffce00;
-    --accent-foreground: #0a1628;
-    --accent-hover: #e6b900;
+    --accent: var(--brand-red);
+    --accent-foreground: #ffffff;
+    --accent-hover: var(--brand-red-dark);
 
     --muted: #1e3a5f;
     --muted-foreground: #94a3b8;
 
-    --destructive: #ef4444;
+    --destructive: var(--brand-red-light);
     --destructive-foreground: #ffffff;
 
     --success: #10b981;
@@ -138,22 +141,22 @@
     --input: #2a4365;
     --input-background: #1a2942;
     --switch-background: #475569;
-    --ring: #ffce00;
+    --ring: var(--brand-yellow);
 
     --chart-1: #3d6db5;
-    --chart-2: #ffce00;
+    --chart-2: var(--brand-yellow);
     --chart-3: #60a5fa;
     --chart-4: #34d399;
     --chart-5: #a78bfa;
 
-    --sidebar: #00305e;
+    --sidebar: var(--brand-black-dark);
     --sidebar-foreground: #f8fafc;
-    --sidebar-primary: #ffce00;
-    --sidebar-primary-foreground: #00305e;
+    --sidebar-primary: var(--brand-yellow);
+    --sidebar-primary-foreground: var(--brand-black-dark);
     --sidebar-accent: #2a4365;
     --sidebar-accent-foreground: #f8fafc;
     --sidebar-border: #2a4365;
-    --sidebar-ring: #ffce00;
+    --sidebar-ring: var(--brand-yellow);
   }
 }
 
@@ -241,17 +244,18 @@
     @apply inline-flex items-center justify-center rounded-[var(--radius-lg)] 
            font-medium transition-all duration-200 
            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring 
+           active:scale-[0.98]
            disabled:pointer-events-none disabled:opacity-50;
   }
 
   .btn-primary {
     @apply btn bg-[var(--primary)] text-[var(--primary-foreground)] 
-           hover:bg-[var(--primary-hover)] shadow-[var(--shadow-md)];
+           hover:bg-[var(--primary-hover)] hover:-translate-y-0.5 shadow-[var(--shadow-md)] hover:shadow-[var(--shadow-lg)];
   }
 
   .btn-accent {
     @apply btn bg-[var(--accent)] text-[var(--accent-foreground)] 
-           hover:bg-[var(--accent-hover)] shadow-[var(--shadow-md)];
+           hover:bg-[var(--accent-hover)] hover:-translate-y-0.5 shadow-[var(--shadow-md)] hover:shadow-[var(--shadow-lg)];
   }
 
   .btn-secondary {
@@ -261,7 +265,7 @@
 
   .btn-outline {
     @apply btn border-2 border-[var(--primary)] text-[var(--primary)] 
-           hover:bg-[var(--primary)] hover:text-white;
+           hover:bg-[var(--primary)] hover:text-[var(--primary-foreground)];
   }
 
   .btn-destructive {
@@ -342,7 +346,7 @@
   }
 
   .auth-card {
-    @apply df-glass-subtle rounded-2xl p-8 shadow-xl shadow-[#00305E]/10 border border-white/40;
+    @apply df-glass-subtle rounded-2xl p-8 shadow-xl shadow-[#121212]/10 border border-white/40;
   }
 
   .form-field {
@@ -416,7 +420,7 @@
     @apply bg-white/10 backdrop-blur-md border border-white/20;
   }
   .df-glass-subtle {
-    @apply bg-white/80 backdrop-blur-lg border border-white/30 shadow-md shadow-[#00305E]/5;
+    @apply bg-white/80 backdrop-blur-lg border border-white/30 shadow-md shadow-[#121212]/5;
   }
   /* App canvas — matches UIDemo dashboard outer bg (#F5F5F5) */
   .df-page-mesh {

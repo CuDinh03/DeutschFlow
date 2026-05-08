@@ -114,7 +114,7 @@ function buildLevelsFromPlan(
       objectives.length > 1 ? objectives.slice(0, 3).join(" · ") : objectives[0] ? String(objectives[0]) : tr("weekNoObjectives");
     const xpReward = 250 + lessonsTotal * 45 + weekNum * 30;
     const emoji = EMOJIS[idx % EMOJIS.length];
-    const color = state === "completed" ? "#10B981" : state === "current" ? "#FFCE00" : "#94A3B8";
+    const color = state === "completed" ? "#10B981" : state === "current" ? "#FFCD00" : "#94A3B8";
     const shadowColor = state === "completed" ? "#059669" : state === "current" ? "#C9A200" : "#64748B";
     const category = sessions[0]?.type ?? "LESSON";
     return {
@@ -177,7 +177,7 @@ function LevelNode({
             background: isCompleted
               ? "linear-gradient(145deg, #34D399, #10B981)"
               : isCurrent
-                ? "linear-gradient(145deg, #FFD940, #FFCE00)"
+                ? "linear-gradient(145deg, #FFD940, #FFCD00)"
                 : "linear-gradient(145deg, #E2E8F0, #CBD5E1)",
             boxShadow: isCompleted
               ? `0 6px 0 0 ${level.shadowColor}, 0 10px 28px rgba(16,185,129,0.3), inset 0 1px 0 rgba(255,255,255,0.4)`
@@ -299,7 +299,7 @@ function InfoCard({
           </div>
           <div className="flex items-center justify-between">
             <span className="text-[11px] text-[#10B981] font-semibold">{t("completedBadge")}</span>
-            <span className="text-[11px] font-bold" style={{ color: "#FFCE00" }}>
+            <span className="text-[11px] font-bold" style={{ color: "#FFCD00" }}>
               +{level.xpReward} XP
             </span>
           </div>
@@ -307,7 +307,7 @@ function InfoCard({
       ) : (
         <div className="space-y-1.5">
           <div className="w-full h-1.5 rounded-full bg-[#FEF9C3] overflow-hidden">
-            <div className="h-full bg-[#FFCE00] rounded-full" style={{ width: `${pct}%` }} />
+            <div className="h-full bg-[#FFCD00] rounded-full" style={{ width: `${pct}%` }} />
           </div>
           <div className="flex items-center justify-between">
             <span className="text-[11px] text-[#92400E]">
@@ -330,7 +330,7 @@ function Connector({ fromState, toState }: { fromState: LevelState; toState: Lev
       <div
         className="w-0.5 h-full"
         style={{
-          background: bothDone ? "#10B981" : toCurrent ? "linear-gradient(180deg, #10B981 0%, #FFCE00 100%)" : "#E2E8F0",
+          background: bothDone ? "#10B981" : toCurrent ? "linear-gradient(180deg, #10B981 0%, #FFCD00 100%)" : "#E2E8F0",
           boxShadow: bothDone ? "0 0 6px rgba(16,185,129,0.4)" : toCurrent ? "0 0 6px rgba(255,206,0,0.3)" : "none",
         }}
       />
@@ -473,7 +473,7 @@ export default function RoadmapPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F5F7FA]">
         <div className="flex flex-col items-center gap-4">
-          <svg className="animate-spin h-12 w-12 text-[#00305E]" fill="none" viewBox="0 0 24 24">
+          <svg className="animate-spin h-12 w-12 text-[#121212]" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path
               className="opacity-75"
@@ -509,8 +509,8 @@ export default function RoadmapPage() {
           border: "1.5px solid rgba(255,206,0,0.4)",
         }}
       >
-        <Star size={16} fill="#FFCE00" className="text-[#FFCE00]" />
-        <span className="font-extrabold text-[#00305E] text-sm">{totalXP.toLocaleString()}</span>
+        <Star size={16} fill="#FFCD00" className="text-[#FFCD00]" />
+        <span className="font-extrabold text-[#121212] text-sm">{totalXP.toLocaleString()}</span>
         <span className="text-[#64748B] text-xs">{t("xpShort")}</span>
       </div>
     </div>
@@ -523,7 +523,7 @@ export default function RoadmapPage() {
       <button
         type="button"
         onClick={() => router.push("/onboarding")}
-        className="px-4 py-2 rounded-[12px] bg-[#00305E] text-white text-sm font-semibold"
+        className="px-4 py-2 rounded-[12px] bg-[#121212] text-white text-sm font-semibold"
       >
         {t("emptyCta")}
       </button>
@@ -533,14 +533,14 @@ export default function RoadmapPage() {
       <motion.div
         className="relative overflow-hidden flex-shrink-0 rounded-[16px] mb-6"
         style={{
-          background: "linear-gradient(135deg, #00305E 0%, #004080 60%, #0052A3 100%)",
+          background: "linear-gradient(135deg, #121212 0%, #1E1E1E 60%, #0052A3 100%)",
           border: "2px solid rgba(255,206,0,0.25)",
         }}
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
       >
         <div className="absolute -top-12 -right-12 w-52 h-52 rounded-full bg-white/5" />
-        <div className="absolute -bottom-16 right-32 w-40 h-40 rounded-full bg-[#FFCE00]/8" />
+        <div className="absolute -bottom-16 right-32 w-40 h-40 rounded-full bg-[#FFCD00]/8" />
 
         <div className="relative px-5 py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4 min-w-0">
@@ -556,7 +556,7 @@ export default function RoadmapPage() {
               <div
                 className="w-10 h-10 rounded-[12px] flex items-center justify-center text-xl flex-shrink-0"
                 style={{
-                  background: "linear-gradient(145deg, #FFD940, #FFCE00)",
+                  background: "linear-gradient(145deg, #FFD940, #FFCD00)",
                   boxShadow: "0 4px 0 0 #C9A200, 0 6px 14px rgba(255,206,0,0.3)",
                 }}
               >
@@ -577,7 +577,7 @@ export default function RoadmapPage() {
                 border: "1.5px solid rgba(255,206,0,0.4)",
               }}
             >
-              <Star size={16} fill="#FFCE00" className="text-[#FFCE00]" />
+              <Star size={16} fill="#FFCD00" className="text-[#FFCD00]" />
               <span className="font-extrabold text-white">{totalXP.toLocaleString()}</span>
               <span className="text-white/60 text-xs">{t("xpShort")}</span>
             </div>
@@ -603,7 +603,7 @@ export default function RoadmapPage() {
                 className="flex-1 h-1.5 rounded-full"
                 style={{
                   background:
-                    l.state === "completed" ? "#FFCE00" : l.state === "current" ? "rgba(255,206,0,0.4)" : "rgba(255,255,255,0.12)",
+                    l.state === "completed" ? "#FFCD00" : l.state === "current" ? "rgba(255,206,0,0.4)" : "rgba(255,255,255,0.12)",
                 }}
               />
             ))}
@@ -633,7 +633,7 @@ export default function RoadmapPage() {
             value={`${totalXP}`}
             sub={t("statTotalXpSub")}
             iconBg="#EEF4FF"
-            iconColor="#00305E"
+            iconColor="#121212"
             delay={0.17}
           />
           <StatCard
@@ -688,7 +688,7 @@ export default function RoadmapPage() {
                 className="flex items-center gap-2 px-3 py-1.5 rounded-[10px] text-xs font-semibold"
                 style={{
                   background: "#EEF4FF",
-                  color: "#00305E",
+                  color: "#121212",
                   border: "1.5px solid rgba(0,48,94,0.12)",
                 }}
               >
@@ -742,8 +742,8 @@ export default function RoadmapPage() {
                   <div
                     className="px-2.5 py-1 rounded-full text-xs font-bold"
                     style={{
-                      background: selected.state === "completed" ? "#10B981" : selected.state === "current" ? "#FFCE00" : "#E2E8F0",
-                      color: selected.state === "completed" ? "white" : selected.state === "current" ? "#00305E" : "#94A3B8",
+                      background: selected.state === "completed" ? "#10B981" : selected.state === "current" ? "#FFCD00" : "#E2E8F0",
+                      color: selected.state === "completed" ? "white" : selected.state === "current" ? "#121212" : "#94A3B8",
                     }}
                   >
                     +{selected.xpReward} XP
@@ -782,9 +782,9 @@ export default function RoadmapPage() {
                     }
                     className="w-full flex items-center justify-center gap-2 py-3 rounded-[14px] font-bold text-sm transition-all"
                     style={{
-                      background: "#00305E",
+                      background: "#121212",
                       color: "white",
-                      boxShadow: "0 5px 0 0 #002447, 0 8px 20px rgba(0,48,94,0.25)",
+                      boxShadow: "0 5px 0 0 #000000, 0 8px 20px rgba(0,48,94,0.25)",
                     }}
                   >
                     <Play size={16} fill="white" /> {t("continueLesson")}
@@ -832,7 +832,7 @@ export default function RoadmapPage() {
               value={`${totalXP}`}
               sub={t("mobileStatXpSub")}
               iconBg="#EEF4FF"
-              iconColor="#00305E"
+              iconColor="#121212"
               delay={0.05}
             />
             <StatCard

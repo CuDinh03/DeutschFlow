@@ -611,7 +611,7 @@ export default function AIChatInterface() {
                 <button
                   onClick={handleEndSession}
                   className="w-full py-3.5 rounded-2xl text-sm font-bold text-white transition-all hover:opacity-90"
-                  style={{ background: "linear-gradient(135deg, #00305E, #2D9CDB)", boxShadow: "0 4px 16px rgba(0,48,94,0.3)" }}
+                  style={{ background: "linear-gradient(135deg, #121212, #2D9CDB)", boxShadow: "0 4px 16px rgba(0,48,94,0.3)" }}
                 >
                   Kết thúc & Xem kết quả
                 </button>

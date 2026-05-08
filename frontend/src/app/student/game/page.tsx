@@ -45,7 +45,7 @@ type FeedbackState = null | "correct" | "incorrect";
 const ITEM_TYPE = "LEGO_WORD";
 
 const BLOCK_COLORS = [
-  { bg: "#FFCE00", shadow: "#C9A200", text: "#1A1A1A", shine: "#FFD940" },
+  { bg: "#FFCD00", shadow: "#C9A200", text: "#1A1A1A", shine: "#FFD940" },
   { bg: "#4A90E2", shadow: "#2C6BA8", text: "#FFFFFF", shine: "#6AAAF7" },
   { bg: "#7C4DFF", shadow: "#5A2ED4", text: "#FFFFFF", shine: "#9C6DFF" },
   { bg: "#FF7043", shadow: "#D94F2A", text: "#FFFFFF", shine: "#FF9063" },
@@ -160,7 +160,7 @@ function GameContent() {
     if (correct) setScore(s => s + 1); else setLives(l => l - 1);
   };
 
-  if (completed) return <div className="p-10 text-center"><Trophy size={64} className="mx-auto text-yellow-500 mb-4" /><h2 className="text-2xl font-bold">Fertig!</h2><button onClick={() => router.push("/dashboard")} className="mt-6 px-6 py-3 bg-[#00305E] text-white rounded-xl font-bold">Dashboard</button></div>;
+  if (completed) return <div className="p-10 text-center"><Trophy size={64} className="mx-auto text-yellow-500 mb-4" /><h2 className="text-2xl font-bold">Fertig!</h2><button onClick={() => router.push("/dashboard")} className="mt-6 px-6 py-3 bg-[#121212] text-white rounded-xl font-bold">Dashboard</button></div>;
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -186,7 +186,7 @@ function GameContent() {
              {q.pool.map(item => <LegoBlock key={item.id} item={item} isUsed={usedWordIds.has(item.id)} isSelected={false} onClick={() => {}} />)}
           </div>
 
-          <button onClick={feedback ? () => { if (questionIdx + 1 < QUESTIONS.length) { setQuestionIdx(v => v + 1); setFeedback(null); setSlots([null, null]); setUsedWordIds(new Set()); } else setCompleted(true); } : handleCheck} disabled={!allFilled && !feedback} className={`w-full py-4 rounded-2xl font-bold text-lg shadow-lg transition-transform active:scale-95 ${allFilled || feedback ? "bg-[#00305E] text-white" : "bg-slate-200 text-slate-400"}`}>
+          <button onClick={feedback ? () => { if (questionIdx + 1 < QUESTIONS.length) { setQuestionIdx(v => v + 1); setFeedback(null); setSlots([null, null]); setUsedWordIds(new Set()); } else setCompleted(true); } : handleCheck} disabled={!allFilled && !feedback} className={`w-full py-4 rounded-2xl font-bold text-lg shadow-lg transition-transform active:scale-95 ${allFilled || feedback ? "bg-[#121212] text-white" : "bg-slate-200 text-slate-400"}`}>
              {feedback ? "Weiter" : "Prüfen"}
           </button>
        </main>

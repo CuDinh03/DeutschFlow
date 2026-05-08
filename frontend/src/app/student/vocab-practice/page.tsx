@@ -333,7 +333,7 @@ export default function VocabPracticePage() {
         </p>
         <button
           type="button"
-          className="rounded-[14px] bg-[#00305E] px-5 py-2.5 text-sm font-bold text-white shadow-md"
+          className="rounded-[14px] bg-[#121212] px-5 py-2.5 text-sm font-bold text-white shadow-md"
           onClick={() => void reload()}
         >
           Retry

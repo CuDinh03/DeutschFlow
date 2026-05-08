@@ -148,6 +148,9 @@ app:
       # Model: eleven_multilingual_v2 supports German natively.
       model-id: ${ELEVENLABS_MODEL_ID:eleven_multilingual_v2}
       timeout-ms: ${ELEVENLABS_TIMEOUT_MS:15000}
+    # Edge TTS sidecar — free Microsoft Neural voices (fallback when ElevenLabs not configured)
+    edge-tts:
+      url: ${EDGE_TTS_URL:http://localhost:5050}
 
   deepl:
     api-key: ${DEEPL_API_KEY:}

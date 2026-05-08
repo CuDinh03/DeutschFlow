@@ -71,7 +71,7 @@ function LessonCard({ lesson, expanded, onToggle }: { lesson: CurriculumLesson; 
         onClick={onToggle}
         className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[#F8FAFC] transition-colors"
       >
-        <div className="w-8 h-8 rounded-lg bg-[#00305E] text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+        <div className="w-8 h-8 rounded-lg bg-[#121212] text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
           {lesson.lessonNumber}
         </div>
         <div className="flex-1 min-w-0">
@@ -105,7 +105,7 @@ function LessonCard({ lesson, expanded, onToggle }: { lesson: CurriculumLesson; 
               <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wide mb-1.5">Ngữ pháp</p>
               <ul className="space-y-1">
                 {lesson.grammarPoints.map((g, i) => (
-                  <li key={i} className="text-xs text-[#475569] flex gap-1.5"><span className="text-[#00305E]">•</span>{g}</li>
+                  <li key={i} className="text-xs text-[#475569] flex gap-1.5"><span className="text-[#121212]">•</span>{g}</li>
                 ))}
               </ul>
             </div>
@@ -218,7 +218,7 @@ export default function CurriculumPage() {
   if (meLoading || !me) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#F1F4F9]">
-        <Loader2 size={28} className="animate-spin text-[#00305E]" />
+        <Loader2 size={28} className="animate-spin text-[#121212]" />
       </div>
     );
   }
@@ -238,8 +238,8 @@ export default function CurriculumPage() {
 
         {/* Header card */}
         {curriculum && (
-          <div className="rounded-2xl p-4 border-2 border-[#00305E]/20"
-            style={{ background: "linear-gradient(135deg,#00305E 0%,#0052A3 100%)" }}>
+          <div className="rounded-2xl p-4 border-2 border-[#121212]/20"
+            style={{ background: "linear-gradient(135deg,#121212 0%,#0052A3 100%)" }}>
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
                 <BookOpen size={24} className="text-white" />
@@ -262,7 +262,7 @@ export default function CurriculumPage() {
         {/* Loading */}
         {loading && (
           <div className="flex flex-col items-center justify-center py-20 gap-4 bg-white rounded-3xl border-2 border-[#E2E8F0]">
-            <Loader2 size={28} className="animate-spin text-[#00305E]" />
+            <Loader2 size={28} className="animate-spin text-[#121212]" />
             <p className="text-sm text-[#64748B]">Đang tải giáo trình...</p>
           </div>
         )}
@@ -284,7 +284,7 @@ export default function CurriculumPage() {
                   onClick={() => toggleChapter(chapter.id)}
                   className="w-full flex items-center gap-3 px-4 py-3 text-left"
                 >
-                  <div className="w-8 h-8 rounded-lg bg-[#EEF4FF] text-[#00305E] flex items-center justify-center text-xs font-bold flex-shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-[#EEF4FF] text-[#121212] flex items-center justify-center text-xs font-bold flex-shrink-0">
                     C{chapter.id}
                   </div>
                   <div className="flex-1">

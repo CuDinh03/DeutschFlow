@@ -87,7 +87,7 @@ function SummaryScreen({
         <button
           type="button"
           onClick={() => router.push('/student')}
-          className="flex-1 py-3 rounded-2xl bg-[#00305E] text-white font-bold"
+          className="flex-1 py-3 rounded-2xl bg-[#121212] text-white font-bold"
         >
           Về trang chủ
         </button>
@@ -140,7 +140,7 @@ function ReviewCard({
       {/* Card */}
       <div className="bg-white rounded-3xl shadow-xl border border-[#E2E8F0] overflow-hidden mb-6">
         {/* Card header */}
-        <div className="bg-gradient-to-br from-[#00305E] to-[#1E4D8C] px-6 py-5">
+        <div className="bg-gradient-to-br from-[#121212] to-[#1E4D8C] px-6 py-5">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[10px] text-white/50 uppercase tracking-widest font-bold">{item.itemType}</span>
             <span className="text-[10px] text-white/50">Lần ôn thứ {item.repetitions + 1}</span>
@@ -154,7 +154,7 @@ function ReviewCard({
             <button
               type="button"
               onClick={() => setRevealed(true)}
-              className="px-6 py-3 bg-[#F8FAFF] rounded-2xl border-2 border-dashed border-[#CBD5E1] text-[#64748B] font-semibold text-sm hover:border-[#00305E] hover:text-[#00305E] transition-all flex items-center gap-2"
+              className="px-6 py-3 bg-[#F8FAFF] rounded-2xl border-2 border-dashed border-[#CBD5E1] text-[#64748B] font-semibold text-sm hover:border-[#121212] hover:text-[#121212] transition-all flex items-center gap-2"
             >
               <Brain size={18} /> Hiện đáp án
             </button>
@@ -266,7 +266,7 @@ export default function ReviewQueuePage() {
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-          className="w-8 h-8 border-4 border-[#00305E] border-t-transparent rounded-full"
+          className="w-8 h-8 border-4 border-[#121212] border-t-transparent rounded-full"
         />
       </div>
     )
@@ -288,14 +288,14 @@ export default function ReviewQueuePage() {
         <button
           type="button"
           onClick={() => router.back()}
-          className="flex items-center gap-2 text-sm text-[#64748B] mb-6 hover:text-[#00305E] transition-colors"
+          className="flex items-center gap-2 text-sm text-[#64748B] mb-6 hover:text-[#121212] transition-colors"
         >
           <ArrowLeft size={16} /> Quay lại
         </button>
 
         {loading && (
           <div className="flex items-center justify-center py-24 gap-3 text-[#64748B]">
-            <Loader2 size={24} className="animate-spin text-[#00305E]" />
+            <Loader2 size={24} className="animate-spin text-[#121212]" />
             <span>Đang tải thẻ ôn tập...</span>
           </div>
         )}
@@ -308,7 +308,7 @@ export default function ReviewQueuePage() {
             <button
               type="button"
               onClick={() => router.push('/student')}
-              className="px-6 py-3 bg-[#00305E] text-white rounded-2xl font-bold"
+              className="px-6 py-3 bg-[#121212] text-white rounded-2xl font-bold"
             >
               Về trang chủ
             </button>

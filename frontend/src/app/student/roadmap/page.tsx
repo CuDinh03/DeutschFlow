@@ -143,7 +143,7 @@ function NodeDot({
           background: isCompleted
             ? "linear-gradient(135deg,#34D399,#10B981)"
             : isActive
-            ? "linear-gradient(135deg,#FFD940,#FFCE00)"
+            ? "linear-gradient(135deg,#FFD940,#FFCD00)"
             : "linear-gradient(135deg,#E2E8F0,#CBD5E1)",
           boxShadow: isCompleted
             ? "0 4px 0 #059669"
@@ -185,7 +185,7 @@ function NodeDot({
             <span className="text-[10px] text-[#10B981] font-semibold">+{node.xp_reward} XP</span>
           )}
           {isActive && node.user_score > 0 && (
-            <span className="text-[10px] text-[#FFCE00] font-bold">{node.user_score}%</span>
+            <span className="text-[10px] text-[#FFCD00] font-bold">{node.user_score}%</span>
           )}
         </div>
       </div>
@@ -238,7 +238,7 @@ function WeekCard({
             background: isCompleted
               ? "linear-gradient(135deg,#34D399,#10B981)"
               : isCurrent
-              ? "linear-gradient(135deg,#FFD940,#FFCE00)"
+              ? "linear-gradient(135deg,#FFD940,#FFCD00)"
               : "#E2E8F0",
             color: isCompleted ? "white" : isCurrent ? "#78350F" : "#94A3B8",
             boxShadow: isCompleted ? "0 4px 0 #059669" : isCurrent ? "0 4px 0 #C9A200" : "none",
@@ -267,7 +267,7 @@ function WeekCard({
                 className="h-full rounded-full transition-all duration-500"
                 style={{
                   width: `${pct}%`,
-                  background: isCompleted ? "#10B981" : "#FFCE00",
+                  background: isCompleted ? "#10B981" : "#FFCD00",
                 }}
               />
             </div>
@@ -470,7 +470,7 @@ function NodeDetailPanel({
               type="button"
               onClick={onStart}
               className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm transition-all active:scale-95"
-              style={{ background: "#00305E", color: "white", boxShadow: "0 4px 0 #002447" }}
+              style={{ background: "#121212", color: "white", boxShadow: "0 4px 0 #000000" }}
             >
               <Play size={16} fill="white" /> Bắt đầu bài học
             </button>
@@ -483,11 +483,11 @@ function NodeDetailPanel({
             onClick={onStart}
             className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm transition-all active:scale-95"
             style={{
-              background: isCompleted ? "#10B981" : "#00305E",
+              background: isCompleted ? "#10B981" : "#121212",
               color: "white",
               boxShadow: isCompleted
                 ? "0 4px 0 #059669"
-                : "0 4px 0 #002447, 0 6px 20px rgba(0,48,94,0.25)",
+                : "0 4px 0 #000000, 0 6px 20px rgba(0,48,94,0.25)",
             }}
           >
             <Play size={16} fill="white" />
@@ -623,7 +623,7 @@ export default function RoadmapPage() {
         </div>
         <button
           onClick={() => void reloadMe()}
-          className="flex items-center gap-2 px-5 py-3 bg-[#00305E] text-white rounded-xl text-sm font-bold shadow-md active:scale-95 transition-all"
+          className="flex items-center gap-2 px-5 py-3 bg-[#121212] text-white rounded-xl text-sm font-bold shadow-md active:scale-95 transition-all"
         >
           <RefreshCw size={15} /> Thử lại
         </button>
@@ -637,7 +637,7 @@ export default function RoadmapPage() {
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          className="w-8 h-8 border-4 border-[#00305E] border-t-transparent rounded-full"
+          className="w-8 h-8 border-4 border-[#121212] border-t-transparent rounded-full"
         />
       </div>
     );
@@ -658,7 +658,7 @@ export default function RoadmapPage() {
           type="button"
           onClick={() => void handleAdaptiveRefresh()}
           disabled={adaptiveRefreshing}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#E2E8F0] bg-white text-[#00305E] text-xs font-semibold hover:bg-[#EEF4FF] transition-all disabled:opacity-50"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#E2E8F0] bg-white text-[#121212] text-xs font-semibold hover:bg-[#EEF4FF] transition-all disabled:opacity-50"
         >
           {adaptiveRefreshing ? <RefreshCw size={12} className="animate-spin" /> : <Sparkles size={12} />}
           {adaptiveRefreshing ? "Đang cập nhật..." : "AI refresh"}
@@ -730,7 +730,7 @@ export default function RoadmapPage() {
           <div
             className="rounded-2xl p-4 flex items-center gap-3"
             style={{
-              background: "linear-gradient(135deg,#00305E 0%,#0052A3 100%)",
+              background: "linear-gradient(135deg,#121212 0%,#0052A3 100%)",
               boxShadow: "0 4px 20px rgba(0,48,94,0.2)",
             }}
           >
@@ -753,9 +753,9 @@ export default function RoadmapPage() {
                 if (nextNode) handleStartNode(nextNode);
               }}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold text-sm"
-              style={{ background: "#FFCE00", color: "#00305E" }}
+              style={{ background: "#FFCD00", color: "#121212" }}
             >
-              <Play size={13} fill="#00305E" /> Tiếp tục
+              <Play size={13} fill="#121212" /> Tiếp tục
             </button>
           </div>
         )}
@@ -766,7 +766,7 @@ export default function RoadmapPage() {
             <motion.div
               animate={{ rotate: 360 }}
               transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-              className="w-8 h-8 border-4 border-[#00305E] border-t-transparent rounded-full"
+              className="w-8 h-8 border-4 border-[#121212] border-t-transparent rounded-full"
             />
             <p className="text-sm text-[#64748B]">Đang tải lộ trình 28 ngày...</p>
           </div>
@@ -779,7 +779,7 @@ export default function RoadmapPage() {
             <p className="text-sm text-red-600">{error}</p>
             <button
               onClick={() => void fetchSkillTree()}
-              className="flex items-center gap-2 px-4 py-2 bg-[#00305E] text-white rounded-xl text-sm font-medium"
+              className="flex items-center gap-2 px-4 py-2 bg-[#121212] text-white rounded-xl text-sm font-medium"
             >
               <RefreshCw size={14} /> Thử lại
             </button>

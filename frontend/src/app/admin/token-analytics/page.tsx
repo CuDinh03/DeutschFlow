@@ -183,7 +183,7 @@ export default function AdminTokenAnalyticsPage() {
       </p>
 
       {/* App-wide: ledger 30d + ví thật */}
-      <div className="rounded-[14px] border border-white/20 bg-gradient-to-br from-[#00305E]/95 to-[#0c4a7c]/95 backdrop-blur-md text-white p-5 mt-3 shadow-lg shadow-[#00305E]/20">
+      <div className="rounded-[14px] border border-white/20 bg-gradient-to-br from-[#121212]/95 to-[#0c4a7c]/95 backdrop-blur-md text-white p-5 mt-3 shadow-lg shadow-[#121212]/20">
         <h2 className="text-sm font-bold uppercase tracking-wide text-white/80">{t('appTotalsTitle')}</h2>
         <p className="text-xs text-white/70 mt-1">{t('appTotalsSub', { count: users.length })}</p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
@@ -221,7 +221,7 @@ export default function AdminTokenAnalyticsPage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t('searchPlaceholder')}
-              className="w-full pl-8 pr-3 h-9 rounded-[8px] border border-[#E2E8F0] text-sm outline-none focus:ring-1 focus:ring-[#00305E]"
+              className="w-full pl-8 pr-3 h-9 rounded-[8px] border border-[#E2E8F0] text-sm outline-none focus:ring-1 focus:ring-[#121212]"
               aria-label={t('searchPlaceholder')}
             />
           </div>
@@ -271,7 +271,7 @@ export default function AdminTokenAnalyticsPage() {
                         <p className="text-[11px] text-[#94A3B8]">{u.email}</p>
                       </td>
                       <td className="px-3 py-2">
-                        <span className="inline-flex rounded-full bg-[#EEF4FF] text-[#00305E] text-xs font-semibold px-2 py-0.5">
+                        <span className="inline-flex rounded-full bg-[#EEF4FF] text-[#121212] text-xs font-semibold px-2 py-0.5">
                           {u.role}
                         </span>
                       </td>
@@ -402,8 +402,8 @@ export default function AdminTokenAnalyticsPage() {
               { val: countdown.m, label: 'm' },
               { val: countdown.s, label: 's' },
             ].map(({ val, label }) => (
-              <div key={label} className="rounded-[10px] bg-[#EEF4FF] border border-[#00305E]/15 py-3 text-center">
-                <p className="text-[#00305E] font-black text-xl tabular-nums">{String(val).padStart(2, '0')}</p>
+              <div key={label} className="rounded-[10px] bg-[#EEF4FF] border border-[#121212]/15 py-3 text-center">
+                <p className="text-[#121212] font-black text-xl tabular-nums">{String(val).padStart(2, '0')}</p>
                 <p className="text-[10px] text-[#64748B] uppercase">{label}</p>
               </div>
             ))}

@@ -129,7 +129,7 @@ export default function AdminRevenuePage() {
                 type="button"
                 onClick={() => setPeriod(p)}
                 className={`px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  period === p ? 'bg-[#00305E] text-white' : 'bg-white text-[#64748B] hover:bg-[#F8FAFC]'
+                  period === p ? 'bg-[#121212] text-white' : 'bg-white text-[#64748B] hover:bg-[#F8FAFC]'
                 }`}
               >
                 {p === 'monthly' ? t('periodMonthly') : p === 'quarterly' ? t('periodQuarterly') : t('periodYearly')}

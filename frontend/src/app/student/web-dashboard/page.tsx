@@ -22,9 +22,9 @@ import { TypingIndicator } from "@/components/chat/TypingIndicator";
 // Design Tokens
 // ─────────────────────────────────────────────────────────────────────────────
 const P = {
-  navy: "#00305E", navyDark: "#002447", navyLight: "#EBF2FA",
+  navy: "#121212", navyDark: "#000000", navyLight: "#EBF2FA",
   blue: "#2D9CDB", blueLight: "#EBF5FB",
-  yellow: "#FFCE00", yellowLight: "#FFF8E1",
+  yellow: "#FFCD00", yellowLight: "#FFF8E1",
   green: "#27AE60", greenLight: "#E8F8F0",
   red: "#EB5757", redLight: "#FDEAEA",
   purple: "#9B51E0", purpleLight: "#F4EDFF",
@@ -155,10 +155,10 @@ export default function WebDashboardPage() {
       
       {/* ── Top Navigation ── */}
       <header
-        className="fixed top-0 left-0 right-0 z-50 flex items-center px-6 h-16 bg-[#00305E]/95 backdrop-blur-xl border-b border-white/10"
+        className="fixed top-0 left-0 right-0 z-50 flex items-center px-6 h-16 bg-[#121212]/95 backdrop-blur-xl border-b border-white/10"
       >
         <div className="flex items-center gap-2.5 mr-8 flex-shrink-0 cursor-pointer" onClick={() => router.push('/student')}>
-          <div className="w-8 h-8 rounded-[10px] flex items-center justify-center bg-[#FFCE00]">
+          <div className="w-8 h-8 rounded-[10px] flex items-center justify-center bg-[#FFCD00]">
             <span className="text-sm">🇩🇪</span>
           </div>
           <span className="font-black text-white text-lg tracking-tight">Deutsch<span style={{ color: P.yellow }}>Flow</span></span>
@@ -175,14 +175,14 @@ export default function WebDashboardPage() {
             <button
               key={id}
               onClick={() => setActiveView(id as View)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-[10px] transition-all relative ${activeView === id ? 'text-[#FFCE00] bg-[#FFCE00]/15' : 'text-white/60 hover:text-white'}`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-[10px] transition-all relative ${activeView === id ? 'text-[#FFCD00] bg-[#FFCD00]/15' : 'text-white/60 hover:text-white'}`}
             >
               <Icon size={15} />
               <span className="text-sm whitespace-nowrap">{label}</span>
               {activeView === id && (
                 <motion.div
                   layoutId="nav-pill"
-                  className="absolute inset-0 rounded-[10px] border border-[#FFCE00]/25 bg-[#FFCE00]/10"
+                  className="absolute inset-0 rounded-[10px] border border-[#FFCD00]/25 bg-[#FFCD00]/10"
                   transition={{ type: "spring", stiffness: 400, damping: 30 }}
                 />
               )}
@@ -197,16 +197,16 @@ export default function WebDashboardPage() {
           >
             {lang === "vi" ? "🇩🇪 Deutsch" : "🇻🇳 Tiếng Việt"}
           </button>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FFCE00]/15 border border-[#FFCE00]/25">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FFCD00]/15 border border-[#FFCD00]/25">
             <Flame size={13} className="text-orange-400 fill-orange-500" />
-            <span className="text-sm font-bold text-[#FFCE00]">14</span>
+            <span className="text-sm font-bold text-[#FFCD00]">14</span>
           </div>
           <button
-            className={`relative w-9 h-9 flex items-center justify-center rounded-full transition-all ${notifications ? 'bg-[#FFCE00]' : 'bg-white/10'}`}
+            className={`relative w-9 h-9 flex items-center justify-center rounded-full transition-all ${notifications ? 'bg-[#FFCD00]' : 'bg-white/10'}`}
             onClick={() => setNotifications(!notifications)}
           >
-            <Bell size={16} className={notifications ? 'text-[#00305E]' : 'text-white/70'} />
-            <span className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-black bg-[#EB5757] text-white border-2 border-[#00305E]">3</span>
+            <Bell size={16} className={notifications ? 'text-[#121212]' : 'text-white/70'} />
+            <span className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-black bg-[#EB5757] text-white border-2 border-[#121212]">3</span>
           </button>
           <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm bg-gradient-to-br from-[#2D9CDB] to-[#00BFA5] text-white">
             HC
@@ -216,7 +216,7 @@ export default function WebDashboardPage() {
 
       {/* ── Left Sidebar ── */}
       <aside
-        className="fixed left-0 top-16 bottom-0 w-[72px] flex flex-col items-center py-6 z-40 bg-[#00305E] border-r border-white/10"
+        className="fixed left-0 top-16 bottom-0 w-[72px] flex flex-col items-center py-6 z-40 bg-[#121212] border-r border-white/10"
       >
         <div className="flex flex-col gap-2 flex-1">
           {[
@@ -229,7 +229,7 @@ export default function WebDashboardPage() {
             <button
               key={id}
               onClick={() => setActiveView(id as View)}
-              className={`w-12 h-12 rounded-[14px] flex flex-col items-center justify-center gap-1 transition-all ${activeView === id ? 'bg-[#FFCE00] text-[#00305E]' : 'text-white/45 hover:text-white'}`}
+              className={`w-12 h-12 rounded-[14px] flex flex-col items-center justify-center gap-1 transition-all ${activeView === id ? 'bg-[#FFCD00] text-[#121212]' : 'text-white/45 hover:text-white'}`}
               title={label}
             >
               <Icon size={18} />
@@ -256,11 +256,11 @@ export default function WebDashboardPage() {
               className="grid gap-6 grid-cols-12"
             >
               {/* Hero: Continue Learning */}
-              <div className="col-span-8 rounded-[24px] p-8 relative overflow-hidden bg-gradient-to-br from-[#00305E] to-[#004898] shadow-2xl">
+              <div className="col-span-8 rounded-[24px] p-8 relative overflow-hidden bg-gradient-to-br from-[#121212] to-[#004898] shadow-2xl">
                 <div className="absolute -top-12 -right-12 w-64 h-64 rounded-full bg-white/5" />
                 <div className="relative z-10">
                   <div className="flex items-center gap-2 mb-4">
-                    <span className="text-xs font-black px-3 py-1 rounded-full bg-[#FFCE00] text-[#00305E]">TIẾP TỤC HỌC</span>
+                    <span className="text-xs font-black px-3 py-1 rounded-full bg-[#FFCD00] text-[#121212]">TIẾP TỤC HỌC</span>
                     <span className="text-white/40 text-xs">Chương 4 · A2</span>
                   </div>
                   <h2 className="text-3xl font-black text-white mb-2">Der Weg zur Arbeit</h2>
@@ -269,17 +269,17 @@ export default function WebDashboardPage() {
                   <div className="max-w-md mb-8">
                     <div className="flex justify-between mb-2">
                       <span className="text-xs text-white/60 font-bold uppercase tracking-wider">Tiến độ</span>
-                      <span className="text-xs font-black text-[#FFCE00]">68%</span>
+                      <span className="text-xs font-black text-[#FFCD00]">68%</span>
                     </div>
                     <div className="h-3 rounded-full bg-white/10">
-                      <motion.div className="h-full rounded-full bg-[#FFCE00]"
+                      <motion.div className="h-full rounded-full bg-[#FFCD00]"
                         initial={{ width: 0 }} animate={{ width: "68%" }} transition={{ duration: 1.5, ease: "easeOut" }} />
                     </div>
                   </div>
 
                   <div className="flex items-center gap-4">
-                    <button className="flex items-center gap-2 px-8 py-4 rounded-[16px] font-black text-base bg-[#FFCE00] text-[#00305E] shadow-[0_4px_0_#C9A200] hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none transition-all">
-                      <Play size={18} fill="#00305E" /> TIẾP TỤC
+                    <button className="flex items-center gap-2 px-8 py-4 rounded-[16px] font-black text-base bg-[#FFCD00] text-[#121212] shadow-[0_4px_0_#C9A200] hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none transition-all">
+                      <Play size={18} fill="#121212" /> TIẾP TỤC
                     </button>
                     <div className="flex items-center gap-2 text-white/40 font-bold">
                       <Zap size={16} /> <span>+250 XP</span>
@@ -293,10 +293,10 @@ export default function WebDashboardPage() {
                 <div className="bg-white rounded-[24px] p-6 border border-[#E2E8F0] shadow-sm">
                   <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-2">
-                      <Target size={18} className="text-[#00305E]" />
+                      <Target size={18} className="text-[#121212]" />
                       <span className="font-black text-[#0F172A]">MỤC TIÊU NGÀY</span>
                     </div>
-                    <span className="text-sm font-black px-3 py-1 rounded-full bg-[#EBF2FA] text-[#00305E]">3/4</span>
+                    <span className="text-sm font-black px-3 py-1 rounded-full bg-[#EBF2FA] text-[#121212]">3/4</span>
                   </div>
                   <div className="space-y-4">
                     {[
@@ -345,7 +345,7 @@ export default function WebDashboardPage() {
                   </div>
                   <div className="flex gap-2 p-1 bg-[#F1F5F9] rounded-xl">
                     {['Min', 'XP'].map((t, i) => (
-                      <button key={t} className={`px-4 py-1.5 rounded-[10px] text-xs font-bold transition-all ${i === 0 ? 'bg-white text-[#00305E] shadow-sm' : 'text-[#64748B]'}`}>{t}</button>
+                      <button key={t} className={`px-4 py-1.5 rounded-[10px] text-xs font-bold transition-all ${i === 0 ? 'bg-white text-[#121212] shadow-sm' : 'text-[#64748B]'}`}>{t}</button>
                     ))}
                   </div>
                 </div>
@@ -357,7 +357,7 @@ export default function WebDashboardPage() {
               {/* Achievements */}
               <div className="col-span-4 bg-white rounded-[24px] p-6 border border-[#E2E8F0] shadow-sm">
                 <div className="flex items-center gap-2 mb-6">
-                  <Award size={18} className="text-[#00305E]" />
+                  <Award size={18} className="text-[#121212]" />
                   <span className="font-black text-[#0F172A]">THÀNH TÍCH</span>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -382,13 +382,13 @@ export default function WebDashboardPage() {
               className="space-y-6"
              >
                <div className="flex items-center justify-between">
-                 <h2 className="text-2xl font-black text-[#00305E]">QUẢN LÝ NGƯỜI DÙNG</h2>
+                 <h2 className="text-2xl font-black text-[#121212]">QUẢN LÝ NGƯỜI DÙNG</h2>
                  <div className="flex gap-3">
                    <div className="relative">
                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" size={16} />
-                     <input type="text" placeholder="Tìm người dùng..." className="pl-10 pr-4 py-2.5 rounded-xl border border-[#E2E8F0] bg-white text-sm focus:outline-none focus:border-[#00305E] transition-all w-64 shadow-sm" />
+                     <input type="text" placeholder="Tìm người dùng..." className="pl-10 pr-4 py-2.5 rounded-xl border border-[#E2E8F0] bg-white text-sm focus:outline-none focus:border-[#121212] transition-all w-64 shadow-sm" />
                    </div>
-                   <button className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#00305E] text-[#FFCE00] font-black text-sm shadow-lg shadow-[#00305E]/20">
+                   <button className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#121212] text-[#FFCD00] font-black text-sm shadow-lg shadow-[#121212]/20">
                      <Users size={16} /> THÊM MỚI
                    </button>
                  </div>
@@ -411,7 +411,7 @@ export default function WebDashboardPage() {
                        <tr key={u.id} className="hover:bg-[#F8FAFC] transition-colors">
                          <td className="px-6 py-4">
                            <div className="flex items-center gap-3">
-                             <div className="w-10 h-10 rounded-full bg-[#00305E]/10 flex items-center justify-center font-black text-[#00305E] text-xs">{u.av}</div>
+                             <div className="w-10 h-10 rounded-full bg-[#121212]/10 flex items-center justify-center font-black text-[#121212] text-xs">{u.av}</div>
                              <div>
                                <p className="font-bold text-[#0F172A] text-sm">{u.name}</p>
                                <p className="text-[10px] text-[#94A3B8]">ID: {u.id}</p>
@@ -419,7 +419,7 @@ export default function WebDashboardPage() {
                            </div>
                          </td>
                          <td className="px-6 py-4">
-                           <span className="px-3 py-1 rounded-full bg-[#EBF2FA] text-[#00305E] text-[10px] font-black">{u.level}</span>
+                           <span className="px-3 py-1 rounded-full bg-[#EBF2FA] text-[#121212] text-[10px] font-black">{u.level}</span>
                          </td>
                          <td className="px-6 py-4">
                            <p className="font-bold text-[#0F172A] text-sm">{u.tokens.toLocaleString()}</p>
@@ -440,7 +440,7 @@ export default function WebDashboardPage() {
                            </span>
                          </td>
                          <td className="px-6 py-4 text-right">
-                           <button className="p-2 text-[#94A3B8] hover:text-[#00305E] transition-colors"><ChevronRight size={18} /></button>
+                           <button className="p-2 text-[#94A3B8] hover:text-[#121212] transition-colors"><ChevronRight size={18} /></button>
                          </td>
                        </tr>
                      ))}

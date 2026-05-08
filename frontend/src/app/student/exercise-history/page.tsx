@@ -116,7 +116,7 @@ export default function ExerciseHistoryPage() {
                           timeStyle: 'short',
                         })}
                       </td>
-                      <td className="px-3 py-2.5 text-[#00305E] font-medium">
+                      <td className="px-3 py-2.5 text-[#121212] font-medium">
                         {t('attemptWeekSession', { w: r.weekNumber, s: r.sessionIndex })}
                       </td>
                       <td className="px-3 py-2.5 text-[#64748B]">#{r.attemptNo}</td>
@@ -127,7 +127,7 @@ export default function ExerciseHistoryPage() {
                       <td className="px-3 py-2.5 text-right">
                         <Link
                           href={`/student/plan/week/${r.weekNumber}/session/${r.sessionIndex}`}
-                          className="text-[#00305E] font-semibold text-xs hover:underline"
+                          className="text-[#121212] font-semibold text-xs hover:underline"
                         >
                           {t('attemptOpen')}
                         </Link>
@@ -141,7 +141,7 @@ export default function ExerciseHistoryPage() {
               <button
                 type="button"
                 disabled={page <= 0}
-                className="px-3 py-1.5 rounded-[8px] border border-[#E2E8F0] text-[#00305E] disabled:opacity-40"
+                className="px-3 py-1.5 rounded-[8px] border border-[#E2E8F0] text-[#121212] disabled:opacity-40"
                 onClick={() => setPage((p) => Math.max(0, p - 1))}
               >
                 {t('prevPage')}
@@ -152,7 +152,7 @@ export default function ExerciseHistoryPage() {
               <button
                 type="button"
                 disabled={page >= totalPages - 1}
-                className="px-3 py-1.5 rounded-[8px] border border-[#E2E8F0] text-[#00305E] disabled:opacity-40"
+                className="px-3 py-1.5 rounded-[8px] border border-[#E2E8F0] text-[#121212] disabled:opacity-40"
                 onClick={() => setPage((p) => p + 1)}
               >
                 {t('nextPage')}

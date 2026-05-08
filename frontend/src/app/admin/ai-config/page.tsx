@@ -170,7 +170,7 @@ export default function AdminAiConfigPage() {
                   onClick={handleSave}
                   disabled={saving}
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-xs font-bold text-white ${
-                    savedFlash ? 'bg-emerald-600' : 'bg-[#00305E]'
+                    savedFlash ? 'bg-emerald-600' : 'bg-[#121212]'
                   } disabled:opacity-70`}
                 >
                   {saving ? <RefreshCw size={12} className="animate-spin" /> : savedFlash ? <Check size={12} /> : <Save size={12} />}
@@ -217,7 +217,7 @@ export default function AdminAiConfigPage() {
                     step={step}
                     value={val}
                     onChange={(e) => set(Number(e.target.value))}
-                    className="w-full accent-[#00305E]"
+                    className="w-full accent-[#121212]"
                   />
                   <p className="text-[10px] text-[#64748B] mt-0.5">{hint}</p>
                 </div>

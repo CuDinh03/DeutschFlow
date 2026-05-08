@@ -6,10 +6,10 @@ import { BookOpen, Brain, Briefcase, Flame, Lock, Mic, Star, Target, Trophy, Unl
 import { CompleteBauhausLogo } from "@/components/BauhausLogo";
 
 const P = {
-  navy: "#00305E", navyLt: "#EBF2FA", blue: "#2D9CDB", blueLt: "#EBF5FB",
+  navy: "#121212", navyLt: "#EBF2FA", blue: "#2D9CDB", blueLt: "#EBF5FB",
   red: "#EB5757", redLt: "#FDEAEA", green: "#27AE60", greenLt: "#E8F8F0",
   purple: "#9B51E0", purpleLt: "#F4EDFF", orange: "#F2994A", orangeLt: "#FEF3E8",
-  yellow: "#FFCE00", bg: "#F5F5F5", white: "#FFFFFF", text: "#0F172A",
+  yellow: "#FFCD00", bg: "#F5F5F5", white: "#FFFFFF", text: "#0F172A",
   muted: "#64748B", border: "#E2E8F0",
 };
 

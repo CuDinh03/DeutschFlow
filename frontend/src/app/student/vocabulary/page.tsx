@@ -374,7 +374,7 @@ function Waveform({ isPlaying, progress }: { isPlaying: boolean; progress: numbe
           className={`w-[3px] rounded-full transition-all duration-150 ${isPlaying && Math.abs(i - played) < 2 ? 'scale-y-125' : ''}`}
           style={{
             height: h,
-            background: i <= played ? '#FFCE00' : '#CBD5E1',
+            background: i <= played ? '#FFCD00' : '#CBD5E1',
             animation: isPlaying && Math.abs(i - played) < 3 ? `dfPulse 360ms ease-in-out ${(i % 4) * 60}ms infinite` : 'none',
           }}
         />
@@ -455,7 +455,7 @@ function DetailModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
       <div className={`absolute inset-0 bg-[#001734]/60 backdrop-blur-sm ${closing ? 'df-overlay-exit' : 'df-overlay-enter'}`} onClick={onClose} />
       <div className={`relative w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-3xl bg-white shadow-2xl ${closing ? 'df-modal-exit' : 'df-modal-enter'}`}>
-        <div className="relative px-6 py-6 rounded-t-3xl bg-gradient-to-br from-[#00305E] to-[#004b90]">
+        <div className="relative px-6 py-6 rounded-t-3xl bg-gradient-to-br from-[#121212] to-[#004b90]">
           <button
             type="button"
             onClick={onClose}
@@ -486,7 +486,7 @@ function DetailModal({
             <Waveform isPlaying={isPlaying} progress={progress} />
             <button
               type="button"
-              className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#FFCE00] text-[#00305E] font-bold text-sm"
+              className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#FFCD00] text-[#121212] font-bold text-sm"
               onClick={togglePlay}
             >
               {isPlaying ? <Pause size={14} /> : <Play size={14} />} {isPlaying ? 'Pause' : 'Abspielen'}
@@ -496,8 +496,8 @@ function DetailModal({
 
         <div className="px-6 py-5 border-b border-[#EEF2F6]">
           <div className="flex items-center gap-2 mb-2">
-            <BookOpen size={16} className="text-[#00305E]" />
-            <h3 className="text-sm font-bold uppercase tracking-widest text-[#00305E]">Bedeutung</h3>
+            <BookOpen size={16} className="text-[#121212]" />
+            <h3 className="text-sm font-bold uppercase tracking-widest text-[#121212]">Bedeutung</h3>
           </div>
           <p className="text-sm text-[#334155] leading-relaxed">{item.meaning}</p>
           <div className="flex flex-wrap gap-2 mt-3">
@@ -643,12 +643,12 @@ function DetailModal({
             </div>
             <div className="pl-6 py-1 flex items-center gap-2 text-[#334155]">
               <ChevronRight size={14} className="text-[#94A3B8]" />
-              <Layers size={13} className="text-[#00305E]" />
+              <Layers size={13} className="text-[#121212]" />
               <span>Komponentenzustand</span>
             </div>
             <div className="pl-12 py-1 flex items-center gap-2 text-[#334155]">
               <ChevronRight size={14} className="text-[#94A3B8]" />
-              <Star size={13} className="text-[#FFCE00]" />
+              <Star size={13} className="text-[#FFCD00]" />
               <span>Komponenten-Hero</span>
             </div>
             <div className="pl-16 py-1 flex items-center gap-2 text-[#0F172A] font-medium">
@@ -663,7 +663,7 @@ function DetailModal({
             </button>
             <button
               type="button"
-              className="flex-[1.4] py-2.5 rounded-xl bg-[#00305E] text-white font-bold inline-flex items-center justify-center gap-2"
+              className="flex-[1.4] py-2.5 rounded-xl bg-[#121212] text-white font-bold inline-flex items-center justify-center gap-2"
               onClick={() => setBookmarked((prev) => !prev)}
             >
               {bookmarked ? <BookmarkCheck size={15} /> : <Bookmark size={15} />} {bookmarked ? 'Gespeichert' : 'Zur Lernliste'}
@@ -701,7 +701,7 @@ function VocabCard({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        borderColor: selected ? '#00305E' : hovered ? '#CBD5E1' : '#E2E8F0',
+        borderColor: selected ? '#121212' : hovered ? '#CBD5E1' : '#E2E8F0',
         boxShadow: selected
           ? '0 10px 26px rgba(0,48,94,0.18), 0 0 0 3px rgba(0,48,94,0.08)'
           : hovered
@@ -715,7 +715,7 @@ function VocabCard({
         className="absolute top-0 left-0 right-0 h-1 transition-opacity duration-200"
         style={{
           opacity: selected || hovered ? 1 : 0,
-          background: 'linear-gradient(90deg, #00305E 0%, #2B6CB0 100%)',
+          background: 'linear-gradient(90deg, #121212 0%, #2B6CB0 100%)',
         }}
       />
       <div className="px-4 pt-4 pb-3 flex items-start justify-between">
@@ -736,12 +736,12 @@ function VocabCard({
             setBookmarked((prev) => !prev)
           }}
         >
-          {bookmarked ? <BookmarkCheck size={16} className="text-[#FFCE00]" /> : <Bookmark size={16} className="text-[#94A3B8]" />}
+          {bookmarked ? <BookmarkCheck size={16} className="text-[#FFCD00]" /> : <Bookmark size={16} className="text-[#94A3B8]" />}
         </button>
       </div>
 
       <div className="px-4 pb-3">
-        <h3 className="font-extrabold text-lg text-[#00305E] tracking-tight">{item.word}</h3>
+        <h3 className="font-extrabold text-lg text-[#121212] tracking-tight">{item.word}</h3>
         {item.phonetic ? <p className="text-[11px] text-[#94A3B8] font-mono">{item.phonetic}</p> : null}
       </div>
       <div className="mx-4 h-px bg-[#EEF2F6]" />
@@ -753,7 +753,7 @@ function VocabCard({
         <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#F1F5F9] text-[#64748B] font-semibold">{item.category}</span>
         <span
           className="text-xs font-semibold inline-flex items-center gap-1 transition-colors duration-200"
-          style={{ color: hovered || selected ? '#00305E' : '#94A3B8' }}
+          style={{ color: hovered || selected ? '#121212' : '#94A3B8' }}
         >
           Details <ChevronRight size={13} />
         </span>
@@ -1000,14 +1000,14 @@ export default function StudentVocabularyPage() {
                 <button
                   type="button"
                   onClick={() => setViewMode('grid')}
-                  className={`p-2 rounded-lg ${viewMode === 'grid' ? 'bg-white text-[#00305E] shadow-sm' : 'text-[#94A3B8]'}`}
+                  className={`p-2 rounded-lg ${viewMode === 'grid' ? 'bg-white text-[#121212] shadow-sm' : 'text-[#94A3B8]'}`}
                 >
                   <LayoutGrid size={15} />
                 </button>
                 <button
                   type="button"
                   onClick={() => setViewMode('list')}
-                  className={`p-2 rounded-lg ${viewMode === 'list' ? 'bg-white text-[#00305E] shadow-sm' : 'text-[#94A3B8]'}`}
+                  className={`p-2 rounded-lg ${viewMode === 'list' ? 'bg-white text-[#121212] shadow-sm' : 'text-[#94A3B8]'}`}
                 >
                   <List size={15} />
                 </button>
@@ -1029,7 +1029,7 @@ export default function StudentVocabularyPage() {
                     setPage(0)
                   }
                 }}
-                className="w-full pl-9 pr-9 py-2.5 rounded-xl text-sm text-[#0F172A] placeholder-[#94A3B8] border border-[#E2E8F0] bg-[#F8FAFF] focus:outline-none focus:ring-2 focus:ring-[#00305E]/15"
+                className="w-full pl-9 pr-9 py-2.5 rounded-xl text-sm text-[#0F172A] placeholder-[#94A3B8] border border-[#E2E8F0] bg-[#F8FAFF] focus:outline-none focus:ring-2 focus:ring-[#121212]/15"
               />
               {q && (
                 <button
@@ -1044,7 +1044,7 @@ export default function StudentVocabularyPage() {
             <button
               type="button"
               className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-sm font-medium border transition-colors ${
-                showFilters ? 'bg-[#EEF4FF] text-[#00305E] border-[#bfd7ff]' : 'bg-[#F8FAFF] text-[#64748B] border-[#E2E8F0]'
+                showFilters ? 'bg-[#EEF4FF] text-[#121212] border-[#bfd7ff]' : 'bg-[#F8FAFF] text-[#64748B] border-[#E2E8F0]'
               }`}
               onClick={() => setShowFilters((prev) => !prev)}
             >
@@ -1064,7 +1064,7 @@ export default function StudentVocabularyPage() {
                 type="button"
                 className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
                   categoryFilter === cat
-                    ? 'bg-[#00305E] text-white border-[#00305E]'
+                    ? 'bg-[#121212] text-white border-[#121212]'
                     : 'bg-white text-[#64748B] border-[#E2E8F0]'
                 }`}
                 onClick={() => {
@@ -1173,14 +1173,14 @@ export default function StudentVocabularyPage() {
                     key={item.id}
                     type="button"
                     onClick={() => openModal(item)}
-                    className="bg-white rounded-2xl border-2 border-[#E2E8F0] px-5 py-3.5 flex items-center gap-4 text-left hover:border-[#00305E] df-card-enter"
+                    className="bg-white rounded-2xl border-2 border-[#E2E8F0] px-5 py-3.5 flex items-center gap-4 text-left hover:border-[#121212] df-card-enter"
                     style={{ animationDelay: `${Math.min(idx, 10) * 35}ms` }}
                   >
                     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border" style={{ background: GENDER_STYLE[item.gender].bg, color: GENDER_STYLE[item.gender].text, borderColor: GENDER_STYLE[item.gender].border }}>
                       {item.article}
                     </span>
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-sm text-[#00305E] truncate">{item.word}</p>
+                      <p className="font-bold text-sm text-[#121212] truncate">{item.word}</p>
                       {item.phonetic ? <p className="text-xs text-[#94A3B8] font-mono">{item.phonetic}</p> : null}
                     </div>
                     <p className="hidden md:block text-sm text-[#334155] flex-1">{item.english}</p>

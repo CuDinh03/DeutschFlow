@@ -15,7 +15,7 @@ export function PracticeGlassSkeleton({ className, blocks = 3 }: Props) {
   return (
     <div
       className={cn(
-        "df-glass-subtle w-full max-w-md rounded-[22px] border border-white/40 p-6 shadow-lg shadow-[#00305E]/8",
+        "df-glass-subtle w-full max-w-md rounded-[22px] border border-white/40 p-6 shadow-lg shadow-[#121212]/8",
         className,
       )}
       role="status"
@@ -32,7 +32,7 @@ export function PracticeGlassSkeleton({ className, blocks = 3 }: Props) {
           />
         ))}
       </div>
-      <div className="mt-6 h-11 w-full animate-pulse rounded-[14px] bg-[#00305E]/15" />
+      <div className="mt-6 h-11 w-full animate-pulse rounded-[14px] bg-[#121212]/15" />
     </div>
   );
 }

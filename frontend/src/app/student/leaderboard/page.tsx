@@ -60,7 +60,7 @@ export default function LeaderboardPage() {
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-          className="w-8 h-8 border-4 border-[#00305E] border-t-transparent rounded-full"
+          className="w-8 h-8 border-4 border-[#121212] border-t-transparent rounded-full"
         />
       </div>
     )
@@ -82,7 +82,7 @@ export default function LeaderboardPage() {
       <div className="max-w-xl mx-auto space-y-4">
 
         {/* Header card */}
-        <div className="bg-gradient-to-br from-[#00305E] to-[#1E4D8C] rounded-3xl p-6 text-white">
+        <div className="bg-gradient-to-br from-[#121212] to-[#1E4D8C] rounded-3xl p-6 text-white">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center">
               <Trophy size={24} className="text-yellow-300" />
@@ -117,7 +117,7 @@ export default function LeaderboardPage() {
 
         {loading && (
           <div className="flex items-center justify-center py-16 gap-3 text-[#64748B]">
-            <Loader2 size={22} className="animate-spin text-[#00305E]" />
+            <Loader2 size={22} className="animate-spin text-[#121212]" />
             <span>Đang tải...</span>
           </div>
         )}
@@ -125,7 +125,7 @@ export default function LeaderboardPage() {
         {!loading && error && (
           <div className="text-center py-10">
             <p className="text-sm text-red-500 mb-4">{error}</p>
-            <button type="button" onClick={fetchBoard} className="px-4 py-2 bg-[#00305E] text-white rounded-xl font-bold text-sm">
+            <button type="button" onClick={fetchBoard} className="px-4 py-2 bg-[#121212] text-white rounded-xl font-bold text-sm">
               Thử lại
             </button>
           </div>

@@ -148,11 +148,11 @@ export function CompanionSelect() {
               <span className="text-sm">Trang chủ</span>
             </motion.button>
             <div className="flex items-center gap-2 mb-1">
-              <Sparkles size={16} style={{ color: "#FFCE00" }} />
-              <span className="text-[11px] font-black tracking-widest uppercase" style={{ color: "#FFCE00" }}>DeutschFlow AI</span>
+              <Sparkles size={16} style={{ color: "#FFCD00" }} />
+              <span className="text-[11px] font-black tracking-widest uppercase" style={{ color: "#FFCD00" }}>DeutschFlow AI</span>
             </div>
             <h1 className="font-black text-2xl leading-tight text-white">Wähle deinen</h1>
-            <h1 className="font-black text-2xl leading-tight" style={{ color: "#FFCE00" }}>Begleiter</h1>
+            <h1 className="font-black text-2xl leading-tight" style={{ color: "#FFCD00" }}>Begleiter</h1>
             <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.45)" }}>Ai sẽ đồng hành cùng bạn hôm nay?</p>
           </motion.div>
         </div>
@@ -169,7 +169,7 @@ export function CompanionSelect() {
                 className={`flex-1 py-2 text-sm font-semibold rounded-xl transition-all ${
                   sessionMode === mode ? "bg-white/10 text-white shadow-sm" : "text-white/40 hover:text-white/60"
                 }`}
-                style={sessionMode === mode && mode === "LESSON" ? { color: "#FFCE00" } : sessionMode === mode && mode === "INTERVIEW" ? { color: "#FFCE00" } : {}}
+                style={sessionMode === mode && mode === "LESSON" ? { color: "#FFCD00" } : sessionMode === mode && mode === "INTERVIEW" ? { color: "#FFCD00" } : {}}
               >
                 {label}
               </button>

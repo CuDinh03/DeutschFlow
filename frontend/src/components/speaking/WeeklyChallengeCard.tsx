@@ -159,7 +159,7 @@ export function WeeklyChallengeCard({ cefrBand, onSubmitted }: Props) {
           >
             <Calendar size={11} /> {t("weeklyBadge")}
           </div>
-          <h3 className="text-[#00305E] font-bold text-sm leading-snug pr-2">{prompt.title}</h3>
+          <h3 className="text-[#121212] font-bold text-sm leading-snug pr-2">{prompt.title}</h3>
           <p className="text-[11px] mt-1 text-[#64748B]">
             {prompt.cefrBand} · {prompt.weekStartDate}
           </p>

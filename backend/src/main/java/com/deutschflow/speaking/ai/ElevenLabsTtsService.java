@@ -1,5 +1,6 @@
 package com.deutschflow.speaking.ai;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
@@ -12,15 +13,16 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * ElevenLabs Text-to-Speech client with usage tracking.
+ * Text-to-Speech service with ElevenLabs + Edge TTS fallback.
  * <p>
- * Priority in TTS cascade:
- * 1. Local voice file (served from /public/voices/) — frontend handles this
- * 2. ElevenLabs API (this service) — requires voiceId in config
- * 3. Browser Web Speech API — frontend fallback
+ * TTS cascade (backend):
+ * 1. ElevenLabs API — premium cloned voices (requires voiceId in config)
+ * 2. Edge TTS sidecar — free Microsoft Neural voices (18 persona mappings)
+ * <p>
+ * Frontend cascade (after backend):
+ * 3. Browser Web Speech API — universal fallback
  * <p>
  * Usage tracking: counts characters sent to ElevenLabs per session.
- * ElevenLabs Free plan: 10,000 chars/month. Starter: 30,000 chars/month.
  */
 @Slf4j
 @Service
@@ -48,6 +50,9 @@ public class ElevenLabsTtsService {
 
     @Value("${app.ai.elevenlabs.voices.KLAUS:}")
     private String voiceKlaus;
+
+    @Value("${app.ai.edge-tts.url:http://localhost:5050}")
+    private String edgeTtsUrl;
 
     private Map<String, String> getVoiceMap() {
         Map<String, String> map = new java.util.HashMap<>();
@@ -103,27 +108,31 @@ public class ElevenLabsTtsService {
     @Cacheable(value = "ttsAudio", key = "T(java.util.Objects).hash(#text, #personaName)",
                unless = "#result == null")
     public byte[] synthesize(String text, String personaName) {
-        if (!isConfigured()) {
-            log.debug("ElevenLabs not configured — skipping");
-            return null;
-        }
-
-        String voiceId = resolveVoiceId(personaName);
-        if (voiceId == null) {
-            log.info("No voiceId for '{}' — local file or browser TTS will handle it", personaName);
-            return null;
-        }
-
         if (text == null || text.isBlank()) return null;
 
+        // Tier 1: Try ElevenLabs (premium cloned voices)
+        if (isConfigured()) {
+            String voiceId = resolveVoiceId(personaName);
+            if (voiceId != null) {
+                byte[] audio = synthesizeElevenLabs(text, personaName, voiceId);
+                if (audio != null) return audio;
+            }
+        }
+
+        // Tier 2: Edge TTS sidecar (free Microsoft Neural voices)
+        return synthesizeEdgeTts(text, personaName);
+    }
+
+    // ─── Tier 1: ElevenLabs API ───────────────────────────────────────────
+
+    private byte[] synthesizeElevenLabs(String text, String personaName, String voiceId) {
         // Truncate to avoid excessive cost (ElevenLabs charges per character)
         String safeText = text.length() > 2000 ? text.substring(0, 2000) : text;
-        
+
         // Add a short natural pause at the beginning to prevent audio clipping on Bluetooth/slow-wake devices
         safeText = "... " + safeText;
-        
-        int charCount = safeText.length();
 
+        int charCount = safeText.length();
         String url = BASE_URL + "/" + voiceId;
 
         try {
@@ -153,18 +162,57 @@ public class ElevenLabsTtsService {
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 byte[] audio = response.getBody();
-                // Record usage
                 recordSuccess(charCount, audio.length);
                 log.info("[ElevenLabs TTS] ✅ {} bytes audio for '{}' ({} chars)", audio.length, personaName, charCount);
                 return audio;
             } else {
                 recordError();
-                log.warn("[ElevenLabs TTS] Unexpected status {} for '{}'", response.getStatusCode(), personaName);
+                log.warn("[ElevenLabs TTS] Unexpected status {} for '{}' — falling back to Edge TTS", response.getStatusCode(), personaName);
                 return null;
             }
         } catch (Exception e) {
             recordError();
-            log.error("[ElevenLabs TTS] Synthesis failed for '{}': {}", personaName, e.getMessage());
+            log.warn("[ElevenLabs TTS] Failed for '{}': {} — falling back to Edge TTS", personaName, e.getMessage());
+            return null;
+        }
+    }
+
+    // ─── Tier 2: Edge TTS Sidecar (free) ──────────────────────────────────
+
+    private byte[] synthesizeEdgeTts(String text, String personaName) {
+        if (edgeTtsUrl == null || edgeTtsUrl.isBlank()) {
+            log.debug("Edge TTS URL not configured — no TTS available");
+            return null;
+        }
+
+        String safeText = text.length() > 2000 ? text.substring(0, 2000) : text;
+        String persona = (personaName != null && !personaName.isBlank()) ? personaName.toUpperCase() : "DEFAULT";
+
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("Accept", "audio/mpeg");
+
+            Map<String, String> body = Map.of("text", safeText, "persona", persona);
+            HttpEntity<Map<String, String>> request = new HttpEntity<>(body, headers);
+
+            log.info("[Edge TTS] cache miss — calling sidecar. persona='{}' chars={}", persona, safeText.length());
+
+            ResponseEntity<byte[]> response = restTemplate.exchange(
+                edgeTtsUrl + "/tts", HttpMethod.POST, request, byte[].class
+            );
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                byte[] audio = response.getBody();
+                recordSuccess(safeText.length(), audio.length);
+                log.info("[Edge TTS] ✅ {} bytes audio for '{}' ({} chars)", audio.length, persona, safeText.length());
+                return audio;
+            } else {
+                log.warn("[Edge TTS] Unexpected status {} for '{}'", response.getStatusCode(), persona);
+                return null;
+            }
+        } catch (Exception e) {
+            log.error("[Edge TTS] Synthesis failed for '{}': {}", persona, e.getMessage());
             return null;
         }
     }
@@ -205,6 +253,8 @@ public class ElevenLabsTtsService {
         stats.put("modelId", modelId != null ? modelId : "eleven_multilingual_v2");
         stats.put("configuredVoices", configuredVoices);
         stats.put("totalVoiceSlots", 5);
+        stats.put("edgeTtsUrl", edgeTtsUrl);
+        stats.put("edgeTtsEnabled", edgeTtsUrl != null && !edgeTtsUrl.isBlank());
         stats.put("totalRequests", totalRequests.get());
         stats.put("totalCharsSent", totalCharsSent.get());
         stats.put("totalErrors", totalErrors.get());
