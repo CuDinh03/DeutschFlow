@@ -120,3 +120,8 @@ frontend/response.html
 # frontend/public/companions/
 
 deutschflow-key.pem
+# macOS auto-created duplicates (filename " 2", " 3")
+* 2
+* 2.*
+* 3
+* 3.*
