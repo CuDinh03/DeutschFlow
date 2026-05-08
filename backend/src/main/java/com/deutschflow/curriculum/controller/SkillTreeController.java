@@ -1,6 +1,8 @@
 package com.deutschflow.curriculum.controller;
 
+import com.deutschflow.curriculum.service.PlacementTestService;
 import com.deutschflow.curriculum.service.SkillTreeService;
+import com.deutschflow.curriculum.service.WhisperApiClient;
 import com.deutschflow.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -29,6 +31,38 @@ import java.util.Map;
 public class SkillTreeController {
 
     private final SkillTreeService skillTreeService;
+    private final PlacementTestService placementTestService;
+    private final WhisperApiClient whisperApiClient;
+
+    // ─────────────────────────────────────────────────────────────
+    // POST /api/skill-tree/placement-test — Tạo bài test xếp lớp
+    // ─────────────────────────────────────────────────────────────
+
+    @PostMapping("/placement-test")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, Object>> createPlacementTest(
+            @AuthenticationPrincipal User user,
+            @RequestBody Map<String, String> body
+    ) {
+        String claimedLevel = body.getOrDefault("claimedLevel", "A1");
+        return ResponseEntity.ok(placementTestService.createTest(user.getId(), claimedLevel));
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // POST /api/skill-tree/placement-test/{testId}/submit — Nộp bài
+    // ─────────────────────────────────────────────────────────────
+
+    @PostMapping("/placement-test/{testId}/submit")
+    @PreAuthorize("isAuthenticated()")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<Map<String, Object>> submitPlacementTest(
+            @AuthenticationPrincipal User user,
+            @PathVariable String testId,
+            @RequestBody Map<String, Object> body
+    ) {
+        Map<String, String> answers = (Map<String, String>) body.getOrDefault("answers", Map.of());
+        return ResponseEntity.ok(placementTestService.submitTest(user.getId(), testId, answers));
+    }
 
     // ─────────────────────────────────────────────────────────────
     // GET /api/skill-tree/me — Lấy toàn bộ Skill Tree + tiến độ
@@ -124,9 +158,9 @@ public class SkillTreeController {
             @RequestParam(value = "focusPhonemes", required = false, defaultValue = "[]") String focusPhonemesJson
     ) {
         try {
-            // Step 1: Transcribe audio via Whisper (Groq)
-            // For now, use a simplified approach - send audio bytes for STT
-            String transcribed = originalText; // TODO: integrate Whisper STT
+            // Step 1: Transcribe audio via Whisper API (Java-native, no Python)
+            String transcribed = whisperApiClient.transcribeText(
+                    audio.getBytes(), audio.getOriginalFilename());
             
             // Step 2: Parse focus phonemes
             List<String> focusPhonemes = List.of();

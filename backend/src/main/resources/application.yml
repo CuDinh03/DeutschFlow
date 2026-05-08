@@ -152,6 +152,12 @@ app:
     edge-tts:
       url: ${EDGE_TTS_URL:http://localhost:5050}
 
+  # OpenAI Whisper STT (for pronunciation evaluation + audio timestamps)
+  # Cost: ~$0.006/min. Used by WhisperApiClient.java
+  openai:
+    api-key: ${OPENAI_API_KEY:}
+    whisper-base-url: ${OPENAI_WHISPER_BASE_URL:https://api.openai.com/v1}
+
   deepl:
     api-key: ${DEEPL_API_KEY:}
     # Gợi ý: DeepL Free ~500.000 ký tự/tháng — import 10k từ + ví dụ có thể vượt quota; dùng
