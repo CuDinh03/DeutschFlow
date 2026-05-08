@@ -14,3 +14,4 @@
 2026-05-09 00:38:16,175 [EdgeTTS] 127.0.0.1 - - [09/May/2026 00:38:16] "POST /tts HTTP/1.1" 200 -
 2026-05-09 00:38:16,192 [EdgeTTS] TTS request: persona=KLAUS, voice=de-DE-KillianNeural, len=41
 2026-05-09 00:38:17,443 [EdgeTTS] 127.0.0.1 - - [09/May/2026 00:38:17] "POST /tts HTTP/1.1" 200 -
+2026-05-09 01:07:28,580 [EdgeTTS] 127.0.0.1 - - [09/May/2026 01:07:28] "GET /voices HTTP/1.1" 200 -

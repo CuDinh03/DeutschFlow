@@ -45,7 +45,8 @@ PERSONA_VOICES = {
     "DEFAULT":   {"voice": "de-DE-ConradNeural",                "pitch": "+0Hz",  "rate": "+0%"},
     "LUKAS":     {"voice": "de-DE-ConradNeural",                "pitch": "-15Hz", "rate": "-5%"},
     "EMMA":      {"voice": "de-DE-KatjaNeural",                 "pitch": "+15Hz", "rate": "+5%"},
-    "HANNA":     {"voice": "de-DE-AmalaNeural",                 "pitch": "+0Hz",  "rate": "-3%"},
+    "ANNA":      {"voice": "de-DE-AmalaNeural",                 "pitch": "+0Hz",  "rate": "-3%"},
+    "HANNA":     {"voice": "de-DE-AmalaNeural",                 "pitch": "+10Hz", "rate": "+0%"},
     "KLAUS":     {"voice": "de-DE-KillianNeural",               "pitch": "-25Hz", "rate": "-5%"},
 
     # ── Verkauf (Bán hàng) ──
