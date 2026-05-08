@@ -110,4 +110,91 @@ public class SkillTreeController {
                 user.getId(), nodeId, answers);
         return ResponseEntity.ok(result);
     }
+
+    // ─────────────────────────────────────────────────────────────
+    // POST /api/skill-tree/evaluate-pronunciation — Đánh giá phát âm
+    // ─────────────────────────────────────────────────────────────
+
+    @PostMapping("/evaluate-pronunciation")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, Object>> evaluatePronunciation(
+            @AuthenticationPrincipal User user,
+            @RequestParam("audio") org.springframework.web.multipart.MultipartFile audio,
+            @RequestParam("originalText") String originalText,
+            @RequestParam(value = "focusPhonemes", required = false, defaultValue = "[]") String focusPhonemesJson
+    ) {
+        try {
+            // Step 1: Transcribe audio via Whisper (Groq)
+            // For now, use a simplified approach - send audio bytes for STT
+            String transcribed = originalText; // TODO: integrate Whisper STT
+            
+            // Step 2: Parse focus phonemes
+            List<String> focusPhonemes = List.of();
+            try {
+                var node = new com.fasterxml.jackson.databind.ObjectMapper().readTree(focusPhonemesJson);
+                if (node.isArray()) {
+                    focusPhonemes = new java.util.ArrayList<>();
+                    for (var el : node) focusPhonemes.add(el.asText());
+                }
+            } catch (Exception ignored) {}
+
+            // Step 3: LLM evaluation
+            Map<String, Object> result = skillTreeService.evaluatePronunciation(
+                    user.getId(), originalText, transcribed, focusPhonemes);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "Đánh giá thất bại: " + e.getMessage()));
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // POST /api/skill-tree/correct-writing — Sửa bài viết
+    // ─────────────────────────────────────────────────────────────
+
+    @PostMapping("/correct-writing")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, Object>> correctWriting(
+            @AuthenticationPrincipal User user,
+            @RequestBody Map<String, Object> request
+    ) {
+        String text = (String) request.get("text");
+        String taskDe = (String) request.getOrDefault("taskDe", "");
+
+        try {
+            String prompt = String.format("""
+                    Đóng vai giáo viên tiếng Đức. Học viên A1 viết bài sau:
+                    
+                    [Đề bài]: %s
+                    [Bài viết]: %s
+                    
+                    Sửa lỗi và trả về JSON:
+                    {
+                      "corrected_text": "...",
+                      "errors": [
+                        {"original": "...", "corrected": "...", "type": "grammar|spelling|style", 
+                         "explanation_vi": "giải thích bằng tiếng Việt"}
+                      ],
+                      "score": 0-100,
+                      "feedback_vi": "nhận xét tổng quan bằng tiếng Việt"
+                    }
+                    CHỈ trả về JSON.
+                    """, taskDe, text);
+
+            var messages = List.of(
+                    new com.deutschflow.speaking.ai.ChatMessage("system", "Bạn là giáo viên tiếng Đức. Trả lời bằng JSON."),
+                    new com.deutschflow.speaking.ai.ChatMessage("user", prompt)
+            );
+            var result = skillTreeService.getGroqClient().chatCompletion(messages, null, 0.2, 2048);
+            var parsed = new com.fasterxml.jackson.databind.ObjectMapper().readTree(result.content());
+            return ResponseEntity.ok(new com.fasterxml.jackson.databind.ObjectMapper().convertValue(parsed, Map.class));
+        } catch (Exception e) {
+            return ResponseEntity.ok(Map.of(
+                    "corrected_text", text,
+                    "errors", List.of(),
+                    "score", 0,
+                    "feedback_vi", "Không thể sửa bài lúc này."
+            ));
+        }
+    }
 }
