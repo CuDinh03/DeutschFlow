@@ -65,16 +65,18 @@ git reset --hard origin/feat/FE_V2
 echo ""
 echo "🎙️ [2/7] Setting up Edge TTS sidecar..."
 
-# Đảm bảo Python3 + pip đã cài
-if ! command -v python3 &>/dev/null; then
-  echo "  → Installing Python3..."
-  sudo apt-get update -qq && sudo apt-get install -y -qq python3 python3-venv
-fi
+# Đảm bảo Python3 + venv đã cài
+echo "  → Checking Python dependencies..."
+PY_VER=$(python3 --version 2>/dev/null | grep -oP '\d+\.\d+' || echo "3")
+sudo apt-get update -qq
+sudo apt-get install -y -qq python3-venv python3-pip "python${PY_VER}-venv" 2>/dev/null || \
+  sudo apt-get install -y -qq python3-venv python3-pip 2>/dev/null || true
 
-# Tạo/dùng virtual environment để tránh lỗi pip
+# Tạo/dùng virtual environment
 VENV_DIR="/home/ubuntu/edge-tts-venv"
-if [ ! -d "$VENV_DIR" ]; then
+if [ ! -d "$VENV_DIR/bin/python" ]; then
   echo "  → Creating Python venv..."
+  rm -rf "$VENV_DIR"
   python3 -m venv "$VENV_DIR"
 fi
 
