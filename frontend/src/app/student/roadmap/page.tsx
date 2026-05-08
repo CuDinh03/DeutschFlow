@@ -525,20 +525,6 @@ export default function RoadmapPage() {
   const [adaptiveRefreshing, setAdaptiveRefreshing] = useState(false);
   const [adaptiveResult, setAdaptiveResult] = useState<AdaptiveRefreshResponse | null>(null);
 
-  const handleAdaptiveRefresh = useCallback(async () => {
-    setAdaptiveRefreshing(true);
-    setAdaptiveResult(null);
-    try {
-      const res = await planApi.refreshAdaptive();
-      setAdaptiveResult(res.data);
-      void fetchSkillTree();
-    } catch {
-      // silent
-    } finally {
-      setAdaptiveRefreshing(false);
-    }
-  }, [fetchSkillTree]);
-
   const fetchSkillTree = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -558,6 +544,20 @@ export default function RoadmapPage() {
       setLoading(false);
     }
   }, []);
+
+  const handleAdaptiveRefresh = useCallback(async () => {
+    setAdaptiveRefreshing(true);
+    setAdaptiveResult(null);
+    try {
+      const res = await planApi.refreshAdaptive();
+      setAdaptiveResult(res.data);
+      void fetchSkillTree();
+    } catch {
+      // silent
+    } finally {
+      setAdaptiveRefreshing(false);
+    }
+  }, [fetchSkillTree]);
 
   useEffect(() => {
     if (me) void fetchSkillTree();
