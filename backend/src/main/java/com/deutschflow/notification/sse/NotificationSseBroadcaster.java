@@ -1,15 +1,12 @@
 package com.deutschflow.notification.sse;
 
-import com.deutschflow.notification.repository.UserNotificationRepository;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import lombok.extern.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Lazy;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.concurrent.CustomizableThreadFactory;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
@@ -21,18 +18,17 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
- * In-process SSE subscribers per user. Pushes unread counts after DB commit; safe for single-node / local dev.
+ * In-process SSE subscribers per user. Pushes unread counts after DB commit.
  *
- * FIX (connection leak): JPA query chạy trong @Transactional riêng biệt (self-proxy)
- * để đảm bảo connection được trả về HikariCP ngay sau khi query xong,
- * TRƯỚC KHI SSE stream giữ thread — tránh "Apparent connection leak detected".
+ * FIX (connection leak): Sử dụng JdbcTemplate thay vì JPA Repository.
+ * JdbcTemplate tự động trả connection về HikariCP ngay sau khi execute query,
+ * không cần @Transactional và không bị giữ bởi SSE stream thread.
  */
 @Component
 @Slf4j
 public class NotificationSseBroadcaster {
 
-    private final UserNotificationRepository notificationRepository;
-    private final NotificationSseBroadcaster self; // Self-inject để @Transactional proxy hoạt động
+    private final JdbcTemplate jdbcTemplate;
 
     @Value("${app.notifications.sse.ping-interval-seconds:20}")
     private int pingIntervalSeconds;
@@ -42,11 +38,8 @@ public class NotificationSseBroadcaster {
 
     private ScheduledExecutorService pingScheduler;
 
-    public NotificationSseBroadcaster(
-            UserNotificationRepository notificationRepository,
-            @Lazy NotificationSseBroadcaster self) {
-        this.notificationRepository = notificationRepository;
-        this.self = self;
+    public NotificationSseBroadcaster(JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @PostConstruct
@@ -90,15 +83,15 @@ public class NotificationSseBroadcaster {
     }
 
     /**
-     * Broadcast latest unread count to all connections for {@code userId} (queries DB — call after commit).
+     * Broadcast latest unread count to all connections for {@code userId} (call after DB commit).
      */
     public void broadcastUnreadCount(long userId) {
         Set<SseEmitter> set = subscribers.get(userId);
         if (set == null || set.isEmpty()) {
             return;
         }
-        // FIX: gọi qua self-proxy để @Transactional hoạt động → connection trả về pool trước khi write SSE
-        long count = self.fetchUnreadCount(userId);
+        // JdbcTemplate trả connection về pool ngay sau queryForObject → không leak
+        long count = fetchUnreadCountJdbc(userId);
         for (SseEmitter emitter : Set.copyOf(set)) {
             try {
                 emitter.send(SseEmitter.event().name("unread").data(Map.of("unreadCount", count)));
@@ -110,18 +103,26 @@ public class NotificationSseBroadcaster {
     }
 
     private void sendUnreadSnapshot(long userId, SseEmitter emitter) throws IOException {
-        // FIX: gọi qua self-proxy để @Transactional hoạt động → connection trả về pool trước khi write SSE
-        long count = self.fetchUnreadCount(userId);
+        // JdbcTemplate trả connection về pool ngay sau queryForObject → không leak
+        long count = fetchUnreadCountJdbc(userId);
         emitter.send(SseEmitter.event().name("unread").data(Map.of("unreadCount", count)));
     }
 
     /**
-     * Chạy trong transaction riêng biệt → connection được trả về HikariCP ngay sau COUNT(*),
-     * tránh giữ connection trong suốt thời gian SSE stream mở.
+     * Dùng JdbcTemplate để đếm notification chưa đọc.
+     * JdbcTemplate tự động acquire + release connection trong cùng 1 method call
+     * → không giữ connection khi SSE stream đang mở.
      */
-    @Transactional(readOnly = true)
-    public long fetchUnreadCount(long userId) {
-        return notificationRepository.countByRecipient_IdAndReadAtIsNull(userId);
+    private long fetchUnreadCountJdbc(long userId) {
+        try {
+            Long count = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM user_notifications WHERE recipient_user_id = ? AND read_at IS NULL",
+                    Long.class, userId);
+            return count != null ? count : 0L;
+        } catch (Exception e) {
+            log.warn("[SSE] fetchUnreadCount failed for userId={}: {}", userId, e.getMessage());
+            return 0L;
+        }
     }
 
     private void heartbeatAllSafe() {
