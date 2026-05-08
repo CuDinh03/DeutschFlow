@@ -437,7 +437,7 @@ export default function VocabPracticePage() {
 
               {/* Hero */}
               <div
-                className="df-glass-subtle relative overflow-hidden rounded-[20px] border border-cyan-400/20 p-5"
+                className="df-glass-subtle relative overflow-hidden rounded-[20px] border border-amber-400/20 p-5"
                 style={{ background: `linear-gradient(135deg, rgba(34,211,238,0.15), rgba(167,139,250,0.15))` }}
               >
                 <div className="absolute -top-6 -right-6 w-32 h-32 rounded-full"

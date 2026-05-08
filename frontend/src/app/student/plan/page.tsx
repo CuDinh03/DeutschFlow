@@ -36,11 +36,11 @@ type Plan = {
 function sessionTypeTheme(type?: string) {
   switch (type) {
     case 'GRAMMAR':
-      return { badge: 'bg-blue-100 text-blue-700 border-blue-200', accent: '#3B82F6' }
+      return { badge: 'bg-amber-100 text-amber-700 border-amber-200', accent: '#121212' }
     case 'PRACTICE':
       return { badge: 'bg-amber-100 text-amber-800 border-amber-200', accent: '#F59E0B' }
     case 'SPEAKING':
-      return { badge: 'bg-violet-100 text-violet-700 border-violet-200', accent: '#8B5CF6' }
+      return { badge: 'bg-red-100 text-red-700 border-red-200', accent: '#A40000' }
     case 'REVIEW':
       return { badge: 'bg-emerald-100 text-emerald-700 border-emerald-200', accent: '#10B981' }
     default:

@@ -102,14 +102,14 @@ export default function AdminAiConfigPage() {
       onRefresh={() => reload({ silent: true })}
       lastSyncedAt={lastSyncedAt}
     >
-      <p className="text-xs text-blue-900 bg-blue-50 border border-blue-200 rounded-[10px] px-3 py-2">{t('disclaimer')}</p>
+      <p className="text-xs text-neutral-900 bg-neutral-50 border border-neutral-200 rounded-[10px] px-3 py-2">{t('disclaimer')}</p>
 
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-5 mt-3">
         <div className="xl:col-span-3 space-y-5">
           <div className="rounded-[14px] border border-[#E2E8F0] bg-white p-5">
             <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
               <div className="flex items-center gap-2">
-                <CircuitBoard size={18} className="text-violet-600" />
+                <CircuitBoard size={18} className="text-amber-600" />
                 <h3 className="font-bold text-[#0F172A]">{t('modelPick')}</h3>
               </div>
               <button
@@ -154,7 +154,7 @@ export default function AdminAiConfigPage() {
           <div className="rounded-[14px] border border-[#E2E8F0] bg-white p-5">
             <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
               <div className="flex items-center gap-2">
-                <FileText size={18} className="text-[#0ea5e9]" />
+                <FileText size={18} className="text-[#121212]" />
                 <h3 className="font-bold text-[#0F172A]">{t('promptTitle')}</h3>
               </div>
               <div className="flex gap-2">
@@ -208,7 +208,7 @@ export default function AdminAiConfigPage() {
                 <div key={label}>
                   <div className="flex justify-between mb-1">
                     <span className="text-sm font-semibold text-[#0F172A]">{label}</span>
-                    <span className="text-sm font-bold text-[#0ea5e9] tabular-nums">{val}</span>
+                    <span className="text-sm font-bold text-[#121212] tabular-nums">{val}</span>
                   </div>
                   <input
                     type="range"

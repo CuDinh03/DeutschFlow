@@ -148,7 +148,7 @@ export default function HomePage() {
               {
                 icon: BookOpen,
                 color: 'text-gender-der',
-                bg: 'bg-blue-50',
+                bg: 'bg-slate-50',
                 title: 'Từ vựng theo màu sắc',
                 desc: 'Mỗi danh từ được gắn màu theo giống (DER/DIE/DAS) giúp ghi nhớ nhanh hơn 3 lần',
               },
@@ -176,7 +176,7 @@ export default function HomePage() {
               {
                 icon: Target,
                 color: 'text-info',
-                bg: 'bg-blue-50',
+                bg: 'bg-slate-50',
                 title: 'Ôn tập thông minh',
                 desc: 'Thuật toán SM-2 tự động lên lịch ôn tập đúng lúc bạn sắp quên',
               },

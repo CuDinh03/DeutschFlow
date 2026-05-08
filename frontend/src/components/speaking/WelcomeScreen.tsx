@@ -170,7 +170,7 @@ export function WelcomeScreen({
 
   const hero = (
     <div
-      className="relative overflow-hidden rounded-[20px] border border-cyan-200/80 bg-white/80 p-5 shadow-sm"
+      className="relative overflow-hidden rounded-[20px] border border-amber-200/80 bg-white/80 p-5 shadow-sm"
       style={{ backgroundImage: `linear-gradient(135deg, rgba(34,211,238,0.12), rgba(167,139,250,0.12))` }}
     >
       <div

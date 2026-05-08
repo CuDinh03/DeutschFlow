@@ -306,7 +306,7 @@ export default function AdminTokenAnalyticsPage() {
                         ) : u.quotaKind === 'FREE_DAY' ? (
                           <span className="text-[#64748B]">{nf.format(cap)}</span>
                         ) : u.unlimitedInternal ? (
-                          <span className="text-cyan-100">∞</span>
+                          <span className="text-amber-100">∞</span>
                         ) : (
                           '—'
                         )}

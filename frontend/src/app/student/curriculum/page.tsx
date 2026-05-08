@@ -95,7 +95,7 @@ function LessonCard({ lesson, expanded, onToggle }: { lesson: CurriculumLesson; 
               <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wide mb-1.5">Chủ đề</p>
               <div className="flex flex-wrap gap-1.5">
                 {lesson.themes.map((t, i) => (
-                  <span key={i} className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">{t}</span>
+                  <span key={i} className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">{t}</span>
                 ))}
               </div>
             </div>

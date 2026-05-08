@@ -58,7 +58,7 @@ function SessionCard({ session, onSelect }: { session: SpeakingSession; onSelect
               {session.interviewPosition ?? "Vị trí không xác định"} 
             </span>
             {session.experienceLevel && (
-              <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">
+              <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">
                 {session.experienceLevel}
               </span>
             )}

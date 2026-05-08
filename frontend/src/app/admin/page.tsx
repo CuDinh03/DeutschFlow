@@ -128,7 +128,7 @@ export default function AdminOverviewPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
               { href: '/admin/users', label: t('linkUsers'), desc: t('linkUsersDesc'), icon: Users, color: '#121212' },
-              { href: '/admin/plans', label: t('linkPlans'), desc: t('linkPlansDesc'), icon: Coins, color: '#0ea5e9' },
+              { href: '/admin/plans', label: t('linkPlans'), desc: t('linkPlansDesc'), icon: Coins, color: '#121212' },
               { href: '/admin/revenue', label: t('linkRevenue'), desc: t('linkRevenueDesc'), icon: LineChart, color: '#6366f1' },
               { href: '/admin/token-analytics', label: t('linkTokens'), desc: t('linkTokensDesc'), icon: PieChart, color: '#f43f5e' },
               { href: '/admin/vocabulary', label: t('linkVocab'), desc: t('linkVocabDesc'), icon: Database, color: '#f59e0b' },

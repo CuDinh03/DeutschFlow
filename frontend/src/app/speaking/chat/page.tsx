@@ -467,11 +467,11 @@ export default function AIChatInterface() {
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="rounded-2xl p-4 border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20"
+                className="rounded-2xl p-4 border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20"
               >
                 <div className="flex items-center gap-2 mb-2">
-                  <div className="w-2 h-2 rounded-full bg-blue-500" />
-                  <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wide">
+                  <div className="w-2 h-2 rounded-full bg-amber-500" />
+                  <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wide">
                     Đang soạn tin
                   </span>
                 </div>
@@ -505,9 +505,9 @@ export default function AIChatInterface() {
                         setInputText(typeof s === "string" ? s : s.german_text);
                         setShowSuggestions(false);
                       }}
-                      className="w-full text-left p-3 rounded-xl text-sm leading-relaxed transition-all bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-600 hover:shadow-sm text-slate-700 dark:text-slate-300"
+                      className="w-full text-left p-3 rounded-xl text-sm leading-relaxed transition-all bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-amber-400 dark:hover:border-amber-600 hover:shadow-sm text-slate-700 dark:text-slate-300"
                     >
-                      <span className="text-[10px] font-bold text-blue-500 mr-1.5">{i + 1}.</span>
+                      <span className="text-[10px] font-bold text-amber-500 mr-1.5">{i + 1}.</span>
                       {typeof s === "string" ? s : s.german_text}
                     </motion.button>
                   ))}
@@ -533,7 +533,7 @@ export default function AIChatInterface() {
         <div className="max-w-3xl mx-auto w-full md:w-[65%] md:mx-0 md:ml-0 relative">
           <form
             onSubmit={handleSendMessage}
-            className="flex items-end gap-2 bg-slate-100 dark:bg-slate-800 p-2 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-inner focus-within:ring-2 focus-within:ring-blue-500/50 transition-all"
+            className="flex items-end gap-2 bg-slate-100 dark:bg-slate-800 p-2 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-inner focus-within:ring-2 focus-within:ring-amber-500/50 transition-all"
           >
             <button
               type="button"
@@ -541,7 +541,7 @@ export default function AIChatInterface() {
               className={`p-3 rounded-full transition-colors flex-shrink-0 ${
                 isListening
                   ? "text-red-500 bg-red-100 dark:bg-red-900/30 animate-pulse"
-                  : "text-slate-500 hover:text-blue-500 hover:bg-white dark:hover:bg-slate-700"
+                  : "text-slate-500 hover:text-amber-500 hover:bg-white dark:hover:bg-slate-700"
               }`}
               title="Sử dụng giọng nói (STT)"
             >
@@ -563,7 +563,7 @@ export default function AIChatInterface() {
             <button
               type="submit"
               disabled={!inputText.trim() || streamStatus !== "idle"}
-              className="p-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:hover:bg-blue-600 flex-shrink-0"
+              className="p-3 bg-brand-black text-brand-yellow rounded-full hover:bg-neutral-800 transition-colors disabled:opacity-50 disabled:hover:bg-brand-black flex-shrink-0"
             >
               <Send className="w-5 h-5" />
             </button>
@@ -611,7 +611,7 @@ export default function AIChatInterface() {
                 <button
                   onClick={handleEndSession}
                   className="w-full py-3.5 rounded-2xl text-sm font-bold text-white transition-all hover:opacity-90"
-                  style={{ background: "linear-gradient(135deg, #121212, #2D9CDB)", boxShadow: "0 4px 16px rgba(0,48,94,0.3)" }}
+                  style={{ background: "linear-gradient(135deg, #121212, #333)", boxShadow: "0 4px 16px rgba(0,0,0,0.3)" }}
                 >
                   Kết thúc & Xem kết quả
                 </button>

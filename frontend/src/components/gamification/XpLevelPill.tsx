@@ -28,7 +28,7 @@ interface XpSummaryDto {
 
 const rarityConfig = {
   COMMON:    { color: "#94A3B8", bg: "bg-slate-50   border-slate-200",   glow: "",                         label: "Phổ thông" },
-  RARE:      { color: "#3B82F6", bg: "bg-blue-50    border-blue-200",    glow: "shadow-blue-200",           label: "Hiếm" },
+  RARE:      { color: "#121212", bg: "bg-slate-50    border-slate-200",    glow: "shadow-slate-200",           label: "Hiếm" },
   EPIC:      { color: "#8B5CF6", bg: "bg-purple-50  border-purple-200",  glow: "shadow-purple-200",         label: "Sử thi" },
   LEGENDARY: { color: "#F59E0B", bg: "bg-amber-50   border-amber-200",   glow: "shadow-amber-200 shadow-lg", label: "Huyền thoại" },
 };

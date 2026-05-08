@@ -5,6 +5,10 @@
 # env variants (ignore all, except .env.example)
 .env.*
 !.env.example
+!.env.production.example
+*.env.local
+nohup.out
+*.dump
 *.env.local
 
 # --- key/cert/keystore ---
@@ -125,3 +129,7 @@ deutschflow-key.pem
 * 2.*
 * 3
 * 3.*
+
+
+nohup.out
+*.dump

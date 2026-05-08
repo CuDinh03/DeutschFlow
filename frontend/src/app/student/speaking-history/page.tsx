@@ -42,7 +42,7 @@ interface SpeakingSession {
 function severityColor(s: string) {
   if (s === "MAJOR" || s === "BLOCKING") return "text-red-600 bg-red-50 border-red-200";
   if (s === "MINOR") return "text-amber-600 bg-amber-50 border-amber-200";
-  return "text-blue-600 bg-blue-50 border-blue-200";
+  return "text-amber-600 bg-amber-50 border-amber-200";
 }
 
 function SessionCard({ session, onSelect }: { session: SpeakingSession; onSelect: () => void }) {
@@ -120,7 +120,7 @@ function MessageBubble({ msg }: { msg: SessionMessage }) {
           </div>
         )}
         {!isUser && msg.explanationVi && (
-          <div className="bg-blue-50 border border-blue-100 rounded-xl px-3 py-2 text-xs text-blue-800 max-w-full">
+          <div className="bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 text-xs text-amber-800 max-w-full">
             <span className="font-bold">Giải thích: </span>{msg.explanationVi}
           </div>
         )}

@@ -506,7 +506,7 @@ export default function AdminUsersPage() {
                         <Zap size={16} style={{ color: P.blue }} />
                         <h4 className="font-bold text-sm" style={{ color: P.text }}>Chi tiết Quota</h4>
                       </div>
-                      {quotaLoading && <span className="text-[10px] font-bold text-blue-500 animate-pulse">Đang tải...</span>}
+                      {quotaLoading && <span className="text-[10px] font-bold text-amber-500 animate-pulse">Đang tải...</span>}
                     </div>
 
                     {quotaDetail ? (
