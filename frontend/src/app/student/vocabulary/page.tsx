@@ -1205,6 +1205,7 @@ export default function StudentVocabularyPage() {
 
       {selectedItem ? <DetailModal item={selectedItem} closing={modalClosing} onClose={requestCloseModal} /> : null}
 
+      {/* @ts-expect-error -- styled-jsx prop */}
       <style jsx global>{`
         @keyframes dfFadeUp {
           0% {

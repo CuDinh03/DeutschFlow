@@ -159,7 +159,7 @@ export function XpLevelPill({ userId }: { userId?: number }) {
             <motion.div
               initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }}
               className="bg-white rounded-[20px] w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl"
-              onClick={e => e.stopPropagation()}
+              onClick={(e: React.MouseEvent) => e.stopPropagation()}
             >
               {/* Modal header */}
               <div className="flex items-center justify-between px-6 py-5 border-b border-[#F1F4F9]">

@@ -190,7 +190,7 @@ function ProfileTab({ d, userId, onSaved }: { d: LearningDetail; userId: number;
           </div>
           <div className="overflow-x-auto rounded-[10px] border" style={{ borderColor: P.border }}>
             <table className="w-full text-xs">
-              <tbody>{[
+              <tbody>{([
                 ['Mục tiêu', p.goalType === 'WORK' ? 'Công việc' : p.goalType === 'CERT' ? 'Lấy chứng chỉ' : String(p.goalType ?? '—')],
                 ['Cấp độ hiện tại', p.currentLevel ?? '—'],
                 ['Cấp độ mục tiêu', p.targetLevel ?? '—'],
@@ -200,7 +200,7 @@ function ProfileTab({ d, userId, onSaved }: { d: LearningDetail; userId: number;
                 ['Phút/buổi', p.minutesPerSession ?? '—'],
                 ['Tốc độ học', p.learningSpeed === 'SLOW' ? 'Chậm' : p.learningSpeed === 'FAST' ? 'Nhanh' : 'Bình thường'],
                 ['Độ tuổi', String(p.ageRange ?? '—').replace('_', ' ')],
-              ].map(([k, v], i) => (
+              ] as [string, string][]).map(([k, v], i) => (
                 <tr key={String(k)} style={{ background: i % 2 === 0 ? P.white : '#FAFCFF' }}>
                   <td className="px-3 py-2 font-semibold" style={{ color: P.muted }}>{k}</td>
                   <td className="px-3 py-2 font-bold" style={{ color: P.text }}>{String(v)}</td>

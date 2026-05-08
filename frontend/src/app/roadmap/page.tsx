@@ -254,7 +254,7 @@ function InfoCard({
     <motion.div
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => {
+      onKeyDown={(e: React.KeyboardEvent) => {
         if (!isLocked && (e.key === "Enter" || e.key === " ")) {
           e.preventDefault();
           onClick();

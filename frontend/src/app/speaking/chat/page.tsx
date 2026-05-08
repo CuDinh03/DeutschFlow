@@ -436,6 +436,7 @@ export default function AIChatInterface() {
       </footer>
 
       {/* ── Shimmer Keyframes (injected globally) ──────────── */}
+      {/* @ts-expect-error -- styled-jsx prop */}
       <style jsx global>{`
         @keyframes shimmer {
           0% { background-position: 200% 0; }
