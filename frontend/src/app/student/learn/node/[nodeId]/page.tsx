@@ -9,6 +9,10 @@ import { useStudentPracticeSession } from "@/hooks/useStudentPracticeSession";
 import { useNodeSessionStore } from "@/stores/useNodeSessionStore";
 import { logout } from "@/lib/authSession";
 import GrammarView from "@/components/learn/GrammarView";
+import ReadingView from "@/components/learn/ReadingView";
+import ListeningView from "@/components/learn/ListeningView";
+import SpeakingView from "@/components/learn/SpeakingView";
+import WritingView from "@/components/learn/WritingView";
 
 const VIEW_TABS = [
   { key: "grammar" as const, label: "Ngữ pháp", icon: BookOpen, emoji: "📖" },
@@ -146,30 +150,10 @@ export default function LearnNodePage() {
               transition={{ duration: 0.2 }}
             >
               {activeView === "grammar" && <GrammarView content={session.content} />}
-              {activeView === "reading" && (
-                <div className="flex flex-col items-center justify-center py-16 bg-white rounded-2xl border border-[#E2E8F0]">
-                  <span className="text-4xl mb-3">📚</span>
-                  <p className="text-sm text-[#64748B]">Reading View — Đang phát triển</p>
-                </div>
-              )}
-              {activeView === "listening" && (
-                <div className="flex flex-col items-center justify-center py-16 bg-white rounded-2xl border border-[#E2E8F0]">
-                  <span className="text-4xl mb-3">🎧</span>
-                  <p className="text-sm text-[#64748B]">Listening View — Đang phát triển</p>
-                </div>
-              )}
-              {activeView === "speaking" && (
-                <div className="flex flex-col items-center justify-center py-16 bg-white rounded-2xl border border-[#E2E8F0]">
-                  <span className="text-4xl mb-3">🎤</span>
-                  <p className="text-sm text-[#64748B]">Speaking View — Đang phát triển</p>
-                </div>
-              )}
-              {activeView === "writing" && (
-                <div className="flex flex-col items-center justify-center py-16 bg-white rounded-2xl border border-[#E2E8F0]">
-                  <span className="text-4xl mb-3">✍️</span>
-                  <p className="text-sm text-[#64748B]">Writing View — Đang phát triển</p>
-                </div>
-              )}
+              {activeView === "reading" && <ReadingView content={session.content} />}
+              {activeView === "listening" && <ListeningView content={session.content} />}
+              {activeView === "speaking" && <SpeakingView content={session.content} />}
+              {activeView === "writing" && <WritingView content={session.content} />}
             </motion.div>
           </>
         )}
