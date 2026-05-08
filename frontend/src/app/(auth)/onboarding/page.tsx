@@ -119,15 +119,15 @@ export default function OnboardingPage() {
         className="absolute top-[-15%] left-[-10%] w-[500px] h-[500px] rounded-full blur-[140px] opacity-20 pointer-events-none transition-colors duration-700"
         style={{ backgroundColor: accentColor }}
       />
-      <div className="absolute bottom-[-15%] right-[-10%] w-[400px] h-[400px] rounded-full blur-[120px] opacity-15 pointer-events-none bg-[#00305E]" />
+      <div className="absolute bottom-[-15%] right-[-10%] w-[400px] h-[400px] rounded-full blur-[120px] opacity-15 pointer-events-none bg-[#121212]" />
 
       {/* Logo */}
       <div className="relative z-10 mb-8 flex items-center gap-2">
-        <div className="w-8 h-8 rounded-[8px] bg-[#FFCE00] flex items-center justify-center">
-          <span className="text-[#00305E] font-black text-base leading-none">D</span>
+        <div className="w-8 h-8 rounded-[8px] bg-[#FFCD00] flex items-center justify-center">
+          <span className="text-[#121212] font-black text-base leading-none">D</span>
         </div>
         <span className="text-white font-bold text-xl tracking-tight">
-          DeutschFlow<span className="text-[#FFCE00]">.</span>
+          DeutschFlow<span className="text-[#FFCD00]">.</span>
         </span>
       </div>
 

@@ -142,7 +142,7 @@ export default function VocabAnalyticsPage() {
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-          className="w-8 h-8 border-4 border-[#00305E] border-t-transparent rounded-full"
+          className="w-8 h-8 border-4 border-[#121212] border-t-transparent rounded-full"
         />
       </div>
     )
@@ -167,7 +167,7 @@ export default function VocabAnalyticsPage() {
 
         {loading && (
           <div className="flex items-center justify-center py-16 gap-3 text-[#64748B]">
-            <Loader2 size={22} className="animate-spin text-[#00305E]" />
+            <Loader2 size={22} className="animate-spin text-[#121212]" />
             <span>Đang phân tích từ vựng...</span>
           </div>
         )}
@@ -175,17 +175,17 @@ export default function VocabAnalyticsPage() {
         {!loading && error && (
           <div className="text-center py-10">
             <p className="text-sm text-red-500 mb-4">{error}</p>
-            <button type="button" onClick={fetchData} className="px-4 py-2 bg-[#00305E] text-white rounded-xl font-bold text-sm">Thử lại</button>
+            <button type="button" onClick={fetchData} className="px-4 py-2 bg-[#121212] text-white rounded-xl font-bold text-sm">Thử lại</button>
           </div>
         )}
 
         {!loading && !error && coverage && (
           <>
             {/* Global coverage card */}
-            <div className="bg-gradient-to-br from-[#00305E] to-[#1E4D8C] rounded-3xl p-6 text-white">
+            <div className="bg-gradient-to-br from-[#121212] to-[#1E4D8C] rounded-3xl p-6 text-white">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <BookOpen size={22} className="text-[#FFCE00]" />
+                  <BookOpen size={22} className="text-[#FFCD00]" />
                   <div>
                     <h2 className="font-extrabold text-lg">Độ phủ từ vựng</h2>
                     <p className="text-white/60 text-xs">{coverage.coveredWords.toLocaleString()} / {coverage.totalWords.toLocaleString()} từ có nghĩa</p>
@@ -212,7 +212,7 @@ export default function VocabAnalyticsPage() {
               {/* Progress bar */}
               <div className="h-3 bg-white/10 rounded-full overflow-hidden mt-4">
                 <motion.div
-                  className="h-full bg-[#FFCE00] rounded-full"
+                  className="h-full bg-[#FFCD00] rounded-full"
                   initial={{ width: 0 }}
                   animate={{ width: `${globalPct}%` }}
                   transition={{ duration: 0.8, delay: 0.3 }}

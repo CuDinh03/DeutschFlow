@@ -110,14 +110,14 @@ function EditWordCard({
           value={form[k]}
           onChange={set(k)}
           rows={rows}
-          className="w-full px-3 py-2 rounded-[8px] border border-[#E2E8F0] text-sm text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#00305E]/20 resize-none"
+          className="w-full px-3 py-2 rounded-[8px] border border-[#E2E8F0] text-sm text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#121212]/20 resize-none"
         />
       ) : (
         <input
           type={type}
           value={form[k]}
           onChange={set(k)}
-          className="w-full px-3 py-2 rounded-[8px] border border-[#E2E8F0] text-sm text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#00305E]/20"
+          className="w-full px-3 py-2 rounded-[8px] border border-[#E2E8F0] text-sm text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#121212]/20"
         />
       )}
     </div>
@@ -129,7 +129,7 @@ function EditWordCard({
       <select
         value={form[k]}
         onChange={set(k)}
-        className="w-full px-3 py-2 rounded-[8px] border border-[#E2E8F0] text-sm text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#00305E]/20 bg-white"
+        className="w-full px-3 py-2 rounded-[8px] border border-[#E2E8F0] text-sm text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#121212]/20 bg-white"
       >
         <option value="">— chọn —</option>
         {opts.map(o => <option key={o} value={o}>{o}</option>)}
@@ -154,7 +154,7 @@ function EditWordCard({
         transition={{ type: 'spring', stiffness: 300, damping: 28 }}
       >
         {/* Header */}
-        <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 bg-[#00305E] rounded-t-[20px]">
+        <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 bg-[#121212] rounded-t-[20px]">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-[10px] bg-white/15 flex items-center justify-center">
               <Pencil size={16} className="text-white" />
@@ -247,7 +247,7 @@ function EditWordCard({
             onClick={save}
             disabled={saving || saved}
             className="flex items-center gap-2 px-5 py-2.5 rounded-[10px] text-white text-sm font-semibold transition-all disabled:opacity-70"
-            style={{ background: saved ? '#10b981' : '#00305E' }}
+            style={{ background: saved ? '#10b981' : '#121212' }}
           >
             {saving ? <Loader2 size={14} className="animate-spin" /> : saved ? <Check size={14} /> : <Save size={14} />}
             {saving ? 'Đang lưu…' : saved ? 'Đã lưu!' : 'Lưu thay đổi'}
@@ -414,11 +414,11 @@ function GlosbeViPanel({ onDone }: { onDone: () => void }) {
               onChange={e =>
                 setLimit(Math.max(1, Math.min(VOCAB_ADMIN_BATCH_MAX, parseInt(e.target.value) || 30)))
               }
-              className="w-24 px-3 py-2 rounded-[8px] border border-[#E2E8F0] text-sm focus:outline-none focus:ring-2 focus:ring-[#00305E]/20" />
+              className="w-24 px-3 py-2 rounded-[8px] border border-[#E2E8F0] text-sm focus:outline-none focus:ring-2 focus:ring-[#121212]/20" />
           </div>
           <label className="flex items-center gap-2 cursor-pointer pb-2">
             <div onClick={() => setResetCursor(v => !v)}
-              className={`w-9 h-5 rounded-full transition-colors relative cursor-pointer ${resetCursor ? 'bg-[#00305E]' : 'bg-[#CBD5E1]'}`}>
+              className={`w-9 h-5 rounded-full transition-colors relative cursor-pointer ${resetCursor ? 'bg-[#121212]' : 'bg-[#CBD5E1]'}`}>
               <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${resetCursor ? 'translate-x-4' : 'translate-x-0.5'}`} />
             </div>
             <span className="text-xs text-[#64748B]">Reset cursor</span>
@@ -560,7 +560,7 @@ export default function VocabularyAdminPage() {
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4">
           {[
-            { label: 'Tổng từ', value: total.toLocaleString(), icon: Database, color: '#00305E' },
+            { label: 'Tổng từ', value: total.toLocaleString(), icon: Database, color: '#121212' },
             { label: 'Đang hiển thị', value: words.length, icon: Filter, color: '#10b981' },
             { label: 'Trang', value: `${page + 1} / ${totalPages}`, icon: ChevronRight, color: '#f59e0b' },
           ].map(({ label, value, icon: Icon, color }) => (
@@ -584,29 +584,29 @@ export default function VocabularyAdminPage() {
               <input value={q} onChange={e => setQ(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && fetchWords(0)}
                 placeholder="Tìm từ... (Enter)"
-                className="w-full pl-8 pr-3 py-2 rounded-[8px] border border-[#E2E8F0] text-sm focus:outline-none focus:ring-2 focus:ring-[#00305E]/15" />
+                className="w-full pl-8 pr-3 py-2 rounded-[8px] border border-[#E2E8F0] text-sm focus:outline-none focus:ring-2 focus:ring-[#121212]/15" />
             </div>
             <select value={cefr} onChange={e => { setCefr(e.target.value); fetchWords(0, { cefr: e.target.value }) }}
-              className="pl-3 pr-7 py-2 rounded-[8px] border border-[#E2E8F0] text-sm focus:outline-none focus:ring-2 focus:ring-[#00305E]/15 bg-white">
+              className="pl-3 pr-7 py-2 rounded-[8px] border border-[#E2E8F0] text-sm focus:outline-none focus:ring-2 focus:ring-[#121212]/15 bg-white">
               {['', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map(o => <option key={o} value={o}>{o || 'Cấp độ'}</option>)}
             </select>
             <select value={dtype} onChange={e => { setDtype(e.target.value); fetchWords(0, { dtype: e.target.value }) }}
-              className="pl-3 pr-7 py-2 rounded-[8px] border border-[#E2E8F0] text-sm focus:outline-none focus:ring-2 focus:ring-[#00305E]/15 bg-white">
+              className="pl-3 pr-7 py-2 rounded-[8px] border border-[#E2E8F0] text-sm focus:outline-none focus:ring-2 focus:ring-[#121212]/15 bg-white">
               {['', 'Noun', 'Verb', 'Adjective', 'Word'].map(o => <option key={o} value={o}>{o || 'Loại từ'}</option>)}
             </select>
             <select value={gender} onChange={e => { setGender(e.target.value); fetchWords(0, { gender: e.target.value }) }}
-              className="pl-3 pr-7 py-2 rounded-[8px] border border-[#E2E8F0] text-sm focus:outline-none focus:ring-2 focus:ring-[#00305E]/15 bg-white">
+              className="pl-3 pr-7 py-2 rounded-[8px] border border-[#E2E8F0] text-sm focus:outline-none focus:ring-2 focus:ring-[#121212]/15 bg-white">
               {['', 'DER', 'DIE', 'DAS'].map(o => <option key={o} value={o}>{o || 'Giống'}</option>)}
             </select>
             <select value={tag} onChange={e => { setTag(e.target.value); fetchWords(0, { tag: e.target.value }) }}
-              className="pl-3 pr-7 py-2 rounded-[8px] border border-[#E2E8F0] text-sm focus:outline-none focus:ring-2 focus:ring-[#00305E]/15 bg-white min-w-[160px]">
+              className="pl-3 pr-7 py-2 rounded-[8px] border border-[#E2E8F0] text-sm focus:outline-none focus:ring-2 focus:ring-[#121212]/15 bg-white min-w-[160px]">
               <option value="">Chủ đề</option>
               {tags.map(t => (
                 <option key={t.id} value={t.name}>{t.localizedLabel ?? t.name}</option>
               ))}
             </select>
             <button onClick={() => fetchWords(0)} disabled={loading}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-[8px] bg-[#00305E] text-white text-sm font-semibold hover:bg-[#002447] transition-colors disabled:opacity-60">
+              className="flex items-center gap-1.5 px-4 py-2 rounded-[8px] bg-[#121212] text-white text-sm font-semibold hover:bg-[#000000] transition-colors disabled:opacity-60">
               <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
               Tìm kiếm
             </button>
@@ -670,7 +670,7 @@ export default function VocabularyAdminPage() {
                         </td>
                         <td className="px-3 py-2.5">
                           {hasIpa
-                            ? <span className="text-xs font-mono text-[#00305E]">{w.phonetic}</span>
+                            ? <span className="text-xs font-mono text-[#121212]">{w.phonetic}</span>
                             : <span className="text-[#CBD5E1] text-xs">—</span>}
                         </td>
                         <td className="px-3 py-2.5 max-w-[140px]">
@@ -692,11 +692,11 @@ export default function VocabularyAdminPage() {
                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button onClick={e => enrichOne(w.id, e)} disabled={enrichingId === w.id}
                               title="Enrich từ Wiktionary"
-                              className="p-1.5 rounded-[6px] hover:bg-[#EEF4FF] text-[#94A3B8] hover:text-[#00305E] transition-colors disabled:opacity-50">
+                              className="p-1.5 rounded-[6px] hover:bg-[#EEF4FF] text-[#94A3B8] hover:text-[#121212] transition-colors disabled:opacity-50">
                               {enrichingId === w.id ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />}
                             </button>
                             <button onClick={() => setEditWord(w)} title="Chỉnh sửa"
-                              className="p-1.5 rounded-[6px] hover:bg-[#EEF4FF] text-[#94A3B8] hover:text-[#00305E] transition-colors">
+                              className="p-1.5 rounded-[6px] hover:bg-[#EEF4FF] text-[#94A3B8] hover:text-[#121212] transition-colors">
                               <Pencil size={13} />
                             </button>
                           </div>
@@ -724,7 +724,7 @@ export default function VocabularyAdminPage() {
                 const p = start + i
                 return (
                   <button key={p} onClick={() => fetchWords(p)}
-                    className={`w-7 h-7 rounded text-xs font-semibold border transition-colors ${p === page ? 'bg-[#00305E] text-white border-[#00305E]' : 'border-[#E2E8F0] text-[#64748B] hover:bg-white'}`}>
+                    className={`w-7 h-7 rounded text-xs font-semibold border transition-colors ${p === page ? 'bg-[#121212] text-white border-[#121212]' : 'border-[#E2E8F0] text-[#64748B] hover:bg-white'}`}>
                     {p + 1}
                   </button>
                 )
@@ -741,7 +741,7 @@ export default function VocabularyAdminPage() {
         <div className="bg-white rounded-[16px] border border-[#E2E8F0] shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-[#F0F4F8] flex items-center gap-3">
             <div className="w-9 h-9 rounded-[10px] bg-[#EEF4FF] flex items-center justify-center">
-              <Zap size={16} className="text-[#00305E]" />
+              <Zap size={16} className="text-[#121212]" />
             </div>
             <div>
               <h3 className="font-semibold text-[#0F172A] text-sm">Wiktionary Batch Enrich</h3>
@@ -757,17 +757,17 @@ export default function VocabularyAdminPage() {
                     setBatchLimit(
                       Math.max(1, Math.min(VOCAB_ADMIN_BATCH_MAX, parseInt(e.target.value) || 50)),
                     )}
-                  className="w-28 px-3 py-2 rounded-[8px] border border-[#E2E8F0] text-sm focus:outline-none focus:ring-2 focus:ring-[#00305E]/20" />
+                  className="w-28 px-3 py-2 rounded-[8px] border border-[#E2E8F0] text-sm focus:outline-none focus:ring-2 focus:ring-[#121212]/20" />
               </div>
               <label className="flex items-center gap-2 cursor-pointer pb-2">
                 <div onClick={() => setResetCursor(v => !v)}
-                  className={`w-9 h-5 rounded-full transition-colors relative cursor-pointer ${resetCursor ? 'bg-[#00305E]' : 'bg-[#CBD5E1]'}`}>
+                  className={`w-9 h-5 rounded-full transition-colors relative cursor-pointer ${resetCursor ? 'bg-[#121212]' : 'bg-[#CBD5E1]'}`}>
                   <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${resetCursor ? 'translate-x-4' : 'translate-x-0.5'}`} />
                 </div>
                 <span className="text-xs text-[#64748B]">Reset cursor</span>
               </label>
               <button onClick={runBatch} disabled={batchRunning}
-                className="flex items-center gap-2 px-4 py-2 rounded-[8px] bg-[#00305E] hover:bg-[#002447] disabled:opacity-60 text-white text-sm font-semibold transition-colors">
+                className="flex items-center gap-2 px-4 py-2 rounded-[8px] bg-[#121212] hover:bg-[#000000] disabled:opacity-60 text-white text-sm font-semibold transition-colors">
                 {batchRunning ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
                 {batchRunning ? 'Đang chạy…' : 'Chạy Batch'}
               </button>

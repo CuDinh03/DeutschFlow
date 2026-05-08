@@ -652,7 +652,7 @@ export default function SwipeCardsPage() {
         <p className="max-w-md text-center text-sm text-[#64748B]">Could not load your profile.</p>
         <button
           type="button"
-          className="rounded-[14px] bg-[#00305E] px-5 py-2.5 text-sm font-bold text-white shadow-md"
+          className="rounded-[14px] bg-[#121212] px-5 py-2.5 text-sm font-bold text-white shadow-md"
           onClick={() => void reload()}
         >
           Retry
@@ -717,7 +717,7 @@ export default function SwipeCardsPage() {
               }`}
               style={
                 mode === "flip"
-                  ? { background: "linear-gradient(135deg, #00305E, #004080)", boxShadow: "0 2px 8px rgba(0,48,94,0.25)" }
+                  ? { background: "linear-gradient(135deg, #121212, #1E1E1E)", boxShadow: "0 2px 8px rgba(0,48,94,0.25)" }
                   : undefined
               }
             >
@@ -737,7 +737,7 @@ export default function SwipeCardsPage() {
               }`}
               style={
                 mode === "type"
-                  ? { background: "linear-gradient(135deg, #00305E, #004080)", boxShadow: "0 2px 8px rgba(0,48,94,0.25)" }
+                  ? { background: "linear-gradient(135deg, #121212, #1E1E1E)", boxShadow: "0 2px 8px rgba(0,48,94,0.25)" }
                   : undefined
               }
             >
@@ -753,7 +753,7 @@ export default function SwipeCardsPage() {
         ) : showComplete ? (
           <motion.div className="flex flex-col items-center gap-4 p-6 bg-white flex-1" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <div className="text-5xl">🏆</div>
-            <h2 className="font-extrabold text-xl text-[#00305E]">{t("sessionEnd")}</h2>
+            <h2 className="font-extrabold text-xl text-[#121212]">{t("sessionEnd")}</h2>
             <div className="grid grid-cols-3 gap-2 w-full text-center text-sm">
               <div className="rounded-xl p-2 bg-emerald-50 border border-emerald-100">
                 <div className="font-black text-emerald-600">{learnedIds.size}</div>
@@ -772,7 +772,7 @@ export default function SwipeCardsPage() {
               type="button"
               onClick={restart}
               className="w-full py-3 rounded-[14px] font-bold text-white flex items-center justify-center gap-2"
-              style={{ background: "linear-gradient(135deg, #00305E, #004080)" }}
+              style={{ background: "linear-gradient(135deg, #121212, #1E1E1E)" }}
             >
               <RotateCcw size={16} /> {t("again")}
             </button>

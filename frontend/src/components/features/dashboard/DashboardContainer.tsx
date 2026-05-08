@@ -14,7 +14,7 @@ export function DashboardContainer({ children }: { children: ReactNode }) {
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          className="w-8 h-8 border-4 border-[#00305E] border-t-transparent rounded-full"
+          className="w-8 h-8 border-4 border-[#121212] border-t-transparent rounded-full"
         />
       </div>
     );

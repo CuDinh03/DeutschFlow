@@ -33,14 +33,14 @@ export function SpeakingMessageInput({
       ? "focus:ring-amber-400/35"
       : pid === "LUKAS"
         ? "focus:ring-sky-400/35"
-        : "focus:ring-cyan-500/30";
+        : "focus:ring-amber-500/30";
 
   const sendGradient =
     pid === "EMMA"
       ? "from-amber-500 to-teal-600 shadow-[0_0_24px_rgba(245,158,11,0.25)]"
       : pid === "LUKAS"
         ? "from-sky-500 to-slate-700 shadow-[0_0_24px_rgba(56,189,248,0.22)]"
-        : "from-cyan-400 to-violet-500 shadow-[0_0_20px_rgba(34,211,238,0.25)]";
+        : "from-amber-400 to-yellow-500 shadow-[0_0_20px_rgba(255,205,0,0.25)]";
 
   return (
     <div className="flex items-end gap-2">

@@ -46,19 +46,19 @@ function SessionCard({ session, onSelect }: { session: SpeakingSession; onSelect
     <motion.button
       initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
       onClick={onSelect}
-      className="w-full text-left bg-white border border-[#E2E8F0] rounded-[16px] p-5 hover:border-[#00305E]/40 hover:shadow-md transition-all"
+      className="w-full text-left bg-white border border-[#E2E8F0] rounded-[16px] p-5 hover:border-[#121212]/40 hover:shadow-md transition-all"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded-[8px] bg-[#FFCE00]/20 flex items-center justify-center">
-              <Briefcase size={16} className="text-[#00305E]" />
+            <div className="w-8 h-8 rounded-[8px] bg-[#FFCD00]/20 flex items-center justify-center">
+              <Briefcase size={16} className="text-[#121212]" />
             </div>
             <span className="font-semibold text-[#0F172A] text-sm truncate">
               {session.interviewPosition ?? "Vị trí không xác định"} 
             </span>
             {session.experienceLevel && (
-              <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">
+              <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">
                 {session.experienceLevel}
               </span>
             )}
@@ -161,7 +161,7 @@ export default function InterviewsHistoryPage() {
   if (loading || !profile) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 size={28} className="animate-spin text-[#00305E]" />
+        <Loader2 size={28} className="animate-spin text-[#121212]" />
       </div>
     );
   }
@@ -219,7 +219,7 @@ export default function InterviewsHistoryPage() {
             </div>
             <button
               onClick={() => router.push("/speaking")}
-              className="text-sm font-semibold text-[#00305E] hover:underline flex items-center gap-1 bg-[#FFCE00]/20 px-3 py-1.5 rounded-full transition-all hover:bg-[#FFCE00]/30"
+              className="text-sm font-semibold text-[#121212] hover:underline flex items-center gap-1 bg-[#FFCD00]/20 px-3 py-1.5 rounded-full transition-all hover:bg-[#FFCD00]/30"
             >
               <Plus size={13} /> Phỏng vấn mới
             </button>
@@ -227,14 +227,14 @@ export default function InterviewsHistoryPage() {
 
           {loadingMsgs ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 size={24} className="animate-spin text-[#00305E]" />
+              <Loader2 size={24} className="animate-spin text-[#121212]" />
             </div>
           ) : sessions.length === 0 ? (
             <div className="text-center py-16 text-[#94A3B8]">
               <Briefcase size={40} className="mx-auto mb-3 opacity-30" />
               <p className="font-medium">Chưa có kết quả phỏng vấn nào</p>
               <p className="text-sm mt-1">Hãy tham gia một buổi phỏng vấn giả lập!</p>
-              <button onClick={() => router.push("/speaking")} className="mt-4 bg-[#00305E] text-white rounded-[12px] px-5 py-2 text-sm font-semibold hover:bg-[#004080] transition-colors">
+              <button onClick={() => router.push("/speaking")} className="mt-4 bg-[#121212] text-white rounded-[12px] px-5 py-2 text-sm font-semibold hover:bg-[#1E1E1E] transition-colors">
                 Bắt đầu ngay
               </button>
             </div>

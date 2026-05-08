@@ -12,7 +12,7 @@ const Toaster = ({ ...props }: ToasterProps) => (
     toastOptions={{
       classNames: {
         toast:
-          "backdrop-blur-md bg-white/95 border border-[#E2E8F0] shadow-lg shadow-[#00305E]/10 rounded-xl",
+          "backdrop-blur-md bg-white/95 border border-[#E2E8F0] shadow-lg shadow-[#121212]/10 rounded-xl",
       },
     }}
     style={

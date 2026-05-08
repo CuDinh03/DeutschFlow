@@ -70,7 +70,7 @@ export default function AdminPlansPage() {
               ) : (
                 data.map((p) => (
                   <tr key={p.code} className="border-t border-[#E2E8F0] hover:bg-[#FAFBFC]">
-                    <td className="px-4 py-3 font-mono font-semibold text-[#00305E]">{p.code}</td>
+                    <td className="px-4 py-3 font-mono font-semibold text-[#121212]">{p.code}</td>
                     <td className="px-4 py-3 text-foreground">{p.name}</td>
                     <td className="px-4 py-3">{Number(p.monthlyTokenLimit ?? 0).toLocaleString('vi-VN')}</td>
                     <td className="px-4 py-3">

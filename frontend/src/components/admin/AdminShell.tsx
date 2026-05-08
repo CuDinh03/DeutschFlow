@@ -85,7 +85,7 @@ export default function AdminShell({
         <div className="fixed inset-0 bg-black/40 z-20 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      <aside className={`fixed lg:relative z-30 flex flex-col h-full w-60 bg-[#00305E] transition-transform duration-300 ${
+      <aside className={`fixed lg:relative z-30 flex flex-col h-full w-60 bg-sidebar transition-transform duration-300 ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
       }`}>
         {/* Logo */}
@@ -103,7 +103,7 @@ export default function AdminShell({
               onClick={() => { setSidebarOpen(false); router.push(href) }}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[10px] transition-all duration-150 text-left ${
                 id === activeNav
-                  ? 'bg-[#FFCE00] text-[#00305E] font-semibold'
+                  ? 'bg-[var(--brand-yellow)] text-[var(--brand-black)] font-semibold'
                   : 'text-white/60 hover:bg-white/10 hover:text-white'
               }`}>
               <Icon size={17} className="flex-shrink-0" />

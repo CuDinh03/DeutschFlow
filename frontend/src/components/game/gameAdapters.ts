@@ -28,7 +28,7 @@ export type GameQuestion = {
 }
 
 const COLORS = [
-  { color: '#FFCE00', shadow: '#C9A200', text: '#1A1A1A' },
+  { color: '#FFCD00', shadow: '#C9A200', text: '#1A1A1A' },
   { color: '#4A90E2', shadow: '#2C6BA8', text: '#FFFFFF' },
   { color: '#7C4DFF', shadow: '#5A2ED4', text: '#FFFFFF' },
   { color: '#FF7043', shadow: '#D94F2A', text: '#FFFFFF' },

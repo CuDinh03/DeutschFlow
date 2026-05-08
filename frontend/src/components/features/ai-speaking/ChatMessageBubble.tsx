@@ -27,7 +27,7 @@ export function ChatMessageBubble({ message, onSpeak, isSpeakingThis }: ChatMess
         <div
           className={`relative px-4 py-3 rounded-2xl max-w-[85%] overflow-hidden ${
             isUser
-              ? "bg-blue-600 text-white rounded-tr-sm"
+              ? "bg-brand-black text-white rounded-tr-sm"
               : "bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-tl-sm shadow-sm"
           }`}
         >
@@ -65,8 +65,8 @@ export function ChatMessageBubble({ message, onSpeak, isSpeakingThis }: ChatMess
             onClick={() => onSpeak(message.contentDe)}
             className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all ${
               isSpeakingThis
-                ? "bg-cyan-100 dark:bg-cyan-900/30 text-cyan-500"
-                : "bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-cyan-500 hover:bg-cyan-50 dark:hover:bg-cyan-900/20"
+                ? "bg-amber-100 dark:bg-amber-900/30 text-amber-500"
+                : "bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20"
             }`}
             title="Nghe lại"
           >
@@ -119,9 +119,9 @@ export function ChatMessageBubble({ message, onSpeak, isSpeakingThis }: ChatMess
             </div>
           ) : (
             message.feedback.explanationVi && (
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 shadow-sm flex items-start gap-3">
-                <Lightbulb className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
-                <p className="text-sm text-blue-700 dark:text-blue-300">
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 shadow-sm flex items-start gap-3">
+                <Lightbulb className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
+                <p className="text-sm text-amber-700 dark:text-amber-300">
                   {message.feedback.explanationVi}
                 </p>
               </div>

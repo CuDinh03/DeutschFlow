@@ -136,11 +136,11 @@ export default function StudentMyPlanPage() {
 
         {!loading && plan && (
           <div className="rounded-[20px] border border-[#E2E8F0] bg-gradient-to-br from-white to-[#F8FAFC] shadow-[0_4px_20px_rgba(0,48,94,0.08)] p-8 text-center space-y-4">
-            <div className="w-14 h-14 mx-auto rounded-2xl bg-[#FFCE00]/25 border border-[#FFCE00]/50 flex items-center justify-center">
-              <BadgePercent className="w-7 h-7 text-[#00305E]" strokeWidth={2} />
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-[#FFCD00]/25 border border-[#FFCD00]/50 flex items-center justify-center">
+              <BadgePercent className="w-7 h-7 text-[#121212]" strokeWidth={2} />
             </div>
             <p className="text-xs uppercase tracking-wider font-bold text-[#64748B]">{t("myPlanBadgeLabel")}</p>
-            <p className="text-3xl font-extrabold text-[#00305E] tracking-tight">{tierTitle}</p>
+            <p className="text-3xl font-extrabold text-[#121212] tracking-tight">{tierTitle}</p>
             <div className="text-xs text-[#475569] space-y-1 text-left mx-auto max-w-sm border-t border-[#E2E8F0] pt-3 mt-1">
               <p>
                 <span className="font-semibold text-[#64748B]">{t("myPlanPeriodStart")}</span>{" "}

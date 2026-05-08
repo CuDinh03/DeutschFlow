@@ -11,7 +11,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 // ─── Palette (từ UI Demo) ──────────────────────────────────────────────────────
 const P = {
-  navy: "#00305E",
+  navy: "#121212",
   navyLt: "#EBF2FA",
   blue: "#2D9CDB",
   blueLt: "#EBF5FB",
@@ -19,7 +19,7 @@ const P = {
   redLt: "#FDEAEA",
   green: "#27AE60",
   greenLt: "#E8F8F0",
-  yellow: "#FFCE00",
+  yellow: "#FFCD00",
   yellowLt: "#FFF8E1",
   purple: "#9B51E0",
   purpleLt: "#F4EDFF",
@@ -506,7 +506,7 @@ export default function AdminUsersPage() {
                         <Zap size={16} style={{ color: P.blue }} />
                         <h4 className="font-bold text-sm" style={{ color: P.text }}>Chi tiết Quota</h4>
                       </div>
-                      {quotaLoading && <span className="text-[10px] font-bold text-blue-500 animate-pulse">Đang tải...</span>}
+                      {quotaLoading && <span className="text-[10px] font-bold text-amber-500 animate-pulse">Đang tải...</span>}
                     </div>
 
                     {quotaDetail ? (

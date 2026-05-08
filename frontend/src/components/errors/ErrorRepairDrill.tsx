@@ -116,7 +116,7 @@ export default function ErrorRepairDrill({
         style={{ background: "rgba(15,23,42,0.95)" }}
       >
         <h3 className="text-white font-bold text-lg mb-1">{snippet.title}</h3>
-        <p className="text-xs font-mono text-cyan-300/90 mb-2">{errorCode}</p>
+        <p className="text-xs font-mono text-amber-300/90 mb-2">{errorCode}</p>
         <p className="text-sm text-white/70 mb-1">{snippet.rule}</p>
         {(ruleViShort || exampleCorrectDe) && (
           <p className="text-xs text-white/50 mb-4">
@@ -177,7 +177,7 @@ export default function ErrorRepairDrill({
             type="button"
             disabled={submitting || !attempt.trim()}
             onClick={handleCheck}
-            className="flex-[2] py-2.5 rounded-xl text-sm font-bold bg-gradient-to-r from-cyan-500 to-violet-500 text-white disabled:opacity-40"
+            className="flex-[2] py-2.5 rounded-xl text-sm font-bold bg-gradient-to-r from-amber-500 to-yellow-400 text-white disabled:opacity-40"
           >
             {t("drillSubmit")}
           </button>

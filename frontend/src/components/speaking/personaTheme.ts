@@ -74,7 +74,7 @@ export function personaActionChipClasses(id: SpeakingPersonaVisualId) {
     id === "KLAUS" &&
       "border-red-500/35 bg-gradient-to-r from-red-950/80 to-rose-950/50 text-red-50 shadow-[0_0_20px_rgba(185,28,28,0.18)] hover:border-red-400/55",
     id === "DEFAULT" &&
-      "border-cyan-400/30 bg-white/[0.08] text-white/90 hover:border-cyan-400/50 hover:bg-white/[0.12]",
+      "border-amber-400/30 bg-white/[0.08] text-white/90 hover:border-amber-400/50 hover:bg-white/[0.12]",
   );
 }
 

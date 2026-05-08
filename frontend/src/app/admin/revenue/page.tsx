@@ -99,9 +99,9 @@ export default function AdminRevenuePage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
         {[
-          { label: t('kpiGross'), val: fmtVndVi(totals.gross), color: '#0ea5e9', bg: '#e0f2fe' },
+          { label: t('kpiGross'), val: fmtVndVi(totals.gross), color: '#121212', bg: '#f5f5f5' },
           { label: t('kpiNet'), val: fmtVndVi(totals.net), color: '#10b981', bg: '#d1fae5' },
-          { label: t('kpiMargin'), val: `${totals.margin}%`, color: '#7c3aed', bg: '#ede9fe' },
+          { label: t('kpiMargin'), val: `${totals.margin}%`, color: '#7c3aed', bg: '#fef2f2' },
         ].map(({ label, val, color, bg }) => (
           <div
             key={label}
@@ -129,7 +129,7 @@ export default function AdminRevenuePage() {
                 type="button"
                 onClick={() => setPeriod(p)}
                 className={`px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  period === p ? 'bg-[#00305E] text-white' : 'bg-white text-[#64748B] hover:bg-[#F8FAFC]'
+                  period === p ? 'bg-[#121212] text-white' : 'bg-white text-[#64748B] hover:bg-[#F8FAFC]'
                 }`}
               >
                 {p === 'monthly' ? t('periodMonthly') : p === 'quarterly' ? t('periodQuarterly') : t('periodYearly')}
@@ -142,8 +142,8 @@ export default function AdminRevenuePage() {
             <AreaChart data={chartRows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="revG" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.25} />
-                  <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
+                  <stop offset="5%" stopColor="#121212" stopOpacity={0.25} />
+                  <stop offset="95%" stopColor="#121212" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="profG" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
@@ -171,7 +171,7 @@ export default function AdminRevenuePage() {
                 type="monotone"
                 dataKey="grossM"
                 name={t('legendGross')}
-                stroke="#0ea5e9"
+                stroke="#121212"
                 strokeWidth={2}
                 fill="url(#revG)"
               />
@@ -210,7 +210,7 @@ export default function AdminRevenuePage() {
                 <tr key={row.key} className={i > 0 ? 'border-t border-[#E2E8F0]' : ''}>
                   <td className="px-3 py-2 font-semibold text-[#0F172A]">{row.label}</td>
                   <td className="px-3 py-2 text-[#64748B]">{row.subscribers}</td>
-                  <td className="px-3 py-2 text-[#0ea5e9] font-medium">{fmtVndVi(row.grossVnd)}</td>
+                  <td className="px-3 py-2 text-[#121212] font-medium">{fmtVndVi(row.grossVnd)}</td>
                   <td className="px-3 py-2 text-red-600">−{fmtVndVi(row.storeFeeVnd)}</td>
                   <td className="px-3 py-2 text-amber-700">−{fmtVndVi(row.apiCostVnd)}</td>
                   <td className="px-3 py-2 text-emerald-700 font-semibold">{fmtVndVi(row.netVnd)}</td>

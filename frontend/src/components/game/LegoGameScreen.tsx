@@ -124,7 +124,7 @@ function Slot({
       ref={setNodeRef}
       className="inline-flex items-center justify-center rounded-[12px] border-2 border-dashed px-4 py-2 mx-1 min-w-[140px] min-h-[58px] align-middle transition-all duration-200"
       style={{
-        borderColor: isOver ? '#FFCE00' : filledItem ? '#93C5FD' : '#CBD5E1',
+        borderColor: isOver ? '#FFCD00' : filledItem ? '#93C5FD' : '#CBD5E1',
         background: isOver ? 'rgba(255,206,0,0.16)' : filledItem ? 'rgba(239,246,255,0.75)' : '#F8FAFF',
         boxShadow: isOver ? '0 0 0 4px rgba(255,206,0,0.22)' : 'none',
       }}
@@ -320,7 +320,7 @@ export default function LegoGameScreen() {
         <p className="max-w-md text-center text-sm text-[#64748B]">Could not load your profile.</p>
         <button
           type="button"
-          className="rounded-[14px] bg-[#00305E] px-5 py-2.5 text-sm font-bold text-white shadow-md"
+          className="rounded-[14px] bg-[#121212] px-5 py-2.5 text-sm font-bold text-white shadow-md"
           onClick={() => void reload()}
         >
           Retry
@@ -368,12 +368,12 @@ export default function LegoGameScreen() {
         <div className="max-w-5xl mx-auto flex flex-col h-full">
           {done ? (
             <div className="bg-white border-2 border-[#E2E8F0] rounded-2xl p-8 text-center shadow-lg df-glass-subtle">
-              <h2 className="text-2xl font-bold text-[#00305E] mb-2">Hoàn thành {variant.title}</h2>
+              <h2 className="text-2xl font-bold text-[#121212] mb-2">Hoàn thành {variant.title}</h2>
               <p className="text-slate-600 mb-1">Điểm của bạn: <b>{score}</b></p>
               <p className="text-slate-600 mb-6">Bạn đã hoàn thành chế độ chơi độc lập.</p>
               <div className="flex gap-3 justify-center">
                 <button
-                  className="px-6 py-2.5 rounded-xl bg-[#00305E] text-white font-bold"
+                  className="px-6 py-2.5 rounded-xl bg-[#121212] text-white font-bold"
                   onClick={() => {
                     setDone(false)
                     setIndex(0)
@@ -384,7 +384,7 @@ export default function LegoGameScreen() {
                   Chơi lại
                 </button>
                 <button 
-                  className="px-6 py-2.5 rounded-xl border-2 border-[#00305E] text-[#00305E] font-bold" 
+                  className="px-6 py-2.5 rounded-xl border-2 border-[#121212] text-[#121212] font-bold" 
                   onClick={() => router.push('/dashboard')}
                 >
                   Về dashboard
@@ -393,10 +393,10 @@ export default function LegoGameScreen() {
             </div>
           ) : !q ? (
             <div className="bg-white border-2 border-[#E2E8F0] rounded-2xl p-8 text-center shadow-lg df-glass-subtle">
-              <h2 className="text-xl font-bold text-[#00305E] mb-2">Không có dữ liệu game</h2>
+              <h2 className="text-xl font-bold text-[#121212] mb-2">Không có dữ liệu game</h2>
               <p className="text-slate-600 mb-6">Không có câu hỏi cho chế độ luyện tập hiện tại.</p>
               <button 
-                className="px-6 py-2.5 rounded-xl border-2 border-[#00305E] text-[#00305E] font-bold" 
+                className="px-6 py-2.5 rounded-xl border-2 border-[#121212] text-[#121212] font-bold" 
                 onClick={() => router.push('/dashboard')}
               >
                 Về dashboard
@@ -408,28 +408,28 @@ export default function LegoGameScreen() {
                 <div className="flex-1 max-w-md">
                   <div className="flex gap-1 mb-2">
                     {questions.map((_, i) => (
-                      <div key={i} className="flex-1 h-2 rounded-full" style={{ background: i < index ? '#FFCE00' : i === index ? '#00305E' : '#E2E8F0' }} />
+                      <div key={i} className="flex-1 h-2 rounded-full" style={{ background: i < index ? '#FFCD00' : i === index ? '#121212' : '#E2E8F0' }} />
                     ))}
                   </div>
                   <p className="text-xs text-[#64748B]">Frage {index + 1}/{questions.length} · {progress}%</p>
                 </div>
                 <div className="flex items-center gap-6">
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-[10px] bg-[#FFF8E1] border border-[#FFCE00]/40">
-                    <Star size={14} className="text-[#FFCE00]" fill="#FFCE00" />
-                    <span className="font-bold text-[#00305E] text-sm">{score}</span>
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-[10px] bg-[#FFF8E1] border border-[#FFCD00]/40">
+                    <Star size={14} className="text-[#FFCD00]" fill="#FFCD00" />
+                    <span className="font-bold text-[#121212] text-sm">{score}</span>
                   </div>
                   <div className="flex gap-1">{[0, 1, 2].map((i) => <Heart key={i} size={20} className={i < lives ? 'text-red-500' : 'text-[#E2E8F0]'} fill={i < lives ? '#EF4444' : '#E2E8F0'} />)}</div>
                 </div>
               </div>
 
               <div className="flex items-center gap-2 mb-4">
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-[#EEF4FF] text-[#00305E] border border-[#00305E]/15">
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-[#EEF4FF] text-[#121212] border border-[#121212]/15">
                   {variant.emoji} {variant.title}
                 </span>
-                <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-[#FFCE00]/20 text-[#00305E]">{q.level}</span>
+                <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-[#FFCD00]/20 text-[#121212]">{q.level}</span>
               </div>
 
-              <h2 className="text-3xl font-bold text-[#00305E] mb-1">Baue den deutschen Satz! 🧱</h2>
+              <h2 className="text-3xl font-bold text-[#121212] mb-1">Baue den deutschen Satz! 🧱</h2>
               <p className="text-xl text-[#64748B] mb-4">{variant.subtitle}</p>
               <p className="text-lg text-slate-700 mb-8 p-4 bg-white rounded-2xl border border-[#E2E8F0] shadow-sm df-glass-subtle">
                 {q.prompt}
@@ -439,7 +439,7 @@ export default function LegoGameScreen() {
                 <div className="flex flex-wrap items-center gap-2 mb-6">
                   {q.audioGerman ? (
                     <button
-                      className="flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-xl text-[#00305E] bg-[#EEF4FF] hover:bg-[#D0E0FF] transition-colors"
+                      className="flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-xl text-[#121212] bg-[#EEF4FF] hover:bg-[#D0E0FF] transition-colors"
                       onClick={() => speakGerman(q.audioGerman || '')}
                     >
                       <Volume2 size={16} /> Nghe mẫu
@@ -468,12 +468,12 @@ export default function LegoGameScreen() {
               <div className="flex items-center justify-between mt-auto pt-6 border-t border-[#E2E8F0]">
                 <div className="relative">
                   {showHint && (
-                    <div className="absolute bottom-full mb-4 left-0 rounded-2xl p-4 w-64 bg-[#00305E] text-white text-sm shadow-2xl z-50">
+                    <div className="absolute bottom-full mb-4 left-0 rounded-2xl p-4 w-64 bg-[#121212] text-white text-sm shadow-2xl z-50">
                       <div className="flex items-start gap-3">
-                        <Lightbulb className="flex-shrink-0 text-[#FFCE00]" size={20} />
+                        <Lightbulb className="flex-shrink-0 text-[#FFCD00]" size={20} />
                         <p>{variant.hint}</p>
                       </div>
-                      <div className="absolute top-full left-6 w-4 h-4 bg-[#00305E] rotate-45 -translate-y-2" />
+                      <div className="absolute top-full left-6 w-4 h-4 bg-[#121212] rotate-45 -translate-y-2" />
                     </div>
                   )}
                   <button 
@@ -490,9 +490,9 @@ export default function LegoGameScreen() {
                     disabled={!allFilled}
                     className="px-10 py-4 rounded-2xl font-bold text-lg flex items-center gap-3 transition-all"
                     style={{
-                      background: allFilled ? '#00305E' : '#E2E8F0',
+                      background: allFilled ? '#121212' : '#E2E8F0',
                       color: allFilled ? 'white' : '#94A3B8',
-                      boxShadow: allFilled ? '0 5px 0 0 #002447, 0 8px 20px rgba(0,48,94,0.25)' : 'none',
+                      boxShadow: allFilled ? '0 5px 0 0 #000000, 0 8px 20px rgba(0,48,94,0.25)' : 'none',
                     }}
                   >
                     <Check size={20} strokeWidth={3} /> Kiểm tra
@@ -502,8 +502,8 @@ export default function LegoGameScreen() {
                     onClick={next}
                     className="px-10 py-4 rounded-2xl font-bold text-lg flex items-center gap-3 text-white transition-all"
                     style={{
-                      background: checked === 'correct' ? '#10B981' : '#00305E',
-                      boxShadow: checked === 'correct' ? '0 5px 0 0 #059669, 0 8px 20px rgba(16,185,129,0.3)' : '0 5px 0 0 #002447, 0 8px 20px rgba(0,48,94,0.25)',
+                      background: checked === 'correct' ? '#10B981' : '#121212',
+                      boxShadow: checked === 'correct' ? '0 5px 0 0 #059669, 0 8px 20px rgba(16,185,129,0.3)' : '0 5px 0 0 #000000, 0 8px 20px rgba(0,48,94,0.25)',
                     }}
                   >
                     {index + 1 >= questions.length ? 'Hoàn thành' : 'Tiếp theo'} <ArrowRight size={20} />

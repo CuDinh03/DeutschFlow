@@ -77,7 +77,7 @@ export default function VocabularyPage() {
         </button>
         
         <div className="flex items-center gap-2">
-          <div className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-bold px-4 py-2 rounded-full text-sm">
+          <div className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 font-bold px-4 py-2 rounded-full text-sm">
             {currentIndex + 1} / {mockVocabList.length} Từ vựng
           </div>
         </div>
@@ -117,7 +117,7 @@ export default function VocabularyPage() {
               </p>
               <button
                 onClick={() => router.push("/dashboard")}
-                className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl transition-colors shadow-lg shadow-blue-500/30"
+                className="w-full py-4 bg-brand-black hover:bg-neutral-800 text-white font-bold rounded-2xl transition-colors shadow-lg shadow-neutral-500/30"
               >
                 Trở về Dashboard
               </button>

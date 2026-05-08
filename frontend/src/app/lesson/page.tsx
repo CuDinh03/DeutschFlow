@@ -98,13 +98,13 @@ function CompletionScreen({
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
         transition={{ delay: 0.2, type: "spring", stiffness: 200, damping: 15 }}
-        className="w-28 h-28 rounded-full bg-gradient-to-br from-[#FFCE00] to-[#E6B900] flex items-center justify-center mb-6 shadow-[0_8px_32px_rgba(255,206,0,0.4)]"
+        className="w-28 h-28 rounded-full bg-gradient-to-br from-[#FFCD00] to-[#E6B900] flex items-center justify-center mb-6 shadow-[0_8px_32px_rgba(255,206,0,0.4)]"
       >
-        <Trophy size={48} className="text-[#00305E]" />
+        <Trophy size={48} className="text-[#121212]" />
       </motion.div>
 
       <motion.h2
-        className="text-3xl font-bold text-[#00305E] mb-2"
+        className="text-3xl font-bold text-[#121212] mb-2"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.35 }}
@@ -118,8 +118,8 @@ function CompletionScreen({
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.45 }}
       >
-        Du hast <span className="font-bold text-[#00305E]">{score}</span> von{" "}
-        <span className="font-bold text-[#00305E]">{total}</span> Fragen richtig
+        Du hast <span className="font-bold text-[#121212]">{score}</span> von{" "}
+        <span className="font-bold text-[#121212]">{total}</span> Fragen richtig
         beantwortet.
       </motion.p>
 
@@ -130,8 +130,8 @@ function CompletionScreen({
         transition={{ delay: 0.55 }}
       >
         {[
-          { label: "Genauigkeit", value: `${pct}%`, color: "#00305E" },
-          { label: "XP verdient", value: `+${score * 15}`, color: "#FFCE00" },
+          { label: "Genauigkeit", value: `${pct}%`, color: "#121212" },
+          { label: "XP verdient", value: `+${score * 15}`, color: "#FFCD00" },
           { label: "Serie", value: "14 🔥", color: "#f97316" },
         ].map(({ label, value, color }) => (
           <div
@@ -157,14 +157,14 @@ function CompletionScreen({
       >
         <button
           onClick={onRestart}
-          className="flex items-center gap-2 px-6 py-3 rounded-[12px] bg-[#F5F7FA] hover:bg-[#E2E8F0] text-[#00305E] font-semibold transition-colors border border-[#E2E8F0]"
+          className="flex items-center gap-2 px-6 py-3 rounded-[12px] bg-[#F5F7FA] hover:bg-[#E2E8F0] text-[#121212] font-semibold transition-colors border border-[#E2E8F0]"
         >
           <RotateCcw size={16} />
           Nochmal üben
         </button>
         <button
           onClick={onExit}
-          className="flex items-center gap-2 px-8 py-3 rounded-[12px] bg-[#00305E] hover:bg-[#002447] text-white font-semibold transition-colors shadow-md"
+          className="flex items-center gap-2 px-8 py-3 rounded-[12px] bg-[#121212] hover:bg-[#000000] text-white font-semibold transition-colors shadow-md"
         >
           Zum Dashboard
           <ArrowRight size={16} />
@@ -232,17 +232,17 @@ function HintPopover({
 }) {
   return (
     <motion.div
-      className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 bg-[#00305E] text-white rounded-[12px] px-4 py-3 shadow-xl z-10 w-72 text-sm text-center"
+      className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 bg-[#121212] text-white rounded-[12px] px-4 py-3 shadow-xl z-10 w-72 text-sm text-center"
       initial={{ opacity: 0, y: 6, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 6, scale: 0.95 }}
       transition={{ duration: 0.18 }}
     >
-      <div className="absolute bottom-[-6px] left-1/2 -translate-x-1/2 w-3 h-3 bg-[#00305E] rotate-45 rounded-sm" />
+      <div className="absolute bottom-[-6px] left-1/2 -translate-x-1/2 w-3 h-3 bg-[#121212] rotate-45 rounded-sm" />
       <p className="leading-snug">{hint}</p>
       <button
         onClick={onClose}
-        className="mt-2 text-[#FFCE00] text-xs font-semibold hover:underline"
+        className="mt-2 text-[#FFCD00] text-xs font-semibold hover:underline"
       >
         Schließen
       </button>
@@ -308,7 +308,7 @@ export default function LessonPage() {
     if (checkState === "incorrect")
       return "bg-[#EF4444] hover:bg-[#DC2626] text-white shadow-[0_4px_16px_rgba(239,68,68,0.35)]";
     if (selectedOption !== null)
-      return "bg-[#00305E] hover:bg-[#002447] text-white shadow-[0_4px_16px_rgba(0,48,94,0.25)]";
+      return "bg-[#121212] hover:bg-[#000000] text-white shadow-[0_4px_16px_rgba(0,48,94,0.25)]";
     return "bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed";
   };
 
@@ -325,8 +325,8 @@ export default function LessonPage() {
     }
 
     if (selectedOption === idx)
-      return `${base} border-[#00305E] bg-[#EEF4FF] text-[#00305E] shadow-[0_0_0_3px_rgba(0,48,94,0.1)]`;
-    return `${base} border-[#E2E8F0] bg-white text-[#1A1A1A] hover:border-[#00305E]/40 hover:bg-[#F8FAFF] hover:shadow-sm`;
+      return `${base} border-[#121212] bg-[#EEF4FF] text-[#121212] shadow-[0_0_0_3px_rgba(0,48,94,0.1)]`;
+    return `${base} border-[#E2E8F0] bg-white text-[#1A1A1A] hover:border-[#121212]/40 hover:bg-[#F8FAFF] hover:shadow-sm`;
   };
 
   const optionLabels = ["A", "B", "C", "D"];
@@ -345,7 +345,7 @@ export default function LessonPage() {
         <div className="flex-1 flex flex-col gap-1">
           <div className="h-3 bg-[#F0F4F8] rounded-full overflow-hidden">
             <motion.div
-              className="h-full bg-[#FFCE00] rounded-full"
+              className="h-full bg-[#FFCD00] rounded-full"
               initial={{ width: 0 }}
               animate={{ width: `${progressPct}%` }}
               transition={{ duration: 0.5, ease: "easeOut" }}
@@ -373,7 +373,7 @@ export default function LessonPage() {
       ) : (
         <div className="flex-1 flex flex-col max-w-[430px] mx-auto w-full px-4 py-5">
           <div className="flex items-center gap-2 mb-6">
-            <span className="inline-flex items-center gap-1.5 bg-[#EEF4FF] text-[#00305E] text-xs font-semibold px-3 py-1.5 rounded-full border border-[#00305E]/15">
+            <span className="inline-flex items-center gap-1.5 bg-[#EEF4FF] text-[#121212] text-xs font-semibold px-3 py-1.5 rounded-full border border-[#121212]/15">
               <BookOpen size={12} />
               {q.category}
             </span>
@@ -401,11 +401,11 @@ export default function LessonPage() {
                               {q.options[selectedOption ?? 0]}
                             </motion.span>
                           ) : selectedOption !== null ? (
-                            <motion.span className="inline-block px-3 py-0.5 rounded-[8px] bg-[#00305E] text-white font-bold text-lg">
+                            <motion.span className="inline-block px-3 py-0.5 rounded-[8px] bg-[#121212] text-white font-bold text-lg">
                               {q.options[selectedOption]}
                             </motion.span>
                           ) : (
-                            <span className="inline-block w-16 h-1 bg-[#00305E]/30 rounded-full align-middle mx-1" />
+                            <span className="inline-block w-16 h-1 bg-[#121212]/30 rounded-full align-middle mx-1" />
                           )}
                         </span>
                       )}
@@ -422,7 +422,7 @@ export default function LessonPage() {
                     className={optionStyle(idx)}
                     disabled={checkState !== "idle"}
                   >
-                    <span className={`w-7 h-7 rounded-[8px] flex items-center justify-center text-xs font-bold flex-shrink-0 transition-colors ${checkState !== "idle" ? (idx === q.correct ? "bg-[#10B981] text-white" : (idx === selectedOption ? "bg-[#EF4444] text-white" : "bg-[#F5F7FA] text-[#94A3B8]")) : (selectedOption === idx ? "bg-[#00305E] text-white" : "bg-[#F5F7FA] text-[#64748B] group-hover:bg-[#00305E]/10")}}`}>
+                    <span className={`w-7 h-7 rounded-[8px] flex items-center justify-center text-xs font-bold flex-shrink-0 transition-colors ${checkState !== "idle" ? (idx === q.correct ? "bg-[#10B981] text-white" : (idx === selectedOption ? "bg-[#EF4444] text-white" : "bg-[#F5F7FA] text-[#94A3B8]")) : (selectedOption === idx ? "bg-[#121212] text-white" : "bg-[#F5F7FA] text-[#64748B] group-hover:bg-[#121212]/10")}}`}>
                       {optionLabels[idx]}
                     </span>
                     <span className="flex-1 leading-snug">{option}</span>
@@ -433,8 +433,8 @@ export default function LessonPage() {
               {checkState === "idle" && (
                 <div className="flex justify-center mb-2 relative">
                   {showHint && <HintPopover hint={q.hint} onClose={() => setShowHint(false)} />}
-                  <button onClick={() => setShowHint((v) => !v)} className={`flex items-center gap-2 px-4 py-2 rounded-[10px] text-sm font-medium transition-all duration-200 ${showHint ? "bg-[#FFF8E1] text-[#B45309] border border-[#FFCE00]/50" : "text-[#64748B] hover:bg-[#F5F7FA] hover:text-[#1A1A1A] border border-transparent"}`}>
-                    <Lightbulb size={15} fill={showHint ? "#FFCE00" : "none"} className={showHint ? "text-[#FFCE00]" : ""} />
+                  <button onClick={() => setShowHint((v) => !v)} className={`flex items-center gap-2 px-4 py-2 rounded-[10px] text-sm font-medium transition-all duration-200 ${showHint ? "bg-[#FFF8E1] text-[#B45309] border border-[#FFCD00]/50" : "text-[#64748B] hover:bg-[#F5F7FA] hover:text-[#1A1A1A] border border-transparent"}`}>
+                    <Lightbulb size={15} fill={showHint ? "#FFCD00" : "none"} className={showHint ? "text-[#FFCD00]" : ""} />
                     Hinweis anzeigen
                   </button>
                 </div>
@@ -462,7 +462,7 @@ export default function LessonPage() {
                 <p className="text-sm">{q.explanation}</p>
                 <button
                   onClick={handleNext}
-                  className="mt-4 w-full py-3 bg-[#00305E] text-white rounded-xl font-bold"
+                  className="mt-4 w-full py-3 bg-[#121212] text-white rounded-xl font-bold"
                 >
                   Weiter
                 </button>

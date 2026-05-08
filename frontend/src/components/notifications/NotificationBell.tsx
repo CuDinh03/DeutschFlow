@@ -173,7 +173,7 @@ export function NotificationBell({ buttonClassName }: NotificationBellProps) {
         >
           <Bell size={18} className="text-[#64748B]" />
           {unread > 0 && (
-            <span className="absolute top-1.5 right-1.5 min-w-[8px] h-2 px-0.5 bg-[#FFCE00] rounded-full border border-white" />
+            <span className="absolute top-1.5 right-1.5 min-w-[8px] h-2 px-0.5 bg-[#FFCD00] rounded-full border border-white" />
           )}
         </button>
       </PopoverTrigger>
@@ -183,7 +183,7 @@ export function NotificationBell({ buttonClassName }: NotificationBellProps) {
           {unread > 0 && (
             <button
               type="button"
-              className="text-xs font-medium text-[#00305E] hover:underline"
+              className="text-xs font-medium text-[#121212] hover:underline"
               onClick={() => void onMarkAll()}
             >
               {t("markAllRead")}

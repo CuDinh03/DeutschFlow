@@ -72,7 +72,7 @@ function QuizView({ content, word }: { content: string; word: string }) {
                       : chosen
                         ? 'bg-red-50 border-red-400 text-red-600'
                         : 'bg-white border-[#E2E8F0] text-[#94A3B8]'
-                    : 'bg-white border-[#E2E8F0] text-[#334155] hover:border-[#00305E]'
+                    : 'bg-white border-[#E2E8F0] text-[#334155] hover:border-[#121212]'
                 }`}
               >
                 {opt}
@@ -172,7 +172,7 @@ export function VocabAiPanel({ word, meaning = '' }: VocabAiPanelProps) {
     if (loading) {
       return (
         <div className="flex items-center justify-center py-10 gap-3 text-[#64748B]">
-          <Loader2 size={20} className="animate-spin text-[#00305E]" />
+          <Loader2 size={20} className="animate-spin text-[#121212]" />
           <span className="text-sm">Đang hỏi AI…</span>
         </div>
       )
@@ -187,7 +187,7 @@ export function VocabAiPanel({ word, meaning = '' }: VocabAiPanelProps) {
               loadedRef.current.delete(activeTab)
               loadTab(activeTab, true)
             }}
-            className="inline-flex items-center gap-1.5 text-xs text-[#00305E] font-semibold px-3 py-1.5 rounded-lg border border-[#E2E8F0] hover:bg-[#F8FAFF]"
+            className="inline-flex items-center gap-1.5 text-xs text-[#121212] font-semibold px-3 py-1.5 rounded-lg border border-[#E2E8F0] hover:bg-[#F8FAFF]"
           >
             <RefreshCw size={13} /> Thử lại
           </button>

@@ -43,8 +43,8 @@ function buildSuggestedLessons(plan: TodayPlanDto) {
 }
 
 const typeConfig: Record<string, { icon: React.ReactNode; bg: string; accent: string; label: string }> = {
-  vocabulary: { icon: <BookOpen size={20} />, bg: "bg-indigo-50 border-indigo-100", accent: "#6366f1", label: "Từ vựng" },
-  speaking: { icon: <Mic size={20} />, bg: "bg-cyan-50 border-cyan-100", accent: "#06b6d4", label: "Luyện nói" },
+  vocabulary: { icon: <BookOpen size={20} />, bg: "bg-slate-50 border-slate-100", accent: "#121212", label: "Từ vựng" },
+  speaking: { icon: <Mic size={20} />, bg: "bg-amber-50 border-amber-100", accent: "#FFCD00", label: "Luyện nói" },
   grammar: { icon: <PenTool size={20} />, bg: "bg-emerald-50 border-emerald-100", accent: "#10b981", label: "Ngữ pháp" },
   review: { icon: <Repeat2 size={20} />, bg: "bg-amber-50 border-amber-100", accent: "#f59e0b", label: "Ôn tập" },
 };
@@ -140,7 +140,7 @@ export default function DashboardPage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
             { label: "Streak", value: `${streak} ngày`, icon: <Flame size={18} className="text-orange-500" />, color: "#f97316" },
-            { label: "Tiến độ hôm nay", value: `${progress}%`, icon: <Target size={18} className="text-blue-500" />, color: "#3b82f6" },
+            { label: "Tiến độ hôm nay", value: `${progress}%`, icon: <Target size={18} className="text-amber-500" />, color: "#121212" },
             { label: "Lỗi cần ôn", value: String(repairCount), icon: <AlertTriangle size={18} className="text-amber-500" />, color: "#f59e0b" },
             { label: "Chính xác", value: plan?.rollingAccuracy ? `${Math.round(plan.rollingAccuracy)}%` : "—", icon: <TrendingUp size={18} className="text-emerald-500" />, color: "#10b981" },
           ].map(({ label, value, icon, color }, i) => (
@@ -165,14 +165,14 @@ export default function DashboardPage() {
         <div className="bg-white rounded-[16px] p-5 border border-[#E2E8F0] shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <p className="font-semibold text-[#0F172A] text-sm">Tiến độ mục tiêu hôm nay</p>
-            <span className="text-sm font-bold" style={{ color: progress >= 80 ? "#10b981" : progress >= 50 ? "#f59e0b" : "#3b82f6" }}>
+            <span className="text-sm font-bold" style={{ color: progress >= 80 ? "#10b981" : progress >= 50 ? "#f59e0b" : "#121212" }}>
               {progress}%
             </span>
           </div>
           <div className="h-3 bg-[#F1F4F9] rounded-full overflow-hidden">
             <motion.div
               className="h-full rounded-full"
-              style={{ background: progress >= 80 ? "#10b981" : progress >= 50 ? "#f59e0b" : "#3b82f6" }}
+              style={{ background: progress >= 80 ? "#10b981" : progress >= 50 ? "#f59e0b" : "#121212" }}
               initial={{ width: 0 }}
               animate={{ width: `${progress}%` }}
               transition={{ duration: 0.9, ease: "easeOut" }}
@@ -187,7 +187,7 @@ export default function DashboardPage() {
             <button
               onClick={() => load(true)}
               disabled={refreshing}
-              className="flex items-center gap-1.5 text-xs text-[#64748B] hover:text-[#00305E] transition-colors"
+              className="flex items-center gap-1.5 text-xs text-[#64748B] hover:text-[#121212] transition-colors"
             >
               <RefreshCw size={12} className={refreshing ? "animate-spin" : ""} />
               Làm mới
@@ -252,7 +252,7 @@ export default function DashboardPage() {
               <div className="px-4 py-3 border-t border-[#F1F4F9]">
                 <button
                   onClick={() => router.push("/student/errors")}
-                  className="text-xs font-semibold text-[#00305E] hover:underline flex items-center gap-1"
+                  className="text-xs font-semibold text-[#121212] hover:underline flex items-center gap-1"
                 >
                   Xem toàn bộ lỗi <ArrowRight size={11} />
                 </button>

@@ -331,8 +331,8 @@ export function SpeakingMessageBubble({
                     whileHover={{ scale: 1.01 }}
                     className={
                       d
-                        ? "w-full text-left rounded-2xl px-4 py-3 bg-white/[0.06] border border-white/12 hover:bg-white/10 transition-colors group-hover:border-cyan-400/40"
-                        : "w-full text-left rounded-2xl px-4 py-3 bg-slate-50 border border-slate-200 hover:bg-slate-100/95 transition-colors group-hover:border-cyan-400/50"
+                        ? "w-full text-left rounded-2xl px-4 py-3 bg-white/[0.06] border border-white/12 hover:bg-white/10 transition-colors group-hover:border-amber-400/40"
+                        : "w-full text-left rounded-2xl px-4 py-3 bg-slate-50 border border-slate-200 hover:bg-slate-100/95 transition-colors group-hover:border-amber-400/50"
                     }
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -360,13 +360,13 @@ export function SpeakingMessageBubble({
                     <div className="group/info relative">
                       <button
                         type="button"
-                        className="p-1.5 rounded-full bg-slate-900/90 border border-white/10 text-white/40 hover:text-cyan-400 transition-colors shadow-lg"
+                        className="p-1.5 rounded-full bg-slate-900/90 border border-white/10 text-white/40 hover:text-amber-400 transition-colors shadow-lg"
                       >
                         <Info size={11} />
                       </button>
                       <div className="invisible group-hover/info:visible absolute bottom-full right-0 mb-2 w-64 p-4 rounded-xl bg-[#0f172a] border border-white/10 shadow-2xl z-20 backdrop-blur-md">
                         <div className="mb-3 pb-3 border-b border-white/5">
-                          <p className="text-[10px] font-bold text-cyan-400 uppercase mb-1">Tại sao dùng câu này?</p>
+                          <p className="text-[10px] font-bold text-amber-400 uppercase mb-1">Tại sao dùng câu này?</p>
                           <p className="text-[12px] text-white/80 leading-relaxed">{s.why_to_use}</p>
                         </div>
                         <div>
@@ -398,14 +398,14 @@ export function SpeakingMessageBubble({
 
             {!isV2 && msg.explanationVi && (
               <div
-                className="rounded-xl px-3 py-2.5 flex items-start gap-2 border border-cyan-400/25"
+                className="rounded-xl px-3 py-2.5 flex items-start gap-2 border border-amber-400/25"
                 style={{ background: "rgba(34,211,238,0.08)" }}
               >
                 <span
                   className={
                     d
-                      ? "flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full mt-0.5 bg-cyan-900/80 text-cyan-100 border border-cyan-400/35"
-                      : "flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full mt-0.5 bg-cyan-100 text-cyan-950 border border-cyan-700/35"
+                      ? "flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full mt-0.5 bg-amber-900/80 text-amber-100 border border-amber-400/35"
+                      : "flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full mt-0.5 bg-amber-100 text-amber-950 border border-amber-700/35"
                   }
                 >
                   {t("labelExplanation")}

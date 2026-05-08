@@ -141,7 +141,7 @@ export default function ErrorLibraryPage() {
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-          className="w-8 h-8 border-4 border-[#00305E] border-t-transparent rounded-full"
+          className="w-8 h-8 border-4 border-[#121212] border-t-transparent rounded-full"
         />
       </div>
     )
@@ -179,7 +179,7 @@ export default function ErrorLibraryPage() {
                   <button
                     type="button"
                     onClick={() => handleTaskDrill(task)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#00305E] text-white font-bold text-xs hover:bg-[#004b90] active:scale-95 transition-all"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#121212] text-white font-bold text-xs hover:bg-[#004b90] active:scale-95 transition-all"
                   >
                     <RotateCcw size={12} /> Luyện sửa lỗi
                   </button>
@@ -196,7 +196,7 @@ export default function ErrorLibraryPage() {
             <input
               type="text"
               placeholder="Tìm kiếm mã lỗi..."
-              className="w-full bg-white border border-[#E2E8F0] rounded-2xl py-3 pl-12 pr-4 text-[#0F172A] placeholder:text-[#94A3B8] outline-none focus:border-[#00305E] transition-all shadow-sm"
+              className="w-full bg-white border border-[#E2E8F0] rounded-2xl py-3 pl-12 pr-4 text-[#0F172A] placeholder:text-[#94A3B8] outline-none focus:border-[#121212] transition-all shadow-sm"
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
@@ -204,7 +204,7 @@ export default function ErrorLibraryPage() {
           <button
             type="button"
             onClick={fetchData}
-            className="w-12 h-12 rounded-2xl bg-white border border-[#E2E8F0] text-[#64748B] hover:text-[#00305E] hover:border-[#00305E] flex items-center justify-center shadow-sm transition-all"
+            className="w-12 h-12 rounded-2xl bg-white border border-[#E2E8F0] text-[#64748B] hover:text-[#121212] hover:border-[#121212] flex items-center justify-center shadow-sm transition-all"
           >
             <RefreshCw size={16} />
           </button>
@@ -213,7 +213,7 @@ export default function ErrorLibraryPage() {
         {/* ── Loading / error states ─────────────────────────────────────── */}
         {loading && (
           <div className="flex items-center justify-center py-16 gap-3 text-[#64748B]">
-            <Loader2 size={22} className="animate-spin text-[#00305E]" />
+            <Loader2 size={22} className="animate-spin text-[#121212]" />
             <span className="text-sm">Đang tải dữ liệu lỗi...</span>
           </div>
         )}
@@ -222,7 +222,7 @@ export default function ErrorLibraryPage() {
           <div className="text-center py-10">
             <AlertTriangle size={36} className="text-amber-400 mx-auto mb-3" />
             <p className="text-sm text-[#64748B] mb-4">{error}</p>
-            <button type="button" onClick={fetchData} className="px-4 py-2 rounded-xl bg-[#00305E] text-white font-bold text-sm">
+            <button type="button" onClick={fetchData} className="px-4 py-2 rounded-xl bg-[#121212] text-white font-bold text-sm">
               Thử lại
             </button>
           </div>
@@ -292,7 +292,7 @@ export default function ErrorLibraryPage() {
                       {/* Actions */}
                       <div className="flex items-center gap-2 mt-3">
                         <div className="flex items-center gap-1.5 flex-1 text-[#64748B]">
-                          <Shield size={13} className="text-[#00305E]" />
+                          <Shield size={13} className="text-[#121212]" />
                           <span className="text-xs font-semibold">Lỗi ngữ pháp đã ghi nhận</span>
                         </div>
                         <button
@@ -302,7 +302,7 @@ export default function ErrorLibraryPage() {
                           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all ${
                             repaired
                               ? 'bg-green-100 text-green-600 cursor-default'
-                              : 'bg-[#00305E] text-white hover:bg-[#004b90] active:scale-95'
+                              : 'bg-[#121212] text-white hover:bg-[#004b90] active:scale-95'
                           }`}
                         >
                           {repaired

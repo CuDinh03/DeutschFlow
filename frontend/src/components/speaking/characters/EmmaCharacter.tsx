@@ -307,10 +307,10 @@ export function EmmaCharacter({ expression = "idle", isTalking = false, style, c
         {/* Creative spark (thinking expression) */}
         {expression === "thinking" && (
           <g opacity="0.7">
-            <circle cx="220" cy="130" r="8" fill="#FFCE00" opacity="0.5" />
-            <circle cx="230" cy="110" r="5" fill="#FFCE00" opacity="0.35" />
-            <path d="M 220 130 L 228 118" stroke="#FFCE00" strokeWidth="2" strokeLinecap="round" opacity="0.5" />
-            <text x="226" y="108" fontSize="12" fill="#FFCE00" opacity="0.7">✦</text>
+            <circle cx="220" cy="130" r="8" fill="#FFCD00" opacity="0.5" />
+            <circle cx="230" cy="110" r="5" fill="#FFCD00" opacity="0.35" />
+            <path d="M 220 130 L 228 118" stroke="#FFCD00" strokeWidth="2" strokeLinecap="round" opacity="0.5" />
+            <text x="226" y="108" fontSize="12" fill="#FFCD00" opacity="0.7">✦</text>
           </g>
         )}
       </g>

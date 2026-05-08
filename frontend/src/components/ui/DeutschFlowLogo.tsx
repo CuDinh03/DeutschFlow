@@ -56,7 +56,7 @@ function DFIcon({
       <motion.path
         d="M 20 18 L 20 82 L 52 82 L 74 62 L 74 38 L 52 18 Z"
         fill="none"
-        stroke="#00305E"
+        stroke="currentColor"
         strokeWidth="6"
         strokeLinejoin="miter"
         initial={animated ? { pathLength: 0 } : { pathLength: 1 }}
@@ -121,7 +121,7 @@ export function DeutschFlowLogo({
               fontFamily: "system-ui, -apple-system, sans-serif",
               fontWeight: 300,
               fontSize: size * 0.085,
-              color: "#000",
+              color: "inherit",
               letterSpacing: "0.04em",
             }}
           >
@@ -133,7 +133,7 @@ export function DeutschFlowLogo({
                 fontFamily: "system-ui, -apple-system, sans-serif",
                 fontWeight: 700,
                 fontSize: size * 0.13,
-                color: "#000",
+                color: "inherit",
                 letterSpacing: "-0.02em",
                 lineHeight: 1,
               }}
@@ -145,7 +145,7 @@ export function DeutschFlowLogo({
                 fontFamily: "system-ui, -apple-system, sans-serif",
                 fontWeight: 700,
                 fontSize: size * 0.13,
-                color: "#DA291C",
+                color: "var(--brand-red, #DA291C)",
                 letterSpacing: "-0.02em",
                 lineHeight: 1,
               }}
@@ -158,7 +158,8 @@ export function DeutschFlowLogo({
               fontFamily: "system-ui, -apple-system, sans-serif",
               fontWeight: 400,
               fontSize: size * 0.042,
-              color: "#888",
+              color: "inherit",
+              opacity: 0.65,
               letterSpacing: "0.18em",
               marginTop: 4,
               textTransform: "uppercase",
@@ -188,7 +189,7 @@ export function DeutschFlowLogo({
               fontFamily: "system-ui, -apple-system, sans-serif",
               fontWeight: 300,
               fontSize: size * 0.1,
-              color: "#000",
+              color: "inherit",
               letterSpacing: "0.04em",
             }}
           >
@@ -199,7 +200,7 @@ export function DeutschFlowLogo({
               fontFamily: "system-ui, -apple-system, sans-serif",
               fontWeight: 700,
               fontSize: size * 0.13,
-              color: "#000",
+              color: "inherit",
               letterSpacing: "-0.02em",
             }}
           >
@@ -210,7 +211,7 @@ export function DeutschFlowLogo({
               fontFamily: "system-ui, -apple-system, sans-serif",
               fontWeight: 700,
               fontSize: size * 0.13,
-              color: "#DA291C",
+              color: "var(--brand-red, #DA291C)",
               letterSpacing: "-0.02em",
             }}
           >
@@ -222,7 +223,8 @@ export function DeutschFlowLogo({
             fontFamily: "system-ui, -apple-system, sans-serif",
             fontWeight: 400,
             fontSize: size * 0.042,
-            color: "#999",
+            color: "inherit",
+            opacity: 0.65,
             letterSpacing: "0.16em",
             textTransform: "uppercase",
             marginTop: 2,

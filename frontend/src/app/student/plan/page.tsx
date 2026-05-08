@@ -36,11 +36,11 @@ type Plan = {
 function sessionTypeTheme(type?: string) {
   switch (type) {
     case 'GRAMMAR':
-      return { badge: 'bg-blue-100 text-blue-700 border-blue-200', accent: '#3B82F6' }
+      return { badge: 'bg-amber-100 text-amber-700 border-amber-200', accent: '#121212' }
     case 'PRACTICE':
       return { badge: 'bg-amber-100 text-amber-800 border-amber-200', accent: '#F59E0B' }
     case 'SPEAKING':
-      return { badge: 'bg-violet-100 text-violet-700 border-violet-200', accent: '#8B5CF6' }
+      return { badge: 'bg-red-100 text-red-700 border-red-200', accent: '#A40000' }
     case 'REVIEW':
       return { badge: 'bg-emerald-100 text-emerald-700 border-emerald-200', accent: '#10B981' }
     default:
@@ -104,7 +104,7 @@ export default function StudentPlanPage() {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#F5F7FA]">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-[#00305E]/20 border-t-[#00305E] rounded-full animate-spin" />
+          <div className="w-12 h-12 border-4 border-[#121212]/20 border-t-[#121212] rounded-full animate-spin" />
           <p className="text-[#64748B] font-medium">Laden...</p>
         </div>
       </div>
@@ -133,23 +133,23 @@ export default function StudentPlanPage() {
         <div
           className="relative overflow-hidden rounded-[24px] mb-8"
           style={{
-            background: 'linear-gradient(135deg, #00305E 0%, #004080 60%, #0052A3 100%)',
+            background: 'linear-gradient(135deg, #121212 0%, #1E1E1E 60%, #0052A3 100%)',
             borderBottom: '3px solid rgba(255,206,0,0.3)',
           }}
         >
           <div className="absolute -top-12 -right-12 w-52 h-52 rounded-full bg-white/5" />
-          <div className="absolute -bottom-16 right-32 w-40 h-40 rounded-full bg-[#FFCE00]/8" />
+          <div className="absolute -bottom-16 right-32 w-40 h-40 rounded-full bg-[#FFCD00]/8" />
 
           <div className="relative px-8 py-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
             <div className="flex items-center gap-4">
               <div
                 className="w-14 h-14 rounded-[18px] flex items-center justify-center"
                 style={{
-                  background: 'linear-gradient(145deg, #FFD940, #FFCE00)',
+                  background: 'linear-gradient(145deg, #FFD940, #FFCD00)',
                   boxShadow: '0 4px 0 0 #C9A200, 0 6px 14px rgba(255,206,0,0.3)',
                 }}
               >
-                <BookOpen className="w-7 h-7 text-[#00305E]" />
+                <BookOpen className="w-7 h-7 text-[#121212]" />
               </div>
               <div>
                 <h1 className="text-white font-extrabold text-2xl tracking-tight">{t('navMyCourses')}</h1>
@@ -161,7 +161,7 @@ export default function StudentPlanPage() {
               <div className="bg-white/10 backdrop-blur-md rounded-[16px] px-5 py-3 border border-white/10">
                 <p className="text-white/60 text-[10px] uppercase font-bold tracking-wider mb-0.5">Trình độ mục tiêu</p>
                 <div className="flex items-center gap-2">
-                  <Target size={16} className="text-[#FFCE00]" />
+                  <Target size={16} className="text-[#FFCD00]" />
                   <span className="text-white font-extrabold">{plan?.targetLevel}</span>
                 </div>
               </div>
@@ -186,13 +186,13 @@ export default function StudentPlanPage() {
             </div>
             <div className="bg-white rounded-[16px] p-4 shadow-[0_2px_8px_rgba(0,48,94,0.06)] border border-[#E2E8F0]">
               <div className="w-10 h-10 rounded-[12px] flex items-center justify-center mb-3 bg-[#EEF4FF]">
-                <Target className="w-[18px] h-[18px] text-[#00305E]" />
+                <Target className="w-[18px] h-[18px] text-[#121212]" />
               </div>
               <p className="text-[#64748B] text-xs mb-0.5">Thời gian/Tuần</p>
               <p className="text-[#0F172A] font-extrabold text-xl">{plan?.weeklyMinutes || '—'} Phút</p>
             </div>
             <button 
-              className="w-full py-3 rounded-xl border-2 border-[#00305E] text-[#00305E] font-bold hover:bg-[#00305E]/5 transition-colors"
+              className="w-full py-3 rounded-xl border-2 border-[#121212] text-[#121212] font-bold hover:bg-[#121212]/5 transition-colors"
               onClick={() => router.push('/student/vocabulary')}
             >
               Mở từ vựng
@@ -208,7 +208,7 @@ export default function StudentPlanPage() {
                     {completedWeeks} / {weeks.length} tuần đã hoàn thành
                   </p>
                 </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-[10px] text-xs font-semibold bg-[#EEF4FF] text-[#00305E] border border-[#00305E]/15">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-[10px] text-xs font-semibold bg-[#EEF4FF] text-[#121212] border border-[#121212]/15">
                   <Sparkles size={12} />
                   Lộ trình CEFR
                 </div>
@@ -220,7 +220,7 @@ export default function StudentPlanPage() {
                   const isLocked = state === 'locked'
                   const isCurrent = state === 'current'
                   const isCompleted = state === 'completed'
-                  const cardAccent = isCurrent ? '#FFCE00' : isCompleted ? '#10B981' : '#94A3B8'
+                  const cardAccent = isCurrent ? '#FFCD00' : isCompleted ? '#10B981' : '#94A3B8'
                   const left = i % 2 === 0
                   const currentWeekSessionTotal = w.sessions?.length ?? 0
                   const completedInWeek =
@@ -269,7 +269,7 @@ export default function StudentPlanPage() {
                               background: isCompleted
                                 ? 'linear-gradient(145deg, #34D399, #10B981)'
                                 : isCurrent
-                                  ? 'linear-gradient(145deg, #FFD940, #FFCE00)'
+                                  ? 'linear-gradient(145deg, #FFD940, #FFCD00)'
                                   : 'linear-gradient(145deg, #E2E8F0, #CBD5E1)',
                               boxShadow: isCompleted
                                 ? '0 6px 0 0 #059669, 0 10px 28px rgba(16,185,129,0.3)'
@@ -287,7 +287,7 @@ export default function StudentPlanPage() {
                             {isCompleted ? (
                               <Check size={26} className="text-white" strokeWidth={3} />
                             ) : isCurrent ? (
-                              <Play size={24} className="text-[#00305E] fill-[#00305E]" />
+                              <Play size={24} className="text-[#121212] fill-[#121212]" />
                             ) : (
                               <Lock size={18} className="text-slate-500" />
                             )}

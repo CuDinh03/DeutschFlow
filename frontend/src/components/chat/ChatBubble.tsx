@@ -33,7 +33,7 @@ function UserBubble({ text }: UserBubbleProps) {
     >
       <div
         className="max-w-[75%] px-4 py-3 rounded-[18px] rounded-br-[6px] text-sm leading-relaxed text-white shadow-lg"
-        style={{ background: "linear-gradient(135deg, #00305E, #2D9CDB)" }}
+        style={{ background: "linear-gradient(135deg, #121212, #2D9CDB)" }}
       >
         {text}
       </div>

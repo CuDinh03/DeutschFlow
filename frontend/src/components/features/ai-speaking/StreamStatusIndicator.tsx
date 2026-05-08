@@ -34,7 +34,7 @@ export function StreamStatusIndicator({ status }: StreamStatusIndicatorProps) {
 
           {status === "processing" && (
             <>
-              <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
+              <Loader2 className="w-4 h-4 text-amber-500 animate-spin" />
               <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
                 AI đang phân tích câu của bạn...
               </span>

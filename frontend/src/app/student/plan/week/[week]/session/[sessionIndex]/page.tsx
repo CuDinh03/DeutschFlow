@@ -333,7 +333,7 @@ function exerciseBlock(
                 type="button"
                 key={`${ex.id}-${idx}-${opt}`}
                 className={`text-left rounded-[12px] border-2 px-3 py-2.5 text-sm transition-colors flex items-center gap-2 ${
-                  selected ? 'border-[#00305E] bg-[#EEF4FF] text-[#00305E]' : 'border-[#E2E8F0] bg-white hover:bg-[#F8FAFF]'
+                  selected ? 'border-[#121212] bg-[#EEF4FF] text-[#121212]' : 'border-[#E2E8F0] bg-white hover:bg-[#F8FAFF]'
                 }`}
                 onClick={() => {
                   if (disabled) return
@@ -343,7 +343,7 @@ function exerciseBlock(
               >
                 <span
                   className={`w-6 h-6 rounded-[8px] text-xs font-bold flex items-center justify-center ${
-                    selected ? 'bg-[#00305E] text-white' : 'bg-[#F1F4F9] text-[#64748B]'
+                    selected ? 'bg-[#121212] text-white' : 'bg-[#F1F4F9] text-[#64748B]'
                   }`}
                 >
                   {String.fromCharCode(65 + idx)}
@@ -963,7 +963,7 @@ export default function SessionDetailPage() {
       headerRight={
         <button
           type="button"
-          className="btn-outline btn-sm border-[#E2E8F0] bg-white text-[#00305E]"
+          className="btn-outline btn-sm border-[#E2E8F0] bg-white text-[#121212]"
           onClick={() => router.push('/student/plan')}
         >
           {t('backPlan')}
