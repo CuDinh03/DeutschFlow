@@ -1204,9 +1204,7 @@ export default function StudentVocabularyPage() {
       </main>
 
       {selectedItem ? <DetailModal item={selectedItem} closing={modalClosing} onClose={requestCloseModal} /> : null}
-
-      {/* @ts-expect-error -- styled-jsx prop */}
-      <style jsx global>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes dfFadeUp {
           0% {
             opacity: 0;
@@ -1264,7 +1262,7 @@ export default function StudentVocabularyPage() {
         .df-modal-exit {
           animation: dfModalOut 220ms cubic-bezier(0.5, 0, 0.8, 0.2) both;
         }
-      `}</style>
+      ` }} />
       </div>
       <QuickAiToolbar />
     </StudentShell>

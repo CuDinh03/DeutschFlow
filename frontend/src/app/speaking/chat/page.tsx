@@ -436,13 +436,12 @@ export default function AIChatInterface() {
       </footer>
 
       {/* ── Shimmer Keyframes (injected globally) ──────────── */}
-      {/* @ts-expect-error -- styled-jsx prop */}
-      <style jsx global>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes shimmer {
           0% { background-position: 200% 0; }
           100% { background-position: -200% 0; }
         }
-      `}</style>
+      ` }} />
     </div>
   );
 }
