@@ -9,7 +9,7 @@ spring:
     name: deutschflow-backend
 
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:postgres}?stringtype=unspecified
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:postgres}?stringtype=unspecified&tcpKeepAlive=true
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
@@ -19,7 +19,7 @@ spring:
       pool-name: DeutschFlowPool
       maximum-pool-size: ${DB_POOL_MAX_SIZE:10}
       minimum-idle: ${DB_POOL_MIN_IDLE:2}
-      connection-timeout: ${DB_POOL_CONNECTION_TIMEOUT_MS:20000}
+      connection-timeout: ${DB_POOL_CONNECTION_TIMEOUT_MS:5000}
       # Recycle idle connections nhanh hơn để tránh RDS drop stale conn
       idle-timeout: ${DB_POOL_IDLE_TIMEOUT_MS:180000}
       # Renew connection trước khi RDS max_lifetime (AWS default 8h)
@@ -31,6 +31,8 @@ spring:
       validation-timeout: ${DB_POOL_VALIDATION_TIMEOUT_MS:3000}
       # Cảnh báo leak nếu conn giữ > 20s
       leak-detection-threshold: ${DB_POOL_LEAK_DETECTION_MS:20000}
+      # Ép PostgreSQL giết query > 30s — lưới an toàn cuối cùng
+      connection-init-sql: "SET statement_timeout = '30s'"
       auto-commit: true
 
   jpa:

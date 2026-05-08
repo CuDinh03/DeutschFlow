@@ -556,34 +556,49 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
     }
 
     @Override
-    @Transactional
     public AiSpeakingSessionDto endSession(Long userId, Long sessionId) {
-        AiSpeakingSession session = loadSessionForUser(userId, sessionId);
-        if (session.getStatus() == SessionStatus.ENDED) {
-            throw new ConflictException("This session has already ended.");
-        }
-        session.setStatus(SessionStatus.ENDED);
-        session.setEndedAt(LocalDateTime.now());
+        // ── PHA 1: Đóng session (transaction ngắn ~30ms) ──
+        // Giữ DB connection chỉ để đọc + update status → commit → trả connection về pool
+        AiSpeakingSession closedSession = Objects.requireNonNull(
+                transactionTemplate.execute(status -> {
+                    AiSpeakingSession s = loadSessionForUser(userId, sessionId);
+                    if (s.getStatus() == SessionStatus.ENDED) {
+                        throw new ConflictException("This session has already ended.");
+                    }
+                    s.setStatus(SessionStatus.ENDED);
+                    s.setEndedAt(LocalDateTime.now());
+                    return sessionRepository.save(s);
+                }));
+        // → Connection TRẢ VỀ pool ✅
 
-        // Generate interview evaluation report if INTERVIEW mode
-        if ("INTERVIEW".equals(session.getSessionMode())) {
+        // ── PHA 2: Gọi Groq nếu INTERVIEW (5-15s, KHÔNG giữ DB connection) ──
+        String report = null;
+        if ("INTERVIEW".equals(closedSession.getSessionMode())) {
             try {
-                String report = interviewEvaluationService.generateReport(session, userId);
-                if (report != null) {
-                    session.setInterviewReportJson(report);
-                }
+                report = interviewEvaluationService.generateReport(closedSession, userId);
             } catch (Exception e) {
                 log.warn("Failed to generate interview report for session {}: {}", sessionId, e.getMessage());
             }
         }
 
-        session = sessionRepository.save(session);
+        // ── PHA 3: Lưu report + award XP (transaction ngắn ~30ms) ──
+        final String finalReport = report;
+        AiSpeakingSession finalSession = Objects.requireNonNull(
+                transactionTemplate.execute(status -> {
+                    AiSpeakingSession s = sessionRepository.findById(sessionId)
+                            .orElseThrow(() -> new NotFoundException("Session not found: " + sessionId));
+                    if (finalReport != null) {
+                        s.setInterviewReportJson(finalReport);
+                        s = sessionRepository.save(s);
+                    }
+                    // Award XP for session completion (non-blocking)
+                    try { xpService.awardSessionComplete(userId, sessionId); }
+                    catch (Exception xpEx) { log.debug("[XP] awardSessionComplete skipped: {}", xpEx.getMessage()); }
+                    return s;
+                }));
+        // → Connection TRẢ VỀ pool ✅
 
-        // Award XP for session completion (non-blocking)
-        try { xpService.awardSessionComplete(userId, sessionId); }
-        catch (Exception xpEx) { log.debug("[XP] awardSessionComplete skipped: {}", xpEx.getMessage()); }
-
-        return toSessionDto(session);
+        return toSessionDto(finalSession);
     }
 
     // --- Private helpers ---

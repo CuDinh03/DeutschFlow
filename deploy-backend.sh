@@ -48,6 +48,7 @@ sudo docker run -d \
   --name deutschflow-backend \
   --env-file /home/ubuntu/DeutschFlow/.env.production \
   -p 8080:8080 \
+  --memory="1500m" \
   --restart unless-stopped \
   deutschflow-backend:latest
 

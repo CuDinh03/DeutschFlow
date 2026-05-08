@@ -14,6 +14,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
@@ -21,6 +22,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -36,6 +38,7 @@ public class SkillTreeService {
     private final GroqChatClient groqChatClient;
     private final AiUsageLedgerService aiUsageLedgerService;
     private final ObjectMapper objectMapper;
+    private final TransactionTemplate transactionTemplate;
 
     // In-memory lock to prevent duplicate LLM calls for the same cache key
     private final ConcurrentHashMap<String, Boolean> generationLocks = new ConcurrentHashMap<>();
@@ -124,70 +127,83 @@ public class SkillTreeService {
      *
      * @return SseEmitter cho streaming hoặc null nếu đã có cache
      */
-    @Transactional
+    /**
+     * Unlock SATELLITE_LEAF node. Sử dụng TransactionTemplate 2 pha:
+     * - Pha 1: Transaction ngắn — validate, upsert progress, check cache (~100ms)
+     * - Pha 2: Nếu cache MISS → chạy LLM trên thread riêng (CompletableFuture) — KHÔNG giữ DB connection
+     */
     public Object unlockSatelliteNode(long userId, long nodeId) {
-        // ── 1. Load node ──
-        Map<String, Object> node = loadNodeOrThrow(nodeId);
-        String nodeType = (String) node.get("node_type");
+        // ── PHA 1: Validate + check cache (transaction ngắn ~100ms) ──
+        record UnlockPrep(boolean cacheHit, Object cachedResponse, Map<String, Object> node) {}
 
-        if (!"SATELLITE_LEAF".equals(nodeType)) {
-            throw new BadRequestException("Chỉ có thể mở khóa Nhánh phụ (SATELLITE_LEAF)");
-        }
+        UnlockPrep prep = Objects.requireNonNull(transactionTemplate.execute(status -> {
+            Map<String, Object> node = loadNodeOrThrow(nodeId);
+            String nodeType = (String) node.get("node_type");
+            if (!"SATELLITE_LEAF".equals(nodeType)) {
+                throw new BadRequestException("Chỉ có thể mở khóa Nhánh phụ (SATELLITE_LEAF)");
+            }
 
-        // ── 2. Check dependencies ──
-        boolean depsMet = checkDependenciesMet(userId, nodeId);
-        if (!depsMet) {
-            throw new BadRequestException("Bạn cần hoàn thành các bài học trước đó trước");
-        }
+            boolean depsMet = checkDependenciesMet(userId, nodeId);
+            if (!depsMet) {
+                throw new BadRequestException("Bạn cần hoàn thành các bài học trước đó trước");
+            }
 
-        // ── 3. Upsert progress → UNLOCKED ──
-        upsertProgress(userId, nodeId, "UNLOCKED");
+            upsertProgress(userId, nodeId, "UNLOCKED");
 
-        // ── 4. Check Cache ──
-        String industry = (String) node.get("industry");
-        String cefrLevel = (String) node.get("cefr_level");
-        String vocabStrategy = (String) node.get("vocab_strategy");
-        String cacheKey = SatelliteLeafPromptBuilder.cacheKey(industry, cefrLevel, nodeId, vocabStrategy);
+            String industry = (String) node.get("industry");
+            String cefrLevel = (String) node.get("cefr_level");
+            String vocabStrategy = (String) node.get("vocab_strategy");
+            String cacheKey = SatelliteLeafPromptBuilder.cacheKey(industry, cefrLevel, nodeId, vocabStrategy);
 
-        // 4a. Check content_json trên chính node này
-        Object existingContent = node.get("content_json");
-        if (existingContent != null) {
-            log.info("[SkillTree] Cache HIT (node content) for node={}, key={}", nodeId, cacheKey);
+            // 4a. Check content_json trên chính node này
+            Object existingContent = node.get("content_json");
+            if (existingContent != null) {
+                log.info("[SkillTree] Cache HIT (node content) for node={}, key={}", nodeId, cacheKey);
+                upsertProgress(userId, nodeId, "IN_PROGRESS");
+                return new UnlockPrep(true, Map.of(
+                        "source", "CACHE",
+                        "nodeId", nodeId,
+                        "content", existingContent
+                ), node);
+            }
+
+            // 4b. Check cache from other nodes with same industry+cefr+vocabStrategy
+            Map<String, Object> cachedNode = findCachedContent(industry, cefrLevel, vocabStrategy, nodeId);
+            if (cachedNode != null) {
+                log.info("[SkillTree] Cache HIT (sibling) for node={}, key={}", nodeId, cacheKey);
+                jdbcTemplate.update("""
+                        UPDATE skill_tree_nodes
+                        SET content_json = ?::jsonb, content_hash = ?, content_generated_at = NOW()
+                        WHERE id = ?
+                        """,
+                        String.valueOf(cachedNode.get("content_json")),
+                        cachedNode.get("content_hash"),
+                        nodeId);
+                upsertProgress(userId, nodeId, "IN_PROGRESS");
+                return new UnlockPrep(true, Map.of(
+                        "source", "CACHE_SIBLING",
+                        "nodeId", nodeId,
+                        "content", cachedNode.get("content_json")
+                ), node);
+            }
+
+            // Cache MISS
+            log.info("[SkillTree] Cache MISS — triggering LLM generation for node={}, key={}", nodeId, cacheKey);
             upsertProgress(userId, nodeId, "IN_PROGRESS");
-            return Map.of(
-                    "source", "CACHE",
-                    "nodeId", nodeId,
-                    "content", existingContent
-            );
+            return new UnlockPrep(false, null, node);
+        }));
+        // → Connection TRẢ VỀ pool ✅
+
+        // Cache HIT → trả ngay
+        if (prep.cacheHit()) {
+            return prep.cachedResponse();
         }
 
-        // 4b. Check cache from other nodes with same industry+cefr+vocabStrategy
-        Map<String, Object> cachedNode = findCachedContent(industry, cefrLevel, vocabStrategy, nodeId);
-        if (cachedNode != null) {
-            log.info("[SkillTree] Cache HIT (sibling) for node={}, key={}", nodeId, cacheKey);
-            // Copy cached content to this node
-            jdbcTemplate.update("""
-                    UPDATE skill_tree_nodes
-                    SET content_json = ?::jsonb, content_hash = ?, content_generated_at = NOW()
-                    WHERE id = ?
-                    """,
-                    String.valueOf(cachedNode.get("content_json")),
-                    cachedNode.get("content_hash"),
-                    nodeId);
-            upsertProgress(userId, nodeId, "IN_PROGRESS");
-            return Map.of(
-                    "source", "CACHE_SIBLING",
-                    "nodeId", nodeId,
-                    "content", cachedNode.get("content_json")
-            );
-        }
-
-        // ── 5. Cache MISS → Generate via LLM + SSE ──
-        log.info("[SkillTree] Cache MISS — triggering LLM generation for node={}, key={}", nodeId, cacheKey);
-        upsertProgress(userId, nodeId, "IN_PROGRESS");
-
-        SseEmitter emitter = new SseEmitter(60_000L); // 60s timeout
-        generateContentAsync(userId, nodeId, node, emitter);
+        // ── PHA 2: Cache MISS → LLM generation trên thread riêng (KHÔNG giữ DB connection) ──
+        SseEmitter emitter = new SseEmitter(60_000L);
+        CompletableFuture.runAsync(() ->
+                generateContentAsync(userId, nodeId, prep.node(), emitter)
+        );
         return emitter;
     }
 
@@ -297,39 +313,51 @@ public class SkillTreeService {
      * Called after each node completion to trigger pre-fetching for the next SATELLITE_LEAF.
      * Only triggers when user reaches 80% on their current node.
      */
-    @Transactional
+    /**
+     * Pre-fetch content khi user đạt 80%. Sử dụng TransactionTemplate 2 pha:
+     * - Pha 1: Transaction ngắn — query next leaves + upsert QUEUED (~50ms)
+     * - Pha 2: Fire-and-forget LLM generation trên thread riêng — KHÔNG giữ DB connection
+     */
     public void checkAndTriggerPrefetch(long userId, long currentNodeId, int currentScore) {
         if (currentScore < 80) return;
 
-        // Find next SATELLITE_LEAF nodes that depend on currentNode
-        List<Map<String, Object>> nextLeaves = jdbcTemplate.queryForList("""
-                SELECT n.*
-                FROM skill_tree_nodes n
-                JOIN skill_tree_node_dependencies d ON d.node_id = n.id
-                WHERE d.depends_on_node_id = ?
-                  AND n.node_type = 'SATELLITE_LEAF'
-                  AND n.content_json IS NULL
-                  AND n.is_active = TRUE
-                """, currentNodeId);
+        // ── PHA 1: DB prep (transaction ngắn ~50ms) ──
+        List<Map<String, Object>> leavesToGenerate = transactionTemplate.execute(status -> {
+            List<Map<String, Object>> nextLeaves = jdbcTemplate.queryForList("""
+                    SELECT n.*
+                    FROM skill_tree_nodes n
+                    JOIN skill_tree_node_dependencies d ON d.node_id = n.id
+                    WHERE d.depends_on_node_id = ?
+                      AND n.node_type = 'SATELLITE_LEAF'
+                      AND n.content_json IS NULL
+                      AND n.is_active = TRUE
+                    """, currentNodeId);
 
-        for (Map<String, Object> leaf : nextLeaves) {
-            long leafId = ((Number) leaf.get("id")).longValue();
+            for (Map<String, Object> leaf : nextLeaves) {
+                long leafId = ((Number) leaf.get("id")).longValue();
+                jdbcTemplate.update("""
+                        INSERT INTO skill_tree_user_progress (user_id, node_id, status, prefetch_status, prefetch_triggered_at)
+                        VALUES (?, ?, 'LOCKED', 'QUEUED', NOW())
+                        ON CONFLICT (user_id, node_id)
+                        DO UPDATE SET prefetch_status = 'QUEUED', prefetch_triggered_at = NOW(), updated_at = NOW()
+                        """, userId, leafId);
+            }
+            return nextLeaves;
+        });
+        // → Connection TRẢ VỀ pool ✅
 
-            // Mark as QUEUED
-            jdbcTemplate.update("""
-                    INSERT INTO skill_tree_user_progress (user_id, node_id, status, prefetch_status, prefetch_triggered_at)
-                    VALUES (?, ?, 'LOCKED', 'QUEUED', NOW())
-                    ON CONFLICT (user_id, node_id)
-                    DO UPDATE SET prefetch_status = 'QUEUED', prefetch_triggered_at = NOW(), updated_at = NOW()
-                    """, userId, leafId);
-
-            // Fire async generation (no emitter — just cache)
-            SseEmitter dummyEmitter = new SseEmitter(120_000L);
-            dummyEmitter.onCompletion(() -> {});
-            dummyEmitter.onError(e -> {});
-            generateContentAsync(userId, leafId, leaf, dummyEmitter);
-
-            log.info("[SkillTree] Pre-fetch triggered for user={}, nextLeaf={}", userId, leafId);
+        // ── PHA 2: Fire-and-forget LLM generation (KHÔNG giữ DB connection) ──
+        if (leavesToGenerate != null) {
+            for (Map<String, Object> leaf : leavesToGenerate) {
+                long leafId = ((Number) leaf.get("id")).longValue();
+                SseEmitter dummyEmitter = new SseEmitter(120_000L);
+                dummyEmitter.onCompletion(() -> {});
+                dummyEmitter.onError(e -> {});
+                CompletableFuture.runAsync(() ->
+                        generateContentAsync(userId, leafId, leaf, dummyEmitter)
+                );
+                log.info("[SkillTree] Pre-fetch triggered for user={}, nextLeaf={}", userId, leafId);
+            }
         }
     }
 
