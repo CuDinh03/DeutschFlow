@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import api, { apiMessage, isAxiosErr } from "@/lib/api";
-import { BookOpen, Brain, Flame, Lock, Mic, Star, Target, Trophy, Unlock, X } from "lucide-react";
+import { BookOpen, Brain, Briefcase, Flame, Lock, Mic, Star, Target, Trophy, Unlock, X, ChevronDown, ChevronUp, MessageSquare, Calendar } from "lucide-react";
 import { CompleteBauhausLogo } from "@/components/BauhausLogo";
 
 const P = {
@@ -26,13 +26,14 @@ type LearningDetail = {
   vocabularySrs: Record<string, unknown>;
 };
 
-type Tab = "profile" | "xp" | "speaking" | "vocab";
+type Tab = "profile" | "xp" | "speaking" | "vocab" | "interview";
 
 const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
   { key: "profile", label: "Hồ sơ", icon: <BookOpen size={14} /> },
   { key: "xp", label: "XP & Streak", icon: <Flame size={14} /> },
   { key: "speaking", label: "Speaking AI", icon: <Mic size={14} /> },
   { key: "vocab", label: "Từ vựng SRS", icon: <Brain size={14} /> },
+  { key: "interview", label: "Phỏng vấn", icon: <Briefcase size={14} /> },
 ];
 
 function fmt(n: number | undefined | null) {
@@ -326,6 +327,7 @@ function SpeakingTab({ d }: { d: LearningDetail }) {
   const sp = d.speakingAi;
   const weakPoints = Array.isArray(sp.topWeakPoints) ? (sp.topWeakPoints as { grammarPoint: string; count: number }[]) : [];
   const recentErrors = Array.isArray(sp.recentErrors) ? (sp.recentErrors as Record<string, unknown>[]) : [];
+  const errorSkills = Array.isArray(sp.errorSkills) ? (sp.errorSkills as Record<string, unknown>[]) : [];
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
@@ -340,6 +342,30 @@ function SpeakingTab({ d }: { d: LearningDetail }) {
               <span className="px-2 py-0.5 rounded-full font-bold text-[10px]" style={{ background: P.redLt, color: P.red }}>{wp.count}×</span>
             </div>
           ))}</div>
+        </SectionCard>
+      )}
+      {errorSkills.length > 0 && (
+        <SectionCard title="Trạng thái sửa lỗi" icon={<Star size={14} style={{ color: P.orange }} />}>
+          <div className="space-y-2">{errorSkills.map((s, i) => {
+            const openCount = Number(s.openCount ?? 0);
+            const resolvedCount = Number(s.resolvedCount ?? 0);
+            const isResolved = openCount <= 0 && resolvedCount > 0;
+            return (
+              <div key={i} className="flex items-center justify-between text-xs">
+                <span className="font-mono font-semibold" style={{ color: P.text }}>{String(s.errorCode ?? "—")}</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: P.navyLt, color: P.navy }}>
+                    {Number(s.totalCount ?? 0)}×
+                  </span>
+                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full`}
+                    style={{ background: isResolved ? P.greenLt : P.redLt, color: isResolved ? P.green : P.red }}
+                  >
+                    {isResolved ? `✓ Đã sửa` : `✗ Chưa sửa (${openCount})`}
+                  </span>
+                </div>
+              </div>
+            );
+          })}</div>
         </SectionCard>
       )}
       {recentErrors.length > 0 && (
@@ -410,6 +436,169 @@ function VocabTab({ d }: { d: LearningDetail }) {
         </SectionCard>
       )}
       {total === 0 && <p className="text-sm italic" style={{ color: P.muted }}>Chưa có mục SRS nào.</p>}
+    </div>
+  );
+}
+
+// ─── Interview Tab ─────────────────────────────────────────────
+
+type InterviewSession = {
+  id: number;
+  interviewPosition?: string;
+  experienceLevel?: string;
+  cefrLevel?: string;
+  persona?: string;
+  status?: string;
+  messageCount?: number;
+  startedAt?: string;
+  endedAt?: string;
+  interviewReportJson?: string;
+};
+
+type TranscriptMessage = {
+  id: number;
+  role: string;
+  userMessage?: string;
+  aiSpeechDe?: string;
+  explanationVi?: string;
+  correction?: string;
+  createdAt?: string;
+};
+
+function InterviewTab({ userId }: { userId: number }) {
+  const [sessions, setSessions] = useState<InterviewSession[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [transcript, setTranscript] = useState<TranscriptMessage[]>([]);
+  const [transcriptLoading, setTranscriptLoading] = useState(false);
+
+  useEffect(() => {
+    let cancel = false;
+    setLoading(true);
+    api.get(`/admin/users/${userId}/interview-sessions`)
+      .then(r => { if (!cancel) setSessions(r.data ?? []) })
+      .catch(e => { if (!cancel) setError(apiMessage(e)) })
+      .finally(() => { if (!cancel) setLoading(false) });
+    return () => { cancel = true };
+  }, [userId]);
+
+  const toggleSession = async (sessId: number) => {
+    if (expandedId === sessId) {
+      setExpandedId(null);
+      setTranscript([]);
+      return;
+    }
+    setExpandedId(sessId);
+    setTranscriptLoading(true);
+    try {
+      const res = await api.get(`/admin/users/${userId}/interview-sessions/${sessId}/messages`);
+      setTranscript(res.data ?? []);
+    } catch {
+      setTranscript([]);
+    } finally {
+      setTranscriptLoading(false);
+    }
+  };
+
+  if (loading) return <p className="text-xs animate-pulse" style={{ color: P.muted }}>Đang tải phỏng vấn...</p>;
+  if (error) return <p className="text-xs" style={{ color: P.red }}>{error}</p>;
+  if (sessions.length === 0) return (
+    <div className="rounded-[14px] p-6 text-center" style={{ border: `2px dashed ${P.border}` }}>
+      <Briefcase size={32} className="mx-auto mb-2 opacity-30" />
+      <p className="text-sm font-medium" style={{ color: P.muted }}>Chưa có cuộc phỏng vấn nào.</p>
+    </div>
+  );
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 mb-1">
+        <MessageSquare size={14} style={{ color: P.blue }} />
+        <span className="text-xs font-bold" style={{ color: P.muted }}>{sessions.length} cuộc phỏng vấn</span>
+      </div>
+      {sessions.map(s => {
+        const isExpanded = expandedId === s.id;
+        const date = s.startedAt ? new Date(s.startedAt) : null;
+        return (
+          <div key={s.id} className="rounded-[14px] bg-white overflow-hidden" style={{ border: `1.5px solid ${isExpanded ? P.blue + '60' : P.border}` }}>
+            {/* Session header */}
+            <button
+              onClick={() => toggleSession(s.id)}
+              className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-50 transition-colors"
+            >
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-bold text-sm truncate" style={{ color: P.text }}>
+                    {s.interviewPosition ?? 'Không xác định'}
+                  </span>
+                  {s.experienceLevel && (
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: P.blueLt, color: P.blue }}>
+                      {s.experienceLevel}
+                    </span>
+                  )}
+                  {s.cefrLevel && (
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: P.navyLt, color: P.navy }}>
+                      {s.cefrLevel}
+                    </span>
+                  )}
+                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full`}
+                    style={{ background: s.status === 'COMPLETED' ? P.greenLt : P.orangeLt, color: s.status === 'COMPLETED' ? P.green : P.orange }}
+                  >
+                    {s.status === 'COMPLETED' ? 'Đã xong' : 'Chưa xong'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 text-[10px]" style={{ color: P.muted }}>
+                  {date && (
+                    <span className="flex items-center gap-1">
+                      <Calendar size={10} />
+                      {date.toLocaleDateString('vi-VN')} — {date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  )}
+                  <span className="flex items-center gap-1">
+                    <MessageSquare size={10} /> {s.messageCount ?? 0} tin nhắn
+                  </span>
+                </div>
+              </div>
+              {isExpanded ? <ChevronUp size={16} style={{ color: P.muted }} /> : <ChevronDown size={16} style={{ color: P.muted }} />}
+            </button>
+
+            {/* Transcript */}
+            {isExpanded && (
+              <div className="border-t px-4 py-3 space-y-2" style={{ borderColor: P.border, background: '#FAFCFF' }}>
+                {transcriptLoading ? (
+                  <p className="text-xs animate-pulse text-center py-4" style={{ color: P.muted }}>Đang tải hội thoại...</p>
+                ) : transcript.length === 0 ? (
+                  <p className="text-xs text-center py-4 italic" style={{ color: P.muted }}>Không có tin nhắn.</p>
+                ) : (
+                  transcript.map((msg) => {
+                    const isAi = msg.role === 'ASSISTANT' || msg.role === 'AI';
+                    const content = isAi ? msg.aiSpeechDe : msg.userMessage;
+                    if (!content) return null;
+                    return (
+                      <div key={msg.id} className={`flex ${isAi ? 'justify-start' : 'justify-end'}`}>
+                        <div
+                          className="max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed"
+                          style={{
+                            background: isAi ? P.navyLt : P.blueLt,
+                            color: P.text,
+                            borderBottomLeftRadius: isAi ? '4px' : undefined,
+                            borderBottomRightRadius: !isAi ? '4px' : undefined,
+                          }}
+                        >
+                          <span className="text-[9px] font-bold block mb-0.5" style={{ color: isAi ? P.navy : P.blue }}>
+                            {isAi ? '🤖 AI' : '👤 User'}
+                          </span>
+                          {content}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -485,6 +674,7 @@ export default function LearningDetailModal({ userId, userName, onClose }: { use
               {tab === "xp" && <XpTab d={detail} />}
               {tab === "speaking" && <SpeakingTab d={detail} />}
               {tab === "vocab" && <VocabTab d={detail} />}
+              {tab === "interview" && <InterviewTab userId={userId} />}
             </>
           )}
         </div>

@@ -12,12 +12,16 @@ import api from "@/lib/api";
 
 interface CurriculumLesson {
   lessonNumber: number;
+  unitId?: string;
   title: string;
   titleVi?: string;
   themes?: string[];
   vocabulary?: string[];
   grammarPoints?: string[];
   communicativeGoals?: string[];
+  canDo?: string[];         // Netzwerk Neu A1 JSON format
+  vocabTopics?: string[];   // Netzwerk Neu A1 JSON format
+  skillTargets?: string[];
 }
 
 interface CurriculumChapter {
@@ -32,12 +36,34 @@ interface CurriculumData {
   level?: string;
   chapters?: CurriculumChapter[];
   lessons?: CurriculumLesson[];
+  units?: CurriculumUnit[];  // Netzwerk Neu A1 JSON format
   [key: string]: unknown;
 }
+
+// Backend Netzwerk Neu A1 format
+interface CurriculumUnit {
+  unitId: string;
+  order: number;
+  title: string;
+  isReviewUnit?: boolean;
+  reviewOfUnits?: string[];
+  canDo?: string[];
+  skillTargets?: string[];
+  grammarPoints?: string[];
+  vocabTopics?: string[];
+  checkpoints?: string[];
+  sessions?: unknown[];
+}
+
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function LessonCard({ lesson, expanded, onToggle }: { lesson: CurriculumLesson; expanded: boolean; onToggle: () => void }) {
+  // Merge canDo (Netzwerk format) into communicativeGoals for display
+  const goals = lesson.communicativeGoals ?? lesson.canDo ?? [];
+  // Merge vocabTopics into vocabulary display
+  const vocab = lesson.vocabulary ?? lesson.vocabTopics ?? [];
+
   return (
     <div className="border border-[#E2E8F0] rounded-xl overflow-hidden bg-white">
       <button
@@ -84,24 +110,24 @@ function LessonCard({ lesson, expanded, onToggle }: { lesson: CurriculumLesson; 
               </ul>
             </div>
           )}
-          {lesson.vocabulary && lesson.vocabulary.length > 0 && (
+          {vocab.length > 0 && (
             <div>
-              <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wide mb-1.5">Từ vựng ({lesson.vocabulary.length})</p>
+              <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wide mb-1.5">Từ vựng ({vocab.length})</p>
               <div className="flex flex-wrap gap-1.5">
-                {lesson.vocabulary.slice(0, 20).map((v, i) => (
+                {vocab.slice(0, 20).map((v, i) => (
                   <span key={i} className="text-xs px-2 py-0.5 rounded-full bg-[#F8FAFC] text-[#475569] border border-[#E2E8F0] font-mono">{v}</span>
                 ))}
-                {lesson.vocabulary.length > 20 && (
-                  <span className="text-xs text-[#94A3B8]">+{lesson.vocabulary.length - 20} từ nữa</span>
+                {vocab.length > 20 && (
+                  <span className="text-xs text-[#94A3B8]">+{vocab.length - 20} từ nữa</span>
                 )}
               </div>
             </div>
           )}
-          {lesson.communicativeGoals && lesson.communicativeGoals.length > 0 && (
+          {goals.length > 0 && (
             <div>
               <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wide mb-1.5">Mục tiêu giao tiếp</p>
               <ul className="space-y-1">
-                {lesson.communicativeGoals.map((g, i) => (
+                {goals.map((g, i) => (
                   <li key={i} className="text-xs text-[#475569] flex gap-1.5"><span className="text-green-500">✓</span>{g}</li>
                 ))}
               </ul>
@@ -112,6 +138,7 @@ function LessonCard({ lesson, expanded, onToggle }: { lesson: CurriculumLesson; 
     </div>
   );
 }
+
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
@@ -143,9 +170,10 @@ export default function CurriculumPage() {
     return next;
   });
 
-  // Normalize: support both flat lessons[] and chapters[].lessons
+  // Normalize: support both flat lessons[], chapters[].lessons, AND units[] (Netzwerk Neu A1 format)
   const chapters: Array<{ id: string; title: string; lessons: CurriculumLesson[] }> = (() => {
     if (!curriculum) return [];
+    // Priority 1: chapters[].lessons
     if (curriculum.chapters?.length) {
       return curriculum.chapters.map(c => ({
         id: String(c.chapter),
@@ -153,11 +181,39 @@ export default function CurriculumPage() {
         lessons: c.lessons ?? [],
       }));
     }
+    // Priority 2: flat lessons[]
     if (curriculum.lessons?.length) {
       return [{ id: "1", title: "Nội dung giáo trình", lessons: curriculum.lessons }];
     }
+    // Priority 3: units[] — Netzwerk Neu A1 backend format
+    if (curriculum.units?.length) {
+      const units = curriculum.units as CurriculumUnit[];
+      // Group into "chapters" by batches of 3 units (Lektion blocks)
+      const chapterSize = 3;
+      const grouped: Array<{ id: string; title: string; lessons: CurriculumLesson[] }> = [];
+      for (let i = 0; i < units.length; i += chapterSize) {
+        const batch = units.slice(i, i + chapterSize);
+        const chapterNum = Math.floor(i / chapterSize) + 1;
+        const lessons: CurriculumLesson[] = batch.map((u, j) => ({
+          lessonNumber: i + j + 1,
+          unitId: u.unitId,
+          title: u.title,
+          canDo: u.canDo,
+          grammarPoints: u.grammarPoints,
+          vocabTopics: u.vocabTopics,
+          skillTargets: u.skillTargets,
+        }));
+        grouped.push({
+          id: String(chapterNum),
+          title: `Kapitel ${chapterNum} (Lektion ${i + 1}–${i + batch.length})`,
+          lessons,
+        });
+      }
+      return grouped;
+    }
     return [];
   })();
+
 
   if (meLoading || !me) {
     return (
@@ -189,8 +245,15 @@ export default function CurriculumPage() {
                 <BookOpen size={24} className="text-white" />
               </div>
               <div>
-                <p className="font-bold text-white">{curriculum.bookTitle ?? "Netzwerk Neu A1"}</p>
-                <p className="text-white/70 text-xs">{curriculum.level ?? "CEFR A1"} · {chapters.reduce((s, c) => s + c.lessons.length, 0)} bài học</p>
+                <p className="font-bold text-white">
+                  {(curriculum.bookTitle as string | undefined)
+                    ?? String(curriculum.courseId ?? "Netzwerk Neu A1")
+                        .replace(/-/g, " ")
+                        .replace(/\b\w/g, (l) => l.toUpperCase())}
+                </p>
+                <p className="text-white/70 text-xs">
+                  {(curriculum.level as string | undefined) ?? "CEFR A1"} · {chapters.reduce((s, c) => s + c.lessons.length, 0)} bài học
+                </p>
               </div>
             </div>
           </div>

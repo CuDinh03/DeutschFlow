@@ -9,5 +9,6 @@ public record ErrorSkillDto(
         double priorityScore,
         String sampleWrong,
         String sampleCorrected,
-        String ruleViShort
+        String ruleViShort,
+        boolean resolved
 ) {}

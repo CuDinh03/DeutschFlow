@@ -8,13 +8,33 @@ import { StreamStatusIndicator } from "@/components/features/ai-speaking/StreamS
 import { SuggestionBar } from "@/components/features/ai-speaking/SuggestionBar";
 import { SessionSummary } from "@/components/features/ai-speaking/SessionSummary";
 import { SpeakingPersonaMiniAvatar } from "@/components/speaking/SpeakingPersonaMiniAvatar";
-import { ArrowLeft, Send, Mic, MicOff, X, Clock } from "lucide-react";
+import { ArrowLeft, Send, Mic, MicOff, X, Clock, CheckCircle } from "lucide-react";
 import { useSpeech } from "@/hooks/useSpeech";
 import { chatStream, aiSpeakingApi } from "@/lib/aiSpeakingApi";
 import type { Suggestion } from "@/lib/aiSpeakingApi";
 import { AnimatePresence, motion } from "framer-motion";
 
 type ViewMode = "chat" | "summary";
+
+// Keywords that indicate AI is ending the interview (Phase 5)
+const INTERVIEW_END_KEYWORDS = [
+  "vielen dank für das gespräch",
+  "vielen dank für ihre zeit",
+  "vielen dank für deine zeit",
+  "wir melden uns",
+  "wir werden uns bei ihnen melden",
+  "nächsten schritte",
+  "weitere schritte",
+  "bedanke mich für das gespräch",
+  "das war unser gespräch",
+  "damit sind wir am ende",
+  "das war's von meiner seite",
+];
+
+function detectInterviewEnd(text: string): boolean {
+  const lower = text.toLowerCase();
+  return INTERVIEW_END_KEYWORDS.some((kw) => lower.includes(kw));
+}
 
 export default function AIChatInterface() {
   const router = useRouter();
@@ -38,6 +58,8 @@ export default function AIChatInterface() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [lastSuggestions, setLastSuggestions] = useState<Suggestion[]>([]);
   const [seconds, setSeconds] = useState(0);
+  const [showEndPopup, setShowEndPopup] = useState(false);
+  const [greetingSpoken, setGreetingSpoken] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const suggestionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -78,9 +100,28 @@ export default function AIChatInterface() {
     }
   }, [selectedCompanion, router]);
 
+  // ─── Auto-speak greeting message ───────────────────────────
+  useEffect(() => {
+    if (
+      !greetingSpoken &&
+      selectedCompanion &&
+      messages.length === 1 &&
+      messages[0].role === "ai" &&
+      messages[0].contentDe &&
+      !messages[0].isStreaming
+    ) {
+      setGreetingSpoken(true);
+      setTimeout(() => {
+        speakWithPersona(
+          messages[0].contentDe,
+          selectedCompanion.id,
+          selectedCompanion.voiceFile,
+        );
+      }, 500);
+    }
+  }, [messages, selectedCompanion, greetingSpoken, speakWithPersona]);
+
   // ─── Smart Suggestion Timer ────────────────────────────────
-  // 0-12M juniors: 70s (60s think + 10s buffer)
-  // 1y+ seniors: 10s (just a direction hint)
   const isJunior = experienceLevel === "0-6M" || experienceLevel === "6-12M";
   const suggestionDelayMs = sessionMode === "INTERVIEW"
     ? (isJunior ? 70_000 : 10_000)
@@ -111,9 +152,17 @@ export default function AIChatInterface() {
     };
   }, [messages, streamStatus, suggestionDelayMs]);
 
-
-  // NOTE: selectedCompanion guard moved below all hooks to satisfy rules-of-hooks
-  // (useCallback + useEffect must be called unconditionally every render)
+  // ─── Detect interview end (Phase 5 keywords) ──────────────
+  useEffect(() => {
+    if (sessionMode !== "INTERVIEW" || showEndPopup) return;
+    if (messages.length < 6) return; // At least a few turns before end
+    const lastAi = messages.filter((m) => m.role === "ai" && !m.isStreaming);
+    if (lastAi.length === 0) return;
+    const lastAiMsg = lastAi[lastAi.length - 1];
+    if (lastAiMsg.contentDe && detectInterviewEnd(lastAiMsg.contentDe)) {
+      setShowEndPopup(true);
+    }
+  }, [messages, sessionMode, showEndPopup]);
 
   // ─── Handle Send Message ───────────────────────────────────
   const handleSendMessage = async (e?: React.FormEvent) => {
@@ -160,7 +209,6 @@ export default function AIChatInterface() {
       (meta) => {
         setStreamStatus("idle");
 
-        // Save suggestions for later display
         if (meta.suggestions && meta.suggestions.length > 0) {
           setLastSuggestions(meta.suggestions);
         }
@@ -199,11 +247,8 @@ export default function AIChatInterface() {
   };
 
   // ─── Handle Speak (TTS replay) ─────────────────────────────
-  // NOTE: useCallback placed here (after all other hooks) — selectedCompanion
-  // guard is already enforced by the early return above, so hook order is stable
   const handleSpeak = useCallback(
     (text: string) => {
-      // Find message id matching this text
       const msg = messages.find((m) => m.contentDe === text);
       if (msg) setSpeakingMsgId(msg.id);
 
@@ -223,11 +268,11 @@ export default function AIChatInterface() {
 
   // ─── Handle End Session ────────────────────────────────────
   const handleEndSession = async () => {
+    setShowEndPopup(false);
     const sid = useChatStore.getState().sessionId;
     if (sid) {
       try {
         const res = await aiSpeakingApi.endSession(sid);
-        // Save interview report if present (generated by backend for INTERVIEW mode)
         if (res.data?.interviewReportJson) {
           setInterviewReportJson(res.data.interviewReportJson);
         }
@@ -243,11 +288,6 @@ export default function AIChatInterface() {
   const handleSuggestionSelect = (text: string) => {
     setInputText(text);
     setShowSuggestions(false);
-    // Auto-send after short delay
-    setTimeout(() => {
-      const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
-      // We need to set the text and trigger send
-    }, 100);
   };
 
   // ─── Toggle listening ──────────────────────────────────────
@@ -269,7 +309,6 @@ export default function AIChatInterface() {
     };
   }, [stopListening, stopSpeaking]);
 
-  // Guard: if no companion selected, redirect was already triggered by useEffect above
   if (!selectedCompanion) return null;
 
   // ─── SUMMARY VIEW ──────────────────────────────────────────
@@ -299,7 +338,9 @@ export default function AIChatInterface() {
     );
   }
 
-  // ─── CHAT VIEW ─────────────────────────────────────────────
+  const isInterview = sessionMode === "INTERVIEW";
+
+  // ─── CHAT VIEW (2-column layout on desktop) ────────────────
   return (
     <div className="flex flex-col h-screen bg-slate-50 dark:bg-slate-950">
       {/* ── Header ─────────────────────────────────────────────── */}
@@ -321,19 +362,16 @@ export default function AIChatInterface() {
               {selectedCompanion.name}
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-              {sessionMode === "INTERVIEW" ? "🎤 Phỏng vấn" : "💬 Hội thoại"} • {selectedCompanion.cefrLevel}
+              {isInterview ? "🎤 Phỏng vấn" : "💬 Hội thoại"} • {selectedCompanion.cefrLevel}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Timer */}
           <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-500 dark:text-slate-400">
             <Clock size={12} />
             {formatTime(seconds)}
           </div>
-
-          {/* End Session button */}
           <button
             onClick={handleEndSession}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all bg-red-50 dark:bg-red-900/20 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-200 dark:border-red-800"
@@ -344,47 +382,155 @@ export default function AIChatInterface() {
         </div>
       </header>
 
-      {/* ── Chat Messages Area ─────────────────────────────────── */}
-      <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-2">
-        <div className="max-w-3xl mx-auto w-full">
-          {messages.length === 0 && (
-            <div className="h-full flex flex-col items-center justify-center text-center mt-20 opacity-60">
-              <div className="w-20 h-20 mb-4 rounded-full bg-slate-200 dark:bg-slate-800" />
-              <p className="text-slate-500">Hãy bắt đầu cuộc hội thoại với {selectedCompanion.name}</p>
-            </div>
-          )}
-
-          {messages.map((msg) => (
-            <ChatMessageBubble
-              key={msg.id}
-              message={msg}
-              onSpeak={msg.role === "ai" ? handleSpeak : undefined}
-              isSpeakingThis={speakingMsgId === msg.id && isSpeaking}
-            />
-          ))}
-
-          <StreamStatusIndicator status={streamStatus} />
-
-          {/* Suggestion Bar — shown 10s after last AI message */}
-          <AnimatePresence>
-            {showSuggestions && lastSuggestions.length > 0 && (
-              <SuggestionBar
-                suggestions={lastSuggestions}
-                onSelect={(text) => {
-                  setInputText(text);
-                  setShowSuggestions(false);
-                }}
-              />
+      {/* ── Main Content: 2-column on desktop ──────────────────── */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* ── LEFT COLUMN: Chat Messages (65%) ──────────────────── */}
+        <main className="flex-1 md:w-[65%] md:flex-none overflow-y-auto p-4 md:p-6 space-y-2">
+          <div className="max-w-3xl mx-auto w-full">
+            {messages.length === 0 && (
+              <div className="h-full flex flex-col items-center justify-center text-center mt-20 opacity-60">
+                <div className="w-20 h-20 mb-4 rounded-full bg-slate-200 dark:bg-slate-800" />
+                <p className="text-slate-500">Hãy bắt đầu cuộc hội thoại với {selectedCompanion.name}</p>
+              </div>
             )}
-          </AnimatePresence>
 
-          <div ref={messagesEndRef} />
-        </div>
-      </main>
+            {messages.map((msg) => (
+              <ChatMessageBubble
+                key={msg.id}
+                message={msg}
+                onSpeak={msg.role === "ai" ? handleSpeak : undefined}
+                isSpeakingThis={speakingMsgId === msg.id && isSpeaking}
+              />
+            ))}
+
+            <StreamStatusIndicator status={streamStatus} />
+
+            {/* Mobile only: show suggestions inline */}
+            <div className="md:hidden">
+              <AnimatePresence>
+                {showSuggestions && lastSuggestions.length > 0 && (
+                  <SuggestionBar
+                    suggestions={lastSuggestions}
+                    onSelect={(text) => {
+                      setInputText(text);
+                      setShowSuggestions(false);
+                    }}
+                  />
+                )}
+              </AnimatePresence>
+            </div>
+
+            <div ref={messagesEndRef} />
+          </div>
+        </main>
+
+        {/* ── RIGHT COLUMN: Recording + Suggestions (35%) ─────── */}
+        <aside className="hidden md:flex md:w-[35%] flex-col border-l border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 overflow-y-auto">
+          <div className="p-4 space-y-4 flex-1">
+            {/* Recording / Voice Input Panel */}
+            {isListening && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                className="rounded-2xl p-4 border-2 border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/30"
+                style={{ minHeight: inputText ? `${Math.max(80, inputText.length * 0.8)}px` : "80px" }}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
+                  <span className="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-wide">
+                    Đang ghi âm...
+                  </span>
+                </div>
+                {inputText && (
+                  <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed italic">
+                    &ldquo;{inputText}&rdquo;
+                  </p>
+                )}
+                {!inputText && (
+                  <div className="flex items-center gap-1 mt-2">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <motion.div
+                        key={i}
+                        className="w-1 bg-red-400 rounded-full"
+                        animate={{ height: [8, 20, 8] }}
+                        transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.1 }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {/* Text Input Preview (when typing) */}
+            {!isListening && inputText && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="rounded-2xl p-4 border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20"
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-2 h-2 rounded-full bg-blue-500" />
+                  <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wide">
+                    Đang soạn tin
+                  </span>
+                </div>
+                <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                  {inputText}
+                </p>
+              </motion.div>
+            )}
+
+            {/* Suggestions Panel (desktop) */}
+            <AnimatePresence>
+              {showSuggestions && lastSuggestions.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 12 }}
+                  className="space-y-2"
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wide">
+                      💡 Gợi ý trả lời
+                    </span>
+                  </div>
+                  {lastSuggestions.map((s, i) => (
+                    <motion.button
+                      key={i}
+                      initial={{ opacity: 0, x: 8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.08 }}
+                      onClick={() => {
+                        setInputText(typeof s === "string" ? s : s.german_text);
+                        setShowSuggestions(false);
+                      }}
+                      className="w-full text-left p-3 rounded-xl text-sm leading-relaxed transition-all bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-600 hover:shadow-sm text-slate-700 dark:text-slate-300"
+                    >
+                      <span className="text-[10px] font-bold text-blue-500 mr-1.5">{i + 1}.</span>
+                      {typeof s === "string" ? s : s.german_text}
+                    </motion.button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Empty state */}
+            {!isListening && !inputText && !(showSuggestions && lastSuggestions.length > 0) && (
+              <div className="flex flex-col items-center justify-center text-center py-12 opacity-40">
+                <Mic size={32} className="mb-3 text-slate-400" />
+                <p className="text-xs text-slate-500 max-w-[200px]">
+                  Phần ghi âm và gợi ý câu trả lời sẽ hiển thị ở đây
+                </p>
+              </div>
+            )}
+          </div>
+        </aside>
+      </div>
 
       {/* ── Input Area ─────────────────────────────────────────── */}
       <footer className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 p-4">
-        <div className="max-w-3xl mx-auto w-full relative">
+        <div className="max-w-3xl mx-auto w-full md:w-[65%] md:mx-0 md:ml-0 relative">
           <form
             onSubmit={handleSendMessage}
             className="flex items-end gap-2 bg-slate-100 dark:bg-slate-800 p-2 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-inner focus-within:ring-2 focus-within:ring-blue-500/50 transition-all"
@@ -424,7 +570,7 @@ export default function AIChatInterface() {
           </form>
           <div className="text-center mt-2">
             <span className="text-[11px] text-slate-400">
-              {sessionMode === "INTERVIEW"
+              {isInterview
                 ? isJunior
                   ? `Mẹo: AI sẽ gợi ý câu trả lời sau 70 giây nếu bạn chưa nhập.`
                   : `Mẹo: AI sẽ gợi ý hướng triển khai sau 10 giây nếu bạn chưa nhập.`
@@ -435,7 +581,47 @@ export default function AIChatInterface() {
         </div>
       </footer>
 
-      {/* ── Shimmer Keyframes (injected globally) ──────────── */}
+      {/* ── Interview End Popup ─────────────────────────────────── */}
+      <AnimatePresence>
+        {showEndPopup && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="relative z-10 w-full max-w-sm rounded-3xl bg-white dark:bg-slate-900 shadow-2xl overflow-hidden"
+            >
+              <div className="p-8 text-center">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                  <CheckCircle size={32} className="text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">
+                  Buổi phỏng vấn đã kết thúc!
+                </h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+                  {selectedCompanion.name} đã cảm ơn bạn tham gia phỏng vấn. Hãy xem kết quả đánh giá chi tiết.
+                </p>
+                <button
+                  onClick={handleEndSession}
+                  className="w-full py-3.5 rounded-2xl text-sm font-bold text-white transition-all hover:opacity-90"
+                  style={{ background: "linear-gradient(135deg, #00305E, #2D9CDB)", boxShadow: "0 4px 16px rgba(0,48,94,0.3)" }}
+                >
+                  Kết thúc & Xem kết quả
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Shimmer Keyframes ──────────── */}
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes shimmer {
           0% { background-position: 200% 0; }

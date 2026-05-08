@@ -29,16 +29,44 @@ public class ErrorSkillsService {
     private final SpeakingMetrics speakingMetrics;
     private final AdaptivePolicyService adaptivePolicyService;
 
+    /** Returns only OPEN (unresolved) errors for the student view. */
     @Transactional(readOnly = true)
     public List<ErrorSkillDto> getSkills(Long userId, int days) {
         if (userErrorSkillRepository.countByUserId(userId) > 0) {
-            return getSkillsFromSkillTable(userId);
+            return getSkillsFromSkillTable(userId, false);
         }
         return getSkillsFromLegacyAggregate(userId, days);
     }
 
-    private List<ErrorSkillDto> getSkillsFromSkillTable(Long userId) {
+    /** Returns only RESOLVED (completed) errors for the student "Đã hoàn thành" section. */
+    @Transactional(readOnly = true)
+    public List<ErrorSkillDto> getResolvedSkills(Long userId) {
+        return getSkillsFromSkillTable(userId, true);
+    }
+
+    /** Returns ALL errors (open + resolved) for admin view. */
+    @Transactional(readOnly = true)
+    public List<ErrorSkillDto> getSkillsForAdmin(Long userId) {
         List<UserErrorSkill> rows = userErrorSkillRepository.findByUserIdOrderByPriorityScoreDesc(userId);
+        return buildSkillDtos(userId, rows);
+    }
+
+    /**
+     * @param resolvedOnly true = only resolved (openCount==0 && resolvedCount>0), false = only open (openCount>0)
+     */
+    private List<ErrorSkillDto> getSkillsFromSkillTable(Long userId, boolean resolvedOnly) {
+        List<UserErrorSkill> rows = userErrorSkillRepository.findByUserIdOrderByPriorityScoreDesc(userId);
+        List<UserErrorSkill> filtered = new ArrayList<>();
+        for (UserErrorSkill row : rows) {
+            boolean isResolved = row.getOpenCount() <= 0 && row.getResolvedCount() > 0;
+            if (resolvedOnly == isResolved) {
+                filtered.add(row);
+            }
+        }
+        return buildSkillDtos(userId, filtered);
+    }
+
+    private List<ErrorSkillDto> buildSkillDtos(Long userId, List<UserErrorSkill> rows) {
         List<ErrorSkillDto> out = new ArrayList<>();
         for (UserErrorSkill row : rows) {
             String code = row.getErrorCode();
@@ -55,8 +83,9 @@ public class ErrorSkillsService {
             String sampleWrong = latest != null ? latest.getOriginalText() : null;
             String sampleCorrected = latest != null ? latest.getCorrectionText() : null;
             String ruleVi = latest != null ? latest.getRuleViShort() : null;
+            boolean resolved = row.getOpenCount() <= 0 && row.getResolvedCount() > 0;
             out.add(new ErrorSkillDto(code, row.getTotalCount(), row.getLastSeenAt(), priority,
-                    sampleWrong, sampleCorrected, ruleVi));
+                    sampleWrong, sampleCorrected, ruleVi, resolved));
         }
         out.sort(Comparator.comparingDouble(ErrorSkillDto::priorityScore).reversed());
         return out;
@@ -87,7 +116,7 @@ public class ErrorSkillsService {
             String sampleCorrected = latest != null ? latest.getCorrectionText() : null;
             String ruleVi = latest != null ? latest.getRuleViShort() : null;
 
-            out.add(new ErrorSkillDto(code, count, lastSeen, priority, sampleWrong, sampleCorrected, ruleVi));
+            out.add(new ErrorSkillDto(code, count, lastSeen, priority, sampleWrong, sampleCorrected, ruleVi, false));
         }
         out.sort(Comparator.comparingDouble(ErrorSkillDto::priorityScore).reversed());
         return out;

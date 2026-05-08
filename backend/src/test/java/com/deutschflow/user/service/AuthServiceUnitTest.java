@@ -70,7 +70,7 @@ class AuthServiceUnitTest {
     @Test
     void register_throwsWhenEmailAlreadyExists() {
         when(userRepository.existsByEmail("dup@x.com")).thenReturn(true);
-        var req = new RegisterRequest("dup@x.com", RAW_PASSWORD, "Name", "vi");
+        var req = new RegisterRequest("dup@x.com", "0912345678", RAW_PASSWORD, "Name", "vi");
         assertThrows(BadRequestException.class, () -> authService.register(req));
         verify(userRepository, never()).save(any());
     }
@@ -90,7 +90,7 @@ class AuthServiceUnitTest {
         ArgumentCaptor<Runnable> after = ArgumentCaptor.forClass(Runnable.class);
         doNothing().when(runAfterCommitService).run(after.capture());
 
-        var req = new RegisterRequest("new@x.com", RAW_PASSWORD, "Learner", "vi");
+        var req = new RegisterRequest("new@x.com", "0987654321", RAW_PASSWORD, "Learner", "vi");
         var res = authService.register(req);
 
         assertEquals("ACCESS", res.accessToken());
