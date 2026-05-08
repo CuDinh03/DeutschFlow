@@ -118,6 +118,10 @@ public class ElevenLabsTtsService {
 
         // Truncate to avoid excessive cost (ElevenLabs charges per character)
         String safeText = text.length() > 2000 ? text.substring(0, 2000) : text;
+        
+        // Add a short natural pause at the beginning to prevent audio clipping on Bluetooth/slow-wake devices
+        safeText = "... " + safeText;
+        
         int charCount = safeText.length();
 
         String url = BASE_URL + "/" + voiceId;
