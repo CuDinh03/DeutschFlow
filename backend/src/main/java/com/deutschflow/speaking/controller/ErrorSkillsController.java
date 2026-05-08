@@ -36,4 +36,12 @@ public class ErrorSkillsController {
             @PathVariable String errorCode) {
         errorSkillsService.recordRepairAttempt(user.getId(), errorCode);
     }
+
+    /**
+     * GET /api/error-skills/me/resolved — completed (resolved) error skills.
+     */
+    @GetMapping("/me/resolved")
+    public List<ErrorSkillDto> getMyResolvedSkills(@AuthenticationPrincipal User user) {
+        return errorSkillsService.getResolvedSkills(user.getId());
+    }
 }

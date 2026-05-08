@@ -10,6 +10,8 @@ import com.deutschflow.admin.dto.AdminUpdateLearningProfileRequest;
 import com.deutschflow.gamification.service.XpService;
 import com.deutschflow.speaking.repository.UserErrorSkillRepository;
 import com.deutschflow.speaking.repository.UserGrammarErrorRepository;
+import com.deutschflow.speaking.repository.AiSpeakingSessionRepository;
+import com.deutschflow.speaking.repository.AiSpeakingMessageRepository;
 import com.deutschflow.user.entity.UserLearningProfile;
 import com.deutschflow.user.repository.LearningReviewItemRepository;
 import com.deutschflow.user.repository.UserLearningProfileRepository;
@@ -60,6 +62,8 @@ public class AdminManagementService {
     private final UserGrammarErrorRepository grammarErrorRepository;
     private final UserErrorSkillRepository errorSkillRepository;
     private final LearningReviewItemRepository reviewItemRepository;
+    private final AiSpeakingSessionRepository speakingSessionRepository;
+    private final AiSpeakingMessageRepository speakingMessageRepository;
 
     @Transactional(readOnly = true)
     public Map<String, Object> overview() {
@@ -998,6 +1002,57 @@ public class AdminManagementService {
         result.put("industry", profile.getIndustry());
         result.put("sessionsPerWeek", profile.getSessionsPerWeek());
         result.put("minutesPerSession", profile.getMinutesPerSession());
+        return result;
+    }
+
+    // ── Interview Transcript (Admin) ─────────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> userInterviewSessions(Long userId) {
+        userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+        var sessions = speakingSessionRepository
+                .findByUserIdAndSessionModeOrderByStartedAtDesc(userId, "INTERVIEW");
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (var s : sessions) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", s.getId());
+            m.put("interviewPosition", s.getInterviewPosition());
+            m.put("experienceLevel", s.getExperienceLevel());
+            m.put("cefrLevel", s.getCefrLevel());
+            m.put("persona", s.getPersona());
+            m.put("status", s.getStatus());
+            m.put("messageCount", s.getMessageCount());
+            m.put("startedAt", s.getStartedAt());
+            m.put("endedAt", s.getEndedAt());
+            m.put("interviewReportJson", s.getInterviewReportJson());
+            result.add(m);
+        }
+        return result;
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> userInterviewMessages(Long userId, Long sessionId) {
+        userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+        var session = speakingSessionRepository.findById(sessionId)
+                .orElseThrow(() -> new NotFoundException("Session not found"));
+        if (!session.getUserId().equals(userId)) {
+            throw new BadRequestException("Session does not belong to user");
+        }
+        var messages = speakingMessageRepository.findBySessionIdOrderByCreatedAtAsc(sessionId);
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (var msg : messages) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", msg.getId());
+            m.put("role", msg.getRole() != null ? msg.getRole().name() : null);
+            m.put("userMessage", msg.getUserText());
+            m.put("aiSpeechDe", msg.getAiSpeechDe());
+            m.put("explanationVi", msg.getExplanationVi());
+            m.put("correction", msg.getCorrection());
+            m.put("createdAt", msg.getCreatedAt());
+            result.add(m);
+        }
         return result;
     }
 }

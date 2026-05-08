@@ -257,6 +257,21 @@ public class AdminManagementController {
         return adminManagementService.adminUpdateLearningProfile(userId, request);
     }
 
+    // ── Interview Transcript (Admin) ─────────────────────────────────────
+
+    @GetMapping("/users/{userId}/interview-sessions")
+    public List<Map<String, Object>> userInterviewSessions(@PathVariable Long userId) {
+        return adminManagementService.userInterviewSessions(userId);
+    }
+
+    @GetMapping("/users/{userId}/interview-sessions/{sessionId}/messages")
+    public List<Map<String, Object>> userInterviewMessages(
+            @PathVariable Long userId,
+            @PathVariable Long sessionId
+    ) {
+        return adminManagementService.userInterviewMessages(userId, sessionId);
+    }
+
     @PostMapping("/vocabulary/glosbe-vi/enrich/batch")
     public Map<String, Object> runGlosbeViBatch(
             @RequestParam(required = false) Integer limit,

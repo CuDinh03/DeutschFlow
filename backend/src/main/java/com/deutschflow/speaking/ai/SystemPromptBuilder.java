@@ -97,7 +97,7 @@ public class SystemPromptBuilder {
                 ? SpeakingCefrSupport.clampBand(sessionCefrLevel)
                 : SpeakingCefrSupport.floorPracticeBand(profile);
 
-        return buildInternal(profile, knownInterests, topic, weakPoints, level, null, persona, SpeakingResponseSchema.V1, SpeakingSessionMode.COMMUNICATION, null, null);
+        return buildInternal(profile, knownInterests, topic, weakPoints, level, null, persona, SpeakingResponseSchema.V1, SpeakingSessionMode.COMMUNICATION, null, null, 0);
     }
 
     public String buildSystemPrompt(UserLearningProfile profile,
@@ -122,7 +122,7 @@ public class SystemPromptBuilder {
                 ? SpeakingCefrSupport.clampBand(sessionCefrLevel)
                 : SpeakingCefrSupport.floorPracticeBand(profile);
 
-        return buildInternal(profile, knownInterests, topic, weakPoints, level, null, persona, responseSchema, sessionMode, null, null);
+        return buildInternal(profile, knownInterests, topic, weakPoints, level, null, persona, responseSchema, sessionMode, null, null, 0);
     }
 
     public String buildSystemPrompt(UserLearningProfile profile,
@@ -164,7 +164,7 @@ public class SystemPromptBuilder {
                                     SpeakingPersona persona,
                                     SpeakingResponseSchema responseSchema,
                                     SpeakingSessionMode sessionMode) {
-        return buildSystemPrompt(profile, knownInterests, topic, weakPoints, sessionCefrLevel, policy, persona, responseSchema, sessionMode, null, null);
+        return buildSystemPrompt(profile, knownInterests, topic, weakPoints, sessionCefrLevel, policy, persona, responseSchema, sessionMode, null, null, 0);
     }
 
     public String buildSystemPrompt(UserLearningProfile profile,
@@ -178,12 +178,27 @@ public class SystemPromptBuilder {
                                     SpeakingSessionMode sessionMode,
                                     String interviewPosition,
                                     String experienceLevel) {
+        return buildSystemPrompt(profile, knownInterests, topic, weakPoints, sessionCefrLevel, policy, persona, responseSchema, sessionMode, interviewPosition, experienceLevel, 0);
+    }
+
+    public String buildSystemPrompt(UserLearningProfile profile,
+                                    List<String> knownInterests,
+                                    String topic,
+                                    List<WeakPoint> weakPoints,
+                                    String sessionCefrLevel,
+                                    SpeakingPolicy policy,
+                                    SpeakingPersona persona,
+                                    SpeakingResponseSchema responseSchema,
+                                    SpeakingSessionMode sessionMode,
+                                    String interviewPosition,
+                                    String experienceLevel,
+                                    int turnCount) {
         String level = (policy != null && policy.enabled()) ? policy.cefrEffective() :
                 (sessionCefrLevel != null && !sessionCefrLevel.isBlank())
                 ? SpeakingCefrSupport.clampBand(sessionCefrLevel)
                 : SpeakingCefrSupport.floorPracticeBand(profile);
 
-        return buildInternal(profile, knownInterests, topic, weakPoints, level, policy, persona, responseSchema, sessionMode, interviewPosition, experienceLevel);
+        return buildInternal(profile, knownInterests, topic, weakPoints, level, policy, persona, responseSchema, sessionMode, interviewPosition, experienceLevel, turnCount);
     }
 
     private void appendCompressedLearnerContext(StringBuilder sb,
@@ -270,7 +285,8 @@ public class SystemPromptBuilder {
                                  SpeakingResponseSchema responseSchema,
                                  SpeakingSessionMode sessionMode,
                                  String interviewPosition,
-                                 String experienceLevel) {
+                                 String experienceLevel,
+                                 int turnCount) {
 
         boolean hasIndustry = profile.getIndustry() != null && !profile.getIndustry().isBlank();
         String industry = hasIndustry ? profile.getIndustry() : null;
@@ -283,7 +299,7 @@ public class SystemPromptBuilder {
         if (sessionMode == SpeakingSessionMode.INTERVIEW) {
             String pos = (interviewPosition != null && !interviewPosition.isBlank()) ? interviewPosition : "Allgemeine Position";
             String exp = (experienceLevel != null && !experienceLevel.isBlank()) ? experienceLevel : "unbekannt";
-            appendInterviewPreamble(sb, persona, level, pos, exp, industry, hasIndustry);
+            appendInterviewPreamble(sb, persona, level, pos, exp, industry, hasIndustry, turnCount);
 
         } else if (sessionMode == SpeakingSessionMode.LESSON && isVietnamese) {
             // ── LESSON MODE (Vietnamese personas) ──────────────────────
@@ -391,7 +407,7 @@ public class SystemPromptBuilder {
 
     private void appendInterviewPreamble(StringBuilder sb, SpeakingPersona persona, String level,
                                           String position, String experienceLevel,
-                                          String industry, boolean hasIndustry) {
+                                          String industry, boolean hasIndustry, int turnCount) {
         String personaRole = switch (persona) {
             case LUKAS -> "Senior Tech Lead bei einem Berliner Startup";
             case EMMA -> "Business Development Managerin in einer Münchner Agentur";
@@ -418,41 +434,93 @@ public class SystemPromptBuilder {
         sb.append("== FACHDOMÄNE ==\n");
         sb.append(interviewPersonaFocus(persona, level)).append("\n\n");
 
-        // == CONVERSATION STRUCTURE ==
-        sb.append("== GESPRÄCHSSTRUKTUR (halte dich STRIKT daran) ==\n\n");
+        // == CURRENT PHASE (C: Phase Tracking) ==
+        int currentTurn = (turnCount + 1) / 2;
+        int phase;
+        String phaseName;
+        String phaseInstruction;
+        if (currentTurn <= 1) {
+            phase = 1;
+            phaseName = "Begrüßung & Selbstvorstellung";
+            phaseInstruction = "Bitte den Kandidaten, sich vorzustellen. Erwarte: Gegenwart → Vergangenheit → Zukunft.";
+        } else if (currentTurn <= 3) {
+            phase = 2;
+            phaseName = "Ice-Breaker";
+            phaseInstruction = "Stelle lockere, aber professionelle Fragen zum Einstieg. Ziel: Kandidat entspannen, erste Eindrücke.";
+        } else if (currentTurn <= 7) {
+            phase = 3;
+            phaseName = "Fachliche Kompetenz / Hard Skills";
+            phaseInstruction = "Tiefgreifende Fragen zur Eignung für \"" + position + "\". Mindestens 1 Case Study. "
+                    + "Wenn Kandidat bei 2 Fragen schwach antwortet → 1 einfachere Frage zum selben Thema.";
+        } else if (currentTurn <= 10) {
+            phase = 4;
+            phaseName = "Soft Skills & STAR";
+            phaseInstruction = "Verhaltensfragen nach STAR-Methode: Stressbewältigung, Teamkonflikte, Fehlermanagement. "
+                    + "Wenn der Kandidat nicht in STAR antwortet: 'Können Sie ein konkretes Beispiel nennen?'";
+        } else {
+            phase = 5;
+            phaseName = "Abschluss";
+            phaseInstruction = "Frage: 'Haben Sie noch Fragen an uns?' Bedanke dich professionell. Informiere über nächste Schritte.";
+        }
 
-        sb.append("PHASE 1 — BEGRÜSSUNG & SELBSTVORSTELLUNG (Turn 1):\n");
-        sb.append("- Stelle dich kurz vor: Name, Rolle, Unternehmen.\n");
-        sb.append("- Bitte den Kandidaten, sich vorzustellen.\n");
-        sb.append("- Erwarte: Gegenwart (aktuelle Rolle) → Vergangenheit (Erfahrung) → Zukunft (warum diese Stelle).\n\n");
+        sb.append("== AKTUELLE PHASE (Server-gesteuert) ==\n");
+        sb.append("Du befindest dich in PHASE ").append(phase).append(" — ").append(phaseName);
+        sb.append(" (Turn ").append(Math.max(1, currentTurn)).append(").\n");
+        sb.append("Anweisung: ").append(phaseInstruction).append("\n");
+        if (phase < 5) {
+            sb.append("Bleibe in dieser Phase, bis genügend Fragen gestellt und beantwortet wurden. ");
+            sb.append("Wechsle NICHT vorzeitig zur nächsten Phase.\n");
+        }
+        sb.append("\n");
 
-        sb.append("PHASE 2 — ICE-BREAKER (Turn 2–3):\n");
-        sb.append("- 2 lockere, aber professionelle Fragen zum Einstieg.\n");
-        sb.append("- Ziel: Kandidat entspannen, erste Eindrücke sammeln.\n\n");
+        // == CONVERSATION STRUCTURE (reference only) ==
+        sb.append("== GESPRÄCHSSTRUKTUR (Übersicht — aktuelle Phase oben beachten) ==\n");
+        sb.append("Phase 1 (Turn 1): Begrüßung. Phase 2 (Turn 2–3): Ice-Breaker. ");
+        sb.append("Phase 3 (Turn 4–7): Hard Skills. Phase 4 (Turn 8–10): STAR/Soft Skills. ");
+        sb.append("Phase 5 (Turn 11+): Abschluss.\n\n");
 
-        sb.append("PHASE 3 — FACHLICHE KOMPETENZ / HARD SKILLS (Turn 4–7):\n");
-        sb.append("- 4 tiefgreifende Fragen zur Eignung für \"").append(position).append("\".\n");
-        sb.append("- Mindestens 1 Case Study / Praxisszenario.\n");
-        sb.append("- ADAPTIVE REGEL: Wenn der Kandidat bei 2 von 4 Fragen nicht ausreichend antwortet, ");
-        sb.append("stelle EINE zusätzliche Frage auf NIEDRIGEREM Niveau (einfachere Formulierung, grundlegenderes Konzept).\n\n");
+        // == RESPONSE RULES (A: Anti-template, realistic interviewer behavior) ==
+        sb.append("== ANTWORTREGELN (KRITISCH — Qualität der Interviewführung) ==\n\n");
 
-        sb.append("PHASE 4 — SOFT SKILLS & STAR (Turn 8–10):\n");
-        sb.append("- 3 Verhaltensfragen nach der STAR-Methode (Situation-Task-Action-Result).\n");
-        sb.append("- Themen: Stressbewältigung, Teamkonflikte, Fehlermanagement.\n");
-        sb.append("- Wenn der Kandidat nicht in STAR antwortet, hilf sanft: 'Können Sie ein konkretes Beispiel nennen? Was war die Situation, Ihre Aufgabe, Ihr Handeln und das Ergebnis?'\n\n");
+        sb.append("VERBOTEN — Folgende Muster sind STRENG UNTERSAGT:\n");
+        sb.append("- NIEMALS mit generischen Lobphrasen beginnen: 'Das ist großartig!', 'Das ist eine großartige Erklärung!', ");
+        sb.append("'Sehr beeindruckend!', 'Das ist interessant!'. Diese klingen roboterhaft und unrealistisch.\n");
+        sb.append("- NIEMALS die Antwort des Kandidaten paraphrasieren/zusammenfassen und dann eine UNVERBUNDENE Frage stellen.\n");
+        sb.append("- NIEMALS dieselbe Frage oder eine fast identische Frage ein zweites Mal stellen.\n");
+        sb.append("- NIEMALS jede Antwort gleich positiv bewerten — ein echter Interviewer differenziert.\n\n");
 
-        sb.append("PHASE 5 — ABSCHLUSS (nach allen Fragen oder bei Red Flags):\n");
-        sb.append("- 'Haben Sie noch Fragen an uns?' oder 'Gibt es etwas, das Sie noch hinzufügen möchten?'\n");
-        sb.append("- Bedanke dich professionell. Informiere über 'nächste Schritte'.\n\n");
+        sb.append("PFLICHT — Jede Antwort in ai_speech_de MUSS dieser Struktur folgen:\n");
+        sb.append("1. BEZUGNAHME (1 Satz): Nimm ein SPEZIFISCHES Detail, einen Fachbegriff oder eine Aussage ");
+        sb.append("aus der letzten Antwort des Kandidaten auf und kommentiere es kurz.\n");
+        sb.append("   RICHTIG: 'Sie haben MySQL als Data Warehouse eingesetzt — da stellt sich natürlich die Frage...'\n");
+        sb.append("   RICHTIG: 'Interessant, dass Sie den Confidence-Score bei 0.80 angesetzt haben...'\n");
+        sb.append("   FALSCH: 'Das ist eine großartige Zusammenfassung!'\n");
+        sb.append("   FALSCH: 'Es ist beeindruckend, wie du das gemacht hast.'\n");
+        sb.append("2. FOLLOW-UP oder CHALLENGE (1–2 Sätze): Stelle eine Frage, die DIREKT aus dem genannten Detail entsteht.\n");
+        sb.append("   - Follow-up (70% der Fälle): Vertiefe das Detail: 'Wie haben Sie dabei X konkret umgesetzt?'\n");
+        sb.append("   - Challenge/Trade-off (30% der Fälle): Hinterfrage kritisch: 'MySQL ist stark transaktional, ");
+        sb.append("aber analytisch limitiert — wie gehen Sie damit bei wachsender Datenmenge um?'\n");
+        sb.append("3. ÜBERLEITUNG (nur bei Phasenwechsel): Wenn ein Themenwechsel nötig ist, leite natürlich über.\n\n");
 
-        // == RESPONSE RULES ==
-        sb.append("== ANTWORTREGELN ==\n");
-        sb.append("1. KONVERSATIONSFLUSS: Reagiere in ai_speech_de IMMER ZUERST auf das, was der Kandidat gerade gesagt hat ");
-        sb.append("(z.B. 'Das ist ein interessanter Punkt zu...' / 'Danke für diese Einblicke...'). ");
-        sb.append("DANN stelle die nächste Frage.\n");
-        sb.append("2. feedback-Feld: knappes Feedback auf Vietnamesisch (freundlich-professionell).\n");
-        sb.append("3. correction-Feld: nur bei klaren sprachlichen Fehlern eine professionellere Formulierung vorschlagen.\n");
-        sb.append("4. NIEMALS vorgefertigte Fragen stellen, die die Antwort des Kandidaten ignorieren.\n\n");
+        sb.append("VARIATION: Wechsle bewusst zwischen Follow-up (Vertiefung) und Challenge (Hinterfragen). ");
+        sb.append("Ein realistischer Interviewer prüft auch Grenzen und Trade-offs des Wissens.\n");
+        sb.append("DIFFERENZIERUNG: Nicht jede Antwort verdient Lob. Bei oberflächlichen Antworten: ");
+        sb.append("'Können Sie das konkreter machen?' oder 'Was genau meinen Sie mit...?'\n\n");
+
+        sb.append("feedback-Feld: knappes Feedback auf Vietnamesisch (freundlich-professionell, VARIIERT).\n");
+        sb.append("correction-Feld: nur bei klaren sprachlichen Fehlern eine professionellere Formulierung vorschlagen.\n\n");
+
+        // == LANGUAGE LEVELING (D: CEFR control) ==
+        sb.append("== SPRACHNIVEAU-KONTROLLE ==\n");
+        sb.append("Ziel-Niveau des Kandidaten: ").append(level).append(".\n");
+        sb.append("- Passe DEINE Fragestellung und Wortwahl an ").append(level).append(" an.\n");
+        sb.append("- Wenn der Kandidat DEUTLICH über dem Ziel-Niveau spricht (z.B. C1-Fachvokabular bei B1-Ziel): ");
+        sb.append("Erkenne die Sprachkompetenz an, aber bleibe bei DEINEN Fragen auf ").append(level).append(".\n");
+        sb.append("- Wenn der Kandidat sehr lange Monologe hält (>5 Sätze am Stück): ");
+        sb.append("Unterbreche höflich in der nächsten Antwort mit z.B. 'Lassen Sie uns hier kurz einhaken...' ");
+        sb.append("und stelle eine gezielte Nachfrage zu EINEM spezifischen Punkt aus dem Monolog.\n");
+        sb.append("- Nutze in deinen Fragen bewusst Fachvokabular auf ").append(level).append("-Niveau, ");
+        sb.append("um den Kandidaten zum aktiven Gebrauch dieses Wortschatzes zu ermutigen.\n\n");
 
         // == SUGGESTIONS ==
         sb.append("== SUGGESTIONS (KRITISCH) ==\n");

@@ -289,7 +289,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         String systemPrompt = policy.enabled()
                 ? promptBuilder.buildSystemPrompt(
                 effectiveProfile, knownInterests, session.getTopic(), weakPoints, session.getCefrLevel(), policy, persona, responseSchema, sessionMode,
-                session.getInterviewPosition(), session.getExperienceLevel())
+                session.getInterviewPosition(), session.getExperienceLevel(), session.getMessageCount())
                 : promptBuilder.buildSystemPrompt(
                 effectiveProfile, knownInterests, session.getTopic(), weakPoints, session.getCefrLevel(), persona, responseSchema, sessionMode);
 
@@ -709,6 +709,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         String code = errorCode.trim();
         Optional<UserErrorSkill> opt = userErrorSkillRepository.findByUserIdAndErrorCode(userId, code);
         if (opt.isEmpty()) {
+            // Brand new error
             userErrorSkillRepository.save(UserErrorSkill.builder()
                     .userId(userId)
                     .errorCode(code)
@@ -721,13 +722,34 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
                     .build());
         } else {
             UserErrorSkill s = opt.get();
-            int total = s.getTotalCount() + 1;
-            s.setTotalCount(total);
-            s.setLastSeenAt(now);
-            s.setLastSeverity(severity);
-            s.setOpenCount(s.getOpenCount() + 1);
-            s.setPriorityScore(BigDecimal.valueOf(SpeakingPriority.skillScore(total, now, severity)));
-            userErrorSkillRepository.save(s);
+            boolean wasFullyResolved = s.getOpenCount() <= 0 && s.getResolvedCount() > 0;
+            long daysSinceLastSeen = s.getLastSeenAt() != null
+                    ? java.time.temporal.ChronoUnit.DAYS.between(s.getLastSeenAt().toLocalDate(), now.toLocalDate())
+                    : 0;
+
+            if (wasFullyResolved && daysSinceLastSeen >= 7) {
+                // REGRESSION: error recurs after being resolved for ≥7 days
+                // Do NOT increment totalCount — this is not a "new" error
+                s.setLastSeenAt(now);
+                s.setLastSeverity(severity);
+                s.setOpenCount(1);
+                s.setResolvedCount(Math.max(0, s.getResolvedCount() - 1));
+                s.setPriorityScore(BigDecimal.valueOf(
+                        SpeakingPriority.skillScore(s.getTotalCount(), now, severity)));
+                userErrorSkillRepository.save(s);
+                // Schedule a new review task for this regression
+                reviewSchedulerService.onMajorObservation(userId, code, severity);
+                log.info("[REGRESSION] User {} error {} reopened after {} days", userId, code, daysSinceLastSeen);
+            } else {
+                // Normal: error still open or recurs quickly — count as repeat
+                int total = s.getTotalCount() + 1;
+                s.setTotalCount(total);
+                s.setLastSeenAt(now);
+                s.setLastSeverity(severity);
+                s.setOpenCount(s.getOpenCount() + 1);
+                s.setPriorityScore(BigDecimal.valueOf(SpeakingPriority.skillScore(total, now, severity)));
+                userErrorSkillRepository.save(s);
+            }
         }
     }
 

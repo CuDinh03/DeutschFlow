@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Search, Shield, Zap, RotateCcw, BookOpen, CheckCircle2,
   AlertTriangle, Loader2, RefreshCw, Calendar, Clock,
+  ChevronDown, ChevronUp,
 } from 'lucide-react'
 import { StudentShell } from '@/components/layouts/StudentShell'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
@@ -22,6 +23,7 @@ interface ErrorSkillDto {
   sampleWrong?: string
   sampleCorrected?: string
   ruleViShort?: string
+  resolved?: boolean
 }
 
 // ─── Color helpers ──────────────────────────────────────────────────────────
@@ -35,7 +37,6 @@ const CAT_COLORS: Record<string, { bg: string; text: string; label: string }> = 
 }
 
 function catStyle(code: string) {
-  // Try prefix match (e.g. "CASE.PREP_DAT" → "KASUS")
   const upper = code.toUpperCase()
   if (upper.startsWith('CASE'))  return CAT_COLORS.KASUS
   if (upper.startsWith('VERB'))  return CAT_COLORS.VERB
@@ -51,25 +52,29 @@ export default function ErrorLibraryPage() {
   const { me, loading: sessionLoading, targetLevel, streakDays, initials } = useStudentPracticeSession()
 
   const [errors, setErrors] = useState<ErrorSkillDto[]>([])
+  const [resolvedErrors, setResolvedErrors] = useState<ErrorSkillDto[]>([])
   const [tasks, setTasks] = useState<ErrorReviewTaskDto[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [repairedCodes, setRepairedCodes] = useState<Set<string>>(new Set())
-  const [completingTask, setCompletingTask] = useState<number | null>(null)
   const [completedTasks, setCompletedTasks] = useState<Set<number>>(new Set())
   const [error, setError] = useState<string | null>(null)
   const [activeDrillError, setActiveDrillError] = useState<ErrorSkillDto | null>(null)
+  const [activeDrillTaskId, setActiveDrillTaskId] = useState<number | null>(null)
+  const [showResolved, setShowResolved] = useState(false)
 
   // ── Fetch data ──────────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const [skillsRes, tasksRes] = await Promise.allSettled([
+      const [skillsRes, resolvedRes, tasksRes] = await Promise.allSettled([
         api.get<ErrorSkillDto[]>('/error-skills/me', { params: { days: 30 } }),
+        api.get<ErrorSkillDto[]>('/error-skills/me/resolved'),
         reviewApi.getTodayTasks(),
       ])
       if (skillsRes.status === 'fulfilled') setErrors(skillsRes.value.data)
+      if (resolvedRes.status === 'fulfilled') setResolvedErrors(resolvedRes.value.data)
       if (tasksRes.status === 'fulfilled') setTasks(tasksRes.value)
     } catch {
       setError('Không thể tải dữ liệu. Vui lòng thử lại.')
@@ -80,35 +85,51 @@ export default function ErrorLibraryPage() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  // ── Repair attempt ──────────────────────────────────────────────────────
+  // ── Open drill for a review task (replaces "Đã nhớ" button) ────────────
+  const handleTaskDrill = (task: ErrorReviewTaskDto) => {
+    // Find matching error skill for this task
+    const matchingError = errors.find(e => e.errorCode === task.errorCode)
+    setActiveDrillError(matchingError || {
+      errorCode: task.errorCode,
+      count: 0,
+      lastSeenAt: '',
+      priorityScore: 0,
+    })
+    setActiveDrillTaskId(task.id)
+  }
+
+  // ── Open drill for an error card ───────────────────────────────────────
   const handleRepair = (err: ErrorSkillDto) => {
     setActiveDrillError(err)
+    setActiveDrillTaskId(null)
   }
 
-  const handleDrillClose = (passed: boolean) => {
+  // ── Drill completed callback ───────────────────────────────────────────
+  const handleDrillClose = async (passed: boolean) => {
     if (activeDrillError && passed) {
-      // The ErrorRepairDrill handles the actual API call to mark it resolved internally on pass.
-      // So when the modal closes and tells us it passed, we mark it as repaired in the UI.
+      // Mark as repaired in UI
       setRepairedCodes(prev => new Set(Array.from(prev).concat(activeDrillError.errorCode)))
+
+      // If this was triggered from a review task, auto-complete it
+      if (activeDrillTaskId) {
+        try {
+          await reviewApi.completeTask(activeDrillTaskId, true)
+          setCompletedTasks(prev => new Set(Array.from(prev).concat(activeDrillTaskId!)))
+        } catch {
+          // non-fatal
+        }
+      }
     }
     setActiveDrillError(null)
-  }
-
-  // ── Complete review task ────────────────────────────────────────────────
-  const handleCompleteTask = async (taskId: number, passed: boolean) => {
-    setCompletingTask(taskId)
-    try {
-      await reviewApi.completeTask(taskId, passed)
-      setCompletedTasks(prev => new Set(Array.from(prev).concat(taskId)))
-    } catch {
-      // silent
-    } finally {
-      setCompletingTask(null)
-    }
+    setActiveDrillTaskId(null)
   }
 
   // ── Filter ──────────────────────────────────────────────────────────────
   const filtered = errors.filter(e =>
+    !search || e.errorCode.toLowerCase().includes(search.toLowerCase())
+  )
+
+  const filteredResolved = resolvedErrors.filter(e =>
     !search || e.errorCode.toLowerCase().includes(search.toLowerCase())
   )
 
@@ -155,26 +176,13 @@ export default function ErrorLibraryPage() {
                       <Clock size={11} /> Interval: {task.intervalDays} ngày
                     </p>
                   </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleCompleteTask(task.id, false)}
-                      disabled={completingTask === task.id}
-                      className="px-3 py-1.5 rounded-xl bg-red-50 text-red-600 font-bold text-xs border border-red-200 hover:bg-red-100 transition-all"
-                    >
-                      ✗ Chưa nhớ
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleCompleteTask(task.id, true)}
-                      disabled={completingTask === task.id}
-                      className="px-3 py-1.5 rounded-xl bg-green-50 text-green-600 font-bold text-xs border border-green-200 hover:bg-green-100 transition-all"
-                    >
-                      {completingTask === task.id
-                        ? <Loader2 size={12} className="animate-spin" />
-                        : '✓ Đã nhớ'}
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleTaskDrill(task)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#00305E] text-white font-bold text-xs hover:bg-[#004b90] active:scale-95 transition-all"
+                  >
+                    <RotateCcw size={12} /> Luyện sửa lỗi
+                  </button>
                 </div>
               ))}
             </div>
@@ -220,7 +228,7 @@ export default function ErrorLibraryPage() {
           </div>
         )}
 
-        {!loading && !error && filtered.length === 0 && (
+        {!loading && !error && filtered.length === 0 && resolvedErrors.length === 0 && (
           <div className="text-center py-14">
             <CheckCircle2 size={48} className="text-green-400 mx-auto mb-4" />
             <p className="font-bold text-[#0F172A] mb-1">Tuyệt vời! Chưa ghi nhận lỗi nào.</p>
@@ -228,82 +236,158 @@ export default function ErrorLibraryPage() {
           </div>
         )}
 
-        {/* ── Error cards ────────────────────────────────────────────────── */}
-        <AnimatePresence>
-          <div className="space-y-4">
-            {!loading && filtered.map((err, idx) => {
-              const style = catStyle(err.errorCode)
-              const repaired = repairedCodes.has(err.errorCode)
+        {/* ── Open Error cards (Chưa sửa) ─────────────────────────────────── */}
+        {!loading && filtered.length > 0 && (
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <AlertTriangle size={14} className="text-amber-500" />
+              <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-wide">
+                Lỗi chưa sửa ({filtered.length})
+              </h3>
+            </div>
+            <AnimatePresence>
+              <div className="space-y-4">
+                {filtered.map((err, idx) => {
+                  const style = catStyle(err.errorCode)
+                  const repaired = repairedCodes.has(err.errorCode)
 
-              return (
-                <motion.div
-                  key={err.errorCode}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ delay: idx * 0.06 }}
-                  className={`bg-white rounded-3xl p-5 shadow-md border relative overflow-hidden transition-all ${repaired ? 'border-green-200 bg-green-50/30' : 'border-slate-200'}`}
-                >
-                  {/* left accent bar */}
-                  <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-3xl" style={{ background: style.text }} />
-
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold px-2 py-1 rounded-full uppercase" style={{ background: style.bg, color: style.text }}>
-                        {style.label}
-                      </span>
-                      {repaired && (
-                        <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-green-100 text-green-600">
-                          ✓ Đã sửa
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-[10px] font-bold bg-slate-100 text-slate-500 px-2 py-1 rounded-full">
-                      Gặp {err.count} lần
-                    </span>
-                  </div>
-
-                  {/* Error code */}
-                  <div className="mb-3">
-                    <p className="font-mono font-bold text-[#0F172A] text-sm">{err.errorCode}</p>
-                    {err.lastSeenAt && (
-                      <p className="text-xs text-[#94A3B8] mt-0.5 flex items-center gap-1">
-                        <Clock size={11} /> Gặp lần cuối: {new Date(err.lastSeenAt).toLocaleDateString('vi-VN')}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 mt-3">
-                    <div className="flex items-center gap-1.5 flex-1 text-[#64748B]">
-                      <Shield size={13} className="text-[#00305E]" />
-                      <span className="text-xs font-semibold">Lỗi ngữ pháp đã ghi nhận</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleRepair(err)}
-                      disabled={repaired}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all ${
-                        repaired
-                          ? 'bg-green-100 text-green-600 cursor-default'
-                          : 'bg-[#00305E] text-white hover:bg-[#004b90] active:scale-95'
-                      }`}
+                  return (
+                    <motion.div
+                      key={err.errorCode}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ delay: idx * 0.06 }}
+                      className={`bg-white rounded-3xl p-5 shadow-md border relative overflow-hidden transition-all ${repaired ? 'border-green-200 bg-green-50/30' : 'border-slate-200'}`}
                     >
-                      {repaired
-                          ? <><CheckCircle2 size={12} /> Đã sửa</>
-                          : <><RotateCcw size={12} /> Luyện sửa lỗi</>}
-                    </button>
-                  </div>
-                </motion.div>
-              )
-            })}
-          </div>
-        </AnimatePresence>
+                      {/* left accent bar */}
+                      <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-3xl" style={{ background: style.text }} />
 
-        {/* Empty tasks notice */}
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold px-2 py-1 rounded-full uppercase" style={{ background: style.bg, color: style.text }}>
+                            {style.label}
+                          </span>
+                          {repaired && (
+                            <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-green-100 text-green-600">
+                              ✓ Đã sửa
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[10px] font-bold bg-slate-100 text-slate-500 px-2 py-1 rounded-full">
+                          Gặp {err.count} lần
+                        </span>
+                      </div>
+
+                      {/* Error code */}
+                      <div className="mb-3">
+                        <p className="font-mono font-bold text-[#0F172A] text-sm">{err.errorCode}</p>
+                        {err.lastSeenAt && (
+                          <p className="text-xs text-[#94A3B8] mt-0.5 flex items-center gap-1">
+                            <Clock size={11} /> Gặp lần cuối: {new Date(err.lastSeenAt).toLocaleDateString('vi-VN')}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-2 mt-3">
+                        <div className="flex items-center gap-1.5 flex-1 text-[#64748B]">
+                          <Shield size={13} className="text-[#00305E]" />
+                          <span className="text-xs font-semibold">Lỗi ngữ pháp đã ghi nhận</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRepair(err)}
+                          disabled={repaired}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all ${
+                            repaired
+                              ? 'bg-green-100 text-green-600 cursor-default'
+                              : 'bg-[#00305E] text-white hover:bg-[#004b90] active:scale-95'
+                          }`}
+                        >
+                          {repaired
+                              ? <><CheckCircle2 size={12} /> Đã sửa</>
+                              : <><RotateCcw size={12} /> Luyện sửa lỗi</>}
+                        </button>
+                      </div>
+                    </motion.div>
+                  )
+                })}
+              </div>
+            </AnimatePresence>
+          </div>
+        )}
+
+        {/* ── Completed tasks notice ──────────────────────────────────────── */}
         {!loading && pendingTasks.length === 0 && tasks.length > 0 && (
           <div className="text-center py-4 text-sm text-green-600 font-semibold bg-green-50 rounded-2xl border border-green-100">
             🎉 Bạn đã hoàn thành tất cả bài ôn tập hôm nay!
+          </div>
+        )}
+
+        {/* ── Resolved errors section (Đã hoàn thành) ─────────────────────── */}
+        {!loading && resolvedErrors.length > 0 && (
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowResolved(!showResolved)}
+              className="w-full flex items-center justify-between py-3 px-4 rounded-2xl bg-green-50 border border-green-100 hover:bg-green-100 transition-all"
+            >
+              <div className="flex items-center gap-2">
+                <CheckCircle2 size={14} className="text-green-500" />
+                <h3 className="text-xs font-bold text-green-700 uppercase tracking-wide">
+                  Đã hoàn thành ({filteredResolved.length})
+                </h3>
+              </div>
+              {showResolved ? <ChevronUp size={14} className="text-green-500" /> : <ChevronDown size={14} className="text-green-500" />}
+            </button>
+
+            <AnimatePresence>
+              {showResolved && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="space-y-3 mt-3 overflow-hidden"
+                >
+                  {filteredResolved.map((err, idx) => {
+                    const style = catStyle(err.errorCode)
+                    return (
+                      <motion.div
+                        key={err.errorCode}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx * 0.04 }}
+                        className="bg-white/80 rounded-2xl p-4 border border-green-100 relative overflow-hidden"
+                      >
+                        <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl bg-green-400" />
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase" style={{ background: style.bg, color: style.text }}>
+                              {style.label}
+                            </span>
+                            <span className="font-mono font-bold text-[#0F172A] text-xs">{err.errorCode}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9px] font-bold bg-slate-100 text-slate-400 px-2 py-0.5 rounded-full">
+                              {err.count} lần
+                            </span>
+                            <span className="text-[9px] font-bold bg-green-100 text-green-600 px-2 py-0.5 rounded-full flex items-center gap-0.5">
+                              <CheckCircle2 size={9} /> Đã sửa
+                            </span>
+                          </div>
+                        </div>
+                        {err.lastSeenAt && (
+                          <p className="text-[10px] text-[#94A3B8] mt-1.5 flex items-center gap-1 ml-1">
+                            <Clock size={9} /> Lần cuối: {new Date(err.lastSeenAt).toLocaleDateString('vi-VN')}
+                          </p>
+                        )}
+                      </motion.div>
+                    )
+                  })}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         )}
       </div>
