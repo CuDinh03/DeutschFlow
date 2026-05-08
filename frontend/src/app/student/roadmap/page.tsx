@@ -597,10 +597,10 @@ export default function RoadmapPage() {
 
   const handleStartNode = useCallback(
     (node: SkillTreeNode) => {
-      // Chọn node để hiển thị chi tiết trong panel bên phải
-      setSelectedNode(node);
+      // Navigate to unified learning page
+      router.push(`/student/learn/node/${node.id}`);
     },
-    []
+    [router]
   );
 
   // Backend unreachable — show error + retry instead of infinite spinner

@@ -161,7 +161,6 @@ if echo "$HEALTH" | grep -q '"UP"'; then
   echo "  🌐 API:  http://3.82.43.113:8080"
   echo "  🎙️ TTS:  Edge TTS (18 giọng, $0/tháng)"
   echo "  🎤 STT:  Whisper Turbo ($0.04/hr)"
-  echo "  💰 Cost: ~$104/tháng (giảm 93%)"
 else
   echo ""
   echo "  ❌ Backend FAILED! Logs:"

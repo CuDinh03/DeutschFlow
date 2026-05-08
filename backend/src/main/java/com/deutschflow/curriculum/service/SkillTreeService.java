@@ -43,6 +43,8 @@ public class SkillTreeService {
     // In-memory lock to prevent duplicate LLM calls for the same cache key
     private final ConcurrentHashMap<String, Boolean> generationLocks = new ConcurrentHashMap<>();
 
+    public GroqChatClient getGroqClient() { return groqChatClient; }
+
     // ─────────────────────────────────────────────────────────────
     // 1. GET SKILL TREE — Trả về toàn bộ cây cho user
     // ─────────────────────────────────────────────────────────────
@@ -60,14 +62,18 @@ public class SkillTreeService {
                     n.phase, n.day_number, n.week_number, n.sort_order,
                     n.cefr_level, n.difficulty, n.xp_reward, n.energy_cost,
                     n.industry, n.industry_vocab_percent, n.vocab_strategy,
+                    n.module_number, n.module_title_vi, n.module_title_de,
+                    n.session_type, n.satellite_status,
                     array_to_json(n.core_topics)::text   AS core_topics,
                     array_to_json(n.grammar_points)::text AS grammar_points,
+                    array_to_json(n.tags)::text           AS tags,
                     COALESCE(p.status, 'LOCKED') AS user_status,
                     COALESCE(p.score_percent, 0) AS user_score,
                     COALESCE(p.xp_earned, 0) AS user_xp,
                     COALESCE(p.attempts, 0) AS user_attempts,
                     p.completed_at,
                     p.prefetch_status,
+                    CASE WHEN n.content_json IS NOT NULL THEN TRUE ELSE FALSE END AS has_content,
                     CASE
                         WHEN NOT EXISTS (
                             SELECT 1 FROM skill_tree_node_dependencies d
@@ -111,6 +117,52 @@ public class SkillTreeService {
         long firstNodeId = ((Number) firstNodes.get(0).get("id")).longValue();
         log.info("[SkillTree] Auto-unlocking first node {} for new user {}", firstNodeId, userId);
         upsertProgress(userId, firstNodeId, "UNLOCKED");
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 1b. GET NODE SESSION — Trả về content_json cho trang học
+    //     All-in-one: ~30KB → Gzip ~5KB. FE lưu Zustand.
+    // ─────────────────────────────────────────────────────────────
+
+    public Map<String, Object> getNodeSession(long userId, long nodeId) {
+        Map<String, Object> node = loadNodeOrThrow(nodeId);
+
+        // Auto-unlock nếu dependencies met
+        boolean depsMet = checkDependenciesMet(userId, nodeId);
+        if (depsMet) {
+            upsertProgress(userId, nodeId, "IN_PROGRESS");
+        }
+
+        // Parse content_json
+        String contentJsonStr = (String) node.get("content_json");
+        Object contentParsed = null;
+        if (contentJsonStr != null && !contentJsonStr.isBlank()) {
+            try {
+                contentParsed = objectMapper.readValue(contentJsonStr, Object.class);
+            } catch (Exception e) {
+                log.warn("[SkillTree] Failed to parse content_json for node={}", nodeId, e);
+            }
+        }
+
+        // Build response
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("nodeId", node.get("id"));
+        result.put("titleDe", node.get("title_de"));
+        result.put("titleVi", node.get("title_vi"));
+        result.put("descriptionVi", node.get("description_vi"));
+        result.put("emoji", node.get("emoji"));
+        result.put("phase", node.get("phase"));
+        result.put("cefrLevel", node.get("cefr_level"));
+        result.put("difficulty", node.get("difficulty"));
+        result.put("xpReward", node.get("xp_reward"));
+        result.put("moduleNumber", node.get("module_number"));
+        result.put("moduleTitleVi", node.get("module_title_vi"));
+        result.put("sessionType", node.get("session_type"));
+        result.put("content", contentParsed);
+        result.put("hasContent", contentParsed != null);
+        result.put("dependenciesMet", depsMet);
+
+        return result;
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -450,8 +502,11 @@ public class SkillTreeService {
                        phase, day_number, week_number, cefr_level, difficulty,
                        xp_reward, energy_cost, industry, industry_vocab_percent,
                        vocab_strategy, content_json::text AS content_json, content_hash,
+                       module_number, module_title_vi, module_title_de, session_type,
+                       satellite_status, creator_user_id,
                        array_to_json(core_topics)::text AS core_topics,
-                       array_to_json(grammar_points)::text AS grammar_points
+                       array_to_json(grammar_points)::text AS grammar_points,
+                       array_to_json(tags)::text AS tags
                 FROM skill_tree_nodes WHERE id = ? AND is_active = TRUE
                 """, nodeId);
         if (rows.isEmpty()) throw new NotFoundException("Node not found: " + nodeId);
@@ -525,6 +580,85 @@ public class SkillTreeService {
             return sb.toString();
         } catch (Exception e) {
             return UUID.randomUUID().toString();
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 7. ORPHAN SWEEPER — Chống trạng thái mồ côi khi container crash
+    //    Cứ 15 phút quét GENERATING > 10 phút → cưỡng chế FAILED
+    // ─────────────────────────────────────────────────────────────
+
+    @org.springframework.scheduling.annotation.Scheduled(cron = "0 0/15 * * * *")
+    public void sweepOrphanGeneratingNodes() {
+        var orphans = jdbcTemplate.queryForList("""
+                SELECT id, creator_user_id FROM skill_tree_nodes
+                WHERE satellite_status = 'GENERATING'
+                  AND generating_started_at < NOW() - INTERVAL '10 minutes'
+                """);
+
+        for (var orphan : orphans) {
+            long nodeId = ((Number) orphan.get("id")).longValue();
+            jdbcTemplate.update("""
+                    UPDATE skill_tree_nodes
+                    SET satellite_status = 'FAILED', updated_at = NOW()
+                    WHERE id = ?
+                    """, nodeId);
+            log.warn("[SkillTree] Swept orphan GENERATING node={}", nodeId);
+        }
+
+        if (!orphans.isEmpty()) {
+            log.info("[SkillTree] Orphan sweep completed: {} nodes set to FAILED", orphans.size());
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 8. PRONUNCIATION EVALUATION — Groq LLM đánh giá phát âm
+    // ─────────────────────────────────────────────────────────────
+
+    public Map<String, Object> evaluatePronunciation(long userId, String originalText,
+                                                      String transcribedText, List<String> focusPhonemes) {
+        String prompt = String.format("""
+                Đóng vai giáo viên phát âm tiếng Đức. Học viên người Việt đọc đoạn sau:
+                
+                [Bản gốc]: %s
+                [Whisper nhận diện]: %s
+                [Focus phonemes]: %s
+                
+                Phân tích các lỗi phát âm đặc trưng của người Việt (sai âm /ç/, nuốt âm đuôi, 
+                thiếu umlaut, z=/ts/ vs /z/, w=/v/, v=/f/).
+                
+                Trả về JSON:
+                {
+                  "overall_score": 0-100,
+                  "words": [
+                    {"word": "...", "score": "correct|minor_error|major_error", 
+                     "feedback": "...", "ipa_expected": "..."}
+                  ],
+                  "tips": ["gợi ý 1", "gợi ý 2"]
+                }
+                
+                CHỈ trả về JSON, không có text khác.
+                """, originalText, transcribedText, String.join(", ", focusPhonemes));
+
+        try {
+            List<ChatMessage> messages = List.of(
+                    new ChatMessage("system", "Bạn là giáo viên phát âm tiếng Đức cho học viên Việt Nam. Trả lời bằng JSON."),
+                    new ChatMessage("user", prompt)
+            );
+            AiChatCompletionResult result = groqChatClient.chatCompletion(messages, null, 0.2, 1024);
+            JsonNode parsed = objectMapper.readTree(result.content());
+
+            // Record usage
+            if (result.usage() != null) {
+                aiUsageLedgerService.record(userId, result.provider(), result.model(),
+                        result.usage().promptTokens(), result.usage().completionTokens(),
+                        result.usage().totalTokens(), "PRONUNCIATION_EVAL", null, null);
+            }
+
+            return objectMapper.convertValue(parsed, Map.class);
+        } catch (Exception e) {
+            log.error("[SkillTree] Pronunciation eval failed: {}", e.getMessage());
+            return Map.of("overall_score", 0, "words", List.of(), "tips", List.of("Đánh giá thất bại. Vui lòng thử lại."));
         }
     }
 }
