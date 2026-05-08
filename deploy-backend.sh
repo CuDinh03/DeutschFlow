@@ -34,7 +34,7 @@ echo "📥 [1/5] Pulling latest code from GitHub..."
 cd /home/ubuntu/DeutschFlow
 git fetch origin AI_model
 git checkout AI_model
-git pull origin AI_model
+git reset --hard origin/AI_model
 
 echo ""
 echo "🔨 [2/5] Building Docker image (skip tests)..."
