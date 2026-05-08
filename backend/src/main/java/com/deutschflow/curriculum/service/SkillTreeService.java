@@ -62,14 +62,18 @@ public class SkillTreeService {
                     n.phase, n.day_number, n.week_number, n.sort_order,
                     n.cefr_level, n.difficulty, n.xp_reward, n.energy_cost,
                     n.industry, n.industry_vocab_percent, n.vocab_strategy,
+                    n.module_number, n.module_title_vi, n.module_title_de,
+                    n.session_type, n.satellite_status,
                     array_to_json(n.core_topics)::text   AS core_topics,
                     array_to_json(n.grammar_points)::text AS grammar_points,
+                    array_to_json(n.tags)::text           AS tags,
                     COALESCE(p.status, 'LOCKED') AS user_status,
                     COALESCE(p.score_percent, 0) AS user_score,
                     COALESCE(p.xp_earned, 0) AS user_xp,
                     COALESCE(p.attempts, 0) AS user_attempts,
                     p.completed_at,
                     p.prefetch_status,
+                    CASE WHEN n.content_json IS NOT NULL THEN TRUE ELSE FALSE END AS has_content,
                     CASE
                         WHEN NOT EXISTS (
                             SELECT 1 FROM skill_tree_node_dependencies d
