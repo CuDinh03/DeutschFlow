@@ -26,6 +26,10 @@ export function useSpeech(options: UseSpeechOptions = { lang: "de-DE" }) {
   const onResultCallbackRef = useRef<((text: string, isFinal: boolean) => void) | null>(null);
   const onErrorCallbackRef = useRef<((err: any) => void) | null>(null);
   const isListeningRef = useRef<boolean>(false);
+  /** Tracks the last finalized segment to prevent Android Chrome from re-emitting it on restart. */
+  const lastFinalizedSegmentRef = useRef<string>("");
+  /** Guards against re-entrant restart loops. */
+  const restartingRef = useRef<boolean>(false);
 
   /** How long (ms) to wait with zero speech before auto-stopping mic. */
   const SILENCE_TIMEOUT_MS = 120_000; // 2 minutes
@@ -69,22 +73,11 @@ export function useSpeech(options: UseSpeechOptions = { lang: "de-DE" }) {
     }, SILENCE_TIMEOUT_MS);
   }, [clearSilenceTimer]);
 
-  const startListening = useCallback(
-    (onResult: (text: string, isFinal: boolean) => void, onError?: (err: any) => void) => {
-      if (isListeningRef.current) return;
-
-      const recognition = initRecognition();
-      if (!recognition) return;
-
-      // Reset state for new session
-      accumulatedTextRef.current = "";
-      intentionalStopRef.current = false;
-      onResultCallbackRef.current = onResult;
-      onErrorCallbackRef.current = onError ?? null;
-      recognitionRef.current = recognition;
-
+  const attachRecognitionHandlers = useCallback(
+    (recognition: any) => {
       recognition.onstart = () => {
         isListeningRef.current = true;
+        restartingRef.current = false;
         setIsListening(true);
         resetSilenceTimer();
       };
@@ -107,12 +100,16 @@ export function useSpeech(options: UseSpeechOptions = { lang: "de-DE" }) {
         }
 
         // Append newly finalized text to the accumulated buffer
+        // Guard: skip if this is the same segment Chrome re-emitted after restart
         if (currentFinal) {
-          // Add space between accumulated segments
-          if (accumulatedTextRef.current && !accumulatedTextRef.current.endsWith(" ")) {
-            accumulatedTextRef.current += " ";
+          const trimmed = currentFinal.trim();
+          if (trimmed && trimmed !== lastFinalizedSegmentRef.current) {
+            if (accumulatedTextRef.current && !accumulatedTextRef.current.endsWith(" ")) {
+              accumulatedTextRef.current += " ";
+            }
+            accumulatedTextRef.current += trimmed;
+            lastFinalizedSegmentRef.current = trimmed;
           }
-          accumulatedTextRef.current += currentFinal.trim();
         }
 
         // Send full text to callback: all finalized text + current interim
@@ -133,41 +130,67 @@ export function useSpeech(options: UseSpeechOptions = { lang: "de-DE" }) {
         if (onErrorCallbackRef.current) onErrorCallbackRef.current(event.error);
         clearSilenceTimer();
         isListeningRef.current = false;
+        restartingRef.current = false;
         setIsListening(false);
       };
 
       recognition.onend = () => {
         // Browser auto-stopped (e.g. after finalizing a long segment in Chrome)
         // If user didn't intentionally stop, auto-restart
-        if (!intentionalStopRef.current && isListeningRef.current) {
+        if (!intentionalStopRef.current && isListeningRef.current && !restartingRef.current) {
+          restartingRef.current = true;
           console.info("[STT] Browser auto-stopped, restarting recognition...");
-          try {
-            // Small delay to avoid rapid restart loops
-            setTimeout(() => {
-              if (!intentionalStopRef.current && isListeningRef.current) {
+          // Longer delay (500ms) to let Android Chrome fully flush its audio buffer
+          // and prevent re-processing the same audio segment on restart
+          setTimeout(() => {
+            if (!intentionalStopRef.current && isListeningRef.current) {
+              try {
                 const newRecognition = initRecognition();
                 if (newRecognition) {
                   recognitionRef.current = newRecognition;
-                  newRecognition.onstart = recognition.onstart;
-                  newRecognition.onresult = recognition.onresult;
-                  newRecognition.onerror = recognition.onerror;
-                  newRecognition.onend = recognition.onend;
+                  attachRecognitionHandlers(newRecognition);
                   newRecognition.start();
+                } else {
+                  restartingRef.current = false;
                 }
+              } catch (err) {
+                console.error("[STT] Failed to restart recognition:", err);
+                clearSilenceTimer();
+                isListeningRef.current = false;
+                restartingRef.current = false;
+                setIsListening(false);
               }
-            }, 300);
-          } catch (err) {
-            console.error("[STT] Failed to restart recognition:", err);
-            clearSilenceTimer();
-            isListeningRef.current = false;
-            setIsListening(false);
-          }
-        } else {
+            } else {
+              restartingRef.current = false;
+            }
+          }, 500);
+        } else if (!restartingRef.current) {
           clearSilenceTimer();
           isListeningRef.current = false;
           setIsListening(false);
         }
       };
+    },
+    [initRecognition, resetSilenceTimer, clearSilenceTimer]
+  );
+
+  const startListening = useCallback(
+    (onResult: (text: string, isFinal: boolean) => void, onError?: (err: any) => void) => {
+      if (isListeningRef.current) return;
+
+      const recognition = initRecognition();
+      if (!recognition) return;
+
+      // Reset state for new session
+      accumulatedTextRef.current = "";
+      lastFinalizedSegmentRef.current = "";
+      intentionalStopRef.current = false;
+      restartingRef.current = false;
+      onResultCallbackRef.current = onResult;
+      onErrorCallbackRef.current = onError ?? null;
+      recognitionRef.current = recognition;
+
+      attachRecognitionHandlers(recognition);
 
       try {
         recognition.start();
