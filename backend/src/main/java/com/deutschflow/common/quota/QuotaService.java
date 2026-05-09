@@ -21,6 +21,8 @@ public class QuotaService {
 
     private static final String PLAN_DEFAULT = "DEFAULT";
     private static final String PLAN_FREE = "FREE";
+    private static final String PLAN_PRO = "PRO";
+    private static final String PLAN_ULTRA = "ULTRA";
     private static final String PLAN_INTERNAL = "INTERNAL";
 
     private final JdbcTemplate jdbcTemplate;
@@ -349,8 +351,15 @@ public class QuotaService {
         return v == null ? 0L : v;
     }
 
-    /** Fix FREE trials, end expired ACTIVE FREE, ensure DEFAULT exists when orphaned. */
+    /**
+     * Reconcile subscriptions:
+     * - FREE: auto-set 7-day expiry, end when expired
+     * - PRO/ULTRA: when 30-day period ends AND wallet balance is 0 → end subscription
+     *   When 30-day period ends but wallet > 0 → keep ACTIVE (user can drain wallet,
+     *   but publicTier() shows DEFAULT label since subscription is past ends_at)
+     */
     private void reconcileSubscriptions(long userId, Instant now) {
+        // FREE: ensure 7-day expiry is set
         jdbcTemplate.update("""
                         UPDATE user_subscriptions
                         SET ends_at = starts_at + INTERVAL '7 days',
@@ -360,6 +369,7 @@ public class QuotaService {
                           AND plan_code = 'FREE'
                           AND ends_at IS NULL
                         """, userId);
+        // FREE: end expired trials
         jdbcTemplate.update("""
                         UPDATE user_subscriptions
                         SET status = 'ENDED',
@@ -373,12 +383,63 @@ public class QuotaService {
                         """,
                 Timestamp.from(now), userId, Timestamp.from(now));
 
+        // PRO/ULTRA: when subscription period has ended, check wallet balance
+        // If wallet is empty → end subscription and downgrade to DEFAULT
+        // If wallet has balance → keep ACTIVE so user can drain remaining tokens
+        //   (publicTier() will show DEFAULT label since now > ends_at)
+        reconcileExpiredPaidWithWallet(userId, now);
+
+        // Ensure at least one active subscription exists
         Integer active = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM user_subscriptions WHERE user_id = ? AND status = 'ACTIVE'",
                 Integer.class, userId);
         if (active == null || active <= 0) {
             provisionDefaultSubscription(userId, now);
         }
+    }
+
+    /**
+     * For PRO/ULTRA that are past their 30-day ends_at:
+     * - If wallet balance > 0 → keep ACTIVE (grace period, user drains wallet)
+     * - If wallet balance <= 0 → end subscription, clean up wallet
+     */
+    private void reconcileExpiredPaidWithWallet(long userId, Instant now) {
+        // Find expired PRO/ULTRA subscriptions that are still ACTIVE
+        var expiredPaid = jdbcTemplate.queryForList("""
+                        SELECT us.id, us.plan_code
+                        FROM user_subscriptions us
+                        WHERE us.user_id = ?
+                          AND us.status = 'ACTIVE'
+                          AND us.plan_code IN ('PRO', 'ULTRA')
+                          AND us.ends_at IS NOT NULL
+                          AND us.ends_at <= ?
+                        """, userId, Timestamp.from(now));
+
+        if (expiredPaid.isEmpty()) return;
+
+        // Check wallet balance
+        Long walletBalance = null;
+        try {
+            walletBalance = jdbcTemplate.queryForObject(
+                    "SELECT balance FROM user_ai_token_wallets WHERE user_id = ?", Long.class, userId);
+        } catch (Exception ignored) { /* no wallet row */ }
+
+        if (walletBalance != null && walletBalance > 0) {
+            // Grace period: wallet has tokens, keep subscription ACTIVE
+            // User can still spend tokens, but publicTier() returns DEFAULT
+            return;
+        }
+
+        // Wallet empty or doesn't exist → fully end the subscription
+        for (var row : expiredPaid) {
+            jdbcTemplate.update("""
+                            UPDATE user_subscriptions
+                            SET status = 'ENDED', updated_at = CURRENT_TIMESTAMP
+                            WHERE id = ?
+                            """, row.get("id"));
+        }
+        // Clean up wallet
+        jdbcTemplate.update("DELETE FROM user_ai_token_wallets WHERE user_id = ? AND balance <= 0", userId);
     }
 
     private void downgradePaidPlansToDefault(long userId, Instant now) {
@@ -389,10 +450,10 @@ public class QuotaService {
     private void endSubscriptionsPaid(long userId, Instant now) {
         jdbcTemplate.update("""
                         UPDATE user_subscriptions
-                        SET status = 'ENDED', ends_at = ?, updated_at = CURRENT_TIMESTAMP
+                        SET status = 'ENDED', ends_at = COALESCE(ends_at, ?), updated_at = CURRENT_TIMESTAMP
                         WHERE user_id = ?
                           AND status = 'ACTIVE'
-                          AND plan_code IN ('PRO', 'PREMIUM', 'ULTRA')
+                          AND plan_code IN ('PRO', 'ULTRA')
                         """,
                 Timestamp.from(now), userId);
     }
@@ -504,24 +565,27 @@ public class QuotaService {
                 newBalance, Date.valueOf(today), userId);
     }
 
-    /** Maps stored {@code subscription_plans.code} to BASIC | PREMIUM | ULTRA for localized labels. */
+    /**
+     * Maps stored plan code to public-facing tier label.
+     * DEFAULT/FREE → "DEFAULT", PRO → "PRO", ULTRA/INTERNAL → "ULTRA"
+     */
     public static String publicTier(String planCode) {
         if (planCode == null || planCode.isBlank()) {
-            return "BASIC";
+            return "DEFAULT";
         }
         String c = planCode.trim().toUpperCase(Locale.ROOT);
         return switch (c) {
-            case PLAN_FREE, PLAN_DEFAULT -> "BASIC";
-            case "PRO", "PREMIUM" -> "PREMIUM";
-            case "ULTRA", PLAN_INTERNAL -> "ULTRA";
-            default -> "BASIC";
+            case PLAN_FREE, PLAN_DEFAULT -> "DEFAULT";
+            case PLAN_PRO -> "PRO";
+            case PLAN_ULTRA, PLAN_INTERNAL -> "ULTRA";
+            default -> "DEFAULT";
         };
     }
 
     private static boolean isWalletPlan(String planCode) {
         if (planCode == null) return false;
         String c = planCode.toUpperCase(Locale.ROOT);
-        return "PRO".equals(c) || "PREMIUM".equals(c) || "ULTRA".equals(c);
+        return PLAN_PRO.equals(c) || PLAN_ULTRA.equals(c);
     }
 
     private static Map<String, Object> firstRow(JdbcTemplate jdbc, String sql, Object... args) {

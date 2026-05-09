@@ -26,6 +26,10 @@ export function useSpeech(options: UseSpeechOptions = { lang: "de-DE" }) {
   const onResultCallbackRef = useRef<((text: string, isFinal: boolean) => void) | null>(null);
   const onErrorCallbackRef = useRef<((err: any) => void) | null>(null);
   const isListeningRef = useRef<boolean>(false);
+  /** Tracks the last finalized segment to prevent Android Chrome from re-emitting it on restart. */
+  const lastFinalizedSegmentRef = useRef<string>("");
+  /** Guards against re-entrant restart loops. */
+  const restartingRef = useRef<boolean>(false);
 
   /** How long (ms) to wait with zero speech before auto-stopping mic. */
   const SILENCE_TIMEOUT_MS = 120_000; // 2 minutes
@@ -39,6 +43,10 @@ export function useSpeech(options: UseSpeechOptions = { lang: "de-DE" }) {
     }
   }, []);
 
+  /** Detect mobile browsers (Android, iOS) where continuous mode is unreliable. */
+  const isMobile = typeof navigator !== "undefined" &&
+    /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
   const initRecognition = useCallback(() => {
     if (typeof window === "undefined") return null;
     const SpeechRecognition =
@@ -49,16 +57,17 @@ export function useSpeech(options: UseSpeechOptions = { lang: "de-DE" }) {
     }
     const recognition = new SpeechRecognition();
     recognition.lang = options.lang;
-    recognition.interimResults = true;
-    recognition.continuous = true;
+    // Mobile: single-shot mode (no continuous, no interim) — prevents duplication
+    // Desktop: continuous mode with interim for live preview
+    recognition.continuous = !isMobile;
+    recognition.interimResults = !isMobile;
     recognition.maxAlternatives = 1;
     return recognition;
-  }, [options.lang]);
+  }, [options.lang, isMobile]);
 
   const resetSilenceTimer = useCallback(() => {
     clearSilenceTimer();
     silenceTimerRef.current = setTimeout(() => {
-      // Auto-stop after SILENCE_TIMEOUT_MS of no speech
       if (isListeningRef.current && recognitionRef.current) {
         console.info("[STT] Silence timeout reached, auto-stopping mic.");
         intentionalStopRef.current = true;
@@ -69,6 +78,154 @@ export function useSpeech(options: UseSpeechOptions = { lang: "de-DE" }) {
     }, SILENCE_TIMEOUT_MS);
   }, [clearSilenceTimer]);
 
+  const attachRecognitionHandlers = useCallback(
+    (recognition: any) => {
+      recognition.onstart = () => {
+        isListeningRef.current = true;
+        restartingRef.current = false;
+        setIsListening(true);
+        resetSilenceTimer();
+      };
+
+      recognition.onresult = (event: any) => {
+        resetSilenceTimer();
+
+        if (isMobile) {
+          // ── MOBILE: Simple single-shot — just grab the final result ──
+          // No interim, no accumulation complexity
+          let finalText = "";
+          for (let i = 0; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+              finalText += event.results[i][0].transcript;
+            }
+          }
+          if (finalText.trim()) {
+            // Append to accumulated text (for multi-shot: user presses mic multiple times)
+            if (accumulatedTextRef.current) {
+              accumulatedTextRef.current += " " + finalText.trim();
+            } else {
+              accumulatedTextRef.current = finalText.trim();
+            }
+            if (onResultCallbackRef.current) {
+              onResultCallbackRef.current(accumulatedTextRef.current, true);
+            }
+          }
+        } else {
+          // ── DESKTOP: Continuous mode with interim preview ──
+          let currentFinal = "";
+          let currentInterim = "";
+
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+              currentFinal += transcript;
+            } else {
+              currentInterim += transcript;
+            }
+          }
+
+          if (currentFinal) {
+            const trimmed = currentFinal.trim();
+            if (trimmed && trimmed !== lastFinalizedSegmentRef.current) {
+              if (accumulatedTextRef.current && !accumulatedTextRef.current.endsWith(" ")) {
+                accumulatedTextRef.current += " ";
+              }
+              accumulatedTextRef.current += trimmed;
+              lastFinalizedSegmentRef.current = trimmed;
+            }
+          }
+
+          const fullText = currentInterim
+            ? (accumulatedTextRef.current ? accumulatedTextRef.current + " " + currentInterim : currentInterim)
+            : accumulatedTextRef.current;
+
+          if (fullText && onResultCallbackRef.current) {
+            onResultCallbackRef.current(fullText, !currentInterim && !!currentFinal);
+          }
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        if (event.error === "no-speech" || event.error === "aborted") {
+          return;
+        }
+        if (onErrorCallbackRef.current) onErrorCallbackRef.current(event.error);
+        clearSilenceTimer();
+        isListeningRef.current = false;
+        restartingRef.current = false;
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        if (isMobile) {
+          // ── MOBILE: Single-shot ended — keep mic "on" by auto-restarting ──
+          // But NO audio buffer carryover since each shot is independent
+          if (!intentionalStopRef.current && isListeningRef.current && !restartingRef.current) {
+            restartingRef.current = true;
+            setTimeout(() => {
+              if (!intentionalStopRef.current && isListeningRef.current) {
+                try {
+                  const newRecognition = initRecognition();
+                  if (newRecognition) {
+                    recognitionRef.current = newRecognition;
+                    attachRecognitionHandlers(newRecognition);
+                    newRecognition.start();
+                  } else {
+                    restartingRef.current = false;
+                  }
+                } catch (err) {
+                  console.error("[STT] Mobile restart failed:", err);
+                  clearSilenceTimer();
+                  isListeningRef.current = false;
+                  restartingRef.current = false;
+                  setIsListening(false);
+                }
+              } else {
+                restartingRef.current = false;
+              }
+            }, 300);
+          } else if (!restartingRef.current) {
+            clearSilenceTimer();
+            isListeningRef.current = false;
+            setIsListening(false);
+          }
+        } else {
+          // ── DESKTOP: Continuous mode auto-restart ──
+          if (!intentionalStopRef.current && isListeningRef.current && !restartingRef.current) {
+            restartingRef.current = true;
+            setTimeout(() => {
+              if (!intentionalStopRef.current && isListeningRef.current) {
+                try {
+                  const newRecognition = initRecognition();
+                  if (newRecognition) {
+                    recognitionRef.current = newRecognition;
+                    attachRecognitionHandlers(newRecognition);
+                    newRecognition.start();
+                  } else {
+                    restartingRef.current = false;
+                  }
+                } catch (err) {
+                  console.error("[STT] Desktop restart failed:", err);
+                  clearSilenceTimer();
+                  isListeningRef.current = false;
+                  restartingRef.current = false;
+                  setIsListening(false);
+                }
+              } else {
+                restartingRef.current = false;
+              }
+            }, 500);
+          } else if (!restartingRef.current) {
+            clearSilenceTimer();
+            isListeningRef.current = false;
+            setIsListening(false);
+          }
+        }
+      };
+    },
+    [initRecognition, resetSilenceTimer, clearSilenceTimer, isMobile]
+  );
+
   const startListening = useCallback(
     (onResult: (text: string, isFinal: boolean) => void, onError?: (err: any) => void) => {
       if (isListeningRef.current) return;
@@ -78,96 +235,14 @@ export function useSpeech(options: UseSpeechOptions = { lang: "de-DE" }) {
 
       // Reset state for new session
       accumulatedTextRef.current = "";
+      lastFinalizedSegmentRef.current = "";
       intentionalStopRef.current = false;
+      restartingRef.current = false;
       onResultCallbackRef.current = onResult;
       onErrorCallbackRef.current = onError ?? null;
       recognitionRef.current = recognition;
 
-      recognition.onstart = () => {
-        isListeningRef.current = true;
-        setIsListening(true);
-        resetSilenceTimer();
-      };
-
-      recognition.onresult = (event: any) => {
-        // Reset silence timer on every speech result
-        resetSilenceTimer();
-
-        // Build the full transcript: accumulated finals + current segment
-        let currentFinal = "";
-        let currentInterim = "";
-
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          const transcript = event.results[i][0].transcript;
-          if (event.results[i].isFinal) {
-            currentFinal += transcript;
-          } else {
-            currentInterim += transcript;
-          }
-        }
-
-        // Append newly finalized text to the accumulated buffer
-        if (currentFinal) {
-          // Add space between accumulated segments
-          if (accumulatedTextRef.current && !accumulatedTextRef.current.endsWith(" ")) {
-            accumulatedTextRef.current += " ";
-          }
-          accumulatedTextRef.current += currentFinal.trim();
-        }
-
-        // Send full text to callback: all finalized text + current interim
-        const fullText = currentInterim
-          ? (accumulatedTextRef.current ? accumulatedTextRef.current + " " + currentInterim : currentInterim)
-          : accumulatedTextRef.current;
-
-        if (fullText && onResultCallbackRef.current) {
-          onResultCallbackRef.current(fullText, !currentInterim && !!currentFinal);
-        }
-      };
-
-      recognition.onerror = (event: any) => {
-        // "no-speech" and "aborted" are normal — don't treat as fatal
-        if (event.error === "no-speech" || event.error === "aborted") {
-          return;
-        }
-        if (onErrorCallbackRef.current) onErrorCallbackRef.current(event.error);
-        clearSilenceTimer();
-        isListeningRef.current = false;
-        setIsListening(false);
-      };
-
-      recognition.onend = () => {
-        // Browser auto-stopped (e.g. after finalizing a long segment in Chrome)
-        // If user didn't intentionally stop, auto-restart
-        if (!intentionalStopRef.current && isListeningRef.current) {
-          console.info("[STT] Browser auto-stopped, restarting recognition...");
-          try {
-            // Small delay to avoid rapid restart loops
-            setTimeout(() => {
-              if (!intentionalStopRef.current && isListeningRef.current) {
-                const newRecognition = initRecognition();
-                if (newRecognition) {
-                  recognitionRef.current = newRecognition;
-                  newRecognition.onstart = recognition.onstart;
-                  newRecognition.onresult = recognition.onresult;
-                  newRecognition.onerror = recognition.onerror;
-                  newRecognition.onend = recognition.onend;
-                  newRecognition.start();
-                }
-              }
-            }, 300);
-          } catch (err) {
-            console.error("[STT] Failed to restart recognition:", err);
-            clearSilenceTimer();
-            isListeningRef.current = false;
-            setIsListening(false);
-          }
-        } else {
-          clearSilenceTimer();
-          isListeningRef.current = false;
-          setIsListening(false);
-        }
-      };
+      attachRecognitionHandlers(recognition);
 
       try {
         recognition.start();
