@@ -226,7 +226,10 @@ public class TrainingDatasetService {
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     convId, sessionId, userId, cefrLevel,
-                    err.errorCode(), err.wrongSpan(), err.correctedSpan(), err.ruleViShort(),
+                    err.errorCode(),
+                    err.wrongSpan() != null ? err.wrongSpan() : userMessage,
+                    err.correctedSpan() != null ? err.correctedSpan() : "",
+                    err.ruleViShort(),
                     err.severity() != null ? err.severity() : "MEDIUM",
                     userMessage, correction,
                     alpacaInstruction, alpacaInput, alpacaOutput,
