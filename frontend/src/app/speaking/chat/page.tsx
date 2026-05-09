@@ -64,6 +64,7 @@ export default function AIChatInterface() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const suggestionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const streamAbortRef = useRef<AbortController | null>(null);
 
   const { isListening, isSpeaking, startListening, stopListening, speak, speakWithPersona, stopSpeaking } = useSpeech({
     lang: "de-DE",
@@ -196,7 +197,10 @@ export default function AIChatInterface() {
 
     let currentDe = "";
 
-    chatStream(
+    // Abort any previous stream before starting a new one
+    streamAbortRef.current?.abort();
+
+    streamAbortRef.current = chatStream(
       sid,
       userText,
       (delta) => {
@@ -269,6 +273,9 @@ export default function AIChatInterface() {
   // ─── Handle End Session ────────────────────────────────────
   const handleEndSession = async () => {
     setShowEndPopup(false);
+    // Abort any running SSE stream first
+    streamAbortRef.current?.abort();
+    streamAbortRef.current = null;
     const sid = useChatStore.getState().sessionId;
     if (sid) {
       try {
@@ -301,11 +308,19 @@ export default function AIChatInterface() {
     }
   };
 
-  // ─── Clean up speech on unmount ────────────────────────────
+  // ─── Clean up speech + stream on unmount / navigate away ──
   useEffect(() => {
     return () => {
+      // Abort any running SSE stream to free Groq connection
+      streamAbortRef.current?.abort();
+      streamAbortRef.current = null;
       stopListening();
       stopSpeaking();
+      // Auto-end the session when user navigates away
+      const sid = useChatStore.getState().sessionId;
+      if (sid) {
+        aiSpeakingApi.endSession(sid).catch(() => {});
+      }
     };
   }, [stopListening, stopSpeaking]);
 

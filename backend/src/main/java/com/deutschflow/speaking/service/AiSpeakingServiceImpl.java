@@ -109,6 +109,28 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
     public AiSpeakingSessionDto createSession(Long userId, String topic, String cefrLevel, String personaRaw,
                                               String responseSchemaRaw, String sessionModeRaw,
                                               String interviewPosition, String experienceLevel) {
+        // ── Guard 1: Auto-end any existing ACTIVE sessions for this user ──
+        List<AiSpeakingSession> activeSessions =
+                sessionRepository.findByUserIdAndStatusOrderByStartedAtAsc(userId, SessionStatus.ACTIVE);
+        if (!activeSessions.isEmpty()) {
+            log.info("[Session-Guard] Auto-ending {} stale ACTIVE sessions for user {}", activeSessions.size(), userId);
+            LocalDateTime now = LocalDateTime.now();
+            for (AiSpeakingSession old : activeSessions) {
+                old.setStatus(SessionStatus.ENDED);
+                old.setEndedAt(now);
+            }
+            sessionRepository.saveAll(activeSessions);
+        }
+
+        // ── Guard 2: Rate limit — block if last session was created < 5s ago ──
+        List<AiSpeakingSession> recent = sessionRepository.findTop7ByUserIdOrderByStartedAtDesc(userId);
+        if (!recent.isEmpty()) {
+            LocalDateTime lastCreated = recent.get(0).getStartedAt();
+            if (lastCreated != null && java.time.Duration.between(lastCreated, LocalDateTime.now()).toSeconds() < 5) {
+                throw new ConflictException("Vui lòng chờ vài giây trước khi tạo phiên mới.");
+            }
+        }
+
         UserLearningProfile p = profileRepository.findByUserId(userId).orElse(null);
         String resolved =
                 (cefrLevel == null || cefrLevel.isBlank())
