@@ -1,6 +1,6 @@
 import type { Node, Edge } from "@xyflow/react";
 
-// ── Type mirrors SkillTreeNode from roadmap/page.tsx ─────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
 export interface SkillTreeNodeData {
   id: number;
   node_type: "CORE_TRUNK" | "SATELLITE_LEAF";
@@ -18,38 +18,50 @@ export interface SkillTreeNodeData {
   user_score: number;
   dependencies_met: boolean;
   industry?: string | null;
-  // React Flow requires [key: string]: unknown
   [key: string]: unknown;
 }
 
-export interface TreeNode extends Node {
-  data: SkillTreeNodeData;
+// ── Layout constants ──────────────────────────────────────────────────────────
+//
+//   LEFT WING           CENTER SPINE           RIGHT WING
+//  ─────────────    ─────────────────────    ─────────────
+//   [Sat L1]            [WeekMarker]           [Sat R1]
+//   [Sat L2]            [Core node 1]          [Sat R2]
+//                       [Core node 2]
+//
+const CORE_X        = 0;          // horizontal center of spine
+const NODE_W        = 220;        // skill card width
+const NODE_H        = 110;        // skill card height
+const WEEK_PILL_W   = 170;        // week pill width
+const WEEK_PILL_H   = 60;         // week pill height
+const CORE_GAP_V    = 14;         // vertical gap between consecutive core cards
+const SAT_GAP_V     = 14;         // vertical gap between satellite cards on same side
+const WEEK_TO_CORE  = 20;         // gap between week pill and first core card
+const SAT_X_OFFSET  = 340;        // horizontal distance from spine center to satellite center
+const WEEK_SECTION_GAP = 80;      // extra gap between week sections
+
+export interface LayoutResult {
+  nodes: Node[];
+  edges: Edge[];
+  /** nodeId of the first IN_PROGRESS or UNLOCKED node, for auto-jump */
+  currentNodeId: string | null;
 }
 
-// ── Layout constants ──────────────────────────────────────────────────────────
-const VERTICAL_GAP   = 200;   // px between core weeks
-const CORE_X         = 0;     // center x for core spine
-const SAT_X_GAP      = 320;   // horizontal distance from core to satellite
-const NODE_WIDTH     = 220;
-const NODE_HEIGHT    = 110;
-const WEEK_NODE_W    = 160;
-const WEEK_NODE_H    = 70;
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function edgeStroke(status: string) {
+  if (status === "COMPLETED")   return { color: "#22C55E", width: 2.5, opacity: 1 };
+  if (status === "IN_PROGRESS") return { color: "#FFCD00", width: 2.5, opacity: 1 };
+  if (status === "UNLOCKED")    return { color: "#FB923C", width: 2,   opacity: 0.85 };
+  return { color: "#1E293B", width: 1.5, opacity: 0.35 };
+}
 
-// ── Main layout function ──────────────────────────────────────────────────────
-/**
- * Converts a flat SkillTreeNode[] from the API into ReactFlow nodes + edges.
- * Layout:
- *   - CORE_TRUNK: grouped by week, placed vertically at x=0
- *   - SATELLITE_LEAF: branching left/right from their week row
- *   - Week "header" nodes are synthesis markers, not clickable
- */
-export function computeTreeLayout(
-  apiNodes: SkillTreeNodeData[]
-): { nodes: Node[]; edges: Edge[] } {
+// ── Main layout ───────────────────────────────────────────────────────────────
+export function computeTreeLayout(apiNodes: SkillTreeNodeData[]): LayoutResult {
   const rfNodes: Node[] = [];
   const rfEdges: Edge[] = [];
+  let currentNodeId: string | null = null;
 
-  // Group by week
+  // 1. Group by week
   const coreByWeek = new Map<number, SkillTreeNodeData[]>();
   const satByWeek  = new Map<number, SkillTreeNodeData[]>();
 
@@ -64,152 +76,143 @@ export function computeTreeLayout(
     }
   }
 
-  const sortedWeeks = Array.from(coreByWeek.keys()).sort((a, b) => a - b);
+  const weeks = Array.from(coreByWeek.keys()).sort((a, b) => a - b);
 
-  // START node
+  // 2. START sentinel
   rfNodes.push({
     id: "start",
     type: "startNode",
-    position: { x: CORE_X - 60, y: -160 },
+    position: { x: CORE_X - 70, y: -150 },
     data: { label: "START 🇩🇪" },
     draggable: false,
   });
 
-  let prevWeekMarkerId: string | null = "start";
-  let weekY = 0;
+  let prevId: string = "start";
+  let spineY = 0; // top of current week section
 
-  for (const week of sortedWeeks) {
-    const coreNodes = coreByWeek.get(week) ?? [];
-    const satNodes  = satByWeek.get(week)  ?? [];
+  // 3. Process each week
+  for (const week of weeks) {
+    const cores = (coreByWeek.get(week) ?? []).sort((a, b) => a.sort_order - b.sort_order);
+    const sats  = (satByWeek.get(week)  ?? []).sort((a, b) => a.sort_order - b.sort_order);
 
-    // ── Week marker node (W1, W2…) ──
-    const weekId = `week-${week}`;
-    const weekCompleted = coreNodes.every((n) => n.user_status === "COMPLETED");
-    const weekCurrent   = !weekCompleted && coreNodes.some(
-      (n) => n.user_status === "IN_PROGRESS" || n.user_status === "UNLOCKED"
+    const leftSats  = sats.filter((_, i) => i % 2 === 0);  // even index → left
+    const rightSats = sats.filter((_, i) => i % 2 === 1);  // odd index  → right
+
+    // ── Week pill ──
+    const weekId        = `week-${week}`;
+    const weekCompleted = cores.every(n => n.user_status === "COMPLETED");
+    const weekCurrent   = !weekCompleted && cores.some(
+      n => n.user_status === "IN_PROGRESS" || n.user_status === "UNLOCKED"
     );
 
     rfNodes.push({
       id: weekId,
       type: "weekMarker",
-      position: { x: CORE_X - WEEK_NODE_W / 2, y: weekY },
-      data: {
-        week,
-        label: `Tuần ${week}`,
-        phase: coreNodes[0]?.phase ?? "",
-        completed: weekCompleted,
-        current: weekCurrent,
-      },
+      position: { x: CORE_X - WEEK_PILL_W / 2, y: spineY },
+      data: { week, label: `Tuần ${week}`, phase: cores[0]?.phase ?? "", completed: weekCompleted, current: weekCurrent },
       draggable: false,
     });
 
-    // Edge: previous week marker → this week marker
-    if (prevWeekMarkerId) {
-      const prevStatus = weekCompleted ? "completed" : weekCurrent ? "current" : "locked";
-      rfEdges.push({
-        id: `e-${prevWeekMarkerId}-${weekId}`,
-        source: prevWeekMarkerId,
-        target: weekId,
-        type: "smoothstep",
-        animated: weekCurrent,
-        style: {
-          stroke: weekCompleted ? "#22C55E" : weekCurrent ? "#FFCD00" : "#334155",
-          strokeWidth: weekCompleted || weekCurrent ? 3 : 2,
-          opacity: weekCompleted || weekCurrent ? 1 : 0.4,
-        },
-      });
-    }
-    prevWeekMarkerId = weekId;
+    // Edge: prev → week pill
+    const spineStroke = weekCompleted ? "#22C55E" : weekCurrent ? "#FFCD00" : "#1E293B";
+    rfEdges.push({
+      id: `e-${prevId}-${weekId}`,
+      source: prevId, target: weekId,
+      type: "smoothstep",
+      animated: weekCurrent,
+      style: { stroke: spineStroke, strokeWidth: weekCompleted || weekCurrent ? 3 : 2, opacity: weekCompleted || weekCurrent ? 1 : 0.4 },
+    });
+    prevId = weekId;
 
-    // ── Core content nodes (inline below week marker) ──
-    let coreY = weekY + WEEK_NODE_H + 20;
-    for (const cn of coreNodes.sort((a, b) => a.sort_order - b.sort_order)) {
+    // ── Core nodes below pill ──
+    let coreY = spineY + WEEK_PILL_H + WEEK_TO_CORE;
+    const coreNodeIds: string[] = [];
+
+    for (const cn of cores) {
       const nid = `node-${cn.id}`;
+      coreNodeIds.push(nid);
+
+      if (!currentNodeId && (cn.user_status === "IN_PROGRESS" || cn.user_status === "UNLOCKED")) {
+        currentNodeId = nid;
+      }
+
       rfNodes.push({
-        id: nid,
-        type: "skillNode",
-        position: { x: CORE_X - NODE_WIDTH / 2, y: coreY },
-        data: cn,
-        draggable: false,
+        id: nid, type: "skillNode",
+        position: { x: CORE_X - NODE_W / 2, y: coreY },
+        data: cn, draggable: false,
       });
+
+      const es = edgeStroke(cn.user_status);
       rfEdges.push({
-        id: `e-${weekId}-${nid}`,
-        source: weekId,
-        target: nid,
-        type: "smoothstep",
-        style: {
-          stroke: cn.user_status === "COMPLETED" ? "#22C55E"
-               : cn.user_status === "IN_PROGRESS" ? "#FFCD00"
-               : "#334155",
-          strokeWidth: 2,
-          opacity: cn.user_status === "LOCKED" ? 0.35 : 0.8,
-        },
-        animated: cn.user_status === "IN_PROGRESS",
+        id: `e-${weekId}-${nid}`, source: weekId, target: nid,
+        type: "smoothstep", animated: cn.user_status === "IN_PROGRESS",
+        style: { stroke: es.color, strokeWidth: es.width, opacity: es.opacity },
       });
-      coreY += NODE_HEIGHT + 16;
+
+      coreY += NODE_H + CORE_GAP_V;
     }
 
-    // ── Satellite nodes (branch left/right) ──
-    const leftSats  = satNodes.filter((_, i) => i % 2 === 0);
-    const rightSats = satNodes.filter((_, i) => i % 2 === 1);
+    const coreTotalH = cores.length * NODE_H + Math.max(0, cores.length - 1) * CORE_GAP_V;
 
-    const placeSat = (sat: SkillTreeNodeData, side: "left" | "right", idx: number) => {
-      const xSign = side === "left" ? -1 : 1;
-      const nid   = `node-${sat.id}`;
-      const satY  = weekY + (idx * (NODE_HEIGHT + 24));
+    // ── Satellite wings ──
+    // Satellites are centred on the core block, not on the week pill
+    const coreBlockCenterY = spineY + WEEK_PILL_H + WEEK_TO_CORE + coreTotalH / 2;
+
+    const placeSat = (sat: SkillTreeNodeData, side: "left" | "right", idx: number, total: number) => {
+      const nid  = `node-${sat.id}`;
+      const sign = side === "left" ? -1 : 1;
+      const x    = CORE_X + sign * (SAT_X_OFFSET + NODE_W / 2) - NODE_W / 2;
+
+      // Centre the column of satellites on coreBlockCenterY
+      const columnH = total * NODE_H + Math.max(0, total - 1) * SAT_GAP_V;
+      const y = coreBlockCenterY - columnH / 2 + idx * (NODE_H + SAT_GAP_V);
+
+      if (!currentNodeId && (sat.user_status === "IN_PROGRESS" || sat.user_status === "UNLOCKED")) {
+        currentNodeId = nid;
+      }
 
       rfNodes.push({
-        id: nid,
-        type: "skillNode",
-        position: {
-          x: CORE_X + xSign * SAT_X_GAP - NODE_WIDTH / 2,
-          y: satY,
-        },
+        id: nid, type: "skillNode",
+        position: { x, y },
         data: { ...sat, isSatellite: true },
         draggable: false,
       });
 
+      // Connect from the closest core node in this week (or weekId if no cores)
+      const sourceId = coreNodeIds[Math.min(idx, coreNodeIds.length - 1)] ?? weekId;
       rfEdges.push({
-        id: `e-${weekId}-${nid}`,
-        source: weekId,
-        target: nid,
-        type: "bezier",
+        id: `e-${sourceId}-${nid}`, source: sourceId, target: nid,
+        type: "smoothstep",
         style: {
-          stroke: "#6366F1",
-          strokeWidth: 1.5,
-          strokeDasharray: "6 4",
-          opacity: sat.user_status === "LOCKED" ? 0.3 : 0.7,
+          stroke: "#6366F1", strokeWidth: 1.5,
+          strokeDasharray: "6 3",
+          opacity: sat.user_status === "LOCKED" ? 0.25 : 0.65,
         },
         animated: sat.user_status === "IN_PROGRESS",
       });
     };
 
-    leftSats.forEach((s, i)  => placeSat(s, "left",  i));
-    rightSats.forEach((s, i) => placeSat(s, "right", i));
+    leftSats.forEach((s, i)  => placeSat(s, "left",  i, leftSats.length));
+    rightSats.forEach((s, i) => placeSat(s, "right", i, rightSats.length));
 
-    // Advance weekY — enough for core nodes + satellite height
-    const coreTotalH = coreNodes.length * (NODE_HEIGHT + 16);
-    const satTotalH  = Math.max(leftSats.length, rightSats.length) * (NODE_HEIGHT + 24);
-    weekY += WEEK_NODE_H + Math.max(coreTotalH, satTotalH) + VERTICAL_GAP;
+    // ── Advance spineY ──
+    const satColH = Math.max(leftSats.length, rightSats.length) * (NODE_H + SAT_GAP_V);
+    const sectionH = WEEK_PILL_H + WEEK_TO_CORE + Math.max(coreTotalH, satColH);
+    spineY += sectionH + WEEK_SECTION_GAP;
   }
 
-  // FINISH node
+  // 4. FINISH sentinel
   rfNodes.push({
-    id: "finish",
-    type: "startNode",
-    position: { x: CORE_X - 60, y: weekY },
+    id: "finish", type: "startNode",
+    position: { x: CORE_X - 80, y: spineY },
     data: { label: "🏆 Hoàn thành!" },
     draggable: false,
   });
-  if (prevWeekMarkerId) {
-    rfEdges.push({
-      id: `e-${prevWeekMarkerId}-finish`,
-      source: prevWeekMarkerId,
-      target: "finish",
-      type: "smoothstep",
-      style: { stroke: "#FFCD00", strokeWidth: 2, opacity: 0.5 },
-    });
-  }
+  rfEdges.push({
+    id: `e-${prevId}-finish`, source: prevId, target: "finish",
+    type: "smoothstep",
+    style: { stroke: "#FFCD00", strokeWidth: 2, opacity: 0.4 },
+  });
 
-  return { nodes: rfNodes, edges: rfEdges };
+  return { nodes: rfNodes, edges: rfEdges, currentNodeId };
 }

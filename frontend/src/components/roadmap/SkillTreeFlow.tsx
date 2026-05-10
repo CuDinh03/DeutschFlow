@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import {
   ReactFlow,
   Background,
@@ -10,6 +10,7 @@ import {
   useNodesState,
   useEdgesState,
   useReactFlow,
+  type Node,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
@@ -17,64 +18,85 @@ import { computeTreeLayout, type SkillTreeNodeData } from "./treeLayout";
 import { SkillNode, WeekMarkerNode, StartFinishNode } from "./SkillTreeNodes";
 
 const NODE_TYPES = {
-  skillNode:   SkillNode,
-  weekMarker:  WeekMarkerNode,
-  startNode:   StartFinishNode,
+  skillNode:  SkillNode,
+  weekMarker: WeekMarkerNode,
+  startNode:  StartFinishNode,
 };
 
-// ── MiniMap node color ────────────────────────────────────────────────────────
+// ── MiniMap colour helper ─────────────────────────────────────────────────────
 function miniMapColor(node: { type?: string; data?: Record<string, unknown> }) {
   if (node.type === "weekMarker") return "#FFCD00";
   if (node.type === "startNode")  return "#FFCD00";
   const status = node.data?.user_status as string | undefined;
   if (status === "COMPLETED")   return "#22C55E";
   if (status === "IN_PROGRESS") return "#FFCD00";
+  if (status === "UNLOCKED")    return "#FB923C";
   const isSat = node.data?.isSatellite as boolean | undefined;
-  if (isSat) return "#6366F1";
-  return "#1E293B";
+  return isSat ? "#6366F1" : "#1E293B";
 }
 
-// ── Props ──────────────────────────────────────────────────────────────────────
-interface Props {
+// ── Inner component (needs ReactFlow context) ─────────────────────────────────
+interface InnerProps {
   apiNodes: SkillTreeNodeData[];
   onSelectNode: (node: SkillTreeNodeData) => void;
+  initialCurrentId: string | null;
 }
 
-// ── FitButton helper (needs ReactFlow context) ────────────────────────────────
-function FitButton() {
-  const { fitView } = useReactFlow();
-  return (
-    <button
-      type="button"
-      onClick={() => fitView({ padding: 0.12, duration: 600 })}
-      title="Nhìn toàn bộ"
-      style={{
-        position: "absolute", bottom: 108, right: 12, zIndex: 5,
-        width: 32, height: 32, borderRadius: 8,
-        background: "#1E293B", border: "1px solid #334155",
-        color: "#94A3B8", display: "flex", alignItems: "center",
-        justifyContent: "center", cursor: "pointer", fontSize: 16,
-      }}
-    >
-      ⊡
-    </button>
-  );
-}
+function SkillTreeInner({ apiNodes, onSelectNode, initialCurrentId }: InnerProps) {
+  const { fitView, fitBounds, getNode } = useReactFlow();
+  const didInitialFit = useRef(false);
 
-// ── Main SkillTreeFlow ────────────────────────────────────────────────────────
-export default function SkillTreeFlow({ apiNodes, onSelectNode }: Props) {
-  // Compute layout once from props
-  const { nodes: initialNodes, edges: initialEdges } = useMemo(
+  // Compute layout
+  const { nodes: layoutNodes, edges: layoutEdges } = useMemo(
     () => computeTreeLayout(apiNodes),
     [apiNodes]
   );
 
-  const [nodes, , onNodesChange] = useNodesState(initialNodes);
-  const [edges, , onEdgesChange] = useEdgesState(initialEdges);
+  const [nodes, , onNodesChange] = useNodesState(layoutNodes);
+  const [edges, , onEdgesChange] = useEdgesState(layoutEdges);
 
-  // Node click → open detail panel
+  // Jump to a specific node by id
+  const jumpToNode = useCallback(
+    (nodeId: string | null) => {
+      if (!nodeId) {
+        fitView({ padding: 0.1, duration: 700 });
+        return;
+      }
+      const target = getNode(nodeId);
+      if (target) {
+        const { x, y } = target.position;
+        const w = (target.measured?.width  as number | undefined) ?? 220;
+        const h = (target.measured?.height as number | undefined) ?? 110;
+        fitBounds(
+          { x, y, width: w, height: h },
+          { padding: 2.5, duration: 700 }
+        );
+      } else {
+        fitView({ padding: 0.1, duration: 700 });
+      }
+    },
+    [fitView, fitBounds, getNode]
+  );
+
+  // Auto-fit on first render
+  useEffect(() => {
+    if (!didInitialFit.current && nodes.length > 0) {
+      didInitialFit.current = true;
+      // Small delay so ReactFlow has measured nodes
+      const timer = setTimeout(() => {
+        if (initialCurrentId) {
+          jumpToNode(initialCurrentId);
+        } else {
+          fitView({ padding: 0.12, duration: 500 });
+        }
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [nodes, initialCurrentId, jumpToNode, fitView]);
+
+  // Node click → detail panel
   const onNodeClick = useCallback(
-    (_: React.MouseEvent, node: { type?: string; data?: Record<string, unknown> }) => {
+    (_: React.MouseEvent, node: Node) => {
       if (node.type === "skillNode") {
         onSelectNode(node.data as unknown as SkillTreeNodeData);
       }
@@ -86,12 +108,12 @@ export default function SkillTreeFlow({ apiNodes, onSelectNode }: Props) {
     <div
       style={{
         width: "100%",
-        height: "calc(100vh - 160px)",
+        height: "calc(100vh - 168px)",
         minHeight: 500,
         borderRadius: 20,
         overflow: "hidden",
         border: "1px solid #1E293B",
-        background: "#0B1120",
+        background: "#080E1A",
         position: "relative",
       }}
     >
@@ -100,14 +122,12 @@ export default function SkillTreeFlow({ apiNodes, onSelectNode }: Props) {
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
-        onNodeClick={onNodeClick as Parameters<typeof ReactFlow>[0]["onNodeClick"]}
+        onNodeClick={onNodeClick}
         nodeTypes={NODE_TYPES}
-        fitView
-        fitViewOptions={{ padding: 0.12 }}
-        minZoom={0.08}
+        fitView={false}          // we handle fitView manually
+        minZoom={0.06}
         maxZoom={2}
         proOptions={{ hideAttribution: true }}
-        defaultEdgeOptions={{ type: "smoothstep" }}
         panOnScroll={false}
         zoomOnScroll
         panOnDrag
@@ -115,56 +135,106 @@ export default function SkillTreeFlow({ apiNodes, onSelectNode }: Props) {
         nodesConnectable={false}
         elementsSelectable
       >
-        {/* Dark dot grid background */}
-        <Background
-          variant={BackgroundVariant.Dots}
-          gap={28}
-          size={1}
-          color="#1E293B"
-        />
+        {/* Subtle dot grid */}
+        <Background variant={BackgroundVariant.Dots} gap={32} size={1} color="#1A2540" />
 
-        {/* Zoom + pan controls (bottom-left) */}
+        {/* Standard zoom controls (bottom-left) */}
         <Controls
           showInteractive={false}
           style={{
-            background: "#1E293B",
-            border: "1px solid #334155",
-            borderRadius: 10,
-            boxShadow: "none",
+            background: "#111827", border: "1px solid #1E293B",
+            borderRadius: 10, boxShadow: "none",
           }}
         />
 
-        {/* Fit-all button */}
-        <FitButton />
+        {/* ── Custom action buttons ── */}
 
-        {/* Mini-map (bottom-right) */}
+        {/* "Vị trí hiện tại" button */}
+        <div
+          style={{
+            position: "absolute", bottom: 16, left: "50%",
+            transform: "translateX(-50%)", zIndex: 20,
+            display: "flex", gap: 8,
+          }}
+        >
+          {/* Go to current node */}
+          <button
+            type="button"
+            onClick={() => jumpToNode(initialCurrentId)}
+            style={{
+              display: "flex", alignItems: "center", gap: 6,
+              background: "linear-gradient(135deg,#FFCD00,#F59E0B)",
+              border: "none", borderRadius: 999,
+              padding: "8px 18px", cursor: "pointer",
+              fontWeight: 800, fontSize: 12, color: "#121212",
+              boxShadow: "0 4px 16px rgba(255,205,0,0.35)",
+              whiteSpace: "nowrap",
+            }}
+          >
+            📍 Vị trí đang học
+          </button>
+
+          {/* Fit all */}
+          <button
+            type="button"
+            onClick={() => fitView({ padding: 0.1, duration: 600 })}
+            title="Nhìn toàn bộ"
+            style={{
+              display: "flex", alignItems: "center", gap: 6,
+              background: "#1E293B", border: "1px solid #334155",
+              borderRadius: 999, padding: "8px 16px",
+              cursor: "pointer", fontWeight: 700, fontSize: 12,
+              color: "#94A3B8",
+            }}
+          >
+            ⊡ Toàn bộ
+          </button>
+        </div>
+
+        {/* Mini-map */}
         <MiniMap
           nodeColor={miniMapColor}
-          maskColor="rgba(11,17,32,0.85)"
+          maskColor="rgba(8,14,26,0.88)"
           style={{
-            background: "#0F172A",
-            border: "1px solid #1E293B",
+            background: "#0F172A", border: "1px solid #1E293B",
             borderRadius: 10,
           }}
           nodeStrokeWidth={0}
-          pannable
-          zoomable
+          pannable zoomable
         />
       </ReactFlow>
 
-      {/* Hint */}
+      {/* Hint bar */}
       <div
         style={{
           position: "absolute", top: 12, left: "50%",
           transform: "translateX(-50%)", zIndex: 10,
-          background: "rgba(15,23,42,0.85)", backdropFilter: "blur(8px)",
+          background: "rgba(8,14,26,0.85)", backdropFilter: "blur(8px)",
           border: "1px solid #1E293B", borderRadius: 999,
-          padding: "5px 14px", fontSize: 11, color: "#64748B",
-          pointerEvents: "none",
+          padding: "5px 16px", fontSize: 11, color: "#475569",
+          pointerEvents: "none", whiteSpace: "nowrap",
         }}
       >
         🖱️ Scroll để zoom · Kéo để di chuyển · Click node để học
       </div>
     </div>
+  );
+}
+
+// ── Public component ──────────────────────────────────────────────────────────
+interface Props {
+  apiNodes: SkillTreeNodeData[];
+  onSelectNode: (node: SkillTreeNodeData) => void;
+}
+
+export default function SkillTreeFlow({ apiNodes, onSelectNode }: Props) {
+  const { currentNodeId } = useMemo(() => computeTreeLayout(apiNodes), [apiNodes]);
+
+  return (
+    <SkillTreeInner
+      apiNodes={apiNodes}
+      onSelectNode={onSelectNode}
+      initialCurrentId={currentNodeId}
+    />
   );
 }
