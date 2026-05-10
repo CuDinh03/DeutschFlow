@@ -595,13 +595,41 @@ export default function AdminUsersPage() {
                           <select
                             className="w-full px-3 py-2 rounded-[10px] text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100 transition-shadow appearance-none"
                             style={{ border: `1px solid ${P.border}`, background: P.bg, color: P.navy }}
-                            value={planCode} onChange={(e) => setPlanCode(e.target.value)}
+                            value={planCode}
+                            onChange={(e) => {
+                              const code = e.target.value;
+                              setPlanCode(code);
+                              // Auto-set dates based on plan rules
+                              const now = new Date();
+                              setStartsAtUtcInput(now.toISOString());
+                              switch (code.toUpperCase()) {
+                                case "FREE": {
+                                  const end = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+                                  setEndsAtUtcInput(end.toISOString());
+                                  break;
+                                }
+                                case "PRO":
+                                case "ULTRA": {
+                                  const end = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+                                  setEndsAtUtcInput(end.toISOString());
+                                  break;
+                                }
+                                case "DEFAULT":
+                                case "INTERNAL":
+                                default:
+                                  setEndsAtUtcInput(""); // Vĩnh viễn
+                                  break;
+                              }
+                            }}
                           >
                             {plans.map((p) => (
                               <option key={p.code} value={p.code}>{p.code}</option>
                             ))}
                             {plans.length === 0 && <option value="FREE">FREE</option>}
                           </select>
+                          <p className="text-[9px] mt-1 font-medium" style={{ color: P.muted }}>
+                            {planCode === "FREE" ? "7 ngày" : planCode === "PRO" || planCode === "ULTRA" ? "30 ngày" : "Vĩnh viễn"}
+                          </p>
                         </div>
                         <div>
                           <label className="text-[10px] font-bold uppercase block mb-1" style={{ color: P.muted }}>Override Limit</label>

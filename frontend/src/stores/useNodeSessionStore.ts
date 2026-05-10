@@ -92,7 +92,7 @@ export interface NodeSession {
   dependenciesMet: boolean;
 }
 
-type ActiveView = "grammar" | "reading" | "listening" | "speaking" | "writing";
+type ActiveView = "grammar" | "reading" | "listening" | "speaking" | "writing" | "phoneme";
 
 interface NodeSessionState {
   session: NodeSession | null;

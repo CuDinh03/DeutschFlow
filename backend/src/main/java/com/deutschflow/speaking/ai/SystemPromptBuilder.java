@@ -10,6 +10,7 @@ import com.deutschflow.user.entity.UserLearningProfile;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Builds the dynamic system prompt for the "DeutschFlow AI Tutor".
@@ -439,6 +440,10 @@ public class SystemPromptBuilder {
         int phase;
         String phaseName;
         String phaseInstruction;
+
+        // Random seed per session — forces LLM to vary questions across sessions
+        int sessionSeed = ThreadLocalRandom.current().nextInt(1000);
+
         if (currentTurn <= 1) {
             phase = 1;
             phaseName = "Begrüßung & Selbstvorstellung";
@@ -446,16 +451,40 @@ public class SystemPromptBuilder {
         } else if (currentTurn <= 3) {
             phase = 2;
             phaseName = "Ice-Breaker";
-            phaseInstruction = "Stelle lockere, aber professionelle Fragen zum Einstieg. Ziel: Kandidat entspannen, erste Eindrücke.";
+            // Randomize ice-breaker approach
+            String[] iceBreakers = {
+                "Frage nach dem Weg zum Gespräch oder ersten Eindrücken von der Firma/Stadt.",
+                "Frage, was den Kandidaten an dieser Branche/Stelle besonders interessiert hat.",
+                "Frage nach aktuellen Projekten oder letzter beruflicher Erfahrung.",
+                "Frage, wie der Kandidat den Kontakt zu dieser Stelle gefunden hat.",
+                "Frage nach einem typischen Arbeitstag in der aktuellen/letzten Stelle.",
+                "Frage, was den Kandidaten motiviert und welche beruflichen Ziele er hat.",
+            };
+            String picked = iceBreakers[sessionSeed % iceBreakers.length];
+            phaseInstruction = "Stelle lockere, aber professionelle Fragen zum Einstieg. "
+                    + "Ansatz für diese Session: " + picked + " Ziel: Kandidat entspannen, erste Eindrücke.";
         } else if (currentTurn <= 7) {
             phase = 3;
             phaseName = "Fachliche Kompetenz / Hard Skills";
-            phaseInstruction = "Tiefgreifende Fragen zur Eignung für \"" + position + "\". Mindestens 1 Case Study. "
+            // Inject randomized topic focus from domain pool
+            String domainTopics = interviewHardSkillTopics(persona, position, sessionSeed);
+            phaseInstruction = "Tiefgreifende Fragen zur Eignung für \"" + position + "\". "
+                    + "THEMEN-SCHWERPUNKT für diese Session: " + domainTopics + " "
+                    + "Mindestens 1 Case Study oder Praxisszenario. "
                     + "Wenn Kandidat bei 2 Fragen schwach antwortet → 1 einfachere Frage zum selben Thema.";
         } else if (currentTurn <= 10) {
             phase = 4;
             phaseName = "Soft Skills & STAR";
-            phaseInstruction = "Verhaltensfragen nach STAR-Methode: Stressbewältigung, Teamkonflikte, Fehlermanagement. "
+            String[] starTopics = {
+                "Stressbewältigung und Umgang mit Druck",
+                "Teamkonflikte und Konfliktlösung",
+                "Fehlermanagement und Lernen aus Misserfolgen",
+                "Führung und Verantwortungsübernahme",
+                "Kommunikation mit schwierigen Kunden oder Kollegen",
+                "Priorisierung bei konkurrierenden Aufgaben",
+            };
+            String starPick = starTopics[sessionSeed % starTopics.length];
+            phaseInstruction = "Verhaltensfragen nach STAR-Methode. Schwerpunkt: " + starPick + ". "
                     + "Wenn der Kandidat nicht in STAR antwortet: 'Können Sie ein konkretes Beispiel nennen?'";
         } else {
             phase = 5;
@@ -466,6 +495,8 @@ public class SystemPromptBuilder {
         sb.append("== AKTUELLE PHASE (Server-gesteuert) ==\n");
         sb.append("Du befindest dich in PHASE ").append(phase).append(" — ").append(phaseName);
         sb.append(" (Turn ").append(Math.max(1, currentTurn)).append(").\n");
+        sb.append("Session-Variation-Seed: ").append(sessionSeed).append(" (nutze diesen Seed, um Fragen zu variieren — "
+                + "stelle ANDERE Fragen als bei anderen Seed-Werten).\n");
         sb.append("Anweisung: ").append(phaseInstruction).append("\n");
         if (phase < 5) {
             sb.append("Bleibe in dieser Phase, bis genügend Fragen gestellt und beantwortet wurden. ");
@@ -552,17 +583,83 @@ public class SystemPromptBuilder {
     private String interviewPersonaFocus(SpeakingPersona persona, String level) {
         return switch (persona) {
             case DEFAULT -> "Fokus: allgemeine Bewerbungs-/Strukturfragen passend zu " + level + " (Team, Stärken, kurze STAR-Antworten).";
-            case LUKAS -> "Domäne IT/Software: Systemdesign auf " + level + ", Teamarbeit, Debugging, Code-Review-Kultur, Agile/Jira, Bewerbung in Startup-Kontext.";
-            case EMMA -> "Domäne Business & Kundenkontakt: Pitch, Situationsfragen, Höflichkeit, klare Nutzenargumente — nicht nur Smalltalk.";
-            case HANNA -> "Domäne Studentenleben & Organisation: Zeitmanagement, WG/Uni, nachhaltiger Alltag, Studium vs. Job, Stressbewältigung.";
-            case KLAUS -> "Domäne Gastronomie & Profiküche (Deutschland): Kochtechniken (z. B. Garstufen, Saucengrund), Hygiene & HACCP/IFS-Themen angepasst an "
-                    + level + ", Teamarbeit in der Brigade, Schichtwechsel, Stress in der Rush — realistische Küchen-Interviewfragen.";
-            case LENA, THOMAS, PETRA -> "Domäne Verkauf/Einzelhandel: Kundenberatung, Kassensystem, Warenkunde, Reklamation, Teamarbeit im Laden — passend zu " + level + ".";
-            case SARAH, SCHNEIDER, WEBER -> "Domäne Medizin/Gesundheitswesen: Patientenaufnahme, Terminvergabe, Untersuchungsabläufe, Fachbegriffe — passend zu " + level + ".";
-            case MAX, OLIVER -> "Domäne Maschinenbau/Fertigung: Maschinenkenntnis, Sicherheitsvorschriften, CNC-Programmierung, Qualitätskontrolle — passend zu " + level + ".";
-            case NIKLAS, NINA -> "Domäne Service/Gastronomie/Hotellerie: Gastfreundschaft, Bestellungsaufnahme, Check-in/Check-out, Beschwerdemanagement — passend zu " + level + ".";
+            case LUKAS -> "Domäne IT/Software: Systemdesign, Architekturentscheidungen, Code-Qualität, Teamarbeit, " +
+                    "DevOps/CI-CD, Testing-Strategien, Debugging, Performance-Optimierung, Agile/Scrum, " +
+                    "Tech-Stack-Bewertung, API-Design, Skalierung — passend zu " + level + ".";
+            case EMMA -> "Domäne Business & Kundenkontakt: Pitch-Strategien, Marktanalyse, Kundenakquise, CRM, " +
+                    "Verhandlungsführung, Projektmanagement, KPI-Tracking, Networking, Präsentationen, " +
+                    "Partnerschaftsentwicklung — passend zu " + level + ".";
+            case HANNA -> "Domäne Bildung & Organisation: Zeitmanagement, interkulturelle Kommunikation, " +
+                    "Studienplanung, Karriereentwicklung, Work-Life-Balance, Selbstorganisation, " +
+                    "Stressbewältigung, Gruppenarbeit, Mentorenrolle — passend zu " + level + ".";
+            case KLAUS -> "Domäne Gastronomie & Profiküche: Kochtechniken (Garstufen, Saucen, Sous-vide, Fermentierung), " +
+                    "Hygiene (HACCP, IFS, Allergenmanagement), Warenwirtschaft & Bestellwesen, " +
+                    "Küchenorganisation (Brigade-System, Mise en Place), Menüplanung & Kalkulation, " +
+                    "Stressmanagement in der Rush Hour, Personalführung, Saisonale Küche, " +
+                    "Nachhaltigkeit & Food Waste, Lieferanten-Management — passend zu " + level + ".";
+            case LENA, THOMAS, PETRA -> "Domäne Verkauf/Einzelhandel: Kundenberatung, Warenpräsentation, " +
+                    "Kassensysteme, Inventur, Visual Merchandising, Reklamationsbearbeitung, " +
+                    "Upselling/Cross-Selling, Teamarbeit im Laden — passend zu " + level + ".";
+            case SARAH, SCHNEIDER, WEBER -> "Domäne Medizin/Gesundheitswesen: Patientenaufnahme, Anamnese, " +
+                    "Dokumentation, Terminplanung, Notfallprotokolle, Medikamentenmanagement, " +
+                    "Hygienevorgaben, interdisziplinäre Zusammenarbeit — passend zu " + level + ".";
+            case MAX, OLIVER -> "Domäne Maschinenbau/Fertigung: CNC-Programmierung, Qualitätskontrolle, " +
+                    "Arbeitssicherheit, Lean Manufacturing, technische Zeichnungen, " +
+                    "Wartung & Instandhaltung, Materialkenntnis — passend zu " + level + ".";
+            case NIKLAS, NINA -> "Domäne Service/Hotellerie: Gastfreundschaft, Beschwerdemanagement, " +
+                    "Check-in/Check-out, Reservierungssysteme, Event-Organisation, " +
+                    "F&B-Service, Housekeeping-Koordination — passend zu " + level + ".";
             case TUAN, LAN, MINH -> "Fokus: allgemeine Bewerbungs-/Strukturfragen passend zu " + level + ".";
         };
+    }
+
+    /**
+     * Returns 2-3 randomized hard-skill topics from a per-persona pool,
+     * so each interview session focuses on DIFFERENT areas.
+     */
+    private String interviewHardSkillTopics(SpeakingPersona persona, String position, int seed) {
+        String[][] topicPools = switch (persona) {
+            case KLAUS -> new String[][] {
+                {"Kochtechniken (Garstufen, Saucen, Sous-vide)", "Mise en Place und Küchenorganisation"},
+                {"HACCP-Konzept und Allergenmanagement", "Warenwirtschaft und Lieferantenbewertung"},
+                {"Menüplanung und Kalkulation", "Brigade-System und Teamführung"},
+                {"Saisonale Küche und regionale Produkte", "Stressmanagement in der Rush Hour"},
+                {"Nachhaltigkeit und Food-Waste-Reduktion", "Kreativität bei Spezialkost (vegan, Allergien)"},
+                {"IFS/BRC-Standards und Qualitätssicherung", "Personalplanung und Schichtorganisation"},
+                {"Fermentierung und moderne Kochtechniken", "Kastenplanung und Bankettorganisation"},
+            };
+            case LUKAS -> new String[][] {
+                {"Systemdesign und Architekturentscheidungen", "API-Design und Microservices"},
+                {"Testing-Strategien (Unit, Integration, E2E)", "Code-Review-Kultur und Best Practices"},
+                {"DevOps, CI/CD und Deployment-Strategien", "Performance-Optimierung und Monitoring"},
+                {"Debugging komplexer Systeme", "Datenbank-Design und Skalierung"},
+                {"Agile Methoden und Teamorganisation", "Tech-Stack-Bewertung und Migration"},
+                {"Security Best Practices", "Cloud-Architektur (AWS/Azure/GCP)"},
+                {"Frontend-/Backend-Zusammenarbeit", "Legacy-Code-Modernisierung"},
+            };
+            case EMMA -> new String[][] {
+                {"Kundenakquise und Pitch-Strategien", "Marktanalyse und Wettbewerbsbeobachtung"},
+                {"Verhandlungsführung und Abschlusstechniken", "CRM-Systeme und Pipeline-Management"},
+                {"Projektmanagement und Stakeholder-Kommunikation", "KPI-Tracking und Reporting"},
+                {"Networking und Partnerschaftsentwicklung", "Präsentationstechniken"},
+                {"Account Management und Kundenbindung", "Interkulturelle Geschäftskommunikation"},
+            };
+            case HANNA -> new String[][] {
+                {"Zeitmanagement und Priorisierung", "Studienplanung und Karriereziele"},
+                {"Interkulturelle Kompetenz", "Gruppenarbeit und Teamdynamik"},
+                {"Work-Life-Balance und Stressbewältigung", "Selbstorganisation und Produktivität"},
+                {"Mentorenrolle und Peer-Learning", "Bewerbungsstrategie und Netzwerken"},
+            };
+            default -> new String[][] {
+                {"Teamarbeit und Zusammenarbeit", "Problemlösung und Entscheidungsfindung"},
+                {"Kommunikationsfähigkeit", "Organisationstalent und Zeitmanagement"},
+                {"Fachliche Grundkenntnisse für " + position, "Lernbereitschaft und Weiterentwicklung"},
+            };
+        };
+
+        // Pick 1 topic set based on seed
+        String[] picked = topicPools[seed % topicPools.length];
+        return String.join(" + ", picked);
     }
 
     public String buildSystemPrompt(UserLearningProfile profile, List<String> knownInterests, String topic, List<WeakPoint> weakPoints) {

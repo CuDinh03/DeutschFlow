@@ -23,6 +23,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
@@ -38,8 +40,14 @@ import java.util.function.Consumer;
 public class GroqChatClient implements OpenAiChatClient {
 
     private static final String GROQ_BASE_URL = "https://api.groq.com/openai/v1/chat/completions";
-    private static final int MAX_RETRIES = 3;
-    private static final long[] BACKOFF_MILLIS = {1_000L, 2_000L, 4_000L};
+    private static final int MAX_RETRIES = 5;
+    private static final long[] BACKOFF_MILLIS = {2_000L, 4_000L, 8_000L, 16_000L, 32_000L};
+
+    /**
+     * Limits concurrent Groq API calls to avoid bursting past the 30 RPM free-tier limit.
+     * With 3 permits, at most 3 LLM requests run simultaneously; additional callers queue.
+     */
+    private static final Semaphore GROQ_SEMAPHORE = new Semaphore(3);
 
     private final RestClient restClient;
     private final HttpClient httpClient;
@@ -82,6 +90,23 @@ public class GroqChatClient implements OpenAiChatClient {
         String requestBody = buildRequestBody(messages, effectiveModel, temperature, maxTokens, false);
         log.debug("Calling Groq API (blocking): model={}", defaultModel);
 
+        boolean acquired = false;
+        try {
+            acquired = GROQ_SEMAPHORE.tryAcquire(60, TimeUnit.SECONDS);
+            if (!acquired) {
+                log.warn("[Groq] Semaphore timeout — too many concurrent AI requests");
+                throw new AiServiceException("AI service is busy. Please try again shortly.");
+            }
+            return chatCompletionWithRetry(requestBody, effectiveModel);
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new AiServiceException("AI request interrupted.", ie);
+        } finally {
+            if (acquired) GROQ_SEMAPHORE.release();
+        }
+    }
+
+    private AiChatCompletionResult chatCompletionWithRetry(String requestBody, String effectiveModel) {
         Exception lastException = null;
         for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
             try {
@@ -123,11 +148,24 @@ public class GroqChatClient implements OpenAiChatClient {
         String requestBody = buildRequestBody(messages, effectiveModel, temperature, maxTokens, true);
         log.debug("Calling Groq API (stream): model={}", defaultModel);
 
+        boolean acquired = false;
+        try {
+            acquired = GROQ_SEMAPHORE.tryAcquire(60, TimeUnit.SECONDS);
+            if (!acquired) {
+                log.warn("[Groq] Semaphore timeout (stream) — too many concurrent AI requests");
+                throw new AiServiceException("AI service is busy. Please try again shortly.");
+            }
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new AiServiceException("AI stream request interrupted.", ie);
+        }
+
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(GROQ_BASE_URL))
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .header(HttpHeaders.ACCEPT, "text/event-stream")
+                .timeout(java.time.Duration.ofSeconds(90))
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody, StandardCharsets.UTF_8))
                 .build();
 
@@ -182,6 +220,8 @@ public class GroqChatClient implements OpenAiChatClient {
             throw e;
         } catch (Exception e) {
             throw new AiServiceException("Groq streaming failed: " + e.getMessage(), e);
+        } finally {
+            GROQ_SEMAPHORE.release();
         }
     }
 

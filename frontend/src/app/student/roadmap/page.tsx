@@ -593,6 +593,22 @@ export default function RoadmapPage() {
     () => nodes.filter((n) => n.user_status === "COMPLETED").length,
     [nodes]
   );
+  const coreNodes = useMemo(() => nodes.filter((n) => n.node_type === "CORE_TRUNK"), [nodes]);
+  const satelliteNodes = useMemo(() => nodes.filter((n) => n.node_type === "SATELLITE_LEAF"), [nodes]);
+  const coreCompleted = useMemo(() => coreNodes.filter((n) => n.user_status === "COMPLETED").length, [coreNodes]);
+  const corePct = coreNodes.length > 0 ? Math.round((coreCompleted / coreNodes.length) * 100) : 0;
+
+  // Group satellite by industry (from title_de prefix or phase)
+  const satelliteByIndustry = useMemo(() => {
+    const map = new Map<string, SkillTreeNode[]>();
+    satelliteNodes.forEach((n) => {
+      const key = n.phase || "BERUF";
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(n);
+    });
+    return map;
+  }, [satelliteNodes]);
+
   const currentWeek = weekGroups.find((g) => g.state === "current");
 
   const handleStartNode = useCallback(
@@ -689,31 +705,45 @@ export default function RoadmapPage() {
           )}
         </AnimatePresence>
 
-        {/* Stats bar */}
-        {!loading && nodes.length > 0 && (
-          <div className="grid grid-cols-3 gap-3">
-            <div className="bg-white rounded-2xl p-3 border border-[#E2E8F0] text-center">
-              <div className="flex items-center justify-center gap-1 mb-1">
-                <Star size={14} className="text-yellow-400" />
-                <span className="font-extrabold text-[#0F172A] text-lg">{totalXP}</span>
+        {/* ── Overall Progress Bar ── */}
+        {!loading && coreNodes.length > 0 && (
+          <div className="rounded-2xl bg-white border border-[#E2E8F0] p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-[#64748B] uppercase tracking-wide">Tiến độ CORE</p>
+                <p className="text-sm font-bold text-[#0F172A] mt-0.5">
+                  Ngày {coreCompleted}/{coreNodes.length}
+                  <span className="ml-2 text-[#64748B] font-normal">· {corePct}% hoàn thành</span>
+                </p>
               </div>
-              <p className="text-[10px] text-[#94A3B8]">Tổng XP</p>
+              <span className="text-2xl font-black text-[#121212]">{corePct}%</span>
             </div>
-            <div className="bg-white rounded-2xl p-3 border border-[#E2E8F0] text-center">
-              <div className="flex items-center justify-center gap-1 mb-1">
-                <Check size={14} className="text-[#10B981]" />
-                <span className="font-extrabold text-[#0F172A] text-lg">
-                  {completedCount}/{nodes.length}
-                </span>
-              </div>
-              <p className="text-[10px] text-[#94A3B8]">Bài hoàn thành</p>
+            {/* Progress bar */}
+            <div className="h-3 rounded-full bg-[#F1F5F9] overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-700"
+                style={{
+                  width: `${corePct}%`,
+                  background: corePct === 100
+                    ? "linear-gradient(90deg,#34D399,#10B981)"
+                    : "linear-gradient(90deg,#FFCD00,#F59E0B)",
+                }}
+              />
             </div>
-            <div className="bg-white rounded-2xl p-3 border border-[#E2E8F0] text-center">
-              <div className="flex items-center justify-center gap-1 mb-1">
-                <Flame size={14} className="text-orange-400" />
-                <span className="font-extrabold text-[#0F172A] text-lg">{streakDays}</span>
+            {/* Stats row */}
+            <div className="grid grid-cols-3 gap-2 pt-1">
+              <div className="text-center">
+                <p className="font-extrabold text-[#0F172A]">{totalXP}</p>
+                <p className="text-[10px] text-[#94A3B8]">Tổng XP</p>
               </div>
-              <p className="text-[10px] text-[#94A3B8]">Ngày liên tiếp</p>
+              <div className="text-center">
+                <p className="font-extrabold text-[#0F172A]">{completedCount}</p>
+                <p className="text-[10px] text-[#94A3B8]">Bài xong</p>
+              </div>
+              <div className="text-center">
+                <p className="font-extrabold text-[#0F172A]">{streakDays}🔥</p>
+                <p className="text-[10px] text-[#94A3B8]">Chuỗi ngày</p>
+              </div>
             </div>
           </div>
         )}
@@ -787,10 +817,60 @@ export default function RoadmapPage() {
           </div>
         )}
 
+        {/* ── SATELLITE Section ── */}
+        {!loading && satelliteNodes.length > 0 && (
+          <div className="rounded-2xl border-2 border-dashed border-[#C4B5FD] bg-[#F5F3FF] overflow-hidden">
+            <div className="px-4 py-3 flex items-center gap-2 border-b border-[#E9D5FF]">
+              <span className="text-lg">🚀</span>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-[#5B21B6]">Bài chuyên ngành</p>
+                <p className="text-[11px] text-[#7C3AED]">
+                  {satelliteNodes.filter(n => n.user_status === "COMPLETED").length}/{satelliteNodes.length} bài · Mở sau Day 14
+                </p>
+              </div>
+              {corePct < 40 && (
+                <span className="text-[10px] bg-amber-100 text-amber-700 font-bold px-2 py-1 rounded-full">
+                  🔒 Cần {Math.max(0, 14 - coreCompleted)} ngày nữa
+                </span>
+              )}
+            </div>
+            <div className="px-4 py-3 space-y-2">
+              {Array.from(satelliteByIndustry.entries()).map(([industry, indNodes]) => {
+                const done = indNodes.filter(n => n.user_status === "COMPLETED").length;
+                const isUnlocked = indNodes.some(n => n.user_status !== "LOCKED");
+                return (
+                  <div key={industry} className="flex items-center gap-3 bg-white rounded-xl p-3 border border-[#E9D5FF]">
+                    <span className="text-xl">{indNodes[0]?.emoji ?? "🏭"}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-[#4C1D95] truncate">{industry.replace(/_/g, " ")}</p>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <div className="flex-1 h-1.5 rounded-full bg-[#EDE9FE] overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-[#7C3AED] transition-all duration-500"
+                            style={{ width: `${indNodes.length > 0 ? (done / indNodes.length) * 100 : 0}%` }}
+                          />
+                        </div>
+                        <span className="text-[10px] text-[#7C3AED] font-bold shrink-0">{done}/{indNodes.length}</span>
+                      </div>
+                    </div>
+                    {isUnlocked ? (
+                      <span className="text-[10px] bg-green-100 text-green-700 font-bold px-2 py-0.5 rounded-full">✅ Mở</span>
+                    ) : (
+                      <span className="text-[10px] bg-[#EDE9FE] text-[#7C3AED] font-bold px-2 py-0.5 rounded-full">🔒</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Week groups */}
-        {!loading && !error && weekGroups.length > 0 && (
+        {!loading && !error && weekGroups.filter(g => g.nodes.some(n => n.node_type === "CORE_TRUNK")).length > 0 && (
           <div className="space-y-3">
-            {weekGroups.map((group) => (
+            {weekGroups
+              .filter(g => g.nodes.some(n => n.node_type === "CORE_TRUNK"))
+              .map((group) => (
               <WeekCard
                 key={group.week}
                 group={group}

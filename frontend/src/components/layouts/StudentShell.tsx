@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { isStudentImmersivePath } from "@/lib/studentImmersiveRoutes";
 import type { LucideIcon } from "lucide-react";
 import { DeutschFlowLogo } from "@/components/ui/DeutschFlowLogo";
+import { AchievementToastProvider } from "@/components/gamification/AchievementToastProvider";
 import {
   LayoutDashboard,
   BookOpen,
@@ -57,7 +58,9 @@ export type StudentShellSection =
   | "vocab-analytics"
   | "leaderboard"
   | "grammar-practice"
-  | "curriculum";
+  | "curriculum"
+  | "review"
+  | "badges";
 
 type NavItem = {
   id: StudentShellSection;
@@ -146,6 +149,13 @@ export function StudentShell({
         label: t("navGroupReview"),
         items: [
           { id: "errors" as const, label: t("navMyErrors"), icon: AlertTriangle, href: "/student/errors" },
+          {
+            id: "review" as const,
+            label: "📚 Ôn tập SRS",
+            icon: Brain,
+            href: "/student/review",
+            badge: <span className="text-[9px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded-full">Ôn</span>,
+          },
           { id: "review-queue" as const, label: "Ôn tập hôm nay", icon: Brain, href: "/student/review-queue" },
           { id: "speakingHistory" as const, label: t("navSpeakingHistory"), icon: History, href: "/student/speaking-history" },
           { id: "interviews" as const, label: "Kết quả phỏng vấn", icon: Briefcase, href: "/student/interviews" },
@@ -157,6 +167,8 @@ export function StudentShell({
         items: [
           { id: "tutor" as const, label: t("navTutorProfile"), icon: Users, href: "/student/tutor" },
           { id: "leaderboard" as const, label: "Bảng xếp hạng", icon: Trophy, href: "/student/leaderboard" },
+          { id: "badges" as const, label: "🏅 Huy hiệu", icon: Trophy, href: "/student/badges",
+            badge: <span className="text-[9px] font-bold bg-[#FFCD00]/20 text-[#78350F] px-1.5 py-0.5 rounded-full border border-[#FFCD00]/40">XP</span> },
           { id: "settings" as const, label: t("navSettings"), icon: Settings, href: "/dashboard" },
         ],
       },
@@ -306,6 +318,7 @@ export function StudentShell({
       </div>
 
       {!hideBottomNav && <StudentBottomNav onOpenMenu={() => setSidebarOpen(true)} />}
+      <AchievementToastProvider />
     </div>
   );
 }

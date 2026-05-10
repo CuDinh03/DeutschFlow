@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { ArrowLeft, BookOpen, Headphones, Loader2, Mic, PenTool, FileText } from "lucide-react";
@@ -13,6 +13,8 @@ import ReadingView from "@/components/learn/ReadingView";
 import ListeningView from "@/components/learn/ListeningView";
 import SpeakingView from "@/components/learn/SpeakingView";
 import WritingView from "@/components/learn/WritingView";
+import SessionRecap from "@/components/learn/SessionRecap";
+import PhonemeCoach from "@/components/learn/PhonemeCoach";
 
 const VIEW_TABS = [
   { key: "grammar" as const, label: "Ngữ pháp", icon: BookOpen, emoji: "📖" },
@@ -20,6 +22,7 @@ const VIEW_TABS = [
   { key: "listening" as const, label: "Nghe", icon: Headphones, emoji: "🎧" },
   { key: "speaking" as const, label: "Nói", icon: Mic, emoji: "🎤" },
   { key: "writing" as const, label: "Viết", icon: PenTool, emoji: "✍️" },
+  { key: "phoneme" as const, label: "Phát âm", icon: Mic, emoji: "🗣️" },
 ];
 
 export default function LearnNodePage() {
@@ -29,6 +32,7 @@ export default function LearnNodePage() {
 
   const { me, loading: meLoading, targetLevel, streakDays, initials } = useStudentPracticeSession();
   const { session, loading, error, activeView, setActiveView, fetchSession, reset } = useNodeSessionStore();
+  const [showRecap, setShowRecap] = useState(false);
 
   useEffect(() => {
     if (!me || !nodeId) return;
@@ -154,10 +158,67 @@ export default function LearnNodePage() {
               {activeView === "listening" && <ListeningView content={session.content} />}
               {activeView === "speaking" && <SpeakingView content={session.content} />}
               {activeView === "writing" && <WritingView content={session.content} />}
+              {activeView === "phoneme" && (() => {
+                // Pick vocab items with German text as training phrases
+                const vocab = session.content?.vocabulary ?? [];
+                const firstVocab = vocab[0];
+                const target = firstVocab?.german ?? session.titleDe ?? "Guten Tag";
+                const meaning = firstVocab?.meaning ?? "";
+                return (
+                  <div className="space-y-4">
+                    <p className="text-xs text-[#64748B] text-center">
+                      Luyện phát âm từng từ/cụm từ trong bài học
+                    </p>
+                    <PhonemeCoach
+                      target={target}
+                      meaningVi={meaning}
+                      onSuccess={(score) =>
+                        console.log("[Phoneme] Score:", score)
+                      }
+                    />
+                    {vocab.length > 1 && (
+                      <div className="space-y-3">
+                        <p className="text-[10px] font-bold text-[#64748B] uppercase tracking-wide">Từ khác trong bài</p>
+                        {vocab.slice(1, 5).map((v, i) => (
+                          <PhonemeCoach
+                            key={i}
+                            target={v.german}
+                            meaningVi={v.meaning}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </motion.div>
           </>
         )}
+        {/* ── Session Recap Modal ── */}
+        {showRecap && session && (
+          <SessionRecap
+            xpEarned={session.xpReward ?? 150}
+            vocabCount={session.content?.vocabulary?.length ?? 0}
+            streakDays={streakDays}
+            onBack={() => { setShowRecap(false); router.push("/student/roadmap"); }}
+            onNext={() => { setShowRecap(false); router.push("/student/roadmap"); }}
+          />
+        )}
       </div>
+
+        {/* ── Complete button ── */}
+        {session?.hasContent && !showRecap && (
+          <div className="px-4 pb-6">
+            <button
+              type="button"
+              onClick={() => setShowRecap(true)}
+              className="w-full py-3 rounded-2xl font-bold text-sm text-white transition-transform active:scale-95"
+              style={{ background: "linear-gradient(135deg, #121212 0%, #1E293B 100%)" }}
+            >
+              ✅ Hoàn thành bài học
+            </button>
+          </div>
+        )}
     </StudentShell>
   );
 }
