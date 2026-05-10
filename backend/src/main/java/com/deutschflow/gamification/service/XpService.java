@@ -97,6 +97,14 @@ public class XpService {
     }
 
     @Transactional
+    public void awardCustomPractice(Long userId, int xpAmount, String note) {
+        int oldLevel = currentLevel(userId);
+        record(userId, xpAmount, XpEventType.CUSTOM_PRACTICE, null, null, note);
+        checkLevelUp(userId, oldLevel);
+        checkAchievements(userId);
+    }
+
+    @Transactional
     public void awardErrorFixed(Long userId) {
         int oldLevel = currentLevel(userId);
         record(userId, XP_ERROR_FIXED, XpEventType.ERROR_FIXED, null, null, null);
