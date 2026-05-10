@@ -183,23 +183,38 @@ public enum SpeakingPersona {
     }
 
     private static String defaultInterviewGreeting(String position, String industry, String weakPointsStr) {
+        String[] openings = {
+            "bitte den Kandidaten, sich vorzustellen: Was macht er/sie aktuell? Welche Erfahrung? Warum diese Position?",
+            "frage den Kandidaten, was ihn/sie an dieser Position besonders reizt und welche Erfahrungen er/sie mitbringt.",
+            "erz\u00e4hle kurz \u00fcber das Unternehmen und die Position, und frage, warum der Kandidat sich beworben hat.",
+            "bitte den Kandidaten, seine/ihre bisherige Karriere in 2-3 S\u00e4tzen zusammenzufassen und zu erkl\u00e4ren, was der n\u00e4chste Schritt sein soll.",
+        };
+        String picked = openings[java.util.concurrent.ThreadLocalRandom.current().nextInt(openings.length)];
         return """
-                Bewerbungsgespräch-Simulation. Stelle dich als HR-Manager/in vor.
+                Bewerbungsgespr\u00e4ch-Simulation. Stelle dich als HR-Manager/in vor.
                 Position: "%s". Branche: "%s". Grammatik-Schwerpunkte: "%s".
-                Begrüße den Kandidaten professionell auf Deutsch, stelle dich kurz vor (Name, Rolle, Unternehmen),
-                und bitte den Kandidaten, sich vorzustellen: Was macht er/sie aktuell? Welche Erfahrung? Warum diese Position?
+                Begr\u00fc\u00dfe den Kandidaten professionell auf Deutsch, stelle dich kurz vor (Name, Rolle, Unternehmen),
+                und %s
                 WICHTIG: Antworte NUR im JSON-Format wie Systemprompt.
-                """.formatted(position, industry, weakPointsStr);
+                """.formatted(position, industry, weakPointsStr, picked);
     }
 
     private static String lukasInterviewGreeting(String position, String industry, String weakPointsStr) {
+        String[] openings = {
+            "bitte den Kandidaten um eine Selbstvorstellung: aktuelle T\u00e4tigkeit, relevante Erfahrung, und warum diese Position.",
+            "frage, an welchem Projekt der Kandidat zuletzt gearbeitet hat und welche Technologien er/sie dabei eingesetzt hat.",
+            "erz\u00e4hle kurz \u00fcber den Tech-Stack des Startups und frage, welche Erfahrungen der Kandidat mit \u00e4hnlichen Technologien hat.",
+            "frage den Kandidaten, was er/sie unter gutem Code versteht und wie er/sie Qualit\u00e4t in einem Startup-Umfeld sicherstellt.",
+            "bitte den Kandidaten, sein/ihr interessantestes technisches Problem zu beschreiben und wie er/sie es gel\u00f6st hat.",
+        };
+        String picked = openings[java.util.concurrent.ThreadLocalRandom.current().nextInt(openings.length)];
         return """
-                IT/Software-Bewerbungsgespräch (Startup/Berlin, ruhig und strukturiert).
+                IT/Software-Bewerbungsgespr\u00e4ch (Startup/Berlin, ruhig und strukturiert).
                 Du bist Lukas, Senior Tech Lead. Position: "%s". Profil: "%s". Grammatik: "%s".
-                Begrüße als Tech-Interviewer, stelle dich vor (Name: Lukas, Rolle: Senior Tech Lead, Startup in Berlin),
-                und bitte den Kandidaten um eine Selbstvorstellung: aktuelle Tätigkeit, relevante Erfahrung, und warum diese Position.
+                Begr\u00fc\u00dfe als Tech-Interviewer, stelle dich vor (Name: Lukas, Rolle: Senior Tech Lead, Startup in Berlin),
+                und %s
                 WICHTIG: NUR JSON.
-                """.formatted(position, industry, weakPointsStr);
+                """.formatted(position, industry, weakPointsStr, picked);
     }
 
     private static String emmaInterviewGreeting(String position, String industry, String weakPointsStr) {
@@ -223,14 +238,24 @@ public enum SpeakingPersona {
     }
 
     private static String klausInterviewGreeting(String position, String industry, String weakPointsStr) {
+        String[] openings = {
+            "bitte den Kandidaten: Stellen Sie sich kurz vor \u2014 K\u00fcchenstation, Erfahrung, warum diese Position.",
+            "frage, in welcher K\u00fcche der Kandidat zuletzt gearbeitet hat und was seine/ihre St\u00e4rke als Koch/K\u00f6chin ist.",
+            "frage den Kandidaten, was f\u00fcr ihn/sie ein perfektes Mise en Place ausmacht und wie er/sie seine/ihre Station organisiert.",
+            "erz\u00e4hle kurz \u00fcber die K\u00fcchenphilosophie des Restaurants und frage, wie der Kandidat dazu passt.",
+            "frage, welches Gericht der Kandidat am liebsten kocht und warum \u2014 das verr\u00e4t viel \u00fcber die Arbeitsweise.",
+            "frage den Kandidaten nach seiner Erfahrung mit saisonalen Produkten und regionaler K\u00fcche.",
+            "frage, wie der Kandidat mit stressigen Service-Situationen umgeht \u2014 ein konkretes Beispiel.",
+        };
+        String picked = openings[java.util.concurrent.ThreadLocalRandom.current().nextInt(openings.length)];
         return """
-                Bewerbungsgespräch für Gastronomie/Profiküche (professionell wie ein Head Chef).
-                Du bist Klaus, Küchenchef in einem Sternerestaurant. Position: "%s". Profil: "%s". Grammatik: "%s".
-                Begrüße auf Deutsch, stelle dich vor (Name: Klaus, Rolle: Küchenchef, Sternerestaurant München),
-                und bitte den Kandidaten: Stellen Sie sich kurz vor — Küchenstation, Erfahrung, warum diese Position.
-                Ton: professionell, direkt — nicht Smalltalk.
+                Bewerbungsgespr\u00e4ch f\u00fcr Gastronomie/Profik\u00fcche (professionell wie ein Head Chef).
+                Du bist Klaus, K\u00fcchenchef in einem Sternerestaurant. Position: "%s". Profil: "%s". Grammatik: "%s".
+                Begr\u00fc\u00dfe auf Deutsch, stelle dich vor (Name: Klaus, Rolle: K\u00fcchenchef, Sternerestaurant M\u00fcnchen),
+                und %s
+                Ton: professionell, direkt \u2014 nicht Smalltalk.
                 WICHTIG: NUR JSON.
-                """.formatted(position, industry, weakPointsStr);
+                """.formatted(position, industry, weakPointsStr, picked);
     }
 
     private static String defaultGreeting(String topic, String industry, String weakPointsStr) {

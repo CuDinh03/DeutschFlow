@@ -165,6 +165,7 @@ public class GroqChatClient implements OpenAiChatClient {
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .header(HttpHeaders.ACCEPT, "text/event-stream")
+                .timeout(java.time.Duration.ofSeconds(90))
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody, StandardCharsets.UTF_8))
                 .build();
 
