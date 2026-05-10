@@ -40,6 +40,7 @@ type ExerciseItem = {
   correctOptionIndex?: number | null
   expectedAnswerNormalized?: string | null
   audioGerman?: string | null
+  hint_vi?: string | null
 }
 
 type ItemResult = { exerciseId: string; correct: boolean; explanation: string | null }
@@ -352,6 +353,16 @@ function exerciseBlock(
               </button>
             )
           })}
+        </div>
+      )}
+
+      {/* ── Wrong-answer hint (hiện ngay khi sai) ── */}
+      {grade === 'wrong' && ex.hint_vi && (
+        <div className="mt-3 flex items-start gap-2 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5">
+          <span className="text-base leading-none mt-0.5">💡</span>
+          <p className="text-xs text-amber-800 leading-relaxed">
+            <span className="font-semibold">Gợi ý: </span>{ex.hint_vi}
+          </p>
         </div>
       )}
     </div>
