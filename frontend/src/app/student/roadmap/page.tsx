@@ -16,12 +16,16 @@ import {
   Trophy,
   Zap,
   Sparkles,
+  LayoutList,
+  GitBranch,
 } from "lucide-react";
 import { StudentShell } from "@/components/layouts/StudentShell";
 import { useStudentPracticeSession } from "@/hooks/useStudentPracticeSession";
 import api from "@/lib/api";
 import { logout } from "@/lib/authSession";
 import { planApi, type AdaptiveRefreshResponse } from "@/lib/planApi";
+import SkillTreeFlowWrapper from "@/components/roadmap/SkillTreeFlowWrapper";
+import type { SkillTreeNodeData } from "@/components/roadmap/treeLayout";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -524,6 +528,15 @@ export default function RoadmapPage() {
   const [selectedNode, setSelectedNode] = useState<SkillTreeNode | null>(null);
   const [adaptiveRefreshing, setAdaptiveRefreshing] = useState(false);
   const [adaptiveResult, setAdaptiveResult] = useState<AdaptiveRefreshResponse | null>(null);
+  // Tree / List toggle (persisted in localStorage)
+  const [viewMode, setViewMode] = useState<"tree" | "list">(() => {
+    if (typeof window === "undefined") return "tree";
+    return (localStorage.getItem("df_roadmap_view") as "tree" | "list") ?? "tree";
+  });
+  const toggleView = (mode: "tree" | "list") => {
+    setViewMode(mode);
+    localStorage.setItem("df_roadmap_view", mode);
+  };
 
   const fetchSkillTree = useCallback(async () => {
     setLoading(true);
@@ -663,17 +676,59 @@ export default function RoadmapPage() {
       headerTitle="Lộ trình học tập"
       headerSubtitle="28 ngày · Goethe A1 Curriculum"
       headerRight={
-        <button
-          type="button"
-          onClick={() => void handleAdaptiveRefresh()}
-          disabled={adaptiveRefreshing}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#E2E8F0] bg-white text-[#121212] text-xs font-semibold hover:bg-[#EEF4FF] transition-all disabled:opacity-50"
-        >
-          {adaptiveRefreshing ? <RefreshCw size={12} className="animate-spin" /> : <Sparkles size={12} />}
-          {adaptiveRefreshing ? "Đang cập nhật..." : "AI refresh"}
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Tree / List toggle */}
+          <div className="flex items-center rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-0.5">
+            <button
+              type="button"
+              onClick={() => toggleView("tree")}
+              title="Sơ đồ cây"
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                viewMode === "tree"
+                  ? "bg-[#121212] text-white shadow-sm"
+                  : "text-[#64748B] hover:text-[#121212]"
+              }`}
+            >
+              <GitBranch size={12} /> Cây
+            </button>
+            <button
+              type="button"
+              onClick={() => toggleView("list")}
+              title="Danh sách"
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                viewMode === "list"
+                  ? "bg-[#121212] text-white shadow-sm"
+                  : "text-[#64748B] hover:text-[#121212]"
+              }`}
+            >
+              <LayoutList size={12} /> List
+            </button>
+          </div>
+          {/* AI refresh */}
+          <button
+            type="button"
+            onClick={() => void handleAdaptiveRefresh()}
+            disabled={adaptiveRefreshing}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#E2E8F0] bg-white text-[#121212] text-xs font-semibold hover:bg-[#EEF4FF] transition-all disabled:opacity-50"
+          >
+            {adaptiveRefreshing ? <RefreshCw size={12} className="animate-spin" /> : <Sparkles size={12} />}
+            {adaptiveRefreshing ? "Đang cập nhật..." : "AI refresh"}
+          </button>
+        </div>
       }
     >
+      {/* ── TREE VIEW ── */}
+      {viewMode === "tree" && !loading && !error && nodes.length > 0 && (
+        <div className="px-2 py-4">
+          <SkillTreeFlowWrapper
+            apiNodes={nodes as unknown as SkillTreeNodeData[]}
+            onSelectNode={(n) => setSelectedNode(n as unknown as SkillTreeNode)}
+          />
+        </div>
+      )}
+
+      {/* ── LIST VIEW (original layout below) ── */}
+      {viewMode === "list" && (
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
 
         {/* Adaptive refresh result banner */}
@@ -892,6 +947,20 @@ export default function RoadmapPage() {
           />
         )}
       </div>
+      )} {/* end viewMode=list */}
+
+      {/* Detail panel also accessible in tree mode (fixed bottom sheet) */}
+      {viewMode === "tree" && selectedNode && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 pb-safe" style={{ maxWidth: 680, margin: "0 auto" }}>
+          <div className="mx-3 mb-4 rounded-2xl bg-white border border-[#E2E8F0] shadow-2xl overflow-hidden">
+            <NodeDetailPanel
+              node={selectedNode}
+              onStart={() => handleStartNode(selectedNode)}
+              onUnlockSuccess={() => { setSelectedNode(null); void fetchSkillTree(); }}
+            />
+          </div>
+        </div>
+      )}
     </StudentShell>
   );
 }
