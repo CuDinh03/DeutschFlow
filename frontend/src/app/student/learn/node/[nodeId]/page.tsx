@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { ArrowLeft, BookOpen, Headphones, Loader2, Mic, PenTool, FileText } from "lucide-react";
@@ -13,6 +13,7 @@ import ReadingView from "@/components/learn/ReadingView";
 import ListeningView from "@/components/learn/ListeningView";
 import SpeakingView from "@/components/learn/SpeakingView";
 import WritingView from "@/components/learn/WritingView";
+import SessionRecap from "@/components/learn/SessionRecap";
 
 const VIEW_TABS = [
   { key: "grammar" as const, label: "Ngữ pháp", icon: BookOpen, emoji: "📖" },
@@ -29,6 +30,7 @@ export default function LearnNodePage() {
 
   const { me, loading: meLoading, targetLevel, streakDays, initials } = useStudentPracticeSession();
   const { session, loading, error, activeView, setActiveView, fetchSession, reset } = useNodeSessionStore();
+  const [showRecap, setShowRecap] = useState(false);
 
   useEffect(() => {
     if (!me || !nodeId) return;
@@ -157,7 +159,31 @@ export default function LearnNodePage() {
             </motion.div>
           </>
         )}
+        {/* ── Session Recap Modal ── */}
+        {showRecap && session && (
+          <SessionRecap
+            xpEarned={session.xpReward ?? 150}
+            vocabCount={session.content?.vocabulary?.length ?? 0}
+            streakDays={streakDays}
+            onBack={() => { setShowRecap(false); router.push("/student/roadmap"); }}
+            onNext={() => { setShowRecap(false); router.push("/student/roadmap"); }}
+          />
+        )}
       </div>
+
+        {/* ── Complete button ── */}
+        {session?.hasContent && !showRecap && (
+          <div className="px-4 pb-6">
+            <button
+              type="button"
+              onClick={() => setShowRecap(true)}
+              className="w-full py-3 rounded-2xl font-bold text-sm text-white transition-transform active:scale-95"
+              style={{ background: "linear-gradient(135deg, #121212 0%, #1E293B 100%)" }}
+            >
+              ✅ Hoàn thành bài học
+            </button>
+          </div>
+        )}
     </StudentShell>
   );
 }
