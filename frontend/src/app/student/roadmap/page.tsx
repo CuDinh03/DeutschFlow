@@ -722,7 +722,14 @@ export default function RoadmapPage() {
         <div className="px-2 py-4">
           <SkillTreeFlowWrapper
             apiNodes={nodes as unknown as SkillTreeNodeData[]}
-            onSelectNode={(n) => setSelectedNode(n as unknown as SkillTreeNode)}
+            onSelectNode={(n) => {
+              if (n.user_status !== "LOCKED") {
+                router.push(`/student/learn/node/${n.id}`);
+              }
+            }}
+            onContinueLearning={(nodeId) => {
+              router.push(`/student/learn/node/${nodeId}`);
+            }}
           />
         </div>
       )}
@@ -949,18 +956,7 @@ export default function RoadmapPage() {
       </div>
       )} {/* end viewMode=list */}
 
-      {/* Detail panel also accessible in tree mode (fixed bottom sheet) */}
-      {viewMode === "tree" && selectedNode && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 pb-safe" style={{ maxWidth: 680, margin: "0 auto" }}>
-          <div className="mx-3 mb-4 rounded-2xl bg-white border border-[#E2E8F0] shadow-2xl overflow-hidden">
-            <NodeDetailPanel
-              node={selectedNode}
-              onStart={() => handleStartNode(selectedNode)}
-              onUnlockSuccess={() => { setSelectedNode(null); void fetchSkillTree(); }}
-            />
-          </div>
-        </div>
-      )}
+
     </StudentShell>
   );
 }

@@ -49,12 +49,13 @@ const SkillTreeFlowInner = dynamic(
 interface Props {
   apiNodes: SkillTreeNodeData[];
   onSelectNode: (node: SkillTreeNodeData) => void;
+  onContinueLearning: (nodeId: number) => void;
 }
 
-export default function SkillTreeFlowWrapper({ apiNodes, onSelectNode }: Props) {
+export default function SkillTreeFlowWrapper({ apiNodes, onSelectNode, onContinueLearning }: Props) {
   return (
     <ReactFlowProvider>
-      <SkillTreeFlowInner apiNodes={apiNodes} onSelectNode={onSelectNode} />
+      <SkillTreeFlowInner apiNodes={apiNodes} onSelectNode={onSelectNode} onContinueLearning={onContinueLearning} />
     </ReactFlowProvider>
   );
 }
