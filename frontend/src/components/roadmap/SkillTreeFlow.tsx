@@ -39,10 +39,11 @@ function miniMapColor(node: { type?: string; data?: Record<string, unknown> }) {
 interface InnerProps {
   apiNodes: SkillTreeNodeData[];
   onSelectNode: (node: SkillTreeNodeData) => void;
+  onContinueLearning: (nodeId: number) => void;
   initialCurrentId: string | null;
 }
 
-function SkillTreeInner({ apiNodes, onSelectNode, initialCurrentId }: InnerProps) {
+function SkillTreeInner({ apiNodes, onSelectNode, onContinueLearning, initialCurrentId }: InnerProps) {
   const { fitView, fitBounds, getNode } = useReactFlow();
   const didInitialFit = useRef(false);
 
@@ -174,6 +175,28 @@ function SkillTreeInner({ apiNodes, onSelectNode, initialCurrentId }: InnerProps
             📍 Vị trí đang học
           </button>
 
+          {/* Continue Learning */}
+          {initialCurrentId && (
+            <button
+              type="button"
+              onClick={() => {
+                const num = parseInt(initialCurrentId.replace("node-", ""), 10);
+                if (!isNaN(num)) onContinueLearning(num);
+              }}
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                background: "#22C55E",
+                border: "none", borderRadius: 999,
+                padding: "8px 18px", cursor: "pointer",
+                fontWeight: 800, fontSize: 12, color: "#FFFFFF",
+                boxShadow: "0 4px 16px rgba(34,197,94,0.35)",
+                whiteSpace: "nowrap",
+              }}
+            >
+              ▶ Tiếp tục học
+            </button>
+          )}
+
           {/* Fit all */}
           <button
             type="button"
@@ -225,15 +248,17 @@ function SkillTreeInner({ apiNodes, onSelectNode, initialCurrentId }: InnerProps
 interface Props {
   apiNodes: SkillTreeNodeData[];
   onSelectNode: (node: SkillTreeNodeData) => void;
+  onContinueLearning: (nodeId: number) => void;
 }
 
-export default function SkillTreeFlow({ apiNodes, onSelectNode }: Props) {
+export default function SkillTreeFlow({ apiNodes, onSelectNode, onContinueLearning }: Props) {
   const { currentNodeId } = useMemo(() => computeTreeLayout(apiNodes), [apiNodes]);
 
   return (
     <SkillTreeInner
       apiNodes={apiNodes}
       onSelectNode={onSelectNode}
+      onContinueLearning={onContinueLearning}
       initialCurrentId={currentNodeId}
     />
   );
