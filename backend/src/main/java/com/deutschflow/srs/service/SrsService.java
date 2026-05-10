@@ -5,6 +5,7 @@ import com.deutschflow.srs.dto.ScheduleVocabRequest;
 import com.deutschflow.srs.dto.VocabReviewCard;
 import com.deutschflow.srs.entity.VocabReviewSchedule;
 import com.deutschflow.srs.repository.VocabReviewRepository;
+import com.deutschflow.gamification.service.XpService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -36,6 +37,7 @@ public class SrsService {
     private static final BigDecimal MAX_EASE = new BigDecimal("5.00");
 
     private final VocabReviewRepository repo;
+    private final XpService xpService;
 
     // ─── Schedule (add vocab after node completion) ───────────────────────────
 
@@ -110,6 +112,9 @@ public class SrsService {
         repo.save(entry);
         log.debug("[SRS] Reviewed '{}' q={} → interval={}d EF={}", entry.getGerman(), quality,
                 entry.getIntervalDays(), entry.getEaseFactor());
+
+        // Award XP + trigger achievement check (silent fail)
+        try { xpService.awardSrsReview(userId); } catch (Exception ignored) {}
 
         return toCard(entry);
     }

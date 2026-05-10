@@ -51,6 +51,8 @@ public class UserXpEvent {
         ERROR_FIXED,        // +15 XP per grammar error resolved
         FIRST_SESSION,      // +100 XP one-time
         DAILY_GOAL,         // +50 XP when daily goal met
-        ACHIEVEMENT_REWARD  // XP awarded when achievement unlocked
+        ACHIEVEMENT_REWARD, // XP awarded when achievement unlocked
+        SATELLITE_COMPLETE, // +50 XP when satellite/industry node completed
+        SRS_REVIEW          // +2 XP per SRS card reviewed (daily cap 20)
     }
 }

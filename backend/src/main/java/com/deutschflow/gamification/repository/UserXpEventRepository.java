@@ -27,6 +27,18 @@ public interface UserXpEventRepository extends JpaRepository<UserXpEvent, Long> 
     /** Check if a specific one-time event already exists. */
     boolean existsByUserIdAndEventType(Long userId, UserXpEvent.XpEventType eventType);
 
+    /** Count satellite/industry node completions */
+    @Query("SELECT COUNT(e) FROM UserXpEvent e WHERE e.userId = :userId AND e.eventType = 'SATELLITE_COMPLETE'")
+    long countSatelliteCompleteByUserId(@Param("userId") Long userId);
+
+    /** Count SRS review events (for achievement triggers) */
+    @Query("SELECT COUNT(e) FROM UserXpEvent e WHERE e.userId = :userId AND e.eventType = 'SRS_REVIEW'")
+    long countSrsReviewsByUserId(@Param("userId") Long userId);
+
+    /** Count satellite completions with a specific industry tag (stored in note field) */
+    @Query("SELECT COUNT(e) FROM UserXpEvent e WHERE e.userId = :userId AND e.eventType = 'SATELLITE_COMPLETE' AND e.note LIKE :industryPrefix")
+    long countSatelliteByIndustry(@Param("userId") Long userId, @Param("industryPrefix") String industryPrefix);
+
     /**
      * Top users by total XP for the leaderboard.
      * Returns Object[] rows: [userId (Long), displayName (String), totalXp (Long)]
