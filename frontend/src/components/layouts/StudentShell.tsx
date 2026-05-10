@@ -57,7 +57,8 @@ export type StudentShellSection =
   | "vocab-analytics"
   | "leaderboard"
   | "grammar-practice"
-  | "curriculum";
+  | "curriculum"
+  | "review";
 
 type NavItem = {
   id: StudentShellSection;
@@ -146,6 +147,13 @@ export function StudentShell({
         label: t("navGroupReview"),
         items: [
           { id: "errors" as const, label: t("navMyErrors"), icon: AlertTriangle, href: "/student/errors" },
+          {
+            id: "review" as const,
+            label: "📚 Ôn tập SRS",
+            icon: Brain,
+            href: "/student/review",
+            badge: <span className="text-[9px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded-full">Ôn</span>,
+          },
           { id: "review-queue" as const, label: "Ôn tập hôm nay", icon: Brain, href: "/student/review-queue" },
           { id: "speakingHistory" as const, label: t("navSpeakingHistory"), icon: History, href: "/student/speaking-history" },
           { id: "interviews" as const, label: "Kết quả phỏng vấn", icon: Briefcase, href: "/student/interviews" },
