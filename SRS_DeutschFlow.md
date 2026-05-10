@@ -1,8 +1,10 @@
 # SRS — DeutschFlow (Software Requirements Specification)
 
-**Phiên bản:** 2.1  
-**Ngày:** 2026-05-10  
+**Phiên bản:** 2.2  
+**Ngày:** 2026-05-11  
 **Ngôn ngữ:** Tiếng Việt  
+
+**Changelog v2.2:** Triển khai **Supplemental Practice & Exam Prep System** và **Production API Audit**. (1) **Practice Module (V112/V113)**: Bảng `practice_exercises` và `practice_history` độc lập hoàn toàn với Skill Tree; hỗ trợ 2 loại bài tập `NORMAL` (bổ trợ) và `EXAM` (luyện thi Goethe/Telc); lọc theo CEFR level (A1-C2), kỹ năng và loại đề thi. (2) **XP-Only Rewards**: Thêm `XpEventType.CUSTOM_PRACTICE` vào hệ thống Gamification; `awardCustomPractice()` trong `XpService` tặng XP tỷ lệ theo % điểm (66% điểm → 66 XP/100 XP reward) nhưng **không kích hoạt Daily Streak** — giữ tính toàn vẹn chuỗi ngày học. (3) **Python Scraper**: `scraper.py` cào tự động đề thi Goethe-Institut → sinh SQL seed file (V113 B1 Lesen sample). (4) **Frontend `/student/practice`**: Trang thư viện bài tập mới với filter trình độ, grid cards, toast XP. (5) **Bug Fix — LearningPlanResponse**: DTO thiếu `sessionsPerWeek` và `minutesPerSession` khiến Dashboard widget hiển thị null — đã bổ sung 2 field, deploy production. (6) **Production API Audit (20/22 pass)**: Kiểm toàn bộ endpoints trên EC2; 20/22 pass; 2 lỗi còn lại là behavior đúng (user mới chưa qua onboarding nên chưa có learning plan). (7) **E2E Flow Verification**: Test toàn bộ luồng học viên mới — Đăng ký → Onboarding → Tạo plan → Dashboard → Today plan → Làm bài tập bổ trợ → Nhận XP trên production.
 
 **Changelog v2.1:** Triển khai **Interactive Roadmap, Phoneme Coach, Gamification & SRS**. (1) **Interactive Skill Tree Graph**: Thay thế roadmap dạng list bằng canvas tương tác 2D sử dụng `@xyflow/react` (React Flow v12). Layout tự động căn giữa (Core spine dọc, Satellite tỏa ngang), hỗ trợ zoom/pan, minimap, tự động nhảy đến vị trí đang học. (2) **Phoneme Coach**: Đánh giá phát âm chi tiết cấp độ âm vị (phoneme-level) kết hợp AI Whisper STT và Groq LLM; giao diện highlight từ vựng theo độ chính xác (đỏ/vàng/xanh), chấm điểm %, cung cấp IPA và feedback cải thiện. (3) **Gamification (Achievements & Badges)**: Hệ thống huy hiệu chuyên ngành (IT, Y tế, Nhà hàng, v.v.) lưu trữ trong `user_achievements` (V111); Gallery UI hiển thị tier (Bronze/Silver/Gold/Diamond/Legendary) dựa trên XP và số bài học. (4) **SRS SM-2 Engine**: Tích hợp thuật toán Spaced Repetition (SM-2) cho Flashcard từ vựng/ngữ pháp (V110); tự động tính toán E-Factor, Interval, Next Review Date; giao diện luyện tập với chất lượng nhớ (1-5).
 
@@ -66,6 +68,8 @@
 64. Phoneme Coach & Pronunciation Feedback *(v2.1)*
 65. Gamification: Industry Achievements & Badge Gallery *(v2.1)*
 66. SRS SM-2 Flashcard Engine *(v2.1)*
+67. Module SUPPLEMENTAL PRACTICE & EXAM PREP *(v2.2)*
+68. Production API Audit & E2E Verification *(v2.2)*
 
 ---
 
@@ -1800,3 +1804,157 @@ Thay thế logic ôn tập tĩnh bằng thuật toán Spaced Repetition (Lặp l
 - Giao diện hiển thị flashcard, học viên nhấn "Lật thẻ" để xem đáp án.
 - Học viên chọn mức độ (Quên, Khó, Dễ).
 - `POST /api/reviews/{id}/grade`: Gửi điểm chất lượng (q) lên BE để tính toán và cập nhật SM-2 metrics. Mở khóa phần thưởng (XP) cho mỗi lần ôn tập thành công.
+
+---
+
+## 40. Module SUPPLEMENTAL PRACTICE & EXAM PREP *(v2.2)*
+
+### 40.1 Mục tiêu
+
+Cung cấp **kho bài tập bổ trợ và luyện thi** (Goethe, Telc) hoàn toàn tách biệt với lộ trình Skill Tree chính. Học viên có thể tự do luyện tập thêm, nhận XP nhưng **không ảnh hưởng đến Daily Streak** — giữ nguyên tính toàn vẹn của chuỗi ngày học chính thức.
+
+### 40.2 Data Model (Migration V112 + V113)
+
+#### Bảng `practice_exercises`
+| Column | Type | Mô tả |
+|--------|------|--------|
+| `id` | BIGSERIAL PK | ID bài tập |
+| `exercise_type` | VARCHAR(20) | `NORMAL` (bổ trợ) hoặc `EXAM` (đề thi) |
+| `cefr_level` | VARCHAR(3) | A1, A2, B1, B2, C1, C2 |
+| `skill_type` | VARCHAR(20) | READING, LISTENING, WRITING, SPEAKING, GRAMMAR |
+| `exam_name` | VARCHAR(200) | Tên đề thi nếu là loại EXAM (vd: "Goethe B1 Modellsatz") |
+| `content_json` | JSONB | Nội dung câu hỏi dạng dynamic (đọc hiểu, trắc nghiệm...) |
+| `source_name` | VARCHAR(100) | Nguồn gốc (Goethe-Institut, Telc, DeutschFlow...) |
+| `source_url` | VARCHAR(500) | URL nguồn gốc (tuỳ chọn) |
+| `xp_reward` | INTEGER | XP tối đa nhận được nếu đạt 100% |
+| `is_active` | BOOLEAN | Bật/tắt hiển thị |
+
+#### Bảng `practice_history`
+| Column | Type | Mô tả |
+|--------|------|--------|
+| `id` | BIGSERIAL PK | ID lịch sử |
+| `user_id` | BIGINT FK | Tham chiếu `users` |
+| `practice_id` | BIGINT FK | Tham chiếu `practice_exercises` |
+| `score_percent` | INTEGER | Điểm % học viên đạt được (0-100) |
+| `xp_earned` | INTEGER | XP thực tế nhận được = `score_percent% × xp_reward` |
+| `answer_data` | JSONB | Đáp án học viên đã chọn |
+| `completed_at` | TIMESTAMP | Thời điểm hoàn thành |
+
+**Design Decision**: `practice_history` **không có foreign key sang Streak hay Session bảng chính** — đây là lựa chọn kiến trúc có chủ ý để tách biệt hoàn toàn XP bổ trợ khỏi cơ chế Streak.
+
+### 40.3 Gamification — XP-Only (No Streak)
+
+```java
+// XpEventType enum
+CUSTOM_PRACTICE  // Bài tập bổ trợ — chỉ cộng XP, không cộng Streak
+
+// XpService.awardCustomPractice()
+public void awardCustomPractice(Long userId, int xpAmount, String note) {
+    // Tạo XpEvent type=CUSTOM_PRACTICE
+    // KHÔNG gọi bất kỳ logic nào liên quan đến Streak/Session progress
+}
+```
+
+**Công thức XP**: `earnedXP = round(scorePercent / 100.0 × xpReward)`
+- Ví dụ: 66% điểm × 100 XP reward = **66 XP**
+- Ví dụ: 90% điểm × 50 XP reward = **45 XP**
+
+### 40.4 API Endpoints
+
+| Method | Path | Mô tả |
+|--------|------|--------|
+| GET | `/api/practice/exercises` | Danh sách bài tập (filter: `cefrLevel`, `exerciseType`, `skillType`; phân trang) |
+| GET | `/api/practice/exercises/{id}` | Chi tiết 1 bài tập (bao gồm `contentJson`) |
+| POST | `/api/practice/submit` | Nộp kết quả → cộng XP → lưu lịch sử |
+
+**Request body** `POST /api/practice/submit`:
+```json
+{
+  "practiceId": 1,
+  "scorePercent": 80,
+  "answerDataJson": "{\"q1\":\"Richtig\",\"q2\":\"Falsch\"}"
+}
+```
+
+### 40.5 Frontend — `/student/practice`
+
+- **Filter**: Dropdown chọn trình độ A1→C2 (lọc real-time).
+- **Grid cards**: Hiển thị loại bài tập (EXAM/NORMAL), cấp độ, kỹ năng, nguồn, XP có thể nhận.
+- **Toast notification**: Sau khi nộp bài, hiện popup "Hoàn thành! +XX XP" — **không** hiển thị cập nhật Streak.
+
+### 40.6 Python Scraper (`scraper.py`)
+
+Script tự động cào bài tập từ các nguồn bên ngoài và sinh ra SQL Migration file:
+
+```bash
+python3 scraper.py --source goethe --level B1 --skill reading --output V114__seed_...sql
+```
+
+**Nguồn được hỗ trợ**: Goethe-Institut Modellsatz, Deutsche Welle, Schubert Verlag, Telc.
+
+---
+
+## 41. Production API Audit & E2E Verification *(v2.2)*
+
+### 41.1 Kết quả Audit Production (2026-05-11)
+
+**Target**: `http://3.82.43.113:8080` (EC2 Production)  
+**Kết quả**: **20/22 endpoints PASS**
+
+| Module | Endpoint | Status |
+|--------|----------|--------|
+| Auth | `POST /api/auth/login`, `GET /api/auth/me` | ✅ |
+| Onboarding | `GET /api/onboarding/status` | ✅ |
+| Skill Tree | `GET /api/skill-tree/me` | ✅ |
+| Roadmap | `GET /api/roadmap/me` | ✅ |
+| Today Plan | `GET /api/today/me` | ✅ |
+| AI Speaking | `GET /api/ai-speaking/sessions`, `GET /api/ai-speaking/tts/status` | ✅ |
+| Vocabulary | `GET /api/words`, `GET /api/srs/due`, `GET /api/srs/stats` | ✅ |
+| Error Tracking | `GET /api/error-skills/me`, `GET /api/review-tasks/me/today` | ✅ |
+| Reviews | `GET /api/reviews/due` | ✅ |
+| Gamification | `GET /api/xp/me`, `GET /api/xp/leaderboard` | ✅ |
+| Practice (new) | `GET /api/practice/exercises`, `POST /api/practice/submit` | ✅ |
+| Notifications | `GET /api/notifications` | ✅ |
+| Learning Plan | `GET /api/plan/me` (user mới chưa onboard) | ⚠️ 404 (behavior đúng) |
+| Dashboard | `GET /api/student/dashboard` (user mới chưa onboard) | ⚠️ 404 (behavior đúng) |
+
+**Ghi chú**: 2 endpoint trả 404 là **behavior đúng thiết kế** — user phải hoàn thành Onboarding (`POST /api/onboarding/profile`) trước khi có Learning Plan.
+
+### 41.2 Bug Fix — LearningPlanResponse
+
+**Vấn đề**: Record `LearningPlanResponse` chỉ có 3 fields (`weeklyMinutes`, `weeksTotal`, `plan`), thiếu `sessionsPerWeek` và `minutesPerSession`. Frontend Dashboard widget hiển thị `null` cho 2 giá trị này.
+
+**Fix**: Bổ sung 2 field vào record, cập nhật cả 2 nơi construct (`saveProfileAndGeneratePlan` và `getMyPlan`).
+
+```java
+// Before (broken)
+public record LearningPlanResponse(int weeklyMinutes, int weeksTotal, Map<String, Object> plan) {}
+
+// After (fixed)
+public record LearningPlanResponse(
+    int weeklyMinutes, int weeksTotal,
+    int sessionsPerWeek, int minutesPerSession,  // ← added
+    Map<String, Object> plan) {}
+```
+
+**Đã deploy**: `fix(plan): add sessionsPerWeek & minutesPerSession to LearningPlanResponse` — commit `fe401c9`.
+
+### 41.3 E2E New Student Flow (Verified on Production)
+
+Luồng hoàn chỉnh đã được verify tự động qua API calls thẳng lên production:
+
+```
+1. POST /api/auth/register          → userId=31, JWT token
+2. GET  /api/onboarding/status      → {"hasPlan": false}
+3. POST /api/onboarding/profile     → Plan 112w, 5 sessions/w, 30 min/session
+4. GET  /api/onboarding/status      → {"hasPlan": true}
+5. GET  /api/plan/me                → weeksTotal=112, sessionsPerWeek=5 ✅
+6. GET  /api/student/dashboard      → streak=0, progress=0% ✅
+7. GET  /api/today/me               → topic=Reise, cefr=A1, rollingAcc=100% ✅
+8. GET  /api/practice/exercises     → 1 bài B1 READING (Goethe) ✅
+9. POST /api/practice/submit        → HTTP 200, earned 66 XP ✅
+10. GET /api/xp/me                  → totalXP=66, level=1, streak=0 ✅
+```
+
+**Xác nhận**: XP được cộng, Level tăng đúng, **Streak = 0** (không bị ảnh hưởng bởi bài tập bổ trợ).
+
