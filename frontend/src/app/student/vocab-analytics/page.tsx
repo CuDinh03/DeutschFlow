@@ -10,15 +10,24 @@ import api from '@/lib/api'
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface CoverageData {
+  date: string
   totalWords: number
-  coveredWords: number
-  byLevel: Record<string, { total: number; withMeaning: number; withIpa: number }>
+  nounWords: number
+  nounWithGender: number
+  nounDer: number
+  nounDie: number
+  nounDas: number
+  nounCoveragePercent: number
+  verbWords: number
+  verbRows: number
+  verbCoveragePercent: number
 }
 
 interface CoverageHistoryPoint {
   date: string
-  coveragePercent: number
   totalWords: number
+  nounCoveragePercent: number
+  verbCoveragePercent: number
 }
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
@@ -126,7 +135,10 @@ export default function VocabAnalyticsPage() {
         api.get<CoverageHistoryPoint[]>('/words/coverage/history'),
       ])
       if (covRes.status === 'fulfilled') setCoverage(covRes.value.data)
-      if (histRes.status === 'fulfilled') setHistory(histRes.value.data ?? [])
+      if (histRes.status === 'fulfilled') {
+        const raw = histRes.value.data
+        setHistory(Array.isArray(raw) ? raw : [])
+      }
     } catch {
       setError('Không thể tải dữ liệu thống kê.')
     } finally {
@@ -148,8 +160,10 @@ export default function VocabAnalyticsPage() {
     )
   }
 
+  const nounPct = coverage ? Math.round(coverage.nounCoveragePercent) : 0
+  const verbPct = coverage ? Math.round(coverage.verbCoveragePercent) : 0
   const globalPct = coverage && coverage.totalWords > 0
-    ? Math.round((coverage.coveredWords / coverage.totalWords) * 100)
+    ? Math.round(((coverage.nounWithGender + coverage.verbRows) / (coverage.nounWords + coverage.verbWords)) * 100)
     : 0
 
   return (
@@ -188,7 +202,7 @@ export default function VocabAnalyticsPage() {
                   <BookOpen size={22} className="text-[#FFCD00]" />
                   <div>
                     <h2 className="font-extrabold text-lg">Độ phủ từ vựng</h2>
-                    <p className="text-white/60 text-xs">{coverage.coveredWords.toLocaleString()} / {coverage.totalWords.toLocaleString()} từ có nghĩa</p>
+                    <p className="text-white/60 text-xs">{coverage.totalWords.toLocaleString()} từ trong hệ thống</p>
                   </div>
                 </div>
                 <button type="button" onClick={fetchData} className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center hover:bg-white/20 transition-all">
@@ -196,89 +210,71 @@ export default function VocabAnalyticsPage() {
                 </button>
               </div>
 
-              {/* Big percentage */}
-              <div className="text-center py-2">
-                <motion.p
-                  className="text-6xl font-black text-white"
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.2 }}
-                >
-                  {globalPct}%
-                </motion.p>
-                <p className="text-white/50 text-sm mt-1">có bản dịch đầy đủ</p>
+              {/* Stats grid */}
+              <div className="grid grid-cols-2 gap-3 mt-2">
+                <div className="bg-white/10 rounded-2xl p-4 text-center">
+                  <p className="text-3xl font-black text-[#FFCD00]">{Math.round(coverage.nounCoveragePercent)}%</p>
+                  <p className="text-white/70 text-xs mt-1">Danh từ có giống</p>
+                  <p className="text-white/40 text-[10px]">{coverage.nounWithGender.toLocaleString()} / {coverage.nounWords.toLocaleString()}</p>
+                </div>
+                <div className="bg-white/10 rounded-2xl p-4 text-center">
+                  <p className="text-3xl font-black text-[#FFCD00]">{Math.round(coverage.verbCoveragePercent)}%</p>
+                  <p className="text-white/70 text-xs mt-1">Động từ có chia</p>
+                  <p className="text-white/40 text-[10px]">{coverage.verbRows.toLocaleString()} / {coverage.verbWords.toLocaleString()}</p>
+                </div>
               </div>
 
-              {/* Progress bar */}
-              <div className="h-3 bg-white/10 rounded-full overflow-hidden mt-4">
-                <motion.div
-                  className="h-full bg-[#FFCD00] rounded-full"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${globalPct}%` }}
-                  transition={{ duration: 0.8, delay: 0.3 }}
-                />
+              {/* Giống der/die/das */}
+              <div className="grid grid-cols-3 gap-2 mt-3">
+                {[['der', coverage.nounDer, '#60A5FA'], ['die', coverage.nounDie, '#F472B6'], ['das', coverage.nounDas, '#34D399']].map(([g, count, color]) => (
+                  <div key={String(g)} className="bg-white/5 rounded-xl p-3 text-center">
+                    <p className="text-lg font-black" style={{ color: String(color) }}>{Number(count).toLocaleString()}</p>
+                    <p className="text-white/50 text-xs">{g}</p>
+                  </div>
+                ))}
               </div>
             </div>
 
-            {/* Bar chart by CEFR */}
+            {/* Bar chart & breakdown — replaced with noun/verb data */}
             <div className="bg-white rounded-3xl p-6 border border-[#E2E8F0] shadow-sm">
               <div className="flex items-center gap-2 mb-4">
                 <BarChart2 size={18} className="text-[#6366F1]" />
-                <h3 className="font-bold text-[#0F172A]">Phân bố theo cấp độ CEFR</h3>
+                <h3 className="font-bold text-[#0F172A]">Chi tiết từ vựng</h3>
               </div>
-              {coverage.byLevel ? (
-                <>
-                  <BarChart data={coverage.byLevel} />
-                  <p className="text-[10px] text-[#94A3B8] text-center mt-3">
-                    Thanh màu = từ có nghĩa / thanh xám = tổng số từ
-                  </p>
-                </>
-              ) : (
-                <p className="text-sm text-[#94A3B8] text-center py-6">Chưa có dữ liệu phân cấp.</p>
-              )}
+              <div className="space-y-4">
+                {[
+                  { label: 'Danh từ (Nomen)', pct: Math.round(coverage.nounCoveragePercent), count: `${coverage.nounWithGender.toLocaleString()} / ${coverage.nounWords.toLocaleString()}`, color: '#6366F1' },
+                  { label: 'Động từ (Verben)', pct: Math.round(coverage.verbCoveragePercent), count: `${coverage.verbRows.toLocaleString()} / ${coverage.verbWords.toLocaleString()}`, color: '#F59E0B' },
+                ].map(({ label, pct, count, color }) => (
+                  <div key={label}>
+                    <div className="flex justify-between mb-1">
+                      <span className="text-sm font-bold text-[#374151]">{label}</span>
+                      <span className="text-xs text-[#64748B]">{count} từ ({pct}%)</span>
+                    </div>
+                    <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                      <motion.div
+                        className="h-full rounded-full"
+                        style={{ background: color }}
+                        initial={{ width: 0 }}
+                        animate={{ width: `${pct}%` }}
+                        transition={{ duration: 0.6 }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            {/* CEFR breakdown table */}
-            {coverage.byLevel && (
-              <div className="bg-white rounded-3xl p-6 border border-[#E2E8F0] shadow-sm">
-                <h3 className="font-bold text-[#0F172A] mb-4">Chi tiết theo cấp độ</h3>
-                <div className="space-y-3">
-                  {['A1','A2','B1','B2','C1','C2'].map(lvl => {
-                    const item = coverage.byLevel[lvl] ?? { total: 0, withMeaning: 0, withIpa: 0 }
-                    const pct = item.total > 0 ? Math.round((item.withMeaning / item.total) * 100) : 0
-                    const color = LEVEL_COLORS[lvl] ?? '#94A3B8'
-                    return (
-                      <div key={lvl}>
-                        <div className="flex justify-between mb-1">
-                          <span className="text-sm font-bold" style={{ color }}>{lvl}</span>
-                          <span className="text-xs text-[#64748B]">{item.withMeaning}/{item.total} từ ({pct}%)</span>
-                        </div>
-                        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                          <motion.div
-                            className="h-full rounded-full"
-                            style={{ background: color }}
-                            initial={{ width: 0 }}
-                            animate={{ width: `${pct}%` }}
-                            transition={{ duration: 0.5 }}
-                          />
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-
             {/* Line chart — history */}
-            {history.length > 0 && (
+            {history.length >= 2 && (
               <div className="bg-white rounded-3xl p-6 border border-[#E2E8F0] shadow-sm">
                 <div className="flex items-center gap-2 mb-4">
                   <TrendingUp size={18} className="text-[#6366F1]" />
-                  <h3 className="font-bold text-[#0F172A]">Lịch sử độ phủ</h3>
+                  <h3 className="font-bold text-[#0F172A]">Lịch sử danh từ</h3>
                 </div>
-                <LineChart data={history} />
+                <LineChart data={history.map(h => ({ date: h.date, coveragePercent: h.nounCoveragePercent, totalWords: h.totalWords }))} />
                 <p className="text-[10px] text-[#94A3B8] text-center mt-2">
-                  Tỷ lệ % từ có nghĩa theo thời gian
+                  % danh từ có giống theo thời gian
                 </p>
               </div>
             )}
