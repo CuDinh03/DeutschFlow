@@ -308,10 +308,12 @@ function NodeDetailPanel({
   node,
   onStart,
   onUnlockSuccess,
+  onSatellitePrompt,
 }: {
   node: SkillTreeNode;
   onStart: () => void;
   onUnlockSuccess?: (nodeId: number) => void;
+  onSatellitePrompt?: (node: SkillTreeNode) => void;
 }) {
   const isCompleted = node.user_status === "COMPLETED";
   const isActive = node.user_status === "IN_PROGRESS" || node.user_status === "UNLOCKED";
@@ -355,6 +357,11 @@ function NodeDetailPanel({
       }>(`/skill-tree/${node.id}/submit`, { answers: {} });
       setSubmitResult(data);
       onUnlockSuccess?.(node.id);
+      
+      // Prompt for satellite generation if it's an A2+ core trunk
+      if (data.completed && node.node_type === "CORE_TRUNK" && node.cefr_level !== "A1" && node.phase !== "FOUNDATION") {
+        onSatellitePrompt?.(node);
+      }
     } catch {
       setSubmitResult({ scorePercent: 0, xpEarned: 0, completed: false });
     } finally {
@@ -526,6 +533,8 @@ export default function RoadmapPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<SkillTreeNode | null>(null);
+  const [satellitePromptNode, setSatellitePromptNode] = useState<SkillTreeNode | null>(null);
+  const [generatingHobby, setGeneratingHobby] = useState(false);
   const [adaptiveRefreshing, setAdaptiveRefreshing] = useState(false);
   const [adaptiveResult, setAdaptiveResult] = useState<AdaptiveRefreshResponse | null>(null);
   // Tree / List toggle (persisted in localStorage)
@@ -536,6 +545,22 @@ export default function RoadmapPage() {
   const toggleView = (mode: "tree" | "list") => {
     setViewMode(mode);
     localStorage.setItem("df_roadmap_view", mode);
+  };
+
+  const HOBBIES = ["IT", "Medicine", "Education", "Engineering", "Travel", "Music", "Finance"];
+
+  const handleGenerateSatellite = async (hobby: string) => {
+    if (!satellitePromptNode) return;
+    setGeneratingHobby(true);
+    try {
+      await api.post(`/skill-tree/node/${satellitePromptNode.id}/generate-satellite`, { hobby });
+      setSatellitePromptNode(null);
+      void fetchSkillTree();
+    } catch (err) {
+      alert("Không thể tạo bài mở rộng: " + (err as any).response?.data?.error || "Lỗi");
+    } finally {
+      setGeneratingHobby(false);
+    }
   };
 
   const fetchSkillTree = useCallback(async () => {
@@ -951,6 +976,7 @@ export default function RoadmapPage() {
             node={selectedNode}
             onStart={() => handleStartNode(selectedNode)}
             onUnlockSuccess={() => void fetchSkillTree()}
+            onSatellitePrompt={setSatellitePromptNode}
           />
         )}
       </div>
