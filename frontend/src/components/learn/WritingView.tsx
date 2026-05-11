@@ -1,6 +1,6 @@
 "use client";
 
-import { NodeContent } from "@/stores/useNodeSessionStore";
+import { NodeContent, useNodeSessionStore } from "@/stores/useNodeSessionStore";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import api from "@/lib/api";
@@ -18,6 +18,9 @@ interface CorrectionResult {
 }
 
 export default function WritingView({ content }: { content: NodeContent }) {
+  const { markTabCompleted, tabCompletion } = useNodeSessionStore();
+  const isCompleted = tabCompletion.writing;
+
   const prompt = content.writing_prompt;
   const [text, setText] = useState("");
   const [correction, setCorrection] = useState<CorrectionResult | null>(null);
@@ -25,17 +28,15 @@ export default function WritingView({ content }: { content: NodeContent }) {
   const [submitted, setSubmitted] = useState(false);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  if (!prompt) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 bg-white rounded-2xl border border-[#E2E8F0]">
-        <span className="text-4xl mb-3">✍️</span>
-        <p className="text-sm text-[#64748B]">Bài viết chưa có cho bài học này.</p>
-      </div>
-    );
-  }
+  // Check completion when correction updates
+  useEffect(() => {
+    if (correction && correction.score >= 80) {
+      markTabCompleted("writing");
+    }
+  }, [correction, markTabCompleted]);
 
   const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
-  const minWords = prompt.min_words ?? 30;
+  const minWords = prompt?.min_words ?? 30;
   const progressPct = Math.min(100, (wordCount / minWords) * 100);
 
   // Debounced correction (2s after stop typing)
@@ -51,8 +52,8 @@ export default function WritingView({ content }: { content: NodeContent }) {
       try {
         const { data } = await api.post<CorrectionResult>("/skill-tree/correct-writing", {
           text: newText,
-          taskDe: prompt.task_de,
-          rubric: prompt.ai_grading_rubric,
+          taskDe: prompt?.task_de ?? "",
+          rubric: prompt?.ai_grading_rubric,
         });
         setCorrection(data);
       } catch { /* ignore */ }
@@ -72,12 +73,32 @@ export default function WritingView({ content }: { content: NodeContent }) {
     setCorrecting(true);
     try {
       const { data } = await api.post<CorrectionResult>("/skill-tree/correct-writing", {
-        text, taskDe: prompt.task_de, rubric: prompt.ai_grading_rubric, final: true,
+        text, taskDe: prompt?.task_de ?? "", rubric: prompt?.ai_grading_rubric, final: true,
       });
       setCorrection(data);
     } catch { /* ignore */ }
     finally { setCorrecting(false); }
   }, [text, wordCount, minWords, prompt]);
+
+  if (!prompt) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 bg-white rounded-2xl border border-[#E2E8F0] space-y-4">
+        <span className="text-4xl mb-3">✍️</span>
+        <p className="text-sm text-[#64748B]">Bài viết chưa có cho bài học này.</p>
+        <button
+          onClick={() => markTabCompleted("writing")}
+          disabled={isCompleted}
+          className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-colors ${
+            isCompleted 
+              ? "bg-green-500 text-white" 
+              : "bg-[#22C55E] hover:bg-[#16A34A] text-white"
+          }`}
+        >
+          {isCompleted ? "✅ Đã hoàn thành" : "✅ Bỏ qua & Đánh dấu hoàn thành"}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -206,6 +227,13 @@ export default function WritingView({ content }: { content: NodeContent }) {
         >
           Nộp bài viết
         </button>
+      )}
+
+      {/* ── Completion status ── */}
+      {isCompleted && (
+        <div className="mt-4 rounded-xl bg-green-50 border border-green-200 p-4 text-center">
+          <p className="text-sm font-bold text-green-700">✅ Đã hoàn thành phần Viết (≥ 80 điểm)</p>
+        </div>
       )}
     </div>
   );

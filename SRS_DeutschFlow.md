@@ -1,8 +1,12 @@
 # SRS — DeutschFlow (Software Requirements Specification)
 
-**Phiên bản:** 2.0  
-**Ngày:** 2026-05-09  
+**Phiên bản:** 2.2  
+**Ngày:** 2026-05-11  
 **Ngôn ngữ:** Tiếng Việt  
+
+**Changelog v2.2:** Triển khai **Supplemental Practice & Exam Prep System** và **Production API Audit**. (1) **Practice Module (V112/V113)**: Bảng `practice_exercises` và `practice_history` độc lập hoàn toàn với Skill Tree; hỗ trợ 2 loại bài tập `NORMAL` (bổ trợ) và `EXAM` (luyện thi Goethe/Telc); lọc theo CEFR level (A1-C2), kỹ năng và loại đề thi. (2) **XP-Only Rewards**: Thêm `XpEventType.CUSTOM_PRACTICE` vào hệ thống Gamification; `awardCustomPractice()` trong `XpService` tặng XP tỷ lệ theo % điểm (66% điểm → 66 XP/100 XP reward) nhưng **không kích hoạt Daily Streak** — giữ tính toàn vẹn chuỗi ngày học. (3) **Python Scraper**: `scraper.py` cào tự động đề thi Goethe-Institut → sinh SQL seed file (V113 B1 Lesen sample). (4) **Frontend `/student/practice`**: Trang thư viện bài tập mới với filter trình độ, grid cards, toast XP. (5) **Bug Fix — LearningPlanResponse**: DTO thiếu `sessionsPerWeek` và `minutesPerSession` khiến Dashboard widget hiển thị null — đã bổ sung 2 field, deploy production. (6) **Production API Audit (20/22 pass)**: Kiểm toàn bộ endpoints trên EC2; 20/22 pass; 2 lỗi còn lại là behavior đúng (user mới chưa qua onboarding nên chưa có learning plan). (7) **E2E Flow Verification**: Test toàn bộ luồng học viên mới — Đăng ký → Onboarding → Tạo plan → Dashboard → Today plan → Làm bài tập bổ trợ → Nhận XP trên production.
+
+**Changelog v2.1:** Triển khai **Interactive Roadmap, Phoneme Coach, Gamification & SRS**. (1) **Interactive Skill Tree Graph**: Thay thế roadmap dạng list bằng canvas tương tác 2D sử dụng `@xyflow/react` (React Flow v12). Layout tự động căn giữa (Core spine dọc, Satellite tỏa ngang), hỗ trợ zoom/pan, minimap, tự động nhảy đến vị trí đang học. (2) **Phoneme Coach**: Đánh giá phát âm chi tiết cấp độ âm vị (phoneme-level) kết hợp AI Whisper STT và Groq LLM; giao diện highlight từ vựng theo độ chính xác (đỏ/vàng/xanh), chấm điểm %, cung cấp IPA và feedback cải thiện. (3) **Gamification (Achievements & Badges)**: Hệ thống huy hiệu chuyên ngành (IT, Y tế, Nhà hàng, v.v.) lưu trữ trong `user_achievements` (V111); Gallery UI hiển thị tier (Bronze/Silver/Gold/Diamond/Legendary) dựa trên XP và số bài học. (4) **SRS SM-2 Engine**: Tích hợp thuật toán Spaced Repetition (SM-2) cho Flashcard từ vựng/ngữ pháp (V110); tự động tính toán E-Factor, Interval, Next Review Date; giao diện luyện tập với chất lượng nhớ (1-5).
 
 **Changelog v2.0:** Triển khai **Unified Curriculum V2** — kiến trúc DAG Skill Tree toàn diện (A1-C2). (1) **Database Migration V66-V71**: Schema mới với `module_number`, `tags TEXT[]`, `satellite_status`, GIN indexes trên JSONB; 35 nodes (10 full content, 25 skeleton); bảng `placement_questions` + `placement_test_sessions`. (2) **All-in-One Content API**: `GET /api/skill-tree/node/{nodeId}/session` trả ~30KB JSONB → Gzip ~5KB, zero-latency tab switching qua Zustand store. (3) **5 Unified Learning Views**: GrammarView (color-coded DER🔵/DIE🔴/DAS🟢 + tag filter), ReadingView (split-screen tap-to-translate), ListeningView (karaoke sync + fill-blank), SpeakingView (Web Audio waveform + Groq LLM pronunciation eval), WritingView (debounced 2s AI correction). (4) **Placement Test**: 10 câu hỏi Goethe-chuẩn 4 kỹ năng (Hören/Sprechen/Lesen/Schreiben), pass ≥ 7/10, retry sau 3 ngày đề khác. (5) **Onboarding V2**: 4 bước (chọn trình độ → mục tiêu/ngành → weekly target → placement test hoặc bắt đầu từ A0). (6) **WhisperApiClient**: Java-native OpenAI Whisper STT (loại bỏ Python sidecar), word-level timestamps. (7) **SATELLITE**: Orphan sweeper @Scheduled 15 phút, GENERATING > 10min → FAILED. (8) **Pronunciation Eval**: Groq LLM đánh giá phát âm (không dùng Levenshtein — chống anti-pattern Whisper auto-correct). (9) **Writing Correction**: Groq LLM sửa bài viết với phân loại lỗi (grammar/spelling/style).
 
@@ -58,8 +62,14 @@
 31. Curriculum Phase 2 & DAG Skill Tree *(v1.7)*
 32. System Stability & Admin Data Management *(v1.8)*
 33. Automated Error Remediation Flow & Roadmap Fixes *(v1.9)*
-34. Unified Curriculum V2 & Learning Views *(v2.0)*
-35. Onboarding V2 & Placement Test *(v2.0)*
+61. Unified Curriculum V2 & Learning Views *(v2.0)*
+62. Onboarding V2 & Placement Test *(v2.0)*
+63. Interactive Skill Tree Graph *(v2.1)*
+64. Phoneme Coach & Pronunciation Feedback *(v2.1)*
+65. Gamification: Industry Achievements & Badge Gallery *(v2.1)*
+66. SRS SM-2 Flashcard Engine *(v2.1)*
+67. Module SUPPLEMENTAL PRACTICE & EXAM PREP *(v2.2)*
+68. Production API Audit & E2E Verification *(v2.2)*
 
 ---
 
@@ -1705,3 +1715,246 @@ ALTER TABLE user_learning_profiles
 - Integration: tạo test → submit → chấm điểm → verify pass/fail logic
 - E2E: register → onboarding 4 bước → placement test → roadmap
 - Unit: `gradeAnswer()` — MCQ, fill-blank, keyword matching
+
+---
+
+## 36. Interactive Skill Tree Graph *(v2.1)*
+
+### 36.1 Mục tiêu
+Cải thiện trải nghiệm trực quan hóa lộ trình học (Roadmap) bằng cách chuyển từ danh sách cuộn dọc sang một sơ đồ cây tương tác (2D Canvas).
+
+### 36.2 Kiến trúc Layout
+- Sử dụng thư viện `@xyflow/react` (React Flow v12) cho rendering canvas.
+- **Layout Engine (treeLayout.ts)**:
+  - **CORE_TRUNK**: Nằm trên một trục dọc trung tâm (Spine). Phân tách bằng các marker tuần (Week Pill).
+  - **SATELLITE_LEAF**: Phân bổ sang hai bên (Left/Right Wings), căn giữa theo chiều dọc tương đối với cụm Core của tuần đó. Đường nối (edges) dạng đứt nét.
+- **Node Components (SkillTreeNodes.tsx)**:
+  - `SkillNode`: 4 trạng thái (LOCKED, UNLOCKED, IN_PROGRESS, COMPLETED) với hiệu ứng visual khác biệt.
+  - `WeekMarkerNode`: Phân tách các tuần.
+  - `StartFinishNode`: Node đánh dấu bắt đầu và kết thúc lộ trình.
+
+### 36.3 Tương tác & UX
+- Hỗ trợ cuộn chuột (Scroll) để Zoom và kéo thả (Drag) để Pan.
+- **MiniMap**: Góc phải dưới để định vị vị trí hiện tại trên toàn bộ cây.
+- Tích hợp nút **"📍 Vị trí đang học"** giúp auto-jump (FitBounds) tới node đang IN_PROGRESS gần nhất.
+- Hỗ trợ toggle qua lại giữa chế độ **List** (truyền thống) và **Tree** (mới), trạng thái xem được lưu trong `localStorage`.
+
+---
+
+## 37. Phoneme Coach & Pronunciation Feedback *(v2.1)*
+
+### 37.1 Mục tiêu
+Cung cấp feedback phát âm chi tiết đến từng âm vị (phoneme), giúp học viên biết chính xác từ/âm nào phát âm sai để sửa đổi.
+
+### 37.2 Luồng xử lý
+1. **Frontend**: Thu âm qua `MediaRecorder` và hiển thị waveform (Web Audio API).
+2. **Backend**: 
+   - `PhonemeController` nhận audio file và đoạn text gốc cần đọc (Reference Text).
+   - Gọi `WhisperApiClient.transcribeText()` để lấy transcript dạng text.
+   - Gọi Groq LLM (thường là Llama 3) với System Prompt chuyên biệt để phân tích sự sai lệch giữa Transcript và Reference Text.
+3. **LLM Evaluation (JSON)**: Trả về phân tích cấp độ từ (word-level):
+   - Mảng `words`: chứa original word, IPA chuẩn, status (`correct`, `minor_error`, `major_error`), âm vị sai (ví dụ: phát âm "sch" thành "s"), và gợi ý sửa.
+   - `overall_score`: Điểm tổng quan (0-100%).
+   - `general_feedback`: Nhận xét tổng quát.
+
+### 37.3 Hiển thị UI
+- `PhonemeCoach.tsx` hiển thị câu đọc với các từ được tô màu: Xanh lá (Correct), Vàng (Minor error), Đỏ (Major error).
+- Click vào từ lỗi sẽ bung ra tooltip chi tiết (âm sai, IPA đúng, cách uốn lưỡi).
+
+---
+
+## 38. Gamification: Industry Achievements & Badge Gallery *(v2.1)*
+
+### 38.1 Mục tiêu
+Thúc đẩy động lực học tập (retention) bằng hệ thống huy hiệu và danh hiệu (Achievements) tập trung vào các nhánh kỹ năng và ngành nghề (Industry).
+
+### 38.2 Data Model (Migration V111)
+- Bảng `user_achievements`: Lưu trữ các danh hiệu người dùng đạt được.
+  - Fields: `user_id`, `achievement_type` (VD: `INDUSTRY_MASTER`), `industry_code` (VD: `IT_HARDWARE`), `tier` (`BRONZE`, `SILVER`, `GOLD`, `DIAMOND`, `LEGENDARY`), `xp_earned`, `unlocked_at`.
+- Tự động hóa: Các danh hiệu được cấp (grant) tự động khi user hoàn thành các Satellite Nodes thuộc ngành tương ứng hoặc đạt mốc XP nhất định.
+
+### 38.3 Giao diện Badge Gallery
+- Hiển thị lưới huy hiệu trong trang Profile/Dashboard.
+- Huy hiệu chưa đạt được sẽ bị khóa (LOCKED) dưới dạng bóng mờ (silhouette).
+- Hiển thị thanh tiến trình (progress bar) cho cấp độ tiếp theo của từng huy hiệu.
+
+---
+
+## 39. SRS SM-2 Flashcard Engine *(v2.1)*
+
+### 39.1 Mục tiêu
+Thay thế logic ôn tập tĩnh bằng thuật toán Spaced Repetition (Lặp lại ngắt quãng) SM-2 chuẩn hóa, tối ưu hóa quá trình ghi nhớ từ vựng và ngữ pháp dài hạn.
+
+### 39.2 Data Model (Migration V110)
+- Bảng `learning_review_items`: Bảng cốt lõi quản lý tiến trình SM-2.
+  - Fields: `user_id`, `item_type` (`VOCAB`, `GRAMMAR`), `item_id` (tham chiếu từ/ngữ pháp), `e_factor` (mặc định 2.5), `interval_days` (khoảng cách ngày ôn tiếp theo), `repetition_count` (số lần ôn đúng liên tiếp), `next_review_date` (ngày đáo hạn), `last_reviewed_at`.
+
+### 39.3 Thuật toán SM-2
+- **Quality Response (q)**: Điểm chất lượng nhớ do học viên đánh giá (0-5). Trong DeutschFlow, thường gộp thành: 1 (Sai/Quên), 3 (Nhớ mang máng), 5 (Nhớ rõ/Dễ).
+- **Tính toán E-Factor mới**: `EF_new = EF_old + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02))`. EF tối thiểu là 1.3.
+- **Tính toán Interval**:
+  - `q < 3`: Trả về `repetition_count = 0`, `interval_days = 1`.
+  - `q >= 3`: 
+    - Lần 1: `interval_days = 1`
+    - Lần 2: `interval_days = 6`
+    - Lần > 2: `interval_days = round(interval_days_old * EF_new)`
+
+### 39.4 Flow Học Tập
+- `GET /api/reviews/due`: Lấy danh sách các thẻ có `next_review_date <= NOW()`.
+- Giao diện hiển thị flashcard, học viên nhấn "Lật thẻ" để xem đáp án.
+- Học viên chọn mức độ (Quên, Khó, Dễ).
+- `POST /api/reviews/{id}/grade`: Gửi điểm chất lượng (q) lên BE để tính toán và cập nhật SM-2 metrics. Mở khóa phần thưởng (XP) cho mỗi lần ôn tập thành công.
+
+---
+
+## 40. Module SUPPLEMENTAL PRACTICE & EXAM PREP *(v2.2)*
+
+### 40.1 Mục tiêu
+
+Cung cấp **kho bài tập bổ trợ và luyện thi** (Goethe, Telc) hoàn toàn tách biệt với lộ trình Skill Tree chính. Học viên có thể tự do luyện tập thêm, nhận XP nhưng **không ảnh hưởng đến Daily Streak** — giữ nguyên tính toàn vẹn của chuỗi ngày học chính thức.
+
+### 40.2 Data Model (Migration V112 + V113)
+
+#### Bảng `practice_exercises`
+| Column | Type | Mô tả |
+|--------|------|--------|
+| `id` | BIGSERIAL PK | ID bài tập |
+| `exercise_type` | VARCHAR(20) | `NORMAL` (bổ trợ) hoặc `EXAM` (đề thi) |
+| `cefr_level` | VARCHAR(3) | A1, A2, B1, B2, C1, C2 |
+| `skill_type` | VARCHAR(20) | READING, LISTENING, WRITING, SPEAKING, GRAMMAR |
+| `exam_name` | VARCHAR(200) | Tên đề thi nếu là loại EXAM (vd: "Goethe B1 Modellsatz") |
+| `content_json` | JSONB | Nội dung câu hỏi dạng dynamic (đọc hiểu, trắc nghiệm...) |
+| `source_name` | VARCHAR(100) | Nguồn gốc (Goethe-Institut, Telc, DeutschFlow...) |
+| `source_url` | VARCHAR(500) | URL nguồn gốc (tuỳ chọn) |
+| `xp_reward` | INTEGER | XP tối đa nhận được nếu đạt 100% |
+| `is_active` | BOOLEAN | Bật/tắt hiển thị |
+
+#### Bảng `practice_history`
+| Column | Type | Mô tả |
+|--------|------|--------|
+| `id` | BIGSERIAL PK | ID lịch sử |
+| `user_id` | BIGINT FK | Tham chiếu `users` |
+| `practice_id` | BIGINT FK | Tham chiếu `practice_exercises` |
+| `score_percent` | INTEGER | Điểm % học viên đạt được (0-100) |
+| `xp_earned` | INTEGER | XP thực tế nhận được = `score_percent% × xp_reward` |
+| `answer_data` | JSONB | Đáp án học viên đã chọn |
+| `completed_at` | TIMESTAMP | Thời điểm hoàn thành |
+
+**Design Decision**: `practice_history` **không có foreign key sang Streak hay Session bảng chính** — đây là lựa chọn kiến trúc có chủ ý để tách biệt hoàn toàn XP bổ trợ khỏi cơ chế Streak.
+
+### 40.3 Gamification — XP-Only (No Streak)
+
+```java
+// XpEventType enum
+CUSTOM_PRACTICE  // Bài tập bổ trợ — chỉ cộng XP, không cộng Streak
+
+// XpService.awardCustomPractice()
+public void awardCustomPractice(Long userId, int xpAmount, String note) {
+    // Tạo XpEvent type=CUSTOM_PRACTICE
+    // KHÔNG gọi bất kỳ logic nào liên quan đến Streak/Session progress
+}
+```
+
+**Công thức XP**: `earnedXP = round(scorePercent / 100.0 × xpReward)`
+- Ví dụ: 66% điểm × 100 XP reward = **66 XP**
+- Ví dụ: 90% điểm × 50 XP reward = **45 XP**
+
+### 40.4 API Endpoints
+
+| Method | Path | Mô tả |
+|--------|------|--------|
+| GET | `/api/practice/exercises` | Danh sách bài tập (filter: `cefrLevel`, `exerciseType`, `skillType`; phân trang) |
+| GET | `/api/practice/exercises/{id}` | Chi tiết 1 bài tập (bao gồm `contentJson`) |
+| POST | `/api/practice/submit` | Nộp kết quả → cộng XP → lưu lịch sử |
+
+**Request body** `POST /api/practice/submit`:
+```json
+{
+  "practiceId": 1,
+  "scorePercent": 80,
+  "answerDataJson": "{\"q1\":\"Richtig\",\"q2\":\"Falsch\"}"
+}
+```
+
+### 40.5 Frontend — `/student/practice`
+
+- **Filter**: Dropdown chọn trình độ A1→C2 (lọc real-time).
+- **Grid cards**: Hiển thị loại bài tập (EXAM/NORMAL), cấp độ, kỹ năng, nguồn, XP có thể nhận.
+- **Toast notification**: Sau khi nộp bài, hiện popup "Hoàn thành! +XX XP" — **không** hiển thị cập nhật Streak.
+
+### 40.6 Python Scraper (`scraper.py`)
+
+Script tự động cào bài tập từ các nguồn bên ngoài và sinh ra SQL Migration file:
+
+```bash
+python3 scraper.py --source goethe --level B1 --skill reading --output V114__seed_...sql
+```
+
+**Nguồn được hỗ trợ**: Goethe-Institut Modellsatz, Deutsche Welle, Schubert Verlag, Telc.
+
+---
+
+## 41. Production API Audit & E2E Verification *(v2.2)*
+
+### 41.1 Kết quả Audit Production (2026-05-11)
+
+**Target**: `http://3.82.43.113:8080` (EC2 Production)  
+**Kết quả**: **20/22 endpoints PASS**
+
+| Module | Endpoint | Status |
+|--------|----------|--------|
+| Auth | `POST /api/auth/login`, `GET /api/auth/me` | ✅ |
+| Onboarding | `GET /api/onboarding/status` | ✅ |
+| Skill Tree | `GET /api/skill-tree/me` | ✅ |
+| Roadmap | `GET /api/roadmap/me` | ✅ |
+| Today Plan | `GET /api/today/me` | ✅ |
+| AI Speaking | `GET /api/ai-speaking/sessions`, `GET /api/ai-speaking/tts/status` | ✅ |
+| Vocabulary | `GET /api/words`, `GET /api/srs/due`, `GET /api/srs/stats` | ✅ |
+| Error Tracking | `GET /api/error-skills/me`, `GET /api/review-tasks/me/today` | ✅ |
+| Reviews | `GET /api/reviews/due` | ✅ |
+| Gamification | `GET /api/xp/me`, `GET /api/xp/leaderboard` | ✅ |
+| Practice (new) | `GET /api/practice/exercises`, `POST /api/practice/submit` | ✅ |
+| Notifications | `GET /api/notifications` | ✅ |
+| Learning Plan | `GET /api/plan/me` (user mới chưa onboard) | ⚠️ 404 (behavior đúng) |
+| Dashboard | `GET /api/student/dashboard` (user mới chưa onboard) | ⚠️ 404 (behavior đúng) |
+
+**Ghi chú**: 2 endpoint trả 404 là **behavior đúng thiết kế** — user phải hoàn thành Onboarding (`POST /api/onboarding/profile`) trước khi có Learning Plan.
+
+### 41.2 Bug Fix — LearningPlanResponse
+
+**Vấn đề**: Record `LearningPlanResponse` chỉ có 3 fields (`weeklyMinutes`, `weeksTotal`, `plan`), thiếu `sessionsPerWeek` và `minutesPerSession`. Frontend Dashboard widget hiển thị `null` cho 2 giá trị này.
+
+**Fix**: Bổ sung 2 field vào record, cập nhật cả 2 nơi construct (`saveProfileAndGeneratePlan` và `getMyPlan`).
+
+```java
+// Before (broken)
+public record LearningPlanResponse(int weeklyMinutes, int weeksTotal, Map<String, Object> plan) {}
+
+// After (fixed)
+public record LearningPlanResponse(
+    int weeklyMinutes, int weeksTotal,
+    int sessionsPerWeek, int minutesPerSession,  // ← added
+    Map<String, Object> plan) {}
+```
+
+**Đã deploy**: `fix(plan): add sessionsPerWeek & minutesPerSession to LearningPlanResponse` — commit `fe401c9`.
+
+### 41.3 E2E New Student Flow (Verified on Production)
+
+Luồng hoàn chỉnh đã được verify tự động qua API calls thẳng lên production:
+
+```
+1. POST /api/auth/register          → userId=31, JWT token
+2. GET  /api/onboarding/status      → {"hasPlan": false}
+3. POST /api/onboarding/profile     → Plan 112w, 5 sessions/w, 30 min/session
+4. GET  /api/onboarding/status      → {"hasPlan": true}
+5. GET  /api/plan/me                → weeksTotal=112, sessionsPerWeek=5 ✅
+6. GET  /api/student/dashboard      → streak=0, progress=0% ✅
+7. GET  /api/today/me               → topic=Reise, cefr=A1, rollingAcc=100% ✅
+8. GET  /api/practice/exercises     → 1 bài B1 READING (Goethe) ✅
+9. POST /api/practice/submit        → HTTP 200, earned 66 XP ✅
+10. GET /api/xp/me                  → totalXP=66, level=1, streak=0 ✅
+```
+
+**Xác nhận**: XP được cộng, Level tăng đúng, **Streak = 0** (không bị ảnh hưởng bởi bài tập bổ trợ).
+

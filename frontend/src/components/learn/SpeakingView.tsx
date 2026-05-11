@@ -1,6 +1,6 @@
 "use client";
 
-import { NodeContent } from "@/stores/useNodeSessionStore";
+import { NodeContent, useNodeSessionStore } from "@/stores/useNodeSessionStore";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Mic, Square, RotateCcw, Loader2 } from "lucide-react";
 import { AudioButton } from "./LearnComponents";
@@ -18,11 +18,15 @@ interface PronunciationFeedback {
 }
 
 export default function SpeakingView({ content }: { content: NodeContent }) {
+  const { markTabCompleted, tabCompletion } = useNodeSessionStore();
+  const isCompleted = tabCompletion.speaking;
+
   const [currentDrillIndex, setCurrentDrillIndex] = useState(0);
   const [recording, setRecording] = useState(false);
   const [evaluating, setEvaluating] = useState(false);
   const [feedback, setFeedback] = useState<PronunciationFeedback | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [completedDrills, setCompletedDrills] = useState<Set<number>>(new Set());
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -136,12 +140,22 @@ export default function SpeakingView({ content }: { content: NodeContent }) {
         { headers: { "Content-Type": "multipart/form-data" } }
       );
       setFeedback(data);
+
+      if (data.overall_score >= 80) {
+        setCompletedDrills((prev) => {
+          const next = new Set(prev).add(currentDrillIndex);
+          if (next.size >= drills.length * 0.8) {
+            markTabCompleted("speaking");
+          }
+          return next;
+        });
+      }
     } catch {
       setError("Đánh giá thất bại. Vui lòng thử lại.");
     } finally {
       setEvaluating(false);
     }
-  }, [currentDrill, content.vocabulary]);
+  }, [currentDrillIndex, currentDrill, content.vocabulary, drills.length, markTabCompleted]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -296,6 +310,13 @@ export default function SpeakingView({ content }: { content: NodeContent }) {
               Bài tiếp theo →
             </button>
           )}
+        </div>
+      )}
+
+      {/* ── Completion Status ── */}
+      {isCompleted && (
+        <div className="mt-4 rounded-xl bg-green-50 border border-green-200 p-4 text-center">
+          <p className="text-sm font-bold text-green-700">✅ Đã hoàn thành phần Nói (≥ 80% bài đạt điểm cao)</p>
         </div>
       )}
     </div>

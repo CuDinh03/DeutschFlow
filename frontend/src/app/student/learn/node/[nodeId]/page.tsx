@@ -31,8 +31,29 @@ export default function LearnNodePage() {
   const nodeId = Number(params?.nodeId);
 
   const { me, loading: meLoading, targetLevel, streakDays, initials } = useStudentPracticeSession();
-  const { session, loading, error, activeView, setActiveView, fetchSession, reset } = useNodeSessionStore();
+  const { session, loading, error, activeView, setActiveView, fetchSession, reset, tabCompletion, markTabCompleted } = useNodeSessionStore();
   const [showRecap, setShowRecap] = useState(false);
+  const [phonemeSuccessCount, setPhonemeSuccessCount] = useState<Set<number>>(new Set());
+
+  // Auto-complete logic
+  useEffect(() => {
+    if (!session?.content || showRecap) return;
+    const c = session.content;
+    const required = [];
+    
+    // Check which tabs actually have content
+    if (c.theory_cards?.length > 0 || c.vocabulary?.length > 0) required.push(tabCompletion.grammar);
+    if (c.reading_passage) required.push(tabCompletion.reading);
+    if (c.audio_content) required.push(tabCompletion.listening);
+    if (c.writing_prompt) required.push(tabCompletion.writing);
+    if (c.phrases?.length > 0 || c.examples?.length > 0) required.push(tabCompletion.speaking);
+    if (c.vocabulary?.length > 0) required.push(tabCompletion.phoneme);
+
+    // Ensure all required tabs are true
+    if (required.length > 0 && required.every(Boolean)) {
+      setShowRecap(true);
+    }
+  }, [session, tabCompletion, showRecap]);
 
   useEffect(() => {
     if (!me || !nodeId) return;
@@ -164,6 +185,21 @@ export default function LearnNodePage() {
                 const firstVocab = vocab[0];
                 const target = firstVocab?.german ?? session.titleDe ?? "Guten Tag";
                 const meaning = firstVocab?.meaning ?? "";
+                
+                const handlePhonemeSuccess = (idx: number, score: number) => {
+                  if (score >= 80) {
+                    setPhonemeSuccessCount((prev) => {
+                      const next = new Set(prev).add(idx);
+                      // Require >= 80% of up to 5 words
+                      const totalWords = Math.min(vocab.length, 5);
+                      if (next.size >= totalWords * 0.8) {
+                        markTabCompleted("phoneme");
+                      }
+                      return next;
+                    });
+                  }
+                };
+
                 return (
                   <div className="space-y-4">
                     <p className="text-xs text-[#64748B] text-center">
@@ -172,20 +208,24 @@ export default function LearnNodePage() {
                     <PhonemeCoach
                       target={target}
                       meaningVi={meaning}
-                      onSuccess={(score) =>
-                        console.log("[Phoneme] Score:", score)
-                      }
+                      onSuccess={(score) => handlePhonemeSuccess(0, score)}
                     />
                     {vocab.length > 1 && (
                       <div className="space-y-3">
                         <p className="text-[10px] font-bold text-[#64748B] uppercase tracking-wide">Từ khác trong bài</p>
                         {vocab.slice(1, 5).map((v, i) => (
                           <PhonemeCoach
-                            key={i}
+                            key={i + 1}
                             target={v.german}
                             meaningVi={v.meaning}
+                            onSuccess={(score) => handlePhonemeSuccess(i + 1, score)}
                           />
                         ))}
+                      </div>
+                    )}
+                    {tabCompletion.phoneme && (
+                      <div className="mt-4 rounded-xl bg-green-50 border border-green-200 p-4 text-center">
+                        <p className="text-sm font-bold text-green-700">✅ Đã hoàn thành phần Phát âm (≥ 80% đúng)</p>
                       </div>
                     )}
                   </div>
@@ -205,18 +245,12 @@ export default function LearnNodePage() {
           />
         )}
       </div>
-
-        {/* ── Complete button ── */}
+        {/* ── Complete indicator ── */}
         {session?.hasContent && !showRecap && (
-          <div className="px-4 pb-6">
-            <button
-              type="button"
-              onClick={() => setShowRecap(true)}
-              className="w-full py-3 rounded-2xl font-bold text-sm text-white transition-transform active:scale-95"
-              style={{ background: "linear-gradient(135deg, #121212 0%, #1E293B 100%)" }}
-            >
-              ✅ Hoàn thành bài học
-            </button>
+          <div className="px-4 pb-6 text-center">
+            <p className="text-sm text-[#94A3B8]">
+              Hoàn thành tất cả các kỹ năng (100% đúng hoặc ≥ 80 điểm) để mở khoá bài tiếp theo.
+            </p>
           </div>
         )}
     </StudentShell>

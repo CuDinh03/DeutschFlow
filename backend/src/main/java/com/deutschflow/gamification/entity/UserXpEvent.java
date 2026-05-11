@@ -53,6 +53,7 @@ public class UserXpEvent {
         DAILY_GOAL,         // +50 XP when daily goal met
         ACHIEVEMENT_REWARD, // XP awarded when achievement unlocked
         SATELLITE_COMPLETE, // +50 XP when satellite/industry node completed
-        SRS_REVIEW          // +2 XP per SRS card reviewed (daily cap 20)
+        SRS_REVIEW,         // +2 XP per SRS card reviewed (daily cap 20)
+        CUSTOM_PRACTICE     // Variable XP from custom supplemental exercises
     }
 }

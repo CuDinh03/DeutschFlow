@@ -100,6 +100,8 @@ interface NodeSessionState {
   error: string | null;
   activeView: ActiveView;
   setActiveView: (v: ActiveView) => void;
+  tabCompletion: Record<ActiveView, boolean>;
+  markTabCompleted: (tab: ActiveView) => void;
   fetchSession: (nodeId: number) => Promise<void>;
   reset: () => void;
 }
@@ -109,11 +111,34 @@ export const useNodeSessionStore = create<NodeSessionState>((set) => ({
   loading: false,
   error: null,
   activeView: "grammar",
+  tabCompletion: {
+    grammar: false,
+    reading: false,
+    listening: false,
+    speaking: false,
+    writing: false,
+    phoneme: false,
+  },
 
   setActiveView: (v) => set({ activeView: v }),
+  markTabCompleted: (tab) =>
+    set((state) => ({
+      tabCompletion: { ...state.tabCompletion, [tab]: true },
+    })),
 
   fetchSession: async (nodeId) => {
-    set({ loading: true, error: null });
+    set({
+      loading: true,
+      error: null,
+      tabCompletion: {
+        grammar: false,
+        reading: false,
+        listening: false,
+        speaking: false,
+        writing: false,
+        phoneme: false,
+      },
+    });
     try {
       const { data } = await api.get<NodeSession>(`/skill-tree/node/${nodeId}/session`);
       set({ session: data, loading: false });
@@ -122,5 +147,19 @@ export const useNodeSessionStore = create<NodeSessionState>((set) => ({
     }
   },
 
-  reset: () => set({ session: null, loading: false, error: null, activeView: "grammar" }),
+  reset: () =>
+    set({
+      session: null,
+      loading: false,
+      error: null,
+      activeView: "grammar",
+      tabCompletion: {
+        grammar: false,
+        reading: false,
+        listening: false,
+        speaking: false,
+        writing: false,
+        phoneme: false,
+      },
+    }),
 }));

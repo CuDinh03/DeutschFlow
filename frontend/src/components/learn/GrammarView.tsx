@@ -1,8 +1,8 @@
 "use client";
 
-import { NodeContent } from "@/stores/useNodeSessionStore";
+import { NodeContent, useNodeSessionStore } from "@/stores/useNodeSessionStore";
 import { VocabCard, VocabTag, AudioButton } from "./LearnComponents";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
 // ── Smart content renderer ──
 function TheoryContent({ text }: { text: string }) {
@@ -114,7 +114,30 @@ function TheoryCard({ card, index, total }: { card: NodeContent["theory_cards"][
 }
 
 export default function GrammarView({ content }: { content: NodeContent }) {
+  const { markTabCompleted, tabCompletion } = useNodeSessionStore();
+  const isCompleted = tabCompletion.grammar;
+
   const [activeTag, setActiveTag] = useState<string | null>(null);
+
+  // ── Practice Quiz Logic ──
+  const practiceItems = Array.isArray(content.exercises?.practice) ? content.exercises.practice : [];
+  const [answers, setAnswers] = useState<Record<number, number>>({});
+  const [quizSubmitted, setQuizSubmitted] = useState(false);
+
+  const score = useMemo(() => {
+    let correct = 0;
+    practiceItems.forEach((item: any, i) => {
+      if (answers[i] === item.answerIndex) correct++;
+    });
+    return correct;
+  }, [answers, practiceItems]);
+
+  const handleQuizSubmit = () => {
+    setQuizSubmitted(true);
+    if (score === practiceItems.length && practiceItems.length > 0) {
+      markTabCompleted("grammar");
+    }
+  };
 
   const allTags = Array.from(new Set([
     ...content.theory_cards.flatMap((c) => c.tags ?? []),
@@ -126,7 +149,7 @@ export default function GrammarView({ content }: { content: NodeContent }) {
     : content.vocabulary;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20">
       <section>
         <h2 className="text-sm font-bold text-[#0F172A] uppercase tracking-wide mb-3 flex items-center gap-2">
           <span className="w-6 h-6 rounded bg-[#121212] text-white flex items-center justify-center text-xs">📖</span>
@@ -203,6 +226,86 @@ export default function GrammarView({ content }: { content: NodeContent }) {
           </div>
         </section>
       )}
+
+      {/* ── Practice Quiz / Completion ── */}
+      <section className="pt-6 border-t border-[#E2E8F0] mt-8">
+        <div className="bg-[#F8FAFC] rounded-2xl border border-[#E2E8F0] p-6 text-center space-y-4">
+          <h2 className="text-sm font-bold text-[#0F172A] uppercase tracking-wide">
+            Kiểm tra mức độ hiểu bài
+          </h2>
+          
+          {practiceItems.length > 0 ? (
+            <div className="space-y-6 text-left mt-4">
+              {practiceItems.map((item: any, i: number) => (
+                <div key={i} className="space-y-3 bg-white p-4 rounded-xl border border-[#E2E8F0]">
+                  <p className="text-sm font-bold text-[#0F172A]">{i + 1}. {item.question || "Câu hỏi..."}</p>
+                  <div className="space-y-2">
+                    {Array.isArray(item.options) && item.options.map((opt: string, j: number) => {
+                      const isSelected = answers[i] === j;
+                      const isCorrect = item.answerIndex === j;
+                      const showResult = quizSubmitted;
+                      
+                      let btnClass = "border-[#E2E8F0] hover:border-[#CBD5E1] text-[#475569]";
+                      if (isSelected && !showResult) btnClass = "border-[#FFCD00] bg-[#FFCD00]/10 text-[#121212]";
+                      if (showResult && isCorrect) btnClass = "border-green-500 bg-green-50 text-green-700";
+                      if (showResult && isSelected && !isCorrect) btnClass = "border-red-500 bg-red-50 text-red-700";
+
+                      return (
+                        <button
+                          key={j}
+                          onClick={() => !quizSubmitted && setAnswers(prev => ({ ...prev, [i]: j }))}
+                          disabled={quizSubmitted}
+                          className={`w-full text-left px-4 py-3 rounded-lg border-2 text-sm font-medium transition-all ${btnClass}`}
+                        >
+                          {opt}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+              
+              {!isCompleted && (
+                <button
+                  onClick={handleQuizSubmit}
+                  disabled={Object.keys(answers).length < practiceItems.length}
+                  className="w-full py-3 rounded-xl bg-[#121212] text-white text-sm font-bold disabled:opacity-50"
+                >
+                  Kiểm tra đáp án
+                </button>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-[#64748B] mb-4">
+              Không có bài tập thực hành cho phần này. Hãy đánh dấu hoàn thành nếu bạn đã hiểu rõ lý thuyết.
+            </p>
+          )}
+
+          {(!practiceItems.length || (quizSubmitted && score === practiceItems.length)) ? (
+            <button
+              onClick={() => markTabCompleted("grammar")}
+              disabled={isCompleted}
+              className={`w-full py-3 rounded-xl font-bold text-sm transition-colors ${
+                isCompleted 
+                  ? "bg-green-500 text-white" 
+                  : "bg-[#22C55E] hover:bg-[#16A34A] text-white"
+              }`}
+            >
+              {isCompleted ? "✅ Đã hoàn thành 100%" : "✅ Đã đọc & Hiểu (100%)"}
+            </button>
+          ) : quizSubmitted && score < practiceItems.length ? (
+            <div className="text-red-500 text-sm font-bold mt-2">
+              Bạn trả lời đúng {score}/{practiceItems.length}. Cần đúng 100% để qua bài!
+              <button 
+                onClick={() => { setQuizSubmitted(false); setAnswers({}); }}
+                className="ml-3 text-blue-600 underline"
+              >
+                Làm lại
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </section>
     </div>
   );
 }
