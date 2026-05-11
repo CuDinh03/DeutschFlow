@@ -12,6 +12,7 @@ export type PracticeSessionUser = {
   role: string;
   userId?: number;
   email?: string | null;
+  phoneNumber?: string | null;
   locale?: string;
   learningTargetLevel?: string | null;
   industry?: string | null;

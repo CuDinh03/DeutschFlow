@@ -169,7 +169,7 @@ export function StudentShell({
           { id: "leaderboard" as const, label: "Bảng xếp hạng", icon: Trophy, href: "/student/leaderboard" },
           { id: "badges" as const, label: "🏅 Huy hiệu", icon: Trophy, href: "/student/badges",
             badge: <span className="text-[9px] font-bold bg-[#FFCD00]/20 text-[#78350F] px-1.5 py-0.5 rounded-full border border-[#FFCD00]/40">XP</span> },
-          { id: "settings" as const, label: t("navSettings"), icon: Settings, href: "/dashboard" },
+          { id: "settings" as const, label: t("navSettings"), icon: Settings, href: "/student/settings" },
         ],
       },
     ],
@@ -248,7 +248,11 @@ export function StudentShell({
               <span className="font-medium text-sm">{t("logout")}</span>
             </button>
 
-            <div className="flex items-center gap-3 px-4 py-3 rounded-[12px] bg-white/8 border border-white/10">
+            <div
+              className="flex items-center gap-3 px-4 py-3 rounded-[12px] bg-white/8 border border-white/10 cursor-pointer hover:bg-white/12 transition-colors"
+              onClick={() => go("/student/settings")}
+              title="Cài đặt hồ sơ"
+            >
               <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[var(--brand-yellow)] to-[var(--brand-yellow-dark)] flex items-center justify-center flex-shrink-0">
                 <span className="text-[var(--brand-black)] font-bold text-sm">{initials}</span>
               </div>

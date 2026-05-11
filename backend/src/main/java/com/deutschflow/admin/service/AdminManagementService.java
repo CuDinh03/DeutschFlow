@@ -7,6 +7,7 @@ import com.deutschflow.common.config.VocabularyEnrichmentProperties;
 import com.deutschflow.common.quota.QuotaService;
 import com.deutschflow.common.quota.QuotaSnapshot;
 import com.deutschflow.admin.dto.AdminUpdateLearningProfileRequest;
+import com.deutschflow.user.dto.AdminUpdateProfileRequest;
 import com.deutschflow.gamification.service.XpService;
 import com.deutschflow.speaking.repository.UserErrorSkillRepository;
 import com.deutschflow.speaking.repository.UserGrammarErrorRepository;
@@ -371,6 +372,40 @@ public class AdminManagementService {
                 "displayName", user.getDisplayName(),
                 "role", user.getRole().name()
         );
+    }
+
+    /**
+     * Admin override: cập nhật displayName / phoneNumber của bất kỳ user nào không cần OTP.
+     */
+    @Transactional
+    public Map<String, Object> adminUpdateProfile(Long userId, AdminUpdateProfileRequest req) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+
+        if (req.displayName() != null && !req.displayName().isBlank()) {
+            user.setDisplayName(req.displayName().trim());
+        }
+        if (req.phoneNumber() != null && !req.phoneNumber().isBlank()) {
+            String phone = req.phoneNumber().trim();
+            // Kiểm tra không trùng với user khác
+            boolean phoneUsedByOther = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM users WHERE phone_number = ? AND id <> ?",
+                    Integer.class, phone, userId) > 0;
+            if (phoneUsedByOther) {
+                throw new BadRequestException("Số điện thoại này đã được đăng ký bởi user khác.");
+            }
+            user.setPhoneNumber(phone);
+        }
+
+        userRepository.save(user);
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("id", user.getId());
+        out.put("email", user.getEmail());
+        out.put("displayName", user.getDisplayName());
+        out.put("phoneNumber", user.getPhoneNumber());
+        out.put("role", user.getRole().name());
+        return out;
     }
 
     @Transactional(readOnly = true)
