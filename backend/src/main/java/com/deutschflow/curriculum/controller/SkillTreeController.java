@@ -112,7 +112,40 @@ public class SkillTreeController {
 
         return ResponseEntity.internalServerError().build();
     }
+    // ─────────────────────────────────────────────────────────────
+    // POST /api/skill-tree/node/{coreNodeId}/generate-satellite
+    // Tự động sinh nhánh phụ (Sở thích/Ngành nghề) sau khi hoàn thành Node A2
+    // ─────────────────────────────────────────────────────────────
 
+    @PostMapping(value = "/node/{coreNodeId}/generate-satellite", produces = {
+            MediaType.APPLICATION_JSON_VALUE,
+            MediaType.TEXT_EVENT_STREAM_VALUE
+    })
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> generateSatelliteNode(
+            @AuthenticationPrincipal User user,
+            @PathVariable long coreNodeId,
+            @RequestBody Map<String, String> body
+    ) {
+        String hobby = body.get("hobby");
+        if (hobby == null || hobby.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Sở thích (hobby) không được để trống"));
+        }
+        
+        Object result = skillTreeService.generatePersonalizedSatelliteNode(user.getId(), coreNodeId, hobby);
+
+        if (result instanceof Map) {
+            return ResponseEntity.ok(result);
+        }
+
+        if (result instanceof SseEmitter emitter) {
+            return ResponseEntity.ok()
+                    .contentType(MediaType.TEXT_EVENT_STREAM)
+                    .body(emitter);
+        }
+
+        return ResponseEntity.internalServerError().build();
+    }
     // ─────────────────────────────────────────────────────────────
     // GET /api/skill-tree/node/{nodeId}/session — Lấy nội dung bài học
     // Trả về toàn bộ content_json (all-in-one, ~30KB → Gzip ~5KB)

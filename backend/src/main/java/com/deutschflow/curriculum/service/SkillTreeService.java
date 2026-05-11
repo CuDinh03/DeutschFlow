@@ -246,7 +246,7 @@ public class SkillTreeService {
         }));
         // → Connection TRẢ VỀ pool ✅
 
-        // Cache HIT → trả ngay
+    // Cache HIT → trả ngay
         if (prep.cacheHit()) {
             return prep.cachedResponse();
         }
@@ -257,6 +257,62 @@ public class SkillTreeService {
                 generateContentAsync(userId, nodeId, prep.node(), emitter)
         );
         return emitter;
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 2b. GENERATE SATELLITE NODE — Tạo động node sở thích từ A2
+    // ─────────────────────────────────────────────────────────────
+    public Object generatePersonalizedSatelliteNode(long userId, long coreNodeId, String hobby) {
+        return transactionTemplate.execute(status -> {
+            Map<String, Object> coreNode = loadNodeOrThrow(coreNodeId);
+            String cefr = (String) coreNode.get("cefr_level");
+            
+            // Validate: Only A2 and above
+            if ("A1".equals(cefr) || "FOUNDATION".equals(coreNode.get("phase"))) {
+                throw new BadRequestException("Nhánh phụ cá nhân hóa chỉ mở từ trình độ A2 trở lên.");
+            }
+            
+            // Check if user completed the core node
+            Map<String, Object> progress;
+            try {
+                progress = loadProgressOrThrow(userId, coreNodeId);
+                if (!"COMPLETED".equals(progress.get("status"))) {
+                    throw new BadRequestException("Bạn phải hoàn thành bài học gốc trước khi tạo nhánh mở rộng.");
+                }
+            } catch (NotFoundException e) {
+                throw new BadRequestException("Bạn chưa bắt đầu bài học gốc này.");
+            }
+
+            // Create new SATELLITE_LEAF node
+            Long newNodeId = jdbcTemplate.queryForObject("""
+                INSERT INTO skill_tree_nodes (
+                    node_type, title_de, title_vi, description_vi, emoji,
+                    phase, cefr_level, difficulty, xp_reward, energy_cost,
+                    industry, creator_user_id, satellite_status, is_active
+                ) VALUES (
+                    'SATELLITE_LEAF', ?, ?, ?, '🌟',
+                    ?, ?, 3, 150, 1,
+                    ?, ?, 'QUEUED', TRUE
+                ) RETURNING id
+            """, Long.class, 
+                "Erweiterung: " + hobby, 
+                "Mở rộng: " + hobby,
+                "Chủ đề cá nhân hóa chuyên sâu về " + hobby,
+                coreNode.get("phase"),
+                cefr,
+                hobby,
+                userId
+            );
+
+            // Add dependency: MUST complete core node
+            jdbcTemplate.update("""
+                INSERT INTO skill_tree_node_dependencies (node_id, depends_on_node_id, dependency_type, min_score_percent)
+                VALUES (?, ?, 'HARD', 100)
+            """, newNodeId, coreNodeId);
+
+            // Trigger the generation via unlock flow
+            return unlockSatelliteNode(userId, newNodeId);
+        });
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -444,10 +500,22 @@ public class SkillTreeService {
         Map<String, Object> node = loadNodeOrThrow(nodeId);
         // ... grading logic (use existing SessionExerciseService patterns)
 
-        int scorePercent = 85; // placeholder — actual grading from answers vs correct
+        // Parse actual score from answers
+        int scorePercent = safeInt(answers.get("score_percent"), 85);
+        
+        String sessionType = (String) node.get("session_type");
+        boolean isSpeakingOrWriting = "SPEAKING".equals(sessionType) || "WRITING".equals(sessionType);
+        
+        // Strict completion rule: 100% for normal exercises, >= 80% for AI grading (Speaking/Writing)
+        boolean completed = false;
+        if (isSpeakingOrWriting) {
+            completed = scorePercent >= 80;
+        } else {
+            completed = scorePercent >= 100;
+        }
+
         int attempts = safeInt(progress.get("attempts"), 0) + 1;
         int bestScore = Math.max(safeInt(progress.get("best_score"), 0), scorePercent);
-        boolean completed = scorePercent >= 60;
         int xpEarned = completed ? safeInt(node.get("xp_reward"), 100) : 0;
 
         String newStatus = completed ? "COMPLETED" : "IN_PROGRESS";

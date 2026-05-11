@@ -304,10 +304,12 @@ function NodeDetailPanel({
   node,
   onStart,
   onUnlockSuccess,
+  onSatellitePrompt,
 }: {
   node: SkillTreeNode;
   onStart: () => void;
   onUnlockSuccess?: (nodeId: number) => void;
+  onSatellitePrompt?: (node: SkillTreeNode) => void;
 }) {
   const isCompleted = node.user_status === "COMPLETED";
   const isActive = node.user_status === "IN_PROGRESS" || node.user_status === "UNLOCKED";
@@ -351,6 +353,11 @@ function NodeDetailPanel({
       }>(`/skill-tree/${node.id}/submit`, { answers: {} });
       setSubmitResult(data);
       onUnlockSuccess?.(node.id);
+      
+      // Prompt for satellite generation if it's an A2+ core trunk
+      if (data.completed && node.node_type === "CORE_TRUNK" && node.cefr_level !== "A1" && node.phase !== "FOUNDATION") {
+        onSatellitePrompt?.(node);
+      }
     } catch {
       setSubmitResult({ scorePercent: 0, xpEarned: 0, completed: false });
     } finally {
@@ -522,8 +529,26 @@ export default function RoadmapPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<SkillTreeNode | null>(null);
+  const [satellitePromptNode, setSatellitePromptNode] = useState<SkillTreeNode | null>(null);
+  const [generatingHobby, setGeneratingHobby] = useState(false);
   const [adaptiveRefreshing, setAdaptiveRefreshing] = useState(false);
   const [adaptiveResult, setAdaptiveResult] = useState<AdaptiveRefreshResponse | null>(null);
+
+  const HOBBIES = ["IT", "Medicine", "Education", "Engineering", "Travel", "Music", "Finance"];
+
+  const handleGenerateSatellite = async (hobby: string) => {
+    if (!satellitePromptNode) return;
+    setGeneratingHobby(true);
+    try {
+      await api.post(`/skill-tree/node/${satellitePromptNode.id}/generate-satellite`, { hobby });
+      setSatellitePromptNode(null);
+      void fetchSkillTree();
+    } catch (err) {
+      alert("Không thể tạo bài mở rộng: " + (err as any).response?.data?.error || "Lỗi");
+    } finally {
+      setGeneratingHobby(false);
+    }
+  };
 
   const fetchSkillTree = useCallback(async () => {
     setLoading(true);
@@ -809,9 +834,52 @@ export default function RoadmapPage() {
             node={selectedNode}
             onStart={() => handleStartNode(selectedNode)}
             onUnlockSuccess={() => void fetchSkillTree()}
+            onSatellitePrompt={setSatellitePromptNode}
           />
         )}
       </div>
+
+      {/* Satellite Prompt Modal */}
+      <AnimatePresence>
+        {satellitePromptNode && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl p-6 w-full max-w-md shadow-xl"
+            >
+              <h2 className="text-xl font-bold text-[#0F172A] mb-2">🎉 Chúc mừng bạn đã hoàn thành bài học!</h2>
+              <p className="text-[#475569] text-sm mb-5">
+                Bạn đã đạt trình độ A2 trở lên. Hệ thống có thể tự động tạo một bài học mở rộng cá nhân hóa dựa trên chủ đề bạn quan tâm. Bạn muốn tìm hiểu sâu về lĩnh vực nào?
+              </p>
+              
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                {HOBBIES.map((h) => (
+                  <button
+                    key={h}
+                    onClick={() => handleGenerateSatellite(h)}
+                    disabled={generatingHobby}
+                    className="flex justify-center items-center py-3 rounded-xl border border-[#E2E8F0] font-semibold text-sm text-[#0F172A] hover:bg-[#F0FDF4] hover:border-[#10B981] hover:text-[#10B981] transition-all disabled:opacity-50"
+                  >
+                    {h}
+                  </button>
+                ))}
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setSatellitePromptNode(null)}
+                  disabled={generatingHobby}
+                  className="flex-1 py-3 bg-[#F1F5F9] text-[#64748B] font-bold rounded-xl"
+                >
+                  Bỏ qua lúc này
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </StudentShell>
   );
 }
