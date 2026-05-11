@@ -106,7 +106,7 @@ class QuotaBillingIntegrationTest extends AbstractPostgresIntegrationTest {
                           feature, request_id, created_at
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
-                u.getId(), "t", "m", 0, 49000, 49000, "TEST", null, Timestamp.from(insideToday));
+                u.getId(), "t", "m", 0, 8000, 8000, "TEST", null, Timestamp.from(insideToday));
 
         assertThatThrownBy(() -> quotaService.assertAllowed(u.getId(), nowMidDay, 1001L))
                 .isInstanceOf(QuotaExceededException.class);

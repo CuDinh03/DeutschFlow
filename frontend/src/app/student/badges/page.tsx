@@ -24,7 +24,7 @@ interface XpSummary {
   level: number;
   progressInLevel: number;
   xpNeededForNext: number;
-  achievements: AchievementDto[];
+  allAchievements: AchievementDto[];
 }
 
 const RARITY_STYLE: Record<string, { bg: string; border: string; label: string }> = {
@@ -51,7 +51,7 @@ export default function BadgesPage() {
 
   if (meLoading || !me) return null;
 
-  const achievements = summary?.achievements ?? [];
+  const achievements = summary?.allAchievements ?? [];
   const filtered = achievements.filter((a) =>
     filter === "all" ? true : filter === "unlocked" ? a.unlocked : !a.unlocked
   );
