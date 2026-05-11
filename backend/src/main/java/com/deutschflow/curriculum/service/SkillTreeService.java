@@ -3,6 +3,7 @@ package com.deutschflow.curriculum.service;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.quota.AiUsageLedgerService;
+import com.deutschflow.gamification.service.XpService;
 import com.deutschflow.speaking.ai.GroqChatClient;
 import com.deutschflow.speaking.ai.ChatMessage;
 import com.deutschflow.speaking.ai.AiChatCompletionResult;
@@ -39,6 +40,7 @@ public class SkillTreeService {
     private final AiUsageLedgerService aiUsageLedgerService;
     private final ObjectMapper objectMapper;
     private final TransactionTemplate transactionTemplate;
+    private final XpService xpService;
 
     // In-memory lock to prevent duplicate LLM calls for the same cache key
     private final ConcurrentHashMap<String, Boolean> generationLocks = new ConcurrentHashMap<>();
@@ -547,6 +549,21 @@ public class SkillTreeService {
         // Trigger pre-fetch if score >= 80
         if (scorePercent >= 80) {
             checkAndTriggerPrefetch(userId, nodeId, scorePercent);
+        }
+
+        // Award satellite XP + trigger industry achievements
+        if (completed) {
+            try {
+                String nodeType = (String) node.getOrDefault("node_type", "");
+                if ("SATELLITE_LEAF".equals(nodeType)) {
+                    String industry = (String) node.getOrDefault("industry", null);
+                    xpService.awardSatelliteComplete(userId, industry);
+                } else {
+                    xpService.awardSessionComplete(userId, null);
+                }
+            } catch (Exception e) {
+                log.warn("[SkillTree] XP award failed for user {}: {}", userId, e.getMessage());
+            }
         }
 
         return Map.of(

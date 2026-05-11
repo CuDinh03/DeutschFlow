@@ -40,6 +40,7 @@ type ExerciseItem = {
   correctOptionIndex?: number | null
   expectedAnswerNormalized?: string | null
   audioGerman?: string | null
+  hint_vi?: string | null
 }
 
 type ItemResult = { exerciseId: string; correct: boolean; explanation: string | null }
@@ -281,9 +282,9 @@ function exerciseBlock(
 ) {
   const frame =
     grade === 'correct'
-      ? 'rounded-[16px] border-2 border-emerald-500 p-4 ring-2 ring-emerald-500/35 bg-emerald-500/[0.07] shadow-[0_2px_10px_rgba(0,48,94,0.06)]'
+      ? 'rounded-[16px] border-2 border-emerald-500 p-4 ring-2 ring-emerald-500/35 bg-emerald-500/[0.07] shadow-[0_2px_10px_rgba(0,48,94,0.06)] df-correct-flash'
       : grade === 'wrong'
-        ? 'rounded-[16px] border-2 border-red-500 p-4 ring-2 ring-red-500/35 bg-red-500/[0.07] shadow-[0_2px_10px_rgba(0,48,94,0.06)]'
+        ? 'rounded-[16px] border-2 border-red-500 p-4 ring-2 ring-red-500/35 bg-red-500/[0.07] shadow-[0_2px_10px_rgba(0,48,94,0.06)] df-wrong-flash'
         : 'rounded-[16px] border-2 border-[#E2E8F0] bg-white p-4 shadow-[0_2px_10px_rgba(0,48,94,0.06)]'
 
   return (
@@ -354,6 +355,16 @@ function exerciseBlock(
           })}
         </div>
       )}
+
+      {/* ── Wrong-answer hint (hiện ngay khi sai) ── */}
+      {grade === 'wrong' && ex.hint_vi && (
+        <div className="mt-3 flex items-start gap-2 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5">
+          <span className="text-base leading-none mt-0.5">💡</span>
+          <p className="text-xs text-amber-800 leading-relaxed">
+            <span className="font-semibold">Gợi ý: </span>{ex.hint_vi}
+          </p>
+        </div>
+      )}
     </div>
   )
 }
@@ -376,6 +387,7 @@ export default function SessionDetailPage() {
   const [reinforcementExercises, setReinforcementExercises] = useState<ExerciseItem[] | null>(null)
   /** Sau khi nộp, chưa 100%: tô màu khung theo đúng/sai */
   const [answerHighlights, setAnswerHighlights] = useState<Record<string, 'correct' | 'wrong'>>({})
+  const [correctStreak, setCorrectStreak] = useState(0)
   const [successModal, setSuccessModal] = useState<{
     open: boolean
     variant: 'gate' | 'main'
@@ -613,6 +625,18 @@ export default function SessionDetailPage() {
         onClose={() => setSuccessModal((m) => ({ ...m, open: false }))}
       />
       <div className="page-container max-w-4xl px-4 sm:px-6 py-4 md:py-6">
+
+        {/* ── Streak Banner ── */}
+        {correctStreak >= 3 && (
+          <div className="mb-4 flex items-center gap-3 rounded-2xl bg-gradient-to-r from-[#F97316] to-[#FBBF24] p-3 shadow-md">
+            <span className="text-2xl animate-bounce">🔥</span>
+            <div>
+              <p className="font-black text-white text-sm">Streak x{correctStreak}!</p>
+              <p className="text-white/80 text-xs">Bạn đang học rất tốt!</p>
+            </div>
+          </div>
+        )}
+
         <div className="section-card df-glass-subtle rounded-[20px] p-6 mb-6 border-2 border-[#E2E8F0]/80 shadow-[0_4px_20px_rgba(0,48,94,0.08)]">
           <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
             <h2 className="text-lg font-semibold text-foreground">{t('theoryTitle')}</h2>
@@ -778,11 +802,15 @@ export default function SessionDetailPage() {
                           for (const ex of detail.theoryGateExercises ?? []) delete next[ex.id]
                           return next
                         })
+                        // Update streak
+                        const allCorrect = (data.itemResults ?? []).every(r => r.correct)
+                        setCorrectStreak(prev => allCorrect ? prev + (detail.theoryGateExercises?.length ?? 1) : 0)
                         const expl = mergeExplanationRows(detail.theoryGateExercises ?? [], data.itemResults)
                         setSavedExplanations((s) => ({ ...s, gate: expl }))
                         setSuccessModal({ open: true, variant: 'gate', explanations: expl, nextWeek: null, nextSessionIndex: null })
                         loadDetail().then(() => setGateAnswers({}))
                       } else {
+                        setCorrectStreak(0)
                         setAnswerHighlights((prev) => {
                           const next = { ...prev }
                           for (const ex of detail.theoryGateExercises ?? []) delete next[ex.id]

@@ -4,9 +4,11 @@ import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.transaction.RunAfterCommitService;
 import com.deutschflow.common.security.JwtService;
 import com.deutschflow.user.dto.AuthResponse;
+import com.deutschflow.user.dto.ChangePasswordRequest;
 import com.deutschflow.user.dto.LoginRequest;
 import com.deutschflow.user.dto.RefreshRequest;
 import com.deutschflow.user.dto.RegisterRequest;
+import com.deutschflow.user.dto.UpdateProfileRequest;
 import com.deutschflow.user.entity.RefreshToken;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.RefreshTokenRepository;
@@ -135,6 +137,49 @@ public class AuthService {
         user.setLocale(loc);
         userRepository.save(user);
         return buildAuthResponse(user);
+    }
+
+    /**
+     * Student tự cập nhật displayName, phoneNumber, locale.
+     * Không cần OTP — phone validation chỉ kiểm tra uniqueness.
+     */
+    @Transactional
+    public AuthResponse updateProfile(User user, UpdateProfileRequest req) {
+        if (req.displayName() != null && !req.displayName().isBlank()) {
+            user.setDisplayName(req.displayName().trim());
+        }
+        if (req.phoneNumber() != null && !req.phoneNumber().isBlank()) {
+            String phone = req.phoneNumber().trim();
+            // Kiểm tra số điện thoại chưa được dùng bởi user khác
+            if (!phone.equals(user.getPhoneNumber())
+                    && userRepository.existsByPhoneNumber(phone)) {
+                throw new BadRequestException("Số điện thoại này đã được đăng ký, vui lòng dùng số khác.");
+            }
+            user.setPhoneNumber(phone);
+        }
+        if (req.locale() != null && !req.locale().isBlank()) {
+            try {
+                user.setLocale(User.Locale.valueOf(req.locale().trim().toLowerCase()));
+            } catch (IllegalArgumentException ignored) {
+                throw new BadRequestException("locale phải là vi, en hoặc de");
+            }
+        }
+        userRepository.save(user);
+        return buildAuthResponse(user, null, null, false);
+    }
+
+    /**
+     * Student đổi mật khẩu — yêu cầu xác nhận mật khẩu hiện tại trước.
+     */
+    @Transactional
+    public void changePassword(User user, ChangePasswordRequest req) {
+        if (!passwordEncoder.matches(req.currentPassword(), user.getPasswordHash())) {
+            throw new BadRequestException("Mật khẩu hiện tại không đúng.");
+        }
+        user.setPasswordHash(passwordEncoder.encode(req.newPassword()));
+        userRepository.save(user);
+        // Revoke tất cả refresh tokens để buộc đăng nhập lại
+        refreshTokenRepository.revokeAllByUserId(user.getId());
     }
 
     @Transactional(readOnly = true)

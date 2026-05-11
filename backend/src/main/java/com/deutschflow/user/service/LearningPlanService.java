@@ -59,7 +59,8 @@ public class LearningPlanService {
         lp.setPlanJson(storedLearningPlanSupport.toJson(plan));
 
         planRepository.save(lp);
-        return new LearningPlanResponse(weeklyMinutes, weeksTotal, plan);
+        return new LearningPlanResponse(weeklyMinutes, weeksTotal,
+                profile.getSessionsPerWeek(), profile.getMinutesPerSession(), plan);
     }
 
     @Transactional(readOnly = true)
@@ -71,7 +72,8 @@ public class LearningPlanService {
         learningSessionProgressService.attachProgressSummary(user.getId(), planObj);
         weakPointGrammarPlanInjector.injectWeakPointGrammarSession(user.getId(), planObj, false);
         PlanObjectiveLocalization.localizeWeekObjectives(planObj, user.getLocale());
-        return new LearningPlanResponse(plan.getWeeklyMinutes(), plan.getWeeksTotal(), planObj);
+        return new LearningPlanResponse(plan.getWeeklyMinutes(), plan.getWeeksTotal(),
+                plan.getSessionsPerWeek(), plan.getMinutesPerSession(), planObj);
     }
 
     /**

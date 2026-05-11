@@ -1,7 +1,8 @@
 "use client";
 
 import { VocabItem } from "@/stores/useNodeSessionStore";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { playTTS } from "@/lib/tts";
 
 // ── Gender Badge (Accessibility: color + letter) ──
 export function GenderBadge({ gender, label }: { gender: string | null; label: string | null }) {
@@ -48,15 +49,10 @@ export function AudioButton({ text, compact }: { text: string; compact?: boolean
     if (state !== "idle") return;
     setState("loading");
     try {
-      // Edge TTS via backend
-      const resp = await fetch(`/api/tts/speak?text=${encodeURIComponent(text)}`);
-      const blob = await resp.blob();
-      const url = URL.createObjectURL(blob);
-      const audio = new Audio(url);
-      audio.onended = () => { setState("idle"); URL.revokeObjectURL(url); };
-      audio.onerror = () => setState("idle");
+      await playTTS(text);
       setState("playing");
-      await audio.play();
+      // Reset sau 2s (không có callback chính xác từ shared util)
+      setTimeout(() => setState("idle"), 2000);
     } catch {
       setState("idle");
     }
@@ -93,8 +89,17 @@ export function AudioButton({ text, compact }: { text: string; compact?: boolean
 }
 
 // ── Vocabulary Card ──
-export function VocabCard({ vocab }: { vocab: VocabItem }) {
+export function VocabCard({ vocab, autoPlay = false }: { vocab: VocabItem; autoPlay?: boolean }) {
   const [showMeaning, setShowMeaning] = useState(false);
+  const hasAutoPlayed = useRef(false);
+
+  // Auto-play TTS lần đầu khi card xuất hiện (chỉ khi autoPlay=true)
+  useEffect(() => {
+    if (!autoPlay || hasAutoPlayed.current || !vocab.speak_de) return;
+    hasAutoPlayed.current = true;
+    const timer = setTimeout(() => playTTS(vocab.speak_de), 400);
+    return () => clearTimeout(timer);
+  }, [autoPlay, vocab.speak_de]);
 
   return (
     <div className="rounded-xl border border-[#E2E8F0] bg-white p-3 space-y-2">

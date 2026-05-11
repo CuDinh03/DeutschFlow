@@ -1,7 +1,7 @@
 "use client";
 
-import { NodeContent, VocabItem } from "@/stores/useNodeSessionStore";
-import { useState, useCallback, useRef } from "react";
+import { NodeContent, VocabItem, useNodeSessionStore } from "@/stores/useNodeSessionStore";
+import { useState, useCallback, useRef, useMemo } from "react";
 import { GenderBadge, AudioButton } from "./LearnComponents";
 
 // ── Tap-to-translate tooltip ──
@@ -42,29 +42,47 @@ function TranslateTooltip({
 }
 
 export default function ReadingView({ content }: { content: NodeContent }) {
+  const { markTabCompleted, tabCompletion } = useNodeSessionStore();
+  const isCompleted = tabCompletion.reading;
+
   const [tooltip, setTooltip] = useState<{ vocab: VocabItem; pos: { x: number; y: number } } | null>(null);
-  const [highlights, setHighlights] = useState<string[]>([]);
   const [savedFlashcards, setSavedFlashcards] = useState<Set<string>>(new Set());
   const textRef = useRef<HTMLDivElement>(null);
 
   const passage = content.reading_passage;
-  if (!passage) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 bg-white rounded-2xl border border-[#E2E8F0]">
-        <span className="text-4xl mb-3">📚</span>
-        <p className="text-sm text-[#64748B]">Bài đọc chưa có cho bài học này.</p>
-      </div>
-    );
-  }
+  
+  // ── Practice Quiz Logic ──
+  const practiceItems = Array.isArray(passage?.questions) ? passage.questions : [];
+  const [answers, setAnswers] = useState<Record<number, number>>({});
+  const [quizSubmitted, setQuizSubmitted] = useState(false);
 
+  const score = useMemo(() => {
+    let correct = 0;
+    practiceItems.forEach((item: any, i) => {
+      // If it's old format (string), we can't grade it automatically, skip or treat as free text
+      if (typeof item === "object" && answers[i] === item.answerIndex) correct++;
+    });
+    return correct;
+  }, [answers, practiceItems]);
+
+  const validMcqCount = practiceItems.filter((i: any) => typeof i === "object" && i.options).length;
+
+  const handleQuizSubmit = () => {
+    setQuizSubmitted(true);
+    if (score === validMcqCount && validMcqCount > 0) {
+      markTabCompleted("reading");
+    }
+  };
   // Build vocab lookup from refs
-  const vocabMap = new Map<string, VocabItem>();
-  for (const v of content.vocabulary) {
-    vocabMap.set(v.id, v);
-    // Also index by base word (lowercase) for getSelection matching
-    const base = v.german.replace(/^(der|die|das|ein|eine)\s+/i, "").toLowerCase();
-    vocabMap.set(base, v);
-  }
+  const vocabMap = useMemo(() => {
+    const map = new Map<string, VocabItem>();
+    for (const v of content.vocabulary) {
+      map.set(v.id, v);
+      const base = v.german.replace(/^(der|die|das|ein|eine)\s+/i, "").toLowerCase();
+      map.set(base, v);
+    }
+    return map;
+  }, [content.vocabulary]);
 
   // Handle text selection (Event Delegation + getSelection)
   const handleTextClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -97,6 +115,15 @@ export default function ReadingView({ content }: { content: NodeContent }) {
     } catch { /* ignore */ }
   }, []);
 
+  if (!passage) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 bg-white rounded-2xl border border-[#E2E8F0]">
+        <span className="text-4xl mb-3">📚</span>
+        <p className="text-sm text-[#64748B]">Bài đọc chưa có cho bài học này.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       {/* ── Split-screen layout ── */}
@@ -128,20 +155,94 @@ export default function ReadingView({ content }: { content: NodeContent }) {
           </div>
 
           <div className="bg-white rounded-xl border border-[#E2E8F0] p-4 space-y-4 md:sticky md:top-4">
-            {passage.questions && passage.questions.length > 0 ? (
-              passage.questions.map((q: unknown, i: number) => (
-                <div key={i} className="space-y-2">
-                  <p className="text-sm font-medium text-[#0F172A]">{String(q)}</p>
-                  <textarea
-                    className="w-full rounded-lg border border-[#E2E8F0] px-3 py-2 text-sm focus:border-[#FFCD00] focus:ring-1 focus:ring-[#FFCD00] outline-none resize-none"
-                    rows={2}
-                    placeholder="Viết câu trả lời..."
-                  />
-                </div>
-              ))
+            {practiceItems.length > 0 ? (
+              <div className="space-y-6 text-left">
+                {practiceItems.map((item: any, i: number) => {
+                  if (typeof item === "string") {
+                    return (
+                      <div key={i} className="space-y-2">
+                        <p className="text-sm font-medium text-[#0F172A]">{item}</p>
+                        <textarea
+                          className="w-full rounded-lg border border-[#E2E8F0] px-3 py-2 text-sm focus:border-[#FFCD00] focus:ring-1 focus:ring-[#FFCD00] outline-none resize-none"
+                          rows={2}
+                          placeholder="Viết câu trả lời (tự luận)..."
+                        />
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={i} className="space-y-3">
+                      <p className="text-sm font-bold text-[#0F172A]">{i + 1}. {item.question || "Câu hỏi..."}</p>
+                      <div className="space-y-2">
+                        {Array.isArray(item.options) && item.options.map((opt: string, j: number) => {
+                          const isSelected = answers[i] === j;
+                          const isCorrect = item.answerIndex === j;
+                          const showResult = quizSubmitted;
+                          
+                          let btnClass = "border-[#E2E8F0] hover:border-[#CBD5E1] text-[#475569]";
+                          if (isSelected && !showResult) btnClass = "border-[#FFCD00] bg-[#FFCD00]/10 text-[#121212]";
+                          if (showResult && isCorrect) btnClass = "border-green-500 bg-green-50 text-green-700";
+                          if (showResult && isSelected && !isCorrect) btnClass = "border-red-500 bg-red-50 text-red-700";
+
+                          return (
+                            <button
+                              key={j}
+                              onClick={() => !quizSubmitted && setAnswers(prev => ({ ...prev, [i]: j }))}
+                              disabled={quizSubmitted}
+                              className={`w-full text-left px-3 py-2 rounded-lg border-2 text-xs font-medium transition-all ${btnClass}`}
+                            >
+                              {opt}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {validMcqCount > 0 && !isCompleted && (
+                  <button
+                    onClick={handleQuizSubmit}
+                    disabled={Object.keys(answers).length < validMcqCount}
+                    className="w-full py-2.5 rounded-xl bg-[#121212] text-white text-xs font-bold disabled:opacity-50"
+                  >
+                    Kiểm tra đáp án
+                  </button>
+                )}
+
+                {quizSubmitted && score < validMcqCount && (
+                  <div className="text-red-500 text-xs font-bold mt-2 text-center">
+                    Bạn trả lời đúng {score}/{validMcqCount}. Cần đúng 100% để qua bài!
+                    <button 
+                      onClick={() => { setQuizSubmitted(false); setAnswers({}); }}
+                      className="ml-3 text-blue-600 underline"
+                    >
+                      Làm lại
+                    </button>
+                  </div>
+                )}
+              </div>
             ) : (
               <p className="text-sm text-[#94A3B8]">Chưa có câu hỏi cho bài đọc này.</p>
             )}
+
+            {/* ── Completion Button ── */}
+            <div className="pt-4 border-t border-[#E2E8F0] mt-4">
+              {(!validMcqCount || (quizSubmitted && score === validMcqCount)) ? (
+                <button
+                  onClick={() => markTabCompleted("reading")}
+                  disabled={isCompleted}
+                  className={`w-full py-3 rounded-xl font-bold text-sm transition-colors ${
+                    isCompleted 
+                      ? "bg-green-500 text-white" 
+                      : "bg-[#22C55E] hover:bg-[#16A34A] text-white"
+                  }`}
+                >
+                  {isCompleted ? "✅ Đã hoàn thành 100%" : "✅ Đã đọc & Hiểu (100%)"}
+                </button>
+              ) : null}
+            </div>
           </div>
         </div>
       </div>
