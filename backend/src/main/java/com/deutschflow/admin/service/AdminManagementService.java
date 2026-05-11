@@ -13,6 +13,7 @@ import com.deutschflow.speaking.repository.UserErrorSkillRepository;
 import com.deutschflow.speaking.repository.UserGrammarErrorRepository;
 import com.deutschflow.speaking.repository.AiSpeakingSessionRepository;
 import com.deutschflow.speaking.repository.AiSpeakingMessageRepository;
+import com.deutschflow.speaking.entity.AiSpeakingSession;
 import com.deutschflow.user.entity.UserLearningProfile;
 import com.deutschflow.user.repository.LearningReviewItemRepository;
 import com.deutschflow.user.repository.UserLearningProfileRepository;
