@@ -128,12 +128,19 @@ public class DailyNotificationJob {
         try {
             List<java.sql.Date> dates = jdbcTemplate.queryForList(
                     """
-                    SELECT DISTINCT DATE(created_at) AS d FROM user_xp_events
-                    WHERE user_id = ? ORDER BY d DESC LIMIT 60
+                    SELECT d FROM (
+                        SELECT DATE(created_at) AS d, COUNT(*) as cnt 
+                        FROM user_xp_events
+                        WHERE user_id = ? 
+                        GROUP BY DATE(created_at)
+                    ) sub WHERE cnt >= 2 ORDER BY d DESC LIMIT 60
                     """, java.sql.Date.class, userId);
             if (dates.isEmpty()) return 0;
 
-            java.time.LocalDate prev = java.time.LocalDate.now().minusDays(1);
+            java.time.LocalDate prev = java.time.LocalDate.now();
+            if (!dates.contains(java.sql.Date.valueOf(prev))) {
+                prev = prev.minusDays(1);
+            }
             int streak = 0;
             for (java.sql.Date d : dates) {
                 java.time.LocalDate ld = d.toLocalDate();
