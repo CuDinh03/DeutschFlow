@@ -31,7 +31,7 @@ export interface TodayPlanDto {
   errorReviewList: ErrorReviewItem[];
   repairTasksDue?: RepairTask[];
   // raw API fields from backend TodayPlanDto
-  rollingAccuracy?: number;
+  rollingAccuracyPercent?: number;
   suggestedTopic?: string;
   suggestedCefr?: string;
 }

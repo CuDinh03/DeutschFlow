@@ -126,6 +126,7 @@ function SkillTreeInner({ apiNodes, onSelectNode, onContinueLearning, initialCur
         onNodeClick={onNodeClick}
         nodeTypes={NODE_TYPES}
         fitView={false}          // we handle fitView manually
+        defaultViewport={{ x: 360, y: 80, zoom: 0.85 }}
         minZoom={0.06}
         maxZoom={2}
         proOptions={{ hideAttribution: true }}

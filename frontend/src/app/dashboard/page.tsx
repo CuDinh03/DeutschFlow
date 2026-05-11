@@ -71,7 +71,7 @@ export default function DashboardPage() {
       setProfile({
         displayName: me.displayName ?? me.email ?? "Học viên",
         role: me.role ?? "STUDENT",
-        targetLevel: me.targetLevel ?? "B1",
+        targetLevel: me.learningTargetLevel ?? "A1",
         streakDays: me.streakDays ?? 0,
         initials: nameParts.map((p: string) => p[0]).join("").slice(0, 2).toUpperCase() || "DF",
       });
@@ -142,7 +142,7 @@ export default function DashboardPage() {
             { label: "Streak", value: `${streak} ngày`, icon: <Flame size={18} className="text-orange-500" />, color: "#f97316" },
             { label: "Tiến độ hôm nay", value: `${progress}%`, icon: <Target size={18} className="text-amber-500" />, color: "#121212" },
             { label: "Lỗi cần ôn", value: String(repairCount), icon: <AlertTriangle size={18} className="text-amber-500" />, color: "#f59e0b" },
-            { label: "Chính xác", value: plan?.rollingAccuracy ? `${Math.round(plan.rollingAccuracy)}%` : "—", icon: <TrendingUp size={18} className="text-emerald-500" />, color: "#10b981" },
+            { label: "Chính xác", value: plan?.rollingAccuracyPercent != null ? `${Math.round(plan.rollingAccuracyPercent)}%` : "100%", icon: <TrendingUp size={18} className="text-emerald-500" />, color: "#10b981" },
           ].map(({ label, value, icon, color }, i) => (
             <motion.div
               key={label}
