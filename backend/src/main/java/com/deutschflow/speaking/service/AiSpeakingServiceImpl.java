@@ -864,6 +864,8 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
     }
 
     private AiSpeakingSessionDto toSessionDto(AiSpeakingSession s, AiSpeakingChatResponse initialAiMessage) {
+        // Map internal enum to frontend-compatible status string
+        String statusStr = (s.getStatus() == SessionStatus.ENDED) ? "COMPLETED" : "IN_PROGRESS";
         return new AiSpeakingSessionDto(
                 s.getId(),
                 s.getTopic(),
@@ -871,7 +873,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
                 s.getPersona(),
                 s.getResponseSchema(),
                 s.getSessionMode(),
-                s.getStatus().name(),
+                statusStr,
                 s.getStartedAt(),
                 s.getLastActivityAt(),
                 s.getEndedAt(),

@@ -1056,7 +1056,10 @@ public class AdminManagementService {
             m.put("experienceLevel", s.getExperienceLevel());
             m.put("cefrLevel", s.getCefrLevel());
             m.put("persona", s.getPersona());
-            m.put("status", s.getStatus());
+            // Map enum to frontend-compatible status string
+            String statusStr = (s.getStatus() == AiSpeakingSession.SessionStatus.ENDED)
+                    ? "COMPLETED" : "IN_PROGRESS";
+            m.put("status", statusStr);
             m.put("messageCount", s.getMessageCount());
             m.put("startedAt", s.getStartedAt());
             m.put("endedAt", s.getEndedAt());
