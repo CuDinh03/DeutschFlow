@@ -272,7 +272,7 @@ export default function VocabAnalyticsPage() {
                   <TrendingUp size={18} className="text-[#6366F1]" />
                   <h3 className="font-bold text-[#0F172A]">Lịch sử danh từ</h3>
                 </div>
-                <LineChart data={history.map(h => ({ date: h.date, coveragePercent: h.nounCoveragePercent, totalWords: h.totalWords }))} />
+                <LineChart data={history} />
                 <p className="text-[10px] text-[#94A3B8] text-center mt-2">
                   % danh từ có giống theo thời gian
                 </p>
