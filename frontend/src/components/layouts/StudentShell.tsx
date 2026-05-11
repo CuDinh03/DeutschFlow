@@ -61,7 +61,9 @@ export type StudentShellSection =
   | "grammar-practice"
   | "curriculum"
   | "review"
-  | "badges";
+  | "badges"
+  | "mock-exam"
+  | "progress";
 
 type NavItem = {
   id: StudentShellSection;
@@ -161,6 +163,9 @@ export function StudentShell({
           { id: "review-queue" as const, label: t("navReviewQueue"), icon: Brain, href: "/student/review-queue" },
           { id: "speakingHistory" as const, label: t("navSpeakingHistory"), icon: History, href: "/student/speaking-history" },
           { id: "interviews" as const, label: t("navInterviews"), icon: Briefcase, href: "/student/interviews" },
+          { id: "mock-exam" as const, label: "Thi thử Goethe", icon: Trophy, href: "/student/mock-exam",
+            badge: <span className="text-[9px] font-bold bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded-full border border-emerald-500/30">Mới</span> },
+          { id: "progress" as const, label: "Tiến độ học tập", icon: BarChart2 as any, href: "/student/progress" },
         ],
       },
       {
