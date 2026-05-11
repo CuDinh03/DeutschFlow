@@ -40,10 +40,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <NextIntlClientProvider messages={messages}>
           {children}
           <Toaster position="top-center" />
-          {/* Global language switcher — visible on ALL screens */}
-          <div className="fixed bottom-20 right-4 z-[60] lg:bottom-6 lg:right-6">
-            <LanguageSwitcher />
-          </div>
+
         </NextIntlClientProvider>
       </body>
     </html>

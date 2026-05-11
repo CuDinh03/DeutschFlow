@@ -4,6 +4,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import LanguageSwitcher from "@/components/ui/LanguageSwitcher";
 import { StudentBottomNav } from "@/components/layouts/StudentBottomNav";
 import { cn } from "@/lib/utils";
 import { isStudentImmersivePath } from "@/lib/studentImmersiveRoutes";
@@ -299,6 +300,7 @@ export function StudentShell({
                 <span className="text-[#64748B] text-xs hidden sm:inline">{t("streakBadgeShort")}</span>
               </div>
               <NotificationBell buttonClassName="p-2.5 rounded-[12px] bg-[#F5F7FA] hover:bg-[#E2E8F0] transition-colors" />
+              <LanguageSwitcher />
               <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[var(--brand-black)] to-[var(--brand-black-dark)] flex items-center justify-center flex-shrink-0">
                 <span className="text-[var(--brand-yellow)] font-bold text-sm">{initials}</span>
               </div>

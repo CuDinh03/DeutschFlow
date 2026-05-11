@@ -7,6 +7,7 @@ import Link from 'next/link'
 import api from '@/lib/api'
 import { setTokens } from '@/lib/authSession'
 import { DeutschFlowLogo } from '@/components/ui/DeutschFlowLogo'
+import LanguageSwitcher from '@/components/ui/LanguageSwitcher'
 
 type FieldErrors = Record<string, string>
 
@@ -62,6 +63,10 @@ export default function LoginPage() {
   return (
     <div className="auth-shell">
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary-hover/8 to-brand-black-dark/10" />
+      {/* Language switcher */}
+      <div className="absolute top-4 right-4 z-20">
+        <LanguageSwitcher />
+      </div>
 
       <div className="auth-container relative z-10">
         <div className="flex items-center justify-center mb-8">
