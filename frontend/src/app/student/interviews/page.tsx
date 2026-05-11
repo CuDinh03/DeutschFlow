@@ -10,6 +10,7 @@ import api from "@/lib/api";
 import { StudentShell } from "@/components/layouts/StudentShell";
 import { clearTokens, logout } from "@/lib/authSession";
 import { SessionSummary } from "@/components/features/ai-speaking/SessionSummary";
+import { useTranslations } from "next-intl";
 
 interface SessionMessage {
   id: string;
@@ -40,7 +41,7 @@ interface SpeakingSession {
   interviewReportJson?: string;
 }
 
-function SessionCard({ session, onSelect }: { session: SpeakingSession; onSelect: () => void }) {
+function SessionCard({ session, onSelect, tHistory }: { session: SpeakingSession; onSelect: () => void; tHistory: any }) {
   const date = session.createdAt ? new Date(session.createdAt) : null;
   return (
     <motion.button
@@ -55,7 +56,7 @@ function SessionCard({ session, onSelect }: { session: SpeakingSession; onSelect
               <Briefcase size={16} className="text-[#121212]" />
             </div>
             <span className="font-semibold text-[#0F172A] text-sm truncate">
-              {session.interviewPosition ?? "Vị trí không xác định"} 
+              {session.interviewPosition ?? tHistory("unknownPosition")} 
             </span>
             {session.experienceLevel && (
               <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">
@@ -77,12 +78,12 @@ function SessionCard({ session, onSelect }: { session: SpeakingSession; onSelect
             )}
             <span className="flex items-center gap-1">
               <MessageSquare size={11} />
-              {session.messageCount ?? 0} lượt trao đổi
+              {tHistory("turns", { count: session.messageCount ?? 0 })}
             </span>
             {session.persona && (
               <span className="flex items-center gap-1">
                 <Target size={11} />
-                HR: {session.persona}
+                {tHistory("hrRole", { persona: session.persona })}
               </span>
             )}
           </div>
@@ -90,7 +91,7 @@ function SessionCard({ session, onSelect }: { session: SpeakingSession; onSelect
         <span className={`text-[10px] px-2 py-1 rounded-full font-medium ${
           session.status === "COMPLETED" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
         }`}>
-          {session.status === "COMPLETED" ? "Đã xong" : "Chưa hoàn thành"}
+          {session.status === "COMPLETED" ? tHistory("completed") : tHistory("incomplete")}
         </span>
       </div>
     </motion.button>
@@ -99,6 +100,7 @@ function SessionCard({ session, onSelect }: { session: SpeakingSession; onSelect
 
 export default function InterviewsHistoryPage() {
   const router = useRouter();
+  const tHistory = useTranslations("history");
   const [sessions, setSessions] = useState<SpeakingSession[]>([]);
   const [selected, setSelected] = useState<SpeakingSession | null>(null);
   const [messages, setMessages] = useState<SessionMessage[]>([]);
@@ -114,7 +116,7 @@ export default function InterviewsHistoryPage() {
       const me = meRes.data;
       const parts = (me.displayName ?? "").split(" ");
       setProfile({
-        displayName: me.displayName ?? "Học viên",
+        displayName: me.displayName ?? tHistory("student"),
         role: me.role,
         targetLevel: me.targetLevel ?? "B1",
         streakDays: me.streakDays ?? 0,
@@ -183,7 +185,7 @@ export default function InterviewsHistoryPage() {
             <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
               <ArrowLeft size={16} />
             </div>
-            <span className="text-sm font-medium">Đóng báo cáo</span>
+            <span className="text-sm font-medium">{tHistory("closeReport")}</span>
           </button>
           
           <SessionSummary
@@ -207,21 +209,21 @@ export default function InterviewsHistoryPage() {
       streakDays={profile.streakDays}
       initials={profile.initials}
       onLogout={handleLogout}
-      headerTitle="Kết quả phỏng vấn"
-      headerSubtitle="Xem lại kết quả các buổi phỏng vấn giả lập"
+      headerTitle={tHistory("interviewsTitle")}
+      headerSubtitle={tHistory("interviewsSubtitle")}
     >
       <div className="max-w-3xl mx-auto">
         <div className="space-y-3">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Clock size={16} className="text-[#64748B]" />
-              <span className="text-sm text-[#64748B]">{sessions.length} phiên phỏng vấn</span>
+              <span className="text-sm text-[#64748B]">{tHistory("interviewCount", { count: sessions.length })}</span>
             </div>
             <button
               onClick={() => router.push("/speaking")}
               className="text-sm font-semibold text-[#121212] hover:underline flex items-center gap-1 bg-[#FFCD00]/20 px-3 py-1.5 rounded-full transition-all hover:bg-[#FFCD00]/30"
             >
-              <Plus size={13} /> Phỏng vấn mới
+              <Plus size={13} /> {tHistory("newInterview")}
             </button>
           </div>
 
@@ -232,15 +234,15 @@ export default function InterviewsHistoryPage() {
           ) : sessions.length === 0 ? (
             <div className="text-center py-16 text-[#94A3B8]">
               <Briefcase size={40} className="mx-auto mb-3 opacity-30" />
-              <p className="font-medium">Chưa có kết quả phỏng vấn nào</p>
-              <p className="text-sm mt-1">Hãy tham gia một buổi phỏng vấn giả lập!</p>
+              <p className="font-medium">{tHistory("noInterviews")}</p>
+              <p className="text-sm mt-1">{tHistory("promptInterview")}</p>
               <button onClick={() => router.push("/speaking")} className="mt-4 bg-[#121212] text-white rounded-[12px] px-5 py-2 text-sm font-semibold hover:bg-[#1E1E1E] transition-colors">
-                Bắt đầu ngay
+                {tHistory("startNow")}
               </button>
             </div>
           ) : (
             sessions.map(sess => (
-              <SessionCard key={sess.id} session={sess} onSelect={() => openSession(sess)} />
+              <SessionCard key={sess.id} session={sess} onSelect={() => openSession(sess)} tHistory={tHistory} />
             ))
           )}
         </div>

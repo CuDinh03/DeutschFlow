@@ -26,6 +26,7 @@ import { logout } from "@/lib/authSession";
 import { planApi, type AdaptiveRefreshResponse } from "@/lib/planApi";
 import SkillTreeFlowWrapper from "@/components/roadmap/SkillTreeFlowWrapper";
 import type { SkillTreeNodeData } from "@/components/roadmap/treeLayout";
+import { useTranslations } from "next-intl";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -524,10 +525,10 @@ function NodeDetailPanel({
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-export default function RoadmapPage() {
+export default function StudentRoadmapPage() {
   const router = useRouter();
-  const { me, loading: meLoading, loadError: meError, targetLevel, streakDays, initials, reload: reloadMe } =
-    useStudentPracticeSession();
+  const tRoadmap = useTranslations("roadmap");
+  const { me, loading: meLoading, loadError: meError, reload: reloadMe, targetLevel, streakDays, initials } = useStudentPracticeSession();
 
   const [nodes, setNodes] = useState<SkillTreeNode[]>([]);
   const [loading, setLoading] = useState(true);
@@ -698,8 +699,8 @@ export default function RoadmapPage() {
       streakDays={streakDays}
       initials={initials}
       onLogout={() => { logout(); }}
-      headerTitle="Lộ trình học tập"
-      headerSubtitle="28 ngày · Goethe A1 Curriculum"
+      headerTitle={tRoadmap("title")}
+      headerSubtitle={tRoadmap("subtitle")}
       headerRight={
         <div className="flex items-center gap-2">
           {/* Tree / List toggle */}
@@ -707,26 +708,26 @@ export default function RoadmapPage() {
             <button
               type="button"
               onClick={() => toggleView("tree")}
-              title="Sơ đồ cây"
+              title={tRoadmap("tree")}
               className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
                 viewMode === "tree"
                   ? "bg-[#121212] text-white shadow-sm"
                   : "text-[#64748B] hover:text-[#121212]"
               }`}
             >
-              <GitBranch size={12} /> Cây
+              <GitBranch size={12} /> {tRoadmap("tree")}
             </button>
             <button
               type="button"
               onClick={() => toggleView("list")}
-              title="Danh sách"
+              title={tRoadmap("list")}
               className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
                 viewMode === "list"
                   ? "bg-[#121212] text-white shadow-sm"
                   : "text-[#64748B] hover:text-[#121212]"
               }`}
             >
-              <LayoutList size={12} /> List
+              <LayoutList size={12} /> {tRoadmap("list")}
             </button>
           </div>
           {/* AI refresh */}
@@ -780,8 +781,8 @@ export default function RoadmapPage() {
               <div className="flex-1">
                 <p className="text-sm font-semibold" style={{ color: adaptiveResult.injected ? "#059669" : "#475569" }}>
                   {adaptiveResult.injected
-                    ? `Đã thêm bài luyện "${adaptiveResult.errorCode ?? "custom"}" vào Tuần ${adaptiveResult.week} · Phiên ${adaptiveResult.sessionIndex}`
-                    : "Lộ trình đang tối ưu, không cần thay đổi"}
+                    ? tRoadmap("addedPractice", { error: adaptiveResult.errorCode ?? "custom", week: adaptiveResult.week, session: adaptiveResult.sessionIndex })
+                    : tRoadmap("optimizing")}
                 </p>
                 {adaptiveResult.reason && (
                   <p className="text-xs text-[#94A3B8] mt-0.5">{adaptiveResult.reason}</p>
@@ -797,10 +798,10 @@ export default function RoadmapPage() {
           <div className="rounded-2xl bg-white border border-[#E2E8F0] p-4 space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-bold text-[#64748B] uppercase tracking-wide">Tiến độ CORE</p>
+                <p className="text-xs font-bold text-[#64748B] uppercase tracking-wide">{tRoadmap("coreProgress")}</p>
                 <p className="text-sm font-bold text-[#0F172A] mt-0.5">
-                  Ngày {coreCompleted}/{coreNodes.length}
-                  <span className="ml-2 text-[#64748B] font-normal">· {corePct}% hoàn thành</span>
+                  {tRoadmap("day")} {coreCompleted}/{coreNodes.length}
+                  <span className="ml-2 text-[#64748B] font-normal">· {corePct}% {tRoadmap("completedPercent")}</span>
                 </p>
               </div>
               <span className="text-2xl font-black text-[#121212]">{corePct}%</span>
@@ -821,15 +822,15 @@ export default function RoadmapPage() {
             <div className="grid grid-cols-3 gap-2 pt-1">
               <div className="text-center">
                 <p className="font-extrabold text-[#0F172A]">{totalXP}</p>
-                <p className="text-[10px] text-[#94A3B8]">Tổng XP</p>
+                <p className="text-[10px] text-[#94A3B8]">{tRoadmap("totalXp")}</p>
               </div>
               <div className="text-center">
                 <p className="font-extrabold text-[#0F172A]">{completedCount}</p>
-                <p className="text-[10px] text-[#94A3B8]">Bài xong</p>
+                <p className="text-[10px] text-[#94A3B8]">{tRoadmap("lessonsDone")}</p>
               </div>
               <div className="text-center">
                 <p className="font-extrabold text-[#0F172A]">{streakDays}🔥</p>
-                <p className="text-[10px] text-[#94A3B8]">Chuỗi ngày</p>
+                <p className="text-[10px] text-[#94A3B8]">{tRoadmap("streakDaysLabel")}</p>
               </div>
             </div>
           </div>
@@ -848,10 +849,10 @@ export default function RoadmapPage() {
               📍
             </div>
             <div className="flex-1">
-              <p className="text-white/60 text-[10px] font-medium uppercase tracking-wide">Đang học</p>
-              <p className="text-white font-bold text-sm">Tuần {currentWeek.week}</p>
+              <p className="text-white/60 text-[10px] font-medium uppercase tracking-wide">{tRoadmap("learning")}</p>
+              <p className="text-white font-bold text-sm">{tRoadmap("week")} {currentWeek.week}</p>
               <p className="text-white/70 text-xs">
-                {currentWeek.completedCount}/{currentWeek.nodes.length} bài hoàn thành
+                {currentWeek.completedCount}/{currentWeek.nodes.length} {tRoadmap("lessonsCompleted")}
               </p>
             </div>
             <button
@@ -865,7 +866,7 @@ export default function RoadmapPage() {
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold text-sm"
               style={{ background: "#FFCD00", color: "#121212" }}
             >
-              <Play size={13} fill="#121212" /> Tiếp tục
+              <Play size={13} fill="#121212" /> {tRoadmap("continue")}
             </button>
           </div>
         )}
@@ -878,7 +879,7 @@ export default function RoadmapPage() {
               transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
               className="w-8 h-8 border-4 border-[#121212] border-t-transparent rounded-full"
             />
-            <p className="text-sm text-[#64748B]">Đang tải lộ trình 28 ngày...</p>
+            <p className="text-sm text-[#64748B]">{tRoadmap("loading28Days")}</p>
           </div>
         )}
 
@@ -891,7 +892,7 @@ export default function RoadmapPage() {
               onClick={() => void fetchSkillTree()}
               className="flex items-center gap-2 px-4 py-2 bg-[#121212] text-white rounded-xl text-sm font-medium"
             >
-              <RefreshCw size={14} /> Thử lại
+              <RefreshCw size={14} /> {tRoadmap("retry")}
             </button>
           </div>
         )}
@@ -900,7 +901,7 @@ export default function RoadmapPage() {
         {!loading && !error && nodes.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 gap-4 bg-white rounded-3xl border-2 border-[#E2E8F0]">
             <MapIcon size={40} className="text-[#94A3B8]" />
-            <p className="text-sm text-[#64748B]">Chưa có lộ trình. Hãy hoàn thành Onboarding.</p>
+            <p className="text-sm text-[#64748B]">{tRoadmap("noRoadmap")}</p>
           </div>
         )}
 
@@ -910,14 +911,14 @@ export default function RoadmapPage() {
             <div className="px-4 py-3 flex items-center gap-2 border-b border-[#E9D5FF]">
               <span className="text-lg">🚀</span>
               <div className="flex-1">
-                <p className="text-sm font-bold text-[#5B21B6]">Bài chuyên ngành</p>
+                <p className="text-sm font-bold text-[#5B21B6]">{tRoadmap("specializedLessons")}</p>
                 <p className="text-[11px] text-[#7C3AED]">
-                  {satelliteNodes.filter(n => n.user_status === "COMPLETED").length}/{satelliteNodes.length} bài · Mở sau Day 14
+                  {satelliteNodes.filter(n => n.user_status === "COMPLETED").length}/{satelliteNodes.length} {tRoadmap("lessonsCompleted")} · {tRoadmap("opensAfterDay14")}
                 </p>
               </div>
               {corePct < 40 && (
                 <span className="text-[10px] bg-amber-100 text-amber-700 font-bold px-2 py-1 rounded-full">
-                  🔒 Cần {Math.max(0, 14 - coreCompleted)} ngày nữa
+                  🔒 {tRoadmap("needXDays", { days: Math.max(0, 14 - coreCompleted) })}
                 </span>
               )}
             </div>
@@ -941,7 +942,7 @@ export default function RoadmapPage() {
                       </div>
                     </div>
                     {isUnlocked ? (
-                      <span className="text-[10px] bg-green-100 text-green-700 font-bold px-2 py-0.5 rounded-full">✅ Mở</span>
+                      <span className="text-[10px] bg-green-100 text-green-700 font-bold px-2 py-0.5 rounded-full">✅ {tRoadmap("unlocked")}</span>
                     ) : (
                       <span className="text-[10px] bg-[#EDE9FE] text-[#7C3AED] font-bold px-2 py-0.5 rounded-full">🔒</span>
                     )}

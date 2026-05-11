@@ -15,14 +15,15 @@ import SpeakingView from "@/components/learn/SpeakingView";
 import WritingView from "@/components/learn/WritingView";
 import SessionRecap from "@/components/learn/SessionRecap";
 import PhonemeCoach from "@/components/learn/PhonemeCoach";
+import { useTranslations } from "next-intl";
 
 const VIEW_TABS = [
-  { key: "grammar" as const, label: "Ngữ pháp", icon: BookOpen, emoji: "📖" },
-  { key: "reading" as const, label: "Đọc", icon: FileText, emoji: "📚" },
-  { key: "listening" as const, label: "Nghe", icon: Headphones, emoji: "🎧" },
-  { key: "speaking" as const, label: "Nói", icon: Mic, emoji: "🎤" },
-  { key: "writing" as const, label: "Viết", icon: PenTool, emoji: "✍️" },
-  { key: "phoneme" as const, label: "Phát âm", icon: Mic, emoji: "🗣️" },
+  { key: "grammar" as const, tKey: "grammar", icon: BookOpen, emoji: "📖" },
+  { key: "reading" as const, tKey: "reading", icon: FileText, emoji: "📚" },
+  { key: "listening" as const, tKey: "listening", icon: Headphones, emoji: "🎧" },
+  { key: "speaking" as const, tKey: "speaking", icon: Mic, emoji: "🎤" },
+  { key: "writing" as const, tKey: "writing", icon: PenTool, emoji: "✍️" },
+  { key: "phoneme" as const, tKey: "phoneme", icon: Mic, emoji: "🗣️" },
 ];
 
 export default function LearnNodePage() {
@@ -31,6 +32,7 @@ export default function LearnNodePage() {
   const nodeId = Number(params?.nodeId);
 
   const { me, loading: meLoading, targetLevel, streakDays, initials } = useStudentPracticeSession();
+  const tLearn = useTranslations("learn");
   const { session, loading, error, activeView, setActiveView, fetchSession, reset, tabCompletion, markTabCompleted } = useNodeSessionStore();
   const [showRecap, setShowRecap] = useState(false);
   const [phonemeSuccessCount, setPhonemeSuccessCount] = useState<Set<number>>(new Set());
@@ -78,8 +80,8 @@ export default function LearnNodePage() {
       streakDays={streakDays}
       initials={initials}
       onLogout={() => logout()}
-      headerTitle={session?.titleVi ?? "Bài học"}
-      headerSubtitle={session?.moduleTitleVi ?? "Đang tải..."}
+      headerTitle={session?.titleVi ?? tLearn("lesson")}
+      headerSubtitle={session?.moduleTitleVi ?? tLearn("loadingNode")}
     >
       <div className="max-w-3xl mx-auto px-4 py-4 space-y-4">
         {/* ── Back button ── */}
@@ -89,7 +91,7 @@ export default function LearnNodePage() {
           className="flex items-center gap-2 text-sm text-[#64748B] hover:text-[#121212] transition-colors"
         >
           <ArrowLeft size={16} />
-          Quay lại Lộ trình
+          {tLearn("backToRoadmap")}
         </button>
 
         {/* ── Header card ── */}
@@ -127,7 +129,7 @@ export default function LearnNodePage() {
         {loading && (
           <div className="flex flex-col items-center justify-center py-20 gap-4 bg-white rounded-3xl border-2 border-[#E2E8F0]">
             <Loader2 size={28} className="animate-spin text-[#121212]" />
-            <p className="text-sm text-[#64748B]">Đang tải bài học...</p>
+            <p className="text-sm text-[#64748B]">{tLearn("loadingLesson")}</p>
           </div>
         )}
 
@@ -142,8 +144,8 @@ export default function LearnNodePage() {
         {session && !session.hasContent && !loading && (
           <div className="flex flex-col items-center justify-center py-20 gap-4 bg-white rounded-3xl border-2 border-[#E2E8F0]">
             <div className="w-16 h-16 rounded-full bg-[#FFCD00]/10 flex items-center justify-center text-3xl">⚡</div>
-            <p className="text-sm text-[#64748B]">Bài học đang được tạo bởi AI...</p>
-            <p className="text-xs text-[#94A3B8]">Vui lòng quay lại sau vài phút.</p>
+            <p className="text-sm text-[#64748B]">{tLearn("aiCreating")}</p>
+            <p className="text-xs text-[#94A3B8]">{tLearn("comeBackLater")}</p>
           </div>
         )}
 
@@ -163,7 +165,7 @@ export default function LearnNodePage() {
                   }`}
                 >
                   <span>{tab.emoji}</span>
-                  <span className="hidden sm:inline">{tab.label}</span>
+                  <span className="hidden sm:inline">{tLearn(tab.tKey as any)}</span>
                 </button>
               ))}
             </div>
@@ -204,7 +206,7 @@ export default function LearnNodePage() {
                 return (
                   <div className="space-y-4">
                     <p className="text-xs text-[#64748B] text-center">
-                      Luyện phát âm từng từ/cụm từ trong bài học
+                      {tLearn("practicePronunciation")}
                     </p>
                     <PhonemeCoach
                       target={target}
@@ -213,7 +215,7 @@ export default function LearnNodePage() {
                     />
                     {vocab.length > 1 && (
                       <div className="space-y-3">
-                        <p className="text-[10px] font-bold text-[#64748B] uppercase tracking-wide">Từ khác trong bài</p>
+                        <p className="text-[10px] font-bold text-[#64748B] uppercase tracking-wide">{tLearn("otherWords")}</p>
                         {vocab.slice(1, 5).map((v, i) => (
                           <PhonemeCoach
                             key={i + 1}
@@ -226,7 +228,7 @@ export default function LearnNodePage() {
                     )}
                     {tabCompletion.phoneme && (
                       <div className="mt-4 rounded-xl bg-green-50 border border-green-200 p-4 text-center">
-                        <p className="text-sm font-bold text-green-700">✅ Đã hoàn thành phần Phát âm (≥ 80% đúng)</p>
+                        <p className="text-sm font-bold text-green-700">✅ {tLearn("phonemeSuccess")}</p>
                       </div>
                     )}
                   </div>
@@ -250,7 +252,7 @@ export default function LearnNodePage() {
         {session?.hasContent && !showRecap && (
           <div className="px-4 pb-6 text-center">
             <p className="text-sm text-[#94A3B8]">
-              Hoàn thành tất cả các kỹ năng (100% đúng hoặc ≥ 80 điểm) để mở khoá bài tiếp theo.
+              {tLearn("completionHint")}
             </p>
           </div>
         )}

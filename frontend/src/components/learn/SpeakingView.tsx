@@ -5,6 +5,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { Mic, Square, RotateCcw, Loader2 } from "lucide-react";
 import { AudioButton } from "./LearnComponents";
 import api from "@/lib/api";
+import { useTranslations } from "next-intl";
 
 interface PronunciationFeedback {
   overall_score: number;
@@ -18,6 +19,7 @@ interface PronunciationFeedback {
 }
 
 export default function SpeakingView({ content }: { content: NodeContent }) {
+  const tLearn = useTranslations("learn");
   const { markTabCompleted, tabCompletion } = useNodeSessionStore();
   const isCompleted = tabCompletion.speaking;
 
@@ -317,7 +319,7 @@ export default function SpeakingView({ content }: { content: NodeContent }) {
       {/* ── Completion Status ── */}
       {isCompleted && (
         <div className="mt-4 rounded-xl bg-green-50 border border-green-200 p-4 text-center">
-          <p className="text-sm font-bold text-green-700">✅ Đã hoàn thành phần Nói (≥ 80% bài đạt điểm cao)</p>
+          <p className="text-sm font-bold text-green-700">✅ {tLearn("speakingSuccess")}</p>
         </div>
       )}
     </div>

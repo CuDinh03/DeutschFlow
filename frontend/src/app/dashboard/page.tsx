@@ -12,6 +12,7 @@ import { TodayPlanDto } from "@/types/today-plan";
 import { StudentShell } from "@/components/layouts/StudentShell";
 import { clearTokens, logout } from "@/lib/authSession";
 import { DeutschFlowLoader } from "@/components/ui/DeutschFlowLogo";
+import { useTranslations } from "next-intl";
 
 interface UserProfile {
   displayName: string;
@@ -21,36 +22,37 @@ interface UserProfile {
   initials: string;
 }
 
-function buildSuggestedLessons(plan: TodayPlanDto) {
+function buildSuggestedLessons(plan: TodayPlanDto, t: any) {
   const lessons = [...(plan.suggestedLessons ?? [])];
   if (lessons.length === 0) {
     // Build from adaptive suggestions if no explicit list
     if (plan.suggestedTopic || plan.suggestedCefr) {
       lessons.push({
         id: "adaptive-speaking",
-        title: `Luyện nói: ${plan.suggestedTopic ?? "Tự do"} (${plan.suggestedCefr ?? "B1"})`,
+        title: t("lessonSpeaking", { topic: plan.suggestedTopic ?? t("lessonFree"), cefr: plan.suggestedCefr ?? "B1" }),
         type: "speaking",
         estimatedMinutes: 15,
         href: `/speaking?topic=${plan.suggestedTopic ?? ""}&cefr=${plan.suggestedCefr ?? "B1"}`,
       });
     }
     lessons.push(
-      { id: "vocab-daily", title: "Ôn từ vựng hàng ngày", type: "vocabulary", estimatedMinutes: 10, href: "/student/vocab-practice" },
-      { id: "swipe-daily", title: "Swipe Cards — ôn nhanh", type: "review", estimatedMinutes: 5, href: "/student/swipe-cards" },
+      { id: "vocab-daily", title: t("lessonVocab"), type: "vocabulary", estimatedMinutes: 10, href: "/student/vocab-practice" },
+      { id: "swipe-daily", title: t("lessonSwipe"), type: "review", estimatedMinutes: 5, href: "/student/swipe-cards" },
     );
   }
   return lessons;
 }
 
-const typeConfig: Record<string, { icon: React.ReactNode; bg: string; accent: string; label: string }> = {
-  vocabulary: { icon: <BookOpen size={20} />, bg: "bg-slate-50 border-slate-100", accent: "#121212", label: "Từ vựng" },
-  speaking: { icon: <Mic size={20} />, bg: "bg-amber-50 border-amber-100", accent: "#FFCD00", label: "Luyện nói" },
-  grammar: { icon: <PenTool size={20} />, bg: "bg-emerald-50 border-emerald-100", accent: "#10b981", label: "Ngữ pháp" },
-  review: { icon: <Repeat2 size={20} />, bg: "bg-amber-50 border-amber-100", accent: "#f59e0b", label: "Ôn tập" },
-};
+const getTypeConfig = (t: any): Record<string, { icon: React.ReactNode; bg: string; accent: string; label: string }> => ({
+  vocabulary: { icon: <BookOpen size={20} />, bg: "bg-slate-50 border-slate-100", accent: "#121212", label: t("typeVocab") },
+  speaking: { icon: <Mic size={20} />, bg: "bg-amber-50 border-amber-100", accent: "#FFCD00", label: t("typeSpeaking") },
+  grammar: { icon: <PenTool size={20} />, bg: "bg-emerald-50 border-emerald-100", accent: "#10b981", label: t("typeGrammar") },
+  review: { icon: <Repeat2 size={20} />, bg: "bg-amber-50 border-amber-100", accent: "#f59e0b", label: t("typeReview") },
+});
 
 export default function DashboardPage() {
   const router = useRouter();
+  const t = useTranslations("dashboard");
   const [plan, setPlan] = useState<TodayPlanDto | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -69,7 +71,7 @@ export default function DashboardPage() {
       const me = meRes.data;
       const nameParts = (me.displayName ?? me.email ?? "").split(" ");
       setProfile({
-        displayName: me.displayName ?? me.email ?? "Học viên",
+        displayName: me.displayName ?? me.email ?? t("student"),
         role: me.role ?? "STUDENT",
         targetLevel: me.learningTargetLevel ?? "A1",
         streakDays: me.streakDays ?? 0,
@@ -91,7 +93,7 @@ export default function DashboardPage() {
         });
       }
     } catch {
-      setError("Không thể tải dữ liệu. Vui lòng thử lại.");
+      setError(t("loadError"));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -107,12 +109,12 @@ export default function DashboardPage() {
   if (loading || !profile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F1F4F9]">
-        <DeutschFlowLoader label="Đang tải dữ liệu hôm nay..." />
+        <DeutschFlowLoader label={t("loading")} />
       </div>
     );
   }
 
-  const lessons = plan ? buildSuggestedLessons(plan) : [];
+  const lessons = plan ? buildSuggestedLessons(plan, t) : [];
   const progress = plan?.dailyGoalProgress ?? 0;
   const streak = plan?.streakDays ?? profile.streakDays;
   const repairCount = plan?.repairTasksDue?.length ?? plan?.errorReviewList?.length ?? 0;
@@ -126,23 +128,23 @@ export default function DashboardPage() {
       initials={profile.initials}
       onLogout={handleLogout}
       headerTitle="Dashboard"
-      headerSubtitle="Hôm nay bạn nên học gì?"
+      headerSubtitle={t("subtitle")}
     >
       <div className="max-w-5xl mx-auto space-y-6">
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-center justify-between">
             <span className="text-red-700 text-sm">{error}</span>
-            <button onClick={() => load()} className="text-red-500 hover:text-red-700 text-sm font-medium">Thử lại</button>
+            <button onClick={() => load()} className="text-red-500 hover:text-red-700 text-sm font-medium">{t("retry")}</button>
           </div>
         )}
 
         {/* Header cards row */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
-            { label: "Streak", value: `${streak} ngày`, icon: <Flame size={18} className="text-orange-500" />, color: "#f97316" },
-            { label: "Tiến độ hôm nay", value: `${progress}%`, icon: <Target size={18} className="text-amber-500" />, color: "#121212" },
-            { label: "Lỗi cần ôn", value: String(repairCount), icon: <AlertTriangle size={18} className="text-amber-500" />, color: "#f59e0b" },
-            { label: "Chính xác", value: plan?.rollingAccuracyPercent != null ? `${Math.round(plan.rollingAccuracyPercent)}%` : "100%", icon: <TrendingUp size={18} className="text-emerald-500" />, color: "#10b981" },
+            { label: t("statStreak"), value: `${streak} ${t("days")}`, icon: <Flame size={18} className="text-orange-500" />, color: "#f97316" },
+            { label: t("statProgress"), value: `${progress}%`, icon: <Target size={18} className="text-amber-500" />, color: "#121212" },
+            { label: t("statErrors"), value: String(repairCount), icon: <AlertTriangle size={18} className="text-amber-500" />, color: "#f59e0b" },
+            { label: t("statAccuracy"), value: plan?.rollingAccuracyPercent != null ? `${Math.round(plan.rollingAccuracyPercent)}%` : "100%", icon: <TrendingUp size={18} className="text-emerald-500" />, color: "#10b981" },
           ].map(({ label, value, icon, color }, i) => (
             <motion.div
               key={label}
@@ -164,7 +166,7 @@ export default function DashboardPage() {
         {/* Progress bar */}
         <div className="bg-white rounded-[16px] p-5 border border-[#E2E8F0] shadow-sm">
           <div className="flex items-center justify-between mb-3">
-            <p className="font-semibold text-[#0F172A] text-sm">Tiến độ mục tiêu hôm nay</p>
+            <p className="font-semibold text-[#0F172A] text-sm">{t("progressTitle")}</p>
             <span className="text-sm font-bold" style={{ color: progress >= 80 ? "#10b981" : progress >= 50 ? "#f59e0b" : "#121212" }}>
               {progress}%
             </span>
@@ -183,20 +185,21 @@ export default function DashboardPage() {
         {/* Suggested lessons */}
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-bold text-[#0F172A] text-base">📋 Hôm nay nên làm</h2>
+            <h2 className="font-bold text-[#0F172A] text-base">{t("suggestedTitle")}</h2>
             <button
               onClick={() => load(true)}
               disabled={refreshing}
               className="flex items-center gap-1.5 text-xs text-[#64748B] hover:text-[#121212] transition-colors"
             >
               <RefreshCw size={12} className={refreshing ? "animate-spin" : ""} />
-              Làm mới
+              {t("refresh")}
             </button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <AnimatePresence>
               {lessons.map((lesson, i) => {
-                const cfg = typeConfig[lesson.type] ?? typeConfig.vocabulary;
+                const typeCfg = getTypeConfig(t);
+                const cfg = typeCfg[lesson.type as keyof typeof typeCfg] ?? typeCfg.vocabulary;
                 return (
                   <motion.button
                     key={lesson.id}
@@ -213,10 +216,10 @@ export default function DashboardPage() {
                       <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ backgroundColor: cfg.accent + "15", color: cfg.accent }}>
                         {cfg.label}
                       </span>
-                      <span className="text-[#94A3B8] text-xs">~{lesson.estimatedMinutes} phút</span>
+                      <span className="text-[#94A3B8] text-xs">{t("minutes", { n: lesson.estimatedMinutes })}</span>
                     </div>
                     <div className="flex items-center gap-1 mt-3 text-xs font-medium" style={{ color: cfg.accent }}>
-                      Bắt đầu <ArrowRight size={12} />
+                      {t("start")} <ArrowRight size={12} />
                     </div>
                   </motion.button>
                 );
@@ -230,7 +233,7 @@ export default function DashboardPage() {
           <div>
             <div className="flex items-center gap-2 mb-4">
               <CheckCircle2 size={18} className="text-amber-500" />
-              <h2 className="font-bold text-[#0F172A] text-base">Lỗi cần ôn tập</h2>
+              <h2 className="font-bold text-[#0F172A] text-base">{t("reviewTitle")}</h2>
               <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
                 {plan!.errorReviewList.length}
               </span>

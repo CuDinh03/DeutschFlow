@@ -1,6 +1,7 @@
 "use client";
 
 import { NodeContent, useNodeSessionStore } from "@/stores/useNodeSessionStore";
+import { useTranslations } from "next-intl";
 import { VocabCard, VocabTag, AudioButton } from "./LearnComponents";
 import { useState, useMemo } from "react";
 
@@ -114,6 +115,7 @@ function TheoryCard({ card, index, total }: { card: NodeContent["theory_cards"][
 }
 
 export default function GrammarView({ content }: { content: NodeContent }) {
+  const tLearn = useTranslations("learn");
   const { markTabCompleted, tabCompletion } = useNodeSessionStore();
   const isCompleted = tabCompletion.grammar;
 
@@ -180,7 +182,7 @@ export default function GrammarView({ content }: { content: NodeContent }) {
       <section>
         <h2 className="text-sm font-bold text-[#0F172A] uppercase tracking-wide mb-3 flex items-center gap-2">
           <span className="w-6 h-6 rounded bg-[#121212] text-white flex items-center justify-center text-xs">📚</span>
-          Từ vựng ({filteredVocab.length})
+          {tLearn("vocabularyCount", { count: filteredVocab.length })}
         </h2>
         <div className="grid gap-2 sm:grid-cols-2">
           {filteredVocab.map((v, i) => (
@@ -289,14 +291,14 @@ export default function GrammarView({ content }: { content: NodeContent }) {
               // Read-only badge — node already completed, no action needed
               <div className="w-full py-3 rounded-xl bg-green-500 text-white font-bold text-sm text-center cursor-default select-none flex items-center justify-center gap-2">
                 <span>✅</span>
-                <span>Đã hoàn thành 100%</span>
+                <span>{tLearn("completed100")}</span>
               </div>
             ) : (
               <button
                 onClick={() => markTabCompleted("grammar")}
                 className="w-full py-3 rounded-xl font-bold text-sm bg-[#22C55E] hover:bg-[#16A34A] text-white transition-colors"
               >
-                ✅ Đã đọc &amp; Hiểu (100%)
+                <span>{tLearn("readAndUnderstood")}</span>
               </button>
             )
           ) : quizSubmitted && score < practiceItems.length ? (

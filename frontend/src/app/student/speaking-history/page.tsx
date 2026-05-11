@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import api from "@/lib/api";
 import { StudentShell } from "@/components/layouts/StudentShell";
+import { useTranslations } from "next-intl";
 import { clearTokens, logout } from "@/lib/authSession";
 
 interface SessionMessage {
@@ -45,7 +46,7 @@ function severityColor(s: string) {
   return "text-amber-600 bg-amber-50 border-amber-200";
 }
 
-function SessionCard({ session, onSelect }: { session: SpeakingSession; onSelect: () => void }) {
+function SessionCard({ session, onSelect, tHistory }: { session: SpeakingSession; onSelect: () => void; tHistory: any }) {
   const date = session.createdAt ? new Date(session.createdAt) : null;
   return (
     <motion.button
@@ -60,7 +61,7 @@ function SessionCard({ session, onSelect }: { session: SpeakingSession; onSelect
               <Mic2 size={16} className="text-[#121212]" />
             </div>
             <span className="font-semibold text-[#0F172A] text-sm truncate">
-              {session.topic ?? "Không có chủ đề"} — {session.cefrLevel ?? "?"}
+              {session.topic ?? tHistory("noTopic")} — {session.cefrLevel ?? "?"}
             </span>
             {session.persona && (
               <span className="text-[10px] bg-[#FFCD00]/20 text-[#121212] px-2 py-0.5 rounded-full font-medium border border-[#FFCD00]/30">
@@ -77,21 +78,21 @@ function SessionCard({ session, onSelect }: { session: SpeakingSession; onSelect
             )}
             <span className="flex items-center gap-1">
               <MessageSquare size={11} />
-              {session.messageCount ?? 0} tin nhắn
+              {tHistory("messages", { count: session.messageCount ?? 0 })}
             </span>
           </div>
         </div>
         <span className={`text-[10px] px-2 py-1 rounded-full font-medium ${
           session.status === "COMPLETED" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
         }`}>
-          {session.status === "COMPLETED" ? "Hoàn thành" : "Đang mở"}
+          {session.status === "COMPLETED" ? tHistory("completed") : tHistory("open")}
         </span>
       </div>
     </motion.button>
   );
 }
 
-function MessageBubble({ msg }: { msg: SessionMessage }) {
+function MessageBubble({ msg, tHistory }: { msg: SessionMessage; tHistory: any }) {
   const [expanded, setExpanded] = useState(false);
   const isUser = msg.role === "USER";
   const hasErrors = (msg.errors?.length ?? 0) > 0;
@@ -116,12 +117,12 @@ function MessageBubble({ msg }: { msg: SessionMessage }) {
         {/* Correction */}
         {!isUser && msg.correction && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-xs text-amber-800 max-w-full">
-            <span className="font-bold">Sửa lỗi: </span>{msg.correction}
+            <span className="font-bold">{tHistory("correction")}</span>{msg.correction}
           </div>
         )}
         {!isUser && msg.explanationVi && (
           <div className="bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 text-xs text-amber-800 max-w-full">
-            <span className="font-bold">Giải thích: </span>{msg.explanationVi}
+            <span className="font-bold">{tHistory("explanation")}</span>{msg.explanationVi}
           </div>
         )}
 
@@ -132,7 +133,7 @@ function MessageBubble({ msg }: { msg: SessionMessage }) {
             className="flex items-center gap-1 text-[10px] text-[#94A3B8] hover:text-[#0F172A] transition-colors mt-0.5"
           >
             {expanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-            {hasErrors ? `${msg.errors!.length} lỗi ngữ pháp` : "Chi tiết"}
+            {hasErrors ? tHistory("grammarErrors", { count: msg.errors!.length }) : tHistory("details")}
           </button>
         )}
 
@@ -164,6 +165,7 @@ function MessageBubble({ msg }: { msg: SessionMessage }) {
 
 export default function SpeakingHistoryPage() {
   const router = useRouter();
+  const tHistory = useTranslations("history");
   const [sessions, setSessions] = useState<SpeakingSession[]>([]);
   const [selected, setSelected] = useState<SpeakingSession | null>(null);
   const [messages, setMessages] = useState<SessionMessage[]>([]);
@@ -179,7 +181,7 @@ export default function SpeakingHistoryPage() {
       const me = meRes.data;
       const parts = (me.displayName ?? "").split(" ");
       setProfile({
-        displayName: me.displayName ?? "Học viên",
+        displayName: me.displayName ?? tHistory("student"),
         role: me.role,
         targetLevel: me.targetLevel ?? "B1",
         streakDays: me.streakDays ?? 0,
@@ -223,8 +225,8 @@ export default function SpeakingHistoryPage() {
       streakDays={profile.streakDays}
       initials={profile.initials}
       onLogout={handleLogout}
-      headerTitle={selected ? "Replay phiên nói" : "Lịch sử luyện nói"}
-      headerSubtitle={selected ? `${selected.topic ?? ""} — ${selected.cefrLevel ?? ""}` : "Xem lại các buổi hội thoại với AI"}
+      headerTitle={selected ? tHistory("replayTitle") : tHistory("historyTitle")}
+      headerSubtitle={selected ? `${selected.topic ?? ""} — ${selected.cefrLevel ?? ""}` : tHistory("historySubtitle")}
     >
       <div className="max-w-3xl mx-auto">
         {/* Back button */}
@@ -233,7 +235,7 @@ export default function SpeakingHistoryPage() {
             onClick={() => { setSelected(null); setMessages([]); }}
             className="flex items-center gap-1.5 text-sm text-[#64748B] hover:text-[#121212] mb-5 transition-colors"
           >
-            <ArrowLeft size={15} /> Danh sách phiên
+            <ArrowLeft size={15} /> {tHistory("sessionList")}
           </button>
         )}
 
@@ -242,27 +244,27 @@ export default function SpeakingHistoryPage() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Clock size={16} className="text-[#64748B]" />
-                <span className="text-sm text-[#64748B]">{sessions.length} phiên gần đây</span>
+                <span className="text-sm text-[#64748B]">{tHistory("recentSessions", { count: sessions.length })}</span>
               </div>
               <button
                 onClick={() => router.push("/speaking")}
                 className="text-sm font-semibold text-[#121212] hover:underline flex items-center gap-1"
               >
-                <Mic2 size={13} /> Bắt đầu phiên mới
+                <Mic2 size={13} /> {tHistory("startNew")}
               </button>
             </div>
             {sessions.length === 0 ? (
               <div className="text-center py-16 text-[#94A3B8]">
                 <Mic2 size={40} className="mx-auto mb-3 opacity-30" />
-                <p className="font-medium">Chưa có phiên nào</p>
-                <p className="text-sm mt-1">Hãy bắt đầu luyện nói với AI!</p>
+                <p className="font-medium">{tHistory("noSessions")}</p>
+                <p className="text-sm mt-1">{tHistory("promptStart")}</p>
                 <button onClick={() => router.push("/speaking")} className="mt-4 bg-[#121212] text-white rounded-[12px] px-5 py-2 text-sm font-semibold hover:bg-[#1E1E1E]">
-                  Bắt đầu ngay
+                  {tHistory("startNow")}
                 </button>
               </div>
             ) : (
               sessions.map(sess => (
-                <SessionCard key={sess.id} session={sess} onSelect={() => openSession(sess)} />
+                <SessionCard key={sess.id} session={sess} onSelect={() => openSession(sess)} tHistory={tHistory} />
               ))
             )}
           </div>
@@ -275,11 +277,11 @@ export default function SpeakingHistoryPage() {
             ) : messages.length === 0 ? (
               <div className="text-center py-12 text-[#94A3B8]">
                 <MessageSquare size={32} className="mx-auto mb-3 opacity-30" />
-                <p>Phiên này chưa có tin nhắn nào.</p>
+                <p>{tHistory("noMessages")}</p>
               </div>
             ) : (
               <div className="space-y-4 pb-6">
-                {messages.map(msg => <MessageBubble key={msg.id} msg={msg} />)}
+                {messages.map(msg => <MessageBubble key={msg.id} msg={msg} tHistory={tHistory} />)}
               </div>
             )}
           </div>

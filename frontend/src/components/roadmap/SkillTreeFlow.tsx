@@ -13,6 +13,7 @@ import {
   type Node,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { useTranslations } from "next-intl";
 
 import { computeTreeLayout, type SkillTreeNodeData } from "./treeLayout";
 import { SkillNode, WeekMarkerNode, StartFinishNode } from "./SkillTreeNodes";
@@ -46,6 +47,7 @@ interface InnerProps {
 function SkillTreeInner({ apiNodes, onSelectNode, onContinueLearning, initialCurrentId }: InnerProps) {
   const { fitView, fitBounds, getNode } = useReactFlow();
   const didInitialFit = useRef(false);
+  const t = useTranslations("roadmap");
 
   // Compute layout
   const { nodes: layoutNodes, edges: layoutEdges } = useMemo(
@@ -163,17 +165,9 @@ function SkillTreeInner({ apiNodes, onSelectNode, onContinueLearning, initialCur
           <button
             type="button"
             onClick={() => jumpToNode(initialCurrentId)}
-            style={{
-              display: "flex", alignItems: "center", gap: 6,
-              background: "linear-gradient(135deg,#FFCD00,#F59E0B)",
-              border: "none", borderRadius: 999,
-              padding: "8px 18px", cursor: "pointer",
-              fontWeight: 800, fontSize: 12, color: "#121212",
-              boxShadow: "0 4px 16px rgba(255,205,0,0.35)",
-              whiteSpace: "nowrap",
-            }}
+            className="px-4 py-2 bg-[#FFCD00] hover:bg-[#E5B800] text-black font-bold text-sm rounded-full shadow-lg transition-transform active:scale-95 whitespace-nowrap"
           >
-            📍 Vị trí đang học
+            📍 {t("currentPosition")}
           </button>
 
           {/* Continue Learning */}
@@ -184,17 +178,9 @@ function SkillTreeInner({ apiNodes, onSelectNode, onContinueLearning, initialCur
                 const num = parseInt(initialCurrentId.replace("node-", ""), 10);
                 if (!isNaN(num)) onContinueLearning(num);
               }}
-              style={{
-                display: "flex", alignItems: "center", gap: 6,
-                background: "#22C55E",
-                border: "none", borderRadius: 999,
-                padding: "8px 18px", cursor: "pointer",
-                fontWeight: 800, fontSize: 12, color: "#FFFFFF",
-                boxShadow: "0 4px 16px rgba(34,197,94,0.35)",
-                whiteSpace: "nowrap",
-              }}
+              className="px-4 py-2 bg-[#22C55E] hover:bg-[#16A34A] text-white font-bold text-sm rounded-full shadow-lg transition-transform active:scale-95 whitespace-nowrap"
             >
-              ▶ Tiếp tục học
+              ▶ {t("continueLearning")}
             </button>
           )}
 
@@ -202,16 +188,10 @@ function SkillTreeInner({ apiNodes, onSelectNode, onContinueLearning, initialCur
           <button
             type="button"
             onClick={() => fitView({ padding: 0.1, duration: 600 })}
-            title="Nhìn toàn bộ"
-            style={{
-              display: "flex", alignItems: "center", gap: 6,
-              background: "#1E293B", border: "1px solid #334155",
-              borderRadius: 999, padding: "8px 16px",
-              cursor: "pointer", fontWeight: 700, fontSize: 12,
-              color: "#94A3B8",
-            }}
+            title={t("all")}
+            className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-bold text-sm rounded-full shadow-lg transition-transform active:scale-95 whitespace-nowrap border border-white/20"
           >
-            ⊡ Toàn bộ
+            ⊡ {t("all")}
           </button>
         </div>
 
@@ -229,17 +209,10 @@ function SkillTreeInner({ apiNodes, onSelectNode, onContinueLearning, initialCur
       </ReactFlow>
 
       {/* Hint bar */}
-      <div
-        style={{
-          position: "absolute", top: 12, left: "50%",
-          transform: "translateX(-50%)", zIndex: 10,
-          background: "rgba(8,14,26,0.85)", backdropFilter: "blur(8px)",
-          border: "1px solid #1E293B", borderRadius: 999,
-          padding: "5px 16px", fontSize: 11, color: "#475569",
-          pointerEvents: "none", whiteSpace: "nowrap",
-        }}
-      >
-        🖱️ Scroll để zoom · Kéo để di chuyển · Click node để học
+      <div className="absolute top-4 right-4 z-10 pointer-events-none opacity-50">
+        <div className="bg-[#121212]/80 backdrop-blur-sm text-white/70 text-xs px-3 py-1.5 rounded-lg border border-white/10">
+          🖱️ {t("scrollHint")}
+        </div>
       </div>
     </div>
   );

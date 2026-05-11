@@ -3,6 +3,7 @@ import { logout } from '@/lib/authSession'
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { BarChart2, TrendingUp, Loader2, RefreshCw, BookOpen } from 'lucide-react'
+import { useTranslations } from "next-intl"
 import { StudentShell } from '@/components/layouts/StudentShell'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
 import api from '@/lib/api'
@@ -120,6 +121,7 @@ function LineChart({ data }: { data: CoverageHistoryPoint[] }) {
 
 export default function VocabAnalyticsPage() {
   const { me, loading: sessionLoading, targetLevel, streakDays, initials } = useStudentPracticeSession()
+  const tAnalytics = useTranslations("analytics")
 
   const [coverage, setCoverage] = useState<CoverageData | null>(null)
   const [history, setHistory] = useState<CoverageHistoryPoint[]>([])
@@ -130,17 +132,13 @@ export default function VocabAnalyticsPage() {
     setLoading(true)
     setError(null)
     try {
-      const [covRes, histRes] = await Promise.allSettled([
-        api.get<CoverageData>('/words/coverage'),
-        api.get<CoverageHistoryPoint[]>('/words/coverage/history'),
-      ])
-      if (covRes.status === 'fulfilled') setCoverage(covRes.value.data)
-      if (histRes.status === 'fulfilled') {
-        const raw = histRes.value.data
+      const { data: raw } = await api.get<CoverageData[]>('/vocab/coverage')
+      if (raw && raw.length > 0) {
+        setCoverage(raw[0])
         setHistory(Array.isArray(raw) ? raw : [])
       }
     } catch {
-      setError('Không thể tải dữ liệu thống kê.')
+      setError(tAnalytics("loadError"))
     } finally {
       setLoading(false)
     }
@@ -174,22 +172,22 @@ export default function VocabAnalyticsPage() {
       streakDays={streakDays}
       initials={initials}
       onLogout={() => { logout() }}
-      headerTitle="Thống kê từ vựng"
-      headerSubtitle="Phân tích độ phủ từ vựng theo cấp độ CEFR"
+      headerTitle={tAnalytics("title")}
+      headerSubtitle={tAnalytics("subtitle")}
     >
       <div className="max-w-xl mx-auto space-y-5">
 
         {loading && (
           <div className="flex items-center justify-center py-16 gap-3 text-[#64748B]">
             <Loader2 size={22} className="animate-spin text-[#121212]" />
-            <span>Đang phân tích từ vựng...</span>
+            <span>{tAnalytics("analyzing")}</span>
           </div>
         )}
 
         {!loading && error && (
           <div className="text-center py-10">
             <p className="text-sm text-red-500 mb-4">{error}</p>
-            <button type="button" onClick={fetchData} className="px-4 py-2 bg-[#121212] text-white rounded-xl font-bold text-sm">Thử lại</button>
+            <button type="button" onClick={fetchData} className="px-4 py-2 bg-[#121212] text-white rounded-xl font-bold text-sm">{tAnalytics("retry")}</button>
           </div>
         )}
 
@@ -201,8 +199,8 @@ export default function VocabAnalyticsPage() {
                 <div className="flex items-center gap-3">
                   <BookOpen size={22} className="text-[#FFCD00]" />
                   <div>
-                    <h2 className="font-extrabold text-lg">Độ phủ từ vựng</h2>
-                    <p className="text-white/60 text-xs">{coverage.totalWords.toLocaleString()} từ trong hệ thống</p>
+                    <h2 className="font-extrabold text-lg">{tAnalytics("vocabCoverage")}</h2>
+                    <p className="text-white/60 text-xs">{coverage.totalWords.toLocaleString()} {tAnalytics("wordsInSystem")}</p>
                   </div>
                 </div>
                 <button type="button" onClick={fetchData} className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center hover:bg-white/20 transition-all">
@@ -214,12 +212,12 @@ export default function VocabAnalyticsPage() {
               <div className="grid grid-cols-2 gap-3 mt-2">
                 <div className="bg-white/10 rounded-2xl p-4 text-center">
                   <p className="text-3xl font-black text-[#FFCD00]">{Math.round(coverage.nounCoveragePercent)}%</p>
-                  <p className="text-white/70 text-xs mt-1">Danh từ có giống</p>
+                  <p className="text-white/70 text-xs mt-1">{tAnalytics("nounsWithGender")}</p>
                   <p className="text-white/40 text-[10px]">{coverage.nounWithGender.toLocaleString()} / {coverage.nounWords.toLocaleString()}</p>
                 </div>
                 <div className="bg-white/10 rounded-2xl p-4 text-center">
                   <p className="text-3xl font-black text-[#FFCD00]">{Math.round(coverage.verbCoveragePercent)}%</p>
-                  <p className="text-white/70 text-xs mt-1">Động từ có chia</p>
+                  <p className="text-white/70 text-xs mt-1">{tAnalytics("verbsConjugated")}</p>
                   <p className="text-white/40 text-[10px]">{coverage.verbRows.toLocaleString()} / {coverage.verbWords.toLocaleString()}</p>
                 </div>
               </div>
@@ -239,12 +237,12 @@ export default function VocabAnalyticsPage() {
             <div className="bg-white rounded-3xl p-6 border border-[#E2E8F0] shadow-sm">
               <div className="flex items-center gap-2 mb-4">
                 <BarChart2 size={18} className="text-[#6366F1]" />
-                <h3 className="font-bold text-[#0F172A]">Chi tiết từ vựng</h3>
+                <h3 className="font-bold text-[#0F172A]">{tAnalytics("vocabDetails")}</h3>
               </div>
               <div className="space-y-4">
                 {[
-                  { label: 'Danh từ (Nomen)', pct: Math.round(coverage.nounCoveragePercent), count: `${coverage.nounWithGender.toLocaleString()} / ${coverage.nounWords.toLocaleString()}`, color: '#6366F1' },
-                  { label: 'Động từ (Verben)', pct: Math.round(coverage.verbCoveragePercent), count: `${coverage.verbRows.toLocaleString()} / ${coverage.verbWords.toLocaleString()}`, color: '#F59E0B' },
+                  { label: tAnalytics("nouns"), pct: Math.round(coverage.nounCoveragePercent), count: `${coverage.nounWithGender.toLocaleString()} / ${coverage.nounWords.toLocaleString()}`, color: '#6366F1' },
+                  { label: tAnalytics("verbs"), pct: Math.round(coverage.verbCoveragePercent), count: `${coverage.verbRows.toLocaleString()} / ${coverage.verbWords.toLocaleString()}`, color: '#F59E0B' },
                 ].map(({ label, pct, count, color }) => (
                   <div key={label}>
                     <div className="flex justify-between mb-1">

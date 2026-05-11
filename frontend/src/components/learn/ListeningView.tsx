@@ -1,10 +1,12 @@
 "use client";
 
 import { NodeContent, WordTimestamp, useNodeSessionStore } from "@/stores/useNodeSessionStore";
+import { useTranslations } from "next-intl";
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { Play, Pause, RotateCcw, Volume2 } from "lucide-react";
 
 export default function ListeningView({ content }: { content: NodeContent }) {
+  const tLearn = useTranslations("learn");
   const audio = content.audio_content;
   const { markTabCompleted, tabCompletion } = useNodeSessionStore();
   const isCompleted = tabCompletion.listening;
@@ -232,7 +234,7 @@ export default function ListeningView({ content }: { content: NodeContent }) {
       {/* ── Completion Status ── */}
       {isCompleted && timestamps.length > 0 && (
         <div className="rounded-xl bg-green-50 border border-green-200 p-4 text-center">
-          <p className="text-sm font-bold text-green-700">✅ Đã hoàn thành phần Nghe (≥ 80% đúng)</p>
+          <p className="text-sm font-bold text-green-700">✅ {tLearn("listeningSuccess")}</p>
         </div>
       )}
 
@@ -249,7 +251,7 @@ export default function ListeningView({ content }: { content: NodeContent }) {
                 : "bg-[#22C55E] hover:bg-[#16A34A] text-white"
             }`}
           >
-            {isCompleted ? "✅ Đã hoàn thành" : "✅ Đã Nghe & Hiểu (100%)"}
+            {isCompleted ? `✅ ${tLearn("completed")}` : `✅ ${tLearn("listenedAndUnderstood")}`}
           </button>
         </div>
       )}

@@ -4,6 +4,7 @@ import { memo } from "react";
 import { Handle, Position } from "@xyflow/react";
 import type { NodeProps } from "@xyflow/react";
 import type { SkillTreeNodeData } from "./treeLayout";
+import { useTranslations } from "next-intl";
 
 // ── Status styling ────────────────────────────────────────────────────────────
 function nodeStyle(status: string, isSatellite: boolean) {
@@ -164,6 +165,7 @@ SkillNode.displayName = "SkillNode";
 
 // ── WeekMarker — week header pill ─────────────────────────────────────────────
 export const WeekMarkerNode = memo(({ data }: NodeProps) => {
+  const tRoadmap = useTranslations("roadmap");
   const d = data as {
     week: number; label: string; phase: string;
     completed: boolean; current: boolean;
@@ -187,11 +189,11 @@ export const WeekMarkerNode = memo(({ data }: NodeProps) => {
       <span style={{ fontSize: 14 }}>{icon}</span>
       <div>
         <p style={{ fontSize: 11, fontWeight: 800, color: "#FFFFFF", margin: 0 }}>
-          {d.label}
+          {tRoadmap("weekTitle", { week: d.week })}
         </p>
         {d.phase && (
           <p style={{ fontSize: 9, color: "#94A3B8", margin: 0 }}>
-            {d.phase === "PHASE_1" ? "Phase 1 · Ngày 1–14" : "Phase 2 · Ngày 15–28"}
+            {d.phase === "PHASE_1" ? tRoadmap("phase1") : tRoadmap("phase2")}
           </p>
         )}
       </div>
@@ -204,8 +206,10 @@ WeekMarkerNode.displayName = "WeekMarkerNode";
 
 // ── StartFinishNode ────────────────────────────────────────────────────────────
 export const StartFinishNode = memo(({ data }: NodeProps) => {
+  const tRoadmap = useTranslations("roadmap");
   const d = data as { label: string };
   const isFinish = d.label.includes("Hoàn thành");
+  const displayLabel = isFinish ? tRoadmap("startFinish") : d.label;
   return (
     <div
       style={{
@@ -220,7 +224,7 @@ export const StartFinishNode = memo(({ data }: NodeProps) => {
         pointerEvents: "none",
       }}
     >
-      {d.label}
+      {displayLabel}
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
       <Handle type="target" position={Position.Top}    style={{ opacity: 0 }} />
     </div>

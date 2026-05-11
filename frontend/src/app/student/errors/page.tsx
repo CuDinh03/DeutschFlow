@@ -12,6 +12,7 @@ import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
 import { reviewApi, type ErrorReviewTaskDto } from '@/lib/reviewApi'
 import api from '@/lib/api'
 import ErrorRepairDrill from '@/components/errors/ErrorRepairDrill'
+import { useTranslations } from 'next-intl'
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -43,13 +44,14 @@ function catStyle(code: string) {
   if (upper.startsWith('ART'))   return CAT_COLORS.ARTIKEL
   if (upper.startsWith('PRAEP') || upper.startsWith('PREP')) return CAT_COLORS.PRAEP
   if (upper.startsWith('ADJ'))   return CAT_COLORS.ADJEKTIV
-  return { bg: '#F1F5F9', text: '#475569', label: 'Khác' }
+  return { bg: '#F1F5F9', text: '#475569', label: 'other' } // label will be translated later
 }
 
 // ─── Main component ─────────────────────────────────────────────────────────
 
 export default function ErrorLibraryPage() {
   const { me, loading: sessionLoading, targetLevel, streakDays, initials } = useStudentPracticeSession()
+  const tErrors = useTranslations('errors')
 
   const [errors, setErrors] = useState<ErrorSkillDto[]>([])
   const [resolvedErrors, setResolvedErrors] = useState<ErrorSkillDto[]>([])
@@ -77,7 +79,7 @@ export default function ErrorLibraryPage() {
       if (resolvedRes.status === 'fulfilled') setResolvedErrors(resolvedRes.value.data)
       if (tasksRes.status === 'fulfilled') setTasks(tasksRes.value)
     } catch {
-      setError('Không thể tải dữ liệu. Vui lòng thử lại.')
+      setError(tErrors('loadError'))
     } finally {
       setLoading(false)
     }
@@ -155,8 +157,8 @@ export default function ErrorLibraryPage() {
       streakDays={streakDays}
       initials={initials}
       onLogout={() => { logout() }}
-      headerTitle="Thư viện lỗi"
-      headerSubtitle="Vết sẹo ngữ pháp — Càng nhớ lâu, càng giỏi nhanh"
+      headerTitle={tErrors('libraryTitle')}
+      headerSubtitle={tErrors('librarySubtitle')}
     >
       <div className="max-w-2xl mx-auto space-y-6">
 
@@ -165,7 +167,7 @@ export default function ErrorLibraryPage() {
           <div className="bg-gradient-to-br from-[#FFF8E1] to-[#FFFDE7] rounded-3xl p-5 border border-[#FDE68A] shadow-sm">
             <div className="flex items-center gap-2 mb-4">
               <Calendar size={18} className="text-[#F59E0B]" />
-              <h2 className="font-bold text-[#92400E]">Ôn tập hôm nay ({pendingTasks.length})</h2>
+              <h2 className="font-bold text-[#92400E]">{tErrors('reviewToday')} ({pendingTasks.length})</h2>
             </div>
             <div className="space-y-3">
               {pendingTasks.map(task => (
@@ -173,7 +175,7 @@ export default function ErrorLibraryPage() {
                   <div>
                     <p className="font-bold text-sm text-[#0F172A]">{task.errorCode}</p>
                     <p className="text-xs text-[#64748B] flex items-center gap-1 mt-0.5">
-                      <Clock size={11} /> Interval: {task.intervalDays} ngày
+                      <Clock size={11} /> Interval: {task.intervalDays} {tErrors('days')}
                     </p>
                   </div>
                   <button
@@ -181,7 +183,7 @@ export default function ErrorLibraryPage() {
                     onClick={() => handleTaskDrill(task)}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#121212] text-white font-bold text-xs hover:bg-[#004b90] active:scale-95 transition-all"
                   >
-                    <RotateCcw size={12} /> Luyện sửa lỗi
+                    <RotateCcw size={12} /> {tErrors('practiceFix')}
                   </button>
                 </div>
               ))}
@@ -195,7 +197,7 @@ export default function ErrorLibraryPage() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#94A3B8]" size={18} />
             <input
               type="text"
-              placeholder="Tìm kiếm mã lỗi..."
+              placeholder={tErrors('searchPlaceholder')}
               className="w-full bg-white border border-[#E2E8F0] rounded-2xl py-3 pl-12 pr-4 text-[#0F172A] placeholder:text-[#94A3B8] outline-none focus:border-[#121212] transition-all shadow-sm"
               value={search}
               onChange={e => setSearch(e.target.value)}
@@ -214,7 +216,7 @@ export default function ErrorLibraryPage() {
         {loading && (
           <div className="flex items-center justify-center py-16 gap-3 text-[#64748B]">
             <Loader2 size={22} className="animate-spin text-[#121212]" />
-            <span className="text-sm">Đang tải dữ liệu lỗi...</span>
+            <span className="text-sm">{tErrors('loadingErrors')}</span>
           </div>
         )}
 
@@ -223,7 +225,7 @@ export default function ErrorLibraryPage() {
             <AlertTriangle size={36} className="text-amber-400 mx-auto mb-3" />
             <p className="text-sm text-[#64748B] mb-4">{error}</p>
             <button type="button" onClick={fetchData} className="px-4 py-2 rounded-xl bg-[#121212] text-white font-bold text-sm">
-              Thử lại
+              {tErrors('retry')}
             </button>
           </div>
         )}
@@ -231,8 +233,8 @@ export default function ErrorLibraryPage() {
         {!loading && !error && filtered.length === 0 && resolvedErrors.length === 0 && (
           <div className="text-center py-14">
             <CheckCircle2 size={48} className="text-green-400 mx-auto mb-4" />
-            <p className="font-bold text-[#0F172A] mb-1">Tuyệt vời! Chưa ghi nhận lỗi nào.</p>
-            <p className="text-sm text-[#64748B]">Hãy luyện nói để AI ghi lại các lỗi ngữ pháp của bạn.</p>
+            <p className="font-bold text-[#0F172A] mb-1">{tErrors('noErrorsTitle')}</p>
+            <p className="text-sm text-[#64748B]">{tErrors('noErrorsDesc')}</p>
           </div>
         )}
 
@@ -242,7 +244,7 @@ export default function ErrorLibraryPage() {
             <div className="flex items-center gap-2 mb-3">
               <AlertTriangle size={14} className="text-amber-500" />
               <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-wide">
-                Lỗi chưa sửa ({filtered.length})
+                {tErrors('unfixedErrors')} ({filtered.length})
               </h3>
             </div>
             <AnimatePresence>
@@ -266,16 +268,16 @@ export default function ErrorLibraryPage() {
                       <div className="flex justify-between items-start mb-3">
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] font-bold px-2 py-1 rounded-full uppercase" style={{ background: style.bg, color: style.text }}>
-                            {style.label}
+                            {style.label === 'other' ? tErrors('other') : style.label}
                           </span>
                           {repaired && (
                             <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-green-100 text-green-600">
-                              ✓ Đã sửa
+                              ✓ {tErrors('fixed')}
                             </span>
                           )}
                         </div>
                         <span className="text-[10px] font-bold bg-slate-100 text-slate-500 px-2 py-1 rounded-full">
-                          Gặp {err.count} lần
+                          {tErrors('seenCount', { count: err.count })}
                         </span>
                       </div>
 
@@ -284,7 +286,7 @@ export default function ErrorLibraryPage() {
                         <p className="font-mono font-bold text-[#0F172A] text-sm">{err.errorCode}</p>
                         {err.lastSeenAt && (
                           <p className="text-xs text-[#94A3B8] mt-0.5 flex items-center gap-1">
-                            <Clock size={11} /> Gặp lần cuối: {new Date(err.lastSeenAt).toLocaleDateString('vi-VN')}
+                            <Clock size={11} /> {tErrors('lastSeen')} {new Date(err.lastSeenAt).toLocaleDateString('vi-VN')}
                           </p>
                         )}
                       </div>
@@ -293,7 +295,7 @@ export default function ErrorLibraryPage() {
                       <div className="flex items-center gap-2 mt-3">
                         <div className="flex items-center gap-1.5 flex-1 text-[#64748B]">
                           <Shield size={13} className="text-[#121212]" />
-                          <span className="text-xs font-semibold">Lỗi ngữ pháp đã ghi nhận</span>
+                          <span className="text-xs font-semibold">{tErrors('recordedGrammarError')}</span>
                         </div>
                         <button
                           type="button"
@@ -306,8 +308,8 @@ export default function ErrorLibraryPage() {
                           }`}
                         >
                           {repaired
-                              ? <><CheckCircle2 size={12} /> Đã sửa</>
-                              : <><RotateCcw size={12} /> Luyện sửa lỗi</>}
+                              ? <><CheckCircle2 size={12} /> {tErrors('fixed')}</>
+                              : <><RotateCcw size={12} /> {tErrors('practiceFix')}</>}
                         </button>
                       </div>
                     </motion.div>
@@ -321,7 +323,7 @@ export default function ErrorLibraryPage() {
         {/* ── Completed tasks notice ──────────────────────────────────────── */}
         {!loading && pendingTasks.length === 0 && tasks.length > 0 && (
           <div className="text-center py-4 text-sm text-green-600 font-semibold bg-green-50 rounded-2xl border border-green-100">
-            🎉 Bạn đã hoàn thành tất cả bài ôn tập hôm nay!
+            🎉 {tErrors('allDone')}
           </div>
         )}
 
@@ -336,7 +338,7 @@ export default function ErrorLibraryPage() {
               <div className="flex items-center gap-2">
                 <CheckCircle2 size={14} className="text-green-500" />
                 <h3 className="text-xs font-bold text-green-700 uppercase tracking-wide">
-                  Đã hoàn thành ({filteredResolved.length})
+                  {tErrors('completed')} ({filteredResolved.length})
                 </h3>
               </div>
               {showResolved ? <ChevronUp size={14} className="text-green-500" /> : <ChevronDown size={14} className="text-green-500" />}
@@ -364,22 +366,22 @@ export default function ErrorLibraryPage() {
                         <div className="flex justify-between items-center">
                           <div className="flex items-center gap-2">
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase" style={{ background: style.bg, color: style.text }}>
-                              {style.label}
+                              {style.label === 'other' ? tErrors('other') : style.label}
                             </span>
                             <span className="font-mono font-bold text-[#0F172A] text-xs">{err.errorCode}</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="text-[9px] font-bold bg-slate-100 text-slate-400 px-2 py-0.5 rounded-full">
-                              {err.count} lần
+                              {err.count} {tErrors('times')}
                             </span>
                             <span className="text-[9px] font-bold bg-green-100 text-green-600 px-2 py-0.5 rounded-full flex items-center gap-0.5">
-                              <CheckCircle2 size={9} /> Đã sửa
+                              <CheckCircle2 size={9} /> {tErrors('fixed')}
                             </span>
                           </div>
                         </div>
                         {err.lastSeenAt && (
                           <p className="text-[10px] text-[#94A3B8] mt-1.5 flex items-center gap-1 ml-1">
-                            <Clock size={9} /> Lần cuối: {new Date(err.lastSeenAt).toLocaleDateString('vi-VN')}
+                            <Clock size={9} /> {tErrors('lastTime')} {new Date(err.lastSeenAt).toLocaleDateString('vi-VN')}
                           </p>
                         )}
                       </motion.div>

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { BookOpen, ChevronDown, ChevronRight, Loader2, Play, Volume2 } from "lucide-react";
+import { BookOpen, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { StudentShell } from "@/components/layouts/StudentShell";
 import { useStudentPracticeSession } from "@/hooks/useStudentPracticeSession";
 import { logout } from "@/lib/authSession";
@@ -37,6 +38,7 @@ interface CurriculumData {
   chapters?: CurriculumChapter[];
   lessons?: CurriculumLesson[];
   units?: CurriculumUnit[];  // Netzwerk Neu A1 JSON format
+  courseId?: string;
   [key: string]: unknown;
 }
 
@@ -59,6 +61,7 @@ interface CurriculumUnit {
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function LessonCard({ lesson, expanded, onToggle }: { lesson: CurriculumLesson; expanded: boolean; onToggle: () => void }) {
+  const t = useTranslations("curriculum");
   // Merge canDo (Netzwerk format) into communicativeGoals for display
   const goals = lesson.communicativeGoals ?? lesson.canDo ?? [];
   // Merge vocabTopics into vocabulary display
@@ -92,7 +95,7 @@ function LessonCard({ lesson, expanded, onToggle }: { lesson: CurriculumLesson; 
         >
           {lesson.themes && lesson.themes.length > 0 && (
             <div className="pt-3">
-              <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wide mb-1.5">Chủ đề</p>
+              <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wide mb-1.5">{t("themes")}</p>
               <div className="flex flex-wrap gap-1.5">
                 {lesson.themes.map((t, i) => (
                   <span key={i} className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">{t}</span>
@@ -102,7 +105,7 @@ function LessonCard({ lesson, expanded, onToggle }: { lesson: CurriculumLesson; 
           )}
           {lesson.grammarPoints && lesson.grammarPoints.length > 0 && (
             <div>
-              <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wide mb-1.5">Ngữ pháp</p>
+              <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wide mb-1.5">{t("grammar")}</p>
               <ul className="space-y-1">
                 {lesson.grammarPoints.map((g, i) => (
                   <li key={i} className="text-xs text-[#475569] flex gap-1.5"><span className="text-[#121212]">•</span>{g}</li>
@@ -112,20 +115,20 @@ function LessonCard({ lesson, expanded, onToggle }: { lesson: CurriculumLesson; 
           )}
           {vocab.length > 0 && (
             <div>
-              <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wide mb-1.5">Từ vựng ({vocab.length})</p>
+              <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wide mb-1.5">{t("vocabulary", { count: vocab.length })}</p>
               <div className="flex flex-wrap gap-1.5">
                 {vocab.slice(0, 20).map((v, i) => (
                   <span key={i} className="text-xs px-2 py-0.5 rounded-full bg-[#F8FAFC] text-[#475569] border border-[#E2E8F0] font-mono">{v}</span>
                 ))}
                 {vocab.length > 20 && (
-                  <span className="text-xs text-[#94A3B8]">+{vocab.length - 20} từ nữa</span>
+                  <span className="text-xs text-[#94A3B8]">{t("moreWords", { count: vocab.length - 20 })}</span>
                 )}
               </div>
             </div>
           )}
           {goals.length > 0 && (
             <div>
-              <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wide mb-1.5">Mục tiêu giao tiếp</p>
+              <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wide mb-1.5">{t("communicativeGoals")}</p>
               <ul className="space-y-1">
                 {goals.map((g, i) => (
                   <li key={i} className="text-xs text-[#475569] flex gap-1.5"><span className="text-green-500">✓</span>{g}</li>
@@ -144,6 +147,7 @@ function LessonCard({ lesson, expanded, onToggle }: { lesson: CurriculumLesson; 
 
 export default function CurriculumPage() {
   const { me, loading: meLoading, targetLevel, streakDays, initials } = useStudentPracticeSession();
+  const tCurriculum = useTranslations("curriculum");
   const [curriculum, setCurriculum] = useState<CurriculumData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -155,8 +159,8 @@ export default function CurriculumPage() {
     setLoading(true);
     api.get<CurriculumData>("/curriculum/netzwerk-neu/a1")
       .then(({ data }) => { setCurriculum(data); setLoading(false); })
-      .catch(() => { setError("Không thể tải nội dung giáo trình."); setLoading(false); });
-  }, [me]);
+      .catch(() => { setError(tCurriculum("cannotLoad")); setLoading(false); });
+  }, [me, tCurriculum]);
 
   const toggleLesson = (n: number) => setExpandedLessons(prev => {
     const next = new Set(prev);
@@ -183,7 +187,7 @@ export default function CurriculumPage() {
     }
     // Priority 2: flat lessons[]
     if (curriculum.lessons?.length) {
-      return [{ id: "1", title: "Nội dung giáo trình", lessons: curriculum.lessons }];
+      return [{ id: "1", title: tCurriculum("content"), lessons: curriculum.lessons }];
     }
     // Priority 3: units[] — Netzwerk Neu A1 backend format
     if (curriculum.units?.length) {
@@ -231,7 +235,7 @@ export default function CurriculumPage() {
       streakDays={streakDays}
       initials={initials}
       onLogout={() => { logout(); }}
-      headerTitle="Giáo trình Netzwerk Neu A1"
+      headerTitle={tCurriculum("title")}
       headerSubtitle="Chuẩn Goethe-Institut · Đức ngữ cơ bản"
     >
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
@@ -263,7 +267,7 @@ export default function CurriculumPage() {
         {loading && (
           <div className="flex flex-col items-center justify-center py-20 gap-4 bg-white rounded-3xl border-2 border-[#E2E8F0]">
             <Loader2 size={28} className="animate-spin text-[#121212]" />
-            <p className="text-sm text-[#64748B]">Đang tải giáo trình...</p>
+            <p className="text-sm text-[#64748B]">{tCurriculum("loading")}</p>
           </div>
         )}
 
@@ -317,7 +321,7 @@ export default function CurriculumPage() {
         {!loading && !error && chapters.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 gap-4 bg-white rounded-3xl border-2 border-[#E2E8F0]">
             <BookOpen size={40} className="text-[#94A3B8]" />
-            <p className="text-sm text-[#64748B]">Chưa có dữ liệu giáo trình.</p>
+            <p className="text-sm text-[#64748B]">{tCurriculum("noData")}</p>
           </div>
         )}
       </div>

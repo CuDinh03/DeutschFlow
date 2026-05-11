@@ -113,6 +113,7 @@ export function StudentShell({
   children,
 }: Props) {
   const t = useTranslations("student");
+  const tNav = useTranslations("nav");
   const router = useRouter();
   const pathname = usePathname();
   const showMobileBottomPad = !isStudentImmersivePath(pathname) && !hideBottomNav;
@@ -129,9 +130,9 @@ export function StudentShell({
           { id: "roadmap" as const, label: t("navLearningPath"), icon: Map, href: "/student/roadmap",
             badge: <span className="text-[9px] font-bold bg-[#FFCD00]/20 text-[#FFCD00] px-1.5 py-0.5 rounded-full border border-[#FFCD00]/30">{t("newBadge")}</span> },
           { id: "vocabulary" as const, label: t("navVocabulary"), icon: BookMarked, href: "/student/vocabulary" },
-          { id: "vocab-analytics" as const, label: "Thống kê từ vựng", icon: BarChart2 as any, href: "/student/vocab-analytics" },
-          { id: "grammar-practice" as const, label: "Luyện ngữ pháp AI", icon: Brain, href: "/student/grammar-practice" },
-          { id: "curriculum" as const, label: "Giáo trình A1", icon: BookOpen, href: "/student/curriculum" },
+          { id: "vocab-analytics" as const, label: t("navVocabAnalytics"), icon: BarChart2 as any, href: "/student/vocab-analytics" },
+          { id: "grammar-practice" as const, label: t("navGrammarAI"), icon: Brain, href: "/student/grammar-practice" },
+          { id: "curriculum" as const, label: t("navCurriculum"), icon: BookOpen, href: "/student/curriculum" },
         ],
       },
       {
@@ -152,14 +153,14 @@ export function StudentShell({
           { id: "errors" as const, label: t("navMyErrors"), icon: AlertTriangle, href: "/student/errors" },
           {
             id: "review" as const,
-            label: "📚 Ôn tập SRS",
+            label: t("navReviewSrs"),
             icon: Brain,
             href: "/student/review",
             badge: <span className="text-[9px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded-full">Ôn</span>,
           },
-          { id: "review-queue" as const, label: "Ôn tập hôm nay", icon: Brain, href: "/student/review-queue" },
+          { id: "review-queue" as const, label: t("navReviewQueue"), icon: Brain, href: "/student/review-queue" },
           { id: "speakingHistory" as const, label: t("navSpeakingHistory"), icon: History, href: "/student/speaking-history" },
-          { id: "interviews" as const, label: "Kết quả phỏng vấn", icon: Briefcase, href: "/student/interviews" },
+          { id: "interviews" as const, label: t("navInterviews"), icon: Briefcase, href: "/student/interviews" },
         ],
       },
       {
@@ -167,8 +168,8 @@ export function StudentShell({
         label: t("navGroupProfile"),
         items: [
           { id: "tutor" as const, label: t("navTutorProfile"), icon: Users, href: "/student/tutor" },
-          { id: "leaderboard" as const, label: "Bảng xếp hạng", icon: Trophy, href: "/student/leaderboard" },
-          { id: "badges" as const, label: "🏅 Huy hiệu", icon: Trophy, href: "/student/badges",
+          { id: "leaderboard" as const, label: t("navLeaderboard"), icon: Trophy, href: "/student/leaderboard" },
+          { id: "badges" as const, label: t("navBadges"), icon: Trophy, href: "/student/badges",
             badge: <span className="text-[9px] font-bold bg-[#FFCD00]/20 text-[#78350F] px-1.5 py-0.5 rounded-full border border-[#FFCD00]/40">XP</span> },
           { id: "settings" as const, label: t("navSettings"), icon: Settings, href: "/student/settings" },
         ],
