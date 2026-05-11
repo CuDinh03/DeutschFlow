@@ -4,6 +4,7 @@ import { Inter } from 'next/font/google'
 import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages } from 'next-intl/server'
 import { Toaster } from '@/components/ui/sonner'
+import LanguageSwitcher from '@/components/ui/LanguageSwitcher'
 import './globals.css'
 
 const inter = Inter({
@@ -39,6 +40,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <NextIntlClientProvider messages={messages}>
           {children}
           <Toaster position="top-center" />
+          {/* Global language switcher — visible on ALL screens */}
+          <div className="fixed bottom-20 right-4 z-[60] lg:bottom-6 lg:right-6">
+            <LanguageSwitcher />
+          </div>
         </NextIntlClientProvider>
       </body>
     </html>
