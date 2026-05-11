@@ -16,12 +16,16 @@ import {
   Trophy,
   Zap,
   Sparkles,
+  LayoutList,
+  GitBranch,
 } from "lucide-react";
 import { StudentShell } from "@/components/layouts/StudentShell";
 import { useStudentPracticeSession } from "@/hooks/useStudentPracticeSession";
 import api from "@/lib/api";
 import { logout } from "@/lib/authSession";
 import { planApi, type AdaptiveRefreshResponse } from "@/lib/planApi";
+import SkillTreeFlowWrapper from "@/components/roadmap/SkillTreeFlowWrapper";
+import type { SkillTreeNodeData } from "@/components/roadmap/treeLayout";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -533,6 +537,15 @@ export default function RoadmapPage() {
   const [generatingHobby, setGeneratingHobby] = useState(false);
   const [adaptiveRefreshing, setAdaptiveRefreshing] = useState(false);
   const [adaptiveResult, setAdaptiveResult] = useState<AdaptiveRefreshResponse | null>(null);
+  // Tree / List toggle (persisted in localStorage)
+  const [viewMode, setViewMode] = useState<"tree" | "list">(() => {
+    if (typeof window === "undefined") return "tree";
+    return (localStorage.getItem("df_roadmap_view") as "tree" | "list") ?? "tree";
+  });
+  const toggleView = (mode: "tree" | "list") => {
+    setViewMode(mode);
+    localStorage.setItem("df_roadmap_view", mode);
+  };
 
   const HOBBIES = ["IT", "Medicine", "Education", "Engineering", "Travel", "Music", "Finance"];
 
@@ -618,6 +631,22 @@ export default function RoadmapPage() {
     () => nodes.filter((n) => n.user_status === "COMPLETED").length,
     [nodes]
   );
+  const coreNodes = useMemo(() => nodes.filter((n) => n.node_type === "CORE_TRUNK"), [nodes]);
+  const satelliteNodes = useMemo(() => nodes.filter((n) => n.node_type === "SATELLITE_LEAF"), [nodes]);
+  const coreCompleted = useMemo(() => coreNodes.filter((n) => n.user_status === "COMPLETED").length, [coreNodes]);
+  const corePct = coreNodes.length > 0 ? Math.round((coreCompleted / coreNodes.length) * 100) : 0;
+
+  // Group satellite by industry (from title_de prefix or phase)
+  const satelliteByIndustry = useMemo(() => {
+    const map = new Map<string, SkillTreeNode[]>();
+    satelliteNodes.forEach((n) => {
+      const key = n.phase || "BERUF";
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(n);
+    });
+    return map;
+  }, [satelliteNodes]);
+
   const currentWeek = weekGroups.find((g) => g.state === "current");
 
   const handleStartNode = useCallback(
@@ -672,17 +701,66 @@ export default function RoadmapPage() {
       headerTitle="Lộ trình học tập"
       headerSubtitle="28 ngày · Goethe A1 Curriculum"
       headerRight={
-        <button
-          type="button"
-          onClick={() => void handleAdaptiveRefresh()}
-          disabled={adaptiveRefreshing}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#E2E8F0] bg-white text-[#121212] text-xs font-semibold hover:bg-[#EEF4FF] transition-all disabled:opacity-50"
-        >
-          {adaptiveRefreshing ? <RefreshCw size={12} className="animate-spin" /> : <Sparkles size={12} />}
-          {adaptiveRefreshing ? "Đang cập nhật..." : "AI refresh"}
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Tree / List toggle */}
+          <div className="flex items-center rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-0.5">
+            <button
+              type="button"
+              onClick={() => toggleView("tree")}
+              title="Sơ đồ cây"
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                viewMode === "tree"
+                  ? "bg-[#121212] text-white shadow-sm"
+                  : "text-[#64748B] hover:text-[#121212]"
+              }`}
+            >
+              <GitBranch size={12} /> Cây
+            </button>
+            <button
+              type="button"
+              onClick={() => toggleView("list")}
+              title="Danh sách"
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                viewMode === "list"
+                  ? "bg-[#121212] text-white shadow-sm"
+                  : "text-[#64748B] hover:text-[#121212]"
+              }`}
+            >
+              <LayoutList size={12} /> List
+            </button>
+          </div>
+          {/* AI refresh */}
+          <button
+            type="button"
+            onClick={() => void handleAdaptiveRefresh()}
+            disabled={adaptiveRefreshing}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#E2E8F0] bg-white text-[#121212] text-xs font-semibold hover:bg-[#EEF4FF] transition-all disabled:opacity-50"
+          >
+            {adaptiveRefreshing ? <RefreshCw size={12} className="animate-spin" /> : <Sparkles size={12} />}
+            {adaptiveRefreshing ? "Đang cập nhật..." : "AI refresh"}
+          </button>
+        </div>
       }
     >
+      {/* ── TREE VIEW ── */}
+      {viewMode === "tree" && !loading && !error && nodes.length > 0 && (
+        <div className="px-2 py-4">
+          <SkillTreeFlowWrapper
+            apiNodes={nodes as unknown as SkillTreeNodeData[]}
+            onSelectNode={(n) => {
+              if (n.user_status !== "LOCKED") {
+                router.push(`/student/learn/node/${n.id}`);
+              }
+            }}
+            onContinueLearning={(nodeId) => {
+              router.push(`/student/learn/node/${nodeId}`);
+            }}
+          />
+        </div>
+      )}
+
+      {/* ── LIST VIEW (original layout below) ── */}
+      {viewMode === "list" && (
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
 
         {/* Adaptive refresh result banner */}
@@ -714,31 +792,45 @@ export default function RoadmapPage() {
           )}
         </AnimatePresence>
 
-        {/* Stats bar */}
-        {!loading && nodes.length > 0 && (
-          <div className="grid grid-cols-3 gap-3">
-            <div className="bg-white rounded-2xl p-3 border border-[#E2E8F0] text-center">
-              <div className="flex items-center justify-center gap-1 mb-1">
-                <Star size={14} className="text-yellow-400" />
-                <span className="font-extrabold text-[#0F172A] text-lg">{totalXP}</span>
+        {/* ── Overall Progress Bar ── */}
+        {!loading && coreNodes.length > 0 && (
+          <div className="rounded-2xl bg-white border border-[#E2E8F0] p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-[#64748B] uppercase tracking-wide">Tiến độ CORE</p>
+                <p className="text-sm font-bold text-[#0F172A] mt-0.5">
+                  Ngày {coreCompleted}/{coreNodes.length}
+                  <span className="ml-2 text-[#64748B] font-normal">· {corePct}% hoàn thành</span>
+                </p>
               </div>
-              <p className="text-[10px] text-[#94A3B8]">Tổng XP</p>
+              <span className="text-2xl font-black text-[#121212]">{corePct}%</span>
             </div>
-            <div className="bg-white rounded-2xl p-3 border border-[#E2E8F0] text-center">
-              <div className="flex items-center justify-center gap-1 mb-1">
-                <Check size={14} className="text-[#10B981]" />
-                <span className="font-extrabold text-[#0F172A] text-lg">
-                  {completedCount}/{nodes.length}
-                </span>
-              </div>
-              <p className="text-[10px] text-[#94A3B8]">Bài hoàn thành</p>
+            {/* Progress bar */}
+            <div className="h-3 rounded-full bg-[#F1F5F9] overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-700"
+                style={{
+                  width: `${corePct}%`,
+                  background: corePct === 100
+                    ? "linear-gradient(90deg,#34D399,#10B981)"
+                    : "linear-gradient(90deg,#FFCD00,#F59E0B)",
+                }}
+              />
             </div>
-            <div className="bg-white rounded-2xl p-3 border border-[#E2E8F0] text-center">
-              <div className="flex items-center justify-center gap-1 mb-1">
-                <Flame size={14} className="text-orange-400" />
-                <span className="font-extrabold text-[#0F172A] text-lg">{streakDays}</span>
+            {/* Stats row */}
+            <div className="grid grid-cols-3 gap-2 pt-1">
+              <div className="text-center">
+                <p className="font-extrabold text-[#0F172A]">{totalXP}</p>
+                <p className="text-[10px] text-[#94A3B8]">Tổng XP</p>
               </div>
-              <p className="text-[10px] text-[#94A3B8]">Ngày liên tiếp</p>
+              <div className="text-center">
+                <p className="font-extrabold text-[#0F172A]">{completedCount}</p>
+                <p className="text-[10px] text-[#94A3B8]">Bài xong</p>
+              </div>
+              <div className="text-center">
+                <p className="font-extrabold text-[#0F172A]">{streakDays}🔥</p>
+                <p className="text-[10px] text-[#94A3B8]">Chuỗi ngày</p>
+              </div>
             </div>
           </div>
         )}
@@ -812,10 +904,60 @@ export default function RoadmapPage() {
           </div>
         )}
 
+        {/* ── SATELLITE Section ── */}
+        {!loading && satelliteNodes.length > 0 && (
+          <div className="rounded-2xl border-2 border-dashed border-[#C4B5FD] bg-[#F5F3FF] overflow-hidden">
+            <div className="px-4 py-3 flex items-center gap-2 border-b border-[#E9D5FF]">
+              <span className="text-lg">🚀</span>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-[#5B21B6]">Bài chuyên ngành</p>
+                <p className="text-[11px] text-[#7C3AED]">
+                  {satelliteNodes.filter(n => n.user_status === "COMPLETED").length}/{satelliteNodes.length} bài · Mở sau Day 14
+                </p>
+              </div>
+              {corePct < 40 && (
+                <span className="text-[10px] bg-amber-100 text-amber-700 font-bold px-2 py-1 rounded-full">
+                  🔒 Cần {Math.max(0, 14 - coreCompleted)} ngày nữa
+                </span>
+              )}
+            </div>
+            <div className="px-4 py-3 space-y-2">
+              {Array.from(satelliteByIndustry.entries()).map(([industry, indNodes]) => {
+                const done = indNodes.filter(n => n.user_status === "COMPLETED").length;
+                const isUnlocked = indNodes.some(n => n.user_status !== "LOCKED");
+                return (
+                  <div key={industry} className="flex items-center gap-3 bg-white rounded-xl p-3 border border-[#E9D5FF]">
+                    <span className="text-xl">{indNodes[0]?.emoji ?? "🏭"}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-[#4C1D95] truncate">{industry.replace(/_/g, " ")}</p>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <div className="flex-1 h-1.5 rounded-full bg-[#EDE9FE] overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-[#7C3AED] transition-all duration-500"
+                            style={{ width: `${indNodes.length > 0 ? (done / indNodes.length) * 100 : 0}%` }}
+                          />
+                        </div>
+                        <span className="text-[10px] text-[#7C3AED] font-bold shrink-0">{done}/{indNodes.length}</span>
+                      </div>
+                    </div>
+                    {isUnlocked ? (
+                      <span className="text-[10px] bg-green-100 text-green-700 font-bold px-2 py-0.5 rounded-full">✅ Mở</span>
+                    ) : (
+                      <span className="text-[10px] bg-[#EDE9FE] text-[#7C3AED] font-bold px-2 py-0.5 rounded-full">🔒</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Week groups */}
-        {!loading && !error && weekGroups.length > 0 && (
+        {!loading && !error && weekGroups.filter(g => g.nodes.some(n => n.node_type === "CORE_TRUNK")).length > 0 && (
           <div className="space-y-3">
-            {weekGroups.map((group) => (
+            {weekGroups
+              .filter(g => g.nodes.some(n => n.node_type === "CORE_TRUNK"))
+              .map((group) => (
               <WeekCard
                 key={group.week}
                 group={group}
@@ -838,48 +980,9 @@ export default function RoadmapPage() {
           />
         )}
       </div>
+      )} {/* end viewMode=list */}
 
-      {/* Satellite Prompt Modal */}
-      <AnimatePresence>
-        {satellitePromptNode && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl p-6 w-full max-w-md shadow-xl"
-            >
-              <h2 className="text-xl font-bold text-[#0F172A] mb-2">🎉 Chúc mừng bạn đã hoàn thành bài học!</h2>
-              <p className="text-[#475569] text-sm mb-5">
-                Bạn đã đạt trình độ A2 trở lên. Hệ thống có thể tự động tạo một bài học mở rộng cá nhân hóa dựa trên chủ đề bạn quan tâm. Bạn muốn tìm hiểu sâu về lĩnh vực nào?
-              </p>
-              
-              <div className="grid grid-cols-2 gap-3 mb-6">
-                {HOBBIES.map((h) => (
-                  <button
-                    key={h}
-                    onClick={() => handleGenerateSatellite(h)}
-                    disabled={generatingHobby}
-                    className="flex justify-center items-center py-3 rounded-xl border border-[#E2E8F0] font-semibold text-sm text-[#0F172A] hover:bg-[#F0FDF4] hover:border-[#10B981] hover:text-[#10B981] transition-all disabled:opacity-50"
-                  >
-                    {h}
-                  </button>
-                ))}
-              </div>
-              
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setSatellitePromptNode(null)}
-                  disabled={generatingHobby}
-                  className="flex-1 py-3 bg-[#F1F5F9] text-[#64748B] font-bold rounded-xl"
-                >
-                  Bỏ qua lúc này
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+
     </StudentShell>
   );
 }

@@ -1,11 +1,14 @@
 "use client";
 
-import { NodeContent, WordTimestamp } from "@/stores/useNodeSessionStore";
-import { useState, useRef, useCallback, useEffect } from "react";
+import { NodeContent, WordTimestamp, useNodeSessionStore } from "@/stores/useNodeSessionStore";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { Play, Pause, RotateCcw, Volume2 } from "lucide-react";
 
 export default function ListeningView({ content }: { content: NodeContent }) {
   const audio = content.audio_content;
+  const { markTabCompleted, tabCompletion } = useNodeSessionStore();
+  const isCompleted = tabCompletion.listening;
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -15,21 +18,27 @@ export default function ListeningView({ content }: { content: NodeContent }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
 
-  if (!audio?.url) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 bg-white rounded-2xl border border-[#E2E8F0]">
-        <span className="text-4xl mb-3">🎧</span>
-        <p className="text-sm text-[#64748B]">Audio chưa có cho bài học này.</p>
-      </div>
-    );
-  }
+  const timestamps: WordTimestamp[] = audio?.transcript_sync ?? [];
 
-  const timestamps: WordTimestamp[] = audio.transcript_sync ?? [];
-
-  // Pick some words to blank out (every 5th word)
-  const blankIndices = new Set(
+  const blankIndices = useMemo(() => new Set(
     timestamps.filter((_, i) => i > 2 && i % 5 === 0).map((_, i) => i * 5)
-  );
+  ), [timestamps]);
+
+  // Check completion (>= 80%)
+  useEffect(() => {
+    if (isCompleted || blankIndices.size === 0) return;
+    
+    let correct = 0;
+    blankIndices.forEach((idx) => {
+      const w = timestamps[idx].word.toLowerCase().trim();
+      const input = (fillBlanks[idx] ?? "").toLowerCase().trim();
+      if (w === input) correct++;
+    });
+
+    if (correct >= blankIndices.size * 0.8) {
+      markTabCompleted("listening");
+    }
+  }, [fillBlanks, blankIndices, timestamps, isCompleted, markTabCompleted]);
 
   // Sync highlight with audio time
   useEffect(() => {
@@ -83,6 +92,12 @@ export default function ListeningView({ content }: { content: NodeContent }) {
     if (audioRef.current) audioRef.current.playbackRate = next;
   }, [speed]);
 
+  useEffect(() => {
+    if (audioRef.current && audio?.url) {
+      audioRef.current.playbackRate = speed;
+    }
+  }, [speed, audio?.url]);
+
   const seekTo = useCallback((t: number) => {
     if (!audioRef.current) return;
     audioRef.current.currentTime = t;
@@ -94,6 +109,15 @@ export default function ListeningView({ content }: { content: NodeContent }) {
     const sec = Math.floor(s % 60);
     return `${m}:${sec.toString().padStart(2, "0")}`;
   };
+
+  if (!audio?.url) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 bg-white rounded-2xl border border-[#E2E8F0]">
+        <span className="text-4xl mb-3">🎧</span>
+        <p className="text-sm text-[#64748B]">Audio chưa có cho bài học này.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -202,10 +226,28 @@ export default function ListeningView({ content }: { content: NodeContent }) {
         </div>
       )}
 
+      {/* ── Completion Status ── */}
+      {isCompleted && timestamps.length > 0 && (
+        <div className="rounded-xl bg-green-50 border border-green-200 p-4 text-center">
+          <p className="text-sm font-bold text-green-700">✅ Đã hoàn thành phần Nghe (≥ 80% đúng)</p>
+        </div>
+      )}
+
       {/* ── No timestamps fallback ── */}
       {timestamps.length === 0 && (
-        <div className="rounded-xl bg-white border border-[#E2E8F0] p-6 text-center">
+        <div className="rounded-xl bg-white border border-[#E2E8F0] p-6 text-center space-y-4">
           <p className="text-sm text-[#64748B]">Transcript chưa có. Đang nghe và luyện tập...</p>
+          <button
+            onClick={() => markTabCompleted("listening")}
+            disabled={isCompleted}
+            className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-colors ${
+              isCompleted 
+                ? "bg-green-500 text-white" 
+                : "bg-[#22C55E] hover:bg-[#16A34A] text-white"
+            }`}
+          >
+            {isCompleted ? "✅ Đã hoàn thành" : "✅ Đã Nghe & Hiểu (100%)"}
+          </button>
         </div>
       )}
     </div>

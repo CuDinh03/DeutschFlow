@@ -55,6 +55,8 @@ public class XpService {
     public static final int XP_ERROR_FIXED       = 15;
     public static final int XP_FIRST_SESSION     = 100;
     public static final int XP_DAILY_GOAL        = 50;
+    public static final int XP_SATELLITE         = 50;
+    public static final int XP_SRS_REVIEW        = 2;
 
     private final UserXpEventRepository xpEventRepository;
     private final AchievementRepository achievementRepository;
@@ -95,6 +97,14 @@ public class XpService {
     }
 
     @Transactional
+    public void awardCustomPractice(Long userId, int xpAmount, String note) {
+        int oldLevel = currentLevel(userId);
+        record(userId, xpAmount, XpEventType.CUSTOM_PRACTICE, null, null, note);
+        checkLevelUp(userId, oldLevel);
+        checkAchievements(userId);
+    }
+
+    @Transactional
     public void awardErrorFixed(Long userId) {
         int oldLevel = currentLevel(userId);
         record(userId, XP_ERROR_FIXED, XpEventType.ERROR_FIXED, null, null, null);
@@ -115,6 +125,31 @@ public class XpService {
     public void awardDailyGoal(Long userId) {
         int oldLevel = currentLevel(userId);
         record(userId, XP_DAILY_GOAL, XpEventType.DAILY_GOAL, null, null, null);
+        checkLevelUp(userId, oldLevel);
+        checkAchievements(userId);
+    }
+
+    /**
+     * Award XP when a SATELLITE_LEAF (industry) node is completed.
+     * @param industry e.g. "IT", "ARZT", "GASTRO", "PFLEGE"
+     */
+    @Transactional
+    public void awardSatelliteComplete(Long userId, String industry) {
+        int oldLevel = currentLevel(userId);
+        record(userId, XP_SATELLITE, XpEventType.SATELLITE_COMPLETE, null, null,
+               industry != null ? "INDUSTRY:" + industry.toUpperCase() : "SATELLITE");
+        checkLevelUp(userId, oldLevel);
+        checkAchievements(userId);
+    }
+
+    /**
+     * Award XP for an SRS vocab review (called from SrsService).
+     * No daily cap enforcement here — kept simple for now.
+     */
+    @Transactional
+    public void awardSrsReview(Long userId) {
+        int oldLevel = currentLevel(userId);
+        record(userId, XP_SRS_REVIEW, XpEventType.SRS_REVIEW, null, null, null);
         checkLevelUp(userId, oldLevel);
         checkAchievements(userId);
     }
@@ -231,6 +266,20 @@ public class XpService {
                          "SESSIONS_SPEAKING" -> sessionCount;
                     case "STREAK_DAYS"       -> streakDays;
                     case "ERRORS_FIXED"      -> errorsFixed;
+                    case "SATELLITE_COMPLETE"       -> xpEventRepository.countSatelliteCompleteByUserId(userId);
+                    case "SATELLITE_IT_COMPLETE"    -> xpEventRepository.countSatelliteByIndustry(userId, "INDUSTRY:IT%");
+                    case "SATELLITE_ARZT_COMPLETE"  -> xpEventRepository.countSatelliteByIndustry(userId, "INDUSTRY:ARZT%");
+                    case "SATELLITE_GASTRO_COMPLETE"-> xpEventRepository.countSatelliteByIndustry(userId, "INDUSTRY:GASTRO%");
+                    case "SATELLITE_PFLEGE_COMPLETE"-> xpEventRepository.countSatelliteByIndustry(userId, "INDUSTRY:PFLEGE%");
+                    case "SATELLITE_ALL_INDUSTRIES" -> {
+                        // Count distinct industries that have at least 1 completion
+                        long it    = xpEventRepository.countSatelliteByIndustry(userId, "INDUSTRY:IT%");
+                        long arzt  = xpEventRepository.countSatelliteByIndustry(userId, "INDUSTRY:ARZT%");
+                        long gastro= xpEventRepository.countSatelliteByIndustry(userId, "INDUSTRY:GASTRO%");
+                        long pflege= xpEventRepository.countSatelliteByIndustry(userId, "INDUSTRY:PFLEGE%");
+                        yield (it > 0 ? 1 : 0) + (arzt > 0 ? 1 : 0) + (gastro > 0 ? 1 : 0) + (pflege > 0 ? 1 : 0);
+                    }
+                    case "SRS_REVIEW_COUNT"  -> xpEventRepository.countSrsReviewsByUserId(userId);
                     default -> 0L;
                 };
 

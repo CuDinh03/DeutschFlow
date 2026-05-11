@@ -2,6 +2,7 @@ package com.deutschflow.admin.controller;
 
 import com.deutschflow.admin.service.AdminManagementService;
 import com.deutschflow.admin.dto.AdminUpdateLearningProfileRequest;
+import com.deutschflow.user.dto.AdminUpdateProfileRequest;
 import com.deutschflow.notification.service.UserNotificationService;
 import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.vocabulary.service.DeepLLemmaBackfillService;
@@ -255,6 +256,32 @@ public class AdminManagementController {
             @RequestBody @Valid AdminUpdateLearningProfileRequest request
     ) {
         return adminManagementService.adminUpdateLearningProfile(userId, request);
+    }
+
+    /**
+     * Admin override: cập nhật displayName / phoneNumber trực tiếp không cần OTP.
+     * PATCH /api/admin/users/{userId}/profile
+     */
+    @PatchMapping("/users/{userId}/profile")
+    public Map<String, Object> adminUpdateProfile(
+            @PathVariable Long userId,
+            @Valid @RequestBody AdminUpdateProfileRequest request,
+            Authentication authentication
+    ) {
+        Map<String, Object> result = adminManagementService.adminUpdateProfile(userId, request);
+        auditLogService.log(
+                "admin.user.profile.updated",
+                null,
+                actorEmail(authentication),
+                actorRole(authentication),
+                "USER",
+                String.valueOf(userId),
+                Map.of(
+                        "displayName", String.valueOf(result.getOrDefault("displayName", "")),
+                        "phoneNumber", String.valueOf(result.getOrDefault("phoneNumber", ""))
+                )
+        );
+        return result;
     }
 
     // ── Interview Transcript (Admin) ─────────────────────────────────────
