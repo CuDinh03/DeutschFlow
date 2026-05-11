@@ -256,7 +256,11 @@
     "navLeaderboard": "Leaderboard",
     "navBadges": "Badges",
     "navReviewQueue": "Today's Review",
-    "navReviewSrs": "SRS Review"
+    "navReviewSrs": "SRS Review",
+    "navGrammarSyllabus": "📚 Grammar Syllabus",
+    "navGroupExam": "MOCK EXAMS",
+    "navMockExam": "🎯 Mock Goethe Exam",
+    "navProgress": "📊 My Progress"
   },
   "adminNav": {
     "overview": "Overview",

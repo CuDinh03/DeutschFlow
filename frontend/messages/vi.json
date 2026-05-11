@@ -256,7 +256,11 @@
     "navLeaderboard": "Bảng xếp hạng",
     "navBadges": "Huy hiệu",
     "navReviewQueue": "Ôn tập hôm nay",
-    "navReviewSrs": "Ôn tập SRS"
+    "navReviewSrs": "Ôn tập SRS",
+    "navGrammarSyllabus": "📚 Ngữ pháp bài bản",
+    "navGroupExam": "THI THỬ",
+    "navMockExam": "🎯 Thi thử Goethe",
+    "navProgress": "📊 Tiến độ của tôi"
   },
   "adminNav": {
     "overview": "Tổng quan",

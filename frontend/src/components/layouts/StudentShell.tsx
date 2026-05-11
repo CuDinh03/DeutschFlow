@@ -59,6 +59,7 @@ export type StudentShellSection =
   | "vocab-analytics"
   | "leaderboard"
   | "grammar-practice"
+  | "grammar-syllabus"
   | "curriculum"
   | "review"
   | "badges"
@@ -134,6 +135,8 @@ export function StudentShell({
           { id: "vocabulary" as const, label: t("navVocabulary"), icon: BookMarked, href: "/student/vocabulary" },
           { id: "vocab-analytics" as const, label: t("navVocabAnalytics"), icon: BarChart2 as any, href: "/student/vocab-analytics" },
           { id: "grammar-practice" as const, label: t("navGrammarAI"), icon: Brain, href: "/student/grammar-practice" },
+          { id: "grammar-syllabus" as const, label: t("navGrammarSyllabus"), icon: BookMarked, href: "/student/grammar",
+            badge: <span className="text-[9px] font-bold bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded-full border border-emerald-500/30">New</span> },
           { id: "curriculum" as const, label: t("navCurriculum"), icon: BookOpen, href: "/student/curriculum" },
         ],
       },
@@ -163,9 +166,15 @@ export function StudentShell({
           { id: "review-queue" as const, label: t("navReviewQueue"), icon: Brain, href: "/student/review-queue" },
           { id: "speakingHistory" as const, label: t("navSpeakingHistory"), icon: History, href: "/student/speaking-history" },
           { id: "interviews" as const, label: t("navInterviews"), icon: Briefcase, href: "/student/interviews" },
-          { id: "mock-exam" as const, label: "Thi thử Goethe", icon: Trophy, href: "/student/mock-exam",
-            badge: <span className="text-[9px] font-bold bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded-full border border-emerald-500/30">Mới</span> },
-          { id: "progress" as const, label: "Tiến độ học tập", icon: BarChart2 as any, href: "/student/progress" },
+        ],
+      },
+      {
+        groupKey: "exam",
+        label: t("navGroupExam"),
+        items: [
+          { id: "mock-exam" as const, label: t("navMockExam"), icon: Trophy, href: "/student/mock-exam",
+            badge: <span className="text-[9px] font-bold bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-full border border-red-500/30">New</span> },
+          { id: "progress" as const, label: t("navProgress"), icon: BarChart2 as any, href: "/student/progress" },
         ],
       },
       {

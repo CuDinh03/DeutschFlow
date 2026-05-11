@@ -256,7 +256,11 @@
     "navLeaderboard": "Bestenliste",
     "navBadges": "Abzeichen",
     "navReviewQueue": "Heute wiederholen",
-    "navReviewSrs": "SRS Wiederholung"
+    "navReviewSrs": "SRS Wiederholung",
+    "navGrammarSyllabus": "📚 Grammatik-Lehrplan",
+    "navGroupExam": "PRÜFUNGEN",
+    "navMockExam": "🎯 Goethe-Probeprüfung",
+    "navProgress": "📊 Mein Fortschritt"
   },
   "adminNav": {
     "overview": "Übersicht",
