@@ -11,6 +11,7 @@ import com.deutschflow.user.repository.LearningSessionAttemptRepository;
 import com.deutschflow.user.repository.LearningSessionProgressRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +34,7 @@ public class StudentDashboardService {
     private final LearningSessionProgressRepository progressRepository;
     private final LearningSessionAttemptRepository attemptRepository;
     private final ObjectMapper objectMapper;
+    private final JdbcTemplate jdbcTemplate;
 
     @Transactional(readOnly = true)
     public StudentDashboardResponse getDashboard(User user) {
@@ -64,7 +66,7 @@ public class StudentDashboardService {
             }
         }
 
-        int streakDays = computeStreakDays(completionDays, today);
+        int streakDays = computeStreakDaysDb(user.getId());
 
         int[] dayMinutes = new int[7];
         int weeklyDone = 0;
@@ -129,24 +131,39 @@ public class StudentDashboardService {
     }
 
     /**
-     * Chuỗi ngày có ít nhất một buổi hoàn thành; nếu hôm nay và hôm qua đều không học thì streak = 0.
+     * Chuỗi ngày có ít nhất 2 bài tập hoàn thành (2 xp events).
      */
-    private static int computeStreakDays(Set<LocalDate> completionDays, LocalDate today) {
-        if (completionDays.isEmpty()) {
+    private int computeStreakDaysDb(Long userId) {
+        try {
+            List<java.sql.Date> dates = jdbcTemplate.queryForList(
+                    """
+                    SELECT d FROM (
+                        SELECT DATE(created_at) AS d, COUNT(*) as cnt 
+                        FROM user_xp_events
+                        WHERE user_id = ? 
+                        GROUP BY DATE(created_at)
+                    ) sub WHERE cnt >= 2 ORDER BY d DESC LIMIT 60
+                    """, java.sql.Date.class, userId);
+            if (dates.isEmpty()) return 0;
+
+            java.time.LocalDate prev = java.time.LocalDate.now();
+            if (!dates.contains(java.sql.Date.valueOf(prev))) {
+                prev = prev.minusDays(1);
+            }
+            int streak = 0;
+            for (java.sql.Date d : dates) {
+                java.time.LocalDate ld = d.toLocalDate();
+                if (ld.equals(prev)) {
+                    streak++;
+                    prev = prev.minusDays(1);
+                } else if (ld.isBefore(prev)) {
+                    break;
+                }
+            }
+            return streak;
+        } catch (Exception e) {
             return 0;
         }
-        boolean todayOk = completionDays.contains(today);
-        boolean yesterdayOk = completionDays.contains(today.minusDays(1));
-        if (!todayOk && !yesterdayOk) {
-            return 0;
-        }
-        LocalDate anchor = todayOk ? today : today.minusDays(1);
-        int streak = 0;
-        while (completionDays.contains(anchor)) {
-            streak++;
-            anchor = anchor.minusDays(1);
-        }
-        return streak;
     }
 
     private int countSessionsInPlanJson(String planJson) {
