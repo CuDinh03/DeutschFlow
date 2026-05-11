@@ -9,7 +9,7 @@ set -e
 
 PEM_KEY="/Users/dinhcu/Desktop/DeutschFlow/deutschflow-key.pem"
 EC2_HOST="ubuntu@3.82.43.113"
-BRANCH="feat/FE_V2"
+BRANCH="main"
 
 echo "========================================"
 echo "  DeutschFlow Full Deploy Pipeline"
