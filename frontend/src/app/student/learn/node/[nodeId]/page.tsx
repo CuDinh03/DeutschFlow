@@ -59,6 +59,7 @@ export default function LearnNodePage() {
     if (!me || !nodeId) return;
     reset();
     fetchSession(nodeId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [me, nodeId]);
 
   if (meLoading || !me) {

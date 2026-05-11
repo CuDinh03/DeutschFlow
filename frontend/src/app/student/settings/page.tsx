@@ -433,6 +433,7 @@ function LearningTab({
       })
       .catch(() => showToast("Không thể tải hồ sơ học tập", "error"))
       .finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const toggleInterest = (chip: string) => {

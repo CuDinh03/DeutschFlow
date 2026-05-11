@@ -18,7 +18,10 @@ export default function ListeningView({ content }: { content: NodeContent }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
 
-  const timestamps: WordTimestamp[] = audio?.transcript_sync ?? [];
+  const timestamps = useMemo<WordTimestamp[]>(
+    () => audio?.transcript_sync ?? [],
+    [audio?.transcript_sync]
+  );
 
   const blankIndices = useMemo(() => new Set(
     timestamps.filter((_, i) => i > 2 && i % 5 === 0).map((_, i) => i * 5)

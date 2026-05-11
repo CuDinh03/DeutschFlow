@@ -120,7 +120,10 @@ export default function GrammarView({ content }: { content: NodeContent }) {
   const [activeTag, setActiveTag] = useState<string | null>(null);
 
   // ── Practice Quiz Logic ──
-  const practiceItems = Array.isArray(content.exercises?.practice) ? content.exercises.practice : [];
+  const practiceItems = useMemo(
+    () => (Array.isArray(content.exercises?.practice) ? content.exercises.practice : []),
+    [content.exercises]
+  );
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [quizSubmitted, setQuizSubmitted] = useState(false);
 
