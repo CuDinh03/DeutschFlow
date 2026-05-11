@@ -540,6 +540,17 @@ function LearningTab({
                 {interests.includes(chip) ? "✓ " : ""}{chip}
               </button>
             ))}
+            {interests.filter(i => !INTEREST_CHIPS.includes(i)).map((customChip) => (
+              <button
+                key={customChip}
+                type="button"
+                onClick={() => toggleInterest(customChip)}
+                className="px-3 py-1.5 rounded-xl border border-[#22D3EE] bg-[#ECFEFF] text-[#0E7490] text-xs font-medium transition-all flex items-center gap-1"
+                title="Sở thích được AI tự động phát hiện"
+              >
+                ✓ {customChip} <span className="text-[#0E7490]/70 hover:text-red-500 font-bold ml-1">×</span>
+              </button>
+            ))}
           </div>
           {interests.length > 0 && (
             <p className="text-xs text-[#64748B]">{interests.length} sở thích đã chọn</p>
