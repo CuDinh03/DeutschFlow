@@ -260,7 +260,8 @@
     "navGrammarSyllabus": "📚 Grammar Syllabus",
     "navGroupExam": "MOCK EXAMS",
     "navMockExam": "🎯 Mock Goethe Exam",
-    "navProgress": "📊 My Progress"
+    "navProgress": "📊 My Progress",
+    "navCertificates": "🏅 CEFR Certificates"
   },
   "adminNav": {
     "overview": "Overview",
