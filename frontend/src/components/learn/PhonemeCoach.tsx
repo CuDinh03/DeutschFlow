@@ -76,6 +76,7 @@ export default function PhonemeCoach({ target, meaningVi, onSuccess }: PhonemeCo
     } catch {
       setError("Không thể truy cập microphone. Hãy kiểm tra quyền trình duyệt.");
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target]);
 
   const stopRecording = useCallback(() => {

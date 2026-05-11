@@ -250,6 +250,7 @@ export function useSpeech(options: UseSpeechOptions = { lang: "de-DE" }) {
         console.error("[STT] Failed to start recognition:", err);
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [initRecognition, resetSilenceTimer, clearSilenceTimer]
   );
 

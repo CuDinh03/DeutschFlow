@@ -86,13 +86,13 @@ function LineChart({ data }: { data: CoverageHistoryPoint[] }) {
   }
 
   const W = 300, H = 100, PAD = 16
-  const maxPct = Math.max(...data.map(d => d.coveragePercent), 100)
-  const minPct = Math.min(...data.map(d => d.coveragePercent), 0)
+  const maxPct = Math.max(...data.map(d => d.nounCoveragePercent), 100)
+  const minPct = Math.min(...data.map(d => d.nounCoveragePercent), 0)
   const range = maxPct - minPct || 1
 
   const pts = data.map((d, i) => {
     const x = PAD + (i / (data.length - 1)) * (W - PAD * 2)
-    const y = H - PAD - ((d.coveragePercent - minPct) / range) * (H - PAD * 2)
+    const y = H - PAD - ((d.nounCoveragePercent - minPct) / range) * (H - PAD * 2)
     return [x, y] as [number, number]
   })
 

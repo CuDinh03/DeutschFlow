@@ -105,6 +105,7 @@ export default function SpeakingView({ content }: { content: NodeContent }) {
     } catch {
       setError("Không thể truy cập microphone. Vui lòng cấp quyền.");
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drawWaveform]);
 
   // ── Stop Recording ──

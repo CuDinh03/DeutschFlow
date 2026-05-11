@@ -52,7 +52,10 @@ export default function ReadingView({ content }: { content: NodeContent }) {
   const passage = content.reading_passage;
   
   // ── Practice Quiz Logic ──
-  const practiceItems = Array.isArray(passage?.questions) ? passage.questions : [];
+  const practiceItems = useMemo(
+    () => (Array.isArray(passage?.questions) ? passage.questions : []),
+    [passage?.questions]
+  );
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [quizSubmitted, setQuizSubmitted] = useState(false);
 
