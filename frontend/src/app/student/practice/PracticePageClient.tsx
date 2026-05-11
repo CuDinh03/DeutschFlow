@@ -5,7 +5,7 @@ import axios from 'axios';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 
 interface PracticeExercise {
     id: number;

@@ -141,4 +141,4 @@ public class UserLearningProfileService {
                 p.getAgeRange() != null ? p.getAgeRange().name() : null
         );
     }
-
+}
