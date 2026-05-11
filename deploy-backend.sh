@@ -1,7 +1,7 @@
 #!/bin/bash
 # ============================================================
 # deploy-backend.sh — DeutschFlow Full Deploy Script
-# Tự động: commit → push → SSH → setup Edge TTS → deploy
+# → Chỉ deploy từ nhánh MAIN. Không deploy các nhánh khác.
 # Chạy từ máy local: ./deploy-backend.sh
 # ============================================================
 
@@ -9,7 +9,7 @@ set -e
 
 PEM_KEY="/Users/dinhcu/Desktop/DeutschFlow/deutschflow-key.pem"
 EC2_HOST="ubuntu@3.82.43.113"
-BRANCH="main"
+BRANCH="main"   # ← luôn deploy từ main, không đổi nhánh khác
 
 echo "========================================"
 echo "  DeutschFlow Full Deploy Pipeline"
@@ -58,9 +58,10 @@ set -e
 echo ""
 echo "📥 [1/7] Pulling latest code..."
 cd /home/ubuntu/DeutschFlow
-git fetch origin feat/FE_V2
-git checkout feat/FE_V2 2>/dev/null || true
-git reset --hard origin/feat/FE_V2
+git fetch origin main
+git checkout main 2>/dev/null || git checkout -b main origin/main
+git reset --hard origin/main
+echo "  ✔ Branch: main | $(git log --oneline -1)"
 
 echo ""
 echo "🎙️ [2/7] Setting up Edge TTS sidecar..."
