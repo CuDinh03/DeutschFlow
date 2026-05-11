@@ -90,6 +90,7 @@ export interface NodeSession {
   content: NodeContent | null;
   hasContent: boolean;
   dependenciesMet: boolean;
+  userStatus: string;   // "LOCKED" | "IN_PROGRESS" | "COMPLETED"
 }
 
 type ActiveView = "grammar" | "reading" | "listening" | "speaking" | "writing" | "phoneme";
@@ -141,7 +142,22 @@ export const useNodeSessionStore = create<NodeSessionState>((set) => ({
     });
     try {
       const { data } = await api.get<NodeSession>(`/skill-tree/node/${nodeId}/session`);
-      set({ session: data, loading: false });
+      const isCompleted = data.userStatus === "COMPLETED";
+      set({
+        session: data,
+        loading: false,
+        // If node already COMPLETED → pre-fill all tabs so user can view content freely
+        ...(isCompleted ? {
+          tabCompletion: {
+            grammar: true,
+            reading: true,
+            listening: true,
+            speaking: true,
+            writing: true,
+            phoneme: true,
+          }
+        } : {})
+      });
     } catch (e: unknown) {
       set({ error: "Không thể tải bài học.", loading: false });
     }

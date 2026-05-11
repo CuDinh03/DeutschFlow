@@ -285,17 +285,20 @@ export default function GrammarView({ content }: { content: NodeContent }) {
           )}
 
           {(!practiceItems.length || (quizSubmitted && score === practiceItems.length)) ? (
-            <button
-              onClick={() => markTabCompleted("grammar")}
-              disabled={isCompleted}
-              className={`w-full py-3 rounded-xl font-bold text-sm transition-colors ${
-                isCompleted 
-                  ? "bg-green-500 text-white" 
-                  : "bg-[#22C55E] hover:bg-[#16A34A] text-white"
-              }`}
-            >
-              {isCompleted ? "✅ Đã hoàn thành 100%" : "✅ Đã đọc & Hiểu (100%)"}
-            </button>
+            isCompleted ? (
+              // Read-only badge — node already completed, no action needed
+              <div className="w-full py-3 rounded-xl bg-green-500 text-white font-bold text-sm text-center cursor-default select-none flex items-center justify-center gap-2">
+                <span>✅</span>
+                <span>Đã hoàn thành 100%</span>
+              </div>
+            ) : (
+              <button
+                onClick={() => markTabCompleted("grammar")}
+                className="w-full py-3 rounded-xl font-bold text-sm bg-[#22C55E] hover:bg-[#16A34A] text-white transition-colors"
+              >
+                ✅ Đã đọc &amp; Hiểu (100%)
+              </button>
+            )
           ) : quizSubmitted && score < practiceItems.length ? (
             <div className="text-red-500 text-sm font-bold mt-2">
               Bạn trả lời đúng {score}/{practiceItems.length}. Cần đúng 100% để qua bài!

@@ -129,9 +129,15 @@ public class SkillTreeService {
     public Map<String, Object> getNodeSession(long userId, long nodeId) {
         Map<String, Object> node = loadNodeOrThrow(nodeId);
 
-        // Auto-unlock nếu dependencies met
+        // Load current user progress status (safe — returns LOCKED if no row yet)
+        List<String> statusRows = jdbcTemplate.queryForList(
+            "SELECT status FROM skill_tree_progress WHERE user_id = ? AND node_id = ?",
+            String.class, userId, nodeId);
+        String currentStatus = statusRows.isEmpty() ? "LOCKED" : statusRows.get(0);
+
+        // Auto-unlock nếu dependencies met — nhưng không downgrade COMPLETED
         boolean depsMet = checkDependenciesMet(userId, nodeId);
-        if (depsMet) {
+        if (depsMet && !"COMPLETED".equals(currentStatus)) {
             upsertProgress(userId, nodeId, "IN_PROGRESS");
         }
 
@@ -163,6 +169,7 @@ public class SkillTreeService {
         result.put("content", contentParsed);
         result.put("hasContent", contentParsed != null);
         result.put("dependenciesMet", depsMet);
+        result.put("userStatus", currentStatus);
 
         return result;
     }
