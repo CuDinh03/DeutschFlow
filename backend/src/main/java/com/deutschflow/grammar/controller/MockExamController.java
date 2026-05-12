@@ -50,16 +50,41 @@ public class MockExamController {
             SELECT id FROM mock_exam_attempts
             WHERE user_id = ? AND exam_id = ? AND status = 'IN_PROGRESS'
             """, uid, examId);
+        
+        Map<String, Object> attemptRow;
         if (!existing.isEmpty()) {
-            return ResponseEntity.ok(existing.get(0));
+            attemptRow = existing.get(0);
+        } else {
+            attemptRow = jdbcTemplate.queryForMap("""
+                INSERT INTO mock_exam_attempts (user_id, exam_id, status)
+                VALUES (?, ?, 'IN_PROGRESS')
+                RETURNING id, exam_id, started_at, status
+                """, uid, examId);
         }
 
-        var row = jdbcTemplate.queryForMap("""
-            INSERT INTO mock_exam_attempts (user_id, exam_id, status)
-            VALUES (?, ?, 'IN_PROGRESS')
-            RETURNING id, exam_id, started_at, status
-            """, uid, examId);
-        return ResponseEntity.ok(row);
+        // Return attempt details AND the exam structure
+        var examDetails = jdbcTemplate.queryForMap("""
+            SELECT sections_json::text AS sections_json 
+            FROM mock_exams WHERE id = ?
+            """, examId);
+
+        Map<String, Object> response = new HashMap<>(attemptRow);
+        response.put("sections_json", examDetails.get("sections_json"));
+
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{examId}/questions")
+    public ResponseEntity<Map<String, Object>> getExamQuestions(@PathVariable long examId) {
+        try {
+            var row = jdbcTemplate.queryForMap("""
+                SELECT sections_json::text AS sections_json
+                FROM mock_exams WHERE id = ?
+                """, examId);
+            return ResponseEntity.ok(row);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @PostMapping("/attempts/{attemptId}/finish")
