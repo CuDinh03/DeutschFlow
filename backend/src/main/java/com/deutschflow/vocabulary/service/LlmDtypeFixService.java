@@ -111,11 +111,12 @@ public class LlmDtypeFixService {
                    OR dtype IS NULL
                 """, Integer.class);
 
-        // Fetch candidates — Noun first (most likely wrong), then by id ASC
+        // Fetch candidates — Noun first, then by id ASC
+        // NOTE: gender is in 'nouns' table, not 'words'
         List<Map<String, Object>> words = jdbc.queryForList(
-                "SELECT id, base_form, COALESCE(dtype, 'Noun') AS dtype, gender" +
-                " FROM words" +
-                " ORDER BY CASE WHEN COALESCE(dtype, 'Noun') = 'Noun' THEN 0 ELSE 1 END, id ASC" +
+                "SELECT w.id, w.base_form, COALESCE(w.dtype, 'Noun') AS dtype, n.gender" +
+                " FROM words w LEFT JOIN nouns n ON n.id = w.id" +
+                " ORDER BY CASE WHEN COALESCE(w.dtype, 'Noun') = 'Noun' THEN 0 ELSE 1 END, w.id ASC" +
                 " LIMIT " + cap);
 
         int suffixFixed = 0;
