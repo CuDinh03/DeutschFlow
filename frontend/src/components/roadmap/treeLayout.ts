@@ -60,6 +60,7 @@ export function computeTreeLayout(apiNodes: SkillTreeNodeData[]): LayoutResult {
   const rfNodes: Node[] = [];
   const rfEdges: Edge[] = [];
   let currentNodeId: string | null = null;
+  let firstUnlockedId: string | null = null; // fallback if no IN_PROGRESS
 
   // 1. Group by week
   const coreByWeek = new Map<number, SkillTreeNodeData[]>();
@@ -132,13 +133,13 @@ export function computeTreeLayout(apiNodes: SkillTreeNodeData[]): LayoutResult {
       const nid = `node-${cn.id}`;
       coreNodeIds.push(nid);
 
-      // Only set as current if node actually has content (skip A2/B1 placeholder nodes)
-      const nodeHasContent = (cn as any).has_content === true || (cn as any).has_content === 1;
-      if (!currentNodeId && (cn.user_status === "IN_PROGRESS" || cn.user_status === "UNLOCKED") && nodeHasContent) {
+      // Track current learning position: IN_PROGRESS takes priority, UNLOCKED as fallback
+      if (!currentNodeId && cn.user_status === "IN_PROGRESS") {
         currentNodeId = nid;
       }
-      // Fallback: if no content-bearing node found yet, still track first active node
-      // (will be overridden below if a content node exists)
+      if (!firstUnlockedId && (cn.user_status === "IN_PROGRESS" || cn.user_status === "UNLOCKED")) {
+        firstUnlockedId = nid;
+      }
 
       rfNodes.push({
         id: nid, type: "skillNode",
@@ -171,9 +172,11 @@ export function computeTreeLayout(apiNodes: SkillTreeNodeData[]): LayoutResult {
       const columnH = total * NODE_H + Math.max(0, total - 1) * SAT_GAP_V;
       const y = coreBlockCenterY - columnH / 2 + idx * (NODE_H + SAT_GAP_V);
 
-      const satHasContent = (sat as any).has_content === true || (sat as any).has_content === 1;
-      if (!currentNodeId && (sat.user_status === "IN_PROGRESS" || sat.user_status === "UNLOCKED") && satHasContent) {
+      if (!currentNodeId && sat.user_status === "IN_PROGRESS") {
         currentNodeId = nid;
+      }
+      if (!firstUnlockedId && (sat.user_status === "IN_PROGRESS" || sat.user_status === "UNLOCKED")) {
+        firstUnlockedId = nid;
       }
 
       rfNodes.push({
@@ -218,6 +221,11 @@ export function computeTreeLayout(apiNodes: SkillTreeNodeData[]): LayoutResult {
     type: "smoothstep",
     style: { stroke: "#FFCD00", strokeWidth: 2, opacity: 0.4 },
   });
+
+  // Use firstUnlockedId as fallback when no IN_PROGRESS node was found
+  if (!currentNodeId && firstUnlockedId) {
+    currentNodeId = firstUnlockedId;
+  }
 
   return { nodes: rfNodes, edges: rfEdges, currentNodeId };
 }
