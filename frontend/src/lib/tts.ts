@@ -29,7 +29,17 @@ export async function playTTS(text: string, speed: number = 1.0): Promise<void> 
     const params = new URLSearchParams({ text });
     if (speed !== 1.0) params.set('speed', String(speed));
 
-    const resp = await fetch(`/api/tts/speak?${params.toString()}`);
+    const token = document.cookie
+      .split('; ')
+      .find(row => row.startsWith('auth_access='))
+      ?.split('=')[1];
+
+    const headers: HeadersInit = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const resp = await fetch(`/api/tts/speak?${params.toString()}`, { headers });
     if (!resp.ok) return;
 
     const blob = await resp.blob();
