@@ -17,11 +17,14 @@ import java.util.*;
  * Translates German lemmas to Vietnamese using LLM (batch mode).
  * Replaces Glosbe scraping with a stable, rate-limit-free solution.
  *
- * Cost estimate: 10k words × 8 words/token avg × 2 (prompt+completion)
- *   ≈ 160k tokens → $0.024 with GPT-4o-mini ($0.15/1M tokens)
+ * Cost estimate: 10k words x 8 words/token avg x 2 (prompt+completion)
+ *   ~ 160k tokens -> $0.024 with GPT-4o-mini ($0.15/1M tokens)
  *
- * Strategy: Batch 50 words per LLM call → 200 calls for 10k words.
+ * Strategy: Batch 50 words per LLM call -> 200 calls for 10k words.
  * Admin can trigger via POST /api/admin/vocabulary/llm-vi/enrich/batch
+ *
+ * NOTE: No cursor needed — the query always fetches the FIRST N untranslated words.
+ * Running multiple times is safe and idempotent (already-translated words won't appear).
  */
 @Service
 @RequiredArgsConstructor
@@ -41,9 +44,6 @@ public class LlmViTranslationService {
     @Value("${app.vocabulary.llm-vi.batch-size:50}")
     private int batchSize;
 
-    @Value("${app.vocabulary.llm-vi.delay-ms:60000}")
-    private long delayMs;
-
     // ── Scheduled: runs every delayMs, only if enabled ────────────────────────
 
     @Scheduled(fixedDelayString = "${app.vocabulary.llm-vi.delay-ms:60000}")
@@ -51,8 +51,8 @@ public class LlmViTranslationService {
         if (!enabled) return;
         try {
             Map<String, Object> result = runBatch(batchSize, false);
-            log.info("[LLM-VI] Scheduled: processed={} translated={} status={}",
-                    result.get("processed"), result.get("translated"), result.get("status"));
+            log.info("[LLM-VI] Scheduled: processed={} translated={} remaining={} status={}",
+                    result.get("processed"), result.get("translated"), result.get("remaining"), result.get("status"));
         } catch (Exception e) {
             log.warn("[LLM-VI] Scheduler error: {}", e.getMessage());
         }
@@ -62,51 +62,73 @@ public class LlmViTranslationService {
 
     /**
      * Translate a batch of words missing VI meaning.
-     * @param limitOverride number of words to process (null = use batchSize config)
-     * @param resetCursor   if true, start from word id=0
+     *
+     * FIX: Previous version used id-based cursor (id > lastId) with CEFR sort,
+     * causing IDLE after 2-3 runs because the cursor jumped past lower-id words.
+     * Now: no cursor — always query the FIRST N untranslated words (A1 first).
+     * Safe to run repeatedly; already-translated words are excluded automatically.
+     *
+     * @param limitOverride words to process per call (max 500)
+     * @param resetCursor   kept for API compatibility — no longer needed
      */
     public Map<String, Object> runBatch(Integer limitOverride, boolean resetCursor) {
-        if (resetCursor) setState("last_processed_word_id", "0");
-
         int limit = limitOverride != null && limitOverride > 0
-                ? Math.min(limitOverride, 500) // hard cap 500 per admin request
+                ? Math.min(limitOverride, 500)
                 : batchSize;
-        Long lastId = parseLong(getState("last_processed_word_id"));
-        if (lastId == null) lastId = 0L;
 
-        // Fetch words missing VI translation
+        // Count remaining words without VI translation
+        Integer remaining = jdbc.queryForObject("""
+                SELECT COUNT(*) FROM words w
+                WHERE NOT EXISTS (
+                  SELECT 1 FROM word_translations t
+                  WHERE t.word_id = w.id AND t.locale = 'vi'
+                    AND t.meaning IS NOT NULL AND TRIM(t.meaning) != ''
+                    AND LOWER(t.meaning) NOT LIKE 'not in wordlists%'
+                    AND LOWER(t.meaning) NOT LIKE 'chua co trong%'
+                )
+                """, Integer.class);
+
+        if (remaining == null || remaining == 0) {
+            return new LinkedHashMap<>(Map.of(
+                    "source", SOURCE, "status", "IDLE",
+                    "processed", 0, "translated", 0, "remaining", 0,
+                    "message", "Tat ca tu da co nghia VI!"));
+        }
+
+        // Always fetch the FIRST N words still missing VI (no cursor)
+        // Sorted A1->A2->B1... so high-value words get translated first.
         List<Map<String, Object>> words = jdbc.queryForList("""
-            SELECT w.id, w.base_form, w.cefr_level,
-                   COALESCE(t_en.meaning, '') AS meaning_en
-            FROM words w
-            LEFT JOIN word_translations t_en ON t_en.word_id = w.id AND t_en.locale = 'en'
-            WHERE w.id > ?
-              AND NOT EXISTS (
-                SELECT 1 FROM word_translations t
-                WHERE t.word_id = w.id AND t.locale = 'vi'
-                  AND t.meaning IS NOT NULL AND TRIM(t.meaning) != ''
-                  AND LOWER(t.meaning) NOT LIKE 'not in wordlists%'
-                  AND LOWER(t.meaning) NOT LIKE 'chua co trong%'
-              )
-            ORDER BY
-              CASE COALESCE(NULLIF(TRIM(w.cefr_level), ''), 'ZZ')
-                WHEN 'A1' THEN 1 WHEN 'A2' THEN 2 WHEN 'B1' THEN 3
-                WHEN 'B2' THEN 4 WHEN 'C1' THEN 5 WHEN 'C2' THEN 6
-                ELSE 99 END,
-              w.id ASC
-            LIMIT ?
-            """, lastId, limit);
+                SELECT w.id, w.base_form, w.cefr_level,
+                       COALESCE(t_en.meaning, '') AS meaning_en
+                FROM words w
+                LEFT JOIN word_translations t_en
+                       ON t_en.word_id = w.id AND t_en.locale = 'en'
+                WHERE NOT EXISTS (
+                  SELECT 1 FROM word_translations t
+                  WHERE t.word_id = w.id AND t.locale = 'vi'
+                    AND t.meaning IS NOT NULL AND TRIM(t.meaning) != ''
+                    AND LOWER(t.meaning) NOT LIKE 'not in wordlists%'
+                    AND LOWER(t.meaning) NOT LIKE 'chua co trong%'
+                )
+                ORDER BY
+                  CASE COALESCE(NULLIF(TRIM(w.cefr_level), ''), 'ZZ')
+                    WHEN 'A1' THEN 1 WHEN 'A2' THEN 2 WHEN 'B1' THEN 3
+                    WHEN 'B2' THEN 4 WHEN 'C1' THEN 5 WHEN 'C2' THEN 6
+                    ELSE 99 END,
+                  w.id ASC
+                LIMIT ?
+                """, limit);
 
         if (words.isEmpty()) {
-            return Map.of("source", SOURCE, "status", "IDLE",
-                    "processed", 0, "translated", 0, "lastId", lastId);
+            return new LinkedHashMap<>(Map.of(
+                    "source", SOURCE, "status", "IDLE",
+                    "processed", 0, "translated", 0, "remaining", remaining));
         }
 
         int translated = 0;
         int failed = 0;
-        long maxSeen = lastId;
 
-        // Process in sub-batches of BATCH_SIZE
+        // Process in sub-batches of BATCH_SIZE (50 words per LLM call)
         for (int i = 0; i < words.size(); i += BATCH_SIZE) {
             List<Map<String, Object>> batch = words.subList(i, Math.min(i + BATCH_SIZE, words.size()));
             try {
@@ -116,17 +138,17 @@ public class LlmViTranslationService {
                     String meaning = entry.getValue();
                     if (meaning != null && !meaning.isBlank()) {
                         jdbc.update("""
-                            INSERT INTO word_translations (word_id, locale, meaning, example)
-                            VALUES (?, 'vi', ?, NULL)
-                            ON CONFLICT (word_id, locale) DO UPDATE SET
-                              meaning = CASE
-                                WHEN word_translations.meaning IS NULL
-                                  OR TRIM(word_translations.meaning) = ''
-                                  OR LOWER(word_translations.meaning) LIKE 'not in wordlists%'
-                                THEN EXCLUDED.meaning
-                                ELSE word_translations.meaning
-                              END
-                            """, wordId, meaning.trim());
+                                INSERT INTO word_translations (word_id, locale, meaning, example)
+                                VALUES (?, 'vi', ?, NULL)
+                                ON CONFLICT (word_id, locale) DO UPDATE SET
+                                  meaning = CASE
+                                    WHEN word_translations.meaning IS NULL
+                                      OR TRIM(word_translations.meaning) = ''
+                                      OR LOWER(word_translations.meaning) LIKE 'not in wordlists%'
+                                    THEN EXCLUDED.meaning
+                                    ELSE word_translations.meaning
+                                  END
+                                """, wordId, meaning.trim());
                         translated++;
                     }
                 }
@@ -134,25 +156,17 @@ public class LlmViTranslationService {
                 log.error("[LLM-VI] Batch {}-{} failed: {}", i, i + batch.size(), e.getMessage());
                 failed += batch.size();
             }
-
-            // Update cursor to last word in this sub-batch
-            batch.stream()
-                    .mapToLong(r -> ((Number) r.get("id")).longValue())
-                    .max()
-                    .ifPresent(id -> setState("last_processed_word_id", String.valueOf(id)));
-            maxSeen = words.stream().mapToLong(r -> ((Number) r.get("id")).longValue()).max().orElse(maxSeen);
         }
 
-        setState("last_processed_word_id", String.valueOf(maxSeen));
-
-        return new LinkedHashMap<>(Map.of(
-                "source", SOURCE,
-                "processed", words.size(),
-                "translated", translated,
-                "failed", failed,
-                "lastId", maxSeen,
-                "status", "OK"
-        ));
+        int afterRemaining = Math.max(0, remaining - translated);
+        var result = new LinkedHashMap<String, Object>();
+        result.put("source", SOURCE);
+        result.put("processed", words.size());
+        result.put("translated", translated);
+        result.put("failed", failed);
+        result.put("remaining", afterRemaining);
+        result.put("status", afterRemaining == 0 ? "DONE" : "OK");
+        return result;
     }
 
     // ── LLM Translation ───────────────────────────────────────────────────────
@@ -169,12 +183,12 @@ public class LlmViTranslationService {
         }
 
         String system = """
-            You are a German-Vietnamese dictionary assistant.
-            For each German word (with optional English meaning hint), provide a concise Vietnamese translation (1-5 words max).
-            Return ONLY a valid JSON object: {"word_id": "vietnamese meaning", ...}
-            Use natural Vietnamese. No explanations, no markdown.
-            Example: {"123": "đi du lịch", "456": "ăn sáng", "789": "làm việc"}
-            """;
+                You are a German-Vietnamese dictionary assistant.
+                For each German word (with optional English meaning hint), provide a concise Vietnamese translation (1-5 words max).
+                Return ONLY a valid JSON object: {"word_id": "vietnamese meaning", ...}
+                Use natural Vietnamese. No explanations, no markdown.
+                Example: {"123": "di du lich", "456": "an sang", "789": "lam viec"}
+                """;
 
         var response = llmClient.chatCompletion(
                 List.of(new ChatMessage("system", system),
@@ -195,7 +209,6 @@ public class LlmViTranslationService {
             Map<String, Object> parsed = objectMapper.readValue(
                     raw.substring(start, end + 1), new TypeReference<>() {});
             Map<Long, String> result = new LinkedHashMap<>();
-            // Build valid word id set
             Set<Long> validIds = new HashSet<>();
             words.forEach(w -> validIds.add(((Number) w.get("id")).longValue()));
 
@@ -214,27 +227,5 @@ public class LlmViTranslationService {
             log.warn("[LLM-VI] Failed to parse JSON: {}", e.getMessage());
             return Map.of();
         }
-    }
-
-    // ── State helpers ─────────────────────────────────────────────────────────
-
-    private String getState(String key) {
-        return jdbc.query(
-                "SELECT state_value FROM vocabulary_import_state WHERE source_name = ? AND state_key = ? LIMIT 1",
-                rs -> rs.next() ? rs.getString("state_value") : null, SOURCE, key);
-    }
-
-    private void setState(String key, String value) {
-        jdbc.update("""
-            INSERT INTO vocabulary_import_state (source_name, state_key, state_value)
-            VALUES (?, ?, ?)
-            ON CONFLICT (source_name, state_key)
-            DO UPDATE SET state_value = EXCLUDED.state_value, updated_at = CURRENT_TIMESTAMP
-            """, SOURCE, key, value);
-    }
-
-    private Long parseLong(String s) {
-        if (s == null || s.isBlank()) return null;
-        try { return Long.parseLong(s.trim()); } catch (NumberFormatException e) { return null; }
     }
 }

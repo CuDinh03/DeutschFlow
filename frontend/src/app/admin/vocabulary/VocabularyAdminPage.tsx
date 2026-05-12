@@ -531,7 +531,7 @@ function LlmViPanel({ onDone }: { onDone: () => void }) {
               <span className="text-violet-800 text-xs font-semibold">Hoàn thành — {result.status}</span>
             </div>
             <div className="flex flex-wrap gap-2 text-xs">
-              {[['Đã xử lý', result.processed], ['Đã dịch', result.translated], ['Lỗi', result.failed]].map(([l, v]) => (
+              {[['Đã xử lý', result.processed], ['Đã dịch', result.translated], ['Lỗi', result.failed], ['Còn lại', result.remaining]].map(([l, v]) => (
                 <span key={String(l)} className="bg-white border border-violet-100 rounded px-2 py-1">
                   {l}: <strong>{v}</strong>
                 </span>
