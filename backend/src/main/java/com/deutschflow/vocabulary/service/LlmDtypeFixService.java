@@ -64,10 +64,10 @@ public class LlmDtypeFixService {
             "gegenüber", "innerhalb", "außerhalb", "entlang", "trotz", "statt"
     );
     private static final Set<String> PRONOUNS = Set.of(
-            "ich", "du", "er", "sie", "es", "wir", "ihr", "sie",
+            "ich", "du", "er", "sie", "es", "wir", "ihr",
             "mich", "dich", "sich", "uns", "euch",
-            "mir", "dir", "ihm", "ihr", "uns", "euch", "ihnen",
-            "mein", "dein", "sein", "ihr", "unser", "euer",
+            "mir", "dir", "ihm", "ihnen",
+            "mein", "dein", "sein", "unser", "euer",
             "man", "jemand", "niemand", "etwas", "nichts",
             "dieser", "diese", "dieses", "welcher", "welche", "welches",
             "wer", "was", "wessen", "wem", "wen"
@@ -79,13 +79,13 @@ public class LlmDtypeFixService {
     );
     private static final Set<String> ADVERBS = Set.of(
             "auch", "nicht", "sehr", "noch", "schon", "nur", "mal", "doch",
-            "ja", "nein", "bitte", "gern", "gerne", "leider", "natürlich",
+            "ja", "nein", "bitte", "gern", "gerne", "leider", "natuerlich",
             "eigentlich", "wirklich", "vielleicht", "wahrscheinlich",
             "endlich", "sofort", "immer", "nie", "oft", "manchmal", "selten",
             "hier", "dort", "weg", "hin", "her", "oben", "unten", "links", "rechts",
             "heute", "gestern", "morgen", "jetzt", "dann", "wann", "wie",
-            "wo", "woher", "wohin", "warum", "deshalb", "trotzdem",
-            "zusammen", "allein", "genau", "fast", "kaum", "bereits", "noch"
+            "wo", "woher", "wohin", "warum", "deshalb",
+            "zusammen", "allein", "genau", "fast", "kaum", "bereits"
     );
 
     private final JdbcTemplate jdbc;
