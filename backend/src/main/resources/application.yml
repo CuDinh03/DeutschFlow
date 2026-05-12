@@ -8,6 +8,12 @@ spring:
   application:
     name: deutschflow-backend
 
+  # Graceful shutdown: Spring Boot stops accepting new requests immediately
+  # but waits for in-flight requests to complete before shutting down.
+  # This pairs with `docker stop --time=30` in the Blue-Green deploy script.
+  lifecycle:
+    timeout-per-shutdown-phase: 25s
+
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:postgres}?stringtype=unspecified&tcpKeepAlive=true
     username: ${DB_USERNAME}
@@ -70,6 +76,9 @@ management:
 
 server:
   port: ${SERVER_PORT:8080}
+  # graceful = Tomcat waits for active requests to finish before closing;
+  # pairs with spring.lifecycle.timeout-per-shutdown-phase above.
+  shutdown: graceful
   tomcat:
     threads:
       max: ${TOMCAT_MAX_THREADS:50}
