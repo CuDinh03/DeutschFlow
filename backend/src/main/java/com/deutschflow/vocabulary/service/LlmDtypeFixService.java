@@ -111,16 +111,12 @@ public class LlmDtypeFixService {
                    OR dtype IS NULL
                 """, Integer.class);
 
-        // Fetch candidates — prioritize words with "Noun" dtype (most likely wrong) then A1 first
+        // Fetch candidates — Noun first (most likely wrong), then by id ASC (A1 first numerically)
         List<Map<String, Object>> words = jdbc.queryForList("""
-                SELECT id, base_form, COALESCE(dtype, 'Noun') AS dtype, gender, cefr_level
+                SELECT id, base_form, COALESCE(dtype, 'Noun') AS dtype, gender
                 FROM words
                 ORDER BY
                   CASE COALESCE(dtype, 'Noun') WHEN 'Noun' THEN 0 ELSE 1 END,
-                  CASE COALESCE(cefr_level, 'ZZ')
-                    WHEN 'A1' THEN 1 WHEN 'A2' THEN 2 WHEN 'B1' THEN 3
-                    WHEN 'B2' THEN 4 WHEN 'C1' THEN 5 WHEN 'C2' THEN 6
-                    ELSE 99 END,
                   id ASC
                 LIMIT ?
                 """, cap);
