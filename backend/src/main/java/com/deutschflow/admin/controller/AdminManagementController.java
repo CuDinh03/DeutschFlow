@@ -27,6 +27,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.*;
 import com.deutschflow.user.entity.User;
 
@@ -58,6 +59,7 @@ public class AdminManagementController {
     private final CacheManager cacheManager;
     private final LlmViTranslationService llmViTranslationService;
     private final LlmDtypeFixService llmDtypeFixService;
+    private final JdbcTemplate jdbcTemplate;
 
     // ── Cache Management ──────────────────────────────────────────────────
 
@@ -705,6 +707,101 @@ public class AdminManagementController {
         return vocabularyCleanupService.debugTranslations(wordId);
     }
 
+
+    // ─── Phase 4: Quality Review ─────────────────────────────────────────────
+
+    /**
+     * GET /api/admin/vocabulary/review/queue
+     * Lấy danh sách từ chưa được review, ưu tiên A1/A2 và dtype=Noun.
+     */
+    @GetMapping("/vocabulary/review/queue")
+    public Map<String, Object> getReviewQueue(
+            @RequestParam(required = false, defaultValue = "50") int limit,
+            @RequestParam(required = false) String cefrLevel,
+            @RequestParam(required = false) String dtype,
+            Authentication authentication
+    ) {
+        int cap = Math.min(Math.max(1, limit), 200);
+        StringBuilder sql = new StringBuilder(
+                "SELECT w.id, w.base_form, w.dtype, w.cefr_level, w.phonetic," +
+                "  n.gender, w.admin_review_notes," +
+                "  (SELECT meaning FROM word_translations WHERE word_id = w.id AND locale = 'vi' LIMIT 1) AS meaning_vi," +
+                "  (SELECT meaning FROM word_translations WHERE word_id = w.id AND locale = 'en' LIMIT 1) AS meaning_en" +
+                " FROM words w LEFT JOIN nouns n ON n.id = w.id" +
+                " WHERE w.reviewed_by_admin = FALSE"
+        );
+        if (cefrLevel != null && !cefrLevel.isBlank()) sql.append(" AND w.cefr_level = '").append(cefrLevel.replace("'", "")).append("'");
+        if (dtype    != null && !dtype.isBlank())     sql.append(" AND w.dtype = '").append(dtype.replace("'", "")).append("'");
+        sql.append(" ORDER BY CASE COALESCE(w.cefr_level,'ZZ') WHEN 'A1' THEN 1 WHEN 'A2' THEN 2 WHEN 'B1' THEN 3" +
+                   " WHEN 'B2' THEN 4 WHEN 'C1' THEN 5 WHEN 'C2' THEN 6 ELSE 99 END," +
+                   " CASE WHEN w.dtype = 'Noun' THEN 0 ELSE 1 END, w.id ASC LIMIT ").append(cap);
+
+        var items = jdbcTemplate.queryForList(sql.toString());
+        var total = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM words WHERE reviewed_by_admin = FALSE", Integer.class);
+        return Map.of("items", items, "total", total, "limit", cap);
+    }
+
+    /**
+     * PATCH /api/admin/vocabulary/{wordId}/review
+     * Admin đánh dấu từ đã review (có thể thay đổi dtype, gender, ghi notes).
+     * Body: { reviewed: true, dtype: "Verb", gender: "DER", notes: "..." }
+     */
+    @PatchMapping("/vocabulary/{wordId}/review")
+    public Map<String, Object> reviewWord(
+            @PathVariable long wordId,
+            @RequestBody Map<String, Object> body,
+            Authentication authentication
+    ) {
+        boolean reviewed = Boolean.TRUE.equals(body.get("reviewed"));
+        String notes = body.containsKey("notes") ? (String) body.get("notes") : null;
+        String newDtype  = body.containsKey("dtype")  ? (String) body.get("dtype")  : null;
+        String newGender = body.containsKey("gender") ? (String) body.get("gender") : null;
+
+        // Update words table
+        jdbcTemplate.update(
+                "UPDATE words SET reviewed_by_admin = ?, admin_review_notes = COALESCE(?, admin_review_notes)," +
+                "  reviewed_at = CASE WHEN ? THEN NOW() ELSE reviewed_at END," +
+                "  dtype = COALESCE(NULLIF(?, ''), dtype), updated_at = NOW() WHERE id = ?",
+                reviewed, notes, reviewed, newDtype, wordId
+        );
+
+        // Update gender if provided and word is Noun
+        if (newGender != null && !newGender.isBlank()) {
+            jdbcTemplate.update(
+                    "INSERT INTO nouns (id, gender, noun_type) VALUES (?, ?, 'STARK')" +
+                    " ON CONFLICT (id) DO UPDATE SET gender = EXCLUDED.gender",
+                    wordId, newGender
+            );
+        }
+
+        auditLogService.log("admin.vocabulary.reviewed", null,
+                actorEmail(authentication), actorRole(authentication),
+                "VOCABULARY_REVIEW", String.valueOf(wordId),
+                Map.of("reviewed", reviewed, "dtype", newDtype != null ? newDtype : "",
+                        "gender", newGender != null ? newGender : ""));
+
+        return Map.of("wordId", wordId, "reviewed", reviewed, "status", "OK");
+    }
+
+    /**
+     * GET /api/admin/vocabulary/review/stats
+     * Thống kê số từ đã/chưa review theo cefr_level và dtype.
+     */
+    @GetMapping("/vocabulary/review/stats")
+    public Map<String, Object> getReviewStats() {
+        var byLevel = jdbcTemplate.queryForList(
+                "SELECT cefr_level, COUNT(*) FILTER (WHERE reviewed_by_admin) AS reviewed," +
+                "  COUNT(*) FILTER (WHERE NOT reviewed_by_admin) AS pending, COUNT(*) AS total" +
+                " FROM words GROUP BY cefr_level ORDER BY" +
+                " CASE COALESCE(cefr_level,'ZZ') WHEN 'A1' THEN 1 WHEN 'A2' THEN 2" +
+                " WHEN 'B1' THEN 3 WHEN 'B2' THEN 4 WHEN 'C1' THEN 5 WHEN 'C2' THEN 6 ELSE 99 END");
+        var totals = jdbcTemplate.queryForMap(
+                "SELECT COUNT(*) FILTER (WHERE reviewed_by_admin) AS reviewed," +
+                "  COUNT(*) FILTER (WHERE NOT reviewed_by_admin) AS pending, COUNT(*) AS total FROM words");
+        return Map.of("byLevel", byLevel, "totals", totals);
+    }
+
     public record UpdateRoleRequest(@NotBlank(message = "role is required") String role) {}
     public record UpdatePlanRequest(
             @NotBlank(message = "planCode is required") String planCode,
@@ -724,4 +821,5 @@ public class AdminManagementController {
         return authentication.getAuthorities().iterator().next().getAuthority();
     }
 }
+
 
