@@ -152,6 +152,58 @@ public class QuizJoinService {
         }
     }
 
+    @Transactional
+    public void submitAiInterviewResult(Authentication authentication,
+                                        Long quizId,
+                                        String participant,
+                                        Integer totalScore,
+                                        String audioUrl,
+                                        String transcriptDe,
+                                        Integer fluencyScore,
+                                        Integer grammarScore,
+                                        String aiFeedbackJson,
+                                        String guestPin) {
+        // First submit the basic score (this will validate the user/guest)
+        submitScore(authentication, quizId, participant, totalScore, guestPin);
+
+        // Then get the quiz session ID and classroom ID
+        Map<String, Object> sessionData = jdbcTemplate.query("""
+            SELECT qs.id as session_id, qs.user_id, q.classroom_id
+            FROM quiz_sessions qs
+            JOIN quizzes q ON qs.quiz_id = q.id
+            WHERE qs.quiz_id = ? AND qs.participant = ?
+            """, rs -> {
+            if (!rs.next()) return null;
+            return Map.of(
+                "session_id", rs.getLong("session_id"),
+                "user_id", rs.getObject("user_id") != null ? rs.getLong("user_id") : -1L,
+                "classroom_id", rs.getObject("classroom_id") != null ? rs.getLong("classroom_id") : -1L
+            );
+        }, quizId, participant.trim());
+
+        if (sessionData == null) {
+            throw new NotFoundException("Quiz session not found after update");
+        }
+
+        Long sessionId = (Long) sessionData.get("session_id");
+        Long userId = (Long) sessionData.get("user_id");
+        Long classroomId = (Long) sessionData.get("classroom_id");
+
+        if (userId != -1L && classroomId != -1L) {
+            // Save to teacher_homework_submissions
+            jdbcTemplate.update("""
+                INSERT INTO teacher_homework_submissions 
+                (quiz_session_id, classroom_id, student_id, audio_url, transcript_de, fluency_score, grammar_score, ai_feedback_json) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?::jsonb)
+                """,
+                sessionId, classroomId, userId, audioUrl, transcriptDe, 
+                fluencyScore == null ? 0 : fluencyScore, 
+                grammarScore == null ? 0 : grammarScore, 
+                aiFeedbackJson
+            );
+        }
+    }
+
     private static boolean pinEquals(String a, String b) {
         byte[] x = (a == null ? "" : a).getBytes(StandardCharsets.UTF_8);
         byte[] y = (b == null ? "" : b).getBytes(StandardCharsets.UTF_8);

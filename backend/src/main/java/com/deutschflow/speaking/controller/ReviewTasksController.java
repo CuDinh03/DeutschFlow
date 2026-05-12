@@ -11,8 +11,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
+import com.deutschflow.common.quota.QuotaService;
 
 @RestController
 @RequestMapping("/api/review-tasks")
@@ -22,13 +24,26 @@ public class ReviewTasksController {
     private static final int TODAY_LIMIT = 5;
 
     private final ReviewSchedulerService reviewSchedulerService;
+    private final QuotaService quotaService;
 
     @GetMapping("/me/today")
-    public List<ErrorReviewTaskDto> today(@AuthenticationPrincipal User user) {
-        return reviewSchedulerService.findDueTasks(user.getId(), LocalDateTime.now(), TODAY_LIMIT)
-                .stream()
+    public ReviewTasksResponse today(@AuthenticationPrincipal User user) {
+        List<ErrorReviewTask> dueTasks = reviewSchedulerService.findDueTasks(user.getId(), LocalDateTime.now(), TODAY_LIMIT);
+        
+        com.deutschflow.common.quota.PlanBadge badge = quotaService.resolvePlanBadge(user.getId(), Instant.now());
+        boolean isProOrBetter = "PRO".equals(badge.planCode()) || "ULTRA".equals(badge.planCode()) || "INTERNAL".equals(badge.planCode());
+        
+        int lockedCount = 0;
+        if (!isProOrBetter && dueTasks.size() > 2) {
+            lockedCount = dueTasks.size() - 2;
+            dueTasks = dueTasks.subList(0, 2);
+        }
+        
+        List<ErrorReviewTaskDto> dtoList = dueTasks.stream()
                 .map(ReviewTasksController::toDto)
                 .toList();
+                
+        return new ReviewTasksResponse(dtoList, lockedCount);
     }
 
     @PostMapping("/{taskId}/complete")
@@ -48,4 +63,6 @@ public class ReviewTasksController {
                 t.getDueAt(),
                 t.getIntervalDays());
     }
+
+    public record ReviewTasksResponse(List<ErrorReviewTaskDto> tasks, int lockedCount) {}
 }

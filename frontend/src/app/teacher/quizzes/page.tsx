@@ -7,7 +7,7 @@ import api, { httpStatus, apiMessage } from '@/lib/api'
 type Quiz = {
   id: number
   title: string
-  quizType: 'COLOR_RACE' | 'SENTENCE_BATTLE'
+  quizType: 'COLOR_RACE' | 'SENTENCE_BATTLE' | 'AI_INTERVIEW'
   status: 'DRAFT' | 'WAITING' | 'ACTIVE' | 'FINISHED'
   pinCode: string
   questionCount: number
@@ -20,7 +20,7 @@ export default function TeacherQuizzesPage() {
   const [error, setError] = useState('')
   const [items, setItems] = useState<Quiz[]>([])
   const [title, setTitle] = useState('')
-  const [quizType, setQuizType] = useState<'COLOR_RACE' | 'SENTENCE_BATTLE'>('COLOR_RACE')
+  const [quizType, setQuizType] = useState<'COLOR_RACE' | 'SENTENCE_BATTLE' | 'AI_INTERVIEW'>('COLOR_RACE')
   const [questionText, setQuestionText] = useState<Record<number, string>>({})
   const [choiceA, setChoiceA] = useState<Record<number, string>>({})
   const [choiceB, setChoiceB] = useState<Record<number, string>>({})
@@ -122,6 +122,7 @@ export default function TeacherQuizzesPage() {
           <select className="input" value={quizType} onChange={(e) => setQuizType(e.target.value as any)}>
             <option value="COLOR_RACE">COLOR_RACE</option>
             <option value="SENTENCE_BATTLE">SENTENCE_BATTLE</option>
+            <option value="AI_INTERVIEW">AI_INTERVIEW (Bài tập Nói)</option>
           </select>
           <button className="btn-primary btn-md" onClick={createQuiz}>
             Tao quiz
@@ -154,31 +155,39 @@ export default function TeacherQuizzesPage() {
                   </div>
                 </div>
 
-                <div className="mt-3 grid md:grid-cols-4 gap-2">
-                  <input
-                    className="input md:col-span-2"
-                    placeholder="Noi dung cau hoi"
-                    value={questionText[q.id] ?? ''}
-                    onChange={(e) => setQuestionText((prev) => ({ ...prev, [q.id]: e.target.value }))}
-                  />
-                  <input
-                    className="input"
-                    placeholder="Dap an dung"
-                    value={choiceA[q.id] ?? ''}
-                    onChange={(e) => setChoiceA((prev) => ({ ...prev, [q.id]: e.target.value }))}
-                  />
-                  <input
-                    className="input"
-                    placeholder="Dap an sai"
-                    value={choiceB[q.id] ?? ''}
-                    onChange={(e) => setChoiceB((prev) => ({ ...prev, [q.id]: e.target.value }))}
-                  />
-                </div>
-                <div className="mt-2">
-                  <button className="btn-secondary btn-sm" onClick={() => addQuestion(q.id)}>
-                    Them cau hoi 2 lua chon
-                  </button>
-                </div>
+                {q.quizType !== 'AI_INTERVIEW' ? (
+                  <>
+                    <div className="mt-3 grid md:grid-cols-4 gap-2">
+                      <input
+                        className="input md:col-span-2"
+                        placeholder="Noi dung cau hoi"
+                        value={questionText[q.id] ?? ''}
+                        onChange={(e) => setQuestionText((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                      />
+                      <input
+                        className="input"
+                        placeholder="Dap an dung"
+                        value={choiceA[q.id] ?? ''}
+                        onChange={(e) => setChoiceA((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                      />
+                      <input
+                        className="input"
+                        placeholder="Dap an sai"
+                        value={choiceB[q.id] ?? ''}
+                        onChange={(e) => setChoiceB((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                      />
+                    </div>
+                    <div className="mt-2">
+                      <button className="btn-secondary btn-sm" onClick={() => addQuestion(q.id)}>
+                        Them cau hoi 2 lua chon
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="mt-3 text-sm text-gray-500 italic">
+                    Bài tập Nói AI không cần thêm câu hỏi thủ công. AI sẽ tự động điều phối cuộc phỏng vấn dựa trên tiêu đề.
+                  </div>
+                )}
               </div>
             ))}
           </div>

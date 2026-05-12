@@ -38,7 +38,7 @@ public class TeacherQuizService {
     public Map<String, Object> createQuiz(Long teacherId, String title, String quizType, Long classroomId) {
         String normalizedTitle = title == null ? "" : title.trim();
         if (normalizedTitle.isBlank()) throw new BadRequestException("Quiz title is required");
-        if (!"COLOR_RACE".equals(quizType) && !"SENTENCE_BATTLE".equals(quizType)) {
+        if (!"COLOR_RACE".equals(quizType) && !"SENTENCE_BATTLE".equals(quizType) && !"AI_INTERVIEW".equals(quizType)) {
             throw new BadRequestException("Invalid quizType");
         }
         if (classroomId != null) {
@@ -58,7 +58,7 @@ public class TeacherQuizService {
         ensureTeacherOwnsQuiz(teacherId, quizId);
         String normalizedTitle = title == null ? "" : title.trim();
         if (normalizedTitle.isBlank()) throw new BadRequestException("Quiz title is required");
-        if (!"COLOR_RACE".equals(quizType) && !"SENTENCE_BATTLE".equals(quizType)) {
+        if (!"COLOR_RACE".equals(quizType) && !"SENTENCE_BATTLE".equals(quizType) && !"AI_INTERVIEW".equals(quizType)) {
             throw new BadRequestException("Invalid quizType");
         }
         if (classroomId != null) {

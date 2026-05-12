@@ -7,18 +7,17 @@ import api from '@/lib/api'
 import { getAccessToken, clearTokens } from '@/lib/authSession'
 import { DeutschFlowLogo } from '@/components/ui/DeutschFlowLogo'
 import {
-  BookOpen,
   Mic2,
-  Brain,
-  Users,
   Sparkles,
   CheckCircle2,
   ArrowRight,
   Play,
-  Globe,
-  Zap,
-  Target,
+  TrendingUp,
+  MessageSquare,
+  Ear,
+  GraduationCap
 } from 'lucide-react'
+import { motion } from 'framer-motion'
 
 export default function HomePage() {
   const router = useRouter()
@@ -26,10 +25,9 @@ export default function HomePage() {
 
   useEffect(() => {
     setMounted(true)
-    // Kiểm tra nếu đã đăng nhập thì redirect theo role
     if (getAccessToken()) {
       api.get('/auth/me')
-        .then((res) => {
+        .then(() => {
           router.push(`/dashboard`)
         })
         .catch(() => {
@@ -41,208 +39,288 @@ export default function HomePage() {
   if (!mounted) return null
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-white selection:bg-blue-100 selection:text-blue-900">
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-100 transition-all">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <DeutschFlowLogo variant="horizontal" size={180} animated />
-          
-          <div className="flex items-center gap-4">
-            <Link href="/login" className="btn-secondary btn-sm">
-              Đăng nhập
-            </Link>
-            <Link href="/register" className="btn-accent btn-sm">
-              Đăng ký miễn phí
+          <DeutschFlowLogo variant="horizontal" size={160} animated={false} />
+          <div className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600">
+            <Link href="#features" className="hover:text-gray-900 transition-colors">Tính năng</Link>
+            <Link href="#journey" className="hover:text-gray-900 transition-colors">Lộ trình học</Link>
+            <Link href="/login" className="hover:text-gray-900 transition-colors">Đăng nhập</Link>
+            <Link href="/register" className="bg-primary hover:bg-blue-700 text-white px-5 py-2.5 rounded-full shadow-sm shadow-blue-500/30 transition-all font-bold">
+              Try AI Tutor Free
             </Link>
           </div>
         </div>
       </nav>
 
       {/* Hero Section */}
-      <section className="pt-32 pb-20 px-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <div className="inline-flex items-center gap-2 bg-accent/10 border border-accent/40 rounded-full px-4 py-2 mb-6">
-                <Sparkles size={16} className="text-accent" />
-                <span className="text-sm font-medium text-accent-foreground">Học tiếng Đức thông minh với AI</span>
-              </div>
-              
-              <h1 className="text-5xl font-bold text-foreground mb-6 leading-tight">
-                Làm chủ tiếng Đức với{' '}
-                <span className="text-primary">Hệ thống màu sắc</span> độc đáo
-              </h1>
-              
-              <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
-                DeutschFlow kết hợp tư duy hệ thống, mã hóa màu sắc theo giống từ (DER/DIE/DAS) 
-                và trí tuệ nhân tạo để giúp bạn học tiếng Đức hiệu quả hơn.
-              </p>
+      <section className="pt-40 pb-20 px-6 overflow-hidden relative">
+        <div className="absolute top-0 right-0 -translate-y-12 translate-x-1/3 w-[800px] h-[800px] bg-blue-50 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
+        <div className="max-w-7xl mx-auto text-center relative z-10">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="inline-flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-full px-4 py-2 mb-8"
+          >
+            <Sparkles size={16} className="text-blue-600" />
+            <span className="text-sm font-bold text-blue-700">Trợ giảng tiếng Đức AI thông minh nhất</span>
+          </motion.div>
+          
+          <motion.h1 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="text-5xl md:text-7xl font-extrabold text-gray-900 mb-8 tracking-tighter leading-[1.1] max-w-4xl mx-auto"
+          >
+            Học giao tiếp tiếng Đức chưa bao giờ <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">Dễ Dàng</span> đến thế.
+          </motion.h1>
+          
+          <motion.p 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="text-xl md:text-2xl text-gray-500 mb-10 leading-relaxed max-w-2xl mx-auto font-medium"
+          >
+            Luyện nói mỗi ngày với AI, sửa lỗi ngữ pháp tự động và chinh phục chứng chỉ Goethe/TELC nhanh gấp 3 lần.
+          </motion.p>
 
-              <div className="flex flex-wrap gap-4 mb-8">
-                <Link href="/register" className="btn-accent btn-lg">
-                  <Play size={18} fill="currentColor" />
-                  Bắt đầu học miễn phí
-                </Link>
-                <button className="btn-outline btn-lg">
-                  <Play size={18} />
-                  Xem demo
-                </button>
-              </div>
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8"
+          >
+            <Link href="/register" className="w-full sm:w-auto bg-primary hover:bg-blue-700 text-white text-lg font-bold px-8 py-4 rounded-full shadow-[0_8px_30px_rgb(37,99,235,0.3)] hover:shadow-[0_8px_30px_rgb(37,99,235,0.5)] transition-all flex items-center justify-center gap-2 hover:-translate-y-1">
+              Start Speaking For Free
+              <ArrowRight size={20} />
+            </Link>
+            <button className="w-full sm:w-auto bg-white border-2 border-gray-200 hover:border-gray-300 text-gray-700 text-lg font-bold px-8 py-4 rounded-full transition-all flex items-center justify-center gap-2">
+              <Play size={20} />
+              Xem Demo Ngắn
+            </button>
+          </motion.div>
 
-              <div className="flex items-center gap-8 text-sm text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 size={16} className="text-success" />
-                  <span>Miễn phí 100%</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 size={16} className="text-success" />
-                  <span>Không cần thẻ tín dụng</span>
-                </div>
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 1, delay: 0.6 }}
+            className="flex items-center justify-center gap-8 text-sm font-semibold text-gray-400"
+          >
+            <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-green-500" /> Không cần thẻ tín dụng</span>
+            <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-green-500" /> Hủy bất kỳ lúc nào</span>
+          </motion.div>
+
+          {/* Hero Image Mockup Placeholder */}
+          <motion.div 
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+            className="mt-20 max-w-5xl mx-auto"
+          >
+            <div className="aspect-[16/9] w-full bg-gray-100 rounded-2xl md:rounded-[2rem] border-8 border-gray-900 shadow-2xl flex items-center justify-center overflow-hidden relative group">
+              <div className="absolute inset-0 bg-gray-200/50 flex flex-col items-center justify-center text-gray-400 font-mono">
+                <svg className="w-16 h-16 mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                [ Screenshot App Dashboard (Desktop) ]
               </div>
             </div>
+          </motion.div>
+        </div>
+      </section>
 
-            {/* Gender System Demo */}
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20 rounded-3xl blur-3xl" />
-              <div className="relative card p-8">
-                <h3 className="font-semibold text-foreground mb-6 text-center">
-                  Hệ thống màu sắc theo giống
-                </h3>
-                <div className="space-y-4">
-                  {[
-                    { gender: 'DER', color: 'bg-gender-der', label: 'Giống đực', word: 'der Tisch', meaning: 'cái bàn' },
-                    { gender: 'DIE', color: 'bg-gender-die', label: 'Giống cái', word: 'die Frau', meaning: 'người phụ nữ' },
-                    { gender: 'DAS', color: 'bg-gender-das', label: 'Giống trung', word: 'das Kind', meaning: 'đứa trẻ' },
-                  ].map(({ gender, color, label, word, meaning }) => (
-                    <div key={gender} className="flex items-center gap-4 p-4 bg-muted rounded-lg hover:shadow-md transition-shadow">
-                      <div className={`w-12 h-12 rounded-lg ${color} flex items-center justify-center flex-shrink-0`}>
-                        <span className="text-white font-bold">{gender}</span>
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-semibold text-foreground">{word}</p>
-                        <p className="text-sm text-muted-foreground">{label} · {meaning}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+      {/* Social Proof Section */}
+      <section className="py-12 border-y border-gray-100 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-6 text-center">
+          <p className="text-sm font-bold text-gray-400 tracking-widest uppercase mb-8">
+            Được tin dùng bởi hàng ngàn học viên chuẩn bị thi chứng chỉ
+          </p>
+          <div className="flex flex-wrap justify-center items-center gap-12 opacity-50 grayscale">
+            {/* Logos Placeholders */}
+            <div className="font-extrabold text-2xl font-serif">Goethe-Institut</div>
+            <div className="font-extrabold text-2xl tracking-tight">telc</div>
+            <div className="font-extrabold text-2xl italic">ÖSD</div>
+            <div className="font-extrabold text-2xl">TestDaF</div>
           </div>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="py-20 px-6 bg-muted/30">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-foreground mb-4">
-              Tính năng nổi bật
+      {/* Product Showcases (Zig-zag) */}
+      <section id="features" className="py-24 px-6">
+        <div className="max-w-7xl mx-auto space-y-32">
+          
+          {/* Feature 1 */}
+          <div className="flex flex-col md:flex-row items-center gap-16">
+            <div className="flex-1 space-y-6">
+              <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center">
+                <Mic2 size={24} />
+              </div>
+              <h2 className="text-4xl font-extrabold text-gray-900 tracking-tight leading-tight">
+                Vượt qua nỗi sợ giao tiếp. Phản xạ như người bản xứ.
+              </h2>
+              <p className="text-xl text-gray-500 leading-relaxed">
+                Đừng chỉ học thuộc lòng ngữ pháp. Hãy luyện nói trực tiếp với AI Roleplay qua hàng chục tình huống đời thực: Phỏng vấn xin việc, đi siêu thị, làm việc tại bệnh viện...
+              </p>
+              <ul className="space-y-4 pt-4">
+                <li className="flex items-start gap-3">
+                  <CheckCircle2 className="text-blue-500 mt-1 shrink-0" />
+                  <span className="text-gray-700 text-lg">Giọng nói tự nhiên nhờ công nghệ AI Voice cao cấp.</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <CheckCircle2 className="text-blue-500 mt-1 shrink-0" />
+                  <span className="text-gray-700 text-lg">AI linh hoạt theo ngữ cảnh, không rập khuôn kịch bản.</span>
+                </li>
+              </ul>
+            </div>
+            <div className="flex-1 relative">
+              <div className="absolute inset-0 bg-blue-100 rounded-[3rem] -rotate-3 scale-105"></div>
+              {/* Mobile Mockup Placeholder */}
+              <div className="relative mx-auto w-[300px] h-[600px] bg-white rounded-[2.5rem] border-[10px] border-gray-900 shadow-2xl flex flex-col overflow-hidden">
+                <div className="flex-1 bg-gray-100 flex flex-col items-center justify-center text-gray-400 font-mono text-sm p-8 text-center">
+                  <svg className="w-12 h-12 mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                  [ Screenshot AI Chat Interface (Mobile) ]
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Feature 2 */}
+          <div className="flex flex-col md:flex-row-reverse items-center gap-16">
+            <div className="flex-1 space-y-6">
+              <div className="w-12 h-12 bg-red-100 text-red-600 rounded-xl flex items-center justify-center">
+                <TrendingUp size={24} />
+              </div>
+              <h2 className="text-4xl font-extrabold text-gray-900 tracking-tight leading-tight">
+                Hệ thống bắt lỗi thông minh. Chữa tận gốc rễ.
+              </h2>
+              <p className="text-xl text-gray-500 leading-relaxed">
+                Sau mỗi cuộc trò chuyện, AI phân tích chi tiết độ trôi chảy và bóc tách từng lỗi ngữ pháp (Akkusativ, Dativ, vị trí động từ...).
+              </p>
+              <ul className="space-y-4 pt-4">
+                <li className="flex items-start gap-3">
+                  <CheckCircle2 className="text-red-500 mt-1 shrink-0" />
+                  <span className="text-gray-700 text-lg">Biểu đồ Radar Chart theo dõi kỹ năng trực quan.</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <CheckCircle2 className="text-red-500 mt-1 shrink-0" />
+                  <span className="text-gray-700 text-lg">Hệ thống Spaced Repetition tự động ép bạn sửa lỗi vào ngày hôm sau.</span>
+                </li>
+              </ul>
+            </div>
+            <div className="flex-1 w-full">
+              {/* Dashboard Report Mockup Placeholder */}
+              <div className="aspect-square max-w-md mx-auto bg-gray-50 rounded-3xl border border-gray-200 shadow-xl flex items-center justify-center text-gray-400 font-mono text-sm p-8 text-center relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-red-100 blur-3xl rounded-full"></div>
+                <div className="absolute bottom-0 left-0 w-40 h-40 bg-blue-100 blur-3xl rounded-full"></div>
+                <div className="relative z-10 flex flex-col items-center">
+                  <svg className="w-12 h-12 mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                  [ Screenshot Radar Chart & Error Report ]
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* The Learning Journey / Roadmap */}
+      <section id="journey" className="py-24 bg-gray-50 border-t border-gray-100">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center max-w-3xl mx-auto mb-16">
+            <h2 className="text-4xl font-extrabold text-gray-900 tracking-tight mb-6">
+              Hành trình Đi Từ Số 0 Đến Giao Tiếp Thành Thạo
             </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Học tiếng Đức chưa bao giờ dễ dàng và thú vị đến thế
+            <p className="text-xl text-gray-500">
+              Lộ trình được thiết kế bài bản theo chuẩn CEFR, không chỉ dạy từ vựng mà còn xây dựng năng lực phản xạ qua từng ngày.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-4 gap-6 relative">
+            {/* Horizontal Line connecting steps (hidden on mobile) */}
+            <div className="hidden md:block absolute top-1/2 left-0 right-0 h-1 bg-gray-200 -translate-y-1/2 z-0"></div>
+
             {[
               {
-                icon: BookOpen,
-                color: 'text-gender-der',
-                bg: 'bg-slate-50',
-                title: 'Từ vựng theo màu sắc',
-                desc: 'Mỗi danh từ được gắn màu theo giống (DER/DIE/DAS) giúp ghi nhớ nhanh hơn 3 lần',
+                step: 1,
+                title: 'Nền Tảng A1',
+                desc: 'Học hệ thống giống từ bằng màu sắc (Der/Die/Das) và cấu trúc câu cơ bản.',
+                icon: GraduationCap,
+                color: 'text-blue-600',
+                bg: 'bg-blue-100'
               },
               {
-                icon: Brain,
-                color: 'text-gender-die',
-                bg: 'bg-red-50',
-                title: 'Logic Lego',
-                desc: 'Xây dựng câu bằng cách kéo thả các khối từ, tự động biến cách theo ngữ cảnh',
+                step: 2,
+                title: 'Phản Xạ Nghe',
+                desc: 'Tắm ngôn ngữ (Immersion) qua các bài nghe hội thoại thực tế có transcript.',
+                icon: Ear,
+                color: 'text-purple-600',
+                bg: 'bg-purple-100'
               },
               {
-                icon: Mic2,
-                color: 'text-gender-das',
-                bg: 'bg-green-50',
-                title: 'Luyện nói AI',
-                desc: 'Trò chuyện với AI, nhận phản hồi về phát âm và ngữ pháp theo thời gian thực',
+                step: 3,
+                title: 'Luyện Nói Hàng Ngày',
+                desc: 'Roleplay 1-1 với AI để vượt qua rào cản sợ nói, tự động chữa lỗi.',
+                icon: MessageSquare,
+                color: 'text-green-600',
+                bg: 'bg-green-100'
               },
               {
-                icon: Users,
-                color: 'text-accent',
-                bg: 'bg-yellow-50',
-                title: 'Quiz tương tác',
-                desc: 'Giáo viên tạo quiz realtime, học sinh thi đua trên bảng xếp hạng',
-              },
-              {
-                icon: Target,
-                color: 'text-info',
-                bg: 'bg-slate-50',
-                title: 'Ôn tập thông minh',
-                desc: 'Thuật toán SM-2 tự động lên lịch ôn tập đúng lúc bạn sắp quên',
-              },
-              {
-                icon: Globe,
-                color: 'text-success',
-                bg: 'bg-green-50',
-                title: 'Đa ngôn ngữ',
-                desc: 'Giao diện hỗ trợ Tiếng Việt, Tiếng Anh và Tiếng Đức',
-              },
-            ].map(({ icon: Icon, color, bg, title, desc }) => (
-              <div key={title} className="card p-6 hover:shadow-xl transition-all">
-                <div className={`w-12 h-12 rounded-lg ${bg} flex items-center justify-center mb-4`}>
-                  <Icon size={24} className={color} />
+                step: 4,
+                title: 'Tự Tin Lấy Chứng Chỉ',
+                desc: 'Thực hành các đề mô phỏng thi Nói của Goethe/TELC trước khi thi thật.',
+                icon: TrendingUp,
+                color: 'text-orange-600',
+                bg: 'bg-orange-100'
+              }
+            ].map((item, idx) => (
+              <div key={idx} className="relative z-10 bg-white rounded-2xl p-6 shadow-xl shadow-gray-200/50 border border-gray-100 text-center hover:-translate-y-2 transition-transform">
+                <div className={`w-16 h-16 mx-auto rounded-full ${item.bg} ${item.color} flex items-center justify-center mb-6 ring-8 ring-white`}>
+                  <item.icon size={28} />
                 </div>
-                <h3 className="font-semibold text-foreground mb-2 text-lg">{title}</h3>
-                <p className="text-muted-foreground">{desc}</p>
+                <div className="text-sm font-bold text-gray-400 mb-2 uppercase tracking-widest">Giai đoạn {item.step}</div>
+                <h3 className="text-xl font-bold text-gray-900 mb-3">{item.title}</h3>
+                <p className="text-gray-500 leading-relaxed">{item.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="py-20 px-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-3 gap-8 text-center">
-            {[
-              { value: '80+', label: 'Từ vựng A1', icon: BookOpen },
-              { value: '3', label: 'Cấp độ CEFR', icon: Target },
-              { value: '100%', label: 'Miễn phí', icon: Zap },
-            ].map(({ value, label, icon: Icon }) => (
-              <div key={label} className="card p-8">
-                <Icon size={32} className="text-primary mx-auto mb-4" />
-                <p className="text-5xl font-bold text-foreground mb-2">{value}</p>
-                <p className="text-muted-foreground">{label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-20 px-6 bg-gradient-to-br from-primary via-primary-hover to-brand-black-dark text-white">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-4xl font-bold mb-6">
-            Sẵn sàng bắt đầu hành trình học tiếng Đức?
+      {/* Pricing / Final CTA Section */}
+      <section className="py-24 px-6 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gray-900"></div>
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-blue-600/30 blur-[120px] rounded-full pointer-events-none"></div>
+        
+        <div className="max-w-4xl mx-auto text-center relative z-10 text-white">
+          <h2 className="text-5xl font-extrabold tracking-tight mb-8">
+            Đừng để ngôn ngữ là rào cản cơ hội của bạn.
           </h2>
-          <p className="text-xl text-white/80 mb-8">
-            Tham gia DeutschFlow ngay hôm nay và trải nghiệm cách học tiếng Đức hoàn toàn mới
+          <p className="text-2xl text-gray-300 mb-12 leading-relaxed">
+            Hàng ngàn người đã bắt đầu chinh phục tiếng Đức mỗi ngày. Bạn đã sẵn sàng chưa?
           </p>
-          <Link href="/register" className="btn-accent btn-lg">
-            <Play size={18} fill="currentColor" />
-            Đăng ký miễn phí
-            <ArrowRight size={18} />
+          
+          <Link href="/register" className="inline-flex items-center justify-center gap-2 bg-white text-gray-900 hover:bg-gray-100 text-xl font-bold px-12 py-5 rounded-full shadow-[0_0_40px_rgba(255,255,255,0.3)] hover:shadow-[0_0_60px_rgba(255,255,255,0.5)] transition-all hover:scale-105">
+            Try AI Tutor Free
+            <ArrowRight size={24} />
           </Link>
+          
+          <p className="mt-6 text-gray-400 font-medium">Làm bài Mock Exam trong 3 phút. Không yêu cầu thẻ tín dụng.</p>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="py-12 px-6 border-t border-border">
-        <div className="max-w-7xl mx-auto text-center text-muted-foreground">
-          <DeutschFlowLogo variant="horizontal" size={160} animated={false} className="mx-auto mb-4" />
-          <p className="text-sm">© 2026 DeutschFlow. Học tiếng Đức thông minh với AI.</p>
-        </div>
+      <footer className="py-12 px-6 bg-gray-50 border-t border-gray-200 text-center">
+        <DeutschFlowLogo variant="horizontal" size={140} animated={false} className="mx-auto mb-6 grayscale opacity-60" />
+        <p className="text-gray-400 font-medium">&copy; 2026 DeutschFlow. Premium German Learning Platform.</p>
       </footer>
+
+      {/* Sticky Mobile CTA */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-gray-200 z-50">
+        <Link href="/register" className="flex items-center justify-center w-full bg-primary text-white text-lg font-bold py-4 rounded-xl shadow-lg">
+          Try AI Tutor Free
+        </Link>
+      </div>
     </div>
   )
 }

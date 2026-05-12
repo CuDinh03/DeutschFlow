@@ -1,8 +1,10 @@
 # SRS — DeutschFlow (Software Requirements Specification)
 
-**Phiên bản:** 2.2  
-**Ngày:** 2026-05-11  
+**Phiên bản:** 2.3  
+**Ngày:** 2026-05-12  
 **Ngôn ngữ:** Tiếng Việt  
+
+**Changelog v2.3:** Triển khai **B2B2C AI Homework Flow, Onboarding Paywall & High-Conversion Landing Page**. (1) **Database Migration V125**: Thêm bảng `teacher_homework_submissions` và `user_placement_tests`. (2) **Onboarding Mock Exam & Paywall**: `AiSpeakingMockExamController` đánh giá năng lực bằng AI (CEFR, Radar Chart); `ReviewTasksController` giới hạn người dùng FREE chỉ được sửa 2 lỗi/ngày, đếm `lockedCount` để hiển thị mồi nhử nâng cấp PRO. (3) **Teacher B2B2C Flow**: Cập nhật `TeacherQuizService` và UI cho phép tạo quiz `AI_INTERVIEW`, lưu kết quả vào `teacher_homework_submissions`. (4) **Grammar Review UI**: Giao diện `/student/grammar-review` kết hợp Paywall Overlay. (5) **High-Conversion Landing Page**: Đập đi xây lại `/app/page.tsx` theo chuẩn Premium EdTech (Visual Hierarchy, Roadmap, CTAs).
 
 **Changelog v2.2:** Triển khai **Supplemental Practice & Exam Prep System** và **Production API Audit**. (1) **Practice Module (V112/V113)**: Bảng `practice_exercises` và `practice_history` độc lập hoàn toàn với Skill Tree; hỗ trợ 2 loại bài tập `NORMAL` (bổ trợ) và `EXAM` (luyện thi Goethe/Telc); lọc theo CEFR level (A1-C2), kỹ năng và loại đề thi. (2) **XP-Only Rewards**: Thêm `XpEventType.CUSTOM_PRACTICE` vào hệ thống Gamification; `awardCustomPractice()` trong `XpService` tặng XP tỷ lệ theo % điểm (66% điểm → 66 XP/100 XP reward) nhưng **không kích hoạt Daily Streak** — giữ tính toàn vẹn chuỗi ngày học. (3) **Python Scraper**: `scraper.py` cào tự động đề thi Goethe-Institut → sinh SQL seed file (V113 B1 Lesen sample). (4) **Frontend `/student/practice`**: Trang thư viện bài tập mới với filter trình độ, grid cards, toast XP. (5) **Bug Fix — LearningPlanResponse**: DTO thiếu `sessionsPerWeek` và `minutesPerSession` khiến Dashboard widget hiển thị null — đã bổ sung 2 field, deploy production. (6) **Production API Audit (20/22 pass)**: Kiểm toàn bộ endpoints trên EC2; 20/22 pass; 2 lỗi còn lại là behavior đúng (user mới chưa qua onboarding nên chưa có learning plan). (7) **E2E Flow Verification**: Test toàn bộ luồng học viên mới — Đăng ký → Onboarding → Tạo plan → Dashboard → Today plan → Làm bài tập bổ trợ → Nhận XP trên production.
 
@@ -70,6 +72,7 @@
 66. SRS SM-2 Flashcard Engine *(v2.1)*
 67. Module SUPPLEMENTAL PRACTICE & EXAM PREP *(v2.2)*
 68. Production API Audit & E2E Verification *(v2.2)*
+69. B2B2C AI Homework Flow & Onboarding Paywall *(v2.3)*
 
 ---
 
@@ -125,7 +128,9 @@ DeutschFlow là nền tảng học tiếng Đức (CEFR) kết hợp:
 | **Unified Curriculum V2** *(v2.0)* | DAG Skill Tree 35 nodes (A1→C2); V66-V71 migrations; JSONB + GIN indexes + TEXT[] arrays; All-in-one content API (~30KB Gzip ~5KB); Zustand `useNodeSessionStore` zero-latency tab switching; 5 Learning Views (Grammar + Reading + Listening + Speaking + Writing); Orphan Sweeper @Scheduled 15min; Pronunciation eval (Groq LLM); Writing correction (Groq LLM) |
 | **Onboarding V2 + Placement Test** *(v2.0)* | 4-step onboarding (level → goal/industry → weekly target → placement test); Placement Test 10 câu 4 kỹ năng Goethe (Hören/Sprechen/Lesen/Schreiben); Pass ≥ 7/10 → nhảy level; Fail → retry 3 ngày đề khác; Weekly target ảnh hưởng unlock cá nhân hóa |
 | **WhisperApiClient** *(v2.0)* | Java-native OpenAI Whisper STT (loại bỏ Python dependency); Word-level timestamps cho karaoke sync; `transcribeText()` cho pronunciation eval; Config `${OPENAI_API_KEY}` |
-
+| **B2B2C AI Homework** *(v2.3)* | Hỗ trợ giáo viên tạo quiz dạng `AI_INTERVIEW`, lưu kết quả phỏng vấn vào `teacher_homework_submissions`. |
+| **Paywall & Quota** *(v2.3)* | Free tier giới hạn sửa 2 lỗi/ngày, khóa các lỗi còn lại (`lockedCount`) kèm Overlay mồi nhử Nâng cấp PRO. UI Review Queue được đập đi xây lại. |
+| **Premium Landing Page** *(v2.3)* | Đập đi xây lại toàn bộ `/app/page.tsx` thành High-Conversion Funnel, Mockup Placeholders, Visual Hierarchy, CTA sắc bén. |
 
 **Ngoài phạm vi (hiện tại)**
 
