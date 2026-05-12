@@ -165,7 +165,7 @@ fi
 echo ""
 echo "[6/8] Gracefully stopping BLUE container (completing in-flight requests)..."
 # SIGTERM -> Spring Boot completes in-flight requests before shutting down
-sudo docker stop --time=30 deutschflow-backend 2>/dev/null || true
+sudo docker stop --timeout=30 deutschflow-backend 2>/dev/null || true
 sudo docker rm deutschflow-backend 2>/dev/null || true
 echo "  BLUE stopped cleanly"
 
