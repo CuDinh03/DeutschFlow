@@ -458,6 +458,169 @@ public class WiktionaryEnrichmentBatchService {
         setState("last_processed_word_id", "0");
     }
 
+    /**
+     * Phase 2 Tier 2 — Enrich gender for Nouns that have no gender yet.
+     * Idempotent: always fetches first N nouns missing gender (no cursor).
+     * Calls Wiktionary for each and writes gender + plural_form to nouns table.
+     */
+    public Map<String, Object> runGenderOnlyBatch(Integer limitOverride) {
+        int cap = Math.min(limitOverride != null && limitOverride > 0 ? limitOverride : 100, 500);
+
+        // Count how many nouns still lack gender
+        Integer remaining = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM nouns WHERE gender IS NULL",
+                Integer.class);
+
+        // Fetch nouns missing gender — A1/A2 first
+        List<Map<String, Object>> targets = jdbcTemplate.queryForList(
+                "SELECT w.id, w.base_form, w.cefr_level" +
+                " FROM words w JOIN nouns n ON n.id = w.id" +
+                " WHERE n.gender IS NULL" +
+                " ORDER BY CASE COALESCE(w.cefr_level,'ZZ')" +
+                "   WHEN 'A1' THEN 1 WHEN 'A2' THEN 2 WHEN 'B1' THEN 3" +
+                "   WHEN 'B2' THEN 4 WHEN 'C1' THEN 5 WHEN 'C2' THEN 6 ELSE 99 END, w.id ASC" +
+                " LIMIT " + cap);
+
+        int genderFilled = 0;
+        int pluralFilled = 0;
+        int noData = 0;
+
+        for (Map<String, Object> row : targets) {
+            long id = ((Number) row.get("id")).longValue();
+            String lemma = (String) row.get("base_form");
+            if (lemma == null || lemma.isBlank()) continue;
+
+            try {
+                Optional<WiktionaryScraperService.WordData> maybe = wiktionaryScraperService.scrapeWord(lemma.trim());
+                if (maybe.isEmpty()) { noData++; sleepQuietly(requestDelayMs); continue; }
+
+                WiktionaryScraperService.WordData data = maybe.get();
+                String gender = data.getGender();
+                if (gender != null && !gender.isBlank()) {
+                    jdbcTemplate.update(
+                            "INSERT INTO nouns (id, gender, noun_type) VALUES (?, ?, 'STARK')" +
+                            " ON CONFLICT (id) DO UPDATE SET" +
+                            "   gender = CASE WHEN nouns.gender IS NULL THEN EXCLUDED.gender ELSE nouns.gender END",
+                            id, gender);
+                    genderFilled++;
+                    if (data.getPlural() != null && !data.getPlural().isBlank()) {
+                        jdbcTemplate.update(
+                                "UPDATE nouns SET plural_form = COALESCE(NULLIF(plural_form,''), ?) WHERE id = ?",
+                                data.getPlural(), id);
+                        pluralFilled++;
+                    }
+                } else {
+                    noData++;
+                }
+            } catch (Exception e) {
+                log.warn("[GenderOnly] Failed id={} lemma={}: {}", id, lemma, e.getMessage());
+                noData++;
+            }
+            sleepQuietly(requestDelayMs);
+        }
+
+        var out = new LinkedHashMap<String, Object>();
+        out.put("source", "WIKTIONARY_GENDER_ONLY");
+        out.put("processed", targets.size());
+        out.put("genderFilled", genderFilled);
+        out.put("pluralFilled", pluralFilled);
+        out.put("noData", noData);
+        out.put("remaining", remaining);
+        out.put("status", targets.isEmpty() ? "IDLE" : "OK");
+        return out;
+    }
+
+    /**
+     * Phase 3 — Enrich words missing IPA phonetic OR EN meaning.
+     * Idempotent: fetches first N words with missing data (no cursor needed).
+     */
+    public Map<String, Object> runMissingDataBatch(Integer limitOverride) {
+        int cap = Math.min(limitOverride != null && limitOverride > 0 ? limitOverride : 100, 500);
+
+        Integer remainingIpa = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM words WHERE phonetic IS NULL OR TRIM(phonetic) = ''",
+                Integer.class);
+        Integer remainingEn = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM words WHERE NOT EXISTS" +
+                " (SELECT 1 FROM word_translations t WHERE t.word_id = words.id AND t.locale = 'en'" +
+                "   AND t.meaning IS NOT NULL AND TRIM(t.meaning) <> '')",
+                Integer.class);
+
+        List<Long> ids = jdbcTemplate.query(
+                "SELECT w.id FROM words w" +
+                " WHERE (w.phonetic IS NULL OR TRIM(w.phonetic) = '')" +
+                "    OR NOT EXISTS (SELECT 1 FROM word_translations t WHERE t.word_id = w.id" +
+                "                   AND t.locale = 'en' AND t.meaning IS NOT NULL AND TRIM(t.meaning) <> '')" +
+                " ORDER BY CASE COALESCE(w.cefr_level,'ZZ')" +
+                "   WHEN 'A1' THEN 1 WHEN 'A2' THEN 2 WHEN 'B1' THEN 3" +
+                "   WHEN 'B2' THEN 4 WHEN 'C1' THEN 5 WHEN 'C2' THEN 6 ELSE 99 END, w.id ASC" +
+                " LIMIT " + cap,
+                (rs, rn) -> rs.getLong("id"));
+
+        int ipaFilled = 0;
+        int enFilled = 0;
+        int noData = 0;
+
+        for (Long id : ids) {
+            String lemma = jdbcTemplate.query(
+                    "SELECT base_form FROM words WHERE id = ?",
+                    rs -> rs.next() ? rs.getString("base_form") : null, id);
+            if (lemma == null || lemma.isBlank()) continue;
+
+            try {
+                Optional<WiktionaryScraperService.WordData> maybe = wiktionaryScraperService.scrapeWord(lemma.trim());
+                if (maybe.isEmpty()) { noData++; sleepQuietly(requestDelayMs); continue; }
+
+                WiktionaryScraperService.WordData data = maybe.get();
+
+                // IPA
+                String ipa = data.getIpa();
+                String bracket = IpaNormalization.toBracketForm(ipa == null ? null : ipa.trim());
+                if (bracket != null && !bracket.isBlank()) {
+                    int updated = jdbcTemplate.update(
+                            "UPDATE words SET phonetic = CASE WHEN phonetic IS NULL OR TRIM(phonetic) = '' THEN ? ELSE phonetic END," +
+                            " updated_at = NOW() WHERE id = ?",
+                            bracket, id);
+                    if (updated > 0) ipaFilled++;
+                }
+
+                // EN meaning
+                String meaningEn = data.getMeaning();
+                String exampleEn = data.getExampleEn();
+                if (meaningEn != null && !meaningEn.isBlank()) {
+                    jdbcTemplate.update(
+                            "INSERT INTO word_translations (word_id, locale, meaning, example)" +
+                            " VALUES (?, 'en', ?, NULLIF(?, ''))" +
+                            " ON CONFLICT (word_id, locale) DO UPDATE SET" +
+                            "   meaning = CASE WHEN word_translations.meaning IS NULL OR TRIM(word_translations.meaning) = ''" +
+                            "   THEN EXCLUDED.meaning ELSE word_translations.meaning END," +
+                            "   example = CASE WHEN word_translations.example IS NULL OR TRIM(word_translations.example) = ''" +
+                            "   THEN EXCLUDED.example ELSE word_translations.example END",
+                            id, meaningEn.trim(),
+                            exampleEn == null ? "" : exampleEn.trim());
+                    enFilled++;
+                } else {
+                    noData++;
+                }
+            } catch (Exception e) {
+                log.warn("[MissingData] Failed id={} lemma={}: {}", id, lemma, e.getMessage());
+                noData++;
+            }
+            sleepQuietly(requestDelayMs);
+        }
+
+        var out = new LinkedHashMap<String, Object>();
+        out.put("source", "WIKTIONARY_MISSING_DATA");
+        out.put("processed", ids.size());
+        out.put("ipaFilled", ipaFilled);
+        out.put("enFilled", enFilled);
+        out.put("noData", noData);
+        out.put("remainingIpa", remainingIpa);
+        out.put("remainingEn", remainingEn);
+        out.put("status", ids.isEmpty() ? "IDLE" : "OK");
+        return out;
+    }
+
     private Long parseLong(String s) {
         if (s == null || s.isBlank()) return null;
         try {

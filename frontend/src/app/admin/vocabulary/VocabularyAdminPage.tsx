@@ -658,6 +658,148 @@ function DtypeFixPanel() {
 }
 
 
+
+// ─── GenderEnrichPanel (Phase 2 Tier 2) ─────────────────────────────────────
+
+function GenderEnrichPanel() {
+  const [limit, setLimit]   = useState(100)
+  const [running, setRunning] = useState(false)
+  const [result, setResult]   = useState<any>(null)
+  const [error, setError]     = useState('')
+
+  const run = async () => {
+    setRunning(true); setResult(null); setError('')
+    try {
+      const data = await adminPost(
+        `/admin/vocabulary/wiktionary/gender/batch?limit=${limit}`,
+        {}, { longRunning: true }
+      )
+      setResult(data)
+    } catch (e: unknown) { setError(apiMessage(e)) }
+    finally { setRunning(false) }
+  }
+
+  return (
+    <div className="bg-white rounded-[16px] border border-[#E2E8F0] shadow-sm overflow-hidden">
+      <div className="px-5 py-4 border-b border-[#F0F4F8] flex items-center gap-3">
+        <div className="w-9 h-9 rounded-[10px] bg-gradient-to-br from-purple-50 to-violet-50 flex items-center justify-center">
+          <span className="text-lg">⚧</span>
+        </div>
+        <div>
+          <h3 className="font-semibold text-[#0F172A] text-sm">Phase 2 — Enrich Gender (Wiktionary)</h3>
+          <p className="text-[#94A3B8] text-xs">Tự động điền der/die/das cho danh từ thiếu giới tính từ Wiktionary</p>
+        </div>
+        <span className="ml-auto text-[10px] font-bold px-2 py-1 rounded-full bg-purple-100 text-purple-700">PHASE 2</span>
+      </div>
+      <div className="px-5 py-4 space-y-3">
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label className="block text-xs font-medium text-[#0F172A] mb-1.5">Số danh từ (max 500)</label>
+            <input type="number" min={1} max={500} value={limit}
+              onChange={e => setLimit(Math.max(1, Math.min(500, parseInt(e.target.value) || 100)))}
+              className="w-24 px-3 py-2 rounded-[8px] border border-[#E2E8F0] text-sm focus:outline-none focus:ring-2 focus:ring-purple-400/40" />
+          </div>
+          <button onClick={run} disabled={running}
+            className="flex items-center gap-2 px-4 py-2 rounded-[8px] disabled:opacity-60 text-white text-sm font-semibold transition-all"
+            style={{ background: running ? '#7c3aed' : 'linear-gradient(135deg,#8b5cf6,#7c3aed)' }}>
+            {running ? <span className="animate-spin inline-block w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full" /> : <span>⚧</span>}
+            {running ? 'Đang scrape...' : 'Chạy Gender Enrichment'}
+          </button>
+        </div>
+        <p className="text-[#94A3B8] text-[11px]">⏱ ~1-2s/từ. 100 từ ≈ 2-3 phút. A1/A2 ưu tiên trước.</p>
+        {error && <div className="flex items-center gap-2 text-red-600 text-xs bg-red-50 border border-red-200 rounded-[8px] px-3 py-2"><XCircle size={13} /> {error}</div>}
+        {result && (
+          <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+            className="bg-purple-50 border border-purple-200 rounded-[10px] px-4 py-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 size={13} className="text-purple-600" />
+              <span className="text-purple-800 text-xs font-semibold">Hoàn thành — {result.status}</span>
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs">
+              {[['Đã xử lý', result.processed], ['Gender filled', result.genderFilled],
+                ['Plural filled', result.pluralFilled], ['Không có data', result.noData], ['Còn lại', result.remaining],
+              ].map(([l, v]) => (
+                <span key={String(l)} className="bg-white border border-purple-100 rounded px-2 py-1">{l}: <strong>{v}</strong></span>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── MissingDataPanel (Phase 3) ──────────────────────────────────────────────
+
+function MissingDataPanel() {
+  const [limit, setLimit]   = useState(100)
+  const [running, setRunning] = useState(false)
+  const [result, setResult]   = useState<any>(null)
+  const [error, setError]     = useState('')
+
+  const run = async () => {
+    setRunning(true); setResult(null); setError('')
+    try {
+      const data = await adminPost(
+        `/admin/vocabulary/wiktionary/missing-data/batch?limit=${limit}`,
+        {}, { longRunning: true }
+      )
+      setResult(data)
+    } catch (e: unknown) { setError(apiMessage(e)) }
+    finally { setRunning(false) }
+  }
+
+  return (
+    <div className="bg-white rounded-[16px] border border-[#E2E8F0] shadow-sm overflow-hidden">
+      <div className="px-5 py-4 border-b border-[#F0F4F8] flex items-center gap-3">
+        <div className="w-9 h-9 rounded-[10px] bg-gradient-to-br from-teal-50 to-cyan-50 flex items-center justify-center">
+          <span className="text-lg">🔊</span>
+        </div>
+        <div>
+          <h3 className="font-semibold text-[#0F172A] text-sm">Phase 3 — Enrich IPA + EN meaning</h3>
+          <p className="text-[#94A3B8] text-xs">Điền phiên âm IPA và nghĩa tiếng Anh cho từ đang thiếu (Wiktionary)</p>
+        </div>
+        <span className="ml-auto text-[10px] font-bold px-2 py-1 rounded-full bg-teal-100 text-teal-700">PHASE 3</span>
+      </div>
+      <div className="px-5 py-4 space-y-3">
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label className="block text-xs font-medium text-[#0F172A] mb-1.5">Số từ (max 500)</label>
+            <input type="number" min={1} max={500} value={limit}
+              onChange={e => setLimit(Math.max(1, Math.min(500, parseInt(e.target.value) || 100)))}
+              className="w-24 px-3 py-2 rounded-[8px] border border-[#E2E8F0] text-sm focus:outline-none focus:ring-2 focus:ring-teal-400/40" />
+          </div>
+          <button onClick={run} disabled={running}
+            className="flex items-center gap-2 px-4 py-2 rounded-[8px] disabled:opacity-60 text-white text-sm font-semibold transition-all"
+            style={{ background: running ? '#0d9488' : 'linear-gradient(135deg,#14b8a6,#0d9488)' }}>
+            {running ? <span className="animate-spin inline-block w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full" /> : <span>🔊</span>}
+            {running ? 'Đang scrape...' : 'Chạy IPA + EN Enrichment'}
+          </button>
+        </div>
+        <p className="text-[#94A3B8] text-[11px]">⏱ ~1-2s/từ. 100 từ ≈ 2-3 phút. A1/A2 ưu tiên trước.</p>
+        {error && <div className="flex items-center gap-2 text-red-600 text-xs bg-red-50 border border-red-200 rounded-[8px] px-3 py-2"><XCircle size={13} /> {error}</div>}
+        {result && (
+          <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+            className="bg-teal-50 border border-teal-200 rounded-[10px] px-4 py-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 size={13} className="text-teal-600" />
+              <span className="text-teal-800 text-xs font-semibold">Hoàn thành — {result.status}</span>
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs">
+              {[['Đã xử lý', result.processed], ['IPA filled', result.ipaFilled],
+                ['EN filled', result.enFilled], ['Không có data', result.noData],
+                ['Còn thiếu IPA', result.remainingIpa], ['Còn thiếu EN', result.remainingEn],
+              ].map(([l, v]) => (
+                <span key={String(l)} className="bg-white border border-teal-100 rounded px-2 py-1">{l}: <strong>{v}</strong></span>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function VocabularyAdminPage() {
   const uiLocale = useLocale()
   const [words, setWords] = useState<WordItem[]>([])
@@ -1010,6 +1152,12 @@ export default function VocabularyAdminPage() {
 
         {/* Phase 1: dtype Fix (part-of-speech correction) */}
         <DtypeFixPanel />
+
+        {/* Phase 2: Gender Enrichment for Nouns */}
+        <GenderEnrichPanel />
+
+        {/* Phase 3: IPA + EN meaning for missing words */}
+        <MissingDataPanel />
 
         {/* Reset & Reimport */}
         <div className="bg-white rounded-[16px] border border-red-200 shadow-sm overflow-hidden">

@@ -539,6 +539,45 @@ public class AdminManagementController {
         return result;
     }
 
+    /**
+     * Phase 2 Tier 2 — Enrich gender for Nouns missing der/die/das via Wiktionary.
+     * Idempotent, always fetches first N nouns without gender.
+     * POST /api/admin/vocabulary/wiktionary/gender/batch?limit=100
+     */
+    @PostMapping("/vocabulary/wiktionary/gender/batch")
+    public Map<String, Object> runGenderEnrichBatch(
+            @RequestParam(required = false) Integer limit,
+            Authentication authentication
+    ) {
+        Map<String, Object> result = wiktionaryEnrichmentBatchService.runGenderOnlyBatch(limit);
+        auditLogService.log("admin.vocabulary.gender.batch.triggered", null,
+                actorEmail(authentication), actorRole(authentication),
+                "VOCABULARY_IMPORT", "wiktionary-gender",
+                Map.of("genderFilled", result.getOrDefault("genderFilled", 0),
+                        "status", result.get("status")));
+        return result;
+    }
+
+    /**
+     * Phase 3 — Enrich words missing IPA phonetic OR EN meaning via Wiktionary.
+     * Idempotent — A1/A2 words first.
+     * POST /api/admin/vocabulary/wiktionary/missing-data/batch?limit=100
+     */
+    @PostMapping("/vocabulary/wiktionary/missing-data/batch")
+    public Map<String, Object> runMissingDataEnrichBatch(
+            @RequestParam(required = false) Integer limit,
+            Authentication authentication
+    ) {
+        Map<String, Object> result = wiktionaryEnrichmentBatchService.runMissingDataBatch(limit);
+        auditLogService.log("admin.vocabulary.missing-data.batch.triggered", null,
+                actorEmail(authentication), actorRole(authentication),
+                "VOCABULARY_IMPORT", "wiktionary-missing-data",
+                Map.of("ipaFilled", result.getOrDefault("ipaFilled", 0),
+                        "enFilled", result.getOrDefault("enFilled", 0),
+                        "status", result.get("status")));
+        return result;
+    }
+
     @PostMapping("/vocabulary/wiktionary/enrich/one")
     public Map<String, Object> runWiktionaryEnrichOne(
             @RequestParam long wordId,
