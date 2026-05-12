@@ -33,8 +33,8 @@ const CEFR_COLORS: Record<string, { bg: string; text: string }> = {
   C1: { bg: '#FFF1F2', text: '#9F1239' }, C2: { bg: '#F0F9FF', text: '#0C4A6E' },
 }
 const PAGE_SIZE = 25
-/** Trần ô nhập = mặc định backend `admin-max-per-batch` — chỉnh qua env WIKTIONARY_ENRICH_ADMIN_MAX / GLOSBE_VI_ADMIN_MAX. */
-const VOCAB_ADMIN_BATCH_MAX = 10_000
+/** Trần ô nhập Wiktionary — max 200 để tránh timeout. */
+const VOCAB_ADMIN_BATCH_MAX = 200
 
 async function adminPost(
   path: string,
@@ -430,8 +430,9 @@ function GlosbeViPanel({ onDone }: { onDone: () => void }) {
           </button>
         </div>
         <p className="text-[#94A3B8] text-[11px] leading-relaxed">
-          Mỗi từ ~1–2s trễ crawl; giá trị lớn (vd. 10k) có thể chạy nhiều giờ — nên nhờ{' '}
-          <strong className="text-[#64748B]">scheduler tự động</strong> hoặc chạy nhiều batch nhỏ nếu bị timeout phía gateway.
+          Mỗi từ ~1–2s trễ crawl; giới hạn tối đa 50 từ/lần để tránh timeout.
+          Glosbe không có public API — dùng{' '}
+          <strong className="text-amber-700">LLM DE→VI (bên dưới)</strong> để dịch nhanh hơn và ổn định hơn.
         </p>
         {error && (
           <div className="flex items-center gap-2 text-red-600 text-xs bg-red-50 border border-red-200 rounded-[8px] px-3 py-2">
@@ -459,7 +460,90 @@ function GlosbeViPanel({ onDone }: { onDone: () => void }) {
   )
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+// ─── LLM VI Translation Panel ─────────────────────────────────────────────────
+
+function LlmViPanel({ onDone }: { onDone: () => void }) {
+  const [limit, setLimit] = useState(50)
+  const [resetCursor, setResetCursor] = useState(false)
+  const [running, setRunning] = useState(false)
+  const [result, setResult] = useState<any>(null)
+  const [error, setError] = useState('')
+
+  const run = async () => {
+    setRunning(true); setResult(null); setError('')
+    try {
+      const data = await adminPost('/admin/vocabulary/llm-vi/enrich/batch', { limit, resetCursor }, { longRunning: true })
+      setResult(data); onDone()
+    } catch (e: unknown) { setError(apiMessage(e)) }
+    finally { setRunning(false) }
+  }
+
+  return (
+    <div className="bg-white rounded-[16px] border border-[#E2E8F0] shadow-sm overflow-hidden">
+      <div className="px-5 py-4 border-b border-[#F0F4F8] flex items-center gap-3">
+        <div className="w-9 h-9 rounded-[10px] bg-gradient-to-br from-violet-50 to-blue-50 flex items-center justify-center">
+          <span className="text-lg">🤖</span>
+        </div>
+        <div>
+          <h3 className="font-semibold text-[#0F172A] text-sm">LLM DE→VI Dịch nghĩa</h3>
+          <p className="text-[#94A3B8] text-xs">
+            Thay thế Glosbe: AI dịch batch 50 từ/lần · ~$0.024 cho 10k từ · Không bị block
+          </p>
+        </div>
+        <span className="ml-auto text-[10px] font-bold px-2 py-1 rounded-full bg-green-100 text-green-700">RECOMMENDED</span>
+      </div>
+      <div className="px-5 py-4 space-y-3">
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label className="block text-xs font-medium text-[#0F172A] mb-1.5">Số từ mỗi lần (max 500)</label>
+            <input type="number" min={1} max={500} value={limit}
+              onChange={e => setLimit(Math.max(1, Math.min(500, parseInt(e.target.value) || 50)))}
+              className="w-24 px-3 py-2 rounded-[8px] border border-[#E2E8F0] text-sm focus:outline-none focus:ring-2 focus:ring-violet-400/40" />
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer pb-2">
+            <div onClick={() => setResetCursor(v => !v)}
+              className={`w-9 h-5 rounded-full transition-colors relative cursor-pointer ${resetCursor ? 'bg-violet-600' : 'bg-[#CBD5E1]'}`}>
+              <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${resetCursor ? 'translate-x-4' : 'translate-x-0.5'}`} />
+            </div>
+            <span className="text-xs text-[#64748B]">Reset cursor</span>
+          </label>
+          <button onClick={run} disabled={running}
+            className="flex items-center gap-2 px-4 py-2 rounded-[8px] disabled:opacity-60 text-white text-sm font-semibold transition-all"
+            style={{ background: running ? '#6d28d9' : 'linear-gradient(135deg,#7c3aed,#4f46e5)' }}>
+            {running ? <span className="animate-spin inline-block w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full" /> : <span>🤖</span>}
+            {running ? 'Đang dịch…' : 'Chạy ngay'}
+          </button>
+        </div>
+        <p className="text-[#94A3B8] text-[11px]">
+          Dùng LLM để dịch từ còn thiếu nghĩa VI. Ưu tiên A1 trước.
+          Cần{' '}<code className="text-[10px]">AI_CHAT_PROVIDER</code>{' '}được cấu hình (groq / openai).
+        </p>
+        {error && (
+          <div className="flex items-center gap-2 text-red-600 text-xs bg-red-50 border border-red-200 rounded-[8px] px-3 py-2">
+            <XCircle size={13} /> {error}
+          </div>
+        )}
+        {result && (
+          <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+            className="bg-violet-50 border border-violet-200 rounded-[10px] px-4 py-3">
+            <div className="flex items-center gap-2 mb-2">
+              <CheckCircle2 size={13} className="text-violet-600" />
+              <span className="text-violet-800 text-xs font-semibold">Hoàn thành — {result.status}</span>
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs">
+              {[['Đã xử lý', result.processed], ['Đã dịch', result.translated], ['Lỗi', result.failed]].map(([l, v]) => (
+                <span key={String(l)} className="bg-white border border-violet-100 rounded px-2 py-1">
+                  {l}: <strong>{v}</strong>
+                </span>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 
 export default function VocabularyAdminPage() {
   const uiLocale = useLocale()
@@ -807,6 +891,9 @@ export default function VocabularyAdminPage() {
 
         {/* Glosbe VI Enrich */}
         <GlosbeViPanel onDone={() => fetchWords(page)} />
+
+        {/* LLM VI Translation (recommended replacement for Glosbe) */}
+        <LlmViPanel onDone={() => fetchWords(page)} />
 
         {/* Reset & Reimport */}
         <div className="bg-white rounded-[16px] border border-red-200 shadow-sm overflow-hidden">

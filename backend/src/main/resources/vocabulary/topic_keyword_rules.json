@@ -1,18 +1,146 @@
 {
-  "Alltag": ["alltag", "morgens", "heute", "helfen", "freund"],
-  "Reise": ["bahnhof", "flughafen", "hotel", "reise", "flug", "pass", "koffer", "urlaub", "ticket", "zug"],
-  "Beruf": ["arbeit", "büro", "buero", "kollege", "chef", "meeting", "bewerbung", "gehalt", "firma", "unternehmen"],
-  "Familie": ["familie", "mutter", "vater", "kind", "sohn", "tochter"],
-  "Essen": ["restaurant", "küche", "kuche", "brot", "kaffee", "frühstück", "fruhstuck", "essen", "trinken"],
-  "Gesundheit": ["krank", "gesund", "arzt", "krankenhaus", "kopfweh", "medizin"],
-  "Wohnen": ["wohnung", "haus", "miet", "zimmer"],
-  "Bildung": ["schule", "studium", "universität", "univ", "prüfung", "prufung", "buch", "lernen"],
-  "Freizeit": ["freizeit", "sport", "hobby", "fernseh", "kino", "spiel"],
-  "Technik": ["computer", "software", "internet", "passwort", "handy", "app", "server", "email", "digital"],
-  "Finanzen": ["geld", "bank", "konto", "kredit", "kosten", "zins", "euro"],
-  "Einkaufen": ["supermarkt", "kaufen", "geschäft", "geschaft", "markt"],
-  "Verkehr": ["straße", "strasse", "auto", "fahren", "verkehr", "park"],
-  "Natur": ["baum", "wetter", "wasser", "berg", "wald"],
-  "Kultur": ["museum", "konzert", "theater", "musik"],
-  "Gefühle": ["froh", "traur", "ängstlich", "angstlich", "glücklich", "glucklich"]
+  "Alltag": [
+    "alltag", "täglich", "taglich", "morgen", "abend", "heute", "helfen", "freund",
+    "freundin", "nachbar", "bekanntschaft", "routine", "gewohnheit", "treffen",
+    "besuch", "gespräch", "gesprach", "begrüßung", "begrüsung", "verabschiedung",
+    "bis später", "tschüss", "auf wiedersehen", "hallo", "guten tag", "guten morgen"
+  ],
+  "Reise": [
+    "bahnhof", "flughafen", "airport", "hotel", "reise", "flug", "pass",
+    "koffer", "gepäck", "gepack", "urlaub", "ticket", "zug", "bahn",
+    "bus", "schiff", "fähre", "fahre", "abfahrt", "ankunft", "buchung",
+    "reservierung", "reisebüro", "reiseburo", "tourist", "sehenswürdigkeit",
+    "sehenswurdigkeit", "strand", "stadt", "karte", "landkarte", "grenze",
+    "visum", "ausland", "inland", "hafen", "abflug"
+  ],
+  "Beruf": [
+    "arbeit", "büro", "buro", "kollege", "kollegin", "chef", "chefin",
+    "meeting", "bewerbung", "gehalt", "lohn", "firma", "unternehmen",
+    "beruf", "berufsfeld", "stelle", "stellen", "job", "karriere",
+    "kündigung", "kundigung", "vertrag", "arbeitsplatz", "arbeitszeit",
+    "urlaub", "überstunde", "uberstunde", "teilzeit", "vollzeit",
+    "praktikum", "ausbildung", "lebenslauf", "zeugnis", "referenz",
+    "team", "projekt", "aufgabe", "auftraggeber", "conference", "konferenz"
+  ],
+  "Familie": [
+    "familie", "mutter", "vater", "kind", "kinder", "sohn", "tochter",
+    "bruder", "schwester", "eltern", "großeltern", "grosseltern",
+    "oma", "opa", "enkel", "enkelin", "onkel", "tante", "cousin",
+    "cousine", "neffe", "nichte", "heirat", "hochzeit", "scheidung",
+    "ehemann", "ehefrau", "partner", "partnerin", "verwandt",
+    "haushalt", "geburt", "erziehung", "familienmitglied"
+  ],
+  "Essen": [
+    "restaurant", "küche", "kuche", "brot", "kaffee", "tee",
+    "frühstück", "fruhstuck", "mittagessen", "abendessen", "essen",
+    "trinken", "mahlzeit", "speise", "gericht", "menu", "menü",
+    "rezept", "kochen", "backen", "zutaten", "fleisch", "fisch",
+    "gemüse", "gemuse", "obst", "salat", "suppe", "nachtisch",
+    "dessert", "bäckerei", "backerei", "metzgerei", "supermarkt lebensmittel",
+    "butter", "milch", "käse", "kase", "ei", "wein", "bier",
+    "hunger", "durst", "bestellen", "rechnung", "kellner", "kellnerin",
+    "vegetarisch", "vegan", "allergisch", "allergie"
+  ],
+  "Gesundheit": [
+    "krank", "kranke", "gesund", "arzt", "ärztin", "doktor", "krankenhaus",
+    "kopfweh", "kopfschmerz", "medizin", "medikament", "tablette",
+    "apotheke", "rezept", "behandlung", "diagnose", "symptom",
+    "fieber", "husten", "schnupfen", "allergie", "verletzt", "verletzung",
+    "schmerz", "unfall", "erste hilfe", "blut", "impfung", "impfen",
+    "termin", "praxis", "notarzt", "ambulanz", "krankenkasse",
+    "versicherung", "gesundheit", "wohlbefinden", "fitness", "yoga",
+    "schlaf", "stress", "erholung", "psyche", "therapie"
+  ],
+  "Wohnen": [
+    "wohnung", "haus", "miet", "miete", "mieten", "zimmer", "raum",
+    "küche", "badezimmer", "schlafzimmer", "wohnzimmer", "balkon",
+    "garten", "keller", "dachgeschoss", "eingang", "treppe",
+    "aufzug", "nachbarschaft", "vermieter", "vermieterin", "mieter",
+    "kaution", "nebenkosten", "heizung", "strom", "wasser",
+    "internet", "möbel", "mobel", "einrichten", "umzug", "adresse",
+    "postleitzahl", "gebäude", "gebaude", "wohngemeinschaft", "wg"
+  ],
+  "Bildung": [
+    "schule", "studium", "universität", "universitat", "uni", "hochschule",
+    "prüfung", "prufung", "test", "klausur", "abitur", "zeugnis",
+    "buch", "lernen", "lehren", "lehrer", "lehrerin", "schüler",
+    "schuler", "student", "studentin", "klasse", "kurs", "seminar",
+    "vorlesung", "unterricht", "hausaufgabe", "projekt", "bibliothek",
+    "zertifikat", "abschluss", "diplom", "bachelor", "master",
+    "bildung", "ausbildung", "praktikum", "wissen", "kenntnisse"
+  ],
+  "Freizeit": [
+    "freizeit", "sport", "hobby", "fernseh", "fernsehen", "kino",
+    "spiel", "spielen", "lesen", "musik", "konzert", "theater",
+    "kunst", "ausstellung", "museum", "wandern", "schwimmen",
+    "tanzen", "yoga", "fitness", "club", "verein", "freizeitpark",
+    "urlaub", "reisen", "fotografie", "foto", "malen", "kochen",
+    "gärtnern", "gartnern", "camping", "radfahren", "joggen",
+    "mannschaft", "turnier", "spaziergang", "picknick"
+  ],
+  "Technik": [
+    "computer", "pc", "laptop", "software", "hardware", "internet",
+    "passwort", "password", "handy", "smartphone", "app", "server",
+    "email", "e-mail", "digital", "online", "netz", "netzwerk",
+    "drucker", "tastatur", "bildschirm", "monitor", "daten",
+    "programm", "programmieren", "website", "homepage", "download",
+    "upload", "bluetooth", "wlan", "wifi", "akku", "ladekabel",
+    "kamera", "mikrofon", "kopfhörer", "kopfhorer", "technologie",
+    "roboter", "künstliche intelligenz", "ki", "automatisierung"
+  ],
+  "Finanzen": [
+    "geld", "bank", "konto", "kredit", "kosten", "zins", "euro",
+    "bezahlen", "zahlung", "rechnung", "preis", "rabatt", "steuer",
+    "steuern", "gehalt", "lohn", "einkommen", "ausgabe", "budget",
+    "sparen", "investition", "rente", "schulden", "schuld",
+    "überweisung", "uberweisung", "lastschrift", "kreditkarte",
+    "ec-karte", "bargeld", "wechsel", "währung", "wahrung", "börse",
+    "borse", "aktien", "versicherung", "finanzierung"
+  ],
+  "Einkaufen": [
+    "supermarkt", "kaufen", "geschäft", "geschaft", "markt", "laden",
+    "einkauf", "einkaufen", "bezahlen", "kasse", "preis", "angebot",
+    "rabatt", "sale", "mode", "kleidung", "kleid", "hose", "hemd",
+    "jacke", "mantel", "schuhe", "accessoires", "schmuck",
+    "einkaufszentrum", "boutique", "drogerie", "apotheke",
+    "wochenmarkt", "onlineshop", "bestellung", "lieferung",
+    "rückgabe", "ruckgabe", "umtausch", "garantie"
+  ],
+  "Verkehr": [
+    "straße", "strasse", "auto", "fahren", "verkehr", "park",
+    "parkplatz", "ampel", "kreuzung", "autobahn", "fahrrad",
+    "motorrad", "lkw", "bus", "tram", "u-bahn", "s-bahn",
+    "stau", "unfall", "tankstelle", "führerschein", "fuhrerschein",
+    "navi", "navigation", "richtung", "abbiegung", "einbahnstraße",
+    "zebrastreifen", "fußgänger", "fussganger", "radweg",
+    "baustelle", "geschwindigkeit", "tempolimit", "parken",
+    "öffentlich", "offentlich", "nahverkehr"
+  ],
+  "Natur": [
+    "baum", "wetter", "wasser", "berg", "wald", "meer", "see",
+    "fluss", "feld", "wiese", "blume", "pflanze", "tier", "vogel",
+    "hund", "katze", "regen", "sonne", "schnee", "wind", "sturm",
+    "temperatur", "klima", "klimawandel", "umwelt", "natur",
+    "naturschutz", "recycling", "nachhaltigkeit", "energie",
+    "jahreszeit", "frühling", "sommer", "herbst", "winter"
+  ],
+  "Kultur": [
+    "museum", "konzert", "theater", "musik", "kunst", "kultur",
+    "festival", "veranstaltung", "ausstellung", "galerie",
+    "literatur", "roman", "gedicht", "oper", "ballett",
+    "film", "kino", "regisseur", "schauspieler", "künstler",
+    "kunstler", "tradition", "brauchtum", "feier", "fest",
+    "feiertag", "weihnachten", "ostern", "karneval", "volksfest",
+    "kulturell", "interkulturell", "deutsch", "österreich", "schweiz"
+  ],
+  "Gefühle": [
+    "froh", "frohlich", "fröhlich", "traur", "traurig", "trauer",
+    "ängstlich", "angstlich", "angst", "glücklich", "gluck", "glücklich",
+    "wut", "wütend", "wutend", "aufgeregt", "aufregung", "nervös",
+    "nervos", "entspannt", "stress", "gestresst", "überrascht",
+    "uberrascht", "enttäuscht", "enttauscht", "stolz", "liebe",
+    "hass", "eifersucht", "neid", "scham", "schuld", "einsamkeit",
+    "einsam", "hoffnung", "mut", "zuversicht", "vertrauen", "emotion",
+    "gefühl", "gefuhl", "stimmung", "laune"
+  ]
 }

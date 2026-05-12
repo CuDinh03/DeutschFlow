@@ -49,7 +49,7 @@ public class GlosbeViEnrichmentService {
 
     // ── Scheduled job ─────────────────────────────────────────────────────────
 
-    @Scheduled(fixedDelayString = "${app.vocabulary.glosbe-vi.delay-ms:5000}")
+    @Scheduled(fixedDelayString = "${app.vocabulary.glosbe-vi.delay-ms:120000}")
     public void runScheduled() {
         if (!enabled || enrichmentSuspendGate.isEnrichmentSuspended()) {
             return;
@@ -58,9 +58,9 @@ public class GlosbeViEnrichmentService {
             Map<String, Object> result = runBatch(batchSize, false);
             String status = String.valueOf(result.getOrDefault("status", "?"));
             if ("IDLE".equals(status)) {
-                // Reset cursor để chạy lại — nhiều từ vẫn chưa có nghĩa VI
-                log.info("Glosbe VI: cursor exhausted, resetting to re-enrich missing words.");
-                setState("last_processed_word_id", "0");
+                // Dừng tự động khi hết từ cần enrich — không reset vô hạn
+                // Admin cần bấm "Reset cursor" thủ công nếu muốn chạy lại
+                log.info("Glosbe VI: cursor exhausted — all words enriched. Scheduler pausing (no auto-reset).");
             } else {
                 log.info("Glosbe VI enrich: processed={} viUpserts={} failed={} status={}",
                         result.get("processedRows"), result.get("viUpserts"), result.get("failed"), status);

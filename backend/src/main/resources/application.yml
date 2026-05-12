@@ -215,7 +215,8 @@ app:
       request-delay-ms: ${IPA_BATCH_REQUEST_DELAY_MS:800}
     # Trần từ/request khi ADMIN bấm "Chạy batch" một lần (scheduler không bị đụng nhờ size nhỏ hơn nhiều).
     wiktionary-enrich:
-      admin-max-per-batch: ${WIKTIONARY_ENRICH_ADMIN_MAX:10000}
+      # Max tối đa mỗi lần admin bấm Chạy Batch (giới hạn 200 để tránh timeout ~200s)
+      admin-max-per-batch: ${WIKTIONARY_ENRICH_ADMIN_MAX:200}
     # Tắt mặc định — chỉ chạy định kỳ khi WIKTIONARY_SCHEDULER_ENABLED=true. Admin: POST .../vocabulary/wiktionary/enrich/batch
     wiktionary-scheduler:
       enabled: ${WIKTIONARY_SCHEDULER_ENABLED:false}
@@ -231,9 +232,17 @@ app:
     # Tắt mặc định — chỉ chạy định kỳ khi GLOSBE_VI_ENABLED=true. Admin: POST .../vocabulary/glosbe-vi/enrich/batch
     glosbe-vi:
       enabled: ${GLOSBE_VI_ENABLED:false}
-      batch-size: ${GLOSBE_VI_BATCH_SIZE:30}
-      delay-ms: ${GLOSBE_VI_DELAY_MS:5000}
-      admin-max-per-batch: ${GLOSBE_VI_ADMIN_MAX:10000}
+      batch-size: ${GLOSBE_VI_BATCH_SIZE:20}
+      # Tăng delay mặc định từ 5000 → 120000ms để tránh scheduler overlap
+      delay-ms: ${GLOSBE_VI_DELAY_MS:120000}
+      # Giảm admin-max-per-batch để tránh blocking quá lâu
+      admin-max-per-batch: ${GLOSBE_VI_ADMIN_MAX:50}
+    # LLM DE→VI translation — thay thế Glosbe scraping (stable, no rate-limit risk)
+    # Chi phí: ~$0.024 cho 10k từ với GPT-4o-mini
+    llm-vi:
+      enabled: ${LLM_VI_ENABLED:false}
+      batch-size: ${LLM_VI_BATCH_SIZE:50}
+      delay-ms: ${LLM_VI_DELAY_MS:60000}
     # Dịch lemma DE → EN + VI qua DeepL cho từ còn thiếu (chạy song song Wiktionary + Glosbe).
     # Tắt production nếu không muốn tiêu quota: DEEPL_LEMMA_BACKFILL_ENABLED=false
     deepl-lemma-backfill:

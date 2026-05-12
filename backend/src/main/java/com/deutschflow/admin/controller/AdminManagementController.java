@@ -17,6 +17,7 @@ import com.deutschflow.vocabulary.service.VocabularyAutoTaggingService;
 import com.deutschflow.vocabulary.service.VocabularyResetService;
 import com.deutschflow.vocabulary.service.WiktionaryIpaBatchService;
 import com.deutschflow.vocabulary.service.WiktionaryEnrichmentBatchService;
+import com.deutschflow.vocabulary.service.LlmViTranslationService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
@@ -54,6 +55,7 @@ public class AdminManagementController {
     private final AuditLogService auditLogService;
     private final UserNotificationService userNotificationService;
     private final CacheManager cacheManager;
+    private final LlmViTranslationService llmViTranslationService;
 
     // ── Cache Management ──────────────────────────────────────────────────
 
@@ -319,6 +321,25 @@ public class AdminManagementController {
             Authentication authentication
     ) {
         return glosbeViEnrichmentService.enrichOne(wordId);
+    }
+
+    /**
+     * LLM DE→VI translation — stable replacement for Glosbe scraping.
+     * Batch 50 words per LLM call. Cost: ~$0.024 for 10k words.
+     * Admin UI: POST /api/admin/vocabulary/llm-vi/enrich/batch?limit=50
+     */
+    @PostMapping("/vocabulary/llm-vi/enrich/batch")
+    public Map<String, Object> runLlmViBatch(
+            @RequestParam(required = false) Integer limit,
+            @RequestParam(defaultValue = "false") boolean resetCursor,
+            Authentication authentication
+    ) {
+        Map<String, Object> result = llmViTranslationService.runBatch(limit, resetCursor);
+        auditLogService.log("admin.vocabulary.llm-vi.batch.triggered", null,
+                actorEmail(authentication), actorRole(authentication),
+                "VOCABULARY_IMPORT", "llm-vi",
+                Map.of("translated", result.getOrDefault("translated", 0), "status", result.get("status")));
+        return result;
     }
 
     /** DeepL DE→EN/VI cho từ thiếu nghĩa (cần {@code DEEPL_API_KEY}). */
