@@ -90,14 +90,14 @@ export default function LoginPage() {
       const user = userRes.data
       switch (user.role) {
         case 'ADMIN':
-          router.push('/admin')
+          router.replace('/admin')
           break
         case 'TEACHER':
-          router.push('/teacher')
+          router.replace('/teacher')
           break
         case 'STUDENT':
         default:
-          router.push('/dashboard')
+          router.replace('/dashboard')
           break
       }
     } catch (err: unknown) {

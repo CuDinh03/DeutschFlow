@@ -23,7 +23,7 @@ function requiredRole(pathname: string): Role | null {
 
 /** Trang học viên nhưng giáo viên/admin vẫn được mở (demo + tránh JWT/cookie STUDENT stale khi DB đã TEACHER). */
 function learnerSharedPaths(): Set<string> {
-  return new Set(['/dashboard', '/speaking', '/roadmap', '/onboarding'])
+  return new Set(['/dashboard', '/speaking', '/roadmap', '/onboarding', '/news'])
 }
 
 function requiresLearnerShare(pathname: string): boolean {
@@ -109,7 +109,9 @@ export const config = {
     '/register', 
     '/dashboard', 
     '/speaking', 
-    '/roadmap'
+    '/roadmap',
+    '/news',
+    '/news/:path*'
   ],
 }
 

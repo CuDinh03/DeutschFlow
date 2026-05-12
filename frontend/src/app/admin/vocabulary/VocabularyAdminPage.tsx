@@ -1080,7 +1080,7 @@ export default function VocabularyAdminPage() {
       const activeGender = overrides?.gender !== undefined ? overrides.gender : gender
       const activeQ     = overrides?.q      !== undefined ? overrides.q      : q
       const activeTag   = overrides?.tag    !== undefined ? overrides.tag    : tag
-      const params: Record<string, string> = { page: String(p), size: String(PAGE_SIZE), locale: uiLocale }
+      const params: Record<string, string> = { page: String(p), size: String(PAGE_SIZE), locale: 'vi' }
       if (activeQ)      params.q      = activeQ
       if (activeCefr)   params.cefr   = activeCefr
       if (activeDtype)  params.dtype  = activeDtype

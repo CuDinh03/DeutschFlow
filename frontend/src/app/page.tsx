@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
-import { getAccessToken, clearTokens } from '@/lib/authSession'
+import { getAccessToken, clearTokens, logout } from '@/lib/authSession'
 import { DeutschFlowLogo } from '@/components/ui/DeutschFlowLogo'
 import {
   Mic2,
@@ -15,20 +15,23 @@ import {
   TrendingUp,
   MessageSquare,
   Ear,
-  GraduationCap
+  GraduationCap,
+  Newspaper
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 
 export default function HomePage() {
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
 
   useEffect(() => {
     setMounted(true)
     if (getAccessToken()) {
+      setIsLoggedIn(true)
       api.get('/auth/me')
         .then(() => {
-          router.push(`/dashboard`)
+          router.replace(`/dashboard`)
         })
         .catch(() => {
           clearTokens()
@@ -47,10 +50,23 @@ export default function HomePage() {
           <div className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600">
             <Link href="#features" className="hover:text-gray-900 transition-colors">Tính năng</Link>
             <Link href="#journey" className="hover:text-gray-900 transition-colors">Lộ trình học</Link>
-            <Link href="/login" className="hover:text-gray-900 transition-colors">Đăng nhập</Link>
-            <Link href="/register" className="bg-primary hover:bg-blue-700 text-white px-5 py-2.5 rounded-full shadow-sm shadow-blue-500/30 transition-all font-bold">
-              Try AI Tutor Free
-            </Link>
+            <Link href="#news" className="hover:text-gray-900 transition-colors">Tin tức</Link>
+            
+            {isLoggedIn ? (
+              <>
+                <button onClick={() => logout()} className="hover:text-gray-900 transition-colors">Đăng xuất</button>
+                <Link href="/dashboard" className="bg-primary hover:bg-blue-700 text-white px-5 py-2.5 rounded-full shadow-sm shadow-blue-500/30 transition-all font-bold">
+                  Vào Dashboard
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link href="/login" className="hover:text-gray-900 transition-colors">Đăng nhập</Link>
+                <Link href="/register" className="bg-primary hover:bg-blue-700 text-white px-5 py-2.5 rounded-full shadow-sm shadow-blue-500/30 transition-all font-bold">
+                  Try AI Tutor Free
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -287,6 +303,80 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* News Section */}
+      <section id="news" className="py-24 px-6 bg-white border-t border-gray-100">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-end justify-between mb-12">
+            <div>
+              <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-600 font-bold px-3 py-1 rounded-full text-xs mb-4">
+                <Newspaper size={14} />
+                <span>Cập Nhật Hàng Ngày</span>
+              </div>
+              <h2 className="text-4xl font-extrabold text-gray-900 tracking-tight">Tin tức & Đời sống Đức</h2>
+              <p className="text-gray-500 mt-2 text-lg">Học tiếng Đức qua tin tức thực tế từ Tagesschau, DW và Der Spiegel.</p>
+            </div>
+            {isLoggedIn && (
+              <Link href="/news" className="hidden md:flex items-center gap-2 text-blue-600 font-bold hover:text-blue-800 transition-colors">
+                Xem tất cả tin tức <ArrowRight size={18} />
+              </Link>
+            )}
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6 relative">
+            {/* Dummy articles for landing page preview */}
+            {[
+              { source: 'DW Deutsch lernen', title: 'Deutschland wählt: Die wichtigsten Infos', summary: 'Am 28. September wird in Deutschland ein neuer Bundestag gewählt. Wir erklären, wie das Wahlsystem funktioniert.', time: '5 phút đọc' },
+              { source: 'Tagesschau', title: 'Neue Regeln für das Deutschlandticket', summary: 'Der Preis für das Deutschlandticket steigt auf 58 Euro. Das haben die Verkehrsminister der Länder beschlossen.', time: '3 phút đọc' },
+              { source: 'Der Spiegel', title: 'So plant die Bahn den Sommer', summary: 'Die Deutsche Bahn verspricht weniger Verspätungen während der EM. Ein Blick auf die neuen Fahrpläne.', time: '7 phút đọc' },
+            ].map((article, idx) => (
+              <div key={idx} className={`bg-gray-50 rounded-2xl p-6 border border-gray-200 transition-all ${!isLoggedIn && idx > 0 ? 'blur-sm select-none' : 'hover:-translate-y-1 hover:shadow-lg'}`}>
+                <div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">
+                  <span className="text-blue-600">{article.source}</span>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-3 leading-snug">{article.title}</h3>
+                <p className="text-gray-600 leading-relaxed mb-6">{article.summary}</p>
+                <div className="flex items-center justify-between text-sm font-medium">
+                  {isLoggedIn || idx === 0 ? (
+                    <Link href="/news" className="text-primary hover:text-blue-700 flex items-center gap-1">
+                      Đọc bài <ArrowRight size={16} />
+                    </Link>
+                  ) : (
+                    <span className="text-gray-400">Yêu cầu đăng nhập</span>
+                  )}
+                  <span className="text-gray-400 flex items-center gap-1.5">
+                    <CheckCircle2 size={14} /> {article.time}
+                  </span>
+                </div>
+              </div>
+            ))}
+
+            {/* Blur overlay for unauthenticated users */}
+            {!isLoggedIn && (
+              <div className="absolute inset-0 bg-gradient-to-t from-white via-white/80 to-transparent flex flex-col items-center justify-end pb-12 z-10">
+                <div className="bg-white p-6 rounded-2xl shadow-xl shadow-gray-200 text-center max-w-sm mx-auto border border-gray-100">
+                  <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Newspaper size={24} />
+                  </div>
+                  <h4 className="font-bold text-gray-900 text-lg mb-2">Đọc tin tức để luyện tập</h4>
+                  <p className="text-gray-500 text-sm mb-6">Đăng nhập để đọc toàn bộ tin tức được cập nhật hàng ngày và lưu từ vựng.</p>
+                  <Link href="/login?next=/news" className="block w-full bg-primary hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all">
+                    Đăng nhập để đọc
+                  </Link>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {isLoggedIn && (
+            <div className="mt-8 text-center md:hidden">
+              <Link href="/news" className="inline-flex items-center gap-2 text-blue-600 font-bold hover:text-blue-800 transition-colors">
+                Xem tất cả tin tức <ArrowRight size={18} />
+              </Link>
+            </div>
+          )}
+        </div>
+      </section>
+
       {/* Pricing / Final CTA Section */}
       <section className="py-24 px-6 relative overflow-hidden">
         <div className="absolute inset-0 bg-gray-900"></div>
@@ -317,9 +407,15 @@ export default function HomePage() {
 
       {/* Sticky Mobile CTA */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-gray-200 z-50">
-        <Link href="/register" className="flex items-center justify-center w-full bg-primary text-white text-lg font-bold py-4 rounded-xl shadow-lg">
-          Try AI Tutor Free
-        </Link>
+        {isLoggedIn ? (
+          <Link href="/dashboard" className="flex items-center justify-center w-full bg-primary text-white text-lg font-bold py-4 rounded-xl shadow-lg">
+            Vào Dashboard
+          </Link>
+        ) : (
+          <Link href="/register" className="flex items-center justify-center w-full bg-primary text-white text-lg font-bold py-4 rounded-xl shadow-lg">
+            Try AI Tutor Free
+          </Link>
+        )}
       </div>
     </div>
   )
