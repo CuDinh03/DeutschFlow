@@ -135,19 +135,48 @@ export default function LearnNodePage() {
 
         {/* ── Error ── */}
         {error && !loading && (
-          <div className="text-center py-16 text-red-500 bg-white rounded-3xl border-2 border-red-200">
-            <p className="text-sm">{error}</p>
+          <div className="flex flex-col items-center justify-center py-16 gap-4 bg-white rounded-3xl border-2 border-[#E2E8F0]">
+            <div className="w-16 h-16 rounded-full bg-[#EEF2FF] flex items-center justify-center text-3xl">📚</div>
+            <div className="text-center px-6">
+              <p className="font-bold text-[#0F172A] mb-1">{tLearn("aiCreating")}</p>
+              <p className="text-sm text-[#64748B]">{tLearn("comeBackLater")}</p>
+            </div>
+            <button onClick={() => router.push("/student/roadmap")}
+              className="px-5 py-2.5 rounded-xl bg-[#121212] text-white text-sm font-semibold">
+              ← {tLearn("backToRoadmap")}
+            </button>
           </div>
         )}
 
-        {/* ── No content ── */}
-        {session && !session.hasContent && !loading && (
-          <div className="flex flex-col items-center justify-center py-20 gap-4 bg-white rounded-3xl border-2 border-[#E2E8F0]">
-            <div className="w-16 h-16 rounded-full bg-[#FFCD00]/10 flex items-center justify-center text-3xl">⚡</div>
-            <p className="text-sm text-[#64748B]">{tLearn("aiCreating")}</p>
-            <p className="text-xs text-[#94A3B8]">{tLearn("comeBackLater")}</p>
+        {/* ── No content (A2/B1 placeholder nodes) ── */}
+        {session && !session.hasContent && !loading && !error && (
+          <div className="flex flex-col items-center justify-center py-16 gap-4 bg-white rounded-3xl border-2 border-[#E2E8F0]">
+            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#EEF2FF] to-[#E0E7FF] flex items-center justify-center text-4xl">
+              {session.emoji || "📖"}
+            </div>
+            <div className="text-center px-6 space-y-2">
+              <span className="inline-block text-xs font-bold px-2 py-0.5 rounded-full bg-[#FFCD00] text-[#121212] mb-1">
+                {session.cefrLevel}
+              </span>
+              <p className="font-bold text-[#0F172A] text-lg">{session.titleVi}</p>
+              <p className="text-sm text-[#64748B] italic">{session.titleDe}</p>
+              {session.descriptionVi && (
+                <p className="text-sm text-[#94A3B8] mt-2 max-w-sm">{session.descriptionVi}</p>
+              )}
+            </div>
+            <div className="rounded-2xl bg-[#FFFBEB] border border-[#FDE68A] px-6 py-4 text-center max-w-sm">
+              <p className="text-sm font-semibold text-[#92400E]">⚡ Nội dung đang được chuẩn bị</p>
+              <p className="text-xs text-[#B45309] mt-1">
+                Bài học {session.cefrLevel} sẽ sớm được cập nhật. Hãy hoàn thành các bài A1 trước!
+              </p>
+            </div>
+            <button onClick={() => router.push("/student/roadmap")}
+              className="px-5 py-2.5 rounded-xl bg-[#121212] text-white text-sm font-semibold">
+              ← Quay lại Lộ trình
+            </button>
           </div>
         )}
+
 
         {/* ── Content View Tabs ── */}
         {session?.hasContent && session.content && (

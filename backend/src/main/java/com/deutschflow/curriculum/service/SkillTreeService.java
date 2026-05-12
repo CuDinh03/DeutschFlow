@@ -75,7 +75,15 @@ public class SkillTreeService {
                     COALESCE(p.attempts, 0) AS user_attempts,
                     p.completed_at,
                     p.prefetch_status,
-                    CASE WHEN n.content_json IS NOT NULL THEN TRUE ELSE FALSE END AS has_content,
+                    CASE
+                        WHEN n.content_json IS NOT NULL
+                         AND (
+                           COALESCE(jsonb_array_length(n.content_json->'theory_cards'), 0) > 0
+                           OR COALESCE(jsonb_array_length(n.content_json->'vocabulary'), 0) > 0
+                           OR COALESCE(jsonb_array_length(n.content_json->'phrases'), 0) > 0
+                         )
+                        THEN TRUE ELSE FALSE
+                    END AS has_content,
                     CASE
                         WHEN NOT EXISTS (
                             SELECT 1 FROM skill_tree_node_dependencies d
@@ -144,9 +152,20 @@ public class SkillTreeService {
         // Parse content_json
         String contentJsonStr = (String) node.get("content_json");
         Object contentParsed = null;
+        boolean hasRealContent = false;
         if (contentJsonStr != null && !contentJsonStr.isBlank()) {
             try {
                 contentParsed = objectMapper.readValue(contentJsonStr, Object.class);
+                // hasContent chỉ true khi có nội dung thực sự (không phải empty arrays)
+                if (contentParsed instanceof java.util.Map<?,?> contentMap) {
+                    var theoryCards = contentMap.get("theory_cards");
+                    var vocabulary = contentMap.get("vocabulary");
+                    var phrases = contentMap.get("phrases");
+                    boolean hasTheory  = theoryCards instanceof java.util.List<?> l1 && !l1.isEmpty();
+                    boolean hasVocab   = vocabulary  instanceof java.util.List<?> l2 && !l2.isEmpty();
+                    boolean hasPhrases = phrases     instanceof java.util.List<?> l3 && !l3.isEmpty();
+                    hasRealContent = hasTheory || hasVocab || hasPhrases;
+                }
             } catch (Exception e) {
                 log.warn("[SkillTree] Failed to parse content_json for node={}", nodeId, e);
             }
@@ -166,13 +185,14 @@ public class SkillTreeService {
         result.put("moduleNumber", node.get("module_number"));
         result.put("moduleTitleVi", node.get("module_title_vi"));
         result.put("sessionType", node.get("session_type"));
-        result.put("content", contentParsed);
-        result.put("hasContent", contentParsed != null);
+        result.put("content", hasRealContent ? contentParsed : null);
+        result.put("hasContent", hasRealContent);
         result.put("dependenciesMet", depsMet);
         result.put("userStatus", currentStatus);
 
         return result;
     }
+
 
     // ─────────────────────────────────────────────────────────────
     // 2. UNLOCK NODE — Mở khóa Nhánh phụ (SATELLITE_LEAF)

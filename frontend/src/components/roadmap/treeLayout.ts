@@ -132,9 +132,13 @@ export function computeTreeLayout(apiNodes: SkillTreeNodeData[]): LayoutResult {
       const nid = `node-${cn.id}`;
       coreNodeIds.push(nid);
 
-      if (!currentNodeId && (cn.user_status === "IN_PROGRESS" || cn.user_status === "UNLOCKED")) {
+      // Only set as current if node actually has content (skip A2/B1 placeholder nodes)
+      const nodeHasContent = (cn as any).has_content === true || (cn as any).has_content === 1;
+      if (!currentNodeId && (cn.user_status === "IN_PROGRESS" || cn.user_status === "UNLOCKED") && nodeHasContent) {
         currentNodeId = nid;
       }
+      // Fallback: if no content-bearing node found yet, still track first active node
+      // (will be overridden below if a content node exists)
 
       rfNodes.push({
         id: nid, type: "skillNode",
@@ -167,7 +171,8 @@ export function computeTreeLayout(apiNodes: SkillTreeNodeData[]): LayoutResult {
       const columnH = total * NODE_H + Math.max(0, total - 1) * SAT_GAP_V;
       const y = coreBlockCenterY - columnH / 2 + idx * (NODE_H + SAT_GAP_V);
 
-      if (!currentNodeId && (sat.user_status === "IN_PROGRESS" || sat.user_status === "UNLOCKED")) {
+      const satHasContent = (sat as any).has_content === true || (sat as any).has_content === 1;
+      if (!currentNodeId && (sat.user_status === "IN_PROGRESS" || sat.user_status === "UNLOCKED") && satHasContent) {
         currentNodeId = nid;
       }
 
