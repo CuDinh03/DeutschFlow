@@ -103,9 +103,12 @@ export function VocabCard({ vocab, autoPlay = false }: { vocab: VocabItem; autoP
 
   return (
     <div className="rounded-xl border border-[#E2E8F0] bg-white p-3 space-y-2">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <GenderBadge gender={vocab.gender} label={vocab.gender_label} />
         <span className="font-bold text-[#0F172A] text-sm">{vocab.german}</span>
+        {vocab.ai_speech_hints?.ipa_target && (
+          <span className="text-xs text-[#64748B] font-mono">{vocab.ai_speech_hints.ipa_target}</span>
+        )}
         <AudioButton text={vocab.speak_de} compact />
       </div>
 
@@ -126,7 +129,12 @@ export function VocabCard({ vocab, autoPlay = false }: { vocab: VocabItem; autoP
       {showMeaning && (
         <div className="space-y-1 animate-in fade-in duration-200">
           <p className="text-sm text-[#475569]">{vocab.meaning}</p>
-          <p className="text-xs text-[#94A3B8] italic">"{vocab.example_de}"</p>
+          {vocab.example_de && (
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-[#94A3B8] italic">"{vocab.example_de}"</p>
+              <AudioButton text={vocab.example_de} compact />
+            </div>
+          )}
           <p className="text-xs text-[#94A3B8]">→ {vocab.example_vi}</p>
           {vocab.tags.length > 0 && (
             <div className="flex flex-wrap gap-1 pt-1">
