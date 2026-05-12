@@ -466,16 +466,21 @@ public class WiktionaryEnrichmentBatchService {
     public Map<String, Object> runGenderOnlyBatch(Integer limitOverride) {
         int cap = Math.min(limitOverride != null && limitOverride > 0 ? limitOverride : 100, 500);
 
-        // Count how many nouns still lack gender
+        // Count how many nouns still lack gender (in nouns table OR no nouns row at all)
         Integer remaining = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM nouns WHERE gender IS NULL",
+                "SELECT COUNT(*) FROM words w" +
+                " WHERE w.dtype = 'Noun'" +
+                "   AND (NOT EXISTS (SELECT 1 FROM nouns n WHERE n.id = w.id)" +
+                "     OR EXISTS (SELECT 1 FROM nouns n WHERE n.id = w.id AND n.gender IS NULL))",
                 Integer.class);
 
-        // Fetch nouns missing gender — A1/A2 first
+        // Fetch nouns missing gender — includes words missing nouns row entirely
         List<Map<String, Object>> targets = jdbcTemplate.queryForList(
                 "SELECT w.id, w.base_form, w.cefr_level" +
-                " FROM words w JOIN nouns n ON n.id = w.id" +
-                " WHERE n.gender IS NULL" +
+                " FROM words w" +
+                " WHERE w.dtype = 'Noun'" +
+                "   AND (NOT EXISTS (SELECT 1 FROM nouns n WHERE n.id = w.id)" +
+                "     OR EXISTS (SELECT 1 FROM nouns n WHERE n.id = w.id AND n.gender IS NULL))" +
                 " ORDER BY CASE COALESCE(w.cefr_level,'ZZ')" +
                 "   WHEN 'A1' THEN 1 WHEN 'A2' THEN 2 WHEN 'B1' THEN 3" +
                 "   WHEN 'B2' THEN 4 WHEN 'C1' THEN 5 WHEN 'C2' THEN 6 ELSE 99 END, w.id ASC" +
