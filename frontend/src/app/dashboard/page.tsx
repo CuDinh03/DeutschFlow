@@ -64,34 +64,58 @@ export default function DashboardPage() {
     else setRefreshing(true);
     setError(null);
     try {
-      const [meRes, todayRes] = await Promise.all([
+      const [meRes, todayRes, dashRes, errRes] = await Promise.all([
         api.get("/auth/me"),
         api.get("/today/me").catch(() => ({ data: null })),
+        api.get("/student/dashboard").catch(() => ({ data: null })),
+        api.get("/error-skills/me").catch(() => ({ data: [] })),
       ]);
       const me = meRes.data;
       const nameParts = (me.displayName ?? me.email ?? "").split(" ");
+      const dashData = dashRes.data;
+      const todayData = todayRes.data;
+      const errorsData = errRes.data || [];
+
+      // Streak comes from dashData or fallback
+      const currentStreak = dashData?.streakDays ?? todayData?.progress?.streakDays ?? me.currentStreak ?? 0;
+
       setProfile({
         displayName: me.displayName ?? me.email ?? t("student"),
         role: me.role ?? "STUDENT",
         targetLevel: me.learningTargetLevel ?? "A1",
-        streakDays: me.streakDays ?? 0,
+        streakDays: currentStreak,
         initials: nameParts.map((p: string) => p[0]).join("").slice(0, 2).toUpperCase() || "DF",
       });
 
-      const todayData = todayRes.data;
-      if (todayData) {
-        setPlan(todayData);
-      } else {
-        // Fallback mock when API not yet fully mapped
-        setPlan({
-          userId: me.id,
-          date: new Date().toISOString(),
-          dailyGoalProgress: 0,
-          streakDays: me.streakDays ?? 0,
-          suggestedLessons: [],
-          errorReviewList: [],
-        });
+      // Calculate progress based on weekly minutes or sessions
+      let progressPercent = 0;
+      if (dashData && dashData.weeklyTargetMinutes > 0) {
+        progressPercent = Math.min(100, Math.round((dashData.weeklyMinutesStudied / dashData.weeklyTargetMinutes) * 100));
+      } else if (dashData && dashData.sessionsPerWeek > 0) {
+        progressPercent = Math.min(100, Math.round((dashData.completedSessionsThisWeek / dashData.sessionsPerWeek) * 100));
       }
+
+      // Extract error review items for the UI
+      const errorReviewList = (Array.isArray(errorsData) ? errorsData : []).slice(0, 3).map((err: any) => ({
+        id: err.errorCode,
+        category: err.errorCode,
+        mistake: err.sampleWrong || "Lỗi ngữ pháp",
+        correction: err.sampleCorrected || "Cần ôn tập",
+      }));
+
+      setPlan({
+        userId: me.id,
+        date: new Date().toISOString(),
+        dailyGoalProgress: progressPercent,
+        streakDays: currentStreak,
+        rollingAccuracyPercent: todayData?.progress?.rollingAccuracyPercent ?? 100,
+        suggestedLessons: [],
+        errorReviewList: errorReviewList,
+        repairTasksDue: todayData?.dueRepairTasks || [],
+        suggestedTopic: todayData?.recommendedSpeaking?.topic,
+        suggestedCefr: todayData?.recommendedSpeaking?.cefr,
+      });
+
     } catch {
       setError(t("loadError"));
     } finally {

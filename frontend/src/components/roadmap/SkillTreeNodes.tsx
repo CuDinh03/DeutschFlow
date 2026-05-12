@@ -193,7 +193,7 @@ export const WeekMarkerNode = memo(({ data }: NodeProps) => {
         </p>
         {d.phase && (
           <p style={{ fontSize: 9, color: "#94A3B8", margin: 0 }}>
-            {d.phase === "PHASE_1" ? tRoadmap("phase1") : tRoadmap("phase2")}
+            {d.phase === "PHASE_1" || d.phase === "FOUNDATION" ? tRoadmap("phase1") : tRoadmap("phase2")}
           </p>
         )}
       </div>
