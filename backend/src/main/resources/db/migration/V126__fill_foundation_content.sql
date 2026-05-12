@@ -67,7 +67,7 @@ SET content_json = '{
     {
       "type": "PRONUNCIATION",
       "title": {"de": "Vokale und Diphthonge", "vi": "Nguyên âm và nguyên âm kép"},
-      "content": {"de": "ei = ai, ie = i dài, eu = oi", "vi": "ei đọc là 'ai', ie đọc là 'i' kéo dài, eu/äu đọc là 'oi'."},
+      "content": {"de": "ei = ai, ie = i dài, eu = oi", "vi": "ei đọc là ''ai'', ie đọc là ''i'' kéo dài, eu/äu đọc là ''oi''."},
       "tags": ["#Phonetik"]
     }
   ],
