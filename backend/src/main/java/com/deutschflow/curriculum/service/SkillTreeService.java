@@ -139,7 +139,7 @@ public class SkillTreeService {
 
         // Load current user progress status (safe — returns LOCKED if no row yet)
         List<String> statusRows = jdbcTemplate.queryForList(
-            "SELECT status FROM skill_tree_progress WHERE user_id = ? AND node_id = ?",
+            "SELECT status FROM skill_tree_user_progress WHERE user_id = ? AND node_id = ?",
             String.class, userId, nodeId);
         String currentStatus = statusRows.isEmpty() ? "LOCKED" : statusRows.get(0);
 
