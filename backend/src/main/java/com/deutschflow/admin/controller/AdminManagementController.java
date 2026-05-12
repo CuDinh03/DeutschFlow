@@ -18,6 +18,7 @@ import com.deutschflow.vocabulary.service.VocabularyResetService;
 import com.deutschflow.vocabulary.service.WiktionaryIpaBatchService;
 import com.deutschflow.vocabulary.service.WiktionaryEnrichmentBatchService;
 import com.deutschflow.vocabulary.service.LlmViTranslationService;
+import com.deutschflow.vocabulary.service.LlmDtypeFixService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
@@ -56,6 +57,7 @@ public class AdminManagementController {
     private final UserNotificationService userNotificationService;
     private final CacheManager cacheManager;
     private final LlmViTranslationService llmViTranslationService;
+    private final LlmDtypeFixService llmDtypeFixService;
 
     // ── Cache Management ──────────────────────────────────────────────────
 
@@ -342,7 +344,29 @@ public class AdminManagementController {
         return result;
     }
 
-    /** DeepL DE→EN/VI cho từ thiếu nghĩa (cần {@code DEEPL_API_KEY}). */
+    /**
+     * Phase 1: Fix word dtype (part-of-speech) using suffix rules + LLM.
+     * Dry-run by default — set dryRun=false to actually apply fixes.
+     * POST /api/admin/vocabulary/dtype-fix/batch?limit=200&useLlm=true&dryRun=true
+     */
+    @PostMapping("/vocabulary/dtype-fix/batch")
+    public Map<String, Object> runDtypeFixBatch(
+            @RequestParam(required = false) Integer limit,
+            @RequestParam(defaultValue = "true")  boolean useLlm,
+            @RequestParam(defaultValue = "true")  boolean dryRun,
+            Authentication authentication
+    ) {
+        Map<String, Object> result = llmDtypeFixService.runBatch(limit, useLlm, dryRun);
+        if (!dryRun) {
+            auditLogService.log("admin.vocabulary.dtype-fix.batch.triggered", null,
+                    actorEmail(authentication), actorRole(authentication),
+                    "VOCABULARY_IMPORT", "dtype-fix",
+                    Map.of("totalFixed", result.getOrDefault("totalFixed", 0),
+                            "status", result.get("status")));
+        }
+        return result;
+    }
+
     @PostMapping("/vocabulary/deepl-lemma-backfill/batch")
     public Map<String, Object> runDeepLLemmaBackfillBatch(
             @RequestParam(required = false) Integer limit,

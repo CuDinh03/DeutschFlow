@@ -544,6 +544,119 @@ function LlmViPanel({ onDone }: { onDone: () => void }) {
   )
 }
 
+// ─── DtypeFixPanel ──────────────────────────────────────────────────────────
+
+function DtypeFixPanel() {
+  const [limit, setLimit]   = useState(500)
+  const [useLlm, setUseLlm] = useState(true)
+  const [dryRun, setDryRun] = useState(true)
+  const [running, setRunning] = useState(false)
+  const [result, setResult]   = useState<any>(null)
+  const [error, setError]     = useState('')
+
+  const run = async () => {
+    setRunning(true); setResult(null); setError('')
+    try {
+      const data = await adminPost(
+        `/admin/vocabulary/dtype-fix/batch?limit=${limit}&useLlm=${useLlm}&dryRun=${dryRun}`,
+        {},
+        { longRunning: true }
+      )
+      setResult(data)
+    } catch (e: unknown) { setError(apiMessage(e)) }
+    finally { setRunning(false) }
+  }
+
+  return (
+    <div className="bg-white rounded-[16px] border border-[#E2E8F0] shadow-sm overflow-hidden">
+      <div className="px-5 py-4 border-b border-[#F0F4F8] flex items-center gap-3">
+        <div className="w-9 h-9 rounded-[10px] bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center">
+          <span className="text-lg">🔧</span>
+        </div>
+        <div>
+          <h3 className="font-semibold text-[#0F172A] text-sm">Phase 1 — Sửa dtype (loại từ)</h3>
+          <p className="text-[#94A3B8] text-xs">
+            Tự động sửa Noun sai thành Adjective/Conjunction/Verb/… bằng suffix rules + LLM
+          </p>
+        </div>
+        <span className="ml-auto text-[10px] font-bold px-2 py-1 rounded-full bg-orange-100 text-orange-700">PHASE 1</span>
+      </div>
+      <div className="px-5 py-4 space-y-3">
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label className="block text-xs font-medium text-[#0F172A] mb-1.5">Số từ (max 1000)</label>
+            <input type="number" min={1} max={1000} value={limit}
+              onChange={e => setLimit(Math.max(1, Math.min(1000, parseInt(e.target.value) || 200)))}
+              className="w-24 px-3 py-2 rounded-[8px] border border-[#E2E8F0] text-sm focus:outline-none focus:ring-2 focus:ring-orange-400/40" />
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer pb-2">
+            <div onClick={() => setUseLlm(v => !v)}
+              className={`w-9 h-5 rounded-full transition-colors relative cursor-pointer ${useLlm ? 'bg-orange-500' : 'bg-[#CBD5E1]'}`}>
+              <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${useLlm ? 'translate-x-4' : 'translate-x-0.5'}`} />
+            </div>
+            <span className="text-xs text-[#64748B]">Dùng LLM cho từ khó</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer pb-2">
+            <div onClick={() => setDryRun(v => !v)}
+              className={`w-9 h-5 rounded-full transition-colors relative cursor-pointer ${dryRun ? 'bg-blue-500' : 'bg-red-400'}`}>
+              <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${dryRun ? 'translate-x-0.5' : 'translate-x-4'}`} />
+            </div>
+            <span className="text-xs text-[#64748B]">{dryRun ? '👁 Dry Run (xem trước)' : '⚠️ Áp dụng thực'}</span>
+          </label>
+          <button onClick={run} disabled={running}
+            className="flex items-center gap-2 px-4 py-2 rounded-[8px] disabled:opacity-60 text-white text-sm font-semibold transition-all"
+            style={{ background: running ? '#d97706' : dryRun ? 'linear-gradient(135deg,#f59e0b,#d97706)' : 'linear-gradient(135deg,#ea580c,#dc2626)' }}>
+            {running ? <span className="animate-spin inline-block w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full" /> : <span>🔧</span>}
+            {running ? 'Đang xử lý…' : dryRun ? 'Xem trước' : 'Sửa thực sự'}
+          </button>
+        </div>
+        <p className="text-[#94A3B8] text-[11px]">
+          Bước 1: Chạy <strong>Dry Run</strong> để xem preview. Bước 2: Tắt Dry Run rồi chạy thực để ghi vào DB.
+        </p>
+        {error && (
+          <div className="flex items-center gap-2 text-red-600 text-xs bg-red-50 border border-red-200 rounded-[8px] px-3 py-2">
+            <XCircle size={13} /> {error}
+          </div>
+        )}
+        {result && (
+          <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+            className="bg-orange-50 border border-orange-200 rounded-[10px] px-4 py-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 size={13} className="text-orange-600" />
+              <span className="text-orange-800 text-xs font-semibold">
+                {result.dryRun ? 'Preview (chưa ghi)' : 'Hoàn thành'} — {result.status}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs">
+              {[
+                ['Đã xử lý', result.processed],
+                ['Suffix fix', result.suffixFixed],
+                ['LLM fix', result.llmFixed],
+                ['Tổng fix', result.totalFixed],
+                ['Không đổi', result.unchanged],
+              ].map(([l, v]) => (
+                <span key={String(l)} className="bg-white border border-orange-100 rounded px-2 py-1">
+                  {l}: <strong>{v}</strong>
+                </span>
+              ))}
+            </div>
+            {result.preview && result.preview.length > 0 && (
+              <div className="mt-2">
+                <p className="text-orange-700 text-[11px] font-semibold mb-1">Preview (tối đa 20 thay đổi):</p>
+                <div className="max-h-32 overflow-y-auto space-y-0.5">
+                  {result.preview.map((line: string, i: number) => (
+                    <div key={i} className="text-[10px] font-mono text-orange-800 bg-orange-100 rounded px-2 py-0.5">{line}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 
 export default function VocabularyAdminPage() {
   const uiLocale = useLocale()
@@ -894,6 +1007,9 @@ export default function VocabularyAdminPage() {
 
         {/* LLM VI Translation (recommended replacement for Glosbe) */}
         <LlmViPanel onDone={() => fetchWords(page)} />
+
+        {/* Phase 1: dtype Fix (part-of-speech correction) */}
+        <DtypeFixPanel />
 
         {/* Reset & Reimport */}
         <div className="bg-white rounded-[16px] border border-red-200 shadow-sm overflow-hidden">
