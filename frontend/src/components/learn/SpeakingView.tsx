@@ -7,6 +7,8 @@ import { AudioButton } from "./LearnComponents";
 import api from "@/lib/api";
 import { useTranslations } from "next-intl";
 
+import { subscribeToJobSse } from "@/lib/jobSseApi";
+
 interface PronunciationFeedback {
   overall_score: number;
   words: Array<{
@@ -37,6 +39,7 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animFrameRef = useRef<number>(0);
   const streamRef = useRef<MediaStream | null>(null);
+  const sseCtrlRef = useRef<AbortController | null>(null);
 
   // Build drill list from phrases + examples
   const drills = [
@@ -85,6 +88,7 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
   // ── Start Recording ──
   const startRecording = useCallback(async () => {
     try {
+      if (sseCtrlRef.current) sseCtrlRef.current.abort();
       setError(null);
       setFeedback(null);
       const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -149,47 +153,60 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
     }
   }, [recording]);
 
-  // ── Send to Groq LLM for pronunciation evaluation ──
+  // ── Send to Database Queue and poll via SSE ──
   const handleRecordingComplete = useCallback(async (mimeType: string) => {
     if (audioChunksRef.current.length === 0 || !currentDrill) return;
     setEvaluating(true);
 
-    try {
-      const blobType = mimeType || "audio/webm";
-      const blob = new Blob(audioChunksRef.current, { type: blobType });
-      const extension = blobType.includes("mp4") ? "m4a" : "webm";
-      
-      const formData = new FormData();
-      formData.append("audio", blob, `recording.${extension}`);
-      formData.append("originalText", currentDrill.text);
+    const blobType = mimeType || "audio/webm";
+    const blob = new Blob(audioChunksRef.current, { type: blobType });
+    const extension = blobType.includes("mp4") ? "m4a" : "webm";
+    
+    const reader = new FileReader();
+    reader.readAsDataURL(blob);
+    reader.onloadend = async () => {
+      const base64data = reader.result?.toString().split(',')[1];
+      if (!base64data) return;
 
-      // Get focus phonemes from vocabulary
-      const focusPhonemes = content.vocabulary
-        .flatMap((v) => v.ai_speech_hints?.focus_phonemes ?? [])
-        .slice(0, 5);
-      formData.append("focusPhonemes", JSON.stringify(focusPhonemes));
+      try {
+        const focusPhonemes = content.vocabulary
+          .flatMap((v) => v.ai_speech_hints?.focus_phonemes ?? [])
+          .slice(0, 5);
 
-      const { data } = await api.post<PronunciationFeedback>(
-        "/skill-tree/evaluate-pronunciation",
-        formData,
-        { headers: { "Content-Type": "multipart/form-data" } }
-      );
-      setFeedback(data);
-
-      if (data.overall_score >= 80) {
-        setCompletedDrills((prev) => {
-          const next = new Set(prev).add(currentDrillIndex);
-          if (next.size >= drills.length * 0.8) {
-            markTabCompleted("speaking", data.overall_score);
-          }
-          return next;
+        const { data } = await api.post<{ jobId: number }>("/jobs/pronunciation-eval", {
+          originalText: currentDrill.text,
+          audioBase64: base64data,
+          filename: `recording.${extension}`,
+          focusPhonemes,
         });
+
+        sseCtrlRef.current = subscribeToJobSse<PronunciationFeedback>(
+          data.jobId,
+          (result) => {
+            setFeedback(result);
+            setEvaluating(false);
+
+            if (result.overall_score >= 80) {
+              setCompletedDrills((prev) => {
+                const next = new Set(prev).add(currentDrillIndex);
+                if (next.size >= drills.length * 0.8) {
+                  markTabCompleted("speaking", result.overall_score);
+                }
+                return next;
+              });
+            }
+          },
+          (errMsg) => {
+            setError(errMsg);
+            setEvaluating(false);
+          }
+        );
+
+      } catch {
+        setError("Đánh giá thất bại. Vui lòng thử lại.");
+        setEvaluating(false);
       }
-    } catch {
-      setError("Đánh giá thất bại. Vui lòng thử lại.");
-    } finally {
-      setEvaluating(false);
-    }
+    };
   }, [currentDrillIndex, currentDrill, content.vocabulary, drills.length, markTabCompleted]);
 
   // Keep the ref updated with the latest closure
