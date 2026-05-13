@@ -193,7 +193,8 @@ export default function ListeningView({ content }: { content: NodeContent }) {
 
               if (isBlank) {
                 const userInput = fillBlanks[i] ?? "";
-                const isCorrect = userInput.toLowerCase().trim() === w.word.toLowerCase().trim();
+                const stripPunc = (s: string) => s.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "");
+                const isCorrect = stripPunc(userInput).toLowerCase().trim() === stripPunc(w.word).toLowerCase().trim();
                 return (
                   <input
                     key={i}

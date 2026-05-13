@@ -767,7 +767,9 @@ public class SkillTreeService {
                         result.usage().totalTokens(), "PRONUNCIATION_EVAL", null, null);
             }
 
-            return objectMapper.convertValue(parsed, Map.class);
+            Map<String, Object> finalResult = objectMapper.convertValue(parsed, Map.class);
+            finalResult.put("transcribed", transcribedText);
+            return finalResult;
         } catch (Exception e) {
             log.error("[SkillTree] Pronunciation eval failed: {}", e.getMessage());
             return Map.of("overall_score", 0, "words", List.of(), "tips", List.of("Đánh giá thất bại. Vui lòng thử lại."));

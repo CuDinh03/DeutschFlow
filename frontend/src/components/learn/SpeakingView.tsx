@@ -16,6 +16,7 @@ interface PronunciationFeedback {
     ipa_expected?: string;
   }>;
   tips: string[];
+  transcribed?: string;
 }
 
 export default function SpeakingView({ content }: { content: NodeContent }) {
@@ -272,6 +273,13 @@ export default function SpeakingView({ content }: { content: NodeContent }) {
               <p className="text-xs text-[#64748B]">Điểm phát âm</p>
             </div>
           </div>
+          
+          {feedback.transcribed && (
+            <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+              <p className="text-xs font-bold text-[#64748B] uppercase mb-1">STT Nghe được:</p>
+              <p className="text-sm italic text-[#334155]">"{feedback.transcribed}"</p>
+            </div>
+          )}
 
           {/* Word-by-word feedback */}
           <div className="flex flex-wrap gap-1">

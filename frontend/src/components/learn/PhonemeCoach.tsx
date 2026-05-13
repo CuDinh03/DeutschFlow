@@ -225,9 +225,13 @@ export default function PhonemeCoach({ target, meaningVi, onSuccess }: PhonemeCo
                 <div>
                   <p className="text-2xl">{result.emoji}</p>
                   <p className="text-sm font-bold text-[#0F172A] mt-1">{result.feedbackVi}</p>
-                  {result.transcribed && (
+                  {result.transcribed ? (
                     <p className="text-xs text-[#64748B] mt-1">
                       Nghe được: <em>&ldquo;{result.transcribed}&rdquo;</em>
+                    </p>
+                  ) : (
+                    <p className="text-xs text-red-500 mt-1 font-medium">
+                      Nghe được: [Trống / Không thu được tiếng]
                     </p>
                   )}
                 </div>
