@@ -4,10 +4,12 @@ import java.time.LocalDateTime;
 
 public record ReviewGradeResponse(
         long id,
-        int quality,
-        int repetitions,
-        int intervalDays,
-        double easeFactor,
+        int rating,
+        int state,
+        double difficulty,
+        double stability,
+        int lapses,
+        int reps,
         LocalDateTime nextDueAt
 ) {
 }

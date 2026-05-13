@@ -14,10 +14,10 @@ interface ReviewCardProps {
 }
 
 const RATINGS = [
-  { quality: 0, label: "😰 Quên", color: "bg-red-100 text-red-700 border-red-200 hover:bg-red-200" },
+  { quality: 1, label: "😰 Quên", color: "bg-red-100 text-red-700 border-red-200 hover:bg-red-200" },
   { quality: 2, label: "😅 Khó", color: "bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-200" },
-  { quality: 4, label: "😊 OK", color: "bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200" },
-  { quality: 5, label: "🌟 Dễ", color: "bg-green-100 text-green-700 border-green-200 hover:bg-green-200" },
+  { quality: 3, label: "😊 Nhớ", color: "bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200" },
+  { quality: 4, label: "🌟 Dễ", color: "bg-green-100 text-green-700 border-green-200 hover:bg-green-200" },
 ];
 
 export default function ReviewCard({

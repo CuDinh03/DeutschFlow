@@ -42,6 +42,21 @@ public class LearningReviewItem {
     @Column(name = "ease_factor", nullable = false, precision = 4, scale = 2)
     private BigDecimal easeFactor;
 
+    @Column(name = "state", nullable = false)
+    private int state;
+
+    @Column(name = "difficulty", nullable = false, precision = 5, scale = 2)
+    private BigDecimal difficulty;
+
+    @Column(name = "stability", nullable = false, precision = 8, scale = 4)
+    private BigDecimal stability;
+
+    @Column(name = "lapses", nullable = false)
+    private int lapses;
+
+    @Column(name = "last_reviewed_state")
+    private Integer lastReviewedState;
+
     @Column(name = "due_at", nullable = false)
     private LocalDateTime dueAt;
 
@@ -61,6 +76,12 @@ public class LearningReviewItem {
         updatedAt = now;
         if (easeFactor == null) {
             easeFactor = BigDecimal.valueOf(2.5);
+        }
+        if (difficulty == null) {
+            difficulty = BigDecimal.ZERO;
+        }
+        if (stability == null) {
+            stability = BigDecimal.ZERO;
         }
         if (dueAt == null) {
             dueAt = now;

@@ -6,6 +6,7 @@ import com.deutschflow.user.dto.ReviewDueResponse;
 import com.deutschflow.user.dto.ReviewGradeResponse;
 import com.deutschflow.user.entity.LearningReviewItem;
 import com.deutschflow.user.entity.User;
+import com.deutschflow.user.fsrs.FsrsAlgorithm;
 import com.deutschflow.user.repository.LearningReviewItemRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -51,9 +52,11 @@ public class ReviewQueueService {
                         item.getItemType().name(),
                         item.getItemRef(),
                         item.getPrompt(),
+                        item.getState(),
+                        item.getDifficulty() != null ? item.getDifficulty().doubleValue() : 0.0,
+                        item.getStability() != null ? item.getStability().doubleValue() : 0.0,
+                        item.getLapses(),
                         item.getRepetitions(),
-                        item.getIntervalDays(),
-                        item.getEaseFactor().doubleValue(),
                         item.getDueAt()
                 )).toList()
         );
@@ -64,25 +67,50 @@ public class ReviewQueueService {
         LearningReviewItem item = learningReviewItemRepository.findByIdAndUserId(reviewId, user.getId())
                 .orElseThrow(() -> new NotFoundException("Review item not found"));
 
-        Sm2Result next = applySm2(
+        // FSRS rating bounds: 1 to 4
+        // If frontend still sends SM-2 (0-5), map it roughly:
+        // SM-2: 0,1,2 -> FSRS: 1 (Again)
+        // SM-2: 3 -> FSRS: 2 (Hard)
+        // SM-2: 4 -> FSRS: 3 (Good)
+        // SM-2: 5 -> FSRS: 4 (Easy)
+        int rating;
+        if (quality <= 2) rating = 1;
+        else if (quality == 3) rating = 2;
+        else if (quality == 4) rating = 3;
+        else rating = 4; // if >= 5
+
+        FsrsAlgorithm.Card card = new FsrsAlgorithm.Card(
+                item.getState(),
+                item.getDifficulty() != null ? item.getDifficulty().doubleValue() : 0.0,
+                item.getStability() != null ? item.getStability().doubleValue() : 0.0,
+                item.getLapses(),
                 item.getRepetitions(),
-                item.getIntervalDays(),
-                item.getEaseFactor().doubleValue(),
-                quality
+                item.getLastReviewedAt()
         );
-        item.setRepetitions(next.repetitions());
-        item.setIntervalDays(next.intervalDays());
-        item.setEaseFactor(BigDecimal.valueOf(next.easeFactor()).setScale(2, RoundingMode.HALF_UP));
+
+        FsrsAlgorithm.SchedulingResult result = FsrsAlgorithm.calculate(card, rating, LocalDateTime.now());
+
+        item.setLastReviewedState(item.getState());
+        item.setState(result.newState());
+        item.setDifficulty(BigDecimal.valueOf(result.newDifficulty()).setScale(2, RoundingMode.HALF_UP));
+        item.setStability(BigDecimal.valueOf(result.newStability()).setScale(4, RoundingMode.HALF_UP));
+        item.setLapses(result.newLapses());
+        item.setRepetitions(result.newReps());
+        
+        item.setIntervalDays(result.intervalDays());
+        
         item.setLastReviewedAt(LocalDateTime.now());
-        item.setDueAt(LocalDateTime.now().plusDays(next.intervalDays()));
+        item.setDueAt(LocalDateTime.now().plusDays(result.intervalDays()));
         learningReviewItemRepository.save(item);
 
         return new ReviewGradeResponse(
                 item.getId(),
-                quality,
+                rating,
+                item.getState(),
+                item.getDifficulty().doubleValue(),
+                item.getStability().doubleValue(),
+                item.getLapses(),
                 item.getRepetitions(),
-                item.getIntervalDays(),
-                item.getEaseFactor().doubleValue(),
                 item.getDueAt()
         );
     }
@@ -98,9 +126,9 @@ public class ReviewQueueService {
                         .itemType(LearningReviewItem.ItemType.GRAMMAR)
                         .itemRef("A1-ARTICLES-001")
                         .prompt("Chọn đúng mạo từ cho danh từ giống đực.")
-                        .repetitions(0)
-                        .intervalDays(0)
-                        .easeFactor(BigDecimal.valueOf(2.5))
+                        .state(FsrsAlgorithm.STATE_NEW)
+                        .difficulty(BigDecimal.ZERO)
+                        .stability(BigDecimal.ZERO)
                         .dueAt(now)
                         .build(),
                 LearningReviewItem.builder()
@@ -108,9 +136,9 @@ public class ReviewQueueService {
                         .itemType(LearningReviewItem.ItemType.GRAMMAR)
                         .itemRef("A1-WORD-ORDER-001")
                         .prompt("Sắp xếp câu Hauptsatz với động từ ở vị trí thứ 2.")
-                        .repetitions(0)
-                        .intervalDays(0)
-                        .easeFactor(BigDecimal.valueOf(2.5))
+                        .state(FsrsAlgorithm.STATE_NEW)
+                        .difficulty(BigDecimal.ZERO)
+                        .stability(BigDecimal.ZERO)
                         .dueAt(now)
                         .build(),
                 LearningReviewItem.builder()
@@ -118,41 +146,12 @@ public class ReviewQueueService {
                         .itemType(LearningReviewItem.ItemType.WORD)
                         .itemRef("VOCAB-A1-DAILY-001")
                         .prompt("Ôn lại nhóm từ vựng sinh hoạt hằng ngày A1.")
-                        .repetitions(0)
-                        .intervalDays(0)
-                        .easeFactor(BigDecimal.valueOf(2.5))
+                        .state(FsrsAlgorithm.STATE_NEW)
+                        .difficulty(BigDecimal.ZERO)
+                        .stability(BigDecimal.ZERO)
                         .dueAt(now)
                         .build()
         );
         learningReviewItemRepository.saveAll(seeds);
-    }
-
-    private Sm2Result applySm2(int repetitions, int intervalDays, double easeFactor, int quality) {
-        double ef = easeFactor;
-        int reps = repetitions;
-        int interval;
-
-        if (quality < 3) {
-            reps = 0;
-            interval = 1;
-        } else {
-            if (reps == 0) {
-                interval = 1;
-            } else if (reps == 1) {
-                interval = 6;
-            } else {
-                interval = Math.max(1, (int) Math.round(intervalDays * ef));
-            }
-            reps += 1;
-        }
-
-        ef = ef + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
-        if (ef < 1.3) {
-            ef = 1.3;
-        }
-        return new Sm2Result(reps, interval, ef);
-    }
-
-    private record Sm2Result(int repetitions, int intervalDays, double easeFactor) {
     }
 }

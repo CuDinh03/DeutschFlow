@@ -13,9 +13,11 @@ public record ReviewDueResponse(
             String itemType,
             String itemRef,
             String prompt,
-            int repetitions,
-            int intervalDays,
-            double easeFactor,
+            int state,
+            double difficulty,
+            double stability,
+            int lapses,
+            int reps,
             LocalDateTime dueAt
     ) {
     }
