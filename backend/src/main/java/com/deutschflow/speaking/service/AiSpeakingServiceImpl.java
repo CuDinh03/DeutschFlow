@@ -104,6 +104,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
     private final XpService xpService;
     private final InterviewEvaluationService interviewEvaluationService;
     private final com.deutschflow.system.service.SystemConfigService systemConfigService;
+    private final com.deutschflow.ai.rag.service.KnowledgeBaseService knowledgeBaseService;
 
     @Override
     public AiSpeakingSessionDto createSession(Long userId, String topic, String cefrLevel, String personaRaw,
@@ -314,6 +315,11 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
                 session.getInterviewPosition(), session.getExperienceLevel(), session.getMessageCount())
                 : promptBuilder.buildSystemPrompt(
                 effectiveProfile, knownInterests, session.getTopic(), weakPoints, session.getCefrLevel(), persona, responseSchema, sessionMode);
+
+        String ragContext = knowledgeBaseService.searchRelevantContext(userMessage, session.getCefrLevel(), 2);
+        if (ragContext != null && !ragContext.isBlank()) {
+            systemPrompt += "\n\n=== TÀI LIỆU HỖ TRỢ (RAG CONTEXT) ===\n" + ragContext;
+        }
 
         List<ChatMessage> openAiMessages = new ArrayList<>();
         openAiMessages.add(new ChatMessage("system", systemPrompt));
