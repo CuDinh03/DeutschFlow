@@ -56,9 +56,9 @@ export default function ClassDetailPage() {
   const fetchData = async () => {
     try {
       const [studentsRes, analyticsRes, assignmentsRes] = await Promise.all([
-        api.get<ClassStudent[]>(`/teacher/classes/${id}/students`),
-        api.get<ClassAnalytics[]>(`/teacher/classes/${id}/analytics`),
-        api.get<ClassAssignment[]>(`/teacher/classes/${id}/assignments`),
+        api.get<ClassStudent[]>(`/v2/teacher/classes/${id}/students`),
+        api.get<ClassAnalytics[]>(`/v2/teacher/classes/${id}/analytics`),
+        api.get<ClassAssignment[]>(`/v2/teacher/classes/${id}/assignments`),
       ]);
       setStudents(studentsRes.data || []);
       setAnalytics(analyticsRes.data || []);
@@ -74,7 +74,7 @@ export default function ClassDetailPage() {
     e.preventDefault();
     if (!newTopic) return;
     try {
-      await api.post(`/teacher/classes/${id}/assignments`, {
+      await api.post(`/v2/teacher/classes/${id}/assignments`, {
         topic: newTopic,
         description: newDesc,
       });

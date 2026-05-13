@@ -34,7 +34,7 @@ export default function TeacherDashboard() {
 
   const fetchClasses = async () => {
     try {
-      const res = await api.get<TeacherClass[]>("/teacher/classes");
+      const res = await api.get<TeacherClass[]>("/v2/teacher/classes");
       setClasses(res.data || []);
     } catch (e) {
       console.error(e);
@@ -48,7 +48,7 @@ export default function TeacherDashboard() {
     if (!newClassName.trim()) return;
     setIsCreating(true);
     try {
-      await api.post("/teacher/classes", { name: newClassName });
+      await api.post("/v2/teacher/classes", { name: newClassName });
       setNewClassName("");
       fetchClasses();
     } catch (e) {
