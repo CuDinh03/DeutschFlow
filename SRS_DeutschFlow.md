@@ -1,8 +1,10 @@
 # SRS — DeutschFlow (Software Requirements Specification)
 
-**Phiên bản:** 2.3  
-**Ngày:** 2026-05-12  
+**Phiên bản:** 2.5  
+**Ngày:** 2026-05-14  
 **Ngôn ngữ:** Tiếng Việt  
+
+**Changelog v2.5:** Triển khai **Teacher Dashboard Integration (Phase 3)**. (1) **Backend Foundation**: Tạo `TeacherController`, `TeacherService`, và API endpoint (`/api/v2/teacher/classes`) phục vụ quản lý lớp học. Thay thế `TeacherClassroomController` cũ để tránh lỗi ambiguous mapping. (2) **Database Schema**: Tạo bảng `teacher_classes`, `class_students`, `class_assignments` (Migration V133) cho hệ thống B2B2C. (3) **Gamification Analytics**: Tích hợp luồng phân tích điểm yếu (weakness analytics) dựa trên `UserGrammarError` logs và XP data của từng lớp. (4) **Frontend UI**: Xây dựng Teacher Portal (`/teacher/dashboard` và `/teacher/classes/[id]`) thay thế cơ chế AuthProvider bằng hook `useStudentPracticeSession` chuẩn hoá; cập nhật trang Settings của Student để hỗ trợ tính năng "Tham gia lớp học" bằng mã Invite Code. (5) **Production CI/CD**: Áp dụng script `deploy-backend.sh` (Blue-Green) thành công.
 
 **Changelog v2.4:** Triển khai **Pronunciation Engine V2 & Deterministic Grading**. (1) **Deterministic Word-Level Grading**: Thay thế cơ chế chấm điểm từng từ bằng LLM bằng thuật toán Levenshtein Distance để so khớp tuyệt đối giữa transcript và target text, loại bỏ hoàn toàn hiện tượng AI "ảo giác" (hallucination) tạo lỗi sai không có thật. (2) **Contextual Whisper Prompting**: Tích hợp `originalText` làm tham số `prompt` cho Groq Whisper API với `temperature = 0.0`, ép mô hình STT nhận diện bám sát ngữ cảnh câu gốc và "châm chước" các lỗi ngọng nhẹ của người dùng. (3) **Phonetics Expert LLM Role**: Định nghĩa lại vai trò của Groq LLM thành "Chuyên gia ngữ âm học", chỉ tập trung phân tích lý do phát âm sai dựa trên thói quen tiếng Việt và gợi ý sửa khẩu hình (kèm lớp bảo vệ Sanitize JSON rác). (4) **React Stale Closure Fix**: Giải quyết dứt điểm lỗi Frontend `SpeakingView.tsx` gửi sai target text khi user thao tác quá nhanh bằng cơ chế `useRef`.
 
@@ -76,6 +78,7 @@
 41. Production API Audit & E2E Verification *(v2.2)*
 42. B2B2C AI Homework Flow & Onboarding Paywall *(v2.3)*
 43. Pronunciation Engine V2 & Deterministic Grading *(v2.4)*
+44. Teacher Dashboard Integration & B2B2C Flows *(v2.5)*
 
 ---
 
@@ -135,6 +138,7 @@ DeutschFlow là nền tảng học tiếng Đức (CEFR) kết hợp:
 | **Paywall & Quota** *(v2.3)* | Free tier giới hạn sửa 2 lỗi/ngày, khóa các lỗi còn lại (`lockedCount`) kèm Overlay mồi nhử Nâng cấp PRO. UI Review Queue được đập đi xây lại. |
 | **Premium Landing Page** *(v2.3)* | Đập đi xây lại toàn bộ `/app/page.tsx` thành High-Conversion Funnel, Mockup Placeholders, Visual Hierarchy, CTA sắc bén. |
 | **Pronunciation V2** *(v2.4)* | Deterministic Word-Level Grading bằng Levenshtein; Contextual Whisper Prompt (`temperature=0.0`); Phonetics Expert LLM Role có Sanitize JSON. |
+| **Teacher Dashboard & B2B2C** *(v2.5)* | Quản lý lớp học (`teacher_classes`), mã Invite Code, học sinh tham gia lớp (`class_students`), và giao việc (`class_assignments`). Analytics lỗi ngữ pháp và thống kê hiệu suất dựa trên `UserGrammarError` logs và XP, giao diện Frontend cập nhật với API Versioning (`/api/v2/teacher`). |
 
 **Ngoài phạm vi (hiện tại)**
 
@@ -2001,3 +2005,21 @@ Thay vì chỉ gửi file âm thanh thuần tuý, hệ thống cung cấp thêm 
 
 Sửa lỗi React "stale closure" trong `SpeakingView.tsx`, nơi callback `handleRecordingComplete` lưu lại ngữ cảnh tham chiếu của Drill đầu tiên. Việc chuyển sang sử dụng `useRef` cho phép ứng dụng Web Audio API luôn map đúng audio kết thúc ghi âm với phần Target Text hiện tại đang hiển thị trên giao diện người dùng.
 
+
+## 44. Teacher Dashboard Integration & B2B2C Flows (v2.5)
+
+### 44.1 Mục tiêu
+Triển khai hệ thống phân quyền, quản lý lớp học và bài tập dành riêng cho giáo viên (B2B2C), cho phép theo dõi và đánh giá hiệu suất của học sinh thông qua luồng dữ liệu học tập thực tế.
+
+### 44.2 Các thay đổi về Backend & Database
+- **API Versioning**: Các API dành cho giáo viên được chuyển sang `/api/v2/teacher` để tránh xung đột (*ambiguous mapping*) với các Controller cũ (như `TeacherClassroomController`).
+- **Database Schema**: 
+  - Thêm bảng `teacher_classes` quản lý lớp học với mã mời (`invite_code`).
+  - Thêm bảng `class_students` lưu danh sách học viên tham gia.
+  - Thêm bảng `class_assignments` phục vụ chức năng giao bài tập.
+- **Analytics Engine**: `TeacherService` tổng hợp lỗi ngữ pháp từ bảng `user_grammar_errors` và XP từ `user_xp_events` để tính toán top lỗi thường gặp của cả lớp, hỗ trợ giáo viên điều chỉnh bài giảng.
+
+### 44.3 Các thay đổi về Frontend
+- **Teacher Portal**: Giao diện quản lý trực quan tại `/teacher/dashboard` và `/teacher/classes/[id]` (React + Next.js).
+- **Authentication**: Thay thế component `AuthProvider` cũ bằng custom hook `useStudentPracticeSession` để tối ưu flow lấy context người dùng và xác thực JWT token.
+- **Student Invite Flow**: Cập nhật trang `/student/settings` để học sinh có thể dễ dàng nhập `invite_code` tham gia lớp học của giáo viên.
