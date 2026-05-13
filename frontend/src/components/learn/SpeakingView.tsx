@@ -79,6 +79,9 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
     animFrameRef.current = requestAnimationFrame(drawWaveform);
   }, []);
 
+  // ── Fix Stale Closure for onstop ──
+  const handleRecordingCompleteRef = useRef<((mime: string) => Promise<void>) | null>(null);
+
   // ── Start Recording ──
   const startRecording = useCallback(async () => {
     try {
@@ -122,7 +125,9 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
       const mediaRecorder = new MediaRecorder(stream, options);
       audioChunksRef.current = [];
       mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
-      mediaRecorder.onstop = () => handleRecordingComplete(mimeType);
+      mediaRecorder.onstop = () => {
+        if (handleRecordingCompleteRef.current) handleRecordingCompleteRef.current(mimeType);
+      };
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.start();
@@ -186,6 +191,11 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
       setEvaluating(false);
     }
   }, [currentDrillIndex, currentDrill, content.vocabulary, drills.length, markTabCompleted]);
+
+  // Keep the ref updated with the latest closure
+  useEffect(() => {
+    handleRecordingCompleteRef.current = handleRecordingComplete;
+  }, [handleRecordingComplete]);
 
   // Cleanup on unmount
   useEffect(() => {
