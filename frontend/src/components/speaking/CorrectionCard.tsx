@@ -158,7 +158,7 @@ export function CorrectionCard({ exchange }: { exchange: Exchange }) {
               )}
             </motion.div>
           ) : (
-            // ── AI Explanation tab (Llama 3 8B) ────────────────────────────
+            // ── AI Explanation tab ────────────────────────────
             <motion.div
               key="ai"
               initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -8 }}
@@ -199,7 +199,7 @@ export function CorrectionCard({ exchange }: { exchange: Exchange }) {
                 <div className="flex items-center gap-2 py-2">
                   <Sparkles size={14} style={{ color: "#A78BFA" }} />
                   <span className="text-[12px]" style={{ color: SPEAKING_LIGHT.inkSoft }}>
-                    Nhấn tab AI để phân tích ngữ pháp bằng Llama 3
+                    Nhấn tab AI để phân tích ngữ pháp
                   </span>
                 </div>
               )}

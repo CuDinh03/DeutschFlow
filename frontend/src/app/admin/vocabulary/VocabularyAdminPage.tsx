@@ -521,7 +521,7 @@ function LlmViPanel({ onDone }: { onDone: () => void }) {
         </div>
         <p className="text-[#94A3B8] text-[11px]">
           Dùng LLM để dịch từ còn thiếu nghĩa VI. Ưu tiên A1 trước.
-          Cần{' '}<code className="text-[10px]">AI_CHAT_PROVIDER</code>{' '}được cấu hình (groq / openai).
+          Cần cấu hình AI provider trong môi trường server để sử dụng tính năng này.
         </p>
         {error && (
           <div className="flex items-center gap-2 text-red-600 text-xs bg-red-50 border border-red-200 rounded-[8px] px-3 py-2">

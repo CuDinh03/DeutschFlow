@@ -270,7 +270,7 @@ export function VocabAiPanel({ word, meaning = '' }: VocabAiPanelProps) {
             <Sparkles size={14} className="text-white" />
           </div>
           <span className="font-bold text-sm text-[#0F172A]">AI Insights</span>
-          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#F5F3FF] text-[#6366F1] font-bold">powered by Groq</span>
+
         </div>
         <motion.div animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }}>
           <ChevronDown size={16} className="text-[#94A3B8]" />

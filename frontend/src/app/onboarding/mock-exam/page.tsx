@@ -194,7 +194,7 @@ export default function MockExamPage() {
         </h2>
         <p className="text-gray-500 mt-3 text-center max-w-md">
           {phase === 'TRANSCRIBING'
-            ? 'Whisper AI đang chuyển âm thanh thành văn bản.'
+            ? 'AI đang chuyển âm thanh thành văn bản...'
             : 'Đang đánh giá ngữ pháp, từ vựng, phát âm và độ trôi chảy của bạn.'}
         </p>
         {transcript && phase === 'ANALYZING' && (

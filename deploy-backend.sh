@@ -206,8 +206,6 @@ if echo "$HEALTH" | grep -q '"UP"'; then
   echo "  DEPLOY THANH CONG! (Blue-Green)"
   echo "======================================="
   echo "  API:     http://3.82.43.113:8080"
-  echo "  TTS:     Edge TTS (18 voices)"
-  echo "  STT:     Whisper Turbo"
   echo "  Downtime: ~3-5s (graceful cutover only)"
 else
   echo ""

@@ -127,7 +127,7 @@ export function QuickAiToolbar() {
                 <Sparkles size={16} className="text-white" />
                 <span className="font-bold text-white text-sm">Công cụ AI nhanh</span>
               </div>
-              <span className="text-[10px] text-white/60">powered by Groq</span>
+
             </div>
 
             {/* Tool tabs */}
