@@ -84,7 +84,13 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
     try {
       setError(null);
       setFeedback(null);
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        } 
+      });
       streamRef.current = stream;
 
       // Web Audio API for waveform
