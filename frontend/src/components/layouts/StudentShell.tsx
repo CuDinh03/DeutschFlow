@@ -257,6 +257,18 @@ export function StudentShell({
           </nav>
 
           <div className="px-3 pb-5">
+            {/* ── Upgrade CTA ─────────────────────────────── */}
+            <button
+              type="button"
+              id="btn-sidebar-upgrade"
+              onClick={() => go("/student/pricing")}
+              className="mb-2 w-full flex items-center gap-3 px-4 py-2.5 rounded-[12px] bg-gradient-to-r from-violet-600 to-purple-700 hover:from-violet-500 hover:to-purple-600 text-white transition-all duration-200 text-left shadow-md shadow-violet-900/40"
+            >
+              <span className="text-base leading-none">⚡</span>
+              <span className="font-bold text-sm">Nâng cấp PRO</span>
+              <span className="ml-auto text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-semibold">Mới</span>
+            </button>
+
             <button
               type="button"
               onClick={onLogout}
