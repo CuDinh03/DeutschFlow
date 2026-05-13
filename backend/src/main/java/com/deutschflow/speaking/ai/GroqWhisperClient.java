@@ -54,15 +54,16 @@ public class GroqWhisperClient {
      * @param audioBytes    raw audio bytes (webm, mp4, wav, etc.)
      * @param filename      original filename (used to hint codec to Groq, e.g. "voice.webm")
      * @param language      BCP-47 language code to hint the model (e.g. "de")
+     * @param prompt        Optional context prompt to guide transcription (e.g., the target text)
      * @return the transcribed text
      */
-    public String transcribe(byte[] audioBytes, String filename, String language) {
+    public String transcribe(byte[] audioBytes, String filename, String language, String prompt) {
         if (apiKey == null || apiKey.isBlank()) {
             throw new AiServiceException("Groq API key is not configured.");
         }
 
         String boundary = "----FormBoundary" + UUID.randomUUID().toString().replace("-", "");
-        byte[] body = buildMultipartBody(boundary, audioBytes, filename, language);
+        byte[] body = buildMultipartBody(boundary, audioBytes, filename, language, prompt);
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(WHISPER_URL))
@@ -82,7 +83,8 @@ public class GroqWhisperClient {
             if (text == null || text.isBlank()) {
                 throw new AiServiceException("Whisper returned empty transcript.");
             }
-            log.debug("[Whisper] transcript ({} bytes audio): {}", audioBytes.length, text);
+            log.info("[Whisper] target='{}' -> transcribed='{}' ({} bytes)", 
+                    prompt != null ? prompt : "", text, audioBytes.length);
             return text;
         } catch (AiServiceException e) {
             throw e;
@@ -96,7 +98,7 @@ public class GroqWhisperClient {
     // -----------------------------------------------------------------------
 
     private byte[] buildMultipartBody(String boundary, byte[] audioBytes,
-                                      String filename, String language) {
+                                      String filename, String language, String prompt) {
         try {
             String safeFilename = (filename != null && !filename.isBlank()) ? filename : "audio.webm";
             StringBuilder sb = new StringBuilder();
@@ -115,6 +117,18 @@ public class GroqWhisperClient {
             sb.append("--").append(boundary).append("\r\n");
             sb.append("Content-Disposition: form-data; name=\"response_format\"\r\n\r\n");
             sb.append("json\r\n");
+
+            // --- temperature (0.0 or 0.2 for precise transcription) ---
+            sb.append("--").append(boundary).append("\r\n");
+            sb.append("Content-Disposition: form-data; name=\"temperature\"\r\n\r\n");
+            sb.append("0.0\r\n"); // 0.0 forces deterministic transcription
+
+            // --- prompt ---
+            if (prompt != null && !prompt.isBlank()) {
+                sb.append("--").append(boundary).append("\r\n");
+                sb.append("Content-Disposition: form-data; name=\"prompt\"\r\n\r\n");
+                sb.append(prompt).append("\r\n");
+            }
 
             // --- file header ---
             sb.append("--").append(boundary).append("\r\n");

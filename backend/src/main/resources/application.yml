@@ -268,3 +268,19 @@ app:
 
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+
+# ============================================================
+# Payment Gateway — MoMo (Sandbox)
+# Để dùng production: thay bằng credentials thật từ MoMo Business Portal
+# ============================================================
+payment:
+  momo:
+    # Sandbox credentials (https://developers.momo.vn)
+    partner-code: ${MOMO_PARTNER_CODE:MOMO}
+    access-key: ${MOMO_ACCESS_KEY:F8BBA842ECF85}
+    secret-key: ${MOMO_SECRET_KEY:K951B6PE1waDMi640xX08PD3vg6EkVlz}
+    api-endpoint: ${MOMO_API_ENDPOINT:https://test-payment.momo.vn/v2/gateway/api/create}
+    # IPN URL: MoMo server gọi về sau khi thanh toán (phải là HTTPS public URL)
+    ipn-url: ${MOMO_IPN_URL:http://api.mydeutschflow.com/api/payments/momo/ipn}
+    # Return URL: Redirect browser người dùng về sau khi thanh toán
+    return-url: ${MOMO_RETURN_URL:https://mydeutschflow.com/payment/success}

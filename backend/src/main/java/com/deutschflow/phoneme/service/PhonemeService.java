@@ -30,8 +30,8 @@ public class PhonemeService {
      * @param target     the expected German text
      */
     public PhonemeEvalResponse evaluate(byte[] audioBytes, String filename, String target) {
-        // 1. Transcribe
-        String transcribed = groqWhisperClient.transcribe(audioBytes, filename, "de");
+        // 1. Transcribe audio with target as context prompt
+        String transcribed = groqWhisperClient.transcribe(audioBytes, filename, "de", target);
 
         if (transcribed == null || transcribed.isBlank()) {
             return new PhonemeEvalResponse(

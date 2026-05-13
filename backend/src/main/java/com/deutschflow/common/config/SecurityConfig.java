@@ -67,6 +67,8 @@ public class SecurityConfig {
                         auth.requestMatchers("/api/auth/logout").authenticated();
                         auth.requestMatchers("/api/auth/me", "/api/auth/me/**").authenticated();
                         auth.requestMatchers("/api/quiz/*/join").permitAll();  // guest join
+                        // MoMo IPN webhook: called by MoMo servers (no JWT), secured via HMAC-SHA256 signature verification
+                        auth.requestMatchers("/api/payments/momo/ipn").permitAll();
 
                         // No STOMP/WebSocket config in this app yet — do not expose /ws until handshake auth exists.
 

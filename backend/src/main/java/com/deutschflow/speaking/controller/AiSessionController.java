@@ -68,7 +68,8 @@ public class AiSessionController {
         String transcript = groqWhisperClient.transcribe(
                 file.getBytes(),
                 file.getOriginalFilename(),
-                "de"
+                "de",
+                ""  // No context prompt for generic transcribe endpoint
         );
         return Map.of("transcript", transcript);
     }

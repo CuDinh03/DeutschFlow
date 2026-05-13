@@ -790,29 +790,48 @@ public class SkillTreeService {
         }
 
         String prompt = String.format("""
-                Đóng vai giáo viên phát âm tiếng Đức. Học viên người Việt vừa đọc câu: "%s"
-                Nhưng Whisper nhận diện thành: "%s"
-                
-                Các từ phát âm sai: %s
-                Focus phonemes: %s
-                
-                Dựa trên [Các từ phát âm sai], hãy phân tích ngắn gọn lý do học viên sai (ví dụ: sai âm /ç/, thiếu umlaut, quên âm đuôi).
-                
-                Trả về JSON:
+                Đóng vai một chuyên gia ngữ âm học tiếng Đức chuyên giảng dạy cho người Việt Nam. Luôn giữ thái độ động viên, tích cực.
+
+                Học viên đang cố gắng đọc: "%s"
+                Nhận diện thực tế: "%s"
+                Các từ phát âm sai: [%s]
+                Âm vị trọng tâm: [%s]
+
+                Nhiệm vụ:
+                1. Giải thích lý do lỗi sai dựa trên thói quen phát âm của người Việt (ví dụ: lỗi âm cuối, lỗi nguyên âm kép, nhầm lẫn v/w).
+                2. Đưa ra 2 lời khuyên thực tế để sửa lỗi. Bắt buộc phải so sánh với cách đặt khẩu hình hoặc các âm tương đương/khác biệt trong tiếng Việt để học viên dễ hình dung.
+                3. Độ dài tối đa mỗi lời khuyên: Không quá 35 từ.
+
+                Ràng buộc quan trọng: Trả về DUY NHẤT định dạng JSON chuẩn. Không kèm theo bất kỳ văn bản, lời chào hay định dạng markdown nào bên ngoài khối JSON.
+
                 {
-                  "tips": ["gợi ý 1", "gợi ý 2"]
+                  "tips": [
+                    "Lời khuyên 1: ...",
+                    "Lời khuyên 2: ..."
+                  ]
                 }
-                
-                CHỈ trả về JSON.
                 """, originalText, transcribedText, String.join(", ", mispronounced), String.join(", ", focusPhonemes));
 
         try {
             List<ChatMessage> messages = List.of(
-                    new ChatMessage("system", "Bạn là giáo viên phát âm tiếng Đức. Trả lời bằng JSON."),
+                    new ChatMessage("system", "Bạn là chuyên gia ngữ âm học tiếng Đức. Trả về JSON hợp lệ."),
                     new ChatMessage("user", prompt)
             );
             AiChatCompletionResult result = groqChatClient.chatCompletion(messages, null, 0.2, 1024);
-            JsonNode parsed = objectMapper.readTree(result.content());
+            
+            // Clean up JSON response (strip markdown tags if present)
+            String rawContent = result.content().trim();
+            if (rawContent.startsWith("```json")) {
+                rawContent = rawContent.substring(7);
+            } else if (rawContent.startsWith("```")) {
+                rawContent = rawContent.substring(3);
+            }
+            if (rawContent.endsWith("```")) {
+                rawContent = rawContent.substring(0, rawContent.length() - 3);
+            }
+            rawContent = rawContent.trim();
+            
+            JsonNode parsed = objectMapper.readTree(rawContent);
 
             if (result.usage() != null) {
                 aiUsageLedgerService.record(userId, result.provider(), result.model(),
@@ -824,7 +843,10 @@ public class SkillTreeService {
             if (parsed.has("tips") && parsed.get("tips").isArray()) {
                 parsed.get("tips").forEach(t -> tips.add(t.asText()));
             } else {
-                tips.add("Hãy luyện nghe và đọc chậm lại.");
+                tips.add("Lỗi phát âm. Hãy nghe kỹ âm thanh bản ngữ và lặp lại chậm rãi.");
+                if (!focusPhonemes.isEmpty()) {
+                    tips.add("Chú ý luyện tập các âm trọng tâm: " + String.join(", ", focusPhonemes));
+                }
             }
 
             return Map.of(
@@ -835,11 +857,16 @@ public class SkillTreeService {
             );
         } catch (Exception e) {
             log.error("[SkillTree] Pronunciation eval failed: {}", e.getMessage());
+            List<String> defaultTips = new java.util.ArrayList<>();
+            defaultTips.add("Phát âm chưa chuẩn xác. Hãy nghe lại câu mẫu và lặp lại chậm rãi.");
+            if (!focusPhonemes.isEmpty()) {
+                defaultTips.add("Chú ý khẩu hình miệng với các âm: " + String.join(", ", focusPhonemes));
+            }
             return Map.of(
                     "overall_score", overallScore,
                     "transcribed", transcribedText,
                     "words", wordResults,
-                    "tips", List.of("Phát âm chưa chuẩn, hãy nghe lại câu mẫu.")
+                    "tips", defaultTips
             );
         }
     }

@@ -191,9 +191,9 @@ public class SkillTreeController {
             @RequestParam(value = "focusPhonemes", required = false, defaultValue = "[]") String focusPhonemesJson
     ) {
         try {
-            // Step 1: Transcribe audio via Groq Whisper API
+            // Step 1: Transcribe audio via Groq Whisper API (pass originalText as prompt)
             String transcribed = groqWhisperClient.transcribe(
-                    audio.getBytes(), audio.getOriginalFilename(), "de");
+                    audio.getBytes(), audio.getOriginalFilename(), "de", originalText);
             
             // Step 2: Parse focus phonemes
             List<String> focusPhonemes = List.of();
