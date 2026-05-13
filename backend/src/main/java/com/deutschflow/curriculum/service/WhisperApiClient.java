@@ -24,11 +24,32 @@ public class WhisperApiClient {
 
     private final RestClient restClient;
 
+    @Value("${app.groq.api-key:${GROQ_API_KEY:}}")
+    private String groqApiKey;
+
     @Value("${app.openai.api-key:}")
     private String openAiApiKey;
 
+    @Value("${app.groq.whisper-model:whisper-large-v3-turbo}")
+    private String whisperModel;
+
     @Value("${app.openai.whisper-base-url:https://api.openai.com/v1}")
-    private String baseUrl;
+    private String openAiBaseUrl;
+
+    private String getApiKey() {
+        if (groqApiKey != null && !groqApiKey.isBlank()) return groqApiKey;
+        return openAiApiKey;
+    }
+
+    private String getBaseUrl() {
+        if (groqApiKey != null && !groqApiKey.isBlank()) return "https://api.groq.com/openai/v1";
+        return openAiBaseUrl;
+    }
+
+    private String getWhisperModel() {
+        if (groqApiKey != null && !groqApiKey.isBlank()) return whisperModel;
+        return "whisper-1";
+    }
 
     public WhisperApiClient() {
         this.restClient = RestClient.create();
@@ -42,7 +63,8 @@ public class WhisperApiClient {
      * @return list of word-level timestamps
      */
     public List<WordTimestamp> transcribeWithTimestamps(byte[] audioBytes, String filename) {
-        if (openAiApiKey == null || openAiApiKey.isBlank()) {
+        String apiKey = getApiKey();
+        if (apiKey == null || apiKey.isBlank()) {
             log.warn("[Whisper] No API key configured. Returning empty transcript.");
             return List.of();
         }
@@ -54,14 +76,14 @@ public class WhisperApiClient {
                 return filename != null ? filename : "audio.webm";
             }
         });
-        body.add("model", "whisper-1");
+        body.add("model", getWhisperModel());
         body.add("response_format", "verbose_json");
         body.add("timestamp_granularities[]", "word");
 
         try {
             WhisperResponse response = restClient.post()
-                    .uri(baseUrl + "/audio/transcriptions")
-                    .header("Authorization", "Bearer " + openAiApiKey)
+                    .uri(getBaseUrl() + "/audio/transcriptions")
+                    .header("Authorization", "Bearer " + apiKey)
                     .contentType(MediaType.MULTIPART_FORM_DATA)
                     .body(body)
                     .retrieve()
@@ -90,7 +112,8 @@ public class WhisperApiClient {
      * Simple transcription without timestamps (for pronunciation evaluation).
      */
     public String transcribeText(byte[] audioBytes, String filename) {
-        if (openAiApiKey == null || openAiApiKey.isBlank()) {
+        String apiKey = getApiKey();
+        if (apiKey == null || apiKey.isBlank()) {
             log.warn("[Whisper] No API key configured.");
             return "";
         }
@@ -102,14 +125,14 @@ public class WhisperApiClient {
                 return filename != null ? filename : "audio.webm";
             }
         });
-        body.add("model", "whisper-1");
+        body.add("model", getWhisperModel());
         body.add("language", "de");
         body.add("response_format", "text");
 
         try {
             String text = restClient.post()
-                    .uri(baseUrl + "/audio/transcriptions")
-                    .header("Authorization", "Bearer " + openAiApiKey)
+                    .uri(getBaseUrl() + "/audio/transcriptions")
+                    .header("Authorization", "Bearer " + apiKey)
                     .contentType(MediaType.MULTIPART_FORM_DATA)
                     .body(body)
                     .retrieve()
