@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect as import_react_useEffect } from 'react'
-import { useLocale, useTranslations } from 'next-intl'
+import { useLocale } from 'next-intl'
 import {
   Area,
   AreaChart,
@@ -76,7 +76,6 @@ function fmtDate(iso: string, locale: string) {
 }
 
 export default function AdminRevenuePage() {
-  const t = useTranslations('adminRevenue')
   const locale = useLocale()
   
   const [page, setPage] = useState(0)
@@ -84,7 +83,7 @@ export default function AdminRevenuePage() {
 
   const { data, loading, error, refreshing, lastSyncedAt, reload } = useAdminData<RevenueData | null>({
     initialData: null,
-    errorMessage: t('error'),
+    errorMessage: 'Lỗi tải dữ liệu doanh thu',
     fetchData: async () => {
       const res = await api.get('/admin/analytics/revenue', { params: { page, size } })
       return res.data as RevenueData
@@ -100,8 +99,8 @@ export default function AdminRevenuePage() {
   if (loading && !data) {
     return (
       <AdminShell
-        title={t('title')}
-        subtitle={t('subtitle')}
+        title="Thống kê Doanh thu"
+        subtitle="Báo cáo tài chính & lịch sử giao dịch"
         activeNav="revenue"
         onRefresh={() => reload({ silent: true })}
       >
@@ -110,7 +109,7 @@ export default function AdminRevenuePage() {
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
           </svg>
-          <p className="text-[#94A3B8] text-sm">{t('loading')}</p>
+          <p className="text-[#94A3B8] text-sm">Đang tải dữ liệu...</p>
         </div>
       </AdminShell>
     )
@@ -127,8 +126,8 @@ export default function AdminRevenuePage() {
 
   return (
     <AdminShell
-      title={t('title')}
-      subtitle={t('subtitle')}
+      title="Thống kê Doanh thu"
+      subtitle="Báo cáo tài chính & lịch sử giao dịch"
       activeNav="revenue"
       error={error}
       refreshing={refreshing}
@@ -143,7 +142,7 @@ export default function AdminRevenuePage() {
               <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center">
                 <CreditCard size={14} className="text-violet-600" />
               </div>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('kpiGross')}</p>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">TỔNG DOANH THU (GROSS)</p>
             </div>
             <TrendingUp size={16} className="text-violet-500" />
           </div>
@@ -157,7 +156,7 @@ export default function AdminRevenuePage() {
               <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center">
                 <TrendingUp size={14} className="text-emerald-600" />
               </div>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('kpiNet')}</p>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">LỢI NHUẬN RÒNG (NET)</p>
             </div>
           </div>
           <p className="text-3xl font-extrabold text-slate-900 tracking-tight">{fmtVndVi(totals.netVnd)}</p>
@@ -166,7 +165,7 @@ export default function AdminRevenuePage() {
 
         <div className="relative overflow-hidden rounded-[20px] p-6 border border-white/40 shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-gradient-to-br from-white to-amber-50/30">
           <div className="flex items-center justify-between mb-4">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('kpiMargin')}</p>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">BIÊN LỢI NHUẬN</p>
             <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
               Lợi nhuận
             </span>
@@ -180,7 +179,7 @@ export default function AdminRevenuePage() {
       <div className="rounded-[20px] border border-slate-200/60 shadow-[0_4px_20px_rgb(0,0,0,0.02)] bg-white p-6 mt-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
           <div>
-            <h3 className="text-lg font-bold text-slate-900">{t('chartTitle')}</h3>
+            <h3 className="text-lg font-bold text-slate-900">Biểu đồ Tăng trưởng</h3>
             <p className="text-xs text-slate-500 mt-1">
               Phân tích doanh thu & lợi nhuận thực tế (Đã trừ phí Store 15% & API)
             </p>
@@ -215,7 +214,7 @@ export default function AdminRevenuePage() {
                 <Tooltip
                   formatter={(value: number, name: string) => [
                     `${(Number(value) * 1e6).toLocaleString('vi-VN')} ₫`,
-                    name === 'grossM' ? t('legendGross') : t('legendNet'),
+                    name === 'grossM' ? 'Tổng doanh thu' : 'Lợi nhuận ròng',
                   ]}
                   labelFormatter={(l) => `Tháng: ${l}`}
                   contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)' }}
@@ -224,7 +223,7 @@ export default function AdminRevenuePage() {
                 <Area
                   type="monotone"
                   dataKey="grossM"
-                  name={t('legendGross')}
+                  name="Tổng doanh thu"
                   stroke="#8b5cf6"
                   strokeWidth={3}
                   fill="url(#colorGross)"
@@ -233,7 +232,7 @@ export default function AdminRevenuePage() {
                 <Area
                   type="monotone"
                   dataKey="profitM"
-                  name={t('legendNet')}
+                  name="Lợi nhuận ròng"
                   stroke="#10b981"
                   strokeWidth={3}
                   fill="url(#colorNet)"
