@@ -3,7 +3,7 @@
 import { NodeContent, WordTimestamp, useNodeSessionStore } from "@/stores/useNodeSessionStore";
 import { useTranslations } from "next-intl";
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { Play, Pause, RotateCcw, Volume2, Lock } from "lucide-react";
+import { Play, Pause, RotateCcw, Volume2, CheckCircle } from "lucide-react";
 
 export default function ListeningView({ content, isLocked = false }: { content: NodeContent; isLocked?: boolean }) {
   const tLearn = useTranslations("learn");
@@ -17,6 +17,9 @@ export default function ListeningView({ content, isLocked = false }: { content: 
   const [activeWordIndex, setActiveWordIndex] = useState(-1);
   const [speed, setSpeed] = useState(1);
   const [fillBlanks, setFillBlanks] = useState<Record<number, string>>({});
+  const [submitted, setSubmitted] = useState(false);
+  const [score, setScore] = useState<number | null>(null);
+  const [correctCount, setCorrectCount] = useState(0);
   const audioRef = useRef<HTMLAudioElement>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
 
@@ -29,26 +32,25 @@ export default function ListeningView({ content, isLocked = false }: { content: 
     timestamps.filter((_, i) => i > 2 && i % 5 === 0).map((_, i) => i * 5)
   ), [timestamps]);
 
-  // Check completion and report score
-  useEffect(() => {
-    if (isCompleted || blankIndices.size === 0) return;
-    
-    const stripPunc = (s: string) => s.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "");
-    
+  const stripPunc = (s: string) => s.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "");
+
+  // Handle submit
+  const handleSubmit = useCallback(() => {
+    if (blankIndices.size === 0) return;
     let correct = 0;
     blankIndices.forEach((idx) => {
       const w = stripPunc(timestamps[idx].word).toLowerCase().trim();
       const input = stripPunc(fillBlanks[idx] ?? "").toLowerCase().trim();
       if (w === input) correct++;
     });
-
-    const pct = blankIndices.size > 0 ? Math.round((correct / blankIndices.size) * 100) : 0;
-    
-    // Lock tab at 80%, but pass node only at 100%
+    const pct = Math.round((correct / blankIndices.size) * 100);
+    setCorrectCount(correct);
+    setScore(pct);
+    setSubmitted(true);
     if (pct >= 80) {
       markTabCompleted("listening", pct);
     }
-  }, [fillBlanks, blankIndices, timestamps, isCompleted, markTabCompleted]);
+  }, [blankIndices, timestamps, fillBlanks, markTabCompleted]);
 
   // Sync highlight with audio time
   useEffect(() => {
@@ -58,11 +60,8 @@ export default function ListeningView({ content, isLocked = false }: { content: 
     const onTimeUpdate = () => {
       const t = el.currentTime;
       setCurrentTime(t);
-      // Find active word
       const idx = timestamps.findIndex((w) => t >= w.start && t < w.end);
       setActiveWordIndex(idx);
-
-      // Auto-scroll to active word
       if (idx >= 0 && transcriptRef.current) {
         const wordEl = transcriptRef.current.querySelector(`[data-word-idx="${idx}"]`);
         wordEl?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -120,6 +119,8 @@ export default function ListeningView({ content, isLocked = false }: { content: 
     return `${m}:${sec.toString().padStart(2, "0")}`;
   };
 
+  const allFilled = blankIndices.size > 0 && Array.from(blankIndices).every(idx => (fillBlanks[idx] ?? "").trim() !== "");
+
   if (!audio?.url) {
     return (
       <div className="flex flex-col items-center justify-center py-16 bg-white rounded-2xl border border-[#E2E8F0]">
@@ -168,7 +169,6 @@ export default function ListeningView({ content, isLocked = false }: { content: 
 
         <div className="flex items-center justify-between">
           <span className="text-xs text-white/50 font-mono">{formatTime(currentTime)}</span>
-
           <div className="flex items-center gap-3">
             <button type="button" onClick={restart} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/70 hover:bg-white/20 transition-colors">
               <RotateCcw size={14} />
@@ -181,7 +181,6 @@ export default function ListeningView({ content, isLocked = false }: { content: 
               {isPlaying ? <Pause size={20} /> : <Play size={20} className="ml-0.5" />}
             </button>
           </div>
-
           <span className="text-xs text-white/50 font-mono">{formatTime(duration)}</span>
         </div>
       </div>
@@ -189,7 +188,14 @@ export default function ListeningView({ content, isLocked = false }: { content: 
       {/* ── Karaoke Transcript ── */}
       {timestamps.length > 0 && (
         <div ref={transcriptRef} className="rounded-xl bg-white border border-[#E2E8F0] p-4 max-h-[300px] overflow-y-auto">
-          <h3 className="text-xs font-bold text-[#94A3B8] uppercase mb-3">Transcript</h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-xs font-bold text-[#94A3B8] uppercase">Transcript</h3>
+            {blankIndices.size > 0 && !submitted && !isLocked && (
+              <span className="text-[10px] text-[#94A3B8]">
+                Điền vào ô trống, sau đó bấm <strong>Nộp bài</strong>
+              </span>
+            )}
+          </div>
           <div className="flex flex-wrap gap-1 leading-loose">
             {timestamps.map((w, i) => {
               const isActive = i === activeWordIndex;
@@ -198,24 +204,31 @@ export default function ListeningView({ content, isLocked = false }: { content: 
 
               if (isBlank) {
                 const userInput = fillBlanks[i] ?? "";
-                const stripPunc = (s: string) => s.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "");
                 const isCorrect = stripPunc(userInput).toLowerCase().trim() === stripPunc(w.word).toLowerCase().trim();
+                // After submit: show correct/wrong color; before submit: neutral
+                let inputClass = "border-[#CBD5E1] bg-transparent text-[#475569]";
+                if (isLocked || submitted) {
+                  inputClass = isCorrect
+                    ? "border-green-400 bg-green-50 text-green-700"
+                    : "border-red-300 bg-red-50 text-red-600";
+                } else if (isActive) {
+                  inputClass = "border-[#FFCD00] bg-[#FFCD00]/10";
+                }
+
                 return (
                   <input
                     key={i}
                     data-word-idx={i}
                     type="text"
                     value={userInput}
-                    onChange={(e) => !isLocked && setFillBlanks((prev) => ({ ...prev, [i]: e.target.value }))}
+                    onChange={(e) => {
+                      if (!submitted && !isLocked) {
+                        setFillBlanks((prev) => ({ ...prev, [i]: e.target.value }));
+                      }
+                    }}
                     placeholder="___"
-                    disabled={isLocked}
-                    className={`inline-block w-20 text-center text-sm border-b-2 outline-none px-1 py-0.5 transition-colors ${
-                      isLocked ? "border-[#94A3B8] bg-[#F1F5F9] text-[#64748B] cursor-not-allowed" :
-                      isActive ? "border-[#FFCD00] bg-[#FFCD00]/10" :
-                      userInput && isCorrect ? "border-green-400 bg-green-50 text-green-700" :
-                      userInput ? "border-red-300 bg-red-50 text-red-600" :
-                      "border-[#CBD5E1] bg-transparent text-[#475569]"
-                    }`}
+                    disabled={submitted || isLocked}
+                    className={`inline-block w-20 text-center text-sm border-b-2 outline-none px-1 py-0.5 transition-colors ${inputClass} ${(submitted || isLocked) ? "cursor-not-allowed" : ""}`}
                   />
                 );
               }
@@ -239,8 +252,63 @@ export default function ListeningView({ content, isLocked = false }: { content: 
         </div>
       )}
 
+      {/* ── Submit Button (only before submit, not locked) ── */}
+      {timestamps.length > 0 && !submitted && !isLocked && blankIndices.size > 0 && (
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={!allFilled}
+          className={`w-full py-3 rounded-xl font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2 ${
+            allFilled
+              ? "bg-[#121212] text-white hover:bg-[#1E293B] shadow-md"
+              : "bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed"
+          }`}
+        >
+          <CheckCircle size={16} />
+          {allFilled ? "Nộp bài" : `Điền đủ ${blankIndices.size} ô trống để nộp bài`}
+        </button>
+      )}
+
+      {/* ── Score Result (after submit) ── */}
+      {submitted && score !== null && (
+        <div className={`rounded-xl p-5 text-center space-y-2 border-2 ${
+          score >= 100 ? "bg-green-50 border-green-300" :
+          score >= 80  ? "bg-yellow-50 border-yellow-300" :
+          "bg-red-50 border-red-300"
+        }`}>
+          <div className={`text-4xl font-black ${
+            score >= 100 ? "text-green-600" :
+            score >= 80  ? "text-yellow-600" :
+            "text-red-600"
+          }`}>
+            {score}
+            <span className="text-lg font-medium">/100</span>
+          </div>
+          <p className={`text-sm font-bold ${
+            score >= 100 ? "text-green-700" :
+            score >= 80  ? "text-yellow-700" :
+            "text-red-700"
+          }`}>
+            {score >= 100 ? "🎉 Hoàn hảo! Đúng tất cả!" :
+             score >= 80  ? "👍 Khá tốt! Đủ điều kiện vượt qua" :
+             "❌ Chưa đạt – Cần làm lại (yêu cầu 100% để vượt node)"}
+          </p>
+          <p className="text-xs text-[#64748B]">
+            Đúng {correctCount}/{blankIndices.size} từ
+          </p>
+          {score < 80 && (
+            <button
+              onClick={() => { setSubmitted(false); setScore(null); setFillBlanks({}); setCorrectCount(0); }}
+              className="mt-2 px-5 py-2 rounded-xl bg-[#121212] text-white text-sm font-bold hover:bg-[#1E293B] transition-colors"
+            >
+              🔄 Thử lại
+            </button>
+          )}
+        </div>
+      )}
+
       {/* ── Completion Status ── */}
-      {isCompleted && timestamps.length > 0 && (
+      {isCompleted && !submitted && timestamps.length > 0 && (
         <div className="rounded-xl bg-green-50 border border-green-200 p-4 text-center">
           <p className="text-sm font-bold text-green-700">✅ {tLearn("listeningSuccess")}</p>
         </div>
@@ -254,8 +322,8 @@ export default function ListeningView({ content, isLocked = false }: { content: 
             onClick={() => markTabCompleted("listening")}
             disabled={isCompleted}
             className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-colors ${
-              isCompleted 
-                ? "bg-green-500 text-white" 
+              isCompleted
+                ? "bg-green-500 text-white"
                 : "bg-[#22C55E] hover:bg-[#16A34A] text-white"
             }`}
           >
