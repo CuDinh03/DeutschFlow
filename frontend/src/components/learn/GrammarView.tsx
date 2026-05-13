@@ -129,6 +129,10 @@ export default function GrammarView({ content }: { content: NodeContent }) {
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [quizSubmitted, setQuizSubmitted] = useState(false);
 
+  // ── Vocabulary Pagination Logic ──
+  const [vocabPage, setVocabPage] = useState(1);
+  const VOCAB_PAGE_SIZE = 10;
+
   const score = useMemo(() => {
     let correct = 0;
     practiceItems.forEach((item: any, i) => {
@@ -152,6 +156,14 @@ export default function GrammarView({ content }: { content: NodeContent }) {
   const filteredVocab = activeTag
     ? content.vocabulary.filter((v) => v.tags?.includes(activeTag))
     : content.vocabulary;
+
+  // Reset page when tag changes
+  useEffect(() => {
+    setVocabPage(1);
+  }, [activeTag]);
+
+  const totalVocabPages = Math.ceil(filteredVocab.length / VOCAB_PAGE_SIZE);
+  const paginatedVocab = filteredVocab.slice((vocabPage - 1) * VOCAB_PAGE_SIZE, vocabPage * VOCAB_PAGE_SIZE);
 
   return (
     <div className="space-y-6 pb-20">
@@ -185,10 +197,35 @@ export default function GrammarView({ content }: { content: NodeContent }) {
           {tLearn("vocabularyCount", { count: filteredVocab.length })}
         </h2>
         <div className="grid gap-2 sm:grid-cols-2">
-          {filteredVocab.map((v, i) => (
-            <VocabCard key={v.id} vocab={v} autoPlay={i === 0} />
+          {paginatedVocab.map((v, i) => (
+            <VocabCard key={v.id} vocab={v} autoPlay={i === 0 && vocabPage === 1} />
           ))}
         </div>
+        {totalVocabPages > 1 && (
+          <div className="flex items-center justify-center gap-2 mt-4">
+            <button
+              onClick={() => setVocabPage(p => Math.max(1, p - 1))}
+              disabled={vocabPage === 1}
+              className="p-1.5 rounded-lg border border-[#E2E8F0] text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#121212] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <span className="text-xs font-medium text-[#64748B]">
+              Trang {vocabPage} / {totalVocabPages}
+            </span>
+            <button
+              onClick={() => setVocabPage(p => Math.min(totalVocabPages, p + 1))}
+              disabled={vocabPage === totalVocabPages}
+              className="p-1.5 rounded-lg border border-[#E2E8F0] text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#121212] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        )}
       </section>
 
       {content.phrases?.length > 0 && (

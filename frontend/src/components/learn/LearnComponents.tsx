@@ -3,6 +3,7 @@
 import { VocabItem } from "@/stores/useNodeSessionStore";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { playTTS } from "@/lib/tts";
+import { motion } from "framer-motion";
 
 // ── Gender Badge (Accessibility: color + letter) ──
 export function GenderBadge({ gender, label }: { gender: string | null; label: string | null }) {
@@ -90,7 +91,7 @@ export function AudioButton({ text, compact }: { text: string; compact?: boolean
 
 // ── Vocabulary Card ──
 export function VocabCard({ vocab, autoPlay = false }: { vocab: VocabItem; autoPlay?: boolean }) {
-  const [showMeaning, setShowMeaning] = useState(false);
+  const [isFlipped, setIsFlipped] = useState(false);
   const hasAutoPlayed = useRef(false);
 
   // Auto-play TTS lần đầu khi card xuất hiện (chỉ khi autoPlay=true)
@@ -101,50 +102,52 @@ export function VocabCard({ vocab, autoPlay = false }: { vocab: VocabItem; autoP
     return () => clearTimeout(timer);
   }, [autoPlay, vocab.speak_de]);
 
+  const handleAudio = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    playTTS(vocab.speak_de);
+  };
+
   return (
-    <div className="rounded-xl border border-[#E2E8F0] bg-white p-3 space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <GenderBadge gender={vocab.gender} label={vocab.gender_label} />
-        <span className="font-bold text-[#0F172A] text-sm">{vocab.german}</span>
-        {vocab.ai_speech_hints?.ipa_target && (
-          <span className="text-xs text-[#64748B] font-mono">{vocab.ai_speech_hints.ipa_target}</span>
-        )}
-        <AudioButton text={vocab.speak_de} compact />
-      </div>
-
-      <button
-        type="button"
-        onClick={() => setShowMeaning(!showMeaning)}
-        className="text-xs text-[#64748B] hover:text-[#121212] transition-colors flex items-center gap-1"
+    <div className="w-full h-32 sm:h-36" style={{ perspective: '1000px' }}>
+      <motion.div
+        className="w-full h-full relative cursor-pointer"
+        style={{ transformStyle: 'preserve-3d' }}
+        animate={{ rotateY: isFlipped ? 180 : 0 }}
+        transition={{ duration: 0.5, type: "spring", stiffness: 260, damping: 20 }}
+        onClick={() => setIsFlipped(!isFlipped)}
       >
-        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-          {showMeaning
-            ? <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M3 3l18 18" />
-            : <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-          }
-        </svg>
-        {showMeaning ? "Ẩn nghĩa" : "Hiện nghĩa"}
-      </button>
-
-      {showMeaning && (
-        <div className="space-y-1 animate-in fade-in duration-200">
-          <p className="text-sm text-[#475569]">{vocab.meaning}</p>
-          {vocab.example_de && (
-            <div className="flex items-center gap-2">
-              <p className="text-xs text-[#94A3B8] italic">"{vocab.example_de}"</p>
-              <AudioButton text={vocab.example_de} compact />
-            </div>
+        {/* Mặt trước: Tiếng Đức */}
+        <div className="absolute inset-0 bg-white rounded-xl border border-[#E2E8F0] p-4 flex flex-col justify-center items-center shadow-sm hover:border-[#CBD5E1] transition-colors"
+             style={{ backfaceVisibility: 'hidden' }}>
+          <div className="absolute top-3 left-3">
+             <GenderBadge gender={vocab.gender} label={vocab.gender_label} />
+          </div>
+          <div className="absolute top-3 right-3">
+            <button onClick={handleAudio} className="w-8 h-8 flex items-center justify-center rounded-full bg-[#F1F5F9] text-[#64748B] hover:bg-[#FFCD00]/20 hover:text-[#121212] transition-colors shadow-sm">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072M18.364 5.636a9 9 0 010 12.728M11 5L6 9H2v6h4l5 4V5z" />
+              </svg>
+            </button>
+          </div>
+          <span className="font-bold text-[#0F172A] text-2xl mt-3 text-center">{vocab.german}</span>
+          {vocab.ai_speech_hints?.ipa_target && (
+            <span className="text-xs text-[#64748B] font-mono mt-1">{vocab.ai_speech_hints.ipa_target}</span>
           )}
-          <p className="text-xs text-[#94A3B8]">→ {vocab.example_vi}</p>
-          {vocab.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1 pt-1">
-              {vocab.tags.map((t) => (
-                <span key={t} className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#F1F5F9] text-[#64748B]">{t}</span>
-              ))}
-            </div>
+          <div className="absolute bottom-2 text-[10px] text-slate-400 font-medium">Bấm để lật</div>
+        </div>
+
+        {/* Mặt sau: Nghĩa và ví dụ */}
+        <div className="absolute inset-0 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0] p-4 flex flex-col justify-center items-center shadow-sm text-center overflow-hidden"
+             style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
+          <p className="text-sm font-bold text-[#0F172A] mb-1 px-2 line-clamp-2">{vocab.meaning}</p>
+          {vocab.example_de && (
+            <p className="text-xs text-[#475569] italic line-clamp-2 px-2 mt-1">"{vocab.example_de}"</p>
+          )}
+          {vocab.example_vi && (
+            <p className="text-[10px] text-[#94A3B8] line-clamp-2 mt-1 px-2">{vocab.example_vi}</p>
           )}
         </div>
-      )}
+      </motion.div>
     </div>
   );
 }
