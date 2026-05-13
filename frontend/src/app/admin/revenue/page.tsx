@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect as import_react_useEffect } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import {
   Area,
@@ -90,8 +90,12 @@ export default function AdminRevenuePage() {
       return res.data as RevenueData
     },
     intervalMs: 120_000,
-    dependencies: [page, size],
   })
+
+  // Re-fetch when page changes
+  import_react_useEffect(() => {
+    reload({ silent: true })
+  }, [page, reload])
 
   if (loading && !data) {
     return (
