@@ -1,6 +1,4 @@
-import { getAccessToken } from "./authSession";
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+import api from "@/lib/api";
 
 export interface CreateMomoOrderRequest {
   planCode: "PRO" | "ULTRA";
@@ -29,19 +27,15 @@ export interface SubscriptionPlan {
 export async function createMomoOrder(
   req: CreateMomoOrderRequest
 ): Promise<CreateMomoOrderResponse> {
-  const res = await fetch(`${API}/api/payments/momo/create-order`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {}),
-    },
-    body: JSON.stringify({ durationMonths: 1, ...req }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
+  try {
+    const { data } = await api.post<CreateMomoOrderResponse>(
+      "/payments/momo/create-order",
+      { durationMonths: 1, ...req }
+    );
+    return data;
+  } catch (error: any) {
     throw new Error(
-      (err as { message?: string }).message || "Không thể tạo đơn thanh toán MoMo"
+      error.response?.data?.message || "Không thể tạo đơn thanh toán MoMo"
     );
   }
-  return res.json();
 }
