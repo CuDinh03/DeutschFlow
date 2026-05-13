@@ -33,10 +33,12 @@ export default function ListeningView({ content }: { content: NodeContent }) {
   useEffect(() => {
     if (isCompleted || blankIndices.size === 0) return;
     
+    const stripPunc = (s: string) => s.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "");
+    
     let correct = 0;
     blankIndices.forEach((idx) => {
-      const w = timestamps[idx].word.toLowerCase().trim();
-      const input = (fillBlanks[idx] ?? "").toLowerCase().trim();
+      const w = stripPunc(timestamps[idx].word).toLowerCase().trim();
+      const input = stripPunc(fillBlanks[idx] ?? "").toLowerCase().trim();
       if (w === input) correct++;
     });
 
