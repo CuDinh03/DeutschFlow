@@ -737,72 +737,143 @@ public class SkillTreeService {
                     "tips", List.of("Không thu được tiếng — Vui lòng nói to và rõ hơn, hoặc kiểm tra lại micro.")
             );
         }
-        // Short-circuit perfect pronunciation to save LLM cost and prevent hallucination
-        String normalizedOriginal = originalText.replaceAll("[^a-zA-ZäöüßÄÖÜ ]", "").trim().toLowerCase();
-        String normalizedTranscribed = transcribedText.replaceAll("[^a-zA-ZäöüßÄÖÜ ]", "").trim().toLowerCase();
-        
-        if (normalizedOriginal.equals(normalizedTranscribed)) {
-            List<Map<String, String>> words = java.util.Arrays.stream(originalText.split("\\s+"))
-                    .map(w -> Map.of(
-                            "word", w,
-                            "score", "correct",
-                            "feedback", "Phát âm chuẩn xác!",
-                            "ipa_expected", ""
-                    )).toList();
+        // Deterministic word matching
+        String[] targetWords = originalText.split("\\s+");
+        String[] transcribedWords = transcribedText.split("\\s+");
+
+        List<Map<String, Object>> wordResults = new java.util.ArrayList<>();
+        int matchCount = 0;
+        List<String> mispronounced = new java.util.ArrayList<>();
+
+        for (int i = 0; i < targetWords.length; i++) {
+            String tw = targetWords[i];
+            String ntw = normalizePronunciation(tw);
+            double bestSim = 0.0;
+            if (transcribedWords.length > 0) {
+                int lo = Math.max(0, i - 1);
+                int hi = Math.min(transcribedWords.length - 1, i + 1);
+                for (int j = lo; j <= hi; j++) {
+                    double sim = similarityPronunciation(ntw, normalizePronunciation(transcribedWords[j]));
+                    if (sim > bestSim) bestSim = sim;
+                }
+            }
+            String scoreStr = "major_error";
+            if (bestSim >= 0.75) {
+                scoreStr = "correct";
+                matchCount++;
+            } else if (bestSim >= 0.5) {
+                scoreStr = "minor_error";
+                mispronounced.add(tw);
+            } else {
+                mispronounced.add(tw);
+            }
+
+            wordResults.add(Map.of(
+                    "word", tw,
+                    "score", scoreStr,
+                    "feedback", scoreStr.equals("correct") ? "Chuẩn xác" : "Cần phát âm rõ hơn",
+                    "ipa_expected", ""
+            ));
+        }
+
+        int overallScore = targetWords.length > 0
+                ? (int) Math.round(100.0 * matchCount / targetWords.length)
+                : 0;
+
+        if (overallScore == 100 || mispronounced.isEmpty()) {
             return Map.of(
                     "overall_score", 100,
                     "transcribed", transcribedText,
-                    "words", words,
+                    "words", wordResults,
                     "tips", List.of("Tuyệt vời! Bạn phát âm hoàn toàn chính xác.")
             );
         }
 
         String prompt = String.format("""
-                Đóng vai giáo viên phát âm tiếng Đức. Học viên người Việt đọc đoạn sau:
+                Đóng vai giáo viên phát âm tiếng Đức. Học viên người Việt vừa đọc câu: "%s"
+                Nhưng Whisper nhận diện thành: "%s"
                 
-                [Bản gốc]: %s
-                [Whisper nhận diện]: %s
-                [Focus phonemes]: %s
+                Các từ phát âm sai: %s
+                Focus phonemes: %s
                 
-                QUY TẮC QUAN TRỌNG:
-                1. Nếu [Whisper nhận diện] nghe đúng một từ so với [Bản gốc], từ đó PHẢI là "correct". Không tự bịa lỗi cho từ đã đúng.
-                2. Chỉ phân tích các lỗi phát âm đặc trưng (sai âm /ç/, thiếu umlaut, v.v.) đối với những từ mà Whisper nhận diện SAI.
-                3. Đánh giá khách quan, không quá khắt khe nếu sai lệch nhỏ.
+                Dựa trên [Các từ phát âm sai], hãy phân tích ngắn gọn lý do học viên sai (ví dụ: sai âm /ç/, thiếu umlaut, quên âm đuôi).
                 
                 Trả về JSON:
                 {
-                  "overall_score": 0-100,
-                  "words": [
-                    {"word": "...", "score": "correct|minor_error|major_error", 
-                     "feedback": "...", "ipa_expected": "..."}
-                  ],
                   "tips": ["gợi ý 1", "gợi ý 2"]
                 }
                 
-                CHỈ trả về JSON, không có text khác.
-                """, originalText, transcribedText, String.join(", ", focusPhonemes));
+                CHỈ trả về JSON.
+                """, originalText, transcribedText, String.join(", ", mispronounced), String.join(", ", focusPhonemes));
 
         try {
             List<ChatMessage> messages = List.of(
-                    new ChatMessage("system", "Bạn là giáo viên phát âm tiếng Đức cho học viên Việt Nam. Trả lời bằng JSON."),
+                    new ChatMessage("system", "Bạn là giáo viên phát âm tiếng Đức. Trả lời bằng JSON."),
                     new ChatMessage("user", prompt)
             );
             AiChatCompletionResult result = groqChatClient.chatCompletion(messages, null, 0.2, 1024);
             JsonNode parsed = objectMapper.readTree(result.content());
 
-            // Record usage
             if (result.usage() != null) {
                 aiUsageLedgerService.record(userId, result.provider(), result.model(),
                         result.usage().promptTokens(), result.usage().completionTokens(),
                         result.usage().totalTokens(), "PRONUNCIATION_EVAL", null, null);
             }
 
-            Map<String, Object> finalResult = objectMapper.convertValue(parsed, Map.class);
-            finalResult.put("transcribed", transcribedText);
-            return finalResult;
+            List<String> tips = new java.util.ArrayList<>();
+            if (parsed.has("tips") && parsed.get("tips").isArray()) {
+                parsed.get("tips").forEach(t -> tips.add(t.asText()));
+            } else {
+                tips.add("Hãy luyện nghe và đọc chậm lại.");
+            }
+
+            return Map.of(
+                    "overall_score", overallScore,
+                    "transcribed", transcribedText,
+                    "words", wordResults,
+                    "tips", tips
+            );
         } catch (Exception e) {
             log.error("[SkillTree] Pronunciation eval failed: {}", e.getMessage());
-            return Map.of("overall_score", 0, "words", List.of(), "tips", List.of("Đánh giá thất bại. Vui lòng thử lại."));
+            return Map.of(
+                    "overall_score", overallScore,
+                    "transcribed", transcribedText,
+                    "words", wordResults,
+                    "tips", List.of("Phát âm chưa chuẩn, hãy nghe lại câu mẫu.")
+            );
         }
+    }
+
+    // ── Helpers for Pronunciation ───────────────────────────────────────────
+
+    private String normalizePronunciation(String text) {
+        return text.toLowerCase()
+                .replaceAll("[.!?,;:\"'()\\[\\]{}]", "")
+                .replaceAll("ä", "ae").replaceAll("ö", "oe")
+                .replaceAll("ü", "ue").replaceAll("ß", "ss")
+                .replaceAll("\\s+", " ")
+                .trim();
+    }
+
+    private double similarityPronunciation(String a, String b) {
+        if (a.equals(b)) return 1.0;
+        int maxLen = Math.max(a.length(), b.length());
+        if (maxLen == 0) return 1.0;
+        int dist = levenshteinPronunciation(a, b);
+        return 1.0 - (double) dist / maxLen;
+    }
+
+    private int levenshteinPronunciation(String a, String b) {
+        int la = a.length(), lb = b.length();
+        int[][] dp = new int[la + 1][lb + 1];
+        for (int i = 0; i <= la; i++) dp[i][0] = i;
+        for (int j = 0; j <= lb; j++) dp[0][j] = j;
+        for (int i = 1; i <= la; i++) {
+            for (int j = 1; j <= lb; j++) {
+                int cost = a.charAt(i - 1) == b.charAt(j - 1) ? 0 : 1;
+                dp[i][j] = Math.min(Math.min(dp[i-1][j] + 1, dp[i][j-1] + 1), dp[i-1][j-1] + cost);
+            }
+        }
+        return dp[la][lb];
     }
 }
