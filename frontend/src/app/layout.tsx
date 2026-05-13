@@ -23,6 +23,7 @@ export const metadata: Metadata = {
     shortcut: '/icon.svg',
     apple: '/icon.svg',
   },
+  manifest: '/manifest.json',
   openGraph: {
     title: 'DeutschFlow',
     description: 'Learn German with AI',

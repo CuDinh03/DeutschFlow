@@ -1,0 +1,21 @@
+{
+  "name": "DeutschFlow - Học tiếng Đức",
+  "short_name": "DeutschFlow",
+  "description": "Nền tảng học tiếng Đức thông minh",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#121212",
+  "icons": [
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiBmaWxsPSJub25lIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjEyOCIgZmlsbD0iIzEyMTIxMiIvPjxwYXRoIGQ9Ik0yNTYgMTkybC02NCA2NCA2NCA2NCA2NC02NC02NC02NHoiIGZpbGw9IiNGRkNEMDAiLz48L3N2Zz4=",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiBmaWxsPSJub25lIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjEyOCIgZmlsbD0iIzEyMTIxMiIvPjxwYXRoIGQ9Ik0yNTYgMTkybC02NCA2NCA2NCA2NCA2NC02NC02NC02NHoiIGZpbGw9IiNGRkNEMDAiLz48L3N2Zz4=",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}

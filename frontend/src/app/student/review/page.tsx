@@ -8,6 +8,7 @@ import { useStudentPracticeSession } from "@/hooks/useStudentPracticeSession";
 import { logout } from "@/lib/authSession";
 import ReviewCard from "@/components/learn/ReviewCard";
 import api from "@/lib/api";
+import { offlineSync } from "@/lib/offlineSync";
 
 interface ReviewCardData {
   id: number;
@@ -33,13 +34,33 @@ export default function ReviewPage() {
   useEffect(() => {
     if (!me) return;
     api.get<ReviewCardData[]>("/srs/due")
-      .then((res) => {
-        setCards(res.data ?? []);
-        if ((res.data ?? []).length === 0) setDone(true);
+      .then(async (res) => {
+        const data = res.data ?? [];
+        setCards(data);
+        if (data.length === 0) {
+          setDone(true);
+        } else {
+          await offlineSync.saveDueCards(data);
+        }
       })
-      .catch(() => setDone(true))
+      .catch(async () => {
+        const offlineCards = await offlineSync.getDueCards();
+        if (offlineCards.length > 0) {
+          setCards(offlineCards);
+        } else {
+          setDone(true);
+        }
+      })
       .finally(() => setLoading(false));
   }, [me]);
+
+  useEffect(() => {
+    const handleOnline = () => offlineSync.syncPendingReviews();
+    window.addEventListener('online', handleOnline);
+    // Sync on mount just in case there are pending items
+    handleOnline();
+    return () => window.removeEventListener('online', handleOnline);
+  }, []);
 
   const handleRate = useCallback(async (vocabId: string, quality: number) => {
     try {
@@ -49,7 +70,11 @@ export default function ReviewPage() {
         good: quality >= 3 ? prev.good + 1 : prev.good,
       }));
     } catch {
-      // silent — still advance
+      await offlineSync.savePendingReview(vocabId, quality);
+      setSessionScore((prev) => ({
+        reviewed: prev.reviewed + 1,
+        good: quality >= 3 ? prev.good + 1 : prev.good,
+      }));
     }
 
     // Advance after short delay
