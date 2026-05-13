@@ -127,6 +127,7 @@ export default function InterviewsHistoryPage() {
       // Filter for interview sessions only
       setSessions(allSessions.filter((s: SpeakingSession) => s.sessionMode === "INTERVIEW"));
     }).catch(console.error)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
       .finally(() => setLoading(false));
   }, []);
 

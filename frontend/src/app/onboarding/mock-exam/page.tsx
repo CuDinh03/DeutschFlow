@@ -105,6 +105,7 @@ export default function MockExamPage() {
           : 'Không thể kết nối microphone. Hãy thử lại.'
       )
       setPhase('ERROR')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }
   }, [drawWaveform])
 

@@ -1092,6 +1092,7 @@ export default function VocabularyAdminPage() {
       setTotal(data.total)
       setPage(p)
     } catch { setWords([]); setTotal(0) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     finally { setLoading(false) }
   }, [q, cefr, dtype, gender, tag, uiLocale])
 

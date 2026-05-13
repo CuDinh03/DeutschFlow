@@ -82,6 +82,7 @@ export default function ErrorLibraryPage() {
       setError(tErrors('loadError'))
     } finally {
       setLoading(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }
   }, [])
 

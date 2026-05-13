@@ -190,6 +190,7 @@ export default function SpeakingHistoryPage() {
       const data = sessRes.data;
       setSessions(Array.isArray(data) ? data : (data?.content ?? data?.items ?? []));
     }).catch(console.error)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
       .finally(() => setLoading(false));
   }, []);
 

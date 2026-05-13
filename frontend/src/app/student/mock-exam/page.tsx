@@ -111,6 +111,7 @@ export default function MockExamPage() {
         })
       }, 1000)
       return () => clearInterval(timerId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }
   }, [view, timeLeft])
 

@@ -3,7 +3,7 @@
 import { NodeContent, useNodeSessionStore } from "@/stores/useNodeSessionStore";
 import { useTranslations } from "next-intl";
 import { VocabCard, VocabTag, AudioButton } from "./LearnComponents";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 
 // ── Smart content renderer ──
 function TheoryContent({ text }: { text: string }) {
