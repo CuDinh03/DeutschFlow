@@ -36,6 +36,7 @@ import {
   Briefcase,
 } from "lucide-react";
 import { XpLevelPill } from "@/components/gamification/XpLevelPill";
+import { usePlan } from "@/contexts/PlanContext";
 
 export type StudentShellSection =
   | "dashboard"
@@ -122,6 +123,15 @@ export function StudentShell({
   const pathname = usePathname();
   const showMobileBottomPad = !isStudentImmersivePath(pathname) && !hideBottomNav;
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { plan } = usePlan();
+
+  const planBadge = plan && (plan.tier === "ULTRA" || plan.tier === "PRO" || plan.tier === "PREMIUM") ? (
+    <span className={`text-[10px] ml-2 px-1.5 py-0.5 rounded-full font-extrabold border ${
+      plan.tier === "ULTRA" ? "bg-amber-500/20 text-amber-500 border-amber-500/30" : "bg-violet-500/20 text-violet-400 border-violet-500/30"
+    }`}>
+      {plan.tier === "ULTRA" ? "⚡ ULTRA" : "🚀 PRO"}
+    </span>
+  ) : null;
 
   const navGroups = useMemo<NavGroup[]>(
     () => [
@@ -258,16 +268,18 @@ export function StudentShell({
 
           <div className="px-3 pb-5">
             {/* ── Upgrade CTA ─────────────────────────────── */}
-            <button
-              type="button"
-              id="btn-sidebar-upgrade"
-              onClick={() => go("/student/pricing")}
-              className="mb-2 w-full flex items-center gap-3 px-4 py-2.5 rounded-[12px] bg-gradient-to-r from-violet-600 to-purple-700 hover:from-violet-500 hover:to-purple-600 text-white transition-all duration-200 text-left shadow-md shadow-violet-900/40"
-            >
-              <span className="text-base leading-none">⚡</span>
-              <span className="font-bold text-sm">Nâng cấp PRO</span>
-              <span className="ml-auto text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-semibold">Mới</span>
-            </button>
+            {user.role === "STUDENT" && (!plan || (plan.tier !== "ULTRA" && plan.tier !== "PRO" && plan.tier !== "PREMIUM")) && (
+              <button
+                type="button"
+                id="btn-sidebar-upgrade"
+                onClick={() => go("/student/pricing")}
+                className="mb-2 w-full flex items-center gap-3 px-4 py-2.5 rounded-[12px] bg-gradient-to-r from-violet-600 to-purple-700 hover:from-violet-500 hover:to-purple-600 text-white transition-all duration-200 text-left shadow-md shadow-violet-900/40"
+              >
+                <span className="text-base leading-none">⚡</span>
+                <span className="font-bold text-sm">Nâng cấp PRO</span>
+                <span className="ml-auto text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-semibold">Mới</span>
+              </button>
+            )}
 
             <button
               type="button"
@@ -279,17 +291,22 @@ export function StudentShell({
             </button>
 
             <div
-              className="flex items-center gap-3 px-4 py-3 rounded-[12px] bg-white/8 border border-white/10 cursor-pointer hover:bg-white/12 transition-colors"
+              className="flex items-center gap-3 px-4 py-3 rounded-[12px] bg-white/8 border border-white/10 cursor-pointer hover:bg-white/12 transition-colors mt-2"
               onClick={() => go("/student/settings")}
               title="Cài đặt hồ sơ"
             >
               <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[var(--brand-yellow)] to-[var(--brand-yellow-dark)] flex items-center justify-center flex-shrink-0">
                 <span className="text-[var(--brand-black)] font-bold text-sm">{initials}</span>
               </div>
-              <div className="min-w-0">
-                <p className="font-semibold text-sm text-white truncate">{user.displayName}</p>
-                <p className="text-white/50 text-[10px] truncate">{t("roleLevel", { role: user.role, level: targetLevel })}</p>
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold text-sm text-white truncate flex items-center">
+                  Cài đặt hồ sơ
+                </p>
+                <p className="text-white/50 text-[10px] truncate flex items-center">
+                  {user.displayName} {planBadge}
+                </p>
               </div>
+              <Settings size={14} className="text-white/40" />
             </div>
 
             {user.role === "ADMIN" && (
@@ -330,8 +347,13 @@ export function StudentShell({
               </div>
               <NotificationBell buttonClassName="p-2.5 rounded-[12px] bg-[#F5F7FA] hover:bg-[#E2E8F0] transition-colors" />
               <LanguageSwitcher />
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[var(--brand-black)] to-[var(--brand-black-dark)] flex items-center justify-center flex-shrink-0">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[var(--brand-black)] to-[var(--brand-black-dark)] flex items-center justify-center flex-shrink-0 relative">
                 <span className="text-[var(--brand-yellow)] font-bold text-sm">{initials}</span>
+                {plan && (plan.tier === "ULTRA" || plan.tier === "PRO" || plan.tier === "PREMIUM") && (
+                  <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-[var(--brand-black)] flex items-center justify-center text-[10px]" title={`Gói ${plan.tier}`}>
+                    {plan.tier === "ULTRA" ? "⚡" : "🚀"}
+                  </div>
+                )}
               </div>
             </div>
           </header>
