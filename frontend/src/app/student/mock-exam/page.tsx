@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Clock, Check, X, ChevronRight, Loader2, Play, Trophy, BookOpen, Headphones, PenTool, Mic2, ArrowLeft, AlertCircle, Send } from 'lucide-react'
 import { StudentShell } from '@/components/layouts/StudentShell'
+import { SprechenTeil2Simulator } from '@/components/exam/SprechenTeil2Simulator'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
 import { logout } from '@/lib/authSession'
 import api from '@/lib/api'
@@ -361,29 +362,13 @@ export default function MockExamPage() {
                              <span key={wIdx} className="px-3 py-1.5 bg-amber-100 text-amber-800 rounded-lg font-bold text-sm border border-amber-200 shadow-sm">{word}</span>
                            ))}
                          </div>
-                         <div className="bg-slate-50 p-8 border border-slate-200 border-dashed rounded-2xl flex flex-col items-center justify-center">
-                            <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mb-3">
-                              <Mic2 size={32} />
-                            </div>
-                            <p className="font-bold text-slate-700">Chức năng ghi âm bài nói</p>
-                            <p className="text-sm text-slate-500 text-center max-w-sm mt-2">Trong môi trường thi thử thực tế, trình duyệt sẽ ghi âm giọng nói của bạn tại đây và gửi cho AI chấm điểm.</p>
-                         </div>
+                         <SprechenTeil2Simulator onFinish={(score) => handleAnswerChange(`sprechen_score_${teil.teil}`, score)} />
                        </div>
                     )}
                     
                     {teil.topic_cards && (
                        <div className="space-y-4">
-                         <div className="grid grid-cols-2 gap-4 mb-4">
-                           {teil.topic_cards.map((card: any, cIdx: number) => (
-                             <div key={cIdx} className="bg-white border-2 border-indigo-100 rounded-xl p-4 text-center hover:border-indigo-400 transition-colors cursor-pointer">
-                               <p className="font-black text-xl text-indigo-900 mb-2">{card.card}</p>
-                               <p className="text-xs text-indigo-600 font-medium opacity-0 hover:opacity-100 transition-opacity">Ví dụ: {card.question_to_ask}</p>
-                             </div>
-                           ))}
-                         </div>
-                         <div className="bg-slate-50 p-6 border border-slate-200 border-dashed rounded-2xl flex flex-col items-center justify-center">
-                            <p className="text-sm text-slate-500 text-center">AI Partner sẽ hỏi và bạn trả lời qua microphone.</p>
-                         </div>
+                         <SprechenTeil2Simulator onFinish={(score) => handleAnswerChange(`sprechen_score_${teil.teil}`, score)} />
                        </div>
                     )}
                   </div>

@@ -23,6 +23,7 @@ public class AiSpeakingMockExamController {
     private final OpenAiChatClient chatClient;
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
+    private final com.deutschflow.speaking.service.SprechenTeil2Service sprechenTeil2Service;
 
     @PostMapping("/mock-exam/evaluate")
     public ResponseEntity<Map<String, Object>> evaluateMockExam(
@@ -120,6 +121,49 @@ public class AiSpeakingMockExamController {
             return ResponseEntity.internalServerError().body(Map.of(
                     "error", "Phân tích thất bại. Hãy thử lại sau."
             ));
+        }
+    }
+
+    @GetMapping("/mock-exam/sprechen-teil2/card")
+    public ResponseEntity<com.deutschflow.speaking.service.SprechenTeil2Service.SprechenCard> getRandomCard() {
+        return ResponseEntity.ok(sprechenTeil2Service.getRandomCard());
+    }
+
+    @PostMapping("/mock-exam/sprechen-teil2/turn")
+    public ResponseEntity<Map<String, Object>> evaluateSprechenTeil2Turn(
+            @AuthenticationPrincipal User user,
+            @RequestBody Map<String, String> payload) {
+        
+        String stage = payload.get("stage");
+        String thema = payload.get("thema");
+        String wort = payload.get("wort");
+        String transcript = payload.get("transcript");
+        String aiQuestionAsked = payload.get("ai_question_asked");
+
+        if (stage == null || thema == null || wort == null || transcript == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Missing required fields"));
+        }
+
+        try {
+            // Evaluate user's input
+            Map<String, Object> evaluation = sprechenTeil2Service.evaluateTurn(stage, thema, wort, transcript, aiQuestionAsked);
+            
+            // If the user just asked, the AI answers. Now we need to prepare the next turn (AI asking user).
+            if ("USER_ASKING".equals(stage)) {
+                var nextCard = sprechenTeil2Service.getRandomCard();
+                String nextAiQuestion = sprechenTeil2Service.generateAiQuestion(nextCard.thema(), nextCard.wort());
+                evaluation.put("next_stage", "USER_ANSWERING");
+                evaluation.put("next_thema", nextCard.thema());
+                evaluation.put("next_wort", nextCard.wort());
+                evaluation.put("next_ai_question", nextAiQuestion);
+            } else {
+                evaluation.put("next_stage", "FINISHED");
+            }
+            
+            return ResponseEntity.ok(evaluation);
+        } catch (Exception e) {
+            log.error("[MockExam] Failed to process Sprechen Teil 2 for user {}", user.getId(), e);
+            return ResponseEntity.internalServerError().body(Map.of("error", "AI processing failed"));
         }
     }
 
