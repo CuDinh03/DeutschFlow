@@ -1,6 +1,6 @@
 package com.deutschflow.phoneme.service;
 
-import com.deutschflow.curriculum.service.WhisperApiClient;
+import com.deutschflow.speaking.ai.GroqWhisperClient;
 import com.deutschflow.phoneme.dto.PhonemeEvalResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,7 +20,7 @@ import java.util.List;
 @Slf4j
 public class PhonemeService {
 
-    private final WhisperApiClient whisperClient;
+    private final GroqWhisperClient groqWhisperClient;
 
     /**
      * Evaluate pronunciation of {@code target} from audio bytes.
@@ -31,7 +31,7 @@ public class PhonemeService {
      */
     public PhonemeEvalResponse evaluate(byte[] audioBytes, String filename, String target) {
         // 1. Transcribe
-        String transcribed = whisperClient.transcribeText(audioBytes, filename);
+        String transcribed = groqWhisperClient.transcribe(audioBytes, filename, "de");
 
         if (transcribed == null || transcribed.isBlank()) {
             return new PhonemeEvalResponse(

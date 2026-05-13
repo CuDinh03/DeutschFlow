@@ -2,7 +2,7 @@ package com.deutschflow.curriculum.controller;
 
 import com.deutschflow.curriculum.service.PlacementTestService;
 import com.deutschflow.curriculum.service.SkillTreeService;
-import com.deutschflow.curriculum.service.WhisperApiClient;
+import com.deutschflow.speaking.ai.GroqWhisperClient;
 import com.deutschflow.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -32,7 +32,7 @@ public class SkillTreeController {
 
     private final SkillTreeService skillTreeService;
     private final PlacementTestService placementTestService;
-    private final WhisperApiClient whisperApiClient;
+    private final GroqWhisperClient groqWhisperClient;
 
     // ─────────────────────────────────────────────────────────────
     // POST /api/skill-tree/placement-test — Tạo bài test xếp lớp
@@ -191,9 +191,9 @@ public class SkillTreeController {
             @RequestParam(value = "focusPhonemes", required = false, defaultValue = "[]") String focusPhonemesJson
     ) {
         try {
-            // Step 1: Transcribe audio via Whisper API (Java-native, no Python)
-            String transcribed = whisperApiClient.transcribeText(
-                    audio.getBytes(), audio.getOriginalFilename());
+            // Step 1: Transcribe audio via Groq Whisper API
+            String transcribed = groqWhisperClient.transcribe(
+                    audio.getBytes(), audio.getOriginalFilename(), "de");
             
             // Step 2: Parse focus phonemes
             List<String> focusPhonemes = List.of();
