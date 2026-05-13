@@ -13,6 +13,7 @@ import {
   updateLearningProfile,
   type LearningProfileData,
 } from "@/lib/profileApi";
+import api from "@/lib/api";
 import {
   User, Lock, BookOpen, Save, Eye, EyeOff,
   CheckCircle2, AlertCircle, Loader2, ChevronRight,
@@ -435,7 +436,24 @@ function LearningTab({
       .finally(() => setLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // Join class state
+  const [inviteCode, setInviteCode] = useState("");
+  const [joiningClass, setJoiningClass] = useState(false);
 
+  const handleJoinClass = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteCode.trim()) return;
+    setJoiningClass(true);
+    try {
+      await api.post("/classes/join", { inviteCode });
+      showToast("Gia nhập lớp học thành công!");
+      setInviteCode("");
+    } catch (err: any) {
+      showToast(err.response?.data?.message ?? "Không thể gia nhập lớp học", "error");
+    } finally {
+      setJoiningClass(false);
+    }
+  };
   const toggleInterest = (chip: string) => {
     setInterests((prev) =>
       prev.includes(chip) ? prev.filter((i) => i !== chip) : [...prev, chip]
@@ -472,7 +490,32 @@ function LearningTab({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="space-y-6">
+      <form onSubmit={handleJoinClass}>
+        <SectionCard title="Tham gia lớp học">
+          <Field label="Mã mời từ Giáo viên (Invite Code)">
+            <div className="flex gap-3">
+              <input
+                className={inputCls}
+                value={inviteCode}
+                onChange={(e) => setInviteCode(e.target.value)}
+                placeholder="VD: A1B2C3D4"
+                maxLength={20}
+              />
+              <button
+                type="submit"
+                disabled={joiningClass || !inviteCode.trim()}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-bold transition-colors whitespace-nowrap disabled:opacity-50"
+              >
+                {joiningClass ? "Đang tham gia..." : "Gia nhập"}
+              </button>
+            </div>
+            <p className="text-xs text-[#64748B] mt-1">Hỏi giáo viên của bạn để nhận mã code này.</p>
+          </Field>
+        </SectionCard>
+      </form>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
 
       <SectionCard title="Mục tiêu học tập">
         <Field label="Mục tiêu">
@@ -614,5 +657,6 @@ function LearningTab({
         <SaveButton loading={saving} label="Lưu hồ sơ học tập" />
       </div>
     </form>
+    </div>
   );
 }
