@@ -729,6 +729,14 @@ public class SkillTreeService {
 
     public Map<String, Object> evaluatePronunciation(long userId, String originalText,
                                                       String transcribedText, List<String> focusPhonemes) {
+        if (transcribedText == null || transcribedText.trim().isEmpty()) {
+            return Map.of(
+                    "overall_score", 0,
+                    "transcribed", "",
+                    "words", List.of(),
+                    "tips", List.of("Không thu được tiếng — Vui lòng nói to và rõ hơn, hoặc kiểm tra lại micro.")
+            );
+        }
         String prompt = String.format("""
                 Đóng vai giáo viên phát âm tiếng Đức. Học viên người Việt đọc đoạn sau:
                 

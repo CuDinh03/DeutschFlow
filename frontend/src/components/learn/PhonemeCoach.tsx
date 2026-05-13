@@ -57,7 +57,22 @@ export default function PhonemeCoach({ target, meaningVi, onSuccess }: PhonemeCo
     setError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream, { mimeType: "audio/webm;codecs=opus" });
+      const getSupportedMimeType = () => {
+        const types = [
+          "audio/webm;codecs=opus",
+          "audio/webm",
+          "audio/mp4",
+          "audio/ogg;codecs=opus"
+        ];
+        for (const t of types) {
+          if (MediaRecorder.isTypeSupported(t)) return t;
+        }
+        return "";
+      };
+      
+      const mimeType = getSupportedMimeType();
+      const options = mimeType ? { mimeType } : {};
+      const mr = new MediaRecorder(stream, options);
       chunksRef.current = [];
 
       mr.ondataavailable = (e) => {
@@ -66,8 +81,10 @@ export default function PhonemeCoach({ target, meaningVi, onSuccess }: PhonemeCo
 
       mr.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        await evaluate(blob);
+        const blobType = mimeType || "audio/webm";
+        const blob = new Blob(chunksRef.current, { type: blobType });
+        const extension = blobType.includes("mp4") ? "m4a" : "webm";
+        await evaluate(blob, extension);
       };
 
       mediaRef.current = mr;
@@ -88,11 +105,11 @@ export default function PhonemeCoach({ target, meaningVi, onSuccess }: PhonemeCo
 
   // ── Evaluate ────────────────────────────────────────────────────────────────
 
-  const evaluate = useCallback(async (blob: Blob) => {
+  const evaluate = useCallback(async (blob: Blob, extension: string = "webm") => {
     setState("processing");
     try {
       const form = new FormData();
-      form.append("audio", blob, "recording.webm");
+      form.append("audio", blob, `recording.${extension}`);
       form.append("target", target);
 
       const res = await api.post<EvalResult>("/phoneme/evaluate", form, {

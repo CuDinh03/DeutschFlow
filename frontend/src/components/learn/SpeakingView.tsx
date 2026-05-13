@@ -95,11 +95,28 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
       source.connect(analyser);
       analyserRef.current = analyser;
 
+      // Determine best supported mime type
+      const getSupportedMimeType = () => {
+        const types = [
+          "audio/webm;codecs=opus",
+          "audio/webm",
+          "audio/mp4",
+          "audio/ogg;codecs=opus"
+        ];
+        for (const t of types) {
+          if (MediaRecorder.isTypeSupported(t)) return t;
+        }
+        return "";
+      };
+      
+      const mimeType = getSupportedMimeType();
+      const options = mimeType ? { mimeType } : {};
+
       // MediaRecorder for capture
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      const mediaRecorder = new MediaRecorder(stream, options);
       audioChunksRef.current = [];
       mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
-      mediaRecorder.onstop = () => handleRecordingComplete();
+      mediaRecorder.onstop = () => handleRecordingComplete(mimeType);
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.start();
@@ -122,14 +139,17 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
   }, [recording]);
 
   // ── Send to Groq LLM for pronunciation evaluation ──
-  const handleRecordingComplete = useCallback(async () => {
+  const handleRecordingComplete = useCallback(async (mimeType: string) => {
     if (audioChunksRef.current.length === 0 || !currentDrill) return;
     setEvaluating(true);
 
     try {
-      const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+      const blobType = mimeType || "audio/webm";
+      const blob = new Blob(audioChunksRef.current, { type: blobType });
+      const extension = blobType.includes("mp4") ? "m4a" : "webm";
+      
       const formData = new FormData();
-      formData.append("audio", blob, "recording.webm");
+      formData.append("audio", blob, `recording.${extension}`);
       formData.append("originalText", currentDrill.text);
 
       // Get focus phonemes from vocabulary
