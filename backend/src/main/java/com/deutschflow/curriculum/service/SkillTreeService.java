@@ -903,4 +903,82 @@ public class SkillTreeService {
         }
         return dp[la][lb];
     }
+
+    // ──────────────────────────────────────────────────────────────
+    // Interview Report Generation (called by AiJobWorker)
+    // ──────────────────────────────────────────────────────────────
+
+    public Map<String, Object> generateInterviewReport(long userId, Long sessionId) {
+        // Lấy toàn bộ messages của session
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                SELECT role, content FROM ai_speaking_messages
+                WHERE session_id = ? ORDER BY created_at ASC
+                """, sessionId);
+
+        if (rows.isEmpty()) {
+            return Map.of(
+                    "overallScore", 0,
+                    "fluencyScore", 0,
+                    "grammarScore", 0,
+                    "vocabularyScore", 0,
+                    "strengths", List.of(),
+                    "improvements", List.of("Không có dữ liệu hội thoại để đánh giá."),
+                    "summaryVi", "Phiên hội thoại không có nội dung."
+            );
+        }
+
+        StringBuilder conversation = new StringBuilder();
+        for (var row : rows) {
+            String role = (String) row.get("role");
+            String content = (String) row.get("content");
+            conversation.append(role.equalsIgnoreCase("user") ? "Học viên" : "AI").append(": ").append(content).append("\n");
+        }
+
+        String prompt = """
+                Phân tích cuộc hội thoại phỏng vấn tiếng Đức dưới đây và đánh giá kỹ năng người học.
+                Trả về DUY NHẤT JSON theo format:
+                {
+                  "overallScore": 0-100,
+                  "fluencyScore": 0-100,
+                  "grammarScore": 0-100,
+                  "vocabularyScore": 0-100,
+                  "strengths": ["điểm mạnh 1", "điểm mạnh 2"],
+                  "improvements": ["cần cải thiện 1", "cần cải thiện 2"],
+                  "summaryVi": "Tổng quan đánh giá bằng tiếng Việt, tối đa 3 câu."
+                }
+                
+                Cuộc hội thoại:
+                """ + conversation;
+
+        try {
+            List<ChatMessage> messages = List.of(
+                    new ChatMessage("system", "Bạn là chuyên gia đánh giá ngôn ngữ tiếng Đức. Trả về JSON hợp lệ, không có markdown."),
+                    new ChatMessage("user", prompt)
+            );
+            AiChatCompletionResult result = groqChatClient.chatCompletion(messages, null, 0.3, 1024);
+
+            String rawContent = result.content().trim()
+                    .replaceAll("^```json", "").replaceAll("^```", "").replaceAll("```$", "").trim();
+
+            JsonNode parsed = objectMapper.readTree(rawContent);
+
+            if (result.usage() != null) {
+                aiUsageLedgerService.record(userId, result.provider(), result.model(),
+                        result.usage().promptTokens(), result.usage().completionTokens(),
+                        result.usage().totalTokens(), "INTERVIEW_REPORT", null, null);
+            }
+
+            return objectMapper.convertValue(parsed, Map.class);
+
+        } catch (Exception e) {
+            log.error("[InterviewReport] Failed for sessionId={}: {}", sessionId, e.getMessage());
+            return Map.of(
+                    "overallScore", 0,
+                    "summaryVi", "Không thể tạo báo cáo. Vui lòng thử lại.",
+                    "strengths", List.of(),
+                    "improvements", List.of()
+            );
+        }
+    }
 }
+
