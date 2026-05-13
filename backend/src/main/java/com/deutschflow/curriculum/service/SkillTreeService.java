@@ -737,6 +737,26 @@ public class SkillTreeService {
                     "tips", List.of("Không thu được tiếng — Vui lòng nói to và rõ hơn, hoặc kiểm tra lại micro.")
             );
         }
+        // Short-circuit perfect pronunciation to save LLM cost and prevent hallucination
+        String normalizedOriginal = originalText.replaceAll("[^a-zA-ZäöüßÄÖÜ ]", "").trim().toLowerCase();
+        String normalizedTranscribed = transcribedText.replaceAll("[^a-zA-ZäöüßÄÖÜ ]", "").trim().toLowerCase();
+        
+        if (normalizedOriginal.equals(normalizedTranscribed)) {
+            List<Map<String, String>> words = java.util.Arrays.stream(originalText.split("\\s+"))
+                    .map(w -> Map.of(
+                            "word", w,
+                            "score", "correct",
+                            "feedback", "Phát âm chuẩn xác!",
+                            "ipa_expected", ""
+                    )).toList();
+            return Map.of(
+                    "overall_score", 100,
+                    "transcribed", transcribedText,
+                    "words", words,
+                    "tips", List.of("Tuyệt vời! Bạn phát âm hoàn toàn chính xác.")
+            );
+        }
+
         String prompt = String.format("""
                 Đóng vai giáo viên phát âm tiếng Đức. Học viên người Việt đọc đoạn sau:
                 
@@ -744,8 +764,10 @@ public class SkillTreeService {
                 [Whisper nhận diện]: %s
                 [Focus phonemes]: %s
                 
-                Phân tích các lỗi phát âm đặc trưng của người Việt (sai âm /ç/, nuốt âm đuôi, 
-                thiếu umlaut, z=/ts/ vs /z/, w=/v/, v=/f/).
+                QUY TẮC QUAN TRỌNG:
+                1. Nếu [Whisper nhận diện] nghe đúng một từ so với [Bản gốc], từ đó PHẢI là "correct". Không tự bịa lỗi cho từ đã đúng.
+                2. Chỉ phân tích các lỗi phát âm đặc trưng (sai âm /ç/, thiếu umlaut, v.v.) đối với những từ mà Whisper nhận diện SAI.
+                3. Đánh giá khách quan, không quá khắt khe nếu sai lệch nhỏ.
                 
                 Trả về JSON:
                 {
