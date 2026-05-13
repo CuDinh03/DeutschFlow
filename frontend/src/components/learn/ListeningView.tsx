@@ -3,9 +3,9 @@
 import { NodeContent, WordTimestamp, useNodeSessionStore } from "@/stores/useNodeSessionStore";
 import { useTranslations } from "next-intl";
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { Play, Pause, RotateCcw, Volume2 } from "lucide-react";
+import { Play, Pause, RotateCcw, Volume2, Lock } from "lucide-react";
 
-export default function ListeningView({ content }: { content: NodeContent }) {
+export default function ListeningView({ content, isLocked = false }: { content: NodeContent; isLocked?: boolean }) {
   const tLearn = useTranslations("learn");
   const audio = content.audio_content;
   const { markTabCompleted, tabCompletion } = useNodeSessionStore();
@@ -29,7 +29,7 @@ export default function ListeningView({ content }: { content: NodeContent }) {
     timestamps.filter((_, i) => i > 2 && i % 5 === 0).map((_, i) => i * 5)
   ), [timestamps]);
 
-  // Check completion (>= 80%)
+  // Check completion and report score
   useEffect(() => {
     if (isCompleted || blankIndices.size === 0) return;
     
@@ -42,8 +42,11 @@ export default function ListeningView({ content }: { content: NodeContent }) {
       if (w === input) correct++;
     });
 
-    if (correct >= blankIndices.size * 0.8) {
-      markTabCompleted("listening");
+    const pct = blankIndices.size > 0 ? Math.round((correct / blankIndices.size) * 100) : 0;
+    
+    // Lock tab at 80%, but pass node only at 100%
+    if (pct >= 80) {
+      markTabCompleted("listening", pct);
     }
   }, [fillBlanks, blankIndices, timestamps, isCompleted, markTabCompleted]);
 
@@ -203,9 +206,11 @@ export default function ListeningView({ content }: { content: NodeContent }) {
                     data-word-idx={i}
                     type="text"
                     value={userInput}
-                    onChange={(e) => setFillBlanks((prev) => ({ ...prev, [i]: e.target.value }))}
+                    onChange={(e) => !isLocked && setFillBlanks((prev) => ({ ...prev, [i]: e.target.value }))}
                     placeholder="___"
+                    disabled={isLocked}
                     className={`inline-block w-20 text-center text-sm border-b-2 outline-none px-1 py-0.5 transition-colors ${
+                      isLocked ? "border-[#94A3B8] bg-[#F1F5F9] text-[#64748B] cursor-not-allowed" :
                       isActive ? "border-[#FFCD00] bg-[#FFCD00]/10" :
                       userInput && isCorrect ? "border-green-400 bg-green-50 text-green-700" :
                       userInput ? "border-red-300 bg-red-50 text-red-600" :

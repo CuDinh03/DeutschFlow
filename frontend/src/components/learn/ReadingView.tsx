@@ -41,7 +41,7 @@ function TranslateTooltip({
   );
 }
 
-export default function ReadingView({ content }: { content: NodeContent }) {
+export default function ReadingView({ content, isLocked = false }: { content: NodeContent; isLocked?: boolean }) {
   const { markTabCompleted, tabCompletion } = useNodeSessionStore();
   const isCompleted = tabCompletion.reading;
 
@@ -72,8 +72,9 @@ export default function ReadingView({ content }: { content: NodeContent }) {
 
   const handleQuizSubmit = () => {
     setQuizSubmitted(true);
+    const pct = validMcqCount > 0 ? Math.round((score / validMcqCount) * 100) : 100;
     if (score === validMcqCount && validMcqCount > 0) {
-      markTabCompleted("reading");
+      markTabCompleted("reading", pct);
     }
   };
   // Build vocab lookup from refs

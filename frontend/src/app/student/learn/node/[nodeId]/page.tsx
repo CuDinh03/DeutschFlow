@@ -33,29 +33,40 @@ export default function LearnNodePage() {
 
   const { me, loading: meLoading, targetLevel, streakDays, initials } = useStudentPracticeSession();
   const tLearn = useTranslations("learn");
-  const { session, loading, error, activeView, setActiveView, fetchSession, reset, tabCompletion, markTabCompleted } = useNodeSessionStore();
+  const { session, loading, error, activeView, setActiveView, fetchSession, reset, tabCompletion, tabScores, markTabCompleted, resetTabCompletion } = useNodeSessionStore();
   const [showRecap, setShowRecap] = useState(false);
   const [phonemeSuccessCount, setPhonemeSuccessCount] = useState<Set<number>>(new Set());
 
-  // Auto-complete logic
+  // Score thresholds: reading/listening=100%, speaking/writing/phoneme=80%, grammar=completion only
+  const getRequiredTabs = () => {
+    if (!session?.content) return [];
+    const c = session.content;
+    const tabs: Array<{ tab: keyof typeof tabCompletion; threshold: number }> = [];
+    if (c.theory_cards?.length > 0 || c.vocabulary?.length > 0) tabs.push({ tab: "grammar", threshold: 0 });
+    if (c.reading_passage) tabs.push({ tab: "reading", threshold: 100 });
+    if (c.audio_content) tabs.push({ tab: "listening", threshold: 100 });
+    if (c.writing_prompt) tabs.push({ tab: "writing", threshold: 80 });
+    if (c.phrases?.length > 0 || c.examples?.length > 0) tabs.push({ tab: "speaking", threshold: 80 });
+    if (c.vocabulary?.length > 0) tabs.push({ tab: "phoneme", threshold: 80 });
+    return tabs;
+  };
+
+  // Auto-complete logic (score-based)
   useEffect(() => {
     if (!session?.content || showRecap) return;
-    const c = session.content;
-    const required = [];
-    
-    // Check which tabs actually have content
-    if (c.theory_cards?.length > 0 || c.vocabulary?.length > 0) required.push(tabCompletion.grammar);
-    if (c.reading_passage) required.push(tabCompletion.reading);
-    if (c.audio_content) required.push(tabCompletion.listening);
-    if (c.writing_prompt) required.push(tabCompletion.writing);
-    if (c.phrases?.length > 0 || c.examples?.length > 0) required.push(tabCompletion.speaking);
-    if (c.vocabulary?.length > 0) required.push(tabCompletion.phoneme);
+    const requiredTabs = getRequiredTabs();
+    if (requiredTabs.length === 0) return;
 
-    // Ensure all required tabs are true
-    if (required.length > 0 && required.every(Boolean)) {
+    const allAttempted = requiredTabs.every(({ tab }) => tabCompletion[tab]);
+    const allPassed = requiredTabs.every(({ tab, threshold }) =>
+      threshold === 0 ? tabCompletion[tab] : tabScores[tab] >= threshold
+    );
+
+    if (allAttempted && allPassed) {
       setShowRecap(true);
     }
-  }, [session, tabCompletion, showRecap]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, tabCompletion, tabScores, showRecap]);
 
   useEffect(() => {
     if (!me || !nodeId) return;
@@ -182,22 +193,54 @@ export default function LearnNodePage() {
         {session?.hasContent && session.content && (
           <>
             <div className="flex gap-1 bg-[#F1F5F9] rounded-xl p-1 overflow-x-auto">
-              {VIEW_TABS.map((tab) => (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => setActiveView(tab.key)}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 whitespace-nowrap ${
-                    activeView === tab.key
-                      ? "bg-[#121212] text-white shadow-sm"
-                      : "text-[#64748B] hover:bg-white hover:text-[#121212]"
-                  }`}
-                >
-                  <span>{tab.emoji}</span>
-                  <span className="hidden sm:inline">{tLearn(tab.tKey as any)}</span>
-                </button>
-              ))}
+              {VIEW_TABS.map((tab) => {
+                const isDone = tabCompletion[tab.key];
+                const isActive = activeView === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setActiveView(tab.key)}
+                    className={`relative flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 whitespace-nowrap ${
+                      isActive
+                        ? "bg-[#121212] text-white shadow-sm"
+                        : isDone
+                        ? "text-green-600 bg-green-50 hover:bg-green-100"
+                        : "text-[#64748B] hover:bg-white hover:text-[#121212]"
+                    }`}
+                  >
+                    <span>{isDone ? "✅" : tab.emoji}</span>
+                    <span className="hidden sm:inline">{tLearn(tab.tKey as any)}</span>
+                  </button>
+                );
+              })}
             </div>
+
+            {/* ── Retry Banner (all attempted but not all passed) ── */}
+            {(() => {
+              const req = getRequiredTabs();
+              const allAttempted = req.length > 0 && req.every(({ tab }) => tabCompletion[tab]);
+              const allPassed = req.every(({ tab, threshold }) =>
+                threshold === 0 ? tabCompletion[tab] : tabScores[tab] >= threshold
+              );
+              if (!allAttempted || allPassed || showRecap) return null;
+              return (
+                <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-bold text-amber-800">⚠️ Chưa đủ điều kiện vượt node</p>
+                    <p className="text-xs text-amber-600 mt-0.5">
+                      Nghe/Đọc yêu cầu 100% • Nói/Phát âm/Viết yêu cầu ≥ 80 điểm
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => { resetTabCompletion(); setPhonemeSuccessCount(new Set()); }}
+                    className="shrink-0 px-4 py-2 rounded-xl bg-amber-600 text-white text-xs font-bold hover:bg-amber-700 transition-colors"
+                  >
+                    🔄 Làm lại
+                  </button>
+                </div>
+              );
+            })()}
 
             {/* ── View Content ── */}
             <motion.div
@@ -206,11 +249,11 @@ export default function LearnNodePage() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.2 }}
             >
-              {activeView === "grammar" && <GrammarView content={session.content} />}
-              {activeView === "reading" && <ReadingView content={session.content} />}
-              {activeView === "listening" && <ListeningView content={session.content} />}
-              {activeView === "speaking" && <SpeakingView content={session.content} />}
-              {activeView === "writing" && <WritingView content={session.content} />}
+              {activeView === "grammar" && <GrammarView content={session.content} isLocked={tabCompletion.grammar} />}
+              {activeView === "reading" && <ReadingView content={session.content} isLocked={tabCompletion.reading} />}
+              {activeView === "listening" && <ListeningView content={session.content} isLocked={tabCompletion.listening} />}
+              {activeView === "speaking" && <SpeakingView content={session.content} isLocked={tabCompletion.speaking} />}
+              {activeView === "writing" && <WritingView content={session.content} isLocked={tabCompletion.writing} />}
               {activeView === "phoneme" && (() => {
                 // Pick vocab items with German text as training phrases
                 const vocab = session.content?.vocabulary ?? [];
@@ -222,10 +265,9 @@ export default function LearnNodePage() {
                   if (score >= 80) {
                     setPhonemeSuccessCount((prev) => {
                       const next = new Set(prev).add(idx);
-                      // Require >= 80% of up to 5 words
                       const totalWords = Math.min(vocab.length, 5);
                       if (next.size >= totalWords * 0.8) {
-                        markTabCompleted("phoneme");
+                        markTabCompleted("phoneme", score);
                       }
                       return next;
                     });

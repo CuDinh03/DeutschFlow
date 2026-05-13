@@ -17,7 +17,7 @@ interface CorrectionResult {
   feedback_vi: string;
 }
 
-export default function WritingView({ content }: { content: NodeContent }) {
+export default function WritingView({ content, isLocked = false }: { content: NodeContent; isLocked?: boolean }) {
   const { markTabCompleted, tabCompletion } = useNodeSessionStore();
   const isCompleted = tabCompletion.writing;
 
@@ -31,7 +31,7 @@ export default function WritingView({ content }: { content: NodeContent }) {
   // Check completion when correction updates
   useEffect(() => {
     if (correction && correction.score >= 80) {
-      markTabCompleted("writing");
+      markTabCompleted("writing", correction.score);
     }
   }, [correction, markTabCompleted]);
 
@@ -133,7 +133,7 @@ export default function WritingView({ content }: { content: NodeContent }) {
           value={text}
           onChange={(e) => handleTextChange(e.target.value)}
           placeholder="Viết bài tiếng Đức tại đây..."
-          disabled={submitted}
+          disabled={submitted || isLocked}
           className="w-full min-h-[200px] p-4 text-sm text-[#1E293B] outline-none resize-y rounded-xl font-sans leading-relaxed placeholder:text-[#CBD5E1]"
           style={{ fontFamily: "'Inter', sans-serif" }}
         />

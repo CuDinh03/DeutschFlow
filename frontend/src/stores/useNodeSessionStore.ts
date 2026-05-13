@@ -102,7 +102,10 @@ interface NodeSessionState {
   activeView: ActiveView;
   setActiveView: (v: ActiveView) => void;
   tabCompletion: Record<ActiveView, boolean>;
-  markTabCompleted: (tab: ActiveView) => void;
+  tabScores: Record<ActiveView, number>;
+  markTabCompleted: (tab: ActiveView, score?: number) => void;
+  setTabScore: (tab: ActiveView, score: number) => void;
+  resetTabCompletion: () => void;
   fetchSession: (nodeId: number) => Promise<void>;
   reset: () => void;
 }
@@ -120,17 +123,27 @@ export const useNodeSessionStore = create<NodeSessionState>((set) => ({
     writing: false,
     phoneme: false,
   },
+  tabScores: {
+    grammar: 0,
+    reading: 0,
+    listening: 0,
+    speaking: 0,
+    writing: 0,
+    phoneme: 0,
+  },
 
   setActiveView: (v) => set({ activeView: v }),
-  markTabCompleted: (tab) =>
+  markTabCompleted: (tab, score = 100) =>
     set((state) => ({
       tabCompletion: { ...state.tabCompletion, [tab]: true },
+      tabScores: { ...state.tabScores, [tab]: Math.max(state.tabScores[tab], score) },
     })),
-
-  fetchSession: async (nodeId) => {
+  setTabScore: (tab, score) =>
+    set((state) => ({
+      tabScores: { ...state.tabScores, [tab]: score },
+    })),
+  resetTabCompletion: () =>
     set({
-      loading: true,
-      error: null,
       tabCompletion: {
         grammar: false,
         reading: false,
@@ -138,6 +151,28 @@ export const useNodeSessionStore = create<NodeSessionState>((set) => ({
         speaking: false,
         writing: false,
         phoneme: false,
+      },
+      tabScores: {
+        grammar: 0,
+        reading: 0,
+        listening: 0,
+        speaking: 0,
+        writing: 0,
+        phoneme: 0,
+      },
+    }),
+
+  fetchSession: async (nodeId) => {
+    set({
+      loading: true,
+      error: null,
+      tabCompletion: {
+        grammar: false, reading: false, listening: false,
+        speaking: false, writing: false, phoneme: false,
+      },
+      tabScores: {
+        grammar: 0, reading: 0, listening: 0,
+        speaking: 0, writing: 0, phoneme: 0,
       },
     });
     try {
@@ -149,13 +184,13 @@ export const useNodeSessionStore = create<NodeSessionState>((set) => ({
         // If node already COMPLETED → pre-fill all tabs so user can view content freely
         ...(isCompleted ? {
           tabCompletion: {
-            grammar: true,
-            reading: true,
-            listening: true,
-            speaking: true,
-            writing: true,
-            phoneme: true,
-          }
+            grammar: true, reading: true, listening: true,
+            speaking: true, writing: true, phoneme: true,
+          },
+          tabScores: {
+            grammar: 100, reading: 100, listening: 100,
+            speaking: 100, writing: 100, phoneme: 100,
+          },
         } : {})
       });
     } catch (e: unknown) {

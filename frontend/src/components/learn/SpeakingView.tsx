@@ -19,7 +19,7 @@ interface PronunciationFeedback {
   transcribed?: string;
 }
 
-export default function SpeakingView({ content }: { content: NodeContent }) {
+export default function SpeakingView({ content, isLocked = false }: { content: NodeContent; isLocked?: boolean }) {
   const tLearn = useTranslations("learn");
   const { markTabCompleted, tabCompletion } = useNodeSessionStore();
   const isCompleted = tabCompletion.speaking;
@@ -149,7 +149,7 @@ export default function SpeakingView({ content }: { content: NodeContent }) {
         setCompletedDrills((prev) => {
           const next = new Set(prev).add(currentDrillIndex);
           if (next.size >= drills.length * 0.8) {
-            markTabCompleted("speaking");
+            markTabCompleted("speaking", data.overall_score);
           }
           return next;
         });

@@ -114,7 +114,7 @@ function TheoryCard({ card, index, total }: { card: NodeContent["theory_cards"][
   );
 }
 
-export default function GrammarView({ content }: { content: NodeContent }) {
+export default function GrammarView({ content, isLocked = false }: { content: NodeContent; isLocked?: boolean }) {
   const tLearn = useTranslations("learn");
   const { markTabCompleted, tabCompletion } = useNodeSessionStore();
   const isCompleted = tabCompletion.grammar;
