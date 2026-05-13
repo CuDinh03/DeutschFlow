@@ -98,7 +98,7 @@ public class MomoPaymentService {
                 + "&partnerCode=" + partnerCode
                 + "&redirectUrl=" + returnUrl
                 + "&requestId=" + requestId
-                + "&requestType=paymentCode";
+                + "&requestType=captureWallet";
 
         String signature = hmacSHA256(secretKey, rawSignature);
 
@@ -113,7 +113,7 @@ public class MomoPaymentService {
         momoPayload.put("redirectUrl", returnUrl);
         momoPayload.put("ipnUrl", ipnUrl);
         momoPayload.put("extraData", "");
-        momoPayload.put("requestType", "paymentCode");
+        momoPayload.put("requestType", "captureWallet");
         momoPayload.put("signature", signature);
         momoPayload.put("lang", "vi");
 
