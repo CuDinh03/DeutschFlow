@@ -195,7 +195,6 @@ export default function PricingPage() {
 
       {/* Trust badges */}
       <div className="text-center mt-12 text-slate-500 text-sm space-y-2">
-        <p>🔒 Thanh toán an toàn qua cổng MoMo (mã hoá AES 256-bit)</p>
         <p>📞 Hỗ trợ hoàn tiền trong vòng 7 ngày nếu chưa hài lòng</p>
       </div>
     </main>
