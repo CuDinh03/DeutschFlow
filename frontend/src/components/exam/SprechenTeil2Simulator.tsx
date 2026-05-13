@@ -153,9 +153,8 @@ export function SprechenTeil2Simulator({ onFinish }: { onFinish?: (score: number
 
   const playTTS = async (text: string) => {
     try {
-      // Ensure we hit the correct Edge TTS endpoint.
-      // aiSpeakingApi.getTTSUrl(text) returns a valid audio blob URL
-      const res = await api.post('/tts/speak', { text }, { responseType: 'blob' })
+      // Ensure we hit the correct backend Edge TTS endpoint.
+      const res = await api.post('/ai-speaking/tts', { text, persona: 'DEFAULT' }, { responseType: 'blob' })
       const audioUrl = URL.createObjectURL(res.data)
       setAiAudioUrl(audioUrl)
       

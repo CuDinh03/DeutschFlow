@@ -4,6 +4,8 @@
  * Dùng chung cho AudioButton, VocabCard auto-play, v.v.
  */
 
+import api from '@/lib/api';
+
 let _currentAudio: HTMLAudioElement | null = null;
 
 /** Dừng âm thanh đang phát (nếu có) */
@@ -26,23 +28,11 @@ export async function playTTS(text: string, speed: number = 1.0): Promise<void> 
   stopTTS();
 
   try {
-    const params = new URLSearchParams({ text });
-    if (speed !== 1.0) params.set('speed', String(speed));
-
-    const token = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('auth_access='))
-      ?.split('=')[1];
-
-    const headers: HeadersInit = {};
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    const resp = await fetch(`/api/tts/speak?${params.toString()}`, { headers });
-    if (!resp.ok) return;
-
-    const blob = await resp.blob();
+    const payload = { text, persona: "DEFAULT" };
+    // Mặc dù API backend chưa parse tham số speed, ta vẫn có thể thiết lập
+    // nếu muốn nâng cấp về sau
+    const resp = await api.post('/ai-speaking/tts', payload, { responseType: 'blob' });
+    const blob = resp.data;
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
 
