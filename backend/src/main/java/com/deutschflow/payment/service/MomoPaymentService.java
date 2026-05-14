@@ -133,10 +133,10 @@ public class MomoPaymentService {
 
     @Transactional
     public void handleIpn(Map<String, Object> ipnPayload) {
-        String orderId   = (String) ipnPayload.get("orderId");
+        String orderId   = ipnPayload.get("orderId") != null ? String.valueOf(ipnPayload.get("orderId")) : null;
         int resultCode   = Integer.parseInt(String.valueOf(ipnPayload.getOrDefault("resultCode", "-1")));
-        String momoTxId  = (String) ipnPayload.get("transId");
-        String message   = (String) ipnPayload.get("message");
+        String momoTxId  = ipnPayload.get("transId") != null ? String.valueOf(ipnPayload.get("transId")) : null;
+        String message   = ipnPayload.get("message") != null ? String.valueOf(ipnPayload.get("message")) : null;
 
         log.info("[MOMO IPN] orderId={} resultCode={} transId={}", orderId, resultCode, momoTxId);
 
