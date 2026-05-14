@@ -26,8 +26,10 @@ export function apiMessage(e: unknown): string {
   return 'Lỗi không xác định'
 }
 
+const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080'
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: `${backendUrl}/api`,
   // 8s default — admin pages fail fast instead of freezing
   // AI speaking streams use { timeout: 0 } explicitly via longRunning flag
   timeout: 8000,

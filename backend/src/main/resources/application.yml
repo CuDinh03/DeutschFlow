@@ -266,6 +266,13 @@ app:
     deepl-free-monthly-char-cap: ${DEEPL_FREE_MONTHLY_CHAR_CAP:490000}
     strict-free-mode: ${APP_VOCAB_STRICT_FREE:true}
 
+  aws:
+    s3:
+      bucket-name: ${AWS_S3_BUCKET_NAME:}
+      region: ${AWS_S3_REGION:ap-southeast-1}
+      access-key: ${AWS_ACCESS_KEY_ID:}
+      secret-key: ${AWS_SECRET_ACCESS_KEY:}
+
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
 

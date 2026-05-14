@@ -41,7 +41,7 @@ const plans = [
     code: "ULTRA" as const,
     name: "Ultra",
     priceVnd: 699000,
-    period: "/tháng",
+    period: "/2 tháng",
     color: "from-amber-500 to-orange-600",
     badge: "Mạnh nhất",
     features: [
@@ -73,7 +73,8 @@ export default function PricingPage() {
     setLoading(planCode);
     setError(null);
     try {
-      const res = await createMomoOrder({ planCode, durationMonths: 1 });
+      const durationMonths = planCode === "ULTRA" ? 2 : 1;
+      const res = await createMomoOrder({ planCode, durationMonths });
       // Redirect sang trang thanh toán MoMo
       window.location.href = res.payUrl;
     } catch (e: unknown) {

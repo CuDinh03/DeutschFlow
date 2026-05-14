@@ -112,7 +112,8 @@ export async function logout(): Promise<void> {
   try {
     const token = localStorage.getItem(ACCESS_TOKEN_KEY)
     if (token) {
-      await fetch('/api/auth/logout', {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080'
+      await fetch(`${backendUrl}/api/auth/logout`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         signal: AbortSignal.timeout(3000),
