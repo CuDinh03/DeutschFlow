@@ -214,7 +214,7 @@ export default function AdminRevenuePage() {
                 <Tooltip
                   formatter={(value: number, name: string) => [
                     `${(Number(value) * 1e6).toLocaleString('vi-VN')} ₫`,
-                    name === 'grossM' ? 'Tổng doanh thu' : 'Lợi nhuận ròng',
+                    name,
                   ]}
                   labelFormatter={(l) => `Tháng: ${l}`}
                   contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)' }}
