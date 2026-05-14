@@ -270,17 +270,29 @@ app:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
 
 # ============================================================
-# Payment Gateway — MoMo (Sandbox)
-# Để dùng production: thay bằng credentials thật từ MoMo Business Portal
+# Payment Gateway — MoMo
+#
+# Phạm vi mặc định: CHỈ dev / kiểm thử — cổng sandbox test-payment.momo.vn
+# (credential sample MoMo + fallback DEV_* nếu bạn set trong env).
+#
+# DEV_* : đặt tên cho bộ key/endpoint dùng khi phát triển & sandbox MoMo —
+#         không phải credential production (payment.momo.vn).
+# Profile "sandbox" (application-sandbox.yml): ép cấu hình thanh toán test;
+#         bật khi dev/staging; tắt khi chạy tiền thật với MOMO_* production.
+#
+# Production tiền thật: chỉ dùng MOMO_* từ MoMo Business + payment.momo.vn,
+#                       không bật profile sandbox, không dùng DEV_*.
+# Xem thêm: env.momo.sandbox.example
 # ============================================================
 payment:
   momo:
-    # Sandbox credentials (https://developers.momo.vn)
-    partner-code: ${MOMO_PARTNER_CODE:MOMO}
-    access-key: ${MOMO_ACCESS_KEY:F8BBA842ECF85}
-    secret-key: ${MOMO_SECRET_KEY:K951B6PE1waDMi640xX08PD3vg6EkVlz}
-    api-endpoint: ${MOMO_API_ENDPOINT:https://test-payment.momo.vn/v2/gateway/api/create}
-    # IPN URL: MoMo server gọi về sau khi thanh toán (phải là HTTPS public URL)
-    ipn-url: ${MOMO_IPN_URL:http://api.mydeutschflow.com/api/payments/momo/ipn}
-    # Return URL: Redirect browser người dùng về sau khi thanh toán
+    # Ưu tiên MOMO_*; không có thì đọc DEV_* (chỉ dev/test + sandbox MoMo).
+    partner-code: ${MOMO_PARTNER_CODE:${DEV_PARTNER_CODE:MOMO}}
+    access-key: ${MOMO_ACCESS_KEY:${DEV_ACCESS_KEY:F8BBA842ECF85}}
+    secret-key: ${MOMO_SECRET_KEY:${DEV_SECRET_KEY:K951B6PE1waDMi640xX08PD3vg6EkVlz}}
+    # MOMO_API_ENDPOINT = URL đầy đủ .../create HOẶC chỉ set DEV_MOMO_ENDPOINT=https://.../v2/gateway/api (tự nối /create)
+    api-endpoint: ${MOMO_API_ENDPOINT:${DEV_MOMO_ENDPOINT:https://test-payment.momo.vn/v2/gateway/api}/create}
+    # IPN: HTTPS công khai. Mặc định cùng host frontend → Next.js rewrite /api → Spring (Amplify + EC2).
+    # Nếu MoMo chỉ gọi được subdomain API, set MOMO_IPN_URL=https://api.<domain>/api/payments/momo/ipn
+    ipn-url: ${MOMO_IPN_URL:https://mydeutschflow.com/api/payments/momo/ipn}
     return-url: ${MOMO_RETURN_URL:https://mydeutschflow.com/payment/success}

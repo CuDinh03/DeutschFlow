@@ -24,7 +24,7 @@ services:
     ports:
       - "8080:8080"
     env_file:
-      - .env.production    # File thật (không commit git)
+      - .env.production    # File thật (không commit). MoMo sandbox: tham khảo env.momo.sandbox.example ở root repo
     environment:
       # Override DB host về RDS (đọc từ .env.production)
       - DB_HOST=${DB_HOST}

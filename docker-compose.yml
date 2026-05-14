@@ -4,7 +4,7 @@ version: '3.8'
 
 services:
   postgres:
-    image: postgres:16
+    image: pgvector/pgvector:pg16
     container_name: deutschflow-postgres
     environment:
       POSTGRES_USER: ${DB_USERNAME:-postgres}

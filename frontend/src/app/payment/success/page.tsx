@@ -3,8 +3,18 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import api from "@/lib/api";
+import { syncMomoOrder } from "@/lib/paymentApi";
 import { MyPlanDto } from "@/contexts/PlanContext";
 import { useLocale } from "next-intl";
+import type { ReadonlyURLSearchParams } from "next/navigation";
+
+function extractMoMoOrderId(sp: ReadonlyURLSearchParams): string {
+  for (const key of ["orderId", "orderID", "OrderID", "order_id"]) {
+    const v = sp.get(key);
+    if (v?.trim()) return v.trim();
+  }
+  return "";
+}
 
 function fmtPlanInstant(iso: string | null | undefined, locale: string): string | null {
   if (iso == null || String(iso).trim() === "") return null;
@@ -17,44 +27,62 @@ function PaymentSuccessContent() {
   const router = useRouter();
   const locale = useLocale();
   const searchParams = useSearchParams();
-  const orderId = searchParams.get("orderId") ?? "";
+  const orderId = extractMoMoOrderId(searchParams);
 
   const [loading, setLoading] = useState(true);
   const [plan, setPlan] = useState<MyPlanDto | null>(null);
+  const [syncNote, setSyncNote] = useState<string | null>(null);
 
   useEffect(() => {
-    let attempts = 0;
-    let timerId: NodeJS.Timeout;
+    let cancelled = false;
+    const maxWaves = orderId ? 12 : 6;
 
-    const checkPlan = async () => {
-      try {
-        const res = await api.get<MyPlanDto>("/auth/me/plan");
-        const currentPlan = res.data;
-        if (currentPlan && (currentPlan.tier === "PRO" || currentPlan.tier === "ULTRA" || currentPlan.tier === "PREMIUM")) {
-          setPlan(currentPlan);
-          setLoading(false);
-          // Tự động chuyển về dashboard sau 10 giây khi đã có kết quả
-          setTimeout(() => router.push("/student"), 10000);
-          return;
+    (async () => {
+      for (let wave = 0; wave < maxWaves && !cancelled; wave++) {
+        if (orderId && (wave === 0 || wave % 2 === 1)) {
+          try {
+            const sync = await syncMomoOrder(orderId);
+            if (sync.status !== "SUCCESS" && sync.message) {
+              setSyncNote((prev) => prev ?? sync.message);
+            }
+          } catch (e) {
+            console.warn("syncMomoOrder failed", e);
+          }
         }
-      } catch (e) {
-        console.warn("Polling plan failed", e);
+
+        try {
+          const res = await api.get<MyPlanDto>("/auth/me/plan");
+          const currentPlan = res.data;
+          if (
+            currentPlan &&
+            (currentPlan.tier === "PRO" || currentPlan.tier === "ULTRA" || currentPlan.tier === "PREMIUM")
+          ) {
+            setPlan(currentPlan);
+            setLoading(false);
+            setTimeout(() => {
+              if (!cancelled) router.push("/student");
+            }, 10000);
+            return;
+          }
+        } catch (e) {
+          console.warn("Polling plan failed", e);
+        }
+
+        await new Promise((r) => setTimeout(r, 1600));
       }
 
-      attempts++;
-      if (attempts < 5) {
-        timerId = setTimeout(checkPlan, 1500);
-      } else {
+      if (!cancelled) {
         setLoading(false);
-        // Tự động chuyển về dashboard sau 5 giây nếu polling thất bại
-        setTimeout(() => router.push("/student"), 5000);
+        setTimeout(() => {
+          if (!cancelled) router.push("/student");
+        }, 5000);
       }
+    })();
+
+    return () => {
+      cancelled = true;
     };
-
-    checkPlan();
-
-    return () => clearTimeout(timerId);
-  }, [router]);
+  }, [router, searchParams, orderId]);
 
   if (loading) {
     return (
@@ -75,7 +103,7 @@ function PaymentSuccessContent() {
         <div className="text-7xl mb-6 animate-bounce">🎉</div>
 
         <h1 className="text-3xl font-extrabold bg-gradient-to-r from-violet-300 via-white to-purple-300 bg-clip-text text-transparent mb-4">
-          Thanh toán thành công!
+          {plan ? "Thanh toán thành công!" : "Đang hoàn tất kích hoạt gói"}
         </h1>
 
         {plan ? (
@@ -90,9 +118,13 @@ function PaymentSuccessContent() {
             </div>
           </div>
         ) : (
-          <p className="text-slate-300 text-lg mb-6">
-            Giao dịch đã hoàn tất. Nếu gói cước chưa cập nhật, vui lòng thử tải lại trang sau ít phút.
-          </p>
+          <div className="text-slate-300 text-lg mb-6 space-y-3">
+            <p>
+              MoMo đã xử lý thanh toán. Hệ thống đang đồng bộ gói cước; nếu sau vài phút vẫn chưa thấy gói mới, hãy
+              tải lại trang hoặc liên hệ hỗ trợ kèm mã đơn bên dưới.
+            </p>
+            {syncNote && <p className="text-amber-200/90 text-sm">{syncNote}</p>}
+          </div>
         )}
 
         {orderId && (

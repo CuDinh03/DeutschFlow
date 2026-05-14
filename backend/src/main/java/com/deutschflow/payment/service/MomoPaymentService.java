@@ -1,10 +1,13 @@
 package com.deutschflow.payment.service;
 
+import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.payment.dto.CreateMomoOrderRequest;
 import com.deutschflow.payment.dto.CreateMomoOrderResponse;
+import com.deutschflow.payment.dto.SyncMomoOrderResponse;
 import com.deutschflow.payment.entity.PaymentTransaction;
 import com.deutschflow.payment.repository.PaymentTransactionRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,14 +22,15 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.Map;
 import java.util.UUID;
 
 /**
- * Service xử lý luồng thanh toán MoMo (môi trường Sandbox).
+ * Luồng thanh toán MoMo: tích hợp sandbox (dev/test) và có thể chuyển production qua env {@code MOMO_*}
+ * (xem {@code application.yml} / profile {@code sandbox}).
  * <p>
  * Flow: create-order → lưu PENDING → redirect đến payUrl → IPN webhook → activate subscription
  */
@@ -35,7 +39,7 @@ import java.util.UUID;
 @Slf4j
 public class MomoPaymentService {
 
-    // --- MoMo Sandbox Credentials (inject từ application.yml / environment variables) ---
+    // --- MoMo: payment.momo.* từ YAML / env (DEV_* hoặc MOMO_* — xem application.yml) ---
     @Value("${payment.momo.partner-code:MOMO}")
     private String partnerCode;
 
@@ -48,7 +52,7 @@ public class MomoPaymentService {
     @Value("${payment.momo.api-endpoint:https://test-payment.momo.vn/v2/gateway/api/create}")
     private String momoApiEndpoint;
 
-    @Value("${payment.momo.ipn-url:http://api.mydeutschflow.com/api/payments/momo/ipn}")
+    @Value("${payment.momo.ipn-url:https://mydeutschflow.com/api/payments/momo/ipn}")
     private String ipnUrl;
 
     @Value("${payment.momo.return-url:https://mydeutschflow.com/payment/success}")
@@ -58,6 +62,11 @@ public class MomoPaymentService {
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
     private final SubscriptionActivationService subscriptionActivationService;
+
+    @PostConstruct
+    void logMomoIntegrationUrls() {
+        log.info("[MOMO] Startup config: ipnUrl={} returnUrl={} createApi={}", ipnUrl, returnUrl, momoApiEndpoint);
+    }
 
     // ==================== CREATE ORDER ====================
 
@@ -150,23 +159,102 @@ public class MomoPaymentService {
         PaymentTransaction tx = paymentTransactionRepository.findByOrderId(orderId)
                 .orElseThrow(() -> new IllegalStateException("OrderId không tìm thấy: " + orderId));
 
-        // 3. Cập nhật raw payload và provider info
-        tx.setRawIpnPayload(ipnPayload);
-        tx.setProviderTransactionId(momoTxId);
-        tx.setProviderMessage(message);
+        if ("SUCCESS".equals(tx.getStatus())) {
+            log.info("[MOMO IPN] Idempotent replay for already-success orderId={}", orderId);
+            return;
+        }
 
         if (resultCode == 0) {
-            // 4. THÀNH CÔNG: kích hoạt gói subscription cho user
-            tx.setStatus("SUCCESS");
-            paymentTransactionRepository.save(tx);
-            subscriptionActivationService.activatePlan(tx.getUserId(), tx.getPlanCode(), 1);
+            long ipnAmount = parseMomoAmount(ipnPayload.get("amount"));
+            if (ipnAmount >= 0 && ipnAmount != tx.getAmount()) {
+                log.error("[MOMO IPN] Amount mismatch orderId={} db={} ipn={}", orderId, tx.getAmount(), ipnAmount);
+                throw new SecurityException("Số tiền IPN không khớp đơn hàng");
+            }
+            fulfillSuccessfulPayment(tx, momoTxId, message, ipnPayload);
             log.info("[MOMO IPN] SUCCESS — Activated plan={} for userId={}", tx.getPlanCode(), tx.getUserId());
         } else {
-            // 5. THẤT BẠI: đánh dấu FAILED
+            tx.setRawIpnPayload(ipnPayload);
+            tx.setProviderTransactionId(momoTxId);
+            tx.setProviderMessage(message);
             tx.setStatus("FAILED");
             paymentTransactionRepository.save(tx);
             log.warn("[MOMO IPN] FAILED resultCode={} for orderId={}", resultCode, orderId);
         }
+    }
+
+    /**
+     * Khi IPN không tới (URL sai, HTTPS, tường lửa…), học viên vẫn quay về trang success.
+     * Gọi API Query của MoMo để đối soát và kích hoạt gói (idempotent với IPN).
+     */
+    @Transactional
+    public SyncMomoOrderResponse syncPendingOrderFromMomo(Long userId, String orderId) {
+        PaymentTransaction tx = paymentTransactionRepository.findByOrderIdAndUserId(orderId, userId)
+                .orElseThrow(() -> new BadRequestException("Không tìm thấy giao dịch cho đơn hàng này."));
+
+        if ("SUCCESS".equals(tx.getStatus())) {
+            return SyncMomoOrderResponse.builder()
+                    .status("SUCCESS")
+                    .orderId(orderId)
+                    .momoResultCode(0)
+                    .message("Đã xác nhận trước đó")
+                    .build();
+        }
+
+        Map<String, Object> queryBody = null;
+        int resultCode = -1;
+        for (int attempt = 1; attempt <= 5; attempt++) {
+            queryBody = callMomoQuery(orderId);
+            resultCode = Integer.parseInt(String.valueOf(queryBody.getOrDefault("resultCode", "-1")));
+            if (resultCode == 0 || !isRetryableMomoQueryCode(resultCode)) {
+                break;
+            }
+            log.info("[MOMO QUERY] orderId={} attempt={} resultCode={} — MoMo chưa final, chờ rồi thử lại", orderId, attempt, resultCode);
+            if (attempt < 5) {
+                try {
+                    Thread.sleep(1500L * attempt);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        }
+        long momoAmount = parseMomoAmount(queryBody.get("amount"));
+        String momoTxId = queryBody.get("transId") != null ? String.valueOf(queryBody.get("transId")) : null;
+        String message = queryBody.get("message") != null ? String.valueOf(queryBody.get("message")) : null;
+
+        if (resultCode == 0) {
+            if (momoAmount >= 0 && momoAmount != tx.getAmount()) {
+                log.error("[MOMO QUERY] Amount mismatch orderId={} db={} momo={}", orderId, tx.getAmount(), momoAmount);
+                throw new BadRequestException("Số tiền giao dịch không khớp với đơn hàng");
+            }
+            fulfillSuccessfulPayment(tx, momoTxId, message, queryBody);
+            return SyncMomoOrderResponse.builder()
+                    .status("SUCCESS")
+                    .orderId(orderId)
+                    .momoResultCode(resultCode)
+                    .message(message)
+                    .build();
+        }
+
+        return SyncMomoOrderResponse.builder()
+                .status(tx.getStatus())
+                .orderId(orderId)
+                .momoResultCode(resultCode)
+                .message(message != null ? message : "Chưa thanh toán thành công trên MoMo")
+                .build();
+    }
+
+    private void fulfillSuccessfulPayment(PaymentTransaction tx, String momoTxId, String message,
+                                          Map<String, Object> rawPayload) {
+        if ("SUCCESS".equals(tx.getStatus())) {
+            return;
+        }
+        tx.setRawIpnPayload(rawPayload);
+        tx.setProviderTransactionId(momoTxId);
+        tx.setProviderMessage(message);
+        tx.setStatus("SUCCESS");
+        paymentTransactionRepository.save(tx);
+        subscriptionActivationService.activatePlan(tx.getUserId(), tx.getPlanCode(), 1);
     }
 
     // ==================== PRIVATE HELPERS ====================
@@ -178,6 +266,7 @@ public class MomoPaymentService {
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(momoApiEndpoint))
                     .header("Content-Type", "application/json")
+                    .timeout(Duration.ofSeconds(45))
                     .POST(HttpRequest.BodyPublishers.ofString(body))
                     .build();
 
@@ -197,27 +286,110 @@ public class MomoPaymentService {
 
     private boolean verifyIpnSignature(Map<String, Object> payload) {
         try {
-            // MoMo IPN v2 rawHash format
+            // MoMo IPN v2 rawHash format (string values must match MoMo's concatenation, incl. integer fields)
             String rawHash = "accessKey=" + accessKey
-                    + "&amount=" + payload.get("amount")
-                    + "&extraData=" + payload.getOrDefault("extraData", "")
-                    + "&message=" + payload.getOrDefault("message", "")
-                    + "&orderId=" + payload.get("orderId")
-                    + "&orderInfo=" + payload.getOrDefault("orderInfo", "")
-                    + "&orderType=" + payload.getOrDefault("orderType", "")
-                    + "&partnerCode=" + payload.get("partnerCode")
-                    + "&payType=" + payload.getOrDefault("payType", "")
-                    + "&requestId=" + payload.getOrDefault("requestId", "")
-                    + "&responseTime=" + payload.getOrDefault("responseTime", "")
-                    + "&resultCode=" + payload.get("resultCode")
-                    + "&transId=" + payload.getOrDefault("transId", "");
+                    + "&amount=" + signatureScalar(payload.get("amount"))
+                    + "&extraData=" + signatureScalar(payload.get("extraData"))
+                    + "&message=" + signatureScalar(payload.get("message"))
+                    + "&orderId=" + signatureScalar(payload.get("orderId"))
+                    + "&orderInfo=" + signatureScalar(payload.get("orderInfo"))
+                    + "&orderType=" + signatureScalar(payload.get("orderType"))
+                    + "&partnerCode=" + signatureScalar(payload.get("partnerCode"))
+                    + "&payType=" + signatureScalar(payload.get("payType"))
+                    + "&requestId=" + signatureScalar(payload.get("requestId"))
+                    + "&responseTime=" + signatureScalar(payload.get("responseTime"))
+                    + "&resultCode=" + signatureScalar(payload.get("resultCode"))
+                    + "&transId=" + signatureScalar(payload.get("transId"));
 
             String expectedSignature = hmacSHA256(secretKey, rawHash);
-            String receivedSignature = (String) payload.get("signature");
-            return expectedSignature.equals(receivedSignature);
+            String receivedSignature = payload.get("signature") != null ? String.valueOf(payload.get("signature")) : "";
+            return expectedSignature.equalsIgnoreCase(receivedSignature);
         } catch (Exception e) {
             log.error("[MOMO] Error verifying IPN signature", e);
             return false;
+        }
+    }
+
+    /**
+     * MoMo ký trên chuỗi giá trị thực tế; JSON number có thể deserialize thành Double (699000.0)
+     * và làm lệch chữ ký nếu nối chuỗi sai.
+     */
+    private static String signatureScalar(Object v) {
+        if (v == null) {
+            return "";
+        }
+        if (v instanceof Number n) {
+            if (n instanceof Double d || n instanceof Float) {
+                double dv = n.doubleValue();
+                if (!Double.isNaN(dv) && dv == Math.rint(dv) && dv >= Long.MIN_VALUE && dv <= Long.MAX_VALUE) {
+                    return String.valueOf((long) dv);
+                }
+            }
+            if (n instanceof Long || n instanceof Integer || n instanceof Short || n instanceof Byte) {
+                return String.valueOf(n.longValue());
+            }
+            // BigInteger / BigDecimal / other
+            return String.valueOf(n.longValue());
+        }
+        return String.valueOf(v);
+    }
+
+    private long parseMomoAmount(Object amountField) {
+        if (amountField == null) {
+            return -1;
+        }
+        if (amountField instanceof Number n) {
+            return n.longValue();
+        }
+        try {
+            String s = String.valueOf(amountField).trim();
+            if (s.contains(".")) {
+                return (long) Double.parseDouble(s);
+            }
+            return Long.parseLong(s);
+        } catch (NumberFormatException e) {
+            return -1;
+        }
+    }
+
+    /** MoMo: giao dịch chưa ở trạng thái cuối — có thể thử query lại sau vài giây. */
+    private static boolean isRetryableMomoQueryCode(int resultCode) {
+        return resultCode == 1000 || resultCode == 7000 || resultCode == 7002;
+    }
+
+    private Map<String, Object> callMomoQuery(String orderId) {
+        try {
+            String requestId = UUID.randomUUID().toString();
+            String raw = "accessKey=" + accessKey
+                    + "&orderId=" + orderId
+                    + "&partnerCode=" + partnerCode
+                    + "&requestId=" + requestId;
+            String signature = hmacSHA256(secretKey, raw);
+
+            Map<String, Object> body = new HashMap<>();
+            body.put("partnerCode", partnerCode);
+            body.put("requestId", requestId);
+            body.put("orderId", orderId);
+            body.put("signature", signature);
+            body.put("lang", "vi");
+
+            String json = objectMapper.writeValueAsString(body);
+            String queryEndpoint = momoApiEndpoint.replaceFirst("/create/?$", "/query");
+            HttpClient client = HttpClient.newHttpClient();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(queryEndpoint))
+                    .header("Content-Type", "application/json")
+                    .timeout(Duration.ofSeconds(45))
+                    .POST(HttpRequest.BodyPublishers.ofString(json))
+                    .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            @SuppressWarnings("unchecked")
+            Map<String, Object> map = objectMapper.readValue(response.body(), Map.class);
+            log.info("[MOMO QUERY] orderId={} http={} resultCode={}", orderId, response.statusCode(), map.get("resultCode"));
+            return map;
+        } catch (Exception e) {
+            throw new RuntimeException("Lỗi gọi API truy vấn MoMo: " + e.getMessage(), e);
         }
     }
 

@@ -1,0 +1,18 @@
+{
+  "partnerCode": "MOMO",
+  "accessKey": "F8BBA842ECF85",
+  "requestId": "MOMO_TEST_1778738549789",
+  "amount": 699000,
+  "orderId": "MOMO_TEST_1778738549789",
+  "orderInfo": "DeutschFlow PRO subscription",
+  "orderType": "momo_wallet",
+  "transId": "2342342342",
+  "message": "Successful",
+  "localMessage": "Thành công",
+  "responseTime": 1778738549789,
+  "errorCode": 0,
+  "payType": "qr",
+  "extraData": "",
+  "signature": "71ac3dbbecef556f4d6fd3f18a6b1fbe729ebf7960086025c1aa934e0e973d8e",
+  "resultCode": 0
+}

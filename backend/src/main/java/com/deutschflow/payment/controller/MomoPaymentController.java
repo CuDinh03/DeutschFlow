@@ -2,6 +2,8 @@ package com.deutschflow.payment.controller;
 
 import com.deutschflow.payment.dto.CreateMomoOrderRequest;
 import com.deutschflow.payment.dto.CreateMomoOrderResponse;
+import com.deutschflow.payment.dto.SyncMomoOrderRequest;
+import com.deutschflow.payment.dto.SyncMomoOrderResponse;
 import com.deutschflow.payment.service.MomoPaymentService;
 import com.deutschflow.user.entity.User;
 import jakarta.validation.Valid;
@@ -38,14 +40,25 @@ public class MomoPaymentController {
     /**
      * Webhook IPN từ server MoMo (không cần JWT).
      * MoMo sẽ gọi POST về endpoint này sau khi giao dịch hoàn tất.
-     * QUAN TRỌNG: Phải bỏ endpoint này ra khỏi Spring Security filter JWT
-     *             bằng cách thêm vào SecurityConfig: .requestMatchers("/api/payments/momo/ipn").permitAll()
+     * Tài liệu MoMo: phản hồi HTTP 204 No Content trong giới hạn thời gian (~15s).
      */
     @PostMapping("/ipn")
-    public ResponseEntity<Map<String, Object>> handleIpn(@RequestBody Map<String, Object> ipnPayload) {
+    public ResponseEntity<Void> handleIpn(@RequestBody Map<String, Object> ipnPayload) {
         log.info("[MOMO IPN] Received payload keys: {}", ipnPayload.keySet());
         momoPaymentService.handleIpn(ipnPayload);
-        // MoMo yêu cầu backend phải trả về 200 OK với resultCode=0 khi nhận IPN thành công
-        return ResponseEntity.ok(Map.of("resultCode", 0, "message", "Success"));
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Học viên gọi sau khi MoMo redirect về (dự phòng khi IPN chậm hoặc không tới server).
+     */
+    @PostMapping("/sync-order")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<SyncMomoOrderResponse> syncOrder(
+            @AuthenticationPrincipal User currentUser,
+            @Valid @RequestBody SyncMomoOrderRequest request) {
+        SyncMomoOrderResponse body = momoPaymentService.syncPendingOrderFromMomo(
+                currentUser.getId(), request.getOrderId());
+        return ResponseEntity.ok(body);
     }
 }

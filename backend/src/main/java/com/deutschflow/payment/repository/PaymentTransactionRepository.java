@@ -15,6 +15,8 @@ import java.util.Optional;
 public interface PaymentTransactionRepository extends JpaRepository<PaymentTransaction, Long> {
     Optional<PaymentTransaction> findByOrderId(String orderId);
 
+    Optional<PaymentTransaction> findByOrderIdAndUserId(String orderId, Long userId);
+
     interface MonthlyRevenueProjection {
         String getPeriod(); // e.g. "2026-05"
         Long getSubscribers();
