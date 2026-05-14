@@ -10,6 +10,8 @@ public enum NotificationType {
     LEARNER_PLAN_UPDATED,
     /** Admin audit: a learner's plan was changed — materialized for each active admin. */
     ADMIN_LEARNER_PLAN_CHANGED,
+    /** Admin audit: a learner purchased a subscription via payment gateway. */
+    ADMIN_LEARNER_SUBSCRIBED,
 
     // ── v1.4 — Gamification & engagement notifications ──────────────────
 

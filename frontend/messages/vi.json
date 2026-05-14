@@ -976,7 +976,8 @@
     "justNow": "vừa xong",
     "typeUserRegistered": "Đăng ký mới: {name} ({email})",
     "typeLearnerPlanUpdated": "Gói học của bạn đã được cập nhật thành {plan}.",
-    "typeAdminLearnerPlanChanged": "Admin gán gói {plan} cho {email}. (bởi {actor})"
+    "typeAdminLearnerPlanChanged": "Admin gán gói {plan} cho {email}. (bởi {actor})",
+    "typeAdminLearnerSubscribed": "Học viên {email} vừa đăng ký thành công gói {plan}!"
   },
   "learn": {
     "completed100": "Đã hoàn thành 100%",

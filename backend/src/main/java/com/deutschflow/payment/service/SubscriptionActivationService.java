@@ -1,5 +1,6 @@
 package com.deutschflow.payment.service;
 
+import com.deutschflow.notification.service.UserNotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -20,6 +21,7 @@ import java.time.temporal.ChronoUnit;
 public class SubscriptionActivationService {
 
     private final JdbcTemplate jdbcTemplate;
+    private final UserNotificationService userNotificationService;
 
     @Transactional
     public void activatePlan(Long userId, String planCode, int durationMonths) {
@@ -46,6 +48,9 @@ public class SubscriptionActivationService {
 
         // 3. (Optional) Seed wallet balance cho gói PRO/ULTRA
         seedWalletIfNeeded(userId, planCode);
+
+        // 4. Notify Admins
+        userNotificationService.onLearnerSubscribed(userId, planCode);
     }
 
     private void seedWalletIfNeeded(Long userId, String planCode) {

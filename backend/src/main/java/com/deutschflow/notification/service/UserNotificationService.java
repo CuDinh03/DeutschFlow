@@ -134,6 +134,32 @@ public class UserNotificationService {
         }
     }
 
+    /**
+     * Called from SubscriptionActivationService after a successful payment.
+     */
+    @Transactional
+    public void onLearnerSubscribed(long learnerUserId, String planCode) {
+        User learner = userRepository.findById(learnerUserId).orElse(null);
+        if (learner == null || !learner.isActive()) {
+            return;
+        }
+
+        Map<String, Object> payloadTemplate = new LinkedHashMap<>();
+        payloadTemplate.put("learnerUserId", learnerUserId);
+        payloadTemplate.put("learnerEmail", learner.getEmail());
+        payloadTemplate.put("learnerDisplayName", learner.getDisplayName());
+        payloadTemplate.put("planCode", planCode);
+
+        List<Long> adminIds = userRepository.findActiveIdsByRole(User.Role.ADMIN.name());
+        for (Long adminId : adminIds) {
+            User admin = userRepository.findById(adminId).orElse(null);
+            if (admin == null || !admin.isActive() || admin.getRole() != User.Role.ADMIN) {
+                continue;
+            }
+            insert(admin, NotificationType.ADMIN_LEARNER_SUBSCRIBED, payloadTemplate);
+        }
+    }
+
     // ── v1.4 — Gamification & engagement notifications ──────────────────
 
     /**

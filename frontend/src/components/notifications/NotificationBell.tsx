@@ -41,6 +41,11 @@ function summarizeNotification(t: (key: string, values?: Record<string, string>)
         plan: String(p.planCode ?? ""),
         actor: String(p.actingAdminEmail ?? ""),
       });
+    case "ADMIN_LEARNER_SUBSCRIBED":
+      return t("typeAdminLearnerSubscribed", {
+        email: String(p.learnerEmail ?? ""),
+        plan: String(p.planCode ?? ""),
+      });
     case "ACHIEVEMENT_UNLOCKED":
       return `🏆 Bạn đã mở khóa huy hiệu "${String(p.achievementName ?? "")}"! +${String(p.xpReward ?? 0)} XP`;
     case "LEVEL_UP":

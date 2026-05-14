@@ -974,7 +974,8 @@
     "justNow": "gerade eben",
     "typeUserRegistered": "Neue Registrierung: {name} ({email})",
     "typeLearnerPlanUpdated": "Dein Paket wurde auf {plan} geändert.",
-    "typeAdminLearnerPlanChanged": "Admin hat {email} das Paket {plan} zugewiesen. (von {actor})"
+    "typeAdminLearnerPlanChanged": "Admin hat {email} das Paket {plan} zugewiesen. (von {actor})",
+    "typeAdminLearnerSubscribed": "Lerner {email} hat das Paket {plan} erfolgreich abonniert!"
   },
   "learn": {
     "completed100": "100% Abgeschlossen",

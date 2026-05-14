@@ -974,7 +974,8 @@
     "justNow": "just now",
     "typeUserRegistered": "New signup: {name} ({email})",
     "typeLearnerPlanUpdated": "Your subscription plan was updated to {plan}.",
-    "typeAdminLearnerPlanChanged": "Admin set {email} to plan {plan}. (by {actor})"
+    "typeAdminLearnerPlanChanged": "Admin set {email} to plan {plan}. (by {actor})",
+    "typeAdminLearnerSubscribed": "Learner {email} successfully subscribed to {plan}!"
   },
   "learn": {
     "completed100": "100% Completed",
