@@ -15,11 +15,16 @@ import com.deutschflow.user.entity.LearningSessionProgress;
 import com.deutschflow.user.repository.LearningSessionProgressRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.DayOfWeek;
+import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -69,6 +74,7 @@ public class XpService {
     // ─────────────────────────────────────────────────────────────────
 
     @Transactional
+    @CacheEvict(value = "classLeaderboard", allEntries = true)
     public void awardSpeakingTurn(Long userId, Long sessionId, Long messageId) {
         int oldLevel = currentLevel(userId);
         record(userId, XP_SPEAKING_TURN, XpEventType.SPEAKING_TURN, sessionId, messageId, null);
@@ -77,6 +83,7 @@ public class XpService {
     }
 
     @Transactional
+    @CacheEvict(value = "classLeaderboard", allEntries = true)
     public void awardSessionComplete(Long userId, Long sessionId) {
         int oldLevel = currentLevel(userId);
         boolean isFirst = !xpEventRepository.existsByUserIdAndEventType(userId, XpEventType.FIRST_SESSION);
@@ -89,6 +96,7 @@ public class XpService {
     }
 
     @Transactional
+    @CacheEvict(value = "classLeaderboard", allEntries = true)
     public void awardVocabReview(Long userId) {
         int oldLevel = currentLevel(userId);
         record(userId, XP_VOCAB_REVIEW, XpEventType.VOCAB_REVIEW, null, null, null);
@@ -97,6 +105,7 @@ public class XpService {
     }
 
     @Transactional
+    @CacheEvict(value = "classLeaderboard", allEntries = true)
     public void awardCustomPractice(Long userId, int xpAmount, String note) {
         int oldLevel = currentLevel(userId);
         record(userId, xpAmount, XpEventType.CUSTOM_PRACTICE, null, null, note);
@@ -105,6 +114,7 @@ public class XpService {
     }
 
     @Transactional
+    @CacheEvict(value = "classLeaderboard", allEntries = true)
     public void awardErrorFixed(Long userId) {
         int oldLevel = currentLevel(userId);
         record(userId, XP_ERROR_FIXED, XpEventType.ERROR_FIXED, null, null, null);
@@ -113,6 +123,7 @@ public class XpService {
     }
 
     @Transactional
+    @CacheEvict(value = "classLeaderboard", allEntries = true)
     public void awardStreakBonus(Long userId, int streakDays) {
         int oldLevel = currentLevel(userId);
         record(userId, XP_STREAK_BONUS * streakDays, XpEventType.STREAK_BONUS, null, null,
@@ -122,6 +133,7 @@ public class XpService {
     }
 
     @Transactional
+    @CacheEvict(value = "classLeaderboard", allEntries = true)
     public void awardDailyGoal(Long userId) {
         int oldLevel = currentLevel(userId);
         record(userId, XP_DAILY_GOAL, XpEventType.DAILY_GOAL, null, null, null);
@@ -134,6 +146,7 @@ public class XpService {
      * @param industry e.g. "IT", "ARZT", "GASTRO", "PFLEGE"
      */
     @Transactional
+    @CacheEvict(value = "classLeaderboard", allEntries = true)
     public void awardSatelliteComplete(Long userId, String industry) {
         int oldLevel = currentLevel(userId);
         record(userId, XP_SATELLITE, XpEventType.SATELLITE_COMPLETE, null, null,
@@ -147,6 +160,7 @@ public class XpService {
      * No daily cap enforcement here — kept simple for now.
      */
     @Transactional
+    @CacheEvict(value = "classLeaderboard", allEntries = true)
     public void awardSrsReview(Long userId) {
         int oldLevel = currentLevel(userId);
         record(userId, XP_SRS_REVIEW, XpEventType.SRS_REVIEW, null, null, null);
@@ -199,6 +213,33 @@ public class XpService {
     @Transactional(readOnly = true)
     public List<LeaderboardDto> getLeaderboard(int limit) {
         List<Object[]> rows = xpEventRepository.findTopUsersByXp(PageRequest.of(0, limit));
+        List<LeaderboardDto> result = new ArrayList<>();
+        for (int i = 0; i < rows.size(); i++) {
+            Object[] row = rows.get(i);
+            Long userId = ((Number) row[0]).longValue();
+            String displayName = (String) row[1];
+            long totalXp = ((Number) row[2]).longValue();
+            int level = computeLevel((int) Math.min(totalXp, Integer.MAX_VALUE));
+            result.add(new LeaderboardDto(i + 1, userId, displayName, totalXp, level));
+        }
+        return result;
+    }
+
+    /**
+     * Returns leaderboard for a specific class.
+     * Type can be "ALL_TIME" or "WEEKLY".
+     */
+    @Transactional(readOnly = true)
+    @Cacheable(value = "classLeaderboard", key = "#classId + '-' + #type")
+    public List<LeaderboardDto> getClassLeaderboard(Long classId, String type) {
+        List<Object[]> rows;
+        if ("WEEKLY".equalsIgnoreCase(type)) {
+            LocalDateTime startOfWeek = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).atStartOfDay();
+            rows = xpEventRepository.findClassLeaderboardSince(classId, startOfWeek);
+        } else {
+            rows = xpEventRepository.findClassLeaderboardAllTime(classId);
+        }
+
         List<LeaderboardDto> result = new ArrayList<>();
         for (int i = 0; i < rows.size(); i++) {
             Object[] row = rows.get(i);

@@ -251,6 +251,25 @@ public class AdminManagementController {
         return adminManagementService.listClasses();
     }
 
+    @PostMapping("/classes/{classId}/students/bulk-assign")
+    public Map<String, Object> bulkAssignStudents(
+            @PathVariable Long classId,
+            @RequestBody @Valid BulkAssignStudentsRequest request,
+            Authentication authentication
+    ) {
+        Map<String, Object> result = adminManagementService.bulkAssignStudents(classId, request.studentIds());
+        auditLogService.log(
+                "admin.class.students.bulk_assigned",
+                null,
+                actorEmail(authentication),
+                actorRole(authentication),
+                "CLASS",
+                String.valueOf(classId),
+                Map.of("assignedCount", result.get("assignedCount"))
+        );
+        return result;
+    }
+
     @GetMapping("/users/{userId}/learning-detail")
     public Map<String, Object> userLearningDetail(@PathVariable Long userId) {
         return adminManagementService.userLearningDetail(userId);
@@ -808,6 +827,10 @@ public class AdminManagementController {
             Long monthlyTokenLimitOverride,
             String startsAtUtc,
             String endsAtUtc
+    ) {}
+
+    public record BulkAssignStudentsRequest(
+            List<Long> studentIds
     ) {}
 
     private String actorEmail(Authentication authentication) {

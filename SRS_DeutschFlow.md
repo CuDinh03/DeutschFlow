@@ -1,8 +1,10 @@
 # SRS — DeutschFlow (Software Requirements Specification)
 
-**Phiên bản:** 2.5  
-**Ngày:** 2026-05-14  
+**Phiên bản:** 2.6  
+**Ngày:** 2026-05-15  
 **Ngôn ngữ:** Tiếng Việt  
+
+**Changelog v2.6:** Triển khai **Teacher Dashboard Redesign & Review Mode (Phase 4)**. (1) **UI/UX Tối ưu**: Gộp `teacher/classes` vào `teacher/dashboard`, áp dụng Premium Cards, Glassmorphism, và Notification Badges (báo bài chờ chấm). Thêm các Top Widgets thống kê tổng quan (Học viên, Bài tập, Lớp tích cực). (2) **Review Mode**: Xây dựng màn hình không gian làm việc tập trung tại `/teacher/dashboard/[id]/students/[studentId]` tách biệt thành 2 Tab (Giao tiếp AI và Bài tập tĩnh), hỗ trợ Modal "Đánh giá & Chấm điểm" nhanh chóng. (3) **Hybrid Assignment Config**: Mở rộng form giao bài với `dueDate` và `assignmentType` (`GENERAL`, `SPEAKING_SCENARIO`, `VOCABULARY`, `GRAMMAR`) để chuẩn bị cho dữ liệu bài tập B2B2C nâng cao. (4) **Fix Routing & Architecture**: Redirect `/teacher` về `/teacher/dashboard`, gộp Menu Sidebar "Quản lý Lớp" vào Dashboard, dọn dẹp các đường dẫn cũ.
 
 **Changelog v2.5:** Triển khai **Teacher Dashboard Integration (Phase 3)**. (1) **Backend Foundation**: Tạo `TeacherController`, `TeacherService`, và API endpoint (`/api/v2/teacher/classes`) phục vụ quản lý lớp học. Thay thế `TeacherClassroomController` cũ để tránh lỗi ambiguous mapping. (2) **Database Schema**: Tạo bảng `teacher_classes`, `class_students`, `class_assignments` (Migration V133) cho hệ thống B2B2C. (3) **Gamification Analytics**: Tích hợp luồng phân tích điểm yếu (weakness analytics) dựa trên `UserGrammarError` logs và XP data của từng lớp. (4) **Frontend UI**: Xây dựng Teacher Portal (`/teacher/dashboard` và `/teacher/classes/[id]`) thay thế cơ chế AuthProvider bằng hook `useStudentPracticeSession` chuẩn hoá; cập nhật trang Settings của Student để hỗ trợ tính năng "Tham gia lớp học" bằng mã Invite Code. (5) **Production CI/CD**: Áp dụng script `deploy-backend.sh` (Blue-Green) thành công.
 
@@ -79,6 +81,7 @@
 42. B2B2C AI Homework Flow & Onboarding Paywall *(v2.3)*
 43. Pronunciation Engine V2 & Deterministic Grading *(v2.4)*
 44. Teacher Dashboard Integration & B2B2C Flows *(v2.5)*
+45. Teacher Dashboard Redesign & Review Mode *(v2.6)*
 
 ---
 
@@ -139,6 +142,7 @@ DeutschFlow là nền tảng học tiếng Đức (CEFR) kết hợp:
 | **Premium Landing Page** *(v2.3)* | Đập đi xây lại toàn bộ `/app/page.tsx` thành High-Conversion Funnel, Mockup Placeholders, Visual Hierarchy, CTA sắc bén. |
 | **Pronunciation V2** *(v2.4)* | Deterministic Word-Level Grading bằng Levenshtein; Contextual Whisper Prompt (`temperature=0.0`); Phonetics Expert LLM Role có Sanitize JSON. |
 | **Teacher Dashboard & B2B2C** *(v2.5)* | Quản lý lớp học (`teacher_classes`), mã Invite Code, học sinh tham gia lớp (`class_students`), và giao việc (`class_assignments`). Analytics lỗi ngữ pháp và thống kê hiệu suất dựa trên `UserGrammarError` logs và XP, giao diện Frontend cập nhật với API Versioning (`/api/v2/teacher`). |
+| **Teacher Review Mode** *(v2.6)* | Màn hình đánh giá học viên tập trung tại `/teacher/dashboard/[id]/students/[studentId]`. UI/UX Premium với Notification Badges báo số bài chờ chấm, Top Widgets thống kê, gộp chung Dashboard và Quản lý Lớp học. |
 
 **Ngoài phạm vi (hiện tại)**
 

@@ -163,6 +163,51 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* Join Class Section */}
+        <div className="bg-indigo-50 border border-indigo-100 rounded-[16px] p-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+          <div>
+            <h2 className="font-bold text-[#0F172A] text-base">Tham gia lớp học của giáo viên</h2>
+            <p className="text-sm text-indigo-700 mt-1">Nhập mã lớp để tham gia và nhận bài tập từ giáo viên của bạn.</p>
+          </div>
+          <div className="flex w-full sm:w-auto items-center gap-2">
+            <input
+              type="text"
+              id="joinCode"
+              placeholder="Nhập mã lớp..."
+              className="px-4 py-2 rounded-lg border border-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white shadow-sm w-full sm:w-48 uppercase font-medium"
+              onKeyDown={async (e) => {
+                if (e.key === 'Enter') {
+                  const code = e.currentTarget.value;
+                  if (!code) return;
+                  try {
+                    await api.post('/v2/student/classes/join', { inviteCode: code });
+                    alert('Đã gửi yêu cầu tham gia lớp. Vui lòng chờ giáo viên duyệt.');
+                    e.currentTarget.value = '';
+                  } catch (err: any) {
+                    alert(err.response?.data?.error || 'Không thể gửi yêu cầu tham gia lớp.');
+                  }
+                }
+              }}
+            />
+            <button
+              onClick={async () => {
+                const code = (document.getElementById('joinCode') as HTMLInputElement)?.value;
+                if (!code) return;
+                try {
+                  await api.post('/v2/student/classes/join', { inviteCode: code });
+                  alert('Đã gửi yêu cầu tham gia lớp. Vui lòng chờ giáo viên duyệt.');
+                  (document.getElementById('joinCode') as HTMLInputElement).value = '';
+                } catch (err: any) {
+                  alert(err.response?.data?.error || 'Không thể gửi yêu cầu tham gia lớp.');
+                }
+              }}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors whitespace-nowrap shadow-sm"
+            >
+              Xin vào lớp
+            </button>
+          </div>
+        </div>
+
         {/* Header cards row */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[

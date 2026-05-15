@@ -105,6 +105,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
     private final InterviewEvaluationService interviewEvaluationService;
     private final com.deutschflow.system.service.SystemConfigService systemConfigService;
     private final com.deutschflow.ai.rag.service.KnowledgeBaseService knowledgeBaseService;
+    private final com.deutschflow.teacher.service.TeacherAiGradingService teacherAiGradingService;
 
     @Override
     public AiSpeakingSessionDto createSession(Long userId, String topic, String cefrLevel, String personaRaw,
@@ -625,6 +626,9 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
                     return s;
                 }));
         // → Connection TRẢ VỀ pool ✅
+
+        // ── PHA 4: Auto-grade session for Teacher LMS ──
+        teacherAiGradingService.autoGradeSession(sessionId);
 
         return toSessionDto(finalSession);
     }

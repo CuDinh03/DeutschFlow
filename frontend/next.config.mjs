@@ -73,14 +73,7 @@ const nextConfig = {
   },
 
   // ─── API Proxy (Next.js reverse proxy → Spring Boot) ──────────────────────
-  async rewrites() {
-    return [
-      {
-        source: '/api/:path*',
-        destination: `${backendUrl}/api/:path*`,
-      },
-    ];
-  },
+  // ─── API Proxy (Removed for Direct API calls to bypass Amplify Lambda) ──────────────────────
 
   // ─── Experimental ─────────────────────────────────────────────────────────
   experimental: {

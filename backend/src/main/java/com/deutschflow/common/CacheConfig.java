@@ -39,6 +39,7 @@ import java.util.concurrent.TimeUnit;
 public class CacheConfig {
 
     @Bean
+    @org.springframework.context.annotation.Primary
     public CacheManager cacheManager() {
         // ── Shared content caches ──────────────────────────────────────
         var tags = buildCache("tags",
@@ -113,12 +114,18 @@ public class CacheConfig {
                         .expireAfterWrite(1, TimeUnit.HOURS)
                         .recordStats());
 
+        var classLeaderboard = buildCache("classLeaderboard",
+                Caffeine.newBuilder()
+                        .maximumSize(500)
+                        .expireAfterWrite(5, TimeUnit.MINUTES)
+                        .recordStats());
+
         var mgr = new SimpleCacheManager();
         mgr.setCaches(List.of(
                 tags, words, plans, curriculum,
                 achievements, weeklyPrompts,
                 aiVocabCache, aiVocabShort, aiVocabQuiz,
-                ttsAudio, systemConfig
+                ttsAudio, systemConfig, classLeaderboard
         ));
         return mgr;
     }

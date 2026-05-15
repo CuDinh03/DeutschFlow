@@ -608,9 +608,13 @@ export default function AdminUsersPage() {
                                   setEndsAtUtcInput(end.toISOString());
                                   break;
                                 }
-                                case "PRO":
-                                case "ULTRA": {
+                                case "PRO": {
                                   const end = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+                                  setEndsAtUtcInput(end.toISOString());
+                                  break;
+                                }
+                                case "ULTRA": {
+                                  const end = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
                                   setEndsAtUtcInput(end.toISOString());
                                   break;
                                 }
@@ -628,7 +632,7 @@ export default function AdminUsersPage() {
                             {plans.length === 0 && <option value="FREE">FREE</option>}
                           </select>
                           <p className="text-[9px] mt-1 font-medium" style={{ color: P.muted }}>
-                            {planCode === "FREE" ? "7 ngày" : planCode === "PRO" || planCode === "ULTRA" ? "30 ngày" : "Vĩnh viễn"}
+                            {planCode === "FREE" ? "7 ngày" : planCode === "PRO" ? "30 ngày" : planCode === "ULTRA" ? "60 ngày" : "Vĩnh viễn"}
                           </p>
                         </div>
                         <div>

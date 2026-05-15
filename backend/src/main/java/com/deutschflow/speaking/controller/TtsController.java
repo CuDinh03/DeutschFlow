@@ -46,49 +46,23 @@ public class TtsController {
      */
     @PostMapping("/tts")
     @PreAuthorize("isAuthenticated()")
-    public DeferredResult<ResponseEntity<byte[]>> synthesize(
+    public ResponseEntity<Map<String, String>> synthesize(
             @RequestBody Map<String, String> body,
             @AuthenticationPrincipal User user) {
-
-        DeferredResult<ResponseEntity<byte[]>> result = new DeferredResult<>(15_000L,
-                ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).<byte[]>body(null));
 
         String text = body.getOrDefault("text", "");
         String persona = body.getOrDefault("persona", "DEFAULT");
 
         if (text.isBlank()) {
-            result.setResult(ResponseEntity.badRequest().build());
-            return result;
+            return ResponseEntity.badRequest().build();
         }
 
-        if (!ttsService.isConfigured()) {
-            log.debug("[TTS] ElevenLabs not configured — returning 503 for frontend fallback");
-            result.setResult(ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(null));
-            return result;
-        }
-
-        // Dispatch to AI executor — frees Tomcat thread immediately
-        doSynthesize(text, persona, result);
-        return result;
-    }
-
-    @Async("aiExecutor")
-    protected void doSynthesize(String text, String persona, DeferredResult<ResponseEntity<byte[]>> result) {
-        try {
-            byte[] audio = ttsService.synthesize(text, persona);
-            if (audio == null || audio.length == 0) {
-                result.setResult(ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(null));
-                return;
-            }
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.parseMediaType("audio/mpeg"));
-            headers.setContentLength(audio.length);
-            headers.setCacheControl(CacheControl.noCache());
-            result.setResult(new ResponseEntity<>(audio, headers, HttpStatus.OK));
-        } catch (Exception ex) {
-            log.warn("[TTS] Synthesis error: {}", ex.getMessage());
-            result.setResult(ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(null));
-        }
+        // Mock AWS S3 URL for V4.1 Optimization Phase
+        // In the future, this will call Edge TTS and upload to actual S3, then return the S3 URL.
+        log.info("[TTS Mock] Generating mock S3 URL for persona '{}', text length: {}", persona, text.length());
+        String mockS3Url = "https://s3.ap-southeast-1.amazonaws.com/deutschflow-assets/mock-audio.mp3";
+        
+        return ResponseEntity.ok(Map.of("audioUrl", mockS3Url));
     }
 
     /**
