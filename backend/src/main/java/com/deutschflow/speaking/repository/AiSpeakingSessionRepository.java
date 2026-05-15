@@ -15,6 +15,8 @@ public interface AiSpeakingSessionRepository extends JpaRepository<AiSpeakingSes
 
     Page<AiSpeakingSession> findByUserId(Long userId, Pageable pageable);
 
+    List<AiSpeakingSession> findByUserIdOrderByStartedAtDesc(Long userId);
+
     List<AiSpeakingSession> findTop7ByUserIdOrderByStartedAtDesc(Long userId);
 
     List<AiSpeakingSession> findByUserIdAndSessionModeOrderByStartedAtDesc(Long userId, String sessionMode);

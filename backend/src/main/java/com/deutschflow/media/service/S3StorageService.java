@@ -7,9 +7,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.UUID;
 
 @Slf4j
@@ -18,6 +22,7 @@ import java.util.UUID;
 public class S3StorageService {
 
     private final S3Client s3Client;
+    private final S3Presigner s3Presigner;
 
     @Value("${aws.s3.bucket-name}")
     private String bucketName;
@@ -54,5 +59,31 @@ public class S3StorageService {
 
         // Construct the public URL
         return String.format("https://%s.s3.%s.amazonaws.com/%s", bucketName, region, uniqueFilename);
+    }
+
+    /**
+     * Generates a Pre-signed URL for a client to upload a file directly to S3.
+     *
+     * @param objectKey The key (path) in the S3 bucket
+     * @param contentType The expected MIME type of the file
+     * @return The pre-signed URL valid for 15 minutes
+     */
+    public String generatePresignedUrl(String objectKey, String contentType) {
+        PutObjectRequest objectRequest = PutObjectRequest.builder()
+                .bucket(bucketName)
+                .key(objectKey)
+                .contentType(contentType)
+                .build();
+
+        PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
+                .signatureDuration(Duration.ofMinutes(15))
+                .putObjectRequest(objectRequest)
+                .build();
+
+        PresignedPutObjectRequest presignedRequest = s3Presigner.presignPutObject(presignRequest);
+        
+        log.info("Generated Presigned URL for object: {}", objectKey);
+        
+        return presignedRequest.url().toString();
     }
 }

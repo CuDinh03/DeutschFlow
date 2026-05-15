@@ -52,5 +52,26 @@ public interface UserXpEventRepository extends JpaRepository<UserXpEvent, Long> 
         ORDER BY totalXp DESC
         """)
     List<Object[]> findTopUsersByXp(Pageable pageable);
+
+    @Query("""
+        SELECT e.userId, u.displayName, COALESCE(SUM(e.xpAmount), 0) AS totalXp
+        FROM UserXpEvent e
+        JOIN User u ON u.id = e.userId
+        WHERE e.userId IN (SELECT cs.id.studentId FROM ClassStudent cs WHERE cs.id.classId = :classId)
+        GROUP BY e.userId, u.displayName
+        ORDER BY totalXp DESC
+        """)
+    List<Object[]> findClassLeaderboardAllTime(@Param("classId") Long classId);
+
+    @Query("""
+        SELECT e.userId, u.displayName, COALESCE(SUM(e.xpAmount), 0) AS totalXp
+        FROM UserXpEvent e
+        JOIN User u ON u.id = e.userId
+        WHERE e.userId IN (SELECT cs.id.studentId FROM ClassStudent cs WHERE cs.id.classId = :classId)
+          AND e.createdAt >= :startDate
+        GROUP BY e.userId, u.displayName
+        ORDER BY totalXp DESC
+        """)
+    List<Object[]> findClassLeaderboardSince(@Param("classId") Long classId, @Param("startDate") java.time.LocalDateTime startDate);
 }
 

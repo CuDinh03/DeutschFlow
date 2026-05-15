@@ -62,6 +62,7 @@ export type StudentShellSection =
   | "grammar-practice"
   | "grammar-syllabus"
   | "curriculum"
+  | "assignments"
   | "review"
   | "badges"
   | "mock-exam"
@@ -159,6 +160,8 @@ export function StudentShell({
             badge: <span className="text-[9px] font-bold bg-[#22D3EE]/20 text-[#22D3EE] px-1.5 py-0.5 rounded-full border border-[#22D3EE]/30">AI</span> },
           { id: "swipe" as const, label: t("navSwipeLearn"), icon: Repeat2, href: "/student/swipe-cards" },
           { id: "game" as const, label: t("navLegoGame"), icon: Gamepad2, href: "/student/game" },
+          { id: "assignments" as const, label: "Bài tập / Thi thử", icon: BookOpen, href: "/student/assignments",
+            badge: <span className="text-[9px] font-bold bg-rose-500/20 text-rose-500 px-1.5 py-0.5 rounded-full border border-rose-500/30">Mới</span> },
           { id: "weeklySpeaking" as const, label: t("navWeeklySpeaking"), icon: Calendar, href: "/student/weekly-speaking" },
         ],
       },

@@ -9,4 +9,6 @@ import java.util.List;
 @Repository
 public interface ClassAssignmentRepository extends JpaRepository<ClassAssignment, Long> {
     List<ClassAssignment> findByClassIdOrderByCreatedAtDesc(Long classId);
+    long countByClassId(Long classId);
+    void deleteByClassId(Long classId);
 }

@@ -7,5 +7,8 @@ public record ClassAssignmentDto(
         Long classId,
         String topic,
         String description,
+        String assignmentType,
+        Long referenceId,
+        LocalDateTime dueDate,
         LocalDateTime createdAt
 ) {}

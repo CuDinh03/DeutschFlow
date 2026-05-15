@@ -26,9 +26,10 @@ public class TeacherClassroomService {
         return jdbcTemplate.queryForList("""
                 SELECT c.id,
                        c.name,
-                       c.created_at AS createdAt,
-                       (SELECT COUNT(*) FROM classroom_students cs WHERE cs.classroom_id = c.id) AS studentCount,
-                       (SELECT COUNT(*) FROM quizzes q WHERE q.classroom_id = c.id) AS quizCount
+                       c.invite_code AS "inviteCode",
+                       c.created_at AS "createdAt",
+                       (SELECT COUNT(*) FROM classroom_students cs WHERE cs.classroom_id = c.id) AS "studentCount",
+                       (SELECT COUNT(*) FROM quizzes q WHERE q.classroom_id = c.id) AS "quizCount"
                 FROM classrooms c
                 WHERE c.teacher_id = ?
                 ORDER BY c.created_at DESC
@@ -41,11 +42,12 @@ public class TeacherClassroomService {
         if (normalizedName.isBlank()) {
             throw new BadRequestException("Class name is required");
         }
+        String inviteCode = generateInviteCode();
         Long id = jdbcTemplate.queryForObject("""
-                INSERT INTO classrooms (teacher_id, name, created_at)
-                VALUES (?, ?, ?)
+                INSERT INTO classrooms (teacher_id, name, created_at, invite_code)
+                VALUES (?, ?, ?, ?)
                 RETURNING id
-                """, Long.class, teacherId, normalizedName, Timestamp.valueOf(LocalDateTime.now()));
+                """, Long.class, teacherId, normalizedName, Timestamp.valueOf(LocalDateTime.now()), inviteCode);
         return getClassDetail(teacherId, id);
     }
 
@@ -72,7 +74,8 @@ public class TeacherClassroomService {
         Map<String, Object> base = jdbcTemplate.query("""
                 SELECT c.id,
                        c.name,
-                       c.created_at AS createdAt
+                       c.invite_code AS "inviteCode",
+                       c.created_at AS "createdAt"
                 FROM classrooms c
                 WHERE c.id = ?
                 """, rs -> {
@@ -80,6 +83,7 @@ public class TeacherClassroomService {
             return Map.<String, Object>of(
                     "id", rs.getLong("id"),
                     "name", rs.getString("name"),
+                    "inviteCode", rs.getString("inviteCode") != null ? rs.getString("inviteCode") : "",
                     "createdAt", rs.getTimestamp("createdAt")
             );
         }, classId);
@@ -91,7 +95,7 @@ public class TeacherClassroomService {
     public List<Map<String, Object>> listStudents(Long teacherId, Long classId) {
         ensureTeacherOwnsClass(teacherId, classId);
         return jdbcTemplate.queryForList("""
-                SELECT u.id, u.email, u.display_name AS displayName, cs.joined_at AS joinedAt
+                SELECT u.id, u.email, u.display_name AS "displayName", cs.joined_at AS "joinedAt"
                 FROM classroom_students cs
                 JOIN users u ON u.id = cs.student_id
                 WHERE cs.classroom_id = ?
@@ -144,6 +148,16 @@ public class TeacherClassroomService {
         if (!owner.equals(teacherId)) {
             throw new ForbiddenException("Not owner of classroom");
         }
+    }
+
+    private String generateInviteCode() {
+        String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        StringBuilder sb = new StringBuilder(6);
+        java.util.Random rnd = new java.util.Random();
+        for (int i = 0; i < 6; i++) {
+            sb.append(chars.charAt(rnd.nextInt(chars.length())));
+        }
+        return sb.toString();
     }
 }
 

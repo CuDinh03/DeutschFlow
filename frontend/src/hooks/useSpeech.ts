@@ -327,22 +327,20 @@ export function useSpeech(options: UseSpeechOptions = { lang: "de-DE" }) {
 
         if (!res.ok || res.status === 503) return false;
 
-        const blob = await res.blob();
-        if (!blob || blob.size === 0) return false;
+        const data = await res.json();
+        if (!data || !data.audioUrl) return false;
 
-        const url = URL.createObjectURL(blob);
+        const url = data.audioUrl;
         const audio = new Audio(url);
         audioRef.current = audio;
         setIsSpeaking(true);
 
         await new Promise<void>((resolve, reject) => {
           audio.onended = () => {
-            URL.revokeObjectURL(url);
             audioRef.current = null;
             resolve();
           };
           audio.onerror = () => {
-            URL.revokeObjectURL(url);
             audioRef.current = null;
             reject(new Error("Audio playback failed"));
           };

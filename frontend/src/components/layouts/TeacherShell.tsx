@@ -23,8 +23,7 @@ export function TeacherShell({
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false)
 
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, href: '/teacher' },
-    { id: 'classes', label: 'Quản lý Lớp', icon: Users, href: '/teacher/classes' },
+    { id: 'dashboard', label: 'Dashboard & Lớp học', icon: LayoutDashboard, href: '/teacher/dashboard' },
     { id: 'quizzes', label: 'Quản lý Quiz', icon: HelpCircle, href: '/teacher/quizzes' },
     { id: 'reports', label: 'Báo cáo', icon: BarChart2, href: '/teacher/reports' },
   ]

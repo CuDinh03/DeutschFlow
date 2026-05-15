@@ -413,11 +413,39 @@ public class AdminManagementService {
     public List<Map<String, Object>> listClasses() {
         return jdbcTemplate.queryForList("""
                 SELECT c.id, c.name, c.teacher_id AS teacherId, u.display_name AS teacherName, c.created_at AS createdAt,
-                       (SELECT COUNT(*) FROM classroom_students cs WHERE cs.classroom_id = c.id) AS studentCount
-                FROM classrooms c
+                       (SELECT COUNT(*) FROM class_students cs WHERE cs.class_id = c.id) AS studentCount
+                FROM teacher_classes c
                 JOIN users u ON u.id = c.teacher_id
                 ORDER BY c.created_at DESC
                 """);
+    }
+
+    @Transactional
+    public Map<String, Object> bulkAssignStudents(Long classId, List<Long> studentIds) {
+        if (studentIds == null || studentIds.isEmpty()) {
+            return Map.of("assignedCount", 0);
+        }
+        
+        Integer classExists = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM teacher_classes WHERE id = ?", Integer.class, classId);
+        if (classExists == null || classExists == 0) {
+            throw new NotFoundException("Class not found");
+        }
+        
+        Set<Long> uniqueIds = new HashSet<>(studentIds);
+        int count = 0;
+        
+        for (Long sid : uniqueIds) {
+            Integer isStudent = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM users WHERE id = ? AND role = 'STUDENT'", Integer.class, sid);
+            if (isStudent != null && isStudent > 0) {
+                Integer exists = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM class_students WHERE class_id = ? AND student_id = ?", Integer.class, classId, sid);
+                if (exists == null || exists == 0) {
+                    jdbcTemplate.update("INSERT INTO class_students (class_id, student_id, joined_at) VALUES (?, ?, NOW())", classId, sid);
+                    count++;
+                }
+            }
+        }
+        
+        return Map.of("assignedCount", count);
     }
 
     @Transactional(readOnly = true)

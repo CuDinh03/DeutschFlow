@@ -60,6 +60,21 @@ public class AiSpeakingSession {
     @Builder.Default
     private SessionStatus status = SessionStatus.ACTIVE;
 
+    @Column(name = "ai_score")
+    private Integer aiScore;
+
+    @Column(name = "ai_feedback", columnDefinition = "TEXT")
+    private String aiFeedback;
+
+    @Column(name = "teacher_score")
+    private Integer teacherScore;
+
+    @Column(name = "teacher_feedback", columnDefinition = "TEXT")
+    private String teacherFeedback;
+
+    @Column(name = "reviewed_at")
+    private LocalDateTime reviewedAt;
+
     @Column(name = "started_at", nullable = false, updatable = false)
     private LocalDateTime startedAt;
 
