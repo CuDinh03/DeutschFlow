@@ -25,6 +25,11 @@ public class WebConfig implements WebMvcConfigurer {
                 .maxAge(3600);
     }
 
+    @Override
+    public void addInterceptors(org.springframework.web.servlet.config.annotation.InterceptorRegistry registry) {
+        registry.addInterceptor(new com.deutschflow.common.versioning.ApiDeprecationInterceptor());
+    }
+
     @Bean
     public RestTemplate restTemplate() {
         return new RestTemplate();

@@ -131,6 +131,6 @@ deutschflow-key.pem
 * 3.*
 
 
+# Local test database — never commit
+test.db
 nohup.out
-*.dump
-*.md

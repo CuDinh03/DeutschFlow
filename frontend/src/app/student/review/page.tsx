@@ -9,6 +9,7 @@ import { logout } from "@/lib/authSession";
 import ReviewCard from "@/components/learn/ReviewCard";
 import api from "@/lib/api";
 import { offlineSync } from "@/lib/offlineSync";
+import { usePageTimeTracker } from "@/hooks/usePageTimeTracker";
 
 interface ReviewCardData {
   id: number;
@@ -22,6 +23,7 @@ interface ReviewCardData {
 }
 
 export default function ReviewPage() {
+  usePageTimeTracker('flashcard_review')
   const router = useRouter();
   const { me, loading: meLoading, targetLevel, streakDays, initials } = useStudentPracticeSession();
 

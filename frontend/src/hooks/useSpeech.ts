@@ -393,12 +393,19 @@ export function useSpeech(options: UseSpeechOptions = { lang: "de-DE" }) {
 
   /**
    * Speaks text using the character's cloned voice.
-   * Priority: ElevenLabs API (clone) → Browser TTS (fallback)
+   * Priority:
+   *   Tier 1 — Local voice file (/public/voices/{voiceFile}) — zero cost, instant
+   *   Tier 2 — ElevenLabs API (backend /api/ai-speaking/tts) — cloned voice
+   *   Tier 3 — Browser Web Speech API — universal fallback
    *
    * @param text      German text to speak
    * @param personaId persona id (e.g. "lukas", "emma", "anna", "klaus")
-   * @param voiceFile local file name for offline fallback (e.g. "lukas.wav")
+   * @param voiceFile local file name (e.g. "lukas.wav") — skips API cost when available
    * @param onEnd     callback when speech ends
+   *
+   * NOTE: Callers should return stopSpeaking + stopListening in their
+   * useEffect cleanup to prevent Audio/SpeechRecognition memory leaks:
+   *   useEffect(() => () => { stopSpeaking(); stopListening(); }, []);
    */
   const speakWithPersona = useCallback(
     async (
@@ -410,15 +417,22 @@ export function useSpeech(options: UseSpeechOptions = { lang: "de-DE" }) {
       if (!text || typeof window === "undefined") return;
       stopAll();
 
-      // Tier 1: ElevenLabs API — cloned voice (real person's voice)
+      // Tier 1: Local voice file — zero API cost, instant playback
+      if (voiceFile) {
+        const ok0 = await speakLocalFile(voiceFile, onEnd);
+        if (ok0) return;
+        console.info("[TTS] Local voice file unavailable → ElevenLabs");
+      }
+
+      // Tier 2: ElevenLabs API — cloned voice (requires voiceId in .env)
       const ok1 = await speakElevenLabs(text, personaId, onEnd);
       if (ok1) return;
       console.info("[TTS] ElevenLabs failed/unavailable → browser fallback");
 
-      // Tier 2: Browser Web Speech API — universal fallback
+      // Tier 3: Browser Web Speech API — universal fallback
       speakBrowser(text, onEnd);
     },
-    [stopAll, speakElevenLabs, speakBrowser]
+    [stopAll, speakLocalFile, speakElevenLabs, speakBrowser]
   );
 
   // ─── Legacy: speak (uses browser TTS) ──────────────────────────────────

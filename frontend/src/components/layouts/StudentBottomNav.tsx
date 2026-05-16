@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { LayoutDashboard, Map, Mic2, BookOpen, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isStudentImmersivePath } from "@/lib/studentImmersiveRoutes";
+import { useTracking } from "@/hooks/useTracking";
 
 type Item = { href: string; id: string; icon: typeof LayoutDashboard };
 
@@ -20,6 +21,7 @@ export function StudentBottomNav({
   const t = useTranslations("student");
   const router = useRouter();
   const pathname = usePathname();
+  const { trackEvent } = useTracking();
 
   if (isStudentImmersivePath(pathname)) return null;
 
@@ -47,7 +49,12 @@ export function StudentBottomNav({
           <button
             key={id}
             type="button"
-            onClick={() => router.push(href)}
+            data-ph-capture="true"
+            data-ph-feature={id}
+            onClick={() => {
+              trackEvent('nav_clicked', { feature: id, from: pathname })
+              router.push(href)
+            }}
             className={cn(
               "relative flex h-full min-h-0 flex-1 flex-col items-center justify-center gap-1 transition-colors",
               active ? "text-[var(--brand-black)]" : "text-[#94A3B8]",

@@ -13,6 +13,7 @@ import { StudentShell } from "@/components/layouts/StudentShell";
 import { clearTokens, logout } from "@/lib/authSession";
 import { DeutschFlowLoader } from "@/components/ui/DeutschFlowLogo";
 import { useTranslations } from "next-intl";
+import { usePageTimeTracker } from "@/hooks/usePageTimeTracker";
 
 interface UserProfile {
   displayName: string;
@@ -51,6 +52,7 @@ const getTypeConfig = (t: any): Record<string, { icon: React.ReactNode; bg: stri
 });
 
 export default function DashboardPage() {
+  usePageTimeTracker('dashboard')
   const router = useRouter();
   const t = useTranslations("dashboard");
   const [plan, setPlan] = useState<TodayPlanDto | null>(null);

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { WelcomeScreen } from "@/components/speaking/WelcomeScreen";
-import { useChatStore } from "@/store/useChatStore";
+import { useChatStore } from "@/stores/useChatStore";
 import { aiSpeakingApi, SpeakingPersonaId, SpeakingResponseSchemaId, SpeakingSessionMode } from "@/lib/aiSpeakingApi";
 import { AiCompanion } from "@/types/ai-speaking";
 import { PERSONA_TOKENS, PersonaId } from "@/lib/personas";

@@ -34,103 +34,22 @@ import {
   Zap,
 } from 'lucide-react'
 
-type WordListItem = {
-  id: number
-  dtype: string
-  baseForm: string
-  cefrLevel: string
-  phonetic?: string | null
-  meaning?: string | null
-  meaningEn?: string | null
-  example?: string | null
-  exampleDe?: string | null
-  exampleEn?: string | null
-  usageNote?: string | null
-  gender?: 'DER' | 'DIE' | 'DAS' | null
-  article?: 'der' | 'die' | 'das' | null
-  genderColor?: string | null
-  tags?: string[] | null
-  nounDetails?: {
-    pluralForm?: string | null
-    genitiveForm?: string | null
-    nounType?: string | null
-    declensions?: Array<{ kasus: string; numerus: string; form: string }> | null
-  } | null
-  verbDetails?: {
-    auxiliaryVerb?: string | null
-    partizip2?: string | null
-    isSeparable?: boolean | null
-    prefix?: string | null
-    isIrregular?: boolean | null
-    conjugations?: Array<{ tense: string; pronoun: string; form: string }> | null
-  } | null
-  adjectiveDetails?: {
-    comparative?: string | null
-    superlative?: string | null
-    isIrregular?: boolean | null
-  } | null
-}
-
-type WordListResponse = {
-  items: WordListItem[]
-  page: number
-  size: number
-  total: number
-}
-
-type TagItem = {
-  id: number
-  name: string
-  color?: string | null
-  localizedLabel?: string | null
-}
-
-type Me = {
-  displayName: string
-  locale: string
-  role: string
-}
-
-type ArticleLower = 'der' | 'die' | 'das'
-type GenderCode = 'DER' | 'DIE' | 'DAS'
-
-type VocabCardItem = {
-  id: number
-  dtype: string
-  word: string
-  article: ArticleLower
-  gender: GenderCode
-  meaning: string
-  english: string
-  phonetic: string
-  usageNote: string
-  category: string
-  level: string
-  tags: string[]
-  exampleDE: string
-  exampleTranslation: string
-  nounDetails?: WordListItem['nounDetails']
-  verbDetails?: WordListItem['verbDetails']
-  adjectiveDetails?: WordListItem['adjectiveDetails']
-}
-
-const CATEGORY_OPTIONS = ['Alle', 'IT', 'Business', 'Alltag', 'Reisen', 'Grammatik'] as const
-type CategoryOption = typeof CATEGORY_OPTIONS[number]
-
-const GENDER_STYLE: Record<GenderCode, { bg: string; text: string; border: string; dot: string }> = {
-  DER: { bg: '#EFF6FF', text: '#1D4ED8', border: '#BFDBFE', dot: '#3B82F6' },
-  DIE: { bg: '#FFF1F2', text: '#BE123C', border: '#FECDD3', dot: '#F43F5E' },
-  DAS: { bg: '#F0FDF4', text: '#166534', border: '#BBF7D0', dot: '#10B981' },
-}
-
-const LEVEL_STYLE: Record<string, { bg: string; text: string }> = {
-  A1: { bg: '#F0FDF4', text: '#166534' },
-  A2: { bg: '#EFF6FF', text: '#1D4ED8' },
-  B1: { bg: '#FFF8E1', text: '#92400E' },
-  B2: { bg: '#F5F3FF', text: '#4C1D95' },
-  C1: { bg: '#F1F5F9', text: '#0F172A' },
-  C2: { bg: '#EEF2FF', text: '#3730A3' },
-}
+import {
+  WordListItem,
+  WordListResponse,
+  TagItem,
+  Me,
+  VocabCardItem,
+  CATEGORY_OPTIONS,
+  CategoryOption,
+  GENDER_STYLE,
+  LEVEL_STYLE,
+  ArticleLower,
+  GenderCode
+} from './components/types'
+import VocabSearchBar from './components/VocabSearchBar'
+import VocabGrid from './components/VocabGrid'
+import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 
 const WAVE_BARS = [
   3, 6, 10, 16, 22, 28, 32, 36, 30, 26, 34, 38, 32, 28, 22, 18, 26, 34, 38, 34,
@@ -763,6 +682,7 @@ function VocabCard({
 }
 
 export default function StudentVocabularyPage() {
+  usePageTimeTracker('vocabulary')
   const t = useTranslations('vocabulary')
   const uiLocale = useLocale()
   const router = useRouter()
@@ -774,8 +694,8 @@ export default function StudentVocabularyPage() {
   const [loading, setLoading] = useState(true)
   const [q, setQ] = useState('')
   const [cefr, setCefr] = useState('')
-  const [dtype, setDtype] = useState<'Noun' | 'Verb' | 'Adjective' | 'Word' | ''>('')
-  const [gender, setGender] = useState<'DER' | 'DIE' | 'DAS' | ''>('')
+  const [dtype, setDtype] = useState<string>('')
+  const [gender, setGender] = useState<string>('')
   const [tag, setTag] = useState<string>('')
   const [tags, setTags] = useState<TagItem[]>([])
   const [page, setPage] = useState(0)
@@ -959,248 +879,37 @@ export default function StudentVocabularyPage() {
       headerSubtitle={t('subtitle')}
     >
       <div className="flex flex-col -mx-6 -mt-6">
-      <section className="df-glass-subtle border-b border-white/30 rounded-t-2xl overflow-hidden">
-        <div className="max-w-7xl mx-auto px-5 py-4">
-          <div className="flex items-start justify-between mb-4 gap-3 flex-wrap">
-            <p className="text-[#94A3B8] text-xs max-w-xl">
-              {t('pageHeroSubtitle', { total, itCount })}
-            </p>
-            <div className="flex items-center gap-2 ml-auto">
-              {/* Vocab practice shortcut */}
-              <button
-                type="button"
-                onClick={() => {
-                  const p = new URLSearchParams()
-                  if (cefr) p.set('cefr', cefr)
-                  if (tag) p.set('topic', tag)
-                  const qs = p.toString()
-                  router.push('/student/vocab-practice' + (qs ? '?' + qs : ''))
-                }}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all hover:scale-105"
-                style={{ background: 'linear-gradient(135deg, #22d3ee, #a78bfa)', color: 'white', boxShadow: '0 2px 8px rgba(34,211,238,0.4)' }}
-                title={t('practiceSpeak')}>
-                <Mic size={13} />
-                {t('practiceSpeak')}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const p = new URLSearchParams()
-                  if (cefr) p.set('cefr', cefr)
-                  if (tag) p.set('tag', tag)
-                  const qs = p.toString()
-                  router.push('/student/swipe-cards' + (qs ? '?' + qs : ''))
-                }}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all hover:scale-105 bg-white border border-[#E2E8F0] text-[#475569]"
-                title={t('swipeCards')}>
-                <Layers size={13} />
-                {t('swipeCards')}
-              </button>
-              <div className="flex items-center gap-1 bg-[#F5F7FA] rounded-xl p-0.5 border border-[#E2E8F0]">
-                <button
-                  type="button"
-                  onClick={() => setViewMode('grid')}
-                  className={`p-2 rounded-lg ${viewMode === 'grid' ? 'bg-white text-[#121212] shadow-sm' : 'text-[#94A3B8]'}`}
-                >
-                  <LayoutGrid size={15} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewMode('list')}
-                  className={`p-2 rounded-lg ${viewMode === 'list' ? 'bg-white text-[#121212] shadow-sm' : 'text-[#94A3B8]'}`}
-                >
-                  <List size={15} />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="relative flex-1 max-w-md">
-              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
-              <input
-                type="text"
-                placeholder={t('searchPlaceholder')}
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    setDebouncedQ(q)
-                    setPage(0)
-                  }
-                }}
-                className="w-full pl-9 pr-9 py-2.5 rounded-xl text-sm text-[#0F172A] placeholder-[#94A3B8] border border-[#E2E8F0] bg-[#F8FAFF] focus:outline-none focus:ring-2 focus:ring-[#121212]/15"
-              />
-              {q && (
-                <button
-                  type="button"
-                  onClick={() => { setQ(''); setDebouncedQ(''); setPage(0) }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#64748B]"
-                >
-                  <X size={14} />
-                </button>
-              )}
-            </div>
-            <button
-              type="button"
-              className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-sm font-medium border transition-colors ${
-                showFilters ? 'bg-[#EEF4FF] text-[#121212] border-[#bfd7ff]' : 'bg-[#F8FAFF] text-[#64748B] border-[#E2E8F0]'
-              }`}
-              onClick={() => setShowFilters((prev) => !prev)}
-            >
-              <Filter size={14} />
-              {t('filterButton')}
-              <ChevronDown size={13} />
-            </button>
-            <button type="button" className="btn-primary btn-md" onClick={reload} disabled={loading}>
-              {t('filter')}
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2 mt-3 flex-wrap">
-            {CATEGORY_OPTIONS.map((cat) => (
-              <button
-                key={cat}
-                type="button"
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
-                  categoryFilter === cat
-                    ? 'bg-[#121212] text-white border-[#121212]'
-                    : 'bg-white text-[#64748B] border-[#E2E8F0]'
-                }`}
-                onClick={() => {
-                  setCategoryFilter(cat)
-                }}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-
-          <div
-            className={`grid sm:grid-cols-2 lg:grid-cols-5 gap-3 transition-all duration-300 overflow-hidden ${
-              showFilters ? 'mt-3 opacity-100 max-h-[260px]' : 'mt-0 opacity-0 max-h-0'
-            }`}
-          >
-              <div>
-                <label className="text-xs text-[#64748B] font-semibold">CEFR</label>
-                <select className="input mt-1" value={cefr} onChange={(e) => setCefr(e.target.value)}>
-                  <option value="">{t('allLevels')}</option>
-                  {['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map((x) => (
-                    <option key={x} value={x}>{x}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs text-[#64748B] font-semibold">{t('allTypes')}</label>
-                <select className="input mt-1" value={dtype} onChange={(e) => setDtype(e.target.value as 'Noun' | 'Verb' | 'Adjective' | 'Word' | '')}>
-                  <option value="">{t('allTypes')}</option>
-                  <option value="Noun">{t('noun')}</option>
-                  <option value="Verb">{t('verb')}</option>
-                  <option value="Adjective">Adjective</option>
-                  <option value="Word">Word</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-xs text-[#64748B] font-semibold">{t('allGenders')}</label>
-                <select className="input mt-1" value={gender} onChange={(e) => setGender(e.target.value as 'DER' | 'DIE' | 'DAS' | '')}>
-                  <option value="">{t('allGenders')}</option>
-                  <option value="DER">DER</option>
-                  <option value="DIE">DIE</option>
-                  <option value="DAS">DAS</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-xs text-[#64748B] font-semibold">{t('allTags')}</label>
-                <select className="input mt-1" value={tag} onChange={(e) => setTag(e.target.value)}>
-                  <option value="">{t('allTags')}</option>
-                  {tags.map((tagItem) => (
-                    <option key={tagItem.id} value={tagItem.name}>{tagItem.localizedLabel ?? tagItem.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs text-[#64748B] font-semibold">{t('size')}</label>
-                <select className="input mt-1" value={size} onChange={(e) => { setSize(Number(e.target.value)); setPage(0) }}>
-                  {[12, 24, 48].map((x) => <option key={x} value={x}>{x}</option>)}
-                </select>
-              </div>
-          </div>
-        </div>
-      </section>
+      <VocabSearchBar
+        total={total}
+        itCount={itCount}
+        q={q} setQ={setQ}
+        debouncedQ={debouncedQ} setDebouncedQ={setDebouncedQ}
+        setPage={setPage}
+        cefr={cefr} setCefr={setCefr}
+        dtype={dtype} setDtype={setDtype}
+        gender={gender} setGender={setGender}
+        tag={tag} setTag={setTag}
+        tags={tags}
+        size={size} setSize={setSize}
+        viewMode={viewMode} setViewMode={setViewMode}
+        categoryFilter={categoryFilter} setCategoryFilter={setCategoryFilter}
+        loading={loading}
+        onReload={reload}
+      />
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-5 py-6">
-        {loadError ? <div className="mb-4 alert-error">{loadError}</div> : null}
-        {loading ? (
-          <div className="text-[#64748B]">{t('loading')}</div>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-16 h-16 rounded-full bg-[#F1F4F9] flex items-center justify-center mb-4">
-              <Search size={24} className="text-[#CBD5E1]" />
-            </div>
-            <p className="text-[#64748B] font-semibold mb-1">{t('emptyTitle')}</p>
-            <p className="text-[#94A3B8] text-sm">{t('emptyHint')}</p>
-          </div>
-        ) : (
-          <>
-            <div className="flex items-center justify-between text-sm text-[#64748B] mb-4">
-              <span>{t('results', { total, page: page + 1 })}</span>
-              <div className="flex items-center gap-2">
-                <button type="button" className="btn-secondary btn-sm" disabled={page <= 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>
-                  {t('prev')}
-                </button>
-                <button type="button" className="btn-secondary btn-sm" disabled={(page + 1) * size >= total} onClick={() => setPage((p) => p + 1)}>
-                  {t('next')}
-                </button>
-              </div>
-            </div>
-
-            {viewMode === 'grid' ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                {filtered.map((item) => (
-                  <VocabCard
-                    key={item.id}
-                    item={item}
-                    index={item.id}
-                    selected={selectedItem?.id === item.id}
-                    onSelect={() => openModal(item)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {filtered.map((item, idx) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => openModal(item)}
-                    className="bg-white rounded-2xl border-2 border-[#E2E8F0] px-5 py-3.5 flex items-center gap-4 text-left hover:border-[#121212] df-card-enter"
-                    style={{ animationDelay: `${Math.min(idx, 10) * 35}ms` }}
-                  >
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border" style={{ background: GENDER_STYLE[item.gender].bg, color: GENDER_STYLE[item.gender].text, borderColor: GENDER_STYLE[item.gender].border }}>
-                      {item.article}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-sm text-[#121212] truncate">{item.word}</p>
-                      {item.phonetic ? <p className="text-xs text-[#94A3B8] font-mono">{item.phonetic}</p> : null}
-                    </div>
-                    <p className="hidden md:block text-sm text-[#334155] flex-1">{item.english}</p>
-                    <button
-                      type="button"
-                      className="btn-outline btn-sm inline-flex items-center gap-1"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        speakGerman(`${item.article} ${item.word}`)
-                      }}
-                    >
-                      <Volume2 size={14} />
-                    </button>
-                    <ChevronRight size={14} className="text-[#CBD5E1]" />
-                  </button>
-                ))}
-              </div>
-            )}
-          </>
-        )}
+        <VocabGrid
+          items={filtered}
+          loading={loading}
+          loadError={loadError}
+          total={total}
+          page={page}
+          size={size}
+          setPage={setPage}
+          viewMode={viewMode}
+          selectedItem={selectedItem}
+          onOpenModal={openModal}
+        />
       </main>
 
       {selectedItem ? <DetailModal item={selectedItem} closing={modalClosing} onClose={requestCloseModal} /> : null}

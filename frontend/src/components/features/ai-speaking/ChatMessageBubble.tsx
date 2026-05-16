@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { ChatMessage } from "@/store/useChatStore";
+import { ChatMessage } from "@/stores/useChatStore";
 import { AlertCircle, CheckCircle2, Volume2, VolumeX, Lightbulb } from "lucide-react";
 import { motion } from "framer-motion";
 

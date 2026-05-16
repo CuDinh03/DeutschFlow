@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { TeacherShell } from "@/components/layouts/TeacherShell";
-import { useStudentPracticeSession } from "@/hooks/useStudentPracticeSession";
 import api from "@/lib/api";
 import { format } from "date-fns";
 import { Users, BarChart2, BookOpen, AlertCircle, TrendingUp, Plus, Trophy } from "lucide-react";
@@ -45,10 +44,19 @@ interface ClassAssignment {
   createdAt: string;
 }
 
+interface AuthMe {
+  displayName: string;
+  role: string;
+  userId?: number;
+  email?: string | null;
+}
+
 export default function ClassDetailPage() {
   const router = useRouter();
   const { id } = useParams();
-  const { me: user, loading: userLoading } = useStudentPracticeSession({ requireStudent: false });
+
+  const [user, setUser] = useState<AuthMe | null>(null);
+  const [pageReady, setPageReady] = useState(false);
   
   const [activeTab, setActiveTab] = useState<"students" | "joinRequests" | "analytics" | "assignments" | "leaderboard">("students");
   const [students, setStudents] = useState<ClassStudent[]>([]);
@@ -57,19 +65,31 @@ export default function ClassDetailPage() {
   const [assignments, setAssignments] = useState<ClassAssignment[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardDto[]>([]);
   const [leaderboardType, setLeaderboardType] = useState<"ALL_TIME" | "WEEKLY">("ALL_TIME");
-  const [loading, setLoading] = useState(true);
 
   const [newTopic, setNewTopic] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [newDueDate, setNewDueDate] = useState("");
   const [newAssignmentType, setNewAssignmentType] = useState("GENERAL");
 
+  // Step 1: Auth check
   useEffect(() => {
-    if (!user) return;
-    if (user.role !== "TEACHER" && user.role !== "ADMIN") {
-      router.push("/dashboard");
-      return;
-    }
+    api.get<AuthMe>("/auth/me")
+      .then((res) => {
+        const userData = res.data;
+        if (userData.role !== "TEACHER" && userData.role !== "ADMIN") {
+          router.push("/dashboard");
+          return;
+        }
+        setUser(userData);
+      })
+      .catch(() => {
+        router.push("/login");
+      });
+  }, [router]);
+
+  // Step 2: Fetch class data once user is confirmed
+  useEffect(() => {
+    if (!user || !id) return;
     fetchData();
   }, [user, id]);
 
@@ -90,7 +110,7 @@ export default function ClassDetailPage() {
     } catch (e) {
       console.error(e);
     } finally {
-      setLoading(false);
+      setPageReady(true);
     }
   };
 
@@ -134,7 +154,11 @@ export default function ClassDetailPage() {
     }
   };
 
-  if (!user || userLoading || loading) return null;
+  if (!user) return (
+    <div className="flex h-screen items-center justify-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+    </div>
+  );
 
   return (
     <TeacherShell
