@@ -29,7 +29,7 @@ interface StudentAssignmentDto {
 export default function AssignmentDetailPage() {
   const router = useRouter();
   const { id } = useParams();
-  const { me: user, loading: userLoading } = useStudentPracticeSession({ requireStudent: true });
+  const { me: user, loading: userLoading, streakDays, initials, targetLevel } = useStudentPracticeSession({ requireStudent: true });
   
   const [assignment, setAssignment] = useState<StudentAssignmentDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -138,9 +138,9 @@ export default function AssignmentDetailPage() {
     <StudentShell
       activeSection="assignments"
       user={{ displayName: user.displayName, role: user.role }}
-      targetLevel={user.learningTargetLevel || "A1"}
-      streakDays={user.currentStreak || 0}
-      initials={user.displayName?.charAt(0) || "DF"}
+      targetLevel={targetLevel}
+      streakDays={streakDays}
+      initials={initials}
       onLogout={() => {
         localStorage.removeItem("auth_token");
         window.location.href = "/login";

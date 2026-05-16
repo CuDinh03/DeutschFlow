@@ -169,7 +169,6 @@ export default function StudentReviewPage() {
       }}
       headerTitle="Review Mode"
       headerSubtitle="Chấm điểm và nhận xét tiến độ học viên"
-      backUrl={`/teacher/dashboard/${classId}`}
     >
       <div className="p-8 max-w-5xl mx-auto space-y-6">
         

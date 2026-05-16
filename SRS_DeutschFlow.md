@@ -1,8 +1,10 @@
 # SRS — DeutschFlow (Software Requirements Specification)
 
-**Phiên bản:** 2.6  
-**Ngày:** 2026-05-15  
+**Phiên bản:** 2.7  
+**Ngày:** 2026-05-16  
 **Ngôn ngữ:** Tiếng Việt  
+
+**Changelog v2.7:** Triển khai **Teacher LMS v2 (Mã Mời Lớp Học & Luồng Xét Duyệt)** và **Vá lỗ hổng bảo mật React2Shell**. (1) **Classroom Join Requests**: Chuyển đổi hệ thống tham gia lớp học từ thêm thủ công bằng Email sang tự động bằng mã mời (`inviteCode` 8 ký tự). Xây dựng bảng `classroom_join_requests` cùng bộ API tương ứng (`GET`, `POST approve`, `POST reject`). (2) **Teacher Dashboard UI**: Thêm tab "Duyệt Học Viên" tại trang chi tiết lớp học (`/teacher/dashboard/[id]`) giúp giáo viên quản lý và xét duyệt hàng chờ. Gỡ bỏ công cụ thêm học viên qua Email. (3) **Student UI**: Tích hợp khối "Tham gia lớp học của giáo viên" bằng mã mời ngay tại Student Dashboard (`/dashboard`). (4) **Security Patch**: Cập nhật khẩn cấp phiên bản Next.js và `eslint-config-next` từ `14.2.3` lên `14.2.35` nhằm vá triệt để lỗ hổng thực thi mã từ xa (RCE) nghiêm trọng React2Shell (CVE-2025-55182).
 
 **Changelog v2.6:** Triển khai **Teacher Dashboard Redesign & Review Mode (Phase 4)**. (1) **UI/UX Tối ưu**: Gộp `teacher/classes` vào `teacher/dashboard`, áp dụng Premium Cards, Glassmorphism, và Notification Badges (báo bài chờ chấm). Thêm các Top Widgets thống kê tổng quan (Học viên, Bài tập, Lớp tích cực). (2) **Review Mode**: Xây dựng màn hình không gian làm việc tập trung tại `/teacher/dashboard/[id]/students/[studentId]` tách biệt thành 2 Tab (Giao tiếp AI và Bài tập tĩnh), hỗ trợ Modal "Đánh giá & Chấm điểm" nhanh chóng. (3) **Hybrid Assignment Config**: Mở rộng form giao bài với `dueDate` và `assignmentType` (`GENERAL`, `SPEAKING_SCENARIO`, `VOCABULARY`, `GRAMMAR`) để chuẩn bị cho dữ liệu bài tập B2B2C nâng cao. (4) **Fix Routing & Architecture**: Redirect `/teacher` về `/teacher/dashboard`, gộp Menu Sidebar "Quản lý Lớp" vào Dashboard, dọn dẹp các đường dẫn cũ.
 
@@ -82,6 +84,8 @@
 43. Pronunciation Engine V2 & Deterministic Grading *(v2.4)*
 44. Teacher Dashboard Integration & B2B2C Flows *(v2.5)*
 45. Teacher Dashboard Redesign & Review Mode *(v2.6)*
+46. Teacher LMS v2 (Mã Mời Lớp Học & Luồng Xét Duyệt) *(v2.7)*
+47. Security Patch: React2Shell (CVE-2025-55182) *(v2.7)*
 
 ---
 
@@ -2027,3 +2031,38 @@ Triển khai hệ thống phân quyền, quản lý lớp học và bài tập d
 - **Teacher Portal**: Giao diện quản lý trực quan tại `/teacher/dashboard` và `/teacher/classes/[id]` (React + Next.js).
 - **Authentication**: Thay thế component `AuthProvider` cũ bằng custom hook `useStudentPracticeSession` để tối ưu flow lấy context người dùng và xác thực JWT token.
 - **Student Invite Flow**: Cập nhật trang `/student/settings` để học sinh có thể dễ dàng nhập `invite_code` tham gia lớp học của giáo viên.
+
+## 45. Teacher Dashboard Redesign & Review Mode (v2.6)
+
+### 45.1 Mục tiêu
+Tối ưu hóa UI/UX của Teacher Dashboard, cung cấp không gian làm việc tập trung (Review Mode) để giáo viên đánh giá học sinh, đồng thời mở rộng form giao bài tập.
+
+### 45.2 Các thay đổi chính
+- **UI/UX Tối ưu**: Gộp `teacher/classes` vào `teacher/dashboard`, áp dụng Premium Cards, Glassmorphism, và Notification Badges.
+- **Review Mode**: Xây dựng màn hình không gian làm việc tập trung tại `/teacher/dashboard/[id]/students/[studentId]` tách biệt thành 2 Tab (Giao tiếp AI và Bài tập tĩnh), hỗ trợ Modal "Đánh giá & Chấm điểm" nhanh chóng.
+- **Hybrid Assignment Config**: Mở rộng form giao bài với `dueDate` và `assignmentType` (`GENERAL`, `SPEAKING_SCENARIO`, `VOCABULARY`, `GRAMMAR`).
+- **Fix Routing**: Redirect `/teacher` về `/teacher/dashboard`, dọn dẹp các đường dẫn cũ.
+
+## 46. Teacher LMS v2 (Mã Mời Lớp Học & Luồng Xét Duyệt) (v2.7)
+
+### 46.1 Mục tiêu
+Loại bỏ quy trình thêm học viên thủ công bằng Email, thay thế bằng hệ thống tự động sinh mã mời (Invite Code) và hàng chờ phê duyệt (Join Requests) cho giáo viên.
+
+### 46.2 Các thay đổi về Backend
+- **Classroom Join Requests**: Tạo bảng `classroom_join_requests` liên kết với `teacher_classes`.
+- **API Flow**: Sinh mã `inviteCode` ngẫu nhiên (8 ký tự) khi tạo lớp. Cung cấp API để giáo viên lấy danh sách yêu cầu (`GET /api/v2/teacher/classes/{classId}/join-requests`), phê duyệt (`POST .../approve`), và từ chối (`POST .../reject`). Sinh API `POST /api/v2/student/classes/join` cho học sinh.
+- **Data Integrity**: Cài đặt Constraint `Unique` cho cặp `(classroom_id, student_id)` để chống duplicate requests.
+
+### 46.3 Các thay đổi về Frontend
+- **Teacher Dashboard**: Xóa bỏ tính năng nhập Email rườm rà. Mã lớp được hiển thị to, trực quan ở trang tổng quan với tính năng Copy nhanh.
+- **Approval Tab**: Thêm Tab "Duyệt Học Viên" trong giao diện quản lý lớp (`/teacher/dashboard/[id]`), tích hợp notification badges (chấm đỏ báo hiệu số lượng đang chờ).
+- **Student Dashboard**: Thêm khối nhập mã lớp "Xin vào lớp bằng Mã" trực tiếp trên Student Dashboard.
+
+## 47. Security Patch: React2Shell (CVE-2025-55182) (v2.7)
+
+### 47.1 Bối cảnh rủi ro
+Lỗ hổng **React2Shell** là một lỗ hổng thực thi mã từ xa (RCE) nghiêm trọng (CVSS 10.0) ảnh hưởng đến React Server Components, cho phép hacker không cần xác thực vẫn có thể chiếm quyền điều khiển server qua một HTTP Request. Do dự án sử dụng Next.js (bản `14.2.3`), toàn bộ Frontend có nguy cơ bị tấn công.
+
+### 47.2 Biện pháp xử lý & Khắc phục
+- **Cập nhật Dependency**: Cập nhật `next` và `eslint-config-next` trong `package.json` lên bản vá an toàn chính thức `14.2.35`.
+- **Triển khai tự động**: Kích hoạt cơ chế AWS Amplify CI/CD rebuild với file `package-lock.json` mới để đưa bản vá lên Production. Hệ thống hiện tại đã an toàn tuyệt đối trước lỗ hổng này.
