@@ -115,6 +115,27 @@ else
 fi
 
 echo ""
+echo "[3.5/8] Ensuring Redis is running..."
+if ! sudo docker ps --format '{{.Names}}' | grep -q "^deutschflow-redis$"; then
+  echo "  -> Redis not found, starting..."
+  sudo docker rm -f deutschflow-redis 2>/dev/null || true
+  sudo docker run -d \
+    --name deutschflow-redis \
+    --restart unless-stopped \
+    --memory="256m" \
+    -p 127.0.0.1:6379:6379 \
+    redis:7-alpine redis-server --appendonly yes
+  sleep 3
+  echo "  Redis started successfully"
+else
+  echo "  -> Redis already running"
+fi
+
+# Lấy IP của host để backend container có thể kết nối vào Redis trên host
+REDIS_HOST_IP=$(sudo docker inspect -f '{{range .NetworkSettings.Networks}}{{.Gateway}}{{end}}' deutschflow-redis 2>/dev/null || echo "172.17.0.1")
+echo "  Redis host IP: $REDIS_HOST_IP"
+
+echo ""
 echo "[4/8] Building new Docker image (BLUE still serving users)..."
 sudo docker build -t deutschflow-backend:new ./backend
 echo "  Image built successfully"
@@ -134,6 +155,8 @@ sudo docker run -d \
   --name deutschflow-backend-green \
   --env-file /home/ubuntu/DeutschFlow/.env.production \
   -e EDGE_TTS_URL=http://172.17.0.1:5050 \
+  -e REDIS_HOST=${REDIS_HOST_IP:-172.17.0.1} \
+  -e REDIS_PORT=6379 \
   -p 8081:8080 \
   --memory="1500m" \
   deutschflow-backend:new

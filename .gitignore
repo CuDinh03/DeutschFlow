@@ -134,3 +134,17 @@ deutschflow-key.pem
 # Local test database — never commit
 test.db
 nohup.out
+
+# Logs & temp files
+nohup.out
+nohup*.out
+*.db
+*.log
+
+# One-off test scripts at root
+test-*.js
+
+# Media files uploaded accidentally
+*.jpeg
+*.jpg
+*.png
