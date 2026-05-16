@@ -4,9 +4,6 @@ applications:
       phases:
         preBuild:
           commands:
-            - echo "NEXT_PUBLIC_POSTHOG_KEY=phc_vFERGwkAxSWCTagc39wk3uevgueqhZsXvjcc5dDSKoHB" >> .env.production
-            - echo "NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com" >> .env.production
-            - echo "NEXT_PUBLIC_POSTHOG_SHARED_DASHBOARD_URL=https://us.posthog.com/shared/SUGOZJs6_mQf6p8606Z1cRQf4b17jA" >> .env.production
             - npm ci --cache .npm --prefer-offline
         build:
           commands:
