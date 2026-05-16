@@ -201,6 +201,8 @@ sudo docker run -d \
   --name deutschflow-backend \
   --env-file /home/ubuntu/DeutschFlow/.env.production \
   -e EDGE_TTS_URL=http://172.17.0.1:5050 \
+  -e REDIS_HOST=${REDIS_HOST_IP:-172.17.0.1} \
+  -e REDIS_PORT=6379 \
   -p 8080:8080 \
   --memory="1500m" \
   --restart unless-stopped \
@@ -210,14 +212,21 @@ sudo docker rmi deutschflow-backend:latest 2>/dev/null || true
 sudo docker tag deutschflow-backend:new deutschflow-backend:latest
 sudo docker rmi deutschflow-backend:new 2>/dev/null || true
 
-echo "  -> Waiting 15s for final startup..."
-sleep 15
+echo "  -> Waiting for final startup on port 8080 (max 60s)..."
+for i in $(seq 1 12); do
+  sleep 5
+  HEALTH=$(curl -s http://localhost:8080/actuator/health 2>/dev/null || echo "")
+  if echo "$HEALTH" | grep -q '"UP"'; then
+    echo "  Backend is healthy!"
+    break
+  fi
+  echo "  Waiting... ($i/12)"
+done
 
 echo ""
 echo "======================================="
 echo "  [8/8] Final Health Checks"
 echo "======================================="
-HEALTH=$(curl -s http://localhost:8080/actuator/health || true)
 echo "  Backend:  $HEALTH"
 
 EDGE_HEALTH2=$(curl -s http://localhost:5050/health || true)
