@@ -9,7 +9,7 @@
 set -e
 
 PEM_KEY="/Users/dinhcu/Desktop/DeutschFlow/deutschflow-key.pem"
-EC2_HOST="ubuntu@3.82.43.113"
+EC2_HOST="ubuntu@35.175.232.152"
 BRANCH="main"
 
 echo "========================================"
@@ -228,7 +228,7 @@ if echo "$HEALTH" | grep -q '"UP"'; then
   echo "======================================="
   echo "  DEPLOY THANH CONG! (Blue-Green)"
   echo "======================================="
-  echo "  API:     http://3.82.43.113:8080"
+  echo "  API:     http://35.175.232.152:8080"
   echo "  Downtime: ~3-5s (graceful cutover only)"
 else
   echo ""
