@@ -24,6 +24,7 @@ export function TeacherShell({
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard & Lớp học', icon: LayoutDashboard, href: '/teacher/dashboard' },
+    { id: 'classes', label: 'Quản lý Lớp', icon: Users, href: '/teacher/dashboard' },
     { id: 'quizzes', label: 'Quản lý Quiz', icon: HelpCircle, href: '/teacher/quizzes' },
     { id: 'reports', label: 'Báo cáo', icon: BarChart2, href: '/teacher/reports' },
   ]

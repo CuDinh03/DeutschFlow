@@ -76,7 +76,7 @@ export default function ClassDetailPage() {
   const fetchData = async () => {
     try {
       const [studentsRes, joinRequestsRes, analyticsRes, assignmentsRes, leaderboardRes] = await Promise.all([
-        api.get<ClassStudent[]>(`/teacher/classes/${id}/students`),
+        api.get<ClassStudent[]>(`/v2/teacher/classes/${id}/students`),
         api.get<any[]>(`/v2/teacher/classes/${id}/join-requests`).catch(() => ({ data: [] })),
         api.get<ClassAnalyticsOverview>(`/v2/teacher/classes/${id}/analytics`).catch(() => ({ data: { topErrors: [], studentCount: 0, totalXp: 0, completedAssignments: 0 } })),
         api.get<ClassAssignment[]>(`/v2/teacher/classes/${id}/assignments`).catch(() => ({ data: [] })),
@@ -98,7 +98,7 @@ export default function ClassDetailPage() {
     e.preventDefault();
     if (!newTopic) return;
     try {
-      await api.post(`/teacher/classes/${id}/assignments`, {
+      await api.post(`/v2/teacher/classes/${id}/assignments`, {
         topic: newTopic,
         description: newDesc,
         assignmentType: newAssignmentType,
@@ -150,10 +150,10 @@ export default function ClassDetailPage() {
       <div className="p-8 max-w-5xl mx-auto space-y-6">
         
         {/* Tabs */}
-        <div className="flex border-b border-slate-200">
+        <div className="flex border-b border-slate-200 overflow-x-auto scrollbar-hide">
           <button
             onClick={() => setActiveTab("students")}
-            className={`px-6 py-3 font-semibold text-sm flex items-center gap-2 border-b-2 transition-colors ${
+            className={`px-6 py-3 font-semibold text-sm flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap shrink-0 ${
               activeTab === "students" ? "border-indigo-600 text-indigo-600" : "border-transparent text-slate-500 hover:text-slate-800"
             }`}
           >
@@ -161,7 +161,7 @@ export default function ClassDetailPage() {
           </button>
           <button
             onClick={() => setActiveTab("joinRequests")}
-            className={`px-6 py-3 font-semibold text-sm flex items-center gap-2 border-b-2 transition-colors relative ${
+            className={`px-6 py-3 font-semibold text-sm flex items-center gap-2 border-b-2 transition-colors relative whitespace-nowrap shrink-0 ${
               activeTab === "joinRequests" ? "border-indigo-600 text-indigo-600" : "border-transparent text-slate-500 hover:text-slate-800"
             }`}
           >
@@ -174,7 +174,7 @@ export default function ClassDetailPage() {
           </button>
           <button
             onClick={() => setActiveTab("analytics")}
-            className={`px-6 py-3 font-semibold text-sm flex items-center gap-2 border-b-2 transition-colors ${
+            className={`px-6 py-3 font-semibold text-sm flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap shrink-0 ${
               activeTab === "analytics" ? "border-indigo-600 text-indigo-600" : "border-transparent text-slate-500 hover:text-slate-800"
             }`}
           >
@@ -182,7 +182,7 @@ export default function ClassDetailPage() {
           </button>
           <button
             onClick={() => setActiveTab("assignments")}
-            className={`px-6 py-3 font-semibold text-sm flex items-center gap-2 border-b-2 transition-colors ${
+            className={`px-6 py-3 font-semibold text-sm flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap shrink-0 ${
               activeTab === "assignments" ? "border-indigo-600 text-indigo-600" : "border-transparent text-slate-500 hover:text-slate-800"
             }`}
           >
@@ -190,7 +190,7 @@ export default function ClassDetailPage() {
           </button>
           <button
             onClick={() => setActiveTab("leaderboard")}
-            className={`px-6 py-3 font-semibold text-sm flex items-center gap-2 border-b-2 transition-colors ${
+            className={`px-6 py-3 font-semibold text-sm flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap shrink-0 ${
               activeTab === "leaderboard" ? "border-indigo-600 text-indigo-600" : "border-transparent text-slate-500 hover:text-slate-800"
             }`}
           >
