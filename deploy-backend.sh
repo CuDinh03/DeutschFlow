@@ -161,10 +161,10 @@ sudo docker run -d \
   --memory="1500m" \
   deutschflow-backend:new
 
-echo "  -> Waiting for GREEN to become healthy (max 90s)..."
+echo "  -> Waiting for GREEN to become healthy (max 180s)..."
 
 GREEN_HEALTHY=false
-for i in $(seq 1 18); do
+for i in $(seq 1 36); do
   sleep 5
   GREEN_STATUS=$(curl -s http://localhost:8081/actuator/health 2>/dev/null || echo "")
   if echo "$GREEN_STATUS" | grep -q '"UP"'; then
@@ -172,7 +172,7 @@ for i in $(seq 1 18); do
     echo "  GREEN is healthy after $((i * 5))s!"
     break
   fi
-  echo "  Waiting... ($i/18)"
+  echo "  Waiting... ($i/36)"
 done
 
 if [ "$GREEN_HEALTHY" = false ]; then
