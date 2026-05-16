@@ -1,8 +1,10 @@
 # SRS — DeutschFlow (Software Requirements Specification)
 
-**Phiên bản:** 2.7  
+**Phiên bản:** 2.8  
 **Ngày:** 2026-05-16  
 **Ngôn ngữ:** Tiếng Việt  
+
+**Changelog v2.8:** Triển khai **System Refactoring, PWA Integration & Observability (Phase 3 & 4)**. (1) **Async API Refactor**: Nâng cấp `GeminiApiClient` sang Spring WebFlux (`WebClient`) kết hợp `CompletableFuture` và `@Async`, giải quyết triệt để lỗi Thread Exhaustion do I/O blocking trên Tomcat. (2) **PWA & State Management**: Tối ưu hóa `manifest.json` Next.js PWA build pipeline. Chuẩn hóa toàn bộ Global State bằng Zustand (`useUserStore`, `useSpeakingStore`, `useSrsStore`). (3) **Observability Stack**: Tích hợp Grafana, Prometheus, Loki, và Promtail vào `docker-compose.prod.yml`, tự động auto-provision Dashboard (AI Latency, DB Pool, Error Rates) và Alert Rules. (4) **API Versioning Strategy**: Xây dựng kiến trúc versioning nội tại bằng Custom Annotation `@ApiVersion`, tự động gán tiền tố `/api/vX` qua `ApiVersionRequestMappingHandlerMapping`, kèm `ApiDeprecationInterceptor` cho v1. (5) **Strict i18n CI/CD**: Xây dựng kịch bản Python (`check_i18n.py`) rà soát chuỗi tiếng Việt hardcoded trên React nodes, tích hợp chặn tự động (fail build) qua GitHub Actions (`frontend-ci.yml`).
 
 **Changelog v2.7:** Triển khai **Teacher LMS v2 (Mã Mời Lớp Học & Luồng Xét Duyệt)** và **Vá lỗ hổng bảo mật React2Shell**. (1) **Classroom Join Requests**: Chuyển đổi hệ thống tham gia lớp học từ thêm thủ công bằng Email sang tự động bằng mã mời (`inviteCode` 8 ký tự). Xây dựng bảng `classroom_join_requests` cùng bộ API tương ứng (`GET`, `POST approve`, `POST reject`). (2) **Teacher Dashboard UI**: Thêm tab "Duyệt Học Viên" tại trang chi tiết lớp học (`/teacher/dashboard/[id]`) giúp giáo viên quản lý và xét duyệt hàng chờ. Gỡ bỏ công cụ thêm học viên qua Email. (3) **Student UI**: Tích hợp khối "Tham gia lớp học của giáo viên" bằng mã mời ngay tại Student Dashboard (`/dashboard`). (4) **Security Patch**: Cập nhật khẩn cấp phiên bản Next.js và `eslint-config-next` từ `14.2.3` lên `14.2.35` nhằm vá triệt để lỗ hổng thực thi mã từ xa (RCE) nghiêm trọng React2Shell (CVE-2025-55182).
 
@@ -86,6 +88,7 @@
 45. Teacher Dashboard Redesign & Review Mode *(v2.6)*
 46. Teacher LMS v2 (Mã Mời Lớp Học & Luồng Xét Duyệt) *(v2.7)*
 47. Security Patch: React2Shell (CVE-2025-55182) *(v2.7)*
+48. System Refactoring, PWA Integration & Observability *(v2.8)*
 
 ---
 

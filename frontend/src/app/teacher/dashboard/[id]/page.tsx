@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { TeacherShell } from "@/components/layouts/TeacherShell";
-import { useStudentPracticeSession } from "@/hooks/useStudentPracticeSession";
 import api from "@/lib/api";
 import { format } from "date-fns";
 import { Users, BarChart2, BookOpen, AlertCircle, TrendingUp, Plus, Trophy } from "lucide-react";
@@ -45,10 +44,19 @@ interface ClassAssignment {
   createdAt: string;
 }
 
+interface AuthMe {
+  displayName: string;
+  role: string;
+  userId?: number;
+  email?: string | null;
+}
+
 export default function ClassDetailPage() {
   const router = useRouter();
   const { id } = useParams();
-  const { me: user, loading: userLoading } = useStudentPracticeSession({ requireStudent: false });
+
+  const [user, setUser] = useState<AuthMe | null>(null);
+  const [pageReady, setPageReady] = useState(false);
   
   const [activeTab, setActiveTab] = useState<"students" | "joinRequests" | "analytics" | "assignments" | "leaderboard">("students");
   const [students, setStudents] = useState<ClassStudent[]>([]);
@@ -57,26 +65,38 @@ export default function ClassDetailPage() {
   const [assignments, setAssignments] = useState<ClassAssignment[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardDto[]>([]);
   const [leaderboardType, setLeaderboardType] = useState<"ALL_TIME" | "WEEKLY">("ALL_TIME");
-  const [loading, setLoading] = useState(true);
 
   const [newTopic, setNewTopic] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [newDueDate, setNewDueDate] = useState("");
   const [newAssignmentType, setNewAssignmentType] = useState("GENERAL");
 
+  // Step 1: Auth check
   useEffect(() => {
-    if (!user) return;
-    if (user.role !== "TEACHER" && user.role !== "ADMIN") {
-      router.push("/dashboard");
-      return;
-    }
+    api.get<AuthMe>("/auth/me")
+      .then((res) => {
+        const userData = res.data;
+        if (userData.role !== "TEACHER" && userData.role !== "ADMIN") {
+          router.push("/dashboard");
+          return;
+        }
+        setUser(userData);
+      })
+      .catch(() => {
+        router.push("/login");
+      });
+  }, [router]);
+
+  // Step 2: Fetch class data once user is confirmed
+  useEffect(() => {
+    if (!user || !id) return;
     fetchData();
   }, [user, id]);
 
   const fetchData = async () => {
     try {
       const [studentsRes, joinRequestsRes, analyticsRes, assignmentsRes, leaderboardRes] = await Promise.all([
-        api.get<ClassStudent[]>(`/teacher/classes/${id}/students`),
+        api.get<ClassStudent[]>(`/v2/teacher/classes/${id}/students`),
         api.get<any[]>(`/v2/teacher/classes/${id}/join-requests`).catch(() => ({ data: [] })),
         api.get<ClassAnalyticsOverview>(`/v2/teacher/classes/${id}/analytics`).catch(() => ({ data: { topErrors: [], studentCount: 0, totalXp: 0, completedAssignments: 0 } })),
         api.get<ClassAssignment[]>(`/v2/teacher/classes/${id}/assignments`).catch(() => ({ data: [] })),
@@ -90,7 +110,7 @@ export default function ClassDetailPage() {
     } catch (e) {
       console.error(e);
     } finally {
-      setLoading(false);
+      setPageReady(true);
     }
   };
 
@@ -98,7 +118,7 @@ export default function ClassDetailPage() {
     e.preventDefault();
     if (!newTopic) return;
     try {
-      await api.post(`/teacher/classes/${id}/assignments`, {
+      await api.post(`/v2/teacher/classes/${id}/assignments`, {
         topic: newTopic,
         description: newDesc,
         assignmentType: newAssignmentType,
@@ -134,7 +154,11 @@ export default function ClassDetailPage() {
     }
   };
 
-  if (!user || userLoading || loading) return null;
+  if (!user) return (
+    <div className="flex h-screen items-center justify-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+    </div>
+  );
 
   return (
     <TeacherShell
@@ -150,10 +174,10 @@ export default function ClassDetailPage() {
       <div className="p-8 max-w-5xl mx-auto space-y-6">
         
         {/* Tabs */}
-        <div className="flex border-b border-slate-200">
+        <div className="flex border-b border-slate-200 overflow-x-auto scrollbar-hide">
           <button
             onClick={() => setActiveTab("students")}
-            className={`px-6 py-3 font-semibold text-sm flex items-center gap-2 border-b-2 transition-colors ${
+            className={`px-6 py-3 font-semibold text-sm flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap shrink-0 ${
               activeTab === "students" ? "border-indigo-600 text-indigo-600" : "border-transparent text-slate-500 hover:text-slate-800"
             }`}
           >
@@ -161,7 +185,7 @@ export default function ClassDetailPage() {
           </button>
           <button
             onClick={() => setActiveTab("joinRequests")}
-            className={`px-6 py-3 font-semibold text-sm flex items-center gap-2 border-b-2 transition-colors relative ${
+            className={`px-6 py-3 font-semibold text-sm flex items-center gap-2 border-b-2 transition-colors relative whitespace-nowrap shrink-0 ${
               activeTab === "joinRequests" ? "border-indigo-600 text-indigo-600" : "border-transparent text-slate-500 hover:text-slate-800"
             }`}
           >
@@ -174,7 +198,7 @@ export default function ClassDetailPage() {
           </button>
           <button
             onClick={() => setActiveTab("analytics")}
-            className={`px-6 py-3 font-semibold text-sm flex items-center gap-2 border-b-2 transition-colors ${
+            className={`px-6 py-3 font-semibold text-sm flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap shrink-0 ${
               activeTab === "analytics" ? "border-indigo-600 text-indigo-600" : "border-transparent text-slate-500 hover:text-slate-800"
             }`}
           >
@@ -182,7 +206,7 @@ export default function ClassDetailPage() {
           </button>
           <button
             onClick={() => setActiveTab("assignments")}
-            className={`px-6 py-3 font-semibold text-sm flex items-center gap-2 border-b-2 transition-colors ${
+            className={`px-6 py-3 font-semibold text-sm flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap shrink-0 ${
               activeTab === "assignments" ? "border-indigo-600 text-indigo-600" : "border-transparent text-slate-500 hover:text-slate-800"
             }`}
           >
@@ -190,7 +214,7 @@ export default function ClassDetailPage() {
           </button>
           <button
             onClick={() => setActiveTab("leaderboard")}
-            className={`px-6 py-3 font-semibold text-sm flex items-center gap-2 border-b-2 transition-colors ${
+            className={`px-6 py-3 font-semibold text-sm flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap shrink-0 ${
               activeTab === "leaderboard" ? "border-indigo-600 text-indigo-600" : "border-transparent text-slate-500 hover:text-slate-800"
             }`}
           >

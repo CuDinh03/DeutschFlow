@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { useChatStore, ChatMessage } from "@/store/useChatStore";
+import { useChatStore, ChatMessage } from "@/stores/useChatStore";
 import { ChatMessageBubble } from "@/components/features/ai-speaking/ChatMessageBubble";
 import { StreamStatusIndicator } from "@/components/features/ai-speaking/StreamStatusIndicator";
 import { SuggestionBar } from "@/components/features/ai-speaking/SuggestionBar";

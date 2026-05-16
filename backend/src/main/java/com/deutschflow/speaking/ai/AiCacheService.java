@@ -20,7 +20,7 @@ public class AiCacheService {
      * Cache the response from AI for identical inputs to save costs and reduce latency.
      * The key is a SHA-256 hash of the messages to avoid too long Redis keys.
      */
-    @Cacheable(value = "aiResponses", key = "#root.target.generateKey(#messages, #model, #temperature)", cacheManager = "redisCacheManager")
+    @Cacheable(value = "aiResponses", key = "#root.target.generateKey(#messages, #model, #temperature)")
     public AiChatCompletionResult getCachedChatCompletion(List<ChatMessage> messages, String model, double temperature, Integer maxTokens) {
         log.info("Cache miss for AI prompt. Calling external AI API...");
         return openAiChatClient.chatCompletion(messages, model, temperature, maxTokens);

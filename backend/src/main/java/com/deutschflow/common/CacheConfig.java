@@ -24,6 +24,7 @@ import java.util.concurrent.TimeUnit;
  * │  aiVocabShort (6h)   — story (semi-deterministic)                  │
  * │  aiVocabQuiz  (1h)   — quiz questions (refresh more often)         │
  * │  ttsAudio     (24h)  — ElevenLabs byte[] MP3 audio                 │
+ * │  aiResponses  (2h)   — TeacherAdvisory & general AI completions    │
  * └─────────────────────────────────────────────────────────────────────┘
  *
  * Cache invalidation strategy:
@@ -120,12 +121,20 @@ public class CacheConfig {
                         .expireAfterWrite(5, TimeUnit.MINUTES)
                         .recordStats());
 
+        // General AI chat completions (TeacherAdvisory, etc.) — deterministic prompts
+        var aiResponses = buildCache("aiResponses",
+                Caffeine.newBuilder()
+                        .maximumSize(100)
+                        .expireAfterWrite(2, TimeUnit.HOURS)
+                        .recordStats());
+
         var mgr = new SimpleCacheManager();
         mgr.setCaches(List.of(
                 tags, words, plans, curriculum,
                 achievements, weeklyPrompts,
                 aiVocabCache, aiVocabShort, aiVocabQuiz,
-                ttsAudio, systemConfig, classLeaderboard
+                ttsAudio, systemConfig, classLeaderboard,
+                aiResponses
         ));
         return mgr;
     }

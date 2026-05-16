@@ -17,6 +17,11 @@ import java.util.Map;
 /**
  * REST API for Spaced Repetition System (SRS).
  *
+ * <h3>Algorithm:</h3>
+ * FSRS-4.5 (new cards + SM-2 cards upgraded on first review — migrate-on-read).
+ * The {@code quality} field in POST /review still accepts SM-2 scale 0-5
+ * for backward compatibility; it is mapped to FSRS rating 1-4 internally.
+ *
  * <h3>Endpoints:</h3>
  * <ul>
  *   <li>GET  /api/srs/due                — Cards due today (max 10)</li>
@@ -24,7 +29,7 @@ import java.util.Map;
  *   <li>GET  /api/srs/stats              — Summary stats</li>
  *   <li>POST /api/srs/schedule           — Schedule a single vocab item</li>
  *   <li>POST /api/srs/schedule/batch     — Schedule multiple vocab items</li>
- *   <li>POST /api/srs/review             — Record a review result (SM-2 update)</li>
+ *   <li>POST /api/srs/review             — Record a review result (FSRS update)</li>
  * </ul>
  */
 @RestController
@@ -74,7 +79,7 @@ public class SrsController {
         return ResponseEntity.ok().build();
     }
 
-    /** Record a review result — updates SM-2 schedule */
+    /** Record a review result — routes to FSRS-4.5 (SM-2 cards upgraded transparently) */
     @PostMapping("/review")
     public ResponseEntity<VocabReviewCard> recordReview(
             @AuthenticationPrincipal User user,

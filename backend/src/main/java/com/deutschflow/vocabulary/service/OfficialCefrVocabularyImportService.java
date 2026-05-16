@@ -119,7 +119,6 @@ public class OfficialCefrVocabularyImportService {
     /**
      * Import ~10k lemma; enrich (DeepL/local) theo {@link #enrichAfterUpsert}.
      */
-    @Transactional
     public Map<String, Object> importCuratedCefrVocabulary() {
         return importCuratedCefrVocabulary(enrichAfterUpsert);
     }
@@ -127,7 +126,6 @@ public class OfficialCefrVocabularyImportService {
     /**
      * @param enrichAfterUpsertForThisRun ghi đè cờ global (dùng khi bootstrap: false để tránh gọi DeepL lúc start).
      */
-    @Transactional
     public Map<String, Object> importCuratedCefrVocabulary(boolean enrichAfterUpsertForThisRun) {
         String freqBody = useRemoteSources
                 ? fetchText(blank(fallbackFrequencyUrl) ? SOURCE_FREQ : fallbackFrequencyUrl)
@@ -294,7 +292,6 @@ public class OfficialCefrVocabularyImportService {
         return out;
     }
 
-    @Transactional
     public Map<String, Object> importFromClasspathSample() throws IOException {
         var res = new ClassPathResource("wordlists/cefr_import_sample.csv");
         long tagId = ensureTag();

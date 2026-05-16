@@ -86,10 +86,7 @@ public class SkillTreeController {
     //                               → Lưu Cache vào DB
     // ─────────────────────────────────────────────────────────────
 
-    @PostMapping(value = "/{nodeId}/unlock", produces = {
-            MediaType.APPLICATION_JSON_VALUE,
-            MediaType.TEXT_EVENT_STREAM_VALUE
-    })
+    @PostMapping("/{nodeId}/unlock")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> unlockNode(
             @AuthenticationPrincipal User user,
@@ -97,17 +94,11 @@ public class SkillTreeController {
     ) {
         Object result = skillTreeService.unlockSatelliteNode(user.getId(), nodeId);
 
-        // Nếu cache HIT → trả JSON ngay lập tức
-        if (result instanceof Map) {
-            return ResponseEntity.ok(result);
-        }
-
-        // Nếu cache MISS → trả SseEmitter (text/event-stream)
-        // Client sẽ nhận events: status → done/error
-        if (result instanceof SseEmitter emitter) {
-            return ResponseEntity.ok()
-                    .contentType(MediaType.TEXT_EVENT_STREAM)
-                    .body(emitter);
+        if (result instanceof Map<?, ?> map) {
+            if (map.containsKey("jobId")) {
+                return ResponseEntity.accepted().body(map);
+            }
+            return ResponseEntity.ok(map);
         }
 
         return ResponseEntity.internalServerError().build();
@@ -117,10 +108,7 @@ public class SkillTreeController {
     // Tự động sinh nhánh phụ (Sở thích/Ngành nghề) sau khi hoàn thành Node A2
     // ─────────────────────────────────────────────────────────────
 
-    @PostMapping(value = "/node/{coreNodeId}/generate-satellite", produces = {
-            MediaType.APPLICATION_JSON_VALUE,
-            MediaType.TEXT_EVENT_STREAM_VALUE
-    })
+    @PostMapping("/node/{coreNodeId}/generate-satellite")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> generateSatelliteNode(
             @AuthenticationPrincipal User user,
@@ -134,14 +122,11 @@ public class SkillTreeController {
         
         Object result = skillTreeService.generatePersonalizedSatelliteNode(user.getId(), coreNodeId, hobby);
 
-        if (result instanceof Map) {
-            return ResponseEntity.ok(result);
-        }
-
-        if (result instanceof SseEmitter emitter) {
-            return ResponseEntity.ok()
-                    .contentType(MediaType.TEXT_EVENT_STREAM)
-                    .body(emitter);
+        if (result instanceof Map<?, ?> map) {
+            if (map.containsKey("jobId")) {
+                return ResponseEntity.accepted().body(map);
+            }
+            return ResponseEntity.ok(map);
         }
 
         return ResponseEntity.internalServerError().build();

@@ -63,7 +63,6 @@ public class GoetheVocabularyAutoImportService {
     @Value("${app.vocabulary.goethe.enrich-with-wiktionary:false}")
     private boolean enrichWithWiktionary;
 
-    @Transactional
     public Map<String, Object> importGoetheVocabularyA1ToC1() {
         List<String> goetheCore = parseGoetheB1(loadGoetheListRaw());
         List<String> frequency = parseFrequency(loadFreqListRaw());

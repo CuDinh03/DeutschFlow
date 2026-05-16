@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, ArrowLeft, Loader2, CheckCircle, XCircle } from "lucide-react";
 import api from "@/lib/api";
+import { useTracking } from "@/hooks/useTracking";
 
 const LEVELS = [
   { value: "A0", emoji: "🌱", label: "Chưa biết gì", desc: "Bắt đầu từ bảng chữ cái" },
@@ -28,6 +29,7 @@ interface PQ { id: number; skillSection: string; type: string; questionDe: strin
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const { trackOnboardingStep, trackEvent } = useTracking();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [currentLevel, setCurrentLevel] = useState("A0");
@@ -58,25 +60,39 @@ export default function OnboardingPage() {
     try {
       await saveProfile();
       const { data } = await api.post("/skill-tree/placement-test", { claimedLevel: currentLevel });
+      trackEvent('onboarding_placement_test_started', { level: currentLevel });
       setTestId(data.testId); setQuestions(data.questions ?? []); setAnswers({}); setCurrentQ(0); setStep(4);
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
       alert(msg || "Không thể tạo bài test.");
     }
     setLoading(false);
-  }, [currentLevel, saveProfile]);
+  }, [currentLevel, saveProfile, trackEvent]);
 
   const submitTest = useCallback(async () => {
     if (!testId) return;
     setLoading(true);
-    try { const { data } = await api.post(`/skill-tree/placement-test/${testId}/submit`, { answers }); setTestResult(data); }
+    try { 
+      const { data } = await api.post(`/skill-tree/placement-test/${testId}/submit`, { answers }); 
+      setTestResult(data); 
+      trackEvent('onboarding_placement_test_completed', { passed: data.passed, score: data.scorePercent });
+    }
     catch { alert("Nộp bài thất bại."); }
     setLoading(false);
-  }, [testId, answers]);
+  }, [testId, answers, trackEvent]);
 
-  const goRoadmap = useCallback(async () => { setLoading(true); await saveProfile(); router.push("/student/roadmap"); }, [saveProfile, router]);
+  const goRoadmap = useCallback(async () => { 
+    setLoading(true); 
+    await saveProfile(); 
+    trackEvent('onboarding_completed', { level: currentLevel, goal: goalType, industry: industry });
+    router.push("/student/roadmap"); 
+  }, [saveProfile, router, trackEvent, currentLevel, goalType, industry]);
 
   const nextStep = async () => {
+    if (step === 1) trackOnboardingStep('Select Level', 1, { currentLevel });
+    if (step === 2) trackOnboardingStep('Select Goal', 2, { goalType, industry, targetLevel });
+    if (step === 3) trackOnboardingStep('Select Target', 3, { weeklyTarget });
+
     if (step === 3) { currentLevel === "A0" ? await goRoadmap() : await startTest(); }
     else setStep(s => s + 1);
   };

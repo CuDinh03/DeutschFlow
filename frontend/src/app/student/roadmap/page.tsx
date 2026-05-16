@@ -27,6 +27,7 @@ import { planApi, type AdaptiveRefreshResponse } from "@/lib/planApi";
 import SkillTreeFlowWrapper from "@/components/roadmap/SkillTreeFlowWrapper";
 import type { SkillTreeNodeData } from "@/components/roadmap/treeLayout";
 import { useTranslations } from "next-intl";
+import { usePageTimeTracker } from "@/hooks/usePageTimeTracker";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -327,24 +328,49 @@ function NodeDetailPanel({
   const [submitLoading, setSubmitLoading] = useState(false);
   const [submitResult, setSubmitResult] = useState<{ scorePercent: number; xpEarned: number; completed: boolean } | null>(null);
 
-  // Unlock a SATELLITE_LEAF node (handles SSE streaming from LLM generation)
+  // Unlock a SATELLITE_LEAF node (handles AsyncJob polling or immediate cache hit)
   const handleUnlock = async () => {
     if (unlocking) return;
     setUnlocking(true);
     setUnlockStatus("generating");
     try {
-      const res = await api.post<{ source?: string; nodeId?: number } | string>(
+      const res = await api.post<{ source?: string; nodeId?: number; jobId?: string; status?: string } | string>(
         `/skill-tree/${node.id}/unlock`
       );
-      // Cache HIT → JSON response
-      if (res.data && typeof res.data === "object") {
-        setUnlockStatus("done");
-        onUnlockSuccess?.(node.id);
+      
+      const data = res.data;
+      if (typeof data === "object" && data !== null) {
+        if (data.jobId) {
+          // Poll for completion
+          const interval = setInterval(async () => {
+            try {
+              const jobRes = await api.get<{ status: string, errorMessage?: string }>(`/async-jobs/${data.jobId}`);
+              const job = jobRes.data;
+              if (job.status === "COMPLETED") {
+                clearInterval(interval);
+                setUnlockStatus("done");
+                onUnlockSuccess?.(node.id);
+                setUnlocking(false);
+              } else if (job.status === "FAILED") {
+                clearInterval(interval);
+                setUnlockStatus("error");
+                setUnlocking(false);
+              }
+            } catch (err) {
+              clearInterval(interval);
+              setUnlockStatus("error");
+              setUnlocking(false);
+            }
+          }, 2000);
+        } else {
+          // Cache HIT
+          setUnlockStatus("done");
+          onUnlockSuccess?.(node.id);
+          setUnlocking(false);
+        }
       }
     } catch {
-      // SSE response comes as stream — if we get here it's a real error
       setUnlockStatus("error");
-    } finally {
       setUnlocking(false);
     }
   };
@@ -526,6 +552,7 @@ function NodeDetailPanel({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function StudentRoadmapPage() {
+  usePageTimeTracker('roadmap')
   const router = useRouter();
   const tRoadmap = useTranslations("roadmap");
   const { me, loading: meLoading, loadError: meError, reload: reloadMe, targetLevel, streakDays, initials } = useStudentPracticeSession();
@@ -554,12 +581,37 @@ export default function StudentRoadmapPage() {
     if (!satellitePromptNode) return;
     setGeneratingHobby(true);
     try {
-      await api.post(`/skill-tree/node/${satellitePromptNode.id}/generate-satellite`, { hobby });
-      setSatellitePromptNode(null);
-      void fetchSkillTree();
+      const res = await api.post<any>(`/skill-tree/node/${satellitePromptNode.id}/generate-satellite`, { hobby });
+      if (res.data && res.data.jobId) {
+        // Poll for completion
+        const interval = setInterval(async () => {
+          try {
+            const jobRes = await api.get<{ status: string, errorMessage?: string }>(`/async-jobs/${res.data.jobId}`);
+            const job = jobRes.data;
+            if (job.status === "COMPLETED") {
+              clearInterval(interval);
+              setSatellitePromptNode(null);
+              setGeneratingHobby(false);
+              void fetchSkillTree();
+            } else if (job.status === "FAILED") {
+              clearInterval(interval);
+              alert("Lỗi: " + (job.errorMessage || "Không thể tạo bài mở rộng"));
+              setGeneratingHobby(false);
+            }
+          } catch (err) {
+            clearInterval(interval);
+            alert("Lỗi kiểm tra tiến độ");
+            setGeneratingHobby(false);
+          }
+        }, 2000);
+      } else {
+        // Cache HIT (unlikely for personalized hobby, but possible)
+        setSatellitePromptNode(null);
+        setGeneratingHobby(false);
+        void fetchSkillTree();
+      }
     } catch (err) {
-      alert("Không thể tạo bài mở rộng: " + (err as any).response?.data?.error || "Lỗi");
-    } finally {
+      alert("Không thể tạo bài mở rộng: " + ((err as any).response?.data?.error || "Lỗi"));
       setGeneratingHobby(false);
     }
   };

@@ -8,7 +8,7 @@ import {
   Briefcase, Users, Heart, Zap, MessageSquare,
   ThumbsUp, ThumbsDown, Target, Lightbulb,
 } from "lucide-react";
-import type { ChatMessage } from "@/store/useChatStore";
+import type { ChatMessage } from "@/stores/useChatStore";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

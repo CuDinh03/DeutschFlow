@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { PERSONA_LIST, PERSONA_GROUPS, PersonaId, PersonaGroup, PERSONA_TOKENS } from "@/lib/personas";
 import { PersonaCard } from "./PersonaCard";
 import { aiSpeakingApi, SpeakingSessionMode, ExperienceLevel } from "@/lib/aiSpeakingApi";
-import { useChatStore } from "@/store/useChatStore";
+import { useChatStore } from "@/stores/useChatStore";
 
 const EXPERIENCE_LEVELS: { id: ExperienceLevel; label: string; labelDe: string }[] = [
   { id: "0-6M", label: "0–6 tháng", labelDe: "0–6 Monate" },

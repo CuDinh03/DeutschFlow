@@ -59,8 +59,8 @@ public class TeacherLessonPlanService {
             // 1. Chuyển đổi file sang Base64
             String base64Doc = Base64.getEncoder().encodeToString(fileBytes);
 
-            // 2. Gọi Gemini API lấy JSON
-            String jsonResponse = geminiApiClient.generateJsonFromDocument(PPTX_SYSTEM_PROMPT, base64Doc, mimeType);
+            // 2. Gọi Gemini API lấy JSON (Async -> block here since we are already in an @Async worker thread)
+            String jsonResponse = geminiApiClient.generateJsonFromDocument(PPTX_SYSTEM_PROMPT, base64Doc, mimeType).join();
             log.debug("[TeacherLessonPlanService] Gemini returned JSON: {}", jsonResponse);
 
             // 3. Parse JSON & Xây dựng PPTX

@@ -64,7 +64,10 @@ export function useStudentPracticeSession(options?: {
     try {
       const meRes = await api.get<PracticeSessionUser>("/auth/me");
       const userData = meRes.data;
+      console.log("useStudentPracticeSession userData:", userData, typeof userData);
+      
       if (requireStudent && userData.role !== "STUDENT") {
+        console.log("Redirecting to role:", userData.role);
         router.replace(`/${String(userData.role).toLowerCase()}`);
         return;
       }

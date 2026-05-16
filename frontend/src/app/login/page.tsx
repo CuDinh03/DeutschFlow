@@ -8,6 +8,7 @@ import api from '@/lib/api'
 import { setTokens } from '@/lib/authSession'
 import { DeutschFlowLogo } from '@/components/ui/DeutschFlowLogo'
 import LanguageSwitcher from '@/components/ui/LanguageSwitcher'
+import { useTracking } from '@/hooks/useTracking'
 
 type FieldErrors = Record<string, string>
 
@@ -68,6 +69,7 @@ function MaintenanceBanner() {
 export default function LoginPage() {
   const t = useTranslations('auth')
   const router = useRouter()
+  const { trackEvent, identifyUser } = useTracking()
   const [form, setForm] = useState({ email: '', password: '' })
   const [error, setError] = useState('')
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
@@ -78,6 +80,7 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
     setFieldErrors({})
+    trackEvent('login_started', { method: 'email' })
     try {
       const { data } = await api.post('/auth/login', form)
       setTokens(data)
@@ -88,6 +91,16 @@ export default function LoginPage() {
 
       const userRes = await api.get('/auth/me')
       const user = userRes.data
+
+      // Identify user in PostHog after login
+      identifyUser(String(user.id), {
+        email: user.email,
+        name: user.displayName,
+        role: user.role,
+        locale: user.locale,
+      })
+      trackEvent('login_success', { role: user.role })
+
       switch (user.role) {
         case 'ADMIN':
           router.replace('/admin')
@@ -103,7 +116,10 @@ export default function LoginPage() {
     } catch (err: unknown) {
       const res = (err as { response?: { data?: { detail?: string; errors?: FieldErrors } } })?.response?.data
       if (res?.errors) setFieldErrors(res.errors)
-      else setError(res?.detail ?? t('loginFailed'))
+      else {
+        setError(res?.detail ?? t('loginFailed'))
+        trackEvent('login_failed', { reason: res?.detail ?? 'unknown' })
+      }
     } finally {
       setLoading(false)
     }

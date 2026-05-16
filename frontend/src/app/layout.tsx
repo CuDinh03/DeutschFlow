@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages } from 'next-intl/server'
 import { Toaster } from '@/components/ui/sonner'
 import LanguageSwitcher from '@/components/ui/LanguageSwitcher'
+import { PostHogProvider } from '@/providers/PostHogProvider'
 import './globals.css'
 
 const inter = Inter({
@@ -37,10 +38,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang={locale} className={inter.variable}>
       <body className={inter.className}>
-        <NextIntlClientProvider messages={messages}>
-          {children}
-          <Toaster position="top-center" />
-
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <PostHogProvider>
+            {children}
+            <Toaster position="top-center" />
+          </PostHogProvider>
         </NextIntlClientProvider>
       </body>
     </html>

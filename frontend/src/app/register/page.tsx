@@ -7,12 +7,14 @@ import Link from 'next/link'
 import api from '@/lib/api'
 import { setTokens } from '@/lib/authSession'
 import { DeutschFlowLogo } from '@/components/ui/DeutschFlowLogo'
+import { useTracking } from '@/hooks/useTracking'
 
 type FieldErrors = Record<string, string>
 
 export default function RegisterPage() {
   const t = useTranslations('auth')
   const router = useRouter()
+  const { trackEvent, identifyUser } = useTracking()
   const [form, setForm] = useState({ email: '', phoneNumber: '', password: '', displayName: '', locale: 'vi' })
   const [error, setError] = useState('')
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
@@ -23,6 +25,7 @@ export default function RegisterPage() {
     setLoading(true)
     setError('')
     setFieldErrors({})
+    trackEvent('register_started', { locale: form.locale })
     try {
       const { data } = await api.post('/auth/register', form)
       setTokens(data)
@@ -31,11 +34,19 @@ export default function RegisterPage() {
       }
       router.refresh()
 
-      // Lấy thông tin user để redirect theo role (mặc định STUDENT)
       const userRes = await api.get('/auth/me')
       const user = userRes.data
-      
-      // Redirect theo role
+
+      // Identify newly registered user in PostHog
+      identifyUser(String(user.id), {
+        email: user.email,
+        name: user.displayName,
+        role: user.role,
+        locale: user.locale,
+        created_at: new Date().toISOString(),
+      })
+      trackEvent('register_success', { role: user.role, locale: form.locale })
+
       switch (user.role) {
         case 'ADMIN':
           router.push('/admin')
@@ -45,14 +56,16 @@ export default function RegisterPage() {
           break
         case 'STUDENT':
         default:
-          // Người dùng mới → đi qua Onboarding để chọn mục tiêu & lộ trình
           router.push('/onboarding')
           break
       }
     } catch (err: unknown) {
       const res = (err as { response?: { data?: { detail?: string; errors?: FieldErrors } } })?.response?.data
       if (res?.errors) setFieldErrors(res.errors)
-      else setError(res?.detail ?? t('registerFailed'))
+      else {
+        setError(res?.detail ?? t('registerFailed'))
+        trackEvent('register_failed', { reason: res?.detail ?? 'unknown' })
+      }
     } finally {
       setLoading(false)
     }

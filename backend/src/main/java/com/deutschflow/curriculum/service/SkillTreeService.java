@@ -1,5 +1,7 @@
 package com.deutschflow.curriculum.service;
 
+import com.deutschflow.common.async.AsyncJob;
+import com.deutschflow.common.async.AsyncJobService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.quota.AiUsageLedgerService;
@@ -16,7 +18,6 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -41,6 +42,7 @@ public class SkillTreeService {
     private final ObjectMapper objectMapper;
     private final TransactionTemplate transactionTemplate;
     private final XpService xpService;
+    private final AsyncJobService asyncJobService;
 
     // In-memory lock to prevent duplicate LLM calls for the same cache key
     private final ConcurrentHashMap<String, Boolean> generationLocks = new ConcurrentHashMap<>();
@@ -281,11 +283,11 @@ public class SkillTreeService {
         }
 
         // ── PHA 2: Cache MISS → LLM generation trên thread riêng (KHÔNG giữ DB connection) ──
-        SseEmitter emitter = new SseEmitter(60_000L);
+        AsyncJob job = asyncJobService.createJob("GENERATE_SATELLITE");
         CompletableFuture.runAsync(() ->
-                generateContentAsync(userId, nodeId, prep.node(), emitter)
+                generateContentAsync(userId, nodeId, prep.node(), job.getId())
         );
-        return emitter;
+        return Map.of("jobId", job.getId().toString(), "status", "ACCEPTED");
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -349,7 +351,7 @@ public class SkillTreeService {
     // ─────────────────────────────────────────────────────────────
 
     @Async("speakingStreamExecutor") // Reuse existing thread pool
-    public void generateContentAsync(long userId, long nodeId, Map<String, Object> node, SseEmitter emitter) {
+    public void generateContentAsync(long userId, long nodeId, Map<String, Object> node, UUID jobId) {
         String industry = (String) node.get("industry");
         String cefrLevel = (String) node.get("cefr_level");
         String vocabStrategy = (String) node.get("vocab_strategy");
@@ -368,10 +370,7 @@ public class SkillTreeService {
         // Prevent duplicate concurrent generations
         if (generationLocks.putIfAbsent(cacheKey, true) != null) {
             log.debug("[SkillTree] Generation already in progress for key={}", cacheKey);
-            try {
-                emitter.send(SseEmitter.event().name("info").data("{\"status\":\"GENERATING_IN_PROGRESS\"}"));
-                emitter.complete();
-            } catch (IOException ignored) {}
+            asyncJobService.failJob(jobId, "Đang xử lý tạo bài học này. Vui lòng chờ...");
             return;
         }
 
@@ -380,10 +379,9 @@ public class SkillTreeService {
             String systemPrompt = SatelliteLeafPromptBuilder.buildSystemPrompt(
                     industry, cefrLevel, parentTitle, grammarContext,
                     vocabStrategy, industryPercent, dayNumber
-            );
+                );
 
-            // Send "generating" event
-            emitter.send(SseEmitter.event().name("status").data("{\"status\":\"GENERATING\"}"));
+            asyncJobService.updateStatus(jobId, AsyncJob.Status.PROCESSING);
 
             // Call Groq LLM (blocking in async thread)
             List<ChatMessage> messages = List.of(
@@ -423,8 +421,7 @@ public class SkillTreeService {
             }
 
             // ── Send "done" event with content ──
-            emitter.send(SseEmitter.event().name("done").data(cleanJson));
-            emitter.complete();
+            asyncJobService.completeJob(jobId, cleanJson);
 
             log.info("[SkillTree] Generated + cached content for node={}, hash={}, tokens={}",
                     nodeId, contentHash,
@@ -432,11 +429,7 @@ public class SkillTreeService {
 
         } catch (Exception ex) {
             log.error("[SkillTree] LLM generation failed for node={}: {}", nodeId, ex.getMessage(), ex);
-            try {
-                emitter.send(SseEmitter.event().name("error")
-                        .data("{\"error\":\"Không thể tạo bài học. Vui lòng thử lại.\"}"));
-                emitter.completeWithError(ex);
-            } catch (IOException ignored) {}
+            asyncJobService.failJob(jobId, "Không thể tạo bài học. Vui lòng thử lại.");
         } finally {
             generationLocks.remove(cacheKey);
         }
@@ -487,11 +480,9 @@ public class SkillTreeService {
         if (leavesToGenerate != null) {
             for (Map<String, Object> leaf : leavesToGenerate) {
                 long leafId = ((Number) leaf.get("id")).longValue();
-                SseEmitter dummyEmitter = new SseEmitter(120_000L);
-                dummyEmitter.onCompletion(() -> {});
-                dummyEmitter.onError(e -> {});
+                AsyncJob job = asyncJobService.createJob("PREFETCH_SATELLITE");
                 CompletableFuture.runAsync(() ->
-                        generateContentAsync(userId, leafId, leaf, dummyEmitter)
+                        generateContentAsync(userId, leafId, leaf, job.getId())
                 );
                 log.info("[SkillTree] Pre-fetch triggered for user={}, nextLeaf={}", userId, leafId);
             }
