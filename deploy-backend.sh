@@ -131,9 +131,9 @@ else
   echo "  -> Redis already running"
 fi
 
-# Lấy IP của host để backend container có thể kết nối vào Redis trên host
-REDIS_HOST_IP=$(sudo docker inspect -f '{{range .NetworkSettings.Networks}}{{.Gateway}}{{end}}' deutschflow-redis 2>/dev/null || echo "172.17.0.1")
-echo "  Redis host IP: $REDIS_HOST_IP"
+# Lấy IP thực của container Redis trong mạng Docker để backend có thể kết nối
+REDIS_HOST_IP=$(sudo docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' deutschflow-redis 2>/dev/null || echo "127.0.0.1")
+echo "  Redis container IP: $REDIS_HOST_IP"
 
 echo ""
 echo "[4/8] Building new Docker image (BLUE still serving users)..."
