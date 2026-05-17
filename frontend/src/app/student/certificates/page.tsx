@@ -27,7 +27,7 @@ const LEVEL_CONFIG: Record<string, { color: string; bg: string; border: string; 
   C1: { color: "#ef4444", bg: "#fef2f2", border: "#fecaca", desc: "Advanced — Goethe-Zertifikat C1" },
 };
 
-function CertificateCard({ cert }: { cert: Certificate }) {
+function CertificateCard({ cert, onDownload }: { cert: Certificate; onDownload: (id: number) => void }) {
   const cfg = LEVEL_CONFIG[cert.cefr_level] ?? LEVEL_CONFIG["A1"];
   const date = new Date(cert.issued_at).toLocaleDateString("vi-VN");
   return (
@@ -57,7 +57,9 @@ function CertificateCard({ cert }: { cert: Certificate }) {
         </div>
         <button className="w-9 h-9 rounded-xl flex items-center justify-center border-2 flex-shrink-0"
           style={{ borderColor: cfg.border, color: cfg.color }}
-          title="Tải chứng chỉ">
+          title="Tải chứng chỉ"
+          onClick={() => onDownload(cert.id)}
+        >
           <Download size={16} />
         </button>
       </div>
@@ -114,6 +116,28 @@ export default function CertificatePage() {
     } catch { setCerts([]); }
     finally { setLoading(false); }
   }, []);
+
+  const downloadPdf = async (id: number) => {
+    try {
+      const token = localStorage.getItem("accessToken") ?? "";
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL ?? ""}/api/certificates/${id}/pdf`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (!res.ok) throw new Error("Không thể tải chứng chỉ");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `DeutschFlow-Certificate-${id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      alert(e?.message ?? "Lỗi tải chứng chỉ");
+    }
+  };
 
   useEffect(() => { if (me) load(); }, [me, load]);
 
@@ -183,7 +207,7 @@ export default function CertificatePage() {
         {!loading && certs.length > 0 && (
           <div className="space-y-3">
             <h3 className="font-bold text-[#0F172A]">✅ Chứng chỉ đã nhận ({certs.length})</h3>
-            {certs.map(c => <CertificateCard key={c.id} cert={c} />)}
+            {certs.map(c => <CertificateCard key={c.id} cert={c} onDownload={downloadPdf} />)}
           </div>
         )}
 

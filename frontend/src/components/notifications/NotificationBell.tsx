@@ -10,6 +10,7 @@ import api from "@/lib/api";
 import { subscribeNotificationUnread } from "@/lib/notificationStream";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/components/ui/utils";
+import Link from "next/link";
 
 type NotifItem = {
   id: number;
@@ -195,7 +196,7 @@ export function NotificationBell({ buttonClassName }: NotificationBellProps) {
             </button>
           )}
         </div>
-        <div className="max-h-80 overflow-y-auto">
+        <div className="max-h-72 overflow-y-auto">
           {loadErr && <p className="text-sm text-red-600 px-3 py-2">{loadErr}</p>}
           {!loadErr && items.length === 0 && (
             <p className="text-sm text-[#64748B] px-3 py-6 text-center">{t("empty")}</p>
@@ -219,6 +220,16 @@ export function NotificationBell({ buttonClassName }: NotificationBellProps) {
               </li>
             ))}
           </ul>
+        </div>
+        {/* Footer — link to full inbox */}
+        <div className="border-t border-[#E2E8F0] px-3 py-2">
+          <Link
+            href="/student/notifications"
+            className="block text-center text-xs font-semibold text-[#6366F1] hover:underline py-1"
+            onClick={() => setOpen(false)}
+          >
+            Xem tất cả thông báo →
+          </Link>
         </div>
       </PopoverContent>
     </Popover>

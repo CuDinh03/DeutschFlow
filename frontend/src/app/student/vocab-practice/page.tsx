@@ -15,6 +15,7 @@ import { PracticeGlassSkeleton } from '@/components/practice/PracticeGlassSkelet
 import { KlausCharacter } from '@/components/speaking/characters/KlausCharacter'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
 import { shouldShowKlausChefGuide } from '@/lib/restaurantTopicCoach'
+import { useTracking } from '@/hooks/useTracking'
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
@@ -83,6 +84,7 @@ export default function VocabPracticePage() {
   const urlTopic = (searchParams.get('topic') ?? '').trim()
   const urlFocus = (searchParams.get('focus') ?? '').trim()
   const urlCefr = (searchParams.get('cefr') ?? '').trim().toUpperCase()
+  const { trackFeatureAction } = useTracking()
 
   const { me, loading: authLoading, targetLevel, practiceFloorLevel, streakDays, initials, reload } =
     useStudentPracticeSession()
@@ -215,6 +217,7 @@ export default function VocabPracticePage() {
       setHeard('')
       setShowMeaning(false)
       setScreen('practicing')
+      trackFeatureAction('vocab_practice', 'started', { cefr: selCefr, tag: selTag, size: 30 })
       setTimeout(() => speakGerman((shuffled[0].article ? shuffled[0].article + ' ' : '') + shuffled[0].baseForm), 500)
     } catch {
       setError(t('loadError'))
@@ -281,6 +284,7 @@ export default function VocabPracticePage() {
   const handleNext = useCallback(() => {
     if (idx + 1 >= words.length) {
       setScreen('summary')
+      trackFeatureAction('vocab_practice', 'completed', { score: results.filter(r => r.correct).length, total: results.length })
       return
     }
     const next = idx + 1
@@ -389,7 +393,12 @@ export default function VocabPracticePage() {
         {/* ── Top bar */}
         <div className="flex items-center justify-between px-5 pt-5 pb-4 flex-shrink-0"
           style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <button onClick={() => screen === 'setup' ? router.push('/student/vocabulary') : handleRestart()}
+          <button onClick={() => {
+            if (screen === 'practicing') {
+              trackFeatureAction('vocab_practice', 'quit', { progress: idx, total: words.length })
+            }
+            screen === 'setup' ? router.push('/student/vocabulary') : handleRestart()
+          }}
             className="flex items-center gap-1.5 py-1.5 px-2 rounded-[10px] transition-colors"
             style={{ color: 'rgba(255,255,255,0.5)' }}>
             <ArrowLeft size={16} />

@@ -8,6 +8,7 @@ import api from '@/lib/api'
 import { getAccessToken, clearTokens, logout } from '@/lib/authSession'
 import { StudentShell } from '@/components/layouts/StudentShell'
 import { useVocabulary, useVocabularyReload } from '@/hooks/useVocabulary'
+import { useTracking } from '@/hooks/useTracking'
 import { speakGerman, primeGermanVoices } from '@/lib/speechDe'
 import { inferGenderFromGermanText, normalizeGenderCode } from '@/lib/constants'
 import { VocabAiPanel } from '@/components/vocabulary/VocabAiPanel'
@@ -683,6 +684,7 @@ function VocabCard({
 
 export default function StudentVocabularyPage() {
   usePageTimeTracker('vocabulary')
+  const { trackFeatureAction } = useTracking()
   const t = useTranslations('vocabulary')
   const uiLocale = useLocale()
   const router = useRouter()
@@ -710,10 +712,12 @@ export default function StudentVocabularyPage() {
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
+    trackFeatureAction('vocabulary_dictionary', 'started')
     return () => {
       if (closeTimerRef.current) clearTimeout(closeTimerRef.current)
+      trackFeatureAction('vocabulary_dictionary', 'quit')
     }
-  }, [])
+  }, [trackFeatureAction])
 
   const filtered = useMemo(() => {
     // Chỉ filter theo category (client-side) — search q đã được gửi lên API

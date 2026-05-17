@@ -1,6 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createMomoOrder } from "@/lib/paymentApi";
+import { useTracking } from "@/hooks/useTracking";
 
 const plans = [
   {
@@ -68,8 +69,14 @@ function formatVnd(amount: number) {
 export default function PricingPage() {
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { trackFeatureAction } = useTracking();
+
+  useEffect(() => {
+    trackFeatureAction('monetization', 'paywall_viewed');
+  }, [trackFeatureAction]);
 
   const handleUpgrade = async (planCode: "PRO" | "ULTRA") => {
+    trackFeatureAction('monetization', 'checkout_started', { plan: planCode });
     setLoading(planCode);
     setError(null);
     try {

@@ -1,5 +1,5 @@
 import { usePostHog } from 'posthog-js/react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 
 export function useTracking() {
   const posthog = usePostHog()
@@ -35,10 +35,28 @@ export function useTracking() {
     }
   }
 
+  /**
+   * Track feature actions (started, completed, quit)
+   */
+  const trackFeatureAction = useCallback((
+    feature: string, 
+    action: 'started' | 'completed' | 'quit' | 'latency' | 'paywall_viewed' | 'checkout_started' | 'clicked', 
+    metadata?: Record<string, any>
+  ) => {
+    if (posthog) {
+      posthog.capture(`feature_${feature}_${action}`, {
+        feature: feature,
+        action,
+        ...metadata,
+      })
+    }
+  }, [posthog])
+
   return {
     trackEvent,
     identifyUser,
     trackOnboardingStep,
+    trackFeatureAction,
     posthog, // Expose raw instance if needed
   }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -11,6 +11,7 @@ import { StudentShell } from "@/components/layouts/StudentShell";
 import { clearTokens, logout } from "@/lib/authSession";
 import { SessionSummary } from "@/components/features/ai-speaking/SessionSummary";
 import { useTranslations } from "next-intl";
+import { submitInterviewReport, streamJobResult } from "@/lib/interviewReportApi";
 
 interface SessionMessage {
   id: string;
@@ -107,6 +108,10 @@ export default function InterviewsHistoryPage() {
   const [profile, setProfile] = useState<{ displayName: string; role: string; targetLevel: string; streakDays: number; initials: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
+  const [reportJson, setReportJson] = useState<string | null>(null);
+  const [generatingReport, setGeneratingReport] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const reportStreamRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -133,11 +138,12 @@ export default function InterviewsHistoryPage() {
 
   const openSession = async (sess: SpeakingSession) => {
     setSelected(sess);
+    setReportJson(null);
+    setReportError(null);
     setLoadingMsgs(true);
     try {
       const res = await api.get(`/ai-speaking/sessions/${sess.id}/messages`);
       const raw = Array.isArray(res.data) ? res.data : (res.data?.content ?? []);
-      // Map API messages back to ChatMessage shape required by SessionSummary
       const mapped: SessionMessage[] = raw.map((m: any) => ({
         id: String(m.id || Date.now() + Math.random()),
         role: m.role?.toLowerCase() === "user" ? "user" : "ai",
@@ -152,6 +158,39 @@ export default function InterviewsHistoryPage() {
         }
       }));
       setMessages(mapped);
+
+      // If session already has a report stored, use it directly
+      if (sess.interviewReportJson) {
+        setReportJson(sess.interviewReportJson);
+      } else if (sess.status === "COMPLETED" && sess.messageCount && sess.messageCount >= 4) {
+        // Auto-generate report for completed sessions without one
+        setGeneratingReport(true);
+        try {
+          const jobId = await submitInterviewReport(sess.id);
+          const ac = streamJobResult(
+            jobId,
+            (result) => {
+              setReportJson(result);
+              setGeneratingReport(false);
+              // Cache report on session object so reopening is instant
+              setSessions(prev => prev.map(s => s.id === sess.id
+                ? { ...s, interviewReportJson: result } : s
+              ));
+            },
+            (err) => {
+              setReportError(err);
+              setGeneratingReport(false);
+            },
+            () => {
+              setReportError("Hết thời gian chờ báo cáo — vui lòng thử lại");
+              setGeneratingReport(false);
+            }
+          );
+          reportStreamRef.current = ac;
+        } catch {
+          setGeneratingReport(false);
+        }
+      }
     } catch {
       setMessages([]);
     } finally {
@@ -160,6 +199,9 @@ export default function InterviewsHistoryPage() {
   };
 
   const handleLogout = () => { clearTokens(); router.push("/login"); };
+
+  // Cleanup report stream on unmount
+  useEffect(() => () => { reportStreamRef.current?.abort(); }, []);
 
   if (loading || !profile) {
     return (
@@ -178,9 +220,8 @@ export default function InterviewsHistoryPage() {
         style={{ background: "linear-gradient(180deg, #0A0F1E 0%, #0F172A 60%, #1A1535 100%)" }}
       >
         <div className="max-w-[460px] mx-auto w-full flex flex-col flex-1 p-4 overflow-y-auto">
-          {/* Custom Back Button for the summary view */}
           <button
-            onClick={() => { setSelected(null); setMessages([]); }}
+            onClick={() => { setSelected(null); setMessages([]); reportStreamRef.current?.abort(); }}
             className="flex items-center gap-2 text-white/70 hover:text-white mb-4 mt-2 transition-colors self-start"
           >
             <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
@@ -188,12 +229,27 @@ export default function InterviewsHistoryPage() {
             </div>
             <span className="text-sm font-medium">{tHistory("closeReport")}</span>
           </button>
-          
+
+          {/* Generating report indicator */}
+          {generatingReport && (
+            <div className="mb-4 flex items-center gap-3 px-4 py-3 rounded-xl" style={{ background: "rgba(255,205,0,0.1)", border: "1px solid rgba(255,205,0,0.2)" }}>
+              <Loader2 size={16} className="animate-spin text-yellow-400" />
+              <span className="text-yellow-300 text-sm font-medium">AI đang phân tích buổi phỏng vấn của bạn...</span>
+            </div>
+          )}
+
+          {/* Report error */}
+          {reportError && (
+            <div className="mb-4 px-4 py-3 rounded-xl" style={{ background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.2)" }}>
+              <span className="text-red-300 text-sm">{reportError}</span>
+            </div>
+          )}
+
           <SessionSummary
             messages={messages as any}
             duration="N/A"
             isInterviewMode={true}
-            interviewReportJson={selected.interviewReportJson}
+            interviewReportJson={reportJson}
             onRestart={() => router.push("/speaking")}
             onExit={() => { setSelected(null); setMessages([]); }}
           />

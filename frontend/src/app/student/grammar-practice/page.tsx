@@ -9,6 +9,7 @@ import { logout } from "@/lib/authSession";
 import api from "@/lib/api";
 import { recordAbilityScore, scorePercentToItem } from "@/lib/abilityApi";
 import { localAiApi } from "@/lib/localAiApi";
+import { useTracking } from "@/hooks/useTracking";
 
 type Tab = "suggestions" | "correct" | "explain" | "analyze" | "cultural";
 const TABS: { id: Tab; label: string }[] = [
@@ -34,6 +35,12 @@ export default function GrammarPracticePage() {
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
   const [suggestions, setSuggestions] = useState<{ topic: string; description: string; example: string }[]>([]);
   const [sessionStart] = useState(() => Date.now());
+  const { trackFeatureAction } = useTracking();
+
+  useEffect(() => {
+    trackFeatureAction('grammar_practice', 'started');
+    return () => trackFeatureAction('grammar_practice', 'quit');
+  }, [trackFeatureAction]);
 
   // Cultural context state
   const [culturalTopic, setCulturalTopic] = useState("");
@@ -57,11 +64,14 @@ export default function GrammarPracticePage() {
     if (!text.trim()) return;
     setLoading(true); setResult(null);
     const endpoint = tab === "correct" ? "/grammar/ai/correct" : tab === "explain" ? "/grammar/ai/explain" : "/grammar/ai/analyze";
+    const startTime = Date.now();
     try {
       const { data } = await api.post<Record<string, unknown>>(endpoint, { text, cefrLevel: cefr });
+      const latencyMs = Date.now() - startTime;
       setResult(data);
       const score = tab === "analyze" ? Number((data as { score?: number })?.score ?? 70) : (data as { errors?: unknown[] })?.errors?.length ? 60 : 90;
       await recordAbilityScore([scorePercentToItem(score)], Math.max(1, (Date.now() - sessionStart) / 1000));
+      trackFeatureAction('grammar_practice', 'completed', { action: tab, cefr, latencyMs });
     } catch { setResult(null); }
     finally { setLoading(false); }
   };
@@ -72,9 +82,12 @@ export default function GrammarPracticePage() {
     if (topic) setCulturalTopic(topic);
     setCulturalLoading(true);
     setCulturalResult(null);
+    const startTime = Date.now();
     try {
       const res = await localAiApi.culturalContext(t.trim());
+      const latencyMs = Date.now() - startTime;
       setCulturalResult(res.data);
+      trackFeatureAction('grammar_practice', 'completed', { action: 'cultural', topic: t.trim(), latencyMs });
     } catch { setCulturalResult(null); }
     finally { setCulturalLoading(false); }
   };

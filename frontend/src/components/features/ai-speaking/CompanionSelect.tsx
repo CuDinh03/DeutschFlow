@@ -63,10 +63,10 @@ export function CompanionSelect() {
   // Check if setup is complete
   const isReady = useMemo(() => {
     if (!selected) return false;
-    if (sessionMode === "INTERVIEW") return !!(interviewPosition && experienceLevel && cefrLevel);
+    if (sessionMode === "INTERVIEW") return !!(interviewPosition && experienceLevel);
     if (sessionMode === "LESSON") return !!lessonScenario;
     return true;
-  }, [selected, sessionMode, interviewPosition, experienceLevel, cefrLevel, lessonScenario]);
+  }, [selected, sessionMode, interviewPosition, experienceLevel, lessonScenario]);
 
   const handleConfirm = async () => {
     if (!selected || !selectedPersona || confirming || !isReady) return;
@@ -79,7 +79,7 @@ export function CompanionSelect() {
 
       const res = await aiSpeakingApi.createSession(
         topicForApi ?? "Alltag",
-        cefrLevel,
+        sessionMode === "INTERVIEW" ? "B2" : cefrLevel,
         selected.toUpperCase(),
         "V1",
         sessionMode,
@@ -97,7 +97,7 @@ export function CompanionSelect() {
         voiceId: token.id.toUpperCase(),
         voiceFile: token.voiceFile ?? null,
         personality: token.desc,
-        cefrLevel: cefrLevel,
+        cefrLevel: sessionMode === "INTERVIEW" ? "B2" : cefrLevel,
       };
 
       clearChat();
@@ -259,24 +259,6 @@ export function CompanionSelect() {
                   ))}
                 </div>
               </div>
-              {/* CEFR */}
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <GraduationCap size={14} style={{ color: selectedPersona.accent }} />
-                  <span className="text-xs font-bold uppercase tracking-wider" style={{ color: selectedPersona.accent }}>Trình độ</span>
-                </div>
-                <div className="flex gap-2">
-                  {CEFR_LEVELS.map((lvl) => (
-                    <motion.button key={lvl} onClick={() => setCefrLevel(lvl)}
-                      className="flex-1 py-2.5 rounded-xl text-sm font-bold transition-all"
-                      style={{
-                        background: cefrLevel === lvl ? `${selectedPersona.accent}22` : "rgba(255,255,255,0.04)",
-                        border: cefrLevel === lvl ? `1.5px solid ${selectedPersona.accent}` : "1.5px solid rgba(255,255,255,0.06)",
-                        color: cefrLevel === lvl ? selectedPersona.accent : "rgba(255,255,255,0.5)",
-                      }} whileTap={{ scale: 0.95 }}>{lvl}</motion.button>
-                  ))}
-                </div>
-              </div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -342,7 +324,7 @@ export function CompanionSelect() {
               <motion.p key="cta-hint" className="text-center text-sm" style={{ color: "rgba(255,255,255,0.25)" }}
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 {!selected ? "Vui lòng chọn một nhân vật"
-                  : sessionMode === "INTERVIEW" ? "Chọn vị trí, kinh nghiệm và trình độ"
+                  : sessionMode === "INTERVIEW" ? "Chọn vị trí và kinh nghiệm"
                   : sessionMode === "LESSON" ? "Chọn chủ đề bài học"
                   : ""}
               </motion.p>

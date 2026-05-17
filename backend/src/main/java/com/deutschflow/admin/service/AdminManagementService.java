@@ -550,7 +550,7 @@ public class AdminManagementService {
         return apiTelemetryService.latencyPercentiles(days, endpoint);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public Map<String, Object> vocabularyQualityDaily(int days) {
         Map<String, Object> report = new LinkedHashMap<>();
         report.put("nounGenderCoverage", wordQueryService.coverageHistory(days));

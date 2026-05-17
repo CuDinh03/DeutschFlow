@@ -1,8 +1,10 @@
 # SRS — DeutschFlow (Software Requirements Specification)
 
-**Phiên bản:** 2.8  
-**Ngày:** 2026-05-16  
+**Phiên bản:** 2.9  
+**Ngày:** 2026-05-17  
 **Ngôn ngữ:** Tiếng Việt  
+
+**Changelog v2.9:** Triển khai **Practice Node 4-Skill System & Curriculum Consolidation**. (1) **4-Skill Practice System**: Hệ thống tự động sinh 4 bài tập thực hành (Nghe, Nói, Đọc, Viết) khi học viên hoàn thành bài học lý thuyết. Giao diện `/student/practice-node` hiển thị thẻ kỹ năng với track XP riêng biệt. (2) **Anti-Repetition Engine**: Áp dụng SHA-256 hash trên JSON payload của từng bài tập, đối chiếu qua bảng `user_seen_exercise_hashes` để đảm bảo hệ thống sinh ra bộ câu hỏi mới (N+1 Generations) không trùng lặp khi người dùng chọn "Làm thêm". (3) **Multi-Skill Prompts**: Xây dựng `PracticeNodePromptBuilder` sinh 4 template AI bám sát tiêu chuẩn Goethe-Institut kèm giải thích tiếng Việt; hỗ trợ Web Speech API (Listening) và Whisper (Speaking). (4) **Curriculum Clarification**: Thiết lập Skill Tree DB làm Single Source of Truth, mapping trực tiếp Netzwerk Neu Units (L01-L09) vào Database; đánh dấu `a1.curriculum.json` chỉ là tài liệu tham khảo nội bộ để giải quyết dứt điểm nợ kỹ thuật 2 hệ giáo trình.
 
 **Changelog v2.8:** Triển khai **System Refactoring, PWA Integration & Observability (Phase 3 & 4)**. (1) **Async API Refactor**: Nâng cấp `GeminiApiClient` sang Spring WebFlux (`WebClient`) kết hợp `CompletableFuture` và `@Async`, giải quyết triệt để lỗi Thread Exhaustion do I/O blocking trên Tomcat. (2) **PWA & State Management**: Tối ưu hóa `manifest.json` Next.js PWA build pipeline. Chuẩn hóa toàn bộ Global State bằng Zustand (`useUserStore`, `useSpeakingStore`, `useSrsStore`). (3) **Observability Stack**: Tích hợp Grafana, Prometheus, Loki, và Promtail vào `docker-compose.prod.yml`, tự động auto-provision Dashboard (AI Latency, DB Pool, Error Rates) và Alert Rules. (4) **API Versioning Strategy**: Xây dựng kiến trúc versioning nội tại bằng Custom Annotation `@ApiVersion`, tự động gán tiền tố `/api/vX` qua `ApiVersionRequestMappingHandlerMapping`, kèm `ApiDeprecationInterceptor` cho v1. (5) **Strict i18n CI/CD**: Xây dựng kịch bản Python (`check_i18n.py`) rà soát chuỗi tiếng Việt hardcoded trên React nodes, tích hợp chặn tự động (fail build) qua GitHub Actions (`frontend-ci.yml`).
 
@@ -89,6 +91,7 @@
 46. Teacher LMS v2 (Mã Mời Lớp Học & Luồng Xét Duyệt) *(v2.7)*
 47. Security Patch: React2Shell (CVE-2025-55182) *(v2.7)*
 48. System Refactoring, PWA Integration & Observability *(v2.8)*
+49. Practice Node 4-Skill System & Curriculum Consolidation *(v2.9)*
 
 ---
 
@@ -2069,3 +2072,29 @@ Lỗ hổng **React2Shell** là một lỗ hổng thực thi mã từ xa (RCE) n
 ### 47.2 Biện pháp xử lý & Khắc phục
 - **Cập nhật Dependency**: Cập nhật `next` và `eslint-config-next` trong `package.json` lên bản vá an toàn chính thức `14.2.35`.
 - **Triển khai tự động**: Kích hoạt cơ chế AWS Amplify CI/CD rebuild với file `package-lock.json` mới để đưa bản vá lên Production. Hệ thống hiện tại đã an toàn tuyệt đối trước lỗ hổng này.
+
+## 48. System Refactoring, PWA Integration & Observability (v2.8)
+*(Ghi chú: Bản cập nhật hạ tầng Phase 3 & 4, refactor API WebFlux, tích hợp PWA và Observability Stack Prometheus/Grafana đã được triển khai)*
+
+## 49. Practice Node 4-Skill System & Curriculum Consolidation (v2.9)
+
+### 49.1 Mục tiêu
+Thiết lập kiến trúc bài tập bổ trợ cá nhân hóa cao độ bằng AI (Practice Node) chia thành 4 kỹ năng riêng biệt (Nghe, Nói, Đọc, Viết) bám theo bài học lý thuyết. Đồng thời giải quyết nợ kỹ thuật về thiết kế giáo trình A1 (Dual Curriculum) để chuẩn hóa nguồn dữ liệu.
+
+### 49.2 Kiến trúc Practice Node (4 Skills)
+- **Cơ chế kích hoạt**: Khi học viên hoàn thành một Node lý thuyết (status `COMPLETED`), hệ thống tự động trigger sinh song song (Async) 4 Node bài tập đại diện cho 4 kỹ năng: Hören (Nghe), Sprechen (Nói), Lesen (Đọc), Schreiben (Viết).
+- **Infinite Generation (Thế hệ N+1)**: Mỗi session bao gồm 6 bài tập AI sinh ra theo cấp độ khó tăng dần. Học viên có quyền bấm "Làm thêm bài mới" để sinh ra Session tiếp theo (Generation 2, 3...) vô hạn, cho phép luyện tập lặp lại.
+- **Anti-Repetition (Chống lặp)**: Hệ thống sinh mã hash `SHA-256(skillType + exerciseType + question + answer)` cho mọi câu hỏi và lưu vào bảng `user_seen_exercise_hashes`. Trong quá trình gọi LLM, nếu phát hiện tỉ lệ trùng lặp lớn hơn 50%, hệ thống tự động retry với prompt mạnh hơn để đảm bảo nội dung mới.
+- **Gamification**: Hoàn thành 1 session mang lại 30 XP cố định (yêu cầu đúng >= 60%). Tổng 4 kỹ năng mang lại tối đa 120 XP bổ trợ, thúc đẩy duy trì Streak.
+
+### 49.3 AI Prompt Builders (`PracticeNodePromptBuilder.java`)
+Hệ thống sử dụng các mẫu Prompt hệ thống bám sát dạng bài thi chuẩn viện Goethe, kèm theo giải thích tiếng Việt.
+1. **Hören**: `LISTEN_AND_CHOOSE`, `LISTEN_AND_FILL`, `DICTATION`. Hỗ trợ Audio Transcript cho Web Speech API đọc.
+2. **Sprechen**: `SPEAKING_REPEAT`, `SPEAKING_RESPONSE`, `ROLE_PLAY`. Tích hợp LLM và Whisper STT để chấm điểm ngữ âm.
+3. **Lesen**: Tự sinh một đoạn văn bản/Email (reading_passage) đi kèm các câu hỏi `READ_AND_CHOOSE`, `READ_TRUE_FALSE`.
+4. **Schreiben**: `TRANSLATE_VI_DE`, `REORDER_WORDS`, `FILL_GRAMMAR`. Đánh giá thông qua các `accept_also` mảng để chấp nhận các phương án paraphrase khác nhau.
+
+### 49.4 Curriculum Consolidation (Giải quyết nợ kỹ thuật)
+- **Single Source of Truth**: Thống nhất bảng `skill_tree_nodes` trong Database là nguồn dữ liệu duy nhất chạy trên Runtime, loại bỏ việc tham chiếu nhầm lẫn sang `netzwerk-neu/a1.curriculum.json`. File JSON được cập nhật `README.md` khẳng định chỉ mang ý nghĩa tài liệu nội bộ (Internal reference).
+- **Netzwerk Neu Mapping**: Thêm trường `netzwerk_neu_unit` vào bảng `skill_tree_nodes` (Migration V140). Map các nodes hiện tại theo chuẩn L01-L09 (vd: Day 11-14 -> L01 Guten Tag!) để content team dễ dàng so khớp với giáo trình sách giáo khoa Netzwerk Neu.
+- **Phase Standardization**: Đồng nhất các tên Phase `GRUNDLAGEN`, `GRAMMATIK`, `SATZSTRUKTUR`, `MODALVERBEN` của A1 thành một Phase chung `CORE_A1`.

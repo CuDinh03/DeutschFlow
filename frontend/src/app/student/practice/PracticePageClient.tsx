@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import { useTracking } from '@/hooks/useTracking';
 
 interface PracticeExercise {
     id: number;
@@ -21,6 +22,12 @@ export default function PracticePageClient() {
     const [exercises, setExercises] = useState<PracticeExercise[]>([]);
     const [loading, setLoading] = useState(true);
     const [filterLevel, setFilterLevel] = useState<string>('');
+    const { trackFeatureAction } = useTracking();
+
+    useEffect(() => {
+        trackFeatureAction('practice_library', 'started');
+        return () => trackFeatureAction('practice_library', 'quit');
+    }, [trackFeatureAction]);
 
     useEffect(() => {
         fetchExercises();
@@ -67,6 +74,7 @@ export default function PracticePageClient() {
         try {
             // Mock submit
             toast.success('Hoàn thành bài tập! Bạn đã nhận được XP.');
+            trackFeatureAction('practice_exercise', 'completed', { exerciseId: id });
         } catch (error) {
             console.error(error);
         }

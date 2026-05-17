@@ -7,14 +7,18 @@
 const POSTHOG_KEY = 'phc_vFERGwkAxSWCTagc39wk3uevgueqhZsXvjcc5dDSKoHB'
 const POSTHOG_HOST = 'https://us.i.posthog.com'
 
-const FEATURES = ['dash', 'road', 'speak', 'plan', 'vocabulary', 'review']
+const FEATURES = [
+  'vocab_practice', 'swipe_cards', 'vocabulary_dictionary',
+  'ai_speaking', 'mock_exam', 'practice_library',
+  'grammar', 'grammar_practice', 'lego_game'
+]
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 const LEVELS = ['A1', 'A2', 'B1', 'B2']
 const GOALS = ['TRAVEL', 'WORK', 'STUDY', 'PERSONAL']
 const INDUSTRIES = ['IT', 'MEDICINE', 'EDUCATION', 'BUSINESS']
 
 // ─── Tạo user giả ────────────────────────────────────────────────────────────
-function makeUsers(count = 20) {
+function makeUsers(count = 30) {
   return Array.from({ length: count }, (_, i) => ({
     id: `mock-user-${i + 1}`,
     email: `user${i + 1}@test.com`,
@@ -85,8 +89,26 @@ function buildDayEvents(user, daysAgoN) {
     properties: { ...base.properties, $current_url: 'http://localhost:3000/dashboard' },
   })
 
-  // 4. Dùng feature chính (nav click + feature_session)
-  const numFeatures = rnd(1, 3)
+  // 3.5. Streak và Điều hướng (Navigation)
+  if (Math.random() > 0.5) {
+    events.push({
+      ...base,
+      event: 'streak_extended',
+      timestamp: ts(6000),
+      properties: { ...base.properties, streakDays: rnd(1, 30) },
+    })
+  }
+
+  const navTargets = ['dashboard', 'courses', 'vocabulary', 'speaking', 'grammar-practice', 'settings']
+  events.push({
+    ...base,
+    event: 'feature_nav_clicked',
+    timestamp: ts(7000),
+    properties: { ...base.properties, target: pick(navTargets), href: '/student/' + pick(navTargets) }
+  })
+
+  // 4. Feature Tracking
+  const numFeatures = rnd(1, 4)
   let offset = 10000
   for (let f = 0; f < numFeatures; f++) {
     const feature = pick(FEATURES)
@@ -94,37 +116,83 @@ function buildDayEvents(user, daysAgoN) {
 
     events.push({
       ...base,
-      event: 'nav_clicked',
+      event: `feature_${feature}_started`,
       timestamp: ts(offset),
-      properties: { ...base.properties, feature, from: '/dashboard' },
-    })
-    offset += 2000
-
-    events.push({
-      ...base,
-      event: '$pageview',
-      timestamp: ts(offset),
-      properties: {
-        ...base.properties,
-        $current_url: `http://localhost:3000/student/${feature}`,
-      },
-    })
-    offset += activeSeconds * 1000
-
-    events.push({
-      ...base,
-      event: 'feature_session',
-      timestamp: ts(offset),
-      properties: {
-        ...base.properties,
-        feature,
-        active_seconds: activeSeconds,
-        total_seconds: activeSeconds + rnd(0, 30),
+      properties: { 
+        ...base.properties, 
         hour_of_day: hour,
         day_of_week: pick(DAYS),
+        cefr: user.level,
+        mode: feature === 'ai_speaking' ? pick(['INTERVIEW', 'TUTOR', 'ROLEPLAY']) : undefined
       },
     })
+    
+    offset += activeSeconds * 1000
+
+    // Randomize drop-off rate based on feature
+    let completionChance = 0.6; // Base 60% completion rate
+    if (feature === 'mock_exam') completionChance = 0.3; // Exams have higher drop-off
+    if (feature === 'swipe_cards') completionChance = 0.8; // Swipe cards have higher completion
+    
+    const isCompleted = Math.random() < completionChance;
+
+    if (isCompleted && !['vocabulary_dictionary', 'practice_library'].includes(feature)) {
+      events.push({
+        ...base,
+        event: `feature_${feature}_completed`,
+        timestamp: ts(offset),
+        properties: {
+          ...base.properties,
+          score: rnd(50, 100),
+          ...(feature === 'grammar_practice' ? { latencyMs: rnd(800, 3000) } : {})
+        },
+      })
+    } else {
+      events.push({
+        ...base,
+        event: `feature_${feature}_quit`,
+        timestamp: ts(offset),
+        properties: {
+          ...base.properties,
+          progress: rnd(10, 80)
+        },
+      })
+    }
+
+    if (feature === 'ai_speaking') {
+      events.push({
+        ...base,
+        event: 'feature_ai_speaking_latency',
+        timestamp: ts(offset + 1000),
+        properties: { ...base.properties, mode: pick(['INTERVIEW', 'TUTOR', 'ROLEPLAY']), latencyMs: rnd(500, 3000), type: 'first_token' }
+      })
+      events.push({
+        ...base,
+        event: 'feature_ai_speaking_latency',
+        timestamp: ts(offset + 3000),
+        properties: { ...base.properties, mode: pick(['INTERVIEW', 'TUTOR', 'ROLEPLAY']), latencyMs: rnd(2000, 8000), type: 'full_response' }
+      })
+    }
+
     offset += 3000
+  }
+
+  // 5. Monetization (Phễu thanh toán)
+  if (Math.random() > 0.8) { // 20% user xem Paywall
+    events.push({
+      ...base,
+      event: 'feature_monetization_paywall_viewed',
+      timestamp: ts(offset + 10000),
+      properties: { ...base.properties }
+    })
+    if (Math.random() > 0.5) { // 50% người xem bấm mua
+      events.push({
+        ...base,
+        event: 'feature_monetization_checkout_started',
+        timestamp: ts(offset + 20000),
+        properties: { ...base.properties, plan: pick(['PRO', 'ULTRA']) }
+      })
+    }
   }
 
   return events
@@ -157,6 +225,11 @@ function buildOnboardingFunnel(user, daysAgoN, completedSteps = 3) {
     events.push({
       ...base, event: 'onboarding_step_completed', timestamp: ts(120),
       properties: { step: 3, step_name: 'Select Schedule', weeklyTarget: pick([3, 4, 5, 7]) },
+    })
+    // Simulate onboarding_completed since 3 steps were done
+    events.push({
+      ...base, event: 'onboarding_completed', timestamp: ts(125),
+      properties: { status: 'success' },
     })
   }
   return events

@@ -8,6 +8,7 @@ import { useStudentPracticeSession } from "@/hooks/useStudentPracticeSession";
 import { logout } from "@/lib/authSession";
 import api from "@/lib/api";
 import { useTranslations } from "next-intl";
+import { useTracking } from "@/hooks/useTracking";
 
 interface GrammarTopic {
   id: number;
@@ -52,6 +53,7 @@ function MasteryBar({ percent }: { percent: number }) {
 export default function GrammarSyllabusPage() {
   const { me, loading: meLoading, targetLevel, streakDays, initials } = useStudentPracticeSession();
   const t = useTranslations("student");
+  const { trackFeatureAction } = useTracking();
 
   const [cefr, setCefr] = useState("A1");
   const [topics, setTopics] = useState<GrammarTopic[]>([]);
@@ -83,6 +85,7 @@ export default function GrammarSyllabusPage() {
     setResult(null);
     setSessionScore({ correct: 0, total: 0 });
     setExLoading(true);
+    trackFeatureAction('grammar', 'started', { topicId: topic.id, title: topic.title_de });
     try {
       const { data } = await api.get<Exercise[]>(`/grammar/syllabus/topics/${topic.id}/exercises?limit=10`);
       setExercises(data ?? []);
@@ -109,6 +112,9 @@ export default function GrammarSyllabusPage() {
       setAnswer("");
       setResult(null);
     } else {
+      if (activeTopic) {
+        trackFeatureAction('grammar', 'completed', { topicId: activeTopic.id, score: sessionScore.correct, total: sessionScore.total });
+      }
       setActiveTopic(null);
       fetchTopics();
     }
@@ -132,7 +138,10 @@ export default function GrammarSyllabusPage() {
             <motion.div key="exercise" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
               {/* Header */}
               <div className="flex items-center gap-3 mb-6">
-                <button onClick={() => setActiveTopic(null)} className="w-9 h-9 rounded-xl bg-white border border-[#E2E8F0] flex items-center justify-center hover:bg-[#F1F5F9] transition-colors">
+                <button onClick={() => {
+                  trackFeatureAction('grammar', 'quit', { topicId: activeTopic.id, progress: currentIdx });
+                  setActiveTopic(null);
+                }} className="w-9 h-9 rounded-xl bg-white border border-[#E2E8F0] flex items-center justify-center hover:bg-[#F1F5F9] transition-colors">
                   <ArrowLeft size={16} />
                 </button>
                 <div className="flex-1">

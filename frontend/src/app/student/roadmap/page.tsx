@@ -531,6 +531,16 @@ function NodeDetailPanel({
             <Play size={16} fill="white" />
             {isCompleted ? "Ôn tập lại" : isActive ? "Tiếp tục học" : "Bắt đầu"}
           </button>
+          {isCompleted && (
+            <a
+              href={`/student/practice-node/${node.id}`}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm border-2 transition-all active:scale-95"
+              style={{ borderColor: "#7C3AED", color: "#7C3AED", background: "#F5F3FF" }}
+            >
+              <Sparkles size={14} />
+              🎯 Luyện tập kỹ năng (Nghe · Nói · Đọc · Viết)
+            </a>
+          )}
           {isActive && !isCompleted && (
             <button
               type="button"
@@ -548,6 +558,7 @@ function NodeDetailPanel({
     </motion.div>
   );
 }
+
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 

@@ -35,13 +35,12 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
         posthog.init(posthogKey, {
           api_host: posthogHost,
           person_profiles: 'always',
-          // Selective autocapture: chỉ ghi nhận element có data-ph-capture="true"
-          autocapture: {
-            css_selector_allowlist: ['[data-ph-capture="true"]'],
-          },
+          // Bật autocapture toàn bộ để theo dõi Rage Clicks, Dead Clicks và Navigation
+          autocapture: true,
           capture_pageview: false, // Tự track thủ công qua PostHogPageView
           session_recording: {
             maskAllInputs: true,   // Ẩn password/PII
+            maskTextSelector: "[data-ph-mask='true']",
           },
         })
         // Track lần đầu mở app trong session này

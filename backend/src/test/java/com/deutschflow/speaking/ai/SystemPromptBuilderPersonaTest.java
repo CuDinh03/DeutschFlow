@@ -13,6 +13,11 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.lenient;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import com.deutschflow.speaking.contract.SpeakingResponseSchema;
+import com.deutschflow.speaking.contract.SpeakingSessionMode;
 
 class SystemPromptBuilderPersonaTest {
 
@@ -84,5 +89,14 @@ class SystemPromptBuilderPersonaTest {
         assertThat(SpeakingPersona.fromApi("")).isEqualTo(SpeakingPersona.DEFAULT);
         assertThat(SpeakingPersona.fromApi("nope")).isEqualTo(SpeakingPersona.DEFAULT);
         assertThat(SpeakingPersona.fromApi("emma")).isEqualTo(SpeakingPersona.EMMA);
+    }
+
+    @Test
+    void testInterviewLog() throws Exception {
+        String p = builder.buildSystemPrompt(
+                minimalProfile(), List.of("Coding", "Architecture"), "Job Interview", List.of(), "B2",
+                null, SpeakingPersona.LUKAS, SpeakingResponseSchema.V1, SpeakingSessionMode.INTERVIEW,
+                "Senior Backend Developer", "5 Jahre", 3);
+        Files.writeString(Paths.get("prompt_log.txt"), p, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
     }
 }

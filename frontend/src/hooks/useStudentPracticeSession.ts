@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
 import api, { httpStatus } from "@/lib/api";
 import { getAccessToken, clearTokens } from "@/lib/authSession";
 import { toastApiError } from "@/lib/toastApiError";
+import posthog from "posthog-js";
 
 export type PracticeSessionUser = {
   displayName: string;
@@ -54,6 +55,9 @@ export function useStudentPracticeSession(options?: {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  // Dùng để theo dõi xem streak có vừa được cộng không
+  const prevStreakRef = useRef<number | null>(null);
+
   const load = useCallback(async () => {
     if (!getAccessToken()) {
       router.replace("/login");
@@ -91,8 +95,15 @@ export function useStudentPracticeSession(options?: {
       const cur = plan?.currentLevel ?? tl;
       setMe(userData);
       setTargetLevel(pickCefrBand(tl));
-      setPracticeFloorLevel(pickCefrBand(cur, tl, userData.learningTargetLevel));
-      setStreakDays(Number(dashRes?.data?.streakDays ?? 0));
+      const newStreak = Number(dashRes?.data?.streakDays ?? 0);
+      
+      // Track retention/habit milestone nếu streak tăng
+      if (prevStreakRef.current !== null && newStreak > prevStreakRef.current) {
+        if (posthog.__loaded) posthog.capture('streak_extended', { streakDays: newStreak });
+      }
+      prevStreakRef.current = newStreak;
+
+      setStreakDays(newStreak);
     } catch (err: unknown) {
       const st = httpStatus(err);
       if (st === 401 || st === 403) {

@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import { XpLevelPill } from "@/components/gamification/XpLevelPill";
 import { usePlan } from "@/contexts/PlanContext";
+import { useTracking } from "@/hooks/useTracking";
 
 export type StudentShellSection =
   | "dashboard"
@@ -125,6 +126,7 @@ export function StudentShell({
   const showMobileBottomPad = !isStudentImmersivePath(pathname) && !hideBottomNav;
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { plan } = usePlan();
+  const { trackFeatureAction } = useTracking();
 
   const planBadge = plan && (plan.tier === "ULTRA" || plan.tier === "PRO" || plan.tier === "PREMIUM") ? (
     <span className={`text-[10px] ml-2 px-1.5 py-0.5 rounded-full font-extrabold border ${
@@ -207,7 +209,8 @@ export function StudentShell({
     [t],
   );
 
-  const go = (href: string) => {
+  const go = (id: string, href: string) => {
+    trackFeatureAction('nav', 'clicked', { target: id, href });
     router.push(href);
     setSidebarOpen(false);
   };
@@ -248,7 +251,7 @@ export function StudentShell({
                       <button
                         key={id}
                         type="button"
-                        onClick={() => go(href)}
+                        onClick={() => go(id, href)}
                         className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-[12px] transition-all duration-200 text-left group
                           ${active
                             ? "bg-[var(--brand-yellow)] text-[var(--brand-black)] shadow-md"
@@ -275,7 +278,7 @@ export function StudentShell({
               <button
                 type="button"
                 id="btn-sidebar-upgrade"
-                onClick={() => go("/student/pricing")}
+                onClick={() => go("pricing", "/student/pricing")}
                 className="mb-2 w-full flex items-center gap-3 px-4 py-2.5 rounded-[12px] bg-gradient-to-r from-violet-600 to-purple-700 hover:from-violet-500 hover:to-purple-600 text-white transition-all duration-200 text-left shadow-md shadow-violet-900/40"
               >
                 <span className="text-base leading-none">⚡</span>
@@ -295,7 +298,7 @@ export function StudentShell({
 
             <div
               className="flex items-center gap-3 px-4 py-3 rounded-[12px] bg-white/8 border border-white/10 cursor-pointer hover:bg-white/12 transition-colors mt-2"
-              onClick={() => go("/student/settings")}
+              onClick={() => go("settings_profile", "/student/settings")}
               title="Cài đặt hồ sơ"
             >
               <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[var(--brand-yellow)] to-[var(--brand-yellow-dark)] flex items-center justify-center flex-shrink-0">
@@ -315,7 +318,7 @@ export function StudentShell({
             {user.role === "ADMIN" && (
               <button
                 type="button"
-                onClick={() => go("/admin")}
+                onClick={() => go("admin", "/admin")}
                 className="mt-2 w-full flex items-center gap-2 px-4 py-2 rounded-[10px] text-white/40 hover:text-white/70 hover:bg-white/8 transition-colors text-xs"
               >
                 <ShieldCheck size={13} />

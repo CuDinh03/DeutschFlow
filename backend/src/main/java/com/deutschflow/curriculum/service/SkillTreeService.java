@@ -43,6 +43,7 @@ public class SkillTreeService {
     private final TransactionTemplate transactionTemplate;
     private final XpService xpService;
     private final AsyncJobService asyncJobService;
+    private final PracticeNodeService practiceNodeService;
 
     // In-memory lock to prevent duplicate LLM calls for the same cache key
     private final ConcurrentHashMap<String, Boolean> generationLocks = new ConcurrentHashMap<>();
@@ -581,6 +582,14 @@ public class SkillTreeService {
                 }
             } catch (Exception e) {
                 log.warn("[SkillTree] XP award failed for user {}: {}", userId, e.getMessage());
+            }
+
+            // Trigger 4 Practice Nodes (Hören/Sprechen/Lesen/Schreiben) async
+            try {
+                practiceNodeService.triggerAllPracticeNodes(userId, nodeId);
+            } catch (Exception e) {
+                log.warn("[SkillTree] Practice node trigger failed for user={}, node={}: {}",
+                        userId, nodeId, e.getMessage());
             }
         }
 

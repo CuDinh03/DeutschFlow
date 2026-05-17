@@ -11,6 +11,7 @@ import { speakGerman } from '@/lib/speechDe'
 import { PracticeGlassSkeleton } from '@/components/practice/PracticeGlassSkeleton'
 import { StudentShell } from '@/components/layouts/StudentShell'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
+import { useTracking } from '@/hooks/useTracking'
 import {
   fetchVocabGameQuestions,
   isCorrectLocal,
@@ -143,6 +144,7 @@ export default function LegoGameScreen() {
 
   const { me, loading: sessionLoading, targetLevel, practiceFloorLevel, streakDays, initials, reload } =
     useStudentPracticeSession()
+  const { trackFeatureAction } = useTracking()
 
   const [index, setIndex] = useState(0)
   const sessionType = 'GENERAL'
@@ -190,6 +192,7 @@ export default function LegoGameScreen() {
         const slotCount = tokenizeForSlots(mapped[0]!.answerCanonical, mapped[0]!.joiner).length
         setSlots(new Array(slotCount).fill(null))
         setSlotWordIds(new Array(slotCount).fill(null))
+        trackFeatureAction('lego_game', 'started', { count: mapped.length })
       }
     } catch (err) {
       console.error('Game boot failed', err)
@@ -301,6 +304,7 @@ export default function LegoGameScreen() {
     if (!q) return
     if (index + 1 >= questions.length) {
       setDone(true)
+      trackFeatureAction('lego_game', 'completed', { score })
       return
     }
     setIndex((i) => i + 1)

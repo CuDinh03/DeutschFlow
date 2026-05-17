@@ -27,9 +27,10 @@ public class GrammarSyllabusController {
 
     // ─── Helper ──────────────────────────────────────────────────
     private long userId(UserDetails principal) {
-        // UserDetails.getUsername() returns the user ID as string in DeutschFlow
-        try { return Long.parseLong(principal.getUsername()); }
-        catch (Exception e) { throw new RuntimeException("Cannot resolve user ID"); }
+        if (principal instanceof com.deutschflow.user.entity.User user) {
+            return user.getId();
+        }
+        throw new RuntimeException("Cannot resolve user ID");
     }
 
     // ─── Student: Topics ─────────────────────────────────────────

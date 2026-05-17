@@ -8,6 +8,7 @@ import { SprechenTeil2Simulator } from '@/components/exam/SprechenTeil2Simulator
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
 import { logout } from '@/lib/authSession'
 import api from '@/lib/api'
+import { useTracking } from '@/hooks/useTracking'
 
 interface MockExam {
   id: number
@@ -66,6 +67,7 @@ function ScoreCard({ section, score, max }: { section: string; score: number; ma
 }
 
 export default function MockExamPage() {
+  const { trackFeatureAction } = useTracking()
   const { me, loading: meLoading, targetLevel, streakDays, initials } = useStudentPracticeSession()
   const [exams, setExams] = useState<MockExam[]>([])
   const [attempts, setAttempts] = useState<MockAttempt[]>([])
@@ -115,6 +117,14 @@ export default function MockExamPage() {
     }
   }, [view, timeLeft])
 
+  useEffect(() => {
+    return () => {
+      if (view === 'taking') {
+        trackFeatureAction('mock_exam', 'quit', { examId: activeAttemptId })
+      }
+    }
+  }, [view, activeAttemptId, trackFeatureAction])
+
   const startExam = async (exam: MockExam) => {
     try {
       setLoading(true)
@@ -147,6 +157,7 @@ export default function MockExamPage() {
       setTimeLeft(exam.time_limit_minutes * 60)
       setAnswers({})
       setView('taking')
+      trackFeatureAction('mock_exam', 'started', { examId: exam.id, title: exam.title })
     } catch (e: any) {
       alert(e?.response?.data?.message ?? 'Không thể bắt đầu thi')
     } finally {
@@ -175,6 +186,7 @@ export default function MockExamPage() {
       const finishedAttempt = await api.get(`/mock-exams/attempts/${activeAttemptId}/result`)
       setSelectedAttempt(finishedAttempt.data)
       setView('result')
+      trackFeatureAction('mock_exam', 'completed', { examId: activeAttemptId, totalScore: mockTotalScore })
     } catch (e) {
       alert('Lỗi nộp bài. Vui lòng thử lại.')
     } finally {

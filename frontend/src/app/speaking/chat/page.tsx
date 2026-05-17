@@ -13,6 +13,7 @@ import { useSpeech } from "@/hooks/useSpeech";
 import { chatStream, aiSpeakingApi } from "@/lib/aiSpeakingApi";
 import type { Suggestion } from "@/lib/aiSpeakingApi";
 import { AnimatePresence, motion } from "framer-motion";
+import { useTracking } from "@/hooks/useTracking";
 
 type ViewMode = "chat" | "summary";
 
@@ -60,6 +61,7 @@ export default function AIChatInterface() {
   const [seconds, setSeconds] = useState(0);
   const [showEndPopup, setShowEndPopup] = useState(false);
   const [greetingSpoken, setGreetingSpoken] = useState(false);
+  const { trackFeatureAction } = useTracking();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const suggestionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -98,8 +100,10 @@ export default function AIChatInterface() {
   useEffect(() => {
     if (!selectedCompanion) {
       router.push("/speaking");
+    } else {
+      trackFeatureAction('ai_speaking', 'started', { mode: sessionMode });
     }
-  }, [selectedCompanion, router]);
+  }, [selectedCompanion, router, sessionMode, trackFeatureAction]);
 
   // ─── Auto-speak greeting message ───────────────────────────
   useEffect(() => {
@@ -200,18 +204,24 @@ export default function AIChatInterface() {
     // Abort any previous stream before starting a new one
     streamAbortRef.current?.abort();
 
+    const requestStartTime = Date.now();
+
     streamAbortRef.current = chatStream(
       sid,
       userText,
       (delta) => {
         if (useChatStore.getState().streamStatus !== "streaming") {
           setStreamStatus("streaming");
+          const firstTokenLatency = Date.now() - requestStartTime;
+          trackFeatureAction('ai_speaking', 'latency', { mode: sessionMode, latencyMs: firstTokenLatency, type: 'first_token' });
         }
         currentDe += delta;
         updateLastMessage({ contentDe: currentDe });
       },
       (meta) => {
         setStreamStatus("idle");
+        const fullLatency = Date.now() - requestStartTime;
+        trackFeatureAction('ai_speaking', 'latency', { mode: sessionMode, latencyMs: fullLatency, type: 'full_response' });
 
         if (meta.suggestions && meta.suggestions.length > 0) {
           setLastSuggestions(meta.suggestions);
@@ -283,6 +293,7 @@ export default function AIChatInterface() {
         if (res.data?.interviewReportJson) {
           setInterviewReportJson(res.data.interviewReportJson);
         }
+        trackFeatureAction('ai_speaking', 'completed', { mode: sessionMode, messagesCount: messages.length });
       } catch (err) {
         console.error("Failed to end session", err);
       }
@@ -362,7 +373,10 @@ export default function AIChatInterface() {
       <header className="flex items-center justify-between px-4 py-3 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm sticky top-0 z-10">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => router.push("/speaking")}
+            onClick={() => {
+              trackFeatureAction('ai_speaking', 'quit', { mode: sessionMode, messagesCount: messages.length });
+              router.push("/speaking");
+            }}
             className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-500"
           >
             <ArrowLeft className="w-5 h-5" />

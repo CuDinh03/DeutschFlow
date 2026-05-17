@@ -11,6 +11,7 @@ import { PracticeGlassSkeleton } from "@/components/practice/PracticeGlassSkelet
 import { useStudentPracticeSession } from "@/hooks/useStudentPracticeSession";
 import { speakGerman, primeGermanVoices } from "@/lib/speechDe";
 import { ChevronLeft, Check, RefreshCw, RotateCcw, Volume2, X } from "lucide-react";
+import { useTracking } from "@/hooks/useTracking";
 
 type CardType = "masculine" | "feminine" | "neuter" | "verb" | "adjective";
 
@@ -543,6 +544,7 @@ export default function SwipeCardsPage() {
 
   const { me, loading: sessionLoading, targetLevel: planTargetLevel, practiceFloorLevel, streakDays, initials, reload } =
     useStudentPracticeSession();
+  const { trackFeatureAction } = useTracking();
 
   const deckCefr = useMemo(() => {
     const allowed = ["A1", "A2", "B1", "B2"] as const;
@@ -594,6 +596,9 @@ export default function SwipeCardsPage() {
         setPoolTotal(Number.isFinite(wordsRes.data.total) ? wordsRes.data.total : null);
         const cards = shuffle((wordsRes.data.items ?? []).map((w) => mapWordToSwipe(w, loc)));
         setDeck(cards);
+        if (cards.length > 0) {
+          trackFeatureAction('swipe_cards', 'started', { cefr: deckCefr, tag: urlTagQ, mode });
+        }
       } catch {
         if (!cancelled) setLoadError(t("loadError"));
       } finally {
@@ -625,7 +630,10 @@ export default function SwipeCardsPage() {
         setReviewIds((s) => new Set(s).add(currentCard.id));
       }
       if (remaining.length <= 1) {
-        setTimeout(() => setShowComplete(true), 200);
+        setTimeout(() => {
+          setShowComplete(true);
+          trackFeatureAction('swipe_cards', 'completed', { learned: learnedIds.size + (dir === 'learned' ? 1 : 0), review: reviewIds.size + (dir === 'unlearned' ? 1 : 0), mode });
+        }, 200);
       }
     },
     [currentCard, remaining.length],
@@ -690,7 +698,12 @@ export default function SwipeCardsPage() {
           </p>
         ) : null}
         <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-slate-100">
-          <button type="button" onClick={() => router.push("/dashboard")} className="p-2 rounded-[10px] hover:bg-slate-50 text-slate-500">
+          <button type="button" onClick={() => {
+            if (!showComplete && deck.length > 0) {
+              trackFeatureAction('swipe_cards', 'quit', { progress: done, total, mode });
+            }
+            router.push("/dashboard");
+          }} className="p-2 rounded-[10px] hover:bg-slate-50 text-slate-500">
             <ChevronLeft size={20} />
           </button>
           <div className="text-center">
