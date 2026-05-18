@@ -308,9 +308,9 @@ app:
 # ============================================================
 payment:
   momo:
-    partner-code: ${MOMO_PARTNER_CODE}
-    access-key: ${MOMO_ACCESS_KEY}
-    secret-key: ${MOMO_SECRET_KEY}
-    api-endpoint: ${MOMO_API_ENDPOINT}
+    partner-code: ${MOMO_PARTNER_CODE:dummy}
+    access-key: ${MOMO_ACCESS_KEY:dummy}
+    secret-key: ${MOMO_SECRET_KEY:dummy}
+    api-endpoint: ${MOMO_API_ENDPOINT:http://localhost:8080/dummy}
     ipn-url: ${MOMO_IPN_URL:https://mydeutschflow.com/api/payments/momo/ipn}
     return-url: ${MOMO_RETURN_URL:https://mydeutschflow.com/payment/success}
