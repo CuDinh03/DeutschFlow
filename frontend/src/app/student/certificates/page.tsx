@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { Trophy, Award, Download, Loader2, Lock, CheckCircle2, Star, Shield } from "lucide-react";
 import { StudentShell } from "@/components/layouts/StudentShell";
 import { useStudentPracticeSession } from "@/hooks/useStudentPracticeSession";
-import { logout } from "@/lib/authSession";
+import { getAccessToken, logout } from "@/lib/authSession";
 import api from "@/lib/api";
 
 interface Certificate {
@@ -119,7 +119,7 @@ export default function CertificatePage() {
 
   const downloadPdf = async (id: number) => {
     try {
-      const token = localStorage.getItem("accessToken") ?? "";
+      const token = getAccessToken() ?? "";
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL ?? ""}/api/certificates/${id}/pdf`,
         { headers: { Authorization: `Bearer ${token}` } }

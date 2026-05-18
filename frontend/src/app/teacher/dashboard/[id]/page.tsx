@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { TeacherShell } from "@/components/layouts/TeacherShell";
 import api from "@/lib/api";
+import { logout } from "@/lib/authSession";
 import { format } from "date-fns";
-import { Users, BarChart2, BookOpen, AlertCircle, TrendingUp, Plus, Trophy } from "lucide-react";
+import { Users, BarChart2, BookOpen, AlertCircle, TrendingUp, Plus, Trophy, Trash2, FileBarChart } from "lucide-react";
 
 interface ClassStudent {
   studentId: number;
@@ -58,13 +59,15 @@ export default function ClassDetailPage() {
   const [user, setUser] = useState<AuthMe | null>(null);
   const [pageReady, setPageReady] = useState(false);
   
-  const [activeTab, setActiveTab] = useState<"students" | "joinRequests" | "analytics" | "assignments" | "leaderboard">("students");
+  const [activeTab, setActiveTab] = useState<"students" | "joinRequests" | "analytics" | "assignments" | "leaderboard" | "reports">("students");
   const [students, setStudents] = useState<ClassStudent[]>([]);
   const [joinRequests, setJoinRequests] = useState<any[]>([]);
   const [analytics, setAnalytics] = useState<ClassAnalytics[]>([]);
   const [assignments, setAssignments] = useState<ClassAssignment[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardDto[]>([]);
   const [leaderboardType, setLeaderboardType] = useState<"ALL_TIME" | "WEEKLY">("ALL_TIME");
+  const [classReport, setClassReport] = useState<any>(null);
+  const [removingStudentId, setRemovingStudentId] = useState<number | null>(null);
 
   const [newTopic, setNewTopic] = useState("");
   const [newDesc, setNewDesc] = useState("");
@@ -95,18 +98,20 @@ export default function ClassDetailPage() {
 
   const fetchData = async () => {
     try {
-      const [studentsRes, joinRequestsRes, analyticsRes, assignmentsRes, leaderboardRes] = await Promise.all([
+      const [studentsRes, joinRequestsRes, analyticsRes, assignmentsRes, leaderboardRes, classReportRes] = await Promise.all([
         api.get<ClassStudent[]>(`/v2/teacher/classes/${id}/students`),
         api.get<any[]>(`/v2/teacher/classes/${id}/join-requests`).catch(() => ({ data: [] })),
         api.get<ClassAnalyticsOverview>(`/v2/teacher/classes/${id}/analytics`).catch(() => ({ data: { topErrors: [], studentCount: 0, totalXp: 0, completedAssignments: 0 } })),
         api.get<ClassAssignment[]>(`/v2/teacher/classes/${id}/assignments`).catch(() => ({ data: [] })),
         api.get<LeaderboardDto[]>(`/v2/teacher/classes/${id}/leaderboard?type=${leaderboardType}`).catch(() => ({ data: [] })),
+        api.get(`/teacher/reports/classes/${id}`).catch(() => ({ data: null })),
       ]);
       setStudents(studentsRes.data || []);
       setJoinRequests(joinRequestsRes.data || []);
       setAnalytics(analyticsRes.data?.topErrors || []);
       setAssignments(assignmentsRes.data || []);
       setLeaderboard(leaderboardRes.data || []);
+      setClassReport(classReportRes.data || null);
     } catch (e) {
       console.error(e);
     } finally {
@@ -154,6 +159,20 @@ export default function ClassDetailPage() {
     }
   };
 
+  const handleRemoveStudent = async (studentId: number, studentName: string) => {
+    if (!confirm(`Bạn chắc chắn muốn xóa học viên "${studentName}" khỏi lớp?`)) return;
+    setRemovingStudentId(studentId);
+    try {
+      await api.delete(`/teacher/classes/${id}/students/${studentId}`);
+      fetchData();
+    } catch (e) {
+      console.error(e);
+      alert("Lỗi khi xóa học viên");
+    } finally {
+      setRemovingStudentId(null);
+    }
+  };
+
   if (!user) return (
     <div className="flex h-screen items-center justify-center">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
@@ -164,10 +183,7 @@ export default function ClassDetailPage() {
     <TeacherShell
       activeMenu="classes"
       userName={user.displayName}
-      onLogout={() => {
-        localStorage.removeItem("auth_token");
-        window.location.href = "/login";
-      }}
+      onLogout={() => logout()}
       headerTitle={`Chi tiết lớp học`}
       headerSubtitle="Quản lý học viên, giao bài tập & phân tích"
     >
@@ -220,6 +236,14 @@ export default function ClassDetailPage() {
           >
             <Trophy size={18} /> Bảng xếp hạng
           </button>
+          <button
+            onClick={() => setActiveTab("reports")}
+            className={`px-6 py-3 font-semibold text-sm flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap shrink-0 ${
+              activeTab === "reports" ? "border-indigo-600 text-indigo-600" : "border-transparent text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <FileBarChart size={18} /> Báo cáo Lớp
+          </button>
         </div>
 
         {/* Tab: Students */}
@@ -233,37 +257,47 @@ export default function ClassDetailPage() {
                     <th className="px-6 py-4 font-semibold">Trình độ</th>
                     <th className="px-6 py-4 font-semibold text-right">Tổng XP</th>
                     <th className="px-6 py-4 font-semibold text-center">Level (Streak)</th>
+                    <th className="px-6 py-4 font-semibold text-center">Hành động</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {students.map((student) => (
                     <tr 
                       key={student.studentId} 
-                      onClick={() => router.push(`/teacher/dashboard/${id}/students/${student.studentId}`)}
-                      className="hover:bg-indigo-50/50 transition-colors cursor-pointer group"
+                      className="hover:bg-indigo-50/50 transition-colors group"
                     >
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 cursor-pointer" onClick={() => router.push(`/teacher/dashboard/${id}/students/${student.studentId}`)}>
                         <div className="font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">{student.displayName}</div>
                         <div className="text-sm text-slate-500">{student.email}</div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 cursor-pointer" onClick={() => router.push(`/teacher/dashboard/${id}/students/${student.studentId}`)}>  
                         <span className="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold">
                           {student.cefrLevel}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right font-mono font-bold text-slate-700">
+                      <td className="px-6 py-4 text-right font-mono font-bold text-slate-700 cursor-pointer" onClick={() => router.push(`/teacher/dashboard/${id}/students/${student.studentId}`)}>
                         {student.xp.toLocaleString()} XP
                       </td>
-                      <td className="px-6 py-4 text-center">
+                      <td className="px-6 py-4 text-center cursor-pointer" onClick={() => router.push(`/teacher/dashboard/${id}/students/${student.studentId}`)}>  
                         <span className="font-bold text-orange-600 flex items-center justify-center gap-1">
                           🔥 Lv. {student.level}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <button
+                          onClick={() => handleRemoveStudent(student.studentId, student.displayName)}
+                          disabled={removingStudentId === student.studentId}
+                          className="p-2 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors disabled:opacity-50"
+                          title="Xóa khỏi lớp"
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       </td>
                     </tr>
                   ))}
                   {students.length === 0 && (
                     <tr>
-                      <td colSpan={4} className="px-6 py-12 text-center text-slate-500">
+                      <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
                         Lớp học chưa có học viên nào.
                       </td>
                     </tr>
@@ -525,6 +559,43 @@ export default function ClassDetailPage() {
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+        {/* Tab: Reports */}
+        {activeTab === "reports" && (
+          <div className="space-y-6">
+            <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-6 text-white shadow-md">
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-white/20 rounded-xl">
+                  <FileBarChart size={24} className="text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold mb-1">Báo cáo Chi tiết Lớp học</h3>
+                  <p className="text-emerald-100 text-sm">Tổng hợp hiệu suất quiz, số học viên và điểm trung bình của lớp.</p>
+                </div>
+              </div>
+            </div>
+
+            {classReport ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm text-center">
+                  <p className="text-4xl font-black text-indigo-600">{classReport.studentCount ?? 0}</p>
+                  <p className="text-slate-500 text-sm mt-2 font-semibold">Học viên</p>
+                </div>
+                <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm text-center">
+                  <p className="text-4xl font-black text-emerald-600">{classReport.quizCount ?? 0}</p>
+                  <p className="text-slate-500 text-sm mt-2 font-semibold">Quiz đã tổ chức</p>
+                </div>
+                <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm text-center">
+                  <p className="text-4xl font-black text-amber-500">{(classReport.avgScore ?? 0).toFixed(1)}</p>
+                  <p className="text-slate-500 text-sm mt-2 font-semibold">Điểm trung bình</p>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-12 text-slate-500 border border-dashed rounded-2xl">
+                Chưa có dữ liệu báo cáo cho lớp học này.
+              </div>
+            )}
           </div>
         )}
 

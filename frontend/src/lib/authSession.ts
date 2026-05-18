@@ -26,15 +26,6 @@ function decodeJwtPayload(token: string): Record<string, unknown> | null {
   }
 }
 
-function getTokenExpirySeconds(token: string): number {
-  const payload = decodeJwtPayload(token)
-  const exp = payload?.exp
-  if (typeof exp === 'number' && Number.isFinite(exp)) {
-    return Math.max(60, exp - Math.floor(Date.now() / 1000))
-  }
-  return 15 * 60
-}
-
 function normalizeRole(role: string | null | undefined): string {
   return String(role ?? '').trim().toUpperCase()
 }
@@ -45,8 +36,12 @@ function getRoleFromToken(accessToken: string): string {
   return fromClaim || 'STUDENT'
 }
 
-function setCookie(name: string, value: string, maxAgeSeconds: number): void {
-  document.cookie = `${name}=${encodeURIComponent(value)};path=/;max-age=${maxAgeSeconds};SameSite=Lax`
+function setCookie(name: string, value: string, maxAgeSeconds: number | null): void {
+  let cookieStr = `${name}=${encodeURIComponent(value)};path=/;SameSite=Lax`
+  if (maxAgeSeconds !== null) {
+    cookieStr += `;max-age=${maxAgeSeconds}`
+  }
+  document.cookie = cookieStr
 }
 
 // ─── Public token API ─────────────────────────────────────────────────────────
@@ -54,48 +49,57 @@ function setCookie(name: string, value: string, maxAgeSeconds: number): void {
 /** Read the stored access token. Returns null if not signed in. */
 export function getAccessToken(): string | null {
   if (typeof window === 'undefined') return null
-  return localStorage.getItem(ACCESS_TOKEN_KEY)
+  return sessionStorage.getItem(ACCESS_TOKEN_KEY) || localStorage.getItem(ACCESS_TOKEN_KEY)
 }
 
 /** Read the stored refresh token. */
 export function getRefreshToken(): string | null {
   if (typeof window === 'undefined') return null
-  return localStorage.getItem(REFRESH_TOKEN_KEY)
+  return sessionStorage.getItem(REFRESH_TOKEN_KEY) || localStorage.getItem(REFRESH_TOKEN_KEY)
 }
 
 /**
- * Persist tokens to localStorage AND sync cookies for Next.js middleware.
+ * Persist tokens to sessionStorage AND sync cookies for Next.js middleware.
  * Call this after every successful login / token refresh.
  */
 export function setTokens(response: AuthLikeResponse): void {
   const { accessToken, refreshToken, role } = response
   if (!accessToken) return
 
-  localStorage.setItem(ACCESS_TOKEN_KEY, accessToken)
-  if (refreshToken) localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken)
+  // Save to sessionStorage (main token store for current session)
+  sessionStorage.setItem(ACCESS_TOKEN_KEY, accessToken)
+  if (refreshToken) sessionStorage.setItem(REFRESH_TOKEN_KEY, refreshToken)
+
+  // Remove them from localStorage if they exist (migration/cleanup)
+  localStorage.removeItem(ACCESS_TOKEN_KEY)
+  localStorage.removeItem(REFRESH_TOKEN_KEY)
 
   // Sync cookies so Next.js middleware can read role without client JS
-  const maxAge = getTokenExpirySeconds(accessToken)
+  // Using null maxAge makes them Session Cookies (wiped when browser closes)
   const resolvedRole = normalizeRole(role) || getRoleFromToken(accessToken)
-  setCookie(AUTH_ACCESS_COOKIE, accessToken, maxAge)
-  setCookie(AUTH_ROLE_COOKIE, resolvedRole, maxAge)
-  setCookie(AUTH_LOGGED_IN_COOKIE, '1', maxAge)
+  setCookie(AUTH_ACCESS_COOKIE, accessToken, null)
+  setCookie(AUTH_ROLE_COOKIE, resolvedRole, null)
+  setCookie(AUTH_LOGGED_IN_COOKIE, '1', null)
 }
 
 /**
- * Remove tokens from both localStorage and cookies.
+ * Remove tokens from both sessionStorage, localStorage, and cookies.
  * Call this on every logout path.
  */
 export function clearTokens(): void {
+  sessionStorage.removeItem(ACCESS_TOKEN_KEY)
+  sessionStorage.removeItem(REFRESH_TOKEN_KEY)
   localStorage.removeItem(ACCESS_TOKEN_KEY)
   localStorage.removeItem(REFRESH_TOKEN_KEY)
-  // Clear ALL localStorage keys to avoid stale user state between sessions
+  
+  // Clear ALL sessionStorage keys
   const keysToRemove: string[] = []
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i)
+  for (let i = 0; i < sessionStorage.length; i++) {
+    const key = sessionStorage.key(i)
     if (key) keysToRemove.push(key)
   }
-  keysToRemove.forEach(k => localStorage.removeItem(k))
+  keysToRemove.forEach(k => sessionStorage.removeItem(k))
+  
   // Clear cookies
   setCookie(AUTH_ACCESS_COOKIE, '', 0)
   setCookie(AUTH_ROLE_COOKIE, '', 0)
@@ -110,7 +114,7 @@ export function clearTokens(): void {
 export async function logout(): Promise<void> {
   // 1. Revoke refresh token on the backend (best-effort, don't block on error)
   try {
-    const token = localStorage.getItem(ACCESS_TOKEN_KEY)
+    const token = getAccessToken()
     if (token) {
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080'
       await fetch(`${backendUrl}/api/auth/logout`, {

@@ -1,4 +1,5 @@
 import api from "@/lib/api";
+import { getAccessToken } from "@/lib/authSession";
 
 export interface InterviewJobStatus {
   jobId: number;
@@ -31,7 +32,7 @@ export function streamJobResult(
 ): AbortController {
   const ac = new AbortController();
   const token = typeof window !== "undefined"
-    ? localStorage.getItem("accessToken") ?? sessionStorage.getItem("accessToken") ?? ""
+    ? getAccessToken() ?? ""
     : "";
 
   const url = `${process.env.NEXT_PUBLIC_API_URL ?? ""}/api/jobs/${jobId}/sse`;

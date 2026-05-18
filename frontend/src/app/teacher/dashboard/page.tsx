@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import api, { httpStatus, apiMessage } from '@/lib/api'
 import { TeacherShell } from '@/components/layouts/TeacherShell'
-import { Users, Trash2, UserPlus, FileText, Loader2, Plus, Mail, CheckCircle, BellRing, Trophy, TrendingUp, Presentation, AlertCircle } from 'lucide-react'
+import { Users, Trash2, UserPlus, FileText, Loader2, Plus, Mail, CheckCircle, BellRing, Trophy, TrendingUp, Presentation, AlertCircle, Sparkles, BookOpen, ChevronRight } from 'lucide-react'
+import { logout } from '@/lib/authSession'
 
 type Classroom = {
   id: number
@@ -275,6 +276,28 @@ export default function TeacherDashboardPage() {
                         </div>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Quick Actions */}
+                  <div className="px-6 pb-5 flex flex-wrap gap-2">
+                    <button
+                      onClick={() => router.push(`/teacher/dashboard/${c.id}`)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors"
+                    >
+                      <ChevronRight size={13} /> Vào lớp
+                    </button>
+                    <button
+                      onClick={() => router.push(`/teacher/dashboard/${c.id}/materials`)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-xl transition-colors"
+                    >
+                      <Sparkles size={13} /> Tài liệu AI
+                    </button>
+                    <button
+                      onClick={() => router.push(`/teacher/grammar`)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors"
+                    >
+                      <BookOpen size={13} /> Ngữ pháp AI
+                    </button>
                   </div>
 
                   {/* Invite Code Display */}

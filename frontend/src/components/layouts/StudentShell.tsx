@@ -68,7 +68,8 @@ export type StudentShellSection =
   | "badges"
   | "mock-exam"
   | "certificates"
-  | "progress";
+  | "progress"
+  | "quiz";
 
 type NavItem = {
   id: StudentShellSection;
@@ -164,6 +165,8 @@ export function StudentShell({
           { id: "game" as const, label: t("navLegoGame"), icon: Gamepad2, href: "/student/game" },
           { id: "assignments" as const, label: "Bài tập / Thi thử", icon: BookOpen, href: "/student/assignments",
             badge: <span className="text-[9px] font-bold bg-rose-500/20 text-rose-500 px-1.5 py-0.5 rounded-full border border-rose-500/30">Mới</span> },
+          { id: "quiz" as const, label: "Tham gia Quiz", icon: Trophy, href: "/student/quiz/join",
+            badge: <span className="text-[9px] font-bold bg-amber-500/20 text-amber-500 px-1.5 py-0.5 rounded-full border border-amber-500/30">Live</span> },
           { id: "weeklySpeaking" as const, label: t("navWeeklySpeaking"), icon: Calendar, href: "/student/weekly-speaking" },
         ],
       },

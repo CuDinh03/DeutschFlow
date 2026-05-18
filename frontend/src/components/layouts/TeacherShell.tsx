@@ -1,11 +1,11 @@
 import React from 'react'
 import Link from 'next/link'
-import { LayoutDashboard, Users, HelpCircle, BarChart2, LogOut, Menu, X } from 'lucide-react'
+import { LayoutDashboard, Users, HelpCircle, BarChart2, LogOut, Menu, BookOpen, FileText, Store } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 interface TeacherShellProps {
   children: React.ReactNode
-  activeMenu: 'dashboard' | 'classes' | 'quizzes' | 'reports'
+  activeMenu: 'dashboard' | 'classes' | 'quizzes' | 'reports' | 'grammar' | 'materials' | 'marketplace'
   userName: string
   onLogout: () => void
   headerTitle?: string
@@ -24,10 +24,11 @@ export function TeacherShell({
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard & Lớp học', icon: LayoutDashboard, href: '/teacher/dashboard' },
-    { id: 'classes', label: 'Quản lý Lớp', icon: Users, href: '/teacher/dashboard' },
     { id: 'quizzes', label: 'Quản lý Quiz', icon: HelpCircle, href: '/teacher/quizzes' },
     { id: 'reports', label: 'Báo cáo', icon: BarChart2, href: '/teacher/reports' },
-  ]
+    { id: 'grammar', label: 'Ngữ pháp AI', icon: BookOpen, href: '/teacher/grammar', badge: 'AI' },
+    { id: 'marketplace', label: 'Hồ sơ Giáo viên', icon: Store, href: '/teachers' },
+  ] as const
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full bg-[#0F172A] text-white">
@@ -55,11 +56,12 @@ export function TeacherShell({
       </div>
 
       {/* Nav */}
-      <div className="flex-1 overflow-y-auto py-6 px-4 space-y-2">
+      <div className="flex-1 overflow-y-auto py-6 px-4 space-y-1">
         <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 px-2">Menu chính</p>
         {menuItems.map((item) => {
           const isActive = activeMenu === item.id
           const Icon = item.icon
+          const badge = 'badge' in item ? item.badge : undefined
           return (
             <Link
               key={item.id}
@@ -72,7 +74,10 @@ export function TeacherShell({
               }`}
             >
               <Icon size={20} className={isActive ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-300 transition-colors'} />
-              <span className="font-semibold text-sm">{item.label}</span>
+              <span className="font-semibold text-sm flex-1">{item.label}</span>
+              {badge && (
+                <span className="bg-indigo-500/30 text-indigo-300 text-[10px] font-bold px-2 py-0.5 rounded-full">{badge}</span>
+              )}
             </Link>
           )
         })}

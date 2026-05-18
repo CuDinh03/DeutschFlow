@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, RefreshCw, Download, Database, MessageSquare, AlertTriangle } from "lucide-react";
 import api from "@/lib/api";
+import { getAccessToken } from "@/lib/authSession";
 
 interface DatasetStats {
   total_conversations: number;
@@ -48,7 +49,7 @@ export default function TrainingDatasetPage() {
     setDownloading(type);
     setErrMsg(null);
     try {
-      const token = localStorage.getItem("accessToken") ?? "";
+      const token = getAccessToken() ?? "";
       const url = type === "conversations"
         ? "/api/admin/training-dataset/export/conversations"
         : "/api/admin/training-dataset/export/errors";

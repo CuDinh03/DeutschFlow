@@ -7,6 +7,7 @@ import {
   Upload, FileText, Presentation, Loader2, CheckCircle2,
   AlertCircle, Download, Sparkles, X
 } from "lucide-react";
+import { getAccessToken } from "@/lib/authSession";
 
 type JobStatus = "idle" | "uploading" | "processing" | "done" | "error";
 
@@ -59,7 +60,7 @@ export default function TeacherMaterialsPage() {
     formData.append("file", file);
 
     try {
-      const token = localStorage.getItem("accessToken") ?? "";
+      const token = getAccessToken() ?? "";
       const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "";
       const res = await fetch(`${apiBase}/api/teacher/materials/generate-pptx`, {
         method: "POST",
