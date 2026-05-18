@@ -13,7 +13,12 @@ type Classroom = {
   inviteCode: string
   studentCount: number
   quizCount: number
-  pendingReviewCount?: number // New field to be provided by API later
+  pendingReviewCount?: number
+}
+
+type DashboardSummary = {
+  pendingReviewCount: number
+  pendingJoinRequests: number
 }
 
 export default function TeacherDashboardPage() {
@@ -21,6 +26,7 @@ export default function TeacherDashboardPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [items, setItems] = useState<Classroom[]>([])
+  const [summary, setSummary] = useState<DashboardSummary>({ pendingReviewCount: 0, pendingJoinRequests: 0 })
   const [newName, setNewName] = useState('')
   const [creating, setCreating] = useState(false)
   const [userName, setUserName] = useState('Giáo viên')
@@ -37,8 +43,12 @@ export default function TeacherDashboardPage() {
       if (me.data.name) setUserName(me.data.name)
       else if (me.data.email) setUserName(me.data.email.split('@')[0])
 
-      const res = await api.get('/v2/teacher/classes')
-      setItems(res.data ?? [])
+      const [classesRes, summaryRes] = await Promise.all([
+        api.get('/v2/teacher/classes'),
+        api.get('/v2/teacher/dashboard/summary').catch(() => ({ data: { pendingReviewCount: 0, pendingJoinRequests: 0 } }))
+      ])
+      setItems(classesRes.data ?? [])
+      setSummary(summaryRes.data ?? { pendingReviewCount: 0, pendingJoinRequests: 0 })
     } catch (e: unknown) {
       if (httpStatus(e) === 401) {
         router.push('/login')
@@ -86,7 +96,7 @@ export default function TeacherDashboardPage() {
   }
 
   const totalStudents = items.reduce((acc, c) => acc + c.studentCount, 0)
-  const totalPending = items.reduce((acc, c) => acc + (c.pendingReviewCount || 0), 0)
+  const totalPending = summary.pendingReviewCount
   const bestClass = items.length > 0 ? items.reduce((prev, current) => (prev.quizCount > current.quizCount) ? prev : current) : null
 
   if (loading) {

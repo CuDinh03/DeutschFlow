@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import api, { httpStatus, apiMessage } from '@/lib/api'
 import { TeacherShell } from '@/components/layouts/TeacherShell'
-import { FileText, Plus, Loader2, Play, CheckCircle, Save, Settings, Copy, Check } from 'lucide-react'
+import { FileText, Plus, Loader2, Play, CheckCircle, Save, Settings, Copy, Check, Trash2, Edit, BarChart2, X, Trophy } from 'lucide-react'
 
 type Quiz = {
   id: number
@@ -31,6 +31,14 @@ export default function TeacherQuizzesPage() {
   const [choiceA, setChoiceA] = useState<Record<number, string>>({})
   const [choiceB, setChoiceB] = useState<Record<number, string>>({})
   const [addingQId, setAddingQId] = useState<number | null>(null)
+  
+  // Edit & Results state
+  const [editingQuiz, setEditingQuiz] = useState<Quiz | null>(null)
+  const [editTitle, setEditTitle] = useState('')
+  const [editType, setEditType] = useState<'COLOR_RACE' | 'SENTENCE_BATTLE' | 'AI_INTERVIEW'>('COLOR_RACE')
+  
+  const [viewingResults, setViewingResults] = useState<{quizId: number, results: any[]} | null>(null)
+  const [loadingResults, setLoadingResults] = useState(false)
   
   // Copy state
   const [copiedPin, setCopiedPin] = useState<string | null>(null)
@@ -86,6 +94,52 @@ export default function TeacherQuizzesPage() {
       await load()
     } catch (e: unknown) {
       setError(apiMessage(e))
+    }
+  }
+
+  const deleteQuiz = async (id: number) => {
+    if (!confirm('Bạn có chắc chắn muốn xóa bài tập này? Mọi dữ liệu kết quả sẽ bị xóa vĩnh viễn.')) return
+    setError('')
+    try {
+      await api.delete(`/teacher/quizzes/${id}`)
+      await load()
+    } catch (e: unknown) {
+      setError(apiMessage(e))
+    }
+  }
+
+  const openEdit = (q: Quiz) => {
+    setEditingQuiz(q)
+    setEditTitle(q.title)
+    setEditType(q.quizType)
+  }
+
+  const saveEdit = async () => {
+    if (!editingQuiz || !editTitle.trim()) return
+    setError('')
+    try {
+      await api.put(`/teacher/quizzes/${editingQuiz.id}`, { 
+        title: editTitle.trim(), 
+        quizType: editType 
+      })
+      setEditingQuiz(null)
+      await load()
+    } catch (e: unknown) {
+      setError(apiMessage(e))
+    }
+  }
+
+  const openResults = async (id: number) => {
+    setLoadingResults(true)
+    setViewingResults({ quizId: id, results: [] })
+    try {
+      const res = await api.get(`/teacher/quizzes/${id}/results`)
+      setViewingResults({ quizId: id, results: res.data ?? [] })
+    } catch (e: unknown) {
+      setError(apiMessage(e))
+      setViewingResults(null)
+    } finally {
+      setLoadingResults(false)
     }
   }
 
@@ -233,7 +287,24 @@ export default function TeacherQuizzesPage() {
                 <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
                     <div className="flex flex-wrap items-center gap-3 mb-2">
-                      <h2 className="text-xl font-bold text-slate-800">{q.title}</h2>
+                      <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                        {q.title}
+                        {q.status === 'DRAFT' && (
+                          <>
+                            <button onClick={() => openEdit(q)} className="text-slate-400 hover:text-indigo-600 transition-colors p-1" title="Sửa tiêu đề">
+                              <Edit size={16} />
+                            </button>
+                            <button onClick={() => deleteQuiz(q.id)} className="text-slate-400 hover:text-rose-600 transition-colors p-1" title="Xóa bài tập">
+                              <Trash2 size={16} />
+                            </button>
+                          </>
+                        )}
+                        {(q.status === 'WAITING' || q.status === 'FINISHED') && (
+                           <button onClick={() => deleteQuiz(q.id)} className="text-slate-400 hover:text-rose-600 transition-colors p-1" title="Xóa bài tập">
+                              <Trash2 size={16} />
+                           </button>
+                        )}
+                      </h2>
                       {getStatusBadge(q.status)}
                       <span className={`px-3 py-1 rounded-full text-xs font-bold border ${typeInfo.color}`}>
                         {typeInfo.label}
@@ -274,11 +345,20 @@ export default function TeacherQuizzesPage() {
                     <button 
                       className="bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 px-4 rounded-lg text-sm transition-all shadow-md flex items-center gap-1.5 disabled:opacity-50"
                       onClick={() => updateStatus(q.id, 'finish')}
-                      disabled={q.status === 'FINISHED'}
+                      disabled={q.status === 'FINISHED' || q.status === 'DRAFT'}
                       title="Kết thúc bài tập"
                     >
                       <CheckCircle size={16} /> Finish
                     </button>
+                    {q.status === 'FINISHED' && (
+                      <button 
+                        className="bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 font-bold py-2 px-4 rounded-lg text-sm transition-all shadow-sm flex items-center gap-1.5 ml-2"
+                        onClick={() => openResults(q.id)}
+                        title="Xem bảng điểm"
+                      >
+                        <BarChart2 size={16} /> Kết quả
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -354,6 +434,109 @@ export default function TeacherQuizzesPage() {
           </div>
         )}
       </div>
+
+      {/* Edit Quiz Modal */}
+      {editingQuiz && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl relative animate-in fade-in zoom-in duration-200">
+            <button onClick={() => setEditingQuiz(null)} className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 p-2 rounded-full transition-colors">
+              <X size={20} />
+            </button>
+            <h2 className="text-2xl font-black text-slate-800 mb-6 flex items-center gap-2">
+              <Edit className="text-indigo-600" /> Sửa thông tin
+            </h2>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Tiêu đề bài tập</label>
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Loại bài tập</label>
+                <select
+                  value={editType}
+                  onChange={(e) => setEditType(e.target.value as any)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+                >
+                  <option value="COLOR_RACE">Trắc nghiệm nhanh (Color Race)</option>
+                  <option value="SENTENCE_BATTLE">Sắp xếp câu (Sentence Battle)</option>
+                  <option value="AI_INTERVIEW">Luyện nói AI (AI Interview)</option>
+                </select>
+              </div>
+              <div className="flex gap-3 justify-end pt-4">
+                <button
+                  onClick={() => setEditingQuiz(null)}
+                  className="px-6 py-3 font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={saveEdit}
+                  disabled={!editTitle.trim()}
+                  className="px-6 py-3 font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors disabled:opacity-50 shadow-md"
+                >
+                  Lưu thay đổi
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Results Modal */}
+      {viewingResults && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-2xl w-full shadow-2xl relative animate-in fade-in zoom-in duration-200 max-h-[90vh] flex flex-col">
+            <button onClick={() => setViewingResults(null)} className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 p-2 rounded-full transition-colors z-10">
+              <X size={20} />
+            </button>
+            <h2 className="text-2xl font-black text-slate-800 mb-2 flex items-center gap-2 shrink-0">
+              <Trophy className="text-amber-500" /> Kết quả bài tập
+            </h2>
+            <p className="text-slate-500 mb-6 shrink-0">Danh sách xếp hạng học viên tham gia quiz</p>
+            
+            <div className="overflow-y-auto pr-2 custom-scrollbar flex-1">
+              {loadingResults ? (
+                <div className="py-12 flex justify-center"><Loader2 size={32} className="animate-spin text-indigo-600" /></div>
+              ) : viewingResults.results.length === 0 ? (
+                <div className="py-12 text-center text-slate-500 border border-dashed rounded-2xl bg-slate-50">
+                  Chưa có học viên nào tham gia bài tập này.
+                </div>
+              ) : (
+                <table className="w-full text-left">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 text-sm sticky top-0 z-10">
+                    <tr>
+                      <th className="px-6 py-4 font-semibold text-center w-16">Hạng</th>
+                      <th className="px-6 py-4 font-semibold">Học viên</th>
+                      <th className="px-6 py-4 font-semibold text-right">Điểm số</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {viewingResults.results.map((r, i) => (
+                      <tr key={i} className="hover:bg-slate-50 transition-colors">
+                         <td className="px-6 py-4 text-center font-bold text-xl text-slate-400">
+                          {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="font-bold text-slate-800">{r.user?.displayName || r.userId || 'Học viên ẩn danh'}</div>
+                        </td>
+                        <td className="px-6 py-4 text-right font-mono font-bold text-indigo-600">
+                          {r.score} điểm
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </TeacherShell>
   )
 }

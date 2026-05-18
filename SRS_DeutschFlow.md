@@ -1,8 +1,10 @@
 # SRS — DeutschFlow (Software Requirements Specification)
 
-**Phiên bản:** 2.9  
+**Phiên bản:** 2.10 
 **Ngày:** 2026-05-17  
 **Ngôn ngữ:** Tiếng Việt  
+
+**Changelog v2.10:** Triển khai **Teacher Analytics, Reporting & Profile Management**. (1) **Real-time Analytics Engine**: Viết lại hoàn toàn `TeacherAnalyticsService`, thay thế dữ liệu mock bằng JPQL aggregation queries trực tiếp từ `StudentAssignmentRepository` và `AiSpeakingSessionRepository`. Tối ưu hoá việc truy vấn metrics trước và sau khi vào lớp (dựa trên `joinedAt`) mà không kéo toàn bộ record về RAM, giải quyết bài toán N+1. (2) **Teacher Dashboard & Class Detail**: Nâng cấp UI với số liệu thật cho widget "Cần chấm điểm" (`/api/v2/teacher/dashboard/summary`); bổ sung tính năng Đổi tên lớp (Optimistic UI), Thêm học viên bằng email, và Overview Cards (Student Count, Total XP, Completed Assignments) trên tab Phân tích lỗi. Thêm tính năng Xuất CSV cho báo cáo lớp học. (3) **Class Drill-down Reporting**: Cải tiến trang Báo cáo giáo viên (`/teacher/reports`) với dropdown chọn lớp, cho phép fetch live data và hiển thị báo cáo chi tiết theo từng lớp bên cạnh báo cáo tổng quan. (4) **Teacher Profile Management**: Xây dựng trang Hồ sơ cá nhân (`/teacher/profile`) cho phép giáo viên cập nhật thông tin công khai (`headline`, `bio`, `qualifications`) với chế độ Edit Mode, Optimistic UI và liên kết trực tiếp tới trang Marketplace công khai.
 
 **Changelog v2.9:** Triển khai **Practice Node 4-Skill System & Curriculum Consolidation**. (1) **4-Skill Practice System**: Hệ thống tự động sinh 4 bài tập thực hành (Nghe, Nói, Đọc, Viết) khi học viên hoàn thành bài học lý thuyết. Giao diện `/student/practice-node` hiển thị thẻ kỹ năng với track XP riêng biệt. (2) **Anti-Repetition Engine**: Áp dụng SHA-256 hash trên JSON payload của từng bài tập, đối chiếu qua bảng `user_seen_exercise_hashes` để đảm bảo hệ thống sinh ra bộ câu hỏi mới (N+1 Generations) không trùng lặp khi người dùng chọn "Làm thêm". (3) **Multi-Skill Prompts**: Xây dựng `PracticeNodePromptBuilder` sinh 4 template AI bám sát tiêu chuẩn Goethe-Institut kèm giải thích tiếng Việt; hỗ trợ Web Speech API (Listening) và Whisper (Speaking). (4) **Curriculum Clarification**: Thiết lập Skill Tree DB làm Single Source of Truth, mapping trực tiếp Netzwerk Neu Units (L01-L09) vào Database; đánh dấu `a1.curriculum.json` chỉ là tài liệu tham khảo nội bộ để giải quyết dứt điểm nợ kỹ thuật 2 hệ giáo trình.
 
@@ -92,6 +94,7 @@
 47. Security Patch: React2Shell (CVE-2025-55182) *(v2.7)*
 48. System Refactoring, PWA Integration & Observability *(v2.8)*
 49. Practice Node 4-Skill System & Curriculum Consolidation *(v2.9)*
+50. Teacher Analytics, Reporting & Profile Management *(v2.10)*
 
 ---
 
@@ -2098,3 +2101,29 @@ Hệ thống sử dụng các mẫu Prompt hệ thống bám sát dạng bài th
 - **Single Source of Truth**: Thống nhất bảng `skill_tree_nodes` trong Database là nguồn dữ liệu duy nhất chạy trên Runtime, loại bỏ việc tham chiếu nhầm lẫn sang `netzwerk-neu/a1.curriculum.json`. File JSON được cập nhật `README.md` khẳng định chỉ mang ý nghĩa tài liệu nội bộ (Internal reference).
 - **Netzwerk Neu Mapping**: Thêm trường `netzwerk_neu_unit` vào bảng `skill_tree_nodes` (Migration V140). Map các nodes hiện tại theo chuẩn L01-L09 (vd: Day 11-14 -> L01 Guten Tag!) để content team dễ dàng so khớp với giáo trình sách giáo khoa Netzwerk Neu.
 - **Phase Standardization**: Đồng nhất các tên Phase `GRUNDLAGEN`, `GRAMMATIK`, `SATZSTRUKTUR`, `MODALVERBEN` của A1 thành một Phase chung `CORE_A1`.
+
+---
+
+## 50. Teacher Analytics, Reporting & Profile Management *(v2.10)*
+
+### 50.1 Mục tiêu
+Cung cấp cho giáo viên công cụ phân tích và báo cáo hiệu suất học sinh mạnh mẽ dựa trên dữ liệu thực tế (Real-time Analytics), thay thế hoàn toàn hệ thống dữ liệu mock. Mở rộng khả năng quản lý thông tin cá nhân và lớp học để tối ưu quy trình giảng dạy B2B2C.
+
+### 50.2 Real-time Analytics Engine (Backend)
+- **Aggregation Queries**: Loại bỏ dữ liệu giả (mock) trong `TeacherAnalyticsService`. Áp dụng các truy vấn JPA Aggregation trực tiếp tại `StudentAssignmentRepository` và `AiSpeakingSessionRepository` (sử dụng các hàm `COUNT`, `AVG` qua `@Query` JPQL) để tính toán chính xác số lượng và điểm số trung bình.
+- **Pre/In-class Metrics**: Phân tích sự tiến bộ của học sinh bằng cách so sánh hiệu suất trước (Pre-class) và sau (In-class) khi tham gia lớp học dựa trên mốc thời gian `joinedAt` từ bảng `class_students`.
+- **Top Weaknesses Extraction**: Truy vấn tự động Top 5 điểm yếu ngữ pháp từ `UserErrorSkillRepository` (sắp xếp theo `priorityScore`), làm đầu vào chính xác cho báo cáo AI Advisory.
+
+### 50.3 Class Management & Reporting (Frontend)
+- **Dashboard Summary**: Endpoint `GET /api/v2/teacher/dashboard/summary` cung cấp số liệu thực tế về `pendingReviewCount` (số bài tập đang chờ chấm điểm) và yêu cầu tham gia lớp chưa duyệt.
+- **Class Drill-down Selector**: Trang Báo cáo (`/teacher/reports`) hỗ trợ tính năng chọn lớp học, tự động (live fetch) tải báo cáo chi tiết (số học sinh, số quiz, điểm trung bình) của lớp đó hiển thị cạnh thống kê tổng quan.
+- **Class Detail Workflow**: 
+  - Tính năng đổi tên lớp trực tiếp với Optimistic UI.
+  - Form thêm học sinh thủ công bằng Email.
+  - Nâng cấp tab Phân tích lỗi (Analytics) với Overview Cards trực quan (Học viên, Tổng XP, Bài tập hoàn thành).
+  - Tích hợp tính năng xuất file báo cáo lớp học (CSV UTF-8 BOM).
+
+### 50.4 Teacher Profile Management
+- Xây dựng trang Hồ sơ cá nhân (`/teacher/profile`) dành riêng cho giáo viên (`role=TEACHER`) để quản lý thông tin hiển thị trên Marketplace.
+- Tính năng: Xem trước (View) và Chỉnh sửa (Edit mode) các trường `headline` (tiêu đề giới thiệu), `bio` (giới thiệu bản thân) và `qualifications` (bằng cấp & chứng chỉ).
+- Cập nhật Sidebar Navigation (TeacherShell) tách biệt "Hồ sơ cá nhân" (quản lý nội bộ) và "Marketplace GV" (danh sách giáo viên công khai).

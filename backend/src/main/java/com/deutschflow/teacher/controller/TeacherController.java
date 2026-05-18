@@ -25,6 +25,8 @@ public class TeacherController {
     private final XpService xpService;
     private final com.deutschflow.teacher.service.TeacherAnalyticsService analyticsService;
     private final com.deutschflow.teacher.service.TeacherAdvisoryService advisoryService;
+    private final com.deutschflow.teacher.repository.StudentAssignmentRepository assignmentRepository;
+    private final com.deutschflow.teacher.repository.ClassStudentRepository classStudentRepository;
 
     @PostMapping("/classes")
     public ResponseEntity<TeacherClassDto> createClass(@AuthenticationPrincipal User user, @RequestBody Map<String, String> payload) {
@@ -132,13 +134,49 @@ public class TeacherController {
             @PathVariable Long classId,
             @PathVariable Long studentId) {
         
-        // Fetch metrics
+        // Fetch metrics with real data
         StudentPerformanceAnalyticsDto analytics = analyticsService.getComprehensiveAnalytics(classId, studentId);
         
-        // Generate AI Advisory Report
+        // Generate AI Advisory Report with real context
         String advisoryReport = advisoryService.generateAdvisoryReport(analytics);
         analytics.setAiAdvisoryReport(advisoryReport);
         
         return ResponseEntity.ok(analytics);
+    }
+
+    /**
+     * Dashboard summary: số bài tập chờ chấm và số yêu cầu vào lớp chờ duyệt
+     * GET /api/v2/teacher/dashboard/summary
+     */
+    @GetMapping("/dashboard/summary")
+    public ResponseEntity<Map<String, Long>> getDashboardSummary(@AuthenticationPrincipal User user) {
+        // Lấy tất cả học sinh thuộc các lớp của giáo viên này
+        List<TeacherClassDto> classes = teacherService.getClassesForTeacher(user.getId());
+
+        long pendingReviewCount = classes.stream()
+                .flatMap(cls -> {
+                    try {
+                        return teacherService.getClassStudents(user.getId(), cls.id()).stream();
+                    } catch (Exception e) {
+                        return java.util.stream.Stream.empty();
+                    }
+                })
+                .mapToLong(student -> assignmentRepository.countPendingReview(student.studentId()))
+                .sum();
+
+        long pendingJoinRequests = classes.stream()
+                .flatMap(cls -> {
+                    try {
+                        return teacherService.getPendingJoinRequests(user.getId(), cls.id()).stream();
+                    } catch (Exception e) {
+                        return java.util.stream.Stream.empty();
+                    }
+                })
+                .count();
+
+        return ResponseEntity.ok(Map.of(
+                "pendingReviewCount", pendingReviewCount,
+                "pendingJoinRequests", pendingJoinRequests
+        ));
     }
 }

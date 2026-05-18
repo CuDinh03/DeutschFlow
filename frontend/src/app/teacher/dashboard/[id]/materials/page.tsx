@@ -298,5 +298,5 @@ function b64toBlob(b64Data: string, contentType = "", sliceSize = 512): Blob {
     for (let i = 0; i < slice.length; i++) byteNumbers[i] = slice.charCodeAt(i);
     byteArrays.push(new Uint8Array(byteNumbers));
   }
-  return new Blob(byteArrays, { type: contentType });
+  return new Blob(byteArrays as any, { type: contentType });
 }

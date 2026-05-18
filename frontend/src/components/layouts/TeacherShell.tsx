@@ -1,11 +1,11 @@
 import React from 'react'
 import Link from 'next/link'
-import { LayoutDashboard, Users, HelpCircle, BarChart2, LogOut, Menu, BookOpen, FileText, Store } from 'lucide-react'
+import { LayoutDashboard, Users, HelpCircle, BarChart2, LogOut, Menu, BookOpen, FileText, Store, Sparkles, GraduationCap, Bell, User } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 interface TeacherShellProps {
   children: React.ReactNode
-  activeMenu: 'dashboard' | 'classes' | 'quizzes' | 'reports' | 'grammar' | 'materials' | 'marketplace'
+  activeMenu: 'dashboard' | 'classes' | 'quizzes' | 'reports' | 'grammar' | 'materials' | 'marketplace' | 'notifications' | 'profile'
   userName: string
   onLogout: () => void
   headerTitle?: string
@@ -22,13 +22,30 @@ export function TeacherShell({
 }: TeacherShellProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false)
 
-  const menuItems = [
-    { id: 'dashboard', label: 'Dashboard & Lớp học', icon: LayoutDashboard, href: '/teacher/dashboard' },
-    { id: 'quizzes', label: 'Quản lý Quiz', icon: HelpCircle, href: '/teacher/quizzes' },
-    { id: 'reports', label: 'Báo cáo', icon: BarChart2, href: '/teacher/reports' },
-    { id: 'grammar', label: 'Ngữ pháp AI', icon: BookOpen, href: '/teacher/grammar', badge: 'AI' },
-    { id: 'marketplace', label: 'Hồ sơ Giáo viên', icon: Store, href: '/teachers' },
-  ] as const
+  const menuGroups = [
+    {
+      title: 'Quản lý lớp',
+      items: [
+        { id: 'dashboard', label: 'Dashboard & Lớp học', icon: LayoutDashboard, href: '/teacher/dashboard' },
+        { id: 'quizzes', label: 'Quản lý Quiz', icon: HelpCircle, href: '/teacher/quizzes' },
+        { id: 'reports', label: 'Báo cáo & Phân tích', icon: BarChart2, href: '/teacher/reports' },
+      ]
+    },
+    {
+      title: 'Công cụ AI',
+      items: [
+        { id: 'grammar', label: 'Ngữ pháp AI', icon: BookOpen, href: '/teacher/grammar', badge: 'AI' },
+        { id: 'materials', label: 'Tạo Tài liệu AI', icon: Sparkles, href: '/teacher/materials', badge: 'AI' },
+      ]
+    },
+    {
+      title: 'Cá nhân',
+      items: [
+        { id: 'profile', label: 'Hồ sơ Giáo viên', icon: User, href: '/teacher/profile' },
+        { id: 'marketplace', label: 'Marketplace GV', icon: Store, href: '/teachers' },
+      ]
+    },
+  ]
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full bg-[#0F172A] text-white">
@@ -56,31 +73,44 @@ export function TeacherShell({
       </div>
 
       {/* Nav */}
-      <div className="flex-1 overflow-y-auto py-6 px-4 space-y-1">
-        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 px-2">Menu chính</p>
-        {menuItems.map((item) => {
-          const isActive = activeMenu === item.id
-          const Icon = item.icon
-          const badge = 'badge' in item ? item.badge : undefined
-          return (
-            <Link
-              key={item.id}
-              href={item.href}
-              onClick={() => setMobileMenuOpen(false)}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
-                isActive
-                  ? 'bg-indigo-600/20 text-indigo-400'
-                  : 'text-slate-400 hover:bg-white/5 hover:text-white'
-              }`}
-            >
-              <Icon size={20} className={isActive ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-300 transition-colors'} />
-              <span className="font-semibold text-sm flex-1">{item.label}</span>
-              {badge && (
-                <span className="bg-indigo-500/30 text-indigo-300 text-[10px] font-bold px-2 py-0.5 rounded-full">{badge}</span>
-              )}
-            </Link>
-          )
-        })}
+      <div className="flex-1 overflow-y-auto py-4 px-3 space-y-6">
+        {menuGroups.map((group) => (
+          <div key={group.title}>
+            <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-2 px-3">{group.title}</p>
+            <div className="space-y-0.5">
+              {group.items.map((item) => {
+                const isActive = activeMenu === item.id
+                const Icon = item.icon
+                const badge = 'badge' in item ? item.badge : undefined
+                return (
+                  <Link
+                    key={item.id}
+                    href={item.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${
+                      isActive
+                        ? 'bg-indigo-600/20 text-indigo-400 shadow-sm'
+                        : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                    }`}
+                  >
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                      isActive ? 'bg-indigo-500/20' : 'bg-white/5 group-hover:bg-white/10'
+                    }`}>
+                      <Icon size={16} className={isActive ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-300 transition-colors'} />
+                    </div>
+                    <span className="font-semibold text-sm flex-1 truncate">{item.label}</span>
+                    {badge && (
+                      <span className="bg-indigo-500/20 text-indigo-300 text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-indigo-500/20">{badge}</span>
+                    )}
+                    {isActive && (
+                      <div className="w-1 h-4 bg-indigo-400 rounded-full" />
+                    )}
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Logout */}

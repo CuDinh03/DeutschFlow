@@ -4,14 +4,70 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import api, { httpStatus } from '@/lib/api'
 import { TeacherShell } from '@/components/layouts/TeacherShell'
-import { BarChart2, Users, FileText, CheckCircle, GraduationCap, TrendingUp, Award, Loader2 } from 'lucide-react'
+import { BarChart2, Users, FileText, CheckCircle, GraduationCap, TrendingUp, Award, Loader2, Download, Printer, TableProperties } from 'lucide-react'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+
+function exportToCSV(overview: any, classes: any[], userName: string) {
+  const now = new Date()
+  const dateStr = now.toLocaleDateString('vi-VN')
+  const timeStr = now.toLocaleTimeString('vi-VN')
+
+  const rows: string[][] = []
+
+  // Header
+  rows.push(['BÁO CÁO THỐNG KÊ - DEUTSCHFLOW TEACHER PORTAL'])
+  rows.push([`Giáo viên: ${userName}`])
+  rows.push([`Xuất lúc: ${dateStr} ${timeStr}`])
+  rows.push([])
+
+  // Overview section
+  rows.push(['--- TỔNG QUAN ---'])
+  rows.push(['Chỉ số', 'Giá trị'])
+  rows.push(['Tổng số lớp học', overview?.classCount ?? 0])
+  rows.push(['Tổng số bài tập (Quiz)', overview?.quizCount ?? 0])
+  rows.push(['Quiz đang mở', overview?.activeQuizCount ?? 0])
+  rows.push(['Tổng số học viên', overview?.studentCount ?? 0])
+  rows.push(['Điểm trung bình toàn hệ thống', Number(overview?.avgScore ?? 0).toFixed(2)])
+  rows.push([])
+
+  // Classes section
+  if (classes && classes.length > 0) {
+    rows.push(['--- DANH SÁCH LỚP HỌC ---'])
+    rows.push(['Tên lớp', 'Số học viên', 'Số bài tập (Quiz)', 'Mã lớp'])
+    classes.forEach((cls: any) => {
+      rows.push([
+        cls.name ?? '',
+        cls.studentCount ?? 0,
+        cls.quizCount ?? 0,
+        cls.inviteCode ?? cls.code ?? '',
+      ])
+    })
+  }
+
+  const csvContent = rows
+    .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    .join('\n')
+
+  const BOM = '\uFEFF' // UTF-8 BOM for Excel compatibility
+  const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `BaoCao_DeutschFlow_${now.toISOString().slice(0, 10)}.csv`
+  link.click()
+  URL.revokeObjectURL(url)
+}
 
 export default function TeacherReportsPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [overview, setOverview] = useState<any>(null)
+  const [classes, setClasses] = useState<any[]>([])
   const [userName, setUserName] = useState('Giáo viên')
+  const [selectedClassId, setSelectedClassId] = useState<string>('')
+  const [classReport, setClassReport] = useState<any>(null)
+  const [classReportLoading, setClassReportLoading] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -25,8 +81,13 @@ export default function TeacherReportsPage() {
       if (me.data.name) setUserName(me.data.name)
       else if (me.data.email) setUserName(me.data.email.split('@')[0])
 
-      const res = await api.get('/teacher/reports/overview')
-      setOverview(res.data)
+      const [overviewRes, classesRes] = await Promise.all([
+        api.get('/teacher/reports/overview'),
+        api.get('/v2/teacher/classes').catch(() => ({ data: [] }))
+      ])
+      
+      setOverview(overviewRes.data)
+      setClasses(classesRes.data)
     } catch (e: unknown) {
       if (httpStatus(e) === 401) {
         router.push('/login')
@@ -41,6 +102,24 @@ export default function TeacherReportsPage() {
   useEffect(() => {
     load()
   }, [load])
+
+  const fetchClassReport = async (classId: string) => {
+    if (!classId) { setClassReport(null); return; }
+    setClassReportLoading(true);
+    try {
+      const res = await api.get(`/teacher/reports/classes/${classId}`);
+      setClassReport(res.data);
+    } catch {
+      setClassReport(null);
+    } finally {
+      setClassReportLoading(false);
+    }
+  };
+
+  const handleClassChange = (id: string) => {
+    setSelectedClassId(id);
+    fetchClassReport(id);
+  };
 
   if (loading) {
     return (
@@ -79,6 +158,82 @@ export default function TeacherReportsPage() {
           </div>
         ) : (
           <>
+            {/* Export Toolbar */}
+            <div className="flex items-center justify-between bg-white rounded-2xl border border-slate-200 shadow-sm px-5 py-3.5">
+              <div className="flex items-center gap-2 text-slate-600">
+                <BarChart2 size={18} className="text-indigo-600" />
+                <span className="font-semibold text-sm">Báo cáo tổng hợp</span>
+                <span className="text-slate-400 text-xs">· Cập nhật theo thời gian thực</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => exportToCSV(overview, classes, userName)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 transition-colors text-sm font-bold shadow-sm"
+                  title="Tải xuống file CSV, có thể mở bằng Excel hoặc Google Sheets"
+                >
+                  <TableProperties size={15} />
+                  Xuất CSV
+                </button>
+                <button
+                  onClick={() => window.print()}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 transition-colors text-sm font-bold shadow-sm"
+                  title="In trang hoặc lưu dưới dạng PDF"
+                >
+                  <Printer size={15} />
+                  In / PDF
+                </button>
+              </div>
+            </div>
+
+            {/* Class Drill-Down */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+              <div className="flex items-center gap-3 mb-4">
+                <Users size={18} className="text-indigo-600" />
+                <span className="font-bold text-slate-800 text-sm">Báo cáo chi tiết theo lớp</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <select
+                  value={selectedClassId}
+                  onChange={e => handleClassChange(e.target.value)}
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm bg-white text-slate-700 font-medium"
+                >
+                  <option value="">-- Chọn một lớp học --</option>
+                  {classes.map((cls: any) => (
+                    <option key={cls.id} value={cls.id}>{cls.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {classReportLoading && (
+                <div className="mt-4 flex items-center gap-2 text-slate-500 text-sm">
+                  <Loader2 size={16} className="animate-spin" /> Đang tải báo cáo lớp...
+                </div>
+              )}
+
+              {classReport && !classReportLoading && (
+                <div className="mt-4 grid grid-cols-3 gap-4 animate-in fade-in duration-300">
+                  <div className="bg-indigo-50 rounded-2xl p-4 text-center border border-indigo-100">
+                    <p className="text-3xl font-black text-indigo-600">{classReport.studentCount ?? 0}</p>
+                    <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider mt-1">Học viên</p>
+                  </div>
+                  <div className="bg-purple-50 rounded-2xl p-4 text-center border border-purple-100">
+                    <p className="text-3xl font-black text-purple-600">{classReport.quizCount ?? 0}</p>
+                    <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider mt-1">Quiz đã tổ chức</p>
+                  </div>
+                  <div className="bg-amber-50 rounded-2xl p-4 text-center border border-amber-100">
+                    <p className="text-3xl font-black text-amber-600">{Number(classReport.avgScore ?? 0).toFixed(1)}</p>
+                    <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider mt-1">Điểm TB</p>
+                  </div>
+                </div>
+              )}
+
+              {selectedClassId && !classReport && !classReportLoading && (
+                <p className="mt-4 text-slate-500 text-sm text-center py-4 border border-dashed border-slate-200 rounded-xl">
+                  Lớp này chưa có dữ liệu quiz nào.
+                </p>
+              )}
+            </div>
+
             {/* Top Stats */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
@@ -169,16 +324,62 @@ export default function TeacherReportsPage() {
                </div>
             </div>
 
-            {/* Placeholder for future detailed charts */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 text-center mt-8">
-               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-50 mb-4">
-                 <BarChart2 size={24} className="text-slate-400" />
-               </div>
-               <h3 className="text-lg font-bold text-slate-800">Biểu đồ phân tích chi tiết đang được phát triển</h3>
-               <p className="text-slate-500 mt-2 max-w-lg mx-auto text-sm">
-                 Trong các phiên bản tới, bạn sẽ có thể xem biểu đồ phổ điểm chi tiết, phân tích điểm yếu/mạnh của từng lớp và xuất báo cáo CSV/PDF.
-               </p>
-            </div>
+            {/* Detailed Charts */}
+            {classes && classes.length > 0 && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+                {/* Students per Class Chart */}
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                  <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+                    <Users size={20} className="text-indigo-600" />
+                    Phân bố học viên theo lớp
+                  </h3>
+                  <div className="h-80 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={classes}
+                        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 12 }} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 12 }} />
+                        <Tooltip 
+                          cursor={{ fill: '#F1F5F9' }} 
+                          contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' }}
+                        />
+                        <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                        <Bar dataKey="studentCount" name="Số học viên" fill="#6366F1" radius={[6, 6, 0, 0]} maxBarSize={50} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* Quizzes per Class Chart */}
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                  <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+                    <FileText size={20} className="text-purple-600" />
+                    Số lượng bài tập theo lớp
+                  </h3>
+                  <div className="h-80 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={classes}
+                        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 12 }} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 12 }} />
+                        <Tooltip 
+                          cursor={{ fill: '#F1F5F9' }} 
+                          contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' }}
+                        />
+                        <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                        <Bar dataKey="quizCount" name="Số bài tập (Quiz)" fill="#A855F7" radius={[6, 6, 0, 0]} maxBarSize={50} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>

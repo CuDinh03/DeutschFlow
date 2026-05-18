@@ -43,7 +43,7 @@ const nextConfig = {
   async headers() {
     return [
       {
-        source: '/(.*)',
+        source: '/:path*',
         headers: [
           // Bảo vệ clickjacking
           { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
@@ -56,15 +56,8 @@ const nextConfig = {
         ],
       },
       {
-        // Static assets: cache 1 năm (Next.js đặt hash trong tên file)
-        source: '/_next/static/(.*)',
-        headers: [
-          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
-        ],
-      },
-      {
         // API routes: không cache
-        source: '/api/(.*)',
+        source: '/api/:path*',
         headers: [
           { key: 'Cache-Control', value: 'no-store, no-cache' },
         ],

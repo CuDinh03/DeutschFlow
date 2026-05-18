@@ -6,7 +6,7 @@ import { TeacherShell } from "@/components/layouts/TeacherShell";
 import api from "@/lib/api";
 import { logout } from "@/lib/authSession";
 import { format } from "date-fns";
-import { Users, BarChart2, BookOpen, AlertCircle, TrendingUp, Plus, Trophy, Trash2, FileBarChart } from "lucide-react";
+import { Users, BarChart2, BookOpen, AlertCircle, TrendingUp, Plus, Trophy, Trash2, FileBarChart, Mail, Pencil, Check, X } from "lucide-react";
 
 interface ClassStudent {
   studentId: number;
@@ -74,6 +74,17 @@ export default function ClassDetailPage() {
   const [newDueDate, setNewDueDate] = useState("");
   const [newAssignmentType, setNewAssignmentType] = useState("GENERAL");
 
+  // Rename class state
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
+  const [className, setClassName] = useState("");
+
+  // Add student by email state
+  const [addEmailValue, setAddEmailValue] = useState("");
+  const [isAddingStudent, setIsAddingStudent] = useState(false);
+  const [addStudentError, setAddStudentError] = useState("");
+  const [analyticsOverview, setAnalyticsOverview] = useState<ClassAnalyticsOverview | null>(null);
+
   // Step 1: Auth check
   useEffect(() => {
     api.get<AuthMe>("/auth/me")
@@ -108,10 +119,20 @@ export default function ClassDetailPage() {
       ]);
       setStudents(studentsRes.data || []);
       setJoinRequests(joinRequestsRes.data || []);
-      setAnalytics(analyticsRes.data?.topErrors || []);
+      const analyticsData = analyticsRes.data as ClassAnalyticsOverview;
+      setAnalytics(analyticsData?.topErrors || []);
+      setAnalyticsOverview(analyticsData || null);
       setAssignments(assignmentsRes.data || []);
       setLeaderboard(leaderboardRes.data || []);
       setClassReport(classReportRes.data || null);
+      // Set class name for rename feature
+      if (!className && studentsRes.data) {
+        // Fetch class name from classes list
+        api.get('/v2/teacher/classes').then(r => {
+          const cls = (r.data as any[]).find((c: any) => String(c.id) === String(id));
+          if (cls) setClassName(cls.name);
+        }).catch(() => {});
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -163,13 +184,46 @@ export default function ClassDetailPage() {
     if (!confirm(`Bạn chắc chắn muốn xóa học viên "${studentName}" khỏi lớp?`)) return;
     setRemovingStudentId(studentId);
     try {
-      await api.delete(`/teacher/classes/${id}/students/${studentId}`);
+      await api.delete(`/v2/teacher/classes/${id}/students/${studentId}`);
       fetchData();
     } catch (e) {
       console.error(e);
       alert("Lỗi khi xóa học viên");
     } finally {
       setRemovingStudentId(null);
+    }
+  };
+
+  const handleRenameClass = async () => {
+    if (!renameValue.trim() || renameValue.trim() === className) {
+      setIsRenaming(false);
+      return;
+    }
+    const oldName = className;
+    setClassName(renameValue.trim()); // Optimistic update
+    setIsRenaming(false);
+    try {
+      await api.put(`/teacher/classes/${id}`, { name: renameValue.trim() });
+    } catch (e) {
+      console.error(e);
+      setClassName(oldName); // Revert on failure
+      alert("Không thể đổi tên lớp. Vui lòng thử lại.");
+    }
+  };
+
+  const handleAddStudentByEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addEmailValue.trim()) return;
+    setIsAddingStudent(true);
+    setAddStudentError("");
+    try {
+      await api.post(`/v2/teacher/classes/${id}/students`, { email: addEmailValue.trim() });
+      setAddEmailValue("");
+      fetchData();
+    } catch (err: any) {
+      setAddStudentError(err.response?.data?.message || err.response?.data?.error || "Không tìm thấy học viên với email này.");
+    } finally {
+      setIsAddingStudent(false);
     }
   };
 
@@ -188,6 +242,32 @@ export default function ClassDetailPage() {
       headerSubtitle="Quản lý học viên, giao bài tập & phân tích"
     >
       <div className="p-8 max-w-5xl mx-auto space-y-6">
+
+        {/* Class Name Header with Rename */}
+        <div className="flex items-center gap-3">
+          {isRenaming ? (
+            <div className="flex items-center gap-2 flex-1">
+              <input
+                autoFocus
+                value={renameValue}
+                onChange={e => setRenameValue(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleRenameClass(); if (e.key === 'Escape') setIsRenaming(false); }}
+                className="text-2xl font-black text-slate-800 border-b-2 border-indigo-500 outline-none bg-transparent flex-1 py-1"
+              />
+              <button onClick={handleRenameClass} className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200"><Check size={18} /></button>
+              <button onClick={() => setIsRenaming(false)} className="p-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200"><X size={18} /></button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-black text-slate-800">{className || `Lớp #${id}`}</h1>
+              <button
+                onClick={() => { setRenameValue(className); setIsRenaming(true); }}
+                className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                title="Đổi tên lớp"
+              ><Pencil size={15} /></button>
+            </div>
+          )}
+        </div>
         
         {/* Tabs */}
         <div className="flex border-b border-slate-200 overflow-x-auto scrollbar-hide">
@@ -305,6 +385,31 @@ export default function ClassDetailPage() {
                 </tbody>
               </table>
             </div>
+            {/* Add student by email */}
+            <div className="border-t border-slate-100 px-6 py-4 bg-slate-50">
+              <form onSubmit={handleAddStudentByEmail} className="flex items-center gap-3">
+                <div className="relative flex-1">
+                  <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="email"
+                    value={addEmailValue}
+                    onChange={e => setAddEmailValue(e.target.value)}
+                    placeholder="Thêm học viên bằng email..."
+                    className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm bg-white"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={isAddingStudent || !addEmailValue.trim()}
+                  className="px-4 py-2.5 bg-indigo-600 text-white font-bold rounded-xl text-sm hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center gap-1.5 whitespace-nowrap"
+                >
+                  <Plus size={15} /> Thêm học viên
+                </button>
+              </form>
+              {addStudentError && (
+                <p className="text-rose-600 text-xs font-medium mt-2 ml-1">{addStudentError}</p>
+              )}
+            </div>
           </div>
         )}
 
@@ -371,6 +476,24 @@ export default function ClassDetailPage() {
                 </div>
               </div>
             </div>
+
+            {/* Overview Cards */}
+            {analyticsOverview && (
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm text-center">
+                  <p className="text-3xl font-black text-indigo-600">{analyticsOverview.studentCount ?? 0}</p>
+                  <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider mt-1">Học viên</p>
+                </div>
+                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm text-center">
+                  <p className="text-3xl font-black text-amber-500">{(analyticsOverview.totalXp ?? 0).toLocaleString()}</p>
+                  <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider mt-1">Tổng XP</p>
+                </div>
+                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm text-center">
+                  <p className="text-3xl font-black text-emerald-600">{analyticsOverview.completedAssignments ?? 0}</p>
+                  <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider mt-1">Bài tập hoàn thành</p>
+                </div>
+              </div>
+            )}
 
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
               {analytics.length === 0 ? (
@@ -565,14 +688,43 @@ export default function ClassDetailPage() {
         {activeTab === "reports" && (
           <div className="space-y-6">
             <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-6 text-white shadow-md">
-              <div className="flex items-start gap-4">
-                <div className="p-3 bg-white/20 rounded-xl">
-                  <FileBarChart size={24} className="text-white" />
+              <div className="flex items-start justify-between">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 bg-white/20 rounded-xl">
+                    <FileBarChart size={24} className="text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold mb-1">Báo cáo Chi tiết Lớp học</h3>
+                    <p className="text-emerald-100 text-sm">Tổng hợp hiệu suất quiz, số học viên và điểm trung bình của lớp.</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold mb-1">Báo cáo Chi tiết Lớp học</h3>
-                  <p className="text-emerald-100 text-sm">Tổng hợp hiệu suất quiz, số học viên và điểm trung bình của lớp.</p>
-                </div>
+                {classReport && (
+                  <button
+                    onClick={() => {
+                      const BOM = '\uFEFF';
+                      const rows = [
+                        ['Báo cáo Lớp học', `Lớp #${id}`],
+                        [''],
+                        ['Chỉ số', 'Giá trị'],
+                        ['Số học viên', classReport.studentCount ?? 0],
+                        ['Quiz đã tổ chức', classReport.quizCount ?? 0],
+                        ['Điểm trung bình', Number(classReport.avgScore ?? 0).toFixed(2)],
+                        [''],
+                        ['Danh sách học viên'],
+                        ['Tên', 'Email', 'CEFR', 'XP', 'Level'],
+                        ...students.map(s => [s.displayName, s.email, s.cefrLevel, s.xp, s.level]),
+                      ];
+                      const csv = BOM + rows.map(r => r.join(',')).join('\n');
+                      const a = document.createElement('a');
+                      a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+                      a.download = `bao-cao-lop-${id}.csv`;
+                      a.click();
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-bold transition-colors"
+                  >
+                    <FileBarChart size={15} /> Xuất CSV
+                  </button>
+                )}
               </div>
             </div>
 
@@ -587,17 +739,18 @@ export default function ClassDetailPage() {
                   <p className="text-slate-500 text-sm mt-2 font-semibold">Quiz đã tổ chức</p>
                 </div>
                 <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm text-center">
-                  <p className="text-4xl font-black text-amber-500">{(classReport.avgScore ?? 0).toFixed(1)}</p>
+                  <p className="text-4xl font-black text-amber-500">{Number(classReport.avgScore ?? 0).toFixed(1)}</p>
                   <p className="text-slate-500 text-sm mt-2 font-semibold">Điểm trung bình</p>
                 </div>
               </div>
             ) : (
               <div className="text-center py-12 text-slate-500 border border-dashed rounded-2xl">
-                Chưa có dữ liệu báo cáo cho lớp học này.
+                Chưa có dữ liệu báo cáo quiz cho lớp học này.
               </div>
             )}
           </div>
         )}
+
 
       </div>
     </TeacherShell>

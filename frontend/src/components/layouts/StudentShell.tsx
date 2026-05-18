@@ -69,7 +69,8 @@ export type StudentShellSection =
   | "mock-exam"
   | "certificates"
   | "progress"
-  | "quiz";
+  | "quiz"
+  | "notifications";
 
 type NavItem = {
   id: StudentShellSection;

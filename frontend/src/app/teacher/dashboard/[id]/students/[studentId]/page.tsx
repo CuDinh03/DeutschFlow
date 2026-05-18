@@ -6,7 +6,130 @@ import { TeacherShell } from "@/components/layouts/TeacherShell";
 import { useStudentPracticeSession } from "@/hooks/useStudentPracticeSession";
 import api from "@/lib/api";
 import { format } from "date-fns";
-import { Mic, CheckCircle, Clock, BookOpen, AlertCircle, PlayCircle, Loader2, Save } from "lucide-react";
+import { Mic, CheckCircle, Clock, BookOpen, AlertCircle, PlayCircle, Loader2, Save, Download, FileDown } from "lucide-react";
+
+function exportStudentReportCSV(
+  analyticsData: any,
+  speakingSessions: any[],
+  assignments: any[],
+  studentId: string | string[],
+  classId: string | string[]
+) {
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('vi-VN');
+  const timeStr = now.toLocaleTimeString('vi-VN');
+  const studentName = analyticsData?.studentName || `Học viên #${studentId}`;
+
+  const rows: (string | number)[][] = [];
+
+  // ── HEADER ──────────────────────────────────────────────
+  rows.push([`BÁO CÁO PHÂN TÍCH HỌC VIÊN - DEUTSCHFLOW`]);
+  rows.push([`Học viên: ${studentName}`]);
+  rows.push([`Lớp học ID: ${classId}`]);
+  rows.push([`Xuất lúc: ${dateStr} ${timeStr}`]);
+  rows.push([]);
+
+  // ── SECTION 1: ANALYTICS TỔNG QUAN ──────────────────────
+  rows.push(['═══ PHẦN 1: CHỈ SỐ HIỆU SUẤT ═══']);
+  rows.push([]);
+
+  rows.push(['--- Trước khi vào lớp ---']);
+  rows.push(['Chỉ số', 'Giá trị']);
+  rows.push(['Bài tập đã hoàn thành', analyticsData?.preClassMetrics?.totalAssignmentsCompleted ?? 'N/A']);
+  rows.push(['Điểm trung bình bài tập (%)', analyticsData?.preClassMetrics?.averageScore ?? 'N/A']);
+  rows.push(['Số buổi Speaking AI', analyticsData?.preClassMetrics?.totalSpeakingSessions ?? 'N/A']);
+  rows.push(['Điểm Speaking trung bình (%)', analyticsData?.preClassMetrics?.averageSpeakingScore ?? 'N/A']);
+  rows.push([]);
+
+  rows.push(['--- Sau khi vào lớp ---']);
+  rows.push(['Chỉ số', 'Giá trị']);
+  rows.push(['Bài tập đã hoàn thành', analyticsData?.inClassMetrics?.totalAssignmentsCompleted ?? 'N/A']);
+  rows.push(['Điểm trung bình bài tập (%)', analyticsData?.inClassMetrics?.averageScore ?? 'N/A']);
+  rows.push(['Số buổi Speaking AI', analyticsData?.inClassMetrics?.totalSpeakingSessions ?? 'N/A']);
+  rows.push(['Điểm Speaking trung bình (%)', analyticsData?.inClassMetrics?.averageSpeakingScore ?? 'N/A']);
+  rows.push([]);
+
+  // ── SECTION 2: ĐIỂM YẾU ─────────────────────────────────
+  if (analyticsData?.topWeaknesses?.length > 0) {
+    rows.push(['═══ PHẦN 2: LỖI SAI THƯỜNG GẶP ═══']);
+    rows.push(['STT', 'Lỗi / Điểm yếu']);
+    analyticsData.topWeaknesses.forEach((w: string, i: number) => {
+      rows.push([i + 1, w]);
+    });
+    rows.push([]);
+  }
+
+  // ── SECTION 3: AI ADVISORY ──────────────────────────────
+  if (analyticsData?.aiAdvisoryReport) {
+    rows.push(['═══ PHẦN 3: ĐÁNH GIÁ & LỘ TRÌNH ĐỀ XUẤT (AI) ═══']);
+    rows.push([analyticsData.aiAdvisoryReport]);
+    rows.push([]);
+  }
+
+  // ── SECTION 4: LỊCH SỬ SPEAKING SESSIONS ───────────────
+  rows.push(['═══ PHẦN 4: CHI TIẾT BUỔI LUYỆN NÓI AI ═══']);
+  if (speakingSessions.length === 0) {
+    rows.push(['Chưa có buổi luyện nói nào.']);
+  } else {
+    rows.push(['STT', 'Chủ đề', 'Cấp độ CEFR', 'Trạng thái', 'Số tin nhắn', 'Điểm AI (/100)', 'Điểm GV (/100)', 'Nhận xét GV', 'Nhận xét AI', 'Ngày bắt đầu', 'Ngày kết thúc']);
+    speakingSessions.forEach((s, i) => {
+      rows.push([
+        i + 1,
+        s.topic ?? '',
+        s.cefrLevel ?? '',
+        s.status === 'ENDED' ? 'Đã kết thúc' : s.status === 'ACTIVE' ? 'Đang diễn ra' : s.status,
+        s.messageCount ?? 0,
+        s.aiScore ?? 'Chưa chấm',
+        s.teacherScore ?? 'Chưa chấm',
+        s.teacherFeedback ?? '',
+        s.aiFeedback ?? '',
+        s.startedAt ? new Date(s.startedAt).toLocaleString('vi-VN') : '',
+        s.endedAt ? new Date(s.endedAt).toLocaleString('vi-VN') : '',
+      ]);
+    });
+  }
+  rows.push([]);
+
+  // ── SECTION 5: ASSIGNMENTS ──────────────────────────────
+  rows.push(['═══ PHẦN 5: CHI TIẾT BÀI TẬP (ASSIGNMENTS) ═══']);
+  if (assignments.length === 0) {
+    rows.push(['Chưa có bài tập nào được giao.']);
+  } else {
+    rows.push(['STT', 'Mã Assignment', 'Trạng thái', 'Điểm GV (/100)', 'Nhận xét GV', 'Ngày nộp', 'Ngày tạo']);
+    assignments.forEach((a, i) => {
+      const statusMap: Record<string, string> = {
+        PENDING: 'Chưa làm',
+        SUBMITTED: 'Đã nộp - chờ chấm',
+        GRADED: 'Đã chấm',
+        EVALUATED: 'Đã chấm',
+      };
+      rows.push([
+        i + 1,
+        `#${a.assignmentId}`,
+        statusMap[a.status] ?? a.status,
+        a.teacherScore ?? 'Chưa chấm',
+        a.teacherFeedback ?? '',
+        a.submittedAt ? new Date(a.submittedAt).toLocaleString('vi-VN') : '',
+        a.createdAt ? new Date(a.createdAt).toLocaleString('vi-VN') : '',
+      ]);
+    });
+  }
+
+  // ── Build & Download ────────────────────────────────────
+  const csvContent = rows
+    .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    .join('\n');
+
+  const BOM = '\uFEFF';
+  const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  const safeName = studentName.replace(/[^a-zA-Z0-9À-ỹ\s]/g, '').trim().replace(/\s+/g, '_');
+  link.download = `BaoCao_${safeName}_${now.toISOString().slice(0, 10)}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
 
 interface TeacherSpeakingSessionDto {
   id: number;
@@ -341,6 +464,24 @@ export default function StudentReviewPage() {
             {analyticsError && <div className="p-6 bg-red-50 text-red-600 rounded-2xl">{analyticsError}</div>}
             {analyticsData && (
               <div className="animate-in fade-in duration-300">
+
+                {/* Export Toolbar */}
+                <div className="flex items-center justify-between bg-white rounded-2xl border border-slate-200 shadow-sm px-5 py-3.5 mb-6">
+                  <div className="flex items-center gap-2">
+                    <FileDown size={18} className="text-indigo-600" />
+                    <span className="font-semibold text-sm text-slate-700">Báo cáo phân tích</span>
+                    <span className="text-slate-400 text-xs">· {analyticsData.studentName || `Học viên #${studentId}`}</span>
+                  </div>
+                  <button
+                    onClick={() => exportStudentReportCSV(analyticsData, speakingSessions, assignments, studentId, classId)}
+                    className="flex items-center gap-2 px-5 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 transition-colors text-sm font-bold shadow-sm"
+                    title="Xuất toàn bộ dữ liệu phân tích, luyện nói và bài tập ra file CSV (mở được bằng Excel)"
+                  >
+                    <Download size={15} />
+                    Xuất báo cáo CSV
+                  </button>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                   {/* Before Class */}
                   <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 shadow-sm">
