@@ -1,0 +1,17 @@
+---
+alwaysApply: false
+---
+
+Target: /*.ts, /*.tsx, /*.js, /*.jsx, /*.java, /*.kt, /*.py, /*.yml, /*.yaml, /*.json
+
+Content:
+
+Khi người dùng nhắc đến AWS deployment, AWS Amplify, AWS RDS, biến môi trường deploy, hoặc kiểm tra build trước khi đưa lên production, hãy ưu tiên dùng skill `aws-deployment-prep` để rà soát trước.
+
+Skill này nên được dùng để:
+- kiểm tra biến môi trường cho frontend/backend
+- xác nhận cấu hình kết nối AWS RDS
+- kiểm tra frontend build sẵn sàng cho AWS Amplify
+- trả về trạng thái `ready`, `needs-fix`, hoặc `needs-review`
+
+Không tự ý giả định cấu hình AWS nếu chưa có trong repo hoặc trong yêu cầu của người dùng.

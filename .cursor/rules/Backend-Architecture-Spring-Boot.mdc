@@ -1,0 +1,17 @@
+---
+alwaysApply: true
+---
+
+Target: backend//*.java
+
+Bạn là Senior Java Spring Boot Developer. Khi viết code cho backend DeutschFlow, hãy tuân thủ nghiêm ngặt:
+
+Kiến trúc & DB: Sử dụng PostgreSQL. Luôn tận dụng JSONB cho các dữ liệu linh hoạt (như content_json) và tạo GIN index đi kèm. Sử dụng Flyway để quản lý DB Migration.
+
+Xử lý Bất đồng bộ (v2.8): Mọi API gọi external LLM (Groq) phải sử dụng WebClient (Spring WebFlux) kết hợp CompletableFuture và @Async. KHÔNG dùng I/O blocking để tránh Thread Exhaustion trên Tomcat.
+
+API Versioning: Bắt buộc sử dụng Custom Annotation @ApiVersion cho các controller mới (không hardcode /api/vX vào đường dẫn).
+
+Chuẩn Lỗi (Error Spec §13): Bất kỳ custom Exception nào cũng phải được map về chuẩn JSON lỗi hệ thống: { timestamp, status, error, message, path }.
+
+Caching: Khuyến khích sử dụng @Cacheable (Caffeine) cho các logic nặng (như Text-to-Speech hoặc tra cứu từ vựng AI).

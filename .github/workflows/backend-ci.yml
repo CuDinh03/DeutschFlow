@@ -1,0 +1,128 @@
+name: Backend CI/CD
+
+on:
+  push:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+
+concurrency:
+  group: backend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ─── Stage 1: Compile ─────────────────────────────────────────────
+  compile:
+    name: 🔨 Compile
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Compile (skip tests)
+        working-directory: backend
+        run: ./mvnw -B compile -DskipTests
+
+  # ─── Stage 2: Unit Tests ──────────────────────────────────────────
+  unit-tests:
+    name: 🧪 Unit Tests
+    needs: compile
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Run unit tests (Surefire — excludes *IntegrationTest, *ContractTest)
+        working-directory: backend
+        run: ./mvnw -B test
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: backend/target/surefire-reports/
+          retention-days: 7
+
+  # ─── Stage 3: Integration Tests (main only) ───────────────────────
+  integration-tests:
+    name: 🐘 Integration Tests
+    needs: unit-tests
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      # ubuntu-latest có Docker daemon sẵn — Testcontainers dùng trực tiếp
+      - name: Run integration tests (Failsafe — Testcontainers)
+        working-directory: backend
+        run: ./mvnw -B verify -DskipUnitTests=true
+
+      - name: Upload integration test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-results
+          path: backend/target/failsafe-reports/
+          retention-days: 7
+
+  # ─── Stage 4: Auto Deploy to EC2 ─────────────────────────────────
+  # Self-hosted runner chạy TRÊN EC2 — kết nối ra GitHub, không cần inbound SSH
+  # Prereq: Cài runner trên EC2 theo hướng dẫn DEPLOYMENT.md
+  deploy:
+    name: 🚀 Deploy to EC2
+    needs: unit-tests
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: [self-hosted, ec2]
+    timeout-minutes: 12
+    steps:
+      - name: Build & restart container
+        run: |
+          set -e
+          cd /home/ubuntu/DeutschFlow
+          git pull origin main
+
+          echo "🔨 Building Docker image..."
+          sudo docker build -t deutschflow-backend:latest ./backend
+
+          echo "♻️ Restarting container..."
+          sudo docker rm -f deutschflow-backend 2>/dev/null || true
+          sudo docker run -d \
+            --name deutschflow-backend \
+            --memory="1500m" \
+            --cpus="1.8" \
+            --env-file /home/ubuntu/DeutschFlow/.env.production \
+            -p 8080:8080 \
+            --restart unless-stopped \
+            deutschflow-backend:latest
+
+          echo "⏳ Waiting for Spring Boot..."
+          sleep 45
+
+          echo "🔍 Health check..."
+          HTTP=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/actuator/health)
+          [ "$HTTP" -eq 200 ] || { sudo docker logs deutschflow-backend --tail 30; exit 1; }
+          echo "✅ Deploy OK — HTTP $HTTP"
+          sudo docker stats deutschflow-backend --no-stream --format "CPU: {{.CPUPerc}} | MEM: {{.MemUsage}}"

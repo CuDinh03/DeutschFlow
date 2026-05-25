@@ -1,0 +1,333 @@
+# ============================================================
+# DeutschFlow Backend — Base Configuration
+# Primary database: PostgreSQL (jdbc:postgresql, Flyway classpath:db/migration).
+# Các secret KHÔNG được hardcode ở đây — dùng profile-specific yml + .env (DB_*, JWT_*, …).
+# ============================================================
+
+aws:
+  s3:
+    bucket-name: ${AWS_S3_BUCKET_NAME:}
+    region: ${AWS_S3_REGION:ap-southeast-1}
+    access-key: ${AWS_ACCESS_KEY_ID:}
+    secret-key: ${AWS_SECRET_ACCESS_KEY:}
+
+spring:
+  application:
+    name: deutschflow-backend
+
+  # Graceful shutdown: Spring Boot stops accepting new requests immediately
+  # but waits for in-flight requests to complete before shutting down.
+  # This pairs with `docker stop --time=30` in the Blue-Green deploy script.
+  lifecycle:
+    timeout-per-shutdown-phase: 25s
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:postgres}?stringtype=unspecified&tcpKeepAlive=true
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    # Larger default pool helps when vocab schedulers + API share the JVM; tune via DB_POOL_* env.
+    # "Failed to obtain JDBC Connection" + ~30s timeouts often mean Postgres down/saturated or pool exhausted.
+    hikari:
+      pool-name: DeutschFlowPool
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:10}
+      minimum-idle: ${DB_POOL_MIN_IDLE:2}
+      connection-timeout: ${DB_POOL_CONNECTION_TIMEOUT_MS:5000}
+      # Recycle idle connections nhanh hơn để tránh RDS drop stale conn
+      idle-timeout: ${DB_POOL_IDLE_TIMEOUT_MS:180000}
+      # Renew connection trước khi RDS max_lifetime (AWS default 8h)
+      max-lifetime: ${DB_POOL_MAX_LIFETIME_MS:600000}
+      # Keepalive 30s — AWS RDS idle TCP timeout thường 300s, giữ conn sống
+      keepalive-time: ${DB_POOL_KEEPALIVE_MS:30000}
+      # Validate trước khi dùng — phát hiện stale conn ngay
+      connection-test-query: SELECT 1
+      validation-timeout: ${DB_POOL_VALIDATION_TIMEOUT_MS:3000}
+      # Cảnh báo leak nếu conn giữ > 20s
+      leak-detection-threshold: ${DB_POOL_LEAK_DETECTION_MS:20000}
+      # Ép PostgreSQL giết query > 30s — lưới an toàn cuối cùng
+      connection-init-sql: "SET statement_timeout = '30s'"
+      auto-commit: true
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    out-of-order: false  # PRODUCTION SAFE: never apply out-of-order in prod. Override in application-local.yml for dev.
+    encoding: UTF-8
+
+  messages:
+    basename: i18n/messages
+    encoding: UTF-8
+    default-locale: vi
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics,env
+  endpoint:
+    health:
+      show-details: when_authorized
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+server:
+  port: ${SERVER_PORT:8080}
+  # graceful = Tomcat waits for active requests to finish before closing;
+  # pairs with spring.lifecycle.timeout-per-shutdown-phase above.
+  shutdown: graceful
+  tomcat:
+    threads:
+      max: ${TOMCAT_MAX_THREADS:50}
+      min-spare: ${TOMCAT_MIN_SPARE_THREADS:10}
+    accept-count: ${TOMCAT_ACCEPT_COUNT:30}
+    max-connections: ${TOMCAT_MAX_CONNECTIONS:200}
+    connection-timeout: ${TOMCAT_CONNECTION_TIMEOUT:20000}
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+    encoding:
+      charset: UTF-8
+      force: true
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain,application/javascript,text/css
+    min-response-size: 1024
+
+app:
+  async:
+    core-pool-size: ${ASYNC_CORE_POOL_SIZE:10}
+    max-pool-size: ${ASYNC_MAX_POOL_SIZE:50}
+    queue-capacity: ${ASYNC_QUEUE_CAPACITY:100}
+  flyway:
+    # Aligns flyway_schema_history checksums when a versioned migration file changed after apply.
+    # Production: set APP_FLYWAY_REPAIR_BEFORE_MIGRATE=false (Spring Boot 3.2 has no spring.flyway.repair-on-migrate).
+    repair-before-migrate: ${APP_FLYWAY_REPAIR_BEFORE_MIGRATE:true}
+  jwt:
+    secret: ${JWT_SECRET}
+    # Zero-downtime key rotation: set JWT_SECRET_PREVIOUS = khóa cũ khi xoay.
+    # Sau ≥ 15 phút (access token cũ hết hạn), bỏ biến này đi.
+    secret-previous: ${JWT_SECRET_PREVIOUS:}
+    access-token-expiry-ms: ${JWT_ACCESS_TOKEN_EXPIRY_MS:900000}
+    refresh-token-expiry-ms: ${JWT_REFRESH_TOKEN_EXPIRY_MS:604800000}
+    # iss + aud claim cho phép hệ thống phân biệt token của đúng service.
+    issuer: ${JWT_ISSUER:deutschflow-api}
+    audience: ${JWT_AUDIENCE:deutschflow-app}
+    # Bật true SAU KHI toàn bộ token cũ (không có iss/aud) đã hết hạn (≥ 15 phút sau deploy).
+    require-iss-aud: ${JWT_REQUIRE_ISS_AUD:false}
+
+  notifications:
+    # In-process SSE (single node / local dev). Clients reconnect periodically.
+    sse:
+      timeout-ms: ${APP_NOTIFICATION_SSE_TIMEOUT_MS:900000}
+      ping-interval-seconds: ${APP_NOTIFICATION_SSE_PING_SECONDS:20}
+    # Sliding-window limits per user (in-memory); tune if many tabs/aggressive polling.
+    rate-limit:
+      read-max-per-window: ${APP_NOTIFICATION_READ_RL_MAX:120}
+      read-window-seconds: ${APP_NOTIFICATION_READ_RL_WINDOW:60}
+      mutate-max-per-window: ${APP_NOTIFICATION_MUTATE_RL_MAX:40}
+      mutate-window-seconds: ${APP_NOTIFICATION_MUTATE_RL_WINDOW:60}
+      stream-connect-max-per-window: ${APP_NOTIFICATION_SSE_RL_MAX:20}
+      stream-connect-window-seconds: ${APP_NOTIFICATION_SSE_RL_WINDOW:60}
+    retention:
+      enabled: ${APP_NOTIFICATION_RETENTION_ENABLED:true}
+      delete-read-older-than-days: ${APP_NOTIFICATION_RETENTION_READ_DAYS:90}
+      cron: ${APP_NOTIFICATION_RETENTION_CRON:0 0 4 * * *}
+
+  speaking:
+    adaptive:
+      # When false: policy is minimal, turn evaluator skips state updates (rollback-friendly).
+      enabled: ${APP_SPEAKING_ADAPTIVE_ENABLED:true}
+    # SSE chat/stream: Tomcat returns emitter immediately; LLM runs on speakingStreamExecutor.
+    sse-emitter-timeout-ms: ${AI_SPEAKING_SSE_TIMEOUT_MS:180000}
+    stream-executor:
+      core-pool-size: ${AI_SPEAKING_STREAM_CORE:8}
+      max-pool-size: ${AI_SPEAKING_STREAM_MAX:20}
+      queue-capacity: ${AI_SPEAKING_STREAM_QUEUE:40}
+
+  # AI: local fine-tuned model (deutschflow_model) via Python server; optional Groq for chat fallback + Whisper STT.
+  ai:
+    # DeutschFlow AI server (loads ./deutschflow_model)
+    server-url: ${AI_SERVER_URL:http://localhost:8000}
+    timeout-ms: ${AI_SERVER_TIMEOUT_MS:15000}
+    # Chat + batch LLM (vocabulary tagging, weekly speaking): local | groq
+    chat-provider: ${AI_CHAT_PROVIDER:local}
+    # Label stored in AI usage ledger / metrics when provider is LOCAL
+    local-model-id: ${AI_LOCAL_MODEL_ID:deutschflow_model}
+    
+    groq:
+      # Optional: only for AI_CHAT_PROVIDER=groq and/or speech-to-text (Whisper).
+      api-key: ${GROQ_API_KEY:}
+      model: ${GROQ_MODEL:meta-llama/llama-4-scout-17b-16e-instruct}
+      whisper-model: ${GROQ_WHISPER_MODEL:whisper-large-v3}
+      # Concurrency caps (fair semaphores). Free tier ~30 RPM: chat 3–4; paid/Dev ~10–20 CCU: chat 6–8, whisper 4–6.
+      max-concurrent-chat-requests: ${GROQ_MAX_CONCURRENT_CHAT:5}
+      max-concurrent-whisper-requests: ${GROQ_MAX_CONCURRENT_WHISPER:4}
+      semaphore-acquire-timeout-seconds: ${GROQ_SEMAPHORE_ACQUIRE_SEC:90}
+    gemini:
+      api-key: ${GEMINI_API_KEY:}
+    google:
+      service-account-json: ${GOOGLE_SERVICE_ACCOUNT_JSON:}
+      slides:
+        drive-folder-id: ${GOOGLE_SLIDES_DRIVE_FOLDER_ID:}
+    transcribe:
+      max-bytes: ${AI_TRANSCRIBE_MAX_BYTES:8388608}
+    # ElevenLabs TTS — voice cloning for Lukas / Emma / Anna / Klaus personas.
+    elevenlabs:
+      api-key: ${ELEVENLABS_API_KEY:}
+      # Voice IDs obtained after uploading reference WAV to ElevenLabs dashboard.
+      voices:
+        LUKAS: ${ELEVENLABS_VOICE_LUKAS:}
+        EMMA: ${ELEVENLABS_VOICE_EMMA:}
+        ANNA: ${ELEVENLABS_VOICE_ANNA:}
+        HANNA: ${ELEVENLABS_VOICE_ANNA:}
+        KLAUS: ${ELEVENLABS_VOICE_KLAUS:}
+      # Model: eleven_multilingual_v2 supports German natively.
+      model-id: ${ELEVENLABS_MODEL_ID:eleven_multilingual_v2}
+      timeout-ms: ${ELEVENLABS_TIMEOUT_MS:15000}
+    # Edge TTS sidecar — free Microsoft Neural voices (fallback when ElevenLabs not configured)
+    edge-tts:
+      url: ${EDGE_TTS_URL:http://localhost:5050}
+
+  # OpenAI Whisper STT (for pronunciation evaluation + audio timestamps)
+  # Cost: ~$0.006/min. Used by WhisperApiClient.java
+  openai:
+    api-key: ${OPENAI_API_KEY:}
+    whisper-base-url: ${OPENAI_WHISPER_BASE_URL:https://api.openai.com/v1}
+
+  deepl:
+    api-key: ${DEEPL_API_KEY:}
+    # Gợi ý: DeepL Free ~500.000 ký tự/tháng — import 10k từ + ví dụ có thể vượt quota; dùng
+    # app.vocabulary.cefr-curated.deepl-max-chars-per-run và/hoặc tắt enrich-after-upsert cho đợt đầu.
+
+  vocabulary:
+    # Prod / staging: cân nhắc đặt GOETHE_*_ON_STARTUP, CEFR_CURATED_*, GLOSBE_* thành false và chạy import qua admin
+    # để tránh spike DB + DeepL quota; scheduler Glosbe-VI / Wiktionary vẫn có giới hạn batch-size/delay-ms trong profile.
+    # Từ điển TSV trên classpath — không gọi API; mở rộng bằng cách thêm dòng vào file.
+    local-lexicon:
+      resource: ${LOCAL_LEXICON_RESOURCE:wordlists/local_lexicon.tsv}
+    goethe:
+      auto-import-on-startup: ${GOETHE_AUTO_IMPORT_ON_STARTUP:true}
+      # Wordlist trích từ PDF Goethe (A1/A2/B1) → goethe_official_wordlist.tsv; nạp ví dụ DE + CEFR.
+      official-wordlist:
+        auto-import-on-startup: ${GOETHE_OFFICIAL_WORDLIST_AUTO_IMPORT:true}
+      # classpath = file trong JAR; remote = tải wordlist từ GitHub (HTTP).
+      wordlist-source: ${GOETHE_WORDLIST_SOURCE:classpath}
+      # local_only = chỉ local_lexicon.tsv; online = DeepL + tuỳ chọn Wiktionary.
+      enrich-source: ${GOETHE_ENRICH_SOURCE:local_only}
+      enrich-with-deepl: ${GOETHE_ENRICH_WITH_DEEPL:true}
+      enrich-with-wiktionary: ${GOETHE_ENRICH_WITH_WIKTIONARY:false}
+    # Wordlist theo cấp A1–C1 (~10k), dedup ưu tiên cấp cao; pad từ de_50k nếu thiếu quota.
+    cefr-curated:
+      # Nạp từ wordlists/cefr_a1_patsy.txt, goethe_sorted.txt, de_50k.txt khi start (sau Goethe + official TSV).
+      auto-import-on-startup: ${CEFR_CURATED_AUTO_IMPORT_STARTUP:true}
+      # false = không enrich (DeepL) lúc bootstrap; bật true nếu muốn làm đầy nghĩa/ví dụ ngay (chậm, tốn quota).
+      auto-import-enrich: ${CEFR_CURATED_AUTO_IMPORT_ENRICH:false}
+      target-total: ${CEFR_CURATED_TARGET_TOTAL:10000}
+      quota-a1: ${CEFR_CURATED_QUOTA_A1:2000}
+      quota-a2: ${CEFR_CURATED_QUOTA_A2:2000}
+      quota-b1: ${CEFR_CURATED_QUOTA_B1:2000}
+      quota-b2: ${CEFR_CURATED_QUOTA_B2:2000}
+      quota-c1: ${CEFR_CURATED_QUOTA_C1:2000}
+      # false = chỉ đọc wordlists trên classpath (offline).
+      use-remote-sources: ${CEFR_CURATED_REMOTE_SOURCES:false}
+      classpath-a1: ${CEFR_CURATED_CLASSPATH_A1:wordlists/cefr_a1_patsy.txt}
+      classpath-b1: ${CEFR_CURATED_CLASSPATH_B1:wordlists/goethe_sorted.txt}
+      classpath-freq: ${CEFR_CURATED_CLASSPATH_FREQ:wordlists/de_50k.txt}
+      classpath-a2: ${CEFR_CURATED_CLASSPATH_A2:}
+      classpath-b2: ${CEFR_CURATED_CLASSPATH_B2:}
+      classpath-c1: ${CEFR_CURATED_CLASSPATH_C1:}
+      url-a1: ${CEFR_CURATED_URL_A1:}
+      url-a2: ${CEFR_CURATED_URL_A2:}
+      url-b1: ${CEFR_CURATED_URL_B1:}
+      url-b2: ${CEFR_CURATED_URL_B2:}
+      url-c1: ${CEFR_CURATED_URL_C1:}
+      fallback-frequency-url: ${CEFR_CURATED_FREQ_URL:}
+      enrich-after-upsert: ${CEFR_CURATED_ENRICH_AFTER_UPSERT:true}
+      deepl-max-chars-per-run: ${CEFR_CURATED_DEEPL_MAX_CHARS:450000}
+    # Làm đầy words.phonetic từ Wiktionary; resume qua bảng vocabulary_import_state.
+    ipa-batch:
+      words-per-run: ${IPA_BATCH_WORDS_PER_RUN:200}
+      request-delay-ms: ${IPA_BATCH_REQUEST_DELAY_MS:800}
+    # Trần từ/request khi ADMIN bấm "Chạy batch" một lần (scheduler không bị đụng nhờ size nhỏ hơn nhiều).
+    wiktionary-enrich:
+      # Max tối đa mỗi lần admin bấm Chạy Batch (giới hạn 200 để tránh timeout ~200s)
+      admin-max-per-batch: ${WIKTIONARY_ENRICH_ADMIN_MAX:200}
+    # Tắt mặc định — chỉ chạy định kỳ khi WIKTIONARY_SCHEDULER_ENABLED=true. Admin: POST .../vocabulary/wiktionary/enrich/batch
+    wiktionary-scheduler:
+      enabled: ${WIKTIONARY_SCHEDULER_ENABLED:false}
+      batch-size: ${WIKTIONARY_SCHEDULER_BATCH_SIZE:200}
+      delay-ms: ${WIKTIONARY_SCHEDULER_DELAY_MS:5000}
+    glosbe:
+      enabled: ${GLOSBE_IMPORT_ENABLED:false}
+      base-url: ${GLOSBE_BASE_URL:https://vi.glosbe.com/de/vi}
+      max-pages-per-run: ${GLOSBE_MAX_PAGES_PER_RUN:30}
+      max-words-per-run: ${GLOSBE_MAX_WORDS_PER_RUN:300}
+      request-delay-ms: ${GLOSBE_REQUEST_DELAY_MS:400}
+      cron: ${GLOSBE_IMPORT_CRON:0 30 2 * * *}
+    # Tắt mặc định — chỉ chạy định kỳ khi GLOSBE_VI_ENABLED=true. Admin: POST .../vocabulary/glosbe-vi/enrich/batch
+    glosbe-vi:
+      enabled: ${GLOSBE_VI_ENABLED:false}
+      batch-size: ${GLOSBE_VI_BATCH_SIZE:20}
+      # Tăng delay mặc định từ 5000 → 120000ms để tránh scheduler overlap
+      delay-ms: ${GLOSBE_VI_DELAY_MS:120000}
+      # Giảm admin-max-per-batch để tránh blocking quá lâu
+      admin-max-per-batch: ${GLOSBE_VI_ADMIN_MAX:50}
+    # LLM DE→VI translation — thay thế Glosbe scraping (stable, no rate-limit risk)
+    # Chi phí: ~$0.024 cho 10k từ với GPT-4o-mini
+    llm-vi:
+      enabled: ${LLM_VI_ENABLED:false}
+      batch-size: ${LLM_VI_BATCH_SIZE:50}
+      delay-ms: ${LLM_VI_DELAY_MS:60000}
+    # Dịch lemma DE → EN + VI qua DeepL cho từ còn thiếu (chạy song song Wiktionary + Glosbe).
+    # Tắt production nếu không muốn tiêu quota: DEEPL_LEMMA_BACKFILL_ENABLED=false
+    deepl-lemma-backfill:
+      enabled: ${DEEPL_LEMMA_BACKFILL_ENABLED:true}
+      batch-size: ${DEEPL_LEMMA_BACKFILL_BATCH_SIZE:25}
+      max-chars-per-run: ${DEEPL_LEMMA_BACKFILL_MAX_CHARS:12000}
+      delay-ms-between-words: ${DEEPL_LEMMA_BACKFILL_WORD_DELAY_MS:250}
+      delay-ms: ${DEEPL_LEMMA_BACKFILL_TICK_MS:8000}
+    enrichment-auto-stop-enabled: ${APP_VOCAB_ENRICHMENT_AUTO_STOP:true}
+    enrichment-auto-stop-min-total-words: ${APP_VOCAB_ENRICHMENT_AUTO_STOP_MIN_WORDS:10000}
+    enrichment-auto-stop-scan-ms: ${APP_VOCAB_ENRICHMENT_AUTO_STOP_SCAN_MS:90000}
+    deepl-free-monthly-char-cap: ${DEEPL_FREE_MONTHLY_CHAR_CAP:490000}
+    strict-free-mode: ${APP_VOCAB_STRICT_FREE:true}
+
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+
+# ============================================================
+# Payment Gateway — MoMo
+#
+# Production: set MOMO_* environment variables on EC2 (docker-compose.prod.yml)
+# Local dev:  set credentials in application-local.yml (gitignored)
+#
+# SECURITY: No hardcoded fallback defaults here.
+# Missing env var → Spring throws BeanCreationException at startup (fail-fast).
+# → prevents accidentally running production with sandbox keys.
+# ============================================================
+payment:
+  momo:
+    partner-code: ${MOMO_PARTNER_CODE:dummy}
+    access-key: ${MOMO_ACCESS_KEY:dummy}
+    secret-key: ${MOMO_SECRET_KEY:dummy}
+    api-endpoint: ${MOMO_API_ENDPOINT:http://localhost:8080/dummy}
+    ipn-url: ${MOMO_IPN_URL:https://mydeutschflow.com/api/payments/momo/ipn}
+    return-url: ${MOMO_RETURN_URL:https://mydeutschflow.com/payment/success}

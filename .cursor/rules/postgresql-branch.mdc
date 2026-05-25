@@ -1,0 +1,13 @@
+---
+description: Trên nhánh PostgreSQL — backend/DB chỉ hỗ trợ Postgres, không dùng H2 hay schema SQL tay cho test
+globs: backend/**,docker-compose.yml,**/db/migration/*.sql
+alwaysApply: false
+---
+
+# PostgreSQL-only (nhánh migration)
+
+- **Cơ sở dữ liệu:** Chỉ **PostgreSQL** (production, local `docker-compose`, và integration test qua **Testcontainers** trong [`PostgresTestContainerHolder`](backend/src/test/java/com/deutschflow/testsupport/PostgresTestContainerHolder.java)). Không thêm lại H2, không dùng `schema-test.sql` hoặc script init schema song song với Flyway cho test Spring.
+- **`./mvnw test`:** Cần **Docker** đang chạy (Ryuk/Testcontainers pull image `postgres:16-alpine` lần đầu có thể mất vài phút).
+- **Schema:** Một nguồn sự thật — **Flyway** trong [`backend/src/main/resources/db/migration/`](backend/src/main/resources/db/migration/). SQL trong migration và script seed phải là dialect Postgres.
+- **Test Spring:** `@SpringBootTest` kế thừa [`AbstractPostgresIntegrationTest`](backend/src/test/java/com/deutschflow/testsupport/AbstractPostgresIntegrationTest.java); profile `test` trong [`application-test.yml`](backend/src/test/resources/application-test.yml): `ddl-auto: validate`, `flyway.enabled: true`, `sql.init.mode: never`.
+- **Tránh:** H2/mem, `MODE=MySQL`, `schema-test.sql` kiểu “tạo bảng cho test”; `columnDefinition = "json"` tay thay vì `@JdbcTypeCode(SqlTypes.JSON)` cho JSON/JSONB; JDBC/SQL chỉ chạy trên MySQL.

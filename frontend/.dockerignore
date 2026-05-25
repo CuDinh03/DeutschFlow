@@ -1,0 +1,22 @@
+# Build cache
+node_modules/
+.next/
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# Env files (KHÔNG bao giờ vào image)
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# OS
+.DS_Store

@@ -1,0 +1,23 @@
+# Build artifacts
+target/
+*.jar
+
+# Git
+.git
+.gitignore
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Logs
+*.log
+backend.log
+
+# Env files (KHÔNG bao giờ vào image)
+.env
+.env.*
+
+# Test artifacts
+src/test/

@@ -1,0 +1,360 @@
+"use client";
+
+import { useMemo, useState, type ReactNode } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
+import LanguageSwitcher from "@/components/ui/LanguageSwitcher";
+import { StudentBottomNav } from "@/components/layouts/StudentBottomNav";
+import { cn } from "@/lib/utils";
+import { isStudentImmersivePath } from "@/lib/studentImmersiveRoutes";
+import type { LucideIcon } from "lucide-react";
+import { DeutschFlowLogo } from "@/components/ui/DeutschFlowLogo";
+import { AchievementToastProvider } from "@/components/gamification/AchievementToastProvider";
+import {
+  LayoutDashboard,
+  Settings,
+  ChevronRight,
+  Menu,
+  X,
+  Map,
+  Search,
+  BookOpen,
+  LogOut,
+  ShieldCheck,
+  Flame,
+  AlertTriangle,
+  Brain,
+  History,
+  Briefcase,
+  Trophy,
+  BarChart2,
+  Users,
+  Mic,
+} from "lucide-react";
+import { XpLevelPill } from "@/components/gamification/XpLevelPill";
+import { useTracking } from "@/hooks/useTracking";
+
+export type StudentShellSection = string;
+
+type NavItem = {
+  id: StudentShellSection;
+  label: string;
+  icon: LucideIcon;
+  href: string;
+  badge?: ReactNode;
+};
+
+type NavGroup = {
+  groupKey: string;
+  label: string;
+  items: NavItem[];
+};
+
+type RoadmapMeta = {
+  roadmapVersion?: string | null;
+  roadmapType?: string | null;
+  entryNodeCode?: string | null;
+  currentLevel?: string | null;
+  targetLevel?: string | null;
+  currentNodeCode?: string | null;
+  completedNodes?: number | null;
+  totalNodes?: number | null;
+  progressPercent?: number | null;
+  progressModel?: string | null;
+};
+
+type Props = {
+  activeSection: StudentShellSection;
+  user: { displayName: string; role: string };
+  targetLevel: string;
+  streakDays: number;
+  initials: string;
+  onLogout: () => void;
+  headerTitle: ReactNode;
+  headerSubtitle?: ReactNode;
+  roadmapMeta?: RoadmapMeta | null;
+  /** Extra nodes in header right (before streak pill) */
+  headerRight?: ReactNode;
+  /** Full-bleed content (hide white app bar — e.g. AI Chat V2 companion) */
+  hideAppHeader?: boolean;
+  /** Hide bottom tab bar (e.g. immersive interview session) */
+  hideBottomNav?: boolean;
+  /** Hide sidebar completely (e.g. for Onboarding wizard) */
+  hideSidebar?: boolean;
+  children: ReactNode;
+};
+
+export function StudentShell({
+  activeSection,
+  user,
+  targetLevel,
+  streakDays,
+  initials,
+  onLogout,
+  headerTitle,
+  headerSubtitle,
+  headerRight,
+  roadmapMeta,
+  hideAppHeader,
+  hideBottomNav,
+  hideSidebar,
+  children,
+}: Props) {
+  const t = useTranslations("student");
+  const tNav = useTranslations("nav");
+  const router = useRouter();
+  const pathname = usePathname();
+  const showMobileBottomPad = !isStudentImmersivePath(pathname) && !hideBottomNav;
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { trackFeatureAction } = useTracking();
+
+  const navGroups = useMemo<NavGroup[]>(
+    () => [
+      {
+        groupKey: "learn",
+        label: t("navGroupLearn"),
+        items: [
+          { id: "dashboard" as const, label: t("navDashboard"), icon: LayoutDashboard, href: "/dashboard" },
+          { id: "speaking" as const, label: "Nói với AI", icon: Mic, href: "/speaking",
+            badge: <span className="text-[9px] font-bold bg-[#FFCD00]/20 text-[#78350F] px-1.5 py-0.5 rounded-full border border-[#FFCD00]/30">AI</span> },
+          { id: "vocabulary" as const, label: "Tra cứu từ vựng", icon: Search, href: "/vocabulary",
+            badge: <span className="text-[9px] font-bold bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded-full border border-blue-500/30">Mới</span> },
+          { id: "roadmap" as const, label: t("navLearningPath"), icon: Map, href: "/roadmap",
+            badge: <span className="text-[9px] font-bold bg-[#FFCD00]/20 text-[#FFCD00] px-1.5 py-0.5 rounded-full border border-[#FFCD00]/30">{t("newBadge")}</span> },
+        ],
+      },
+      {
+        groupKey: "review",
+        label: t("navGroupReview"),
+        items: [
+          { id: "errors" as const, label: t("navMyErrors"), icon: AlertTriangle, href: "/student/errors" },
+          {
+            id: "review" as const,
+            label: t("navReviewSrs"),
+            icon: Brain,
+            href: "/student/review",
+            badge: <span className="text-[9px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded-full">Ôn</span>,
+          },
+          { id: "review-queue" as const, label: t("navReviewQueue"), icon: Brain, href: "/student/review-queue" },
+          { id: "speakingHistory" as const, label: t("navSpeakingHistory"), icon: History, href: "/student/speaking-history" },
+          { id: "interviews" as const, label: t("navInterviews"), icon: Briefcase, href: "/student/interviews" },
+        ],
+      },
+      {
+        groupKey: "exam",
+        label: t("navGroupExam"),
+        items: [
+          { id: "mock-exam" as const, label: t("navMockExam"), icon: Trophy, href: "/student/mock-exam",
+            badge: <span className="text-[9px] font-bold bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-full border border-red-500/30">New</span> },
+          { id: "progress" as const, label: t("navProgress"), icon: BarChart2 as any, href: "/student/progress" },
+          { id: "certificates" as const, label: t("navCertificates"), icon: Trophy, href: "/student/certificates" },
+        ],
+      },
+      {
+        groupKey: "profile",
+        label: t("navGroupProfile"),
+        items: [
+          { id: "tutor" as const, label: t("navTutorProfile"), icon: Users, href: "/student/tutor" },
+          { id: "leaderboard" as const, label: t("navLeaderboard"), icon: Trophy, href: "/student/leaderboard" },
+          { id: "badges" as const, label: t("navBadges"), icon: Trophy, href: "/student/badges",
+            badge: <span className="text-[9px] font-bold bg-[#FFCD00]/20 text-[#78350F] px-1.5 py-0.5 rounded-full border border-[#FFCD00]/40">XP</span> },
+          { id: "settings" as const, label: t("navSettings"), icon: Settings, href: "/student/settings" },
+        ],
+      },
+    ],
+    [t],
+  );
+
+  const go = async (id: string, href: string) => {
+    trackFeatureAction('nav', 'clicked', { target: id, href });
+
+    if (id === "roadmap") {
+      router.push("/roadmap/tree");
+      setSidebarOpen(false);
+      return;
+    }
+
+    router.push(href);
+    setSidebarOpen(false);
+  };
+
+  return (
+    <div className="flex h-screen overflow-hidden df-page-mesh">
+      {!hideSidebar && sidebarOpen && (
+        <div className="fixed inset-0 bg-black/40 z-20 lg:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+
+      {!hideSidebar && (
+        <aside
+          className={`fixed lg:relative z-30 flex flex-col h-full w-64 bg-[var(--brand-black)] backdrop-blur-md border-r border-white/10 text-[var(--sidebar-foreground)] transition-transform duration-300 shadow-xl shadow-black/10
+            ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
+        >
+          <div className="flex items-center gap-2 px-4 py-5 border-b border-white/10">
+            <DeutschFlowLogo
+              variant="horizontal"
+              size={160}
+              animated={false}
+            />
+            <button type="button" className="ml-auto lg:hidden text-white/60 hover:text-white" onClick={() => setSidebarOpen(false)}>
+              <X size={20} />
+            </button>
+          </div>
+
+          <nav className="flex-1 px-3 py-4 space-y-5 overflow-y-auto custom-scrollbar">
+            {navGroups.map(({ groupKey, label, items }) => (
+              <div key={groupKey}>
+                {/* Section header */}
+                <p className="px-4 mb-1.5 text-[10px] font-bold tracking-widest text-white/30 uppercase select-none">
+                  {label}
+                </p>
+                <div className="space-y-0.5">
+                  {items.map(({ id, label: itemLabel, icon: Icon, href, badge }) => {
+                    const active = activeSection === id;
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => go(id, href)}
+                        className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-[12px] transition-all duration-200 text-left group
+                          ${active
+                            ? "bg-[var(--brand-yellow)] text-[var(--brand-black)] shadow-md"
+                            : "text-white/70 hover:bg-white/10 hover:text-white"
+                          }`}
+                      >
+                        <Icon size={17} className="flex-shrink-0" />
+                        <div className="flex-1 flex items-center justify-between min-w-0">
+                          <span className="font-medium text-sm truncate">{itemLabel}</span>
+                          {badge && !active && badge}
+                          {active && <ChevronRight size={13} className="text-[var(--brand-black)]/60 ml-2" />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </nav>
+
+          <div className="px-3 pb-5">
+            {/* ── Upgrade CTA ─────────────────────────────── */}
+            {user.role === "STUDENT" && (
+              <button
+                type="button"
+                id="btn-sidebar-upgrade"
+                onClick={() => go("pricing", "/student/pricing")}
+                className="mb-2 w-full flex items-center gap-3 px-4 py-2.5 rounded-[12px] bg-gradient-to-r from-violet-600 to-purple-700 hover:from-violet-500 hover:to-purple-600 text-white transition-all duration-200 text-left shadow-md shadow-violet-900/40"
+              >
+                <span className="text-base leading-none">⚡</span>
+                <span className="font-bold text-sm">Nâng cấp PRO</span>
+                <span className="ml-auto text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-semibold">Mới</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={onLogout}
+              className="mb-2 w-full flex items-center gap-3 px-4 py-2.5 rounded-[12px] text-white/70 hover:bg-white/10 hover:text-white transition-all duration-200 text-left"
+            >
+              <LogOut size={17} className="flex-shrink-0" />
+              <span className="font-medium text-sm">{t("logout")}</span>
+            </button>
+
+            <div
+              className="flex items-center gap-3 px-4 py-3 rounded-[12px] bg-white/8 border border-white/10 cursor-pointer hover:bg-white/12 transition-colors mt-2"
+              onClick={() => go("settings_profile", "/student/settings")}
+              title="Cài đặt hồ sơ"
+            >
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[var(--brand-yellow)] to-[var(--brand-yellow-dark)] flex items-center justify-center flex-shrink-0">
+                <span className="text-[var(--brand-black)] font-bold text-sm">{initials}</span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold text-sm text-white truncate flex items-center">
+                  Cài đặt hồ sơ
+                </p>
+                <p className="text-white/50 text-[10px] truncate flex items-center">
+                  {user.displayName}
+                </p>
+              </div>
+              <Settings size={14} className="text-white/40" />
+            </div>
+
+            {user.role === "ADMIN" && (
+              <button
+                type="button"
+                onClick={() => go("admin", "/admin")}
+                className="mt-2 w-full flex items-center gap-2 px-4 py-2 rounded-[10px] text-white/40 hover:text-white/70 hover:bg-white/8 transition-colors text-xs"
+              >
+                <ShieldCheck size={13} />
+                {t("navAdminDashboard")}
+              </button>
+            )}
+          </div>
+        </aside>
+      )}
+
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {!hideAppHeader && (
+          <header className="df-header-shadow flex flex-shrink-0 items-center justify-between border-b border-[#E2E8F0] bg-white px-6 py-4">
+            <div className="flex items-center gap-4 min-w-0">
+              <button type="button" className="lg:hidden p-2 rounded-[10px] hover:bg-[#F5F7FA] text-[#64748B]" onClick={() => setSidebarOpen(true)}>
+                <Menu size={20} />
+              </button>
+              <div className="min-w-0">
+                <h1 className="text-xl font-bold text-[#1A1A1A] truncate">{headerTitle}</h1>
+                {headerSubtitle && <p className="text-[#64748B] text-sm mt-0.5 truncate">{headerSubtitle}</p>}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 flex-shrink-0">
+              {headerRight}
+              {roadmapMeta ? (
+                <div className="hidden md:flex items-center gap-2 rounded-[12px] bg-[#EEF4FF] border border-[#C7D2FE] px-3 py-2">
+                  <div className="flex flex-col leading-tight">
+                    <span className="text-[10px] uppercase tracking-wide text-[#64748B]">{roadmapMeta.roadmapVersion ?? "Roadmap"}</span>
+                    <span className="text-sm font-bold text-[#121212]">
+                      {roadmapMeta.completedNodes ?? 0}/{roadmapMeta.totalNodes ?? 0}
+                    </span>
+                  </div>
+                  <div className="flex flex-col items-end leading-tight">
+                    <span className="text-[10px] text-[#64748B]">{roadmapMeta.currentNodeCode ?? roadmapMeta.currentLevel}</span>
+                    <span className="text-[10px] font-semibold text-[#4F46E5]">
+                      {Math.round(Number(roadmapMeta.progressPercent ?? 0))}%
+                    </span>
+                  </div>
+                </div>
+              ) : null}
+              <div className="flex items-center gap-2 bg-[#FFF8E1] border border-[#FFCD00]/40 rounded-[12px] px-3 py-2">
+                <Flame size={18} className="text-orange-500" fill="#f97316" />
+                <span className="font-bold text-[var(--brand-black)] text-sm">{t("streakDays", { n: streakDays })}</span>
+                <span className="text-[#64748B] text-xs hidden sm:inline">{t("streakBadgeShort")}</span>
+              </div>
+              <NotificationBell buttonClassName="p-2.5 rounded-[12px] bg-[#F5F7FA] hover:bg-[#E2E8F0] transition-colors" />
+              <LanguageSwitcher />
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[var(--brand-black)] to-[var(--brand-black-dark)] flex items-center justify-center flex-shrink-0">
+                <span className="text-[var(--brand-yellow)] font-bold text-sm">{initials}</span>
+              </div>
+            </div>
+          </header>
+        )}
+
+        <main
+          className={cn(
+            hideAppHeader
+              ? "flex h-full min-h-0 flex-1 flex-col overflow-hidden p-0"
+              : [
+                  "flex-1 overflow-y-auto px-4 sm:px-6 py-6",
+                  showMobileBottomPad && "pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-6",
+                  !showMobileBottomPad && "pb-6",
+                ],
+          )}
+        >
+          {children}
+        </main>
+      </div>
+
+      {!hideBottomNav && <StudentBottomNav onOpenMenu={() => setSidebarOpen(true)} />}
+      <AchievementToastProvider />
+    </div>
+  );
+}

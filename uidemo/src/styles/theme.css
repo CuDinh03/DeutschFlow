@@ -1,0 +1,276 @@
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* DeutschFlow Design System */
+
+  /* Typography */
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-size: 16px;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+
+  /* Brand Colors - DeutschFlow */
+  --navy-blue: #00305E;
+  --navy-blue-dark: #002447;
+  --navy-blue-light: #004080;
+  --vibrant-yellow: #FFCE00;
+  --vibrant-yellow-dark: #E6B900;
+  --vibrant-yellow-light: #FFD633;
+
+  /* Core Colors */
+  --background: #FFFFFF;
+  --foreground: #1A1A1A;
+  --card: #FFFFFF;
+  --card-foreground: #1A1A1A;
+  --popover: #FFFFFF;
+  --popover-foreground: #1A1A1A;
+
+  /* Primary (Navy Blue) */
+  --primary: #00305E;
+  --primary-foreground: #FFFFFF;
+  --primary-hover: #002447;
+
+  /* Secondary (Light Navy variations) */
+  --secondary: #F0F4F8;
+  --secondary-foreground: #00305E;
+
+  /* Accent (Vibrant Yellow) */
+  --accent: #FFCE00;
+  --accent-foreground: #00305E;
+  --accent-hover: #E6B900;
+
+  /* Muted */
+  --muted: #F5F7FA;
+  --muted-foreground: #64748B;
+
+  /* Destructive */
+  --destructive: #DC2626;
+  --destructive-foreground: #FFFFFF;
+
+  /* Success */
+  --success: #10B981;
+  --success-foreground: #FFFFFF;
+
+  /* Info */
+  --info: #3B82F6;
+  --info-foreground: #FFFFFF;
+
+  /* Border & Input */
+  --border: #E2E8F0;
+  --input: #E2E8F0;
+  --input-background: #FFFFFF;
+  --switch-background: #CBD5E1;
+  --ring: #00305E;
+
+  /* Chart Colors - EdTech friendly */
+  --chart-1: #00305E;
+  --chart-2: #FFCE00;
+  --chart-3: #3B82F6;
+  --chart-4: #10B981;
+  --chart-5: #8B5CF6;
+
+  /* Border Radius - 12px rounded corners */
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  /* Shadows - Soft shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 48, 94, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 48, 94, 0.08), 0 2px 4px -1px rgba(0, 48, 94, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 48, 94, 0.1), 0 4px 6px -2px rgba(0, 48, 94, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 48, 94, 0.1), 0 10px 10px -5px rgba(0, 48, 94, 0.04);
+
+  /* Spacing Scale */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+
+  /* Sidebar */
+  --sidebar: #00305E;
+  --sidebar-foreground: #FFFFFF;
+  --sidebar-primary: #FFCE00;
+  --sidebar-primary-foreground: #00305E;
+  --sidebar-accent: #004080;
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: #004080;
+  --sidebar-ring: #FFCE00;
+}
+
+.dark {
+  /* DeutschFlow Dark Mode */
+  --background: #0A1628;
+  --foreground: #F8FAFC;
+  --card: #1A2942;
+  --card-foreground: #F8FAFC;
+  --popover: #1A2942;
+  --popover-foreground: #F8FAFC;
+
+  /* Primary (Navy Blue - slightly lighter for dark mode) */
+  --primary: #3D6DB5;
+  --primary-foreground: #FFFFFF;
+  --primary-hover: #2A5A9E;
+
+  /* Secondary */
+  --secondary: #1A2942;
+  --secondary-foreground: #F8FAFC;
+
+  /* Accent (Vibrant Yellow) */
+  --accent: #FFCE00;
+  --accent-foreground: #0A1628;
+  --accent-hover: #E6B900;
+
+  /* Muted */
+  --muted: #1E3A5F;
+  --muted-foreground: #94A3B8;
+
+  /* Destructive */
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+
+  /* Success */
+  --success: #10B981;
+  --success-foreground: #FFFFFF;
+
+  /* Info */
+  --info: #60A5FA;
+  --info-foreground: #FFFFFF;
+
+  /* Border & Input */
+  --border: #2A4365;
+  --input: #2A4365;
+  --input-background: #1A2942;
+  --switch-background: #475569;
+  --ring: #FFCE00;
+
+  /* Charts */
+  --chart-1: #3D6DB5;
+  --chart-2: #FFCE00;
+  --chart-3: #60A5FA;
+  --chart-4: #34D399;
+  --chart-5: #A78BFA;
+
+  /* Sidebar */
+  --sidebar: #00305E;
+  --sidebar-foreground: #F8FAFC;
+  --sidebar-primary: #FFCE00;
+  --sidebar-primary-foreground: #00305E;
+  --sidebar-accent: #2A4365;
+  --sidebar-accent-foreground: #F8FAFC;
+  --sidebar-border: #2A4365;
+  --sidebar-ring: #FFCE00;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-family);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /**
+  * DeutschFlow Typography System
+  * Default styles for HTML elements with professional EdTech hierarchy
+  */
+
+  html {
+    font-size: var(--font-size);
+  }
+
+  h1 {
+    font-weight: var(--font-weight-bold);
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+  }
+
+  h2 {
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+  }
+
+  h3 {
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.4;
+  }
+
+  h4 {
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  label {
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  button {
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+    transition: all 0.2s ease;
+  }
+
+  input, textarea, select {
+    font-weight: var(--font-weight-normal);
+    line-height: 1.5;
+  }
+
+  /* Smooth transitions for interactive elements */
+  a, button, input, textarea, select {
+    transition: all 0.2s ease;
+  }
+}

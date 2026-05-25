@@ -1,0 +1,157 @@
+# ============================================================
+# SECRETS — KHÔNG BAO GIỜ COMMIT
+# ============================================================
+.env
+# env variants (ignore all, except .env.example)
+.env.*
+!.env.example
+!.env.production.example
+*.env.local
+nohup.out
+*.dump
+*.env.local
+
+# --- key/cert/keystore ---
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.jks
+
+# --- credentials/secrets files ---
+credentials*.json
+service-account*.json
+serviceAccount*.json
+firebase-adminsdk*.json
+google-credentials*.json
+client_secret*.json
+*-credentials.json
+**/secrets.*
+
+# Cursor / internal tooling (never commit)
+.kiro/
+
+# ============================================================
+# DOCS (nội bộ, không push lên git)
+# ============================================================
+docs/
+backend/src/main/resources/application-local.yml
+backend/src/main/resources/application-secret.yml
+# prevent accidental commit of other local configs
+backend/src/main/resources/application-*.yml
+!backend/src/main/resources/application.yml
+
+# ============================================================
+# Java / Maven
+# ============================================================
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+*.class
+*.jar
+*.war
+
+# ============================================================
+# Node / Next.js
+# ============================================================
+frontend/node_modules/
+frontend/.next/
+# accidental duplicate build dir (must never commit)
+frontend/.next 2/
+.next 2/
+frontend/out/
+frontend/.env.local
+frontend/.env.production
+**/*.tsbuildinfo
+*.log
+
+# ============================================================
+# IDE
+# ============================================================
+.idea/
+*.iml
+.vscode/settings.json
+*.DS_Store
+# macOS Finder duplicates (e.g. "file 2.java")
+*\ 2.*
+
+# ============================================================
+# Docker
+# ============================================================
+mysql_data/
+
+# Archives / exports
+*.zip
+postgres_data/
+
+# Python / ML — never commit (GitHub 100MB limit; venv & weights are huge)
+ai-server/.venv/
+**/.venv/
+deutschflow_model/
+
+# ============================================================
+# VOICE FILES — Binary audio (WAV/MP3 reference recordings)
+# Lưu trên cloud storage (S3 / ElevenLabs), không commit vào git
+# ============================================================
+voice/
+frontend/public/voices/
+
+# ============================================================
+# WORD DATA & SCRIPTS — Dữ liệu thô nội bộ
+# (PDF, TSV, HTML scrapes, Python extract scripts)
+# ============================================================
+wordsDeutsch/
+
+# ============================================================
+# TEMP / DEBUG files
+# ============================================================
+frontend/int.html
+frontend/response.html
+*.html
+# Cho phép HTML trong public/ (assets tĩnh hợp lệ)
+!frontend/public/**/*.html
+
+# ============================================================
+# PRODUCTION ENV — file thật (không commit, chỉ commit .example)
+# ============================================================
+.env.production
+# .env.production.example được phép commit (không có secret)
+
+# ============================================================
+# COMPANION IMAGES — nếu dùng ảnh lớn (>1MB) thì dùng Git LFS
+# Tạm thời bỏ qua nếu cần (uncomment dưới đây)
+# ============================================================
+# frontend/public/companions/
+
+deutschflow-key.pem
+# macOS auto-created duplicates (filename " 2", " 3")
+* 2
+* 2.*
+* 3
+* 3.*
+
+# Google Service Account credentials — NEVER commit
+*-credentials.json
+deutschflow-*.json
+google-sa.json
+
+# Local test database — never commit
+test.db
+nohup.out
+
+# Logs & temp files
+nohup.out
+nohup*.out
+*.db
+*.log
+
+# One-off test scripts at root
+test-*.js
+
+# Media files uploaded accidentally
+*.jpeg
+*.jpg
+*.png
+
+# Scratch/temp scripts — thường chứa key hardcode, không commit
+scratch/

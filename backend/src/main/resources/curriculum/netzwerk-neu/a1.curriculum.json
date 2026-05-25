@@ -1,0 +1,409 @@
+{
+  "courseId": "netzwerk-neu-a1",
+  "provider": "Klett",
+  "source": {
+    "referenceUrls": [
+      "https://klettwl.com/store/netzwerk-neu",
+      "https://www.klett-sprachen.de/netzwerk-neu/r-1/605"
+    ],
+    "notes": "Units 1-12 + Plattform 1-4 mapped from photographed TOC screenshots (Netzwerk neu A1 Kursbuch)."
+  },
+  "level": "A1",
+  "version": "2026-04-13",
+  "units": [
+    {
+      "unitId": "L01",
+      "order": 1,
+      "title": "Guten Tag!",
+      "canDo": [
+        "grüßen und verabschieden",
+        "sich und andere vorstellen",
+        "nach dem Befinden fragen und darauf reagieren",
+        "über sich und andere sprechen",
+        "Zahlen bis 20 nennen",
+        "Telefonnummer und E-Mail-Adresse nennen",
+        "buchstabieren",
+        "über Länder und Sprachen sprechen"
+      ],
+      "skillTargets": ["SPEAKING", "LISTENING", "PRONUNCIATION", "WRITING"],
+      "grammarPoints": [
+        "G_A1_W_QUESTIONS",
+        "G_A1_WORD_ORDER_V2_MAIN_CLAUSE",
+        "G_A1_VERBS_SEIN_HABEN",
+        "G_A1_PERSONAL_PRONOUNS_NOM"
+      ],
+      "vocabTopics": ["NUMBERS_1_20", "COUNTRIES_LANGUAGES"],
+      "checkpoints": [],
+      "sessions": []
+    },
+    {
+      "unitId": "L02",
+      "order": 2,
+      "title": "Freunde, Kollegen und ich",
+      "canDo": [
+        "über Hobbys sprechen",
+        "sich verabreden",
+        "Wochentage benennen",
+        "über Arbeit, Berufe und Arbeitszeiten sprechen",
+        "Zahlen ab 20 nennen",
+        "ein Formular ausfüllen"
+      ],
+      "skillTargets": ["SPEAKING", "LISTENING", "READING", "WRITING", "PRONUNCIATION"],
+      "grammarPoints": [
+        "G_A1_PRESENT_TENSE_REGULAR",
+        "G_A1_PERSONAL_PRONOUNS_NOM",
+        "G_A1_YN_QUESTIONS",
+        "G_A1_ARTICLES_DEF_INDEF",
+        "G_A1_NOUN_GENDER_PLURAL_INTRO",
+        "G_A1_VERBS_SEIN_HABEN"
+      ],
+      "vocabTopics": ["HOBBIES", "WEEKDAYS", "NUMBERS_20_PLUS", "PROFESSIONS"],
+      "checkpoints": [],
+      "sessions": []
+    },
+    {
+      "unitId": "L03",
+      "order": 3,
+      "title": "In Hamburg",
+      "canDo": [
+        "Plätze und Gebäude benennen",
+        "Fragen zu Orten stellen und antworten",
+        "Verkehrsmittel benennen",
+        "nach Dingen fragen",
+        "nach dem Weg fragen und einen Weg beschreiben",
+        "Jahreszeiten und Monate benennen",
+        "über Hobbys sprechen"
+      ],
+      "skillTargets": ["SPEAKING", "LISTENING", "READING", "WRITING", "PRONUNCIATION"],
+      "grammarPoints": ["G_A1_ARTICLES_DEF_INDEF", "G_A1_NEGATION_NICHT_KEIN", "G_A1_IMPERATIVE_BASIC", "G_A1_ADJECTIVES_PREDICATIVE"],
+      "vocabTopics": ["PLACES_BUILDINGS", "TRANSPORT", "DIRECTIONS", "MONTHS_SEASONS"],
+      "checkpoints": [],
+      "sessions": []
+    },
+    {
+      "unitId": "P01",
+      "order": 4,
+      "title": "Plattform 1: wiederholen und trainieren",
+      "isReviewUnit": true,
+      "reviewOfUnits": ["L01", "L02", "L03"],
+      "skillTargets": ["LISTENING", "READING", "SPEAKING", "WRITING", "REVIEW"],
+      "grammarPoints": [],
+      "vocabTopics": [],
+      "checkpoints": ["PLATTFORM_1"],
+      "sessions": []
+    },
+    {
+      "unitId": "L04",
+      "order": 5,
+      "title": "Guten Appetit!",
+      "canDo": [
+        "einen Einkauf planen",
+        "Gespräche beim Einkauf führen",
+        "Gespräche beim Essen führen",
+        "über Vorlieben beim Essen sprechen",
+        "über Essen sprechen"
+      ],
+      "skillTargets": ["SPEAKING", "LISTENING", "READING", "WRITING", "PRONUNCIATION"],
+      "grammarPoints": ["G_A1_ACCUSATIVE_OBJECTS", "G_A1_MODAL_VERBS_MOEGEN_MOECHTEN", "G_A1_WORD_ORDER_POSITION_IN_SENTENCE"],
+      "vocabTopics": ["MEALS", "FOOD", "DRINKS", "SHOPS"],
+      "checkpoints": [],
+      "sessions": []
+    },
+    {
+      "unitId": "L05",
+      "order": 6,
+      "title": "Alltag und Familie",
+      "canDo": [
+        "die Uhrzeit verstehen und nennen",
+        "Zeitangaben machen",
+        "über Familie sprechen",
+        "sich verabreden",
+        "einen Termin telefonisch vereinbaren",
+        "sich für eine Verspätung entschuldigen und darauf reagieren"
+      ],
+      "skillTargets": ["SPEAKING", "LISTENING", "READING", "WRITING", "PRONUNCIATION"],
+      "grammarPoints": ["G_A1_TIME_EXPRESSIONS_AM_UM_VON_BIS", "G_A1_POSSESSIVE_ARTICLES_NOM_ACC", "G_A1_MODAL_VERBS_BASIC", "G_A1_WORD_BRACKET_SATZKLAMMER"],
+      "vocabTopics": ["DAILY_ROUTINES", "CLOCK_TIME", "FAMILY"],
+      "checkpoints": [],
+      "sessions": []
+    },
+    {
+      "unitId": "L06",
+      "order": 7,
+      "title": "Zeit mit Freunden",
+      "canDo": [
+        "über Freizeit sprechen",
+        "das Datum verstehen und nennen",
+        "über Geburtstage sprechen",
+        "eine Einladung verstehen und schreiben",
+        "Essen und Getränke bestellen und bezahlen",
+        "über ein Ereignis sprechen",
+        "Veranstaltungstipps im Radio verstehen"
+      ],
+      "skillTargets": ["SPEAKING", "LISTENING", "READING", "WRITING", "PRONUNCIATION"],
+      "grammarPoints": [
+        "G_A1_DATE_EXPRESSIONS",
+        "G_A1_SEPARABLE_VERBS_INTRO",
+        "G_A1_PERSONAL_PRONOUNS_ACC",
+        "G_A1_PREPOSITION_FUER_ACC",
+        "G_A1_PRAETERITUM_SEIN_HABEN"
+      ],
+      "vocabTopics": ["ORDINAL_NUMBERS", "LEISURE_ACTIVITIES", "EVENTS", "FOOD_DRINKS"],
+      "checkpoints": [],
+      "sessions": []
+    },
+    {
+      "unitId": "P02",
+      "order": 8,
+      "title": "Plattform 2: wiederholen und trainieren",
+      "isReviewUnit": true,
+      "reviewOfUnits": ["L04", "L05", "L06"],
+      "skillTargets": ["LISTENING", "READING", "SPEAKING", "WRITING", "REVIEW"],
+      "grammarPoints": [],
+      "vocabTopics": [],
+      "checkpoints": ["PLATTFORM_2"],
+      "sessions": []
+    },
+    {
+      "unitId": "L07",
+      "order": 9,
+      "title": "Arbeitsalltag",
+      "canDo": [
+        "einen Blogbeitrag verstehen",
+        "über den (Arbeits-)Alltag schreiben",
+        "Gespräche am Arbeitsplatz verstehen",
+        "Ortsangaben machen",
+        "Abläufe beschreiben",
+        "Briefe verstehen und beantworten",
+        "Small Talk machen"
+      ],
+      "skillTargets": ["SPEAKING", "LISTENING", "READING", "WRITING", "PRONUNCIATION"],
+      "grammarPoints": [
+        "G_A1_CONNECTORS_UND_ODER_ABER",
+        "G_A1_ARTICLES_DATIVE",
+        "G_A1_PREPOSITION_MIT_DATIVE",
+        "G_A1_LOCATION_PREPOSITIONS_DATIVE"
+      ],
+      "vocabTopics": ["OFFICE_DAILY_LIFE", "LOCATION_INFO", "BANK", "MEDIA"],
+      "checkpoints": [],
+      "sessions": []
+    },
+    {
+      "unitId": "L08",
+      "order": 10,
+      "title": "Fit und gesund",
+      "canDo": [
+        "Aufforderungen verstehen und ausdrücken",
+        "persönliche Angaben machen",
+        "Körperteile nennen",
+        "Anweisungen wiedergeben",
+        "Gespräche beim Arzt führen",
+        "Anweisungen verstehen und geben",
+        "Gesundheitstipps verstehen und geben"
+      ],
+      "skillTargets": ["SPEAKING", "LISTENING", "READING", "WRITING", "PRONUNCIATION"],
+      "grammarPoints": [
+        "G_A1_IMPERATIVE_IHR_SIE",
+        "G_A1_IMPERATIVE_SENTENCE",
+        "G_A1_MODAL_VERBS_SOLLEN_MUESSEN_DUERFEN"
+      ],
+      "vocabTopics": ["BODY_PARTS", "ILLNESSES", "MEDICINE", "HOSPITAL_JOBS"],
+      "checkpoints": [],
+      "sessions": []
+    },
+    {
+      "unitId": "L09",
+      "order": 11,
+      "title": "Meine Wohnung",
+      "canDo": [
+        "Wohnungsanzeigen verstehen",
+        "eine Wohnung beschreiben",
+        "die Wohnungseinrichtung planen",
+        "eine Einladung beantworten",
+        "über eine Wohnungseinrichtung sprechen",
+        "Ortsangaben machen",
+        "Gefallen und Missfallen ausdrücken",
+        "Farben nennen",
+        "über Wohnformen sprechen",
+        "einen Text über eine Wohnung schreiben"
+      ],
+      "skillTargets": ["SPEAKING", "LISTENING", "READING", "WRITING", "PRONUNCIATION"],
+      "grammarPoints": [
+        "G_A1_SEIN_ADJECTIVE",
+        "G_A1_PREPOSITION_IN_ACC",
+        "G_A1_TWO_WAY_PREPOSITIONS_DATIVE"
+      ],
+      "vocabTopics": ["ROOMS", "FURNITURE_DEVICES", "COLORS", "HOUSING_TYPES"],
+      "checkpoints": [],
+      "sessions": []
+    },
+    {
+      "unitId": "P03",
+      "order": 12,
+      "title": "Plattform 3: wiederholen und trainieren",
+      "isReviewUnit": true,
+      "reviewOfUnits": ["L07", "L08", "L09"],
+      "skillTargets": ["LISTENING", "READING", "SPEAKING", "WRITING", "REVIEW"],
+      "grammarPoints": [],
+      "vocabTopics": [],
+      "checkpoints": ["PLATTFORM_3"],
+      "sessions": []
+    },
+    {
+      "unitId": "L10",
+      "order": 13,
+      "title": "Studium und Beruf",
+      "canDo": [
+        "einen Tagesablauf beschreiben",
+        "über Vergangenes sprechen",
+        "Aussagen über die Jobsuche verstehen",
+        "von einem Tag berichten",
+        "telefonieren und nachfragen",
+        "über Jobs sprechen"
+      ],
+      "skillTargets": ["SPEAKING", "LISTENING", "READING", "WRITING", "PRONUNCIATION"],
+      "grammarPoints": [
+        "G_A1_PERFEKT_SATZKLAMMER",
+        "G_A1_PARTIZIP_II_FORMATION",
+        "G_A1_VERBS_IEREN",
+        "G_A1_PERFEKT_HABEN_SEIN"
+      ],
+      "vocabTopics": ["JOBS", "WORKPLACE", "STUDY", "APPLICATIONS"],
+      "checkpoints": [],
+      "sessions": []
+    },
+    {
+      "unitId": "L11",
+      "order": 14,
+      "title": "Die Jacke gefällt mir!",
+      "canDo": [
+        "über Kleidung sprechen",
+        "Komplimente verstehen",
+        "über Vergangenes berichten",
+        "Gespräche beim Kleiderkauf führen",
+        "sich im Kaufhaus orientieren",
+        "nach Auskunft fragen und antworten",
+        "Informationen über Berlin verstehen und recherchieren"
+      ],
+      "skillTargets": ["SPEAKING", "LISTENING", "READING", "WRITING", "PRONUNCIATION"],
+      "grammarPoints": [
+        "G_A1_WELCHER_WELCHE_WELCHES",
+        "G_A1_DEMONSTRATIVES_DIESER",
+        "G_A1_PARTIZIP_II_SEPARABLE_NONSEPARABLE",
+        "G_A1_PERSONAL_PRONOUNS_DATIVE",
+        "G_A1_DATIVE_VERBS"
+      ],
+      "vocabTopics": ["CLOTHING", "DEPARTMENT_STORE", "CITY_INFO"],
+      "checkpoints": [],
+      "sessions": []
+    },
+    {
+      "unitId": "L12",
+      "order": 15,
+      "title": "Ab in den Urlaub!",
+      "canDo": [
+        "Vorschläge für eine Stadtour machen",
+        "eine Wegbeschreibung verstehen",
+        "einen Weg beschreiben",
+        "eine Postkarte schreiben",
+        "Reiseberichte verstehen und schreiben",
+        "Fragen zu einer Reise stellen und beantworten",
+        "das Wetter beschreiben",
+        "über Reiseziele sprechen und schreiben"
+      ],
+      "skillTargets": ["SPEAKING", "LISTENING", "READING", "WRITING", "PRONUNCIATION"],
+      "grammarPoints": [
+        "G_A1_PRONOUN_MAN",
+        "G_A1_CONNECTOR_DENn",
+        "G_A1_QUESTION_WORDS_CASES",
+        "G_A1_TIME_PREPOSITIONS_DATIVE"
+      ],
+      "vocabTopics": ["TRAVEL_TYPES", "DESTINATIONS", "SIGHTS", "CARDINAL_DIRECTIONS", "WEATHER"],
+      "checkpoints": [],
+      "sessions": []
+    },
+    {
+      "unitId": "P04",
+      "order": 16,
+      "title": "Plattform 4: wiederholen und trainieren",
+      "isReviewUnit": true,
+      "reviewOfUnits": ["L10", "L11", "L12"],
+      "skillTargets": ["LISTENING", "READING", "SPEAKING", "WRITING", "REVIEW"],
+      "grammarPoints": [],
+      "vocabTopics": [],
+      "checkpoints": ["PLATTFORM_4"],
+      "sessions": []
+    },
+    {
+      "unitId": "R12",
+      "order": 17,
+      "title": "Review 2 (L07–L12)",
+      "isReviewUnit": true,
+      "reviewOfUnits": ["L07", "L08", "L09", "L10", "L11", "L12"],
+      "skillTargets": ["LISTENING", "READING", "SPEAKING", "WRITING"],
+      "grammarPoints": [],
+      "vocabTopics": [],
+      "checkpoints": ["CHECKPOINT_A1_02"],
+      "sessions": []
+    }
+  ],
+  "taxonomies": {
+    "skills": ["LISTENING", "READING", "SPEAKING", "WRITING", "PRONUNCIATION", "REVIEW"],
+    "domains": ["GENERAL", "TECH", "BUSINESS", "TRAVEL", "HEALTHCARE"],
+    "ageBands": ["UNDER_18", "AGE_18_24", "AGE_25_34", "AGE_35_44", "AGE_45_PLUS"]
+  },
+  "grammarInventory": [
+    "G_A1_VERBS_SEIN_HABEN",
+    "G_A1_PRESENT_TENSE_REGULAR",
+    "G_A1_PRESENT_TENSE_IRREGULAR_BASIC",
+    "G_A1_PERSONAL_PRONOUNS_NOM",
+    "G_A1_PERSONAL_PRONOUNS_ACC",
+    "G_A1_W_QUESTIONS",
+    "G_A1_YN_QUESTIONS",
+    "G_A1_WORD_ORDER_V2_MAIN_CLAUSE",
+    "G_A1_WORD_ORDER_POSITION_IN_SENTENCE",
+    "G_A1_WORD_BRACKET_SATZKLAMMER",
+    "G_A1_NEGATION_NICHT_KEIN",
+    "G_A1_ARTICLES_DEF_INDEF",
+    "G_A1_NOUN_GENDER_PLURAL_INTRO",
+    "G_A1_ACCUSATIVE_OBJECTS",
+    "G_A1_DATIVE_BASIC",
+    "G_A1_PREPOSITIONS_LOCAL_TIME_BASIC",
+    "G_A1_TIME_EXPRESSIONS_AM_UM_VON_BIS",
+    "G_A1_DATE_EXPRESSIONS",
+    "G_A1_MODAL_VERBS_BASIC",
+    "G_A1_MODAL_VERBS_MOEGEN_MOECHTEN",
+    "G_A1_SEPARABLE_VERBS_INTRO",
+    "G_A1_IMPERATIVE_BASIC",
+    "G_A1_ADJECTIVES_PREDICATIVE",
+    "G_A1_POSSESSIVE_ARTICLES_NOM_ACC",
+    "G_A1_PREPOSITION_FUER_ACC",
+    "G_A1_PRAETERITUM_SEIN_HABEN",
+    "G_A1_CONNECTORS_UND_ODER_ABER",
+    "G_A1_ARTICLES_DATIVE",
+    "G_A1_PREPOSITION_MIT_DATIVE",
+    "G_A1_LOCATION_PREPOSITIONS_DATIVE",
+    "G_A1_IMPERATIVE_IHR_SIE",
+    "G_A1_IMPERATIVE_SENTENCE",
+    "G_A1_MODAL_VERBS_SOLLEN_MUESSEN_DUERFEN",
+    "G_A1_SEIN_ADJECTIVE",
+    "G_A1_PREPOSITION_IN_ACC",
+    "G_A1_TWO_WAY_PREPOSITIONS_DATIVE",
+    "G_A1_PERFEKT_SATZKLAMMER",
+    "G_A1_PARTIZIP_II_FORMATION",
+    "G_A1_VERBS_IEREN",
+    "G_A1_PERFEKT_HABEN_SEIN",
+    "G_A1_WELCHER_WELCHE_WELCHES",
+    "G_A1_DEMONSTRATIVES_DIESER",
+    "G_A1_PARTIZIP_II_SEPARABLE_NONSEPARABLE",
+    "G_A1_PERSONAL_PRONOUNS_DATIVE",
+    "G_A1_DATIVE_VERBS",
+    "G_A1_PRONOUN_MAN",
+    "G_A1_CONNECTOR_DENn",
+    "G_A1_QUESTION_WORDS_CASES",
+    "G_A1_TIME_PREPOSITIONS_DATIVE",
+    "G_A1_PERFEKT_INTRO",
+    "G_A1_CONJUNCTIONS_BASIC"
+  ]
+}
+

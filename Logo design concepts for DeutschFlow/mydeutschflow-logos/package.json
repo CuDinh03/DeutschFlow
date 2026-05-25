@@ -1,0 +1,26 @@
+{
+  "name": "mydeutschflow-logos",
+  "version": "1.0.0",
+  "description": "Production-ready logo components for myDeutschFlow - German Language Learning System",
+  "main": "index.ts",
+  "author": "myDeutschFlow Team",
+  "license": "PROPRIETARY",
+  "keywords": [
+    "logo",
+    "react",
+    "svg",
+    "mydeutschflow",
+    "german",
+    "language-learning"
+  ],
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "motion": "^12.0.0"
+  },
+  "files": [
+    "logo-complete/",
+    "index.ts",
+    "README.md",
+    "USAGE_EXAMPLES.md"
+  ]
+}

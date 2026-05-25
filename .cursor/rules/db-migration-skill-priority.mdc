@@ -1,0 +1,19 @@
+---
+description: Prioritize Flyway and schema-change skills for database migration tasks
+alwaysApply: true
+---
+
+# Database Migration Skill Priority
+
+When the user asks about database migrations, schema changes, or Flyway SQL, prefer these skills first:
+
+1. `generate-flyway-migration` — when the user wants a new Flyway migration file
+2. `validate-existing-migration-files` — when the user wants to review or audit existing migrations
+3. `generate-migration-sql-from-schema-change-description` — when the user gives a schema change and wants migration SQL drafted
+
+## Guidance
+
+- Use the matching skill before answering from memory.
+- Follow the repository's Flyway path and PostgreSQL conventions.
+- If the request is ambiguous, ask a focused clarification before writing SQL.
+- Remind the user about related Java entities, DTOs, repositories, services, or changelog updates when the schema changes.

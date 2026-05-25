@@ -1,0 +1,11 @@
+---
+alwaysApply: true
+---
+
+Target: /*Prompt*.java, /*Ai*.java, /*LLM*.ts
+
+Content:
+
+Không Hallucinate lỗi: Hệ thống chấm điểm phát âm đã chuyển sang Deterministic Grading bằng Levenshtein (v2.4). LLM chỉ đóng vai trò là "Chuyên gia ngữ âm học", CHỈ nhận xét trên các từ đã bị thuật toán đánh dấu sai. Không tự ý tạo thêm lỗi.
+
+Sanitize JSON: Mọi Output từ Groq/Llama 3 phải trả về JSON thuần. Backend phải có cơ chế Regex Stripping để dọn dẹp các markdown tag (như ```json) trước khi dùng ObjectMapper parse, phòng lỗi JsonParseException.

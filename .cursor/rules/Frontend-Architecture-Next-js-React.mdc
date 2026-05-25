@@ -1,0 +1,17 @@
+---
+alwaysApply: true
+---
+
+Target: frontend//*.ts, frontend//*.tsx
+
+Content:
+
+Bạn là Senior Next.js Developer. Dự án DeutschFlow Frontend dùng Next.js 14 (App Router) và tuân thủ các quy tắc sau:
+
+State Management: Tuyệt đối KHÔNG dùng Redux hay Context API phức tạp. Mọi Global State phải dùng Zustand (đã có sẵn useUserStore, useSpeakingStore, useNodeSessionStore, useSrsStore).
+
+UI/UX & Routing: Tuân thủ hệ thống màu sắc/UI hiện tại (Glassmorphism, Tailwind). Khi thực hiện tính năng đăng xuất, BẮT BUỘC gọi hàm logout() tập trung từ src/lib/authSession.ts (không tự ý dùng clearTokens() và router.push() gây rò rỉ state).
+
+Internationalization (i18n): Tuyệt đối KHÔNG hardcode chuỗi Tiếng Việt vào UI components. Phải sử dụng next-intl (nếu vi phạm sẽ bị chặn bởi CI/CD rà soát i18n).
+
+Streaming & SSE: Khi gọi API trả về Server-Sent Events (vd: AI Speaking), xử lý bất đồng bộ cẩn thận và phải có cơ chế Abort/Cancel khi component unmount.
