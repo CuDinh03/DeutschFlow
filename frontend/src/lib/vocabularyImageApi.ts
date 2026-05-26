@@ -30,7 +30,7 @@ export async function fetchVocabularyImageReview(wordId: number, limit = 8) {
 
 export async function approveVocabularyImageReview(
   wordId: number,
-  payload: { unsplashId: string; decision: 'APPROVE'; personaStyle?: string },
+  payload: { unsplashId: string; decision: 'APPROVE'; personaStyle?: string; imageUrl?: string },
 ) {
   const res = await api.post(`/api/v2/admin/vocabulary/images/review/${wordId}/approve`, payload)
   return res.data

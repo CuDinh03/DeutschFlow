@@ -29,7 +29,7 @@ public class VocabularyImageReviewService {
         String baseForm = String.valueOf(row.get("base_form"));
         String dtype = String.valueOf(row.get("dtype"));
         String meaning = String.valueOf(row.get("meaning"));
-        String queryUsed = buildQuery(baseForm, meaning, dtype, "DEFAULT");
+        String queryUsed = buildQuery(baseForm, meaning);
 
         UnsplashImageService unsplashImageService = unsplashImageServiceProvider.getIfAvailable();
         if (unsplashImageService == null) {
@@ -64,30 +64,28 @@ public class VocabularyImageReviewService {
             throw new BadRequestException("Only APPROVE is supported in the first review flow iteration");
         }
 
-        Map<String, Object> row = jdbcTemplate.queryForMap("SELECT base_form, dtype, COALESCE(meaning, '') AS meaning FROM words WHERE id = ?", wordId);
+        Map<String, Object> row = jdbcTemplate.queryForMap("SELECT base_form, COALESCE(meaning, '') AS meaning FROM words WHERE id = ?", wordId);
         String baseForm = String.valueOf(row.get("base_form"));
-        String dtype = String.valueOf(row.get("dtype"));
-        String meaning = String.valueOf(row.get("meaning"));
+        String personaStyle = request.personaStyle() != null ? request.personaStyle() : "DEFAULT";
+        String prompt = "unsplashId=" + request.unsplashId() + "; personaStyle=" + personaStyle;
 
+        // Fast path: frontend sends imageUrl from already-loaded review — no extra Unsplash API call needed.
+        if (request.imageUrl() != null && !request.imageUrl().isBlank()) {
+            return generatorService.generateFromUrl(wordId, baseForm, request.imageUrl(), personaStyle, prompt);
+        }
+
+        // Fallback: re-search Unsplash by unsplashId (legacy callers without imageUrl).
+        String meaning = String.valueOf(row.get("meaning"));
         VocabularyImageReviewItem selected = review(wordId, 10).suggestions().stream()
                 .filter(item -> request.unsplashId().equals(item.unsplashId()))
                 .findFirst()
-                .orElseThrow(() -> new NotFoundException("Unsplash suggestion not found: " + request.unsplashId()));
-
-        return generatorService.generateAndApply(
-                wordId,
-                baseForm,
-                meaning,
-                dtype,
-                request.personaStyle());
+                .orElseThrow(() -> new NotFoundException("Unsplash image not found in search results: " + request.unsplashId()));
+        return generatorService.generateFromUrl(wordId, baseForm, selected.fullUrl(), personaStyle, prompt);
     }
 
-    private String buildQuery(String baseForm, String meaning, String dtype, String personaStyle) {
-        return String.join(" ",
-                nullToEmpty(baseForm),
-                nullToEmpty(meaning),
-                nullToEmpty(dtype),
-                nullToEmpty(personaStyle)).trim();
+    private String buildQuery(String baseForm, String meaning) {
+        String m = nullToEmpty(meaning);
+        return (nullToEmpty(baseForm) + (m.isBlank() ? "" : " " + m)).trim();
     }
 
     private String nullToEmpty(String value) {

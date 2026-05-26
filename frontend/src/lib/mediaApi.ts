@@ -89,6 +89,20 @@ export async function previewVocabularyImageBatch(
   return res.data
 }
 
+export type WordInfo = {
+  id: number
+  base_form: string
+  cefr_level: string
+  dtype: string
+  image_url: string | null
+}
+
+export async function getVocabWordInfo(ids: number[]): Promise<WordInfo[]> {
+  if (!ids.length) return []
+  const res = await api.get('/v2/admin/vocabulary/images/batch/word-info', { params: { ids: ids.join(',') } })
+  return res.data as WordInfo[]
+}
+
 export async function generateVocabularyImageBatch(
   limit = 20,
   personaStyle = 'DEFAULT',

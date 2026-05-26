@@ -111,6 +111,13 @@ public class VocabularyImageBatchService {
         return count == null ? 0 : count;
     }
 
+    public List<Map<String, Object>> getWordInfoByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) return List.of();
+        String placeholders = String.join(",", java.util.Collections.nCopies(ids.size(), "?"));
+        String sql = "SELECT id, base_form, cefr_level, dtype, image_url FROM words WHERE id IN (" + placeholders + ") ORDER BY id";
+        return jdbcTemplate.queryForList(sql, ids.toArray());
+    }
+
     public Map<String, Object> buildPromptContext(long wordId, String baseForm, String meaning, String dtype, String personaStyle) {
         return Map.of(
                 "wordId", wordId,

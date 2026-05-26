@@ -24,8 +24,6 @@ import {
   WiktionaryBatchPanel,
   ResetReimportPanel
 } from './components/VocabBatchActions'
-import { previewVocabularyImageBatch } from '@/lib/mediaApi'
-
 const PAGE_SIZE = 25
 
 export default function VocabularyAdminPage() {
@@ -43,7 +41,6 @@ export default function VocabularyAdminPage() {
 
   const [activeWord, setActiveWord] = useState<WordItem | null>(null)
   const [enrichingId, setEnrichingId] = useState<number | null>(null)
-  const [batchPreview, setBatchPreview] = useState<{ missingCount?: number; planned?: number; personaStyle?: string } | null>(null)
 
   // load tags for topic filter
   useEffect(() => {
@@ -179,25 +176,6 @@ export default function VocabularyAdminPage() {
 
         {/* Unsplash batch auto-assign */}
         <VocabularyBatchImagePanel />
-
-        {/* Batch preview for AI-generated vocabulary images */}
-        <div className="bg-white rounded-[16px] border border-[#E2E8F0] shadow-sm p-4 flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold text-[#0F172A]">Sinh ảnh từ vựng theo persona</p>
-            <p className="text-xs text-[#94A3B8]">Dùng AI cho từ chưa có ảnh, personal image vẫn giữ nguyên</p>
-            {batchPreview && (
-              <p className="text-xs text-[#64748B] mt-1">
-                Planned: {batchPreview.planned ?? 0} · Missing: {batchPreview.missingCount ?? 0} · Style: {batchPreview.personaStyle ?? 'DEFAULT'}
-              </p>
-            )}
-          </div>
-          <button
-            onClick={async () => setBatchPreview(await previewVocabularyImageBatch(20, 'PERSONA_DEFAULT'))}
-            className="px-4 py-2 rounded-[10px] bg-[#121212] text-white text-sm font-semibold hover:opacity-90"
-          >
-            Preview batch
-          </button>
-        </div>
 
       </div>
 

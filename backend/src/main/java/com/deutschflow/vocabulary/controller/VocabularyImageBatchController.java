@@ -12,6 +12,9 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v2/admin/vocabulary/images/batch")
@@ -35,6 +38,12 @@ public class VocabularyImageBatchController {
                 batchService.countMissingImages(cefr, dtype, tag),
                 missingWordIds
         ));
+    }
+
+    @GetMapping("/word-info")
+    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
+    public ResponseEntity<List<Map<String, Object>>> wordInfo(@RequestParam List<Long> ids) {
+        return ResponseEntity.ok(batchService.getWordInfoByIds(ids));
     }
 
     @PostMapping("/generate")

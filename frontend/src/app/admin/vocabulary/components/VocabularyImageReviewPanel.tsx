@@ -16,18 +16,20 @@ export default function VocabularyImageReviewPanel({ selectedWord, onOpenEdit }:
   const [autoLoading, setAutoLoading] = useState(false)
   const [review, setReview] = useState<VocabularyImageReviewResponse | null>(null)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const [selectedUnsplashId, setSelectedUnsplashId] = useState('')
   const [personaStyle, setPersonaStyle] = useState('DEFAULT')
   const [saving, setSaving] = useState(false)
   const panelRef = useRef<HTMLDivElement | null>(null)
   const searchInputRef = useRef<HTMLInputElement | null>(null)
 
-  const currentWordId = Number(wordId)
-
   useEffect(() => {
     if (selectedWord?.id) {
       setWordId(String(selectedWord.id))
       setSelectedUnsplashId('')
+      setReview(null)
+      setError('')
+      setSuccess('')
       window.requestAnimationFrame(() => {
         panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
         searchInputRef.current?.focus({ preventScroll: true })
@@ -38,6 +40,7 @@ export default function VocabularyImageReviewPanel({ selectedWord, onOpenEdit }:
   const loadReviewForWord = async (id: number) => {
     setLoading(true)
     setError('')
+    setSuccess('')
     try {
       setReview(await fetchVocabularyImageReview(id, 8))
       setSelectedUnsplashId('')
@@ -45,16 +48,16 @@ export default function VocabularyImageReviewPanel({ selectedWord, onOpenEdit }:
         panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       })
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Không tải được review')
+      setError(e?.response?.data?.detail || e?.response?.data?.message || 'Không tải được review')
     } finally {
       setLoading(false)
     }
   }
 
   const loadReview = async () => {
-    const id = currentWordId
+    const id = Number(wordId)
     if (!id || !Number.isFinite(id) || id <= 0) {
-      setError('Chọn từ từ bảng hoặc dùng auto tìm từ thiếu ảnh')
+      setError('Nhập word ID hoặc chọn từ bảng, hoặc dùng "Auto next missing"')
       return
     }
     await loadReviewForWord(id)
@@ -63,17 +66,18 @@ export default function VocabularyImageReviewPanel({ selectedWord, onOpenEdit }:
   const autoFindNextMissing = async () => {
     setAutoLoading(true)
     setError('')
+    setSuccess('')
     try {
       const batch = await previewVocabularyImageBatch(1, personaStyle)
       const nextId = batch?.missingWordIds?.[0]
       if (!nextId) {
-        setError('Không còn từ nào thiếu ảnh')
+        setError('Không còn từ nào thiếu ảnh 🎉')
         return
       }
       setWordId(String(nextId))
       await loadReviewForWord(nextId)
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Không thể tự tìm từ thiếu ảnh')
+      setError(e?.response?.data?.detail || e?.response?.data?.message || 'Không thể tự tìm từ thiếu ảnh')
     } finally {
       setAutoLoading(false)
     }
@@ -81,19 +85,26 @@ export default function VocabularyImageReviewPanel({ selectedWord, onOpenEdit }:
 
   const approve = async () => {
     if (!review || !selectedUnsplashId) return
+    const selectedItem = review.suggestions.find((s) => s.unsplashId === selectedUnsplashId)
+    if (!selectedItem) return
+
     setSaving(true)
     setError('')
+    setSuccess('')
     try {
       await approveVocabularyImageReview(review.wordId, {
         unsplashId: selectedUnsplashId,
         decision: 'APPROVE',
         personaStyle,
+        imageUrl: selectedItem.fullUrl,
       })
+      setSuccess(`Đã lưu ảnh cho "${review.baseForm}" ✓`)
       setReview(null)
       setSelectedUnsplashId('')
-      setError('Đã lưu ảnh Unsplash thành công')
+      // Auto-load next missing word
+      await autoFindNextMissing()
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Không thể approve ảnh')
+      setError(e?.response?.data?.detail || e?.response?.data?.message || 'Không thể approve ảnh')
     } finally {
       setSaving(false)
     }
@@ -109,7 +120,7 @@ export default function VocabularyImageReviewPanel({ selectedWord, onOpenEdit }:
         <div className="flex items-center gap-2 flex-wrap">
           {selectedWord && (
             <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
-              Selected: {selectedWord.id} · {selectedWord.baseForm}
+              {selectedWord.id} · {selectedWord.baseForm}
             </span>
           )}
           <select
@@ -130,9 +141,9 @@ export default function VocabularyImageReviewPanel({ selectedWord, onOpenEdit }:
       <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-2">
         <input
           ref={searchInputRef}
-          value={selectedWord ? String(selectedWord.id) : wordId}
-          onChange={(e) => setWordId(e.target.value)}
-          placeholder="wordId"
+          value={wordId}
+          onChange={(e) => { setWordId(e.target.value); setReview(null) }}
+          placeholder="Word ID"
           className="w-full rounded-[12px] border border-[#CBD5E1] px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400"
         />
         <button
@@ -144,7 +155,7 @@ export default function VocabularyImageReviewPanel({ selectedWord, onOpenEdit }:
         </button>
         <button
           onClick={autoFindNextMissing}
-          disabled={autoLoading}
+          disabled={autoLoading || saving}
           className="px-4 py-2.5 rounded-[12px] bg-indigo-600 text-white text-sm font-semibold disabled:opacity-60"
         >
           {autoLoading ? 'Đang tìm...' : 'Auto next missing'}
@@ -152,16 +163,21 @@ export default function VocabularyImageReviewPanel({ selectedWord, onOpenEdit }:
       </div>
 
       {error && <p className="text-sm text-rose-600">{error}</p>}
+      {success && <p className="text-sm text-emerald-600">{success}</p>}
 
       {review && (
         <div className="space-y-4">
           <div className="rounded-[16px] bg-slate-50 border border-slate-200 p-4 text-sm text-[#475569] space-y-1">
-            <p><span className="font-semibold">Base form:</span> {review.baseForm}</p>
-            <p><span className="font-semibold">Meaning:</span> {review.meaning}</p>
-            <p><span className="font-semibold">Query:</span> {review.queryUsed}</p>
+            <p><span className="font-semibold">Word:</span> {review.baseForm} <span className="text-slate-400 text-xs">({review.dtype})</span></p>
+            <p><span className="font-semibold">Nghĩa:</span> {review.meaning}</p>
+            <p><span className="font-semibold">Query Unsplash:</span> <code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded">{review.queryUsed}</code></p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {review.suggestions.length === 0 && (
+            <p className="text-sm text-slate-500">Không tìm thấy ảnh phù hợp trên Unsplash.</p>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             {review.suggestions.map((item) => {
               const selected = selectedUnsplashId === item.unsplashId
               return (
@@ -178,25 +194,23 @@ export default function VocabularyImageReviewPanel({ selectedWord, onOpenEdit }:
                       className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300"
                     />
                     {selected && (
-                      <div className="absolute inset-0 bg-indigo-600/10 flex items-start justify-end p-3">
+                      <div className="absolute inset-0 bg-indigo-600/10 flex items-start justify-end p-2">
                         <span className="inline-flex items-center rounded-full bg-indigo-600 text-white text-[10px] font-bold px-2 py-1 shadow">
-                          Selected
+                          ✓ Chọn
                         </span>
                       </div>
                     )}
                   </div>
-                  <div className="p-4 space-y-2">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-900 truncate">{item.photographerName || 'Unsplash'}</p>
-                      <p className="text-xs text-slate-500 line-clamp-2">{item.altText || item.description || 'No description'}</p>
-                    </div>
-                    <div className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
+                  <div className="p-3 space-y-1">
+                    <p className="text-xs font-semibold text-slate-900 truncate">{item.photographerName || 'Unsplash'}</p>
+                    <p className="text-[11px] text-slate-500 line-clamp-2">{item.altText || item.description || 'No description'}</p>
+                    <div className="flex items-center justify-between gap-1 text-[10px] text-slate-400">
                       <span className="truncate">{item.unsplashId}</span>
                       <a
                         href={item.pageUrl || item.fullUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-indigo-600 hover:text-indigo-700 font-semibold"
+                        className="text-indigo-600 hover:text-indigo-700 font-semibold shrink-0"
                         onClick={(e) => e.stopPropagation()}
                       >
                         Open
@@ -211,9 +225,9 @@ export default function VocabularyImageReviewPanel({ selectedWord, onOpenEdit }:
           <button
             onClick={approve}
             disabled={saving || !selectedUnsplashId}
-            className="px-4 py-2.5 rounded-[12px] bg-indigo-600 text-white text-sm font-semibold disabled:opacity-60"
+            className="px-5 py-2.5 rounded-[12px] bg-indigo-600 text-white text-sm font-semibold disabled:opacity-60 transition-opacity"
           >
-            {saving ? 'Đang lưu...' : 'Approve & Save'}
+            {saving ? 'Đang lưu...' : `Approve & Save → Auto next`}
           </button>
         </div>
       )}

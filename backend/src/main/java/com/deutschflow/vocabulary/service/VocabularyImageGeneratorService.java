@@ -26,9 +26,24 @@ public class VocabularyImageGeneratorService {
 
     @Transactional
     public MediaAsset generateAndApply(long wordId, String baseForm, String meaning, String dtype, String personaStyle) {
-        String query = buildQuery(baseForm, meaning, dtype, personaStyle);
+        String query = buildQuery(baseForm, meaning);
         String prompt = buildPrompt(baseForm, meaning, dtype, personaStyle);
         return generateAndApply(wordId, baseForm, meaning, dtype, personaStyle, query, null, prompt);
+    }
+
+    /** Download a specific image directly by URL (no Unsplash re-search needed). */
+    @Transactional
+    public MediaAsset generateFromUrl(long wordId, String baseForm, String imageUrl, String personaStyle, String prompt) {
+        byte[] bytes = downloadImageBytes(imageUrl);
+        String contentType = detectContentType(imageUrl, bytes);
+        MultipartFile imageFile = new InMemoryImageFile(
+                bytes,
+                baseForm + "-unsplash",
+                contentType,
+                baseForm + "." + extensionFromContentType(contentType));
+        MediaAsset asset = mediaAssetService.uploadMedia(imageFile, "VOCABULARY", "word-" + wordId, baseForm, null);
+        vocabularyImageService.applyGeneratedImage(wordId, asset, personaStyle, prompt);
+        return asset;
     }
 
     @Transactional
@@ -91,12 +106,9 @@ public class VocabularyImageGeneratorService {
         return asset;
     }
 
-    private String buildQuery(String baseForm, String meaning, String dtype, String personaStyle) {
-        return String.join(" ",
-                nullToEmpty(baseForm),
-                nullToEmpty(meaning),
-                nullToEmpty(dtype),
-                nullToEmpty(personaStyle)).trim();
+    private String buildQuery(String baseForm, String meaning) {
+        String m = nullToEmpty(meaning);
+        return (nullToEmpty(baseForm) + (m.isBlank() ? "" : " " + m)).trim();
     }
 
     private String buildPrompt(String baseForm, String meaning, String dtype, String personaStyle) {
@@ -104,7 +116,7 @@ public class VocabularyImageGeneratorService {
     }
 
     private String normalizeQueryFallback(String queryUsed, String baseForm, String meaning, String dtype, String personaStyle) {
-        String fallback = buildQuery(baseForm, meaning, dtype, personaStyle);
+        String fallback = buildQuery(baseForm, meaning);
         return queryUsed == null || queryUsed.isBlank() ? fallback : queryUsed.trim();
     }
 
