@@ -252,12 +252,23 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
 
     private void enforceSessionCreationCooldown(Long userId) {
         List<AiSpeakingSession> recent = sessionRepository.findTop7ByUserIdOrderByStartedAtDesc(userId);
-        if (!recent.isEmpty()) {
-            LocalDateTime lastCreated = recent.get(0).getStartedAt();
-            if (lastCreated != null && java.time.Duration.between(lastCreated, LocalDateTime.now()).toSeconds() < 5) {
-                throw new ConflictException("Vui lòng chờ vài giây trước khi tạo phiên mới.");
-            }
+        if (recent.isEmpty()) return;
+
+        AiSpeakingSession last = recent.get(0);
+        LocalDateTime lastCreated = last.getStartedAt();
+        if (lastCreated == null) return;
+        if (java.time.Duration.between(lastCreated, LocalDateTime.now()).toSeconds() >= 5) return;
+
+        // Skip cooldown for instant-failed sessions (greeting error → ENDED within 10s).
+        // The comment in createSession's catch block promises retries are unblocked after a
+        // greeting failure — this is the enforcement of that promise.
+        if (last.getStatus() == SessionStatus.ENDED
+                && last.getEndedAt() != null
+                && java.time.Duration.between(last.getStartedAt(), last.getEndedAt()).toSeconds() < 10) {
+            return;
         }
+
+        throw new ConflictException("Vui lòng chờ vài giây trước khi tạo phiên mới.");
     }
 
     private void validateCreateSessionRequest(SpeakingSessionMode sessionMode,
