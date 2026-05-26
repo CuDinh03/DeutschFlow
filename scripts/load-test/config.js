@@ -5,12 +5,17 @@
 export const BASE_URL = 'https://api.mydeutschflow.com';
 
 // 5 test accounts — phải tạo trước trên production
+// Set LOADTEST_PASSWORD via env: K6_ENV=LOADTEST_PASSWORD=... k6 run ...
+const LOADTEST_PASSWORD = __ENV.LOADTEST_PASSWORD;
+if (!LOADTEST_PASSWORD) {
+  throw new Error('LOADTEST_PASSWORD env var is required. Pass via --env LOADTEST_PASSWORD=<value>');
+}
 export const USERS = [
-  { email: 'loadtest01@test.com', password: 'LoadTest2026!' },
-  { email: 'loadtest02@test.com', password: 'LoadTest2026!' },
-  { email: 'loadtest03@test.com', password: 'LoadTest2026!' },
-  { email: 'loadtest04@test.com', password: 'LoadTest2026!' },
-  { email: 'loadtest05@test.com', password: 'LoadTest2026!' },
+  { email: 'loadtest01@test.com', password: LOADTEST_PASSWORD },
+  { email: 'loadtest02@test.com', password: LOADTEST_PASSWORD },
+  { email: 'loadtest03@test.com', password: LOADTEST_PASSWORD },
+  { email: 'loadtest04@test.com', password: LOADTEST_PASSWORD },
+  { email: 'loadtest05@test.com', password: LOADTEST_PASSWORD },
 ];
 
 // German conversation messages — realistic A1/A2 level
