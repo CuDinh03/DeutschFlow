@@ -65,9 +65,10 @@ public class SecurityConfig {
                         .permissionsPolicy(p -> p.policy("geolocation=(), microphone=(), camera=()"))
                 )
                 .authorizeHttpRequests(auth -> {
-                        // SSE/async continuations reuse SecurityContext from the initial request — do not treat
-                        // this as weakening auth; regression-test streaming endpoints if changing the filter chain.
-                        auth.dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll();
+                        // ASYNC: SSE/async continuations reuse SecurityContext from the initial request.
+                        // ERROR: Spring forwards to /error on unhandled exceptions — must permitAll or the
+                        // security filter returns 401 instead of the actual error response, masking root causes.
+                        auth.dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll();
                         // Auth endpoints: only login/register/refresh are public
                         auth.requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/refresh").permitAll();
                         auth.requestMatchers("/api/auth/logout").authenticated();

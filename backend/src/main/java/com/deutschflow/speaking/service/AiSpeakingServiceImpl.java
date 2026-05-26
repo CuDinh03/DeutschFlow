@@ -194,6 +194,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
                                               Long assignmentId) {
         Instant start = Instant.now();
         boolean failed = false;
+        AiSpeakingSession session = null;
         try {
             guardActiveSessions(userId);
             enforceSessionCreationCooldown(userId);
@@ -204,7 +205,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
             SpeakingResponseSchema responseSchema = SpeakingResponseSchema.fromApi(responseSchemaRaw);
             SpeakingSessionMode sessionMode = SpeakingSessionMode.fromApi(sessionModeRaw);
             validateCreateSessionRequest(sessionMode, interviewPosition, experienceLevel, personaRaw, responseSchemaRaw);
-            AiSpeakingSession session = buildSpeakingSession(userId, topic, resolved, persona, responseSchema,
+            session = buildSpeakingSession(userId, topic, resolved, persona, responseSchema,
                     sessionMode, interviewPosition, experienceLevel, assignmentId);
             session = sessionRepository.save(session);
 
@@ -214,6 +215,20 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
             return toSessionDto(session, greeting);
         } catch (RuntimeException e) {
             failed = true;
+            // If session was already persisted as ACTIVE and greeting failed,
+            // mark it ENDED immediately so the next retry is not blocked by guardActiveSessions
+            // or the 5-second cooldown finding a phantom ACTIVE session.
+            if (session != null && session.getId() != null && session.getStatus() == SessionStatus.ACTIVE) {
+                log.warn("[createSession] greeting failed for session {} (user {}) — marking ENDED to unblock retries",
+                        session.getId(), userId);
+                session.setStatus(SessionStatus.ENDED);
+                session.setEndedAt(LocalDateTime.now());
+                try {
+                    sessionRepository.save(session);
+                } catch (Exception saveEx) {
+                    log.warn("[createSession] Could not mark session {} as ENDED after greeting failure", session.getId(), saveEx);
+                }
+            }
             throw e;
         } finally {
             speakingMetrics.recordChatRequest("create_session", failed ? "error" : "ok");

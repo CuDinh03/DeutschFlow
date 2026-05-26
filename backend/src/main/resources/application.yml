@@ -15,6 +15,14 @@ spring:
   application:
     name: deutschflow-backend
 
+  jackson:
+    # Serialize LocalDateTime/Instant as ISO-8601 string, not as numeric timestamp.
+    # Required for GlobalExceptionHandler.ProblemDetail.timestamp (LocalDateTime) to serialize correctly.
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      fail-on-unknown-properties: false
+
   # Graceful shutdown: Spring Boot stops accepting new requests immediately
   # but waits for in-flight requests to complete before shutting down.
   # This pairs with `docker stop --time=30` in the Blue-Green deploy script.
