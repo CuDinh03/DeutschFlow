@@ -33,6 +33,9 @@ services:
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
+      # Zero-downtime key rotation: set JWT_SECRET_PREVIOUS = secret cũ khi đổi JWT_SECRET.
+      # Sau ≥ 15 phút (access token cũ hết hạn), bỏ biến này. Tránh SignatureException sau deploy.
+      - JWT_SECRET_PREVIOUS=${JWT_SECRET_PREVIOUS:-}
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
       - AI_CHAT_PROVIDER=${AI_CHAT_PROVIDER}
       - GROQ_API_KEY=${GROQ_API_KEY}
@@ -68,8 +71,10 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        # Backend URL mà frontend gọi API (nội bộ container: dùng service name)
-        NEXT_PUBLIC_BACKEND_URL: http://backend:8080
+        # Backend URL mà BROWSER gọi API — phải là public HTTPS URL, không phải Docker-internal.
+        # http://backend:8080 chỉ đúng cho SSR server-to-server; NEXT_PUBLIC_ được bake vào JS bundle
+        # và chạy trong browser, nên phải dùng URL public.
+        NEXT_PUBLIC_BACKEND_URL: ${NEXT_PUBLIC_BACKEND_URL}
         # PostHog Analytics — truyền vào lúc build để Next.js bundle được
         NEXT_PUBLIC_POSTHOG_KEY: ${NEXT_PUBLIC_POSTHOG_KEY}
         NEXT_PUBLIC_POSTHOG_HOST: ${NEXT_PUBLIC_POSTHOG_HOST:-https://us.i.posthog.com}
