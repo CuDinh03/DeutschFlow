@@ -1,6 +1,5 @@
 package com.deutschflow.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -31,11 +30,6 @@ public class UnsplashConfig {
                 .defaultHeader("Authorization", "Client-ID " + props.accessKey().trim())
                 .defaultHeader("Accept-Version", "v1")
                 .build();
-    }
-
-    @Bean
-    public ObjectMapper unsplashObjectMapper() {
-        return new ObjectMapper();
     }
 
     private ClientHttpRequestFactory unsplashRequestFactory(UnsplashProperties props) {
