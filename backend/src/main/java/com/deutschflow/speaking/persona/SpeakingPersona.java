@@ -25,6 +25,12 @@ public enum SpeakingPersona {
     EMMA,
 
     /**
+     * Anna — warm everyday German tutor: Hamburg Alltag, practical conversation, patient teaching.
+     * Shares Emma's prompt implementation (everyday-life persona).
+     */
+    ANNA,
+
+    /**
      * Hanna — warm, eco-minded German: parks, Wochenmarkt, green mobility, low-waste lifestyle.
      */
     HANNA,
@@ -77,6 +83,7 @@ public enum SpeakingPersona {
             case DEFAULT -> "DeutschFlow Interviewer";
             case LUKAS -> "Lukas";
             case EMMA -> "Emma";
+            case ANNA -> "Anna";
             case HANNA -> "Hanna";
             case KLAUS -> "Klaus";
             case LENA -> "Lena";
@@ -103,7 +110,7 @@ public enum SpeakingPersona {
         return switch (this) {
             case DEFAULT -> "";
             case LUKAS -> lukasSection(userLevel);
-            case EMMA -> emmaSection(userLevel);
+            case EMMA, ANNA -> emmaSection(userLevel);
             case HANNA -> hannaSection(userLevel);
             case KLAUS -> klausSection(userLevel);
             case LENA -> verkaufSection("Lena", "Supermarktmitarbeiterin", "Supermarkt, Kasse, Regale, Produkte, Angebote", userLevel);
@@ -146,7 +153,7 @@ public enum SpeakingPersona {
         return switch (this) {
             case DEFAULT -> defaultGreeting(t, industry, weakPointsStr);
             case LUKAS -> lukasGreeting(t, industry, weakPointsStr);
-            case EMMA -> emmaGreeting(t, industry, weakPointsStr);
+            case EMMA, ANNA -> emmaGreeting(t, industry, weakPointsStr);
             case HANNA -> hannaGreeting(t, industry, weakPointsStr);
             case KLAUS -> klausGreeting(t, industry, weakPointsStr);
             case LENA, THOMAS, PETRA -> verkaufGreeting(this, t, industry, weakPointsStr);
@@ -166,7 +173,7 @@ public enum SpeakingPersona {
         return switch (p) {
             case DEFAULT -> defaultInterviewGreeting(pos, industry, weakPointsStr);
             case LUKAS -> lukasInterviewGreeting(pos, industry, weakPointsStr);
-            case EMMA -> emmaInterviewGreeting(pos, industry, weakPointsStr);
+            case EMMA, ANNA -> emmaInterviewGreeting(pos, industry, weakPointsStr);
             case HANNA -> hannaInterviewGreeting(pos, industry, weakPointsStr);
             case KLAUS -> klausInterviewGreeting(pos, industry, weakPointsStr);
             case LENA, THOMAS, PETRA -> verkaufInterviewGreeting(p, pos, industry, weakPointsStr);

@@ -605,7 +605,7 @@ public class SystemPromptBuilder {
         return switch (persona) {
             case DEFAULT -> "Allgemeines Interview: klare Eröffnung, Selbstvorstellung, Motivationsfrage, relevante Erfahrung, STAR, Abschluss. Position: " + positionHint + ". Niveau: " + level + ".";
             case LUKAS -> "Tech-Interview: API-Design, Architektur, Datenmodell, Testing, Debugging, Skalierung, Trade-offs. Frage hart nach konkreten Implementierungen. Position: " + positionHint + ". Niveau: " + level + ".";
-            case EMMA -> "Business-Interview: Akquise, Kundenbeziehung, Verhandlung, CRM, KPI, Präsentation, Marktverständnis. Erwarte konkrete Erfolge und messbare Wirkung. Position: " + positionHint + ". Niveau: " + level + ".";
+            case EMMA, ANNA -> "Business-Interview: Akquise, Kundenbeziehung, Verhandlung, CRM, KPI, Präsentation, Marktverständnis. Erwarte konkrete Erfolge und messbare Wirkung. Position: " + positionHint + ". Niveau: " + level + ".";
             case HANNA -> "Karriere-/Education-Interview: Organisation, Studienplanung, Priorisierung, interkulturelle Kommunikation, Stress, Lernfähigkeit. Prüfe Reflexion und Struktur. Position: " + positionHint + ". Niveau: " + level + ".";
             case KLAUS -> "Gastro-Interview: mise en place, Hygiene, Servicedruck, Teamführung, Warenwirtschaft, Menükalkulation, Qualität, Stressresistenz. Frage nach realen Küchensituationen. Position: " + positionHint + ". Niveau: " + level + ".";
             case LENA -> "Retail-Interview: Kundenberatung, Kasse, Warenpräsentation, Reklamation, Inventory, Teamarbeit, Verkaufsroutine. Position: " + positionHint + ". Niveau: " + level + ".";
