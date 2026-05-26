@@ -18,7 +18,7 @@
 set -euo pipefail
 
 # ── Cấu hình ──────────────────────────────────────────────────
-readonly PEM_KEY="/Users/dinhcu/Desktop/DeutschFlow/deutschflow-key.pem"
+readonly PEM_KEY="/Users/dinhcu/Developer/DeutschFlow/deutschflow-key.pem"
 readonly EC2_HOST="ubuntu@35.175.232.152"
 readonly EC2_DIR="/home/ubuntu/DeutschFlow"
 readonly LOCAL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
