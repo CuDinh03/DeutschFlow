@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -113,7 +114,7 @@ public class GlobalExceptionHandler {
                 HttpStatus.TOO_MANY_REQUESTS.value(),
                 ex.getMessage(),
                 request.getRequestURI(),
-                LocalDateTime.now(),
+                LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
                 null,
                 Map.of("retryAfterSeconds", retryAfter)
         );
@@ -153,7 +154,7 @@ public class GlobalExceptionHandler {
                 status.value(),
                 detail,
                 instance,
-                LocalDateTime.now(),
+                LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
                 errors,
                 extensions
         );
@@ -170,7 +171,7 @@ public class GlobalExceptionHandler {
             int status,
             String detail,
             String instance,
-            LocalDateTime timestamp,
+            String timestamp,
             Map<String, String> errors,           // nullable
             Map<String, Object> extensions        // nullable
     ) {}
