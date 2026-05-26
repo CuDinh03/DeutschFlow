@@ -425,7 +425,7 @@ export default function TeacherQuizzesPage() {
                       <div>
                         <p className="font-bold text-purple-900 mb-1">Chế độ chấm điểm tự động</p>
                         <p className="text-sm text-purple-700 leading-relaxed">
-                          Bài tập Nói AI không cần bạn phải thêm câu hỏi thủ công. Trí tuệ nhân tạo sẽ đóng vai người phỏng vấn, tự động điều phối cuộc trò chuyện với học viên dựa trên chủ đề <strong>"{q.title}"</strong> và chấm điểm phát âm, ngữ pháp theo thời gian thực.
+                          Bài tập Nói AI không cần bạn phải thêm câu hỏi thủ công. Trí tuệ nhân tạo sẽ đóng vai người phỏng vấn, tự động điều phối cuộc trò chuyện với học viên dựa trên chủ đề <strong>{'"'}{q.title}{'"'}</strong> và chấm điểm phát âm, ngữ pháp theo thời gian thực.
                         </p>
                       </div>
                     </div>

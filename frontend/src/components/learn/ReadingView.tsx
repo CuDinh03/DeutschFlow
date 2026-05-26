@@ -26,7 +26,7 @@ function TranslateTooltip({
         <button type="button" onClick={onClose} className="text-[#94A3B8] hover:text-[#0F172A] text-xs">✕</button>
       </div>
       <p className="text-sm text-[#475569]">{vocab.meaning}</p>
-      {vocab.example_de && <p className="text-xs text-[#94A3B8] italic">"{vocab.example_de}"</p>}
+      {vocab.example_de && <p className="text-xs text-[#94A3B8] italic">{'"'}{vocab.example_de}{'"'}</p>}
       <div className="flex items-center gap-2 pt-1">
         <AudioButton text={vocab.speak_de} compact />
         <button

@@ -5,16 +5,13 @@ import com.deutschflow.aiimage.dto.AiImageGenerateResponse;
 import com.deutschflow.config.S3BucketContext;
 import com.deutschflow.media.dto.MediaAssetDto;
 import com.deutschflow.media.entity.MediaAsset;
-import com.deutschflow.media.repository.MediaAssetRepository;
-import com.deutschflow.media.service.S3StorageService;
+import com.deutschflow.media.service.MediaAssetService;
 import com.deutschflow.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.ByteArrayInputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -25,9 +22,8 @@ public class AiImageGenerationService {
 
     private final AiImagePromptBuilder promptBuilder;
     private final ObjectProvider<ImageGenerationProvider> providerProvider;
-    private final S3StorageService s3StorageService;
     private final S3BucketContext bucketContext;
-    private final MediaAssetRepository mediaAssetRepository;
+    private final MediaAssetService mediaAssetService;
 
     @Transactional
     public AiImageGenerateResponse generate(AiImageGenerateRequest request, User user) {
@@ -46,22 +42,16 @@ public class AiImageGenerationService {
             String s3Key = buildKey(request.preset(), request.style());
             String url = bucketContext.publicObjectUrl(s3Key);
 
-            MediaAsset asset = MediaAsset.builder()
-                    .s3Key(s3Key)
-                    .url(url)
-                    .originalName("ai-generated-" + UUID.randomUUID() + ".txt")
-                    .contentType(generated.contentType())
-                    .fileSize((long) generated.bytes().length)
-                    .category(request.preset().toUpperCase())
-                    .scope("SYSTEM")
-                    .source("AI_GENERATED")
-                    .style(request.style())
-                    .tag(null)
-                    .altText(request.prompt())
-                    .uploadedBy(user)
-                    .build();
-
-            mediaAssetRepository.save(asset);
+            MediaAsset asset = mediaAssetService.registerGeneratedAsset(
+                    s3Key, url,
+                    "ai-generated-" + UUID.randomUUID() + ".txt",
+                    generated.contentType(),
+                    (long) generated.bytes().length,
+                    request.preset().toUpperCase(),
+                    "SYSTEM", "AI_GENERATED",
+                    request.style(),
+                    request.prompt(),
+                    user);
             assets.add(MediaAssetDto.fromEntity(asset));
         }
 

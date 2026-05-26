@@ -330,7 +330,7 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
           <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
             <p className="text-xs font-bold text-[#64748B] uppercase mb-1">🎙️ Hệ thống nghe được:</p>
             {feedback.transcribed ? (
-              <p className="text-sm italic text-[#334155]">"{feedback.transcribed}"</p>
+              <p className="text-sm italic text-[#334155]">{'"'}{feedback.transcribed}{'"'}</p>
             ) : (
               <p className="text-sm text-red-500 font-medium">
                 [Không thu được tiếng — Vui lòng nói to và rõ hơn]

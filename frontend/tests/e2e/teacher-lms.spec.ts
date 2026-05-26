@@ -1,19 +1,17 @@
 import { test, expect } from '@playwright/test';
+import { teacherCookies, TEACHER_TOKEN } from '../helpers/tokens';
 
 test.describe('Teacher LMS Flow', () => {
   test.beforeEach(async ({ page }) => {
-    // Inject Next.js required cookies for auth as TEACHER
     await page.context().addCookies([
       { name: 'NEXT_LOCALE', value: 'vi', domain: 'localhost', path: '/' },
-      { name: 'auth_access', value: 'eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiVEVBQ0hFUiIsInN1YiI6IjIiLCJpYXQiOjE3Nzg5NDMxNjUsImV4cCI6MTc3OTAyOTU2NX0.F8Bt8I_VNf7HNOMDbpGwNaUyyXHOMY1qoPcUF19MgdM', domain: 'localhost', path: '/' },
-      { name: 'auth_role', value: 'TEACHER', domain: 'localhost', path: '/' },
-      { name: 'auth_logged_in', value: '1', domain: 'localhost', path: '/' }
+      ...teacherCookies(),
     ]);
 
     await page.goto('/teacher');
-    await page.evaluate(() => {
-      localStorage.setItem('accessToken', 'eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiVEVBQ0hFUiIsInN1YiI6IjIiLCJpYXQiOjE3Nzg5NDMxNjUsImV4cCI6MTc3OTAyOTU2NX0.F8Bt8I_VNf7HNOMDbpGwNaUyyXHOMY1qoPcUF19MgdM');
-    });
+    await page.evaluate((token) => {
+      localStorage.setItem('accessToken', token);
+    }, TEACHER_TOKEN);
     
     // Catch-all mock MUST be first
     await page.route('**/api/**', (route) => route.fulfill({

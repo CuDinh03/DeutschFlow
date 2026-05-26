@@ -140,10 +140,10 @@ export default function TutorProfilePage() {
           transition={{ delay: 0.2 }}
         >
           <p className="text-sm leading-relaxed text-[#334155]">
-            <span className="text-3xl font-black leading-none mr-1 text-[#FFCD00]">"</span>
+            <span className="text-3xl font-black leading-none mr-1 text-[#FFCD00]">&ldquo;</span>
             Tôi giải thích ngữ pháp như code sạch – cấu trúc, logic,
             có thể tái sử dụng. Học tiếng Đức không phải là một lỗi, mà là một tính năng.
-            <span className="text-3xl font-black leading-none ml-1 text-[#FFCD00]">"</span>
+            <span className="text-3xl font-black leading-none ml-1 text-[#FFCD00]">&rdquo;</span>
           </p>
           <p className="text-xs font-bold mt-2 text-[#94A3B8]">— Kai Müller, DeutschFlow AI Tutor</p>
         </motion.div>

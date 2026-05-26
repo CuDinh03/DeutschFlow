@@ -141,7 +141,7 @@ export function VocabCard({ vocab, autoPlay = false }: { vocab: VocabItem; autoP
              style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
           <p className="text-sm font-bold text-[#0F172A] mb-1 px-2 line-clamp-2">{vocab.meaning}</p>
           {vocab.example_de && (
-            <p className="text-xs text-[#475569] italic line-clamp-2 px-2 mt-1">"{vocab.example_de}"</p>
+            <p className="text-xs text-[#475569] italic line-clamp-2 px-2 mt-1">{'"'}{vocab.example_de}{'"'}</p>
           )}
           {vocab.example_vi && (
             <p className="text-[10px] text-[#94A3B8] line-clamp-2 mt-1 px-2">{vocab.example_vi}</p>

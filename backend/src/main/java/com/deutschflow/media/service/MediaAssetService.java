@@ -138,6 +138,32 @@ public class MediaAssetService {
         log.info("Successfully deleted media asset: {} (ID: {})", asset.getS3Key(), id);
     }
 
+    /**
+     * Persists metadata for an asset whose bytes were produced externally
+     * (e.g. AI image generation). The caller is responsible for uploading
+     * bytes to S3 before calling this method.
+     */
+    @Transactional
+    public MediaAsset registerGeneratedAsset(String s3Key, String url, String originalName,
+                                             String contentType, long fileSize, String category,
+                                             String scope, String source, String style,
+                                             String altText, User uploadedBy) {
+        MediaAsset asset = MediaAsset.builder()
+                .s3Key(s3Key)
+                .url(url)
+                .originalName(originalName)
+                .contentType(contentType)
+                .fileSize(fileSize)
+                .category(category)
+                .scope(scope)
+                .source(source)
+                .style(style)
+                .altText(altText)
+                .uploadedBy(uploadedBy)
+                .build();
+        return mediaAssetRepository.save(asset);
+    }
+
     @Transactional
     public MediaAsset updateMediaMetadata(Long id, String altText, String tag, User user) {
         MediaAsset asset = getMediaById(id);
