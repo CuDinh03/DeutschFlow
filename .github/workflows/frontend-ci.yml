@@ -37,6 +37,10 @@ jobs:
         working-directory: ./frontend
         run: npm run lint
 
+      - name: Unit Tests
+        working-directory: ./frontend
+        run: npm test
+
       - name: i18n Hardcoded String Check
         run: |
           chmod +x scripts/i18n/check_i18n.py
