@@ -39,7 +39,7 @@ jobs:
 
       - name: Unit Tests
         working-directory: ./frontend
-        run: npm test
+        run: npm test -- --coverage
 
       - name: i18n Hardcoded String Check
         run: |
