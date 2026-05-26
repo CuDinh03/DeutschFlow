@@ -222,7 +222,7 @@ export function SprechenTeil2Simulator({ onFinish }: { onFinish?: (score: number
               <div className="flex items-center justify-center gap-2 mb-2">
                 <Volume2 size={18} /> <span className="text-xs uppercase font-bold">Câu hỏi của AI</span>
               </div>
-              "{aiQuestion}"
+              {'"'}{aiQuestion}{'"'}
             </div>
             <p className="font-medium text-slate-700">Hãy đưa ra <span className="font-bold text-emerald-600">câu trả lời</span> của bạn.</p>
           </div>
@@ -266,13 +266,13 @@ export function SprechenTeil2Simulator({ onFinish }: { onFinish?: (score: number
                   </span>
                   <span className="font-black text-lg text-emerald-600">{ev.score}/10 điểm</span>
                 </div>
-                <p className="text-sm font-medium text-slate-700 italic mb-2">"{ev.transcript}"</p>
+                <p className="text-sm font-medium text-slate-700 italic mb-2">{'"'}{ev.transcript}{'"'}</p>
                 <div className="bg-white border-l-4 border-amber-400 p-3 text-sm text-slate-600">
                   <span className="font-bold text-amber-600">Phản hồi:</span> {ev.feedback}
                 </div>
                 {ev.aiResponse && (
                    <p className="text-sm mt-3 text-indigo-700 font-medium bg-indigo-50 p-2 rounded">
-                     <Volume2 size={14} className="inline mr-1" /> AI: "{ev.aiResponse}"
+                     <Volume2 size={14} className="inline mr-1" /> AI: {'"'}{ev.aiResponse}{'"'}
                    </p>
                 )}
               </div>

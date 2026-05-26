@@ -275,7 +275,7 @@ export default function MockExamPage() {
                       <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center shrink-0">
                         <Play size={20} className="text-white ml-1" />
                       </div>
-                      <p className="text-sm text-slate-600 italic">Mock Audio Playback (Kịch bản: "{teil.audio_script.substring(0, 50)}...")</p>
+                      <p className="text-sm text-slate-600 italic">Mock Audio Playback (Kịch bản: {'"'}{teil.audio_script.substring(0, 50)}{'"'}...)</p>
                     </div>
                   )}
 
@@ -289,7 +289,7 @@ export default function MockExamPage() {
                              <span className="text-xs text-slate-500">Audio Track {item.id}</span>
                           </div>
                         )}
-                        {item.text && <p className="text-sm text-slate-600 mb-3 italic">"{item.text}"</p>}
+                        {item.text && <p className="text-sm text-slate-600 mb-3 italic">{'"'}{item.text}{'"'}</p>}
                         {item.person && <p className="text-sm text-slate-600 mb-3">👤 {item.person}</p>}
                         
                         <p className="font-semibold text-slate-800 mb-3">{qIdx + 1}. {item.question || 'Lựa chọn đáp án đúng:'}</p>

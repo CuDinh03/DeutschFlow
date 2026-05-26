@@ -101,7 +101,7 @@ export function VocabCard({ word, onNext }: VocabCardProps) {
           {userPronunciation && (
              <div className="absolute bottom-24 left-0 right-0 text-center px-4">
                <div className="inline-block bg-slate-800/80 backdrop-blur text-white text-sm px-4 py-2 rounded-2xl">
-                 Bạn nói: "{userPronunciation}"
+                 Bạn nói: {'"'}{userPronunciation}{'"'}
                </div>
              </div>
           )}
@@ -125,7 +125,7 @@ export function VocabCard({ word, onNext }: VocabCardProps) {
           <div className="flex-1">
             <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm mb-4">
               <p className="text-slate-700 dark:text-slate-300 font-medium mb-2 leading-relaxed">
-                "{word.exampleSentenceDe}"
+                {'"'}{word.exampleSentenceDe}{'"'}
               </p>
               <p className="text-slate-500 dark:text-slate-400 text-sm">
                 {word.exampleSentenceVi}

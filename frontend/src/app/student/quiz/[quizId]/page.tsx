@@ -162,7 +162,7 @@ export default function StudentQuizPage() {
               <div>
                 <h2 className="text-xl font-black text-slate-800">Đang chờ giáo viên bắt đầu</h2>
                 <p className="text-slate-500 text-sm mt-2">
-                  Bạn đã tham gia quiz <span className="font-bold text-indigo-600">"{joinResult.title}"</span> thành công!
+                  Bạn đã tham gia quiz <span className="font-bold text-indigo-600">{'"'}{joinResult.title}{'"'}</span> thành công!
                 </p>
               </div>
               <div className="bg-slate-50 rounded-2xl p-4">

@@ -210,7 +210,7 @@ export default function TeacherGrammarPage() {
               <div className="flex flex-col items-center py-16 gap-3 text-[#94A3B8] bg-white rounded-2xl border border-[#E2E8F0]">
                 <BookOpen size={36} className="opacity-30" />
                 <p className="font-medium">Chưa có bài tập nào</p>
-                <p className="text-sm">Chọn một chủ đề và bấm "Sinh AI" để tạo bài tập</p>
+                <p className="text-sm">Chọn một chủ đề và bấm &quot;Sinh AI&quot; để tạo bài tập</p>
               </div>
             ) : topicDrafts.map((ex) => {
               const badge = STATUS_BADGE[ex.status] ?? STATUS_BADGE["DRAFT"];
