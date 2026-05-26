@@ -19,7 +19,7 @@ public final class InterviewQuestionBank {
         all.addAll(switch (persona) {
             case LUKAS -> techQuestions(pos);
             case EMMA -> businessQuestions(pos);
-            case HANNA -> educationQuestions(pos);
+            case ANNA -> educationQuestions(pos);
             case KLAUS -> gastroQuestions(pos);
             case WEBER -> dermatologyQuestions(pos);
             case SARAH -> medicalAssistantQuestions(pos);

@@ -85,7 +85,7 @@ export function SpeakingMeshBackground({ personaId, className }: Props) {
               },
             },
           ]
-        : id === "HANNA"
+        : id === "ANNA"
           ? [
               {
                 style: {

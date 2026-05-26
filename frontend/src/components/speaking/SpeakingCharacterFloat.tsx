@@ -25,7 +25,7 @@ export function SpeakingCharacterFloat({ personaId, isTalking, entered, glow }: 
       ? LukasCharacter
       : personaId === "EMMA"
         ? EmmaCharacter
-        : personaId === "HANNA"
+        : personaId === "ANNA"
           ? HannaCharacter
           : personaId === "KLAUS"
             ? KlausCharacter

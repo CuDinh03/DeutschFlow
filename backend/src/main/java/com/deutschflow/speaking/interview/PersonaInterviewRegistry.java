@@ -54,7 +54,7 @@ public class PersonaInterviewRegistry {
                     {"Verhandlung und Abschluss", "KPI und Reporting"},
                     {"Stakeholder-Kommunikation", "Account Management"},
             };
-            case HANNA -> new String[][] {
+            case ANNA -> new String[][] {
                     {"Zeitmanagement", "Studien- und Karriereplanung"},
                     {"Interkulturelle Kompetenz", "Teamdynamik"},
                     {"Stress und Work-Life-Balance", "Peer-Learning"},

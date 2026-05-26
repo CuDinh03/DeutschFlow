@@ -57,7 +57,7 @@ export function PersonaAvatar({ personaId, isTalking, className }: Props) {
       ? "251, 191, 36"
       : id === "LUKAS"
         ? "56, 189, 248"
-        : id === "HANNA"
+        : id === "ANNA"
           ? "45, 212, 191"
           : id === "KLAUS"
             ? "185, 28, 28"
@@ -145,7 +145,7 @@ export function PersonaAvatar({ personaId, isTalking, className }: Props) {
                   <LukasCharacter expression={expressionTalking ? "talking" : "neutral"} isTalking={expressionTalking} className="h-full w-full drop-shadow-xl" />
                 ) : id === "EMMA" ? (
                   <EmmaCharacter expression={expressionTalking ? "talking" : "idle"} isTalking={expressionTalking} className="h-full w-full drop-shadow-xl" />
-                ) : id === "HANNA" ? (
+                ) : id === "ANNA" ? (
                   <HannaCharacter expression={expressionTalking ? "talking" : "neutral"} isTalking={expressionTalking} className="h-full w-full drop-shadow-xl" />
                 ) : id === "KLAUS" ? (
                   <KlausCharacter expression={expressionTalking ? "talking" : "neutral"} isTalking={expressionTalking} className="h-full w-full drop-shadow-xl" />

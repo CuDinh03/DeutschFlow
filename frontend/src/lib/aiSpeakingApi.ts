@@ -8,7 +8,7 @@ import { getAccessToken, getRefreshToken, setTokens, clearTokens } from './authS
 export type SpeakingPersonaId =
   | 'DEFAULT'
   // Core
-  | 'LUKAS' | 'EMMA' | 'HANNA' | 'ANNA' | 'KLAUS'
+  | 'LUKAS' | 'EMMA' | 'ANNA' | 'ANNA' | 'KLAUS'
   // Verkauf
   | 'LENA' | 'THOMAS' | 'PETRA'
   // Medizin

@@ -45,7 +45,7 @@ const SPEAKING_PERSONAS: ReadonlyArray<{
   // ── Core 4 ──
   { id: "LUKAS",   emoji: "💻", nameKey: "personaNameLukas",   descKey: "personaDescLukas",   group: "core" },
   { id: "EMMA",    emoji: "🌿", nameKey: "personaNameEmma",    descKey: "personaDescEmma",    group: "core" },
-  { id: "HANNA",   emoji: "🍃", nameKey: "personaNameHanna",   descKey: "personaDescHanna",   group: "core" },
+  { id: "ANNA",   emoji: "🍃", nameKey: "personaNameHanna",   descKey: "personaDescHanna",   group: "core" },
   { id: "KLAUS",   emoji: "👨‍🍳", nameKey: "personaNameKlaus",   descKey: "personaDescKlaus",   group: "core" },
   // ── Verkauf (Bán hàng) ──
   { id: "LENA",    emoji: "🛒", nameKey: "personaNameLena",    descKey: "personaDescLena",    group: "verkauf" },

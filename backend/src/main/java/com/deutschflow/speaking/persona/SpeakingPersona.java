@@ -26,14 +26,8 @@ public enum SpeakingPersona {
 
     /**
      * Anna — warm everyday German tutor: Hamburg Alltag, practical conversation, patient teaching.
-     * Shares Emma's prompt implementation (everyday-life persona).
      */
     ANNA,
-
-    /**
-     * Hanna — warm, eco-minded German: parks, Wochenmarkt, green mobility, low-waste lifestyle.
-     */
-    HANNA,
 
     /**
      * Klaus — professional chef persona: gastronomy chat & kitchen interview (cuisine, HACCP, brigade).
@@ -84,7 +78,6 @@ public enum SpeakingPersona {
             case LUKAS -> "Lukas";
             case EMMA -> "Emma";
             case ANNA -> "Anna";
-            case HANNA -> "Hanna";
             case KLAUS -> "Klaus";
             case LENA -> "Lena";
             case THOMAS -> "Thomas";
@@ -110,8 +103,8 @@ public enum SpeakingPersona {
         return switch (this) {
             case DEFAULT -> "";
             case LUKAS -> lukasSection(userLevel);
-            case EMMA, ANNA -> emmaSection(userLevel);
-            case HANNA -> hannaSection(userLevel);
+            case EMMA -> emmaSection(userLevel);
+            case ANNA -> annaSection(userLevel);
             case KLAUS -> klausSection(userLevel);
             case LENA -> verkaufSection("Lena", "Supermarktmitarbeiterin", "Supermarkt, Kasse, Regale, Produkte, Angebote", userLevel);
             case THOMAS -> verkaufSection("Thomas", "Bäcker", "Bäckerei, Brot, Brötchen, Brezel, Kuchen, Backwaren", userLevel);
@@ -153,8 +146,8 @@ public enum SpeakingPersona {
         return switch (this) {
             case DEFAULT -> defaultGreeting(t, industry, weakPointsStr);
             case LUKAS -> lukasGreeting(t, industry, weakPointsStr);
-            case EMMA, ANNA -> emmaGreeting(t, industry, weakPointsStr);
-            case HANNA -> hannaGreeting(t, industry, weakPointsStr);
+            case EMMA -> emmaGreeting(t, industry, weakPointsStr);
+            case ANNA -> annaGreeting(t, industry, weakPointsStr);
             case KLAUS -> klausGreeting(t, industry, weakPointsStr);
             case LENA, THOMAS, PETRA -> verkaufGreeting(this, t, industry, weakPointsStr);
             case SARAH, SCHNEIDER, WEBER -> medizinGreeting(this, t, industry, weakPointsStr);
@@ -173,8 +166,8 @@ public enum SpeakingPersona {
         return switch (p) {
             case DEFAULT -> defaultInterviewGreeting(pos, industry, weakPointsStr);
             case LUKAS -> lukasInterviewGreeting(pos, industry, weakPointsStr);
-            case EMMA, ANNA -> emmaInterviewGreeting(pos, industry, weakPointsStr);
-            case HANNA -> hannaInterviewGreeting(pos, industry, weakPointsStr);
+            case EMMA -> emmaInterviewGreeting(pos, industry, weakPointsStr);
+            case ANNA -> annaInterviewGreeting(pos, industry, weakPointsStr);
             case KLAUS -> klausInterviewGreeting(pos, industry, weakPointsStr);
             case LENA, THOMAS, PETRA -> verkaufInterviewGreeting(p, pos, industry, weakPointsStr);
             case SARAH, SCHNEIDER, WEBER -> medizinInterviewGreeting(p, pos, industry, weakPointsStr);
@@ -238,7 +231,7 @@ public enum SpeakingPersona {
                 """.formatted(position, industry, weakPointsStr);
     }
 
-    private static String hannaInterviewGreeting(String position, String industry, String weakPointsStr) {
+    private static String annaInterviewGreeting(String position, String industry, String weakPointsStr) {
         return """
                 Karriere-/Bildungs-Bewerbungsgespräch.
                 Du bist Hanna, Studienberaterin und Karriere-Coach. Position: "%s". Profil: "%s". Grammatik: "%s".
@@ -308,7 +301,7 @@ public enum SpeakingPersona {
                 """.formatted(userLevel);
     }
 
-    private static String hannaSection(String userLevel) {
+    private static String annaSection(String userLevel) {
         return """
                 PERSONA (Hanna — Nachhaltigkeit & Stadtleben):
                 - Rolle: freundliche Nachbarin/Umweltbewusste; duzt warm; keine Moralpredigt.
@@ -367,7 +360,7 @@ public enum SpeakingPersona {
                 """.formatted(jobContext, topic, weakPointsStr);
     }
 
-    private static String hannaGreeting(String topic, String industry, String weakPointsStr) {
+    private static String annaGreeting(String topic, String industry, String weakPointsStr) {
         boolean hasJob = industry != null && !industry.isBlank() && !industry.equals("không xác định");
         String jobContext = hasJob
                 ? "Der Lernende arbeitet als '" + industry + "' — beziehe das locker ein, z.B. Nachhaltigkeit im Berufsalltag."
