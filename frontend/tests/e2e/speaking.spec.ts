@@ -1,23 +1,21 @@
 import { test, expect } from '@playwright/test';
+import { studentCookies, STUDENT_TOKEN } from '../helpers/tokens';
 
 /**
  * E2E Tests: Speaking Session Flow
- * 
+ *
  * Strategy: Mock the session creation, persona selection, and SSE stream.
  */
 test.describe('Speaking Session Flow', () => {
   test.beforeEach(async ({ page }) => {
-    // Inject Next.js required cookies for auth
     await page.context().addCookies([
       { name: 'NEXT_LOCALE', value: 'vi', domain: 'localhost', path: '/' },
-      { name: 'auth_access', value: 'eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiU1RVREVOVCIsInN1YiI6IjEiLCJleHAiOjE3NzkwMjgyODF9.tketgaKuI7Mbm_Tbu4bYBzxUTUBtcEt25f5gaD53dJY', domain: 'localhost', path: '/' },
-      { name: 'auth_role', value: 'STUDENT', domain: 'localhost', path: '/' },
-      { name: 'auth_logged_in', value: '1', domain: 'localhost', path: '/' }
+      ...studentCookies(),
     ]);
 
-    await page.addInitScript(() => {
-      localStorage.setItem('accessToken', 'eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiU1RVREVOVCIsInN1YiI6IjEiLCJleHAiOjE3NzkwMjgyODF9.tketgaKuI7Mbm_Tbu4bYBzxUTUBtcEt25f5gaD53dJY');
-    });
+    await page.addInitScript((token) => {
+      localStorage.setItem('accessToken', token);
+    }, STUDENT_TOKEN);
 
     // Catch-all mock
     await page.route('**/api/**', (route) => route.fulfill({

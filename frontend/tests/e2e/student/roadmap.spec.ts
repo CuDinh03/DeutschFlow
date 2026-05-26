@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { studentCookies, STUDENT_TOKEN } from '../../helpers/tokens';
 
 /**
  * E2E Tests: Student Roadmap — AsyncJob Integration
@@ -11,20 +12,15 @@ import { test, expect } from '@playwright/test';
  */
 test.describe('Student Roadmap', () => {
   test.beforeEach(async ({ page }) => {
-    // Inject Next.js required cookies (next-intl and authSession)
     await page.context().addCookies([
       { name: 'NEXT_LOCALE', value: 'vi', domain: 'localhost', path: '/' },
-      { name: 'auth_access', value: 'eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiU1RVREVOVCIsInN1YiI6IjEiLCJleHAiOjE3NzkwMjgyODF9.tketgaKuI7Mbm_Tbu4bYBzxUTUBtcEt25f5gaD53dJY', domain: 'localhost', path: '/' },
-      { name: 'auth_role', value: 'STUDENT', domain: 'localhost', path: '/' },
-      { name: 'auth_logged_in', value: '1', domain: 'localhost', path: '/' }
+      ...studentCookies(),
     ]);
 
-    // Set localStorage token (key 'accessToken' per authSession.ts)
-    await page.addInitScript(() => {
-      // Valid JWT signed with dev secret so middleware accepts it
-      localStorage.setItem('accessToken', 'eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiU1RVREVOVCIsInN1YiI6IjEiLCJleHAiOjE3NzkwMjgyODF9.tketgaKuI7Mbm_Tbu4bYBzxUTUBtcEt25f5gaD53dJY');
+    await page.addInitScript((token) => {
+      localStorage.setItem('accessToken', token);
       localStorage.setItem('df_roadmap_view', 'list');
-    });
+    }, STUDENT_TOKEN);
 
     // ── Mock all API endpoints ──────────────────────────────────────────────
     // Catch-all MUST be registered first so specific routes can override it
