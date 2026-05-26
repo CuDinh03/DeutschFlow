@@ -65,7 +65,7 @@ describe("normalizeSentence", () => {
   });
 
   it("collapses whitespace", () => {
-    expect(normalizeSentence("  Ich  gehe  ")).toBe("ich  gehe");
+    expect(normalizeSentence("  Ich  gehe  ")).toBe("ich gehe");
   });
 
   it("handles empty string", () => {
