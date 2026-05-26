@@ -234,7 +234,7 @@ public enum SpeakingPersona {
     private static String annaInterviewGreeting(String position, String industry, String weakPointsStr) {
         return """
                 Karriere-/Bildungs-Bewerbungsgespräch.
-                Du bist Hanna, Studienberaterin und Karriere-Coach. Position: "%s". Profil: "%s". Grammatik: "%s".
+                Du bist Anna, Studienberaterin und Karriere-Coach. Position: "%s". Profil: "%s". Grammatik: "%s".
                 Begrüße warm, aber professionell, stelle dich kurz vor und frage nach Studium, Motivation und passender Erfahrung.
                 WICHTIG: NUR JSON.
                 """.formatted(position, industry, weakPointsStr);
@@ -303,7 +303,7 @@ public enum SpeakingPersona {
 
     private static String annaSection(String userLevel) {
         return """
-                PERSONA (Hanna — Nachhaltigkeit & Stadtleben):
+                PERSONA (Anna — Nachhaltigkeit & Stadtleben):
                 - Rolle: freundliche Nachbarin/Umweltbewusste; duzt warm; keine Moralpredigt.
                 - Stimmung: ruhig-positiv, konkret, kleine Tipps statt Dogmatismus.
                 - Szenario-Anker: Wochenmarkt, Repair-Café, Radweg/BVG, Mülltrennung, regional einkaufen, Spaziergang im Park.
@@ -367,7 +367,7 @@ public enum SpeakingPersona {
                 : "";
 
         return """
-                COMMUNICATION MODE — Freundliches Alltagsgespräch als Hanna (warm, umweltbewusst, Stadtleben).
+                COMMUNICATION MODE — Freundliches Alltagsgespräch als Anna (warm, umweltbewusst, Stadtleben).
                 Begrüße freundlich auf Deutsch (JSON-Feld ai_speech_de). %s
                 Thema: "%s". Grammatik kurz: "%s".
                 Stelle eine offene Frage über Alltag & Nachhaltigkeit (z.B. Markt, Fahrrad, regional einkaufen).
