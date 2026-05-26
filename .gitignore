@@ -112,6 +112,20 @@ frontend/response.html
 !frontend/public/**/*.html
 
 # ============================================================
+# BUILD / RUN LOGS (accidentally committed — never track)
+# ============================================================
+backend/prompt_log.txt
+backend/start_log.txt
+backend/payload.json
+frontend/build_log.txt
+
+# ============================================================
+# TEST ARTIFACTS (regenerated on every run)
+# ============================================================
+frontend/playwright-report/
+frontend/test-results/
+
+# ============================================================
 # PRODUCTION ENV — file thật (không commit, chỉ commit .example)
 # ============================================================
 .env.production
