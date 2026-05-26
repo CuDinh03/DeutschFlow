@@ -367,6 +367,21 @@ if [ "$GREEN_HEALTHY" = false ]; then
   exit 1
 fi
 
+# Warm-up DB connection pool: gửi vài requests thực lên GREEN trước khi promote.
+# Tránh race condition "User not found" khi container vừa boot nhưng connection pool chưa ready.
+info "  Warm-up DB connection pool (10s)..."
+for w in 1 2 3 4 5; do
+  sleep 2
+  # Gọi /actuator/health lần nữa — mỗi lần trigger HikariCP check connection
+  WU=$(curl -sf http://localhost:8081/actuator/health 2>/dev/null || echo "")
+  if echo "$WU" | grep -q '"UP"'; then
+    echo "    Warm-up ${w}/5 OK"
+  else
+    warn "    Warm-up ${w}/5 chưa UP — chờ thêm..."
+  fi
+done
+success "  Warm-up xong — DB connection pool đã sẵn sàng"
+
 # Force-remove a container by name; fail deploy if it still exists.
 docker_force_remove() {
   local name="$1"
