@@ -3,6 +3,7 @@ package com.deutschflow.common.exception;
 import com.deutschflow.common.quota.QuotaExceededException;
 import com.deutschflow.common.exception.RateLimitExceededException;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +25,7 @@ import java.util.stream.Collectors;
  * Success responses: trả về data trực tiếp với HTTP 200/201/204.
  * Error responses: trả về ProblemDetail với Content-Type: application/problem+json.
  */
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -134,7 +136,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ProblemDetail> handleGeneral(Exception ex,
                                                        HttpServletRequest request) {
-        // Debug mode — show real exception
+        log.error("[500] Unhandled exception on {}", request.getRequestURI(), ex);
         String detail = ex.getClass().getSimpleName() + ": " + ex.getMessage();
         return problem(HttpStatus.INTERNAL_SERVER_ERROR, "internal-error", "Internal Server Error",
                 detail, request.getRequestURI(), null, null);
