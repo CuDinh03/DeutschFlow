@@ -1,0 +1,17 @@
+package com.deutschflow.vocabulary.dto;
+
+import java.util.List;
+
+public record WordDto(
+        Long id,
+        String word,
+        String translation,
+        String wordType,
+        String gender,
+        String cefrLevel,
+        String pronunciationIpa,
+        String exampleSentence,
+        Integer frequencyRank,
+        String imageUrl,
+        String audioUrl
+) {}

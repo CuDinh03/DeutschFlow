@@ -95,11 +95,48 @@ public class AiSpeakingSession {
     @Builder.Default
     private int messageCount = 0;
 
+    @Column(name = "template_id")
+    private Long templateId;
+
+    @Column(name = "difficulty_level")
+    private Integer difficultyLevel;
+
+    @Column(name = "ai_prompt", columnDefinition = "TEXT")
+    private String aiPrompt;
+
+    @Column(name = "ai_response", columnDefinition = "TEXT")
+    private String aiResponse;
+
+    @Column(name = "user_input", columnDefinition = "TEXT")
+    private String userInput;
+
+    @Column(name = "feedback", columnDefinition = "TEXT")
+    private String feedback;
+
+    @Column(name = "user_confidence_score")
+    private Integer userConfidenceScore;
+
+    @Column(name = "session_status")
+    private String sessionStatus;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
     @PrePersist
     void onCreate() {
         var now = LocalDateTime.now();
         if (startedAt == null) startedAt = now;
         if (lastActivityAt == null) lastActivityAt = now;
+        if (createdAt == null) createdAt = now;
+        if (updatedAt == null) updatedAt = now;
+    }
+
+    @PreUpdate
+    void onUpdate() {
+        updatedAt = LocalDateTime.now();
     }
 
     public enum SessionStatus {
