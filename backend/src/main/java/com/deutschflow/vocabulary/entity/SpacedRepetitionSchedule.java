@@ -40,15 +40,19 @@ public class SpacedRepetitionSchedule {
     private LocalDateTime nextReviewDate;
 
     @Column(name = "review_count", nullable = false)
+    @Builder.Default
     private Integer reviewCount = 0;
 
     @Column(name = "easiness_factor", nullable = false)
+    @Builder.Default
     private Double easinessFactor = 2.5;
 
     @Column(name = "interval", nullable = false)
+    @Builder.Default
     private Integer interval = 1;
 
     @Column(name = "retention_status", nullable = false)
+    @Builder.Default
     private String retentionStatus = "LEARNING"; // LEARNING, REVIEWING, MASTERED
 
     @Column(name = "created_at", nullable = false, updatable = false)

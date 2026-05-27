@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 
 interface GrammarContext {
@@ -30,13 +30,7 @@ export default function GrammarContextModal({ isOpen, wordId, onClose, word }: G
   const [context, setContext] = useState<GrammarContext | null>(null);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (isOpen && wordId) {
-      loadGrammarContext();
-    }
-  }, [isOpen, wordId]);
-
-  const loadGrammarContext = async () => {
+  const loadGrammarContext = useCallback(async () => {
     setLoading(true);
     try {
       // TODO: Call API endpoint: GET /api/vocabulary/{wordId}/grammar-context
@@ -70,7 +64,13 @@ export default function GrammarContextModal({ isOpen, wordId, onClose, word }: G
     } finally {
       setLoading(false);
     }
-  };
+  }, [word]);
+
+  useEffect(() => {
+    if (isOpen && wordId) {
+      loadGrammarContext();
+    }
+  }, [isOpen, wordId, loadGrammarContext]);
 
   if (!isOpen) return null;
 

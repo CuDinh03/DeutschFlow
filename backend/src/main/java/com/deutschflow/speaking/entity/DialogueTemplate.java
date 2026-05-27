@@ -29,6 +29,7 @@ public class DialogueTemplate {
     private String templateName;
 
     @Column(name = "difficulty_level", nullable = false)
+    @Builder.Default
     private Integer difficultyLevel = 1;
 
     @Column(name = "user_prompt_template", nullable = false, columnDefinition = "TEXT")
