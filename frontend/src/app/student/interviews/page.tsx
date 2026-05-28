@@ -13,6 +13,7 @@ import { SessionSummary } from "@/components/features/ai-speaking/SessionSummary
 import { useTranslations } from "next-intl";
 import { submitInterviewReport, streamJobResult } from "@/lib/interviewReportApi";
 import { useStudentPracticeSession } from "@/hooks/useStudentPracticeSession";
+import { interviewDomainApi, InterviewPhaseResultInfo } from "@/lib/interviewDomainApi";
 
 interface SessionMessage {
   id: string;
@@ -111,6 +112,7 @@ export default function InterviewsHistoryPage() {
   const [loading, setLoading] = useState(true);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [reportJson, setReportJson] = useState<string | null>(null);
+  const [phaseResults, setPhaseResults] = useState<InterviewPhaseResultInfo[]>([]);
   const [generatingReport, setGeneratingReport] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
   const reportStreamRef = useRef<AbortController | null>(null);
@@ -131,6 +133,7 @@ export default function InterviewsHistoryPage() {
   const openSession = async (sess: SpeakingSession) => {
     setSelected(sess);
     setReportJson(null);
+    setPhaseResults([]);
     setReportError(null);
     setLoadingMsgs(true);
     try {
@@ -150,6 +153,11 @@ export default function InterviewsHistoryPage() {
         }
       }));
       setMessages(mapped);
+
+      // Load structured phase results from the new interview domain API (non-blocking)
+      interviewDomainApi.getPhaseResults(sess.id)
+        .then(setPhaseResults)
+        .catch(() => {/* phase results are optional — ignore failure */});
 
       // If session already has a report stored, use it directly
       if (sess.interviewReportJson) {
@@ -245,6 +253,44 @@ export default function InterviewsHistoryPage() {
             onRestart={() => router.push("/speaking")}
             onExit={() => { setSelected(null); setMessages([]); }}
           />
+
+          {/* Phase breakdown from interview domain */}
+          {phaseResults.length > 0 && (
+            <div className="mt-6 rounded-2xl overflow-hidden" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)" }}>
+              <div className="px-5 py-4 border-b border-white/10">
+                <h3 className="text-sm font-semibold text-white/90">Kết quả theo Phase</h3>
+              </div>
+              <div className="p-4 space-y-3">
+                {phaseResults.map((pr) => {
+                  const pct = Math.round((pr.score / 10) * 100);
+                  const color = pr.score >= 7 ? "#34d399" : pr.score >= 5 ? "#fbbf24" : "#f87171";
+                  const strengths = (() => { try { return JSON.parse(pr.strengthsJson) as string[]; } catch { return []; } })();
+                  const weaknesses = (() => { try { return JSON.parse(pr.weaknessesJson) as string[]; } catch { return []; } })();
+                  return (
+                    <div key={pr.phase} className="rounded-xl p-4" style={{ background: "rgba(255,255,255,0.04)" }}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-white/80">{pr.phase}</span>
+                        <span className="text-xs font-bold" style={{ color }}>{pr.score.toFixed(1)}/10</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-white/10 mb-3">
+                        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
+                      </div>
+                      {strengths.length > 0 && (
+                        <ul className="space-y-0.5 mb-1">
+                          {strengths.map((s, i) => <li key={i} className="text-[11px] text-emerald-400">✓ {s}</li>)}
+                        </ul>
+                      )}
+                      {weaknesses.length > 0 && (
+                        <ul className="space-y-0.5">
+                          {weaknesses.map((w, i) => <li key={i} className="text-[11px] text-red-400">✗ {w}</li>)}
+                        </ul>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
