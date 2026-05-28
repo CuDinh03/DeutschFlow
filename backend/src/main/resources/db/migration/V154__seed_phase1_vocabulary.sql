@@ -8,6 +8,10 @@ ALTER TABLE words
   ADD COLUMN IF NOT EXISTS word_type   VARCHAR(100),
   ADD COLUMN IF NOT EXISTS gender      VARCHAR(10);
 
+-- Temporary defaults so simplified INSERT (without dtype/base_form) can run
+ALTER TABLE words ALTER COLUMN dtype     SET DEFAULT 'WORD';
+ALTER TABLE words ALTER COLUMN base_form SET DEFAULT '';
+
 DELETE FROM words WHERE cefr_level = 'A1' AND frequency_rank <= 50;
 
 INSERT INTO words (word, translation, word_type, gender, cefr_level, pronunciation_ipa, example_sentence, frequency_rank, image_url, created_at, updated_at)
@@ -79,6 +83,14 @@ VALUES
 -- Extra common words (2)
 ('Name', 'Name', 'noun', 'm', 'A1', '/ˈnaːmə/', 'Mein Name ist Michael.', 49, 'https://via.placeholder.com/200?text=Name', NOW(), NOW()),
 ('Alter', 'Age', 'noun', 'n', 'A1', '/ˈaltɐ/', 'Mein Alter ist 25 Jahre.', 50, 'https://via.placeholder.com/200?text=Alter', NOW(), NOW());
+
+-- Backfill legacy NOT NULL columns from the new denormalized ones
+UPDATE words SET base_form = word      WHERE base_form = '' AND word IS NOT NULL;
+UPDATE words SET dtype = UPPER(word_type) WHERE dtype = 'WORD' AND word_type IS NOT NULL;
+
+-- Remove temporary defaults
+ALTER TABLE words ALTER COLUMN dtype     DROP DEFAULT;
+ALTER TABLE words ALTER COLUMN base_form DROP DEFAULT;
 
 -- Seed greeting dialogue templates
 DELETE FROM dialogue_templates WHERE template_name LIKE 'greeting_%';
