@@ -38,7 +38,7 @@ export interface InterviewReport {
   position: string;
   experienceLevel: string;
   overallScore: number;
-  verdict: "PASS" | "CONDITIONAL" | "FAIL";
+  verdict: "PASS" | "CONDITIONAL_PASS" | "NOT_PASS";
   readinessLevel: string;
   strongAreas: string[];
   criticalGaps: string[];

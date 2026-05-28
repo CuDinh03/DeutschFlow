@@ -7,6 +7,7 @@ import { Sparkles, ChevronRight, ArrowLeft, Briefcase, BookOpen } from "lucide-r
 import { PERSONA_LIST, PERSONA_GROUPS, PersonaId, PersonaGroup, PERSONA_TOKENS } from "@/lib/personas";
 import { PersonaCard } from "./PersonaCard";
 import { aiSpeakingApi, SpeakingSessionMode } from "@/lib/aiSpeakingApi";
+import { interviewDomainApi, InterviewPersonaInfo } from "@/lib/interviewDomainApi";
 import { apiMessage, httpStatus } from "@/lib/api";
 import { toastApiError } from "@/lib/toastApiError";
 import { useTranslations } from "next-intl";
@@ -46,6 +47,7 @@ export function CompanionSelect() {
   const [interviewPosition, setInterviewPosition] = useState<string | null>(null);
   const [experienceLevel, setExperienceLevel] = useState<string | null>("1-2Y");
   const [cefrLevel, setCefrLevel] = useState<string>("B1");
+  const [dbPersonas, setDbPersonas] = useState<InterviewPersonaInfo[]>([]);
   // Lesson-specific state
   const [lessonScenario, setLessonScenario] = useState<string | null>(null);
 
@@ -55,6 +57,19 @@ export function CompanionSelect() {
     if (topic) setLessonScenario(topic)
     if (cefr && ['A1', 'A2', 'B1', 'B2'].includes(cefr)) setCefrLevel(cefr)
   }, [searchParams])
+
+  useEffect(() => {
+    if (sessionMode === "INTERVIEW" && dbPersonas.length === 0) {
+      interviewDomainApi.listPersonas().then(setDbPersonas).catch(() => {});
+    }
+  }, [sessionMode, dbPersonas.length])
+
+  // Auto-set interview position from DB persona when a persona is selected
+  useEffect(() => {
+    if (sessionMode !== "INTERVIEW" || !selected) return;
+    const match = dbPersonas.find(p => p.code === selected.toUpperCase());
+    if (match) setInterviewPosition(match.roleTitle);
+  }, [selected, dbPersonas, sessionMode])
 
   const selectedPersona = selected ? PERSONA_LIST.find((p) => p.id === selected) : null;
 
@@ -315,28 +330,50 @@ export function CompanionSelect() {
                   <span className="text-xs font-bold uppercase tracking-wider" style={{ color: selectedPersona.accent }}>Vị trí ứng tuyển</span>
                 </div>
                 <div className="grid grid-cols-1 gap-2">
-                  {(selectedPersona.interviewPositions || []).map((pos) => (
-                    <motion.button
-                      key={pos.id}
-                      onClick={() => setInterviewPosition(pos.label)}
-                      className="flex items-center justify-between px-4 py-3 rounded-xl text-left transition-all"
-                      style={{
-                        background: interviewPosition === pos.label ? `${selectedPersona.accent}22` : "rgba(255,255,255,0.04)",
-                        border: interviewPosition === pos.label ? `1.5px solid ${selectedPersona.accent}` : "1.5px solid rgba(255,255,255,0.06)",
-                      }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <div>
-                        <span className="text-sm font-semibold text-white">{pos.label}</span>
-                        <span className="text-xs ml-2" style={{ color: "rgba(255,255,255,0.4)" }}>{pos.labelDe}</span>
-                      </div>
-                      {interviewPosition === pos.label && (
-                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: selectedPersona.accent }}>
-                          <span className="text-white text-xs">✓</span>
-                        </motion.div>
-                      )}
-                    </motion.button>
-                  ))}
+                  {(() => {
+                    const dbMatch = dbPersonas.find(p => p.code === selected?.toUpperCase());
+                    if (dbMatch) {
+                      return (
+                        <div
+                          className="flex items-center justify-between px-4 py-3 rounded-xl"
+                          style={{
+                            background: `${selectedPersona.accent}22`,
+                            border: `1.5px solid ${selectedPersona.accent}`,
+                          }}
+                        >
+                          <div>
+                            <span className="text-sm font-semibold text-white">{dbMatch.roleTitle}</span>
+                            <span className="text-xs ml-2" style={{ color: "rgba(255,255,255,0.4)" }}>{dbMatch.industry}</span>
+                          </div>
+                          <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: selectedPersona.accent }}>
+                            <span className="text-white text-xs">✓</span>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return (selectedPersona.interviewPositions || []).map((pos) => (
+                      <motion.button
+                        key={pos.id}
+                        onClick={() => setInterviewPosition(pos.label)}
+                        className="flex items-center justify-between px-4 py-3 rounded-xl text-left transition-all"
+                        style={{
+                          background: interviewPosition === pos.label ? `${selectedPersona.accent}22` : "rgba(255,255,255,0.04)",
+                          border: interviewPosition === pos.label ? `1.5px solid ${selectedPersona.accent}` : "1.5px solid rgba(255,255,255,0.06)",
+                        }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        <div>
+                          <span className="text-sm font-semibold text-white">{pos.label}</span>
+                          <span className="text-xs ml-2" style={{ color: "rgba(255,255,255,0.4)" }}>{pos.labelDe}</span>
+                        </div>
+                        {interviewPosition === pos.label && (
+                          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: selectedPersona.accent }}>
+                            <span className="text-white text-xs">✓</span>
+                          </motion.div>
+                        )}
+                      </motion.button>
+                    ));
+                  })()}
                 </div>
               </div>
 

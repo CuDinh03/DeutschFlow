@@ -108,7 +108,6 @@ export default function InterviewsHistoryPage() {
   const [sessions, setSessions] = useState<SpeakingSession[]>([]);
   const [selected, setSelected] = useState<SpeakingSession | null>(null);
   const [messages, setMessages] = useState<SessionMessage[]>([]);
-  const [profile, setProfile] = useState<{ displayName: string; role: string; targetLevel: string; streakDays: number; initials: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [reportJson, setReportJson] = useState<string | null>(null);
@@ -203,7 +202,7 @@ export default function InterviewsHistoryPage() {
   // Cleanup report stream on unmount
   useEffect(() => () => { reportStreamRef.current?.abort(); }, []);
 
-  if (loading || meLoading || !me || !profile) {
+  if (loading || meLoading || !me) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 size={28} className="animate-spin text-[#121212]" />
@@ -299,7 +298,7 @@ export default function InterviewsHistoryPage() {
   return (
     <StudentShell
       activeSection="interviews"
-      user={{ displayName: profile.displayName, role: profile.role }}
+      user={{ displayName: me.displayName, role: me.role }}
       targetLevel={targetLevel}
       streakDays={streakDays}
       initials={initials}
