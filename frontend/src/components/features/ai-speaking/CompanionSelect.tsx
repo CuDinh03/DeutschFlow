@@ -378,26 +378,6 @@ export function CompanionSelect() {
                 </div>
                 <div className="grid grid-cols-1 gap-2">
                   {(() => {
-                    const dbMatch = dbPersonas.find(p => p.code === selected?.toUpperCase());
-                    if (dbMatch) {
-                      return (
-                        <div
-                          className="flex items-center justify-between px-4 py-3 rounded-xl"
-                          style={{
-                            background: `${selectedPersona.accent}22`,
-                            border: `1.5px solid ${selectedPersona.accent}`,
-                          }}
-                        >
-                          <div>
-                            <span className="text-sm font-semibold text-white">{dbMatch.roleTitle}</span>
-                            <span className="text-xs ml-2" style={{ color: "rgba(255,255,255,0.4)" }}>{dbMatch.industry}</span>
-                          </div>
-                          <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: selectedPersona.accent }}>
-                            <span className="text-white text-xs">✓</span>
-                          </div>
-                        </div>
-                      );
-                    }
                     return (selectedPersona.interviewPositions || []).map((pos) => (
                       <motion.button
                         key={pos.id}
