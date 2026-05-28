@@ -3,12 +3,12 @@
 
 -- Extend mock_exam_attempts table with detailed evaluation fields
 ALTER TABLE mock_exam_attempts
-ADD COLUMN IF NOT EXISTS detailed_scores_json JSONB COMMENT 'Per-section and per-teil scores breakdown',
-ADD COLUMN IF NOT EXISTS weak_areas JSONB COMMENT 'Array of topics where user scored <60%',
-ADD COLUMN IF NOT EXISTS time_spent_json JSONB COMMENT 'Time spent per section (seconds)',
-ADD COLUMN IF NOT EXISTS answers_submitted_json JSONB COMMENT 'User answers for review and analytics',
-ADD COLUMN IF NOT EXISTS evaluation_notes TEXT COMMENT 'Human evaluator feedback for speaking/writing',
-ADD COLUMN IF NOT EXISTS ai_feedback_json JSONB COMMENT 'Structured AI feedback with rubric scores';
+ADD COLUMN IF NOT EXISTS detailed_scores_json JSONB,
+ADD COLUMN IF NOT EXISTS weak_areas JSONB,
+ADD COLUMN IF NOT EXISTS time_spent_json JSONB,
+ADD COLUMN IF NOT EXISTS answers_submitted_json JSONB,
+ADD COLUMN IF NOT EXISTS evaluation_notes TEXT,
+ADD COLUMN IF NOT EXISTS ai_feedback_json JSONB;
 
 -- Create table to track question difficulty and metadata
 CREATE TABLE IF NOT EXISTS mock_exam_question_metadata (
