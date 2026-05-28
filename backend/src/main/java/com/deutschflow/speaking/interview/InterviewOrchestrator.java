@@ -89,12 +89,6 @@ public class InterviewOrchestrator {
             directive = InterviewDirectiveType.CLOSING_ASK;
         }
 
-        if (directive == InterviewDirectiveType.CHALLENGE_EXAMPLE
-                || directive == InterviewDirectiveType.PROBE_SPECIFIC
-                || directive == InterviewDirectiveType.INTERRUPT_HOOK) {
-            mandatoryQuestion = prependDirective(mandatoryQuestion, directiveInstruction);
-        }
-
         return new InterviewTurnPlan(
                 userTurn,
                 phase,
@@ -160,10 +154,6 @@ public class InterviewOrchestrator {
             case CLOSING_ANSWER -> "Beantworten Sie jede Kandidatenfrage einzeln, sachlich, ohne Marketing-Floskeln.";
             case FOLLOW_UP, STANDARD -> "Beziehen Sie sich auf ein konkretes Detail der Antwort, dann stellen Sie die Pflichtfrage.";
         };
-    }
-
-    private static String prependDirective(String question, String instruction) {
-        return instruction + " Pflichtfrage (sinngemäß): " + question;
     }
 
     private static String fallbackQuestion(InterviewPhase phase, String position) {

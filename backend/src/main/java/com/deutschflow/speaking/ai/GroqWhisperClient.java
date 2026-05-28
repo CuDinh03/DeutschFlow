@@ -82,7 +82,7 @@ public class GroqWhisperClient {
                 log.warn("[Whisper] Semaphore timeout — too many concurrent STT requests");
                 throw new AiServiceException("Speech recognition is busy. Please try again shortly.");
             }
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             if (response.statusCode() != 200) {
                 log.error("[Whisper] HTTP {}: {}", response.statusCode(), response.body());
                 throw new AiServiceException("Whisper transcription failed: HTTP " + response.statusCode());
@@ -121,28 +121,33 @@ public class GroqWhisperClient {
 
             // --- model field ---
             sb.append("--").append(boundary).append("\r\n");
-            sb.append("Content-Disposition: form-data; name=\"model\"\r\n\r\n");
+            sb.append("Content-Disposition: form-data; name=\"model\"\r\n");
+            sb.append("Content-Type: text/plain; charset=UTF-8\r\n\r\n");
             sb.append(whisperModel).append("\r\n");
 
             // --- language field ---
             sb.append("--").append(boundary).append("\r\n");
-            sb.append("Content-Disposition: form-data; name=\"language\"\r\n\r\n");
+            sb.append("Content-Disposition: form-data; name=\"language\"\r\n");
+            sb.append("Content-Type: text/plain; charset=UTF-8\r\n\r\n");
             sb.append(language != null ? language : "de").append("\r\n");
 
             // --- response_format ---
             sb.append("--").append(boundary).append("\r\n");
-            sb.append("Content-Disposition: form-data; name=\"response_format\"\r\n\r\n");
+            sb.append("Content-Disposition: form-data; name=\"response_format\"\r\n");
+            sb.append("Content-Type: text/plain; charset=UTF-8\r\n\r\n");
             sb.append("json\r\n");
 
-            // --- temperature (0.0 or 0.2 for precise transcription) ---
+            // --- temperature (0.0 forces deterministic transcription) ---
             sb.append("--").append(boundary).append("\r\n");
-            sb.append("Content-Disposition: form-data; name=\"temperature\"\r\n\r\n");
-            sb.append("0.0\r\n"); // 0.0 forces deterministic transcription
+            sb.append("Content-Disposition: form-data; name=\"temperature\"\r\n");
+            sb.append("Content-Type: text/plain; charset=UTF-8\r\n\r\n");
+            sb.append("0.0\r\n");
 
-            // --- prompt ---
+            // --- prompt: must declare charset so the server interprets ü/ä/ö/ß bytes as UTF-8 ---
             if (prompt != null && !prompt.isBlank()) {
                 sb.append("--").append(boundary).append("\r\n");
-                sb.append("Content-Disposition: form-data; name=\"prompt\"\r\n\r\n");
+                sb.append("Content-Disposition: form-data; name=\"prompt\"\r\n");
+                sb.append("Content-Type: text/plain; charset=UTF-8\r\n\r\n");
                 sb.append(prompt).append("\r\n");
             }
 

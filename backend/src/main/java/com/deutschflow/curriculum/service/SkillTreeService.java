@@ -749,9 +749,13 @@ public class SkillTreeService {
                     "tips", List.of("Không thu được tiếng — Vui lòng nói to và rõ hơn, hoặc kiểm tra lại micro.")
             );
         }
-        // Deterministic word matching
-        String[] targetWords = originalText.split("\\s+");
-        String[] transcribedWords = transcribedText.split("\\s+");
+        // Deterministic word matching — split by spaces OR hyphens so that
+        // spelled-out targets like "M - Ü - L - L - E - R" and Whisper output
+        // like "M-U-L-L-E-R" (no spaces) tokenize into the same letter array.
+        String[] targetWords = java.util.Arrays.stream(originalText.split("[\\s\\-]+"))
+                .filter(s -> !s.isEmpty()).toArray(String[]::new);
+        String[] transcribedWords = java.util.Arrays.stream(transcribedText.split("[\\s\\-]+"))
+                .filter(s -> !s.isEmpty()).toArray(String[]::new);
 
         List<Map<String, Object>> wordResults = new java.util.ArrayList<>();
         int matchCount = 0;

@@ -41,9 +41,13 @@ public class PhonemeService {
             );
         }
 
-        // 2. Word-level comparison
-        String[] targetWords = normalize(target).split("\\s+");
-        String[] transcribedWords = normalize(transcribed).split("\\s+");
+        // 2. Word-level comparison — split by spaces OR hyphens so that
+        // spelled-out targets like "M - Ü - L - L - E - R" and Whisper output
+        // like "M-U-L-L-E-R" (no spaces) tokenize into the same letter array.
+        String[] targetWords = java.util.Arrays.stream(normalize(target).split("[\\s\\-]+"))
+                .filter(s -> !s.isEmpty()).toArray(String[]::new);
+        String[] transcribedWords = java.util.Arrays.stream(normalize(transcribed).split("[\\s\\-]+"))
+                .filter(s -> !s.isEmpty()).toArray(String[]::new);
 
         List<PhonemeEvalResponse.WordResult> wordResults = new ArrayList<>();
         int matchCount = 0;
