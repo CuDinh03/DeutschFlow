@@ -19,4 +19,7 @@ public record InterviewTurnPlan(
             "sehr gut", "sehr professionell", "sehr einfühlsam", "sehr umfassend",
             "sehr gründlich", "sehr strukturiert", "beeindruckend", "ausgezeichnet"
     );
+
+    public InterviewDirectiveType directive() { return directiveType; }
+    public String mandatoryQuestion() { return mandatoryQuestionDe; }
 }

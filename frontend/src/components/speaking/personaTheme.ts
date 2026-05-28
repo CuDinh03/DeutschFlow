@@ -6,7 +6,6 @@ export type SpeakingPersonaVisualId =
   | "EMMA"
   | "ANNA"
   | "KLAUS"
-  | "ANNA"
   | "LENA"
   | "PETRA"
   | "TUAN"

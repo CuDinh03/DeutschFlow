@@ -27,6 +27,6 @@ class StudentTrialSubscriptionProvisionerUnitTest {
         Instant end = Instant.parse("2026-05-08T00:00:00Z");
         provisioner.provisionSevenDayTrial(55L, start, end);
         verify(jdbcTemplate).update(contains("INSERT INTO user_subscriptions"),
-                eq(55L), eq("FREE"), any(), any());
+                eq(55L), eq("PRO"), any(), any());
     }
 }

@@ -12,6 +12,7 @@ import {
   type WeeklySubmissionDetailDto,
   type WeeklySubmissionListItem,
 } from '@/lib/weeklySpeakingApi'
+import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 
 const BANDS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const
 
@@ -29,6 +30,7 @@ function normCurrent(c: string | null): string {
 type MeUser = { displayName: string; role: string }
 
 export default function StudentWeeklySpeakingPage() {
+  usePageTimeTracker('weekly_speaking');
   const t = useTranslations('student')
   const tSpeak = useTranslations('speaking')
   const router = useRouter()

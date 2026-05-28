@@ -7,6 +7,7 @@ import { StudentShell } from "@/components/layouts/StudentShell";
 import { useStudentPracticeSession } from "@/hooks/useStudentPracticeSession";
 import { logout } from "@/lib/authSession";
 import api from "@/lib/api";
+import { usePageTimeTracker } from "@/hooks/usePageTimeTracker";
 
 interface AchievementDto {
   id: number;
@@ -35,6 +36,7 @@ const RARITY_STYLE: Record<string, { bg: string; border: string; label: string }
 };
 
 export default function BadgesPage() {
+  usePageTimeTracker('badges');
   const router = useRouter();
   const { me, loading: meLoading, targetLevel, streakDays, initials } = useStudentPracticeSession();
   const [summary, setSummary] = useState<XpSummary | null>(null);

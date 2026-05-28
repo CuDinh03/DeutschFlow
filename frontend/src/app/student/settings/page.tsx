@@ -18,6 +18,7 @@ import {
   User, Lock, BookOpen, Save, Eye, EyeOff,
   CheckCircle2, AlertCircle, Loader2, ChevronRight,
 } from "lucide-react";
+import { usePageTimeTracker } from "@/hooks/usePageTimeTracker";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -106,6 +107,7 @@ const INTEREST_CHIPS = [
 // ── Main Page ─────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
+  usePageTimeTracker('settings');
   const router = useRouter();
   const { me, loading: meLoading, targetLevel, streakDays, initials } =
     useStudentPracticeSession();

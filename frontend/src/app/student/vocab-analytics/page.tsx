@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl"
 import { StudentShell } from '@/components/layouts/StudentShell'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
 import api from '@/lib/api'
+import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -121,6 +122,7 @@ function LineChart({ data }: { data: CoverageHistoryPoint[] }) {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function VocabAnalyticsPage() {
+  usePageTimeTracker('vocab_analytics');
   const { me, loading: sessionLoading, targetLevel, streakDays, initials } = useStudentPracticeSession()
   const tAnalytics = useTranslations("analytics")
 

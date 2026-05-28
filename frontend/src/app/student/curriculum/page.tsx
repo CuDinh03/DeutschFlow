@@ -8,6 +8,7 @@ import { StudentShell } from "@/components/layouts/StudentShell";
 import { useStudentPracticeSession } from "@/hooks/useStudentPracticeSession";
 import { logout } from "@/lib/authSession";
 import api from "@/lib/api";
+import { usePageTimeTracker } from "@/hooks/usePageTimeTracker";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -146,6 +147,7 @@ function LessonCard({ lesson, expanded, onToggle }: { lesson: CurriculumLesson; 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function CurriculumPage() {
+  usePageTimeTracker('curriculum');
   const { me, loading: meLoading, targetLevel, streakDays, initials } = useStudentPracticeSession();
   const tCurriculum = useTranslations("curriculum");
   const [curriculum, setCurriculum] = useState<CurriculumData | null>(null);

@@ -4,8 +4,10 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { getMyLearningProfile } from "@/lib/profileApi";
+import { usePageTimeTracker } from "@/hooks/usePageTimeTracker";
 
 export default function StudentRoadmapRedirectPage() {
+  usePageTimeTracker('roadmap');
   const router = useRouter();
 
   useEffect(() => {

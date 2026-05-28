@@ -39,7 +39,6 @@ export function SpeakingPersonaMiniAvatar({ personaId, chatBusy, className }: Pr
 
   const inner = (pid: SpeakingPersonaVisualId) => {
     if (pid === "EMMA") return <EmmaCharacter expression={exprEmma} className="block h-[200px] w-[200px] max-w-none" />;
-    if (pid === "HANNA") return <HannaCharacter expression={exprHanna} className="block h-[200px] w-[200px] max-w-none" />;
     if (pid === "KLAUS") return <KlausCharacter expression={exprKlaus} className="block h-[200px] w-[200px] max-w-none" />;
     if (pid === "ANNA") return <AnnaCharacter expression={chatBusy ? "talking" : "idle"} className="block h-[200px] w-[200px] max-w-none" />;
     if (pid === "LENA") return <LenaCharacter expression={chatBusy ? "talking" : "idle"} className="block h-[200px] w-[200px] max-w-none" />;

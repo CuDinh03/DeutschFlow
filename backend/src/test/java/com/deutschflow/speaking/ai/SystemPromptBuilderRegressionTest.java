@@ -1,5 +1,6 @@
 package com.deutschflow.speaking.ai;
 
+import com.deutschflow.interview.prompt.InterviewPromptBuilder;
 import com.deutschflow.speaking.contract.SpeakingResponseSchema;
 import com.deutschflow.speaking.contract.SpeakingSessionMode;
 import com.deutschflow.speaking.interview.PersonaInterviewRegistry;
@@ -14,6 +15,7 @@ import org.mockito.MockitoAnnotations;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.lenient;
 
@@ -22,6 +24,9 @@ class SystemPromptBuilderRegressionTest {
     @Mock
     private SystemConfigService systemConfigService;
 
+    @Mock
+    private InterviewPromptBuilder interviewPromptBuilder;
+
     private SystemPromptBuilder builder;
 
     @BeforeEach
@@ -29,7 +34,10 @@ class SystemPromptBuilderRegressionTest {
         MockitoAnnotations.openMocks(this);
         lenient().when(systemConfigService.getString(anyString(), anyString()))
                 .thenAnswer(inv -> inv.getArgument(1));
-        builder = new SystemPromptBuilder(systemConfigService, new PersonaInterviewRegistry());
+        lenient().when(interviewPromptBuilder.build(any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn("TURN_DIRECTIVE: TEST\nCHALLENGE-PFLICHT: ja\nSUGGESTIONS: keine\nPflichtfrage: ...\n"
+                        + "tiếng VIỆT\nai_speech_de\n");
+        builder = new SystemPromptBuilder(systemConfigService, new PersonaInterviewRegistry(), interviewPromptBuilder);
     }
 
     private static UserLearningProfile profile() {

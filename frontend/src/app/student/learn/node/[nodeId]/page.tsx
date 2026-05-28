@@ -16,6 +16,8 @@ import WritingView from "@/components/learn/WritingView";
 import SessionRecap from "@/components/learn/SessionRecap";
 import PhonemeCoach from "@/components/learn/PhonemeCoach";
 import { useTranslations } from "next-intl";
+import { useTracking } from "@/hooks/useTracking";
+import { usePageTimeTracker } from "@/hooks/usePageTimeTracker";
 
 const VIEW_TABS = [
   { key: "grammar" as const, tKey: "grammar", icon: BookOpen, emoji: "📖" },
@@ -27,12 +29,14 @@ const VIEW_TABS = [
 ];
 
 export default function LearnNodePage() {
+  usePageTimeTracker('learn_node');
   const params = useParams();
   const router = useRouter();
   const nodeId = Number(params?.nodeId);
 
   const { me, loading: meLoading, targetLevel, streakDays, initials } = useStudentPracticeSession();
   const tLearn = useTranslations("learn");
+  const { trackFeatureAction } = useTracking();
   const { session, loading, error, activeView, setActiveView, fetchSession, reset, tabCompletion, tabScores, markTabCompleted, resetTabCompletion } = useNodeSessionStore();
   const [showRecap, setShowRecap] = useState(false);
   const [phonemeSuccessCount, setPhonemeSuccessCount] = useState<Set<number>>(new Set());
@@ -70,6 +74,13 @@ export default function LearnNodePage() {
 
     if (allAttempted && allPassed) {
       setShowRecap(true);
+      trackFeatureAction('lesson', 'completed', {
+        node_id: nodeId,
+        node_title: session?.titleVi,
+        cefr: targetLevel,
+        tab_scores: tabScores,
+        roadmap_percent: roadmapState?.percent,
+      });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, tabCompletion, tabScores, showRecap]);
@@ -109,6 +120,7 @@ export default function LearnNodePage() {
     if (!me || !nodeId) return;
     reset();
     fetchSession(nodeId);
+    trackFeatureAction('lesson', 'started', { node_id: nodeId, cefr: targetLevel });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [me, nodeId]);
 

@@ -1,10 +1,14 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Clock, Check, X, ChevronRight, Loader2, Play, Trophy, BookOpen, Headphones, PenTool, Mic2, ArrowLeft, AlertCircle, Send } from 'lucide-react'
 import { StudentShell } from '@/components/layouts/StudentShell'
 import { SprechenTeil2Simulator } from '@/components/exam/SprechenTeil2Simulator'
+import { ExamProgressBar } from '@/components/exam/ExamProgressBar'
+import { DetailedScoreBreakdown } from '@/components/exam/DetailedScoreBreakdown'
+import { ExamFeedback } from '@/components/exam/ExamFeedback'
+import { WeakAreasRecommendation } from '@/components/exam/WeakAreasRecommendation'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
 import { logout } from '@/lib/authSession'
 import api from '@/lib/api'
@@ -20,15 +24,26 @@ interface MockExam {
   time_limit_minutes: number
 }
 
+interface SectionScore {
+  total?: number
+  max?: number
+  percentage?: number
+  status?: string
+  total_provisional?: number
+  total_max?: number
+}
+
 interface MockAttempt {
   id: number
   exam_id: number
+  exam_title?: string
   started_at: string
   finished_at?: string
   total_score?: number
   passed?: boolean
   status: string
-  scores_json?: string
+  detailed_scores_json?: string
+  weak_areas?: string
   sections_json?: string
 }
 
@@ -72,6 +87,7 @@ export default function MockExamPage() {
   const [exams, setExams] = useState<MockExam[]>([])
   const [attempts, setAttempts] = useState<MockAttempt[]>([])
   const [loading, setLoading] = useState(true)
+  const [recommendedExamId, setRecommendedExamId] = useState<number | null>(null)
   
   // View states
   const [view, setView] = useState<'list' | 'result' | 'taking'>('list')
@@ -88,35 +104,37 @@ export default function MockExamPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [examRes, attRes] = await Promise.allSettled([
+      const [examRes, attRes, recRes] = await Promise.allSettled([
         api.get<MockExam[]>('/mock-exams?cefrLevel=A1'),
         api.get<MockAttempt[]>('/mock-exams/attempts/me'),
+        api.get<{ recommendedExamId: number }>('/mock-exams/recommend?cefrLevel=A1'),
       ])
       if (examRes.status === 'fulfilled') setExams(examRes.value.data ?? [])
       if (attRes.status === 'fulfilled') setAttempts(attRes.value.data ?? [])
+      if (recRes.status === 'fulfilled') {
+        const recId = recRes.value.data?.recommendedExamId
+        setRecommendedExamId(recId && recId > 0 ? recId : null)
+      }
     } finally { setLoading(false) }
   }, [])
 
   const submitExam = useCallback(async (autoSubmit = false) => {
     if (!activeAttemptId) return
     if (!autoSubmit && !confirm('Bạn có chắc chắn muốn nộp bài?')) return
-    
+
     setSubmitting(true)
     try {
-      let mockTotalScore = Math.floor(Math.random() * 40) + 60
-      
-      await api.post(`/mock-exams/attempts/${activeAttemptId}/finish`, {
-        answers,
-        totalScore: mockTotalScore
-      })
-      
-      await load()
-      
-      const finishedAttempt = await api.get(`/mock-exams/attempts/${activeAttemptId}/result`)
+      await api.post(`/mock-exams/attempts/${activeAttemptId}/finish`, { answers })
+
+      const finishedAttempt = await api.get<MockAttempt>(`/mock-exams/attempts/${activeAttemptId}/result`)
       setSelectedAttempt(finishedAttempt.data)
       setView('result')
-      trackFeatureAction('mock_exam', 'completed', { examId: activeAttemptId, totalScore: mockTotalScore })
-    } catch (e) {
+      await load()
+      trackFeatureAction('mock_exam', 'completed', {
+        examId: activeAttemptId,
+        totalScore: finishedAttempt.data?.total_score,
+      })
+    } catch {
       alert('Lỗi nộp bài. Vui lòng thử lại.')
     } finally {
       setSubmitting(false)
@@ -205,6 +223,15 @@ export default function MockExamPage() {
     setAnswers(prev => ({ ...prev, [questionId]: value }))
   }
 
+  // Count answered questions across all sections
+  const answeredCount = useMemo(() => Object.keys(answers).length, [answers])
+  const totalQuestions = useMemo(() => {
+    if (!activeExamData?.sections) return 0
+    return activeExamData.sections.reduce((sum: number, s: { teile?: Array<{ items?: unknown[] }> }) => {
+      return sum + (s.teile?.reduce((t: number, teil) => t + (teil.items?.length ?? 0), 0) ?? 0)
+    }, 0)
+  }, [activeExamData])
+
   // --- Render Functions for Exam Content ---
   const renderTakingExam = () => {
     if (!activeExamData?.sections) return null
@@ -246,6 +273,17 @@ export default function MockExamPage() {
             </button>
           </div>
         </div>
+
+        {/* Progress bar */}
+        <ExamProgressBar
+          sections={activeExamData.sections.map((s: { name: string; label_vi: string }) => ({
+            name: s.name,
+            label_vi: s.label_vi,
+          }))}
+          currentSectionIdx={currentSectionIdx}
+          answeredCount={answeredCount}
+          totalQuestions={totalQuestions}
+        />
 
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto bg-slate-50 p-6">
@@ -460,38 +498,61 @@ export default function MockExamPage() {
 
         <AnimatePresence mode="wait">
           {view === 'result' && selectedAttempt ? (
-            <motion.div key="result" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-              <button onClick={() => setView('list')} className="flex items-center gap-2 text-sm text-[#64748B] mb-4 hover:text-[#0F172A]">
+            <motion.div key="result" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
+              <button onClick={() => setView('list')} className="flex items-center gap-2 text-sm text-[#64748B] hover:text-[#0F172A]">
                 <ArrowLeft size={16} /> Quay lại
               </button>
-              <div className={`rounded-2xl p-6 mb-4 text-white ${selectedAttempt.passed ? 'bg-gradient-to-br from-emerald-500 to-teal-600' : 'bg-gradient-to-br from-slate-600 to-slate-800'}`}>
+
+              {/* Hero result banner */}
+              <div className={`rounded-2xl p-6 text-white ${selectedAttempt.passed ? 'bg-gradient-to-br from-emerald-500 to-teal-600' : 'bg-gradient-to-br from-slate-600 to-slate-800'}`}>
                 <div className="flex items-center gap-3 mb-2">
                   {selectedAttempt.passed ? <Trophy size={28} className="text-yellow-300" /> : <AlertCircle size={28} />}
                   <div>
                     <p className="text-xl font-extrabold">{selectedAttempt.passed ? 'Đạt! 🎉' : 'Chưa đạt'}</p>
-                    <p className="text-white/70 text-sm">Tổng điểm: {selectedAttempt.total_score ?? '—'}/100</p>
+                    <p className="text-white/70 text-sm">Tổng điểm tạm tính: {selectedAttempt.total_score ?? '—'}/100</p>
                   </div>
                 </div>
-                <p className="text-white/80 text-sm mt-2">Đây là bài thi mô phỏng, phần thi Nói và Viết cần được giáo viên chấm thủ công để có điểm chính xác nhất.</p>
+                <p className="text-white/70 text-xs mt-2">Phần Viết và Nói sẽ được chấm bổ sung — điểm tạm tính chưa bao gồm.</p>
               </div>
-              
-              <div className="grid grid-cols-2 gap-3 mb-6">
-                 {['LESEN', 'HOEREN', 'SCHREIBEN', 'SPRECHEN'].map(sec => {
-                    let sc = 0;
-                    if (selectedAttempt.scores_json) {
-                      try {
-                        const parsed = JSON.parse(selectedAttempt.scores_json);
-                        sc = Number(parsed[sec] || 0);
-                      } catch {}
-                    }
-                    // For mock demo, if passed we generate some random numbers if scores_json is missing
-                    if (!selectedAttempt.scores_json && selectedAttempt.total_score) {
-                        sc = Math.floor(selectedAttempt.total_score / 4) + (Math.random() * 5);
-                        if (sc > 25) sc = 25;
-                    }
-                    return <ScoreCard key={sec} section={sec} score={Math.round(sc)} max={25} />;
-                 })}
-              </div>
+
+              {/* Detailed score breakdown */}
+              {(() => {
+                let detailedScores: Record<string, SectionScore> = {}
+                if (selectedAttempt.detailed_scores_json) {
+                  try { detailedScores = JSON.parse(selectedAttempt.detailed_scores_json) } catch {}
+                }
+                if (Object.keys(detailedScores).length > 0) {
+                  return (
+                    <DetailedScoreBreakdown
+                      detailedScores={detailedScores}
+                      totalScore={selectedAttempt.total_score ?? 0}
+                      passed={selectedAttempt.passed ?? false}
+                    />
+                  )
+                }
+                return null
+              })()}
+
+              {/* AI writing feedback */}
+              {(() => {
+                let detailedScores: Record<string, unknown> = {}
+                if (selectedAttempt.detailed_scores_json) {
+                  try { detailedScores = JSON.parse(selectedAttempt.detailed_scores_json) } catch {}
+                }
+                if (Object.keys(detailedScores).length > 0) {
+                  return <ExamFeedback detailedScores={detailedScores} />
+                }
+                return null
+              })()}
+
+              {/* Weak areas */}
+              {(() => {
+                let weakAreas: string[] = []
+                if (selectedAttempt.weak_areas) {
+                  try { weakAreas = JSON.parse(selectedAttempt.weak_areas) } catch {}
+                }
+                return <WeakAreasRecommendation weakAreas={weakAreas} />
+              })()}
             </motion.div>
           ) : (
             <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
@@ -506,24 +567,34 @@ export default function MockExamPage() {
                     <p className="text-sm text-[#94A3B8]">Đề thi Goethe A1 sẽ sớm được cập nhật</p>
                   </div>
                 )}
-                {exams.map(exam => (
-                  <div key={exam.id} className="bg-white rounded-2xl border border-[#E2E8F0] p-5 hover:border-[#6366F1]/40 hover:shadow-md transition-all">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="font-bold text-[#0F172A]">{exam.title}</p>
-                        <div className="flex items-center gap-3 mt-1 text-xs text-[#64748B]">
-                          <span className="flex items-center gap-1"><Clock size={12} /> {exam.time_limit_minutes} phút</span>
-                          <span>Đạt: {exam.pass_points}/{exam.total_points} điểm</span>
+                {exams.map(exam => {
+                  const isRecommended = exam.id === recommendedExamId
+                  return (
+                    <div key={exam.id} className={`bg-white rounded-2xl border p-5 hover:shadow-md transition-all ${isRecommended ? 'border-[#6366F1] ring-1 ring-[#6366F1]/30' : 'border-[#E2E8F0] hover:border-[#6366F1]/40'}`}>
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="font-bold text-[#0F172A]">{exam.title}</p>
+                            {isRecommended && (
+                              <span className="text-[10px] font-extrabold uppercase tracking-wide text-white bg-[#6366F1] px-2 py-0.5 rounded-full">
+                                Gợi ý
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 mt-1 text-xs text-[#64748B]">
+                            <span className="flex items-center gap-1"><Clock size={12} /> {exam.time_limit_minutes} phút</span>
+                            <span>Đạt: {exam.pass_points}/{exam.total_points} điểm</span>
+                          </div>
                         </div>
+                        <button onClick={() => startExam(exam)}
+                          className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm text-white flex-shrink-0 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all"
+                          style={{ background: isRecommended ? '#4F46E5' : '#6366F1' }}>
+                          <Play size={16} className="fill-white" /> Bắt đầu thi
+                        </button>
                       </div>
-                      <button onClick={() => startExam(exam)}
-                        className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm text-white flex-shrink-0 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all"
-                        style={{ background: '#6366F1' }}>
-                        <Play size={16} className="fill-white" /> Bắt đầu thi
-                      </button>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
 
               {/* History */}

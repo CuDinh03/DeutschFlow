@@ -19,7 +19,10 @@ import {
   Sparkles,
 } from "lucide-react";
 import api from "@/lib/api";
+import { phaseApi, type PhaseStateResponse } from "@/lib/phaseApi";
 import { TodayPlanDto } from "@/types/today-plan";
+import { PhaseIndicator } from "@/components/journey/PhaseIndicator";
+import { GraduationBanner } from "@/components/journey/GraduationBanner";
 import { StudentShell } from "@/components/layouts/StudentShell";
 import { logout } from "@/lib/authSession";
 import { DeutschFlowLoader } from "@/components/ui/DeutschFlowLogo";
@@ -158,6 +161,7 @@ export default function DashboardPage() {
   const [plan, setPlan] = useState<TodayPlanDto | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [roadmapMeta, setRoadmapMeta] = useState<RoadmapMeta | null>(null);
+  const [phaseState, setPhaseState] = useState<PhaseStateResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -167,15 +171,17 @@ export default function DashboardPage() {
     else setRefreshing(true);
     setError(null);
     try {
-      const [meRes, todayRes, dashRes, errRes, roadmapMetaRes] = await Promise.all([
+      const [meRes, todayRes, dashRes, errRes, roadmapMetaRes, phaseRes] = await Promise.all([
         api.get("/auth/me"),
         api.get("/today/me").catch(() => ({ data: null })),
         api.get("/student/dashboard").catch(() => ({ data: null })),
         api.get("/error-skills/me").catch(() => ({ data: [] })),
         api.get("/roadmap/me/meta").catch(() => ({ data: null })),
+        phaseApi.getCurrent().catch(() => ({ data: null })),
       ]);
       const me = meRes.data;
       const roadmapMetaData = roadmapMetaRes.data as RoadmapMeta | null;
+      if (phaseRes.data) setPhaseState(phaseRes.data as PhaseStateResponse);
       const nameParts = (me.displayName ?? me.email ?? "").split(" ");
       const dashData = dashRes.data;
       const todayData = todayRes.data;
@@ -300,6 +306,30 @@ export default function DashboardPage() {
             <motion.div className="h-full rounded-full" style={{ background: progress >= 80 ? "#10b981" : progress >= 50 ? "#f59e0b" : "#121212" }} initial={{ width: 0 }} animate={{ width: `${progress}%` }} transition={{ duration: 0.9, ease: "easeOut" }} />
           </div>
         </div>
+
+        {phaseState && (
+          phaseState.currentPhase === 'GRADUATED'
+            ? <GraduationBanner phase={phaseState} />
+            : <PhaseIndicator phase={phaseState} />
+        )}
+
+        {phaseState && phaseState.sessionsCompleted === 0 && (
+          <Link
+            href="/student/beginner"
+            className="flex items-center justify-between bg-[#121212] text-white rounded-[20px] px-5 py-4 hover:bg-[#1e1e1e] transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-[#FFCD00] flex items-center justify-center flex-shrink-0">
+                <Sparkles size={18} className="text-[#121212]" />
+              </div>
+              <div>
+                <p className="font-extrabold text-sm">Bắt đầu buổi học đầu tiên</p>
+                <p className="text-xs text-white/60">10 từ tiếng Đức cơ bản + nói chuyện với AI</p>
+              </div>
+            </div>
+            <ArrowRight size={18} className="text-white/60 flex-shrink-0" />
+          </Link>
+        )}
 
         <div>
           <div className="flex items-center justify-between mb-4">

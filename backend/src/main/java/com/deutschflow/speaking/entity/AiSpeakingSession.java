@@ -62,6 +62,22 @@ public class AiSpeakingSession {
     @Column(name = "interview_state_json", columnDefinition = "TEXT")
     private String interviewStateJson;
 
+    /** Interview domain: persona version used at session creation (for report reproducibility). */
+    @Column(name = "interview_persona_version")
+    private Integer interviewPersonaVersion;
+
+    /** Interview domain: rubric template ID used at session creation (for report reproducibility). */
+    @Column(name = "interview_rubric_template_id")
+    private Long interviewRubricTemplateId;
+
+    /** Interview domain: active experiment key (A/B testing). */
+    @Column(name = "interview_experiment_key", length = 100)
+    private String interviewExperimentKey;
+
+    /** Interview domain: assigned prompt variant (A/B testing). */
+    @Column(name = "interview_prompt_variant", length = 50)
+    private String interviewPromptVariant;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     @Builder.Default
@@ -95,11 +111,48 @@ public class AiSpeakingSession {
     @Builder.Default
     private int messageCount = 0;
 
+    @Column(name = "template_id")
+    private Long templateId;
+
+    @Column(name = "difficulty_level")
+    private Integer difficultyLevel;
+
+    @Column(name = "ai_prompt", columnDefinition = "TEXT")
+    private String aiPrompt;
+
+    @Column(name = "ai_response", columnDefinition = "TEXT")
+    private String aiResponse;
+
+    @Column(name = "user_input", columnDefinition = "TEXT")
+    private String userInput;
+
+    @Column(name = "feedback", columnDefinition = "TEXT")
+    private String feedback;
+
+    @Column(name = "user_confidence_score")
+    private Integer userConfidenceScore;
+
+    @Column(name = "session_status")
+    private String sessionStatus;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
     @PrePersist
     void onCreate() {
         var now = LocalDateTime.now();
         if (startedAt == null) startedAt = now;
         if (lastActivityAt == null) lastActivityAt = now;
+        if (createdAt == null) createdAt = now;
+        if (updatedAt == null) updatedAt = now;
+    }
+
+    @PreUpdate
+    void onUpdate() {
+        updatedAt = LocalDateTime.now();
     }
 
     public enum SessionStatus {

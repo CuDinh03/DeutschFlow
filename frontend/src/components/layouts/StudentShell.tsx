@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
@@ -34,6 +34,8 @@ import {
 } from "lucide-react";
 import { XpLevelPill } from "@/components/gamification/XpLevelPill";
 import { useTracking } from "@/hooks/useTracking";
+import { usePlan } from "@/contexts/PlanContext";
+import posthog from "posthog-js";
 
 export type StudentShellSection = string;
 
@@ -108,6 +110,16 @@ export function StudentShell({
   const showMobileBottomPad = !isStudentImmersivePath(pathname) && !hideBottomNav;
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { trackFeatureAction } = useTracking();
+  const { plan } = usePlan();
+
+  useEffect(() => {
+    if (!plan || !posthog.__loaded) return;
+    posthog.setPersonProperties({
+      subscription_tier: plan.tier,
+      plan_code: plan.planCode,
+      plan_ends_at: plan.endsAtUtc ?? null,
+    });
+  }, [plan]);
 
   const navGroups = useMemo<NavGroup[]>(
     () => [

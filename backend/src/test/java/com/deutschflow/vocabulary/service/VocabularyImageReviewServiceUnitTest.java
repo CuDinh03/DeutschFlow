@@ -40,18 +40,9 @@ class VocabularyImageReviewServiceUnitTest {
 
     @Test
     void applyDecision_delegatesOnlyToGeneratorAndDoesNotDoubleApply() {
-        when(unsplashImageServiceProvider.getIfAvailable()).thenReturn(unsplashImageService);
-        when(jdbcTemplate.queryForMap(anyString(), eq(42L)))
-                .thenReturn(Map.of("base_form", "Haus", "dtype", "NOUN", "meaning", "house"));
-        when(unsplashImageService.search(anyString(), eq(1), eq(10))).thenReturn(List.of(
-                new UnsplashImageService.UnsplashImageResult(
-                        "u1", "alt", "desc", "thumb", "regular", "full", "photographer", "page"
-                )
-        ));
+        service.applyDecision(42L, new VocabularyImageReviewDecisionRequest("u1", "APPROVE", "DEFAULT", "https://images.example/u1.jpg"));
 
-        service.applyDecision(42L, new VocabularyImageReviewDecisionRequest("u1", "APPROVE", "DEFAULT"));
-
-        verify(generatorService).generateAndApply(42L, "Haus", "house", "NOUN", "DEFAULT");
+        verify(generatorService).generateFromUrl(42L, "null", "https://images.example/u1.jpg", "DEFAULT", "unsplashId=u1; personaStyle=DEFAULT");
         verify(vocabularyImageService, never()).applyGeneratedImage(eq(42L), any(), anyString(), anyString());
     }
 

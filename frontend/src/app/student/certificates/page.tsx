@@ -7,6 +7,7 @@ import { StudentShell } from "@/components/layouts/StudentShell";
 import { useStudentPracticeSession } from "@/hooks/useStudentPracticeSession";
 import { getAccessToken, logout } from "@/lib/authSession";
 import api from "@/lib/api";
+import { usePageTimeTracker } from "@/hooks/usePageTimeTracker";
 
 interface Certificate {
   id: number;
@@ -102,6 +103,7 @@ function LockedLevel({ level, onClaim }: { level: string; onClaim: () => void })
 }
 
 export default function CertificatePage() {
+  usePageTimeTracker('certificates');
   const { me, loading: meLoading, targetLevel, streakDays, initials } = useStudentPracticeSession();
   const [certs, setCerts] = useState<Certificate[]>([]);
   const [loading, setLoading] = useState(true);

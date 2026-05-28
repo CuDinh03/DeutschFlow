@@ -12,6 +12,7 @@ import { StudentShell } from "@/components/layouts/StudentShell";
 import { useTranslations } from "next-intl";
 import { clearTokens, logout } from "@/lib/authSession";
 import { useStudentPracticeSession } from "@/hooks/useStudentPracticeSession";
+import { usePageTimeTracker } from "@/hooks/usePageTimeTracker";
 
 interface SessionMessage {
   id: number;
@@ -186,6 +187,7 @@ function MessageBubble({ msg, tHistory }: { msg: SessionMessage; tHistory: any }
 }
 
 export default function SpeakingHistoryPage() {
+  usePageTimeTracker('speaking_history');
   const router = useRouter();
   const tHistory = useTranslations("history");
   const [sessions, setSessions] = useState<SpeakingSession[]>([]);

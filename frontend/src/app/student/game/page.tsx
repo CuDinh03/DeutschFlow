@@ -19,6 +19,7 @@ import {
   ChevronLeft,
   AlertCircle,
 } from "lucide-react";
+import { usePageTimeTracker } from "@/hooks/usePageTimeTracker";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -195,6 +196,7 @@ function GameContent() {
 }
 
 export default function GamePage() {
+  usePageTimeTracker('game');
   return (
     <DndProvider backend={HTML5Backend}>
       <GameContent />

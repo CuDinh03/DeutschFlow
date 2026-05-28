@@ -29,6 +29,7 @@ export type AdminNavId =
   | 'revenue'
   | 'tokenAnalytics'
   | 'analytics'
+  | 'interview-analytics'
   | 'students'
   | 'plans'
   | 'classes'
@@ -69,6 +70,7 @@ export default function AdminShell({
     { id: 'revenue' as const,       label: t('revenue'), href: '/admin/revenue',       icon: LineChart },
     { id: 'tokenAnalytics' as const,label: t('tokenAnalytics'),      href: '/admin/token-analytics', icon: PieChart },
     { id: 'analytics' as const,     label: 'Product Analytics',   href: '/admin/analytics',      icon: LineChart },
+    { id: 'interview-analytics' as const, label: 'Interview Analytics', href: '/admin/interview-analytics', icon: BarChart3 },
     { id: 'students' as const,      label: t('students'),        href: '/admin/users',         icon: Users },
     { id: 'plans' as const,         label: t('plans'),       href: '/admin/plans',          icon: Coins },
     { id: 'classes' as const,       label: t('classes'),           href: '/admin/classes',        icon: BookOpen },

@@ -3,10 +3,11 @@
 import { useState, useMemo, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, ChevronRight, ArrowLeft, Briefcase, BookOpen } from "lucide-react";
+import { Sparkles, ChevronRight, ArrowLeft, Briefcase, BookOpen, Lock } from "lucide-react";
 import { PERSONA_LIST, PERSONA_GROUPS, PersonaId, PersonaGroup, PERSONA_TOKENS } from "@/lib/personas";
 import { PersonaCard } from "./PersonaCard";
 import { aiSpeakingApi, SpeakingSessionMode } from "@/lib/aiSpeakingApi";
+import { interviewDomainApi, InterviewPersonaInfo } from "@/lib/interviewDomainApi";
 import { apiMessage, httpStatus } from "@/lib/api";
 import { toastApiError } from "@/lib/toastApiError";
 import { useTranslations } from "next-intl";
@@ -21,7 +22,7 @@ export function CompanionSelect() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const t = useTranslations("speaking");
-  const { quotaBlocked, quotaLoading } = useAiSpeakingQuota();
+  const { quota, quotaBlocked, quotaLoading } = useAiSpeakingQuota();
   const {
     setSessionId,
     setSelectedCompanion,
@@ -46,6 +47,8 @@ export function CompanionSelect() {
   const [interviewPosition, setInterviewPosition] = useState<string | null>(null);
   const [experienceLevel, setExperienceLevel] = useState<string | null>("1-2Y");
   const [cefrLevel, setCefrLevel] = useState<string>("B1");
+  const [dbPersonas, setDbPersonas] = useState<InterviewPersonaInfo[]>([]);
+  const [lockedNudge, setLockedNudge] = useState(false);
   // Lesson-specific state
   const [lessonScenario, setLessonScenario] = useState<string | null>(null);
 
@@ -55,6 +58,25 @@ export function CompanionSelect() {
     if (topic) setLessonScenario(topic)
     if (cefr && ['A1', 'A2', 'B1', 'B2'].includes(cefr)) setCefrLevel(cefr)
   }, [searchParams])
+
+  useEffect(() => {
+    if (sessionMode === "INTERVIEW" && dbPersonas.length === 0) {
+      interviewDomainApi.listPersonas().then(setDbPersonas).catch(() => {});
+    }
+  }, [sessionMode, dbPersonas.length])
+
+  // Auto-set interview position from DB persona when a persona is selected
+  useEffect(() => {
+    if (sessionMode !== "INTERVIEW" || !selected) return;
+    const match = dbPersonas.find(p => p.code === selected.toUpperCase());
+    if (match) setInterviewPosition(match.roleTitle);
+  }, [selected, dbPersonas, sessionMode])
+
+  const isPersonaLocked = (personaId: string) => {
+    if (!quota || quota.planCode !== "FREE") return false;
+    const dbP = dbPersonas.find(p => p.code === personaId.toUpperCase());
+    return dbP?.difficulty === "ADVANCED";
+  };
 
   const selectedPersona = selected ? PERSONA_LIST.find((p) => p.id === selected) : null;
 
@@ -211,6 +233,7 @@ export function CompanionSelect() {
     setInterviewPosition(null);
     setExperienceLevel("1-2Y");
     setLessonScenario(null);
+    setLockedNudge(false);
     // Auto-switch to correct group tab
     if (mode === "LESSON") setActiveGroup('special');
     else if (mode === "INTERVIEW" && activeGroup === 'special') setActiveGroup('it');
@@ -292,17 +315,56 @@ export function CompanionSelect() {
         {/* ── Persona Cards ── */}
         <div className="flex-1 px-4 overflow-y-auto pb-4">
           <div className="flex gap-3 flex-wrap">
-            {filteredPersonas.map((persona, idx) => (
-              <PersonaCard key={persona.id} persona={persona} isSelected={selected === persona.id} index={idx}
-                onClick={() => { setSelected(persona.id); setInterviewPosition(null); setLessonScenario(null); }}
-              />
-            ))}
+            {filteredPersonas.map((persona, idx) => {
+              const locked = sessionMode === "INTERVIEW" && isPersonaLocked(persona.id);
+              return (
+                <div key={persona.id} className="relative">
+                  <PersonaCard persona={persona} isSelected={selected === persona.id} index={idx}
+                    onClick={() => {
+                      if (locked) { setLockedNudge(true); return; }
+                      setLockedNudge(false);
+                      setSelected(persona.id);
+                      setInterviewPosition(null);
+                      setLessonScenario(null);
+                    }}
+                  />
+                  {locked && (
+                    <div className="absolute inset-0 rounded-3xl flex items-center justify-center" style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(2px)" }}>
+                      <Lock size={20} className="text-yellow-400" />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
             {filteredPersonas.length === 0 && (
               <p className="text-center w-full text-white/30 text-sm py-8">
                 Không có nhân vật nào cho chế độ này trong nhóm đã chọn.
               </p>
             )}
           </div>
+
+          {/* PRO paywall nudge */}
+          <AnimatePresence>
+            {lockedNudge && sessionMode === "INTERVIEW" && (
+              <motion.div
+                initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }}
+                className="mt-3 rounded-2xl px-4 py-3 flex items-start gap-3"
+                style={{ background: "rgba(255,205,0,0.08)", border: "1px solid rgba(255,205,0,0.25)" }}
+              >
+                <Lock size={16} className="text-yellow-400 mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-yellow-200 font-semibold">Nhân vật PRO</p>
+                  <p className="text-xs text-white/50 mt-0.5">Nhân vật cấp độ ADVANCED chỉ dành cho gói PRO/ULTRA. Nâng cấp để luyện phỏng vấn chuyên sâu.</p>
+                </div>
+                <button
+                  onClick={() => router.push("/student/pricing")}
+                  className="shrink-0 text-xs font-black text-yellow-400 hover:text-yellow-300 transition-colors whitespace-nowrap"
+                >
+                  Nâng cấp →
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* ── Interview Setup ── */}
@@ -315,28 +377,50 @@ export function CompanionSelect() {
                   <span className="text-xs font-bold uppercase tracking-wider" style={{ color: selectedPersona.accent }}>Vị trí ứng tuyển</span>
                 </div>
                 <div className="grid grid-cols-1 gap-2">
-                  {(selectedPersona.interviewPositions || []).map((pos) => (
-                    <motion.button
-                      key={pos.id}
-                      onClick={() => setInterviewPosition(pos.label)}
-                      className="flex items-center justify-between px-4 py-3 rounded-xl text-left transition-all"
-                      style={{
-                        background: interviewPosition === pos.label ? `${selectedPersona.accent}22` : "rgba(255,255,255,0.04)",
-                        border: interviewPosition === pos.label ? `1.5px solid ${selectedPersona.accent}` : "1.5px solid rgba(255,255,255,0.06)",
-                      }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <div>
-                        <span className="text-sm font-semibold text-white">{pos.label}</span>
-                        <span className="text-xs ml-2" style={{ color: "rgba(255,255,255,0.4)" }}>{pos.labelDe}</span>
-                      </div>
-                      {interviewPosition === pos.label && (
-                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: selectedPersona.accent }}>
-                          <span className="text-white text-xs">✓</span>
-                        </motion.div>
-                      )}
-                    </motion.button>
-                  ))}
+                  {(() => {
+                    const dbMatch = dbPersonas.find(p => p.code === selected?.toUpperCase());
+                    if (dbMatch) {
+                      return (
+                        <div
+                          className="flex items-center justify-between px-4 py-3 rounded-xl"
+                          style={{
+                            background: `${selectedPersona.accent}22`,
+                            border: `1.5px solid ${selectedPersona.accent}`,
+                          }}
+                        >
+                          <div>
+                            <span className="text-sm font-semibold text-white">{dbMatch.roleTitle}</span>
+                            <span className="text-xs ml-2" style={{ color: "rgba(255,255,255,0.4)" }}>{dbMatch.industry}</span>
+                          </div>
+                          <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: selectedPersona.accent }}>
+                            <span className="text-white text-xs">✓</span>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return (selectedPersona.interviewPositions || []).map((pos) => (
+                      <motion.button
+                        key={pos.id}
+                        onClick={() => setInterviewPosition(pos.label)}
+                        className="flex items-center justify-between px-4 py-3 rounded-xl text-left transition-all"
+                        style={{
+                          background: interviewPosition === pos.label ? `${selectedPersona.accent}22` : "rgba(255,255,255,0.04)",
+                          border: interviewPosition === pos.label ? `1.5px solid ${selectedPersona.accent}` : "1.5px solid rgba(255,255,255,0.06)",
+                        }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        <div>
+                          <span className="text-sm font-semibold text-white">{pos.label}</span>
+                          <span className="text-xs ml-2" style={{ color: "rgba(255,255,255,0.4)" }}>{pos.labelDe}</span>
+                        </div>
+                        {interviewPosition === pos.label && (
+                          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: selectedPersona.accent }}>
+                            <span className="text-white text-xs">✓</span>
+                          </motion.div>
+                        )}
+                      </motion.button>
+                    ));
+                  })()}
                 </div>
               </div>
 

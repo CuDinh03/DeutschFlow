@@ -8,6 +8,7 @@ import { logout } from "@/lib/authSession";
 import api from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { HelpCircle, ArrowRight, XCircle, Loader2, Trophy, CheckCircle2 } from "lucide-react";
+import { usePageTimeTracker } from "@/hooks/usePageTimeTracker";
 
 interface JoinResult {
   quizId: number;
@@ -18,6 +19,7 @@ interface JoinResult {
 }
 
 export default function StudentQuizJoinPage() {
+  usePageTimeTracker('quiz_join');
   const router = useRouter();
   const { me, loading: meLoading, targetLevel, streakDays, initials } = useStudentPracticeSession();
 

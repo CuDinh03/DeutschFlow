@@ -11,6 +11,8 @@ import { StudentShell } from '@/components/layouts/StudentShell'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
 import { reviewApi, type ReviewItem } from '@/lib/reviewApi'
 import { xpApi } from '@/lib/xpApi'
+import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
+import { useTracking } from '@/hooks/useTracking'
 
 // ─── Quality buttons ─────────────────────────────────────────────────────────
 
@@ -200,8 +202,10 @@ function ReviewCard({
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function ReviewQueuePage() {
+  usePageTimeTracker('review_queue');
   const { me, loading: sessionLoading, targetLevel, streakDays, initials } = useStudentPracticeSession()
   const router = useRouter()
+  const { trackFeatureAction } = useTracking()
 
   const [items, setItems] = useState<ReviewItem[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -225,13 +229,14 @@ export default function ReviewQueuePage() {
       } else {
         setItems(data.items)
         setEmpty(false)
+        trackFeatureAction('srs_review', 'started', { card_count: data.items.length, cefr: targetLevel })
       }
     } catch {
       setEmpty(true)
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [trackFeatureAction, targetLevel])
 
   useEffect(() => { loadCards() }, [loadCards])
 
@@ -254,6 +259,13 @@ export default function ReviewQueuePage() {
     const next = currentIndex + 1
     if (next >= items.length) {
       setDone(true)
+      trackFeatureAction('srs_review', 'completed', {
+        total: items.length,
+        passed: passed + (quality >= 3 ? 1 : 0),
+        xp_earned: xpEarned + (quality >= 3 ? 3 : 0),
+        accuracy_pct: Math.round(((passed + (quality >= 3 ? 1 : 0)) / items.length) * 100),
+        cefr: targetLevel,
+      })
     } else {
       setCurrentIndex(next)
     }

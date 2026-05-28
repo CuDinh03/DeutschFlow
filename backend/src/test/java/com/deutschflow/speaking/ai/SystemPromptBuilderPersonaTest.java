@@ -1,5 +1,6 @@
 package com.deutschflow.speaking.ai;
 
+import com.deutschflow.interview.prompt.InterviewPromptBuilder;
 import com.deutschflow.speaking.interview.PersonaInterviewRegistry;
 import com.deutschflow.speaking.persona.SpeakingPersona;
 import com.deutschflow.system.service.SystemConfigService;
@@ -12,6 +13,7 @@ import org.mockito.MockitoAnnotations;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.lenient;
 import com.deutschflow.speaking.contract.SpeakingResponseSchema;
@@ -22,6 +24,9 @@ class SystemPromptBuilderPersonaTest {
     @Mock
     private SystemConfigService systemConfigService;
 
+    @Mock
+    private InterviewPromptBuilder interviewPromptBuilder;
+
     private SystemPromptBuilder builder;
 
     @BeforeEach
@@ -30,7 +35,9 @@ class SystemPromptBuilderPersonaTest {
         // Return default base prompt for any getString() call
         lenient().when(systemConfigService.getString(anyString(), anyString()))
                 .thenAnswer(inv -> inv.getArgument(1));
-        builder = new SystemPromptBuilder(systemConfigService, new PersonaInterviewRegistry());
+        lenient().when(interviewPromptBuilder.build(any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn("TURN_DIRECTIVE: TEST\nVerbotene Phrasen: keine\nPflichtfrage: Wie heißen Sie?\n");
+        builder = new SystemPromptBuilder(systemConfigService, new PersonaInterviewRegistry(), interviewPromptBuilder);
     }
 
     private static UserLearningProfile minimalProfile() {

@@ -9,6 +9,7 @@ import {
 import { DevCharacter } from "@/components/characters/DevCharacter";
 import { StudentShell } from "@/components/layouts/StudentShell";
 import { useStudentPracticeSession } from "@/hooks/useStudentPracticeSession";
+import { usePageTimeTracker } from "@/hooks/usePageTimeTracker";
 
 const SKILLS = [
   { label: "Backend Architecture", pct: 96, color: "#121212" },
@@ -34,6 +35,7 @@ const FACTS = [
 ];
 
 export default function TutorProfilePage() {
+  usePageTimeTracker('tutor');
   const router = useRouter();
   const { me, loading, targetLevel, streakDays, initials, reload } = useStudentPracticeSession();
 
