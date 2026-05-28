@@ -105,7 +105,7 @@ function LevelNode({ level, index, isLeft, onClick, selected }: { level: Level; 
           {isLocked && <Lock size={20} className="text-[#94A3B8]" />}
           {isCurrent && <motion.div className="absolute inset-0 rounded-full" style={{ border: "3px solid rgba(255,206,0,0.5)" }} animate={{ scale: [1, 1.35, 1], opacity: [0.7, 0, 0.7] }} transition={{ repeat: Infinity, duration: 2, ease: "easeOut" }} />}
         </motion.button>
-        <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold" style={{ background: isCompleted ? "#059669" : isCurrent ? "#C9A200" : "#94A3B8", color: "white", border: "2px solid white" }}>{level.id}</div>
+        <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold" style={{ background: isCompleted ? "#059669" : isCurrent ? "#C9A200" : "#94A3B8", color: "white", border: "2px solid white" }}>{index + 1}</div>
       </div>
       <div className="flex-1 pl-5">{!isLeft && <InfoCard level={level} onClick={onClick} selected={selected} />}</div>
     </motion.div>
@@ -170,8 +170,10 @@ export default function RoadmapTreePage() {
   if (!user) return null;
   const initials = user.displayName.split(" ").map((p) => p.charAt(0)).join("").slice(0, 2).toUpperCase();
   const completedWeeks = levels.filter((l) => l.state === "completed").length;
-  const firstWeek = levels[0]?.id ?? 1;
-  const lastWeek = levels[levels.length - 1]?.id ?? 1;
+  const currentLevelIndex = levels.findIndex((l) => l.state === "current");
+  const currentWeekDisplay = currentLevelIndex >= 0 ? currentLevelIndex + 1 : completedWeeks + 1;
+  const firstWeek = 1;
+  const lastWeek = levels.length;
   const heroRight = (
     <div className="flex items-center gap-3 flex-shrink-0">
       <div className="flex items-center gap-2 px-3 py-2 rounded-[12px]" style={{ background: "rgba(255,206,0,0.15)", border: "1.5px solid rgba(255,206,0,0.4)" }}>
@@ -209,14 +211,14 @@ export default function RoadmapTreePage() {
         </div>
         <div className="relative max-w-5xl mx-auto px-5 pb-4">
           <div className="flex gap-1.5">{levels.map((l) => <div key={l.id} className="flex-1 h-1.5 rounded-full" style={{ background: l.state === "completed" ? "#FFCD00" : l.state === "current" ? "rgba(255,206,0,0.4)" : "rgba(255,255,255,0.12)" }} />)}</div>
-          <div className="flex items-center justify-between mt-1"><span className="text-white/40 text-[10px]">{t("weekStripStart", { week: firstWeek })}</span><span className="text-white/40 text-[10px] hidden sm:inline">···</span><span className="text-white/40 text-[10px]">{t("weekStripEnd", { week: lastWeek })}</span></div>
+          <div className="flex items-center justify-between mt-1"><span className="text-white/40 text-[10px]">{t("weekStripStart", { week: 1 })}</span><span className="text-white/40 text-[10px] hidden sm:inline">···</span><span className="text-white/40 text-[10px]">{t("weekStripEnd", { week: levels.length })}</span></div>
           <div className="mt-2 text-[10px] text-white/45 flex items-center gap-2"><span>{roadmapMeta?.roadmapVersion ?? "A0_A1_Foundation_First"}</span><span>•</span><span>{roadmapMeta?.currentNodeCode ?? currentNodeCode}</span></div>
         </div>
       </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
         <div className="hidden lg:flex flex-col gap-4 order-last lg:order-first">
-          <StatCard icon={Trophy} label={t("statStage")} value={targetLevel} sub={t("statStageSub", { week: currentLevelMeta?.id ?? levels[0]?.id ?? 1 })} iconBg="#FFF8E1" iconColor="#D97706" delay={0.1} />
+          <StatCard icon={Trophy} label={t("statStage")} value={currentLevelMeta?.cefrLevel ?? roadmapMeta?.currentLevel ?? "A1"} sub={t("statStageSub", { week: currentWeekDisplay })} iconBg="#FFF8E1" iconColor="#D97706" delay={0.1} />
           <StatCard icon={Star} label={t("statTotalXp")} value={`${totalXP}`} sub={t("statTotalXpSub")} iconBg="#EEF4FF" iconColor="#121212" delay={0.17} />
           <StatCard icon={Flame} label={t("statStreak")} value={tStudent("streakDays", { n: streak })} sub={t("statStreakSub")} iconBg="#FFF4EC" iconColor="#F97316" delay={0.24} />
           <StatCard icon={Target} label={t("statLessons")} value={`${totalLessonsDone} / ${totalLessonsAll}`} sub={t("statLessonsSub", { done: totalLessonsDone, total: totalLessonsAll, pct: lessonsPct })} iconBg="#F0FDF4" iconColor="#10B981" delay={0.31} />
@@ -240,7 +242,7 @@ export default function RoadmapTreePage() {
             {selected && <motion.div className="mt-6 rounded-[16px] p-4" style={{ background: selected.state === "completed" ? "#F0FDF4" : selected.state === "current" ? "#FFF8E1" : "#F8FAFC", border: `2px solid ${selected.state === "completed" ? "#BBF7D0" : selected.state === "current" ? "#FDE68A" : "#E2E8F0"}` }} initial={{ opacity: 0, y: 10, height: 0 }} animate={{ opacity: 1, y: 0, height: "auto" }} transition={{ type: "spring", stiffness: 300, damping: 28 }}><div className="flex items-start gap-3 mb-4"><span className="text-3xl">{selected.emoji}</span><div className="flex-1"><h3 className="font-bold text-base" style={{ color: selected.state === "locked" ? "#94A3B8" : "#0F172A" }}>{selected.title}</h3><p className="text-xs text-[#64748B] mt-0.5">{selected.description}</p></div><div className="px-2.5 py-1 rounded-full text-xs font-bold" style={{ background: selected.state === "completed" ? "#10B981" : selected.state === "current" ? "#FFCD00" : "#E2E8F0", color: selected.state === "completed" ? "white" : selected.state === "current" ? "#121212" : "#94A3B8" }}>+{selected.xpReward} XP</div></div>{selected.state !== "locked" && <div className="mb-4"><div className="flex justify-between mb-1.5"><span className="text-xs text-[#64748B]">{t("lessonsProgress", { done: selected.lessonsCompleted, total: selected.lessonsTotal })}</span><span className="text-xs font-semibold" style={{ color: selected.color }}>{Math.round((selected.lessonsCompleted / Math.max(1, selected.lessonsTotal)) * 100)}%</span></div><div className="h-2.5 rounded-full overflow-hidden bg-white/60"><motion.div className="h-full rounded-full" style={{ background: selected.color }} initial={{ width: 0 }} animate={{ width: `${Math.round((selected.lessonsCompleted / Math.max(1, selected.lessonsTotal)) * 100)}%` }} transition={{ duration: 0.6, ease: "easeOut" }} /></div></div>}{selected.state === "current" && <button type="button" onClick={() => router.push(`/student/learn/node/${selected.id}`)} className="w-full flex items-center justify-center gap-2 py-3 rounded-[14px] font-bold text-sm transition-all" style={{ background: "#121212", color: "white", boxShadow: "0 5px 0 0 #000000, 0 8px 20px rgba(0,48,94,0.25)" }}><Play size={16} fill="white" /> {t("continueLesson")}</button>}{selected.state === "completed" && <button type="button" onClick={() => router.push(`/student/learn/node/${selected.id}`)} className="w-full flex items-center justify-center gap-2 py-3 rounded-[14px] font-bold text-sm transition-all" style={{ background: "#10B981", color: "white", boxShadow: "0 5px 0 0 #059669, 0 8px 20px rgba(16,185,129,0.25)" }}><RotateCcwIcon /> {t("repeatLesson")}</button>}{selected.state === "locked" && <div className="w-full flex items-center justify-center gap-2 py-3 rounded-[14px] text-sm font-semibold" style={{ background: "#F5F7FA", color: "#94A3B8", border: "2px solid #E2E8F0" }}><Lock size={14} /> {t("lockedCta")}</div>}</motion.div>}
           </motion.div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 lg:hidden">
-            <StatCard icon={Trophy} label={t("mobileStatStage")} value={targetLevel} sub={t("mobileStatStageSub")} iconBg="#FFF8E1" iconColor="#D97706" delay={0} />
+            <StatCard icon={Trophy} label={t("mobileStatStage")} value={currentLevelMeta?.cefrLevel ?? roadmapMeta?.currentLevel ?? "A1"} sub={t("mobileStatStageSub")} iconBg="#FFF8E1" iconColor="#D97706" delay={0} />
             <StatCard icon={Star} label={t("statTotalXp")} value={`${totalXP}`} sub={t("mobileStatXpSub")} iconBg="#EEF4FF" iconColor="#121212" delay={0.05} />
             <StatCard icon={Flame} label={t("statStreak")} value={`${streak} 🔥`} sub={t("mobileStatStreakSub")} iconBg="#FFF4EC" iconColor="#F97316" delay={0.1} />
             <StatCard icon={Zap} label={t("statLessons")} value={`${totalLessonsDone}`} sub={t("mobileStatLessonsSub")} iconBg="#F0FDF4" iconColor="#10B981" delay={0.15} />
