@@ -318,7 +318,7 @@ export function CompanionSelect() {
             {filteredPersonas.map((persona, idx) => {
               const locked = sessionMode === "INTERVIEW" && isPersonaLocked(persona.id);
               return (
-                <div key={persona.id} className="relative">
+                <div key={persona.id} className="relative" style={{ width: "calc(50% - 6px)" }}>
                   <PersonaCard persona={persona} isSelected={selected === persona.id} index={idx}
                     onClick={() => {
                       if (locked) { setLockedNudge(true); return; }

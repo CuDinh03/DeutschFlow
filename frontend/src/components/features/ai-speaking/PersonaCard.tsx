@@ -100,7 +100,7 @@ export function PersonaCard({ persona, isSelected, index, onClick }: PersonaCard
     <motion.button
       className="flex flex-col rounded-[20px] overflow-hidden relative cursor-pointer text-left"
       style={{
-        width: "calc(50% - 6px)",
+        width: "100%",
         height: hasSvg ? 380 : 320,
         background: isSelected
           ? `linear-gradient(180deg, ${persona.bg} 0%, rgba(10,10,28,0.92) 100%)`
