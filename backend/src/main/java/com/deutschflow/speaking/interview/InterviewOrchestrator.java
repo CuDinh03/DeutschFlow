@@ -4,6 +4,7 @@ import com.deutschflow.speaking.persona.SpeakingPersona;
 import org.springframework.stereotype.Component;
 
 import java.util.Locale;
+import java.util.Optional;
 
 @Component
 public class InterviewOrchestrator {
@@ -25,13 +26,18 @@ public class InterviewOrchestrator {
         return InterviewSessionState.initial(seed, focus);
     }
 
+    /**
+     * Plans the next turn. Pass {@code promptVariant} from the session's experiment
+     * assignment so that Variant C adaptive follow-up can be applied.
+     */
     public InterviewTurnPlan planTurn(
             InterviewSessionState state,
             SpeakingPersona persona,
             String position,
             String experienceLevel,
             int messageCount,
-            String userMessage) {
+            String userMessage,
+            String promptVariant) {
 
         int userTurn = messageCount / 2 + 1;
         InterviewPhase phase = InterviewPhase.fromUserTurn(userTurn);
@@ -44,10 +50,35 @@ public class InterviewOrchestrator {
         InterviewDirectiveType directive = resolveDirective(phase, analysis, state, userAskedClosingQuestions);
         String directiveInstruction = directiveText(directive, analysis);
 
-        var question = registry.pickQuestion(persona, position, phase, state);
-        String mandatoryQuestion = question.map(InterviewQuestionDef::questionDe).orElse(fallbackQuestion(phase, position));
+        Optional<InterviewQuestionDef> question = registry.pickQuestion(persona, position, phase, state);
+
+        // ── Variant C: adaptive follow-up ────────────────────────────────────
+        // When the answer is weak, replace the standard question with a DB-backed
+        // challenge question targeting the same topic the candidate struggled with.
+        boolean isVariantC = "variant_c".equalsIgnoreCase(promptVariant);
+        if (isVariantC && analysis.weakAnswer()
+                && directive != InterviewDirectiveType.CLOSING_ASK
+                && directive != InterviewDirectiveType.CLOSING_ANSWER) {
+            String lastTopic = state.getTopicsCovered().isEmpty()
+                    ? null
+                    : state.getTopicsCovered().get(state.getTopicsCovered().size() - 1);
+            Optional<InterviewQuestionDef> adaptiveQ = registry.pickChallengeFollowUp(
+                    persona, phase, lastTopic, state.getAskedQuestionIds());
+            if (adaptiveQ.isPresent()) {
+                question = adaptiveQ;
+                // Override directive to a deeper probe when we have a specific follow-up
+                directive = InterviewDirectiveType.PROBE_SPECIFIC;
+                directiveInstruction = directiveText(directive, analysis);
+            }
+        }
+
+        String mandatoryQuestion = question
+                .map(InterviewQuestionDef::questionDe)
+                .orElse(fallbackQuestion(phase, position));
         String questionId = question.map(InterviewQuestionDef::id).orElse("fallback_" + phase.name());
-        String topicKey = question.map(InterviewQuestionDef::topicKey).orElse(phase.name().toLowerCase(Locale.ROOT));
+        String topicKey = question
+                .map(InterviewQuestionDef::topicKey)
+                .orElse(phase.name().toLowerCase(Locale.ROOT));
 
         if (userAskedClosingQuestions) {
             directive = InterviewDirectiveType.CLOSING_ANSWER;
@@ -79,37 +110,38 @@ public class InterviewOrchestrator {
         );
     }
 
+    /**
+     * Overload without variant — defaults to "control" behaviour for backward compatibility
+     * (greeting turn, tests, other callers that have no variant context yet).
+     */
+    public InterviewTurnPlan planTurn(
+            InterviewSessionState state,
+            SpeakingPersona persona,
+            String position,
+            String experienceLevel,
+            int messageCount,
+            String userMessage) {
+        return planTurn(state, persona, position, experienceLevel, messageCount, userMessage, "control");
+    }
+
     private InterviewDirectiveType resolveDirective(
             InterviewPhase phase,
             InterviewAnswerAnalysis analysis,
             InterviewSessionState state,
             boolean closingQuestions) {
-        if (closingQuestions) {
-            return InterviewDirectiveType.CLOSING_ANSWER;
-        }
-        if (phase == InterviewPhase.CLOSING) {
-            return InterviewDirectiveType.CLOSING_ASK;
-        }
-        if (analysis.roleScopeCreep()) {
-            return InterviewDirectiveType.ROLE_BOUNDARY;
-        }
-        if (analysis.monologue()) {
-            return InterviewDirectiveType.INTERRUPT_HOOK;
-        }
-        if (analysis.hypotheticalHeavy() || analysis.bulletListWithoutConcrete()) {
-            return InterviewDirectiveType.CHALLENGE_EXAMPLE;
-        }
-        if (phase == InterviewPhase.STAR_SOFT && analysis.missingStar()) {
-            return InterviewDirectiveType.STAR_PROMPT;
-        }
+        if (closingQuestions)                      return InterviewDirectiveType.CLOSING_ANSWER;
+        if (phase == InterviewPhase.CLOSING)       return InterviewDirectiveType.CLOSING_ASK;
+        if (analysis.roleScopeCreep())             return InterviewDirectiveType.ROLE_BOUNDARY;
+        if (analysis.monologue())                  return InterviewDirectiveType.INTERRUPT_HOOK;
+        if (analysis.hypotheticalHeavy() || analysis.bulletListWithoutConcrete())
+                                                   return InterviewDirectiveType.CHALLENGE_EXAMPLE;
+        if (phase == InterviewPhase.STAR_SOFT && analysis.missingStar())
+                                                   return InterviewDirectiveType.STAR_PROMPT;
         if (phase == InterviewPhase.HARD_SKILLS
                 && state.getChallengeCount() < Math.max(1, state.getUserTurn() / 2)
-                && !analysis.concreteExample()) {
-            return InterviewDirectiveType.CHALLENGE_EXAMPLE;
-        }
-        if (analysis.concreteExample() && phase == InterviewPhase.HARD_SKILLS) {
-            return InterviewDirectiveType.DEEPEN;
-        }
+                && !analysis.concreteExample())    return InterviewDirectiveType.CHALLENGE_EXAMPLE;
+        if (analysis.concreteExample() && phase == InterviewPhase.HARD_SKILLS)
+                                                   return InterviewDirectiveType.DEEPEN;
         return InterviewDirectiveType.STANDARD;
     }
 

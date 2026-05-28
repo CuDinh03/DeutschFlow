@@ -1,11 +1,9 @@
 package com.deutschflow.interview.service;
 
 import com.deutschflow.interview.dto.InterviewAnalyticsSummaryDto;
-import com.deutschflow.interview.entity.InterviewPhaseResult;
 import com.deutschflow.interview.repository.InterviewExperimentAssignmentRepository;
 import com.deutschflow.interview.repository.InterviewPersonaRepository;
 import com.deutschflow.interview.repository.InterviewPhaseResultRepository;
-import com.deutschflow.interview.repository.InterviewTurnRepository;
 import com.deutschflow.speaking.entity.AiSpeakingSession;
 import com.deutschflow.speaking.repository.AiSpeakingSessionRepository;
 import lombok.RequiredArgsConstructor;
@@ -27,110 +25,87 @@ public class InterviewAnalyticsQueryService {
     private final InterviewPersonaRepository personaRepository;
 
     public InterviewAnalyticsSummaryDto buildSummary() {
+        // ── 1. Session counts (one query) ──────────────────────────────────────
         List<AiSpeakingSession> all = sessionRepository.findBySessionMode("INTERVIEW");
         long total = all.size();
-
         long completed = all.stream()
                 .filter(s -> AiSpeakingSession.SessionStatus.ENDED == s.getStatus())
                 .count();
-        double completionRate = total == 0 ? 0.0 : (double) completed / total * 100.0;
+        double completionRate = total == 0 ? 0.0 : completed * 100.0 / total;
 
         Map<String, Long> byPersona = all.stream()
                 .filter(s -> s.getPersona() != null)
                 .collect(Collectors.groupingBy(AiSpeakingSession::getPersona, Collectors.counting()));
 
-        Map<String, Long> byIndustry = resolveIndustry(all);
+        // ── 2. Persona → industry map (one query) ─────────────────────────────
+        Map<String, String> personaToIndustry = new HashMap<>();
+        personaRepository.findAll()
+                .forEach(p -> personaToIndustry.put(p.getCode(), p.getIndustry()));
 
-        Map<String, Double> avgScoreByIndustry = computeAvgScoreByIndustry(all);
+        Map<String, Long> byIndustry = new LinkedHashMap<>();
+        for (AiSpeakingSession s : all) {
+            String industry = personaToIndustry.getOrDefault(s.getPersona(), "Unknown");
+            byIndustry.merge(industry, 1L, Long::sum);
+        }
 
-        List<InterviewAnalyticsSummaryDto.PhaseDropOff> dropOff = computePhaseDropOff(all, total);
+        // ── 3. Phase aggregates (two queries instead of N+1) ──────────────────
+        Map<String, Long> phaseSessionCount = new LinkedHashMap<>();
+        for (String p : PHASE_ORDER) phaseSessionCount.put(p, 0L);
+        phaseResultRepository.aggregateByPhase()
+                .forEach(a -> phaseSessionCount.put(a.getPhase(), a.getSessionCount()));
 
-        Map<String, Long> variantDist = experimentRepository.findAll().stream()
-                .filter(e -> e.getVariantKey() != null)
-                .collect(Collectors.groupingBy(e -> e.getVariantKey(), Collectors.counting()));
+        List<InterviewAnalyticsSummaryDto.PhaseDropOff> dropOff = PHASE_ORDER.stream()
+                .map(phase -> new InterviewAnalyticsSummaryDto.PhaseDropOff(
+                        phase,
+                        phaseSessionCount.getOrDefault(phase, 0L),
+                        total == 0 ? 0.0 : phaseSessionCount.getOrDefault(phase, 0L) * 100.0 / total))
+                .toList();
 
-        Map<String, Double> avgScoreByVariant = computeAvgScoreByVariant(all);
+        // ── 4. Avg score by industry (join session→industry with score aggregate) ──
+        Map<Long, Double> sessionAvgScore = phaseResultRepository.avgScorePerSession()
+                .stream()
+                .collect(Collectors.toMap(
+                        InterviewPhaseResultRepository.SessionScoreAggregate::getSessionId,
+                        InterviewPhaseResultRepository.SessionScoreAggregate::getAvgScore));
+
+        Map<Long, String> sessionToIndustry = all.stream()
+                .collect(Collectors.toMap(
+                        AiSpeakingSession::getId,
+                        s -> personaToIndustry.getOrDefault(s.getPersona(), "Unknown")));
+
+        Map<String, List<Double>> scoresByIndustry = new HashMap<>();
+        sessionAvgScore.forEach((sessionId, score) -> {
+            String industry = sessionToIndustry.getOrDefault(sessionId, "Unknown");
+            scoresByIndustry.computeIfAbsent(industry, k -> new ArrayList<>()).add(score);
+        });
+        Map<String, Double> avgScoreByIndustry = scoresByIndustry.entrySet().stream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        e -> e.getValue().stream().mapToDouble(Double::doubleValue).average().orElse(0.0)));
+
+        // ── 5. Variant distribution + avg score by variant (one query) ─────────
+        Map<Long, String> sessionToVariant = new HashMap<>();
+        experimentRepository.findAll()
+                .forEach(e -> sessionToVariant.put(e.getSessionId(), e.getVariantKey()));
+
+        Map<String, Long> variantDist = sessionToVariant.values().stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.groupingBy(v -> v, Collectors.counting()));
+
+        Map<String, List<Double>> scoresByVariant = new HashMap<>();
+        sessionAvgScore.forEach((sessionId, score) -> {
+            String variant = sessionToVariant.getOrDefault(sessionId, "unknown");
+            scoresByVariant.computeIfAbsent(variant, k -> new ArrayList<>()).add(score);
+        });
+        Map<String, Double> avgScoreByVariant = scoresByVariant.entrySet().stream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        e -> e.getValue().stream().mapToDouble(Double::doubleValue).average().orElse(0.0)));
 
         return new InterviewAnalyticsSummaryDto(
                 total, completed, completionRate,
                 byIndustry, byPersona,
                 avgScoreByIndustry, dropOff,
                 variantDist, avgScoreByVariant);
-    }
-
-    private Map<String, Long> resolveIndustry(List<AiSpeakingSession> sessions) {
-        Map<String, String> personaToIndustry = new HashMap<>();
-        personaRepository.findAllByActiveTrue().forEach(p -> personaToIndustry.put(p.getCode(), p.getIndustry()));
-
-        Map<String, Long> result = new LinkedHashMap<>();
-        for (AiSpeakingSession s : sessions) {
-            String industry = personaToIndustry.getOrDefault(s.getPersona(), "Unknown");
-            result.merge(industry, 1L, Long::sum);
-        }
-        return result;
-    }
-
-    private Map<String, Double> computeAvgScoreByIndustry(List<AiSpeakingSession> sessions) {
-        Map<String, String> personaToIndustry = new HashMap<>();
-        personaRepository.findAllByActiveTrue().forEach(p -> personaToIndustry.put(p.getCode(), p.getIndustry()));
-
-        Map<String, List<Double>> scoresByIndustry = new HashMap<>();
-        for (AiSpeakingSession s : sessions) {
-            String industry = personaToIndustry.getOrDefault(s.getPersona(), "Unknown");
-            List<InterviewPhaseResult> results = phaseResultRepository.findBySessionIdOrderByPhaseAsc(s.getId());
-            for (InterviewPhaseResult pr : results) {
-                if (pr.getScore() != null) {
-                    scoresByIndustry.computeIfAbsent(industry, k -> new ArrayList<>())
-                            .add(pr.getScore().doubleValue());
-                }
-            }
-        }
-        return scoresByIndustry.entrySet().stream()
-                .collect(Collectors.toMap(
-                        Map.Entry::getKey,
-                        e -> e.getValue().stream().mapToDouble(Double::doubleValue).average().orElse(0.0)));
-    }
-
-    private List<InterviewAnalyticsSummaryDto.PhaseDropOff> computePhaseDropOff(
-            List<AiSpeakingSession> sessions, long total) {
-        if (total == 0) return List.of();
-
-        Map<String, Long> phaseReached = new LinkedHashMap<>();
-        for (String phase : PHASE_ORDER) phaseReached.put(phase, 0L);
-
-        for (AiSpeakingSession s : sessions) {
-            List<InterviewPhaseResult> results = phaseResultRepository.findBySessionIdOrderByPhaseAsc(s.getId());
-            for (InterviewPhaseResult pr : results) {
-                phaseReached.merge(pr.getPhase(), 1L, Long::sum);
-            }
-        }
-
-        return PHASE_ORDER.stream()
-                .map(phase -> new InterviewAnalyticsSummaryDto.PhaseDropOff(
-                        phase,
-                        phaseReached.getOrDefault(phase, 0L),
-                        phaseReached.getOrDefault(phase, 0L) * 100.0 / total))
-                .toList();
-    }
-
-    private Map<String, Double> computeAvgScoreByVariant(List<AiSpeakingSession> sessions) {
-        Map<Long, String> sessionToVariant = new HashMap<>();
-        experimentRepository.findAll().forEach(e -> sessionToVariant.put(e.getSessionId(), e.getVariantKey()));
-
-        Map<String, List<Double>> scores = new HashMap<>();
-        for (AiSpeakingSession s : sessions) {
-            String variant = sessionToVariant.getOrDefault(s.getId(), "unknown");
-            List<InterviewPhaseResult> results = phaseResultRepository.findBySessionIdOrderByPhaseAsc(s.getId());
-            for (InterviewPhaseResult pr : results) {
-                if (pr.getScore() != null) {
-                    scores.computeIfAbsent(variant, k -> new ArrayList<>())
-                            .add(pr.getScore().doubleValue());
-                }
-            }
-        }
-        return scores.entrySet().stream()
-                .collect(Collectors.toMap(
-                        Map.Entry::getKey,
-                        e -> e.getValue().stream().mapToDouble(Double::doubleValue).average().orElse(0.0)));
     }
 }

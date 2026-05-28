@@ -75,13 +75,13 @@ public class InterviewReportService {
     }
 
     private String deriveVerdict(BigDecimal score, List<InterviewTurn> turns) {
-        if (score == null) return "FAIL";
+        if (score == null) return "NOT_PASS";
         double s = score.doubleValue();
         long completedTurns = turns.stream().filter(t -> t.getUserAnswer() != null).count();
-        if (completedTurns < 3) return "FAIL";
+        if (completedTurns < 3) return "NOT_PASS";
         if (s >= 7.0) return "PASS";
-        if (s >= 5.0) return "CONDITIONAL";
-        return "FAIL";
+        if (s >= 5.0) return "CONDITIONAL_PASS";
+        return "NOT_PASS";
     }
 
     private String deriveReadinessLevel(String experienceLevel, BigDecimal score) {

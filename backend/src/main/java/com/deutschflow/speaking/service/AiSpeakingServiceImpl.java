@@ -575,7 +575,8 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
             answerAnalysis = interviewAnswerAnalyzer.analyze(userMessage, phase, session.getExperienceLevel());
             InterviewTurnPlan plan = interviewOrchestrator.planTurn(
                     state, persona, session.getInterviewPosition(), session.getExperienceLevel(),
-                    session.getMessageCount(), userMessage);
+                    session.getMessageCount(), userMessage,
+                    session.getInterviewPromptVariant());
             interviewContext = new InterviewPromptContext(state, plan);
         }
 

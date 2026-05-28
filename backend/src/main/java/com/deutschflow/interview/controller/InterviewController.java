@@ -11,6 +11,7 @@ import com.deutschflow.speaking.repository.AiSpeakingSessionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -45,6 +46,7 @@ public class InterviewController {
 
     /** Get all persisted turns for an interview session. */
     @GetMapping("/{sessionId}/turns")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<InterviewTurnDto>> getTurns(@PathVariable Long sessionId) {
         List<InterviewTurnDto> turns = turnPersistenceService.getTurnsForSession(sessionId)
                 .stream()
@@ -55,12 +57,14 @@ public class InterviewController {
 
     /** Get per-phase evaluation results for a session. */
     @GetMapping("/{sessionId}/phase-results")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> getPhaseResults(@PathVariable Long sessionId) {
         return ResponseEntity.ok(phaseEvalService.getPhaseResults(sessionId));
     }
 
     /** Get the structured deterministic report for a completed session. */
     @GetMapping("/{sessionId}/report")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<InterviewReportDto> getReport(@PathVariable Long sessionId) {
         AiSpeakingSession session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new com.deutschflow.common.exception.NotFoundException("Session not found"));
@@ -70,12 +74,14 @@ public class InterviewController {
 
     /** Get A/B experiment assignments for a session. */
     @GetMapping("/{sessionId}/experiments")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<InterviewExperimentAssignment>> getExperiments(@PathVariable Long sessionId) {
         return ResponseEntity.ok(experimentService.getAssignmentsForSession(sessionId));
     }
 
     /** Aggregate KPI summary for the admin interview analytics dashboard. */
     @GetMapping("/analytics")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<InterviewAnalyticsSummaryDto> getAnalytics() {
         return ResponseEntity.ok(analyticsQueryService.buildSummary());
     }

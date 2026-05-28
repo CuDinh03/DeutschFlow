@@ -9,17 +9,15 @@ import com.deutschflow.interview.repository.InterviewRubricTemplateRepository;
 import com.deutschflow.common.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/**
- * Admin-only endpoints for managing interview personas and rubric templates.
- * Used for Phase 3 rubric weight tuning and persona lifecycle management.
- */
 @RestController
 @RequestMapping("/api/admin/interviews")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('ADMIN')")
 public class InterviewAdminController {
 
     private final InterviewPersonaRepository personaRepository;
