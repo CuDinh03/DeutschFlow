@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, ChevronRight, ArrowLeft, Briefcase, BookOpen } from "lucide-react";
+import { Sparkles, ChevronRight, ArrowLeft, Briefcase, BookOpen, Lock } from "lucide-react";
 import { PERSONA_LIST, PERSONA_GROUPS, PersonaId, PersonaGroup, PERSONA_TOKENS } from "@/lib/personas";
 import { PersonaCard } from "./PersonaCard";
 import { aiSpeakingApi, SpeakingSessionMode } from "@/lib/aiSpeakingApi";
@@ -22,7 +22,7 @@ export function CompanionSelect() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const t = useTranslations("speaking");
-  const { quotaBlocked, quotaLoading } = useAiSpeakingQuota();
+  const { quota, quotaBlocked, quotaLoading } = useAiSpeakingQuota();
   const {
     setSessionId,
     setSelectedCompanion,
@@ -48,6 +48,7 @@ export function CompanionSelect() {
   const [experienceLevel, setExperienceLevel] = useState<string | null>("1-2Y");
   const [cefrLevel, setCefrLevel] = useState<string>("B1");
   const [dbPersonas, setDbPersonas] = useState<InterviewPersonaInfo[]>([]);
+  const [lockedNudge, setLockedNudge] = useState(false);
   // Lesson-specific state
   const [lessonScenario, setLessonScenario] = useState<string | null>(null);
 
@@ -70,6 +71,12 @@ export function CompanionSelect() {
     const match = dbPersonas.find(p => p.code === selected.toUpperCase());
     if (match) setInterviewPosition(match.roleTitle);
   }, [selected, dbPersonas, sessionMode])
+
+  const isPersonaLocked = (personaId: string) => {
+    if (!quota || quota.planCode !== "FREE") return false;
+    const dbP = dbPersonas.find(p => p.code === personaId.toUpperCase());
+    return dbP?.difficulty === "ADVANCED";
+  };
 
   const selectedPersona = selected ? PERSONA_LIST.find((p) => p.id === selected) : null;
 
@@ -226,6 +233,7 @@ export function CompanionSelect() {
     setInterviewPosition(null);
     setExperienceLevel("1-2Y");
     setLessonScenario(null);
+    setLockedNudge(false);
     // Auto-switch to correct group tab
     if (mode === "LESSON") setActiveGroup('special');
     else if (mode === "INTERVIEW" && activeGroup === 'special') setActiveGroup('it');
@@ -307,17 +315,56 @@ export function CompanionSelect() {
         {/* ── Persona Cards ── */}
         <div className="flex-1 px-4 overflow-y-auto pb-4">
           <div className="flex gap-3 flex-wrap">
-            {filteredPersonas.map((persona, idx) => (
-              <PersonaCard key={persona.id} persona={persona} isSelected={selected === persona.id} index={idx}
-                onClick={() => { setSelected(persona.id); setInterviewPosition(null); setLessonScenario(null); }}
-              />
-            ))}
+            {filteredPersonas.map((persona, idx) => {
+              const locked = sessionMode === "INTERVIEW" && isPersonaLocked(persona.id);
+              return (
+                <div key={persona.id} className="relative">
+                  <PersonaCard persona={persona} isSelected={selected === persona.id} index={idx}
+                    onClick={() => {
+                      if (locked) { setLockedNudge(true); return; }
+                      setLockedNudge(false);
+                      setSelected(persona.id);
+                      setInterviewPosition(null);
+                      setLessonScenario(null);
+                    }}
+                  />
+                  {locked && (
+                    <div className="absolute inset-0 rounded-3xl flex items-center justify-center" style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(2px)" }}>
+                      <Lock size={20} className="text-yellow-400" />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
             {filteredPersonas.length === 0 && (
               <p className="text-center w-full text-white/30 text-sm py-8">
                 Không có nhân vật nào cho chế độ này trong nhóm đã chọn.
               </p>
             )}
           </div>
+
+          {/* PRO paywall nudge */}
+          <AnimatePresence>
+            {lockedNudge && sessionMode === "INTERVIEW" && (
+              <motion.div
+                initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }}
+                className="mt-3 rounded-2xl px-4 py-3 flex items-start gap-3"
+                style={{ background: "rgba(255,205,0,0.08)", border: "1px solid rgba(255,205,0,0.25)" }}
+              >
+                <Lock size={16} className="text-yellow-400 mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-yellow-200 font-semibold">Nhân vật PRO</p>
+                  <p className="text-xs text-white/50 mt-0.5">Nhân vật cấp độ ADVANCED chỉ dành cho gói PRO/ULTRA. Nâng cấp để luyện phỏng vấn chuyên sâu.</p>
+                </div>
+                <button
+                  onClick={() => router.push("/student/pricing")}
+                  className="shrink-0 text-xs font-black text-yellow-400 hover:text-yellow-300 transition-colors whitespace-nowrap"
+                >
+                  Nâng cấp →
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* ── Interview Setup ── */}

@@ -14,6 +14,8 @@ import { useTranslations } from "next-intl";
 import { submitInterviewReport, streamJobResult } from "@/lib/interviewReportApi";
 import { useStudentPracticeSession } from "@/hooks/useStudentPracticeSession";
 import { interviewDomainApi, InterviewPhaseResultInfo } from "@/lib/interviewDomainApi";
+import { useAiSpeakingQuota } from "@/hooks/useAiSpeakingQuota";
+import { Download } from "lucide-react";
 
 interface SessionMessage {
   id: string;
@@ -105,6 +107,7 @@ export default function InterviewsHistoryPage() {
   const router = useRouter();
   const tHistory = useTranslations("history");
   const { me, loading: meLoading, targetLevel, roadmapMeta, streakDays, initials } = useStudentPracticeSession();
+  const { quota } = useAiSpeakingQuota();
   const [sessions, setSessions] = useState<SpeakingSession[]>([]);
   const [selected, setSelected] = useState<SpeakingSession | null>(null);
   const [messages, setMessages] = useState<SessionMessage[]>([]);
@@ -199,6 +202,21 @@ export default function InterviewsHistoryPage() {
 
   const handleLogout = () => { clearTokens(); router.push("/login"); };
 
+  const weeklyCount = sessions.filter(s => {
+    if (!s.createdAt) return false;
+    return Date.now() - new Date(s.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000;
+  }).length;
+
+  const downloadReport = (json: string, sessionId: number) => {
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `interview-report-${sessionId}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   // Cleanup report stream on unmount
   useEffect(() => () => { reportStreamRef.current?.abort(); }, []);
 
@@ -219,15 +237,27 @@ export default function InterviewsHistoryPage() {
         style={{ background: "linear-gradient(180deg, #0A0F1E 0%, #0F172A 60%, #1A1535 100%)" }}
       >
         <div className="max-w-[460px] mx-auto w-full flex flex-col flex-1 p-4 overflow-y-auto">
-          <button
-            onClick={() => { setSelected(null); setMessages([]); reportStreamRef.current?.abort(); }}
-            className="flex items-center gap-2 text-white/70 hover:text-white mb-4 mt-2 transition-colors self-start"
-          >
-            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
-              <ArrowLeft size={16} />
-            </div>
-            <span className="text-sm font-medium">{tHistory("closeReport")}</span>
-          </button>
+          <div className="flex items-center justify-between mb-4 mt-2">
+            <button
+              onClick={() => { setSelected(null); setMessages([]); reportStreamRef.current?.abort(); }}
+              className="flex items-center gap-2 text-white/70 hover:text-white transition-colors"
+            >
+              <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
+                <ArrowLeft size={16} />
+              </div>
+              <span className="text-sm font-medium">{tHistory("closeReport")}</span>
+            </button>
+            {reportJson && (
+              <button
+                onClick={() => downloadReport(reportJson, selected.id)}
+                className="flex items-center gap-1.5 text-xs font-semibold text-white/60 hover:text-white/90 transition-colors px-3 py-1.5 rounded-xl"
+                style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)" }}
+              >
+                <Download size={13} />
+                Tải báo cáo
+              </button>
+            )}
+          </div>
 
           {/* Generating report indicator */}
           {generatingReport && (
@@ -324,6 +354,11 @@ export default function InterviewsHistoryPage() {
             <div className="flex items-center gap-2">
               <Clock size={16} className="text-[#64748B]" />
               <span className="text-sm text-[#64748B]">{tHistory("interviewCount", { count: sessions.length })}</span>
+              {quota?.planCode === "FREE" && (
+                <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold" style={{ background: "rgba(255,205,0,0.12)", color: "#A07A00", border: "1px solid rgba(255,205,0,0.3)" }}>
+                  {weeklyCount}/3 tuần này
+                </span>
+              )}
             </div>
             <button
               onClick={() => router.push("/speaking")}

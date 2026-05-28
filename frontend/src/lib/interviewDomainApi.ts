@@ -6,7 +6,7 @@ export interface InterviewPersonaInfo {
   industry: string;
   roleTitle: string;
   tone: string;
-  difficulty: number;
+  difficulty: string;
   questionStyle: string;
   evaluationBias: string;
   version: number;
