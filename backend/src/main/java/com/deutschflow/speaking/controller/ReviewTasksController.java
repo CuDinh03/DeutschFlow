@@ -22,22 +22,23 @@ import com.deutschflow.common.quota.QuotaService;
 @RequiredArgsConstructor
 public class ReviewTasksController {
 
-    private static final int TODAY_LIMIT = 5;
+    private static final int FREE_DAILY_LIMIT = 5;
+    private static final int FETCH_LIMIT = 20;
 
     private final ReviewSchedulerService reviewSchedulerService;
     private final QuotaService quotaService;
 
     @GetMapping("/me/today")
     public ReviewTasksResponse today(@AuthenticationPrincipal User user) {
-        List<ErrorReviewTask> dueTasks = reviewSchedulerService.findDueTasks(user.getId(), LocalDateTime.now(), TODAY_LIMIT);
-        
+        List<ErrorReviewTask> dueTasks = reviewSchedulerService.findDueTasks(user.getId(), LocalDateTime.now(), FETCH_LIMIT);
+
         com.deutschflow.common.quota.PlanBadge badge = quotaService.resolvePlanBadge(user.getId(), Instant.now());
         boolean isProOrBetter = "PRO".equals(badge.planCode()) || "ULTRA".equals(badge.planCode()) || "INTERNAL".equals(badge.planCode());
-        
+
         int lockedCount = 0;
-        if (!isProOrBetter && dueTasks.size() > 2) {
-            lockedCount = dueTasks.size() - 2;
-            dueTasks = dueTasks.subList(0, 2);
+        if (!isProOrBetter && dueTasks.size() > FREE_DAILY_LIMIT) {
+            lockedCount = dueTasks.size() - FREE_DAILY_LIMIT;
+            dueTasks = dueTasks.subList(0, FREE_DAILY_LIMIT);
         }
         
         List<ErrorReviewTaskDto> dtoList = dueTasks.stream()

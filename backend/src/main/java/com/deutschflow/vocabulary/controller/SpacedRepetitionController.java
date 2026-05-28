@@ -4,7 +4,8 @@ import com.deutschflow.vocabulary.dto.LearningProgressDto;
 import com.deutschflow.vocabulary.dto.RecordReviewRequest;
 import com.deutschflow.vocabulary.service.SpacedRepetitionService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -21,23 +22,23 @@ public class SpacedRepetitionController {
     @PostMapping("/record-review")
     public ResponseEntity<Void> recordReview(
             @RequestBody RecordReviewRequest request,
-            Authentication authentication) {
-        Long userId = getUserIdFromAuth(authentication);
-        spacedRepetitionService.recordReview(userId, request.wordId(), request.confidence());
+            @AuthenticationPrincipal UserDetails principal) {
+        spacedRepetitionService.recordReview(userId(principal), request.wordId(), request.confidence());
         return ResponseEntity.ok().build();
     }
 
     @GetMapping("/progress")
     public ResponseEntity<LearningProgressDto> getLearningProgress(
-            Authentication authentication) {
-        Long userId = getUserIdFromAuth(authentication);
-        LearningProgressDto progress = spacedRepetitionService.getLearningProgress(userId);
+            @AuthenticationPrincipal UserDetails principal) {
+        LearningProgressDto progress = spacedRepetitionService.getLearningProgress(userId(principal));
         return ResponseEntity.ok(progress);
     }
 
-    private Long getUserIdFromAuth(Authentication authentication) {
-        // TODO: Extract user ID from JWT token or authentication principal
-        // For now, return a placeholder
-        return 1L;
+    private long userId(UserDetails p) {
+        if (p instanceof com.deutschflow.user.entity.User user) {
+            return user.getId();
+        }
+        try { return Long.parseLong(p.getUsername()); }
+        catch (Exception e) { throw new RuntimeException("Cannot resolve user ID"); }
     }
 }

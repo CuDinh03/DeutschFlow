@@ -25,6 +25,9 @@ public interface AiSpeakingSessionRepository extends JpaRepository<AiSpeakingSes
     /** Find all ACTIVE sessions for a given user — used to auto-end old ones. */
     List<AiSpeakingSession> findByUserIdAndStatusOrderByStartedAtAsc(Long userId, SessionStatus status);
 
+    /** Find all sessions of a given mode — used for admin analytics. */
+    List<AiSpeakingSession> findBySessionMode(String sessionMode);
+
     /** Bulk-end zombie sessions that have been idle too long. Returns count of rows updated. */
     @Modifying
     @Query("UPDATE AiSpeakingSession s SET s.status = 'ENDED', s.endedAt = :now " +

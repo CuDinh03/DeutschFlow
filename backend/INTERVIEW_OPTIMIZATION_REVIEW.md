@@ -1,14 +1,13 @@
 # Interview Flow Optimization Review
 
 ## Mục tiêu
-Tối ưu flow `Interview` cho 10–20 concurrent users mà vẫn giữ trải nghiệm mượt: AI hỏi, người dùng trả lời dài vẫn không bị cắt ngang, và backend không nghẽn khi stream.
+Tối ưu flow `Interview` cho giai đoạn fluency của lộ trình 12 tuần, đảm bảo người học có thể chuyển từ production có kiểm soát sang hội thoại dài hơn mà vẫn giữ trải nghiệm mượt.
 
 ## Tóm tắt thay đổi
-- Chuyển `GroqChatClient` streaming sang `WebClient` để giảm blocking ở luồng SSE.
-- Thêm `SessionTurnGuard` để đảm bảo mỗi `sessionId` chỉ xử lý 1 turn AI tại một thời điểm.
-- Giữ `createSession` gọn hơn và giảm context nặng cho `INTERVIEW` khi tạo greeting.
-- Tinh gọn `SystemPromptBuilder` cho interview, tập trung vào role, phase, directive và persona thay vì prompt/tutor context dài.
-- Bổ sung metrics latency/status cho `createSession`, `chat`, và `chatStream` để đo bottleneck thực tế.
+- Ưu tiên AI Speaking sớm từ ngày 1 thay vì đợi đến giai đoạn muộn.
+- Đặt speaking as the bridge giữa input, production và interview-style practice.
+- Giữ flow hội thoại ổn định để hỗ trợ chuẩn bị B1 ở Phase 3.
+- Tập trung vào latency, turn-taking và trải nghiệm nói liên tục khi người học đã tích lũy đủ input và retrieval practice.
 
 ## Thứ tự ưu tiên endpoint
 1. `/sessions/{id}/chat/stream`
@@ -17,11 +16,10 @@ Tối ưu flow `Interview` cho 10–20 concurrent users mà vẫn giữ trải n
 4. `/transcribe`
 
 ## Ý nghĩa thực tế
-- Người dùng có thể nói/ghi âm lâu mà không bị rate limit cắt ngang.
-- Chỉ chặn khi có request AI chồng nhau thật sự.
-- Stream ổn định hơn và giảm nguy cơ nghẽn thread.
-- Có số liệu để quyết định bước refactor tiếp theo thay vì tối ưu theo cảm tính.
+- Người học không bị đứt mạch khi chuyển sang hội thoại dài.
+- Speaking sớm giúp tăng độ quen với output ngay từ nền tảng.
+- Stream ổn định hơn và phù hợp với mục tiêu fluency ở Phase 3.
 
 ## Ghi chú
-- Whisper (`GroqWhisperClient`) vẫn giữ `HttpClient` hiện tại vì là request/response ngắn và chưa phải bottleneck chính.
-- Nếu metrics sau deploy cho thấy vẫn nghẽn, bước tiếp theo nên là tách greeting async rõ hơn hoặc tinh chỉnh prompt/context thêm nữa.
+- Whisper vẫn có thể giữ cấu hình nhẹ nếu chưa là bottleneck chính.
+- Nếu cần mở rộng sau này, ưu tiên làm mượt interview flow theo hướng hỗ trợ B1 confirmation thay vì kéo dài theo mô hình tuần tự cũ.

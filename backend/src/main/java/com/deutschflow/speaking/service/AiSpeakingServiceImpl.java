@@ -121,6 +121,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
     private final com.deutschflow.teacher.service.TeacherAiGradingService teacherAiGradingService;
     private final Executor speakingStreamExecutor;
     private final SessionTurnGuard sessionTurnGuard;
+    private final com.deutschflow.interview.service.InterviewDomainCoordinator interviewDomainCoordinator;
 
     public AiSpeakingServiceImpl(
             TransactionTemplate transactionTemplate,
@@ -153,7 +154,8 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
             com.deutschflow.ai.rag.service.KnowledgeBaseService knowledgeBaseService,
             com.deutschflow.teacher.service.TeacherAiGradingService teacherAiGradingService,
             @Qualifier("speakingStreamExecutor") Executor speakingStreamExecutor,
-            SessionTurnGuard sessionTurnGuard) {
+            SessionTurnGuard sessionTurnGuard,
+            com.deutschflow.interview.service.InterviewDomainCoordinator interviewDomainCoordinator) {
         this.transactionTemplate = transactionTemplate;
         this.sessionRepository = sessionRepository;
         this.messageRepository = messageRepository;
@@ -185,6 +187,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         this.teacherAiGradingService = teacherAiGradingService;
         this.speakingStreamExecutor = speakingStreamExecutor;
         this.sessionTurnGuard = sessionTurnGuard;
+        this.interviewDomainCoordinator = interviewDomainCoordinator;
     }
 
     @Override
@@ -208,6 +211,12 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
             session = buildSpeakingSession(userId, topic, resolved, persona, responseSchema,
                     sessionMode, interviewPosition, experienceLevel, assignmentId);
             session = sessionRepository.save(session);
+
+            if (sessionMode == SpeakingSessionMode.INTERVIEW) {
+                String promptVariant = interviewDomainCoordinator.onSessionCreated(session);
+                sessionRepository.save(session);
+                log.debug("[interview] session {} assigned variant '{}'", session.getId(), promptVariant);
+            }
 
             AiSpeakingChatResponse greeting = generateInitialGreeting(
                     userId, session, topic, resolved, persona, responseSchema, sessionMode);
@@ -970,7 +979,9 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
             return null;
         }
         try {
-            return interviewEvaluationService.generateReport(closedSession, userId);
+            String report = interviewEvaluationService.generateReport(closedSession, userId);
+            interviewDomainCoordinator.onSessionEnded(closedSession, "COMPLETED", 0.0);
+            return report;
         } catch (Exception e) {
             log.warn("Failed to generate interview report for session {}: {}", sessionId, e.getMessage());
             return null;
@@ -1196,10 +1207,27 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
 
         if (prep.sessionMode() == SpeakingSessionMode.INTERVIEW && prep.interviewContext() != null) {
             InterviewSessionState state = prep.interviewContext().state();
-            state.applyAfterTurn(prep.interviewContext().plan(),
-                    prep.answerAnalysis() != null ? prep.answerAnalysis()
-                            : new InterviewAnswerAnalysis(false, false, false, false, false, false, false));
+            InterviewAnswerAnalysis analysis = prep.answerAnalysis() != null ? prep.answerAnalysis()
+                    : new InterviewAnswerAnalysis(false, false, false, false, false, false, false);
+            state.applyAfterTurn(prep.interviewContext().plan(), analysis);
             session.setInterviewStateJson(interviewStateCodec.encode(state));
+
+            int turnIndex = prep.messageCountBaseline() / 2;
+            String aiFollowUp = parsed != null ? parsed.aiSpeechDe() : null;
+            long latencyMs = Duration.between(Instant.now(), Instant.now()).toMillis();
+            interviewDomainCoordinator.onTurnCompleted(
+                    prep.sessionId(), prep.userId(), turnIndex,
+                    prep.interviewContext().plan(), userMessage, aiFollowUp, analysis, null);
+
+            String prevPhase = state.getPhase() > 0
+                    ? InterviewPhase.fromUserTurn(Math.max(1, turnIndex - 1)).name()
+                    : null;
+            String currPhase = InterviewPhase.fromUserTurn(turnIndex + 1).name();
+            if (prevPhase != null && !prevPhase.equals(currPhase)) {
+                String industry = interviewDomainCoordinator.personaRegistry()
+                        .industryFor(session.getPersona());
+                interviewDomainCoordinator.onPhaseTransition(prep.sessionId(), prevPhase, industry);
+            }
         }
 
         SpeakingSessionMode currentMode = SpeakingSessionMode.fromApi(session.getSessionMode());

@@ -1,0 +1,127 @@
+-- Phase 2: Expand vocabulary from 50 A1 words to 150+ words
+-- Addition of 100+ new A1 vocabulary entries across multiple categories
+
+-- Add more verbs (essential A1 actions)
+INSERT INTO words (dtype, base_form, word, translation, word_type, gender, cefr_level, pronunciation_ipa, example_sentence, frequency_rank, image_url, created_at, updated_at)
+VALUES
+-- More essential verbs (12)
+('VERB', 'machen', 'machen', 'to make/do', 'verb', NULL, 'A1', '/ˈmaxən/', 'Was machst du heute?', 51, 'https://via.placeholder.com/200?text=machen', NOW(), NOW()),
+('VERB', 'sprechen', 'sprechen', 'to speak', 'verb', NULL, 'A1', '/ˈʃpʁɛçən/', 'Ich spreche Deutsch.', 52, 'https://via.placeholder.com/200?text=sprechen', NOW(), NOW()),
+('VERB', 'schreiben', 'schreiben', 'to write', 'verb', NULL, 'A1', '/ˈʃʁaɪ̯bən/', 'Ich schreibe einen Brief.', 53, 'https://via.placeholder.com/200?text=schreiben', NOW(), NOW()),
+('VERB', 'lesen', 'lesen', 'to read', 'verb', NULL, 'A1', '/ˈleːzən/', 'Ich lese ein Buch.', 54, 'https://via.placeholder.com/200?text=lesen', NOW(), NOW()),
+('VERB', 'trinken', 'trinken', 'to drink', 'verb', NULL, 'A1', '/ˈtʁɪŋkən/', 'Ich trinke Wasser.', 55, 'https://via.placeholder.com/200?text=trinken', NOW(), NOW()),
+('VERB', 'essen', 'essen', 'to eat', 'verb', NULL, 'A1', '/ˈɛsən/', 'Ich esse Brot.', 56, 'https://via.placeholder.com/200?text=essen', NOW(), NOW()),
+('VERB', 'schlafen', 'schlafen', 'to sleep', 'verb', NULL, 'A1', '/ˈʃlaːfən/', 'Ich schlafe 8 Stunden.', 57, 'https://via.placeholder.com/200?text=schlafen', NOW(), NOW()),
+('VERB', 'wissen', 'wissen', 'to know', 'verb', NULL, 'A1', '/ˈvɪsən/', 'Ich weiß nicht.', 58, 'https://via.placeholder.com/200?text=wissen', NOW(), NOW()),
+('VERB', 'arbeiten', 'arbeiten', 'to work', 'verb', NULL, 'A1', '/ˈaʁbaɪ̯tən/', 'Ich arbeite in einem Büro.', 59, 'https://via.placeholder.com/200?text=arbeiten', NOW(), NOW()),
+('VERB', 'spielen', 'spielen', 'to play', 'verb', NULL, 'A1', '/ˈʃpiːlən/', 'Ich spiele Fußball.', 60, 'https://via.placeholder.com/200?text=spielen', NOW(), NOW()),
+('VERB', 'lehren', 'lehren', 'to teach', 'verb', NULL, 'A1', '/ˈleːʁən/', 'Mein Lehrer lehrt Mathematik.', 61, 'https://via.placeholder.com/200?text=lehren', NOW(), NOW()),
+('VERB', 'lernen', 'lernen', 'to learn', 'verb', NULL, 'A1', '/ˈlɛʁnən/', 'Ich lerne Deutsch.', 62, 'https://via.placeholder.com/200?text=lernen', NOW(), NOW()),
+
+-- Food & Drink (15)
+('NOUN', 'Brot', 'Brot', 'Bread', 'noun', 'n', 'A1', '/bro:t/', 'Das Brot ist warm.', 63, 'https://via.placeholder.com/200?text=Brot', NOW(), NOW()),
+('NOUN', 'Wasser', 'Wasser', 'Water', 'noun', 'n', 'A1', '/ˈvasɐ/', 'Ich trinke Wasser.', 64, 'https://via.placeholder.com/200?text=Wasser', NOW(), NOW()),
+('NOUN', 'Milch', 'Milch', 'Milk', 'noun', 'f', 'A1', '/mɪlç/', 'Die Milch ist kalt.', 65, 'https://via.placeholder.com/200?text=Milch', NOW(), NOW()),
+('NOUN', 'Käse', 'Käse', 'Cheese', 'noun', 'm', 'A1', '/ˈkɛːzə/', 'Der Käse ist gelb.', 66, 'https://via.placeholder.com/200?text=Käse', NOW(), NOW()),
+('NOUN', 'Fleisch', 'Fleisch', 'Meat', 'noun', 'n', 'A1', '/flaɪ̯ʃ/', 'Das Fleisch ist rot.', 67, 'https://via.placeholder.com/200?text=Fleisch', NOW(), NOW()),
+('NOUN', 'Fisch', 'Fisch', 'Fish', 'noun', 'm', 'A1', '/fɪʃ/', 'Der Fisch schwimmt.', 68, 'https://via.placeholder.com/200?text=Fisch', NOW(), NOW()),
+('NOUN', 'Obst', 'Obst', 'Fruit', 'noun', 'n', 'A1', '/oːpst/', 'Das Obst ist süß.', 69, 'https://via.placeholder.com/200?text=Obst', NOW(), NOW()),
+('NOUN', 'Apfel', 'Apfel', 'Apple', 'noun', 'm', 'A1', '/ˈapfl/', 'Der Apfel ist rot.', 70, 'https://via.placeholder.com/200?text=Apfel', NOW(), NOW()),
+('NOUN', 'Birne', 'Birne', 'Pear', 'noun', 'f', 'A1', '/ˈbɪʁnə/', 'Die Birne ist gelb.', 71, 'https://via.placeholder.com/200?text=Birne', NOW(), NOW()),
+('NOUN', 'Banane', 'Banane', 'Banana', 'noun', 'f', 'A1', '/baˈnaːnə/', 'Die Banane ist gelb.', 72, 'https://via.placeholder.com/200?text=Banane', NOW(), NOW()),
+('NOUN', 'Orange', 'Orange', 'Orange', 'noun', 'f', 'A1', '/oˈʁɑ̃ʒ/', 'Die Orange ist süß.', 73, 'https://via.placeholder.com/200?text=Orange', NOW(), NOW()),
+('NOUN', 'Tomate', 'Tomate', 'Tomato', 'noun', 'f', 'A1', '/toˈmaːtə/', 'Die Tomate ist rot.', 74, 'https://via.placeholder.com/200?text=Tomate', NOW(), NOW()),
+('NOUN', 'Kartoffel', 'Kartoffel', 'Potato', 'noun', 'f', 'A1', '/kaʁˈtɔfl/', 'Die Kartoffel ist braun.', 75, 'https://via.placeholder.com/200?text=Kartoffel', NOW(), NOW()),
+('NOUN', 'Salat', 'Salat', 'Salad', 'noun', 'm', 'A1', '/zaˈlaːt/', 'Der Salat ist grün.', 76, 'https://via.placeholder.com/200?text=Salat', NOW(), NOW()),
+('NOUN', 'Suppe', 'Suppe', 'Soup', 'noun', 'f', 'A1', '/ˈzʊpə/', 'Die Suppe ist heiß.', 77, 'https://via.placeholder.com/200?text=Suppe', NOW(), NOW()),
+
+-- Animals (10)
+('NOUN', 'Hund', 'Hund', 'Dog', 'noun', 'm', 'A1', '/hʊnt/', 'Der Hund ist braun.', 78, 'https://via.placeholder.com/200?text=Hund', NOW(), NOW()),
+('NOUN', 'Katze', 'Katze', 'Cat', 'noun', 'f', 'A1', '/ˈkatsə/', 'Die Katze ist schwarz.', 79, 'https://via.placeholder.com/200?text=Katze', NOW(), NOW()),
+('NOUN', 'Vogel', 'Vogel', 'Bird', 'noun', 'm', 'A1', '/ˈfoːɡəl/', 'Der Vogel fliegt.', 80, 'https://via.placeholder.com/200?text=Vogel', NOW(), NOW()),
+('NOUN', 'Fisch', 'Fisch', 'Fish (animal)', 'noun', 'm', 'A1', '/fɪʃ/', 'Der Fisch ist klein.', 81, 'https://via.placeholder.com/200?text=Fisch', NOW(), NOW()),
+('NOUN', 'Pferd', 'Pferd', 'Horse', 'noun', 'n', 'A1', '/pfɛʁt/', 'Das Pferd ist schnell.', 82, 'https://via.placeholder.com/200?text=Pferd', NOW(), NOW()),
+('NOUN', 'Kuh', 'Kuh', 'Cow', 'noun', 'f', 'A1', '/kuː/', 'Die Kuh gibt Milch.', 83, 'https://via.placeholder.com/200?text=Kuh', NOW(), NOW()),
+('NOUN', 'Schwein', 'Schwein', 'Pig', 'noun', 'n', 'A1', '/ʃvaɪ̯n/', 'Das Schwein ist rosa.', 84, 'https://via.placeholder.com/200?text=Schwein', NOW(), NOW()),
+('NOUN', 'Schaf', 'Schaf', 'Sheep', 'noun', 'n', 'A1', '/ʃaːf/', 'Das Schaf ist weiß.', 85, 'https://via.placeholder.com/200?text=Schaf', NOW(), NOW()),
+('NOUN', 'Huhn', 'Huhn', 'Chicken', 'noun', 'n', 'A1', '/huːn/', 'Das Huhn legt Eier.', 86, 'https://via.placeholder.com/200?text=Huhn', NOW(), NOW()),
+('NOUN', 'Löwe', 'Löwe', 'Lion', 'noun', 'm', 'A1', '/ˈløːvə/', 'Der Löwe ist stark.', 87, 'https://via.placeholder.com/200?text=Löwe', NOW(), NOW()),
+
+-- Clothing (12)
+('NOUN', 'Hemd', 'Hemd', 'Shirt', 'noun', 'n', 'A1', '/hɛmt/', 'Das Hemd ist weiß.', 88, 'https://via.placeholder.com/200?text=Hemd', NOW(), NOW()),
+('NOUN', 'Hose', 'Hose', 'Pants', 'noun', 'f', 'A1', '/ˈhoːzə/', 'Die Hose ist blau.', 89, 'https://via.placeholder.com/200?text=Hose', NOW(), NOW()),
+('NOUN', 'Rock', 'Rock', 'Skirt', 'noun', 'm', 'A1', '/rɔk/', 'Der Rock ist rot.', 90, 'https://via.placeholder.com/200?text=Rock', NOW(), NOW()),
+('NOUN', 'Kleid', 'Kleid', 'Dress', 'noun', 'n', 'A1', '/klait/', 'Das Kleid ist schön.', 91, 'https://via.placeholder.com/200?text=Kleid', NOW(), NOW()),
+('NOUN', 'Jacke', 'Jacke', 'Jacket', 'noun', 'f', 'A1', '/ˈjakə/', 'Die Jacke ist warm.', 92, 'https://via.placeholder.com/200?text=Jacke', NOW(), NOW()),
+('NOUN', 'Mantel', 'Mantel', 'Coat', 'noun', 'm', 'A1', '/ˈmantəl/', 'Der Mantel ist lang.', 93, 'https://via.placeholder.com/200?text=Mantel', NOW(), NOW()),
+('NOUN', 'Schuh', 'Schuh', 'Shoe', 'noun', 'm', 'A1', '/ʃuː/', 'Der Schuh ist schwarz.', 94, 'https://via.placeholder.com/200?text=Schuh', NOW(), NOW()),
+('NOUN', 'Stiefel', 'Stiefel', 'Boot', 'noun', 'm', 'A1', '/ˈʃtiːfl/', 'Der Stiefel ist groß.', 95, 'https://via.placeholder.com/200?text=Stiefel', NOW(), NOW()),
+('NOUN', 'Hut', 'Hut', 'Hat', 'noun', 'm', 'A1', '/huːt/', 'Der Hut ist schwarz.', 96, 'https://via.placeholder.com/200?text=Hut', NOW(), NOW()),
+('NOUN', 'Mütze', 'Mütze', 'Cap', 'noun', 'f', 'A1', '/ˈmʏtsə/', 'Die Mütze ist warm.', 97, 'https://via.placeholder.com/200?text=Mütze', NOW(), NOW()),
+('NOUN', 'Socke', 'Socke', 'Sock', 'noun', 'f', 'A1', '/ˈzɔkə/', 'Die Socke ist weiß.', 98, 'https://via.placeholder.com/200?text=Socke', NOW(), NOW()),
+('NOUN', 'Handschuh', 'Handschuh', 'Glove', 'noun', 'm', 'A1', '/ˈhantʃuː/', 'Der Handschuh ist warm.', 99, 'https://via.placeholder.com/200?text=Handschuh', NOW(), NOW()),
+
+-- Body parts (10)
+('NOUN', 'Kopf', 'Kopf', 'Head', 'noun', 'm', 'A1', '/kɔpf/', 'Der Kopf tut weh.', 100, 'https://via.placeholder.com/200?text=Kopf', NOW(), NOW()),
+('NOUN', 'Auge', 'Auge', 'Eye', 'noun', 'n', 'A1', '/ˈaʊ̯ɡə/', 'Die Augen sind blau.', 101, 'https://via.placeholder.com/200?text=Auge', NOW(), NOW()),
+('NOUN', 'Ohr', 'Ohr', 'Ear', 'noun', 'n', 'A1', '/oːɐ̯/', 'Die Ohren sind klein.', 102, 'https://via.placeholder.com/200?text=Ohr', NOW(), NOW()),
+('NOUN', 'Nase', 'Nase', 'Nose', 'noun', 'f', 'A1', '/ˈnaːzə/', 'Die Nase ist groß.', 103, 'https://via.placeholder.com/200?text=Nase', NOW(), NOW()),
+('NOUN', 'Mund', 'Mund', 'Mouth', 'noun', 'm', 'A1', '/mʊnt/', 'Der Mund ist klein.', 104, 'https://via.placeholder.com/200?text=Mund', NOW(), NOW()),
+('NOUN', 'Zahn', 'Zahn', 'Tooth', 'noun', 'm', 'A1', '/tsa:n/', 'Der Zahn tut weh.', 105, 'https://via.placeholder.com/200?text=Zahn', NOW(), NOW()),
+('NOUN', 'Zunge', 'Zunge', 'Tongue', 'noun', 'f', 'A1', '/ˈtsʊŋə/', 'Die Zunge schmeckt.', 106, 'https://via.placeholder.com/200?text=Zunge', NOW(), NOW()),
+('NOUN', 'Arm', 'Arm', 'Arm', 'noun', 'm', 'A1', '/aʁm/', 'Der Arm ist stark.', 107, 'https://via.placeholder.com/200?text=Arm', NOW(), NOW()),
+('NOUN', 'Bein', 'Bein', 'Leg', 'noun', 'n', 'A1', '/bain/', 'Das Bein ist lang.', 108, 'https://via.placeholder.com/200?text=Bein', NOW(), NOW()),
+('NOUN', 'Finger', 'Finger', 'Finger', 'noun', 'm', 'A1', '/ˈfɪŋɐ/', 'Der Finger ist klein.', 109, 'https://via.placeholder.com/200?text=Finger', NOW(), NOW()),
+
+-- Time expressions (10)
+('NOUN', 'Montag', 'Montag', 'Monday', 'noun', 'm', 'A1', '/ˈmoːntaːk/', 'Montag ist der erste Tag.', 110, 'https://via.placeholder.com/200?text=Montag', NOW(), NOW()),
+('NOUN', 'Dienstag', 'Dienstag', 'Tuesday', 'noun', 'm', 'A1', '/ˈdiːnstaːk/', 'Dienstag ist schwer.', 111, 'https://via.placeholder.com/200?text=Dienstag', NOW(), NOW()),
+('NOUN', 'Mittwoch', 'Mittwoch', 'Wednesday', 'noun', 'm', 'A1', '/ˈmɪtvɔx/', 'Mittwoch ist die Mitte der Woche.', 112, 'https://via.placeholder.com/200?text=Mittwoch', NOW(), NOW()),
+('NOUN', 'Donnerstag', 'Donnerstag', 'Thursday', 'noun', 'm', 'A1', '/ˈdɔnɐstaːk/', 'Donnerstag kommt nach Mittwoch.', 113, 'https://via.placeholder.com/200?text=Donnerstag', NOW(), NOW()),
+('NOUN', 'Freitag', 'Freitag', 'Friday', 'noun', 'm', 'A1', '/ˈfʁaitaːk/', 'Freitag ist vor dem Wochenende.', 114, 'https://via.placeholder.com/200?text=Freitag', NOW(), NOW()),
+('NOUN', 'Samstag', 'Samstag', 'Saturday', 'noun', 'm', 'A1', '/ˈzamstaːk/', 'Samstag ist ein Wochenendetag.', 115, 'https://via.placeholder.com/200?text=Samstag', NOW(), NOW()),
+('NOUN', 'Sonntag', 'Sonntag', 'Sunday', 'noun', 'm', 'A1', '/ˈzɔntaːk/', 'Sonntag ist der letzte Tag der Woche.', 116, 'https://via.placeholder.com/200?text=Sonntag', NOW(), NOW()),
+('NOUN', 'Woche', 'Woche', 'Week', 'noun', 'f', 'A1', '/ˈvɔxə/', 'Eine Woche hat 7 Tage.', 117, 'https://via.placeholder.com/200?text=Woche', NOW(), NOW()),
+('NOUN', 'Monat', 'Monat', 'Month', 'noun', 'm', 'A1', '/ˈmoːnaːt/', 'Ein Monat hat 30 Tage.', 118, 'https://via.placeholder.com/200?text=Monat', NOW(), NOW()),
+('NOUN', 'Jahr', 'Jahr', 'Year', 'noun', 'n', 'A1', '/jaːɐ̯/', 'Ein Jahr hat 12 Monate.', 119, 'https://via.placeholder.com/200?text=Jahr', NOW(), NOW()),
+
+-- Places & Locations (12)
+('NOUN', 'Schule', 'Schule', 'School', 'noun', 'f', 'A1', '/ˈʃuːlə/', 'Ich gehe zur Schule.', 120, 'https://via.placeholder.com/200?text=Schule', NOW(), NOW()),
+('NOUN', 'Haus', 'Haus', 'House', 'noun', 'n', 'A1', '/haʊ̯s/', 'Das Haus ist groß.', 121, 'https://via.placeholder.com/200?text=Haus', NOW(), NOW()),
+('NOUN', 'Stadt', 'Stadt', 'City', 'noun', 'f', 'A1', '/ʃtat/', 'Die Stadt ist groß.', 122, 'https://via.placeholder.com/200?text=Stadt', NOW(), NOW()),
+('NOUN', 'Land', 'Land', 'Country', 'noun', 'n', 'A1', '/lant/', 'Deutschland ist ein großes Land.', 123, 'https://via.placeholder.com/200?text=Land', NOW(), NOW()),
+('NOUN', 'Straße', 'Straße', 'Street', 'noun', 'f', 'A1', '/ˈʃtʁaːsə/', 'Die Straße ist lang.', 124, 'https://via.placeholder.com/200?text=Straße', NOW(), NOW()),
+('NOUN', 'Platz', 'Platz', 'Square/Place', 'noun', 'm', 'A1', '/plats/', 'Der Platz ist offen.', 125, 'https://via.placeholder.com/200?text=Platz', NOW(), NOW()),
+('NOUN', 'Park', 'Park', 'Park', 'noun', 'm', 'A1', '/pɑɐ̯k/', 'Der Park ist schön.', 126, 'https://via.placeholder.com/200?text=Park', NOW(), NOW()),
+('NOUN', 'Kirche', 'Kirche', 'Church', 'noun', 'f', 'A1', '/ˈkɪʁçə/', 'Die Kirche ist alt.', 127, 'https://via.placeholder.com/200?text=Kirche', NOW(), NOW()),
+('NOUN', 'Supermarkt', 'Supermarkt', 'Supermarket', 'noun', 'm', 'A1', '/ˈsuːpɐmaʁkt/', 'Der Supermarkt ist groß.', 128, 'https://via.placeholder.com/200?text=Supermarkt', NOW(), NOW()),
+('NOUN', 'Bahnhof', 'Bahnhof', 'Train station', 'noun', 'm', 'A1', '/ˈbaːnhoːf/', 'Der Bahnhof ist zentral.', 129, 'https://via.placeholder.com/200?text=Bahnhof', NOW(), NOW()),
+('NOUN', 'Krankenhaus', 'Krankenhaus', 'Hospital', 'noun', 'n', 'A1', '/ˈkʁaŋkənhaʊ̯s/', 'Das Krankenhaus ist modern.', 130, 'https://via.placeholder.com/200?text=Krankenhaus', NOW(), NOW()),
+('NOUN', 'Büro', 'Büro', 'Office', 'noun', 'n', 'A1', '/byˈroː/', 'Das Büro ist klein.', 131, 'https://via.placeholder.com/200?text=Büro', NOW(), NOW()),
+
+-- Professions (8)
+('NOUN', 'Lehrer', 'Lehrer', 'Teacher (m)', 'noun', 'm', 'A1', '/ˈleːʁɐ/', 'Der Lehrer unterrichtet.', 132, 'https://via.placeholder.com/200?text=Lehrer', NOW(), NOW()),
+('NOUN', 'Arzt', 'Arzt', 'Doctor (m)', 'noun', 'm', 'A1', '/aʁtst/', 'Der Arzt hilft.', 133, 'https://via.placeholder.com/200?text=Arzt', NOW(), NOW()),
+('NOUN', 'Krankenschwester', 'Krankenschwester', 'Nurse (f)', 'noun', 'f', 'A1', '/ˈkʁaŋkənʃvɛstɐ/', 'Die Krankenschwester ist nett.', 134, 'https://via.placeholder.com/200?text=Krankenschwester', NOW(), NOW()),
+('NOUN', 'Polizist', 'Polizist', 'Police officer (m)', 'noun', 'm', 'A1', '/poliˈtsiːst/', 'Der Polizist hilft.', 135, 'https://via.placeholder.com/200?text=Polizist', NOW(), NOW()),
+('NOUN', 'Bäcker', 'Bäcker', 'Baker (m)', 'noun', 'm', 'A1', '/ˈbɛkɐ/', 'Der Bäcker macht Brot.', 136, 'https://via.placeholder.com/200?text=Bäcker', NOW(), NOW()),
+('NOUN', 'Metzger', 'Metzger', 'Butcher (m)', 'noun', 'm', 'A1', '/ˈmɛtsgɐ/', 'Der Metzger verkauft Fleisch.', 137, 'https://via.placeholder.com/200?text=Metzger', NOW(), NOW()),
+('NOUN', 'Friseur', 'Friseur', 'Hairdresser', 'noun', 'm', 'A1', '/fʁiˈzøːɐ̯/', 'Der Friseur schneidet Haare.', 138, 'https://via.placeholder.com/200?text=Friseur', NOW(), NOW()),
+('NOUN', 'Angestellter', 'Angestellter', 'Employee', 'noun', 'm', 'A1', '/ˈɑŋɡəʃtɛltɐ/', 'Der Angestellte arbeitet im Büro.', 139, 'https://via.placeholder.com/200?text=Angestellter', NOW(), NOW()),
+
+-- More adjectives (15)
+('ADJECTIVE', 'groß', 'groß', 'big/large', 'adjective', NULL, 'A1', '/ɡroːs/', 'Das Haus ist groß.', 140, 'https://via.placeholder.com/200?text=groß', NOW(), NOW()),
+('ADJECTIVE', 'klein', 'klein', 'small', 'adjective', NULL, 'A1', '/klain/', 'Das Kätzchen ist klein.', 141, 'https://via.placeholder.com/200?text=klein', NOW(), NOW()),
+('ADJECTIVE', 'alt', 'alt', 'old', 'adjective', NULL, 'A1', '/alt/', 'Der Mann ist alt.', 142, 'https://via.placeholder.com/200?text=alt', NOW(), NOW()),
+('ADJECTIVE', 'jung', 'jung', 'young', 'adjective', NULL, 'A1', '/jʊŋ/', 'Das Kind ist jung.', 143, 'https://via.placeholder.com/200?text=jung', NOW(), NOW()),
+('ADJECTIVE', 'schnell', 'schnell', 'fast', 'adjective', NULL, 'A1', '/ʃnɛl/', 'Das Auto ist schnell.', 144, 'https://via.placeholder.com/200?text=schnell', NOW(), NOW()),
+('ADJECTIVE', 'langsam', 'langsam', 'slow', 'adjective', NULL, 'A1', '/ˈlaŋzaːm/', 'Die Schildkröte ist langsam.', 145, 'https://via.placeholder.com/200?text=langsam', NOW(), NOW()),
+('ADJECTIVE', 'heiß', 'heiß', 'hot', 'adjective', NULL, 'A1', '/hais/', 'Die Sonne ist heiß.', 146, 'https://via.placeholder.com/200?text=heiß', NOW(), NOW()),
+('ADJECTIVE', 'kalt', 'kalt', 'cold', 'adjective', NULL, 'A1', '/kalt/', 'Der Winter ist kalt.', 147, 'https://via.placeholder.com/200?text=kalt', NOW(), NOW()),
+('ADJECTIVE', 'warm', 'warm', 'warm', 'adjective', NULL, 'A1', '/vaʁm/', 'Das Wetter ist warm.', 148, 'https://via.placeholder.com/200?text=warm', NOW(), NOW()),
+('ADJECTIVE', 'trocken', 'trocken', 'dry', 'adjective', NULL, 'A1', '/ˈtʁɔkən/', 'Der Teller ist trocken.', 149, 'https://via.placeholder.com/200?text=trocken', NOW(), NOW()),
+('ADJECTIVE', 'nass', 'nass', 'wet', 'adjective', NULL, 'A1', '/nas/', 'Das Hemd ist nass.', 150, 'https://via.placeholder.com/200?text=nass', NOW(), NOW()),
+('ADJECTIVE', 'sauber', 'sauber', 'clean', 'adjective', NULL, 'A1', '/ˈzaʊ̯bɐ/', 'Das Haus ist sauber.', 151, 'https://via.placeholder.com/200?text=sauber', NOW(), NOW()),
+('ADJECTIVE', 'schmutzig', 'schmutzig', 'dirty', 'adjective', NULL, 'A1', '/ˈʃmʊtsɪç/', 'Der Boden ist schmutzig.', 152, 'https://via.placeholder.com/200?text=schmutzig', NOW(), NOW()),
+('ADJECTIVE', 'leicht', 'leicht', 'easy/light', 'adjective', NULL, 'A1', '/laɪ̯çt/', 'Die Aufgabe ist leicht.', 153, 'https://via.placeholder.com/200?text=leicht', NOW(), NOW()),
+('ADJECTIVE', 'schwer', 'schwer', 'difficult/heavy', 'adjective', NULL, 'A1', '/ʃveːɐ̯/', 'Die Aufgabe ist schwer.', 154, 'https://via.placeholder.com/200?text=schwer', NOW(), NOW());

@@ -15,12 +15,15 @@ public class GreetingService {
 
     private final AiSpeakingSessionRepository aiSpeakingSessionRepository;
     private final DialogueTemplateRepository dialogueTemplateRepository;
+    private final GroqApiService groqApiService;
 
     public GreetingService(
             AiSpeakingSessionRepository aiSpeakingSessionRepository,
-            DialogueTemplateRepository dialogueTemplateRepository) {
+            DialogueTemplateRepository dialogueTemplateRepository,
+            GroqApiService groqApiService) {
         this.aiSpeakingSessionRepository = aiSpeakingSessionRepository;
         this.dialogueTemplateRepository = dialogueTemplateRepository;
+        this.groqApiService = groqApiService;
     }
 
     @Transactional
@@ -28,9 +31,9 @@ public class GreetingService {
         DialogueTemplate template = dialogueTemplateRepository.findById(templateId)
                 .orElseThrow(() -> new IllegalArgumentException("Template not found: " + templateId));
 
-        // TODO: Call Groq API to generate AI prompt based on template
-        String aiPrompt = "Greetings! How would you like to respond?";
-        String aiResponse = "Hallo! Wie heißt du?";
+        String cefrLevel = difficultyLevel != null && difficultyLevel <= 2 ? "A1" : "A2";
+        String aiResponse = groqApiService.generateDialogueResponse(
+                template.getUserPromptTemplate(), null, template.getTemplateName(), cefrLevel);
 
         AiSpeakingSession session = new AiSpeakingSession();
         session.setUserId(userId);
@@ -38,6 +41,8 @@ public class GreetingService {
         session.setDifficultyLevel(difficultyLevel);
         session.setSessionMode("GREETING");
         session.setSessionStatus("IN_PROGRESS");
+        session.setAiPrompt(template.getUserPromptTemplate());
+        session.setAiResponse(aiResponse);
         session.setCreatedAt(LocalDateTime.now());
         session.setUpdatedAt(LocalDateTime.now());
 
@@ -54,8 +59,9 @@ public class GreetingService {
             throw new SecurityException("Unauthorized access to session");
         }
 
-        // TODO: Call Groq API to evaluate user response
-        String feedback = "Good try! Here's a correction: " + userInput;
+        String feedback = groqApiService.evaluateAndFeedback(
+                userInput, session.getAiResponse() != null ? session.getAiResponse() : "",
+                "A1", session.getTemplateId() != null ? session.getTemplateId().toString() : "greeting");
 
         session.setUserInput(userInput);
         session.setUserConfidenceScore(confidence);

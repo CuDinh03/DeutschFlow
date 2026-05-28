@@ -67,4 +67,27 @@ public interface UserGrammarErrorRepository extends JpaRepository<UserGrammarErr
     int updateRepairStatusForOpenErrors(@Param("userId") Long userId,
                                         @Param("code") String code,
                                         @Param("status") String status);
+
+    long countByUserIdAndRepairStatus(Long userId, String repairStatus);
+
+    @Query("""
+            SELECT COALESCE(e.errorCode, e.grammarPoint), COUNT(e), MAX(e.wrongSpan), MAX(e.correctedSpan), MAX(e.severity)
+            FROM UserGrammarError e
+            WHERE e.userId = :userId AND e.createdAt >= :since
+            GROUP BY COALESCE(e.errorCode, e.grammarPoint)
+            ORDER BY COUNT(e) DESC
+            """)
+    List<Object[]> findTopErrorsWithExamples(@Param("userId") Long userId,
+                                             @Param("since") LocalDateTime since,
+                                             Pageable pageable);
+
+    @Query("""
+            SELECT FUNCTION('DATE', e.createdAt), COUNT(e)
+            FROM UserGrammarError e
+            WHERE e.userId = :userId AND e.createdAt >= :since
+            GROUP BY FUNCTION('DATE', e.createdAt)
+            ORDER BY FUNCTION('DATE', e.createdAt) ASC
+            """)
+    List<Object[]> countDailyErrorsSince(@Param("userId") Long userId,
+                                          @Param("since") LocalDateTime since);
 }

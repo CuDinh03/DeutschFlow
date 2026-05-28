@@ -126,3 +126,15 @@ export const LEVEL_STYLE: Record<string, { bg: string; text: string }> = {
   C1: { bg: '#F1F5F9', text: '#0F172A' },
   C2: { bg: '#EEF2FF', text: '#3730A3' },
 }
+
+export type DeclensionsDto = {
+  nomSingular?: string
+  nomPlural?: string
+  accSingular?: string
+  accPlural?: string
+  datSingular?: string
+  datPlural?: string
+  genSingular?: string
+  genPlural?: string
+  pluralForm?: string
+}

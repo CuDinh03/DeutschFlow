@@ -1,26 +1,25 @@
-# Curriculum Resources — Hướng dẫn nội bộ
+# Curriculum Resources — 12-week learning model
 
-## Vai trò từng file
+This folder documents the internal curriculum model used by the product.
 
-### `/netzwerk-neu/a1.curriculum.json`
-- **Loại:** Tài liệu tham khảo nội bộ (Content team dùng khi viết bài)
-- **KHÔNG** được load trong runtime — chỉ dùng làm checklist để đối chiếu nội dung với sách giáo khoa Netzwerk Neu (Klett)
-- **Hệ chính:** `skill_tree_nodes` trong database (bắt đầu từ migration V67)
+## Current direction
 
-### Mapping: Netzwerk Neu → Skill Tree
+The curriculum is now aligned with the revised 12-week A1 → B1 progression:
 
-| Netzwerk Neu | Skill Tree Day | Chủ đề |
-|---|---|---|
-| L01 | Day 11–14 | Guten Tag! (Chào hỏi, giới thiệu) |
-| L02 | Day 15–17 | Freunde, Kollegen und ich (Sở thích, nghề nghiệp) |
-| L03 | Day 29–31 | In Hamburg (Giao thông, chỉ đường) |
-| L04 | Day 18–21 | Guten Appetit! (Ẩm thực, mua sắm) |
-| L05 | Day 25–28 | Alltag und Familie (Thời gian, gia đình) |
-| L08 | Day 32–34 | Fit und gesund (Sức khỏe) |
-| L09 | Day 22–24 | Meine Wohnung (Nhà ở) |
+- **Phase 1 (Weeks 1-4):** Foundation
+- **Phase 2 (Weeks 5-8):** Production
+- **Phase 3 (Weeks 9-12):** Fluency
 
-### Quy ước
+## Design rules
 
-- Khi thêm nội dung mới, **luôn viết trong migration SQL** (INSERT/UPDATE vào `skill_tree_nodes`)
-- File JSON chỉ dùng để xem qua cấu trúc bài học mong muốn theo sách
-- Không tạo thêm file JSON cho A2, B1... — tất cả nội dung vào database
+- AI Speaking starts from day 1
+- SRS starts from day 1
+- Grammar is taught through context and pattern recognition, not rules-first explanation
+- Vocabulary, grammar, speaking, and writing should be interleaved from the beginning
+- Learning content should support comprehensible input and retrieval practice
+
+## Content mapping guidance
+
+When adding curriculum content, keep it consistent with the phased model above and avoid reverting to a linear, week-by-week-only structure.
+
+The database remains the source of truth for runtime curriculum content.

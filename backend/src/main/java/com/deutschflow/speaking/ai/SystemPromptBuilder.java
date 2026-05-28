@@ -24,6 +24,7 @@ public class SystemPromptBuilder {
 
     private final com.deutschflow.system.service.SystemConfigService systemConfigService;
     private final com.deutschflow.speaking.interview.PersonaInterviewRegistry personaInterviewRegistry;
+    private final com.deutschflow.interview.prompt.InterviewPromptBuilder interviewPromptBuilder;
 
 
     /**
@@ -291,7 +292,10 @@ public class SystemPromptBuilder {
             InterviewPromptContext ctx = interviewContext != null
                     ? interviewContext
                     : InterviewPromptContext.fallback(persona, pos, turnCount, personaInterviewRegistry);
-            appendInterviewPreamble(sb, persona, level, pos, exp, industry, hasIndustry, ctx);
+            // Delegate to the layered prompt builder (new interview domain layer)
+            sb.append(interviewPromptBuilder.build(
+                    persona, level, ctx.state(), ctx.plan(), pos, exp,
+                    hasIndustry ? industry : "Allgemein", "control"));
 
         } else if (sessionMode == SpeakingSessionMode.LESSON && isVietnamese) {
             sb.append("CHẾ ĐỘ LESSON — Giảng dạy từ vựng/bảng chữ cái tiếng Đức bằng tiếng Việt.\n");

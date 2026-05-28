@@ -8,14 +8,14 @@ import java.sql.Timestamp;
 import java.time.Instant;
 
 /**
- * New students receive a bounded FREE trial ({@code plan_code FREE}, 7 calendar days rolling from {@code ends_at})
- * enforced by quota reconciliation.
+ * New students receive a 7-day PRO trial ({@code plan_code PRO}) so they experience all features
+ * before deciding whether to subscribe.
  */
 @Service
 @RequiredArgsConstructor
 public class StudentTrialSubscriptionProvisioner {
 
-    private static final String FREE = "FREE";
+    private static final String PRO = "PRO";
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -30,7 +30,7 @@ public class StudentTrialSubscriptionProvisioner {
                                 starts_at = VALUES(starts_at),
                                 ends_at = VALUES(ends_at)
                             """,
-                    userId, FREE, Timestamp.from(trialStart), Timestamp.from(trialEnd));
+                    userId, PRO, Timestamp.from(trialStart), Timestamp.from(trialEnd));
         } catch (Exception e) {
             System.err.println("⚠️ Failed to provision trial subscription for user " + userId + ": " + e.getMessage());
             throw e;

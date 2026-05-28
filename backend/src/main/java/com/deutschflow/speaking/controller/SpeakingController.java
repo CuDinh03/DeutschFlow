@@ -5,7 +5,8 @@ import com.deutschflow.speaking.dto.GreetingSessionDto;
 import com.deutschflow.speaking.dto.SubmitResponseRequest;
 import com.deutschflow.speaking.service.GreetingService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -22,9 +23,9 @@ public class SpeakingController {
     @PostMapping("/greeting-session")
     public ResponseEntity<GreetingSessionDto> createGreetingSession(
             @RequestBody CreateGreetingSessionRequest request,
-            Authentication authentication) {
-        Long userId = getUserIdFromAuth(authentication);
-        GreetingSessionDto session = greetingService.createGreetingSession(userId, request.templateId(), request.difficultyLevel());
+            @AuthenticationPrincipal UserDetails principal) {
+        GreetingSessionDto session = greetingService.createGreetingSession(
+                userId(principal), request.templateId(), request.difficultyLevel());
         return ResponseEntity.ok(session);
     }
 
@@ -32,24 +33,25 @@ public class SpeakingController {
     public ResponseEntity<GreetingSessionDto> submitResponse(
             @PathVariable Long sessionId,
             @RequestBody SubmitResponseRequest request,
-            Authentication authentication) {
-        Long userId = getUserIdFromAuth(authentication);
-        GreetingSessionDto result = greetingService.submitUserResponse(sessionId, userId, request.userInput(), request.confidence());
+            @AuthenticationPrincipal UserDetails principal) {
+        GreetingSessionDto result = greetingService.submitUserResponse(
+                sessionId, userId(principal), request.userInput(), request.confidence());
         return ResponseEntity.ok(result);
     }
 
     @GetMapping("/greeting-session/{sessionId}")
     public ResponseEntity<GreetingSessionDto> getGreetingSession(
             @PathVariable Long sessionId,
-            Authentication authentication) {
-        Long userId = getUserIdFromAuth(authentication);
-        GreetingSessionDto session = greetingService.getGreetingSession(sessionId, userId);
+            @AuthenticationPrincipal UserDetails principal) {
+        GreetingSessionDto session = greetingService.getGreetingSession(sessionId, userId(principal));
         return ResponseEntity.ok(session);
     }
 
-    private Long getUserIdFromAuth(Authentication authentication) {
-        // TODO: Extract user ID from JWT token or authentication principal
-        // For now, return a placeholder
-        return 1L;
+    private long userId(UserDetails p) {
+        if (p instanceof com.deutschflow.user.entity.User user) {
+            return user.getId();
+        }
+        try { return Long.parseLong(p.getUsername()); }
+        catch (Exception e) { throw new RuntimeException("Cannot resolve user ID"); }
     }
 }
