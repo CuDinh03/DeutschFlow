@@ -8,10 +8,12 @@ import { clearTokens, getAccessToken, logout } from '@/lib/authSession'
 import { StudentShell } from '@/components/layouts/StudentShell'
 import { planAttemptsApi, type PlanAttemptRow } from '@/lib/planAttemptsApi'
 import Link from 'next/link'
+import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 
 type MeUser = { displayName: string; role: string }
 
 export default function ExerciseHistoryPage() {
+  usePageTimeTracker('exercise_history');
   const t = useTranslations('student')
   const router = useRouter()
   const [me, setMe] = useState<MeUser | null>(null)

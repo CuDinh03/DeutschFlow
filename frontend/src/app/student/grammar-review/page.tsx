@@ -8,8 +8,10 @@ import { useRouter } from 'next/navigation'
 import api from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { motion, AnimatePresence } from 'framer-motion'
+import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 
 export default function GrammarReviewPage() {
+  usePageTimeTracker('grammar_review');
   const router = useRouter()
   const { me, loading: meLoading, targetLevel, streakDays, initials } = useStudentPracticeSession()
 

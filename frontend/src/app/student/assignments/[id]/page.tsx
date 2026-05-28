@@ -10,6 +10,7 @@ import { useStudentPracticeSession } from "@/hooks/useStudentPracticeSession";
 import { toast } from "sonner";
 import { aiSpeakingApi } from "@/lib/aiSpeakingApi";
 import { useChatStore } from "@/stores/useChatStore";
+import { usePageTimeTracker } from "@/hooks/usePageTimeTracker";
 
 interface StudentAssignmentDto {
   id: number;
@@ -31,6 +32,7 @@ interface StudentAssignmentDto {
 }
 
 export default function AssignmentDetailPage() {
+  usePageTimeTracker('assignment_detail');
   const router = useRouter();
   const { id } = useParams();
   const { me: user, loading: userLoading, streakDays, initials, targetLevel } = useStudentPracticeSession({ requireStudent: true });

@@ -20,6 +20,7 @@ import { StudentShell } from "@/components/layouts/StudentShell";
 import { useStudentPracticeSession } from "@/hooks/useStudentPracticeSession";
 import api from "@/lib/api";
 import { logout } from "@/lib/authSession";
+import { usePageTimeTracker } from "@/hooks/usePageTimeTracker";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -93,6 +94,7 @@ type SkillType = keyof typeof SKILL_CONFIG;
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function PracticeNodePage() {
+  usePageTimeTracker('practice_node');
   const params = useParams();
   const router = useRouter();
   const nodeId = Number(params?.nodeId);

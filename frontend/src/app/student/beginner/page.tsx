@@ -9,10 +9,12 @@ import api from '@/lib/api'
 import { clearTokens, getAccessToken } from '@/lib/authSession'
 import { StudentShell } from '@/components/layouts/StudentShell'
 import { beginnerApi, type BeginnerSessionResponse, type BeginnerItem } from '@/lib/beginnerApi'
+import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 
 type Me = { displayName: string; role: string }
 
 export default function BeginnerPage() {
+  usePageTimeTracker('beginner');
   const router = useRouter()
   const [me, setMe] = useState<Me | null>(null)
   const [session, setSession] = useState<BeginnerSessionResponse | null>(null)
@@ -235,7 +237,7 @@ function VocabCard({ item, index, onSpeak }: { item: BeginnerItem; index: number
       </div>
       <p className="text-sm text-[#64748B] font-medium">{item.titleVi}</p>
       {item.exampleDe && (
-        <p className="text-xs text-[#94A3B8] mt-2 italic">„{item.exampleDe}"</p>
+        <p className="text-xs text-[#94A3B8] mt-2 italic">&bdquo;{item.exampleDe}&ldquo;</p>
       )}
       {item.audioHint && (
         <p className="text-[10px] text-[#CBD5E1] mt-1">/{item.audioHint}/</p>

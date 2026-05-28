@@ -7,6 +7,7 @@ import { StudentShell } from '@/components/layouts/StudentShell'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
 import { xpApi, type LeaderboardEntry } from '@/lib/xpApi'
 import api from '@/lib/api'
+import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 
 function RankIcon({ rank }: { rank: number }) {
   if (rank === 1) return <Crown size={20} className="text-yellow-400" />
@@ -29,6 +30,7 @@ function LevelBadge({ level }: { level: number }) {
 }
 
 export default function LeaderboardPage() {
+  usePageTimeTracker('leaderboard');
   const { me, loading: sessionLoading, targetLevel, streakDays, initials } = useStudentPracticeSession()
   const [board, setBoard] = useState<LeaderboardEntry[]>([])
   const [myUserId, setMyUserId] = useState<number | null>(null)

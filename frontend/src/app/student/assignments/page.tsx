@@ -7,6 +7,7 @@ import { BookOpen, CheckCircle2, Clock, UploadCloud, AlertCircle } from "lucide-
 import api from "@/lib/api";
 import { StudentShell } from "@/components/layouts/StudentShell";
 import { useStudentPracticeSession } from "@/hooks/useStudentPracticeSession";
+import { usePageTimeTracker } from "@/hooks/usePageTimeTracker";
 
 interface StudentAssignmentDto {
   id: number;
@@ -24,6 +25,7 @@ interface StudentAssignmentDto {
 }
 
 export default function StudentAssignmentsPage() {
+  usePageTimeTracker('assignments');
   const router = useRouter();
   const { me: user, loading: userLoading, streakDays, initials, targetLevel } = useStudentPracticeSession({ requireStudent: true });
   const [assignments, setAssignments] = useState<StudentAssignmentDto[]>([]);

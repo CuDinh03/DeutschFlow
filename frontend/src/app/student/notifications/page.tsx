@@ -10,6 +10,7 @@ import { StudentShell } from "@/components/layouts/StudentShell";
 import { useStudentPracticeSession } from "@/hooks/useStudentPracticeSession";
 import { logout } from "@/lib/authSession";
 import { notificationApi, NotificationItem } from "@/lib/notificationApi";
+import { usePageTimeTracker } from "@/hooks/usePageTimeTracker";
 
 const NOTIF_ICONS: Record<string, string> = {
   USER_REGISTERED: "👤",
@@ -43,6 +44,7 @@ function notifSummary(item: NotificationItem): string {
 }
 
 export default function NotificationsPage() {
+  usePageTimeTracker('notifications');
   const { me, loading: meLoading, targetLevel, streakDays, initials } = useStudentPracticeSession();
   const router = useRouter();
 

@@ -22,6 +22,7 @@ import { StudentShell } from "@/components/layouts/StudentShell";
 import { useStudentPracticeSession } from "@/hooks/useStudentPracticeSession";
 import api from "@/lib/api";
 import { logout } from "@/lib/authSession";
+import { usePageTimeTracker } from "@/hooks/usePageTimeTracker";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -326,6 +327,7 @@ function ExerciseCard({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function PracticeSessionPage() {
+  usePageTimeTracker('practice_session');
   const params = useParams();
   const router = useRouter();
   const nodeId = Number(params?.nodeId);

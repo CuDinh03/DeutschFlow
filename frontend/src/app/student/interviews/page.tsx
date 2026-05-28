@@ -16,6 +16,8 @@ import { useStudentPracticeSession } from "@/hooks/useStudentPracticeSession";
 import { interviewDomainApi, InterviewPhaseResultInfo } from "@/lib/interviewDomainApi";
 import { useAiSpeakingQuota } from "@/hooks/useAiSpeakingQuota";
 import { Download } from "lucide-react";
+import { usePageTimeTracker } from "@/hooks/usePageTimeTracker";
+import { useTracking } from "@/hooks/useTracking";
 
 interface SessionMessage {
   id: string;
@@ -104,8 +106,10 @@ function SessionCard({ session, onSelect, tHistory }: { session: SpeakingSession
 }
 
 export default function InterviewsHistoryPage() {
+  usePageTimeTracker('interviews');
   const router = useRouter();
   const tHistory = useTranslations("history");
+  const { trackFeatureAction } = useTracking();
   const { me, loading: meLoading, targetLevel, roadmapMeta, streakDays, initials } = useStudentPracticeSession();
   const { quota } = useAiSpeakingQuota();
   const [sessions, setSessions] = useState<SpeakingSession[]>([]);
@@ -134,6 +138,13 @@ export default function InterviewsHistoryPage() {
 
   const openSession = async (sess: SpeakingSession) => {
     setSelected(sess);
+    trackFeatureAction('interview_session', 'clicked', {
+      session_id: sess.id,
+      position: sess.interviewPosition,
+      experience_level: sess.experienceLevel,
+      cefr: sess.cefrLevel,
+      message_count: sess.messageCount,
+    });
     setReportJson(null);
     setPhaseResults([]);
     setReportError(null);

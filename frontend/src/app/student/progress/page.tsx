@@ -7,6 +7,7 @@ import { StudentShell } from "@/components/layouts/StudentShell";
 import { useStudentPracticeSession } from "@/hooks/useStudentPracticeSession";
 import { logout } from "@/lib/authSession";
 import api from "@/lib/api";
+import { usePageTimeTracker } from "@/hooks/usePageTimeTracker";
 
 interface ProgressOverview {
   cefrLevel: string;
@@ -116,6 +117,7 @@ function SkillBar({ skill, value, color }: { skill: typeof SKILL_CONFIG[0]; valu
 }
 
 export default function ProgressPage() {
+  usePageTimeTracker('progress');
   const { me, loading: meLoading, targetLevel, streakDays, initials } = useStudentPracticeSession();
   const [overview, setOverview] = useState<ProgressOverview | null>(null);
   const [loading, setLoading] = useState(true);

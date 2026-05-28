@@ -11,6 +11,8 @@ import api from '@/lib/api'
 import { clearTokens, getAccessToken } from '@/lib/authSession'
 import { StudentShell } from '@/components/layouts/StudentShell'
 import { assessmentApi, type B1ReadinessResponse } from '@/lib/assessmentApi'
+import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
+import { useTracking } from '@/hooks/useTracking'
 
 type Me = { displayName: string; role: string }
 
@@ -53,7 +55,9 @@ const CRITERIA = [
 ]
 
 export default function AssessmentPage() {
+  usePageTimeTracker('b1_assessment');
   const router = useRouter()
+  const { trackFeatureAction } = useTracking()
   const [me, setMe] = useState<Me | null>(null)
   const [readiness, setReadiness] = useState<B1ReadinessResponse | null>(null)
   const [loading, setLoading] = useState(true)
@@ -84,9 +88,22 @@ export default function AssessmentPage() {
   async function handleEvaluate() {
     setEvaluating(true)
     setError(null)
+    trackFeatureAction('b1_assessment', 'started')
     try {
       const res = await assessmentApi.evaluate()
       setReadiness(res.data)
+      const r = res.data
+      const passedCount = CRITERIA.filter(c => r[c.key]).length
+      trackFeatureAction('b1_assessment', 'completed', {
+        passed_criteria: passedCount,
+        total_criteria: CRITERIA.length,
+        all_passed: passedCount === CRITERIA.length,
+        vocabulary_ok: r.vocabularyCheckPassed,
+        speaking_ok: r.speakingCheckPassed,
+        grammar_ok: r.grammarCheckPassed,
+        confidence_ok: r.confidenceCheckPassed,
+        mock_exam_ok: r.mockExamPassed,
+      })
     } catch {
       setError('Không thể chạy đánh giá. Thử lại sau.')
     } finally {

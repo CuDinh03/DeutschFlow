@@ -9,10 +9,12 @@ import { StudentShell } from '@/components/layouts/StudentShell'
 import ArticleQuiz from '../vocabulary/components/ArticleQuiz'
 import type { VocabCardItem, WordListItem } from '../vocabulary/components/types'
 import { mapWordListItemToCard } from '../vocabulary/components/types'
+import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 
 type Me = { displayName: string; role: string; locale: string }
 
 export default function ArticleQuizPage() {
+  usePageTimeTracker('article_quiz');
   const router = useRouter()
   const [me, setMe] = useState<Me | null>(null)
   const [nounWords, setNounWords] = useState<VocabCardItem[]>([])

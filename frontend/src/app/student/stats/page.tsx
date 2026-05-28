@@ -13,6 +13,7 @@ import api from '@/lib/api'
 import { clearTokens, getAccessToken } from '@/lib/authSession'
 import { StudentShell } from '@/components/layouts/StudentShell'
 import { AchievementBadges } from '@/components/analytics/AchievementBadges'
+import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -196,6 +197,7 @@ function RecommendationsPanel({ items }: { items: RecommendationItem[] }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function StatsPage() {
+  usePageTimeTracker('stats');
   const router = useRouter()
   const [me, setMe] = useState<Me | null>(null)
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null)
