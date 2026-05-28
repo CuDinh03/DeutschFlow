@@ -28,4 +28,8 @@ public record B1ReadinessResponse(
                 state.getGraduationConfirmedAt()
         );
     }
+
+    public static B1ReadinessResponse empty() {
+        return new B1ReadinessResponse(false, false, false, false, false, 0, false, null, null);
+    }
 }

@@ -61,7 +61,7 @@ public class B1ReadinessService {
     public B1ReadinessResponse getReadiness(User user) {
         return assessmentRepository.findByUserId(user.getId())
                 .map(B1ReadinessResponse::from)
-                .orElseGet(() -> B1ReadinessResponse.from(createInitialAssessment(user)));
+                .orElse(B1ReadinessResponse.empty());
     }
 
     @Transactional
