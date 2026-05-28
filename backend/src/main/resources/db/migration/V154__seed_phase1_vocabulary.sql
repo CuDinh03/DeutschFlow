@@ -1,6 +1,13 @@
 -- Phase 1: Seed 50 core A1 vocabulary words
 -- Source: CEFR A1 vocabulary list
 
+-- Add denormalized columns used by phase 1+ seed migrations
+ALTER TABLE words
+  ADD COLUMN IF NOT EXISTS word        VARCHAR(255),
+  ADD COLUMN IF NOT EXISTS translation VARCHAR(255),
+  ADD COLUMN IF NOT EXISTS word_type   VARCHAR(100),
+  ADD COLUMN IF NOT EXISTS gender      VARCHAR(10);
+
 DELETE FROM words WHERE cefr_level = 'A1' AND frequency_rank <= 50;
 
 INSERT INTO words (word, translation, word_type, gender, cefr_level, pronunciation_ipa, example_sentence, frequency_rank, image_url, created_at, updated_at)
