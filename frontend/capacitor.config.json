@@ -2,39 +2,12 @@
   "appId": "com.deutschflow.app",
   "appName": "DeutschFlow",
   "webDir": "out",
-  "bundledWebRuntime": false,
-  "server": {
-    "url": "http://192.168.1.100:3000",
-    "cleartext": true,
-    "allowNavigation": ["*"]
+  "ios": {
+    "scheme": "DeutschFlow",
+    "contentInset": "automatic"
   },
   "android": {
-    "minVersion": 24,
-    "buildOptions": {
-      "keystorePath": "deutschflow.keystore",
-      "keystorePassword": "***",
-      "keystoreAlias": "deutschflow",
-      "keystoreAliasPassword": "***",
-      "releaseType": "APK"
-    }
+    "minVersion": 24
   },
-  "ios": {
-    "scheme": "DeutschFlow"
-  },
-  "plugins": {
-    "Keyboard": {
-      "resize": "native"
-    },
-    "SplashScreen": {
-      "launchAutoHide": true,
-      "showSpinner": false,
-      "spinnerStyle": "large",
-      "iosSpinnerStyle": "large",
-      "androidSpinnerStyle": "large"
-    },
-    "LocalNotifications": {
-      "smallIcon": "ic_stat_icon_config_sample",
-      "iconColor": "#488AFF"
-    }
-  }
+  "plugins": {}
 }

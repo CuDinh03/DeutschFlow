@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { Suspense } from "react";
 import { CompanionSelect } from "@/components/features/ai-speaking/CompanionSelect";
 
 export const metadata: Metadata = {
@@ -9,7 +10,9 @@ export const metadata: Metadata = {
 export default function SpeakingPage() {
   return (
     <main className="min-h-screen flex flex-col">
-      <CompanionSelect />
+      <Suspense>
+        <CompanionSelect />
+      </Suspense>
     </main>
   );
 }

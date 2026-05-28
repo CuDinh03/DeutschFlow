@@ -1,5 +1,5 @@
 import axios, { type AxiosError, type AxiosResponse } from 'axios'
-import { getAccessToken, getRefreshToken, setTokens, recordTokenRefresh } from '@/lib/authSession'
+import { getAccessToken, getRefreshToken, setTokens, recordTokenRefresh, isNative, getPlatform } from '@/lib/authSession'
 import { useAuthRecoveryStore } from '@/stores/useAuthRecoveryStore'
 
 // ─── Error helpers ────────────────────────────────────────────────────────────
@@ -87,11 +87,12 @@ api.interceptors.response.use(
   }
 )
 
-// Attach access token automatically
+// Attach access token + platform header automatically
 api.interceptors.request.use((config) => {
   const token = getAccessToken()
   if (token) config.headers.Authorization = `Bearer ${token}`
   config.headers['X-Request-Id'] = crypto.randomUUID()
+  if (isNative()) config.headers['X-Platform'] = getPlatform()
   return config
 })
 
@@ -137,13 +138,15 @@ api.interceptors.response.use(
             ts: Date.now(),
             url: `${authBaseUrl}/auth/refresh`,
           })
-          // Body rỗng — token đến từ HttpOnly cookie, không phải body.
-          // withCredentials được set globally trên `api` instance; dùng axios trực tiếp
-          // để tránh circular retry qua interceptor chính.
-          refreshPromise = axios.post(
+          // Web:    body rỗng, backend đọc refresh token từ HttpOnly cookie.
+          // Native: gửi refreshToken trong body (cookie không hoạt động cross-origin từ Capacitor).
+          const nativeRefreshToken = isNative() ? getRefreshToken() : null
+          const refreshHeaders: Record<string, string> = {}
+          if (isNative()) refreshHeaders['X-Platform'] = getPlatform()
+          refreshPromise = axios.post<RefreshResponseData>(
             `${authBaseUrl}/auth/refresh`,
-            {},
-            { withCredentials: true }
+            nativeRefreshToken ? { refreshToken: nativeRefreshToken } : {},
+            { withCredentials: true, headers: refreshHeaders }
           )
         }
 

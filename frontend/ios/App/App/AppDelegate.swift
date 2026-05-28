@@ -1,49 +1,110 @@
 import UIKit
 import Capacitor
+import SwiftUI
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
+    private var overlayWindow: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        showSplashOverlay()
         return true
     }
 
-    func applicationWillResignActive(_ application: UIApplication) {
-        // Sent when the application is about to move from active to inactive state. This can occur for certain types of temporary interruptions (such as an incoming phone call or SMS message) or when the user quits the application and it begins the transition to the background state.
-        // Use this method to pause ongoing tasks, disable timers, and invalidate graphics rendering callbacks. Games should use this method to pause the game.
+    // ─── Overlay orchestration ────────────────────────────────────────────────
+
+    private func showSplashOverlay() {
+        let overlay = UIWindow(frame: UIScreen.main.bounds)
+        overlay.windowLevel = .alert + 1
+
+        let splashVC = makeHostingController(
+            SplashScreenView {
+                let hasSeen = UserDefaults.standard.bool(forKey: "hasSeenOnboarding")
+                if hasSeen {
+                    self.dismissOverlay(navigateTo: nil)
+                } else {
+                    self.showOnboarding(in: overlay)
+                }
+            }
+        )
+
+        overlay.rootViewController = splashVC
+        overlay.makeKeyAndVisible()
+        self.overlayWindow = overlay
     }
 
-    func applicationDidEnterBackground(_ application: UIApplication) {
-        // Use this method to release shared resources, save user data, invalidate timers, and store enough application state information to restore your application to its current state in case it is terminated later.
-        // If your application supports background execution, this method is called instead of applicationWillTerminate: when the user quits.
+    private func showOnboarding(in overlay: UIWindow) {
+        let vc = makeHostingController(
+            OnboardingView {
+                self.showAuthChoice(in: overlay)
+            }
+        )
+        UIView.transition(with: overlay, duration: 0.38, options: .transitionCrossDissolve) {
+            overlay.rootViewController = vc
+        }
     }
 
-    func applicationWillEnterForeground(_ application: UIApplication) {
-        // Called as part of the transition from the background to the active state; here you can undo many of the changes made on entering the background.
+    private func showAuthChoice(in overlay: UIWindow) {
+        let vc = makeHostingController(
+            AuthChoiceView(
+                onRegister: { self.dismissOverlay(navigateTo: "/register") },
+                onLogin:    { self.dismissOverlay(navigateTo: "/login") }
+            )
+        )
+        UIView.transition(with: overlay, duration: 0.38, options: .transitionCrossDissolve) {
+            overlay.rootViewController = vc
+        }
     }
 
-    func applicationDidBecomeActive(_ application: UIApplication) {
-        // Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
+    // ─── Dismiss + navigate ───────────────────────────────────────────────────
+
+    private func dismissOverlay(navigateTo path: String?) {
+        guard let overlay = overlayWindow else { return }
+        UIView.animate(withDuration: 0.45, delay: 0, options: .curveEaseOut) {
+            overlay.alpha = 0
+        } completion: { _ in
+            overlay.isHidden = true
+            self.overlayWindow = nil
+            self.window?.makeKeyAndVisible()
+
+            if let path = path {
+                // WebView should be loaded by now; navigate to target path
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    self.navigateWebView(to: path)
+                }
+            }
+        }
     }
 
-    func applicationWillTerminate(_ application: UIApplication) {
-        // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
+    private func navigateWebView(to path: String) {
+        guard let bridgeVC = window?.rootViewController as? CAPBridgeViewController,
+              let webView = bridgeVC.webView else { return }
+        webView.evaluateJavaScript("window.location.replace('\(path)')")
     }
+
+    // ─── Helpers ─────────────────────────────────────────────────────────────
+
+    private func makeHostingController<V: View>(_ view: V) -> UIHostingController<V> {
+        let vc = UIHostingController(rootView: view)
+        vc.view.backgroundColor = UIColor(red: 0.039, green: 0.039, blue: 0.059, alpha: 1)
+        return vc
+    }
+
+    // ─── Capacitor delegates ──────────────────────────────────────────────────
+
+    func applicationWillResignActive(_ application: UIApplication) {}
+    func applicationDidEnterBackground(_ application: UIApplication) {}
+    func applicationWillEnterForeground(_ application: UIApplication) {}
+    func applicationDidBecomeActive(_ application: UIApplication) {}
+    func applicationWillTerminate(_ application: UIApplication) {}
 
     func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
-        // Called when the app was launched with a url. Feel free to add additional processing here,
-        // but if you want the App API to support tracking app url opens, make sure to keep this call
         return ApplicationDelegateProxy.shared.application(app, open: url, options: options)
     }
 
     func application(_ application: UIApplication, continue userActivity: NSUserActivity, restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void) -> Bool {
-        // Called when the app was launched with an activity, including Universal Links.
-        // Feel free to add additional processing here, but if you want the App API to support
-        // tracking app url opens, make sure to keep this call
-        return ApplicationDelegateProxy.shared.application(application, continue: userActivity, restorationHandler: restorationHandler)
+        return false
     }
-
 }

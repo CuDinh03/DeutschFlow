@@ -1,27 +1,32 @@
+import { Capacitor } from '@capacitor/core'
+import { Preferences } from '@capacitor/preferences'
+
 // ─── Storage keys ─────────────────────────────────────────────────────────────
-const ACCESS_TOKEN_KEY  = 'accessToken'
-const REFRESH_TOKEN_KEY = 'refreshToken'   // kept only for legacy cleanup
+const ACCESS_TOKEN_KEY   = 'accessToken'
+const REFRESH_TOKEN_KEY  = 'refreshToken'
 const LAST_TOKEN_REFRESH_KEY = 'lastTokenRefresh'
 
-// Storage strategy (post-HttpOnly migration):
-//   Access token  → sessionStorage (tab-scoped, short-lived — safe for JS access)
-//   Refresh token → HttpOnly cookie set by backend (JS cannot read — XSS-safe)
-//
-// Browser sends the HttpOnly cookie automatically when calling /api/auth/refresh.
-// No localStorage for refresh token anymore.
-
-const AUTH_ACCESS_COOKIE   = 'auth_access'
-const AUTH_ROLE_COOKIE     = 'auth_role'
+// ─── Cookie keys (web only) ───────────────────────────────────────────────────
+const AUTH_ACCESS_COOKIE    = 'auth_access'
+const AUTH_ROLE_COOKIE      = 'auth_role'
 const AUTH_LOGGED_IN_COOKIE = 'auth_logged_in'
 
-// BUG FIX #1: Session keep-alive configuration
-const TOKEN_REFRESH_INTERVAL_MS = 5 * 60 * 1000 // Refresh every 5 minutes
-const TOKEN_EXPIRY_BUFFER_MS = 2 * 60 * 1000    // Refresh 2 minutes before expiry
+// Storage strategy:
+//   Web:    access token → sessionStorage, refresh token → HttpOnly cookie (set by backend)
+//   Native: access token + refresh token → @capacitor/preferences (native secure storage)
+//
+// Native mobile clients send X-Platform: ios/android header.
+// Backend detects this and returns refreshToken in body instead of HttpOnly cookie.
 
-type AuthLikeResponse = {
-  accessToken?: string | null
-  refreshToken?: string | null
-  role?: string | null
+const TOKEN_REFRESH_INTERVAL_MS = 5 * 60 * 1000
+
+export function isNative(): boolean {
+  return Capacitor.isNativePlatform()
+}
+
+/** 'ios' | 'android' | 'web' */
+export function getPlatform(): string {
+  return Capacitor.getPlatform()
 }
 
 // ─── JWT helpers ──────────────────────────────────────────────────────────────
@@ -48,25 +53,74 @@ function getRoleFromToken(accessToken: string): string {
   return fromClaim || 'STUDENT'
 }
 
+// ─── Cookie helpers (web only) ────────────────────────────────────────────────
+
 function setCookie(name: string, value: string, maxAgeSeconds: number | null): void {
-  // Thêm Secure flag khi chạy trên HTTPS (prod/staging).
-  // Bỏ qua ở localhost (HTTP) để không break local dev.
-  const isSecure = typeof window !== 'undefined' && window.location.protocol === 'https:'
+  if (typeof window === 'undefined') return
+  const isSecure = window.location.protocol === 'https:'
   let cookieStr = `${name}=${encodeURIComponent(value)};path=/;SameSite=Lax`
   if (isSecure) cookieStr += ';Secure'
-  if (maxAgeSeconds !== null) {
-    cookieStr += `;max-age=${maxAgeSeconds}`
-  }
+  if (maxAgeSeconds !== null) cookieStr += `;max-age=${maxAgeSeconds}`
   document.cookie = cookieStr
 }
-
-// ─── Public token API ─────────────────────────────────────────────────────────
 
 function readCookie(name: string): string | null {
   if (typeof document === 'undefined') return null
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const match = document.cookie.match(new RegExp(`(?:^|; )${escaped}=([^;]*)`))
   return match ? decodeURIComponent(match[1]) : null
+}
+
+// ─── Async native storage ─────────────────────────────────────────────────────
+
+async function nativeGet(key: string): Promise<string | null> {
+  const { value } = await Preferences.get({ key })
+  return value
+}
+
+async function nativeSet(key: string, value: string): Promise<void> {
+  await Preferences.set({ key, value })
+}
+
+async function nativeRemove(key: string): Promise<void> {
+  await Preferences.remove({ key })
+}
+
+// ─── In-memory cache for sync access token reads ──────────────────────────────
+// Preferences.get() is async — we keep an in-memory copy so getAccessToken()
+// stays synchronous for the axios interceptor.
+
+let _accessTokenCache: string | null = null
+let _refreshTokenCache: string | null = null
+
+async function warmTokenCache(): Promise<void> {
+  if (!isNative()) return
+  _accessTokenCache = await nativeGet(ACCESS_TOKEN_KEY)
+  _refreshTokenCache = await nativeGet(REFRESH_TOKEN_KEY)
+}
+
+// Initialized at module load time — before any React component renders.
+// Web: isNative()=false → resolves immediately (no-op).
+// iOS: resolves after Preferences.get() (~10-50ms native bridge).
+// Await this before reading tokens on mount to avoid cold-launch redirect-to-login race.
+export const tokenCacheReady: Promise<void> = warmTokenCache()
+
+// ─── Public token API ─────────────────────────────────────────────────────────
+
+/** Read the stored access token. Returns null if not signed in. */
+export function getAccessToken(): string | null {
+  if (typeof window === 'undefined') return null
+  if (isNative()) return _accessTokenCache
+  return sessionStorage.getItem(ACCESS_TOKEN_KEY) || localStorage.getItem(ACCESS_TOKEN_KEY)
+}
+
+/**
+ * On web: refresh token is in HttpOnly cookie — always returns null from JS.
+ * On native: returns the token stored in Preferences.
+ */
+export function getRefreshToken(): string | null {
+  if (isNative()) return _refreshTokenCache
+  return null
 }
 
 /** Current app role from cookie or JWT (defaults to STUDENT). */
@@ -82,36 +136,21 @@ export function isStudentRole(role?: string | null): boolean {
   return normalizeRole(role ?? getAuthRole()) === 'STUDENT'
 }
 
-/** AI speaking quota pill — hidden for students. */
 export function shouldShowAiSpeakingQuota(): boolean {
   return !isStudentRole()
 }
 
-/** Read the stored access token. Returns null if not signed in. */
-export function getAccessToken(): string | null {
-  if (typeof window === 'undefined') return null
-  return sessionStorage.getItem(ACCESS_TOKEN_KEY) || localStorage.getItem(ACCESS_TOKEN_KEY)
+type AuthLikeResponse = {
+  accessToken?: string | null
+  refreshToken?: string | null
+  role?: string | null
 }
 
 /**
- * Refresh token is now stored in an HttpOnly cookie set by the backend.
- * JS cannot read it — the browser sends it automatically on /api/auth/refresh requests.
+ * Persist tokens after login / token refresh.
  *
- * This function always returns null after the HttpOnly cookie migration.
- * Kept for backwards compatibility with any code that still calls it;
- * callers should NOT gate the refresh call on this returning non-null.
- *
- * @deprecated Refresh token is in HttpOnly cookie — JS cannot and should not read it.
- */
-export function getRefreshToken(): string | null {
-  // Legacy: some browsers may still have an old token in localStorage from before migration.
-  // We intentionally do NOT use it — the HttpOnly cookie is authoritative.
-  return null
-}
-
-/**
- * Persist tokens to sessionStorage AND sync cookies for Next.js middleware.
- * Call this after every successful login / token refresh.
+ * Web:    access token → sessionStorage + cookie, refresh token → HttpOnly cookie (backend)
+ * Native: access token + refresh token → @capacitor/preferences
  */
 export function setTokens(response: AuthLikeResponse): void {
   const { accessToken, refreshToken, role } = response
@@ -119,45 +158,46 @@ export function setTokens(response: AuthLikeResponse): void {
     throw new Error('No access token in auth response. Login failed. Please try again.')
   }
 
-  // Access token → sessionStorage (tab-scoped, wiped on close — short-lived is fine)
-  sessionStorage.setItem(ACCESS_TOKEN_KEY, accessToken)
-  // Clean up old access token from localStorage (migration)
-  localStorage.removeItem(ACCESS_TOKEN_KEY)
+  const resolvedRole = normalizeRole(role) || getRoleFromToken(accessToken)
 
-  // Refresh token is now in an HttpOnly cookie set by the backend — not stored in JS.
-  // Clean up any legacy token that may linger in storage from before the migration.
+  if (isNative()) {
+    // Native: store both tokens in-memory and schedule async persist
+    _accessTokenCache = accessToken
+    _refreshTokenCache = refreshToken ?? null
+    void nativeSet(ACCESS_TOKEN_KEY, accessToken)
+    if (refreshToken) void nativeSet(REFRESH_TOKEN_KEY, refreshToken)
+    else void nativeRemove(REFRESH_TOKEN_KEY)
+    return
+  }
+
+  // Web: sessionStorage for access token, HttpOnly cookie for refresh (backend sets it)
+  sessionStorage.setItem(ACCESS_TOKEN_KEY, accessToken)
+  localStorage.removeItem(ACCESS_TOKEN_KEY)
   localStorage.removeItem(REFRESH_TOKEN_KEY)
   sessionStorage.removeItem(REFRESH_TOKEN_KEY)
 
-  // Sync cookies so Next.js middleware can read role without client JS
-  // Using null maxAge makes them Session Cookies (wiped when browser closes)
-  const resolvedRole = normalizeRole(role) || getRoleFromToken(accessToken)
   setCookie(AUTH_ACCESS_COOKIE, accessToken, null)
   setCookie(AUTH_ROLE_COOKIE, resolvedRole, null)
   setCookie(AUTH_LOGGED_IN_COOKIE, '1', null)
 }
 
-/**
- * Remove tokens from both sessionStorage, localStorage, and cookies.
- * Call this on every logout path.
- */
+/** Remove all tokens from storage. */
 export function clearTokens(): void {
-  const ts = Date.now()
-  console.log('[DF_TRACE][authSession.clearTokens:start]', {
-    ts,
-    accessTokenExists: Boolean(getAccessToken()),
-    refreshTokenExists: Boolean(getRefreshToken()),
-    stack: new Error().stack,
-  })
-  // Clear access token from sessionStorage
+  _accessTokenCache = null
+  _refreshTokenCache = null
+
+  if (isNative()) {
+    void nativeRemove(ACCESS_TOKEN_KEY)
+    void nativeRemove(REFRESH_TOKEN_KEY)
+    if (typeof sessionStorage !== 'undefined') sessionStorage.clear()
+    return
+  }
+
   sessionStorage.removeItem(ACCESS_TOKEN_KEY)
-  // Clear refresh token from BOTH storages (belt-and-suspenders)
   localStorage.removeItem(REFRESH_TOKEN_KEY)
   sessionStorage.removeItem(REFRESH_TOKEN_KEY)
-  // Clean up legacy access token location
   localStorage.removeItem(ACCESS_TOKEN_KEY)
 
-  // Clear ALL sessionStorage keys (wipe any cached API data)
   const keysToRemove: string[] = []
   for (let i = 0; i < sessionStorage.length; i++) {
     const key = sessionStorage.key(i)
@@ -165,18 +205,12 @@ export function clearTokens(): void {
   }
   keysToRemove.forEach(k => sessionStorage.removeItem(k))
 
-  // Clear cookies
   setCookie(AUTH_ACCESS_COOKIE, '', 0)
   setCookie(AUTH_ROLE_COOKIE, '', 0)
   setCookie(AUTH_LOGGED_IN_COOKIE, '', 0)
-  console.log('[DF_TRACE][authSession.clearTokens:done]', { ts: Date.now() })
 }
 
-/**
- * Full logout: revoke refresh token on server, clear local state,
- * then hard-reload to /login to wipe all React in-memory state.
- * Use this instead of calling clearTokens() + router.push().
- */
+/** Full logout: revoke server-side, clear local state, redirect to /login. */
 export async function logout(): Promise<void> {
   try {
     const token = getAccessToken()
@@ -184,8 +218,10 @@ export async function logout(): Promise<void> {
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080'
       await fetch(`${backendUrl}/api/auth/logout`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        // credentials: 'include' — gửi HttpOnly refresh_token cookie để backend xóa
+        headers: {
+          Authorization: `Bearer ${token}`,
+          ...(isNative() ? { 'X-Platform': getPlatform() } : {}),
+        },
         credentials: 'include',
         signal: AbortSignal.timeout(3000),
       })
@@ -197,28 +233,22 @@ export async function logout(): Promise<void> {
   window.location.href = '/login'
 }
 
-// BUG FIX #1: Session keep-alive mechanism
-/**
- * Track the last token refresh time to prevent excessive refresh calls
- */
+// ─── Session keep-alive ───────────────────────────────────────────────────────
+
 export function recordTokenRefresh(): void {
   if (typeof window !== 'undefined') {
     sessionStorage.setItem(LAST_TOKEN_REFRESH_KEY, String(Date.now()))
   }
 }
 
-/**
- * Check if token needs proactive refresh based on time since last refresh
- */
 export function shouldRefreshToken(): boolean {
   if (typeof window === 'undefined') return false
   const lastRefresh = sessionStorage.getItem(LAST_TOKEN_REFRESH_KEY)
   if (!lastRefresh) return false
-  const timeSinceLastRefresh = Date.now() - parseInt(lastRefresh, 10)
-  return timeSinceLastRefresh > TOKEN_REFRESH_INTERVAL_MS
+  return Date.now() - parseInt(lastRefresh, 10) > TOKEN_REFRESH_INTERVAL_MS
 }
 
-// ─── Legacy aliases (kept for backward compat) ───────────────────────────────
+// ─── Legacy aliases ───────────────────────────────────────────────────────────
 
 /** @deprecated Use setTokens() instead */
 export function syncAuthCookies(payload: { accessToken?: string | null; role?: string | null }): void {

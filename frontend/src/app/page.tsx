@@ -117,6 +117,22 @@ export default function HomePage() {
 
   useEffect(() => {
     setMounted(true)
+
+    // On native iOS/Android, skip the marketing landing page entirely.
+    // The native onboarding handles auth routing; returning users with a
+    // valid token go to /dashboard, everyone else stays on /login.
+    const isNative = typeof window !== 'undefined'
+      && !!(window as Window & { Capacitor?: { isNativePlatform?: () => boolean } })
+           .Capacitor?.isNativePlatform?.()
+    if (isNative) {
+      if (getAccessToken()) {
+        router.replace('/dashboard')
+      } else {
+        router.replace('/login')
+      }
+      return
+    }
+
     if (getAccessToken()) {
       setIsLoggedIn(true)
       api.get('/auth/me')

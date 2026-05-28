@@ -1,37 +1,16 @@
 import createNextIntlPlugin from 'next-intl/plugin';
-import withPWAInit from '@ducanh2912/next-pwa';
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
-const withPWA = withPWAInit({
-  dest: 'public',
-  cacheOnFrontEndNav: true,
-  aggressiveFrontEndNavCaching: true,
-  reloadOnOnline: true,
-  swcMinify: true,
-  disable: process.env.NODE_ENV === 'development',
-  workboxOptions: {
-    disableDevLogs: true,
-  },
-});
-
-const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL || 'http://localhost:8080';
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Standalone mode: Docker image nhỏ gọn, Amplify vẫn dùng .next/standalone
-  output: 'standalone',
+  // Static export for Capacitor bundling
+  output: 'export',
+  trailingSlash: true,
 
-  // ─── Performance ───────────────────────────────────────────────────────────
-  // Tắt X-Powered-By header (security + nhỏ hơn response)
-  poweredByHeader: false,
-
-  // Compress response (gzip/brotli) — Amplify CloudFront sẽ handle, nhưng fallback
-  compress: true,
-
-  // ─── Image optimization ────────────────────────────────────────────────────
+  // Image optimization must be disabled for static export
   images: {
-    // Remote patterns nếu dùng avatar/image từ S3/external
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',
@@ -44,44 +23,9 @@ const nextConfig = {
         pathname: '/**',
       },
     ],
-    // Serve modern formats (avif > webp > jpg)
-    formats: ['image/avif', 'image/webp'],
-    // Cache optimized images 1 ngày tối thiểu
-    minimumCacheTTL: 86400,
   },
 
-  // ─── HTTP Response Headers (Security + Cache) ──────────────────────────────
-  async headers() {
-    return [
-      {
-        source: '/:path*',
-        headers: [
-          // Bảo vệ clickjacking
-          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
-          // Ngăn MIME sniffing
-          { key: 'X-Content-Type-Options', value: 'nosniff' },
-          // HTTPS only (Amplify)
-          { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
-          // Referrer policy
-          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-        ],
-      },
-      {
-        // API routes: không cache
-        source: '/api/:path*',
-        headers: [
-          { key: 'Cache-Control', value: 'no-store, no-cache' },
-        ],
-      },
-    ];
-  },
-
-  // ─── API Proxy (Next.js reverse proxy → Spring Boot) ──────────────────────
-  // ─── API Proxy (Removed for Direct API calls to bypass Amplify Lambda) ──────────────────────
-
-  // ─── Experimental ─────────────────────────────────────────────────────────
   experimental: {
-    // Tăng tốc React Server Components
     optimizePackageImports: [
       'lucide-react',
       'framer-motion',
@@ -93,4 +37,4 @@ const nextConfig = {
   },
 };
 
-export default withPWA(withNextIntl(nextConfig));
+export default withNextIntl(nextConfig);
