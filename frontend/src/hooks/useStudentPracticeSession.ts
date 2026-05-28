@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
 import api, { httpStatus } from "@/lib/api";
-import { getAccessToken, getRefreshToken, clearTokens } from "@/lib/authSession";
+import { getAccessToken, getRefreshToken, clearTokens, tokenCacheReady } from "@/lib/authSession";
 import { toastApiError } from "@/lib/toastApiError";
 import posthog from "posthog-js";
 
@@ -66,6 +66,9 @@ export function useStudentPracticeSession(options?: {
   const prevStreakRef = useRef<number | null>(null);
 
   const load = useCallback(async () => {
+    // On iOS cold launch, wait for native token cache to be ready before checking.
+    // On web this resolves immediately (no-op).
+    await tokenCacheReady;
     const startedAt = Date.now();
     const accessToken = getAccessToken();
     const refreshToken = typeof window !== "undefined" ? window.localStorage.getItem("refreshToken") : null;

@@ -64,7 +64,7 @@ public class AuthController {
         }
         AuthResponse authResp = authService.register(request);
         setRefreshTokenCookie(authResp.refreshToken(), httpResponse);
-        return stripRefreshToken(authResp);
+        return isMobileRequest(httpRequest) ? authResp : stripRefreshToken(authResp);
     }
 
     /** 200 OK — đăng nhập thành công. */
@@ -80,7 +80,9 @@ public class AuthController {
         }
         AuthResponse authResp = authService.login(request);
         setRefreshTokenCookie(authResp.refreshToken(), httpResponse);
-        return stripRefreshToken(authResp);
+        // Native mobile clients (Capacitor) cannot use HttpOnly cookies cross-origin.
+        // They send X-Platform header and receive the refresh token in the body instead.
+        return isMobileRequest(httpRequest) ? authResp : stripRefreshToken(authResp);
     }
 
     /**
@@ -114,7 +116,7 @@ public class AuthController {
 
         AuthResponse authResp = authService.refresh(token);
         setRefreshTokenCookie(authResp.refreshToken(), httpResponse);
-        return stripRefreshToken(authResp);
+        return isMobileRequest(httpRequest) ? authResp : stripRefreshToken(authResp);
     }
 
     // ─── Authenticated endpoints ───────────────────────────────────────────────
@@ -196,6 +198,12 @@ public class AuthController {
     }
 
     // ─── Utility ──────────────────────────────────────────────────────────────
+
+    /** True when the request comes from the Capacitor iOS/Android native app. */
+    private static boolean isMobileRequest(HttpServletRequest request) {
+        String platform = request.getHeader("X-Platform");
+        return platform != null && (platform.equalsIgnoreCase("ios") || platform.equalsIgnoreCase("android"));
+    }
 
     private static String resolveClientIp(HttpServletRequest request) {
         if (request == null) return "";

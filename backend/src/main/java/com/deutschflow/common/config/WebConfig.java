@@ -14,13 +14,28 @@ public class WebConfig implements WebMvcConfigurer {
     @Value("${app.cors.allowed-origins:http://localhost:3000}")
     private String allowedOrigins;
 
+    // Capacitor iOS/Android origins — always allowed regardless of env var
+    private static final String[] NATIVE_ORIGINS = {
+        "capacitor://localhost",
+        "ionic://localhost",
+        "http://localhost"
+    };
+
     @Override
     public void addCorsMappings(CorsRegistry registry) {
+        String[] configuredOrigins = allowedOrigins.split(",");
+        String[] allOrigins = java.util.stream.Stream
+                .concat(java.util.Arrays.stream(configuredOrigins),
+                        java.util.Arrays.stream(NATIVE_ORIGINS))
+                .map(String::trim)
+                .distinct()
+                .toArray(String[]::new);
+
         registry.addMapping("/api/**")
-                .allowedOrigins(allowedOrigins.split(","))
+                .allowedOrigins(allOrigins)
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
-                .exposedHeaders("X-Request-Id")
+                .exposedHeaders("X-Request-Id", "X-Platform")
                 .allowCredentials(true)
                 .maxAge(3600);
     }

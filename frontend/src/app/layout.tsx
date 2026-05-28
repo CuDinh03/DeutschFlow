@@ -5,6 +5,7 @@ import { getLocale, getMessages } from 'next-intl/server'
 import { Toaster } from '@/components/ui/sonner'
 import LanguageSwitcher from '@/components/ui/LanguageSwitcher'
 import { PostHogProvider } from '@/providers/PostHogProvider'
+import { NativeAuthProvider } from '@/providers/NativeAuthProvider'
 import { AuthRecoveryDialog } from '@/components/auth/AuthRecoveryDialog'
 import './globals.css'
 
@@ -41,9 +42,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className={inter.className}>
         <NextIntlClientProvider locale={locale} messages={messages}>
           <PostHogProvider>
-            {children}
-            <AuthRecoveryDialog />
-            <Toaster position="top-center" />
+            <NativeAuthProvider>
+              {children}
+              <AuthRecoveryDialog />
+              <Toaster position="top-center" />
+            </NativeAuthProvider>
           </PostHogProvider>
         </NextIntlClientProvider>
       </body>

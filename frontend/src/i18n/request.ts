@@ -1,12 +1,12 @@
 import { getRequestConfig } from 'next-intl/server'
-import { cookies } from 'next/headers'
 
 const SUPPORTED = new Set(['vi', 'en', 'de'])
 
 export default getRequestConfig(async () => {
-  const cookieStore = await cookies()
-  const raw = cookieStore.get('locale')?.value ?? 'vi'
-  const locale = SUPPORTED.has(raw) ? raw : 'vi'
+  // Static export: cookies() không available ở build time.
+  // Locale mặc định là 'vi', có thể override qua NEXT_PUBLIC_MOBILE_LOCALE.
+  const envLocale = process.env.NEXT_PUBLIC_MOBILE_LOCALE ?? ''
+  const locale = SUPPORTED.has(envLocale) ? envLocale : 'vi'
 
   return {
     locale,
