@@ -311,18 +311,18 @@ export function StudentShell({
 
       <div className="flex-1 flex flex-col overflow-hidden">
         {!hideAppHeader && (
-          <header className="df-header-shadow flex flex-shrink-0 items-center justify-between border-b border-[#E2E8F0] bg-white px-6 pb-4 pt-[calc(1rem+env(safe-area-inset-top,0px))]">
-            <div className="flex items-center gap-4 min-w-0">
-              <button type="button" className="lg:hidden p-2 rounded-[var(--radius-sm)] hover:bg-[#F5F7FA] text-[#64748B]" onClick={() => setSidebarOpen(true)}>
+          <header className="df-header-shadow flex flex-shrink-0 items-center justify-between border-b border-[#E2E8F0] bg-white px-4 sm:px-6 pb-3 sm:pb-4 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] gap-2">
+            <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
+              <button type="button" className="lg:hidden p-2 rounded-[var(--radius-sm)] hover:bg-[#F5F7FA] text-[#64748B] flex-shrink-0" onClick={() => setSidebarOpen(true)}>
                 <Menu size={20} />
               </button>
-              <div className="min-w-0">
-                <h1 className="text-xl font-bold text-[#1A1A1A] truncate">{headerTitle}</h1>
-                {headerSubtitle && <p className="text-[#64748B] text-sm mt-0.5 truncate">{headerSubtitle}</p>}
+              <div className="min-w-0 flex-1">
+                <h1 className="text-lg sm:text-xl font-bold text-[#1A1A1A] truncate tracking-tight">{headerTitle}</h1>
+                {headerSubtitle && <p className="text-[#64748B] text-xs sm:text-sm mt-0.5 truncate">{headerSubtitle}</p>}
               </div>
             </div>
 
-            <div className="flex items-center gap-3 flex-shrink-0">
+            <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
               {headerRight}
               {roadmapMeta ? (
                 <div className="hidden md:flex items-center gap-2 rounded-[var(--radius-md)] bg-[#EEF4FF] border border-[#C7D2FE] px-3 py-2">
@@ -340,15 +340,15 @@ export function StudentShell({
                   </div>
                 </div>
               ) : null}
-              <div className="flex items-center gap-2 bg-[#FFF8E1] border border-[#FFCD00]/40 rounded-[var(--radius-md)] px-3 py-2">
-                <Flame size={18} className="text-orange-500" fill="#f97316" />
-                <span className="font-bold text-[var(--brand-black)] text-sm">{t("streakDays", { n: streakDays })}</span>
-                <span className="text-[#64748B] text-xs hidden sm:inline">{t("streakBadgeShort")}</span>
+              <div className="flex items-center gap-1.5 bg-[#FFF8E1] border border-[#FFCD00]/40 rounded-full sm:rounded-[var(--radius-md)] px-2.5 sm:px-3 py-1.5 sm:py-2">
+                <Flame size={16} className="text-orange-500" fill="#f97316" />
+                <span className="font-bold text-[var(--brand-black)] text-xs sm:text-sm">{t("streakDays", { n: streakDays })}</span>
+                <span className="text-[#64748B] text-xs hidden md:inline">{t("streakBadgeShort")}</span>
               </div>
-              <NotificationBell buttonClassName="p-2.5 rounded-[var(--radius-md)] bg-[#F5F7FA] hover:bg-[#E2E8F0] transition-colors" />
-              <LanguageSwitcher />
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[var(--brand-black)] to-[var(--brand-black-dark)] flex items-center justify-center flex-shrink-0">
-                <span className="text-[var(--brand-yellow)] font-bold text-sm">{initials}</span>
+              <NotificationBell buttonClassName="p-2 sm:p-2.5 rounded-full sm:rounded-[var(--radius-md)] bg-[#F5F7FA] hover:bg-[#E2E8F0] transition-colors" />
+              <div className="hidden sm:block"><LanguageSwitcher /></div>
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-br from-[var(--brand-black)] to-[var(--brand-black-dark)] flex items-center justify-center flex-shrink-0">
+                <span className="text-[var(--brand-yellow)] font-bold text-xs sm:text-sm">{initials}</span>
               </div>
             </div>
           </header>

@@ -144,18 +144,34 @@ function LessonCard({ lesson, label, onOpen }: { lesson: any; label: string; onO
       {...fadeUp}
       transition={spring.gentle}
       onClick={onOpen}
-      className={`text-left rounded-[var(--radius-lg)] p-5 border transition-all hover:shadow-md hover:scale-[1.02] active:scale-[0.99] ${cfg.bg}`}
+      className={`relative text-left rounded-[18px] p-5 border transition-all hover:scale-[1.01] active:scale-[0.99] overflow-hidden ${cfg.bg}`}
+      style={{ boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04), 0 6px 18px rgba(15, 23, 42, 0.06)' }}
     >
-      <div className="w-10 h-10 rounded-[12px] flex items-center justify-center mb-3" style={{ backgroundColor: `${cfg.accent}20` }}>
+      <div
+        className="absolute -top-10 -right-10 w-24 h-24 rounded-full opacity-30 blur-2xl pointer-events-none"
+        style={{ backgroundColor: cfg.accent }}
+      />
+      <div
+        className="relative w-11 h-11 rounded-[13px] flex items-center justify-center mb-3"
+        style={{
+          backgroundColor: `${cfg.accent}22`,
+          boxShadow: `0 4px 10px ${cfg.accent}25, inset 0 1px 0 rgba(255, 255, 255, 0.4)`,
+        }}
+      >
         <span style={{ color: cfg.accent }}>{cfg.icon}</span>
       </div>
-      <p className="font-semibold text-[#0F172A] text-sm leading-snug mb-1">{lesson.title}</p>
-      <div className="flex items-center justify-between mt-2">
-        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ backgroundColor: `${cfg.accent}15`, color: cfg.accent }}>{label}</span>
-        <span className="text-[#94A3B8] text-xs">{lesson.estimatedMinutes} phút</span>
+      <p className="relative font-bold text-[#0F172A] text-[15px] leading-snug mb-1.5 tracking-tight">{lesson.title}</p>
+      <div className="relative flex items-center justify-between mt-2">
+        <span
+          className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full"
+          style={{ backgroundColor: `${cfg.accent}1A`, color: cfg.accent }}
+        >
+          {label}
+        </span>
+        <span className="text-[#64748B] text-[11px] font-semibold">{lesson.estimatedMinutes} phút</span>
       </div>
-      <div className="flex items-center gap-1 mt-3 text-xs font-medium" style={{ color: cfg.accent }}>
-        {"Bắt đầu"} <ArrowRight size={12} />
+      <div className="relative flex items-center gap-1 mt-3 text-[13px] font-bold" style={{ color: cfg.accent }}>
+        Bắt đầu <ArrowRight size={13} />
       </div>
     </motion.button>
   );
