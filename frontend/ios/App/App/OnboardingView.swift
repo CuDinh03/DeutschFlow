@@ -27,7 +27,7 @@ private let onboardingPages: [OnboardingPage] = [
         visual: .symbol("mic.fill"),
         accentColor: DF.Brand.genderDer,
         headline: "Nói với AI Coach",
-        germanHint: "„Wie geht es dir?"",
+        germanHint: "„Wie geht es dir?\"",
         body: "Luyện hội thoại tiếng Đức thực tế. Nhận sửa lỗi phát âm và ngữ pháp ngay lập tức — không ngại sai."
     ),
     OnboardingPage(
