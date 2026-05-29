@@ -1,25 +1,18 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { DndProvider, useDrag, useDrop } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import {
-  X,
-  Flame,
-  Lightbulb,
   Heart,
-  ArrowRight,
-  Check,
-  Volume2,
   Trophy,
-  RotateCcw,
-  Star,
   ChevronLeft,
-  AlertCircle,
+  Loader2,
 } from "lucide-react";
 import { usePageTimeTracker } from "@/hooks/usePageTimeTracker";
+import api from "@/lib/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -52,24 +45,64 @@ const BLOCK_COLORS = [
   { bg: "#FF7043", shadow: "#D94F2A", text: "#FFFFFF", shine: "#FF9063" },
 ];
 
-const QUESTIONS: Question[] = [
-  {
-    id: 1,
-    category: "IT-Technologie",
-    level: "A2",
-    parts: ["Ich ", " heute ", " ."],
-    answers: ["schreibe", "Code"],
-    pool: [
-      { id: "q1w1", word: "schreibe", colorIdx: 1 },
-      { id: "q1w2", word: "Code", colorIdx: 0 },
-      { id: "q1w3", word: "lese", colorIdx: 3 },
-      { id: "q1w4", word: "einen", colorIdx: 2 },
-    ],
-    explanation: '"schreiben" -> "schreibe" fuer ich. "Code" ist maskulin.',
-    translation: "I write code today.",
-    hint: 'Verb an 2. Stelle.',
-  },
-];
+interface RawExercise {
+  id: number;
+  exercise_type: string;
+  difficulty: number;
+  question_json: string;
+}
+
+interface ParsedQ {
+  prompt: string;
+  options?: string[];
+  correct_answer: string;
+  explanation_vi?: string;
+}
+
+function rawToQuestion(ex: RawExercise, catLabel: string): Question | null {
+  try {
+    const parsed: ParsedQ = typeof ex.question_json === "string"
+      ? JSON.parse(ex.question_json)
+      : ex.question_json as unknown as ParsedQ;
+
+    const prompt: string = parsed.prompt ?? "";
+    const correct: string = parsed.correct_answer ?? "";
+    if (!prompt || !correct) return null;
+
+    const BLANK = /_{2,}|\.\.\.|___/;
+    const parts = prompt.split(BLANK);
+    if (parts.length < 2) return null;
+
+    const answers = [correct];
+
+    const optionWords: string[] = parsed.options
+      ? parsed.options.filter((o) => typeof o === "string" && o.trim())
+      : [correct, "der", "die", "das", "ein"].filter((o) => o !== correct);
+
+    if (!optionWords.includes(correct)) optionWords.unshift(correct);
+
+    const shuffled = [...optionWords].sort(() => Math.random() - 0.5);
+    const pool: WordItem[] = shuffled.map((w, i) => ({
+      id: `${ex.id}_${i}`,
+      word: w,
+      colorIdx: i % BLOCK_COLORS.length,
+    }));
+
+    return {
+      id: ex.id,
+      category: catLabel,
+      level: ex.difficulty === 1 ? "A1" : ex.difficulty === 2 ? "A2" : "B1",
+      parts,
+      answers,
+      pool,
+      explanation: parsed.explanation_vi ?? "",
+      translation: "",
+      hint: "",
+    };
+  } catch {
+    return null;
+  }
+}
 
 // ─── Components ───────────────────────────────────────────────────────────────
 
@@ -126,71 +159,153 @@ function DropSlot({ slotIdx, filledWord, filledColorIdx, onDrop, onRemove, feedb
 
 function GameContent() {
   const router = useRouter();
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [loadingQ, setLoadingQ] = useState(true);
   const [questionIdx, setQuestionIdx] = useState(0);
-  const [slots, setSlots] = useState<(string | null)[]>([null, null]);
-  const [slotColorIdxs, setSlotColorIdxs] = useState<(number | null)[]>([null, null]);
-  const [slotWordIds, setSlotWordIds] = useState<(string | null)[]>([null, null]);
+  const [slots, setSlots] = useState<(string | null)[]>([]);
+  const [slotColorIdxs, setSlotColorIdxs] = useState<(number | null)[]>([]);
+  const [slotWordIds, setSlotWordIds] = useState<(string | null)[]>([]);
   const [usedWordIds, setUsedWordIds] = useState<Set<string>>(new Set());
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [lives, setLives] = useState(3);
   const [score, setScore] = useState(0);
   const [completed, setCompleted] = useState(false);
 
-  const q = QUESTIONS[questionIdx];
-  const allFilled = slots.every((s) => s !== null);
+  const resetSlots = useCallback((answerCount: number) => {
+    setSlots(Array(answerCount).fill(null));
+    setSlotColorIdxs(Array(answerCount).fill(null));
+    setSlotWordIds(Array(answerCount).fill(null));
+    setUsedWordIds(new Set());
+    setFeedback(null);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setLoadingQ(true);
+      try {
+        const topicsRes = await api.get<{ id: number; title_de: string }[]>("/grammar/syllabus/topics?cefrLevel=A1");
+        const topics = topicsRes.data ?? [];
+        const allQ: Question[] = [];
+        for (const topic of topics.slice(0, 4)) {
+          const exRes = await api.get<RawExercise[]>(`/grammar/syllabus/topics/${topic.id}/exercises?limit=5`);
+          const mapped = (exRes.data ?? [])
+            .filter((e) => e.exercise_type === "FILL_BLANK" || e.exercise_type === "MULTIPLE_CHOICE")
+            .map((e) => rawToQuestion(e, topic.title_de))
+            .filter((q): q is Question => q !== null);
+          allQ.push(...mapped);
+        }
+        if (cancelled) return;
+        const deck = allQ.sort(() => Math.random() - 0.5).slice(0, 10);
+        setQuestions(deck);
+        if (deck.length > 0) resetSlots(deck[0].answers.length);
+      } catch {
+        // fall through — will show empty state
+      } finally {
+        if (!cancelled) setLoadingQ(false);
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
+  }, [resetSlots]);
+
+  const q = questions[questionIdx];
+  const allFilled = slots.length > 0 && slots.every((s) => s !== null);
 
   const handleDrop = (slotIdx: number, wordId: string, word: string, colorIdx: number) => {
     if (usedWordIds.has(wordId)) return;
-    const newSlots = [...slots]; newSlots[slotIdx] = word; setSlots(newSlots);
-    const newColors = [...slotColorIdxs]; newColors[slotIdx] = colorIdx; setSlotColorIdxs(newColors);
-    const newIds = [...slotWordIds]; newIds[slotIdx] = wordId; setSlotWordIds(newIds);
-    setUsedWordIds(new Set(Array.from(usedWordIds).concat(wordId)));
+    setSlots((prev) => { const n = [...prev]; n[slotIdx] = word; return n; });
+    setSlotColorIdxs((prev) => { const n = [...prev]; n[slotIdx] = colorIdx; return n; });
+    setSlotWordIds((prev) => { const n = [...prev]; n[slotIdx] = wordId; return n; });
+    setUsedWordIds((prev) => { const n = new Set(prev); n.add(wordId); return n; });
   };
 
   const handleRemove = (slotIdx: number) => {
     const wordId = slotWordIds[slotIdx];
-    if (wordId) { const next = new Set(Array.from(usedWordIds)); next.delete(wordId); setUsedWordIds(next); }
-    const newSlots = [...slots]; newSlots[slotIdx] = null; setSlots(newSlots);
-    const newColors = [...slotColorIdxs]; newColors[slotIdx] = null; setSlotColorIdxs(newColors);
-    const newIds = [...slotWordIds]; newIds[slotIdx] = null; setSlotWordIds(newIds);
+    if (wordId) setUsedWordIds((prev) => { const n = new Set(prev); n.delete(wordId); return n; });
+    setSlots((prev) => { const n = [...prev]; n[slotIdx] = null; return n; });
+    setSlotColorIdxs((prev) => { const n = [...prev]; n[slotIdx] = null; return n; });
+    setSlotWordIds((prev) => { const n = [...prev]; n[slotIdx] = null; return n; });
   };
 
   const handleCheck = () => {
-    const correct = slots.every((s, i) => s === q.answers[i]);
+    if (!q) return;
+    const correct = slots.every((s, i) => s?.toLowerCase() === q.answers[i]?.toLowerCase());
     setFeedback(correct ? "correct" : "incorrect");
-    if (correct) setScore(s => s + 1); else setLives(l => l - 1);
+    if (correct) setScore((s) => s + 1); else setLives((l) => l - 1);
   };
 
-  if (completed) return <div className="p-10 text-center"><Trophy size={64} className="mx-auto text-yellow-500 mb-4" /><h2 className="text-2xl font-bold">Fertig!</h2><button onClick={() => router.push("/dashboard")} className="mt-6 px-6 py-3 bg-[#121212] text-white rounded-xl font-bold">Dashboard</button></div>;
+  const handleNext = () => {
+    const nextIdx = questionIdx + 1;
+    if (nextIdx < questions.length) {
+      setQuestionIdx(nextIdx);
+      resetSlots(questions[nextIdx].answers.length);
+    } else {
+      setCompleted(true);
+    }
+  };
+
+  if (loadingQ) return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <Loader2 size={32} className="animate-spin text-[#FFCD00]" />
+    </div>
+  );
+
+  if (completed || !q) return (
+    <div className="p-10 text-center">
+      <Trophy size={64} className="mx-auto text-yellow-500 mb-4" />
+      <h2 className="text-2xl font-bold">Fertig! {score}/{questions.length}</h2>
+      <button onClick={() => router.push("/dashboard")} className="mt-6 px-6 py-3 bg-[#121212] text-white rounded-xl font-bold">Dashboard</button>
+    </div>
+  );
+
+  const progress = ((questionIdx) / Math.max(questions.length, 1)) * 100;
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
-       <header className="bg-white border-b p-4 flex items-center justify-between">
-          <button onClick={() => router.push("/dashboard")}><ChevronLeft /></button>
-          <div className="flex-1 mx-4 h-2 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-yellow-400" style={{ width: "50%" }} /></div>
-          <div className="flex gap-1">{[0, 1, 2].map(i => <Heart key={i} size={18} fill={i < lives ? "red" : "none"} className={i < lives ? "text-red-500" : "text-slate-200"} />)}</div>
-       </header>
+      <header className="bg-white border-b p-4 flex items-center justify-between">
+        <button onClick={() => router.push("/dashboard")}><ChevronLeft /></button>
+        <div className="flex-1 mx-4 h-2 bg-slate-100 rounded-full overflow-hidden">
+          <div className="h-full bg-yellow-400 transition-all duration-500" style={{ width: `${progress}%` }} />
+        </div>
+        <div className="flex gap-1">{[0, 1, 2].map((i) => <Heart key={i} size={18} fill={i < lives ? "red" : "none"} className={i < lives ? "text-red-500" : "text-slate-200"} />)}</div>
+      </header>
 
-       <main className="flex-1 p-6 max-w-xl mx-auto w-full">
-          <div className="bg-white rounded-3xl p-8 shadow-xl border-2 border-slate-100 mb-8">
-             <p className="text-2xl leading-loose">
-                {q.parts.map((part, i) => (
-                  <span key={i}>
-                    {part}
-                    {i < q.parts.length - 1 && <DropSlot slotIdx={i} filledWord={slots[i]} filledColorIdx={slotColorIdxs[i]} onDrop={handleDrop} onRemove={handleRemove} feedbackState={feedback} correctAnswer={q.answers[i]} />}
-                  </span>
-                ))}
-             </p>
+      <main className="flex-1 p-6 max-w-xl mx-auto w-full">
+        <p className="text-xs font-bold text-slate-400 mb-4 uppercase tracking-widest">{q.category} · {q.level}</p>
+
+        <div className="bg-white rounded-3xl p-8 shadow-xl border-2 border-slate-100 mb-8">
+          <p className="text-2xl leading-loose">
+            {q.parts.map((part, i) => (
+              <span key={i}>
+                {part}
+                {i < q.parts.length - 1 && (
+                  <DropSlot slotIdx={i} filledWord={slots[i]} filledColorIdx={slotColorIdxs[i]} onDrop={handleDrop} onRemove={handleRemove} feedbackState={feedback} correctAnswer={q.answers[i]} />
+                )}
+              </span>
+            ))}
+          </p>
+        </div>
+
+        {feedback && (
+          <div className={`rounded-2xl p-4 mb-6 text-sm font-medium ${feedback === "correct" ? "bg-green-50 text-green-800 border border-green-200" : "bg-red-50 text-red-800 border border-red-200"}`}>
+            {feedback === "correct" ? "✓ Chính xác!" : `✗ Đáp án đúng: ${q.answers.join(", ")}`}
+            {q.explanation && <p className="mt-1 text-xs opacity-80">{q.explanation}</p>}
           </div>
+        )}
 
-          <div className="bg-slate-100 rounded-2xl p-6 mb-8 flex flex-wrap gap-3">
-             {q.pool.map(item => <LegoBlock key={item.id} item={item} isUsed={usedWordIds.has(item.id)} isSelected={false} onClick={() => {}} />)}
-          </div>
+        <div className="bg-slate-100 rounded-2xl p-6 mb-8 flex flex-wrap gap-3">
+          {q.pool.map((item) => <LegoBlock key={item.id} item={item} isUsed={usedWordIds.has(item.id)} isSelected={false} onClick={() => {}} />)}
+        </div>
 
-          <button onClick={feedback ? () => { if (questionIdx + 1 < QUESTIONS.length) { setQuestionIdx(v => v + 1); setFeedback(null); setSlots([null, null]); setUsedWordIds(new Set()); } else setCompleted(true); } : handleCheck} disabled={!allFilled && !feedback} className={`w-full py-4 rounded-2xl font-bold text-lg shadow-lg transition-transform active:scale-95 ${allFilled || feedback ? "bg-[#121212] text-white" : "bg-slate-200 text-slate-400"}`}>
-             {feedback ? "Weiter" : "Prüfen"}
-          </button>
-       </main>
+        <button
+          onClick={feedback ? handleNext : handleCheck}
+          disabled={!allFilled && !feedback}
+          className={`w-full py-4 rounded-2xl font-bold text-lg shadow-lg transition-transform active:scale-95 ${allFilled || feedback ? "bg-[#121212] text-white" : "bg-slate-200 text-slate-400"}`}
+        >
+          {feedback ? "Weiter →" : "Prüfen"}
+        </button>
+      </main>
     </div>
   );
 }
