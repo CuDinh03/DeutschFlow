@@ -1,14 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
 import { setTokens, clearTokens, recordTokenRefresh } from '@/lib/authSession'
+import { registerPushNotifications } from '@/hooks/usePushNotifications'
 import { DeutschFlowLogo } from '@/components/ui/DeutschFlowLogo'
 import LanguageSwitcher from '@/components/ui/LanguageSwitcher'
 import { useTracking } from '@/hooks/useTracking'
+import { MobileLoginForm } from '@/components/auth/MobileLoginForm'
+import { useStatusBarStyle } from '@/lib/statusBar'
 
 type FieldErrors = Record<string, string>
 
@@ -66,10 +69,24 @@ function MaintenanceBanner() {
   )
 }
 
+function useIsNative() {
+  const [isNative, setIsNative] = useState(false)
+  useEffect(() => {
+    setIsNative(
+      !!(window as Window & { Capacitor?: { isNativePlatform?: () => boolean } })
+        .Capacitor?.isNativePlatform?.()
+    )
+  }, [])
+  return isNative
+}
+
 export default function LoginPage() {
   const t = useTranslations('auth')
   const router = useRouter()
   const { trackEvent, identifyUser } = useTracking()
+  const isNative = useIsNative()
+  // Native auth screen uses a dark background → light status bar icons.
+  useStatusBarStyle('dark')
   const [form, setForm] = useState({ email: '', password: '' })
   const [error, setError] = useState('')
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
@@ -106,6 +123,7 @@ export default function LoginPage() {
         locale: user.locale,
       })
       trackEvent('login_success', { role: user.role })
+      registerPushNotifications()
 
       switch (user.role) {
         case 'ADMIN':
@@ -129,6 +147,19 @@ export default function LoginPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (isNative) {
+    return (
+      <MobileLoginForm
+        form={form}
+        error={error}
+        fieldErrors={fieldErrors}
+        loading={loading}
+        onChange={(field, value) => setForm(f => ({ ...f, [field]: value }))}
+        onSubmit={handleSubmit}
+      />
+    )
   }
 
   return (

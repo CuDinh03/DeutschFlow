@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -8,6 +8,19 @@ import api from '@/lib/api'
 import { setTokens } from '@/lib/authSession'
 import { DeutschFlowLogo } from '@/components/ui/DeutschFlowLogo'
 import { useTracking } from '@/hooks/useTracking'
+import { MobileRegisterForm } from '@/components/auth/MobileRegisterForm'
+import { useStatusBarStyle } from '@/lib/statusBar'
+
+function useIsNative() {
+  const [isNative, setIsNative] = useState(false)
+  useEffect(() => {
+    setIsNative(
+      !!(window as Window & { Capacitor?: { isNativePlatform?: () => boolean } })
+        .Capacitor?.isNativePlatform?.()
+    )
+  }, [])
+  return isNative
+}
 
 type FieldErrors = Record<string, string>
 
@@ -15,6 +28,9 @@ export default function RegisterPage() {
   const t = useTranslations('auth')
   const router = useRouter()
   const { trackEvent, identifyUser } = useTracking()
+  const isNative = useIsNative()
+  // Native auth screen uses a dark background → light status bar icons.
+  useStatusBarStyle('dark')
   const [form, setForm] = useState({ email: '', phoneNumber: '', password: '', displayName: '', locale: 'vi' })
   const [error, setError] = useState('')
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
@@ -92,6 +108,19 @@ export default function RegisterPage() {
       )}
     </div>
   )
+
+  if (isNative) {
+    return (
+      <MobileRegisterForm
+        form={form}
+        error={error}
+        fieldErrors={fieldErrors}
+        loading={loading}
+        onChange={(field, value) => setForm(f => ({ ...f, [field]: value }))}
+        onSubmit={handleSubmit}
+      />
+    )
+  }
 
   return (
     <div className="auth-shell">

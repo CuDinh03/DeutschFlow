@@ -15,6 +15,7 @@ import { useAiSpeakingQuota } from "@/hooks/useAiSpeakingQuota";
 import { SpeakingQuotaBlockedBanner } from "./SpeakingQuotaBlockedBanner";
 import { useChatStore } from "@/stores/useChatStore";
 import { toast } from "sonner";
+import { spring } from "@/lib/motion";
 
 const CEFR_LEVELS = ["A1", "A2", "B1", "B2"];
 
@@ -370,7 +371,7 @@ export function CompanionSelect() {
         {/* ── Interview Setup ── */}
         <AnimatePresence>
           {sessionMode === "INTERVIEW" && selectedPersona && (
-            <motion.div className="px-5 pb-3 space-y-3" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
+            <motion.div className="px-5 pb-3 space-y-3" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={spring.gentle}>
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <Briefcase size={14} style={{ color: selectedPersona.accent }} />
@@ -440,7 +441,7 @@ export function CompanionSelect() {
         {/* ── Lesson Setup ── */}
         <AnimatePresence>
           {sessionMode === "LESSON" && selectedPersona && (
-            <motion.div className="px-5 pb-3 space-y-3" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
+            <motion.div className="px-5 pb-3 space-y-3" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={spring.gentle}>
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <BookOpen size={14} style={{ color: selectedPersona.accent }} />
@@ -480,7 +481,7 @@ export function CompanionSelect() {
                 className="w-full flex items-center justify-center gap-2.5 py-4 rounded-[18px] font-black text-base text-white disabled:opacity-40 disabled:pointer-events-none"
                 style={{ background: `linear-gradient(135deg, ${selectedPersona.ctaFrom}, ${selectedPersona.ctaTo})`, boxShadow: selectedPersona.ctaShadow }}
                 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
-                transition={{ type: "spring", stiffness: 300, damping: 24 }}
+                transition={spring.gentle}
                 whileTap={{ scale: 0.97, y: 3 }} onClick={handleConfirm} disabled={confirming || quotaBlocked || quotaLoading}>
                 {confirming ? (
                   <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.7, repeat: Infinity, ease: "linear" }}>

@@ -35,6 +35,7 @@ import {
 import { XpLevelPill } from "@/components/gamification/XpLevelPill";
 import { useTracking } from "@/hooks/useTracking";
 import { usePlan } from "@/contexts/PlanContext";
+import { useStatusBarStyle } from "@/lib/statusBar";
 import posthog from "posthog-js";
 
 export type StudentShellSection = string;
@@ -111,6 +112,9 @@ export function StudentShell({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { trackFeatureAction } = useTracking();
   const { plan } = usePlan();
+
+  // Authenticated app surfaces are light → dark status bar icons.
+  useStatusBarStyle("light");
 
   useEffect(() => {
     if (!plan || !posthog.__loaded) return;
@@ -228,7 +232,7 @@ export function StudentShell({
                         key={id}
                         type="button"
                         onClick={() => go(id, href)}
-                        className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-[12px] transition-all duration-200 text-left group
+                        className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-[var(--radius-md)] transition-all duration-200 text-left group
                           ${active
                             ? "bg-[var(--brand-yellow)] text-[var(--brand-black)] shadow-md"
                             : "text-white/70 hover:bg-white/10 hover:text-white"
@@ -255,7 +259,7 @@ export function StudentShell({
                 type="button"
                 id="btn-sidebar-upgrade"
                 onClick={() => go("pricing", "/student/pricing")}
-                className="mb-2 w-full flex items-center gap-3 px-4 py-2.5 rounded-[12px] bg-gradient-to-r from-violet-600 to-purple-700 hover:from-violet-500 hover:to-purple-600 text-white transition-all duration-200 text-left shadow-md shadow-violet-900/40"
+                className="mb-2 w-full flex items-center gap-3 px-4 py-2.5 rounded-[var(--radius-md)] bg-gradient-to-r from-violet-600 to-purple-700 hover:from-violet-500 hover:to-purple-600 text-white transition-all duration-200 text-left shadow-md shadow-violet-900/40"
               >
                 <span className="text-base leading-none">⚡</span>
                 <span className="font-bold text-sm">Nâng cấp PRO</span>
@@ -266,14 +270,14 @@ export function StudentShell({
             <button
               type="button"
               onClick={onLogout}
-              className="mb-2 w-full flex items-center gap-3 px-4 py-2.5 rounded-[12px] text-white/70 hover:bg-white/10 hover:text-white transition-all duration-200 text-left"
+              className="mb-2 w-full flex items-center gap-3 px-4 py-2.5 rounded-[var(--radius-md)] text-white/70 hover:bg-white/10 hover:text-white transition-all duration-200 text-left"
             >
               <LogOut size={17} className="flex-shrink-0" />
               <span className="font-medium text-sm">{t("logout")}</span>
             </button>
 
             <div
-              className="flex items-center gap-3 px-4 py-3 rounded-[12px] bg-white/8 border border-white/10 cursor-pointer hover:bg-white/12 transition-colors mt-2"
+              className="flex items-center gap-3 px-4 py-3 rounded-[var(--radius-md)] bg-white/8 border border-white/10 cursor-pointer hover:bg-white/12 transition-colors mt-2"
               onClick={() => go("settings_profile", "/student/settings")}
               title="Cài đặt hồ sơ"
             >
@@ -295,7 +299,7 @@ export function StudentShell({
               <button
                 type="button"
                 onClick={() => go("admin", "/admin")}
-                className="mt-2 w-full flex items-center gap-2 px-4 py-2 rounded-[10px] text-white/40 hover:text-white/70 hover:bg-white/8 transition-colors text-xs"
+                className="mt-2 w-full flex items-center gap-2 px-4 py-2 rounded-[var(--radius-sm)] text-white/40 hover:text-white/70 hover:bg-white/8 transition-colors text-xs"
               >
                 <ShieldCheck size={13} />
                 {t("navAdminDashboard")}
@@ -307,9 +311,9 @@ export function StudentShell({
 
       <div className="flex-1 flex flex-col overflow-hidden">
         {!hideAppHeader && (
-          <header className="df-header-shadow flex flex-shrink-0 items-center justify-between border-b border-[#E2E8F0] bg-white px-6 py-4">
+          <header className="df-header-shadow flex flex-shrink-0 items-center justify-between border-b border-[#E2E8F0] bg-white px-6 pb-4 pt-[calc(1rem+env(safe-area-inset-top,0px))]">
             <div className="flex items-center gap-4 min-w-0">
-              <button type="button" className="lg:hidden p-2 rounded-[10px] hover:bg-[#F5F7FA] text-[#64748B]" onClick={() => setSidebarOpen(true)}>
+              <button type="button" className="lg:hidden p-2 rounded-[var(--radius-sm)] hover:bg-[#F5F7FA] text-[#64748B]" onClick={() => setSidebarOpen(true)}>
                 <Menu size={20} />
               </button>
               <div className="min-w-0">
@@ -321,7 +325,7 @@ export function StudentShell({
             <div className="flex items-center gap-3 flex-shrink-0">
               {headerRight}
               {roadmapMeta ? (
-                <div className="hidden md:flex items-center gap-2 rounded-[12px] bg-[#EEF4FF] border border-[#C7D2FE] px-3 py-2">
+                <div className="hidden md:flex items-center gap-2 rounded-[var(--radius-md)] bg-[#EEF4FF] border border-[#C7D2FE] px-3 py-2">
                   <div className="flex flex-col leading-tight">
                     <span className="text-[10px] uppercase tracking-wide text-[#64748B]">{roadmapMeta.roadmapVersion ?? "Roadmap"}</span>
                     <span className="text-sm font-bold text-[#121212]">
@@ -336,12 +340,12 @@ export function StudentShell({
                   </div>
                 </div>
               ) : null}
-              <div className="flex items-center gap-2 bg-[#FFF8E1] border border-[#FFCD00]/40 rounded-[12px] px-3 py-2">
+              <div className="flex items-center gap-2 bg-[#FFF8E1] border border-[#FFCD00]/40 rounded-[var(--radius-md)] px-3 py-2">
                 <Flame size={18} className="text-orange-500" fill="#f97316" />
                 <span className="font-bold text-[var(--brand-black)] text-sm">{t("streakDays", { n: streakDays })}</span>
                 <span className="text-[#64748B] text-xs hidden sm:inline">{t("streakBadgeShort")}</span>
               </div>
-              <NotificationBell buttonClassName="p-2.5 rounded-[12px] bg-[#F5F7FA] hover:bg-[#E2E8F0] transition-colors" />
+              <NotificationBell buttonClassName="p-2.5 rounded-[var(--radius-md)] bg-[#F5F7FA] hover:bg-[#E2E8F0] transition-colors" />
               <LanguageSwitcher />
               <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[var(--brand-black)] to-[var(--brand-black-dark)] flex items-center justify-center flex-shrink-0">
                 <span className="text-[var(--brand-yellow)] font-bold text-sm">{initials}</span>
@@ -352,6 +356,7 @@ export function StudentShell({
 
         <main
           className={cn(
+            "native-page-enter",
             hideAppHeader
               ? "flex h-full min-h-0 flex-1 flex-col overflow-hidden p-0"
               : [

@@ -1,5 +1,6 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { spring } from "@/lib/motion";
 import { PersonaToken } from "@/lib/personas";
 import { LukasCharacter } from "@/components/speaking/characters/LukasCharacter";
 import { EmmaCharacter } from "@/components/speaking/characters/EmmaCharacter";
@@ -98,7 +99,7 @@ export function PersonaCard({ persona, isSelected, index, onClick }: PersonaCard
 
   return (
     <motion.button
-      className="flex flex-col rounded-[20px] overflow-hidden relative cursor-pointer text-left"
+      className="flex flex-col rounded-[var(--radius-xl)] overflow-hidden relative cursor-pointer text-left"
       style={{
         width: "100%",
         height: hasSvg ? 380 : 320,
@@ -108,18 +109,18 @@ export function PersonaCard({ persona, isSelected, index, onClick }: PersonaCard
         border: `2px solid ${isSelected ? persona.accent : "rgba(255,255,255,0.07)"}`,
         boxShadow: isSelected
           ? `0 0 32px ${persona.glow}, 0 0 8px ${persona.glow}, inset 0 0 32px ${persona.bg}`
-          : "none",
+          : "0 2px 12px rgba(0,0,0,0.35)",
       }}
       initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.08, type: "spring", stiffness: 260, damping: 24 }}
+      transition={{ delay: index * 0.08, ...spring.gentle }}
       whileTap={{ scale: 0.97 }}
       onClick={onClick}
     >
       <AnimatePresence>
         {isSelected && (
           <motion.div
-            className="absolute inset-0 rounded-[18px] pointer-events-none"
+            className="absolute inset-0 rounded-[var(--radius-xl)] pointer-events-none"
             style={{ border: `2px solid ${persona.accent}` }}
             initial={{ opacity: 0.5, scale: 1 }}
             animate={{ opacity: [0.5, 0.15, 0.5], scale: [1, 1.01, 1] }}
@@ -160,7 +161,9 @@ export function PersonaCard({ persona, isSelected, index, onClick }: PersonaCard
       <div
         className="px-4 pb-5 pt-3 w-full"
         style={{
-          background: "linear-gradient(0deg, rgba(10,10,28,0.95) 60%, rgba(10,10,28,0))",
+          background: "linear-gradient(0deg, rgba(10,10,28,0.97) 55%, rgba(10,10,28,0))",
+          backdropFilter: "blur(12px) saturate(160%)",
+          WebkitBackdropFilter: "blur(12px) saturate(160%)",
         }}
       >
         {/* Tag pill */}
@@ -191,7 +194,7 @@ export function PersonaCard({ persona, isSelected, index, onClick }: PersonaCard
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 400, damping: 20 }}
+            transition={spring.snappy}
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
               <path

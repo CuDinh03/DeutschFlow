@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import { spring, fadeUp } from "@/lib/motion";
 import {
   BookOpen,
   Mic,
@@ -118,11 +119,16 @@ function buildNextBestAction(plan: TodayPlanDto, roadmapMeta: RoadmapMeta | null
   };
 }
 
-function StatCard({ label, value, icon, color }: { label: string; value: string; icon: React.ReactNode; color: string }) {
+function StatCard({ label, value, icon, color, delay = 0 }: { label: string; value: string; icon: React.ReactNode; color: string; delay?: number }) {
   return (
-    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-[18px] p-4 border border-[#E2E8F0] shadow-sm">
+    <motion.div
+      {...fadeUp}
+      transition={{ ...spring.gentle, delay }}
+      className="bg-white rounded-[var(--radius-lg)] p-4 border border-[#E2E8F0]"
+      style={{ boxShadow: "0 1px 0 rgba(255,255,255,0.8) inset, 0 4px 12px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)" }}
+    >
       <div className="flex items-center gap-2 mb-2">
-        <div className="w-8 h-8 rounded-[10px] flex items-center justify-center" style={{ backgroundColor: `${color}18` }}>{icon}</div>
+        <div className="w-8 h-8 rounded-[var(--radius-sm)] flex items-center justify-center" style={{ backgroundColor: `${color}18` }}>{icon}</div>
       </div>
       <p className="text-2xl font-extrabold text-[#0F172A]">{value}</p>
       <p className="text-[#94A3B8] text-xs mt-0.5">{label}</p>
@@ -134,10 +140,10 @@ function LessonCard({ lesson, label, onOpen }: { lesson: any; label: string; onO
   const cfg = typeStyles[lesson.type as keyof typeof typeStyles] ?? typeStyles.vocabulary;
   return (
     <motion.button
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
+      {...fadeUp}
+      transition={spring.gentle}
       onClick={onOpen}
-      className={`text-left rounded-[18px] p-5 border transition-all hover:shadow-md hover:scale-[1.02] active:scale-[0.99] ${cfg.bg}`}
+      className={`text-left rounded-[var(--radius-lg)] p-5 border transition-all hover:shadow-md hover:scale-[1.02] active:scale-[0.99] ${cfg.bg}`}
     >
       <div className="w-10 h-10 rounded-[12px] flex items-center justify-center mb-3" style={{ backgroundColor: `${cfg.accent}20` }}>
         <span style={{ color: cfg.accent }}>{cfg.icon}</span>
@@ -164,6 +170,8 @@ export default function DashboardPage() {
   const [phaseState, setPhaseState] = useState<PhaseStateResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isNative, setIsNative] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async (silent = false) => {
@@ -225,6 +233,19 @@ export default function DashboardPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    const native = typeof window !== 'undefined' && document.documentElement.classList.contains('native');
+    if (!native) return;
+    setIsNative(true);
+    const key = 'df_welcome_shown';
+    if (!sessionStorage.getItem(key)) {
+      setShowWelcome(true);
+      sessionStorage.setItem(key, '1');
+      const t = setTimeout(() => setShowWelcome(false), 2400);
+      return () => clearTimeout(t);
+    }
+  }, []);
+
   const handleLogout = () => logout();
   const handleOpenLesson = (lesson: any) => router.push(lesson.href ?? "/student/vocab-practice");
 
@@ -241,6 +262,23 @@ export default function DashboardPage() {
   return (
     <StudentShell activeSection="dashboard" user={{ displayName: profile.displayName, role: profile.role }} targetLevel={profile.targetLevel} streakDays={streak} initials={profile.initials} onLogout={handleLogout} headerTitle="Dashboard" headerSubtitle={t("subtitle")} roadmapMeta={roadmapMeta}>
       <div className="max-w-5xl mx-auto space-y-6">
+        <AnimatePresence>
+          {isNative && showWelcome && profile && (
+            <motion.div
+              className="fixed bottom-24 left-1/2 z-50 flex items-center gap-3 rounded-full px-5 py-3 text-sm font-bold text-[#121212] shadow-[0_8px_32px_rgba(255,205,0,0.4)]"
+              style={{ background: "#FFCD00", translateX: "-50%" }}
+              initial={{ opacity: 0, y: 20, scale: 0.92 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -10, scale: 0.96 }}
+              transition={spring.snappy}
+            >
+              <Flame size={16} className="text-orange-600" />
+              Xin chào, {profile.displayName.split(" ").pop()}!
+              {streak > 0 && <span className="ml-1 opacity-70">{streak} ngày liên tiếp</span>}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 flex items-center justify-between">
             <span className="text-red-700 text-sm">{error}</span>
@@ -294,7 +332,9 @@ export default function DashboardPage() {
             { label: t("statProgress"), value: `${progress}%`, icon: <Target size={18} className="text-amber-500" />, color: "#121212" },
             { label: t("statErrors"), value: String(repairCount), icon: <AlertTriangle size={18} className="text-amber-500" />, color: "#f59e0b" },
             { label: t("statAccuracy"), value: repairCount > 0 ? `${Math.max(50, 100 - repairCount * 10)}%` : "100%", icon: <TrendingUp size={18} className="text-emerald-500" />, color: "#10b981" },
-          ].map(({ label, value, icon, color }) => <StatCard key={label} label={label} value={value} icon={icon} color={color} />)}
+          ].map(({ label, value, icon, color }, i) => (
+            <StatCard key={label} label={label} value={value} icon={icon} color={color} delay={isNative ? i * 0.08 : 0} />
+          ))}
         </div>
 
         <div className="bg-white rounded-[20px] p-5 border border-[#E2E8F0] shadow-sm">

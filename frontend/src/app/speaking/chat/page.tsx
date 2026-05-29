@@ -28,6 +28,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useTracking } from "@/hooks/useTracking";
 import api from "@/lib/api";
+import { SpeakingPersonaFloat } from "@/components/speaking/SpeakingPersonaFloat";
+import { usePersonaReaction } from "@/hooks/usePersonaReaction";
 
 type ViewMode = "chat" | "summary";
 
@@ -44,6 +46,8 @@ const INTERVIEW_END_KEYWORDS = [
   "das war unser gespräch",
   "damit sind wir am ende",
   "das war's von meiner seite",
+  "auf wiedersehen",
+  "alles gute",
 ];
 
 function detectInterviewEnd(text: string): boolean {
@@ -84,6 +88,7 @@ export default function AIChatInterface() {
   const suggestionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const reviewImportRef = useRef(false);
+  const onInterviewEndedRef = useRef<(() => void) | undefined>(undefined);
 
   const { isSpeaking, speak, speakWithPersona, stopSpeaking } = useSpeech({
     lang: "de-DE",
@@ -139,6 +144,7 @@ export default function AIChatInterface() {
     onSpeakAi: handleSpeak,
     trackFeatureAction: (feature, action, props) =>
       trackFeatureAction(feature, action as Parameters<typeof trackFeatureAction>[1], props),
+    onInterviewEnded: () => onInterviewEndedRef.current?.(),
   });
 
   const {
@@ -292,7 +298,6 @@ export default function AIChatInterface() {
   // ─── Handle End Session ────────────────────────────────────
   const handleEndSession = async () => {
     setShowEndPopup(false);
-    // Abort any running SSE stream first
     abortStream();
     const sid = useChatStore.getState().sessionId;
     if (sid) {
@@ -309,6 +314,8 @@ export default function AIChatInterface() {
     stopSpeaking();
     setViewMode("summary");
   };
+  // Keep the ref in sync so the hook can call this after the farewell message
+  onInterviewEndedRef.current = handleEndSession;
 
   // ─── Handle Suggestion Select ──────────────────────────────
   const handleSuggestionSelect = (text: string) => {
@@ -328,6 +335,13 @@ export default function AIChatInterface() {
 
   const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
   const lastUserErrors = lastUserMessage?.errors ?? [];
+
+  const personaReaction = usePersonaReaction({
+    streamStatus,
+    isListening,
+    isSpeaking,
+    lastUserErrors,
+  });
 
   const openCopilot = useCallback(() => setMobileCopilotOpen(true), []);
 
@@ -505,7 +519,11 @@ export default function AIChatInterface() {
       )}
 
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
-        <main className="flex-1 md:w-[65%] md:flex-none overflow-y-auto p-4 md:p-6 space-y-2 min-h-0">
+        <main className="relative flex-1 md:w-[65%] md:flex-none overflow-y-auto p-4 md:p-6 space-y-2 min-h-0">
+          <SpeakingPersonaFloat
+            personaId={selectedCompanion.id}
+            reaction={personaReaction}
+          />
           <div className="max-w-3xl mx-auto w-full">
             {messages.length === 0 && (
               <SpeakingChatEmptyState

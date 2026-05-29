@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
+import { spring } from "@/lib/motion";
 import { X, Lightbulb, AlertCircle, Mic } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { Suggestion, ErrorItem } from "@/lib/aiSpeakingApi";
@@ -51,7 +52,7 @@ export function SpeakingMobileCopilotSheet({
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
-            transition={{ type: "spring", damping: 28, stiffness: 320 }}
+            transition={spring.nav}
             className="fixed bottom-0 left-0 right-0 z-50 md:hidden max-h-[70vh] overflow-y-auto rounded-t-3xl bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shadow-2xl"
           >
             <div className="sticky top-0 flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur">

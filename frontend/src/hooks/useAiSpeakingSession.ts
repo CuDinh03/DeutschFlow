@@ -22,12 +22,14 @@ export function useAiSpeakingSession(opts: {
   openAdaptiveRepairIfNeeded: (meta: AiChatResponse) => void;
   onSpeakAi: (text: string) => void;
   trackFeatureAction: TrackFn;
+  onInterviewEnded?: () => void;
 }) {
   const {
     sessionMode,
     openAdaptiveRepairIfNeeded,
     onSpeakAi,
     trackFeatureAction,
+    onInterviewEnded,
   } = opts;
 
   const {
@@ -184,6 +186,10 @@ export function useAiSpeakingSession(opts: {
           }
           maybeSpeakAi(meta.aiSpeechDe);
           void refreshQuota();
+          if (meta.isSessionEnded && onInterviewEnded) {
+            // Delay slightly so the farewell message renders before the popup
+            setTimeout(onInterviewEnded, 1800);
+          }
         },
         (err) => {
           if (err.includes("429")) {

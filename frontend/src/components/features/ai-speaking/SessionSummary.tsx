@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { motion } from "framer-motion";
+import { spring } from "@/lib/motion";
 import {
   Clock, TrendingUp, Check, AlertTriangle,
   BookOpen, RotateCcw, ArrowLeft, Star,
@@ -158,7 +159,7 @@ export function SessionSummary({
           className="w-14 h-14 rounded-full mx-auto mb-3 flex items-center justify-center text-2xl"
           style={{ background: `linear-gradient(145deg, ${CYAN}, ${PURPLE})`, boxShadow: `0 6px 0 0 rgba(0,0,0,0.3), 0 10px 28px rgba(34,211,238,0.3)` }}
           initial={{ scale: 0 }} animate={{ scale: 1 }}
-          transition={{ type: "spring", stiffness: 300, damping: 18, delay: 0.1 }}
+          transition={{ ...spring.gentle, delay: 0.1 }}
         >
           {hasAiReport ? "📋" : "🎯"}
         </motion.div>

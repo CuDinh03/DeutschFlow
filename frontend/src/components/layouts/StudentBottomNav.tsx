@@ -2,11 +2,13 @@
 
 import { useRouter, usePathname } from "next/navigation";
 import { motion } from "framer-motion";
+import { spring } from "@/lib/motion";
 import { useTranslations } from "next-intl";
 import { LayoutDashboard, Map, Menu, Mic } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isStudentImmersivePath } from "@/lib/studentImmersiveRoutes";
 import { useTracking } from "@/hooks/useTracking";
+import { lightImpact } from "@/lib/haptics";
 
 type Item = { href: string; id: string; icon: typeof LayoutDashboard };
 
@@ -51,6 +53,7 @@ export function StudentBottomNav({
             data-ph-capture="true"
             data-ph-feature={id}
             onClick={() => {
+              lightImpact()
               trackEvent('nav_clicked', { feature: id, from: pathname })
               router.push(href)
             }}
@@ -60,18 +63,22 @@ export function StudentBottomNav({
             )}
           >
             <motion.div
-              className="relative flex h-8 w-10 items-center justify-center rounded-[12px]"
+              className="relative flex h-8 w-10 items-center justify-center rounded-[var(--radius-md)]"
               animate={{
                 background: active ? "var(--brand-black)" : "rgba(0,0,0,0)",
                 scale: active ? 1.05 : 1,
               }}
-              transition={{ type: "spring", stiffness: 320, damping: 24 }}
+              transition={spring.nav}
             >
               <Icon
                 size={18}
                 strokeWidth={active ? 2.5 : 2}
                 className="relative z-10"
-                style={{ color: active ? "#FFCD00" : "#94A3B8" }}
+                style={{
+                  color: active ? "#FFCD00" : "#94A3B8",
+                  filter: active ? "drop-shadow(0 0 5px rgba(255,205,0,0.55))" : "none",
+                  transition: "filter 0.2s ease",
+                }}
               />
             </motion.div>
             <span className="text-[10px] font-bold leading-none">
@@ -85,7 +92,10 @@ export function StudentBottomNav({
 
       <button
         type="button"
-        onClick={onOpenMenu}
+        onClick={() => {
+          lightImpact()
+          onOpenMenu()
+        }}
         className="flex h-full min-h-0 flex-1 flex-col items-center justify-center gap-1 text-[#94A3B8]"
       >
         <div className="flex h-8 w-10 items-center justify-center rounded-[12px]">

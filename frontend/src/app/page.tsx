@@ -119,8 +119,9 @@ export default function HomePage() {
     setMounted(true)
 
     // On native iOS/Android, skip the marketing landing page entirely.
-    // The native onboarding handles auth routing; returning users with a
-    // valid token go to /dashboard, everyone else stays on /login.
+    // The native AppDelegate overlay handles splash + onboarding + auth choice,
+    // then navigates the webview directly to /register or /login. Here we only
+    // route returning users with a valid token to /dashboard, else to /login.
     const isNative = typeof window !== 'undefined'
       && !!(window as Window & { Capacitor?: { isNativePlatform?: () => boolean } })
            .Capacitor?.isNativePlatform?.()

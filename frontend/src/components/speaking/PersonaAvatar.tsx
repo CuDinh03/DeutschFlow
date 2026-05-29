@@ -3,6 +3,7 @@
 import { motion, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { normalizeSpeakingPersona, type SpeakingPersonaVisualId } from "./personaTheme";
+import type { PersonaReaction } from "@/hooks/usePersonaReaction";
 import { AnnaCharacter } from "./characters/AnnaCharacter";
 import { EmmaCharacter } from "./characters/EmmaCharacter";
 import { HannaCharacter } from "./characters/HannaCharacter";
@@ -25,10 +26,77 @@ import { HannieCharacter } from "./characters/HannieCharacter";
 
 interface Props {
   personaId?: string | null;
-  /** True while assistant is active — lip-sync + pulsing aura */
+  /** Deprecated: use `reaction` instead. Kept for backward compat. */
   isTalking?: boolean;
+  /** Drives expression + animation. Overrides isTalking when provided. */
+  reaction?: PersonaReaction;
   className?: string;
 }
+
+// Characters whose idle expression is "neutral" (vs "idle")
+const NEUTRAL_GROUP = new Set<SpeakingPersonaVisualId>([
+  "LUKAS", "ANNA", "KLAUS", "TUAN", "MAX", "OLIVER", "NIKLAS", "SCHNEIDER",
+]);
+
+function resolveExpression(
+  id: SpeakingPersonaVisualId,
+  reaction: PersonaReaction,
+): string {
+  const idleExpr = NEUTRAL_GROUP.has(id) ? "neutral" : "idle";
+  switch (reaction) {
+    case "talking":   return "talking";
+    case "thinking":
+    case "concerned": return "thinking";
+    case "listening":
+    case "idle":
+    default:          return idleExpr;
+  }
+}
+
+interface AnimParams {
+  bobY: number[];
+  bobDuration: number;
+  auraActive: boolean;
+  auraRgb: string;
+  auraDuration: number;
+}
+
+function resolveAnim(reaction: PersonaReaction, personaAuraRgb: string): AnimParams {
+  switch (reaction) {
+    case "talking":
+      return { bobY: [0, -4, 0], bobDuration: 0.38, auraActive: true, auraRgb: personaAuraRgb, auraDuration: 1.35 };
+    case "thinking":
+    case "concerned":
+      return { bobY: [0, -6, 0], bobDuration: 4, auraActive: true, auraRgb: "245, 158, 11", auraDuration: 2.0 };
+    case "listening":
+      return { bobY: [0, -5, 0], bobDuration: 2.5, auraActive: true, auraRgb: "34, 211, 238", auraDuration: 1.8 };
+    case "idle":
+    default:
+      return { bobY: [0, -8, 0], bobDuration: 3.5, auraActive: false, auraRgb: "0,0,0", auraDuration: 0 };
+  }
+}
+
+const PERSONA_AURA_RGB: Record<SpeakingPersonaVisualId, string> = {
+  EMMA:      "251, 191, 36",
+  LUKAS:     "56, 189, 248",
+  ANNA:      "45, 212, 191",
+  KLAUS:     "185, 28, 28",
+  LENA:      "16, 185, 129",
+  PETRA:     "220, 38, 38",
+  TUAN:      "245, 158, 11",
+  LAN:       "167, 139, 250",
+  MAX:       "234, 179, 8",
+  OLIVER:    "99, 102, 241",
+  NIKLAS:    "20, 184, 166",
+  NINA:      "244, 114, 182",
+  SCHNEIDER: "59, 130, 246",
+  WEBER:     "236, 72, 153",
+  THOMAS:    "234, 179, 8",
+  HANNIE:    "56, 189, 248",
+  SARAH:     "184, 59, 94",
+  MINH:      "239, 68, 68",
+  DEFAULT:   "34, 211, 238",
+};
 
 function NeutralFigure({ className }: { className?: string }) {
   return (
@@ -48,50 +116,14 @@ function NeutralFigure({ className }: { className?: string }) {
   );
 }
 
-export function PersonaAvatar({ personaId, isTalking, className }: Props) {
+export function PersonaAvatar({ personaId, isTalking, reaction, className }: Props) {
   const reduceMotion = useReducedMotion();
   const id: SpeakingPersonaVisualId = normalizeSpeakingPersona(personaId ?? undefined);
 
-  const auraRgb =
-    id === "EMMA"
-      ? "251, 191, 36"
-      : id === "LUKAS"
-        ? "56, 189, 248"
-        : id === "ANNA"
-          ? "45, 212, 191"
-          : id === "KLAUS"
-            ? "185, 28, 28"
-            : id === "LENA"
-                ? "16, 185, 129"
-                : id === "PETRA"
-                  ? "220, 38, 38"
-                  : id === "TUAN"
-                    ? "245, 158, 11"
-                    : id === "LAN"
-                      ? "167, 139, 250"
-                      : id === "MAX"
-                        ? "234, 179, 8"
-                        : id === "OLIVER"
-                          ? "99, 102, 241"
-                          : id === "NIKLAS"
-                            ? "20, 184, 166"
-                            : id === "NINA"
-                              ? "244, 114, 182"
-                              : id === "SCHNEIDER"
-                                ? "59, 130, 246"
-                                : id === "WEBER"
-                                  ? "236, 72, 153"
-                                  : id === "THOMAS"
-                                    ? "234, 179, 8"
-                                    : id === "HANNIE"
-                                      ? "56, 189, 248"
-                                      : id === "SARAH"
-                                        ? "184, 59, 94"
-                                        : id === "MINH"
-                                          ? "239, 68, 68"
-                                          : "34, 211, 238";
-
-  const expressionTalking = isTalking ?? false;
+  const activeReaction: PersonaReaction = reaction ?? (isTalking ? "talking" : "idle");
+  const expr = resolveExpression(id, activeReaction);
+  const isTalkingNow = activeReaction === "talking";
+  const anim = resolveAnim(activeReaction, PERSONA_AURA_RGB[id] ?? PERSONA_AURA_RGB.DEFAULT);
 
   return (
     <motion.div
@@ -105,30 +137,26 @@ export function PersonaAvatar({ personaId, isTalking, className }: Props) {
       transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
     >
       <motion.div
-        animate={reduceMotion ? undefined : { y: expressionTalking ? [0, -4, 0] : [0, -8, 0] }}
-        transition={{
-          duration: expressionTalking ? 0.38 : 3.5,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
+        animate={reduceMotion ? undefined : { y: anim.bobY }}
+        transition={{ duration: anim.bobDuration, repeat: Infinity, ease: "easeInOut" }}
       >
         <motion.div
           className="relative rounded-[2rem] p-1"
           animate={
-            reduceMotion || !expressionTalking
+            reduceMotion || !anim.auraActive
               ? { boxShadow: "0 14px 44px rgba(0,0,0,0.38)" }
               : {
                   boxShadow: [
-                    `0 14px 44px rgba(0,0,0,0.38), 0 0 0 0 rgba(${auraRgb},0.35)`,
-                    `0 18px 52px rgba(0,0,0,0.42), 0 0 28px 8px rgba(${auraRgb},0.35)`,
-                    `0 14px 44px rgba(0,0,0,0.38), 0 0 0 0 rgba(${auraRgb},0.35)`,
+                    `0 14px 44px rgba(0,0,0,0.38), 0 0 0 0 rgba(${anim.auraRgb},0.3)`,
+                    `0 18px 52px rgba(0,0,0,0.42), 0 0 28px 8px rgba(${anim.auraRgb},0.3)`,
+                    `0 14px 44px rgba(0,0,0,0.38), 0 0 0 0 rgba(${anim.auraRgb},0.3)`,
                   ],
                 }
           }
           transition={
-            reduceMotion || !expressionTalking
+            reduceMotion || !anim.auraActive
               ? { duration: 0 }
-              : { duration: 1.35, repeat: Infinity, ease: "easeInOut" }
+              : { duration: anim.auraDuration, repeat: Infinity, ease: "easeInOut" }
           }
         >
           <div
@@ -138,44 +166,46 @@ export function PersonaAvatar({ personaId, isTalking, className }: Props) {
             )}
           >
             {id !== "DEFAULT" ? (
-              <div className="w-full aspect-[280/500] max-h-[min(48vh,400px)] min-h-0">
-                {id === "LUKAS" ? (
-                  <LukasCharacter expression={expressionTalking ? "talking" : "neutral"} isTalking={expressionTalking} className="h-full w-full drop-shadow-xl" />
-                ) : id === "EMMA" ? (
-                  <EmmaCharacter expression={expressionTalking ? "talking" : "idle"} isTalking={expressionTalking} className="h-full w-full drop-shadow-xl" />
-                ) : id === "ANNA" ? (
-                  <HannaCharacter expression={expressionTalking ? "talking" : "neutral"} isTalking={expressionTalking} className="h-full w-full drop-shadow-xl" />
-                ) : id === "KLAUS" ? (
-                  <KlausCharacter expression={expressionTalking ? "talking" : "neutral"} isTalking={expressionTalking} className="h-full w-full drop-shadow-xl" />
-                ) : id === "LENA" ? (
-                  <LenaCharacter expression={expressionTalking ? "talking" : "idle"} isTalking={expressionTalking} className="h-full w-full drop-shadow-xl" />
-                ) : id === "PETRA" ? (
-                  <PetraCharacter expression={expressionTalking ? "talking" : "idle"} isTalking={expressionTalking} className="h-full w-full drop-shadow-xl" />
-                ) : id === "TUAN" ? (
-                  <TuanCharacter expression={expressionTalking ? "talking" : "neutral"} isTalking={expressionTalking} className="h-full w-full drop-shadow-xl" />
-                ) : id === "LAN" ? (
-                  <LanCharacter expression={expressionTalking ? "talking" : "idle"} isTalking={expressionTalking} className="h-full w-full drop-shadow-xl" />
-                ) : id === "MAX" ? (
-                  <MaxCharacter expression={expressionTalking ? "talking" : "neutral"} isTalking={expressionTalking} className="h-full w-full drop-shadow-xl" />
-                ) : id === "OLIVER" ? (
-                  <OliverCharacter expression={expressionTalking ? "talking" : "neutral"} isTalking={expressionTalking} className="h-full w-full drop-shadow-xl" />
-                ) : id === "NIKLAS" ? (
-                  <NiklasCharacter expression={expressionTalking ? "talking" : "neutral"} isTalking={expressionTalking} className="h-full w-full drop-shadow-xl" />
-                ) : id === "NINA" ? (
-                  <NinaCharacter expression={expressionTalking ? "talking" : "idle"} isTalking={expressionTalking} className="h-full w-full drop-shadow-xl" />
-                ) : id === "SCHNEIDER" ? (
-                  <SchneiderCharacter expression={expressionTalking ? "talking" : "neutral"} isTalking={expressionTalking} className="h-full w-full drop-shadow-xl" />
-                ) : id === "THOMAS" ? (
-                  <ThomasCharacter expression={expressionTalking ? "talking" : "neutral"} isTalking={expressionTalking} className="h-full w-full drop-shadow-xl" />
-                ) : id === "HANNIE" ? (
-                  <HannieCharacter expression={expressionTalking ? "talking" : "idle"} isTalking={expressionTalking} className="h-full w-full drop-shadow-xl" />
-                ) : id === "SARAH" ? (
-                  <SarahCharacter expression={expressionTalking ? "talking" : "idle"} isTalking={expressionTalking} className="h-full w-full drop-shadow-xl" />
-                ) : id === "MINH" ? (
-                  <MinhCharacter expression={expressionTalking ? "talking" : "neutral"} isTalking={expressionTalking} className="h-full w-full drop-shadow-xl" />
-                ) : (
-                  <WeberCharacter expression={expressionTalking ? "talking" : "idle"} isTalking={expressionTalking} className="h-full w-full drop-shadow-xl" />
-                )}
+              <div className="w-full aspect-[280/360] max-h-[min(48vh,360px)] min-h-0 overflow-hidden">
+                <div className="w-full aspect-[280/500]">
+                  {id === "LUKAS" ? (
+                    <LukasCharacter expression={expr as never} isTalking={isTalkingNow} className="h-full w-full drop-shadow-xl" />
+                  ) : id === "EMMA" ? (
+                    <EmmaCharacter expression={expr as never} isTalking={isTalkingNow} className="h-full w-full drop-shadow-xl" />
+                  ) : id === "ANNA" ? (
+                    <HannaCharacter expression={expr as never} isTalking={isTalkingNow} className="h-full w-full drop-shadow-xl" />
+                  ) : id === "KLAUS" ? (
+                    <KlausCharacter expression={expr as never} isTalking={isTalkingNow} className="h-full w-full drop-shadow-xl" />
+                  ) : id === "LENA" ? (
+                    <LenaCharacter expression={expr as never} isTalking={isTalkingNow} className="h-full w-full drop-shadow-xl" />
+                  ) : id === "PETRA" ? (
+                    <PetraCharacter expression={expr as never} isTalking={isTalkingNow} className="h-full w-full drop-shadow-xl" />
+                  ) : id === "TUAN" ? (
+                    <TuanCharacter expression={expr as never} isTalking={isTalkingNow} className="h-full w-full drop-shadow-xl" />
+                  ) : id === "LAN" ? (
+                    <LanCharacter expression={expr as never} isTalking={isTalkingNow} className="h-full w-full drop-shadow-xl" />
+                  ) : id === "MAX" ? (
+                    <MaxCharacter expression={expr as never} isTalking={isTalkingNow} className="h-full w-full drop-shadow-xl" />
+                  ) : id === "OLIVER" ? (
+                    <OliverCharacter expression={expr as never} isTalking={isTalkingNow} className="h-full w-full drop-shadow-xl" />
+                  ) : id === "NIKLAS" ? (
+                    <NiklasCharacter expression={expr as never} isTalking={isTalkingNow} className="h-full w-full drop-shadow-xl" />
+                  ) : id === "NINA" ? (
+                    <NinaCharacter expression={expr as never} isTalking={isTalkingNow} className="h-full w-full drop-shadow-xl" />
+                  ) : id === "SCHNEIDER" ? (
+                    <SchneiderCharacter expression={expr as never} isTalking={isTalkingNow} className="h-full w-full drop-shadow-xl" />
+                  ) : id === "THOMAS" ? (
+                    <ThomasCharacter expression={expr as never} isTalking={isTalkingNow} className="h-full w-full drop-shadow-xl" />
+                  ) : id === "HANNIE" ? (
+                    <HannieCharacter expression={expr as never} isTalking={isTalkingNow} className="h-full w-full drop-shadow-xl" />
+                  ) : id === "SARAH" ? (
+                    <SarahCharacter expression={expr as never} isTalking={isTalkingNow} className="h-full w-full drop-shadow-xl" />
+                  ) : id === "MINH" ? (
+                    <MinhCharacter expression={expr as never} isTalking={isTalkingNow} className="h-full w-full drop-shadow-xl" />
+                  ) : (
+                    <WeberCharacter expression={expr as never} isTalking={isTalkingNow} className="h-full w-full drop-shadow-xl" />
+                  )}
+                </div>
               </div>
             ) : (
               <div className="p-3 flex items-center justify-center">
