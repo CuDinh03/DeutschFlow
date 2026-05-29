@@ -25,10 +25,8 @@ export default function VocabularyListA1() {
     const fetchVocabulary = async () => {
       try {
         setLoading(true);
-        // TODO: Update API call when endpoint ready
-        // const response = await vocabularyApi.getA1Words();
-        // setWords(response.data);
-        setWords([]); // Placeholder until API ready
+        const words = await vocabularyApi.getA1Words();
+        setWords(words);
       } catch (err) {
         setError('Failed to load vocabulary');
         console.error(err);

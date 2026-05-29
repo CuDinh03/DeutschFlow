@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Button } from '@/components/ui/button';
+import api from '@/lib/api';
 
 interface GrammarContext {
   word: string;
@@ -33,38 +33,14 @@ export default function GrammarContextModal({ isOpen, wordId, onClose, word }: G
   const loadGrammarContext = useCallback(async () => {
     setLoading(true);
     try {
-      // TODO: Call API endpoint: GET /api/vocabulary/{wordId}/grammar-context
-      // const response = await fetch(`/api/vocabulary/${wordId}/grammar-context`);
-      // const data = await response.json();
-      // setContext(data);
-
-      // Placeholder data for now
-      setContext({
-        word: word || 'Word',
-        partOfSpeech: 'Noun',
-        grammar: {
-          genderInfo: 'Masculine (der)',
-          caseInfo: 'Nominative, Accusative',
-          conjugationPattern: 'Regular',
-        },
-        examples: [
-          {
-            german: 'Der Hund ist groß.',
-            english: 'The dog is big.',
-          },
-          {
-            german: 'Ich sehe den Hund.',
-            english: 'I see the dog.',
-          },
-        ],
-        relatedWords: ['Katze', 'Tier', 'Haustier'],
-      });
+      const { data } = await api.get<GrammarContext>(`/vocabulary/${wordId}/grammar-context`);
+      setContext(data);
     } catch (error) {
       console.error('Failed to load grammar context:', error);
     } finally {
       setLoading(false);
     }
-  }, [word]);
+  }, [wordId]);
 
   useEffect(() => {
     if (isOpen && wordId) {
