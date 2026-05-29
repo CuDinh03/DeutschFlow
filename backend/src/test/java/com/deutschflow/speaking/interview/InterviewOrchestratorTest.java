@@ -68,10 +68,44 @@ class InterviewOrchestratorTest {
         InterviewTurnPlan plan = orchestrator.planTurn(
                 state, SpeakingPersona.WEBER, "MTA", "1-2Y", 24,
                 "Ich würde gerne mehr wissen.", "variant_c");
-        // CLOSING phase → CLOSING_ANSWER or CLOSING_ASK, not PROBE_SPECIFIC
+        // CLOSING phase → CLOSING_ASK / CLOSING_ANSWER / CLOSING_FAREWELL, not PROBE_SPECIFIC
         assertThat(plan.directiveType()).isIn(
                 InterviewDirectiveType.CLOSING_ASK,
-                InterviewDirectiveType.CLOSING_ANSWER);
+                InterviewDirectiveType.CLOSING_ANSWER,
+                InterviewDirectiveType.CLOSING_FAREWELL);
+    }
+
+    @Test
+    void closingFarewellTriggeredAfterClosingAsk() {
+        // After CLOSING_ASK fires on turn 13, the next CLOSING turn should yield CLOSING_FAREWELL
+        InterviewSessionState state = InterviewSessionState.initial(1, "Tech");
+        // Simulate that the previous turn was CLOSING_ASK
+        state.applyAfterTurn(
+                new InterviewTurnPlan(13, InterviewPhase.CLOSING,
+                        InterviewDirectiveType.CLOSING_ASK, "", "Haben Sie noch Fragen?",
+                        "close_ask", "closing", 8, InterviewTurnPlan.DEFAULT_FORBIDDEN, null, false),
+                new InterviewAnswerAnalysis(false, false, false, false, false, false, false));
+
+        // Turn 14 — user answers without asking questions
+        InterviewTurnPlan plan = orchestrator.planTurn(
+                state, SpeakingPersona.LUKAS, "Backend Dev", "2-4Y", 26, "Nein, ich habe keine Fragen.");
+        assertThat(plan.directiveType()).isEqualTo(InterviewDirectiveType.CLOSING_FAREWELL);
+        assertThat(plan.mandatoryQuestion()).containsIgnoringCase("wiedersehen");
+    }
+
+    @Test
+    void closingFarewellTriggeredAfterClosingAnswer() {
+        // After CLOSING_ANSWER (user asked questions), next turn should be CLOSING_FAREWELL
+        InterviewSessionState state = InterviewSessionState.initial(1, "Tech");
+        state.applyAfterTurn(
+                new InterviewTurnPlan(13, InterviewPhase.CLOSING,
+                        InterviewDirectiveType.CLOSING_ANSWER, "", "Beantworten...",
+                        "close_answer", "closing", 8, InterviewTurnPlan.DEFAULT_FORBIDDEN, null, true),
+                new InterviewAnswerAnalysis(false, false, false, false, false, false, false));
+
+        InterviewTurnPlan plan = orchestrator.planTurn(
+                state, SpeakingPersona.LUKAS, "Backend Dev", "2-4Y", 26, "Danke für die Antworten.");
+        assertThat(plan.directiveType()).isEqualTo(InterviewDirectiveType.CLOSING_FAREWELL);
     }
 
     @Test

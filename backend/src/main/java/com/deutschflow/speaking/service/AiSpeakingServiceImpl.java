@@ -19,6 +19,7 @@ import com.deutschflow.speaking.interview.InterviewPromptContext;
 import com.deutschflow.speaking.interview.InterviewSessionState;
 import com.deutschflow.speaking.interview.InterviewSpeechSanitizer;
 import com.deutschflow.speaking.interview.InterviewStateCodec;
+import com.deutschflow.speaking.interview.InterviewDirectiveType;
 import com.deutschflow.speaking.interview.InterviewTurnPlan;
 import com.deutschflow.speaking.contract.SpeakingResponseSchema;
 import com.deutschflow.speaking.contract.SpeakingSessionMode;
@@ -429,7 +430,8 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         InterviewSessionState state = interviewStateCodec.decode(sessionRow.getInterviewStateJson());
         state = interviewOrchestrator.ensureState(state, persona, sessionRow.getInterviewPosition());
         InterviewTurnPlan introPlan = interviewOrchestrator.planTurn(
-                state, persona, sessionRow.getInterviewPosition(), sessionRow.getExperienceLevel(), 0, null);
+                state, persona, sessionRow.getInterviewPosition(), sessionRow.getExperienceLevel(),
+                0, null, "control", sessionRow.getCefrLevel());
         return new InterviewPromptContext(state, introPlan);
     }
 
@@ -576,7 +578,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
             InterviewTurnPlan plan = interviewOrchestrator.planTurn(
                     state, persona, session.getInterviewPosition(), session.getExperienceLevel(),
                     session.getMessageCount(), userMessage,
-                    session.getInterviewPromptVariant());
+                    session.getInterviewPromptVariant(), session.getCefrLevel());
             interviewContext = new InterviewPromptContext(state, plan);
         }
 
@@ -762,6 +764,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
                 case INTERRUPT_HOOK -> "answerShorter";
                 case CLOSING_ASK -> "closingAsk";
                 case CLOSING_ANSWER -> "closingAnswer";
+                case CLOSING_FAREWELL -> "interviewEnded";
                 default -> null;
             };
         }
@@ -968,7 +971,9 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
     private AiSpeakingSession closeSpeakingSession(Long userId, Long sessionId) {
         AiSpeakingSession s = loadSessionForUser(userId, sessionId);
         if (s.getStatus() == SessionStatus.ENDED) {
-            throw new ConflictException("This session has already ended.");
+            // Session was already ended (e.g. by CLOSING_FAREWELL auto-close).
+            // Return as-is so report generation and XP award still run.
+            return s;
         }
         s.setStatus(SessionStatus.ENDED);
         s.setEndedAt(LocalDateTime.now());
@@ -1232,9 +1237,10 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         }
 
         SpeakingSessionMode currentMode = SpeakingSessionMode.fromApi(session.getSessionMode());
-        if (currentMode == SpeakingSessionMode.INTERVIEW && session.getMessageCount() >= 26) {
-            log.info("Interview session {} exceeded max turns ({}), auto-ending",
-                    prep.sessionId(), session.getMessageCount());
+        if (currentMode == SpeakingSessionMode.INTERVIEW
+                && prep.interviewContext() != null
+                && prep.interviewContext().plan().directiveType() == InterviewDirectiveType.CLOSING_FAREWELL) {
+            log.info("Interview session {} ended via CLOSING_FAREWELL", prep.sessionId());
             session.setStatus(SessionStatus.ENDED);
             session.setEndedAt(LocalDateTime.now());
         }

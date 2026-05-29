@@ -51,22 +51,22 @@ public class PersonaInterviewRegistry {
             List<InterviewQuestion> dbRows = questionRepository
                     .findByPersonaCodeAndPhaseAndActiveTrue(persona.name(), phase.name());
             if (!dbRows.isEmpty()) {
-                return dbRows.stream()
+                Optional<InterviewQuestion> fresh = dbRows.stream()
                         .filter(q -> !asked.contains(q.getId()))
-                        .findFirst()
-                        .or(() -> Optional.of(dbRows.get(0)))
-                        .map(this::toQuestionDef);
+                        .findFirst();
+                if (fresh.isPresent()) {
+                    return fresh.map(this::toQuestionDef);
+                }
+                // All DB questions exhausted — fall through to static bank
             }
         }
 
         // Hardcoded fallback (also used in test contexts)
+        // Returns empty when all questions have been asked — caller should invoke generator
         return questions(persona, position).stream()
                 .filter(q -> q.phase() == phase)
                 .filter(q -> !asked.contains(q.id()))
-                .findFirst()
-                .or(() -> questions(persona, position).stream()
-                        .filter(q -> q.phase() == phase)
-                        .findFirst());
+                .findFirst();
     }
 
     /**

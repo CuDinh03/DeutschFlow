@@ -10,5 +10,6 @@ public enum InterviewDirectiveType {
     DEEPEN,
     CLOSING_ASK,
     CLOSING_ANSWER,
+    CLOSING_FAREWELL,
     STANDARD
 }

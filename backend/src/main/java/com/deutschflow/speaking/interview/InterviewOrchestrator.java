@@ -1,6 +1,8 @@
 package com.deutschflow.speaking.interview;
 
 import com.deutschflow.speaking.persona.SpeakingPersona;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 
 import java.util.Locale;
@@ -11,10 +13,20 @@ public class InterviewOrchestrator {
 
     private final InterviewAnswerAnalyzer analyzer;
     private final PersonaInterviewRegistry registry;
+    @Nullable
+    private final InterviewQuestionGenerator questionGenerator;
 
+    /** Test constructor — no Groq question generation available. */
     public InterviewOrchestrator(InterviewAnswerAnalyzer analyzer, PersonaInterviewRegistry registry) {
+        this(analyzer, registry, null);
+    }
+
+    @Autowired
+    public InterviewOrchestrator(InterviewAnswerAnalyzer analyzer, PersonaInterviewRegistry registry,
+                                  @Nullable InterviewQuestionGenerator questionGenerator) {
         this.analyzer = analyzer;
         this.registry = registry;
+        this.questionGenerator = questionGenerator;
     }
 
     public InterviewSessionState ensureState(InterviewSessionState state, SpeakingPersona persona, String position) {
@@ -27,8 +39,10 @@ public class InterviewOrchestrator {
     }
 
     /**
-     * Plans the next turn. Pass {@code promptVariant} from the session's experiment
-     * assignment so that Variant C adaptive follow-up can be applied.
+     * Plans the next turn.
+     *
+     * @param cefrLevel    candidate's CEFR level, used when generating questions via Groq fallback
+     * @param promptVariant experiment assignment ("control" | "variant_c")
      */
     public InterviewTurnPlan planTurn(
             InterviewSessionState state,
@@ -37,7 +51,8 @@ public class InterviewOrchestrator {
             String experienceLevel,
             int messageCount,
             String userMessage,
-            String promptVariant) {
+            String promptVariant,
+            String cefrLevel) {
 
         int userTurn = messageCount / 2 + 1;
         InterviewPhase phase = InterviewPhase.fromUserTurn(userTurn);
@@ -47,18 +62,31 @@ public class InterviewOrchestrator {
                 && userMessage != null
                 && (userMessage.contains("?") || looksLikeCandidateQuestions(userMessage));
 
+        // Detect farewell turn: any CLOSING turn after we already did CLOSING_ASK or CLOSING_ANSWER
+        boolean lastWasClosingAskOrAnswer = state.getLastDirectiveType() != null
+                && (state.getLastDirectiveType().equals("CLOSING_ASK")
+                || state.getLastDirectiveType().equals("CLOSING_ANSWER"));
+
         InterviewDirectiveType directive = resolveDirective(phase, analysis, state, userAskedClosingQuestions);
         String directiveInstruction = directiveText(directive, analysis);
 
         Optional<InterviewQuestionDef> question = registry.pickQuestion(persona, position, phase, state);
 
+        // ── Groq fallback: bank exhausted ────────────────────────────────────
+        boolean notClosingFixed = directive != InterviewDirectiveType.CLOSING_ASK
+                && directive != InterviewDirectiveType.CLOSING_FAREWELL;
+        if (question.isEmpty() && notClosingFixed && questionGenerator != null) {
+            question = questionGenerator.generate(
+                    persona, phase, position, cefrLevel,
+                    state.getTopicsCovered(), state.getAskedQuestionIds());
+        }
+
         // ── Variant C: adaptive follow-up ────────────────────────────────────
-        // When the answer is weak, replace the standard question with a DB-backed
-        // challenge question targeting the same topic the candidate struggled with.
         boolean isVariantC = "variant_c".equalsIgnoreCase(promptVariant);
         if (isVariantC && analysis.weakAnswer()
                 && directive != InterviewDirectiveType.CLOSING_ASK
-                && directive != InterviewDirectiveType.CLOSING_ANSWER) {
+                && directive != InterviewDirectiveType.CLOSING_ANSWER
+                && !lastWasClosingAskOrAnswer) {
             String lastTopic = state.getTopicsCovered().isEmpty()
                     ? null
                     : state.getTopicsCovered().get(state.getTopicsCovered().size() - 1);
@@ -66,7 +94,6 @@ public class InterviewOrchestrator {
                     persona, phase, lastTopic, state.getAskedQuestionIds());
             if (adaptiveQ.isPresent()) {
                 question = adaptiveQ;
-                // Override directive to a deeper probe when we have a specific follow-up
                 directive = InterviewDirectiveType.PROBE_SPECIFIC;
                 directiveInstruction = directiveText(directive, analysis);
             }
@@ -80,13 +107,22 @@ public class InterviewOrchestrator {
                 .map(InterviewQuestionDef::topicKey)
                 .orElse(phase.name().toLowerCase(Locale.ROOT));
 
-        if (userAskedClosingQuestions) {
+        // ── CLOSING phase overrides (checked in priority order) ───────────────
+        if (phase == InterviewPhase.CLOSING && lastWasClosingAskOrAnswer) {
+            // Second CLOSING turn: say farewell and end the interview
+            directive = InterviewDirectiveType.CLOSING_FAREWELL;
+            directiveInstruction = directiveText(InterviewDirectiveType.CLOSING_FAREWELL, analysis);
+            mandatoryQuestion = buildFarewell(position);
+            questionId = "close_farewell";
+            topicKey = "farewell";
+        } else if (userAskedClosingQuestions) {
             directive = InterviewDirectiveType.CLOSING_ANSWER;
             directiveInstruction = InterviewClosingTemplates.answerGuide(persona, position);
             mandatoryQuestion = "Beantworten Sie die Fragen des Kandidaten einzeln und konkret. Fragen Sie zum Schluss: 'Gibt es noch etwas?'";
-        } else if (phase == InterviewPhase.CLOSING && userTurn >= 12) {
+        } else if (phase == InterviewPhase.CLOSING) {
             mandatoryQuestion = "Haben Sie noch Fragen an uns?";
             directive = InterviewDirectiveType.CLOSING_ASK;
+            directiveInstruction = directiveText(InterviewDirectiveType.CLOSING_ASK, analysis);
         }
 
         return new InterviewTurnPlan(
@@ -104,10 +140,19 @@ public class InterviewOrchestrator {
         );
     }
 
-    /**
-     * Overload without variant — defaults to "control" behaviour for backward compatibility
-     * (greeting turn, tests, other callers that have no variant context yet).
-     */
+    /** Backward-compatible overload without cefrLevel — defaults to "control" and null CEFR. */
+    public InterviewTurnPlan planTurn(
+            InterviewSessionState state,
+            SpeakingPersona persona,
+            String position,
+            String experienceLevel,
+            int messageCount,
+            String userMessage,
+            String promptVariant) {
+        return planTurn(state, persona, position, experienceLevel, messageCount, userMessage, promptVariant, null);
+    }
+
+    /** Backward-compatible overload without variant or cefrLevel. */
     public InterviewTurnPlan planTurn(
             InterviewSessionState state,
             SpeakingPersona persona,
@@ -115,7 +160,7 @@ public class InterviewOrchestrator {
             String experienceLevel,
             int messageCount,
             String userMessage) {
-        return planTurn(state, persona, position, experienceLevel, messageCount, userMessage, "control");
+        return planTurn(state, persona, position, experienceLevel, messageCount, userMessage, "control", null);
     }
 
     private InterviewDirectiveType resolveDirective(
@@ -152,8 +197,17 @@ public class InterviewOrchestrator {
             case DEEPEN -> "Vertiefen Sie ein genanntes Detail mit einer kritischen Nachfrage (Trade-off oder Grenze).";
             case CLOSING_ASK -> "Fragen Sie: 'Haben Sie noch Fragen an uns?' Kurz, ohne Lob.";
             case CLOSING_ANSWER -> "Beantworten Sie jede Kandidatenfrage einzeln, sachlich, ohne Marketing-Floskeln.";
+            case CLOSING_FAREWELL -> "Beenden Sie das Interview professionell: Danken Sie kurz für das Gespräch "
+                    + "(1 Satz), nennen Sie den nächsten Schritt (z.B. 'Wir melden uns in den nächsten Tagen'), "
+                    + "und verabschieden Sie sich persönlich. Maximal 3 Sätze, kein Lob, keine leeren Phrasen.";
             case FOLLOW_UP, STANDARD -> "Beziehen Sie sich auf ein konkretes Detail der Antwort, dann stellen Sie die Pflichtfrage.";
         };
+    }
+
+    private static String buildFarewell(String position) {
+        String pos = (position == null || position.isBlank()) ? "diese Position" : position;
+        return "Vielen Dank für das Gespräch und Ihr Interesse an " + pos
+                + ". Wir werden uns in den nächsten Tagen bei Ihnen melden. Auf Wiedersehen!";
     }
 
     private static String fallbackQuestion(InterviewPhase phase, String position) {
