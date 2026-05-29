@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Clock, Check, X, ChevronRight, Loader2, Play, Trophy, BookOpen, Headphones, PenTool, Mic2, ArrowLeft, AlertCircle, Send } from 'lucide-react'
+import { Clock, Check, X, ChevronRight, Loader2, Trophy, BookOpen, Headphones, PenTool, Mic2, ArrowLeft, AlertCircle, Send } from 'lucide-react'
 import { StudentShell } from '@/components/layouts/StudentShell'
 import { SprechenTeil2Simulator } from '@/components/exam/SprechenTeil2Simulator'
 import { ExamProgressBar } from '@/components/exam/ExamProgressBar'
@@ -13,6 +13,7 @@ import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
 import { logout } from '@/lib/authSession'
 import api from '@/lib/api'
 import { useTracking } from '@/hooks/useTracking'
+import { AudioPlayer } from '@/components/exam/AudioPlayer'
 
 interface MockExam {
   id: number
@@ -309,12 +310,7 @@ export default function MockExamPage() {
                     </div>
                   )}
                   {teil.audio_script && (
-                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-6 flex items-center gap-4">
-                      <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center shrink-0">
-                        <Play size={20} className="text-white ml-1" />
-                      </div>
-                      <p className="text-sm text-slate-600 italic">Mock Audio Playback (Kịch bản: {'"'}{teil.audio_script.substring(0, 50)}{'"'}...)</p>
-                    </div>
+                    <AudioPlayer script={teil.audio_script} label={`Teil ${teil.teil} — Hörtext`} />
                   )}
 
                   {/* Render Questions based on type */}
@@ -322,10 +318,7 @@ export default function MockExamPage() {
                     {teil.items?.map((item: any, qIdx: number) => (
                       <div key={item.id} className="border-b border-slate-100 last:border-0 pb-6 last:pb-0">
                         {item.audio_script && (
-                          <div className="flex items-center gap-3 mb-3 bg-slate-50 p-3 rounded-lg w-max">
-                             <Play size={16} className="text-blue-500" />
-                             <span className="text-xs text-slate-500">Audio Track {item.id}</span>
-                          </div>
+                          <AudioPlayer script={item.audio_script} compact label={item.person ? `Nghe ${item.person}` : 'Nghe đoạn hội thoại'} />
                         )}
                         {item.text && <p className="text-sm text-slate-600 mb-3 italic">{'"'}{item.text}{'"'}</p>}
                         {item.person && <p className="text-sm text-slate-600 mb-3">👤 {item.person}</p>}
