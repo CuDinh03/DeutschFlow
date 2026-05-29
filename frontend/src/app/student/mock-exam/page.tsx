@@ -215,6 +215,31 @@ export default function MockExamPage() {
     }
   }
 
+  const resumeExam = async (att: MockAttempt) => {
+    const exam = exams.find(e => e.id === att.exam_id)
+    if (!exam) {
+      // Exam may not be in current level filter — fetch it directly
+      try {
+        setLoading(true)
+        const res = await api.post(`/mock-exams/${att.exam_id}/start`)
+        const attempt = res.data
+        let examSections = null
+        if (attempt.sections_json) {
+          try { examSections = typeof attempt.sections_json === 'string' ? JSON.parse(attempt.sections_json) : attempt.sections_json } catch {}
+        }
+        if (!examSections?.sections) { alert('Không thể tiếp tục bài thi. Vui lòng thử lại.'); return }
+        setActiveAttemptId(att.id)
+        setActiveExamData(examSections)
+        setCurrentSectionIdx(0)
+        setTimeLeft(60 * 60) // fallback 60 min if exam meta unavailable
+        setAnswers({})
+        setView('taking')
+      } catch { alert('Không thể tiếp tục bài thi. Vui lòng thử lại.') } finally { setLoading(false) }
+      return
+    }
+    await startExam(exam)
+  }
+
   const viewResult = (attempt: MockAttempt) => {
     setSelectedAttempt(attempt)
     setView('result')
@@ -629,10 +654,7 @@ export default function MockExamPage() {
                               Chi tiết <ChevronRight size={12} strokeWidth={3} />
                             </button>
                           ) : (
-                            <button onClick={() => {
-                                // Resume attempt logic here. For now we just alert.
-                                alert('Chức năng tiếp tục bài thi đang làm đang được phát triển.')
-                            }} className="text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors">
+                            <button onClick={() => resumeExam(att)} className="text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors">
                               Tiếp tục <Play size={12} className="fill-emerald-600" />
                             </button>
                           )}
