@@ -18,6 +18,8 @@
 		A1B2C3D51FED79650016851F /* SplashScreenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D41FED79650016851F /* SplashScreenView.swift */; };
 		A1B2C3D71FED79650016851F /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D61FED79650016851F /* OnboardingView.swift */; };
 		A1B2C3D91FED79650016851F /* AuthChoiceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D81FED79650016851F /* AuthChoiceView.swift */; };
+		A1B2C3DB1FED79650016851F /* DesignTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3DA1FED79650016851F /* DesignTokens.swift */; };
+		A1B2C3DD1FED79650016851F /* WebViewExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3DC1FED79650016851F /* WebViewExtensions.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -34,6 +36,8 @@
 		A1B2C3D41FED79650016851F /* SplashScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashScreenView.swift; sourceTree = "<group>"; };
 		A1B2C3D61FED79650016851F /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		A1B2C3D81FED79650016851F /* AuthChoiceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthChoiceView.swift; sourceTree = "<group>"; };
+		A1B2C3DA1FED79650016851F /* DesignTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignTokens.swift; sourceTree = "<group>"; };
+		A1B2C3DC1FED79650016851F /* WebViewExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebViewExtensions.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -73,6 +77,8 @@
 				A1B2C3D41FED79650016851F /* SplashScreenView.swift */,
 				A1B2C3D61FED79650016851F /* OnboardingView.swift */,
 				A1B2C3D81FED79650016851F /* AuthChoiceView.swift */,
+				A1B2C3DA1FED79650016851F /* DesignTokens.swift */,
+				A1B2C3DC1FED79650016851F /* WebViewExtensions.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
 				504EC3101FED79650016851F /* LaunchScreen.storyboard */,
@@ -169,6 +175,8 @@
 				A1B2C3D51FED79650016851F /* SplashScreenView.swift in Sources */,
 				A1B2C3D71FED79650016851F /* OnboardingView.swift in Sources */,
 				A1B2C3D91FED79650016851F /* AuthChoiceView.swift in Sources */,
+				A1B2C3DB1FED79650016851F /* DesignTokens.swift in Sources */,
+				A1B2C3DD1FED79650016851F /* WebViewExtensions.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
