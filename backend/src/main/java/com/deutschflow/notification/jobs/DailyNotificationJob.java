@@ -83,7 +83,7 @@ public class DailyNotificationJob {
             Long alreadySent = jdbcTemplate.queryForObject(
                     """
                     SELECT COUNT(*) FROM user_notifications
-                    WHERE recipient_id = ? AND type = 'REVIEW_DUE'
+                    WHERE recipient_user_id = ? AND notification_type = 'REVIEW_DUE'
                       AND created_at >= CURRENT_DATE
                     """, Long.class, student.getId());
 
@@ -110,7 +110,7 @@ public class DailyNotificationJob {
         Long alreadySent = jdbcTemplate.queryForObject(
                 """
                 SELECT COUNT(*) FROM user_notifications
-                WHERE recipient_id = ? AND type = 'STREAK_REMINDER'
+                WHERE recipient_user_id = ? AND notification_type = 'STREAK_REMINDER'
                   AND created_at >= CURRENT_DATE
                 """, Long.class, student.getId());
 

@@ -95,6 +95,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     private func navigateWebView(to path: String) {
         guard let bridgeVC = window?.rootViewController as? CAPBridgeViewController,
               let webView = bridgeVC.webView else { return }
+        // Whitelist: only known internal routes are allowed. Paths come from
+        // hardcoded literals above, but an explicit guard is defensive best practice.
+        let allowed: Set<String> = ["/register", "/login"]
+        guard allowed.contains(path) else { return }
         webView.evaluateJavaScript("window.location.replace('\(path)')")
     }
 

@@ -7,9 +7,11 @@ import com.deutschflow.notification.dto.MarkNotificationsReadResponse;
 import com.deutschflow.notification.dto.NotificationItemResponse;
 import com.deutschflow.notification.dto.NotificationPageResponse;
 import com.deutschflow.notification.dto.NotificationUnreadCountResponse;
+import com.deutschflow.notification.entity.ScheduledBroadcast;
 import com.deutschflow.notification.entity.UserNotification;
 import com.deutschflow.notification.events.QuizAssignedEvent;
 import com.deutschflow.notification.events.StudentRegisteredEvent;
+import com.deutschflow.notification.repository.ScheduledBroadcastRepository;
 import com.deutschflow.notification.repository.UserNotificationRepository;
 import com.deutschflow.notification.sse.NotificationUnreadPushCoordinator;
 import com.deutschflow.user.entity.User;
@@ -25,7 +27,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -40,6 +44,10 @@ public class UserNotificationService {
     private final UserRepository userRepository;
     private final NotificationUnreadPushCoordinator unreadPushCoordinator;
     private final JdbcTemplate jdbcTemplate;
+    private final ScheduledBroadcastRepository scheduledBroadcastRepository;
+
+    /** A scheduledAt within this window of "now" is treated as immediate delivery. */
+    private static final long SCHEDULE_THRESHOLD_SECONDS = 30;
 
     @Transactional(readOnly = true)
     public NotificationPageResponse listForRecipient(long recipientUserId, int page, int size, Boolean unreadOnly) {
@@ -444,21 +452,54 @@ public class UserNotificationService {
     // ── v1.6 — Admin broadcast & teacher announcement ────────────────────
 
     /**
-     * Creates ADMIN_BROADCAST (or specified type) notifications for every user that
-     * matches the requested audience. Returns the number of recipients notified.
+     * Either delivers a broadcast immediately or, when {@code scheduledAt} is a future
+     * timestamp, persists it as a {@link ScheduledBroadcast} for later dispatch by
+     * {@link com.deutschflow.notification.jobs.ScheduledBroadcastJob}.
      *
-     * <p>Note: {@code scheduledAt} is captured for future scheduling support but
-     * notifications are delivered immediately in the current implementation.
+     * <p>Runs synchronously so the returned {@link BroadcastNotificationResponse#recipientCount()}
+     * reflects the real number of recipients (immediate path) — admin broadcasts are
+     * infrequent, low-volume operations.
+     *
+     * @return {@code status} is one of {@code sent}, {@code scheduled}, or {@code no_recipients}.
      */
-    @Async("taskExecutor")
     @Transactional
     public BroadcastNotificationResponse broadcastToAudience(BroadcastNotificationRequest request) {
+        LocalDateTime scheduledAt = parseScheduledAt(request.scheduledAt());
+        LocalDateTime threshold = LocalDateTime.now(ZoneOffset.UTC).plusSeconds(SCHEDULE_THRESHOLD_SECONDS);
+
+        if (scheduledAt != null && scheduledAt.isAfter(threshold)) {
+            ScheduledBroadcast scheduled = ScheduledBroadcast.builder()
+                    .notificationType(resolveNotificationType(request.type()))
+                    .audienceType(request.audienceType())
+                    .tier(request.tier())
+                    .role(request.role())
+                    .targetEmail(request.targetEmail())
+                    .title(request.payload().title())
+                    .body(request.payload().body())
+                    .scheduledAt(scheduledAt)
+                    .status(ScheduledBroadcast.Status.PENDING)
+                    .build();
+            scheduledBroadcastRepository.save(scheduled);
+            log.info("[notifications] broadcast scheduled for {} (UTC), audience={}", scheduledAt, request.audienceType());
+            return new BroadcastNotificationResponse(0, "scheduled");
+        }
+
+        int count = deliverBroadcast(request);
+        return new BroadcastNotificationResponse(count, count == 0 ? "no_recipients" : "sent");
+    }
+
+    /**
+     * Fans a broadcast out into per-recipient notifications. Shared by the immediate
+     * path and the scheduled-dispatch job. Returns the number of recipients notified.
+     */
+    @Transactional
+    public int deliverBroadcast(BroadcastNotificationRequest request) {
         NotificationType notificationType = resolveNotificationType(request.type());
 
         List<User> recipients = resolveAudience(request);
         if (recipients.isEmpty()) {
             log.warn("[notifications] broadcast skipped — no recipients for audience={}", request.audienceType());
-            return new BroadcastNotificationResponse(0, "no_recipients");
+            return 0;
         }
 
         Map<String, Object> payload = new LinkedHashMap<>();
@@ -480,14 +521,51 @@ public class UserNotificationService {
             unreadPushCoordinator.afterCommit(n.getRecipient().getId());
         }
         log.info("[notifications] {} broadcast → {} recipients, audience={}", notificationType, notifications.size(), request.audienceType());
-        return new BroadcastNotificationResponse(notifications.size(), "sent");
+        return notifications.size();
+    }
+
+    /**
+     * Dispatches a due scheduled broadcast. Called by {@link com.deutschflow.notification.jobs.ScheduledBroadcastJob}.
+     *
+     * @return the number of recipients notified.
+     */
+    @Transactional
+    public int dispatchScheduledBroadcast(ScheduledBroadcast scheduled) {
+        BroadcastNotificationRequest request = new BroadcastNotificationRequest(
+                scheduled.getNotificationType().name(),
+                scheduled.getAudienceType(),
+                scheduled.getTier(),
+                scheduled.getRole(),
+                scheduled.getTargetEmail(),
+                new BroadcastNotificationRequest.Payload(scheduled.getTitle(), scheduled.getBody()),
+                null);
+        return deliverBroadcast(request);
+    }
+
+    /**
+     * Parses an ISO-8601 timestamp (with or without offset) into a UTC {@link LocalDateTime}.
+     * Returns {@code null} when blank. Throws {@link IllegalArgumentException} on malformed input.
+     */
+    static LocalDateTime parseScheduledAt(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            return OffsetDateTime.parse(raw).atZoneSameInstant(ZoneOffset.UTC).toLocalDateTime();
+        } catch (DateTimeParseException ignored) {
+            // fall through to offset-less parsing
+        }
+        try {
+            return LocalDateTime.parse(raw);
+        } catch (DateTimeParseException ex) {
+            throw new IllegalArgumentException("Invalid scheduledAt (expected ISO-8601): " + raw);
+        }
     }
 
     /**
      * Creates a TEACHER_ANNOUNCEMENT notification for every active student in the given class.
      * The caller must have already verified the teacher is a member of the class.
      */
-    @Async("taskExecutor")
     @Transactional
     public int announceToClass(Long teacherId, String teacherName, Long classId, String className, String message) {
         List<Long> studentIds = jdbcTemplate.queryForList(

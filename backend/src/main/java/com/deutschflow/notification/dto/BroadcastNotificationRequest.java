@@ -23,7 +23,10 @@ public record BroadcastNotificationRequest(
 
         @NotNull @Valid Payload payload,
 
-        /** ISO-8601 future timestamp. Reserved for scheduled delivery (not yet supported). */
+        /**
+         * Optional ISO-8601 timestamp. When set to a future time the broadcast is queued
+         * for delivery by ScheduledBroadcastJob; otherwise it is delivered immediately.
+         */
         String scheduledAt
 ) {
     public record Payload(
