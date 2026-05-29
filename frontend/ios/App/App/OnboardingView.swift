@@ -2,31 +2,47 @@ import SwiftUI
 
 // ─── Data ─────────────────────────────────────────────────────────────────
 
+private enum OnboardingVisual {
+    case grammarCards
+    case symbol(String)
+}
+
 private struct OnboardingPage {
-    let systemIcon: String
+    let visual: OnboardingVisual
     let accentColor: Color
     let headline: String
+    let germanHint: String?
     let body: String
 }
 
 private let onboardingPages: [OnboardingPage] = [
     OnboardingPage(
-        systemIcon: "sparkles",
-        accentColor: Color(red: 1.0, green: 0.804, blue: 0.0),
-        headline: "Smart Vocabulary",
-        body: "AI-powered spaced repetition keeps every word fresh. Build your German vocabulary at the perfect pace — automatically."
+        visual: .grammarCards,
+        accentColor: DF.Brand.yellow,
+        headline: "Ngữ pháp bằng màu sắc",
+        germanHint: "der · die · das",
+        body: "Nhớ giống của danh từ tự nhiên qua hệ thống màu độc quyền — mỗi giống một màu, không cần học thuộc."
     ),
     OnboardingPage(
-        systemIcon: "mic.fill",
-        accentColor: Color(red: 0.855, green: 0.161, blue: 0.110),
-        headline: "Speak with Confidence",
-        body: "Practice real conversations with AI personas. Get instant feedback on pronunciation and fluency — no judgement."
+        visual: .symbol("mic.fill"),
+        accentColor: DF.Brand.genderDer,
+        headline: "Nói với AI Coach",
+        germanHint: "„Wie geht es dir?"",
+        body: "Luyện hội thoại tiếng Đức thực tế. Nhận sửa lỗi phát âm và ngữ pháp ngay lập tức — không ngại sai."
     ),
     OnboardingPage(
-        systemIcon: "checkmark.seal.fill",
-        accentColor: Color(red: 0.855, green: 0.161, blue: 0.110),
-        headline: "Get Certified",
-        body: "Prepare for Goethe-Zertifikat with structured mock exams. Follow the A1 → B1 roadmap to your certificate."
+        visual: .symbol("arrow.triangle.2.circlepath"),
+        accentColor: DF.Brand.genderDas,
+        headline: "Ôn tập thông minh",
+        germanHint: "Wiederholung",
+        body: "Hệ thống lặp lại ngắt quãng (SRS) nhắc bạn ôn đúng từ vào đúng thời điểm để nhớ lâu dài."
+    ),
+    OnboardingPage(
+        visual: .symbol("map.fill"),
+        accentColor: DF.Brand.genderDie,
+        headline: "Lộ trình A1 → B2",
+        germanHint: "Goethe-Zertifikat",
+        body: "Lộ trình cá nhân hóa do AI thiết kế riêng — hướng tới chứng chỉ Goethe theo tốc độ của bạn."
     ),
 ]
 
@@ -37,44 +53,29 @@ struct OnboardingView: View {
 
     @State private var currentPage = 0
 
-    private let bgColor   = Color(red: 0.039, green: 0.039, blue: 0.059)
-    private let brandRed  = Color(red: 0.855, green: 0.161, blue: 0.110)
-    private let cardBg    = Color(white: 1, opacity: 0.045)
-    private let cardBorder = Color(white: 1, opacity: 0.09)
-
     var body: some View {
         ZStack {
-            bgColor.ignoresSafeArea()
+            DF.Brand.bg.ignoresSafeArea()
 
-            // Subtle gradient overlay — warmer at bottom
-            LinearGradient(
-                colors: [
-                    Color.clear,
-                    brandRed.opacity(0.06)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+            onboardingPages[currentPage].accentColor
+                .opacity(0.10)
+                .blur(radius: 90)
+                .frame(width: 320, height: 320)
+                .offset(y: -120)
+                .animation(DF.Spring.gentle, value: currentPage)
+                .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Skip button
                 skipButton
 
-                // Slide pages
                 TabView(selection: $currentPage) {
                     ForEach(onboardingPages.indices, id: \.self) { index in
-                        OnboardingPageView(
-                            page: onboardingPages[index],
-                            cardBg: cardBg,
-                            cardBorder: cardBorder
-                        )
-                        .tag(index)
+                        OnboardingPageView(page: onboardingPages[index])
+                            .tag(index)
                     }
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
 
-                // Footer: dots + CTA
                 footer
                     .padding(.bottom, 48)
             }
@@ -87,7 +88,7 @@ struct OnboardingView: View {
         HStack {
             Spacer()
             if currentPage < onboardingPages.count - 1 {
-                Button("Skip") { finish() }
+                Button("Bỏ qua") { finish() }
                     .font(.system(size: 15, weight: .medium))
                     .foregroundColor(.white.opacity(0.4))
                     .padding(.trailing, 24)
@@ -103,40 +104,36 @@ struct OnboardingView: View {
 
     private var footer: some View {
         VStack(spacing: 28) {
-            // Page dots
             HStack(spacing: 8) {
                 ForEach(onboardingPages.indices, id: \.self) { i in
                     Capsule()
-                        .fill(i == currentPage ? Color.white : Color.white.opacity(0.2))
+                        .fill(i == currentPage ? DF.Brand.yellow : Color.white.opacity(0.2))
                         .frame(width: i == currentPage ? 22 : 6, height: 6)
-                        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: currentPage)
+                        .animation(DF.Spring.snappy, value: currentPage)
                 }
             }
 
-            // CTA
             Button {
                 if currentPage < onboardingPages.count - 1 {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-                        currentPage += 1
-                    }
+                    withAnimation(DF.Spring.snappy) { currentPage += 1 }
                 } else {
                     finish()
                 }
             } label: {
-                Text(currentPage < onboardingPages.count - 1 ? "Continue" : "Get Started")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(.white)
+                Text(currentPage < onboardingPages.count - 1 ? "Tiếp tục" : "Bắt đầu")
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundColor(DF.Brand.black)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 18)
                     .background(
-                        RoundedRectangle(cornerRadius: 14)
-                            .fill(brandRed)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                            )
+                        RoundedRectangle(cornerRadius: DF.Radius.md)
+                            .fill(DF.Brand.yellow)
+                            .shadow(color: DF.Brand.yellow.opacity(0.35), radius: 16, y: 6)
                     )
             }
+            .simultaneousGesture(TapGesture().onEnded {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            })
             .padding(.horizontal, 28)
         }
     }
@@ -151,8 +148,6 @@ struct OnboardingView: View {
 
 private struct OnboardingPageView: View {
     let page: OnboardingPage
-    let cardBg: Color
-    let cardBorder: Color
 
     @State private var visible = false
 
@@ -160,41 +155,19 @@ private struct OnboardingPageView: View {
         VStack(spacing: 36) {
             Spacer()
 
-            // Icon card
-            ZStack {
-                RoundedRectangle(cornerRadius: 32)
-                    .fill(cardBg)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 32)
-                            .stroke(cardBorder, lineWidth: 1)
-                    )
-
-                // Glow blob
-                page.accentColor
-                    .opacity(0.18)
-                    .blur(radius: 50)
-                    .frame(width: 130, height: 130)
-
-                Image(systemName: page.systemIcon)
-                    .font(.system(size: 62, weight: .light))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [page.accentColor, page.accentColor.opacity(0.7)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .scaleEffect(visible ? 1.0 : 0.7)
-                    .opacity(visible ? 1.0 : 0.0)
-                    .animation(.spring(response: 0.45, dampingFraction: 0.65).delay(0.05), value: visible)
+            Group {
+                switch page.visual {
+                case .grammarCards:
+                    GrammarCardsVisual(visible: visible)
+                case .symbol(let name):
+                    SymbolVisual(systemIcon: name, accentColor: page.accentColor, visible: visible)
+                }
             }
-            .frame(width: 168, height: 168)
             .scaleEffect(visible ? 1.0 : 0.88)
             .opacity(visible ? 1.0 : 0.0)
-            .animation(.spring(response: 0.5, dampingFraction: 0.7), value: visible)
+            .animation(DF.Spring.gentle, value: visible)
 
-            // Text block
-            VStack(spacing: 16) {
+            VStack(spacing: 14) {
                 Text(page.headline)
                     .font(.system(size: 28, weight: .bold))
                     .foregroundColor(.white)
@@ -202,6 +175,19 @@ private struct OnboardingPageView: View {
                     .offset(y: visible ? 0 : 14)
                     .opacity(visible ? 1.0 : 0.0)
                     .animation(.easeOut(duration: 0.4).delay(0.12), value: visible)
+
+                if let hint = page.germanHint {
+                    Text(hint)
+                        .font(.system(size: 14, weight: .semibold, design: .serif))
+                        .foregroundColor(page.accentColor)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 6)
+                        .background(Capsule().fill(page.accentColor.opacity(0.12)))
+                        .overlay(Capsule().stroke(page.accentColor.opacity(0.25), lineWidth: 1))
+                        .offset(y: visible ? 0 : 14)
+                        .opacity(visible ? 1.0 : 0.0)
+                        .animation(.easeOut(duration: 0.4).delay(0.18), value: visible)
+                }
 
                 Text(page.body)
                     .font(.system(size: 16, weight: .regular))
@@ -211,17 +197,101 @@ private struct OnboardingPageView: View {
                     .padding(.horizontal, 36)
                     .offset(y: visible ? 0 : 14)
                     .opacity(visible ? 1.0 : 0.0)
-                    .animation(.easeOut(duration: 0.4).delay(0.2), value: visible)
+                    .animation(.easeOut(duration: 0.4).delay(0.24), value: visible)
             }
 
             Spacer()
             Spacer()
         }
-        .onAppear {
-            visible = true
+        .onAppear  { visible = true  }
+        .onDisappear { visible = false }
+    }
+}
+
+// ─── SF Symbol visual ─────────────────────────────────────────────────────
+
+private struct SymbolVisual: View {
+    let systemIcon: String
+    let accentColor: Color
+    let visible: Bool
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: DF.Radius.xxl)
+                .fill(DF.Brand.cardBg)
+                .overlay(
+                    RoundedRectangle(cornerRadius: DF.Radius.xxl)
+                        .stroke(DF.Brand.cardBdr, lineWidth: 1)
+                )
+
+            accentColor
+                .opacity(0.18)
+                .blur(radius: 50)
+                .frame(width: 130, height: 130)
+
+            Image(systemName: systemIcon)
+                .font(.system(size: 62, weight: .light))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [accentColor, accentColor.opacity(0.7)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .scaleEffect(visible ? 1.0 : 0.7)
+                .opacity(visible ? 1.0 : 0.0)
+                .animation(DF.Spring.gentle.delay(0.05), value: visible)
         }
-        .onDisappear {
-            visible = false
+        .frame(width: 168, height: 168)
+    }
+}
+
+// ─── Grammar colour cards ─────────────────────────────────────────────────
+
+private struct GrammarCardsVisual: View {
+    let visible: Bool
+
+    private struct Gender {
+        let article: String
+        let noun: String
+        let color: Color
+    }
+
+    private let genders: [Gender] = [
+        Gender(article: "der", noun: "Mann", color: DF.Brand.genderDer),
+        Gender(article: "die", noun: "Frau", color: DF.Brand.genderDie),
+        Gender(article: "das", noun: "Kind", color: DF.Brand.genderDas),
+    ]
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ForEach(genders.indices, id: \.self) { i in
+                let g = genders[i]
+                VStack(spacing: 6) {
+                    Text(g.article)
+                        .font(.system(size: 20, weight: .bold, design: .serif))
+                        .foregroundColor(g.color)
+                    Text(g.noun)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.85))
+                }
+                .frame(width: 84, height: 96)
+                .background(
+                    RoundedRectangle(cornerRadius: DF.Radius.xl)
+                        .fill(g.color.opacity(0.12))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: DF.Radius.xl)
+                        .stroke(g.color.opacity(0.35), lineWidth: 1.5)
+                )
+                .scaleEffect(visible ? 1.0 : 0.7)
+                .opacity(visible ? 1.0 : 0.0)
+                .animation(
+                    DF.Spring.gentle.delay(0.08 + Double(i) * 0.1),
+                    value: visible
+                )
+            }
         }
+        .frame(height: 168)
     }
 }

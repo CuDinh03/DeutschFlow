@@ -6,17 +6,11 @@ struct AuthChoiceView: View {
 
     @State private var appeared = false
 
-    private let bgColor     = Color(red: 0.039, green: 0.039, blue: 0.059)
-    private let brandRed    = Color(red: 0.855, green: 0.161, blue: 0.110)
-    private let brandYellow = Color(red: 1.0,   green: 0.804, blue: 0.0)
-    private let cardBorder  = Color(white: 1, opacity: 0.09)
-
     var body: some View {
         ZStack {
-            bgColor.ignoresSafeArea()
+            DF.Brand.bg.ignoresSafeArea()
 
-            // Soft glow
-            brandRed
+            DF.Brand.red
                 .opacity(0.10)
                 .blur(radius: 80)
                 .frame(width: 300, height: 300)
@@ -25,14 +19,12 @@ struct AuthChoiceView: View {
             VStack(spacing: 0) {
                 Spacer()
 
-                // Logo mark
                 dLogo
                     .padding(.bottom, 32)
                     .opacity(appeared ? 1 : 0)
                     .scaleEffect(appeared ? 1 : 0.8)
-                    .animation(.spring(response: 0.5, dampingFraction: 0.7), value: appeared)
+                    .animation(DF.Spring.gentle, value: appeared)
 
-                // Headline
                 VStack(spacing: 10) {
                     Text("Bắt đầu hành trình")
                         .font(.system(size: 30, weight: .bold))
@@ -58,29 +50,31 @@ struct AuthChoiceView: View {
 
                 Spacer()
 
-                // Buttons
                 VStack(spacing: 14) {
-                    // Primary — Register
-                    Button(action: onRegister) {
+                    Button(action: {
+                        let impact = UIImpactFeedbackGenerator(style: .light)
+                        impact.impactOccurred()
+                        onRegister()
+                    }) {
                         HStack(spacing: 10) {
                             Image(systemName: "person.badge.plus")
                                 .font(.system(size: 17, weight: .semibold))
                             Text("Tạo tài khoản miễn phí")
                                 .font(.system(size: 17, weight: .semibold))
                         }
-                        .foregroundColor(.white)
+                        .foregroundColor(DF.Brand.black)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 18)
-                        .background(brandRed)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14)
-                                .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                        )
+                        .background(DF.Brand.yellow)
+                        .clipShape(RoundedRectangle(cornerRadius: DF.Radius.md))
+                        .shadow(color: DF.Brand.yellow.opacity(0.35), radius: 16, y: 6)
                     }
 
-                    // Secondary — Login
-                    Button(action: onLogin) {
+                    Button(action: {
+                        let impact = UIImpactFeedbackGenerator(style: .light)
+                        impact.impactOccurred()
+                        onLogin()
+                    }) {
                         HStack(spacing: 10) {
                             Image(systemName: "arrow.right.circle")
                                 .font(.system(size: 17, weight: .regular))
@@ -91,10 +85,10 @@ struct AuthChoiceView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 18)
                         .background(Color.white.opacity(0.06))
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .clipShape(RoundedRectangle(cornerRadius: DF.Radius.md))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 14)
-                                .stroke(cardBorder, lineWidth: 1)
+                            RoundedRectangle(cornerRadius: DF.Radius.md)
+                                .stroke(DF.Brand.cardBdr, lineWidth: 1)
                         )
                     }
                 }
@@ -120,22 +114,15 @@ struct AuthChoiceView: View {
 
     private var dLogo: some View {
         ZStack {
-            // D outline
             DOutline()
                 .stroke(Color.white, style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .miter))
-
-            // Red triangle
             RedTriangle()
-                .fill(brandRed)
-
-            // Yellow square
+                .fill(DF.Brand.red)
             YellowSquare()
-                .fill(brandYellow)
+                .fill(DF.Brand.yellow)
         }
         .frame(width: 64, height: 64)
     }
-
-    // ── Inner shapes (same proportions as SplashScreenView) ──────────────────
 
     private struct DOutline: Shape {
         func path(in rect: CGRect) -> Path {

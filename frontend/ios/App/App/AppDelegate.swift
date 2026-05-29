@@ -1,6 +1,7 @@
 import UIKit
 import Capacitor
 import SwiftUI
+import UserNotifications
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -9,8 +10,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     private var overlayWindow: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        UNUserNotificationCenter.current().delegate = self
         showSplashOverlay()
         return true
+    }
+
+    // ─── Push notification registration ──────────────────────────────────────
+
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        NotificationCenter.default.post(name: .capacitorDidRegisterForRemoteNotifications, object: deviceToken)
+    }
+
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        NotificationCenter.default.post(name: .capacitorDidFailToRegisterForRemoteNotifications, object: error)
     }
 
     // ─── Overlay orchestration ────────────────────────────────────────────────
@@ -37,13 +49,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     private func showOnboarding(in overlay: UIWindow) {
         let vc = makeHostingController(
-            OnboardingView {
-                self.showAuthChoice(in: overlay)
-            }
+            OnboardingView { self.showAuthChoice(in: overlay) }
         )
-        UIView.transition(with: overlay, duration: 0.38, options: .transitionCrossDissolve) {
-            overlay.rootViewController = vc
-        }
+        transition(overlay, to: vc)
     }
 
     private func showAuthChoice(in overlay: UIWindow) {
@@ -53,15 +61,22 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 onLogin:    { self.dismissOverlay(navigateTo: "/login") }
             )
         )
-        UIView.transition(with: overlay, duration: 0.38, options: .transitionCrossDissolve) {
-            overlay.rootViewController = vc
-        }
+        transition(overlay, to: vc)
     }
 
     // ─── Dismiss + navigate ───────────────────────────────────────────────────
 
     private func dismissOverlay(navigateTo path: String?) {
         guard let overlay = overlayWindow else { return }
+
+        // Paint the webview dark before the overlay fades so there is no
+        // white flash during the crossfade into the Capacitor shell.
+        if let bridgeVC = window?.rootViewController as? CAPBridgeViewController,
+           let webView = bridgeVC.webView {
+            webView.isOpaque = false
+            webView.backgroundColor = DF.UIKit.bg
+        }
+
         UIView.animate(withDuration: 0.45, delay: 0, options: .curveEaseOut) {
             overlay.alpha = 0
         } completion: { _ in
@@ -70,7 +85,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             self.window?.makeKeyAndVisible()
 
             if let path = path {
-                // WebView should be loaded by now; navigate to target path
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     self.navigateWebView(to: path)
                 }
@@ -88,8 +102,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     private func makeHostingController<V: View>(_ view: V) -> UIHostingController<V> {
         let vc = UIHostingController(rootView: view)
-        vc.view.backgroundColor = UIColor(red: 0.039, green: 0.039, blue: 0.059, alpha: 1)
+        vc.view.backgroundColor = DF.UIKit.bg
         return vc
+    }
+
+    private func transition(_ window: UIWindow, to vc: UIViewController) {
+        UIView.transition(with: window, duration: 0.38, options: .transitionCrossDissolve) {
+            window.rootViewController = vc
+        }
     }
 
     // ─── Capacitor delegates ──────────────────────────────────────────────────
@@ -106,5 +126,31 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, continue userActivity: NSUserActivity, restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void) -> Bool {
         return false
+    }
+}
+
+// ─── UNUserNotificationCenter delegate ───────────────────────────────────────
+
+extension AppDelegate: UNUserNotificationCenterDelegate {
+    // Show notification banner even when app is in foreground
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .badge, .sound])
+    }
+
+    // Forward tap on notification to Capacitor's notification router
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        if let router = (window?.rootViewController as? CAPBridgeViewController)?.bridge?.notificationRouter {
+            router.userNotificationCenter(center, didReceive: response, withCompletionHandler: completionHandler)
+        } else {
+            completionHandler()
+        }
     }
 }
