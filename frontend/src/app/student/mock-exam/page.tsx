@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Clock, Check, X, ChevronRight, Loader2, Trophy, BookOpen, Headphones, PenTool, Mic2, ArrowLeft, AlertCircle, Send } from 'lucide-react'
+import { Clock, Check, X, ChevronRight, Loader2, Trophy, BookOpen, Headphones, PenTool, Mic2, ArrowLeft, AlertCircle, Send, Play } from 'lucide-react'
 import { StudentShell } from '@/components/layouts/StudentShell'
 import { SprechenTeil2Simulator } from '@/components/exam/SprechenTeil2Simulator'
 import { ExamProgressBar } from '@/components/exam/ExamProgressBar'
