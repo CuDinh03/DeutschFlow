@@ -5,6 +5,7 @@ import com.deutschflow.common.async.AsyncJobService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.quota.AiUsageLedgerService;
+import com.deutschflow.gamification.service.XpService;
 import com.deutschflow.speaking.ai.AiChatCompletionResult;
 import com.deutschflow.speaking.ai.ChatMessage;
 import com.deutschflow.speaking.ai.GroqChatClient;
@@ -39,6 +40,7 @@ public class PracticeNodeService {
     private final AiUsageLedgerService aiUsageLedgerService;
     private final ObjectMapper objectMapper;
     private final AsyncJobService asyncJobService;
+    private final XpService xpService;
 
     private static final int XP_PER_SESSION = 30;
     private static final List<String> ALL_SKILLS = List.of("HOEREN", "SPRECHEN", "LESEN", "SCHREIBEN");
@@ -325,8 +327,9 @@ public class PracticeNodeService {
                 WHERE id = ?
                 """, scorePercent, xpEarned, sessionId);
 
-        // TODO: Award XP to user via XpService if needed
-        // TODO: Update streak via existing streak logic
+        if (xpEarned > 0) {
+            xpService.awardCustomPractice(userId, xpEarned, "Practice: " + session.get("skill_type"));
+        }
 
         String skillType = (String) session.get("skill_type");
         long sourceNodeId = ((Number) session.get("source_node_id")).longValue();
