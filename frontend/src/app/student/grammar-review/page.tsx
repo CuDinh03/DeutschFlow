@@ -151,7 +151,7 @@ export default function GrammarReviewPage() {
                 </p>
                 <button 
                   className="mt-5 w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-xl text-sm transition-colors shadow-sm"
-                  onClick={() => alert("Chuyển hướng đến cổng thanh toán PRO")}
+                  onClick={() => router.push('/student/pricing')}
                 >
                   Nâng cấp PRO ngay
                 </button>
