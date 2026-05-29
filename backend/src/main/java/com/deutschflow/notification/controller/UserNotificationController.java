@@ -5,20 +5,30 @@ import com.deutschflow.notification.NotificationRateLimiterService;
 import com.deutschflow.notification.dto.MarkNotificationsReadResponse;
 import com.deutschflow.notification.dto.NotificationPageResponse;
 import com.deutschflow.notification.dto.NotificationUnreadCountResponse;
+import com.deutschflow.notification.dto.TeacherAnnounceRequest;
 import com.deutschflow.notification.service.UserNotificationService;
 import com.deutschflow.notification.sse.NotificationSseBroadcaster;
+import com.deutschflow.teacher.repository.ClassTeacherRepository;
+import com.deutschflow.teacher.repository.TeacherClassRepository;
 import com.deutschflow.user.entity.User;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/notifications")
@@ -28,6 +38,8 @@ public class UserNotificationController {
     private final UserNotificationService userNotificationService;
     private final NotificationSseBroadcaster notificationSseBroadcaster;
     private final NotificationRateLimiterService notificationRateLimiterService;
+    private final ClassTeacherRepository classTeacherRepository;
+    private final TeacherClassRepository teacherClassRepository;
 
     @Value("${app.notifications.sse.timeout-ms:900000}")
     private long notificationSseTimeoutMs;
@@ -72,6 +84,29 @@ public class UserNotificationController {
     public MarkNotificationsReadResponse markAllRead(@AuthenticationPrincipal User user) {
         enforceMutate(user);
         return userNotificationService.markAllRead(user.getId());
+    }
+
+    /**
+     * POST /api/notifications/teacher/announce
+     *
+     * Sends a TEACHER_ANNOUNCEMENT to all students in the specified class.
+     * The authenticated teacher must be a member of that class.
+     */
+    @PreAuthorize("hasRole('TEACHER')")
+    @PostMapping("/teacher/announce")
+    public ResponseEntity<Map<String, Object>> announce(
+            @AuthenticationPrincipal User teacher,
+            @Valid @RequestBody TeacherAnnounceRequest request
+    ) {
+        if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(request.classId(), teacher.getId())) {
+            throw new AccessDeniedException("Teacher is not a member of class " + request.classId());
+        }
+        String className = teacherClassRepository.findById(request.classId())
+                .map(tc -> tc.getName())
+                .orElse("Unknown");
+        int count = userNotificationService.announceToClass(
+                teacher.getId(), teacher.getDisplayName(), request.classId(), className, request.message());
+        return ResponseEntity.ok(Map.of("recipientCount", count, "status", "sent"));
     }
 
     private void enforceReadPoll(User user) {

@@ -1,6 +1,8 @@
 package com.deutschflow.notification.service;
 
 import com.deutschflow.notification.NotificationType;
+import com.deutschflow.notification.dto.BroadcastNotificationRequest;
+import com.deutschflow.notification.dto.BroadcastNotificationResponse;
 import com.deutschflow.notification.dto.MarkNotificationsReadResponse;
 import com.deutschflow.notification.dto.NotificationItemResponse;
 import com.deutschflow.notification.dto.NotificationPageResponse;
@@ -436,6 +438,140 @@ public class UserNotificationService {
             for (UserNotification n : notifications) {
                 unreadPushCoordinator.afterCommit(n.getRecipient().getId());
             }
+        }
+    }
+
+    // ── v1.6 — Admin broadcast & teacher announcement ────────────────────
+
+    /**
+     * Creates ADMIN_BROADCAST (or specified type) notifications for every user that
+     * matches the requested audience. Returns the number of recipients notified.
+     *
+     * <p>Note: {@code scheduledAt} is captured for future scheduling support but
+     * notifications are delivered immediately in the current implementation.
+     */
+    @Async("taskExecutor")
+    @Transactional
+    public BroadcastNotificationResponse broadcastToAudience(BroadcastNotificationRequest request) {
+        NotificationType notificationType = resolveNotificationType(request.type());
+
+        List<User> recipients = resolveAudience(request);
+        if (recipients.isEmpty()) {
+            log.warn("[notifications] broadcast skipped — no recipients for audience={}", request.audienceType());
+            return new BroadcastNotificationResponse(0, "no_recipients");
+        }
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("title", request.payload().title());
+        payload.put("body", request.payload().body());
+        payload.put("audienceType", request.audienceType());
+
+        List<UserNotification> notifications = new ArrayList<>(recipients.size());
+        for (User user : recipients) {
+            notifications.add(UserNotification.builder()
+                    .recipient(user)
+                    .type(notificationType)
+                    .payload(new LinkedHashMap<>(payload))
+                    .build());
+        }
+
+        notificationRepository.saveAll(notifications);
+        for (UserNotification n : notifications) {
+            unreadPushCoordinator.afterCommit(n.getRecipient().getId());
+        }
+        log.info("[notifications] {} broadcast → {} recipients, audience={}", notificationType, notifications.size(), request.audienceType());
+        return new BroadcastNotificationResponse(notifications.size(), "sent");
+    }
+
+    /**
+     * Creates a TEACHER_ANNOUNCEMENT notification for every active student in the given class.
+     * The caller must have already verified the teacher is a member of the class.
+     */
+    @Async("taskExecutor")
+    @Transactional
+    public int announceToClass(Long teacherId, String teacherName, Long classId, String className, String message) {
+        List<Long> studentIds = jdbcTemplate.queryForList(
+                "SELECT student_id FROM class_students WHERE class_id = ?",
+                Long.class, classId);
+
+        if (studentIds.isEmpty()) {
+            log.info("[notifications] TEACHER_ANNOUNCEMENT skipped — no students in class={}", classId);
+            return 0;
+        }
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("classId", classId);
+        payload.put("className", className);
+        payload.put("teacherId", teacherId);
+        payload.put("teacherName", teacherName);
+        payload.put("message", message);
+
+        List<UserNotification> notifications = new ArrayList<>(studentIds.size());
+        for (Long studentId : studentIds) {
+            User student = userRepository.findById(studentId).orElse(null);
+            if (student != null && student.isActive()) {
+                notifications.add(UserNotification.builder()
+                        .recipient(student)
+                        .type(NotificationType.TEACHER_ANNOUNCEMENT)
+                        .payload(new LinkedHashMap<>(payload))
+                        .build());
+            }
+        }
+
+        if (!notifications.isEmpty()) {
+            notificationRepository.saveAll(notifications);
+            for (UserNotification n : notifications) {
+                unreadPushCoordinator.afterCommit(n.getRecipient().getId());
+            }
+        }
+        log.info("[notifications] TEACHER_ANNOUNCEMENT → {} students in class={}", notifications.size(), classId);
+        return notifications.size();
+    }
+
+    private List<User> resolveAudience(BroadcastNotificationRequest request) {
+        return switch (request.audienceType().toUpperCase()) {
+            case "ALL" -> userRepository.findAll().stream().filter(User::isActive).toList();
+            case "ROLE" -> {
+                if (request.role() == null || request.role().isBlank()) {
+                    throw new IllegalArgumentException("role is required for ROLE audience");
+                }
+                yield userRepository.findByRoleAndActiveTrue(User.Role.valueOf(request.role().toUpperCase()));
+            }
+            case "TIER" -> {
+                if (request.tier() == null || request.tier().isBlank()) {
+                    throw new IllegalArgumentException("tier is required for TIER audience");
+                }
+                List<Long> ids = jdbcTemplate.queryForList(
+                        "SELECT DISTINCT us.user_id FROM user_subscriptions us " +
+                        "JOIN users u ON u.id = us.user_id " +
+                        "WHERE us.plan_code = ? AND u.is_active IS TRUE AND us.status = 'ACTIVE' AND us.ends_at > NOW()",
+                        Long.class, request.tier().toUpperCase());
+                yield ids.stream()
+                        .map(id -> userRepository.findById(id).orElse(null))
+                        .filter(u -> u != null && u.isActive())
+                        .toList();
+            }
+            case "SINGLE_USER" -> {
+                if (request.targetEmail() == null || request.targetEmail().isBlank()) {
+                    throw new IllegalArgumentException("targetEmail is required for SINGLE_USER audience");
+                }
+                yield userRepository.findByEmail(request.targetEmail())
+                        .filter(User::isActive)
+                        .map(List::of)
+                        .orElse(List.of());
+            }
+            default -> throw new IllegalArgumentException("Unknown audienceType: " + request.audienceType());
+        };
+    }
+
+    private static NotificationType resolveNotificationType(String type) {
+        if (type == null || type.isBlank()) {
+            return NotificationType.ADMIN_BROADCAST;
+        }
+        try {
+            return NotificationType.valueOf(type.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return NotificationType.ADMIN_BROADCAST;
         }
     }
 

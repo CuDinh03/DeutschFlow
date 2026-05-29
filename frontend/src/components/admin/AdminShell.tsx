@@ -8,6 +8,7 @@ import { DeutschFlowLogo } from '@/components/ui/DeutschFlowLogo'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import {
   BarChart3,
+  Bell,
   BookOpen,
   Bot,
   Coins,
@@ -39,6 +40,7 @@ export type AdminNavId =
   | 'settings'
   | 'weekly-speaking'
   | 'media'
+  | 'notifications'
 
 type AdminShellProps = {
   title: string
@@ -79,6 +81,7 @@ export default function AdminShell({
     { id: 'reports' as const,       label: t('reports'),       href: '/admin/reports',        icon: BarChart3 },
     { id: 'aiConfig' as const,      label: t('aiConfig'),       href: '/admin/ai-config',      icon: Bot },
     { id: 'weekly-speaking' as const, label: 'Weekly Speaking',   href: '/admin/weekly-speaking', icon: BarChart3 },
+    { id: 'notifications' as const, label: 'Gửi thông báo',          href: '/admin/notifications',  icon: Bell },
     { id: 'settings' as const,      label: t('settings'),           href: '/admin/settings',       icon: Settings },
   ], [t])
 

@@ -36,6 +36,7 @@ import { XpLevelPill } from "@/components/gamification/XpLevelPill";
 import { useTracking } from "@/hooks/useTracking";
 import { usePlan } from "@/contexts/PlanContext";
 import { useStatusBarStyle } from "@/lib/statusBar";
+import { useReviewDueCount } from "@/hooks/useReviewDueCount";
 import posthog from "posthog-js";
 
 export type StudentShellSection = string;
@@ -112,6 +113,7 @@ export function StudentShell({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { trackFeatureAction } = useTracking();
   const { plan } = usePlan();
+  const reviewDueCount = useReviewDueCount();
 
   // Authenticated app surfaces are light → dark status bar icons.
   useStatusBarStyle("light");
@@ -150,7 +152,9 @@ export function StudentShell({
             label: t("navReviewSrs"),
             icon: Brain,
             href: "/student/review",
-            badge: <span className="text-[9px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded-full">Ôn</span>,
+            badge: reviewDueCount > 0
+              ? <span className="text-[9px] font-black bg-[#EF4444] text-white px-1.5 py-0.5 rounded-full tabular-nums">{reviewDueCount > 99 ? "99+" : reviewDueCount}</span>
+              : <span className="text-[9px] font-bold bg-red-500/20 text-red-300 px-1.5 py-0.5 rounded-full border border-red-500/30">Ôn</span>,
           },
           { id: "review-queue" as const, label: t("navReviewQueue"), icon: Brain, href: "/student/review-queue" },
           { id: "speakingHistory" as const, label: t("navSpeakingHistory"), icon: History, href: "/student/speaking-history" },

@@ -87,6 +87,10 @@ function summarizeNotification(t: (key: string, values?: Record<string, string>)
         class: String(p.className ?? ""),
         topic: String(p.topic ?? ""),
       });
+    case "TEACHER_ANNOUNCEMENT":
+      return `📢 ${String(p.message ?? p.title ?? "Thông báo từ giáo viên")}`;
+    case "ADMIN_BROADCAST":
+      return `📣 ${String(p.title ?? p.message ?? "Thông báo từ hệ thống")}`;
     default:
       return item.type;
   }
@@ -236,7 +240,9 @@ export function NotificationBell({ buttonClassName, inboxHref }: NotificationBel
         >
           <Bell size={18} className="text-[#64748B]" />
           {unread > 0 && (
-            <span className="absolute top-1.5 right-1.5 min-w-[8px] h-2 px-0.5 bg-[#FFCD00] rounded-full border border-white" />
+            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center px-1 bg-[#EF4444] text-white text-[10px] font-black rounded-full border-2 border-white leading-none tabular-nums">
+              {unread > 99 ? "99+" : unread}
+            </span>
           )}
         </button>
       </PopoverTrigger>

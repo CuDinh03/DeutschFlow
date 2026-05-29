@@ -1,15 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, Bell, CheckCheck, Check, RefreshCw, UserPlus, UserMinus, ClipboardList, FileText, Sparkles, GraduationCap, MessageSquareWarning, CheckCircle2 } from "lucide-react";
+import { Loader2, Bell, CheckCheck, Check, RefreshCw, UserPlus, UserMinus, ClipboardList, FileText, Sparkles, GraduationCap, MessageSquareWarning, CheckCircle2, Send, X } from "lucide-react";
 import { formatDistanceToNow, parseISO } from "date-fns";
 import { vi as dfVi } from "date-fns/locale";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { TeacherShell } from "@/components/layouts/TeacherShell";
 import { logout } from "@/lib/authSession";
 import api from "@/lib/api";
 import { notificationApi, NotificationItem } from "@/lib/notificationApi";
+import { toast } from "sonner";
 
 function notifMeta(item: NotificationItem) {
   const p = item.payload ?? {};
@@ -34,10 +34,98 @@ function notifMeta(item: NotificationItem) {
       return { icon: MessageSquareWarning, accent: "bg-amber-100 text-amber-700", title: `Học sinh bị từ chối vào lớp ${String(p.className ?? "")}` };
     case "ADDED_TO_CLASS":
       return { icon: UserPlus, accent: "bg-slate-100 text-slate-700", title: `Có học sinh được thêm vào lớp ${String(p.className ?? "")}` };
+    case "TEACHER_ANNOUNCEMENT":
+      return { icon: Sparkles, accent: "bg-purple-100 text-purple-700", title: String(p.message ?? p.title ?? "Thông báo lớp học") };
+    case "ADMIN_BROADCAST":
+      return { icon: Bell, accent: "bg-orange-100 text-orange-700", title: String(p.title ?? p.message ?? "Thông báo hệ thống") };
     default:
       return { icon: Bell, accent: "bg-slate-100 text-slate-700", title: item.type.replace(/_/g, " ") };
   }
 }
+
+// ─── Announcement modal ───────────────────────────────────────────────────────
+
+type ClassOption = { id: string; name: string };
+
+function AnnouncementModal({ classes, onClose }: { classes: ClassOption[]; onClose: () => void }) {
+  const [classId, setClassId] = useState(classes[0]?.id ?? "");
+  const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const handleSend = async () => {
+    if (!message.trim() || !classId) return;
+    setSending(true);
+    try {
+      await api.post("/notifications/teacher/announce", { classId: Number(classId), message });
+      toast.success("Đã gửi thông báo cho lớp!");
+      onClose();
+    } catch {
+      toast.error("Gửi thất bại. Vui lòng thử lại.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+          <h2 className="font-bold text-slate-900 flex items-center gap-2">
+            <Send size={15} className="text-[#6366F1]" />
+            Gửi thông báo cho lớp
+          </h2>
+          <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
+            <X size={16} />
+          </button>
+        </div>
+        <div className="px-5 py-4 space-y-4">
+          <div>
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Lớp học</label>
+            {classes.length === 0 ? (
+              <p className="text-sm text-slate-400 italic">Bạn chưa có lớp nào.</p>
+            ) : (
+              <select
+                value={classId}
+                onChange={(e) => setClassId(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1]/30"
+              >
+                {classes.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            )}
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Nội dung</label>
+            <textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Nhập nội dung thông báo cho học sinh..."
+              rows={4}
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#6366F1]/30 resize-none"
+            />
+          </div>
+        </div>
+        <div className="px-5 py-4 border-t border-slate-100 flex gap-3 justify-end">
+          <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors">
+            Hủy
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleSend()}
+            disabled={sending || !message.trim() || !classId}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#0F172A] text-white text-sm font-semibold transition-colors hover:bg-[#1E293B] disabled:opacity-50"
+          >
+            {sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+            Gửi thông báo
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function TeacherNotificationsPage() {
   const router = useRouter();
@@ -48,14 +136,20 @@ export default function TeacherNotificationsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [loadingList, setLoadingList] = useState(true);
   const [markingAll, setMarkingAll] = useState(false);
+  const [showAnnounce, setShowAnnounce] = useState(false);
+  const [myClasses, setMyClasses] = useState<ClassOption[]>([]);
 
   useEffect(() => {
     (async () => {
       try {
-        const res = await api.get('/auth/me');
-        if (res.data?.role === 'TEACHER' || res.data?.role === 'ADMIN') {
-          setMe(res.data);
+        const [meRes, classRes] = await Promise.all([
+          api.get('/auth/me'),
+          api.get<{ items: ClassOption[] }>('/teacher/classes').catch(() => ({ data: { items: [] } })),
+        ]);
+        if (meRes.data?.role === 'TEACHER' || meRes.data?.role === 'ADMIN') {
+          setMe(meRes.data);
         }
+        setMyClasses(classRes.data?.items ?? []);
       } finally {
         setLoading(false);
       }
@@ -127,6 +221,10 @@ export default function TeacherNotificationsPage() {
   const unreadCount = items.filter((n) => !n.read).length;
 
   return (
+    <>
+      {showAnnounce && (
+        <AnnouncementModal classes={myClasses} onClose={() => setShowAnnounce(false)} />
+      )}
     <TeacherShell
       activeMenu="notifications"
       userName={me.displayName ?? me.email ?? "Teacher"}
@@ -142,6 +240,14 @@ export default function TeacherNotificationsPage() {
             <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold">{unreadCount}</span>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowAnnounce(true)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#6366F1] text-white text-sm font-semibold hover:bg-[#4F46E5] transition-colors"
+            >
+              <Send size={13} />
+              Gửi thông báo
+            </button>
             <button
               onClick={() => void fetchNotifications(0)}
               className="p-2 rounded-lg text-slate-500 hover:bg-slate-100"
@@ -216,5 +322,6 @@ export default function TeacherNotificationsPage() {
         )}
       </div>
     </TeacherShell>
+    </>
   );
 }

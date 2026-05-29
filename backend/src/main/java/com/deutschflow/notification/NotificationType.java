@@ -45,5 +45,12 @@ public enum NotificationType {
     /** A student requested to join a class. Recipient: the teacher. */
     CLASS_JOIN_REQUEST_CREATED,
     /** A student submitted a quiz or speaking result that needs teacher attention. */
-    QUIZ_SUBMISSION_RECEIVED
+    QUIZ_SUBMISSION_RECEIVED,
+
+    // ── v1.6 — Broadcast & teacher announcements ─────────────────────────
+
+    /** Admin broadcast: a message sent to a targeted audience (all, tier, role, or single user). */
+    ADMIN_BROADCAST,
+    /** Teacher announcement: a message sent by a teacher to all students in a class. */
+    TEACHER_ANNOUNCEMENT
 }
