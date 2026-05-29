@@ -2,13 +2,17 @@ import createNextIntlPlugin from 'next-intl/plugin';
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
+// Set NEXT_OUTPUT_MODE=export when building for Capacitor (mobile).
+// Amplify web builds must NOT set this — without it, Amplify uses SSR mode
+// which handles dynamic routes like /teacher/dashboard/[id] natively.
+const isMobileBuild = process.env.NEXT_OUTPUT_MODE === 'export';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Static export for Capacitor bundling
-  output: 'export',
+  ...(isMobileBuild && { output: 'export' }),
   trailingSlash: true,
 
-  // Image optimization must be disabled for static export
+  // Image optimization disabled for static/mobile export; fine to keep for web too
   images: {
     unoptimized: true,
     remotePatterns: [
