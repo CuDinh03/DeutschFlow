@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { useTracking } from '@/hooks/useTracking';
+import api from '@/lib/api';
 
 interface PracticeExercise {
     id: number;
@@ -15,13 +15,22 @@ interface PracticeExercise {
     skillType: string;
     examName: string | null;
     sourceName: string;
+    sourceUrl?: string | null;
     xpReward: number;
+}
+
+interface SpringPage<T> {
+    content: T[];
+    totalElements: number;
+    totalPages: number;
+    number: number;
 }
 
 export default function PracticePageClient() {
     const [exercises, setExercises] = useState<PracticeExercise[]>([]);
     const [loading, setLoading] = useState(true);
     const [filterLevel, setFilterLevel] = useState<string>('');
+    const [submitting, setSubmitting] = useState<number | null>(null);
     const { trackFeatureAction } = useTracking();
 
     useEffect(() => {
@@ -29,54 +38,36 @@ export default function PracticePageClient() {
         return () => trackFeatureAction('practice_library', 'quit');
     }, [trackFeatureAction]);
 
-    useEffect(() => {
-        fetchExercises();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [filterLevel]);
-
-    const fetchExercises = async () => {
+    const fetchExercises = useCallback(async () => {
         setLoading(true);
         try {
-            // Mock data for UI testing since backend is not updated yet
-            setTimeout(() => {
-                const mockData = [
-                    {
-                        id: 1,
-                        exerciseType: 'EXAM',
-                        cefrLevel: 'B1',
-                        skillType: 'READING',
-                        examName: 'Goethe-Zertifikat B1 Modellsatz - Lesen',
-                        sourceName: 'Goethe-Institut',
-                        xpReward: 100
-                    },
-                    {
-                        id: 2,
-                        exerciseType: 'NORMAL',
-                        cefrLevel: 'A2',
-                        skillType: 'GRAMMAR',
-                        examName: null,
-                        sourceName: 'DeutschFlow Internal',
-                        xpReward: 50
-                    }
-                ];
-                
-                const filtered = filterLevel ? mockData.filter(d => d.cefrLevel === filterLevel) : mockData;
-                setExercises(filtered);
-                setLoading(false);
-            }, 500);
+            const params: Record<string, string> = {};
+            if (filterLevel) params.cefrLevel = filterLevel;
+            const { data } = await api.get<SpringPage<PracticeExercise>>('/practice/exercises', { params });
+            setExercises(data.content);
         } catch (error) {
             console.error(error);
+            toast.error('Không thể tải bài tập. Vui lòng thử lại.');
+        } finally {
             setLoading(false);
         }
-    };
+    }, [filterLevel]);
+
+    useEffect(() => {
+        fetchExercises();
+    }, [fetchExercises]);
 
     const handleSubmitTest = async (id: number) => {
+        setSubmitting(id);
         try {
-            // Mock submit
+            await api.post('/practice/submit', { practiceId: id, scorePercent: 100 });
             toast.success('Hoàn thành bài tập! Bạn đã nhận được XP.');
             trackFeatureAction('practice_exercise', 'completed', { exerciseId: id });
         } catch (error) {
             console.error(error);
+            toast.error('Không thể ghi nhận kết quả. Vui lòng thử lại.');
+        } finally {
+            setSubmitting(null);
         }
     };
 
@@ -87,9 +78,9 @@ export default function PracticePageClient() {
                     <h1 className="text-3xl font-bold tracking-tight mb-2">Thư viện Tài nguyên & Luyện thi</h1>
                     <p className="text-muted-foreground">Làm bài tập bổ trợ để nhận thêm XP. Các bài tập này không ảnh hưởng đến lộ trình chính của bạn.</p>
                 </div>
-                
+
                 <div className="flex gap-2">
-                    <select 
+                    <select
                         className="p-2 border rounded-md bg-background"
                         value={filterLevel}
                         onChange={(e) => setFilterLevel(e.target.value)}
@@ -132,8 +123,12 @@ export default function PracticePageClient() {
                                 <p className="mt-2 text-primary font-medium">+{ex.xpReward} XP</p>
                             </CardContent>
                             <CardFooter>
-                                <Button className="w-full" onClick={() => handleSubmitTest(ex.id)}>
-                                    Làm bài ngay
+                                <Button
+                                    className="w-full"
+                                    disabled={submitting === ex.id}
+                                    onClick={() => handleSubmitTest(ex.id)}
+                                >
+                                    {submitting === ex.id ? 'Đang xử lý...' : 'Làm bài ngay'}
                                 </Button>
                             </CardFooter>
                         </Card>
