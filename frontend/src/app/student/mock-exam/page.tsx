@@ -89,6 +89,7 @@ export default function MockExamPage() {
   const [attempts, setAttempts] = useState<MockAttempt[]>([])
   const [loading, setLoading] = useState(true)
   const [recommendedExamId, setRecommendedExamId] = useState<number | null>(null)
+  const [selectedLevel, setSelectedLevel] = useState<string>('A1')
   
   // View states
   const [view, setView] = useState<'list' | 'result' | 'taking'>('list')
@@ -102,13 +103,18 @@ export default function MockExamPage() {
   const [answers, setAnswers] = useState<Record<string, any>>({})
   const [submitting, setSubmitting] = useState(false)
 
+  // Sync selectedLevel with user's target level once it loads
+  useEffect(() => {
+    if (targetLevel && !meLoading) setSelectedLevel(targetLevel)
+  }, [targetLevel, meLoading])
+
   const load = useCallback(async () => {
     setLoading(true)
     try {
       const [examRes, attRes, recRes] = await Promise.allSettled([
-        api.get<MockExam[]>('/mock-exams?cefrLevel=A1'),
+        api.get<MockExam[]>(`/mock-exams?cefrLevel=${selectedLevel}`),
         api.get<MockAttempt[]>('/mock-exams/attempts/me'),
-        api.get<{ recommendedExamId: number }>('/mock-exams/recommend?cefrLevel=A1'),
+        api.get<{ recommendedExamId: number }>(`/mock-exams/recommend?cefrLevel=${selectedLevel}`),
       ])
       if (examRes.status === 'fulfilled') setExams(examRes.value.data ?? [])
       if (attRes.status === 'fulfilled') setAttempts(attRes.value.data ?? [])
@@ -117,7 +123,7 @@ export default function MockExamPage() {
         setRecommendedExamId(recId && recId > 0 ? recId : null)
       }
     } finally { setLoading(false) }
-  }, [])
+  }, [selectedLevel])
 
   const submitExam = useCallback(async (autoSubmit = false) => {
     if (!activeAttemptId) return
@@ -468,7 +474,7 @@ export default function MockExamPage() {
 
         {/* Goethe format explanation */}
         <div className="rounded-2xl p-5 text-white space-y-3" style={{ background: 'linear-gradient(135deg,#1E293B 0%,#312E81 100%)' }}>
-          <h2 className="font-extrabold text-lg">📋 Format Goethe Start Deutsch 1 (A1)</h2>
+          <h2 className="font-extrabold text-lg">📋 Format Goethe {selectedLevel === 'A1' ? 'Start Deutsch 1' : `Zertifikat ${selectedLevel}`} ({selectedLevel})</h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
               { section: 'LESEN', label: 'Lesen', time: '20 min', desc: '3 phần đọc' },
@@ -551,13 +557,22 @@ export default function MockExamPage() {
             <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
               {/* Available exams */}
               <div>
-                <h3 className="font-bold text-[#0F172A] text-base mb-3">Đề thi có sẵn</h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-bold text-[#0F172A] text-base">Đề thi có sẵn</h3>
+                  <select
+                    className="text-sm border border-[#E2E8F0] rounded-xl px-3 py-1.5 font-semibold text-[#334155] bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    value={selectedLevel}
+                    onChange={(e) => setSelectedLevel(e.target.value)}
+                  >
+                    {['A1', 'A2', 'B1', 'B2'].map(l => <option key={l} value={l}>{l}</option>)}
+                  </select>
+                </div>
                 {loading && <div className="flex justify-center py-10"><Loader2 size={24} className="animate-spin text-[#6366F1]" /></div>}
                 {!loading && exams.length === 0 && (
                   <div className="bg-white rounded-2xl border border-[#E2E8F0] p-8 text-center">
                     <AlertCircle size={32} className="text-[#C7D2FE] mx-auto mb-2" />
                     <p className="font-semibold text-[#0F172A]">Chưa có đề thi</p>
-                    <p className="text-sm text-[#94A3B8]">Đề thi Goethe A1 sẽ sớm được cập nhật</p>
+                    <p className="text-sm text-[#94A3B8]">Đề thi Goethe {selectedLevel} sẽ sớm được cập nhật</p>
                   </div>
                 )}
                 {exams.map(exam => {
