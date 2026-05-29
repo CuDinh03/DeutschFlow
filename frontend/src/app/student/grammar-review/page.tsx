@@ -6,6 +6,7 @@ import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
 import { logout } from '@/lib/authSession'
 import { useRouter } from 'next/navigation'
 import api from '@/lib/api'
+import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { motion, AnimatePresence } from 'framer-motion'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
@@ -46,7 +47,7 @@ export default function GrammarReviewPage() {
       setTasks(tasks.filter(t => t.id !== taskId))
     } catch (e) {
       console.error(e)
-      alert("Lỗi khi hoàn thành bài tập")
+      toast.error("Lỗi khi hoàn thành bài tập")
     }
   }
 

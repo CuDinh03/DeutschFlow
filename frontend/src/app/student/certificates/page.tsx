@@ -8,6 +8,7 @@ import { useStudentPracticeSession } from "@/hooks/useStudentPracticeSession";
 import { getAccessToken, logout } from "@/lib/authSession";
 import api from "@/lib/api";
 import { usePageTimeTracker } from "@/hooks/usePageTimeTracker";
+import { toast } from "sonner";
 
 interface Certificate {
   id: number;
@@ -137,7 +138,7 @@ export default function CertificatePage() {
       a.remove();
       URL.revokeObjectURL(url);
     } catch (e: any) {
-      alert(e?.message ?? "Lỗi tải chứng chỉ");
+      toast.error(e?.message ?? "Lỗi tải chứng chỉ");
     }
   };
 

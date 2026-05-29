@@ -14,6 +14,7 @@ import { logout } from '@/lib/authSession'
 import api from '@/lib/api'
 import { useTracking } from '@/hooks/useTracking'
 import { AudioPlayer } from '@/components/exam/AudioPlayer'
+import { toast } from 'sonner'
 
 interface MockExam {
   id: number
@@ -142,7 +143,7 @@ export default function MockExamPage() {
         totalScore: finishedAttempt.data?.total_score,
       })
     } catch {
-      alert('Lỗi nộp bài. Vui lòng thử lại.')
+      toast.error('Lỗi nộp bài. Vui lòng thử lại.')
     } finally {
       setSubmitting(false)
     }
@@ -197,7 +198,7 @@ export default function MockExamPage() {
       }
 
       if (!examSections || !examSections.sections) {
-        alert("Đề thi chưa có nội dung chi tiết. Vui lòng thử lại sau.")
+        toast.error('Đề thi chưa có nội dung chi tiết. Vui lòng thử lại sau.')
         return
       }
 
@@ -209,7 +210,7 @@ export default function MockExamPage() {
       setView('taking')
       trackFeatureAction('mock_exam', 'started', { examId: exam.id, title: exam.title })
     } catch (e: any) {
-      alert(e?.response?.data?.message ?? 'Không thể bắt đầu thi')
+      toast.error(e?.response?.data?.message ?? 'Không thể bắt đầu thi')
     } finally {
       setLoading(false)
     }
@@ -227,14 +228,14 @@ export default function MockExamPage() {
         if (attempt.sections_json) {
           try { examSections = typeof attempt.sections_json === 'string' ? JSON.parse(attempt.sections_json) : attempt.sections_json } catch {}
         }
-        if (!examSections?.sections) { alert('Không thể tiếp tục bài thi. Vui lòng thử lại.'); return }
+        if (!examSections?.sections) { toast.error('Không thể tiếp tục bài thi. Vui lòng thử lại.'); return }
         setActiveAttemptId(att.id)
         setActiveExamData(examSections)
         setCurrentSectionIdx(0)
-        setTimeLeft(60 * 60) // fallback 60 min if exam meta unavailable
+        setTimeLeft(60 * 60)
         setAnswers({})
         setView('taking')
-      } catch { alert('Không thể tiếp tục bài thi. Vui lòng thử lại.') } finally { setLoading(false) }
+      } catch { toast.error('Không thể tiếp tục bài thi. Vui lòng thử lại.') } finally { setLoading(false) }
       return
     }
     await startExam(exam)

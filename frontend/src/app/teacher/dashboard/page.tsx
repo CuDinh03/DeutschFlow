@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import api, { httpStatus, apiMessage } from '@/lib/api'
+import { toast } from 'sonner'
 import { TeacherShell } from '@/components/layouts/TeacherShell'
 import { Users, Trash2, UserPlus, FileText, Loader2, Plus, Mail, CheckCircle, BellRing, Trophy, TrendingUp, Presentation, AlertCircle, Sparkles, BookOpen, ChevronRight } from 'lucide-react'
 import { logout } from '@/lib/authSession'
@@ -334,7 +335,7 @@ export default function TeacherDashboardPage() {
                         onClick={(e) => {
                           e.stopPropagation();
                           navigator.clipboard.writeText(c.inviteCode);
-                          alert('Đã copy mã lớp học!');
+                          toast.success('Đã copy mã lớp học!');
                         }}
                         className="text-slate-400 hover:text-indigo-600 p-1.5 rounded-lg transition-colors"
                         title="Copy mã lớp"

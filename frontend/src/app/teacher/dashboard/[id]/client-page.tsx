@@ -287,7 +287,7 @@ export default function ClassDetailPage() {
       fetchData(); // Refresh assignments
     } catch (e) {
       console.error(e);
-      alert("Lỗi khi giao bài tập");
+      toast.error("Lỗi khi giao bài tập");
     } finally {
       setIsCreatingAssignment(false);
     }
@@ -299,7 +299,7 @@ export default function ClassDetailPage() {
       fetchData();
     } catch (e) {
       console.error(e);
-      alert("Lỗi khi duyệt học viên");
+      toast.error("Lỗi khi duyệt học viên");
     }
   };
 
@@ -309,7 +309,7 @@ export default function ClassDetailPage() {
       fetchData();
     } catch (e) {
       console.error(e);
-      alert("Lỗi khi từ chối học viên");
+      toast.error("Lỗi khi từ chối học viên");
     }
   };
 
@@ -340,7 +340,7 @@ export default function ClassDetailPage() {
       fetchData();
     } catch (e) {
       console.error(e);
-      alert("Lỗi khi xóa học viên");
+      toast.error("Lỗi khi xóa học viên");
     } finally {
       setRemovingStudentId(null);
     }
@@ -359,7 +359,7 @@ export default function ClassDetailPage() {
     } catch (e) {
       console.error(e);
       setClassName(oldName); // Revert on failure
-      alert("Không thể đổi tên lớp. Vui lòng thử lại.");
+      toast.error("Không thể đổi tên lớp. Vui lòng thử lại.");
     }
   };
 

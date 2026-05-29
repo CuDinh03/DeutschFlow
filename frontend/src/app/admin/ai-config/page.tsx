@@ -9,6 +9,7 @@ import { ADMIN_AI_SYSTEM_PROMPT_DEFAULT } from '@/lib/adminAiDefaults'
 import { apiMessage, isAxiosErr } from '@/lib/api'
 import { localAiApi, type AIHealthStatus } from '@/lib/localAiApi'
 import api from '@/lib/api'
+import { toast } from 'sonner'
 
 type AiConfigDto = {
   prompt: string
@@ -75,7 +76,7 @@ export default function AdminAiConfigPage() {
       setSavedFlash(true)
       window.setTimeout(() => setSavedFlash(false), 2200)
     } catch (e) {
-      alert(apiMessage(e))
+      toast.error(apiMessage(e))
     } finally {
       setSaving(false)
     }

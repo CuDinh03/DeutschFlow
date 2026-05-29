@@ -20,6 +20,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import api from "@/lib/api";
+import { toast } from "sonner";
 import { phaseApi, type PhaseStateResponse } from "@/lib/phaseApi";
 import { TodayPlanDto } from "@/types/today-plan";
 import { PhaseIndicator } from "@/components/journey/PhaseIndicator";
@@ -321,8 +322,8 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="flex w-full sm:w-auto items-center gap-2">
-            <input type="text" id="joinCode" placeholder="Nhập mã lớp..." className="px-4 py-3 rounded-xl border border-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white shadow-sm w-full sm:w-52 uppercase font-medium" onKeyDown={async (e) => { if (e.key === 'Enter') { const code = e.currentTarget.value; if (!code) return; try { await api.post('/v2/student/classes/join', { inviteCode: code }); alert('Đã gửi yêu cầu tham gia lớp. Vui lòng chờ giáo viên duyệt.'); e.currentTarget.value = ''; } catch (err: any) { alert(err.response?.data?.error || 'Không thể gửi yêu cầu tham gia lớp.'); } } }} />
-            <button onClick={async () => { const code = (document.getElementById('joinCode') as HTMLInputElement)?.value; if (!code) return; try { await api.post('/v2/student/classes/join', { inviteCode: code }); alert('Đã gửi yêu cầu tham gia lớp. Vui lòng chờ giáo viên duyệt.'); (document.getElementById('joinCode') as HTMLInputElement).value = ''; } catch (err: any) { alert(err.response?.data?.error || 'Không thể gửi yêu cầu tham gia lớp.'); } }} className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-xl transition-colors whitespace-nowrap shadow-sm">Xin vào lớp</button>
+            <input type="text" id="joinCode" placeholder="Nhập mã lớp..." className="px-4 py-3 rounded-xl border border-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white shadow-sm w-full sm:w-52 uppercase font-medium" onKeyDown={async (e) => { if (e.key === 'Enter') { const code = e.currentTarget.value; if (!code) return; try { await api.post('/v2/student/classes/join', { inviteCode: code }); toast.success('Đã gửi yêu cầu tham gia lớp. Vui lòng chờ giáo viên duyệt.'); e.currentTarget.value = ''; } catch (err: any) { toast.error(err.response?.data?.error || 'Không thể gửi yêu cầu tham gia lớp.'); } } }} />
+            <button onClick={async () => { const code = (document.getElementById('joinCode') as HTMLInputElement)?.value; if (!code) return; try { await api.post('/v2/student/classes/join', { inviteCode: code }); toast.success('Đã gửi yêu cầu tham gia lớp. Vui lòng chờ giáo viên duyệt.'); (document.getElementById('joinCode') as HTMLInputElement).value = ''; } catch (err: any) { toast.error(err.response?.data?.error || 'Không thể gửi yêu cầu tham gia lớp.'); } }} className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-xl transition-colors whitespace-nowrap shadow-sm">Xin vào lớp</button>
           </div>
         </div>
 

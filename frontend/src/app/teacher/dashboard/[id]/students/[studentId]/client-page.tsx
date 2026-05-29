@@ -5,6 +5,7 @@ import { TeacherShell } from "@/components/layouts/TeacherShell";
 import { useStudentPracticeSession } from "@/hooks/useStudentPracticeSession";
 import { usePendingGradingCount } from "@/hooks/usePendingGradingCount";
 import api from "@/lib/api";
+import { toast } from "sonner";
 import { logout } from "@/lib/authSession";
 import { format } from "date-fns";
 import { Mic, CheckCircle, Clock, BookOpen, AlertCircle, PlayCircle, Loader2, Save, Download, FileDown } from "lucide-react";
@@ -276,7 +277,7 @@ export default function StudentReviewPage() {
       setEvalAssignment(null);
     } catch (e) {
       console.error(e);
-      alert("Lỗi khi chấm bài tập (Hoặc API chưa được định nghĩa hoàn chỉnh)");
+      toast.error("Lỗi khi chấm bài tập");
     } finally {
       setIsEvaluating(false);
     }
@@ -385,7 +386,7 @@ export default function StudentReviewPage() {
                           className="flex items-center gap-2 text-indigo-600 font-bold text-sm bg-indigo-50 hover:bg-indigo-100 px-4 py-2 rounded-xl transition-colors"
                           onClick={() => {
                             // Integrate actual audio player/transcript viewer here in future
-                            alert("Tính năng xem chi tiết hội thoại (Audio Player & Highlighter) đang được phát triển.");
+                            toast.info("Tính năng xem lại hội thoại đang được phát triển.");
                           }}
                         >
                           <PlayCircle size={18} /> Xem lại hội thoại

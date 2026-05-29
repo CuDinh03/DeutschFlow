@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, ArrowLeft, Loader2, CheckCircle, XCircle } from "lucide-react";
 import api from "@/lib/api";
+import { toast } from "sonner";
 import { useTracking } from "@/hooks/useTracking";
 
 const LEVELS = [
@@ -77,7 +78,7 @@ export default function OnboardingPage() {
       setTestResult(data); 
       trackEvent('onboarding_placement_test_completed', { passed: data.passed, score: data.scorePercent });
     }
-    catch { alert("Nộp bài thất bại."); }
+    catch { toast.error("Nộp bài thất bại."); }
     setLoading(false);
   }, [testId, answers, trackEvent]);
 
