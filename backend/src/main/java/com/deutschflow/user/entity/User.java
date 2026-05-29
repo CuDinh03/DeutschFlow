@@ -52,6 +52,12 @@ public class User implements UserDetails {
     @Builder.Default
     private String notificationTimezone = "Asia/Ho_Chi_Minh";
 
+    @Column(name = "push_token")
+    private String pushToken;
+
+    @Column(name = "push_platform", length = 10)
+    private String pushPlatform;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

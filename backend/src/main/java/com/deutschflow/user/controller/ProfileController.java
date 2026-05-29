@@ -8,6 +8,8 @@ import com.deutschflow.user.repository.UserLearningProfileRepository;
 import com.deutschflow.user.service.AuthService;
 import com.deutschflow.user.service.UserLearningProfileService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -74,5 +76,18 @@ public class ProfileController {
             @AuthenticationPrincipal User user,
             @Valid @RequestBody ChangePasswordRequest request) {
         authService.changePassword(user, request);
+    }
+
+    record PushTokenRequest(
+        @NotBlank String token,
+        @Pattern(regexp = "ios|android") String platform
+    ) {}
+
+    @PostMapping("/me/push-token")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void savePushToken(
+            @AuthenticationPrincipal User user,
+            @Valid @RequestBody PushTokenRequest request) {
+        authService.savePushToken(user, request.token(), request.platform());
     }
 }

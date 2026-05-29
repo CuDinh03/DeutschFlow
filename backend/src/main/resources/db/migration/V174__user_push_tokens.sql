@@ -1,0 +1,3 @@
+ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS push_token TEXT,
+    ADD COLUMN IF NOT EXISTS push_platform VARCHAR(10);

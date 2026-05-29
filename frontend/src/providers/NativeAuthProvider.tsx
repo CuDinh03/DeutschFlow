@@ -2,6 +2,8 @@
 
 import { useEffect } from 'react'
 import { Capacitor } from '@capacitor/core'
+import { registerPushNotifications } from '@/hooks/usePushNotifications'
+import api from '@/lib/api'
 
 // tokenCacheReady is initialized at module level in authSession.ts the moment
 // that module is imported — no explicit warm-up call needed here.
@@ -34,6 +36,12 @@ export function NativeAuthProvider({ children }: { children: React.ReactNode }) 
     }
 
     void configureStatusBar()
+
+    void registerPushNotifications((token) => {
+      void api.post('/profile/me/push-token', { token, platform: 'ios' }).catch(() => {
+        // Non-critical — silent fail, token will be retried on next launch
+      })
+    })
 
     return () => {
       cancelled = true

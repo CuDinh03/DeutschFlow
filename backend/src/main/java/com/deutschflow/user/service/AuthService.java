@@ -147,6 +147,13 @@ public class AuthService {
     }
 
     @Transactional
+    public void savePushToken(User user, String token, String platform) {
+        user.setPushToken(token);
+        user.setPushPlatform(platform);
+        userRepository.save(user);
+    }
+
+    @Transactional
     public AuthResponse updateLocale(User user, String locale) {
         User.Locale loc = User.Locale.valueOf(locale.trim().toLowerCase());
         user.setLocale(loc);
