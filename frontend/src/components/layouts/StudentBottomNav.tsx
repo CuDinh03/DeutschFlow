@@ -39,7 +39,10 @@ export function StudentBottomNav({
   return (
     <nav
       className={cn(
-        "df-bottom-nav lg:hidden fixed bottom-0 left-0 right-0 z-40 flex items-end justify-around px-1 pt-1",
+        // Positioning + size handled by .df-bottom-nav (CSS), giving us the
+        // floating Liquid Glass pill above the safe area instead of a full-
+        // width bar pinned to the edge.
+        "df-bottom-nav lg:hidden z-40 flex items-center justify-around px-2",
         className,
       )}
       aria-label={t("bottomNavAria")}

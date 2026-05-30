@@ -10,6 +10,7 @@ import { DeutschFlowLogo } from '@/components/ui/DeutschFlowLogo'
 import { useTracking } from '@/hooks/useTracking'
 import { MobileRegisterForm } from '@/components/auth/MobileRegisterForm'
 import { useStatusBarStyle } from '@/lib/statusBar'
+import { lightImpact } from '@/lib/haptics'
 
 function useIsNative() {
   const [isNative, setIsNative] = useState(false)
@@ -38,6 +39,7 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    lightImpact()
     setLoading(true)
     setError('')
     setFieldErrors({})
@@ -48,12 +50,26 @@ export default function RegisterPage() {
       if (form.locale && ['vi', 'en', 'de'].includes(form.locale)) {
         document.cookie = `locale=${form.locale};path=/;max-age=31536000;SameSite=Lax`
       }
-      router.refresh()
 
       const userRes = await api.get('/auth/me')
       const user = userRes.data
 
-      // Identify newly registered user in PostHog
+      // Navigate FIRST — skipping router.refresh() avoids a re-render flash
+      // of the register page right before the route change.
+      switch (user.role) {
+        case 'ADMIN':
+          router.replace('/admin')
+          break
+        case 'TEACHER':
+          router.replace('/teacher')
+          break
+        case 'STUDENT':
+        default:
+          router.replace('/onboarding')
+          break
+      }
+
+      // Non-blocking analytics — runs after navigation kicks off.
       identifyUser(String(user.id), {
         email: user.email,
         name: user.displayName,
@@ -62,19 +78,6 @@ export default function RegisterPage() {
         created_at: new Date().toISOString(),
       })
       trackEvent('register_success', { role: user.role, locale: form.locale })
-
-      switch (user.role) {
-        case 'ADMIN':
-          router.push('/admin')
-          break
-        case 'TEACHER':
-          router.push('/teacher')
-          break
-        case 'STUDENT':
-        default:
-          router.push('/onboarding')
-          break
-      }
     } catch (err: unknown) {
       const res = (err as { response?: { data?: { detail?: string; errors?: FieldErrors } } })?.response?.data
       if (res?.errors) setFieldErrors(res.errors)

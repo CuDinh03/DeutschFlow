@@ -25,11 +25,16 @@ export function NativeAuthProvider({ children }: { children: React.ReactNode }) 
 
     const configureStatusBar = async () => {
       try {
-        const { StatusBar } = await import('@capacitor/status-bar')
+        const { StatusBar, Style } = await import('@capacitor/status-bar')
         if (cancelled) return
         // Do not let the webview draw underneath the status bar; safe-area
         // padding in CSS handles spacing instead.
         await StatusBar.setOverlaysWebView({ overlay: false })
+        // Set a global default of dark icons (light background) so every route
+        // that doesn't call useStatusBarStyle() — speaking, roadmap, etc. —
+        // gets correct icons without extra per-page hooks.
+        // login/register override to Style.Dark (light icons) when they mount.
+        await StatusBar.setStyle({ style: Style.Light })
       } catch {
         // Plugin unavailable (e.g. web preview) — ignore silently.
       }

@@ -110,51 +110,9 @@ struct AuthChoiceView: View {
         .onAppear { appeared = true }
     }
 
-    // ── Compact D-logo ────────────────────────────────────────────────────────
+    // ── Compact D-logo (shapes defined in DFLogo.swift) ──────────────────────
 
     private var dLogo: some View {
-        ZStack {
-            DOutline()
-                .stroke(Color.white, style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .miter))
-            RedTriangle()
-                .fill(DF.Brand.red)
-            YellowSquare()
-                .fill(DF.Brand.yellow)
-        }
-        .frame(width: 64, height: 64)
-    }
-
-    private struct DOutline: Shape {
-        func path(in rect: CGRect) -> Path {
-            let s = rect.width / 100
-            var p = Path()
-            p.move(to: CGPoint(x: 20*s, y: 18*s))
-            p.addLine(to: CGPoint(x: 20*s, y: 82*s))
-            p.addLine(to: CGPoint(x: 52*s, y: 82*s))
-            p.addLine(to: CGPoint(x: 74*s, y: 62*s))
-            p.addLine(to: CGPoint(x: 74*s, y: 38*s))
-            p.addLine(to: CGPoint(x: 52*s, y: 18*s))
-            p.closeSubpath()
-            return p
-        }
-    }
-
-    private struct RedTriangle: Shape {
-        func path(in rect: CGRect) -> Path {
-            let s = rect.width / 100
-            var p = Path()
-            p.move(to: CGPoint(x: 52*s, y: 38*s))
-            p.addLine(to: CGPoint(x: 74*s, y: 50*s))
-            p.addLine(to: CGPoint(x: 52*s, y: 62*s))
-            p.closeSubpath()
-            return p
-        }
-    }
-
-    private struct YellowSquare: Shape {
-        func path(in rect: CGRect) -> Path {
-            let s = rect.width / 100
-            return Path(CGRect(x: 24*s, y: 45*s, width: 9*s, height: 9*s))
-        }
+        DFLogoStatic(size: 64)
     }
 }

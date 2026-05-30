@@ -98,6 +98,7 @@ function Field({
 export function MobileLoginForm({ form, error, fieldErrors, loading, onChange, onSubmit }: Props) {
   return (
     <div
+      data-native-page
       style={{
         minHeight: '100dvh',
         background: BG,

@@ -24,6 +24,10 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>DeutschFlow cần truy cập micro để ghi âm giọng nói của bạn khi luyện hội thoại và phát âm tiếng Đức với AI Coach.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>DeutschFlow sử dụng nhận dạng giọng nói để chấm điểm phát âm và hỗ trợ luyện từ vựng bằng tiếng Đức.</string>
 	<key>NSUserNotificationUsageDescription</key>
 	<string>DeutschFlow gửi thông báo nhắc luyện tập từ vựng và kết quả bài tập tiếng Đức hằng ngày.</string>
 	<key>UIBackgroundModes</key>

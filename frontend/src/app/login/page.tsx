@@ -12,6 +12,7 @@ import LanguageSwitcher from '@/components/ui/LanguageSwitcher'
 import { useTracking } from '@/hooks/useTracking'
 import { MobileLoginForm } from '@/components/auth/MobileLoginForm'
 import { useStatusBarStyle } from '@/lib/statusBar'
+import { lightImpact } from '@/lib/haptics'
 
 type FieldErrors = Record<string, string>
 
@@ -94,6 +95,7 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    lightImpact()
     setLoading(true)
     setError('')
     setFieldErrors({})
@@ -113,18 +115,10 @@ export default function LoginPage() {
       const userRes = await api.get('/auth/me')
       const user = userRes.data
 
-      router.refresh()
-
-      // Identify user in PostHog after login
-      identifyUser(String(user.id), {
-        email: user.email,
-        name: user.displayName,
-        role: user.role,
-        locale: user.locale,
-      })
-      trackEvent('login_success', { role: user.role })
-      registerPushNotifications()
-
+      // Navigate FIRST — kills the visible "flash" caused by router.refresh()
+      // re-rendering the login page before navigation. Analytics + push
+      // registration are fire-and-forget; the target route picks up the new
+      // auth state via the freshly-set token cookie.
       switch (user.role) {
         case 'ADMIN':
           router.replace('/admin')
@@ -137,6 +131,16 @@ export default function LoginPage() {
           router.replace('/dashboard')
           break
       }
+
+      // Non-blocking: PostHog identify + push reg happen after navigation.
+      identifyUser(String(user.id), {
+        email: user.email,
+        name: user.displayName,
+        role: user.role,
+        locale: user.locale,
+      })
+      trackEvent('login_success', { role: user.role })
+      registerPushNotifications()
     } catch (err: unknown) {
       const res = (err as { response?: { data?: { detail?: string; errors?: FieldErrors } } })?.response?.data
       if (res?.errors) setFieldErrors(res.errors)

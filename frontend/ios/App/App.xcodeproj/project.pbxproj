@@ -20,6 +20,7 @@
 		A1B2C3D91FED79650016851F /* AuthChoiceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D81FED79650016851F /* AuthChoiceView.swift */; };
 		A1B2C3DB1FED79650016851F /* DesignTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3DA1FED79650016851F /* DesignTokens.swift */; };
 		A1B2C3DD1FED79650016851F /* WebViewExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3DC1FED79650016851F /* WebViewExtensions.swift */; };
+		A1B2C3DF1FED79650016851F /* DFLogo.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3DE1FED79650016851F /* DFLogo.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -38,6 +39,7 @@
 		A1B2C3D81FED79650016851F /* AuthChoiceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthChoiceView.swift; sourceTree = "<group>"; };
 		A1B2C3DA1FED79650016851F /* DesignTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignTokens.swift; sourceTree = "<group>"; };
 		A1B2C3DC1FED79650016851F /* WebViewExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebViewExtensions.swift; sourceTree = "<group>"; };
+		A1B2C3DE1FED79650016851F /* DFLogo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DFLogo.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -79,6 +81,7 @@
 				A1B2C3D81FED79650016851F /* AuthChoiceView.swift */,
 				A1B2C3DA1FED79650016851F /* DesignTokens.swift */,
 				A1B2C3DC1FED79650016851F /* WebViewExtensions.swift */,
+				A1B2C3DE1FED79650016851F /* DFLogo.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
 				504EC3101FED79650016851F /* LaunchScreen.storyboard */,
@@ -178,6 +181,7 @@
 				A1B2C3D91FED79650016851F /* AuthChoiceView.swift in Sources */,
 				A1B2C3DB1FED79650016851F /* DesignTokens.swift in Sources */,
 				A1B2C3DD1FED79650016851F /* WebViewExtensions.swift in Sources */,
+				A1B2C3DF1FED79650016851F /* DFLogo.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

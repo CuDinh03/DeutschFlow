@@ -192,12 +192,53 @@
     overscroll-behavior: none;
     -webkit-tap-highlight-color: transparent;
     -webkit-touch-callout: none;
+    /* Kills 300ms tap delay + double-tap-to-zoom while still allowing pinch
+       zoom on individually opted-in scroll containers. */
+    touch-action: manipulation;
   }
 
   html.native body {
     /* Prevent selecting UI chrome; learning content opts back in below. */
     -webkit-user-select: none;
     user-select: none;
+    /* Force compositor layer for the root — eliminates white flashes during
+       route transitions on iOS WKWebView. */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+  }
+
+  /* Press-down feedback for tappable elements. Mirrors UIKit's subtle scale
+     so buttons feel reactive instead of dead. Excludes form inputs. */
+  html.native button:active,
+  html.native [role="button"]:active,
+  html.native a:active {
+    transform: scale(0.97);
+    transition: transform 80ms ease-out;
+  }
+
+  /* Hover states stick on touch (no mouse-out event) — disable on native. */
+  @media (hover: none) {
+    html.native *:hover {
+      background-color: revert;
+    }
+  }
+
+  /* Hide scrollbars on native — iOS doesn't show them anyway, this kills
+     the brief flash some scroll containers paint in WKWebView. */
+  html.native ::-webkit-scrollbar {
+    display: none;
+  }
+  html.native * {
+    scrollbar-width: none;
+  }
+
+  /* Legacy momentum scroll for any UIScrollView-backed elements that opt in. */
+  html.native [data-native-scroll],
+  html.native main,
+  html.native .overflow-auto,
+  html.native .overflow-y-auto,
+  html.native .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
   }
 
   /* Re-enable selection where reading/copying text is expected. */
@@ -468,41 +509,112 @@
     box-shadow: 0 1px 8px rgba(0, 48, 94, 0.06);
   }
 
+  /* ────────────────────────────────────────────────────────────────────────
+     Liquid Glass system (iOS 26-aligned).
+     Three materials:
+       • .df-bottom-nav  — floating pill nav (detached from screen edges)
+       • .df-glass-card  — translucent card with specular top highlight
+       • .df-glass-pill  — compact pill badge (for status/streak/XP chips)
+     ──────────────────────────────────────────────────────────────────────── */
+
   .df-bottom-nav {
-    height: calc(64px + env(safe-area-inset-bottom, 0px));
-    border-top: 0.5px solid rgba(0, 0, 0, 0.08);
-    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.07), 0 -0.5px 0 rgba(0, 0, 0, 0.07);
-    background: rgba(255, 255, 255, 0.68);
+    /* Floating pill: detach from screen edges with margin */
+    position: fixed;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
+    left: 14px;
+    right: 14px;
+    height: 64px;
+    border-radius: 32px;
+
+    /* Glass material — content shows through with refraction */
+    background: rgba(255, 255, 255, 0.55);
     -webkit-backdrop-filter: blur(32px) saturate(200%);
     backdrop-filter: blur(32px) saturate(200%);
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+
+    /* Hairline edge + floating shadow (soft far + crisp near, iOS-style) */
+    border: 0.5px solid rgba(255, 255, 255, 0.7);
+    box-shadow:
+      0 12px 40px rgba(0, 0, 0, 0.18),
+      0 4px 12px rgba(0, 0, 0, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.85),
+      inset 0 -0.5px 0 rgba(0, 0, 0, 0.06);
   }
 
-  /* Gradient fade so page content visually dissolves into the glass bar */
+  /* Specular highlight — light catches the top half of the glass pill */
   .df-bottom-nav::before {
     content: '';
     position: absolute;
-    left: 0;
-    right: 0;
-    top: -24px;
-    height: 24px;
-    background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.72));
+    inset: 0.5px 0.5px auto 0.5px;
+    height: 50%;
+    border-radius: 32px 32px 100px 100px / 32px 32px 32px 32px;
+    background: linear-gradient(180deg,
+      rgba(255, 255, 255, 0.55) 0%,
+      rgba(255, 255, 255, 0.12) 60%,
+      rgba(255, 255, 255, 0) 100%);
     pointer-events: none;
   }
 
-  /* On native iOS — stronger glass with page-mesh tint bleeding through */
+  /* Native iOS — push glass tint a touch warmer + stronger blur */
   html.native .df-bottom-nav {
-    background: rgba(245, 245, 245, 0.62);
-    -webkit-backdrop-filter: blur(40px) saturate(220%) brightness(1.04);
-    backdrop-filter: blur(40px) saturate(220%) brightness(1.04);
-    border-top: 0.5px solid rgba(0, 0, 0, 0.10);
-    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.06), 0 -0.5px 0 rgba(0, 0, 0, 0.09);
+    background: rgba(252, 252, 254, 0.50);
+    -webkit-backdrop-filter: blur(48px) saturate(220%) brightness(1.06);
+    backdrop-filter: blur(48px) saturate(220%) brightness(1.06);
+    border-color: rgba(255, 255, 255, 0.85);
+    box-shadow:
+      0 16px 48px rgba(0, 0, 0, 0.22),
+      0 6px 14px rgba(0, 0, 0, 0.10),
+      inset 0 1px 0 rgba(255, 255, 255, 0.95),
+      inset 0 -0.5px 0 rgba(0, 0, 0, 0.06);
   }
 
-  html.native .df-bottom-nav::before {
-    background: linear-gradient(to bottom, rgba(245, 245, 245, 0), rgba(245, 245, 245, 0.65));
-    top: -32px;
-    height: 32px;
+  /* Translucent card — for content blocks that should feel "floating" */
+  .df-glass-card {
+    position: relative;
+    background: rgba(255, 255, 255, 0.72);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    backdrop-filter: blur(24px) saturate(180%);
+    border: 0.5px solid rgba(255, 255, 255, 0.85);
+    border-radius: 24px;
+    box-shadow:
+      0 8px 28px rgba(15, 23, 42, 0.08),
+      0 2px 6px rgba(15, 23, 42, 0.04),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  }
+
+  .df-glass-card::before {
+    content: '';
+    position: absolute;
+    inset: 0.5px 0.5px auto 0.5px;
+    height: 40%;
+    border-radius: 24px 24px 80px 80px / 24px 24px 24px 24px;
+    background: linear-gradient(180deg,
+      rgba(255, 255, 255, 0.4) 0%,
+      rgba(255, 255, 255, 0) 100%);
+    pointer-events: none;
+  }
+
+  /* Dark-surface variant — for cards over the dark "Bảng điều khiển" panel */
+  .df-glass-card-dark {
+    background: rgba(20, 22, 38, 0.55);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    backdrop-filter: blur(24px) saturate(180%);
+    border: 0.5px solid rgba(255, 255, 255, 0.12);
+    border-radius: 24px;
+    box-shadow:
+      0 12px 32px rgba(0, 0, 0, 0.35),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+
+  /* Compact pill — for status chips (XP, streak, level badges, etc.) */
+  .df-glass-pill {
+    background: rgba(255, 255, 255, 0.7);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+    border: 0.5px solid rgba(255, 255, 255, 0.9);
+    border-radius: 999px;
+    box-shadow:
+      0 2px 8px rgba(0, 0, 0, 0.06),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9);
   }
 
   /* Persona tint roots (set data-persona on a section parent, e.g. speaking) */
@@ -597,10 +709,13 @@
 
   /* ── Native page enter — fade in after dark overlay dismissal ── */
   @keyframes nativePageEnter {
-    from { opacity: 0; transform: translateY(6px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; transform: translate3d(0, 6px, 0); }
+    to   { opacity: 1; transform: translate3d(0, 0, 0); }
   }
-  html.native .native-page-enter {
-    animation: nativePageEnter 0.38s var(--ease-spring-gentle) forwards;
+  html.native .native-page-enter,
+  html.native .auth-shell,
+  html.native main[role="main"],
+  html.native [data-native-page] {
+    animation: nativePageEnter 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 }

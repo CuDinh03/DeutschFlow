@@ -46,7 +46,7 @@ export function SpeakingChatHeader({
   const chatBusy = streamStatus === "streaming" || streamStatus === "processing";
 
   return (
-    <header className="flex items-center justify-between gap-2 px-3 sm:px-4 py-3 border-b border-white/10 bg-[rgba(10,22,40,0.75)] backdrop-blur-md sticky top-0 z-20">
+    <header className="flex items-center justify-between gap-2 px-3 sm:px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] border-b border-white/10 bg-[rgba(10,22,40,0.75)] backdrop-blur-md sticky top-0 z-20">
       <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
         <button
           type="button"

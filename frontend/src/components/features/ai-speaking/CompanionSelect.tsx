@@ -250,7 +250,7 @@ export function CompanionSelect() {
     <div className="min-h-screen flex flex-col w-full" style={{ background: "#080818", color: "#fff" }}>
       <div className="max-w-[520px] mx-auto w-full flex flex-col min-h-screen">
         {/* ── Header ── */}
-        <div className="px-5 pt-14 pb-3 flex-shrink-0">
+        <div className="px-5 pt-[calc(3.5rem+env(safe-area-inset-top,0px))] pb-3 flex-shrink-0">
           <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
             <motion.button onClick={() => router.push("/")} className="flex items-center gap-2 mb-4" style={{ color: "rgba(255,255,255,0.5)" }} whileTap={{ scale: 0.92 }}>
               <div className="w-8 h-8 flex items-center justify-center rounded-full" style={{ background: "rgba(255,255,255,0.08)" }}>
