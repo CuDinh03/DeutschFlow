@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
 import { getAccessToken, clearTokens, logout } from '@/lib/authSession'
+import { isNative } from '@/lib/native'
 import { DeutschFlowLogo } from '@/components/ui/DeutschFlowLogo'
 import { motion, useInView } from 'framer-motion'
 import {
@@ -122,10 +123,8 @@ export default function HomePage() {
     // The native AppDelegate overlay handles splash + onboarding + auth choice,
     // then navigates the webview directly to /register or /login. Here we only
     // route returning users with a valid token to /dashboard, else to /login.
-    const isNative = typeof window !== 'undefined'
-      && !!(window as Window & { Capacitor?: { isNativePlatform?: () => boolean } })
-           .Capacitor?.isNativePlatform?.()
-    if (isNative) {
+    const native = isNative()
+    if (native) {
       if (getAccessToken()) {
         router.replace('/dashboard')
       } else {

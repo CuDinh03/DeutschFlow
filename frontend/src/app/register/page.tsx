@@ -11,17 +11,7 @@ import { useTracking } from '@/hooks/useTracking'
 import { MobileRegisterForm } from '@/components/auth/MobileRegisterForm'
 import { useStatusBarStyle } from '@/lib/statusBar'
 import { lightImpact } from '@/lib/haptics'
-
-function useIsNative() {
-  const [isNative, setIsNative] = useState(false)
-  useEffect(() => {
-    setIsNative(
-      !!(window as Window & { Capacitor?: { isNativePlatform?: () => boolean } })
-        .Capacitor?.isNativePlatform?.()
-    )
-  }, [])
-  return isNative
-}
+import { useIsNative } from '@/lib/native'
 
 type FieldErrors = Record<string, string>
 

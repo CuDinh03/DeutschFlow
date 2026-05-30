@@ -182,6 +182,13 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
+  /* Keyboard height injected by NativeAuthProvider via @capacitor/keyboard.
+     Defaults to 0 on web/before keyboard appears. Use var(--kb-height) in
+     padding-bottom calculations to keep inputs above the software keyboard. */
+  html {
+    --kb-height: 0px;
+  }
+
   /* ── Native (Capacitor) shell behaviour ──────────────────────────────────
      Scoped to `.native` (added on <html> by NativeAuthProvider) so the
      web/PWA build is unaffected. Makes the webview feel like a real app:

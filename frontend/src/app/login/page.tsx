@@ -13,6 +13,7 @@ import { useTracking } from '@/hooks/useTracking'
 import { MobileLoginForm } from '@/components/auth/MobileLoginForm'
 import { useStatusBarStyle } from '@/lib/statusBar'
 import { lightImpact } from '@/lib/haptics'
+import { useIsNative } from '@/lib/native'
 
 type FieldErrors = Record<string, string>
 
@@ -68,17 +69,6 @@ function MaintenanceBanner() {
       </div>
     </div>
   )
-}
-
-function useIsNative() {
-  const [isNative, setIsNative] = useState(false)
-  useEffect(() => {
-    setIsNative(
-      !!(window as Window & { Capacitor?: { isNativePlatform?: () => boolean } })
-        .Capacitor?.isNativePlatform?.()
-    )
-  }, [])
-  return isNative
 }
 
 export default function LoginPage() {

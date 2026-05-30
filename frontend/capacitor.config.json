@@ -9,5 +9,10 @@
   "android": {
     "minVersion": 24
   },
-  "plugins": {}
+  "plugins": {
+    "Keyboard": {
+      "resize": "body",
+      "resizeOnFullScreen": true
+    }
+  }
 }
