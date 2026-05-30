@@ -1,5 +1,6 @@
 import UIKit
 import Capacitor
+import Network
 import SwiftUI
 import UserNotifications
 
@@ -8,11 +9,27 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
     private var overlayWindow: UIWindow?
+    private var pathMonitor: NWPathMonitor?
+    private var isConnected = true
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         UNUserNotificationCenter.current().delegate = self
+        startNetworkMonitor()
         showSplashOverlay()
         return true
+    }
+
+    // ─── Network monitoring ───────────────────────────────────────────────────
+
+    private func startNetworkMonitor() {
+        let monitor = NWPathMonitor()
+        monitor.pathUpdateHandler = { [weak self] path in
+            DispatchQueue.main.async {
+                self?.isConnected = path.status == .satisfied
+            }
+        }
+        monitor.start(queue: DispatchQueue(label: "com.deutschflow.network"))
+        self.pathMonitor = monitor
     }
 
     // ─── Push notification registration ──────────────────────────────────────
@@ -69,6 +86,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     private func dismissOverlay(navigateTo path: String?) {
         guard let overlay = overlayWindow else { return }
 
+        guard isConnected else {
+            showNetworkError(in: overlay, retryPath: path)
+            return
+        }
+
         // Paint the webview dark before the overlay fades so there is no
         // white flash during the crossfade into the Capacitor shell.
         if let bridgeVC = window?.rootViewController as? CAPBridgeViewController,
@@ -92,14 +114,56 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
     }
 
+    private func showNetworkError(in overlay: UIWindow, retryPath: String?) {
+        let vc = makeHostingController(
+            NetworkErrorView {
+                if self.isConnected {
+                    self.dismissOverlay(navigateTo: retryPath)
+                } else {
+                    self.showNetworkError(in: overlay, retryPath: retryPath)
+                }
+            }
+        )
+        transition(overlay, to: vc)
+    }
+
     private func navigateWebView(to path: String) {
         guard let bridgeVC = window?.rootViewController as? CAPBridgeViewController,
               let webView = bridgeVC.webView else { return }
-        // Whitelist: only known internal routes are allowed. Paths come from
-        // hardcoded literals above, but an explicit guard is defensive best practice.
-        let allowed: Set<String> = ["/register", "/login"]
-        guard allowed.contains(path) else { return }
+        // Explicit whitelist — only known internal routes. Paths come from
+        // hardcoded literals or a validated deep-link handler below.
+        let allowed: Set<String> = [
+            "/register", "/login", "/dashboard",
+            "/speaking", "/roadmap", "/vocabulary", "/news",
+            "/onboarding", "/student/notifications",
+        ]
+        let allowedPrefixes = ["/speaking/", "/lesson/", "/student/", "/vocabulary/", "/roadmap/"]
+        guard allowed.contains(path) || allowedPrefixes.contains(where: { path.hasPrefix($0) }) else { return }
         webView.evaluateJavaScript("window.location.replace('\(path)')")
+    }
+
+    // ─── Deep link handling ───────────────────────────────────────────────────
+
+    func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
+        // Custom scheme: deutschflow://speaking → navigate to /speaking
+        if url.scheme?.lowercased() == "deutschflow", let host = url.host {
+            let path = "/" + host + url.path  // e.g. "/speaking" or "/student/notifications"
+            navigateWebView(to: path)
+            return true
+        }
+        return ApplicationDelegateProxy.shared.application(app, open: url, options: options)
+    }
+
+    func application(_ application: UIApplication, continue userActivity: NSUserActivity, restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void) -> Bool {
+        // Universal Links: https://deutschflow.com/speaking → navigate to /speaking
+        // Requires Associated Domains entitlement + server apple-app-site-association.
+        if userActivity.activityType == NSUserActivityTypeBrowsingWeb,
+           let url = userActivity.webpageURL {
+            let path = url.path.isEmpty ? "/" : url.path
+            navigateWebView(to: path)
+            return true
+        }
+        return false
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
@@ -123,14 +187,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func applicationWillEnterForeground(_ application: UIApplication) {}
     func applicationDidBecomeActive(_ application: UIApplication) {}
     func applicationWillTerminate(_ application: UIApplication) {}
-
-    func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
-        return ApplicationDelegateProxy.shared.application(app, open: url, options: options)
-    }
-
-    func application(_ application: UIApplication, continue userActivity: NSUserActivity, restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void) -> Bool {
-        return false
-    }
 }
 
 // ─── UNUserNotificationCenter delegate ───────────────────────────────────────

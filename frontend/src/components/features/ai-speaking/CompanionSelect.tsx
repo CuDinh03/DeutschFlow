@@ -16,10 +16,12 @@ import { SpeakingQuotaBlockedBanner } from "./SpeakingQuotaBlockedBanner";
 import { useChatStore } from "@/stores/useChatStore";
 import { toast } from "sonner";
 import { spring } from "@/lib/motion";
+import { useStatusBarStyle } from "@/lib/statusBar";
 
 const CEFR_LEVELS = ["A1", "A2", "B1", "B2"];
 
 export function CompanionSelect() {
+  useStatusBarStyle("dark");
   const router = useRouter();
   const searchParams = useSearchParams();
   const t = useTranslations("speaking");

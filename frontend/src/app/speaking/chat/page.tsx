@@ -30,6 +30,7 @@ import { useTracking } from "@/hooks/useTracking";
 import api from "@/lib/api";
 import { SpeakingPersonaFloat } from "@/components/speaking/SpeakingPersonaFloat";
 import { usePersonaReaction } from "@/hooks/usePersonaReaction";
+import { useStatusBarStyle } from "@/lib/statusBar";
 
 type ViewMode = "chat" | "summary";
 
@@ -56,6 +57,7 @@ function detectInterviewEnd(text: string): boolean {
 }
 
 export default function AIChatInterface() {
+  useStatusBarStyle("dark");
   const router = useRouter();
   const t = useTranslations("speaking");
   const tChat = useTranslations("speaking.chat");
