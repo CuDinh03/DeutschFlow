@@ -1,6 +1,7 @@
 package com.deutschflow.user.controller;
 
 import com.deutschflow.user.dto.StudentDashboardResponse;
+import com.deutschflow.user.dto.StudentStatsResponse;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.service.StudentDashboardService;
 import lombok.RequiredArgsConstructor;
@@ -21,5 +22,10 @@ public class StudentDashboardController {
     @GetMapping("/dashboard")
     public StudentDashboardResponse dashboard(@AuthenticationPrincipal User user) {
         return studentDashboardService.getDashboard(user);
+    }
+
+    @GetMapping("/stats")
+    public StudentStatsResponse stats(@AuthenticationPrincipal User user) {
+        return studentDashboardService.getStats(user);
     }
 }

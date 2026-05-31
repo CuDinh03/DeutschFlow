@@ -2,6 +2,7 @@ package com.deutschflow.user.service;
 
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.user.dto.StudentDashboardResponse;
+import com.deutschflow.user.dto.StudentStatsResponse;
 import com.deutschflow.user.entity.LearningPlan;
 import com.deutschflow.user.entity.LearningSessionAttempt;
 import com.deutschflow.user.entity.LearningSessionProgress;
@@ -128,6 +129,96 @@ public class StudentDashboardService {
         }
         int sumScores = bestBySession.values().stream().mapToInt(Integer::intValue).sum();
         return sumScores + completedSessionsThisWeek * 20;
+    }
+
+    /**
+     * Mobile-optimised stats endpoint — returns aggregated lifetime and weekly metrics.
+     */
+    @Transactional(readOnly = true)
+    public StudentStatsResponse getStats(User user) {
+        Long userId = user.getId();
+
+        int streakDays = computeStreakDaysDb(userId);
+
+        long totalXp = 0L;
+        try {
+            Long raw = jdbcTemplate.queryForObject(
+                    "SELECT COALESCE(SUM(xp_amount), 0) FROM user_xp_events WHERE user_id = ?",
+                    Long.class, userId);
+            if (raw != null) totalXp = raw;
+        } catch (Exception ignored) { }
+
+        int xpLevel = (int) Math.sqrt(totalXp / 100.0);
+
+        int wordsLearned = 0;
+        try {
+            Integer raw = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM spaced_repetition_schedule WHERE user_id = ? AND retention_status = 'MASTERED'",
+                    Integer.class, userId);
+            if (raw != null) wordsLearned = raw;
+        } catch (Exception ignored) { }
+
+        int speakingMinutes = 0;
+        try {
+            Integer raw = jdbcTemplate.queryForObject(
+                    """
+                    SELECT COALESCE(
+                        SUM(EXTRACT(EPOCH FROM (ended_at - started_at)) / 60), 0
+                    )::INTEGER
+                    FROM ai_speaking_sessions
+                    WHERE user_id = ? AND status = 'COMPLETED' AND ended_at IS NOT NULL
+                    """,
+                    Integer.class, userId);
+            if (raw != null) speakingMinutes = raw;
+        } catch (Exception ignored) { }
+
+        int grammarAccuracy = 100;
+        try {
+            Integer errors = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM user_grammar_errors WHERE user_id = ? AND created_at > NOW() - INTERVAL '30 days'",
+                    Integer.class, userId);
+            if (errors != null) {
+                grammarAccuracy = Math.max(0, 100 - Math.min(100, errors / 2));
+            }
+        } catch (Exception ignored) { }
+
+        int[] weeklyProgress = computeWeeklyProgress(userId);
+
+        return new StudentStatsResponse(
+                streakDays, totalXp, xpLevel, wordsLearned,
+                speakingMinutes, grammarAccuracy, weeklyProgress);
+    }
+
+    /**
+     * Minutes studied per day for the current ISO week (Mon=0 … Sun=6).
+     * Uses completed learning sessions; each session counts as 25 minutes.
+     */
+    private int[] computeWeeklyProgress(Long userId) {
+        int[] days = new int[7];
+        try {
+            LocalDate monday = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                    """
+                    SELECT DATE(completed_at) AS day
+                    FROM learning_session_progress
+                    WHERE user_id = ? AND status = 'COMPLETED'
+                      AND completed_at >= ? AND completed_at < ?
+                    """,
+                    userId,
+                    java.sql.Date.valueOf(monday),
+                    java.sql.Date.valueOf(monday.plusWeeks(1)));
+            for (Map<String, Object> row : rows) {
+                Object dayVal = row.get("day");
+                if (dayVal != null) {
+                    java.time.LocalDate d = ((java.sql.Date) dayVal).toLocalDate();
+                    int idx = (int) (d.toEpochDay() - monday.toEpochDay());
+                    if (idx >= 0 && idx < 7) {
+                        days[idx] += 25; // 25 min per completed session
+                    }
+                }
+            }
+        } catch (Exception ignored) { }
+        return days;
     }
 
     /**

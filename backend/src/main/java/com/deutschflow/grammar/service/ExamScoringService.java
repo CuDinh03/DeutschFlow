@@ -8,11 +8,17 @@ import java.util.stream.Collectors;
 /**
  * Realistic exam scoring service based on Goethe official rubrics.
  * Scores LESEN and HOEREN automatically (binary correct/incorrect).
- * Prepares scoring templates for SCHREIBEN and SPRECHEN.
+ * SCHREIBEN and SPRECHEN are AI-evaluated via AiExamEvaluatorService.
  */
 @Service
 public class ExamScoringService {
     private static final ObjectMapper om = new ObjectMapper();
+
+    private final AiExamEvaluatorService aiEvaluator;
+
+    public ExamScoringService(AiExamEvaluatorService aiEvaluator) {
+        this.aiEvaluator = aiEvaluator;
+    }
 
     /**
      * Score LESEN section - auto-evaluate reading comprehension
@@ -131,59 +137,62 @@ public class ExamScoringService {
     }
 
     /**
-     * Score SPRECHEN section - requires manual evaluation
-     * Returns scoring template for evaluator to fill in
+     * Score SPRECHEN section using AI evaluation when a transcript is available.
+     * Falls back to manual evaluation template if no transcript is found.
      */
     public Map<String, Object> scoreSperechenSection(
             Map<String, Object> answers,
             Map<String, Object> examSection) {
 
+        // Try to find the student's spoken transcript from answers
+        String transcript = extractTranscript(answers);
+        String taskPrompt = extractSprechenTaskPrompt(examSection);
+        String cefrLevel = extractCefrLevel(examSection);
+
+        Map<String, Object> aiEval = aiEvaluator.evaluateSprechen(transcript, taskPrompt, cefrLevel);
+
         Map<String, Object> result = new HashMap<>();
-
-        // Teil 1: Self-introduction (max 9 points)
-        Map<String, Object> teil1 = new HashMap<>();
-        teil1.put("type", "SELF_INTRO");
-        teil1.put("max_points", 9);
-        teil1.put("rubric", Map.of(
-            "aussprache", 3,
-            "wortschatz", 2,
-            "grammatik", 2,
-            "inhalt", 2
-        ));
-        teil1.put("status", "PENDING_MANUAL_EVALUATION");
-
-        // Teil 2: Q&A daily life (max 8 points)
-        Map<String, Object> teil2 = new HashMap<>();
-        teil2.put("type", "QA_PARTNER");
-        teil2.put("max_points", 8);
-        teil2.put("rubric", Map.of(
-            "aussprache", 2,
-            "wortschatz", 2,
-            "grammatik", 2,
-            "verständnis", 2
-        ));
-        teil2.put("status", "PENDING_MANUAL_EVALUATION");
-
-        // Teil 3: Request/respond (max 8 points)
-        Map<String, Object> teil3 = new HashMap<>();
-        teil3.put("type", "REQUEST_RESPOND");
-        teil3.put("max_points", 8);
-        teil3.put("rubric", Map.of(
-            "aussprache", 2,
-            "wortschatz", 2,
-            "grammatik", 2,
-            "kommunikation", 2
-        ));
-        teil3.put("status", "PENDING_MANUAL_EVALUATION");
-
-        result.put("teil1", teil1);
-        result.put("teil2", teil2);
-        result.put("teil3", teil3);
-        result.put("total_provisional", 0);
+        result.put("ai_evaluation", aiEval);
+        result.put("total_provisional", aiEval.getOrDefault("total", 0));
         result.put("total_max", 25);
-        result.put("note", "Speaking section requires manual evaluation by certified evaluator");
+        result.put("status", aiEval.getOrDefault("status", "PENDING_AI_EVALUATION"));
 
         return result;
+    }
+
+    private String extractTranscript(Map<String, Object> answers) {
+        // Check common transcript keys
+        for (String key : List.of("sprechen_transcript", "transcript", "speaking_transcript", "audio_transcript")) {
+            Object val = answers.get(key);
+            if (val instanceof String s && !s.isBlank()) {
+                return s;
+            }
+        }
+        return "";
+    }
+
+    private String extractSprechenTaskPrompt(Map<String, Object> examSection) {
+        try {
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> teile = (List<Map<String, Object>>) examSection.get("teile");
+            if (teile != null && !teile.isEmpty()) {
+                Object prompt = teile.get(0).get("prompt");
+                if (prompt instanceof String s) return s;
+                Object instructions = teile.get(0).get("instructions");
+                if (instructions instanceof String s) return s;
+            }
+        } catch (Exception ignored) {
+            // fall through
+        }
+        return "";
+    }
+
+    private String extractCefrLevel(Map<String, Object> examSection) {
+        Object level = examSection.get("cefr_level");
+        if (level instanceof String s && !s.isBlank()) return s;
+        Object level2 = examSection.get("cefrLevel");
+        if (level2 instanceof String s && !s.isBlank()) return s;
+        return "B1";
     }
 
     /**
