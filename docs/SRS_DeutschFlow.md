@@ -1,8 +1,10 @@
 # SRS — DeutschFlow (Software Requirements Specification)
 
-**Phiên bản:** 2.21  
+**Phiên bản:** 2.22  
 **Ngày:** 2026-05-31  
 **Ngôn ngữ:** Tiếng Việt  
+
+**Changelog v2.22:** **Stripe Checkout, B1/B2 Exam Content, Answer Review, Vitest Tests, Redis L2, Performance Indexes, GlosbeAutoImport** — 1 commit (`f08b27a`), 185 migrations tổng. (1) **Stripe Checkout Backend**: `StripePaymentService` — VND→USD cents conversion (min 50¢), `createCheckoutSession()` lưu PENDING `PaymentTransaction` với `provider="STRIPE"`, `handleWebhook()` xác thực HMAC signature + gọi `SubscriptionActivationService`; graceful degradation khi `STRIPE_SECRET_KEY` trống; `StripePaymentController` — `POST /api/payments/stripe/create-session` (auth required) + `POST /api/payments/stripe/webhook` (raw body, permit all); `V182__stripe_payment.sql` thêm `stripe_session_id` column. (2) **Stripe Checkout Frontend**: `createStripeSession()` trong `paymentApi.ts`; pricing page thêm Stripe button cạnh MoMo (discriminated union loading key `momo-PRO/ULTRA/stripe-PRO/ULTRA`); `useSearchParams` detect `?stripe=success/cancel` return banner; i18n keys thêm vào vi/en/de. (3) **B1 Exam Content (V183)**: 2 Goethe B1 variants — Set 1 (Beruf/Freizeit/Reisen), Set 2 (Umwelt/Gesellschaft/Wohnen); mỗi set có LESEN (Richtig/Falsch + job matching + MC), HÖREN (MC dialogues + Richtig/Falsch radio interview), SCHREIBEN (2 FREE_TEXT prompts), SPRECHEN (2 SPEAKING_PROMPT). (4) **B2 Exam Content (V184)**: 2 Goethe B2 variants (100 phút, 4 sections 25pt mỗi) — Set 1 (Technologie/Wirtschaft/Gesundheit): AI in medicine, algorithm bias essay, startup negotiation speaking; Set 2 (Globalisierung/Bildung/Medien): journalism crisis analysis, university panel, argumentative essay. (5) **Answer Review Endpoint**: `GET /api/mock-exams/attempts/{id}/review` — trả `{ attemptId, totalScore, sections: [{sectionName, items: [{id, question, user_answer, correct_answer, is_correct, explanation}]}] }`; chỉ cho phép review attempt `COMPLETED`; parse `answers_submitted_json`, so sánh case-insensitive với `correct`/`correct_answer` field aliases. (6) **Answer Review UI**: mock-exam/page.tsx thêm view state `'review'`; nút "Xem đáp án chi tiết" trong result view; per-question cards với ✓ xanh / ✗ đỏ / "Chưa trả lời" xám; explanation text in nghiêng xám; border emerald/rose tương ứng. (7) **Vitest + RTL + MSW Infrastructure**: nâng `vitest ^2.1.8`, `@testing-library/react ^16.1.0`, thêm `@testing-library/user-event ^14.5.2`, `@vitest/ui ^2.1.8`; 26 tests mới — `useSpeakingChat.test.ts` (8 tests: initial state, handleSendMessage, guards, resetForNewSession), `useSpeech.test.ts` (8 tests: speak/stop/callbacks với `vi.stubGlobal`), `OnboardingWizard.test.tsx` (10 tests: step navigation, level selection, A0 shortcut, placement test flow); coverage threshold 60% cho `src/lib/**`. (8) **Performance Indexes (V185)**: `idx_words_lower_base_form` trên `LOWER(base_form)` cho case-insensitive vocab upsert; `idx_grammar_errors_user_point_created` trên `(user_id, grammar_point, created_at)` cho time-windowed weak-point queries; cả hai dùng `CONCURRENTLY IF NOT EXISTS`. (9) **Redis L2 Cache**: `RedisConfig` thêm `@ConditionalOnProperty(name = "spring.redis.host")` + `@ConditionalOnClass` — Redis chỉ activate khi `REDIS_HOST` được set; Caffeine L1 luôn active; tránh `NoSuchBeanDefinitionException` trong dev/test không có Redis. (10) **GlosbeAutoImport Startup**: `GlosbeVocabularyAutoImportRunner` thêm `@Async @EventListener(ApplicationReadyEvent)` để chạy incremental import ngay sau startup mà không block; `runScheduledImport()` và `onApplicationReady()` đều delegate sang `runImport(String trigger)` với log bao gồm trigger source.
 
 **Changelog v2.21:** **Notification Scheduler, iOS Sprint Polish, Pronunciation Feedback, Teacher Marketplace, A2/B1 Content, FSRS Optimizer, Adaptive Engine, AI Cost Dashboard** — 11 commits mới, 181 migrations tổng. (1) **Notification System** (`a3ec919`, `edcca2c`): Hệ thống thông báo hoàn chỉnh với bell badge số chưa đọc; inbox redesign với date-groups + category-tabs; admin broadcast page; teacher announce modal; `NotificationSchedulerService` xử lý hàng chờ broadcast tự động (scheduled queue, exponential retry); `GET /notifications/unread-count`, `POST /notifications/broadcast/queue`. (2) **iOS Sprints 1–3 + iOS 26 Polish** (`111a381`–`b811aea`): Liquid Glass nav bar cho iOS 26 (`UINavigationBarAppearance`); safe-area gap fix cho Dynamic Island + iPhone 15 Pro; `DFLogo` refactor; Sprint 1 — offline error screen, deep links, status bar gaps; Sprint 2 — keyboard avoidance (`KeyboardAvoidingView`), notif tap routing, native detection; Sprint 3 — haptics expansion (success/warning/error), page-enter animation, `contentInset` fix; Sprint 3 P3 — offline banner, Sentry crash reporting, SwiftUI a11y improvements. (3) **Phase 0 Refactor**: Xóa `react-dnd`, giữ `@dnd-kit` duy nhất; eradicate `any` types ở critical paths; fix i18n leak ở pricing page. (4) **MoMo Payment End-to-End** (verified existing): `MomoPaymentService.createOrder()` → payUrl redirect → `handleIpn()` HMAC-SHA256 verify → `syncPendingOrderFromMomo()` 5-retry fallback; PostHog events `paywall_viewed`, `checkout_started`, `checkout_completed`, `checkout_abandoned`. (5) **PremiumGate Banners**: Thêm banner PRO gate cho `/student/mock-exam` và `/student/weekly-speaking` (trước đây không có gate). (6) **Offline SRS Batch Sync**: `offlineSync.syncPendingReviews()` nâng cấp từ individual requests → single `POST /srs/review/batch` — atomically clear queue on success, stay queued on failure. (7) **Pronunciation Feedback + Shadowing Practice**: `PronunciationFeedback.tsx` (standalone component): MediaRecorder → `POST /api/speaking/pronunciation-check` → word-by-word CORRECT/CLOSE/MISSING với hover tooltips + progress bar; `PronunciationScorerService.java` (LCS align + Levenshtein blended với Whisper `avg_logprob`); `GroqWhisperClient.transcribeVerbose()` (`response_format=verbose_json`, word timestamps); shadowing section inject vào `ListeningView.tsx` sau khi hoàn thành fill-in-the-blanks (passage text reconstructed từ word timestamps). (8) **A2/B1 Content Expansion** (V180–V181): `V180__content_a2_core_lessons.sql` — full content_json cho A2 days 31/35/39/40; `V181__curriculum_b1.sql` — 5 B1 nodes (days 51–55) + `skill_tree_edges`; `TeacherSession.java` entity với Status/PaymentStatus/PayoutStatus enums. (9) **Teacher Marketplace** (V179): `teacher_sessions` table + `hourly_rate_vnd` trên `teacher_profiles`; `TeacherSessionService` — `bookSession()`, `updateStatus()`, `getEarningsSummary()` (15% platform fee); `TeacherSessionController` 8 endpoints; Frontend: `/student/book-session/page.tsx` (duration selector + real-time price), `/teacher/sessions/page.tsx` (earnings dashboard), `/teachers/[id]` thêm CTA "Đặt lịch học". (10) **Per-User FSRS Weight Optimizer**: `FsrsWeightOptimizerService` — `@Scheduled(cron "0 0 3 * * *")` nightly job điều chỉnh `w17` per-user dựa trên retention error (≥50 reviews threshold). (11) **Adaptive Difficulty Engine**: `AdaptiveEngineService.getWeakPoints()` kết hợp grammar error history + SRS failure ranking để gợi ý bài ôn phù hợp. (12) **AI Cost Observability Dashboard**: `AiUsageLedgerService.record()` ghi token usage events; `/admin/token-analytics/page.tsx` hiển thị pie chart (cost by model) + area chart (token usage over time). (13) **E2E Tests**: `frontend/tests/e2e/payment-and-srs.spec.ts` — test flow payment + SRS offline sync. (14) **Speaking UI Polish**: `SpeakingPersonaFloat.tsx`, `SpeakingMessageBubble.tsx`, `SuggestionBar.tsx` refined; `SystemPromptBuilder.java` extended; iOS `Package.swift` SPM update.
 
@@ -63,9 +65,43 @@
 
 ---
 
-## 📊 Trạng Thái Hiện Tại (v2.21 — Notification Scheduler, iOS Polish, Pronunciation Feedback, Teacher Marketplace)
+## 📊 Trạng Thái Hiện Tại (v2.22 — Stripe Checkout, B1/B2 Exams, Answer Review, Vitest, Redis L2)
 
-### ✅ Hoàn Thành Trong Phiên Làm Việc Này (v2.21)
+### ✅ Hoàn Thành Trong Phiên Làm Việc Này (v2.22)
+
+1. **Stripe Checkout**
+   - ✅ `StripePaymentService`: VND→USD conversion, webhook HMAC verify, graceful degradation nếu key chưa set
+   - ✅ `POST /api/payments/stripe/create-session` + `POST /api/payments/stripe/webhook` (raw body)
+   - ✅ Frontend: Stripe button cạnh MoMo, `?stripe=success/cancel` return banner
+   - ✅ V182 migration: `stripe_session_id` column
+
+2. **B1 & B2 Exam Content**
+   - ✅ V183: 2 Goethe B1 variants (LESEN/HÖREN/SCHREIBEN/SPRECHEN, 90 phút)
+   - ✅ V184: 2 Goethe B2 variants (4 sections 25pt each, 100 phút, advanced topics)
+
+3. **Answer Review UI + Endpoint**
+   - ✅ `GET /api/mock-exams/attempts/{id}/review` với per-item `is_correct` + `explanation`
+   - ✅ Frontend `'review'` view state: ✓/✗/Chưa trả lời cards, emerald/rose borders
+
+4. **Vitest + RTL Test Infrastructure**
+   - ✅ 26 tests: `useSpeakingChat` (8), `useSpeech` (8), `OnboardingWizard` (10)
+   - ✅ `vitest ^2.1.8`, `@testing-library/react ^16.1.0`, v8 coverage 60% threshold
+
+5. **Redis L2 Cache**
+   - ✅ `@ConditionalOnProperty(spring.redis.host)` — Redis chỉ active khi configured
+   - ✅ L1 (Caffeine) luôn active; L2 (Redis) shared cross-node, TTL 7 ngày
+
+6. **Performance Indexes (V185)**
+   - ✅ `idx_words_lower_base_form` — case-insensitive vocab upsert
+   - ✅ `idx_grammar_errors_user_point_created` — time-windowed weak-point queries
+
+7. **GlosbeAutoImport Startup Hook**
+   - ✅ `@Async @EventListener(ApplicationReadyEvent)` — non-blocking import at startup
+   - ✅ `runImport(trigger)` shared by both startup and scheduled cron
+
+---
+
+### ✅ Hoàn Thành Trong Phiên Làm Việc Trước (v2.21)
 
 1. **Notification System**
    - ✅ Bell badge: số thông báo chưa đọc real-time qua `GET /notifications/unread-count`
@@ -205,7 +241,7 @@
 |------|--------|---------|
 | **Backend build** | ✅ Clean | `mvn compile` 0 errors, Java 21 |
 | **Frontend TypeScript** | ✅ Clean | 0 new type errors |
-| **DB migrations** | ✅ V181 | 181 migrations tổng |
+| **DB migrations** | ✅ V185 | 185 migrations tổng |
 | **Notification system** | ✅ Live | Bell badge + inbox + broadcast queue + scheduler |
 | **iOS Sprints 1–3** | ✅ Live | Haptics, keyboard avoidance, offline banner, Sentry, a11y |
 | **iOS 26 polish** | ✅ Live | Liquid Glass nav, safe-area fix, DFLogo refactor |
@@ -230,9 +266,9 @@
 
 ---
 
-## 🔄 Codebase Synchronization Status (v2.21 Alignment)
+## 🔄 Codebase Synchronization Status (v2.22 Alignment)
 
-### Database Schema Evolution (V1 → V181)
+### Database Schema Evolution (V1 → V185)
 
 Codebase hiện tại có **174 database migrations** đã được triển khai, đại diện cho sự phát triển đáng kể:
 
@@ -611,7 +647,7 @@ DeutschFlow bao gồm:
 
 **Ngoài phạm vi (hiện tại)**
 
-- **Cổng thanh toán** (Stripe, MoMo, v.v.) — MoMo đã tích hợp cơ bản; Stripe chưa.
+- **Cổng thanh toán** — MoMo và Stripe Checkout đã tích hợp; Stripe Billing subscriptions (recurring) chưa.
 - Offline-first đầy đủ.
 
 > **Lưu ý v2.20**: Ứng dụng native iOS (Capacitor + SwiftUI entry layer) hiện đã **trong phạm vi** và đang hoạt động với push notifications, native splash/onboarding, và Xcode auto-build pipeline.
