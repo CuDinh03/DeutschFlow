@@ -1,10 +1,10 @@
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { View, Alert } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router } from 'expo-router'
-import { ArrowLeft, Flame, Lock, ChevronRight } from 'lucide-react-native'
+import { Flame, Lock } from 'lucide-react-native'
 import api from '@/lib/api'
-import { Colors } from '@/lib/constants'
+import { radius, space, useTheme } from '@/lib/theme'
+import { Screen, Card, ThemedText, Icon, Pill, Button, AppHeader, EmptyState, SectionHeader, Skeleton } from '@/components/ui'
 import { usePlanStore } from '@/stores/usePlanStore'
 
 interface WeeklyPrompt {
@@ -24,100 +24,103 @@ interface WeeklySubmission {
 }
 
 export default function WeeklySpeakingScreen() {
+  const theme = useTheme()
+  const c = theme.colors
   const { isPro } = usePlanStore()
 
   const { data: prompt, isLoading: promptLoading } = useQuery({
     queryKey: ['weekly-prompt'],
-    queryFn: () => api.get<WeeklyPrompt>('/weekly-speaking/current-prompt').then(r => r.data),
+    queryFn: () => api.get<WeeklyPrompt>('/weekly-speaking/current-prompt').then((r) => r.data),
     enabled: isPro,
     staleTime: 60_000 * 30,
   })
 
   const { data: history = [] } = useQuery({
     queryKey: ['weekly-history'],
-    queryFn: () => api.get<WeeklySubmission[]>('/weekly-speaking/my-submissions?page=0&size=10').then(r => r.data),
+    queryFn: () => api.get<WeeklySubmission[]>('/weekly-speaking/my-submissions?page=0&size=10').then((r) => r.data),
     enabled: isPro,
     staleTime: 60_000,
   })
 
   if (!isPro) {
     return (
-      <SafeAreaView className="flex-1 bg-[#0D0D0D]">
-        <View className="flex-row items-center gap-3 px-5 pt-4 pb-3">
-          <TouchableOpacity onPress={() => router.back()}>
-            <ArrowLeft size={22} color={Colors.muted} />
-          </TouchableOpacity>
-          <Text className="text-white text-xl font-bold">Weekly Speaking</Text>
+      <Screen edges={['top']}>
+        <AppHeader title="Weekly Speaking" onBack={() => router.back()} />
+        <View style={{ flex: 1, justifyContent: 'center' }}>
+          <EmptyState
+            icon={Lock}
+            title="Tính năng PRO"
+            message="Nộp bài nói hàng tuần và nhận phản hồi AI chi tiết."
+            actionLabel="Xem PRO"
+            onAction={() => router.push('/(student)/upgrade')}
+          />
         </View>
-        <View className="flex-1 items-center justify-center px-8">
-          <Lock size={36} color="#A855F7" />
-          <Text className="text-white text-xl font-bold text-center mt-4 mb-2">Tính năng PRO</Text>
-          <Text className="text-[#64748B] text-sm text-center mb-6 leading-5">
-            Nộp bài nói hàng tuần và nhận phản hồi AI chi tiết.
-          </Text>
-          <TouchableOpacity onPress={() => router.push('/(student)/upgrade')} className="bg-[#F5C842] rounded-xl px-8 py-4">
-            <Text className="text-[#0D0D0D] font-bold">Xem PRO</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
+      </Screen>
     )
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-[#0D0D0D]">
-      <View className="flex-row items-center gap-3 px-5 pt-4 pb-3">
-        <TouchableOpacity onPress={() => router.back()}>
-          <ArrowLeft size={22} color={Colors.muted} />
-        </TouchableOpacity>
-        <Text className="text-white text-xl font-bold">Weekly Speaking</Text>
-      </View>
+    <Screen edges={['top']}>
+      <AppHeader title="Weekly Speaking" onBack={() => router.back()} />
 
-      <ScrollView className="flex-1 px-5" contentContainerStyle={{ paddingBottom: 32, gap: 16, paddingTop: 8 }}>
-        {/* Current challenge */}
+      <Screen scroll edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[8], gap: space[4], paddingTop: space[2] }}>
         {promptLoading ? (
-          <ActivityIndicator color={Colors.yellow} />
+          <Skeleton height={170} radius="2xl" />
         ) : prompt ? (
-          <View className="bg-[#1A1A1A] border border-[#3A86FF]/40 rounded-2xl p-5">
-            <View className="flex-row items-center gap-2 mb-3">
-              <Flame size={16} color="#3A86FF" />
-              <Text className="text-[#3A86FF] text-xs font-bold uppercase tracking-wider">Thử thách tuần này</Text>
-              <View className="ml-auto bg-[#1A1A1A] border border-[#2A2A2A] px-2 py-0.5 rounded-full">
-                <Text className="text-[#64748B] text-[10px] font-bold">{prompt.cefrBand}</Text>
+          <Card style={{ borderColor: c.info + '66' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], marginBottom: space[3] }}>
+              <Icon icon={Flame} size={16} color="info" />
+              <ThemedText variant="label" color="info">
+                Thử thách tuần này
+              </ThemedText>
+              <View style={{ marginLeft: 'auto' }}>
+                <Pill label={prompt.cefrBand} tone="neutral" />
               </View>
             </View>
-            <Text className="text-white font-bold text-base mb-1">{prompt.promptTitle}</Text>
-            <Text className="text-[#64748B] text-xs mb-4">{prompt.weekStartDate}</Text>
-            <TouchableOpacity
-              onPress={() => Alert.alert('Sắp có', 'Tính năng ghi âm đang được phát triển.')}
-              className="bg-[#3A86FF] rounded-xl py-3 items-center"
-            >
-              <Text className="text-white font-bold text-sm">Nộp bài nói</Text>
-            </TouchableOpacity>
-          </View>
+            <ThemedText variant="title" style={{ marginBottom: space[1] }}>
+              {prompt.promptTitle}
+            </ThemedText>
+            <ThemedText variant="caption" color="muted" style={{ marginBottom: space[4] }}>
+              {prompt.weekStartDate}
+            </ThemedText>
+            <Button label="Nộp bài nói" onPress={() => Alert.alert('Sắp có', 'Tính năng ghi âm đang được phát triển.')} />
+          </Card>
         ) : null}
 
-        {/* History */}
-        {history.length > 0 && (
+        {history.length > 0 ? (
           <View>
-            <Text className="text-[#64748B] text-xs font-semibold uppercase tracking-wider mb-3">Lịch sử nộp bài</Text>
-            <View className="gap-2">
-              {history.map(sub => (
-                <View key={sub.id} className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl px-4 py-3 flex-row items-center justify-between">
-                  <View>
-                    <Text className="text-white text-sm font-medium">{sub.promptTitle}</Text>
-                    <Text className="text-[#64748B] text-xs mt-0.5">{sub.weekStartDate} · {sub.cefrBand}</Text>
-                  </View>
-                  {sub.taskScoreOrNull != null && (
-                    <View className="bg-[rgba(45,198,83,0.15)] px-2 py-1 rounded-lg">
-                      <Text className="text-[#2DC653] text-sm font-bold">{sub.taskScoreOrNull}/5</Text>
+            <SectionHeader title="Lịch sử nộp bài" />
+            <View style={{ gap: space[2] }}>
+              {history.map((sub) => (
+                <Card key={sub.id}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <ThemedText variant="bodyStrong">{sub.promptTitle}</ThemedText>
+                      <ThemedText variant="caption" color="muted">
+                        {sub.weekStartDate} · {sub.cefrBand}
+                      </ThemedText>
                     </View>
-                  )}
-                </View>
+                    {sub.taskScoreOrNull != null ? (
+                      <View
+                        style={{
+                          backgroundColor: c.successSoft,
+                          borderRadius: radius.md,
+                          paddingHorizontal: space[2],
+                          paddingVertical: space[1],
+                        }}
+                      >
+                        <ThemedText variant="bodyStrong" color="success">
+                          {sub.taskScoreOrNull}/5
+                        </ThemedText>
+                      </View>
+                    ) : null}
+                  </View>
+                </Card>
               ))}
             </View>
           </View>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+        ) : null}
+      </Screen>
+    </Screen>
   )
 }

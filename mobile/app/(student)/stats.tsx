@@ -1,10 +1,10 @@
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router } from 'expo-router'
-import { ArrowLeft, Flame, Star, BookOpen, Mic, TrendingUp } from 'lucide-react-native'
+import { Flame, Star, BookOpen, Mic, TrendingUp, type LucideIcon } from 'lucide-react-native'
 import api from '@/lib/api'
-import { Colors } from '@/lib/constants'
+import { radius, space, useTheme } from '@/lib/theme'
+import { Screen, Card, ThemedText, Icon, AppHeader, ProgressBar, Skeleton } from '@/components/ui'
 
 interface StatsData {
   streakDays: number
@@ -16,75 +16,103 @@ interface StatsData {
   weeklyProgress: number[]
 }
 
+type Accent = 'accent' | 'success' | 'danger' | 'info'
+
 export default function StatsScreen() {
   const { data, isLoading } = useQuery({
     queryKey: ['stats'],
-    queryFn: () => api.get<StatsData>('/student/stats').then(r => r.data),
+    queryFn: () => api.get<StatsData>('/student/stats').then((r) => r.data),
     staleTime: 60_000,
   })
 
   return (
-    <SafeAreaView className="flex-1 bg-[#0D0D0D]">
-      <View className="flex-row items-center gap-3 px-5 pt-4 pb-3">
-        <TouchableOpacity onPress={() => router.back()}>
-          <ArrowLeft size={22} color={Colors.muted} />
-        </TouchableOpacity>
-        <Text className="text-white text-xl font-bold">Tiến độ học tập</Text>
-      </View>
-
+    <Screen edges={['top']}>
+      <AppHeader title="Tiến độ học tập" onBack={() => router.back()} />
       {isLoading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color={Colors.yellow} size="large" />
+        <View style={{ paddingHorizontal: space[5], gap: space[3], paddingTop: space[2] }}>
+          <View style={{ flexDirection: 'row', gap: space[3] }}>
+            <Skeleton height={120} radius="2xl" style={{ flex: 1 }} />
+            <Skeleton height={120} radius="2xl" style={{ flex: 1 }} />
+          </View>
+          <Skeleton height={80} radius="2xl" />
+          <Skeleton height={96} radius="2xl" />
         </View>
       ) : (
-        <ScrollView className="flex-1 px-5" contentContainerStyle={{ paddingBottom: 32, gap: 12, paddingTop: 8 }}>
-          {/* Stats grid */}
-          <View className="flex-row flex-wrap gap-3">
-            <StatCard icon={<Flame size={20} color={Colors.yellow} />} label="Streak" value={`${data?.streakDays ?? 0} ngày`} color={Colors.yellow} />
-            <StatCard icon={<Star size={20} color="#A855F7" />} label="Level" value={`Lv ${data?.xpLevel ?? 1}`} color="#A855F7" />
-            <StatCard icon={<BookOpen size={20} color={Colors.blue} />} label="Từ đã học" value={`${data?.wordsLearned ?? 0}`} color={Colors.blue} />
-            <StatCard icon={<Mic size={20} color={Colors.green} />} label="Phút nói" value={`${data?.speakingMinutes ?? 0}`} color={Colors.green} />
+        <Screen scroll edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[8], paddingTop: space[2], gap: space[3] }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[3] }}>
+            <StatTileCard icon={Flame} accent="accent" label="Streak" value={`${data?.streakDays ?? 0} ngày`} />
+            <StatTileCard icon={Star} accent="info" label="Level" value={`Lv ${data?.xpLevel ?? 1}`} />
+            <StatTileCard icon={BookOpen} accent="info" label="Từ đã học" value={`${data?.wordsLearned ?? 0}`} />
+            <StatTileCard icon={Mic} accent="success" label="Phút nói" value={`${data?.speakingMinutes ?? 0}`} />
           </View>
 
-          {/* Grammar accuracy */}
-          {data?.grammarAccuracy != null && (
-            <View className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-2xl p-4">
-              <View className="flex-row items-center gap-2 mb-3">
-                <TrendingUp size={16} color={Colors.yellow} />
-                <Text className="text-white font-semibold text-sm">Độ chính xác ngữ pháp</Text>
-                <Text className="text-[#F5C842] font-bold text-sm ml-auto">{data.grammarAccuracy}%</Text>
+          {data?.grammarAccuracy != null ? (
+            <Card style={{ gap: space[3] }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+                <Icon icon={TrendingUp} size={16} color="accent" />
+                <ThemedText variant="bodyStrong">Độ chính xác ngữ pháp</ThemedText>
+                <ThemedText variant="bodyStrong" color="accent" style={{ marginLeft: 'auto' }}>
+                  {data.grammarAccuracy}%
+                </ThemedText>
               </View>
-              <View className="h-2 bg-[#0D0D0D] rounded-full overflow-hidden">
-                <View
-                  className="h-full bg-[#F5C842] rounded-full"
-                  style={{ width: `${data.grammarAccuracy}%` }}
-                />
-              </View>
-            </View>
-          )}
+              <ProgressBar value={data.grammarAccuracy / 100} />
+            </Card>
+          ) : null}
 
-          {/* XP total */}
-          <View className="bg-[#1A1A1A] border border-[#A855F7]/30 rounded-2xl p-4">
-            <Text className="text-[#64748B] text-xs font-semibold mb-1">Tổng XP tích lũy</Text>
-            <Text className="text-white text-3xl font-bold">{(data?.totalXp ?? 0).toLocaleString()}</Text>
-            <Text className="text-[#64748B] text-xs mt-0.5">điểm kinh nghiệm</Text>
-          </View>
-        </ScrollView>
+          <Card>
+            <ThemedText variant="label" color="muted">
+              Tổng XP tích luỹ
+            </ThemedText>
+            <ThemedText variant="displayLg" style={{ marginTop: space[1] }}>
+              {(data?.totalXp ?? 0).toLocaleString()}
+            </ThemedText>
+            <ThemedText variant="caption" color="muted">
+              điểm kinh nghiệm
+            </ThemedText>
+          </Card>
+        </Screen>
       )}
-    </SafeAreaView>
+    </Screen>
   )
 }
 
-function StatCard({ icon, label, value, color }: {
-  icon: React.ReactNode; label: string; value: string; color: string
+function StatTileCard({
+  icon,
+  accent,
+  label,
+  value,
+}: {
+  icon: LucideIcon
+  accent: Accent
+  label: string
+  value: string
 }) {
+  const theme = useTheme()
+  const c = theme.colors
+  const softMap: Record<Accent, string> = {
+    accent: c.accentSoft,
+    success: c.successSoft,
+    danger: c.dangerSoft,
+    info: c.infoSoft,
+  }
   return (
-    <View className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-2xl p-4 items-center" style={{ width: '47%' }}>
-      <View className="w-10 h-10 rounded-xl items-center justify-center mb-2" style={{ backgroundColor: `${color}1A` }}>
-        {icon}
+    <Card style={{ width: '47%', alignItems: 'center', gap: space[2] }}>
+      <View
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: radius.md,
+          backgroundColor: softMap[accent],
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Icon icon={icon} size={20} color={accent} />
       </View>
-      <Text className="text-white text-lg font-bold">{value}</Text>
-      <Text className="text-[#64748B] text-xs mt-0.5">{label}</Text>
-    </View>
+      <ThemedText variant="monoLg">{value}</ThemedText>
+      <ThemedText variant="caption" color="muted">
+        {label}
+      </ThemedText>
+    </Card>
   )
 }

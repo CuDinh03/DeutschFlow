@@ -1,6 +1,5 @@
-import { useState, useRef, useCallback } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useState, useRef } from 'react'
+import { View, ScrollView, Alert, Pressable } from 'react-native'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { Audio } from 'expo-av'
 import * as Haptics from 'expo-haptics'
@@ -8,7 +7,8 @@ import { router } from 'expo-router'
 import { Mic, MicOff, MessageCircle, ChevronRight, Flame } from 'lucide-react-native'
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, cancelAnimation } from 'react-native-reanimated'
 import api from '@/lib/api'
-import { Colors } from '@/lib/constants'
+import { radius, space, useTheme } from '@/lib/theme'
+import { Screen, Card, ThemedText, Icon, Pill } from '@/components/ui'
 import { usePlanStore } from '@/stores/usePlanStore'
 
 interface Persona {
@@ -23,7 +23,13 @@ interface SessionMessage {
   content: string
 }
 
+type DifficultyTone = 'success' | 'accent' | 'danger'
+
+const PULSE_MAX = 1.2
+
 export default function SpeakingScreen() {
+  const theme = useTheme()
+  const c = theme.colors
   const { isPro } = usePlanStore()
   const [activeSession, setActiveSession] = useState<number | null>(null)
   const [messages, setMessages] = useState<SessionMessage[]>([])
@@ -34,7 +40,7 @@ export default function SpeakingScreen() {
 
   const { data: personas = [] } = useQuery({
     queryKey: ['personas'],
-    queryFn: () => api.get<Persona[]>('/interviews/personas').then(r => r.data),
+    queryFn: () => api.get<Persona[]>('/interviews/personas').then((r) => r.data),
     staleTime: 300_000,
   })
 
@@ -59,7 +65,7 @@ export default function SpeakingScreen() {
       recordingRef.current = recording
       setIsRecording(true)
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-      pulseAnim.value = withRepeat(withTiming(1.2, { duration: 800 }), -1, true)
+      pulseAnim.value = withRepeat(withTiming(PULSE_MAX, { duration: 800 }), -1, true)
     } catch {
       Alert.alert('Lỗi', 'Không thể khởi động microphone. Vui lòng kiểm tra quyền truy cập.')
     }
@@ -80,7 +86,6 @@ export default function SpeakingScreen() {
       const uri = recording.getURI()
       if (!uri) throw new Error('no_uri')
 
-      // Build multipart form — send audio to speaking endpoint
       const form = new FormData()
       form.append('audio', { uri, type: 'audio/m4a', name: 'recording.m4a' } as unknown as Blob)
       form.append('sessionId', String(activeSession))
@@ -88,10 +93,10 @@ export default function SpeakingScreen() {
       const res = await api.post<{ transcript: string; reply: string; audioUrl?: string }>(
         '/speaking/turn',
         form,
-        { headers: { 'Content-Type': 'multipart/form-data' } }
+        { headers: { 'Content-Type': 'multipart/form-data' } },
       )
 
-      setMessages(prev => [
+      setMessages((prev) => [
         ...prev,
         { role: 'user', content: res.data.transcript },
         { role: 'assistant', content: res.data.reply },
@@ -108,139 +113,207 @@ export default function SpeakingScreen() {
     opacity: pulseAnim.value,
   }))
 
-  // Session not started — show persona picker
   if (!activeSession) {
     return (
-      <SafeAreaView className="flex-1 bg-[#0D0D0D]">
-        <View className="px-5 pt-4 pb-2">
-          <Text className="text-white text-2xl font-bold">AI Speaking</Text>
-          <Text className="text-[#64748B] text-sm mt-0.5">Chọn đối tác hội thoại</Text>
+      <Screen edges={['top']}>
+        <View style={{ paddingHorizontal: space[5], paddingTop: space[3], paddingBottom: space[2], gap: 2 }}>
+          <ThemedText variant="display">AI Speaking</ThemedText>
+          <ThemedText variant="body" color="muted">
+            Chọn đối tác hội thoại
+          </ThemedText>
         </View>
 
-        <ScrollView className="flex-1 px-5" contentContainerStyle={{ paddingBottom: 24, gap: 12, paddingTop: 12 }}>
-          {personas.map(persona => {
-            const isAdvanced = persona.difficulty === 'ADVANCED'
-            const locked = isAdvanced && !isPro
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingHorizontal: space[5], paddingBottom: space[6], gap: space[3], paddingTop: space[3] }}
+          showsVerticalScrollIndicator={false}
+        >
+          {personas.map((persona) => {
+            const locked = persona.difficulty === 'ADVANCED' && !isPro
             return (
-              <TouchableOpacity
+              <Card
                 key={persona.id}
-                onPress={() => locked
-                  ? Alert.alert('PRO Required', 'Persona ADVANCED chỉ dành cho PRO. Truy cập mydeutschflow.com')
-                  : startSession.mutate(persona.id)
+                onPress={() =>
+                  locked
+                    ? Alert.alert('Cần PRO', 'Persona nâng cao chỉ dành cho PRO. Truy cập mydeutschflow.com')
+                    : startSession.mutate(persona.id)
                 }
-                className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-2xl p-4 flex-row items-center justify-between"
-                activeOpacity={0.75}
               >
-                <View className="flex-row items-center gap-3">
-                  <View className="w-12 h-12 rounded-2xl bg-[#2A2A2A] items-center justify-center">
-                    <Text className="text-2xl">{difficultyEmoji(persona.difficulty)}</Text>
-                  </View>
-                  <View>
-                    <Text className="text-white font-semibold text-sm">{persona.roleTitle}</Text>
-                    <View className={`mt-0.5 self-start px-2 py-0.5 rounded-full ${difficultyBg(persona.difficulty)}`}>
-                      <Text className={`text-[10px] font-bold ${difficultyText(persona.difficulty)}`}>
-                        {persona.difficulty}
-                      </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], flex: 1 }}>
+                    <DifficultyDot difficulty={persona.difficulty} />
+                    <View style={{ flex: 1, gap: 4 }}>
+                      <ThemedText variant="bodyStrong">{persona.roleTitle}</ThemedText>
+                      <Pill label={difficultyLabel(persona.difficulty)} tone={difficultyTone(persona.difficulty)} />
                     </View>
                   </View>
+                  {locked ? (
+                    <Pill label="PRO" tone="accent" />
+                  ) : (
+                    <Icon icon={ChevronRight} size={18} color="faint" />
+                  )}
                 </View>
-                {locked
-                  ? <Text className="text-[#F5C842] text-xs font-semibold">PRO</Text>
-                  : <ChevronRight size={18} color={Colors.muted} />
-                }
-              </TouchableOpacity>
+              </Card>
             )
           })}
 
-          {/* Weekly Speaking CTA */}
-          <TouchableOpacity
-            onPress={() => router.push('/(student)/weekly-speaking')}
-            className="bg-[#1A1A1A] border border-[#3A86FF]/40 rounded-2xl p-4 flex-row items-center gap-3"
-            activeOpacity={0.75}
-          >
-            <View className="w-12 h-12 rounded-2xl bg-[rgba(58,134,255,0.15)] items-center justify-center">
-              <Flame size={22} color="#3A86FF" />
+          <Card onPress={() => router.push('/(student)/weekly-speaking')} style={{ borderColor: c.info + '66' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+              <View
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: radius.lg,
+                  backgroundColor: c.infoSoft,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Icon icon={Flame} size={22} color="info" />
+              </View>
+              <View style={{ flex: 1, gap: 2 }}>
+                <ThemedText variant="bodyStrong">Weekly Speaking Challenge</ThemedText>
+                <ThemedText variant="caption" color="muted">
+                  Nộp bài nói hàng tuần • PRO
+                </ThemedText>
+              </View>
+              <Icon icon={ChevronRight} size={18} color="faint" />
             </View>
-            <View>
-              <Text className="text-white font-semibold text-sm">Weekly Speaking Challenge</Text>
-              <Text className="text-[#64748B] text-xs">Nộp bài nói hàng tuần • PRO</Text>
-            </View>
-            <ChevronRight size={18} color={Colors.muted} style={{ marginLeft: 'auto' }} />
-          </TouchableOpacity>
+          </Card>
         </ScrollView>
-      </SafeAreaView>
+      </Screen>
     )
   }
 
-  // Active session UI
   return (
-    <SafeAreaView className="flex-1 bg-[#0D0D0D]">
-      <View className="flex-row items-center px-5 pt-4 pb-3 border-b border-[#1A1A1A]">
-        <TouchableOpacity onPress={() => { setActiveSession(null); setMessages([]) }} className="mr-3">
-          <Text className="text-[#64748B] text-sm">Kết thúc</Text>
-        </TouchableOpacity>
-        <MessageCircle size={18} color={Colors.yellow} />
-        <Text className="text-white font-semibold ml-2">Phiên hội thoại</Text>
+    <Screen edges={['top']}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: space[2],
+          paddingHorizontal: space[5],
+          paddingVertical: space[3],
+          borderBottomWidth: 1,
+          borderBottomColor: c.border,
+        }}
+      >
+        <Pressable onPress={() => { setActiveSession(null); setMessages([]) }} hitSlop={8} style={{ marginRight: space[1] }}>
+          <ThemedText variant="label" color="muted">
+            Kết thúc
+          </ThemedText>
+        </Pressable>
+        <Icon icon={MessageCircle} size={18} color="accent" />
+        <ThemedText variant="bodyStrong">Phiên hội thoại</ThemedText>
       </View>
 
-      <ScrollView className="flex-1 px-5 py-4" contentContainerStyle={{ gap: 12 }}>
-        {messages.map((msg, i) => (
-          <View key={i} className={`max-w-[85%] ${msg.role === 'user' ? 'self-end' : 'self-start'}`}>
-            <View className={`rounded-2xl px-4 py-3 ${
-              msg.role === 'user'
-                ? 'bg-[#F5C842] rounded-br-sm'
-                : 'bg-[#1A1A1A] border border-[#2A2A2A] rounded-bl-sm'
-            }`}>
-              <Text className={msg.role === 'user' ? 'text-[#0D0D0D] text-sm' : 'text-white text-sm'}>
-                {msg.content}
-              </Text>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: space[5], gap: space[3] }} showsVerticalScrollIndicator={false}>
+        {messages.map((msg, i) => {
+          const isUser = msg.role === 'user'
+          return (
+            <View key={i} style={{ maxWidth: '85%', alignSelf: isUser ? 'flex-end' : 'flex-start' }}>
+              <View
+                style={{
+                  backgroundColor: isUser ? c.accent : c.surface,
+                  borderWidth: isUser ? 0 : 1,
+                  borderColor: c.border,
+                  borderRadius: radius['2xl'],
+                  borderBottomRightRadius: isUser ? 6 : radius['2xl'],
+                  borderBottomLeftRadius: isUser ? radius['2xl'] : 6,
+                  paddingHorizontal: space[4],
+                  paddingVertical: space[3],
+                }}
+              >
+                <ThemedText variant="body" color={isUser ? 'onAccent' : 'primary'}>
+                  {msg.content}
+                </ThemedText>
+              </View>
             </View>
+          )
+        })}
+        {isProcessing ? (
+          <View
+            style={{
+              alignSelf: 'flex-start',
+              backgroundColor: c.surface,
+              borderWidth: 1,
+              borderColor: c.border,
+              borderRadius: radius['2xl'],
+              borderBottomLeftRadius: 6,
+              paddingHorizontal: space[4],
+              paddingVertical: space[3],
+            }}
+          >
+            <ThemedText variant="body" color="muted">
+              Đang xử lý...
+            </ThemedText>
           </View>
-        ))}
-        {isProcessing && (
-          <View className="self-start bg-[#1A1A1A] border border-[#2A2A2A] rounded-2xl rounded-bl-sm px-4 py-3">
-            <Text className="text-[#64748B] text-sm">Đang xử lý...</Text>
-          </View>
-        )}
+        ) : null}
       </ScrollView>
 
-      {/* Mic button */}
-      <View className="pb-8 items-center">
-        <TouchableOpacity
-          onPressIn={startRecording}
-          onPressOut={stopRecordingAndSend}
-          disabled={isProcessing}
-          activeOpacity={0.85}
-        >
+      <View style={{ paddingBottom: space[8], alignItems: 'center', gap: space[2] }}>
+        <Pressable onPressIn={startRecording} onPressOut={stopRecordingAndSend} disabled={isProcessing}>
           <Animated.View
-            style={isRecording ? pulseStyle : undefined}
-            className={`w-20 h-20 rounded-full items-center justify-center ${
-              isRecording ? 'bg-[#E63946]' : isProcessing ? 'bg-[#2A2A2A]' : 'bg-[#F5C842]'
-            }`}
+            style={[
+              isRecording ? pulseStyle : undefined,
+              {
+                width: 80,
+                height: 80,
+                borderRadius: radius.full,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: isRecording ? c.danger : isProcessing ? c.surfaceElevated : c.accent,
+              },
+            ]}
           >
-            {isRecording ? <MicOff size={30} color="#fff" /> : <Mic size={30} color="#0D0D0D" />}
+            {isRecording ? <Icon icon={MicOff} size={30} color="onAccent" /> : <Icon icon={Mic} size={30} color="onAccent" />}
           </Animated.View>
-        </TouchableOpacity>
-        <Text className="text-[#64748B] text-xs mt-2">
+        </Pressable>
+        <ThemedText variant="caption" color="muted">
           {isRecording ? 'Đang ghi âm… thả để gửi' : isProcessing ? 'Đang xử lý...' : 'Giữ để nói'}
-        </Text>
+        </ThemedText>
       </View>
-    </SafeAreaView>
+    </Screen>
   )
 }
 
-function difficultyEmoji(d: string) {
-  if (d === 'BEGINNER') return '🟢'
-  if (d === 'INTERMEDIATE') return '🟡'
-  return '🔴'
+function DifficultyDot({ difficulty }: { difficulty: string }) {
+  const theme = useTheme()
+  const tone = difficultyTone(difficulty)
+  const soft: Record<DifficultyTone, string> = {
+    success: theme.colors.successSoft,
+    accent: theme.colors.accentSoft,
+    danger: theme.colors.dangerSoft,
+  }
+  const dot: Record<DifficultyTone, string> = {
+    success: theme.colors.success,
+    accent: theme.colors.accent,
+    danger: theme.colors.danger,
+  }
+  return (
+    <View
+      style={{
+        width: 44,
+        height: 44,
+        borderRadius: radius.lg,
+        backgroundColor: soft[tone],
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <View style={{ width: 12, height: 12, borderRadius: radius.full, backgroundColor: dot[tone] }} />
+    </View>
+  )
 }
-function difficultyBg(d: string) {
-  if (d === 'BEGINNER') return 'bg-[rgba(45,198,83,0.15)]'
-  if (d === 'INTERMEDIATE') return 'bg-[rgba(245,200,66,0.15)]'
-  return 'bg-[rgba(230,57,70,0.15)]'
+
+function difficultyTone(d: string): DifficultyTone {
+  if (d === 'BEGINNER') return 'success'
+  if (d === 'INTERMEDIATE') return 'accent'
+  return 'danger'
 }
-function difficultyText(d: string) {
-  if (d === 'BEGINNER') return 'text-[#2DC653]'
-  if (d === 'INTERMEDIATE') return 'text-[#F5C842]'
-  return 'text-[#E63946]'
+
+function difficultyLabel(d: string): string {
+  if (d === 'BEGINNER') return 'Cơ bản'
+  if (d === 'INTERMEDIATE') return 'Trung cấp'
+  return 'Nâng cao'
 }

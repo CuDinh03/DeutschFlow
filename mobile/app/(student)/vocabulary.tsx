@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { View, Text, TextInput, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { View, TextInput, FlatList, Pressable } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router } from 'expo-router'
-import { Search, ArrowLeft, BookMarked } from 'lucide-react-native'
+import { Search, BookMarked } from 'lucide-react-native'
 import api from '@/lib/api'
-import { Colors } from '@/lib/constants'
+import { fonts, radius, space, useTheme } from '@/lib/theme'
+import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, Skeleton } from '@/components/ui'
 import { useDebounce } from '@/hooks/useDebounce'
 
 interface Word {
@@ -18,10 +18,20 @@ interface Word {
 }
 
 const STATUS_FILTERS = ['ALL', 'NEW', 'LEARNING', 'MASTERED'] as const
+type StatusFilter = (typeof STATUS_FILTERS)[number]
+
+const FILTER_LABEL: Record<StatusFilter, string> = {
+  ALL: 'Tất cả',
+  NEW: 'Mới',
+  LEARNING: 'Đang học',
+  MASTERED: 'Thuộc',
+}
 
 export default function VocabularyScreen() {
+  const theme = useTheme()
+  const c = theme.colors
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]>('ALL')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
   const debouncedSearch = useDebounce(search, 350)
 
   const { data, isLoading } = useQuery({
@@ -30,7 +40,7 @@ export default function VocabularyScreen() {
       const params = new URLSearchParams({ page: '0', size: '30' })
       if (debouncedSearch) params.set('q', debouncedSearch)
       if (statusFilter !== 'ALL') params.set('status', statusFilter.toLowerCase())
-      return api.get<{ content: Word[] }>(`/words?${params}`).then(r => r.data.content)
+      return api.get<{ content: Word[] }>(`/words?${params}`).then((r) => r.data.content)
     },
     staleTime: 30_000,
   })
@@ -38,79 +48,93 @@ export default function VocabularyScreen() {
   const words = data ?? []
 
   return (
-    <SafeAreaView className="flex-1 bg-[#0D0D0D]">
-      <View className="flex-row items-center gap-3 px-5 pt-4 pb-3">
-        <TouchableOpacity onPress={() => router.back()}>
-          <ArrowLeft size={22} color={Colors.muted} />
-        </TouchableOpacity>
-        <Text className="text-white text-xl font-bold">Từ vựng</Text>
-      </View>
+    <Screen edges={['top']}>
+      <AppHeader title="Từ vựng" onBack={() => router.back()} />
 
-      {/* Search */}
-      <View className="mx-5 mb-3 flex-row items-center gap-2 bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl px-4 py-3">
-        <Search size={16} color={Colors.muted} />
+      <View
+        style={{
+          marginHorizontal: space[5],
+          marginBottom: space[3],
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: space[2],
+          backgroundColor: c.surfaceSunken,
+          borderWidth: 1,
+          borderColor: c.border,
+          borderRadius: radius.lg,
+          paddingHorizontal: space[4],
+          paddingVertical: space[3],
+        }}
+      >
+        <Icon icon={Search} size={16} color="muted" />
         <TextInput
           value={search}
           onChangeText={setSearch}
           placeholder="Tìm từ vựng..."
-          placeholderTextColor="#4A5568"
-          className="flex-1 text-white text-sm"
+          placeholderTextColor={c.textFaint}
+          style={{ flex: 1, color: c.textPrimary, fontFamily: fonts.bodyRegular, fontSize: 15 }}
         />
       </View>
 
-      {/* Status filter chips */}
-      <View className="flex-row gap-2 px-5 mb-4">
-        {STATUS_FILTERS.map(f => (
-          <TouchableOpacity
-            key={f}
-            onPress={() => setStatusFilter(f)}
-            className={`px-3 py-1.5 rounded-full ${statusFilter === f ? 'bg-[#F5C842]' : 'bg-[#1A1A1A] border border-[#2A2A2A]'}`}
-          >
-            <Text className={`text-xs font-semibold ${statusFilter === f ? 'text-[#0D0D0D]' : 'text-[#64748B]'}`}>
-              {f === 'ALL' ? 'Tất cả' : f === 'NEW' ? 'Mới' : f === 'LEARNING' ? 'Đang học' : 'Thuộc'}
-            </Text>
-          </TouchableOpacity>
-        ))}
+      <View style={{ flexDirection: 'row', gap: space[2], paddingHorizontal: space[5], marginBottom: space[4] }}>
+        {STATUS_FILTERS.map((f) => {
+          const active = statusFilter === f
+          return (
+            <Pressable
+              key={f}
+              onPress={() => setStatusFilter(f)}
+              style={{
+                paddingHorizontal: space[3],
+                paddingVertical: 6,
+                borderRadius: radius.full,
+                backgroundColor: active ? c.accent : c.surfaceSunken,
+                borderWidth: active ? 0 : 1,
+                borderColor: c.border,
+              }}
+            >
+              <ThemedText variant="label" color={active ? 'onAccent' : 'muted'}>
+                {FILTER_LABEL[f]}
+              </ThemedText>
+            </Pressable>
+          )
+        })}
       </View>
 
       {isLoading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color={Colors.yellow} />
+        <View style={{ paddingHorizontal: space[5], gap: space[2] }}>
+          <Skeleton height={60} radius="lg" />
+          <Skeleton height={60} radius="lg" />
+          <Skeleton height={60} radius="lg" />
         </View>
       ) : (
         <FlatList
           data={words}
-          keyExtractor={item => item.id}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24, gap: 8 }}
-          ListEmptyComponent={
-            <View className="items-center pt-12">
-              <BookMarked size={32} color={Colors.muted} />
-              <Text className="text-[#64748B] text-sm mt-3">Không tìm thấy từ vựng</Text>
-            </View>
-          }
-          renderItem={({ item }) => {
-            const genderColor = item.gender === 'der' ? Colors.der : item.gender === 'die' ? Colors.die : item.gender === 'das' ? Colors.das : '#64748B'
-            return (
-              <View className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl px-4 py-3 flex-row items-center justify-between">
-                <View className="flex-row items-center gap-3">
-                  {item.gender && (
-                    <View className="w-8 h-8 rounded-lg items-center justify-center" style={{ backgroundColor: `${genderColor}22` }}>
-                      <Text className="text-xs font-bold" style={{ color: genderColor }}>{item.gender}</Text>
-                    </View>
-                  )}
-                  <View>
-                    <Text className="text-white font-semibold text-sm">{item.word}</Text>
-                    <Text className="text-[#64748B] text-xs">{item.translation}</Text>
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={{ paddingHorizontal: space[5], paddingBottom: space[6], gap: space[2] }}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={<EmptyState icon={BookMarked} title="Không tìm thấy từ vựng" message="Thử từ khoá hoặc bộ lọc khác." />}
+          renderItem={({ item }) => (
+            <Card>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], flex: 1 }}>
+                  {item.gender ? <Pill label={item.gender} tone={item.gender} /> : null}
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <ThemedText variant="bodyStrong">{item.word}</ThemedText>
+                    <ThemedText variant="caption" color="muted">
+                      {item.translation}
+                    </ThemedText>
                   </View>
                 </View>
-                {item.cefrLevel && (
-                  <Text className="text-[#2A2A2A] text-xs font-bold">{item.cefrLevel}</Text>
-                )}
+                {item.cefrLevel ? (
+                  <ThemedText variant="caption" color="faint">
+                    {item.cefrLevel}
+                  </ThemedText>
+                ) : null}
               </View>
-            )
-          }}
+            </Card>
+          )}
         />
       )}
-    </SafeAreaView>
+    </Screen>
   )
 }

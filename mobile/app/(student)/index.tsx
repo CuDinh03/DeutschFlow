@@ -1,13 +1,22 @@
-import { useEffect } from 'react'
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { View, RefreshControl, Pressable } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router } from 'expo-router'
-import { Flame, BookOpen, Mic, Star, ChevronRight, Bell } from 'lucide-react-native'
+import { MotiView } from 'moti'
+import { Flame, BookOpen, Mic, Star, Map, Bell } from 'lucide-react-native'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
 import api from '@/lib/api'
-import { Colors } from '@/lib/constants'
+import { motion, space, radius, useTheme } from '@/lib/theme'
+import {
+  Screen,
+  Card,
+  ThemedText,
+  Icon,
+  Pill,
+  ListRow,
+  SectionHeader,
+  Skeleton,
+} from '@/components/ui'
 
 interface DashboardData {
   streakDays: number
@@ -22,180 +31,254 @@ interface DashboardData {
   unreadNotificationCount?: number
 }
 
+function greetingFor(hour: number): string {
+  if (hour < 12) return 'Chào buổi sáng'
+  if (hour < 18) return 'Chào buổi chiều'
+  return 'Chào buổi tối'
+}
+
 export default function DashboardScreen() {
+  const theme = useTheme()
   const { user } = useAuthStore()
   const { isPro } = usePlanStore()
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['dashboard'],
-    queryFn: () => api.get<DashboardData>('/student/dashboard').then(r => r.data),
+    queryFn: () => api.get<DashboardData>('/student/dashboard').then((r) => r.data),
     staleTime: 60_000,
   })
 
   const firstName = user?.displayName?.split(' ').at(-1) ?? 'bạn'
-  const hour = new Date().getHours()
-  const greeting = hour < 12 ? 'Chào buổi sáng' : hour < 18 ? 'Chào buổi chiều' : 'Chào buổi tối'
-
-  if (isLoading) {
-    return (
-      <SafeAreaView className="flex-1 bg-[#0D0D0D] items-center justify-center">
-        <ActivityIndicator color={Colors.yellow} size="large" />
-      </SafeAreaView>
-    )
-  }
+  const greeting = greetingFor(new Date().getHours())
+  const unread = data?.unreadNotificationCount ?? 0
 
   return (
-    <SafeAreaView className="flex-1 bg-[#0D0D0D]">
-      <ScrollView
-        className="flex-1"
-        contentContainerStyle={{ paddingBottom: 24 }}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={Colors.yellow} />}
+    <Screen
+      scroll
+      edges={['top']}
+      contentStyle={{ paddingBottom: space[8] }}
+      refreshing={isRefetching}
+      onRefresh={refetch}
+    >
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          paddingHorizontal: space[5],
+          paddingTop: space[3],
+          paddingBottom: space[2],
+        }}
       >
-        {/* Header */}
-        <View className="flex-row justify-between items-center px-5 pt-4 pb-2">
-          <View>
-            <Text className="text-[#64748B] text-sm">{greeting},</Text>
-            <Text className="text-white text-xl font-bold">{firstName} 👋</Text>
-          </View>
-          <TouchableOpacity
-            onPress={() => router.push('/(student)/notifications')}
-            className="relative"
-          >
-            <Bell size={22} color={Colors.muted} />
-            {(data?.unreadNotificationCount ?? 0) > 0 && (
-              <View className="absolute -top-1 -right-1 bg-[#E63946] rounded-full w-4 h-4 items-center justify-center">
-                <Text className="text-white text-[9px] font-bold">
-                  {Math.min(data!.unreadNotificationCount!, 9)}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
+        <View style={{ gap: 2 }}>
+          <ThemedText variant="caption" color="muted">
+            {greeting},
+          </ThemedText>
+          <ThemedText variant="titleLg">{firstName}</ThemedText>
         </View>
+        <Pressable onPress={() => router.push('/(student)/notifications')} hitSlop={8}>
+          <View
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: radius.md,
+              backgroundColor: theme.colors.surface,
+              borderWidth: 1,
+              borderColor: theme.colors.border,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Icon icon={Bell} size={20} color="secondary" />
+            {unread > 0 ? (
+              <View
+                style={{
+                  position: 'absolute',
+                  top: -2,
+                  right: -2,
+                  minWidth: 18,
+                  height: 18,
+                  paddingHorizontal: 4,
+                  borderRadius: radius.full,
+                  backgroundColor: theme.colors.danger,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderWidth: 2,
+                  borderColor: theme.colors.bg,
+                }}
+              >
+                <ThemedText variant="caption" style={{ color: '#FFF', fontSize: 10 }}>
+                  {Math.min(unread, 9)}
+                </ThemedText>
+              </View>
+            ) : null}
+          </View>
+        </Pressable>
+      </View>
 
-        {/* Streak + XP row */}
-        <View className="flex-row gap-3 px-5 mt-3">
-          <View className="flex-1 bg-[#1A1A1A] border border-[#2A2A2A] rounded-2xl p-4 flex-row items-center gap-3">
-            <View className="w-10 h-10 rounded-xl bg-[rgba(245,200,66,0.15)] items-center justify-center">
-              <Flame size={20} color={Colors.yellow} />
-            </View>
-            <View>
-              <Text className="text-white text-xl font-bold">{data?.streakDays ?? 0}</Text>
-              <Text className="text-[#64748B] text-xs">ngày liên tiếp</Text>
-            </View>
+      {isLoading ? (
+        <DashboardSkeleton />
+      ) : (
+        <MotiView
+          from={{ opacity: 0, translateY: 12 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: motion.duration.normal }}
+        >
+          <View style={{ flexDirection: 'row', gap: space[3], paddingHorizontal: space[5], marginTop: space[3] }}>
+            <StatCard icon={Flame} accent="accent" value={String(data?.streakDays ?? 0)} label="ngày liên tiếp" />
+            <StatCard icon={Star} accent="info" value={`Lv ${data?.xpLevel ?? 1}`} label={`${data?.totalXp ?? 0} XP`} />
           </View>
 
-          <View className="flex-1 bg-[#1A1A1A] border border-[#2A2A2A] rounded-2xl p-4 flex-row items-center gap-3">
-            <View className="w-10 h-10 rounded-xl bg-[rgba(168,85,247,0.15)] items-center justify-center">
-              <Star size={20} color="#A855F7" />
-            </View>
-            <View>
-              <Text className="text-white text-xl font-bold">Lv {data?.xpLevel ?? 1}</Text>
-              <Text className="text-[#64748B] text-xs">{data?.totalXp ?? 0} XP</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Due SRS card */}
-        {(data?.dueSrsCount ?? 0) > 0 && (
-          <TouchableOpacity
-            onPress={() => router.push('/(student)/srs')}
-            className="mx-5 mt-4 bg-[#1A1A1A] border border-[#F5C842]/30 rounded-2xl p-4 flex-row items-center justify-between"
-            activeOpacity={0.8}
-          >
-            <View className="flex-row items-center gap-3">
-              <View className="w-10 h-10 rounded-xl bg-[rgba(245,200,66,0.15)] items-center justify-center">
-                <BookOpen size={20} color={Colors.yellow} />
-              </View>
-              <View>
-                <Text className="text-white font-semibold text-sm">Ôn tập hôm nay</Text>
-                <Text className="text-[#64748B] text-xs">{data?.dueSrsCount} thẻ đến hạn</Text>
-              </View>
-            </View>
-            <ChevronRight size={18} color={Colors.muted} />
-          </TouchableOpacity>
-        )}
-
-        {/* Quick actions */}
-        <Text className="text-[#64748B] text-xs font-semibold uppercase tracking-wider px-5 mt-5 mb-3">
-          Hoạt động học tập
-        </Text>
-        <View className="px-5 gap-3">
-          <QuickAction
-            icon={<BookOpen size={20} color={Colors.yellow} />}
-            title="Luyện từ vựng SRS"
-            subtitle="Spaced repetition flashcards"
-            onPress={() => router.push('/(student)/srs')}
-            color="yellow"
-          />
-          <QuickAction
-            icon={<Mic size={20} color="#3A86FF" />}
-            title="AI Speaking"
-            subtitle="Hội thoại với AI coach"
-            onPress={() => router.push('/(student)/speaking')}
-            color="blue"
-          />
-          <QuickAction
-            icon={<Star size={20} color="#2DC653" />}
-            title="Lộ trình học"
-            subtitle="Skill tree A1 → B2"
-            onPress={() => router.push('/(student)/roadmap')}
-            color="green"
-          />
-        </View>
-
-        {/* PRO upgrade nudge for free users */}
-        {!isPro && (
-          <TouchableOpacity
-            onPress={() => router.push('/(student)/upgrade')}
-            className="mx-5 mt-5 bg-gradient-to-r from-[#1A1A1A] to-[#1A1A1A] border border-[#F5C842]/40 rounded-2xl p-4"
-            activeOpacity={0.8}
-          >
-            <View className="flex-row items-center justify-between">
-              <View>
-                <View className="flex-row items-center gap-1.5 mb-1">
-                  <Star size={14} color={Colors.yellow} fill={Colors.yellow} />
-                  <Text className="text-[#F5C842] text-xs font-bold">DeutschFlow PRO</Text>
+          {(data?.dueSrsCount ?? 0) > 0 ? (
+            <Card
+              onPress={() => router.push('/(student)/srs')}
+              bordered
+              style={{ marginHorizontal: space[5], marginTop: space[4], borderColor: theme.colors.accent + '4D' }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: radius.md,
+                      backgroundColor: theme.colors.accentSoft,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Icon icon={BookOpen} size={20} color="accent" />
+                  </View>
+                  <View style={{ gap: 2 }}>
+                    <ThemedText variant="bodyStrong">Ôn tập hôm nay</ThemedText>
+                    <ThemedText variant="caption" color="muted">
+                      Spaced repetition đến hạn
+                    </ThemedText>
+                  </View>
                 </View>
-                <Text className="text-white text-sm font-semibold">Mở khoá toàn bộ tính năng</Text>
-                <Text className="text-[#64748B] text-xs mt-0.5">Speaking AI, Mock Exam, Weekly Challenge...</Text>
+                <Pill label={`${data?.dueSrsCount} thẻ`} tone="accent" />
               </View>
-              <View className="bg-[#F5C842] rounded-xl px-3 py-1.5">
-                <Text className="text-[#0D0D0D] text-xs font-bold">Xem PRO</Text>
+            </Card>
+          ) : null}
+
+          <View style={{ paddingHorizontal: space[5], marginTop: space[6] }}>
+            <SectionHeader title="Hoạt động" />
+            <Card padded={false} style={{ paddingHorizontal: space[4] }}>
+              <ListRow
+                icon={BookOpen}
+                iconTone="accent"
+                title="Luyện từ vựng SRS"
+                subtitle="Flashcard lặp lại ngắt quãng"
+                onPress={() => router.push('/(student)/srs')}
+              />
+              <Divider />
+              <ListRow
+                icon={Mic}
+                iconTone="info"
+                title="AI Speaking"
+                subtitle="Hội thoại với AI coach"
+                onPress={() => router.push('/(student)/speaking')}
+              />
+              <Divider />
+              <ListRow
+                icon={Map}
+                iconTone="success"
+                title="Lộ trình học"
+                subtitle="Skill tree A1 đến B2"
+                onPress={() => router.push('/(student)/roadmap')}
+              />
+            </Card>
+          </View>
+
+          {!isPro ? (
+            <Card
+              onPress={() => router.push('/(student)/upgrade')}
+              elevation="lifted"
+              style={{ marginHorizontal: space[5], marginTop: space[6], borderColor: theme.colors.accent + '66' }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space[3] }}>
+                <View style={{ flex: 1, gap: space[1] }}>
+                  <Pill label="DeutschFlow PRO" tone="accent" icon={Star} />
+                  <ThemedText variant="title">Mở khoá toàn bộ tính năng</ThemedText>
+                  <ThemedText variant="caption" color="muted">
+                    Speaking AI, Mock Exam, Weekly Challenge
+                  </ThemedText>
+                </View>
+                <View
+                  style={{
+                    backgroundColor: theme.colors.accent,
+                    borderRadius: radius.md,
+                    paddingHorizontal: space[3],
+                    paddingVertical: space[2],
+                  }}
+                >
+                  <ThemedText variant="label" color="onAccent">
+                    Xem PRO
+                  </ThemedText>
+                </View>
               </View>
-            </View>
-          </TouchableOpacity>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+            </Card>
+          ) : null}
+        </MotiView>
+      )}
+    </Screen>
   )
 }
 
-function QuickAction({
-  icon, title, subtitle, onPress, color,
+function StatCard({
+  icon,
+  accent,
+  value,
+  label,
 }: {
-  icon: React.ReactNode
-  title: string
-  subtitle: string
-  onPress: () => void
-  color: 'yellow' | 'blue' | 'green'
+  icon: typeof Flame
+  accent: 'accent' | 'info'
+  value: string
+  label: string
 }) {
-  const bgMap = { yellow: 'rgba(245,200,66,0.12)', blue: 'rgba(58,134,255,0.12)', green: 'rgba(45,198,83,0.12)' }
+  const theme = useTheme()
+  const softBg = accent === 'accent' ? theme.colors.accentSoft : theme.colors.infoSoft
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-2xl p-4 flex-row items-center justify-between"
-      activeOpacity={0.75}
-    >
-      <View className="flex-row items-center gap-3">
-        <View className="w-10 h-10 rounded-xl items-center justify-center" style={{ backgroundColor: bgMap[color] }}>
-          {icon}
+    <Card style={{ flex: 1 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+        <View
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: radius.md,
+            backgroundColor: softBg,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Icon icon={icon} size={20} color={accent} />
         </View>
-        <View>
-          <Text className="text-white font-semibold text-sm">{title}</Text>
-          <Text className="text-[#64748B] text-xs">{subtitle}</Text>
+        <View style={{ gap: 2 }}>
+          <ThemedText variant="monoLg">{value}</ThemedText>
+          <ThemedText variant="caption" color="muted">
+            {label}
+          </ThemedText>
         </View>
       </View>
-      <ChevronRight size={18} color={Colors.muted} />
-    </TouchableOpacity>
+    </Card>
+  )
+}
+
+function Divider() {
+  const theme = useTheme()
+  return <View style={{ height: 1, backgroundColor: theme.colors.border }} />
+}
+
+function DashboardSkeleton() {
+  return (
+    <View style={{ paddingHorizontal: space[5], marginTop: space[3], gap: space[4] }}>
+      <View style={{ flexDirection: 'row', gap: space[3] }}>
+        <Skeleton height={72} radius="2xl" style={{ flex: 1 }} />
+        <Skeleton height={72} radius="2xl" style={{ flex: 1 }} />
+      </View>
+      <Skeleton height={72} radius="2xl" />
+      <Skeleton width={120} height={20} radius="md" />
+      <Skeleton height={180} radius="2xl" />
+    </View>
   )
 }

@@ -1,17 +1,17 @@
 import { useState } from 'react'
-import {
-  View, Text, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Alert, ScrollView,
-} from 'react-native'
+import { View, KeyboardAvoidingView, Platform, Alert, ScrollView, Pressable } from 'react-native'
 import { router, Link } from 'expo-router'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { MotiView } from 'moti'
 import * as Haptics from 'expo-haptics'
 import api from '@/lib/api'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { setTokens } from '@/lib/auth'
+import { motion, radius, space, useTheme } from '@/lib/theme'
+import { Screen, ThemedText, TextField, Button } from '@/components/ui'
 
 export default function RegisterScreen() {
+  const theme = useTheme()
   const [displayName, setDisplayName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -30,16 +30,17 @@ export default function RegisterScreen() {
     }
     setLoading(true)
     try {
-      const res = await api.post<{ accessToken: string; refreshToken: string }>(
-        '/auth/register',
-        { displayName: displayName.trim(), email: email.trim(), password }
-      )
+      const res = await api.post<{ accessToken: string; refreshToken: string }>('/auth/register', {
+        displayName: displayName.trim(),
+        email: email.trim(),
+        password,
+      })
       await setTokens(res.data.accessToken, res.data.refreshToken)
       await fetchMe()
       await fetchPlan()
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
       router.replace('/(student)/')
-    } catch (e) {
+    } catch {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
       Alert.alert('Đăng ký thất bại', 'Email có thể đã được sử dụng.')
     } finally {
@@ -48,87 +49,87 @@ export default function RegisterScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-[#0D0D0D]">
+    <Screen edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1"
+        style={{ flex: 1 }}
       >
         <ScrollView
-          className="flex-1 px-6"
-          contentContainerStyle={{ justifyContent: 'center', paddingVertical: 40 }}
+          style={{ flex: 1, paddingHorizontal: space[6] }}
+          contentContainerStyle={{ justifyContent: 'center', flexGrow: 1, paddingVertical: space[10] }}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <View className="items-center mb-10">
-            <View className="w-14 h-14 rounded-2xl bg-[#F5C842] items-center justify-center mb-4">
-              <Text className="text-[#0D0D0D] text-2xl font-bold">D</Text>
+          <MotiView
+            from={{ opacity: 0, translateY: 16 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'timing', duration: motion.duration.slow }}
+          >
+            <View style={{ alignItems: 'center', marginBottom: space[10] }}>
+              <View
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: radius.xl,
+                  backgroundColor: theme.colors.accent,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: space[4],
+                }}
+              >
+                <ThemedText variant="display" color="onAccent">
+                  D
+                </ThemedText>
+              </View>
+              <ThemedText variant="titleLg">Tạo tài khoản</ThemedText>
+              <ThemedText variant="body" color="muted" style={{ marginTop: space[1] }}>
+                Miễn phí, không cần thẻ tín dụng
+              </ThemedText>
             </View>
-            <Text className="text-white text-2xl font-bold">Tạo tài khoản</Text>
-            <Text className="text-[#64748B] text-sm mt-1">Miễn phí, không cần thẻ tín dụng</Text>
-          </View>
 
-          <View className="gap-3">
-            <View>
-              <Text className="text-[#64748B] text-xs font-medium mb-1.5 uppercase tracking-wide">Tên hiển thị</Text>
-              <TextInput
+            <View style={{ gap: space[4] }}>
+              <TextField
+                label="Tên hiển thị"
                 value={displayName}
                 onChangeText={setDisplayName}
                 placeholder="Nguyễn Văn A"
-                placeholderTextColor="#4A5568"
                 autoCapitalize="words"
-                className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl px-4 py-4 text-white text-base"
               />
-            </View>
-
-            <View>
-              <Text className="text-[#64748B] text-xs font-medium mb-1.5 uppercase tracking-wide">Email</Text>
-              <TextInput
+              <TextField
+                label="Email"
                 value={email}
                 onChangeText={setEmail}
                 placeholder="example@email.com"
-                placeholderTextColor="#4A5568"
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoComplete="email"
-                className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl px-4 py-4 text-white text-base"
               />
-            </View>
-
-            <View>
-              <Text className="text-[#64748B] text-xs font-medium mb-1.5 uppercase tracking-wide">Mật khẩu</Text>
-              <TextInput
+              <TextField
+                label="Mật khẩu"
                 value={password}
                 onChangeText={setPassword}
                 placeholder="Tối thiểu 8 ký tự"
-                placeholderTextColor="#4A5568"
                 secureTextEntry
                 autoComplete="new-password"
-                className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl px-4 py-4 text-white text-base"
               />
+              <Button label="Tạo tài khoản" onPress={handleRegister} loading={loading} style={{ marginTop: space[1] }} />
             </View>
 
-            <TouchableOpacity
-              onPress={handleRegister}
-              disabled={loading}
-              className="bg-[#F5C842] rounded-xl py-4 items-center mt-2"
-              activeOpacity={0.85}
-            >
-              {loading
-                ? <ActivityIndicator color="#0D0D0D" />
-                : <Text className="text-[#0D0D0D] font-bold text-base">Tạo tài khoản</Text>
-              }
-            </TouchableOpacity>
-          </View>
-
-          <View className="flex-row justify-center mt-6">
-            <Text className="text-[#64748B] text-sm">Đã có tài khoản? </Text>
-            <Link href="/(auth)/login" asChild>
-              <TouchableOpacity>
-                <Text className="text-[#F5C842] text-sm font-semibold">Đăng nhập</Text>
-              </TouchableOpacity>
-            </Link>
-          </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: space[6] }}>
+              <ThemedText variant="body" color="muted">
+                Đã có tài khoản?{' '}
+              </ThemedText>
+              <Link href="/(auth)/login" asChild>
+                <Pressable hitSlop={6}>
+                  <ThemedText variant="bodyStrong" color="accent">
+                    Đăng nhập
+                  </ThemedText>
+                </Pressable>
+              </Link>
+            </View>
+          </MotiView>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </Screen>
   )
 }
