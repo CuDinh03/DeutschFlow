@@ -1248,7 +1248,12 @@
     "per2Months": "/2 Monate",
     "currentPlan": "Aktueller Plan",
     "payMomo": "Mit MoMo bezahlen",
+    "payStripe": "Mit Karte bezahlen (Stripe)",
     "connecting": "MoMo wird verbunden...",
+    "connectingMomo": "MoMo wird verbunden...",
+    "connectingStripe": "Stripe wird verbunden...",
+    "stripeSuccess": "Zahlung erfolgreich! Dein Plan wird in Kürze aktiviert.",
+    "stripeCancel": "Zahlung abgebrochen. Du kannst es jederzeit erneut versuchen.",
     "plans": {
       "FREE": {
         "name": "Kostenlos",

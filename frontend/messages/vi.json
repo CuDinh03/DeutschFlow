@@ -1278,7 +1278,12 @@
     "per2Months": "/2 tháng",
     "currentPlan": "Gói hiện tại",
     "payMomo": "Thanh toán qua MoMo",
+    "payStripe": "Thanh toán thẻ (Stripe)",
     "connecting": "Đang kết nối MoMo...",
+    "connectingMomo": "Đang kết nối MoMo...",
+    "connectingStripe": "Đang kết nối Stripe...",
+    "stripeSuccess": "Thanh toán thành công! Gói của bạn sẽ được kích hoạt ngay.",
+    "stripeCancel": "Bạn đã huỷ thanh toán. Bạn có thể thử lại bất cứ lúc nào.",
     "plans": {
       "FREE": {
         "name": "Miễn Phí",

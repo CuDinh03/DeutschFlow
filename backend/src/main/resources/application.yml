@@ -339,3 +339,8 @@ payment:
     api-endpoint: ${MOMO_API_ENDPOINT:http://localhost:8080/dummy}
     ipn-url: ${MOMO_IPN_URL:https://mydeutschflow.com/api/payments/momo/ipn}
     return-url: ${MOMO_RETURN_URL:https://mydeutschflow.com/payment/success}
+  stripe:
+    secret-key: ${STRIPE_SECRET_KEY:}
+    webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+    success-url: ${STRIPE_SUCCESS_URL:https://mydeutschflow.com/student/pricing?stripe=success}
+    cancel-url: ${STRIPE_CANCEL_URL:https://mydeutschflow.com/student/pricing?stripe=cancel}

@@ -310,4 +310,126 @@ public class MockExamController {
             @RequestParam(defaultValue = "A1") String cefrLevel) {
         return ResponseEntity.ok(generationService.getExamCoverage(cefrLevel));
     }
+
+    @GetMapping("/attempts/{attemptId}/review")
+    public ResponseEntity<Map<String, Object>> getAttemptReview(
+            @PathVariable long attemptId,
+            @AuthenticationPrincipal UserDetails principal) {
+        long uid = userId(principal);
+        try {
+            // 1. Load the attempt
+            List<Map<String, Object>> attemptRows = jdbcTemplate.queryForList("""
+                SELECT id, exam_id, answers_submitted_json::text AS answers_submitted_json,
+                       detailed_scores_json::text AS detailed_scores_json,
+                       total_score, status
+                FROM mock_exam_attempts
+                WHERE id = ? AND user_id = ?
+                """, attemptId, uid);
+
+            if (attemptRows.isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
+            Map<String, Object> attempt = attemptRows.get(0);
+
+            // 2. Only allow review of completed attempts
+            String status = (String) attempt.get("status");
+            if (!"COMPLETED".equals(status)) {
+                return ResponseEntity.notFound().build();
+            }
+
+            long examId = ((Number) attempt.get("exam_id")).longValue();
+            int totalScore = attempt.get("total_score") != null
+                ? ((Number) attempt.get("total_score")).intValue() : 0;
+
+            // 3. Load exam content
+            var examRow = jdbcTemplate.queryForMap("""
+                SELECT sections_json::text AS sections_json
+                FROM mock_exams WHERE id = ?
+                """, examId);
+
+            // 4. Parse submitted answers: Map<questionId, userAnswer>
+            String answersJson = (String) attempt.get("answers_submitted_json");
+            Map<String, String> submittedAnswers = new HashMap<>();
+            if (answersJson != null && !answersJson.isBlank() && !"null".equals(answersJson)) {
+                Map<String, Object> raw = om.readValue(answersJson, Map.class);
+                for (Map.Entry<String, Object> entry : raw.entrySet()) {
+                    submittedAnswers.put(entry.getKey(),
+                        entry.getValue() != null ? entry.getValue().toString() : null);
+                }
+            }
+
+            // 5. Build review sections
+            String sectionsJson = (String) examRow.get("sections_json");
+            Map<String, Object> examStructure = om.readValue(sectionsJson, Map.class);
+            List<Map<String, Object>> sections =
+                (List<Map<String, Object>>) examStructure.get("sections");
+
+            List<Map<String, Object>> reviewSections = new ArrayList<>();
+            for (Map<String, Object> section : sections) {
+                String sectionName = (String) section.get("name");
+                List<Map<String, Object>> reviewItems = new ArrayList<>();
+
+                List<Map<String, Object>> teile =
+                    (List<Map<String, Object>>) section.get("teile");
+                if (teile == null) continue;
+
+                for (Map<String, Object> teil : teile) {
+                    List<Map<String, Object>> items =
+                        (List<Map<String, Object>>) teil.get("items");
+                    if (items == null) continue;
+
+                    for (Map<String, Object> item : items) {
+                        String itemId = item.get("id") != null ? item.get("id").toString() : null;
+                        if (itemId == null) continue;
+
+                        String question = item.containsKey("question")
+                            ? (String) item.get("question")
+                            : (String) item.get("prompt");
+                        String correctAnswer = item.containsKey("correct")
+                            ? item.get("correct").toString()
+                            : item.containsKey("correct_answer")
+                                ? item.get("correct_answer").toString()
+                                : null;
+                        String userAnswer = submittedAnswers.get(itemId);
+
+                        boolean isCorrect = false;
+                        if (userAnswer != null && correctAnswer != null) {
+                            isCorrect = userAnswer.trim().equalsIgnoreCase(correctAnswer.trim());
+                        }
+
+                        Map<String, Object> reviewItem = new LinkedHashMap<>();
+                        reviewItem.put("id", itemId);
+                        reviewItem.put("question", question);
+                        reviewItem.put("user_answer", userAnswer);
+                        reviewItem.put("correct_answer", correctAnswer);
+                        reviewItem.put("is_correct", isCorrect);
+
+                        Object explanation = item.get("explanation_vi");
+                        if (explanation != null) {
+                            reviewItem.put("explanation", explanation);
+                        }
+
+                        reviewItems.add(reviewItem);
+                    }
+                }
+
+                Map<String, Object> reviewSection = new LinkedHashMap<>();
+                reviewSection.put("sectionName", sectionName);
+                reviewSection.put("items", reviewItems);
+                reviewSections.add(reviewSection);
+            }
+
+            return ResponseEntity.ok(Map.of(
+                "attemptId", attemptId,
+                "totalScore", totalScore,
+                "sections", reviewSections
+            ));
+
+        } catch (Exception e) {
+            log.error("Error building review for attempt {}: {}", attemptId, e.getMessage(), e);
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "Could not build review: " + e.getMessage()
+            ));
+        }
+    }
 }

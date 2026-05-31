@@ -1276,7 +1276,12 @@
     "per2Months": "/2 months",
     "currentPlan": "Current plan",
     "payMomo": "Pay via MoMo",
+    "payStripe": "Pay by card (Stripe)",
     "connecting": "Connecting to MoMo...",
+    "connectingMomo": "Connecting to MoMo...",
+    "connectingStripe": "Connecting to Stripe...",
+    "stripeSuccess": "Payment successful! Your plan will be activated shortly.",
+    "stripeCancel": "Payment cancelled. You can try again anytime.",
     "plans": {
       "FREE": {
         "name": "Free",

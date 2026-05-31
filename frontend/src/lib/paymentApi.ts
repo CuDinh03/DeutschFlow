@@ -5,6 +5,15 @@ export interface CreateMomoOrderRequest {
   durationMonths?: number;
 }
 
+export interface CreateStripeSessionRequest {
+  planCode: "PRO" | "ULTRA";
+}
+
+export interface CreateStripeSessionResponse {
+  sessionId: string;
+  url: string;
+}
+
 export interface CreateMomoOrderResponse {
   payUrl: string;
   orderId: string;
@@ -47,6 +56,25 @@ export async function createMomoOrder(
   } catch (error: any) {
     throw new Error(
       error.response?.data?.message || "Không thể tạo đơn thanh toán MoMo"
+    );
+  }
+}
+
+/**
+ * Tạo Stripe Checkout Session và nhận url để redirect
+ */
+export async function createStripeSession(
+  req: CreateStripeSessionRequest
+): Promise<CreateStripeSessionResponse> {
+  try {
+    const { data } = await api.post<CreateStripeSessionResponse>(
+      "/payments/stripe/create-session",
+      req
+    );
+    return data;
+  } catch (error: any) {
+    throw new Error(
+      error.response?.data?.message || "Không thể tạo phiên thanh toán Stripe"
     );
   }
 }

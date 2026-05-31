@@ -34,6 +34,13 @@ import java.util.concurrent.TimeUnit;
  *
  * RAM estimate: aiVocabCache (2000 × ~2KB text) ≈ 4MB
  *               ttsAudio    (500 × ~60KB audio) ≈ 30MB
+ *
+ * Two-layer cache design:
+ *  L1 (this class) — Caffeine in-process caches; always active; primary bean.
+ *  L2 (RedisConfig) — RedisCacheManager activated only when {@code spring.redis.host}
+ *                     is set; named "redisCacheManager". Callers that want cross-node
+ *                     sharing can @Qualifier("redisCacheManager") directly, or the
+ *                     property can be set in production to enable L2 for all caches.
  */
 @Configuration
 @EnableCaching

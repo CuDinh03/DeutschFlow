@@ -37,6 +37,28 @@ interface SectionScore {
   total_max?: number
 }
 
+// ─── Review data types ───────────────────────────────────────────────────────
+
+interface ReviewItem {
+  id: string
+  prompt: string
+  userAnswer: string | null
+  correctAnswer: string
+  isCorrect: boolean
+  explanation?: string
+}
+
+interface ReviewSection {
+  sectionName: string
+  items: ReviewItem[]
+}
+
+interface ReviewData {
+  attemptId: number
+  totalScore: number
+  sections: ReviewSection[]
+}
+
 interface MockAttempt {
   id: number
   exam_id: number
@@ -136,8 +158,10 @@ export default function MockExamPage() {
   const [selectedLevel, setSelectedLevel] = useState<string>('A1')
   
   // View states
-  const [view, setView] = useState<'list' | 'result' | 'taking'>('list')
+  const [view, setView] = useState<'list' | 'result' | 'taking' | 'review'>('list')
   const [selectedAttempt, setSelectedAttempt] = useState<MockAttempt | null>(null)
+  const [reviewData, setReviewData] = useState<ReviewData | null>(null)
+  const [reviewLoading, setReviewLoading] = useState(false)
   
   // Exam Taking State
   const [activeExamData, setActiveExamData] = useState<ActiveExamData | null>(null)
@@ -288,6 +312,19 @@ export default function MockExamPage() {
   const viewResult = (attempt: MockAttempt) => {
     setSelectedAttempt(attempt)
     setView('result')
+  }
+
+  const viewReview = async (attemptId: number) => {
+    setReviewLoading(true)
+    try {
+      const res = await api.get<ReviewData>(`/mock-exams/attempts/${attemptId}/review`)
+      setReviewData(res.data)
+      setView('review')
+    } catch {
+      toast.error('Không thể tải đáp án. Vui lòng thử lại.')
+    } finally {
+      setReviewLoading(false)
+    }
   }
 
   const formatTime = (seconds: number) => {
@@ -574,7 +611,95 @@ export default function MockExamPage() {
         </div>
 
         <AnimatePresence mode="wait">
-          {view === 'result' && selectedAttempt ? (
+          {view === 'review' && reviewData ? (
+            <motion.div key="review" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
+              {/* Header */}
+              <button
+                onClick={() => setView('result')}
+                className="flex items-center gap-2 text-sm text-[#64748B] hover:text-[#0F172A]"
+              >
+                <ArrowLeft size={16} /> Quay lại kết quả
+              </button>
+
+              <div className="bg-white rounded-2xl border border-[#E2E8F0] px-6 py-5">
+                <h2 className="font-extrabold text-[#0F172A] text-xl flex items-center gap-2">
+                  <BookOpen size={22} className="text-indigo-500" />
+                  Xem lại bài thi
+                </h2>
+                <p className="text-sm text-[#94A3B8] mt-1">Tổng điểm: {reviewData.totalScore}</p>
+              </div>
+
+              {reviewData.sections.map((section, sIdx) => (
+                <div key={sIdx} className="space-y-3">
+                  {/* Section header */}
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-8 h-8 rounded-lg flex items-center justify-center"
+                      style={{
+                        background: (SECTION_COLORS[section.sectionName.toUpperCase()] ?? '#6366F1') + '20',
+                        color: SECTION_COLORS[section.sectionName.toUpperCase()] ?? '#6366F1',
+                      }}
+                    >
+                      {SECTION_ICONS[section.sectionName.toUpperCase()]}
+                    </div>
+                    <h3 className="font-bold text-[#0F172A] text-base capitalize">
+                      {section.sectionName.toLowerCase()}
+                    </h3>
+                  </div>
+
+                  {section.items.map((item, qIdx) => (
+                    <div
+                      key={item.id}
+                      className={`bg-white rounded-2xl border p-5 space-y-3 ${item.isCorrect ? 'border-emerald-200' : 'border-rose-200'}`}
+                    >
+                      {/* Question number + prompt */}
+                      <p className="font-semibold text-[#0F172A] text-sm">
+                        {qIdx + 1}. {item.prompt}
+                      </p>
+
+                      {/* User answer */}
+                      <div className="flex items-start gap-2">
+                        {item.userAnswer === null ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#94A3B8] bg-slate-100 px-2 py-0.5 rounded-lg">
+                            Chưa trả lời
+                          </span>
+                        ) : item.isCorrect ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg">
+                            <Check size={12} strokeWidth={3} />
+                            {item.userAnswer}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-lg">
+                            <X size={12} strokeWidth={3} />
+                            {item.userAnswer}
+                          </span>
+                        )}
+                        <span className="text-xs text-[#94A3B8]">Câu trả lời của bạn</span>
+                      </div>
+
+                      {/* Correct answer */}
+                      {!item.isCorrect && (
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg">
+                            <Check size={12} strokeWidth={3} />
+                            {item.correctAnswer}
+                          </span>
+                          <span className="text-xs text-[#94A3B8]">Đáp án đúng</span>
+                        </div>
+                      )}
+
+                      {/* Explanation */}
+                      {item.explanation && (
+                        <p className="text-xs text-[#94A3B8] italic border-t border-slate-100 pt-2">
+                          {item.explanation}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </motion.div>
+          ) : view === 'result' && selectedAttempt ? (
             <motion.div key="result" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
               <button onClick={() => setView('list')} className="flex items-center gap-2 text-sm text-[#64748B] hover:text-[#0F172A]">
                 <ArrowLeft size={16} /> Quay lại
@@ -630,6 +755,18 @@ export default function MockExamPage() {
                 }
                 return <WeakAreasRecommendation weakAreas={weakAreas} />
               })()}
+
+              {/* Answer review CTA */}
+              <div className="pt-2">
+                <button
+                  onClick={() => viewReview(selectedAttempt.id)}
+                  disabled={reviewLoading}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-sm text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-colors"
+                >
+                  {reviewLoading ? <Loader2 size={16} className="animate-spin" /> : <BookOpen size={16} />}
+                  Xem đáp án chi tiết
+                </button>
+              </div>
             </motion.div>
           ) : (
             <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">

@@ -76,6 +76,8 @@ public class SecurityConfig {
                         auth.requestMatchers("/api/quiz/*/join").permitAll();  // guest join
                         // MoMo IPN webhook: called by MoMo servers (no JWT), secured via HMAC-SHA256 signature verification
                         auth.requestMatchers("/api/payments/momo/ipn").permitAll();
+                        // Stripe webhook: called by Stripe servers (no JWT), secured via HMAC-SHA256 signature verification
+                        auth.requestMatchers("/api/payments/stripe/webhook").permitAll();
 
                         // Public media reads for landing page and direct asset links (no directory listing)
                         auth.requestMatchers(HttpMethod.GET, "/api/v2/media/by-tag").permitAll();
