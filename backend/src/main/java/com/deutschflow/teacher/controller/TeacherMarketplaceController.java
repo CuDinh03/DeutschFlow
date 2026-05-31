@@ -65,6 +65,8 @@ public class TeacherMarketplaceController {
         if (request.headline() != null) profile.setHeadline(request.headline().trim());
         if (request.bio() != null) profile.setBio(request.bio().trim());
         if (request.qualifications() != null) profile.setQualifications(request.qualifications().trim());
+        if (request.hourlyRateVnd() != null && request.hourlyRateVnd() > 0) profile.setHourlyRateVnd(request.hourlyRateVnd());
+        if (request.maxStudentsPerWeek() != null && request.maxStudentsPerWeek() > 0) profile.setMaxStudentsPerWeek(request.maxStudentsPerWeek());
         profile.setUpdatedAt(LocalDateTime.now());
 
         TeacherProfile saved = teacherProfileRepository.save(profile);
@@ -76,7 +78,9 @@ public class TeacherMarketplaceController {
     public record UpdateProfileRequest(
             @Size(max = 280) String headline,
             @Size(max = 5000) String bio,
-            @Size(max = 5000) String qualifications
+            @Size(max = 5000) String qualifications,
+            Long hourlyRateVnd,
+            Integer maxStudentsPerWeek
     ) {}
 
     // ─── Mapper ───────────────────────────────────────────────────────────────
@@ -91,6 +95,8 @@ public class TeacherMarketplaceController {
                 .bio(profile.getBio())
                 .qualifications(profile.getQualifications())
                 .featured(profile.isFeatured())
+                .hourlyRateVnd(profile.getHourlyRateVnd())
+                .maxStudentsPerWeek(profile.getMaxStudentsPerWeek())
                 .build();
     }
 }

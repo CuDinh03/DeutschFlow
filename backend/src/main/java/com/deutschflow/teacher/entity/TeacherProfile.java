@@ -36,6 +36,14 @@ public class TeacherProfile {
     @Builder.Default
     private boolean featured = false;
 
+    @Column(name = "hourly_rate_vnd")
+    @Builder.Default
+    private long hourlyRateVnd = 200_000L;
+
+    @Column(name = "max_students_per_week")
+    @Builder.Default
+    private int maxStudentsPerWeek = 10;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

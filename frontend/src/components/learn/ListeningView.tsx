@@ -3,7 +3,8 @@
 import { NodeContent, WordTimestamp, useNodeSessionStore } from "@/stores/useNodeSessionStore";
 import { useTranslations } from "next-intl";
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { Play, Pause, RotateCcw, Volume2, CheckCircle } from "lucide-react";
+import { Play, Pause, RotateCcw, Volume2, CheckCircle, Mic } from "lucide-react";
+import { PronunciationFeedback } from "@/components/speaking/PronunciationFeedback";
 
 export default function ListeningView({ content, isLocked = false }: { content: NodeContent; isLocked?: boolean }) {
   const tLearn = useTranslations("learn");
@@ -120,6 +121,8 @@ export default function ListeningView({ content, isLocked = false }: { content: 
   };
 
   const allFilled = blankIndices.size > 0 && Array.from(blankIndices).every(idx => (fillBlanks[idx] ?? "").trim() !== "");
+  const [showShadowing, setShowShadowing] = useState(false);
+  const passageText = useMemo(() => timestamps.map(w => w.word).join(" "), [timestamps]);
 
   if (!audio?.url) {
     return (
@@ -303,6 +306,28 @@ export default function ListeningView({ content, isLocked = false }: { content: 
             >
               🔄 Thử lại
             </button>
+          )}
+        </div>
+      )}
+
+      {/* ── Shadowing Practice (after completion) ── */}
+      {isCompleted && passageText && (
+        <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setShowShadowing(v => !v)}
+            className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <Mic size={15} />
+              Luyện phát âm đoạn văn (shadowing)
+            </span>
+            <span className="text-xs text-indigo-400">{showShadowing ? "▲ Thu gọn" : "▼ Mở rộng"}</span>
+          </button>
+          {showShadowing && (
+            <div className="px-4 pb-4">
+              <PronunciationFeedback expectedText={passageText} />
+            </div>
           )}
         </div>
       )}

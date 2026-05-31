@@ -18,4 +18,6 @@ public class TeacherProfileDto {
     private String bio;
     private String qualifications;
     private boolean featured;
+    private long hourlyRateVnd;
+    private int maxStudentsPerWeek;
 }

@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, BadgeCheck, BookOpen, Mail, Star } from "lucide-react";
+import { ArrowLeft, BadgeCheck, BookOpen, CalendarPlus, Mail, Star } from "lucide-react";
 
 interface TeacherProfileDto {
   id: number;
@@ -14,9 +14,11 @@ interface TeacherProfileDto {
   bio: string;
   qualifications: string;
   featured: boolean;
+  hourlyRateVnd: number;
 }
 export default function TeacherDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const [teacher, setTeacher] = useState<TeacherProfileDto | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -117,15 +119,28 @@ export default function TeacherDetailPage() {
 
         <section className="bg-gradient-to-br from-[#6366F1] to-[#8B5CF6] rounded-2xl p-6 text-white text-center">
           <h2 className="text-xl font-black mb-2">Muốn học cùng {teacher.name}?</h2>
-          <p className="text-white/70 text-sm mb-5">
-            Liên hệ trực tiếp để đặt lịch học 1-1 hoặc tham gia lớp học nhóm.
+          <p className="text-white/70 text-sm mb-1">
+            Đặt lịch học 1:1 trực tiếp trên DeutschFlow.
           </p>
-          <a
-            href={`mailto:${teacher.email}?subject=Đặt lịch học cùng ${encodeURIComponent(teacher.name)}`}
-            className="inline-flex items-center gap-2 bg-white text-[#6366F1] font-bold px-6 py-3 rounded-xl hover:bg-white/90 transition-colors"
-          >
-            <Mail size={16} /> Liên hệ qua Email
-          </a>
+          {teacher.hourlyRateVnd > 0 && (
+            <p className="text-white/90 font-semibold text-sm mb-5">
+              {teacher.hourlyRateVnd.toLocaleString("vi-VN")} ₫/giờ
+            </p>
+          )}
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              onClick={() => router.push(`/student/book-session?teacherId=${teacher.id}`)}
+              className="inline-flex items-center justify-center gap-2 bg-white text-[#6366F1] font-bold px-6 py-3 rounded-xl hover:bg-white/90 transition-colors"
+            >
+              <CalendarPlus size={16} /> Đặt lịch học
+            </button>
+            <a
+              href={`mailto:${teacher.email}?subject=Hỏi về lịch học cùng ${encodeURIComponent(teacher.name)}`}
+              className="inline-flex items-center justify-center gap-2 bg-white/10 border border-white/30 text-white font-semibold px-6 py-3 rounded-xl hover:bg-white/20 transition-colors"
+            >
+              <Mail size={16} /> Liên hệ Email
+            </a>
+          </div>
         </section>
       </div>
     </div>

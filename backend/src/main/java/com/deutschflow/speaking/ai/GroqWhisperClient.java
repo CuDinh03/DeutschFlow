@@ -51,6 +51,75 @@ public class GroqWhisperClient {
         return whisperModel;
     }
 
+    /** Word-level result from verbose transcription. */
+    public record WordTimestamp(String word, double start, double end) {}
+
+    /** Verbose transcript with segment-level confidence and per-word timestamps. */
+    public record VerboseTranscript(String text, double avgLogprob, java.util.List<WordTimestamp> words) {}
+
+    /**
+     * Transcribes with verbose_json + word timestamps for pronunciation scoring.
+     */
+    public VerboseTranscript transcribeVerbose(byte[] audioBytes, String filename, String language, String prompt) {
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new AiServiceException("Groq API key is not configured.");
+        }
+
+        String boundary = "----FormBoundary" + UUID.randomUUID().toString().replace("-", "");
+        byte[] body = buildMultipartBody(boundary, audioBytes, filename, language, prompt, true);
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(WHISPER_URL))
+                .header("Authorization", "Bearer " + apiKey)
+                .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+                .POST(HttpRequest.BodyPublishers.ofByteArray(body))
+                .build();
+
+        boolean acquired = false;
+        try {
+            acquired = concurrencyLimiter.tryAcquireWhisper();
+            if (!acquired) throw new AiServiceException("Speech recognition is busy.");
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (response.statusCode() != 200) {
+                throw new AiServiceException("Whisper verbose failed: HTTP " + response.statusCode());
+            }
+            JsonNode root = objectMapper.readTree(response.body());
+            String text = root.path("text").asText("");
+
+            // Extract segment avg_logprob
+            double avgLogprob = -0.3;
+            JsonNode segments = root.path("segments");
+            if (segments.isArray() && !segments.isEmpty()) {
+                double sum = 0;
+                for (JsonNode seg : segments) sum += seg.path("avg_logprob").asDouble(-0.3);
+                avgLogprob = sum / segments.size();
+            }
+
+            // Extract word timestamps
+            java.util.List<WordTimestamp> words = new java.util.ArrayList<>();
+            JsonNode wordsNode = root.path("words");
+            if (wordsNode.isArray()) {
+                for (JsonNode w : wordsNode) {
+                    words.add(new WordTimestamp(
+                            w.path("word").asText("").strip(),
+                            w.path("start").asDouble(0),
+                            w.path("end").asDouble(0)));
+                }
+            }
+
+            return new VerboseTranscript(text.strip(), avgLogprob, words);
+        } catch (AiServiceException e) {
+            throw e;
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new AiServiceException("Whisper verbose request interrupted.", ie);
+        } catch (Exception e) {
+            throw new AiServiceException("Whisper verbose error: " + e.getMessage(), e);
+        } finally {
+            if (acquired) concurrencyLimiter.releaseWhisper();
+        }
+    }
+
     /**
      * Transcribes audio bytes using Groq Whisper.
      *
@@ -115,6 +184,11 @@ public class GroqWhisperClient {
 
     private byte[] buildMultipartBody(String boundary, byte[] audioBytes,
                                       String filename, String language, String prompt) {
+        return buildMultipartBody(boundary, audioBytes, filename, language, prompt, false);
+    }
+
+    private byte[] buildMultipartBody(String boundary, byte[] audioBytes,
+                                      String filename, String language, String prompt, boolean verbose) {
         try {
             String safeFilename = (filename != null && !filename.isBlank()) ? filename : "audio.webm";
             StringBuilder sb = new StringBuilder();
@@ -135,7 +209,15 @@ public class GroqWhisperClient {
             sb.append("--").append(boundary).append("\r\n");
             sb.append("Content-Disposition: form-data; name=\"response_format\"\r\n");
             sb.append("Content-Type: text/plain; charset=UTF-8\r\n\r\n");
-            sb.append("json\r\n");
+            sb.append(verbose ? "verbose_json" : "json").append("\r\n");
+
+            // --- timestamp_granularities for word-level data (verbose only) ---
+            if (verbose) {
+                sb.append("--").append(boundary).append("\r\n");
+                sb.append("Content-Disposition: form-data; name=\"timestamp_granularities[]\"\r\n");
+                sb.append("Content-Type: text/plain; charset=UTF-8\r\n\r\n");
+                sb.append("word\r\n");
+            }
 
             // --- temperature (0.0 forces deterministic transcription) ---
             sb.append("--").append(boundary).append("\r\n");
