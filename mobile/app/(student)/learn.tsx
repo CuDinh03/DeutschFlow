@@ -2,7 +2,7 @@ import { View, Text, ScrollView, TouchableOpacity } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useQuery } from '@tanstack/react-query'
 import { router } from 'expo-router'
-import { BookOpen, Map, FlaskConical, Trophy, ChevronRight } from 'lucide-react-native'
+import { BookOpen, Map, FlaskConical, Trophy, BookMarked, Calendar, ChevronRight } from 'lucide-react-native'
 import api from '@/lib/api'
 import { Colors } from '@/lib/constants'
 
@@ -61,6 +61,20 @@ export default function LearnScreen() {
             count="Mock Exam"
             color="#A855F7"
             onPress={() => router.push('/(student)/exam')}
+          />
+          <LearningTile
+            icon={<BookMarked size={22} color="#E63946" />}
+            label="Ngữ pháp"
+            count="Casus & quy tắc"
+            color="#E63946"
+            onPress={() => router.push('/(student)/grammar')}
+          />
+          <LearningTile
+            icon={<Calendar size={22} color="#F97316" />}
+            label="Đặt lịch học"
+            count="1:1 với giáo viên"
+            color="#F97316"
+            onPress={() => router.push('/(student)/book-session')}
           />
         </View>
 

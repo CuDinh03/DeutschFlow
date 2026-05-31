@@ -6,6 +6,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
+import { useSrsOfflineStore } from '@/stores/useSrsOfflineStore'
+import { usePushNotifications } from '@/hooks/usePushNotifications'
 import { getAccessToken } from '@/lib/auth'
 import '../global.css'
 
@@ -18,6 +20,12 @@ const queryClient = new QueryClient({
 export default function RootLayout() {
   const { isLoggedIn, isLoading, fetchMe } = useAuthStore()
   const { fetchPlan } = usePlanStore()
+
+  usePushNotifications()
+
+  useEffect(() => {
+    useSrsOfflineStore.getState().loadCount()
+  }, [])
 
   useEffect(() => {
     async function bootstrap() {
