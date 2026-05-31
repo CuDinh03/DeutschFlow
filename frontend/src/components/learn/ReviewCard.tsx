@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { playTTS } from "@/lib/tts";
+import { lightImpact, mediumImpact, heavyImpact } from "@/lib/haptics";
 
 interface ReviewCardProps {
   id: number;
@@ -29,8 +30,17 @@ export default function ReviewCard({
   const handleRate = useCallback((quality: number) => {
     if (rated) return;
     setRated(true);
+    // Low recall (forgot/hard) → strong tap; good recall → firm tap.
+    if (quality <= 2) heavyImpact();
+    else mediumImpact();
     onRate(vocabId, quality);
   }, [vocabId, rated, onRate]);
+
+  const handleFlip = useCallback(() => {
+    if (flipped) return;
+    mediumImpact();
+    setFlipped(true);
+  }, [flipped]);
 
   return (
     <div className="w-full max-w-sm mx-auto">
@@ -38,7 +48,7 @@ export default function ReviewCard({
       <div
         className="relative cursor-pointer"
         style={{ perspective: "1200px" }}
-        onClick={() => !flipped && setFlipped(true)}
+        onClick={handleFlip}
       >
         <div
           className="relative transition-transform duration-500"
@@ -58,7 +68,7 @@ export default function ReviewCard({
             {speakDe && (
               <button
                 type="button"
-                onClick={(e) => { e.stopPropagation(); playTTS(speakDe); }}
+                onClick={(e) => { e.stopPropagation(); lightImpact(); playTTS(speakDe); }}
                 className="flex items-center gap-1.5 text-xs text-[#64748B] hover:text-[#121212] transition-colors bg-[#F1F5F9] hover:bg-[#E2E8F0] px-3 py-1.5 rounded-full"
               >
                 🔊 Nghe phát âm

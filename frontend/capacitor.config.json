@@ -4,7 +4,7 @@
   "webDir": "out",
   "ios": {
     "scheme": "DeutschFlow",
-    "contentInset": "automatic"
+    "contentInset": "never"
   },
   "android": {
     "minVersion": 24

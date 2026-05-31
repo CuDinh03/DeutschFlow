@@ -395,6 +395,7 @@ export default function AIChatInterface() {
   if (viewMode === "summary") {
     return (
       <div
+        data-native-page
         className="min-h-screen flex flex-col"
         style={{ background: "linear-gradient(180deg, #0A0F1E 0%, #0F172A 60%, #1A1535 100%)" }}
       >

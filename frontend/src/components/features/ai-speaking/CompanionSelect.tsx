@@ -17,6 +17,7 @@ import { useChatStore } from "@/stores/useChatStore";
 import { toast } from "sonner";
 import { spring } from "@/lib/motion";
 import { useStatusBarStyle } from "@/lib/statusBar";
+import { lightImpact, mediumImpact } from "@/lib/haptics";
 
 const CEFR_LEVELS = ["A1", "A2", "B1", "B2"];
 
@@ -115,6 +116,7 @@ export function CompanionSelect() {
 
   const handleConfirm = async () => {
     if (!selected || !selectedPersona || confirming || !isReady) return;
+    mediumImpact();
     if (quotaBlocked) {
       toast.error(t("errorQuota"));
       return;
@@ -249,7 +251,7 @@ export function CompanionSelect() {
   }, [sessionMode, searchParams])
 
   return (
-    <div className="min-h-screen flex flex-col w-full" style={{ background: "#080818", color: "#fff" }}>
+    <div data-native-page className="min-h-screen flex flex-col w-full" style={{ background: "#080818", color: "#fff" }}>
       <div className="max-w-[520px] mx-auto w-full flex flex-col min-h-screen">
         {/* ── Header ── */}
         <div className="px-5 pt-[calc(3.5rem+env(safe-area-inset-top,0px))] pb-3 flex-shrink-0">
@@ -325,6 +327,7 @@ export function CompanionSelect() {
                   <PersonaCard persona={persona} isSelected={selected === persona.id} index={idx}
                     onClick={() => {
                       if (locked) { setLockedNudge(true); return; }
+                      lightImpact();
                       setLockedNudge(false);
                       setSelected(persona.id);
                       setInterviewPosition(null);

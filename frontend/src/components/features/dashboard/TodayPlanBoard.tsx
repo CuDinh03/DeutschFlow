@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { TodayPlanDto } from "@/types/today-plan";
 import { BookOpen, Mic, PenTool, CheckCircle2 } from "lucide-react";
 import { motion } from "framer-motion";
+import { lightImpact } from "@/lib/haptics";
 
 interface TodayPlanBoardProps {
   plan: TodayPlanDto;
@@ -32,6 +33,7 @@ export function TodayPlanBoard({ plan }: TodayPlanBoardProps) {
   };
 
   const handleStartLesson = (type: string) => {
+    lightImpact();
     if (type === "speaking") {
       router.push("/speaking");
     } else if (type === "vocabulary") {

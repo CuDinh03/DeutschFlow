@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import api, { httpStatus } from "@/lib/api";
 import { getAccessToken, clearTokens, logout } from "@/lib/authSession";
+import { lightImpact } from "@/lib/haptics";
 import { StudentShell } from "@/components/layouts/StudentShell";
 import {
   Lock,
@@ -232,6 +233,7 @@ export default function RoadmapTreePage() {
               {levels.map((level, i) => (
                 <div key={level.id}>
                   <LevelNode level={level} index={i} isLeft={i % 2 === 0} onClick={() => {
+                    lightImpact();
                     if (level.state === "current") router.push(`/student/learn/node/${level.id}`);
                     else setSelectedLevel(level.id);
                   }} selected={selectedLevel === level.id} />

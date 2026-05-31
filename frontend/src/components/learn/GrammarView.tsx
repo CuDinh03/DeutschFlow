@@ -4,6 +4,7 @@ import { NodeContent, useNodeSessionStore } from "@/stores/useNodeSessionStore";
 import { useTranslations } from "next-intl";
 import { VocabCard, VocabTag, AudioButton } from "./LearnComponents";
 import { useState, useMemo, useEffect } from "react";
+import { lightImpact, mediumImpact, heavyImpact } from "@/lib/haptics";
 
 // ── Smart content renderer ──
 function TheoryContent({ text }: { text: string }) {
@@ -144,7 +145,10 @@ export default function GrammarView({ content, isLocked = false }: { content: No
   const handleQuizSubmit = () => {
     setQuizSubmitted(true);
     if (score === practiceItems.length && practiceItems.length > 0) {
+      mediumImpact();
       markTabCompleted("grammar");
+    } else {
+      heavyImpact();
     }
   };
 
@@ -295,7 +299,7 @@ export default function GrammarView({ content, isLocked = false }: { content: No
                       return (
                         <button
                           key={j}
-                          onClick={() => !quizSubmitted && setAnswers(prev => ({ ...prev, [i]: j }))}
+                          onClick={() => { if (!quizSubmitted) { lightImpact(); setAnswers(prev => ({ ...prev, [i]: j })); } }}
                           disabled={quizSubmitted}
                           className={`w-full text-left px-4 py-3 rounded-lg border-2 text-sm font-medium transition-all ${btnClass}`}
                         >

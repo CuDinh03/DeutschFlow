@@ -3,6 +3,7 @@
 import { Send, Mic, MicOff, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
+import { lightImpact } from "@/lib/haptics";
 
 interface Props {
   inputText: string;
@@ -52,7 +53,7 @@ export function SpeakingInputDock({
         >
           <button
             type="button"
-            onClick={onToggleMic}
+            onClick={() => { lightImpact(); onToggleMic(); }}
             disabled={micBusy || inputDisabled}
             className={cn(
               "flex-shrink-0 rounded-full transition-all flex items-center justify-center",
