@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Calendar, Clock, MessageSquare, ArrowLeft, CheckCircle2, Loader2 } from "lucide-react";
 
@@ -12,7 +12,8 @@ interface TeacherProfile {
   featured: boolean;
 }
 
-export default function BookSessionPage() {
+/** Inner component that safely calls useSearchParams — must be inside <Suspense>. */
+function BookSessionContent() {
   const router = useRouter();
   const params = useSearchParams();
   const teacherId = params.get("teacherId");
@@ -215,5 +216,22 @@ export default function BookSessionPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+/** Fallback shown while Suspense resolves the search-params boundary (static export). */
+function BookSessionFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC]">
+      <Loader2 className="animate-spin text-indigo-500" size={32} />
+    </div>
+  );
+}
+
+export default function BookSessionPage() {
+  return (
+    <Suspense fallback={<BookSessionFallback />}>
+      <BookSessionContent />
+    </Suspense>
   );
 }

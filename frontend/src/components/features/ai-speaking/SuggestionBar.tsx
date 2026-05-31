@@ -35,9 +35,11 @@ export function SuggestionBar({ suggestions, onSelect }: SuggestionBarProps) {
         </span>
       </div>
 
-      {/* Suggestion chips */}
+      {/* Suggestion chips — cap at 2 (Pingo-style: less decision paralysis
+         than 3). Filter empty `german_text` first so partial LLM streams
+         never paint placeholder chips. */}
       <div className="flex flex-wrap gap-2">
-        {suggestions.slice(0, 3).map((sug, idx) => (
+        {suggestions.filter(s => s.german_text?.trim().length).slice(0, 2).map((sug, idx) => (
           <motion.button
             key={idx}
             initial={{ opacity: 0, scale: 0.9 }}

@@ -324,14 +324,23 @@ export function SpeakingMessageBubble({
           </div>
         )}
 
-        {/* V1 scaffolding suggestions */}
-        {!isV2 && msg.suggestions && msg.suggestions.length > 0 && (
+        {/* V1 scaffolding suggestions.
+           Filter empty `german_text` first — the LLM stream lands the
+           suggestions array before the inner strings, so without this guard
+           we render skeleton cards with only a level badge while the model
+           is still typing. Also caps at 2 per Pingo-style guidance (less
+           decision paralysis than 3). */}
+        {!isV2 && msg.suggestions && (() => {
+          const filled = msg.suggestions.filter(s => s.german_text?.trim().length);
+          if (filled.length === 0) return null;
+          const visible = filled.slice(0, 2);
+          return (
           <div className="space-y-2">
             <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: L.inkSoft }}>
               {t("suggestionsTitle")}:
             </p>
             <div className="grid gap-2">
-              {msg.suggestions.map((s, idx) => (
+              {visible.map((s, idx) => (
                 <div key={idx} className="group relative">
                   <motion.button
                     type="button"
@@ -388,7 +397,8 @@ export function SpeakingMessageBubble({
               ))}
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {showExplanations && (
           <SpeakingFeedbackCompact msg={msg} isV2={isV2} dark={d} />
