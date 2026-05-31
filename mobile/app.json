@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "DeutschFlow",
+    "slug": "deutschflow",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0D0D0D"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.deutschflow.app",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "DeutschFlow cần microphone để luyện phát âm tiếng Đức.",
+        "NSCameraUsageDescription": "DeutschFlow cần camera cho tính năng học.",
+        "NSSpeechRecognitionUsageDescription": "DeutschFlow dùng nhận diện giọng nói để đánh giá phát âm."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0D0D0D"
+      },
+      "package": "com.deutschflow.app",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.INTERNET"
+      ]
+    },
+    "scheme": "deutschflow",
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-av",
+        { "microphonePermission": "DeutschFlow cần microphone để luyện phát âm tiếng Đức." }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
