@@ -624,6 +624,31 @@
       inset 0 1px 0 rgba(255, 255, 255, 0.9);
   }
 
+  /* ─────────────────────────────────────────────────────────────────────────
+     Native glass enhancement — preserves color background, adds shimmer/depth.
+     Use on any card or chip that already has a colored bg (dashboard cards,
+     header streak/XP chips).  Only activates inside html.native.
+     ───────────────────────────────────────────────────────────────────────── */
+  html.native .df-card-native {
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    backdrop-filter: blur(16px) saturate(160%);
+    box-shadow:
+      0 4px 14px rgba(15, 23, 42, 0.08),
+      0 1px 3px rgba(15, 23, 42, 0.04),
+      inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    border-color: rgba(255, 255, 255, 0.55) !important;
+  }
+
+  /* Chip variant — tighter radius, used on streak / XP header pills */
+  html.native .df-chip-native {
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+    box-shadow:
+      0 2px 6px rgba(0, 0, 0, 0.06),
+      inset 0 1px 0 rgba(255, 255, 255, 0.85);
+    border-color: rgba(255, 255, 255, 0.7) !important;
+  }
+
   /* Persona tint roots (set data-persona on a section parent, e.g. speaking) */
   [data-persona="lukas"] {
     --persona-accent: 56 189 248;

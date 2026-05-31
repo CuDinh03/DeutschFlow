@@ -67,7 +67,7 @@ export function TodayPlanBoard({ plan }: TodayPlanBoardProps) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: idx * 0.1 }}
             onClick={() => handleStartLesson(lesson.type)}
-            className={`cursor-pointer rounded-2xl p-5 border shadow-sm transition-all hover:scale-[1.02] ${getBgColor(lesson.type)}`}
+            className={`df-card-native cursor-pointer rounded-2xl p-5 border shadow-sm transition-all hover:scale-[1.02] ${getBgColor(lesson.type)}`}
           >
             <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-center shadow-sm mb-4">
               {getIcon(lesson.type)}

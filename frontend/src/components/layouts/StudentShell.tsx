@@ -344,7 +344,7 @@ export function StudentShell({
                   </div>
                 </div>
               ) : null}
-              <div className="flex items-center gap-1.5 bg-[#FFF8E1] border border-[#FFCD00]/40 rounded-full sm:rounded-[var(--radius-md)] px-2.5 sm:px-3 py-1.5 sm:py-2">
+              <div className="df-chip-native flex items-center gap-1.5 bg-[#FFF8E1] border border-[#FFCD00]/40 rounded-full sm:rounded-[var(--radius-md)] px-2.5 sm:px-3 py-1.5 sm:py-2">
                 <Flame size={16} className="text-orange-500" fill="#f97316" />
                 <span className="font-bold text-[var(--brand-black)] text-xs sm:text-sm">{t("streakDays", { n: streakDays })}</span>
                 <span className="text-[#64748B] text-xs hidden md:inline">{t("streakBadgeShort")}</span>

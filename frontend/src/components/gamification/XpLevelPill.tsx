@@ -123,7 +123,7 @@ export function XpLevelPill({ userId }: { userId?: number }) {
       {/* XP Pill */}
       <button
         onClick={() => setShowModal(true)}
-        className="flex items-center gap-2 bg-gradient-to-r from-[#6366F1]/10 to-[#8B5CF6]/10 border border-[#6366F1]/30 rounded-[12px] px-3 py-2 hover:border-[#6366F1]/60 transition-all"
+        className="df-chip-native flex items-center gap-2 bg-gradient-to-r from-[#6366F1]/10 to-[#8B5CF6]/10 border border-[#6366F1]/30 rounded-[12px] px-3 py-2 hover:border-[#6366F1]/60 transition-all"
         title={`${summary.totalXp} XP total — Level ${summary.level}`}
       >
         <div className="flex items-center gap-1.5">
