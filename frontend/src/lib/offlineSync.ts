@@ -66,25 +66,11 @@ export const offlineSync = {
     const pending = await offlineSync.getPendingReviews();
     if (pending.length === 0) return;
 
-    console.log(`Syncing ${pending.length} pending reviews...`);
-    
-    const successfulIds: string[] = [];
-    
-    for (const review of pending) {
-      try {
-        await api.post("/srs/review", { vocabId: review.vocabId, quality: review.quality });
-        successfulIds.push(review.vocabId);
-      } catch (err) {
-        console.error(`Failed to sync review for ${review.vocabId}`, err);
-      }
-    }
-
-    // Keep only the ones that failed to sync
-    const remaining = pending.filter(p => !successfulIds.includes(p.vocabId));
-    await set(PENDING_REVIEWS_KEY, remaining);
-    
-    if (successfulIds.length > 0) {
-      console.log(`Successfully synced ${successfulIds.length} reviews`);
+    try {
+      await api.post("/srs/review/batch", pending.map(({ vocabId, quality }) => ({ vocabId, quality })));
+      await set(PENDING_REVIEWS_KEY, []);
+    } catch {
+      // Stay queued — will retry next time online
     }
   }
 };

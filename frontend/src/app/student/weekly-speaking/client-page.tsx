@@ -13,6 +13,8 @@ import {
   type WeeklySubmissionListItem,
 } from '@/lib/weeklySpeakingApi'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
+import { PremiumGate } from '@/components/ui/PremiumGate'
+import { usePlanHelpers } from '@/contexts/PlanContext'
 
 const BANDS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const
 
@@ -33,6 +35,7 @@ export default function StudentWeeklySpeakingPage() {
   usePageTimeTracker('weekly_speaking');
   const t = useTranslations('student')
   const tSpeak = useTranslations('speaking')
+  const { isPro } = usePlanHelpers()
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -173,6 +176,14 @@ export default function StudentWeeklySpeakingPage() {
       headerSubtitle={t('weeklySpeakingSubtitle')}
     >
       <div className="max-w-2xl mx-auto space-y-6 pb-12">
+        {!isPro && (
+          <PremiumGate
+            requires="PRO"
+            variant="banner"
+            title="Weekly Speaking là tính năng PRO"
+            description="Nâng cấp PRO để nộp bài nói hàng tuần, nhận phản hồi AI chi tiết và theo dõi tiến độ nói."
+          />
+        )}
         <div className="rounded-[14px] border border-[#E2E8F0] bg-white p-4">
           <label className="text-xs font-semibold text-[#64748B] block mb-2">
             {t('weeklySpeakingBand')}

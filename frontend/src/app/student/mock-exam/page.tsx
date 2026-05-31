@@ -15,6 +15,8 @@ import api from '@/lib/api'
 import { useTracking } from '@/hooks/useTracking'
 import { AudioPlayer } from '@/components/exam/AudioPlayer'
 import { toast } from 'sonner'
+import { PremiumGate } from '@/components/ui/PremiumGate'
+import { usePlanHelpers } from '@/contexts/PlanContext'
 
 interface MockExam {
   id: number
@@ -125,6 +127,7 @@ function ScoreCard({ section, score, max }: { section: string; score: number; ma
 
 export default function MockExamPage() {
   const { trackFeatureAction } = useTracking()
+  const { isPro } = usePlanHelpers()
   const { me, loading: meLoading, targetLevel, roadmapMeta, streakDays, initials } = useStudentPracticeSession()
   const [exams, setExams] = useState<MockExam[]>([])
   const [attempts, setAttempts] = useState<MockAttempt[]>([])
@@ -538,6 +541,14 @@ export default function MockExamPage() {
       initials={initials} onLogout={() => logout()}
       headerTitle="🎯 Mock Goethe Exam" headerSubtitle="Thi thử theo format Goethe-Institut chính thức">
       <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
+        {!isPro && (
+          <PremiumGate
+            requires="PRO"
+            variant="banner"
+            title="Thi thử là tính năng PRO"
+            description="Nâng cấp PRO để thi thử theo format Goethe chính thức, xem điểm chi tiết và phân tích điểm yếu."
+          />
+        )}
 
         {/* Goethe format explanation */}
         <div className="rounded-2xl p-5 text-white space-y-3" style={{ background: 'linear-gradient(135deg,#1E293B 0%,#312E81 100%)' }}>
