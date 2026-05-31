@@ -6,6 +6,8 @@ import { Capacitor } from '@capacitor/core'
 import { registerPushNotifications, usePushNotifications } from '@/hooks/usePushNotifications'
 import type { ActionPerformed } from '@capacitor/push-notifications'
 import api from '@/lib/api'
+import { NetworkBanner } from '@/components/system/NetworkBanner'
+import { initCrashReporting } from '@/lib/crashReporting'
 
 // tokenCacheReady is initialized at module level in authSession.ts the moment
 // that module is imported — no explicit warm-up call needed here.
@@ -21,6 +23,12 @@ import api from '@/lib/api'
 //   4. Routes push notification taps to the correct in-app page.
 export function NativeAuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
+
+  // Crash reporting — inert unless NEXT_PUBLIC_SENTRY_DSN is set. Runs on every
+  // platform (web + native), independent of the native-only effect below.
+  useEffect(() => {
+    initCrashReporting()
+  }, [])
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return
@@ -90,5 +98,10 @@ export function NativeAuthProvider({ children }: { children: React.ReactNode }) 
 
   usePushNotifications({ onTap: handleNotificationTap })
 
-  return <>{children}</>
+  return (
+    <>
+      <NetworkBanner />
+      {children}
+    </>
+  )
 }

@@ -55,6 +55,8 @@ struct SplashScreenView: View {
                         .opacity(taglineOpacity)
                 }
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("myDeutschFlow, ứng dụng học tiếng Đức. Đang tải.")
         }
         .onAppear { runAnimation() }
     }

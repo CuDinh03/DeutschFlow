@@ -24,6 +24,7 @@ struct AuthChoiceView: View {
                     .opacity(appeared ? 1 : 0)
                     .scaleEffect(appeared ? 1 : 0.8)
                     .animation(DF.Spring.gentle, value: appeared)
+                    .accessibilityHidden(true)
 
                 VStack(spacing: 10) {
                     Text("Bắt đầu hành trình")
@@ -69,6 +70,8 @@ struct AuthChoiceView: View {
                         .clipShape(RoundedRectangle(cornerRadius: DF.Radius.md))
                         .shadow(color: DF.Brand.yellow.opacity(0.35), radius: 16, y: 6)
                     }
+                    .accessibilityLabel("Tạo tài khoản miễn phí")
+                    .accessibilityHint("Mở màn hình đăng ký tài khoản mới")
 
                     Button(action: {
                         let impact = UIImpactFeedbackGenerator(style: .light)
@@ -91,6 +94,8 @@ struct AuthChoiceView: View {
                                 .stroke(DF.Brand.cardBdr, lineWidth: 1)
                         )
                     }
+                    .accessibilityLabel("Đăng nhập")
+                    .accessibilityHint("Mở màn hình đăng nhập cho tài khoản đã có")
                 }
                 .padding(.horizontal, 28)
                 .opacity(appeared ? 1 : 0)

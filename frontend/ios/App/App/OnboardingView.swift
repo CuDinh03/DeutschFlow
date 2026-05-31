@@ -93,6 +93,8 @@ struct OnboardingView: View {
                     .foregroundColor(.white.opacity(0.4))
                     .padding(.trailing, 24)
                     .padding(.top, 20)
+                    .accessibilityLabel("Bỏ qua giới thiệu")
+                    .accessibilityHint("Chuyển thẳng đến màn hình đăng nhập")
             } else {
                 Color.clear.frame(height: 44).padding(.top, 20)
             }
@@ -112,6 +114,8 @@ struct OnboardingView: View {
                         .animation(DF.Spring.snappy, value: currentPage)
                 }
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Trang \(currentPage + 1) trên \(onboardingPages.count)")
 
             Button {
                 if currentPage < onboardingPages.count - 1 {
@@ -166,6 +170,7 @@ private struct OnboardingPageView: View {
             .scaleEffect(visible ? 1.0 : 0.88)
             .opacity(visible ? 1.0 : 0.0)
             .animation(DF.Spring.gentle, value: visible)
+            .accessibilityHidden(true)
 
             VStack(spacing: 14) {
                 Text(page.headline)
@@ -199,6 +204,7 @@ private struct OnboardingPageView: View {
                     .opacity(visible ? 1.0 : 0.0)
                     .animation(.easeOut(duration: 0.4).delay(0.24), value: visible)
             }
+            .accessibilityElement(children: .combine)
 
             Spacer()
             Spacer()
