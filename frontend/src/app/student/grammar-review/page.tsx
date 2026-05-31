@@ -11,12 +11,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { motion, AnimatePresence } from 'framer-motion'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 
+interface GrammarReviewTask {
+  id: number
+  errorCode: string
+  taskType: string
+}
+
 export default function GrammarReviewPage() {
   usePageTimeTracker('grammar_review');
   const router = useRouter()
   const { me, loading: meLoading, targetLevel, streakDays, initials } = useStudentPracticeSession()
 
-  const [tasks, setTasks] = useState<any[]>([])
+  const [tasks, setTasks] = useState<GrammarReviewTask[]>([])
   const [loading, setLoading] = useState(true)
   const [lockedCount, setLockedCount] = useState(0)
 

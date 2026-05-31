@@ -49,6 +49,44 @@ interface MockAttempt {
   sections_json?: string
 }
 
+// ─── Exam data types ─────────────────────────────────────────────────────────
+
+interface ExamQuestionItem {
+  id: string
+  question?: string
+  text?: string
+  person?: string
+  audio_script?: string
+  options?: Record<string, string>
+  correct?: string
+}
+
+interface ExamTeil {
+  teil: number
+  instruction_vi?: string
+  instruction_de?: string
+  context?: string
+  audio_script?: string
+  items?: ExamQuestionItem[]
+  form_fields?: Array<{ field: string; instruction_vi: string }>
+  input_email?: string
+  writing_points?: string[]
+}
+
+interface ExamSection {
+  name: string
+  label_vi: string
+  time_minutes: number
+  max_points: number
+  teile?: ExamTeil[]
+}
+
+interface ActiveExamData {
+  sections: ExamSection[]
+}
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
 const SECTION_ICONS: Record<string, React.ReactNode> = {
   LESEN: <BookOpen size={18} />,
   HOEREN: <Headphones size={18} />,
@@ -97,11 +135,11 @@ export default function MockExamPage() {
   const [selectedAttempt, setSelectedAttempt] = useState<MockAttempt | null>(null)
   
   // Exam Taking State
-  const [activeExamData, setActiveExamData] = useState<any>(null)
+  const [activeExamData, setActiveExamData] = useState<ActiveExamData | null>(null)
   const [activeAttemptId, setActiveAttemptId] = useState<number | null>(null)
   const [currentSectionIdx, setCurrentSectionIdx] = useState(0)
   const [timeLeft, setTimeLeft] = useState(0)
-  const [answers, setAnswers] = useState<Record<string, any>>({})
+  const [answers, setAnswers] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
 
   // Sync selectedLevel with user's target level once it loads
@@ -209,8 +247,9 @@ export default function MockExamPage() {
       setAnswers({})
       setView('taking')
       trackFeatureAction('mock_exam', 'started', { examId: exam.id, title: exam.title })
-    } catch (e: any) {
-      toast.error(e?.response?.data?.message ?? 'Không thể bắt đầu thi')
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      toast.error(msg ?? 'Không thể bắt đầu thi')
     } finally {
       setLoading(false)
     }
@@ -252,7 +291,7 @@ export default function MockExamPage() {
     return `${m}:${s < 10 ? '0' : ''}${s}`
   }
 
-  const handleAnswerChange = (questionId: string, value: any) => {
+  const handleAnswerChange = (questionId: string, value: string) => {
     setAnswers(prev => ({ ...prev, [questionId]: value }))
   }
 
@@ -282,7 +321,7 @@ export default function MockExamPage() {
               Phần thi: {currentSection.label_vi}
             </h2>
             <div className="hidden sm:flex gap-2">
-              {activeExamData.sections.map((s: any, idx: number) => (
+              {activeExamData.sections.map((s: ExamSection, idx: number) => (
                 <div key={idx} 
                   className={`w-3 h-3 rounded-full ${idx === currentSectionIdx ? 'bg-[#6366F1] scale-125' : idx < currentSectionIdx ? 'bg-[#94A3B8]' : 'bg-[#E2E8F0]'} transition-all`} 
                   title={s.label_vi} 
@@ -327,7 +366,7 @@ export default function MockExamPage() {
               <p className="text-slate-500 text-sm">Thời gian làm bài: {currentSection.time_minutes} phút | Điểm tối đa: {currentSection.max_points}</p>
             </div>
 
-            {currentSection.teile?.map((teil: any, tIdx: number) => (
+            {currentSection.teile?.map((teil: ExamTeil, tIdx: number) => (
               <div key={tIdx} className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
                 <div className="bg-slate-100 px-6 py-3 border-b border-slate-200">
                   <h4 className="font-bold text-slate-700">Teil {teil.teil}</h4>
@@ -347,7 +386,7 @@ export default function MockExamPage() {
 
                   {/* Render Questions based on type */}
                   <div className="space-y-6">
-                    {teil.items?.map((item: any, qIdx: number) => (
+                    {teil.items?.map((item: ExamQuestionItem, qIdx: number) => (
                       <div key={item.id} className="border-b border-slate-100 last:border-0 pb-6 last:pb-0">
                         {item.audio_script && (
                           <AudioPlayer script={item.audio_script} compact label={item.person ? `Nghe ${item.person}` : 'Nghe đoạn hội thoại'} />
@@ -360,7 +399,7 @@ export default function MockExamPage() {
                         {/* Multiple Choice Options */}
                         {item.options && (
                           <div className="space-y-2">
-                            {Object.entries(item.options).map(([optKey, optVal]: any) => (
+                            {Object.entries(item.options).map(([optKey, optVal]) => (
                               <label key={optKey} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${answers[item.id] === optKey ? 'bg-indigo-50 border-indigo-500' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
                                 <input type="radio" name={item.id} value={optKey} checked={answers[item.id] === optKey} onChange={() => handleAnswerChange(item.id, optKey)} className="w-4 h-4 text-indigo-600 focus:ring-indigo-500" />
                                 <span className="font-bold w-6 text-slate-400">{optKey}</span>
@@ -399,7 +438,7 @@ export default function MockExamPage() {
                     {/* Writing Form Fields */}
                     {teil.form_fields && (
                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                         {teil.form_fields.map((field: any, fIdx: number) => (
+                         {teil.form_fields.map((field: { field: string; instruction_vi: string }, fIdx: number) => (
                            <div key={fIdx}>
                              <label className="block text-xs font-bold text-slate-500 mb-1">{field.field} <span className="font-normal text-slate-400">({field.instruction_vi})</span></label>
                              <input type="text" value={answers[`form_${fIdx}`] || ''} onChange={(e) => handleAnswerChange(`form_${fIdx}`, e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" placeholder="Nhập đáp án..." />

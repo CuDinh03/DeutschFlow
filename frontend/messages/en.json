@@ -1265,5 +1265,58 @@
     "viewOriginal": "View original",
     "teacherEmptyTitle": "No images yet",
     "teacherEmptyHint": "Upload your first teaching material image."
+  },
+  "pricing": {
+    "badge": "Upgrade your account",
+    "title": "Choose your learning plan",
+    "subtitle": "Unlock the full AI power of DeutschFlow to learn German 10× more effectively.",
+    "refund": "📞 7-day money-back guarantee if you're not satisfied",
+    "free": "Free",
+    "perMonth": "/month",
+    "per2Months": "/2 months",
+    "currentPlan": "Current plan",
+    "payMomo": "Pay via MoMo",
+    "connecting": "Connecting to MoMo...",
+    "plans": {
+      "FREE": {
+        "name": "Free",
+        "badge": null,
+        "features": [
+          "✅ 2 Personas (Emma & Anna)",
+          "✅ Up to 20 review cards/day",
+          "✅ A1-B1 vocabulary access",
+          "✅ Mini AI Quiz (2 tabs)",
+          "❌ AI interview conversation",
+          "❌ Professional AI voices",
+          "❌ Advanced progress analytics"
+        ]
+      },
+      "PRO": {
+        "name": "Pro",
+        "badge": "Most popular",
+        "features": [
+          "✅ All 4 Personas (Lukas, Emma, Anna, Klaus)",
+          "✅ Unlimited reviews",
+          "✅ AI interview conversation",
+          "✅ Professional AI voices",
+          "✅ 6-tab AI Vocabulary Insights",
+          "✅ Vocabulary analytics (CEFR Chart)",
+          "✅ Quick AI Toolbar"
+        ]
+      },
+      "ULTRA": {
+        "name": "Ultra",
+        "badge": "Most powerful",
+        "features": [
+          "✅ All Pro features",
+          "✅ Mock CEFR Exam (A1–C1)",
+          "✅ Custom persona",
+          "✅ Advanced grading strictness",
+          "✅ Crash Course mode",
+          "✅ Custom vocabulary decks",
+          "✅ ULTRA GOLD badge on Leaderboard"
+        ]
+      }
+    }
   }
 }

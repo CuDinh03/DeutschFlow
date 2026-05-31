@@ -1267,5 +1267,58 @@
     "viewOriginal": "Xem ảnh gốc",
     "teacherEmptyTitle": "Chưa có ảnh nào",
     "teacherEmptyHint": "Hãy upload ảnh tài liệu giảng dạy đầu tiên của bạn."
+  },
+  "pricing": {
+    "badge": "Nâng cấp tài khoản",
+    "title": "Chọn gói học phù hợp",
+    "subtitle": "Mở khoá toàn bộ sức mạnh AI của DeutschFlow để học tiếng Đức hiệu quả hơn gấp 10 lần.",
+    "refund": "📞 Hỗ trợ hoàn tiền trong vòng 7 ngày nếu chưa hài lòng",
+    "free": "0đ",
+    "perMonth": "/tháng",
+    "per2Months": "/2 tháng",
+    "currentPlan": "Gói hiện tại",
+    "payMomo": "Thanh toán qua MoMo",
+    "connecting": "Đang kết nối MoMo...",
+    "plans": {
+      "FREE": {
+        "name": "Miễn Phí",
+        "badge": null,
+        "features": [
+          "✅ 2 Persona (Emma & Anna)",
+          "✅ Tối đa 20 thẻ ôn tập/ngày",
+          "✅ Xem từ vựng A1-B1",
+          "✅ Mini Quiz AI (2 tab)",
+          "❌ Hội thoại AI phỏng vấn",
+          "❌ Giọng AI chuyên nghiệp",
+          "❌ Phân tích tiến độ nâng cao"
+        ]
+      },
+      "PRO": {
+        "name": "Pro",
+        "badge": "Phổ biến nhất",
+        "features": [
+          "✅ Tất cả 4 Persona (Lukas, Emma, Anna, Klaus)",
+          "✅ Ôn tập không giới hạn",
+          "✅ Hội thoại AI phỏng vấn",
+          "✅ Giọng AI chuyên nghiệp",
+          "✅ 6 tab AI Vocabulary Insights",
+          "✅ Phân tích từ vựng (CEFR Chart)",
+          "✅ Quick AI Toolbar"
+        ]
+      },
+      "ULTRA": {
+        "name": "Ultra",
+        "badge": "Mạnh nhất",
+        "features": [
+          "✅ Tất cả tính năng Pro",
+          "✅ Mock Exam CEFR (A1–C1)",
+          "✅ Persona tùy chỉnh",
+          "✅ Đánh giá độ nghiêm ngặt nâng cao",
+          "✅ Crash Course mode",
+          "✅ Bộ thẻ từ vựng tùy chỉnh",
+          "✅ Huy hiệu ULTRA GOLD trên Leaderboard"
+        ]
+      }
+    }
   }
 }

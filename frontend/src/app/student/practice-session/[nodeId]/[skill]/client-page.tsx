@@ -71,14 +71,25 @@ interface SessionDetail {
   generation: number;
   status: string;
   scorePercent: number;
-  exercises: Exercise[] | { reading_passage?: any; exercises?: Exercise[] };
+  exercises: Exercise[] | { reading_passage?: { text_type?: string; text_de?: string }; exercises?: Exercise[] };
   sourceNodeTitle: string;
   sourceNodeTitleVi: string;
 }
 
+// ─── Submit result type ───────────────────────────────────────────────────────
+
+interface SubmitResult {
+  scorePercent: number
+  xpEarned: number
+  status: string
+  totalSeenCount?: number
+}
+
 // ─── Skill Config ─────────────────────────────────────────────────────────────
 
-const SKILL_META: Record<string, { icon: any; label: string; gradient: string; text: string }> = {
+import type { LucideIcon } from 'lucide-react'
+
+const SKILL_META: Record<string, { icon: LucideIcon; label: string; gradient: string; text: string }> = {
   hoeren: { icon: Headphones, label: "Nghe · Hören", gradient: "linear-gradient(135deg, #7C3AED, #A78BFA)", text: "#7C3AED" },
   sprechen: { icon: Mic, label: "Nói · Sprechen", gradient: "linear-gradient(135deg, #EC4899, #F472B6)", text: "#EC4899" },
   lesen: { icon: BookOpen, label: "Đọc · Lesen", gradient: "linear-gradient(135deg, #0EA5E9, #38BDF8)", text: "#0EA5E9" },
@@ -338,9 +349,9 @@ export default function PracticeSessionPage() {
   const [session, setSession] = useState<SessionDetail | null>(null);
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
-  const [answers, setAnswers] = useState<Map<number, { answer: any; correct: boolean }>>(new Map());
+  const [answers, setAnswers] = useState<Map<number, { answer: string | boolean; correct: boolean }>>(new Map());
   const [submitted, setSubmitted] = useState(false);
-  const [submitResult, setSubmitResult] = useState<any>(null);
+  const [submitResult, setSubmitResult] = useState<SubmitResult | null>(null);
   const [generatingNext, setGeneratingNext] = useState(false);
 
   const meta = SKILL_META[skillLower] || SKILL_META.lesen;
@@ -352,11 +363,13 @@ export default function PracticeSessionPage() {
     setLoading(true);
     try {
       // Try to start/get session
-      const { data } = await api.post<any>(`/skill-tree/${nodeId}/practice/${skill}/start`);
+      const { data } = await api.post<{ sessions?: Array<{ id: number; skill_type: string }>; sessionId?: number }>(
+        `/skill-tree/${nodeId}/practice/${skill}/start`
+      );
 
       if (data.sessions) {
         // Got overview — find this skill's session
-        const s = data.sessions.find((s: any) => s.skill_type === skill);
+        const s = data.sessions.find((s) => s.skill_type === skill);
         if (s) {
           const detail = await api.get<SessionDetail>(`/skill-tree/practice/${s.id}`);
           setSession(detail.data);
@@ -531,7 +544,7 @@ export default function PracticeSessionPage() {
         )}
 
         {/* Reading passage (for LESEN) */}
-        {session && (session.exercises as any)?.reading_passage && (
+        {session && !Array.isArray(session.exercises) && session.exercises.reading_passage && (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -540,11 +553,11 @@ export default function PracticeSessionPage() {
             <div className="flex items-center gap-2 mb-3">
               <BookOpen size={16} className="text-[#0EA5E9]" />
               <span className="text-xs font-bold text-[#0369A1] uppercase">
-                {(session.exercises as any).reading_passage.text_type || "Lesetext"}
+                {session.exercises.reading_passage.text_type || "Lesetext"}
               </span>
             </div>
             <p className="text-sm text-[#0F172A] leading-relaxed whitespace-pre-wrap">
-              {(session.exercises as any).reading_passage.text_de}
+              {session.exercises.reading_passage.text_de}
             </p>
           </motion.div>
         )}

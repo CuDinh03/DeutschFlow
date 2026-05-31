@@ -95,7 +95,7 @@ export function TeacherShell({
                 const isActive = activeMenu === item.id
                 const Icon = item.icon
                 const badge = 'badge' in item ? item.badge : undefined
-                const pendingCount = 'pendingCount' in item ? (item as any).pendingCount as number : 0
+                const pendingCount = 'pendingCount' in item ? (item as { pendingCount: number }).pendingCount : 0
                 return (
                   <Link
                     key={item.id}

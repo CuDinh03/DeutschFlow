@@ -167,7 +167,7 @@ export function StudentShell({
         items: [
           { id: "mock-exam" as const, label: t("navMockExam"), icon: Trophy, href: "/student/mock-exam",
             badge: <span className="text-[9px] font-bold bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-full border border-red-500/30">New</span> },
-          { id: "progress" as const, label: t("navProgress"), icon: BarChart2 as any, href: "/student/progress" },
+          { id: "progress" as const, label: t("navProgress"), icon: BarChart2, href: "/student/progress" },
           { id: "certificates" as const, label: t("navCertificates"), icon: Trophy, href: "/student/certificates" },
         ],
       },

@@ -1237,5 +1237,58 @@
     "viewOriginal": "Original anzeigen",
     "teacherEmptyTitle": "Noch keine Bilder",
     "teacherEmptyHint": "Laden Sie Ihr erstes Lehrmaterialbild hoch."
+  },
+  "pricing": {
+    "badge": "Konto upgraden",
+    "title": "Wähle deinen Lernplan",
+    "subtitle": "Schalte die volle KI-Power von DeutschFlow frei und lerne 10× effektiver.",
+    "refund": "📞 7-tägige Geld-zurück-Garantie bei Unzufriedenheit",
+    "free": "Kostenlos",
+    "perMonth": "/Monat",
+    "per2Months": "/2 Monate",
+    "currentPlan": "Aktueller Plan",
+    "payMomo": "Mit MoMo bezahlen",
+    "connecting": "MoMo wird verbunden...",
+    "plans": {
+      "FREE": {
+        "name": "Kostenlos",
+        "badge": null,
+        "features": [
+          "✅ 2 Personas (Emma & Anna)",
+          "✅ Max. 20 Karten/Tag",
+          "✅ Vokabular A1-B1",
+          "✅ Mini-KI-Quiz (2 Tabs)",
+          "❌ KI-Interview-Gespräch",
+          "❌ Professionelle KI-Stimmen",
+          "❌ Erweiterte Fortschrittsanalyse"
+        ]
+      },
+      "PRO": {
+        "name": "Pro",
+        "badge": "Am beliebtesten",
+        "features": [
+          "✅ Alle 4 Personas (Lukas, Emma, Anna, Klaus)",
+          "✅ Unbegrenzte Wiederholungen",
+          "✅ KI-Interview-Gespräch",
+          "✅ Professionelle KI-Stimmen",
+          "✅ 6-Tab KI-Vokabelanalyse",
+          "✅ Vokabelanalyse (CEFR-Diagramm)",
+          "✅ Quick AI Toolbar"
+        ]
+      },
+      "ULTRA": {
+        "name": "Ultra",
+        "badge": "Am leistungsstärksten",
+        "features": [
+          "✅ Alle Pro-Funktionen",
+          "✅ Mock CEFR-Prüfung (A1–C1)",
+          "✅ Benutzerdefinierte Persona",
+          "✅ Erweiterte Bewertungsstrenge",
+          "✅ Crash-Course-Modus",
+          "✅ Benutzerdefinierte Vokabelsets",
+          "✅ ULTRA GOLD-Abzeichen im Leaderboard"
+        ]
+      }
+    }
   }
 }
