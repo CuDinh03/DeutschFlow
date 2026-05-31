@@ -71,6 +71,8 @@ interface ExamTeil {
   form_fields?: Array<{ field: string; instruction_vi: string }>
   input_email?: string
   writing_points?: string[]
+  prompt_words?: string[]
+  topic_cards?: string[]
 }
 
 interface ExamSection {
@@ -473,13 +475,13 @@ export default function MockExamPage() {
                              <span key={wIdx} className="px-3 py-1.5 bg-amber-100 text-amber-800 rounded-lg font-bold text-sm border border-amber-200 shadow-sm">{word}</span>
                            ))}
                          </div>
-                         <SprechenTeil2Simulator onFinish={(score) => handleAnswerChange(`sprechen_score_${teil.teil}`, score)} />
+                         <SprechenTeil2Simulator onFinish={(score) => handleAnswerChange(`sprechen_score_${teil.teil}`, String(score))} />
                        </div>
                     )}
                     
                     {teil.topic_cards && (
                        <div className="space-y-4">
-                         <SprechenTeil2Simulator onFinish={(score) => handleAnswerChange(`sprechen_score_${teil.teil}`, score)} />
+                         <SprechenTeil2Simulator onFinish={(score) => handleAnswerChange(`sprechen_score_${teil.teil}`, String(score))} />
                        </div>
                     )}
                   </div>

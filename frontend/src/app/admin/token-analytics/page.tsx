@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { Search } from 'lucide-react'
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts'
 import AdminShell from '@/components/admin/AdminShell'
 import useAdminData from '@/hooks/useAdminData'
 import api from '@/lib/api'
@@ -62,9 +62,13 @@ function quotaKindLabel(kind: string | undefined, t: (key: string) => string): s
   }
 }
 
+type DailyCostRow = { day: string; tokens: number; costUsd: number; model: string; feature: string }
+type DailyCostDto = { days: number; data: DailyCostRow[] }
+
 type TokenDashState = {
   users: AdminUser[]
   ledger: AiUsageByFeatureDto | null
+  dailyCost: DailyCostDto | null
 }
 
 export default function AdminTokenAnalyticsPage() {
@@ -79,27 +83,43 @@ export default function AdminTokenAnalyticsPage() {
   )
 
   const { data, loading, error, refreshing, lastSyncedAt, reload } = useAdminData<TokenDashState>({
-    initialData: { users: [], ledger: null },
+    initialData: { users: [], ledger: null, dailyCost: null },
     errorMessage: t('error'),
     fetchData: async () => {
       const usersRes = await api.get('/admin/users')
       const usersData = (usersRes.data ?? []) as AdminUser[]
       let ledger: AiUsageByFeatureDto | null = null
+      let dailyCost: DailyCostDto | null = null
       try {
-        const lr = await api.get<AiUsageByFeatureDto>('/admin/reports/ai-usage-by-feature', {
-          params: { days: 30 },
-        })
+        const [lr, dr] = await Promise.all([
+          api.get<AiUsageByFeatureDto>('/admin/reports/ai-usage-by-feature', { params: { days: 30 } }),
+          api.get<DailyCostDto>('/admin/reports/ai-cost-daily', { params: { days: 14 } }),
+        ])
         ledger = lr.data ?? null
+        dailyCost = dr.data ?? null
       } catch {
         ledger = null
       }
-      return { users: usersData, ledger }
+      return { users: usersData, ledger, dailyCost }
     },
     intervalMs: 45_000,
   })
 
   const users = data.users
   const ledger = data.ledger
+  const dailyCost = data.dailyCost
+
+  // Aggregate daily cost rows: sum costUsd by day for the area chart
+  const dailyCostChartData = (() => {
+    if (!dailyCost?.data) return []
+    const byDay: Record<string, number> = {}
+    for (const r of dailyCost.data) {
+      byDay[r.day] = (byDay[r.day] ?? 0) + r.costUsd
+    }
+    return Object.entries(byDay)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([day, costUsd]) => ({ day: day.slice(5), costUsd: Math.round(costUsd * 1000) / 1000 }))
+  })()
 
   useEffect(() => {
     const tick = () => {
@@ -392,6 +412,33 @@ export default function AdminTokenAnalyticsPage() {
               : t('liveUsedEstimate', { quota: nf.format(sumUsed30d) })}
           </p>
         </div>
+
+        {dailyCostChartData.length > 0 && (
+          <div className="rounded-[14px] border border-[#E2E8F0] bg-white p-4">
+            <h3 className="font-bold text-[#0F172A] text-sm mb-1">AI Cost Trend (14d)</h3>
+            <p className="text-[11px] text-[#64748B] mb-3">Estimated USD per day (blended model pricing)</p>
+            <div className="h-[160px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={dailyCostChartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="costGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#7C3AED" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#7C3AED" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
+                  <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#94A3B8' }} />
+                  <YAxis tick={{ fontSize: 10, fill: '#94A3B8' }} />
+                  <Tooltip
+                    formatter={(v: number) => [`$${v.toFixed(4)}`, 'Cost']}
+                    contentStyle={{ borderRadius: 10, border: '1px solid #E2E8F0', fontSize: 12 }}
+                  />
+                  <Area type="monotone" dataKey="costUsd" stroke="#7C3AED" fill="url(#costGrad)" strokeWidth={2} dot={false} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
 
         <div className="rounded-[14px] border border-[#E2E8F0] bg-white p-4">
           <h3 className="font-bold text-[#0F172A] text-sm mb-3">{t('resetTitle')}</h3>

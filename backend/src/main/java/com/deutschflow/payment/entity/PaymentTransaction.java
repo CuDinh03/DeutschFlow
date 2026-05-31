@@ -49,6 +49,9 @@ public class PaymentTransaction {
     @Column(name = "raw_ipn_payload", columnDefinition = "JSONB")
     private Map<String, Object> rawIpnPayload;
 
+    @Column(name = "duration_months")
+    private Integer durationMonths;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

@@ -86,4 +86,23 @@ public class SrsController {
             @RequestBody ReviewRequest req) {
         return ResponseEntity.ok(srsService.recordReview(user.getId(), req));
     }
+
+    /**
+     * Batch review — processes offline queue accumulated while device was offline.
+     * Reviews are applied in the order received; each result is independent.
+     * Idempotent: re-sending a queued item with the same vocabId applies the rating again
+     * (safe because FSRS is deterministic given current card state).
+     */
+    @PostMapping("/review/batch")
+    public ResponseEntity<List<VocabReviewCard>> recordReviewBatch(
+            @AuthenticationPrincipal User user,
+            @RequestBody List<ReviewRequest> reviews) {
+        if (reviews == null || reviews.isEmpty()) {
+            return ResponseEntity.ok(List.of());
+        }
+        List<VocabReviewCard> results = reviews.stream()
+                .map(req -> srsService.recordReview(user.getId(), req))
+                .toList();
+        return ResponseEntity.ok(results);
+    }
 }

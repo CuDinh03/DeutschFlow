@@ -39,8 +39,8 @@ export function useTracking() {
    * Track feature actions (started, completed, quit)
    */
   const trackFeatureAction = useCallback((
-    feature: string, 
-    action: 'started' | 'completed' | 'quit' | 'latency' | 'paywall_viewed' | 'checkout_started' | 'clicked', 
+    feature: string,
+    action: 'started' | 'completed' | 'quit' | 'latency' | 'paywall_viewed' | 'checkout_started' | 'checkout_completed' | 'checkout_abandoned' | 'paywall_gate_viewed' | 'clicked',
     metadata?: Record<string, any>
   ) => {
     if (posthog) {

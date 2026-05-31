@@ -6,6 +6,7 @@ import api from "@/lib/api";
 import { syncMomoOrder } from "@/lib/paymentApi";
 import { MyPlanDto } from "@/contexts/PlanContext";
 import { useLocale } from "next-intl";
+import { useTracking } from "@/hooks/useTracking";
 import type { ReadonlyURLSearchParams } from "next/navigation";
 
 function extractMoMoOrderId(sp: ReadonlyURLSearchParams): string {
@@ -28,6 +29,7 @@ function PaymentSuccessContent() {
   const locale = useLocale();
   const searchParams = useSearchParams();
   const orderId = extractMoMoOrderId(searchParams);
+  const { trackFeatureAction } = useTracking();
 
   const [loading, setLoading] = useState(true);
   const [plan, setPlan] = useState<MyPlanDto | null>(null);
@@ -59,6 +61,11 @@ function PaymentSuccessContent() {
           ) {
             setPlan(currentPlan);
             setLoading(false);
+            trackFeatureAction("monetization", "checkout_completed", {
+              plan: currentPlan.planCode,
+              tier: currentPlan.tier,
+              orderId,
+            });
             setTimeout(() => {
               if (!cancelled) router.push("/student");
             }, 10000);

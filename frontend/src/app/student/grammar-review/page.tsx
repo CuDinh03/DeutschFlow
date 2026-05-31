@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation'
 import api from '@/lib/api'
 import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { PremiumGate } from '@/components/ui/PremiumGate'
 import { motion, AnimatePresence } from 'framer-motion'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 
@@ -138,32 +139,14 @@ export default function GrammarReviewPage() {
           </AnimatePresence>
         )}
 
-        {/* PRO Paywall Overlay indicator */}
         {lockedCount > 0 && (
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <Card className="mt-8 shadow-sm border-l-4 border-l-orange-500 bg-orange-50 overflow-hidden relative">
-              <div className="absolute top-0 right-0 p-2 text-orange-400 opacity-20">
-                <svg className="w-24 h-24" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" /></svg>
-              </div>
-              <CardContent className="p-6">
-                <h3 className="text-lg font-bold text-orange-800 flex items-center">
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                  Bạn đang bị khóa {lockedCount} lỗi nghiêm trọng!
-                </h3>
-                <p className="text-orange-700 mt-2 text-sm leading-relaxed">
-                  Tài khoản FREE chỉ cho phép sửa tối đa 2 lỗi mỗi ngày. Nâng cấp PRO để mở khóa toàn bộ Hệ thống Sửa lỗi và đẩy nhanh quá trình tiến bộ. Đừng để lỗi sai ăn sâu vào thói quen!
-                </p>
-                <button 
-                  className="mt-5 w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-xl text-sm transition-colors shadow-sm"
-                  onClick={() => router.push('/student/pricing')}
-                >
-                  Nâng cấp PRO ngay
-                </button>
-              </CardContent>
-            </Card>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-8">
+            <PremiumGate
+              requires="PRO"
+              variant="banner"
+              title={`Bạn đang bị khóa ${lockedCount} lỗi nghiêm trọng!`}
+              description="Tài khoản FREE chỉ cho phép sửa tối đa 2 lỗi mỗi ngày. Nâng cấp PRO để mở khóa toàn bộ Hệ thống Sửa lỗi và đẩy nhanh quá trình tiến bộ."
+            />
           </motion.div>
         )}
       </div>

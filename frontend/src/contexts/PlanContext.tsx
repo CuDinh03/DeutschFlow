@@ -58,3 +58,11 @@ export function PlanProvider({ children }: { children: ReactNode }) {
 export function usePlan() {
   return useContext(PlanContext);
 }
+
+export function usePlanHelpers() {
+  const { plan, loading } = useContext(PlanContext);
+  const isPro = plan?.planCode === "PRO" || plan?.planCode === "ULTRA";
+  const isUltra = plan?.planCode === "ULTRA";
+  const isFree = !isPro;
+  return { isPro, isUltra, isFree, loading };
+}

@@ -166,6 +166,12 @@ public class AdminManagementController {
         return adminManagementService.aiUsageByFeature(days);
     }
 
+    /** Daily token cost trend for the AI cost observability dashboard. */
+    @GetMapping("/reports/ai-cost-daily")
+    public Map<String, Object> aiCostDaily(@RequestParam(defaultValue = "14") int days) {
+        return adminManagementService.aiCostDaily(days);
+    }
+
     @GetMapping("/users")
     public List<Map<String, Object>> users() {
         return adminManagementService.listUsers();

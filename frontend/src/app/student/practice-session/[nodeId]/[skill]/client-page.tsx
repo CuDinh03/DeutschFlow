@@ -639,7 +639,7 @@ export default function PracticeSessionPage() {
               </button>
             </div>
 
-            {submitResult.totalSeenCount > 0 && (
+            {(submitResult.totalSeenCount ?? 0) > 0 && (
               <p className="mt-4 text-xs text-[#94A3B8]">
                 Tổng cộng đã luyện {submitResult.totalSeenCount} câu không lặp lại
               </p>

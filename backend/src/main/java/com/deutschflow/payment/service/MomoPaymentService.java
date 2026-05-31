@@ -72,11 +72,15 @@ public class MomoPaymentService {
 
     @Transactional
     public CreateMomoOrderResponse createOrder(Long userId, CreateMomoOrderRequest req) {
-        // 1. Lấy giá từ subscription_plans
-        Long priceVnd = jdbcTemplate.queryForObject(
-                "SELECT price_vnd FROM subscription_plans WHERE code = ? AND is_active = TRUE",
-                Long.class, req.getPlanCode()
+        // 1. Lấy giá và duration từ subscription_plans
+        var planRow = jdbcTemplate.queryForMap(
+                "SELECT price_vnd, duration_months FROM subscription_plans WHERE code = ? AND is_active = TRUE",
+                req.getPlanCode()
         );
+        Long priceVnd = ((Number) planRow.get("price_vnd")).longValue();
+        int durationMonths = planRow.get("duration_months") != null
+                ? ((Number) planRow.get("duration_months")).intValue()
+                : 1;
         if (priceVnd == null || priceVnd <= 0) {
             throw new IllegalArgumentException("Gói " + req.getPlanCode() + " không có giá thanh toán hợp lệ.");
         }
@@ -92,6 +96,7 @@ public class MomoPaymentService {
                 .userId(userId)
                 .planCode(req.getPlanCode())
                 .amount(priceVnd)
+                .durationMonths(durationMonths)
                 .provider("MOMO")
                 .status("PENDING")
                 .build();
@@ -254,7 +259,8 @@ public class MomoPaymentService {
         tx.setProviderMessage(message);
         tx.setStatus("SUCCESS");
         paymentTransactionRepository.save(tx);
-        subscriptionActivationService.activatePlan(tx.getUserId(), tx.getPlanCode(), 1);
+        int months = tx.getDurationMonths() != null && tx.getDurationMonths() > 0 ? tx.getDurationMonths() : 1;
+        subscriptionActivationService.activatePlan(tx.getUserId(), tx.getPlanCode(), months);
     }
 
     // ==================== PRIVATE HELPERS ====================

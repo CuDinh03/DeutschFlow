@@ -12,6 +12,7 @@ import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
 import { reviewApi, type ErrorReviewTaskDto } from '@/lib/reviewApi'
 import api from '@/lib/api'
 import ErrorRepairDrill from '@/components/errors/ErrorRepairDrill'
+import { PremiumGate } from '@/components/ui/PremiumGate'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 
@@ -196,25 +197,13 @@ export default function ErrorLibraryPage() {
               </div>
             )}
             {lockedCount > 0 && (
-              <div className="mt-3 p-4 bg-gradient-to-r from-violet-600 to-indigo-700 rounded-2xl flex items-center justify-between gap-4 text-white shadow-md">
-                <div className="flex items-center gap-3">
-                  <span className="text-lg">🔒</span>
-                  <div className="text-left">
-                    <p className="text-sm font-bold">
-                      Còn {lockedCount} bài ôn tập bị khóa hôm nay
-                    </p>
-                    <p className="text-xs text-white/80">
-                      Nâng cấp tài khoản PRO để học toàn bộ vết sẹo ngữ pháp.
-                    </p>
-                  </div>
-                </div>
-                <Link
-                  href="/student/pricing"
-                  className="px-4 py-2 rounded-xl bg-white text-indigo-700 hover:bg-indigo-50 font-bold text-xs transition-all flex-shrink-0 shadow-sm active:scale-95"
-                >
-                  Nâng cấp PRO
-                </Link>
-              </div>
+              <PremiumGate
+                requires="PRO"
+                variant="banner"
+                title={`Còn ${lockedCount} bài ôn tập bị khóa hôm nay`}
+                description="Nâng cấp tài khoản PRO để học toàn bộ vết sẹo ngữ pháp."
+                className="mt-3"
+              />
             )}
           </div>
         )}

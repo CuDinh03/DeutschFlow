@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { createMomoOrder } from "@/lib/paymentApi";
 import { useTracking } from "@/hooks/useTracking";
@@ -41,12 +41,20 @@ export default function PricingPage() {
   const [loading, setLoading] = useState<PlanCode | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { trackFeatureAction } = useTracking();
+  const checkoutStartedRef = useRef(false);
 
   useEffect(() => {
     trackFeatureAction("monetization", "paywall_viewed");
-  }, [trackFeatureAction]);
+    return () => {
+      if (!checkoutStartedRef.current) {
+        trackFeatureAction("monetization", "checkout_abandoned");
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleUpgrade = async (planCode: "PRO" | "ULTRA") => {
+    checkoutStartedRef.current = true;
     trackFeatureAction("monetization", "checkout_started", { plan: planCode });
     setLoading(planCode);
     setError(null);

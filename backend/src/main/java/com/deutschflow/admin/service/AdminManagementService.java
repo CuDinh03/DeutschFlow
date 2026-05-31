@@ -357,6 +357,61 @@ public class AdminManagementService {
         return out;
     }
 
+    /**
+     * Returns daily token counts and estimated USD cost for the past {@code days} days.
+     *
+     * <p>Cost model (blended estimate):
+     * <ul>
+     *   <li>Groq Llama 4 Scout: $0.11/1M tokens</li>
+     *   <li>OpenAI / generic: $0.20/1M tokens</li>
+     *   <li>Default/unknown: $0.15/1M tokens</li>
+     * </ul>
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> aiCostDaily(int days) {
+        int d = Math.min(90, Math.max(1, days));
+        Instant to = Instant.now();
+        Instant from = to.minusSeconds((long) d * 86400L);
+
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                SELECT
+                    DATE_TRUNC('day', created_at AT TIME ZONE 'UTC')::date AS day,
+                    COALESCE(model, 'unknown')                             AS model,
+                    COALESCE(NULLIF(TRIM(feature), ''), 'UNKNOWN')         AS feature,
+                    SUM(total_tokens)::bigint                              AS tokens
+                FROM ai_token_usage_events
+                WHERE created_at >= ? AND created_at <= ?
+                GROUP BY 1, 2, 3
+                ORDER BY 1 DESC, 4 DESC
+                """,
+                Timestamp.from(from), Timestamp.from(to));
+
+        List<Map<String, Object>> daily = new ArrayList<>(rows.size());
+        for (Map<String, Object> row : rows) {
+            long tokens = toLong(row.get("tokens"));
+            String model = String.valueOf(row.get("model")).toLowerCase();
+            double costPer1M = model.contains("llama") || model.contains("groq") ? 0.11
+                    : model.contains("openai") || model.contains("gpt") ? 0.20
+                    : 0.15;
+            double costUsd = tokens * costPer1M / 1_000_000.0;
+
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("day", String.valueOf(row.get("day")));
+            entry.put("model", row.get("model"));
+            entry.put("feature", row.get("feature"));
+            entry.put("tokens", tokens);
+            entry.put("costUsd", Math.round(costUsd * 10000.0) / 10000.0);
+            daily.add(entry);
+        }
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("days", d);
+        out.put("fromUtc", from.toString());
+        out.put("toUtc", to.toString());
+        out.put("data", daily);
+        return out;
+    }
+
     @Transactional
     public Map<String, Object> updateUserRole(Long userId, String role) {
         User user = userRepository.findById(userId)

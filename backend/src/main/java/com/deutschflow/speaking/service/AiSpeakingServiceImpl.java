@@ -63,7 +63,6 @@ import com.deutschflow.training.service.TrainingDatasetService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -107,6 +106,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
     private final ReviewSchedulerService reviewSchedulerService;
     private final SpeakingMetrics speakingMetrics;
     private final AdaptivePolicyService adaptivePolicyService;
+    private final AdaptiveEngineService adaptiveEngineService;
     private final TurnEvaluatorService turnEvaluatorService;
     private final QuotaService quotaService;
     private final AiUsageLedgerService aiUsageLedgerService;
@@ -141,6 +141,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
             ReviewSchedulerService reviewSchedulerService,
             SpeakingMetrics speakingMetrics,
             AdaptivePolicyService adaptivePolicyService,
+            AdaptiveEngineService adaptiveEngineService,
             TurnEvaluatorService turnEvaluatorService,
             QuotaService quotaService,
             AiUsageLedgerService aiUsageLedgerService,
@@ -173,6 +174,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         this.reviewSchedulerService = reviewSchedulerService;
         this.speakingMetrics = speakingMetrics;
         this.adaptivePolicyService = adaptivePolicyService;
+        this.adaptiveEngineService = adaptiveEngineService;
         this.turnEvaluatorService = turnEvaluatorService;
         this.quotaService = quotaService;
         this.aiUsageLedgerService = aiUsageLedgerService;
@@ -357,7 +359,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         List<String> knownInterests = extractInterests(profile);
         List<WeakPoint> weakPoints = sessionMode == SpeakingSessionMode.INTERVIEW
                 ? List.of()
-                : grammarErrorRepository.findTopWeakPoints(userId, PageRequest.of(0, 5));
+                : adaptiveEngineService.getWeakPoints(userId);
 
         SpeakingPolicy policy = adaptivePolicyService.computePolicy(userId, sessionRow, profile, knownInterests);
         InterviewPromptContext interviewContext = buildGreetingInterviewContext(sessionMode, sessionRow, persona);
@@ -559,7 +561,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
 
         UserLearningProfile profile = profileRepository.findByUserId(userId).orElse(null);
         List<String> knownInterests = extractInterests(profile);
-        List<WeakPoint> weakPoints = grammarErrorRepository.findTopWeakPoints(userId, PageRequest.of(0, 5));
+        List<WeakPoint> weakPoints = adaptiveEngineService.getWeakPoints(userId);
         List<AiSpeakingMessage> recentMessages = loadRecentMessages(sessionId, session);
 
         UserLearningProfile effectiveProfile = profile != null ? profile : defaultProfile();
