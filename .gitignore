@@ -33,6 +33,20 @@ client_secret*.json
 .kiro/
 
 # ============================================================
+# AI / EDITOR TOOLING — local index & config (never commit)
+# ============================================================
+# Codegraph SQLite knowledge-graph index
+.codegraph/
+# Cursor MCP config
+.cursor/mcp.json
+# Claude Code project settings (contains local tool permissions)
+.claude/settings.json
+# Gemini CLI config
+.gemini/
+# Root-level MCP server config (machine-specific)
+.mcp.json
+
+# ============================================================
 # DOCS (nội bộ, không push lên git)
 # ============================================================
 docs/
