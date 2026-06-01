@@ -3,6 +3,7 @@ import { View, KeyboardAvoidingView, Platform, Alert, Pressable } from 'react-na
 import { router, Link } from 'expo-router'
 import { MotiView } from 'moti'
 import * as Haptics from 'expo-haptics'
+import api from '@/lib/api'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { motion, radius, space, useTheme } from '@/lib/theme'
@@ -26,7 +27,15 @@ export default function LoginScreen() {
       await login(email.trim(), password)
       await fetchPlan()
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-      router.replace('/(student)/')
+      // Route to onboarding if the learner has no plan yet; otherwise into the app.
+      let hasPlan = true
+      try {
+        const { data } = await api.get<{ hasPlan: boolean }>('/onboarding/status')
+        hasPlan = data.hasPlan
+      } catch {
+        // Status check is best-effort; default to the app for existing learners.
+      }
+      router.replace(hasPlan ? '/(student)/' : '/(auth)/onboarding')
     } catch (e: unknown) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
       const msg = e instanceof Error ? e.message : ''

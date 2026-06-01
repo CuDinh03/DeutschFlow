@@ -39,7 +39,8 @@ export default function RegisterScreen() {
       await fetchMe()
       await fetchPlan()
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-      router.replace('/(student)/')
+      // New learners go through onboarding before reaching the app.
+      router.replace('/(auth)/onboarding')
     } catch {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
       Alert.alert('Đăng ký thất bại', 'Email có thể đã được sử dụng.')

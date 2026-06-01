@@ -65,9 +65,31 @@
 
 ---
 
-## 📊 Trạng Thái Hiện Tại (v2.22 — Stripe Checkout, B1/B2 Exams, Answer Review, Vitest, Redis L2)
+## 📊 Trạng Thái Hiện Tại (v2.23 — MVP Reconciliation + iOS B2C Loop Wired to Shared Core)
 
-### ✅ Hoàn Thành Trong Phiên Làm Việc Này (v2.22)
+### ✅ Hoàn Thành Trong Phiên Làm Việc Này (v2.23 — MVP Reconciliation + iOS B2C)
+
+1. **Đối soát MVP Checklist 90 ngày** với codebase → `docs/superpowers/specs/2026-06-01-mvp-reconciliation.md`. Kết luận: backend core, web B2C, web B2B ~hoàn tất; lane **iOS B2C (`mobile/`) bị hỏng/thiếu**.
+
+2. **iOS B2C — Sửa wiring Speaking/Interview** *(bug nghiêm trọng)*
+   - `mobile/app/(student)/speaking.tsx` trước gọi `POST /speaking/sessions` + `POST /speaking/turn` — **không tồn tại** trên backend → toàn bộ luồng luyện tập iOS không chạy.
+   - Đã sửa dùng core thật: `POST /ai-speaking/sessions` (INTERVIEW mode) → `POST /ai-speaking/transcribe` → `POST /ai-speaking/sessions/{id}/chat` → `PATCH …/end` → `GET /interviews/{id}/report`.
+   - Thêm `mobile/lib/speakingApi.ts` — typed client mirror đúng DTO (`InterviewPersonaDto` dùng `code` chứ không phải `id`).
+   - Hỗ trợ trả lời bằng **text + voice** (text không cần PRO → luôn hoàn thành được phiên), feedback inline per-turn, progress theo phase.
+
+3. **iOS B2C — Onboarding** — `mobile/app/(auth)/onboarding.tsx`: goal (WORK/CERT) + target level + ngành/kỳ thi → `POST /onboarding/profile` → auto-start practice. `login.tsx`/`register.tsx` điều hướng theo `GET /onboarding/status`.
+
+4. **iOS B2C — Feedback screen** — `mobile/components/speaking/SessionSummary.tsx`: verdict, điểm tổng, strengths/critical gaps/recommended drills, breakdown theo giai đoạn.
+
+5. **Shared fixtures (§1)** — `mobile/lib/fixtures.ts` (persona/session/chat/report) cho dev/QA, mirror field names backend.
+
+6. **Verify** — `cd mobile && npx tsc --noEmit` → exit 0 (clean).
+
+**Backlog còn lại**: iOS progress trend (`stats.tsx`), iOS tests, B2B export/printable, iOS B2B read-only viewers, iOS resume-after-background.
+
+---
+
+### ✅ Hoàn Thành Trong Phiên Làm Việc Trước (v2.22)
 
 1. **Stripe Checkout**
    - ✅ `StripePaymentService`: VND→USD conversion, webhook HMAC verify, graceful degradation nếu key chưa set

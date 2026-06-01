@@ -1,0 +1,176 @@
+// Typed client for the AI Speaking / Interview core engine.
+//
+// IMPORTANT: these endpoints and payload shapes mirror the backend records
+// exactly so iOS, web, and backend share one vocabulary (MVP checklist §1):
+//   - InterviewController            GET  /api/interviews/personas
+//   - AiSessionController            POST /api/ai-speaking/sessions
+//                                    POST /api/ai-speaking/transcribe (multipart)
+//                                    POST /api/ai-speaking/sessions/{id}/chat
+//                                    PATCH /api/ai-speaking/sessions/{id}/end
+//   - InterviewController            GET  /api/interviews/{id}/report
+//
+// The mobile `api` baseURL already includes `/api`, so paths here are relative
+// to that (e.g. `/interviews/personas`). The previous screen called
+// `/speaking/sessions` + `/speaking/turn`, which do not exist on the backend.
+
+import api from './api'
+
+// ── Domain types (field names match backend DTOs) ───────────────────────────
+
+export type PersonaDifficulty = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED'
+
+/** Mirrors `InterviewPersonaDto`. Identified by `code` (not a numeric id). */
+export interface InterviewPersona {
+  code: string
+  label: string
+  industry: string | null
+  roleTitle: string
+  tone: string | null
+  difficulty: PersonaDifficulty | string
+  questionStyle: string | null
+  evaluationBias: string | null
+  version: number
+}
+
+/** Mirrors `AiSpeakingChatResponse.SuggestionDto`. */
+export interface SpeakingSuggestion {
+  germanText: string
+  vietnameseTranslation: string
+  level?: string | null
+  whyToUse?: string | null
+  usageContext?: string | null
+  legoStructure?: string | null
+}
+
+/** Mirrors `AiSpeakingChatResponse`. NON_NULL on the wire, so most are optional. */
+export interface AiChatResponse {
+  messageId?: number | null
+  sessionId?: number | null
+  aiSpeechDe?: string | null
+  correction?: string | null
+  explanationVi?: string | null
+  grammarPoint?: string | null
+  feedback?: string | null
+  similarityScore?: number | null
+  suggestions?: SpeakingSuggestion[]
+  action?: string | null
+  isSessionEnded?: boolean | null
+  /** INTRO | ICE_BREAKER | HARD_SKILLS | STAR_SOFT | CLOSING */
+  interviewPhaseKey?: string | null
+  interviewHintKey?: string | null
+}
+
+/** Mirrors `AiSpeakingSessionDto`. */
+export interface AiSpeakingSession {
+  id: number
+  topic: string | null
+  cefrLevel: string | null
+  persona: string | null
+  responseSchema: string | null
+  sessionMode: string | null
+  status: string | null
+  messageCount: number
+  initialAiMessage: AiChatResponse | null
+  interviewPosition: string | null
+  experienceLevel: string | null
+  interviewReportJson: string | null
+}
+
+/** Mirrors `InterviewReportDto`. */
+export interface InterviewPhaseResult {
+  phase: string
+  score: number | null
+  strengths: string[]
+  weaknesses: string[]
+}
+
+export interface InterviewReport {
+  sessionId: number
+  position: string | null
+  experienceLevel: string | null
+  overallScore: number | null
+  verdict: string | null
+  readinessLevel: string | null
+  strongAreas: string[]
+  criticalGaps: string[]
+  recommendedDrills: string[]
+  phaseResults: InterviewPhaseResult[]
+}
+
+// ── Mapping helpers ──────────────────────────────────────────────────────────
+
+/** Backend interview `experienceLevel` enum: 0-6M | 6-12M | 1-2Y | 3Y | 5Y. */
+export function experienceForDifficulty(difficulty: string): string {
+  switch (difficulty) {
+    case 'BEGINNER':
+      return '0-6M'
+    case 'ADVANCED':
+      return '3Y'
+    case 'INTERMEDIATE':
+    default:
+      return '1-2Y'
+  }
+}
+
+// ── API surface ──────────────────────────────────────────────────────────────
+
+export const speakingApi = {
+  /** Active interview-capable personas (shared question banks + difficulty tiers). */
+  getPersonas: () =>
+    api.get<InterviewPersona[]>('/interviews/personas').then((r) => r.data),
+
+  /**
+   * Start a mock-interview speaking session for the given persona.
+   * Matches the web `CompanionSelect` INTERVIEW payload: topic = role,
+   * cefrLevel = "C1", sessionMode = "INTERVIEW".
+   */
+  startInterview: (persona: InterviewPersona) =>
+    api
+      .post<AiSpeakingSession>(
+        '/ai-speaking/sessions',
+        {
+          topic: persona.roleTitle,
+          cefrLevel: 'C1',
+          persona: persona.code,
+          responseSchema: null,
+          sessionMode: 'INTERVIEW',
+          interviewPosition: persona.roleTitle,
+          experienceLevel: experienceForDifficulty(persona.difficulty),
+          assignmentId: null,
+        },
+        { timeout: 30_000 },
+      )
+      .then((r) => r.data),
+
+  /** Upload a recorded answer and get the German transcript back. */
+  transcribe: (audioUri: string) => {
+    const form = new FormData()
+    form.append('audio', {
+      uri: audioUri,
+      type: 'audio/m4a',
+      name: 'answer.m4a',
+    } as unknown as Blob)
+    return api
+      .post<{ transcript: string }>('/ai-speaking/transcribe', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 30_000,
+      })
+      .then((r) => r.data.transcript)
+  },
+
+  /** Submit a text answer (typed, or a transcript) and get the next AI turn. */
+  chat: (sessionId: number, userMessage: string) =>
+    api
+      .post<AiChatResponse>(`/ai-speaking/sessions/${sessionId}/chat`, { userMessage })
+      .then((r) => r.data),
+
+  /** End the session; in INTERVIEW mode this triggers report generation. */
+  endSession: (sessionId: number) =>
+    api
+      .patch<AiSpeakingSession>(`/ai-speaking/sessions/${sessionId}/end`)
+      .then((r) => r.data),
+
+  /** Structured, machine-readable interview report for a completed session. */
+  getReport: (sessionId: number) =>
+    api.get<InterviewReport>(`/interviews/${sessionId}/report`).then((r) => r.data),
+}
