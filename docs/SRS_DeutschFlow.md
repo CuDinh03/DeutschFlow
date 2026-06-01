@@ -83,9 +83,11 @@
 
 5. **Shared fixtures (§1)** — `mobile/lib/fixtures.ts` (persona/session/chat/report) cho dev/QA, mirror field names backend.
 
-6. **Verify** — `cd mobile && npx tsc --noEmit` → exit 0 (clean).
+6. **iOS B2C — Progress/History screen** — mở rộng `mobile/app/(student)/stats.tsx`: điểm kỹ năng theo CEFR (Đọc/Nghe/Viết/Nói) từ `GET /progress/me/overview`, biểu đồ hoạt động hàng tuần, danh sách buổi luyện gần đây từ `GET /ai-speaking/sessions`. Thêm `mobile/lib/progressApi.ts` + `speakingApi.listSessions()`. → **hoàn tất DoD B2C "thấy tiến bộ theo thời gian"** (vào qua Hồ sơ → Tiến trình & thống kê).
 
-**Backlog còn lại**: iOS progress trend (`stats.tsx`), iOS tests, B2B export/printable, iOS B2B read-only viewers, iOS resume-after-background.
+7. **Verify** — `cd mobile && npx tsc --noEmit` → exit 0 (clean).
+
+**Backlog còn lại**: iOS tests, B2B export/printable, iOS B2B read-only viewers, iOS resume-after-background.
 
 ---
 

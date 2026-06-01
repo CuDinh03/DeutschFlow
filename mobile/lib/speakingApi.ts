@@ -69,6 +69,9 @@ export interface AiSpeakingSession {
   responseSchema: string | null
   sessionMode: string | null
   status: string | null
+  startedAt: string | null
+  lastActivityAt: string | null
+  endedAt: string | null
   messageCount: number
   initialAiMessage: AiChatResponse | null
   interviewPosition: string | null
@@ -173,4 +176,12 @@ export const speakingApi = {
   /** Structured, machine-readable interview report for a completed session. */
   getReport: (sessionId: number) =>
     api.get<InterviewReport>(`/interviews/${sessionId}/report`).then((r) => r.data),
+
+  /** Recent sessions (most recent first) for the progress/history view. */
+  listSessions: (size = 10) =>
+    api
+      .get<{ content: AiSpeakingSession[] }>('/ai-speaking/sessions', {
+        params: { size, sort: 'startedAt,desc' },
+      })
+      .then((r) => r.data.content ?? []),
 }

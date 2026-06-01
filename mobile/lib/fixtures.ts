@@ -79,6 +79,9 @@ export const sampleSession: AiSpeakingSession = {
   responseSchema: 'V1',
   sessionMode: 'INTERVIEW',
   status: 'ACTIVE',
+  startedAt: '2026-06-01T09:15:00',
+  lastActivityAt: '2026-06-01T09:22:00',
+  endedAt: null,
   messageCount: 1,
   initialAiMessage: {
     aiSpeechDe: 'Guten Tag! Stellen Sie sich bitte kurz vor.',
