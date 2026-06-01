@@ -141,6 +141,20 @@ app:
     # Bật true SAU KHI toàn bộ token cũ (không có iss/aud) đã hết hạn (≥ 15 phút sau deploy).
     require-iss-aud: ${JWT_REQUIRE_ISS_AUD:false}
 
+  auth:
+    # Brute-force / abuse guard cho auth endpoints (in-memory sliding window, per node).
+    # Bộ đếm nằm trong RAM → restart/redeploy backend sẽ xoá hết (cách gỡ khoá nhanh nhất).
+    # Tăng *-max hoặc giảm *-window nếu người dùng thật bị chặn nhầm
+    # (vd: nhiều user chung một IP CGNAT của nhà mạng, hoặc QA test đăng ký liên tục).
+    rate-limit:
+      login-max-per-window: ${APP_AUTH_LOGIN_RL_MAX:5}
+      login-window-seconds: ${APP_AUTH_LOGIN_RL_WINDOW:60}
+      # Thoáng hơn bản cũ (3 lần / 3600s) — cửa sổ 1 giờ trước đây khoá người gõ nhầm suốt cả giờ.
+      register-max-per-window: ${APP_AUTH_REGISTER_RL_MAX:10}
+      register-window-seconds: ${APP_AUTH_REGISTER_RL_WINDOW:600}
+      refresh-max-per-window: ${APP_AUTH_REFRESH_RL_MAX:10}
+      refresh-window-seconds: ${APP_AUTH_REFRESH_RL_WINDOW:60}
+
   notifications:
     # In-process SSE (single node / local dev). Clients reconnect periodically.
     sse:
