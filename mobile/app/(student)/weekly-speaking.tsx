@@ -9,10 +9,9 @@ import { usePlanStore } from '@/stores/usePlanStore'
 
 interface WeeklyPrompt {
   id: number
-  promptTitle: string
+  title: string
   cefrBand: string
   weekStartDate: string
-  durationSeconds: number
 }
 
 interface WeeklySubmission {
@@ -30,14 +29,22 @@ export default function WeeklySpeakingScreen() {
 
   const { data: prompt, isLoading: promptLoading } = useQuery({
     queryKey: ['weekly-prompt'],
-    queryFn: () => api.get<WeeklyPrompt>('/weekly-speaking/current-prompt').then((r) => r.data),
+    queryFn: () =>
+      api
+        .get<WeeklyPrompt>('/ai-speaking/weekly/current-prompt', { params: { cefrBand: 'B1' } })
+        .then((r) => r.data),
     enabled: isPro,
     staleTime: 60_000 * 30,
   })
 
   const { data: history = [] } = useQuery({
     queryKey: ['weekly-history'],
-    queryFn: () => api.get<WeeklySubmission[]>('/weekly-speaking/my-submissions?page=0&size=10').then((r) => r.data),
+    queryFn: () =>
+      api
+        .get<{ content: WeeklySubmission[] }>('/ai-speaking/weekly/me/submissions', {
+          params: { page: 0, size: 10 },
+        })
+        .then((r) => r.data.content ?? []),
     enabled: isPro,
     staleTime: 60_000,
   })
@@ -78,7 +85,7 @@ export default function WeeklySpeakingScreen() {
               </View>
             </View>
             <ThemedText variant="title" style={{ marginBottom: space[1] }}>
-              {prompt.promptTitle}
+              {prompt.title}
             </ThemedText>
             <ThemedText variant="caption" color="muted" style={{ marginBottom: space[4] }}>
               {prompt.weekStartDate}

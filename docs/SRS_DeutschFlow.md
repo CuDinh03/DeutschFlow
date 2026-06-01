@@ -87,9 +87,21 @@
 
 7. **iOS B2C — Resume sau gián đoạn** — `mobile/lib/activeSession.ts` (SecureStore) lưu phiên đang chạy; màn speaking hiện banner "Tiếp tục buổi phỏng vấn" khi mở lại app, rehydrate transcript qua `GET /ai-speaking/sessions/{id}/messages` (map `MessageRole` USER/ASSISTANT). Clear khi kết thúc/thoát sạch. → **hoàn tất nốt DoD §5.2 "resume after backgrounding or interruption"**.
 
-8. **Verify** — `cd mobile && npx tsc --noEmit` → exit 0 (clean).
+8. **iOS — Sửa 5 màn gọi sai endpoint** (cùng loại bug speaking cũ, phát hiện khi đánh giá market-readiness):
+   - `notifications.tsx`: `/notifications/me` → `GET /api/notifications` (`NotificationPageResponse.items`, map `payload.title/body`, `read`, `createdAtUtc`).
+   - `grammar.tsx`: `/grammar/topics` → `/api/grammar/syllabus/topics?cefrLevel=` (map snake_case rows).
+   - `weekly-speaking.tsx`: `/weekly-speaking/*` → `/api/ai-speaking/weekly/current-prompt` + `/me/submissions` (đọc `Page.content`).
+   - `exam.tsx`: `/mock-exam/variants|start` → `/api/mock-exams?cefrLevel=` + `/{id}/start`; thêm selector CEFR.
+   - `book-session.tsx`: **ẩn lối vào** (marketplace 1:1 ngoài scope MVP + model slot không có ở backend + dẫn thanh toán web). Gỡ tile khỏi `learn.tsx`.
 
-**Backlog còn lại**: iOS tests (cần dựng jest-expo trước), B2B export/printable, iOS B2B read-only viewers (optional cho demo).
+9. **Verify** — `cd mobile && npx tsc --noEmit` → exit 0 (clean).
+
+**Chặn cứng App Store (chưa xử lý, cần trước khi public):**
+- Dẫn thanh toán PRO ra web (`upgrade.tsx` → mydeutschflow.com) — vi phạm Guideline 3.1.1 (phải IAP).
+- Thiếu xoá tài khoản trong app — Guideline 5.1.1(v).
+- Push notifications chưa chạy (thiếu `extra.eas.projectId` + backend chưa có sender APNs/Expo, chỉ lưu token + SSE).
+
+**Backlog còn lại**: 2 chặn App Store ở trên; iOS tests (cần dựng jest-expo); quên-mật-khẩu; B2B export/printable; iOS B2B read-only (optional); migrate `expo-av`→`expo-audio` trước SDK 54.
 
 ---
 

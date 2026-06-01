@@ -16,6 +16,28 @@ interface GrammarTopic {
   isCompleted?: boolean
 }
 
+// Backend GET /api/grammar/syllabus/topics returns raw snake_case rows.
+interface RawGrammarTopic {
+  id: number
+  cefr_level: string
+  topic_code: string
+  title_de: string
+  title_vi: string
+  description_vi: string | null
+  mastery_percent: number
+}
+
+function mapGrammarTopic(t: RawGrammarTopic): GrammarTopic {
+  return {
+    id: String(t.id),
+    title: t.title_vi || t.title_de,
+    cefrLevel: t.cefr_level,
+    category: t.topic_code,
+    summary: t.description_vi ?? '',
+    isCompleted: (t.mastery_percent ?? 0) >= 100,
+  }
+}
+
 const CASES = [
   { key: 'nominativ', label: 'Nominativ', desc: 'Chủ ngữ (Wer? Was?)' },
   { key: 'akkusativ', label: 'Akkusativ', desc: 'Tân ngữ trực tiếp (Wen? Was?)' },
@@ -39,7 +61,10 @@ export default function GrammarScreen() {
 
   const { data: topics = [], isLoading } = useQuery({
     queryKey: ['grammar-topics'],
-    queryFn: () => api.get<GrammarTopic[]>('/grammar/topics').then((r) => r.data),
+    queryFn: () =>
+      api
+        .get<RawGrammarTopic[]>('/grammar/syllabus/topics', { params: { cefrLevel: 'A1' } })
+        .then((r) => r.data.map(mapGrammarTopic)),
     staleTime: 5 * 60_000,
   })
 

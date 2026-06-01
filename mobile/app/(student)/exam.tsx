@@ -1,10 +1,11 @@
-import { View } from 'react-native'
+import { useState } from 'react'
+import { View, Pressable } from 'react-native'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { router } from 'expo-router'
 import { Trophy, Clock, Target, Lock } from 'lucide-react-native'
 import { Alert } from 'react-native'
 import api from '@/lib/api'
-import { space, useTheme } from '@/lib/theme'
+import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, Skeleton } from '@/components/ui'
 import { usePlanStore } from '@/stores/usePlanStore'
 
@@ -17,19 +18,43 @@ interface ExamVariant {
   isRecommended?: boolean
 }
 
+// Backend GET /api/mock-exams?cefrLevel=X returns raw snake_case rows.
+interface RawMockExam {
+  id: number
+  cefr_level: string
+  title: string
+  time_limit_minutes: number
+  total_questions?: number
+}
+
+const EXAM_LEVELS = ['A1', 'A2', 'B1', 'B2'] as const
+
+function mapExam(e: RawMockExam): ExamVariant {
+  return {
+    id: e.id,
+    title: e.title,
+    cefrLevel: e.cefr_level,
+    totalQuestions: e.total_questions ?? 0,
+    timeLimitMinutes: e.time_limit_minutes,
+  }
+}
+
 export default function ExamScreen() {
   const theme = useTheme()
   const { isPro } = usePlanStore()
 
+  const [level, setLevel] = useState<string>('B1')
+
   const { data: variants = [], isLoading } = useQuery({
-    queryKey: ['exam-variants'],
-    queryFn: () => api.get<ExamVariant[]>('/mock-exam/variants').then((r) => r.data),
+    queryKey: ['exam-variants', level],
+    queryFn: () =>
+      api.get<RawMockExam[]>('/mock-exams', { params: { cefrLevel: level } }).then((r) => r.data.map(mapExam)),
     enabled: isPro,
     staleTime: 300_000,
   })
 
   const startExam = useMutation({
-    mutationFn: (variantId: number) => api.post<{ attemptId: number }>('/mock-exam/start', { variantId }),
+    mutationFn: (examId: number) => api.post<{ attemptId?: number }>(`/mock-exams/${examId}/start`),
   })
 
   function handleStart(variantId: number) {
@@ -50,6 +75,32 @@ export default function ExamScreen() {
     <Screen edges={['top']}>
       <AppHeader title="Thi thử Goethe" onBack={() => router.back()} />
 
+      {isPro ? (
+        <View style={{ flexDirection: 'row', gap: space[2], paddingHorizontal: space[5], paddingVertical: space[3] }}>
+          {EXAM_LEVELS.map((lv) => {
+            const active = level === lv
+            return (
+              <Pressable
+                key={lv}
+                onPress={() => setLevel(lv)}
+                style={{
+                  paddingHorizontal: space[4],
+                  paddingVertical: space[2],
+                  borderRadius: radius.full,
+                  borderWidth: 1,
+                  borderColor: active ? theme.colors.accent : theme.colors.border,
+                  backgroundColor: active ? theme.colors.accentSoft : theme.colors.surface,
+                }}
+              >
+                <ThemedText variant="label" color={active ? 'accent' : 'secondary'}>
+                  {lv}
+                </ThemedText>
+              </Pressable>
+            )
+          })}
+        </View>
+      ) : null}
+
       {!isPro ? (
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <EmptyState
@@ -67,6 +118,9 @@ export default function ExamScreen() {
         </View>
       ) : (
         <Screen scroll edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[6], gap: space[3], paddingTop: space[2] }}>
+          {variants.length === 0 ? (
+            <EmptyState icon={Trophy} title="Chưa có đề thi" message={`Chưa có đề thi ${level}. Thử cấp độ khác.`} />
+          ) : null}
           {variants.map((variant) => (
             <Card
               key={variant.id}
@@ -79,7 +133,7 @@ export default function ExamScreen() {
               </ThemedText>
               <View style={{ flexDirection: 'row', gap: space[4] }}>
                 <MetaItem icon={Target} label={variant.cefrLevel} />
-                <MetaItem icon={Trophy} label={`${variant.totalQuestions} câu`} />
+                {variant.totalQuestions > 0 ? <MetaItem icon={Trophy} label={`${variant.totalQuestions} câu`} /> : null}
                 <MetaItem icon={Clock} label={`${variant.timeLimitMinutes} phút`} />
               </View>
             </Card>

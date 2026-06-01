@@ -17,13 +17,58 @@ interface Notification {
   createdAt: string
 }
 
+// Backend: GET /api/notifications -> NotificationPageResponse { items: [...] }.
+// Each item carries title/body inside a freeform `payload` map; status is `read`
+// and timestamp is `createdAtUtc`.
+interface RawNotificationItem {
+  id: number
+  type: string
+  payload: Record<string, unknown> | null
+  read: boolean
+  createdAtUtc: string
+}
+interface NotificationPage {
+  items: RawNotificationItem[]
+}
+
+function notificationTypeLabel(type: string): string {
+  switch (type) {
+    case 'ACHIEVEMENT_UNLOCKED':
+      return 'Thành tích mới'
+    case 'LEVEL_UP':
+      return 'Lên cấp'
+    case 'NEW_ASSIGNMENT':
+    case 'NEW_CLASS_ASSIGNMENT':
+      return 'Bài tập mới'
+    case 'ASSIGNMENT_GRADED':
+      return 'Bài đã chấm'
+    default:
+      return 'Thông báo'
+  }
+}
+
+function mapNotification(item: RawNotificationItem): Notification {
+  const p = item.payload ?? {}
+  const title = typeof p.title === 'string' && p.title ? p.title : notificationTypeLabel(item.type)
+  const body =
+    typeof p.body === 'string' && p.body
+      ? p.body
+      : typeof p.message === 'string' && p.message
+        ? p.message
+        : ''
+  return { id: item.id, title, body, type: item.type, isRead: item.read, createdAt: item.createdAtUtc }
+}
+
 export default function NotificationsScreen() {
   const theme = useTheme()
   const qc = useQueryClient()
 
   const { data: notifs = [], isLoading } = useQuery({
     queryKey: ['notifications'],
-    queryFn: () => api.get<Notification[]>('/notifications/me').then((r) => r.data),
+    queryFn: () =>
+      api
+        .get<NotificationPage>('/notifications', { params: { page: 0, size: 20 } })
+        .then((r) => r.data.items.map(mapNotification)),
     staleTime: 30_000,
   })
 

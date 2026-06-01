@@ -7,7 +7,6 @@ import {
   FlaskConical,
   Trophy,
   BookMarked,
-  Calendar,
   ChevronRight,
   type LucideIcon,
 } from 'lucide-react-native'
@@ -42,7 +41,9 @@ export default function LearnScreen() {
     { icon: FlaskConical, label: 'Từ vựng', count: 'Tìm & luyện', onPress: () => router.push('/(student)/vocabulary') },
     { icon: Trophy, label: 'Thi thử', count: 'Mock Exam', onPress: () => router.push('/(student)/exam') },
     { icon: BookMarked, label: 'Ngữ pháp', count: 'Casus & quy tắc', onPress: () => router.push('/(student)/grammar') },
-    { icon: Calendar, label: 'Đặt lịch học', count: '1:1 với giáo viên', onPress: () => router.push('/(student)/book-session') },
+    // Tutor booking (1:1 marketplace) is out of MVP scope and the screen's slot
+    // model has no backend equivalent — hidden until reworked to the duration-based
+    // /api/teacher-sessions flow. See docs reconciliation §book-session.
   ]
 
   return (
