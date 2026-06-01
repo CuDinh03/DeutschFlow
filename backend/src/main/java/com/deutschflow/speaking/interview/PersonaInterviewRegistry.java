@@ -51,8 +51,9 @@ public class PersonaInterviewRegistry {
         if (personaRegistryService != null) {
             Optional<List<List<String>>> dbPools = personaRegistryService.topicPoolsFor(personaCode);
             if (dbPools.isPresent()) {
-                List<String> pools = dbPools.get().get(seed % dbPools.get().size());
-                return String.join(" + ", pools);
+                List<List<String>> poolGroups = dbPools.get();
+                List<String> picked = poolGroups.get(seed % poolGroups.size());
+                return String.join(" + ", picked);
             }
             if (personaRegistryService.isInterviewCapable(personaCode)) {
                 log.warn("interview_persona '{}' has no topic_pools_json; using in-memory fallback "
