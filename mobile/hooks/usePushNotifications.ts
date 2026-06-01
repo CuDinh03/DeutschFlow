@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import * as Notifications from 'expo-notifications'
 import * as Device from 'expo-device'
+import Constants from 'expo-constants'
 import { Platform } from 'react-native'
 import api from '@/lib/api'
 
@@ -34,8 +35,20 @@ async function registerForPushNotifications(): Promise<string | null> {
     })
   }
 
-  const token = await Notifications.getExpoPushTokenAsync()
-  return token.data
+  // projectId is required by SDK 49+. Without it, getExpoPushTokenAsync throws.
+  // Fall back gracefully so the rest of the app is unaffected during development
+  // or before `eas init` has been run.
+  const projectId =
+    Constants.expoConfig?.extra?.eas?.projectId as string | undefined
+
+  if (!projectId || projectId === 'YOUR_EAS_PROJECT_ID') return null
+
+  try {
+    const token = await Notifications.getExpoPushTokenAsync({ projectId })
+    return token.data
+  } catch {
+    return null
+  }
 }
 
 export function usePushNotifications() {

@@ -105,6 +105,10 @@ export default function LoginScreen() {
               autoComplete="current-password"
             />
             <Button label="Đăng nhập" onPress={handleLogin} loading={loading} style={{ marginTop: space[1] }} />
+
+            <Pressable hitSlop={8} onPress={() => router.push('/(auth)/forgot-password')} style={{ alignItems: 'center', marginTop: space[2] }}>
+              <ThemedText variant="caption" color="accent">Quên mật khẩu?</ThemedText>
+            </Pressable>
           </View>
 
           <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: space[6] }}>

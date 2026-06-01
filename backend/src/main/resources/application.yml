@@ -15,6 +15,20 @@ spring:
   application:
     name: deutschflow-backend
 
+  # ── Email / SMTP (for password-reset OTP) ─────────────────────────────────
+  # Set MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD in your .env.
+  # Recommended: Gmail SMTP (smtp.gmail.com:587) or AWS SES.
+  # Leave MAIL_HOST empty to disable email sending (OTP is logged at DEBUG level).
+  mail:
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+      mail.smtp.starttls.required: true
+
   jackson:
     # Serialize LocalDateTime/Instant as ISO-8601 string, not as numeric timestamp.
     # Required for GlobalExceptionHandler.ProblemDetail.timestamp (LocalDateTime) to serialize correctly.

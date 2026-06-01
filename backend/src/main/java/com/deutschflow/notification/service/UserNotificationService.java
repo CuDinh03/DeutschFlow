@@ -45,6 +45,7 @@ public class UserNotificationService {
     private final NotificationUnreadPushCoordinator unreadPushCoordinator;
     private final JdbcTemplate jdbcTemplate;
     private final ScheduledBroadcastRepository scheduledBroadcastRepository;
+    private final ExpoPushSenderService expoPushSenderService;
 
     /** A scheduledAt within this window of "now" is treated as immediate delivery. */
     private static final long SCHEDULE_THRESHOLD_SECONDS = 30;
@@ -405,6 +406,7 @@ public class UserNotificationService {
             notificationRepository.saveAll(notifications);
             for (UserNotification n : notifications) {
                 unreadPushCoordinator.afterCommit(n.getRecipient().getId());
+                pushForNotification(n);
             }
             log.info("[notifications] NEW_CLASS_ASSIGNMENT → {} students in class={}", notifications.size(), classId);
         }
@@ -445,6 +447,7 @@ public class UserNotificationService {
             notificationRepository.saveAll(notifications);
             for (UserNotification n : notifications) {
                 unreadPushCoordinator.afterCommit(n.getRecipient().getId());
+                pushForNotification(n);
             }
         }
     }
@@ -600,6 +603,7 @@ public class UserNotificationService {
             notificationRepository.saveAll(notifications);
             for (UserNotification n : notifications) {
                 unreadPushCoordinator.afterCommit(n.getRecipient().getId());
+                pushForNotification(n);
             }
         }
         log.info("[notifications] TEACHER_ANNOUNCEMENT → {} students in class={}", notifications.size(), classId);
@@ -654,12 +658,24 @@ public class UserNotificationService {
     }
 
     private void insert(User recipient, NotificationType type, Map<String, Object> payload) {
-        notificationRepository.save(UserNotification.builder()
+        var saved = notificationRepository.save(UserNotification.builder()
                 .recipient(recipient)
                 .type(type)
                 .payload(new LinkedHashMap<>(payload))
                 .build());
         unreadPushCoordinator.afterCommit(recipient.getId());
+        pushForNotification(saved);
+    }
+
+    /** Fire-and-forget Expo push for a persisted notification, if the recipient has a token. */
+    private void pushForNotification(UserNotification n) {
+        String token = n.getRecipient().getPushToken();
+        if (token == null || token.isBlank()) return;
+        Map<String, Object> p = n.getPayload() != null ? n.getPayload() : Map.of();
+        String title = p.get("title") instanceof String t && !t.isBlank() ? t
+                : n.getType() != null ? n.getType().name().replace('_', ' ') : "DeutschFlow";
+        String body = p.get("body") instanceof String b ? b : "";
+        expoPushSenderService.sendAsync(token, title, body, p);
     }
 
     private static int normalizeSize(int size) {

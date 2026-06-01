@@ -1,5 +1,17 @@
 import { useEffect } from 'react'
+import * as Sentry from '@sentry/react-native'
+import Constants from 'expo-constants'
 import { Stack, router } from 'expo-router'
+
+// Initialise once at module level so Sentry captures errors during startup.
+// DSN is stored in app.json extra.sentryDsn; set it there (or via EAS secrets)
+// before shipping. If blank, Sentry loads but sends nothing.
+const sentryDsn = (Constants.expoConfig?.extra?.sentryDsn as string | undefined) ?? ''
+Sentry.init({
+  dsn: sentryDsn,
+  enabled: !!sentryDsn && !__DEV__,
+  tracesSampleRate: 0.2,
+})
 import { StatusBar } from 'expo-status-bar'
 import * as SplashScreen from 'expo-splash-screen'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
@@ -58,7 +70,7 @@ function RootStack() {
   )
 }
 
-export default function RootLayout() {
+function RootLayout() {
   const { isLoggedIn, isLoading, fetchMe } = useAuthStore()
   const { fetchPlan } = usePlanStore()
 
@@ -107,7 +119,7 @@ export default function RootLayout() {
   if (!fontsReady) return null
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1 }} testID="root-layout">
       <SafeAreaProvider>
         <ThemeProvider>
           <QueryClientProvider client={queryClient}>
@@ -118,3 +130,6 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   )
 }
+
+// Sentry.wrap instruments navigation and error boundaries automatically.
+export default Sentry.wrap(RootLayout)

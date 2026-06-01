@@ -40,8 +40,23 @@
       [
         "expo-av",
         { "microphonePermission": "DeutschFlow cần microphone để luyện phát âm tiếng Đức." }
-      ]
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#1A1A2E",
+          "sounds": []
+        }
+      ],
+      "@sentry/react-native/expo"
     ],
+    "extra": {
+      "eas": {
+        "projectId": "YOUR_EAS_PROJECT_ID"
+      },
+      "sentryDsn": ""
+    },
     "experiments": {
       "typedRoutes": true
     }

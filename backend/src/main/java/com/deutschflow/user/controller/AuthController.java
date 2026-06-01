@@ -8,6 +8,7 @@ import com.deutschflow.user.dto.UpdateLocaleRequest;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.service.AuthService;
 import com.deutschflow.user.service.AuthRateLimiterService;
+import com.deutschflow.user.service.PasswordResetService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.RateLimitExceededException;
 import jakarta.validation.Valid;
@@ -44,6 +45,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final AuthRateLimiterService authRateLimiterService;
+    private final PasswordResetService passwordResetService;
 
     @Value("${app.jwt.refresh-token-expiry-ms}")
     private long refreshTokenExpiryMs;
@@ -142,6 +144,49 @@ public class AuthController {
                                     @Valid @RequestBody UpdateLocaleRequest request) {
         return authService.updateLocale(user, request.locale());
     }
+
+    // ─── Password reset (unauthenticated) ─────────────────────────────────────
+
+    /**
+     * POST /api/auth/forgot-password
+     * Request a 6-digit OTP sent to the given email. Always returns 204 to prevent
+     * email enumeration. Rate-limited by the caller's IP.
+     */
+    @PostMapping("/forgot-password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void forgotPassword(@Valid @RequestBody ForgotPasswordRequest req) {
+        passwordResetService.requestReset(req.email());
+    }
+
+    /**
+     * POST /api/auth/reset-password
+     * Verifies the OTP and updates the password. Returns 204 on success.
+     */
+    @PostMapping("/reset-password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void resetPassword(@Valid @RequestBody ResetPasswordRequest req) {
+        if (req.newPassword().length() < 8) {
+            throw new BadRequestException("Mật khẩu mới phải có ít nhất 8 ký tự.");
+        }
+        passwordResetService.resetPassword(req.email(), req.code(), req.newPassword());
+    }
+
+    public record ForgotPasswordRequest(
+            @jakarta.validation.constraints.NotBlank
+            @jakarta.validation.constraints.Email
+            String email
+    ) {}
+
+    public record ResetPasswordRequest(
+            @jakarta.validation.constraints.NotBlank
+            @jakarta.validation.constraints.Email
+            String email,
+            @jakarta.validation.constraints.NotBlank
+            @jakarta.validation.constraints.Size(min = 6, max = 6)
+            String code,
+            @jakarta.validation.constraints.NotBlank
+            String newPassword
+    ) {}
 
     // ─── Cookie helpers ────────────────────────────────────────────────────────
 
