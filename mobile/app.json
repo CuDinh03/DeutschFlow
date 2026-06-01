@@ -16,6 +16,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.deutschflow.app",
       "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
         "NSMicrophoneUsageDescription": "DeutschFlow cần microphone để luyện phát âm tiếng Đức.",
         "NSCameraUsageDescription": "DeutschFlow cần camera cho tính năng học.",
         "NSSpeechRecognitionUsageDescription": "DeutschFlow dùng nhận diện giọng nói để đánh giá phát âm."
