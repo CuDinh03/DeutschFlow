@@ -12,7 +12,9 @@
 #   7. EC2    : graceful stop BLUE → promote GREEN lên 8080
 #   8. EC2    : cleanup images cũ, final health check + report
 #
-# Dùng: ./deploy-backend.sh
+# Dùng:
+#   ./deploy-backend.sh                                  # deploy 'main' (mặc định)
+#   DEPLOY_BRANCH=feat/my-fix ./deploy-backend.sh        # deploy 1 branch khác (hotfix có chủ đích)
 # ============================================================
 
 set -euo pipefail
@@ -22,7 +24,8 @@ readonly PEM_KEY="/Users/dinhcu/Developer/DeutschFlow/deutschflow-key.pem"
 readonly EC2_HOST="ubuntu@35.175.232.152"
 readonly EC2_DIR="/home/ubuntu/DeutschFlow"
 readonly LOCAL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly BRANCH="main"
+# Mặc định deploy 'main'. Override khi cần ship 1 branch khác: DEPLOY_BRANCH=feat/... ./deploy-backend.sh
+readonly BRANCH="${DEPLOY_BRANCH:-main}"
 readonly ENV_FILE="$LOCAL_DIR/.env.production"
 readonly GOOGLE_SA_JSON="$LOCAL_DIR/google-sa.json"
 readonly DEPLOY_START=$(date +%s)
@@ -94,9 +97,14 @@ fi
 cd "$LOCAL_DIR"
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
 if [ "$CURRENT_BRANCH" != "$BRANCH" ]; then
-  error "Đang ở branch '$CURRENT_BRANCH', cần ở '$BRANCH'"; exit 1
+  error "Đang ở branch '$CURRENT_BRANCH' nhưng deploy target là '$BRANCH'."
+  error "→ Checkout '$BRANCH', hoặc deploy branch hiện tại: DEPLOY_BRANCH='$CURRENT_BRANCH' $0"
+  exit 1
 fi
 success "Git branch: $CURRENT_BRANCH"
+if [ "$BRANCH" != "main" ]; then
+  warn "Deploy branch KHÔNG phải 'main' (đang deploy '$BRANCH') — chỉ dùng cho hotfix/feature có chủ đích."
+fi
 
 # SSH connectivity test + diagnostics
 SSH_HOST="${EC2_HOST#*@}"
@@ -195,9 +203,10 @@ ssh -i "$PEM_KEY" \
     -o ConnectTimeout=15 \
     -o ServerAliveInterval=20 \
     -o ServerAliveCountMax=6 \
-    "$EC2_HOST" bash -s -- "$HAS_GOOGLE_SA" << 'ENDSSH'
+    "$EC2_HOST" bash -s -- "$HAS_GOOGLE_SA" "$BRANCH" << 'ENDSSH'
 set -euo pipefail
 HAS_GOOGLE_SA="${1:-false}"
+DEPLOY_BRANCH="${2:-main}"
 
 # Colors
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
@@ -225,11 +234,11 @@ success "Disk: $DISK_INFO"
 
 # ── [2/6] Pull code ───────────────────────────────────────────
 echo ""
-info "[2/6] Pull code từ GitHub..."
+info "[2/6] Pull code từ GitHub (branch: $DEPLOY_BRANCH)..."
 cd "$EC2_DIR"
-git fetch origin main --quiet
-git checkout main --quiet 2>/dev/null || git checkout -b main origin/main --quiet
-git reset --hard origin/main --quiet
+git fetch origin "$DEPLOY_BRANCH" --quiet
+git checkout "$DEPLOY_BRANCH" --quiet 2>/dev/null || git checkout -b "$DEPLOY_BRANCH" "origin/$DEPLOY_BRANCH" --quiet
+git reset --hard "origin/$DEPLOY_BRANCH" --quiet
 COMMIT=$(git log --oneline -1)
 success "$COMMIT"
 
