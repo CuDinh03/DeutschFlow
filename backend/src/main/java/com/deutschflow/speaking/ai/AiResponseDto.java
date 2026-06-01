@@ -25,8 +25,28 @@ public record AiResponseDto(
     public record InterviewMeta(
             @JsonProperty("ack_de") String ackDe,
             @JsonProperty("question_de") String questionDe,
-            @JsonProperty("question_type") String questionType
-    ) {}
+            @JsonProperty("question_type") String questionType,
+            @JsonProperty("analysis") Analysis analysis
+    ) {
+        /** Backward-compatible constructor (no answer analysis). */
+        public InterviewMeta(String ackDe, String questionDe, String questionType) {
+            this(ackDe, questionDe, questionType, null);
+        }
+
+        /**
+         * The interviewer's read of the candidate's answer — drives the next move
+         * (natural follow-up vs coverage question) and content-aware phase progression.
+         * "Guardrails not rails": when {@code followUpFromAnswer} is present the LLM may pursue
+         * its own follow-up instead of the server's coverage question.
+         */
+        public record Analysis(
+                @JsonProperty("addressed_question") boolean addressedQuestion,
+                String depth,            // SHALLOW | ADEQUATE | DEEP
+                String concreteness,     // VAGUE | SOME | CONCRETE
+                @JsonProperty("follow_up_from_answer") String followUpFromAnswer,
+                @JsonProperty("phase_goal_met") boolean phaseGoalMet
+        ) {}
+    }
 
     public AiResponseDto {
         errors = errors == null ? List.of() : List.copyOf(errors);

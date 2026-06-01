@@ -15,6 +15,8 @@ public class InterviewSessionState {
     private int weakAnswerStreak;
     private int praiseStreakBlocked;
     private boolean concreteExampleGiven;
+    /** Whether the previous turn satisfied its phase goal (LLM phase_goal_met, else deterministic). */
+    private boolean lastPhaseGoalMet;
     private List<String> topicsCovered = new ArrayList<>();
     private List<String> askedQuestionIds = new ArrayList<>();
     private String lastDirectiveType;
@@ -61,6 +63,14 @@ public class InterviewSessionState {
 
     public boolean isConcreteExampleGiven() {
         return concreteExampleGiven;
+    }
+
+    public boolean isLastPhaseGoalMet() {
+        return lastPhaseGoalMet;
+    }
+
+    public void setLastPhaseGoalMet(boolean lastPhaseGoalMet) {
+        this.lastPhaseGoalMet = lastPhaseGoalMet;
     }
 
     public List<String> getTopicsCovered() {

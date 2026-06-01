@@ -254,10 +254,27 @@ public class AiResponseParser {
         String ack = textOrNull(node, "ack_de");
         String question = textOrNull(node, "question_de");
         String type = textOrNull(node, "question_type");
-        if ((ack == null || ack.isBlank()) && (question == null || question.isBlank())) {
+        AiResponseDto.InterviewMeta.Analysis analysis = parseInterviewAnalysis(node.get("analysis"));
+        if ((ack == null || ack.isBlank()) && (question == null || question.isBlank()) && analysis == null) {
             return null;
         }
-        return new AiResponseDto.InterviewMeta(ack, question, type);
+        return new AiResponseDto.InterviewMeta(ack, question, type, analysis);
+    }
+
+    /** Parses the LLM's read of the candidate's answer; tolerant of missing fields. */
+    private AiResponseDto.InterviewMeta.Analysis parseInterviewAnalysis(JsonNode node) {
+        if (node == null || node.isNull() || !node.isObject()) {
+            return null;
+        }
+        boolean addressed = node.path("addressed_question").asBoolean(true);
+        boolean phaseGoalMet = node.path("phase_goal_met").asBoolean(false);
+        return new AiResponseDto.InterviewMeta.Analysis(
+                addressed,
+                textOrNull(node, "depth"),
+                textOrNull(node, "concreteness"),
+                textOrNull(node, "follow_up_from_answer"),
+                phaseGoalMet
+        );
     }
 
     private List<AiResponseDto.AiSuggestionDto> parseSuggestionsArray(JsonNode suggestionsNode) {

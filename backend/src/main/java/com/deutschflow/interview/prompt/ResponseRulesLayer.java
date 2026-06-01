@@ -32,9 +32,18 @@ public class ResponseRulesLayer implements InterviewPromptLayer {
         sb.append("   FALSCH: 'Das sind gute Ansätze!' oder 'Das ist beeindruckend.'\n");
         sb.append("2. FOLLOW-UP oder CHALLENGE (1-2 Sätze): direkt aus dem Detail.\n\n");
 
-        sb.append("JSON — Interview-Zusatzfelder (bevorzugt):\n");
-        sb.append("\"interview_meta\": { \"ack_de\": \"max 8 Wörter\", \"question_de\": \"eine Pflichtfrage\", ");
-        sb.append("\"question_type\": \"").append(ctx.directiveType()).append("\" }\n");
-        sb.append("Wenn interview_meta gesetzt: ack_de + question_de = vollständige Antwort.\n\n");
+        sb.append("JSON — Interview-Zusatzfelder (PFLICHT):\n");
+        sb.append("\"interview_meta\": {\n");
+        sb.append("  \"ack_de\": \"max 15 Wörter — kurze, echte Reaktion auf die Antwort\",\n");
+        sb.append("  \"question_de\": \"EINE Folgefrage — bevorzugt direkt aus der Antwort des Kandidaten; ");
+        sb.append("die Server-Coverage-Frage nur, wenn die Antwort keinen natürlichen Anknüpfungspunkt bietet\",\n");
+        sb.append("  \"question_type\": \"").append(ctx.directiveType()).append("\",\n");
+        sb.append("  \"analysis\": { \"addressed_question\": true|false, \"depth\": \"SHALLOW|ADEQUATE|DEEP\", ");
+        sb.append("\"concreteness\": \"VAGUE|SOME|CONCRETE\", ");
+        sb.append("\"follow_up_from_answer\": \"das konkrete Detail, das du vertiefst (oder null)\", ");
+        sb.append("\"phase_goal_met\": true|false }\n");
+        sb.append("}\n");
+        sb.append("ack_de + question_de = vollständige Antwort. 'analysis' ist deine ehrliche Einschätzung der ");
+        sb.append("Antwort — sie steuert Folgefrage und Phasenfortschritt und erscheint NICHT im gesprochenen Text.\n\n");
     }
 }

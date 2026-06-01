@@ -57,7 +57,13 @@ public class InterviewOrchestrator {
             String cefrLevel) {
 
         int userTurn = messageCount / 2 + 1;
-        InterviewPhase phase = InterviewPhase.fromUserTurn(userTurn);
+        // Content-aware phase: quality can advance a strong candidate early; the turn count is the
+        // ceiling that forces a struggling one forward. goalMet uses the prior turn's LLM signal
+        // (stored on state) with a conservative deterministic fallback.
+        InterviewPhase currentPhase = PhaseProgressionPolicy.fromNumber(state.getPhase());
+        boolean goalMet = state.isLastPhaseGoalMet()
+                || PhaseProgressionPolicy.deterministicGoalMet(currentPhase, state);
+        InterviewPhase phase = PhaseProgressionPolicy.resolve(state.getPhase(), userTurn, goalMet);
         InterviewAnswerAnalysis analysis = analyzer.analyze(userMessage, phase, experienceLevel);
 
         boolean userAskedClosingQuestions = phase == InterviewPhase.CLOSING

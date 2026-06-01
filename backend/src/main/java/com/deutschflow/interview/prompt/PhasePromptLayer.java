@@ -26,13 +26,14 @@ public class PhasePromptLayer implements InterviewPromptLayer {
         }
         sb.append("\n");
 
-        sb.append("== TURN_DIRECTIVE (SERVER — PFLICHT, NICHT IGNORIEREN) ==\n");
+        sb.append("== TURN_DIRECTIVE (SERVER — Leitplanke, kein starres Skript) ==\n");
         sb.append("Typ: ").append(ctx.directiveType()).append("\n");
         sb.append("Anweisung: ").append(ctx.directiveInstruction()).append("\n");
-        sb.append("Pflichtfrage (sinngemäß stellen, leicht umformulieren erlaubt): ")
+        sb.append("Abdeckungsziel (Coverage-Frage — stelle sie NUR, wenn die Antwort des Kandidaten keinen ");
+        sb.append("besseren, natürlichen Anknüpfungspunkt bietet; sonst folge dem Gesprächsfluss): ")
                 .append(ctx.mandatoryQuestion()).append("\n");
-        sb.append("Erlaubte Kurz-Bestätigung (max. ").append(ctx.ackMaxWords())
-                .append(" Wörter): 'Verstehe.' / 'Gut.' / 'Danke.' — KEIN Lob.\n");
+        sb.append("Kurze Reaktion (max. ").append(ctx.ackMaxWords())
+                .append(" Wörter): knapp und echt; würdige nur, wenn wirklich verdient — kein Dauerlob.\n");
         sb.append("Verbotene Phrasen: ").append(ctx.forbiddenPhrases()).append("\n");
         if (ctx.closingAnswerGuide() != null && !ctx.closingAnswerGuide().isBlank()) {
             sb.append("Abschluss-Antworten: ").append(ctx.closingAnswerGuide()).append("\n");

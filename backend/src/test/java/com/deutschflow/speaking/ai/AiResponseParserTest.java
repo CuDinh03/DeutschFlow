@@ -31,6 +31,49 @@ class AiResponseParserTest {
     }
 
     @Test
+    void parse_interviewMetaAnalysis_isParsed() {
+        String json = """
+                {
+                  "ai_speech_de": "Verstehe. Wie haben Sie das gelöst?",
+                  "interview_meta": {
+                    "ack_de": "Verstehe.",
+                    "question_de": "Wie haben Sie das gelöst?",
+                    "question_type": "PROBE_SPECIFIC",
+                    "analysis": {
+                      "addressed_question": true,
+                      "depth": "DEEP",
+                      "concreteness": "CONCRETE",
+                      "follow_up_from_answer": "die Migration auf Postgres",
+                      "phase_goal_met": true
+                    }
+                  }
+                }
+                """;
+        AiResponseDto dto = parser.parse(json);
+        assertThat(dto.interviewMeta()).isNotNull();
+        var analysis = dto.interviewMeta().analysis();
+        assertThat(analysis).isNotNull();
+        assertThat(analysis.phaseGoalMet()).isTrue();
+        assertThat(analysis.addressedQuestion()).isTrue();
+        assertThat(analysis.depth()).isEqualTo("DEEP");
+        assertThat(analysis.followUpFromAnswer()).contains("Postgres");
+    }
+
+    @Test
+    void parse_interviewMetaWithoutAnalysis_backwardCompatible() {
+        String json = """
+                {
+                  "ai_speech_de": "Gut. Und das Ergebnis?",
+                  "interview_meta": { "ack_de": "Gut.", "question_de": "Und das Ergebnis?" }
+                }
+                """;
+        AiResponseDto dto = parser.parse(json);
+        assertThat(dto.interviewMeta()).isNotNull();
+        assertThat(dto.interviewMeta().analysis()).isNull();
+        assertThat(dto.interviewMeta().questionDe()).isEqualTo("Und das Ergebnis?");
+    }
+
+    @Test
     void parse_null_usesFallbackWithEmptyErrors() {
         AiParseOutcome out = parser.parseWithOutcome(null);
         assertThat(out.status()).isEqualTo(FALLBACK_NULL_INPUT);
