@@ -5,6 +5,7 @@ import com.deutschflow.interview.entity.InterviewPhaseResult;
 import com.deutschflow.interview.entity.InterviewTurn;
 import com.deutschflow.speaking.entity.AiSpeakingSession;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -33,8 +35,13 @@ public class InterviewReportService {
         List<InterviewTurn> turns = turnPersistenceService.getTurnsForSession(session.getId());
         List<InterviewPhaseResult> phaseResults = phaseEvalService.getPhaseResults(session.getId());
 
-        BigDecimal overallScore = computeOverallScore(phaseResults);
-        String verdict = deriveVerdict(overallScore, turns);
+        // Phase 3: the level-aware LLM evaluation is the PRIMARY score/verdict; the deterministic
+        // phase scoring becomes an anti-sycophancy bound. LLM-primary, not cookie-cutter scoring.
+        BigDecimal deterministicScore = computeOverallScore(phaseResults);
+        LlmEvalSummary llm = parseLlmEval(session.getInterviewReportJson());
+        BigDecimal overallScore = applyAntiSycophancyBound(
+                llm.score() != null ? llm.score() : deterministicScore, turns);
+        String verdict = reconcileVerdict(llm.verdict(), overallScore, turns);
         String readinessLevel = deriveReadinessLevel(session.getExperienceLevel(), overallScore);
 
         List<String> strongAreas = phaseResults.stream()
@@ -61,6 +68,76 @@ public class InterviewReportService {
                 recommendedDrills,
                 phaseResults.stream().map(this::toPhaseDto).toList()
         );
+    }
+
+    // ── Phase 3: LLM-primary scoring (level-aware) with a deterministic anti-sycophancy bound ──
+
+    private record LlmEvalSummary(BigDecimal score, String verdict) {
+        static LlmEvalSummary empty() {
+            return new LlmEvalSummary(null, null);
+        }
+    }
+
+    /** Parses overall_score + verdict from the persisted LLM evaluation JSON (tolerant of any shape). */
+    private LlmEvalSummary parseLlmEval(String reportJson) {
+        if (reportJson == null || reportJson.isBlank()) {
+            return LlmEvalSummary.empty();
+        }
+        try {
+            JsonNode root = objectMapper.readTree(reportJson);
+            return new LlmEvalSummary(parseLeadingNumber(text(root, "overall_score")), text(root, "verdict"));
+        } catch (Exception e) {
+            log.debug("LLM eval JSON unparseable, using deterministic score: {}", e.getMessage());
+            return LlmEvalSummary.empty();
+        }
+    }
+
+    private static String text(JsonNode node, String field) {
+        JsonNode v = node.get(field);
+        return v == null || v.isNull() ? null : v.asText(null);
+    }
+
+    /** Extracts the leading number from strings like "7.5/10", "7,5" or "8 / 10". */
+    static BigDecimal parseLeadingNumber(String s) {
+        if (s == null) {
+            return null;
+        }
+        var m = java.util.regex.Pattern.compile("(\\d+(?:[.,]\\d+)?)").matcher(s);
+        if (!m.find()) {
+            return null;
+        }
+        try {
+            return new BigDecimal(m.group(1).replace(',', '.')).setScale(2, RoundingMode.HALF_UP);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /** LLM verdict is primary, but too few substantive turns can never PASS regardless of LLM optimism. */
+    private String reconcileVerdict(String llmVerdict, BigDecimal score, List<InterviewTurn> turns) {
+        long completedTurns = turns.stream().filter(t -> t.getUserAnswer() != null).count();
+        if (completedTurns < 3) {
+            return "NOT_PASS";
+        }
+        if (llmVerdict != null && isKnownVerdict(llmVerdict)) {
+            return llmVerdict.trim().toUpperCase(Locale.ROOT);
+        }
+        return deriveVerdict(score, turns);
+    }
+
+    private static boolean isKnownVerdict(String v) {
+        String u = v.trim().toUpperCase(Locale.ROOT);
+        return u.equals("PASS") || u.equals("CONDITIONAL_PASS") || u.equals("NOT_PASS");
+    }
+
+    /** A high score cannot be certified with zero concrete evidence anywhere in the transcript. */
+    private BigDecimal applyAntiSycophancyBound(BigDecimal score, List<InterviewTurn> turns) {
+        if (score == null) {
+            return BigDecimal.ZERO;
+        }
+        boolean anyConcrete = turns.stream().anyMatch(t -> containsAnalysisFlag(t, "concreteExample"));
+        BigDecimal cap = BigDecimal.valueOf(6.5);
+        return (!anyConcrete && score.compareTo(cap) > 0) ? cap : score;
     }
 
     private BigDecimal computeOverallScore(List<InterviewPhaseResult> phaseResults) {

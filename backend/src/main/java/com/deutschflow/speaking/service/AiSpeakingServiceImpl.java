@@ -1263,7 +1263,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
                 String industry = interviewDomainCoordinator.personaRegistry()
                         .industryFor(session.getPersona());
                 interviewDomainCoordinator.onPhaseTransition(
-                        prep.sessionId(), PhaseProgressionPolicy.fromNumber(prevPhaseNum).name(), industry);
+                        prep.sessionId(), PhaseProgressionPolicy.fromNumber(prevPhaseNum).name(), industry, prep.cefrLevel());
             }
         }
 

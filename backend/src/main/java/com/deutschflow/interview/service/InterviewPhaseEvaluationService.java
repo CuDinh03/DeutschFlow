@@ -31,13 +31,14 @@ public class InterviewPhaseEvaluationService {
     private final ObjectMapper objectMapper;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void evaluatePhase(Long sessionId, String phase, String industry, List<InterviewTurn> phaseTurns) {
+    public void evaluatePhase(Long sessionId, String phase, String industry, String cefrLevel,
+                              List<InterviewTurn> phaseTurns) {
         if (phaseResultRepository.findBySessionIdAndPhase(sessionId, phase).isPresent()) {
             return;
         }
         try {
             BigDecimal score = computeRuleBasedScore(phaseTurns);
-            var rubricOpt = rubricService.findPhaseRubric(industry, phase);
+            var rubricOpt = rubricService.findPhaseRubric(industry, phase, cefrLevel);
             String weightsJson = rubricOpt.map(r -> r.getWeightJson()).orElse(null);
             Long rubricId = rubricOpt.map(r -> r.getId()).orElse(null);
 

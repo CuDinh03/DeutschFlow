@@ -81,12 +81,12 @@ public class InterviewDomainCoordinator {
     /**
      * Called when a phase transitions. Evaluates the phase using rule-based scoring.
      */
-    public void onPhaseTransition(Long sessionId, String phase, String industry) {
+    public void onPhaseTransition(Long sessionId, String phase, String industry, String cefrLevel) {
         try {
             List<InterviewTurn> phaseTurns = turnPersistenceService.getTurnsForSession(sessionId).stream()
                     .filter(t -> phase.equals(t.getPhase()))
                     .toList();
-            phaseEvalService.evaluatePhase(sessionId, phase, industry, phaseTurns);
+            phaseEvalService.evaluatePhase(sessionId, phase, industry, cefrLevel, phaseTurns);
         } catch (Exception e) {
             log.warn("[interview] onPhaseTransition failed for session {}/{}: {}", sessionId, phase, e.getMessage());
         }
