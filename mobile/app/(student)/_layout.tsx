@@ -13,7 +13,6 @@ export default function StudentLayout() {
       <Tabs.Screen name="profile" options={{ title: 'Hồ sơ' }} />
 
       {/* Detail routes: reachable via router.push, not shown as tabs */}
-      <Tabs.Screen name="book-session" options={{ href: null }} />
       <Tabs.Screen name="exam" options={{ href: null }} />
       <Tabs.Screen name="grammar" options={{ href: null }} />
       <Tabs.Screen name="notifications" options={{ href: null }} />

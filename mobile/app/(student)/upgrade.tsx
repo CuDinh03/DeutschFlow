@@ -1,8 +1,8 @@
-import { View, Linking } from 'react-native'
+import { View } from 'react-native'
 import { router } from 'expo-router'
 import { Star, Zap, Mic, Trophy, BookOpen, Check, type LucideIcon } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, AppHeader, Button } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, AppHeader } from '@/components/ui'
 
 const PRO_FEATURES: { icon: LucideIcon; label: string }[] = [
   { icon: Mic, label: 'AI Speaking không giới hạn' },
@@ -64,13 +64,8 @@ export default function UpgradeScreen() {
           ))}
         </Card>
 
-        <Button
-          label="Nâng cấp tại mydeutschflow.com"
-          size="lg"
-          onPress={() => Linking.openURL('https://mydeutschflow.com/student/pricing')}
-        />
-        <ThemedText variant="caption" color="faint" align="center" style={{ marginTop: space[3] }}>
-          Thanh toán qua website. Tài khoản PRO tự động cập nhật khi đăng nhập lại.
+        <ThemedText variant="caption" color="faint" align="center" style={{ marginTop: space[2] }}>
+          Gói PRO được quản lý trong tài khoản DeutschFlow của bạn.
         </ThemedText>
       </View>
     </Screen>

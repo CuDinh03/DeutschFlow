@@ -93,7 +93,7 @@ export default function SpeakingScreen() {
 
   async function startSession(persona: InterviewPersona) {
     if (persona.difficulty === 'ADVANCED' && !isPro) {
-      Alert.alert('Cần PRO', 'Persona nâng cao chỉ dành cho PRO. Nâng cấp tại mydeutschflow.com')
+      Alert.alert('Cần PRO', 'Persona nâng cao thuộc gói PRO.')
       return
     }
     setStarting(true)
