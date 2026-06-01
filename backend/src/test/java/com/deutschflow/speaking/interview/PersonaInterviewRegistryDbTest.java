@@ -86,6 +86,46 @@ class PersonaInterviewRegistryDbTest {
         assertThat(result).isPresent();
     }
 
+    // ── Phase 1: level-calibrated selection ──────────────────────────────────
+
+    @Test
+    void pickQuestion_prefersTargetDifficultyBand() {
+        when(questionRepository.findByPersonaCodeAndPhaseAndActiveTrue("LUKAS", "HARD_SKILLS"))
+                .thenReturn(List.of(
+                        dbQuestion("easy", "LUKAS", "HARD_SKILLS", "t", "Einfach", "BEGINNER"),
+                        dbQuestion("mid",  "LUKAS", "HARD_SKILLS", "t", "Mittel",  "INTERMEDIATE"),
+                        dbQuestion("hard", "LUKAS", "HARD_SKILLS", "t", "Schwer",  "ADVANCED")));
+
+        PersonaInterviewRegistry registry = new PersonaInterviewRegistry(questionRepository);
+        InterviewSessionState state = InterviewSessionState.initial(1, "Tech");
+
+        Optional<InterviewQuestionDef> result = registry.pickQuestion(
+                SpeakingPersona.LUKAS, "Backend Dev", InterviewPhase.HARD_SKILLS,
+                QuestionDifficulty.ADVANCED, state);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().id()).isEqualTo("hard");
+    }
+
+    @Test
+    void pickQuestion_widensToNearestBand_whenExactMissing() {
+        when(questionRepository.findByPersonaCodeAndPhaseAndActiveTrue("LUKAS", "HARD_SKILLS"))
+                .thenReturn(List.of(
+                        dbQuestion("easy", "LUKAS", "HARD_SKILLS", "t", "Einfach", "BEGINNER"),
+                        dbQuestion("mid",  "LUKAS", "HARD_SKILLS", "t", "Mittel",  "INTERMEDIATE")));
+
+        PersonaInterviewRegistry registry = new PersonaInterviewRegistry(questionRepository);
+        InterviewSessionState state = InterviewSessionState.initial(1, "Tech");
+
+        // Target ADVANCED, none available → nearest band (INTERMEDIATE) wins.
+        Optional<InterviewQuestionDef> result = registry.pickQuestion(
+                SpeakingPersona.LUKAS, "Backend Dev", InterviewPhase.HARD_SKILLS,
+                QuestionDifficulty.ADVANCED, state);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().id()).isEqualTo("mid");
+    }
+
     // ── Gap 2: Adaptive follow-up (pickChallengeFollowUp) ────────────────────
 
     @Test
@@ -132,12 +172,18 @@ class PersonaInterviewRegistryDbTest {
 
     private static InterviewQuestion dbQuestion(String id, String code, String phase,
                                                  String topic, String questionDe) {
+        return dbQuestion(id, code, phase, topic, questionDe, "INTERMEDIATE");
+    }
+
+    private static InterviewQuestion dbQuestion(String id, String code, String phase,
+                                                 String topic, String questionDe, String difficulty) {
         InterviewQuestion q = new InterviewQuestion();
         q.setId(id);
         q.setPersonaCode(code);
         q.setPhase(phase);
         q.setTopicKey(topic);
         q.setQuestionDe(questionDe);
+        q.setDifficulty(difficulty);
         q.setActive(true);
         q.setVersion(1);
         return q;

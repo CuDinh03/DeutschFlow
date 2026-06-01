@@ -33,7 +33,9 @@ public class InterviewOrchestrator {
         if (state != null) {
             return state;
         }
-        int seed = (int) (System.nanoTime() % 1000);
+        // Deterministic seed derived from persona+position so a session is reproducible
+        // for debugging/tests (was System.nanoTime(), which made replays impossible).
+        int seed = Math.floorMod(java.util.Objects.hash(persona, position), 1000);
         String focus = registry.topicFocusForSession(persona, position, seed);
         return InterviewSessionState.initial(seed, focus);
     }
@@ -70,7 +72,10 @@ public class InterviewOrchestrator {
         InterviewDirectiveType directive = resolveDirective(phase, analysis, state, userAskedClosingQuestions);
         String directiveInstruction = directiveText(directive, analysis);
 
-        Optional<InterviewQuestionDef> question = registry.pickQuestion(persona, position, phase, state);
+        // Calibrate question difficulty to the candidate's chosen level (CEFR + experience).
+        QuestionDifficulty targetDifficulty = LevelCalibrator.resolve(cefrLevel, experienceLevel);
+        Optional<InterviewQuestionDef> question =
+                registry.pickQuestion(persona, position, phase, targetDifficulty, state);
 
         // ── Groq fallback: bank exhausted ────────────────────────────────────
         boolean notClosingFixed = directive != InterviewDirectiveType.CLOSING_ASK
@@ -133,7 +138,7 @@ public class InterviewOrchestrator {
                 mandatoryQuestion,
                 questionId,
                 topicKey,
-                8,
+                15,
                 InterviewTurnPlan.DEFAULT_FORBIDDEN,
                 userAskedClosingQuestions ? InterviewClosingTemplates.answerGuide(persona, position) : null,
                 userAskedClosingQuestions

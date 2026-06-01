@@ -17,7 +17,7 @@ public class ResponseRulesLayer implements InterviewPromptLayer {
         sb.append("== ANTWORTREGELN ==\n");
         sb.append("- Reagiere immer auf EIN konkretes Detail der letzten Antwort.\n");
         sb.append("- Stelle genau eine Folgefrage oder Challenge.\n");
-        sb.append("- Kein Lob-Overload: höchstens kurze Übergänge wie 'Verstehe.' oder 'Gut.'.\n");
+        sb.append("- Würdige kurz und nur, wenn echt verdient (1 knapper Satz); kein Dauerlob, keine Marketing-Floskeln.\n");
         sb.append("- Keine Wiederholung von Fragen oder Themen.\n");
         sb.append("- Bei schwachen Antworten: nachhaken. Bei starken Antworten: tiefer prüfen.\n\n");
 

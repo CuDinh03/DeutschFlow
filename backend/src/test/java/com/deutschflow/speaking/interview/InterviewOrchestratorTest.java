@@ -27,6 +27,15 @@ class InterviewOrchestratorTest {
     }
 
     @Test
+    void newStateSeedIsDeterministic() {
+        // A fresh state derives its seed from persona+position (was System.nanoTime()),
+        // so the same inputs reproduce the same session — needed for debugging and tests.
+        InterviewSessionState a = orchestrator.ensureState(null, SpeakingPersona.LUKAS, "Backend Dev");
+        InterviewSessionState b = orchestrator.ensureState(null, SpeakingPersona.LUKAS, "Backend Dev");
+        assertThat(a.getSeed()).isEqualTo(b.getSeed());
+    }
+
+    @Test
     void weberQuestionBankNotGenericOnly() {
         InterviewSessionState state = InterviewSessionState.initial(1, "test");
         InterviewTurnPlan plan = orchestrator.planTurn(

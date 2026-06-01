@@ -2,6 +2,8 @@ package com.deutschflow.interview.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 
@@ -44,6 +46,18 @@ public class InterviewPersonaEntity {
 
     @Column(name = "evaluation_bias", length = 100)
     private String evaluationBias;
+
+    /**
+     * Session topic-focus pools for this persona, as a JSON array-of-arrays
+     * (e.g. {@code [["Systemdesign","API"],["Testing","Performance"]]}).
+     * Replaces the per-persona {@code topicPools()} switch in
+     * {@link com.deutschflow.speaking.interview.PersonaInterviewRegistry}.
+     * Nullable: non-interview personas (DEFAULT/TUAN/LAN/MINH) keep using the
+     * in-memory fallback during the transition release.
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "topic_pools_json", columnDefinition = "jsonb")
+    private String topicPoolsJson;
 
     @Column(name = "active", nullable = false)
     @Builder.Default

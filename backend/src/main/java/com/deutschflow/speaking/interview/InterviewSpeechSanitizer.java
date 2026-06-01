@@ -2,17 +2,16 @@ package com.deutschflow.speaking.interview;
 
 import org.springframework.stereotype.Component;
 
-import java.util.List;
-import java.util.Locale;
 import java.util.regex.Pattern;
 
 @Component
 public class InterviewSpeechSanitizer {
 
-    private static final Pattern PRAISE = Pattern.compile(
-            "(?i)(das ist (sehr )?(gut|professionell|einfühlsam|umfassend|gründlich|strukturiert)|"
-                    + "ein sehr (guter|professioneller|einfühlsamer|umfassender|gründlicher) (ansatz|vorgehensweise|interpretation)|"
-                    + "beeindruckend|ausgezeichnet)");
+    /** Default cap on acknowledgment length when no plan-specific cap is given. */
+    private static final int DEFAULT_ACK_MAX_WORDS = 15;
+    /** Hard cap on the full reply length — keeps the interviewer concise without scrubbing tone. */
+    private static final int MAX_SPEECH_CHARS = 600;
+
     private static final Pattern PROMPT_LEAK = Pattern.compile(
             "(?i)(der kandidat antwortete|fordern sie|pflichtfrage|kein lob|challenge-pflicht|antwortregeln|sprachniveau-kontrolle|anti-off-topic guard|"
                     + "bitte stellen sie sich kurz vor|stellen sie sich kurz vor|fragen sie direkt|bitte den kandidaten)");
@@ -22,17 +21,19 @@ public class InterviewSpeechSanitizer {
             return aiSpeechDe;
         }
         String text = aiSpeechDe.trim();
+        // GUARDRAIL kept: never leak orchestration instructions into the reply.
         if (PROMPT_LEAK.matcher(text).find()) {
             text = leakSafeFallback(plan, userTurn);
         }
-        if (userTurn > 1) {
-            text = PRAISE.matcher(text).replaceAll("Verstehe.");
-            text = collapseRepeatedAck(text);
-        }
+        // RELAXED (guardrails-not-rails): brief, genuine acknowledgment is allowed through —
+        // no blanket scrub of praise to "Verstehe.". Only collapse mechanically-repeated acks.
+        text = collapseRepeatedAck(text);
+        // Coverage fallback (Phase 1 only — removed in Phase 2 when the LLM drives follow-ups):
+        // ensure the turn still advances if the model produced no question at all.
         if (plan != null && plan.mandatoryQuestionDe() != null && !containsQuestion(text)) {
             text = shortAck(userTurn) + " " + plan.mandatoryQuestionDe();
         }
-        if (text.length() > 520) {
+        if (text.length() > MAX_SPEECH_CHARS) {
             text = truncateKeepingQuestion(text, plan);
         }
         return text.trim();
@@ -40,18 +41,15 @@ public class InterviewSpeechSanitizer {
 
     public String composeFromMeta(String ackDe, String questionDe, InterviewTurnPlan plan, int userTurn) {
         String ack = ackDe == null || ackDe.isBlank() ? shortAck(userTurn) : ackDe.trim();
-        if (userTurn > 1) {
-            ack = PRAISE.matcher(ack).replaceAll("Verstehe.");
-            ack = collapseRepeatedAck(ack);
-            if (plan != null && containsForbiddenPraise(ack, plan.forbiddenPhrases())) {
-                ack = shortAck(userTurn);
-            }
-            if (PROMPT_LEAK.matcher(ack).find()) {
-                ack = shortAck(userTurn);
-            }
-        }
-        if (ack.split("\\s+").length > (plan == null ? 8 : plan.ackMaxWords())) {
+        // RELAXED: keep the model's brief acknowledgment. Only guard against prompt leak and
+        // over-long acks (trim to the cap instead of nuking to a canned "Verstehe.").
+        ack = collapseRepeatedAck(ack);
+        if (PROMPT_LEAK.matcher(ack).find()) {
             ack = shortAck(userTurn);
+        }
+        int ackCap = plan == null ? DEFAULT_ACK_MAX_WORDS : plan.ackMaxWords();
+        if (ack.split("\\s+").length > ackCap) {
+            ack = trimToWords(ack, ackCap);
         }
         String q = questionDe == null || questionDe.isBlank()
                 ? (plan == null ? "" : plan.mandatoryQuestionDe())
@@ -103,16 +101,11 @@ public class InterviewSpeechSanitizer {
         return text.substring(0, Math.min(500, text.length())).trim() + "…";
     }
 
-    public static boolean containsForbiddenPraise(String text, List<String> forbidden) {
-        if (text == null) {
-            return false;
+    private static String trimToWords(String text, int maxWords) {
+        String[] words = text.trim().split("\\s+");
+        if (words.length <= maxWords) {
+            return text.trim();
         }
-        String lower = text.toLowerCase(Locale.ROOT);
-        for (String f : forbidden) {
-            if (lower.contains(f.toLowerCase(Locale.ROOT))) {
-                return true;
-            }
-        }
-        return PRAISE.matcher(text).find();
+        return String.join(" ", java.util.Arrays.copyOfRange(words, 0, maxWords));
     }
 }

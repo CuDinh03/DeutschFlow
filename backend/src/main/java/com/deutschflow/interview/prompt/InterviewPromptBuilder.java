@@ -12,7 +12,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
 import java.util.Optional;
 
 /**
@@ -41,7 +40,8 @@ public class InterviewPromptBuilder {
     private final InterviewRubricService rubricService;
     private final PersonaInterviewRegistry legacyRegistry;
 
-    private static final List<InterviewPromptLayer> LAYER_ORDER = List.of();
+    /** Generic interviewer role for personas without a DB row (DEFAULT/TUAN/LAN/MINH). */
+    private static final String DEFAULT_PERSONA_ROLE = "HR-Managerin";
 
     /**
      * Builds the full interview prompt preamble from layered components.
@@ -68,8 +68,12 @@ public class InterviewPromptBuilder {
         Optional<InterviewPersonaEntity> personaEntity = personaRegistryService.findByCode(personaCode);
 
         String personaDisplayName = persona != null ? persona.displayName() : "HR-Manager";
+        // role_title is DB-sourced (V163 seeds all 15 interview personas). The removed
+        // resolvePersonaRole() switch had explicit cases only for those same 15 — all of which
+        // are now resolved via the entity above — and "HR-Managerin" for every other persona,
+        // so this fallback is behavior-preserving for DEFAULT/TUAN/LAN/MINH and unknown personas.
         String personaRole = personaEntity.map(InterviewPersonaEntity::getRoleTitle)
-                .orElse(resolvePersonaRole(persona));
+                .orElse(DEFAULT_PERSONA_ROLE);
         String resolvedIndustry = personaEntity.map(InterviewPersonaEntity::getIndustry)
                 .orElse(industry != null ? industry : "Allgemein");
 
@@ -122,27 +126,5 @@ public class InterviewPromptBuilder {
         scoringLayer.appendTo(sb, ctx);
         responseRulesLayer.appendTo(sb, ctx);
         return sb.toString();
-    }
-
-    private String resolvePersonaRole(SpeakingPersona persona) {
-        if (persona == null) return "HR-Managerin";
-        return switch (persona) {
-            case LUKAS    -> "Senior Tech Lead";
-            case EMMA     -> "Business Development Managerin";
-            case ANNA     -> "Studienberaterin & Karriere-Coach";
-            case KLAUS    -> "Küchenchef";
-            case HANNIE   -> "Moderatorin & MC";
-            case LENA     -> "Filialleiterin im Einzelhandel";
-            case THOMAS   -> "Bäckermeister";
-            case PETRA    -> "Metzgerin";
-            case SARAH    -> "Medizinische Fachangestellte";
-            case SCHNEIDER-> "Augenarzt";
-            case WEBER    -> "Dermatologin";
-            case MAX      -> "Maschinenbediener";
-            case OLIVER   -> "CNC-Fräser";
-            case NIKLAS   -> "Kellner";
-            case NINA     -> "Rezeptionistin";
-            default       -> "HR-Managerin";
-        };
     }
 }
