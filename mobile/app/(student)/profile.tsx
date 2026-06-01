@@ -1,8 +1,9 @@
-import { View, Alert } from 'react-native'
+import { View, Alert, Pressable } from 'react-native'
 import { router } from 'expo-router'
-import { LogOut, Star, Bell, Globe, BarChart3, User, ChevronRight } from 'lucide-react-native'
+import { LogOut, Star, Bell, Globe, BarChart3, User, ChevronRight, Trash2 } from 'lucide-react-native'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
+import api, { apiMessage } from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, Pill, ListRow, SectionHeader } from '@/components/ui'
 
@@ -31,6 +32,29 @@ export default function ProfileScreen() {
         },
       },
     ])
+  }
+
+  function confirmDeleteAccount() {
+    Alert.alert(
+      'Xoá tài khoản',
+      'Hành động này xoá vĩnh viễn tài khoản và toàn bộ dữ liệu học tập của bạn. Không thể hoàn tác.',
+      [
+        { text: 'Huỷ', style: 'cancel' },
+        {
+          text: 'Xoá vĩnh viễn',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.delete('/profile/me')
+              await logout()
+              router.replace('/(auth)/login')
+            } catch (e) {
+              Alert.alert('Lỗi', apiMessage(e))
+            }
+          },
+        },
+      ],
+    )
   }
 
   return (
@@ -111,6 +135,17 @@ export default function ProfileScreen() {
             </ThemedText>
           </View>
         </Card>
+
+        <Pressable
+          onPress={confirmDeleteAccount}
+          hitSlop={8}
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space[2], paddingVertical: space[2] }}
+        >
+          <Icon icon={Trash2} size={14} color="faint" />
+          <ThemedText variant="caption" color="faint">
+            Xoá tài khoản
+          </ThemedText>
+        </Pressable>
 
         <ThemedText variant="caption" color="faint" align="center" style={{ marginTop: space[2] }}>
           DeutschFlow v1.0.0 • iOS/Android

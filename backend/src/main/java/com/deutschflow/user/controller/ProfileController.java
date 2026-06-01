@@ -5,6 +5,7 @@ import com.deutschflow.user.dto.*;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.entity.UserLearningProfile;
 import com.deutschflow.user.repository.UserLearningProfileRepository;
+import com.deutschflow.user.service.AccountDeletionService;
 import com.deutschflow.user.service.AuthService;
 import com.deutschflow.user.service.UserLearningProfileService;
 import jakarta.validation.Valid;
@@ -29,6 +30,7 @@ public class ProfileController {
     private final AuthService authService;
     private final UserLearningProfileService learningProfileService;
     private final UserLearningProfileRepository learningProfileRepository;
+    private final AccountDeletionService accountDeletionService;
 
     /**
      * PATCH /api/profile/me
@@ -89,5 +91,16 @@ public class ProfileController {
             @AuthenticationPrincipal User user,
             @Valid @RequestBody PushTokenRequest request) {
         authService.savePushToken(user, request.token(), request.platform());
+    }
+
+    /**
+     * DELETE /api/profile/me
+     * Permanently deletes the authenticated account and all associated data.
+     * Required for App Store Guideline 5.1.1(v).
+     */
+    @DeleteMapping("/me")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteAccount(@AuthenticationPrincipal User user) {
+        accountDeletionService.deleteAccount(user.getId());
     }
 }

@@ -96,12 +96,14 @@
 
 9. **Verify** — `cd mobile && npx tsc --noEmit` → exit 0 (clean).
 
-**Chặn cứng App Store (chưa xử lý, cần trước khi public):**
-- Dẫn thanh toán PRO ra web (`upgrade.tsx` → mydeutschflow.com) — vi phạm Guideline 3.1.1 (phải IAP).
-- Thiếu xoá tài khoản trong app — Guideline 5.1.1(v).
-- Push notifications chưa chạy (thiếu `extra.eas.projectId` + backend chưa có sender APNs/Expo, chỉ lưu token + SSE).
+**Mục tiêu market-test (đã chốt):** Public App Store; mô hình "reader app" (không IAP, PRO quản lý ngoài app).
 
-**Backlog còn lại**: 2 chặn App Store ở trên; iOS tests (cần dựng jest-expo); quên-mật-khẩu; B2B export/printable; iOS B2B read-only (optional); migrate `expo-av`→`expo-audio` trước SDK 54.
+**Chặn cứng App Store:**
+- ✅ **Đã gỡ thanh toán trong app** (Guideline 3.1.1) — `upgrade.tsx` bỏ link web-pricing + copy "thanh toán"; `speaking.tsx` alert bỏ URL; `book-session.tsx` xoá hẳn (kèm route). Không còn link/giá/CTA mua trong app.
+- ✅ **Xoá tài khoản trong app** (Guideline 5.1.1(v)) — `DELETE /api/profile/me` + `AccountDeletionService` (xoá 6 bảng FK non-cascade rồi `users`; 40 FK còn lại tự cascade); mobile `profile.tsx` có "Xoá tài khoản" + xác nhận → logout. Backend compile sạch.
+- ⏳ **Push notifications** — còn thiếu `extra.eas.projectId` (cần `eas init`) + backend sender (Expo Push). Defer, cần input.
+
+**Backlog còn lại tới public**: push (trên); iOS tests (dựng jest-expo); quên-mật-khẩu (cần email provider); Sentry crash reporting (cần DSN); app.json `ITSAppUsesNonExemptEncryption` + privacy policy URL + privacy labels; EAS build → TestFlight (cần Apple account). Sau: B2B export/printable; iOS B2B read-only; migrate `expo-av`→`expo-audio` trước SDK 54.
 
 ---
 
