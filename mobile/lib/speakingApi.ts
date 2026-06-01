@@ -60,6 +60,22 @@ export interface AiChatResponse {
   interviewHintKey?: string | null
 }
 
+/** Mirrors `AiSpeakingMessageDto` — a persisted turn, used to rehydrate on resume. */
+export interface AiSpeakingMessage {
+  id: number
+  role: string
+  userText: string | null
+  aiSpeechDe: string | null
+  correction: string | null
+  explanationVi: string | null
+  grammarPoint: string | null
+  newWord: string | null
+  userInterestDetected: string | null
+  assistantAction: string | null
+  assistantFeedback: string | null
+  createdAt: string | null
+}
+
 /** Mirrors `AiSpeakingSessionDto`. */
 export interface AiSpeakingSession {
   id: number
@@ -176,6 +192,10 @@ export const speakingApi = {
   /** Structured, machine-readable interview report for a completed session. */
   getReport: (sessionId: number) =>
     api.get<InterviewReport>(`/interviews/${sessionId}/report`).then((r) => r.data),
+
+  /** Persisted transcript for a session — used to rehydrate after interruption. */
+  getMessages: (sessionId: number) =>
+    api.get<AiSpeakingMessage[]>(`/ai-speaking/sessions/${sessionId}/messages`).then((r) => r.data),
 
   /** Recent sessions (most recent first) for the progress/history view. */
   listSessions: (size = 10) =>

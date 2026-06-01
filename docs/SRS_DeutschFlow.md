@@ -85,9 +85,11 @@
 
 6. **iOS B2C — Progress/History screen** — mở rộng `mobile/app/(student)/stats.tsx`: điểm kỹ năng theo CEFR (Đọc/Nghe/Viết/Nói) từ `GET /progress/me/overview`, biểu đồ hoạt động hàng tuần, danh sách buổi luyện gần đây từ `GET /ai-speaking/sessions`. Thêm `mobile/lib/progressApi.ts` + `speakingApi.listSessions()`. → **hoàn tất DoD B2C "thấy tiến bộ theo thời gian"** (vào qua Hồ sơ → Tiến trình & thống kê).
 
-7. **Verify** — `cd mobile && npx tsc --noEmit` → exit 0 (clean).
+7. **iOS B2C — Resume sau gián đoạn** — `mobile/lib/activeSession.ts` (SecureStore) lưu phiên đang chạy; màn speaking hiện banner "Tiếp tục buổi phỏng vấn" khi mở lại app, rehydrate transcript qua `GET /ai-speaking/sessions/{id}/messages` (map `MessageRole` USER/ASSISTANT). Clear khi kết thúc/thoát sạch. → **hoàn tất nốt DoD §5.2 "resume after backgrounding or interruption"**.
 
-**Backlog còn lại**: iOS tests, B2B export/printable, iOS B2B read-only viewers, iOS resume-after-background.
+8. **Verify** — `cd mobile && npx tsc --noEmit` → exit 0 (clean).
+
+**Backlog còn lại**: iOS tests (cần dựng jest-expo trước), B2B export/printable, iOS B2B read-only viewers (optional cho demo).
 
 ---
 

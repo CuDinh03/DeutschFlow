@@ -1,10 +1,10 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { View, ScrollView, Alert, Pressable, TextInput, ActivityIndicator } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { Audio } from 'expo-av'
 import * as Haptics from 'expo-haptics'
 import { router } from 'expo-router'
-import { Mic, Send, ChevronRight, Flame, X, Flag } from 'lucide-react-native'
+import { Mic, Send, ChevronRight, Flame, X, Flag, RotateCcw } from 'lucide-react-native'
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -18,8 +18,15 @@ import {
   type InterviewPersona,
   type AiChatResponse,
   type AiSpeakingSession,
+  type AiSpeakingMessage,
   type InterviewReport,
 } from '@/lib/speakingApi'
+import {
+  loadActiveSession,
+  saveActiveSession,
+  clearActiveSession,
+  type ActiveSessionRef,
+} from '@/lib/activeSession'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, Pill } from '@/components/ui'
 import { SessionSummary } from '@/components/speaking/SessionSummary'
@@ -52,6 +59,8 @@ export default function SpeakingScreen() {
   const [isRecording, setIsRecording] = useState(false)
   const [finishing, setFinishing] = useState(false)
   const [report, setReport] = useState<InterviewReport | null>(null)
+  const [pendingResume, setPendingResume] = useState<ActiveSessionRef | null>(null)
+  const [resuming, setResuming] = useState(false)
 
   const recordingRef = useRef<Audio.Recording | null>(null)
   const scrollRef = useRef<ScrollView | null>(null)
@@ -62,6 +71,18 @@ export default function SpeakingScreen() {
     queryFn: () => speakingApi.getPersonas(),
     staleTime: 300_000,
   })
+
+  // Offer to resume an interrupted session left over from a previous app run.
+  useEffect(() => {
+    let active = true
+    void (async () => {
+      const ref = await loadActiveSession()
+      if (active && ref) setPendingResume(ref)
+    })()
+    return () => {
+      active = false
+    }
+  }, [])
 
   const busy = starting || sending || isRecording || finishing
   const userTurns = messages.filter((m) => m.role === 'user').length
@@ -83,6 +104,8 @@ export default function SpeakingScreen() {
       setPhaseKey(created.initialAiMessage?.interviewPhaseKey ?? 'INTRO')
       setMessages([{ role: 'assistant', content: greeting, feedback: created.initialAiMessage ?? undefined }])
       setReport(null)
+      setPendingResume(null)
+      void saveActiveSession({ id: created.id, interviewPosition: created.interviewPosition })
       setView('chat')
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     } catch (e) {
@@ -157,6 +180,7 @@ export default function SpeakingScreen() {
     setFinishing(true)
     try {
       await speakingApi.endSession(session.id).catch(() => undefined)
+      void clearActiveSession()
       const built = await speakingApi.getReport(session.id)
       setReport(built)
       setView('summary')
@@ -174,7 +198,57 @@ export default function SpeakingScreen() {
     setReport(null)
     setPhaseKey(null)
     setDraft('')
+    setPendingResume(null)
+    void clearActiveSession()
     setView('select')
+  }
+
+  async function resumeSession(ref: ActiveSessionRef) {
+    setResuming(true)
+    try {
+      const history = await speakingApi.getMessages(ref.id)
+      const turns = mapMessagesToTurns(history)
+      if (turns.length === 0) {
+        await clearActiveSession()
+        setPendingResume(null)
+        Alert.alert('Phiên đã kết thúc', 'Không còn dữ liệu để tiếp tục.')
+        return
+      }
+      setSession({
+        id: ref.id,
+        topic: ref.interviewPosition,
+        cefrLevel: 'C1',
+        persona: null,
+        responseSchema: null,
+        sessionMode: 'INTERVIEW',
+        status: 'ACTIVE',
+        startedAt: null,
+        lastActivityAt: null,
+        endedAt: null,
+        messageCount: turns.length,
+        initialAiMessage: null,
+        interviewPosition: ref.interviewPosition,
+        experienceLevel: null,
+        interviewReportJson: null,
+      })
+      setMessages(turns)
+      setPhaseKey(null)
+      setReport(null)
+      setPendingResume(null)
+      setView('chat')
+      scrollToEnd()
+    } catch (e) {
+      Alert.alert('Không thể tiếp tục', apiMessage(e))
+      await clearActiveSession()
+      setPendingResume(null)
+    } finally {
+      setResuming(false)
+    }
+  }
+
+  async function dismissResume() {
+    await clearActiveSession()
+    setPendingResume(null)
   }
 
   const pulseStyle = useAnimatedStyle(() => ({
@@ -208,6 +282,44 @@ export default function SpeakingScreen() {
           contentContainerStyle={{ paddingHorizontal: space[5], paddingBottom: space[6], gap: space[3], paddingTop: space[3] }}
           showsVerticalScrollIndicator={false}
         >
+          {pendingResume ? (
+            <Card style={{ borderColor: c.accent + '99' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+                <Pressable
+                  onPress={() => void resumeSession(pendingResume)}
+                  disabled={resuming}
+                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[3] }}
+                >
+                  <View
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: radius.lg,
+                      backgroundColor: c.accentSoft,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Icon icon={RotateCcw} size={22} color="accent" />
+                  </View>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <ThemedText variant="bodyStrong">Tiếp tục buổi phỏng vấn</ThemedText>
+                    <ThemedText variant="caption" color="muted" numberOfLines={1}>
+                      {pendingResume.interviewPosition ?? 'Phiên đang dang dở'}
+                    </ThemedText>
+                  </View>
+                </Pressable>
+                {resuming ? (
+                  <ActivityIndicator color={c.accent} />
+                ) : (
+                  <Pressable hitSlop={8} onPress={dismissResume}>
+                    <Icon icon={X} size={18} color="faint" />
+                  </Pressable>
+                )}
+              </View>
+            </Card>
+          ) : null}
+
           {personasLoading ? <ActivityIndicator color={c.accent} style={{ marginTop: space[8] }} /> : null}
 
           {personas.map((persona) => {
@@ -533,6 +645,31 @@ function difficultyTone(difficulty: string): 'success' | 'accent' | 'danger' {
     default:
       return 'success'
   }
+}
+
+function mapMessagesToTurns(messages: AiSpeakingMessage[]): ChatTurn[] {
+  const turns: ChatTurn[] = []
+  for (const m of messages) {
+    const isUser = (m.role ?? '').toUpperCase() === 'USER'
+    if (isUser) {
+      if (m.userText) turns.push({ role: 'user', content: m.userText })
+    } else if (m.aiSpeechDe) {
+      turns.push({
+        role: 'assistant',
+        content: m.aiSpeechDe,
+        feedback: {
+          aiSpeechDe: m.aiSpeechDe,
+          correction: m.correction,
+          explanationVi: m.explanationVi,
+          grammarPoint: m.grammarPoint,
+          feedback: m.assistantFeedback,
+          action: m.assistantAction,
+          suggestions: [],
+        },
+      })
+    }
+  }
+  return turns
 }
 
 function phaseLabel(phaseKey: string): string {
