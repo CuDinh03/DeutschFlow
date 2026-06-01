@@ -103,7 +103,9 @@
 - ✅ **Xoá tài khoản trong app** (Guideline 5.1.1(v)) — `DELETE /api/profile/me` + `AccountDeletionService` (xoá 6 bảng FK non-cascade rồi `users`; 40 FK còn lại tự cascade); mobile `profile.tsx` có "Xoá tài khoản" + xác nhận → logout. Backend compile sạch.
 - ⏳ **Push notifications** — còn thiếu `extra.eas.projectId` (cần `eas init`) + backend sender (Expo Push). Defer, cần input.
 
-**Backlog còn lại tới public**: push (trên); iOS tests (dựng jest-expo); quên-mật-khẩu (cần email provider); Sentry crash reporting (cần DSN); app.json `ITSAppUsesNonExemptEncryption` + privacy policy URL + privacy labels; EAS build → TestFlight (cần Apple account). Sau: B2B export/printable; iOS B2B read-only; migrate `expo-av`→`expo-audio` trước SDK 54.
+**Đã thêm:** ✅ `ITSAppUsesNonExemptEncryption=false`; ✅ **iOS unit tests** (ts-jest, bypass RN babel chain): tách mapper ra `lib/{notificationsApi,grammarApi,examApi}.ts` (pure) + 14 test cho mappers & `activeSession` → `npm test` (4 suites, 14 pass).
+
+**Backlog còn lại tới public**: push (cần `eas init` projectId + backend Expo Push sender); quên-mật-khẩu (cần email provider + endpoint backend); Sentry (cần DSN); privacy policy URL + App Store privacy labels; EAS build → TestFlight (cần Apple account). Sau: B2B export/printable; iOS B2B read-only; migrate `expo-av`→`expo-audio` trước SDK 54.
 
 ---
 

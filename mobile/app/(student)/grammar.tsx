@@ -6,37 +6,7 @@ import { ChevronDown, ChevronUp, Check } from 'lucide-react-native'
 import api from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, Pill, AppHeader, SectionHeader, Skeleton } from '@/components/ui'
-
-interface GrammarTopic {
-  id: string
-  title: string
-  cefrLevel: string
-  category: string
-  summary: string
-  isCompleted?: boolean
-}
-
-// Backend GET /api/grammar/syllabus/topics returns raw snake_case rows.
-interface RawGrammarTopic {
-  id: number
-  cefr_level: string
-  topic_code: string
-  title_de: string
-  title_vi: string
-  description_vi: string | null
-  mastery_percent: number
-}
-
-function mapGrammarTopic(t: RawGrammarTopic): GrammarTopic {
-  return {
-    id: String(t.id),
-    title: t.title_vi || t.title_de,
-    cefrLevel: t.cefr_level,
-    category: t.topic_code,
-    summary: t.description_vi ?? '',
-    isCompleted: (t.mastery_percent ?? 0) >= 100,
-  }
-}
+import { mapGrammarTopic, type RawGrammarTopic } from '@/lib/grammarApi'
 
 const CASES = [
   { key: 'nominativ', label: 'Nominativ', desc: 'Chủ ngữ (Wer? Was?)' },

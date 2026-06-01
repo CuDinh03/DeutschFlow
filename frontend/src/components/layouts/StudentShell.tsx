@@ -202,12 +202,12 @@ export function StudentShell({
   return (
     <div className="flex h-screen overflow-hidden df-page-mesh">
       {!hideSidebar && sidebarOpen && (
-        <div className="fixed inset-0 bg-black/40 z-20 lg:hidden" onClick={() => setSidebarOpen(false)} />
+        <div className="fixed inset-0 bg-black/40 z-[45] lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
       {!hideSidebar && (
         <aside
-          className={`fixed lg:relative z-30 flex flex-col h-full w-64 bg-[var(--brand-black)] backdrop-blur-md border-r border-white/10 text-[var(--sidebar-foreground)] transition-transform duration-300 shadow-xl shadow-black/10
+          className={`fixed lg:relative z-50 flex flex-col h-full w-64 bg-[var(--brand-black)] backdrop-blur-md border-r border-white/10 text-[var(--sidebar-foreground)] transition-transform duration-300 shadow-xl shadow-black/10
             ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
         >
           <div className="flex items-center gap-2 px-4 py-5 border-b border-white/10">

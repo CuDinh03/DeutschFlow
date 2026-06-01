@@ -8,36 +8,9 @@ import api from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, Skeleton } from '@/components/ui'
 import { usePlanStore } from '@/stores/usePlanStore'
-
-interface ExamVariant {
-  id: number
-  title: string
-  cefrLevel: string
-  totalQuestions: number
-  timeLimitMinutes: number
-  isRecommended?: boolean
-}
-
-// Backend GET /api/mock-exams?cefrLevel=X returns raw snake_case rows.
-interface RawMockExam {
-  id: number
-  cefr_level: string
-  title: string
-  time_limit_minutes: number
-  total_questions?: number
-}
+import { mapExam, type RawMockExam } from '@/lib/examApi'
 
 const EXAM_LEVELS = ['A1', 'A2', 'B1', 'B2'] as const
-
-function mapExam(e: RawMockExam): ExamVariant {
-  return {
-    id: e.id,
-    title: e.title,
-    cefrLevel: e.cefr_level,
-    totalQuestions: e.total_questions ?? 0,
-    timeLimitMinutes: e.time_limit_minutes,
-  }
-}
 
 export default function ExamScreen() {
   const theme = useTheme()
