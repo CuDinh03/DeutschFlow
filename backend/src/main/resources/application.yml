@@ -376,3 +376,10 @@ payment:
     webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
     success-url: ${STRIPE_SUCCESS_URL:https://mydeutschflow.com/student/pricing?stripe=success}
     cancel-url: ${STRIPE_CANCEL_URL:https://mydeutschflow.com/student/pricing?stripe=cancel}
+  apple:
+    # Apple StoreKit IAP. Verification stays disabled until root-cert-dir is set (app starts fine without it).
+    bundle-id: ${APPLE_BUNDLE_ID:com.deutschflow.app}
+    app-apple-id: ${APPLE_APP_APPLE_ID:}          # numeric App Store id — REQUIRED for Production verification
+    environment: ${APPLE_IAP_ENVIRONMENT:Sandbox} # Sandbox | Production | LocalTesting | Xcode
+    root-cert-dir: ${APPLE_ROOT_CERT_DIR:}         # dir of Apple Root CA *.cer (download from apple.com/certificateauthority)
+    online-checks: ${APPLE_IAP_ONLINE_CHECKS:false} # OCSP revocation; set true in Production

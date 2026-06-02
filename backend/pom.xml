@@ -208,6 +208,13 @@
             <version>26.3.0</version>
         </dependency>
 
+        <!-- Apple StoreKit / App Store Server (IAP verification + ASSN V2) -->
+        <dependency>
+            <groupId>com.apple.itunes.storekit</groupId>
+            <artifactId>app-store-server-library</artifactId>
+            <version>3.5.0</version>
+        </dependency>
+
         <!-- Test -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
