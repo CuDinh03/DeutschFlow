@@ -30,8 +30,9 @@ for i in $(seq 1 40); do docker exec "$PG" pg_isready -U "$USER" -d "$DB" >/dev/
 docker exec "$PG" psql -U "$USER" -d "$DB" -c "CREATE EXTENSION IF NOT EXISTS vector;" >/dev/null
 
 echo "▶ booting backend against the empty DB (Flyway migrate)…"
-# Spring CLI args override any local .env. ddl-auto=update lets the app finish booting even
-# while JPA-orphan columns are not yet migration-backed; the gate is the Flyway result.
+# Spring CLI args override any local .env.
+# ddl-auto=update: lets Hibernate add any JPA columns not yet in Flyway (should be none).
+# The gate is (1) all Flyway migrations apply and (2) the app starts.
 ( cd "$ROOT/backend" && ./mvnw -q spring-boot:run -Dmaven.test.skip=true \
     -Dspring-boot.run.arguments="\
 --spring.datasource.url=jdbc:postgresql://localhost:$PGPORT/$DB \
