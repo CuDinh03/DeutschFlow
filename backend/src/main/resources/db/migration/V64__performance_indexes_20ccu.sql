@@ -25,9 +25,16 @@ CREATE INDEX IF NOT EXISTS idx_user_xp_events_user_created
     ON user_xp_events(user_id, created_at DESC);
 
 -- Token usage: admin reports, quota checks
-CREATE INDEX IF NOT EXISTS idx_ai_token_usage_user_created
-    ON ai_token_usage_events(user_id, created_at DESC);
+-- (ai_token_usage_events is created later in V188; guard so a from-scratch replay does not fail here)
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'ai_token_usage_events') THEN
+    CREATE INDEX IF NOT EXISTS idx_ai_token_usage_user_created ON ai_token_usage_events(user_id, created_at DESC);
+  END IF;
+END $$;
 
 -- Session progress: streak calculation (hot query)
-CREATE INDEX IF NOT EXISTS idx_learning_session_progress_user_status
-    ON learning_session_progress(user_id, status, completed_at DESC);
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'learning_session_progress') THEN
+    CREATE INDEX IF NOT EXISTS idx_learning_session_progress_user_status ON learning_session_progress(user_id, status, completed_at DESC);
+  END IF;
+END $$;

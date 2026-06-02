@@ -3,6 +3,19 @@
 -- prerequisites / unlock metadata so the backend can drive the roadmap tree
 -- without relying on plan-based routing.
 
+-- Fresh-replay safety: these columns are referenced below but were historically added to
+-- skill_tree_nodes via JPA ddl-auto (no migration). Ensure they exist so a from-scratch
+-- Flyway run does not fail. IF NOT EXISTS keeps this a no-op on existing environments.
+ALTER TABLE skill_tree_nodes ADD COLUMN IF NOT EXISTS node_code          VARCHAR(40);
+ALTER TABLE skill_tree_nodes ADD COLUMN IF NOT EXISTS node_family        VARCHAR(40);
+ALTER TABLE skill_tree_nodes ADD COLUMN IF NOT EXISTS content_key        VARCHAR(100);
+ALTER TABLE skill_tree_nodes ADD COLUMN IF NOT EXISTS prerequisites_json JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE skill_tree_nodes ADD COLUMN IF NOT EXISTS unlock_metadata    JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE skill_tree_nodes ADD COLUMN IF NOT EXISTS mastery_threshold  INTEGER DEFAULT 70;
+ALTER TABLE skill_tree_nodes ADD COLUMN IF NOT EXISTS unlock_rule        TEXT;
+ALTER TABLE skill_tree_nodes ADD COLUMN IF NOT EXISTS estimated_minutes  INTEGER;
+ALTER TABLE skill_tree_nodes ADD COLUMN IF NOT EXISTS tags               TEXT[];
+
 WITH roadmap_seed AS (
     SELECT * FROM (VALUES
         ('D11', 'A1-001', 'CORE', 'CORE', 'a1.welcome', '[]'::jsonb, '{"next":["A1-002"],"reason":"Foundation opener for roadmap learning"}'::jsonb),

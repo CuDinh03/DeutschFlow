@@ -1,5 +1,5 @@
 
-- Khôi phục học sinh + giáo viên demo sau V11 (V11 chỉ giữ staging/prod không còn 3 demo user).
+-- Khôi phục học sinh + giáo viên demo sau V11 (V11 chỉ giữ staging/prod không còn 3 demo user).
 -- V48 đã khôi phục admin; thêm hai tài khoản còn lại khớp R__seed_demo_users_local và V7.
 -- Mật khẩu (BCrypt đã hash): password123 — cùng hash V7/V48.
 

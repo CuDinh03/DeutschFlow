@@ -2,6 +2,16 @@
 -- 10 core nodes covering key B1 grammar and communication skills
 -- Prerequisite: A2 final node must be completed
 
+-- Fresh-replay safety: skill_tree_edges has no CREATE migration (referenced only by the seed
+-- below, not by application code). Create it so a from-scratch Flyway run succeeds; no-op elsewhere.
+CREATE TABLE IF NOT EXISTS skill_tree_edges (
+    id             BIGSERIAL    PRIMARY KEY,
+    source_node_id BIGINT       NOT NULL REFERENCES skill_tree_nodes(id) ON DELETE CASCADE,
+    target_node_id BIGINT       NOT NULL REFERENCES skill_tree_nodes(id) ON DELETE CASCADE,
+    created_at     TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    UNIQUE (source_node_id, target_node_id)
+);
+
 INSERT INTO skill_tree_nodes (
   node_type, title_de, title_vi, description_vi, emoji,
   phase, day_number, week_number, sort_order, cefr_level,

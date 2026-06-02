@@ -64,14 +64,13 @@ public class AdaptiveEngineService {
             List<Map<String, Object>> srsRows = jdbc.queryForList(
                 """
                 SELECT
-                    COALESCE(v.topic, v.word_de, vrs.vocab_id) AS topic,
-                    COUNT(*)                                     AS fail_count
-                FROM vocab_review_schedules vrs
-                LEFT JOIN vocabulary v ON v.id::TEXT = vrs.vocab_id
+                    vrs.vocab_id AS topic,
+                    COUNT(*)     AS fail_count
+                FROM vocab_review_schedule vrs
                 WHERE vrs.user_id = ?
                   AND vrs.last_review_at >= NOW() - INTERVAL '14 days'
                   AND vrs.last_quality < 3
-                GROUP BY COALESCE(v.topic, v.word_de, vrs.vocab_id)
+                GROUP BY vrs.vocab_id
                 ORDER BY fail_count DESC
                 LIMIT 10
                 """,
