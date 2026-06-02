@@ -45,6 +45,7 @@ public class SrsService {
 
     private final VocabReviewRepository repo;
     private final FsrsService fsrsService;
+    private final FsrsWeightProvider fsrsWeightProvider;
     private final XpService xpService;
 
     // ─── Schedule ─────────────────────────────────────────────────────────────
@@ -122,10 +123,11 @@ public class SrsService {
         entry.setLastReviewAt(OffsetDateTime.now());
         entry.setLastQuality((short) quality);
 
+        double[] weights = fsrsWeightProvider.weightsForUser(userId);
         if (AlgorithmVersion.FSRS.name().equals(entry.getAlgorithmVersion())) {
-            applyFsrs(entry, quality);
+            applyFsrs(entry, quality, weights);
         } else {
-            upgradeSm2ToFsrs(entry, quality);
+            upgradeSm2ToFsrs(entry, quality, weights);
         }
 
         repo.save(entry);
@@ -139,16 +141,16 @@ public class SrsService {
 
     // ─── FSRS routing helpers ─────────────────────────────────────────────────
 
-    private void applyFsrs(VocabReviewSchedule card, int sm2Quality) {
+    private void applyFsrs(VocabReviewSchedule card, int sm2Quality, double[] weights) {
         int fsrsRating = fsrsService.mapSm2ToFsrs(sm2Quality);
         if (card.getStability() == null) {
             // First review of a newly-scheduled FSRS card (stability not yet computed)
-            fsrsService.initializeCard(card, fsrsRating);
+            fsrsService.initializeCard(card, fsrsRating, weights);
         } else {
             long elapsed = card.getLastReviewAt() != null
                     ? Duration.between(card.getLastReviewAt(), OffsetDateTime.now()).toDays()
                     : 0L;
-            fsrsService.scheduleReview(card, fsrsRating, elapsed);
+            fsrsService.scheduleReview(card, fsrsRating, elapsed, weights);
         }
     }
 
@@ -157,12 +159,12 @@ public class SrsService {
      * Seeds FSRS stability from the existing SM-2 interval to preserve scheduling
      * continuity (avoids resetting mature cards back to a 1-day interval).
      */
-    private void upgradeSm2ToFsrs(VocabReviewSchedule card, int sm2Quality) {
+    private void upgradeSm2ToFsrs(VocabReviewSchedule card, int sm2Quality, double[] weights) {
         int fsrsRating = fsrsService.mapSm2ToFsrs(sm2Quality);
 
         if (card.getRepetitions() == 0) {
             // Never reviewed — clean FSRS init
-            fsrsService.initializeCard(card, fsrsRating);
+            fsrsService.initializeCard(card, fsrsRating, weights);
         } else {
             // Has SM-2 history: seed FSRS from interval_days
             card.setStability(BigDecimal.valueOf(Math.max(card.getIntervalDays(), 1))
@@ -174,7 +176,7 @@ public class SrsService {
             long elapsed = card.getLastReviewAt() != null
                     ? Duration.between(card.getLastReviewAt(), OffsetDateTime.now()).toDays()
                     : (long) card.getIntervalDays();
-            fsrsService.scheduleReview(card, fsrsRating, elapsed);
+            fsrsService.scheduleReview(card, fsrsRating, elapsed, weights);
         }
 
         log.info("[SRS] Upgraded card '{}' SM2→FSRS for user {}", card.getGerman(), card.getUserId());

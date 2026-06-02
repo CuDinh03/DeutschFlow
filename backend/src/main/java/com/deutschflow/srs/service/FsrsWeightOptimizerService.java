@@ -8,7 +8,6 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -36,18 +35,11 @@ import java.util.Map;
 public class FsrsWeightOptimizerService {
 
     private static final int MIN_REVIEWS_FOR_OPTIMIZATION = 50;
+    private static final int W17 = 17; // stability multiplier on a successful review
 
     private final JdbcTemplate jdbc;
     private final ObjectMapper objectMapper;
-
-    // Reference FSRS-4.5 weights — must match FsrsService.W
-    private static final double[] GLOBAL_WEIGHTS = {
-        0.4072, 1.1829, 3.1262, 15.4722,
-        7.2102, 0.5316, 1.0651, 0.0589,
-        1.5330, 0.1544, 1.0042, 1.9395,
-        0.1100, 0.2900, 2.2700, 2.9898,
-        0.5100, 2.8798, 0.0714, 0.4676
-    };
+    private final FsrsService fsrsService;
 
     @Scheduled(cron = "0 0 3 * * *", zone = "UTC")
     public void runNightlyOptimization() {
@@ -69,7 +61,7 @@ public class FsrsWeightOptimizerService {
         return jdbc.queryForList(
             """
             SELECT user_id
-            FROM vocab_review_schedules
+            FROM vocab_review_schedule
             WHERE algorithm_version = 'FSRS'
               AND stability IS NOT NULL
               AND last_review_at IS NOT NULL
@@ -86,7 +78,7 @@ public class FsrsWeightOptimizerService {
         List<Map<String, Object>> rows = jdbc.queryForList(
             """
             SELECT stability, interval_days, last_quality
-            FROM vocab_review_schedules
+            FROM vocab_review_schedule
             WHERE user_id = ?
               AND algorithm_version = 'FSRS'
               AND stability IS NOT NULL
@@ -117,11 +109,12 @@ public class FsrsWeightOptimizerService {
 
         double avgError = sumError / count;
 
-        // Adjust w17 (stability multiplier on pass) proportionally to error
-        // Small correction: ±0.3 clamped, blended 80% global / 20% correction
-        double[] weights = Arrays.copyOf(GLOBAL_WEIGHTS, GLOBAL_WEIGHTS.length);
+        // Adjust w17 (stability multiplier on pass) proportionally to error.
+        // Correction is clamped to ±0.3 so a noisy signal can only nudge the
+        // global weight, never replace it.
+        double[] weights = fsrsService.defaultWeights();
         double correction = Math.max(-0.3, Math.min(0.3, avgError * 2.0));
-        weights[17] = GLOBAL_WEIGHTS[17] * (1.0 + correction);
+        weights[W17] = weights[W17] * (1.0 + correction);
 
         try {
             String json = objectMapper.writeValueAsString(weights);
@@ -135,7 +128,10 @@ public class FsrsWeightOptimizerService {
                 json, userId
             );
             if (affectedRows > 0) {
-                log.debug("[FSRS-OPT] userId={} correction={:.4f} w17={:.4f}", userId, correction, weights[17]);
+                log.debug("[FSRS-OPT] userId={} correction={} w17={}",
+                        userId,
+                        String.format("%.4f", correction),
+                        String.format("%.4f", weights[W17]));
                 return true;
             }
         } catch (Exception e) {
