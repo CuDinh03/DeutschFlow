@@ -11,6 +11,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -40,6 +41,22 @@ class InterviewReportServiceTest {
         assertThat(InterviewReportService.parseLeadingNumber("7,5")).isEqualByComparingTo("7.5");
         assertThat(InterviewReportService.parseLeadingNumber("kein Wert")).isNull();
         assertThat(InterviewReportService.parseLeadingNumber(null)).isNull();
+    }
+
+    @Test
+    @DisplayName("chooseBaseScore keeps an in-range LLM score but rejects off-scale values")
+    void chooseBaseScoreClamps() {
+        // in-range LLM score wins over the deterministic score
+        assertThat(InterviewReportService.chooseBaseScore(new BigDecimal("8.0"), new BigDecimal("5.0")))
+                .isEqualByComparingTo("8.0");
+        // off-scale LLM score (e.g. "85" or "85/100" parsed) is discarded → deterministic used
+        assertThat(InterviewReportService.chooseBaseScore(new BigDecimal("85"), new BigDecimal("5.0")))
+                .isEqualByComparingTo("5.0");
+        assertThat(InterviewReportService.chooseBaseScore(new BigDecimal("-1"), new BigDecimal("5.0")))
+                .isEqualByComparingTo("5.0");
+        // null LLM score → deterministic
+        assertThat(InterviewReportService.chooseBaseScore(null, new BigDecimal("5.0")))
+                .isEqualByComparingTo("5.0");
     }
 
     @Test

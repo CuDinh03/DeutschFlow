@@ -40,7 +40,7 @@ public class InterviewReportService {
         BigDecimal deterministicScore = computeOverallScore(phaseResults);
         LlmEvalSummary llm = parseLlmEval(session.getInterviewReportJson());
         BigDecimal overallScore = applyAntiSycophancyBound(
-                llm.score() != null ? llm.score() : deterministicScore, turns);
+                chooseBaseScore(llm.score(), deterministicScore), turns);
         String verdict = reconcileVerdict(llm.verdict(), overallScore, turns);
         String readinessLevel = deriveReadinessLevel(session.getExperienceLevel(), overallScore);
 
@@ -111,6 +111,23 @@ public class InterviewReportService {
         } catch (NumberFormatException e) {
             return null;
         }
+    }
+
+    /**
+     * Chooses the base score: the LLM score when it is a sane value on the expected [0,10] scale,
+     * otherwise the deterministic phase score. Guards against an LLM emitting an off-scale number
+     * (e.g. "85" or "85/100") that would otherwise corrupt the verdict/readiness derivation.
+     */
+    static BigDecimal chooseBaseScore(BigDecimal llmScore, BigDecimal deterministicScore) {
+        if (llmScore == null) {
+            return deterministicScore;
+        }
+        if (llmScore.compareTo(BigDecimal.ZERO) < 0 || llmScore.compareTo(BigDecimal.TEN) > 0) {
+            log.debug("LLM overall_score {} outside [0,10]; using deterministic score {}",
+                    llmScore, deterministicScore);
+            return deterministicScore;
+        }
+        return llmScore;
     }
 
     /** LLM verdict is primary, but too few substantive turns can never PASS regardless of LLM optimism. */

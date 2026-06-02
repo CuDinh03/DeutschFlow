@@ -29,4 +29,13 @@ class InterviewRubricServiceTest {
         assertThat(InterviewRubricService.levelRangeContains(null, "A1")).isTrue();
         assertThat(InterviewRubricService.levelRangeContains("", "C1")).isTrue();
     }
+
+    @Test
+    @DisplayName("the literal 'ANY' sentinel (as used in the seed data) matches any level")
+    void anySentinelMatchesAny() {
+        assertThat(InterviewRubricService.levelRangeContains("ANY", "A1")).isTrue();
+        assertThat(InterviewRubricService.levelRangeContains("ANY", "B1")).isTrue();
+        assertThat(InterviewRubricService.levelRangeContains("ANY", "C2")).isTrue();
+        assertThat(InterviewRubricService.levelRangeContains("any", "B2")).isTrue(); // case-insensitive
+    }
 }

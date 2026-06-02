@@ -37,9 +37,9 @@ public class InterviewRubricService {
 
     /**
      * Level-aware rubric lookup: among the active templates for this industry+phase, prefer one whose
-     * {@code level_range} (e.g. "A2-B1") covers the candidate's CEFR level, so a B2 candidate is judged
-     * against B2 expectations and an A2 candidate against A2 expectations. Falls back to the first
-     * active template (level-agnostic) when no level match exists.
+     * {@code level_range} (e.g. "A2-B1", or the wildcard "ANY") covers the candidate's CEFR level, so a
+     * B2 candidate is judged against B2 expectations and an A2 candidate against A2 expectations. Falls
+     * back to the first active template when no level match exists.
      */
     public Optional<InterviewRubricTemplate> findPhaseRubric(String industry, String phase, String cefrLevel) {
         List<InterviewRubricTemplate> candidates =
@@ -59,12 +59,18 @@ public class InterviewRubricService {
         return Optional.of(candidates.get(0));
     }
 
-    /** True if a level range like "A2-B1" or "B1" covers the given CEFR level. */
+    /**
+     * True if a level range covers the given CEFR level. Accepts a CEFR span ("A2-B1"), a single
+     * level ("B1"), the literal wildcard sentinel "ANY", or null/blank (also treated as wildcard).
+     */
     static boolean levelRangeContains(String range, String level) {
         if (range == null || range.isBlank()) {
             return true; // unscoped rubric matches any level
         }
         String r = range.trim().toUpperCase(Locale.ROOT);
+        if (r.equals("ANY")) {
+            return true; // explicit wildcard sentinel used in the seed data (level-agnostic rubric)
+        }
         if (r.contains(level)) {
             return true;
         }
