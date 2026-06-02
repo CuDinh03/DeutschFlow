@@ -15,7 +15,7 @@ class ExamScoringServiceTest {
 
     @BeforeEach
     void setUp() {
-        scoringService = new ExamScoringService();
+        scoringService = new ExamScoringService(null);
     }
 
     @Test
