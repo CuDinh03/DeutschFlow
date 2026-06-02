@@ -150,21 +150,36 @@ public class AuthController {
     /**
      * POST /api/auth/forgot-password
      * Request a 6-digit OTP sent to the given email. Always returns 204 to prevent
-     * email enumeration. Rate-limited by the caller's IP.
+     * email enumeration. Rate-limited per (IP + email) to block email-bombing.
      */
     @PostMapping("/forgot-password")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void forgotPassword(@Valid @RequestBody ForgotPasswordRequest req) {
+    public void forgotPassword(@Valid @RequestBody ForgotPasswordRequest req,
+                               HttpServletRequest httpRequest) {
+        String ip = resolveClientIp(httpRequest);
+        if (!authRateLimiterService.allowPasswordReset(ip, req.email())) {
+            throw new RateLimitExceededException(
+                    "Too many password reset requests. Please try again later.",
+                    authRateLimiterService.passwordResetRetryAfterSeconds());
+        }
         passwordResetService.requestReset(req.email());
     }
 
     /**
      * POST /api/auth/reset-password
      * Verifies the OTP and updates the password. Returns 204 on success.
+     * Rate-limited per (IP + email) to block brute-forcing the 6-digit OTP.
      */
     @PostMapping("/reset-password")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void resetPassword(@Valid @RequestBody ResetPasswordRequest req) {
+    public void resetPassword(@Valid @RequestBody ResetPasswordRequest req,
+                              HttpServletRequest httpRequest) {
+        String ip = resolveClientIp(httpRequest);
+        if (!authRateLimiterService.allowPasswordReset(ip, req.email())) {
+            throw new RateLimitExceededException(
+                    "Too many password reset attempts. Please try again later.",
+                    authRateLimiterService.passwordResetRetryAfterSeconds());
+        }
         if (req.newPassword().length() < 8) {
             throw new BadRequestException("Mật khẩu mới phải có ít nhất 8 ký tự.");
         }

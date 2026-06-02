@@ -20,6 +20,8 @@ import java.util.concurrent.ConcurrentHashMap;
  *       (gõ nhầm, thử lại, nhiều người chung một IP CGNAT của nhà mạng) trong khi vẫn chặn bot
  *       tạo tài khoản hàng loạt. Cửa sổ 10 phút giúp người gõ nhầm hồi phục sau vài phút thay vì cả giờ.</li>
  *   <li><b>Refresh</b>: mặc định 10 lần / 60 giây theo IP — user hợp lệ có thể mở nhiều tab cùng lúc.</li>
+ *   <li><b>Password reset</b>: mặc định 5 lần / 900 giây theo (IP + email) — chặn email-bombing ở
+ *       forgot-password và brute-force OTP 6 chữ số ở reset-password (cửa sổ ≈ TTL của OTP).</li>
  * </ul>
  *
  * <p>Dữ liệu trong JVM — phù hợp cho single-node. Vì giữ trong bộ nhớ nên restart/redeploy backend
@@ -35,10 +37,13 @@ public class AuthRateLimiterService {
     private final long registerWindow;  // giây
     private final int  refreshMax;
     private final long refreshWindow;   // giây
+    private final int  passwordResetMax;
+    private final long passwordResetWindow;  // giây
 
     private final ConcurrentHashMap<String, Deque<Instant>> loginAttempts    = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Deque<Instant>> registerAttempts = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Deque<Instant>> refreshAttempts  = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Deque<Instant>> passwordResetAttempts = new ConcurrentHashMap<>();
 
     public AuthRateLimiterService(
             @Value("${app.auth.rate-limit.login-max-per-window:5}")      int  loginMax,
@@ -46,13 +51,17 @@ public class AuthRateLimiterService {
             @Value("${app.auth.rate-limit.register-max-per-window:10}")  int  registerMax,
             @Value("${app.auth.rate-limit.register-window-seconds:600}") long registerWindow,
             @Value("${app.auth.rate-limit.refresh-max-per-window:10}")   int  refreshMax,
-            @Value("${app.auth.rate-limit.refresh-window-seconds:60}")   long refreshWindow) {
+            @Value("${app.auth.rate-limit.refresh-window-seconds:60}")   long refreshWindow,
+            @Value("${app.auth.rate-limit.password-reset-max-per-window:5}")    int  passwordResetMax,
+            @Value("${app.auth.rate-limit.password-reset-window-seconds:900}")  long passwordResetWindow) {
         this.loginMax       = Math.max(1, loginMax);
         this.loginWindow    = Math.max(1L, loginWindow);
         this.registerMax    = Math.max(1, registerMax);
         this.registerWindow = Math.max(1L, registerWindow);
         this.refreshMax     = Math.max(1, refreshMax);
         this.refreshWindow  = Math.max(1L, refreshWindow);
+        this.passwordResetMax    = Math.max(1, passwordResetMax);
+        this.passwordResetWindow = Math.max(1L, passwordResetWindow);
     }
 
     // ─── Public check methods ──────────────────────────────────────────────────
@@ -76,11 +85,22 @@ public class AuthRateLimiterService {
         return check(refreshAttempts, "ref|" + safe(ip), refreshMax, refreshWindow);
     }
 
+    /**
+     * Kiểm tra giới hạn cho luồng quên/đặt lại mật khẩu — key theo (IP + email).
+     * Dùng chung cho forgot-password (chống email-bombing) và reset-password
+     * (chống brute-force OTP 6 chữ số).
+     */
+    public boolean allowPasswordReset(String ip, String email) {
+        String key = "pwreset|" + safe(ip) + "|" + safe(email).toLowerCase(Locale.ROOT);
+        return check(passwordResetAttempts, key, passwordResetMax, passwordResetWindow);
+    }
+
     // ─── Retry-After helpers (dùng trong RateLimitExceededException) ──────────
 
     public int retryAfterSeconds()         { return (int) loginWindow;    }
     public int registerRetryAfterSeconds() { return (int) registerWindow; }
     public int refreshRetryAfterSeconds()  { return (int) refreshWindow;  }
+    public int passwordResetRetryAfterSeconds() { return (int) passwordResetWindow; }
 
     // ─── Sliding-window implementation ────────────────────────────────────────
 

@@ -168,6 +168,10 @@ app:
       register-window-seconds: ${APP_AUTH_REGISTER_RL_WINDOW:600}
       refresh-max-per-window: ${APP_AUTH_REFRESH_RL_MAX:10}
       refresh-window-seconds: ${APP_AUTH_REFRESH_RL_WINDOW:60}
+      # Quên/đặt lại mật khẩu: chống email-bombing (forgot) và brute-force OTP 6 chữ số (reset).
+      # Budget dùng chung theo (IP + email); cửa sổ 900s ≈ TTL của OTP.
+      password-reset-max-per-window: ${APP_AUTH_PWRESET_RL_MAX:5}
+      password-reset-window-seconds: ${APP_AUTH_PWRESET_RL_WINDOW:900}
 
   notifications:
     # In-process SSE (single node / local dev). Clients reconnect periodically.

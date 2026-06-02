@@ -69,8 +69,8 @@ public class SecurityConfig {
                         // ERROR: Spring forwards to /error on unhandled exceptions — must permitAll or the
                         // security filter returns 401 instead of the actual error response, masking root causes.
                         auth.dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll();
-                        // Auth endpoints: only login/register/refresh are public
-                        auth.requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/refresh").permitAll();
+                        // Auth endpoints: login, register, refresh, forgot-password, and reset-password are public
+                        auth.requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/refresh", "/api/auth/forgot-password", "/api/auth/reset-password").permitAll();
                         auth.requestMatchers("/api/auth/logout").authenticated();
                         auth.requestMatchers("/api/auth/me", "/api/auth/me/**").authenticated();
                         auth.requestMatchers("/api/quiz/*/join").permitAll();  // guest join
