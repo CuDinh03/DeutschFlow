@@ -1,36 +1,22 @@
 import api from './api'
 
 // ─────────────────────────────────────────────
-// Types — Spaced Repetition Review Queue
+// Types — Vocabulary review (FSRS, /api/srs)
 // ─────────────────────────────────────────────
 
-export interface ReviewItem {
+export interface VocabReviewCard {
   id: number
-  itemType: string   // e.g. "WORD", "PHRASE"
-  itemRef: string    // e.g. word id or phrase id
-  prompt: string     // question / front of flashcard
+  vocabId: string
+  german: string
+  meaning: string
+  exampleDe?: string
+  speakDe?: string
   repetitions: number
-  intervalDays: number
-  easeFactor: number
-  dueAt: string      // ISO datetime
-}
-
-export interface ReviewDueResponse {
-  limit: number
-  totalSeededItems: number
-  items: ReviewItem[]
-}
-
-export interface ReviewGradeResponse {
-  id: number
-  quality: number
-  newIntervalDays: number
-  nextDueAt: string
-  easeFactor: number
+  nextReviewAt: string // ISO datetime
 }
 
 // ─────────────────────────────────────────────
-// Types — Error Review Tasks
+// Types — Error Review Tasks (grammar, /api/review-tasks)
 // ─────────────────────────────────────────────
 
 export interface ErrorReviewTaskDto {
@@ -55,26 +41,22 @@ export interface ImportReviewErrorRequest {
 // ─────────────────────────────────────────────
 
 export const reviewApi = {
-  /** GET /api/reviews/due — fetch cards due for review today */
-  getDue: (limit = 20, type?: string) =>
-    api.get<ReviewDueResponse>('/reviews/due', { params: { limit, type } })
-      .then(r => r.data),
+  /** GET /api/srs/due — vocab cards due for review today (FSRS). */
+  getDueVocab: () =>
+    api.get<VocabReviewCard[]>('/srs/due').then(r => r.data ?? []),
 
   /**
-   * POST /api/reviews/{id}/grade — grade a card (SM-2 quality 0-5)
-   * 0-2 = failed (forgot), 3-5 = passed (remembered)
+   * POST /api/srs/review — grade a vocab card (SM-2 quality 0-5, mapped to FSRS 1-4 server-side).
+   * 0-2 = failed (forgot), 3-5 = passed (remembered).
    */
-  grade: (reviewId: number, quality: number) =>
-    api.post<ReviewGradeResponse>(`/reviews/${reviewId}/grade`, { quality })
-      .then(r => r.data),
+  gradeVocab: (vocabId: string, quality: number) =>
+    api.post('/srs/review', { vocabId, quality }).then(r => r.data),
 
-  /** GET /api/review-tasks/me/today — speaking error tasks due today */
+  /** GET /api/review-tasks/me/today — grammar error tasks due today. */
   getTodayTasks: () =>
-    api.get<ReviewTasksResponse>('/review-tasks/me/today')
-      .then(r => r.data),
+    api.get<ReviewTasksResponse>('/review-tasks/me/today').then(r => r.data),
 
-  /** POST /api/review-tasks/{id}/complete — mark task done */
+  /** POST /api/review-tasks/{id}/complete — mark a grammar task done. */
   completeTask: (taskId: number, passed: boolean) =>
-    api.post(`/review-tasks/${taskId}/complete`, { passed })
-      .then(r => r.data),
+    api.post(`/review-tasks/${taskId}/complete`, { passed }).then(r => r.data),
 }

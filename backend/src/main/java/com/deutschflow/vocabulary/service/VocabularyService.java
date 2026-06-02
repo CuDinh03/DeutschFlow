@@ -4,6 +4,8 @@ import com.deutschflow.vocabulary.dto.GrammarContextDto;
 import com.deutschflow.vocabulary.dto.WordDto;
 import com.deutschflow.vocabulary.entity.Word;
 import com.deutschflow.vocabulary.repository.WordRepository;
+import com.deutschflow.srs.dto.ScheduleVocabRequest;
+import com.deutschflow.srs.service.SrsVocabScheduler;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -13,9 +15,27 @@ import java.util.stream.Collectors;
 public class VocabularyService {
 
     private final WordRepository wordRepository;
+    private final SrsVocabScheduler srsVocabScheduler;
 
-    public VocabularyService(WordRepository wordRepository) {
+    public VocabularyService(WordRepository wordRepository, SrsVocabScheduler srsVocabScheduler) {
         this.wordRepository = wordRepository;
+        this.srsVocabScheduler = srsVocabScheduler;
+    }
+
+    /**
+     * Marks a dictionary word as "being learned" by scheduling it into the user's
+     * FSRS spaced-repetition queue (best-effort, idempotent).
+     */
+    public void markWordLearned(Long userId, Long wordId) {
+        Word word = wordRepository.findById(wordId)
+                .orElseThrow(() -> new IllegalArgumentException("Word not found: id=" + wordId));
+        srsVocabScheduler.schedule(userId, List.of(new ScheduleVocabRequest(
+                null,
+                "word_" + word.getId(),
+                word.getWord(),
+                word.getTranslation(),
+                word.getExampleSentence(),
+                null)));
     }
 
     public List<WordDto> getWordsByCefr(String cefrLevel) {

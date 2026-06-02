@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { playTTS } from "@/lib/tts";
 import { lightImpact, mediumImpact, heavyImpact } from "@/lib/haptics";
+import { QUALITY_LEVELS } from "@/lib/srsGrading";
 
 interface ReviewCardProps {
   id: number;
@@ -13,13 +14,6 @@ interface ReviewCardProps {
   speakDe?: string;
   onRate: (vocabId: string, quality: number) => void;
 }
-
-const RATINGS = [
-  { quality: 1, label: "😰 Quên", color: "bg-red-100 text-red-700 border-red-200 hover:bg-red-200" },
-  { quality: 2, label: "😅 Khó", color: "bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-200" },
-  { quality: 3, label: "😊 Nhớ", color: "bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200" },
-  { quality: 4, label: "🌟 Dễ", color: "bg-green-100 text-green-700 border-green-200 hover:bg-green-200" },
-];
 
 export default function ReviewCard({
   vocabId, german, meaning, exampleDe, speakDe, onRate,
@@ -93,17 +87,19 @@ export default function ReviewCard({
         </div>
       </div>
 
-      {/* Rating buttons (appear after flip) */}
+      {/* Rating buttons (appear after flip) — shared SRS quality scale */}
       {flipped && !rated && (
-        <div className="mt-4 grid grid-cols-4 gap-2">
-          {RATINGS.map(({ quality, label, color }) => (
+        <div className="mt-4 grid grid-cols-5 gap-2">
+          {QUALITY_LEVELS.map(({ q, emoji, label, color, bg }) => (
             <button
-              key={quality}
+              key={q}
               type="button"
-              onClick={() => handleRate(quality)}
-              className={`text-xs font-bold py-2.5 rounded-xl border transition-all active:scale-95 ${color}`}
+              onClick={() => handleRate(q)}
+              className="flex flex-col items-center gap-1 text-[9px] font-bold py-2.5 rounded-xl border-2 transition-all hover:scale-105 active:scale-95"
+              style={{ background: bg, borderColor: color, color }}
             >
-              {label}
+              <span className="text-base">{emoji}</span>
+              <span className="leading-tight text-center">{label}</span>
             </button>
           ))}
         </div>

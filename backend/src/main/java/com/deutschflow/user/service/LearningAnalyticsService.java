@@ -5,7 +5,7 @@ import com.deutschflow.user.dto.LearningAnalyticsSummaryDto;
 import com.deutschflow.user.dto.LearningAnalyticsSummaryDto.DayStatsDto;
 import com.deutschflow.user.entity.LearningAnalytics;
 import com.deutschflow.user.repository.LearningAnalyticsRepository;
-import com.deutschflow.vocabulary.repository.SpacedRepetitionRepository;
+import com.deutschflow.srs.repository.VocabReviewRepository;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,11 +24,11 @@ public class LearningAnalyticsService {
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(LearningAnalyticsService.class);
 
     private final LearningAnalyticsRepository analyticsRepository;
-    private final SpacedRepetitionRepository srsRepository;
+    private final VocabReviewRepository srsRepository;
     private final UserGrammarErrorRepository errorRepository;
 
     public LearningAnalyticsService(LearningAnalyticsRepository analyticsRepository,
-                                    SpacedRepetitionRepository srsRepository,
+                                    VocabReviewRepository srsRepository,
                                     UserGrammarErrorRepository errorRepository) {
         this.analyticsRepository = analyticsRepository;
         this.srsRepository = srsRepository;

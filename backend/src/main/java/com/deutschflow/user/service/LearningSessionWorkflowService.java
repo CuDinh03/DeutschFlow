@@ -30,6 +30,7 @@ public class LearningSessionWorkflowService {
     private final StoredLearningPlanSupport storedLearningPlanSupport;
     private final LearningSessionProgressService learningSessionProgressService;
     private final JdbcTemplate jdbcTemplate;
+    private final com.deutschflow.srs.service.SrsVocabScheduler srsVocabScheduler;
 
     public void markTheoryViewed(User user, int week, int sessionIndex) {
         if (week < 1 || sessionIndex < 1) {
@@ -234,6 +235,7 @@ public class LearningSessionWorkflowService {
             st.setLastSeenAt(java.time.LocalDateTime.now());
             sessionStateRepository.save(st);
             learningSessionProgressService.markSessionCompleted(user, week, sessionIndex, null, null);
+            scheduleSessionVocab(user, detail);
             int[] n = storedLearningPlanSupport.computeNextSessionPointer(planObj, plan, week, sessionIndex);
             if (n != null) {
                 nextWeek = n[0];
@@ -308,6 +310,19 @@ public class LearningSessionWorkflowService {
             return ex.explanation();
         }
         return "Tra loi dung theo yeu cau cua cau hoi.";
+    }
+
+    /** Feeds this session's theory vocabulary into the FSRS spaced-repetition queue (best-effort). */
+    private void scheduleSessionVocab(User user, SessionDetailResponse detail) {
+        if (detail == null || detail.theoryLesson() == null || detail.theoryLesson().vocabulary() == null) return;
+        var requests = detail.theoryLesson().vocabulary().stream()
+                .filter(v -> v.german() != null && !v.german().isBlank())
+                .map(v -> new com.deutschflow.srs.dto.ScheduleVocabRequest(
+                        null,
+                        com.deutschflow.srs.service.SrsVocabScheduler.vocabId(null, null, v.german()),
+                        v.german(), v.meaning(), v.exampleDe(), v.speakDe()))
+                .toList();
+        srsVocabScheduler.schedule(user.getId(), requests);
     }
 
     private List<String> resolveRequiredExerciseIds(

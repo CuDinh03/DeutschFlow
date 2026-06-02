@@ -5,9 +5,9 @@ import com.deutschflow.beginner.dto.BeginnerSessionResponse;
 import com.deutschflow.beginner.entity.BeginnerJourneyItem;
 import com.deutschflow.beginner.repository.BeginnerJourneyItemRepository;
 import com.deutschflow.progress.service.PhaseEngineService;
+import com.deutschflow.srs.dto.ScheduleVocabRequest;
+import com.deutschflow.srs.service.SrsVocabScheduler;
 import com.deutschflow.user.entity.User;
-import com.deutschflow.vocabulary.repository.WordRepository;
-import com.deutschflow.vocabulary.service.SpacedRepetitionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -30,9 +30,8 @@ public class BeginnerJourneyService {
             "Tuyệt vời! Bạn đã học được những từ đầu tiên. Những từ này sẽ được ôn tập tự động theo lịch để bạn không bao giờ quên.";
 
     private final BeginnerJourneyItemRepository itemRepository;
-    private final SpacedRepetitionService srsService;
+    private final SrsVocabScheduler srsVocabScheduler;
     private final PhaseEngineService phaseEngineService;
-    private final WordRepository wordRepository;
 
     @Transactional(readOnly = true)
     public BeginnerSessionResponse getFirstSession() {
@@ -74,11 +73,17 @@ public class BeginnerJourneyService {
     }
 
     private void scheduleFirstSrsItems(User user) {
-        itemRepository.findByWeekNumberOrderBySequenceOrderAsc(1).stream()
+        var requests = itemRepository.findByWeekNumberOrderBySequenceOrderAsc(1).stream()
                 .filter(item -> "VOCABULARY".equals(item.getItemType()))
-                .forEach(item -> wordRepository.findByWord(item.getTitleDe()).ifPresentOrElse(
-                        word -> srsService.scheduleWord(user, word.getId()),
-                        () -> log.warn("Beginner vocab '{}' not found in word table — skipping SRS", item.getTitleDe())
-                ));
+                .filter(item -> item.getTitleDe() != null && !item.getTitleDe().isBlank())
+                .map(item -> new ScheduleVocabRequest(
+                        null,
+                        SrsVocabScheduler.vocabId(null, null, item.getTitleDe()),
+                        item.getTitleDe(),
+                        item.getTitleVi(),
+                        item.getExampleDe(),
+                        null))
+                .toList();
+        srsVocabScheduler.schedule(user.getId(), requests);
     }
 }

@@ -41,6 +41,7 @@ public class PracticeNodeService {
     private final ObjectMapper objectMapper;
     private final AsyncJobService asyncJobService;
     private final XpService xpService;
+    private final com.deutschflow.srs.service.SrsVocabScheduler srsVocabScheduler;
 
     private static final int XP_PER_SESSION = 30;
     private static final List<String> ALL_SKILLS = List.of("HOEREN", "SPRECHEN", "LESEN", "SCHREIBEN");
@@ -333,6 +334,15 @@ public class PracticeNodeService {
 
         String skillType = (String) session.get("skill_type");
         long sourceNodeId = ((Number) session.get("source_node_id")).longValue();
+
+        // Feed the source node's vocabulary into the FSRS queue (best-effort, idempotent).
+        if (scorePercent >= 60) {
+            try {
+                String contentJson = jdbcTemplate.queryForObject(
+                        "SELECT content_json::text FROM skill_tree_nodes WHERE id = ?", String.class, sourceNodeId);
+                srsVocabScheduler.scheduleFromContentJson(userId, sourceNodeId, contentJson);
+            } catch (Exception ignored) { /* best-effort */ }
+        }
 
         // Count total seen for this skill
         Integer totalSeen = jdbcTemplate.queryForObject("""

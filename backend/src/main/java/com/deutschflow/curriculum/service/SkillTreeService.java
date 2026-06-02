@@ -44,6 +44,7 @@ public class SkillTreeService {
     private final XpService xpService;
     private final AsyncJobService asyncJobService;
     private final PracticeNodeService practiceNodeService;
+    private final com.deutschflow.srs.service.SrsVocabScheduler srsVocabScheduler;
 
     // In-memory lock to prevent duplicate LLM calls for the same cache key
     private final ConcurrentHashMap<String, Boolean> generationLocks = new ConcurrentHashMap<>();
@@ -603,6 +604,9 @@ public class SkillTreeService {
                 log.warn("[SkillTree] Practice node trigger failed for user={}, node={}: {}",
                         userId, nodeId, e.getMessage());
             }
+
+            // Feed the node's vocabulary into the FSRS spaced-repetition queue (best-effort)
+            srsVocabScheduler.scheduleFromContentJson(userId, nodeId, (String) node.get("content_json"));
         }
 
         return Map.of(

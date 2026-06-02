@@ -150,10 +150,11 @@ public class StudentDashboardService {
 
         int xpLevel = (int) Math.sqrt(totalXp / 100.0);
 
+        // Words "mastered" = FSRS cards with stability >= 21 days (≈ retained ~3 weeks).
         int wordsLearned = 0;
         try {
             Integer raw = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM spaced_repetition_schedule WHERE user_id = ? AND retention_status = 'MASTERED'",
+                    "SELECT COUNT(*) FROM vocab_review_schedule WHERE user_id = ? AND stability >= 21",
                     Integer.class, userId);
             if (raw != null) wordsLearned = raw;
         } catch (Exception ignored) { }

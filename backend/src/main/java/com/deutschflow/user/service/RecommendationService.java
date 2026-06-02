@@ -3,7 +3,7 @@ package com.deutschflow.user.service;
 import com.deutschflow.speaking.repository.UserGrammarErrorRepository;
 import com.deutschflow.user.dto.RecommendationDto;
 import com.deutschflow.user.dto.RecommendationDto.RecommendationItem;
-import com.deutschflow.vocabulary.repository.SpacedRepetitionRepository;
+import com.deutschflow.srs.repository.VocabReviewRepository;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
@@ -14,10 +14,10 @@ import java.util.List;
 @Service
 public class RecommendationService {
 
-    private final SpacedRepetitionRepository srsRepository;
+    private final VocabReviewRepository srsRepository;
     private final UserGrammarErrorRepository errorRepository;
 
-    public RecommendationService(SpacedRepetitionRepository srsRepository,
+    public RecommendationService(VocabReviewRepository srsRepository,
                                  UserGrammarErrorRepository errorRepository) {
         this.srsRepository = srsRepository;
         this.errorRepository = errorRepository;

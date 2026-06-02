@@ -3,8 +3,9 @@ package com.deutschflow.vocabulary.controller;
 import com.deutschflow.vocabulary.dto.WordDto;
 import com.deutschflow.vocabulary.dto.GrammarContextDto;
 import com.deutschflow.vocabulary.service.VocabularyService;
+import com.deutschflow.user.entity.User;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -38,5 +39,14 @@ public class VocabularyController {
     public ResponseEntity<WordDto> getWordById(@PathVariable Long wordId) {
         WordDto word = vocabularyService.getWordById(wordId);
         return ResponseEntity.ok(word);
+    }
+
+    /** Marks a word as being learned, scheduling it into the user's FSRS review queue. */
+    @PostMapping("/{wordId}/learn")
+    public ResponseEntity<Void> markWordLearned(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long wordId) {
+        vocabularyService.markWordLearned(user.getId(), wordId);
+        return ResponseEntity.accepted().build();
     }
 }

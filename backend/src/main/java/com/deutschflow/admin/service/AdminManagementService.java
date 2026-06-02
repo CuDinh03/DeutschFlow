@@ -15,7 +15,6 @@ import com.deutschflow.speaking.repository.AiSpeakingSessionRepository;
 import com.deutschflow.speaking.repository.AiSpeakingMessageRepository;
 import com.deutschflow.speaking.entity.AiSpeakingSession;
 import com.deutschflow.user.entity.UserLearningProfile;
-import com.deutschflow.user.repository.LearningReviewItemRepository;
 import com.deutschflow.user.repository.UserLearningProfileRepository;
 import com.deutschflow.user.service.PersonalizationRulesetService;
 import com.deutschflow.vocabulary.service.EnrichmentSuspendGate;
@@ -63,7 +62,6 @@ public class AdminManagementService {
     private final XpService xpService;
     private final UserGrammarErrorRepository grammarErrorRepository;
     private final UserErrorSkillRepository errorSkillRepository;
-    private final LearningReviewItemRepository reviewItemRepository;
     private final AiSpeakingSessionRepository speakingSessionRepository;
     private final AiSpeakingMessageRepository speakingMessageRepository;
 
@@ -1021,45 +1019,37 @@ public class AdminManagementService {
         }
         out.put("speakingAi", speaking);
 
-        // ── 5. Vocabulary SRS ──
+        // ── 5. Vocabulary SRS (FSRS-4.5, vocab_review_schedule) ──
         Map<String, Object> vocab = new LinkedHashMap<>();
         try {
-            long totalItems = reviewItemRepository.countByUserId(userId);
-            vocab.put("totalItems", totalItems);
+            Integer totalItems = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM vocab_review_schedule WHERE user_id = ?",
+                    Integer.class, userId);
+            vocab.put("totalItems", totalItems != null ? totalItems : 0);
 
-            // Due today
+            // Due now (next_review_at <= now)
             Integer dueToday = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM learning_review_items WHERE user_id = ? AND due_at <= NOW()",
+                    "SELECT COUNT(*) FROM vocab_review_schedule WHERE user_id = ? AND next_review_at <= NOW()",
                     Integer.class, userId);
             vocab.put("dueToday", dueToday != null ? dueToday : 0);
 
-            // Mastered (repetitions >= 5)
+            // Mastered (stability >= 21 days ≈ retained ~3 weeks)
             Integer mastered = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM learning_review_items WHERE user_id = ? AND repetitions >= 5",
+                    "SELECT COUNT(*) FROM vocab_review_schedule WHERE user_id = ? AND stability >= 21",
                     Integer.class, userId);
             vocab.put("mastered", mastered != null ? mastered : 0);
 
-            // Learning (repetitions 1-4)
+            // Learning (reviewed at least once but not yet mastered)
             Integer learning = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM learning_review_items WHERE user_id = ? AND repetitions BETWEEN 1 AND 4",
+                    "SELECT COUNT(*) FROM vocab_review_schedule WHERE user_id = ? AND stability IS NOT NULL AND stability < 21",
                     Integer.class, userId);
             vocab.put("learning", learning != null ? learning : 0);
 
-            // New (repetitions = 0)
+            // New (scheduled, never reviewed)
             Integer newItems = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM learning_review_items WHERE user_id = ? AND repetitions = 0",
+                    "SELECT COUNT(*) FROM vocab_review_schedule WHERE user_id = ? AND stability IS NULL",
                     Integer.class, userId);
             vocab.put("newItems", newItems != null ? newItems : 0);
-
-            // Type breakdown
-            Integer wordCount = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM learning_review_items WHERE user_id = ? AND item_type = 'WORD'",
-                    Integer.class, userId);
-            Integer grammarCount = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM learning_review_items WHERE user_id = ? AND item_type = 'GRAMMAR'",
-                    Integer.class, userId);
-            vocab.put("wordCount", wordCount != null ? wordCount : 0);
-            vocab.put("grammarCount", grammarCount != null ? grammarCount : 0);
         } catch (Exception e) {
             vocab.put("error", "Failed to load SRS: " + e.getMessage());
         }
