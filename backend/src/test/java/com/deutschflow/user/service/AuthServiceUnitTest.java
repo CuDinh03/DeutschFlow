@@ -159,4 +159,30 @@ class AuthServiceUnitTest {
         assertNull(res.learningTargetLevel());
         verifyNoInteractions(jdbcTemplate);
     }
+
+    @Test
+    void savePushToken_storesValidExpoToken() {
+        User u = User.builder()
+                .id(5L).email("a@b.com").passwordHash("x").displayName("A").role(User.Role.STUDENT)
+                .build();
+
+        authService.savePushToken(u, "ExponentPushToken[abc123]", "ios");
+
+        assertEquals("ExponentPushToken[abc123]", u.getPushToken());
+        assertEquals("ios", u.getPushPlatform());
+        verify(userRepository).save(u);
+    }
+
+    @Test
+    void savePushToken_ignoresRawApnsToken() {
+        User u = User.builder()
+                .id(5L).email("a@b.com").passwordHash("x").displayName("A").role(User.Role.STUDENT)
+                .build();
+
+        // Raw 64-hex APNs token from the legacy Capacitor build — backend is Expo-only, so it must not be stored.
+        authService.savePushToken(u, "740f4707bebcf74f9b7c25d48e3358945f6aa01da5ddb387462c7eaf61bb78ad", "ios");
+
+        assertNull(u.getPushToken());
+        verify(userRepository, never()).save(any());
+    }
 }

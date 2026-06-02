@@ -36,7 +36,11 @@ public class ExpoPushSenderService {
      * @param data          Optional extra data (may be null)
      */
     public void sendAsync(String expoPushToken, String title, String body, Map<String, Object> data) {
-        if (expoPushToken == null || expoPushToken.isBlank()) return;
+        if (!isExpoPushToken(expoPushToken)) {
+            log.debug("[Push] skip send: not an Expo push token (len={})",
+                    expoPushToken == null ? 0 : expoPushToken.length());
+            return;
+        }
 
         var message = Map.of(
                 "to", expoPushToken,
@@ -58,5 +62,16 @@ public class ExpoPushSenderService {
                 .doOnError(err -> log.warn("[Push] failed for token={}: {}", expoPushToken, err.getMessage()))
                 .onErrorComplete()
                 .subscribe();
+    }
+
+    /**
+     * True if the token is an Expo push token — the only kind {@code exp.host} accepts.
+     * Raw APNs/FCM device tokens (e.g. from the legacy Capacitor build) are rejected so they are
+     * never stored or sent: forwarding them to the Expo Push API only produces errors.
+     */
+    public static boolean isExpoPushToken(String token) {
+        if (token == null) return false;
+        String t = token.trim();
+        return t.startsWith("ExponentPushToken[") || t.startsWith("ExpoPushToken[");
     }
 }

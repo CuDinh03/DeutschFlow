@@ -14,6 +14,7 @@ import com.deutschflow.user.repository.RefreshTokenRepository;
 import com.deutschflow.user.repository.UserRepository;
 import org.springframework.jdbc.core.JdbcTemplate;
 import com.deutschflow.notification.events.StudentRegisteredEvent;
+import com.deutschflow.notification.service.ExpoPushSenderService;
 import com.deutschflow.notification.service.UserNotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -148,6 +149,13 @@ public class AuthService {
 
     @Transactional
     public void savePushToken(User user, String token, String platform) {
+        // Delivery is Expo-only (see ExpoPushSenderService). Ignore raw APNs/FCM tokens — e.g. from the
+        // legacy Capacitor build — so they never clobber a valid Expo token in users.push_token.
+        if (!ExpoPushSenderService.isExpoPushToken(token)) {
+            log.info("[Push] Ignoring non-Expo push token (platform={}, len={}) for user {}",
+                    platform, token == null ? 0 : token.length(), user.getId());
+            return;
+        }
         user.setPushToken(token);
         user.setPushPlatform(platform);
         userRepository.save(user);
