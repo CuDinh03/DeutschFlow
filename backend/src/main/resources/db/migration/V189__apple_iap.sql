@@ -33,6 +33,12 @@ CREATE TABLE apple_products (
     is_active       BOOLEAN NOT NULL DEFAULT TRUE
 );
 
+-- Fresh-replay safety: ULTRA plan is never INSERTed by an earlier migration (only UPDATEd by V42
+-- assuming the row existed). Seed it here with ON CONFLICT DO NOTHING so existing DBs are no-ops.
+INSERT INTO subscription_plans (code, name, monthly_token_limit, features_json, is_active)
+VALUES ('ULTRA', 'Ultra', 850000, '{}'::jsonb, TRUE)
+ON CONFLICT (code) DO NOTHING;
+
 -- Seed the catalog. Product IDs must match those created in App Store Connect.
 -- Decision (2026-06-02): offer monthly + yearly for both PRO and ULTRA.
 INSERT INTO apple_products (product_id, plan_code, duration_months, is_active) VALUES

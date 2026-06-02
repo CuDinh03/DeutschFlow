@@ -5,3 +5,6 @@ DerivedData/
 *.xcuserstate
 xcuserdata/
 .DS_Store
+
+# xcodegen output — regenerated from project.yml, never edit by hand
+*.xcodeproj

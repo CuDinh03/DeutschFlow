@@ -30,12 +30,29 @@ xcodebuild -scheme DeutschFlowKit -destination 'generic/platform=iOS Simulator' 
 
 All three are green as of 2026-06-02.
 
-## Next steps (not yet done)
+## `DeutschFlowApp` — SwiftUI app shell
 
-1. **App shell** — add the SwiftUI app target (`DeutschFlowApp`) with this package as a local dependency.
-   No xcodegen/tuist installed yet; generate the `.xcodeproj` via XcodeGen/Tuist or create it in Xcode.
-2. **OpenAPI codegen** — export the backend spec (`/v3/api-docs`) to a file and wire
+Minimal app target wiring up the package. Composition root in `AppSession` (`APIClient` + `TokenStore` +
+`PaymentsAPI` + `StoreKitManager`), auth-gated routing via `RootView`, and three placeholder tabs:
+
+- **Today** — shows the canonical tier from `GET /api/auth/me/plan`.
+- **Paywall** — lists products from `GET /api/payments/apple/products`, drives StoreKit 2 purchase/restore.
+- **Profile** — logout.
+
+```bash
+cd ios-native
+xcodegen generate
+xcodebuild -project DeutschFlowApp.xcodeproj -scheme DeutschFlowApp \
+  -destination 'generic/platform=iOS Simulator' build
+```
+
+The `.xcodeproj` is git-ignored — always regenerate from `project.yml` (single source of truth).
+
+## Next steps
+
+1. **OpenAPI codegen** — export the backend spec (`/v3/api-docs`) to a file and wire
    `swift-openapi-generator` to replace the hand-written DTOs, keeping the contract in sync.
-3. **Confirm wire shapes** — verify `/api/auth/login` + `/api/auth/refresh` request/response against
-   `AuthController` (the DTOs here carry `NOTE:` markers where unconfirmed).
-4. Build out feature modules per the migration plan (Auth → Today → SRS → Speaking → …).
+2. **Confirm wire shapes** — verify `/api/auth/login` + `/api/auth/refresh` against `AuthController`
+   (the DTOs carry `NOTE:` markers where unconfirmed).
+3. **Run on a simulator** end-to-end against staging (`APIBaseURL` in `Info.plist`).
+4. Build out feature modules per the migration plan (SRS → Speaking → Roadmap → …).
