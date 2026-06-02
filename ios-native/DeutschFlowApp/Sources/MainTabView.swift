@@ -22,6 +22,15 @@ struct TodayView: View {
     var body: some View {
         NavigationStack {
             List {
+                if let profile = session.profile {
+                    Section("Xin chào") {
+                        Text(profile.displayName).font(.title3.bold())
+                        LabeledContent("Email", value: profile.email)
+                        if let level = profile.learningTargetLevel {
+                            LabeledContent("Mục tiêu", value: level)
+                        }
+                    }
+                }
                 Section("Gói hiện tại") {
                     if let plan = session.plan {
                         LabeledContent("Mã gói", value: plan.planCode)
@@ -34,7 +43,12 @@ struct TodayView: View {
                     }
                 }
                 Section {
-                    Button("Làm mới") { Task { await session.refreshPlan() } }
+                    Button("Làm mới") {
+                        Task {
+                            await session.refreshProfile()
+                            await session.refreshPlan()
+                        }
+                    }
                 }
             }
             .navigationTitle("Hôm nay")

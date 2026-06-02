@@ -36,4 +36,55 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertEqual(plan.planCode, "FREE")
         XCTAssertNil(plan.endsAtUtc)
     }
+
+    /// Locks the iOS DTO against the exact shape backend `AuthResponse` writes (9 fields, two optional).
+    /// Regression guard: until 2026-06-02 the iOS side decoded login as a 2-field AuthTokens which
+    /// silently failed on every login.
+    func testAuthResponseDecodesAllFields() throws {
+        let json = Data("""
+        {
+          "accessToken": "eyJ.access",
+          "refreshToken": "eyJ.refresh",
+          "userId": 42,
+          "email": "alice@example.com",
+          "displayName": "Alice",
+          "role": "STUDENT",
+          "locale": "vi",
+          "learningTargetLevel": "B2",
+          "industry": "tech"
+        }
+        """.utf8)
+        let response = try JSONDecoder().decode(AuthResponse.self, from: json)
+        XCTAssertEqual(response.accessToken, "eyJ.access")
+        XCTAssertEqual(response.userId, 42)
+        XCTAssertEqual(response.role, "STUDENT")
+        XCTAssertEqual(response.learningTargetLevel, "B2")
+        XCTAssertEqual(response.tokens.refreshToken, "eyJ.refresh")
+        XCTAssertEqual(response.profile.displayName, "Alice")
+    }
+
+    func testAuthResponseDecodesWithNullOptionalFields() throws {
+        let json = Data("""
+        {"accessToken":"a","refreshToken":"b","userId":1,"email":"x@y.z","displayName":"X",
+         "role":"STUDENT","locale":"vi","learningTargetLevel":null,"industry":null}
+        """.utf8)
+        let response = try JSONDecoder().decode(AuthResponse.self, from: json)
+        XCTAssertNil(response.learningTargetLevel)
+        XCTAssertNil(response.industry)
+    }
+
+    func testLoginRequestEncodesCanonically() throws {
+        let request = LoginRequest(email: "alice@example.com", password: "secret")
+        let data = try JSONEncoder().encode(request)
+        let object = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        XCTAssertEqual(object?["email"] as? String, "alice@example.com")
+        XCTAssertEqual(object?["password"] as? String, "secret")
+    }
+
+    func testRefreshRequestEncodesCanonically() throws {
+        let request = RefreshRequest(refreshToken: "refresh-1")
+        let data = try JSONEncoder().encode(request)
+        let object = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        XCTAssertEqual(object?["refreshToken"] as? String, "refresh-1")
+    }
 }

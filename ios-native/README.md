@@ -50,9 +50,10 @@ The `.xcodeproj` is git-ignored — always regenerate from `project.yml` (single
 
 ## Next steps
 
-1. **OpenAPI codegen** — export the backend spec (`/v3/api-docs`) to a file and wire
-   `swift-openapi-generator` to replace the hand-written DTOs, keeping the contract in sync.
-2. **Confirm wire shapes** — verify `/api/auth/login` + `/api/auth/refresh` against `AuthController`
-   (the DTOs carry `NOTE:` markers where unconfirmed).
-3. **Run on a simulator** end-to-end against staging (`APIBaseURL` in `Info.plist`).
-4. Build out feature modules per the migration plan (SRS → Speaking → Roadmap → …).
+1. **OpenAPI codegen** (deferred) — once a running staging instance is reachable,
+   `curl https://api.mydeutschflow.com/v3/api-docs > openapi.json`, commit it, and wire
+   `swift-openapi-generator` (build plugin) to regenerate the DTOs on every build.
+   Current DTOs are hand-written **and locked** by `ModelDecodingTests` against the exact
+   shape backend writes — wire mismatches now fail CI rather than runtime.
+2. **Run on a simulator** end-to-end against staging (`APIBaseURL` in `Info.plist`).
+3. Build out feature modules per the migration plan (SRS → Speaking → Roadmap → …).

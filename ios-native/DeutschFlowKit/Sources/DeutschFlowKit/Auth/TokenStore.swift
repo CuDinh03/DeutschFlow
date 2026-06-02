@@ -46,8 +46,11 @@ public actor TokenStore: TokenProviding {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        // NOTE: confirm request/response shape against backend /api/auth/refresh when wiring Phase 1.
-        guard let body = try? JSONEncoder().encode(["refreshToken": refreshToken]) else { return false }
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        // Refresh contract (backend RefreshRequest + AuthResponse): body { "refreshToken": "..." } → full
+        // AuthResponse with the rotated tokens. We only persist the tokens here; the profile fields belong
+        // to AppSession and are refreshed via /api/auth/me when needed.
+        guard let body = try? JSONEncoder().encode(RefreshRequest(refreshToken: refreshToken)) else { return false }
         request.httpBody = body
 
         do {
@@ -55,12 +58,18 @@ public actor TokenStore: TokenProviding {
             guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
                 return false
             }
-            let tokens = try JSONDecoder().decode(AuthTokens.self, from: data)
-            storage.set(tokens.accessToken, for: Keys.access)
-            storage.set(tokens.refreshToken, for: Keys.refresh)
+            let auth = try JSONDecoder().decode(AuthResponse.self, from: data)
+            storage.set(auth.accessToken, for: Keys.access)
+            storage.set(auth.refreshToken, for: Keys.refresh)
             return true
         } catch {
             return false
         }
+    }
+
+    /// Persists the tokens from a fresh ``AuthResponse``. Convenience over ``setTokens(_:)``.
+    public func adopt(_ auth: AuthResponse) {
+        storage.set(auth.accessToken, for: Keys.access)
+        storage.set(auth.refreshToken, for: Keys.refresh)
     }
 }

@@ -13,6 +13,7 @@ final class AppSession: ObservableObject {
     enum AuthState: Equatable { case loading, loggedOut, loggedIn }
 
     @Published private(set) var auth: AuthState = .loading
+    @Published private(set) var profile: UserProfile?
     @Published private(set) var plan: MyPlan?
     @Published var lastError: String?
 
@@ -39,22 +40,38 @@ final class AppSession: ObservableObject {
         return AppSession(apiClient: api, tokenStore: tokenStore, payments: payments, storeKit: storeKit)
     }
 
-    /// Decide the initial route based on whether we already have a stored access token.
+    /// Decide the initial route based on whether we already have a stored access token. If logged in,
+    /// hydrate the profile + plan in parallel so the first frame of the tab bar isn't empty.
     func bootstrap() async {
         let loggedIn = await tokenStore.isLoggedIn
         auth = loggedIn ? .loggedIn : .loggedOut
-        if loggedIn { await refreshPlan() }
+        if loggedIn {
+            async let profileTask: () = refreshProfile()
+            async let planTask: () = refreshPlan()
+            _ = await (profileTask, planTask)
+        }
+    }
+
+    /// `GET /api/auth/me` — returns the full AuthResponse for the current user (minus a refresh rotation).
+    func refreshProfile() async {
+        do {
+            let me: AuthResponse = try await apiClient.get("/api/auth/me")
+            profile = me.profile
+        } catch {
+            lastError = readable(error)
+        }
     }
 
     func login(email: String, password: String) async {
         lastError = nil
         do {
-            let tokens: AuthTokens = try await apiClient.post(
+            let response: AuthResponse = try await apiClient.post(
                 "/api/auth/login",
                 body: LoginRequest(email: email, password: password),
                 authorized: false
             )
-            await tokenStore.setTokens(tokens)
+            await tokenStore.adopt(response)
+            profile = response.profile
             auth = .loggedIn
             await refreshPlan()
         } catch {
@@ -64,6 +81,7 @@ final class AppSession: ObservableObject {
 
     func logout() async {
         await tokenStore.clear()
+        profile = nil
         plan = nil
         auth = .loggedOut
     }
