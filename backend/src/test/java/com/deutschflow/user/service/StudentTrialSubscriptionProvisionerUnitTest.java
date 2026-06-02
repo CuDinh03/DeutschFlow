@@ -26,7 +26,9 @@ class StudentTrialSubscriptionProvisionerUnitTest {
         Instant start = Instant.parse("2026-05-01T00:00:00Z");
         Instant end = Instant.parse("2026-05-08T00:00:00Z");
         provisioner.provisionSevenDayTrial(55L, start, end);
-        verify(jdbcTemplate).update(contains("INSERT INTO user_subscriptions"),
-                eq(55L), eq("PRO"), any(), any());
+        // Idempotent Postgres form: INSERT ... SELECT ... WHERE NOT EXISTS, with userId bound
+        // twice (once for the row, once for the NOT EXISTS active-subscription guard).
+        verify(jdbcTemplate).update(contains("WHERE NOT EXISTS"),
+                eq(55L), eq("PRO"), any(), any(), eq(55L));
     }
 }

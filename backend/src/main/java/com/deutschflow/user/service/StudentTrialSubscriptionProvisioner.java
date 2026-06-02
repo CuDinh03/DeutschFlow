@@ -21,16 +21,17 @@ public class StudentTrialSubscriptionProvisioner {
 
     public void provisionSevenDayTrial(long userId, Instant trialStart, Instant trialEnd) {
         try {
+            // PostgreSQL: user_subscriptions has no UNIQUE on user_id, so the previous MySQL
+            // ON DUPLICATE KEY UPDATE never actually upserted — it inserted. Preserve that intent
+            // idempotently with a NOT EXISTS guard (grant the trial only if no active sub exists).
             jdbcTemplate.update("""
                             INSERT INTO user_subscriptions (user_id, plan_code, status, starts_at, ends_at)
-                            VALUES (?, ?, 'ACTIVE', ?, ?)
-                            ON DUPLICATE KEY UPDATE
-                                plan_code = VALUES(plan_code),
-                                status = VALUES(status),
-                                starts_at = VALUES(starts_at),
-                                ends_at = VALUES(ends_at)
+                            SELECT ?, ?, 'ACTIVE', ?, ?
+                            WHERE NOT EXISTS (
+                                SELECT 1 FROM user_subscriptions WHERE user_id = ? AND status = 'ACTIVE'
+                            )
                             """,
-                    userId, PRO, Timestamp.from(trialStart), Timestamp.from(trialEnd));
+                    userId, PRO, Timestamp.from(trialStart), Timestamp.from(trialEnd), userId);
         } catch (Exception e) {
             System.err.println("⚠️ Failed to provision trial subscription for user " + userId + ": " + e.getMessage());
             throw e;
