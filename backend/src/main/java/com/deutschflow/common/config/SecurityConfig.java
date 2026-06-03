@@ -90,6 +90,10 @@ public class SecurityConfig {
                         // Keep health open; restrict info (build/git metadata) and prometheus + OpenAPI
                         auth.requestMatchers("/actuator/health").permitAll();
                         auth.requestMatchers("/actuator/info").hasRole("ADMIN");
+                        // env/metrics expose config topology + operational data — ADMIN only.
+                        // (Previously fell through to anyRequest().authenticated() → any logged-in STUDENT could read them.)
+                        auth.requestMatchers("/actuator/env", "/actuator/env/**",
+                                             "/actuator/metrics", "/actuator/metrics/**").hasRole("ADMIN");
                         if (isLocalProfile) {
                                 auth.requestMatchers("/actuator/prometheus").permitAll();
                                 auth.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll();
