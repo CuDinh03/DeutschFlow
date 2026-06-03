@@ -28,9 +28,10 @@ The codebase already practises zero-downtime key rotation (`secret-previous` + a
 
 ## 3. Key management (decision A vs B)
 
-**Generate a keypair (one-time):**
+**Generate a keypair (one-time)** — easiest: `./backend/scripts/generate-jwt-keypair.sh` prints both
+keys already `\n`-escaped for env. Or by hand (note: `genpkey` outputs PKCS#8 by default — no `-pkcs8` flag):
 ```bash
-openssl genpkey -algorithm RSA -pkcs8 -out jwt_private.pem -pkeyopt rsa_keygen_bits:2048
+openssl genpkey -algorithm RSA -out jwt_private.pem -pkeyopt rsa_keygen_bits:2048
 openssl rsa -pubout -in jwt_private.pem -out jwt_public.pem
 ```
 
