@@ -101,7 +101,10 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,prometheus,metrics,env
+        # 'env' removed — it exposes config/topology and is rarely needed in prod.
+        # metrics/prometheus/info are ADMIN-gated in SecurityConfig (prod). Re-add 'env' only if
+        # truly required, and keep it ADMIN-gated.
+        include: health,info,prometheus,metrics
   endpoint:
     health:
       show-details: when_authorized
@@ -154,6 +157,13 @@ app:
     audience: ${JWT_AUDIENCE:deutschflow-app}
     # Bật true SAU KHI toàn bộ token cũ (không có iss/aud) đã hết hạn (≥ 15 phút sau deploy).
     require-iss-aud: ${JWT_REQUIRE_ISS_AUD:false}
+
+  security:
+    # Số reverse proxy tin cậy đứng trước app (ALB/CloudFront/nginx). Client IP dùng cho rate-limit
+    # được đọc từ X-Forwarded-For ở vị trí (len - trusted-proxy-count) tính từ phải — hop do proxy của
+    # chính mình thêm vào — nên kẻ tấn công KHÔNG thể giả mạo XFF để né rate-limit.
+    # 0 = không có proxy (dùng socket address). 1 = một proxy (mặc định). 2 = CloudFront→ALB.
+    trusted-proxy-count: ${APP_SECURITY_TRUSTED_PROXY_COUNT:1}
 
   auth:
     # Brute-force / abuse guard cho auth endpoints (in-memory sliding window, per node).

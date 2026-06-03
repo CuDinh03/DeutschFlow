@@ -93,8 +93,9 @@ public class JwtService {
                 .expiration(new Date(expiryTime))
                 .signWith(signingKey)
                 .compact();
-        log.info("[JwtService.generateAccessToken] Generated for user: {}, email: {}, role: {}, iat: {}, exp: {}, ttl: {}ms",
-                user.getId(), user.getEmail(), user.getRole().name(), now, expiryTime, accessTokenExpiryMs);
+        // DEBUG + no PII (email) — token issuance is high-volume; avoid emails in logs.
+        log.debug("[JwtService.generateAccessToken] Generated for userId={}, role={}, ttl={}ms",
+                user.getId(), user.getRole().name(), accessTokenExpiryMs);
         return token;
     }
 
