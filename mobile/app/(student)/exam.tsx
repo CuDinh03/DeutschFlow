@@ -2,13 +2,13 @@ import { useState } from 'react'
 import { View, Pressable } from 'react-native'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { router, type Href } from 'expo-router'
-import { Trophy, Clock, Target, Lock } from 'lucide-react-native'
+import { Trophy, Clock, Target, Lock, ChevronRight } from 'lucide-react-native'
 import { Alert } from 'react-native'
 import api, { apiMessage } from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, ErrorState, Skeleton } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, ErrorState, SectionHeader, Skeleton } from '@/components/ui'
 import { usePlanStore } from '@/stores/usePlanStore'
-import { mapExam, type RawMockExam, type ExamVariant } from '@/lib/examApi'
+import { mapExam, examApi, type RawMockExam, type ExamVariant, type ExamAttempt } from '@/lib/examApi'
 
 const EXAM_LEVELS = ['A1', 'A2', 'B1', 'B2'] as const
 
@@ -25,6 +25,22 @@ export default function ExamScreen() {
     enabled: isPro,
     staleTime: 300_000,
   })
+
+  const { data: recommendedId } = useQuery({
+    queryKey: ['exam-recommend', level],
+    queryFn: () => examApi.recommend(level),
+    enabled: isPro,
+    staleTime: 300_000,
+  })
+
+  const { data: attempts = [], refetch: refetchAttempts } = useQuery({
+    queryKey: ['exam-attempts'],
+    queryFn: () => examApi.listAttempts(),
+    enabled: isPro,
+    staleTime: 60_000,
+  })
+
+  const completedAttempts = attempts.filter((a) => a.status === 'COMPLETED').slice(0, 5)
 
   const startExam = useMutation({
     mutationFn: (examId: number) =>
@@ -104,32 +120,84 @@ export default function ExamScreen() {
           edges={[]}
           contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[6], gap: space[3], paddingTop: space[2] }}
           refreshing={isFetching && !isLoading}
-          onRefresh={() => void refetch()}
+          onRefresh={() => {
+            void refetch()
+            void refetchAttempts()
+          }}
         >
           {variants.length === 0 ? (
             <EmptyState icon={Trophy} title="Chưa có đề thi" message={`Chưa có đề thi ${level}. Thử cấp độ khác.`} />
           ) : null}
-          {variants.map((variant) => (
-            <Card
-              key={variant.id}
-              onPress={() => handleStart(variant)}
-              style={{ borderColor: variant.isRecommended ? theme.colors.accent + '66' : theme.colors.border }}
-            >
-              {variant.isRecommended ? <Pill label="Gợi ý" tone="accent" style={{ marginBottom: space[3] }} /> : null}
-              <ThemedText variant="title" style={{ marginBottom: space[2] }}>
-                {variant.title}
-              </ThemedText>
-              <View style={{ flexDirection: 'row', gap: space[4] }}>
-                <MetaItem icon={Target} label={variant.cefrLevel} />
-                {variant.totalQuestions > 0 ? <MetaItem icon={Trophy} label={`${variant.totalQuestions} câu`} /> : null}
-                <MetaItem icon={Clock} label={`${variant.timeLimitMinutes} phút`} />
-              </View>
-            </Card>
-          ))}
+          {variants.map((variant) => {
+            const isRec = variant.isRecommended || variant.id === recommendedId
+            return (
+              <Card
+                key={variant.id}
+                onPress={() => handleStart(variant)}
+                style={{ borderColor: isRec ? theme.colors.accent + '66' : theme.colors.border }}
+              >
+                {isRec ? <Pill label="Gợi ý cho bạn" tone="accent" style={{ marginBottom: space[3] }} /> : null}
+                <ThemedText variant="title" style={{ marginBottom: space[2] }}>
+                  {variant.title}
+                </ThemedText>
+                <View style={{ flexDirection: 'row', gap: space[4] }}>
+                  <MetaItem icon={Target} label={variant.cefrLevel} />
+                  {variant.totalQuestions > 0 ? <MetaItem icon={Trophy} label={`${variant.totalQuestions} câu`} /> : null}
+                  <MetaItem icon={Clock} label={`${variant.timeLimitMinutes} phút`} />
+                </View>
+              </Card>
+            )
+          })}
+
+          {completedAttempts.length > 0 ? (
+            <View style={{ marginTop: space[4], gap: space[2] }}>
+              <SectionHeader title="Lịch sử thi" />
+              {completedAttempts.map((a) => (
+                <AttemptRow key={a.id} attempt={a} />
+              ))}
+            </View>
+          ) : null}
         </Screen>
       )}
     </Screen>
   )
+}
+
+function AttemptRow({ attempt }: { attempt: ExamAttempt }) {
+  const c = useTheme().colors
+  const passed = attempt.passed === true
+  return (
+    <Card
+      onPress={() =>
+        router.push({
+          pathname: '/(student)/exam-review',
+          params: { attemptId: String(attempt.id), title: attempt.exam_title },
+        } as unknown as Href)
+      }
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+        <View style={{ flex: 1, gap: 2 }}>
+          <ThemedText variant="bodyStrong" numberOfLines={1}>
+            {attempt.exam_title}
+          </ThemedText>
+          <ThemedText variant="caption" color="muted">
+            {shortDate(attempt.finished_at ?? attempt.started_at)}
+            {attempt.total_score != null ? ` · ${attempt.total_score} điểm` : ''}
+          </ThemedText>
+        </View>
+        {attempt.passed != null ? (
+          <Pill label={passed ? 'Đạt' : 'Chưa đạt'} tone={passed ? 'success' : 'danger'} />
+        ) : null}
+        <Icon icon={ChevronRight} size={16} color="faint" />
+      </View>
+    </Card>
+  )
+}
+
+function shortDate(iso: string | null): string {
+  if (!iso) return ''
+  const p = iso.slice(0, 10).split('-')
+  return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : ''
 }
 
 function MetaItem({ icon, label }: { icon: typeof Target; label: string }) {

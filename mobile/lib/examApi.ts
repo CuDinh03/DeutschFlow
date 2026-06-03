@@ -1,5 +1,7 @@
-// Mock-exam shapes + mapping. Pure (no imports). Backend
-// GET /api/mock-exams?cefrLevel=X returns raw snake_case rows.
+// Mock-exam shapes, mapping + attempt/review/recommend client.
+// Backend GET /api/mock-exams?cefrLevel=X returns raw snake_case rows.
+
+import api from './api'
 
 export interface ExamVariant {
   id: number
@@ -48,6 +50,49 @@ export interface ExamObjGroup {
 export interface ParsedExam {
   groups: ExamObjGroup[]
   skippedSections: string[]
+}
+
+// ── Attempts, review & recommendation ───────────────────────────────────────
+
+export interface ExamAttempt {
+  id: number
+  exam_id: number
+  exam_title: string
+  started_at: string
+  finished_at: string | null
+  total_score: number | null
+  passed: boolean | null
+  status: string // IN_PROGRESS | COMPLETED
+}
+
+export interface ReviewItem {
+  id: string
+  question: string
+  user_answer: string | null
+  correct_answer: string | null
+  is_correct: boolean
+  explanation?: string
+}
+
+export interface ReviewSection {
+  sectionName: string
+  items: ReviewItem[]
+}
+
+export interface AttemptReview {
+  attemptId: number
+  totalScore: number
+  sections: ReviewSection[]
+}
+
+export const examApi = {
+  listAttempts: () => api.get<ExamAttempt[]>('/mock-exams/attempts/me').then((r) => r.data),
+  getReview: (attemptId: number | string) =>
+    api.get<AttemptReview>(`/mock-exams/attempts/${attemptId}/review`).then((r) => r.data),
+  recommend: (cefrLevel: string) =>
+    api
+      .get<{ recommendedExamId: number }>('/mock-exams/recommend', { params: { cefrLevel } })
+      .then((r) => r.data.recommendedExamId),
 }
 
 const TF = new Set(['richtig', 'falsch'])

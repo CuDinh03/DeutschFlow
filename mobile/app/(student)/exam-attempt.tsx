@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { View, Pressable, Alert } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
-import { router, useLocalSearchParams } from 'expo-router'
+import { router, useLocalSearchParams, type Href } from 'expo-router'
 import { Check, BookOpen } from 'lucide-react-native'
 import api, { apiMessage } from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
@@ -72,9 +72,19 @@ export default function ExamAttemptScreen() {
             icon={Check}
             title={`Bạn được ${score} điểm`}
             message="Phần Đọc đã được chấm tự động. Phần Nghe, Viết và Nói làm trên web để có điểm đầy đủ."
-            actionLabel="Xong"
-            onAction={() => router.back()}
+            actionLabel="Xem lại bài"
+            onAction={() =>
+              router.replace({
+                pathname: '/(student)/exam-review',
+                params: { attemptId: String(attemptId), title: params.title ?? 'Bài thi' },
+              } as unknown as Href)
+            }
           />
+          <View style={{ alignItems: 'center', marginTop: space[3] }}>
+            <ThemedText variant="label" color="muted" onPress={() => router.back()}>
+              Xong
+            </ThemedText>
+          </View>
         </View>
       ) : !parsed || parsed.groups.length === 0 ? (
         <View style={{ flex: 1, justifyContent: 'center' }}>
