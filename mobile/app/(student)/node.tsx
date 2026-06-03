@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react'
 import { View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
-import { router, useLocalSearchParams } from 'expo-router'
+import { router, useLocalSearchParams, type Href } from 'expo-router'
 import { Lock, BookOpen, Sparkles, Quote, Star } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, ErrorState, Skeleton } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, Pill, Button, AppHeader, EmptyState, ErrorState, Skeleton } from '@/components/ui'
 import {
   skillTreeApi,
   type TheoryCard,
@@ -28,6 +28,8 @@ export default function NodeScreen() {
   const content = data?.content
   const locked = data?.userStatus === 'LOCKED'
   const empty = !content || data?.hasContent === false
+  const exerciseCount =
+    (content?.exercises?.theory_gate?.length ?? 0) + (content?.exercises?.practice?.length ?? 0)
 
   return (
     <Screen edges={['top']}>
@@ -102,22 +104,22 @@ export default function NodeScreen() {
             </Section>
           ) : null}
 
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: space[2],
-              backgroundColor: c.infoSoft,
-              borderRadius: radius.md,
-              padding: space[3],
-              marginTop: space[2],
-            }}
-          >
-            <Icon icon={Sparkles} size={16} color="info" />
-            <ThemedText variant="caption" color="info" style={{ flex: 1 }}>
-              Bài tập tương tác (đọc, nghe, nói, viết) hiện làm trên web.
-            </ThemedText>
-          </View>
+          {exerciseCount > 0 ? (
+            <View style={{ gap: space[2], marginTop: space[2] }}>
+              <Button
+                label={`Bắt đầu luyện tập (${exerciseCount} câu)`}
+                onPress={() =>
+                  router.push({
+                    pathname: '/(student)/node-practice',
+                    params: { nodeId: String(nodeId), title: params.title ?? data?.titleVi ?? 'Luyện tập' },
+                  } as unknown as Href)
+                }
+              />
+              <ThemedText variant="caption" color="faint" align="center">
+                Trắc nghiệm & điền từ được chấm điểm; dịch & sắp xếp để tự kiểm tra.
+              </ThemedText>
+            </View>
+          ) : null}
         </Screen>
       )}
     </Screen>
