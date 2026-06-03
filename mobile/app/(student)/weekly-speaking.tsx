@@ -1,10 +1,14 @@
-import { View, Alert } from 'react-native'
-import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+import { View, Alert, Pressable, ActivityIndicator } from 'react-native'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { router } from 'expo-router'
-import { Flame, Lock } from 'lucide-react-native'
-import api from '@/lib/api'
+import { Audio } from 'expo-av'
+import * as Haptics from 'expo-haptics'
+import { Flame, Lock, Mic, Square, RotateCcw } from 'lucide-react-native'
+import api, { apiMessage } from '@/lib/api'
+import { speakingApi } from '@/lib/speakingApi'
 import { radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, Pill, Button, AppHeader, EmptyState, SectionHeader, Skeleton } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, SectionHeader, Skeleton } from '@/components/ui'
 import { usePlanStore } from '@/stores/usePlanStore'
 
 interface WeeklyPrompt {
@@ -99,7 +103,7 @@ export default function WeeklySpeakingScreen() {
             <ThemedText variant="caption" color="muted" style={{ marginBottom: space[4] }}>
               {prompt.weekStartDate}
             </ThemedText>
-            <Button label="Nộp bài nói" onPress={() => Alert.alert('Sắp có', 'Tính năng ghi âm đang được phát triển.')} />
+            <WeeklyRecorder promptId={prompt.id} cefrBand={prompt.cefrBand} />
           </Card>
         ) : null}
 
@@ -138,5 +142,132 @@ export default function WeeklySpeakingScreen() {
         ) : null}
       </Screen>
     </Screen>
+  )
+}
+
+type RecPhase = 'idle' | 'recording' | 'processing' | 'done'
+
+function WeeklyRecorder({ promptId, cefrBand }: { promptId: number; cefrBand: string }) {
+  const { colors } = useTheme()
+  const qc = useQueryClient()
+  const [phase, setPhase] = useState<RecPhase>('idle')
+  const [score, setScore] = useState<number | null>(null)
+  const [summary, setSummary] = useState<string | null>(null)
+  const [recording, setRecording] = useState<Audio.Recording | null>(null)
+
+  async function start() {
+    try {
+      await Audio.requestPermissionsAsync()
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true })
+      const { recording: rec } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY)
+      setRecording(rec)
+      setPhase('recording')
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    } catch {
+      Alert.alert('Lỗi', 'Không thể khởi động microphone. Vui lòng kiểm tra quyền truy cập.')
+    }
+  }
+
+  async function stopAndSubmit() {
+    if (!recording) return
+    setPhase('processing')
+    try {
+      await recording.stopAndUnloadAsync()
+      const uri = recording.getURI()
+      setRecording(null)
+      if (!uri) throw new Error('no_uri')
+      const transcript = await speakingApi.transcribe(uri)
+      if (!transcript.trim()) throw new Error('empty')
+      const res = await speakingApi.submitWeekly(promptId, transcript, cefrBand)
+      setScore(res.taskScore ?? null)
+      setSummary(res.feedback_vi_summary ?? null)
+      setPhase('done')
+      qc.invalidateQueries({ queryKey: ['weekly-history'] })
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+    } catch (e) {
+      setPhase('idle')
+      Alert.alert('Lỗi', apiMessage(e))
+    }
+  }
+
+  function reset() {
+    setPhase('idle')
+    setScore(null)
+    setSummary(null)
+  }
+
+  if (phase === 'processing') {
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], paddingVertical: space[3] }}>
+        <ActivityIndicator color={colors.accent} />
+        <ThemedText variant="body" color="muted">
+          Đang chấm điểm bài nói…
+        </ThemedText>
+      </View>
+    )
+  }
+
+  if (phase === 'done') {
+    return (
+      <View style={{ gap: space[3] }}>
+        <View
+          style={{
+            backgroundColor: colors.successSoft,
+            borderRadius: radius.md,
+            padding: space[3],
+            gap: space[2],
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+            <ThemedText variant="label" color="success">
+              ✓ Đã nộp
+            </ThemedText>
+            {score != null ? (
+              <ThemedText variant="bodyStrong" color="success" style={{ marginLeft: 'auto' }}>
+                {score}/5
+              </ThemedText>
+            ) : null}
+          </View>
+          {summary ? (
+            <ThemedText variant="caption" color="secondary">
+              {summary}
+            </ThemedText>
+          ) : null}
+        </View>
+        <Pressable
+          onPress={() => {
+            void Haptics.selectionAsync()
+            reset()
+          }}
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space[2], paddingVertical: space[2] }}
+        >
+          <Icon icon={RotateCcw} size={16} color="muted" />
+          <ThemedText variant="label" color="muted">
+            Ghi lại
+          </ThemedText>
+        </Pressable>
+      </View>
+    )
+  }
+
+  const isRec = phase === 'recording'
+  return (
+    <Pressable
+      onPress={isRec ? stopAndSubmit : start}
+      style={{
+        height: 52,
+        borderRadius: radius.lg,
+        backgroundColor: isRec ? colors.danger : colors.accent,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: space[2],
+      }}
+    >
+      <Icon icon={isRec ? Square : Mic} size={20} color="onAccent" fill={isRec} />
+      <ThemedText variant="bodyStrong" color="onAccent">
+        {isRec ? 'Dừng & nộp bài' : 'Ghi âm trả lời'}
+      </ThemedText>
+    </Pressable>
   )
 }

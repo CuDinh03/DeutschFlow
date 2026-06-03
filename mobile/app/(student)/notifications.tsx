@@ -30,6 +30,14 @@ export default function NotificationsScreen() {
     },
   })
 
+  const markOneRead = useMutation({
+    mutationFn: (id: number) => api.post(`/notifications/${id}/read`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['notifications'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
+    },
+  })
+
   return (
     <Screen edges={['top']}>
       <AppHeader
@@ -69,6 +77,7 @@ export default function NotificationsScreen() {
           renderItem={({ item }) => (
             <Card
               bordered
+              onPress={item.isRead ? undefined : () => markOneRead.mutate(item.id)}
               style={{ borderColor: item.isRead ? theme.colors.border : theme.colors.accent + '4D' }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[2] }}>

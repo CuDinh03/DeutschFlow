@@ -1,14 +1,14 @@
 import { useState } from 'react'
 import { View, Pressable } from 'react-native'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { router } from 'expo-router'
+import { router, type Href } from 'expo-router'
 import { Trophy, Clock, Target, Lock } from 'lucide-react-native'
 import { Alert } from 'react-native'
-import api from '@/lib/api'
+import api, { apiMessage } from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, ErrorState, Skeleton } from '@/components/ui'
 import { usePlanStore } from '@/stores/usePlanStore'
-import { mapExam, type RawMockExam } from '@/lib/examApi'
+import { mapExam, type RawMockExam, type ExamVariant } from '@/lib/examApi'
 
 const EXAM_LEVELS = ['A1', 'A2', 'B1', 'B2'] as const
 
@@ -27,17 +27,24 @@ export default function ExamScreen() {
   })
 
   const startExam = useMutation({
-    mutationFn: (examId: number) => api.post<{ attemptId?: number }>(`/mock-exams/${examId}/start`),
+    mutationFn: (examId: number) =>
+      api.post<{ id: number }>(`/mock-exams/${examId}/start`).then((r) => r.data),
   })
 
-  function handleStart(variantId: number) {
-    Alert.alert('Bắt đầu thi?', 'Bài thi sẽ tính giờ. Bạn có sẵn sàng?', [
+  function handleStart(variant: ExamVariant) {
+    Alert.alert('Bắt đầu thi?', 'Phần Đọc chấm tự động trên app; phần Nghe/Viết/Nói làm trên web.', [
       { text: 'Huỷ', style: 'cancel' },
       {
         text: 'Bắt đầu',
         onPress: () => {
-          startExam.mutate(variantId, {
-            onSuccess: () => Alert.alert('Đang phát triển', 'Màn hình thi đang được xây dựng.'),
+          startExam.mutate(variant.id, {
+            onSuccess: (res) =>
+              router.push({
+                // Route exists; typed-route union regenerates on next `expo start`.
+                pathname: '/(student)/exam-attempt',
+                params: { examId: String(variant.id), attemptId: String(res.id), title: variant.title },
+              } as unknown as Href),
+            onError: (e) => Alert.alert('Lỗi', apiMessage(e)),
           })
         },
       },
@@ -105,7 +112,7 @@ export default function ExamScreen() {
           {variants.map((variant) => (
             <Card
               key={variant.id}
-              onPress={() => handleStart(variant.id)}
+              onPress={() => handleStart(variant)}
               style={{ borderColor: variant.isRecommended ? theme.colors.accent + '66' : theme.colors.border }}
             >
               {variant.isRecommended ? <Pill label="Gợi ý" tone="accent" style={{ marginBottom: space[3] }} /> : null}

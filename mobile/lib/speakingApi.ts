@@ -241,4 +241,21 @@ export const speakingApi = {
         params: { size, sort: 'startedAt,desc' },
       })
       .then((r) => r.data.content ?? []),
+
+  /** Submit a weekly-challenge spoken answer (a transcript) for AI evaluation. */
+  submitWeekly: (promptId: number, transcript: string, cefrBand: string) =>
+    api
+      .post<WeeklySubmissionResult>('/ai-speaking/weekly/submissions', {
+        promptId,
+        transcript,
+        cefrBand,
+      })
+      .then((r) => r.data),
+}
+
+export interface WeeklySubmissionResult {
+  submissionId?: number
+  taskScore?: number | null
+  feedback_vi_summary?: string | null
+  disclaimer_vi?: string | null
 }

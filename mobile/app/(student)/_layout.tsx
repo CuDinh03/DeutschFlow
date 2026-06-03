@@ -14,6 +14,7 @@ export default function StudentLayout() {
 
       {/* Detail routes: reachable via router.push, not shown as tabs */}
       <Tabs.Screen name="exam" options={{ href: null }} />
+      <Tabs.Screen name="exam-attempt" options={{ href: null }} />
       <Tabs.Screen name="grammar" options={{ href: null }} />
       <Tabs.Screen name="notifications" options={{ href: null }} />
       <Tabs.Screen name="roadmap" options={{ href: null }} />
