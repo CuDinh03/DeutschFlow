@@ -1,22 +1,20 @@
 'use client'
 
-import { Capacitor } from '@capacitor/core'
-
 type ImpactWeight = 'Light' | 'Medium' | 'Heavy'
 
-// Fire-and-forget haptic. No-op on web and if the plugin is unavailable —
-// never blocks the UI interaction it accompanies.
-function fireImpact(weight: ImpactWeight): void {
-  if (!Capacitor.isNativePlatform()) return
+// Web haptics via the Vibration API. The Capacitor native plugin was retired (S20b); on the web
+// build we fall back to navigator.vibrate, which works on supporting devices (most Android browsers)
+// and is a silent no-op elsewhere (desktop, iOS Safari). Never blocks the interaction it accompanies.
+const DURATION_MS: Record<ImpactWeight, number> = { Light: 10, Medium: 20, Heavy: 35 }
 
-  void (async () => {
+function fireImpact(weight: ImpactWeight): void {
+  if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
     try {
-      const { Haptics, ImpactStyle } = await import('@capacitor/haptics')
-      await Haptics.impact({ style: ImpactStyle[weight] })
+      navigator.vibrate(DURATION_MS[weight])
     } catch {
-      // Plugin unavailable — ignore.
+      // Vibration unavailable — ignore.
     }
-  })()
+  }
 }
 
 /** Subtle tap — buttons, selections, mic toggle. */
