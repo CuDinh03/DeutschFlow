@@ -25,29 +25,7 @@ public class ExamScoringService {
      * Each correct answer = 1 point (binary scoring)
      */
     public int scoreLesenSection(Map<String, Object> answers, Map<String, Object> examSection) {
-        int score = 0;
-        Map<String, Object> teile = (Map<String, Object>) examSection.get("teile");
-
-        if (teile != null) {
-            for (Object teilObj : teile.values()) {
-                Map<String, Object> teil = (Map<String, Object>) teilObj;
-                List<Map<String, Object>> items = (List<Map<String, Object>>) teil.get("items");
-
-                if (items != null) {
-                    for (Map<String, Object> item : items) {
-                        String itemId = (String) item.get("id");
-                        String correct = (String) item.get("correct");
-                        Object userAnswer = answers.get(itemId);
-
-                        if (userAnswer != null && userAnswer.toString().equalsIgnoreCase(correct)) {
-                            score += 1; // 1 point per correct answer
-                        }
-                    }
-                }
-            }
-        }
-
-        return Math.min(score, 25); // Max 25 points for LESEN
+        return scoreObjectiveTeile(answers, examSection, 25);
     }
 
     /**
@@ -55,28 +33,43 @@ public class ExamScoringService {
      * Each correct answer = 1 point (binary scoring)
      */
     public int scoreHoerenSection(Map<String, Object> answers, Map<String, Object> examSection) {
+        return scoreObjectiveTeile(answers, examSection, 25);
+    }
+
+    /**
+     * Auto-score true/false + single-choice items (1 pt each). Tolerant of how
+     * {@code teile} is serialized — a JSON array (most exams) or an object map —
+     * which previously caused a ClassCastException when finishing A1 exams.
+     */
+    @SuppressWarnings("unchecked")
+    private int scoreObjectiveTeile(Map<String, Object> answers, Map<String, Object> examSection, int max) {
         int score = 0;
-        List<Map<String, Object>> teile = (List<Map<String, Object>>) examSection.get("teile");
+        Object teileRaw = examSection.get("teile");
+        Collection<Object> teile;
+        if (teileRaw instanceof List<?> list) {
+            teile = new ArrayList<>(list);
+        } else if (teileRaw instanceof Map<?, ?> map) {
+            teile = new ArrayList<>(((Map<String, Object>) map).values());
+        } else {
+            return 0;
+        }
 
-        if (teile != null) {
-            for (Map<String, Object> teil : teile) {
-                List<Map<String, Object>> items = (List<Map<String, Object>>) teil.get("items");
-
-                if (items != null) {
-                    for (Map<String, Object> item : items) {
-                        String itemId = (String) item.get("id");
-                        String correct = (String) item.get("correct");
-                        Object userAnswer = answers.get(itemId);
-
-                        if (userAnswer != null && userAnswer.toString().equalsIgnoreCase(correct)) {
-                            score += 1; // 1 point per correct answer
-                        }
-                    }
+        for (Object teilObj : teile) {
+            if (!(teilObj instanceof Map<?, ?> teil)) continue;
+            Object itemsRaw = teil.get("items");
+            if (!(itemsRaw instanceof List<?> items)) continue;
+            for (Object itemObj : items) {
+                if (!(itemObj instanceof Map<?, ?> item)) continue;
+                Object id = item.get("id");
+                Object correct = item.get("correct");
+                if (id == null || correct == null) continue;
+                Object userAnswer = answers.get(id.toString());
+                if (userAnswer != null && userAnswer.toString().equalsIgnoreCase(correct.toString())) {
+                    score += 1;
                 }
             }
         }
-
-        return Math.min(score, 25); // Max 25 points for HOEREN
+        return Math.min(score, max);
     }
 
     /**

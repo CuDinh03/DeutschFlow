@@ -43,6 +43,16 @@ let refreshPromise: Promise<AxiosResponse<RefreshResponseData>> | null = null
 api.interceptors.response.use(
   (res) => res,
   async (error: AxiosError) => {
+    // Dev-only: surface the failing request in the Metro console so screen-level
+    // "Không thể tải dữ liệu" errors are diagnosable (method, url, status, body).
+    if (__DEV__) {
+      const cfg = error.config
+      const status = error.response?.status ?? 'NO_RESPONSE'
+      const body = error.response?.data ?? error.message
+      // eslint-disable-next-line no-console
+      console.warn(`[API] ${cfg?.method?.toUpperCase() ?? '?'} ${cfg?.url ?? '?'} → ${status}`, body)
+    }
+
     const original = error.config as typeof error.config & { _retry?: boolean }
     if (error.response?.status !== 401 || original?._retry) {
       return Promise.reject(error)
