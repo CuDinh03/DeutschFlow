@@ -31,6 +31,7 @@ import { usePushNotifications } from '@/hooks/usePushNotifications'
 import { getAccessToken } from '@/lib/auth'
 import { initObservability } from '@/lib/observability'
 import { initCertPinning } from '@/lib/certPinning'
+import { initDeviceIntegrity } from '@/lib/deviceIntegrity'
 import { ThemeProvider, useTheme } from '@/lib/theme'
 import { SplashAnimated } from '@/components/SplashAnimated'
 import '../global.css'
@@ -41,6 +42,8 @@ void SplashScreen.preventAutoHideAsync()
 initObservability()
 // TLS pinning bootstrap — guarded no-op until enabled with verified pins + the lib (S12).
 initCertPinning()
+// Jailbreak/root tamper check — soft signal, dev-warn only; no-op until jail-monkey installed (S13).
+initDeviceIntegrity()
 
 const queryClient = new QueryClient({
   defaultOptions: {
