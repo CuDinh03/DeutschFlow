@@ -1,32 +1,35 @@
-import { Capacitor } from '@capacitor/core'
-import { Preferences } from '@capacitor/preferences'
+// Web-only auth session storage.
+//
+// Storage strategy (web):
+//   access token  → sessionStorage + a mirror cookie (auth_access) read by middleware
+//   refresh token → HttpOnly cookie set by the backend (never readable from JS)
+//
+// NOTE: The Capacitor native path (tokens in @capacitor/preferences — unencrypted
+// UserDefaults/SharedPreferences) was REMOVED here as part of retiring the legacy Capacitor
+// build (S20). The canonical native app is the Expo `mobile/` client, which stores tokens in
+// expo-secure-store (Keychain/Keystore) via its own mobile/lib/auth.ts. isNative()/getPlatform()
+// are kept as web-only stubs so existing callers (e.g. lib/api.ts) keep compiling.
 
 // ─── Storage keys ─────────────────────────────────────────────────────────────
 const ACCESS_TOKEN_KEY   = 'accessToken'
 const REFRESH_TOKEN_KEY  = 'refreshToken'
 const LAST_TOKEN_REFRESH_KEY = 'lastTokenRefresh'
 
-// ─── Cookie keys (web only) ───────────────────────────────────────────────────
+// ─── Cookie keys ──────────────────────────────────────────────────────────────
 const AUTH_ACCESS_COOKIE    = 'auth_access'
 const AUTH_ROLE_COOKIE      = 'auth_role'
 const AUTH_LOGGED_IN_COOKIE = 'auth_logged_in'
 
-// Storage strategy:
-//   Web:    access token → sessionStorage, refresh token → HttpOnly cookie (set by backend)
-//   Native: access token + refresh token → @capacitor/preferences (native secure storage)
-//
-// Native mobile clients send X-Platform: ios/android header.
-// Backend detects this and returns refreshToken in body instead of HttpOnly cookie.
-
 const TOKEN_REFRESH_INTERVAL_MS = 5 * 60 * 1000
 
+/** Web build is never a native platform. Kept for backward-compat with existing callers. */
 export function isNative(): boolean {
-  return Capacitor.isNativePlatform()
+  return false
 }
 
-/** 'ios' | 'android' | 'web' */
+/** Always 'web' for this build. Kept for backward-compat with existing callers. */
 export function getPlatform(): string {
-  return Capacitor.getPlatform()
+  return 'web'
 }
 
 // ─── JWT helpers ──────────────────────────────────────────────────────────────
@@ -53,7 +56,7 @@ function getRoleFromToken(accessToken: string): string {
   return fromClaim || 'STUDENT'
 }
 
-// ─── Cookie helpers (web only) ────────────────────────────────────────────────
+// ─── Cookie helpers ────────────────────────────────────────────────────────────
 
 function setCookie(name: string, value: string, maxAgeSeconds: number | null): void {
   if (typeof window === 'undefined') return
@@ -71,55 +74,21 @@ function readCookie(name: string): string | null {
   return match ? decodeURIComponent(match[1]) : null
 }
 
-// ─── Async native storage ─────────────────────────────────────────────────────
-
-async function nativeGet(key: string): Promise<string | null> {
-  const { value } = await Preferences.get({ key })
-  return value
-}
-
-async function nativeSet(key: string, value: string): Promise<void> {
-  await Preferences.set({ key, value })
-}
-
-async function nativeRemove(key: string): Promise<void> {
-  await Preferences.remove({ key })
-}
-
-// ─── In-memory cache for sync access token reads ──────────────────────────────
-// Preferences.get() is async — we keep an in-memory copy so getAccessToken()
-// stays synchronous for the axios interceptor.
-
-let _accessTokenCache: string | null = null
-let _refreshTokenCache: string | null = null
-
-async function warmTokenCache(): Promise<void> {
-  if (!isNative()) return
-  _accessTokenCache = await nativeGet(ACCESS_TOKEN_KEY)
-  _refreshTokenCache = await nativeGet(REFRESH_TOKEN_KEY)
-}
-
-// Initialized at module load time — before any React component renders.
-// Web: isNative()=false → resolves immediately (no-op).
-// iOS: resolves after Preferences.get() (~10-50ms native bridge).
-// Await this before reading tokens on mount to avoid cold-launch redirect-to-login race.
-export const tokenCacheReady: Promise<void> = warmTokenCache()
+// ─── Cold-start readiness ───────────────────────────────────────────────────────
+// Web reads tokens synchronously from sessionStorage, so there is nothing to warm.
+// Kept (resolved) so callers that `await tokenCacheReady` on mount keep working.
+export const tokenCacheReady: Promise<void> = Promise.resolve()
 
 // ─── Public token API ─────────────────────────────────────────────────────────
 
 /** Read the stored access token. Returns null if not signed in. */
 export function getAccessToken(): string | null {
   if (typeof window === 'undefined') return null
-  if (isNative()) return _accessTokenCache
   return sessionStorage.getItem(ACCESS_TOKEN_KEY) || localStorage.getItem(ACCESS_TOKEN_KEY)
 }
 
-/**
- * On web: refresh token is in HttpOnly cookie — always returns null from JS.
- * On native: returns the token stored in Preferences.
- */
+/** Refresh token lives in an HttpOnly cookie on web — never readable from JS. */
 export function getRefreshToken(): string | null {
-  if (isNative()) return _refreshTokenCache
   return null
 }
 
@@ -148,29 +117,16 @@ type AuthLikeResponse = {
 
 /**
  * Persist tokens after login / token refresh.
- *
- * Web:    access token → sessionStorage + cookie, refresh token → HttpOnly cookie (backend)
- * Native: access token + refresh token → @capacitor/preferences
+ * Access token → sessionStorage + mirror cookie; refresh token → HttpOnly cookie (backend-set).
  */
 export function setTokens(response: AuthLikeResponse): void {
-  const { accessToken, refreshToken, role } = response
+  const { accessToken, role } = response
   if (!accessToken) {
     throw new Error('No access token in auth response. Login failed. Please try again.')
   }
 
   const resolvedRole = normalizeRole(role) || getRoleFromToken(accessToken)
 
-  if (isNative()) {
-    // Native: store both tokens in-memory and schedule async persist
-    _accessTokenCache = accessToken
-    _refreshTokenCache = refreshToken ?? null
-    void nativeSet(ACCESS_TOKEN_KEY, accessToken)
-    if (refreshToken) void nativeSet(REFRESH_TOKEN_KEY, refreshToken)
-    else void nativeRemove(REFRESH_TOKEN_KEY)
-    return
-  }
-
-  // Web: sessionStorage for access token, HttpOnly cookie for refresh (backend sets it)
   sessionStorage.setItem(ACCESS_TOKEN_KEY, accessToken)
   localStorage.removeItem(ACCESS_TOKEN_KEY)
   localStorage.removeItem(REFRESH_TOKEN_KEY)
@@ -183,15 +139,7 @@ export function setTokens(response: AuthLikeResponse): void {
 
 /** Remove all tokens from storage. */
 export function clearTokens(): void {
-  _accessTokenCache = null
-  _refreshTokenCache = null
-
-  if (isNative()) {
-    void nativeRemove(ACCESS_TOKEN_KEY)
-    void nativeRemove(REFRESH_TOKEN_KEY)
-    if (typeof sessionStorage !== 'undefined') sessionStorage.clear()
-    return
-  }
+  if (typeof window === 'undefined') return
 
   sessionStorage.removeItem(ACCESS_TOKEN_KEY)
   localStorage.removeItem(REFRESH_TOKEN_KEY)
@@ -218,10 +166,7 @@ export async function logout(): Promise<void> {
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080'
       await fetch(`${backendUrl}/api/auth/logout`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          ...(isNative() ? { 'X-Platform': getPlatform() } : {}),
-        },
+        headers: { Authorization: `Bearer ${token}` },
         credentials: 'include',
         signal: AbortSignal.timeout(3000),
       })
