@@ -3,37 +3,19 @@
 import { useEffect, useState } from 'react'
 
 // Slide-down banner shown whenever the device loses connectivity mid-session.
-// Complements the native NetworkErrorView (which only covers cold-launch offline
-// state). Uses @capacitor/network — its web implementation falls back to
-// navigator.onLine, so the banner also works in the PWA/web build.
+// Uses the browser's online/offline events (navigator.onLine) — the Capacitor @capacitor/network
+// dependency was retired (S20b); its web behaviour was already navigator.onLine under the hood.
 export function NetworkBanner() {
   const [offline, setOffline] = useState(false)
 
   useEffect(() => {
-    let cancelled = false
-    let remove: (() => void) | undefined
-
-    void (async () => {
-      try {
-        const { Network } = await import('@capacitor/network')
-        const status = await Network.getStatus()
-        if (cancelled) return
-        setOffline(!status.connected)
-
-        const handle = await Network.addListener('networkStatusChange', (s) => {
-          setOffline(!s.connected)
-        })
-        remove = () => {
-          void handle.remove()
-        }
-      } catch {
-        // Plugin unavailable — ignore silently.
-      }
-    })()
-
+    const update = () => setOffline(typeof navigator !== 'undefined' && navigator.onLine === false)
+    update()
+    window.addEventListener('online', update)
+    window.addEventListener('offline', update)
     return () => {
-      cancelled = true
-      remove?.()
+      window.removeEventListener('online', update)
+      window.removeEventListener('offline', update)
     }
   }, [])
 
