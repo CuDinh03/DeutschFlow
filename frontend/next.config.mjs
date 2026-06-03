@@ -7,32 +7,10 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 // which handles dynamic routes like /teacher/dashboard/[id] natively.
 const isMobileBuild = process.env.NEXT_OUTPUT_MODE === 'export';
 
-// ── Security headers (web/SSR build only) ───────────────────────────────────────
+// ── Static security headers (web/SSR build only) ────────────────────────────────
 // Static `output: export` (Capacitor) cannot emit HTTP headers, so these apply to the
-// Amplify SSR web build. CSP ships as Report-Only first to avoid breaking prod; tighten
-// to a nonce-based enforced policy once reports are clean (see docs/SECURITY_ANALYSIS.md S17).
-const backendOrigin = (process.env.NEXT_PUBLIC_BACKEND_URL || '').replace(/\/api\/?$/, '');
-const posthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com';
-const cloudfront = process.env.NEXT_PUBLIC_CLOUDFRONT_URL || '';
-
-const connectSrc = ["'self'", backendOrigin, posthogHost, cloudfront, 'https:']
-  .filter(Boolean)
-  .join(' ');
-
-const contentSecurityPolicy = [
-  "default-src 'self'",
-  // TODO(S17): replace 'unsafe-inline'/'unsafe-eval' with per-request nonces, then enforce.
-  `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${posthogHost}`,
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "img-src 'self' data: blob: https:",
-  "font-src 'self' data: https://fonts.gstatic.com",
-  `connect-src ${connectSrc}`,
-  "frame-ancestors 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-  "object-src 'none'",
-].join('; ');
-
+// Amplify SSR web build. CSP is intentionally NOT here — it needs a per-request nonce and
+// is set in middleware.ts (Report-Only; flip to enforced once reports are clean — S17).
 const securityHeaders = [
   { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
   { key: 'X-Frame-Options', value: 'DENY' },
@@ -40,7 +18,6 @@ const securityHeaders = [
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), browsing-topics=()' },
   { key: 'X-DNS-Prefetch-Control', value: 'on' },
-  { key: 'Content-Security-Policy-Report-Only', value: contentSecurityPolicy },
 ];
 
 /** @type {import('next').NextConfig} */

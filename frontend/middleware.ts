@@ -62,75 +62,112 @@ async function verifyAccessToken(token: string): Promise<Role | null> {
   }
 }
 
+// ─── Content Security Policy (per-request nonce) ────────────────────────────────
+// Shipped as Report-Only so it cannot break prod. The ENFORCED policy is set on the
+// *request* header so Next.js stamps its own <script> tags with the nonce; only the
+// Report-Only variant is sent to the browser. To enforce later (S17 flip): change the
+// response header name below from 'Content-Security-Policy-Report-Only' to
+// 'Content-Security-Policy' once the violation reports are clean.
+const backendOrigin = (process.env.NEXT_PUBLIC_BACKEND_URL || '').replace(/\/api\/?$/, '')
+const posthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com'
+const cloudfront = process.env.NEXT_PUBLIC_CLOUDFRONT_URL || ''
+
+function buildCsp(nonce: string): string {
+  const connectSrc = ["'self'", backendOrigin, posthogHost, cloudfront, 'https:']
+    .filter(Boolean)
+    .join(' ')
+  return [
+    "default-src 'self'",
+    // 'strict-dynamic' + nonce is honored by modern browsers; 'unsafe-inline' + https: are
+    // ignored there and act only as fallbacks for older browsers.
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${posthogHost} https: 'unsafe-inline'`,
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "img-src 'self' data: blob: https:",
+    "font-src 'self' data: https://fonts.gstatic.com",
+    `connect-src ${connectSrc}`,
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "object-src 'none'",
+  ].join('; ')
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-  const required = requiredRole(pathname)
-  const learnerShare = requiresLearnerShare(pathname)
-  const accessCookie = request.cookies.get(AUTH_ACCESS_COOKIE)?.value
 
-  // Opt-out only for Next internals and genuine static-asset extensions.
-  // A blanket `pathname.includes('.')` let protected routes like `/admin/x.y` skip the
-  // auth/role gate entirely — restrict to a known static-asset suffix allowlist instead.
+  // Static assets and Next internals: no auth, no CSP needed.
   const isStaticAsset = /\.(?:ico|png|jpe?g|gif|svg|webp|avif|css|js|mjs|map|woff2?|ttf|eot|txt|xml|json|webmanifest)$/i.test(pathname)
   if (pathname.startsWith('/_next') || isStaticAsset) {
     return NextResponse.next()
   }
 
+  const nonce = btoa(crypto.randomUUID())
+  const csp = buildCsp(nonce)
+
+  // Forward the nonce + enforced CSP on the *request* so Next.js nonces its inline scripts.
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-nonce', nonce)
+  requestHeaders.set('Content-Security-Policy', csp)
+
+  // Attach the Report-Only CSP to every response we return.
+  const secure = <T extends NextResponse>(res: T): T => {
+    res.headers.set('Content-Security-Policy-Report-Only', csp)
+    return res
+  }
+  const passThrough = () => secure(NextResponse.next({ request: { headers: requestHeaders } }))
+  const redirectTo = (url: URL) => secure(NextResponse.redirect(url))
+
+  const required = requiredRole(pathname)
+  const learnerShare = requiresLearnerShare(pathname)
+  const accessCookie = request.cookies.get(AUTH_ACCESS_COOKIE)?.value
+
   // Guard: if JWT_SECRET is missing AND a protected route is accessed,
   // return 503 instead of silently redirecting to /login (which causes an infinite loop).
   if (!process.env.JWT_SECRET && accessCookie && (required || learnerShare)) {
-    return new NextResponse(
+    return secure(new NextResponse(
       '<h1>503 — Server Misconfiguration</h1><p>JWT_SECRET is not configured. Contact the administrator.</p>',
       { status: 503, headers: { 'Content-Type': 'text/html' } }
-    )
+    ))
+  }
+
+  // Routes that need no gating (public pages): attach CSP and pass through without a JWT verify.
+  if (!required && !learnerShare && !LOGIN_ROUTES.has(pathname)) {
+    return passThrough()
   }
 
   const authenticatedRole = accessCookie ? await verifyAccessToken(accessCookie) : null
 
   if (LOGIN_ROUTES.has(pathname) && authenticatedRole) {
-    return NextResponse.redirect(new URL(roleHome(authenticatedRole), request.url))
+    return redirectTo(new URL(roleHome(authenticatedRole), request.url))
   }
 
   if (!required && !learnerShare) {
-    return NextResponse.next()
+    return passThrough()
   }
 
   if (!authenticatedRole) {
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('next', pathname)
-    return NextResponse.redirect(loginUrl)
+    return redirectTo(loginUrl)
   }
 
   if (learnerShare) {
     if (!allowedOnLearnerPath(authenticatedRole)) {
-      return NextResponse.redirect(new URL(roleHome(authenticatedRole), request.url))
+      return redirectTo(new URL(roleHome(authenticatedRole), request.url))
     }
-    return NextResponse.next()
+    return passThrough()
   }
 
   if (required !== authenticatedRole) {
     // If user is STUDENT but tries to access /admin, send them back to /dashboard
     // instead of a potential redirect loop to /student
-    return NextResponse.redirect(new URL(roleHome(authenticatedRole), request.url))
+    return redirectTo(new URL(roleHome(authenticatedRole), request.url))
   }
 
-  const response = NextResponse.next()
-  return response
+  return passThrough()
 }
 
 export const config = {
-  matcher: [
-    '/student/:path*', 
-    '/teacher/:path*', 
-    '/admin/:path*', 
-    '/onboarding', 
-    '/login', 
-    '/register', 
-    '/dashboard', 
-    '/speaking', 
-    '/roadmap',
-    '/news',
-    '/news/:path*'
-  ],
+  // Run on every page so CSP applies site-wide. Exclude Next internals, API routes, and the favicon.
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
 }
-
