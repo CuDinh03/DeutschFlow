@@ -86,6 +86,8 @@ export interface AiChatResponse {
   feedback?: string | null
   similarityScore?: number | null
   suggestions?: SpeakingSuggestion[]
+  /** e.g. OFF_TOPIC — backend signals relevance here, separate from `action`. */
+  status?: string | null
   action?: string | null
   isSessionEnded?: boolean | null
   /** INTRO | ICE_BREAKER | HARD_SKILLS | STAR_SOFT | CLOSING */

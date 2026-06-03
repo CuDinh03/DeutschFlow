@@ -14,14 +14,21 @@ export default function RegisterScreen() {
   const theme = useTheme()
   const [displayName, setDisplayName] = useState('')
   const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const { fetchMe } = useAuthStore()
   const { fetchPlan } = usePlanStore()
 
   async function handleRegister() {
-    if (!displayName.trim() || !email.trim() || !password.trim()) {
+    const phoneTrimmed = phone.trim()
+    if (!displayName.trim() || !email.trim() || !phoneTrimmed || !password.trim()) {
       Alert.alert('Thiếu thông tin', 'Vui lòng điền đầy đủ thông tin.')
+      return
+    }
+    // Backend requires a Vietnamese mobile number (RegisterRequest @Pattern).
+    if (!/^0[35789]\d{8}$/.test(phoneTrimmed)) {
+      Alert.alert('Số điện thoại không hợp lệ', 'Nhập số di động VN 10 chữ số, ví dụ 0912345678.')
       return
     }
     if (password.length < 8) {
@@ -33,7 +40,9 @@ export default function RegisterScreen() {
       const res = await api.post<{ accessToken: string; refreshToken: string }>('/auth/register', {
         displayName: displayName.trim(),
         email: email.trim(),
+        phoneNumber: phoneTrimmed,
         password,
+        locale: 'vi',
       })
       await setTokens(res.data.accessToken, res.data.refreshToken)
       await fetchMe()
@@ -104,6 +113,14 @@ export default function RegisterScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoComplete="email"
+              />
+              <TextField
+                label="Số điện thoại"
+                value={phone}
+                onChangeText={setPhone}
+                placeholder="0912345678"
+                keyboardType="phone-pad"
+                autoComplete="tel"
               />
               <TextField
                 label="Mật khẩu"

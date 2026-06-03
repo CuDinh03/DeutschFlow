@@ -56,7 +56,9 @@ function reactionFor(res: AiChatResponse, mode: string | null | undefined): Reac
   // Default to 0.6 (→ "approve") when score is absent, to avoid over-praising.
   const score = res.similarityScore ?? 0.6
   const offTopic =
-    (res.action ?? '').toUpperCase().includes('OFF_TOPIC') || (mode === 'INTERVIEW' && score < 0.35)
+    (res.status ?? '').toUpperCase() === 'OFF_TOPIC' ||
+    (res.action ?? '').toUpperCase().includes('OFF_TOPIC') ||
+    (mode === 'INTERVIEW' && score < 0.35)
   if (offTopic) return 'offtopic'
   if (res.correction) return 'wrong'
   if (score >= 0.8) return 'praise'

@@ -10,24 +10,16 @@ import {
   ChevronRight,
   type LucideIcon,
 } from 'lucide-react-native'
-import api from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, SectionHeader, FadeIn } from '@/components/ui'
-
-interface SkillTreeNode {
-  id: number
-  title: string
-  cefrLevel: string
-  status: 'LOCKED' | 'AVAILABLE' | 'IN_PROGRESS' | 'COMPLETED'
-  dayNumber: number
-}
+import { skillTreeApi, type SkillNode } from '@/lib/skillTreeApi'
 
 type StatusTone = 'success' | 'accent' | 'info'
 
 export default function LearnScreen() {
   const { data: nodes = [], refetch, isFetching } = useQuery({
     queryKey: ['skill-tree'],
-    queryFn: () => api.get<SkillTreeNode[]>('/skill-tree/me').then((r) => r.data),
+    queryFn: () => skillTreeApi.getMySkillTree(),
     staleTime: 120_000,
   })
 
@@ -132,7 +124,7 @@ function LearningTile({
   )
 }
 
-function NodeCard({ node }: { node: SkillTreeNode }) {
+function NodeCard({ node }: { node: SkillNode }) {
   const theme = useTheme()
   const c = theme.colors
 

@@ -6,6 +6,7 @@ import { Flame, BookOpen, Mic, Star, Map, Bell, Zap } from 'lucide-react-native'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
 import api from '@/lib/api'
+import { gamificationApi } from '@/lib/gamificationApi'
 import { motion, space, radius, useTheme } from '@/lib/theme'
 import {
   Screen,
@@ -18,17 +19,11 @@ import {
   Skeleton,
 } from '@/components/ui'
 
+// Only the fields the home actually uses from the (plan-oriented) dashboard.
+// XP/level come from /xp/me, due-SRS from /srs/count, unread from /notifications.
 interface DashboardData {
   streakDays: number
-  todayXp: number
-  totalXp: number
-  xpLevel: number
-  dueSrsCount: number
-  todayPlan?: {
-    suggestedActivity?: string
-    targetMinutes?: number
-  }
-  unreadNotificationCount?: number
+  weeklyXp: number
 }
 
 function greetingFor(hour: number): string {
@@ -48,9 +43,38 @@ export default function DashboardScreen() {
     staleTime: 60_000,
   })
 
+  const { data: xp, refetch: refetchXp } = useQuery({
+    queryKey: ['xp-summary'],
+    queryFn: () => gamificationApi.getXpSummary(),
+    staleTime: 60_000,
+  })
+
+  const { data: srs, refetch: refetchSrs } = useQuery({
+    queryKey: ['srs-count'],
+    queryFn: () => api.get<{ dueCount: number }>('/srs/count').then((r) => r.data),
+    staleTime: 30_000,
+  })
+
+  const { data: unreadData, refetch: refetchUnread } = useQuery({
+    queryKey: ['unread-count'],
+    queryFn: () => api.get<{ unreadCount: number }>('/notifications/unread-count').then((r) => r.data),
+    staleTime: 30_000,
+  })
+
   const firstName = user?.displayName?.split(' ').at(-1) ?? 'bạn'
   const greeting = greetingFor(new Date().getHours())
-  const unread = data?.unreadNotificationCount ?? 0
+  const level = xp?.level ?? 1
+  const totalXp = xp?.totalXp ?? 0
+  const weeklyXp = data?.weeklyXp ?? 0
+  const dueSrs = srs?.dueCount ?? 0
+  const unread = unreadData?.unreadCount ?? 0
+
+  const onRefresh = () => {
+    void refetch()
+    void refetchXp()
+    void refetchSrs()
+    void refetchUnread()
+  }
 
   return (
     <Screen
@@ -58,7 +82,7 @@ export default function DashboardScreen() {
       edges={['top']}
       contentStyle={{ paddingBottom: space[8] }}
       refreshing={isRefetching}
-      onRefresh={refetch}
+      onRefresh={onRefresh}
     >
       <View
         style={{
@@ -156,12 +180,12 @@ export default function DashboardScreen() {
 
             {/* Secondary stats */}
             <View style={{ flexDirection: 'row', gap: space[3], marginTop: space[3] }}>
-              <StatCard icon={Star} accent="accent" value={`Lv ${data?.xpLevel ?? 1}`} label={`${data?.totalXp ?? 0} XP`} />
-              <StatCard icon={Zap} accent="info" value={`+${data?.todayXp ?? 0}`} label="XP hôm nay" />
+              <StatCard icon={Star} accent="accent" value={`Lv ${level}`} label={`${totalXp} XP`} />
+              <StatCard icon={Zap} accent="info" value={`+${weeklyXp}`} label="XP tuần này" />
             </View>
           </View>
 
-          {(data?.dueSrsCount ?? 0) > 0 ? (
+          {dueSrs > 0 ? (
             <Card
               onPress={() => router.push('/(student)/srs')}
               bordered
@@ -188,7 +212,7 @@ export default function DashboardScreen() {
                     </ThemedText>
                   </View>
                 </View>
-                <Pill label={`${data?.dueSrsCount} thẻ`} tone="accent" />
+                <Pill label={`${dueSrs} thẻ`} tone="accent" />
               </View>
             </Card>
           ) : null}

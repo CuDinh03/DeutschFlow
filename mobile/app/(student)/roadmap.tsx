@@ -2,25 +2,16 @@ import { SectionList, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router, type Href } from 'expo-router'
 import { Lock, CheckCircle2, Circle, PlayCircle, Map, type LucideIcon } from 'lucide-react-native'
-import api from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, ErrorState, Skeleton } from '@/components/ui'
-
-interface SkillNode {
-  id: number
-  title: string
-  cefrLevel: string
-  status: 'LOCKED' | 'AVAILABLE' | 'IN_PROGRESS' | 'COMPLETED'
-  dayNumber: number
-  tags?: string[]
-}
+import { skillTreeApi, type SkillNode } from '@/lib/skillTreeApi'
 
 type NodeIconRole = 'success' | 'accent' | 'info' | 'faint'
 
 export default function RoadmapScreen() {
   const { data: nodes = [], isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['skill-tree'],
-    queryFn: () => api.get<SkillNode[]>('/skill-tree/me').then((r) => r.data),
+    queryFn: () => skillTreeApi.getMySkillTree(),
     staleTime: 120_000,
   })
 

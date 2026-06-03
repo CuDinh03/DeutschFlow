@@ -99,7 +99,58 @@ export interface NodeSubmitResult {
   attempts?: number
 }
 
+// ── Skill-tree list (/skill-tree/me) ────────────────────────────────────────
+// The endpoint returns raw snake_case rows (queryForList Map). Map to camelCase;
+// `tags` arrives as a JSON text string, `status` is under `user_status`, and the
+// title is split into title_vi/title_de.
+
+export type NodeStatus = 'LOCKED' | 'AVAILABLE' | 'IN_PROGRESS' | 'COMPLETED'
+
+export interface RawSkillNode {
+  id: number
+  title_de?: string | null
+  title_vi?: string | null
+  cefr_level?: string | null
+  day_number?: number | null
+  user_status?: string | null
+  status?: string | null
+  tags?: string | string[] | null
+}
+
+export interface SkillNode {
+  id: number
+  title: string
+  cefrLevel: string
+  status: NodeStatus
+  dayNumber: number
+  tags: string[]
+}
+
+export function mapSkillNode(r: RawSkillNode): SkillNode {
+  let tags: string[] = []
+  if (Array.isArray(r.tags)) tags = r.tags
+  else if (typeof r.tags === 'string') {
+    try {
+      const parsed = JSON.parse(r.tags)
+      if (Array.isArray(parsed)) tags = parsed.filter((t): t is string => typeof t === 'string')
+    } catch {
+      // leave empty
+    }
+  }
+  return {
+    id: r.id,
+    title: r.title_vi || r.title_de || `Ngày ${r.day_number ?? ''}`.trim(),
+    cefrLevel: r.cefr_level ?? '',
+    status: (r.user_status ?? r.status ?? 'LOCKED') as NodeStatus,
+    dayNumber: r.day_number ?? 0,
+    tags,
+  }
+}
+
 export const skillTreeApi = {
+  getMySkillTree: () =>
+    api.get<RawSkillNode[]>('/skill-tree/me').then((r) => r.data.map(mapSkillNode)),
+
   getNodeSession: (nodeId: number | string) =>
     api.get<NodeSession>(`/skill-tree/node/${nodeId}/session`).then((r) => r.data),
 
