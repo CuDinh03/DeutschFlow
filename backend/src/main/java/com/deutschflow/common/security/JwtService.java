@@ -9,37 +9,41 @@ import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.security.Key;
+import java.security.KeyFactory;
+import java.security.PublicKey;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Date;
 import java.util.List;
 
 /**
  * JWT ký và verify token.
  *
- * <p>Hỗ trợ <b>multi-key verify</b> để xoay secret không gây outage:
- * <ol>
- *   <li>Set {@code JWT_SECRET} = khóa mới, {@code JWT_SECRET_PREVIOUS} = khóa cũ.</li>
- *   <li>Deploy backend — token mới ký bằng khóa mới; token cũ vẫn verify được bằng khóa cũ.</li>
- *   <li>Sau ≥ 15 phút (toàn bộ access token cũ đã hết hạn), bỏ {@code JWT_SECRET_PREVIOUS}. Deploy.</li>
- * </ol>
+ * <p><b>Multi-key + multi-algorithm verify</b> để xoay khóa/đổi thuật toán không gây outage:
+ * verify list chứa cả khóa HS256 (primary + previous) lẫn RSA public key (current + previous), nên
+ * token ký bằng bất kỳ khóa nào trong đó đều được chấp nhận.
  *
- * <p>Token mới được gắn claim {@code iss} (issuer) và {@code aud} (audience)
- * theo RFC 7519 để ngăn tái sử dụng token giữa các service khác nhau.
- * Token cũ (không có iss/aud) vẫn được verify trong giai đoạn chuyển tiếp;
- * bật {@code app.jwt.require-iss-aud=true} sau khi toàn bộ token cũ hết hạn.
+ * <p><b>HS256 → RS256 migration (S18):</b> mặc định {@code app.jwt.algorithm=HS256} (ký HS256) nhưng
+ * vẫn verify được RS256 nếu {@code app.jwt.rsa-public-key} được cấu hình. Bật
+ * {@code app.jwt.algorithm=RS256} (cần {@code rsa-private-key} + {@code rsa-public-key}) để ký RS256 —
+ * lúc đó frontend chỉ cần public key, không còn chia sẻ secret ký. Xem docs/security/RS256_MIGRATION_PLAN.md.
+ *
+ * <p>Token mới gắn claim {@code iss}/{@code aud}; bật {@code app.jwt.require-iss-aud=true} sau khi token
+ * cũ (không có iss/aud) đã hết hạn.
  */
 @Slf4j
 @Service
 public class JwtService {
 
-    /** Khóa dùng để ký token mới — luôn là primary key. */
-    private final SecretKey signingKey;
+    /** Khóa dùng để ký token mới — SecretKey (HS256) hoặc RSA PrivateKey (RS256). */
+    private final Key signingKey;
+    private final String signingAlgorithm;
 
-    /**
-     * Danh sách khóa dùng khi verify: primary trước, previous sau.
-     * Trong giai đoạn chuyển tiếp, token ký bằng khóa cũ vẫn được chấp nhận.
-     */
-    private final List<SecretKey> verifyKeys;
+    /** Khóa dùng khi verify: HS256 secret(s) + RSA public key(s). Token ký bằng bất kỳ khóa nào đều ok. */
+    private final List<Key> verifyKeys;
 
     private final long accessTokenExpiryMs;
     private final String issuer;
@@ -52,7 +56,11 @@ public class JwtService {
             @Value("${app.jwt.access-token-expiry-ms}") long accessTokenExpiryMs,
             @Value("${app.jwt.issuer:deutschflow-api}") String issuer,
             @Value("${app.jwt.audience:deutschflow-app}") String audience,
-            @Value("${app.jwt.require-iss-aud:false}") boolean requireIssAud) {
+            @Value("${app.jwt.require-iss-aud:false}") boolean requireIssAud,
+            @Value("${app.jwt.algorithm:HS256}") String algorithm,
+            @Value("${app.jwt.rsa-private-key:}") String rsaPrivateKeyPem,
+            @Value("${app.jwt.rsa-public-key:}") String rsaPublicKeyPem,
+            @Value("${app.jwt.rsa-public-key-previous:}") String rsaPublicKeyPreviousPem) {
 
         if (primary == null || primary.isBlank()) {
             throw new IllegalStateException("JWT secret is missing. Set JWT_SECRET in environment.");
@@ -61,14 +69,43 @@ public class JwtService {
             throw new IllegalStateException("JWT secret must be at least 32 bytes.");
         }
 
-        this.signingKey = Keys.hmacShaKeyFor(primary.getBytes(StandardCharsets.UTF_8));
+        SecretKey hsKey = Keys.hmacShaKeyFor(primary.getBytes(StandardCharsets.UTF_8));
         this.verifyKeys = new ArrayList<>();
-        this.verifyKeys.add(this.signingKey);
+        this.verifyKeys.add(hsKey);
 
         if (previous != null && !previous.isBlank()
                 && previous.getBytes(StandardCharsets.UTF_8).length >= 32) {
             this.verifyKeys.add(Keys.hmacShaKeyFor(previous.getBytes(StandardCharsets.UTF_8)));
-            log.info("[JwtService] Previous secret loaded — zero-downtime key rotation enabled.");
+            log.info("[JwtService] Previous HS256 secret loaded — zero-downtime key rotation enabled.");
+        }
+
+        // RSA public key(s) → verify list, so RS256 tokens are accepted even while still signing HS256.
+        PublicKey rsaPublic = parseRsaPublicKey(rsaPublicKeyPem);
+        if (rsaPublic != null) {
+            this.verifyKeys.add(rsaPublic);
+            log.info("[JwtService] RSA public key loaded — RS256 tokens will be verified.");
+        }
+        PublicKey rsaPublicPrev = parseRsaPublicKey(rsaPublicKeyPreviousPem);
+        if (rsaPublicPrev != null) {
+            this.verifyKeys.add(rsaPublicPrev);
+            log.info("[JwtService] Previous RSA public key loaded — RS256 key rotation enabled.");
+        }
+
+        // Choose the signer based on app.jwt.algorithm (default HS256 — non-breaking).
+        String alg = (algorithm == null ? "HS256" : algorithm.trim().toUpperCase());
+        if ("RS256".equals(alg)) {
+            Key priv = parseRsaPrivateKey(rsaPrivateKeyPem);
+            if (priv == null) {
+                throw new IllegalStateException("app.jwt.algorithm=RS256 requires app.jwt.rsa-private-key.");
+            }
+            if (rsaPublic == null) {
+                throw new IllegalStateException("app.jwt.algorithm=RS256 requires app.jwt.rsa-public-key (for verification).");
+            }
+            this.signingKey = priv;
+            this.signingAlgorithm = "RS256";
+        } else {
+            this.signingKey = hsKey;
+            this.signingAlgorithm = "HS256";
         }
 
         this.accessTokenExpiryMs = accessTokenExpiryMs;
@@ -76,8 +113,8 @@ public class JwtService {
         this.audience      = audience;
         this.requireIssAud = requireIssAud;
 
-        log.info("[JwtService] Initialized — TTL: {}ms ({} min), issuer: {}, audience: {}, requireIssAud: {}",
-                accessTokenExpiryMs, accessTokenExpiryMs / 60_000, issuer, audience, requireIssAud);
+        log.info("[JwtService] Initialized — signing: {}, verify keys: {}, TTL: {}min, issuer: {}, audience: {}, requireIssAud: {}",
+                signingAlgorithm, verifyKeys.size(), accessTokenExpiryMs / 60_000, issuer, audience, requireIssAud);
     }
 
     public String generateAccessToken(User user) {
@@ -116,27 +153,29 @@ public class JwtService {
     /**
      * Verify token và trả về claims.
      *
-     * <p>Thử từng key trong {@link #verifyKeys} (primary → previous).
-     * Nếu sai chữ ký ({@link SignatureException}) → thử key tiếp theo.
-     * Các lỗi khác (hết hạn, malformed, …) được ném ra ngay để caller xử lý.
+     * <p>Thử từng key trong {@link #verifyKeys} (HS256 + RSA public). Sai chữ ký
+     * ({@link SignatureException}) → thử key tiếp theo. Lỗi khác (hết hạn, malformed, …) ném ngay.
      *
-     * <p>Khi {@code app.jwt.require-iss-aud=true}: bắt buộc kiểm tra issuer và audience.
-     * Bật flag này sau khi toàn bộ token cũ (không có iss/aud) đã hết hạn (≥ 15 phút).
+     * <p>Khi {@code app.jwt.require-iss-aud=true}: bắt buộc kiểm tra issuer.
      */
     public Claims extractClaims(String token) {
         JwtException last = null;
-        for (SecretKey key : verifyKeys) {
+        for (Key key : verifyKeys) {
             try {
-                var parserBuilder = Jwts.parser().verifyWith(key);
+                JwtParserBuilder pb = Jwts.parser();
+                // verifyWith has distinct SecretKey / PublicKey overloads — pick the right one.
+                pb = (key instanceof SecretKey sk) ? pb.verifyWith(sk) : pb.verifyWith((PublicKey) key);
                 if (requireIssAud) {
-                    parserBuilder = parserBuilder.requireIssuer(issuer);
+                    pb = pb.requireIssuer(issuer);
                     // aud là Set — dùng require() trực tiếp
                 }
-                return parserBuilder.build()
+                return pb.build()
                         .parseSignedClaims(token)
                         .getPayload();
-            } catch (SignatureException e) {
-                last = e;   // sai chữ ký — thử khóa tiếp theo
+            } catch (SignatureException | UnsupportedJwtException e) {
+                // Wrong key, OR a key whose type can't verify this token's algorithm (e.g. an HS256
+                // SecretKey tried against an RS256 token throws UnsupportedJwtException) — try next key.
+                last = e;
             }
             // ExpiredJwtException, MalformedJwtException, ... → ném ra ngay (không thử key khác)
         }
@@ -182,5 +221,38 @@ public class JwtService {
                 e.getClass().getSimpleName(), e.getMessage());
             return false;
         }
+    }
+
+    // ─── RSA PEM parsing (env stores \n-escaped PEM) ──────────────────────────
+
+    private static PublicKey parseRsaPublicKey(String pem) {
+        byte[] der = pemToDer(pem);
+        if (der == null) return null;
+        try {
+            return KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(der));
+        } catch (Exception e) {
+            throw new IllegalStateException("Invalid RSA public key (app.jwt.rsa-public-key*): " + e.getMessage(), e);
+        }
+    }
+
+    private static java.security.PrivateKey parseRsaPrivateKey(String pem) {
+        byte[] der = pemToDer(pem);
+        if (der == null) return null;
+        try {
+            return KeyFactory.getInstance("RSA").generatePrivate(new PKCS8EncodedKeySpec(der));
+        } catch (Exception e) {
+            throw new IllegalStateException("Invalid RSA private key (app.jwt.rsa-private-key): " + e.getMessage(), e);
+        }
+    }
+
+    /** Strip PEM armor + whitespace and base64-decode. Tolerates \n-escaped env values. Returns null if blank. */
+    private static byte[] pemToDer(String pem) {
+        if (pem == null || pem.isBlank()) return null;
+        String body = pem
+                .replace("\\n", "\n")               // un-escape \n-escaped env values
+                .replaceAll("-----BEGIN [^-]+-----", "")
+                .replaceAll("-----END [^-]+-----", "")
+                .replaceAll("\\s", "");
+        return Base64.getDecoder().decode(body);
     }
 }
