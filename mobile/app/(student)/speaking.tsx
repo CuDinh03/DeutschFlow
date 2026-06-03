@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, memo } from 'react'
 import { View, ScrollView, Alert, Pressable, TextInput, ActivityIndicator } from 'react-native'
 import { Audio } from 'expo-av'
+import * as FileSystem from 'expo-file-system'
 import { MotiView } from 'moti'
 import * as Haptics from 'expo-haptics'
 import { router } from 'expo-router'
@@ -85,6 +86,8 @@ export default function SpeakingScreen() {
   const [resuming, setResuming] = useState(false)
 
   const recordingRef = useRef<Audio.Recording | null>(null)
+  const soundRef = useRef<Audio.Sound | null>(null)
+  const ttsSeqRef = useRef(0)
   const scrollRef = useRef<ScrollView | null>(null)
   const typingRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const reactionRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -114,10 +117,12 @@ export default function SpeakingScreen() {
     [],
   )
 
-  // Speak the AI's German line via TTS; the persona "talks" for the speech duration,
-  // then runs onDone. Falls back to a timed delay if expo-speech isn't in the binary
-  // yet (native module needs a rebuild) so the flow never breaks.
-  function speakGerman(text: string, onDone: () => void) {
+  // Speak the AI's German line, cascading by availability so the flow never breaks:
+  //   1. Server TTS (persona voice) → played via expo-av (no extra native module)
+  //   2. On-device speech (expo-speech) if present in the binary
+  //   3. Timed delay paced by text length
+  // The persona "talks" for the audio duration, then runs onDone.
+  async function speakGerman(text: string, onDone: () => void) {
     setStage('speaking')
     setReaction(null)
     let done = false
@@ -126,16 +131,43 @@ export default function SpeakingScreen() {
       done = true
       onDone()
     }
+    const trimmed = text.trim()
+    if (!trimmed) {
+      setTimeout(finish, 600)
+      return
+    }
+
+    // 1. Server TTS — persona voice, played through expo-av.
+    try {
+      const persona = (session?.persona ?? 'DEFAULT').toUpperCase()
+      const base64 = await speakingApi.tts(trimmed, persona)
+      await stopSpeech()
+      const path = `${FileSystem.cacheDirectory}tts-${ttsSeqRef.current++}.mp3`
+      await FileSystem.writeAsStringAsync(path, base64, { encoding: FileSystem.EncodingType.Base64 })
+      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true })
+      const { sound } = await Audio.Sound.createAsync({ uri: path }, { shouldPlay: true })
+      soundRef.current = sound
+      sound.setOnPlaybackStatusUpdate((st) => {
+        if (st.isLoaded && st.didJustFinish) {
+          void sound.unloadAsync()
+          if (soundRef.current === sound) soundRef.current = null
+          finish()
+        }
+      })
+      return
+    } catch {
+      // Provider not configured / playback failed — fall through.
+    }
+
+    // 2. On-device speech if the native module is in the binary.
     try {
       const Speech = require('expo-speech') as typeof import('expo-speech')
       Speech.stop()
-      if (text.trim()) {
-        Speech.speak(text, { language: 'de-DE', rate: 0.96, onDone: finish, onStopped: finish, onError: finish })
-      } else {
-        setTimeout(finish, 600)
-      }
+      Speech.speak(trimmed, { language: 'de-DE', rate: 0.96, onDone: finish, onStopped: finish, onError: finish })
+      return
     } catch {
-      setTimeout(finish, Math.min(4200, 1200 + text.length * 42))
+      // 3. Neither available — pace by length so the flow never blocks.
+      setTimeout(finish, Math.min(4200, 1200 + trimmed.length * 42))
     }
   }
 
@@ -147,7 +179,17 @@ export default function SpeakingScreen() {
     if (r) reactionRef.current = setTimeout(() => setReaction(null), 2400)
   }
 
-  function stopSpeech() {
+  async function stopSpeech() {
+    if (soundRef.current) {
+      const s = soundRef.current
+      soundRef.current = null
+      try {
+        await s.stopAsync()
+        await s.unloadAsync()
+      } catch {
+        // already unloaded
+      }
+    }
     try {
       ;(require('expo-speech') as typeof import('expo-speech')).stop()
     } catch {

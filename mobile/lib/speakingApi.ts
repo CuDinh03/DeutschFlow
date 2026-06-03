@@ -15,6 +15,24 @@
 
 import api from './api'
 
+// Encode binary audio (arraybuffer) to base64 for expo-file-system to write.
+// Hermes has no Buffer/btoa, so encode manually.
+const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+function arrayBufferToBase64(buf: ArrayBuffer): string {
+  const bytes = new Uint8Array(buf)
+  let out = ''
+  for (let i = 0; i < bytes.length; i += 3) {
+    const b0 = bytes[i]
+    const b1 = i + 1 < bytes.length ? bytes[i + 1] : 0
+    const b2 = i + 2 < bytes.length ? bytes[i + 2] : 0
+    out += B64[b0 >> 2]
+    out += B64[((b0 & 3) << 4) | (b1 >> 4)]
+    out += i + 1 < bytes.length ? B64[((b1 & 15) << 2) | (b2 >> 6)] : '='
+    out += i + 2 < bytes.length ? B64[b2 & 63] : '='
+  }
+  return out
+}
+
 // ── Domain types (field names match backend DTOs) ───────────────────────────
 
 export type PersonaDifficulty = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED'
@@ -241,6 +259,16 @@ export const speakingApi = {
         params: { size, sort: 'startedAt,desc' },
       })
       .then((r) => r.data.content ?? []),
+
+  /**
+   * Server-side TTS (persona voice). Returns base64 MP3 to play via expo-av —
+   * no on-device speech module needed. Rejects (503) when the provider isn't
+   * configured; callers fall back to on-device speech.
+   */
+  tts: (text: string, persona: string) =>
+    api
+      .post('/ai-speaking/tts', { text, persona }, { responseType: 'arraybuffer', timeout: 20_000 })
+      .then((r) => arrayBufferToBase64(r.data as ArrayBuffer)),
 
   /** Submit a weekly-challenge spoken answer (a transcript) for AI evaluation. */
   submitWeekly: (promptId: number, transcript: string, cefrBand: string) =>

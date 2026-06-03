@@ -46,7 +46,7 @@ public class TtsController {
      */
     @PostMapping("/tts")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Map<String, String>> synthesize(
+    public ResponseEntity<byte[]> synthesize(
             @RequestBody Map<String, String> body,
             @AuthenticationPrincipal User user) {
 
@@ -57,12 +57,18 @@ public class TtsController {
             return ResponseEntity.badRequest().build();
         }
 
-        // Mock AWS S3 URL for V4.1 Optimization Phase
-        // In the future, this will call Edge TTS and upload to actual S3, then return the S3 URL.
-        log.info("[TTS Mock] Generating mock S3 URL for persona '{}', text length: {}", persona, text.length());
-        String mockS3Url = "https://s3.ap-southeast-1.amazonaws.com/deutschflow-assets/mock-audio.mp3";
-        
-        return ResponseEntity.ok(Map.of("audioUrl", mockS3Url));
+        byte[] audio = ttsService.synthesize(text, persona);
+        if (audio == null || audio.length == 0) {
+            // Not configured (no ElevenLabs key / Edge TTS unavailable) — clients fall back
+            // to on-device speech. Documented 503 contract.
+            log.debug("[TTS] No audio for persona '{}' (provider not configured) — returning 503", persona);
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("audio/mpeg"))
+                .cacheControl(CacheControl.noCache())
+                .body(audio);
     }
 
     /**
