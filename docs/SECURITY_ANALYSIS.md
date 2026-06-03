@@ -26,7 +26,7 @@
 | S14 | EAS init + Sentry (observability) | Mobile | 🔵 | 🧩 SCAFFOLDED (DSN-guarded no-op; activate per PHASE1 doc) |
 | S15 | SSE one-time ticket thay `?access_token=` | Backend+Web | 🟡 | ✅ DONE (SseTicketService + POST /api/sse/ticket + JwtAuthFilter `?ticket=`; 2 web EventSource sites migrated; `?access_token=` kept deprecated for zero-downtime) |
 | S15b | Remove deprecated `?access_token=` from JwtAuthFilter | Backend | 🔵 | 📋 PLANNED (after the web ticket clients are deployed — no SSE client sends access_token in URL anymore) |
-| S16 | Rate-limit → Redis (multi-node) | Backend | 🟡 | 📋 PLANNED (trước khi scale) |
+| S16 | Rate-limit → Redis (multi-node) | Backend | 🟡 | ✅ DONE (AuthRateLimiterService: Redis ZSET sliding-window via atomic Lua, shared across nodes; **degrades to in-memory** if Redis down — no lockout). SSE ticket store still in-memory (single-node SSE) — migrate with SSE if it goes multi-node. |
 | S17 | CSP nonce-based (Report-Only; flip to enforce) | Web | 🟠 | ✅ DONE (nonce in middleware, Report-Only — flip name to enforce) |
 | S18 | RS256 (bỏ chia sẻ secret ký với Amplify) | Backend | 🔵 | 📋 PLANNED |
 | S19 | Web access token → in-memory + silent refresh | Web | 🟡 | 📋 PLANNED (refactor, rủi ro UX) |
