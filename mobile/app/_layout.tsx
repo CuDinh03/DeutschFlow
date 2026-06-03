@@ -29,11 +29,18 @@ import { usePlanStore } from '@/stores/usePlanStore'
 import { useSrsOfflineStore } from '@/stores/useSrsOfflineStore'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
 import { getAccessToken } from '@/lib/auth'
+import { initObservability } from '@/lib/observability'
+import { initCertPinning } from '@/lib/certPinning'
 import { ThemeProvider, useTheme } from '@/lib/theme'
 import { SplashAnimated } from '@/components/SplashAnimated'
 import '../global.css'
 
 void SplashScreen.preventAutoHideAsync()
+
+// Crash/error reporting bootstrap — guarded no-op until a Sentry DSN is configured (S14).
+initObservability()
+// TLS pinning bootstrap — guarded no-op until enabled with verified pins + the lib (S12).
+initCertPinning()
 
 const queryClient = new QueryClient({
   defaultOptions: {
