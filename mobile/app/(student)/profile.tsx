@@ -5,7 +5,7 @@ import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
 import api, { apiMessage } from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, Pill, ListRow, SectionHeader } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, Pill, ListRow, SectionHeader, FadeIn } from '@/components/ui'
 
 export default function ProfileScreen() {
   const theme = useTheme()
@@ -59,30 +59,32 @@ export default function ProfileScreen() {
 
   return (
     <Screen scroll edges={['top']} contentStyle={{ paddingBottom: space[10] }}>
-      <View style={{ alignItems: 'center', paddingHorizontal: space[5], paddingTop: space[6], paddingBottom: space[5], gap: space[1] }}>
-        <View
-          style={{
-            width: 80,
-            height: 80,
-            borderRadius: radius.full,
-            backgroundColor: theme.colors.accent,
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginBottom: space[2],
-          }}
-        >
-          <ThemedText variant="displayLg" color="onAccent">
-            {initials}
+      <FadeIn delay={0}>
+        <View style={{ alignItems: 'center', paddingHorizontal: space[5], paddingTop: space[6], paddingBottom: space[5], gap: space[1] }}>
+          <View
+            style={{
+              width: 80,
+              height: 80,
+              borderRadius: radius.full,
+              backgroundColor: theme.colors.accent,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: space[2],
+            }}
+          >
+            <ThemedText variant="displayLg" color="onAccent">
+              {initials}
+            </ThemedText>
+          </View>
+          <ThemedText variant="titleLg">{user?.displayName}</ThemedText>
+          <ThemedText variant="body" color="muted">
+            {user?.email}
           </ThemedText>
+          <Pill label={plan?.tier ?? 'FREE'} tone={isPro ? 'accent' : 'neutral'} style={{ marginTop: space[2] }} />
         </View>
-        <ThemedText variant="titleLg">{user?.displayName}</ThemedText>
-        <ThemedText variant="body" color="muted">
-          {user?.email}
-        </ThemedText>
-        <Pill label={plan?.tier ?? 'FREE'} tone={isPro ? 'accent' : 'neutral'} style={{ marginTop: space[2] }} />
-      </View>
+      </FadeIn>
 
-      <View style={{ paddingHorizontal: space[5], gap: space[5] }}>
+      <FadeIn delay={100} style={{ paddingHorizontal: space[5], gap: space[5] }}>
         {!isPro ? (
           <Card onPress={() => router.push('/(student)/upgrade')} style={{ borderColor: theme.colors.accent + '66' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
@@ -121,7 +123,12 @@ export default function ProfileScreen() {
         <View>
           <SectionHeader title="Học tập" />
           <Card padded={false} style={{ paddingHorizontal: space[4] }}>
-            <ListRow icon={Globe} title="Ngôn ngữ giao diện" onPress={() => {}} />
+            <ListRow
+              icon={Globe}
+              title="Ngôn ngữ giao diện"
+              trailing={<ThemedText variant="caption" color="faint">Tiếng Việt</ThemedText>}
+              onPress={() => Alert.alert('Sắp ra mắt', 'Tuỳ chọn đổi ngôn ngữ giao diện sẽ có trong bản cập nhật tới.')}
+            />
             <Divider />
             <ListRow icon={BarChart3} title="Tiến trình & thống kê" onPress={() => router.push('/(student)/stats')} />
           </Card>
@@ -150,7 +157,7 @@ export default function ProfileScreen() {
         <ThemedText variant="caption" color="faint" align="center" style={{ marginTop: space[2] }}>
           DeutschFlow v1.0.0 • iOS/Android
         </ThemedText>
-      </View>
+      </FadeIn>
     </Screen>
   )
 }

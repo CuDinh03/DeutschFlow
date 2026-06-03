@@ -1,4 +1,4 @@
-import { View, FlatList, Pressable } from 'react-native'
+import { View, FlatList, Pressable, RefreshControl } from 'react-native'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { router } from 'expo-router'
 import { Bell, CheckCheck } from 'lucide-react-native'
@@ -6,14 +6,14 @@ import { formatDistanceToNow } from 'date-fns'
 import { vi } from 'date-fns/locale'
 import api from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, AppHeader, EmptyState, Skeleton } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, AppHeader, EmptyState, ErrorState, Skeleton } from '@/components/ui'
 import { mapNotification, type NotificationPage } from '@/lib/notificationsApi'
 
 export default function NotificationsScreen() {
   const theme = useTheme()
   const qc = useQueryClient()
 
-  const { data: notifs = [], isLoading } = useQuery({
+  const { data: notifs = [], isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['notifications'],
     queryFn: () =>
       api
@@ -47,12 +47,22 @@ export default function NotificationsScreen() {
           <Skeleton height={72} radius="lg" />
           <Skeleton height={72} radius="lg" />
         </View>
+      ) : isError ? (
+        <ErrorState onRetry={() => void refetch()} />
       ) : (
         <FlatList
           data={notifs}
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={{ paddingHorizontal: space[5], paddingBottom: space[6], gap: space[2] }}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isFetching && !isLoading}
+              onRefresh={() => void refetch()}
+              tintColor={theme.colors.accent}
+              colors={[theme.colors.accent]}
+            />
+          }
           ListEmptyComponent={
             <EmptyState icon={Bell} title="Chưa có thông báo" message="Thông báo mới sẽ xuất hiện ở đây." />
           }

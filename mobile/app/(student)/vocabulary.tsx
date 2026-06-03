@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { View, TextInput, FlatList, Pressable } from 'react-native'
+import { View, TextInput, FlatList, Pressable, RefreshControl } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router } from 'expo-router'
 import { Search, BookMarked } from 'lucide-react-native'
 import api from '@/lib/api'
 import { fonts, radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, Skeleton } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, ErrorState, Skeleton } from '@/components/ui'
 import { useDebounce } from '@/hooks/useDebounce'
 
 interface Word {
@@ -34,7 +34,7 @@ export default function VocabularyScreen() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
   const debouncedSearch = useDebounce(search, 350)
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['words', debouncedSearch, statusFilter],
     queryFn: () => {
       const params = new URLSearchParams({ page: '0', size: '30' })
@@ -106,12 +106,22 @@ export default function VocabularyScreen() {
           <Skeleton height={60} radius="lg" />
           <Skeleton height={60} radius="lg" />
         </View>
+      ) : isError ? (
+        <ErrorState onRetry={() => void refetch()} />
       ) : (
         <FlatList
           data={words}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingHorizontal: space[5], paddingBottom: space[6], gap: space[2] }}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isFetching && !isLoading}
+              onRefresh={() => void refetch()}
+              tintColor={c.accent}
+              colors={[c.accent]}
+            />
+          }
           ListEmptyComponent={<EmptyState icon={BookMarked} title="Không tìm thấy từ vựng" message="Thử từ khoá hoặc bộ lọc khác." />}
           renderItem={({ item }) => (
             <Card>

@@ -27,7 +27,7 @@ export default function WeeklySpeakingScreen() {
   const c = theme.colors
   const { isPro } = usePlanStore()
 
-  const { data: prompt, isLoading: promptLoading } = useQuery({
+  const { data: prompt, isLoading: promptLoading, refetch: refetchPrompt, isFetching } = useQuery({
     queryKey: ['weekly-prompt'],
     queryFn: () =>
       api
@@ -37,7 +37,7 @@ export default function WeeklySpeakingScreen() {
     staleTime: 60_000 * 30,
   })
 
-  const { data: history = [] } = useQuery({
+  const { data: history = [], refetch: refetchHistory } = useQuery({
     queryKey: ['weekly-history'],
     queryFn: () =>
       api
@@ -70,7 +70,16 @@ export default function WeeklySpeakingScreen() {
     <Screen edges={['top']}>
       <AppHeader title="Weekly Speaking" onBack={() => router.back()} />
 
-      <Screen scroll edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[8], gap: space[4], paddingTop: space[2] }}>
+      <Screen
+        scroll
+        edges={[]}
+        contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[8], gap: space[4], paddingTop: space[2] }}
+        refreshing={isFetching && !promptLoading}
+        onRefresh={() => {
+          void refetchPrompt()
+          void refetchHistory()
+        }}
+      >
         {promptLoading ? (
           <Skeleton height={170} radius="2xl" />
         ) : prompt ? (

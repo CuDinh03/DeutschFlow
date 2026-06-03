@@ -1,10 +1,10 @@
 import { SectionList, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router } from 'expo-router'
-import { Lock, CheckCircle2, Circle, PlayCircle, type LucideIcon } from 'lucide-react-native'
+import { Lock, CheckCircle2, Circle, PlayCircle, Map, type LucideIcon } from 'lucide-react-native'
 import api from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, Pill, AppHeader, Skeleton } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, ErrorState, Skeleton } from '@/components/ui'
 
 interface SkillNode {
   id: number
@@ -18,7 +18,7 @@ interface SkillNode {
 type NodeIconRole = 'success' | 'accent' | 'info' | 'faint'
 
 export default function RoadmapScreen() {
-  const { data: nodes = [], isLoading } = useQuery({
+  const { data: nodes = [], isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['skill-tree'],
     queryFn: () => api.get<SkillNode[]>('/skill-tree/me').then((r) => r.data),
     staleTime: 120_000,
@@ -41,13 +41,26 @@ export default function RoadmapScreen() {
           <Skeleton height={72} radius="xl" />
           <Skeleton height={72} radius="xl" />
         </View>
+      ) : isError ? (
+        <ErrorState onRetry={() => void refetch()} />
       ) : (
         <SectionList
           sections={sections}
           keyExtractor={(item) => String(item.id)}
           stickySectionHeadersEnabled={false}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: space[5], paddingBottom: space[8] }}
+          refreshing={isFetching && !isLoading}
+          onRefresh={() => void refetch()}
+          contentContainerStyle={{ paddingHorizontal: space[5], paddingBottom: space[8], flexGrow: 1 }}
+          ListEmptyComponent={
+            <View style={{ flex: 1, justifyContent: 'center' }}>
+              <EmptyState
+                icon={Map}
+                title="Chưa có lộ trình"
+                message="Hoàn thành bài đánh giá đầu vào để mở lộ trình học của bạn."
+              />
+            </View>
+          }
           renderSectionHeader={({ section }) => (
             <View style={{ marginTop: space[5] }}>
               <LevelDivider level={section.level} />
@@ -105,7 +118,6 @@ function NodeRow({ node, isLast }: { node: SkillNode; isLast: boolean }) {
 
       <Card
         bordered
-        onPress={isLocked ? undefined : () => {}}
         style={{ flex: 1, marginLeft: space[3], marginBottom: space[2], borderColor, opacity: isLocked ? 0.5 : 1 }}
       >
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>

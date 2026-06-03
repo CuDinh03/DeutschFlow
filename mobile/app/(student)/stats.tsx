@@ -16,7 +16,7 @@ import api from '@/lib/api'
 import { progressApi, type SkillData, type WeeklyPoint } from '@/lib/progressApi'
 import { speakingApi, type AiSpeakingSession } from '@/lib/speakingApi'
 import { radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, Pill, AppHeader, ProgressBar, Skeleton } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, Pill, AppHeader, ProgressBar, ErrorState, FadeIn, Skeleton } from '@/components/ui'
 
 interface StatsData {
   streakDays: number
@@ -45,23 +45,29 @@ interface SkillsShape {
 }
 
 export default function StatsScreen() {
-  const { data: stats, isLoading } = useQuery({
+  const { data: stats, isLoading, isError, refetch: refetchStats, isFetching } = useQuery({
     queryKey: ['stats'],
     queryFn: () => api.get<StatsData>('/student/stats').then((r) => r.data),
     staleTime: 60_000,
   })
 
-  const { data: overview } = useQuery({
+  const { data: overview, refetch: refetchOverview } = useQuery({
     queryKey: ['progress-overview'],
     queryFn: () => progressApi.getOverview(),
     staleTime: 60_000,
   })
 
-  const { data: sessions = [] } = useQuery({
+  const { data: sessions = [], refetch: refetchSessions } = useQuery({
     queryKey: ['recent-sessions'],
     queryFn: () => speakingApi.listSessions(8),
     staleTime: 60_000,
   })
+
+  const onRefresh = () => {
+    void refetchStats()
+    void refetchOverview()
+    void refetchSessions()
+  }
 
   return (
     <Screen edges={['top']}>
@@ -75,22 +81,29 @@ export default function StatsScreen() {
           <Skeleton height={180} radius="2xl" />
           <Skeleton height={120} radius="2xl" />
         </View>
+      ) : isError ? (
+        <ErrorState onRetry={() => void refetchStats()} />
       ) : (
         <Screen
           scroll
           edges={[]}
           contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[8], paddingTop: space[2], gap: space[3] }}
+          refreshing={isFetching && !isLoading}
+          onRefresh={onRefresh}
         >
           {/* Aggregate tiles */}
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[3] }}>
-            <StatTileCard icon={Flame} accent="accent" label="Streak" value={`${stats?.streakDays ?? 0} ngày`} />
-            <StatTileCard icon={Star} accent="info" label="Level" value={`Lv ${stats?.xpLevel ?? 1}`} />
-            <StatTileCard icon={BookOpen} accent="info" label="Từ đã học" value={`${stats?.wordsLearned ?? 0}`} />
-            <StatTileCard icon={Mic} accent="success" label="Phút nói" value={`${stats?.speakingMinutes ?? 0}`} />
-          </View>
+          <FadeIn delay={0}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[3] }}>
+              <StatTileCard icon={Flame} accent="accent" label="Streak" value={`${stats?.streakDays ?? 0} ngày`} />
+              <StatTileCard icon={Star} accent="info" label="Level" value={`Lv ${stats?.xpLevel ?? 1}`} />
+              <StatTileCard icon={BookOpen} accent="info" label="Từ đã học" value={`${stats?.wordsLearned ?? 0}`} />
+              <StatTileCard icon={Mic} accent="success" label="Phút nói" value={`${stats?.speakingMinutes ?? 0}`} />
+            </View>
+          </FadeIn>
 
           {/* Skill ability — "where am I" */}
           {overview ? (
+            <FadeIn delay={80}>
             <Card style={{ gap: space[4] }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <ThemedText variant="bodyStrong">Kỹ năng theo CEFR</ThemedText>
@@ -114,27 +127,32 @@ export default function StatsScreen() {
                 )
               })}
             </Card>
+            </FadeIn>
           ) : null}
 
           {/* Weekly trend — "am I improving" */}
           {overview && overview.weeklyProgress?.length > 0 ? (
-            <Card style={{ gap: space[3] }}>
-              <ThemedText variant="bodyStrong">Hoạt động hàng tuần</ThemedText>
-              <WeeklyTrend points={overview.weeklyProgress} />
-            </Card>
+            <FadeIn delay={160}>
+              <Card style={{ gap: space[3] }}>
+                <ThemedText variant="bodyStrong">Hoạt động hàng tuần</ThemedText>
+                <WeeklyTrend points={overview.weeklyProgress} />
+              </Card>
+            </FadeIn>
           ) : null}
 
           {/* Recent sessions — history */}
-          <Card style={{ gap: space[3] }}>
-            <ThemedText variant="bodyStrong">Buổi luyện gần đây</ThemedText>
-            {sessions.length === 0 ? (
-              <ThemedText variant="caption" color="muted">
-                Chưa có buổi luyện nào. Hãy bắt đầu một buổi phỏng vấn!
-              </ThemedText>
-            ) : (
-              sessions.map((s, i) => <SessionRow key={s.id} session={s} isLast={i === sessions.length - 1} />)
-            )}
-          </Card>
+          <FadeIn delay={240}>
+            <Card style={{ gap: space[3] }}>
+              <ThemedText variant="bodyStrong">Buổi luyện gần đây</ThemedText>
+              {sessions.length === 0 ? (
+                <ThemedText variant="caption" color="muted">
+                  Chưa có buổi luyện nào. Hãy bắt đầu một buổi phỏng vấn!
+                </ThemedText>
+              ) : (
+                sessions.map((s, i) => <SessionRow key={s.id} session={s} isLast={i === sessions.length - 1} />)
+              )}
+            </Card>
+          </FadeIn>
         </Screen>
       )}
     </Screen>

@@ -5,7 +5,7 @@ import { router } from 'expo-router'
 import { ChevronDown, ChevronUp, Check } from 'lucide-react-native'
 import api from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, Pill, AppHeader, SectionHeader, Skeleton } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, Pill, AppHeader, SectionHeader, ErrorState, Skeleton } from '@/components/ui'
 import { mapGrammarTopic, type RawGrammarTopic } from '@/lib/grammarApi'
 
 const CASES = [
@@ -29,7 +29,7 @@ export default function GrammarScreen() {
   const c = theme.colors
   const [expandedCase, setExpandedCase] = useState<string | null>('nominativ')
 
-  const { data: topics = [], isLoading } = useQuery({
+  const { data: topics = [], isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['grammar-topics'],
     queryFn: () =>
       api
@@ -42,7 +42,13 @@ export default function GrammarScreen() {
     <Screen edges={['top']}>
       <AppHeader title="Ngữ pháp tiếng Đức" onBack={() => router.back()} />
 
-      <Screen scroll edges={[]} contentStyle={{ paddingBottom: space[8] }}>
+      <Screen
+        scroll
+        edges={[]}
+        contentStyle={{ paddingBottom: space[8] }}
+        refreshing={isFetching && !isLoading}
+        onRefresh={() => void refetch()}
+      >
         <View style={{ paddingHorizontal: space[5] }}>
           <SectionHeader title="Bảng cách (Kasus)" />
         </View>
@@ -120,6 +126,14 @@ export default function GrammarScreen() {
           <View style={{ paddingHorizontal: space[5], marginTop: space[5], gap: space[2] }}>
             <Skeleton height={72} radius="2xl" />
             <Skeleton height={72} radius="2xl" />
+          </View>
+        ) : isError ? (
+          <View style={{ marginTop: space[4] }}>
+            <ErrorState
+              title="Không tải được bài học"
+              message="Bảng cách vẫn xem được. Kéo xuống hoặc thử lại để tải bài học ngữ pháp."
+              onRetry={() => void refetch()}
+            />
           </View>
         ) : topics.length > 0 ? (
           <>

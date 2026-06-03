@@ -12,7 +12,7 @@ import {
 } from 'lucide-react-native'
 import api from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, SectionHeader } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, SectionHeader, FadeIn } from '@/components/ui'
 
 interface SkillTreeNode {
   id: number
@@ -25,7 +25,7 @@ interface SkillTreeNode {
 type StatusTone = 'success' | 'accent' | 'info'
 
 export default function LearnScreen() {
-  const { data: nodes = [] } = useQuery({
+  const { data: nodes = [], refetch, isFetching } = useQuery({
     queryKey: ['skill-tree'],
     queryFn: () => api.get<SkillTreeNode[]>('/skill-tree/me').then((r) => r.data),
     staleTime: 120_000,
@@ -47,7 +47,13 @@ export default function LearnScreen() {
   ]
 
   return (
-    <Screen scroll edges={['top']} contentStyle={{ paddingBottom: space[6] }}>
+    <Screen
+      scroll
+      edges={['top']}
+      contentStyle={{ paddingBottom: space[6] }}
+      refreshing={isFetching}
+      onRefresh={() => void refetch()}
+    >
       <View style={{ paddingHorizontal: space[5], paddingTop: space[3], paddingBottom: space[2], gap: 2 }}>
         <ThemedText variant="display">Học tập</ThemedText>
         <ThemedText variant="body" color="muted">
@@ -55,32 +61,38 @@ export default function LearnScreen() {
         </ThemedText>
       </View>
 
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[3], paddingHorizontal: space[5], marginTop: space[4] }}>
-        {tiles.map((t) => (
-          <LearningTile key={t.label} icon={t.icon} label={t.label} count={t.count} onPress={t.onPress} />
-        ))}
-      </View>
+      <FadeIn delay={60}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[3], paddingHorizontal: space[5], marginTop: space[4] }}>
+          {tiles.map((t) => (
+            <LearningTile key={t.label} icon={t.icon} label={t.label} count={t.count} onPress={t.onPress} />
+          ))}
+        </View>
+      </FadeIn>
 
       {inProgress.length > 0 ? (
-        <View style={{ paddingHorizontal: space[5], marginTop: space[6] }}>
-          <SectionHeader title="Đang học" actionLabel="Xem tất cả" onAction={() => router.push('/(student)/roadmap')} />
-          <View style={{ gap: space[2] }}>
-            {inProgress.map((node) => (
-              <NodeCard key={node.id} node={node} />
-            ))}
+        <FadeIn delay={140}>
+          <View style={{ paddingHorizontal: space[5], marginTop: space[6] }}>
+            <SectionHeader title="Đang học" actionLabel="Xem tất cả" onAction={() => router.push('/(student)/roadmap')} />
+            <View style={{ gap: space[2] }}>
+              {inProgress.map((node) => (
+                <NodeCard key={node.id} node={node} />
+              ))}
+            </View>
           </View>
-        </View>
+        </FadeIn>
       ) : null}
 
       {available.length > 0 ? (
-        <View style={{ paddingHorizontal: space[5], marginTop: space[6] }}>
-          <SectionHeader title="Tiếp theo" actionLabel="Xem tất cả" onAction={() => router.push('/(student)/roadmap')} />
-          <View style={{ gap: space[2] }}>
-            {available.map((node) => (
-              <NodeCard key={node.id} node={node} />
-            ))}
+        <FadeIn delay={220}>
+          <View style={{ paddingHorizontal: space[5], marginTop: space[6] }}>
+            <SectionHeader title="Tiếp theo" actionLabel="Xem tất cả" onAction={() => router.push('/(student)/roadmap')} />
+            <View style={{ gap: space[2] }}>
+              {available.map((node) => (
+                <NodeCard key={node.id} node={node} />
+              ))}
+            </View>
           </View>
-        </View>
+        </FadeIn>
       ) : null}
     </Screen>
   )

@@ -6,7 +6,7 @@ import { Trophy, Clock, Target, Lock } from 'lucide-react-native'
 import { Alert } from 'react-native'
 import api from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, Skeleton } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, ErrorState, Skeleton } from '@/components/ui'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { mapExam, type RawMockExam } from '@/lib/examApi'
 
@@ -18,7 +18,7 @@ export default function ExamScreen() {
 
   const [level, setLevel] = useState<string>('B1')
 
-  const { data: variants = [], isLoading } = useQuery({
+  const { data: variants = [], isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['exam-variants', level],
     queryFn: () =>
       api.get<RawMockExam[]>('/mock-exams', { params: { cefrLevel: level } }).then((r) => r.data.map(mapExam)),
@@ -89,8 +89,16 @@ export default function ExamScreen() {
           <Skeleton height={110} radius="2xl" />
           <Skeleton height={110} radius="2xl" />
         </View>
+      ) : isError ? (
+        <ErrorState onRetry={() => void refetch()} />
       ) : (
-        <Screen scroll edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[6], gap: space[3], paddingTop: space[2] }}>
+        <Screen
+          scroll
+          edges={[]}
+          contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[6], gap: space[3], paddingTop: space[2] }}
+          refreshing={isFetching && !isLoading}
+          onRefresh={() => void refetch()}
+        >
           {variants.length === 0 ? (
             <EmptyState icon={Trophy} title="Chưa có đề thi" message={`Chưa có đề thi ${level}. Thử cấp độ khác.`} />
           ) : null}
