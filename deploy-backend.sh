@@ -73,8 +73,8 @@ if [ ! -f "$ENV_FILE" ]; then
   error ".env.production không tìm thấy: $ENV_FILE"; exit 1
 fi
 
-# Kiểm tra biến bắt buộc
-REQUIRED_VARS=(DB_HOST DB_PASSWORD JWT_SECRET GROQ_API_KEY AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY GEMINI_API_KEY UNSPLASH_ENABLED UNSPLASH_ACCESS_KEY UNSPLASH_APPLICATION_NAME UNSPLASH_TIMEOUT_MS UNSPLASH_CONNECT_TIMEOUT_MS UNSPLASH_MAX_RETRY_ATTEMPTS)
+# Kiểm tra biến bắt buộc (JWT verifier kiểm riêng bên dưới — hỗ trợ cả HS256 lẫn RS256)
+REQUIRED_VARS=(DB_HOST DB_PASSWORD GROQ_API_KEY AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY GEMINI_API_KEY UNSPLASH_ENABLED UNSPLASH_ACCESS_KEY UNSPLASH_APPLICATION_NAME UNSPLASH_TIMEOUT_MS UNSPLASH_CONNECT_TIMEOUT_MS UNSPLASH_MAX_RETRY_ATTEMPTS)
 MISSING=()
 for VAR in "${REQUIRED_VARS[@]}"; do
   grep -q "^${VAR}=" "$ENV_FILE" 2>/dev/null || MISSING+=("$VAR")
@@ -82,7 +82,22 @@ done
 if [ ${#MISSING[@]} -gt 0 ]; then
   error ".env.production thiếu biến: ${MISSING[*]}"; exit 1
 fi
-success ".env.production: đầy đủ (${#REQUIRED_VARS[@]} biến)"
+
+# JWT verifier (S18): chấp nhận HS256 (JWT_SECRET) HOẶC RS256 (algorithm=RS256 + cặp RSA key).
+# Dùng "=." để yêu cầu value KHÔNG rỗng.
+JWT_ALG_VAL=$(grep "^JWT_ALGORITHM=" "$ENV_FILE" 2>/dev/null | head -1 | cut -d= -f2-)
+if grep -q "^JWT_SECRET=." "$ENV_FILE" 2>/dev/null; then
+  success ".env.production: JWT = HS256 (JWT_SECRET set)"
+elif [ "$JWT_ALG_VAL" = "RS256" ] \
+     && grep -q "^JWT_RSA_PRIVATE_KEY=." "$ENV_FILE" 2>/dev/null \
+     && grep -q "^JWT_RSA_PUBLIC_KEY=." "$ENV_FILE" 2>/dev/null; then
+  success ".env.production: JWT = RS256 (private+public set, JWT_SECRET removed)"
+else
+  error ".env.production: thiếu cấu hình JWT — cần JWT_SECRET (HS256),"
+  error "  HOẶC JWT_ALGORITHM=RS256 + JWT_RSA_PRIVATE_KEY + JWT_RSA_PUBLIC_KEY (RS256)."
+  exit 1
+fi
+success ".env.production: đầy đủ (${#REQUIRED_VARS[@]} biến core + JWT verifier)"
 
 # Google SA JSON
 if [ -f "$GOOGLE_SA_JSON" ]; then
