@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { View, Alert, Pressable, ActivityIndicator } from 'react-native'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { router } from 'expo-router'
+import { router, type Href } from 'expo-router'
 import { Audio } from 'expo-av'
 import * as Haptics from 'expo-haptics'
-import { Flame, Lock, Mic, Square, RotateCcw } from 'lucide-react-native'
+import { Flame, Lock, Mic, Square, RotateCcw, ChevronRight } from 'lucide-react-native'
 import api, { apiMessage } from '@/lib/api'
 import { speakingApi } from '@/lib/speakingApi'
+import { weeklyApi, rubricScore } from '@/lib/weeklyApi'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, SectionHeader, Skeleton } from '@/components/ui'
 import { usePlanStore } from '@/stores/usePlanStore'
@@ -112,8 +113,16 @@ export default function WeeklySpeakingScreen() {
             <SectionHeader title="Lịch sử nộp bài" />
             <View style={{ gap: space[2] }}>
               {history.map((sub) => (
-                <Card key={sub.id}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Card
+                  key={sub.id}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/(student)/weekly-detail',
+                      params: { id: String(sub.id), title: sub.promptTitle },
+                    } as unknown as Href)
+                  }
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space[2] }}>
                     <View style={{ flex: 1, gap: 2 }}>
                       <ThemedText variant="bodyStrong">{sub.promptTitle}</ThemedText>
                       <ThemedText variant="caption" color="muted">
@@ -134,6 +143,7 @@ export default function WeeklySpeakingScreen() {
                         </ThemedText>
                       </View>
                     ) : null}
+                    <Icon icon={ChevronRight} size={16} color="faint" />
                   </View>
                 </Card>
               ))}
@@ -178,9 +188,9 @@ function WeeklyRecorder({ promptId, cefrBand }: { promptId: number; cefrBand: st
       if (!uri) throw new Error('no_uri')
       const transcript = await speakingApi.transcribe(uri)
       if (!transcript.trim()) throw new Error('empty')
-      const res = await speakingApi.submitWeekly(promptId, transcript, cefrBand)
-      setScore(res.taskScore ?? null)
-      setSummary(res.feedback_vi_summary ?? null)
+      const res = await weeklyApi.submit(promptId, transcript, cefrBand)
+      setScore(rubricScore(res.rubric))
+      setSummary(res.rubric?.feedback_vi_summary ?? null)
       setPhase('done')
       qc.invalidateQueries({ queryKey: ['weekly-history'] })
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)

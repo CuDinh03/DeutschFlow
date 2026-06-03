@@ -19,7 +19,7 @@ import {
 import api from '@/lib/api'
 import { progressApi, type SkillData, type WeeklyPoint } from '@/lib/progressApi'
 import { speakingApi, type AiSpeakingSession } from '@/lib/speakingApi'
-import { gamificationApi, type Achievement, type Rarity } from '@/lib/gamificationApi'
+import { gamificationApi, type Achievement, type Rarity, type LeaderboardEntry } from '@/lib/gamificationApi'
 import { learningApi, type ErrorSkill } from '@/lib/learningApi'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, Pill, AppHeader, ProgressBar, ErrorState, FadeIn, Skeleton } from '@/components/ui'
@@ -81,6 +81,12 @@ export default function StatsScreen() {
     staleTime: 60_000,
   })
 
+  const { data: leaderboard = [], refetch: refetchLeaderboard } = useQuery({
+    queryKey: ['leaderboard'],
+    queryFn: () => gamificationApi.getLeaderboard(10),
+    staleTime: 60_000,
+  })
+
   // Acknowledge newly-unlocked badges once, after the user has seen this screen.
   const ackedRef = useRef(false)
   useEffect(() => {
@@ -96,6 +102,7 @@ export default function StatsScreen() {
     void refetchSessions()
     void refetchXp()
     void refetchErrors()
+    void refetchLeaderboard()
   }
 
   const topErrors = [...errorSkills]
@@ -197,6 +204,13 @@ export default function StatsScreen() {
           {topErrors.length > 0 ? (
             <FadeIn delay={220}>
               <ErrorSkillsCard errors={topErrors} />
+            </FadeIn>
+          ) : null}
+
+          {/* Leaderboard */}
+          {leaderboard.length > 0 ? (
+            <FadeIn delay={230}>
+              <LeaderboardCard entries={leaderboard} meId={xp?.userId} />
             </FadeIn>
           ) : null}
 
@@ -451,6 +465,49 @@ function AchievementBadge({ achievement, isNew }: { achievement: Achievement; is
         {achievement.nameVi}
       </ThemedText>
     </View>
+  )
+}
+
+function LeaderboardCard({ entries, meId }: { entries: LeaderboardEntry[]; meId?: number }) {
+  const { colors } = useTheme()
+  const rankColor = (rank: number) =>
+    rank === 1 ? colors.brand : rank <= 3 ? colors.accentText : colors.textMuted
+  return (
+    <Card style={{ gap: space[2] }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+        <Icon icon={Trophy} size={18} color="accent" />
+        <ThemedText variant="bodyStrong">Bảng xếp hạng</ThemedText>
+      </View>
+      {entries.map((e) => {
+        const me = meId != null && e.userId === meId
+        return (
+          <View
+            key={e.userId}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: space[3],
+              paddingVertical: space[2],
+              paddingHorizontal: me ? space[2] : 0,
+              marginHorizontal: me ? -space[2] : 0,
+              borderRadius: radius.md,
+              backgroundColor: me ? colors.accentSoft : 'transparent',
+            }}
+          >
+            <ThemedText variant="monoLg" style={{ width: 28, color: rankColor(e.rank) }}>
+              {e.rank}
+            </ThemedText>
+            <ThemedText variant={me ? 'bodyStrong' : 'body'} style={{ flex: 1 }} numberOfLines={1}>
+              {e.displayName}
+              {me ? ' (Bạn)' : ''}
+            </ThemedText>
+            <ThemedText variant="label" color="muted">
+              {e.totalXp} XP
+            </ThemedText>
+          </View>
+        )
+      })}
+    </Card>
   )
 }
 
