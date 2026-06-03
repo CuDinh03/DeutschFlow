@@ -93,4 +93,30 @@ class JwtServiceUnitTest {
         assertTrue(verifyBoth.isTokenValid(rsToken), "RS256 token must verify during transition");
         assertEquals("a@b.com", verifyBoth.extractEmail(rsToken));
     }
+
+    @Test
+    void rs256OnlyVerifiesRsButRejectsHs() throws Exception {
+        KeyPair kp = rsaKeyPair();
+        // Final state (C2): RS256-only, NO HS secret configured.
+        JwtService rsOnly = new JwtService("", "", 3_600_000L,
+                                            "deutschflow-api", "deutschflow-app", false,
+                                            "RS256", pkcs8Pem(kp), x509Pem(kp), "");
+        String rsToken = rsOnly.generateAccessToken(student());
+        assertTrue(rsOnly.isTokenValid(rsToken), "RS256 token must verify under RS256-only");
+        assertEquals("a@b.com", rsOnly.extractEmail(rsToken));
+
+        // Once JWT_SECRET is dropped, HS256 tokens must NOT verify — the symmetric forgery path is closed.
+        JwtService hsSigner = new JwtService(SECRET_32_PLUS, "", 3_600_000L,
+                                              "deutschflow-api", "deutschflow-app", false,
+                                              "HS256", "", "", "");
+        String hsToken = hsSigner.generateAccessToken(student());
+        assertFalse(rsOnly.isTokenValid(hsToken), "HS256 token must be rejected once HS256 is dropped");
+    }
+
+    @Test
+    void hs256StillRequiresSecret() {
+        // Guard: HS256 mode with no secret must still fail fast (regression check).
+        assertThrows(IllegalStateException.class, () ->
+            new JwtService("", "", 1000, "iss", "aud", false, "HS256", "", "", ""));
+    }
 }

@@ -62,24 +62,34 @@ public class JwtService {
             @Value("${app.jwt.rsa-public-key:}") String rsaPublicKeyPem,
             @Value("${app.jwt.rsa-public-key-previous:}") String rsaPublicKeyPreviousPem) {
 
-        if (primary == null || primary.isBlank()) {
-            throw new IllegalStateException("JWT secret is missing. Set JWT_SECRET in environment.");
-        }
-        if (primary.getBytes(StandardCharsets.UTF_8).length < 32) {
+        // Algorithm decides whether the HS256 secret is required. Default HS256 (non-breaking).
+        String alg = (algorithm == null ? "HS256" : algorithm.trim().toUpperCase());
+        boolean hasHsSecret = primary != null && !primary.isBlank();
+
+        if (hasHsSecret && primary.getBytes(StandardCharsets.UTF_8).length < 32) {
             throw new IllegalStateException("JWT secret must be at least 32 bytes.");
         }
+        if (!hasHsSecret && !"RS256".equals(alg)) {
+            throw new IllegalStateException(
+                    "JWT secret is missing. Set JWT_SECRET, or use app.jwt.algorithm=RS256 with RSA keys.");
+        }
 
-        SecretKey hsKey = Keys.hmacShaKeyFor(primary.getBytes(StandardCharsets.UTF_8));
         this.verifyKeys = new ArrayList<>();
-        this.verifyKeys.add(hsKey);
 
+        // HS256 secret(s) → verify list, only if configured. Dropping JWT_SECRET after the RS256
+        // cutover removes HS256 verification entirely, closing the symmetric-key forgery path (C2).
+        SecretKey hsKey = null;
+        if (hasHsSecret) {
+            hsKey = Keys.hmacShaKeyFor(primary.getBytes(StandardCharsets.UTF_8));
+            this.verifyKeys.add(hsKey);
+        }
         if (previous != null && !previous.isBlank()
                 && previous.getBytes(StandardCharsets.UTF_8).length >= 32) {
             this.verifyKeys.add(Keys.hmacShaKeyFor(previous.getBytes(StandardCharsets.UTF_8)));
             log.info("[JwtService] Previous HS256 secret loaded — zero-downtime key rotation enabled.");
         }
 
-        // RSA public key(s) → verify list, so RS256 tokens are accepted even while still signing HS256.
+        // RSA public key(s) → verify list, so RS256 tokens are accepted.
         PublicKey rsaPublic = parseRsaPublicKey(rsaPublicKeyPem);
         if (rsaPublic != null) {
             this.verifyKeys.add(rsaPublic);
@@ -91,8 +101,7 @@ public class JwtService {
             log.info("[JwtService] Previous RSA public key loaded — RS256 key rotation enabled.");
         }
 
-        // Choose the signer based on app.jwt.algorithm (default HS256 — non-breaking).
-        String alg = (algorithm == null ? "HS256" : algorithm.trim().toUpperCase());
+        // Choose the signer.
         if ("RS256".equals(alg)) {
             Key priv = parseRsaPrivateKey(rsaPrivateKeyPem);
             if (priv == null) {
@@ -104,8 +113,12 @@ public class JwtService {
             this.signingKey = priv;
             this.signingAlgorithm = "RS256";
         } else {
-            this.signingKey = hsKey;
+            this.signingKey = hsKey;   // non-null: a blank HS secret under HS256 already threw above
             this.signingAlgorithm = "HS256";
+        }
+
+        if (this.verifyKeys.isEmpty()) {
+            throw new IllegalStateException("No JWT verification key configured (need JWT_SECRET or an RSA public key).");
         }
 
         this.accessTokenExpiryMs = accessTokenExpiryMs;

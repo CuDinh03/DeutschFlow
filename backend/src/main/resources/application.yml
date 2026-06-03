@@ -146,7 +146,10 @@ app:
     # Production: set APP_FLYWAY_REPAIR_BEFORE_MIGRATE=false (Spring Boot 3.2 has no spring.flyway.repair-on-migrate).
     repair-before-migrate: ${APP_FLYWAY_REPAIR_BEFORE_MIGRATE:true}
   jwt:
-    secret: ${JWT_SECRET}
+    # Bắt buộc khi algorithm=HS256. Khi đã chuyển hẳn sang RS256 (sau cutover), có thể BỎ JWT_SECRET
+    # (để trống) — JwtService cho phép rỗng nếu algorithm=RS256. Default rỗng để app vẫn start được
+    # khi biến môi trường JWT_SECRET đã bị gỡ.
+    secret: ${JWT_SECRET:}
     # Zero-downtime key rotation: set JWT_SECRET_PREVIOUS = khóa cũ khi xoay.
     # Sau ≥ 15 phút (access token cũ hết hạn), bỏ biến này đi.
     secret-previous: ${JWT_SECRET_PREVIOUS:}

@@ -2,9 +2,11 @@ version: 1
 # ──────────────────────────────────────────────────────────────────────────────
 # REQUIRED Environment Variables (set in Amplify Console → App settings → Env vars)
 # ──────────────────────────────────────────────────────────────────────────────
-# JWT_SECRET               — MUST match backend production JWT_SECRET exactly.
-#                            Without this, Next.js middleware cannot verify tokens
-#                            and ALL users will be redirected back to /login.
+# JWT verifier (set ONE):
+#   JWT_SECRET             — HS256: MUST match backend JWT_SECRET exactly. (legacy)
+#   JWT_RSA_PUBLIC_KEY     — RS256: backend's RSA public key (\n-escaped PEM). After the RS256
+#                            cutover, remove JWT_SECRET and keep only this. (preferred)
+#   Without either, the middleware cannot verify tokens and users get redirected to /login.
 # NEXT_PUBLIC_BACKEND_URL  — e.g. https://api.mydeutschflow.com
 # NEXT_PUBLIC_CLOUDFRONT_URL — e.g. https://dxxxxx.cloudfront.net
 # NEXT_PUBLIC_POSTHOG_KEY  — PostHog analytics key
@@ -18,11 +20,12 @@ applications:
             - npm ci --cache .npm --prefer-offline
         build:
           commands:
-            # Fail early if JWT_SECRET is not configured — prevents silent auth breakage
+            # Fail early if NO JWT verifier is configured — need JWT_SECRET (HS256) OR
+            # JWT_RSA_PUBLIC_KEY (RS256). Prevents silent auth breakage.
             - |
-              if [ -z "$JWT_SECRET" ]; then
-                echo "ERROR: JWT_SECRET is not set. Amplify build aborted."
-                echo "Set JWT_SECRET in Amplify Console → App settings → Environment variables."
+              if [ -z "$JWT_SECRET" ] && [ -z "$JWT_RSA_PUBLIC_KEY" ]; then
+                echo "ERROR: neither JWT_SECRET nor JWT_RSA_PUBLIC_KEY is set. Amplify build aborted."
+                echo "Set one in Amplify Console → App settings → Environment variables (RS256 uses JWT_RSA_PUBLIC_KEY)."
                 exit 1
               fi
             - npm run build
