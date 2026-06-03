@@ -12,12 +12,15 @@ import {
   MessageSquare,
   Clock,
   Trophy,
+  Target,
+  ArrowRight,
   type LucideIcon,
 } from 'lucide-react-native'
 import api from '@/lib/api'
 import { progressApi, type SkillData, type WeeklyPoint } from '@/lib/progressApi'
 import { speakingApi, type AiSpeakingSession } from '@/lib/speakingApi'
 import { gamificationApi, type Achievement, type Rarity } from '@/lib/gamificationApi'
+import { learningApi, type ErrorSkill } from '@/lib/learningApi'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, Pill, AppHeader, ProgressBar, ErrorState, FadeIn, Skeleton } from '@/components/ui'
 
@@ -72,6 +75,12 @@ export default function StatsScreen() {
     staleTime: 60_000,
   })
 
+  const { data: errorSkills = [], refetch: refetchErrors } = useQuery({
+    queryKey: ['error-skills'],
+    queryFn: () => learningApi.getErrorSkills(30),
+    staleTime: 60_000,
+  })
+
   // Acknowledge newly-unlocked badges once, after the user has seen this screen.
   const ackedRef = useRef(false)
   useEffect(() => {
@@ -86,7 +95,13 @@ export default function StatsScreen() {
     void refetchOverview()
     void refetchSessions()
     void refetchXp()
+    void refetchErrors()
   }
+
+  const topErrors = [...errorSkills]
+    .filter((e) => !e.resolved)
+    .sort((a, b) => b.priorityScore - a.priorityScore)
+    .slice(0, 3)
 
   return (
     <Screen edges={['top']}>
@@ -175,6 +190,13 @@ export default function StatsScreen() {
           {xp && xp.allAchievements.length > 0 ? (
             <FadeIn delay={200}>
               <AchievementsCard achievements={xp.allAchievements} pending={xp.pendingBadges} />
+            </FadeIn>
+          ) : null}
+
+          {/* Recurring mistakes to work on */}
+          {topErrors.length > 0 ? (
+            <FadeIn delay={220}>
+              <ErrorSkillsCard errors={topErrors} />
             </FadeIn>
           ) : null}
 
@@ -429,6 +451,47 @@ function AchievementBadge({ achievement, isNew }: { achievement: Achievement; is
         {achievement.nameVi}
       </ThemedText>
     </View>
+  )
+}
+
+function ErrorSkillsCard({ errors }: { errors: ErrorSkill[] }) {
+  const { colors } = useTheme()
+  return (
+    <Card style={{ gap: space[3] }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+        <Icon icon={Target} size={18} color="danger" />
+        <ThemedText variant="bodyStrong">Cần cải thiện</ThemedText>
+      </View>
+      {errors.map((e, i) => (
+        <View
+          key={e.errorCode}
+          style={{
+            gap: 4,
+            paddingTop: i > 0 ? space[3] : 0,
+            borderTopWidth: i > 0 ? 1 : 0,
+            borderTopColor: colors.border,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space[2] }}>
+            <ThemedText variant="label" color="secondary" style={{ flex: 1 }} numberOfLines={1}>
+              {e.ruleViShort ?? e.errorCode}
+            </ThemedText>
+            <Pill label={`${e.count} lần`} tone="neutral" />
+          </View>
+          {e.sampleWrong && e.sampleCorrected ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <ThemedText variant="caption" style={{ color: colors.danger, textDecorationLine: 'line-through' }}>
+                {e.sampleWrong}
+              </ThemedText>
+              <Icon icon={ArrowRight} size={12} color="faint" />
+              <ThemedText variant="caption" style={{ color: colors.success }}>
+                {e.sampleCorrected}
+              </ThemedText>
+            </View>
+          ) : null}
+        </View>
+      ))}
+    </Card>
   )
 }
 

@@ -2,8 +2,10 @@ import { useState } from 'react'
 import { View, TextInput, FlatList, Pressable, RefreshControl } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router } from 'expo-router'
-import { Search, BookMarked } from 'lucide-react-native'
+import * as Haptics from 'expo-haptics'
+import { Search, BookMarked, Plus, Check } from 'lucide-react-native'
 import api from '@/lib/api'
+import { learningApi } from '@/lib/learningApi'
 import { fonts, radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, ErrorState, Skeleton } from '@/components/ui'
 import { useDebounce } from '@/hooks/useDebounce'
@@ -123,28 +125,73 @@ export default function VocabularyScreen() {
             />
           }
           ListEmptyComponent={<EmptyState icon={BookMarked} title="Không tìm thấy từ vựng" message="Thử từ khoá hoặc bộ lọc khác." />}
-          renderItem={({ item }) => (
-            <Card>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], flex: 1 }}>
-                  {item.gender ? <Pill label={item.gender} tone={item.gender} /> : null}
-                  <View style={{ flex: 1, gap: 2 }}>
-                    <ThemedText variant="bodyStrong">{item.word}</ThemedText>
-                    <ThemedText variant="caption" color="muted">
-                      {item.translation}
-                    </ThemedText>
-                  </View>
-                </View>
-                {item.cefrLevel ? (
-                  <ThemedText variant="caption" color="faint">
-                    {item.cefrLevel}
-                  </ThemedText>
-                ) : null}
-              </View>
-            </Card>
-          )}
+          renderItem={({ item }) => <WordRow word={item} />}
         />
       )}
     </Screen>
+  )
+}
+
+function WordRow({ word }: { word: Word }) {
+  const c = useTheme().colors
+  // Already in SRS if the backend says it's past NEW; otherwise the user can add it.
+  const alreadyLearning = word.srsStatus != null && word.srsStatus !== 'NEW'
+  const [added, setAdded] = useState(alreadyLearning)
+  const [busy, setBusy] = useState(false)
+  const done = added || alreadyLearning
+
+  async function add() {
+    if (done || busy) return
+    setBusy(true)
+    try {
+      await learningApi.markWordLearned(word.id)
+      setAdded(true)
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+    } catch {
+      // leave as not-added; user can retry
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Card>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space[2] }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], flex: 1 }}>
+          {word.gender ? <Pill label={word.gender} tone={word.gender} /> : null}
+          <View style={{ flex: 1, gap: 2 }}>
+            <ThemedText variant="bodyStrong">{word.word}</ThemedText>
+            <ThemedText variant="caption" color="muted">
+              {word.translation}
+            </ThemedText>
+          </View>
+        </View>
+        {word.cefrLevel ? (
+          <ThemedText variant="caption" color="faint">
+            {word.cefrLevel}
+          </ThemedText>
+        ) : null}
+        <Pressable
+          onPress={add}
+          disabled={done || busy}
+          hitSlop={6}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 4,
+            borderRadius: radius.full,
+            paddingHorizontal: space[3],
+            paddingVertical: 6,
+            backgroundColor: done ? c.successSoft : c.accentSoft,
+            opacity: busy ? 0.5 : 1,
+          }}
+        >
+          <Icon icon={done ? Check : Plus} size={14} color={done ? 'success' : 'accent'} />
+          <ThemedText variant="label" color={done ? 'success' : 'accent'}>
+            {done ? 'Đã học' : 'Học'}
+          </ThemedText>
+        </Pressable>
+      </View>
+    </Card>
   )
 }
