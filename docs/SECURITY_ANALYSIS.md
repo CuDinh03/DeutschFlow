@@ -28,7 +28,7 @@
 | S15b | Remove deprecated `?access_token=` from JwtAuthFilter | Backend | 🔵 | 📋 PLANNED (after the web ticket clients are deployed — no SSE client sends access_token in URL anymore) |
 | S16 | Rate-limit → Redis (multi-node) | Backend | 🟡 | ✅ DONE (AuthRateLimiterService: Redis ZSET sliding-window via atomic Lua, shared across nodes; **degrades to in-memory** if Redis down — no lockout). SSE ticket store still in-memory (single-node SSE) — migrate with SSE if it goes multi-node. |
 | S17 | CSP nonce-based (Report-Only; flip to enforce) | Web | 🟠 | ✅ DONE (nonce in middleware, Report-Only — flip name to enforce) |
-| S18 | RS256 (bỏ chia sẻ secret ký với Amplify) | Backend | 🔵 | 📋 PLANNED |
+| S18 | RS256 (bỏ chia sẻ secret ký với Amplify) | Backend+Web | 🔵 | 📐 PLAN READY (design + zero-downtime migration in docs/security/RS256_MIGRATION_PLAN.md; awaiting your decisions §9 before code) |
 | S19 | Web access token → in-memory + silent refresh | Web | 🟡 | 📋 PLANNED (refactor, rủi ro UX) |
 | S20 | Retire Capacitor plaintext token storage (web auth) | Web | 🟡 | ✅ DONE (authSession.ts now web-only) |
 | S20b | Full Capacitor/Swift removal — 5 native-util files refactored (web-safe), native dirs deleted (74 tracked files: frontend/ios, frontend/android, capacitor.config.json, ios-native) | Web/Mobile | 🔵 | 🟦 MOSTLY DONE (only @capacitor dep-lines in package.json deferred — blocked on your uncommitted package.json WIP; remove via `npm uninstall @capacitor/*` once that's committed) |
