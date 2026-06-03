@@ -4,6 +4,13 @@ const ACCESS_TOKEN_KEY = 'df_access_token'
 const REFRESH_TOKEN_KEY = 'df_refresh_token'
 const USER_ROLE_KEY = 'df_user_role'
 
+// Keep tokens device-local on iOS: WHEN_UNLOCKED_THIS_DEVICE_ONLY excludes them from iCloud
+// Keychain sync and encrypted backups, so a refresh token can't leak to another device via backup.
+// (keychainAccessible is iOS-only; expo-secure-store ignores it on Android, which is device-bound.)
+const TOKEN_STORE_OPTIONS = {
+  keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+}
+
 export async function getAccessToken(): Promise<string | null> {
   return SecureStore.getItemAsync(ACCESS_TOKEN_KEY)
 }
@@ -13,10 +20,10 @@ export async function getRefreshToken(): Promise<string | null> {
 }
 
 export async function setTokens(access: string, refresh?: string | null): Promise<void> {
-  await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, access)
+  await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, access, TOKEN_STORE_OPTIONS)
   // SecureStore throws on null/undefined values — only persist the refresh token when present.
   if (refresh) {
-    await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, refresh)
+    await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, refresh, TOKEN_STORE_OPTIONS)
   }
 }
 
