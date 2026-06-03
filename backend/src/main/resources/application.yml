@@ -157,6 +157,14 @@ app:
     audience: ${JWT_AUDIENCE:deutschflow-app}
     # Bật true SAU KHI toàn bộ token cũ (không có iss/aud) đã hết hạn (≥ 15 phút sau deploy).
     require-iss-aud: ${JWT_REQUIRE_ISS_AUD:false}
+    # S18 — HS256→RS256 migration. Mặc định HS256 (ký HS256) nhưng VẪN verify RS256 nếu rsa-public-key
+    # được set (giai đoạn "verify-both"). Đặt algorithm=RS256 (+ rsa-private-key + rsa-public-key) để ký
+    # RS256 và thôi chia sẻ secret ký với web edge. PEM lưu dạng \n-escaped.
+    # Xem docs/security/RS256_MIGRATION_PLAN.md.
+    algorithm: ${JWT_ALGORITHM:HS256}
+    rsa-private-key: ${JWT_RSA_PRIVATE_KEY:}
+    rsa-public-key: ${JWT_RSA_PUBLIC_KEY:}
+    rsa-public-key-previous: ${JWT_RSA_PUBLIC_KEY_PREVIOUS:}
 
   security:
     # Số reverse proxy tin cậy đứng trước app (ALB/CloudFront/nginx). Client IP dùng cho rate-limit

@@ -1,4 +1,4 @@
-import { jwtVerify } from 'jose'
+import { jwtVerify, decodeProtectedHeader, importSPKI } from 'jose'
 import { NextRequest, NextResponse } from 'next/server'
 
 type Role = 'STUDENT' | 'TEACHER' | 'ADMIN'
@@ -40,20 +40,47 @@ function normalizeRole(value: unknown): Role | null {
   return null
 }
 
+// RS256 verification (S18): import the public key once. JWT_RSA_PUBLIC_KEY is a \n-escaped PEM.
+let rsaPublicKeyPromise: ReturnType<typeof importSPKI> | null = null
+function loadRsaPublicKey(): ReturnType<typeof importSPKI> | null {
+  const pem = process.env.JWT_RSA_PUBLIC_KEY
+  if (!pem) return null
+  if (!rsaPublicKeyPromise) {
+    rsaPublicKeyPromise = importSPKI(pem.replace(/\\n/g, '\n'), 'RS256')
+  }
+  return rsaPublicKeyPromise
+}
+
 async function verifyAccessToken(token: string): Promise<Role | null> {
-  const secret = process.env.JWT_SECRET
-  if (!secret) {
-    // JWT_SECRET is missing — this is a misconfiguration, not a bad token.
-    // Log a loud warning so it appears in Amplify/CloudWatch logs.
-    console.error(
-      '[DeutschFlow] CRITICAL: JWT_SECRET environment variable is not set. ' +
-      'All authenticated requests will be rejected. ' +
-      'Fix: set JWT_SECRET in AWS Amplify Console → App settings → Environment variables ' +
-      '(must match the backend JWT_SECRET value).'
-    )
+  // Pick the verifier from the token's own algorithm header — supports HS256 (current) and RS256
+  // (S18 migration) at the same time, so signing can flip without breaking verification.
+  let alg: string | undefined
+  try {
+    alg = decodeProtectedHeader(token).alg
+  } catch {
     return null
   }
+
   try {
+    if (alg === 'RS256') {
+      const keyPromise = loadRsaPublicKey()
+      if (!keyPromise) {
+        console.error('[DeutschFlow] CRITICAL: RS256 token received but JWT_RSA_PUBLIC_KEY is not set.')
+        return null
+      }
+      const { payload } = await jwtVerify(token, await keyPromise)
+      return normalizeRole(payload.role)
+    }
+
+    // HS256 (default / transition) — verify with the shared secret.
+    const secret = process.env.JWT_SECRET
+    if (!secret) {
+      console.error(
+        '[DeutschFlow] CRITICAL: JWT_SECRET is not set and the token is not RS256. ' +
+        'Set JWT_SECRET (HS256, must match the backend) or migrate fully to RS256 via JWT_RSA_PUBLIC_KEY.'
+      )
+      return null
+    }
     const { payload } = await jwtVerify(token, new TextEncoder().encode(secret))
     return normalizeRole(payload.role)
   } catch (err) {
@@ -121,11 +148,12 @@ export async function middleware(request: NextRequest) {
   const learnerShare = requiresLearnerShare(pathname)
   const accessCookie = request.cookies.get(AUTH_ACCESS_COOKIE)?.value
 
-  // Guard: if JWT_SECRET is missing AND a protected route is accessed,
-  // return 503 instead of silently redirecting to /login (which causes an infinite loop).
-  if (!process.env.JWT_SECRET && accessCookie && (required || learnerShare)) {
+  // Guard: if NO verifier is configured (neither HS256 secret nor RS256 public key) AND a protected
+  // route is accessed, return 503 instead of silently redirecting to /login (infinite loop).
+  const hasVerifier = Boolean(process.env.JWT_SECRET || process.env.JWT_RSA_PUBLIC_KEY)
+  if (!hasVerifier && accessCookie && (required || learnerShare)) {
     return secure(new NextResponse(
-      '<h1>503 — Server Misconfiguration</h1><p>JWT_SECRET is not configured. Contact the administrator.</p>',
+      '<h1>503 — Server Misconfiguration</h1><p>No JWT verifier (JWT_SECRET or JWT_RSA_PUBLIC_KEY) is configured. Contact the administrator.</p>',
       { status: 503, headers: { 'Content-Type': 'text/html' } }
     ))
   }
