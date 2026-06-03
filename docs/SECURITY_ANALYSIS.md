@@ -31,7 +31,7 @@
 | S19 | Web access token → in-memory + silent refresh | Web | 🟡 | 📋 PLANNED (refactor, rủi ro UX) |
 | S20 | Retire Capacitor plaintext token storage (web auth) | Web | 🟡 | ✅ DONE (authSession.ts now web-only) |
 | S20b | Full Capacitor/Swift removal — 5 native-util files refactored (web-safe), native dirs deleted (74 tracked files: frontend/ios, frontend/android, capacitor.config.json, ios-native) | Web/Mobile | 🔵 | 🟦 MOSTLY DONE (only @capacitor dep-lines in package.json deferred — blocked on your uncommitted package.json WIP; remove via `npm uninstall @capacitor/*` once that's committed) |
-| S21 | CI security: gitleaks + npm audit + OWASP dep-check + CodeQL | Process | 🔵 | 📋 PLANNED |
+| S21 | CI security: gitleaks (blocking) + Semgrep SAST + npm audit + OWASP dep-check | Process | 🔵 | ✅ DONE (.github/workflows/security-ci.yml; CodeQL deferred — needs GHAS on private repo, snippet in CI_SECURITY.md) |
 
 Chú thích: ✅ đã làm trên nhánh này · ⏸️ hoãn có lý do · ⛔ cần hạ tầng/tài khoản/thiết bị · 📋 đã lên kế hoạch.
 

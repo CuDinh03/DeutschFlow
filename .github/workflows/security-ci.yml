@@ -1,0 +1,119 @@
+name: Security CI
+
+# Shift-left security scanning (S21), tuned for a PRIVATE repo without GitHub Advanced Security
+# (so no Code-scanning/SARIF upload — results go to job logs + artifacts instead):
+#   - gitleaks  : secret scanning (BLOCKING — repo is currently clean, so it won't false-block)
+#   - Semgrep   : SAST for JS/TS + Java (report-only; works on private repos, no GHAS needed)
+#   - npm audit : dependency vulns for frontend + mobile (report-only; flip to blocking once triaged)
+#   - OWASP DC  : Java dependency vulns (weekly + manual — off PRs to avoid flaky NVD downloads)
+#
+# CodeQL upgrade path: once GitHub Advanced Security / Code scanning is enabled on this repo, you can
+# swap Semgrep for github/codeql-action (init+analyze, languages: javascript-typescript, java-kotlin).
+# See docs/security/CI_SECURITY.md.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '0 6 * * 1' # Mondays 06:00 UTC — weekly deep dependency scan
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ─── Secrets (blocking) ──────────────────────────────────────────────────────
+  secret-scan:
+    name: 🔑 Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read # gitleaks lists the PR's commits via the API on pull_request events
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history so gitleaks can scan past commits
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ─── SAST (Semgrep) — report-only; findings in job logs + SARIF artifact ──────
+  sast:
+    name: 🔎 SAST (Semgrep)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Semgrep
+        run: python -m pip install --quiet semgrep
+      - name: Semgrep scan (report-only)
+        # Tokenless community rule packs. Report-only for now: `|| true` keeps it from blocking PRs.
+        # Make it blocking by dropping `|| true` once the baseline is triaged.
+        run: |
+          semgrep scan \
+            --config p/security-audit \
+            --config p/owasp-top-ten \
+            --config p/secrets \
+            --sarif --output semgrep.sarif \
+            --metrics off || true
+      - name: Upload Semgrep SARIF (artifact)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-sarif
+          path: semgrep.sarif
+          retention-days: 14
+
+  # ─── Dependency audit — JS ecosystems (report-only) ──────────────────────────
+  npm-audit:
+    name: 📦 npm audit (${{ matrix.dir }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dir: [frontend, mobile]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: npm audit (high+)
+        working-directory: ${{ matrix.dir }}
+        # Report-only (does not block PRs on pre-existing advisories). Drop `|| true` to make it
+        # blocking after triaging the current baseline.
+        run: npm audit --audit-level=high || true
+
+  # ─── Dependency audit — Java/Maven (OWASP, scheduled/manual only) ─────────────
+  owasp-dependency-check:
+    name: ☕ OWASP Dependency-Check (backend)
+    # Off the PR path: the NVD download is slow/rate-limited without an API key and would make PRs
+    # flaky. Runs weekly + on demand. Set the NVD_API_KEY repo secret to speed it up + de-flake.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Dependency-Check
+        uses: dependency-check/Dependency-Check_Action@main
+        continue-on-error: true
+        with:
+          project: deutschflow-backend
+          path: backend
+          format: HTML
+          args: >-
+            --failOnCVSS 8
+            --enableExperimental
+            ${{ secrets.NVD_API_KEY != '' && format('--nvdApiKey {0}', secrets.NVD_API_KEY) || '' }}
+      - name: Upload Dependency-Check report (artifact)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: owasp-dependency-check-report
+          path: reports
+          retention-days: 30
