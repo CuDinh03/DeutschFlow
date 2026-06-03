@@ -47,12 +47,27 @@ Reference pins computed 2026-06-03 (do NOT enable as-is — leaf/intermediate ro
 - leaf `qUi/Vy2PN0FAFuJSJ+wqKk4w7UceGYcq4ayxcP3S4LU=` (CN=api.mydeutschflow.com)
 - intermediate `iFvwVyJSxnQdyaUvUERIf+8qk7gRze3612JMwoO3zdU=` (Let's Encrypt E8)
 
-## S13 — Jailbreak/root detection + screen-capture protection (follow-up, not scaffolded)
+## S13 — Jailbreak/root detection + screen-capture protection (SCAFFOLDED)
 
-- **Jailbreak/root:** `npx expo install jail-monkey`; on `JailMonkey.isJailBroken()` warn/limit
-  sensitive flows (don't hard-block — false positives happen).
-- **Screen capture:** `npx expo install expo-screen-capture`; call `preventScreenCaptureAsync()` on
-  sensitive screens (profile, exam, upgrade); add an app-switcher privacy blur via `AppState`.
+Scaffolds committed as guarded no-ops; `useAppBackgrounded` already works (RN AppState, no dep).
+
+**Jailbreak/root** — `mobile/lib/deviceIntegrity.ts` (wired in `_layout` via `initDeviceIntegrity()`):
+1. `cd mobile && npx expo install jail-monkey`
+2. Add `import JailMonkey from 'jail-monkey'`; uncomment the block in `checkDeviceIntegrity()`.
+3. Use the result as a SOFT signal — warn / disable high-risk actions / raise a server risk flag.
+   **Never hard-block** (false positives on legit modified devices + CI).
+
+**Screen capture** — `mobile/lib/screenProtection.ts`:
+- `usePreventScreenCapture()`: 1) `npx expo install expo-screen-capture`, 2) add
+  `import * as ScreenCapture from 'expo-screen-capture'`, 3) uncomment the body, 4) call the hook in
+  sensitive screens (`(student)/profile.tsx`, `settings/profile.tsx`, `upgrade.tsx`, `exam-attempt.tsx`).
+- `useAppBackgrounded(onChange)`: **works now.** In `app/_layout.tsx`, track a `hidden` state and
+  render an opaque overlay while hidden so app content isn't exposed in the OS app-switcher snapshot:
+  ```tsx
+  const [hidden, setHidden] = useState(false)
+  useAppBackgrounded(setHidden)
+  // …then render {hidden && <View style={StyleSheet.absoluteFill} className="bg-bg" />}
+  ```
 
 ## S20b — Full Capacitor/Swift removal (MOSTLY DONE)
 

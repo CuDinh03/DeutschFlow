@@ -22,7 +22,7 @@
 | S10 | Dọn service worker cũ trùng lặp (`sw 4..19.js`) | Web | 🔵 | ✅ DONE |
 | S11 | Stripe webhook fail-loud khi thiếu secret | Backend | 🔵 | ⏸️ DEFER (file đang được sửa dở; xem §8) |
 | S12 | Cert pinning mobile (SPKI) | Mobile | 🟡 | 🧩 SCAFFOLDED (disabled; pins computed; activate per PHASE1 doc) |
-| S13 | Jailbreak/root detection + screen-capture protection | Mobile | 🔵 | 📋 PLANNED (steps in PHASE1 doc) |
+| S13 | Jailbreak/root detection + screen-capture protection | Mobile | 🔵 | 🧩 SCAFFOLDED (deviceIntegrity + screenProtection modules; useAppBackgrounded works now; activate per PHASE1 doc) |
 | S14 | EAS init + Sentry (observability) | Mobile | 🔵 | 🧩 SCAFFOLDED (DSN-guarded no-op; activate per PHASE1 doc) |
 | S15 | SSE one-time ticket thay `?access_token=` | Backend | 🟡 | 📋 PLANNED |
 | S16 | Rate-limit → Redis (multi-node) | Backend | 🟡 | 📋 PLANNED (trước khi scale) |
