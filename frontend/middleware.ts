@@ -68,8 +68,11 @@ export async function middleware(request: NextRequest) {
   const learnerShare = requiresLearnerShare(pathname)
   const accessCookie = request.cookies.get(AUTH_ACCESS_COOKIE)?.value
 
-  // Opt-out for public files and internal next paths
-  if (pathname.startsWith('/_next') || pathname.includes('.')) {
+  // Opt-out only for Next internals and genuine static-asset extensions.
+  // A blanket `pathname.includes('.')` let protected routes like `/admin/x.y` skip the
+  // auth/role gate entirely — restrict to a known static-asset suffix allowlist instead.
+  const isStaticAsset = /\.(?:ico|png|jpe?g|gif|svg|webp|avif|css|js|mjs|map|woff2?|ttf|eot|txt|xml|json|webmanifest)$/i.test(pathname)
+  if (pathname.startsWith('/_next') || isStaticAsset) {
     return NextResponse.next()
   }
 

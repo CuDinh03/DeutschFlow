@@ -426,13 +426,13 @@ export default function HomePage() {
                   <div className="text-xs text-white/40 mb-3 font-semibold uppercase tracking-wider">Lỗi cần sửa</div>
                   <div className="space-y-2">
                     {[
-                      'Dativkonstruktion sai trong câu &ldquo;Ich freue mich auf...&rdquo;',
-                      'Phát âm &ldquo;ü&rdquo; trong Büro chưa chuẩn',
+                      'Dativkonstruktion sai trong câu “Ich freue mich auf...”',
+                      'Phát âm “ü” trong Büro chưa chuẩn',
                       'Cần thêm Konjunktiv II để lịch sự hơn',
                     ].map((err, i) => (
                       <div key={i} className="flex items-start gap-2 text-sm text-white/55">
                         <span className="text-[#DA291C] mt-0.5">&bull;</span>
-                        <span dangerouslySetInnerHTML={{ __html: err }} />
+                        <span>{err}</span>
                       </div>
                     ))}
                   </div>
