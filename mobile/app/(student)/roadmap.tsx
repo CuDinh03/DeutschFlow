@@ -1,6 +1,6 @@
 import { SectionList, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
-import { router } from 'expo-router'
+import { router, type Href } from 'expo-router'
 import { Lock, CheckCircle2, Circle, PlayCircle, Map, type LucideIcon } from 'lucide-react-native'
 import api from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
@@ -118,6 +118,16 @@ function NodeRow({ node, isLast }: { node: SkillNode; isLast: boolean }) {
 
       <Card
         bordered
+        onPress={
+          isLocked
+            ? undefined
+            : () =>
+                router.push({
+                  // Route exists; typed-route union regenerates on next `expo start`.
+                  pathname: '/(student)/node',
+                  params: { nodeId: String(node.id), title: node.title },
+                } as unknown as Href)
+        }
         style={{ flex: 1, marginLeft: space[3], marginBottom: space[2], borderColor, opacity: isLocked ? 0.5 : 1 }}
       >
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>

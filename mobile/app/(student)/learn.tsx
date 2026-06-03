@@ -1,6 +1,6 @@
 import { View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
-import { router } from 'expo-router'
+import { router, type Href } from 'expo-router'
 import {
   BookOpen,
   Map,
@@ -143,7 +143,14 @@ function NodeCard({ node }: { node: SkillTreeNode }) {
   const toneSoft: Record<StatusTone, string> = { success: c.successSoft, accent: c.accentSoft, info: c.infoSoft }
 
   return (
-    <Card onPress={() => router.push('/(student)/roadmap')}>
+    <Card
+      onPress={() =>
+        router.push({
+          pathname: '/(student)/node',
+          params: { nodeId: String(node.id), title: node.title },
+        } as unknown as Href)
+      }
+    >
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
             <View
