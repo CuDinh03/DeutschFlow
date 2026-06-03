@@ -94,7 +94,10 @@ jobs:
   deploy:
     name: 🚀 Deploy to EC2
     needs: unit-tests
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # DISABLED: backend deploys via deploy-backend.sh (blue-green + .env.production sync). Pushing
+    # main no longer auto-deploys here — avoids a double-deploy race on port 8080. Re-enable with
+    # `github.ref == 'refs/heads/main' && github.event_name == 'push'` for CI-driven deploy.
+    if: false
     runs-on: [self-hosted, ec2]
     timeout-minutes: 12
     steps:
