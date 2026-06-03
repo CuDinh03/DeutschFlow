@@ -37,25 +37,33 @@ public class ExamScoringService {
     }
 
     /**
-     * Auto-score true/false + single-choice items (1 pt each). Tolerant of how
-     * {@code teile} is serialized — a JSON array (most exams) or an object map —
-     * which previously caused a ClassCastException when finishing A1 exams.
+     * Normalize a section's {@code teile} to a list of teil maps. Tolerant of how
+     * it is serialized — a JSON array (most exams) or an object map — which
+     * previously caused ClassCastExceptions ("ArrayList cannot be cast to Map"
+     * and vice-versa) when finishing exams.
      */
     @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> teileList(Map<String, Object> examSection) {
+        Object raw = examSection.get("teile");
+        Collection<Object> values;
+        if (raw instanceof List<?> list) {
+            values = new ArrayList<>(list);
+        } else if (raw instanceof Map<?, ?> map) {
+            values = new ArrayList<>(((Map<String, Object>) map).values());
+        } else {
+            return List.of();
+        }
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Object o : values) {
+            if (o instanceof Map<?, ?> m) out.add((Map<String, Object>) m);
+        }
+        return out;
+    }
+
+    /** Auto-score true/false + single-choice items (1 pt each). */
     private int scoreObjectiveTeile(Map<String, Object> answers, Map<String, Object> examSection, int max) {
         int score = 0;
-        Object teileRaw = examSection.get("teile");
-        Collection<Object> teile;
-        if (teileRaw instanceof List<?> list) {
-            teile = new ArrayList<>(list);
-        } else if (teileRaw instanceof Map<?, ?> map) {
-            teile = new ArrayList<>(((Map<String, Object>) map).values());
-        } else {
-            return 0;
-        }
-
-        for (Object teilObj : teile) {
-            if (!(teilObj instanceof Map<?, ?> teil)) continue;
+        for (Map<String, Object> teil : teileList(examSection)) {
             Object itemsRaw = teil.get("items");
             if (!(itemsRaw instanceof List<?> items)) continue;
             for (Object itemObj : items) {
@@ -104,21 +112,18 @@ public class ExamScoringService {
      * Auto-score form fields - check required fields are filled
      */
     private int scoreFormFields(Map<String, Object> answers, Map<String, Object> examSection) {
-        List<Map<String, Object>> teile = (List<Map<String, Object>>) examSection.get("teile");
         int score = 0;
         int requiredFields = 0;
 
-        if (teile != null) {
-            for (Map<String, Object> teil : teile) {
-                if ("FILL_FORM".equals(teil.get("type"))) {
-                    List<Map<String, Object>> fields = (List<Map<String, Object>>) teil.get("form_fields");
-                    if (fields != null) {
-                        requiredFields = fields.size();
-                        for (int i = 0; i < fields.size(); i++) {
-                            String fieldAnswer = (String) answers.get("form_" + i);
-                            if (fieldAnswer != null && !fieldAnswer.trim().isEmpty()) {
-                                score += 1;
-                            }
+        for (Map<String, Object> teil : teileList(examSection)) {
+            if ("FILL_FORM".equals(teil.get("type"))) {
+                Object fieldsRaw = teil.get("form_fields");
+                if (fieldsRaw instanceof List<?> fields) {
+                    requiredFields = fields.size();
+                    for (int i = 0; i < fields.size(); i++) {
+                        Object fieldAnswer = answers.get("form_" + i);
+                        if (fieldAnswer instanceof String s && !s.trim().isEmpty()) {
+                            score += 1;
                         }
                     }
                 }
@@ -165,17 +170,12 @@ public class ExamScoringService {
     }
 
     private String extractSprechenTaskPrompt(Map<String, Object> examSection) {
-        try {
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> teile = (List<Map<String, Object>>) examSection.get("teile");
-            if (teile != null && !teile.isEmpty()) {
-                Object prompt = teile.get(0).get("prompt");
-                if (prompt instanceof String s) return s;
-                Object instructions = teile.get(0).get("instructions");
-                if (instructions instanceof String s) return s;
-            }
-        } catch (Exception ignored) {
-            // fall through
+        List<Map<String, Object>> teile = teileList(examSection);
+        if (!teile.isEmpty()) {
+            Object prompt = teile.get(0).get("prompt");
+            if (prompt instanceof String s) return s;
+            Object instructions = teile.get(0).get("instructions");
+            if (instructions instanceof String s) return s;
         }
         return "";
     }
