@@ -17,6 +17,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Component
@@ -25,6 +26,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
+    private final SseTicketService sseTicketService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -34,12 +36,27 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         final String authHeader = request.getHeader("Authorization");
         String requestUri = request.getRequestURI();
 
-        // Support query param ?access_token=... for SSE connections
-        // (browser EventSource API cannot set custom headers)
         String token = null;
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             token = authHeader.substring(7);
         } else {
+            // SSE / EventSource auth — the browser API can't set custom headers.
+            // Preferred: one-time ?ticket= (S15) — opaque, single-use, ~60s TTL; safe even if logged.
+            String ticket = request.getParameter("ticket");
+            if (ticket != null && !ticket.isBlank()) {
+                Optional<String> subject = sseTicketService.consume(ticket);
+                if (subject.isPresent()
+                        && SecurityContextHolder.getContext().getAuthentication() == null
+                        && !authenticateRegisteredUser(subject.get(), request, response)) {
+                    return; // user no longer exists — 401 already sent
+                }
+                log.debug("[JwtAuthFilter] SSE ticket {} for {}",
+                        subject.isPresent() ? "accepted" : "rejected", requestUri);
+                filterChain.doFilter(request, response);
+                return;
+            }
+            // DEPRECATED fallback: ?access_token=<JWT> puts the bearer token in the URL (leaks to
+            // access/proxy logs, history, Referer). Remove once all SSE clients use tickets (S15b).
             String queryToken = request.getParameter("access_token");
             if (queryToken != null && !queryToken.isBlank()) {
                 token = queryToken;
@@ -93,25 +110,36 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         // Registered user — load từ DB
         if (subject != null) {
-            try {
-                log.debug("[JwtAuthFilter] Loading user details for: {} from database", subject);
-                var userDetails = userDetailsService.loadUserByUsername(subject);
-                log.debug("[JwtAuthFilter] User loaded successfully: {}, authorities: {}", subject, userDetails.getAuthorities());
-                var auth = new UsernamePasswordAuthenticationToken(
-                        userDetails, null, userDetails.getAuthorities());
-                auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(auth);
-                log.info("[JwtAuthFilter] ✓ USER AUTHENTICATION SET for {} with authorities {} on {}",
-                    subject, userDetails.getAuthorities(), requestUri);
-            } catch (UsernameNotFoundException ex) {
-                log.warn("[JwtAuthFilter] ⚠️ User not found in database: {} for request {}", subject, requestUri);
-                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "User no longer exists");
-                return;
+            if (!authenticateRegisteredUser(subject, request, response)) {
+                return; // user no longer exists — 401 already sent
             }
         } else {
             log.warn("[JwtAuthFilter] ⚠️ No subject extracted from token for request: {}", requestUri);
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    /**
+     * Load a registered user by subject (email) and set the SecurityContext. Returns false (and
+     * sends 401) when the user no longer exists. Shared by the JWT and SSE-ticket auth paths.
+     */
+    private boolean authenticateRegisteredUser(String subject,
+                                               HttpServletRequest request,
+                                               HttpServletResponse response) throws IOException {
+        try {
+            var userDetails = userDetailsService.loadUserByUsername(subject);
+            var auth = new UsernamePasswordAuthenticationToken(
+                    userDetails, null, userDetails.getAuthorities());
+            auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+            SecurityContextHolder.getContext().setAuthentication(auth);
+            log.info("[JwtAuthFilter] ✓ USER AUTHENTICATION SET for {} with authorities {} on {}",
+                    subject, userDetails.getAuthorities(), request.getRequestURI());
+            return true;
+        } catch (UsernameNotFoundException ex) {
+            log.warn("[JwtAuthFilter] ⚠️ User not found: {} for request {}", subject, request.getRequestURI());
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "User no longer exists");
+            return false;
+        }
     }
 }

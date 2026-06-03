@@ -24,7 +24,8 @@
 | S12 | Cert pinning mobile (SPKI) | Mobile | 🟡 | 🧩 SCAFFOLDED (disabled; pins computed; activate per PHASE1 doc) |
 | S13 | Jailbreak/root detection + screen-capture protection | Mobile | 🔵 | 🧩 SCAFFOLDED (deviceIntegrity + screenProtection modules; useAppBackgrounded works now; activate per PHASE1 doc) |
 | S14 | EAS init + Sentry (observability) | Mobile | 🔵 | 🧩 SCAFFOLDED (DSN-guarded no-op; activate per PHASE1 doc) |
-| S15 | SSE one-time ticket thay `?access_token=` | Backend | 🟡 | 📋 PLANNED |
+| S15 | SSE one-time ticket thay `?access_token=` | Backend+Web | 🟡 | ✅ DONE (SseTicketService + POST /api/sse/ticket + JwtAuthFilter `?ticket=`; 2 web EventSource sites migrated; `?access_token=` kept deprecated for zero-downtime) |
+| S15b | Remove deprecated `?access_token=` from JwtAuthFilter | Backend | 🔵 | 📋 PLANNED (after the web ticket clients are deployed — no SSE client sends access_token in URL anymore) |
 | S16 | Rate-limit → Redis (multi-node) | Backend | 🟡 | 📋 PLANNED (trước khi scale) |
 | S17 | CSP nonce-based (Report-Only; flip to enforce) | Web | 🟠 | ✅ DONE (nonce in middleware, Report-Only — flip name to enforce) |
 | S18 | RS256 (bỏ chia sẻ secret ký với Amplify) | Backend | 🔵 | 📋 PLANNED |
