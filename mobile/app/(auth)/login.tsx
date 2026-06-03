@@ -6,8 +6,8 @@ import * as Haptics from 'expo-haptics'
 import api from '@/lib/api'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
-import { motion, radius, space, useTheme } from '@/lib/theme'
-import { Screen, ThemedText, TextField, Button } from '@/components/ui'
+import { motion, space, useTheme } from '@/lib/theme'
+import { Screen, ThemedText, TextField, Button, BrandMark } from '@/components/ui'
 
 export default function LoginScreen() {
   const theme = useTheme()
@@ -35,7 +35,7 @@ export default function LoginScreen() {
       } catch {
         // Status check is best-effort; default to the app for existing learners.
       }
-      router.replace(hasPlan ? '/(student)/' : '/(auth)/onboarding')
+      router.replace(hasPlan ? '/(student)' : '/(auth)/onboarding')
     } catch (e: unknown) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
       const msg = e instanceof Error ? e.message : ''
@@ -65,22 +65,15 @@ export default function LoginScreen() {
           transition={{ type: 'timing', duration: motion.duration.slow }}
         >
           <View style={{ alignItems: 'center', marginBottom: space[10] }}>
-            <View
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: radius.xl,
-                backgroundColor: theme.colors.accent,
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: space[4],
-              }}
-            >
-              <ThemedText variant="display" color="onAccent">
-                D
+            <View style={{ marginBottom: space[4] }}>
+              <BrandMark size={60} />
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
+              <ThemedText variant="titleLg">Deutsch</ThemedText>
+              <ThemedText variant="titleLg" color="brand">
+                Flow
               </ThemedText>
             </View>
-            <ThemedText variant="titleLg">DeutschFlow</ThemedText>
             <ThemedText variant="body" color="muted" style={{ marginTop: space[1] }}>
               Học tiếng Đức hiệu quả
             </ThemedText>

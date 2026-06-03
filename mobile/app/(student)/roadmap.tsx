@@ -1,4 +1,4 @@
-import { View } from 'react-native'
+import { SectionList, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router } from 'expo-router'
 import { Lock, CheckCircle2, Circle, PlayCircle, type LucideIcon } from 'lucide-react-native'
@@ -30,6 +30,7 @@ export default function RoadmapScreen() {
     acc[key].push(node)
     return acc
   }, {})
+  const sections = Object.entries(grouped).map(([level, data]) => ({ level, data }))
 
   return (
     <Screen edges={['top']}>
@@ -41,18 +42,22 @@ export default function RoadmapScreen() {
           <Skeleton height={72} radius="xl" />
         </View>
       ) : (
-        <Screen scroll edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[8] }}>
-          {Object.entries(grouped).map(([level, levelNodes]) => (
-            <View key={level} style={{ marginBottom: space[6] }}>
-              <LevelDivider level={level} />
-              <View>
-                {levelNodes.map((node, i) => (
-                  <NodeRow key={node.id} node={node} isLast={i === levelNodes.length - 1} />
-                ))}
-              </View>
+        <SectionList
+          sections={sections}
+          keyExtractor={(item) => String(item.id)}
+          stickySectionHeadersEnabled={false}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: space[5], paddingBottom: space[8] }}
+          renderSectionHeader={({ section }) => (
+            <View style={{ marginTop: space[5] }}>
+              <LevelDivider level={section.level} />
             </View>
-          ))}
-        </Screen>
+          )}
+          renderItem={({ item, index, section }) => (
+            <NodeRow node={item} isLast={index === section.data.length - 1} />
+          )}
+          removeClippedSubviews
+        />
       )}
     </Screen>
   )

@@ -1,4 +1,5 @@
 import axios, { type AxiosError, type AxiosResponse } from 'axios'
+import { Platform } from 'react-native'
 import { API_BASE_URL } from './constants'
 import { getAccessToken, getRefreshToken, setTokens, clearTokens } from './auth'
 import { router } from 'expo-router'
@@ -28,8 +29,10 @@ const api = axios.create({
 api.interceptors.request.use(async (config) => {
   const token = await getAccessToken()
   if (token) config.headers.Authorization = `Bearer ${token}`
-  // Backend uses X-Platform to return refreshToken in body instead of HttpOnly cookie
-  config.headers['X-Platform'] = 'mobile'
+  // Backend uses X-Platform to return refreshToken in body instead of HttpOnly cookie.
+  // Must be 'ios'/'android' (Platform.OS) — the backend's isMobileRequest() only matches those,
+  // otherwise it treats the app as web and withholds the refresh token.
+  config.headers['X-Platform'] = Platform.OS
   return config
 })
 

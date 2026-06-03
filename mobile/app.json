@@ -3,13 +3,14 @@
     "name": "DeutschFlow",
     "slug": "deutschflow",
     "version": "1.0.0",
+    "newArchEnabled": true,
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0D0D0D"
+      "backgroundColor": "#0B0B0C"
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {
@@ -48,8 +49,7 @@
           "color": "#1A1A2E",
           "sounds": []
         }
-      ],
-      "@sentry/react-native/expo"
+      ]
     ],
     "extra": {
       "eas": {

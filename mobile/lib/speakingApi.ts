@@ -19,6 +19,21 @@ import api from './api'
 
 export type PersonaDifficulty = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED'
 
+/** Mirrors backend `SpeakingSessionMode`. */
+export type SpeakingSessionMode = 'COMMUNICATION' | 'INTERVIEW' | 'LESSON'
+
+/** Params for creating a session in any of the three modes. */
+export interface CreateSessionParams {
+  /** Free-text topic: scenario (LESSON), position (INTERVIEW), or "Alltag" (COMMUNICATION). */
+  topic: string
+  cefrLevel: string
+  /** Backend persona code — UPPERCASE of the local persona id (e.g. "LUKAS"). */
+  persona: string
+  sessionMode: SpeakingSessionMode
+  interviewPosition?: string | null
+  experienceLevel?: string | null
+}
+
 /** Mirrors `InterviewPersonaDto`. Identified by `code` (not a numeric id). */
 export interface InterviewPersona {
   code: string
@@ -155,6 +170,28 @@ export const speakingApi = {
           sessionMode: 'INTERVIEW',
           interviewPosition: persona.roleTitle,
           experienceLevel: experienceForDifficulty(persona.difficulty),
+          assignmentId: null,
+        },
+        { timeout: 30_000 },
+      )
+      .then((r) => r.data),
+
+  /**
+   * Generalized session start for all three modes (COMMUNICATION / LESSON / INTERVIEW).
+   * Mirrors the web `aiSpeakingApi.createSession` payload.
+   */
+  createSession: (params: CreateSessionParams) =>
+    api
+      .post<AiSpeakingSession>(
+        '/ai-speaking/sessions',
+        {
+          topic: params.topic,
+          cefrLevel: params.cefrLevel,
+          persona: params.persona,
+          responseSchema: null,
+          sessionMode: params.sessionMode,
+          interviewPosition: params.interviewPosition ?? null,
+          experienceLevel: params.experienceLevel ?? null,
           assignmentId: null,
         },
         { timeout: 30_000 },

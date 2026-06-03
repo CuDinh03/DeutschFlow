@@ -10,6 +10,7 @@ type ColorRole =
   | 'muted'
   | 'faint'
   | 'accent'
+  | 'brand'
   | 'success'
   | 'danger'
   | 'info'
@@ -36,6 +37,7 @@ export function ThemedText({
     muted: theme.colors.textMuted,
     faint: theme.colors.textFaint,
     accent: theme.colors.accentText,
+    brand: theme.colors.brand,
     success: theme.colors.success,
     danger: theme.colors.danger,
     info: theme.colors.info,

@@ -2,7 +2,7 @@ import { View, RefreshControl, Pressable } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router } from 'expo-router'
 import { MotiView } from 'moti'
-import { Flame, BookOpen, Mic, Star, Map, Bell } from 'lucide-react-native'
+import { Flame, BookOpen, Mic, Star, Map, Bell, Zap } from 'lucide-react-native'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
 import api from '@/lib/api'
@@ -124,9 +124,41 @@ export default function DashboardScreen() {
           animate={{ opacity: 1, translateY: 0 }}
           transition={{ type: 'timing', duration: motion.duration.normal }}
         >
-          <View style={{ flexDirection: 'row', gap: space[3], paddingHorizontal: space[5], marginTop: space[3] }}>
-            <StatCard icon={Flame} accent="accent" value={String(data?.streakDays ?? 0)} label="ngày liên tiếp" />
-            <StatCard icon={Star} accent="info" value={`Lv ${data?.xpLevel ?? 1}`} label={`${data?.totalXp ?? 0} XP`} />
+          <View style={{ paddingHorizontal: space[5], marginTop: space[3] }}>
+            {/* Streak hero — brand red, the day-one engagement metric */}
+            <Card>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[4] }}>
+                <View
+                  style={{
+                    width: 60,
+                    height: 60,
+                    borderRadius: radius.xl,
+                    backgroundColor: theme.colors.brandSoft,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Icon icon={Flame} size={30} color="brand" fill />
+                </View>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space[2] }}>
+                    <ThemedText variant="displayLg">{String(data?.streakDays ?? 0)}</ThemedText>
+                    <ThemedText variant="bodyStrong" color="secondary">
+                      ngày streak
+                    </ThemedText>
+                  </View>
+                  <ThemedText variant="caption" color="muted">
+                    Giữ lửa mỗi ngày để không mất chuỗi
+                  </ThemedText>
+                </View>
+              </View>
+            </Card>
+
+            {/* Secondary stats */}
+            <View style={{ flexDirection: 'row', gap: space[3], marginTop: space[3] }}>
+              <StatCard icon={Star} accent="accent" value={`Lv ${data?.xpLevel ?? 1}`} label={`${data?.totalXp ?? 0} XP`} />
+              <StatCard icon={Zap} accent="info" value={`+${data?.todayXp ?? 0}`} label="XP hôm nay" />
+            </View>
           </View>
 
           {(data?.dueSrsCount ?? 0) > 0 ? (

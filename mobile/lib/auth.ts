@@ -12,11 +12,12 @@ export async function getRefreshToken(): Promise<string | null> {
   return SecureStore.getItemAsync(REFRESH_TOKEN_KEY)
 }
 
-export async function setTokens(access: string, refresh: string): Promise<void> {
-  await Promise.all([
-    SecureStore.setItemAsync(ACCESS_TOKEN_KEY, access),
-    SecureStore.setItemAsync(REFRESH_TOKEN_KEY, refresh),
-  ])
+export async function setTokens(access: string, refresh?: string | null): Promise<void> {
+  await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, access)
+  // SecureStore throws on null/undefined values — only persist the refresh token when present.
+  if (refresh) {
+    await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, refresh)
+  }
 }
 
 export async function clearTokens(): Promise<void> {

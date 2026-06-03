@@ -3,6 +3,7 @@ import * as Notifications from 'expo-notifications'
 import * as Device from 'expo-device'
 import Constants from 'expo-constants'
 import { Platform } from 'react-native'
+import { router } from 'expo-router'
 import api from '@/lib/api'
 
 Notifications.setNotificationHandler({
@@ -13,9 +14,13 @@ Notifications.setNotificationHandler({
   }),
 })
 
-async function registerForPushNotifications(): Promise<string | null> {
-  if (!Device.isDevice) return null
-
+/**
+ * Requests notification permission (and sets the Android channel). Runs on every
+ * platform — including the iOS Simulator — so notification *display* can be
+ * exercised with `xcrun simctl push` even though an Expo push *token* is only
+ * obtainable on a physical device.
+ */
+async function ensureNotificationPermission(): Promise<boolean> {
   const { status: existingStatus } = await Notifications.getPermissionsAsync()
   let finalStatus = existingStatus
 
@@ -23,8 +28,6 @@ async function registerForPushNotifications(): Promise<string | null> {
     const { status } = await Notifications.requestPermissionsAsync()
     finalStatus = status
   }
-
-  if (finalStatus !== 'granted') return null
 
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('default', {
@@ -35,9 +38,17 @@ async function registerForPushNotifications(): Promise<string | null> {
     })
   }
 
+  return finalStatus === 'granted'
+}
+
+async function registerForPushNotifications(): Promise<string | null> {
+  if (!(await ensureNotificationPermission())) return null
+
+  // The Expo push token requires a real device (the simulator has no APNs token).
+  if (!Device.isDevice) return null
+
   // projectId is required by SDK 49+. Without it, getExpoPushTokenAsync throws.
-  // Fall back gracefully so the rest of the app is unaffected during development
-  // or before `eas init` has been run.
+  // Fall back gracefully so the rest of the app is unaffected before `eas init`.
   const projectId =
     Constants.expoConfig?.extra?.eas?.projectId as string | undefined
 
@@ -69,10 +80,10 @@ export function usePushNotifications() {
       // foreground notification received — badge updates automatically
     })
 
-    responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
-      const data = response.notification.request.content.data as Record<string, unknown>
-      // Deep link handled by expo-notifications plugin in app.json
-      void data
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(() => {
+      // Tapping a notification opens the in-app notifications inbox. Per-item deep
+      // links are a follow-up (needs a shared route scheme between backend and app).
+      router.push('/(student)/notifications')
     })
 
     return () => {

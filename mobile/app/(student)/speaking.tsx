@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback, memo } from 'react'
 import { View, ScrollView, Alert, Pressable, TextInput, ActivityIndicator } from 'react-native'
-import { useQuery } from '@tanstack/react-query'
 import { Audio } from 'expo-av'
+import { MotiView } from 'moti'
 import * as Haptics from 'expo-haptics'
 import { router } from 'expo-router'
 import { Mic, Send, ChevronRight, Flame, X, Flag, RotateCcw } from 'lucide-react-native'
@@ -15,7 +15,6 @@ import Animated, {
 import { apiMessage } from '@/lib/api'
 import {
   speakingApi,
-  type InterviewPersona,
   type AiChatResponse,
   type AiSpeakingSession,
   type AiSpeakingMessage,
@@ -30,6 +29,11 @@ import {
 import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, Pill } from '@/components/ui'
 import { SessionSummary } from '@/components/speaking/SessionSummary'
+import { CompanionSelect, type StartArgs } from '@/components/speaking/CompanionSelect'
+import { PersonaBubbleAvatar } from '@/components/speaking/PersonaBubbleAvatar'
+import { RevealText } from '@/components/speaking/RevealText'
+import { PersonaStage, type StageState, type Reaction } from '@/components/speaking/PersonaStage'
+import { PERSONA_TOKENS, type PersonaId } from '@/lib/personas'
 import { usePlanStore } from '@/stores/usePlanStore'
 
 const PULSE_MAX = 1.2
@@ -44,6 +48,21 @@ interface ChatTurn {
 
 type ScreenView = 'select' | 'chat' | 'summary'
 
+// Map an AI turn to a transient persona reaction, gated by session mode.
+function reactionFor(res: AiChatResponse, mode: string | null | undefined): Reaction {
+  // Free conversation: no evaluation drama; grammar is surfaced as an end-of-turn note.
+  if (mode === 'COMMUNICATION') return null
+  // Default to 0.6 (→ "approve") when score is absent, to avoid over-praising.
+  const score = res.similarityScore ?? 0.6
+  const offTopic =
+    (res.action ?? '').toUpperCase().includes('OFF_TOPIC') || (mode === 'INTERVIEW' && score < 0.35)
+  if (offTopic) return 'offtopic'
+  if (res.correction) return 'wrong'
+  if (score >= 0.8) return 'praise'
+  if (score >= 0.5) return 'approve'
+  return null
+}
+
 export default function SpeakingScreen() {
   const theme = useTheme()
   const c = theme.colors
@@ -54,6 +73,9 @@ export default function SpeakingScreen() {
   const [messages, setMessages] = useState<ChatTurn[]>([])
   const [phaseKey, setPhaseKey] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
+  const [typing, setTyping] = useState(false)
+  const [stage, setStage] = useState<StageState>('idle')
+  const [reaction, setReaction] = useState<Reaction>(null)
   const [starting, setStarting] = useState(false)
   const [sending, setSending] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
@@ -64,13 +86,9 @@ export default function SpeakingScreen() {
 
   const recordingRef = useRef<Audio.Recording | null>(null)
   const scrollRef = useRef<ScrollView | null>(null)
+  const typingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const reactionRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pulseAnim = useSharedValue(1)
-
-  const { data: personas = [], isLoading: personasLoading } = useQuery({
-    queryKey: ['interview-personas'],
-    queryFn: () => speakingApi.getPersonas(),
-    staleTime: 300_000,
-  })
 
   // Offer to resume an interrupted session left over from a previous app run.
   useEffect(() => {
@@ -84,29 +102,95 @@ export default function SpeakingScreen() {
     }
   }, [])
 
-  const busy = starting || sending || isRecording || finishing
+  const busy = starting || sending || isRecording || finishing || typing
+
+  // Clear in-flight timers on unmount.
+  useEffect(
+    () => () => {
+      if (typingRef.current) clearInterval(typingRef.current)
+      if (reactionRef.current) clearTimeout(reactionRef.current)
+      stopSpeech()
+    },
+    [],
+  )
+
+  // Speak the AI's German line via TTS; the persona "talks" for the speech duration,
+  // then runs onDone. Falls back to a timed delay if expo-speech isn't in the binary
+  // yet (native module needs a rebuild) so the flow never breaks.
+  function speakGerman(text: string, onDone: () => void) {
+    setStage('speaking')
+    setReaction(null)
+    let done = false
+    const finish = () => {
+      if (done) return
+      done = true
+      onDone()
+    }
+    try {
+      const Speech = require('expo-speech') as typeof import('expo-speech')
+      Speech.stop()
+      if (text.trim()) {
+        Speech.speak(text, { language: 'de-DE', rate: 0.96, onDone: finish, onStopped: finish, onError: finish })
+      } else {
+        setTimeout(finish, 600)
+      }
+    } catch {
+      setTimeout(finish, Math.min(4200, 1200 + text.length * 42))
+    }
+  }
+
+  // Flash a transient reaction expression (praise/approve/wrong/offtopic) then settle.
+  function flashReaction(r: Reaction) {
+    if (reactionRef.current) clearTimeout(reactionRef.current)
+    setStage('idle')
+    setReaction(r)
+    if (r) reactionRef.current = setTimeout(() => setReaction(null), 2400)
+  }
+
+  function stopSpeech() {
+    try {
+      ;(require('expo-speech') as typeof import('expo-speech')).stop()
+    } catch {
+      // expo-speech not installed in this build — nothing to stop.
+    }
+  }
   const userTurns = messages.filter((m) => m.role === 'user').length
+
+  const personaCode = session?.persona?.toLowerCase()
+  const personaId: PersonaId =
+    personaCode && personaCode in PERSONA_TOKENS ? (personaCode as PersonaId) : 'lukas'
 
   function scrollToEnd() {
     requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }))
   }
 
-  async function startSession(persona: InterviewPersona) {
-    if (persona.difficulty === 'ADVANCED' && !isPro) {
-      Alert.alert('Cần PRO', 'Persona nâng cao thuộc gói PRO.')
-      return
-    }
+  async function startSession(args: StartArgs) {
     setStarting(true)
     try {
-      const created = await speakingApi.startInterview(persona)
+      const created = await speakingApi.createSession({
+        topic: args.topic,
+        cefrLevel: args.cefrLevel,
+        persona: args.persona.id.toUpperCase(),
+        sessionMode: args.sessionMode,
+        interviewPosition: args.interviewPosition ?? null,
+        experienceLevel: args.experienceLevel ?? null,
+      })
       const greeting = created.initialAiMessage?.aiSpeechDe ?? 'Hallo! Erzählen Sie mir von sich.'
       setSession(created)
-      setPhaseKey(created.initialAiMessage?.interviewPhaseKey ?? 'INTRO')
+      setPhaseKey(
+        created.initialAiMessage?.interviewPhaseKey ??
+          (args.sessionMode === 'INTERVIEW' ? 'INTRO' : null),
+      )
       setMessages([{ role: 'assistant', content: greeting, feedback: created.initialAiMessage ?? undefined }])
       setReport(null)
       setPendingResume(null)
-      void saveActiveSession({ id: created.id, interviewPosition: created.interviewPosition })
+      void saveActiveSession({
+        id: created.id,
+        interviewPosition: created.interviewPosition,
+        persona: created.persona,
+      })
       setView('chat')
+      speakGerman(greeting, () => flashReaction(null))
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     } catch (e) {
       Alert.alert('Không thể bắt đầu', apiMessage(e))
@@ -121,19 +205,57 @@ export default function SpeakingScreen() {
     setDraft('')
     setMessages((prev) => [...prev, { role: 'user', content: trimmed }])
     setSending(true)
+    setStage('thinking')
+    setReaction(null)
     scrollToEnd()
     try {
       const res = await speakingApi.chat(session.id, trimmed)
       setMessages((prev) => [...prev, { role: 'assistant', content: res.aiSpeechDe ?? '…', feedback: res }])
       if (res.interviewPhaseKey) setPhaseKey(res.interviewPhaseKey)
+      const r = reactionFor(res, session.sessionMode)
+      speakGerman(res.aiSpeechDe ?? '', () => {
+        flashReaction(r)
+        if (r === 'praise') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+        else if (r === 'wrong' || r === 'offtopic')
+          void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)
+      })
       scrollToEnd()
       if (res.isSessionEnded) await finishSession()
     } catch (e) {
+      setStage('idle')
       Alert.alert('Lỗi', apiMessage(e))
     } finally {
       setSending(false)
     }
   }
+
+  // Type a suggested reply into the input bar character-by-character, then auto-send.
+  function useSuggestion(text: string) {
+    if (busy || !session) return
+    if (typingRef.current) clearInterval(typingRef.current)
+    void Haptics.selectionAsync()
+    setTyping(true)
+    setDraft('')
+    let i = 0
+    typingRef.current = setInterval(() => {
+      i += 1
+      setDraft(text.slice(0, i))
+      scrollToEnd()
+      if (i >= text.length) {
+        if (typingRef.current) clearInterval(typingRef.current)
+        typingRef.current = null
+        setTimeout(() => {
+          setTyping(false)
+          void submitAnswer(text)
+        }, 450)
+      }
+    }, 26)
+  }
+
+  // Stable identity so memoized MessageBubbles don't re-render on every keystroke.
+  const useSuggestionRef = useRef(useSuggestion)
+  useSuggestionRef.current = useSuggestion
+  const onUseSuggestion = useCallback((text: string) => useSuggestionRef.current(text), [])
 
   async function startRecording() {
     if (!isPro) {
@@ -146,6 +268,8 @@ export default function SpeakingScreen() {
       const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY)
       recordingRef.current = recording
       setIsRecording(true)
+      setStage('listening')
+      setReaction(null)
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
       pulseAnim.value = withRepeat(withTiming(PULSE_MAX, { duration: 800 }), -1, true)
     } catch {
@@ -158,6 +282,7 @@ export default function SpeakingScreen() {
     cancelAnimation(pulseAnim)
     pulseAnim.value = 1
     setIsRecording(false)
+    setStage('thinking')
     setSending(true)
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     try {
@@ -181,9 +306,17 @@ export default function SpeakingScreen() {
     try {
       await speakingApi.endSession(session.id).catch(() => undefined)
       void clearActiveSession()
-      const built = await speakingApi.getReport(session.id)
-      setReport(built)
-      setView('summary')
+      if (session.sessionMode === 'INTERVIEW') {
+        const built = await speakingApi.getReport(session.id)
+        setReport(built)
+        setView('summary')
+      } else {
+        // Conversation / lesson modes have no interview report — return to select.
+        setSession(null)
+        setMessages([])
+        setPhaseKey(null)
+        setView('select')
+      }
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
     } catch (e) {
       Alert.alert('Không thể tạo báo cáo', apiMessage(e))
@@ -199,6 +332,10 @@ export default function SpeakingScreen() {
     setPhaseKey(null)
     setDraft('')
     setPendingResume(null)
+    if (reactionRef.current) clearTimeout(reactionRef.current)
+    stopSpeech()
+    setStage('idle')
+    setReaction(null)
     void clearActiveSession()
     setView('select')
   }
@@ -218,7 +355,7 @@ export default function SpeakingScreen() {
         id: ref.id,
         topic: ref.interviewPosition,
         cefrLevel: 'C1',
-        persona: null,
+        persona: ref.persona ?? null,
         responseSchema: null,
         sessionMode: 'INTERVIEW',
         status: 'ACTIVE',
@@ -261,7 +398,7 @@ export default function SpeakingScreen() {
     return (
       <Screen edges={['top']}>
         <ScreenHeader title="Kết quả phỏng vấn" onClose={resetToSelect} />
-        <SessionSummary report={report} onPracticeAgain={resetToSelect} onDone={() => router.replace('/(student)/')} />
+        <SessionSummary report={report} onPracticeAgain={resetToSelect} onDone={() => router.replace('/(student)')} />
       </Screen>
     )
   }
@@ -270,19 +407,8 @@ export default function SpeakingScreen() {
   if (view === 'select') {
     return (
       <Screen edges={['top']}>
-        <View style={{ paddingHorizontal: space[5], paddingTop: space[3], paddingBottom: space[2], gap: 2 }}>
-          <ThemedText variant="display">Phỏng vấn AI</ThemedText>
-          <ThemedText variant="body" color="muted">
-            Chọn nhà tuyển dụng để luyện tập
-          </ThemedText>
-        </View>
-
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={{ paddingHorizontal: space[5], paddingBottom: space[6], gap: space[3], paddingTop: space[3] }}
-          showsVerticalScrollIndicator={false}
-        >
-          {pendingResume ? (
+        {pendingResume ? (
+          <View style={{ paddingHorizontal: space[5], paddingTop: space[3] }}>
             <Card style={{ borderColor: c.accent + '99' }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
                 <Pressable
@@ -303,7 +429,7 @@ export default function SpeakingScreen() {
                     <Icon icon={RotateCcw} size={22} color="accent" />
                   </View>
                   <View style={{ flex: 1, gap: 2 }}>
-                    <ThemedText variant="bodyStrong">Tiếp tục buổi phỏng vấn</ThemedText>
+                    <ThemedText variant="bodyStrong">Tiếp tục buổi học</ThemedText>
                     <ThemedText variant="caption" color="muted" numberOfLines={1}>
                       {pendingResume.interviewPosition ?? 'Phiên đang dang dở'}
                     </ThemedText>
@@ -318,64 +444,10 @@ export default function SpeakingScreen() {
                 )}
               </View>
             </Card>
-          ) : null}
-
-          {personasLoading ? <ActivityIndicator color={c.accent} style={{ marginTop: space[8] }} /> : null}
-
-          {personas.map((persona) => {
-            const locked = persona.difficulty === 'ADVANCED' && !isPro
-            return (
-              <Card key={persona.code} onPress={() => startSession(persona)}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], flex: 1 }}>
-                    <DifficultyDot difficulty={persona.difficulty} />
-                    <View style={{ flex: 1, gap: 4 }}>
-                      <ThemedText variant="bodyStrong">{persona.roleTitle}</ThemedText>
-                      <View style={{ flexDirection: 'row', gap: space[2], flexWrap: 'wrap' }}>
-                        <Pill label={difficultyLabel(persona.difficulty)} tone={difficultyTone(persona.difficulty)} />
-                        {persona.industry ? <Pill label={persona.industry} tone="neutral" /> : null}
-                      </View>
-                    </View>
-                  </View>
-                  {locked ? <Pill label="PRO" tone="accent" /> : <Icon icon={ChevronRight} size={18} color="faint" />}
-                </View>
-              </Card>
-            )
-          })}
-
-          <Card onPress={() => router.push('/(student)/weekly-speaking')} style={{ borderColor: c.info + '66' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-              <View
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: radius.lg,
-                  backgroundColor: c.infoSoft,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Icon icon={Flame} size={22} color="info" />
-              </View>
-              <View style={{ flex: 1, gap: 2 }}>
-                <ThemedText variant="bodyStrong">Weekly Speaking Challenge</ThemedText>
-                <ThemedText variant="caption" color="muted">
-                  Nộp bài nói hàng tuần • PRO
-                </ThemedText>
-              </View>
-              <Icon icon={ChevronRight} size={18} color="faint" />
-            </View>
-          </Card>
-        </ScrollView>
-
-        {starting ? (
-          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg + 'cc' }}>
-            <ActivityIndicator color={c.accent} size="large" />
-            <ThemedText variant="caption" color="muted" style={{ marginTop: space[3] }}>
-              Đang chuẩn bị buổi phỏng vấn…
-            </ThemedText>
           </View>
         ) : null}
+
+        <CompanionSelect isPro={isPro} starting={starting} onStart={startSession} />
       </Screen>
     )
   }
@@ -421,6 +493,8 @@ export default function SpeakingScreen() {
         </Pressable>
       </View>
 
+      <PersonaStage personaId={personaId} stage={stage} reaction={reaction} />
+
       <ScrollView
         ref={scrollRef}
         style={{ flex: 1 }}
@@ -429,14 +503,23 @@ export default function SpeakingScreen() {
         showsVerticalScrollIndicator={false}
         onContentSizeChange={scrollToEnd}
       >
-        {messages.map((msg, i) => (
-          <MessageBubble key={i} turn={msg} />
-        ))}
-        {(sending || finishing) && (
+        {messages.map((msg, i) => {
+          const isLastAssistant = i === messages.length - 1 && msg.role === 'assistant'
+          return (
+            <MessageBubble
+              key={i}
+              turn={msg}
+              personaId={personaId}
+              active={isLastAssistant && stage === 'speaking'}
+              onUseSuggestion={onUseSuggestion}
+            />
+          )
+        })}
+        {finishing && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], paddingLeft: space[2] }}>
             <ActivityIndicator color={c.textMuted} size="small" />
             <ThemedText variant="caption" color="muted">
-              {finishing ? 'Đang tạo báo cáo…' : 'Đang soạn câu hỏi…'}
+              Đang tạo báo cáo…
             </ThemedText>
           </View>
         )}
@@ -539,17 +622,27 @@ function ScreenHeader({ title, onClose }: { title: string; onClose: () => void }
   )
 }
 
-function MessageBubble({ turn }: { turn: ChatTurn }) {
+const MessageBubble = memo(function MessageBubble({
+  turn,
+  personaId,
+  active = false,
+  onUseSuggestion,
+}: {
+  turn: ChatTurn
+  personaId: PersonaId
+  active?: boolean
+  onUseSuggestion?: (text: string) => void
+}) {
   const { colors } = useTheme()
   const isUser = turn.role === 'user'
   const fb = turn.feedback
-  const hasFeedback = !isUser && fb && (fb.correction || fb.explanationVi || (fb.suggestions?.length ?? 0) > 0)
+  const hasFeedback = !isUser && fb && (fb.correction || (fb.suggestions?.length ?? 0) > 0)
 
-  return (
-    <View style={{ alignItems: isUser ? 'flex-end' : 'flex-start', gap: space[2] }}>
+  const inner = (
+    <View style={{ flex: isUser ? undefined : 1, alignItems: isUser ? 'flex-end' : 'flex-start', gap: space[2] }}>
       <View
         style={{
-          maxWidth: '88%',
+          maxWidth: '92%',
           backgroundColor: isUser ? colors.accent : colors.surfaceElevated,
           borderRadius: radius.lg,
           borderBottomRightRadius: isUser ? radius.sm : radius.lg,
@@ -558,94 +651,92 @@ function MessageBubble({ turn }: { turn: ChatTurn }) {
           paddingVertical: space[3],
         }}
       >
-        <ThemedText variant="body" color={isUser ? 'onAccent' : 'primary'}>
-          {turn.content}
-        </ThemedText>
+        {isUser ? (
+          <ThemedText variant="body" color="onAccent">
+            {turn.content}
+          </ThemedText>
+        ) : (
+          <RevealText text={turn.content} active={active} variant="body" color="primary" />
+        )}
       </View>
 
       {hasFeedback ? (
-        <View
-          style={{
-            maxWidth: '88%',
-            backgroundColor: colors.surfaceSunken,
-            borderRadius: radius.md,
-            borderLeftWidth: 3,
-            borderLeftColor: colors.info,
-            paddingHorizontal: space[3],
-            paddingVertical: space[2],
-            gap: space[1],
-          }}
-        >
+        <View style={{ maxWidth: '92%', gap: space[2] }}>
           {fb?.correction ? (
-            <ThemedText variant="caption" color="secondary">
-              ✏️ {fb.correction}
-            </ThemedText>
+            <View
+              style={{
+                backgroundColor: colors.successSoft,
+                borderRadius: radius.md,
+                borderLeftWidth: 3,
+                borderLeftColor: colors.success,
+                paddingHorizontal: space[3],
+                paddingVertical: space[3],
+                gap: space[2],
+              }}
+            >
+              <View
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space[2] }}
+              >
+                <ThemedText variant="label" color="success">
+                  ✍️ Nên nói
+                </ThemedText>
+                {fb.grammarPoint ? <Pill label={fb.grammarPoint} tone="success" /> : null}
+              </View>
+              <ThemedText variant="bodyStrong" color="primary">
+                {fb.correction}
+              </ThemedText>
+              {fb.explanationVi ? (
+                <ThemedText variant="caption" color="muted">
+                  {fb.explanationVi}
+                </ThemedText>
+              ) : null}
+            </View>
           ) : null}
-          {fb?.explanationVi ? (
-            <ThemedText variant="caption" color="muted">
-              {fb.explanationVi}
-            </ThemedText>
-          ) : null}
+
           {fb?.suggestions?.slice(0, 1).map((s, i) => (
-            <ThemedText key={i} variant="caption" color="info">
-              💡 {s.germanText}
-            </ThemedText>
+            <Pressable
+              key={i}
+              onPress={() => onUseSuggestion?.(s.germanText)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: space[2],
+                backgroundColor: colors.infoSoft,
+                borderRadius: radius.sm,
+                paddingHorizontal: space[3],
+                paddingVertical: space[2],
+              }}
+            >
+              <ThemedText variant="caption" color="info" style={{ flex: 1 }}>
+                💡 {s.germanText}
+              </ThemedText>
+              <ThemedText variant="label" color="info">
+                Dùng →
+              </ThemedText>
+            </Pressable>
           ))}
         </View>
       ) : null}
     </View>
   )
-}
 
-function DifficultyDot({ difficulty }: { difficulty: string }) {
-  const { colors } = useTheme()
-  const dot =
-    difficulty === 'ADVANCED' ? colors.danger : difficulty === 'INTERMEDIATE' ? colors.accent : colors.success
-  const soft =
-    difficulty === 'ADVANCED'
-      ? colors.dangerSoft
-      : difficulty === 'INTERMEDIATE'
-        ? colors.accentSoft
-        : colors.successSoft
   return (
-    <View
-      style={{
-        width: 44,
-        height: 44,
-        borderRadius: radius.lg,
-        backgroundColor: soft,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
+    <MotiView
+      from={{ opacity: 0, translateY: 6 }}
+      animate={{ opacity: 1, translateY: 0 }}
+      transition={{ type: 'timing', duration: 260 }}
     >
-      <View style={{ width: 12, height: 12, borderRadius: radius.full, backgroundColor: dot }} />
-    </View>
+      {isUser ? (
+        inner
+      ) : (
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[2] }}>
+          <PersonaBubbleAvatar personaId={personaId} size={36} paused />
+          {inner}
+        </View>
+      )}
+    </MotiView>
   )
-}
-
-function difficultyLabel(difficulty: string): string {
-  switch (difficulty) {
-    case 'BEGINNER':
-      return 'Cơ bản'
-    case 'INTERMEDIATE':
-      return 'Trung cấp'
-    case 'ADVANCED':
-      return 'Nâng cao'
-    default:
-      return difficulty
-  }
-}
-
-function difficultyTone(difficulty: string): 'success' | 'accent' | 'danger' {
-  switch (difficulty) {
-    case 'ADVANCED':
-      return 'danger'
-    case 'INTERMEDIATE':
-      return 'accent'
-    default:
-      return 'success'
-  }
-}
+})
 
 function mapMessagesToTurns(messages: AiSpeakingMessage[]): ChatTurn[] {
   const turns: ChatTurn[] = []

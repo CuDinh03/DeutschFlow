@@ -1,4 +1,6 @@
-// Semantic color tokens for light + dark. One locked accent (brand yellow).
+// Semantic color tokens for light + dark.
+// Brand identity = logo: gold #FFCD00 (primary accent) + red #DA291C (secondary
+// brand accent for energy/emphasis — distinct from `danger`, which is error-only).
 // No pure #000 / #fff — off-black and off-white preserve depth (taste-skill 8.B).
 
 import type { ViewStyle } from 'react-native'
@@ -30,6 +32,10 @@ export interface ThemeColors {
   accentSoft: string
   onAccent: string
   accentText: string
+  // Secondary brand accent (logo red — energy/emphasis, NOT error semantics)
+  brand: string
+  brandSoft: string
+  onBrand: string
   // Semantic states
   success: string
   successSoft: string
@@ -55,7 +61,7 @@ export interface Theme {
   blurTint: 'dark' | 'light'
 }
 
-const ACCENT = '#F5C842'
+const ACCENT = '#FFCD00' // brand gold — matches logo/splash
 
 export const darkColors: ThemeColors = {
   bg: '#0B0B0C',
@@ -69,9 +75,12 @@ export const darkColors: ThemeColors = {
   textMuted: '#6E6E78',
   textFaint: '#48484F',
   accent: ACCENT,
-  accentSoft: 'rgba(245,200,66,0.15)',
+  accentSoft: 'rgba(255,205,0,0.15)',
   onAccent: '#1A1500',
   accentText: ACCENT,
+  brand: '#E8392B', // logo red, lifted slightly for dark-bg legibility
+  brandSoft: 'rgba(232,57,43,0.16)',
+  onBrand: '#FFFFFF',
   success: '#2DC653',
   successSoft: 'rgba(45,198,83,0.16)',
   danger: '#E63946',
@@ -98,9 +107,12 @@ export const lightColors: ThemeColors = {
   textMuted: '#8A8A93',
   textFaint: '#B6B6BE',
   accent: ACCENT,
-  accentSoft: 'rgba(245,200,66,0.20)',
+  accentSoft: 'rgba(255,205,0,0.22)',
   onAccent: '#1A1500',
   accentText: '#9A7400', // deep amber: passes AA on light surfaces
+  brand: '#DA291C', // logo red — passes AA on light surfaces
+  brandSoft: 'rgba(218,41,28,0.12)',
+  onBrand: '#FFFFFF',
   success: '#1B9E43',
   successSoft: 'rgba(27,158,67,0.14)',
   danger: '#D32536',

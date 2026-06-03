@@ -1,17 +1,6 @@
-import { useEffect } from 'react'
-import * as Sentry from '@sentry/react-native'
-import Constants from 'expo-constants'
-import { Stack, router } from 'expo-router'
+import { useEffect, useState } from 'react'
+import { Stack, router, useRootNavigationState } from 'expo-router'
 
-// Initialise once at module level so Sentry captures errors during startup.
-// DSN is stored in app.json extra.sentryDsn; set it there (or via EAS secrets)
-// before shipping. If blank, Sentry loads but sends nothing.
-const sentryDsn = (Constants.expoConfig?.extra?.sentryDsn as string | undefined) ?? ''
-Sentry.init({
-  dsn: sentryDsn,
-  enabled: !!sentryDsn && !__DEV__,
-  tracesSampleRate: 0.2,
-})
 import { StatusBar } from 'expo-status-bar'
 import * as SplashScreen from 'expo-splash-screen'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
@@ -41,6 +30,7 @@ import { useSrsOfflineStore } from '@/stores/useSrsOfflineStore'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
 import { getAccessToken } from '@/lib/auth'
 import { ThemeProvider, useTheme } from '@/lib/theme'
+import { SplashAnimated } from '@/components/SplashAnimated'
 import '../global.css'
 
 void SplashScreen.preventAutoHideAsync()
@@ -73,6 +63,8 @@ function RootStack() {
 function RootLayout() {
   const { isLoggedIn, isLoading, fetchMe } = useAuthStore()
   const { fetchPlan } = usePlanStore()
+  const rootNavState = useRootNavigationState()
+  const [splashDone, setSplashDone] = useState(false)
 
   const [soraLoaded] = useSora({ Sora_600SemiBold, Sora_700Bold, Sora_800ExtraBold })
   const [jakartaLoaded] = useJakarta({
@@ -104,11 +96,14 @@ function RootLayout() {
   }, [fetchMe, fetchPlan])
 
   useEffect(() => {
+    // Don't navigate until the root navigator has mounted, otherwise expo-router throws
+    // "Attempted to navigate before mounting the Root Layout component."
+    if (!rootNavState?.key) return
     if (isLoading) return
     if (!isLoggedIn) {
       router.replace('/(auth)/login')
     }
-  }, [isLoggedIn, isLoading])
+  }, [isLoggedIn, isLoading, rootNavState?.key])
 
   useEffect(() => {
     if (fontsReady) {
@@ -127,9 +122,9 @@ function RootLayout() {
           </QueryClientProvider>
         </ThemeProvider>
       </SafeAreaProvider>
+      {splashDone ? null : <SplashAnimated onDone={() => setSplashDone(true)} />}
     </GestureHandlerRootView>
   )
 }
 
-// Sentry.wrap instruments navigation and error boundaries automatically.
-export default Sentry.wrap(RootLayout)
+export default RootLayout

@@ -9,6 +9,7 @@ const ACTIVE_SESSION_KEY = 'df.active_session'
 export interface ActiveSessionRef {
   id: number
   interviewPosition: string | null
+  persona?: string | null
 }
 
 export async function saveActiveSession(ref: ActiveSessionRef): Promise<void> {
