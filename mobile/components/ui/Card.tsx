@@ -3,6 +3,7 @@
 
 import type { ReactNode } from 'react'
 import { Pressable, View, type ViewStyle, type StyleProp } from 'react-native'
+import * as Haptics from 'expo-haptics'
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -59,9 +60,14 @@ export function Card({
     return <View style={[base, style]}>{children}</View>
   }
 
+  const handlePress = () => {
+    void Haptics.selectionAsync()
+    onPress()
+  }
+
   return (
     <AnimatedPressable
-      onPress={onPress}
+      onPress={handlePress}
       onPressIn={() => {
         scale.value = withSpring(0.97, motion.spring.snappy)
       }}

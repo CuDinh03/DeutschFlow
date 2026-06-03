@@ -1,4 +1,4 @@
-import { View, Pressable } from 'react-native'
+import { View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router } from 'expo-router'
 import {
@@ -131,9 +131,8 @@ function NodeCard({ node }: { node: SkillTreeNode }) {
   const toneSoft: Record<StatusTone, string> = { success: c.successSoft, accent: c.accentSoft, info: c.infoSoft }
 
   return (
-    <Pressable style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
-      <Card>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+    <Card onPress={() => router.push('/(student)/roadmap')}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
             <View
               style={{
@@ -163,7 +162,6 @@ function NodeCard({ node }: { node: SkillTreeNode }) {
             <Icon icon={ChevronRight} size={14} color="faint" />
           </View>
         </View>
-      </Card>
-    </Pressable>
+    </Card>
   )
 }

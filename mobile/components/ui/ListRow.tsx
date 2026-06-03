@@ -5,6 +5,7 @@ import { ChevronRight } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
 import type { ReactNode } from 'react'
 import { Pressable, View } from 'react-native'
+import * as Haptics from 'expo-haptics'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Icon } from './Icon'
 import { ThemedText } from './ThemedText'
@@ -85,8 +86,13 @@ export function ListRow({
 
   if (!onPress) return content
 
+  const handlePress = () => {
+    void Haptics.selectionAsync()
+    onPress()
+  }
+
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
+    <Pressable onPress={handlePress} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
       {content}
     </Pressable>
   )
