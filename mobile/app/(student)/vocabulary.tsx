@@ -10,6 +10,7 @@ import { fonts, radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, ErrorState, Skeleton } from '@/components/ui'
 import { useDebounce } from '@/hooks/useDebounce'
 
+// Display shape used by WordRow.
 interface Word {
   id: string
   word: string
@@ -17,6 +18,28 @@ interface Word {
   gender?: 'der' | 'die' | 'das'
   cefrLevel?: string
   srsStatus?: 'NEW' | 'LEARNING' | 'REVIEWING' | 'MASTERED'
+}
+
+// Backend WordListItem (camelCase record). base_form/meaning/article, not word/translation/gender.
+interface RawWord {
+  id: number
+  baseForm: string
+  meaning: string | null
+  article?: string | null // 'der' | 'die' | 'das' (lowercase) for nouns
+  cefrLevel?: string | null
+  srsStatus?: Word['srsStatus']
+}
+
+function mapWord(r: RawWord): Word {
+  const g = r.article === 'der' || r.article === 'die' || r.article === 'das' ? r.article : undefined
+  return {
+    id: String(r.id),
+    word: r.baseForm,
+    translation: r.meaning ?? '',
+    gender: g,
+    cefrLevel: r.cefrLevel ?? undefined,
+    srsStatus: r.srsStatus,
+  }
 }
 
 const STATUS_FILTERS = ['ALL', 'NEW', 'LEARNING', 'MASTERED'] as const
@@ -42,7 +65,7 @@ export default function VocabularyScreen() {
       const params = new URLSearchParams({ page: '0', size: '30' })
       if (debouncedSearch) params.set('q', debouncedSearch)
       if (statusFilter !== 'ALL') params.set('status', statusFilter.toLowerCase())
-      return api.get<{ content: Word[] }>(`/words?${params}`).then((r) => r.data.content)
+      return api.get<{ content: RawWord[] }>(`/words?${params}`).then((r) => (r.data.content ?? []).map(mapWord))
     },
     staleTime: 30_000,
   })
