@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router } from 'expo-router'
@@ -10,11 +11,13 @@ import {
   PenTool,
   MessageSquare,
   Clock,
+  Trophy,
   type LucideIcon,
 } from 'lucide-react-native'
 import api from '@/lib/api'
 import { progressApi, type SkillData, type WeeklyPoint } from '@/lib/progressApi'
 import { speakingApi, type AiSpeakingSession } from '@/lib/speakingApi'
+import { gamificationApi, type Achievement, type Rarity } from '@/lib/gamificationApi'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, Pill, AppHeader, ProgressBar, ErrorState, FadeIn, Skeleton } from '@/components/ui'
 
@@ -63,10 +66,26 @@ export default function StatsScreen() {
     staleTime: 60_000,
   })
 
+  const { data: xp, refetch: refetchXp } = useQuery({
+    queryKey: ['xp-summary'],
+    queryFn: () => gamificationApi.getXpSummary(),
+    staleTime: 60_000,
+  })
+
+  // Acknowledge newly-unlocked badges once, after the user has seen this screen.
+  const ackedRef = useRef(false)
+  useEffect(() => {
+    if (!ackedRef.current && (xp?.pendingBadges?.length ?? 0) > 0) {
+      ackedRef.current = true
+      void gamificationApi.ackBadges().catch(() => undefined)
+    }
+  }, [xp?.pendingBadges?.length])
+
   const onRefresh = () => {
     void refetchStats()
     void refetchOverview()
     void refetchSessions()
+    void refetchXp()
   }
 
   return (
@@ -100,6 +119,18 @@ export default function StatsScreen() {
               <StatTileCard icon={Mic} accent="success" label="Phút nói" value={`${stats?.speakingMinutes ?? 0}`} />
             </View>
           </FadeIn>
+
+          {/* XP & level progress */}
+          {xp ? (
+            <FadeIn delay={60}>
+              <XpLevelCard
+                level={xp.level}
+                totalXp={xp.totalXp}
+                progressInLevel={xp.progressInLevel}
+                xpNeededForNext={xp.xpNeededForNext}
+              />
+            </FadeIn>
+          ) : null}
 
           {/* Skill ability — "where am I" */}
           {overview ? (
@@ -137,6 +168,13 @@ export default function StatsScreen() {
                 <ThemedText variant="bodyStrong">Hoạt động hàng tuần</ThemedText>
                 <WeeklyTrend points={overview.weeklyProgress} />
               </Card>
+            </FadeIn>
+          ) : null}
+
+          {/* Achievements */}
+          {xp && xp.allAchievements.length > 0 ? (
+            <FadeIn delay={200}>
+              <AchievementsCard achievements={xp.allAchievements} pending={xp.pendingBadges} />
             </FadeIn>
           ) : null}
 
@@ -271,6 +309,126 @@ function StatTileCard({
         {label}
       </ThemedText>
     </Card>
+  )
+}
+
+function XpLevelCard({
+  level,
+  totalXp,
+  progressInLevel,
+  xpNeededForNext,
+}: {
+  level: number
+  totalXp: number
+  progressInLevel: number
+  xpNeededForNext: number
+}) {
+  const total = progressInLevel + xpNeededForNext
+  const ratio = total > 0 ? progressInLevel / total : 1
+  const { colors } = useTheme()
+  return (
+    <Card style={{ gap: space[3] }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+        <View
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: radius.lg,
+            backgroundColor: colors.accentSoft,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <ThemedText variant="monoLg" color="accent">
+            {level}
+          </ThemedText>
+        </View>
+        <View style={{ flex: 1, gap: 2 }}>
+          <ThemedText variant="bodyStrong">Cấp độ {level}</ThemedText>
+          <ThemedText variant="caption" color="muted">
+            {totalXp} XP tích luỹ
+          </ThemedText>
+        </View>
+        <Icon icon={Star} size={20} color="accent" fill />
+      </View>
+      <View style={{ gap: 4 }}>
+        <ProgressBar value={ratio} />
+        <ThemedText variant="caption" color="faint" align="right">
+          {xpNeededForNext > 0 ? `Còn ${xpNeededForNext} XP lên cấp ${level + 1}` : 'Đã đạt cấp tối đa'}
+        </ThemedText>
+      </View>
+    </Card>
+  )
+}
+
+function AchievementsCard({ achievements, pending }: { achievements: Achievement[]; pending: Achievement[] }) {
+  const pendingCodes = new Set(pending.map((p) => p.code))
+  const unlocked = achievements.filter((a) => a.unlocked).length
+  return (
+    <Card style={{ gap: space[3] }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+          <Icon icon={Trophy} size={18} color="accent" />
+          <ThemedText variant="bodyStrong">Thành tựu</ThemedText>
+        </View>
+        <Pill label={`${unlocked}/${achievements.length}`} tone="accent" />
+      </View>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2], rowGap: space[3] }}>
+        {achievements.map((a) => (
+          <AchievementBadge key={a.id} achievement={a} isNew={pendingCodes.has(a.code)} />
+        ))}
+      </View>
+    </Card>
+  )
+}
+
+function AchievementBadge({ achievement, isNew }: { achievement: Achievement; isNew: boolean }) {
+  const { colors } = useTheme()
+  const rarityColor: Record<Rarity, string> = {
+    COMMON: colors.border,
+    RARE: colors.info,
+    EPIC: colors.accent,
+    LEGENDARY: colors.brand,
+  }
+  const accent = rarityColor[achievement.rarity] ?? colors.border
+  const unlocked = achievement.unlocked
+  return (
+    <View style={{ width: '30%', alignItems: 'center', gap: 4, opacity: unlocked ? 1 : 0.45 }}>
+      <View
+        style={{
+          width: 56,
+          height: 56,
+          borderRadius: radius.lg,
+          backgroundColor: colors.surfaceSunken,
+          borderWidth: unlocked ? 2 : 1,
+          borderColor: unlocked ? accent : colors.border,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <ThemedText style={{ fontSize: 26 }}>{unlocked ? achievement.iconEmoji : '🔒'}</ThemedText>
+        {isNew ? (
+          <View
+            style={{
+              position: 'absolute',
+              top: -5,
+              right: -5,
+              backgroundColor: colors.brand,
+              borderRadius: radius.full,
+              paddingHorizontal: 5,
+              paddingVertical: 1,
+            }}
+          >
+            <ThemedText variant="caption" style={{ color: colors.onAccent, fontSize: 9 }}>
+              Mới
+            </ThemedText>
+          </View>
+        ) : null}
+      </View>
+      <ThemedText variant="caption" color={unlocked ? 'secondary' : 'faint'} align="center" numberOfLines={2}>
+        {achievement.nameVi}
+      </ThemedText>
+    </View>
   )
 }
 

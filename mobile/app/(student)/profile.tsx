@@ -1,9 +1,11 @@
 import { View, Alert, Pressable } from 'react-native'
+import { useQuery } from '@tanstack/react-query'
 import { router } from 'expo-router'
 import { LogOut, Star, Bell, Globe, BarChart3, User, ChevronRight, Trash2 } from 'lucide-react-native'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
 import api, { apiMessage } from '@/lib/api'
+import { gamificationApi } from '@/lib/gamificationApi'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, Pill, ListRow, SectionHeader, FadeIn } from '@/components/ui'
 
@@ -11,6 +13,11 @@ export default function ProfileScreen() {
   const theme = useTheme()
   const { user, logout } = useAuthStore()
   const { plan, isPro } = usePlanStore()
+  const { data: xp } = useQuery({
+    queryKey: ['xp-summary'],
+    queryFn: () => gamificationApi.getXpSummary(),
+    staleTime: 60_000,
+  })
 
   const initials =
     user?.displayName
@@ -81,6 +88,19 @@ export default function ProfileScreen() {
             {user?.email}
           </ThemedText>
           <Pill label={plan?.tier ?? 'FREE'} tone={isPro ? 'accent' : 'neutral'} style={{ marginTop: space[2] }} />
+          {xp ? (
+            <Pressable
+              onPress={() => router.push('/(student)/stats')}
+              hitSlop={8}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: space[3] }}
+            >
+              <Icon icon={Star} size={14} color="accent" fill />
+              <ThemedText variant="label" color="secondary">
+                Cấp {xp.level} · {xp.totalXp} XP
+              </ThemedText>
+              <Icon icon={ChevronRight} size={14} color="faint" />
+            </Pressable>
+          ) : null}
         </View>
       </FadeIn>
 
