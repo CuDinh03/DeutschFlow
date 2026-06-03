@@ -72,11 +72,11 @@ public class SkillTreeService {
                     n.estimated_minutes, n.content_key,
                     n.module_number, n.module_title_vi, n.module_title_de,
                     n.session_type, n.satellite_status,
-                    array_to_json(n.core_topics)::text   AS core_topics,
-                    array_to_json(n.grammar_points)::text AS grammar_points,
-                    array_to_json(n.tags)::text           AS tags,
-                    array_to_json(n.prerequisites_json)::text AS prerequisites_json,
-                    array_to_json(n.unlock_metadata)::text AS unlock_metadata,
+                    to_jsonb(n.core_topics)::text   AS core_topics,
+                    to_jsonb(n.grammar_points)::text AS grammar_points,
+                    to_jsonb(n.tags)::text           AS tags,
+                    to_jsonb(n.prerequisites_json)::text AS prerequisites_json,
+                    to_jsonb(n.unlock_metadata)::text AS unlock_metadata,
                     COALESCE(p.status, 'LOCKED') AS user_status,
                     COALESCE(p.score_percent, 0) AS user_score,
                     COALESCE(p.xp_earned, 0) AS user_xp,
@@ -87,9 +87,9 @@ public class SkillTreeService {
                     CASE
                         WHEN n.content_json IS NOT NULL
                          AND (
-                           COALESCE(jsonb_array_length(n.content_json->'theory_cards'), 0) > 0
-                           OR COALESCE(jsonb_array_length(n.content_json->'vocabulary'), 0) > 0
-                           OR COALESCE(jsonb_array_length(n.content_json->'phrases'), 0) > 0
+                           (jsonb_typeof(n.content_json->'theory_cards') = 'array' AND jsonb_array_length(n.content_json->'theory_cards') > 0)
+                           OR (jsonb_typeof(n.content_json->'vocabulary') = 'array' AND jsonb_array_length(n.content_json->'vocabulary') > 0)
+                           OR (jsonb_typeof(n.content_json->'phrases') = 'array' AND jsonb_array_length(n.content_json->'phrases') > 0)
                          )
                         THEN TRUE ELSE FALSE
                     END AS has_content,
@@ -632,9 +632,9 @@ public class SkillTreeService {
                        vocab_strategy, content_json::text AS content_json, content_hash,
                        module_number, module_title_vi, module_title_de, session_type,
                        satellite_status, creator_user_id,
-                       array_to_json(core_topics)::text AS core_topics,
-                       array_to_json(grammar_points)::text AS grammar_points,
-                       array_to_json(tags)::text AS tags
+                       to_jsonb(core_topics)::text AS core_topics,
+                       to_jsonb(grammar_points)::text AS grammar_points,
+                       to_jsonb(tags)::text AS tags
                 FROM skill_tree_nodes WHERE id = ? AND is_active = TRUE
                 """, nodeId);
         if (rows.isEmpty()) throw new NotFoundException("Node not found: " + nodeId);

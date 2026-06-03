@@ -136,9 +136,9 @@ public class PlacementTestService {
         for (long qId : questionIds) {
             List<Map<String, Object>> qRows = jdbcTemplate.queryForList("""
                     SELECT id, question_type, correct_answer, module_number,
-                           array_to_json(alternative_answers)::text AS alternative_answers,
-                           array_to_json(grading_keywords)::text AS grading_keywords,
-                           array_to_json(weak_nodes)::text AS weak_nodes
+                           to_jsonb(alternative_answers)::text AS alternative_answers,
+                           to_jsonb(grading_keywords)::text AS grading_keywords,
+                           to_jsonb(weak_nodes)::text AS weak_nodes
                     FROM placement_questions WHERE id = ?
                     """, qId);
             if (qRows.isEmpty()) continue;

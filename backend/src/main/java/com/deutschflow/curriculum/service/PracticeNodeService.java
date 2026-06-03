@@ -387,8 +387,8 @@ public class PracticeNodeService {
     private Map<String, Object> loadSourceNode(long nodeId) {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
                 SELECT id, title_de, title_vi, cefr_level, content_json::text AS content_json,
-                       array_to_json(grammar_points)::text AS grammar_points,
-                       array_to_json(tags)::text AS tags
+                       to_jsonb(grammar_points)::text AS grammar_points,
+                       to_jsonb(tags)::text AS tags
                 FROM skill_tree_nodes WHERE id = ? AND is_active = TRUE
                 """, nodeId);
         if (rows.isEmpty()) throw new NotFoundException("Source node not found: " + nodeId);
