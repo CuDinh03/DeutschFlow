@@ -1,30 +1,22 @@
 package com.deutschflow.speaking.controller;
 
-import com.deutschflow.speaking.ai.ElevenLabsTtsService;
+import com.deutschflow.speaking.ai.EdgeTtsService;
 import com.deutschflow.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.context.request.async.DeferredResult;
 
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 /**
- * REST controller for Text-to-Speech synthesis (ElevenLabs voice cloning).
+ * REST controller for Text-to-Speech synthesis (self-hosted Edge TTS sidecar).
  * <p>
- * TTS priority (handled in frontend cascade):
- * 1. Local voice file (/public/voices/) — no API cost
- * 2. This endpoint (ElevenLabs) — requires voiceId config
- * 3. Browser Web Speech API — universal fallback
- * <p>
- * P1-2 Async AI: synthesize() uses {@code aiExecutor} to avoid blocking
- * Tomcat HTTP threads during the ElevenLabs HTTP round-trip (avg 1–3s).
- * Uses {@link DeferredResult} so the Servlet thread is released immediately.
+ * Client cascade:
+ * 1. This endpoint (Edge TTS) — requires an {@code app.ai.edge-tts.url} sidecar
+ * 2. On-device / browser speech — universal fallback (when this returns 503)
  */
 @Slf4j
 @RestController
@@ -32,17 +24,15 @@ import java.util.concurrent.CompletableFuture;
 @RequiredArgsConstructor
 public class TtsController {
 
-    private final ElevenLabsTtsService ttsService;
+    private final EdgeTtsService ttsService;
 
     /**
      * POST /api/ai-speaking/tts
      * Body: { "text": "Hallo, wie geht es dir?", "persona": "LUKAS" }
      * Returns: audio/mpeg bytes (MP3)
      *
-     * Returns 503 when ElevenLabs is not configured or voiceId is missing for the persona —
-     * frontend will fall back to browser TTS automatically.
-     *
-     * Runs on aiExecutor (async) so Tomcat thread is freed during ElevenLabs API call.
+     * Returns 503 when no Edge TTS sidecar is configured/reachable — clients fall
+     * back to on-device speech automatically.
      */
     @PostMapping("/tts")
     @PreAuthorize("isAuthenticated()")
@@ -59,7 +49,7 @@ public class TtsController {
 
         byte[] audio = ttsService.synthesize(text, persona);
         if (audio == null || audio.length == 0) {
-            // Not configured (no ElevenLabs key / Edge TTS unavailable) — clients fall back
+            // Not configured (no Edge TTS sidecar / unreachable) — clients fall back
             // to on-device speech. Documented 503 contract.
             log.debug("[TTS] No audio for persona '{}' (provider not configured) — returning 503", persona);
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
@@ -73,7 +63,7 @@ public class TtsController {
 
     /**
      * GET /api/ai-speaking/tts/status
-     * Returns TTS configuration status + ElevenLabs usage statistics.
+     * Returns TTS configuration status + Edge TTS usage statistics.
      * Available to all authenticated users (used by admin dashboard).
      */
     @GetMapping("/tts/status")

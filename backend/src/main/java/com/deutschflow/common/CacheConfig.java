@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit;
  * │  aiVocabCache (24h)  — examples, usage, mnemonic, similar, etymology│
  * │  aiVocabShort (6h)   — story (semi-deterministic)                  │
  * │  aiVocabQuiz  (1h)   — quiz questions (refresh more often)         │
- * │  ttsAudio     (24h)  — ElevenLabs byte[] MP3 audio                 │
+ * │  ttsAudio     (24h)  — Edge TTS byte[] MP3 audio                   │
  * │  aiResponses  (2h)   — TeacherAdvisory & general AI completions    │
  * └─────────────────────────────────────────────────────────────────────┘
  *
@@ -108,7 +108,7 @@ public class CacheConfig {
                         .expireAfterWrite(1, TimeUnit.HOURS)
                         .recordStats());
 
-        // TTS audio: ElevenLabs byte[] — immutable for same text+persona
+        // TTS audio: Edge TTS byte[] — immutable for same text+persona
         // ~30MB RAM budget. Evict LRU automatically when full.
         var ttsAudio = buildCache("ttsAudio",
                 Caffeine.newBuilder()

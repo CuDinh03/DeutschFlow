@@ -15,7 +15,7 @@ import java.util.concurrent.Executor;
  * Executors:
  *  - "importExecutor"  : Vocabulary startup imports (Goethe, CEFR curated).
  *                        Isolated so import jobs don't block Tomcat HTTP threads.
- *  - "aiExecutor"      : Groq / ElevenLabs API calls.
+ *  - "aiExecutor"      : Groq / TTS API calls.
  *                        Separate pool so long AI calls don't starve web requests.
  */
 @Configuration
@@ -36,7 +36,7 @@ public class AsyncConfig {
         return exec;
     }
 
-    /** AI API calls (Groq chat, ElevenLabs TTS) — 10 threads max for 20 CCU. */
+    /** AI API calls (Groq chat, Edge TTS) — 10 threads max for 20 CCU. */
     @Bean(name = "aiExecutor")
     public Executor aiExecutor() {
         var exec = new ThreadPoolTaskExecutor();
