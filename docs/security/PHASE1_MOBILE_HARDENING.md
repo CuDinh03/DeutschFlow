@@ -54,10 +54,18 @@ Reference pins computed 2026-06-03 (do NOT enable as-is — leaf/intermediate ro
 - **Screen capture:** `npx expo install expo-screen-capture`; call `preventScreenCaptureAsync()` on
   sensitive screens (profile, exam, upgrade); add an app-switcher privacy blur via `AppState`.
 
-## S20b — Full Capacitor/Swift removal (follow-up)
+## S20b — Full Capacitor/Swift removal (MOSTLY DONE)
 
-S20 already removed the plaintext-token path from web auth (`frontend/src/lib/authSession.ts` is now
-web-only). Remaining cleanup (tech-debt / attack-surface, not a live vuln): drop `@capacitor/*` deps
-and refactor `frontend/src/lib/{statusBar,haptics}.ts`, `providers/NativeAuthProvider.tsx`,
-`hooks/usePushNotifications.ts`, `components/system/NetworkBanner.tsx`; delete `frontend/ios`,
-`frontend/android`, `capacitor.config.json`, `ios-native/`.
+S20 removed the plaintext-token path; S20b finished the retirement:
+- **Done:** refactored all 5 remaining web files off `@capacitor` (web-safe behavior —
+  `statusBar` no-op, `haptics` → Web Vibration API, `NetworkBanner` → `navigator.onLine`,
+  `usePushNotifications` → no-op stub, `NativeAuthProvider` → crash-reporting + offline banner only).
+  Deleted native projects: `frontend/ios`, `frontend/android`, `capacitor.config.json`, `ios-native/`
+  (74 tracked files). `next build` verified.
+- **Remaining (deferred):** remove the 10 `@capacitor/*` lines from `frontend/package.json` +
+  lockfile. Deferred because package.json had uncommitted WIP at the time — entangling would sweep
+  that WIP into the security PR. After the WIP is committed, run:
+  `cd frontend && npm uninstall @capacitor/android @capacitor/cli @capacitor/core @capacitor/haptics @capacitor/ios @capacitor/keyboard @capacitor/network @capacitor/preferences @capacitor/push-notifications @capacitor/status-bar`
+  (the deps are currently unused — nothing imports them — so this is safe cleanup, not a code change).
+- **Dead CSS** (`html.native` rules, `--kb-height`) left in `globals.css` — harmless (selectors no
+  longer match; `var(--kb-height)` defaults to 0). Optional cleanup.
