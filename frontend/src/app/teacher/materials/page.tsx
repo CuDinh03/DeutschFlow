@@ -11,6 +11,7 @@ import { TeacherShell } from '@/components/layouts/TeacherShell'
 import { usePendingGradingCount } from '@/hooks/usePendingGradingCount'
 import api from '@/lib/api'
 import { getAccessToken, logout } from '@/lib/authSession'
+import { createTicketedEventSource } from '@/lib/sseTicket'
 
 type JobStatus = 'idle' | 'uploading' | 'processing' | 'done' | 'error'
 
@@ -176,9 +177,9 @@ export default function TeacherMaterialsPage() {
         }, 180_000)
       }
 
-      // SSE stream for real-time updates
+      // SSE stream for real-time updates — one-time ticket, no access token in the URL (S15)
       const sseUrl = `${apiBase}/api/v2/teacher/materials/jobs/${jobId}/sse`
-      const es = new EventSource(sseUrl + `?access_token=${encodeURIComponent(token)}`)
+      const es = await createTicketedEventSource(sseUrl)
       esRef.current = es
 
       // Simulate progress steps
