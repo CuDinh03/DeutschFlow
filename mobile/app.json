@@ -65,7 +65,7 @@
         "projectId": "YOUR_EAS_PROJECT_ID"
       },
       "sentryDsn": "",
-      "posthogKey": "",
+      "posthogKey": "phc_vFERGwkAxSWCTagc39wk3uevgueqhZsXvjcc5dDSKoHB",
       "posthogHost": "https://us.i.posthog.com"
     },
     "experiments": {
