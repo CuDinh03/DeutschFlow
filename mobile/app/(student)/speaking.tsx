@@ -48,6 +48,8 @@ import { RevealText } from '@/components/speaking/RevealText'
 import { PersonaStage, type StageState, type Reaction } from '@/components/speaking/PersonaStage'
 import { PERSONA_TOKENS, type PersonaId } from '@/lib/personas'
 import { usePlanStore } from '@/stores/usePlanStore'
+import { trackFeatureAction } from '@/lib/analytics'
+import { useScreenTime } from '@/hooks/useScreenTime'
 
 const PULSE_MAX = 1.2
 
@@ -79,6 +81,7 @@ function reactionFor(res: AiChatResponse, mode: string | null | undefined): Reac
 }
 
 export default function SpeakingScreen() {
+  useScreenTime('speaking')
   const theme = useTheme()
   const c = theme.colors
   const { isPro } = usePlanStore()
@@ -234,6 +237,7 @@ export default function SpeakingScreen() {
 
   async function startSession(args: StartArgs) {
     setStarting(true)
+    trackFeatureAction('ai_speaking', 'started', { mode: args.sessionMode })
     try {
       const created = await speakingApi.createSession({
         topic: args.topic,
@@ -383,6 +387,7 @@ export default function SpeakingScreen() {
   async function finishSession() {
     if (!session || finishing) return
     setFinishing(true)
+    trackFeatureAction('ai_speaking', 'completed', { mode: session.sessionMode })
     try {
       await speakingApi.endSession(session.id).catch(() => undefined)
       void clearActiveSession()

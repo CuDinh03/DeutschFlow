@@ -6,6 +6,7 @@ import * as Haptics from 'expo-haptics'
 import { Briefcase, GraduationCap } from 'lucide-react-native'
 import api, { apiMessage } from '@/lib/api'
 import { motion, radius, space, useTheme } from '@/lib/theme'
+import { captureEvent } from '@/lib/analytics'
 import { Screen, ThemedText, Button, Icon } from '@/components/ui'
 
 // Onboarding for iOS B2C (MVP checklist §5.1): collect goal, target level, and
@@ -65,6 +66,7 @@ export default function OnboardingScreen() {
         learningSpeed: 'NORMAL',
       })
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+      captureEvent('onboarding_completed', { goalType, targetLevel })
       // Auto-start the first practice session.
       router.replace('/(student)/speaking')
     } catch (e) {

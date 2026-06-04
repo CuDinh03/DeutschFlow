@@ -150,7 +150,7 @@ function RootLayout() {
               <PostHogProvider
                 client={posthog}
                 autocapture={{
-                  captureScreens: false,
+                  captureScreens: true,
                   captureTouches: false,
                 }}
               >

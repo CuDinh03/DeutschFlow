@@ -18,6 +18,7 @@ import {
   SectionHeader,
   Skeleton,
 } from '@/components/ui'
+import { useScreenTime } from '@/hooks/useScreenTime'
 
 // Only the fields the home actually uses from the (plan-oriented) dashboard.
 // XP/level come from /xp/me, due-SRS from /srs/count, unread from /notifications.
@@ -33,6 +34,7 @@ function greetingFor(hour: number): string {
 }
 
 export default function DashboardScreen() {
+  useScreenTime('dashboard')
   const theme = useTheme()
   const { user } = useAuthStore()
   const { isPro } = usePlanStore()

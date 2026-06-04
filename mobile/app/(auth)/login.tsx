@@ -7,6 +7,7 @@ import api from '@/lib/api'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { motion, space, useTheme } from '@/lib/theme'
+import { captureEvent } from '@/lib/analytics'
 import { Screen, ThemedText, TextField, Button, BrandMark } from '@/components/ui'
 
 export default function LoginScreen() {
@@ -23,8 +24,10 @@ export default function LoginScreen() {
       return
     }
     setLoading(true)
+    captureEvent('login_started')
     try {
       await login(email.trim(), password)
+      captureEvent('login_success')
       // Plan + onboarding status are independent once authenticated — run them in
       // parallel, and don't block navigation on the success haptic. (Status check
       // is best-effort; default to the app for existing learners.)
@@ -37,8 +40,9 @@ export default function LoginScreen() {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
       router.replace(statusRes.data.hasPlan ? '/(student)' : '/(auth)/onboarding')
     } catch (e: unknown) {
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
       const msg = e instanceof Error ? e.message : ''
+      captureEvent('login_failed', { reason: msg || 'unknown' })
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
       if (msg === 'NON_STUDENT_ROLE') {
         Alert.alert(
           'Tài khoản không phù hợp',

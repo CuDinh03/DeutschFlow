@@ -18,6 +18,7 @@ import api from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, Pill, Button, ProgressBar, AppHeader, EmptyState, Skeleton } from '@/components/ui'
 import type { ThemeColors } from '@/lib/theme'
+import { useScreenTime } from '@/hooks/useScreenTime'
 
 interface DueCard {
   id: string
@@ -32,6 +33,7 @@ const SWIPE_THRESHOLD = 80
 const SWIPE_OUT = 400
 
 export default function SrsScreen() {
+  useScreenTime('srs')
   const theme = useTheme()
   const c = theme.colors
   const [flipped, setFlipped] = useState(false)
