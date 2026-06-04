@@ -30,6 +30,7 @@ import {
   type AiSpeakingSession,
   type AiSpeakingMessage,
   type InterviewReport,
+  type ConversationReport,
 } from '@/lib/speakingApi'
 import {
   loadActiveSession,
@@ -40,6 +41,7 @@ import {
 import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, Pill } from '@/components/ui'
 import { SessionSummary } from '@/components/speaking/SessionSummary'
+import { ConversationSummary } from '@/components/speaking/ConversationSummary'
 import { CompanionSelect, type StartArgs } from '@/components/speaking/CompanionSelect'
 import { PersonaBubbleAvatar } from '@/components/speaking/PersonaBubbleAvatar'
 import { RevealText } from '@/components/speaking/RevealText'
@@ -95,6 +97,7 @@ export default function SpeakingScreen() {
   const [transcribing, setTranscribing] = useState(false)
   const [finishing, setFinishing] = useState(false)
   const [report, setReport] = useState<InterviewReport | null>(null)
+  const [convReport, setConvReport] = useState<ConversationReport | null>(null)
   const [pendingResume, setPendingResume] = useState<ActiveSessionRef | null>(null)
   const [resuming, setResuming] = useState(false)
 
@@ -253,6 +256,9 @@ export default function SpeakingScreen() {
         id: created.id,
         interviewPosition: created.interviewPosition,
         persona: created.persona,
+        sessionMode: created.sessionMode,
+        cefrLevel: created.cefrLevel,
+        topic: created.topic,
       })
       setView('chat')
       speakGerman(greeting, () => flashReaction(null))
@@ -385,11 +391,23 @@ export default function SpeakingScreen() {
         setReport(built)
         setView('summary')
       } else {
-        // Conversation / lesson modes have no interview report — return to select.
-        setSession(null)
-        setMessages([])
-        setPhaseKey(null)
-        setView('select')
+        // Conversation / lesson: show the AI evaluation summary (fall back to select if empty).
+        const conv = await speakingApi.getConversationReport(session.id).catch(() => null)
+        const hasContent =
+          !!conv &&
+          (!!conv.summary ||
+            conv.strengths.length > 0 ||
+            conv.improvements.length > 0 ||
+            conv.overallScore != null)
+        if (conv && hasContent) {
+          setConvReport(conv)
+          setView('summary')
+        } else {
+          setSession(null)
+          setMessages([])
+          setPhaseKey(null)
+          setView('select')
+        }
       }
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
     } catch (e) {
@@ -403,6 +421,7 @@ export default function SpeakingScreen() {
     setSession(null)
     setMessages([])
     setReport(null)
+    setConvReport(null)
     setPhaseKey(null)
     setDraft('')
     setPendingResume(null)
@@ -425,13 +444,16 @@ export default function SpeakingScreen() {
         Alert.alert('Phiên đã kết thúc', 'Không còn dữ liệu để tiếp tục.')
         return
       }
+      // Restore the session's REAL mode/level — never assume INTERVIEW, or a resumed
+      // conversation/lesson would mislabel and crash on finish (getReport is interview-only).
+      const resumedMode = ref.sessionMode ?? 'COMMUNICATION'
       setSession({
         id: ref.id,
-        topic: ref.interviewPosition,
-        cefrLevel: 'C1',
+        topic: ref.topic ?? ref.interviewPosition,
+        cefrLevel: ref.cefrLevel ?? 'B1',
         persona: ref.persona ?? null,
         responseSchema: null,
-        sessionMode: 'INTERVIEW',
+        sessionMode: resumedMode,
         status: 'ACTIVE',
         startedAt: null,
         lastActivityAt: null,
@@ -473,6 +495,15 @@ export default function SpeakingScreen() {
       <Screen edges={['top']}>
         <ScreenHeader title="Kết quả phỏng vấn" onClose={resetToSelect} />
         <SessionSummary report={report} onPracticeAgain={resetToSelect} onDone={() => router.replace('/(student)')} />
+      </Screen>
+    )
+  }
+
+  if (view === 'summary' && convReport) {
+    return (
+      <Screen edges={['top']}>
+        <ScreenHeader title="Kết quả luyện nói" onClose={resetToSelect} />
+        <ConversationSummary report={convReport} onPracticeAgain={resetToSelect} onDone={() => router.replace('/(student)')} />
       </Screen>
     )
   }
@@ -549,7 +580,9 @@ export default function SpeakingScreen() {
         </Pressable>
         <View style={{ flex: 1, gap: 2 }}>
           <ThemedText variant="bodyStrong" numberOfLines={1}>
-            {session?.interviewPosition ?? 'Phỏng vấn'}
+            {session?.sessionMode === 'INTERVIEW'
+              ? session?.interviewPosition ?? 'Phỏng vấn'
+              : session?.topic ?? 'Hội thoại'}
           </ThemedText>
           <ThemedText variant="caption" color="muted">
             {phaseKey ? `${phaseLabel(phaseKey)} • ` : ''}

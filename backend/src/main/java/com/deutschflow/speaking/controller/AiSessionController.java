@@ -143,4 +143,12 @@ public class AiSessionController {
             @PathVariable Long id) {
         return aiSpeakingService.endSession(user.getId(), id);
     }
+
+    /** Structured AI evaluation for a completed COMMUNICATION / LESSON session. */
+    @GetMapping("/sessions/{id}/report")
+    public com.deutschflow.speaking.dto.ConversationReportDto getConversationReport(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long id) {
+        return aiSpeakingService.getConversationReport(user.getId(), id);
+    }
 }

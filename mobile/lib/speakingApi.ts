@@ -151,6 +151,23 @@ export interface InterviewReport {
   phaseResults: InterviewPhaseResult[]
 }
 
+/** Mirrors `ConversationReportDto` — end-of-session evaluation for COMMUNICATION / LESSON. */
+export interface ConversationReport {
+  sessionId: number
+  topic: string | null
+  levelEstimate: string | null
+  overallScore: number | null
+  summary: string | null
+  strengths: string[]
+  improvements: string[]
+  grammarAccuracy: string | null
+  commonErrors: string[]
+  vocabulary: string | null
+  fluency: string | null
+  recommendedNext: string[]
+  encouragement: string | null
+}
+
 // ── Mapping helpers ──────────────────────────────────────────────────────────
 
 /** Backend interview `experienceLevel` enum: 0-6M | 6-12M | 1-2Y | 3Y | 5Y. */
@@ -249,6 +266,12 @@ export const speakingApi = {
   /** Structured, machine-readable interview report for a completed session. */
   getReport: (sessionId: number) =>
     api.get<InterviewReport>(`/interviews/${sessionId}/report`).then((r) => r.data),
+
+  /** AI evaluation summary for a completed COMMUNICATION / LESSON session. */
+  getConversationReport: (sessionId: number) =>
+    api
+      .get<ConversationReport>(`/ai-speaking/sessions/${sessionId}/report`)
+      .then((r) => r.data),
 
   /** Persisted transcript for a session — used to rehydrate after interruption. */
   getMessages: (sessionId: number) =>

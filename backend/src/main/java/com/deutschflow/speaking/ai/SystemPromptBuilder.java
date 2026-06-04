@@ -83,7 +83,10 @@ public class SystemPromptBuilder {
               "action": "Ein konkreter nächster Schritt oder eine Folgefrage auf Deutsch oder Vietnamesisch (kurz)"
             }
             REGELN:
-            - Halte dich strikt an User_Level (Satzbau/Wortschatz). A1/A2: einfache Strukturen; B1+: komplexere Sätze.
+            - Halte dich STRIKT an User_Level (Satzbau/Wortschatz) — pro Stufe deutlich anders:
+              A1 = sehr kurze Hauptsätze, Präsens, Grundwortschatz; A2 = einfache Sätze, Perfekt/Modalverben, Alltagswörter;
+              B1 = verbundene Sätze mit Konnektoren (weil/dass/wenn), Alltagsthemen; B2 = komplexe Satzgefüge, Nebensätze, abstraktere Themen;
+              C1 = idiomatisch, nuanciert, anspruchsvoller/präziser Wortschatz. NICHT über User_Level hinausgehen.
             - Sprache: Inhalt sprachlich primär Deutsch (im Feld "content"); translation immer Vietnamesisch.
             - "action" soll das Gespräch zum Target_Topic voranbringen (eine klare Aufforderung/Frage).
             """;

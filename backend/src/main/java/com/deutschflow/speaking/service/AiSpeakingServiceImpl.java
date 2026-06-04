@@ -117,6 +117,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
     private final TrainingDatasetService trainingDatasetService;
     private final XpService xpService;
     private final InterviewEvaluationService interviewEvaluationService;
+    private final ConversationEvaluationService conversationEvaluationService;
     private final InterviewOrchestrator interviewOrchestrator;
     private final InterviewAnswerAnalyzer interviewAnswerAnalyzer;
     private final InterviewStateCodec interviewStateCodec;
@@ -153,6 +154,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
             TrainingDatasetService trainingDatasetService,
             XpService xpService,
             InterviewEvaluationService interviewEvaluationService,
+            ConversationEvaluationService conversationEvaluationService,
             InterviewOrchestrator interviewOrchestrator,
             InterviewAnswerAnalyzer interviewAnswerAnalyzer,
             InterviewStateCodec interviewStateCodec,
@@ -187,6 +189,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         this.trainingDatasetService = trainingDatasetService;
         this.xpService = xpService;
         this.interviewEvaluationService = interviewEvaluationService;
+        this.conversationEvaluationService = conversationEvaluationService;
         this.interviewOrchestrator = interviewOrchestrator;
         this.interviewAnswerAnalyzer = interviewAnswerAnalyzer;
         this.interviewStateCodec = interviewStateCodec;
@@ -319,9 +322,12 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
     }
 
     private String resolveSessionLevel(String cefrLevel, UserLearningProfile profile) {
+        // Honor the learner's explicit level choice — just normalize to a valid band.
+        // Previously clampToProfileRange snapped the pick into the profile [currentLevel, targetLevel]
+        // range, which silently overrode the picker (e.g. choosing A1 or C1 jumped back to the profile band).
         return (cefrLevel == null || cefrLevel.isBlank())
                 ? SpeakingCefrSupport.floorPracticeBand(profile)
-                : SpeakingCefrSupport.clampToProfileRange(cefrLevel, profile);
+                : SpeakingCefrSupport.clampBand(cefrLevel);
     }
 
     private AiSpeakingSession buildSpeakingSession(Long userId,
@@ -980,11 +986,17 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         AiSpeakingSession closedSession = Objects.requireNonNull(transactionTemplate.execute(
                 status -> closeSpeakingSession(userId, sessionId)));
 
-        String report = generateInterviewReportIfNeeded(closedSession, userId, sessionId);
+        String report = generateEndOfSessionReport(closedSession, userId, sessionId);
         AiSpeakingSession finalSession = persistCompletionSideEffects(userId, sessionId, report);
         triggerTeacherAutoGrading(sessionId);
 
         return toSessionDto(finalSession);
+    }
+
+    @Override
+    public com.deutschflow.speaking.dto.ConversationReportDto getConversationReport(Long userId, Long sessionId) {
+        AiSpeakingSession session = loadSessionForUser(userId, sessionId);
+        return conversationEvaluationService.parseReport(session);
     }
 
     // --- Private helpers ---
@@ -1001,16 +1013,17 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         return sessionRepository.save(s);
     }
 
-    private String generateInterviewReportIfNeeded(AiSpeakingSession closedSession, Long userId, Long sessionId) {
-        if (!"INTERVIEW".equals(closedSession.getSessionMode())) {
-            return null;
-        }
+    private String generateEndOfSessionReport(AiSpeakingSession closedSession, Long userId, Long sessionId) {
         try {
-            String report = interviewEvaluationService.generateReport(closedSession, userId);
-            interviewDomainCoordinator.onSessionEnded(closedSession, "COMPLETED", 0.0);
-            return report;
+            if ("INTERVIEW".equals(closedSession.getSessionMode())) {
+                String report = interviewEvaluationService.generateReport(closedSession, userId);
+                interviewDomainCoordinator.onSessionEnded(closedSession, "COMPLETED", 0.0);
+                return report;
+            }
+            // COMMUNICATION / LESSON: encouraging conversational evaluation summary.
+            return conversationEvaluationService.generateReport(closedSession, userId);
         } catch (Exception e) {
-            log.warn("Failed to generate interview report for session {}: {}", sessionId, e.getMessage());
+            log.warn("Failed to generate end-of-session report for session {}: {}", sessionId, e.getMessage());
             return null;
         }
     }

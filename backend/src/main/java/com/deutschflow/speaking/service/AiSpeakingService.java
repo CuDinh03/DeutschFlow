@@ -34,4 +34,7 @@ public interface AiSpeakingService {
     Page<AiSpeakingSessionDto> getSessions(Long userId, Pageable pageable);
 
     AiSpeakingSessionDto endSession(Long userId, Long sessionId);
+
+    /** Structured end-of-session evaluation for COMMUNICATION / LESSON sessions. */
+    com.deutschflow.speaking.dto.ConversationReportDto getConversationReport(Long userId, Long sessionId);
 }
