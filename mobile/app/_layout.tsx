@@ -34,6 +34,8 @@ import { initCertPinning } from '@/lib/certPinning'
 import { initDeviceIntegrity } from '@/lib/deviceIntegrity'
 import { ThemeProvider, useTheme } from '@/lib/theme'
 import { SplashAnimated } from '@/components/SplashAnimated'
+import { PostHogProvider } from 'posthog-react-native'
+import { posthog, setSubscriptionTier } from '@/lib/analytics'
 import '../global.css'
 
 void SplashScreen.preventAutoHideAsync()
@@ -71,8 +73,14 @@ function RootStack() {
 }
 
 function RootLayout() {
-  const { isLoggedIn, isLoading, fetchMe } = useAuthStore()
-  const { fetchPlan } = usePlanStore()
+  // Select individual slices (not the whole store) so this root component only
+  // re-renders when these specific values change — avoids re-render churn during
+  // the auth bootstrap.
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
+  const isLoading = useAuthStore((s) => s.isLoading)
+  const fetchMe = useAuthStore((s) => s.fetchMe)
+  const fetchPlan = usePlanStore((s) => s.fetchPlan)
+  const planTier = usePlanStore((s) => s.plan?.tier)
   const rootNavState = useRootNavigationState()
   const [splashDone, setSplashDone] = useState(false)
 
@@ -85,6 +93,11 @@ function RootLayout() {
   })
   const [monoLoaded] = useMono({ JetBrainsMono_500Medium, JetBrainsMono_700Bold })
   const fontsReady = soraLoaded && jakartaLoaded && monoLoaded
+
+  // The animated splash holds until the app is genuinely ready: fonts loaded,
+  // auth resolved, and the navigator mounted. This masks the cold-launch
+  // auth redirect (home → login) so it never flashes on screen.
+  const appReady = fontsReady && !isLoading && !!rootNavState?.key
 
   usePushNotifications()
 
@@ -104,6 +117,11 @@ function RootLayout() {
     }
     void bootstrap()
   }, [fetchMe, fetchPlan])
+
+  // Keep the subscription tier as a PostHog super-property for plan-based funnels.
+  useEffect(() => {
+    setSubscriptionTier(planTier)
+  }, [planTier])
 
   useEffect(() => {
     // Don't navigate until the root navigator has mounted, otherwise expo-router throws
@@ -128,11 +146,23 @@ function RootLayout() {
       <SafeAreaProvider>
         <ThemeProvider>
           <QueryClientProvider client={queryClient}>
-            <RootStack />
+            {posthog ? (
+              <PostHogProvider
+                client={posthog}
+                autocapture={{
+                  captureScreens: true,
+                  captureTouches: false,
+                }}
+              >
+                <RootStack />
+              </PostHogProvider>
+            ) : (
+              <RootStack />
+            )}
           </QueryClientProvider>
         </ThemeProvider>
       </SafeAreaProvider>
-      {splashDone ? null : <SplashAnimated onDone={() => setSplashDone(true)} />}
+      {splashDone ? null : <SplashAnimated ready={appReady} onDone={() => setSplashDone(true)} />}
     </GestureHandlerRootView>
   )
 }

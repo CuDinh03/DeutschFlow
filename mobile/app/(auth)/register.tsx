@@ -7,6 +7,7 @@ import api from '@/lib/api'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { setTokens } from '@/lib/auth'
+import { captureEvent } from '@/lib/analytics'
 import { motion, radius, space, useTheme } from '@/lib/theme'
 import { Screen, ThemedText, TextField, Button } from '@/components/ui'
 
@@ -36,6 +37,7 @@ export default function RegisterScreen() {
       return
     }
     setLoading(true)
+    captureEvent('register_started')
     try {
       const res = await api.post<{ accessToken: string; refreshToken: string }>('/auth/register', {
         displayName: displayName.trim(),
@@ -47,10 +49,12 @@ export default function RegisterScreen() {
       await setTokens(res.data.accessToken, res.data.refreshToken)
       await fetchMe()
       await fetchPlan()
+      captureEvent('register_success')
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
       // New learners go through onboarding before reaching the app.
       router.replace('/(auth)/onboarding')
     } catch {
+      captureEvent('register_failed')
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
       Alert.alert('Đăng ký thất bại', 'Email có thể đã được sử dụng.')
     } finally {

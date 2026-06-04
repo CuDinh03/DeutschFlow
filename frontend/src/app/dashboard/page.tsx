@@ -327,19 +327,19 @@ export default function DashboardPage() {
           </div>
         )}
 
-        <div className="bg-indigo-50 border border-indigo-100 rounded-[20px] p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-[20px] p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-sm">
-              <Sparkles size={18} className="text-indigo-600" />
+              <Sparkles size={18} className="text-[var(--brand-black)]" />
             </div>
             <div>
               <h2 className="font-bold text-[#0F172A] text-base">Tham gia lớp học của giáo viên</h2>
-              <p className="text-sm text-indigo-700 mt-1">Nhập mã lớp để tham gia và nhận bài tập từ giáo viên của bạn.</p>
+              <p className="text-sm text-[#475569] mt-1">Nhập mã lớp để tham gia và nhận bài tập từ giáo viên của bạn.</p>
             </div>
           </div>
           <div className="flex w-full sm:w-auto items-center gap-2">
-            <input type="text" id="joinCode" placeholder="Nhập mã lớp..." className="px-4 py-3 rounded-xl border border-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white shadow-sm w-full sm:w-52 uppercase font-medium" onKeyDown={async (e) => { if (e.key === 'Enter') { const code = e.currentTarget.value; if (!code) return; try { await api.post('/v2/student/classes/join', { inviteCode: code }); toast.success('Đã gửi yêu cầu tham gia lớp. Vui lòng chờ giáo viên duyệt.'); e.currentTarget.value = ''; } catch (err: any) { toast.error(err.response?.data?.error || 'Không thể gửi yêu cầu tham gia lớp.'); } } }} />
-            <button onClick={async () => { const code = (document.getElementById('joinCode') as HTMLInputElement)?.value; if (!code) return; try { await api.post('/v2/student/classes/join', { inviteCode: code }); toast.success('Đã gửi yêu cầu tham gia lớp. Vui lòng chờ giáo viên duyệt.'); (document.getElementById('joinCode') as HTMLInputElement).value = ''; } catch (err: any) { toast.error(err.response?.data?.error || 'Không thể gửi yêu cầu tham gia lớp.'); } }} className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-xl transition-colors whitespace-nowrap shadow-sm">Xin vào lớp</button>
+            <input type="text" id="joinCode" placeholder="Nhập mã lớp..." className="px-4 py-3 rounded-xl border border-[#E2E8F0] focus:outline-none focus:ring-2 focus:ring-[var(--brand-yellow)] bg-white shadow-sm w-full sm:w-52 uppercase font-medium" onKeyDown={async (e) => { if (e.key === 'Enter') { const code = e.currentTarget.value; if (!code) return; try { await api.post('/v2/student/classes/join', { inviteCode: code }); toast.success('Đã gửi yêu cầu tham gia lớp. Vui lòng chờ giáo viên duyệt.'); e.currentTarget.value = ''; } catch (err: any) { toast.error(err.response?.data?.error || 'Không thể gửi yêu cầu tham gia lớp.'); } } }} />
+            <button onClick={async () => { const code = (document.getElementById('joinCode') as HTMLInputElement)?.value; if (!code) return; try { await api.post('/v2/student/classes/join', { inviteCode: code }); toast.success('Đã gửi yêu cầu tham gia lớp. Vui lòng chờ giáo viên duyệt.'); (document.getElementById('joinCode') as HTMLInputElement).value = ''; } catch (err: any) { toast.error(err.response?.data?.error || 'Không thể gửi yêu cầu tham gia lớp.'); } }} className="bg-[var(--brand-black)] hover:bg-[var(--brand-black-light)] text-white font-semibold py-3 px-4 rounded-xl transition-colors whitespace-nowrap shadow-sm">Xin vào lớp</button>
           </div>
         </div>
 

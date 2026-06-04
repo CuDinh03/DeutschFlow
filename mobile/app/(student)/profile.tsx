@@ -1,7 +1,7 @@
 import { View, Alert, Pressable } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
-import { router } from 'expo-router'
-import { LogOut, Star, Bell, Globe, BarChart3, User, ChevronRight, Trash2 } from 'lucide-react-native'
+import { router, type Href } from 'expo-router'
+import { LogOut, Star, Bell, Globe, BarChart3, User, ChevronRight, Trash2, HelpCircle } from 'lucide-react-native'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
 import api, { apiMessage } from '@/lib/api'
@@ -137,6 +137,8 @@ export default function ProfileScreen() {
             <ListRow icon={User} title="Thông tin cá nhân" onPress={() => router.push('/(student)/settings/profile')} />
             <Divider />
             <ListRow icon={Bell} title="Thông báo" onPress={() => router.push('/(student)/notifications')} />
+            <Divider />
+            <ListRow icon={HelpCircle} title="Hướng dẫn sử dụng" onPress={() => router.push('/(student)/guide' as unknown as Href)} />
           </Card>
         </View>
 

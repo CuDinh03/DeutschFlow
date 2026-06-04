@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router } from 'expo-router'
 import { ChevronDown, ChevronUp, Check } from 'lucide-react-native'
 import api from '@/lib/api'
+import { trackFeatureAction } from '@/lib/analytics'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, Pill, AppHeader, SectionHeader, ErrorState, Skeleton } from '@/components/ui'
 import { mapGrammarTopic, type RawGrammarTopic } from '@/lib/grammarApi'
@@ -28,6 +29,14 @@ export default function GrammarScreen() {
   const theme = useTheme()
   const c = theme.colors
   const [expandedCase, setExpandedCase] = useState<string | null>('nominativ')
+
+  const startedRef = useRef(false)
+  useEffect(() => {
+    if (!startedRef.current) {
+      startedRef.current = true
+      trackFeatureAction('grammar', 'started')
+    }
+  }, [])
 
   const { data: topics = [], isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['grammar-topics'],

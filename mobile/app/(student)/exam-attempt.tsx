@@ -7,6 +7,7 @@ import api, { apiMessage } from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, Pill, Button, AppHeader, EmptyState, ErrorState, Skeleton } from '@/components/ui'
 import { parseLesenItems, type ExamObjItem } from '@/lib/examApi'
+import { trackFeatureAction } from '@/lib/analytics'
 
 interface AttemptResult {
   totalScore?: number
@@ -47,7 +48,9 @@ export default function ExamAttemptScreen() {
     try {
       await api.post(`/mock-exams/attempts/${attemptId}/finish`, { answers })
       const res = await api.get<AttemptResult>(`/mock-exams/attempts/${attemptId}/result`)
-      setScore(res.data.totalScore ?? 0)
+      const total = res.data.totalScore ?? 0
+      trackFeatureAction('mock_exam', 'completed', { score: total })
+      setScore(total)
     } catch (e) {
       Alert.alert('Lỗi', apiMessage(e))
     } finally {

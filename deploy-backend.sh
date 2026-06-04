@@ -371,10 +371,10 @@ sudo docker run -d \
 # (gateway 172.17.0.1) → EDGE_TTS không đổi. Lettuce nối Redis lazy nên kịp trước health-check.
 sudo docker network connect deutschflow-net deutschflow-backend-green 2>/dev/null || true
 
-# Health check GREEN (tối đa 3 phút)
-info "  Chờ GREEN healthy (tối đa 180s)..."
+# Health check GREEN (tối đa 5 phút — nới rộng phòng startup chậm khi BLUE+GREEN cùng chạy)
+info "  Chờ GREEN healthy (tối đa 300s)..."
 GREEN_HEALTHY=false
-for i in $(seq 1 36); do
+for i in $(seq 1 60); do
   sleep 5
   STATUS=$(curl -sf http://localhost:8081/actuator/health 2>/dev/null || echo "")
   if echo "$STATUS" | grep -q '"UP"'; then
@@ -386,14 +386,17 @@ for i in $(seq 1 36); do
     error "  GREEN container đã crash!"
     break
   fi
-  echo "    Chờ... ($((i * 5))s / 180s)"
+  echo "    Chờ... ($((i * 5))s / 300s)"
 done
 
 if [ "$GREEN_HEALTHY" = false ]; then
   error "GREEN không healthy! Rollback — BLUE vẫn đang chạy."
   echo ""
-  warn "=== GREEN logs (50 dòng cuối) ==="
-  sudo docker logs deutschflow-backend-green --tail 50 2>/dev/null || true
+  warn "=== GREEN /actuator/health (full JSON) ==="
+  curl -s http://localhost:8081/actuator/health 2>/dev/null || echo "(no response from :8081)"
+  echo ""
+  warn "=== GREEN logs (300 dòng cuối) ==="
+  sudo docker logs deutschflow-backend-green --tail 300 2>/dev/null || true
   sudo docker rm -f deutschflow-backend-green 2>/dev/null || true
   sudo docker rmi deutschflow-backend:new 2>/dev/null || true
   exit 1

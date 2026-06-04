@@ -1,8 +1,10 @@
+import { useEffect } from 'react'
 import { View } from 'react-native'
 import { router } from 'expo-router'
 import { Star, Zap, Mic, Trophy, BookOpen, Check, type LucideIcon } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, AppHeader } from '@/components/ui'
+import { trackFeatureAction } from '@/lib/analytics'
 
 const PRO_FEATURES: { icon: LucideIcon; label: string }[] = [
   { icon: Mic, label: 'AI Speaking không giới hạn' },
@@ -14,6 +16,9 @@ const PRO_FEATURES: { icon: LucideIcon; label: string }[] = [
 
 export default function UpgradeScreen() {
   const theme = useTheme()
+  useEffect(() => {
+    trackFeatureAction('monetization', 'paywall_viewed')
+  }, [])
 
   return (
     <Screen edges={['top']}>

@@ -9,6 +9,7 @@ import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, ErrorState, SectionHeader, Skeleton } from '@/components/ui'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { mapExam, examApi, type RawMockExam, type ExamVariant, type ExamAttempt } from '@/lib/examApi'
+import { trackFeatureAction } from '@/lib/analytics'
 
 const EXAM_LEVELS = ['A1', 'A2', 'B1', 'B2'] as const
 
@@ -53,6 +54,7 @@ export default function ExamScreen() {
       {
         text: 'Bắt đầu',
         onPress: () => {
+          trackFeatureAction('mock_exam', 'started', { exam_id: variant.id, level })
           startExam.mutate(variant.id, {
             onSuccess: (res) =>
               router.push({

@@ -1,4 +1,81 @@
 {
+  "guide": {
+    "navItem": "Hướng dẫn",
+    "navBadge": "Mới",
+    "tour": {
+      "aria": "Hướng dẫn nhanh cho người mới",
+      "skip": "Bỏ qua",
+      "next": "Tiếp",
+      "back": "Quay lại",
+      "start": "Bắt đầu học",
+      "openFeature": "Mở thử",
+      "stepLabel": "Bước {current}/{total}",
+      "welcomeKicker": "Chào mừng",
+      "welcomeTitle": "Chào mừng đến với DeutschFlow! 🇩🇪",
+      "welcomeBody": "Xem nhanh 4 tính năng chính giúp bạn học tiếng Đức hiệu quả mỗi ngày. Chỉ mất 30 giây."
+    },
+    "features": {
+      "dashboard": {
+        "title": "Trang chủ",
+        "desc": "Nơi tổng hợp việc cần làm hôm nay: gợi ý \"Việc nên làm tiếp theo\", chuỗi ngày học, tiến độ và lỗi cần ôn.",
+        "how": "Mở app là vào ngay Trang chủ. Bấm thẻ gợi ý lớn ở trên cùng để học đúng bước tiếp theo."
+      },
+      "roadmap": {
+        "title": "Lộ trình học",
+        "desc": "Bản đồ kỹ năng cá nhân hoá từ trình độ hiện tại đến mục tiêu của bạn. Mỗi chặng mở khoá khi bạn hoàn thành chặng trước.",
+        "how": "Vào Lộ trình và chọn node đang sáng để bắt đầu bài học tiếp theo."
+      },
+      "speaking": {
+        "title": "Nói với AI",
+        "desc": "Luyện hội thoại tiếng Đức với gia sư AI theo đúng trình độ. AI sửa lỗi và chấm điểm sau mỗi buổi nói.",
+        "how": "Bấm \"Nói với AI\", chọn chủ đề rồi nói tự nhiên. Hãy cho phép micro khi được hỏi."
+      },
+      "review": {
+        "title": "Ôn tập (SRS)",
+        "desc": "Hệ thống lặp lại ngắt quãng nhắc bạn ôn từ vựng và ngữ pháp đúng lúc sắp quên, giúp nhớ lâu hơn.",
+        "how": "Mỗi ngày mở \"Ôn tập\" và làm hết các thẻ đến hạn — chỉ vài phút là đủ."
+      },
+      "vocabulary": {
+        "title": "Tra cứu từ vựng",
+        "desc": "Tra nghĩa, mạo từ (der/die/das), ví dụ và phát âm của bất kỳ từ tiếng Đức nào, rồi lưu vào danh sách ôn.",
+        "how": "Vào \"Tra cứu từ vựng\", gõ từ cần tìm và lưu lại để ôn sau."
+      },
+      "errors": {
+        "title": "Lỗi của tôi",
+        "desc": "Tổng hợp những lỗi ngữ pháp bạn hay mắc, kèm cách sửa và bài tập riêng để khắc phục.",
+        "how": "Vào \"Lỗi của tôi\" để xem và luyện lại đúng những điểm yếu của bạn."
+      },
+      "mockExam": {
+        "title": "Thi thử",
+        "desc": "Bài thi mô phỏng định dạng Goethe/telc với đủ kỹ năng Nghe, Đọc, Viết, Nói kèm chấm điểm chi tiết.",
+        "how": "Khi sắp thi, vào \"Thi thử\" để làm một đề hoàn chỉnh và xem điểm từng phần."
+      },
+      "streak": {
+        "title": "Chuỗi ngày & XP",
+        "desc": "Học mỗi ngày để giữ chuỗi (streak), nhận XP, lên cấp và mở huy hiệu — động lực duy trì thói quen.",
+        "how": "Hoàn thành ít nhất một hoạt động mỗi ngày để không mất chuỗi."
+      }
+    },
+    "page": {
+      "title": "Hướng dẫn sử dụng",
+      "subtitle": "Tất cả những gì bạn cần để bắt đầu học hiệu quả",
+      "loading": "Đang tải...",
+      "replayTitle": "Xem lại hướng dẫn nhanh",
+      "replayBody": "Chạy lại tour giới thiệu 4 tính năng chính bất cứ lúc nào bạn muốn.",
+      "replayTour": "Xem lại tour",
+      "sectionsTitle": "Các tính năng chính",
+      "howLabel": "Cách dùng",
+      "open": "Mở",
+      "faqTitle": "Câu hỏi thường gặp",
+      "faq": [
+        { "q": "Mỗi ngày nên học bao lâu?", "a": "Chỉ cần 15–20 phút đều đặn mỗi ngày là đủ để tiến bộ. Quan trọng nhất là giữ chuỗi ngày học." },
+        { "q": "Nên bắt đầu từ đâu?", "a": "Hãy theo \"Lộ trình học\" và mỗi ngày làm chặng đang sáng. Trang chủ cũng luôn gợi ý việc nên làm tiếp theo." },
+        { "q": "Nói với AI có cần micro không?", "a": "Có. Lần đầu app sẽ xin quyền truy cập micro. Bạn cũng có thể gõ chữ nếu chưa muốn nói." },
+        { "q": "Ôn tập (SRS) hoạt động thế nào?", "a": "Hệ thống tự nhắc bạn ôn lại từ và ngữ pháp đúng lúc sắp quên, nên bạn nhớ lâu hơn mà tốn ít thời gian hơn." },
+        { "q": "Làm sao để mở khoá mọi tính năng?", "a": "Một số tính năng nâng cao thuộc gói PRO. Vào mục Nâng cấp PRO ở thanh bên để xem chi tiết." }
+      ]
+    }
+  },
   "auth": {
     "login": "Đăng nhập",
     "register": "Đăng ký",
@@ -257,11 +334,11 @@
     "navBadges": "Huy hiệu",
     "navReviewQueue": "Ôn tập hôm nay",
     "navReviewSrs": "Ôn tập SRS",
-    "navGrammarSyllabus": "📚 Ngữ pháp bài bản",
+    "navGrammarSyllabus": "Ngữ pháp bài bản",
     "navGroupExam": "THI THỬ",
-    "navMockExam": "🎯 Thi thử Goethe",
-    "navProgress": "📊 Tiến độ của tôi",
-    "navCertificates": "🏅 Chứng chỉ CEFR"
+    "navMockExam": "Thi thử Goethe",
+    "navProgress": "Tiến độ của tôi",
+    "navCertificates": "Chứng chỉ CEFR"
   },
   "adminNav": {
     "overview": "Tổng quan",

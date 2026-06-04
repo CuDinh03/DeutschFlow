@@ -10,6 +10,10 @@ export interface ActiveSessionRef {
   id: number
   interviewPosition: string | null
   persona?: string | null
+  /** Persisted so a resumed session restores its real mode, not a hardcoded one. */
+  sessionMode?: string | null
+  cefrLevel?: string | null
+  topic?: string | null
 }
 
 export async function saveActiveSession(ref: ActiveSessionRef): Promise<void> {

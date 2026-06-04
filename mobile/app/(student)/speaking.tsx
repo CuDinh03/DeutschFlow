@@ -1,5 +1,15 @@
 import { useState, useRef, useEffect, useCallback, memo } from 'react'
-import { View, ScrollView, Alert, Pressable, TextInput, ActivityIndicator } from 'react-native'
+import {
+  View,
+  ScrollView,
+  Alert,
+  Pressable,
+  TextInput,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
+} from 'react-native'
 import { Audio } from 'expo-av'
 import * as FileSystem from 'expo-file-system'
 import { MotiView } from 'moti'
@@ -20,6 +30,7 @@ import {
   type AiSpeakingSession,
   type AiSpeakingMessage,
   type InterviewReport,
+  type ConversationReport,
 } from '@/lib/speakingApi'
 import {
   loadActiveSession,
@@ -30,12 +41,14 @@ import {
 import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, Pill } from '@/components/ui'
 import { SessionSummary } from '@/components/speaking/SessionSummary'
+import { ConversationSummary } from '@/components/speaking/ConversationSummary'
 import { CompanionSelect, type StartArgs } from '@/components/speaking/CompanionSelect'
 import { PersonaBubbleAvatar } from '@/components/speaking/PersonaBubbleAvatar'
 import { RevealText } from '@/components/speaking/RevealText'
 import { PersonaStage, type StageState, type Reaction } from '@/components/speaking/PersonaStage'
 import { PERSONA_TOKENS, type PersonaId } from '@/lib/personas'
 import { usePlanStore } from '@/stores/usePlanStore'
+import { trackFeatureAction } from '@/lib/analytics'
 
 const PULSE_MAX = 1.2
 
@@ -82,8 +95,10 @@ export default function SpeakingScreen() {
   const [starting, setStarting] = useState(false)
   const [sending, setSending] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
+  const [transcribing, setTranscribing] = useState(false)
   const [finishing, setFinishing] = useState(false)
   const [report, setReport] = useState<InterviewReport | null>(null)
+  const [convReport, setConvReport] = useState<ConversationReport | null>(null)
   const [pendingResume, setPendingResume] = useState<ActiveSessionRef | null>(null)
   const [resuming, setResuming] = useState(false)
 
@@ -107,7 +122,7 @@ export default function SpeakingScreen() {
     }
   }, [])
 
-  const busy = starting || sending || isRecording || finishing || typing
+  const busy = starting || sending || isRecording || finishing || typing || transcribing
 
   // Clear in-flight timers on unmount.
   useEffect(
@@ -118,6 +133,12 @@ export default function SpeakingScreen() {
     },
     [],
   )
+
+  // Keep the latest turn visible when the keyboard opens over the chat.
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidShow', () => scrollToEnd())
+    return () => sub.remove()
+  }, [])
 
   // Speak the AI's German line, cascading by availability so the flow never breaks:
   //   1. Server TTS (persona voice) → played via expo-av (no extra native module)
@@ -146,7 +167,11 @@ export default function SpeakingScreen() {
       await stopSpeech()
       const path = `${FileSystem.cacheDirectory}tts-${ttsSeqRef.current++}.mp3`
       await FileSystem.writeAsStringAsync(path, base64, { encoding: FileSystem.EncodingType.Base64 })
-      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true })
+      // Reset out of iOS record mode so playback routes to the main speaker (loud),
+      // not the earpiece. expo-av merges partial audio modes, so a prior
+      // allowsRecordingIOS:true would otherwise stick app-wide and mute every reply
+      // after the first recorded answer.
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true })
       const { sound } = await Audio.Sound.createAsync({ uri: path }, { shouldPlay: true })
       soundRef.current = sound
       sound.setOnPlaybackStatusUpdate((st) => {
@@ -210,6 +235,7 @@ export default function SpeakingScreen() {
 
   async function startSession(args: StartArgs) {
     setStarting(true)
+    trackFeatureAction('ai_speaking', 'started', { mode: args.sessionMode })
     try {
       const created = await speakingApi.createSession({
         topic: args.topic,
@@ -232,6 +258,9 @@ export default function SpeakingScreen() {
         id: created.id,
         interviewPosition: created.interviewPosition,
         persona: created.persona,
+        sessionMode: created.sessionMode,
+        cefrLevel: created.cefrLevel,
+        topic: created.topic,
       })
       setView('chat')
       speakGerman(greeting, () => flashReaction(null))
@@ -321,32 +350,42 @@ export default function SpeakingScreen() {
     }
   }
 
-  async function stopRecordingAndSend() {
+  // Stop recording and drop the transcript into the input bar for review.
+  // The user edits if needed and presses send — we never auto-submit speech.
+  async function stopRecordingAndTranscribe() {
     if (!recordingRef.current || !session) return
     cancelAnimation(pulseAnim)
     pulseAnim.value = 1
     setIsRecording(false)
-    setStage('thinking')
-    setSending(true)
+    setStage('idle')
+    setTranscribing(true)
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     try {
       const recording = recordingRef.current
       recordingRef.current = null
       await recording.stopAndUnloadAsync()
+      // Leave record mode so the next TTS reply plays from the speaker, not the earpiece.
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true })
       const uri = recording.getURI()
       if (!uri) throw new Error('no_uri')
-      const transcript = await speakingApi.transcribe(uri)
-      setSending(false)
-      await submitAnswer(transcript)
+      const transcript = (await speakingApi.transcribe(uri)).trim()
+      if (!transcript) {
+        Alert.alert('Chưa nghe rõ', 'Mình chưa nhận được nội dung. Bạn thử ghi âm lại nhé.')
+        return
+      }
+      setDraft(transcript)
+      scrollToEnd()
     } catch (e) {
-      setSending(false)
       Alert.alert('Lỗi', apiMessage(e))
+    } finally {
+      setTranscribing(false)
     }
   }
 
   async function finishSession() {
     if (!session || finishing) return
     setFinishing(true)
+    trackFeatureAction('ai_speaking', 'completed', { mode: session.sessionMode })
     try {
       await speakingApi.endSession(session.id).catch(() => undefined)
       void clearActiveSession()
@@ -355,11 +394,23 @@ export default function SpeakingScreen() {
         setReport(built)
         setView('summary')
       } else {
-        // Conversation / lesson modes have no interview report — return to select.
-        setSession(null)
-        setMessages([])
-        setPhaseKey(null)
-        setView('select')
+        // Conversation / lesson: show the AI evaluation summary (fall back to select if empty).
+        const conv = await speakingApi.getConversationReport(session.id).catch(() => null)
+        const hasContent =
+          !!conv &&
+          (!!conv.summary ||
+            conv.strengths.length > 0 ||
+            conv.improvements.length > 0 ||
+            conv.overallScore != null)
+        if (conv && hasContent) {
+          setConvReport(conv)
+          setView('summary')
+        } else {
+          setSession(null)
+          setMessages([])
+          setPhaseKey(null)
+          setView('select')
+        }
       }
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
     } catch (e) {
@@ -373,6 +424,7 @@ export default function SpeakingScreen() {
     setSession(null)
     setMessages([])
     setReport(null)
+    setConvReport(null)
     setPhaseKey(null)
     setDraft('')
     setPendingResume(null)
@@ -395,13 +447,16 @@ export default function SpeakingScreen() {
         Alert.alert('Phiên đã kết thúc', 'Không còn dữ liệu để tiếp tục.')
         return
       }
+      // Restore the session's REAL mode/level — never assume INTERVIEW, or a resumed
+      // conversation/lesson would mislabel and crash on finish (getReport is interview-only).
+      const resumedMode = ref.sessionMode ?? 'COMMUNICATION'
       setSession({
         id: ref.id,
-        topic: ref.interviewPosition,
-        cefrLevel: 'C1',
+        topic: ref.topic ?? ref.interviewPosition,
+        cefrLevel: ref.cefrLevel ?? 'B1',
         persona: ref.persona ?? null,
         responseSchema: null,
-        sessionMode: 'INTERVIEW',
+        sessionMode: resumedMode,
         status: 'ACTIVE',
         startedAt: null,
         lastActivityAt: null,
@@ -443,6 +498,15 @@ export default function SpeakingScreen() {
       <Screen edges={['top']}>
         <ScreenHeader title="Kết quả phỏng vấn" onClose={resetToSelect} />
         <SessionSummary report={report} onPracticeAgain={resetToSelect} onDone={() => router.replace('/(student)')} />
+      </Screen>
+    )
+  }
+
+  if (view === 'summary' && convReport) {
+    return (
+      <Screen edges={['top']}>
+        <ScreenHeader title="Kết quả luyện nói" onClose={resetToSelect} />
+        <ConversationSummary report={convReport} onPracticeAgain={resetToSelect} onDone={() => router.replace('/(student)')} />
       </Screen>
     )
   }
@@ -499,6 +563,10 @@ export default function SpeakingScreen() {
   // ── Chat / practice view ─────────────────────────────────────────────────────
   return (
     <Screen edges={['top']}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
       <View
         style={{
           flexDirection: 'row',
@@ -515,7 +583,9 @@ export default function SpeakingScreen() {
         </Pressable>
         <View style={{ flex: 1, gap: 2 }}>
           <ThemedText variant="bodyStrong" numberOfLines={1}>
-            {session?.interviewPosition ?? 'Phỏng vấn'}
+            {session?.sessionMode === 'INTERVIEW'
+              ? session?.interviewPosition ?? 'Phỏng vấn'
+              : session?.topic ?? 'Hội thoại'}
           </ThemedText>
           <ThemedText variant="caption" color="muted">
             {phaseKey ? `${phaseLabel(phaseKey)} • ` : ''}
@@ -585,8 +655,8 @@ export default function SpeakingScreen() {
       >
         <Animated.View style={isRecording ? pulseStyle : undefined}>
           <Pressable
-            onPress={isRecording ? stopRecordingAndSend : startRecording}
-            disabled={sending || finishing}
+            onPress={isRecording ? stopRecordingAndTranscribe : startRecording}
+            disabled={sending || finishing || transcribing}
             style={{
               width: 44,
               height: 44,
@@ -596,14 +666,18 @@ export default function SpeakingScreen() {
               justifyContent: 'center',
             }}
           >
-            <Icon icon={Mic} size={20} color={isRecording ? 'onAccent' : 'muted'} />
+            {transcribing ? (
+              <ActivityIndicator color={c.textMuted} size="small" />
+            ) : (
+              <Icon icon={Mic} size={20} color={isRecording ? 'onAccent' : 'muted'} />
+            )}
           </Pressable>
         </Animated.View>
 
         <TextInput
           value={draft}
           onChangeText={setDraft}
-          placeholder="Nhập câu trả lời của bạn…"
+          placeholder={transcribing ? 'Đang nhận diện giọng nói…' : 'Nhập câu trả lời của bạn…'}
           placeholderTextColor={c.textFaint}
           selectionColor={c.accent}
           multiline
@@ -638,6 +712,7 @@ export default function SpeakingScreen() {
           <Icon icon={Send} size={20} color={!draft.trim() || busy ? 'faint' : 'onAccent'} />
         </Pressable>
       </View>
+      </KeyboardAvoidingView>
     </Screen>
   )
 }

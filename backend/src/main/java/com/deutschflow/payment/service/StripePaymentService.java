@@ -206,12 +206,12 @@ public class StripePaymentService {
                     .build();
         }
 
-        if ("COMPLETED".equals(tx.getStatus()) || "SUCCESS".equals(tx.getStatus())) {
+        if ("SUCCESS".equals(tx.getStatus())) {
             log.info("[STRIPE WEBHOOK] Idempotent replay — session={} already completed", sessionId);
             return;
         }
 
-        tx.setStatus("COMPLETED");
+        tx.setStatus("SUCCESS");
         tx.setProviderTransactionId(session.getPaymentIntent());
         paymentTransactionRepository.save(tx);
 

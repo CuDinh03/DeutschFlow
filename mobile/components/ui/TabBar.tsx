@@ -16,6 +16,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs'
 import { motion, radius, space, useTheme } from '@/lib/theme'
+import { captureEvent } from '@/lib/analytics'
 import { ThemedText } from './ThemedText'
 
 const ICONS: Record<string, LucideIcon> = {
@@ -165,6 +166,7 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
                   canPreventDefault: true,
                 })
                 if (!focused && !event.defaultPrevented) {
+                  captureEvent('nav_clicked', { feature: route.name, from: 'tab_bar' })
                   navigation.navigate(route.name)
                 }
               }

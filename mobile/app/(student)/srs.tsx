@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { View, Pressable } from 'react-native'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Animated, {
@@ -15,6 +15,7 @@ import * as Haptics from 'expo-haptics'
 import { router } from 'expo-router'
 import { RotateCcw, Check, X, Minus, PartyPopper } from 'lucide-react-native'
 import api from '@/lib/api'
+import { trackFeatureAction } from '@/lib/analytics'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, Pill, Button, ProgressBar, AppHeader, EmptyState, Skeleton } from '@/components/ui'
 import type { ThemeColors } from '@/lib/theme'
@@ -44,6 +45,21 @@ export default function SrsScreen() {
   })
 
   const currentCard = cards[currentIndex]
+
+  const startedRef = useRef(false)
+  const completedRef = useRef(false)
+  useEffect(() => {
+    if (cards.length > 0 && !startedRef.current) {
+      startedRef.current = true
+      trackFeatureAction('srs_review', 'started', { due: cards.length })
+    }
+  }, [cards.length])
+  useEffect(() => {
+    if (cards.length > 0 && currentIndex >= cards.length && !completedRef.current) {
+      completedRef.current = true
+      trackFeatureAction('srs_review', 'completed', { reviewed: cards.length })
+    }
+  }, [currentIndex, cards.length])
 
   const flipRotation = useSharedValue(0)
   const translateX = useSharedValue(0)

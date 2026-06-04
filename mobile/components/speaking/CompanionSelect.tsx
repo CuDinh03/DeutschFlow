@@ -53,7 +53,7 @@ const GROUP_ICONS: Record<PersonaGroup, LucideIcon> = {
   special: Languages,
 }
 
-const CEFR_LEVELS = ['A1', 'A2', 'B1', 'B2']
+const CEFR_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1']
 
 const EXPERIENCE: { id: string; label: string }[] = [
   { id: '0-6M', label: '0-6 tháng' },

@@ -1,4 +1,81 @@
 {
+  "guide": {
+    "navItem": "Anleitung",
+    "navBadge": "Neu",
+    "tour": {
+      "aria": "Kurze Einführung für neue Nutzer",
+      "skip": "Überspringen",
+      "next": "Weiter",
+      "back": "Zurück",
+      "start": "Loslernen",
+      "openFeature": "Ansehen",
+      "stepLabel": "Schritt {current}/{total}",
+      "welcomeKicker": "Willkommen",
+      "welcomeTitle": "Willkommen bei DeutschFlow! 🇩🇪",
+      "welcomeBody": "Ein kurzer Blick auf die 4 wichtigsten Funktionen, die dir täglich beim Deutschlernen helfen. Dauert nur 30 Sekunden."
+    },
+    "features": {
+      "dashboard": {
+        "title": "Startseite",
+        "desc": "Dein täglicher Überblick: der Vorschlag \"Beste nächste Aktion\", deine Serie, dein Fortschritt und Fehler zum Wiederholen.",
+        "how": "Die App startet direkt auf der Startseite. Tippe oben auf die große Vorschlagskarte, um den richtigen nächsten Schritt zu lernen."
+      },
+      "roadmap": {
+        "title": "Lernpfad",
+        "desc": "Eine personalisierte Skill-Map von deinem aktuellen Niveau bis zu deinem Ziel. Jede Stufe wird freigeschaltet, sobald du die vorherige abschließt.",
+        "how": "Öffne den Lernpfad und wähle den hervorgehobenen Knoten, um deine nächste Lektion zu starten."
+      },
+      "speaking": {
+        "title": "Mit KI sprechen",
+        "desc": "Übe deutsche Gespräche mit einem KI-Tutor auf deinem Niveau. Die KI korrigiert dich und bewertet jede Sitzung.",
+        "how": "Tippe auf \"Mit KI sprechen\", wähle ein Thema und sprich natürlich. Erlaube den Mikrofonzugriff, wenn du gefragt wirst."
+      },
+      "review": {
+        "title": "Wiederholen (SRS)",
+        "desc": "Verteilte Wiederholung erinnert dich genau dann an Vokabeln und Grammatik, kurz bevor du sie vergisst – so bleibt es hängen.",
+        "how": "Öffne täglich \"Wiederholen\" und arbeite die fälligen Karten ab – ein paar Minuten reichen."
+      },
+      "vocabulary": {
+        "title": "Vokabelsuche",
+        "desc": "Schlage Bedeutung, Artikel (der/die/das), Beispiele und Aussprache jedes deutschen Wortes nach und speichere es zum Wiederholen.",
+        "how": "Öffne die \"Vokabelsuche\", gib ein Wort ein und speichere es zum späteren Wiederholen."
+      },
+      "errors": {
+        "title": "Meine Fehler",
+        "desc": "Eine Sammlung der Grammatikfehler, die du am häufigsten machst, mit Korrekturen und gezielten Übungen.",
+        "how": "Öffne \"Meine Fehler\", um genau deine Schwachstellen zu wiederholen und zu üben."
+      },
+      "mockExam": {
+        "title": "Probeprüfung",
+        "desc": "Eine vollständige Simulation im Goethe-/telc-Format mit Hören, Lesen, Schreiben und Sprechen samt detaillierter Bewertung.",
+        "how": "Wenn deine Prüfung näher rückt, mach eine vollständige \"Probeprüfung\" und prüfe deine Punktzahl pro Teil."
+      },
+      "streak": {
+        "title": "Serie & XP",
+        "desc": "Lerne jeden Tag, um deine Serie zu halten, XP zu sammeln, aufzusteigen und Abzeichen freizuschalten – die Motivation für eine Gewohnheit.",
+        "how": "Schließe jeden Tag mindestens eine Aktivität ab, damit deine Serie nicht abreißt."
+      }
+    },
+    "page": {
+      "title": "Anleitung",
+      "subtitle": "Alles, was du brauchst, um effektiv zu starten",
+      "loading": "Wird geladen...",
+      "replayTitle": "Kurze Einführung erneut ansehen",
+      "replayBody": "Starte die Einführungstour zu den 4 Kernfunktionen jederzeit erneut.",
+      "replayTour": "Tour erneut ansehen",
+      "sectionsTitle": "Kernfunktionen",
+      "howLabel": "So geht's",
+      "open": "Öffnen",
+      "faqTitle": "Häufige Fragen",
+      "faq": [
+        { "q": "Wie lange sollte ich täglich lernen?", "a": "Schon 15–20 konstante Minuten pro Tag reichen für Fortschritt. Das Wichtigste ist, deine Serie zu halten." },
+        { "q": "Wo sollte ich anfangen?", "a": "Folge dem \"Lernpfad\" und mach jeden Tag die hervorgehobene Stufe. Die Startseite schlägt dir außerdem immer die beste nächste Aktion vor." },
+        { "q": "Braucht \"Mit KI sprechen\" ein Mikrofon?", "a": "Ja. Beim ersten Mal fragt die App nach Mikrofonzugriff. Du kannst auch tippen, wenn du noch nicht sprechen möchtest." },
+        { "q": "Wie funktioniert Wiederholen (SRS)?", "a": "Das System erinnert dich genau dann an Wörter und Grammatik, kurz bevor du sie vergessen würdest – so behältst du mehr in kürzerer Zeit." },
+        { "q": "Wie schalte ich alle Funktionen frei?", "a": "Einige erweiterte Funktionen gehören zu PRO. Öffne den Punkt \"Auf PRO upgraden\" in der Seitenleiste für Details." }
+      ]
+    }
+  },
   "auth": {
     "login": "Anmelden",
     "register": "Registrieren",
@@ -257,11 +334,11 @@
     "navBadges": "Abzeichen",
     "navReviewQueue": "Heute wiederholen",
     "navReviewSrs": "SRS Wiederholung",
-    "navGrammarSyllabus": "📚 Grammatik-Lehrplan",
+    "navGrammarSyllabus": "Grammatik-Lehrplan",
     "navGroupExam": "PRÜFUNGEN",
-    "navMockExam": "🎯 Goethe-Probeprüfung",
-    "navProgress": "📊 Mein Fortschritt",
-    "navCertificates": "🏅 CEFR-Zertifikate"
+    "navMockExam": "Goethe-Probeprüfung",
+    "navProgress": "Mein Fortschritt",
+    "navCertificates": "CEFR-Zertifikate"
   },
   "adminNav": {
     "overview": "Übersicht",
