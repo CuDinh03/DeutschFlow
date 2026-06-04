@@ -108,6 +108,13 @@ management:
   endpoint:
     health:
       show-details: when_authorized
+  health:
+    # Mail SMTP is optional (password-reset only) and may be unconfigured in some environments.
+    # Without it, MailHealthIndicator reports DOWN and drags /actuator/health to DOWN, which
+    # blocks blue-green deploy readiness. Mail is non-critical to serving traffic, so exclude it
+    # from the health aggregate. Re-enable once SMTP credentials are configured.
+    mail:
+      enabled: false
   metrics:
     tags:
       application: ${spring.application.name}
