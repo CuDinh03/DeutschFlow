@@ -183,6 +183,8 @@ function WeeklyRecorder({ promptId, cefrBand }: { promptId: number; cefrBand: st
     setPhase('processing')
     try {
       await recording.stopAndUnloadAsync()
+      // Leave iOS record mode so other screens' TTS plays from the speaker, not the earpiece.
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true })
       const uri = recording.getURI()
       setRecording(null)
       if (!uri) throw new Error('no_uri')

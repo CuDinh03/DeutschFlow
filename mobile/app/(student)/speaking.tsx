@@ -1,5 +1,15 @@
 import { useState, useRef, useEffect, useCallback, memo } from 'react'
-import { View, ScrollView, Alert, Pressable, TextInput, ActivityIndicator } from 'react-native'
+import {
+  View,
+  ScrollView,
+  Alert,
+  Pressable,
+  TextInput,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
+} from 'react-native'
 import { Audio } from 'expo-av'
 import * as FileSystem from 'expo-file-system'
 import { MotiView } from 'moti'
@@ -82,6 +92,7 @@ export default function SpeakingScreen() {
   const [starting, setStarting] = useState(false)
   const [sending, setSending] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
+  const [transcribing, setTranscribing] = useState(false)
   const [finishing, setFinishing] = useState(false)
   const [report, setReport] = useState<InterviewReport | null>(null)
   const [pendingResume, setPendingResume] = useState<ActiveSessionRef | null>(null)
@@ -107,7 +118,7 @@ export default function SpeakingScreen() {
     }
   }, [])
 
-  const busy = starting || sending || isRecording || finishing || typing
+  const busy = starting || sending || isRecording || finishing || typing || transcribing
 
   // Clear in-flight timers on unmount.
   useEffect(
@@ -118,6 +129,12 @@ export default function SpeakingScreen() {
     },
     [],
   )
+
+  // Keep the latest turn visible when the keyboard opens over the chat.
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidShow', () => scrollToEnd())
+    return () => sub.remove()
+  }, [])
 
   // Speak the AI's German line, cascading by availability so the flow never breaks:
   //   1. Server TTS (persona voice) → played via expo-av (no extra native module)
@@ -146,7 +163,11 @@ export default function SpeakingScreen() {
       await stopSpeech()
       const path = `${FileSystem.cacheDirectory}tts-${ttsSeqRef.current++}.mp3`
       await FileSystem.writeAsStringAsync(path, base64, { encoding: FileSystem.EncodingType.Base64 })
-      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true })
+      // Reset out of iOS record mode so playback routes to the main speaker (loud),
+      // not the earpiece. expo-av merges partial audio modes, so a prior
+      // allowsRecordingIOS:true would otherwise stick app-wide and mute every reply
+      // after the first recorded answer.
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true })
       const { sound } = await Audio.Sound.createAsync({ uri: path }, { shouldPlay: true })
       soundRef.current = sound
       sound.setOnPlaybackStatusUpdate((st) => {
@@ -321,26 +342,35 @@ export default function SpeakingScreen() {
     }
   }
 
-  async function stopRecordingAndSend() {
+  // Stop recording and drop the transcript into the input bar for review.
+  // The user edits if needed and presses send — we never auto-submit speech.
+  async function stopRecordingAndTranscribe() {
     if (!recordingRef.current || !session) return
     cancelAnimation(pulseAnim)
     pulseAnim.value = 1
     setIsRecording(false)
-    setStage('thinking')
-    setSending(true)
+    setStage('idle')
+    setTranscribing(true)
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     try {
       const recording = recordingRef.current
       recordingRef.current = null
       await recording.stopAndUnloadAsync()
+      // Leave record mode so the next TTS reply plays from the speaker, not the earpiece.
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true })
       const uri = recording.getURI()
       if (!uri) throw new Error('no_uri')
-      const transcript = await speakingApi.transcribe(uri)
-      setSending(false)
-      await submitAnswer(transcript)
+      const transcript = (await speakingApi.transcribe(uri)).trim()
+      if (!transcript) {
+        Alert.alert('Chưa nghe rõ', 'Mình chưa nhận được nội dung. Bạn thử ghi âm lại nhé.')
+        return
+      }
+      setDraft(transcript)
+      scrollToEnd()
     } catch (e) {
-      setSending(false)
       Alert.alert('Lỗi', apiMessage(e))
+    } finally {
+      setTranscribing(false)
     }
   }
 
@@ -499,6 +529,10 @@ export default function SpeakingScreen() {
   // ── Chat / practice view ─────────────────────────────────────────────────────
   return (
     <Screen edges={['top']}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
       <View
         style={{
           flexDirection: 'row',
@@ -585,8 +619,8 @@ export default function SpeakingScreen() {
       >
         <Animated.View style={isRecording ? pulseStyle : undefined}>
           <Pressable
-            onPress={isRecording ? stopRecordingAndSend : startRecording}
-            disabled={sending || finishing}
+            onPress={isRecording ? stopRecordingAndTranscribe : startRecording}
+            disabled={sending || finishing || transcribing}
             style={{
               width: 44,
               height: 44,
@@ -596,14 +630,18 @@ export default function SpeakingScreen() {
               justifyContent: 'center',
             }}
           >
-            <Icon icon={Mic} size={20} color={isRecording ? 'onAccent' : 'muted'} />
+            {transcribing ? (
+              <ActivityIndicator color={c.textMuted} size="small" />
+            ) : (
+              <Icon icon={Mic} size={20} color={isRecording ? 'onAccent' : 'muted'} />
+            )}
           </Pressable>
         </Animated.View>
 
         <TextInput
           value={draft}
           onChangeText={setDraft}
-          placeholder="Nhập câu trả lời của bạn…"
+          placeholder={transcribing ? 'Đang nhận diện giọng nói…' : 'Nhập câu trả lời của bạn…'}
           placeholderTextColor={c.textFaint}
           selectionColor={c.accent}
           multiline
@@ -638,6 +676,7 @@ export default function SpeakingScreen() {
           <Icon icon={Send} size={20} color={!draft.trim() || busy ? 'faint' : 'onAccent'} />
         </Pressable>
       </View>
+      </KeyboardAvoidingView>
     </Screen>
   )
 }
