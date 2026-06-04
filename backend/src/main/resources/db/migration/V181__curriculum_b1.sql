@@ -12,6 +12,13 @@ CREATE TABLE IF NOT EXISTS skill_tree_edges (
     UNIQUE (source_node_id, target_node_id)
 );
 
+-- Drift reconciliation: some environments (prod RDS) have node_code set NOT NULL out-of-band,
+-- but no migration ever added that constraint (V144 introduced node_code as nullable, and every
+-- skill_tree_nodes seed omits it — node_code is roadmap metadata, unused by application code).
+-- Drop the constraint if present so the seed below inserts everywhere. No-op on fresh DBs where
+-- the column is already nullable (Postgres DROP NOT NULL on a nullable column is a safe no-op).
+ALTER TABLE skill_tree_nodes ALTER COLUMN node_code DROP NOT NULL;
+
 INSERT INTO skill_tree_nodes (
   node_type, title_de, title_vi, description_vi, emoji,
   phase, day_number, week_number, sort_order, cefr_level,
