@@ -32,12 +32,17 @@ const PATH_LEN = 212
 const LOGO = 132
 
 interface SplashAnimatedProps {
+  /** App-readiness gate: the splash holds (after its min display time) until
+   *  this is true, so the cold-launch auth redirect settles behind it. */
+  ready: boolean
   onDone: () => void
 }
 
-export function SplashAnimated({ onDone }: SplashAnimatedProps) {
+export function SplashAnimated({ ready, onDone }: SplashAnimatedProps) {
   const draw = useSharedValue(0)
   const detail = useSharedValue(0)
+  const [minElapsed, setMinElapsed] = useState(false)
+  const [forced, setForced] = useState(false)
   const [leaving, setLeaving] = useState(false)
 
   const outlineProps = useAnimatedProps(() => ({
@@ -45,17 +50,31 @@ export function SplashAnimated({ onDone }: SplashAnimatedProps) {
   }))
   const detailProps = useAnimatedProps(() => ({ opacity: detail.value }))
 
+  // Play the brand animation, enforce a minimum on-screen time (so a fast launch
+  // still shows the full mark), and arm a safety cap so a stalled readiness
+  // signal can never trap the user on the splash.
   useEffect(() => {
     draw.value = withTiming(1, { duration: 900, easing: Easing.inOut(Easing.ease) })
     detail.value = withDelay(820, withTiming(1, { duration: 320, easing: Easing.out(Easing.quad) }))
 
-    const fade = setTimeout(() => setLeaving(true), 2400)
-    const done = setTimeout(onDone, 2850)
+    const min = setTimeout(() => setMinElapsed(true), 2400)
+    const cap = setTimeout(() => setForced(true), 6000)
     return () => {
-      clearTimeout(fade)
-      clearTimeout(done)
+      clearTimeout(min)
+      clearTimeout(cap)
     }
-  }, [draw, detail, onDone])
+  }, [draw, detail])
+
+  // Fade out once the min display time has elapsed AND the app is ready — or the
+  // safety cap fires. This is what removes the launch "giật": the splash masks
+  // the screen until the correct first route is settled, not on a blind timer.
+  useEffect(() => {
+    if (leaving) return
+    if (!((minElapsed && ready) || forced)) return
+    setLeaving(true)
+    const done = setTimeout(onDone, 460)
+    return () => clearTimeout(done)
+  }, [minElapsed, ready, forced, leaving, onDone])
 
   return (
     <MotiView

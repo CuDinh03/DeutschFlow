@@ -71,8 +71,13 @@ function RootStack() {
 }
 
 function RootLayout() {
-  const { isLoggedIn, isLoading, fetchMe } = useAuthStore()
-  const { fetchPlan } = usePlanStore()
+  // Select individual slices (not the whole store) so this root component only
+  // re-renders when these specific values change — avoids re-render churn during
+  // the auth bootstrap.
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
+  const isLoading = useAuthStore((s) => s.isLoading)
+  const fetchMe = useAuthStore((s) => s.fetchMe)
+  const fetchPlan = usePlanStore((s) => s.fetchPlan)
   const rootNavState = useRootNavigationState()
   const [splashDone, setSplashDone] = useState(false)
 
@@ -85,6 +90,11 @@ function RootLayout() {
   })
   const [monoLoaded] = useMono({ JetBrainsMono_500Medium, JetBrainsMono_700Bold })
   const fontsReady = soraLoaded && jakartaLoaded && monoLoaded
+
+  // The animated splash holds until the app is genuinely ready: fonts loaded,
+  // auth resolved, and the navigator mounted. This masks the cold-launch
+  // auth redirect (home → login) so it never flashes on screen.
+  const appReady = fontsReady && !isLoading && !!rootNavState?.key
 
   usePushNotifications()
 
@@ -132,7 +142,7 @@ function RootLayout() {
           </QueryClientProvider>
         </ThemeProvider>
       </SafeAreaProvider>
-      {splashDone ? null : <SplashAnimated onDone={() => setSplashDone(true)} />}
+      {splashDone ? null : <SplashAnimated ready={appReady} onDone={() => setSplashDone(true)} />}
     </GestureHandlerRootView>
   )
 }
