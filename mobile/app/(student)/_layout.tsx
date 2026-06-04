@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router'
 import { TabBar } from '@/components/ui/TabBar'
 import { TourOverlay } from '@/components/guide/TourOverlay'
+import { ScreenTimeTracker } from '@/components/analytics/ScreenTimeTracker'
 
 export default function StudentLayout() {
   return (
@@ -35,6 +36,8 @@ export default function StudentLayout() {
 
       {/* One-time new-user tour; auto-shows once, replayable from the guide screen. */}
       <TourOverlay />
+      {/* Emits feature_session per screen across the whole student area. */}
+      <ScreenTimeTracker />
     </>
   )
 }

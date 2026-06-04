@@ -5,12 +5,10 @@ import { Lock, CheckCircle2, Circle, PlayCircle, Map, type LucideIcon } from 'lu
 import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, ErrorState, Skeleton } from '@/components/ui'
 import { skillTreeApi, type SkillNode } from '@/lib/skillTreeApi'
-import { useScreenTime } from '@/hooks/useScreenTime'
 
 type NodeIconRole = 'success' | 'accent' | 'info' | 'faint'
 
 export default function RoadmapScreen() {
-  useScreenTime('roadmap')
   const { data: nodes = [], isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['skill-tree'],
     queryFn: () => skillTreeApi.getMySkillTree(),

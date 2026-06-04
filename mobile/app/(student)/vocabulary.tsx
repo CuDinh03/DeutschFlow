@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { View, TextInput, FlatList, Pressable, RefreshControl } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import { Search, BookMarked, Plus, Check } from 'lucide-react-native'
 import api from '@/lib/api'
+import { trackFeatureAction } from '@/lib/analytics'
 import { learningApi } from '@/lib/learningApi'
 import { fonts, radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, ErrorState, Skeleton } from '@/components/ui'
@@ -71,6 +72,14 @@ export default function VocabularyScreen() {
   })
 
   const words = data ?? []
+
+  const searchedRef = useRef(false)
+  useEffect(() => {
+    if (debouncedSearch.trim() && !searchedRef.current) {
+      searchedRef.current = true
+      trackFeatureAction('vocabulary_dictionary', 'started')
+    }
+  }, [debouncedSearch])
 
   return (
     <Screen edges={['top']}>

@@ -10,12 +10,10 @@ import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, ErrorState
 import { usePlanStore } from '@/stores/usePlanStore'
 import { mapExam, examApi, type RawMockExam, type ExamVariant, type ExamAttempt } from '@/lib/examApi'
 import { trackFeatureAction } from '@/lib/analytics'
-import { useScreenTime } from '@/hooks/useScreenTime'
 
 const EXAM_LEVELS = ['A1', 'A2', 'B1', 'B2'] as const
 
 export default function ExamScreen() {
-  useScreenTime('exam')
   const theme = useTheme()
   const { isPro } = usePlanStore()
 

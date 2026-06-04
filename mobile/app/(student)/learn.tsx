@@ -13,12 +13,10 @@ import {
 import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, SectionHeader, FadeIn } from '@/components/ui'
 import { skillTreeApi, type SkillNode } from '@/lib/skillTreeApi'
-import { useScreenTime } from '@/hooks/useScreenTime'
 
 type StatusTone = 'success' | 'accent' | 'info'
 
 export default function LearnScreen() {
-  useScreenTime('learn')
   const { data: nodes = [], refetch, isFetching } = useQuery({
     queryKey: ['skill-tree'],
     queryFn: () => skillTreeApi.getMySkillTree(),

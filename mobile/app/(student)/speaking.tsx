@@ -49,7 +49,6 @@ import { PersonaStage, type StageState, type Reaction } from '@/components/speak
 import { PERSONA_TOKENS, type PersonaId } from '@/lib/personas'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { trackFeatureAction } from '@/lib/analytics'
-import { useScreenTime } from '@/hooks/useScreenTime'
 
 const PULSE_MAX = 1.2
 
@@ -81,7 +80,6 @@ function reactionFor(res: AiChatResponse, mode: string | null | undefined): Reac
 }
 
 export default function SpeakingScreen() {
-  useScreenTime('speaking')
   const theme = useTheme()
   const c = theme.colors
   const { isPro } = usePlanStore()

@@ -6,14 +6,12 @@ import { Sparkles, PlayCircle, ChevronDown, ArrowUpRight } from 'lucide-react-na
 import { motion, radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, SectionHeader, FadeIn } from '@/components/ui'
 import { useTourStore } from '@/stores/useTourStore'
-import { useScreenTime } from '@/hooks/useScreenTime'
 import { captureEvent } from '@/lib/analytics'
 import { GUIDE_ITEMS, FAQ, toneStyles, type GuideItem } from '@/components/guide/tourContent'
 
 export default function GuideScreen() {
   const theme = useTheme()
   const show = useTourStore((s) => s.show)
-  useScreenTime('guide')
 
   return (
     <Screen scroll edges={['top']} contentStyle={{ paddingBottom: space[10] }}>

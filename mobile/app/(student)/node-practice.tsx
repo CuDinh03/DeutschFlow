@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect, useRef } from 'react'
 import { View, Pressable, TextInput, Alert } from 'react-native'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { router, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import { Check, X, Eye, Trophy } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
+import { trackFeatureAction } from '@/lib/analytics'
 import { fonts, radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, Pill, Button, AppHeader, EmptyState, ErrorState, Skeleton } from '@/components/ui'
 import {
@@ -25,6 +26,14 @@ export default function NodePracticeScreen() {
   const qc = useQueryClient()
   const params = useLocalSearchParams<{ nodeId: string; title?: string }>()
   const nodeId = Number(params.nodeId)
+
+  const startedRef = useRef(false)
+  useEffect(() => {
+    if (!startedRef.current) {
+      startedRef.current = true
+      trackFeatureAction('lesson', 'started', { node_id: nodeId })
+    }
+  }, [nodeId])
 
   const [answers, setAnswers] = useState<Record<string, Answer>>({})
   const [submitted, setSubmitted] = useState(false)
@@ -72,12 +81,14 @@ export default function NodePracticeScreen() {
     setBusy(true)
     try {
       const res = await skillTreeApi.submitNode(nodeId, percent)
+      const completed = res.completed ?? percent >= 100
       setSubmitted(true)
-      setResult({ correct, total: scoredCount, completed: res.completed ?? percent >= 100, xp: res.xpEarned ?? 0 })
+      setResult({ correct, total: scoredCount, completed, xp: res.xpEarned ?? 0 })
+      trackFeatureAction('lesson', 'completed', { node_id: nodeId, completed, percent })
       qc.invalidateQueries({ queryKey: ['skill-tree'] })
       qc.invalidateQueries({ queryKey: ['node-session', nodeId] })
       await Haptics.notificationAsync(
-        (res.completed ?? percent >= 100)
+        completed
           ? Haptics.NotificationFeedbackType.Success
           : Haptics.NotificationFeedbackType.Warning,
       )

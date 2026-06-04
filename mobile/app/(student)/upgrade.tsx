@@ -5,7 +5,6 @@ import { Star, Zap, Mic, Trophy, BookOpen, Check, type LucideIcon } from 'lucide
 import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, AppHeader } from '@/components/ui'
 import { trackFeatureAction } from '@/lib/analytics'
-import { useScreenTime } from '@/hooks/useScreenTime'
 
 const PRO_FEATURES: { icon: LucideIcon; label: string }[] = [
   { icon: Mic, label: 'AI Speaking không giới hạn' },
@@ -17,7 +16,6 @@ const PRO_FEATURES: { icon: LucideIcon; label: string }[] = [
 
 export default function UpgradeScreen() {
   const theme = useTheme()
-  useScreenTime('upgrade')
   useEffect(() => {
     trackFeatureAction('monetization', 'paywall_viewed')
   }, [])
