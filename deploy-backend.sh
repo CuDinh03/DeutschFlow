@@ -292,11 +292,17 @@ fi
 # ── [4/6] Redis ───────────────────────────────────────────────
 echo ""
 info "[4/6] Kiểm tra Redis..."
+
+# User-defined network → DNS theo TÊN container, bền khi reboot/restart (IP container có thể đổi,
+# nhưng tên 'deutschflow-redis' luôn resolve đúng). Tạo idempotent.
+sudo docker network create deutschflow-net >/dev/null 2>&1 && info "  Tạo network deutschflow-net" || true
+
 if ! sudo docker ps --format '{{.Names}}' | grep -q "^deutschflow-redis$"; then
   info "  Khởi động Redis container..."
   sudo docker rm -f deutschflow-redis 2>/dev/null || true
   sudo docker run -d \
     --name deutschflow-redis \
+    --network deutschflow-net \
     --restart unless-stopped \
     --memory="256m" \
     -p 127.0.0.1:6379:6379 \
@@ -307,12 +313,10 @@ else
   success "  Redis đang chạy"
 fi
 
-REDIS_IP=$(sudo docker inspect -f '{{with .NetworkSettings.Networks.bridge}}{{.IPAddress}}{{end}}' deutschflow-redis 2>/dev/null || echo "")
-if [ -z "$REDIS_IP" ]; then
-  warn "  Không lấy được Redis IP, dùng fallback 172.17.0.2"
-  REDIS_IP="172.17.0.2"
-fi
-success "  Redis IP: $REDIS_IP"
+# Gắn Redis vào deutschflow-net (no-op nếu đã ở đó; xử lý cả Redis container cũ vốn ở default bridge).
+sudo docker network connect deutschflow-net deutschflow-redis 2>/dev/null \
+  && info "  Đã gắn Redis vào deutschflow-net" || true
+success "  Redis host: deutschflow-redis (DNS qua deutschflow-net — bền khi reboot)"
 
 # ── [5/6] Build Docker image ──────────────────────────────────
 echo ""
@@ -344,7 +348,7 @@ info "[6/6] Blue-Green Deploy..."
 DOCKER_ARGS=(
   --env-file "$ENV_FILE"
   -e EDGE_TTS_URL=http://172.17.0.1:5050
-  -e "REDIS_HOST=$REDIS_IP"
+  -e "REDIS_HOST=deutschflow-redis"
   -e REDIS_PORT=6379
   --memory="1500m"
 )
@@ -362,6 +366,10 @@ sudo docker run -d \
   "${DOCKER_ARGS[@]}" \
   -p 8081:8080 \
   deutschflow-backend:new
+
+# Gắn GREEN vào deutschflow-net để resolve DNS 'deutschflow-redis'. Default bridge vẫn là primary
+# (gateway 172.17.0.1) → EDGE_TTS không đổi. Lettuce nối Redis lazy nên kịp trước health-check.
+sudo docker network connect deutschflow-net deutschflow-backend-green 2>/dev/null || true
 
 # Health check GREEN (tối đa 5 phút — nới rộng phòng startup chậm khi BLUE+GREEN cùng chạy)
 info "  Chờ GREEN healthy (tối đa 300s)..."
@@ -452,6 +460,9 @@ if ! sudo docker run -d \
   sudo docker ps -a --filter name=deutschflow-backend --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true
   exit 1
 fi
+
+# Gắn container production vào deutschflow-net (Redis DNS). Default bridge vẫn primary → EDGE_TTS giữ nguyên.
+sudo docker network connect deutschflow-net deutschflow-backend 2>/dev/null || true
 
 # Tag + cleanup
 sudo docker tag deutschflow-backend:new deutschflow-backend:latest 2>/dev/null || true
