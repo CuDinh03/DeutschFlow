@@ -12,7 +12,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#0B0B0C"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.deutschflow.app",
@@ -44,7 +46,9 @@
       "expo-secure-store",
       [
         "expo-av",
-        { "microphonePermission": "DeutschFlow cần microphone để luyện phát âm tiếng Đức." }
+        {
+          "microphonePermission": "DeutschFlow cần microphone để luyện phát âm tiếng Đức."
+        }
       ],
       [
         "expo-notifications",
@@ -53,13 +57,16 @@
           "color": "#1A1A2E",
           "sounds": []
         }
-      ]
+      ],
+      "expo-localization"
     ],
     "extra": {
       "eas": {
         "projectId": "YOUR_EAS_PROJECT_ID"
       },
-      "sentryDsn": ""
+      "sentryDsn": "",
+      "posthogKey": "",
+      "posthogHost": "https://us.i.posthog.com"
     },
     "experiments": {
       "typedRoutes": true

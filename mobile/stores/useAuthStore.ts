@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import api from '@/lib/api'
 import { setTokens, clearTokens, getRoleFromToken } from '@/lib/auth'
+import { identifyUser, resetAnalytics } from '@/lib/analytics'
 
 export type UserRole = 'STUDENT' | 'TEACHER' | 'ADMIN'
 
@@ -44,18 +45,21 @@ export const useAuthStore = create<AuthState>((set) => ({
     await setTokens(accessToken, refreshToken)
     const meRes = await api.get<AuthUser>('/auth/me')
     set({ user: meRes.data, isLoggedIn: true })
+    identifyUser(meRes.data.id, { role: meRes.data.role })
   },
 
   logout: async () => {
     try { await api.post('/auth/logout') } catch {}
     await clearTokens()
     set({ user: null, isLoggedIn: false })
+    resetAnalytics()
   },
 
   fetchMe: async () => {
     try {
       const res = await api.get<AuthUser>('/auth/me')
       set({ user: res.data, isLoggedIn: true, isLoading: false })
+      identifyUser(res.data.id, { role: res.data.role })
     } catch {
       set({ user: null, isLoggedIn: false, isLoading: false })
     }

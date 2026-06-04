@@ -8,6 +8,8 @@ const STORAGE_KEY = 'df_guide_tour_done'
 interface TourState {
   visible: boolean
   hydrated: boolean
+  /** How the tour was opened — used to label the analytics start event. */
+  source: 'auto' | 'replay' | null
   /** Read persisted state once; auto-open for first-time users. */
   hydrate: () => Promise<void>
   /** Open the tour on demand (e.g. "replay" from the guide screen). */
@@ -21,19 +23,21 @@ interface TourState {
 export const useTourStore = create<TourState>((set, get) => ({
   visible: false,
   hydrated: false,
+  source: null,
 
   hydrate: async () => {
     if (get().hydrated) return
     try {
       const done = await SecureStore.getItemAsync(STORAGE_KEY)
-      set({ hydrated: true, visible: done !== '1' })
+      const shouldShow = done !== '1'
+      set({ hydrated: true, visible: shouldShow, source: shouldShow ? 'auto' : null })
     } catch {
       // Storage unavailable — mark hydrated so we don't auto-show on every mount.
       set({ hydrated: true })
     }
   },
 
-  show: () => set({ visible: true }),
+  show: () => set({ visible: true, source: 'replay' }),
   hide: () => set({ visible: false }),
 
   complete: async () => {

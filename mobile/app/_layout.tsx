@@ -34,6 +34,8 @@ import { initCertPinning } from '@/lib/certPinning'
 import { initDeviceIntegrity } from '@/lib/deviceIntegrity'
 import { ThemeProvider, useTheme } from '@/lib/theme'
 import { SplashAnimated } from '@/components/SplashAnimated'
+import { PostHogProvider } from 'posthog-react-native'
+import { posthog, setSubscriptionTier } from '@/lib/analytics'
 import '../global.css'
 
 void SplashScreen.preventAutoHideAsync()
@@ -78,6 +80,7 @@ function RootLayout() {
   const isLoading = useAuthStore((s) => s.isLoading)
   const fetchMe = useAuthStore((s) => s.fetchMe)
   const fetchPlan = usePlanStore((s) => s.fetchPlan)
+  const planTier = usePlanStore((s) => s.plan?.tier)
   const rootNavState = useRootNavigationState()
   const [splashDone, setSplashDone] = useState(false)
 
@@ -115,6 +118,11 @@ function RootLayout() {
     void bootstrap()
   }, [fetchMe, fetchPlan])
 
+  // Keep the subscription tier as a PostHog super-property for plan-based funnels.
+  useEffect(() => {
+    setSubscriptionTier(planTier)
+  }, [planTier])
+
   useEffect(() => {
     // Don't navigate until the root navigator has mounted, otherwise expo-router throws
     // "Attempted to navigate before mounting the Root Layout component."
@@ -138,7 +146,19 @@ function RootLayout() {
       <SafeAreaProvider>
         <ThemeProvider>
           <QueryClientProvider client={queryClient}>
-            <RootStack />
+            {posthog ? (
+              <PostHogProvider
+                client={posthog}
+                autocapture={{
+                  captureScreens: false,
+                  captureTouches: false,
+                }}
+              >
+                <RootStack />
+              </PostHogProvider>
+            ) : (
+              <RootStack />
+            )}
           </QueryClientProvider>
         </ThemeProvider>
       </SafeAreaProvider>

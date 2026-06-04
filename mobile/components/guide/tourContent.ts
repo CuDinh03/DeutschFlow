@@ -26,6 +26,8 @@ export type StudentRoute =
   | '/(student)/stats'
 
 export interface GuideItem {
+  /** Stable analytics id (mirrors web guide feature keys). */
+  key: string
   icon: LucideIcon
   tone: GuideTone
   title: string
@@ -48,6 +50,7 @@ export function toneStyles(theme: Theme, tone: GuideTone): { fg: string; soft: s
 /** Full feature catalogue shown on the always-available guide screen. */
 export const GUIDE_ITEMS: readonly GuideItem[] = [
   {
+    key: 'dashboard',
     icon: LayoutDashboard,
     tone: 'success',
     title: 'Trang chủ',
@@ -56,6 +59,7 @@ export const GUIDE_ITEMS: readonly GuideItem[] = [
     route: '/(student)',
   },
   {
+    key: 'roadmap',
     icon: Map,
     tone: 'accent',
     title: 'Lộ trình học',
@@ -64,6 +68,7 @@ export const GUIDE_ITEMS: readonly GuideItem[] = [
     route: '/(student)/roadmap',
   },
   {
+    key: 'speaking',
     icon: Mic,
     tone: 'info',
     title: 'Nói với AI',
@@ -72,6 +77,7 @@ export const GUIDE_ITEMS: readonly GuideItem[] = [
     route: '/(student)/speaking',
   },
   {
+    key: 'review',
     icon: Brain,
     tone: 'brand',
     title: 'Ôn tập (SRS)',
@@ -80,6 +86,7 @@ export const GUIDE_ITEMS: readonly GuideItem[] = [
     route: '/(student)/srs',
   },
   {
+    key: 'vocabulary',
     icon: Search,
     tone: 'info',
     title: 'Tra cứu từ vựng',
@@ -88,6 +95,7 @@ export const GUIDE_ITEMS: readonly GuideItem[] = [
     route: '/(student)/vocabulary',
   },
   {
+    key: 'learn',
     icon: GitBranch,
     tone: 'success',
     title: 'Cây kỹ năng',
@@ -96,6 +104,7 @@ export const GUIDE_ITEMS: readonly GuideItem[] = [
     route: '/(student)/learn',
   },
   {
+    key: 'exam',
     icon: Trophy,
     tone: 'brand',
     title: 'Thi thử',
@@ -104,6 +113,7 @@ export const GUIDE_ITEMS: readonly GuideItem[] = [
     route: '/(student)/exam',
   },
   {
+    key: 'streak',
     icon: Flame,
     tone: 'accent',
     title: 'Chuỗi ngày & XP',

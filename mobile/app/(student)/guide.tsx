@@ -6,11 +6,14 @@ import { Sparkles, PlayCircle, ChevronDown, ArrowUpRight } from 'lucide-react-na
 import { motion, radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, SectionHeader, FadeIn } from '@/components/ui'
 import { useTourStore } from '@/stores/useTourStore'
+import { useScreenTime } from '@/hooks/useScreenTime'
+import { captureEvent } from '@/lib/analytics'
 import { GUIDE_ITEMS, FAQ, toneStyles, type GuideItem } from '@/components/guide/tourContent'
 
 export default function GuideScreen() {
   const theme = useTheme()
   const show = useTourStore((s) => s.show)
+  useScreenTime('guide')
 
   return (
     <Screen scroll edges={['top']} contentStyle={{ paddingBottom: space[10] }}>
@@ -26,7 +29,14 @@ export default function GuideScreen() {
 
         {/* Replay tour */}
         <FadeIn delay={60}>
-          <Card onPress={() => show()} elevation="lifted" style={{ borderColor: theme.colors.accent + '66' }}>
+          <Card
+            onPress={() => {
+              captureEvent('guide_tour_replay_clicked', { from: 'guide_screen' })
+              show()
+            }}
+            elevation="lifted"
+            style={{ borderColor: theme.colors.accent + '66' }}
+          >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
               <View
                 style={{
@@ -83,7 +93,12 @@ function FeatureCard({ item }: { item: GuideItem }) {
   const Glyph = item.icon
 
   return (
-    <Card onPress={() => router.push(item.route)}>
+    <Card
+      onPress={() => {
+        captureEvent('guide_feature_opened', { feature: item.key })
+        router.push(item.route)
+      }}
+    >
       <View style={{ gap: space[3] }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
           <View

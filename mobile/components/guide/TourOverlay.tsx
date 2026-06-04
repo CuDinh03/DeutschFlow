@@ -3,7 +3,7 @@
 // replayed on demand from the guide screen. A bottom-sheet card carousel using
 // the app's theme + Moti, consistent with the rest of the mobile UI.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Modal, Pressable, View } from 'react-native'
 import { MotiView } from 'moti'
 import * as Haptics from 'expo-haptics'
@@ -12,6 +12,7 @@ import { Sparkles, ArrowRight, ArrowLeft, X } from 'lucide-react-native'
 import { motion, radius, space, useTheme } from '@/lib/theme'
 import { ThemedText, Button, Icon } from '@/components/ui'
 import { useTourStore } from '@/stores/useTourStore'
+import { captureEvent } from '@/lib/analytics'
 import { TOUR_ITEMS, toneStyles } from './tourContent'
 
 export function TourOverlay() {
@@ -20,12 +21,24 @@ export function TourOverlay() {
   const visible = useTourStore((s) => s.visible)
   const hydrate = useTourStore((s) => s.hydrate)
   const complete = useTourStore((s) => s.complete)
+  const source = useTourStore((s) => s.source)
   const [index, setIndex] = useState(0)
+  const startedRef = useRef(false)
 
   // Read persisted state once on first mount; auto-shows for new users.
   useEffect(() => {
     void hydrate()
   }, [hydrate])
+
+  // Fire the tour-started event once each time the overlay opens.
+  useEffect(() => {
+    if (visible && !startedRef.current) {
+      startedRef.current = true
+      captureEvent('guide_tour_started', { trigger: source ?? 'auto' })
+    } else if (!visible) {
+      startedRef.current = false
+    }
+  }, [visible, source])
 
   const total = TOUR_ITEMS.length + 1 // welcome + feature steps
   const isWelcome = index === 0
@@ -35,14 +48,15 @@ export function TourOverlay() {
   const { fg, soft } = toneStyles(theme, tone)
   const StepIcon = item?.icon ?? Sparkles
 
-  const finish = () => {
+  const finish = (reason: 'completed' | 'skipped') => {
+    captureEvent('guide_tour_finished', { reason, last_step: index })
     setIndex(0)
     void complete()
   }
 
   const goNext = () => {
     if (isLast) {
-      finish()
+      finish('completed')
       return
     }
     void Haptics.selectionAsync()
@@ -57,11 +71,11 @@ export function TourOverlay() {
       transparent
       animationType="fade"
       statusBarTranslucent
-      onRequestClose={finish}
+      onRequestClose={() => finish('skipped')}
     >
       {/* Backdrop — tap to dismiss */}
       <Pressable
-        onPress={finish}
+        onPress={() => finish('skipped')}
         style={{ flex: 1, backgroundColor: theme.colors.overlay, justifyContent: 'flex-end' }}
       >
         {/* Card — swallow taps so they don't dismiss */}
@@ -82,7 +96,7 @@ export function TourOverlay() {
             {/* Top band: accent gradient line + close */}
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space[4] }}>
               <View style={{ height: 5, width: 44, borderRadius: radius.full, backgroundColor: theme.colors.borderStrong }} />
-              <Pressable onPress={finish} hitSlop={10}>
+              <Pressable onPress={() => finish('skipped')} hitSlop={10}>
                 <Icon icon={X} size={20} color="muted" />
               </Pressable>
             </View>
@@ -156,7 +170,7 @@ export function TourOverlay() {
                   </ThemedText>
                 </Pressable>
               ) : (
-                <Pressable onPress={finish} hitSlop={8}>
+                <Pressable onPress={() => finish('skipped')} hitSlop={8}>
                   <ThemedText variant="bodyStrong" color="faint">
                     Bỏ qua
                   </ThemedText>
