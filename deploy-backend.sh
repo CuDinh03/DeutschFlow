@@ -307,7 +307,7 @@ else
   success "  Redis đang chạy"
 fi
 
-REDIS_IP=$(sudo docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' deutschflow-redis 2>/dev/null || echo "")
+REDIS_IP=$(sudo docker inspect -f '{{with .NetworkSettings.Networks.bridge}}{{.IPAddress}}{{end}}' deutschflow-redis 2>/dev/null || echo "")
 if [ -z "$REDIS_IP" ]; then
   warn "  Không lấy được Redis IP, dùng fallback 172.17.0.2"
   REDIS_IP="172.17.0.2"
