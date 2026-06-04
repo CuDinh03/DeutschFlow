@@ -1,4 +1,81 @@
 {
+  "guide": {
+    "navItem": "Guide",
+    "navBadge": "New",
+    "tour": {
+      "aria": "Quick tour for new users",
+      "skip": "Skip",
+      "next": "Next",
+      "back": "Back",
+      "start": "Start learning",
+      "openFeature": "Take a look",
+      "stepLabel": "Step {current}/{total}",
+      "welcomeKicker": "Welcome",
+      "welcomeTitle": "Welcome to DeutschFlow! 🇩🇪",
+      "welcomeBody": "A quick look at the 4 core features that help you learn German every day. Takes just 30 seconds."
+    },
+    "features": {
+      "dashboard": {
+        "title": "Home",
+        "desc": "Your daily hub: the \"Next Best Action\" suggestion, your streak, progress, and mistakes to review.",
+        "how": "The app opens straight to Home. Tap the large suggestion card at the top to learn the right next step."
+      },
+      "roadmap": {
+        "title": "Learning path",
+        "desc": "A personalized skill map from your current level to your goal. Each stage unlocks as you finish the one before.",
+        "how": "Open the Learning path and pick the highlighted node to start your next lesson."
+      },
+      "speaking": {
+        "title": "Speak with AI",
+        "desc": "Practice German conversation with an AI tutor at your level. It corrects you and scores each session.",
+        "how": "Tap \"Speak with AI\", choose a topic, and speak naturally. Allow microphone access when prompted."
+      },
+      "review": {
+        "title": "Review (SRS)",
+        "desc": "Spaced repetition reminds you to review vocabulary and grammar right before you forget, so it sticks.",
+        "how": "Open \"Review\" each day and clear the due cards — a few minutes is enough."
+      },
+      "vocabulary": {
+        "title": "Vocabulary lookup",
+        "desc": "Look up the meaning, article (der/die/das), examples, and pronunciation of any German word, then save it to review.",
+        "how": "Open \"Vocabulary lookup\", type a word, and save it to review later."
+      },
+      "errors": {
+        "title": "My mistakes",
+        "desc": "A collection of the grammar mistakes you make most, with fixes and targeted drills to overcome them.",
+        "how": "Open \"My mistakes\" to review and drill exactly your weak spots."
+      },
+      "mockExam": {
+        "title": "Mock exam",
+        "desc": "A full simulation in Goethe/telc format covering Listening, Reading, Writing, and Speaking with detailed scoring.",
+        "how": "When your exam is near, take a full \"Mock exam\" and check your score per section."
+      },
+      "streak": {
+        "title": "Streak & XP",
+        "desc": "Learn every day to keep your streak, earn XP, level up, and unlock badges — the motivation to build a habit.",
+        "how": "Complete at least one activity each day so you don't lose your streak."
+      }
+    },
+    "page": {
+      "title": "User guide",
+      "subtitle": "Everything you need to start learning effectively",
+      "loading": "Loading...",
+      "replayTitle": "Replay the quick tour",
+      "replayBody": "Run the intro tour of the 4 core features again whenever you like.",
+      "replayTour": "Replay tour",
+      "sectionsTitle": "Core features",
+      "howLabel": "How to use",
+      "open": "Open",
+      "faqTitle": "Frequently asked questions",
+      "faq": [
+        { "q": "How long should I study each day?", "a": "Just 15–20 consistent minutes a day is enough to progress. The most important thing is keeping your streak." },
+        { "q": "Where should I start?", "a": "Follow the \"Learning path\" and do the highlighted stage each day. Home also always suggests your next best action." },
+        { "q": "Does Speak with AI need a microphone?", "a": "Yes. The first time, the app will ask for microphone access. You can also type if you're not ready to speak." },
+        { "q": "How does Review (SRS) work?", "a": "The system reminds you to review words and grammar right before you'd forget them, so you remember longer in less time." },
+        { "q": "How do I unlock all features?", "a": "Some advanced features are part of PRO. Open the Upgrade to PRO item in the sidebar for details." }
+      ]
+    }
+  },
   "auth": {
     "login": "Login",
     "register": "Register",
@@ -257,11 +334,11 @@
     "navBadges": "Badges",
     "navReviewQueue": "Today's Review",
     "navReviewSrs": "SRS Review",
-    "navGrammarSyllabus": "📚 Grammar Syllabus",
+    "navGrammarSyllabus": "Grammar Syllabus",
     "navGroupExam": "MOCK EXAMS",
-    "navMockExam": "🎯 Mock Goethe Exam",
-    "navProgress": "📊 My Progress",
-    "navCertificates": "🏅 CEFR Certificates"
+    "navMockExam": "Mock Goethe Exam",
+    "navProgress": "My Progress",
+    "navCertificates": "CEFR Certificates"
   },
   "adminNav": {
     "overview": "Overview",

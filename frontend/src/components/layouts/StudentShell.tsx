@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
@@ -11,6 +11,7 @@ import { isStudentImmersivePath } from "@/lib/studentImmersiveRoutes";
 import type { LucideIcon } from "lucide-react";
 import { DeutschFlowLogo } from "@/components/ui/DeutschFlowLogo";
 import { AchievementToastProvider } from "@/components/gamification/AchievementToastProvider";
+import { GuidedTour } from "@/components/guide/GuidedTour";
 import {
   LayoutDashboard,
   Settings,
@@ -31,6 +32,7 @@ import {
   BarChart2,
   Users,
   Mic,
+  HelpCircle,
 } from "lucide-react";
 import { XpLevelPill } from "@/components/gamification/XpLevelPill";
 import { useTracking } from "@/hooks/useTracking";
@@ -54,6 +56,16 @@ type NavGroup = {
   label: string;
   items: NavItem[];
 };
+
+// Unified sidebar tag badge — brand yellow on the dark sidebar (text reads
+// against brand-black, so we use the bright yellow, not the dark-brown ink).
+function NavTagBadge({ children }: { children: ReactNode }) {
+  return (
+    <span className="text-[9px] font-bold bg-[var(--brand-yellow)]/20 text-[var(--brand-yellow)] px-1.5 py-0.5 rounded-full border border-[var(--brand-yellow)]/30">
+      {children}
+    </span>
+  );
+}
 
 type RoadmapMeta = {
   roadmapVersion?: string | null;
@@ -107,6 +119,7 @@ export function StudentShell({
 }: Props) {
   const t = useTranslations("student");
   const tNav = useTranslations("nav");
+  const tGuide = useTranslations("guide");
   const router = useRouter();
   const pathname = usePathname();
   const showMobileBottomPad = !isStudentImmersivePath(pathname) && !hideBottomNav;
@@ -115,8 +128,39 @@ export function StudentShell({
   const { plan } = usePlan();
   const reviewDueCount = useReviewDueCount();
 
+  const mainRef = useRef<HTMLElement>(null);
+  const [navMinimized, setNavMinimized] = useState(false);
+
   // Authenticated app surfaces are light → dark status bar icons.
   useStatusBarStyle("light");
+
+  // iOS 26 minimize-on-scroll: collapse the floating bottom nav while scrolling
+  // content down, expand on scroll up or near the top.
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el || !showMobileBottomPad) return;
+    let last = el.scrollTop;
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        const cur = el.scrollTop;
+        if (cur < 24) setNavMinimized(false);
+        else if (cur - last > 6) setNavMinimized(true);
+        else if (last - cur > 6) setNavMinimized(false);
+        last = cur;
+        ticking = false;
+      });
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [showMobileBottomPad]);
+
+  // Always show the full bar after navigating to a new screen.
+  useEffect(() => {
+    setNavMinimized(false);
+  }, [pathname]);
 
   useEffect(() => {
     if (!plan || !posthog.__loaded) return;
@@ -135,11 +179,11 @@ export function StudentShell({
         items: [
           { id: "dashboard" as const, label: t("navDashboard"), icon: LayoutDashboard, href: "/dashboard" },
           { id: "speaking" as const, label: "Nói với AI", icon: Mic, href: "/speaking",
-            badge: <span className="text-[9px] font-bold bg-[#FFCD00]/20 text-[#78350F] px-1.5 py-0.5 rounded-full border border-[#FFCD00]/30">AI</span> },
+            badge: <NavTagBadge>AI</NavTagBadge> },
           { id: "vocabulary" as const, label: "Tra cứu từ vựng", icon: Search, href: "/vocabulary",
-            badge: <span className="text-[9px] font-bold bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded-full border border-blue-500/30">Mới</span> },
+            badge: <NavTagBadge>Mới</NavTagBadge> },
           { id: "roadmap" as const, label: t("navLearningPath"), icon: Map, href: "/roadmap",
-            badge: <span className="text-[9px] font-bold bg-[#FFCD00]/20 text-[#FFCD00] px-1.5 py-0.5 rounded-full border border-[#FFCD00]/30">{t("newBadge")}</span> },
+            badge: <NavTagBadge>{t("newBadge")}</NavTagBadge> },
         ],
       },
       {
@@ -166,7 +210,7 @@ export function StudentShell({
         label: t("navGroupExam"),
         items: [
           { id: "mock-exam" as const, label: t("navMockExam"), icon: Trophy, href: "/student/mock-exam",
-            badge: <span className="text-[9px] font-bold bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-full border border-red-500/30">New</span> },
+            badge: <span className="text-[9px] font-bold bg-[#FFCD00]/15 text-[#FFCD00] px-1.5 py-0.5 rounded-full border border-[#FFCD00]/30">New</span> },
           { id: "progress" as const, label: t("navProgress"), icon: BarChart2, href: "/student/progress" },
           { id: "certificates" as const, label: t("navCertificates"), icon: Trophy, href: "/student/certificates" },
         ],
@@ -178,12 +222,14 @@ export function StudentShell({
           { id: "tutor" as const, label: t("navTutorProfile"), icon: Users, href: "/student/tutor" },
           { id: "leaderboard" as const, label: t("navLeaderboard"), icon: Trophy, href: "/student/leaderboard" },
           { id: "badges" as const, label: t("navBadges"), icon: Trophy, href: "/student/badges",
-            badge: <span className="text-[9px] font-bold bg-[#FFCD00]/20 text-[#78350F] px-1.5 py-0.5 rounded-full border border-[#FFCD00]/40">XP</span> },
+            badge: <span className="text-[9px] font-bold bg-[#FFCD00]/15 text-[#FFCD00] px-1.5 py-0.5 rounded-full border border-[#FFCD00]/30">XP</span> },
+          { id: "guide" as const, label: tGuide("navItem"), icon: HelpCircle, href: "/student/guide",
+            badge: <NavTagBadge>{tGuide("navBadge")}</NavTagBadge> },
           { id: "settings" as const, label: t("navSettings"), icon: Settings, href: "/student/settings" },
         ],
       },
     ],
-    [t],
+    [t, tGuide],
   );
 
   const go = async (id: string, href: string) => {
@@ -329,7 +375,7 @@ export function StudentShell({
             <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
               {headerRight}
               {roadmapMeta ? (
-                <div className="hidden md:flex items-center gap-2 rounded-[var(--radius-md)] bg-[#EEF4FF] border border-[#C7D2FE] px-3 py-2">
+                <div className="hidden md:flex items-center gap-2 rounded-[var(--radius-md)] bg-[#F5F7FA] border border-[#E2E8F0] px-3 py-2">
                   <div className="flex flex-col leading-tight">
                     <span className="text-[10px] uppercase tracking-wide text-[#64748B]">{roadmapMeta.roadmapVersion ?? "Roadmap"}</span>
                     <span className="text-sm font-bold text-[#121212]">
@@ -338,7 +384,7 @@ export function StudentShell({
                   </div>
                   <div className="flex flex-col items-end leading-tight">
                     <span className="text-[10px] text-[#64748B]">{roadmapMeta.currentNodeCode ?? roadmapMeta.currentLevel}</span>
-                    <span className="text-[10px] font-semibold text-[#4F46E5]">
+                    <span className="text-[10px] font-semibold text-[var(--brand-black)]">
                       {Math.round(Number(roadmapMeta.progressPercent ?? 0))}%
                     </span>
                   </div>
@@ -359,13 +405,14 @@ export function StudentShell({
         )}
 
         <main
+          ref={mainRef}
           className={cn(
             "native-page-enter",
             hideAppHeader
               ? "flex h-full min-h-0 flex-1 flex-col overflow-hidden p-0"
               : [
                   "flex-1 overflow-y-auto px-4 sm:px-6 py-6",
-                  showMobileBottomPad && "pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-6",
+                  showMobileBottomPad && "pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] lg:pb-6",
                   !showMobileBottomPad && "pb-6",
                 ],
           )}
@@ -374,8 +421,9 @@ export function StudentShell({
         </main>
       </div>
 
-      {!hideBottomNav && <StudentBottomNav onOpenMenu={() => setSidebarOpen(true)} />}
+      {!hideBottomNav && <StudentBottomNav onOpenMenu={() => setSidebarOpen(true)} minimized={navMinimized} />}
       <AchievementToastProvider />
+      <GuidedTour />
     </div>
   );
 }

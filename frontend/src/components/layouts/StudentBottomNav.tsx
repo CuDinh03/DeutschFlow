@@ -15,10 +15,13 @@ type Item = { href: string; id: string; icon: typeof LayoutDashboard };
 export function StudentBottomNav({
   onOpenMenu,
   className,
+  minimized = false,
 }: {
   /** Opens full sidebar on mobile (same nav as desktop). */
   onOpenMenu: () => void;
   className?: string;
+  /** Collapse to an icons-only slim bar (e.g. while scrolling content down). */
+  minimized?: boolean;
 }) {
   const t = useTranslations("student");
   const router = useRouter();
@@ -33,8 +36,12 @@ export function StudentBottomNav({
     { href: "/roadmap", id: "road", icon: Map },
   ];
 
+  // Static export (Capacitor) uses trailingSlash, so usePathname() returns
+  // e.g. "/dashboard/". Normalize before matching, otherwise exact-match tabs
+  // (Dashboard) never light up.
+  const path = pathname.replace(/\/+$/, "") || "/";
   const isActive = (href: string) =>
-    href === "/dashboard" ? pathname === "/dashboard" : pathname === href || pathname.startsWith(`${href}/`);
+    href === "/dashboard" ? path === "/dashboard" : path === href || path.startsWith(`${href}/`);
 
   return (
     <nav
@@ -46,6 +53,7 @@ export function StudentBottomNav({
         className,
       )}
       aria-label={t("bottomNavAria")}
+      style={{ height: minimized ? 50 : 64, transition: "height .32s cubic-bezier(.4,0,.2,1)" }}
     >
       {items.map(({ href, id, icon: Icon }) => {
         const active = isActive(href);
@@ -65,26 +73,30 @@ export function StudentBottomNav({
               active ? "text-[var(--brand-black)]" : "text-[#94A3B8]",
             )}
           >
-            <motion.div
-              className="relative flex h-8 w-10 items-center justify-center rounded-[var(--radius-md)]"
-              animate={{
-                background: active ? "var(--brand-black)" : "rgba(0,0,0,0)",
-                scale: active ? 1.05 : 1,
-              }}
-              transition={spring.nav}
-            >
+            <span className="relative flex h-8 w-12 items-center justify-center">
+              {active && (
+                <motion.span
+                  layoutId="bottomNavActive"
+                  className="absolute inset-0 rounded-full bg-[var(--brand-yellow)]"
+                  transition={spring.nav}
+                />
+              )}
               <Icon
                 size={18}
                 strokeWidth={active ? 2.5 : 2}
                 className="relative z-10"
-                style={{
-                  color: active ? "#FFCD00" : "#94A3B8",
-                  filter: active ? "drop-shadow(0 0 5px rgba(255,205,0,0.55))" : "none",
-                  transition: "filter 0.2s ease",
-                }}
+                style={{ color: active ? "var(--brand-black)" : "#94A3B8" }}
               />
-            </motion.div>
-            <span className="text-[10px] font-bold leading-none">
+            </span>
+            <span
+              className="text-[10px] font-bold leading-none"
+              style={{
+                maxHeight: minimized ? 0 : 16,
+                opacity: minimized ? 0 : 1,
+                overflow: "hidden",
+                transition: "max-height .28s ease, opacity .18s ease",
+              }}
+            >
               {id === "dash" && t("bottomNavHome")}
               {id === "speak" && "Nói với AI"}
               {id === "road" && t("bottomNavPath")}
@@ -104,7 +116,17 @@ export function StudentBottomNav({
         <div className="flex h-8 w-10 items-center justify-center rounded-[12px]">
           <Menu size={18} strokeWidth={2} />
         </div>
-        <span className="text-[10px] font-bold leading-none">{t("bottomNavMore")}</span>
+        <span
+          className="text-[10px] font-bold leading-none"
+          style={{
+            maxHeight: minimized ? 0 : 16,
+            opacity: minimized ? 0 : 1,
+            overflow: "hidden",
+            transition: "max-height .28s ease, opacity .18s ease",
+          }}
+        >
+          {t("bottomNavMore")}
+        </span>
       </button>
     </nav>
   );
