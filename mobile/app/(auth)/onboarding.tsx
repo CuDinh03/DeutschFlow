@@ -67,6 +67,19 @@ export default function OnboardingScreen() {
       })
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
       captureEvent('onboarding_completed', { goalType, targetLevel })
+      // Funnel parity with web (best-effort, non-blocking): record which onboarding
+      // archetype the backend matrix routed this learner through. The X-Platform header
+      // (ios/android) is sent automatically; currentLevel is unset → ZERO band.
+      api
+        .get<{ onboardingType: string; postAction: string; paywallAllowed: boolean }>('/onboarding/route')
+        .then(({ data }) =>
+          captureEvent('onboarding_type_assigned', {
+            onboardingType: data?.onboardingType,
+            postAction: data?.postAction,
+            paywallAllowed: data?.paywallAllowed,
+          }),
+        )
+        .catch(() => { /* analytics is best-effort */ })
       // Auto-start the first practice session.
       router.replace('/(student)/speaking')
     } catch (e) {
