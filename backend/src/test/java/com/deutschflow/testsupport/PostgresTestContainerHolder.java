@@ -11,7 +11,11 @@ import org.testcontainers.utility.DockerImageName;
  */
 public final class PostgresTestContainerHolder {
 
-    private static final DockerImageName PG_IMAGE = DockerImageName.parse("postgres:16-alpine");
+    // pgvector image (not stock postgres) so migration V132 `CREATE EXTENSION vector` succeeds.
+    // With stock postgres the extension is unavailable, Flyway aborts, and every DB-backed
+    // integration test errors at context startup (which is what broke CI's Integration Tests).
+    private static final DockerImageName PG_IMAGE =
+            DockerImageName.parse("pgvector/pgvector:pg16").asCompatibleSubstituteFor("postgres");
 
     private static volatile PostgreSQLContainer<?> instance;
 
