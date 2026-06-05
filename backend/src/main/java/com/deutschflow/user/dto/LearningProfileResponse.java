@@ -15,5 +15,8 @@ public record LearningProfileResponse(
         Integer sessionsPerWeek,
         Integer minutesPerSession,
         String examType,
-        String ageRange
+        String ageRange,
+        String assignedPersonaCode,
+        String levelSource,
+        String onboardingType
 ) {}

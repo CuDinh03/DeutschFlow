@@ -84,6 +84,16 @@ public class UserLearningProfile {
     @Builder.Default
     private String levelSource = "SELF";
 
+    /**
+     * Which onboarding archetype (O1–O5) the learner was routed through, as an
+     * {@link com.deutschflow.user.onboarding.OnboardingType} name. Derived from
+     * platform × current_level at onboarding by
+     * {@link com.deutschflow.user.onboarding.OnboardingTypeResolver}. Nullable for
+     * older profiles and clients that don't send a platform.
+     */
+    @Column(name = "onboarding_type", length = 32)
+    private String onboardingType;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

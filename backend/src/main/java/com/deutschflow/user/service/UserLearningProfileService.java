@@ -10,6 +10,9 @@ import com.deutschflow.user.entity.User;
 import com.deutschflow.user.entity.UserLearningProfile;
 import com.deutschflow.user.mentor.FixedMentor;
 import com.deutschflow.user.mentor.FixedMentorResolver;
+import com.deutschflow.user.onboarding.OnboardingRoute;
+import com.deutschflow.user.onboarding.OnboardingTypeResolver;
+import com.deutschflow.user.onboarding.Platform;
 import com.deutschflow.user.repository.UserLearningProfileRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -29,8 +32,9 @@ public class UserLearningProfileService {
     private final ObjectMapper objectMapper;
     private final QuotaService quotaService;
     private final FixedMentorResolver fixedMentorResolver;
+    private final OnboardingTypeResolver onboardingTypeResolver;
 
-    public UserLearningProfile upsertProfile(User user, OnboardingProfileRequest req) {
+    public UserLearningProfile upsertProfile(User user, OnboardingProfileRequest req, String platform) {
         if (req.sessionsPerWeek() == null || req.minutesPerSession() == null) {
             throw new BadRequestException("sessionsPerWeek and minutesPerSession are required");
         }
@@ -71,6 +75,10 @@ public class UserLearningProfileService {
         FixedMentor mentor = fixedMentorResolver.resolve(goalType, profile.getIndustry(), currentLevel, planCode);
         profile.setAssignedPersonaCode(mentor.code());
         profile.setLevelSource("SELF");
+
+        // Record which onboarding archetype this learner was routed through (platform × level matrix).
+        OnboardingRoute route = onboardingTypeResolver.resolve(Platform.fromText(platform), currentLevel);
+        profile.setOnboardingType(route.type().name());
 
         return profileRepository.save(profile);
     }
@@ -152,7 +160,10 @@ public class UserLearningProfileService {
                 p.getSessionsPerWeek(),
                 p.getMinutesPerSession(),
                 p.getExamType(),
-                p.getAgeRange() != null ? p.getAgeRange().name() : null
+                p.getAgeRange() != null ? p.getAgeRange().name() : null,
+                p.getAssignedPersonaCode(),
+                p.getLevelSource(),
+                p.getOnboardingType()
         );
     }
 }

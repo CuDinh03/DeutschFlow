@@ -40,8 +40,8 @@ public class LearningPlanService {
     private final ObjectMapper objectMapper;
 
     @Transactional
-    public LearningPlanResponse saveProfileAndGeneratePlan(User user, OnboardingProfileRequest req) {
-        UserLearningProfile profile = userLearningProfileService.upsertProfile(user, req);
+    public LearningPlanResponse saveProfileAndGeneratePlan(User user, OnboardingProfileRequest req, String platform) {
+        UserLearningProfile profile = userLearningProfileService.upsertProfile(user, req, platform);
         Map<String, Object> plan = learningPlanBlueprintBuilder.build(profile);
         int weeklyMinutes = profile.getSessionsPerWeek() * profile.getMinutesPerSession();
         int weeksTotal = (int) plan.getOrDefault("weeksTotal", 8);
