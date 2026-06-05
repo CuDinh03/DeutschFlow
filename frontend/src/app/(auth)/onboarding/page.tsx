@@ -8,6 +8,8 @@ import api from "@/lib/api";
 import { toast } from "sonner";
 import { useTracking } from "@/hooks/useTracking";
 import { getOnboardingRoute, getOnboardingMentor, type OnboardingRouteData, type OnboardingMentorData } from "@/lib/profileApi";
+import { MENTOR_META } from "@/lib/mentorMeta";
+import { useFeatureFlagEnabled } from "posthog-js/react";
 
 const LEVELS = [
   { value: "A0", emoji: "🌱", label: "Chưa biết gì", desc: "Bắt đầu từ bảng chữ cái" },
@@ -26,29 +28,15 @@ const WEEKLY = [
   { value: 7, emoji: "🚀", label: "7 bài/tuần", desc: "Mỗi ngày một bài" },
 ];
 const INDUSTRIES = ["IT","Medizin","Gastronomie","Bildung","Handel","Sport","Andere"];
-const MENTOR_META: Record<string, { emoji: string; tagline: string }> = {
-  ANNA: { emoji: "🧑‍🏫", tagline: "Cố vấn nghề & luyện thi" },
-  LUKAS: { emoji: "💻", tagline: "Tech Lead — CNTT" },
-  EMMA: { emoji: "💼", tagline: "Business & văn phòng" },
-  KLAUS: { emoji: "👨‍🍳", tagline: "Bếp trưởng — Nhà hàng" },
-  WEBER: { emoji: "🩺", tagline: "Bác sĩ da liễu" },
-  SARAH: { emoji: "🏥", tagline: "Trợ lý y khoa" },
-  SCHNEIDER: { emoji: "👁️", tagline: "Bác sĩ mắt" },
-  LENA: { emoji: "🛍️", tagline: "Bán lẻ" },
-  THOMAS: { emoji: "🥐", tagline: "Thợ làm bánh" },
-  PETRA: { emoji: "🥩", tagline: "Cửa hàng thịt" },
-  MAX: { emoji: "⚙️", tagline: "Vận hành máy" },
-  OLIVER: { emoji: "🔧", tagline: "Thợ CNC" },
-  NIKLAS: { emoji: "🍽️", tagline: "Phục vụ nhà hàng" },
-  NINA: { emoji: "🏨", tagline: "Lễ tân khách sạn" },
-  HANNIE: { emoji: "🎤", tagline: "MC / Truyền thông" },
-};
 
 interface PQ { id: number; skillSection: string; type: string; questionDe: string; questionVi: string; audioTranscript?: string; options?: string[]; }
 
 export default function OnboardingPage() {
   const router = useRouter();
   const { trackOnboardingStep, trackEvent } = useTracking();
+  // A/B: the mentor PRO-upsell nudge is gated behind a PostHog feature flag. Default-on
+  // (undefined = flag not configured → shown), so no regression until an experiment is run.
+  const mentorUpsellEnabled = useFeatureFlagEnabled("onboarding-mentor-upsell") !== false;
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [currentLevel, setCurrentLevel] = useState("A0");
@@ -87,10 +75,16 @@ export default function OnboardingPage() {
       });
       return true;
     } catch (e: unknown) {
-      const status = (e as { response?: { status?: number } })?.response?.status;
-      if (status === 409) return true; // profile already exists → safe to proceed
-      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      toast.error(msg || "Không lưu được hồ sơ học tập. Vui lòng thử lại.");
+      const err = e as { response?: { status?: number; data?: { detail?: string } } };
+      if (err?.response?.status === 409) return true; // profile already exists → safe to proceed
+      // api.ts already retried transient 5xx/429/network errors. Reaching here is a real
+      // failure → surface it clearly and let the caller BLOCK the redirect (no silent skip).
+      const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+      const msg = err?.response?.data?.detail
+        ?? (offline || !err?.response
+          ? "Mất kết nối — hồ sơ chưa được lưu. Kiểm tra mạng rồi thử lại."
+          : "Không lưu được hồ sơ học tập. Vui lòng thử lại.");
+      toast.error(msg);
       return false;
     }
   }, [goalType, targetLevel, currentLevel, industry, weeklyTarget]);
@@ -227,7 +221,7 @@ export default function OnboardingPage() {
                       <p className="text-xs text-[#92400E]">{MENTOR_META[mentor.code]?.tagline ?? "Người đồng hành học tập"}</p>
                     </div>
                   </div>
-                  {mentor.upsellCode && (
+                  {mentor.upsellCode && mentorUpsellEnabled && (
                     <button type="button"
                       onClick={() => { trackEvent('onboarding_mentor_upsell_clicked', { mentor: mentor.code, upsell: mentor.upsellCode }); router.push("/student/pricing"); }}
                       className="w-full text-left text-xs text-[#92400E] bg-[#FFFBEB] border border-dashed border-[#FCD34D] rounded-lg px-3 py-2">

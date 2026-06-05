@@ -150,7 +150,13 @@ export default function OnboardingScreen() {
         setShowUpsell(true)
         return
       }
-      router.replace('/(student)/speaking')
+      // Honor the matrix's post-action. Paywall actions have no mobile pricing screen
+      // (reader-app), so they fall through to the first practice session.
+      const dest =
+        route?.postAction === 'ROADMAP_ALPHABET' || route?.postAction === 'ROADMAP_NODE'
+          ? '/(student)/roadmap'
+          : '/(student)/speaking'
+      router.replace(dest)
     } catch (e) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
       Alert.alert('Không lưu được', apiMessage(e))
