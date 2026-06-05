@@ -6,13 +6,18 @@ import com.deutschflow.grammar.entity.GrammarCaseExample;
 import com.deutschflow.grammar.repository.GrammarCaseExampleRepository;
 import com.deutschflow.grammar.repository.GrammarCaseRepository;
 import com.deutschflow.media.service.S3StorageService;
+import com.deutschflow.speaking.ai.AiChatCompletionResult;
+import com.deutschflow.speaking.ai.ChatMessage;
 import com.deutschflow.speaking.ai.EdgeTtsService;
+import com.deutschflow.speaking.ai.OpenAiChatClient;
 import com.deutschflow.srs.dto.VocabReviewCard;
 import com.deutschflow.srs.service.SrsService;
 import com.deutschflow.video.dto.VideoSceneDto;
 import com.deutschflow.video.dto.VideoTimelineDto;
 import com.deutschflow.vocabulary.entity.Word;
 import com.deutschflow.vocabulary.repository.WordRepository;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -21,8 +26,10 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -49,6 +56,8 @@ public class VideoLessonService {
     private final SrsService srsService;
     private final GrammarCaseRepository grammarCaseRepository;
     private final GrammarCaseExampleRepository grammarCaseExampleRepository;
+    private final OpenAiChatClient llmClient;
+    private final ObjectMapper objectMapper;
 
     /** Build a vocab timeline for a CEFR level: most-frequent words that have an image. */
     public VideoTimelineDto buildVocabTimeline(String level, int limit) {
@@ -131,6 +140,79 @@ public class VideoLessonService {
         return new VideoSceneDto(seq, null, label, vi, de, null, narrationUrl, de, vi, durationMs, "fade");
     }
 
+    /**
+     * Build a listening-practice video: an LLM generates a short German dialogue on the
+     * topic, and each line becomes a text-card scene narrated by an alternating persona
+     * voice. Returns an empty timeline if the LLM/JSON is unavailable.
+     */
+    public VideoTimelineDto buildListeningTimeline(String topic, String level) {
+        List<Map<String, Object>> lines = generateDialogue(topic, level);
+        Map<String, String> personaBySpeaker = new HashMap<>();
+        String[] voices = {"LUKAS", "EMMA", "KLAUS"};
+        AtomicInteger seq = new AtomicInteger(1);
+        List<VideoSceneDto> scenes = new ArrayList<>();
+        for (Map<String, Object> line : lines) {
+            if (scenes.size() >= MAX_SCENES) {
+                break;
+            }
+            String de = str(line.get("de"));
+            if (de.isBlank()) {
+                continue;
+            }
+            String vi = str(line.get("vi"));
+            String speaker = str(line.get("speaker"));
+            String persona = personaBySpeaker.computeIfAbsent(
+                    speaker.isBlank() ? "A" : speaker,
+                    k -> voices[personaBySpeaker.size() % voices.length]);
+            String narrationUrl = narrationFor(de, persona);
+            long durationMs = Math.max(MIN_SCENE_MS, de.length() * MS_PER_CHAR);
+            scenes.add(new VideoSceneDto(seq.getAndIncrement(), null, de, vi, de, null, narrationUrl, "", vi, durationMs, "fade"));
+        }
+        return new VideoTimelineDto("LISTENING", topic, "DIALOG", scenes.size(), scenes);
+    }
+
+    private List<Map<String, Object>> generateDialogue(String topic, String level) {
+        String system = """
+                You are a German teacher creating a short listening-practice dialogue.
+                Write a natural German conversation between two people on the given topic at the given CEFR level.
+                6-8 short lines. Return ONLY a JSON array, no markdown, no prose:
+                [{"speaker":"A","de":"<German line>","vi":"<Vietnamese translation>"}, ...]
+                Keep each line short and level-appropriate.
+                """;
+        String user = "Topic: " + (topic == null || topic.isBlank() ? "Alltag" : topic) + "\nCEFR level: " + level;
+        try {
+            AiChatCompletionResult res = llmClient.chatCompletion(
+                    List.of(new ChatMessage("system", system), new ChatMessage("user", user)),
+                    null, 0.7, 900);
+            return parseDialogueJson(res.content());
+        } catch (Exception e) {
+            log.warn("[VideoLesson] dialogue generation failed for topic \"{}\": {}", topic, e.getMessage());
+            return List.of();
+        }
+    }
+
+    /** Extract the JSON array from an LLM reply (tolerant of surrounding prose/markdown). */
+    List<Map<String, Object>> parseDialogueJson(String raw) {
+        if (raw == null) {
+            return List.of();
+        }
+        int start = raw.indexOf('[');
+        int end = raw.lastIndexOf(']');
+        if (start < 0 || end <= start) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(raw.substring(start, end + 1), new TypeReference<List<Map<String, Object>>>() {});
+        } catch (Exception e) {
+            log.warn("[VideoLesson] dialogue JSON parse failed: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    private static String str(Object o) {
+        return o == null ? "" : o.toString().trim();
+    }
+
     private VideoSceneDto toScene(Word w, int seq) {
         String example = (w.getExampleSentence() != null && !w.getExampleSentence().isBlank())
                 ? w.getExampleSentence().trim()
@@ -158,15 +240,19 @@ public class VideoLessonService {
      * or {@code null} when TTS is unavailable so the player can still show the scene.
      */
     private String narrationFor(String text) {
+        return narrationFor(text, NARRATION_PERSONA);
+    }
+
+    private String narrationFor(String text, String persona) {
         if (!edgeTtsService.isConfigured()) {
             return null;
         }
-        String key = "video-narration/" + sha256(text + "|" + NARRATION_PERSONA) + ".mp3";
+        String key = "video-narration/" + sha256(text + "|" + persona) + ".mp3";
         try {
             if (s3StorageService.objectExists(key)) {
                 return s3StorageService.publicUrl(key);
             }
-            byte[] mp3 = edgeTtsService.synthesize(text, NARRATION_PERSONA);
+            byte[] mp3 = edgeTtsService.synthesize(text, persona);
             if (mp3 == null || mp3.length == 0) {
                 return null;
             }

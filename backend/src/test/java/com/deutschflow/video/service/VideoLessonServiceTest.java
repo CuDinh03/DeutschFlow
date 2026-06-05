@@ -41,13 +41,32 @@ class VideoLessonServiceTest {
     private com.deutschflow.grammar.repository.GrammarCaseRepository grammarCaseRepository;
     @Mock
     private com.deutschflow.grammar.repository.GrammarCaseExampleRepository grammarCaseExampleRepository;
+    @Mock
+    private com.deutschflow.speaking.ai.OpenAiChatClient llmClient;
 
     private VideoLessonService service;
 
     @BeforeEach
     void setUp() {
         service = new VideoLessonService(wordRepository, edgeTtsService, s3StorageService, srsService,
-                grammarCaseRepository, grammarCaseExampleRepository);
+                grammarCaseRepository, grammarCaseExampleRepository, llmClient,
+                new com.fasterxml.jackson.databind.ObjectMapper());
+    }
+
+    @Test
+    @DisplayName("parseDialogueJson extracts the array from a noisy LLM reply")
+    void parseDialogueJson_tolerant() {
+        String raw = "Sure:\n```json\n[{\"speaker\":\"A\",\"de\":\"Hallo\",\"vi\":\"Xin chào\"},"
+                + "{\"speaker\":\"B\",\"de\":\"Tschüss\",\"vi\":\"Tạm biệt\"}]\n```";
+        var lines = service.parseDialogueJson(raw);
+        assertThat(lines).hasSize(2);
+        assertThat(lines.get(0)).containsEntry("de", "Hallo").containsEntry("vi", "Xin chào");
+    }
+
+    @Test
+    @DisplayName("parseDialogueJson returns empty when there is no array")
+    void parseDialogueJson_noArray() {
+        assertThat(service.parseDialogueJson("sorry, no JSON here")).isEmpty();
     }
 
     @Test
