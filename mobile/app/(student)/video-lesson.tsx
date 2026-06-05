@@ -11,6 +11,14 @@ import { VideoLessonPlayer } from '@/components/video/VideoLessonPlayer'
 
 const LEVELS = ['A1', 'A2', 'B1', 'B2'] as const
 
+const LISTEN_TOPICS = [
+  { de: 'Im Café', vi: 'Ở quán cà phê' },
+  { de: 'Einkaufen', vi: 'Mua sắm' },
+  { de: 'Wegbeschreibung', vi: 'Hỏi đường' },
+  { de: 'Beim Arzt', vi: 'Ở bác sĩ' },
+  { de: 'Im Restaurant', vi: 'Ở nhà hàng' },
+] as const
+
 export default function VideoLessonScreen() {
   const c = useTheme().colors
   const params = useLocalSearchParams<{ level?: string; type?: string; caseName?: string; title?: string }>()
@@ -19,6 +27,7 @@ export default function VideoLessonScreen() {
   const [level, setLevel] = useState<string>(initialLevel)
   const [due, setDue] = useState(params.type === 'due')
   const [listening, setListening] = useState(params.type === 'listening')
+  const [topic, setTopic] = useState<string>(LISTEN_TOPICS[0].de)
   const mode: 'grammar' | 'listening' | 'due' | 'level' = isGrammar
     ? 'grammar'
     : listening
@@ -28,10 +37,10 @@ export default function VideoLessonScreen() {
         : 'level'
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['video-lesson', mode, isGrammar ? params.caseName : level],
+    queryKey: ['video-lesson', mode, isGrammar ? params.caseName : level, listening ? topic : ''],
     queryFn: () => {
       if (isGrammar) return videoLessonApi.getGrammarTimelineByName(params.caseName ?? '')
-      if (listening) return videoLessonApi.getListeningTimeline('Alltag', level)
+      if (listening) return videoLessonApi.getListeningTimeline(topic, level)
       if (due) return videoLessonApi.getDueTimeline()
       return videoLessonApi.getVocabTimeline(level)
     },
@@ -177,6 +186,40 @@ export default function VideoLessonScreen() {
               </ThemedText>
             </Pressable>
           )}
+        </View>
+      )}
+
+      {!isGrammar && listening && (
+        <View
+          style={{
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: space[2],
+            paddingHorizontal: space[5],
+            marginBottom: space[4],
+          }}
+        >
+          {LISTEN_TOPICS.map((t) => {
+            const active = topic === t.de
+            return (
+              <Pressable
+                key={t.de}
+                onPress={() => setTopic(t.de)}
+                style={{
+                  paddingHorizontal: space[3],
+                  paddingVertical: 5,
+                  borderRadius: radius.full,
+                  backgroundColor: active ? c.accentSoft : 'transparent',
+                  borderWidth: 1,
+                  borderColor: active ? c.accent : c.border,
+                }}
+              >
+                <ThemedText variant="caption" color={active ? 'accent' : 'muted'}>
+                  {t.vi}
+                </ThemedText>
+              </Pressable>
+            )
+          })}
         </View>
       )}
 
