@@ -1,10 +1,11 @@
-import { useState } from 'react'
-import { View, Pressable, ActivityIndicator } from 'react-native'
+import { useEffect, useRef, useState } from 'react'
+import { View, Pressable, ActivityIndicator, Alert, Share } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router, useLocalSearchParams } from 'expo-router'
-import { Film } from 'lucide-react-native'
+import { Film, Download } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
-import { Screen, AppHeader, ThemedText, EmptyState, ErrorState } from '@/components/ui'
+import { Screen, AppHeader, ThemedText, Icon, EmptyState, ErrorState } from '@/components/ui'
+import { apiMessage } from '@/lib/api'
 import { videoLessonApi } from '@/lib/videoLessonApi'
 import { VideoLessonPlayer } from '@/components/video/VideoLessonPlayer'
 
@@ -22,32 +23,101 @@ export default function VideoLessonScreen() {
     staleTime: 5 * 60_000,
   })
 
+  // Phase B — export the timeline to a shareable .mp4 (render runs on the server).
+  const [exporting, setExporting] = useState(false)
+  const cancelledRef = useRef(false)
+  useEffect(() => () => { cancelledRef.current = true }, [])
+
+  const pollRender = async (jobId: string) => {
+    for (let i = 0; i < 60; i++) {
+      if (cancelledRef.current) return
+      await new Promise((resolve) => setTimeout(resolve, 3000))
+      if (cancelledRef.current) return
+      try {
+        const st = await videoLessonApi.getRenderStatus(jobId)
+        if (st.status === 'COMPLETED' && st.videoUrl) {
+          setExporting(false)
+          await Share.share({ message: st.videoUrl, url: st.videoUrl })
+          return
+        }
+        if (st.status === 'FAILED') {
+          setExporting(false)
+          Alert.alert('Xuất video thất bại', st.error ?? 'Vui lòng thử lại.')
+          return
+        }
+      } catch {
+        // transient network error — keep polling
+      }
+    }
+    setExporting(false)
+    Alert.alert('Hết thời gian', 'Render lâu hơn dự kiến, thử lại sau.')
+  }
+
+  const startExport = async () => {
+    setExporting(true)
+    try {
+      const jobId = await videoLessonApi.startVocabRender(level)
+      void pollRender(jobId)
+    } catch (e) {
+      setExporting(false)
+      Alert.alert('Không xuất được', apiMessage(e))
+    }
+  }
+
   return (
     <Screen edges={['top']}>
       <AppHeader title="Video ôn tập" onBack={() => router.back()} />
 
-      <View style={{ flexDirection: 'row', gap: space[2], paddingHorizontal: space[5], marginBottom: space[4] }}>
-        {LEVELS.map((lv) => {
-          const active = lv === level
-          return (
-            <Pressable
-              key={lv}
-              onPress={() => setLevel(lv)}
-              style={{
-                paddingHorizontal: space[4],
-                paddingVertical: 6,
-                borderRadius: radius.full,
-                backgroundColor: active ? c.accent : c.surfaceSunken,
-                borderWidth: active ? 0 : 1,
-                borderColor: c.border,
-              }}
-            >
-              <ThemedText variant="label" color={active ? 'onAccent' : 'muted'}>
-                {lv}
-              </ThemedText>
-            </Pressable>
-          )
-        })}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: space[5],
+          marginBottom: space[4],
+        }}
+      >
+        <View style={{ flexDirection: 'row', gap: space[2] }}>
+          {LEVELS.map((lv) => {
+            const active = lv === level
+            return (
+              <Pressable
+                key={lv}
+                onPress={() => setLevel(lv)}
+                style={{
+                  paddingHorizontal: space[4],
+                  paddingVertical: 6,
+                  borderRadius: radius.full,
+                  backgroundColor: active ? c.accent : c.surfaceSunken,
+                  borderWidth: active ? 0 : 1,
+                  borderColor: c.border,
+                }}
+              >
+                <ThemedText variant="label" color={active ? 'onAccent' : 'muted'}>
+                  {lv}
+                </ThemedText>
+              </Pressable>
+            )
+          })}
+        </View>
+
+        {!!data && data.scenes.length > 0 && (
+          <Pressable
+            onPress={() => void startExport()}
+            disabled={exporting}
+            hitSlop={8}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 4, opacity: exporting ? 0.6 : 1 }}
+          >
+            {exporting ? (
+              <ActivityIndicator size="small" color={c.accent} />
+            ) : (
+              <Icon icon={Download} size={18} color="accent" />
+            )}
+            <ThemedText variant="label" color="accent">
+              {exporting ? 'Đang xuất…' : '.mp4'}
+            </ThemedText>
+          </Pressable>
+        )}
       </View>
 
       {isLoading ? (
