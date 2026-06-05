@@ -133,11 +133,31 @@ export function VideoLessonPlayer({ timeline }: { timeline: VideoTimeline }) {
           backgroundColor: c.surfaceSunken,
         }}
       >
-        <Animated.Image
-          source={{ uri: scene.imageUrl }}
-          resizeMode="cover"
-          style={[{ width: '100%', height: '100%' }, imageStyle]}
-        />
+        {scene.imageUrl ? (
+          <Animated.Image
+            source={{ uri: scene.imageUrl }}
+            resizeMode="cover"
+            style={[{ width: '100%', height: '100%' }, imageStyle]}
+          />
+        ) : (
+          <Animated.View
+            style={[
+              {
+                width: '100%',
+                height: '100%',
+                backgroundColor: c.accentSoft,
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: space[5],
+              },
+              imageStyle,
+            ]}
+          >
+            <ThemedText variant="displayLg" color="primary" align="center">
+              {scene.germanWord}
+            </ThemedText>
+          </Animated.View>
+        )}
       </View>
 
       {/* Scene progress dots */}
