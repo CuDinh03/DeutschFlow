@@ -13,13 +13,20 @@ const LEVELS = ['A1', 'A2', 'B1', 'B2'] as const
 
 export default function VideoLessonScreen() {
   const c = useTheme().colors
-  const params = useLocalSearchParams<{ level?: string }>()
+  const params = useLocalSearchParams<{ level?: string; type?: string; caseName?: string; title?: string }>()
+  const isGrammar = !!params.caseName
   const initialLevel = LEVELS.find((l) => l === params.level) ?? 'A1'
   const [level, setLevel] = useState<string>(initialLevel)
+  const [due, setDue] = useState(params.type === 'due')
+  const mode: 'grammar' | 'due' | 'level' = isGrammar ? 'grammar' : due ? 'due' : 'level'
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['video-lesson', 'vocab', level],
-    queryFn: () => videoLessonApi.getVocabTimeline(level),
+    queryKey: ['video-lesson', mode, isGrammar ? params.caseName : due ? 'due' : level],
+    queryFn: () => {
+      if (isGrammar) return videoLessonApi.getGrammarTimelineByName(params.caseName ?? '')
+      if (due) return videoLessonApi.getDueTimeline()
+      return videoLessonApi.getVocabTimeline(level)
+    },
     staleTime: 5 * 60_000,
   })
 
@@ -66,59 +73,82 @@ export default function VideoLessonScreen() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title="Video ôn tập" onBack={() => router.back()} />
+      <AppHeader
+        title={isGrammar ? (params.title ?? 'Video ngữ pháp') : 'Video ôn tập'}
+        onBack={() => router.back()}
+      />
 
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          paddingHorizontal: space[5],
-          marginBottom: space[4],
-        }}
-      >
-        <View style={{ flexDirection: 'row', gap: space[2] }}>
-          {LEVELS.map((lv) => {
-            const active = lv === level
-            return (
-              <Pressable
-                key={lv}
-                onPress={() => setLevel(lv)}
-                style={{
-                  paddingHorizontal: space[4],
-                  paddingVertical: 6,
-                  borderRadius: radius.full,
-                  backgroundColor: active ? c.accent : c.surfaceSunken,
-                  borderWidth: active ? 0 : 1,
-                  borderColor: c.border,
-                }}
-              >
-                <ThemedText variant="label" color={active ? 'onAccent' : 'muted'}>
-                  {lv}
-                </ThemedText>
-              </Pressable>
-            )
-          })}
+      {!isGrammar && (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingHorizontal: space[5],
+            marginBottom: space[4],
+          }}
+        >
+          <View style={{ flexDirection: 'row', gap: space[2] }}>
+            {LEVELS.map((lv) => {
+              const active = !due && lv === level
+              return (
+                <Pressable
+                  key={lv}
+                  onPress={() => {
+                    setLevel(lv)
+                    setDue(false)
+                  }}
+                  style={{
+                    paddingHorizontal: space[4],
+                    paddingVertical: 6,
+                    borderRadius: radius.full,
+                    backgroundColor: active ? c.accent : c.surfaceSunken,
+                    borderWidth: active ? 0 : 1,
+                    borderColor: c.border,
+                  }}
+                >
+                  <ThemedText variant="label" color={active ? 'onAccent' : 'muted'}>
+                    {lv}
+                  </ThemedText>
+                </Pressable>
+              )
+            })}
+            <Pressable
+              onPress={() => setDue(true)}
+              style={{
+                paddingHorizontal: space[4],
+                paddingVertical: 6,
+                borderRadius: radius.full,
+                backgroundColor: due ? c.accent : c.surfaceSunken,
+                borderWidth: due ? 0 : 1,
+                borderColor: c.border,
+              }}
+            >
+              <ThemedText variant="label" color={due ? 'onAccent' : 'muted'}>
+                Tới hạn
+              </ThemedText>
+            </Pressable>
+          </View>
+
+          {mode === 'level' && !!data && data.scenes.length > 0 && (
+            <Pressable
+              onPress={() => void startExport()}
+              disabled={exporting}
+              hitSlop={8}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, opacity: exporting ? 0.6 : 1 }}
+            >
+              {exporting ? (
+                <ActivityIndicator size="small" color={c.accent} />
+              ) : (
+                <Icon icon={Download} size={18} color="accent" />
+              )}
+              <ThemedText variant="label" color="accent">
+                {exporting ? 'Đang xuất…' : '.mp4'}
+              </ThemedText>
+            </Pressable>
+          )}
         </View>
-
-        {!!data && data.scenes.length > 0 && (
-          <Pressable
-            onPress={() => void startExport()}
-            disabled={exporting}
-            hitSlop={8}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 4, opacity: exporting ? 0.6 : 1 }}
-          >
-            {exporting ? (
-              <ActivityIndicator size="small" color={c.accent} />
-            ) : (
-              <Icon icon={Download} size={18} color="accent" />
-            )}
-            <ThemedText variant="label" color="accent">
-              {exporting ? 'Đang xuất…' : '.mp4'}
-            </ThemedText>
-          </Pressable>
-        )}
-      </View>
+      )}
 
       {isLoading ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -130,7 +160,13 @@ export default function VideoLessonScreen() {
         <EmptyState
           icon={Film}
           title="Chưa có video"
-          message={`Cấp ${level} chưa có từ kèm hình ảnh. Thêm ảnh cho từ vựng rồi thử lại.`}
+          message={
+            isGrammar
+              ? 'Chủ đề ngữ pháp này chưa có nội dung video.'
+              : due
+                ? 'Không có từ tới hạn kèm hình ảnh. Học thêm hoặc thêm ảnh cho từ.'
+                : `Cấp ${level} chưa có từ kèm hình ảnh. Thêm ảnh cho từ vựng rồi thử lại.`
+          }
         />
       ) : (
         <VideoLessonPlayer timeline={data} />

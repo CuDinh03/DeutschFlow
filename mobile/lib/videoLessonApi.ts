@@ -7,7 +7,8 @@ export interface VideoScene {
   germanWord: string
   translation: string
   exampleDe: string
-  imageUrl: string
+  /** Scene image, or null for text-only cards (e.g. grammar). */
+  imageUrl: string | null
   /** S3 URL of German narration, or null when TTS is unavailable (player paces by durationMs). */
   narrationAudioUrl: string | null
   captionDe: string
@@ -37,6 +38,20 @@ export const videoLessonApi = {
   getVocabTimeline: (level: string, limit = 8) =>
     api
       .get<VideoTimeline>(`/video-lessons/vocab?level=${encodeURIComponent(level)}&limit=${limit}`)
+      .then((r) => r.data),
+
+  /** Timeline from the learner's SRS due cards (review video of words due today). */
+  getDueTimeline: (limit = 8) =>
+    api.get<VideoTimeline>(`/video-lessons/vocab/due?limit=${limit}`).then((r) => r.data),
+
+  /** Grammar-explainer timeline by case id (text cards). */
+  getGrammarTimeline: (caseId: number, limit = 8) =>
+    api.get<VideoTimeline>(`/video-lessons/grammar/${caseId}?limit=${limit}`).then((r) => r.data),
+
+  /** Grammar-explainer timeline by case name (e.g. "akkusativ"). */
+  getGrammarTimelineByName: (caseName: string, limit = 8) =>
+    api
+      .get<VideoTimeline>(`/video-lessons/grammar/by-name/${encodeURIComponent(caseName)}?limit=${limit}`)
       .then((r) => r.data),
 
   /** Phase B — start an async .mp4 render; returns the jobId to poll. */

@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
-import { View } from 'react-native'
+import { View, Pressable } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
-import { router } from 'expo-router'
-import { ChevronDown, ChevronUp, Check } from 'lucide-react-native'
+import { router, type Href } from 'expo-router'
+import { ChevronDown, ChevronUp, Check, Film } from 'lucide-react-native'
 import api from '@/lib/api'
 import { trackFeatureAction } from '@/lib/analytics'
 import { radius, space, useTheme } from '@/lib/theme'
@@ -125,6 +125,29 @@ export default function GrammarScreen() {
                       ))}
                     </View>
                   </View>
+                  <Pressable
+                    onPress={() =>
+                      router.push({
+                        pathname: '/(student)/video-lesson',
+                        params: { caseName: kasus.key, title: `Video: ${kasus.label}` },
+                      } as unknown as Href)
+                    }
+                    style={{
+                      marginTop: space[3],
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      paddingVertical: space[3],
+                      borderRadius: radius.md,
+                      backgroundColor: c.accentSoft,
+                    }}
+                  >
+                    <Icon icon={Film} size={16} color="accent" />
+                    <ThemedText variant="label" color="accent">
+                      Xem video ngữ pháp
+                    </ThemedText>
+                  </Pressable>
                 </View>
               ) : null}
             </Card>
