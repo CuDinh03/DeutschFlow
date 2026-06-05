@@ -43,7 +43,7 @@ class VideoRenderServiceTest {
     @DisplayName("segment command with narration uses both inputs and -shortest")
     void segmentCommand_withAudio() {
         List<String> cmd = service.buildSegmentCommand(
-                Path.of("/tmp/img.jpg"), Path.of("/tmp/a.mp3"), Path.of("/tmp/seg.mp4"), 4.0);
+                Path.of("/tmp/img.jpg"), Path.of("/tmp/a.mp3"), Path.of("/tmp/seg.mp4"), 4.0, null);
 
         assertThat(cmd).contains("-loop", "-shortest", "libx264", "yuv420p");
         assertThat(cmd).contains(Path.of("/tmp/a.mp3").toAbsolutePath().toString());
@@ -54,10 +54,32 @@ class VideoRenderServiceTest {
     @DisplayName("segment command without narration uses silent audio + fixed duration")
     void segmentCommand_withoutAudio() {
         List<String> cmd = service.buildSegmentCommand(
-                Path.of("/tmp/img.jpg"), null, Path.of("/tmp/seg.mp4"), 4.0);
+                Path.of("/tmp/img.jpg"), null, Path.of("/tmp/seg.mp4"), 4.0, null);
 
         assertThat(cmd).contains("anullsrc=channel_layout=stereo:sample_rate=44100", "-t", "4.00");
         assertThat(cmd).doesNotContain("-shortest");
+    }
+
+    @Test
+    @DisplayName("a caption file adds a drawtext overlay to the segment")
+    void segmentCommand_withCaption() {
+        List<String> cmd = service.buildSegmentCommand(
+                Path.of("/tmp/img.jpg"), Path.of("/tmp/a.mp3"), Path.of("/tmp/seg.mp4"), 4.0, Path.of("/tmp/cap.txt"));
+
+        int vfIdx = cmd.indexOf("-vf");
+        assertThat(vfIdx).isGreaterThanOrEqualTo(0);
+        assertThat(cmd.get(vfIdx + 1))
+                .contains("drawtext=", "textfile=" + Path.of("/tmp/cap.txt").toAbsolutePath());
+    }
+
+    @Test
+    @DisplayName("a null image renders on a color background (text-card scene)")
+    void segmentCommand_noImage_usesColorSource() {
+        List<String> cmd = service.buildSegmentCommand(
+                null, Path.of("/tmp/a.mp3"), Path.of("/tmp/seg.mp4"), 4.0, null);
+
+        assertThat(cmd).contains("lavfi").doesNotContain("-loop");
+        assertThat(cmd).anyMatch(s -> s.startsWith("color=c="));
     }
 
     @Test

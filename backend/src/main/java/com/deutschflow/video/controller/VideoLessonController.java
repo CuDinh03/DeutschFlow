@@ -2,6 +2,7 @@ package com.deutschflow.video.controller;
 
 import com.deutschflow.common.async.AsyncJob;
 import com.deutschflow.common.async.AsyncJobService;
+import com.deutschflow.user.entity.User;
 import com.deutschflow.video.dto.RenderStatusDto;
 import com.deutschflow.video.dto.VideoTimelineDto;
 import com.deutschflow.video.service.VideoLessonService;
@@ -10,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -45,6 +47,30 @@ public class VideoLessonController {
             @RequestParam(defaultValue = "A1") String level,
             @RequestParam(defaultValue = "8") int limit) {
         return ResponseEntity.ok(videoLessonService.buildVocabTimeline(level, limit));
+    }
+
+    /** Timeline from the learner's SRS due cards — a review video of words due today. */
+    @GetMapping("/vocab/due")
+    public ResponseEntity<VideoTimelineDto> vocabDue(
+            @AuthenticationPrincipal User user,
+            @RequestParam(defaultValue = "8") int limit) {
+        return ResponseEntity.ok(videoLessonService.buildDueTimeline(user.getId(), limit));
+    }
+
+    /** Grammar-explainer video for a grammar case (text cards: rule + worked examples). */
+    @GetMapping("/grammar/{caseId}")
+    public ResponseEntity<VideoTimelineDto> grammar(
+            @PathVariable long caseId,
+            @RequestParam(defaultValue = "8") int limit) {
+        return ResponseEntity.ok(videoLessonService.buildGrammarTimeline(caseId, limit));
+    }
+
+    /** Grammar video keyed by case name (e.g. "akkusativ") — convenient for the mobile grammar screen. */
+    @GetMapping("/grammar/by-name/{caseName}")
+    public ResponseEntity<VideoTimelineDto> grammarByName(
+            @PathVariable String caseName,
+            @RequestParam(defaultValue = "8") int limit) {
+        return ResponseEntity.ok(videoLessonService.buildGrammarTimelineByName(caseName, limit));
     }
 
     /** Phase B — start an async .mp4 render of the vocab timeline; poll {@code GET /render/{jobId}}. */

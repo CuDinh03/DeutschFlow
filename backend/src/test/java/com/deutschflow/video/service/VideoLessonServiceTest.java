@@ -2,6 +2,8 @@ package com.deutschflow.video.service;
 
 import com.deutschflow.media.service.S3StorageService;
 import com.deutschflow.speaking.ai.EdgeTtsService;
+import com.deutschflow.srs.dto.VocabReviewCard;
+import com.deutschflow.srs.service.SrsService;
 import com.deutschflow.video.dto.VideoSceneDto;
 import com.deutschflow.video.dto.VideoTimelineDto;
 import com.deutschflow.vocabulary.entity.Word;
@@ -13,7 +15,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -31,12 +35,36 @@ class VideoLessonServiceTest {
     private EdgeTtsService edgeTtsService;
     @Mock
     private S3StorageService s3StorageService;
+    @Mock
+    private SrsService srsService;
+    @Mock
+    private com.deutschflow.grammar.repository.GrammarCaseRepository grammarCaseRepository;
+    @Mock
+    private com.deutschflow.grammar.repository.GrammarCaseExampleRepository grammarCaseExampleRepository;
 
     private VideoLessonService service;
 
     @BeforeEach
     void setUp() {
-        service = new VideoLessonService(wordRepository, edgeTtsService, s3StorageService);
+        service = new VideoLessonService(wordRepository, edgeTtsService, s3StorageService, srsService,
+                grammarCaseRepository, grammarCaseExampleRepository);
+    }
+
+    @Test
+    @DisplayName("due timeline maps SRS cards to image-bearing words, skipping the rest")
+    void buildDueTimeline_mapsCardsToWords() {
+        when(edgeTtsService.isConfigured()).thenReturn(false);
+        when(srsService.getDueCards(7L)).thenReturn(List.of(
+                new VocabReviewCard(1L, "word_1", "Haus", "house", "Das Haus.", "Das Haus.", 0, OffsetDateTime.now()),
+                new VocabReviewCard(2L, "word_2", "Auto", "car", "Das Auto.", "Das Auto.", 0, OffsetDateTime.now())));
+        when(wordRepository.findByWord("Haus")).thenReturn(Optional.of(word(1, "Haus", "http://i/h", 1)));
+        when(wordRepository.findByWord("Auto")).thenReturn(Optional.empty()); // no Word → skipped
+
+        VideoTimelineDto timeline = service.buildDueTimeline(7L, 8);
+
+        assertThat(timeline.type()).isEqualTo("VOCAB_DUE");
+        assertThat(timeline.totalScenes()).isEqualTo(1);
+        assertThat(timeline.scenes().get(0).germanWord()).isEqualTo("Haus");
     }
 
     private Word word(long id, String w, String imageUrl, Integer rank) {

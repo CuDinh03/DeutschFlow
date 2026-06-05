@@ -24,9 +24,9 @@ RUN test -f /build/target/deutschflow-backend-*.jar
 # ============================================================
 FROM eclipse-temurin:17-jre-jammy AS runtime
 
-# ffmpeg: required by the learning-video .mp4 render (Phase B). Installed as root
-# before dropping to the app user below.
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
+# ffmpeg + DejaVu font: required by the learning-video .mp4 render (Phase B) and its
+# burned-in captions (drawtext). Installed as root before dropping to the app user.
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 # Security: chạy dưới non-root user

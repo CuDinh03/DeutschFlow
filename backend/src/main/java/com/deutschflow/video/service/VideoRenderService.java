@@ -40,6 +40,8 @@ import java.util.concurrent.TimeUnit;
 public class VideoRenderService {
 
     private static final String FFMPEG = System.getenv().getOrDefault("FFMPEG_PATH", "ffmpeg");
+    private static final String FONT_FILE = System.getenv()
+            .getOrDefault("DRAWTEXT_FONT", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf");
     private static final int WIDTH = 1280;
     private static final int HEIGHT = 720;
     private static final long FFMPEG_TIMEOUT_SEC = 180;
@@ -101,16 +103,24 @@ public class VideoRenderService {
     }
 
     private byte[] renderTimeline(VideoTimelineDto timeline, Path dir) throws IOException, InterruptedException {
+        boolean captions = Files.exists(Path.of(FONT_FILE));
         List<Path> segments = new ArrayList<>();
         int i = 0;
         for (VideoSceneDto scene : timeline.scenes()) {
-            Path image = download(scene.imageUrl(), dir.resolve("img-" + i + imageExt(scene.imageUrl())));
+            Path image = (scene.imageUrl() != null && !scene.imageUrl().isBlank())
+                    ? download(scene.imageUrl(), dir.resolve("img-" + i + imageExt(scene.imageUrl())))
+                    : null;
             Path audio = (scene.narrationAudioUrl() != null && !scene.narrationAudioUrl().isBlank())
                     ? download(scene.narrationAudioUrl(), dir.resolve("aud-" + i + ".mp3"))
                     : null;
+            Path captionFile = null;
+            if (captions) {
+                captionFile = dir.resolve("cap-" + i + ".txt");
+                Files.writeString(captionFile, shortCaption(scene));
+            }
             Path segment = dir.resolve("seg-" + i + ".mp4");
             double seconds = Math.max(MIN_SCENE_SEC, scene.durationMs() / 1000.0);
-            runFfmpeg(buildSegmentCommand(image, audio, segment, seconds));
+            runFfmpeg(buildSegmentCommand(image, audio, segment, seconds, captionFile));
             segments.add(segment);
             i++;
         }
@@ -127,15 +137,27 @@ public class VideoRenderService {
         return Files.readAllBytes(out);
     }
 
-    /** One scene: a still image padded to 1280x720, held for the narration length (or durationSec when silent). */
-    List<String> buildSegmentCommand(Path image, Path audio, Path out, double durationSec) {
+    /**
+     * One scene: a still image padded to 1280x720, held for the narration length
+     * (or durationSec when silent), with the caption burned in via drawtext when
+     * {@code captionFile} is provided (reading text from a file avoids filter escaping).
+     */
+    List<String> buildSegmentCommand(Path image, Path audio, Path out, double durationSec, Path captionFile) {
         List<String> cmd = new ArrayList<>();
         cmd.add(FFMPEG);
         cmd.add("-y");
-        cmd.add("-loop");
-        cmd.add("1");
-        cmd.add("-i");
-        cmd.add(image.toAbsolutePath().toString());
+        if (image != null) {
+            cmd.add("-loop");
+            cmd.add("1");
+            cmd.add("-i");
+            cmd.add(image.toAbsolutePath().toString());
+        } else {
+            // text-only scene (e.g. grammar) → branded color background
+            cmd.add("-f");
+            cmd.add("lavfi");
+            cmd.add("-i");
+            cmd.add("color=c=0x14142b:s=" + WIDTH + "x" + HEIGHT);
+        }
         if (audio != null) {
             cmd.add("-i");
             cmd.add(audio.toAbsolutePath().toString());
@@ -148,9 +170,17 @@ public class VideoRenderService {
             cmd.add("-t");
             cmd.add(String.format(Locale.US, "%.2f", durationSec));
         }
+        String vf = "scale=" + WIDTH + ":" + HEIGHT + ":force_original_aspect_ratio=decrease,"
+                + "pad=" + WIDTH + ":" + HEIGHT + ":(ow-iw)/2:(oh-ih)/2:black,setsar=1";
+        if (captionFile != null) {
+            vf += ",drawtext=fontfile=" + FONT_FILE
+                    + ":textfile=" + captionFile.toAbsolutePath()
+                    + ":fontcolor=white:fontsize=40:line_spacing=10"
+                    + ":box=1:boxcolor=black@0.55:boxborderw=24"
+                    + ":x=(w-text_w)/2:y=h-text_h-64";
+        }
         cmd.add("-vf");
-        cmd.add("scale=" + WIDTH + ":" + HEIGHT + ":force_original_aspect_ratio=decrease,"
-                + "pad=" + WIDTH + ":" + HEIGHT + ":(ow-iw)/2:(oh-ih)/2:black,setsar=1");
+        cmd.add(vf);
         cmd.add("-c:v");
         cmd.add("libx264");
         cmd.add("-tune");
@@ -219,6 +249,21 @@ public class VideoRenderService {
             Files.copy(in, dest);
         }
         return dest;
+    }
+
+    /** Short two-line caption (German term + meaning) burned into the frame. */
+    private String shortCaption(VideoSceneDto scene) {
+        String de = clip(scene.germanWord(), 48);
+        String vi = clip(scene.captionVi(), 48);
+        return vi.isBlank() ? de : de + "\n" + vi;
+    }
+
+    private static String clip(String s, int max) {
+        if (s == null) {
+            return "";
+        }
+        String t = s.strip();
+        return t.length() > max ? t.substring(0, max - 1) + "…" : t;
     }
 
     private String imageExt(String url) {
