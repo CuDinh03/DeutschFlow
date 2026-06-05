@@ -7,7 +7,7 @@ import { ArrowRight, ArrowLeft, Loader2, CheckCircle, XCircle } from "lucide-rea
 import api from "@/lib/api";
 import { toast } from "sonner";
 import { useTracking } from "@/hooks/useTracking";
-import { getOnboardingRoute, type OnboardingRouteData } from "@/lib/profileApi";
+import { getOnboardingRoute, getOnboardingMentor, type OnboardingRouteData, type OnboardingMentorData } from "@/lib/profileApi";
 
 const LEVELS = [
   { value: "A0", emoji: "🌱", label: "Chưa biết gì", desc: "Bắt đầu từ bảng chữ cái" },
@@ -26,6 +26,23 @@ const WEEKLY = [
   { value: 7, emoji: "🚀", label: "7 bài/tuần", desc: "Mỗi ngày một bài" },
 ];
 const INDUSTRIES = ["IT","Medizin","Gastronomie","Bildung","Handel","Sport","Andere"];
+const MENTOR_META: Record<string, { emoji: string; tagline: string }> = {
+  ANNA: { emoji: "🧑‍🏫", tagline: "Cố vấn nghề & luyện thi" },
+  LUKAS: { emoji: "💻", tagline: "Tech Lead — CNTT" },
+  EMMA: { emoji: "💼", tagline: "Business & văn phòng" },
+  KLAUS: { emoji: "👨‍🍳", tagline: "Bếp trưởng — Nhà hàng" },
+  WEBER: { emoji: "🩺", tagline: "Bác sĩ da liễu" },
+  SARAH: { emoji: "🏥", tagline: "Trợ lý y khoa" },
+  SCHNEIDER: { emoji: "👁️", tagline: "Bác sĩ mắt" },
+  LENA: { emoji: "🛍️", tagline: "Bán lẻ" },
+  THOMAS: { emoji: "🥐", tagline: "Thợ làm bánh" },
+  PETRA: { emoji: "🥩", tagline: "Cửa hàng thịt" },
+  MAX: { emoji: "⚙️", tagline: "Vận hành máy" },
+  OLIVER: { emoji: "🔧", tagline: "Thợ CNC" },
+  NIKLAS: { emoji: "🍽️", tagline: "Phục vụ nhà hàng" },
+  NINA: { emoji: "🏨", tagline: "Lễ tân khách sạn" },
+  HANNIE: { emoji: "🎤", tagline: "MC / Truyền thông" },
+};
 
 interface PQ { id: number; skillSection: string; type: string; questionDe: string; questionVi: string; audioTranscript?: string; options?: string[]; }
 
@@ -47,6 +64,13 @@ export default function OnboardingPage() {
   const [currentQ, setCurrentQ] = useState(0);
   const [testResult, setTestResult] = useState<{passed:boolean;scorePercent:number;correctCount:number;totalQuestions:number;weakModules?:number[];startingNodeId?:number;retryAfterDays?:number}|null>(null);
   const [route, setRoute] = useState<OnboardingRouteData | null>(null);
+  const [mentor, setMentor] = useState<OnboardingMentorData | null>(null);
+
+  const fetchMentor = useCallback(async () => {
+    try {
+      setMentor(await getOnboardingMentor(goalType, industry, currentLevel));
+    } catch { /* mentor preview is non-blocking */ }
+  }, [goalType, industry, currentLevel]);
 
   /**
    * Persist the onboarding profile. Returns true on success (incl. 409 "already
@@ -106,7 +130,7 @@ export default function OnboardingPage() {
 
   const nextStep = async () => {
     if (step === 1) trackOnboardingStep('Select Level', 1, { currentLevel });
-    if (step === 2) trackOnboardingStep('Select Goal', 2, { goalType, industry, targetLevel });
+    if (step === 2) { trackOnboardingStep('Select Goal', 2, { goalType, industry, targetLevel }); void fetchMentor(); }
     if (step === 3) trackOnboardingStep('Select Target', 3, { weeklyTarget });
 
     if (step === 3) {
@@ -193,6 +217,26 @@ export default function OnboardingPage() {
             <motion.div key="s3" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} className={card}>
               <h2 className="text-lg font-bold text-[#0F172A]">Bạn muốn học bao nhiêu?</h2>
               <p className="text-sm text-[#64748B]">Weekly target ảnh hưởng đến chủ đề mở rộng cá nhân hóa.</p>
+              {mentor && (
+                <div className="space-y-1.5">
+                  <div className="rounded-xl border-2 border-[#FFCD00]/50 bg-[#FFFBEB] p-3 flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-full bg-[#FFCD00] flex items-center justify-center text-xl shrink-0">{MENTOR_META[mentor.code]?.emoji ?? "🧑‍🏫"}</div>
+                    <div className="min-w-0">
+                      <p className="text-[11px] uppercase tracking-wide text-[#92400E]/80 font-semibold">Mentor của bạn</p>
+                      <p className="text-sm font-bold text-[#0F172A]">{mentor.displayName}</p>
+                      <p className="text-xs text-[#92400E]">{MENTOR_META[mentor.code]?.tagline ?? "Người đồng hành học tập"}</p>
+                    </div>
+                  </div>
+                  {mentor.upsellCode && (
+                    <button type="button"
+                      onClick={() => { trackEvent('onboarding_mentor_upsell_clicked', { mentor: mentor.code, upsell: mentor.upsellCode }); router.push("/student/pricing"); }}
+                      className="w-full text-left text-xs text-[#92400E] bg-[#FFFBEB] border border-dashed border-[#FCD34D] rounded-lg px-3 py-2">
+                      🔓 Mở khoá mentor <strong>{mentor.upsellDisplayName}</strong>
+                      {MENTOR_META[mentor.upsellCode]?.tagline ? ` (${MENTOR_META[mentor.upsellCode].tagline})` : ""} với PRO →
+                    </button>
+                  )}
+                </div>
+              )}
               {WEEKLY.map(w => (
                 <button key={w.value} type="button" onClick={() => setWeeklyTarget(w.value)} className={sel(weeklyTarget===w.value)}>
                   <span className="text-3xl">{w.emoji}</span>

@@ -3,6 +3,7 @@ package com.deutschflow.user.controller;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.user.dto.LearningPlanResponse;
 import com.deutschflow.user.dto.LearningProfileResponse;
+import com.deutschflow.user.dto.OnboardingMentorResponse;
 import com.deutschflow.user.dto.OnboardingProfileRequest;
 import com.deutschflow.user.dto.OnboardingRouteResponse;
 import com.deutschflow.user.entity.User;
@@ -56,6 +57,20 @@ public class OnboardingController {
         Platform platform = Platform.fromText(platformParam != null ? platformParam : platformHeader);
         OnboardingRoute resolved = onboardingTypeResolver.resolve(platform, parseLevel(currentLevel));
         return OnboardingRouteResponse.from(resolved);
+    }
+
+    /**
+     * GET /api/onboarding/mentor?goalType=&industry=&currentLevel=
+     * Live "meet your mentor" preview for the in-progress onboarding selections.
+     * Deterministic (same resolver as submit); persists nothing.
+     */
+    @GetMapping("/mentor")
+    public OnboardingMentorResponse mentor(
+            @AuthenticationPrincipal User user,
+            @RequestParam(value = "goalType", required = false) String goalType,
+            @RequestParam(value = "industry", required = false) String industry,
+            @RequestParam(value = "currentLevel", required = false) String currentLevel) {
+        return learningProfileService.previewMentor(user, goalType, industry, currentLevel);
     }
 
     @GetMapping("/status")

@@ -49,6 +49,15 @@ export interface OnboardingRouteData {
   postAction: string;           // ROADMAP_ALPHABET | ROADMAP_NODE | PRICING_CTA | ...
 }
 
+/** The fixed mentor a learner would be assigned for their current onboarding selections. */
+export interface OnboardingMentorData {
+  code: string;          // SpeakingPersona code, e.g. "ANNA"
+  displayName: string;   // e.g. "Anna"
+  difficulty: string;    // BEGINNER | INTERMEDIATE | ADVANCED
+  upsellCode: string | null;         // gated ideal mentor (FREE tier) for a PRO nudge, or null
+  upsellDisplayName: string | null;
+}
+
 export interface AuthResponseLite {
   accessToken?: string;
   refreshToken?: string;
@@ -89,6 +98,22 @@ export async function getOnboardingRoute(currentLevel: string): Promise<Onboardi
   try {
     const res = await api.get<OnboardingRouteData>("/onboarding/route", {
       params: { currentLevel, platform: "web" },
+    });
+    return res.data;
+  } catch (e) {
+    throw new Error(apiMessage(e));
+  }
+}
+
+/** Live "meet your mentor" preview for the current onboarding selections. */
+export async function getOnboardingMentor(
+  goalType: string,
+  industry: string,
+  currentLevel: string
+): Promise<OnboardingMentorData> {
+  try {
+    const res = await api.get<OnboardingMentorData>("/onboarding/mentor", {
+      params: { goalType, industry, currentLevel },
     });
     return res.data;
   } catch (e) {

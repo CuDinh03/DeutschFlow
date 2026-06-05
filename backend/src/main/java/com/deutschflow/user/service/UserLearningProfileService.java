@@ -3,7 +3,9 @@ package com.deutschflow.user.service;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.quota.QuotaService;
+import com.deutschflow.speaking.persona.SpeakingPersona;
 import com.deutschflow.user.dto.LearningProfileResponse;
+import com.deutschflow.user.dto.OnboardingMentorResponse;
 import com.deutschflow.user.dto.OnboardingProfileRequest;
 import com.deutschflow.user.dto.UpdateLearningProfileRequest;
 import com.deutschflow.user.entity.User;
@@ -105,6 +107,55 @@ public class UserLearningProfileService {
 
     private String blankToNull(String s) {
         return (s == null || s.isBlank()) ? null : s.trim();
+    }
+
+    /**
+     * Live "meet your mentor" preview: the fixed mentor a learner would be assigned for
+     * the given in-progress selections, without persisting anything. Reuses the same
+     * deterministic {@link FixedMentorResolver} + tier resolution as onboarding submit,
+     * so the previewed mentor matches what is actually saved.
+     */
+    public OnboardingMentorResponse previewMentor(User user, String goalTypeRaw, String industry, String currentLevelRaw) {
+        UserLearningProfile.GoalType goalType = parseGoalOrNull(goalTypeRaw);
+        UserLearningProfile.CurrentLevel currentLevel = parseLevelOrNull(currentLevelRaw);
+        String industryClean = blankToNull(industry);
+        String planCode = quotaService.resolvePlanBadge(user.getId(), Instant.now()).planCode();
+
+        var assigned = fixedMentorResolver.resolve(goalType, industryClean, currentLevel, planCode);
+        SpeakingPersona assignedPersona = SpeakingPersona.fromApi(assigned.code());
+
+        // If the learner is FREE and their industry's ideal (premium) mentor differs, expose it
+        // as an upsell so the client can nudge PRO (design §3.2).
+        String upsellCode = null;
+        String upsellName = null;
+        if (!fixedMentorResolver.isPremium(planCode)) {
+            var ideal = fixedMentorResolver.resolve(goalType, industryClean, currentLevel, "PRO");
+            if (!ideal.code().equals(assigned.code())) {
+                upsellCode = ideal.code();
+                upsellName = SpeakingPersona.fromApi(ideal.code()).displayName();
+            }
+        }
+
+        return new OnboardingMentorResponse(
+                assigned.code(), assignedPersona.displayName(), assigned.difficulty().name(), upsellCode, upsellName);
+    }
+
+    private UserLearningProfile.GoalType parseGoalOrNull(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        try {
+            return UserLearningProfile.GoalType.valueOf(raw.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    private UserLearningProfile.CurrentLevel parseLevelOrNull(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        try {
+            return UserLearningProfile.CurrentLevel.valueOf(raw.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     /**

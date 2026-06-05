@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { View, ScrollView, Pressable, Alert } from 'react-native'
 import { router } from 'expo-router'
 import { MotiView } from 'moti'
@@ -22,6 +22,31 @@ interface OnboardingRoute {
   assessmentHookAfter: boolean
   paywallAllowed: boolean
   postAction: string
+}
+
+/** Fixed mentor preview (no upsell shown on iOS — Apple 3.1.1). */
+interface OnboardingMentor {
+  code: string
+  displayName: string
+  difficulty: string
+}
+
+const MENTOR_META: Record<string, { emoji: string; tagline: string }> = {
+  ANNA: { emoji: '🧑‍🏫', tagline: 'Cố vấn nghề & luyện thi' },
+  LUKAS: { emoji: '💻', tagline: 'Tech Lead — CNTT' },
+  EMMA: { emoji: '💼', tagline: 'Business & văn phòng' },
+  KLAUS: { emoji: '👨‍🍳', tagline: 'Bếp trưởng — Nhà hàng' },
+  WEBER: { emoji: '🩺', tagline: 'Bác sĩ da liễu' },
+  SARAH: { emoji: '🏥', tagline: 'Trợ lý y khoa' },
+  SCHNEIDER: { emoji: '👁️', tagline: 'Bác sĩ mắt' },
+  LENA: { emoji: '🛍️', tagline: 'Bán lẻ' },
+  THOMAS: { emoji: '🥐', tagline: 'Thợ làm bánh' },
+  PETRA: { emoji: '🥩', tagline: 'Cửa hàng thịt' },
+  MAX: { emoji: '⚙️', tagline: 'Vận hành máy' },
+  OLIVER: { emoji: '🔧', tagline: 'Thợ CNC' },
+  NIKLAS: { emoji: '🍽️', tagline: 'Phục vụ nhà hàng' },
+  NINA: { emoji: '🏨', tagline: 'Lễ tân khách sạn' },
+  HANNIE: { emoji: '🎤', tagline: 'MC / Truyền thông' },
 }
 
 const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const
@@ -62,8 +87,25 @@ export default function OnboardingScreen() {
   const [examType, setExamType] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [showUpsell, setShowUpsell] = useState(false)
+  const [mentor, setMentor] = useState<OnboardingMentor | null>(null)
 
   const canSubmit = !!targetLevel
+
+  // Live mentor preview — updates as the learner picks goal / level / industry.
+  useEffect(() => {
+    let active = true
+    api
+      .get<OnboardingMentor>('/onboarding/mentor', {
+        params: { goalType, industry: industry ?? undefined, currentLevel: currentLevel ?? undefined },
+      })
+      .then(({ data }) => {
+        if (active) setMentor(data)
+      })
+      .catch(() => { /* mentor preview is best-effort */ })
+    return () => {
+      active = false
+    }
+  }, [goalType, industry, currentLevel])
 
   async function handleSubmit() {
     if (!targetLevel) {
@@ -204,6 +246,46 @@ export default function OnboardingScreen() {
               Kỳ thi <ThemedText variant="caption" color="faint">(tuỳ chọn)</ThemedText>
             </ThemedText>
             <ChipRow options={EXAMS} selected={examType} onSelect={setExamType} />
+          </View>
+        )}
+
+        {/* Mentor preview */}
+        {mentor && (
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: space[3],
+              padding: space[4],
+              borderRadius: radius.xl,
+              borderWidth: 1.5,
+              borderColor: theme.colors.accent,
+              backgroundColor: theme.colors.accentSoft,
+            }}
+          >
+            <View
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: radius.full,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: theme.colors.accent,
+              }}
+            >
+              <ThemedText variant="bodyStrong">{MENTOR_META[mentor.code]?.emoji ?? '🧑‍🏫'}</ThemedText>
+            </View>
+            <View style={{ flex: 1 }}>
+              <ThemedText variant="caption" color="muted">
+                Mentor của bạn
+              </ThemedText>
+              <ThemedText variant="bodyStrong" color="accent">
+                {mentor.displayName}
+              </ThemedText>
+              <ThemedText variant="caption" color="muted">
+                {MENTOR_META[mentor.code]?.tagline ?? 'Người đồng hành học tập'}
+              </ThemedText>
+            </View>
           </View>
         )}
       </ScrollView>
