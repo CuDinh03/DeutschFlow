@@ -73,6 +73,14 @@ public class VideoLessonController {
         return ResponseEntity.ok(videoLessonService.buildGrammarTimelineByName(caseName, limit));
     }
 
+    /** Listening-practice video: an LLM-generated German dialogue on a topic (text cards). */
+    @GetMapping("/listening")
+    public ResponseEntity<VideoTimelineDto> listening(
+            @RequestParam(defaultValue = "Alltag") String topic,
+            @RequestParam(defaultValue = "A2") String level) {
+        return ResponseEntity.ok(videoLessonService.buildListeningTimeline(topic, level));
+    }
+
     /** Phase B — start an async .mp4 render of the vocab timeline; poll {@code GET /render/{jobId}}. */
     @PostMapping("/vocab/render")
     public ResponseEntity<Map<String, String>> renderVocab(
