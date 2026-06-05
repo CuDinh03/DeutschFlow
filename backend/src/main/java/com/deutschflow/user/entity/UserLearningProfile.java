@@ -94,6 +94,14 @@ public class UserLearningProfile {
     @Column(name = "onboarding_type", length = 32)
     private String onboardingType;
 
+    /**
+     * When the learner opted in (in-app) to receive PRO-upgrade information by email.
+     * Powers the iOS "reader app" web-upsell handoff (Apple 3.1.1: no in-app pricing).
+     * {@code null} = not opted in. The email send itself is handled out-of-band.
+     */
+    @Column(name = "upsell_opt_in_at")
+    private LocalDateTime upsellOptInAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

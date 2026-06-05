@@ -18,5 +18,6 @@ public record LearningProfileResponse(
         String ageRange,
         String assignedPersonaCode,
         String levelSource,
-        String onboardingType
+        String onboardingType,
+        String upsellOptInAt
 ) {}

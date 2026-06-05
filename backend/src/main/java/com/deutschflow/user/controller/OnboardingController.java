@@ -63,6 +63,17 @@ public class OnboardingController {
         return new StatusResponse(learningPlanService.hasPlan(user));
     }
 
+    /**
+     * POST /api/onboarding/upsell-interest
+     * In-app opt-in to receive PRO-upgrade information by email — the iOS web-upsell
+     * handoff (Apple 3.1.1: no in-app pricing/checkout). Idempotent; 204 on success.
+     */
+    @PostMapping("/upsell-interest")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void upsellInterest(@AuthenticationPrincipal User user) {
+        learningProfileService.recordUpsellInterest(user);
+    }
+
     private static UserLearningProfile.CurrentLevel parseLevel(String raw) {
         if (raw == null || raw.isBlank()) {
             return null;

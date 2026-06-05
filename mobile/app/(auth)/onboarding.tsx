@@ -15,7 +15,25 @@ import { Screen, ThemedText, Button, Icon } from '@/components/ui'
 
 type GoalType = 'WORK' | 'CERT'
 
+/** Onboarding routing decision from the backend matrix (design §4). */
+interface OnboardingRoute {
+  onboardingType: string
+  placementRequired: boolean
+  assessmentHookAfter: boolean
+  paywallAllowed: boolean
+  postAction: string
+}
+
 const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const
+
+// Current level feeds the Platform × Level matrix; A0 = absolute beginner.
+const CURRENT_LEVELS: { value: string; label: string }[] = [
+  { value: 'A0', label: 'Mới bắt đầu' },
+  { value: 'A1', label: 'A1' },
+  { value: 'A2', label: 'A2' },
+  { value: 'B1', label: 'B1' },
+  { value: 'B2', label: 'B2' },
+]
 
 const INDUSTRIES: { value: string; label: string }[] = [
   { value: 'IT', label: 'CNTT' },
@@ -38,10 +56,12 @@ const DEFAULT_MINUTES_PER_SESSION = 15
 export default function OnboardingScreen() {
   const theme = useTheme()
   const [goalType, setGoalType] = useState<GoalType>('WORK')
+  const [currentLevel, setCurrentLevel] = useState<string | null>(null)
   const [targetLevel, setTargetLevel] = useState<string | null>(null)
   const [industry, setIndustry] = useState<string | null>(null)
   const [examType, setExamType] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [showUpsell, setShowUpsell] = useState(false)
 
   const canSubmit = !!targetLevel
 
@@ -55,7 +75,7 @@ export default function OnboardingScreen() {
       await api.post('/onboarding/profile', {
         goalType,
         targetLevel,
-        currentLevel: null,
+        currentLevel,
         ageRange: null,
         interests: [],
         industry: goalType === 'WORK' ? industry : null,
@@ -67,20 +87,27 @@ export default function OnboardingScreen() {
       })
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
       captureEvent('onboarding_completed', { goalType, targetLevel })
-      // Funnel parity with web (best-effort, non-blocking): record which onboarding
-      // archetype the backend matrix routed this learner through. The X-Platform header
-      // (ios/android) is sent automatically; currentLevel is unset → ZERO band.
-      api
-        .get<{ onboardingType: string; postAction: string; paywallAllowed: boolean }>('/onboarding/route')
-        .then(({ data }) =>
-          captureEvent('onboarding_type_assigned', {
-            onboardingType: data?.onboardingType,
-            postAction: data?.postAction,
-            paywallAllowed: data?.paywallAllowed,
-          }),
-        )
-        .catch(() => { /* analytics is best-effort */ })
-      // Auto-start the first practice session.
+
+      // Resolve which archetype the matrix routed this learner through. X-Platform
+      // (ios/android) is sent automatically; pass currentLevel so the band is real.
+      let route: OnboardingRoute | null = null
+      try {
+        const { data } = await api.get<OnboardingRoute>('/onboarding/route', {
+          params: currentLevel ? { currentLevel } : undefined,
+        })
+        route = data
+        captureEvent('onboarding_type_assigned', {
+          onboardingType: data.onboardingType,
+          postAction: data.postAction,
+          paywallAllowed: data.paywallAllowed,
+        })
+      } catch { /* analytics/route is best-effort */ }
+
+      // iOS "reader app" (Apple 3.1.1): no in-app pricing — offer email-upsell consent.
+      if (route?.postAction === 'EMAIL_CAPTURE_UPSELL') {
+        setShowUpsell(true)
+        return
+      }
       router.replace('/(student)/speaking')
     } catch (e) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
@@ -88,6 +115,22 @@ export default function OnboardingScreen() {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  async function handleUpsellConsent(optIn: boolean) {
+    if (optIn) {
+      try {
+        await api.post('/onboarding/upsell-interest')
+        captureEvent('upsell_opt_in', { source: 'onboarding' })
+      } catch { /* best-effort */ }
+    } else {
+      captureEvent('upsell_dismissed', { source: 'onboarding' })
+    }
+    router.replace('/(student)/speaking')
+  }
+
+  if (showUpsell) {
+    return <UpsellConsent onChoice={handleUpsellConsent} />
   }
 
   return (
@@ -131,6 +174,12 @@ export default function OnboardingScreen() {
           </View>
         </View>
 
+        {/* Current level */}
+        <View style={{ gap: space[3] }}>
+          <ThemedText variant="bodyStrong">Trình độ hiện tại</ThemedText>
+          <ChipRow options={CURRENT_LEVELS} selected={currentLevel} onSelect={setCurrentLevel} />
+        </View>
+
         {/* Target level */}
         <View style={{ gap: space[3] }}>
           <ThemedText variant="bodyStrong">Trình độ mục tiêu</ThemedText>
@@ -172,6 +221,35 @@ export default function OnboardingScreen() {
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
+
+/**
+ * iOS web-upsell consent (Apple 3.1.1 "reader app"): opt in to receive PRO info by
+ * email. Deliberately no pricing, "buy", or external purchase links — just consent.
+ */
+function UpsellConsent({ onChoice }: { onChoice: (optIn: boolean) => void }) {
+  return (
+    <Screen edges={['top', 'bottom']}>
+      <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: space[6], gap: space[6] }}>
+        <MotiView
+          from={{ opacity: 0, translateY: 16 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: motion.duration.slow }}
+          style={{ gap: space[3] }}
+        >
+          <ThemedText variant="display">Học đến đâu, nhắc đến đó ✉️</ThemedText>
+          <ThemedText variant="body" color="muted">
+            Bạn có muốn nhận email gợi ý lộ trình và các tính năng nâng cao của DeutschFlow không?
+            Chúng tôi chỉ gửi nội dung hữu ích và bạn có thể huỷ bất cứ lúc nào.
+          </ThemedText>
+        </MotiView>
+      </View>
+      <View style={{ paddingHorizontal: space[6], paddingBottom: space[2], gap: space[3] }}>
+        <Button label="Đồng ý nhận email" onPress={() => onChoice(true)} />
+        <Button label="Để sau" variant="ghost" onPress={() => onChoice(false)} />
+      </View>
+    </Screen>
+  )
+}
 
 interface ChipOption {
   value: string

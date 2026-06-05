@@ -20,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -106,6 +107,21 @@ public class UserLearningProfileService {
         return (s == null || s.isBlank()) ? null : s.trim();
     }
 
+    /**
+     * Records in-app consent to receive PRO-upgrade information by email — the iOS
+     * web-upsell handoff (Apple 3.1.1: no in-app pricing). Idempotent: the first
+     * opt-in timestamp is kept. We already hold the learner's email from registration,
+     * so this is a consent flag, not an email collection.
+     */
+    public void recordUpsellInterest(User user) {
+        UserLearningProfile profile = profileRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new NotFoundException("Learning profile not found. Please complete onboarding first."));
+        if (profile.getUpsellOptInAt() == null) {
+            profile.setUpsellOptInAt(LocalDateTime.now());
+            profileRepository.save(profile);
+        }
+    }
+
     // ── Settings page methods ────────────────────────────────────────────
 
     /**
@@ -163,7 +179,8 @@ public class UserLearningProfileService {
                 p.getAgeRange() != null ? p.getAgeRange().name() : null,
                 p.getAssignedPersonaCode(),
                 p.getLevelSource(),
-                p.getOnboardingType()
+                p.getOnboardingType(),
+                p.getUpsellOptInAt() != null ? p.getUpsellOptInAt().toString() : null
         );
     }
 }

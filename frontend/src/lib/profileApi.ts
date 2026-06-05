@@ -37,6 +37,7 @@ export interface LearningProfileData {
   assignedPersonaCode: string | null;  // fixed mentor (SpeakingPersona code), derived at onboarding
   levelSource: string | null;          // SELF | PLACEMENT — provenance of currentLevel
   onboardingType: string | null;       // archetype O1-O5 the learner was routed through
+  upsellOptInAt: string | null;        // when the learner opted in to PRO-upgrade emails (iOS handoff)
 }
 
 /** Onboarding routing decision for the (platform, level) cell of the design §4 matrix. */
