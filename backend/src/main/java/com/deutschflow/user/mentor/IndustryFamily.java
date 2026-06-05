@@ -28,8 +28,13 @@ public enum IndustryFamily {
      * the result. This is a heuristic default — the learner can override their mentor
      * in the Speaking module afterwards.
      */
+    /** Longest input we bother scanning — real industry strings are short (request DTO caps at 100). */
+    private static final int MAX_SCAN_LENGTH = 200;
+
     public static IndustryFamily fromText(String industry) {
-        if (industry == null || industry.isBlank()) {
+        // Defensive bound: ignore blank or pathologically long input rather than scan it
+        // (the /onboarding/mentor query param is otherwise unbounded).
+        if (industry == null || industry.isBlank() || industry.length() > MAX_SCAN_LENGTH) {
             return EDUCATION;
         }
         String s = industry.toLowerCase(Locale.ROOT);

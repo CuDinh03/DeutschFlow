@@ -115,6 +115,14 @@ class FixedMentorResolverTest {
             assertThat(resolver.resolve(GoalType.WORK, null, CurrentLevel.A0, PRO).code())
                     .isEqualTo("ANNA");
         }
+
+        @Test
+        @DisplayName("pathologically long industry is ignored (bounded scan) → default ANNA, not IT")
+        void overLongIndustry_ignored() {
+            String huge = "IT ".repeat(200); // 600 chars; would match the IT token if scanned
+            assertThat(resolver.resolve(GoalType.WORK, huge, CurrentLevel.B2, PRO).code())
+                    .isEqualTo("ANNA");
+        }
     }
 
     // ── (3)+(4) Tier gate (hard) + level fit (soft tie-break) within a family ──
