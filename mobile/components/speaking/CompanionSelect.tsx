@@ -35,6 +35,8 @@ interface CompanionSelectProps {
   isPro: boolean
   starting: boolean
   onStart: (args: StartArgs) => void
+  /** Preselect a mode (e.g. routed in from onboarding's INTERVIEW_FIRST). */
+  initialMode?: SpeakingSessionMode
 }
 
 const MODES: { key: SpeakingSessionMode; label: string; icon: LucideIcon }[] = [
@@ -63,10 +65,10 @@ const EXPERIENCE: { id: string; label: string }[] = [
   { id: '5Y', label: '5+ năm' },
 ]
 
-export function CompanionSelect({ isPro, starting, onStart }: CompanionSelectProps) {
+export function CompanionSelect({ isPro, starting, onStart, initialMode }: CompanionSelectProps) {
   const theme = useTheme()
-  const [mode, setMode] = useState<SpeakingSessionMode>('COMMUNICATION')
-  const [group, setGroup] = useState<PersonaGroup>('it')
+  const [mode, setMode] = useState<SpeakingSessionMode>(initialMode ?? 'COMMUNICATION')
+  const [group, setGroup] = useState<PersonaGroup>(initialMode === 'LESSON' ? 'special' : 'it')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [position, setPosition] = useState<string | null>(null)
   const [experience, setExperience] = useState<string>('1-2Y')

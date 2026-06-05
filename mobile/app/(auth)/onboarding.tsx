@@ -150,13 +150,16 @@ export default function OnboardingScreen() {
         setShowUpsell(true)
         return
       }
-      // Honor the matrix's post-action. Paywall actions have no mobile pricing screen
-      // (reader-app), so they fall through to the first practice session.
-      const dest =
-        route?.postAction === 'ROADMAP_ALPHABET' || route?.postAction === 'ROADMAP_NODE'
-          ? '/(student)/roadmap'
-          : '/(student)/speaking'
-      router.replace(dest)
+      // Roadmap archetypes → roadmap; INTERVIEW_FIRST (iOS upper levels) opens the
+      // speaking screen preset to its INTERVIEW mode. Paywall actions have no mobile
+      // pricing screen (reader-app), so they fall through to the first practice session.
+      if (route?.postAction === 'ROADMAP_ALPHABET' || route?.postAction === 'ROADMAP_NODE') {
+        router.replace('/(student)/roadmap')
+      } else if (route?.postAction === 'INTERVIEW_FIRST') {
+        router.replace({ pathname: '/(student)/speaking', params: { mode: 'INTERVIEW' } })
+      } else {
+        router.replace('/(student)/speaking')
+      }
     } catch (e) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
       Alert.alert('Không lưu được', apiMessage(e))
