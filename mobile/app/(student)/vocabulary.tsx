@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { View, TextInput, FlatList, Pressable, RefreshControl } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
-import { router } from 'expo-router'
+import { router, type Href } from 'expo-router'
 import * as Haptics from 'expo-haptics'
-import { Search, BookMarked, Plus, Check } from 'lucide-react-native'
+import { Search, BookMarked, Plus, Check, Film, ChevronRight } from 'lucide-react-native'
 import api from '@/lib/api'
 import { trackFeatureAction } from '@/lib/analytics'
 import { learningApi } from '@/lib/learningApi'
@@ -133,6 +133,32 @@ export default function VocabularyScreen() {
           )
         })}
       </View>
+
+      <Pressable
+        onPress={() => router.push('/(student)/video-lesson' as unknown as Href)}
+        style={{
+          marginHorizontal: space[5],
+          marginBottom: space[4],
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: space[3],
+          backgroundColor: c.accentSoft,
+          borderRadius: radius.lg,
+          paddingHorizontal: space[4],
+          paddingVertical: space[3],
+        }}
+      >
+        <Icon icon={Film} size={20} color="accent" />
+        <View style={{ flex: 1 }}>
+          <ThemedText variant="bodyStrong" color="accent">
+            Xem video ôn tập
+          </ThemedText>
+          <ThemedText variant="caption" color="muted">
+            Hình ảnh + lồng tiếng Đức theo cấp độ
+          </ThemedText>
+        </View>
+        <Icon icon={ChevronRight} size={18} color="accent" />
+      </Pressable>
 
       {isLoading ? (
         <View style={{ paddingHorizontal: space[5], gap: space[2] }}>
