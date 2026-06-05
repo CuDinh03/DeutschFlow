@@ -436,6 +436,21 @@ export default function SpeakingScreen() {
     setView('select')
   }
 
+  // Top-left ✕ during a chat: if the learner has already spoken, end the session
+  // and take them to the post-session evaluation (the Flag button alone was too
+  // easy to miss). Nothing said yet → just leave (nothing to evaluate).
+  function handleClose() {
+    if (finishing) return
+    if (userTurns === 0) {
+      resetToSelect()
+      return
+    }
+    Alert.alert('Kết thúc buổi nói?', 'Bạn sẽ nhận được đánh giá sau khi nói.', [
+      { text: 'Tiếp tục', style: 'cancel' },
+      { text: 'Xem đánh giá', onPress: () => void finishSession() },
+    ])
+  }
+
   async function resumeSession(ref: ActiveSessionRef) {
     setResuming(true)
     try {
@@ -578,7 +593,7 @@ export default function SpeakingScreen() {
           borderBottomColor: c.border,
         }}
       >
-        <Pressable hitSlop={8} onPress={resetToSelect}>
+        <Pressable hitSlop={8} onPress={handleClose}>
           <Icon icon={X} size={22} color="muted" />
         </Pressable>
         <View style={{ flex: 1, gap: 2 }}>
