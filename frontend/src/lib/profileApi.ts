@@ -34,6 +34,28 @@ export interface LearningProfileData {
   minutesPerSession: number;
   examType: string | null;
   ageRange: string | null;
+  assignedPersonaCode: string | null;  // fixed mentor (SpeakingPersona code), derived at onboarding
+  levelSource: string | null;          // SELF | PLACEMENT — provenance of currentLevel
+  onboardingType: string | null;       // archetype O1-O5 the learner was routed through
+  upsellOptInAt: string | null;        // when the learner opted in to PRO-upgrade emails (iOS handoff)
+}
+
+/** Onboarding routing decision for the (platform, level) cell of the design §4 matrix. */
+export interface OnboardingRouteData {
+  onboardingType: string;       // EXPRESS_PROFILE | PLACEMENT_VALIDATED | ZERO_START | ASSESSMENT_HOOK | MENTOR_LED_DEMO
+  placementRequired: boolean;
+  assessmentHookAfter: boolean;
+  paywallAllowed: boolean;      // false on iOS (Apple 3.1.1)
+  postAction: string;           // ROADMAP_ALPHABET | ROADMAP_NODE | PRICING_CTA | ...
+}
+
+/** The fixed mentor a learner would be assigned for their current onboarding selections. */
+export interface OnboardingMentorData {
+  code: string;          // SpeakingPersona code, e.g. "ANNA"
+  displayName: string;   // e.g. "Anna"
+  difficulty: string;    // BEGINNER | INTERMEDIATE | ADVANCED
+  upsellCode: string | null;         // gated ideal mentor (FREE tier) for a PRO nudge, or null
+  upsellDisplayName: string | null;
 }
 
 export interface AuthResponseLite {
@@ -62,6 +84,38 @@ export async function updateProfile(
 export async function changePassword(data: ChangePasswordPayload): Promise<void> {
   try {
     await api.patch("/profile/me/password", data);
+  } catch (e) {
+    throw new Error(apiMessage(e));
+  }
+}
+
+/**
+ * Resolve the designated onboarding archetype for this (platform=web, level) cell.
+ * Single source of truth (backend matrix) for whether to run the placement test,
+ * whether a paywall is allowed, and where to send the learner next.
+ */
+export async function getOnboardingRoute(currentLevel: string): Promise<OnboardingRouteData> {
+  try {
+    const res = await api.get<OnboardingRouteData>("/onboarding/route", {
+      params: { currentLevel, platform: "web" },
+    });
+    return res.data;
+  } catch (e) {
+    throw new Error(apiMessage(e));
+  }
+}
+
+/** Live "meet your mentor" preview for the current onboarding selections. */
+export async function getOnboardingMentor(
+  goalType: string,
+  industry: string,
+  currentLevel: string
+): Promise<OnboardingMentorData> {
+  try {
+    const res = await api.get<OnboardingMentorData>("/onboarding/mentor", {
+      params: { goalType, industry, currentLevel },
+    });
+    return res.data;
   } catch (e) {
     throw new Error(apiMessage(e));
   }

@@ -66,6 +66,42 @@ public class UserLearningProfile {
     @Builder.Default
     private LearningSpeed learningSpeed = LearningSpeed.NORMAL;
 
+    /**
+     * Default Speaking/Interview mentor (a {@code SpeakingPersona} code, e.g. {@code "ANNA"}),
+     * derived deterministically at onboarding by
+     * {@link com.deutschflow.user.mentor.FixedMentorResolver}. Nullable for profiles created
+     * before the fixed-mentor feature; consumers fall back to the default mentor.
+     */
+    @Column(name = "assigned_persona_code", length = 32)
+    private String assignedPersonaCode;
+
+    /**
+     * How {@link #currentLevel} was established: {@code "SELF"} (self-declared during onboarding)
+     * or {@code "PLACEMENT"} (validated by the placement test). Lets adaptive logic weight the
+     * confidence of {@code currentLevel}.
+     */
+    @Column(name = "level_source", length = 20)
+    @Builder.Default
+    private String levelSource = "SELF";
+
+    /**
+     * Which onboarding archetype (O1–O5) the learner was routed through, as an
+     * {@link com.deutschflow.user.onboarding.OnboardingType} name. Derived from
+     * platform × current_level at onboarding by
+     * {@link com.deutschflow.user.onboarding.OnboardingTypeResolver}. Nullable for
+     * older profiles and clients that don't send a platform.
+     */
+    @Column(name = "onboarding_type", length = 32)
+    private String onboardingType;
+
+    /**
+     * When the learner opted in (in-app) to receive PRO-upgrade information by email.
+     * Powers the iOS "reader app" web-upsell handoff (Apple 3.1.1: no in-app pricing).
+     * {@code null} = not opted in. The email send itself is handled out-of-band.
+     */
+    @Column(name = "upsell_opt_in_at")
+    private LocalDateTime upsellOptInAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

@@ -40,8 +40,8 @@ public class LearningPlanService {
     private final ObjectMapper objectMapper;
 
     @Transactional
-    public LearningPlanResponse saveProfileAndGeneratePlan(User user, OnboardingProfileRequest req) {
-        UserLearningProfile profile = userLearningProfileService.upsertProfile(user, req);
+    public LearningPlanResponse saveProfileAndGeneratePlan(User user, OnboardingProfileRequest req, String platform) {
+        UserLearningProfile profile = userLearningProfileService.upsertProfile(user, req, platform);
         Map<String, Object> plan = learningPlanBlueprintBuilder.build(profile);
         int weeklyMinutes = profile.getSessionsPerWeek() * profile.getMinutesPerSession();
         int weeksTotal = (int) plan.getOrDefault("weeksTotal", 8);
@@ -521,7 +521,9 @@ public class LearningPlanService {
 
     private Map<String, Object> generatePlan(UserLearningProfile profile) {
         int weeklyMinutes = profile.getSessionsPerWeek() * profile.getMinutesPerSession();
-        int requiredHours = estimateRequiredHours(profile.getCurrentLevel(), profile.getTargetLevel(), profile.getGoalType());
+        boolean levelValidated = "PLACEMENT".equalsIgnoreCase(profile.getLevelSource());
+        int requiredHours = estimateRequiredHours(
+                profile.getCurrentLevel(), profile.getTargetLevel(), profile.getGoalType(), levelValidated);
         int weeksTotal = Math.max(4, (int) Math.ceil((requiredHours * 60.0) / Math.max(weeklyMinutes, 1)));
 
         Map<String, Integer> focusSplit = defaultFocusSplit(profile.getGoalType());
@@ -705,7 +707,18 @@ public class LearningPlanService {
         ));
     }
 
-    private int estimateRequiredHours(UserLearningProfile.CurrentLevel current, UserLearningProfile.TargetLevel target, UserLearningProfile.GoalType goalType) {
+    /**
+     * Estimate study hours to reach {@code target}. Package-private + static for direct unit testing.
+     *
+     * <p>A non-A0 starting level shortens the plan — but only fully when that level is
+     * <b>placement-validated</b>. A self-declared (unvalidated) level is trusted less, since
+     * self-assessments skew optimistic, so it gets a smaller discount (design DI-2: weight
+     * {@code currentLevel} confidence by {@code levelSource}).
+     */
+    static int estimateRequiredHours(UserLearningProfile.CurrentLevel current,
+                                     UserLearningProfile.TargetLevel target,
+                                     UserLearningProfile.GoalType goalType,
+                                     boolean levelValidated) {
         int base = switch (target) {
             case A1 -> 90;
             case A2 -> 160;
@@ -715,7 +728,10 @@ public class LearningPlanService {
             case C2 -> 800;
         };
         if (goalType == UserLearningProfile.GoalType.CERT) base = (int) Math.round(base * 1.1);
-        if (current != UserLearningProfile.CurrentLevel.A0) base = (int) Math.round(base * 0.7);
+        if (current != UserLearningProfile.CurrentLevel.A0) {
+            double discountFactor = levelValidated ? 0.7 : 0.85;
+            base = (int) Math.round(base * discountFactor);
+        }
         return base;
     }
 

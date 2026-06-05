@@ -7,6 +7,9 @@ import { ArrowRight, ArrowLeft, Loader2, CheckCircle, XCircle } from "lucide-rea
 import api from "@/lib/api";
 import { toast } from "sonner";
 import { useTracking } from "@/hooks/useTracking";
+import { getOnboardingRoute, getOnboardingMentor, type OnboardingRouteData, type OnboardingMentorData } from "@/lib/profileApi";
+import { MENTOR_META } from "@/lib/mentorMeta";
+import { useFeatureFlagEnabled } from "posthog-js/react";
 
 const LEVELS = [
   { value: "A0", emoji: "🌱", label: "Chưa biết gì", desc: "Bắt đầu từ bảng chữ cái" },
@@ -31,6 +34,9 @@ interface PQ { id: number; skillSection: string; type: string; questionDe: strin
 export default function OnboardingPage() {
   const router = useRouter();
   const { trackOnboardingStep, trackEvent } = useTracking();
+  // A/B: the mentor PRO-upsell nudge is gated behind a PostHog feature flag. Default-on
+  // (undefined = flag not configured → shown), so no regression until an experiment is run.
+  const mentorUpsellEnabled = useFeatureFlagEnabled("onboarding-mentor-upsell") !== false;
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [currentLevel, setCurrentLevel] = useState("A0");
@@ -45,27 +51,54 @@ export default function OnboardingPage() {
   const [answers, setAnswers] = useState<Record<string,string>>({});
   const [currentQ, setCurrentQ] = useState(0);
   const [testResult, setTestResult] = useState<{passed:boolean;scorePercent:number;correctCount:number;totalQuestions:number;weakModules?:number[];startingNodeId?:number;retryAfterDays?:number}|null>(null);
+  const [route, setRoute] = useState<OnboardingRouteData | null>(null);
+  const [mentor, setMentor] = useState<OnboardingMentorData | null>(null);
 
-  const saveProfile = useCallback(async () => {
+  const fetchMentor = useCallback(async () => {
+    try {
+      setMentor(await getOnboardingMentor(goalType, industry, currentLevel));
+    } catch { /* mentor preview is non-blocking */ }
+  }, [goalType, industry, currentLevel]);
+
+  /**
+   * Persist the onboarding profile. Returns true on success (incl. 409 "already
+   * exists" — idempotent). Surfaces real failures instead of silently swallowing
+   * them, so callers can BLOCK the redirect and avoid leaving the user with an
+   * incomplete profile (data-integrity fix, design §5 DI-3).
+   */
+  const saveProfile = useCallback(async (): Promise<boolean> => {
     try {
       await api.post("/onboarding/profile", {
         goalType, targetLevel, currentLevel, industry,
         sessionsPerWeek: weeklyTarget, minutesPerSession: 15,
         learningSpeed: weeklyTarget >= 7 ? "FAST" : weeklyTarget >= 5 ? "NORMAL" : "SLOW",
       });
-    } catch { /* may already exist */ }
+      return true;
+    } catch (e: unknown) {
+      const err = e as { response?: { status?: number; data?: { detail?: string } } };
+      if (err?.response?.status === 409) return true; // profile already exists → safe to proceed
+      // api.ts already retried transient 5xx/429/network errors. Reaching here is a real
+      // failure → surface it clearly and let the caller BLOCK the redirect (no silent skip).
+      const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+      const msg = err?.response?.data?.detail
+        ?? (offline || !err?.response
+          ? "Mất kết nối — hồ sơ chưa được lưu. Kiểm tra mạng rồi thử lại."
+          : "Không lưu được hồ sơ học tập. Vui lòng thử lại.");
+      toast.error(msg);
+      return false;
+    }
   }, [goalType, targetLevel, currentLevel, industry, weeklyTarget]);
 
   const startTest = useCallback(async () => {
     setLoading(true);
+    if (!(await saveProfile())) { setLoading(false); return; }
     try {
-      await saveProfile();
       const { data } = await api.post("/skill-tree/placement-test", { claimedLevel: currentLevel });
       trackEvent('onboarding_placement_test_started', { level: currentLevel });
       setTestId(data.testId); setQuestions(data.questions ?? []); setAnswers({}); setCurrentQ(0); setStep(4);
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      alert(msg || "Không thể tạo bài test.");
+      toast.error(msg || "Không thể tạo bài test.");
     }
     setLoading(false);
   }, [currentLevel, saveProfile, trackEvent]);
@@ -82,20 +115,33 @@ export default function OnboardingPage() {
     setLoading(false);
   }, [testId, answers, trackEvent]);
 
-  const goRoadmap = useCallback(async () => { 
-    setLoading(true); 
-    await saveProfile(); 
+  const goRoadmap = useCallback(async () => {
+    setLoading(true);
+    if (!(await saveProfile())) { setLoading(false); return; } // block redirect on a failed save
     trackEvent('onboarding_completed', { level: currentLevel, goal: goalType, industry: industry });
-    router.push("/student/roadmap"); 
+    router.push("/student/roadmap");
   }, [saveProfile, router, trackEvent, currentLevel, goalType, industry]);
 
   const nextStep = async () => {
     if (step === 1) trackOnboardingStep('Select Level', 1, { currentLevel });
-    if (step === 2) trackOnboardingStep('Select Goal', 2, { goalType, industry, targetLevel });
+    if (step === 2) { trackOnboardingStep('Select Goal', 2, { goalType, industry, targetLevel }); void fetchMentor(); }
     if (step === 3) trackOnboardingStep('Select Target', 3, { weeklyTarget });
 
-    if (step === 3) { currentLevel === "A0" ? await goRoadmap() : await startTest(); }
-    else setStep(s => s + 1);
+    if (step === 3) {
+      // Ask the backend matrix (single source of truth) which archetype this
+      // (platform=web, level) cell maps to. Fall back to the level heuristic if it's unavailable.
+      let needPlacement = currentLevel !== "A0";
+      try {
+        const r = await getOnboardingRoute(currentLevel);
+        setRoute(r);
+        needPlacement = r.placementRequired;
+        trackEvent('onboarding_type_assigned', {
+          onboardingType: r.onboardingType, postAction: r.postAction,
+          paywallAllowed: r.paywallAllowed, platform: 'web', currentLevel,
+        });
+      } catch { /* matrix unavailable → keep level heuristic */ }
+      if (needPlacement) await startTest(); else await goRoadmap();
+    } else setStep(s => s + 1);
   };
 
   const card = "bg-white rounded-2xl p-6 shadow-lg border border-[#E2E8F0] space-y-4";
@@ -165,6 +211,26 @@ export default function OnboardingPage() {
             <motion.div key="s3" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} className={card}>
               <h2 className="text-lg font-bold text-[#0F172A]">Bạn muốn học bao nhiêu?</h2>
               <p className="text-sm text-[#64748B]">Weekly target ảnh hưởng đến chủ đề mở rộng cá nhân hóa.</p>
+              {mentor && (
+                <div className="space-y-1.5">
+                  <div className="rounded-xl border-2 border-[#FFCD00]/50 bg-[#FFFBEB] p-3 flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-full bg-[#FFCD00] flex items-center justify-center text-xl shrink-0">{MENTOR_META[mentor.code]?.emoji ?? "🧑‍🏫"}</div>
+                    <div className="min-w-0">
+                      <p className="text-[11px] uppercase tracking-wide text-[#92400E]/80 font-semibold">Mentor của bạn</p>
+                      <p className="text-sm font-bold text-[#0F172A]">{mentor.displayName}</p>
+                      <p className="text-xs text-[#92400E]">{MENTOR_META[mentor.code]?.tagline ?? "Người đồng hành học tập"}</p>
+                    </div>
+                  </div>
+                  {mentor.upsellCode && mentorUpsellEnabled && (
+                    <button type="button"
+                      onClick={() => { trackEvent('onboarding_mentor_upsell_clicked', { mentor: mentor.code, upsell: mentor.upsellCode }); router.push("/student/pricing"); }}
+                      className="w-full text-left text-xs text-[#92400E] bg-[#FFFBEB] border border-dashed border-[#FCD34D] rounded-lg px-3 py-2">
+                      🔓 Mở khoá mentor <strong>{mentor.upsellDisplayName}</strong>
+                      {MENTOR_META[mentor.upsellCode]?.tagline ? ` (${MENTOR_META[mentor.upsellCode].tagline})` : ""} với PRO →
+                    </button>
+                  )}
+                </div>
+              )}
               {WEEKLY.map(w => (
                 <button key={w.value} type="button" onClick={() => setWeeklyTarget(w.value)} className={sel(weeklyTarget===w.value)}>
                   <span className="text-3xl">{w.emoji}</span>
@@ -232,6 +298,13 @@ export default function OnboardingPage() {
               <button type="button" onClick={() => router.push("/student/roadmap")} className="w-full py-3 rounded-xl bg-[#121212] text-white text-sm font-bold">
                 {testResult.passed ? "Bắt đầu lộ trình cá nhân hóa →" : "Xem lộ trình phù hợp →"}
               </button>
+              {route?.paywallAllowed && route.postAction === "PRICING_CTA" && (
+                <button type="button"
+                  onClick={() => { trackEvent('onboarding_pricing_cta_clicked', { currentLevel }); router.push("/student/pricing"); }}
+                  className="w-full py-2.5 rounded-xl border-2 border-[#FFCD00] text-[#92400E] text-sm font-bold">
+                  Khám phá gói PRO để mở khóa toàn bộ →
+                </button>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

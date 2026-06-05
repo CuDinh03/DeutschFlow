@@ -26,6 +26,7 @@ import { TodayPlanDto } from "@/types/today-plan";
 import { PhaseIndicator } from "@/components/journey/PhaseIndicator";
 import { GraduationBanner } from "@/components/journey/GraduationBanner";
 import { StudentShell } from "@/components/layouts/StudentShell";
+import { MentorChip } from "@/components/features/MentorChip";
 import { logout } from "@/lib/authSession";
 import { DeutschFlowLoader } from "@/components/ui/DeutschFlowLogo";
 import { useTranslations } from "next-intl";
@@ -302,6 +303,8 @@ export default function DashboardPage() {
             <button onClick={() => load()} className="text-red-500 hover:text-red-700 text-sm font-medium">{t("retry")}</button>
           </div>
         )}
+
+        <MentorChip />
 
         {nextBestAction && (
           <div className="relative overflow-hidden rounded-[24px] p-6 shadow-lg bg-gradient-to-br from-[#121212] via-[#0F172A] to-[#1F2937] text-white">

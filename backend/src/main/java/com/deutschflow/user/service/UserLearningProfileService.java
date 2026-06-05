@@ -2,17 +2,27 @@ package com.deutschflow.user.service;
 
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.common.quota.QuotaService;
+import com.deutschflow.speaking.persona.SpeakingPersona;
 import com.deutschflow.user.dto.LearningProfileResponse;
+import com.deutschflow.user.dto.OnboardingMentorResponse;
 import com.deutschflow.user.dto.OnboardingProfileRequest;
 import com.deutschflow.user.dto.UpdateLearningProfileRequest;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.entity.UserLearningProfile;
+import com.deutschflow.user.mentor.FixedMentor;
+import com.deutschflow.user.mentor.FixedMentorResolver;
+import com.deutschflow.user.onboarding.OnboardingRoute;
+import com.deutschflow.user.onboarding.OnboardingTypeResolver;
+import com.deutschflow.user.onboarding.Platform;
 import com.deutschflow.user.repository.UserLearningProfileRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -23,8 +33,11 @@ public class UserLearningProfileService {
     private final UserLearningProfileRepository profileRepository;
     private final StoredLearningPlanSupport storedLearningPlanSupport;
     private final ObjectMapper objectMapper;
+    private final QuotaService quotaService;
+    private final FixedMentorResolver fixedMentorResolver;
+    private final OnboardingTypeResolver onboardingTypeResolver;
 
-    public UserLearningProfile upsertProfile(User user, OnboardingProfileRequest req) {
+    public UserLearningProfile upsertProfile(User user, OnboardingProfileRequest req, String platform) {
         if (req.sessionsPerWeek() == null || req.minutesPerSession() == null) {
             throw new BadRequestException("sessionsPerWeek and minutesPerSession are required");
         }
@@ -58,6 +71,18 @@ public class UserLearningProfileService {
         profile.setMinutesPerSession(req.minutesPerSession());
         profile.setLearningSpeed(learningSpeed);
 
+        // Deterministically assign the fixed mentor from the freshly-set profile + subscription tier.
+        // Onboarding's currentLevel is self-declared, so record provenance as SELF; the placement-test
+        // flow overwrites both current_level and level_source to PLACEMENT when it runs.
+        String planCode = quotaService.resolvePlanBadge(user.getId(), Instant.now()).planCode();
+        FixedMentor mentor = fixedMentorResolver.resolve(goalType, profile.getIndustry(), currentLevel, planCode);
+        profile.setAssignedPersonaCode(mentor.code());
+        profile.setLevelSource("SELF");
+
+        // Record which onboarding archetype this learner was routed through (platform × level matrix).
+        OnboardingRoute route = onboardingTypeResolver.resolve(Platform.fromText(platform), currentLevel);
+        profile.setOnboardingType(route.type().name());
+
         return profileRepository.save(profile);
     }
 
@@ -82,6 +107,70 @@ public class UserLearningProfileService {
 
     private String blankToNull(String s) {
         return (s == null || s.isBlank()) ? null : s.trim();
+    }
+
+    /**
+     * Live "meet your mentor" preview: the fixed mentor a learner would be assigned for
+     * the given in-progress selections, without persisting anything. Reuses the same
+     * deterministic {@link FixedMentorResolver} + tier resolution as onboarding submit,
+     * so the previewed mentor matches what is actually saved.
+     */
+    public OnboardingMentorResponse previewMentor(User user, String goalTypeRaw, String industry, String currentLevelRaw) {
+        UserLearningProfile.GoalType goalType = parseGoalOrNull(goalTypeRaw);
+        UserLearningProfile.CurrentLevel currentLevel = parseLevelOrNull(currentLevelRaw);
+        String industryClean = blankToNull(industry);
+        String planCode = quotaService.resolvePlanBadge(user.getId(), Instant.now()).planCode();
+
+        var assigned = fixedMentorResolver.resolve(goalType, industryClean, currentLevel, planCode);
+        SpeakingPersona assignedPersona = SpeakingPersona.fromApi(assigned.code());
+
+        // If the learner is FREE and their industry's ideal (premium) mentor differs, expose it
+        // as an upsell so the client can nudge PRO (design §3.2).
+        String upsellCode = null;
+        String upsellName = null;
+        if (!fixedMentorResolver.isPremium(planCode)) {
+            var ideal = fixedMentorResolver.resolve(goalType, industryClean, currentLevel, "PRO");
+            if (!ideal.code().equals(assigned.code())) {
+                upsellCode = ideal.code();
+                upsellName = SpeakingPersona.fromApi(ideal.code()).displayName();
+            }
+        }
+
+        return new OnboardingMentorResponse(
+                assigned.code(), assignedPersona.displayName(), assigned.difficulty().name(), upsellCode, upsellName);
+    }
+
+    private UserLearningProfile.GoalType parseGoalOrNull(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        try {
+            return UserLearningProfile.GoalType.valueOf(raw.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    private UserLearningProfile.CurrentLevel parseLevelOrNull(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        try {
+            return UserLearningProfile.CurrentLevel.valueOf(raw.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Records in-app consent to receive PRO-upgrade information by email — the iOS
+     * web-upsell handoff (Apple 3.1.1: no in-app pricing). Idempotent: the first
+     * opt-in timestamp is kept. We already hold the learner's email from registration,
+     * so this is a consent flag, not an email collection.
+     */
+    public void recordUpsellInterest(User user) {
+        UserLearningProfile profile = profileRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new NotFoundException("Learning profile not found. Please complete onboarding first."));
+        if (profile.getUpsellOptInAt() == null) {
+            profile.setUpsellOptInAt(LocalDateTime.now());
+            profileRepository.save(profile);
+        }
     }
 
     // ── Settings page methods ────────────────────────────────────────────
@@ -138,7 +227,11 @@ public class UserLearningProfileService {
                 p.getSessionsPerWeek(),
                 p.getMinutesPerSession(),
                 p.getExamType(),
-                p.getAgeRange() != null ? p.getAgeRange().name() : null
+                p.getAgeRange() != null ? p.getAgeRange().name() : null,
+                p.getAssignedPersonaCode(),
+                p.getLevelSource(),
+                p.getOnboardingType(),
+                p.getUpsellOptInAt() != null ? p.getUpsellOptInAt().toString() : null
         );
     }
 }
