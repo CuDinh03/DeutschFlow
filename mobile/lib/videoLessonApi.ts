@@ -54,6 +54,14 @@ export const videoLessonApi = {
       .get<VideoTimeline>(`/video-lessons/grammar/by-name/${encodeURIComponent(caseName)}?limit=${limit}`)
       .then((r) => r.data),
 
+  /** Listening-practice video: an LLM-generated German dialogue on a topic (text cards). */
+  getListeningTimeline: (topic: string, level: string) =>
+    api
+      .get<VideoTimeline>(
+        `/video-lessons/listening?topic=${encodeURIComponent(topic)}&level=${encodeURIComponent(level)}`,
+      )
+      .then((r) => r.data),
+
   /** Phase B — start an async .mp4 render; returns the jobId to poll. */
   startVocabRender: (level: string, limit = 8) =>
     api

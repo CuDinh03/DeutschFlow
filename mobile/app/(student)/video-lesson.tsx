@@ -18,12 +18,20 @@ export default function VideoLessonScreen() {
   const initialLevel = LEVELS.find((l) => l === params.level) ?? 'A1'
   const [level, setLevel] = useState<string>(initialLevel)
   const [due, setDue] = useState(params.type === 'due')
-  const mode: 'grammar' | 'due' | 'level' = isGrammar ? 'grammar' : due ? 'due' : 'level'
+  const [listening, setListening] = useState(params.type === 'listening')
+  const mode: 'grammar' | 'listening' | 'due' | 'level' = isGrammar
+    ? 'grammar'
+    : listening
+      ? 'listening'
+      : due
+        ? 'due'
+        : 'level'
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['video-lesson', mode, isGrammar ? params.caseName : due ? 'due' : level],
+    queryKey: ['video-lesson', mode, isGrammar ? params.caseName : level],
     queryFn: () => {
       if (isGrammar) return videoLessonApi.getGrammarTimelineByName(params.caseName ?? '')
+      if (listening) return videoLessonApi.getListeningTimeline('Alltag', level)
       if (due) return videoLessonApi.getDueTimeline()
       return videoLessonApi.getVocabTimeline(level)
     },
@@ -88,15 +96,16 @@ export default function VideoLessonScreen() {
             marginBottom: space[4],
           }}
         >
-          <View style={{ flexDirection: 'row', gap: space[2] }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2] }}>
             {LEVELS.map((lv) => {
-              const active = !due && lv === level
+              const active = !due && !listening && lv === level
               return (
                 <Pressable
                   key={lv}
                   onPress={() => {
                     setLevel(lv)
                     setDue(false)
+                    setListening(false)
                   }}
                   style={{
                     paddingHorizontal: space[4],
@@ -114,7 +123,10 @@ export default function VideoLessonScreen() {
               )
             })}
             <Pressable
-              onPress={() => setDue(true)}
+              onPress={() => {
+                setDue(true)
+                setListening(false)
+              }}
               style={{
                 paddingHorizontal: space[4],
                 paddingVertical: 6,
@@ -126,6 +138,24 @@ export default function VideoLessonScreen() {
             >
               <ThemedText variant="label" color={due ? 'onAccent' : 'muted'}>
                 Tới hạn
+              </ThemedText>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                setListening(true)
+                setDue(false)
+              }}
+              style={{
+                paddingHorizontal: space[4],
+                paddingVertical: 6,
+                borderRadius: radius.full,
+                backgroundColor: listening ? c.accent : c.surfaceSunken,
+                borderWidth: listening ? 0 : 1,
+                borderColor: c.border,
+              }}
+            >
+              <ThemedText variant="label" color={listening ? 'onAccent' : 'muted'}>
+                Hội thoại
               </ThemedText>
             </Pressable>
           </View>
@@ -163,9 +193,11 @@ export default function VideoLessonScreen() {
           message={
             isGrammar
               ? 'Chủ đề ngữ pháp này chưa có nội dung video.'
-              : due
-                ? 'Không có từ tới hạn kèm hình ảnh. Học thêm hoặc thêm ảnh cho từ.'
-                : `Cấp ${level} chưa có từ kèm hình ảnh. Thêm ảnh cho từ vựng rồi thử lại.`
+              : listening
+                ? 'Chưa tạo được hội thoại (cần dịch vụ AI). Thử lại sau.'
+                : due
+                  ? 'Không có từ tới hạn kèm hình ảnh. Học thêm hoặc thêm ảnh cho từ.'
+                  : `Cấp ${level} chưa có từ kèm hình ảnh. Thêm ảnh cho từ vựng rồi thử lại.`
           }
         />
       ) : (
