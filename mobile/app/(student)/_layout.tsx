@@ -30,6 +30,7 @@ export default function StudentLayout() {
         <Tabs.Screen name="stats" options={{ href: null }} />
         <Tabs.Screen name="upgrade" options={{ href: null }} />
         <Tabs.Screen name="vocabulary" options={{ href: null }} />
+        <Tabs.Screen name="video-lesson" options={{ href: null }} />
         <Tabs.Screen name="weekly-speaking" options={{ href: null }} />
         <Tabs.Screen name="weekly-detail" options={{ href: null }} />
       </Tabs>
