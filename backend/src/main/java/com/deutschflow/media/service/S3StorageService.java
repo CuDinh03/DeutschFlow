@@ -8,6 +8,8 @@ import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
@@ -64,6 +66,35 @@ public class S3StorageService {
                 .key(s3Key)
                 .build();
         s3Client.deleteObject(deleteObjectRequest);
+    }
+
+    /** Upload raw bytes under an explicit key (used for deterministic/dedup keys, e.g. TTS narration). */
+    public S3UploadResult uploadBytes(byte[] data, String key, String contentType) {
+        PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                .bucket(bucketContext.bucketName())
+                .key(key)
+                .contentType(contentType)
+                .build();
+        s3Client.putObject(putObjectRequest, RequestBody.fromBytes(data));
+        return new S3UploadResult(key, bucketContext.publicObjectUrl(key));
+    }
+
+    /** True if an object already exists at the given key (for content-hash dedup). */
+    public boolean objectExists(String key) {
+        try {
+            s3Client.headObject(HeadObjectRequest.builder()
+                    .bucket(bucketContext.bucketName())
+                    .key(key)
+                    .build());
+            return true;
+        } catch (NoSuchKeyException e) {
+            return false;
+        }
+    }
+
+    /** Public URL for an existing object key (no upload). */
+    public String publicUrl(String key) {
+        return bucketContext.publicObjectUrl(key);
     }
 
     public String generatePresignedUrl(String objectKey, String contentType) {
