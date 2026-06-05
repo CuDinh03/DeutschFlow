@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Check, Image as ImageIcon, Loader2, Pencil, Save, Trash2, X, XCircle } from 'lucide-react'
+import { Check, Image as ImageIcon, Loader2, Pencil, Save, Search, Trash2, X, XCircle } from 'lucide-react'
 import api, { apiMessage } from '@/lib/api'
 import { ImageUploader } from '@/components/ui/ImageUploader'
 import { MediaAsset } from '@/lib/mediaApi'
 import { WordItem } from './types'
+import UnsplashPicker from './UnsplashPicker'
 
 const GENDER_COLORS: Record<string, string> = { DER: '#3b82f6', DIE: '#ef4444', DAS: '#22c55e' }
 
@@ -97,6 +98,7 @@ export default function EditWordCard({
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
+  const [showUnsplash, setShowUnsplash] = useState(false)
 
   const set = (k: keyof EditForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }))
@@ -207,6 +209,26 @@ export default function EditWordCard({
                   className="w-full px-3 py-2 rounded-[8px] border border-[#E2E8F0] text-sm text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#121212]/20"
                 />
               </div>
+            )}
+
+            {/* Tìm & chọn ảnh từ Unsplash (tải về S3) */}
+            <button
+              type="button"
+              onClick={() => setShowUnsplash((v) => !v)}
+              className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-[#121212] hover:underline"
+            >
+              <Search size={12} />
+              {showUnsplash ? 'Ẩn tìm Unsplash' : 'Tìm ảnh trên Unsplash'}
+            </button>
+            {showUnsplash && (
+              <UnsplashPicker
+                wordId={word.id}
+                baseForm={form.baseForm || word.baseForm}
+                onAttached={(url) => {
+                  setForm((f) => ({ ...f, imageUrl: url, imageSource: 'UNSPLASH' }))
+                  setShowUnsplash(false)
+                }}
+              />
             )}
 
             <div className="mt-3 text-xs text-[#64748B] flex flex-wrap gap-2">
