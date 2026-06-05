@@ -5,27 +5,30 @@ export function useTracking() {
   const posthog = usePostHog()
 
   /**
-   * Track a generic event
+   * Track a generic event.
+   *
+   * Memoized so the identity is stable across renders — consumers safely list
+   * it in effect dependency arrays without re-running the effect every render.
    */
-  const trackEvent = (eventName: string, properties?: Record<string, any>) => {
+  const trackEvent = useCallback((eventName: string, properties?: Record<string, any>) => {
     if (posthog) {
       posthog.capture(eventName, properties)
     }
-  }
+  }, [posthog])
 
   /**
    * Identify a user after login/registration
    */
-  const identifyUser = (userId: string, traits?: Record<string, any>) => {
+  const identifyUser = useCallback((userId: string, traits?: Record<string, any>) => {
     if (posthog) {
       posthog.identify(userId, traits)
     }
-  }
+  }, [posthog])
 
   /**
    * Track specific onboarding steps to analyze drop-off
    */
-  const trackOnboardingStep = (stepName: string, stepNumber: number, data?: Record<string, any>) => {
+  const trackOnboardingStep = useCallback((stepName: string, stepNumber: number, data?: Record<string, any>) => {
     if (posthog) {
       posthog.capture('onboarding_step_completed', {
         step_name: stepName,
@@ -33,7 +36,7 @@ export function useTracking() {
         ...data,
       })
     }
-  }
+  }, [posthog])
 
   /**
    * Track feature actions (started, completed, quit)
