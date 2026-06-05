@@ -2,17 +2,21 @@ package com.deutschflow.user.service;
 
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.common.quota.QuotaService;
 import com.deutschflow.user.dto.LearningProfileResponse;
 import com.deutschflow.user.dto.OnboardingProfileRequest;
 import com.deutschflow.user.dto.UpdateLearningProfileRequest;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.entity.UserLearningProfile;
+import com.deutschflow.user.mentor.FixedMentor;
+import com.deutschflow.user.mentor.FixedMentorResolver;
 import com.deutschflow.user.repository.UserLearningProfileRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -23,6 +27,8 @@ public class UserLearningProfileService {
     private final UserLearningProfileRepository profileRepository;
     private final StoredLearningPlanSupport storedLearningPlanSupport;
     private final ObjectMapper objectMapper;
+    private final QuotaService quotaService;
+    private final FixedMentorResolver fixedMentorResolver;
 
     public UserLearningProfile upsertProfile(User user, OnboardingProfileRequest req) {
         if (req.sessionsPerWeek() == null || req.minutesPerSession() == null) {
@@ -57,6 +63,14 @@ public class UserLearningProfileService {
         profile.setSessionsPerWeek(req.sessionsPerWeek());
         profile.setMinutesPerSession(req.minutesPerSession());
         profile.setLearningSpeed(learningSpeed);
+
+        // Deterministically assign the fixed mentor from the freshly-set profile + subscription tier.
+        // Onboarding's currentLevel is self-declared, so record provenance as SELF; the placement-test
+        // flow overwrites both current_level and level_source to PLACEMENT when it runs.
+        String planCode = quotaService.resolvePlanBadge(user.getId(), Instant.now()).planCode();
+        FixedMentor mentor = fixedMentorResolver.resolve(goalType, profile.getIndustry(), currentLevel, planCode);
+        profile.setAssignedPersonaCode(mentor.code());
+        profile.setLevelSource("SELF");
 
         return profileRepository.save(profile);
     }

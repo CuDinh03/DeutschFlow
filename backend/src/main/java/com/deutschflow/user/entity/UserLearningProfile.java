@@ -66,6 +66,24 @@ public class UserLearningProfile {
     @Builder.Default
     private LearningSpeed learningSpeed = LearningSpeed.NORMAL;
 
+    /**
+     * Default Speaking/Interview mentor (a {@code SpeakingPersona} code, e.g. {@code "ANNA"}),
+     * derived deterministically at onboarding by
+     * {@link com.deutschflow.user.mentor.FixedMentorResolver}. Nullable for profiles created
+     * before the fixed-mentor feature; consumers fall back to the default mentor.
+     */
+    @Column(name = "assigned_persona_code", length = 32)
+    private String assignedPersonaCode;
+
+    /**
+     * How {@link #currentLevel} was established: {@code "SELF"} (self-declared during onboarding)
+     * or {@code "PLACEMENT"} (validated by the placement test). Lets adaptive logic weight the
+     * confidence of {@code currentLevel}.
+     */
+    @Column(name = "level_source", length = 20)
+    @Builder.Default
+    private String levelSource = "SELF";
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
