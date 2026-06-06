@@ -612,7 +612,8 @@ public class UserNotificationService {
 
     private List<User> resolveAudience(BroadcastNotificationRequest request) {
         return switch (request.audienceType().toUpperCase()) {
-            case "ALL" -> userRepository.findAll().stream().filter(User::isActive).toList();
+            // Filter at the DB rather than loading every user row into the JVM via findAll().
+            case "ALL" -> userRepository.findByActiveTrue();
             case "ROLE" -> {
                 if (request.role() == null || request.role().isBlank()) {
                     throw new IllegalArgumentException("role is required for ROLE audience");
@@ -628,10 +629,11 @@ public class UserNotificationService {
                         "JOIN users u ON u.id = us.user_id " +
                         "WHERE us.plan_code = ? AND u.is_active IS TRUE AND us.status = 'ACTIVE' AND us.ends_at > NOW()",
                         Long.class, request.tier().toUpperCase());
-                yield ids.stream()
-                        .map(id -> userRepository.findById(id).orElse(null))
-                        .filter(u -> u != null && u.isActive())
-                        .toList();
+                // Single IN-query instead of one findById() per id (N+1).
+                yield ids.isEmpty() ? List.of()
+                        : userRepository.findAllById(ids).stream()
+                                .filter(User::isActive)
+                                .toList();
             }
             case "SINGLE_USER" -> {
                 if (request.targetEmail() == null || request.targetEmail().isBlank()) {
