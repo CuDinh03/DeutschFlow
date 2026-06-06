@@ -1,9 +1,13 @@
 package com.deutschflow.progress.service;
 
+import com.deutschflow.gamification.repository.UserXpEventRepository;
 import com.deutschflow.progress.entity.LearnerPhaseState;
 import com.deutschflow.progress.entity.PhaseType;
 import com.deutschflow.progress.repository.LearnerPhaseStateRepository;
+import com.deutschflow.speaking.repository.AiSpeakingSessionRepository;
+import com.deutschflow.srs.repository.VocabReviewRepository;
 import com.deutschflow.user.entity.User;
+import com.deutschflow.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,12 +29,47 @@ public class PhaseEngineService {
     static final int FLUENCY_VOCAB_THRESHOLD       = 700;
     static final int FLUENCY_GRAMMAR_THRESHOLD     = 85;
 
+    /**
+     * Conservative per-session minutes estimate used to derive {@code speakingMinutesTotal}
+     * from the ENDED-session count. Real per-session duration is not yet persisted; replace
+     * this proxy with a summed duration once session start/end timestamps are tracked reliably.
+     */
+    static final int ESTIMATED_MINUTES_PER_SPEAKING_SESSION = 15;
+
     private final LearnerPhaseStateRepository phaseStateRepository;
+    private final VocabReviewRepository vocabReviewRepository;
+    private final UserXpEventRepository xpEventRepository;
+    private final AiSpeakingSessionRepository speakingSessionRepository;
+    private final UserRepository userRepository;
 
     @Transactional
     public LearnerPhaseState getOrCreatePhaseState(User user) {
         return phaseStateRepository.findByUserId(user.getId())
                 .orElseGet(() -> createInitialPhaseState(user));
+    }
+
+    /**
+     * Recompute phase progress from REAL learner signals (not caller-passed values) and advance
+     * the phase if thresholds are met. This is the canonical progression entry point — call it
+     * after any activity that changes progress (skill-tree node completion, speaking session end,
+     * mock exam). Deriving the counts here closes the long-standing bug where the only caller
+     * re-passed the existing (zero) values, so the learner could never leave FOUNDATION.
+     */
+    @Transactional
+    public LearnerPhaseState recompute(Long userId) {
+        return userRepository.findById(userId).map(this::recompute).orElse(null);
+    }
+
+    @Transactional
+    public LearnerPhaseState recompute(User user) {
+        Long uid = user.getId();
+        int vocabMastered = (int) vocabReviewRepository.countMastered(uid);
+        int sessionsCompleted = (int) (xpEventRepository.countSessionCompleteByUserId(uid)
+                + xpEventRepository.countSatelliteCompleteByUserId(uid));
+        int speakingMinutes = (int) (speakingSessionRepository.countEndedByUserId(uid)
+                * ESTIMATED_MINUTES_PER_SPEAKING_SESSION);
+        int grammarAccuracy = (int) Math.round(speakingSessionRepository.avgEndedScoreByUserId(uid));
+        return updateProgress(user, vocabMastered, speakingMinutes, grammarAccuracy, sessionsCompleted);
     }
 
     @Transactional

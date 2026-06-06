@@ -45,6 +45,7 @@ public class SkillTreeService {
     private final AsyncJobService asyncJobService;
     private final PracticeNodeService practiceNodeService;
     private final com.deutschflow.srs.service.SrsVocabScheduler srsVocabScheduler;
+    private final com.deutschflow.progress.service.PhaseEngineService phaseEngineService;
 
     // In-memory lock to prevent duplicate LLM calls for the same cache key
     private final ConcurrentHashMap<String, Boolean> generationLocks = new ConcurrentHashMap<>();
@@ -607,6 +608,14 @@ public class SkillTreeService {
 
             // Feed the node's vocabulary into the FSRS spaced-repetition queue (best-effort)
             srsVocabScheduler.scheduleFromContentJson(userId, nodeId, (String) node.get("content_json"));
+
+            // Recompute learner phase progress from real signals so completing nodes actually
+            // advances FOUNDATION → PRODUCTION → FLUENCY (best-effort; never fails the submit).
+            try {
+                phaseEngineService.recompute(userId);
+            } catch (Exception e) {
+                log.warn("[SkillTree] Phase recompute failed for user {}: {}", userId, e.getMessage());
+            }
         }
 
         return Map.of(

@@ -38,4 +38,17 @@ public interface VocabReviewRepository extends JpaRepository<VocabReviewSchedule
     List<VocabReviewSchedule> findByUserIdOrderByNextReviewAtAsc(Long userId);
 
     long countByUserId(Long userId);
+
+    /**
+     * Count of "mastered" cards — those scheduled at a long-term interval (>= 21 days).
+     * 21 days is the canonical SM-2 "mature card" boundary and applies to FSRS cards too
+     * (both algorithms write {@code interval_days}). Used as the real vocabulary-mastery
+     * signal for phase progression and B1 readiness.
+     */
+    @Query("""
+        SELECT COUNT(v) FROM VocabReviewSchedule v
+        WHERE v.userId = :userId
+          AND v.intervalDays >= 21
+    """)
+    long countMastered(@Param("userId") Long userId);
 }

@@ -1,9 +1,13 @@
 package com.deutschflow.progress.service;
 
+import com.deutschflow.gamification.repository.UserXpEventRepository;
 import com.deutschflow.progress.entity.LearnerPhaseState;
 import com.deutschflow.progress.entity.PhaseType;
 import com.deutschflow.progress.repository.LearnerPhaseStateRepository;
+import com.deutschflow.speaking.repository.AiSpeakingSessionRepository;
+import com.deutschflow.srs.repository.VocabReviewRepository;
 import com.deutschflow.user.entity.User;
+import com.deutschflow.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,6 +28,14 @@ class PhaseEngineServiceTest {
 
     @Mock
     LearnerPhaseStateRepository phaseStateRepository;
+    @Mock
+    VocabReviewRepository vocabReviewRepository;
+    @Mock
+    UserXpEventRepository xpEventRepository;
+    @Mock
+    AiSpeakingSessionRepository speakingSessionRepository;
+    @Mock
+    UserRepository userRepository;
 
     @InjectMocks
     PhaseEngineService phaseEngineService;
@@ -170,5 +182,71 @@ class PhaseEngineServiceTest {
         var actions = phaseEngineService.getNextActions(state);
 
         assertThat(actions).contains("mock_b1_exam");
+    }
+
+    @Test
+    @DisplayName("recompute derives real signals and advances FOUNDATION→PRODUCTION when met")
+    void recompute_realSignalsMeetFoundationThreshold_advancesToProduction() {
+        var state = LearnerPhaseState.builder()
+                .user(user).currentPhase(PhaseType.FOUNDATION).phaseStartedAt(LocalDateTime.now())
+                .vocabularyMasteredCount(0).sessionsCompleted(0).build();
+        when(phaseStateRepository.findByUserId(1L)).thenReturn(Optional.of(state));
+        when(phaseStateRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(vocabReviewRepository.countMastered(1L))
+                .thenReturn((long) PhaseEngineService.FOUNDATION_VOCAB_THRESHOLD);
+        when(xpEventRepository.countSessionCompleteByUserId(1L))
+                .thenReturn((long) PhaseEngineService.FOUNDATION_SESSIONS_THRESHOLD);
+        when(xpEventRepository.countSatelliteCompleteByUserId(1L)).thenReturn(0L);
+        when(speakingSessionRepository.countEndedByUserId(1L)).thenReturn(0L);
+        when(speakingSessionRepository.avgEndedScoreByUserId(1L)).thenReturn(0.0);
+
+        var result = phaseEngineService.recompute(user);
+
+        assertThat(result.getCurrentPhase()).isEqualTo(PhaseType.PRODUCTION);
+        assertThat(result.getVocabularyMasteredCount())
+                .isEqualTo(PhaseEngineService.FOUNDATION_VOCAB_THRESHOLD);
+        assertThat(result.getSessionsCompleted())
+                .isEqualTo(PhaseEngineService.FOUNDATION_SESSIONS_THRESHOLD);
+    }
+
+    @Test
+    @DisplayName("recompute stays in FOUNDATION when real signals are below thresholds")
+    void recompute_realSignalsBelowThreshold_staysFoundation() {
+        var state = LearnerPhaseState.builder()
+                .user(user).currentPhase(PhaseType.FOUNDATION).phaseStartedAt(LocalDateTime.now()).build();
+        when(phaseStateRepository.findByUserId(1L)).thenReturn(Optional.of(state));
+        when(phaseStateRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(vocabReviewRepository.countMastered(1L)).thenReturn(10L);
+        when(xpEventRepository.countSessionCompleteByUserId(1L)).thenReturn(2L);
+        when(xpEventRepository.countSatelliteCompleteByUserId(1L)).thenReturn(0L);
+        when(speakingSessionRepository.countEndedByUserId(1L)).thenReturn(1L);
+        when(speakingSessionRepository.avgEndedScoreByUserId(1L)).thenReturn(50.0);
+
+        var result = phaseEngineService.recompute(user);
+
+        assertThat(result.getCurrentPhase()).isEqualTo(PhaseType.FOUNDATION);
+    }
+
+    @Test
+    @DisplayName("recompute(userId) loads the user and recomputes; null when user missing")
+    void recompute_byUserId_loadsUserOrReturnsNull() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        var state = LearnerPhaseState.builder()
+                .user(user).currentPhase(PhaseType.FOUNDATION).phaseStartedAt(LocalDateTime.now()).build();
+        when(phaseStateRepository.findByUserId(1L)).thenReturn(Optional.of(state));
+        when(phaseStateRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(vocabReviewRepository.countMastered(1L)).thenReturn(0L);
+        when(xpEventRepository.countSessionCompleteByUserId(1L)).thenReturn(0L);
+        when(xpEventRepository.countSatelliteCompleteByUserId(1L)).thenReturn(0L);
+        when(speakingSessionRepository.countEndedByUserId(1L)).thenReturn(0L);
+        when(speakingSessionRepository.avgEndedScoreByUserId(1L)).thenReturn(0.0);
+
+        var result = phaseEngineService.recompute(1L);
+
+        assertThat(result).isNotNull();
+        assertThat(result.getCurrentPhase()).isEqualTo(PhaseType.FOUNDATION);
+
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
+        assertThat(phaseEngineService.recompute(99L)).isNull();
     }
 }

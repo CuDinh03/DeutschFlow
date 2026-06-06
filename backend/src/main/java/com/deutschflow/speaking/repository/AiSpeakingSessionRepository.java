@@ -58,4 +58,14 @@ public interface AiSpeakingSessionRepository extends JpaRepository<AiSpeakingSes
            "AND s.startedAt >= :after " +
            "AND (s.teacherScore IS NOT NULL OR s.aiScore IS NOT NULL)")
     double avgScoreAfter(@Param("userId") Long userId, @Param("after") LocalDateTime after);
+
+    /** Total ENDED (completed) speaking sessions for a user — proxy for speaking-practice volume. */
+    @Query("SELECT COUNT(s) FROM AiSpeakingSession s WHERE s.userId = :userId AND s.status = 'ENDED'")
+    long countEndedByUserId(@Param("userId") Long userId);
+
+    /** Average effective score (teacher-preferred, else AI) across all ENDED sessions, 0-100. */
+    @Query("SELECT COALESCE(AVG(CASE WHEN s.teacherScore IS NOT NULL THEN s.teacherScore ELSE s.aiScore END), 0) " +
+           "FROM AiSpeakingSession s WHERE s.userId = :userId AND s.status = 'ENDED' " +
+           "AND (s.teacherScore IS NOT NULL OR s.aiScore IS NOT NULL)")
+    double avgEndedScoreByUserId(@Param("userId") Long userId);
 }

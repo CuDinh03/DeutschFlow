@@ -351,12 +351,19 @@ public class XpService {
 
     private int computeStreakDays(Long userId) {
         try {
-            List<LearningSessionProgress> completed = sessionProgressRepository
-                    .findCompletedWithTimestampByUserId(userId);
             Set<LocalDate> days = new HashSet<>();
-            for (LearningSessionProgress p : completed) {
+            // Source 1: learning-plan session completions.
+            for (LearningSessionProgress p : sessionProgressRepository.findCompletedWithTimestampByUserId(userId)) {
                 if (p.getCompletedAt() != null) {
                     days.add(p.getCompletedAt().toLocalDate());
+                }
+            }
+            // Source 2: every XP-earning activity (skill-tree nodes, SRS reviews, speaking, vocab).
+            // Skill-tree completions write to skill_tree_user_progress, NOT learning_session_progress,
+            // so without this union skill-tree/mobile learners would never build a streak.
+            for (LocalDateTime ts : xpEventRepository.findActivityTimestampsByUserId(userId)) {
+                if (ts != null) {
+                    days.add(ts.toLocalDate());
                 }
             }
             LocalDate today = LocalDate.now();
