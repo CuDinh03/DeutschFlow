@@ -141,8 +141,11 @@ public class StripePaymentService {
     @Transactional
     public void handleWebhook(String payload, String sigHeader) throws SignatureVerificationException {
         if (webhookSecret == null || webhookSecret.isBlank()) {
-            log.warn("[STRIPE WEBHOOK] webhook-secret is not configured — skipping signature verification.");
-            return;
+            // SECURITY: without the signing secret we cannot verify the event originated from
+            // Stripe. Reject rather than silently accept — otherwise a forged
+            // checkout.session.completed could activate any plan for any user with no payment.
+            log.error("[STRIPE WEBHOOK] STRIPE_WEBHOOK_SECRET is not configured — rejecting webhook.");
+            throw new IllegalStateException("Stripe webhook secret is not configured");
         }
 
         Event event = Webhook.constructEvent(payload, sigHeader, webhookSecret);

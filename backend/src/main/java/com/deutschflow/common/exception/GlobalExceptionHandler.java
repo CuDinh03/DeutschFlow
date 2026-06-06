@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 /**
@@ -31,6 +32,8 @@ public class GlobalExceptionHandler {
 
     private static final String BASE_TYPE = "https://deutschflow.com/errors/";
     private static final MediaType PROBLEM_JSON = MediaType.valueOf("application/problem+json");
+    /** Monotonic counter to correlate a client-facing error reference with the server log. */
+    private static final AtomicLong ERROR_SEQ = new AtomicLong();
 
     // --- 400 Bad Request ---
     @ExceptionHandler(BadRequestException.class)
@@ -136,10 +139,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ProblemDetail> handleGeneral(Exception ex,
                                                        HttpServletRequest request) {
-        log.error("[500] Unhandled exception on {}", request.getRequestURI(), ex);
-        String detail = ex.getClass().getSimpleName() + ": " + ex.getMessage();
+        // Never leak the exception class/message to the client (it can expose table/column names,
+        // JPQL, SQL fragments, internal paths). Log the full detail server-side under a reference
+        // id and return only that reference so support can correlate without disclosure.
+        String errorId = "ERR-" + Long.toHexString(ERROR_SEQ.incrementAndGet()).toUpperCase();
+        log.error("[500][{}] Unhandled exception on {}", errorId, request.getRequestURI(), ex);
         return problem(HttpStatus.INTERNAL_SERVER_ERROR, "internal-error", "Internal Server Error",
-                detail, request.getRequestURI(), null, null);
+                "An unexpected error occurred. Reference: " + errorId, request.getRequestURI(), null, null);
     }
 
     // --- builder ---

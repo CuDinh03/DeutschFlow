@@ -5,6 +5,7 @@ import com.deutschflow.admin.dto.AdminUpdateLearningProfileRequest;
 import com.deutschflow.user.dto.AdminUpdateProfileRequest;
 import com.deutschflow.notification.service.UserNotificationService;
 import com.deutschflow.common.audit.AuditLogService;
+import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.vocabulary.service.DeepLLemmaBackfillService;
 import com.deutschflow.vocabulary.service.GlosbeViEnrichmentService;
 import com.deutschflow.vocabulary.service.GlosbeVocabularyImportService;
@@ -32,15 +33,19 @@ import org.springframework.web.bind.annotation.*;
 import com.deutschflow.user.entity.User;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminManagementController {
+    private static final Set<String> VALID_CEFR_LEVELS = Set.of("A1", "A2", "B1", "B2", "C1", "C2");
+
     private final AdminManagementService adminManagementService;
     private final GoetheVocabularyAutoImportService goetheVocabularyAutoImportService;
     private final GlosbeVocabularyImportService glosbeVocabularyImportService;
@@ -747,6 +752,11 @@ public class AdminManagementController {
             Authentication authentication
     ) {
         int cap = Math.min(Math.max(1, limit), 200);
+
+        // SECURITY: bind cefrLevel/dtype as query parameters (never string-concatenate them).
+        // The previous `replace("'","")` filter was bypassable (e.g. $$..$$, ::text--, unicode
+        // quotes), turning an admin-gated read into a full-DB injection. CEFR is additionally
+        // whitelisted as defence-in-depth.
         StringBuilder sql = new StringBuilder(
                 "SELECT w.id, w.base_form, w.dtype, w.cefr_level, w.phonetic," +
                 "  n.gender, w.admin_review_notes," +
@@ -755,13 +765,24 @@ public class AdminManagementController {
                 " FROM words w LEFT JOIN nouns n ON n.id = w.id" +
                 " WHERE w.reviewed_by_admin = FALSE"
         );
-        if (cefrLevel != null && !cefrLevel.isBlank()) sql.append(" AND w.cefr_level = '").append(cefrLevel.replace("'", "")).append("'");
-        if (dtype    != null && !dtype.isBlank())     sql.append(" AND w.dtype = '").append(dtype.replace("'", "")).append("'");
+        List<Object> params = new ArrayList<>();
+        if (cefrLevel != null && !cefrLevel.isBlank()) {
+            String normalized = cefrLevel.trim().toUpperCase();
+            if (!VALID_CEFR_LEVELS.contains(normalized)) {
+                throw new BadRequestException("Invalid cefrLevel");
+            }
+            sql.append(" AND w.cefr_level = ?");
+            params.add(normalized);
+        }
+        if (dtype != null && !dtype.isBlank()) {
+            sql.append(" AND w.dtype = ?");
+            params.add(dtype);
+        }
         sql.append(" ORDER BY CASE COALESCE(w.cefr_level,'ZZ') WHEN 'A1' THEN 1 WHEN 'A2' THEN 2 WHEN 'B1' THEN 3" +
                    " WHEN 'B2' THEN 4 WHEN 'C1' THEN 5 WHEN 'C2' THEN 6 ELSE 99 END," +
                    " CASE WHEN w.dtype = 'Noun' THEN 0 ELSE 1 END, w.id ASC LIMIT ").append(cap);
 
-        var items = jdbcTemplate.queryForList(sql.toString());
+        var items = jdbcTemplate.queryForList(sql.toString(), params.toArray());
         var total = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM words WHERE reviewed_by_admin = FALSE", Integer.class);
         return Map.of("items", items, "total", total, "limit", cap);
