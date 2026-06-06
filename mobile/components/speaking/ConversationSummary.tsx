@@ -37,6 +37,16 @@ function BulletList({ items, tone, icon }: { items: string[]; tone: Tone; icon: 
 export function ConversationSummary({ report, onPracticeAgain, onDone }: ConversationSummaryProps) {
   const score = report.overallScore != null ? Math.round(report.overallScore * 10) / 10 : null
   const hasGrammar = !!report.grammarAccuracy || report.commonErrors.length > 0
+  const hasAnyContent =
+    score != null ||
+    !!report.summary ||
+    report.strengths.length > 0 ||
+    report.improvements.length > 0 ||
+    hasGrammar ||
+    !!report.vocabulary ||
+    !!report.fluency ||
+    report.recommendedNext.length > 0 ||
+    !!report.encouragement
 
   return (
     <ScrollView
@@ -59,6 +69,11 @@ export function ConversationSummary({ report, onPracticeAgain, onDone }: Convers
           {report.summary ? (
             <ThemedText variant="body" color="muted" align="center">
               {report.summary}
+            </ThemedText>
+          ) : null}
+          {!hasAnyContent ? (
+            <ThemedText variant="body" color="muted" align="center">
+              Buổi luyện nói đã hoàn thành! 🎉{'\n'}Lần này chưa có đánh giá chi tiết, nhưng mỗi câu bạn nói đều là một bước tiến. Tiếp tục luyện nhé!
             </ThemedText>
           ) : null}
         </View>

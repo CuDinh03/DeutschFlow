@@ -145,7 +145,7 @@ export default function SpeakingScreen() {
   //   2. On-device speech (expo-speech) if present in the binary
   //   3. Timed delay paced by text length
   // The persona "talks" for the audio duration, then runs onDone.
-  async function speakGerman(text: string, onDone: () => void) {
+  async function speakGerman(text: string, onDone: () => void, personaOverride?: string | null) {
     setStage('speaking')
     setReaction(null)
     let done = false
@@ -162,7 +162,10 @@ export default function SpeakingScreen() {
 
     // 1. Server TTS — persona voice, played through expo-av.
     try {
-      const persona = (session?.persona ?? 'DEFAULT').toUpperCase()
+      // On the opening greeting `session` state hasn't flushed yet (startSession just
+      // called setSession), so the caller passes the fresh persona explicitly. Without
+      // it the first line always fell back to the DEFAULT voice regardless of persona.
+      const persona = (personaOverride ?? session?.persona ?? 'DEFAULT').toUpperCase()
       const base64 = await speakingApi.tts(trimmed, persona)
       await stopSpeech()
       const path = `${FileSystem.cacheDirectory}tts-${ttsSeqRef.current++}.mp3`
@@ -263,7 +266,7 @@ export default function SpeakingScreen() {
         topic: created.topic,
       })
       setView('chat')
-      speakGerman(greeting, () => flashReaction(null))
+      speakGerman(greeting, () => flashReaction(null), created.persona)
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     } catch (e) {
       Alert.alert('Không thể bắt đầu', apiMessage(e))
@@ -394,23 +397,12 @@ export default function SpeakingScreen() {
         setReport(built)
         setView('summary')
       } else {
-        // Conversation / lesson: show the AI evaluation summary (fall back to select if empty).
+        // Conversation / lesson: ALWAYS land on the evaluation view. When the AI report
+        // is unavailable (LLM/quota hiccup) the backend returns an empty report — show a
+        // graceful fallback summary instead of silently dumping the learner back to select.
         const conv = await speakingApi.getConversationReport(session.id).catch(() => null)
-        const hasContent =
-          !!conv &&
-          (!!conv.summary ||
-            conv.strengths.length > 0 ||
-            conv.improvements.length > 0 ||
-            conv.overallScore != null)
-        if (conv && hasContent) {
-          setConvReport(conv)
-          setView('summary')
-        } else {
-          setSession(null)
-          setMessages([])
-          setPhaseKey(null)
-          setView('select')
-        }
+        setConvReport(conv ?? emptyConversationReport(session))
+        setView('summary')
       }
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
     } catch (e) {
@@ -871,6 +863,26 @@ const MessageBubble = memo(function MessageBubble({
     </MotiView>
   )
 })
+
+// Minimal report so the learner always reaches a result screen, even when the
+// backend has no AI evaluation to return (LLM/quota hiccup → empty report).
+function emptyConversationReport(session: AiSpeakingSession): ConversationReport {
+  return {
+    sessionId: session.id,
+    topic: session.topic,
+    levelEstimate: session.cefrLevel,
+    overallScore: null,
+    summary: null,
+    strengths: [],
+    improvements: [],
+    grammarAccuracy: null,
+    commonErrors: [],
+    vocabulary: null,
+    fluency: null,
+    recommendedNext: [],
+    encouragement: null,
+  }
+}
 
 function mapMessagesToTurns(messages: AiSpeakingMessage[]): ChatTurn[] {
   const turns: ChatTurn[] = []
