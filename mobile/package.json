@@ -14,7 +14,10 @@
     "preset": "ts-jest",
     "testEnvironment": "node",
     "moduleNameMapper": {
-      "^@/(.*)$": "<rootDir>/$1"
+      "^@/(.*)$": "<rootDir>/$1",
+      "^react-native$": "<rootDir>/test/mocks/react-native.ts",
+      "^expo-router$": "<rootDir>/test/mocks/expo-router.ts",
+      "^expo-secure-store$": "<rootDir>/test/mocks/expo-secure-store.ts"
     },
     "testMatch": [
       "**/__tests__/**/*.test.ts"
