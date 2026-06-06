@@ -78,7 +78,7 @@ export function PronunciationFeedback({ expectedText, onClose }: PronunciationFe
     formData.append("expectedText", expectedText);
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/speaking/pronunciation-check`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/speaking/pronunciation-check`, {
         method: "POST",
         credentials: "include",
         body: formData,

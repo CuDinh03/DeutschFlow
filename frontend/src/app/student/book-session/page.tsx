@@ -30,7 +30,7 @@ function BookSessionContent() {
 
   useEffect(() => {
     if (!teacherId) return;
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v2/teachers/${teacherId}`)
+    fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v2/teachers/${teacherId}`)
       .then((r) => (r.ok ? r.json() : null))
       .then(setTeacher)
       .catch(() => setTeacher(null))
@@ -44,7 +44,7 @@ function BookSessionContent() {
     if (!teacher || !scheduledAt) return;
     setSubmitting(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teacher-sessions`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/teacher-sessions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

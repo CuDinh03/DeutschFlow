@@ -124,7 +124,7 @@ export default function CertificatePage() {
     try {
       const token = getAccessToken() ?? "";
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL ?? ""}/api/certificates/${id}/pdf`,
+        `${process.env.NEXT_PUBLIC_BACKEND_URL ?? ""}/api/certificates/${id}/pdf`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (!res.ok) throw new Error("Không thể tải chứng chỉ");

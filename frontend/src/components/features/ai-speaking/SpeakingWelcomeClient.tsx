@@ -39,21 +39,6 @@ export function SpeakingWelcomeClient() {
     responseSchema?: SpeakingResponseSchemaId,
     sessionMode?: SpeakingSessionMode
   ) => {
-    const ts = Date.now();
-    const accessTokenExists = typeof window !== 'undefined' ? Boolean(window.sessionStorage.getItem('accessToken') || window.localStorage.getItem('accessToken')) : false;
-    const refreshTokenExists = typeof window !== 'undefined' ? Boolean(window.localStorage.getItem('refreshToken') || window.sessionStorage.getItem('refreshToken')) : false;
-    console.log('[DF_TRACE][SpeakingWelcomeClient.handleStart:start]', {
-      ts,
-      topic,
-      cefrLevel,
-      persona,
-      responseSchema,
-      sessionMode,
-      accessTokenExists,
-      refreshTokenExists,
-      path: typeof window !== 'undefined' ? window.location.pathname : null,
-      stack: new Error().stack,
-    });
     if (quotaBlocked) {
       toast.error(t("errorQuota"));
       return;
@@ -61,13 +46,6 @@ export function SpeakingWelcomeClient() {
     setIsStarting(true);
     try {
       // 1. Call Backend to create session
-      console.log('[DF_TRACE][SpeakingWelcomeClient.handleStart:dispatch:createSession]', {
-        ts: Date.now(),
-        url: '/ai-speaking/sessions',
-        method: 'POST',
-        accessTokenExists,
-        refreshTokenExists,
-      });
       const res = await aiSpeakingApi.createSession(
         topic,
         cefrLevel,
@@ -77,10 +55,6 @@ export function SpeakingWelcomeClient() {
       );
       
       const session = res.data;
-      console.log('[DF_TRACE][SpeakingWelcomeClient.handleStart:createSession:success]', {
-        ts: Date.now(),
-        sessionId: session.id,
-      });
 
       // 2. Setup Companion Data for Frontend Store
       const pId = (persona || "LUKAS").toLowerCase() as PersonaId;
@@ -143,10 +117,6 @@ export function SpeakingWelcomeClient() {
       }
 
       // 5. Navigate to Chat UI
-      console.log('[DF_TRACE][SpeakingWelcomeClient.handleStart:router.push:/speaking/chat]', {
-        ts: Date.now(),
-        sessionId: session.id,
-      });
       router.push("/speaking/chat");
     } catch (error) {
       console.error("Failed to create session", error);

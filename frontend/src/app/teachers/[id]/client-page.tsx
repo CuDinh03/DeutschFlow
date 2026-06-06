@@ -24,7 +24,7 @@ export default function TeacherDetailPage() {
 
   useEffect(() => {
     if (!id) return;
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v2/teachers/${id}`)
+    fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v2/teachers/${id}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => setTeacher(data))
       .catch(() => setTeacher(null))

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
 import api, { httpStatus } from "@/lib/api";
-import { getAccessToken, getRefreshToken, clearTokens, tokenCacheReady } from "@/lib/authSession";
+import { getAccessToken, clearTokens, tokenCacheReady } from "@/lib/authSession";
 import { toastApiError } from "@/lib/toastApiError";
 import posthog from "posthog-js";
 
@@ -69,49 +69,18 @@ export function useStudentPracticeSession(options?: {
     // On iOS cold launch, wait for native token cache to be ready before checking.
     // On web this resolves immediately (no-op).
     await tokenCacheReady;
-    const startedAt = Date.now();
     const accessToken = getAccessToken();
-    const refreshToken = typeof window !== "undefined" ? window.localStorage.getItem("refreshToken") : null;
-    console.log("[DF_TRACE][useStudentPracticeSession.load:start]", {
-      ts: startedAt,
-      accessTokenExists: Boolean(accessToken),
-      refreshTokenExists: Boolean(refreshToken),
-      requireStudent,
-      skipOnboardingCheck,
-      path: typeof window !== "undefined" ? window.location.pathname : null,
-      stack: new Error().stack,
-    });
     if (!accessToken) {
-      console.log("[DF_TRACE][useStudentPracticeSession.load:redirect-login:no-access-token]", {
-        ts: Date.now(),
-        elapsedMs: Date.now() - startedAt,
-      });
       router.replace("/login");
       return;
     }
     setLoading(true);
     setLoadError(null);
     try {
-      console.log("[DF_TRACE][useStudentPracticeSession.load:dispatch:/auth/me]", {
-        ts: Date.now(),
-        url: "/auth/me",
-        accessTokenExists: Boolean(accessToken),
-        refreshTokenExists: Boolean(refreshToken),
-      });
       const meRes = await api.get<PracticeSessionUser>("/auth/me");
       const userData = meRes.data;
-      console.log("[DF_TRACE][useStudentPracticeSession.load:auth-me:success]", {
-        ts: Date.now(),
-        elapsedMs: Date.now() - startedAt,
-        userData,
-      });
-      
+
       if (requireStudent && userData.role !== "STUDENT") {
-        console.log("[DF_TRACE][useStudentPracticeSession.load:redirect-role]", {
-          ts: Date.now(),
-          role: userData.role,
-          elapsedMs: Date.now() - startedAt,
-        });
         router.replace(`/${String(userData.role).toLowerCase()}`);
         return;
       }
@@ -146,26 +115,9 @@ export function useStudentPracticeSession(options?: {
       setStreakDays(newStreak);
     } catch (err: unknown) {
       const st = httpStatus(err);
-      console.log("[DF_TRACE][useStudentPracticeSession.load:error]", {
-        ts: Date.now(),
-        elapsedMs: Date.now() - startedAt,
-        status: st,
-        message: (err as { message?: string })?.message,
-        stack: err instanceof Error ? err.stack : null,
-      });
       if (st === 401 || st === 403) {
-        console.log("[DF_TRACE][useStudentPracticeSession.load:auth-invalid]", {
-          ts: Date.now(),
-          status: st,
-          accessTokenExists: Boolean(getAccessToken()),
-          refreshTokenExists: Boolean(getRefreshToken()),
-        });
         clearTokens();
         toastApiError(err, { locale });
-        console.log("[DF_TRACE][useStudentPracticeSession.load:redirect-login:auth-error]", {
-          ts: Date.now(),
-          elapsedMs: Date.now() - startedAt,
-        });
         router.replace("/login");
         return;
       }
@@ -178,10 +130,6 @@ export function useStudentPracticeSession(options?: {
       );
       setMe(null);
     } finally {
-      console.log("[DF_TRACE][useStudentPracticeSession.load:finally]", {
-        ts: Date.now(),
-        elapsedMs: Date.now() - startedAt,
-      });
       setLoading(false);
     }
   }, [locale, requireStudent, skipOnboardingCheck, router]);

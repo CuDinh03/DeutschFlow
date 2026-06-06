@@ -38,8 +38,8 @@ export default function TeacherSessionsPage() {
 
   const loadProfileId = useCallback(async () => {
     try {
-      const me = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/me`, { credentials: "include" }).then(r => r.json());
-      const profiles = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v2/teachers/public?size=100`, { credentials: "include" }).then(r => r.json());
+      const me = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/me`, { credentials: "include" }).then(r => r.json());
+      const profiles = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v2/teachers/public?size=100`, { credentials: "include" }).then(r => r.json());
       const mine = (profiles.content as { userId: number; id: number }[]).find(p => p.userId === me.userId);
       if (mine) setProfileId(mine.id);
     } catch { /* ignore */ }
@@ -48,8 +48,8 @@ export default function TeacherSessionsPage() {
   const loadData = useCallback(async (pid: number) => {
     try {
       const [sessRes, earRes] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teacher-sessions/teacher?profileId=${pid}`, { credentials: "include" }),
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teacher-sessions/earnings?profileId=${pid}`, { credentials: "include" }),
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/teacher-sessions/teacher?profileId=${pid}`, { credentials: "include" }),
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/teacher-sessions/earnings?profileId=${pid}`, { credentials: "include" }),
       ]);
       if (sessRes.ok) {
         const data = await sessRes.json();
@@ -67,7 +67,7 @@ export default function TeacherSessionsPage() {
   const updateStatus = async (sessionId: number, status: string) => {
     setUpdating(sessionId);
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teacher-sessions/${sessionId}/status`, {
+      await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/teacher-sessions/${sessionId}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

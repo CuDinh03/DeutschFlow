@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { BookOpen, UploadCloud, CheckCircle2, ArrowLeft, Loader2, FileText } from "lucide-react";
 import api from "@/lib/api";
+import { logout } from "@/lib/authSession";
 import { StudentShell } from "@/components/layouts/StudentShell";
 import { useStudentPracticeSession } from "@/hooks/useStudentPracticeSession";
 import { toast } from "sonner";
@@ -183,10 +184,7 @@ export default function AssignmentDetailPage() {
       targetLevel={targetLevel}
       streakDays={streakDays}
       initials={initials}
-      onLogout={() => {
-        localStorage.removeItem("auth_token");
-        window.location.href = "/login";
-      }}
+      onLogout={() => { void logout(); }}
       headerTitle="Chi tiết bài tập"
       headerSubtitle="Xem yêu cầu và nộp bài làm"
     >
