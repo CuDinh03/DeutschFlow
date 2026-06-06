@@ -154,10 +154,20 @@ export const skillTreeApi = {
   getNodeSession: (nodeId: number | string) =>
     api.get<NodeSession>(`/skill-tree/node/${nodeId}/session`).then((r) => r.data),
 
-  // Backend trusts the client-computed score_percent (it doesn't re-grade items).
-  submitNode: (nodeId: number | string, scorePercent: number) =>
+  // The backend re-grades the raw item answers against the content_json answer key
+  // (server-authoritative). score_percent is kept only as a legacy fallback for nodes with
+  // no deterministic items (SPEAKING/WRITING are AI-graded). Always send item_answers so the
+  // stored score and node-completion can't be spoofed by a tampered client.
+  submitNode: (
+    nodeId: number | string,
+    scorePercent: number,
+    itemAnswers?: Record<string, { choice?: number; text?: string }>,
+  ) =>
     api
-      .post<NodeSubmitResult>(`/skill-tree/${nodeId}/submit`, { score_percent: scorePercent })
+      .post<NodeSubmitResult>(`/skill-tree/${nodeId}/submit`, {
+        score_percent: scorePercent,
+        item_answers: itemAnswers ?? {},
+      })
       .then((r) => r.data),
 }
 
