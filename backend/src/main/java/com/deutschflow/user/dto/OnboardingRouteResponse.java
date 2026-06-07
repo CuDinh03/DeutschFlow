@@ -8,7 +8,8 @@ import com.deutschflow.user.onboarding.OnboardingRoute;
  * behave identically.
  *
  * @param onboardingType      primary archetype (O1–O5) name
- * @param placementRequired   run the placement test before the roadmap
+ * @param placementRequired   run the placement test (gating) before the roadmap
+ * @param placementOptional   placement offered as a skippable shortcut after the first value
  * @param assessmentHookAfter run the mock/diagnostic hook after the core flow
  * @param paywallAllowed      client may show in-app pricing/checkout (false on iOS)
  * @param postAction          where to send the learner after onboarding
@@ -16,6 +17,7 @@ import com.deutschflow.user.onboarding.OnboardingRoute;
 public record OnboardingRouteResponse(
         String onboardingType,
         boolean placementRequired,
+        boolean placementOptional,
         boolean assessmentHookAfter,
         boolean paywallAllowed,
         String postAction
@@ -24,6 +26,7 @@ public record OnboardingRouteResponse(
         return new OnboardingRouteResponse(
                 route.type().name(),
                 route.placementRequired(),
+                route.placementOptional(),
                 route.assessmentHookAfter(),
                 route.paywallAllowed(),
                 route.postAction().name());

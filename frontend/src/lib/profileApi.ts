@@ -43,7 +43,8 @@ export interface LearningProfileData {
 /** Onboarding routing decision for the (platform, level) cell of the design §4 matrix. */
 export interface OnboardingRouteData {
   onboardingType: string;       // EXPRESS_PROFILE | PLACEMENT_VALIDATED | ZERO_START | ASSESSMENT_HOOK | MENTOR_LED_DEMO
-  placementRequired: boolean;
+  placementRequired: boolean;   // hard gate before the roadmap (legacy; now false on web)
+  placementOptional: boolean;   // offered as a skippable shortcut AFTER the first value (value-first)
   assessmentHookAfter: boolean;
   paywallAllowed: boolean;      // false on iOS (Apple 3.1.1)
   postAction: string;           // ROADMAP_ALPHABET | ROADMAP_NODE | PRICING_CTA | ...
@@ -105,7 +106,7 @@ export async function getOnboardingRoute(currentLevel: string): Promise<Onboardi
   }
 }
 
-/** Live "meet your mentor" preview for the current onboarding selections. */
+/** Live "meet your mentor" preview for the current onboarding selections (authenticated). */
 export async function getOnboardingMentor(
   goalType: string,
   industry: string,
@@ -113,6 +114,25 @@ export async function getOnboardingMentor(
 ): Promise<OnboardingMentorData> {
   try {
     const res = await api.get<OnboardingMentorData>("/onboarding/mentor", {
+      params: { goalType, industry, currentLevel },
+    });
+    return res.data;
+  } catch (e) {
+    throw new Error(apiMessage(e));
+  }
+}
+
+/**
+ * Public "meet your mentor" preview for a GUEST (value-first funnel, before signup).
+ * Hits the no-auth preview endpoint (assumes FREE tier); same deterministic resolver.
+ */
+export async function getOnboardingMentorPreview(
+  goalType: string,
+  industry: string,
+  currentLevel: string
+): Promise<OnboardingMentorData> {
+  try {
+    const res = await api.get<OnboardingMentorData>("/onboarding/preview/mentor", {
       params: { goalType, industry, currentLevel },
     });
     return res.data;

@@ -19,5 +19,7 @@ public record LearningProfileResponse(
         String assignedPersonaCode,
         String levelSource,
         String onboardingType,
-        String upsellOptInAt
+        String upsellOptInAt,
+        String motivation,
+        Integer dailyGoalMinutes
 ) {}

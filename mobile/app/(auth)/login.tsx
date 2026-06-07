@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { View, KeyboardAvoidingView, Platform, Alert, Pressable, ScrollView } from 'react-native'
 import { router, Link } from 'expo-router'
 import { MotiView } from 'moti'
@@ -7,7 +7,7 @@ import api from '@/lib/api'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { motion, space, useTheme } from '@/lib/theme'
-import { captureEvent } from '@/lib/analytics'
+import { captureEvent, posthog } from '@/lib/analytics'
 import { Screen, ThemedText, TextField, Button, BrandMark } from '@/components/ui'
 
 export default function LoginScreen() {
@@ -17,6 +17,14 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false)
   const login = useAuthStore((s) => s.login)
   const fetchPlan = usePlanStore((s) => s.fetchPlan)
+  // Value-first A/B: when `onboarding-value-first` is ON, offer a "try first" entry into the
+  // guest funnel. Hidden by default (control) until the flag resolves.
+  const [valueFirst, setValueFirst] = useState(false)
+  useEffect(() => {
+    try {
+      setValueFirst(posthog?.getFeatureFlag('onboarding-value-first') === true)
+    } catch { /* flags not ready — keep control */ }
+  }, [])
 
   async function handleLogin() {
     if (!email.trim() || !password.trim()) {
@@ -112,6 +120,18 @@ export default function LoginScreen() {
               <Pressable hitSlop={8} onPress={() => router.push('/(auth)/forgot-password')} style={{ alignItems: 'center', marginTop: space[2] }}>
                 <ThemedText variant="caption" color="accent">Quên mật khẩu?</ThemedText>
               </Pressable>
+
+              {valueFirst && (
+                <Pressable
+                  hitSlop={8}
+                  onPress={() => { void Haptics.selectionAsync(); router.push('/(auth)/onboarding') }}
+                  style={{ alignItems: 'center', marginTop: space[3] }}
+                >
+                  <ThemedText variant="bodyStrong" color="accent">
+                    Học thử miễn phí — không cần tài khoản →
+                  </ThemedText>
+                </Pressable>
+              )}
             </View>
 
             <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: space[6] }}>
