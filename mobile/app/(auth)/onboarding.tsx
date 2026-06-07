@@ -3,11 +3,10 @@ import { View, ScrollView, Pressable, Alert } from 'react-native'
 import { router } from 'expo-router'
 import { MotiView } from 'moti'
 import * as Haptics from 'expo-haptics'
-import { Briefcase, GraduationCap } from 'lucide-react-native'
 import api, { apiMessage } from '@/lib/api'
 import { motion, radius, space, useTheme } from '@/lib/theme'
 import { captureEvent } from '@/lib/analytics'
-import { Screen, ThemedText, Button, Icon } from '@/components/ui'
+import { Screen, ThemedText, Button } from '@/components/ui'
 
 // Onboarding for iOS B2C (MVP checklist §5.1): collect goal, target level, and
 // role/industry, then POST /api/onboarding/profile and route straight into the
@@ -75,12 +74,32 @@ const EXAMS: { value: string; label: string }[] = [
   { value: 'TESTDAF', label: 'TestDaF' },
 ]
 
+// "Vì sao bạn học?" — the emotional anchor; derives a coarse goalType (EXAM → CERT, else WORK).
+const MOTIVATIONS: { value: string; label: string; goal: GoalType }[] = [
+  { value: 'JOB', label: '💼 Đi làm tại Đức', goal: 'WORK' },
+  { value: 'AUSBILDUNG', label: '🛠️ Học nghề', goal: 'WORK' },
+  { value: 'STUDY', label: '🎓 Du học', goal: 'WORK' },
+  { value: 'IMMIGRATION', label: '🏠 Định cư / đoàn tụ', goal: 'WORK' },
+  { value: 'EXAM', label: '📜 Thi chứng chỉ', goal: 'CERT' },
+  { value: 'HOBBY', label: '✨ Sở thích', goal: 'WORK' },
+]
+
+// Daily study goal (minutes) — the streak anchor.
+const DAILY_GOALS: { value: string; label: string }[] = [
+  { value: '5', label: '5 phút' },
+  { value: '10', label: '10 phút' },
+  { value: '15', label: '15 phút' },
+  { value: '20', label: '20 phút' },
+]
+
 const DEFAULT_SESSIONS_PER_WEEK = 5
 const DEFAULT_MINUTES_PER_SESSION = 15
 
 export default function OnboardingScreen() {
   const theme = useTheme()
-  const [goalType, setGoalType] = useState<GoalType>('WORK')
+  const [motivation, setMotivation] = useState('JOB')
+  const [goalType, setGoalType] = useState<GoalType>('WORK')   // derived from motivation
+  const [dailyGoal, setDailyGoal] = useState('15')             // minutes/day — streak anchor
   const [currentLevel, setCurrentLevel] = useState<string | null>(null)
   const [targetLevel, setTargetLevel] = useState<string | null>(null)
   const [industry, setIndustry] = useState<string | null>(null)
@@ -118,6 +137,7 @@ export default function OnboardingScreen() {
         goalType,
         targetLevel,
         currentLevel,
+        motivation,
         ageRange: null,
         interests: [],
         industry: goalType === 'WORK' ? industry : null,
@@ -125,10 +145,13 @@ export default function OnboardingScreen() {
         examType: goalType === 'CERT' ? examType : null,
         sessionsPerWeek: DEFAULT_SESSIONS_PER_WEEK,
         minutesPerSession: DEFAULT_MINUTES_PER_SESSION,
+        dailyGoalMinutes: parseInt(dailyGoal, 10),
         learningSpeed: 'NORMAL',
       })
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
       captureEvent('onboarding_completed', { goalType, targetLevel })
+      captureEvent('onboarding_motivation_selected', { motivation, goalType })
+      captureEvent('onboarding_daily_goal_set', { minutes: parseInt(dailyGoal, 10) })
 
       // Resolve which archetype the matrix routed this learner through. X-Platform
       // (ios/android) is sent automatically; pass currentLevel so the band is real.
@@ -201,25 +224,18 @@ export default function OnboardingScreen() {
           </ThemedText>
         </MotiView>
 
-        {/* Goal */}
+        {/* Motivation — "why" (derives goalType) */}
         <View style={{ gap: space[3] }}>
-          <ThemedText variant="bodyStrong">Mục tiêu của bạn</ThemedText>
-          <View style={{ flexDirection: 'row', gap: space[3] }}>
-            <GoalCard
-              active={goalType === 'WORK'}
-              icon={Briefcase}
-              title="Đi làm"
-              subtitle="Giao tiếp & phỏng vấn"
-              onPress={() => setGoalType('WORK')}
-            />
-            <GoalCard
-              active={goalType === 'CERT'}
-              icon={GraduationCap}
-              title="Thi chứng chỉ"
-              subtitle="Goethe / telc / TestDaF"
-              onPress={() => setGoalType('CERT')}
-            />
-          </View>
+          <ThemedText variant="bodyStrong">Vì sao bạn học tiếng Đức?</ThemedText>
+          <ChipRow
+            options={MOTIVATIONS}
+            selected={motivation}
+            onSelect={(v) => {
+              setMotivation(v)
+              const picked = MOTIVATIONS.find((m) => m.value === v)
+              if (picked) setGoalType(picked.goal)
+            }}
+          />
         </View>
 
         {/* Current level */}
@@ -236,6 +252,12 @@ export default function OnboardingScreen() {
             selected={targetLevel}
             onSelect={setTargetLevel}
           />
+        </View>
+
+        {/* Daily goal — the streak anchor */}
+        <View style={{ gap: space[3] }}>
+          <ThemedText variant="bodyStrong">Mục tiêu mỗi ngày</ThemedText>
+          <ChipRow options={DAILY_GOALS} selected={dailyGoal} onSelect={setDailyGoal} />
         </View>
 
         {/* Role / industry or exam */}
@@ -381,46 +403,5 @@ function ChipRow({
         )
       })}
     </View>
-  )
-}
-
-function GoalCard({
-  active,
-  icon,
-  title,
-  subtitle,
-  onPress,
-}: {
-  active: boolean
-  icon: typeof Briefcase
-  title: string
-  subtitle: string
-  onPress: () => void
-}) {
-  const { colors } = useTheme()
-  return (
-    <Pressable
-      onPress={() => {
-        void Haptics.selectionAsync()
-        onPress()
-      }}
-      style={{
-        flex: 1,
-        gap: space[2],
-        padding: space[4],
-        borderRadius: radius.xl,
-        borderWidth: 1.5,
-        borderColor: active ? colors.accent : colors.border,
-        backgroundColor: active ? colors.accentSoft : colors.surface,
-      }}
-    >
-      <Icon icon={icon} size={24} color={active ? 'accent' : 'muted'} />
-      <ThemedText variant="bodyStrong" color={active ? 'accent' : 'primary'}>
-        {title}
-      </ThemedText>
-      <ThemedText variant="caption" color="muted">
-        {subtitle}
-      </ThemedText>
-    </Pressable>
   )
 }
