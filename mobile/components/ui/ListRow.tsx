@@ -91,8 +91,15 @@ export function ListRow({
     onPress()
   }
 
+  // The default label is the row's own title (+ subtitle), so every pressable ListRow gets a
+  // sensible VoiceOver/TalkBack announcement without each call site having to pass it.
   return (
-    <Pressable onPress={handlePress} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={subtitle ? `${title}. ${subtitle}` : title}
+      onPress={handlePress}
+      style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+    >
       {content}
     </Pressable>
   )
