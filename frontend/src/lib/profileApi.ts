@@ -43,7 +43,8 @@ export interface LearningProfileData {
 /** Onboarding routing decision for the (platform, level) cell of the design §4 matrix. */
 export interface OnboardingRouteData {
   onboardingType: string;       // EXPRESS_PROFILE | PLACEMENT_VALIDATED | ZERO_START | ASSESSMENT_HOOK | MENTOR_LED_DEMO
-  placementRequired: boolean;
+  placementRequired: boolean;   // hard gate before the roadmap (legacy; now false on web)
+  placementOptional: boolean;   // offered as a skippable shortcut AFTER the first value (value-first)
   assessmentHookAfter: boolean;
   paywallAllowed: boolean;      // false on iOS (Apple 3.1.1)
   postAction: string;           // ROADMAP_ALPHABET | ROADMAP_NODE | PRICING_CTA | ...
