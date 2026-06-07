@@ -162,14 +162,25 @@ export async function middleware(request: NextRequest) {
   const learnerShare = requiresLearnerShare(pathname)
   const accessCookie = request.cookies.get(AUTH_ACCESS_COOKIE)?.value
 
-  // Guard: if NO verifier is configured (neither HS256 secret nor RS256 public key) AND a protected
-  // route is accessed, return 503 instead of silently redirecting to /login (infinite loop).
+  // No JWT verifier configured (neither HS256 secret nor RS256 public key) → the middleware
+  // physically cannot verify tokens. DEGRADE GRACEFULLY to the app's prior posture (client-side
+  // route guards + backend authorization), which ran safely for months before this middleware
+  // executed at all. The backend independently verifies every JWT on every request, so passing
+  // through here is NOT a security regression — it only disables the edge UX/role-routing layer.
+  // A hard 503 here instead white-screens the ENTIRE authenticated app the moment a verifier env
+  // var is missing or mid-rotation (this is exactly the #67 outage). The loud, fail-fast signal
+  // belongs at DEPLOY time in amplify.yml's build guard; this branch is the runtime safety net so
+  // a single missing env var can never take prod down again.
   const hasVerifier = Boolean(process.env.JWT_SECRET || process.env.JWT_RSA_PUBLIC_KEY)
-  if (!hasVerifier && accessCookie && (required || learnerShare)) {
-    return secure(new NextResponse(
-      '<h1>503 — Server Misconfiguration</h1><p>No JWT verifier (JWT_SECRET or JWT_RSA_PUBLIC_KEY) is configured. Contact the administrator.</p>',
-      { status: 503, headers: { 'Content-Type': 'text/html' } }
-    ))
+  if (!hasVerifier) {
+    if (required || learnerShare) {
+      console.error(
+        '[DeutschFlow] CRITICAL: no JWT verifier configured. Set JWT_RSA_PUBLIC_KEY (RS256, ' +
+        'production) or JWT_SECRET (HS256, must match backend). Edge auth gating is DISABLED; ' +
+        'relying on client guards + backend authz until a verifier is configured.'
+      )
+    }
+    return passThrough()
   }
 
   // Routes that need no gating (public pages): attach CSP and pass through without a JWT verify.
