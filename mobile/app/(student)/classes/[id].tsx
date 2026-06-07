@@ -1,0 +1,438 @@
+import { useMemo, useState } from 'react'
+import { Alert, Pressable, RefreshControl, ScrollView, Share, View } from 'react-native'
+import { useQueries } from '@tanstack/react-query'
+import { router, useLocalSearchParams } from 'expo-router'
+import {
+  AlertCircle, BookOpen, CheckCircle2, Circle, Clock, Copy,
+  GraduationCap, Sparkles, Upload, Users,
+} from 'lucide-react-native'
+import { apiMessage } from '@/lib/api'
+import {
+  fetchClassAssignments, fetchClassDetail, fetchClassLessons,
+  type ClassLesson, type ClassroomDetail, type StudentAssignment, type TeacherSummary,
+} from '@/lib/studentClassesApi'
+import { radius, space, useTheme } from '@/lib/theme'
+import {
+  AppHeader, Card, EmptyState, ErrorState, Icon, Pill, ProgressBar,
+  Screen, Skeleton, ThemedText,
+} from '@/components/ui'
+
+type Tab = 'assignments' | 'grades' | 'teachers' | 'progress'
+
+export default function StudentClassDetail() {
+  const { id } = useLocalSearchParams<{ id: string }>()
+  const classId = Number(id)
+
+  const [tab, setTab] = useState<Tab>('assignments')
+
+  const [detailQ, assignmentsQ, lessonsQ] = useQueries({
+    queries: [
+      { queryKey: ['class-detail', classId], queryFn: () => fetchClassDetail(classId), enabled: Number.isFinite(classId), staleTime: 30_000 },
+      { queryKey: ['class-assignments', classId], queryFn: () => fetchClassAssignments(classId), enabled: Number.isFinite(classId), staleTime: 30_000 },
+      { queryKey: ['class-lessons', classId], queryFn: () => fetchClassLessons(classId), enabled: Number.isFinite(classId), staleTime: 30_000 },
+    ],
+  })
+
+  const refetch = () => {
+    void detailQ.refetch()
+    void assignmentsQ.refetch()
+    void lessonsQ.refetch()
+  }
+  const isRefetching = detailQ.isRefetching || assignmentsQ.isRefetching || lessonsQ.isRefetching
+
+  if (detailQ.isLoading) {
+    return (
+      <Screen>
+        <AppHeader title="Đang tải lớp…" onBack={() => router.back()} />
+        <View style={{ paddingHorizontal: space[5], gap: space[3] }}>
+          <Skeleton height={120} />
+          <Skeleton height={180} />
+        </View>
+      </Screen>
+    )
+  }
+  if (detailQ.error || !detailQ.data) {
+    return (
+      <Screen>
+        <AppHeader title="Không mở được lớp" onBack={() => router.back()} />
+        <ErrorState
+          message={detailQ.error ? apiMessage(detailQ.error) : 'Không tìm thấy lớp.'}
+          onRetry={() => void detailQ.refetch()}
+        />
+      </Screen>
+    )
+  }
+
+  const detail = detailQ.data
+  const assignments = assignmentsQ.data ?? []
+  const lessons = lessonsQ.data ?? []
+
+  return (
+    <Screen>
+      <AppHeader
+        title={detail.name}
+        subtitle={`${detail.studentCount} học viên · ${detail.assignmentCount} bài tập`}
+        onBack={() => router.back()}
+      />
+      <ScrollView
+        contentContainerStyle={{
+          paddingHorizontal: space[5],
+          paddingBottom: space[8],
+          gap: space[4],
+        }}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
+      >
+        <HeaderCard detail={detail} />
+        <ProgressStrip detail={detail} />
+        <TabBar tab={tab} setTab={setTab} />
+        {tab === 'assignments' && <AssignmentsTab assignments={assignments} />}
+        {tab === 'grades' && <GradesTab assignments={assignments} />}
+        {tab === 'teachers' && <TeachersTab teachers={detail.teachers} />}
+        {tab === 'progress' && <ProgressTab detail={detail} lessons={lessons} />}
+      </ScrollView>
+    </Screen>
+  )
+}
+
+function HeaderCard({ detail }: { detail: ClassroomDetail }) {
+  const theme = useTheme()
+  const c = theme.colors
+  const onShareCode = async () => {
+    try {
+      await Share.share({ message: `Mã mời lớp ${detail.name}: ${detail.inviteCode}` })
+    } catch {
+      Alert.alert('Không mở được hộp thoại chia sẻ')
+    }
+  }
+  return (
+    <Card>
+      <View style={{ gap: space[2] }}>
+        <ThemedText variant="caption" color="secondary">
+          Dạy bởi
+        </ThemedText>
+        <ThemedText variant="bodyStrong">
+          {detail.teachers.length > 0
+            ? detail.teachers.map((t) => t.displayName).join(', ')
+            : 'Chưa có giáo viên'}
+        </ThemedText>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Chia sẻ mã mời ${detail.inviteCode}`}
+          onPress={onShareCode}
+          style={({ pressed }) => ({
+            marginTop: space[2],
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: space[2],
+            backgroundColor: c.surfaceSunken,
+            borderRadius: radius.md,
+            paddingHorizontal: space[3],
+            paddingVertical: space[2],
+            alignSelf: 'flex-start',
+            opacity: pressed ? 0.6 : 1,
+          })}
+        >
+          <Icon icon={Copy} size={12} color="muted" />
+          <ThemedText variant="caption">{detail.inviteCode}</ThemedText>
+        </Pressable>
+      </View>
+    </Card>
+  )
+}
+
+function ProgressStrip({ detail }: { detail: ClassroomDetail }) {
+  const lessonPercent = detail.lessonTotal > 0
+    ? detail.lessonCompleted / detail.lessonTotal : 0
+  const assignPercent = detail.assignmentCount > 0
+    ? detail.gradedCount / detail.assignmentCount : 0
+  return (
+    <View style={{ flexDirection: 'row', gap: space[2] }}>
+      <ProgressCard
+        label="Tiến độ lớp"
+        value={detail.lessonTotal > 0 ? `${detail.lessonCompleted}/${detail.lessonTotal}` : '–'}
+        sub={detail.currentLessonTitle ?? 'Chưa có buổi học'}
+        percent={lessonPercent}
+        accent="accent"
+      />
+      <ProgressCard
+        label="Bài tập"
+        value={detail.assignmentCount > 0 ? `${detail.gradedCount}/${detail.assignmentCount}` : '–'}
+        sub={`${detail.pendingCount} chưa nộp`}
+        percent={assignPercent}
+        accent="success"
+      />
+      <ProgressCard
+        label="Điểm TB"
+        value={detail.avgScore != null ? detail.avgScore.toFixed(1) : '–'}
+        sub={detail.avgScore != null ? 'Đã chấm' : 'Chưa có điểm'}
+        accent="info"
+      />
+    </View>
+  )
+}
+
+function ProgressCard({
+  label, value, sub, percent, accent,
+}: {
+  label: string; value: string; sub: string; percent?: number
+  accent: 'accent' | 'success' | 'info'
+}) {
+  const theme = useTheme()
+  const c = theme.colors
+  const fill = accent === 'success' ? c.success : accent === 'info' ? c.info : c.accent
+  return (
+    <Card style={{ flex: 1 }}>
+      <View style={{ gap: space[1] }}>
+        <ThemedText variant="caption" color="secondary">
+          {label}
+        </ThemedText>
+        <ThemedText variant="title">{value}</ThemedText>
+        <ThemedText variant="caption" color="secondary" numberOfLines={1}>
+          {sub}
+        </ThemedText>
+        {typeof percent === 'number' && (
+          <View style={{ marginTop: space[1] }}>
+            <ProgressBar value={percent} height={4} fillColor={fill} />
+          </View>
+        )}
+      </View>
+    </Card>
+  )
+}
+
+function TabBar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
+  const theme = useTheme()
+  const c = theme.colors
+  const tabs: { key: Tab; label: string }[] = [
+    { key: 'assignments', label: 'Bài tập' },
+    { key: 'grades', label: 'Điểm' },
+    { key: 'teachers', label: 'Giáo viên' },
+    { key: 'progress', label: 'Tiến độ' },
+  ]
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        backgroundColor: c.surfaceSunken,
+        borderRadius: radius.lg,
+        padding: 4,
+      }}
+    >
+      {tabs.map((t) => {
+        const active = t.key === tab
+        return (
+          <Pressable
+            key={t.key}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: active }}
+            onPress={() => setTab(t.key)}
+            style={{
+              flex: 1,
+              paddingVertical: space[2],
+              backgroundColor: active ? c.surface : 'transparent',
+              borderRadius: radius.md,
+              alignItems: 'center',
+            }}
+          >
+            <ThemedText
+              variant="caption"
+              color={active ? 'primary' : 'secondary'}
+            >
+              {t.label}
+            </ThemedText>
+          </Pressable>
+        )
+      })}
+    </View>
+  )
+}
+
+function AssignmentsTab({ assignments }: { assignments: StudentAssignment[] }) {
+  if (assignments.length === 0) {
+    return (
+      <EmptyState icon={BookOpen} title="Chưa có bài tập" message="Lớp này chưa có bài tập nào." />
+    )
+  }
+  return (
+    <View style={{ gap: space[2] }}>
+      {assignments.map((a) => (
+        <Card
+          key={a.id}
+          onPress={() => router.push(`/(student)/assignments/${a.assignmentId}` as never)}
+          accessibilityLabel={`Mở bài tập ${a.topic || 'bài tập'}`}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[3] }}>
+            <View style={{ flex: 1, gap: space[1] }}>
+              <ThemedText variant="bodyStrong" numberOfLines={1}>
+                {a.topic || 'Bài tập'}
+              </ThemedText>
+              {a.dueDate && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[1] }}>
+                  <Icon icon={Clock} size={11} color="muted" />
+                  <ThemedText variant="caption" color="secondary">
+                    Hạn {new Date(a.dueDate).toLocaleString('vi-VN')}
+                  </ThemedText>
+                </View>
+              )}
+            </View>
+            <StatusPill status={a.status} score={a.teacherScore} />
+          </View>
+        </Card>
+      ))}
+    </View>
+  )
+}
+
+function StatusPill({ status, score }: { status: string; score: number | null }) {
+  if (status === 'GRADED' || status === 'EVALUATED') {
+    return <Pill tone="success" icon={CheckCircle2} label={`Đã chấm${score != null ? ` · ${score}` : ''}`} />
+  }
+  if (status === 'SUBMITTED') {
+    return <Pill tone="info" icon={Upload} label="Đã nộp" />
+  }
+  return <Pill tone="danger" icon={AlertCircle} label="Chưa nộp" />
+}
+
+function GradesTab({ assignments }: { assignments: StudentAssignment[] }) {
+  const graded = useMemo(
+    () => assignments.filter((a) => a.status === 'GRADED' || a.status === 'EVALUATED'),
+    [assignments],
+  )
+  if (graded.length === 0) {
+    return <EmptyState icon={Sparkles} title="Chưa có điểm" message="Chưa có bài nào được chấm." />
+  }
+  return (
+    <View style={{ gap: space[2] }}>
+      {graded.map((a) => (
+        <Card key={a.id}>
+          <View style={{ gap: space[2] }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <ThemedText variant="bodyStrong" numberOfLines={1} style={{ flex: 1 }}>
+                {a.topic || 'Bài tập'}
+              </ThemedText>
+              {a.teacherScore != null && (
+                <Pill
+                  tone={a.teacherScore >= 8 ? 'success' : a.teacherScore >= 5 ? 'accent' : 'danger'}
+                  label={String(a.teacherScore)}
+                />
+              )}
+            </View>
+            {a.teacherFeedback && (
+              <ThemedText variant="caption" color="secondary">
+                {a.teacherFeedback}
+              </ThemedText>
+            )}
+          </View>
+        </Card>
+      ))}
+    </View>
+  )
+}
+
+function TeachersTab({ teachers }: { teachers: TeacherSummary[] }) {
+  const theme = useTheme()
+  if (teachers.length === 0) {
+    return <EmptyState icon={Users} title="Chưa có giáo viên" message="Lớp này chưa có giáo viên nào." />
+  }
+  return (
+    <View style={{ gap: space[2] }}>
+      {teachers.map((t) => (
+        <Card key={t.id}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+            <View
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 24,
+                backgroundColor: theme.colors.accentSoft,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Icon icon={GraduationCap} size={20} color="accent" />
+            </View>
+            <View style={{ flex: 1, gap: space[1] }}>
+              <ThemedText variant="bodyStrong" numberOfLines={1}>
+                {t.displayName}
+              </ThemedText>
+              <ThemedText variant="caption" color="secondary" numberOfLines={1}>
+                {t.email}
+              </ThemedText>
+              <View style={{ flexDirection: 'row' }}>
+                <Pill tone="accent" label={t.role} />
+              </View>
+            </View>
+          </View>
+        </Card>
+      ))}
+    </View>
+  )
+}
+
+function ProgressTab({
+  detail, lessons,
+}: { detail: ClassroomDetail; lessons: ClassLesson[] }) {
+  if (lessons.length === 0) {
+    return (
+      <EmptyState
+        icon={BookOpen}
+        title="Chưa có checklist"
+        message="Giáo viên chưa tạo danh sách buổi học. Tiến độ lớp sẽ hiển thị tại đây khi có."
+      />
+    )
+  }
+  return (
+    <View style={{ gap: space[3] }}>
+      {detail.currentLessonTitle && (
+        <Card>
+          <View style={{ gap: space[1] }}>
+            <ThemedText variant="caption" color="accent">
+              Buổi hiện tại của lớp
+            </ThemedText>
+            <ThemedText variant="bodyStrong">{detail.currentLessonTitle}</ThemedText>
+          </View>
+        </Card>
+      )}
+      <View style={{ gap: space[2] }}>
+        {lessons.map((l, idx) => (
+          <LessonRow key={l.id} lesson={l} index={idx} />
+        ))}
+      </View>
+    </View>
+  )
+}
+
+function LessonRow({ lesson, index }: { lesson: ClassLesson; index: number }) {
+  const theme = useTheme()
+  return (
+    <Card tone={lesson.completed ? 'sunken' : 'surface'}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[3] }}>
+        <Icon
+          icon={lesson.completed ? CheckCircle2 : Circle}
+          size={20}
+          color={lesson.completed ? 'success' : 'muted'}
+        />
+        <View style={{ flex: 1, gap: space[1] }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+            <ThemedText variant="caption" color="secondary">
+              Buổi {index + 1}
+            </ThemedText>
+            <ThemedText variant="bodyStrong" style={{ flex: 1 }} numberOfLines={2}>
+              {lesson.title}
+            </ThemedText>
+          </View>
+          {lesson.description ? (
+            <ThemedText variant="caption" color="secondary">
+              {lesson.description}
+            </ThemedText>
+          ) : null}
+          {lesson.completed && lesson.completedAt ? (
+            <ThemedText variant="caption" color="success">
+              Đã hoàn thành {new Date(lesson.completedAt).toLocaleString('vi-VN')}
+            </ThemedText>
+          ) : null}
+        </View>
+      </View>
+    </Card>
+  )
+}
