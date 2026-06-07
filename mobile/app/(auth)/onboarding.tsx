@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
-import { View, ScrollView, Pressable, Alert } from 'react-native'
+import { View, ScrollView, Pressable, Alert, ActivityIndicator } from 'react-native'
 import { router } from 'expo-router'
 import { MotiView } from 'moti'
 import * as Haptics from 'expo-haptics'
 import api, { apiMessage } from '@/lib/api'
+import { useAuthStore } from '@/stores/useAuthStore'
 import { motion, radius, space, useTheme } from '@/lib/theme'
 import { captureEvent } from '@/lib/analytics'
+import { saveOnboardingDraft, readOnboardingDraft, clearOnboardingDraft } from '@/lib/onboardingDraft'
 import { Screen, ThemedText, Button } from '@/components/ui'
 
 // Onboarding for iOS B2C (MVP checklist §5.1): collect goal, target level, and
@@ -107,14 +109,21 @@ export default function OnboardingScreen() {
   const [submitting, setSubmitting] = useState(false)
   const [showUpsell, setShowUpsell] = useState(false)
   const [mentor, setMentor] = useState<OnboardingMentor | null>(null)
+  // Value-first auth inversion: a guest runs the funnel before signing up.
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
+  const isGuest = !isLoggedIn
+  const [guestQuickWin, setGuestQuickWin] = useState(false)   // guest: quick-win + signup gate
+  const [resuming, setResuming] = useState(false)             // authed: replaying a guest draft
 
   const canSubmit = !!targetLevel
 
   // Live mentor preview — updates as the learner picks goal / level / industry.
   useEffect(() => {
     let active = true
+    // Guests use the public preview endpoint (no auth); authed users use the live one.
+    const endpoint = isLoggedIn ? '/onboarding/mentor' : '/onboarding/preview/mentor'
     api
-      .get<OnboardingMentor>('/onboarding/mentor', {
+      .get<OnboardingMentor>(endpoint, {
         params: { goalType, industry: industry ?? undefined, currentLevel: currentLevel ?? undefined },
       })
       .then(({ data }) => {
@@ -124,11 +133,77 @@ export default function OnboardingScreen() {
     return () => {
       active = false
     }
-  }, [goalType, industry, currentLevel])
+  }, [isLoggedIn, goalType, industry, currentLevel])
+
+  // Post-signup resume: a guest filled the funnel, we saved a draft, sent them to /register,
+  // and register routed back here (now authenticated). Replay the draft → save profile → route.
+  useEffect(() => {
+    if (!isLoggedIn) return
+    let active = true
+    ;(async () => {
+      const draft = await readOnboardingDraft()
+      if (!active || !draft) return
+      setResuming(true)
+      await clearOnboardingDraft()
+      try {
+        await api.post('/onboarding/profile', {
+          goalType: draft.goalType,
+          targetLevel: draft.targetLevel,
+          currentLevel: draft.currentLevel,
+          motivation: draft.motivation,
+          ageRange: null,
+          interests: [],
+          industry: draft.goalType === 'WORK' ? draft.industry : null,
+          workUseCases: [],
+          examType: draft.goalType === 'CERT' ? draft.examType : null,
+          sessionsPerWeek: DEFAULT_SESSIONS_PER_WEEK,
+          minutesPerSession: DEFAULT_MINUTES_PER_SESSION,
+          dailyGoalMinutes: parseInt(draft.dailyGoal, 10),
+          learningSpeed: 'NORMAL',
+        })
+        captureEvent('onboarding_completed', { goalType: draft.goalType, targetLevel: draft.targetLevel })
+        let route: OnboardingRoute | null = null
+        try {
+          const { data } = await api.get<OnboardingRoute>('/onboarding/route', {
+            params: draft.currentLevel ? { currentLevel: draft.currentLevel } : undefined,
+          })
+          route = data
+          captureEvent('onboarding_type_assigned', {
+            onboardingType: data.onboardingType, postAction: data.postAction, paywallAllowed: data.paywallAllowed,
+          })
+        } catch { /* route is best-effort */ }
+        if (route?.postAction === 'EMAIL_CAPTURE_UPSELL') {
+          if (active) { setResuming(false); setShowUpsell(true) }
+          return
+        }
+        const dest =
+          route?.postAction === 'ROADMAP_ALPHABET' || route?.postAction === 'ROADMAP_NODE'
+            ? '/(student)/roadmap'
+            : '/(student)/speaking'
+        router.replace(dest)
+      } catch (e) {
+        // Save failed → hydrate the form so the user can retry instead of losing their answers.
+        if (active) {
+          setMotivation(draft.motivation); setGoalType(draft.goalType); setCurrentLevel(draft.currentLevel)
+          setTargetLevel(draft.targetLevel); setIndustry(draft.industry); setExamType(draft.examType); setDailyGoal(draft.dailyGoal)
+          setResuming(false)
+          Alert.alert('Chưa lưu được', apiMessage(e))
+        }
+      }
+    })()
+    return () => { active = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoggedIn])
 
   async function handleSubmit() {
     if (!targetLevel) {
       Alert.alert('Thiếu thông tin', 'Vui lòng chọn trình độ mục tiêu.')
+      return
+    }
+    if (isGuest) {
+      // Value-first: a guest sees a quick win + signup gate before anything is saved server-side.
+      void Haptics.selectionAsync()
+      setGuestQuickWin(true)
       return
     }
     setSubmitting(true)
@@ -188,6 +263,14 @@ export default function OnboardingScreen() {
     }
   }
 
+  // Guest signup gate: stash the funnel answers, then route to /register to save them.
+  async function handleGuestSignup() {
+    if (!targetLevel) return
+    await saveOnboardingDraft({ motivation, goalType, currentLevel, targetLevel, industry, examType, dailyGoal })
+    captureEvent('onboarding_signup_prompted', { motivation, goalType })
+    router.push('/(auth)/register')
+  }
+
   async function handleUpsellConsent(optIn: boolean) {
     if (optIn) {
       try {
@@ -200,6 +283,12 @@ export default function OnboardingScreen() {
     router.replace('/(student)/speaking')
   }
 
+  if (resuming) {
+    return <Resuming />
+  }
+  if (guestQuickWin) {
+    return <GuestQuickWin mentor={mentor} onSignup={handleGuestSignup} />
+  }
   if (showUpsell) {
     return <UpsellConsent onChoice={handleUpsellConsent} />
   }
@@ -403,5 +492,94 @@ function ChipRow({
         )
       })}
     </View>
+  )
+}
+
+/**
+ * Value-first guest quick-win + signup gate. The guest answers one tiny German question
+ * ("Richtig!") — the first dopamine hit — then is offered a free account to save their plan.
+ */
+function GuestQuickWin({ mentor, onSignup }: { mentor: OnboardingMentor | null; onSignup: () => void }) {
+  const { colors } = useTheme()
+  const [choice, setChoice] = useState<string | null>(null)
+  const solved = choice === 'Guten Morgen'
+  const OPTIONS = ['Guten Morgen', 'Gute Nacht', 'Auf Wiedersehen']
+  return (
+    <Screen edges={['top', 'bottom']}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: space[6], gap: space[5] }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={{ gap: space[2] }}>
+          <ThemedText variant="display">Thử câu đầu tiên! 🇩🇪</ThemedText>
+          <ThemedText variant="body" color="muted">&quot;Chào buổi sáng&quot; trong tiếng Đức là gì?</ThemedText>
+        </View>
+        <View style={{ gap: space[3] }}>
+          {OPTIONS.map((opt) => {
+            const picked = choice === opt
+            const correct = opt === 'Guten Morgen'
+            const showResult = choice !== null
+            const borderColor = showResult && correct ? '#22C55E' : picked ? '#EF4444' : colors.border
+            const bg = showResult && correct ? '#F0FDF4' : picked ? '#FEF2F2' : colors.surface
+            return (
+              <Pressable
+                key={opt}
+                disabled={solved}
+                onPress={() => {
+                  void Haptics.selectionAsync()
+                  setChoice(opt)
+                  if (correct) captureEvent('onboarding_quickwin_completed', { correct: true })
+                }}
+                style={{ padding: space[4], borderRadius: radius.xl, borderWidth: 1.5, borderColor, backgroundColor: bg }}
+              >
+                <ThemedText variant="bodyStrong">{opt}{showResult && correct ? '  ✓' : ''}</ThemedText>
+              </Pressable>
+            )
+          })}
+        </View>
+        {solved && (
+          <View style={{ gap: space[3] }}>
+            <ThemedText variant="bodyStrong" style={{ color: '#15803D' }}>Richtig! 🎉 Bạn vừa học từ đầu tiên.</ThemedText>
+            {mentor && (
+              <View
+                style={{
+                  flexDirection: 'row', alignItems: 'center', gap: space[3], padding: space[4],
+                  borderRadius: radius.xl, borderWidth: 1.5, borderColor: colors.accent, backgroundColor: colors.accentSoft,
+                }}
+              >
+                <View style={{ width: 44, height: 44, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.accent }}>
+                  <ThemedText variant="bodyStrong">{MENTOR_META[mentor.code]?.emoji ?? '🧑‍🏫'}</ThemedText>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <ThemedText variant="caption" color="muted">Mentor của bạn</ThemedText>
+                  <ThemedText variant="bodyStrong" color="accent">{mentor.displayName}</ThemedText>
+                </View>
+              </View>
+            )}
+          </View>
+        )}
+      </ScrollView>
+      <View style={{ paddingHorizontal: space[6], paddingBottom: space[2] }}>
+        <Button label="Tạo tài khoản & lưu lộ trình" onPress={onSignup} disabled={!solved} />
+      </View>
+    </Screen>
+  )
+}
+
+/** Brief loading state while a guest's saved draft is replayed after signup. */
+function Resuming() {
+  const { colors } = useTheme()
+  return (
+    <Screen edges={['top', 'bottom']}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: space[4], paddingHorizontal: space[6] }}>
+        <ActivityIndicator size="large" color={colors.accent} />
+        <ThemedText variant="bodyStrong">Đang tạo lộ trình của bạn…</ThemedText>
+        <ThemedText variant="body" color="muted" style={{ textAlign: 'center' }}>
+          Lưu mục tiêu và mentor bạn vừa chọn.
+        </ThemedText>
+      </View>
+    </Screen>
   )
 }
