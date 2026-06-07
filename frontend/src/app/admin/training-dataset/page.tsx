@@ -13,7 +13,7 @@ interface DatasetStats {
 }
 
 async function downloadJson(url: string, filename: string, token: string) {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? ""}${url}`, {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL ?? ""}${url}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error("Không thể tải file");

@@ -110,34 +110,14 @@ api.interceptors.response.use(
   (res) => res,
   async (error) => {
     const original = error.config
-    const ts = Date.now()
-    console.log('[DF_TRACE][api.interceptor:error]', {
-      ts,
-      url: original?.url,
-      method: original?.method,
-      status: error.response?.status,
-      hasAccessToken: Boolean(getAccessToken()),
-      hasRefreshToken: Boolean(getRefreshToken()),
-      stack: new Error().stack,
-    })
     if (error.response?.status === 401 && !original._retry) {
       original._retry = true
-
-      console.log('[DF_TRACE][api.interceptor:401]', {
-        ts: Date.now(),
-        url: original?.url,
-        method: original?.method,
-      })
 
       // Refresh token nằm trong HttpOnly cookie — browser tự gửi khi gọi /api/auth/refresh.
       // Không cần (và không thể) kiểm tra token tồn tại từ JS nữa.
       // Nếu cookie không có / đã hết hạn, backend trả 4xx → catch bên dưới → redirect login.
       try {
         if (!refreshPromise) {
-          console.log('[DF_TRACE][api.interceptor:refresh-dispatch]', {
-            ts: Date.now(),
-            url: `${authBaseUrl}/auth/refresh`,
-          })
           // Web:    body rỗng, backend đọc refresh token từ HttpOnly cookie.
           // Native: gửi refreshToken trong body (cookie không hoạt động cross-origin từ Capacitor).
           const nativeRefreshToken = isNative() ? getRefreshToken() : null
@@ -158,11 +138,6 @@ api.interceptors.response.use(
         original.headers.Authorization = `Bearer ${data.accessToken}`
         return api(original)
       } catch (refreshError) {
-        console.log('[DF_TRACE][api.interceptor:refresh-failed]', {
-          ts: Date.now(),
-          url: original?.url,
-          stack: refreshError instanceof Error ? refreshError.stack : null,
-        })
         refreshPromise = null
         useAuthRecoveryStore.getState().setNeedsReauth('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.')
         return Promise.reject(refreshError)

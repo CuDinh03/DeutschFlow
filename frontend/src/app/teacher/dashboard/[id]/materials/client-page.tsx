@@ -62,7 +62,7 @@ export default function TeacherMaterialsPage() {
 
     try {
       const token = getAccessToken() ?? "";
-      const apiBase = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+      const apiBase = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8080";
       const res = await fetch(`${apiBase}/api/v2/teacher/materials/generate-pptx`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },

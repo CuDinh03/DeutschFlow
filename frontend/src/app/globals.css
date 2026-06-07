@@ -204,6 +204,13 @@
     touch-action: manipulation;
   }
 
+  /* Suppress double-tap-to-zoom on interactive controls in the regular web app too —
+     this replaces the removed `userScalable: false` viewport lock and preserves pinch-zoom
+     everywhere else (WCAG 1.4.4). */
+  button, a, input, select, textarea, label, [role="button"] {
+    touch-action: manipulation;
+  }
+
   html.native body {
     /* Prevent selecting UI chrome; learning content opts back in below. */
     -webkit-user-select: none;

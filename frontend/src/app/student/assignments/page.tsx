@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { BookOpen, CheckCircle2, Clock, UploadCloud, AlertCircle } from "lucide-react";
 import api from "@/lib/api";
+import { logout } from "@/lib/authSession";
 import { StudentShell } from "@/components/layouts/StudentShell";
 import { useStudentPracticeSession } from "@/hooks/useStudentPracticeSession";
 import { usePageTimeTracker } from "@/hooks/usePageTimeTracker";
@@ -56,10 +57,7 @@ export default function StudentAssignmentsPage() {
       targetLevel={targetLevel}
       streakDays={streakDays}
       initials={initials}
-      onLogout={() => {
-        localStorage.removeItem("auth_token");
-        window.location.href = "/login";
-      }}
+      onLogout={() => { void logout(); }}
       headerTitle="Bài tập & Thi thử"
       headerSubtitle="Xem và nộp bài tập được giao bởi giáo viên"
     >

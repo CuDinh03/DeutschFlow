@@ -23,7 +23,7 @@ interface TeacherProfileDto {
 
 async function getPublicTeachers(): Promise<TeacherProfileDto[]> {
     try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v2/teachers/public`, {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v2/teachers/public`, {
             next: { revalidate: 3600 }, // ISR: Revalidate every hour
         });
         if (!res.ok) return [];

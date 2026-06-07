@@ -15,14 +15,14 @@ const inter = Inter({
   variable: '--font-inter',
 })
 
-// Disables double-tap zoom, pinch zoom, and input-focus auto-zoom on iOS.
-// `viewportFit: 'cover'` lets the webview draw into safe-area regions so our
-// env(safe-area-inset-*) padding rules can position content correctly.
+// Do NOT lock zoom — `maximumScale: 1` / `userScalable: false` is a WCAG 1.4.4 (Resize
+// Text) failure that blocks low-vision users from pinch-zooming. Double-tap / input-focus
+// auto-zoom is suppressed instead via `touch-action: manipulation` on interactive elements
+// (see globals.css). `viewportFit: 'cover'` lets the webview draw into safe-area regions so
+// our env(safe-area-inset-*) padding rules can position content correctly.
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   viewportFit: 'cover',
 }
 
