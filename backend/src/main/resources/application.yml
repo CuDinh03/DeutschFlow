@@ -257,6 +257,11 @@ app:
         drive-folder-id: ${GOOGLE_SLIDES_DRIVE_FOLDER_ID:}
     transcribe:
       max-bytes: ${AI_TRANSCRIBE_MAX_BYTES:8388608}
+    # Per-user request-rate guard on AI endpoints (request rate, not token spend — the quota
+    # wallet remains the cost cap). Whisper at ~$0.006/min means a tight loop is real money.
+    rate-limit:
+      transcribe-max-per-window: ${APP_AI_TRANSCRIBE_RL_MAX:60}
+      transcribe-window-seconds: ${APP_AI_TRANSCRIBE_RL_WINDOW:3600}
     # Server TTS — self-hosted Edge TTS sidecar (free Microsoft Neural voices).
     # Empty by default → /api/ai-speaking/tts returns 503 and clients fall back to
     # on-device speech. Point this at your own TTS service to enable persona voices.

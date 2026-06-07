@@ -39,6 +39,7 @@ public class AiSessionController {
     private final AiSpeakingService aiSpeakingService;
     private final com.deutschflow.speaking.ai.GroqWhisperClient groqWhisperClient;
     private final QuotaService quotaService;
+    private final com.deutschflow.speaking.AiRateLimiterService aiRateLimiterService;
 
     @Value("${app.speaking.sse-emitter-timeout-ms:180000}")
     private long sseEmitterTimeoutMs;
@@ -82,7 +83,16 @@ public class AiSessionController {
 
     @PostMapping("/transcribe")
     public Map<String, String> transcribe(
+            @AuthenticationPrincipal User user,
             @RequestParam("audio") MultipartFile file) throws IOException {
+        // Per-user request-rate guard on top of the quota wallet. Whisper costs ~$0.006/min and
+        // the wallet's audit lags by one call; without this, a single tight loop could rack up
+        // significant spend and pin the Whisper API before the quota even debits.
+        if (!aiRateLimiterService.allowTranscribe(user.getId())) {
+            throw new com.deutschflow.common.exception.RateLimitExceededException(
+                    "Too many transcribe requests. Please slow down.",
+                    aiRateLimiterService.transcribeRetryAfterSeconds());
+        }
         log.info("Transcribing audio file: {} ({} bytes)", file.getOriginalFilename(), file.getSize());
         String transcript = groqWhisperClient.transcribe(
                 file.getBytes(),
