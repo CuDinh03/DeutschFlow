@@ -3,6 +3,7 @@ import {
   View,
   ScrollView,
   Alert,
+  Linking,
   Pressable,
   TextInput,
   ActivityIndicator,
@@ -339,7 +340,25 @@ export default function SpeakingScreen() {
       return
     }
     try {
-      await Audio.requestPermissionsAsync()
+      // Honour the permission result. The previous code discarded `status`, so a hard
+      // denial fell through to a generic catch-all error with no way for the user to
+      // fix it — iOS won't re-prompt after first denial, the only path is Settings.
+      const { status, canAskAgain } = await Audio.requestPermissionsAsync()
+      if (status !== 'granted') {
+        if (!canAskAgain) {
+          Alert.alert(
+            'Cần quyền microphone',
+            'Hãy bật microphone trong Cài đặt để luyện nói.',
+            [
+              { text: 'Để sau', style: 'cancel' },
+              { text: 'Mở Cài đặt', onPress: () => { void Linking.openSettings() } },
+            ],
+          )
+        } else {
+          Alert.alert('Không có quyền microphone', 'Bạn cần cấp quyền để ghi âm.')
+        }
+        return
+      }
       await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true })
       const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY)
       recordingRef.current = recording
