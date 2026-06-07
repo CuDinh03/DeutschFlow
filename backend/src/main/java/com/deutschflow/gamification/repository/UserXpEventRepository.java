@@ -40,6 +40,15 @@ public interface UserXpEventRepository extends JpaRepository<UserXpEvent, Long> 
     long countSatelliteByIndustry(@Param("userId") Long userId, @Param("industryPrefix") String industryPrefix);
 
     /**
+     * Timestamps of every XP-earning activity for a user. Every learning action
+     * (SRS review, speaking turn/session, skill-tree node, vocab) records an XP event,
+     * so these dates form an all-activity streak — independent of which learning flow
+     * (learning-plan vs skill-tree) was used.
+     */
+    @Query("SELECT e.createdAt FROM UserXpEvent e WHERE e.userId = :userId")
+    List<java.time.LocalDateTime> findActivityTimestampsByUserId(@Param("userId") Long userId);
+
+    /**
      * Top users by total XP for the leaderboard.
      * Returns Object[] rows: [userId (Long), displayName (String), totalXp (Long)]
      * Joins to the users table to fetch displayName without exposing email.

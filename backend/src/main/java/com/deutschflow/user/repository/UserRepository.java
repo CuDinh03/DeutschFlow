@@ -18,4 +18,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<Long> findActiveIdsByRole(@Param("role") String role);
 
     List<User> findByRoleAndActiveTrue(User.Role role);
+
+    /** All active users — filtered at the DB instead of loading every row via findAll(). */
+    List<User> findByActiveTrue();
 }

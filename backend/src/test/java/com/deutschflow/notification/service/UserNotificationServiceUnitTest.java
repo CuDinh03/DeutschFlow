@@ -51,9 +51,8 @@ class UserNotificationServiceUnitTest {
     @DisplayName("immediate broadcast fans out to active recipients and returns real count")
     void broadcast_immediate_deliversToActiveRecipients() {
         User active = org.mockito.Mockito.mock(User.class);
-        when(active.isActive()).thenReturn(true);
         when(active.getId()).thenReturn(42L);
-        when(userRepository.findAll()).thenReturn(List.of(active));
+        when(userRepository.findByActiveTrue()).thenReturn(List.of(active));
 
         BroadcastNotificationResponse response = service.broadcastToAudience(allAudience(null));
 
@@ -67,7 +66,7 @@ class UserNotificationServiceUnitTest {
     @Test
     @DisplayName("broadcast with no matching recipients reports no_recipients")
     void broadcast_noRecipients_reportsStatus() {
-        when(userRepository.findAll()).thenReturn(List.of());
+        when(userRepository.findByActiveTrue()).thenReturn(List.of());
 
         BroadcastNotificationResponse response = service.broadcastToAudience(allAudience(null));
 
@@ -87,7 +86,7 @@ class UserNotificationServiceUnitTest {
         assertThat(response.recipientCount()).isZero();
         verify(scheduledBroadcastRepository).save(any(ScheduledBroadcast.class));
         verify(notificationRepository, never()).saveAll(any());
-        verify(userRepository, never()).findAll();
+        verify(userRepository, never()).findByActiveTrue();
     }
 
     @Test
@@ -95,9 +94,8 @@ class UserNotificationServiceUnitTest {
     void broadcast_pastScheduledAt_deliversImmediately() {
         String past = OffsetDateTime.now(ZoneOffset.UTC).minusMinutes(5).toString();
         User active = org.mockito.Mockito.mock(User.class);
-        when(active.isActive()).thenReturn(true);
         when(active.getId()).thenReturn(7L);
-        when(userRepository.findAll()).thenReturn(List.of(active));
+        when(userRepository.findByActiveTrue()).thenReturn(List.of(active));
 
         BroadcastNotificationResponse response = service.broadcastToAudience(allAudience(past));
 

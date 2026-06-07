@@ -2,8 +2,6 @@ package com.deutschflow.beginner.service;
 
 import com.deutschflow.beginner.entity.BeginnerJourneyItem;
 import com.deutschflow.beginner.repository.BeginnerJourneyItemRepository;
-import com.deutschflow.progress.entity.LearnerPhaseState;
-import com.deutschflow.progress.entity.PhaseType;
 import com.deutschflow.progress.service.PhaseEngineService;
 import com.deutschflow.srs.dto.ScheduleVocabRequest;
 import com.deutschflow.srs.service.SrsVocabScheduler;
@@ -18,11 +16,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -87,22 +83,14 @@ class BeginnerJourneyServiceTest {
     }
 
     @Test
-    @DisplayName("completing first session increments sessions count")
-    void recordFirstSessionCompletion_incrementsSessionCount() {
-        var phaseState = LearnerPhaseState.builder()
-                .user(user)
-                .currentPhase(PhaseType.FOUNDATION)
-                .phaseStartedAt(LocalDateTime.now())
-                .sessionsCompleted(0)
-                .build();
-        when(phaseEngineService.getOrCreatePhaseState(user)).thenReturn(phaseState);
-        when(phaseEngineService.updateProgress(eq(user), anyInt(), anyInt(), anyInt(), eq(1)))
-                .thenReturn(phaseState);
+    @DisplayName("completing first session recomputes phase progress from real signals")
+    void recordFirstSessionCompletion_recomputesPhaseProgress() {
         when(itemRepository.findByWeekNumberOrderBySequenceOrderAsc(1)).thenReturn(List.of());
 
         beginnerJourneyService.recordFirstSessionCompletion(user);
 
-        verify(phaseEngineService).updateProgress(user, 0, 0, 0, 1);
+        // Progress is now derived from real signals via recompute(), not a stale +1 updateProgress.
+        verify(phaseEngineService).recompute(user);
     }
 
     @Test
@@ -116,12 +104,6 @@ class BeginnerJourneyServiceTest {
                 .sequenceOrder(2).itemType("DIALOGUE_PROMPT").titleDe("Wie geht es Ihnen?").titleVi("Bạn khỏe không?")
                 .exampleDe("").exampleVi("").audioHint("")
                 .phase("FOUNDATION").weekNumber(1).build();
-        var phaseState = LearnerPhaseState.builder()
-                .user(user).currentPhase(PhaseType.FOUNDATION)
-                .phaseStartedAt(LocalDateTime.now()).sessionsCompleted(0).build();
-
-        when(phaseEngineService.getOrCreatePhaseState(user)).thenReturn(phaseState);
-        when(phaseEngineService.updateProgress(eq(user), anyInt(), anyInt(), anyInt(), eq(1))).thenReturn(phaseState);
         when(itemRepository.findByWeekNumberOrderBySequenceOrderAsc(1)).thenReturn(List.of(vocabItem, dialogueItem));
 
         beginnerJourneyService.recordFirstSessionCompletion(user);
@@ -141,12 +123,6 @@ class BeginnerJourneyServiceTest {
                 .sequenceOrder(1).itemType("VOCABULARY").titleDe("  ").titleVi("?")
                 .exampleDe("").exampleVi("").audioHint("")
                 .phase("FOUNDATION").weekNumber(1).build();
-        var phaseState = LearnerPhaseState.builder()
-                .user(user).currentPhase(PhaseType.FOUNDATION)
-                .phaseStartedAt(LocalDateTime.now()).sessionsCompleted(0).build();
-
-        when(phaseEngineService.getOrCreatePhaseState(user)).thenReturn(phaseState);
-        when(phaseEngineService.updateProgress(eq(user), anyInt(), anyInt(), anyInt(), eq(1))).thenReturn(phaseState);
         when(itemRepository.findByWeekNumberOrderBySequenceOrderAsc(1)).thenReturn(List.of(blankItem));
 
         beginnerJourneyService.recordFirstSessionCompletion(user);

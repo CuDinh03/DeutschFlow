@@ -45,6 +45,7 @@ public class SkillTreeService {
     private final AsyncJobService asyncJobService;
     private final PracticeNodeService practiceNodeService;
     private final com.deutschflow.srs.service.SrsVocabScheduler srsVocabScheduler;
+    private final com.deutschflow.progress.service.PhaseEngineService phaseEngineService;
 
     // In-memory lock to prevent duplicate LLM calls for the same cache key
     private final ConcurrentHashMap<String, Boolean> generationLocks = new ConcurrentHashMap<>();
@@ -532,11 +533,30 @@ public class SkillTreeService {
 
         // Load content & grade
         Map<String, Object> node = loadNodeOrThrow(nodeId);
-        // ... grading logic (use existing SessionExerciseService patterns)
 
-        // Parse actual score from answers
-        int scorePercent = safeInt(answers.get("score_percent"), 85);
-        
+        // Server-authoritative grading: compute the score from the answer key in content_json
+        // instead of trusting a client-reported score_percent (which let a tampered client
+        // self-report 100% to unlock nodes / bypass paywalled content). Falls back to the
+        // supplied score only when there is nothing deterministic to grade (SPEAKING/WRITING
+        // nodes are AI-graded) or for legacy clients that don't yet send raw item answers.
+        @SuppressWarnings("unchecked")
+        Map<String, Object> itemAnswers = answers.get("item_answers") instanceof Map<?, ?> raw
+                ? (Map<String, Object>) raw : null;
+        NodeExerciseGrader.Result graded =
+                NodeExerciseGrader.grade(objectMapper, (String) node.get("content_json"), itemAnswers);
+
+        int scorePercent;
+        if (graded.gradeable()) {
+            scorePercent = graded.percent();
+        } else {
+            scorePercent = safeInt(answers.get("score_percent"), 85);
+            if (itemAnswers == null) {
+                log.warn("[SkillTree] Node {} (user {}) submitted without item_answers — trusting "
+                        + "client score {}. Update the client to send raw answers for server grading.",
+                        nodeId, userId, scorePercent);
+            }
+        }
+
         String sessionType = (String) node.get("session_type");
         boolean isSpeakingOrWriting = "SPEAKING".equals(sessionType) || "WRITING".equals(sessionType);
         
@@ -607,6 +627,14 @@ public class SkillTreeService {
 
             // Feed the node's vocabulary into the FSRS spaced-repetition queue (best-effort)
             srsVocabScheduler.scheduleFromContentJson(userId, nodeId, (String) node.get("content_json"));
+
+            // Recompute learner phase progress from real signals so completing nodes actually
+            // advances FOUNDATION → PRODUCTION → FLUENCY (best-effort; never fails the submit).
+            try {
+                phaseEngineService.recompute(userId);
+            } catch (Exception e) {
+                log.warn("[SkillTree] Phase recompute failed for user {}: {}", userId, e.getMessage());
+            }
         }
 
         return Map.of(

@@ -26,13 +26,19 @@ public class MockExamController {
     private final ExamScoringService scoringService;
     private final AiExamEvaluatorService aiEvaluator;
     private final ExamGenerationService generationService;
+    private final com.deutschflow.assessment.service.B1ReadinessService b1ReadinessService;
+    private final com.deutschflow.progress.service.PhaseEngineService phaseEngineService;
 
     public MockExamController(JdbcTemplate jdbcTemplate, ExamScoringService scoringService,
-                               AiExamEvaluatorService aiEvaluator, ExamGenerationService generationService) {
+                               AiExamEvaluatorService aiEvaluator, ExamGenerationService generationService,
+                               com.deutschflow.assessment.service.B1ReadinessService b1ReadinessService,
+                               com.deutschflow.progress.service.PhaseEngineService phaseEngineService) {
         this.jdbcTemplate = jdbcTemplate;
         this.scoringService = scoringService;
         this.aiEvaluator = aiEvaluator;
         this.generationService = generationService;
+        this.b1ReadinessService = b1ReadinessService;
+        this.phaseEngineService = phaseEngineService;
     }
 
     private long userId(UserDetails p) {
@@ -235,6 +241,24 @@ public class MockExamController {
                 om.writeValueAsString(answers), attemptId, uid);
 
             log.info("Exam {} finished for user {} with score {}", attemptId, uid, totalScore);
+
+            // Refresh learner phase progress from real signals, and — for B1 exams — feed the
+            // pass/fail into B1 graduation tracking. Without this wire, a passed B1 mock exam
+            // never reached B1ReadinessService and graduation could never be confirmed.
+            // Best-effort: never fail the exam-finish response on a progress-update error.
+            try {
+                if (principal instanceof com.deutschflow.user.entity.User user) {
+                    phaseEngineService.recompute(user);
+                    String cefr = jdbcTemplate.queryForObject(
+                            "SELECT cefr_level FROM mock_exams WHERE id = ?", String.class, examId);
+                    if ("B1".equalsIgnoreCase(cefr)) {
+                        b1ReadinessService.recordMockExamResult(user, totalScore >= 60);
+                    }
+                }
+            } catch (Exception ex) {
+                log.warn("Post-exam phase/B1 readiness update failed for attempt {}: {}",
+                        attemptId, ex.getMessage());
+            }
 
             return ResponseEntity.ok(Map.of(
                 "attemptId", attemptId,

@@ -181,9 +181,10 @@ public class XpService {
         int progressInLevel = (int) (totalXp - currentLevelXp);
         int xpNeededForNext = nextLevelXp - currentLevelXp;
 
+        Set<Long> unlockedIds = userAchievementRepository.findUnlockedAchievementIdsByUserId(userId);
         List<AchievementDto> allAchievements = achievementRepository.findAll()
                 .stream()
-                .map(a -> toDto(a, userAchievementRepository.existsByUserIdAndAchievementId(userId, a.getId())))
+                .map(a -> toDto(a, unlockedIds.contains(a.getId())))
                 .toList();
 
         List<AchievementDto> pendingBadges = userAchievementRepository.findByUserIdAndNotifiedFalse(userId)
@@ -199,11 +200,8 @@ public class XpService {
 
     @Transactional
     public void markBadgesNotified(Long userId) {
-        userAchievementRepository.findByUserIdAndNotifiedFalse(userId)
-                .forEach(ua -> {
-                    ua.setNotified(true);
-                    userAchievementRepository.save(ua);
-                });
+        // One bulk UPDATE instead of a SELECT + a save() per pending badge.
+        userAchievementRepository.markAllNotifiedByUserId(userId);
     }
 
     /**
@@ -291,16 +289,23 @@ public class XpService {
 
     private void checkAchievements(Long userId) {
         try {
+            // Load the user's already-unlocked achievement ids ONCE (one query) instead of an
+            // existsBy() per achievement, and read the catalogue from cache. Skip the aggregate
+            // counts entirely when there's nothing left to unlock.
+            Set<Long> unlockedIds = userAchievementRepository.findUnlockedAchievementIdsByUserId(userId);
+            List<Achievement> candidates = achievementRepository.findAll().stream()
+                    .filter(a -> !unlockedIds.contains(a.getId()))
+                    .toList();
+            if (candidates.isEmpty()) {
+                return;
+            }
+
             long totalXp = xpEventRepository.sumXpByUserId(userId);
             long sessionCount = xpEventRepository.countSessionCompleteByUserId(userId);
             long errorsFixed = xpEventRepository.countErrorsFixedByUserId(userId);
             int streakDays = computeStreakDays(userId);
 
-            for (Achievement a : achievementRepository.findAll()) {
-                if (userAchievementRepository.existsByUserIdAndAchievementId(userId, a.getId())) {
-                    continue;
-                }
-
+            for (Achievement a : candidates) {
                 long currentValue = switch (a.getTriggerType()) {
                     case "TOTAL_XP"          -> totalXp;
                     case "SESSION_COUNT",
@@ -351,12 +356,19 @@ public class XpService {
 
     private int computeStreakDays(Long userId) {
         try {
-            List<LearningSessionProgress> completed = sessionProgressRepository
-                    .findCompletedWithTimestampByUserId(userId);
             Set<LocalDate> days = new HashSet<>();
-            for (LearningSessionProgress p : completed) {
+            // Source 1: learning-plan session completions.
+            for (LearningSessionProgress p : sessionProgressRepository.findCompletedWithTimestampByUserId(userId)) {
                 if (p.getCompletedAt() != null) {
                     days.add(p.getCompletedAt().toLocalDate());
+                }
+            }
+            // Source 2: every XP-earning activity (skill-tree nodes, SRS reviews, speaking, vocab).
+            // Skill-tree completions write to skill_tree_user_progress, NOT learning_session_progress,
+            // so without this union skill-tree/mobile learners would never build a streak.
+            for (LocalDateTime ts : xpEventRepository.findActivityTimestampsByUserId(userId)) {
+                if (ts != null) {
+                    days.add(ts.toLocalDate());
                 }
             }
             LocalDate today = LocalDate.now();

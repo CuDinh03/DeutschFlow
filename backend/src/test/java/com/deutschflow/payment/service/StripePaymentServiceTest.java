@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
@@ -130,5 +131,17 @@ class StripePaymentServiceTest {
 
         verify(paymentTransactionRepository, never()).findByOrderId(anyString());
         verify(paymentTransactionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("SECURITY: a blank webhook secret is rejected — no forged-event activation")
+    void handleWebhook_blankSecret_rejected() {
+        ReflectionTestUtils.setField(service, "webhookSecret", "");
+
+        assertThatThrownBy(() -> service.handleWebhook("payload", "sig-header"))
+                .isInstanceOf(IllegalStateException.class);
+
+        verify(paymentTransactionRepository, never()).save(any());
+        verify(subscriptionActivationService, never()).activatePlan(anyLong(), anyString(), anyInt());
     }
 }

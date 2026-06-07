@@ -1,8 +1,12 @@
 const crypto = require('crypto');
 
-const partnerCode = "MOMO";
-const accessKey = "F8BBA842ECF85";
-const secretKey = "K951B6PE1waDMi640xX08PD3vg6EkVlz";
+// Credentials from env — never hardcode secrets in source.
+const partnerCode = process.env.MOMO_PARTNER_CODE || "MOMO";
+const accessKey = process.env.MOMO_ACCESS_KEY;
+const secretKey = process.env.MOMO_SECRET_KEY;
+if (!accessKey || !secretKey) {
+  throw new Error("Set MOMO_ACCESS_KEY and MOMO_SECRET_KEY env vars before running this script.");
+}
 
 const orderId = "MOMO_TEST_" + Date.now();
 const amount = 699000;

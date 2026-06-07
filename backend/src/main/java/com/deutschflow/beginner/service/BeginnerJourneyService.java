@@ -60,14 +60,9 @@ public class BeginnerJourneyService {
 
     @Transactional
     public void recordFirstSessionCompletion(User user) {
-        var state = phaseEngineService.getOrCreatePhaseState(user);
-        phaseEngineService.updateProgress(
-                user,
-                state.getVocabularyMasteredCount(),
-                state.getSpeakingMinutesTotal(),
-                state.getGrammarAccuracyPercent(),
-                state.getSessionsCompleted() + 1
-        );
+        // Derive progress from real signals (vocab mastered, sessions, speaking, grammar) and
+        // advance the phase if ready — instead of re-passing the stored (zero) counters.
+        phaseEngineService.recompute(user);
         scheduleFirstSrsItems(user);
         log.info("User {} completed first beginner session", user.getId());
     }

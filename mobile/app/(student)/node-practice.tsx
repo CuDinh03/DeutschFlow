@@ -80,7 +80,10 @@ export default function NodePracticeScreen() {
     const percent = scoredCount > 0 ? Math.round((correct / scoredCount) * 100) : 100
     setBusy(true)
     try {
-      const res = await skillTreeApi.submitNode(nodeId, percent)
+      // Send the raw answers so the backend grades them server-side (authoritative);
+      // `percent` is only a legacy fallback. The local `correct`/`scoredCount` is for
+      // instant UI feedback and uses the same rules as the server.
+      const res = await skillTreeApi.submitNode(nodeId, percent, answers)
       const completed = res.completed ?? percent >= 100
       setSubmitted(true)
       setResult({ correct, total: scoredCount, completed, xp: res.xpEarned ?? 0 })

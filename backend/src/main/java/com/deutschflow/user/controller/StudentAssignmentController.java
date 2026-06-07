@@ -144,7 +144,14 @@ public class StudentAssignmentController {
     }
 
     @GetMapping("/{assignmentId}/scenario")
-    public ResponseEntity<AssignmentScenario> getScenario(@PathVariable Long assignmentId) {
+    @Transactional(readOnly = true)
+    public ResponseEntity<AssignmentScenario> getScenario(@PathVariable Long assignmentId,
+                                                          @AuthenticationPrincipal User user) {
+        // IDOR guard: a student may only read the scenario for an assignment they were assigned.
+        // Without this, any student could enumerate every assignment's scenario by id.
+        if (studentAssignmentRepository.findByStudentIdAndAssignmentId(user.getId(), assignmentId).isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
         return assignmentScenarioRepository.findByAssignmentId(assignmentId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());

@@ -313,10 +313,31 @@ public class PracticeNodeService {
             throw new BadRequestException("Session đã hoàn thành rồi.");
         }
 
-        // Calculate score from answers
-        int scorePercent = answers.containsKey("score_percent")
-                ? ((Number) answers.get("score_percent")).intValue()
-                : 0;
+        // Server-authoritative grading: re-grade the submitted raw answers against the answer key
+        // in exercises_json instead of trusting the client-reported score_percent (the client also
+        // sends a per-item `correct` flag, which is ignored). Falls back to the client score only
+        // for legacy clients that don't send the answers map.
+        @SuppressWarnings("unchecked")
+        Map<String, Object> itemAnswers = answers.get("answers") instanceof Map<?, ?> raw
+                ? (Map<String, Object>) raw : null;
+        String exercisesJson = session.get("exercises_json") != null
+                ? session.get("exercises_json").toString() : null;
+        PracticeExerciseGrader.Result graded =
+                PracticeExerciseGrader.grade(objectMapper, exercisesJson, itemAnswers);
+
+        int scorePercent;
+        if (graded.gradeable()) {
+            scorePercent = graded.percent();
+        } else {
+            scorePercent = answers.containsKey("score_percent")
+                    ? ((Number) answers.get("score_percent")).intValue()
+                    : 0;
+            if (itemAnswers == null) {
+                log.warn("[PracticeNode] session {} (user {}) submitted without raw answers — trusting "
+                        + "client score {}. Client should send the answers map for server grading.",
+                        sessionId, userId, scorePercent);
+            }
+        }
 
         // XP: 30 per session, only if score >= 60%
         int xpEarned = scorePercent >= 60 ? XP_PER_SESSION : 0;

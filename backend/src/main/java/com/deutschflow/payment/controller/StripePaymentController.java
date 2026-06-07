@@ -45,7 +45,8 @@ public class StripePaymentController {
      * Stripe webhook endpoint — must receive the raw (unmodified) request body for
      * signature verification. No authentication required; Stripe signs each delivery.
      * <p>
-     * Returns 200 on success, 400 when the signature cannot be verified.
+     * Returns 200 on success, 400 when the signature cannot be verified, 503 when the webhook
+     * secret is not configured, and 500 on other processing errors (so Stripe retries).
      */
     @PostMapping(value = "/webhook", produces = MediaType.TEXT_PLAIN_VALUE)
     public ResponseEntity<String> handleWebhook(
@@ -66,10 +67,16 @@ public class StripePaymentController {
         } catch (SignatureVerificationException e) {
             log.warn("[STRIPE WEBHOOK] Signature verification failed: {}", e.getMessage());
             return ResponseEntity.badRequest().body("Invalid Stripe signature");
+        } catch (IllegalStateException e) {
+            // Server misconfiguration (e.g. missing webhook secret). 503 → Stripe retries and the
+            // failing deliveries surface the misconfiguration, instead of silently accepting events.
+            log.error("[STRIPE WEBHOOK] Configuration error: {}", e.getMessage());
+            return ResponseEntity.status(503).body("Webhook not configured");
         } catch (Exception e) {
             log.error("[STRIPE WEBHOOK] Unexpected error processing webhook", e);
-            // Return 200 to prevent Stripe from retrying non-signature errors
-            return ResponseEntity.ok("Error logged");
+            // Return 500 (not 200) so Stripe retries transient failures, rather than the event
+            // being dropped after the user has already paid. Activation is idempotent on tx status.
+            return ResponseEntity.internalServerError().body("Internal error");
         }
     }
 }

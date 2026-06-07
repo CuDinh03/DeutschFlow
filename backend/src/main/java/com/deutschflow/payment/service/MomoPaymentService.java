@@ -39,14 +39,15 @@ import java.util.UUID;
 @Slf4j
 public class MomoPaymentService {
 
-    // --- MoMo: payment.momo.* từ YAML / env (DEV_* hoặc MOMO_* — xem application.yml) ---
-    @Value("${payment.momo.partner-code:MOMO}")
+    // --- MoMo: payment.momo.* từ YAML / env (xem application.yml; mặc định 'dummy' khi thiếu env) ---
+    // Không hardcode credentials trong source — giá trị đến từ application.yml (${MOMO_*:dummy}).
+    @Value("${payment.momo.partner-code:}")
     private String partnerCode;
 
-    @Value("${payment.momo.access-key:F8BBA842ECF85}")
+    @Value("${payment.momo.access-key:}")
     private String accessKey;
 
-    @Value("${payment.momo.secret-key:K951B6PE1waDMi640xX08PD3vg6EkVlz}")
+    @Value("${payment.momo.secret-key:}")
     private String secretKey;
 
     @Value("${payment.momo.api-endpoint:https://test-payment.momo.vn/v2/gateway/api/create}")
@@ -66,6 +67,15 @@ public class MomoPaymentService {
     @PostConstruct
     void logMomoIntegrationUrls() {
         log.info("[MOMO] Startup config: ipnUrl={} returnUrl={} createApi={}", ipnUrl, returnUrl, momoApiEndpoint);
+        if (isBlank(accessKey) || isBlank(secretKey) || "dummy".equals(accessKey) || "dummy".equals(secretKey)) {
+            log.warn("[MOMO] Credentials are not configured (MOMO_ACCESS_KEY / MOMO_SECRET_KEY). "
+                    + "MoMo payments will fail until set. If the old public sandbox keys were ever used, "
+                    + "rotate them — they remain in git history.");
+        }
+    }
+
+    private static boolean isBlank(String s) {
+        return s == null || s.isBlank();
     }
 
     // ==================== CREATE ORDER ====================
