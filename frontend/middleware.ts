@@ -90,11 +90,17 @@ async function verifyAccessToken(token: string): Promise<Role | null> {
 }
 
 // ─── Content Security Policy (per-request nonce) ────────────────────────────────
-// Shipped as Report-Only so it cannot break prod. The ENFORCED policy is set on the
-// *request* header so Next.js stamps its own <script> tags with the nonce; only the
-// Report-Only variant is sent to the browser. To enforce later (S17 flip): change the
-// response header name below from 'Content-Security-Policy-Report-Only' to
-// 'Content-Security-Policy' once the violation reports are clean.
+// This is the STRICT, nonce-based policy, kept Report-Only. The ENFORCED production floor
+// lives in next.config.mjs `headers()` instead, because Amplify serves most routes from the
+// CloudFront cache without running middleware — so this header never reaches those users
+// (verified: prod HTML has no nonce, no middleware CSP header). The enforced policy is set on
+// the *request* header so Next.js stamps its <script> tags with the nonce; only the
+// Report-Only variant is sent to the browser.
+//
+// Do NOT flip this to enforced while the next.config floor is also enforced: two CSP headers
+// AND-intersect, so this nonce policy would block the floor's (necessarily non-nonce'd) inline
+// scripts and white-screen the dynamic routes where middleware DOES run. The real upgrade path
+// is to make middleware execute on Amplify, then drop the next.config floor and enforce here.
 const backendOrigin = (process.env.NEXT_PUBLIC_BACKEND_URL || '').replace(/\/api\/?$/, '')
 const posthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com'
 const cloudfront = process.env.NEXT_PUBLIC_CLOUDFRONT_URL || ''
