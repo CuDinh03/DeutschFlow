@@ -74,6 +74,8 @@ public class SecurityConfig {
                         auth.requestMatchers("/api/auth/logout").authenticated();
                         auth.requestMatchers("/api/auth/me", "/api/auth/me/**").authenticated();
                         auth.requestMatchers("/api/quiz/*/join").permitAll();  // guest join
+                        // Value-first onboarding: guests preview their mentor before signup (read-only, non-sensitive)
+                        auth.requestMatchers(HttpMethod.GET, "/api/onboarding/preview/**").permitAll();
                         // MoMo IPN webhook: called by MoMo servers (no JWT), secured via HMAC-SHA256 signature verification
                         auth.requestMatchers("/api/payments/momo/ipn").permitAll();
                         // Stripe webhook: called by Stripe servers (no JWT), secured via HMAC-SHA256 signature verification

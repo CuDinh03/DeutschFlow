@@ -102,6 +102,24 @@ public class UserLearningProfile {
     @Column(name = "upsell_opt_in_at")
     private LocalDateTime upsellOptInAt;
 
+    /**
+     * Why the learner is studying German — the onboarding "motivation" question, a richer
+     * signal than {@link #goalType} (which the client derives: {@code EXAM → CERT}, else
+     * {@code WORK}). Powers emotional framing + marketing segmentation. Nullable for
+     * profiles created before this field existed.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "motivation", length = 20)
+    private LearningMotivation motivation;
+
+    /**
+     * Daily study-time commitment in minutes (e.g. 5/10/15/20), chosen during onboarding —
+     * the Duolingo-style daily goal that anchors the streak loop. Nullable; the learning
+     * plan still derives weekly volume from {@link #sessionsPerWeek} × {@link #minutesPerSession}.
+     */
+    @Column(name = "daily_goal_minutes")
+    private Integer dailyGoalMinutes;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -121,6 +139,8 @@ public class UserLearningProfile {
     }
 
     public enum GoalType { WORK, CERT }
+    /** Onboarding "why are you learning German?" — the client derives {@link GoalType} from this. */
+    public enum LearningMotivation { JOB, AUSBILDUNG, STUDY, IMMIGRATION, EXAM, HOBBY }
     public enum TargetLevel { A1, A2, B1, B2, C1, C2 }
     public enum CurrentLevel { A0, A1, A2, B1, B2, C1, C2 }
     public enum AgeRange { UNDER_18, AGE_18_24, AGE_25_34, AGE_35_44, AGE_45_PLUS }

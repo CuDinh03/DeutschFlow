@@ -27,7 +27,8 @@ import static com.deutschflow.user.onboarding.PostOnboardingAction.START_PRACTIC
  * <ul>
  *   <li>iOS never allows an in-app paywall (Apple 3.1.1) → conversion deferred to email/web.</li>
  *   <li>A0 learners skip the placement test (nothing to validate).</li>
- *   <li>Placement is a web-only investment for self-declared A1–B2 learners.</li>
+ *   <li>Placement is a web-only, <b>optional</b> shortcut offered <i>after</i> the first value
+ *       for self-declared A1–B2 learners (value-first redesign 2026-06-07); it no longer gates the roadmap.</li>
  * </ul>
  */
 @Component
@@ -43,22 +44,25 @@ public class OnboardingTypeResolver {
         LevelBand band = LevelBand.of(level);
         boolean paywall = p.allowsInAppPaywall();
 
+        // Field order: type, placementRequired, placementOptional, assessmentHookAfter, paywallAllowed, postAction.
         return switch (p) {
+            // WEB: placement is now an optional, skippable shortcut shown AFTER the first value
+            // (value-first redesign) — no longer a gate. A0 has nothing to validate.
             case WEB -> switch (band) {
-                case ZERO  -> new OnboardingRoute(ZERO_START,          false, false, paywall, ROADMAP_ALPHABET);
-                case LOWER -> new OnboardingRoute(PLACEMENT_VALIDATED, true,  true,  paywall, ROADMAP_NODE);
-                case UPPER -> new OnboardingRoute(PLACEMENT_VALIDATED, true,  true,  paywall, PRICING_CTA);
+                case ZERO  -> new OnboardingRoute(ZERO_START,          false, false, false, paywall, ROADMAP_ALPHABET);
+                case LOWER -> new OnboardingRoute(PLACEMENT_VALIDATED, false, true,  true,  paywall, ROADMAP_NODE);
+                case UPPER -> new OnboardingRoute(PLACEMENT_VALIDATED, false, true,  true,  paywall, PRICING_CTA);
             };
             case ANDROID -> switch (band) {
-                case ZERO  -> new OnboardingRoute(ZERO_START,      false, false, paywall, ROADMAP_ALPHABET);
-                case LOWER -> new OnboardingRoute(EXPRESS_PROFILE, false, true,  paywall, MOCK_HOOK_PAYWALL);
-                case UPPER -> new OnboardingRoute(ASSESSMENT_HOOK, false, true,  paywall, RADAR_CHECKOUT);
+                case ZERO  -> new OnboardingRoute(ZERO_START,      false, false, false, paywall, ROADMAP_ALPHABET);
+                case LOWER -> new OnboardingRoute(EXPRESS_PROFILE, false, false, true,  paywall, MOCK_HOOK_PAYWALL);
+                case UPPER -> new OnboardingRoute(ASSESSMENT_HOOK, false, false, true,  paywall, RADAR_CHECKOUT);
             };
             // iOS: paywall is always false → clients use EMAIL_CAPTURE handoff for conversion.
             case IOS -> switch (band) {
-                case ZERO  -> new OnboardingRoute(MENTOR_LED_DEMO, false, false, paywall, EMAIL_CAPTURE_UPSELL);
-                case LOWER -> new OnboardingRoute(EXPRESS_PROFILE, false, false, paywall, START_PRACTICE);
-                case UPPER -> new OnboardingRoute(EXPRESS_PROFILE, false, false, paywall, INTERVIEW_FIRST);
+                case ZERO  -> new OnboardingRoute(MENTOR_LED_DEMO, false, false, false, paywall, EMAIL_CAPTURE_UPSELL);
+                case LOWER -> new OnboardingRoute(EXPRESS_PROFILE, false, false, false, paywall, START_PRACTICE);
+                case UPPER -> new OnboardingRoute(EXPRESS_PROFILE, false, false, false, paywall, INTERVIEW_FIRST);
             };
         };
     }

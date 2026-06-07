@@ -71,6 +71,11 @@ public class UserLearningProfileService {
         profile.setMinutesPerSession(req.minutesPerSession());
         profile.setLearningSpeed(learningSpeed);
 
+        // Onboarding extras (value-first redesign): "why are you learning?" (richer than goalType)
+        // and the daily-goal streak anchor. Both optional and lenient — invalid motivation → null.
+        profile.setMotivation(parseMotivationOrNull(req.motivation()));
+        profile.setDailyGoalMinutes(req.dailyGoalMinutes());
+
         // Deterministically assign the fixed mentor from the freshly-set profile + subscription tier.
         // Onboarding's currentLevel is self-declared, so record provenance as SELF; the placement-test
         // flow overwrites both current_level and level_source to PLACEMENT when it runs.
@@ -116,10 +121,25 @@ public class UserLearningProfileService {
      * so the previewed mentor matches what is actually saved.
      */
     public OnboardingMentorResponse previewMentor(User user, String goalTypeRaw, String industry, String currentLevelRaw) {
+        String planCode = quotaService.resolvePlanBadge(user.getId(), Instant.now()).planCode();
+        return resolveMentorPreview(goalTypeRaw, industry, currentLevelRaw, planCode);
+    }
+
+    /**
+     * Guest "meet your mentor" preview for the value-first onboarding funnel, <b>before</b> the
+     * learner has an account. Assumes the FREE tier (no subscription yet) and persists nothing.
+     * Uses the same deterministic {@link FixedMentorResolver} as the authed preview/submit, so the
+     * mentor shown to a guest matches what they will be assigned after signing up on FREE.
+     */
+    public OnboardingMentorResponse previewMentorForGuest(String goalTypeRaw, String industry, String currentLevelRaw) {
+        return resolveMentorPreview(goalTypeRaw, industry, currentLevelRaw, "FREE");
+    }
+
+    private OnboardingMentorResponse resolveMentorPreview(
+            String goalTypeRaw, String industry, String currentLevelRaw, String planCode) {
         UserLearningProfile.GoalType goalType = parseGoalOrNull(goalTypeRaw);
         UserLearningProfile.CurrentLevel currentLevel = parseLevelOrNull(currentLevelRaw);
         String industryClean = blankToNull(industry);
-        String planCode = quotaService.resolvePlanBadge(user.getId(), Instant.now()).planCode();
 
         var assigned = fixedMentorResolver.resolve(goalType, industryClean, currentLevel, planCode);
         SpeakingPersona assignedPersona = SpeakingPersona.fromApi(assigned.code());
@@ -138,6 +158,15 @@ public class UserLearningProfileService {
 
         return new OnboardingMentorResponse(
                 assigned.code(), assignedPersona.displayName(), assigned.difficulty().name(), upsellCode, upsellName);
+    }
+
+    private UserLearningProfile.LearningMotivation parseMotivationOrNull(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        try {
+            return UserLearningProfile.LearningMotivation.valueOf(raw.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     private UserLearningProfile.GoalType parseGoalOrNull(String raw) {
@@ -231,7 +260,9 @@ public class UserLearningProfileService {
                 p.getAssignedPersonaCode(),
                 p.getLevelSource(),
                 p.getOnboardingType(),
-                p.getUpsellOptInAt() != null ? p.getUpsellOptInAt().toString() : null
+                p.getUpsellOptInAt() != null ? p.getUpsellOptInAt().toString() : null,
+                p.getMotivation() != null ? p.getMotivation().name() : null,
+                p.getDailyGoalMinutes()
         );
     }
 }

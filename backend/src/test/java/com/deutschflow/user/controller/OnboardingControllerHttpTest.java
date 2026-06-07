@@ -54,13 +54,15 @@ class OnboardingControllerHttpTest {
     @Test
     @DisplayName("GET /route returns the resolved routing decision as JSON")
     void route_returnsRoute() throws Exception {
+        // Value-first web A1: placement is no longer gating, only an optional shortcut.
         when(onboardingTypeResolver.resolve(any(), any())).thenReturn(new OnboardingRoute(
-                OnboardingType.PLACEMENT_VALIDATED, true, true, true, PostOnboardingAction.ROADMAP_NODE));
+                OnboardingType.PLACEMENT_VALIDATED, false, true, true, true, PostOnboardingAction.ROADMAP_NODE));
 
         mvc.perform(get("/api/onboarding/route").param("currentLevel", "A1").param("platform", "web"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.onboardingType").value("PLACEMENT_VALIDATED"))
-                .andExpect(jsonPath("$.placementRequired").value(true))
+                .andExpect(jsonPath("$.placementRequired").value(false))
+                .andExpect(jsonPath("$.placementOptional").value(true))
                 .andExpect(jsonPath("$.assessmentHookAfter").value(true))
                 .andExpect(jsonPath("$.paywallAllowed").value(true))
                 .andExpect(jsonPath("$.postAction").value("ROADMAP_NODE"));

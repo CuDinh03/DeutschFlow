@@ -33,6 +33,14 @@ public record OnboardingProfileRequest(
         @Max(value = 180, message = "minutesPerSession must be <= 180")
         Integer minutesPerSession,
 
-        String learningSpeed
+        String learningSpeed,
+
+        /** Onboarding "why are you learning?" — JOB/AUSBILDUNG/STUDY/IMMIGRATION/EXAM/HOBBY. Optional. */
+        String motivation,
+
+        /** Daily study-goal in minutes (e.g. 5/10/15/20) — the streak anchor. Optional. */
+        @Min(value = 5, message = "dailyGoalMinutes must be >= 5")
+        @Max(value = 120, message = "dailyGoalMinutes must be <= 120")
+        Integer dailyGoalMinutes
 ) {}
 
