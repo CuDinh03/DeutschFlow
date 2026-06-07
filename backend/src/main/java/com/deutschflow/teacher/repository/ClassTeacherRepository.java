@@ -10,6 +10,8 @@ import java.util.List;
 @Repository
 public interface ClassTeacherRepository extends JpaRepository<ClassTeacher, ClassTeacherId> {
     List<ClassTeacher> findByIdTeacherId(Long teacherId);
+    List<ClassTeacher> findByIdClassId(Long classId);
+    List<ClassTeacher> findByIdClassIdIn(List<Long> classIds);
     boolean existsByIdClassIdAndIdTeacherId(Long classId, Long teacherId);
     void deleteByIdClassId(Long classId);
 }

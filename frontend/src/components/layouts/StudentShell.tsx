@@ -33,6 +33,7 @@ import {
   Users,
   Mic,
   HelpCircle,
+  Presentation,
 } from "lucide-react";
 import { XpLevelPill } from "@/components/gamification/XpLevelPill";
 import { useTracking } from "@/hooks/useTracking";
@@ -203,6 +204,7 @@ export function StudentShell({
           { id: "review-queue" as const, label: t("navReviewQueue"), icon: Brain, href: "/student/review-queue" },
           { id: "speakingHistory" as const, label: t("navSpeakingHistory"), icon: History, href: "/student/speaking-history" },
           { id: "interviews" as const, label: t("navInterviews"), icon: Briefcase, href: "/student/interviews" },
+          { id: "classes" as const, label: t("navMyClasses"), icon: Presentation, href: "/student/classes" },
         ],
       },
       {

@@ -544,6 +544,12 @@ export default function ClassDetailPage() {
                 >
                   <Trophy size={15} /> Bảng xếp hạng
                 </button>
+                <button
+                  onClick={() => router.push(`/teacher/classes/${id}/lessons`)}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-sm font-bold hover:bg-emerald-100 transition-colors"
+                >
+                  <BookOpen size={15} /> Buổi học
+                </button>
               </div>
             </div>
 
