@@ -1,3 +1,6 @@
+// IMPORTANT: this file MUST live at `src/middleware.ts` (this project uses a `src/` dir).
+// At the project root it is silently ignored by Next.js and never compiled — which is exactly
+// why the middleware did nothing in production for a long time. Do not move it back to the root.
 import { jwtVerify, decodeProtectedHeader, importSPKI } from 'jose'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -5,6 +8,11 @@ type Role = 'STUDENT' | 'TEACHER' | 'ADMIN'
 
 const AUTH_ACCESS_COOKIE = 'auth_access'
 const AUTH_ROLE_COOKIE = 'auth_role'
+// Persistent HttpOnly cookie set by the backend (com.deutschflow ... AuthController#REFRESH_TOKEN_COOKIE).
+// Readable here because middleware runs server-side (HttpOnly only blocks document.cookie, not the
+// request's Cookie header). Used to avoid bouncing a returning user whose access token has not been
+// restored yet — see the !authenticatedRole branch below.
+const AUTH_REFRESH_COOKIE = 'refresh_token'
 const LOGIN_ROUTES = new Set(['/login', '/register'])
 
 function roleHome(role: Role): string {
@@ -180,6 +188,17 @@ export async function middleware(request: NextRequest) {
   }
 
   if (!authenticatedRole) {
+    // No valid access token on this request. The access mirror cookie (auth_access) is SESSION-scoped
+    // (cleared on browser close), but refresh_token is a persistent HttpOnly cookie. A returning user
+    // (browser reopened) therefore has the refresh cookie but no fresh access token yet — the client
+    // restores it via the 401-refresh interceptor AFTER the page loads. Hard-redirecting here would
+    // force a needless re-login. So only redirect when there is NO session at all (no refresh cookie);
+    // otherwise let the request through so the client can restore the token. Role gating below still
+    // applies once a valid access token is present; until then client guards + backend authz enforce.
+    const hasRefreshSession = Boolean(request.cookies.get(AUTH_REFRESH_COOKIE)?.value)
+    if (hasRefreshSession) {
+      return passThrough()
+    }
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('next', pathname)
     return redirectTo(loginUrl)
