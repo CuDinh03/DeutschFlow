@@ -31,6 +31,8 @@ export function AppHeader({ title, subtitle, onBack, right }: AppHeaderProps) {
     >
       {onBack ? (
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Quay lại"
           onPress={() => {
             void Haptics.selectionAsync()
             onBack()

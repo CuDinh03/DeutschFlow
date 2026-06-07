@@ -21,6 +21,12 @@ interface CardProps {
   bordered?: boolean
   padded?: boolean
   onPress?: () => void
+  /** Required for pressable Cards whose tap target is not self-describing from the visible text. */
+  accessibilityLabel?: string
+  /** Optional additional hint announced after the label (e.g. "Opens the vocabulary list"). */
+  accessibilityHint?: string
+  /** Announce a disabled state to assistive tech AND block the press handler. */
+  disabled?: boolean
   style?: StyleProp<ViewStyle>
 }
 
@@ -33,6 +39,9 @@ export function Card({
   bordered = true,
   padded = true,
   onPress,
+  accessibilityLabel,
+  accessibilityHint,
+  disabled = false,
   style,
 }: CardProps) {
   const theme = useTheme()
@@ -61,15 +70,21 @@ export function Card({
   }
 
   const handlePress = () => {
+    if (disabled) return
     void Haptics.selectionAsync()
     onPress()
   }
 
   return (
     <AnimatedPressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
       onPress={handlePress}
       onPressIn={() => {
-        scale.value = withSpring(0.97, motion.spring.snappy)
+        if (!disabled) scale.value = withSpring(0.97, motion.spring.snappy)
       }}
       onPressOut={() => {
         scale.value = withSpring(1, motion.spring.snappy)

@@ -1,5 +1,6 @@
 export { ThemedText } from './ThemedText'
 export { Icon } from './Icon'
+export { IconButton } from './IconButton'
 export { Screen } from './Screen'
 export { Card } from './Card'
 export { Button } from './Button'
