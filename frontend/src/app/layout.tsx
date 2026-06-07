@@ -6,6 +6,7 @@ import { Toaster } from '@/components/ui/sonner'
 import LanguageSwitcher from '@/components/ui/LanguageSwitcher'
 import { PostHogProvider } from '@/providers/PostHogProvider'
 import { NativeAuthProvider } from '@/providers/NativeAuthProvider'
+import { MotionProvider } from '@/providers/MotionProvider'
 import { AuthRecoveryDialog } from '@/components/auth/AuthRecoveryDialog'
 import './globals.css'
 
@@ -54,9 +55,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <NextIntlClientProvider locale={locale} messages={messages}>
           <PostHogProvider>
             <NativeAuthProvider>
-              {children}
-              <AuthRecoveryDialog />
-              <Toaster position="top-center" />
+              <MotionProvider>
+                {children}
+                <AuthRecoveryDialog />
+                <Toaster position="top-center" />
+              </MotionProvider>
             </NativeAuthProvider>
           </PostHogProvider>
         </NextIntlClientProvider>
