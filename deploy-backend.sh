@@ -174,15 +174,22 @@ success "EC2 connectivity: OK"
 # ══════════════════════════════════════════════════════════════
 step "PHASE 1: Commit & Push"
 
+# SECURITY (P0-14): never auto-commit a dirty tree during deploy. The old behaviour
+# (git add -A + commit --no-verify) pushed ANY working-tree change — including a secret
+# an operator was testing with — straight to "$BRANCH" and deployed it within seconds,
+# while --no-verify skipped every pre-commit hook (e.g. a gitleaks secret-scan). Abort
+# and require a deliberate commit (hooks run) or a stash instead.
 if [ -n "$(git status --porcelain)" ]; then
-  info "Có thay đổi chưa commit, đang commit..."
-  git add -A
-  TIMESTAMP=$(date '+%Y-%m-%d %H:%M')
-  git commit -m "deploy: auto-commit $TIMESTAMP" --no-verify
-  success "Committed"
-else
-  info "Working tree sạch, không cần commit"
+  error "Cây làm việc đang bẩn — dừng deploy (không tự động commit)."
+  warn  "Auto-commit lúc deploy sẽ đẩy MỌI thay đổi chưa review (kể cả secret đang test)"
+  warn  "thẳng lên '$BRANCH' rồi build ngay, bỏ qua pre-commit hook (gitleaks)."
+  warn  "Hãy xử lý thay đổi trước khi deploy:"
+  warn  "    git add -p && git commit   # commit có chủ đích — hook secret-scan sẽ chạy"
+  warn  "    git stash                  # hoặc tạm cất phần chưa sẵn sàng"
+  git status --short
+  exit 1
 fi
+info "Working tree sạch ✓"
 
 info "Pushing lên GitHub ($BRANCH)..."
 if ! git push origin "$BRANCH"; then
