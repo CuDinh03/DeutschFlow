@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { View, Alert, Pressable, ActivityIndicator } from 'react-native'
+import { View, Alert, Linking, Pressable, ActivityIndicator } from 'react-native'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { router, type Href } from 'expo-router'
 import { Audio } from 'expo-av'
@@ -167,7 +167,23 @@ function WeeklyRecorder({ promptId, cefrBand }: { promptId: number; cefrBand: st
 
   async function start() {
     try {
-      await Audio.requestPermissionsAsync()
+      // Honour the permission result; route hard denial to Settings (iOS won't re-prompt).
+      const { status, canAskAgain } = await Audio.requestPermissionsAsync()
+      if (status !== 'granted') {
+        if (!canAskAgain) {
+          Alert.alert(
+            'Cần quyền microphone',
+            'Hãy bật microphone trong Cài đặt để luyện nói.',
+            [
+              { text: 'Để sau', style: 'cancel' },
+              { text: 'Mở Cài đặt', onPress: () => { void Linking.openSettings() } },
+            ],
+          )
+        } else {
+          Alert.alert('Không có quyền microphone', 'Bạn cần cấp quyền để ghi âm.')
+        }
+        return
+      }
       await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true })
       const { recording: rec } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY)
       setRecording(rec)
