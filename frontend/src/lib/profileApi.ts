@@ -106,7 +106,7 @@ export async function getOnboardingRoute(currentLevel: string): Promise<Onboardi
   }
 }
 
-/** Live "meet your mentor" preview for the current onboarding selections. */
+/** Live "meet your mentor" preview for the current onboarding selections (authenticated). */
 export async function getOnboardingMentor(
   goalType: string,
   industry: string,
@@ -114,6 +114,25 @@ export async function getOnboardingMentor(
 ): Promise<OnboardingMentorData> {
   try {
     const res = await api.get<OnboardingMentorData>("/onboarding/mentor", {
+      params: { goalType, industry, currentLevel },
+    });
+    return res.data;
+  } catch (e) {
+    throw new Error(apiMessage(e));
+  }
+}
+
+/**
+ * Public "meet your mentor" preview for a GUEST (value-first funnel, before signup).
+ * Hits the no-auth preview endpoint (assumes FREE tier); same deterministic resolver.
+ */
+export async function getOnboardingMentorPreview(
+  goalType: string,
+  industry: string,
+  currentLevel: string
+): Promise<OnboardingMentorData> {
+  try {
+    const res = await api.get<OnboardingMentorData>("/onboarding/preview/mentor", {
       params: { goalType, industry, currentLevel },
     });
     return res.data;

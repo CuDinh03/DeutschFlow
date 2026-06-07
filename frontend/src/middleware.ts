@@ -199,6 +199,11 @@ export async function middleware(request: NextRequest) {
     if (hasRefreshSession) {
       return passThrough()
     }
+    // Value-first onboarding: /onboarding is reachable by guests (no account yet). The page runs
+    // the guest funnel and gates signup itself; every other learner path still redirects to /login.
+    if (pathname === '/onboarding') {
+      return passThrough()
+    }
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('next', pathname)
     return redirectTo(loginUrl)

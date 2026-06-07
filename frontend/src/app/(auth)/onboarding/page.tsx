@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, ArrowLeft, Loader2, CheckCircle, XCircle } from "lucide-react";
 import api from "@/lib/api";
 import { toast } from "sonner";
 import { useTracking } from "@/hooks/useTracking";
-import { getOnboardingRoute, getOnboardingMentor, type OnboardingRouteData, type OnboardingMentorData } from "@/lib/profileApi";
+import { getOnboardingRoute, getOnboardingMentor, getOnboardingMentorPreview, type OnboardingRouteData, type OnboardingMentorData } from "@/lib/profileApi";
+import { getAccessToken } from "@/lib/authSession";
+import { saveOnboardingDraft, readOnboardingDraft, clearOnboardingDraft, type OnboardingDraft } from "@/lib/onboardingDraft";
 import { MENTOR_META } from "@/lib/mentorMeta";
 import { useFeatureFlagEnabled } from "posthog-js/react";
 
@@ -66,12 +68,18 @@ export default function OnboardingPage() {
   const [mentor, setMentor] = useState<OnboardingMentorData | null>(null);
   // Value-first: A1+ are OFFERED a skippable placement test after they commit, not gated by it.
   const [placementOffer, setPlacementOffer] = useState(false);
+  // Value-first auth inversion (Phase C): a guest runs the funnel + quick win BEFORE signing up.
+  const [isGuest, setIsGuest] = useState(false);          // no access token on mount
+  const [resuming, setResuming] = useState(false);        // authed, replaying a guest draft after signup
+  const [quickWinChoice, setQuickWinChoice] = useState<string | null>(null);
 
   const fetchMentor = useCallback(async () => {
     try {
-      setMentor(await getOnboardingMentor(goalType, industry, currentLevel));
+      // Guests use the public preview endpoint (no auth); authed users use the live one.
+      const fetch = isGuest ? getOnboardingMentorPreview : getOnboardingMentor;
+      setMentor(await fetch(goalType, industry, currentLevel));
     } catch { /* mentor preview is non-blocking */ }
-  }, [goalType, industry, currentLevel]);
+  }, [isGuest, goalType, industry, currentLevel]);
 
   /**
    * Persist the onboarding profile. Returns true on success (incl. 409 "already
@@ -137,6 +145,62 @@ export default function OnboardingPage() {
     router.push("/student/roadmap");
   }, [saveProfile, router, trackEvent, currentLevel, goalType, industry]);
 
+  /**
+   * Resume after signup: a guest filled the funnel, we stored a draft, sent them to /register,
+   * and the backend bounced STUDENT back to /onboarding. Replay the draft directly (not via
+   * component state, which updates asynchronously) to save the profile, then continue.
+   */
+  const resumeFromDraft = useCallback(async (d: OnboardingDraft) => {
+    setMotivation(d.motivation); setGoalType(d.goalType); setCurrentLevel(d.currentLevel);
+    setTargetLevel(d.targetLevel); setIndustry(d.industry); setExamType(d.examType); setWeeklyTarget(d.weeklyTarget);
+    setResuming(true);
+    const daily = d.weeklyTarget >= 7 ? 20 : d.weeklyTarget >= 5 ? 15 : 10;
+    try {
+      await api.post("/onboarding/profile", {
+        goalType: d.goalType, targetLevel: d.targetLevel, currentLevel: d.currentLevel, motivation: d.motivation,
+        industry: d.goalType === "WORK" ? d.industry : undefined,
+        examType: d.goalType === "CERT" ? d.examType : undefined,
+        sessionsPerWeek: d.weeklyTarget, minutesPerSession: 15, dailyGoalMinutes: daily,
+        learningSpeed: d.weeklyTarget >= 7 ? "FAST" : d.weeklyTarget >= 5 ? "NORMAL" : "SLOW",
+      });
+      trackEvent('onboarding_completed', { level: d.currentLevel, goal: d.goalType, industry: d.industry });
+      let r: OnboardingRouteData | null = null;
+      try {
+        r = await getOnboardingRoute(d.currentLevel);
+        setRoute(r);
+        trackEvent('onboarding_type_assigned', { onboardingType: r.onboardingType, postAction: r.postAction, paywallAllowed: r.paywallAllowed, platform: 'web', currentLevel: d.currentLevel });
+      } catch { /* matrix best-effort */ }
+      if (r?.placementOptional) {
+        trackEvent('onboarding_placement_offered', { currentLevel: d.currentLevel });
+        setPlacementOffer(true); setStep(4); setResuming(false);
+      } else {
+        router.push("/student/roadmap");
+      }
+    } catch (e: unknown) {
+      if ((e as { response?: { status?: number } })?.response?.status === 409) { router.push("/student/roadmap"); return; }
+      toast.error("Không lưu được hồ sơ. Vui lòng hoàn tất lại.");
+      setResuming(false); setStep(3);
+    }
+  }, [router, trackEvent]);
+
+  // On mount: detect guest vs. authed. If authed with a stored draft, this is a post-signup resume.
+  useEffect(() => {
+    if (getAccessToken()) {
+      const draft = readOnboardingDraft();
+      if (draft) { clearOnboardingDraft(); void resumeFromDraft(draft); }
+    } else {
+      setIsGuest(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /** Guest signup gate: stash the funnel answers, then send the guest to /register to save them. */
+  const handleGuestSignup = useCallback(() => {
+    saveOnboardingDraft({ motivation, goalType, currentLevel, targetLevel, industry, examType, weeklyTarget });
+    trackEvent('onboarding_signup_prompted', { motivation, goalType, currentLevel });
+    router.push("/register");
+  }, [motivation, goalType, currentLevel, targetLevel, industry, examType, weeklyTarget, router, trackEvent]);
+
   const nextStep = async () => {
     if (step === 1) trackOnboardingStep('Select Level', 1, { currentLevel });
     if (step === 2) {
@@ -150,6 +214,12 @@ export default function OnboardingPage() {
     }
 
     if (step === 3) {
+      if (isGuest) {
+        // Guest path: no account yet → quick win + signup gate. Nothing is saved server-side
+        // until after signup (the answers are replayed from the draft in resumeFromDraft).
+        setStep(4);
+        return;
+      }
       // Ask the backend matrix (single source of truth) which archetype this
       // (platform=web, level) cell maps to. Fall back to the level heuristic if it's unavailable.
       let r: OnboardingRouteData | null = null;
@@ -181,6 +251,19 @@ export default function OnboardingPage() {
   const sel = (v: boolean) => `w-full flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${v ? "border-[#FFCD00] bg-[#FFCD00]/5 shadow-sm" : "border-[#E2E8F0] hover:border-[#CBD5E1]"}`;
   const firstWin = currentLevel === "A0" ? "Bắt đầu với bảng chữ cái, phát âm và những câu chào đầu tiên" : "Làm bài test xếp lớp để nhận lộ trình phù hợp ngay";
 
+  // Post-signup resume: saving the guest's draft profile, then routing on. Avoids a funnel flash.
+  if (resuming) {
+    return (
+      <div className="min-h-screen bg-[#F1F4F9] flex flex-col items-center justify-center px-4 py-8">
+        <div className="w-full max-w-sm text-center space-y-3">
+          <Loader2 size={28} className="animate-spin mx-auto text-[#FFCD00]" />
+          <p className="text-sm font-semibold text-[#0F172A]">Đang tạo lộ trình của bạn…</p>
+          <p className="text-xs text-[#64748B]">Lưu mục tiêu và mentor bạn vừa chọn.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#F1F4F9] flex flex-col items-center justify-center px-4 py-8">
       <div className="w-full max-w-lg">
@@ -193,7 +276,7 @@ export default function OnboardingPage() {
           <p className="text-xs text-[#64748B] mt-1">Chọn trình độ, mục tiêu và nhịp học để nhận lộ trình cá nhân hóa ngay.</p>
         </div>
         <div className="flex items-center justify-center gap-2 mb-6">
-          {[1,2,3,4].map(s => <div key={s} className={`w-8 h-1.5 rounded-full ${s <= step ? "bg-[#FFCD00]" : "bg-[#E2E8F0]"}`} />)}
+          {(isGuest ? [1,2,3,4,5] : [1,2,3,4]).map(s => <div key={s} className={`w-8 h-1.5 rounded-full ${s <= step ? "bg-[#FFCD00]" : "bg-[#E2E8F0]"}`} />)}
         </div>
 
         <AnimatePresence mode="wait">
@@ -294,7 +377,62 @@ export default function OnboardingPage() {
             </motion.div>
           )}
 
-          {step === 4 && placementOffer && !testResult && questions.length === 0 && (
+          {step === 4 && isGuest && (
+            <motion.div key="s4qw" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} className={`${card} text-center`}>
+              <div className="inline-flex w-16 h-16 rounded-full items-center justify-center bg-[#FFFBEB] text-3xl mx-auto">🇩🇪</div>
+              <h2 className="text-lg font-bold text-[#0F172A]">Thử ngay câu đầu tiên!</h2>
+              <p className="text-sm text-[#64748B]">&quot;Chào buổi sáng&quot; trong tiếng Đức là gì?</p>
+              <div className="space-y-2 text-left">
+                {["Guten Morgen","Gute Nacht","Auf Wiedersehen"].map(opt => {
+                  const picked = quickWinChoice === opt;
+                  const isCorrect = opt === "Guten Morgen";
+                  const answered = quickWinChoice !== null;
+                  const solved = quickWinChoice === "Guten Morgen";
+                  return (
+                    <button key={opt} type="button" disabled={solved}
+                      onClick={() => { setQuickWinChoice(opt); if (isCorrect) trackEvent('onboarding_quickwin_completed', { correct: true }); }}
+                      className={`w-full text-left p-3 rounded-xl border-2 text-sm transition-all disabled:cursor-default ${
+                        answered && isCorrect ? "border-[#22C55E] bg-[#F0FDF4] font-bold text-[#15803D]"
+                        : picked ? "border-[#EF4444] bg-[#FEF2F2] text-[#B91C1C]"
+                        : "border-[#E2E8F0] hover:border-[#CBD5E1]"}`}>
+                      {opt}{answered && isCorrect ? " ✓" : ""}
+                    </button>
+                  );
+                })}
+              </div>
+              {quickWinChoice === "Guten Morgen" ? (
+                <>
+                  <p className="text-sm font-bold text-[#15803D]">Richtig! 🎉 Bạn vừa học từ đầu tiên.</p>
+                  <button type="button" onClick={() => setStep(5)} className="w-full py-3 rounded-xl bg-[#121212] text-white text-sm font-bold flex items-center justify-center gap-1.5">Tiếp tục <ArrowRight size={14}/></button>
+                </>
+              ) : quickWinChoice ? (
+                <p className="text-xs text-[#EF4444]">Chưa đúng — thử lại nhé!</p>
+              ) : null}
+            </motion.div>
+          )}
+
+          {step === 5 && isGuest && (
+            <motion.div key="s5" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} className={`${card} text-center`}>
+              {mentor && (
+                <div className="rounded-xl border-2 border-[#FFCD00]/50 bg-[#FFFBEB] p-3 flex items-center gap-3 text-left">
+                  <div className="w-11 h-11 rounded-full bg-[#FFCD00] flex items-center justify-center text-xl shrink-0">{MENTOR_META[mentor.code]?.emoji ?? "🧑‍🏫"}</div>
+                  <div className="min-w-0">
+                    <p className="text-[11px] uppercase tracking-wide text-[#92400E]/80 font-semibold">Mentor của bạn</p>
+                    <p className="text-sm font-bold text-[#0F172A]">{mentor.displayName}</p>
+                    <p className="text-xs text-[#92400E]">{MENTOR_META[mentor.code]?.tagline ?? "Người đồng hành học tập"}</p>
+                  </div>
+                </div>
+              )}
+              <h2 className="text-lg font-bold text-[#0F172A]">Lưu lộ trình của bạn</h2>
+              <p className="text-sm text-[#64748B]">Tạo tài khoản miễn phí để giữ tiến độ{mentor ? ` và mentor ${mentor.displayName}` : ""} — chỉ mất 30 giây.</p>
+              <button type="button" onClick={handleGuestSignup} className="w-full py-3 rounded-xl bg-[#FFCD00] text-[#121212] text-sm font-bold flex items-center justify-center gap-1.5">
+                Tạo tài khoản &amp; lưu lộ trình <ArrowRight size={14}/>
+              </button>
+              <p className="text-xs text-[#94A3B8]">Đã có tài khoản? <a href="/login" className="font-bold text-[#0F172A] underline">Đăng nhập</a></p>
+            </motion.div>
+          )}
+
+          {step === 4 && !isGuest && placementOffer && !testResult && questions.length === 0 && (
             <motion.div key="s4offer" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} className={`${card} text-center`}>
               <div className="inline-flex w-16 h-16 rounded-full items-center justify-center bg-[#FFFBEB] text-3xl mx-auto">🎯</div>
               <h2 className="text-lg font-bold text-[#0F172A]">Vào đúng trình độ của bạn?</h2>
@@ -381,7 +519,7 @@ export default function OnboardingPage() {
             <button type="button" onClick={nextStep} disabled={loading}
               className="text-sm bg-[#121212] text-white px-6 py-2.5 rounded-xl flex items-center gap-1.5 disabled:opacity-50">
               {loading && <Loader2 size={14} className="animate-spin"/>}
-              {step===3 && currentLevel==="A0" ? "Bắt đầu lộ trình" : "Tiếp tục"}
+              {step===3 && !isGuest && currentLevel==="A0" ? "Bắt đầu lộ trình" : "Tiếp tục"}
               <ArrowRight size={14}/>
             </button>
           </div>

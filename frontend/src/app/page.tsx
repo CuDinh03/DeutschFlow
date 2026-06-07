@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useFeatureFlagEnabled } from 'posthog-js/react'
 import api from '@/lib/api'
 import { getAccessToken, clearTokens, logout } from '@/lib/authSession'
 import { isNative } from '@/lib/native'
@@ -115,6 +116,10 @@ export default function HomePage() {
   const [mounted, setMounted] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  // Value-first A/B: when `onboarding-value-first` is ON, the "start" CTAs open the guest
+  // funnel (/onboarding) instead of the signup wall. Defaults to /register (control) until
+  // the flag resolves, so production behaviour is unchanged until the experiment is enabled.
+  const startHref = useFeatureFlagEnabled('onboarding-value-first') ? '/onboarding' : '/register'
 
   useEffect(() => {
     setMounted(true)
@@ -165,7 +170,7 @@ export default function HomePage() {
             ) : (
               <>
                 <Link href="/login" className="hover:text-white transition-colors">Đăng nhập</Link>
-                <Link href="/register" className="bg-[#FFCD00] text-[#121212] font-bold px-5 py-2 rounded-full hover:bg-[#E6B800] transition-colors">
+                <Link href={startHref} className="bg-[#FFCD00] text-[#121212] font-bold px-5 py-2 rounded-full hover:bg-[#E6B800] transition-colors">
                   Luyện tập miễn phí
                 </Link>
               </>
@@ -187,7 +192,7 @@ export default function HomePage() {
             <a href="#pain" onClick={() => setMenuOpen(false)} className="text-white/70 hover:text-white">Vấn đề</a>
             <a href="#how" onClick={() => setMenuOpen(false)} className="text-white/70 hover:text-white">Cách hoạt động</a>
             <a href="#industries" onClick={() => setMenuOpen(false)} className="text-white/70 hover:text-white">Ngành nghề</a>
-            <Link href="/register" className="bg-[#FFCD00] text-[#121212] font-bold py-3 rounded-xl text-center">
+            <Link href={startHref} className="bg-[#FFCD00] text-[#121212] font-bold py-3 rounded-xl text-center">
               Luyện tập miễn phí
             </Link>
           </div>
@@ -239,7 +244,7 @@ export default function HomePage() {
             className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-12"
           >
             <Link
-              href="/register"
+              href={startHref}
               className="group inline-flex items-center gap-2 bg-[#FFCD00] text-[#121212] text-lg font-extrabold px-8 py-4 rounded-full hover:bg-[#E6B800] transition-all hover:-translate-y-0.5"
             >
               Bắt đầu luyện miễn phí
@@ -543,7 +548,7 @@ export default function HomePage() {
               Bắt đầu bằng 1 buổi phỏng vấn thử miễn phí &mdash; không cần thẻ tín dụng, không giới hạn thời gian.
             </p>
             <Link
-              href="/register"
+              href={startHref}
               className="inline-flex items-center gap-3 bg-[#121212] text-white text-xl font-extrabold px-10 py-5 rounded-full hover:bg-[#1E1E1E] transition-all hover:-translate-y-1 shadow-[0_8px_40px_rgba(0,0,0,0.25)]"
             >
               Bắt đầu luyện phỏng vấn
@@ -560,7 +565,7 @@ export default function HomePage() {
           <DeutschFlowLogo variant="horizontal" size={130} animated={false} className="opacity-50" />
           <div className="flex flex-wrap justify-center gap-6 text-sm text-white/30 font-medium">
             <Link href="/login" className="hover:text-white/60 transition-colors">Đăng nhập</Link>
-            <Link href="/register" className="hover:text-white/60 transition-colors">Đăng ký</Link>
+            <Link href={startHref} className="hover:text-white/60 transition-colors">Đăng ký</Link>
             <a href="#pain" className="hover:text-white/60 transition-colors">Tính năng</a>
           </div>
           <p className="text-white/20 text-sm">&copy; 2026 DeutschFlow. Dành cho người Việt đi Đức.</p>
@@ -574,7 +579,7 @@ export default function HomePage() {
             Vào Dashboard &rarr;
           </Link>
         ) : (
-          <Link href="/register" className="flex items-center justify-center w-full bg-[#FFCD00] text-[#121212] text-base font-extrabold py-4 rounded-xl">
+          <Link href={startHref} className="flex items-center justify-center w-full bg-[#FFCD00] text-[#121212] text-base font-extrabold py-4 rounded-xl">
             Luyện phỏng vấn miễn phí &rarr;
           </Link>
         )}
