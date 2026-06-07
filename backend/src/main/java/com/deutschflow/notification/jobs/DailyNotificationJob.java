@@ -73,9 +73,13 @@ public class DailyNotificationJob {
     }
 
     private void sendReviewDueIfNeeded(User student) {
-        // Count due review items for this user
+        // Count due cards in the canonical FSRS SRS table (vocab_review_schedule, V110).
+        // The previous query targeted "review_queue" — a table that has never existed in any
+        // migration — so this whole branch was throwing every hour the job fired. vocab_review_schedule
+        // exposes the same column names this code already used (user_id, next_review_at TIMESTAMPTZ),
+        // and is fed by SrsVocabScheduler from every learning flow.
         Integer dueCount = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM review_queue WHERE user_id = ? AND next_review_at <= NOW()",
+                "SELECT COUNT(*) FROM vocab_review_schedule WHERE user_id = ? AND next_review_at <= NOW()",
                 Integer.class, student.getId());
 
         if (dueCount != null && dueCount > 0) {
