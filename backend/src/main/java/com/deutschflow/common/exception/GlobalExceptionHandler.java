@@ -13,6 +13,8 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -133,6 +135,19 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({AccessDeniedException.class, AuthenticationException.class})
     public void rethrowSecurityExceptions(RuntimeException ex) throws RuntimeException {
         throw ex;
+    }
+
+    // --- 404 No matching endpoint / static resource ---
+    // A request to a path with no @RequestMapping (e.g. an endpoint that exists in a newer build
+    // but is not yet deployed) throws NoResourceFoundException (Spring 6.1+) or NoHandlerFoundException.
+    // Without an explicit handler these bubble to handleGeneral(Exception) and masquerade as a 500
+    // "ERR-x" — making "this endpoint isn't deployed yet" look like a server crash. Map them to an
+    // honest 404 instead. Logged at WARN (not ERROR) so missing-route probes don't pollute 500 alerts.
+    @ExceptionHandler({NoResourceFoundException.class, NoHandlerFoundException.class})
+    public ResponseEntity<ProblemDetail> handleNoHandler(Exception ex, HttpServletRequest request) {
+        log.warn("[404] No handler for {} {}", request.getMethod(), request.getRequestURI());
+        return problem(HttpStatus.NOT_FOUND, "endpoint-not-found", "Endpoint Not Found",
+                "The requested endpoint does not exist.", request.getRequestURI(), null, null);
     }
 
     // --- 500 fallback ---
