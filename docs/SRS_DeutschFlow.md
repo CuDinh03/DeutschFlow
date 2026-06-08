@@ -1,8 +1,12 @@
 # SRS — DeutschFlow (Software Requirements Specification)
 
-**Phiên bản:** 2.22  
-**Ngày:** 2026-05-31  
+**Phiên bản:** 2.24  
+**Ngày:** 2026-06-08  
 **Ngôn ngữ:** Tiếng Việt  
+
+**Changelog v2.24:** **Video Lessons, SRS FSRS-4.5 Consolidation, Onboarding Mentor, Speaking Chat UX, Security Hardening Phase 0, Mobile Analytics, New-User Guide, Student Classes, Onboarding Value-First, P0 Security/Integrity/Auth** — 21+ commits, 197+ migrations tổng. (1) **Video Lessons (M1–M3, all merged 2026-06-05)**: `VideoLessonService` + `VideoLessonController` — M1 vocab player (image+German-narration), Phase B `.mp4` export với `ffmpeg` + burned captions (Dockerfile cập nhật: `ffmpeg` + `DejaVuSans-Bold.ttf`), SRS-due video source, grammar videos (text-cards, không LLM), listening/dialogue videos (Groq `llama-3.3-70b-versatile`, topic-picker), Unsplash admin image picker. NEEDS: backend deploy (Dockerfile mới có ffmpeg+DejaVu) + Groq LLM key trước khi verify `.mp4`/listening trên prod. (2) **SRS FSRS-4.5 Consolidation (dc516a6c, 25a010c5)**: FSRS-4.5 là canonical — SM-2 chỉ còn cho audit/rollback, tất cả card mới bắt đầu là FSRS. `SrsVocabScheduler` bridge 5 content flows (PracticeNodeService, SkillTreeService, LearningSessionWorkflowService, BeginnerJourneyService, VocabularyService). `FsrsWeightOptimizerService` nightly 03:00 UTC điều chỉnh `w17` per-user (≥50 reviews, correction ±0.3 max) → `user_learning_profiles.fsrs_weights_json` (V178). `FsrsWeightProvider` resolve per-review (không cache). `POST /srs/review/batch` cho offline queue. `countMastered` (≥21 ngày interval) = tín hiệu mastery thực cho phase progression và B1 readiness. SM-2 migrate-on-read: card SM-2 được upgrade FSRS trên lần review đầu tiên. (3) **Onboarding Mentor (PR #51, merged 2026-06-05)**: 5 loại onboarding O1-O5, Platform×Level matrix router (`GET /onboarding/route` + `GET /onboarding/mentor`). `FixedMentorResolver` — deterministic fixed-mentor assignment theo industry family. `OnboardingTypeResolver`. V192–V194. "Meet your mentor" reveal trên web + mobile. `MentorChip` trên dashboard. PostHog A/B flag `onboarding-mentor-upsell`. 95 backend tests (MockMvc HTTP). web+mobile tsc+eslint+i18n clean. Chỉ defer: email SEND provider + PostHog dashboard config. (4) **Speaking Chat UX (349a30f, 2026-06-03)**: Mobile AI-Speaking — persona avatars, `RevealText` word-by-word animation, long-chat perf (`memo MessageBubble` + paused-blink), correction card redesign. `expo-speech` autolinks on EAS (local pod stale — verify on device). (5) **Security Hardening Phase 0 (2026-06-03)**: Codegraph audit web+mobile+backend — 5 commits: prompt-injection S1 (system prompt isolation), actuator lockdown + XFF whitelist + PII log scrubbing, web CSP headers + middleware + ServiceWorker scope, mobile `SecureStore`/ATS config. S11–S21 deferred trong `docs/SECURITY_ANALYSIS.md`. (6) **Mobile Analytics Phase 0-2 (2026-06-04)**: PostHog React Native layer scaffold + guide instrumented (mirrors web taxonomy/US cloud). tsc-clean. ACTIVATION cần PostHog key trong `app.json` + EAS rebuild. Phase 3-4 (full app coverage) deferred. (7) **New-User Guide (2026-06-04)**: One-time product tour + help page trên web & mobile. `localStorage`/`SecureStore` persistence — existing users thấy tour 1 lần khi mở lại. `guide.*` i18n (vi/en/de). (8) **Student Classes + Teacher Lesson Checklist (PR #69, 2026-06-07)**: "Lớp của tôi" page cho student, teacher lesson checklist. `class_lessons` table (V197). Class progress = teacher-tick (không tự động từ assignments). Join luôn PENDING (teacher approves). Mobile = student-only. (9) **Onboarding Value-First Hybrid (PR #70, merged 2026-06-08)**: Duolingo value-first onboarding (PA2 Hybrid). Gated behind PostHog flag `onboarding-value-first` (OFF). 8/8 CI green. Needs: backend deploy + E2E/device test + flag enable. (10) **P0 Security/Integrity/Auth (PR #57, #58, #60, #63, #66, #67)**: Fix A1→B1 journey; missing FK constraints; V195 hot-path indexes (5 indexes mới: `user_notifications`/`user_xp_events`/`skill_tree_node_dependencies`/`skill_tree_user_progress`, drop duplicate `idx_words_cefr`); DailyNotificationJob fix (queried non-existent `review_queue` table); per-user rate limit trên Whisper transcribe endpoint (PR #63); prod CSP headers (PR #66); middleware moved to `src/` để thực sự run trên Next.js App Router (PR #67) + non-regressing auth gate; removed `--no-verify` từ deploy. (11) **Web A11y/UX (PR #64)**: Error boundaries, reduced-motion support, accessible Modal primitive với focus trap + keyboard navigation. (12) **Mobile A11y (PR #61, #62)**: Label base interactive primitives (a11y), handle mic-permission denial gracefully (không fall vào generic error). (13) **XP Formula Tests (PR #65)**: 25 test cases pin triangular level formula (test suite `xp`).
+
+**Changelog v2.23:** **MVP Reconciliation + iOS B2C Loop Wired to Shared Core** — xem mục "Hoàn Thành Trong Phiên Làm Việc Trước (v2.23)" trong Current State.
 
 **Changelog v2.22:** **Stripe Checkout, B1/B2 Exam Content, Answer Review, Vitest Tests, Redis L2, Performance Indexes, GlosbeAutoImport** — 1 commit (`f08b27a`), 185 migrations tổng. (1) **Stripe Checkout Backend**: `StripePaymentService` — VND→USD cents conversion (min 50¢), `createCheckoutSession()` lưu PENDING `PaymentTransaction` với `provider="STRIPE"`, `handleWebhook()` xác thực HMAC signature + gọi `SubscriptionActivationService`; graceful degradation khi `STRIPE_SECRET_KEY` trống; `StripePaymentController` — `POST /api/payments/stripe/create-session` (auth required) + `POST /api/payments/stripe/webhook` (raw body, permit all); `V182__stripe_payment.sql` thêm `stripe_session_id` column. (2) **Stripe Checkout Frontend**: `createStripeSession()` trong `paymentApi.ts`; pricing page thêm Stripe button cạnh MoMo (discriminated union loading key `momo-PRO/ULTRA/stripe-PRO/ULTRA`); `useSearchParams` detect `?stripe=success/cancel` return banner; i18n keys thêm vào vi/en/de. (3) **B1 Exam Content (V183)**: 2 Goethe B1 variants — Set 1 (Beruf/Freizeit/Reisen), Set 2 (Umwelt/Gesellschaft/Wohnen); mỗi set có LESEN (Richtig/Falsch + job matching + MC), HÖREN (MC dialogues + Richtig/Falsch radio interview), SCHREIBEN (2 FREE_TEXT prompts), SPRECHEN (2 SPEAKING_PROMPT). (4) **B2 Exam Content (V184)**: 2 Goethe B2 variants (100 phút, 4 sections 25pt mỗi) — Set 1 (Technologie/Wirtschaft/Gesundheit): AI in medicine, algorithm bias essay, startup negotiation speaking; Set 2 (Globalisierung/Bildung/Medien): journalism crisis analysis, university panel, argumentative essay. (5) **Answer Review Endpoint**: `GET /api/mock-exams/attempts/{id}/review` — trả `{ attemptId, totalScore, sections: [{sectionName, items: [{id, question, user_answer, correct_answer, is_correct, explanation}]}] }`; chỉ cho phép review attempt `COMPLETED`; parse `answers_submitted_json`, so sánh case-insensitive với `correct`/`correct_answer` field aliases. (6) **Answer Review UI**: mock-exam/page.tsx thêm view state `'review'`; nút "Xem đáp án chi tiết" trong result view; per-question cards với ✓ xanh / ✗ đỏ / "Chưa trả lời" xám; explanation text in nghiêng xám; border emerald/rose tương ứng. (7) **Vitest + RTL + MSW Infrastructure**: nâng `vitest ^2.1.8`, `@testing-library/react ^16.1.0`, thêm `@testing-library/user-event ^14.5.2`, `@vitest/ui ^2.1.8`; 26 tests mới — `useSpeakingChat.test.ts` (8 tests: initial state, handleSendMessage, guards, resetForNewSession), `useSpeech.test.ts` (8 tests: speak/stop/callbacks với `vi.stubGlobal`), `OnboardingWizard.test.tsx` (10 tests: step navigation, level selection, A0 shortcut, placement test flow); coverage threshold 60% cho `src/lib/**`. (8) **Performance Indexes (V185)**: `idx_words_lower_base_form` trên `LOWER(base_form)` cho case-insensitive vocab upsert; `idx_grammar_errors_user_point_created` trên `(user_id, grammar_point, created_at)` cho time-windowed weak-point queries; cả hai dùng `CONCURRENTLY IF NOT EXISTS`. (9) **Redis L2 Cache**: `RedisConfig` thêm `@ConditionalOnProperty(name = "spring.redis.host")` + `@ConditionalOnClass` — Redis chỉ activate khi `REDIS_HOST` được set; Caffeine L1 luôn active; tránh `NoSuchBeanDefinitionException` trong dev/test không có Redis. (10) **GlosbeAutoImport Startup**: `GlosbeVocabularyAutoImportRunner` thêm `@Async @EventListener(ApplicationReadyEvent)` để chạy incremental import ngay sau startup mà không block; `runScheduledImport()` và `onApplicationReady()` đều delegate sang `runImport(String trigger)` với log bao gồm trigger source.
 
@@ -65,9 +69,27 @@
 
 ---
 
-## 📊 Trạng Thái Hiện Tại (v2.23 — MVP Reconciliation + iOS B2C Loop Wired to Shared Core)
+## 📊 Trạng Thái Hiện Tại (v2.24 — Video Lessons, SRS FSRS, Onboarding Mentor, Student Classes, P0 Hardening)
 
-### ✅ Hoàn Thành Trong Phiên Làm Việc Này (v2.23 — MVP Reconciliation + iOS B2C)
+### ✅ Hoàn Thành Trong Phiên Làm Việc Này (v2.24)
+
+1. **Video Lessons (M1–M3)** — vocab player + ffmpeg .mp4 + SRS-due source + grammar videos + listening/dialogue (LLM) + Unsplash image picker. Merged to main 2026-06-05. NEEDS: backend deploy + Groq LLM key.
+2. **SRS FSRS-4.5 Consolidation** — FSRS canonical; SM-2 migrate-on-read; SrsVocabScheduler bridge 5 flows; FsrsWeightOptimizerService nightly w17; FsrsWeightProvider per-review; POST /srs/review/batch offline queue; countMastered (≥21d) B1 signal; V178.
+3. **Onboarding Mentor (PR #51)** — 5 types O1-O5, Platform×Level matrix, FixedMentorResolver, mentor reveal, MentorChip dashboard, PostHog A/B flag, V192–V194. Merged 2026-06-05.
+4. **Speaking Chat UX** — persona avatars, RevealText word-by-word, long-chat perf (memo + paused-blink), correction card redesign. 349a30f, 2026-06-03.
+5. **Security Hardening Phase 0** — prompt-injection S1, actuator lockdown/XFF/PII, web CSP+middleware+SW, mobile SecureStore/ATS. S11–S21 deferred. 2026-06-03.
+6. **Mobile Analytics Phase 0-2** — PostHog RN scaffold + guide instrumented. ACTIVATION cần app.json key + EAS rebuild. 2026-06-04.
+7. **New-User Guide** — one-time tour + help page web+mobile, localStorage/SecureStore persistence, guide.* i18n. 2026-06-04.
+8. **Student Classes + Teacher Lesson Checklist (PR #69)** — "Lớp của tôi", class_lessons (V197), teacher-tick progress, PENDING join, mobile=student-only. 2026-06-07.
+9. **Onboarding Value-First Hybrid (PR #70)** — PA2 Hybrid, gated PostHog `onboarding-value-first` (OFF). Merged 2026-06-08. Needs backend deploy + E2E + flag.
+10. **P0 Security/Integrity/Auth** — A1→B1 journey fix; missing FKs; V195 (5 hot-path indexes); DailyNotificationJob fix (review_queue); Whisper per-user rate limit (PR #63); prod CSP (PR #66); middleware moved to src/ + auth gate (PR #67); --no-verify removed.
+11. **Web A11y/UX (PR #64)** — Error boundaries, reduced-motion, accessible Modal primitive.
+12. **Mobile A11y (PR #61, #62)** — label primitives, mic-permission denial handler.
+13. **XP Formula Tests (PR #65)** — 25 test cases pin triangular level formula.
+
+---
+
+### ✅ Hoàn Thành Trong Phiên Làm Việc Trước (v2.23 — MVP Reconciliation + iOS B2C)
 
 1. **Đối soát MVP Checklist 90 ngày** với codebase → `docs/superpowers/specs/2026-06-01-mvp-reconciliation.md`. Kết luận: backend core, web B2C, web B2B ~hoàn tất; lane **iOS B2C (`mobile/`) bị hỏng/thiếu**.
 
@@ -109,7 +131,7 @@
 
 ---
 
-### ✅ Hoàn Thành Trong Phiên Làm Việc Trước (v2.22)
+### ✅ Đã Hoàn Thành Trước Đó (v2.22)
 
 1. **Stripe Checkout**
    - ✅ `StripePaymentService`: VND→USD conversion, webhook HMAC verify, graceful degradation nếu key chưa set
@@ -143,7 +165,7 @@
 
 ---
 
-### ✅ Hoàn Thành Trong Phiên Làm Việc Trước (v2.21)
+### ✅ Đã Hoàn Thành Trước Đó (v2.21)
 
 1. **Notification System**
    - ✅ Bell badge: số thông báo chưa đọc real-time qua `GET /notifications/unread-count`
@@ -283,7 +305,20 @@
 |------|--------|---------|
 | **Backend build** | ✅ Clean | `mvn compile` 0 errors, Java 21 |
 | **Frontend TypeScript** | ✅ Clean | 0 new type errors |
-| **DB migrations** | ✅ V185 | 185 migrations tổng |
+| **DB migrations** | ✅ V197 | 197+ migrations tổng |
+| **Video Lessons** | ⏳ Needs deploy | ffmpeg+DejaVu in Dockerfile; Groq LLM key required for .mp4/listening |
+| **SRS FSRS-4.5** | ✅ Live | Canonical FSRS; SM-2 migrate-on-read; nightly w17 optimizer; offline batch |
+| **Onboarding Mentor** | ✅ Live | PR #51 merged; FixedMentorResolver + matrix router; MentorChip dashboard |
+| **Onboarding Value-First** | ⏳ Flag OFF | PR #70 merged; PostHog `onboarding-value-first` = OFF; needs backend deploy + E2E |
+| **Student Classes** | ✅ Live | PR #69; class_lessons V197; teacher-tick progress; mobile student-only |
+| **Speaking Chat UX** | ✅ Live | Persona avatars; RevealText; long-chat perf; correction card |
+| **Security Hardening Ph0** | ✅ Live | Prompt-injection S1; actuator/XFF/PII; CSP headers; mobile SecureStore |
+| **Mobile Analytics** | ⏳ Key needed | Scaffold + guide; needs PostHog key in app.json + EAS rebuild |
+| **New-User Guide** | ✅ Live | Tour + help page web+mobile; localStorage/SecureStore |
+| **P0 Auth/Integrity** | ✅ Live | Missing FKs; V195 indexes; DailyNotificationJob fix; middleware src/; CSP |
+| **Whisper Rate Limit** | ✅ Live | Per-user rate limit on /api/speaking/transcribe (PR #63) |
+| **Web A11y** | ✅ Live | Error boundaries; reduced-motion; Modal primitive (PR #64) |
+| **Mobile A11y** | ✅ Live | Labeled primitives; mic-permission handler (PR #61, #62) |
 | **Notification system** | ✅ Live | Bell badge + inbox + broadcast queue + scheduler |
 | **iOS Sprints 1–3** | ✅ Live | Haptics, keyboard avoidance, offline banner, Sentry, a11y |
 | **iOS 26 polish** | ✅ Live | Liquid Glass nav, safe-area fix, DFLogo refactor |
@@ -308,11 +343,11 @@
 
 ---
 
-## 🔄 Codebase Synchronization Status (v2.22 Alignment)
+## 🔄 Codebase Synchronization Status (v2.24 Alignment)
 
-### Database Schema Evolution (V1 → V185)
+### Database Schema Evolution (V1 → V197)
 
-Codebase hiện tại có **174 database migrations** đã được triển khai, đại diện cho sự phát triển đáng kể:
+Codebase hiện tại có **197+ database migrations** đã được triển khai, đại diện cho sự phát triển đáng kể:
 
 #### Core Modules (V1-V27)
 - **V1-V5**: Bảng cơ sở (vocabulary, grammar, user, quiz, skill)
