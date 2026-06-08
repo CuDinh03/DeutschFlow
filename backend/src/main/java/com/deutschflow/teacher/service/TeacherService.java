@@ -367,6 +367,52 @@ public class TeacherService {
                 actionItems);
     }
 
+    /**
+     * Returns the AI speaking scenario for an assignment, generating it on demand if missing.
+     *
+     * <p>Scenarios are normally generated when the teacher creates a SPEAKING_SCENARIO assignment,
+     * but that LLM call is best-effort — if it failed (model down, quota, transient error) the
+     * assignment was left with no scenario and {@code referenceId == null}, permanently blocking the
+     * student ("Không tìm thấy kịch bản bài tập"). This recovers by generating + persisting the
+     * scenario the first time a student opens it, and back-fills {@code referenceId} on the assignment.
+     *
+     * @throws NotFoundException if the student is not assigned this assignment, the assignment does
+     *                           not exist, or it is not a SPEAKING_SCENARIO type.
+     */
+    @Transactional
+    public AssignmentScenario getOrCreateScenarioForStudent(Long assignmentId, Long studentId) {
+        // IDOR guard: only a student actually assigned this assignment may read/generate its scenario.
+        if (studentAssignmentRepository.findByStudentIdAndAssignmentId(studentId, assignmentId).isEmpty()) {
+            throw new NotFoundException("Bài tập không tồn tại");
+        }
+
+        Optional<AssignmentScenario> existing =
+                assignmentScenarioRepository.findFirstByAssignmentIdOrderByIdAsc(assignmentId);
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+
+        ClassAssignment ca = assignmentRepository.findById(assignmentId)
+                .orElseThrow(() -> new NotFoundException("Bài tập không tồn tại"));
+        if (!"SPEAKING_SCENARIO".equals(ca.getAssignmentType())) {
+            throw new NotFoundException("Bài tập này không có kịch bản luyện nói");
+        }
+
+        log.info("[Scenario] Lazily generating missing scenario for assignment {} (topic='{}')",
+                assignmentId, ca.getTopic());
+        PracticeScenario generated = speakingAiHelpersService.generateScenario(ca.getTopic(), "A2");
+        AssignmentScenario scenario = assignmentScenarioRepository.save(AssignmentScenario.builder()
+                .assignmentId(ca.getId())
+                .topic(generated.getTopic())
+                .level(generated.getLevel())
+                .scenarioDescription(generated.getScenarioDescription())
+                .followUpQuestions(generated.getFollowUpQuestions())
+                .build());
+        ca.setReferenceId(scenario.getId());
+        assignmentRepository.save(ca);
+        return scenario;
+    }
+
     @Transactional
     public ClassAssignmentDto createAssignment(Long teacherId, Long classId, CreateAssignmentRequest req) {
         if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {

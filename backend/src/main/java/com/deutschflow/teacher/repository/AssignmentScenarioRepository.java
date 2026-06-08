@@ -9,4 +9,11 @@ import java.util.Optional;
 @Repository
 public interface AssignmentScenarioRepository extends JpaRepository<AssignmentScenario, Long> {
     Optional<AssignmentScenario> findByAssignmentId(Long assignmentId);
+
+    /**
+     * Like {@link #findByAssignmentId} but tolerant of the rare duplicate row a cross-student race
+     * in lazy generation could create — returns the earliest instead of throwing
+     * IncorrectResultSizeDataAccessException.
+     */
+    Optional<AssignmentScenario> findFirstByAssignmentIdOrderByIdAsc(Long assignmentId);
 }

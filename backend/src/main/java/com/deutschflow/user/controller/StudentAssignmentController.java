@@ -12,7 +12,6 @@ import com.deutschflow.teacher.repository.ClassAssignmentRepository;
 import com.deutschflow.teacher.entity.ClassAssignment;
 import com.deutschflow.teacher.repository.StudentAssignmentRepository;
 import com.deutschflow.teacher.entity.StudentAssignment;
-import com.deutschflow.teacher.repository.AssignmentScenarioRepository;
 import com.deutschflow.teacher.entity.AssignmentScenario;
 import com.deutschflow.media.service.S3StorageService;
 import lombok.RequiredArgsConstructor;
@@ -36,7 +35,6 @@ public class StudentAssignmentController {
     private final TeacherService teacherService;
     private final StudentAssignmentRepository studentAssignmentRepository;
     private final ClassAssignmentRepository classAssignmentRepository;
-    private final AssignmentScenarioRepository assignmentScenarioRepository;
     private final S3StorageService s3StorageService;
     private final UserNotificationService userNotificationService;
 
@@ -144,17 +142,15 @@ public class StudentAssignmentController {
     }
 
     @GetMapping("/{assignmentId}/scenario")
-    @Transactional(readOnly = true)
     public ResponseEntity<AssignmentScenario> getScenario(@PathVariable Long assignmentId,
                                                           @AuthenticationPrincipal User user) {
-        // IDOR guard: a student may only read the scenario for an assignment they were assigned.
-        // Without this, any student could enumerate every assignment's scenario by id.
-        if (studentAssignmentRepository.findByStudentIdAndAssignmentId(user.getId(), assignmentId).isEmpty()) {
+        // Lazily generates the scenario if a creation-time LLM failure left the assignment without one.
+        // IDOR guard + SPEAKING_SCENARIO check live in the service; missing/forbidden → 404.
+        try {
+            return ResponseEntity.ok(teacherService.getOrCreateScenarioForStudent(assignmentId, user.getId()));
+        } catch (NotFoundException e) {
             return ResponseEntity.notFound().build();
         }
-        return assignmentScenarioRepository.findByAssignmentId(assignmentId)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
     }
     
     @Data
