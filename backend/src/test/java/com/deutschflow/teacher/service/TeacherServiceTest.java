@@ -1,11 +1,13 @@
 package com.deutschflow.teacher.service;
 
+import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.media.service.S3StorageService;
 import com.deutschflow.notification.service.UserNotificationService;
 import com.deutschflow.speaking.service.SpeakingAiHelpersService;
 import com.deutschflow.teacher.dto.ClassAssignmentDto;
 import com.deutschflow.teacher.dto.CreateAssignmentRequest;
 import com.deutschflow.teacher.dto.StudentAssignmentDto;
+import com.deutschflow.teacher.entity.AssignmentScenario;
 import com.deutschflow.teacher.entity.ClassAssignment;
 import com.deutschflow.teacher.entity.ClassStudent;
 import com.deutschflow.teacher.entity.ClassStudentId;
@@ -35,7 +37,10 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -164,5 +169,79 @@ class TeacherServiceTest {
         assertEquals(1, result.size());
         assertEquals(90, result.get(0).teacherScore());
         assertEquals("SUBMITTED", result.get(0).status());
+    }
+
+    // ─── getOrCreateScenarioForStudent (lazy speaking-scenario recovery) ─────────
+
+    @Test
+    void getOrCreateScenario_returnsExisting_withoutLlmCall() {
+        Long assignmentId = 500L, studentId = 200L;
+        when(studentAssignmentRepository.findByStudentIdAndAssignmentId(studentId, assignmentId))
+                .thenReturn(java.util.Optional.of(StudentAssignment.builder().id(1L).build()));
+        AssignmentScenario existing = AssignmentScenario.builder()
+                .id(9L).assignmentId(assignmentId).topic("Gia đình").level("A2").build();
+        when(assignmentScenarioRepository.findFirstByAssignmentIdOrderByIdAsc(assignmentId))
+                .thenReturn(java.util.Optional.of(existing));
+
+        AssignmentScenario result = teacherService.getOrCreateScenarioForStudent(assignmentId, studentId);
+
+        assertEquals(9L, result.getId());
+        verify(speakingAiHelpersService, never()).generateScenario(anyString(), anyString());
+        verify(assignmentScenarioRepository, never()).save(any());
+    }
+
+    @Test
+    void getOrCreateScenario_lazilyGeneratesAndBackfillsReferenceId_whenMissing() {
+        Long assignmentId = 500L, studentId = 200L;
+        when(studentAssignmentRepository.findByStudentIdAndAssignmentId(studentId, assignmentId))
+                .thenReturn(java.util.Optional.of(StudentAssignment.builder().id(1L).build()));
+        when(assignmentScenarioRepository.findFirstByAssignmentIdOrderByIdAsc(assignmentId))
+                .thenReturn(java.util.Optional.empty());
+        ClassAssignment ca = ClassAssignment.builder()
+                .id(assignmentId).topic("Nói về gia đình").assignmentType("SPEAKING_SCENARIO").build();
+        when(assignmentRepository.findById(assignmentId)).thenReturn(java.util.Optional.of(ca));
+        when(speakingAiHelpersService.generateScenario("Nói về gia đình", "A2")).thenReturn(
+                SpeakingAiHelpersService.PracticeScenario.builder()
+                        .topic("Nói về gia đình").level("A2")
+                        .scenarioDescription("desc").followUpQuestions("q").build());
+        when(assignmentScenarioRepository.save(any(AssignmentScenario.class))).thenAnswer(inv -> {
+            AssignmentScenario s = inv.getArgument(0);
+            s.setId(42L);
+            return s;
+        });
+
+        AssignmentScenario result = teacherService.getOrCreateScenarioForStudent(assignmentId, studentId);
+
+        assertEquals(42L, result.getId());
+        assertEquals("Nói về gia đình", result.getTopic());
+        // referenceId must be back-filled on the assignment so future loads short-circuit.
+        ArgumentCaptor<ClassAssignment> caCaptor = ArgumentCaptor.forClass(ClassAssignment.class);
+        verify(assignmentRepository).save(caCaptor.capture());
+        assertEquals(42L, caCaptor.getValue().getReferenceId());
+    }
+
+    @Test
+    void getOrCreateScenario_throwsNotFound_whenStudentNotAssigned() {
+        when(studentAssignmentRepository.findByStudentIdAndAssignmentId(200L, 500L))
+                .thenReturn(java.util.Optional.empty());
+
+        assertThrows(NotFoundException.class,
+                () -> teacherService.getOrCreateScenarioForStudent(500L, 200L));
+        verify(speakingAiHelpersService, never()).generateScenario(anyString(), anyString());
+    }
+
+    @Test
+    void getOrCreateScenario_throwsNotFound_whenNotSpeakingScenario() {
+        Long assignmentId = 500L, studentId = 200L;
+        when(studentAssignmentRepository.findByStudentIdAndAssignmentId(studentId, assignmentId))
+                .thenReturn(java.util.Optional.of(StudentAssignment.builder().id(1L).build()));
+        when(assignmentScenarioRepository.findFirstByAssignmentIdOrderByIdAsc(assignmentId))
+                .thenReturn(java.util.Optional.empty());
+        when(assignmentRepository.findById(assignmentId)).thenReturn(java.util.Optional.of(
+                ClassAssignment.builder().id(assignmentId).assignmentType("GENERAL").build()));
+
+        assertThrows(NotFoundException.class,
+                () -> teacherService.getOrCreateScenarioForStudent(assignmentId, studentId));
+        verify(speakingAiHelpersService, never()).generateScenario(anyString(), anyString());
     }
 }

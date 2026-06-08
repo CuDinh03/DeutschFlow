@@ -139,13 +139,11 @@ export default function AssignmentDetailPage() {
   };
 
   const handleStartSpeakingAI = async () => {
-    if (!assignment || !assignment.referenceId) {
-      toast.error("Không tìm thấy kịch bản bài tập");
-      return;
-    }
+    if (!assignment) return;
     setSubmitting(true);
     try {
-      // 1. Fetch Scenario
+      // 1. Fetch scenario — backend lazily generates it if a creation-time LLM failure left
+      //    the assignment without one (so we don't gate on referenceId being back-filled).
       const res = await api.get(`/v2/students/assignments/${assignment.assignmentId}/scenario`);
       const scenario = res.data;
 
@@ -202,7 +200,7 @@ export default function AssignmentDetailPage() {
               <h1 className="text-2xl font-bold text-slate-800">{assignment.topic}</h1>
               <div className="flex items-center gap-3 mt-2">
                 <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100">
-                  {assignment.assignmentType === "ESSAY" ? "Viết luận" : assignment.assignmentType === "MOCK_TEST" ? "Thi thử" : "Bài tập chung"}
+                  {assignment.assignmentType === "ESSAY" ? "Viết luận" : assignment.assignmentType === "MOCK_TEST" ? "Thi thử" : assignment.assignmentType === "SPEAKING_SCENARIO" ? "Luyện Nói AI" : "Bài tập chung"}
                 </span>
                 {assignment.dueDate && (
                   <span className="text-sm font-medium text-slate-500">
