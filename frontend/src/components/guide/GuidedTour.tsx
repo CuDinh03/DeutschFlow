@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { spring } from "@/lib/motion";
@@ -43,9 +43,13 @@ export function GuidedTour() {
   // Step 0 is the welcome screen; steps 1..N map to TOUR_STEPS.
   const [index, setIndex] = useState(0);
 
-  // Auto-open once for first-time users, after mount (client-only).
+  // Auto-open once for first-time users, after mount (client-only). The ref
+  // guard makes this a true one-shot, so a later re-render can never snap an
+  // in-progress tour back to the welcome slide.
+  const didAutoOpen = useRef(false);
   useEffect(() => {
-    if (hasSeenTour()) return;
+    if (didAutoOpen.current || hasSeenTour()) return;
+    didAutoOpen.current = true;
     setOpen(true);
     setIndex(0);
     trackEvent("guide_tour_started", { trigger: "auto" });
