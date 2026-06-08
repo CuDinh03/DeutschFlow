@@ -4,6 +4,9 @@
 // error in /(student|teacher|admin)/* — or in the root layout's client children — kills
 // the entire page with a blank white screen in production.
 
+import { useEffect } from 'react'
+import posthog from 'posthog-js'
+
 export default function RootError({
   error,
   reset,
@@ -11,6 +14,19 @@ export default function RootError({
   error: Error & { digest?: string }
   reset: () => void
 }) {
+  useEffect(() => {
+    console.error('[root route error]', error)
+    if (posthog.__loaded) {
+      posthog.capture('client_route_error', {
+        scope: 'root',
+        message: error.message,
+        stack: error.stack,
+        digest: error.digest,
+        path: typeof window !== 'undefined' ? window.location.pathname : undefined,
+      })
+    }
+  }, [error])
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
       <div className="max-w-md w-full bg-white rounded-2xl border border-red-200 p-6 text-center space-y-4 shadow-sm">

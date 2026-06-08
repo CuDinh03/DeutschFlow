@@ -1,5 +1,8 @@
 'use client'
 
+import { useEffect } from 'react'
+import posthog from 'posthog-js'
+
 export default function StudentError({
   error,
   reset,
@@ -7,6 +10,19 @@ export default function StudentError({
   error: Error & { digest?: string }
   reset: () => void
 }) {
+  useEffect(() => {
+    console.error('[student route error]', error)
+    if (posthog.__loaded) {
+      posthog.capture('client_route_error', {
+        scope: 'student',
+        message: error.message,
+        stack: error.stack,
+        digest: error.digest,
+        path: typeof window !== 'undefined' ? window.location.pathname : undefined,
+      })
+    }
+  }, [error])
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
       <div className="max-w-md w-full bg-white rounded-2xl border border-red-200 p-6 text-center space-y-4 shadow-sm">
