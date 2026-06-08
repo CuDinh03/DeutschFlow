@@ -12,6 +12,7 @@ import { SpeakingChatEmptyState } from "@/components/features/ai-speaking/Speaki
 import { SpeakingInputDock } from "@/components/features/ai-speaking/SpeakingInputDock";
 import { SpeakingLearningStrip } from "@/components/features/ai-speaking/SpeakingLearningStrip";
 import { SpeakingQuotaBlockedBanner } from "@/components/features/ai-speaking/SpeakingQuotaBlockedBanner";
+import { MicPermissionBanner } from "@/components/features/ai-speaking/MicPermissionBanner";
 import { SpeakingMessageBubble } from "@/components/speaking/SpeakingMessageBubble";
 import { SPEAKING_IMMERSIVE_GRADIENT } from "@/components/speaking/types";
 import ErrorRepairDrill from "@/components/errors/ErrorRepairDrill";
@@ -155,6 +156,7 @@ export default function AIChatInterface() {
     isEvaluatingPhoneme,
     phonemeResult,
     micError,
+    micErrorKind,
     setMicError,
     clearPhoneme,
     toggleMic,
@@ -511,14 +513,23 @@ export default function AIChatInterface() {
         </div>
       )}
 
-      {(micError || isTranscribing || isEvaluatingPhoneme) && (
-        <div className="px-4 py-1.5 text-center text-xs bg-white/[0.04] border-b border-white/8">
-          {micError && <span className="text-red-400">{micError}</span>}
-          {!micError && isTranscribing && <span className="text-white/50">{t("transcribing")}</span>}
-          {!micError && isEvaluatingPhoneme && (
-            <span className="text-cyan-400/80">{tChat("phonemeAnalyzing")}</span>
-          )}
-        </div>
+      {micError && micErrorKind ? (
+        <MicPermissionBanner
+          message={micError}
+          kind={micErrorKind}
+          onRetry={handleToggleMic}
+          onDismiss={() => setMicError(null)}
+        />
+      ) : (
+        (micError || isTranscribing || isEvaluatingPhoneme) && (
+          <div className="px-4 py-1.5 text-center text-xs bg-white/[0.04] border-b border-white/8">
+            {micError && <span className="text-red-400">{micError}</span>}
+            {!micError && isTranscribing && <span className="text-white/50">{t("transcribing")}</span>}
+            {!micError && isEvaluatingPhoneme && (
+              <span className="text-cyan-400/80">{tChat("phonemeAnalyzing")}</span>
+            )}
+          </div>
+        )
       )}
 
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
@@ -601,6 +612,7 @@ export default function AIChatInterface() {
         streamIdle={streamStatus === "idle"}
         repairBlocking={!!repairGate?.blocking}
         quotaBlocked={quotaBlocked}
+        micBlocked={!!micErrorKind}
         companionName={selectedCompanion.name}
         inputTip={inputTip}
         onToggleMic={handleToggleMic}

@@ -4,7 +4,8 @@ import { useCallback, useRef, useState } from "react";
 import { aiSpeakingApi } from "@/lib/aiSpeakingApi";
 import { evaluatePhoneme, type PhonemeEvalResult } from "@/lib/phonemeApi";
 import { startRecorder, type RecorderHandle } from "@/lib/voiceRecorder";
-import { apiMessage, httpStatus } from "@/lib/api";
+import { httpStatus } from "@/lib/api";
+import { classifyMicError, type MicErrorKind } from "@/lib/micErrors";
 
 type TFn = (key: string) => string;
 
@@ -16,7 +17,16 @@ export function useSpeakingRecorderMic(
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [isEvaluatingPhoneme, setIsEvaluatingPhoneme] = useState(false);
   const [phonemeResult, setPhonemeResult] = useState<PhonemeEvalResult | null>(null);
-  const [micError, setMicError] = useState<string | null>(null);
+  const [micError, setMicErrorRaw] = useState<string | null>(null);
+  // Set only for capture failures (permission/device). Generic errors
+  // (quota, repair) leave this null so the UI shows the plain status line.
+  const [micErrorKind, setMicErrorKind] = useState<MicErrorKind | null>(null);
+
+  // Public setter: clearing or showing a generic message resets the kind.
+  const setMicError = useCallback((msg: string | null) => {
+    setMicErrorRaw(msg);
+    setMicErrorKind(null);
+  }, []);
 
   const recorderRef = useRef<RecorderHandle | null>(null);
 
@@ -63,11 +73,13 @@ export function useSpeakingRecorderMic(
         });
         recorderRef.current = handle;
         setIsListening(true);
-      } catch {
-        setMicError(t("microphoneDenied"));
+      } catch (err: unknown) {
+        const info = classifyMicError(err);
+        setMicErrorRaw(t(info.messageKey));
+        setMicErrorKind(info.kind);
       }
     },
-    [isListening, isTranscribing, isEvaluatingPhoneme, t, onPhonemeScored],
+    [isListening, isTranscribing, isEvaluatingPhoneme, t, onPhonemeScored, setMicError],
   );
 
   const toggleMic = useCallback(
@@ -93,6 +105,7 @@ export function useSpeakingRecorderMic(
     isEvaluatingPhoneme,
     phonemeResult,
     micError,
+    micErrorKind,
     setMicError,
     clearPhoneme,
     toggleMic,
