@@ -15,6 +15,7 @@ import { apiMessage, httpStatus } from "@/lib/api";
 import { toastApiError } from "@/lib/toastApiError";
 import { speakGerman } from "@/lib/speechDe";
 import { startRecorder, type RecorderHandle } from "@/lib/voiceRecorder";
+import { classifyMicError } from "@/lib/micErrors";
 import { recordAbilityScore, scorePercentToItem } from "@/lib/abilityApi";
 
 import type { RepairGateState } from "@/types/speaking-session";
@@ -341,8 +342,8 @@ export function useSpeakingChat(opts: {
       });
       recorderRef.current = r;
       return r;
-    } catch {
-      setError(t("microphoneDenied"));
+    } catch (err: unknown) {
+      setError(t(classifyMicError(err).messageKey));
       return null;
     }
   }, [setInputText, t, onRecordingStopped, locale]);

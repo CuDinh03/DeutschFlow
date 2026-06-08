@@ -15,6 +15,8 @@ interface Props {
   streamIdle: boolean;
   repairBlocking: boolean;
   quotaBlocked?: boolean;
+  /** Mic capture failed (permission/device) — reflect a blocked state. */
+  micBlocked?: boolean;
   companionName: string;
   inputTip: string;
   onToggleMic: () => void;
@@ -32,14 +34,19 @@ export function SpeakingInputDock({
   streamIdle,
   repairBlocking,
   quotaBlocked = false,
+  micBlocked = false,
   companionName,
   inputTip,
   onToggleMic,
   showSuggestionHint,
 }: Props) {
+  const t = useTranslations("speaking");
   const tChat = useTranslations("speaking.chat");
   const micBusy = isTranscribing || isEvaluatingPhoneme;
   const inputDisabled = quotaBlocked || repairBlocking;
+  // Show the blocked affordance only when idle (not while recording/working).
+  const showMicBlocked = micBlocked && !isListening && !micBusy;
+  const micLabel = showMicBlocked ? t("micRetry") : tChat("micTitle");
 
   return (
     <footer className="border-t border-white/10 bg-[rgba(8,16,32,0.92)] backdrop-blur-md p-3 sm:p-4">
@@ -60,15 +67,17 @@ export function SpeakingInputDock({
               "w-14 h-14 sm:w-12 sm:h-12",
               isListening
                 ? "bg-red-500/25 text-red-300 ring-2 ring-red-400/50 animate-pulse shadow-[0_0_24px_rgba(248,113,113,0.35)]"
+                : showMicBlocked
+                ? "bg-amber-500/15 text-amber-300 border border-amber-400/35 hover:bg-amber-500/25"
                 : "bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 border border-cyan-400/30",
               (micBusy || inputDisabled) && "opacity-40",
             )}
-            title={tChat("micTitle")}
-            aria-label={tChat("micTitle")}
+            title={micLabel}
+            aria-label={micLabel}
           >
             {micBusy ? (
               <Loader2 className="w-6 h-6 animate-spin" />
-            ) : isListening ? (
+            ) : isListening || showMicBlocked ? (
               <MicOff className="w-6 h-6" />
             ) : (
               <Mic className="w-6 h-6" />

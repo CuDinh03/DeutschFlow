@@ -27,6 +27,16 @@ function detectMimeType(): string {
 }
 
 /**
+ * Raise a tagged Error for capture failures the browser can't report through a
+ * getUserMedia DOMException, so `classifyMicError` can attribute them precisely.
+ */
+function unsupported(name: 'MicUnsupportedError' | 'MicInsecureContextError', message: string): never {
+  const err = new Error(message)
+  err.name = name
+  throw err
+}
+
+/**
  * Starts microphone recording.
  *
  * @param onStop  called with the recorded Blob when recording stops
@@ -35,6 +45,18 @@ function detectMimeType(): string {
 export async function startRecorder(
   onStop: (blob: Blob) => void
 ): Promise<RecorderHandle> {
+  // Browsers hide `navigator.mediaDevices` on non-secure (HTTP) origins. Detect
+  // this up front so the user sees "needs HTTPS" rather than "permission denied".
+  if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+    if (typeof window !== 'undefined' && window.isSecureContext === false) {
+      unsupported('MicInsecureContextError', 'Microphone requires a secure (HTTPS) context')
+    }
+    unsupported('MicUnsupportedError', 'getUserMedia is not supported in this browser')
+  }
+  if (typeof MediaRecorder === 'undefined') {
+    unsupported('MicUnsupportedError', 'MediaRecorder is not supported in this browser')
+  }
+
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
 
   // Build AudioContext analyser for real-time waveform
