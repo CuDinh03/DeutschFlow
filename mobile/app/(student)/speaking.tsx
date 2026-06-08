@@ -15,7 +15,7 @@ import { Audio } from 'expo-av'
 import * as FileSystem from 'expo-file-system'
 import { MotiView } from 'moti'
 import * as Haptics from 'expo-haptics'
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import { Mic, Send, ChevronRight, Flame, X, Flag, RotateCcw } from 'lucide-react-native'
 import Animated, {
   useSharedValue,
@@ -27,6 +27,7 @@ import Animated, {
 import { apiMessage } from '@/lib/api'
 import {
   speakingApi,
+  type SpeakingSessionMode,
   type AiChatResponse,
   type AiSpeakingSession,
   type AiSpeakingMessage,
@@ -84,6 +85,14 @@ export default function SpeakingScreen() {
   const theme = useTheme()
   const c = theme.colors
   const { isPro } = usePlanStore()
+
+  // Onboarding (and deep links) can preselect a speaking mode — e.g. the
+  // INTERVIEW_FIRST archetype routes here as `?mode=INTERVIEW`.
+  const { mode: modeParam } = useLocalSearchParams<{ mode?: string }>()
+  const initialMode: SpeakingSessionMode | undefined =
+    modeParam === 'INTERVIEW' || modeParam === 'LESSON' || modeParam === 'COMMUNICATION'
+      ? modeParam
+      : undefined
 
   const [view, setView] = useState<ScreenView>('select')
   const [session, setSession] = useState<AiSpeakingSession | null>(null)
@@ -581,7 +590,7 @@ export default function SpeakingScreen() {
           </View>
         ) : null}
 
-        <CompanionSelect isPro={isPro} starting={starting} onStart={startSession} />
+        <CompanionSelect isPro={isPro} starting={starting} onStart={startSession} initialMode={initialMode} />
       </Screen>
     )
   }
