@@ -17,6 +17,7 @@ import { AudioPlayer } from '@/components/exam/AudioPlayer'
 import { toast } from 'sonner'
 import { PremiumGate } from '@/components/ui/PremiumGate'
 import { usePlanHelpers } from '@/contexts/PlanContext'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 interface MockExam {
   id: number
@@ -147,8 +148,57 @@ function ScoreCard({ section, score, max }: { section: string; score: number; ma
   )
 }
 
+// Always-clickable recovery UI shown inside the full-screen exam shell whenever the
+// taking view cannot render its content — so the `fixed inset-0` overlay can never
+// become a blank, unclickable white screen.
+function ExamRecoveryPanel({
+  title,
+  message,
+  onRetry,
+  onSubmit,
+  onExit,
+  submitting,
+}: {
+  title: string
+  message: string
+  onRetry?: () => void
+  onSubmit?: () => void
+  onExit: () => void
+  submitting?: boolean
+}) {
+  return (
+    <div className="flex h-full min-h-screen items-center justify-center bg-slate-50 p-4">
+      <div className="max-w-md w-full bg-white rounded-2xl border border-red-200 p-6 text-center space-y-4 shadow-sm">
+        <div className="w-12 h-12 mx-auto rounded-full bg-red-50 flex items-center justify-center" aria-hidden>
+          <AlertCircle size={24} className="text-red-500" />
+        </div>
+        <h2 className="text-lg font-bold text-slate-900">{title}</h2>
+        <p className="text-slate-500 text-sm">{message}</p>
+        <div className="flex flex-col gap-2 pt-1">
+          {onRetry && (
+            <button type="button" onClick={onRetry}
+              className="w-full py-2.5 rounded-xl bg-indigo-600 text-white font-semibold text-sm hover:bg-indigo-700 transition-colors">
+              Thử lại
+            </button>
+          )}
+          {onSubmit && (
+            <button type="button" onClick={onSubmit} disabled={submitting}
+              className="w-full py-2.5 rounded-xl bg-emerald-500 text-white font-semibold text-sm hover:bg-emerald-600 transition-colors disabled:opacity-60">
+              {submitting ? 'Đang nộp...' : 'Nộp bài ngay'}
+            </button>
+          )}
+          <button type="button" onClick={onExit}
+            className="w-full py-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-colors">
+            Quay lại danh sách đề
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function MockExamPage() {
-  const { trackFeatureAction } = useTracking()
+  const { trackFeatureAction, posthog } = useTracking()
   const { isPro } = usePlanHelpers()
   const { me, loading: meLoading, targetLevel, roadmapMeta, streakDays, initials } = useStudentPracticeSession()
   const [exams, setExams] = useState<MockExam[]>([])
@@ -348,11 +398,33 @@ export default function MockExamPage() {
 
   // --- Render Functions for Exam Content ---
   const renderTakingExam = () => {
-    if (!activeExamData?.sections) return null
+    if (!activeExamData?.sections || activeExamData.sections.length === 0) {
+      return (
+        <ExamRecoveryPanel
+          title="Không tải được nội dung đề thi"
+          message="Đề thi chưa sẵn sàng hoặc kết nối bị gián đoạn. Hãy quay lại và bắt đầu lại."
+          onExit={() => setView('list')}
+        />
+      )
+    }
+    // Guard against an out-of-range section index (e.g. a stale/raced nav state) so we
+    // never throw on `currentSection.name` and blank the whole exam.
     const currentSection = activeExamData.sections[currentSectionIdx]
+    if (!currentSection) {
+      return (
+        <ExamRecoveryPanel
+          title="Không tìm thấy phần thi"
+          message="Đã xảy ra lỗi khi chuyển phần thi. Bạn có thể thử lại, nộp bài, hoặc quay lại."
+          onRetry={() => setCurrentSectionIdx(0)}
+          onSubmit={() => submitExam(true)}
+          onExit={() => setView('list')}
+          submitting={submitting}
+        />
+      )
+    }
 
     return (
-      <div className="flex flex-col h-[calc(100vh-80px)]">
+      <div className="flex flex-col h-full">
         {/* Top bar */}
         <div className="bg-white border-b border-[#E2E8F0] px-6 py-4 flex items-center justify-between shadow-sm z-10">
           <div className="flex items-center gap-4">
@@ -429,7 +501,7 @@ export default function MockExamPage() {
                   {/* Render Questions based on type */}
                   <div className="space-y-6">
                     {teil.items?.map((item: ExamQuestionItem, qIdx: number) => (
-                      <div key={item.id} className="border-b border-slate-100 last:border-0 pb-6 last:pb-0">
+                      <div key={item.id ?? `${tIdx}-${qIdx}`} className="border-b border-slate-100 last:border-0 pb-6 last:pb-0">
                         {item.audio_script && (
                           <AudioPlayer script={item.audio_script} compact label={item.person ? `Nghe ${item.person}` : 'Nghe đoạn hội thoại'} />
                         )}
@@ -452,7 +524,7 @@ export default function MockExamPage() {
                         )}
 
                         {/* Richtig / Falsch */}
-                        {!item.options && item.correct && (item.correct.toLowerCase() === 'richtig' || item.correct.toLowerCase() === 'falsch') && (
+                        {!item.options && item.correct && (String(item.correct).toLowerCase() === 'richtig' || String(item.correct).toLowerCase() === 'falsch') && (
                           <div className="flex gap-4">
                             {['richtig', 'falsch'].map(opt => (
                               <label key={opt} className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border cursor-pointer transition-colors ${answers[item.id] === opt ? 'bg-indigo-50 border-indigo-500 text-indigo-700 font-bold' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
@@ -464,7 +536,7 @@ export default function MockExamPage() {
                         )}
 
                         {/* Matching A B C D */}
-                        {!item.options && item.correct && item.correct.length === 1 && (
+                        {!item.options && item.correct && String(item.correct).length === 1 && (
                           <div className="flex flex-wrap gap-2">
                             {['A','B','C','D','E','F','G','H','I'].slice(0, 8).map(opt => (
                               <label key={opt} className={`flex items-center justify-center w-12 h-12 rounded-xl border cursor-pointer transition-colors ${answers[item.id] === opt ? 'bg-indigo-500 border-indigo-600 text-white font-bold' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 font-bold'}`}>
@@ -568,7 +640,33 @@ export default function MockExamPage() {
   if (view === 'taking') {
     return (
       <div className="fixed inset-0 bg-white z-50 overflow-hidden">
-        {renderTakingExam()}
+        <ErrorBoundary
+          onError={(error, info) => {
+            // Self-diagnosing: surface the real error + exam context to PostHog so a
+            // recurrence is actionable (the route-level boundary only exposes a digest).
+            posthog?.capture('mock_exam_render_error', {
+              feature: 'mock_exam',
+              attempt_id: activeAttemptId,
+              section_index: currentSectionIdx,
+              answered_count: answeredCount,
+              message: error.message,
+              stack: error.stack,
+              component_stack: info.componentStack,
+            })
+          }}
+          fallback={(reset) => (
+            <ExamRecoveryPanel
+              title="Đã xảy ra lỗi khi hiển thị đề thi"
+              message="Bài làm của bạn vẫn được giữ. Hãy thử lại; nếu vẫn lỗi, bạn có thể nộp bài hoặc quay lại."
+              onRetry={reset}
+              onSubmit={() => submitExam(true)}
+              onExit={() => setView('list')}
+              submitting={submitting}
+            />
+          )}
+        >
+          {renderTakingExam()}
+        </ErrorBoundary>
       </div>
     )
   }

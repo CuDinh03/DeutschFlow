@@ -61,11 +61,24 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
           lineno: errorEvent.lineno,
           colno: errorEvent.colno,
           error: errorEvent.error ? errorEvent.error.stack : null,
+          path: window.location.pathname,
+        })
+      }
+      // Promise rejections không bắn 'error' event — bắt riêng để không bỏ sót lỗi async.
+      const handleRejection = (event: PromiseRejectionEvent) => {
+        const reason = event.reason as unknown
+        const isError = reason instanceof Error
+        posthog.capture('frontend_unhandled_rejection', {
+          message: isError ? (reason as Error).message : String(reason),
+          error: isError ? (reason as Error).stack : null,
+          path: window.location.pathname,
         })
       }
       window.addEventListener('error', handleError)
+      window.addEventListener('unhandledrejection', handleRejection)
       return () => {
         window.removeEventListener('error', handleError)
+        window.removeEventListener('unhandledrejection', handleRejection)
       }
     }
   }, [])

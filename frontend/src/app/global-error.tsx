@@ -3,6 +3,9 @@
 // Top-level boundary for unhandled errors in the root layout itself. Renders its own
 // <html>/<body> because at this level even the root layout has crashed.
 
+import { useEffect } from 'react'
+import posthog from 'posthog-js'
+
 export default function GlobalError({
   error,
   reset,
@@ -10,6 +13,19 @@ export default function GlobalError({
   error: Error & { digest?: string }
   reset: () => void
 }) {
+  useEffect(() => {
+    console.error('[global error]', error)
+    if (posthog.__loaded) {
+      posthog.capture('client_route_error', {
+        scope: 'global',
+        message: error.message,
+        stack: error.stack,
+        digest: error.digest,
+        path: typeof window !== 'undefined' ? window.location.pathname : undefined,
+      })
+    }
+  }, [error])
+
   return (
     <html lang="vi">
       <body className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
