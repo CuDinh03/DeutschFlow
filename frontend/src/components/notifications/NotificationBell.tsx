@@ -198,9 +198,9 @@ export function NotificationBell({ buttonClassName, inboxHref }: NotificationBel
       /* ignore */
     }
 
-    if (item.type === "NEW_ASSIGNMENT" && item.payload?.quizId) {
+    if (item.type === "NEW_ASSIGNMENT") {
       setOpen(false);
-      router.push(`/student/quiz/${item.payload.quizId}`);
+      router.push(`/student/assignments`);
     } else if (
       (item.type === "JOIN_REQUEST_APPROVED" || item.type === "ADDED_TO_CLASS") &&
       item.payload?.classId

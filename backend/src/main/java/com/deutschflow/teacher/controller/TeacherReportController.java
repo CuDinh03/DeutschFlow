@@ -1,6 +1,6 @@
-package com.deutschflow.quiz.controller;
+package com.deutschflow.teacher.controller;
 
-import com.deutschflow.quiz.service.TeacherReportService;
+import com.deutschflow.teacher.service.TeacherReportService;
 import com.deutschflow.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -9,11 +9,16 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
+/**
+ * Teacher reports over the live classroom schema. Served under /api/v2/teacher to match the
+ * rest of the active teacher API (the legacy /api/teacher/reports + quiz package were removed).
+ */
 @RestController
-@RequestMapping("/api/teacher/reports")
+@RequestMapping("/api/v2/teacher/reports")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('TEACHER')")
 public class TeacherReportController {
+
     private final TeacherReportService teacherReportService;
 
     @GetMapping("/overview")
@@ -26,4 +31,3 @@ public class TeacherReportController {
         return teacherReportService.classReport(teacher.getId(), classId);
     }
 }
-

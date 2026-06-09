@@ -192,7 +192,7 @@ export default function TeacherNotificationsPage() {
     } else if (item.type === "NEW_CLASS_ASSIGNMENT") {
       if (p.classId) router.push(`/teacher/classes/${p.classId}`);
     } else if (item.type === "NEW_ASSIGNMENT") {
-      router.push(`/teacher/quizzes`);
+      router.push(`/teacher/dashboard`);
     } else if (item.type === "ASSIGNMENT_GRADED") {
       router.push(`/teacher/grading`);
     }

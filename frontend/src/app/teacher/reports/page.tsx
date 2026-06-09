@@ -6,7 +6,7 @@ import api, { httpStatus } from '@/lib/api'
 import { logout } from '@/lib/authSession'
 import { TeacherShell } from '@/components/layouts/TeacherShell'
 import { usePendingGradingCount } from '@/hooks/usePendingGradingCount'
-import { BarChart2, Users, FileText, CheckCircle, GraduationCap, TrendingUp, Award, Loader2, Download, Printer, TableProperties } from 'lucide-react'
+import { BarChart2, Users, FileText, GraduationCap, TrendingUp, Award, Loader2, Printer, TableProperties } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
 function exportToCSV(overview: any, classes: any[], userName: string) {
@@ -26,8 +26,7 @@ function exportToCSV(overview: any, classes: any[], userName: string) {
   rows.push(['--- TỔNG QUAN ---'])
   rows.push(['Chỉ số', 'Giá trị'])
   rows.push(['Tổng số lớp học', overview?.classCount ?? 0])
-  rows.push(['Tổng số bài tập (Quiz)', overview?.quizCount ?? 0])
-  rows.push(['Quiz đang mở', overview?.activeQuizCount ?? 0])
+  rows.push(['Tổng số bài tập', overview?.assignmentCount ?? 0])
   rows.push(['Tổng số học viên', overview?.studentCount ?? 0])
   rows.push(['Điểm trung bình toàn hệ thống', Number(overview?.avgScore ?? 0).toFixed(2)])
   rows.push([])
@@ -35,7 +34,7 @@ function exportToCSV(overview: any, classes: any[], userName: string) {
   // Classes section
   if (classes && classes.length > 0) {
     rows.push(['--- DANH SÁCH LỚP HỌC ---'])
-    rows.push(['Tên lớp', 'Số học viên', 'Số bài tập (Quiz)', 'Mã lớp'])
+    rows.push(['Tên lớp', 'Số học viên', 'Số bài tập', 'Mã lớp'])
     classes.forEach((cls: any) => {
       rows.push([
         cls.name ?? '',
@@ -85,7 +84,7 @@ export default function TeacherReportsPage() {
       else if (me.data.email) setUserName(me.data.email.split('@')[0])
 
       const [overviewRes, classesRes] = await Promise.all([
-        api.get('/teacher/reports/overview'),
+        api.get('/v2/teacher/reports/overview'),
         api.get('/v2/teacher/classes').catch(() => ({ data: [] }))
       ])
       
@@ -110,7 +109,7 @@ export default function TeacherReportsPage() {
     if (!classId) { setClassReport(null); return; }
     setClassReportLoading(true);
     try {
-      const res = await api.get(`/teacher/reports/classes/${classId}`);
+      const res = await api.get(`/v2/teacher/reports/classes/${classId}`);
       setClassReport(res.data);
     } catch {
       setClassReport(null);
@@ -158,7 +157,7 @@ export default function TeacherReportsPage() {
                 <BarChart2 size={32} className="text-slate-400" />
              </div>
              <h3 className="text-lg font-bold text-slate-700">Chưa có dữ liệu báo cáo</h3>
-             <p className="text-slate-500 mt-2 max-w-sm">Dữ liệu sẽ xuất hiện khi có học viên tham gia và hoàn thành các bài tập (Quiz).</p>
+             <p className="text-slate-500 mt-2 max-w-sm">Dữ liệu sẽ xuất hiện khi có học viên tham gia và hoàn thành các bài tập.</p>
           </div>
         ) : (
           <>
@@ -221,8 +220,8 @@ export default function TeacherReportsPage() {
                     <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider mt-1">Học viên</p>
                   </div>
                   <div className="bg-purple-50 rounded-2xl p-4 text-center border border-purple-100">
-                    <p className="text-3xl font-black text-purple-600">{classReport.quizCount ?? 0}</p>
-                    <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider mt-1">Quiz đã tổ chức</p>
+                    <p className="text-3xl font-black text-purple-600">{classReport.assignmentCount ?? 0}</p>
+                    <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider mt-1">Bài tập đã giao</p>
                   </div>
                   <div className="bg-amber-50 rounded-2xl p-4 text-center border border-amber-100">
                     <p className="text-3xl font-black text-amber-600">{Number(classReport.avgScore ?? 0).toFixed(1)}</p>
@@ -233,13 +232,13 @@ export default function TeacherReportsPage() {
 
               {selectedClassId && !classReport && !classReportLoading && (
                 <p className="mt-4 text-slate-500 text-sm text-center py-4 border border-dashed border-slate-200 rounded-xl">
-                  Lớp này chưa có dữ liệu quiz nào.
+                  Lớp này chưa có dữ liệu nào.
                 </p>
               )}
             </div>
 
             {/* Top Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
                 <div className="absolute right-0 top-0 -mt-4 -mr-4 w-24 h-24 bg-blue-50 rounded-full opacity-50 group-hover:scale-110 transition-transform"></div>
                 <div className="relative z-10 flex items-start justify-between">
@@ -258,23 +257,10 @@ export default function TeacherReportsPage() {
                 <div className="relative z-10 flex items-start justify-between">
                   <div>
                     <p className="text-slate-500 text-sm font-bold uppercase tracking-wider mb-1">Tổng Bài Tập</p>
-                    <p className="text-4xl font-black text-slate-800">{overview.quizCount}</p>
+                    <p className="text-4xl font-black text-slate-800">{overview.assignmentCount}</p>
                   </div>
                   <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center shadow-inner">
                     <FileText size={24} />
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
-                <div className="absolute right-0 top-0 -mt-4 -mr-4 w-24 h-24 bg-emerald-50 rounded-full opacity-50 group-hover:scale-110 transition-transform"></div>
-                <div className="relative z-10 flex items-start justify-between">
-                  <div>
-                    <p className="text-slate-500 text-sm font-bold uppercase tracking-wider mb-1">Quiz Đang Mở</p>
-                    <p className="text-4xl font-black text-slate-800">{overview.activeQuizCount}</p>
-                  </div>
-                  <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center shadow-inner">
-                    <CheckCircle size={24} />
                   </div>
                 </div>
               </div>
@@ -377,7 +363,7 @@ export default function TeacherReportsPage() {
                           contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' }}
                         />
                         <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                        <Bar dataKey="quizCount" name="Số bài tập (Quiz)" fill="#A855F7" radius={[6, 6, 0, 0]} maxBarSize={50} />
+                        <Bar dataKey="quizCount" name="Số bài tập" fill="#A855F7" radius={[6, 6, 0, 0]} maxBarSize={50} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
