@@ -1,12 +1,8 @@
 package com.deutschflow.speaking.service;
 
-import com.deutschflow.ai.rag.service.KnowledgeBaseService;
 import com.deutschflow.common.quota.AiUsageLedgerService;
-import com.deutschflow.common.quota.QuotaService;
 import com.deutschflow.speaking.ai.AiResponseParser;
 import com.deutschflow.speaking.ai.OpenAiChatClient;
-import com.deutschflow.speaking.ai.SystemPromptBuilder;
-import com.deutschflow.speaking.interview.InterviewAnswerAnalyzer;
 import com.deutschflow.speaking.interview.InterviewOrchestrator;
 import com.deutschflow.speaking.interview.InterviewSpeechSanitizer;
 import com.deutschflow.speaking.interview.InterviewStateCodec;
@@ -37,26 +33,23 @@ class AiSpeakingServiceImplUnitTest {
     @Mock UserLearningProfileRepository profileRepository;
     @Mock UserGrammarErrorRepository grammarErrorRepository;
     @Mock OpenAiChatClient openAiChatClient;
-    @Mock SystemPromptBuilder promptBuilder;
     @Mock AiResponseParser responseParser;
     @Mock ObjectMapper objectMapper;
     @Mock SpeakingMetrics speakingMetrics;
     @Mock GrammarPersistenceService grammarPersistenceService;
     @Mock AdaptivePolicyService adaptivePolicyService;
     @Mock TurnEvaluatorService turnEvaluatorService;
-    @Mock QuotaService quotaService;
     @Mock AiUsageLedgerService aiUsageLedgerService;
     @Mock TrainingDatasetService trainingDatasetService;
     @Mock XpService xpService;
     @Mock InterviewOrchestrator interviewOrchestrator;
-    @Mock InterviewAnswerAnalyzer interviewAnswerAnalyzer;
     @Mock InterviewStateCodec interviewStateCodec;
     @Mock InterviewSpeechSanitizer interviewSpeechSanitizer;
     @Mock com.deutschflow.system.service.SystemConfigService systemConfigService;
-    @Mock KnowledgeBaseService knowledgeBaseService;
     @Mock Executor speakingStreamExecutor;
     @Mock SessionLifecycleService sessionLifecycleService;
     @Mock LearningProgressService learningProgressService;
+    @Mock ChatPrepService chatPrepService;
 
     @InjectMocks
     AiSpeakingServiceImpl service;
