@@ -38,7 +38,6 @@ import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserLearningProfileRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -50,7 +49,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
@@ -58,8 +56,6 @@ import java.util.stream.Collectors;
 @Slf4j
 public class AiSpeakingServiceImpl implements AiSpeakingService {
 
-    /** Lower-variance JSON / tutor replies for structured V1/V2. */
-    private static final double SPEAKING_CHAT_TEMPERATURE = 0.35;
     /** Initial greeting: warmer than chat but still structured JSON. */
     private static final double GREETING_TEMPERATURE = 0.5;
 
@@ -78,7 +74,6 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
     private final InterviewOrchestrator interviewOrchestrator;
     private final InterviewStateCodec interviewStateCodec;
     private final com.deutschflow.system.service.SystemConfigService systemConfigService;
-    private final Executor speakingStreamExecutor;
     private final SessionTurnGuard sessionTurnGuard;
     private final com.deutschflow.interview.service.InterviewDomainCoordinator interviewDomainCoordinator;
     private final SessionLifecycleService sessionLifecycleService;
@@ -86,6 +81,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
     private final ChatPrepService chatPrepService;
     private final TurnSideEffectsService turnSideEffectsService;
     private final ChatCompletionService chatCompletionService;
+    private final SpeakingStreamService speakingStreamService;
 
     public AiSpeakingServiceImpl(
             TransactionTemplate transactionTemplate,
@@ -103,14 +99,14 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
             InterviewOrchestrator interviewOrchestrator,
             InterviewStateCodec interviewStateCodec,
             com.deutschflow.system.service.SystemConfigService systemConfigService,
-            @Qualifier("speakingStreamExecutor") Executor speakingStreamExecutor,
             SessionTurnGuard sessionTurnGuard,
             com.deutschflow.interview.service.InterviewDomainCoordinator interviewDomainCoordinator,
             SessionLifecycleService sessionLifecycleService,
             LearningProgressService learningProgressService,
             ChatPrepService chatPrepService,
             TurnSideEffectsService turnSideEffectsService,
-            ChatCompletionService chatCompletionService) {
+            ChatCompletionService chatCompletionService,
+            SpeakingStreamService speakingStreamService) {
         this.transactionTemplate = transactionTemplate;
         this.sessionRepository = sessionRepository;
         this.messageRepository = messageRepository;
@@ -126,7 +122,6 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         this.interviewOrchestrator = interviewOrchestrator;
         this.interviewStateCodec = interviewStateCodec;
         this.systemConfigService = systemConfigService;
-        this.speakingStreamExecutor = speakingStreamExecutor;
         this.sessionTurnGuard = sessionTurnGuard;
         this.interviewDomainCoordinator = interviewDomainCoordinator;
         this.sessionLifecycleService = sessionLifecycleService;
@@ -134,6 +129,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         this.chatPrepService = chatPrepService;
         this.turnSideEffectsService = turnSideEffectsService;
         this.chatCompletionService = chatCompletionService;
+        this.speakingStreamService = speakingStreamService;
     }
 
     @Override
@@ -525,109 +521,18 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
             Instant turnStartedAt
     ) {}
 
+    /**
+     * SSE streaming entry point (public contract). Thin delegate: the streaming lifecycle — guard
+     * acquire, off-servlet-thread dispatch, per-token emission, "done"/cancel/error events and guard
+     * release — lives in {@link SpeakingStreamService}. The turn-finalize step stays here (shared with
+     * the blocking {@link #chat} path) and is handed over as a {@link SpeakingTurnFinalizer} callback,
+     * which {@code SpeakingStreamService} invokes inside the finalize write transaction.
+     */
     @Override
     public void chatStream(Long userId, Long sessionId, String userMessage, SseEmitter emitter,
                            AtomicBoolean streamCancelled) {
-        Instant start = Instant.now();
-        boolean acquired = false;
-        boolean failed = false;
-        try {
-            if (!sessionTurnGuard.tryAcquire(sessionId)) {
-                throw new ConflictException("This interview turn is already being processed.");
-            }
-            acquired = true;
-            speakingStreamExecutor.execute(() -> runChatStreamOffServletThread(
-                    userId, sessionId, userMessage, emitter, streamCancelled));
-        } catch (RuntimeException e) {
-            failed = true;
-            if (acquired) {
-                sessionTurnGuard.release(sessionId);
-            }
-            throw e;
-        } finally {
-            speakingMetrics.recordChatRequest("stream_start", failed ? "error" : "ok");
-            speakingMetrics.recordChatLatency("stream_start", Duration.between(start, Instant.now()));
-        }
-    }
-
-    /**
-     * Runs on {@code speakingStreamExecutor} so Tomcat threads are not held during Groq/local LLM I/O.
-     * DB: short read TX in prepare, LLM outside TX, write TX in finalize (unchanged).
-     */
-    private void runChatStreamOffServletThread(Long userId, Long sessionId, String userMessage,
-                                               SseEmitter emitter, AtomicBoolean streamCancelled) {
-        try {
-            SpeakingChatPrep prep = transactionTemplate.execute(
-                    status -> chatPrepService.prepareSpeakingChatTurn(userId, sessionId, userMessage));
-            if (prep == null) {
-                emitter.completeWithError(new IllegalStateException("prepareSpeakingChatTurn returned null"));
-                return;
-            }
-
-            Instant streamStart = Instant.now();
-            boolean finished = streamChatCompletion(prep, userMessage, emitter, streamCancelled);
-            speakingMetrics.recordChatLatency("stream", Duration.between(streamStart, Instant.now()));
-            if (!finished) {
-                handleStreamCancelled(emitter);
-            }
-        } catch (Exception ex) {
-            log.error("[SSE] Stream error", ex);
-            emitter.completeWithError(ex);
-        } finally {
-            sessionTurnGuard.release(sessionId);
-        }
-    }
-
-    private boolean streamChatCompletion(SpeakingChatPrep prep,
-                                         String userMessage,
-                                         SseEmitter emitter,
-                                         AtomicBoolean streamCancelled) {
-        Double tempConfig = systemConfigService.getDouble("ai.temperature", SPEAKING_CHAT_TEMPERATURE);
-        return chatCompletionService.chatClientFor(prep.sessionMode()).chatCompletionStream(prep.openAiMessages(), null, tempConfig, prep.maxTokens(),
-                token -> {
-                    try {
-                        emitter.send(SseEmitter.event().name("token").data(token));
-                    } catch (Exception e) {
-                        log.warn("[SSE] Failed to send token: {}", e.getMessage());
-                    }
-                },
-                ai -> handleStreamCompletion(prep, userMessage, emitter, ai),
-                streamCancelled);
-    }
-
-    private void handleStreamCompletion(SpeakingChatPrep prep,
-                                        String userMessage,
-                                        SseEmitter emitter,
-                                        AiChatCompletionResult ai) {
-        try {
-            AiResponseDto parsed = chatCompletionService.parseAndPostProcess(ai, userMessage, prep);
-            AiSpeakingChatResponse donePayload = Objects.requireNonNull(
-                    transactionTemplate.execute(status ->
-                            finalizeSpeakingChatPersistence(prep, userMessage, ai, parsed, "SPEAKING_STREAM")));
-            speakingMetrics.recordChatRequest("stream", "ok");
-            emitter.send(SseEmitter.event().name("done")
-                    .data(objectMapper.writeValueAsString(donePayload)));
-            emitter.complete();
-        } catch (Exception ex) {
-            log.error("[SSE] Error in onComplete handler", ex);
-            speakingMetrics.recordChatRequest("stream", "error");
-            emitter.completeWithError(ex);
-        }
-    }
-
-    private void handleStreamCancelled(SseEmitter emitter) {
-        log.debug("[SSE] AI chat stream aborted (timeout/cancel); skipping persist");
-        speakingMetrics.recordChatRequest("stream", "cancelled");
-        try {
-            emitter.send(SseEmitter.event().name("error").data("Stream cancelled."));
-        } catch (Exception sendEx) {
-            log.trace("[SSE] Could not send cancel error event: {}", sendEx.getMessage());
-        }
-        try {
-            emitter.complete();
-        } catch (Exception completeEx) {
-            log.trace("[SSE] Emitter already completed: {}", completeEx.getMessage());
-        }
+        speakingStreamService.startStream(userId, sessionId, userMessage, emitter, streamCancelled,
+                this::finalizeSpeakingChatPersistence);
     }
 
     @Override

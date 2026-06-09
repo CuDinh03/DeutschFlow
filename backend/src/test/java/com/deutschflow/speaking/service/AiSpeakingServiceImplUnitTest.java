@@ -17,8 +17,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import java.util.concurrent.Executor;
-
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @ExtendWith(MockitoExtension.class)
@@ -36,12 +34,12 @@ class AiSpeakingServiceImplUnitTest {
     @Mock InterviewOrchestrator interviewOrchestrator;
     @Mock InterviewStateCodec interviewStateCodec;
     @Mock com.deutschflow.system.service.SystemConfigService systemConfigService;
-    @Mock Executor speakingStreamExecutor;
     @Mock SessionLifecycleService sessionLifecycleService;
     @Mock LearningProgressService learningProgressService;
     @Mock ChatPrepService chatPrepService;
     @Mock TurnSideEffectsService turnSideEffectsService;
     @Mock ChatCompletionService chatCompletionService;
+    @Mock SpeakingStreamService speakingStreamService;
 
     @InjectMocks
     AiSpeakingServiceImpl service;
