@@ -5,9 +5,14 @@ import com.deutschflow.speaking.dto.AiSpeakingChatResponse;
 import com.deutschflow.speaking.dto.AiSpeakingMessageDto;
 import com.deutschflow.speaking.dto.AiSpeakingSessionDto;
 import com.deutschflow.speaking.dto.CreateSessionRequest;
+import com.deutschflow.common.exception.BadRequestException;
+import com.deutschflow.common.exception.RateLimitExceededException;
 import com.deutschflow.common.quota.QuotaService;
+import com.deutschflow.speaking.AiRateLimiterService;
+import com.deutschflow.speaking.AiRateLimiterService.Bucket;
 import com.deutschflow.speaking.dto.AiSpeakingQuotaDto;
 import com.deutschflow.speaking.service.AiSpeakingService;
+import com.deutschflow.speaking.util.TranscribeUploads;
 import com.deutschflow.user.entity.User;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +28,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -39,10 +45,13 @@ public class AiSessionController {
     private final AiSpeakingService aiSpeakingService;
     private final com.deutschflow.speaking.ai.GroqWhisperClient groqWhisperClient;
     private final QuotaService quotaService;
-    private final com.deutschflow.speaking.AiRateLimiterService aiRateLimiterService;
+    private final AiRateLimiterService aiRateLimiterService;
 
     @Value("${app.speaking.sse-emitter-timeout-ms:180000}")
     private long sseEmitterTimeoutMs;
+
+    @Value("${app.ai.transcribe.max-bytes:8388608}")
+    private long transcribeMaxBytes;
 
     @GetMapping("/quota")
     public AiSpeakingQuotaDto quota(@AuthenticationPrincipal User user) {
@@ -88,14 +97,11 @@ public class AiSessionController {
         // Per-user request-rate guard on top of the quota wallet. Whisper costs ~$0.006/min and
         // the wallet's audit lags by one call; without this, a single tight loop could rack up
         // significant spend and pin the Whisper API before the quota even debits.
-        if (!aiRateLimiterService.allowTranscribe(user.getId())) {
-            throw new com.deutschflow.common.exception.RateLimitExceededException(
-                    "Too many transcribe requests. Please slow down.",
-                    aiRateLimiterService.transcribeRetryAfterSeconds());
-        }
-        log.info("Transcribing audio file: {} ({} bytes)", file.getOriginalFilename(), file.getSize());
+        requireAiBudget(Bucket.TRANSCRIBE, user.getId(), "Too many transcribe requests. Please slow down.");
+        byte[] audio = readValidatedAudio(file);
+        log.info("Transcribing audio file: {} ({} bytes)", file.getOriginalFilename(), audio.length);
         String transcript = groqWhisperClient.transcribe(
-                file.getBytes(),
+                audio,
                 file.getOriginalFilename(),
                 "de",
                 ""  // No context prompt for generic transcribe endpoint
@@ -108,6 +114,7 @@ public class AiSessionController {
             @AuthenticationPrincipal User user,
             @PathVariable Long id,
             @RequestBody @Valid AiSpeakingChatRequest request) {
+        requireAiBudget(Bucket.CHAT, user.getId(), "Too many chat turns. Please slow down.");
         return aiSpeakingService.chat(user.getId(), id, request.userMessage());
     }
 
@@ -116,9 +123,10 @@ public class AiSessionController {
             @AuthenticationPrincipal User user,
             @PathVariable Long id,
             @RequestBody @Valid AiSpeakingChatRequest request) {
+        requireAiBudget(Bucket.CHAT, user.getId(), "Too many chat turns. Please slow down.");
         SseEmitter emitter = new SseEmitter(sseEmitterTimeoutMs);
         AtomicBoolean cancelled = new AtomicBoolean(false);
-        
+
         emitter.onCompletion(() -> cancelled.set(true));
         emitter.onTimeout(() -> {
             log.warn("SSE Timeout for session {}", id);
@@ -159,6 +167,33 @@ public class AiSessionController {
     public com.deutschflow.speaking.dto.ConversationReportDto getConversationReport(
             @AuthenticationPrincipal User user,
             @PathVariable Long id) {
+        requireAiBudget(Bucket.REPORT, user.getId(), "Too many report requests. Please slow down.");
         return aiSpeakingService.getConversationReport(user.getId(), id);
+    }
+
+    /** Throw 429 (with Retry-After) when this user has spent their per-window budget for {@code bucket}. */
+    private void requireAiBudget(Bucket bucket, long userId, String message) {
+        if (!aiRateLimiterService.allow(bucket, userId)) {
+            throw new RateLimitExceededException(message, aiRateLimiterService.retryAfterSeconds(bucket));
+        }
+    }
+
+    /**
+     * Validate + bounded-read an uploaded audio multipart: reject non-audio content types and cap the
+     * byte size at {@code app.ai.transcribe.max-bytes} (P1-15). The global multipart limit is a coarse
+     * 10MB; this is the tighter, per-endpoint guard that previously existed only as dead code.
+     */
+    private byte[] readValidatedAudio(MultipartFile file) throws IOException {
+        if (file == null || file.isEmpty()) {
+            throw new BadRequestException("Audio file is required.");
+        }
+        if (!TranscribeUploads.isAllowedAudioContentType(file.getContentType())) {
+            throw new BadRequestException("Unsupported audio format. Allowed: webm, mp4, mpeg, ogg, wav.");
+        }
+        try (InputStream in = file.getInputStream()) {
+            return TranscribeUploads.readAtMost(in, transcribeMaxBytes);
+        } catch (IllegalArgumentException tooBig) {
+            throw new BadRequestException("Audio file too large (max " + (transcribeMaxBytes / (1024 * 1024)) + "MB).");
+        }
     }
 }

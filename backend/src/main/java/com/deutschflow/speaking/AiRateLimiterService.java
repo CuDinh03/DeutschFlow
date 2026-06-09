@@ -10,36 +10,49 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Per-user rate limit for expensive AI endpoints (Whisper transcribe today; ready to extend to
- * other LLM-backed helpers). The quota wallet (token budget) is still the primary control on
- * cost — this limiter is a request-rate guard on top of it, so a single user can't pin the
- * Whisper API with a tight loop and DoS the system or rack up surprise spend before the wallet
- * notices.
+ * Per-user request-rate guard for expensive AI endpoints. The quota wallet (token budget) is the
+ * primary cost control; this limiter sits on top so a single user can't pin an upstream model
+ * (Whisper / Groq) with a tight loop and rack up spend or DoS the node before the wallet debits.
  *
  * <p>Mirrors {@code AuthRateLimiterService}: Redis sorted-set sliding window (atomic Lua), shared
  * across nodes, with a per-node in-memory fallback when Redis is unavailable. Keyed by
- * {@code userId}, NOT by IP — for AI endpoints we always have an authenticated principal, and IP
- * would punish shared NAT users together.
+ * {@code userId} — AI endpoints always have an authenticated principal, and IP would punish
+ * shared-NAT users together.
  *
- * <p>Defaults (overridable via {@code app.ai.rate-limit.*}):
- * <ul>
- *   <li>{@code transcribe}: 60 requests / 3600s per user — covers a full hour of high-frequency
- *       speaking practice (~one request per minute), still curtails a hostile loop.</li>
- * </ul>
+ * <p>Each {@link Bucket} is an independent window. Limits come from {@code app.ai.rate-limit.*}.
  */
 @Slf4j
 @Service
 public class AiRateLimiterService {
 
-    private final int transcribeMax;
-    private final long transcribeWindow;
+    /** Independent per-user windows, one per family of cost-bearing AI endpoints. */
+    public enum Bucket {
+        /** Whisper STT generic transcribe. */
+        TRANSCRIBE,
+        /** Whisper STT + pronunciation scoring. */
+        PHONEME,
+        /** LLM conversation turns (chat + streaming chat). */
+        CHAT,
+        /** LLM evaluation (mock-exam, Sprechen Teil 2). */
+        EVAL,
+        /** LLM conversation/session report. */
+        REPORT,
+        /** Raw LLM text helpers (translate / grammar / generate). */
+        TEXT
+    }
 
-    private final ConcurrentHashMap<String, Deque<Instant>> transcribeAttempts = new ConcurrentHashMap<>();
+    private record Limit(int max, long windowSeconds) {}
+
+    private final Map<Bucket, Limit> limits = new EnumMap<>(Bucket.class);
+    private final ConcurrentHashMap<String, Deque<Instant>> attempts = new ConcurrentHashMap<>();
 
     private final StringRedisTemplate redis;
     private final DefaultRedisScript<Long> slidingWindowScript;
@@ -66,28 +79,42 @@ public class AiRateLimiterService {
     public AiRateLimiterService(
             @Value("${app.ai.rate-limit.transcribe-max-per-window:60}") int transcribeMax,
             @Value("${app.ai.rate-limit.transcribe-window-seconds:3600}") long transcribeWindow,
+            @Value("${app.ai.rate-limit.phoneme-max-per-window:60}") int phonemeMax,
+            @Value("${app.ai.rate-limit.phoneme-window-seconds:3600}") long phonemeWindow,
+            @Value("${app.ai.rate-limit.chat-max-per-window:180}") int chatMax,
+            @Value("${app.ai.rate-limit.chat-window-seconds:3600}") long chatWindow,
+            @Value("${app.ai.rate-limit.eval-max-per-window:60}") int evalMax,
+            @Value("${app.ai.rate-limit.eval-window-seconds:3600}") long evalWindow,
+            @Value("${app.ai.rate-limit.report-max-per-window:40}") int reportMax,
+            @Value("${app.ai.rate-limit.report-window-seconds:3600}") long reportWindow,
+            @Value("${app.ai.rate-limit.text-max-per-window:120}") int textMax,
+            @Value("${app.ai.rate-limit.text-window-seconds:3600}") long textWindow,
             @Nullable StringRedisTemplate redis) {
-        this.transcribeMax = Math.max(1, transcribeMax);
-        this.transcribeWindow = Math.max(1L, transcribeWindow);
+        limits.put(Bucket.TRANSCRIBE, new Limit(Math.max(1, transcribeMax), Math.max(1L, transcribeWindow)));
+        limits.put(Bucket.PHONEME, new Limit(Math.max(1, phonemeMax), Math.max(1L, phonemeWindow)));
+        limits.put(Bucket.CHAT, new Limit(Math.max(1, chatMax), Math.max(1L, chatWindow)));
+        limits.put(Bucket.EVAL, new Limit(Math.max(1, evalMax), Math.max(1L, evalWindow)));
+        limits.put(Bucket.REPORT, new Limit(Math.max(1, reportMax), Math.max(1L, reportWindow)));
+        limits.put(Bucket.TEXT, new Limit(Math.max(1, textMax), Math.max(1L, textWindow)));
         this.redis = redis;
         this.slidingWindowScript = new DefaultRedisScript<>(SLIDING_WINDOW_LUA, Long.class);
-        log.info("[AiRateLimiter] transcribe limit = {}/{}s, storage = {}",
-                this.transcribeMax, this.transcribeWindow,
+        log.info("[AiRateLimiter] limits={}, storage={}", limits,
                 this.redis != null ? "Redis + in-memory fallback" : "in-memory only");
     }
 
-    /** Allow this user to call /transcribe right now? */
-    public boolean allowTranscribe(long userId) {
-        return check(transcribeAttempts, "ai:transcribe|" + userId, transcribeMax, transcribeWindow);
+    /** Allow this user one more call in {@code bucket} right now? Records the hit when allowed. */
+    public boolean allow(Bucket bucket, long userId) {
+        Limit l = limits.get(bucket);
+        String key = "ai:" + bucket.name().toLowerCase(Locale.ROOT) + "|" + userId;
+        return check(key, l.max(), l.windowSeconds());
     }
 
-    /** Seconds the client should wait before retrying after a refusal. */
-    public int transcribeRetryAfterSeconds() {
-        return (int) transcribeWindow;
+    /** Seconds the client should wait before retrying after a refusal in {@code bucket}. */
+    public int retryAfterSeconds(Bucket bucket) {
+        return (int) limits.get(bucket).windowSeconds();
     }
 
-    private boolean check(ConcurrentHashMap<String, Deque<Instant>> fallbackStore,
-                          String key, int max, long windowSeconds) {
+    private boolean check(String key, int max, long windowSeconds) {
         if (redis != null) {
             try {
                 long now = System.currentTimeMillis();
@@ -110,15 +137,14 @@ public class AiRateLimiterService {
                 // fall through to in-memory
             }
         }
-        return checkInMemory(fallbackStore, key, max, windowSeconds);
+        return checkInMemory(key, max, windowSeconds);
     }
 
-    private boolean checkInMemory(ConcurrentHashMap<String, Deque<Instant>> store,
-                                  String key, int max, long windowSeconds) {
+    private boolean checkInMemory(String key, int max, long windowSeconds) {
         Instant now = Instant.now();
         Instant windowStart = now.minusSeconds(windowSeconds);
 
-        Deque<Instant> deque = store.computeIfAbsent(key, k -> new ArrayDeque<>());
+        Deque<Instant> deque = attempts.computeIfAbsent(key, k -> new ArrayDeque<>());
         synchronized (deque) {
             while (!deque.isEmpty() && deque.peekFirst().isBefore(windowStart)) {
                 deque.pollFirst();

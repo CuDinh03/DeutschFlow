@@ -68,6 +68,7 @@ public class XpService {
     private final UserAchievementRepository userAchievementRepository;
     private final LearningSessionProgressRepository sessionProgressRepository;
     private final UserNotificationService userNotificationService;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     // ─────────────────────────────────────────────────────────────────
     // Public award methods
@@ -76,6 +77,7 @@ public class XpService {
     @Transactional
     @CacheEvict(value = "classLeaderboard", allEntries = true)
     public void awardSpeakingTurn(Long userId, Long sessionId, Long messageId) {
+        lockUserXp(userId);
         int oldLevel = currentLevel(userId);
         record(userId, XP_SPEAKING_TURN, XpEventType.SPEAKING_TURN, sessionId, messageId, null);
         checkLevelUp(userId, oldLevel);
@@ -85,6 +87,7 @@ public class XpService {
     @Transactional
     @CacheEvict(value = "classLeaderboard", allEntries = true)
     public void awardSessionComplete(Long userId, Long sessionId) {
+        lockUserXp(userId);
         int oldLevel = currentLevel(userId);
         boolean isFirst = !xpEventRepository.existsByUserIdAndEventType(userId, XpEventType.FIRST_SESSION);
         if (isFirst) {
@@ -98,6 +101,7 @@ public class XpService {
     @Transactional
     @CacheEvict(value = "classLeaderboard", allEntries = true)
     public void awardVocabReview(Long userId) {
+        lockUserXp(userId);
         int oldLevel = currentLevel(userId);
         record(userId, XP_VOCAB_REVIEW, XpEventType.VOCAB_REVIEW, null, null, null);
         checkLevelUp(userId, oldLevel);
@@ -107,6 +111,7 @@ public class XpService {
     @Transactional
     @CacheEvict(value = "classLeaderboard", allEntries = true)
     public void awardCustomPractice(Long userId, int xpAmount, String note) {
+        lockUserXp(userId);
         int oldLevel = currentLevel(userId);
         record(userId, xpAmount, XpEventType.CUSTOM_PRACTICE, null, null, note);
         checkLevelUp(userId, oldLevel);
@@ -116,6 +121,7 @@ public class XpService {
     @Transactional
     @CacheEvict(value = "classLeaderboard", allEntries = true)
     public void awardErrorFixed(Long userId) {
+        lockUserXp(userId);
         int oldLevel = currentLevel(userId);
         record(userId, XP_ERROR_FIXED, XpEventType.ERROR_FIXED, null, null, null);
         checkLevelUp(userId, oldLevel);
@@ -125,6 +131,7 @@ public class XpService {
     @Transactional
     @CacheEvict(value = "classLeaderboard", allEntries = true)
     public void awardStreakBonus(Long userId, int streakDays) {
+        lockUserXp(userId);
         int oldLevel = currentLevel(userId);
         record(userId, XP_STREAK_BONUS * streakDays, XpEventType.STREAK_BONUS, null, null,
                "Streak: " + streakDays + " ngày");
@@ -135,6 +142,7 @@ public class XpService {
     @Transactional
     @CacheEvict(value = "classLeaderboard", allEntries = true)
     public void awardDailyGoal(Long userId) {
+        lockUserXp(userId);
         int oldLevel = currentLevel(userId);
         record(userId, XP_DAILY_GOAL, XpEventType.DAILY_GOAL, null, null, null);
         checkLevelUp(userId, oldLevel);
@@ -148,6 +156,7 @@ public class XpService {
     @Transactional
     @CacheEvict(value = "classLeaderboard", allEntries = true)
     public void awardSatelliteComplete(Long userId, String industry) {
+        lockUserXp(userId);
         int oldLevel = currentLevel(userId);
         record(userId, XP_SATELLITE, XpEventType.SATELLITE_COMPLETE, null, null,
                industry != null ? "INDUSTRY:" + industry.toUpperCase() : "SATELLITE");
@@ -162,6 +171,7 @@ public class XpService {
     @Transactional
     @CacheEvict(value = "classLeaderboard", allEntries = true)
     public void awardSrsReview(Long userId) {
+        lockUserXp(userId);
         int oldLevel = currentLevel(userId);
         record(userId, XP_SRS_REVIEW, XpEventType.SRS_REVIEW, null, null, null);
         checkLevelUp(userId, oldLevel);
@@ -270,6 +280,19 @@ public class XpService {
         } catch (Exception e) {
             log.warn("[XP] Level-up check failed for user {}: {}", userId, e.getMessage());
         }
+    }
+
+    /**
+     * Transaction-scoped advisory lock per user. Serializes this user's concurrent XP awards so the
+     * read-old-level → record → check-new-level sequence cannot interleave and fire a duplicate
+     * level-up notification (P1-14). XP totals were always correct (XP is event-sourced); this only
+     * dedupes the notification side effect. Released automatically at transaction end.
+     */
+    private void lockUserXp(Long userId) {
+        // Two-arg advisory-lock keyspace (class=1) is DISTINCT from the single-arg
+        // pg_advisory_xact_lock(userId) used by SubscriptionActivationService, so XP awards on the hot path
+        // never contend with subscription activations for the same user. userId fits int4 for this id range.
+        jdbcTemplate.query("SELECT pg_advisory_xact_lock(?, ?)", rs -> null, 1, userId.intValue());
     }
 
     private void record(Long userId, int xp, XpEventType type, Long sessionId, Long messageId, String note) {

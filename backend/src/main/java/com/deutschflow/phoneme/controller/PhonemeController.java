@@ -31,6 +31,10 @@ import org.springframework.web.multipart.MultipartFile;
 public class PhonemeController {
 
     private final PhonemeService phonemeService;
+    private final com.deutschflow.speaking.AiRateLimiterService aiRateLimiterService;
+
+    @org.springframework.beans.factory.annotation.Value("${app.ai.transcribe.max-bytes:8388608}")
+    private long transcribeMaxBytes;
 
     /**
      * POST /api/phoneme/evaluate
@@ -47,7 +51,16 @@ public class PhonemeController {
             @RequestParam("target") String target,
             @AuthenticationPrincipal User user) {
 
+        if (!aiRateLimiterService.allow(com.deutschflow.speaking.AiRateLimiterService.Bucket.PHONEME, user.getId())) {
+            throw new com.deutschflow.common.exception.RateLimitExceededException(
+                    "Too many pronunciation checks. Please slow down.",
+                    aiRateLimiterService.retryAfterSeconds(com.deutschflow.speaking.AiRateLimiterService.Bucket.PHONEME));
+        }
         if (audioFile.isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+        if (!com.deutschflow.speaking.util.TranscribeUploads.isAllowedAudioContentType(audioFile.getContentType())
+                || audioFile.getSize() > transcribeMaxBytes) {
             return ResponseEntity.badRequest().build();
         }
 
