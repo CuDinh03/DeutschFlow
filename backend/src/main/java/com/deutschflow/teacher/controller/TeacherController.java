@@ -85,7 +85,7 @@ public class TeacherController {
             @AuthenticationPrincipal User user, 
             @PathVariable Long classId,
             @RequestParam(defaultValue = "ALL_TIME") String type) {
-        // TeacherService could verify if the teacher owns the class here
+        teacherService.assertTeacherOwnsClass(user.getId(), classId);
         return ResponseEntity.ok(xpService.getClassLeaderboard(classId, type));
     }
 
@@ -116,10 +116,8 @@ public class TeacherController {
     }
 
     @GetMapping("/classes/{classId}/assignments")
-    public ResponseEntity<List<ClassAssignmentDto>> getClassAssignments(@PathVariable Long classId) {
-        // Teacher has access, but we should probably verify teacher owns class here as well, 
-        // however, teacherService could handle it if we pass teacherId.
-        return ResponseEntity.ok(teacherService.getClassAssignments(classId));
+    public ResponseEntity<List<ClassAssignmentDto>> getClassAssignments(@AuthenticationPrincipal User user, @PathVariable Long classId) {
+        return ResponseEntity.ok(teacherService.getClassAssignments(user.getId(), classId));
     }
 
     @GetMapping("/students/{studentId}/speaking-sessions")
@@ -153,7 +151,14 @@ public class TeacherController {
             @AuthenticationPrincipal User user,
             @PathVariable Long classId,
             @PathVariable Long studentId) {
-        
+
+        // IDOR guard: chỉ teacher của lớp được xem analytics + trigger AI advisory (tốn token LLM),
+        // và học viên phải thực sự thuộc lớp đó (analytics service không tự kiểm tra).
+        teacherService.assertTeacherOwnsClass(user.getId(), classId);
+        if (!classStudentRepository.existsByIdClassIdAndIdStudentId(classId, studentId)) {
+            throw new com.deutschflow.common.exception.ForbiddenException("Học viên không thuộc lớp này");
+        }
+
         // Fetch metrics with real data
         StudentPerformanceAnalyticsDto analytics = analyticsService.getComprehensiveAnalytics(classId, studentId);
         

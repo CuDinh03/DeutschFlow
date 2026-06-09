@@ -1,5 +1,6 @@
 package com.deutschflow.teacher.service;
 
+import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.media.service.S3StorageService;
 import com.deutschflow.notification.service.UserNotificationService;
@@ -169,6 +170,46 @@ class TeacherServiceTest {
         assertEquals(1, result.size());
         assertEquals(90, result.get(0).teacherScore());
         assertEquals("SUBMITTED", result.get(0).status());
+    }
+
+    // ─── IDOR guards: class-scoped reads must verify teacher owns the class ──────
+
+    @Test
+    void getClassAssignments_throwsForbidden_whenTeacherDoesNotOwnClass() {
+        Long teacherId = 1L, classId = 100L;
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)).thenReturn(false);
+
+        assertThrows(ForbiddenException.class,
+                () -> teacherService.getClassAssignments(teacherId, classId));
+        verify(assignmentRepository, never()).findByClassIdOrderByCreatedAtDesc(any());
+    }
+
+    @Test
+    void getClassAssignments_returnsAssignments_whenTeacherOwnsClass() {
+        Long teacherId = 1L, classId = 100L;
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)).thenReturn(true);
+        when(assignmentRepository.findByClassIdOrderByCreatedAtDesc(classId)).thenReturn(List.of(
+                ClassAssignment.builder().id(500L).classId(classId).topic("Test Topic").build()));
+
+        List<ClassAssignmentDto> result = teacherService.getClassAssignments(teacherId, classId);
+
+        assertEquals(1, result.size());
+        assertEquals(500L, result.get(0).id());
+    }
+
+    @Test
+    void assertTeacherOwnsClass_throwsForbidden_whenNotOwner() {
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(100L, 1L)).thenReturn(false);
+
+        assertThrows(ForbiddenException.class,
+                () -> teacherService.assertTeacherOwnsClass(1L, 100L));
+    }
+
+    @Test
+    void assertTeacherOwnsClass_passes_whenOwner() {
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(100L, 1L)).thenReturn(true);
+
+        teacherService.assertTeacherOwnsClass(1L, 100L); // must not throw
     }
 
     // ─── getOrCreateScenarioForStudent (lazy speaking-scenario recovery) ─────────
