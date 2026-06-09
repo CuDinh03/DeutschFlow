@@ -44,12 +44,8 @@ import com.deutschflow.speaking.repository.AiSpeakingMessageRepository;
 import com.deutschflow.speaking.repository.AiSpeakingSessionRepository;
 import com.deutschflow.speaking.repository.UserGrammarErrorRepository;
 import com.deutschflow.user.entity.UserLearningProfile;
-import com.deutschflow.user.entity.UserLearningProgress;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserLearningProfileRepository;
-import com.deutschflow.user.repository.UserLearningProgressRepository;
-import com.deutschflow.user.repository.UserRepository;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.deutschflow.common.quota.AiUsageLedgerService;
 import com.deutschflow.common.quota.QuotaService;
@@ -95,8 +91,6 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
     private final SystemPromptBuilder promptBuilder;
     private final AiResponseParser responseParser;
     private final ObjectMapper objectMapper;
-    private final UserLearningProgressRepository progressRepository;
-    private final UserRepository userRepository;
     private final SpeakingMetrics speakingMetrics;
     private final GrammarPersistenceService grammarPersistenceService;
     private final AdaptivePolicyService adaptivePolicyService;
@@ -117,6 +111,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
     private final SessionTurnGuard sessionTurnGuard;
     private final com.deutschflow.interview.service.InterviewDomainCoordinator interviewDomainCoordinator;
     private final SessionLifecycleService sessionLifecycleService;
+    private final LearningProgressService learningProgressService;
 
     public AiSpeakingServiceImpl(
             TransactionTemplate transactionTemplate,
@@ -129,8 +124,6 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
             SystemPromptBuilder promptBuilder,
             AiResponseParser responseParser,
             ObjectMapper objectMapper,
-            UserLearningProgressRepository progressRepository,
-            UserRepository userRepository,
             SpeakingMetrics speakingMetrics,
             GrammarPersistenceService grammarPersistenceService,
             AdaptivePolicyService adaptivePolicyService,
@@ -150,7 +143,8 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
             @Qualifier("speakingStreamExecutor") Executor speakingStreamExecutor,
             SessionTurnGuard sessionTurnGuard,
             com.deutschflow.interview.service.InterviewDomainCoordinator interviewDomainCoordinator,
-            SessionLifecycleService sessionLifecycleService) {
+            SessionLifecycleService sessionLifecycleService,
+            LearningProgressService learningProgressService) {
         this.transactionTemplate = transactionTemplate;
         this.sessionRepository = sessionRepository;
         this.messageRepository = messageRepository;
@@ -161,8 +155,6 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         this.promptBuilder = promptBuilder;
         this.responseParser = responseParser;
         this.objectMapper = objectMapper;
-        this.progressRepository = progressRepository;
-        this.userRepository = userRepository;
         this.speakingMetrics = speakingMetrics;
         this.grammarPersistenceService = grammarPersistenceService;
         this.adaptivePolicyService = adaptivePolicyService;
@@ -183,6 +175,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         this.sessionTurnGuard = sessionTurnGuard;
         this.interviewDomainCoordinator = interviewDomainCoordinator;
         this.sessionLifecycleService = sessionLifecycleService;
+        this.learningProgressService = learningProgressService;
     }
 
     @Override
@@ -351,7 +344,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
             SpeakingResponseSchema responseSchema,
             SpeakingSessionMode sessionMode) {
         UserLearningProfile profile = profileRepository.findByUserId(userId).orElse(defaultProfile());
-        List<String> knownInterests = extractInterests(profile);
+        List<String> knownInterests = learningProgressService.extractInterests(profile);
         List<WeakPoint> weakPoints = sessionMode == SpeakingSessionMode.INTERVIEW
                 ? List.of()
                 : adaptiveEngineService.getWeakPoints(userId);
@@ -556,7 +549,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         }
 
         UserLearningProfile profile = profileRepository.findByUserId(userId).orElse(null);
-        List<String> knownInterests = extractInterests(profile);
+        List<String> knownInterests = learningProgressService.extractInterests(profile);
         List<WeakPoint> weakPoints = adaptiveEngineService.getWeakPoints(userId);
         List<AiSpeakingMessage> recentMessages = loadRecentMessages(sessionId, session);
 
@@ -987,29 +980,6 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         return session;
     }
 
-    private List<String> extractInterests(UserLearningProfile profile) {
-        if (profile == null || profile.getInterestsJson() == null || profile.getInterestsJson().isBlank()) {
-            return List.of();
-        }
-        try {
-            return objectMapper.readValue(profile.getInterestsJson(), new TypeReference<List<String>>() {});
-        } catch (Exception e) {
-            log.warn("Failed to parse interestsJson for user profile: {}", e.getMessage());
-            return List.of();
-        }
-    }
-
-    private void mergeInterest(UserLearningProfile profile, String newInterest) {
-        try {
-            Set<String> updated = new LinkedHashSet<>(extractInterests(profile));
-            updated.add(newInterest.trim());
-            profile.setInterestsJson(objectMapper.writeValueAsString(updated));
-            profileRepository.save(profile);
-        } catch (Exception e) {
-            log.warn("Failed to merge interest '{}': {}", newInterest, e.getMessage());
-        }
-    }
-
     private void applyTurnSideEffects(SpeakingChatPrep prep,
                                       String userMessage,
                                       AiResponseDto parsed,
@@ -1020,7 +990,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
                                       AiSpeakingSession session,
                                       String ledgerPurpose) {
         grammarPersistenceService.persistGrammarFeedback(prep.userId(), prep.sessionId(), assistantMessageId, userMessage, parsed, effectiveProfile);
-        updateUserLearningProgress(prep.userId(), parsed);
+        learningProgressService.updateUserLearningProgress(prep.userId(), parsed);
         recordAssistantTurnMetrics(parsed);
 
         try {
@@ -1042,7 +1012,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         }
 
         if (parsed.userInterestDetected() != null && !parsed.userInterestDetected().isBlank() && profile != null) {
-            mergeInterest(profile, parsed.userInterestDetected());
+            learningProgressService.mergeInterest(profile, parsed.userInterestDetected());
         }
 
         turnEvaluatorService.recordTurn(prep.userId(), prep.sessionId(), assistantMessageId, parsed, prep.policy());
@@ -1186,29 +1156,5 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
                 m.getAssistantAction(), m.getAssistantFeedback(),
                 m.getCreatedAt(),
                 errors);
-    }
-    private void updateUserLearningProgress(Long userId, AiResponseDto parsed) {
-        try {
-            String lastError = null;
-            if ("OFF_TOPIC".equals(parsed.status())) {
-                lastError = "OFF_TOPIC";
-            } else if (parsed.errors() != null && !parsed.errors().isEmpty()) {
-                lastError = parsed.errors().get(0).errorCode();
-            } else if (parsed.correction() != null && !parsed.correction().isBlank()) {
-                lastError = "GENERAL_GRAMMAR";
-            }
-
-            if (lastError != null) {
-                final String finalError = lastError;
-                UserLearningProgress progress = progressRepository.findByUserId(userId)
-                        .orElseGet(() -> UserLearningProgress.builder()
-                                .user(userRepository.getReferenceById(userId))
-                                .build());
-                progress.setLastErrorType(finalError);
-                progressRepository.save(progress);
-            }
-        } catch (Exception e) {
-            log.warn("Failed to update user learning progress: {}", e.getMessage());
-        }
     }
 }

@@ -17,8 +17,6 @@ import com.deutschflow.speaking.repository.UserGrammarErrorRepository;
 import com.deutschflow.gamification.service.XpService;
 import com.deutschflow.training.service.TrainingDatasetService;
 import com.deutschflow.user.repository.UserLearningProfileRepository;
-import com.deutschflow.user.repository.UserLearningProgressRepository;
-import com.deutschflow.user.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -42,8 +40,6 @@ class AiSpeakingServiceImplUnitTest {
     @Mock SystemPromptBuilder promptBuilder;
     @Mock AiResponseParser responseParser;
     @Mock ObjectMapper objectMapper;
-    @Mock UserLearningProgressRepository progressRepository;
-    @Mock UserRepository userRepository;
     @Mock SpeakingMetrics speakingMetrics;
     @Mock GrammarPersistenceService grammarPersistenceService;
     @Mock AdaptivePolicyService adaptivePolicyService;
@@ -60,6 +56,7 @@ class AiSpeakingServiceImplUnitTest {
     @Mock KnowledgeBaseService knowledgeBaseService;
     @Mock Executor speakingStreamExecutor;
     @Mock SessionLifecycleService sessionLifecycleService;
+    @Mock LearningProgressService learningProgressService;
 
     @InjectMocks
     AiSpeakingServiceImpl service;
