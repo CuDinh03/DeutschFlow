@@ -114,18 +114,6 @@ public class AiRateLimiterService {
         return (int) limits.get(bucket).windowSeconds();
     }
 
-    /** @deprecated use {@link #allow(Bucket, long)} with {@link Bucket#TRANSCRIBE}. */
-    @Deprecated
-    public boolean allowTranscribe(long userId) {
-        return allow(Bucket.TRANSCRIBE, userId);
-    }
-
-    /** @deprecated use {@link #retryAfterSeconds(Bucket)} with {@link Bucket#TRANSCRIBE}. */
-    @Deprecated
-    public int transcribeRetryAfterSeconds() {
-        return retryAfterSeconds(Bucket.TRANSCRIBE);
-    }
-
     private boolean check(String key, int max, long windowSeconds) {
         if (redis != null) {
             try {

@@ -12,7 +12,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -45,8 +44,8 @@ class StripePaymentServiceTest {
     }
 
     @Test
-    @DisplayName("checkout.session.completed saves status=SUCCESS — required for getMonthlyRevenue() WHERE status='SUCCESS'")
-    void handleWebhook_completedSession_savesSuccessStatus() throws SignatureVerificationException {
+    @DisplayName("checkout.session.completed atomically claims the transition and activates exactly once")
+    void handleWebhook_completedSession_activatesViaAtomicClaim() throws SignatureVerificationException {
         String sessionId = "cs_test_abc123";
 
         Session session = mock(Session.class);
@@ -61,12 +60,10 @@ class StripePaymentServiceTest {
         when(event.getType()).thenReturn("checkout.session.completed");
         when(event.getDataObjectDeserializer()).thenReturn(deserializer);
 
-        PaymentTransaction pending = PaymentTransaction.builder()
-                .orderId(sessionId).userId(7L).planCode("B1_MONTHLY")
-                .amount(199_000L).durationMonths(1).provider("STRIPE").status("PENDING")
-                .build();
-        when(paymentTransactionRepository.findByOrderId(sessionId)).thenReturn(Optional.of(pending));
-        when(paymentTransactionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        // The PENDING→SUCCESS transition is now an atomic conditional UPDATE; the winning delivery
+        // (rowcount 1) is the only one that activates. status='SUCCESS' is enforced by that UPDATE, so
+        // getMonthlyRevenue()'s WHERE status='SUCCESS' stays correct without a separate save().
+        when(paymentTransactionRepository.markSuccessIfNotAlready(sessionId, "pi_abc123")).thenReturn(1);
 
         try (MockedStatic<Webhook> webhookMock = mockStatic(Webhook.class)) {
             webhookMock.when(() -> Webhook.constructEvent(anyString(), anyString(), anyString()))
@@ -75,12 +72,8 @@ class StripePaymentServiceTest {
             service.handleWebhook("payload", "sig-header");
         }
 
-        ArgumentCaptor<PaymentTransaction> saved = ArgumentCaptor.forClass(PaymentTransaction.class);
-        verify(paymentTransactionRepository).save(saved.capture());
-        assertThat(saved.getValue().getStatus())
-                .as("Stripe transaction status must be 'SUCCESS' to be counted by getMonthlyRevenue()")
-                .isEqualTo("SUCCESS");
-        assertThat(saved.getValue().getProvider()).isEqualTo("STRIPE");
+        verify(paymentTransactionRepository).markSuccessIfNotAlready(sessionId, "pi_abc123");
+        verify(subscriptionActivationService).activatePlan(7L, "B1_MONTHLY", 1);
     }
 
     @Test
