@@ -87,11 +87,14 @@ public class TwoLevelCache implements Cache {
     @Override
     @Nullable
     public ValueWrapper putIfAbsent(Object key, @Nullable Object value) {
-        ValueWrapper existing = get(key);
-        if (existing != null) {
-            return existing;
+        // Use each layer's own atomic putIfAbsent rather than a racy check-then-act over the composite
+        // get/put. L1 is authoritative for "was it absent"; if L1 had no value we just inserted it and
+        // mirror to L2 (best-effort). A perfectly atomic putIfAbsent across two stores isn't achievable.
+        ValueWrapper l1Existing = l1.putIfAbsent(key, value);
+        if (l1Existing != null) {
+            return l1Existing;
         }
-        put(key, value);
+        l2.putIfAbsent(key, value);
         return null;
     }
 

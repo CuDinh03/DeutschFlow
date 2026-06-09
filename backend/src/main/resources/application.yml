@@ -152,6 +152,11 @@ app:
     core-pool-size: ${ASYNC_CORE_POOL_SIZE:10}
     max-pool-size: ${ASYNC_MAX_POOL_SIZE:50}
     queue-capacity: ${ASYNC_QUEUE_CAPACITY:100}
+  cache:
+    # Redis L2 cache tier (Caffeine L1 + Redis L2). OFF by default → Caffeine-only. We gate on this
+    # explicit flag rather than on spring.data.redis.host (which defaults to localhost, so it's always
+    # "set"). Enable in prod where a real Redis is deployed: APP_CACHE_REDIS_L2_ENABLED=true.
+    redis-l2-enabled: ${APP_CACHE_REDIS_L2_ENABLED:false}
   flyway:
     # Aligns flyway_schema_history checksums when a versioned migration file changed after apply.
     # Production: set APP_FLYWAY_REPAIR_BEFORE_MIGRATE=false (Spring Boot 3.2 has no spring.flyway.repair-on-migrate).

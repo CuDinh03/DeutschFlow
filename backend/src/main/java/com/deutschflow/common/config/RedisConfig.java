@@ -28,7 +28,9 @@ import java.time.Duration;
  *  L2 (Redis)    — shared, cross-node cache that survives pod restarts (secondary bean)
  */
 @Configuration
-@ConditionalOnProperty(name = "spring.data.redis.host")
+// Gate on an EXPLICIT flag, not on spring.data.redis.host — that property defaults to "localhost" in
+// application.yml, so conditioning on it would make L2 always-on (even in dev/CI with no real Redis).
+@ConditionalOnProperty(name = "app.cache.redis-l2-enabled", havingValue = "true")
 @ConditionalOnClass(name = "org.springframework.data.redis.connection.RedisConnectionFactory")
 public class RedisConfig {
 
