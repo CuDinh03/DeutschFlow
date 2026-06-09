@@ -75,6 +75,23 @@ public class TeacherController {
         return ResponseEntity.ok().build();
     }
 
+    @GetMapping("/classes/{classId}/teachers")
+    public ResponseEntity<List<ClassTeacherDto>> getClassTeachers(@AuthenticationPrincipal User user, @PathVariable Long classId) {
+        return ResponseEntity.ok(teacherService.getClassTeachers(user.getId(), classId));
+    }
+
+    @PostMapping("/classes/{classId}/teachers")
+    public ResponseEntity<Void> addCoTeacher(@AuthenticationPrincipal User user, @PathVariable Long classId, @RequestBody Map<String, String> payload) {
+        teacherService.addCoTeacher(user.getId(), classId, payload.get("email"));
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/classes/{classId}/teachers/{coTeacherId}")
+    public ResponseEntity<Void> removeCoTeacher(@AuthenticationPrincipal User user, @PathVariable Long classId, @PathVariable Long coTeacherId) {
+        teacherService.removeCoTeacher(user.getId(), classId, coTeacherId);
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping("/classes/{classId}/analytics")
     public ResponseEntity<ClassAnalyticsOverviewDto> getClassAnalytics(@AuthenticationPrincipal User user, @PathVariable Long classId) {
         return ResponseEntity.ok(teacherService.getClassAnalytics(user.getId(), classId));

@@ -232,17 +232,82 @@ public class TeacherService {
 
     @Transactional
     public void deleteClass(Long teacherId, Long classId) {
-        if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
-            throw new ConflictException("Bạn không có quyền xóa lớp này");
-        }
-        
+        // Chỉ giáo viên chính được xóa lớp (trợ giảng không có quyền hủy cả lớp)
+        assertPrimaryTeacher(teacherId, classId);
+
         // Remove dependencies
         classTeacherRepository.deleteByIdClassId(classId);
         classStudentRepository.deleteByIdClassId(classId);
         assignmentRepository.deleteByClassId(classId);
-        
+
         // Remove class
         classRepository.deleteById(classId);
+    }
+
+    // ─── Co-teaching: quản lý giáo viên trong lớp ────────────────────────────────
+
+    /** Trả về ClassTeacher của caller nếu là PRIMARY; ném ForbiddenException nếu không. */
+    private ClassTeacher assertPrimaryTeacher(Long teacherId, Long classId) {
+        ClassTeacher membership = classTeacherRepository.findById(new ClassTeacherId(classId, teacherId))
+                .orElseThrow(() -> new ForbiddenException("Bạn không có quyền với lớp học này"));
+        if (!"PRIMARY".equals(membership.getRole())) {
+            throw new ForbiddenException("Chỉ giáo viên chính mới được thực hiện thao tác này");
+        }
+        return membership;
+    }
+
+    @Transactional(readOnly = true)
+    public List<ClassTeacherDto> getClassTeachers(Long teacherId, Long classId) {
+        assertTeacherOwnsClass(teacherId, classId);
+
+        List<ClassTeacher> classTeachers = classTeacherRepository.findByIdClassId(classId);
+        List<Long> teacherIds = classTeachers.stream().map(ct -> ct.getId().getTeacherId()).toList();
+        Map<Long, User> usersById = userRepository.findAllById(teacherIds).stream()
+                .collect(Collectors.toMap(User::getId, u -> u));
+
+        return classTeachers.stream()
+                .sorted(Comparator.comparing(ct -> !"PRIMARY".equals(ct.getRole()))) // PRIMARY trước
+                .map(ct -> {
+                    User u = usersById.get(ct.getId().getTeacherId());
+                    return new ClassTeacherDto(
+                            ct.getId().getTeacherId(),
+                            u != null ? u.getDisplayName() : "Giáo viên #" + ct.getId().getTeacherId(),
+                            u != null ? u.getEmail() : "",
+                            ct.getRole(),
+                            ct.getJoinedAt());
+                })
+                .toList();
+    }
+
+    @Transactional
+    public void addCoTeacher(Long teacherId, Long classId, String email) {
+        assertPrimaryTeacher(teacherId, classId);
+
+        User target = userRepository.findByEmail(email)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng với email: " + email));
+        if (target.getRole() != User.Role.TEACHER && target.getRole() != User.Role.ADMIN) {
+            throw new BadRequestException("Người dùng này không có vai trò giáo viên");
+        }
+        if (classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, target.getId())) {
+            throw new ConflictException("Giáo viên này đã tham gia lớp");
+        }
+
+        classTeacherRepository.save(ClassTeacher.builder()
+                .id(new ClassTeacherId(classId, target.getId()))
+                .role("ASSISTANT")
+                .build());
+    }
+
+    @Transactional
+    public void removeCoTeacher(Long teacherId, Long classId, Long coTeacherId) {
+        assertPrimaryTeacher(teacherId, classId);
+
+        ClassTeacher target = classTeacherRepository.findById(new ClassTeacherId(classId, coTeacherId))
+                .orElseThrow(() -> new NotFoundException("Giáo viên không thuộc lớp này"));
+        if ("PRIMARY".equals(target.getRole())) {
+            throw new BadRequestException("Không thể xóa giáo viên chính của lớp");
+        }
+        classTeacherRepository.delete(target);
     }
 
     @Transactional
