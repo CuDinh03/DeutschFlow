@@ -6,8 +6,36 @@ import api, { httpStatus } from '@/lib/api'
 import { logout } from '@/lib/authSession'
 import { TeacherShell } from '@/components/layouts/TeacherShell'
 import { usePendingGradingCount } from '@/hooks/usePendingGradingCount'
-import { BarChart2, Users, FileText, GraduationCap, TrendingUp, Award, Loader2, Printer, TableProperties } from 'lucide-react'
+import { BarChart2, Users, FileText, GraduationCap, TrendingUp, Award, Loader2, Printer, TableProperties, BookOpenCheck } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+
+interface GradebookCell {
+  status: string
+  score: number | null
+  submittedAt: string | null
+}
+
+interface GradebookAssignment {
+  id: number
+  topic: string
+  assignmentType: string
+  dueDate: string | null
+}
+
+interface GradebookStudent {
+  studentId: number
+  name: string
+  email: string
+  avgScore: number | null
+  cells: Record<string, GradebookCell>
+}
+
+interface Gradebook {
+  classId: number
+  className: string
+  assignments: GradebookAssignment[]
+  students: GradebookStudent[]
+}
 
 function exportToCSV(overview: any, classes: any[], userName: string) {
   const now = new Date()
@@ -59,6 +87,73 @@ function exportToCSV(overview: any, classes: any[], userName: string) {
   URL.revokeObjectURL(url)
 }
 
+function exportGradebookCSV(gradebook: Gradebook) {
+  const now = new Date()
+  const rows: string[][] = []
+
+  rows.push([`SỔ ĐIỂM - ${gradebook.className}`])
+  rows.push([`Xuất lúc: ${now.toLocaleDateString('vi-VN')} ${now.toLocaleTimeString('vi-VN')}`])
+  rows.push([])
+
+  rows.push([
+    'Học viên',
+    'Email',
+    ...gradebook.assignments.map(a => a.topic),
+    'Điểm TB',
+  ])
+  gradebook.students.forEach(s => {
+    rows.push([
+      s.name,
+      s.email,
+      ...gradebook.assignments.map(a => {
+        const cell = s.cells[String(a.id)]
+        if (!cell) return ''
+        if (cell.score != null) return String(cell.score)
+        return cell.status === 'SUBMITTED' ? 'Chờ chấm' : 'Chưa nộp'
+      }),
+      s.avgScore != null ? s.avgScore.toFixed(2) : '',
+    ])
+  })
+
+  const csvContent = rows
+    .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    .join('\n')
+
+  const BOM = '\uFEFF' // UTF-8 BOM for Excel compatibility
+  const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `SoDiem_${gradebook.className.replace(/[\\/:*?"<>|\s]+/g, '_')}_${now.toISOString().slice(0, 10)}.csv`
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+function gradebookCellBadge(cell: GradebookCell | undefined) {
+  if (!cell) {
+    return <span className="text-slate-300">·</span>
+  }
+  if (cell.score != null) {
+    const tone =
+      cell.score >= 8 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+      cell.score >= 5 ? 'bg-amber-50 text-amber-700 border-amber-200' :
+      'bg-rose-50 text-rose-700 border-rose-200'
+    return (
+      <span className={`inline-flex min-w-[2.25rem] justify-center px-2 py-0.5 rounded-lg border text-xs font-bold ${tone}`}>
+        {cell.score}
+      </span>
+    )
+  }
+  if (cell.status === 'SUBMITTED') {
+    return (
+      <span className="inline-flex px-2 py-0.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-600 text-[11px] font-semibold">
+        Chờ chấm
+      </span>
+    )
+  }
+  return <span className="text-slate-400 text-xs font-medium">Chưa nộp</span>
+}
+
 export default function TeacherReportsPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
@@ -70,6 +165,7 @@ export default function TeacherReportsPage() {
   const [selectedClassId, setSelectedClassId] = useState<string>('')
   const [classReport, setClassReport] = useState<any>(null)
   const [classReportLoading, setClassReportLoading] = useState(false)
+  const [gradebook, setGradebook] = useState<Gradebook | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -106,13 +202,18 @@ export default function TeacherReportsPage() {
   }, [load])
 
   const fetchClassReport = async (classId: string) => {
-    if (!classId) { setClassReport(null); return; }
+    if (!classId) { setClassReport(null); setGradebook(null); return; }
     setClassReportLoading(true);
     try {
-      const res = await api.get(`/v2/teacher/reports/classes/${classId}`);
-      setClassReport(res.data);
+      const [reportRes, gradebookRes] = await Promise.all([
+        api.get(`/v2/teacher/reports/classes/${classId}`),
+        api.get(`/v2/teacher/reports/classes/${classId}/gradebook`).catch(() => null),
+      ]);
+      setClassReport(reportRes.data);
+      setGradebook(gradebookRes?.data ?? null);
     } catch {
       setClassReport(null);
+      setGradebook(null);
     } finally {
       setClassReportLoading(false);
     }
@@ -234,6 +335,85 @@ export default function TeacherReportsPage() {
                 <p className="mt-4 text-slate-500 text-sm text-center py-4 border border-dashed border-slate-200 rounded-xl">
                   Lớp này chưa có dữ liệu nào.
                 </p>
+              )}
+
+              {/* Gradebook: ma trận học viên × bài tập */}
+              {gradebook && !classReportLoading && (
+                <div className="mt-6 animate-in fade-in duration-300">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <BookOpenCheck size={17} className="text-emerald-600" />
+                      <span className="font-bold text-slate-800 text-sm">Sổ điểm — {gradebook.className}</span>
+                      <span className="text-slate-400 text-xs">
+                        {gradebook.students.length} học viên · {gradebook.assignments.length} bài tập
+                      </span>
+                    </div>
+                    {gradebook.students.length > 0 && gradebook.assignments.length > 0 && (
+                      <button
+                        onClick={() => exportGradebookCSV(gradebook)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 transition-colors text-xs font-bold"
+                        title="Tải sổ điểm dạng CSV, mở bằng Excel hoặc Google Sheets"
+                      >
+                        <TableProperties size={13} />
+                        Xuất sổ điểm
+                      </button>
+                    )}
+                  </div>
+
+                  {gradebook.students.length === 0 || gradebook.assignments.length === 0 ? (
+                    <p className="text-slate-500 text-sm text-center py-6 border border-dashed border-slate-200 rounded-xl">
+                      {gradebook.students.length === 0
+                        ? 'Lớp chưa có học viên nào.'
+                        : 'Lớp chưa được giao bài tập nào.'}
+                    </p>
+                  ) : (
+                    <div className="overflow-x-auto rounded-xl border border-slate-200">
+                      <table className="w-full text-sm border-collapse">
+                        <thead>
+                          <tr className="bg-slate-50 text-left">
+                            <th className="sticky left-0 bg-slate-50 px-4 py-3 font-bold text-slate-600 text-xs uppercase tracking-wider whitespace-nowrap border-b border-slate-200 z-10">
+                              Học viên
+                            </th>
+                            {gradebook.assignments.map(a => (
+                              <th
+                                key={a.id}
+                                className="px-3 py-3 font-semibold text-slate-500 text-xs whitespace-nowrap max-w-[140px] truncate border-b border-slate-200 text-center"
+                                title={`${a.topic}${a.dueDate ? ` · hạn ${new Date(a.dueDate).toLocaleDateString('vi-VN')}` : ''}`}
+                              >
+                                {a.topic}
+                              </th>
+                            ))}
+                            <th className="px-4 py-3 font-bold text-slate-600 text-xs uppercase tracking-wider whitespace-nowrap border-b border-slate-200 text-center">
+                              Điểm TB
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {gradebook.students.map((s, idx) => (
+                            <tr key={s.studentId} className={idx % 2 === 1 ? 'bg-slate-50/50' : 'bg-white'}>
+                              <td className="sticky left-0 px-4 py-2.5 whitespace-nowrap border-b border-slate-100 z-10 bg-inherit">
+                                <p className="font-semibold text-slate-700">{s.name}</p>
+                                <p className="text-slate-400 text-xs">{s.email}</p>
+                              </td>
+                              {gradebook.assignments.map(a => (
+                                <td key={a.id} className="px-3 py-2.5 text-center border-b border-slate-100">
+                                  {gradebookCellBadge(s.cells[String(a.id)])}
+                                </td>
+                              ))}
+                              <td className="px-4 py-2.5 text-center border-b border-slate-100">
+                                {s.avgScore != null ? (
+                                  <span className="font-black text-slate-800">{s.avgScore.toFixed(1)}</span>
+                                ) : (
+                                  <span className="text-slate-300">—</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
