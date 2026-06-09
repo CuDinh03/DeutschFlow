@@ -6,6 +6,7 @@ import { Trophy, Clock, Target, Lock, ChevronRight } from 'lucide-react-native'
 import { Alert } from 'react-native'
 import api, { apiMessage } from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
+import { PAYWALL_ENABLED } from '@/lib/paywall'
 import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, ErrorState, SectionHeader, Skeleton } from '@/components/ui'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { mapExam, examApi, type RawMockExam, type ExamVariant, type ExamAttempt } from '@/lib/examApi'
@@ -105,8 +106,8 @@ export default function ExamScreen() {
             icon={Lock}
             title="Tính năng PRO"
             message="Thi thử theo format Goethe chính thức, xem điểm chi tiết và phân tích điểm yếu."
-            actionLabel="Xem PRO"
-            onAction={() => router.push('/(student)/upgrade')}
+            actionLabel={PAYWALL_ENABLED ? 'Xem PRO' : undefined}
+            onAction={PAYWALL_ENABLED ? () => router.push('/(student)/upgrade') : undefined}
           />
         </View>
       ) : isLoading ? (

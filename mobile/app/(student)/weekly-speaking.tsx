@@ -9,6 +9,7 @@ import api, { apiMessage } from '@/lib/api'
 import { speakingApi } from '@/lib/speakingApi'
 import { weeklyApi, rubricScore } from '@/lib/weeklyApi'
 import { radius, space, useTheme } from '@/lib/theme'
+import { PAYWALL_ENABLED } from '@/lib/paywall'
 import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, SectionHeader, Skeleton } from '@/components/ui'
 import { usePlanStore } from '@/stores/usePlanStore'
 
@@ -63,8 +64,8 @@ export default function WeeklySpeakingScreen() {
             icon={Lock}
             title="Tính năng PRO"
             message="Nộp bài nói hàng tuần và nhận phản hồi AI chi tiết."
-            actionLabel="Xem PRO"
-            onAction={() => router.push('/(student)/upgrade')}
+            actionLabel={PAYWALL_ENABLED ? 'Xem PRO' : undefined}
+            onAction={PAYWALL_ENABLED ? () => router.push('/(student)/upgrade') : undefined}
           />
         </View>
       </Screen>

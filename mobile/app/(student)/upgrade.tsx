@@ -18,7 +18,11 @@ const PRO_FEATURES: { icon: LucideIcon; label: string }[] = [
 export default function UpgradeScreen() {
   const theme = useTheme()
   useEffect(() => {
-    trackFeatureAction('monetization', 'paywall_viewed')
+    // Only a real paywall (Android) is a 'paywall_viewed'; the iOS neutral screen is not — don't
+    // pollute the monetization funnel with views that have no purchase path.
+    if (PAYWALL_ENABLED) {
+      trackFeatureAction('monetization', 'paywall_viewed')
+    }
   }, [])
 
   // iOS: no StoreKit IAP wired yet, and App Store Review 3.1.1 forbids steering to an external (web)
@@ -45,8 +49,8 @@ export default function UpgradeScreen() {
             DeutschFlow PRO
           </ThemedText>
           <ThemedText variant="body" color="secondary" align="center">
-            Một số tính năng nâng cao dành cho tài khoản PRO. Nếu tài khoản của bạn đã là PRO, mọi
-            tính năng sẽ tự động được mở khoá.
+            Tài khoản PRO mở khoá các tính năng nâng cao như AI Speaking không giới hạn, Mock Exam và
+            lộ trình học đầy đủ.
           </ThemedText>
         </View>
       </Screen>
