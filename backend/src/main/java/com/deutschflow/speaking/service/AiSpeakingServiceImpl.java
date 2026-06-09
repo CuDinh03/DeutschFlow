@@ -2,20 +2,16 @@ package com.deutschflow.speaking.service;
 
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.NotFoundException;
-import com.deutschflow.speaking.ai.AiParseOutcome;
 import com.deutschflow.speaking.ai.AiResponseDto;
 import com.deutschflow.speaking.ai.AiResponseParser;
 import com.deutschflow.speaking.ai.AiChatCompletionResult;
-import com.deutschflow.speaking.ai.AiErrorSanitizer;
 import com.deutschflow.speaking.ai.ChatMessage;
 import com.deutschflow.speaking.ai.ErrorItem;
-import com.deutschflow.speaking.ai.GroqChatClient;
 import com.deutschflow.speaking.ai.OpenAiChatClient;
 import com.deutschflow.speaking.interview.InterviewAnswerAnalysis;
 import com.deutschflow.speaking.interview.InterviewOrchestrator;
 import com.deutschflow.speaking.interview.InterviewPromptContext;
 import com.deutschflow.speaking.interview.InterviewSessionState;
-import com.deutschflow.speaking.interview.InterviewSpeechSanitizer;
 import com.deutschflow.speaking.interview.InterviewStateCodec;
 import com.deutschflow.speaking.interview.InterviewTurnPlan;
 import com.deutschflow.speaking.contract.SpeakingResponseSchema;
@@ -73,8 +69,6 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
     private final UserLearningProfileRepository profileRepository;
     private final UserGrammarErrorRepository grammarErrorRepository;
     private final OpenAiChatClient openAiChatClient;
-    /** Interview mode forces this hosted client for reliable structured JSON (see {@link #chatClientFor}). */
-    private final GroqChatClient groqChatClient;
     private final AiResponseParser responseParser;
     private final ObjectMapper objectMapper;
     private final SpeakingMetrics speakingMetrics;
@@ -83,7 +77,6 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
     private final ConversationEvaluationService conversationEvaluationService;
     private final InterviewOrchestrator interviewOrchestrator;
     private final InterviewStateCodec interviewStateCodec;
-    private final InterviewSpeechSanitizer interviewSpeechSanitizer;
     private final com.deutschflow.system.service.SystemConfigService systemConfigService;
     private final Executor speakingStreamExecutor;
     private final SessionTurnGuard sessionTurnGuard;
@@ -92,6 +85,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
     private final LearningProgressService learningProgressService;
     private final ChatPrepService chatPrepService;
     private final TurnSideEffectsService turnSideEffectsService;
+    private final ChatCompletionService chatCompletionService;
 
     public AiSpeakingServiceImpl(
             TransactionTemplate transactionTemplate,
@@ -100,7 +94,6 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
             UserLearningProfileRepository profileRepository,
             UserGrammarErrorRepository grammarErrorRepository,
             OpenAiChatClient openAiChatClient,
-            GroqChatClient groqChatClient,
             AiResponseParser responseParser,
             ObjectMapper objectMapper,
             SpeakingMetrics speakingMetrics,
@@ -109,7 +102,6 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
             ConversationEvaluationService conversationEvaluationService,
             InterviewOrchestrator interviewOrchestrator,
             InterviewStateCodec interviewStateCodec,
-            InterviewSpeechSanitizer interviewSpeechSanitizer,
             com.deutschflow.system.service.SystemConfigService systemConfigService,
             @Qualifier("speakingStreamExecutor") Executor speakingStreamExecutor,
             SessionTurnGuard sessionTurnGuard,
@@ -117,14 +109,14 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
             SessionLifecycleService sessionLifecycleService,
             LearningProgressService learningProgressService,
             ChatPrepService chatPrepService,
-            TurnSideEffectsService turnSideEffectsService) {
+            TurnSideEffectsService turnSideEffectsService,
+            ChatCompletionService chatCompletionService) {
         this.transactionTemplate = transactionTemplate;
         this.sessionRepository = sessionRepository;
         this.messageRepository = messageRepository;
         this.profileRepository = profileRepository;
         this.grammarErrorRepository = grammarErrorRepository;
         this.openAiChatClient = openAiChatClient;
-        this.groqChatClient = groqChatClient;
         this.responseParser = responseParser;
         this.objectMapper = objectMapper;
         this.speakingMetrics = speakingMetrics;
@@ -133,7 +125,6 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         this.conversationEvaluationService = conversationEvaluationService;
         this.interviewOrchestrator = interviewOrchestrator;
         this.interviewStateCodec = interviewStateCodec;
-        this.interviewSpeechSanitizer = interviewSpeechSanitizer;
         this.systemConfigService = systemConfigService;
         this.speakingStreamExecutor = speakingStreamExecutor;
         this.sessionTurnGuard = sessionTurnGuard;
@@ -142,6 +133,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         this.learningProgressService = learningProgressService;
         this.chatPrepService = chatPrepService;
         this.turnSideEffectsService = turnSideEffectsService;
+        this.chatCompletionService = chatCompletionService;
     }
 
     @Override
@@ -385,7 +377,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
                 greetMaxTokens, 0, responseSchema, sessionMode, interviewContext, null, Instant.now())
                 : null;
         return greetPrep != null
-                ? applyInterviewPostProcessing(parsedRaw, "", greetPrep)
+                ? chatCompletionService.applyInterviewPostProcessing(parsedRaw, "", greetPrep)
                 : parsedRaw;
     }
 
@@ -416,65 +408,11 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         SpeakingChatPrep prep =
                 Objects.requireNonNull(transactionTemplate.execute(status -> chatPrepService.prepareSpeakingChatTurn(userId, sessionId, userMessage)));
 
-        AiChatCompletionResult ai = runChatCompletion(prep);
-        AiResponseDto parsed = parseAndPostProcess(ai, userMessage, prep);
+        AiChatCompletionResult ai = chatCompletionService.runChatCompletion(prep);
+        AiResponseDto parsed = chatCompletionService.parseAndPostProcess(ai, userMessage, prep);
 
         return Objects.requireNonNull(transactionTemplate.execute(
                 status -> finalizeSpeakingChatPersistence(prep, userMessage, ai, parsed, "SPEAKING_CHAT")));
-    }
-
-    private AiChatCompletionResult runChatCompletion(SpeakingChatPrep prep) {
-        Double tempConfig = systemConfigService.getDouble("ai.temperature", SPEAKING_CHAT_TEMPERATURE);
-        return chatClientFor(prep.sessionMode())
-                .chatCompletion(prep.openAiMessages(), null, tempConfig, prep.maxTokens());
-    }
-
-    /**
-     * Interview mode forces Groq: the structured {@code interview_meta} (analysis + ack/question)
-     * parses far more reliably on the hosted model than on the local one. Other modes use the
-     * configured primary client ({@link AiChatClientFactory}).
-     */
-    private OpenAiChatClient chatClientFor(SpeakingSessionMode mode) {
-        return mode == SpeakingSessionMode.INTERVIEW ? groqChatClient : openAiChatClient;
-    }
-
-    private AiResponseDto parseAndPostProcess(AiChatCompletionResult ai, String userMessage, SpeakingChatPrep prep) {
-        AiParseOutcome parseOutcome = responseParser.parseWithOutcome(ai.content(), prep.responseSchema());
-        speakingMetrics.recordAiParseOutcome(parseOutcome.status());
-        return applyInterviewPostProcessing(parseOutcome.dto(), userMessage, prep);
-    }
-
-    private AiResponseDto applyInterviewPostProcessing(AiResponseDto parsedRaw, String userMessage, SpeakingChatPrep prep) {
-        AiResponseDto base = new AiResponseDto(
-                parsedRaw.aiSpeechDe(),
-                parsedRaw.correction(),
-                parsedRaw.explanationVi(),
-                parsedRaw.grammarPoint(),
-                parsedRaw.newWord(),
-                parsedRaw.userInterestDetected(),
-                AiErrorSanitizer.sanitize(userMessage, parsedRaw.errors()),
-                parsedRaw.status(),
-                parsedRaw.similarityScore(),
-                parsedRaw.feedback(),
-                parsedRaw.suggestions(),
-                parsedRaw.action(),
-                parsedRaw.interviewMeta());
-        if (prep.sessionMode() != SpeakingSessionMode.INTERVIEW || prep.interviewContext() == null) {
-            return base;
-        }
-        InterviewTurnPlan plan = prep.interviewContext().plan();
-        int userTurn = plan.userTurn();
-        String speech;
-        if (base.interviewMeta() != null) {
-            speech = interviewSpeechSanitizer.composeFromMeta(
-                    base.interviewMeta().ackDe(), base.interviewMeta().questionDe(), plan, userTurn);
-        } else {
-            speech = interviewSpeechSanitizer.sanitize(base.aiSpeechDe(), plan, userTurn);
-        }
-        return new AiResponseDto(
-                speech, base.correction(), base.explanationVi(), base.grammarPoint(), base.newWord(),
-                base.userInterestDetected(), base.errors(), base.status(), base.similarityScore(),
-                base.feedback(), base.suggestions(), base.action(), base.interviewMeta());
     }
 
     private AiSpeakingChatResponse finalizeSpeakingChatPersistence(
@@ -645,7 +583,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
                                          SseEmitter emitter,
                                          AtomicBoolean streamCancelled) {
         Double tempConfig = systemConfigService.getDouble("ai.temperature", SPEAKING_CHAT_TEMPERATURE);
-        return chatClientFor(prep.sessionMode()).chatCompletionStream(prep.openAiMessages(), null, tempConfig, prep.maxTokens(),
+        return chatCompletionService.chatClientFor(prep.sessionMode()).chatCompletionStream(prep.openAiMessages(), null, tempConfig, prep.maxTokens(),
                 token -> {
                     try {
                         emitter.send(SseEmitter.event().name("token").data(token));
@@ -662,7 +600,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
                                         SseEmitter emitter,
                                         AiChatCompletionResult ai) {
         try {
-            AiResponseDto parsed = parseAndPostProcess(ai, userMessage, prep);
+            AiResponseDto parsed = chatCompletionService.parseAndPostProcess(ai, userMessage, prep);
             AiSpeakingChatResponse donePayload = Objects.requireNonNull(
                     transactionTemplate.execute(status ->
                             finalizeSpeakingChatPersistence(prep, userMessage, ai, parsed, "SPEAKING_STREAM")));

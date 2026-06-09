@@ -3,7 +3,6 @@ package com.deutschflow.speaking.service;
 import com.deutschflow.speaking.ai.AiResponseParser;
 import com.deutschflow.speaking.ai.OpenAiChatClient;
 import com.deutschflow.speaking.interview.InterviewOrchestrator;
-import com.deutschflow.speaking.interview.InterviewSpeechSanitizer;
 import com.deutschflow.speaking.interview.InterviewStateCodec;
 import com.deutschflow.speaking.metrics.SpeakingMetrics;
 import com.deutschflow.speaking.repository.AiSpeakingMessageRepository;
@@ -36,13 +35,13 @@ class AiSpeakingServiceImplUnitTest {
     @Mock AdaptivePolicyService adaptivePolicyService;
     @Mock InterviewOrchestrator interviewOrchestrator;
     @Mock InterviewStateCodec interviewStateCodec;
-    @Mock InterviewSpeechSanitizer interviewSpeechSanitizer;
     @Mock com.deutschflow.system.service.SystemConfigService systemConfigService;
     @Mock Executor speakingStreamExecutor;
     @Mock SessionLifecycleService sessionLifecycleService;
     @Mock LearningProgressService learningProgressService;
     @Mock ChatPrepService chatPrepService;
     @Mock TurnSideEffectsService turnSideEffectsService;
+    @Mock ChatCompletionService chatCompletionService;
 
     @InjectMocks
     AiSpeakingServiceImpl service;
