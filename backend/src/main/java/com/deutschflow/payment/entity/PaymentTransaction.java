@@ -52,9 +52,12 @@ public class PaymentTransaction {
     @Column(name = "duration_months")
     private Integer durationMonths;
 
+    // V199 converted these columns to timestamptz; map Instant -> timestamptz so ddl-auto=validate matches.
+    @JdbcTypeCode(SqlTypes.TIMESTAMP_WITH_TIMEZONE)
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    @JdbcTypeCode(SqlTypes.TIMESTAMP_WITH_TIMEZONE)
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
