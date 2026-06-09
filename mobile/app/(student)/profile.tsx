@@ -5,6 +5,7 @@ import { LogOut, Star, Bell, Globe, BarChart3, User, ChevronRight, Trash2, HelpC
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
 import api, { apiMessage } from '@/lib/api'
+import { PAYWALL_ENABLED } from '@/lib/paywall'
 import { gamificationApi } from '@/lib/gamificationApi'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, Pill, ListRow, SectionHeader, FadeIn } from '@/components/ui'
@@ -105,7 +106,7 @@ export default function ProfileScreen() {
       </FadeIn>
 
       <FadeIn delay={100} style={{ paddingHorizontal: space[5], gap: space[5] }}>
-        {!isPro ? (
+        {!isPro && PAYWALL_ENABLED ? (
           <Card onPress={() => router.push('/(student)/upgrade')} style={{ borderColor: theme.colors.accent + '66' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
               <View
