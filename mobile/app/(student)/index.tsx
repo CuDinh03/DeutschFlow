@@ -6,6 +6,7 @@ import { Flame, BookOpen, Mic, Star, Map, Bell, Zap } from 'lucide-react-native'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
 import api from '@/lib/api'
+import { PAYWALL_ENABLED } from '@/lib/paywall'
 import { gamificationApi } from '@/lib/gamificationApi'
 import { motion, space, radius, useTheme } from '@/lib/theme'
 import {
@@ -246,7 +247,7 @@ export default function DashboardScreen() {
             </Card>
           </View>
 
-          {!isPro ? (
+          {!isPro && PAYWALL_ENABLED ? (
             <Card
               onPress={() => router.push('/(student)/upgrade')}
               elevation="lifted"

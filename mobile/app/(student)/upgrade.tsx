@@ -5,6 +5,7 @@ import { Star, Zap, Mic, Trophy, BookOpen, Check, type LucideIcon } from 'lucide
 import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, AppHeader } from '@/components/ui'
 import { trackFeatureAction } from '@/lib/analytics'
+import { PAYWALL_ENABLED } from '@/lib/paywall'
 
 const PRO_FEATURES: { icon: LucideIcon; label: string }[] = [
   { icon: Mic, label: 'AI Speaking không giới hạn' },
@@ -17,8 +18,44 @@ const PRO_FEATURES: { icon: LucideIcon; label: string }[] = [
 export default function UpgradeScreen() {
   const theme = useTheme()
   useEffect(() => {
-    trackFeatureAction('monetization', 'paywall_viewed')
+    // Only a real paywall (Android) is a 'paywall_viewed'; the iOS neutral screen is not — don't
+    // pollute the monetization funnel with views that have no purchase path.
+    if (PAYWALL_ENABLED) {
+      trackFeatureAction('monetization', 'paywall_viewed')
+    }
   }, [])
+
+  // iOS: no StoreKit IAP wired yet, and App Store Review 3.1.1 forbids steering to an external (web)
+  // purchase. Render a neutral, non-commercial screen — accounts already PRO (bought on the web) still
+  // unlock automatically. Re-enable the full paywall once react-native-iap is live (see lib/paywall.ts).
+  if (!PAYWALL_ENABLED) {
+    return (
+      <Screen edges={['top']}>
+        <AppHeader title="DeutschFlow PRO" onBack={() => router.back()} />
+        <View style={{ flex: 1, paddingHorizontal: space[5], justifyContent: 'center', alignItems: 'center', gap: space[4] }}>
+          <View
+            style={{
+              width: 80,
+              height: 80,
+              borderRadius: radius['3xl'],
+              backgroundColor: theme.colors.accentSoft,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Icon icon={Star} size={40} color="accent" fill />
+          </View>
+          <ThemedText variant="display" align="center">
+            DeutschFlow PRO
+          </ThemedText>
+          <ThemedText variant="body" color="secondary" align="center">
+            Tài khoản PRO mở khoá các tính năng nâng cao như AI Speaking không giới hạn, Mock Exam và
+            lộ trình học đầy đủ.
+          </ThemedText>
+        </View>
+      </Screen>
+    )
+  }
 
   return (
     <Screen edges={['top']}>
