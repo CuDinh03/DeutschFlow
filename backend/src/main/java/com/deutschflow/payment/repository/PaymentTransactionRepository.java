@@ -4,7 +4,9 @@ import com.deutschflow.payment.entity.PaymentTransaction;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
@@ -16,6 +18,16 @@ public interface PaymentTransactionRepository extends JpaRepository<PaymentTrans
     Optional<PaymentTransaction> findByOrderId(String orderId);
 
     Optional<PaymentTransaction> findByOrderIdAndUserId(String orderId, Long userId);
+
+    /**
+     * Atomically claim the PENDING→SUCCESS transition for a payment. Returns 1 for the single caller
+     * that wins the transition, 0 if it was already SUCCESS (idempotent replay). Collapses the old
+     * read-check-set into one statement so two concurrent webhook deliveries can't both activate (P0-2).
+     */
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE PaymentTransaction t SET t.status = 'SUCCESS', t.providerTransactionId = :providerTxId " +
+           "WHERE t.orderId = :orderId AND t.status <> 'SUCCESS'")
+    int markSuccessIfNotAlready(@Param("orderId") String orderId, @Param("providerTxId") String providerTxId);
 
     interface MonthlyRevenueProjection {
         String getPeriod(); // e.g. "2026-05"

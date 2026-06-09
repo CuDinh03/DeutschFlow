@@ -24,12 +24,14 @@ public class AiSpeakingMockExamController {
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
     private final com.deutschflow.speaking.service.SprechenTeil2Service sprechenTeil2Service;
+    private final com.deutschflow.speaking.AiRateLimiterService aiRateLimiterService;
 
     @PostMapping("/mock-exam/evaluate")
     public ResponseEntity<Map<String, Object>> evaluateMockExam(
             @AuthenticationPrincipal User user,
             @RequestBody Map<String, String> payload) {
 
+        requireEvalBudget(user.getId());
         String transcript = payload.get("transcript_de");
 
         // ── Input Validation ────────────────────────────────────
@@ -133,7 +135,8 @@ public class AiSpeakingMockExamController {
     public ResponseEntity<Map<String, Object>> evaluateSprechenTeil2Turn(
             @AuthenticationPrincipal User user,
             @RequestBody Map<String, String> payload) {
-        
+
+        requireEvalBudget(user.getId());
         String stage = payload.get("stage");
         String thema = payload.get("thema");
         String wort = payload.get("wort");
@@ -211,6 +214,15 @@ public class AiSpeakingMockExamController {
         } catch (Exception e) {
             log.error("[MockExam] Failed to fetch latest test for user {}", user.getId(), e);
             return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /** Throw 429 (Retry-After) when this user has spent their per-window LLM-evaluation budget. */
+    private void requireEvalBudget(long userId) {
+        if (!aiRateLimiterService.allow(com.deutschflow.speaking.AiRateLimiterService.Bucket.EVAL, userId)) {
+            throw new com.deutschflow.common.exception.RateLimitExceededException(
+                    "Too many evaluations. Please slow down.",
+                    aiRateLimiterService.retryAfterSeconds(com.deutschflow.speaking.AiRateLimiterService.Bucket.EVAL));
         }
     }
 }

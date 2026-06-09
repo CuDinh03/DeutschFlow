@@ -262,6 +262,18 @@ app:
     rate-limit:
       transcribe-max-per-window: ${APP_AI_TRANSCRIBE_RL_MAX:60}
       transcribe-window-seconds: ${APP_AI_TRANSCRIBE_RL_WINDOW:3600}
+      # P1-15: per-user windows for the other cost-bearing AI endpoints (request-rate guard on top of
+      # the token wallet). Generous by default so normal speaking practice is never throttled.
+      phoneme-max-per-window: ${APP_AI_PHONEME_RL_MAX:60}
+      phoneme-window-seconds: ${APP_AI_PHONEME_RL_WINDOW:3600}
+      chat-max-per-window: ${APP_AI_CHAT_RL_MAX:180}
+      chat-window-seconds: ${APP_AI_CHAT_RL_WINDOW:3600}
+      eval-max-per-window: ${APP_AI_EVAL_RL_MAX:60}
+      eval-window-seconds: ${APP_AI_EVAL_RL_WINDOW:3600}
+      report-max-per-window: ${APP_AI_REPORT_RL_MAX:40}
+      report-window-seconds: ${APP_AI_REPORT_RL_WINDOW:3600}
+      text-max-per-window: ${APP_AI_TEXT_RL_MAX:120}
+      text-window-seconds: ${APP_AI_TEXT_RL_WINDOW:3600}
     # Server TTS — self-hosted Edge TTS sidecar (free Microsoft Neural voices).
     # Empty by default → /api/ai-speaking/tts returns 503 and clients fall back to
     # on-device speech. Point this at your own TTS service to enable persona voices.

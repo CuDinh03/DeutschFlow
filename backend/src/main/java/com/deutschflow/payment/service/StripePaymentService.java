@@ -193,32 +193,37 @@ public class StripePaymentService {
             return;
         }
 
-        // Find and update the PaymentTransaction
-        PaymentTransaction tx = paymentTransactionRepository.findByOrderId(sessionId).orElse(null);
-        if (tx == null) {
-            log.warn("[STRIPE WEBHOOK] PaymentTransaction not found for session={} — creating fallback record", sessionId);
-            // Create a fallback record in case webhook arrived before session was saved (rare race condition)
-            tx = PaymentTransaction.builder()
-                    .orderId(sessionId)
-                    .userId(userId)
-                    .planCode(planCode)
-                    .amount(0L)
-                    .durationMonths(durationMonths)
-                    .provider("STRIPE")
-                    .status("PENDING")
-                    .build();
+        // Two webhook deliveries for the same session can race here. Make the PENDING→SUCCESS transition
+        // atomic so exactly one delivery activates — the old read-check-set left a window where both could
+        // pass the "already SUCCESS?" guard and double-activate (P0-2 tail).
+        String paymentIntent = session.getPaymentIntent();
+        int claimed = paymentTransactionRepository.markSuccessIfNotAlready(sessionId, paymentIntent);
+        if (claimed == 0) {
+            // rows==0 ⇒ either already SUCCESS (idempotent replay) or the checkout row never persisted.
+            if (paymentTransactionRepository.findByOrderId(sessionId).isPresent()) {
+                log.info("[STRIPE WEBHOOK] Idempotent replay — session={} already completed", sessionId);
+                return;
+            }
+            log.warn("[STRIPE WEBHOOK] PaymentTransaction not found for session={} — inserting fallback", sessionId);
+            try {
+                paymentTransactionRepository.save(PaymentTransaction.builder()
+                        .orderId(sessionId)
+                        .userId(userId)
+                        .planCode(planCode)
+                        .amount(0L)
+                        .durationMonths(durationMonths)
+                        .provider("STRIPE")
+                        .status("SUCCESS")
+                        .providerTransactionId(paymentIntent)
+                        .build());
+            } catch (org.springframework.dao.DataIntegrityViolationException dup) {
+                // Lost the race to insert the unique order_id — another delivery already recorded + activated.
+                log.info("[STRIPE WEBHOOK] Concurrent delivery already recorded session={} — idempotent replay", sessionId);
+                return;
+            }
         }
 
-        if ("SUCCESS".equals(tx.getStatus())) {
-            log.info("[STRIPE WEBHOOK] Idempotent replay — session={} already completed", sessionId);
-            return;
-        }
-
-        tx.setStatus("SUCCESS");
-        tx.setProviderTransactionId(session.getPaymentIntent());
-        paymentTransactionRepository.save(tx);
-
-        // Activate subscription
+        // Activate subscription. The per-user advisory lock inside makes this safe to reach exactly once.
         subscriptionActivationService.activatePlan(userId, planCode, durationMonths);
 
         log.info("[STRIPE WEBHOOK] checkout.session.completed — activated plan={} for userId={} session={}",
