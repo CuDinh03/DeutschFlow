@@ -1,6 +1,5 @@
 package com.deutschflow.speaking.service;
 
-import com.deutschflow.common.quota.AiUsageLedgerService;
 import com.deutschflow.speaking.ai.AiResponseParser;
 import com.deutschflow.speaking.ai.OpenAiChatClient;
 import com.deutschflow.speaking.interview.InterviewOrchestrator;
@@ -10,8 +9,6 @@ import com.deutschflow.speaking.metrics.SpeakingMetrics;
 import com.deutschflow.speaking.repository.AiSpeakingMessageRepository;
 import com.deutschflow.speaking.repository.AiSpeakingSessionRepository;
 import com.deutschflow.speaking.repository.UserGrammarErrorRepository;
-import com.deutschflow.gamification.service.XpService;
-import com.deutschflow.training.service.TrainingDatasetService;
 import com.deutschflow.user.repository.UserLearningProfileRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -36,12 +33,7 @@ class AiSpeakingServiceImplUnitTest {
     @Mock AiResponseParser responseParser;
     @Mock ObjectMapper objectMapper;
     @Mock SpeakingMetrics speakingMetrics;
-    @Mock GrammarPersistenceService grammarPersistenceService;
     @Mock AdaptivePolicyService adaptivePolicyService;
-    @Mock TurnEvaluatorService turnEvaluatorService;
-    @Mock AiUsageLedgerService aiUsageLedgerService;
-    @Mock TrainingDatasetService trainingDatasetService;
-    @Mock XpService xpService;
     @Mock InterviewOrchestrator interviewOrchestrator;
     @Mock InterviewStateCodec interviewStateCodec;
     @Mock InterviewSpeechSanitizer interviewSpeechSanitizer;
@@ -50,6 +42,7 @@ class AiSpeakingServiceImplUnitTest {
     @Mock SessionLifecycleService sessionLifecycleService;
     @Mock LearningProgressService learningProgressService;
     @Mock ChatPrepService chatPrepService;
+    @Mock TurnSideEffectsService turnSideEffectsService;
 
     @InjectMocks
     AiSpeakingServiceImpl service;

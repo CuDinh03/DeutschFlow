@@ -13,13 +13,10 @@ import com.deutschflow.speaking.ai.GroqChatClient;
 import com.deutschflow.speaking.ai.OpenAiChatClient;
 import com.deutschflow.speaking.interview.InterviewAnswerAnalysis;
 import com.deutschflow.speaking.interview.InterviewOrchestrator;
-import com.deutschflow.speaking.interview.InterviewPhase;
-import com.deutschflow.speaking.interview.PhaseProgressionPolicy;
 import com.deutschflow.speaking.interview.InterviewPromptContext;
 import com.deutschflow.speaking.interview.InterviewSessionState;
 import com.deutschflow.speaking.interview.InterviewSpeechSanitizer;
 import com.deutschflow.speaking.interview.InterviewStateCodec;
-import com.deutschflow.speaking.interview.InterviewDirectiveType;
 import com.deutschflow.speaking.interview.InterviewTurnPlan;
 import com.deutschflow.speaking.contract.SpeakingResponseSchema;
 import com.deutschflow.speaking.contract.SpeakingSessionMode;
@@ -44,10 +41,6 @@ import com.deutschflow.user.entity.UserLearningProfile;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserLearningProfileRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.deutschflow.common.quota.AiUsageLedgerService;
-import com.deutschflow.common.quota.RequestContext;
-import com.deutschflow.gamification.service.XpService;
-import com.deutschflow.training.service.TrainingDatasetService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Page;
@@ -85,13 +78,8 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
     private final AiResponseParser responseParser;
     private final ObjectMapper objectMapper;
     private final SpeakingMetrics speakingMetrics;
-    private final GrammarPersistenceService grammarPersistenceService;
     private final AdaptivePolicyService adaptivePolicyService;
     private final AdaptiveEngineService adaptiveEngineService;
-    private final TurnEvaluatorService turnEvaluatorService;
-    private final AiUsageLedgerService aiUsageLedgerService;
-    private final TrainingDatasetService trainingDatasetService;
-    private final XpService xpService;
     private final ConversationEvaluationService conversationEvaluationService;
     private final InterviewOrchestrator interviewOrchestrator;
     private final InterviewStateCodec interviewStateCodec;
@@ -103,6 +91,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
     private final SessionLifecycleService sessionLifecycleService;
     private final LearningProgressService learningProgressService;
     private final ChatPrepService chatPrepService;
+    private final TurnSideEffectsService turnSideEffectsService;
 
     public AiSpeakingServiceImpl(
             TransactionTemplate transactionTemplate,
@@ -115,13 +104,8 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
             AiResponseParser responseParser,
             ObjectMapper objectMapper,
             SpeakingMetrics speakingMetrics,
-            GrammarPersistenceService grammarPersistenceService,
             AdaptivePolicyService adaptivePolicyService,
             AdaptiveEngineService adaptiveEngineService,
-            TurnEvaluatorService turnEvaluatorService,
-            AiUsageLedgerService aiUsageLedgerService,
-            TrainingDatasetService trainingDatasetService,
-            XpService xpService,
             ConversationEvaluationService conversationEvaluationService,
             InterviewOrchestrator interviewOrchestrator,
             InterviewStateCodec interviewStateCodec,
@@ -132,7 +116,8 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
             com.deutschflow.interview.service.InterviewDomainCoordinator interviewDomainCoordinator,
             SessionLifecycleService sessionLifecycleService,
             LearningProgressService learningProgressService,
-            ChatPrepService chatPrepService) {
+            ChatPrepService chatPrepService,
+            TurnSideEffectsService turnSideEffectsService) {
         this.transactionTemplate = transactionTemplate;
         this.sessionRepository = sessionRepository;
         this.messageRepository = messageRepository;
@@ -143,13 +128,8 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         this.responseParser = responseParser;
         this.objectMapper = objectMapper;
         this.speakingMetrics = speakingMetrics;
-        this.grammarPersistenceService = grammarPersistenceService;
         this.adaptivePolicyService = adaptivePolicyService;
         this.adaptiveEngineService = adaptiveEngineService;
-        this.turnEvaluatorService = turnEvaluatorService;
-        this.aiUsageLedgerService = aiUsageLedgerService;
-        this.trainingDatasetService = trainingDatasetService;
-        this.xpService = xpService;
         this.conversationEvaluationService = conversationEvaluationService;
         this.interviewOrchestrator = interviewOrchestrator;
         this.interviewStateCodec = interviewStateCodec;
@@ -161,6 +141,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         this.sessionLifecycleService = sessionLifecycleService;
         this.learningProgressService = learningProgressService;
         this.chatPrepService = chatPrepService;
+        this.turnSideEffectsService = turnSideEffectsService;
     }
 
     @Override
@@ -528,7 +509,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
                 .build();
         assistantMsg = messageRepository.save(assistantMsg);
 
-        applyTurnSideEffects(prep, userMessage, parsed, ai, assistantMsg.getId(), effectiveProfile, profile, session, ledgerPurpose);
+        turnSideEffectsService.applyTurnSideEffects(prep, userMessage, parsed, ai, assistantMsg.getId(), effectiveProfile, profile, session, ledgerPurpose);
 
         AdaptiveMetaDto adaptive = AdaptiveMetaDto.fromPolicyAndResponse(prep.policy(), parsed);
         if (adaptive != null && adaptive.forceRepairBeforeContinue()) {
@@ -762,110 +743,6 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
             throw new NotFoundException("Session not found: " + sessionId);
         }
         return session;
-    }
-
-    private void applyTurnSideEffects(SpeakingChatPrep prep,
-                                      String userMessage,
-                                      AiResponseDto parsed,
-                                      AiChatCompletionResult ai,
-                                      Long assistantMessageId,
-                                      UserLearningProfile effectiveProfile,
-                                      UserLearningProfile profile,
-                                      AiSpeakingSession session,
-                                      String ledgerPurpose) {
-        grammarPersistenceService.persistGrammarFeedback(prep.userId(), prep.sessionId(), assistantMessageId, userMessage, parsed, effectiveProfile);
-        learningProgressService.updateUserLearningProgress(prep.userId(), parsed);
-        recordAssistantTurnMetrics(parsed);
-
-        try {
-            if (ai.usage() != null) {
-                aiUsageLedgerService.record(
-                        prep.userId(),
-                        ai.provider(),
-                        ai.model(),
-                        ai.usage().promptTokens(),
-                        ai.usage().completionTokens(),
-                        ai.usage().totalTokens(),
-                        ledgerPurpose,
-                        RequestContext.requestIdOrNull(),
-                        prep.sessionId()
-                );
-            }
-        } catch (Exception e) {
-            log.warn("Skip token usage ledger due to error: {}", e.getMessage());
-        }
-
-        if (parsed.userInterestDetected() != null && !parsed.userInterestDetected().isBlank() && profile != null) {
-            learningProgressService.mergeInterest(profile, parsed.userInterestDetected());
-        }
-
-        turnEvaluatorService.recordTurn(prep.userId(), prep.sessionId(), assistantMessageId, parsed, prep.policy());
-
-        trainingDatasetService.recordConversationTurn(
-                prep.userId(), prep.sessionId(), prep.cefrLevel(), prep.topic(),
-                userMessage, parsed, prep.systemPrompt(), assistantMessageId, ai.provider()
-        );
-
-        session.setLastActivityAt(LocalDateTime.now());
-        session.setMessageCount(prep.messageCountBaseline() + 2);
-
-        if (prep.sessionMode() == SpeakingSessionMode.INTERVIEW && prep.interviewContext() != null) {
-            InterviewSessionState state = prep.interviewContext().state();
-            InterviewAnswerAnalysis analysis = prep.answerAnalysis() != null ? prep.answerAnalysis()
-                    : new InterviewAnswerAnalysis(false, false, false, false, false, false, false);
-            int prevPhaseNum = state.getPhase();
-            InterviewPhase turnPhase = prep.interviewContext().plan().phase();
-            state.applyAfterTurn(prep.interviewContext().plan(), analysis);
-
-            // Content-aware progression: record whether this turn met its phase goal so the next
-            // turn can advance early. Prefer the LLM's read; fall back to a deterministic heuristic.
-            var interviewMeta = parsed != null ? parsed.interviewMeta() : null;
-            var llmAnalysis = interviewMeta != null ? interviewMeta.analysis() : null;
-            boolean phaseGoalMet = llmAnalysis != null
-                    ? llmAnalysis.phaseGoalMet()
-                    : PhaseProgressionPolicy.deterministicGoalMet(turnPhase, state);
-            state.setLastPhaseGoalMet(phaseGoalMet);
-            session.setInterviewStateJson(interviewStateCodec.encode(state));
-
-            int turnIndex = prep.messageCountBaseline() / 2;
-            String aiFollowUp = parsed != null ? parsed.aiSpeechDe() : null;
-            int latencyMs = (int) Math.max(0L,
-                    Duration.between(prep.turnStartedAt(), Instant.now()).toMillis());
-            interviewDomainCoordinator.onTurnCompleted(
-                    prep.sessionId(), prep.userId(), turnIndex,
-                    prep.interviewContext().plan(), userMessage, aiFollowUp, analysis, latencyMs);
-
-            // Phase transition fires on an actual phase change (was a buggy fromUserTurn recompute, §13.2).
-            if (prevPhaseNum > 0 && prevPhaseNum != turnPhase.number()) {
-                String industry = interviewDomainCoordinator.personaRegistry()
-                        .industryFor(session.getPersona());
-                interviewDomainCoordinator.onPhaseTransition(
-                        prep.sessionId(), PhaseProgressionPolicy.fromNumber(prevPhaseNum).name(), industry, prep.cefrLevel());
-            }
-        }
-
-        SpeakingSessionMode currentMode = SpeakingSessionMode.fromApi(session.getSessionMode());
-        if (currentMode == SpeakingSessionMode.INTERVIEW
-                && prep.interviewContext() != null
-                && prep.interviewContext().plan().directiveType() == InterviewDirectiveType.CLOSING_FAREWELL) {
-            log.info("Interview session {} ended via CLOSING_FAREWELL", prep.sessionId());
-            session.setStatus(SessionStatus.ENDED);
-            session.setEndedAt(LocalDateTime.now());
-        }
-
-        sessionRepository.save(session);
-
-        try { xpService.awardSpeakingTurn(prep.userId(), prep.sessionId(), assistantMessageId); }
-        catch (Exception xpEx) { log.debug("[XP] awardSpeakingTurn skipped: {}", xpEx.getMessage()); }
-    }
-
-    private void recordAssistantTurnMetrics(AiResponseDto parsed) {
-        boolean noMajor = parsed.errors() == null || parsed.errors().stream().noneMatch(e -> {
-            String s = e.severity() == null ? "" : e.severity().toUpperCase(Locale.ROOT);
-            return s.contains("MAJOR") || s.contains("BLOCKING");
-        });
-        speakingMetrics.recordTurnAccuracy(noMajor);
-        speakingMetrics.recordErrorsEmitted(parsed.errors());
     }
 
     private List<ErrorItemDto> toErrorItemDtos(List<ErrorItem> items) {
