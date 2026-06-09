@@ -122,6 +122,21 @@ management:
     tags:
       application: ${spring.application.name}
 
+# Sentry error tracking. Entirely inert when SENTRY_DSN is unset (dev/CI) — no events, no startup
+# change. In prod set SENTRY_DSN; the logback appender then captures ERROR-level logs (incl. the
+# GlobalExceptionHandler 500s with their ERR-x reference) as Sentry events.
+sentry:
+  dsn: ${SENTRY_DSN:}
+  environment: ${SENTRY_ENVIRONMENT:production}
+  release: ${SENTRY_RELEASE:}
+  # Errors only by default — performance tracing has overhead + Sentry quota cost. Raise to sample traces.
+  traces-sample-rate: ${SENTRY_TRACES_SAMPLE_RATE:0.0}
+  # GDPR: don't attach client IP / request body to events by default (German learners' data).
+  send-default-pii: false
+  logging:
+    minimum-event-level: error
+    minimum-breadcrumb-level: info
+
 server:
   port: ${SERVER_PORT:8080}
   # graceful = Tomcat waits for active requests to finish before closing;
