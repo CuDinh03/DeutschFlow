@@ -472,7 +472,13 @@ export default function MockExamPage() {
         />
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto bg-slate-50 p-6">
+        {/* min-h-0 is REQUIRED: without it a flex child defaults to min-height:auto and
+            refuses to shrink below its content height, so the exam content overflows the
+            `fixed inset-0` shell instead of scrolling here. The shell's overflow-hidden only
+            clips visually — focusing a below-the-fold answer (the Richtig/Falsch & Matching
+            inputs are `sr-only`) then makes the browser scroll the shell to reveal the input,
+            pushing all content off-screen and leaving a blank white overlay. */}
+        <div className="flex-1 min-h-0 overflow-y-auto bg-slate-50 p-6">
           <div className="max-w-4xl mx-auto space-y-8 pb-20">
             
             <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm mb-6">
