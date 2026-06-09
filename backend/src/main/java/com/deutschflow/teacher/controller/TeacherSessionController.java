@@ -53,9 +53,10 @@ public class TeacherSessionController {
     @GetMapping("/teacher")
     @PreAuthorize("hasAnyRole('TEACHER','ADMIN')")
     public ResponseEntity<Page<TeacherSessionDto>> teacherSessions(
+            @AuthenticationPrincipal User actor,
             @RequestParam Long profileId,
             @RequestParam(defaultValue = "0") int page) {
-        return ResponseEntity.ok(sessionService.getTeacherSessions(profileId, page));
+        return ResponseEntity.ok(sessionService.getTeacherSessions(actor, profileId, page));
     }
 
     // ── Teacher: confirm / complete / cancel ──────────────────────────────────
@@ -84,8 +85,10 @@ public class TeacherSessionController {
 
     @GetMapping("/earnings")
     @PreAuthorize("hasAnyRole('TEACHER','ADMIN')")
-    public ResponseEntity<Map<String, Object>> earnings(@RequestParam Long profileId) {
-        return ResponseEntity.ok(sessionService.getEarningsSummary(profileId));
+    public ResponseEntity<Map<String, Object>> earnings(
+            @AuthenticationPrincipal User actor,
+            @RequestParam Long profileId) {
+        return ResponseEntity.ok(sessionService.getEarningsSummary(actor, profileId));
     }
 
     // ── Admin: pending payouts ────────────────────────────────────────────────
