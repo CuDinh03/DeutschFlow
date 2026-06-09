@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, memo } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import {
   View,
   ScrollView,
@@ -13,7 +13,6 @@ import {
 } from 'react-native'
 import { Audio } from 'expo-av'
 import * as FileSystem from 'expo-file-system'
-import { MotiView } from 'moti'
 import * as Haptics from 'expo-haptics'
 import { router, useLocalSearchParams } from 'expo-router'
 import { Mic, Send, ChevronRight, Flame, X, Flag, RotateCcw } from 'lucide-react-native'
@@ -28,9 +27,7 @@ import { apiMessage } from '@/lib/api'
 import {
   speakingApi,
   type SpeakingSessionMode,
-  type AiChatResponse,
   type AiSpeakingSession,
-  type AiSpeakingMessage,
   type InterviewReport,
   type ConversationReport,
 } from '@/lib/speakingApi'
@@ -41,45 +38,26 @@ import {
   type ActiveSessionRef,
 } from '@/lib/activeSession'
 import { radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, Pill } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon } from '@/components/ui'
 import { SessionSummary } from '@/components/speaking/SessionSummary'
 import { ConversationSummary } from '@/components/speaking/ConversationSummary'
 import { CompanionSelect, type StartArgs } from '@/components/speaking/CompanionSelect'
-import { PersonaBubbleAvatar } from '@/components/speaking/PersonaBubbleAvatar'
-import { RevealText } from '@/components/speaking/RevealText'
 import { PersonaStage, type StageState, type Reaction } from '@/components/speaking/PersonaStage'
+import { MessageBubble } from '@/components/speaking/MessageBubble'
+import { ScreenHeader } from '@/components/speaking/ScreenHeader'
 import { PERSONA_TOKENS, type PersonaId } from '@/lib/personas'
+import {
+  reactionFor,
+  emptyConversationReport,
+  mapMessagesToTurns,
+  phaseLabel,
+  type ChatTurn,
+  type ScreenView,
+} from '@/lib/speakingChat'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { trackFeatureAction } from '@/lib/analytics'
 
 const PULSE_MAX = 1.2
-
-type ChatRole = 'user' | 'assistant'
-
-interface ChatTurn {
-  role: ChatRole
-  content: string
-  feedback?: AiChatResponse
-}
-
-type ScreenView = 'select' | 'chat' | 'summary'
-
-// Map an AI turn to a transient persona reaction, gated by session mode.
-function reactionFor(res: AiChatResponse, mode: string | null | undefined): Reaction {
-  // Free conversation: no evaluation drama; grammar is surfaced as an end-of-turn note.
-  if (mode === 'COMMUNICATION') return null
-  // Default to 0.6 (→ "approve") when score is absent, to avoid over-praising.
-  const score = res.similarityScore ?? 0.6
-  const offTopic =
-    (res.status ?? '').toUpperCase() === 'OFF_TOPIC' ||
-    (res.action ?? '').toUpperCase().includes('OFF_TOPIC') ||
-    (mode === 'INTERVIEW' && score < 0.35)
-  if (offTopic) return 'offtopic'
-  if (res.correction) return 'wrong'
-  if (score >= 0.8) return 'praise'
-  if (score >= 0.5) return 'approve'
-  return null
-}
 
 export default function SpeakingScreen() {
   const theme = useTheme()
@@ -750,206 +728,4 @@ export default function SpeakingScreen() {
       </KeyboardAvoidingView>
     </Screen>
   )
-}
-
-// ── Sub-components ─────────────────────────────────────────────────────────────
-
-function ScreenHeader({ title, onClose }: { title: string; onClose: () => void }) {
-  const { colors } = useTheme()
-  return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: space[2],
-        paddingHorizontal: space[5],
-        paddingVertical: space[3],
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
-      }}
-    >
-      <Pressable hitSlop={8} onPress={onClose}>
-        <Icon icon={X} size={22} color="muted" />
-      </Pressable>
-      <ThemedText variant="bodyStrong">{title}</ThemedText>
-    </View>
-  )
-}
-
-const MessageBubble = memo(function MessageBubble({
-  turn,
-  personaId,
-  active = false,
-  onUseSuggestion,
-}: {
-  turn: ChatTurn
-  personaId: PersonaId
-  active?: boolean
-  onUseSuggestion?: (text: string) => void
-}) {
-  const { colors } = useTheme()
-  const isUser = turn.role === 'user'
-  const fb = turn.feedback
-  const hasFeedback = !isUser && fb && (fb.correction || (fb.suggestions?.length ?? 0) > 0)
-
-  const inner = (
-    <View style={{ flex: isUser ? undefined : 1, alignItems: isUser ? 'flex-end' : 'flex-start', gap: space[2] }}>
-      <View
-        style={{
-          maxWidth: '92%',
-          backgroundColor: isUser ? colors.accent : colors.surfaceElevated,
-          borderRadius: radius.lg,
-          borderBottomRightRadius: isUser ? radius.sm : radius.lg,
-          borderBottomLeftRadius: isUser ? radius.lg : radius.sm,
-          paddingHorizontal: space[4],
-          paddingVertical: space[3],
-        }}
-      >
-        {isUser ? (
-          <ThemedText variant="body" color="onAccent">
-            {turn.content}
-          </ThemedText>
-        ) : (
-          <RevealText text={turn.content} active={active} variant="body" color="primary" />
-        )}
-      </View>
-
-      {hasFeedback ? (
-        <View style={{ maxWidth: '92%', gap: space[2] }}>
-          {fb?.correction ? (
-            <View
-              style={{
-                backgroundColor: colors.successSoft,
-                borderRadius: radius.md,
-                borderLeftWidth: 3,
-                borderLeftColor: colors.success,
-                paddingHorizontal: space[3],
-                paddingVertical: space[3],
-                gap: space[2],
-              }}
-            >
-              <View
-                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space[2] }}
-              >
-                <ThemedText variant="label" color="success">
-                  ✍️ Nên nói
-                </ThemedText>
-                {fb.grammarPoint ? <Pill label={fb.grammarPoint} tone="success" /> : null}
-              </View>
-              <ThemedText variant="bodyStrong" color="primary">
-                {fb.correction}
-              </ThemedText>
-              {fb.explanationVi ? (
-                <ThemedText variant="caption" color="muted">
-                  {fb.explanationVi}
-                </ThemedText>
-              ) : null}
-            </View>
-          ) : null}
-
-          {fb?.suggestions?.slice(0, 1).map((s, i) => (
-            <Pressable
-              key={i}
-              onPress={() => onUseSuggestion?.(s.germanText)}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: space[2],
-                backgroundColor: colors.infoSoft,
-                borderRadius: radius.sm,
-                paddingHorizontal: space[3],
-                paddingVertical: space[2],
-              }}
-            >
-              <ThemedText variant="caption" color="info" style={{ flex: 1 }}>
-                💡 {s.germanText}
-              </ThemedText>
-              <ThemedText variant="label" color="info">
-                Dùng →
-              </ThemedText>
-            </Pressable>
-          ))}
-        </View>
-      ) : null}
-    </View>
-  )
-
-  return (
-    <MotiView
-      from={{ opacity: 0, translateY: 6 }}
-      animate={{ opacity: 1, translateY: 0 }}
-      transition={{ type: 'timing', duration: 260 }}
-    >
-      {isUser ? (
-        inner
-      ) : (
-        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[2] }}>
-          <PersonaBubbleAvatar personaId={personaId} size={36} paused />
-          {inner}
-        </View>
-      )}
-    </MotiView>
-  )
-})
-
-// Minimal report so the learner always reaches a result screen, even when the
-// backend has no AI evaluation to return (LLM/quota hiccup → empty report).
-function emptyConversationReport(session: AiSpeakingSession): ConversationReport {
-  return {
-    sessionId: session.id,
-    topic: session.topic,
-    levelEstimate: session.cefrLevel,
-    overallScore: null,
-    summary: null,
-    strengths: [],
-    improvements: [],
-    grammarAccuracy: null,
-    commonErrors: [],
-    vocabulary: null,
-    fluency: null,
-    recommendedNext: [],
-    encouragement: null,
-  }
-}
-
-function mapMessagesToTurns(messages: AiSpeakingMessage[]): ChatTurn[] {
-  const turns: ChatTurn[] = []
-  for (const m of messages) {
-    const isUser = (m.role ?? '').toUpperCase() === 'USER'
-    if (isUser) {
-      if (m.userText) turns.push({ role: 'user', content: m.userText })
-    } else if (m.aiSpeechDe) {
-      turns.push({
-        role: 'assistant',
-        content: m.aiSpeechDe,
-        feedback: {
-          aiSpeechDe: m.aiSpeechDe,
-          correction: m.correction,
-          explanationVi: m.explanationVi,
-          grammarPoint: m.grammarPoint,
-          feedback: m.assistantFeedback,
-          action: m.assistantAction,
-          suggestions: [],
-        },
-      })
-    }
-  }
-  return turns
-}
-
-function phaseLabel(phaseKey: string): string {
-  switch (phaseKey) {
-    case 'INTRO':
-      return 'Giới thiệu'
-    case 'ICE_BREAKER':
-      return 'Khởi động'
-    case 'HARD_SKILLS':
-      return 'Chuyên môn'
-    case 'STAR_SOFT':
-      return 'Kỹ năng mềm'
-    case 'CLOSING':
-      return 'Kết thúc'
-    default:
-      return phaseKey
-  }
 }
