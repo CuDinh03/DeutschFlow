@@ -1,5 +1,6 @@
 package com.deutschflow.teacher.controller;
 
+import com.deutschflow.teacher.dto.GradebookDto;
 import com.deutschflow.teacher.service.TeacherReportService;
 import com.deutschflow.user.entity.User;
 import lombok.RequiredArgsConstructor;
@@ -29,5 +30,10 @@ public class TeacherReportController {
     @GetMapping("/classes/{classId}")
     public Map<String, Object> classReport(@AuthenticationPrincipal User teacher, @PathVariable Long classId) {
         return teacherReportService.classReport(teacher.getId(), classId);
+    }
+
+    @GetMapping("/classes/{classId}/gradebook")
+    public GradebookDto gradebook(@AuthenticationPrincipal User teacher, @PathVariable Long classId) {
+        return teacherReportService.gradebook(teacher.getId(), classId);
     }
 }
