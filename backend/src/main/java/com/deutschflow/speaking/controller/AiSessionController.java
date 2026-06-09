@@ -32,6 +32,7 @@ import java.io.InputStream;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
@@ -110,12 +111,16 @@ public class AiSessionController {
     }
 
     @PostMapping("/sessions/{id}/chat")
-    public AiSpeakingChatResponse chat(
+    public Callable<AiSpeakingChatResponse> chat(
             @AuthenticationPrincipal User user,
             @PathVariable Long id,
             @RequestBody @Valid AiSpeakingChatRequest request) {
+        // Rate-limit guard runs synchronously (fast 429 path) BEFORE going async. The blocking LLM call
+        // then runs on aiBlockingExecutor so the Tomcat request thread is freed during model I/O (P1-6 tail).
         requireAiBudget(Bucket.CHAT, user.getId(), "Too many chat turns. Please slow down.");
-        return aiSpeakingService.chat(user.getId(), id, request.userMessage());
+        long userId = user.getId();
+        String userMessage = request.userMessage();
+        return () -> aiSpeakingService.chat(userId, id, userMessage);
     }
 
     @PostMapping("/sessions/{id}/chat/stream")
