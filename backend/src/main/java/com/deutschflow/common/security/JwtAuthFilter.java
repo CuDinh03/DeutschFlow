@@ -55,12 +55,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 filterChain.doFilter(request, response);
                 return;
             }
-            // DEPRECATED fallback: ?access_token=<JWT> puts the bearer token in the URL (leaks to
-            // access/proxy logs, history, Referer). Remove once all SSE clients use tickets (S15b).
-            String queryToken = request.getParameter("access_token");
-            if (queryToken != null && !queryToken.isBlank()) {
-                token = queryToken;
-            }
+            // The legacy ?access_token=<JWT> query fallback was REMOVED here (S15b / P2-6): it leaked the
+            // bearer token into access/proxy logs, browser history, and the Referer header. All SSE clients
+            // now authenticate via the one-time ?ticket= above (EventSource) or fetch with an Authorization
+            // header. No Bearer header + no ticket → unauthenticated; protected routes 401 below.
         }
 
         if (token == null) {
