@@ -206,7 +206,10 @@ public class StripePaymentService {
             }
             log.warn("[STRIPE WEBHOOK] PaymentTransaction not found for session={} — inserting fallback", sessionId);
             try {
-                paymentTransactionRepository.save(PaymentTransaction.builder()
+                // saveAndFlush (not save): force the INSERT now so a concurrent delivery's unique-order_id
+                // violation surfaces HERE (caught below) BEFORE we activate. A plain save() defers the flush
+                // to commit — past activatePlan — making the catch unreachable and allowing a double-activate.
+                paymentTransactionRepository.saveAndFlush(PaymentTransaction.builder()
                         .orderId(sessionId)
                         .userId(userId)
                         .planCode(planCode)

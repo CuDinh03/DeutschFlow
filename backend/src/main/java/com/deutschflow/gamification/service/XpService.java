@@ -289,7 +289,10 @@ public class XpService {
      * dedupes the notification side effect. Released automatically at transaction end.
      */
     private void lockUserXp(Long userId) {
-        jdbcTemplate.query("SELECT pg_advisory_xact_lock(?)", rs -> null, userId);
+        // Two-arg advisory-lock keyspace (class=1) is DISTINCT from the single-arg
+        // pg_advisory_xact_lock(userId) used by SubscriptionActivationService, so XP awards on the hot path
+        // never contend with subscription activations for the same user. userId fits int4 for this id range.
+        jdbcTemplate.query("SELECT pg_advisory_xact_lock(?, ?)", rs -> null, 1, userId.intValue());
     }
 
     private void record(Long userId, int xp, XpEventType type, Long sessionId, Long messageId, String note) {

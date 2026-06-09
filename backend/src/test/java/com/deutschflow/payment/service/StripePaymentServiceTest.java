@@ -137,4 +137,65 @@ class StripePaymentServiceTest {
         verify(paymentTransactionRepository, never()).save(any());
         verify(subscriptionActivationService, never()).activatePlan(anyLong(), anyString(), anyInt());
     }
+
+    @Test
+    @DisplayName("webhook before the checkout row persisted → inserts SUCCESS and activates once")
+    void handleWebhook_rowNotYetPersisted_insertsAndActivates() throws SignatureVerificationException {
+        String sessionId = "cs_test_prepersist";
+
+        Session session = mock(Session.class);
+        when(session.getId()).thenReturn(sessionId);
+        when(session.getMetadata()).thenReturn(Map.of("userId", "9", "planCode", "B1_MONTHLY", "durationMonths", "1"));
+        when(session.getPaymentIntent()).thenReturn("pi_pre");
+
+        EventDataObjectDeserializer deserializer = mock(EventDataObjectDeserializer.class);
+        when(deserializer.getObject()).thenReturn(Optional.<StripeObject>of(session));
+
+        Event event = mock(Event.class);
+        when(event.getType()).thenReturn("checkout.session.completed");
+        when(event.getDataObjectDeserializer()).thenReturn(deserializer);
+
+        // No row claimed the transition AND none exists yet → fallback insert path.
+        when(paymentTransactionRepository.markSuccessIfNotAlready(sessionId, "pi_pre")).thenReturn(0);
+        when(paymentTransactionRepository.findByOrderId(sessionId)).thenReturn(Optional.empty());
+
+        try (MockedStatic<Webhook> webhookMock = mockStatic(Webhook.class)) {
+            webhookMock.when(() -> Webhook.constructEvent(anyString(), anyString(), anyString())).thenReturn(event);
+            service.handleWebhook("payload", "sig-header");
+        }
+
+        verify(paymentTransactionRepository).saveAndFlush(any());
+        verify(subscriptionActivationService).activatePlan(9L, "B1_MONTHLY", 1);
+    }
+
+    @Test
+    @DisplayName("concurrent pre-persist delivery loses the unique-orderId insert → does NOT double-activate")
+    void handleWebhook_concurrentInsertViolation_doesNotActivate() throws SignatureVerificationException {
+        String sessionId = "cs_test_dup";
+
+        Session session = mock(Session.class);
+        when(session.getId()).thenReturn(sessionId);
+        when(session.getMetadata()).thenReturn(Map.of("userId", "9", "planCode", "B1_MONTHLY", "durationMonths", "1"));
+        when(session.getPaymentIntent()).thenReturn("pi_dup");
+
+        EventDataObjectDeserializer deserializer = mock(EventDataObjectDeserializer.class);
+        when(deserializer.getObject()).thenReturn(Optional.<StripeObject>of(session));
+
+        Event event = mock(Event.class);
+        when(event.getType()).thenReturn("checkout.session.completed");
+        when(event.getDataObjectDeserializer()).thenReturn(deserializer);
+
+        when(paymentTransactionRepository.markSuccessIfNotAlready(sessionId, "pi_dup")).thenReturn(0);
+        when(paymentTransactionRepository.findByOrderId(sessionId)).thenReturn(Optional.empty());
+        // The competing delivery already inserted the unique order_id → saveAndFlush violates the constraint.
+        when(paymentTransactionRepository.saveAndFlush(any()))
+                .thenThrow(new org.springframework.dao.DataIntegrityViolationException("duplicate order_id"));
+
+        try (MockedStatic<Webhook> webhookMock = mockStatic(Webhook.class)) {
+            webhookMock.when(() -> Webhook.constructEvent(anyString(), anyString(), anyString())).thenReturn(event);
+            service.handleWebhook("payload", "sig-header");
+        }
+
+        verify(subscriptionActivationService, never()).activatePlan(anyLong(), anyString(), anyInt());
+    }
 }
