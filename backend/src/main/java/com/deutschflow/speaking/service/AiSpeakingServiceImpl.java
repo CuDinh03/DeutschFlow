@@ -106,7 +106,6 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
     private final AiUsageLedgerService aiUsageLedgerService;
     private final TrainingDatasetService trainingDatasetService;
     private final XpService xpService;
-    private final InterviewEvaluationService interviewEvaluationService;
     private final ConversationEvaluationService conversationEvaluationService;
     private final InterviewOrchestrator interviewOrchestrator;
     private final InterviewAnswerAnalyzer interviewAnswerAnalyzer;
@@ -114,10 +113,10 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
     private final InterviewSpeechSanitizer interviewSpeechSanitizer;
     private final com.deutschflow.system.service.SystemConfigService systemConfigService;
     private final com.deutschflow.ai.rag.service.KnowledgeBaseService knowledgeBaseService;
-    private final com.deutschflow.teacher.service.TeacherAiGradingService teacherAiGradingService;
     private final Executor speakingStreamExecutor;
     private final SessionTurnGuard sessionTurnGuard;
     private final com.deutschflow.interview.service.InterviewDomainCoordinator interviewDomainCoordinator;
+    private final SessionLifecycleService sessionLifecycleService;
 
     public AiSpeakingServiceImpl(
             TransactionTemplate transactionTemplate,
@@ -141,7 +140,6 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
             AiUsageLedgerService aiUsageLedgerService,
             TrainingDatasetService trainingDatasetService,
             XpService xpService,
-            InterviewEvaluationService interviewEvaluationService,
             ConversationEvaluationService conversationEvaluationService,
             InterviewOrchestrator interviewOrchestrator,
             InterviewAnswerAnalyzer interviewAnswerAnalyzer,
@@ -149,10 +147,10 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
             InterviewSpeechSanitizer interviewSpeechSanitizer,
             com.deutschflow.system.service.SystemConfigService systemConfigService,
             com.deutschflow.ai.rag.service.KnowledgeBaseService knowledgeBaseService,
-            com.deutschflow.teacher.service.TeacherAiGradingService teacherAiGradingService,
             @Qualifier("speakingStreamExecutor") Executor speakingStreamExecutor,
             SessionTurnGuard sessionTurnGuard,
-            com.deutschflow.interview.service.InterviewDomainCoordinator interviewDomainCoordinator) {
+            com.deutschflow.interview.service.InterviewDomainCoordinator interviewDomainCoordinator,
+            SessionLifecycleService sessionLifecycleService) {
         this.transactionTemplate = transactionTemplate;
         this.sessionRepository = sessionRepository;
         this.messageRepository = messageRepository;
@@ -174,7 +172,6 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         this.aiUsageLedgerService = aiUsageLedgerService;
         this.trainingDatasetService = trainingDatasetService;
         this.xpService = xpService;
-        this.interviewEvaluationService = interviewEvaluationService;
         this.conversationEvaluationService = conversationEvaluationService;
         this.interviewOrchestrator = interviewOrchestrator;
         this.interviewAnswerAnalyzer = interviewAnswerAnalyzer;
@@ -182,10 +179,10 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         this.interviewSpeechSanitizer = interviewSpeechSanitizer;
         this.systemConfigService = systemConfigService;
         this.knowledgeBaseService = knowledgeBaseService;
-        this.teacherAiGradingService = teacherAiGradingService;
         this.speakingStreamExecutor = speakingStreamExecutor;
         this.sessionTurnGuard = sessionTurnGuard;
         this.interviewDomainCoordinator = interviewDomainCoordinator;
+        this.sessionLifecycleService = sessionLifecycleService;
     }
 
     @Override
@@ -969,13 +966,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
 
     @Override
     public AiSpeakingSessionDto endSession(Long userId, Long sessionId) {
-        AiSpeakingSession closedSession = Objects.requireNonNull(transactionTemplate.execute(
-                status -> closeSpeakingSession(userId, sessionId)));
-
-        String report = generateEndOfSessionReport(closedSession, userId, sessionId);
-        AiSpeakingSession finalSession = persistCompletionSideEffects(userId, sessionId, report);
-        triggerTeacherAutoGrading(sessionId);
-
+        AiSpeakingSession finalSession = sessionLifecycleService.closeSession(userId, sessionId);
         return toSessionDto(finalSession);
     }
 
@@ -986,55 +977,6 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
     }
 
     // --- Private helpers ---
-
-    private AiSpeakingSession closeSpeakingSession(Long userId, Long sessionId) {
-        AiSpeakingSession s = loadSessionForUser(userId, sessionId);
-        if (s.getStatus() == SessionStatus.ENDED) {
-            // Session was already ended (e.g. by CLOSING_FAREWELL auto-close).
-            // Return as-is so report generation and XP award still run.
-            return s;
-        }
-        s.setStatus(SessionStatus.ENDED);
-        s.setEndedAt(LocalDateTime.now());
-        return sessionRepository.save(s);
-    }
-
-    private String generateEndOfSessionReport(AiSpeakingSession closedSession, Long userId, Long sessionId) {
-        try {
-            if ("INTERVIEW".equals(closedSession.getSessionMode())) {
-                String report = interviewEvaluationService.generateReport(closedSession, userId);
-                interviewDomainCoordinator.onSessionEnded(closedSession, "COMPLETED", 0.0);
-                return report;
-            }
-            // COMMUNICATION / LESSON: encouraging conversational evaluation summary.
-            return conversationEvaluationService.generateReport(closedSession, userId);
-        } catch (Exception e) {
-            log.warn("Failed to generate end-of-session report for session {}: {}", sessionId, e.getMessage());
-            return null;
-        }
-    }
-
-    private AiSpeakingSession persistCompletionSideEffects(Long userId, Long sessionId, String report) {
-        return Objects.requireNonNull(transactionTemplate.execute(status -> {
-            AiSpeakingSession s = sessionRepository.findById(sessionId)
-                    .orElseThrow(() -> new NotFoundException("Session not found: " + sessionId));
-            if (report != null) {
-                s.setInterviewReportJson(report);
-                s = sessionRepository.save(s);
-            }
-            try { xpService.awardSessionComplete(userId, sessionId); }
-            catch (Exception xpEx) { log.debug("[XP] awardSessionComplete skipped: {}", xpEx.getMessage()); }
-            return s;
-        }));
-    }
-
-    private void triggerTeacherAutoGrading(Long sessionId) {
-        try {
-            teacherAiGradingService.autoGradeSession(sessionId);
-        } catch (Exception e) {
-            log.warn("Failed to auto-grade session {}: {}", sessionId, e.getMessage());
-        }
-    }
 
     private AiSpeakingSession loadSessionForUser(Long userId, Long sessionId) {
         AiSpeakingSession session = sessionRepository.findById(sessionId)

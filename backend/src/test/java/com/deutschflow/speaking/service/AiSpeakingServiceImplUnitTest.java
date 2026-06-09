@@ -15,7 +15,6 @@ import com.deutschflow.speaking.repository.AiSpeakingMessageRepository;
 import com.deutschflow.speaking.repository.AiSpeakingSessionRepository;
 import com.deutschflow.speaking.repository.UserGrammarErrorRepository;
 import com.deutschflow.gamification.service.XpService;
-import com.deutschflow.teacher.service.TeacherAiGradingService;
 import com.deutschflow.training.service.TrainingDatasetService;
 import com.deutschflow.user.repository.UserLearningProfileRepository;
 import com.deutschflow.user.repository.UserLearningProgressRepository;
@@ -53,15 +52,14 @@ class AiSpeakingServiceImplUnitTest {
     @Mock AiUsageLedgerService aiUsageLedgerService;
     @Mock TrainingDatasetService trainingDatasetService;
     @Mock XpService xpService;
-    @Mock InterviewEvaluationService interviewEvaluationService;
     @Mock InterviewOrchestrator interviewOrchestrator;
     @Mock InterviewAnswerAnalyzer interviewAnswerAnalyzer;
     @Mock InterviewStateCodec interviewStateCodec;
     @Mock InterviewSpeechSanitizer interviewSpeechSanitizer;
     @Mock com.deutschflow.system.service.SystemConfigService systemConfigService;
     @Mock KnowledgeBaseService knowledgeBaseService;
-    @Mock TeacherAiGradingService teacherAiGradingService;
     @Mock Executor speakingStreamExecutor;
+    @Mock SessionLifecycleService sessionLifecycleService;
 
     @InjectMocks
     AiSpeakingServiceImpl service;
