@@ -70,4 +70,12 @@ public class SpeakingMetrics {
     public void recordForceRepair() {
         registry.counter("speaking.policy.force_repair").increment();
     }
+
+    /**
+     * A learner's grammar mistake failed to persist — the SRS review signal was LOST for this turn.
+     * {@code kind} = "structured" | "legacy". Alert if this counter is ever non-trivial.
+     */
+    public void recordGrammarPersistFailure(String kind) {
+        registry.counter("speaking.grammar_persist.failures", "kind", kind == null ? "unknown" : kind).increment();
+    }
 }

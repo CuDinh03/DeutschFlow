@@ -58,7 +58,10 @@ spring:
     # "Failed to obtain JDBC Connection" + ~30s timeouts often mean Postgres down/saturated or pool exhausted.
     hikari:
       pool-name: DeutschFlowPool
-      maximum-pool-size: ${DB_POOL_MAX_SIZE:10}
+      # P1-6: default raised 10→20 (pool was the throughput bottleneck under shared JVM + schedulers).
+      # Blue-green deploy briefly runs TWO instances, so effective peak ≈ 2× this against RDS max_connections —
+      # confirm your RDS instance class before raising further (checklist target 30; 20 is the safe default).
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:20}
       minimum-idle: ${DB_POOL_MIN_IDLE:2}
       connection-timeout: ${DB_POOL_CONNECTION_TIMEOUT_MS:5000}
       # Recycle idle connections nhanh hơn để tránh RDS drop stale conn
@@ -126,7 +129,8 @@ server:
   shutdown: graceful
   tomcat:
     threads:
-      max: ${TOMCAT_MAX_THREADS:50}
+      # P1-6: 50→80 for more concurrent request headroom (esp. SSE speaking streams that hold a thread).
+      max: ${TOMCAT_MAX_THREADS:80}
       min-spare: ${TOMCAT_MIN_SPARE_THREADS:10}
     accept-count: ${TOMCAT_ACCEPT_COUNT:30}
     max-connections: ${TOMCAT_MAX_CONNECTIONS:200}

@@ -61,9 +61,10 @@ const nextConfig = {
   ...(isMobileBuild && { output: 'export' }),
   trailingSlash: true,
 
-  // Image optimization disabled for static/mobile export; fine to keep for web too
+  // Image optimization: OFF only for the static Capacitor export (the Next optimizer needs a server,
+  // which `output: 'export'` doesn't have). Amplify web/SSR keeps it ON so <Image> is actually optimized. (P1-5)
   images: {
-    unoptimized: true,
+    ...(isMobileBuild && { unoptimized: true }),
     remotePatterns: [
       {
         protocol: 'https',
