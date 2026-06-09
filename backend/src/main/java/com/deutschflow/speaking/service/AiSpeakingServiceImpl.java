@@ -1145,7 +1145,12 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
             upsertUserErrorSkill(userId, err.errorCode(), sev, now);
             reviewSchedulerService.onMajorObservation(userId, err.errorCode(), sev);
         } catch (Exception e) {
-            log.warn("Failed to save structured grammar error: {}", e.getMessage());
+            // P1-8: a failed write here silently drops the learner's mistake — the SRS review signal
+            // for this turn is lost. Make it observable (metric) and recoverable (full context + stack),
+            // but do NOT rethrow: a live speaking turn must not 500 because a feedback persist failed.
+            speakingMetrics.recordGrammarPersistFailure("structured");
+            log.error("Grammar persist FAILED (SRS signal lost) userId={} sessionId={} messageId={} errorCode={} wrong='{}' corrected='{}'",
+                    userId, sessionId, messageId, err.errorCode(), err.wrongSpan(), err.correctedSpan(), e);
         }
     }
 
@@ -1323,7 +1328,10 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
                     .createdAt(LocalDateTime.now())
                     .build());
         } catch (Exception e) {
-            log.warn("Failed to save grammar error: {}", e.getMessage());
+            // P1-8: see saveStructuredGrammarError — observable + recoverable, never rethrow into a live turn.
+            speakingMetrics.recordGrammarPersistFailure("legacy");
+            log.error("Legacy grammar persist FAILED (SRS signal lost) userId={} sessionId={} messageId={} grammarPoint={}",
+                    userId, sessionId, messageId, grammarPoint, e);
         }
     }
 

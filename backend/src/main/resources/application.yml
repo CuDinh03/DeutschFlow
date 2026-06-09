@@ -58,7 +58,10 @@ spring:
     # "Failed to obtain JDBC Connection" + ~30s timeouts often mean Postgres down/saturated or pool exhausted.
     hikari:
       pool-name: DeutschFlowPool
-      maximum-pool-size: ${DB_POOL_MAX_SIZE:10}
+      # P1-6: default raised 10→20 (pool was the throughput bottleneck under shared JVM + schedulers).
+      # Blue-green deploy briefly runs TWO instances, so effective peak ≈ 2× this against RDS max_connections —
+      # confirm your RDS instance class before raising further (checklist target 30; 20 is the safe default).
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:20}
       minimum-idle: ${DB_POOL_MIN_IDLE:2}
       connection-timeout: ${DB_POOL_CONNECTION_TIMEOUT_MS:5000}
       # Recycle idle connections nhanh hơn để tránh RDS drop stale conn
@@ -126,7 +129,8 @@ server:
   shutdown: graceful
   tomcat:
     threads:
-      max: ${TOMCAT_MAX_THREADS:50}
+      # P1-6: 50→80 for more concurrent request headroom (esp. SSE speaking streams that hold a thread).
+      max: ${TOMCAT_MAX_THREADS:80}
       min-spare: ${TOMCAT_MIN_SPARE_THREADS:10}
     accept-count: ${TOMCAT_ACCEPT_COUNT:30}
     max-connections: ${TOMCAT_MAX_CONNECTIONS:200}
@@ -148,6 +152,11 @@ app:
     core-pool-size: ${ASYNC_CORE_POOL_SIZE:10}
     max-pool-size: ${ASYNC_MAX_POOL_SIZE:50}
     queue-capacity: ${ASYNC_QUEUE_CAPACITY:100}
+  cache:
+    # Redis L2 cache tier (Caffeine L1 + Redis L2). OFF by default → Caffeine-only. We gate on this
+    # explicit flag rather than on spring.data.redis.host (which defaults to localhost, so it's always
+    # "set"). Enable in prod where a real Redis is deployed: APP_CACHE_REDIS_L2_ENABLED=true.
+    redis-l2-enabled: ${APP_CACHE_REDIS_L2_ENABLED:false}
   flyway:
     # Aligns flyway_schema_history checksums when a versioned migration file changed after apply.
     # Production: set APP_FLYWAY_REPAIR_BEFORE_MIGRATE=false (Spring Boot 3.2 has no spring.flyway.repair-on-migrate).

@@ -2,7 +2,6 @@ package com.deutschflow.common;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 import org.springframework.cache.CacheManager;
-import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cache.caffeine.CaffeineCache;
 import org.springframework.cache.support.SimpleCacheManager;
 import org.springframework.context.annotation.Bean;
@@ -36,19 +35,16 @@ import java.util.concurrent.TimeUnit;
  *               ttsAudio    (500 × ~60KB audio) ≈ 30MB
  *
  * Two-layer cache design:
- *  L1 (this class) — Caffeine in-process caches; always active; primary bean.
- *  L2 (RedisConfig) — RedisCacheManager activated only when {@code spring.redis.host}
- *                     is set; named "redisCacheManager". Callers that want cross-node
- *                     sharing can @Qualifier("redisCacheManager") directly, or the
- *                     property can be set in production to enable L2 for all caches.
+ *  L1 (this class) — Caffeine in-process caches; always active. Exposed as the named
+ *                    "caffeineCacheManager" bean; the @Primary manager is assembled in
+ *                    {@link com.deutschflow.common.cache.PrimaryCacheConfig} (L1, or L1+L2 when Redis is set).
+ *  L2 (RedisConfig) — RedisCacheManager activated only when {@code spring.data.redis.host} is set.
  */
 @Configuration
-@EnableCaching
 public class CacheConfig {
 
     @Bean
-    @org.springframework.context.annotation.Primary
-    public CacheManager cacheManager() {
+    public CacheManager caffeineCacheManager() {
         // ── Shared content caches ──────────────────────────────────────
         var tags = buildCache("tags",
                 Caffeine.newBuilder()
