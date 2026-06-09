@@ -2,7 +2,6 @@ package com.deutschflow.common.config;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
@@ -18,7 +17,7 @@ import java.time.Duration;
  * Optional Redis L2 cache configuration.
  *
  * Only activates when both:
- *  1. {@code spring.redis.host} is set in application properties, AND
+ *  1. {@code spring.data.redis.host} is set in application properties, AND
  *  2. the spring-data-redis {@code RedisConnectionFactory} class is on the classpath.
  *
  * When Redis is unavailable or not configured, the application falls back to the
@@ -29,8 +28,7 @@ import java.time.Duration;
  *  L2 (Redis)    — shared, cross-node cache that survives pod restarts (secondary bean)
  */
 @Configuration
-@EnableCaching
-@ConditionalOnProperty(name = "spring.redis.host")
+@ConditionalOnProperty(name = "spring.data.redis.host")
 @ConditionalOnClass(name = "org.springframework.data.redis.connection.RedisConnectionFactory")
 public class RedisConfig {
 
