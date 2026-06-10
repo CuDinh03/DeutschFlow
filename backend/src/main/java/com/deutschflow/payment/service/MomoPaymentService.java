@@ -184,7 +184,13 @@ public class MomoPaymentService {
 
         if (resultCode == 0) {
             long ipnAmount = parseMomoAmount(ipnPayload.get("amount"));
-            if (ipnAmount >= 0 && ipnAmount != tx.getAmount()) {
+            // SEC-9: an unparseable/missing amount (-1) must NOT bypass verification.
+            // Fail closed — never fulfill a payment whose amount we cannot confirm.
+            if (ipnAmount < 0) {
+                log.error("[MOMO IPN] Unverifiable amount orderId={} raw={}", orderId, ipnPayload.get("amount"));
+                throw new SecurityException("Không xác minh được số tiền IPN");
+            }
+            if (ipnAmount != tx.getAmount()) {
                 log.error("[MOMO IPN] Amount mismatch orderId={} db={} ipn={}", orderId, tx.getAmount(), ipnAmount);
                 throw new SecurityException("Số tiền IPN không khớp đơn hàng");
             }
@@ -251,7 +257,12 @@ public class MomoPaymentService {
                     .orElseThrow(() -> new BadRequestException("Không tìm thấy giao dịch cho đơn hàng này."));
 
             if (finalResultCode == 0) {
-                if (momoAmount >= 0 && momoAmount != tx.getAmount()) {
+                // SEC-9: fail closed on an unverifiable amount (-1) — don't fulfill blind.
+                if (momoAmount < 0) {
+                    log.error("[MOMO QUERY] Unverifiable amount orderId={} raw={}", orderId, finalQueryBody.get("amount"));
+                    throw new BadRequestException("Không xác minh được số tiền giao dịch");
+                }
+                if (momoAmount != tx.getAmount()) {
                     log.error("[MOMO QUERY] Amount mismatch orderId={} db={} momo={}", orderId, tx.getAmount(), momoAmount);
                     throw new BadRequestException("Số tiền giao dịch không khớp với đơn hàng");
                 }

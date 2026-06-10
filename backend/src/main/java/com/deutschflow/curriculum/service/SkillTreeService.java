@@ -26,6 +26,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 
 /**
  * Core service for the Skill Tree system.
@@ -46,6 +47,14 @@ public class SkillTreeService {
     private final PracticeNodeService practiceNodeService;
     private final com.deutschflow.srs.service.SrsVocabScheduler srsVocabScheduler;
     private final com.deutschflow.progress.service.PhaseEngineService phaseEngineService;
+    /**
+     * Bounded pool for blocking LLM content generation. Field name matches the
+     * {@code aiExecutor} bean (AsyncConfig) so Spring resolves it by name among the
+     * 3 Executor beans. Replaces {@code CompletableFuture.runAsync(...)} which used
+     * {@code ForkJoinPool.commonPool()} — a 3–10s Groq call there starves all other
+     * parallel stream/CompletableFuture work app-wide.
+     */
+    private final Executor aiExecutor;
 
     // In-memory lock to prevent duplicate LLM calls for the same cache key
     private final ConcurrentHashMap<String, Boolean> generationLocks = new ConcurrentHashMap<>();
@@ -300,7 +309,7 @@ public class SkillTreeService {
         // ── PHA 2: Cache MISS → LLM generation trên thread riêng (KHÔNG giữ DB connection) ──
         AsyncJob job = asyncJobService.createJob("GENERATE_SATELLITE");
         CompletableFuture.runAsync(() ->
-                generateContentAsync(userId, nodeId, prep.node(), job.getId())
+                generateContentAsync(userId, nodeId, prep.node(), job.getId()), aiExecutor
         );
         return Map.of("jobId", job.getId().toString(), "status", "ACCEPTED");
     }
@@ -497,7 +506,7 @@ public class SkillTreeService {
                 long leafId = ((Number) leaf.get("id")).longValue();
                 AsyncJob job = asyncJobService.createJob("PREFETCH_SATELLITE");
                 CompletableFuture.runAsync(() ->
-                        generateContentAsync(userId, leafId, leaf, job.getId())
+                        generateContentAsync(userId, leafId, leaf, job.getId()), aiExecutor
                 );
                 log.info("[SkillTree] Pre-fetch triggered for user={}, nextLeaf={}", userId, leafId);
             }
