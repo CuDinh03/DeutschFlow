@@ -75,6 +75,14 @@ interface AuthMe {
   email?: string | null;
 }
 
+interface ClassTeacherInfo {
+  teacherId: number;
+  name: string;
+  email: string;
+  role: string; // PRIMARY | ASSISTANT
+  joinedAt: string | null;
+}
+
 export default function ClassDetailPage() {
   const router = useRouter();
   const { id } = useParams();
@@ -152,6 +160,15 @@ export default function ClassDetailPage() {
   const [addEmailValue, setAddEmailValue] = useState("");
   const [isAddingStudent, setIsAddingStudent] = useState(false);
   const [addStudentError, setAddStudentError] = useState("");
+
+  // Co-teacher state
+  const [classTeachers, setClassTeachers] = useState<ClassTeacherInfo[]>([]);
+  const [addTeacherEmail, setAddTeacherEmail] = useState("");
+  const [isAddingTeacher, setIsAddingTeacher] = useState(false);
+  const [addTeacherError, setAddTeacherError] = useState("");
+  // userId chưa xác định → vẫn hiện form (backend tự chặn nếu không phải giáo viên chính)
+  const isPrimaryTeacher = user?.userId == null
+    || classTeachers.some(t => t.teacherId === user.userId && t.role === "PRIMARY");
   const [analyticsOverview, setAnalyticsOverview] = useState<ClassAnalyticsOverview | null>(null);
   const classIdRef = useRef<string | null>(null);
 
@@ -191,16 +208,18 @@ export default function ClassDetailPage() {
     setSubmissionsLoading({});
     setGradingItem(null);
     try {
-      const [studentsRes, joinRequestsRes, analyticsRes, assignmentsRes, leaderboardRes, classReportRes] = await Promise.all([
+      const [studentsRes, joinRequestsRes, analyticsRes, assignmentsRes, leaderboardRes, classReportRes, teachersRes] = await Promise.all([
         api.get<ClassStudent[]>(`/v2/teacher/classes/${id}/students`),
         api.get<any[]>(`/v2/teacher/classes/${id}/join-requests`).catch(() => ({ data: [] })),
         api.get<ClassAnalyticsOverview>(`/v2/teacher/classes/${id}/analytics`).catch(() => ({ data: { topErrors: [], studentCount: 0, totalXp: 0, completedAssignments: 0 } })),
         api.get<ClassAssignment[]>(`/v2/teacher/classes/${id}/assignments`).catch(() => ({ data: [] })),
         api.get<LeaderboardDto[]>(`/v2/teacher/classes/${id}/leaderboard?type=${leaderboardType}`).catch(() => ({ data: [] })),
         api.get(`/v2/teacher/reports/classes/${id}`).catch(() => ({ data: null })),
+        api.get<ClassTeacherInfo[]>(`/v2/teacher/classes/${id}/teachers`).catch(() => ({ data: [] })),
       ]);
       if (classIdRef.current !== currentClassId) return;
       setStudents(studentsRes.data || []);
+      setClassTeachers(teachersRes.data || []);
       setJoinRequests(joinRequestsRes.data || []);
       const analyticsData = analyticsRes.data as ClassAnalyticsOverview;
       setAnalytics(analyticsData?.topErrors || []);
@@ -360,6 +379,33 @@ export default function ClassDetailPage() {
       console.error(e);
       setClassName(oldName); // Revert on failure
       toast.error("Không thể đổi tên lớp. Vui lòng thử lại.");
+    }
+  };
+
+  const handleAddCoTeacher = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addTeacherEmail.trim()) return;
+    setIsAddingTeacher(true);
+    setAddTeacherError("");
+    try {
+      await api.post(`/v2/teacher/classes/${id}/teachers`, { email: addTeacherEmail.trim() });
+      setAddTeacherEmail("");
+      toast.success("Đã thêm trợ giảng vào lớp");
+      fetchData();
+    } catch (err: any) {
+      setAddTeacherError(err.response?.data?.message || err.response?.data?.error || "Không thể thêm giáo viên này.");
+    } finally {
+      setIsAddingTeacher(false);
+    }
+  };
+
+  const handleRemoveCoTeacher = async (teacherId: number, teacherName: string) => {
+    if (!confirm(`Bạn chắc chắn muốn xóa trợ giảng "${teacherName}" khỏi lớp?`)) return;
+    try {
+      await api.delete(`/v2/teacher/classes/${id}/teachers/${teacherId}`);
+      fetchData();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Lỗi khi xóa trợ giảng");
     }
   };
 
@@ -652,6 +698,7 @@ export default function ClassDetailPage() {
 
         {/* Tab: Students */}
         {activeTab === "students" && (
+          <>
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left">
@@ -782,6 +829,77 @@ export default function ClassDetailPage() {
               )}
             </div>
           </div>
+
+          {/* Co-teaching: giáo viên của lớp */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mt-6">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2">
+              <Users size={17} className="text-indigo-600" />
+              <h3 className="font-bold text-slate-800 text-sm">Giáo viên của lớp</h3>
+              <span className="text-slate-400 text-xs">{classTeachers.length} người</span>
+            </div>
+            <ul className="divide-y divide-slate-100">
+              {classTeachers.map(t => (
+                <li key={t.teacherId} className="px-6 py-3.5 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0 ${
+                      t.role === "PRIMARY" ? "bg-gradient-to-br from-amber-400 to-orange-500" : "bg-gradient-to-br from-slate-400 to-slate-500"
+                    }`}>
+                      {(t.name || "?").charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-bold text-slate-800 text-sm truncate">{t.name}</p>
+                      <p className="text-xs text-slate-400 truncate">{t.email}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${
+                      t.role === "PRIMARY"
+                        ? "bg-amber-50 text-amber-700 border border-amber-200"
+                        : "bg-slate-50 text-slate-600 border border-slate-200"
+                    }`}>
+                      {t.role === "PRIMARY" ? "Giáo viên chính" : "Trợ giảng"}
+                    </span>
+                    {t.role !== "PRIMARY" && isPrimaryTeacher && (
+                      <button
+                        onClick={() => handleRemoveCoTeacher(t.teacherId, t.name)}
+                        className="p-2 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+                        title="Xóa trợ giảng khỏi lớp"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+            {isPrimaryTeacher && (
+              <div className="border-t border-slate-100 px-6 py-4 bg-slate-50">
+                <form onSubmit={handleAddCoTeacher} className="flex items-center gap-3">
+                  <div className="relative flex-1">
+                    <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="email"
+                      value={addTeacherEmail}
+                      onChange={e => setAddTeacherEmail(e.target.value)}
+                      placeholder="Thêm trợ giảng bằng email (tài khoản phải có vai trò giáo viên)..."
+                      className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm bg-white"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={isAddingTeacher || !addTeacherEmail.trim()}
+                    className="px-4 py-2.5 bg-slate-700 text-white font-bold rounded-xl text-sm hover:bg-slate-800 transition-colors disabled:opacity-50 flex items-center gap-1.5 whitespace-nowrap"
+                  >
+                    <Plus size={15} /> Thêm trợ giảng
+                  </button>
+                </form>
+                {addTeacherError && (
+                  <p className="text-rose-600 text-xs font-medium mt-2 ml-1">{addTeacherError}</p>
+                )}
+              </div>
+            )}
+          </div>
+          </>
         )}
 
         {/* Tab: Join Requests */}
