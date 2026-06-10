@@ -14,6 +14,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { toast } from "sonner";
 import { Users, BarChart2, BookOpen, AlertCircle, TrendingUp, Plus, Trophy, Trash2, FileBarChart, Mail, Pencil, Check, X, ChevronDown, ChevronUp, Clock, CheckCircle2, FileText, ExternalLink, Loader2 } from "lucide-react";
 import { getErrorSnippet } from "@/lib/errors/errorTaxonomy";
+import { useTracking } from "@/hooks/useTracking";
+import { B2B_EVENT } from "@/lib/analytics/b2bEvents";
 
 interface ClassStudent {
   studentId: number;
@@ -87,6 +89,7 @@ interface ClassTeacherInfo {
 export default function ClassDetailPage() {
   const router = useRouter();
   const { id } = useParams();
+  const { trackEvent } = useTracking();
 
   const [user, setUser] = useState<AuthMe | null>(null);
   const [pageReady, setPageReady] = useState(false);
@@ -299,6 +302,12 @@ export default function ClassDetailPage() {
         skill: newSkill,
         dueDate: newDueDate ? new Date(newDueDate).toISOString() : null,
         attachmentUrl
+      });
+      trackEvent(B2B_EVENT.ASSIGNMENT_CREATED, {
+        class_id: Number(id),
+        assignment_type: newAssignmentType,
+        skill: newSkill,
+        has_attachment: Boolean(attachmentUrl),
       });
       setNewTopic("");
       setNewDesc("");

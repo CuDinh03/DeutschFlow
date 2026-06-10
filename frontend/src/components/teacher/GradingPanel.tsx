@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { X, Sparkles, Save, Loader2, FileText, ExternalLink, CheckCircle2, AlertCircle } from 'lucide-react'
 import { format } from 'date-fns'
 import api from '@/lib/api'
+import { useTracking } from '@/hooks/useTracking'
+import { B2B_EVENT } from '@/lib/analytics/b2bEvents'
 import type { GradingQueueItem } from './GradingQueueCard'
 
 interface GradingPanelProps {
@@ -20,6 +22,7 @@ export function GradingPanel({ item, onClose, onSaved }: GradingPanelProps) {
   const [aiSuggested, setAiSuggested] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const { trackEvent } = useTracking()
 
   // Reset state when item changes
   useEffect(() => {
@@ -50,6 +53,12 @@ export function GradingPanel({ item, onClose, onSaved }: GradingPanelProps) {
             setScore(updated.score)
             setFeedback(updated.feedback ?? '')
             setAiSuggested(true)
+            trackEvent(B2B_EVENT.ASSIGNMENT_AI_GRADED, {
+              assignment_id: item.id,
+              class_id: item.classId,
+              assignment_type: item.assignmentType,
+              ai_score: updated.score,
+            })
           } else {
             // Try fetching student assignments directly
             setError('AI đang xử lý, vui lòng đóng và mở lại sau vài giây')
@@ -80,6 +89,13 @@ export function GradingPanel({ item, onClose, onSaved }: GradingPanelProps) {
         teacherFeedback: feedback,
       })
       setSuccess('Đã lưu điểm thành công!')
+      trackEvent(B2B_EVENT.ASSIGNMENT_TEACHER_FINALIZED, {
+        assignment_id: item.id,
+        class_id: item.classId,
+        assignment_type: item.assignmentType,
+        score: Number(score),
+        ai_assisted: aiSuggested,
+      })
       onSaved({ ...item, score: Number(score), feedback, status: 'EVALUATED' })
       setTimeout(() => {
         onClose()

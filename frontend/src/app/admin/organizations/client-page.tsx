@@ -18,6 +18,8 @@ import { motion, AnimatePresence } from "framer-motion"
 import AdminShell from "@/components/admin/AdminShell"
 import useAdminData from "@/hooks/useAdminData"
 import { apiMessage } from "@/lib/api"
+import { useTracking } from "@/hooks/useTracking"
+import { B2B_EVENT } from "@/lib/analytics/b2bEvents"
 import {
   listOrganizations,
   createOrganization,
@@ -649,6 +651,7 @@ function CreateOrgModal({ onClose, onCreated }: { onClose: () => void; onCreated
   const [ownerEmail, setOwnerEmail] = useState("")
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState("")
+  const { trackEvent } = useTracking()
 
   const submit = async () => {
     if (!name.trim()) {
@@ -664,6 +667,11 @@ function CreateOrgModal({ onClose, onCreated }: { onClose: () => void; onCreated
         planCode: planCode.trim() || undefined,
         seatLimit: seatLimit.trim() ? Number(seatLimit.trim()) : undefined,
         ownerEmail: ownerEmail.trim() || undefined,
+      })
+      trackEvent(B2B_EVENT.ORG_CREATED, {
+        plan_code: planCode.trim() || null,
+        seat_limit: seatLimit.trim() ? Number(seatLimit.trim()) : null,
+        has_owner: Boolean(ownerEmail.trim()),
       })
       onCreated()
     } catch (e: unknown) {
