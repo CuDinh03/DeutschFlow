@@ -14,8 +14,7 @@ import { getErrorSnippet } from '@/lib/errors/errorTaxonomy'
 import api from '@/lib/api'
 import ErrorRepairDrill from '@/components/errors/ErrorRepairDrill'
 import { PremiumGate } from '@/components/ui/PremiumGate'
-import { useTranslations } from 'next-intl'
-import Link from 'next/link'
+import { useTranslations, useLocale } from 'next-intl'
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -32,22 +31,23 @@ interface ErrorSkillDto {
 
 // ─── Color helpers ──────────────────────────────────────────────────────────
 
+// Keyed by the code prefix (segment before the dot), e.g. "WORD_ORDER.V2_MAIN_CLAUSE".
+// Labels stay in German grammar terms — the friendly per-error name is rendered separately.
 const CAT_COLORS: Record<string, { bg: string; text: string; label: string }> = {
-  ARTIKEL:   { bg: '#EBF5FB', text: '#2D9CDB', label: 'Artikel'   },
-  KASUS:     { bg: '#FDEAEA', text: '#EB5757', label: 'Kasus'     },
-  VERB:      { bg: '#F4EDFF', text: '#9B51E0', label: 'Verb'      },
-  PRAEP:     { bg: '#FFF3E0', text: '#F57C00', label: 'Präp.'     },
-  ADJEKTIV:  { bg: '#E8F5E9', text: '#388E3C', label: 'Adjektiv'  },
+  WORD_ORDER: { bg: '#EEF2FF', text: '#4F46E5', label: 'Wortstellung' },
+  CASE:       { bg: '#FDEAEA', text: '#EB5757', label: 'Kasus'        },
+  ARTICLE:    { bg: '#EBF5FB', text: '#2D9CDB', label: 'Artikel'      },
+  VERB:       { bg: '#F4EDFF', text: '#9B51E0', label: 'Verb'         },
+  AGREEMENT:  { bg: '#FFF3E0', text: '#F57C00', label: 'Kongruenz'    },
+  DECLENSION: { bg: '#E8F5E9', text: '#388E3C', label: 'Adjektiv'     },
+  LEXICAL:    { bg: '#FCE7F3', text: '#DB2777', label: 'Wortschatz'   },
 }
 
+const OTHER_STYLE = { bg: '#F1F5F9', text: '#475569', label: 'other' } // label translated at render
+
 function catStyle(code: string) {
-  const upper = code.toUpperCase()
-  if (upper.startsWith('CASE'))  return CAT_COLORS.KASUS
-  if (upper.startsWith('VERB'))  return CAT_COLORS.VERB
-  if (upper.startsWith('ART'))   return CAT_COLORS.ARTIKEL
-  if (upper.startsWith('PRAEP') || upper.startsWith('PREP')) return CAT_COLORS.PRAEP
-  if (upper.startsWith('ADJ'))   return CAT_COLORS.ADJEKTIV
-  return { bg: '#F1F5F9', text: '#475569', label: 'other' } // label will be translated later
+  const prefix = code.split('.')[0]?.toUpperCase() ?? ''
+  return CAT_COLORS[prefix] ?? OTHER_STYLE
 }
 
 // ─── Main component ─────────────────────────────────────────────────────────
@@ -55,6 +55,7 @@ function catStyle(code: string) {
 export default function ErrorLibraryPage() {
   const { me, loading: sessionLoading, targetLevel, streakDays, initials } = useStudentPracticeSession()
   const tErrors = useTranslations('errors')
+  const locale = useLocale()
 
   const [errors, setErrors] = useState<ErrorSkillDto[]>([])
   const [resolvedErrors, setResolvedErrors] = useState<ErrorSkillDto[]>([])
@@ -134,13 +135,18 @@ export default function ErrorLibraryPage() {
   }
 
   // ── Filter ──────────────────────────────────────────────────────────────
-  const filtered = errors.filter(e =>
-    !search || e.errorCode.toLowerCase().includes(search.toLowerCase())
-  )
+  // Match the friendly title or the underlying code so search still works once codes are hidden.
+  const matchesSearch = (code: string) => {
+    if (!search) return true
+    const q = search.toLowerCase()
+    return (
+      code.toLowerCase().includes(q) ||
+      getErrorSnippet(code, locale).title.toLowerCase().includes(q)
+    )
+  }
 
-  const filteredResolved = resolvedErrors.filter(e =>
-    !search || e.errorCode.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = errors.filter(e => matchesSearch(e.errorCode))
+  const filteredResolved = resolvedErrors.filter(e => matchesSearch(e.errorCode))
 
   const pendingTasks = tasks.filter(t => !completedTasks.has(t.id))
 
@@ -181,9 +187,9 @@ export default function ErrorLibraryPage() {
                 {pendingTasks.map(task => (
                   <div key={task.id} className="bg-white rounded-2xl p-4 border border-[#FDE68A] flex items-center justify-between gap-3">
                     <div>
-                      <p className="font-bold text-sm text-[#0F172A]" title={task.errorCode}>{getErrorSnippet(task.errorCode, 'vi').title}</p>
+                      <p className="font-bold text-sm text-[#0F172A]" title={task.errorCode}>{getErrorSnippet(task.errorCode, locale).title}</p>
                       <p className="text-xs text-[#64748B] flex items-center gap-1 mt-0.5">
-                        <Clock size={11} /> Interval: {task.intervalDays} {tErrors('days')}
+                        <Clock size={11} /> {tErrors('reviewAfter')} {task.intervalDays} {tErrors('days')}
                       </p>
                     </div>
                     <button
@@ -269,6 +275,7 @@ export default function ErrorLibraryPage() {
               <div className="space-y-4">
                 {filtered.map((err, idx) => {
                   const style = catStyle(err.errorCode)
+                  const snippet = getErrorSnippet(err.errorCode, locale)
                   const repaired = repairedCodes.has(err.errorCode)
 
                   return (
@@ -299,11 +306,14 @@ export default function ErrorLibraryPage() {
                         </span>
                       </div>
 
-                      {/* Error code */}
+                      {/* Error name + short rule */}
                       <div className="mb-3">
-                        <p className="font-bold text-[#0F172A] text-sm" title={err.errorCode}>{getErrorSnippet(err.errorCode, 'vi').title}</p>
+                        <p className="font-bold text-[#0F172A] text-base" title={err.errorCode}>{snippet.title}</p>
+                        {snippet.rule && (
+                          <p className="text-xs text-[#64748B] mt-1 leading-snug">{snippet.rule}</p>
+                        )}
                         {err.lastSeenAt && (
-                          <p className="text-xs text-[#94A3B8] mt-0.5 flex items-center gap-1">
+                          <p className="text-xs text-[#94A3B8] mt-1.5 flex items-center gap-1">
                             <Clock size={11} /> {tErrors('lastSeen')} {new Date(err.lastSeenAt).toLocaleDateString('vi-VN')}
                           </p>
                         )}
@@ -372,6 +382,7 @@ export default function ErrorLibraryPage() {
                 >
                   {filteredResolved.map((err, idx) => {
                     const style = catStyle(err.errorCode)
+                    const snippet = getErrorSnippet(err.errorCode, locale)
                     return (
                       <motion.div
                         key={err.errorCode}
@@ -386,7 +397,7 @@ export default function ErrorLibraryPage() {
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase" style={{ background: style.bg, color: style.text }}>
                               {style.label === 'other' ? tErrors('other') : style.label}
                             </span>
-                            <span className="font-bold text-[#0F172A] text-xs" title={err.errorCode}>{getErrorSnippet(err.errorCode, 'vi').title}</span>
+                            <span className="font-bold text-[#0F172A] text-xs" title={err.errorCode}>{snippet.title}</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="text-[9px] font-bold bg-slate-100 text-slate-400 px-2 py-0.5 rounded-full">

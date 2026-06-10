@@ -21,6 +21,7 @@ import { progressApi, type SkillData, type WeeklyPoint } from '@/lib/progressApi
 import { speakingApi, type AiSpeakingSession } from '@/lib/speakingApi'
 import { gamificationApi, type Achievement, type Rarity, type LeaderboardEntry } from '@/lib/gamificationApi'
 import { learningApi, type ErrorSkill } from '@/lib/learningApi'
+import { getErrorTitle } from '@/lib/errorTaxonomy'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, Pill, AppHeader, ProgressBar, ErrorState, FadeIn, Skeleton } from '@/components/ui'
 
@@ -531,7 +532,7 @@ function ErrorSkillsCard({ errors }: { errors: ErrorSkill[] }) {
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space[2] }}>
             <ThemedText variant="label" color="secondary" style={{ flex: 1 }} numberOfLines={1}>
-              {e.ruleViShort ?? e.errorCode}
+              {e.ruleViShort ?? getErrorTitle(e.errorCode)}
             </ThemedText>
             <Pill label={`${e.count} lần`} tone="neutral" />
           </View>

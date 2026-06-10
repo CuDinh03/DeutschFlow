@@ -24,11 +24,11 @@ const SNIPPETS: Record<string, { vi: LocaleSnippet; en: LocaleSnippet }> = {
     en: { title: 'Adverbial order', rule: 'Often: time → manner → place.' },
   },
   'WORD_ORDER.MODAL_INF_END': {
-    vi: { title: 'Modal + infinitive at end', rule: 'können/müssen… + infinitive at clause end.' },
+    vi: { title: 'Modal + động từ nguyên mẫu cuối câu', rule: 'können/müssen… + động từ nguyên mẫu ở cuối câu.' },
     en: { title: 'Modal + infinitive at end', rule: 'Modal verb finite; main verb infinitive at end.' },
   },
   'WORD_ORDER.SEparable_PREFIX_POSITION': {
-    vi: { title: 'Động từ tách (prefix cuối)', rule: 'Separated prefix (auf, an…) at end of main clause.' },
+    vi: { title: 'Động từ tách (tiền tố ở cuối)', rule: 'Tiền tố tách (auf, an…) đứng cuối mệnh đề chính.' },
     en: { title: 'Separable verb', rule: 'Prefix goes to the end of the main clause.' },
   },
   'CASE.PREP_DAT_MIT': {
