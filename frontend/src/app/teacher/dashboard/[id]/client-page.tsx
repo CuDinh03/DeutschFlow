@@ -13,6 +13,7 @@ import { ImageUploader } from "@/components/ui/ImageUploader";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Users, BarChart2, BookOpen, AlertCircle, TrendingUp, Plus, Trophy, Trash2, FileBarChart, Mail, Pencil, Check, X, ChevronDown, ChevronUp, Clock, CheckCircle2, FileText, ExternalLink, Loader2 } from "lucide-react";
+import { getErrorSnippet } from "@/lib/errors/errorTaxonomy";
 
 interface ClassStudent {
   studentId: number;
@@ -1001,8 +1002,8 @@ export default function ClassDetailPage() {
                   <tbody className="divide-y divide-slate-100">
                     {Array.isArray(analytics) && analytics.map((item, idx) => (
                       <tr key={item.errorCode} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-6 py-4 font-medium text-slate-800">
-                          {item.errorCode}
+                        <td className="px-6 py-4 font-medium text-slate-800" title={item.errorCode}>
+                          {getErrorSnippet(item.errorCode, 'vi').title}
                         </td>
                         <td className="px-6 py-4 text-right font-mono font-bold text-rose-600">
                           {item.count} lỗi
