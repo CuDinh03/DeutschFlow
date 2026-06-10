@@ -41,9 +41,9 @@ class DailyNotificationJobTest {
 
     /** Reflectively invoke the package-private logic we need to exercise. */
     private void invokeSendReviewDueIfNeeded(User student) throws Exception {
-        Method m = DailyNotificationJob.class.getDeclaredMethod("sendReviewDueIfNeeded", User.class);
+        Method m = DailyNotificationJob.class.getDeclaredMethod("sendReviewDueIfNeeded", long.class);
         m.setAccessible(true);
-        m.invoke(job, student);
+        m.invoke(job, student.getId());
     }
 
     @Test

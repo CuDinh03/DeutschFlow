@@ -2,21 +2,23 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2, Building2, Users, GraduationCap, Armchair } from 'lucide-react'
+import { Loader2, Building2, Users, GraduationCap, Armchair, Sparkles, Activity, BarChart3 } from 'lucide-react'
 import { OrgShell } from '@/components/layouts/OrgShell'
 import { logout } from '@/lib/authSession'
 import { httpStatus } from '@/lib/api'
 import { toastApiError } from '@/lib/toastApiError'
 import { useUserStore } from '@/stores/useUserStore'
-import { getOrgSummary } from '@/lib/orgApi'
+import { getOrgSummary, getAnalytics } from '@/lib/orgApi'
 
 type OrgSummary = Awaited<ReturnType<typeof getOrgSummary>>
+type OrgAnalytics = Awaited<ReturnType<typeof getAnalytics>>
 
 export default function OrgDashboardClientPage() {
   const router = useRouter()
   const user = useUserStore((s) => s.user)
 
   const [summary, setSummary] = useState<OrgSummary | null>(null)
+  const [analytics, setAnalytics] = useState<OrgAnalytics | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -24,8 +26,12 @@ export default function OrgDashboardClientPage() {
     setLoading(true)
     setError(null)
     try {
-      const data = await getOrgSummary()
-      setSummary(data)
+      const [summaryData, analyticsData] = await Promise.all([
+        getOrgSummary(),
+        getAnalytics(),
+      ])
+      setSummary(summaryData)
+      setAnalytics(analyticsData)
     } catch (e) {
       if (httpStatus(e) === 401) {
         router.push('/login')
@@ -166,10 +172,144 @@ export default function OrgDashboardClientPage() {
                   : 'Tổ chức chưa cấu hình giới hạn ghế. Liên hệ quản trị nền tảng để kích hoạt gói.'}
               </p>
             </div>
+
+            {analytics && (
+              <AnalyticsSection analytics={analytics} />
+            )}
           </>
         )}
       </div>
     </OrgShell>
+  )
+}
+
+function AnalyticsSection({ analytics }: { analytics: OrgAnalytics }) {
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 px-1">
+        <BarChart3 size={18} className="text-indigo-600" />
+        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">
+          Hoạt động & phân tích
+        </h3>
+      </div>
+
+      {/* Metric tiles */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <MetricTile
+          label="Học viên"
+          value={analytics.studentCount}
+          icon={<GraduationCap size={20} />}
+          tint="amber"
+        />
+        <MetricTile
+          label="Giáo viên"
+          value={analytics.teacherCount}
+          icon={<Users size={20} />}
+          tint="blue"
+        />
+        <MetricTile
+          label="Lớp học"
+          value={analytics.classCount}
+          icon={<Building2 size={20} />}
+          tint="indigo"
+        />
+        <MetricTile
+          label="HV hoạt động 7 ngày"
+          value={analytics.activeStudents7d}
+          icon={<Activity size={20} />}
+          tint="emerald"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {/* Tokens this month */}
+        <div className="relative overflow-hidden rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-white p-6 shadow-sm">
+          <div className="absolute right-4 top-4 text-indigo-200">
+            <Sparkles size={40} />
+          </div>
+          <p className="mb-1 text-sm font-bold uppercase tracking-wider text-indigo-500">
+            Token AI tháng này
+          </p>
+          <p className="text-4xl font-black text-slate-800">
+            {analytics.tokensThisMonth.toLocaleString('vi-VN')}
+          </p>
+          <p className="mt-2 text-xs text-slate-500">
+            Tổng token tiêu thụ bởi toàn bộ thành viên tổ chức trong tháng hiện tại.
+          </p>
+        </div>
+
+        {/* CEFR distribution */}
+        <CefrDistribution buckets={analytics.cefrDistribution} />
+      </div>
+    </div>
+  )
+}
+
+function CefrDistribution({ buckets }: { buckets: OrgAnalytics['cefrDistribution'] }) {
+  const maxCount = buckets.reduce((max, b) => Math.max(max, b.count), 0)
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <p className="mb-4 text-sm font-bold uppercase tracking-wider text-slate-500">
+        Phân bố trình độ (CEFR)
+      </p>
+      {buckets.length === 0 ? (
+        <p className="py-6 text-center text-sm text-slate-400">
+          Chưa có dữ liệu trình độ học viên.
+        </p>
+      ) : (
+        <div className="space-y-3">
+          {buckets.map((bucket) => {
+            const pct = maxCount > 0 ? Math.round((bucket.count / maxCount) * 100) : 0
+            return (
+              <div key={bucket.level} className="flex items-center gap-3">
+                <span className="w-10 shrink-0 text-sm font-bold text-slate-700">
+                  {bucket.level}
+                </span>
+                <div className="h-3 flex-1 overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-indigo-400 to-purple-500 transition-all"
+                    style={{ width: `${Math.max(pct, bucket.count > 0 ? 6 : 0)}%` }}
+                  />
+                </div>
+                <span className="w-8 shrink-0 text-right text-sm font-semibold text-slate-500">
+                  {bucket.count}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MetricTile({
+  label,
+  value,
+  icon,
+  tint,
+}: {
+  label: string
+  value: number
+  icon: React.ReactNode
+  tint: 'blue' | 'amber' | 'indigo' | 'emerald'
+}) {
+  const tones: Record<typeof tint, { bg: string; text: string }> = {
+    blue: { bg: 'bg-blue-100', text: 'text-blue-600' },
+    amber: { bg: 'bg-amber-100', text: 'text-amber-600' },
+    indigo: { bg: 'bg-indigo-100', text: 'text-indigo-600' },
+    emerald: { bg: 'bg-emerald-100', text: 'text-emerald-600' },
+  }
+  const t = tones[tint]
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:shadow-md">
+      <div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-lg ${t.bg} ${t.text}`}>
+        {icon}
+      </div>
+      <p className="text-3xl font-black leading-none text-slate-800">{value}</p>
+      <p className="mt-1.5 text-xs font-bold uppercase tracking-wider text-slate-500">{label}</p>
+    </div>
   )
 }
 

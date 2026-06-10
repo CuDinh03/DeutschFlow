@@ -13,6 +13,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 /**
  * Platform-admin provisioning of organizations. ADMIN-only; mirrors the thin-controller style of
  * {@code TeacherReportController} (delegates all logic to {@link AdminOrgService}).
@@ -48,5 +50,10 @@ public class AdminOrganizationController {
     @PostMapping("/{id}/members")
     public OrgMemberDto addMember(@PathVariable("id") Long orgId, @RequestBody AddMemberRequest request) {
         return adminOrgService.addMember(orgId, request.email(), request.role());
+    }
+
+    @PostMapping("/{id}/activate-entitlements")
+    public Map<String, Integer> activateEntitlements(@PathVariable("id") Long orgId) {
+        return Map.of("granted", adminOrgService.activateEntitlements(orgId));
     }
 }

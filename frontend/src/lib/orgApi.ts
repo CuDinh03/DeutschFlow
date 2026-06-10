@@ -51,6 +51,38 @@ export interface OrgClass {
   createdAt: string
 }
 
+/** One CEFR-level bucket in the org-wide distribution (level → student count). */
+export interface CefrBucket {
+  level: string
+  count: number
+}
+
+/** GET /org/analytics — read-only org-admin analytics (Phase 2). */
+export interface OrgAnalytics {
+  studentCount: number
+  teacherCount: number
+  classCount: number
+  tokensThisMonth: number
+  activeStudents7d: number
+  cefrDistribution: CefrBucket[]
+}
+
+/** Result of a bulk CSV roster import (POST /org/students/import). */
+export interface RosterImportResult {
+  /** Total CSV rows processed (excludes the optional header). */
+  total: number
+  /** New user accounts created for previously-unknown emails. */
+  created: number
+  /** Existing users attached to this org. */
+  linked: number
+  /** Students enrolled into the target class (0 when no classId given). */
+  enrolled: number
+  /** Rows that could not be imported. */
+  failed: number
+  /** Human-readable, per-row failure reasons. */
+  errors: string[]
+}
+
 /** Public invitation preview (token is the secret). */
 export interface InvitationPreview {
   orgName: string
@@ -137,6 +169,37 @@ export async function listClasses(page = 0, size = 20): Promise<Page<OrgClass>> 
   return res.data
 }
 
+/**
+ * POST /org/students/import — bulk-import students from a CSV file
+ * (columns: `email,displayName[,phone]`). When `classId` is supplied, every
+ * imported student is also enrolled into that class.
+ */
+export async function importRoster(
+  file: File,
+  classId?: number,
+): Promise<RosterImportResult> {
+  const formData = new FormData()
+  formData.append('file', file)
+  if (classId != null) formData.append('classId', String(classId))
+
+  const res = await api.post<RosterImportResult>('/org/students/import', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return res.data
+}
+
+/** GET /org/students — full org-admin student roster (ACTIVE members, role STUDENT). */
+export async function listStudents(): Promise<OrgMember[]> {
+  const res = await api.get<OrgMember[]>('/org/students')
+  return res.data ?? []
+}
+
+/** GET /org/analytics — read-only analytics dashboard metrics for the current org. */
+export async function getAnalytics(): Promise<OrgAnalytics> {
+  const res = await api.get<OrgAnalytics>('/org/analytics')
+  return res.data
+}
+
 /** GET /public/org-invitations/{token} — preview an invitation (token is the secret). */
 export async function previewInvitation(token: string): Promise<InvitationPreview> {
   const res = await api.get<InvitationPreview>(
@@ -155,4 +218,16 @@ export async function acceptInvitation(
     body,
   )
   return res.data
+}
+
+/**
+ * POST /admin/organizations/{id}/activate-entitlements — platform-admin action
+ * that grants the org's plan to every active student (seeds wallets / sub).
+ * Returns the number of students newly granted entitlements.
+ */
+export async function activateEntitlements(orgId: number): Promise<number> {
+  const res = await api.post<{ granted: number }>(
+    `/admin/organizations/${orgId}/activate-entitlements`,
+  )
+  return res.data?.granted ?? 0
 }

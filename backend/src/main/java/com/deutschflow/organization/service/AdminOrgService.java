@@ -51,6 +51,7 @@ public class AdminOrgService {
     private final OrgMembershipService orgMembershipService;
     private final OrgInvitationService orgInvitationService;
     private final OrgMemberRepository orgMemberRepository;
+    private final OrgEntitlementService orgEntitlementService;
     private final UserRepository userRepository;
 
     /**
@@ -156,6 +157,26 @@ public class AdminOrgService {
                 member.getStatus(),
                 member.getJoinedAt()
         );
+    }
+
+    /**
+     * (Re)grants the org's plan to every ACTIVE STUDENT member — e.g. after the org's
+     * {@code planCode}/{@code validUntil} changes. No-op per-student when the org sells no plan.
+     * Returns the number of students processed.
+     */
+    @Transactional
+    public int activateEntitlements(Long orgId) {
+        Organization org = organizationRepository.findById(orgId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy tổ chức: " + orgId));
+        List<OrgMember> students =
+                orgMemberRepository.findByIdOrgIdAndRoleAndStatus(orgId, ROLE_STUDENT, STATUS_ACTIVE);
+        int granted = 0;
+        for (OrgMember member : students) {
+            orgEntitlementService.grantStudent(member.getId().getUserId(), org);
+            granted++;
+        }
+        log.info("[ORG-ADMIN] Re-activated entitlements for {} student(s) in org {}", granted, orgId);
+        return granted;
     }
 
     /**
