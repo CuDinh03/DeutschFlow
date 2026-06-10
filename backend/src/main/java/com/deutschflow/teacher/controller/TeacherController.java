@@ -1,5 +1,6 @@
 package com.deutschflow.teacher.controller;
 
+import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.quota.RequestContext;
 import com.deutschflow.teacher.dto.*;
 import com.deutschflow.teacher.service.TeacherService;
@@ -14,12 +15,23 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/v2/teacher")
 @PreAuthorize("hasRole('TEACHER')")
 @RequiredArgsConstructor
 public class TeacherController {
+
+    private static final Set<String> ALLOWED_UPLOAD_TYPES = Set.of(
+        "image/jpeg", "image/png", "image/gif", "image/webp",
+        "application/pdf",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "audio/mpeg", "audio/mp3", "audio/wav",
+        "video/mp4",
+        "text/plain"
+    );
 
     private final TeacherService teacherService;
     private final XpService xpService;
@@ -111,16 +123,20 @@ public class TeacherController {
             @AuthenticationPrincipal User user,
             @RequestParam String filename,
             @RequestParam String contentType) {
-        
+
+        String normalizedType = contentType != null ? contentType.toLowerCase().split(";")[0].trim() : "";
+        if (!ALLOWED_UPLOAD_TYPES.contains(normalizedType)) {
+            throw new BadRequestException("Loại file không được phép: " + contentType);
+        }
+
         String extension = "";
         if (filename != null && filename.contains(".")) {
             extension = filename.substring(filename.lastIndexOf("."));
         }
-        
-        String objectKey = String.format("teacher_materials/%d/%d%s", 
+
+        String objectKey = String.format("teacher_materials/%d/%d%s",
                 user.getId(), System.currentTimeMillis(), extension);
-                
-        // Need to autowire S3StorageService
+
         String url = teacherService.generatePresignedUrl(objectKey, contentType);
         return ResponseEntity.ok(Map.of("url", url, "objectKey", objectKey));
     }

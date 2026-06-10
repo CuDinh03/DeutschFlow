@@ -33,6 +33,9 @@ public class AsyncJob {
     @Column(name = "status", nullable = false)
     private String status;
 
+    @Column(name = "created_by_user_id")
+    private Long createdByUserId;
+
     @Column(name = "result_payload")
     private String resultPayload;
 

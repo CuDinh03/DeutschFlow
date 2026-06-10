@@ -1,7 +1,7 @@
 // Klaus — RN port of the web bespoke SVG character (1:1). Pure react-native-svg +
 // React state (lip-sync mouth + idle blink). No external animation deps.
 
-import { useEffect, useState } from 'react'
+import { useFaceAnimation } from '../useFaceAnimation'
 import Svg, { Path, Ellipse, Rect, Circle, Line, G } from 'react-native-svg'
 
 /** Matches LukasCharacter expression API for SpeakingCharacterFloat / PersonaAvatar. */
@@ -97,29 +97,7 @@ function MouthKlaus({ frame, expression }: { frame: number; expression: string }
 }
 
 export function KlausCharacter({ expression = 'neutral', isTalking = false, size, paused = false }: Props) {
-  const [mouthFrame, setMouthFrame] = useState(2)
-  const [blinking, setBlinking] = useState(false)
-
-  useEffect(() => {
-    if (!isTalking) {
-      setMouthFrame(2)
-      return
-    }
-    const id = setInterval(() => setMouthFrame((f) => (f + 1) % 3), 115)
-    return () => clearInterval(id)
-  }, [isTalking])
-
-  useEffect(() => {
-    if (paused) return
-    let tid: ReturnType<typeof setTimeout>
-    const blink = () => {
-      setBlinking(true)
-      setTimeout(() => setBlinking(false), 140)
-      tid = setTimeout(blink, 2800 + Math.random() * 2200)
-    }
-    tid = setTimeout(blink, 1800 + Math.random() * 1400)
-    return () => clearTimeout(tid)
-  }, [])
+  const { mouthFrame, blinking } = useFaceAnimation(isTalking, paused)
 
   return (
     <Svg width={size ?? '100%'} height={size ?? '100%'} viewBox="0 0 280 500">

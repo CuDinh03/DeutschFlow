@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Clock, Check, X, ChevronRight, Loader2, Trophy, BookOpen, Headphones, PenTool, Mic2, ArrowLeft, AlertCircle, Send, Play } from 'lucide-react'
 import { StudentShell } from '@/components/layouts/StudentShell'
@@ -220,6 +220,7 @@ export default function MockExamPage() {
   const [timeLeft, setTimeLeft] = useState(0)
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
+  const submittedByTimerRef = useRef(false)
 
   // Sync selectedLevel with user's target level once it loads
   useEffect(() => {
@@ -268,20 +269,20 @@ export default function MockExamPage() {
 
   useEffect(() => { if (me) load() }, [me, load])
 
-  // Timer effect
+  // Interval: one timer per 'taking' session; never re-registers on every tick
   useEffect(() => {
-    if (view === 'taking' && timeLeft > 0) {
-      const timerId = setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
-            clearInterval(timerId)
-            void submitExam(true)
-            return 0
-          }
-          return prev - 1
-        })
-      }, 1000)
-      return () => clearInterval(timerId)
+    if (view !== 'taking') return
+    const timerId = setInterval(() => {
+      setTimeLeft(prev => Math.max(0, prev - 1))
+    }, 1000)
+    return () => clearInterval(timerId)
+  }, [view])
+
+  // Expiry: submit once when time runs out — side-effects must not live inside state updaters
+  useEffect(() => {
+    if (view === 'taking' && timeLeft === 0 && !submittedByTimerRef.current) {
+      submittedByTimerRef.current = true
+      void submitExam(true)
     }
   }, [view, timeLeft, submitExam])
 
@@ -319,6 +320,7 @@ export default function MockExamPage() {
         return
       }
 
+      submittedByTimerRef.current = false
       setActiveAttemptId(attempt.id)
       setActiveExamData(examSections)
       setCurrentSectionIdx(0)
@@ -347,10 +349,12 @@ export default function MockExamPage() {
           try { examSections = typeof attempt.sections_json === 'string' ? JSON.parse(attempt.sections_json) : attempt.sections_json } catch {}
         }
         if (!examSections?.sections) { toast.error('Không thể tiếp tục bài thi. Vui lòng thử lại.'); return }
+        submittedByTimerRef.current = false
         setActiveAttemptId(att.id)
         setActiveExamData(examSections)
         setCurrentSectionIdx(0)
-        setTimeLeft(60 * 60)
+        const timeLimitMinutes = typeof attempt.time_limit_minutes === 'number' ? attempt.time_limit_minutes : 60
+        setTimeLeft(timeLimitMinutes * 60)
         setAnswers({})
         setView('taking')
       } catch { toast.error('Không thể tiếp tục bài thi. Vui lòng thử lại.') } finally { setLoading(false) }
