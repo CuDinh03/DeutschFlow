@@ -11,6 +11,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.NoHandlerFoundException;
@@ -43,6 +44,15 @@ public class GlobalExceptionHandler {
                                                           HttpServletRequest request) {
         return problem(HttpStatus.BAD_REQUEST, "bad-request", "Bad Request",
                 ex.getMessage(), request.getRequestURI(), null, null);
+    }
+
+    // --- 400 Missing required request parameter ---
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ProblemDetail> handleMissingParam(MissingServletRequestParameterException ex,
+                                                             HttpServletRequest request) {
+        return problem(HttpStatus.BAD_REQUEST, "bad-request", "Bad Request",
+                "Required parameter '" + ex.getParameterName() + "' is missing.",
+                request.getRequestURI(), null, null);
     }
 
     // --- 400 Validation (JSR-303) ---

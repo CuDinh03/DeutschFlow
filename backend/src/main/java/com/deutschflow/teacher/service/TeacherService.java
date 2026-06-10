@@ -118,7 +118,7 @@ public class TeacherService {
     @Transactional(readOnly = true)
     public List<JoinRequestDto> getPendingJoinRequests(Long teacherId, Long classId) {
         if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
-            throw new ConflictException("Bạn không có quyền xem lớp này");
+            throw new ForbiddenException("Bạn không có quyền xem lớp này");
         }
 
         return joinRequestRepository.findByClassroomIdAndStatusOrderByCreatedAtDesc(classId, "PENDING")
@@ -140,7 +140,7 @@ public class TeacherService {
     @Transactional
     public void approveJoinRequest(Long teacherId, Long classId, Long requestId) {
         if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
-            throw new ConflictException("Bạn không có quyền duyệt học viên lớp này");
+            throw new ForbiddenException("Bạn không có quyền duyệt học viên lớp này");
         }
 
         com.deutschflow.teacher.entity.ClassroomJoinRequest req = joinRequestRepository.findById(requestId)
@@ -190,7 +190,7 @@ public class TeacherService {
     @Transactional
     public void rejectJoinRequest(Long teacherId, Long classId, Long requestId) {
         if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
-            throw new ConflictException("Bạn không có quyền duyệt học viên lớp này");
+            throw new ForbiddenException("Bạn không có quyền duyệt học viên lớp này");
         }
 
         com.deutschflow.teacher.entity.ClassroomJoinRequest req = joinRequestRepository.findById(requestId)
@@ -313,7 +313,7 @@ public class TeacherService {
     @Transactional
     public void addStudentToClassByEmail(Long teacherId, Long classId, String email) {
         if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
-            throw new ConflictException("Bạn không có quyền thêm học viên vào lớp này");
+            throw new ForbiddenException("Bạn không có quyền thêm học viên vào lớp này");
         }
 
         User user = userRepository.findByEmail(email)
@@ -342,7 +342,7 @@ public class TeacherService {
     @Transactional(readOnly = true)
     public List<ClassStudentDto> getClassStudents(Long teacherId, Long classId) {
         if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
-            throw new ConflictException("Bạn không có quyền xem lớp này");
+            throw new ForbiddenException("Bạn không có quyền xem lớp này");
         }
 
         List<ClassStudent> students = classStudentRepository.findByIdClassId(classId);
@@ -373,7 +373,7 @@ public class TeacherService {
     public ClassAnalyticsOverviewDto getClassAnalytics(Long teacherId, Long classId) {
         // Kiểm tra quyền
         if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
-            throw new ConflictException("Bạn không có quyền xem lớp này");
+            throw new ForbiddenException("Bạn không có quyền xem lớp này");
         }
 
         List<ClassStudent> students = classStudentRepository.findByIdClassId(classId);
@@ -482,7 +482,7 @@ public class TeacherService {
     @Transactional
     public ClassAssignmentDto createAssignment(Long teacherId, Long classId, CreateAssignmentRequest req) {
         if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
-            throw new ConflictException("Bạn không có quyền thao tác trên lớp này");
+            throw new ForbiddenException("Bạn không có quyền thao tác trên lớp này");
         }
 
         ClassAssignment assignment = ClassAssignment.builder()
