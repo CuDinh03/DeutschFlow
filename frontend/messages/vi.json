@@ -68,11 +68,26 @@
       "open": "Mở",
       "faqTitle": "Câu hỏi thường gặp",
       "faq": [
-        { "q": "Mỗi ngày nên học bao lâu?", "a": "Chỉ cần 15–20 phút đều đặn mỗi ngày là đủ để tiến bộ. Quan trọng nhất là giữ chuỗi ngày học." },
-        { "q": "Nên bắt đầu từ đâu?", "a": "Hãy theo \"Lộ trình học\" và mỗi ngày làm chặng đang sáng. Trang chủ cũng luôn gợi ý việc nên làm tiếp theo." },
-        { "q": "Nói với AI có cần micro không?", "a": "Có. Lần đầu app sẽ xin quyền truy cập micro. Bạn cũng có thể gõ chữ nếu chưa muốn nói." },
-        { "q": "Ôn tập (SRS) hoạt động thế nào?", "a": "Hệ thống tự nhắc bạn ôn lại từ và ngữ pháp đúng lúc sắp quên, nên bạn nhớ lâu hơn mà tốn ít thời gian hơn." },
-        { "q": "Làm sao để mở khoá mọi tính năng?", "a": "Một số tính năng nâng cao thuộc gói PRO. Vào mục Nâng cấp PRO ở thanh bên để xem chi tiết." }
+        {
+          "q": "Mỗi ngày nên học bao lâu?",
+          "a": "Chỉ cần 15–20 phút đều đặn mỗi ngày là đủ để tiến bộ. Quan trọng nhất là giữ chuỗi ngày học."
+        },
+        {
+          "q": "Nên bắt đầu từ đâu?",
+          "a": "Hãy theo \"Lộ trình học\" và mỗi ngày làm chặng đang sáng. Trang chủ cũng luôn gợi ý việc nên làm tiếp theo."
+        },
+        {
+          "q": "Nói với AI có cần micro không?",
+          "a": "Có. Lần đầu app sẽ xin quyền truy cập micro. Bạn cũng có thể gõ chữ nếu chưa muốn nói."
+        },
+        {
+          "q": "Ôn tập (SRS) hoạt động thế nào?",
+          "a": "Hệ thống tự nhắc bạn ôn lại từ và ngữ pháp đúng lúc sắp quên, nên bạn nhớ lâu hơn mà tốn ít thời gian hơn."
+        },
+        {
+          "q": "Làm sao để mở khoá mọi tính năng?",
+          "a": "Một số tính năng nâng cao thuộc gói PRO. Vào mục Nâng cấp PRO ở thanh bên để xem chi tiết."
+        }
       ]
     }
   },
@@ -662,6 +677,7 @@
     "micRetry": "Thử lại",
     "micTypeInstead": "Bạn vẫn có thể gõ câu trả lời để tiếp tục.",
     "transcriptionFailed": "Không nhận diện được giọng nói. Vui lòng thử lại hoặc gõ thủ công.",
+    "phonemeEvalFailed": "Không chấm được phát âm. Bạn vẫn có thể gửi tin nhắn.",
     "showExplanations": "Hiện giải thích",
     "hideExplanations": "Ẩn giải thích",
     "micPressToRecord": "Bắt đầu ghi âm",
@@ -723,7 +739,6 @@
       "phonemeTitle": "Phát âm (Levenshtein)",
       "phonemeAllGood": "Phát âm ổn — không có từ lệch rõ",
       "phonemeAnalyzing": "Đang phân tích phát âm…",
-      "phonemeEvalFailed": "Không chấm được phát âm. Bạn vẫn có thể gửi tin nhắn.",
       "sessionMission": "Chủ đề: {topic}",
       "summaryViewHistory": "Xem lịch sử nói",
       "quotaRemaining": "AI còn ~{n}",
@@ -930,7 +945,10 @@
     "no": "Không",
     "noMatchSearch": "Không có người dùng khớp ô tìm kiếm.",
     "pctNote": "%: gói ví = đã dùng 30 ngày / trần ví; FREE = đã dùng hôm nay / hạn một ngày.",
-    "apiFoot": "GET /api/admin/users · hiển thị {shown} / {total} tài khoản."
+    "apiFoot": "GET /api/admin/users · hiển thị {shown} / {total} tài khoản.",
+    "piePrompt": "Token đầu vào (prompt)",
+    "pieCompletion": "Token đầu ra (completion)",
+    "pieOther": "Khác / chưa phân loại"
   },
   "adminAi": {
     "title": "Cấu hình AI",

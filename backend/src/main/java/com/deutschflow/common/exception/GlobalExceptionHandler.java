@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -44,6 +45,15 @@ public class GlobalExceptionHandler {
                                                           HttpServletRequest request) {
         return problem(HttpStatus.BAD_REQUEST, "bad-request", "Bad Request",
                 ex.getMessage(), request.getRequestURI(), null, null);
+    }
+
+    // --- 405 Method Not Allowed ---
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ProblemDetail> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex,
+                                                                   HttpServletRequest request) {
+        return problem(HttpStatus.METHOD_NOT_ALLOWED, "method-not-allowed", "Method Not Allowed",
+                "HTTP method '" + ex.getMethod() + "' is not supported for this endpoint.",
+                request.getRequestURI(), null, null);
     }
 
     // --- 400 Missing required request parameter ---
