@@ -192,6 +192,9 @@ export default function OnboardingScreen() {
       }
     })()
     return () => { active = false }
+    // Intentionally keyed on isLoggedIn only: this is the one-shot resume-on-login flow.
+    // draft/router/setters are read via closure and are stable for this run; adding them
+    // would re-fire the resume + navigation on every render. Guarded by `active`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoggedIn])
 

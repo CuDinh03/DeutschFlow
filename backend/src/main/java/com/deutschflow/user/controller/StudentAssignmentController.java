@@ -5,7 +5,9 @@ import com.deutschflow.notification.service.UserNotificationService;
 import com.deutschflow.teacher.service.TeacherService;
 import com.deutschflow.teacher.dto.StudentAssignmentDto;
 import com.deutschflow.user.entity.User;
+import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ConflictException;
+import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.teacher.repository.StudentAssignmentRepository;
 import com.deutschflow.teacher.repository.ClassAssignmentRepository;
@@ -25,12 +27,22 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/v2/students/assignments")
 @PreAuthorize("hasRole('STUDENT')")
 @RequiredArgsConstructor
 public class StudentAssignmentController {
+
+    private static final Set<String> ALLOWED_UPLOAD_TYPES = Set.of(
+        "image/jpeg", "image/png", "image/gif", "image/webp",
+        "application/pdf",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "audio/mpeg", "audio/mp3", "audio/wav", "audio/ogg", "audio/webm",
+        "video/mp4",
+        "text/plain"
+    );
 
     private final TeacherService teacherService;
     private final StudentAssignmentRepository studentAssignmentRepository;
@@ -68,16 +80,24 @@ public class StudentAssignmentController {
             @RequestParam Long assignmentId,
             @RequestParam String filename,
             @RequestParam String contentType) {
-        
-        // Extract extension
+
+        String normalizedType = contentType != null ? contentType.toLowerCase().split(";")[0].trim() : "";
+        if (!ALLOWED_UPLOAD_TYPES.contains(normalizedType)) {
+            throw new BadRequestException("Loại file không được phép: " + contentType);
+        }
+
+        // Verify the assignment belongs to this student
+        studentAssignmentRepository.findByStudentIdAndAssignmentId(user.getId(), assignmentId)
+                .orElseThrow(() -> new ForbiddenException("Bạn không có quyền upload cho bài tập này"));
+
         String extension = "";
         if (filename != null && filename.contains(".")) {
             extension = filename.substring(filename.lastIndexOf("."));
         }
-        
-        String objectKey = String.format("assignments/%d/%d_%d%s", 
+
+        String objectKey = String.format("assignments/%d/%d_%d%s",
                 assignmentId, user.getId(), System.currentTimeMillis(), extension);
-                
+
         String url = s3StorageService.generatePresignedUrl(objectKey, contentType);
         return ResponseEntity.ok(new PresignedUrlResponse(url, objectKey));
     }

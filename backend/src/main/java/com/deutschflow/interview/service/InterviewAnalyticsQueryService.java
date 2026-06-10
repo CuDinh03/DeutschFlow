@@ -1,12 +1,9 @@
 package com.deutschflow.interview.service;
 
 import com.deutschflow.interview.dto.InterviewAnalyticsSummaryDto;
-import com.deutschflow.interview.repository.InterviewExperimentAssignmentRepository;
-import com.deutschflow.interview.repository.InterviewPersonaRepository;
 import com.deutschflow.interview.repository.InterviewPhaseResultRepository;
-import com.deutschflow.speaking.entity.AiSpeakingSession;
-import com.deutschflow.speaking.repository.AiSpeakingSessionRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -19,59 +16,69 @@ public class InterviewAnalyticsQueryService {
     private static final List<String> PHASE_ORDER = List.of(
             "INTRO", "ICE_BREAKER", "HARD_SKILLS", "STAR_SOFT", "CLOSING");
 
-    private final AiSpeakingSessionRepository sessionRepository;
     private final InterviewPhaseResultRepository phaseResultRepository;
-    private final InterviewExperimentAssignmentRepository experimentRepository;
-    private final InterviewPersonaRepository personaRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     public InterviewAnalyticsSummaryDto buildSummary() {
-        // ── 1. Session counts (one query) ──────────────────────────────────────
-        List<AiSpeakingSession> all = sessionRepository.findBySessionMode("INTERVIEW");
-        long total = all.size();
-        long completed = all.stream()
-                .filter(s -> AiSpeakingSession.SessionStatus.ENDED == s.getStatus())
-                .count();
+        // ── 1. Session counts via SQL — no full entity load ────────────────────
+        Long total = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM ai_speaking_sessions WHERE session_mode = 'INTERVIEW'", Long.class);
+        if (total == null) total = 0L;
+
+        Long completed = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM ai_speaking_sessions WHERE session_mode = 'INTERVIEW' AND status = 'ENDED'", Long.class);
+        if (completed == null) completed = 0L;
+
         double completionRate = total == 0 ? 0.0 : completed * 100.0 / total;
 
-        Map<String, Long> byPersona = all.stream()
-                .filter(s -> s.getPersona() != null)
-                .collect(Collectors.groupingBy(AiSpeakingSession::getPersona, Collectors.counting()));
+        // byPersona: GROUP BY — no entity load
+        Map<String, Long> byPersona = new LinkedHashMap<>();
+        jdbcTemplate.queryForList(
+                "SELECT persona, COUNT(*) AS cnt FROM ai_speaking_sessions WHERE session_mode = 'INTERVIEW' AND persona IS NOT NULL GROUP BY persona"
+        ).forEach(r -> byPersona.put((String) r.get("persona"), ((Number) r.get("cnt")).longValue()));
 
-        // ── 2. Persona → industry map (one query) ─────────────────────────────
+        // ── 2. Persona → industry map — SELECT only code + industry ───────────
         Map<String, String> personaToIndustry = new HashMap<>();
-        personaRepository.findAll()
-                .forEach(p -> personaToIndustry.put(p.getCode(), p.getIndustry()));
+        jdbcTemplate.queryForList("SELECT code, industry FROM interview_persona")
+                .forEach(r -> personaToIndustry.put((String) r.get("code"), (String) r.get("industry")));
 
+        // byIndustry: join persona counts with industry map in Java (both already loaded)
         Map<String, Long> byIndustry = new LinkedHashMap<>();
-        for (AiSpeakingSession s : all) {
-            String industry = personaToIndustry.getOrDefault(s.getPersona(), "Unknown");
-            byIndustry.merge(industry, 1L, Long::sum);
-        }
+        byPersona.forEach((persona, cnt) -> {
+            String industry = personaToIndustry.getOrDefault(persona, "Unknown");
+            byIndustry.merge(industry, cnt, Long::sum);
+        });
 
-        // ── 3. Phase aggregates (two queries instead of N+1) ──────────────────
+        // ── 3. Phase aggregates ────────────────────────────────────────────────
         Map<String, Long> phaseSessionCount = new LinkedHashMap<>();
         for (String p : PHASE_ORDER) phaseSessionCount.put(p, 0L);
         phaseResultRepository.aggregateByPhase()
                 .forEach(a -> phaseSessionCount.put(a.getPhase(), a.getSessionCount()));
 
+        final long totalFinal = total;
         List<InterviewAnalyticsSummaryDto.PhaseDropOff> dropOff = PHASE_ORDER.stream()
                 .map(phase -> new InterviewAnalyticsSummaryDto.PhaseDropOff(
                         phase,
                         phaseSessionCount.getOrDefault(phase, 0L),
-                        total == 0 ? 0.0 : phaseSessionCount.getOrDefault(phase, 0L) * 100.0 / total))
+                        totalFinal == 0 ? 0.0 : phaseSessionCount.getOrDefault(phase, 0L) * 100.0 / totalFinal))
                 .toList();
 
-        // ── 4. Avg score by industry (join session→industry with score aggregate) ──
+        // ── 4. Avg score by industry — only load id + persona for cross-ref ────
         Map<Long, Double> sessionAvgScore = phaseResultRepository.avgScorePerSession()
                 .stream()
                 .collect(Collectors.toMap(
                         InterviewPhaseResultRepository.SessionScoreAggregate::getSessionId,
                         InterviewPhaseResultRepository.SessionScoreAggregate::getAvgScore));
 
-        Map<Long, String> sessionToIndustry = all.stream()
-                .collect(Collectors.toMap(
-                        AiSpeakingSession::getId,
-                        s -> personaToIndustry.getOrDefault(s.getPersona(), "Unknown")));
+        // Load only id + persona (not full entities) for the industry cross-reference
+        Map<Long, String> sessionToIndustry = new HashMap<>();
+        jdbcTemplate.queryForList(
+                "SELECT id, persona FROM ai_speaking_sessions WHERE session_mode = 'INTERVIEW'"
+        ).forEach(r -> {
+            Long id = ((Number) r.get("id")).longValue();
+            String persona = (String) r.get("persona");
+            sessionToIndustry.put(id, personaToIndustry.getOrDefault(persona, "Unknown"));
+        });
 
         Map<String, List<Double>> scoresByIndustry = new HashMap<>();
         sessionAvgScore.forEach((sessionId, score) -> {
@@ -83,10 +90,11 @@ public class InterviewAnalyticsQueryService {
                         Map.Entry::getKey,
                         e -> e.getValue().stream().mapToDouble(Double::doubleValue).average().orElse(0.0)));
 
-        // ── 5. Variant distribution + avg score by variant (one query) ─────────
+        // ── 5. Variant distribution — SELECT only session_id + variant_key ─────
         Map<Long, String> sessionToVariant = new HashMap<>();
-        experimentRepository.findAll()
-                .forEach(e -> sessionToVariant.put(e.getSessionId(), e.getVariantKey()));
+        jdbcTemplate.queryForList(
+                "SELECT session_id, variant_key FROM interview_experiment_assignment WHERE variant_key IS NOT NULL"
+        ).forEach(r -> sessionToVariant.put(((Number) r.get("session_id")).longValue(), (String) r.get("variant_key")));
 
         Map<String, Long> variantDist = sessionToVariant.values().stream()
                 .filter(Objects::nonNull)

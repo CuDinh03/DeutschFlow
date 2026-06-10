@@ -8,6 +8,7 @@ import {
   AlertTriangle, ArrowLeft, Loader2, Calendar,
 } from "lucide-react";
 import api from "@/lib/api";
+import { getErrorSnippet } from "@/lib/errors/errorTaxonomy";
 import { StudentShell } from "@/components/layouts/StudentShell";
 import { useTranslations } from "next-intl";
 import { clearTokens, logout } from "@/lib/authSession";
@@ -171,7 +172,7 @@ function MessageBubble({ msg, tHistory }: { msg: SessionMessage; tHistory: any }
                 <div key={i} className={`rounded-xl px-3 py-2 text-xs border ${severityColor(err.severity)}`}>
                   <div className="flex items-center gap-1.5 mb-0.5">
                     <AlertTriangle size={10} />
-                    <span className="font-bold">{err.errorCode}</span>
+                    <span className="font-bold" title={err.errorCode}>{getErrorSnippet(err.errorCode, 'vi').title}</span>
                     <span className="opacity-60">({err.severity})</span>
                   </div>
                   {err.wrongSpan && <p>❌ <span className="line-through">{err.wrongSpan}</span> → ✅ {err.correctedSpan}</p>}

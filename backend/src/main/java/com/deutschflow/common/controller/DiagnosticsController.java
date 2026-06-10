@@ -6,6 +6,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -41,10 +42,11 @@ public class DiagnosticsController {
     }
 
     /**
-     * POST /api/diagnostics/validate-token - Validate a JWT token
+     * POST /api/diagnostics/validate-token - Validate a JWT token (ADMIN only)
      * Body: { "token": "eyJhbGc..." }
      */
     @PostMapping("/validate-token")
+    @PreAuthorize("hasRole('ADMIN')")
     public Map<String, Object> validateToken(@RequestBody Map<String, String> body) {
         String token = body.get("token");
         if (token == null || token.isEmpty()) {

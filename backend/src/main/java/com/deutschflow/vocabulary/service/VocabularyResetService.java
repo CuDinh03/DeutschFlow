@@ -11,7 +11,7 @@ import java.util.Map;
 
 /**
  * Xóa sạch toàn bộ vocabulary data và re-import từ Goethe + Wiktionary.
- * Chỉ xóa vocabulary tables, KHÔNG xóa users/quizzes/classrooms.
+ * Chỉ xóa vocabulary tables, KHÔNG xóa users.
  */
 @Service
 @RequiredArgsConstructor

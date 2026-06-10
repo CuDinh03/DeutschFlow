@@ -1,5 +1,6 @@
 package com.deutschflow.common.quota;
 
+import com.deutschflow.organization.service.OrgQuotaService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,7 @@ public class QuotaService {
     private static final String PLAN_INTERNAL = "INTERNAL";
 
     private final JdbcTemplate jdbcTemplate;
+    private final OrgQuotaService orgQuotaService;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public QuotaSnapshot getSnapshot(long userId, Instant now) {
@@ -52,6 +54,11 @@ public class QuotaService {
         }
         if (estimatedMinTokens > 0L && snap.remainingSpendable() < estimatedMinTokens) {
             throw new QuotaExceededException("Not enough AI token quota remaining for this request.", snap);
+        }
+        // Org-level shared monthly pool (opt-in: only when the user's org has monthly_token_pool > 0).
+        // B2C / non-org users and unconfigured pools are never gated here — personal quota is the only limit.
+        if (orgQuotaService.wouldExceedOrgPool(userId, estimatedMinTokens)) {
+            throw new QuotaExceededException("Tổ chức đã dùng hết ngân sách token AI tháng này.", snap);
         }
         return snap;
     }

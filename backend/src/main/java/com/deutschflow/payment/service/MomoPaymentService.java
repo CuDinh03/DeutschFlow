@@ -13,7 +13,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -63,6 +65,7 @@ public class MomoPaymentService {
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
     private final SubscriptionActivationService subscriptionActivationService;
+    private final PlatformTransactionManager transactionManager;
 
     @PostConstruct
     void logMomoIntegrationUrls() {
@@ -181,7 +184,13 @@ public class MomoPaymentService {
 
         if (resultCode == 0) {
             long ipnAmount = parseMomoAmount(ipnPayload.get("amount"));
-            if (ipnAmount >= 0 && ipnAmount != tx.getAmount()) {
+            // SEC-9: an unparseable/missing amount (-1) must NOT bypass verification.
+            // Fail closed — never fulfill a payment whose amount we cannot confirm.
+            if (ipnAmount < 0) {
+                log.error("[MOMO IPN] Unverifiable amount orderId={} raw={}", orderId, ipnPayload.get("amount"));
+                throw new SecurityException("Không xác minh được số tiền IPN");
+            }
+            if (ipnAmount != tx.getAmount()) {
                 log.error("[MOMO IPN] Amount mismatch orderId={} db={} ipn={}", orderId, tx.getAmount(), ipnAmount);
                 throw new SecurityException("Số tiền IPN không khớp đơn hàng");
             }
@@ -201,12 +210,12 @@ public class MomoPaymentService {
      * Khi IPN không tới (URL sai, HTTPS, tường lửa…), học viên vẫn quay về trang success.
      * Gọi API Query của MoMo để đối soát và kích hoạt gói (idempotent với IPN).
      */
-    @Transactional
     public SyncMomoOrderResponse syncPendingOrderFromMomo(Long userId, String orderId) {
-        PaymentTransaction tx = paymentTransactionRepository.findByOrderIdAndUserId(orderId, userId)
+        // Quick idempotency check — runs in its own short JPA transaction
+        PaymentTransaction existingTx = paymentTransactionRepository.findByOrderIdAndUserId(orderId, userId)
                 .orElseThrow(() -> new BadRequestException("Không tìm thấy giao dịch cho đơn hàng này."));
 
-        if ("SUCCESS".equals(tx.getStatus())) {
+        if ("SUCCESS".equals(existingTx.getStatus())) {
             return SyncMomoOrderResponse.builder()
                     .status("SUCCESS")
                     .orderId(orderId)
@@ -215,6 +224,7 @@ public class MomoPaymentService {
                     .build();
         }
 
+        // MoMo query + retry loop — NO DB connection held during Thread.sleep
         Map<String, Object> queryBody = null;
         int resultCode = -1;
         for (int attempt = 1; attempt <= 5; attempt++) {
@@ -233,30 +243,45 @@ public class MomoPaymentService {
                 }
             }
         }
-        long momoAmount = parseMomoAmount(queryBody.get("amount"));
-        String momoTxId = queryBody.get("transId") != null ? String.valueOf(queryBody.get("transId")) : null;
-        String message = queryBody.get("message") != null ? String.valueOf(queryBody.get("message")) : null;
 
-        if (resultCode == 0) {
-            if (momoAmount >= 0 && momoAmount != tx.getAmount()) {
-                log.error("[MOMO QUERY] Amount mismatch orderId={} db={} momo={}", orderId, tx.getAmount(), momoAmount);
-                throw new BadRequestException("Số tiền giao dịch không khớp với đơn hàng");
+        final Map<String, Object> finalQueryBody = queryBody;
+        final long momoAmount = parseMomoAmount(queryBody.get("amount"));
+        final String momoTxId = queryBody.get("transId") != null ? String.valueOf(queryBody.get("transId")) : null;
+        final String momoMessage = queryBody.get("message") != null ? String.valueOf(queryBody.get("message")) : null;
+        final int finalResultCode = resultCode;
+
+        // Wrap DB read + fulfillment atomically — no sleep inside this transaction
+        TransactionTemplate tt = new TransactionTemplate(transactionManager);
+        return tt.execute(status -> {
+            PaymentTransaction tx = paymentTransactionRepository.findByOrderIdAndUserId(orderId, userId)
+                    .orElseThrow(() -> new BadRequestException("Không tìm thấy giao dịch cho đơn hàng này."));
+
+            if (finalResultCode == 0) {
+                // SEC-9: fail closed on an unverifiable amount (-1) — don't fulfill blind.
+                if (momoAmount < 0) {
+                    log.error("[MOMO QUERY] Unverifiable amount orderId={} raw={}", orderId, finalQueryBody.get("amount"));
+                    throw new BadRequestException("Không xác minh được số tiền giao dịch");
+                }
+                if (momoAmount != tx.getAmount()) {
+                    log.error("[MOMO QUERY] Amount mismatch orderId={} db={} momo={}", orderId, tx.getAmount(), momoAmount);
+                    throw new BadRequestException("Số tiền giao dịch không khớp với đơn hàng");
+                }
+                fulfillSuccessfulPayment(tx, momoTxId, momoMessage, finalQueryBody);
+                return SyncMomoOrderResponse.builder()
+                        .status("SUCCESS")
+                        .orderId(orderId)
+                        .momoResultCode(finalResultCode)
+                        .message(momoMessage)
+                        .build();
             }
-            fulfillSuccessfulPayment(tx, momoTxId, message, queryBody);
-            return SyncMomoOrderResponse.builder()
-                    .status("SUCCESS")
-                    .orderId(orderId)
-                    .momoResultCode(resultCode)
-                    .message(message)
-                    .build();
-        }
 
-        return SyncMomoOrderResponse.builder()
-                .status(tx.getStatus())
-                .orderId(orderId)
-                .momoResultCode(resultCode)
-                .message(message != null ? message : "Chưa thanh toán thành công trên MoMo")
-                .build();
+            return SyncMomoOrderResponse.builder()
+                    .status(tx.getStatus())
+                    .orderId(orderId)
+                    .momoResultCode(finalResultCode)
+                    .message(momoMessage != null ? momoMessage : "Chưa thanh toán thành công trên MoMo")
+                    .build();
+        });
     }
 
     private void fulfillSuccessfulPayment(PaymentTransaction tx, String momoTxId, String message,

@@ -1,18 +1,16 @@
 package com.deutschflow.notification.jobs;
 
 import com.deutschflow.notification.service.UserNotificationService;
-import com.deutschflow.user.entity.User;
-import com.deutschflow.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Scheduled jobs for daily engagement notifications.
@@ -27,12 +25,12 @@ import java.util.List;
 @Slf4j
 public class DailyNotificationJob {
 
-    private final UserRepository userRepository;
     private final UserNotificationService userNotificationService;
     private final JdbcTemplate jdbcTemplate;
 
     private static final int REVIEW_DUE_HOUR = 8;
     private static final int STREAK_REMINDER_HOUR = 18;
+    private static final int PAGE_SIZE = 500;
 
     /**
      * Runs every hour at minute 0. Checks which users are in the target hour
@@ -42,37 +40,38 @@ public class DailyNotificationJob {
     public void checkAndSendDailyNotifications() {
         log.debug("[DailyNotificationJob] Hourly check started");
 
-        List<User> students = userRepository.findByRoleAndActiveTrue(User.Role.STUDENT);
+        long offset = 0;
+        while (true) {
+            List<Map<String, Object>> page = jdbcTemplate.queryForList(
+                    "SELECT id, notification_timezone FROM users WHERE role = 'STUDENT' AND is_active = TRUE ORDER BY id LIMIT ? OFFSET ?",
+                    PAGE_SIZE, offset);
+            if (page.isEmpty()) break;
 
-        for (User student : students) {
-            try {
-                String tzStr = student.getNotificationTimezone();
-                if (tzStr == null || tzStr.isBlank()) {
-                    tzStr = "Asia/Ho_Chi_Minh";
-                }
-                ZoneId tz;
+            for (Map<String, Object> row : page) {
+                long userId = ((Number) row.get("id")).longValue();
+                String tzStr = (String) row.get("notification_timezone");
                 try {
-                    tz = ZoneId.of(tzStr);
+                    if (tzStr == null || tzStr.isBlank()) tzStr = "Asia/Ho_Chi_Minh";
+                    ZoneId tz;
+                    try {
+                        tz = ZoneId.of(tzStr);
+                    } catch (Exception e) {
+                        tz = ZoneId.of("Asia/Ho_Chi_Minh");
+                    }
+                    int currentHour = ZonedDateTime.now(tz).getHour();
+                    if (currentHour == REVIEW_DUE_HOUR) sendReviewDueIfNeeded(userId);
+                    if (currentHour == STREAK_REMINDER_HOUR) sendStreakReminderIfNeeded(userId);
                 } catch (Exception e) {
-                    tz = ZoneId.of("Asia/Ho_Chi_Minh");
+                    log.warn("[DailyNotificationJob] Error processing user {}: {}", userId, e.getMessage());
                 }
-
-                ZonedDateTime nowInUserTz = ZonedDateTime.now(tz);
-                int currentHour = nowInUserTz.getHour();
-
-                if (currentHour == REVIEW_DUE_HOUR) {
-                    sendReviewDueIfNeeded(student);
-                }
-                if (currentHour == STREAK_REMINDER_HOUR) {
-                    sendStreakReminderIfNeeded(student);
-                }
-            } catch (Exception e) {
-                log.warn("[DailyNotificationJob] Error processing user {}: {}", student.getId(), e.getMessage());
             }
+
+            if (page.size() < PAGE_SIZE) break;
+            offset += PAGE_SIZE;
         }
     }
 
-    private void sendReviewDueIfNeeded(User student) {
+    private void sendReviewDueIfNeeded(long userId) {
         // Count due cards in the canonical FSRS SRS table (vocab_review_schedule, V110).
         // The previous query targeted "review_queue" — a table that has never existed in any
         // migration — so this whole branch was throwing every hour the job fired. vocab_review_schedule
@@ -80,7 +79,7 @@ public class DailyNotificationJob {
         // and is fed by SrsVocabScheduler from every learning flow.
         Integer dueCount = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM vocab_review_schedule WHERE user_id = ? AND next_review_at <= NOW()",
-                Integer.class, student.getId());
+                Integer.class, userId);
 
         if (dueCount != null && dueCount > 0) {
             // Check if we already sent a REVIEW_DUE today (avoid duplicates)
@@ -89,22 +88,22 @@ public class DailyNotificationJob {
                     SELECT COUNT(*) FROM user_notifications
                     WHERE recipient_user_id = ? AND notification_type = 'REVIEW_DUE'
                       AND created_at >= CURRENT_DATE
-                    """, Long.class, student.getId());
+                    """, Long.class, userId);
 
             if (alreadySent == null || alreadySent == 0) {
-                userNotificationService.onReviewDue(student.getId(), dueCount);
-                log.debug("[DailyNotificationJob] REVIEW_DUE sent to user {} — {} cards", student.getId(), dueCount);
+                userNotificationService.onReviewDue(userId, dueCount);
+                log.debug("[DailyNotificationJob] REVIEW_DUE sent to user {} — {} cards", userId, dueCount);
             }
         }
     }
 
-    private void sendStreakReminderIfNeeded(User student) {
+    private void sendStreakReminderIfNeeded(long userId) {
         // Check if user has any activity today (XP events or session progress)
         Long activityToday = jdbcTemplate.queryForObject(
                 """
                 SELECT COUNT(*) FROM user_xp_events
                 WHERE user_id = ? AND created_at >= CURRENT_DATE
-                """, Long.class, student.getId());
+                """, Long.class, userId);
 
         if (activityToday != null && activityToday > 0) {
             return; // User already studied today — no reminder needed
@@ -116,16 +115,16 @@ public class DailyNotificationJob {
                 SELECT COUNT(*) FROM user_notifications
                 WHERE recipient_user_id = ? AND notification_type = 'STREAK_REMINDER'
                   AND created_at >= CURRENT_DATE
-                """, Long.class, student.getId());
+                """, Long.class, userId);
 
         if (alreadySent != null && alreadySent > 0) {
             return;
         }
 
         // Compute current streak (simplified — just count consecutive days with XP events)
-        int streak = computeSimpleStreak(student.getId());
-        userNotificationService.onStreakReminder(student.getId(), streak);
-        log.debug("[DailyNotificationJob] STREAK_REMINDER sent to user {} — streak={}", student.getId(), streak);
+        int streak = computeSimpleStreak(userId);
+        userNotificationService.onStreakReminder(userId, streak);
+        log.debug("[DailyNotificationJob] STREAK_REMINDER sent to user {} — streak={}", userId, streak);
     }
 
     private int computeSimpleStreak(Long userId) {

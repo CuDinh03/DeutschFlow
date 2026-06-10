@@ -62,6 +62,9 @@ class TeacherServiceTest {
     private ClassAssignmentRepository assignmentRepository;
 
     @Mock
+    private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
+    @Mock
     private StudentAssignmentRepository studentAssignmentRepository;
 
     @Mock
@@ -103,6 +106,7 @@ class TeacherServiceTest {
                 classStudentRepository,
                 classTeacherRepository,
                 assignmentRepository,
+                jdbcTemplate,
                 studentAssignmentRepository,
                 speakingSessionRepository,
                 userRepository,
@@ -121,7 +125,7 @@ class TeacherServiceTest {
     void createAssignment_Success() {
         Long teacherId = 1L;
         Long classId = 100L;
-        CreateAssignmentRequest req = new CreateAssignmentRequest("Test Topic", "Test Desc", "GENERAL", 10L, LocalDateTime.now().plusDays(7), null);
+        CreateAssignmentRequest req = new CreateAssignmentRequest("Test Topic", "Test Desc", "GENERAL", null, 10L, LocalDateTime.now().plusDays(7), null);
 
         when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)).thenReturn(true);
 

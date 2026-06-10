@@ -58,6 +58,10 @@ public class User implements UserDetails {
     @Column(name = "push_platform", length = 10)
     private String pushPlatform;
 
+    /** Primary org (B2B tenant). null = không thuộc org nào — giữ nguyên hành xử B2C. */
+    @Column(name = "org_id")
+    private Long orgId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

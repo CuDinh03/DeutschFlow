@@ -1,6 +1,7 @@
 package com.deutschflow.interview.controller;
 
 import com.deutschflow.interview.dto.InterviewPersonaDto;
+import com.deutschflow.interview.dto.InterviewRubricDto;
 import com.deutschflow.interview.dto.InterviewRubricUpdateRequest;
 import com.deutschflow.interview.entity.InterviewPersonaEntity;
 import com.deutschflow.interview.entity.InterviewRubricTemplate;
@@ -44,12 +45,15 @@ public class InterviewAdminController {
     }
 
     @GetMapping("/rubrics")
-    public ResponseEntity<List<InterviewRubricTemplate>> listRubrics() {
-        return ResponseEntity.ok(rubricRepository.findAll());
+    public ResponseEntity<List<InterviewRubricDto>> listRubrics() {
+        return ResponseEntity.ok(
+                rubricRepository.findAll().stream()
+                        .map(InterviewRubricDto::from)
+                        .toList());
     }
 
     @PutMapping("/rubrics/{id}")
-    public ResponseEntity<InterviewRubricTemplate> updateRubric(
+    public ResponseEntity<InterviewRubricDto> updateRubric(
             @PathVariable Long id,
             @RequestBody InterviewRubricUpdateRequest req) {
         InterviewRubricTemplate rubric = rubricRepository.findById(id)
@@ -57,6 +61,6 @@ public class InterviewAdminController {
         if (req.criteriaJson() != null) rubric.setCriteriaJson(req.criteriaJson());
         if (req.weightJson() != null)   rubric.setWeightJson(req.weightJson());
         rubric.setVersion(rubric.getVersion() + 1);
-        return ResponseEntity.ok(rubricRepository.save(rubric));
+        return ResponseEntity.ok(InterviewRubricDto.from(rubricRepository.save(rubric)));
     }
 }

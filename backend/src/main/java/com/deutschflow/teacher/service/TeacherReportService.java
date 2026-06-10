@@ -104,7 +104,7 @@ public class TeacherReportService {
         Collections.reverse(assignments); // cũ → mới cho chiều đọc sổ điểm
 
         List<GradebookDto.AssignmentColumn> columns = assignments.stream()
-                .map(a -> new GradebookDto.AssignmentColumn(a.getId(), a.getTopic(), a.getAssignmentType(), a.getDueDate()))
+                .map(a -> new GradebookDto.AssignmentColumn(a.getId(), a.getTopic(), a.getAssignmentType(), a.getSkill(), a.getDueDate()))
                 .toList();
 
         // studentId → assignmentId → bài nộp

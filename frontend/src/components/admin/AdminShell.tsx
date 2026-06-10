@@ -11,6 +11,7 @@ import {
   Bell,
   BookOpen,
   Bot,
+  Building2,
   Coins,
   Database,
   Image,
@@ -41,6 +42,7 @@ export type AdminNavId =
   | 'weekly-speaking'
   | 'media'
   | 'notifications'
+  | 'organizations'
 
 type AdminShellProps = {
   title: string
@@ -74,6 +76,7 @@ export default function AdminShell({
     { id: 'analytics' as const,     label: 'Product Analytics',   href: '/admin/analytics',      icon: LineChart },
     { id: 'interview-analytics' as const, label: 'Interview Analytics', href: '/admin/interview-analytics', icon: BarChart3 },
     { id: 'students' as const,      label: t('students'),        href: '/admin/users',         icon: Users },
+    { id: 'organizations' as const, label: 'Tổ chức (B2B)',       href: '/admin/organizations', icon: Building2 },
     { id: 'plans' as const,         label: t('plans'),       href: '/admin/plans',          icon: Coins },
     { id: 'classes' as const,       label: t('classes'),           href: '/admin/classes',        icon: BookOpen },
     { id: 'vocabulary' as const,    label: t('vocabulary'),           href: '/admin/vocabulary',     icon: Database },

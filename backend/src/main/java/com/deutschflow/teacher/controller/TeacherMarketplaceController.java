@@ -3,6 +3,7 @@ package com.deutschflow.teacher.controller;
 import com.deutschflow.teacher.dto.TeacherProfileDto;
 import com.deutschflow.teacher.entity.TeacherProfile;
 import com.deutschflow.teacher.repository.TeacherProfileRepository;
+import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.user.entity.User;
 import jakarta.validation.Valid;
@@ -31,7 +32,8 @@ public class TeacherMarketplaceController {
             @RequestParam(defaultValue = "20") int size) {
 
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "featured", "id"));
-        Page<TeacherProfile> profiles = teacherProfileRepository.findAllWithUser(pageRequest);
+        // Org teachers are excluded from the public marketplace (B2B decision 2026-06-10).
+        Page<TeacherProfile> profiles = teacherProfileRepository.findPublicWithUser(pageRequest);
         return ResponseEntity.ok(profiles.map(this::toDto));
     }
 
@@ -39,6 +41,10 @@ public class TeacherMarketplaceController {
     public ResponseEntity<TeacherProfileDto> getTeacherProfile(@PathVariable Long id) {
         TeacherProfile profile = teacherProfileRepository.findByIdWithUser(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy hồ sơ chuyên gia"));
+        // An org teacher's profile is not part of the public marketplace — hide it from direct access too.
+        if (profile.getUser().getOrgId() != null) {
+            throw new NotFoundException("Không tìm thấy hồ sơ chuyên gia");
+        }
         return ResponseEntity.ok(toDto(profile));
     }
 
@@ -52,6 +58,11 @@ public class TeacherMarketplaceController {
     public ResponseEntity<TeacherProfileDto> updateMyProfile(
             @AuthenticationPrincipal User user,
             @RequestBody @Valid UpdateProfileRequest request) {
+
+        // Org teachers don't have a public marketplace presence.
+        if (user.getOrgId() != null) {
+            throw new ForbiddenException("Giáo viên thuộc tổ chức không sử dụng marketplace 1-1");
+        }
 
         TeacherProfile profile = teacherProfileRepository.findByUserId(user.getId())
                 .orElseGet(() -> {

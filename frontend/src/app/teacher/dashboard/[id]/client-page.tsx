@@ -13,6 +13,7 @@ import { ImageUploader } from "@/components/ui/ImageUploader";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Users, BarChart2, BookOpen, AlertCircle, TrendingUp, Plus, Trophy, Trash2, FileBarChart, Mail, Pencil, Check, X, ChevronDown, ChevronUp, Clock, CheckCircle2, FileText, ExternalLink, Loader2 } from "lucide-react";
+import { getErrorSnippet } from "@/lib/errors/errorTaxonomy";
 
 interface ClassStudent {
   studentId: number;
@@ -105,6 +106,7 @@ export default function ClassDetailPage() {
   const [newDesc, setNewDesc] = useState("");
   const [newDueDate, setNewDueDate] = useState("");
   const [newAssignmentType, setNewAssignmentType] = useState("GENERAL");
+  const [newSkill, setNewSkill] = useState("GENERAL");
   const [newAttachment, setNewAttachment] = useState<File | null>(null);
   const [isCreatingAssignment, setIsCreatingAssignment] = useState(false);
 
@@ -294,6 +296,7 @@ export default function ClassDetailPage() {
         topic: newTopic,
         description: newDesc,
         assignmentType: newAssignmentType,
+        skill: newSkill,
         dueDate: newDueDate ? new Date(newDueDate).toISOString() : null,
         attachmentUrl
       });
@@ -301,6 +304,7 @@ export default function ClassDetailPage() {
       setNewDesc("");
       setNewDueDate("");
       setNewAssignmentType("GENERAL");
+      setNewSkill("GENERAL");
       setNewAttachment(null);
       setSelectedLibraryImage(null);
       fetchData(); // Refresh assignments
@@ -1001,8 +1005,8 @@ export default function ClassDetailPage() {
                   <tbody className="divide-y divide-slate-100">
                     {Array.isArray(analytics) && analytics.map((item, idx) => (
                       <tr key={item.errorCode} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-6 py-4 font-medium text-slate-800">
-                          {item.errorCode}
+                        <td className="px-6 py-4 font-medium text-slate-800" title={item.errorCode}>
+                          {getErrorSnippet(item.errorCode, 'vi').title}
                         </td>
                         <td className="px-6 py-4 text-right font-mono font-bold text-rose-600">
                           {item.count} lỗi
@@ -1045,7 +1049,7 @@ export default function ClassDetailPage() {
                     required
                   />
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 mb-1">Loại bài tập</label>
                     <select
@@ -1059,6 +1063,20 @@ export default function ClassDetailPage() {
                       <option value="GRAMMAR">Ngữ Pháp (Grammar)</option>
                       <option value="ESSAY">Viết luận (Essay)</option>
                       <option value="MOCK_TEST">Thi thử (Mock Test)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1">Kỹ năng (Skill)</label>
+                    <select
+                      value={newSkill}
+                      onChange={(e) => setNewSkill(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+                    >
+                      <option value="GENERAL">Chung (Allgemein)</option>
+                      <option value="HOREN">Nghe (Hören)</option>
+                      <option value="LESEN">Đọc (Lesen)</option>
+                      <option value="SCHREIBEN">Viết (Schreiben)</option>
+                      <option value="SPRECHEN">Nói (Sprechen)</option>
                     </select>
                   </div>
                   <div>

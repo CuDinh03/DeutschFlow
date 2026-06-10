@@ -5,10 +5,12 @@ import com.deutschflow.srs.dto.ScheduleVocabRequest;
 import com.deutschflow.srs.dto.VocabReviewCard;
 import com.deutschflow.srs.service.SrsService;
 import com.deutschflow.user.entity.User;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -35,6 +37,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/srs")
 @RequiredArgsConstructor
+@Validated   // enables element-level validation on @RequestBody List<@Valid X> (BE-M3)
 @PreAuthorize("hasRole('STUDENT')")
 public class SrsController {
 
@@ -65,7 +68,7 @@ public class SrsController {
     @PostMapping("/schedule")
     public ResponseEntity<Void> scheduleVocab(
             @AuthenticationPrincipal User user,
-            @RequestBody ScheduleVocabRequest req) {
+            @Valid @RequestBody ScheduleVocabRequest req) {
         srsService.scheduleVocab(user.getId(), req);
         return ResponseEntity.ok().build();
     }
@@ -74,7 +77,7 @@ public class SrsController {
     @PostMapping("/schedule/batch")
     public ResponseEntity<Void> scheduleVocabBatch(
             @AuthenticationPrincipal User user,
-            @RequestBody List<ScheduleVocabRequest> items) {
+            @RequestBody List<@Valid ScheduleVocabRequest> items) {
         srsService.scheduleVocabBatch(user.getId(), items);
         return ResponseEntity.ok().build();
     }
@@ -83,7 +86,7 @@ public class SrsController {
     @PostMapping("/review")
     public ResponseEntity<VocabReviewCard> recordReview(
             @AuthenticationPrincipal User user,
-            @RequestBody ReviewRequest req) {
+            @Valid @RequestBody ReviewRequest req) {
         return ResponseEntity.ok(srsService.recordReview(user.getId(), req));
     }
 
@@ -96,7 +99,7 @@ public class SrsController {
     @PostMapping("/review/batch")
     public ResponseEntity<List<VocabReviewCard>> recordReviewBatch(
             @AuthenticationPrincipal User user,
-            @RequestBody List<ReviewRequest> reviews) {
+            @RequestBody List<@Valid ReviewRequest> reviews) {
         if (reviews == null || reviews.isEmpty()) {
             return ResponseEntity.ok(List.of());
         }

@@ -16,6 +16,7 @@ import { UserTextWithErrorSpans } from "./UserTextWithErrorSpans";
 import { parseActionChips } from "./actionChips";
 import { SpeakingPersonaMiniAvatar } from "./SpeakingPersonaMiniAvatar";
 import { SpeakingFeedbackCompact } from "@/components/features/ai-speaking/SpeakingFeedbackCompact";
+import { getErrorSnippet } from "@/lib/errors/errorTaxonomy";
 import {
   getPersonaV2VisualTokens,
   normalizeSpeakingPersona,
@@ -113,7 +114,7 @@ export function SpeakingMessageBubble({
                       }}
                       title={e.errorCode}
                     >
-                      {e.errorCode.split(".").pop()}
+                      {getErrorSnippet(e.errorCode, 'vi').title}
                     </span>
                   ))}
                 </div>
@@ -182,7 +183,7 @@ export function SpeakingMessageBubble({
                 borderColor: L.line,
               }}
             >
-              {e.errorCode.split(".").pop()}
+              {getErrorSnippet(e.errorCode, 'vi').title}
             </span>
           ))}
         </div>

@@ -68,11 +68,26 @@
       "open": "Öffnen",
       "faqTitle": "Häufige Fragen",
       "faq": [
-        { "q": "Wie lange sollte ich täglich lernen?", "a": "Schon 15–20 konstante Minuten pro Tag reichen für Fortschritt. Das Wichtigste ist, deine Serie zu halten." },
-        { "q": "Wo sollte ich anfangen?", "a": "Folge dem \"Lernpfad\" und mach jeden Tag die hervorgehobene Stufe. Die Startseite schlägt dir außerdem immer die beste nächste Aktion vor." },
-        { "q": "Braucht \"Mit KI sprechen\" ein Mikrofon?", "a": "Ja. Beim ersten Mal fragt die App nach Mikrofonzugriff. Du kannst auch tippen, wenn du noch nicht sprechen möchtest." },
-        { "q": "Wie funktioniert Wiederholen (SRS)?", "a": "Das System erinnert dich genau dann an Wörter und Grammatik, kurz bevor du sie vergessen würdest – so behältst du mehr in kürzerer Zeit." },
-        { "q": "Wie schalte ich alle Funktionen frei?", "a": "Einige erweiterte Funktionen gehören zu PRO. Öffne den Punkt \"Auf PRO upgraden\" in der Seitenleiste für Details." }
+        {
+          "q": "Wie lange sollte ich täglich lernen?",
+          "a": "Schon 15–20 konstante Minuten pro Tag reichen für Fortschritt. Das Wichtigste ist, deine Serie zu halten."
+        },
+        {
+          "q": "Wo sollte ich anfangen?",
+          "a": "Folge dem \"Lernpfad\" und mach jeden Tag die hervorgehobene Stufe. Die Startseite schlägt dir außerdem immer die beste nächste Aktion vor."
+        },
+        {
+          "q": "Braucht \"Mit KI sprechen\" ein Mikrofon?",
+          "a": "Ja. Beim ersten Mal fragt die App nach Mikrofonzugriff. Du kannst auch tippen, wenn du noch nicht sprechen möchtest."
+        },
+        {
+          "q": "Wie funktioniert Wiederholen (SRS)?",
+          "a": "Das System erinnert dich genau dann an Wörter und Grammatik, kurz bevor du sie vergessen würdest – so behältst du mehr in kürzerer Zeit."
+        },
+        {
+          "q": "Wie schalte ich alle Funktionen frei?",
+          "a": "Einige erweiterte Funktionen gehören zu PRO. Öffne den Punkt \"Auf PRO upgraden\" in der Seitenleiste für Details."
+        }
       ]
     }
   },
@@ -632,6 +647,7 @@
     "micRetry": "Erneut versuchen",
     "micTypeInstead": "Du kannst deine Antwort auch eintippen, um fortzufahren.",
     "transcriptionFailed": "Sprache nicht erkannt. Bitte erneut versuchen oder manuell eingeben.",
+    "phonemeEvalFailed": "Aussprache konnte nicht bewertet werden. Du kannst trotzdem senden.",
     "showExplanations": "Erklärungen einblenden",
     "hideExplanations": "Erklärungen ausblenden",
     "micPressToRecord": "Aufnahme starten",
@@ -693,7 +709,6 @@
       "phonemeTitle": "Aussprache (Levenshtein)",
       "phonemeAllGood": "Aussprache wirkt gut — keine klaren Abweichungen",
       "phonemeAnalyzing": "Aussprache wird analysiert…",
-      "phonemeEvalFailed": "Aussprache konnte nicht bewertet werden. Du kannst trotzdem senden.",
       "sessionMission": "Thema: {topic}",
       "summaryViewHistory": "Sprechverlauf ansehen",
       "quotaRemaining": "KI ~{n} übrig",
@@ -900,7 +915,10 @@
     "no": "Nein",
     "noMatchSearch": "Kein Nutzer entspricht dem Filter.",
     "pctNote": "%: Wallet = Verbrauch 30d / Cap; FREE = heute / Tagesbudget.",
-    "apiFoot": "GET /api/admin/users · {shown} / {total} Konten angezeigt."
+    "apiFoot": "GET /api/admin/users · {shown} / {total} Konten angezeigt.",
+    "piePrompt": "Prompt-Tokens",
+    "pieCompletion": "Completion-Tokens",
+    "pieOther": "Sonstige / nicht zugeordnet"
   },
   "adminAi": {
     "title": "KI-Konfiguration",
@@ -1270,6 +1288,7 @@
     "teacherAltPlaceholder": "Bildbeschreibung…",
     "searchPlaceholder": "Nach Dateiname, Tag, Alt suchen…",
     "loadError": "Medienliste konnte nicht geladen werden",
+    "deleteConfirmTitle": "Löschen bestätigen",
     "deleteConfirm": "Dieses Bild aus S3 und der Datenbank löschen?",
     "deleteSuccess": "Datei erfolgreich gelöscht",
     "deleteError": "Fehler beim Löschen",

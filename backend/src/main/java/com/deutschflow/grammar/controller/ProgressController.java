@@ -40,7 +40,7 @@ public class ProgressController {
             cefrLevel = jdbcTemplate.queryForObject(
                 "SELECT COALESCE(learning_target_level, 'A1') FROM users WHERE id = ?",
                 String.class, userId);
-        } catch (Exception ignored) {}
+        } catch (Exception e) { log.warn("[Progress] cefrLevel query failed for user {}: {}", userId, e.getMessage()); }
         result.put("cefrLevel", cefrLevel);
 
         // Speaking skill score (Sprechen) — from weekly speaking or AI speaking
@@ -51,7 +51,7 @@ public class ProgressController {
                 WHERE user_id = ? AND status = 'GRADED'
                 """, Double.class, userId);
             sprechenScore = s != null ? s : 0;
-        } catch (Exception ignored) {}
+        } catch (Exception e) { log.warn("[Progress] sprechenScore query failed for user {}: {}", userId, e.getMessage()); }
 
         // Grammar score (Schreiben proxy)
         double grammarMastery = 0;
@@ -60,7 +60,7 @@ public class ProgressController {
                 SELECT AVG(mastery_percent) FROM grammar_topic_progress WHERE user_id = ?
                 """, Double.class, userId);
             grammarMastery = g != null ? g : 0;
-        } catch (Exception ignored) {}
+        } catch (Exception e) { log.warn("[Progress] grammarMastery query failed for user {}: {}", userId, e.getMessage()); }
 
         // Vocab coverage
         double vocabCoverage = 0;
@@ -70,7 +70,7 @@ public class ProgressController {
                 FROM user_vocabulary_srs WHERE user_id = ?
                 """, Double.class, userId);
             vocabCoverage = v != null ? v : 0;
-        } catch (Exception ignored) {}
+        } catch (Exception e) { log.warn("[Progress] vocabCoverage query failed for user {}: {}", userId, e.getMessage()); }
 
         // Mock exam best score
         int mockBest = 0;
@@ -80,7 +80,7 @@ public class ProgressController {
                 WHERE user_id = ? AND status = 'COMPLETED'
                 """, Integer.class, userId);
             mockBest = m != null ? m : 0;
-        } catch (Exception ignored) {}
+        } catch (Exception e) { log.warn("[Progress] mockBest query failed for user {}: {}", userId, e.getMessage()); }
 
         // Skill data
         Map<String, Object> skills = new LinkedHashMap<>();
@@ -90,7 +90,7 @@ public class ProgressController {
                 "SELECT COALESCE(SUM(exercises_done),0) FROM grammar_topic_progress WHERE user_id = ?",
                 Integer.class, userId);
             exDone = d != null ? d : 0;
-        } catch (Exception ignored) {}
+        } catch (Exception e) { log.warn("[Progress] exercisesDone query failed for user {}: {}", userId, e.getMessage()); }
 
         skills.put("lesen", Map.of("score", (int) Math.min(100, vocabCoverage), "exercisesDone", exDone));
         skills.put("hoeren", Map.of("score", (int) Math.min(100, vocabCoverage * 0.8), "exercisesDone", 0));

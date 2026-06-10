@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation'
 import { StudentShell } from '@/components/layouts/StudentShell'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
 import { reviewApi, type VocabReviewCard, type ErrorReviewTaskDto } from '@/lib/reviewApi'
+import { getErrorSnippet } from '@/lib/errors/errorTaxonomy'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 import { useTracking } from '@/hooks/useTracking'
 import { QUALITY_LEVELS, isPassingQuality } from '@/lib/srsGrading'
@@ -159,7 +160,7 @@ function GrammarCard({
           </span>
           <span className="text-[10px] text-white/60">Ôn mỗi {task.intervalDays} ngày</span>
         </div>
-        <p className="text-lg font-extrabold text-white leading-snug">{task.errorCode}</p>
+        <p className="text-lg font-extrabold text-white leading-snug" title={task.errorCode}>{getErrorSnippet(task.errorCode, 'vi').title}</p>
       </div>
 
       <div className="px-6 py-5 space-y-4">

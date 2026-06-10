@@ -85,14 +85,15 @@ public class MockExamController {
                 """, uid, examId);
         }
 
-        // Return attempt details AND the exam structure
+        // Return attempt details AND the exam structure (answers stripped — scoring happens server-side)
         var examDetails = jdbcTemplate.queryForMap("""
-            SELECT sections_json::text AS sections_json 
+            SELECT sections_json::text AS sections_json, time_limit_minutes
             FROM mock_exams WHERE id = ?
             """, examId);
 
         Map<String, Object> response = new HashMap<>(attemptRow);
-        response.put("sections_json", examDetails.get("sections_json"));
+        response.put("sections_json", stripAnswerKeys((String) examDetails.get("sections_json")));
+        response.put("time_limit_minutes", examDetails.get("time_limit_minutes"));
 
         return ResponseEntity.ok(response);
     }
@@ -104,7 +105,8 @@ public class MockExamController {
                 SELECT sections_json::text AS sections_json
                 FROM mock_exams WHERE id = ?
                 """, examId);
-            return ResponseEntity.ok(row);
+            String sanitized = stripAnswerKeys((String) row.get("sections_json"));
+            return ResponseEntity.ok(Map.of("sections_json", sanitized));
         } catch (Exception e) {
             return ResponseEntity.notFound().build();
         }
@@ -333,6 +335,33 @@ public class MockExamController {
     public ResponseEntity<Map<String, Object>> examCoverage(
             @RequestParam(defaultValue = "A1") String cefrLevel) {
         return ResponseEntity.ok(generationService.getExamCoverage(cefrLevel));
+    }
+
+    /** Strip correct/correct_answer fields from sections_json before sending to client. */
+    private String stripAnswerKeys(String sectionsJson) {
+        if (sectionsJson == null) return sectionsJson;
+        try {
+            Map<String, Object> structure = om.readValue(sectionsJson, Map.class);
+            List<Map<String, Object>> sections = (List<Map<String, Object>>) structure.get("sections");
+            if (sections != null) {
+                for (Map<String, Object> section : sections) {
+                    List<Map<String, Object>> teile = (List<Map<String, Object>>) section.get("teile");
+                    if (teile == null) continue;
+                    for (Map<String, Object> teil : teile) {
+                        List<Map<String, Object>> items = (List<Map<String, Object>>) teil.get("items");
+                        if (items == null) continue;
+                        for (Map<String, Object> item : items) {
+                            item.remove("correct");
+                            item.remove("correct_answer");
+                        }
+                    }
+                }
+            }
+            return om.writeValueAsString(structure);
+        } catch (Exception e) {
+            log.warn("Failed to strip answer keys from sections_json: {}", e.getMessage());
+            return sectionsJson;
+        }
     }
 
     @GetMapping("/attempts/{attemptId}/review")

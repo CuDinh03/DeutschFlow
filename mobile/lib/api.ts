@@ -38,7 +38,9 @@ api.interceptors.request.use(async (config) => {
 
 // Auto-refresh on 401
 type RefreshResponseData = { accessToken?: string; refreshToken?: string | null }
-let refreshPromise: Promise<AxiosResponse<RefreshResponseData>> | null = null
+type RefreshResult = { accessToken: string; newRefresh: string }
+// Assign synchronously before any await so concurrent 401s share one refresh request.
+let refreshPromise: Promise<RefreshResult> | null = null
 
 api.interceptors.response.use(
   (res) => res,
@@ -61,19 +63,19 @@ api.interceptors.response.use(
 
     try {
       if (!refreshPromise) {
-        const refreshToken = await getRefreshToken()
-        if (!refreshToken) throw new Error('no_refresh_token')
-        refreshPromise = api.post<RefreshResponseData>('/auth/refresh', { refreshToken })
+        refreshPromise = (async (): Promise<RefreshResult> => {
+          const refreshToken = await getRefreshToken()
+          if (!refreshToken) throw new Error('no_refresh_token')
+          const res = await api.post<RefreshResponseData>('/auth/refresh', { refreshToken })
+          const { accessToken, refreshToken: newRefresh } = res.data
+          if (!accessToken || !newRefresh) throw new Error('invalid_refresh_response')
+          await setTokens(accessToken, newRefresh)
+          return { accessToken, newRefresh }
+        })().finally(() => { refreshPromise = null })
       }
-      const res = await refreshPromise
-      refreshPromise = null
-      const { accessToken, refreshToken: newRefresh } = res.data
-      if (accessToken && newRefresh) {
-        await setTokens(accessToken, newRefresh)
-        original!.headers!.Authorization = `Bearer ${accessToken}`
-        return api(original!)
-      }
-      throw new Error('invalid_refresh_response')
+      const { accessToken } = await refreshPromise
+      original!.headers!.Authorization = `Bearer ${accessToken}`
+      return api(original!)
     } catch {
       refreshPromise = null
       await clearTokens()

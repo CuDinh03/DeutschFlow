@@ -84,7 +84,7 @@ class AuthServiceUnitTest {
             u.setId(42L);
             return u;
         });
-        when(jwtService.generateAccessToken(any())).thenReturn("ACCESS");
+        when(jwtService.generateAccessToken(any(), any(), any())).thenReturn("ACCESS");
         when(refreshTokenRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         ArgumentCaptor<Runnable> after = ArgumentCaptor.forClass(Runnable.class);

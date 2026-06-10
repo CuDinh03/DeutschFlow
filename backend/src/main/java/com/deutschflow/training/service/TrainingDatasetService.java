@@ -33,7 +33,7 @@ public class TrainingDatasetService {
      * Lưu một lượt hội thoại (user message → AI response) kèm các lỗi sai.
      * Được gọi sau mỗi lần chat thành công (blocking hoặc streaming).
      */
-    @Async
+    @Async("taskExecutor")
     public void recordConversationTurn(
             Long userId,
             Long sessionId,

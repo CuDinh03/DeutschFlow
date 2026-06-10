@@ -68,11 +68,26 @@
       "open": "Open",
       "faqTitle": "Frequently asked questions",
       "faq": [
-        { "q": "How long should I study each day?", "a": "Just 15–20 consistent minutes a day is enough to progress. The most important thing is keeping your streak." },
-        { "q": "Where should I start?", "a": "Follow the \"Learning path\" and do the highlighted stage each day. Home also always suggests your next best action." },
-        { "q": "Does Speak with AI need a microphone?", "a": "Yes. The first time, the app will ask for microphone access. You can also type if you're not ready to speak." },
-        { "q": "How does Review (SRS) work?", "a": "The system reminds you to review words and grammar right before you'd forget them, so you remember longer in less time." },
-        { "q": "How do I unlock all features?", "a": "Some advanced features are part of PRO. Open the Upgrade to PRO item in the sidebar for details." }
+        {
+          "q": "How long should I study each day?",
+          "a": "Just 15–20 consistent minutes a day is enough to progress. The most important thing is keeping your streak."
+        },
+        {
+          "q": "Where should I start?",
+          "a": "Follow the \"Learning path\" and do the highlighted stage each day. Home also always suggests your next best action."
+        },
+        {
+          "q": "Does Speak with AI need a microphone?",
+          "a": "Yes. The first time, the app will ask for microphone access. You can also type if you're not ready to speak."
+        },
+        {
+          "q": "How does Review (SRS) work?",
+          "a": "The system reminds you to review words and grammar right before you'd forget them, so you remember longer in less time."
+        },
+        {
+          "q": "How do I unlock all features?",
+          "a": "Some advanced features are part of PRO. Open the Upgrade to PRO item in the sidebar for details."
+        }
       ]
     }
   },
@@ -660,6 +675,7 @@
     "micRetry": "Try again",
     "micTypeInstead": "You can still type your answer to continue.",
     "transcriptionFailed": "Could not recognise speech. Please try again or type manually.",
+    "phonemeEvalFailed": "Could not score pronunciation. You can still send your message.",
     "showExplanations": "Show explanations",
     "hideExplanations": "Hide explanations",
     "micPressToRecord": "Start recording",
@@ -721,7 +737,6 @@
       "phonemeTitle": "Pronunciation (Levenshtein)",
       "phonemeAllGood": "Pronunciation looks good — no clear mismatches",
       "phonemeAnalyzing": "Analyzing pronunciation…",
-      "phonemeEvalFailed": "Could not score pronunciation. You can still send your message.",
       "sessionMission": "Topic: {topic}",
       "summaryViewHistory": "View speaking history",
       "quotaRemaining": "AI ~{n} left",
@@ -928,7 +943,10 @@
     "no": "No",
     "noMatchSearch": "No users match your filter.",
     "pctNote": "%: wallet = used 30d / cap; FREE = used today / daily grant.",
-    "apiFoot": "GET /api/admin/users · showing {shown} / {total} accounts."
+    "apiFoot": "GET /api/admin/users · showing {shown} / {total} accounts.",
+    "piePrompt": "Prompt tokens",
+    "pieCompletion": "Completion tokens",
+    "pieOther": "Other / unattributed"
   },
   "adminAi": {
     "title": "AI configuration",
@@ -1298,6 +1316,7 @@
     "teacherAltPlaceholder": "Image description…",
     "searchPlaceholder": "Search by file name, tag, alt…",
     "loadError": "Could not load media list",
+    "deleteConfirmTitle": "Confirm delete",
     "deleteConfirm": "Delete this image from S3 and the database?",
     "deleteSuccess": "File deleted successfully",
     "deleteError": "Error while deleting file",

@@ -10,6 +10,7 @@ import {
 import { StudentShell } from '@/components/layouts/StudentShell'
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
 import { reviewApi, type ErrorReviewTaskDto } from '@/lib/reviewApi'
+import { getErrorSnippet } from '@/lib/errors/errorTaxonomy'
 import api from '@/lib/api'
 import ErrorRepairDrill from '@/components/errors/ErrorRepairDrill'
 import { PremiumGate } from '@/components/ui/PremiumGate'
@@ -180,7 +181,7 @@ export default function ErrorLibraryPage() {
                 {pendingTasks.map(task => (
                   <div key={task.id} className="bg-white rounded-2xl p-4 border border-[#FDE68A] flex items-center justify-between gap-3">
                     <div>
-                      <p className="font-bold text-sm text-[#0F172A]">{task.errorCode}</p>
+                      <p className="font-bold text-sm text-[#0F172A]" title={task.errorCode}>{getErrorSnippet(task.errorCode, 'vi').title}</p>
                       <p className="text-xs text-[#64748B] flex items-center gap-1 mt-0.5">
                         <Clock size={11} /> Interval: {task.intervalDays} {tErrors('days')}
                       </p>
@@ -300,7 +301,7 @@ export default function ErrorLibraryPage() {
 
                       {/* Error code */}
                       <div className="mb-3">
-                        <p className="font-mono font-bold text-[#0F172A] text-sm">{err.errorCode}</p>
+                        <p className="font-bold text-[#0F172A] text-sm" title={err.errorCode}>{getErrorSnippet(err.errorCode, 'vi').title}</p>
                         {err.lastSeenAt && (
                           <p className="text-xs text-[#94A3B8] mt-0.5 flex items-center gap-1">
                             <Clock size={11} /> {tErrors('lastSeen')} {new Date(err.lastSeenAt).toLocaleDateString('vi-VN')}
@@ -385,7 +386,7 @@ export default function ErrorLibraryPage() {
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase" style={{ background: style.bg, color: style.text }}>
                               {style.label === 'other' ? tErrors('other') : style.label}
                             </span>
-                            <span className="font-mono font-bold text-[#0F172A] text-xs">{err.errorCode}</span>
+                            <span className="font-bold text-[#0F172A] text-xs" title={err.errorCode}>{getErrorSnippet(err.errorCode, 'vi').title}</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="text-[9px] font-bold bg-slate-100 text-slate-400 px-2 py-0.5 rounded-full">
