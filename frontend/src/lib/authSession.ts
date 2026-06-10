@@ -18,6 +18,9 @@ const LAST_TOKEN_REFRESH_KEY = 'lastTokenRefresh'
 // ─── Cookie keys ──────────────────────────────────────────────────────────────
 const AUTH_ACCESS_COOKIE    = 'auth_access'
 const AUTH_ROLE_COOKIE      = 'auth_role'
+// Org role (OWNER|ADMIN|TEACHER|STUDENT) is a SEPARATE claim from the global role. Mirrored to a
+// cookie alongside auth_role so the client can read it without decoding the JWT. Empty for B2C users.
+const AUTH_ORG_ROLE_COOKIE  = 'auth_org_role'
 const AUTH_LOGGED_IN_COOKIE = 'auth_logged_in'
 
 const TOKEN_REFRESH_INTERVAL_MS = 5 * 60 * 1000
@@ -54,6 +57,11 @@ function getRoleFromToken(accessToken: string): string {
   const payload = decodeJwtPayload(accessToken)
   const fromClaim = normalizeRole(typeof payload?.role === 'string' ? payload.role : '')
   return fromClaim || 'STUDENT'
+}
+
+function getOrgRoleFromToken(accessToken: string): string {
+  const payload = decodeJwtPayload(accessToken)
+  return normalizeRole(typeof payload?.orgRole === 'string' ? payload.orgRole : '')
 }
 
 // ─── Cookie helpers ────────────────────────────────────────────────────────────
@@ -101,6 +109,18 @@ export function getAuthRole(): string {
   return 'STUDENT'
 }
 
+/**
+ * Org role (OWNER|ADMIN|TEACHER|STUDENT) from cookie or JWT, or '' for B2C / non-org users.
+ * Separate from getAuthRole(): an org owner is global TEACHER but OWNER inside the org.
+ */
+export function getOrgRole(): string {
+  const fromCookie = normalizeRole(readCookie(AUTH_ORG_ROLE_COOKIE))
+  if (fromCookie) return fromCookie
+  const token = getAccessToken()
+  if (token) return getOrgRoleFromToken(token)
+  return ''
+}
+
 export function isStudentRole(role?: string | null): boolean {
   return normalizeRole(role ?? getAuthRole()) === 'STUDENT'
 }
@@ -113,6 +133,8 @@ type AuthLikeResponse = {
   accessToken?: string | null
   refreshToken?: string | null
   role?: string | null
+  orgRole?: string | null
+  orgId?: number | null
 }
 
 /**
@@ -120,12 +142,14 @@ type AuthLikeResponse = {
  * Access token → sessionStorage + mirror cookie; refresh token → HttpOnly cookie (backend-set).
  */
 export function setTokens(response: AuthLikeResponse): void {
-  const { accessToken, role } = response
+  const { accessToken, role, orgRole } = response
   if (!accessToken) {
     throw new Error('No access token in auth response. Login failed. Please try again.')
   }
 
   const resolvedRole = normalizeRole(role) || getRoleFromToken(accessToken)
+  // Prefer the explicit AuthResponse field; fall back to the JWT claim. '' for B2C / non-org users.
+  const resolvedOrgRole = normalizeRole(orgRole) || getOrgRoleFromToken(accessToken)
 
   sessionStorage.setItem(ACCESS_TOKEN_KEY, accessToken)
   localStorage.removeItem(ACCESS_TOKEN_KEY)
@@ -134,6 +158,7 @@ export function setTokens(response: AuthLikeResponse): void {
 
   setCookie(AUTH_ACCESS_COOKIE, accessToken, null)
   setCookie(AUTH_ROLE_COOKIE, resolvedRole, null)
+  setCookie(AUTH_ORG_ROLE_COOKIE, resolvedOrgRole, null)
   setCookie(AUTH_LOGGED_IN_COOKIE, '1', null)
 }
 
@@ -155,6 +180,7 @@ export function clearTokens(): void {
 
   setCookie(AUTH_ACCESS_COOKIE, '', 0)
   setCookie(AUTH_ROLE_COOKIE, '', 0)
+  setCookie(AUTH_ORG_ROLE_COOKIE, '', 0)
   setCookie(AUTH_LOGGED_IN_COOKIE, '', 0)
 }
 

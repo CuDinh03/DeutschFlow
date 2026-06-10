@@ -62,6 +62,9 @@ class TeacherServiceTest {
     private ClassAssignmentRepository assignmentRepository;
 
     @Mock
+    private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
+    @Mock
     private StudentAssignmentRepository studentAssignmentRepository;
 
     @Mock
@@ -103,6 +106,7 @@ class TeacherServiceTest {
                 classStudentRepository,
                 classTeacherRepository,
                 assignmentRepository,
+                jdbcTemplate,
                 studentAssignmentRepository,
                 speakingSessionRepository,
                 userRepository,

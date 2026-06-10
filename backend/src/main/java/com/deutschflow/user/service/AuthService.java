@@ -3,6 +3,8 @@ package com.deutschflow.user.service;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.transaction.RunAfterCommitService;
 import com.deutschflow.common.security.JwtService;
+import com.deutschflow.organization.entity.OrgMember;
+import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.user.dto.AuthResponse;
 import com.deutschflow.user.dto.ChangePasswordRequest;
 import com.deutschflow.user.dto.LoginRequest;
@@ -46,6 +48,7 @@ public class AuthService {
     private final StudentTrialSubscriptionProvisioner studentTrialSubscriptionProvisioner;
     private final RunAfterCommitService runAfterCommitService;
     private final UserNotificationService userNotificationService;
+    private final OrgMemberRepository orgMemberRepository;
 
     @Value("${app.jwt.refresh-token-expiry-ms}")
     private long refreshTokenExpiryMs;
@@ -237,8 +240,18 @@ public class AuthService {
 
     /** @param attachTokens tokens on login/register/refresh — {@code false} for {@link #me} */
     private AuthResponse buildAuthResponse(User user, String learningTargetLevel, String industry, boolean attachTokens) {
+        // Org context: orgId từ principal (fast-path), orgRole từ membership ACTIVE.
+        // Non-org user → cả hai null ⇒ token & response y như B2C cũ.
+        Long orgId = user.getOrgId();
+        String orgRole = null;
+        if (orgId != null) {
+            orgRole = orgMemberRepository.findByIdOrgIdAndIdUserId(orgId, user.getId())
+                    .filter(m -> "ACTIVE".equals(m.getStatus()))
+                    .map(OrgMember::getRole)
+                    .orElse(null);
+        }
         if (attachTokens) {
-            String accessToken = jwtService.generateAccessToken(user);
+            String accessToken = jwtService.generateAccessToken(user, orgId, orgRole);
             String refreshToken = createRefreshToken(user);
             return new AuthResponse(
                     accessToken,
@@ -249,7 +262,9 @@ public class AuthService {
                     user.getRole().name(),
                     user.getLocale().name(),
                     learningTargetLevel,
-                    industry
+                    industry,
+                    orgId,
+                    orgRole
             );
         }
         return new AuthResponse(
@@ -261,12 +276,19 @@ public class AuthService {
                 user.getRole().name(),
                 user.getLocale().name(),
                 learningTargetLevel,
-                industry
+                industry,
+                orgId,
+                orgRole
         );
     }
 
     private AuthResponse buildAuthResponse(User user) {
         return buildAuthResponse(user, null, null, true);
+    }
+
+    /** Issue a fresh login session (tokens + org claims) — used by org invite-accept flow. */
+    public AuthResponse issueSession(User user) {
+        return buildAuthResponse(user);
     }
 
     private String createRefreshToken(User user) {
