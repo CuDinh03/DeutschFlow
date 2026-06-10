@@ -33,6 +33,7 @@ import com.deutschflow.gamification.service.XpService;
 import com.deutschflow.gamification.dto.XpSummaryDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,6 +49,7 @@ public class TeacherService {
     private final ClassStudentRepository classStudentRepository;
     private final ClassTeacherRepository classTeacherRepository;
     private final ClassAssignmentRepository assignmentRepository;
+    private final JdbcTemplate jdbcTemplate;
     private final StudentAssignmentRepository studentAssignmentRepository;
     private final com.deutschflow.speaking.repository.AiSpeakingSessionRepository speakingSessionRepository;
     private final UserRepository userRepository;
@@ -84,11 +86,33 @@ public class TeacherService {
         List<ClassTeacher> classTeachers = classTeacherRepository.findByIdTeacherId(teacherId);
         List<Long> classIds = classTeachers.stream().map(ct -> ct.getId().getClassId()).toList();
         if (classIds.isEmpty()) return List.of();
-        
+
+        // Batch-load student and assignment counts — avoids N+1 (2 queries per class).
+        String placeholders = classIds.stream().map(ignored -> "?").collect(Collectors.joining(","));
+        Object[] args = classIds.toArray();
+
+        Map<Long, Long> studentCounts = new HashMap<>();
+        jdbcTemplate.queryForList(
+                "SELECT class_id, COUNT(*) AS cnt FROM class_students WHERE class_id IN (" + placeholders + ") GROUP BY class_id",
+                args).forEach(r -> studentCounts.put(toLong(r.get("class_id")), toLong(r.get("cnt"))));
+
+        Map<Long, Long> assignmentCounts = new HashMap<>();
+        jdbcTemplate.queryForList(
+                "SELECT class_id, COUNT(*) AS cnt FROM class_assignments WHERE class_id IN (" + placeholders + ") GROUP BY class_id",
+                args).forEach(r -> assignmentCounts.put(toLong(r.get("class_id")), toLong(r.get("cnt"))));
+
         return classRepository.findAllById(classIds)
                 .stream()
-                .map(this::toClassDto)
+                .map(c -> {
+                    long studentCount = studentCounts.getOrDefault(c.getId(), 0L);
+                    long quizCount = assignmentCounts.getOrDefault(c.getId(), 0L);
+                    return new TeacherClassDto(c.getId(), c.getName(), c.getInviteCode(), studentCount, quizCount, c.getCreatedAt());
+                })
                 .collect(Collectors.toList());
+    }
+
+    private static long toLong(Object v) {
+        return v instanceof Number n ? n.longValue() : 0L;
     }
 
     @Transactional

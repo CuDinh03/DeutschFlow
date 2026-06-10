@@ -248,7 +248,7 @@ public class GradingService {
     /**
      * Chấm bài bằng AI cho bài viết (Essay/General).
      */
-    @Async
+    @Async("taskExecutor")
     public void aiGradeAssignment(Long submissionId) {
         log.info("[AI-Grading] Start async grading for submission {}", submissionId);
         try {

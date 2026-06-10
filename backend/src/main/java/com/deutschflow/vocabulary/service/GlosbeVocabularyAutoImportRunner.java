@@ -25,7 +25,7 @@ public class GlosbeVocabularyAutoImportRunner {
      * Runs a one-time incremental import asynchronously after the application has fully started.
      * This catches any vocabulary added since the last cron run without blocking startup.
      */
-    @Async
+    @Async("importExecutor")
     @EventListener(ApplicationReadyEvent.class)
     public void onApplicationReady() {
         runImport("startup");

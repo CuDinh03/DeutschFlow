@@ -25,7 +25,7 @@ public class TeacherAiGradingService {
     private final OpenAiChatClient openAiChatClient;
     private final com.deutschflow.teacher.repository.StudentAssignmentRepository studentAssignmentRepository;
 
-    @Async
+    @Async("taskExecutor")
     public void autoGradeSession(Long sessionId) {
         log.info("[Auto-Grading] Start async grading for session {}", sessionId);
         try {
