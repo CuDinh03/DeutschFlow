@@ -2,6 +2,16 @@ import { useState, useCallback, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { AlertTriangle, CheckCircle2, Loader2, XCircle, Zap } from 'lucide-react'
 import api, { apiMessage } from '@/lib/api'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 async function adminPost(
   path: string,
@@ -38,6 +48,7 @@ export function AutoTagPanel({ onDone }: { onDone: () => void }) {
   const [result, setResult] = useState<Record<string, unknown> | null>(null)
   const [error, setError] = useState('')
   const [taxSummary, setTaxSummary] = useState<Record<string, unknown> | null>(null)
+  const [resetTagsConfirmOpen, setResetTagsConfirmOpen] = useState(false)
 
   const refreshTaxSummary = useCallback(() => {
     adminGet('/admin/vocabulary/taxonomy-summary').then(setTaxSummary).catch(() => {})
@@ -47,15 +58,7 @@ export function AutoTagPanel({ onDone }: { onDone: () => void }) {
     refreshTaxSummary()
   }, [refreshTaxSummary, result])
 
-  const run = async () => {
-    if (!dryRun && resetTags) {
-      const ok =
-        typeof window !== 'undefined' &&
-        window.confirm(
-          'Sẽ xóa liên kết chủ đề taxonomy (chỉ tag is_topic_taxonomy) trước khi gán lại. Hãy sao lưu DB. Tiếp tục?',
-        )
-      if (!ok) return
-    }
+  const runBatch = async () => {
     setRunning(true)
     setResult(null)
     setError('')
@@ -70,9 +73,37 @@ export function AutoTagPanel({ onDone }: { onDone: () => void }) {
     }
   }
 
+  const run = () => {
+    if (!dryRun && resetTags) {
+      setResetTagsConfirmOpen(true)
+    } else {
+      void runBatch()
+    }
+  }
+
   const pct = taxSummary?.percentWordsWithTopicTag != null ? String(taxSummary.percentWordsWithTopicTag) : null
 
   return (
+    <>
+    <AlertDialog open={resetTagsConfirmOpen} onOpenChange={setResetTagsConfirmOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Xác nhận Reset Topic Tags</AlertDialogTitle>
+          <AlertDialogDescription>
+            Sẽ xóa liên kết chủ đề taxonomy (chỉ tag is_topic_taxonomy) trước khi gán lại. Hãy sao lưu DB trước. Tiếp tục?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Hủy</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => { setResetTagsConfirmOpen(false); void runBatch() }}
+            className="bg-red-600 hover:bg-red-700 text-white"
+          >
+            Tiếp tục
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     <div className="bg-white rounded-[16px] border border-[#E2E8F0] shadow-sm overflow-hidden">
       <div className="px-5 py-4 flex items-center gap-3 border-b border-[#F1F5F9]">
         <div className="w-9 h-9 rounded-[10px] flex items-center justify-center bg-purple-50">
@@ -144,6 +175,7 @@ export function AutoTagPanel({ onDone }: { onDone: () => void }) {
         </div>
       )}
     </div>
+    </>
   )
 }
 

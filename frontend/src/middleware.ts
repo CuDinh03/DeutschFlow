@@ -6,6 +6,14 @@ import { NextRequest, NextResponse } from 'next/server'
 
 type Role = 'STUDENT' | 'TEACHER' | 'ADMIN'
 
+// Org role is a SEPARATE claim from the global Role. It is intentionally NOT added to the Role
+// union: the centre owner is global TEACHER (so they keep /teacher access) AND OWNER inside the org.
+// Gating /org/* by orgRole instead of role is what lets both coexist.
+type OrgRole = 'OWNER' | 'ADMIN'
+
+// Verified token claims relevant to routing. orgRole is null for B2C / non-org users.
+type VerifiedClaims = { role: Role; orgRole: OrgRole | null }
+
 const AUTH_ACCESS_COOKIE = 'auth_access'
 const AUTH_ROLE_COOKIE = 'auth_role'
 // Persistent HttpOnly cookie set by the backend (com.deutschflow ... AuthController#REFRESH_TOKEN_COOKIE).
@@ -29,6 +37,20 @@ function requiredRole(pathname: string): Role | null {
   return null
 }
 
+/**
+ * /org/* is gated by the SEPARATE orgRole claim (OWNER|ADMIN), not the global role — the centre
+ * owner stays global TEACHER. Note: /org is NOT in requiredRole() on purpose; it has its own branch.
+ *
+ * EXCEPTION: /org/accept is the PUBLIC invite-acceptance page. Invited teachers reach it from an
+ * email link with NO existing session (they may not even have an account yet) — the token in the
+ * query string is the secret and the page guards itself. Gating it would bounce exactly the users
+ * it targets to /login, so it must pass through ungated (mirrors how /onboarding stays guest-reachable).
+ */
+function requiresOrg(pathname: string): boolean {
+  if (pathname === '/org/accept') return false
+  return pathname.startsWith('/org')
+}
+
 /** Trang học viên nhưng giáo viên/admin vẫn được mở (demo + tránh JWT/cookie STUDENT stale khi DB đã TEACHER). */
 function learnerSharedPaths(): Set<string> {
   return new Set(['/dashboard', '/speaking', '/roadmap', '/onboarding', '/news'])
@@ -48,6 +70,13 @@ function normalizeRole(value: unknown): Role | null {
   return null
 }
 
+// Only OWNER/ADMIN may enter /org/*. TEACHER/STUDENT memberships (or absent claim) → null = no access.
+function normalizeOrgRole(value: unknown): OrgRole | null {
+  const orgRole = String(value ?? '').trim().toUpperCase()
+  if (orgRole === 'OWNER' || orgRole === 'ADMIN') return orgRole
+  return null
+}
+
 // RS256 verification (S18): import the public key once. JWT_RSA_PUBLIC_KEY is a \n-escaped PEM.
 let rsaPublicKeyPromise: ReturnType<typeof importSPKI> | null = null
 function loadRsaPublicKey(): ReturnType<typeof importSPKI> | null {
@@ -59,7 +88,7 @@ function loadRsaPublicKey(): ReturnType<typeof importSPKI> | null {
   return rsaPublicKeyPromise
 }
 
-async function verifyAccessToken(token: string): Promise<Role | null> {
+async function verifyAccessToken(token: string): Promise<VerifiedClaims | null> {
   // Pick the verifier from the token's own algorithm header — supports HS256 (current) and RS256
   // (S18 migration) at the same time, so signing can flip without breaking verification.
   let alg: string | undefined
@@ -77,7 +106,8 @@ async function verifyAccessToken(token: string): Promise<Role | null> {
         return null
       }
       const { payload } = await jwtVerify(token, await keyPromise)
-      return normalizeRole(payload.role)
+      const role = normalizeRole(payload.role)
+      return role ? { role, orgRole: normalizeOrgRole(payload.orgRole) } : null
     }
 
     // HS256 (default / transition) — verify with the shared secret.
@@ -90,7 +120,8 @@ async function verifyAccessToken(token: string): Promise<Role | null> {
       return null
     }
     const { payload } = await jwtVerify(token, new TextEncoder().encode(secret))
-    return normalizeRole(payload.role)
+    const role = normalizeRole(payload.role)
+    return role ? { role, orgRole: normalizeOrgRole(payload.orgRole) } : null
   } catch (err) {
     console.error('Middleware: Token verification failed:', err)
     return null
@@ -160,6 +191,7 @@ export async function middleware(request: NextRequest) {
 
   const required = requiredRole(pathname)
   const learnerShare = requiresLearnerShare(pathname)
+  const orgGated = requiresOrg(pathname)
   const accessCookie = request.cookies.get(AUTH_ACCESS_COOKIE)?.value
 
   // No JWT verifier configured (neither HS256 secret nor RS256 public key) → the middleware
@@ -173,7 +205,7 @@ export async function middleware(request: NextRequest) {
   // a single missing env var can never take prod down again.
   const hasVerifier = Boolean(process.env.JWT_SECRET || process.env.JWT_RSA_PUBLIC_KEY)
   if (!hasVerifier) {
-    if (required || learnerShare) {
+    if (required || learnerShare || orgGated) {
       console.error(
         '[DeutschFlow] CRITICAL: no JWT verifier configured. Set JWT_RSA_PUBLIC_KEY (RS256, ' +
         'production) or JWT_SECRET (HS256, must match backend). Edge auth gating is DISABLED; ' +
@@ -184,17 +216,18 @@ export async function middleware(request: NextRequest) {
   }
 
   // Routes that need no gating (public pages): attach CSP and pass through without a JWT verify.
-  if (!required && !learnerShare && !LOGIN_ROUTES.has(pathname)) {
+  if (!required && !learnerShare && !orgGated && !LOGIN_ROUTES.has(pathname)) {
     return passThrough()
   }
 
-  const authenticatedRole = accessCookie ? await verifyAccessToken(accessCookie) : null
+  const claims = accessCookie ? await verifyAccessToken(accessCookie) : null
+  const authenticatedRole = claims?.role ?? null
 
   if (LOGIN_ROUTES.has(pathname) && authenticatedRole) {
     return redirectTo(new URL(roleHome(authenticatedRole), request.url))
   }
 
-  if (!required && !learnerShare) {
+  if (!required && !learnerShare && !orgGated) {
     return passThrough()
   }
 
@@ -225,6 +258,17 @@ export async function middleware(request: NextRequest) {
       return redirectTo(new URL(roleHome(authenticatedRole), request.url))
     }
     return passThrough()
+  }
+
+  if (orgGated) {
+    // /org/* is gated by the SEPARATE orgRole claim, NOT the global role: the centre owner is global
+    // TEACHER and must keep /teacher access. A logged-in user without OWNER/ADMIN orgRole is bounced
+    // back to their normal home (roleHome(role)) rather than /login — they ARE authenticated, just
+    // not an org admin. Owners reach /org via an in-app link, so we never auto-redirect INTO /org.
+    if (claims?.orgRole === 'OWNER' || claims?.orgRole === 'ADMIN') {
+      return passThrough()
+    }
+    return redirectTo(new URL(roleHome(authenticatedRole), request.url))
   }
 
   if (required !== authenticatedRole) {

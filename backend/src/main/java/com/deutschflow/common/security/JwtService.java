@@ -131,21 +131,35 @@ public class JwtService {
     }
 
     public String generateAccessToken(User user) {
+        return generateAccessToken(user, null, null);
+    }
+
+    /**
+     * Token có thêm claim org context cho frontend (routing/UI gate /org/*).
+     * {@code orgId}/{@code orgRole} chỉ được thêm khi non-null — user B2C không có org thì token y như cũ.
+     * Backend authz vẫn verify {@code org_members} trong DB (xem OrgGuard), KHÔNG tin claim này.
+     */
+    public String generateAccessToken(User user, Long orgId, String orgRole) {
         long now = System.currentTimeMillis();
         long expiryTime = now + accessTokenExpiryMs;
-        String token = Jwts.builder()
+        JwtBuilder builder = Jwts.builder()
                 .subject(user.getEmail())
                 .claim("role", user.getRole().name())
                 .claim("userId", user.getId())
                 .issuer(issuer)
                 .audience().add(audience).and()
                 .issuedAt(new Date(now))
-                .expiration(new Date(expiryTime))
-                .signWith(signingKey)
-                .compact();
+                .expiration(new Date(expiryTime));
+        if (orgId != null) {
+            builder.claim("orgId", orgId);
+        }
+        if (orgRole != null) {
+            builder.claim("orgRole", orgRole); // OWNER | ADMIN | TEACHER | STUDENT
+        }
+        String token = builder.signWith(signingKey).compact();
         // DEBUG + no PII (email) — token issuance is high-volume; avoid emails in logs.
-        log.debug("[JwtService.generateAccessToken] Generated for userId={}, role={}, ttl={}ms",
-                user.getId(), user.getRole().name(), accessTokenExpiryMs);
+        log.debug("[JwtService.generateAccessToken] Generated for userId={}, role={}, orgId={}, orgRole={}, ttl={}ms",
+                user.getId(), user.getRole().name(), orgId, orgRole, accessTokenExpiryMs);
         return token;
     }
 

@@ -21,6 +21,10 @@ public class TeacherClass {
     @Column(name = "teacher_id", nullable = false)
     private Long teacherId;
 
+    /** Owning organization (B2B tenant). null = independent/B2C class (V204 org_id column). */
+    @Column(name = "org_id")
+    private Long orgId;
+
     @Column(nullable = false)
     private String name;
 

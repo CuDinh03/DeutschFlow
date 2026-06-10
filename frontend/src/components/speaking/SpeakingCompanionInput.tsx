@@ -16,18 +16,16 @@ interface Props {
   sendLabel: string;
   accent: string;
   glow: string;
-  /** Strip above composer while assistant streams (UIDemo ChatInput). */
+  /** Strip above composer while assistant streams. */
   isAssistantSpeaking: boolean;
-  /** UIDemo ChatInput: mic toggles voice capture (session mic stays here, not in a separate strip). */
+  /** Mic toggles voice capture (session mic stays here, not in a separate strip). */
   onMicToggle: () => void;
   micDisabled?: boolean;
   /** Recording active — highlights mic control */
   isListening?: boolean;
 }
 
-/**
- * Text composer matching `uidemo/.../ChatInput`: mic | textarea + send in one row.
- */
+/** Text composer: mic | textarea + send in one row. */
 export function SpeakingCompanionInput({
   value,
   onChange,

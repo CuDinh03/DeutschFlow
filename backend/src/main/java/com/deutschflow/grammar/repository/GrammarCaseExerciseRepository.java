@@ -11,4 +11,7 @@ public interface GrammarCaseExerciseRepository extends JpaRepository<GrammarCase
     List<GrammarCaseExercise> findByGrammarCaseIdAndDifficultyLevel(Long caseId, Integer difficultyLevel);
     List<GrammarCaseExercise> findByGrammarCaseId(Long caseId);
     List<GrammarCaseExercise> findByExerciseType(String exerciseType);
+
+    /** Batch load for getAllCases() — avoids N+1 (one query for all cases). */
+    List<GrammarCaseExercise> findByGrammarCaseIdIn(List<Long> caseIds);
 }

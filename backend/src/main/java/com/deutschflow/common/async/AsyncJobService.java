@@ -18,10 +18,16 @@ public class AsyncJobService {
 
     @Transactional
     public AsyncJob createJob(String jobType) {
+        return createJob(jobType, null);
+    }
+
+    @Transactional
+    public AsyncJob createJob(String jobType, Long createdByUserId) {
         AsyncJob job = AsyncJob.builder()
                 .id(UUID.randomUUID())
                 .jobType(jobType)
                 .status(AsyncJob.Status.PENDING.name())
+                .createdByUserId(createdByUserId)
                 .build();
         return asyncJobRepository.save(job);
     }

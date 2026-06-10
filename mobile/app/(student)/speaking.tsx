@@ -93,6 +93,7 @@ export default function SpeakingScreen() {
   const recordingRef = useRef<Audio.Recording | null>(null)
   const soundRef = useRef<Audio.Sound | null>(null)
   const ttsSeqRef = useRef(0)
+  const ttsPathRef = useRef<string | null>(null)
   const scrollRef = useRef<ScrollView | null>(null)
   const typingRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const reactionRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -157,6 +158,7 @@ export default function SpeakingScreen() {
       const base64 = await speakingApi.tts(trimmed, persona)
       await stopSpeech()
       const path = `${FileSystem.cacheDirectory}tts-${ttsSeqRef.current++}.mp3`
+      ttsPathRef.current = path
       await FileSystem.writeAsStringAsync(path, base64, { encoding: FileSystem.EncodingType.Base64 })
       // Reset out of iOS record mode so playback routes to the main speaker (loud),
       // not the earpiece. expo-av merges partial audio modes, so a prior
@@ -168,6 +170,7 @@ export default function SpeakingScreen() {
       sound.setOnPlaybackStatusUpdate((st) => {
         if (st.isLoaded && st.didJustFinish) {
           void sound.unloadAsync()
+          void FileSystem.deleteAsync(path, { idempotent: true })
           if (soundRef.current === sound) soundRef.current = null
           finish()
         }
@@ -201,9 +204,12 @@ export default function SpeakingScreen() {
     if (soundRef.current) {
       const s = soundRef.current
       soundRef.current = null
+      const pathToDelete = ttsPathRef.current
+      ttsPathRef.current = null
       try {
         await s.stopAsync()
         await s.unloadAsync()
+        if (pathToDelete) void FileSystem.deleteAsync(pathToDelete, { idempotent: true })
       } catch {
         // already unloaded
       }

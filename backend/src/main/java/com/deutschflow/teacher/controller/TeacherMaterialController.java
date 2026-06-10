@@ -2,9 +2,11 @@ package com.deutschflow.teacher.controller;
 
 import com.deutschflow.common.async.AsyncJob;
 import com.deutschflow.common.async.AsyncJobService;
+import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.teacher.service.DocumentParsingService;
 import com.deutschflow.teacher.service.PptxStore;
 import com.deutschflow.teacher.service.TeacherLessonPlanService;
+import com.deutschflow.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
@@ -14,6 +16,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -39,7 +42,8 @@ public class TeacherMaterialController {
 
     @PostMapping("/generate-pptx")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
-    public ResponseEntity<?> generatePptxAsync(@RequestParam("file") MultipartFile file) {
+    public ResponseEntity<?> generatePptxAsync(@AuthenticationPrincipal User user,
+                                               @RequestParam("file") MultipartFile file) {
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "File is empty"));
         }
@@ -78,8 +82,8 @@ public class TeacherMaterialController {
                 }
             }
 
-            // Tạo AsyncJob
-            AsyncJob job = asyncJobService.createJob("GENERATE_PPTX");
+            // Tạo AsyncJob — ghi lại owner để SSE/download check
+            AsyncJob job = asyncJobService.createJob("GENERATE_PPTX", user != null ? user.getId() : null);
             UUID jobId = job.getId();
 
             // Set MDC (Mapped Diagnostic Context)
@@ -105,7 +109,9 @@ public class TeacherMaterialController {
 
     @GetMapping("/jobs/{jobId}/sse")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
-    public ResponseEntity<org.springframework.web.servlet.mvc.method.annotation.SseEmitter> subscribeToJob(@PathVariable UUID jobId) {
+    public ResponseEntity<org.springframework.web.servlet.mvc.method.annotation.SseEmitter> subscribeToJob(
+            @AuthenticationPrincipal User user, @PathVariable UUID jobId) {
+        assertOwnsJob(user, jobId);
         log.info("Client subscribed to SSE for AsyncJob: {}", jobId);
         org.springframework.web.servlet.mvc.method.annotation.SseEmitter emitter = asyncJobSseService.register(jobId);
         return ResponseEntity.ok()
@@ -116,14 +122,15 @@ public class TeacherMaterialController {
 
     @GetMapping("/jobs/{jobId}")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
-    public ResponseEntity<?> getJobStatus(@PathVariable UUID jobId) {
+    public ResponseEntity<?> getJobStatus(@AuthenticationPrincipal User user, @PathVariable UUID jobId) {
         Optional<AsyncJob> jobOpt = asyncJobService.getJob(jobId);
-        
+
         if (jobOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        
+
         AsyncJob job = jobOpt.get();
+        assertOwnsJob(user, job);
         return ResponseEntity.ok(Map.of(
                 "jobId", job.getId(),
                 "status", job.getStatus(),
@@ -139,7 +146,8 @@ public class TeacherMaterialController {
      */
     @GetMapping("/jobs/{jobId}/download")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
-    public ResponseEntity<byte[]> downloadPptx(@PathVariable UUID jobId) {
+    public ResponseEntity<byte[]> downloadPptx(@AuthenticationPrincipal User user, @PathVariable UUID jobId) {
+        assertOwnsJob(user, jobId);
         PptxStore.PptxFile pptxFile = pptxStore.getAndRemove(jobId);
 
         if (pptxFile == null) {
@@ -162,5 +170,17 @@ public class TeacherMaterialController {
 
         log.info("Serving PPTX download for job {} ({} bytes) — removing from store", jobId, pptxFile.bytes().length);
         return new ResponseEntity<>(pptxFile.bytes(), headers, HttpStatus.OK);
+    }
+
+    private void assertOwnsJob(User user, UUID jobId) {
+        if (user == null) return;
+        asyncJobService.getJob(jobId).ifPresent(job -> assertOwnsJob(user, job));
+    }
+
+    private void assertOwnsJob(User user, AsyncJob job) {
+        if (job.getCreatedByUserId() == null) return;
+        if (!job.getCreatedByUserId().equals(user.getId())) {
+            throw new ForbiddenException("Bạn không có quyền truy cập job này");
+        }
     }
 }

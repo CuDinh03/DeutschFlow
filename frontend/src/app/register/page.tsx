@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
 import { setTokens } from '@/lib/authSession'
+import { useUserStore } from '@/stores/useUserStore'
 import { DeutschFlowLogo } from '@/components/ui/DeutschFlowLogo'
 import { useTracking } from '@/hooks/useTracking'
 import { MobileRegisterForm } from '@/components/auth/MobileRegisterForm'
@@ -19,6 +20,7 @@ export default function RegisterPage() {
   const t = useTranslations('auth')
   const router = useRouter()
   const { trackEvent, identifyUser } = useTracking()
+  const setOrg = useUserStore((s) => s.setOrg)
   const isNative = useIsNative()
   // Native auth screen uses a dark background → light status bar icons.
   useStatusBarStyle('dark')
@@ -37,6 +39,8 @@ export default function RegisterPage() {
     try {
       const { data } = await api.post('/auth/register', form)
       setTokens(data)
+      // Mirror org (tenant) context into the client store; null for B2C / non-org users.
+      setOrg({ orgId: data.orgId ?? null, orgRole: data.orgRole ?? null })
       if (form.locale && ['vi', 'en', 'de'].includes(form.locale)) {
         document.cookie = `locale=${form.locale};path=/;max-age=31536000;SameSite=Lax`
       }

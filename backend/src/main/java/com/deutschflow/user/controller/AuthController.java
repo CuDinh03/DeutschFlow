@@ -258,7 +258,9 @@ public class AuthController {
                 resp.role(),
                 resp.locale(),
                 resp.learningTargetLevel(),
-                resp.industry()
+                resp.industry(),
+                resp.orgId(),
+                resp.orgRole()
         );
     }
 

@@ -2,14 +2,10 @@ import createNextIntlPlugin from 'next-intl/plugin';
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
-// Set NEXT_OUTPUT_MODE=export when building for Capacitor (mobile).
-// Amplify web builds must NOT set this — without it, Amplify uses SSR mode
-// which handles dynamic routes like /teacher/dashboard/[id] natively.
-const isMobileBuild = process.env.NEXT_OUTPUT_MODE === 'export';
-
-// ── Static security headers (web/SSR build only) ────────────────────────────────
-// Static `output: export` (Capacitor) cannot emit HTTP headers, so these apply to the
-// Amplify SSR web build.
+// ── Static security headers (Amplify web/SSR build) ─────────────────────────────
+// The Capacitor static-export build path was retired (AR-M1) — the canonical native
+// app is the Expo `mobile/` project. This config now targets only the Amplify SSR
+// web build, which handles dynamic routes like /teacher/dashboard/[id] natively.
 //
 // CSP (P0-7): this is the ENFORCED, production-effective policy. The stricter nonce-based
 // CSP lives in middleware.ts, but Amplify serves most routes from the CloudFront cache
@@ -58,13 +54,10 @@ const securityHeaders = [
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  ...(isMobileBuild && { output: 'export' }),
   trailingSlash: true,
 
-  // Image optimization: OFF only for the static Capacitor export (the Next optimizer needs a server,
-  // which `output: 'export'` doesn't have). Amplify web/SSR keeps it ON so <Image> is actually optimized. (P1-5)
+  // Image optimization stays ON for the Amplify web/SSR build so <Image> is actually optimized. (P1-5)
   images: {
-    ...(isMobileBuild && { unoptimized: true }),
     remotePatterns: [
       {
         protocol: 'https',
@@ -79,14 +72,9 @@ const nextConfig = {
     ],
   },
 
-  // HTTP security headers — skipped for the static Capacitor export (unsupported there).
-  ...(isMobileBuild
-    ? {}
-    : {
-        async headers() {
-          return [{ source: '/:path*', headers: securityHeaders }];
-        },
-      }),
+  async headers() {
+    return [{ source: '/:path*', headers: securityHeaders }];
+  },
 
   experimental: {
     optimizePackageImports: [

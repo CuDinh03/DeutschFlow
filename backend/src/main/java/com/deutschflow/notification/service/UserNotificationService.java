@@ -9,7 +9,6 @@ import com.deutschflow.notification.dto.NotificationPageResponse;
 import com.deutschflow.notification.dto.NotificationUnreadCountResponse;
 import com.deutschflow.notification.entity.ScheduledBroadcast;
 import com.deutschflow.notification.entity.UserNotification;
-import com.deutschflow.notification.events.QuizAssignedEvent;
 import com.deutschflow.notification.events.StudentRegisteredEvent;
 import com.deutschflow.notification.repository.ScheduledBroadcastRepository;
 import com.deutschflow.notification.repository.UserNotificationRepository;
@@ -409,46 +408,6 @@ public class UserNotificationService {
                 pushForNotification(n);
             }
             log.info("[notifications] NEW_CLASS_ASSIGNMENT → {} students in class={}", notifications.size(), classId);
-        }
-    }
-
-    /**
-     * Called asynchronously when a teacher publishes a quiz to a classroom.
-     */
-    @Async
-    @Transactional
-    @EventListener
-    public void onQuizAssigned(QuizAssignedEvent event) {
-        List<Long> studentIds = jdbcTemplate.queryForList("""
-            SELECT student_id FROM class_students WHERE class_id = ?
-            """, Long.class, event.classroomId());
-
-        if (studentIds.isEmpty()) return;
-
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("quizId", event.quizId());
-        payload.put("quizTitle", event.quizTitle());
-        payload.put("teacherName", event.teacherName());
-        payload.put("classroomName", event.classroomName());
-
-        List<UserNotification> notifications = new ArrayList<>();
-        for (Long studentId : studentIds) {
-            User student = userRepository.findById(studentId).orElse(null);
-            if (student != null && student.isActive()) {
-                notifications.add(UserNotification.builder()
-                        .recipient(student)
-                        .type(NotificationType.NEW_ASSIGNMENT)
-                        .payload(new LinkedHashMap<>(payload))
-                        .build());
-            }
-        }
-
-        if (!notifications.isEmpty()) {
-            notificationRepository.saveAll(notifications);
-            for (UserNotification n : notifications) {
-                unreadPushCoordinator.afterCommit(n.getRecipient().getId());
-                pushForNotification(n);
-            }
         }
     }
 

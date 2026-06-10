@@ -1,6 +1,7 @@
 package com.deutschflow.teacher.service;
 
 import com.deutschflow.common.exception.ConflictException;
+import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.speaking.entity.UserGrammarError;
@@ -32,6 +33,7 @@ import com.deutschflow.gamification.service.XpService;
 import com.deutschflow.gamification.dto.XpSummaryDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,6 +49,7 @@ public class TeacherService {
     private final ClassStudentRepository classStudentRepository;
     private final ClassTeacherRepository classTeacherRepository;
     private final ClassAssignmentRepository assignmentRepository;
+    private final JdbcTemplate jdbcTemplate;
     private final StudentAssignmentRepository studentAssignmentRepository;
     private final com.deutschflow.speaking.repository.AiSpeakingSessionRepository speakingSessionRepository;
     private final UserRepository userRepository;
@@ -62,8 +65,12 @@ public class TeacherService {
     @Transactional
     public TeacherClassDto createClass(Long teacherId, String name) {
         String inviteCode = generateInviteCode();
+        // Stamp the creating teacher's org (B2B): an org teacher's classes belong to that org,
+        // so they show in /org/classes and are valid roster-import targets. null for B2C teachers.
+        Long orgId = userRepository.findById(teacherId).map(u -> u.getOrgId()).orElse(null);
         TeacherClass teacherClass = TeacherClass.builder()
                 .teacherId(teacherId)
+                .orgId(orgId)
                 .name(name)
                 .inviteCode(inviteCode)
                 .build();
@@ -83,11 +90,33 @@ public class TeacherService {
         List<ClassTeacher> classTeachers = classTeacherRepository.findByIdTeacherId(teacherId);
         List<Long> classIds = classTeachers.stream().map(ct -> ct.getId().getClassId()).toList();
         if (classIds.isEmpty()) return List.of();
-        
+
+        // Batch-load student and assignment counts — avoids N+1 (2 queries per class).
+        String placeholders = classIds.stream().map(ignored -> "?").collect(Collectors.joining(","));
+        Object[] args = classIds.toArray();
+
+        Map<Long, Long> studentCounts = new HashMap<>();
+        jdbcTemplate.queryForList(
+                "SELECT class_id, COUNT(*) AS cnt FROM class_students WHERE class_id IN (" + placeholders + ") GROUP BY class_id",
+                args).forEach(r -> studentCounts.put(toLong(r.get("class_id")), toLong(r.get("cnt"))));
+
+        Map<Long, Long> assignmentCounts = new HashMap<>();
+        jdbcTemplate.queryForList(
+                "SELECT class_id, COUNT(*) AS cnt FROM class_assignments WHERE class_id IN (" + placeholders + ") GROUP BY class_id",
+                args).forEach(r -> assignmentCounts.put(toLong(r.get("class_id")), toLong(r.get("cnt"))));
+
         return classRepository.findAllById(classIds)
                 .stream()
-                .map(this::toClassDto)
+                .map(c -> {
+                    long studentCount = studentCounts.getOrDefault(c.getId(), 0L);
+                    long quizCount = assignmentCounts.getOrDefault(c.getId(), 0L);
+                    return new TeacherClassDto(c.getId(), c.getName(), c.getInviteCode(), studentCount, quizCount, c.getCreatedAt());
+                })
                 .collect(Collectors.toList());
+    }
+
+    private static long toLong(Object v) {
+        return v instanceof Number n ? n.longValue() : 0L;
     }
 
     @Transactional
@@ -117,7 +146,7 @@ public class TeacherService {
     @Transactional(readOnly = true)
     public List<JoinRequestDto> getPendingJoinRequests(Long teacherId, Long classId) {
         if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
-            throw new ConflictException("Bạn không có quyền xem lớp này");
+            throw new ForbiddenException("Bạn không có quyền xem lớp này");
         }
 
         return joinRequestRepository.findByClassroomIdAndStatusOrderByCreatedAtDesc(classId, "PENDING")
@@ -139,7 +168,7 @@ public class TeacherService {
     @Transactional
     public void approveJoinRequest(Long teacherId, Long classId, Long requestId) {
         if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
-            throw new ConflictException("Bạn không có quyền duyệt học viên lớp này");
+            throw new ForbiddenException("Bạn không có quyền duyệt học viên lớp này");
         }
 
         com.deutschflow.teacher.entity.ClassroomJoinRequest req = joinRequestRepository.findById(requestId)
@@ -189,7 +218,7 @@ public class TeacherService {
     @Transactional
     public void rejectJoinRequest(Long teacherId, Long classId, Long requestId) {
         if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
-            throw new ConflictException("Bạn không có quyền duyệt học viên lớp này");
+            throw new ForbiddenException("Bạn không có quyền duyệt học viên lớp này");
         }
 
         com.deutschflow.teacher.entity.ClassroomJoinRequest req = joinRequestRepository.findById(requestId)
@@ -231,23 +260,88 @@ public class TeacherService {
 
     @Transactional
     public void deleteClass(Long teacherId, Long classId) {
-        if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
-            throw new ConflictException("Bạn không có quyền xóa lớp này");
-        }
-        
+        // Chỉ giáo viên chính được xóa lớp (trợ giảng không có quyền hủy cả lớp)
+        assertPrimaryTeacher(teacherId, classId);
+
         // Remove dependencies
         classTeacherRepository.deleteByIdClassId(classId);
         classStudentRepository.deleteByIdClassId(classId);
         assignmentRepository.deleteByClassId(classId);
-        
+
         // Remove class
         classRepository.deleteById(classId);
+    }
+
+    // ─── Co-teaching: quản lý giáo viên trong lớp ────────────────────────────────
+
+    /** Trả về ClassTeacher của caller nếu là PRIMARY; ném ForbiddenException nếu không. */
+    private ClassTeacher assertPrimaryTeacher(Long teacherId, Long classId) {
+        ClassTeacher membership = classTeacherRepository.findById(new ClassTeacherId(classId, teacherId))
+                .orElseThrow(() -> new ForbiddenException("Bạn không có quyền với lớp học này"));
+        if (!"PRIMARY".equals(membership.getRole())) {
+            throw new ForbiddenException("Chỉ giáo viên chính mới được thực hiện thao tác này");
+        }
+        return membership;
+    }
+
+    @Transactional(readOnly = true)
+    public List<ClassTeacherDto> getClassTeachers(Long teacherId, Long classId) {
+        assertTeacherOwnsClass(teacherId, classId);
+
+        List<ClassTeacher> classTeachers = classTeacherRepository.findByIdClassId(classId);
+        List<Long> teacherIds = classTeachers.stream().map(ct -> ct.getId().getTeacherId()).toList();
+        Map<Long, User> usersById = userRepository.findAllById(teacherIds).stream()
+                .collect(Collectors.toMap(User::getId, u -> u));
+
+        return classTeachers.stream()
+                .sorted(Comparator.comparing(ct -> !"PRIMARY".equals(ct.getRole()))) // PRIMARY trước
+                .map(ct -> {
+                    User u = usersById.get(ct.getId().getTeacherId());
+                    return new ClassTeacherDto(
+                            ct.getId().getTeacherId(),
+                            u != null ? u.getDisplayName() : "Giáo viên #" + ct.getId().getTeacherId(),
+                            u != null ? u.getEmail() : "",
+                            ct.getRole(),
+                            ct.getJoinedAt());
+                })
+                .toList();
+    }
+
+    @Transactional
+    public void addCoTeacher(Long teacherId, Long classId, String email) {
+        assertPrimaryTeacher(teacherId, classId);
+
+        User target = userRepository.findByEmail(email)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng với email: " + email));
+        if (target.getRole() != User.Role.TEACHER && target.getRole() != User.Role.ADMIN) {
+            throw new BadRequestException("Người dùng này không có vai trò giáo viên");
+        }
+        if (classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, target.getId())) {
+            throw new ConflictException("Giáo viên này đã tham gia lớp");
+        }
+
+        classTeacherRepository.save(ClassTeacher.builder()
+                .id(new ClassTeacherId(classId, target.getId()))
+                .role("ASSISTANT")
+                .build());
+    }
+
+    @Transactional
+    public void removeCoTeacher(Long teacherId, Long classId, Long coTeacherId) {
+        assertPrimaryTeacher(teacherId, classId);
+
+        ClassTeacher target = classTeacherRepository.findById(new ClassTeacherId(classId, coTeacherId))
+                .orElseThrow(() -> new NotFoundException("Giáo viên không thuộc lớp này"));
+        if ("PRIMARY".equals(target.getRole())) {
+            throw new BadRequestException("Không thể xóa giáo viên chính của lớp");
+        }
+        classTeacherRepository.delete(target);
     }
 
     @Transactional
     public void addStudentToClassByEmail(Long teacherId, Long classId, String email) {
         if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
-            throw new ConflictException("Bạn không có quyền thêm học viên vào lớp này");
+            throw new ForbiddenException("Bạn không có quyền thêm học viên vào lớp này");
         }
 
         User user = userRepository.findByEmail(email)
@@ -276,7 +370,7 @@ public class TeacherService {
     @Transactional(readOnly = true)
     public List<ClassStudentDto> getClassStudents(Long teacherId, Long classId) {
         if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
-            throw new ConflictException("Bạn không có quyền xem lớp này");
+            throw new ForbiddenException("Bạn không có quyền xem lớp này");
         }
 
         List<ClassStudent> students = classStudentRepository.findByIdClassId(classId);
@@ -307,7 +401,7 @@ public class TeacherService {
     public ClassAnalyticsOverviewDto getClassAnalytics(Long teacherId, Long classId) {
         // Kiểm tra quyền
         if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
-            throw new ConflictException("Bạn không có quyền xem lớp này");
+            throw new ForbiddenException("Bạn không có quyền xem lớp này");
         }
 
         List<ClassStudent> students = classStudentRepository.findByIdClassId(classId);
@@ -416,7 +510,7 @@ public class TeacherService {
     @Transactional
     public ClassAssignmentDto createAssignment(Long teacherId, Long classId, CreateAssignmentRequest req) {
         if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
-            throw new ConflictException("Bạn không có quyền thao tác trên lớp này");
+            throw new ForbiddenException("Bạn không có quyền thao tác trên lớp này");
         }
 
         ClassAssignment assignment = ClassAssignment.builder()
@@ -424,6 +518,7 @@ public class TeacherService {
                 .topic(req.topic())
                 .description(req.description())
                 .assignmentType(req.assignmentType())
+                .skill(req.skill() != null ? req.skill().toUpperCase() : "GENERAL")
                 .referenceId(req.referenceId())
                 .dueDate(req.dueDate())
                 .attachmentUrl(req.attachmentUrl())
@@ -474,8 +569,20 @@ public class TeacherService {
         return toAssignmentDto(savedAssignment);
     }
 
+    /**
+     * IDOR guard dùng chung: chặn teacher truy cập lớp không thuộc về mình.
+     * Dùng cho các endpoint nhận {classId} mà service đích không tự kiểm tra quyền.
+     */
     @Transactional(readOnly = true)
-    public List<ClassAssignmentDto> getClassAssignments(Long classId) {
+    public void assertTeacherOwnsClass(Long teacherId, Long classId) {
+        if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
+            throw new ForbiddenException("Bạn không có quyền xem lớp này");
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public List<ClassAssignmentDto> getClassAssignments(Long teacherId, Long classId) {
+        assertTeacherOwnsClass(teacherId, classId);
         return assignmentRepository.findByClassIdOrderByCreatedAtDesc(classId)
                 .stream()
                 .map(this::toAssignmentDto)
@@ -536,10 +643,13 @@ public class TeacherService {
         );
 
         User student = userRepository.findById(session.getUserId()).orElse(null);
-        TeacherClass teacherClass = classRepository.findById(classTeacherRepository.findByIdTeacherId(teacherId).stream()
-                .findFirst()
+        // Find the specific class where both this teacher and the student are enrolled.
+        Long sharedClassId = classTeacherRepository.findByIdTeacherId(teacherId).stream()
+                .filter(ct -> classStudentRepository.existsByIdClassIdAndIdStudentId(ct.getId().getClassId(), session.getUserId()))
                 .map(ct -> ct.getId().getClassId())
-                .orElse(null)).orElse(null);
+                .findFirst()
+                .orElse(null);
+        TeacherClass teacherClass = sharedClassId != null ? classRepository.findById(sharedClassId).orElse(null) : null;
         if (teacherClass != null) {
             userNotificationService.onTeacherGradingEvent(
                 teacherId,

@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/ai-speaking")
-@CrossOrigin(origins = "${app.cors.allowed-origins:*}")
 public class SpeakingController {
 
     private final GreetingService greetingService;

@@ -117,7 +117,7 @@ export default function TeacherDashboardPage() {
       userName={userName}
       pendingGradingCount={totalPending}
       onLogout={() => {
-        localStorage.removeItem('auth_token')
+        logout()
         router.push('/')
       }}
       headerTitle="Dashboard & Lớp học"

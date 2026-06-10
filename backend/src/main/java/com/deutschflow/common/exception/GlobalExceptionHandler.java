@@ -3,6 +3,7 @@ package com.deutschflow.common.exception;
 import com.deutschflow.common.quota.QuotaExceededException;
 import com.deutschflow.common.exception.RateLimitExceededException;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -10,7 +11,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.NoHandlerFoundException;
@@ -45,6 +48,24 @@ public class GlobalExceptionHandler {
                 ex.getMessage(), request.getRequestURI(), null, null);
     }
 
+    // --- 405 Method Not Allowed ---
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ProblemDetail> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex,
+                                                                   HttpServletRequest request) {
+        return problem(HttpStatus.METHOD_NOT_ALLOWED, "method-not-allowed", "Method Not Allowed",
+                "HTTP method '" + ex.getMethod() + "' is not supported for this endpoint.",
+                request.getRequestURI(), null, null);
+    }
+
+    // --- 400 Missing required request parameter ---
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ProblemDetail> handleMissingParam(MissingServletRequestParameterException ex,
+                                                             HttpServletRequest request) {
+        return problem(HttpStatus.BAD_REQUEST, "bad-request", "Bad Request",
+                "Required parameter '" + ex.getParameterName() + "' is missing.",
+                request.getRequestURI(), null, null);
+    }
+
     // --- 400 Validation (JSR-303) ---
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ProblemDetail> handleValidation(MethodArgumentNotValidException ex,
@@ -54,6 +75,22 @@ public class GlobalExceptionHandler {
                         FieldError::getField,
                         f -> f.getDefaultMessage() != null ? f.getDefaultMessage() : "Invalid value",
                         (a, b) -> a   // giữ lỗi đầu tiên nếu trùng field
+                ));
+
+        return problem(HttpStatus.BAD_REQUEST, "validation-error", "Validation Failed",
+                "One or more fields are invalid.", request.getRequestURI(), errors, null);
+    }
+
+    // --- 400 Validation (method-level: @Validated + element constraints on @RequestBody List<@Valid X>) ---
+    // Without this, a constraint violation on a batch element falls through to the generic 500 handler.
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ProblemDetail> handleConstraintViolation(ConstraintViolationException ex,
+                                                                   HttpServletRequest request) {
+        Map<String, String> errors = ex.getConstraintViolations().stream()
+                .collect(Collectors.toMap(
+                        v -> v.getPropertyPath().toString(),
+                        v -> v.getMessage() != null ? v.getMessage() : "Invalid value",
+                        (a, b) -> a
                 ));
 
         return problem(HttpStatus.BAD_REQUEST, "validation-error", "Validation Failed",

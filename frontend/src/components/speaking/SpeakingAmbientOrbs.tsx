@@ -1,9 +1,6 @@
 "use client";
 
-/**
- * Floating glow orbs behind the speaking “phone” panel — pixel-aligned with
- * `uidemo/deutschflow_UI_DEMO/src/app/pages/Speaking.tsx`.
- */
+/** Floating glow orbs behind the speaking “phone” panel. */
 export function SpeakingAmbientOrbs() {
   return (
     <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-[inherit]" aria-hidden>

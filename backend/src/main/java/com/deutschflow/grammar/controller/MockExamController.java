@@ -89,9 +89,9 @@ public class MockExamController {
                 """, uid, examId);
         }
 
-        // Return attempt details AND the exam structure
+        // Return attempt details AND the exam structure (answers stripped — scoring happens server-side)
         var examDetails = jdbcTemplate.queryForMap("""
-            SELECT sections_json::text AS sections_json 
+            SELECT sections_json::text AS sections_json, time_limit_minutes
             FROM mock_exams WHERE id = ?
             """, examId);
 
@@ -100,6 +100,7 @@ public class MockExamController {
         // expose `correct`/explanations. Scoring (/finish) and review re-read them from the DB.
         response.put("sections_json",
                 questionSanitizer.stripAnswerKey((String) examDetails.get("sections_json")));
+        response.put("time_limit_minutes", examDetails.get("time_limit_minutes"));
 
         return ResponseEntity.ok(response);
     }

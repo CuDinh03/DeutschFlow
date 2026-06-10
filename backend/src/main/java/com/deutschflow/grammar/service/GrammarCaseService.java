@@ -17,6 +17,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -36,9 +38,31 @@ public class GrammarCaseService {
 
     @Transactional(readOnly = true)
     public List<GrammarCaseDto> getAllCases() {
-        return grammarCaseRepository.findAll()
+        List<GrammarCase> cases = grammarCaseRepository.findAll();
+        if (cases.isEmpty()) {
+            return List.of();
+        }
+
+        // Batch-load examples + exercises for ALL cases in 2 queries (was 2 per case → N+1).
+        List<Long> caseIds = cases.stream().map(GrammarCase::getId).toList();
+
+        Map<Long, List<GrammarCaseExampleDto>> examplesByCase = grammarCaseExampleRepository
+            .findByGrammarCaseIdIn(caseIds)
             .stream()
-            .map(this::mapToDto)
+            .map(this::mapExampleToDto)
+            .collect(Collectors.groupingBy(GrammarCaseExampleDto::getCaseId));
+
+        Map<Long, List<GrammarCaseExerciseDto>> exercisesByCase = grammarCaseExerciseRepository
+            .findByGrammarCaseIdIn(caseIds)
+            .stream()
+            .map(this::mapExerciseToDto)
+            .collect(Collectors.groupingBy(GrammarCaseExerciseDto::getCaseId));
+
+        return cases.stream()
+            .map(c -> buildDto(
+                c,
+                examplesByCase.getOrDefault(c.getId(), List.of()),
+                exercisesByCase.getOrDefault(c.getId(), List.of())))
             .toList();
     }
 
@@ -101,6 +125,12 @@ public class GrammarCaseService {
             .map(this::mapExerciseToDto)
             .toList();
 
+        return buildDto(grammarCase, examples, exercises);
+    }
+
+    private GrammarCaseDto buildDto(GrammarCase grammarCase,
+                                    List<GrammarCaseExampleDto> examples,
+                                    List<GrammarCaseExerciseDto> exercises) {
         return GrammarCaseDto.builder()
             .id(grammarCase.getId())
             .caseName(grammarCase.getCaseName())

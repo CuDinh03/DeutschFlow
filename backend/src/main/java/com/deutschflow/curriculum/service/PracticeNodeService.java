@@ -23,6 +23,7 @@ import java.security.MessageDigest;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 
 /**
  * Service for Practice Node system — 4 kỹ năng (Hören/Sprechen/Lesen/Schreiben).
@@ -42,6 +43,13 @@ public class PracticeNodeService {
     private final AsyncJobService asyncJobService;
     private final XpService xpService;
     private final com.deutschflow.srs.service.SrsVocabScheduler srsVocabScheduler;
+    /**
+     * Bounded pool for blocking LLM practice-node generation. Field name matches the
+     * {@code aiExecutor} bean (AsyncConfig) so Spring resolves it by name. Replaces
+     * {@code CompletableFuture.runAsync(...)} on {@code ForkJoinPool.commonPool()},
+     * which let 4 concurrent 3–10s Groq calls starve all other parallel work.
+     */
+    private final Executor aiExecutor;
 
     private static final int XP_PER_SESSION = 30;
     private static final List<String> ALL_SKILLS = List.of("HOEREN", "SPRECHEN", "LESEN", "SCHREIBEN");
@@ -62,7 +70,7 @@ public class PracticeNodeService {
                     log.error("[PracticeNode] Failed to generate {} for node={}, user={}: {}",
                             skill, sourceNodeId, userId, e.getMessage());
                 }
-            });
+            }, aiExecutor);
         }
         log.info("[PracticeNode] Triggered 4 practice nodes for user={}, node={}", userId, sourceNodeId);
     }

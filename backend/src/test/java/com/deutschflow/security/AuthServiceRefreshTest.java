@@ -75,7 +75,7 @@ class AuthServiceRefreshTest {
                 .build();
 
         when(refreshTokenRepository.findByToken("old-token")).thenReturn(Optional.of(oldToken));
-        when(jwtService.generateAccessToken(user)).thenReturn("new-access");
+        when(jwtService.generateAccessToken(any(), any(), any())).thenReturn("new-access");
         when(refreshTokenRepository.save(any(RefreshToken.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 

@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
 
 import java.util.List;
 import java.util.Map;
@@ -33,14 +34,10 @@ public class AiJobWorker {
     private final ObjectMapper objectMapper;
 
     @Scheduled(fixedDelay = 2000)
-    @Transactional
     public void processPendingJobs() {
-        List<AiJob> jobs = aiJobRepository.claimPendingJobs(BATCH_SIZE);
+        // Claim jobs in a short transaction, then release the connection before the AI calls.
+        List<AiJob> jobs = claimJobs();
         if (jobs.isEmpty()) return;
-
-        // Mark all as PROCESSING immediately (in transaction, before AI call)
-        List<Long> ids = jobs.stream().map(AiJob::getId).toList();
-        aiJobRepository.bulkUpdateStatus(ids, AiJob.STATUS_PROCESSING);
 
         for (AiJob job : jobs) {
             try {
@@ -50,23 +47,41 @@ public class AiJobWorker {
                     default -> Map.of("error", "Unknown job type: " + job.getJobType());
                 };
 
-                job.setResult(result);
-                job.setStatus(AiJob.STATUS_COMPLETED);
-                aiJobRepository.save(job);
-
-                // Push kết quả về browser qua SSE
+                saveCompleted(job, result);
                 sseRegistry.complete(job.getId(), result);
                 log.info("[Worker] Completed jobId={} type={}", job.getId(), job.getJobType());
 
             } catch (Exception e) {
                 log.error("[Worker] Failed jobId={}: {}", job.getId(), e.getMessage(), e);
-                job.setStatus(AiJob.STATUS_FAILED);
-                job.setErrorMsg(e.getMessage());
-                job.setRetryCount(job.getRetryCount() + 1);
-                aiJobRepository.save(job);
+                saveFailed(job, e.getMessage());
                 sseRegistry.error(job.getId(), "Đánh giá thất bại. Vui lòng thử lại.");
             }
         }
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public List<AiJob> claimJobs() {
+        List<AiJob> jobs = aiJobRepository.claimPendingJobs(BATCH_SIZE);
+        if (!jobs.isEmpty()) {
+            List<Long> ids = jobs.stream().map(AiJob::getId).toList();
+            aiJobRepository.bulkUpdateStatus(ids, AiJob.STATUS_PROCESSING);
+        }
+        return jobs;
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void saveCompleted(AiJob job, Map<String, Object> result) {
+        job.setResult(result);
+        job.setStatus(AiJob.STATUS_COMPLETED);
+        aiJobRepository.save(job);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void saveFailed(AiJob job, String errorMsg) {
+        job.setStatus(AiJob.STATUS_FAILED);
+        job.setErrorMsg(errorMsg);
+        job.setRetryCount(job.getRetryCount() + 1);
+        aiJobRepository.save(job);
     }
 
     // ──────────────────────────────────────────────────────────────

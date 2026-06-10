@@ -31,10 +31,14 @@ public class GrammarCase {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @OneToMany(mappedBy = "grammarCase", cascade = CascadeType.ALL, orphanRemoval = true)
+    // Read-only navigational associations. No cascade/orphanRemoval: these rows are
+    // seeded via Flyway and never written through the entity (the service maps DTOs
+    // via dedicated repository queries). orphanRemoval=true here was a latent
+    // data-loss footgun — a save() with a partial list would silently DELETE rows.
+    @OneToMany(mappedBy = "grammarCase", fetch = FetchType.LAZY)
     private List<GrammarCaseExample> examples;
 
-    @OneToMany(mappedBy = "grammarCase", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "grammarCase", fetch = FetchType.LAZY)
     private List<GrammarCaseExercise> exercises;
 
     public GrammarCase() {}

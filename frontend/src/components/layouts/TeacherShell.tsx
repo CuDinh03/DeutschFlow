@@ -2,13 +2,14 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { LayoutDashboard, Users, HelpCircle, BarChart2, LogOut, Menu, BookOpen, FileText, Store, Sparkles, GraduationCap, Bell, User, ClipboardCheck, Image } from 'lucide-react'
+import { LayoutDashboard, Users, BarChart2, LogOut, Menu, BookOpen, FileText, Store, Sparkles, GraduationCap, Bell, User, ClipboardCheck, Image } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
+import { getOrgRole } from '@/lib/authSession'
 
 interface TeacherShellProps {
   children: React.ReactNode
-  activeMenu: 'dashboard' | 'classes' | 'quizzes' | 'reports' | 'grammar' | 'materials' | 'marketplace' | 'notifications' | 'profile' | 'grading' | 'media'
+  activeMenu: 'dashboard' | 'classes' | 'reports' | 'grammar' | 'materials' | 'marketplace' | 'notifications' | 'profile' | 'grading' | 'media'
   userName: string
   onLogout: () => void
   headerTitle?: string
@@ -27,13 +28,20 @@ export function TeacherShell({
 }: TeacherShellProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false)
 
+  // Teachers who belong to an org don't sell 1-1 sessions on the open marketplace, so the
+  // marketplace profile + directory are hidden for them (B2B decision). Computed after mount
+  // to avoid an SSR/client hydration mismatch (the token is client-only).
+  const [isOrgTeacher, setIsOrgTeacher] = React.useState(false)
+  React.useEffect(() => {
+    setIsOrgTeacher(Boolean(getOrgRole()))
+  }, [])
+
   const menuGroups = [
     {
       title: 'Quản lý lớp',
       items: [
         { id: 'dashboard', label: 'Dashboard & Lớp học', icon: LayoutDashboard, href: '/teacher/dashboard' },
         { id: 'grading', label: 'Trung tâm Chấm bài', icon: ClipboardCheck, href: '/teacher/grading', pendingCount: pendingGradingCount },
-        { id: 'quizzes', label: 'Quản lý Quiz', icon: HelpCircle, href: '/teacher/quizzes' },
         { id: 'reports', label: 'Báo cáo & Phân tích', icon: BarChart2, href: '/teacher/reports' },
       ]
     },
@@ -59,6 +67,14 @@ export function TeacherShell({
       ]
     },
   ]
+    // Drop marketplace items (and any group left empty) for org teachers.
+    .map((group) => ({
+      ...group,
+      items: group.items.filter(
+        (item) => !(isOrgTeacher && (item.id === 'profile' || item.id === 'marketplace')),
+      ),
+    }))
+    .filter((group) => group.items.length > 0)
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full bg-[#0F172A] text-white">

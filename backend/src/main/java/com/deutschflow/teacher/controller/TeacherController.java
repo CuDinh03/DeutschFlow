@@ -1,5 +1,6 @@
 package com.deutschflow.teacher.controller;
 
+import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.quota.RequestContext;
 import com.deutschflow.teacher.dto.*;
 import com.deutschflow.teacher.service.TeacherService;
@@ -14,12 +15,23 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/v2/teacher")
 @PreAuthorize("hasRole('TEACHER')")
 @RequiredArgsConstructor
 public class TeacherController {
+
+    private static final Set<String> ALLOWED_UPLOAD_TYPES = Set.of(
+        "image/jpeg", "image/png", "image/gif", "image/webp",
+        "application/pdf",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "audio/mpeg", "audio/mp3", "audio/wav",
+        "video/mp4",
+        "text/plain"
+    );
 
     private final TeacherService teacherService;
     private final XpService xpService;
@@ -75,6 +87,23 @@ public class TeacherController {
         return ResponseEntity.ok().build();
     }
 
+    @GetMapping("/classes/{classId}/teachers")
+    public ResponseEntity<List<ClassTeacherDto>> getClassTeachers(@AuthenticationPrincipal User user, @PathVariable Long classId) {
+        return ResponseEntity.ok(teacherService.getClassTeachers(user.getId(), classId));
+    }
+
+    @PostMapping("/classes/{classId}/teachers")
+    public ResponseEntity<Void> addCoTeacher(@AuthenticationPrincipal User user, @PathVariable Long classId, @RequestBody Map<String, String> payload) {
+        teacherService.addCoTeacher(user.getId(), classId, payload.get("email"));
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/classes/{classId}/teachers/{coTeacherId}")
+    public ResponseEntity<Void> removeCoTeacher(@AuthenticationPrincipal User user, @PathVariable Long classId, @PathVariable Long coTeacherId) {
+        teacherService.removeCoTeacher(user.getId(), classId, coTeacherId);
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping("/classes/{classId}/analytics")
     public ResponseEntity<ClassAnalyticsOverviewDto> getClassAnalytics(@AuthenticationPrincipal User user, @PathVariable Long classId) {
         return ResponseEntity.ok(teacherService.getClassAnalytics(user.getId(), classId));
@@ -85,7 +114,7 @@ public class TeacherController {
             @AuthenticationPrincipal User user, 
             @PathVariable Long classId,
             @RequestParam(defaultValue = "ALL_TIME") String type) {
-        // TeacherService could verify if the teacher owns the class here
+        teacherService.assertTeacherOwnsClass(user.getId(), classId);
         return ResponseEntity.ok(xpService.getClassLeaderboard(classId, type));
     }
 
@@ -94,16 +123,20 @@ public class TeacherController {
             @AuthenticationPrincipal User user,
             @RequestParam String filename,
             @RequestParam String contentType) {
-        
+
+        String normalizedType = contentType != null ? contentType.toLowerCase().split(";")[0].trim() : "";
+        if (!ALLOWED_UPLOAD_TYPES.contains(normalizedType)) {
+            throw new BadRequestException("Loại file không được phép: " + contentType);
+        }
+
         String extension = "";
         if (filename != null && filename.contains(".")) {
             extension = filename.substring(filename.lastIndexOf("."));
         }
-        
-        String objectKey = String.format("teacher_materials/%d/%d%s", 
+
+        String objectKey = String.format("teacher_materials/%d/%d%s",
                 user.getId(), System.currentTimeMillis(), extension);
-                
-        // Need to autowire S3StorageService
+
         String url = teacherService.generatePresignedUrl(objectKey, contentType);
         return ResponseEntity.ok(Map.of("url", url, "objectKey", objectKey));
     }
@@ -116,10 +149,8 @@ public class TeacherController {
     }
 
     @GetMapping("/classes/{classId}/assignments")
-    public ResponseEntity<List<ClassAssignmentDto>> getClassAssignments(@PathVariable Long classId) {
-        // Teacher has access, but we should probably verify teacher owns class here as well, 
-        // however, teacherService could handle it if we pass teacherId.
-        return ResponseEntity.ok(teacherService.getClassAssignments(classId));
+    public ResponseEntity<List<ClassAssignmentDto>> getClassAssignments(@AuthenticationPrincipal User user, @PathVariable Long classId) {
+        return ResponseEntity.ok(teacherService.getClassAssignments(user.getId(), classId));
     }
 
     @GetMapping("/students/{studentId}/speaking-sessions")
@@ -153,7 +184,14 @@ public class TeacherController {
             @AuthenticationPrincipal User user,
             @PathVariable Long classId,
             @PathVariable Long studentId) {
-        
+
+        // IDOR guard: chỉ teacher của lớp được xem analytics + trigger AI advisory (tốn token LLM),
+        // và học viên phải thực sự thuộc lớp đó (analytics service không tự kiểm tra).
+        teacherService.assertTeacherOwnsClass(user.getId(), classId);
+        if (!classStudentRepository.existsByIdClassIdAndIdStudentId(classId, studentId)) {
+            throw new com.deutschflow.common.exception.ForbiddenException("Học viên không thuộc lớp này");
+        }
+
         // Fetch metrics with real data
         StudentPerformanceAnalyticsDto analytics = analyticsService.getComprehensiveAnalytics(classId, studentId);
         

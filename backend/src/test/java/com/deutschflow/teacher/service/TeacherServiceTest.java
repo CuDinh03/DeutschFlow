@@ -1,10 +1,12 @@
 package com.deutschflow.teacher.service;
 
+import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.media.service.S3StorageService;
 import com.deutschflow.notification.service.UserNotificationService;
 import com.deutschflow.speaking.service.SpeakingAiHelpersService;
 import com.deutschflow.teacher.dto.ClassAssignmentDto;
+import com.deutschflow.teacher.dto.ClassTeacherDto;
 import com.deutschflow.teacher.dto.CreateAssignmentRequest;
 import com.deutschflow.teacher.dto.StudentAssignmentDto;
 import com.deutschflow.teacher.entity.AssignmentScenario;
@@ -60,6 +62,9 @@ class TeacherServiceTest {
     private ClassAssignmentRepository assignmentRepository;
 
     @Mock
+    private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
+    @Mock
     private StudentAssignmentRepository studentAssignmentRepository;
 
     @Mock
@@ -101,6 +106,7 @@ class TeacherServiceTest {
                 classStudentRepository,
                 classTeacherRepository,
                 assignmentRepository,
+                jdbcTemplate,
                 studentAssignmentRepository,
                 speakingSessionRepository,
                 userRepository,
@@ -119,7 +125,7 @@ class TeacherServiceTest {
     void createAssignment_Success() {
         Long teacherId = 1L;
         Long classId = 100L;
-        CreateAssignmentRequest req = new CreateAssignmentRequest("Test Topic", "Test Desc", "GENERAL", 10L, LocalDateTime.now().plusDays(7), null);
+        CreateAssignmentRequest req = new CreateAssignmentRequest("Test Topic", "Test Desc", "GENERAL", null, 10L, LocalDateTime.now().plusDays(7), null);
 
         when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)).thenReturn(true);
 
@@ -169,6 +175,149 @@ class TeacherServiceTest {
         assertEquals(1, result.size());
         assertEquals(90, result.get(0).teacherScore());
         assertEquals("SUBMITTED", result.get(0).status());
+    }
+
+    // ─── IDOR guards: class-scoped reads must verify teacher owns the class ──────
+
+    @Test
+    void getClassAssignments_throwsForbidden_whenTeacherDoesNotOwnClass() {
+        Long teacherId = 1L, classId = 100L;
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)).thenReturn(false);
+
+        assertThrows(ForbiddenException.class,
+                () -> teacherService.getClassAssignments(teacherId, classId));
+        verify(assignmentRepository, never()).findByClassIdOrderByCreatedAtDesc(any());
+    }
+
+    @Test
+    void getClassAssignments_returnsAssignments_whenTeacherOwnsClass() {
+        Long teacherId = 1L, classId = 100L;
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)).thenReturn(true);
+        when(assignmentRepository.findByClassIdOrderByCreatedAtDesc(classId)).thenReturn(List.of(
+                ClassAssignment.builder().id(500L).classId(classId).topic("Test Topic").build()));
+
+        List<ClassAssignmentDto> result = teacherService.getClassAssignments(teacherId, classId);
+
+        assertEquals(1, result.size());
+        assertEquals(500L, result.get(0).id());
+    }
+
+    @Test
+    void assertTeacherOwnsClass_throwsForbidden_whenNotOwner() {
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(100L, 1L)).thenReturn(false);
+
+        assertThrows(ForbiddenException.class,
+                () -> teacherService.assertTeacherOwnsClass(1L, 100L));
+    }
+
+    @Test
+    void assertTeacherOwnsClass_passes_whenOwner() {
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(100L, 1L)).thenReturn(true);
+
+        teacherService.assertTeacherOwnsClass(1L, 100L); // must not throw
+    }
+
+    // ─── Co-teaching: quản lý giáo viên trong lớp ────────────────────────────────
+
+    @Test
+    void getClassTeachers_throwsForbidden_whenCallerNotInClass() {
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(100L, 1L)).thenReturn(false);
+
+        assertThrows(ForbiddenException.class, () -> teacherService.getClassTeachers(1L, 100L));
+    }
+
+    @Test
+    void getClassTeachers_returnsPrimaryFirst() {
+        Long classId = 100L;
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, 1L)).thenReturn(true);
+        when(classTeacherRepository.findByIdClassId(classId)).thenReturn(List.of(
+                ClassTeacher.builder().id(new ClassTeacherId(classId, 2L)).role("ASSISTANT").build(),
+                ClassTeacher.builder().id(new ClassTeacherId(classId, 1L)).role("PRIMARY").build()));
+        when(userRepository.findAllById(List.of(2L, 1L))).thenReturn(List.of(
+                com.deutschflow.user.entity.User.builder().id(1L).displayName("Chính").email("p@x.de").build(),
+                com.deutschflow.user.entity.User.builder().id(2L).displayName("Phụ").email("a@x.de").build()));
+
+        List<ClassTeacherDto> result = teacherService.getClassTeachers(1L, classId);
+
+        assertEquals(2, result.size());
+        assertEquals("PRIMARY", result.get(0).role());
+        assertEquals("Chính", result.get(0).name());
+        assertEquals("ASSISTANT", result.get(1).role());
+    }
+
+    @Test
+    void addCoTeacher_throwsForbidden_whenCallerIsAssistant() {
+        when(classTeacherRepository.findById(new ClassTeacherId(100L, 1L))).thenReturn(java.util.Optional.of(
+                ClassTeacher.builder().id(new ClassTeacherId(100L, 1L)).role("ASSISTANT").build()));
+
+        assertThrows(ForbiddenException.class,
+                () -> teacherService.addCoTeacher(1L, 100L, "x@y.de"));
+        verify(classTeacherRepository, never()).save(any());
+    }
+
+    @Test
+    void addCoTeacher_throwsBadRequest_whenTargetIsStudent() {
+        when(classTeacherRepository.findById(new ClassTeacherId(100L, 1L))).thenReturn(java.util.Optional.of(
+                ClassTeacher.builder().id(new ClassTeacherId(100L, 1L)).role("PRIMARY").build()));
+        when(userRepository.findByEmail("s@y.de")).thenReturn(java.util.Optional.of(
+                com.deutschflow.user.entity.User.builder().id(5L)
+                        .role(com.deutschflow.user.entity.User.Role.STUDENT).build()));
+
+        assertThrows(com.deutschflow.common.exception.BadRequestException.class,
+                () -> teacherService.addCoTeacher(1L, 100L, "s@y.de"));
+        verify(classTeacherRepository, never()).save(any());
+    }
+
+    @Test
+    void addCoTeacher_savesAssistant_whenValid() {
+        when(classTeacherRepository.findById(new ClassTeacherId(100L, 1L))).thenReturn(java.util.Optional.of(
+                ClassTeacher.builder().id(new ClassTeacherId(100L, 1L)).role("PRIMARY").build()));
+        when(userRepository.findByEmail("t@y.de")).thenReturn(java.util.Optional.of(
+                com.deutschflow.user.entity.User.builder().id(7L)
+                        .role(com.deutschflow.user.entity.User.Role.TEACHER).build()));
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(100L, 7L)).thenReturn(false);
+
+        teacherService.addCoTeacher(1L, 100L, "t@y.de");
+
+        ArgumentCaptor<ClassTeacher> captor = ArgumentCaptor.forClass(ClassTeacher.class);
+        verify(classTeacherRepository).save(captor.capture());
+        assertEquals("ASSISTANT", captor.getValue().getRole());
+        assertEquals(7L, captor.getValue().getId().getTeacherId());
+    }
+
+    @Test
+    void removeCoTeacher_throwsBadRequest_whenTargetIsPrimary() {
+        when(classTeacherRepository.findById(new ClassTeacherId(100L, 1L))).thenReturn(java.util.Optional.of(
+                ClassTeacher.builder().id(new ClassTeacherId(100L, 1L)).role("PRIMARY").build()));
+        when(classTeacherRepository.findById(new ClassTeacherId(100L, 1L))).thenReturn(java.util.Optional.of(
+                ClassTeacher.builder().id(new ClassTeacherId(100L, 1L)).role("PRIMARY").build()));
+
+        assertThrows(com.deutschflow.common.exception.BadRequestException.class,
+                () -> teacherService.removeCoTeacher(1L, 100L, 1L));
+        verify(classTeacherRepository, never()).delete(any(ClassTeacher.class));
+    }
+
+    @Test
+    void removeCoTeacher_deletesAssistant() {
+        when(classTeacherRepository.findById(new ClassTeacherId(100L, 1L))).thenReturn(java.util.Optional.of(
+                ClassTeacher.builder().id(new ClassTeacherId(100L, 1L)).role("PRIMARY").build()));
+        ClassTeacher assistant = ClassTeacher.builder()
+                .id(new ClassTeacherId(100L, 7L)).role("ASSISTANT").build();
+        when(classTeacherRepository.findById(new ClassTeacherId(100L, 7L)))
+                .thenReturn(java.util.Optional.of(assistant));
+
+        teacherService.removeCoTeacher(1L, 100L, 7L);
+
+        verify(classTeacherRepository).delete(assistant);
+    }
+
+    @Test
+    void deleteClass_throwsForbidden_whenCallerIsAssistant() {
+        when(classTeacherRepository.findById(new ClassTeacherId(100L, 1L))).thenReturn(java.util.Optional.of(
+                ClassTeacher.builder().id(new ClassTeacherId(100L, 1L)).role("ASSISTANT").build()));
+
+        assertThrows(ForbiddenException.class, () -> teacherService.deleteClass(1L, 100L));
+        verify(classRepository, never()).deleteById(any());
     }
 
     // ─── getOrCreateScenarioForStudent (lazy speaking-scenario recovery) ─────────

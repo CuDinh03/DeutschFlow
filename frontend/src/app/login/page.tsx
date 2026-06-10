@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
 import { setTokens, clearTokens, recordTokenRefresh } from '@/lib/authSession'
+import { useUserStore } from '@/stores/useUserStore'
 import { registerPushNotifications } from '@/hooks/usePushNotifications'
 import { DeutschFlowLogo } from '@/components/ui/DeutschFlowLogo'
 import LanguageSwitcher from '@/components/ui/LanguageSwitcher'
@@ -75,6 +76,7 @@ export default function LoginPage() {
   const t = useTranslations('auth')
   const router = useRouter()
   const { trackEvent, identifyUser } = useTracking()
+  const setOrg = useUserStore((s) => s.setOrg)
   const isNative = useIsNative()
   // Native auth screen uses a dark background → light status bar icons.
   useStatusBarStyle('dark')
@@ -97,6 +99,8 @@ export default function LoginPage() {
 
       const { data } = await api.post('/auth/login', form)
       setTokens(data)
+      // Mirror org (tenant) context into the client store; null for B2C / non-org users.
+      setOrg({ orgId: data.orgId ?? null, orgRole: data.orgRole ?? null })
       recordTokenRefresh() // BUG FIX #1: Initialize session keep-alive tracking
       if (data.locale && ['vi', 'en', 'de'].includes(data.locale)) {
         document.cookie = `locale=${data.locale};path=/;max-age=31536000;SameSite=Lax`

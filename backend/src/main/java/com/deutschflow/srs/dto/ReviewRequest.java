@@ -1,5 +1,9 @@
 package com.deutschflow.srs.dto;
 
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+
 /**
  * Request payload for recording a review result.
  *
@@ -13,7 +17,7 @@ package com.deutschflow.srs.dto;
  * </pre>
  */
 public record ReviewRequest(
-        String vocabId,
+        @NotBlank String vocabId,
         /** SM-2 quality 0-5: 0=Quên, 2=Khó, 4=OK, 5=Dễ — mapped to FSRS rating internally */
-        int quality
+        @Min(0) @Max(5) int quality
 ) {}

@@ -59,6 +59,9 @@ export default function VideoLessonScreen() {
       if (cancelledRef.current) return
       try {
         const st = await videoLessonApi.getRenderStatus(jobId)
+        // The request may have been in flight when the screen was unmounted — don't
+        // act on a stale result (would fire Share/Alert + setState after navigating away).
+        if (cancelledRef.current) return
         if (st.status === 'COMPLETED' && st.videoUrl) {
           setExporting(false)
           await Share.share({ message: st.videoUrl, url: st.videoUrl })

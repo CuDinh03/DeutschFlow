@@ -46,6 +46,7 @@ class PracticeNodeServiceXpWiringTest {
     @Mock AsyncJobService asyncJobService;
     @Mock XpService xpService;
     @Mock com.deutschflow.srs.service.SrsVocabScheduler srsVocabScheduler;
+    @Mock java.util.concurrent.Executor aiExecutor;
 
     ObjectMapper objectMapper = new ObjectMapper();
 
@@ -60,7 +61,8 @@ class PracticeNodeServiceXpWiringTest {
                 objectMapper,
                 asyncJobService,
                 xpService,
-                srsVocabScheduler
+                srsVocabScheduler,
+                aiExecutor
         );
     }
 

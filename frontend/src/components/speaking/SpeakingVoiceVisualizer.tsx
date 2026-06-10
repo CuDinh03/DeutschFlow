@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { CYAN, PURPLE } from "./types";
 
-/** UI-only states (aligned with uidemo Speaking voice strip). */
+/** UI-only states for the speaking voice visualizer strip. */
 export type SpeakingVizState = "idle" | "listening" | "processing" | "ai-speaking";
 
 const BAR_COLORS = ["#22D3EE", "#38BDF8", "#818CF8", "#A78BFA", "#818CF8", "#38BDF8", "#22D3EE"];

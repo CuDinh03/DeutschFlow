@@ -12,7 +12,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/vocabulary")
-@CrossOrigin(origins = "${app.cors.allowed-origins:*}")
 public class VocabularyController {
 
     private final VocabularyService vocabularyService;

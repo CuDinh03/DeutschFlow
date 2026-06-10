@@ -87,6 +87,9 @@ public class SecurityConfig {
                         auth.requestMatchers(HttpMethod.GET, "/api/v2/media/by-tag").permitAll();
                         auth.requestMatchers(HttpMethod.GET, "/api/v2/media/**").permitAll();
 
+                        // Public org-invitation preview + accept (token is the secret; PublicOrgInvitationController)
+                        auth.requestMatchers("/api/public/**").permitAll();
+
                         // No STOMP/WebSocket config in this app yet — do not expose /ws until handshake auth exists.
 
                         // Keep health open; restrict info (build/git metadata) and prometheus + OpenAPI

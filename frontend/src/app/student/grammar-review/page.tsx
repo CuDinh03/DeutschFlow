@@ -6,6 +6,7 @@ import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
 import { logout } from '@/lib/authSession'
 import { useRouter } from 'next/navigation'
 import api from '@/lib/api'
+import { getErrorSnippet } from '@/lib/errors/errorTaxonomy'
 import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PremiumGate } from '@/components/ui/PremiumGate'
@@ -111,8 +112,8 @@ export default function GrammarReviewPage() {
                   <Card className="shadow-sm border-l-4 border-l-red-500">
                     <CardHeader className="pb-2">
                       <CardTitle className="text-lg flex justify-between items-center">
-                        <span className="font-mono text-red-600 bg-red-50 px-2 py-1 rounded text-sm font-bold">
-                          {t.errorCode}
+                        <span className="font-mono text-red-600 bg-red-50 px-2 py-1 rounded text-sm font-bold" title={t.errorCode}>
+                          {getErrorSnippet(t.errorCode, 'vi').title}
                         </span>
                         <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                           Dạng: {t.taskType}

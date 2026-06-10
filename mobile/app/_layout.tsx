@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { AppState } from 'react-native'
 import { Stack, router, useRootNavigationState } from 'expo-router'
 
 import { StatusBar } from 'expo-status-bar'
@@ -103,6 +104,17 @@ function RootLayout() {
 
   useEffect(() => {
     useSrsOfflineStore.getState().loadCount()
+    // Sync any offline reviews queued while the app was offline or backgrounded.
+    void useSrsOfflineStore.getState().sync()
+  }, [])
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        void useSrsOfflineStore.getState().sync()
+      }
+    })
+    return () => sub.remove()
   }, [])
 
   useEffect(() => {
