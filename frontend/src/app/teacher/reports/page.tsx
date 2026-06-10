@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import api, { httpStatus } from '@/lib/api'
 import { logout } from '@/lib/authSession'
@@ -80,11 +80,6 @@ function cellBadge(cell: GradebookCell | undefined) {
   return <span className="text-slate-400 text-xs font-medium">Chưa nộp</span>
 }
 
-function attendanceIcon(status: string) {
-  if (status === 'PRESENT') return <span className="text-emerald-600 font-bold text-xs">✓</span>
-  if (status === 'LATE')    return <span className="text-amber-600 font-bold text-xs">M</span>
-  return <span className="text-rose-600 font-bold text-xs">V</span>
-}
 
 function SkillBar({ value, color }: { value: number | null; color: string }) {
   if (value == null) return <span className="text-slate-300 text-xs">—</span>
@@ -123,8 +118,6 @@ function PrintHeader({ title, subtitle, userName, className }: { title: string; 
 
 export default function TeacherReportsPage() {
   const router = useRouter()
-  const printAreaRef = useRef<HTMLDivElement>(null)
-
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [overview, setOverview] = useState<any>(null)
@@ -162,6 +155,9 @@ export default function TeacherReportsPage() {
 
   // Print scope
   const [printScope, setPrintScope] = useState<PrintScope>(null)
+
+  // CRUD error feedback
+  const [crudError, setCrudError] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -242,6 +238,7 @@ export default function TeacherReportsPage() {
       attendance,
     }
     setLogFormLoading(true)
+    setCrudError('')
     try {
       if (editingLog) {
         const res = await api.put(`/v2/teacher/classes/${selectedClassId}/lesson-logs/${editingLog.id}`, payload)
@@ -252,13 +249,20 @@ export default function TeacherReportsPage() {
       }
       setShowLogForm(false)
       setEditingLog(null)
+    } catch {
+      setCrudError('Lưu buổi học thất bại. Vui lòng thử lại.')
     } finally { setLogFormLoading(false) }
   }
 
   const handleDeleteLog = async (logId: number) => {
     if (!confirm('Xoá buổi học này?')) return
-    await api.delete(`/v2/teacher/classes/${selectedClassId}/lesson-logs/${logId}`)
-    setLessonLogs(prev => prev.filter(l => l.id !== logId))
+    setCrudError('')
+    try {
+      await api.delete(`/v2/teacher/classes/${selectedClassId}/lesson-logs/${logId}`)
+      setLessonLogs(prev => prev.filter(l => l.id !== logId))
+    } catch {
+      setCrudError('Xoá buổi học thất bại. Vui lòng thử lại.')
+    }
   }
 
   // ── Student evaluation CRUD ───────────────────────────────────────────────
@@ -276,10 +280,13 @@ export default function TeacherReportsPage() {
       skillSprechen: parseScore('skillSprechen'),
     }
     setEvalFormLoading(true)
+    setCrudError('')
     try {
       const res = await api.put(`/v2/teacher/classes/${selectedClassId}/evaluations/${editingEval.studentId}`, payload)
       setEvaluations(prev => prev.map(ev => ev.studentId === editingEval.studentId ? res.data : ev))
       setEditingEval(null)
+    } catch {
+      setCrudError('Lưu đánh giá thất bại. Vui lòng thử lại.')
     } finally { setEvalFormLoading(false) }
   }
 
@@ -341,18 +348,18 @@ export default function TeacherReportsPage() {
             {/* KPI cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {[
-                { label: 'Tổng Lớp Học', value: overview.classCount, icon: Users, color: 'blue' },
-                { label: 'Tổng Bài Tập', value: overview.assignmentCount, icon: FileText, color: 'purple' },
-                { label: 'Tổng Học Viên', value: overview.studentCount, icon: GraduationCap, color: 'amber' },
-              ].map(({ label, value, icon: Icon, color }) => (
+                { label: 'Tổng Lớp Học',  value: overview.classCount,      icon: Users,         circleBg: 'bg-blue-50',   iconBg: 'bg-blue-100',   iconText: 'text-blue-600' },
+                { label: 'Tổng Bài Tập',  value: overview.assignmentCount, icon: FileText,       circleBg: 'bg-purple-50', iconBg: 'bg-purple-100', iconText: 'text-purple-600' },
+                { label: 'Tổng Học Viên', value: overview.studentCount,    icon: GraduationCap,  circleBg: 'bg-amber-50',  iconBg: 'bg-amber-100',  iconText: 'text-amber-600' },
+              ].map(({ label, value, icon: Icon, circleBg, iconBg, iconText }) => (
                 <div key={label} className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
-                  <div className={`absolute right-0 top-0 -mt-4 -mr-4 w-24 h-24 bg-${color}-50 rounded-full opacity-50 group-hover:scale-110 transition-transform`} />
+                  <div className={`absolute right-0 top-0 -mt-4 -mr-4 w-24 h-24 ${circleBg} rounded-full opacity-50 group-hover:scale-110 transition-transform`} />
                   <div className="relative z-10 flex items-start justify-between">
                     <div>
                       <p className="text-slate-500 text-sm font-bold uppercase tracking-wider mb-1">{label}</p>
                       <p className="text-4xl font-black text-slate-800">{value}</p>
                     </div>
-                    <div className={`w-12 h-12 bg-${color}-100 text-${color}-600 rounded-xl flex items-center justify-center shadow-inner`}>
+                    <div className={`w-12 h-12 ${iconBg} ${iconText} rounded-xl flex items-center justify-center shadow-inner`}>
                       <Icon size={24} />
                     </div>
                   </div>
@@ -443,16 +450,23 @@ export default function TeacherReportsPage() {
                   {/* KPI row */}
                   <div className="mt-4 grid grid-cols-3 gap-4 animate-in fade-in duration-300">
                     {[
-                      { label: 'Học viên', value: classReport.studentCount ?? 0, color: 'indigo' },
-                      { label: 'Bài tập đã giao', value: classReport.assignmentCount ?? 0, color: 'purple' },
-                      { label: 'Điểm TB', value: Number(classReport.avgScore ?? 0).toFixed(1), color: 'amber' },
-                    ].map(({ label, value, color }) => (
-                      <div key={label} className={`bg-${color}-50 rounded-2xl p-4 text-center border border-${color}-100`}>
-                        <p className={`text-3xl font-black text-${color}-600`}>{value}</p>
+                      { label: 'Học viên',        value: classReport.studentCount ?? 0,                     cardCls: 'bg-indigo-50 border-indigo-100', textCls: 'text-indigo-600' },
+                      { label: 'Bài tập đã giao', value: classReport.assignmentCount ?? 0,                  cardCls: 'bg-purple-50 border-purple-100', textCls: 'text-purple-600' },
+                      { label: 'Điểm TB',         value: Number(classReport.avgScore ?? 0).toFixed(1),      cardCls: 'bg-amber-50 border-amber-100',   textCls: 'text-amber-600' },
+                    ].map(({ label, value, cardCls, textCls }) => (
+                      <div key={label} className={`${cardCls} rounded-2xl p-4 text-center border`}>
+                        <p className={`text-3xl font-black ${textCls}`}>{value}</p>
                         <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider mt-1">{label}</p>
                       </div>
                     ))}
                   </div>
+
+                  {crudError && (
+                    <div className="mt-4 px-4 py-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 text-sm font-medium flex items-center justify-between">
+                      {crudError}
+                      <button onClick={() => setCrudError('')} className="ml-3 text-rose-400 hover:text-rose-600">×</button>
+                    </div>
+                  )}
 
                   {/* Tab nav */}
                   <div className="mt-6 flex gap-1 border-b border-slate-200 overflow-x-auto">
@@ -858,7 +872,7 @@ export default function TeacherReportsPage() {
 
       {/* Overview PDF */}
       {printScope === 'overview' && overview && (
-        <div className="print-area print-color-exact" ref={printAreaRef}>
+        <div className="print-area print-color-exact">
           <PrintHeader title="Báo cáo tổng hợp" userName={userName} />
           <div className="print-section grid grid-cols-3 gap-4 mb-5">
             {[

@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useMemo, type ReactNode } from "react";
+import { getErrorSnippet } from "@/lib/errors/errorTaxonomy";
 import type { StructuredErrorItem } from "./types";
 
 interface Props {
@@ -34,7 +35,7 @@ export function UserTextWithErrorSpans({ text, errors, dark }: Props) {
                 ? "rounded px-0.5 border border-red-400/50 bg-red-950/50 text-red-200"
                 : "rounded px-0.5 border border-red-300 bg-red-100 text-red-900"
             }
-            title={e.errorCode}
+            title={getErrorSnippet(e.errorCode, 'vi').title}
           >
             {w}
           </span>

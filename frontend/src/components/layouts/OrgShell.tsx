@@ -2,49 +2,27 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { Building2, LayoutDashboard, GraduationCap, Users, UserRound, Mail, Receipt, LogOut, Menu } from 'lucide-react'
+import { LayoutDashboard, GraduationCap, Users, UserRound, Mail, Receipt, LogOut, Menu } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 
-interface OrgShellProps {
-  children: React.ReactNode
-  activeMenu: 'dashboard' | 'teachers' | 'students' | 'classes' | 'invitations' | 'billing'
-  userName: string
-  onLogout: () => void
-  headerTitle?: string
-  headerSubtitle?: string
+type ActiveMenu = 'dashboard' | 'teachers' | 'students' | 'classes' | 'invitations' | 'billing'
+
+interface MenuGroup {
+  title: string
+  items: { id: string; label: string; icon: React.ElementType; href: string }[]
 }
 
-export function OrgShell({
-  children,
-  activeMenu,
-  userName,
-  onLogout,
-  headerTitle,
-  headerSubtitle,
-}: OrgShellProps) {
-  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false)
+interface SidebarContentProps {
+  userName: string
+  activeMenu: ActiveMenu
+  menuGroups: MenuGroup[]
+  onLogout: () => void
+  onNavClick: () => void
+}
 
-  const menuGroups = [
-    {
-      title: 'Tổ chức',
-      items: [
-        { id: 'dashboard', label: 'Tổng quan', icon: LayoutDashboard, href: '/org' },
-        { id: 'classes', label: 'Lớp học', icon: GraduationCap, href: '/org/classes' },
-        { id: 'billing', label: 'Hóa đơn', icon: Receipt, href: '/org/billing' },
-      ]
-    },
-    {
-      title: 'Thành viên',
-      items: [
-        { id: 'teachers', label: 'Giáo viên', icon: Users, href: '/org/teachers' },
-        { id: 'students', label: 'Học viên', icon: UserRound, href: '/org/students' },
-        { id: 'invitations', label: 'Lời mời', icon: Mail, href: '/org/invitations' },
-      ]
-    },
-  ]
-
-  const SidebarContent = () => (
+function SidebarContent({ userName, activeMenu, menuGroups, onLogout, onNavClick }: SidebarContentProps) {
+  return (
     <div className="flex flex-col h-full bg-[#0F172A] text-white">
       {/* Brand */}
       <div className="h-16 flex items-center px-6 border-b border-white/10 shrink-0">
@@ -82,7 +60,7 @@ export function OrgShell({
                   <Link
                     key={item.id}
                     href={item.href}
-                    onClick={() => setMobileMenuOpen(false)}
+                    onClick={onNavClick}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${
                       isActive
                         ? 'bg-indigo-600/20 text-indigo-400 shadow-sm'
@@ -118,12 +96,57 @@ export function OrgShell({
       </div>
     </div>
   )
+}
+
+interface OrgShellProps {
+  children: React.ReactNode
+  activeMenu: ActiveMenu
+  userName: string
+  onLogout: () => void
+  headerTitle?: string
+  headerSubtitle?: string
+}
+
+export function OrgShell({
+  children,
+  activeMenu,
+  userName,
+  onLogout,
+  headerTitle,
+  headerSubtitle,
+}: OrgShellProps) {
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false)
+
+  const menuGroups: MenuGroup[] = [
+    {
+      title: 'Tổ chức',
+      items: [
+        { id: 'dashboard', label: 'Tổng quan', icon: LayoutDashboard, href: '/org' },
+        { id: 'classes', label: 'Lớp học', icon: GraduationCap, href: '/org/classes' },
+        { id: 'billing', label: 'Hóa đơn', icon: Receipt, href: '/org/billing' },
+      ]
+    },
+    {
+      title: 'Thành viên',
+      items: [
+        { id: 'teachers', label: 'Giáo viên', icon: Users, href: '/org/teachers' },
+        { id: 'students', label: 'Học viên', icon: UserRound, href: '/org/students' },
+        { id: 'invitations', label: 'Lời mời', icon: Mail, href: '/org/invitations' },
+      ]
+    },
+  ]
 
   return (
     <div className="flex h-screen bg-[#F8FAFC]">
       {/* Desktop Sidebar */}
       <div className="hidden md:block w-72 h-full shrink-0 shadow-2xl z-20 relative">
-        <SidebarContent />
+        <SidebarContent
+          userName={userName}
+          activeMenu={activeMenu}
+          menuGroups={menuGroups}
+          onLogout={onLogout}
+          onNavClick={() => setMobileMenuOpen(false)}
+        />
       </div>
 
       {/* Mobile Drawer */}
@@ -144,7 +167,13 @@ export function OrgShell({
               transition={{ type: 'spring', bounce: 0, duration: 0.3 }}
               className="fixed inset-y-0 left-0 w-72 z-50 shadow-2xl md:hidden"
             >
-              <SidebarContent />
+              <SidebarContent
+                userName={userName}
+                activeMenu={activeMenu}
+                menuGroups={menuGroups}
+                onLogout={onLogout}
+                onNavClick={() => setMobileMenuOpen(false)}
+              />
             </motion.div>
           </>
         )}
