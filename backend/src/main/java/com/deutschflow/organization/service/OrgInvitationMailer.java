@@ -44,8 +44,10 @@ public class OrgInvitationMailer {
         String acceptLink = webUrl + "/org/accept?token=" + token;
 
         if (!mailEnabled) {
-            log.warn("[OrgInvite] mail host not configured — invite link for {} (role={}): {}",
-                    to, role, acceptLink);
+            // Do NOT log acceptLink — it carries the invite token (a bearer secret). Configure SMTP,
+            // or surface the link to the authorized admin via the API (follow-up), not via logs.
+            log.warn("[OrgInvite] mail host not configured — invite for {} (role={}, org={}) saved but NOT emailed",
+                    to, role, orgName);
             return;
         }
 
@@ -65,9 +67,9 @@ public class OrgInvitationMailer {
             mailSender.send(msg);
             log.info("[OrgInvite] invite email sent to {} (role={}, org={})", to, role, orgName);
         } catch (Exception e) {
-            // Log but do not block invite creation — admin can forward the logged link.
-            log.warn("[OrgInvite] failed to send invite email to {}: {} — link: {}",
-                    to, e.getMessage(), acceptLink);
+            // Do not block invite creation; do NOT log the token-bearing link.
+            log.warn("[OrgInvite] failed to send invite email to {} (role={}): {}",
+                    to, role, e.getMessage());
         }
     }
 

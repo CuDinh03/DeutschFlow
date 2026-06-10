@@ -42,11 +42,12 @@ public class AdminOrgService {
 
     private static final String STATUS_ACTIVE = "ACTIVE";
     private static final String STATUS_SUSPENDED = "SUSPENDED";
-    private static final String STATUS_PENDING = "PENDING";
     private static final String ROLE_OWNER = "OWNER";
     private static final String ROLE_STUDENT = "STUDENT";
     private static final String ROLE_TEACHER = "TEACHER";
     private static final Set<String> MEMBER_ROLES = Set.of("OWNER", "ADMIN", "TEACHER", "STUDENT");
+    /** Org lifecycle states (entity: ACTIVE | SUSPENDED). PENDING is an invitation state, not an org state. */
+    private static final Set<String> VALID_ORG_STATUSES = Set.of(STATUS_ACTIVE, STATUS_SUSPENDED);
 
     private final OrganizationRepository organizationRepository;
     private final OrgMembershipService orgMembershipService;
@@ -123,6 +124,9 @@ public class AdminOrgService {
     public OrgDto updateOrganization(Long id, UpdateOrgRequest request) {
         Organization org = organizationRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy tổ chức: " + id));
+        if (request.status() != null && !VALID_ORG_STATUSES.contains(request.status())) {
+            throw new BadRequestException("Trạng thái tổ chức không hợp lệ: " + request.status());
+        }
         String previousStatus = org.getStatus();
         if (request.planCode() != null) {
             org.setPlanCode(request.planCode());
@@ -258,7 +262,9 @@ public class AdminOrgService {
 
     private OrgDto toOrgDto(Organization org) {
         List<OrgMember> active = orgMemberRepository.findByIdOrgIdAndStatus(org.getId(), STATUS_ACTIVE);
-        long memberCount = active.size();
+        long teacherCount = active.stream()
+                .filter(m -> ROLE_TEACHER.equals(m.getRole()))
+                .count();
         long studentCount = active.stream()
                 .filter(m -> ROLE_STUDENT.equals(m.getRole()))
                 .count();
@@ -269,7 +275,7 @@ public class AdminOrgService {
                 org.getPlanCode(),
                 org.getSeatLimit(),
                 org.getStatus(),
-                memberCount,
+                teacherCount,
                 studentCount
         );
     }

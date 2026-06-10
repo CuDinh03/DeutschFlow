@@ -39,6 +39,7 @@ public class OrgEntitlementService {
      * Replaces any prior ACTIVE subscription for the user (latest-wins) via
      * {@link SubscriptionActivationService#activateWithExplicitEnd}; admins are not notified.
      */
+    @Transactional
     public void grantStudent(Long userId, Organization org) {
         String planCode = org.getPlanCode();
         if (!StringUtils.hasText(planCode)) {

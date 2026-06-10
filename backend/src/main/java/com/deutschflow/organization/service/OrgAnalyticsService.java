@@ -20,9 +20,11 @@ import java.util.List;
 public class OrgAnalyticsService {
 
     private final JdbcTemplate jdbcTemplate;
+    private final OrgQuotaService orgQuotaService;
 
-    public OrgAnalyticsService(JdbcTemplate jdbcTemplate) {
+    public OrgAnalyticsService(JdbcTemplate jdbcTemplate, OrgQuotaService orgQuotaService) {
         this.jdbcTemplate = jdbcTemplate;
+        this.orgQuotaService = orgQuotaService;
     }
 
     @Transactional(readOnly = true)
@@ -60,16 +62,15 @@ public class OrgAnalyticsService {
         return count != null ? count : 0L;
     }
 
-    /** Tổng token AI dùng trong tháng hiện tại bởi mọi user của org. */
+    /**
+     * Tổng token AI dùng trong tháng hiện tại bởi mọi user của org.
+     *
+     * <p>Uỷ quyền cho {@link OrgQuotaService#orgUsageThisMonth} — nguồn sự thật duy nhất cho
+     * truy vấn "usage tháng này", để một thay đổi ranh giới tháng theo timezone VN sau này chỉ
+     * cần sửa một nơi (DRY với phần enforcement của quota).
+     */
     private long tokensThisMonth(Long orgId) {
-        Long total = jdbcTemplate.queryForObject("""
-                SELECT COALESCE(SUM(e.total_tokens), 0)
-                FROM ai_token_usage_events e
-                JOIN users u ON u.id = e.user_id
-                WHERE u.org_id = ?
-                  AND e.created_at >= date_trunc('month', now())
-                """, Long.class, orgId);
-        return total != null ? total : 0L;
+        return orgQuotaService.orgUsageThisMonth(orgId);
     }
 
     /** Số học viên (distinct user) có ít nhất 1 sự kiện AI trong 7 ngày qua, scope theo org. */

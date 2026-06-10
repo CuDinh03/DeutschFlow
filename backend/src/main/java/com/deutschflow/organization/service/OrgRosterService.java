@@ -1,5 +1,7 @@
 package com.deutschflow.organization.service;
 
+import com.deutschflow.common.exception.BadRequestException;
+import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.organization.dto.RosterImportResultDto;
 import com.deutschflow.organization.entity.Organization;
@@ -7,7 +9,9 @@ import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.organization.repository.OrganizationRepository;
 import com.deutschflow.teacher.entity.ClassStudent;
 import com.deutschflow.teacher.entity.ClassStudentId;
+import com.deutschflow.teacher.entity.TeacherClass;
 import com.deutschflow.teacher.repository.ClassStudentRepository;
+import com.deutschflow.teacher.repository.TeacherClassRepository;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -46,6 +50,7 @@ public class OrgRosterService {
     private final OrgEntitlementService entitlementService;
     private final OrgMemberRepository orgMemberRepository;
     private final ClassStudentRepository classStudentRepository;
+    private final TeacherClassRepository teacherClassRepository;
 
     /**
      * Imports students from raw CSV text. Columns: {@code email,displayName[,phone]} (comma).
@@ -57,6 +62,16 @@ public class OrgRosterService {
     public RosterImportResultDto importStudents(Long orgId, String csvText, Long classIdOrNull) {
         Organization org = organizationRepository.findById(orgId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy tổ chức: id=" + orgId));
+
+        // IDOR guard: a target class must belong to THIS org, else an org-admin could enroll
+        // students into another org's class by passing a foreign classId.
+        if (classIdOrNull != null) {
+            TeacherClass target = teacherClassRepository.findById(classIdOrNull)
+                    .orElseThrow(() -> new BadRequestException("Không tìm thấy lớp học: id=" + classIdOrNull));
+            if (!orgId.equals(target.getOrgId())) {
+                throw new ForbiddenException("Lớp học không thuộc tổ chức này");
+            }
+        }
 
         List<String> rows = splitNonEmptyLines(csvText);
         List<String> errors = new ArrayList<>();

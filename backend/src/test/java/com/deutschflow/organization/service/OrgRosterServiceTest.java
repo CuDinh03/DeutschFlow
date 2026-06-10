@@ -7,9 +7,13 @@ import com.deutschflow.organization.entity.OrgMemberId;
 import com.deutschflow.organization.entity.Organization;
 import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.organization.repository.OrganizationRepository;
+import com.deutschflow.common.exception.BadRequestException;
+import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.teacher.entity.ClassStudent;
 import com.deutschflow.teacher.entity.ClassStudentId;
+import com.deutschflow.teacher.entity.TeacherClass;
 import com.deutschflow.teacher.repository.ClassStudentRepository;
+import com.deutschflow.teacher.repository.TeacherClassRepository;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,6 +33,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -45,6 +50,7 @@ class OrgRosterServiceTest {
     @Mock private OrgEntitlementService entitlementService;
     @Mock private OrgMemberRepository orgMemberRepository;
     @Mock private ClassStudentRepository classStudentRepository;
+    @Mock private TeacherClassRepository teacherClassRepository;
 
     private OrgRosterService service;
 
@@ -60,8 +66,12 @@ class OrgRosterServiceTest {
                 membershipService,
                 entitlementService,
                 orgMemberRepository,
-                classStudentRepository
+                classStudentRepository,
+                teacherClassRepository
         );
+        // CLASS_ID belongs to ORG_ID by default so the existing classId tests pass the IDOR guard.
+        lenient().when(teacherClassRepository.findById(CLASS_ID))
+                .thenReturn(Optional.of(TeacherClass.builder().id(CLASS_ID).orgId(ORG_ID).build()));
     }
 
     // ------------------------------------------------------------------ helpers
@@ -384,5 +394,36 @@ class OrgRosterServiceTest {
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
         verify(userRepository).save(captor.capture());
         assertThat(captor.getValue().getDisplayName()).isEqualTo("noname");
+    }
+
+    // ------------------------------------------------------------------ IDOR: classId must belong to org
+
+    @Test
+    @DisplayName("import: classId belonging to ANOTHER org → ForbiddenException, no rows processed")
+    void importStudents_foreignClassId_throwsForbidden() {
+        Organization org = org(0, "PRO");
+        stubOrg(org);
+        Long foreignClassId = 99L;
+        when(teacherClassRepository.findById(foreignClassId))
+                .thenReturn(Optional.of(TeacherClass.builder().id(foreignClassId).orgId(999L).build()));
+
+        assertThatThrownBy(() -> service.importStudents(ORG_ID, "a@b.com,A", foreignClassId))
+                .isInstanceOf(ForbiddenException.class);
+
+        verify(membershipService, never()).upsertMember(anyLong(), anyLong(), anyString());
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("import: unknown classId → BadRequestException before any row is processed")
+    void importStudents_unknownClassId_throwsBadRequest() {
+        Organization org = org(0, "PRO");
+        stubOrg(org);
+        when(teacherClassRepository.findById(404L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.importStudents(ORG_ID, "a@b.com,A", 404L))
+                .isInstanceOf(BadRequestException.class);
+
+        verify(membershipService, never()).upsertMember(anyLong(), anyLong(), anyString());
     }
 }

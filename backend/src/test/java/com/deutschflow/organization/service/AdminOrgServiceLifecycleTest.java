@@ -1,5 +1,6 @@
 package com.deutschflow.organization.service;
 
+import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.organization.dto.OrgDto;
 import com.deutschflow.organization.dto.UpdateOrgRequest;
 import com.deutschflow.organization.entity.OrgMember;
@@ -18,6 +19,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -212,5 +215,78 @@ class AdminOrgServiceLifecycleTest {
         service.updateOrganization(ORG_ID, new UpdateOrgRequest(null, null, "SUSPENDED", null));
 
         verify(orgEntitlementService, never()).revokeStudent(anyLong());
+    }
+
+    // ------------------------------------------------------------------ status validation
+
+    @Test
+    @DisplayName("invalid status string throws BadRequestException")
+    void updateOrganization_invalidStatus_throwsBadRequest() {
+        Organization org = orgWithStatus("ACTIVE");
+        when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org));
+
+        assertThatThrownBy(() -> service.updateOrganization(ORG_ID,
+                new UpdateOrgRequest(null, null, "INACTIVE", null)))
+                .isInstanceOf(BadRequestException.class);
+
+        verify(organizationRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("PENDING status throws BadRequestException — invitation state, not org state")
+    void updateOrganization_pendingStatus_throwsBadRequest() {
+        Organization org = orgWithStatus("ACTIVE");
+        when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org));
+
+        assertThatThrownBy(() -> service.updateOrganization(ORG_ID,
+                new UpdateOrgRequest(null, null, "PENDING", null)))
+                .isInstanceOf(BadRequestException.class);
+
+        verify(organizationRepository, never()).save(any());
+    }
+
+    // ------------------------------------------------------------------ toOrgDto role-precise count
+
+    @Test
+    @DisplayName("toOrgDto counts only TEACHER members — OWNER and ADMIN are not included")
+    void listOrganizations_toOrgDto_countsOnlyTeacherRole() {
+        Organization org = orgWithStatus("ACTIVE");
+        when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org));
+        when(organizationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        stubActiveMembersForDto(List.of());
+
+        // arrange: org has 1 OWNER, 1 ADMIN, 2 TEACHER, 3 STUDENT active members
+        OrgMember owner = new OrgMember();
+        owner.setId(new OrgMemberId(ORG_ID, 1L));
+        owner.setRole("OWNER");
+        owner.setStatus("ACTIVE");
+
+        OrgMember admin = new OrgMember();
+        admin.setId(new OrgMemberId(ORG_ID, 2L));
+        admin.setRole("ADMIN");
+        admin.setStatus("ACTIVE");
+
+        OrgMember t1 = new OrgMember();
+        t1.setId(new OrgMemberId(ORG_ID, 3L));
+        t1.setRole("TEACHER");
+        t1.setStatus("ACTIVE");
+
+        OrgMember t2 = new OrgMember();
+        t2.setId(new OrgMemberId(ORG_ID, 4L));
+        t2.setRole("TEACHER");
+        t2.setStatus("ACTIVE");
+
+        OrgMember s1 = activeMember(5L);
+        OrgMember s2 = activeMember(6L);
+        OrgMember s3 = activeMember(7L);
+
+        when(orgMemberRepository.findByIdOrgIdAndStatus(ORG_ID, "ACTIVE"))
+                .thenReturn(List.of(owner, admin, t1, t2, s1, s2, s3));
+
+        // trigger updateOrganization with no status change so toOrgDto is called
+        OrgDto dto = service.updateOrganization(ORG_ID, new UpdateOrgRequest("PRO", null, null, null));
+
+        assertThat(dto.teacherCount()).isEqualTo(2L);
+        assertThat(dto.studentCount()).isEqualTo(3L);
     }
 }
