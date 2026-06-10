@@ -14,7 +14,7 @@ public record GradebookDto(
         List<AssignmentColumn> assignments,
         List<StudentRow> students
 ) {
-    public record AssignmentColumn(Long id, String topic, String assignmentType, LocalDateTime dueDate) {}
+    public record AssignmentColumn(Long id, String topic, String assignmentType, String skill, LocalDateTime dueDate) {}
 
     /** cells: assignmentId → ô điểm; thiếu key = học viên chưa từng được giao bài đó. */
     public record StudentRow(Long studentId, String name, String email, Double avgScore,

@@ -33,6 +33,10 @@ public class ClassAssignment {
     @Column(name = "assignment_type", length = 50)
     private String assignmentType; // GENERAL, VOCABULARY, SPEAKING_SCENARIO
 
+    /** German-skill tag: HOREN | LESEN | SCHREIBEN | SPRECHEN | GENERAL */
+    @Column(name = "skill", length = 20)
+    private String skill;
+
     @Column(name = "reference_id")
     private Long referenceId;
 

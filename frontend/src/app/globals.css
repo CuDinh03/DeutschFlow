@@ -801,3 +801,43 @@
     to   { opacity: 1; transform: translate3d(0, 0, 0); }
   }
 }
+
+/* ── Print styles: isolate .print-area, hide everything else ── */
+@media print {
+  @page { size: A4 landscape; margin: 12mm; }
+
+  body * { visibility: hidden !important; }
+  .print-area,
+  .print-area * { visibility: visible !important; }
+  .print-area {
+    position: fixed !important;
+    inset: 0 !important;
+    background: white !important;
+    z-index: 9999;
+    padding: 0;
+    margin: 0;
+    font-size: 11px;
+    color: #1e293b;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /* Keep badge colors */
+  .print-color-exact { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+
+  /* Repeat table header on each page */
+  thead { display: table-header-group; }
+  tfoot { display: table-footer-group; }
+
+  /* Don't cut rows mid-page */
+  tr { break-inside: avoid; page-break-inside: avoid; }
+
+  /* Don't cut sections mid-page */
+  .print-section { break-inside: avoid; page-break-inside: avoid; }
+
+  /* Page break before each student evaluation card */
+  .print-page-break { break-before: page; page-break-before: always; }
+
+  /* Skill bar colors */
+  .print-bar-fill { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+}

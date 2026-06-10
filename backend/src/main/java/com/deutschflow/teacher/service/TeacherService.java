@@ -65,8 +65,12 @@ public class TeacherService {
     @Transactional
     public TeacherClassDto createClass(Long teacherId, String name) {
         String inviteCode = generateInviteCode();
+        // Stamp the creating teacher's org (B2B): an org teacher's classes belong to that org,
+        // so they show in /org/classes and are valid roster-import targets. null for B2C teachers.
+        Long orgId = userRepository.findById(teacherId).map(u -> u.getOrgId()).orElse(null);
         TeacherClass teacherClass = TeacherClass.builder()
                 .teacherId(teacherId)
+                .orgId(orgId)
                 .name(name)
                 .inviteCode(inviteCode)
                 .build();
@@ -514,6 +518,7 @@ public class TeacherService {
                 .topic(req.topic())
                 .description(req.description())
                 .assignmentType(req.assignmentType())
+                .skill(req.skill() != null ? req.skill().toUpperCase() : "GENERAL")
                 .referenceId(req.referenceId())
                 .dueDate(req.dueDate())
                 .attachmentUrl(req.attachmentUrl())
