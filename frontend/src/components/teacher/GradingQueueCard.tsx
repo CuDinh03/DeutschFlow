@@ -1,6 +1,6 @@
 'use client'
 
-import { Clock, FileText, User, BookOpen, Mic, PenLine, ChevronRight } from 'lucide-react'
+import { Clock, FileText, User, BookOpen, Mic, PenLine, ChevronRight, AlertTriangle } from 'lucide-react'
 import { format } from 'date-fns'
 
 export interface GradingQueueItem {
@@ -97,6 +97,13 @@ export function GradingQueueCard({ item, onGrade }: GradingQueueCardProps) {
                   {type.icon}
                   {type.label}
                 </span>
+
+                {item.status === 'GRADING_FAILED' && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border bg-rose-100 text-rose-700 border-rose-200">
+                    <AlertTriangle size={13} />
+                    AI chấm lỗi
+                  </span>
+                )}
 
                 {item.submittedAt && (
                   <span className="flex items-center gap-1 text-xs text-slate-400">
