@@ -702,7 +702,7 @@ export default function TeacherReportsPage() {
 
                       {lessonLogs.length === 0 && !showLogForm ? (
                         <p className="text-slate-500 text-sm text-center py-6 border border-dashed border-slate-200 rounded-xl">
-                          Chưa có buổi học nào. Nhấn "Thêm buổi học" để bắt đầu ghi nhật ký.
+                          Chưa có buổi học nào. Nhấn &ldquo;Thêm buổi học&rdquo; để bắt đầu ghi nhật ký.
                         </p>
                       ) : (
                         <div className="space-y-2">
@@ -849,7 +849,7 @@ export default function TeacherReportsPage() {
                                       {ev.absentCount > 0 && ` · Vắng ${ev.absentCount}`}
                                     </p>
                                   )}
-                                  {ev.teacherComment && <p className="text-xs text-slate-600 mt-1.5 italic">"{ev.teacherComment}"</p>}
+                                  {ev.teacherComment && <p className="text-xs text-slate-600 mt-1.5 italic">&ldquo;{ev.teacherComment}&rdquo;</p>}
                                 </div>
                                 <button onClick={() => setEditingEval(ev)} className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100 text-xs font-bold">
                                   <Edit2 size={12} /> Sửa
