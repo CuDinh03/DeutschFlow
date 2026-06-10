@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -191,6 +191,7 @@ export default function DashboardPage() {
   const [isNative, setIsNative] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const joinCodeRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -341,8 +342,8 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="flex w-full sm:w-auto items-center gap-2">
-            <input type="text" id="joinCode" placeholder="Nhập mã lớp..." className="px-4 py-3 rounded-xl border border-[#E2E8F0] focus:outline-none focus:ring-2 focus:ring-[var(--brand-yellow)] bg-white shadow-sm w-full sm:w-52 uppercase font-medium" onKeyDown={async (e) => { if (e.key === 'Enter') { const code = e.currentTarget.value; if (!code) return; try { await api.post('/v2/student/classes/join', { inviteCode: code }); toast.success('Đã gửi yêu cầu tham gia lớp. Vui lòng chờ giáo viên duyệt.'); e.currentTarget.value = ''; } catch (err: any) { toast.error(err.response?.data?.error || 'Không thể gửi yêu cầu tham gia lớp.'); } } }} />
-            <button onClick={async () => { const code = (document.getElementById('joinCode') as HTMLInputElement)?.value; if (!code) return; try { await api.post('/v2/student/classes/join', { inviteCode: code }); toast.success('Đã gửi yêu cầu tham gia lớp. Vui lòng chờ giáo viên duyệt.'); (document.getElementById('joinCode') as HTMLInputElement).value = ''; } catch (err: any) { toast.error(err.response?.data?.error || 'Không thể gửi yêu cầu tham gia lớp.'); } }} className="bg-[var(--brand-black)] hover:bg-[var(--brand-black-light)] text-white font-semibold py-3 px-4 rounded-xl transition-colors whitespace-nowrap shadow-sm">Xin vào lớp</button>
+            <input ref={joinCodeRef} type="text" placeholder="Nhập mã lớp..." className="px-4 py-3 rounded-xl border border-[#E2E8F0] focus:outline-none focus:ring-2 focus:ring-[var(--brand-yellow)] bg-white shadow-sm w-full sm:w-52 uppercase font-medium" onKeyDown={async (e) => { if (e.key === 'Enter') { const code = e.currentTarget.value; if (!code) return; try { await api.post('/v2/student/classes/join', { inviteCode: code }); toast.success('Đã gửi yêu cầu tham gia lớp. Vui lòng chờ giáo viên duyệt.'); e.currentTarget.value = ''; } catch (err: any) { toast.error(err.response?.data?.error || 'Không thể gửi yêu cầu tham gia lớp.'); } } }} />
+            <button onClick={async () => { const code = joinCodeRef.current?.value; if (!code) return; try { await api.post('/v2/student/classes/join', { inviteCode: code }); toast.success('Đã gửi yêu cầu tham gia lớp. Vui lòng chờ giáo viên duyệt.'); if (joinCodeRef.current) joinCodeRef.current.value = ''; } catch (err: any) { toast.error(err.response?.data?.error || 'Không thể gửi yêu cầu tham gia lớp.'); } }} className="bg-[var(--brand-black)] hover:bg-[var(--brand-black-light)] text-white font-semibold py-3 px-4 rounded-xl transition-colors whitespace-nowrap shadow-sm">Xin vào lớp</button>
           </div>
         </div>
 

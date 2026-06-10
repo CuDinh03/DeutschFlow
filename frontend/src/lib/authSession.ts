@@ -106,7 +106,7 @@ export function isStudentRole(role?: string | null): boolean {
 }
 
 export function shouldShowAiSpeakingQuota(): boolean {
-  return !isStudentRole()
+  return isStudentRole()
 }
 
 type AuthLikeResponse = {

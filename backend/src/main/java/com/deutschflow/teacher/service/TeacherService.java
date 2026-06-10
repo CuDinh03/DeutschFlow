@@ -614,10 +614,13 @@ public class TeacherService {
         );
 
         User student = userRepository.findById(session.getUserId()).orElse(null);
-        TeacherClass teacherClass = classRepository.findById(classTeacherRepository.findByIdTeacherId(teacherId).stream()
-                .findFirst()
+        // Find the specific class where both this teacher and the student are enrolled.
+        Long sharedClassId = classTeacherRepository.findByIdTeacherId(teacherId).stream()
+                .filter(ct -> classStudentRepository.existsByIdClassIdAndIdStudentId(ct.getId().getClassId(), session.getUserId()))
                 .map(ct -> ct.getId().getClassId())
-                .orElse(null)).orElse(null);
+                .findFirst()
+                .orElse(null);
+        TeacherClass teacherClass = sharedClassId != null ? classRepository.findById(sharedClassId).orElse(null) : null;
         if (teacherClass != null) {
             userNotificationService.onTeacherGradingEvent(
                 teacherId,
