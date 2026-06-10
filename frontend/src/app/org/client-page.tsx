@@ -9,6 +9,8 @@ import { httpStatus } from '@/lib/api'
 import { toastApiError } from '@/lib/toastApiError'
 import { useUserStore } from '@/stores/useUserStore'
 import { getOrgSummary, getAnalytics } from '@/lib/orgApi'
+import { useTracking } from '@/hooks/useTracking'
+import { B2B_EVENT } from '@/lib/analytics/b2bEvents'
 
 type OrgSummary = Awaited<ReturnType<typeof getOrgSummary>>
 type OrgAnalytics = Awaited<ReturnType<typeof getAnalytics>>
@@ -16,6 +18,7 @@ type OrgAnalytics = Awaited<ReturnType<typeof getAnalytics>>
 export default function OrgDashboardClientPage() {
   const router = useRouter()
   const user = useUserStore((s) => s.user)
+  const { trackEvent } = useTracking()
 
   const [summary, setSummary] = useState<OrgSummary | null>(null)
   const [analytics, setAnalytics] = useState<OrgAnalytics | null>(null)
@@ -32,6 +35,13 @@ export default function OrgDashboardClientPage() {
       ])
       setSummary(summaryData)
       setAnalytics(analyticsData)
+      trackEvent(B2B_EVENT.ORG_DASHBOARD_VIEWED, {
+        seat_used: summaryData.seatUsed,
+        seat_limit: summaryData.seatLimit,
+        student_count: summaryData.studentCount,
+        teacher_count: summaryData.teacherCount,
+        plan_code: summaryData.planCode,
+      })
     } catch (e) {
       if (httpStatus(e) === 401) {
         router.push('/login')
@@ -46,7 +56,7 @@ export default function OrgDashboardClientPage() {
     } finally {
       setLoading(false)
     }
-  }, [router])
+  }, [router, trackEvent])
 
   useEffect(() => {
     void load()

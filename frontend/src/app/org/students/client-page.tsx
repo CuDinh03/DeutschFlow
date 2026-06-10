@@ -20,6 +20,8 @@ import { logout } from '@/lib/authSession'
 import { httpStatus, apiMessage } from '@/lib/api'
 import { toastApiError } from '@/lib/toastApiError'
 import { useUserStore } from '@/stores/useUserStore'
+import { useTracking } from '@/hooks/useTracking'
+import { B2B_EVENT } from '@/lib/analytics/b2bEvents'
 import {
   listStudents,
   listClasses,
@@ -226,6 +228,7 @@ function ImportRosterDialog({
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<RosterImportResult | null>(null)
+  const { trackEvent } = useTracking()
 
   if (!open) return null
 
@@ -267,6 +270,21 @@ function ImportRosterDialog({
       const res = await importRoster(file, classId ? Number(classId) : undefined)
       setResult(res)
       onImported()
+      const seatsActivated = res.created + res.linked
+      trackEvent(B2B_EVENT.ORG_CSV_IMPORT_COMPLETED, {
+        total: res.total,
+        created: res.created,
+        linked: res.linked,
+        enrolled: res.enrolled,
+        failed: res.failed,
+        into_class: Boolean(classId),
+      })
+      if (seatsActivated > 0) {
+        trackEvent(B2B_EVENT.ORG_SEAT_ACTIVATED, {
+          count: seatsActivated,
+          source: 'csv_import',
+        })
+      }
       const summary = `Đã xử lý ${res.total} dòng: ${res.created} mới, ${res.linked} liên kết${
         res.enrolled > 0 ? `, ${res.enrolled} vào lớp` : ''
       }${res.failed > 0 ? `, ${res.failed} lỗi` : ''}.`
