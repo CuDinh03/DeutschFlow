@@ -2,6 +2,7 @@ package com.deutschflow.common.quota;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import com.deutschflow.organization.service.OrgQuotaService;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -18,6 +19,11 @@ class QuotaServiceUnitTest {
 
     @Mock
     JdbcTemplate jdbcTemplate;
+
+    // Default mock returns false from wouldExceedOrgPool → org-pool gate is a no-op here,
+    // so all existing personal-quota assertions are unaffected.
+    @Mock
+    OrgQuotaService orgQuotaService;
 
     @InjectMocks
     QuotaService quotaService;
