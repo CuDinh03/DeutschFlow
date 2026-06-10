@@ -3,6 +3,7 @@ package com.deutschflow.common.exception;
 import com.deutschflow.common.quota.QuotaExceededException;
 import com.deutschflow.common.exception.RateLimitExceededException;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -74,6 +75,22 @@ public class GlobalExceptionHandler {
                         FieldError::getField,
                         f -> f.getDefaultMessage() != null ? f.getDefaultMessage() : "Invalid value",
                         (a, b) -> a   // giữ lỗi đầu tiên nếu trùng field
+                ));
+
+        return problem(HttpStatus.BAD_REQUEST, "validation-error", "Validation Failed",
+                "One or more fields are invalid.", request.getRequestURI(), errors, null);
+    }
+
+    // --- 400 Validation (method-level: @Validated + element constraints on @RequestBody List<@Valid X>) ---
+    // Without this, a constraint violation on a batch element falls through to the generic 500 handler.
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ProblemDetail> handleConstraintViolation(ConstraintViolationException ex,
+                                                                   HttpServletRequest request) {
+        Map<String, String> errors = ex.getConstraintViolations().stream()
+                .collect(Collectors.toMap(
+                        v -> v.getPropertyPath().toString(),
+                        v -> v.getMessage() != null ? v.getMessage() : "Invalid value",
+                        (a, b) -> a
                 ));
 
         return problem(HttpStatus.BAD_REQUEST, "validation-error", "Validation Failed",
