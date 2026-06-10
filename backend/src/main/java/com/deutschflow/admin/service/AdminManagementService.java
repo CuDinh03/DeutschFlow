@@ -4,6 +4,7 @@ import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.telemetry.ApiTelemetryService;
 import com.deutschflow.common.config.VocabularyEnrichmentProperties;
+import com.deutschflow.common.quota.AiCostEstimator;
 import com.deutschflow.common.quota.QuotaService;
 import com.deutschflow.common.quota.QuotaSnapshot;
 import com.deutschflow.admin.dto.AdminUpdateLearningProfileRequest;
@@ -55,6 +56,7 @@ public class AdminManagementService {
     private final WordQueryService wordQueryService;
     private final PersonalizationRulesetService personalizationRulesetService;
     private final QuotaService quotaService;
+    private final AiCostEstimator aiCostEstimator;
     private final TranslationUsageMeter translationUsageMeter;
     private final EnrichmentSuspendGate enrichmentSuspendGate;
     private final VocabularyEnrichmentProperties vocabularyEnrichmentProperties;
@@ -325,51 +327,78 @@ public class AdminManagementService {
         Instant to = Instant.now();
         Instant from = to.minusSeconds((long) d * 86400L);
 
-        Number totalRaw = jdbcTemplate.queryForObject("""
-                        SELECT COALESCE(SUM(total_tokens), 0)
-                        FROM ai_token_usage_events
-                        WHERE created_at >= ? AND created_at <= ?
-                        """,
-                Number.class,
-                Timestamp.from(from), Timestamp.from(to));
-        long totalTokensSum = totalRaw == null ? 0L : totalRaw.longValue();
-
+        // Group by (feature, model): cost pricing is model-dependent, so we must keep the
+        // model dimension to price each bucket before rolling up to per-feature totals.
         List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
                         SELECT COALESCE(NULLIF(TRIM(feature), ''), 'UNKNOWN') AS feature,
-                               COALESCE(SUM(total_tokens), 0)::bigint AS total_tokens
+                               COALESCE(model, 'unknown')                     AS model,
+                               COALESCE(SUM(prompt_tokens), 0)::bigint        AS prompt_tokens,
+                               COALESCE(SUM(completion_tokens), 0)::bigint    AS completion_tokens,
+                               COALESCE(SUM(total_tokens), 0)::bigint         AS total_tokens,
+                               COUNT(*)::bigint                               AS requests
                         FROM ai_token_usage_events
                         WHERE created_at >= ? AND created_at <= ?
-                        GROUP BY COALESCE(NULLIF(TRIM(feature), ''), 'UNKNOWN')
-                        ORDER BY SUM(total_tokens) DESC
+                        GROUP BY 1, 2
                         """,
                 Timestamp.from(from), Timestamp.from(to));
 
-        List<Map<String, Object>> byFeature = new ArrayList<>(rows.size());
+        Map<String, long[]> tokensByFeature = new LinkedHashMap<>(); // [prompt, completion, total, requests]
+        Map<String, Double> costByFeature = new LinkedHashMap<>();
         for (Map<String, Object> row : rows) {
+            String feature = String.valueOf(row.get("feature"));
+            String model = String.valueOf(row.get("model"));
+            long prompt = toLong(row.get("prompt_tokens"));
+            long completion = toLong(row.get("completion_tokens"));
+            long total = toLong(row.get("total_tokens"));
+            long requests = toLong(row.get("requests"));
+            long[] acc = tokensByFeature.computeIfAbsent(feature, k -> new long[4]);
+            acc[0] += prompt;
+            acc[1] += completion;
+            acc[2] += total;
+            acc[3] += requests;
+            costByFeature.merge(feature, aiCostEstimator.costUsd(model, prompt, completion), Double::sum);
+        }
+
+        long totalTokensSum = 0L;
+        double totalCostUsd = 0.0;
+        List<Map<String, Object>> byFeature = new ArrayList<>(tokensByFeature.size());
+        for (Map.Entry<String, long[]> e : tokensByFeature.entrySet()) {
+            long[] acc = e.getValue();
+            double costUsd = costByFeature.getOrDefault(e.getKey(), 0.0);
+            totalTokensSum += acc[2];
+            totalCostUsd += costUsd;
             Map<String, Object> slice = new LinkedHashMap<>();
-            slice.put("feature", String.valueOf(row.get("feature")));
-            slice.put("totalTokens", toLong(row.get("total_tokens")));
+            slice.put("feature", e.getKey());
+            slice.put("requests", acc[3]);
+            slice.put("promptTokens", acc[0]);
+            slice.put("completionTokens", acc[1]);
+            slice.put("totalTokens", acc[2]);
+            slice.put("costUsd", aiCostEstimator.roundUsd(costUsd));
+            slice.put("costVnd", aiCostEstimator.toVnd(costUsd));
             byFeature.add(slice);
         }
+        byFeature.sort((a, b) -> Double.compare(
+                ((Number) b.get("costUsd")).doubleValue(),
+                ((Number) a.get("costUsd")).doubleValue()));
 
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("days", d);
         out.put("fromUtc", from.toString());
         out.put("toUtc", to.toString());
         out.put("totalTokens", totalTokensSum);
+        out.put("totalCostUsd", aiCostEstimator.roundUsd(totalCostUsd));
+        out.put("totalCostVnd", aiCostEstimator.toVnd(totalCostUsd));
+        out.put("usdVndRate", aiCostEstimator.usdVndRate());
         out.put("byFeature", byFeature);
         return out;
     }
 
     /**
-     * Returns daily token counts and estimated USD cost for the past {@code days} days.
+     * Returns daily token counts and estimated USD/VND cost for the past {@code days} days.
      *
-     * <p>Cost model (blended estimate):
-     * <ul>
-     *   <li>Groq Llama 4 Scout: $0.11/1M tokens</li>
-     *   <li>OpenAI / generic: $0.20/1M tokens</li>
-     *   <li>Default/unknown: $0.15/1M tokens</li>
-     * </ul>
+     * <p>Cost uses split input/output pricing via {@link AiCostEstimator} — see that class
+     * for the per-model tariff table. Server-side totals are included so callers do not
+     * re-sum the rows.
      */
     @Transactional(readOnly = true)
     public Map<String, Object> aiCostDaily(int days) {
@@ -382,29 +411,37 @@ public class AdminManagementService {
                     DATE_TRUNC('day', created_at AT TIME ZONE 'UTC')::date AS day,
                     COALESCE(model, 'unknown')                             AS model,
                     COALESCE(NULLIF(TRIM(feature), ''), 'UNKNOWN')         AS feature,
+                    SUM(prompt_tokens)::bigint                             AS prompt_tokens,
+                    SUM(completion_tokens)::bigint                         AS completion_tokens,
                     SUM(total_tokens)::bigint                              AS tokens
                 FROM ai_token_usage_events
                 WHERE created_at >= ? AND created_at <= ?
                 GROUP BY 1, 2, 3
-                ORDER BY 1 DESC, 4 DESC
+                ORDER BY 1 DESC, 6 DESC
                 """,
                 Timestamp.from(from), Timestamp.from(to));
 
+        long totalTokens = 0L;
+        double totalCostUsd = 0.0;
         List<Map<String, Object>> daily = new ArrayList<>(rows.size());
         for (Map<String, Object> row : rows) {
+            long prompt = toLong(row.get("prompt_tokens"));
+            long completion = toLong(row.get("completion_tokens"));
             long tokens = toLong(row.get("tokens"));
-            String model = String.valueOf(row.get("model")).toLowerCase();
-            double costPer1M = model.contains("llama") || model.contains("groq") ? 0.11
-                    : model.contains("openai") || model.contains("gpt") ? 0.20
-                    : 0.15;
-            double costUsd = tokens * costPer1M / 1_000_000.0;
+            String model = String.valueOf(row.get("model"));
+            double costUsd = aiCostEstimator.costUsd(model, prompt, completion);
+            totalTokens += tokens;
+            totalCostUsd += costUsd;
 
             Map<String, Object> entry = new LinkedHashMap<>();
             entry.put("day", String.valueOf(row.get("day")));
-            entry.put("model", row.get("model"));
+            entry.put("model", model);
             entry.put("feature", row.get("feature"));
+            entry.put("promptTokens", prompt);
+            entry.put("completionTokens", completion);
             entry.put("tokens", tokens);
-            entry.put("costUsd", Math.round(costUsd * 10000.0) / 10000.0);
+            entry.put("costUsd", aiCostEstimator.roundUsd(costUsd));
+            entry.put("costVnd", aiCostEstimator.toVnd(costUsd));
             daily.add(entry);
         }
 
@@ -412,8 +449,175 @@ public class AdminManagementService {
         out.put("days", d);
         out.put("fromUtc", from.toString());
         out.put("toUtc", to.toString());
+        out.put("totalTokens", totalTokens);
+        out.put("totalCostUsd", aiCostEstimator.roundUsd(totalCostUsd));
+        out.put("totalCostVnd", aiCostEstimator.toVnd(totalCostUsd));
+        out.put("usdVndRate", aiCostEstimator.usdVndRate());
         out.put("data", daily);
         return out;
+    }
+
+    /**
+     * Planning-oriented COGS summary over the past {@code days} days: a single call that
+     * returns total spend, per-active-user unit economics, a run-rate projection, and the
+     * cost breakdown by model and feature. Built for capacity/pricing planning rather than
+     * trend charting.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> aiCostSummary(int days) {
+        int d = Math.min(90, Math.max(1, days));
+        Instant to = Instant.now();
+        Instant from = to.minusSeconds((long) d * 86400L);
+        Timestamp fromTs = Timestamp.from(from);
+        Timestamp toTs = Timestamp.from(to);
+
+        // One scan, grouped finely enough to price each bucket and roll up two ways.
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                SELECT
+                    COALESCE(model, 'unknown')                     AS model,
+                    COALESCE(NULLIF(TRIM(feature), ''), 'UNKNOWN') AS feature,
+                    SUM(prompt_tokens)::bigint                     AS prompt_tokens,
+                    SUM(completion_tokens)::bigint                 AS completion_tokens,
+                    SUM(total_tokens)::bigint                      AS total_tokens,
+                    COUNT(*)::bigint                               AS requests
+                FROM ai_token_usage_events
+                WHERE created_at >= ? AND created_at <= ?
+                GROUP BY 1, 2
+                """,
+                fromTs, toTs);
+
+        Number activeRaw = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(DISTINCT user_id)
+                        FROM ai_token_usage_events
+                        WHERE created_at >= ? AND created_at <= ?
+                        """,
+                Number.class, fromTs, toTs);
+        long activeUsers = activeRaw == null ? 0L : activeRaw.longValue();
+
+        Map<String, long[]> byModelTokens = new LinkedHashMap<>();   // [prompt, completion, total, requests]
+        Map<String, Double> byModelCost = new LinkedHashMap<>();
+        Map<String, long[]> byFeatureTokens = new LinkedHashMap<>();
+        Map<String, Double> byFeatureCost = new LinkedHashMap<>();
+        long totalTokens = 0L;
+        long totalRequests = 0L;
+        double totalCostUsd = 0.0;
+
+        for (Map<String, Object> row : rows) {
+            String model = String.valueOf(row.get("model"));
+            String feature = String.valueOf(row.get("feature"));
+            long prompt = toLong(row.get("prompt_tokens"));
+            long completion = toLong(row.get("completion_tokens"));
+            long total = toLong(row.get("total_tokens"));
+            long requests = toLong(row.get("requests"));
+            double costUsd = aiCostEstimator.costUsd(model, prompt, completion);
+
+            accumulate(byModelTokens, byModelCost, model, prompt, completion, total, requests, costUsd);
+            accumulate(byFeatureTokens, byFeatureCost, feature, prompt, completion, total, requests, costUsd);
+            totalTokens += total;
+            totalRequests += requests;
+            totalCostUsd += costUsd;
+        }
+
+        // STT spend from stt_usage_events (separate table — Whisper billed per audio-second).
+        List<Map<String, Object>> sttRows = jdbcTemplate.queryForList("""
+                SELECT COALESCE(NULLIF(TRIM(feature), ''), 'STT_UNKNOWN') AS feature,
+                       model,
+                       COUNT(*)::bigint                                   AS requests,
+                       SUM(audio_duration_secs)                           AS total_secs
+                FROM stt_usage_events
+                WHERE created_at >= ? AND created_at <= ?
+                GROUP BY 1, 2
+                """, fromTs, toTs);
+
+        double sttCostUsd = 0.0;
+        long sttRequests = 0L;
+        List<Map<String, Object>> sttByFeature = new ArrayList<>();
+        for (Map<String, Object> row : sttRows) {
+            double secs = ((Number) row.getOrDefault("total_secs", 0.0)).doubleValue();
+            long reqs = toLong(row.get("requests"));
+            double featureCost = aiCostEstimator.costSttUsd(secs);
+            sttCostUsd += featureCost;
+            sttRequests += reqs;
+            Map<String, Object> slice = new LinkedHashMap<>();
+            slice.put("feature", row.get("feature"));
+            slice.put("model", row.get("model"));
+            slice.put("requests", reqs);
+            slice.put("audioSecs", Math.round(secs * 10.0) / 10.0);
+            slice.put("costUsd", aiCostEstimator.roundUsd(featureCost));
+            slice.put("costVnd", aiCostEstimator.toVnd(featureCost));
+            sttByFeature.add(slice);
+        }
+        sttByFeature.sort((a, b) -> Double.compare(
+                ((Number) b.get("costUsd")).doubleValue(),
+                ((Number) a.get("costUsd")).doubleValue()));
+
+        double grandTotalCostUsd = totalCostUsd + sttCostUsd;
+        double avgDailyCostUsd = grandTotalCostUsd / d;
+        double projected30dUsd = avgDailyCostUsd * 30.0;
+        double costPerUserUsd = activeUsers > 0 ? grandTotalCostUsd / activeUsers : 0.0;
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("days", d);
+        out.put("fromUtc", from.toString());
+        out.put("toUtc", to.toString());
+        out.put("usdVndRate", aiCostEstimator.usdVndRate());
+
+        Map<String, Object> totals = new LinkedHashMap<>();
+        totals.put("requests", totalRequests + sttRequests);
+        totals.put("tokens", totalTokens);
+        totals.put("llmCostUsd", aiCostEstimator.roundUsd(totalCostUsd));
+        totals.put("sttCostUsd", aiCostEstimator.roundUsd(sttCostUsd));
+        totals.put("costUsd", aiCostEstimator.roundUsd(grandTotalCostUsd));
+        totals.put("costVnd", aiCostEstimator.toVnd(grandTotalCostUsd));
+        totals.put("activeUsers", activeUsers);
+        totals.put("costPerActiveUserUsd", aiCostEstimator.roundUsd(costPerUserUsd));
+        totals.put("costPerActiveUserVnd", aiCostEstimator.toVnd(costPerUserUsd));
+        totals.put("avgDailyCostUsd", aiCostEstimator.roundUsd(avgDailyCostUsd));
+        totals.put("avgDailyCostVnd", aiCostEstimator.toVnd(avgDailyCostUsd));
+        totals.put("projected30dCostUsd", aiCostEstimator.roundUsd(projected30dUsd));
+        totals.put("projected30dCostVnd", aiCostEstimator.toVnd(projected30dUsd));
+        out.put("totals", totals);
+
+        out.put("byModel", toCostBreakdown(byModelTokens, byModelCost, "model", totalCostUsd));
+        out.put("byFeature", toCostBreakdown(byFeatureTokens, byFeatureCost, "feature", totalCostUsd));
+        out.put("sttByFeature", sttByFeature);
+        out.put("uncoveredCosts", aiCostEstimator.uncoveredCostNotes());
+        return out;
+    }
+
+    private void accumulate(Map<String, long[]> tokens, Map<String, Double> cost, String key,
+                            long prompt, long completion, long total, long requests, double costUsd) {
+        long[] acc = tokens.computeIfAbsent(key, k -> new long[4]);
+        acc[0] += prompt;
+        acc[1] += completion;
+        acc[2] += total;
+        acc[3] += requests;
+        cost.merge(key, costUsd, Double::sum);
+    }
+
+    private List<Map<String, Object>> toCostBreakdown(Map<String, long[]> tokens, Map<String, Double> cost,
+                                                       String keyName, double totalCostUsd) {
+        List<Map<String, Object>> list = new ArrayList<>(tokens.size());
+        for (Map.Entry<String, long[]> e : tokens.entrySet()) {
+            long[] acc = e.getValue();
+            double costUsd = cost.getOrDefault(e.getKey(), 0.0);
+            Map<String, Object> slice = new LinkedHashMap<>();
+            slice.put(keyName, e.getKey());
+            slice.put("requests", acc[3]);
+            slice.put("promptTokens", acc[0]);
+            slice.put("completionTokens", acc[1]);
+            slice.put("totalTokens", acc[2]);
+            slice.put("costUsd", aiCostEstimator.roundUsd(costUsd));
+            slice.put("costVnd", aiCostEstimator.toVnd(costUsd));
+            slice.put("pctOfCost", totalCostUsd > 0
+                    ? Math.round(costUsd / totalCostUsd * 1000.0) / 10.0
+                    : 0.0);
+            list.add(slice);
+        }
+        list.sort((a, b) -> Double.compare(
+                ((Number) b.get("costUsd")).doubleValue(),
+                ((Number) a.get("costUsd")).doubleValue()));
+        return list;
     }
 
     @Transactional

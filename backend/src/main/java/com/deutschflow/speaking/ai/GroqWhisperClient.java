@@ -55,7 +55,10 @@ public class GroqWhisperClient {
     public record WordTimestamp(String word, double start, double end) {}
 
     /** Verbose transcript with segment-level confidence and per-word timestamps. */
-    public record VerboseTranscript(String text, double avgLogprob, java.util.List<WordTimestamp> words) {}
+    public record VerboseTranscript(String text, double avgLogprob, java.util.List<WordTimestamp> words, double durationSeconds) {}
+
+    /** Text plus audio duration returned by {@link #transcribe}. */
+    public record TranscribeResult(String text, double durationSeconds) {}
 
     /**
      * Transcribes with verbose_json + word timestamps for pronunciation scoring.
@@ -85,6 +88,7 @@ public class GroqWhisperClient {
             }
             JsonNode root = objectMapper.readTree(response.body());
             String text = root.path("text").asText("");
+            double durationSeconds = root.path("duration").asDouble(0);
 
             // Extract segment avg_logprob
             double avgLogprob = -0.3;
@@ -107,7 +111,7 @@ public class GroqWhisperClient {
                 }
             }
 
-            return new VerboseTranscript(text.strip(), avgLogprob, words);
+            return new VerboseTranscript(text.strip(), avgLogprob, words, durationSeconds);
         } catch (AiServiceException e) {
             throw e;
         } catch (InterruptedException ie) {
@@ -123,19 +127,23 @@ public class GroqWhisperClient {
     /**
      * Transcribes audio bytes using Groq Whisper.
      *
-     * @param audioBytes    raw audio bytes (webm, mp4, wav, etc.)
-     * @param filename      original filename (used to hint codec to Groq, e.g. "voice.webm")
-     * @param language      BCP-47 language code to hint the model (e.g. "de")
-     * @param prompt        Optional context prompt to guide transcription (e.g., the target text)
-     * @return the transcribed text
+     * <p>Uses {@code verbose_json} response format to capture audio duration alongside the
+     * transcript text. The duration is returned so callers can record STT spend.
+     *
+     * @param audioBytes raw audio bytes (webm, mp4, wav, etc.)
+     * @param filename   original filename (used to hint codec to Groq, e.g. "voice.webm")
+     * @param language   BCP-47 language code to hint the model (e.g. "de")
+     * @param prompt     optional context prompt to guide transcription (e.g., the target text)
+     * @return transcribed text and audio duration in seconds
      */
-    public String transcribe(byte[] audioBytes, String filename, String language, String prompt) {
+    public TranscribeResult transcribe(byte[] audioBytes, String filename, String language, String prompt) {
         if (apiKey == null || apiKey.isBlank()) {
             throw new AiServiceException("Groq API key is not configured.");
         }
 
         String boundary = "----FormBoundary" + UUID.randomUUID().toString().replace("-", "");
-        byte[] body = buildMultipartBody(boundary, audioBytes, filename, language, prompt);
+        // verbose_json gives us the duration field without requesting word timestamps
+        byte[] body = buildMultipartBody(boundary, audioBytes, filename, language, prompt, true);
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(WHISPER_URL))
@@ -161,9 +169,11 @@ public class GroqWhisperClient {
             if (text == null || text.isBlank()) {
                 throw new AiServiceException("Whisper returned empty transcript.");
             }
-            log.info("[Whisper] target='{}' -> transcribed='{}' ({} bytes)",
-                    prompt != null ? prompt : "", text, audioBytes.length);
-            return text;
+            double durationSeconds = root.path("duration").asDouble(0);
+            log.info("[Whisper] target='{}' -> transcribed='{}' ({} bytes, {}s)",
+                    prompt != null ? prompt : "", text, audioBytes.length,
+                    String.format("%.2f", durationSeconds));
+            return new TranscribeResult(text.strip(), durationSeconds);
         } catch (AiServiceException e) {
             throw e;
         } catch (InterruptedException ie) {

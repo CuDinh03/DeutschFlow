@@ -3,6 +3,7 @@ package com.deutschflow.speaking.service;
 import com.deutschflow.speaking.ai.GroqWhisperClient;
 import com.deutschflow.speaking.ai.GroqWhisperClient.VerboseTranscript;
 import com.deutschflow.speaking.ai.GroqWhisperClient.WordTimestamp;
+import com.deutschflow.common.quota.AiUsageLedgerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,7 @@ import java.util.*;
 public class PronunciationScorerService {
 
     private final GroqWhisperClient whisperClient;
+    private final AiUsageLedgerService ledgerService;
 
     public record WordResult(String expected, String transcribed, String verdict, int score) {}
 
@@ -35,8 +37,9 @@ public class PronunciationScorerService {
             List<WordResult> words
     ) {}
 
-    public PronunciationScore score(byte[] audioBytes, String expectedText) {
+    public PronunciationScore score(byte[] audioBytes, String expectedText, Long userId) {
         VerboseTranscript verbose = whisperClient.transcribeVerbose(audioBytes, "audio.webm", "de", expectedText);
+        ledgerService.recordStt(userId, "PRONUNCIATION_SCORER", whisperClient.getWhisperModel(), verbose.durationSeconds());
 
         List<String> expectedWords = tokenize(expectedText);
         List<String> transcribedWords = extractWords(verbose);

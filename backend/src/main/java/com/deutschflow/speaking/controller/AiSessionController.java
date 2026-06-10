@@ -7,7 +7,9 @@ import com.deutschflow.speaking.dto.AiSpeakingSessionDto;
 import com.deutschflow.speaking.dto.CreateSessionRequest;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.RateLimitExceededException;
+import com.deutschflow.common.quota.AiUsageLedgerService;
 import com.deutschflow.common.quota.QuotaService;
+import com.deutschflow.speaking.ai.GroqWhisperClient.TranscribeResult;
 import com.deutschflow.speaking.AiRateLimiterService;
 import com.deutschflow.speaking.AiRateLimiterService.Bucket;
 import com.deutschflow.speaking.dto.AiSpeakingQuotaDto;
@@ -46,6 +48,7 @@ public class AiSessionController {
     private final com.deutschflow.speaking.ai.GroqWhisperClient groqWhisperClient;
     private final QuotaService quotaService;
     private final AiRateLimiterService aiRateLimiterService;
+    private final AiUsageLedgerService ledgerService;
 
     @Value("${app.speaking.sse-emitter-timeout-ms:180000}")
     private long sseEmitterTimeoutMs;
@@ -100,13 +103,14 @@ public class AiSessionController {
         requireAiBudget(Bucket.TRANSCRIBE, user.getId(), "Too many transcribe requests. Please slow down.");
         byte[] audio = readValidatedAudio(file);
         log.info("Transcribing audio file: {} ({} bytes)", file.getOriginalFilename(), audio.length);
-        String transcript = groqWhisperClient.transcribe(
+        TranscribeResult stt = groqWhisperClient.transcribe(
                 audio,
                 file.getOriginalFilename(),
                 "de",
                 ""  // No context prompt for generic transcribe endpoint
         );
-        return Map.of("transcript", transcript);
+        ledgerService.recordStt(user.getId(), "STT_TRANSCRIBE", groqWhisperClient.getWhisperModel(), stt.durationSeconds());
+        return Map.of("transcript", stt.text());
     }
 
     @PostMapping("/sessions/{id}/chat")
@@ -188,7 +192,7 @@ public class AiSessionController {
             throw new BadRequestException("Audio file is required.");
         }
         if (!TranscribeUploads.isAllowedAudioContentType(file.getContentType())) {
-            throw new BadRequestException("Unsupported audio format. Allowed: webm, mp4, mpeg, ogg, wav.");
+            throw new BadRequestException("Unsupported audio format. Allowed: webm, mp4, m4a, mpeg, ogg, wav.");
         }
         try (InputStream in = file.getInputStream()) {
             return TranscribeUploads.readAtMost(in, transcribeMaxBytes);

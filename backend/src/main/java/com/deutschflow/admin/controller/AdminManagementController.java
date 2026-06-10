@@ -177,6 +177,16 @@ public class AdminManagementController {
         return adminManagementService.aiCostDaily(days);
     }
 
+    /**
+     * Planning summary: total AI COGS, per-active-user unit economics, a 30-day run-rate
+     * projection, and the cost breakdown by model and feature. Built for pricing/capacity
+     * planning, not trend charting.
+     */
+    @GetMapping("/reports/ai-cost-summary")
+    public Map<String, Object> aiCostSummary(@RequestParam(defaultValue = "30") int days) {
+        return adminManagementService.aiCostSummary(days);
+    }
+
     @GetMapping("/users")
     public List<Map<String, Object>> users() {
         return adminManagementService.listUsers();

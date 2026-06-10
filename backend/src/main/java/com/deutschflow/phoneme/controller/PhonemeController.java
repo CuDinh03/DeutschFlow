@@ -71,7 +71,7 @@ public class PhonemeController {
                     : "recording.webm";
 
             log.info("[Phoneme] user={} target='{}' audioSize={}B", user.getId(), target, bytes.length);
-            PhonemeEvalResponse result = phonemeService.evaluate(bytes, filename, target);
+            PhonemeEvalResponse result = phonemeService.evaluate(bytes, filename, target, user.getId());
             return ResponseEntity.ok(result);
 
         } catch (Exception e) {

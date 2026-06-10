@@ -15,6 +15,15 @@ public class AiUsageLedgerService {
     private final QuotaService quotaService;
 
     @Transactional(rollbackFor = Exception.class)
+    public void recordStt(Long userId, String feature, String model, double durationSeconds) {
+        jdbcTemplate.update("""
+                        INSERT INTO stt_usage_events (user_id, feature, model, audio_duration_secs)
+                        VALUES (?, ?, ?, ?)
+                        """,
+                userId, feature, model, durationSeconds);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
     public void record(long userId,
                        String provider,
                        String model,
