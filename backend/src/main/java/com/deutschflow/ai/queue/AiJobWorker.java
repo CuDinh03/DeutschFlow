@@ -2,6 +2,8 @@ package com.deutschflow.ai.queue;
 
 import com.deutschflow.curriculum.service.SkillTreeService;
 import com.deutschflow.speaking.ai.GroqWhisperClient;
+import com.deutschflow.speaking.ai.GroqWhisperClient.TranscribeResult;
+import com.deutschflow.common.quota.AiUsageLedgerService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +33,7 @@ public class AiJobWorker {
     private final AiJobSseRegistry sseRegistry;
     private final SkillTreeService skillTreeService;
     private final GroqWhisperClient groqWhisperClient;
+    private final AiUsageLedgerService ledgerService;
     private final ObjectMapper objectMapper;
 
     @Scheduled(fixedDelay = 2000)
@@ -101,7 +104,9 @@ public class AiJobWorker {
             String filename    = (String) payload.getOrDefault("filename", "audio.webm");
             if (audioBase64 != null) {
                 byte[] audioBytes = java.util.Base64.getDecoder().decode(audioBase64);
-                transcribedText = groqWhisperClient.transcribe(audioBytes, filename, "de", originalText);
+                TranscribeResult stt = groqWhisperClient.transcribe(audioBytes, filename, "de", originalText);
+                ledgerService.recordStt(job.getUserId(), "PHONEME_ASYNC", groqWhisperClient.getWhisperModel(), stt.durationSeconds());
+                transcribedText = stt.text();
                 log.info("[Worker] Whisper transcribed jobId={}: \"{}\"", job.getId(), transcribedText);
             }
         }

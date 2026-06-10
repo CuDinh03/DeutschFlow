@@ -1,7 +1,9 @@
 package com.deutschflow.phoneme.service;
 
 import com.deutschflow.speaking.ai.GroqWhisperClient;
+import com.deutschflow.speaking.ai.GroqWhisperClient.TranscribeResult;
 import com.deutschflow.phoneme.dto.PhonemeEvalResponse;
+import com.deutschflow.common.quota.AiUsageLedgerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -21,6 +23,7 @@ import java.util.List;
 public class PhonemeService {
 
     private final GroqWhisperClient groqWhisperClient;
+    private final AiUsageLedgerService ledgerService;
 
     /**
      * Evaluate pronunciation of {@code target} from audio bytes.
@@ -28,10 +31,13 @@ public class PhonemeService {
      * @param audioBytes raw audio (WebM/WAV/MP3)
      * @param filename   original filename for Whisper
      * @param target     the expected German text
+     * @param userId     the requesting user's id (for STT cost attribution)
      */
-    public PhonemeEvalResponse evaluate(byte[] audioBytes, String filename, String target) {
+    public PhonemeEvalResponse evaluate(byte[] audioBytes, String filename, String target, Long userId) {
         // 1. Transcribe audio with target as context prompt
-        String transcribed = groqWhisperClient.transcribe(audioBytes, filename, "de", target);
+        TranscribeResult stt = groqWhisperClient.transcribe(audioBytes, filename, "de", target);
+        ledgerService.recordStt(userId, "PHONEME_COACH", groqWhisperClient.getWhisperModel(), stt.durationSeconds());
+        String transcribed = stt.text();
 
         if (transcribed == null || transcribed.isBlank()) {
             return new PhonemeEvalResponse(

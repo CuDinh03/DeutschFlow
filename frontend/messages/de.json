@@ -918,7 +918,19 @@
     "apiFoot": "GET /api/admin/users · {shown} / {total} Konten angezeigt.",
     "piePrompt": "Prompt-Tokens",
     "pieCompletion": "Completion-Tokens",
-    "pieOther": "Sonstige / nicht zugeordnet"
+    "pieOther": "Sonstige / nicht zugeordnet",
+    "planTitle": "KI-Kostenplanung — echte COGS",
+    "planSub": "Echte Split-Preise (Input/Output) aus dem Ledger ({days} Tage), keine gemischte Schätzung.",
+    "planFxRate": "Kurs: 1 USD = {rate} ₫",
+    "planTotalCogs": "Gesamte KI-COGS",
+    "planPerUser": "Kosten / aktiver Nutzer",
+    "planActiveUsers": "{count} Nutzer nutzten KI",
+    "planProjected": "30-Tage-Prognose",
+    "planAvgDaily": "Ø / Tag",
+    "planByFeature": "Kosten nach Funktion",
+    "planUncoveredNote": "Ohne: Whisper STT (pro Audiosekunde), Edge TTS (kostenlos), selbst gehostetes Modell ($0/Token), EC2/RDS/S3-Infrastruktur. Nur KI-Token-COGS.",
+    "costTrendTitle": "KI-Kostentrend (14 T.)",
+    "costTrendSub": "USD pro Tag — echte Split-Preise (Input/Output)"
   },
   "adminAi": {
     "title": "KI-Konfiguration",

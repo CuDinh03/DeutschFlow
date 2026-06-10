@@ -946,7 +946,19 @@
     "apiFoot": "GET /api/admin/users · showing {shown} / {total} accounts.",
     "piePrompt": "Prompt tokens",
     "pieCompletion": "Completion tokens",
-    "pieOther": "Other / unattributed"
+    "pieOther": "Other / unattributed",
+    "planTitle": "AI cost planning — real COGS",
+    "planSub": "Real split input/output pricing from the ledger ({days}d), not a blended estimate.",
+    "planFxRate": "FX: 1 USD = {rate} ₫",
+    "planTotalCogs": "Total AI COGS",
+    "planPerUser": "Cost / active user",
+    "planActiveUsers": "{count} users used AI",
+    "planProjected": "30-day projection",
+    "planAvgDaily": "Avg / day",
+    "planByFeature": "Cost by feature",
+    "planUncoveredNote": "Excludes: Whisper STT (billed per audio-second), Edge TTS (free), self-hosted model ($0/token), EC2/RDS/S3 infra. This is AI token COGS only.",
+    "costTrendTitle": "AI cost trend (14d)",
+    "costTrendSub": "USD per day — real split input/output pricing"
   },
   "adminAi": {
     "title": "AI configuration",

@@ -303,6 +303,10 @@ app:
     # on-device speech. Point this at your own TTS service to enable persona voices.
     edge-tts:
       url: ${EDGE_TTS_URL:}
+    # AI cost reporting (admin COGS dashboards). Per-model token tariffs live in
+    # AiCostEstimator.java; only the USD→VND rate is tuned here as FX moves.
+    cost:
+      usd-vnd-rate: ${APP_AI_COST_USD_VND_RATE:25400}
 
   # OpenAI Whisper STT (for pronunciation evaluation + audio timestamps)
   # Cost: ~$0.006/min. Used by WhisperApiClient.java

@@ -2,11 +2,13 @@ package com.deutschflow.speaking.controller;
 
 import com.deutschflow.speaking.service.PronunciationScorerService;
 import com.deutschflow.speaking.service.PronunciationScorerService.PronunciationScore;
+import com.deutschflow.user.entity.User;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -27,6 +29,7 @@ public class PronunciationController {
     @PostMapping("/pronunciation-check")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<PronunciationScore> check(
+            @AuthenticationPrincipal User user,
             @RequestPart("audio") MultipartFile audio,
             @RequestPart("expectedText") @NotBlank @Size(max = 500) String expectedText) throws IOException {
 
@@ -35,7 +38,7 @@ public class PronunciationController {
             return ResponseEntity.badRequest().build();
         }
 
-        PronunciationScore result = scorerService.score(bytes, expectedText);
+        PronunciationScore result = scorerService.score(bytes, expectedText, user.getId());
         return ResponseEntity.ok(result);
     }
 }

@@ -21,6 +21,8 @@ import static org.mockito.Mockito.when;
 class AdminAnalyticsServiceTest {
 
     @Mock PaymentTransactionRepository paymentRepo;
+    @Mock org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+    @Mock com.deutschflow.common.quota.AiCostEstimator aiCostEstimator;
     @InjectMocks AdminAnalyticsService service;
 
     @Test

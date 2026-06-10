@@ -948,7 +948,19 @@
     "apiFoot": "GET /api/admin/users · hiển thị {shown} / {total} tài khoản.",
     "piePrompt": "Token đầu vào (prompt)",
     "pieCompletion": "Token đầu ra (completion)",
-    "pieOther": "Khác / chưa phân loại"
+    "pieOther": "Khác / chưa phân loại",
+    "planTitle": "Kế hoạch chi phí AI — COGS thật",
+    "planSub": "Giá split input/output thật từ ledger ({days} ngày), không phải ước tính blended.",
+    "planFxRate": "Tỷ giá: 1 USD = {rate} ₫",
+    "planTotalCogs": "Tổng COGS AI",
+    "planPerUser": "Chi phí / user hoạt động",
+    "planActiveUsers": "{count} user dùng AI",
+    "planProjected": "Dự phóng 30 ngày",
+    "planAvgDaily": "Trung bình / ngày",
+    "planByFeature": "Chi phí theo tính năng",
+    "planUncoveredNote": "Chưa gồm: Whisper STT (tính theo giây audio), Edge TTS (miễn phí), model tự host ($0/token), hạ tầng EC2/RDS/S3. Đây chỉ là COGS token AI.",
+    "costTrendTitle": "Xu hướng chi phí AI (14 ngày)",
+    "costTrendSub": "USD/ngày — giá split input/output thật"
   },
   "adminAi": {
     "title": "Cấu hình AI",

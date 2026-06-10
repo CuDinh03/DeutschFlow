@@ -14,6 +14,8 @@ public final class TranscribeUploads {
     private static final Set<String> ALLOWED_BASE_TYPES = Set.of(
             "audio/webm",
             "audio/mp4",
+            "audio/m4a",
+            "audio/x-m4a",
             "audio/mpeg",
             "audio/ogg",
             "audio/wav",
