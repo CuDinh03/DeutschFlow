@@ -281,7 +281,10 @@ public class GradingService {
             messages.add(new ChatMessage("user", "<submission>" + content + "</submission>"));
 
             AiChatCompletionResult result = openAiChatClient.chatCompletion(messages, null, 0.3, 800);
-            if (result == null || result.content() == null) return;
+            if (result == null || result.content() == null) {
+                markGradingFailed(submissionId, "Groq tra ve ket qua rong (null content)");
+                return;
+            }
 
             String responseContent = result.content();
             Integer aiScore = null;
@@ -295,6 +298,14 @@ public class GradingService {
             java.util.regex.Matcher feedbackMatcher = java.util.regex.Pattern.compile("(?i)FEEDBACK:\\s*(.*)", java.util.regex.Pattern.DOTALL).matcher(responseContent);
             if (feedbackMatcher.find()) {
                 aiFeedback = feedbackMatcher.group(1).trim();
+            }
+
+            // If the model didn't return a parseable SCORE, surface it instead of silently
+            // saving a null score as GRADED (which reads as "done" but has no grade).
+            if (aiScore == null) {
+                String snippet = responseContent.length() > 200 ? responseContent.substring(0, 200) : responseContent;
+                markGradingFailed(submissionId, "Khong doc duoc SCORE tu phan hoi AI. Raw: " + snippet.replaceAll("\\s+", " "));
+                return;
             }
 
             sa.setScore(aiScore);
@@ -312,6 +323,30 @@ public class GradingService {
 
         } catch (Exception e) {
             log.error("[AI-Grading] Error grading submission {}", submissionId, e);
+            markGradingFailed(submissionId, e.getClass().getSimpleName() + ": " + e.getMessage());
+        }
+    }
+
+    /**
+     * Surface an AI-grading failure on the submission itself so the teacher (and ops) can
+     * see WHY it failed instead of the row silently staying SUBMITTED forever. Stores a
+     * distinct status + a short reason in the feedback field. The teacher can still finalize
+     * a manual grade afterwards (evaluate does not guard on this status).
+     */
+    private void markGradingFailed(Long submissionId, String reason) {
+        try {
+            StudentAssignment sa = studentAssignmentRepository.findById(submissionId).orElse(null);
+            if (sa == null || "EVALUATED".equals(sa.getStatus()) || "GRADED".equals(sa.getStatus())) {
+                return;
+            }
+            sa.setStatus("GRADING_FAILED");
+            String r = (reason == null || reason.isBlank()) ? "khong ro nguyen nhan" : reason;
+            if (r.length() > 480) r = r.substring(0, 480);
+            sa.setFeedback("[AI cham loi] " + r);
+            studentAssignmentRepository.save(sa);
+            log.warn("[AI-Grading] Marked submission {} as GRADING_FAILED: {}", submissionId, r);
+        } catch (Exception persistErr) {
+            log.warn("[AI-Grading] Could not persist GRADING_FAILED for {}: {}", submissionId, persistErr.toString());
         }
     }
 }
