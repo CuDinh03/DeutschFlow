@@ -83,6 +83,15 @@ interface ExamQuestionItem {
   person?: string
   audio_script?: string
   options?: Record<string, string>
+  /**
+   * Non-revealing question type sent by the backend so we can pick the answer widget
+   * without the correct answer. Preferred over `correct` (see render logic).
+   */
+  type?: 'MULTIPLE_CHOICE' | 'RICHTIG_FALSCH' | 'MATCHING' | 'UNKNOWN' | string
+  /**
+   * Legacy correct answer. The backend no longer sends this for in-progress exams
+   * (it was an answer leak); kept only as a fallback for older API responses.
+   */
   correct?: string
 }
 
@@ -126,6 +135,22 @@ const SECTION_COLORS: Record<string, string> = {
   HOEREN: '#0EA5E9',
   SCHREIBEN: '#10B981',
   SPRECHEN: '#F59E0B',
+}
+
+// Which answer widget to render for a question. Prefers the backend-provided `type`
+// (which carries no answer key); falls back to the legacy `correct`-based detection so
+// the page still works against an older API response that hasn't dropped `correct` yet.
+function answerWidget(item: ExamQuestionItem): 'MULTIPLE_CHOICE' | 'RICHTIG_FALSCH' | 'MATCHING' | null {
+  if (item.options && Object.keys(item.options).length > 0) return 'MULTIPLE_CHOICE'
+  if (item.type === 'MULTIPLE_CHOICE') return 'MULTIPLE_CHOICE'
+  if (item.type === 'RICHTIG_FALSCH') return 'RICHTIG_FALSCH'
+  if (item.type === 'MATCHING') return 'MATCHING'
+  if (!item.type && item.correct) {
+    const c = String(item.correct).toLowerCase()
+    if (c === 'richtig' || c === 'falsch') return 'RICHTIG_FALSCH'
+    if (String(item.correct).length === 1) return 'MATCHING'
+  }
+  return null
 }
 
 function ScoreCard({ section, score, max }: { section: string; score: number; max: number }) {
@@ -528,7 +553,7 @@ export default function MockExamPage() {
                         )}
 
                         {/* Richtig / Falsch */}
-                        {!item.options && item.correct && (String(item.correct).toLowerCase() === 'richtig' || String(item.correct).toLowerCase() === 'falsch') && (
+                        {answerWidget(item) === 'RICHTIG_FALSCH' && (
                           <div className="flex gap-4">
                             {['richtig', 'falsch'].map(opt => (
                               <label key={opt} className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border cursor-pointer transition-colors ${answers[item.id] === opt ? 'bg-indigo-50 border-indigo-500 text-indigo-700 font-bold' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
@@ -540,7 +565,7 @@ export default function MockExamPage() {
                         )}
 
                         {/* Matching A B C D */}
-                        {!item.options && item.correct && String(item.correct).length === 1 && (
+                        {answerWidget(item) === 'MATCHING' && (
                           <div className="flex flex-wrap gap-2">
                             {['A','B','C','D','E','F','G','H','I'].slice(0, 8).map(opt => (
                               <label key={opt} className={`flex items-center justify-center w-12 h-12 rounded-xl border cursor-pointer transition-colors ${answers[item.id] === opt ? 'bg-indigo-500 border-indigo-600 text-white font-bold' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 font-bold'}`}>

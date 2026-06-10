@@ -2,6 +2,7 @@ package com.deutschflow.grammar.controller;
 
 import com.deutschflow.grammar.service.AiExamEvaluatorService;
 import com.deutschflow.grammar.service.ExamGenerationService;
+import com.deutschflow.grammar.service.ExamQuestionSanitizer;
 import com.deutschflow.grammar.service.ExamScoringService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.ResponseEntity;
@@ -26,17 +27,20 @@ public class MockExamController {
     private final ExamScoringService scoringService;
     private final AiExamEvaluatorService aiEvaluator;
     private final ExamGenerationService generationService;
+    private final ExamQuestionSanitizer questionSanitizer;
     private final com.deutschflow.assessment.service.B1ReadinessService b1ReadinessService;
     private final com.deutschflow.progress.service.PhaseEngineService phaseEngineService;
 
     public MockExamController(JdbcTemplate jdbcTemplate, ExamScoringService scoringService,
                                AiExamEvaluatorService aiEvaluator, ExamGenerationService generationService,
+                               ExamQuestionSanitizer questionSanitizer,
                                com.deutschflow.assessment.service.B1ReadinessService b1ReadinessService,
                                com.deutschflow.progress.service.PhaseEngineService phaseEngineService) {
         this.jdbcTemplate = jdbcTemplate;
         this.scoringService = scoringService;
         this.aiEvaluator = aiEvaluator;
         this.generationService = generationService;
+        this.questionSanitizer = questionSanitizer;
         this.b1ReadinessService = b1ReadinessService;
         this.phaseEngineService = phaseEngineService;
     }
@@ -92,7 +96,10 @@ public class MockExamController {
             """, examId);
 
         Map<String, Object> response = new HashMap<>(attemptRow);
-        response.put("sections_json", stripAnswerKeys((String) examDetails.get("sections_json")));
+        // Strip the answer key before sending to the client: an in-progress exam must not
+        // expose `correct`/explanations. Scoring (/finish) and review re-read them from the DB.
+        response.put("sections_json",
+                questionSanitizer.stripAnswerKey((String) examDetails.get("sections_json")));
         response.put("time_limit_minutes", examDetails.get("time_limit_minutes"));
 
         return ResponseEntity.ok(response);
@@ -105,8 +112,11 @@ public class MockExamController {
                 SELECT sections_json::text AS sections_json
                 FROM mock_exams WHERE id = ?
                 """, examId);
-            String sanitized = stripAnswerKeys((String) row.get("sections_json"));
-            return ResponseEntity.ok(Map.of("sections_json", sanitized));
+            // Strip the answer key before serving — same reason as /start.
+            Map<String, Object> safe = new HashMap<>();
+            safe.put("sections_json",
+                    questionSanitizer.stripAnswerKey((String) row.get("sections_json")));
+            return ResponseEntity.ok(safe);
         } catch (Exception e) {
             return ResponseEntity.notFound().build();
         }
@@ -335,33 +345,6 @@ public class MockExamController {
     public ResponseEntity<Map<String, Object>> examCoverage(
             @RequestParam(defaultValue = "A1") String cefrLevel) {
         return ResponseEntity.ok(generationService.getExamCoverage(cefrLevel));
-    }
-
-    /** Strip correct/correct_answer fields from sections_json before sending to client. */
-    private String stripAnswerKeys(String sectionsJson) {
-        if (sectionsJson == null) return sectionsJson;
-        try {
-            Map<String, Object> structure = om.readValue(sectionsJson, Map.class);
-            List<Map<String, Object>> sections = (List<Map<String, Object>>) structure.get("sections");
-            if (sections != null) {
-                for (Map<String, Object> section : sections) {
-                    List<Map<String, Object>> teile = (List<Map<String, Object>>) section.get("teile");
-                    if (teile == null) continue;
-                    for (Map<String, Object> teil : teile) {
-                        List<Map<String, Object>> items = (List<Map<String, Object>>) teil.get("items");
-                        if (items == null) continue;
-                        for (Map<String, Object> item : items) {
-                            item.remove("correct");
-                            item.remove("correct_answer");
-                        }
-                    }
-                }
-            }
-            return om.writeValueAsString(structure);
-        } catch (Exception e) {
-            log.warn("Failed to strip answer keys from sections_json: {}", e.getMessage());
-            return sectionsJson;
-        }
     }
 
     @GetMapping("/attempts/{attemptId}/review")
