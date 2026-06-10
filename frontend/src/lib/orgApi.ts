@@ -83,6 +83,22 @@ export interface RosterImportResult {
   errors: string[]
 }
 
+/** Invoice status lifecycle (DRAFT → SENT → PAID, or VOID). */
+export type InvoiceStatus = 'DRAFT' | 'SENT' | 'PAID' | 'VOID'
+
+/** An org billing invoice (read-only from the org-admin view). */
+export interface OrgInvoice {
+  id: number
+  orgId: number
+  periodStart: string | null
+  periodEnd: string | null
+  seats: number
+  amountVnd: number
+  status: InvoiceStatus
+  note: string | null
+  createdAt: string
+}
+
 /** Public invitation preview (token is the secret). */
 export interface InvitationPreview {
   orgName: string
@@ -198,6 +214,12 @@ export async function listStudents(): Promise<OrgMember[]> {
 export async function getAnalytics(): Promise<OrgAnalytics> {
   const res = await api.get<OrgAnalytics>('/org/analytics')
   return res.data
+}
+
+/** GET /org/invoices — read-only list of the current org's billing invoices. */
+export async function listMyInvoices(): Promise<OrgInvoice[]> {
+  const res = await api.get<OrgInvoice[]>('/org/invoices')
+  return res.data ?? []
 }
 
 /** GET /public/org-invitations/{token} — preview an invitation (token is the secret). */

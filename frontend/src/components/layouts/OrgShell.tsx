@@ -2,13 +2,13 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { Building2, LayoutDashboard, GraduationCap, Users, UserRound, Mail, LogOut, Menu } from 'lucide-react'
+import { Building2, LayoutDashboard, GraduationCap, Users, UserRound, Mail, Receipt, LogOut, Menu } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 
 interface OrgShellProps {
   children: React.ReactNode
-  activeMenu: 'dashboard' | 'teachers' | 'students' | 'classes' | 'invitations'
+  activeMenu: 'dashboard' | 'teachers' | 'students' | 'classes' | 'invitations' | 'billing'
   userName: string
   onLogout: () => void
   headerTitle?: string
@@ -31,6 +31,7 @@ export function OrgShell({
       items: [
         { id: 'dashboard', label: 'Tổng quan', icon: LayoutDashboard, href: '/org' },
         { id: 'classes', label: 'Lớp học', icon: GraduationCap, href: '/org/classes' },
+        { id: 'billing', label: 'Hóa đơn', icon: Receipt, href: '/org/billing' },
       ]
     },
     {

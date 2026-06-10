@@ -6,10 +6,12 @@ import com.deutschflow.organization.dto.InviteTeacherRequest;
 import com.deutschflow.organization.dto.OrgAnalyticsDto;
 import com.deutschflow.organization.dto.OrgClassDto;
 import com.deutschflow.organization.dto.OrgInvitationDto;
+import com.deutschflow.organization.dto.OrgInvoiceDto;
 import com.deutschflow.organization.dto.OrgMemberDto;
 import com.deutschflow.organization.dto.OrgSummaryDto;
 import com.deutschflow.organization.dto.RosterImportResultDto;
 import com.deutschflow.organization.service.OrgAnalyticsService;
+import com.deutschflow.organization.service.OrgBillingService;
 import com.deutschflow.organization.service.OrgEntitlementService;
 import com.deutschflow.organization.service.OrgGuard;
 import com.deutschflow.organization.service.OrgInvitationService;
@@ -47,6 +49,7 @@ public class OrgController {
     private final OrgRosterService orgRosterService;
     private final OrgAnalyticsService orgAnalyticsService;
     private final OrgEntitlementService orgEntitlementService;
+    private final OrgBillingService orgBillingService;
 
     private Long requireOrgId(User user) {
         Long orgId = user.getOrgId();
@@ -153,5 +156,12 @@ public class OrgController {
         Long orgId = requireOrgId(user);
         orgGuard.assertOrgAdmin(user.getId(), orgId);
         return orgAnalyticsService.getAnalytics(orgId);
+    }
+
+    @GetMapping("/invoices")
+    public List<OrgInvoiceDto> listInvoices(@AuthenticationPrincipal User user) {
+        Long orgId = requireOrgId(user);
+        orgGuard.assertOrgAdmin(user.getId(), orgId);
+        return orgBillingService.listInvoices(orgId);
     }
 }

@@ -41,6 +41,7 @@ import java.util.Set;
 public class AdminOrgService {
 
     private static final String STATUS_ACTIVE = "ACTIVE";
+    private static final String STATUS_SUSPENDED = "SUSPENDED";
     private static final String STATUS_PENDING = "PENDING";
     private static final String ROLE_OWNER = "OWNER";
     private static final String ROLE_STUDENT = "STUDENT";
@@ -113,22 +114,58 @@ public class AdminOrgService {
         );
     }
 
-    /** Updates plan/seat-limit/status; only non-null fields are applied. */
+    /**
+     * Updates plan/seat-limit/status/licence-expiry; only non-null fields are applied. A status
+     * transition to {@code SUSPENDED} revokes entitlements for every ACTIVE STUDENT; a transition
+     * back to {@code ACTIVE} re-grants them.
+     */
     @Transactional
     public OrgDto updateOrganization(Long id, UpdateOrgRequest request) {
         Organization org = organizationRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy tổ chức: " + id));
+        String previousStatus = org.getStatus();
         if (request.planCode() != null) {
             org.setPlanCode(request.planCode());
         }
         if (request.seatLimit() != null) {
             org.setSeatLimit(request.seatLimit());
         }
+        if (request.validUntil() != null) {
+            org.setValidUntil(request.validUntil());
+        }
         if (request.status() != null) {
             org.setStatus(request.status());
         }
         org = organizationRepository.save(org);
+        applyStatusTransition(org, previousStatus, request.status());
         return toOrgDto(org);
+    }
+
+    /**
+     * Cascades a status change to student entitlements: suspending an org revokes all ACTIVE
+     * students' plans; reactivating re-grants them. No-op when status is unchanged.
+     */
+    private void applyStatusTransition(Organization org, String previousStatus, String newStatus) {
+        if (newStatus == null || newStatus.equals(previousStatus)) {
+            return;
+        }
+        if (STATUS_SUSPENDED.equals(newStatus)) {
+            List<OrgMember> students = orgMemberRepository
+                    .findByIdOrgIdAndRoleAndStatus(org.getId(), ROLE_STUDENT, STATUS_ACTIVE);
+            for (OrgMember member : students) {
+                orgEntitlementService.revokeStudent(member.getId().getUserId());
+            }
+            log.info("[ORG-ADMIN] Suspended org {}: revoked entitlements for {} student(s)",
+                    org.getId(), students.size());
+        } else if (STATUS_ACTIVE.equals(newStatus)) {
+            List<OrgMember> students = orgMemberRepository
+                    .findByIdOrgIdAndRoleAndStatus(org.getId(), ROLE_STUDENT, STATUS_ACTIVE);
+            for (OrgMember member : students) {
+                orgEntitlementService.grantStudent(member.getId().getUserId(), org);
+            }
+            log.info("[ORG-ADMIN] Reactivated org {}: granted entitlements for {} student(s)",
+                    org.getId(), students.size());
+        }
     }
 
     /** Manually assigns an existing user as OWNER/ADMIN (or any valid member role) of the org. */
