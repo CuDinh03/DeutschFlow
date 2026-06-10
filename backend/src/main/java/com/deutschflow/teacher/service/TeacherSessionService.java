@@ -68,7 +68,21 @@ public class TeacherSessionService {
 
     // ── Teacher: list their incoming sessions ────────────────────────────────
 
-    public Page<TeacherSessionDto> getTeacherSessions(Long teacherProfileId, int page) {
+    /**
+     * IDOR guard: profileId đến từ request param nên không được tin —
+     * chỉ chủ hồ sơ (hoặc ADMIN) được xem lịch học/doanh thu của hồ sơ đó.
+     */
+    private void assertOwnsProfile(User actor, Long teacherProfileId) {
+        if (actor.getRole() == User.Role.ADMIN) return;
+        TeacherProfile profile = profileRepository.findByIdWithUser(teacherProfileId)
+                .orElseThrow(() -> new NotFoundException("Hồ sơ giáo viên không tồn tại"));
+        if (!profile.getUser().getId().equals(actor.getId())) {
+            throw new ForbiddenException("Bạn không có quyền xem dữ liệu của hồ sơ này");
+        }
+    }
+
+    public Page<TeacherSessionDto> getTeacherSessions(User actor, Long teacherProfileId, int page) {
+        assertOwnsProfile(actor, teacherProfileId);
         return sessionRepository.findByTeacherProfileId(teacherProfileId,
                 PageRequest.of(page, 20, Sort.by(Sort.Direction.DESC, "scheduledAt")))
                 .map(TeacherSessionDto::from);
@@ -126,7 +140,8 @@ public class TeacherSessionService {
 
     // ── Teacher: earnings summary ─────────────────────────────────────────────
 
-    public Map<String, Object> getEarningsSummary(Long teacherProfileId) {
+    public Map<String, Object> getEarningsSummary(User actor, Long teacherProfileId) {
+        assertOwnsProfile(actor, teacherProfileId);
         long totalEarnings = sessionRepository.sumEarningsByTeacherProfile(teacherProfileId);
         long platformFee = (long) (totalEarnings * 0.15);
         return Map.of(

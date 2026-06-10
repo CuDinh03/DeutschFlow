@@ -197,7 +197,7 @@ export default function ClassDetailPage() {
         api.get<ClassAnalyticsOverview>(`/v2/teacher/classes/${id}/analytics`).catch(() => ({ data: { topErrors: [], studentCount: 0, totalXp: 0, completedAssignments: 0 } })),
         api.get<ClassAssignment[]>(`/v2/teacher/classes/${id}/assignments`).catch(() => ({ data: [] })),
         api.get<LeaderboardDto[]>(`/v2/teacher/classes/${id}/leaderboard?type=${leaderboardType}`).catch(() => ({ data: [] })),
-        api.get(`/teacher/reports/classes/${id}`).catch(() => ({ data: null })),
+        api.get(`/v2/teacher/reports/classes/${id}`).catch(() => ({ data: null })),
       ]);
       if (classIdRef.current !== currentClassId) return;
       setStudents(studentsRes.data || []);
@@ -1275,7 +1275,7 @@ export default function ClassDetailPage() {
                   </div>
                   <div>
                     <h3 className="text-xl font-bold mb-1">Báo cáo Chi tiết Lớp học</h3>
-                    <p className="text-emerald-100 text-sm">Tổng hợp hiệu suất quiz, số học viên và điểm trung bình của lớp.</p>
+                    <p className="text-emerald-100 text-sm">Tổng hợp số bài tập, số học viên và điểm trung bình của lớp.</p>
                   </div>
                 </div>
                 {classReport && (
@@ -1287,7 +1287,7 @@ export default function ClassDetailPage() {
                         [''],
                         ['Chỉ số', 'Giá trị'],
                         ['Số học viên', classReport.studentCount ?? 0],
-                        ['Quiz đã tổ chức', classReport.quizCount ?? 0],
+                        ['Bài tập đã giao', classReport.assignmentCount ?? 0],
                         ['Điểm trung bình', Number(classReport.avgScore ?? 0).toFixed(2)],
                         [''],
                         ['Danh sách học viên'],
@@ -1315,8 +1315,8 @@ export default function ClassDetailPage() {
                   <p className="text-slate-500 text-sm mt-2 font-semibold">Học viên</p>
                 </div>
                 <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm text-center">
-                  <p className="text-4xl font-black text-emerald-600">{classReport.quizCount ?? 0}</p>
-                  <p className="text-slate-500 text-sm mt-2 font-semibold">Quiz đã tổ chức</p>
+                  <p className="text-4xl font-black text-emerald-600">{classReport.assignmentCount ?? 0}</p>
+                  <p className="text-slate-500 text-sm mt-2 font-semibold">Bài tập đã giao</p>
                 </div>
                 <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm text-center">
                   <p className="text-4xl font-black text-amber-500">{Number(classReport.avgScore ?? 0).toFixed(1)}</p>
@@ -1325,7 +1325,7 @@ export default function ClassDetailPage() {
               </div>
             ) : (
               <div className="text-center py-12 text-slate-500 border border-dashed rounded-2xl">
-                Chưa có dữ liệu báo cáo quiz cho lớp học này.
+                Chưa có dữ liệu báo cáo cho lớp học này.
               </div>
             )}
           </div>

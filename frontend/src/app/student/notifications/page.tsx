@@ -70,7 +70,7 @@ function getNotifMeta(item: NotificationItem): NotifMeta {
     case "STREAK_REMINDER":      return { icon: "🔥", actionLabel: "Học ngay →", actionHref: "/dashboard" };
     case "TEACHER_ANNOUNCEMENT": return { icon: "📢" };
     case "ADMIN_BROADCAST":      return { icon: "📣" };
-    case "NEW_ASSIGNMENT":       return { icon: "📝", actionLabel: "Xem bài →", actionHref: p.quizId ? `/student/quiz/${p.quizId}` : undefined };
+    case "NEW_ASSIGNMENT":       return { icon: "📝", actionLabel: "Xem bài →", actionHref: "/student/assignments" };
     case "ASSIGNMENT_GRADED":    return { icon: "✅" };
     case "NEW_CLASS_ASSIGNMENT": return { icon: "📋" };
     case "JOIN_REQUEST_APPROVED":return { icon: "✅", actionLabel: "Vào lớp →", actionHref: "/student/classes" };

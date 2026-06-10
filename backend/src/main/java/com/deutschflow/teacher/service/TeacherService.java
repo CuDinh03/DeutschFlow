@@ -1,6 +1,7 @@
 package com.deutschflow.teacher.service;
 
 import com.deutschflow.common.exception.ConflictException;
+import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.speaking.entity.UserGrammarError;
@@ -474,8 +475,20 @@ public class TeacherService {
         return toAssignmentDto(savedAssignment);
     }
 
+    /**
+     * IDOR guard dùng chung: chặn teacher truy cập lớp không thuộc về mình.
+     * Dùng cho các endpoint nhận {classId} mà service đích không tự kiểm tra quyền.
+     */
     @Transactional(readOnly = true)
-    public List<ClassAssignmentDto> getClassAssignments(Long classId) {
+    public void assertTeacherOwnsClass(Long teacherId, Long classId) {
+        if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
+            throw new ForbiddenException("Bạn không có quyền xem lớp này");
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public List<ClassAssignmentDto> getClassAssignments(Long teacherId, Long classId) {
+        assertTeacherOwnsClass(teacherId, classId);
         return assignmentRepository.findByClassIdOrderByCreatedAtDesc(classId)
                 .stream()
                 .map(this::toAssignmentDto)

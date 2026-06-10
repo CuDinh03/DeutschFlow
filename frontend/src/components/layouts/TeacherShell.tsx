@@ -2,13 +2,13 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { LayoutDashboard, Users, HelpCircle, BarChart2, LogOut, Menu, BookOpen, FileText, Store, Sparkles, GraduationCap, Bell, User, ClipboardCheck, Image } from 'lucide-react'
+import { LayoutDashboard, Users, BarChart2, LogOut, Menu, BookOpen, FileText, Store, Sparkles, GraduationCap, Bell, User, ClipboardCheck, Image } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 
 interface TeacherShellProps {
   children: React.ReactNode
-  activeMenu: 'dashboard' | 'classes' | 'quizzes' | 'reports' | 'grammar' | 'materials' | 'marketplace' | 'notifications' | 'profile' | 'grading' | 'media'
+  activeMenu: 'dashboard' | 'classes' | 'reports' | 'grammar' | 'materials' | 'marketplace' | 'notifications' | 'profile' | 'grading' | 'media'
   userName: string
   onLogout: () => void
   headerTitle?: string
@@ -33,7 +33,6 @@ export function TeacherShell({
       items: [
         { id: 'dashboard', label: 'Dashboard & Lớp học', icon: LayoutDashboard, href: '/teacher/dashboard' },
         { id: 'grading', label: 'Trung tâm Chấm bài', icon: ClipboardCheck, href: '/teacher/grading', pendingCount: pendingGradingCount },
-        { id: 'quizzes', label: 'Quản lý Quiz', icon: HelpCircle, href: '/teacher/quizzes' },
         { id: 'reports', label: 'Báo cáo & Phân tích', icon: BarChart2, href: '/teacher/reports' },
       ]
     },

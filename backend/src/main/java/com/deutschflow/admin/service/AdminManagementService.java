@@ -70,10 +70,16 @@ public class AdminManagementService {
         Integer users = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM users", Integer.class);
         Integer teachers = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM users WHERE role = 'TEACHER'", Integer.class);
         Integer students = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM users WHERE role = 'STUDENT'", Integer.class);
-        Integer classes = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM classrooms", Integer.class);
-        Integer quizzes = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM quizzes", Integer.class);
-        Integer activeQuizzes = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM quizzes WHERE status = 'ACTIVE'", Integer.class);
-        Double avgQuizScore = jdbcTemplate.queryForObject("SELECT AVG(total_score) FROM quiz_sessions", Double.class);
+        // Live classroom schema (teacher_classes/class_assignments/student_assignments).
+        // Hệ quiz cũ (classrooms/quizzes/quiz_sessions) đã gỡ — không query nữa để không
+        // vỡ khi drop bảng legacy. Giữ nguyên key JSON (quizCount...) cho FE; ngữ nghĩa
+        // giờ là "assignment".
+        Integer classes = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM teacher_classes", Integer.class);
+        Integer quizzes = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM class_assignments", Integer.class);
+        Integer activeQuizzes = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM class_assignments WHERE due_date IS NULL OR due_date >= NOW()", Integer.class);
+        Double avgQuizScore = jdbcTemplate.queryForObject(
+                "SELECT AVG(score) FROM student_assignments WHERE score IS NOT NULL AND is_deleted = FALSE", Double.class);
 
         // Vocabulary statistics
         Integer totalWords = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM words", Integer.class);
