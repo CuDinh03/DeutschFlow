@@ -1316,6 +1316,7 @@
     "teacherAltPlaceholder": "Image description…",
     "searchPlaceholder": "Search by file name, tag, alt…",
     "loadError": "Could not load media list",
+    "deleteConfirmTitle": "Confirm delete",
     "deleteConfirm": "Delete this image from S3 and the database?",
     "deleteSuccess": "File deleted successfully",
     "deleteError": "Error while deleting file",

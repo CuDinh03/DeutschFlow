@@ -35,12 +35,12 @@ public interface PaymentTransactionRepository extends JpaRepository<PaymentTrans
         Long getGrossVnd();
     }
 
-    @Query(value = "SELECT TO_CHAR(created_at, 'YYYY-MM') as period, " +
+    @Query(value = "SELECT TO_CHAR(created_at AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM') as period, " +
                    "COUNT(id) as subscribers, " +
                    "SUM(amount) as grossVnd " +
                    "FROM payment_transactions " +
                    "WHERE status = 'SUCCESS' " +
-                   "GROUP BY TO_CHAR(created_at, 'YYYY-MM') " +
+                   "GROUP BY TO_CHAR(created_at AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM') " +
                    "ORDER BY period ASC", nativeQuery = true)
     List<MonthlyRevenueProjection> getMonthlyRevenue();
 

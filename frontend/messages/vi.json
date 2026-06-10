@@ -1318,6 +1318,7 @@
     "teacherAltPlaceholder": "Mô tả ảnh…",
     "searchPlaceholder": "Tìm theo tên file, nhãn, alt…",
     "loadError": "Không thể tải danh sách tệp tin phương tiện",
+    "deleteConfirmTitle": "Xác nhận xóa",
     "deleteConfirm": "Bạn có chắc muốn xóa ảnh này khỏi S3 và Database không?",
     "deleteSuccess": "Đã xóa tệp tin thành công!",
     "deleteError": "Lỗi khi xóa tệp tin",

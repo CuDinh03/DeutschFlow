@@ -21,6 +21,16 @@ import { ImageUploader } from '@/components/ui/ImageUploader'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { listMedia, deleteMedia, updateMediaMetadata, MediaAsset } from '@/lib/mediaApi'
 import { useTranslations } from 'next-intl'
 
@@ -45,7 +55,8 @@ export default function AdminMediaPage() {
   const [totalPages, setTotalPages] = useState(0)
   const [currentPage, setCurrentPage] = useState(0)
   const [copiedId, setCopiedId] = useState<number | null>(null)
-  
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
+
   // Search state
   const [searchQuery, setSearchQuery] = useState('')
   
@@ -83,14 +94,15 @@ export default function AdminMediaPage() {
     setCurrentPage(0)
   }
 
-  const handleDelete = async (id: number) => {
-    if (!window.confirm(t('deleteConfirm'))) return
+  const confirmDelete = async () => {
+    if (deleteConfirmId == null) return
+    const id = deleteConfirmId
+    setDeleteConfirmId(null)
     try {
       await deleteMedia(id)
       toast.success(t('deleteSuccess'))
       setMediaList((prev) => prev.filter((item) => item.id !== id))
-    } catch (err: any) {
-      console.error(err)
+    } catch (err: unknown) {
       toast.error(t('deleteError'))
     }
   }
@@ -343,7 +355,7 @@ export default function AdminMediaPage() {
                         type="button"
                         size="icon"
                         variant="ghost"
-                        onClick={() => handleDelete(item.id)}
+                        onClick={() => setDeleteConfirmId(item.id)}
                         className="h-8 w-8 hover:bg-red-50 hover:text-red-600 rounded-lg text-gray-400 transition-colors"
                         title={t('delete')}
                       >
@@ -384,6 +396,25 @@ export default function AdminMediaPage() {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={deleteConfirmId != null} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('deleteConfirmTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('deleteConfirm')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {t('delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Edit Metadata Modal */}
       <Dialog open={!!editingAsset} onOpenChange={(open) => !open && setEditingAsset(null)}>
