@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { TeacherShell } from "@/components/layouts/TeacherShell";
+import { CertificateIssuer } from "@/components/teacher/CertificateIssuer";
 import { useStudentPracticeSession } from "@/hooks/useStudentPracticeSession";
 import { usePendingGradingCount } from "@/hooks/usePendingGradingCount";
 import api from "@/lib/api";
@@ -295,7 +296,20 @@ export default function StudentReviewPage() {
       headerSubtitle="Chấm điểm và nhận xét tiến độ học viên"
     >
       <div className="p-8 max-w-5xl mx-auto space-y-6">
-        
+
+        {/* Cấp chứng nhận đồng thương hiệu (D5 cert-lite) */}
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-emerald-100 bg-emerald-50/50 px-5 py-4">
+          <div>
+            <p className="text-sm font-bold text-slate-800">Chứng nhận hoàn thành</p>
+            <p className="text-xs text-slate-500">Cấp chứng nhận tiếng Đức gắn thương hiệu trung tâm cho học viên này.</p>
+          </div>
+          <CertificateIssuer
+            classId={Number(classId)}
+            studentId={Number(studentId)}
+            studentName={analyticsData?.studentName}
+          />
+        </div>
+
         {/* Tabs */}
         <div className="flex border-b border-slate-200">
           <button
