@@ -64,4 +64,23 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().status()).isEqualTo(404);
     }
+
+    @Test
+    @DisplayName("DataIntegrityViolationException maps to 409 without leaking DB constraint names")
+    void dataIntegrity_mapsTo409_noLeak() {
+        var ex = new org.springframework.dao.DataIntegrityViolationException(
+                "insert or update on \"organizations\" violates foreign key constraint \"organizations_plan_code_fkey\"");
+
+        ResponseEntity<ProblemDetail> response =
+                handler.handleDataIntegrity(ex, requestTo("/api/admin/organizations"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        ProblemDetail body = response.getBody();
+        assertThat(body).isNotNull();
+        assertThat(body.status()).isEqualTo(409);
+        assertThat(body.type()).endsWith("data-integrity");
+        // Client message must stay generic — no table/column/constraint names from the driver.
+        assertThat(body.detail()).doesNotContain("organizations_plan_code_fkey");
+        assertThat(body.detail()).doesNotContain("foreign key");
+    }
 }

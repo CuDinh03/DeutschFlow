@@ -5,6 +5,7 @@ import com.deutschflow.common.exception.RateLimitExceededException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -194,6 +195,22 @@ public class GlobalExceptionHandler {
         log.warn("[404] No handler for {} {}", request.getMethod(), request.getRequestURI());
         return problem(HttpStatus.NOT_FOUND, "endpoint-not-found", "Endpoint Not Found",
                 "The requested endpoint does not exist.", request.getRequestURI(), null, null);
+    }
+
+    // --- 409 Data integrity (FK / unique / not-null violations) ---
+    // A bad FK (e.g. an unknown organizations.plan_code) or a unique-race would otherwise bubble to
+    // handleGeneral and masquerade as a 500 "ERR-x". Map it to an honest 409 with a generic,
+    // non-leaking message (DB driver messages expose table/column/constraint names). WARN, not ERROR,
+    // so client-data conflicts don't pollute 500 alerts; the most-specific cause is logged for support.
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ProblemDetail> handleDataIntegrity(DataIntegrityViolationException ex,
+                                                             HttpServletRequest request) {
+        String errorId = "ERR-" + Long.toHexString(ERROR_SEQ.incrementAndGet()).toUpperCase();
+        log.warn("[409][{}] Data integrity violation on {}: {}", errorId, request.getRequestURI(),
+                ex.getMostSpecificCause().getMessage());
+        return problem(HttpStatus.CONFLICT, "data-integrity", "Vi phạm ràng buộc dữ liệu",
+                "Dữ liệu không hợp lệ hoặc vi phạm ràng buộc (ví dụ: mã gói không tồn tại, hoặc giá trị bị trùng). "
+                        + "Reference: " + errorId, request.getRequestURI(), null, null);
     }
 
     // --- 500 fallback ---

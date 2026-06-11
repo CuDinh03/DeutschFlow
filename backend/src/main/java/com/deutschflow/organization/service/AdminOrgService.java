@@ -77,7 +77,7 @@ public class AdminOrgService {
         Organization org = Organization.builder()
                 .name(request.name().trim())
                 .slug(slug)
-                .planCode(request.planCode())
+                .planCode(normalizePlanCode(request.planCode()))
                 .seatLimit(request.seatLimit() == null ? 0 : request.seatLimit())
                 .status(STATUS_ACTIVE)
                 .build();
@@ -129,7 +129,7 @@ public class AdminOrgService {
         }
         String previousStatus = org.getStatus();
         if (request.planCode() != null) {
-            org.setPlanCode(request.planCode());
+            org.setPlanCode(normalizePlanCode(request.planCode()));
         }
         if (request.seatLimit() != null) {
             org.setSeatLimit(request.seatLimit());
@@ -224,6 +224,19 @@ public class AdminOrgService {
      * Attaches the owner: existing user → OWNER membership; unknown email → pending invitation
      * (best-effort; failure to invite must not fail org creation).
      */
+    /**
+     * Uppercases the plan code so case-insensitive admin input ("ultra") matches the
+     * {@code subscription_plans.code} FK (codes are stored UPPERCASE: FREE/DEFAULT/PRO/ULTRA/…);
+     * blank → null (FK is nullable = "no plan"). A still-unknown non-null code is rejected by the
+     * FK and surfaced as a clean 409 by {@code GlobalExceptionHandler}, not a raw 500.
+     */
+    private static String normalizePlanCode(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        return raw.trim().toUpperCase();
+    }
+
     private void attachOwner(Long orgId, String ownerEmail) {
         if (ownerEmail == null || ownerEmail.isBlank()) {
             return;

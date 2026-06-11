@@ -1,6 +1,7 @@
 package com.deutschflow.organization.service;
 
 import com.deutschflow.common.exception.BadRequestException;
+import com.deutschflow.organization.dto.CreateOrgRequest;
 import com.deutschflow.organization.dto.OrgDto;
 import com.deutschflow.organization.dto.UpdateOrgRequest;
 import com.deutschflow.organization.entity.OrgMember;
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -81,6 +83,42 @@ class AdminOrgServiceLifecycleTest {
     private void stubActiveMembersForDto(List<OrgMember> members) {
         when(orgMemberRepository.findByIdOrgIdAndStatus(eq(ORG_ID), eq("ACTIVE")))
                 .thenReturn(members);
+    }
+
+    // ------------------------------------------------------------------ createOrganization plan-code normalization
+
+    @Test
+    @DisplayName("createOrganization: lowercase plan code is upper-cased so it matches the subscription_plans FK")
+    void createOrganization_lowercasePlanCode_normalizedToUpper() {
+        when(organizationRepository.existsBySlug("atb-center")).thenReturn(false);
+        ArgumentCaptor<Organization> captor = ArgumentCaptor.forClass(Organization.class);
+        when(organizationRepository.save(captor.capture())).thenAnswer(i -> {
+            Organization o = i.getArgument(0);
+            o.setId(ORG_ID);
+            return o;
+        });
+        stubActiveMembersForDto(List.of());
+
+        service.createOrganization(new CreateOrgRequest("ATB", "atb-center", "ultra", 100, null));
+
+        assertThat(captor.getValue().getPlanCode()).isEqualTo("ULTRA");
+    }
+
+    @Test
+    @DisplayName("createOrganization: blank plan code → null (no empty-string FK violation)")
+    void createOrganization_blankPlanCode_null() {
+        when(organizationRepository.existsBySlug(anyString())).thenReturn(false);
+        ArgumentCaptor<Organization> captor = ArgumentCaptor.forClass(Organization.class);
+        when(organizationRepository.save(captor.capture())).thenAnswer(i -> {
+            Organization o = i.getArgument(0);
+            o.setId(ORG_ID);
+            return o;
+        });
+        stubActiveMembersForDto(List.of());
+
+        service.createOrganization(new CreateOrgRequest("ATB", "atb-2", "   ", 0, null));
+
+        assertThat(captor.getValue().getPlanCode()).isNull();
     }
 
     // ------------------------------------------------------------------ ACTIVE -> SUSPENDED
