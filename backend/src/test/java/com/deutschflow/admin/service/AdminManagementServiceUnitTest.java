@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 @ExtendWith(MockitoExtension.class)
 class AdminManagementServiceUnitTest {
     @Mock org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+    @Mock DemoDataFilter demoDataFilter;
     @Mock com.deutschflow.user.repository.UserRepository userRepository;
     @Mock com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     @Mock com.deutschflow.common.telemetry.ApiTelemetryService apiTelemetryService;
@@ -34,6 +35,13 @@ class AdminManagementServiceUnitTest {
 
     @InjectMocks
     AdminManagementService service;
+
+    @org.junit.jupiter.api.BeforeEach
+    void armDemoFilter() {
+        // Pre-arm the demo-exclusion clause so COGS tests added to this class later don't NPE on
+        // "...%s...".formatted(null). lenient() because the construction smoke test doesn't call it.
+        org.mockito.Mockito.lenient().when(demoDataFilter.andExcludeDemo()).thenReturn("");
+    }
 
     @Test
     void serviceConstructedWithMocks() {

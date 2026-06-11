@@ -213,6 +213,12 @@ app:
     pptx-daily: ${FREE_TIER_PPTX_DAILY:2}
     ocr-daily: ${FREE_TIER_OCR_DAILY:5}
 
+  # Giữ hoạt động demo bán hàng (org sandbox, email @deutschflow-demo.com) ra khỏi
+  # COGS/unit-economics tổng hợp để không làm lệch số liệu định giá (checklist next-step #3).
+  analytics:
+    exclude-demo-data: ${ANALYTICS_EXCLUDE_DEMO_DATA:true}
+    demo-email-domain: ${ANALYTICS_DEMO_EMAIL_DOMAIN:@deutschflow-demo.com}
+
   auth:
     # Brute-force / abuse guard cho auth endpoints (in-memory sliding window, per node).
     # Bộ đếm nằm trong RAM → restart/redeploy backend sẽ xoá hết (cách gỡ khoá nhanh nhất).

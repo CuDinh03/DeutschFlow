@@ -25,6 +25,7 @@ public class AdminAnalyticsService {
     private final PaymentTransactionRepository paymentRepo;
     private final JdbcTemplate jdbcTemplate;
     private final AiCostEstimator aiCostEstimator;
+    private final DemoDataFilter demoDataFilter;
 
     public AdminRevenueAnalyticsResponse getRevenueAnalytics(int page, int size) {
         // 1. Get Monthly Aggregated Data
@@ -105,6 +106,8 @@ public class AdminAnalyticsService {
      * Months with no ledger rows are simply absent (caller defaults them to 0).
      */
     private Map<String, Long> aiCostVndByMonth() {
+        // Demo-org activity is excluded so it doesn't inflate the per-month AI COGS that drives
+        // net/margin reporting (see DemoDataFilter). All-time query → WHERE-form of the clause.
         List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
                 SELECT
                     TO_CHAR(created_at AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM') AS period,
@@ -112,8 +115,9 @@ public class AdminAnalyticsService {
                     SUM(prompt_tokens)::bigint                                      AS prompt_tokens,
                     SUM(completion_tokens)::bigint                                  AS completion_tokens
                 FROM ai_token_usage_events
+                %s
                 GROUP BY 1, 2
-                """);
+                """.formatted(demoDataFilter.whereExcludeDemo()));
 
         Map<String, Double> usdByMonth = new HashMap<>();
         for (Map<String, Object> row : rows) {
