@@ -8,9 +8,10 @@ import { TeacherShell } from '@/components/layouts/TeacherShell'
 import { usePendingGradingCount } from '@/hooks/usePendingGradingCount'
 import { GradingQueueCard, type GradingQueueItem } from '@/components/teacher/GradingQueueCard'
 import { GradingPanel } from '@/components/teacher/GradingPanel'
+import Link from 'next/link'
 import {
   ClipboardCheck, Loader2, Filter, RefreshCw,
-  CheckCircle2, Clock, BarChart2, ChevronDown
+  CheckCircle2, Clock, BarChart2, ChevronDown, ScanText
 } from 'lucide-react'
 
 interface GradingStats {
@@ -116,6 +117,23 @@ export default function TeacherGradingPage() {
       headerSubtitle="Chấm điểm tất cả bài nộp từ các lớp học của bạn"
     >
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+
+        {/* Handwriting OCR grading entry */}
+        <Link
+          href="/teacher/grade-image"
+          className="flex items-center justify-between gap-3 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-white px-5 py-4 shadow-sm transition hover:border-indigo-300 hover:shadow-md"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
+              <ScanText size={20} />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-slate-800">Chấm ảnh bài viết tay</p>
+              <p className="text-xs text-slate-500">Chụp bài viết tay của học viên — AI đọc chữ và chấm điểm</p>
+            </div>
+          </div>
+          <ChevronDown size={18} className="-rotate-90 text-slate-400" />
+        </Link>
 
         {/* Stats row */}
         {stats && (
