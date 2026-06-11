@@ -128,7 +128,10 @@ public class SprechenTeil2Service {
 
         try {
             var messages = List.of(new ChatMessage("user", prompt));
-            var response = chatClient.chatCompletion(messages, "json_object", 0.3, 1000);
+            // model = null → use the configured default speaking model (app.ai.groq.model).
+            // JSON output is already forced by GroqChatClient's response_format; passing
+            // "json_object" here would be sent as the MODEL name → Groq HTTP 400 (same family as #94).
+            var response = chatClient.chatCompletion(messages, null, 0.3, 1000);
             return objectMapper.readValue(response.content(), Map.class);
         } catch (Exception e) {
             log.error("Failed to evaluate Sprechen Teil 2 Turn", e);
@@ -152,7 +155,8 @@ public class SprechenTeil2Service {
 
         try {
             var messages = List.of(new ChatMessage("user", prompt));
-            var response = chatClient.chatCompletion(messages, "json_object", 0.5, 500);
+            // model = null → default speaking model (app.ai.groq.model). See note in evaluateTurn.
+            var response = chatClient.chatCompletion(messages, null, 0.5, 500);
             Map<String, String> res = objectMapper.readValue(response.content(), Map.class);
             return res.get("question");
         } catch (Exception e) {
