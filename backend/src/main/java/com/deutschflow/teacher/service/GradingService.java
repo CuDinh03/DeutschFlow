@@ -43,13 +43,8 @@ public class GradingService {
     private final UserNotificationService userNotificationService;
     private final OpenAiChatClient openAiChatClient;
     private final AiUsageLedgerService aiUsageLedgerService;
-
-    /**
-     * Model riêng cho chấm bài (tách khỏi model speaking real-time). Mặc định {@code llama-3.3-70b-versatile}
-     * — chấm chuẩn hơn scout-17B; đo/so sánh qua {@code /api/admin/grading-eval}. Đổi bằng env {@code GROQ_GRADING_MODEL}.
-     */
-    @org.springframework.beans.factory.annotation.Value("${app.ai.groq.grading-model:llama-3.3-70b-versatile}")
-    private String gradingModel;
+    /** Model chấm bài (tách hẳn model nói) — xem {@link GradingModelConfig}. */
+    private final GradingModelConfig gradingModelConfig;
 
     /**
      * Lấy toàn bộ bài nộp cần chấm (status=SUBMITTED) thuộc các lớp của giáo viên.
@@ -287,7 +282,7 @@ public class GradingService {
      * sự thật DUY NHẤT cho cả chấm bài-tập (async) và lead-magnet "chấm thử miễn phí" public.
      */
     public EssayGrade gradeGermanEssay(String topic, String content) {
-        return gradeGermanEssay(topic, content, gradingModel);
+        return gradeGermanEssay(topic, content, gradingModelConfig.model());
     }
 
     /**
