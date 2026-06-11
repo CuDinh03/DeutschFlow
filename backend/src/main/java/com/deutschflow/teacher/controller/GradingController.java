@@ -1,18 +1,23 @@
 package com.deutschflow.teacher.controller;
 
+import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.organization.service.OrgPoolGuard;
+import com.deutschflow.teacher.dto.GradeImageResponse;
 import com.deutschflow.teacher.dto.TeacherSessionEvaluationRequest;
 import com.deutschflow.teacher.entity.StudentAssignment;
 import com.deutschflow.teacher.repository.StudentAssignmentRepository;
 import com.deutschflow.teacher.repository.ClassTeacherRepository;
 import com.deutschflow.teacher.repository.ClassStudentRepository;
 import com.deutschflow.teacher.service.GradingService;
+import com.deutschflow.teacher.service.HandwritingOcrService;
 import com.deutschflow.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -27,6 +32,18 @@ public class GradingController {
     private final StudentAssignmentRepository studentAssignmentRepository;
     private final ClassTeacherRepository classTeacherRepository;
     private final ClassStudentRepository classStudentRepository;
+    private final HandwritingOcrService handwritingOcrService;
+    private final OrgPoolGuard orgPoolGuard;
+
+    /**
+     * Ước lượng token cho 1 lần AI chấm bài viết (essay + rubric vào, ~800 token feedback ra) —
+     * dùng hard-cap pool token cấp-org trước khi khởi chạy job chấm async.
+     */
+    private static final long GRADING_ESTIMATED_TOKENS = 2_000L;
+
+    private static final long MAX_IMAGE_SIZE = 10L * 1024 * 1024; // 10MB
+    /** Ước lượng token chấm-ảnh (Gemini vision OCR + 70B chấm) — hard-cap pool token cấp-org. */
+    private static final long IMAGE_GRADE_ESTIMATED_TOKENS = 10_000L;
 
     /**
      * GET /api/v2/teacher/grading/queue
@@ -83,7 +100,38 @@ public class GradingController {
             return ResponseEntity.status(403).body(Map.of("error", "Bạn không có quyền chấm bài này"));
         }
 
+        // Hard-cap pool token cấp-org trước khi kích hoạt AI chấm (429 nếu org hết ngân sách).
+        orgPoolGuard.assertOrgPoolAvailable(teacher.getId(), GRADING_ESTIMATED_TOKENS);
+
         gradingService.aiGradeAssignment(submissionId, teacher.getId());
         return ResponseEntity.ok(Map.of("message", "AI đang chấm bài, vui lòng chờ vài giây"));
+    }
+
+    /**
+     * POST /api/v2/teacher/grading/grade-image  (multipart: file [, topic])
+     * Chấm ảnh bài viết TAY (D2): ảnh → Gemini OCR → chấm bằng model chấm → trả chữ + điểm + nhận xét.
+     * Đồng bộ (giáo viên chờ vài giây). Trả về transcription để GV rà lại trước khi chốt.
+     */
+    @PostMapping(value = "/grade-image", consumes = "multipart/form-data")
+    public GradeImageResponse gradeImage(@AuthenticationPrincipal User teacher,
+                                         @RequestParam("file") MultipartFile file,
+                                         @RequestParam(value = "topic", required = false) String topic) {
+        if (file == null || file.isEmpty()) {
+            throw new BadRequestException("Chưa chọn ảnh bài viết.");
+        }
+        if (file.getSize() > MAX_IMAGE_SIZE) {
+            throw new BadRequestException("Ảnh quá lớn. Tối đa 10MB.");
+        }
+        // Hard-cap pool token cấp-org (chấm-ảnh đắt: Gemini vision + 70B) — dùng chung OrgPoolGuard.
+        // B2C/non-org/pool=0 luôn qua.
+        orgPoolGuard.assertOrgPoolAvailable(teacher.getId(), IMAGE_GRADE_ESTIMATED_TOKENS);
+
+        byte[] bytes;
+        try {
+            bytes = file.getBytes();
+        } catch (java.io.IOException e) {
+            throw new BadRequestException("Không đọc được ảnh.");
+        }
+        return handwritingOcrService.ocrAndGrade(bytes, file.getContentType(), topic);
     }
 }

@@ -268,6 +268,10 @@ app:
       # Optional: only for AI_CHAT_PROVIDER=groq and/or speech-to-text (Whisper).
       api-key: ${GROQ_API_KEY:}
       model: ${GROQ_MODEL:meta-llama/llama-4-scout-17b-16e-instruct}
+      # Model riêng cho CHẤM BÀI (Schreiben + Sprechen + lead-magnet) — TÁCH HẲN `model` ở trên
+      # (speaking real-time cần tốc độ scout-17B). 70B chấm chuẩn hơn ở ngữ pháp/từ vựng; mọi luồng
+      # chấm đọc qua GradingModelConfig. Đo bằng /api/admin/grading-eval rồi tinh chỉnh.
+      grading-model: ${GROQ_GRADING_MODEL:llama-3.3-70b-versatile}
       whisper-model: ${GROQ_WHISPER_MODEL:whisper-large-v3}
       # Concurrency caps (fair semaphores). Free tier ~30 RPM: chat 3–4; paid/Dev ~10–20 CCU: chat 6–8, whisper 4–6.
       max-concurrent-chat-requests: ${GROQ_MAX_CONCURRENT_CHAT:5}

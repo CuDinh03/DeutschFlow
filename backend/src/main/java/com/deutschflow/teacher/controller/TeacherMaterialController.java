@@ -3,6 +3,7 @@ package com.deutschflow.teacher.controller;
 import com.deutschflow.common.async.AsyncJob;
 import com.deutschflow.common.async.AsyncJobService;
 import com.deutschflow.common.exception.ForbiddenException;
+import com.deutschflow.organization.service.OrgPoolGuard;
 import com.deutschflow.teacher.service.DocumentParsingService;
 import com.deutschflow.teacher.service.PptxStore;
 import com.deutschflow.teacher.service.TeacherLessonPlanService;
@@ -37,8 +38,16 @@ public class TeacherMaterialController {
     private final AsyncJobService asyncJobService;
     private final com.deutschflow.common.async.AsyncJobSseService asyncJobSseService;
     private final PptxStore pptxStore;
+    private final OrgPoolGuard orgPoolGuard;
 
     private static final long MAX_FILE_SIZE = 20L * 1024 * 1024; // 20MB
+
+    /**
+     * Ước lượng token cho 1 lần tạo PPTX (Gemini multimodal đọc tài liệu + sinh slide) —
+     * dùng để hard-cap pool token cấp-org TRƯỚC khi chạy job async. Tính nhỉnh để bảo vệ
+     * biên lợi nhuận: PPTX là tính năng AI đắt nhất và không đi qua QuotaService như speaking.
+     */
+    private static final long PPTX_ESTIMATED_TOKENS = 40_000L;
 
     @PostMapping("/generate-pptx")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
@@ -58,6 +67,10 @@ public class TeacherMaterialController {
                 return ResponseEntity.badRequest().body(Map.of("error", "Chỉ hỗ trợ định dạng PDF và DOCX."));
             }
         }
+
+        // Hard-cap pool token cấp-org: chặn (429) tạo PPTX khi tổ chức đã dùng hết ngân sách
+        // token AI tháng này. Giáo viên B2C / org chưa cấu hình pool luôn được cho qua.
+        orgPoolGuard.assertOrgPoolAvailable(user != null ? user.getId() : null, PPTX_ESTIMATED_TOKENS);
 
         try {
             String mimeType = documentParsingService.determineMimeType(file);

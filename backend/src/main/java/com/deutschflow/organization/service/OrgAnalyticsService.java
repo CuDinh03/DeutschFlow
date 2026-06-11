@@ -33,6 +33,8 @@ public class OrgAnalyticsService {
         long teacherCount = countMembers(orgId, "TEACHER");
         long classCount = countClasses(orgId);
         long tokensThisMonth = tokensThisMonth(orgId);
+        long monthlyTokenPool = orgQuotaService.monthlyPool(orgId);
+        int poolUsagePercent = OrgQuotaService.usagePercent(monthlyTokenPool, tokensThisMonth);
         long activeStudents7d = activeStudents7d(orgId);
         List<CefrBucket> cefrDistribution = cefrDistribution(orgId);
 
@@ -41,6 +43,8 @@ public class OrgAnalyticsService {
                 teacherCount,
                 classCount,
                 tokensThisMonth,
+                monthlyTokenPool,
+                poolUsagePercent,
                 activeStudents7d,
                 cefrDistribution);
     }

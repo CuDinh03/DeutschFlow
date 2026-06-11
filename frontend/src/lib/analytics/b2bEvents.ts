@@ -27,13 +27,18 @@ export const B2B_EVENT = {
   /**
    * Org AI token pool crossed 80% of its monthly limit.
    *
-   * DEFERRED to GĐ2 / checklist D1 (token-pool enforcement): the org-side
-   * analytics response currently exposes `tokensThisMonth` (used) but NOT the
-   * pool limit, so an honest 80% threshold can't be computed client-side yet.
-   * Wire this when the pool limit is plumbed through org analytics alongside
-   * the QuotaService pool check.
+   * Wired (checklist D1): `GET /org/analytics` now returns `monthlyTokenPool`
+   * and `poolUsagePercent`, so the org dashboard fires this once per view when
+   * the org has a configured pool (`monthlyTokenPool > 0`) and has consumed
+   * `>= 80%` of it. Mirrors the backend `OrgQuotaService` 80% warn and the PPTX
+   * hard-cap that enforces the pool ceiling.
    */
   TOKEN_POOL_THRESHOLD_80: 'token_pool_threshold_80',
+  /**
+   * Public lead magnet: a visitor submitted a Schreiben B1 essay for a free AI
+   * grade and left a contact (checklist C8). Top-of-funnel acquisition signal.
+   */
+  LEAD_MAGNET_SUBMITTED: 'lead_magnet_submitted',
 } as const
 
 export type B2bEventName = (typeof B2B_EVENT)[keyof typeof B2B_EVENT]

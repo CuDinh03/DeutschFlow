@@ -2,19 +2,32 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2, Receipt } from 'lucide-react'
+import { Loader2, Receipt, Sparkles, BadgeCheck } from 'lucide-react'
 import { OrgShell } from '@/components/layouts/OrgShell'
 import { logout } from '@/lib/authSession'
 import { httpStatus } from '@/lib/api'
 import { toastApiError } from '@/lib/toastApiError'
 import { useUserStore } from '@/stores/useUserStore'
-import { listMyInvoices, type OrgInvoice, type InvoiceStatus } from '@/lib/orgApi'
+import {
+  listMyInvoices,
+  getOrgSummary,
+  getAnalytics,
+  type OrgInvoice,
+  type InvoiceStatus,
+  type OrgSummary,
+  type OrgAnalytics,
+} from '@/lib/orgApi'
+
+/** Token-pool usage % that flags the org as near/over its monthly AI budget. */
+const POOL_ALERT_PERCENT = 80
 
 export default function OrgBillingClientPage() {
   const router = useRouter()
   const user = useUserStore((s) => s.user)
 
   const [invoices, setInvoices] = useState<OrgInvoice[]>([])
+  const [summary, setSummary] = useState<OrgSummary | null>(null)
+  const [analytics, setAnalytics] = useState<OrgAnalytics | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -22,8 +35,14 @@ export default function OrgBillingClientPage() {
     setLoading(true)
     setError(null)
     try {
-      const rows = await listMyInvoices()
+      const [rows, summaryData, analyticsData] = await Promise.all([
+        listMyInvoices(),
+        getOrgSummary(),
+        getAnalytics(),
+      ])
       setInvoices(rows)
+      setSummary(summaryData)
+      setAnalytics(analyticsData)
     } catch (e) {
       if (httpStatus(e) === 401) {
         router.push('/login')
@@ -68,6 +87,14 @@ export default function OrgBillingClientPage() {
       headerSubtitle="Lịch sử hóa đơn của tổ chức"
     >
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+        {/* Current plan + AI token pool/usage (read-only) */}
+        {(summary || analytics) && (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <PlanCard summary={summary} />
+            <TokenPoolCard analytics={analytics} />
+          </div>
+        )}
+
         <p className="text-sm text-slate-500">
           {invoices.length > 0
             ? `Tổ chức có ${invoices.length} hóa đơn`
@@ -133,6 +160,79 @@ export default function OrgBillingClientPage() {
         )}
       </div>
     </OrgShell>
+  )
+}
+
+function PlanCard({ summary }: { summary: OrgSummary | null }) {
+  const planCode = summary?.planCode
+  const seatLimit = summary?.seatLimit ?? 0
+  const seatUsed = summary?.seatUsed ?? 0
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="absolute right-4 top-4 text-indigo-200">
+        <BadgeCheck size={36} />
+      </div>
+      <p className="mb-1 text-sm font-bold uppercase tracking-wider text-indigo-500">Gói hiện tại</p>
+      <p className="text-3xl font-black text-slate-800">
+        {planCode ? planCode : 'Chưa có gói'}
+      </p>
+      <p className="mt-2 text-xs text-slate-500">
+        {seatLimit > 0
+          ? `Ghế học viên: ${seatUsed} / ${seatLimit}`
+          : `Ghế học viên: ${seatUsed} · chưa giới hạn`}
+      </p>
+    </div>
+  )
+}
+
+function TokenPoolCard({ analytics }: { analytics: OrgAnalytics | null }) {
+  const used = analytics?.tokensThisMonth ?? 0
+  const pool = analytics?.monthlyTokenPool ?? 0
+  const hasPool = pool > 0
+  const pct = analytics?.poolUsagePercent ?? 0
+  const remaining = hasPool ? Math.max(0, pool - used) : 0
+  const barWidth = hasPool ? Math.min(100, pct) : 8
+  const tone =
+    !hasPool ? 'from-indigo-400 to-violet-500' :
+    pct >= 100 ? 'from-rose-500 to-red-600' :
+    pct >= POOL_ALERT_PERCENT ? 'from-amber-400 to-orange-500' :
+    'from-indigo-400 to-violet-500'
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-white p-6 shadow-sm">
+      <div className="absolute right-4 top-4 text-indigo-200">
+        <Sparkles size={36} />
+      </div>
+      <p className="mb-1 text-sm font-bold uppercase tracking-wider text-indigo-500">
+        Token AI tháng này
+      </p>
+      <p className="text-3xl font-black text-slate-800">
+        {used.toLocaleString('vi-VN')}
+        {hasPool && (
+          <span className="ml-1 text-base font-bold text-slate-400">
+            / {pool.toLocaleString('vi-VN')}
+          </span>
+        )}
+      </p>
+      {hasPool ? (
+        <>
+          <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+            <div
+              className={`h-full rounded-full bg-gradient-to-r ${tone} transition-all`}
+              style={{ width: `${barWidth}%` }}
+            />
+          </div>
+          <div className="mt-2 flex items-center justify-between text-xs">
+            <span className={`font-semibold ${pct >= POOL_ALERT_PERCENT ? 'text-amber-600' : 'text-slate-500'}`}>
+              Đã dùng {pct}%
+            </span>
+            <span className="text-slate-500">Còn lại {remaining.toLocaleString('vi-VN')}</span>
+          </div>
+        </>
+      ) : (
+        <p className="mt-2 text-xs text-slate-500">Chưa cấu hình hạn mức (không giới hạn).</p>
+      )}
+    </div>
   )
 }
 

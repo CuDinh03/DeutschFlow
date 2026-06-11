@@ -40,6 +40,10 @@ public class TeacherController {
     private final com.deutschflow.teacher.service.GradingService gradingService;
     private final com.deutschflow.teacher.repository.StudentAssignmentRepository assignmentRepository;
     private final com.deutschflow.teacher.repository.ClassStudentRepository classStudentRepository;
+    private final com.deutschflow.organization.service.OrgPoolGuard orgPoolGuard;
+
+    /** Ước lượng token cho 1 lần AI chấm bài — hard-cap pool token cấp-org (xem GradingController). */
+    private static final long GRADING_ESTIMATED_TOKENS = 2_000L;
 
     @PostMapping("/classes")
     public ResponseEntity<TeacherClassDto> createClass(@AuthenticationPrincipal User user, @RequestBody Map<String, String> payload) {
@@ -264,6 +268,9 @@ public class TeacherController {
         if (!hasAccess) {
             return ResponseEntity.status(403).body(Map.of("error", "Bạn không có quyền chấm bài này"));
         }
+
+        // Hard-cap pool token cấp-org trước khi kích hoạt AI chấm (429 nếu org hết ngân sách).
+        orgPoolGuard.assertOrgPoolAvailable(user.getId(), GRADING_ESTIMATED_TOKENS);
 
         gradingService.aiGradeAssignment(assignmentId, user.getId());
         return ResponseEntity.ok(Map.of("message", "AI đang chấm bài, vui lòng chờ vài giây"));

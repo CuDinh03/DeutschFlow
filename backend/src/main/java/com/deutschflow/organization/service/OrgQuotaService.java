@@ -79,7 +79,24 @@ public class OrgQuotaService {
         if (pool <= 0L) {
             return false; // pool chưa cấu hình → bỏ qua truy vấn SUM tốn kém
         }
-        return exceeds(orgId, pool, orgUsageThisMonth(orgId), estimatedTokens);
+        long used = orgUsageThisMonth(orgId);
+        maybeAlert80(orgId, pool, used, estimatedTokens);
+        return exceeds(orgId, pool, used, estimatedTokens);
+    }
+
+    /**
+     * Cảnh báo server-side khi org vừa CHẠM ngưỡng {@value #POOL_ALERT_PERCENT}% pool
+     * (used dưới ngưỡng nhưng used + ước lượng vượt ngưỡng) — log một lần quanh thời điểm
+     * vượt thay vì mỗi request. Frontend bắn {@code token_pool_threshold_80} cho PostHog;
+     * log này là kênh ops/alert tương ứng phía backend.
+     */
+    private void maybeAlert80(Long orgId, long pool, long used, long estimatedTokens) {
+        long threshold = (pool * POOL_ALERT_PERCENT) / 100L;
+        long projected = used + Math.max(estimatedTokens, 0L);
+        if (used < threshold && projected >= threshold) {
+            log.warn("Org token pool alert: orgId={} đã đạt ~{}% pool (used={}, pool={})",
+                    orgId, usagePercent(pool, projected), projected, pool);
+        }
     }
 
     /** Pure decision (tách để test không cần mock JDBC). */
@@ -88,5 +105,30 @@ public class OrgQuotaService {
             return false;
         }
         return used + Math.max(estimatedTokens, 0L) > pool;
+    }
+
+    /** Ngưỡng cảnh báo "sắp hết pool" — bắn alert/log khi org chạm mức này. */
+    public static final int POOL_ALERT_PERCENT = 80;
+
+    /**
+     * % pool đã tiêu thụ trong tháng (0 khi pool {@code <= 0} = không giới hạn).
+     * Có thể {@code > 100} khi đã vượt pool — caller tự clamp cho thanh tiến độ.
+     */
+    static int usagePercent(long pool, long used) {
+        if (pool <= 0L) {
+            return 0;
+        }
+        long clampedUsed = Math.max(used, 0L);
+        return (int) Math.min(Integer.MAX_VALUE, (clampedUsed * 100L) / pool);
+    }
+
+    /** % pool đã dùng của org (đọc DB). 0 nếu org không có pool. */
+    @Transactional(readOnly = true)
+    public int usagePercent(Long orgId) {
+        long pool = monthlyPool(orgId);
+        if (pool <= 0L) {
+            return 0;
+        }
+        return usagePercent(pool, orgUsageThisMonth(orgId));
     }
 }

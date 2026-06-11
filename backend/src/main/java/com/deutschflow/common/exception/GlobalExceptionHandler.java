@@ -168,6 +168,15 @@ public class GlobalExceptionHandler {
                 .body(body);
     }
 
+    // --- 503 — upstream AI provider unavailable / returned nothing usable ---
+    @ExceptionHandler(com.deutschflow.speaking.exception.AiServiceException.class)
+    public ResponseEntity<ProblemDetail> handleAiServiceUnavailable(
+            com.deutschflow.speaking.exception.AiServiceException ex,
+            HttpServletRequest request) {
+        return problem(HttpStatus.SERVICE_UNAVAILABLE, "ai-unavailable", "AI Service Unavailable",
+                ex.getMessage(), request.getRequestURI(), null, null);
+    }
+
     // --- 401/403 — let Spring Security handle these, do NOT swallow them ---
     @ExceptionHandler({AccessDeniedException.class, AuthenticationException.class})
     public void rethrowSecurityExceptions(RuntimeException ex) throws RuntimeException {
