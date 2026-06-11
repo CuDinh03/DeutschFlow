@@ -137,6 +137,13 @@ sentry:
     minimum-event-level: error
     minimum-breadcrumb-level: info
 
+# Inject the per-request correlation id (set in ApiTelemetryFilter's MDC) into every log line.
+# Uses Spring Boot's level-pattern hook so the rest of the default console/file layout is untouched
+# (and the Sentry logback appender keeps working). Logs now read: "... INFO [<requestId>] ...".
+logging:
+  pattern:
+    level: "%5p [%X{requestId:-}]"
+
 server:
   port: ${SERVER_PORT:8080}
   # graceful = Tomcat waits for active requests to finish before closing;
@@ -171,6 +178,16 @@ app:
   # held a DB connection on every call and starved the Hikari pool). Tune the flush cadence here.
   telemetry:
     flush-interval-ms: ${APP_TELEMETRY_FLUSH_INTERVAL_MS:5000}
+  # Nightly purge of unbounded event tables (DataRetentionJob). Keeps telemetry/xp/token-ledger from
+  # growing without limit (slows queries + fills RDS storage). Batched deletes, off-peak 03:30.
+  retention:
+    enabled: ${APP_RETENTION_ENABLED:true}
+    cron: ${APP_RETENTION_CRON:0 30 3 * * *}
+    telemetry-days: ${APP_RETENTION_TELEMETRY_DAYS:30}
+    xp-days: ${APP_RETENTION_XP_DAYS:180}
+    token-usage-days: ${APP_RETENTION_TOKEN_DAYS:90}
+    batch-size: ${APP_RETENTION_BATCH_SIZE:5000}
+    max-rows-per-run: ${APP_RETENTION_MAX_ROWS_PER_RUN:500000}
   cache:
     # Redis L2 cache tier (Caffeine L1 + Redis L2). OFF by default → Caffeine-only. We gate on this
     # explicit flag rather than on spring.data.redis.host (which defaults to localhost, so it's always

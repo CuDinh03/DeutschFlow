@@ -165,6 +165,8 @@ deutschflow-key.pem
 *-credentials.json
 deutschflow-*.json
 google-sa.json
+# …but Grafana dashboards (committed infra config, no secrets) are an exception to the broad rule above
+!docker/grafana/provisioning/dashboards/deutschflow-*.json
 
 # Local test database — never commit
 test.db

@@ -7,6 +7,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.MDC;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -41,6 +42,9 @@ public class ApiTelemetryFilter extends OncePerRequestFilter {
         String requestId = resolveRequestId(request);
         response.setHeader("X-Request-Id", requestId);
         request.setAttribute("requestId", requestId);
+        // Expose the correlation id to every log line emitted during this request (see
+        // logging.pattern.level). Cleared in finally so a pooled thread never leaks it.
+        MDC.put("requestId", requestId);
 
         try {
             filterChain.doFilter(request, response);
@@ -66,6 +70,7 @@ public class ApiTelemetryFilter extends OncePerRequestFilter {
                     latencyMs,
                     isError
             ));
+            MDC.remove("requestId");
         }
     }
 
