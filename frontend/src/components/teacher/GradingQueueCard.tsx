@@ -40,6 +40,11 @@ const typeConfig: Record<string, { label: string; color: string; icon: React.Rea
     color: 'bg-blue-100 text-blue-700 border-blue-200',
     icon: <PenLine size={13} />,
   },
+  WRITING: {
+    label: 'Viết (Schreiben)',
+    color: 'bg-sky-100 text-sky-700 border-sky-200',
+    icon: <PenLine size={13} />,
+  },
   MOCK_TEST: {
     label: 'Thi thử',
     color: 'bg-amber-100 text-amber-700 border-amber-200',

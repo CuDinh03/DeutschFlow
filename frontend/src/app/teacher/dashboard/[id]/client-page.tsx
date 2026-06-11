@@ -12,7 +12,7 @@ import { listMedia, MediaAsset } from "@/lib/mediaApi";
 import { ImageUploader } from "@/components/ui/ImageUploader";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Users, BarChart2, BookOpen, AlertCircle, TrendingUp, Plus, Trophy, Trash2, FileBarChart, Mail, Pencil, Check, X, ChevronDown, ChevronUp, Clock, CheckCircle2, FileText, ExternalLink, Loader2 } from "lucide-react";
+import { Users, BarChart2, BookOpen, AlertCircle, TrendingUp, Plus, Trophy, Trash2, FileBarChart, Mail, Pencil, Check, X, ChevronDown, ChevronUp, Clock, CheckCircle2, FileText, ExternalLink, Loader2, RefreshCw } from "lucide-react";
 import { getErrorSnippet } from "@/lib/errors/errorTaxonomy";
 import { useTracking } from "@/hooks/useTracking";
 import { B2B_EVENT } from "@/lib/analytics/b2bEvents";
@@ -149,6 +149,9 @@ export default function ClassDetailPage() {
   const [expandedAssignmentId, setExpandedAssignmentId] = useState<number | null>(null);
   const [submissionsMap, setSubmissionsMap] = useState<Record<number, AssignmentSubmission[]>>({});
   const [submissionsLoading, setSubmissionsLoading] = useState<Record<number, boolean>>({});
+  // Track load failures per-assignment so a 503/timeout shows a retryable error
+  // instead of silently falling through to the "no students" empty state.
+  const [submissionsError, setSubmissionsError] = useState<Record<number, boolean>>({});
 
   // Grading panel
   const [gradingItem, setGradingItem] = useState<GradingQueueItem | null>(null);
@@ -345,13 +348,11 @@ export default function ClassDetailPage() {
     }
   };
 
-  const toggleAssignmentSubmissions = async (assignmentId: number) => {
-    if (expandedAssignmentId === assignmentId) {
-      setExpandedAssignmentId(null);
-      return;
-    }
-    setExpandedAssignmentId(assignmentId);
-    if (submissionsMap[assignmentId]) return; // already loaded
+  // Fetch (or re-fetch) the submission list for one assignment. Records a failure flag
+  // so the UI can show a retry affordance — under DB-pool pressure this endpoint can
+  // 503/timeout, and silently swallowing that made graded work look like it vanished.
+  const loadSubmissions = async (assignmentId: number) => {
+    setSubmissionsError(prev => ({ ...prev, [assignmentId]: false }));
     setSubmissionsLoading(prev => ({ ...prev, [assignmentId]: true }));
     try {
       const res = await api.get<AssignmentSubmission[]>(
@@ -360,9 +361,20 @@ export default function ClassDetailPage() {
       setSubmissionsMap(prev => ({ ...prev, [assignmentId]: res.data || [] }));
     } catch (e) {
       console.error(e);
+      setSubmissionsError(prev => ({ ...prev, [assignmentId]: true }));
     } finally {
       setSubmissionsLoading(prev => ({ ...prev, [assignmentId]: false }));
     }
+  };
+
+  const toggleAssignmentSubmissions = (assignmentId: number) => {
+    if (expandedAssignmentId === assignmentId) {
+      setExpandedAssignmentId(null);
+      return;
+    }
+    setExpandedAssignmentId(assignmentId);
+    if (submissionsMap[assignmentId]) return; // already loaded successfully
+    void loadSubmissions(assignmentId);
   };
 
   const handleRemoveStudent = async (studentId: number, studentName: string) => {    if (!confirm(`Bạn chắc chắn muốn xóa học viên "${studentName}" khỏi lớp?`)) return;
@@ -683,7 +695,7 @@ export default function ClassDetailPage() {
                   {assignments.slice(0, 5).map(a => {
                     const typeLabels: Record<string, string> = {
                       GENERAL: 'Bài tập chung', SPEAKING_SCENARIO: 'Luyện Nói AI',
-                      ESSAY: 'Viết luận', MOCK_TEST: 'Thi thử',
+                      ESSAY: 'Viết luận', WRITING: 'Viết (Schreiben)', MOCK_TEST: 'Thi thử',
                       VOCABULARY: 'Từ vựng', GRAMMAR: 'Ngữ pháp',
                     };
                     return (
@@ -1176,6 +1188,7 @@ export default function ClassDetailPage() {
                     const isExpanded = expandedAssignmentId === assignment.id;
                     const subs = submissionsMap[assignment.id] ?? [];
                     const isLoadingSubs = submissionsLoading[assignment.id] ?? false;
+                    const hasSubsError = submissionsError[assignment.id] ?? false;
                     const submittedCount = subs.filter(s => s.status === 'SUBMITTED').length;
                     const gradedCount = subs.filter(s => s.status === 'GRADED' || s.status === 'EVALUATED').length;
                     const notSubmittedCount = subs.filter(s => s.status === 'NOT_SUBMITTED' || s.status === 'PENDING').length;
@@ -1183,7 +1196,7 @@ export default function ClassDetailPage() {
 
                     const typeLabels: Record<string, string> = {
                       GENERAL: 'Bài tập chung', SPEAKING_SCENARIO: 'Luyện Nói AI',
-                      ESSAY: 'Viết luận', MOCK_TEST: 'Thi thử',
+                      ESSAY: 'Viết luận', WRITING: 'Viết (Schreiben)', MOCK_TEST: 'Thi thử',
                       VOCABULARY: 'Từ vựng', GRAMMAR: 'Ngữ pháp',
                     };
 
@@ -1260,6 +1273,19 @@ export default function ClassDetailPage() {
                               <div className="flex items-center justify-center py-8 gap-2 text-slate-400">
                                 <Loader2 size={18} className="animate-spin" />
                                 <span className="text-sm">Đang tải danh sách nộp bài...</span>
+                              </div>
+                            ) : hasSubsError ? (
+                              <div className="py-8 flex flex-col items-center gap-3 text-center px-4">
+                                <div className="flex items-center gap-2 text-rose-600 text-sm font-medium">
+                                  <AlertCircle size={16} className="shrink-0" />
+                                  Không tải được danh sách bài nộp. Máy chủ đang bận, vui lòng thử lại.
+                                </div>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); void loadSubmissions(assignment.id); }}
+                                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-colors"
+                                >
+                                  <RefreshCw size={14} /> Thử lại
+                                </button>
                               </div>
                             ) : subs.length === 0 ? (
                               <div className="py-8 text-center text-slate-400 text-sm">

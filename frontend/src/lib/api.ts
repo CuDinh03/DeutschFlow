@@ -50,25 +50,37 @@ const api = axios.create({
   },
 })
 
-// ─── Retry on transient failures (5xx, network errors) ───────────────────────
-const MAX_RETRIES = 3
+// ─── Retry on transient failures — idempotent requests only ──────────────────
+// Retries are deliberately scoped to safe/idempotent methods (GET/HEAD/OPTIONS):
+//  • a timed-out POST/PUT/PATCH/DELETE must never be silently re-sent — the server
+//    may have already processed it (double-submit / double-grade).
+//  • when the backend is overloaded (5xx/503 from DB-pool saturation), retrying
+//    every concurrent call 3× in lockstep AMPLIFIES the load and deepens the
+//    brownout. We cap retries low and jitter the backoff to break the herd.
+const MAX_RETRIES = 2
+const RETRYABLE_METHODS = new Set(['get', 'head', 'options'])
 
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
     const config = error.config
+    if (!config) return Promise.reject(error)
 
     if (!config._retryCount) {
       config._retryCount = 0
     }
 
-    // Retry conditions: network error, rate limit, or server error (5xx)
+    const method = (config.method ?? 'get').toLowerCase()
+    const status = error.response?.status
+
+    // Retry conditions: idempotent method + (network error, rate limit, or 5xx)
     const isRetryable = (
+      RETRYABLE_METHODS.has(method) &&
       config._retryCount < MAX_RETRIES &&
       (
         !error.response ||  // Network error
-        error.response.status === 429 ||  // Rate limit
-        error.response.status >= 500 ||   // Server error (5xx)
+        status === 429 ||   // Rate limit
+        (typeof status === 'number' && status >= 500) ||  // Server error (5xx)
         error.code === 'ECONNABORTED' ||
         error.code === 'ENOTFOUND' ||
         error.code === 'ETIMEDOUT'
@@ -77,8 +89,11 @@ api.interceptors.response.use(
 
     if (isRetryable) {
       config._retryCount++
-      const delay = Math.min(1000 * Math.pow(2, config._retryCount - 1), 5000)
-      console.log(`⚠️ Retry ${config._retryCount}/${MAX_RETRIES} in ${delay}ms`)
+      // Exponential backoff with jitter — half fixed, half random — so many
+      // concurrent failing calls don't retry in synchronized waves.
+      const base = Math.min(1000 * Math.pow(2, config._retryCount - 1), 5000)
+      const delay = Math.round(base / 2 + Math.random() * (base / 2))
+      console.log(`⚠️ Retry ${config._retryCount}/${MAX_RETRIES} (${method.toUpperCase()}) in ${delay}ms`)
       await new Promise(r => setTimeout(r, delay))
       return api(config)
     }

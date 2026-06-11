@@ -305,7 +305,7 @@ function GradesTab({ assignments }: { assignments: StudentAssignment[] }) {
   return (
     <div className="space-y-3">
       <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700">
-        Điểm trung bình {avg.toFixed(1)} trên {graded.length} bài đã chấm.
+        Điểm trung bình {avg.toFixed(1)}/100 trên {graded.length} bài đã chấm.
       </div>
       {graded.map((a) => (
         <div key={a.id} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
@@ -457,12 +457,13 @@ function TypeBadge({ type }: { type: string }) {
 
 function ScoreChip({ score }: { score: number | null }) {
   if (score == null) return null
-  const tone = score >= 8 ? 'bg-emerald-100 text-emerald-700'
-    : score >= 5 ? 'bg-amber-100 text-amber-700'
+  // Scores are on a 0–100 scale (same as the teacher grading panel), not 0–10.
+  const tone = score >= 80 ? 'bg-emerald-100 text-emerald-700'
+    : score >= 50 ? 'bg-amber-100 text-amber-700'
     : 'bg-red-100 text-red-700'
   return (
     <span className={`inline-flex items-center rounded-full ${tone} px-3 py-1 text-sm font-bold tabular-nums`}>
-      {score}
+      {score}/100
     </span>
   )
 }

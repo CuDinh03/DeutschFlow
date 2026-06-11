@@ -3,6 +3,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { TeacherShell } from "@/components/layouts/TeacherShell";
 import { CertificateIssuer } from "@/components/teacher/CertificateIssuer";
+import { GradingPanel } from "@/components/teacher/GradingPanel";
+import type { GradingQueueItem } from "@/components/teacher/GradingQueueCard";
 import { useStudentPracticeSession } from "@/hooks/useStudentPracticeSession";
 import { usePendingGradingCount } from "@/hooks/usePendingGradingCount";
 import api from "@/lib/api";
@@ -161,6 +163,11 @@ interface StudentAssignmentDto {
   createdAt: string;
   submissionContent: string | null;
   submissionFileUrl: string | null;
+  topic: string | null;
+  description: string | null;
+  assignmentType: string | null;
+  dueDate: string | null;
+  attachmentUrl: string | null;
 }
 
 export default function StudentReviewPage() {
@@ -215,7 +222,9 @@ export default function StudentReviewPage() {
 
   // Evaluation Modal State
   const [evalSession, setEvalSession] = useState<TeacherSpeakingSessionDto | null>(null);
-  const [evalAssignment, setEvalAssignment] = useState<StudentAssignmentDto | null>(null);
+  // Written assignments are graded with the SHARED GradingPanel (same as the queue and
+  // class-detail surfaces) so AI grading + submission display are consistent everywhere.
+  const [gradingItem, setGradingItem] = useState<GradingQueueItem | null>(null);
   const [evalScore, setEvalScore] = useState<number | "">("");
   const [evalFeedback, setEvalFeedback] = useState("");
   const [isEvaluating, setIsEvaluating] = useState(false);
@@ -250,38 +259,33 @@ export default function StudentReviewPage() {
 
   const openEvaluation = (session: TeacherSpeakingSessionDto) => {
     setEvalSession(session);
-    setEvalAssignment(null);
+    setGradingItem(null);
     setEvalScore(session.teacherScore ?? "");
     setEvalFeedback(session.teacherFeedback ?? "");
   };
 
+  // Build a GradingQueueItem from a student assignment and open the shared GradingPanel.
   const openAssignmentEvaluation = (assignment: StudentAssignmentDto) => {
-    setEvalAssignment(assignment);
-    setEvalSession(null);
-    setEvalScore(assignment.teacherScore ?? "");
-    setEvalFeedback(assignment.teacherFeedback ?? "");
-  };
-
-  const handleEvaluateAssignment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!evalAssignment || evalScore === "") return;
-    setIsEvaluating(true);
-    try {
-      // Create endpoint in teacher controller if not exists or use existing evaluation endpoint
-      // Assuming teacherService has an evaluateAssignment method
-      const res = await api.post(`/v2/teacher/assignments/${evalAssignment.id}/evaluate`, {
-        teacherScore: Number(evalScore),
-        teacherFeedback: evalFeedback
-      });
-      // Fallback: If no dedicated teacher endpoint, can rely on manual status update or mock it for now.
-      setAssignments((prev) => prev.map(a => a.id === evalAssignment.id ? res.data : a));
-      setEvalAssignment(null);
-    } catch (e) {
-      console.error(e);
-      toast.error("Lỗi khi chấm bài tập");
-    } finally {
-      setIsEvaluating(false);
-    }
+    setGradingItem({
+      id: assignment.id,
+      assignmentId: assignment.assignmentId,
+      studentId: Number(studentId),
+      studentName: analyticsData?.studentName ?? `Học viên #${studentId}`,
+      studentEmail: "",
+      topic: assignment.topic ?? "Bài tập",
+      description: assignment.description ?? "",
+      assignmentType: assignment.assignmentType ?? "GENERAL",
+      dueDate: assignment.dueDate ?? null,
+      classId: Number(classId),
+      className: "",
+      status: assignment.status,
+      submittedAt: assignment.submittedAt ?? null,
+      submissionContent: assignment.submissionContent,
+      submissionFileUrl: assignment.submissionFileUrl,
+      score: assignment.teacherScore,
+      feedback: assignment.teacherFeedback,
+      attachmentUrl: assignment.attachmentUrl ?? null,
+    });
   };
 
   if (!user || userLoading || loading) return null;
@@ -595,79 +599,18 @@ export default function StudentReviewPage() {
         </div>
       )}
 
-      {/* Assignment Evaluation Modal */}
-      {evalAssignment && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl p-8 max-w-2xl w-full shadow-2xl relative animate-in fade-in zoom-in duration-200 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-2xl font-black text-slate-800 mb-4">Chấm điểm Bài Tập / Luận</h2>
-            
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6 space-y-4">
-              <h3 className="font-bold text-slate-700">Bài làm của học viên:</h3>
-              {evalAssignment.submissionContent && (
-                <div className="bg-white p-4 rounded-lg border border-slate-200 whitespace-pre-wrap text-sm text-slate-700">
-                  {evalAssignment.submissionContent}
-                </div>
-              )}
-              {evalAssignment.submissionFileUrl && (
-                <div>
-                  <a 
-                    href={evalAssignment.submissionFileUrl} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-indigo-600 font-bold hover:underline"
-                  >
-                    <BookOpen size={18} /> Tải / Xem File Đính Kèm
-                  </a>
-                </div>
-              )}
-              {!evalAssignment.submissionContent && !evalAssignment.submissionFileUrl && (
-                <p className="text-sm text-slate-500 italic">Không có nội dung đính kèm.</p>
-              )}
-            </div>
-
-            <form onSubmit={handleEvaluateAssignment} className="space-y-4">
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">Điểm số (0-100)</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={evalScore}
-                  onChange={(e) => setEvalScore(e.target.value === "" ? "" : Number(e.target.value))}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none text-lg font-mono"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">Nhận xét của Giáo viên</label>
-                <textarea
-                  value={evalFeedback}
-                  onChange={(e) => setEvalFeedback(e.target.value)}
-                  placeholder="Nhận xét chi tiết về bài làm..."
-                  className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none h-32 resize-none"
-                />
-              </div>
-              <div className="flex gap-3 justify-end pt-4">
-                <button
-                  type="button"
-                  onClick={() => setEvalAssignment(null)}
-                  className="px-6 py-3 font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
-                >
-                  Hủy bỏ
-                </button>
-                <button
-                  type="submit"
-                  disabled={isEvaluating || evalScore === ""}
-                  className="px-6 py-3 font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors flex items-center gap-2 disabled:opacity-50 shadow-md shadow-indigo-200"
-                >
-                  {isEvaluating && <Loader2 size={18} className="animate-spin" />}
-                  Lưu Đánh Giá
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Written-assignment grading — shared GradingPanel (same component as the queue and
+          class-detail surfaces, so AI grading + submission display behave identically). */}
+      <GradingPanel
+        item={gradingItem}
+        onClose={() => setGradingItem(null)}
+        onSaved={(updated) => {
+          setAssignments(prev => prev.map(a => a.id === updated.id
+            ? { ...a, teacherScore: updated.score, teacherFeedback: updated.feedback, status: "EVALUATED" }
+            : a));
+          setGradingItem(null);
+        }}
+      />
     </TeacherShell>
   );
 }
