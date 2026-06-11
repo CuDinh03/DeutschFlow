@@ -99,8 +99,17 @@ export interface OrgInvoice {
   seats: number
   amountVnd: number
   status: InvoiceStatus
+  /** Memo code to put in the VietQR transfer; SePay matches the payment by it (C3). */
+  paymentCode: string | null
   note: string | null
   createdAt: string
+}
+
+/** Bank-transfer instructions for paying invoices (C3). */
+export interface PaymentInfo {
+  bankAccount: string
+  bankName: string
+  accountName: string
 }
 
 /** Public invitation preview (token is the secret). */
@@ -217,6 +226,12 @@ export async function listStudents(): Promise<OrgMember[]> {
 /** GET /org/analytics — read-only analytics dashboard metrics for the current org. */
 export async function getAnalytics(): Promise<OrgAnalytics> {
   const res = await api.get<OrgAnalytics>('/org/analytics')
+  return res.data
+}
+
+/** GET /org/payment-info — bank-transfer instructions for paying invoices (C3). */
+export async function getPaymentInfo(): Promise<PaymentInfo> {
+  const res = await api.get<PaymentInfo>('/org/payment-info')
   return res.data
 }
 

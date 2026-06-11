@@ -40,6 +40,10 @@ public class OrgInvoice {
     @Builder.Default
     private String status = "DRAFT"; // DRAFT | SENT | PAID | VOID
 
+    /** Code put in the VietQR transfer memo; SePay webhook matches the payment by it (C3). */
+    @Column(name = "payment_code", length = 32, unique = true)
+    private String paymentCode;
+
     @Column
     private String note;
 

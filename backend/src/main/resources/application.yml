@@ -219,6 +219,15 @@ app:
     exclude-demo-data: ${ANALYTICS_EXCLUDE_DEMO_DATA:true}
     demo-email-domain: ${ANALYTICS_DEMO_EMAIL_DOMAIN:@deutschflow-demo.com}
 
+  # Thu tiền B2B qua chuyển khoản VietQR + webhook SePay (checklist C3). api-key trống → webhook
+  # fail-closed (từ chối tất cả). bank-* hiển thị hướng dẫn chuyển khoản cho org trên /org/billing.
+  payment:
+    sepay:
+      api-key: ${SEPAY_API_KEY:}
+      bank-account: ${SEPAY_BANK_ACCOUNT:}
+      bank-name: ${SEPAY_BANK_NAME:}
+      account-name: ${SEPAY_ACCOUNT_NAME:}
+
   auth:
     # Brute-force / abuse guard cho auth endpoints (in-memory sliding window, per node).
     # Bộ đếm nằm trong RAM → restart/redeploy backend sẽ xoá hết (cách gỡ khoá nhanh nhất).

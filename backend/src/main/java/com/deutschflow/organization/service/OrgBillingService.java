@@ -5,10 +5,12 @@ import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.organization.dto.CreateInvoiceRequest;
 import com.deutschflow.organization.dto.OrgInvoiceDto;
+import com.deutschflow.organization.dto.PaymentInfoDto;
 import com.deutschflow.organization.entity.OrgInvoice;
 import com.deutschflow.organization.repository.OrgInvoiceRepository;
 import com.deutschflow.organization.repository.OrganizationRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +35,18 @@ public class OrgBillingService {
     private final OrgInvoiceRepository invoiceRepo;
     private final OrganizationRepository organizationRepository;
 
+    @Value("${app.payment.sepay.bank-account:}")
+    private String bankAccount;
+    @Value("${app.payment.sepay.bank-name:}")
+    private String bankName;
+    @Value("${app.payment.sepay.account-name:}")
+    private String accountName;
+
+    /** Bank-transfer instructions for the org to pay invoices (VietQR memo = invoice paymentCode). */
+    public PaymentInfoDto getPaymentInfo() {
+        return new PaymentInfoDto(bankAccount, bankName, accountName);
+    }
+
     /** Creates a DRAFT invoice for the org. */
     @Transactional
     public OrgInvoiceDto createInvoice(Long orgId, CreateInvoiceRequest req, Long createdBy) {
@@ -46,6 +60,7 @@ public class OrgBillingService {
                 .seats(req.seats())
                 .amountVnd(req.amountVnd())
                 .status(STATUS_DRAFT)
+                .paymentCode(newPaymentCode())
                 .note(req.note())
                 .createdBy(createdBy)
                 .build();
@@ -75,6 +90,12 @@ public class OrgBillingService {
         return toDto(invoiceRepo.save(invoice));
     }
 
+    /** Memo code embedded in the VietQR transfer; the SePay webhook matches the payment by it (C3). */
+    private String newPaymentCode() {
+        return "DFINV" + java.util.UUID.randomUUID().toString()
+                .replace("-", "").substring(0, 8).toUpperCase(java.util.Locale.ROOT);
+    }
+
     private OrgInvoiceDto toDto(OrgInvoice invoice) {
         return new OrgInvoiceDto(
                 invoice.getId(),
@@ -84,6 +105,7 @@ public class OrgBillingService {
                 invoice.getSeats(),
                 invoice.getAmountVnd(),
                 invoice.getStatus(),
+                invoice.getPaymentCode(),
                 invoice.getNote(),
                 invoice.getCreatedAt());
     }

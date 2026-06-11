@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2, Receipt, Sparkles, BadgeCheck } from 'lucide-react'
+import { Loader2, Receipt, Sparkles, BadgeCheck, Banknote, Copy, Check } from 'lucide-react'
 import { OrgShell } from '@/components/layouts/OrgShell'
 import { logout } from '@/lib/authSession'
 import { httpStatus } from '@/lib/api'
@@ -12,10 +12,12 @@ import {
   listMyInvoices,
   getOrgSummary,
   getAnalytics,
+  getPaymentInfo,
   type OrgInvoice,
   type InvoiceStatus,
   type OrgSummary,
   type OrgAnalytics,
+  type PaymentInfo,
 } from '@/lib/orgApi'
 
 /** Token-pool usage % that flags the org as near/over its monthly AI budget. */
@@ -28,6 +30,7 @@ export default function OrgBillingClientPage() {
   const [invoices, setInvoices] = useState<OrgInvoice[]>([])
   const [summary, setSummary] = useState<OrgSummary | null>(null)
   const [analytics, setAnalytics] = useState<OrgAnalytics | null>(null)
+  const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -35,14 +38,16 @@ export default function OrgBillingClientPage() {
     setLoading(true)
     setError(null)
     try {
-      const [rows, summaryData, analyticsData] = await Promise.all([
+      const [rows, summaryData, analyticsData, payInfo] = await Promise.all([
         listMyInvoices(),
         getOrgSummary(),
         getAnalytics(),
+        getPaymentInfo().catch(() => null), // best-effort: page still works if payment isn't configured
       ])
       setInvoices(rows)
       setSummary(summaryData)
       setAnalytics(analyticsData)
+      setPaymentInfo(payInfo)
     } catch (e) {
       if (httpStatus(e) === 401) {
         router.push('/login')
@@ -94,6 +99,8 @@ export default function OrgBillingClientPage() {
             <TokenPoolCard analytics={analytics} />
           </div>
         )}
+
+        <PaymentInstructions invoices={invoices} info={paymentInfo} />
 
         <p className="text-sm text-slate-500">
           {invoices.length > 0
@@ -160,6 +167,77 @@ export default function OrgBillingClientPage() {
         )}
       </div>
     </OrgShell>
+  )
+}
+
+function PaymentInstructions({ invoices, info }: { invoices: OrgInvoice[]; info: PaymentInfo | null }) {
+  const unpaid = invoices.filter((inv) => inv.status === 'SENT' || inv.status === 'DRAFT')
+  if (!info || !info.bankAccount || unpaid.length === 0) return null
+  return (
+    <div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-6">
+      <div className="mb-2 flex items-center gap-2">
+        <Banknote size={18} className="text-emerald-600" />
+        <h2 className="font-bold text-slate-800">Thanh toán qua chuyển khoản</h2>
+      </div>
+      <p className="mb-4 text-sm text-slate-600">
+        Chuyển khoản đúng số tiền và <span className="font-semibold">đúng nội dung</span> bên dưới — hệ thống tự xác nhận và kích hoạt gói trong vài phút.
+      </p>
+      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <InfoField label="Ngân hàng" value={info.bankName} />
+        <InfoField label="Số tài khoản" value={info.bankAccount} copyable />
+        <InfoField label="Chủ tài khoản" value={info.accountName} />
+      </div>
+      <div className="space-y-2">
+        {unpaid.map((inv) => (
+          <div key={inv.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
+            <div>
+              <p className="text-xs text-slate-400">{formatPeriod(inv.periodStart, inv.periodEnd)} · {inv.seats} ghế</p>
+              <p className="mt-0.5 text-sm text-slate-700">
+                Nội dung CK: <span className="font-mono font-bold text-emerald-700">{inv.paymentCode || '—'}</span>
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="font-bold text-slate-800">{formatVnd(inv.amountVnd)}</span>
+              {inv.paymentCode ? <CopyButton text={inv.paymentCode} /> : null}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function InfoField({ label, value, copyable }: { label: string; value: string; copyable?: boolean }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</p>
+      <div className="mt-0.5 flex items-center gap-2">
+        <span className="text-sm font-bold text-slate-800">{value || '—'}</span>
+        {copyable && value ? <CopyButton text={value} /> : null}
+      </div>
+    </div>
+  )
+}
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(text)
+          setCopied(true)
+          setTimeout(() => setCopied(false), 2000)
+        } catch {
+          // Clipboard unavailable — the value is visible on screen.
+        }
+      }}
+      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+    >
+      {copied ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
+      {copied ? 'Đã chép' : 'Chép'}
+    </button>
   )
 }
 
