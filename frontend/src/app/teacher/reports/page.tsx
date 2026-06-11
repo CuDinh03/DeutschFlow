@@ -48,8 +48,8 @@ const SKILL_LABELS: Record<string, { label: string; color: string; bg: string }>
 
 function scoreBadge(score: number | null, size = 'sm') {
   if (score == null) return <span className="text-slate-300 text-xs">—</span>
-  const tone = score >= 8 ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-    : score >= 5 ? 'bg-amber-50 text-amber-700 border-amber-200'
+  const tone = score >= 80 ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+    : score >= 50 ? 'bg-amber-50 text-amber-700 border-amber-200'
     : 'bg-rose-50 text-rose-700 border-rose-200'
   return (
     <span className={`inline-flex min-w-[2rem] justify-center px-1.5 py-0.5 rounded-lg border font-bold ${size === 'lg' ? 'text-sm' : 'text-xs'} ${tone}`}>
@@ -379,7 +379,7 @@ export default function TeacherReportsPage() {
                   </div>
                   <h2 className="text-3xl font-black mb-4">Điểm trung bình toàn hệ thống</h2>
                   <p className="text-slate-400 max-w-md leading-relaxed text-sm">
-                    Trung bình tất cả bài tập đã chấm (Trắc nghiệm, Ghép câu, Luyện nói AI). Thang điểm 10.
+                    Trung bình tất cả bài tập đã chấm (Trắc nghiệm, Ghép câu, Luyện nói AI). Tính theo phần trăm (0–100).
                   </p>
                 </div>
                 <div className="flex justify-center md:justify-end">
@@ -387,9 +387,9 @@ export default function TeacherReportsPage() {
                     <p className="text-6xl font-black bg-gradient-to-tr from-emerald-400 to-teal-300 text-transparent bg-clip-text drop-shadow-sm mb-2">
                       {Number(overview.avgScore ?? 0).toFixed(1)}
                     </p>
-                    <p className="text-indigo-200 font-bold uppercase tracking-widest text-sm">Trên 10 Điểm</p>
+                    <p className="text-indigo-200 font-bold uppercase tracking-widest text-sm">Phần trăm (%)</p>
                     <div className="mt-4 h-2 w-full bg-slate-700 rounded-full overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-emerald-400 to-teal-400 rounded-full" style={{ width: `${(Number(overview.avgScore ?? 0) / 10) * 100}%` }} />
+                      <div className="h-full bg-gradient-to-r from-emerald-400 to-teal-400 rounded-full" style={{ width: `${Math.min(100, Number(overview.avgScore ?? 0))}%` }} />
                     </div>
                   </div>
                 </div>

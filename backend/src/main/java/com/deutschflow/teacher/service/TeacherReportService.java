@@ -140,7 +140,7 @@ public class TeacherReportService {
             }
 
             Double avgScore = scores.isEmpty() ? null
-                    : scores.stream().mapToInt(Integer::intValue).average().orElse(0.0);
+                    : round1(scores.stream().mapToInt(TeacherReportService::clampPercent).average().orElse(0.0));
             rows.add(new GradebookDto.StudentRow(
                     studentId,
                     user != null ? user.getDisplayName() : "Học viên #" + studentId,
@@ -153,16 +153,31 @@ public class TeacherReportService {
         return new GradebookDto(classId, teacherClass.getName(), columns, rows);
     }
 
-    /** Average of graded student-submission scores across the given assignments (0 when none). */
+    /**
+     * Average of graded student-submission scores across the given assignments (0 when none),
+     * as a 0-100 percentage. Every grade is on a 0-100 scale (AI essay/speaking graders + manual
+     * grading); each score is clamped to [0,100] before averaging so an out-of-range legacy/manual
+     * value can't blow the metric past 100 (this was the "234.4 on a 10-point scale" bug).
+     */
     private double averageScore(List<ClassAssignment> assignments) {
         if (assignments.isEmpty()) return 0.0;
         List<Long> assignmentIds = assignments.stream().map(ClassAssignment::getId).toList();
         List<StudentAssignment> submissions = studentAssignmentRepository.findByAssignmentIds(assignmentIds);
-        return submissions.stream()
+        double avg = submissions.stream()
                 .map(StudentAssignment::getScore)
                 .filter(Objects::nonNull)
-                .mapToInt(Integer::intValue)
+                .mapToInt(TeacherReportService::clampPercent)
                 .average()
                 .orElse(0.0);
+        return round1(avg);
+    }
+
+    /** Scores are graded on 0-100; clamp defensively (manual entry isn't capped at the source). */
+    private static int clampPercent(int score) {
+        return Math.max(0, Math.min(100, score));
+    }
+
+    private static double round1(double value) {
+        return Math.round(value * 10.0) / 10.0;
     }
 }
