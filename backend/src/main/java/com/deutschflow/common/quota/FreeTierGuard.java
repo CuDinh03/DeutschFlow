@@ -48,6 +48,12 @@ public class FreeTierGuard {
         return Integer.MAX_VALUE;
     }
 
+    /** Số lượt đã dùng hôm nay cho {@code feature} — để hiển thị trạng thái gói miễn phí (D6²). */
+    @Transactional(readOnly = true)
+    public int usedToday(Long userId, String feature) {
+        return currentCount(userId, feature);
+    }
+
     /**
      * Chặn (429) nếu GV gói-miễn-phí đã đạt hạn mức ngày cho {@code feature}; nếu chưa thì +1 lượt.
      * No-op khi user null hoặc thuộc org (org pool quản).

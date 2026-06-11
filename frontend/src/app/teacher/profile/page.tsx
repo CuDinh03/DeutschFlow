@@ -7,6 +7,7 @@ import { TeacherShell } from '@/components/layouts/TeacherShell'
 import { usePendingGradingCount } from '@/hooks/usePendingGradingCount'
 import { logout } from '@/lib/authSession'
 import { TeacherCenterCard } from '@/components/teacher/TeacherCenterCard'
+import { FreeTierStatusCard } from '@/components/teacher/FreeTierStatusCard'
 import {
   GraduationCap, Loader2, Save, CheckCircle, AlertCircle,
   Eye, Star, Edit3, User, BookOpen, BadgeCheck, ExternalLink
@@ -248,6 +249,9 @@ export default function TeacherProfilePage() {
 
           {/* Teaching center self-declaration (D11 org-sales signal) */}
           <TeacherCenterCard />
+
+          {/* Plan status — official free tier vs org (D6²) */}
+          <FreeTierStatusCard />
         </div>
 
         {/* Save / Preview Buttons */}
