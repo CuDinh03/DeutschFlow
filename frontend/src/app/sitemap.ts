@@ -11,6 +11,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: absoluteUrl('/'), changeFrequency: 'weekly', priority: 1 },
     { url: absoluteUrl('/luyen-thi/'), changeFrequency: 'weekly', priority: 0.9 },
     { url: absoluteUrl('/free-grade/'), changeFrequency: 'monthly', priority: 0.8 },
+    { url: absoluteUrl('/giao-vien-mien-phi/'), changeFrequency: 'monthly', priority: 0.8 },
   ]
 
   const examPages: MetadataRoute.Sitemap = GERMAN_EXAMS.map((e) => ({
