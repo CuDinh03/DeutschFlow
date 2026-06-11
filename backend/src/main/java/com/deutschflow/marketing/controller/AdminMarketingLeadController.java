@@ -1,5 +1,6 @@
 package com.deutschflow.marketing.controller;
 
+import com.deutschflow.marketing.dto.GrowthStatsDto;
 import com.deutschflow.marketing.dto.MarketingLeadDto;
 import com.deutschflow.marketing.service.LeadMagnetService;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,12 @@ import java.util.List;
 public class AdminMarketingLeadController {
 
     private final LeadMagnetService leadMagnetService;
+
+    /** GET /api/admin/marketing/stats — số liệu phễu tăng trưởng (lead magnet + report). */
+    @GetMapping("/stats")
+    public GrowthStatsDto getStats() {
+        return leadMagnetService.getGrowthStats();
+    }
 
     /** GET /api/admin/marketing/leads?days=30&limit=200 — lead mới nhất để liên hệ. */
     @GetMapping("/leads")

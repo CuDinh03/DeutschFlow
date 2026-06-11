@@ -156,6 +156,24 @@ public class LeadMagnetService {
         return java.util.UUID.randomUUID().toString().replace("-", "");
     }
 
+    /** Số liệu phễu tăng trưởng (lead magnet + report) cho admin. */
+    @Transactional(readOnly = true)
+    public com.deutschflow.marketing.dto.GrowthStatsDto getGrowthStats() {
+        Instant now = Instant.now();
+        Instant since7d = now.minus(Duration.ofDays(7));
+        Instant since24h = now.minus(WINDOW);
+        Double avg = reportRepository.averageScore();
+        return new com.deutschflow.marketing.dto.GrowthStatsDto(
+                leadRepository.count(),
+                leadRepository.countByCreatedAtAfter(since7d),
+                leadRepository.countByCreatedAtAfter(since24h),
+                reportRepository.count(),
+                reportRepository.countByCreatedAtAfter(since7d),
+                avg == null ? 0.0 : Math.round(avg * 10.0) / 10.0,
+                leadRepository.countByContactType("EMAIL"),
+                leadRepository.countByContactType("ZALO"));
+    }
+
     /** Danh sách lead mới nhất cho admin follow-up (mặc định 30 ngày, giới hạn {@code limit}). */
     @Transactional(readOnly = true)
     public List<MarketingLeadDto> listRecentLeads(int days, int limit) {
