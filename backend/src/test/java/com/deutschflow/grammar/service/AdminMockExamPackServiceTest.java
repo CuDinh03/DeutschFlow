@@ -110,6 +110,27 @@ class AdminMockExamPackServiceTest {
     }
 
     @Test
+    @DisplayName("create: invalid CEFR level (typo) → BadRequest, nothing saved")
+    void create_invalidLevel_throws() {
+        assertThatThrownBy(() -> service.create(new CreateMockExamPackRequest(
+                "Title", null, "B 1", null, null, null)))   // "B 1" is not a real CEFR level
+                .isInstanceOf(BadRequestException.class);
+        assertThatThrownBy(() -> service.create(new CreateMockExamPackRequest(
+                "Title", null, "ZZ", null, null, null)))
+                .isInstanceOf(BadRequestException.class);
+        verify(packRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("create: unknown exam format → BadRequest, nothing saved")
+    void create_invalidFormat_throws() {
+        assertThatThrownBy(() -> service.create(new CreateMockExamPackRequest(
+                "Title", null, "B1", "UNKNOWN", null, null)))
+                .isInstanceOf(BadRequestException.class);
+        verify(packRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("update: only non-null fields are applied (partial)")
     void update_partial_appliesProvidedOnly() {
         MockExamPack existing = MockExamPack.builder()

@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * ADMIN curation of mock-exam packs ({@code /api/admin/mock-exam-packs}) — lets admins create,
@@ -28,8 +29,9 @@ public class AdminMockExamPackService {
 
     private static final String DEFAULT_FORMAT = "GOETHE";
     private static final int MAX_TITLE = 200;
-    private static final int MAX_LEVEL = 5;
-    private static final int MAX_FORMAT = 30;
+    /** Whitelist so a curator typo can't publish an orphan pack that matches no exam. */
+    private static final Set<String> VALID_CEFR_LEVELS = Set.of("A1", "A2", "B1", "B2", "C1", "C2");
+    private static final Set<String> VALID_EXAM_FORMATS = Set.of("GOETHE", "TELC");
 
     private final MockExamPackRepository packRepository;
     private final JdbcTemplate jdbcTemplate;
@@ -126,20 +128,20 @@ public class AdminMockExamPackService {
             throw new BadRequestException("Trình độ (CEFR) là bắt buộc");
         }
         String value = raw.trim().toUpperCase();
-        if (value.length() > MAX_LEVEL) {
-            throw new BadRequestException("Trình độ CEFR tối đa " + MAX_LEVEL + " ký tự");
+        if (!VALID_CEFR_LEVELS.contains(value)) {
+            throw new BadRequestException("Trình độ CEFR không hợp lệ (chỉ: A1, A2, B1, B2, C1, C2)");
         }
         return value;
     }
 
-    /** Normalizes the exam format (uppercased); null/blank → {@value #DEFAULT_FORMAT}. */
+    /** Normalizes the exam format (uppercased); null/blank → {@value #DEFAULT_FORMAT}; else whitelist. */
     private static String normalizeFormat(String raw) {
         if (raw == null || raw.isBlank()) {
             return DEFAULT_FORMAT;
         }
         String value = raw.trim().toUpperCase();
-        if (value.length() > MAX_FORMAT) {
-            throw new BadRequestException("Định dạng đề tối đa " + MAX_FORMAT + " ký tự");
+        if (!VALID_EXAM_FORMATS.contains(value)) {
+            throw new BadRequestException("Định dạng đề không hợp lệ (chỉ: GOETHE, TELC)");
         }
         return value;
     }
