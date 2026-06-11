@@ -2,8 +2,8 @@ package com.deutschflow.grammar.service;
 
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
-import com.deutschflow.common.quota.PlanBadge;
 import com.deutschflow.common.quota.QuotaService;
+import com.deutschflow.common.quota.QuotaSnapshot;
 import com.deutschflow.grammar.dto.MockExamPackDetailDto;
 import com.deutschflow.grammar.dto.MockExamPackDto;
 import com.deutschflow.grammar.entity.MockExamPack;
@@ -47,8 +47,11 @@ class MockExamPackServiceTest {
     }
 
     private void planIs(String planCode) {
-        when(quotaService.resolvePlanBadge(anyLong(), any()))
-                .thenReturn(new PlanBadge(planCode, "X", null, null));
+        when(quotaService.getSnapshotReadOnly(anyLong(), any())).thenReturn(snapshot(planCode));
+    }
+
+    private QuotaSnapshot snapshot(String planCode) {
+        return new QuotaSnapshot(planCode, false, null, null, 0L, 0L, 0L, 0L, 0L, null, null);
     }
 
     @Test
@@ -78,6 +81,16 @@ class MockExamPackServiceTest {
     }
 
     @Test
+    @DisplayName("DEFAULT (hết hạn dùng thử PRO) → coi như chưa trả phí, pack trả-phí BỊ KHOÁ")
+    void listPacks_defaultPlan_locked() {
+        planIs("DEFAULT");
+        when(packRepository.findByActiveTrueOrderBySortOrderAsc()).thenReturn(List.of(pack(1L, true)));
+        when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), any(), any())).thenReturn(3);
+
+        assertThat(service.listPacks(7L).get(0).locked()).isTrue();
+    }
+
+    @Test
     @DisplayName("getPack: pack trả-phí + user FREE → Forbidden, KHÔNG truy vấn đề")
     void getPack_lockedForFree_throwsForbidden() {
         planIs("FREE");
@@ -88,9 +101,9 @@ class MockExamPackServiceTest {
     }
 
     @Test
-    @DisplayName("getPack: user trả phí → trả về danh sách đề trong pack")
+    @DisplayName("getPack: user trả phí (ULTRA) → trả về danh sách đề trong pack")
     void getPack_paidUser_returnsExams() {
-        planIs("PREMIUM");
+        planIs("ULTRA");
         when(packRepository.findById(1L)).thenReturn(Optional.of(pack(1L, true)));
         when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(), any())).thenReturn(
                 List.of(new MockExamPackDetailDto.PackExamDto(10L, "Đề số 1", 100, 60, 165)));

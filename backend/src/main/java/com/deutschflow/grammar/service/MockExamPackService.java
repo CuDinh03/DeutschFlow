@@ -1,8 +1,8 @@
 package com.deutschflow.grammar.service;
 
 import com.deutschflow.common.exception.NotFoundException;
-import com.deutschflow.common.quota.PlanBadge;
 import com.deutschflow.common.quota.QuotaService;
+import com.deutschflow.common.quota.QuotaSnapshot;
 import com.deutschflow.grammar.dto.MockExamPackDetailDto;
 import com.deutschflow.grammar.dto.MockExamPackDetailDto.PackExamDto;
 import com.deutschflow.grammar.dto.MockExamPackDto;
@@ -27,7 +27,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class MockExamPackService {
 
-    private static final String PLAN_FREE = "FREE";
+    private static final String TIER_DEFAULT = "DEFAULT";
 
     private final MockExamPackRepository packRepository;
     private final JdbcTemplate jdbcTemplate;
@@ -57,10 +57,16 @@ public class MockExamPackService {
                 pack.getCefrLevel(), pack.getExamFormat(), examsOf(pack));
     }
 
-    /** Any active non-FREE plan unlocks paid packs (PRO/PREMIUM/ULTRA/INTERNAL). */
+    /**
+     * Paid = public tier PRO or ULTRA (covers PRO/ULTRA/INTERNAL). FREE, DEFAULT (expired trial),
+     * PREMIUM, and null all resolve to tier DEFAULT → locked. Uses the READ-ONLY snapshot so this
+     * read-only path never triggers subscription-reconciliation writes (which would fail in a
+     * readOnly transaction).
+     */
     private boolean isPaid(Long userId) {
-        PlanBadge badge = quotaService.resolvePlanBadge(userId, Instant.now());
-        return badge != null && badge.planCode() != null && !PLAN_FREE.equalsIgnoreCase(badge.planCode());
+        QuotaSnapshot snapshot = quotaService.getSnapshotReadOnly(userId, Instant.now());
+        String tier = snapshot == null ? null : QuotaService.publicTier(snapshot.planCode());
+        return tier != null && !TIER_DEFAULT.equals(tier);
     }
 
     private int examCount(MockExamPack pack) {
