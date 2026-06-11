@@ -90,10 +90,12 @@ public class OrgBillingService {
         return toDto(invoiceRepo.save(invoice));
     }
 
-    /** Memo code embedded in the VietQR transfer; the SePay webhook matches the payment by it (C3). */
+    /** Memo code embedded in the VietQR transfer; the SePay webhook matches the payment by it (C3).
+     *  12 hex (48-bit) so birthday collisions stay negligible at any realistic invoice volume; the
+     *  UNIQUE index on payment_code is the final backstop. Keep in sync with SepayWebhookService regex. */
     private String newPaymentCode() {
         return "DFINV" + java.util.UUID.randomUUID().toString()
-                .replace("-", "").substring(0, 8).toUpperCase(java.util.Locale.ROOT);
+                .replace("-", "").substring(0, 12).toUpperCase(java.util.Locale.ROOT);
     }
 
     private OrgInvoiceDto toDto(OrgInvoice invoice) {

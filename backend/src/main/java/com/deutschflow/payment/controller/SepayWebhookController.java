@@ -37,7 +37,13 @@ public class SepayWebhookController {
             log.warn("[SePay] webhook rejected: missing/invalid Apikey");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("success", false));
         }
-        sepayWebhookService.handle(payload);
+        try {
+            sepayWebhookService.handle(payload);
+        } catch (org.springframework.dao.DataIntegrityViolationException duplicate) {
+            // Concurrent redelivery of the same transaction lost the UNIQUE(sepay_id) race —
+            // already processed by the winning request. Ack 200 so SePay does not keep retrying.
+            log.info("[SePay] concurrent duplicate webhook — treated as already processed");
+        }
         return ResponseEntity.ok(Map.of("success", true));
     }
 

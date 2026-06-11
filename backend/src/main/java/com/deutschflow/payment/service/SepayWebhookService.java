@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Locale;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -35,8 +36,11 @@ public class SepayWebhookService {
     private static final String TRANSFER_IN = "in";
     private static final String STATUS_PAID = "PAID";
     private static final String STATUS_ACTIVE = "ACTIVE";
-    /** Invoice payment-code shape (see OrgBillingService.newPaymentCode): DFINV + 8 hex, uppercase. */
-    private static final Pattern PAYMENT_CODE = Pattern.compile("DFINV[0-9A-F]{8}");
+    /** Statuses a transfer may settle. PAID/VOID are NOT settleable (a late transfer must not
+     *  re-pay a settled invoice nor revive a voided one). */
+    private static final Set<String> SETTLEABLE_STATUSES = Set.of("DRAFT", "SENT");
+    /** Invoice payment-code shape (see OrgBillingService.newPaymentCode): DFINV + 12 hex, uppercase. */
+    private static final Pattern PAYMENT_CODE = Pattern.compile("DFINV[0-9A-F]{12}");
 
     private final OrgInvoiceRepository invoiceRepo;
     private final OrgPaymentEventRepository eventRepo;
@@ -74,8 +78,9 @@ public class SepayWebhookService {
 
         recordEvent(sepayId, invoice.getId(), invoice.getOrgId(), amount, payload, true);
 
-        if (STATUS_PAID.equals(invoice.getStatus())) {
-            log.info("[SePay] invoice {} already PAID — extra transfer recorded only", invoice.getId());
+        if (!SETTLEABLE_STATUSES.contains(invoice.getStatus())) {
+            log.info("[SePay] invoice {} status={} not settleable — transfer recorded only",
+                    invoice.getId(), invoice.getStatus());
             return;
         }
         if (amount < invoice.getAmountVnd()) {

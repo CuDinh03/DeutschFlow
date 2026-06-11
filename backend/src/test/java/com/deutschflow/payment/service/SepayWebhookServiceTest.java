@@ -34,7 +34,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class SepayWebhookServiceTest {
 
-    private static final String CODE = "DFINVA1B2C3D4"; // DFINV + 8 hex
+    private static final String CODE = "DFINVA1B2C3D4E5F6"; // DFINV + 12 hex
 
     @Mock OrgInvoiceRepository invoiceRepo;
     @Mock OrgPaymentEventRepository eventRepo;
@@ -139,6 +139,21 @@ class SepayWebhookServiceTest {
 
         service.handle(payload(104L, "in", 1_000_000L, "CK " + CODE));
 
+        verify(invoiceRepo, never()).save(any());
+        verifyNoInteractions(organizationRepository, adminOrgService);
+        verify(eventRepo).save(any());
+    }
+
+    @Test
+    @DisplayName("hoá đơn VOID (đã huỷ) → ghi event, KHÔNG đánh PAID/kích hoạt (chống re-pay đơn đã huỷ)")
+    void handle_voidInvoice_notSettled() {
+        OrgInvoice inv = invoice("VOID", 1_000_000L);
+        when(eventRepo.existsBySepayId("105")).thenReturn(false);
+        when(invoiceRepo.findByPaymentCode(CODE)).thenReturn(Optional.of(inv));
+
+        service.handle(payload(105L, "in", 1_000_000L, "CK " + CODE));
+
+        assertThat(inv.getStatus()).isEqualTo("VOID");
         verify(invoiceRepo, never()).save(any());
         verifyNoInteractions(organizationRepository, adminOrgService);
         verify(eventRepo).save(any());
