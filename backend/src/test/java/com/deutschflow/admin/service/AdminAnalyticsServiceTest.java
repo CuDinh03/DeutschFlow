@@ -2,6 +2,7 @@ package com.deutschflow.admin.service;
 
 import com.deutschflow.admin.dto.AdminRevenueAnalyticsResponse;
 import com.deutschflow.payment.repository.PaymentTransactionRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,7 +24,14 @@ class AdminAnalyticsServiceTest {
     @Mock PaymentTransactionRepository paymentRepo;
     @Mock org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
     @Mock com.deutschflow.common.quota.AiCostEstimator aiCostEstimator;
+    @Mock DemoDataFilter demoDataFilter;
     @InjectMocks AdminAnalyticsService service;
+
+    @BeforeEach
+    void stubDemoFilter() {
+        // aiCostVndByMonth() always runs inside getRevenueAnalytics(); no-op clause keeps SQL valid.
+        when(demoDataFilter.whereExcludeDemo()).thenReturn("");
+    }
 
     @Test
     @DisplayName("all rows from getMonthlyRevenue() are summed — no silent provider exclusion by status")

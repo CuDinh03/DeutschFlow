@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 @ExtendWith(MockitoExtension.class)
 class AdminManagementServiceUnitTest {
     @Mock org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+    @Mock DemoDataFilter demoDataFilter;
     @Mock com.deutschflow.user.repository.UserRepository userRepository;
     @Mock com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     @Mock com.deutschflow.common.telemetry.ApiTelemetryService apiTelemetryService;

@@ -50,6 +50,7 @@ import java.time.format.DateTimeParseException;
 @RequiredArgsConstructor
 public class AdminManagementService {
     private final JdbcTemplate jdbcTemplate;
+    private final DemoDataFilter demoDataFilter;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
     private final ApiTelemetryService apiTelemetryService;
@@ -329,6 +330,7 @@ public class AdminManagementService {
 
         // Group by (feature, model): cost pricing is model-dependent, so we must keep the
         // model dimension to price each bucket before rolling up to per-feature totals.
+        // Demo-org activity is excluded so it doesn't skew COGS-by-feature (see DemoDataFilter).
         List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
                         SELECT COALESCE(NULLIF(TRIM(feature), ''), 'UNKNOWN') AS feature,
                                COALESCE(model, 'unknown')                     AS model,
@@ -338,8 +340,9 @@ public class AdminManagementService {
                                COUNT(*)::bigint                               AS requests
                         FROM ai_token_usage_events
                         WHERE created_at >= ? AND created_at <= ?
+                        %s
                         GROUP BY 1, 2
-                        """,
+                        """.formatted(demoDataFilter.andExcludeDemo()),
                 Timestamp.from(from), Timestamp.from(to));
 
         Map<String, long[]> tokensByFeature = new LinkedHashMap<>(); // [prompt, completion, total, requests]
@@ -416,9 +419,10 @@ public class AdminManagementService {
                     SUM(total_tokens)::bigint                              AS tokens
                 FROM ai_token_usage_events
                 WHERE created_at >= ? AND created_at <= ?
+                %s
                 GROUP BY 1, 2, 3
                 ORDER BY 1 DESC, 6 DESC
-                """,
+                """.formatted(demoDataFilter.andExcludeDemo()),
                 Timestamp.from(from), Timestamp.from(to));
 
         long totalTokens = 0L;
@@ -470,6 +474,9 @@ public class AdminManagementService {
         Instant from = to.minusSeconds((long) d * 86400L);
         Timestamp fromTs = Timestamp.from(from);
         Timestamp toTs = Timestamp.from(to);
+        // Resolve the demo-exclusion clause once and reuse across all three scans below, so
+        // demo-org activity never inflates spend, the active-user denominator, or STT cost.
+        final String demoAnd = demoDataFilter.andExcludeDemo();
 
         // One scan, grouped finely enough to price each bucket and roll up two ways.
         List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
@@ -482,15 +489,17 @@ public class AdminManagementService {
                     COUNT(*)::bigint                               AS requests
                 FROM ai_token_usage_events
                 WHERE created_at >= ? AND created_at <= ?
+                %s
                 GROUP BY 1, 2
-                """,
+                """.formatted(demoAnd),
                 fromTs, toTs);
 
         Number activeRaw = jdbcTemplate.queryForObject("""
                         SELECT COUNT(DISTINCT user_id)
                         FROM ai_token_usage_events
                         WHERE created_at >= ? AND created_at <= ?
-                        """,
+                        %s
+                        """.formatted(demoAnd),
                 Number.class, fromTs, toTs);
         long activeUsers = activeRaw == null ? 0L : activeRaw.longValue();
 
@@ -519,6 +528,7 @@ public class AdminManagementService {
         }
 
         // STT spend from stt_usage_events (separate table — Whisper billed per audio-second).
+        // Same demo exclusion; the clause keeps NULL user_id rows (stt_usage_events.user_id is nullable).
         List<Map<String, Object>> sttRows = jdbcTemplate.queryForList("""
                 SELECT COALESCE(NULLIF(TRIM(feature), ''), 'STT_UNKNOWN') AS feature,
                        model,
@@ -526,8 +536,9 @@ public class AdminManagementService {
                        SUM(audio_duration_secs)                           AS total_secs
                 FROM stt_usage_events
                 WHERE created_at >= ? AND created_at <= ?
+                %s
                 GROUP BY 1, 2
-                """, fromTs, toTs);
+                """.formatted(demoAnd), fromTs, toTs);
 
         double sttCostUsd = 0.0;
         long sttRequests = 0L;
