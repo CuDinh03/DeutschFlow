@@ -55,6 +55,11 @@ public class AdminOrganizationController {
         return adminOrgService.updateOrganization(id, request);
     }
 
+    @GetMapping("/{id}/members")
+    public List<OrgMemberDto> listMembers(@PathVariable("id") Long orgId) {
+        return adminOrgService.listMembers(orgId);
+    }
+
     @PostMapping("/{id}/members")
     public OrgMemberDto addMember(@PathVariable("id") Long orgId, @RequestBody AddMemberRequest request) {
         return adminOrgService.addMember(orgId, request.email(), request.role());

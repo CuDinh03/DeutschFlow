@@ -1,14 +1,17 @@
 package com.deutschflow.organization.service;
 
 import com.deutschflow.common.exception.BadRequestException;
+import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.organization.dto.CreateOrgRequest;
 import com.deutschflow.organization.dto.OrgDto;
+import com.deutschflow.organization.dto.OrgMemberDto;
 import com.deutschflow.organization.dto.UpdateOrgRequest;
 import com.deutschflow.organization.entity.OrgMember;
 import com.deutschflow.organization.entity.OrgMemberId;
 import com.deutschflow.organization.entity.Organization;
 import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.organization.repository.OrganizationRepository;
+import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -27,6 +30,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -119,6 +123,38 @@ class AdminOrgServiceLifecycleTest {
         service.createOrganization(new CreateOrgRequest("ATB", "atb-2", "   ", 0, null));
 
         assertThat(captor.getValue().getPlanCode()).isNull();
+    }
+
+    // ------------------------------------------------------------------ listMembers (GET /{id}/members)
+
+    @Test
+    @DisplayName("listMembers: returns active members enriched with email + display name")
+    void listMembers_returnsActiveMembersWithUserInfo() {
+        when(organizationRepository.existsById(ORG_ID)).thenReturn(true);
+        when(orgMemberRepository.findByIdOrgIdAndStatus(ORG_ID, "ACTIVE"))
+                .thenReturn(List.of(activeMember(100L)));
+        User u = mock(User.class);
+        when(u.getId()).thenReturn(100L);
+        when(u.getEmail()).thenReturn("hv@example.com");
+        when(u.getDisplayName()).thenReturn("Học viên A");
+        when(userRepository.findAllById(any())).thenReturn(List.of(u));
+
+        List<OrgMemberDto> members = service.listMembers(ORG_ID);
+
+        assertThat(members).hasSize(1);
+        assertThat(members.get(0).userId()).isEqualTo(100L);
+        assertThat(members.get(0).email()).isEqualTo("hv@example.com");
+        assertThat(members.get(0).displayName()).isEqualTo("Học viên A");
+        assertThat(members.get(0).role()).isEqualTo("STUDENT");
+        assertThat(members.get(0).status()).isEqualTo("ACTIVE");
+    }
+
+    @Test
+    @DisplayName("listMembers: unknown org → NotFound")
+    void listMembers_unknownOrg_throwsNotFound() {
+        when(organizationRepository.existsById(99L)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.listMembers(99L)).isInstanceOf(NotFoundException.class);
     }
 
     // ------------------------------------------------------------------ ACTIVE -> SUSPENDED
