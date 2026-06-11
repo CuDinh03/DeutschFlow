@@ -207,6 +207,12 @@ app:
     # 0 = không có proxy (dùng socket address). 1 = một proxy (mặc định). 2 = CloudFront→ALB.
     trusted-proxy-count: ${APP_SECURITY_TRUSTED_PROXY_COUNT:1}
 
+  # Gói miễn phí cho GV tự do (non-org): hạn mức/ngày cho tính năng AI ĐẮT (checklist D6).
+  # Chấm bài text (core) KHÔNG bị cap; chỉ PPTX & OCR-ảnh. GV thuộc org dùng org token-pool.
+  free-tier:
+    pptx-daily: ${FREE_TIER_PPTX_DAILY:2}
+    ocr-daily: ${FREE_TIER_OCR_DAILY:5}
+
   auth:
     # Brute-force / abuse guard cho auth endpoints (in-memory sliding window, per node).
     # Bộ đếm nằm trong RAM → restart/redeploy backend sẽ xoá hết (cách gỡ khoá nhanh nhất).

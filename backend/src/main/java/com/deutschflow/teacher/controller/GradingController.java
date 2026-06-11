@@ -34,6 +34,7 @@ public class GradingController {
     private final ClassStudentRepository classStudentRepository;
     private final HandwritingOcrService handwritingOcrService;
     private final OrgPoolGuard orgPoolGuard;
+    private final com.deutschflow.common.quota.FreeTierGuard freeTierGuard;
 
     /**
      * Ước lượng token cho 1 lần AI chấm bài viết (essay + rubric vào, ~800 token feedback ra) —
@@ -125,6 +126,9 @@ public class GradingController {
         // Hard-cap pool token cấp-org (chấm-ảnh đắt: Gemini vision + 70B) — dùng chung OrgPoolGuard.
         // B2C/non-org/pool=0 luôn qua.
         orgPoolGuard.assertOrgPoolAvailable(teacher.getId(), IMAGE_GRADE_ESTIMATED_TOKENS);
+        // Gói miễn phí (GV tự do, non-org): cap OCR-ảnh theo ngày (D6) — chấm text core vẫn không giới hạn.
+        freeTierGuard.assertAndConsume(teacher.getId(), teacher.getOrgId(),
+                com.deutschflow.common.quota.FreeTierGuard.FEATURE_OCR_GRADE);
 
         byte[] bytes;
         try {

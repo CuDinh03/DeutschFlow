@@ -39,6 +39,7 @@ public class TeacherMaterialController {
     private final com.deutschflow.common.async.AsyncJobSseService asyncJobSseService;
     private final PptxStore pptxStore;
     private final OrgPoolGuard orgPoolGuard;
+    private final com.deutschflow.common.quota.FreeTierGuard freeTierGuard;
 
     private static final long MAX_FILE_SIZE = 20L * 1024 * 1024; // 20MB
 
@@ -71,6 +72,11 @@ public class TeacherMaterialController {
         // Hard-cap pool token cấp-org: chặn (429) tạo PPTX khi tổ chức đã dùng hết ngân sách
         // token AI tháng này. Giáo viên B2C / org chưa cấu hình pool luôn được cho qua.
         orgPoolGuard.assertOrgPoolAvailable(user != null ? user.getId() : null, PPTX_ESTIMATED_TOKENS);
+        // Gói miễn phí (GV tự do, non-org): cap PPTX theo ngày — bảo vệ biên lợi nhuận (D6).
+        freeTierGuard.assertAndConsume(
+                user != null ? user.getId() : null,
+                user != null ? user.getOrgId() : null,
+                com.deutschflow.common.quota.FreeTierGuard.FEATURE_PPTX);
 
         try {
             String mimeType = documentParsingService.determineMimeType(file);
