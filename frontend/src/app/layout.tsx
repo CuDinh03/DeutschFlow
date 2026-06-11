@@ -8,6 +8,7 @@ import { PostHogProvider } from '@/providers/PostHogProvider'
 import { NativeAuthProvider } from '@/providers/NativeAuthProvider'
 import { MotionProvider } from '@/providers/MotionProvider'
 import { AuthRecoveryDialog } from '@/components/auth/AuthRecoveryDialog'
+import { SITE_URL } from '@/lib/siteUrl'
 import './globals.css'
 
 const inter = Inter({
@@ -28,6 +29,7 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: 'DeutschFlow — Learn German with AI',
   description: 'Learn German with color-coded grammar, AI speaking coach, and spaced repetition',
   icons: {
