@@ -9,4 +9,7 @@ import java.util.List;
 @Repository
 public interface MockExamPackRepository extends JpaRepository<MockExamPack, Long> {
     List<MockExamPack> findByActiveTrueOrderBySortOrderAsc();
+
+    /** Admin catalog view: ALL packs (active + inactive) in curation order. */
+    List<MockExamPack> findAllByOrderBySortOrderAscIdAsc();
 }

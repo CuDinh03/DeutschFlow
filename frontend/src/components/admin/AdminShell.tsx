@@ -14,6 +14,7 @@ import {
   Building2,
   Coins,
   Database,
+  GraduationCap,
   Image,
   LayoutDashboard,
   LineChart,
@@ -45,6 +46,7 @@ export type AdminNavId =
   | 'notifications'
   | 'organizations'
   | 'marketing'
+  | 'mock-exam-packs'
 
 type AdminShellProps = {
   title: string
@@ -82,6 +84,7 @@ export default function AdminShell({
     { id: 'marketing' as const,     label: 'Tăng trưởng (Leads)', href: '/admin/marketing',     icon: TrendingUp },
     { id: 'plans' as const,         label: t('plans'),       href: '/admin/plans',          icon: Coins },
     { id: 'classes' as const,       label: t('classes'),           href: '/admin/classes',        icon: BookOpen },
+    { id: 'mock-exam-packs' as const, label: 'Bộ đề thi thử',       href: '/admin/mock-exam-packs', icon: GraduationCap },
     { id: 'vocabulary' as const,    label: t('vocabulary'),           href: '/admin/vocabulary',     icon: Database },
     { id: 'media' as const,         label: 'Quản lý ảnh (S3)',    href: '/admin/media',          icon: Image },
     { id: 'reports' as const,       label: t('reports'),       href: '/admin/reports',        icon: BarChart3 },

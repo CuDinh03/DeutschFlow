@@ -3,6 +3,7 @@ package com.deutschflow.teacher.controller;
 import com.deutschflow.teacher.dto.TeacherCenterDto;
 import com.deutschflow.teacher.service.TeacherCenterService;
 import com.deutschflow.user.entity.User;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -26,7 +27,7 @@ public class TeacherCenterController {
     }
 
     @PutMapping
-    public TeacherCenterDto set(@AuthenticationPrincipal User teacher, @RequestBody TeacherCenterDto body) {
+    public TeacherCenterDto set(@AuthenticationPrincipal User teacher, @Valid @RequestBody TeacherCenterDto body) {
         return new TeacherCenterDto(teacherCenterService.setCenter(teacher.getId(), body.centerName()));
     }
 }

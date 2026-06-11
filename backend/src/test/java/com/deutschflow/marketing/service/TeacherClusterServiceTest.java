@@ -43,4 +43,13 @@ class TeacherClusterServiceTest {
 
         assertThat(service.clusters(5)).isEmpty();
     }
+
+    @Test
+    @DisplayName("clusters: minSize quá lớn bị clamp xuống 10_000 (chặn giá trị vô nghĩa)")
+    @SuppressWarnings("unchecked")
+    void clusters_clampsMinSizeToUpperBound() {
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(10_000))).thenReturn(List.of());
+
+        assertThat(service.clusters(999_999)).isEmpty();
+    }
 }

@@ -18,12 +18,14 @@ import java.util.List;
 public class TeacherClusterService {
 
     private static final int MIN_CLUSTER_SIZE = 2;
+    /** Upper bound so a nonsensical {@code minSize} (ADMIN-only param) can't reach the query/logs. */
+    private static final int MAX_CLUSTER_SIZE = 10_000;
 
     private final JdbcTemplate jdbcTemplate;
 
     @Transactional(readOnly = true)
     public List<TeacherClusterDto> clusters(int minSize) {
-        int threshold = Math.max(MIN_CLUSTER_SIZE, minSize);
+        int threshold = Math.min(MAX_CLUSTER_SIZE, Math.max(MIN_CLUSTER_SIZE, minSize));
         return jdbcTemplate.query("""
                         SELECT MIN(TRIM(center_name))                 AS center_name,
                                COUNT(*)::int                          AS teacher_count,
