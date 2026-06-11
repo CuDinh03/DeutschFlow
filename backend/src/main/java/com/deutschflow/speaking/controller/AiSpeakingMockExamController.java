@@ -84,7 +84,11 @@ public class AiSpeakingMockExamController {
         var messages = List.of(new ChatMessage("user", prompt));
 
         try {
-            var response = chatClient.chatCompletion(messages, "json_object", 0.3, 1200);
+            // model = null → configured default speaking model (app.ai.groq.model). JSON output is
+            // already forced by GroqChatClient's response_format; passing "json_object" here would be
+            // sent as the MODEL name → Groq HTTP 400 → this catch → mock-exam eval silently fails.
+            // (Same bug family as the SprechenTeil2 / #94 grading fix.)
+            var response = chatClient.chatCompletion(messages, null, 0.3, 1200);
             Map<String, Object> result = objectMapper.readValue(response.content(), Map.class);
 
             // ── Validate LLM output ─────────────────────────────
