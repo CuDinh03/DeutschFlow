@@ -12,6 +12,7 @@ import { WeakAreasRecommendation } from '@/components/exam/WeakAreasRecommendati
 import { useStudentPracticeSession } from '@/hooks/useStudentPracticeSession'
 import { logout } from '@/lib/authSession'
 import api from '@/lib/api'
+import Link from 'next/link'
 import { useTracking } from '@/hooks/useTracking'
 import { AudioPlayer } from '@/components/exam/AudioPlayer'
 import { toast } from 'sonner'
@@ -711,6 +712,10 @@ export default function MockExamPage() {
       initials={initials} onLogout={() => logout()}
       headerTitle="🎯 Mock Goethe Exam" headerSubtitle="Thi thử theo format Goethe-Institut chính thức">
       <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
+        <Link href="/student/mock-exam/packs" className="flex items-center justify-between rounded-2xl border border-indigo-100 bg-indigo-50/50 px-5 py-3 transition hover:bg-indigo-50">
+          <span className="flex items-center gap-2 text-sm font-bold text-slate-800"><BookOpen size={16} className="text-indigo-600" /> Bộ đề luyện thi theo gói</span>
+          <ChevronRight size={16} className="text-slate-400" />
+        </Link>
         {!isPro && (
           <PremiumGate
             requires="PRO"
