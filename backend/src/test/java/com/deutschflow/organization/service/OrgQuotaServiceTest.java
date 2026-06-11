@@ -50,4 +50,33 @@ class OrgQuotaServiceTest {
         assertThat(OrgQuotaService.exceeds(7L, 1_000L, 1_000L, -50L)).isFalse();
         assertThat(OrgQuotaService.exceeds(7L, 1_000L, 1_001L, -50L)).isTrue();
     }
+
+    @Test
+    @DisplayName("usagePercent: unlimited pool (<=0) is always 0%")
+    void usagePercent_unlimitedPool_zero() {
+        assertThat(OrgQuotaService.usagePercent(0L, 999_999L)).isZero();
+        assertThat(OrgQuotaService.usagePercent(-1L, 999_999L)).isZero();
+    }
+
+    @Test
+    @DisplayName("usagePercent: computes floored percentage of pool used")
+    void usagePercent_computesFloor() {
+        assertThat(OrgQuotaService.usagePercent(1_000L, 0L)).isZero();
+        assertThat(OrgQuotaService.usagePercent(1_000L, 799L)).isEqualTo(79);
+        assertThat(OrgQuotaService.usagePercent(1_000L, 800L)).isEqualTo(80);
+        assertThat(OrgQuotaService.usagePercent(1_000L, 1_000L)).isEqualTo(100);
+    }
+
+    @Test
+    @DisplayName("usagePercent: can exceed 100 when over pool, negative used clamped to 0")
+    void usagePercent_overAndNegative() {
+        assertThat(OrgQuotaService.usagePercent(1_000L, 1_500L)).isEqualTo(150);
+        assertThat(OrgQuotaService.usagePercent(1_000L, -50L)).isZero();
+    }
+
+    @Test
+    @DisplayName("POOL_ALERT_PERCENT threshold is 80")
+    void poolAlertPercent_is80() {
+        assertThat(OrgQuotaService.POOL_ALERT_PERCENT).isEqualTo(80);
+    }
 }

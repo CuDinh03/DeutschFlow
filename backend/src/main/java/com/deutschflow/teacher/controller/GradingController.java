@@ -1,6 +1,7 @@
 package com.deutschflow.teacher.controller;
 
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.organization.service.OrgPoolGuard;
 import com.deutschflow.teacher.dto.TeacherSessionEvaluationRequest;
 import com.deutschflow.teacher.entity.StudentAssignment;
 import com.deutschflow.teacher.repository.StudentAssignmentRepository;
@@ -27,6 +28,13 @@ public class GradingController {
     private final StudentAssignmentRepository studentAssignmentRepository;
     private final ClassTeacherRepository classTeacherRepository;
     private final ClassStudentRepository classStudentRepository;
+    private final OrgPoolGuard orgPoolGuard;
+
+    /**
+     * Ước lượng token cho 1 lần AI chấm bài viết (essay + rubric vào, ~800 token feedback ra) —
+     * dùng hard-cap pool token cấp-org trước khi khởi chạy job chấm async.
+     */
+    private static final long GRADING_ESTIMATED_TOKENS = 2_000L;
 
     /**
      * GET /api/v2/teacher/grading/queue
@@ -82,6 +90,9 @@ public class GradingController {
         if (!hasAccess) {
             return ResponseEntity.status(403).body(Map.of("error", "Bạn không có quyền chấm bài này"));
         }
+
+        // Hard-cap pool token cấp-org trước khi kích hoạt AI chấm (429 nếu org hết ngân sách).
+        orgPoolGuard.assertOrgPoolAvailable(teacher.getId(), GRADING_ESTIMATED_TOKENS);
 
         gradingService.aiGradeAssignment(submissionId, teacher.getId());
         return ResponseEntity.ok(Map.of("message", "AI đang chấm bài, vui lòng chờ vài giây"));

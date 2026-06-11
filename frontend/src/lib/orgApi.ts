@@ -63,6 +63,10 @@ export interface OrgAnalytics {
   teacherCount: number
   classCount: number
   tokensThisMonth: number
+  /** Monthly AI token pool for the org (0 = unlimited / not configured). */
+  monthlyTokenPool: number
+  /** % of the monthly pool consumed this month (0 when unlimited; may exceed 100 when over). */
+  poolUsagePercent: number
   activeStudents7d: number
   cefrDistribution: CefrBucket[]
 }
