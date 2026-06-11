@@ -34,6 +34,11 @@ export const B2B_EVENT = {
    * the QuotaService pool check.
    */
   TOKEN_POOL_THRESHOLD_80: 'token_pool_threshold_80',
+  /**
+   * Public lead magnet: a visitor submitted a Schreiben B1 essay for a free AI
+   * grade and left a contact (checklist C8). Top-of-funnel acquisition signal.
+   */
+  LEAD_MAGNET_SUBMITTED: 'lead_magnet_submitted',
 } as const
 
 export type B2bEventName = (typeof B2B_EVENT)[keyof typeof B2B_EVENT]
