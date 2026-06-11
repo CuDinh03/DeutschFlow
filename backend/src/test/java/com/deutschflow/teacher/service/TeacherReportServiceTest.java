@@ -137,6 +137,31 @@ class TeacherReportServiceTest {
     }
 
     @Test
+    void gradebook_clampsOutOfRangeScores_inAverage() {
+        Long teacherId = 1L, classId = 100L;
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)).thenReturn(true);
+        when(classRepository.findById(classId)).thenReturn(Optional.of(
+                TeacherClass.builder().id(classId).name("Lớp A1").build()));
+        ClassAssignment a2 = ClassAssignment.builder()
+                .id(11L).classId(classId).topic("Bài 2").assignmentType("GENERAL").build();
+        ClassAssignment a1 = ClassAssignment.builder()
+                .id(10L).classId(classId).topic("Bài 1").assignmentType("GENERAL").build();
+        when(assignmentRepository.findByClassIdOrderByCreatedAtDesc(classId)).thenReturn(List.of(a2, a1));
+        when(classStudentRepository.findByIdClassId(classId)).thenReturn(List.of(
+                ClassStudent.builder().id(new ClassStudentId(classId, 200L)).build()));
+        when(userRepository.findAllById(List.of(200L))).thenReturn(List.of(
+                User.builder().id(200L).displayName("Anna").email("anna@x.de").build()));
+        // 90 + a bogus 234 (out-of-range manual entry) → 234 clamps to 100 → avg (90+100)/2 = 95.0, NOT 162.0
+        when(studentAssignmentRepository.findByAssignmentIds(List.of(10L, 11L))).thenReturn(List.of(
+                StudentAssignment.builder().assignmentId(10L).studentId(200L).status("EVALUATED").score(90).build(),
+                StudentAssignment.builder().assignmentId(11L).studentId(200L).status("EVALUATED").score(234).build()));
+
+        GradebookDto result = service.gradebook(teacherId, classId);
+
+        assertEquals(95.0, result.students().get(0).avgScore());
+    }
+
+    @Test
     void gradebook_returnsEmptyMatrix_whenClassHasNoAssignments() {
         Long teacherId = 1L, classId = 100L;
         when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)).thenReturn(true);

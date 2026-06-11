@@ -678,6 +678,12 @@ public class TeacherService {
             throw new ConflictException("Học viên không thuộc lớp của bạn");
         }
 
+        // Scores are graded on a 0-100 scale; reject out-of-range manual entry so it can't pollute
+        // the class/teacher report averages (root cause of the "234.4 average" report bug).
+        if (req.teacherScore() != null && (req.teacherScore() < 0 || req.teacherScore() > 100)) {
+            throw new BadRequestException("Điểm phải trong khoảng 0–100");
+        }
+
         assignment.setScore(req.teacherScore());
         assignment.setFeedback(req.teacherFeedback());
         assignment.setStatus("EVALUATED");
