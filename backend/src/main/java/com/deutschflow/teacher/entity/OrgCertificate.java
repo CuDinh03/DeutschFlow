@@ -34,7 +34,7 @@ public class OrgCertificate {
     @Column(name = "certificate_code", nullable = false, length = 64)
     private String certificateCode;
 
-    @Column(name = "class_id")
+    @Column(name = "class_id", nullable = false)
     private Long classId;
 
     @Column(name = "org_id")

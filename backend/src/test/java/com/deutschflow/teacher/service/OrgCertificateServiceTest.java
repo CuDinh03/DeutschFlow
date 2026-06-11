@@ -200,4 +200,17 @@ class OrgCertificateServiceTest {
         verify(teacherService).assertTeacherOwnsClass(ISSUER_ID, CLASS_ID);
         verify(certificateRepository).save(cert);
     }
+
+    @Test
+    @DisplayName("revoke: GV không sở hữu lớp của cert → Forbidden, KHÔNG đổi active, KHÔNG lưu")
+    void revoke_notOwner_throwsForbidden() {
+        OrgCertificate cert = OrgCertificate.builder().classId(CLASS_ID).active(true).build();
+        when(certificateRepository.findById(7L)).thenReturn(Optional.of(cert));
+        doThrow(new ForbiddenException("Bạn không có quyền xem lớp này"))
+                .when(teacherService).assertTeacherOwnsClass(ISSUER_ID, CLASS_ID);
+
+        assertThatThrownBy(() -> service.revoke(ISSUER_ID, 7L)).isInstanceOf(ForbiddenException.class);
+        assertThat(cert.isActive()).isTrue();
+        verify(certificateRepository, never()).save(any());
+    }
 }

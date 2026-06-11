@@ -16,7 +16,7 @@ CREATE TABLE org_certificates (
     id                      BIGSERIAL PRIMARY KEY,
     verify_token            VARCHAR(40)  NOT NULL UNIQUE,   -- secret in the public verify URL
     certificate_code        VARCHAR(64)  NOT NULL,          -- human-readable, e.g. DF-B1-2026-AB12CD34
-    class_id                BIGINT,                         -- the class the cert was issued from (for listing)
+    class_id                BIGINT       NOT NULL,          -- the class the cert was issued from (always set at issue)
     org_id                  BIGINT,                         -- null = no co-brand (DeutschFlow default branding)
     org_name_snapshot       VARCHAR(255),
     org_logo_url_snapshot   VARCHAR(512),
