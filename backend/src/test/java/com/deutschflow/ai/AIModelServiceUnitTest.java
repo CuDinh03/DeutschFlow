@@ -12,6 +12,6 @@ class AIModelServiceUnitTest {
 
     @Test
     void constructsWithAiServerUrl() {
-        assertNotNull(new AIModelService("http://localhost:8000"));
+        assertNotNull(new AIModelService("http://localhost:8000", 15000));
     }
 }

@@ -6,19 +6,26 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.http.*;
 import lombok.extern.slf4j.Slf4j;
 
+import com.deutschflow.common.http.RestTemplates;
+
 import java.util.Map;
 
 @Slf4j
 @Service
 public class AIModelService {
-    
+
     private final RestTemplate restTemplate;
     private final String aiServerUrl;
-    
-    public AIModelService(@Value("${app.ai.server-url:http://localhost:8000}") String aiServerUrl) {
-        this.restTemplate = new RestTemplate();
+
+    public AIModelService(
+            @Value("${app.ai.server-url:http://localhost:8000}") String aiServerUrl,
+            @Value("${app.ai.timeout-ms:15000}") int aiTimeoutMs) {
+        // Previously a bare `new RestTemplate()` with no timeout — a hung AI server pinned the
+        // request thread (and its DB connection) indefinitely. Honour app.ai.timeout-ms as the
+        // read timeout (the config existed but was never wired in).
+        this.restTemplate = RestTemplates.withTimeouts(3000, aiTimeoutMs);
         this.aiServerUrl = aiServerUrl;
-        log.info("AI Model Service initialized with URL: {}", aiServerUrl);
+        log.info("AI Model Service initialized with URL: {} (timeout {}ms)", aiServerUrl, aiTimeoutMs);
     }
     
     /**

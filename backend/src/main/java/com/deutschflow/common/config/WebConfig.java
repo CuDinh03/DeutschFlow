@@ -8,6 +8,8 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.web.client.RestTemplate;
 
+import com.deutschflow.common.http.RestTemplates;
+
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
@@ -47,6 +49,7 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Bean
     public RestTemplate restTemplate() {
-        return new RestTemplate();
+        // 3s connect, 10s read — never let a hung upstream pin a request/DB-connection forever.
+        return RestTemplates.withTimeouts(3000, 10000);
     }
 }

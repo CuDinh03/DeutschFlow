@@ -26,6 +26,10 @@ public class GroqWhisperClient {
 
     private static final String WHISPER_URL = "https://api.groq.com/openai/v1/audio/transcriptions";
 
+    /** Per-request cap. The JDK HttpClient only had a connect timeout; without this a stalled
+     *  Groq response would hold the STT thread (and its Whisper semaphore permit) indefinitely. */
+    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(60);
+
     private final String apiKey;
     private final String whisperModel;
     private final ObjectMapper objectMapper;
@@ -75,6 +79,7 @@ public class GroqWhisperClient {
                 .uri(URI.create(WHISPER_URL))
                 .header("Authorization", "Bearer " + apiKey)
                 .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+                .timeout(REQUEST_TIMEOUT)
                 .POST(HttpRequest.BodyPublishers.ofByteArray(body))
                 .build();
 
@@ -149,6 +154,7 @@ public class GroqWhisperClient {
                 .uri(URI.create(WHISPER_URL))
                 .header("Authorization", "Bearer " + apiKey)
                 .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+                .timeout(REQUEST_TIMEOUT)
                 .POST(HttpRequest.BodyPublishers.ofByteArray(body))
                 .build();
 

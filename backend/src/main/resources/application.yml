@@ -167,6 +167,10 @@ app:
     core-pool-size: ${ASYNC_CORE_POOL_SIZE:10}
     max-pool-size: ${ASYNC_MAX_POOL_SIZE:50}
     queue-capacity: ${ASYNC_QUEUE_CAPACITY:100}
+  # API telemetry is buffered in-memory and flushed in batches (NOT one INSERT per request — that
+  # held a DB connection on every call and starved the Hikari pool). Tune the flush cadence here.
+  telemetry:
+    flush-interval-ms: ${APP_TELEMETRY_FLUSH_INTERVAL_MS:5000}
   cache:
     # Redis L2 cache tier (Caffeine L1 + Redis L2). OFF by default → Caffeine-only. We gate on this
     # explicit flag rather than on spring.data.redis.host (which defaults to localhost, so it's always

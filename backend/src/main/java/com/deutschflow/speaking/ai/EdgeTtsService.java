@@ -7,6 +7,8 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import com.deutschflow.common.http.RestTemplates;
+
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -29,7 +31,8 @@ public class EdgeTtsService {
     @Value("${app.ai.edge-tts.url:}")
     private String edgeTtsUrl;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    // 3s connect, 10s read — TTS sits on the speaking hot path; a hung sidecar must not pin the thread.
+    private final RestTemplate restTemplate = RestTemplates.withTimeouts(3000, 10000);
 
     // ─── Usage tracking (in-memory, resets on restart) ────────────────────
     private final AtomicLong totalRequests   = new AtomicLong(0);
