@@ -45,6 +45,7 @@ public class GroqChatClient implements OpenAiChatClient {
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
     private final GroqConcurrencyLimiter concurrencyLimiter;
+    private final com.deutschflow.common.resilience.CircuitBreakers circuitBreakers;
     private final String apiKey;
     private final String defaultModel;
 
@@ -52,11 +53,13 @@ public class GroqChatClient implements OpenAiChatClient {
             @Value("${app.ai.groq.api-key:}") String apiKey,
             @Value("${app.ai.groq.model:meta-llama/llama-4-scout-17b-16e-instruct}") String model,
             ObjectMapper objectMapper,
-            GroqConcurrencyLimiter concurrencyLimiter) {
+            GroqConcurrencyLimiter concurrencyLimiter,
+            com.deutschflow.common.resilience.CircuitBreakers circuitBreakers) {
         this.apiKey = apiKey;
         this.defaultModel = model;
         this.objectMapper = objectMapper;
         this.concurrencyLimiter = concurrencyLimiter;
+        this.circuitBreakers = circuitBreakers;
 
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(10_000);
@@ -93,7 +96,12 @@ public class GroqChatClient implements OpenAiChatClient {
                 log.warn("[Groq] Semaphore timeout — too many concurrent AI requests");
                 throw new AiServiceException("AI service is busy. Please try again shortly.");
             }
-            return chatCompletionWithRetry(requestBody, effectiveModel);
+            // Circuit-breaker guarded (semaphore stays OUTSIDE so local backpressure isn't counted
+            // as an upstream failure). When Groq is down the breaker trips and we skip the 5× retry.
+            return circuitBreakers.call(
+                    "groqChat",
+                    () -> chatCompletionWithRetry(requestBody, effectiveModel),
+                    () -> new AiServiceException("AI đang quá tải, thử lại sau ít phút."));
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
             throw new AiServiceException("AI request interrupted.", ie);

@@ -35,16 +35,19 @@ public class GroqWhisperClient {
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
     private final GroqConcurrencyLimiter concurrencyLimiter;
+    private final com.deutschflow.common.resilience.CircuitBreakers circuitBreakers;
 
     public GroqWhisperClient(
             @Value("${app.ai.groq.api-key:}") String apiKey,
             @Value("${app.ai.groq.whisper-model:whisper-large-v3}") String whisperModel,
             ObjectMapper objectMapper,
-            GroqConcurrencyLimiter concurrencyLimiter) {
+            GroqConcurrencyLimiter concurrencyLimiter,
+            com.deutschflow.common.resilience.CircuitBreakers circuitBreakers) {
         this.apiKey = apiKey;
         this.whisperModel = whisperModel;
         this.objectMapper = objectMapper;
         this.concurrencyLimiter = concurrencyLimiter;
+        this.circuitBreakers = circuitBreakers;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
@@ -87,6 +90,23 @@ public class GroqWhisperClient {
         try {
             acquired = concurrencyLimiter.tryAcquireWhisper();
             if (!acquired) throw new AiServiceException("Speech recognition is busy.");
+            // Circuit-breaker guarded (semaphore stays OUTSIDE — local backpressure ≠ upstream failure).
+            return circuitBreakers.call(
+                    "groqWhisper",
+                    () -> sendAndParseVerbose(request),
+                    () -> new AiServiceException("Nhận diện giọng nói đang quá tải, thử lại sau ít phút."));
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new AiServiceException("Whisper verbose request interrupted.", ie);
+        } finally {
+            if (acquired) concurrencyLimiter.releaseWhisper();
+        }
+    }
+
+    /** Sends the Whisper request and parses the verbose JSON. Converts checked exceptions to
+     *  AiServiceException so the circuit breaker only ever sees (and counts) RuntimeExceptions. */
+    private VerboseTranscript sendAndParseVerbose(HttpRequest request) {
+        try {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             if (response.statusCode() != 200) {
                 throw new AiServiceException("Whisper verbose failed: HTTP " + response.statusCode());
@@ -124,8 +144,6 @@ public class GroqWhisperClient {
             throw new AiServiceException("Whisper verbose request interrupted.", ie);
         } catch (Exception e) {
             throw new AiServiceException("Whisper verbose error: " + e.getMessage(), e);
-        } finally {
-            if (acquired) concurrencyLimiter.releaseWhisper();
         }
     }
 
@@ -165,6 +183,25 @@ public class GroqWhisperClient {
                 log.warn("[Whisper] Semaphore timeout — too many concurrent STT requests");
                 throw new AiServiceException("Speech recognition is busy. Please try again shortly.");
             }
+            // Circuit-breaker guarded (semaphore stays OUTSIDE — local backpressure ≠ upstream failure).
+            return circuitBreakers.call(
+                    "groqWhisper",
+                    () -> sendAndParseTranscribe(request, prompt, audioBytes.length),
+                    () -> new AiServiceException("Nhận diện giọng nói đang quá tải, thử lại sau ít phút."));
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new AiServiceException("Whisper request interrupted.", ie);
+        } finally {
+            if (acquired) {
+                concurrencyLimiter.releaseWhisper();
+            }
+        }
+    }
+
+    /** Sends the Whisper request and parses the JSON. Converts checked exceptions to
+     *  AiServiceException so the circuit breaker only ever sees (and counts) RuntimeExceptions. */
+    private TranscribeResult sendAndParseTranscribe(HttpRequest request, String prompt, int audioLen) {
+        try {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             if (response.statusCode() != 200) {
                 log.error("[Whisper] HTTP {}: {}", response.statusCode(), response.body());
@@ -177,7 +214,7 @@ public class GroqWhisperClient {
             }
             double durationSeconds = root.path("duration").asDouble(0);
             log.info("[Whisper] target='{}' -> transcribed='{}' ({} bytes, {}s)",
-                    prompt != null ? prompt : "", text, audioBytes.length,
+                    prompt != null ? prompt : "", text, audioLen,
                     String.format("%.2f", durationSeconds));
             return new TranscribeResult(text.strip(), durationSeconds);
         } catch (AiServiceException e) {
@@ -187,10 +224,6 @@ public class GroqWhisperClient {
             throw new AiServiceException("Whisper request interrupted.", ie);
         } catch (Exception e) {
             throw new AiServiceException("Whisper transcription error: " + e.getMessage(), e);
-        } finally {
-            if (acquired) {
-                concurrencyLimiter.releaseWhisper();
-            }
         }
     }
 

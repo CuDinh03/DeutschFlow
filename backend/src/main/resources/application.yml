@@ -62,7 +62,7 @@ spring:
       # Blue-green deploy briefly runs TWO instances, so effective peak ≈ 2× this against RDS max_connections —
       # confirm your RDS instance class before raising further (checklist target 30; 20 is the safe default).
       maximum-pool-size: ${DB_POOL_MAX_SIZE:20}
-      minimum-idle: ${DB_POOL_MIN_IDLE:2}
+      minimum-idle: ${DB_POOL_MIN_IDLE:5}
       connection-timeout: ${DB_POOL_CONNECTION_TIMEOUT_MS:5000}
       # Recycle idle connections nhanh hơn để tránh RDS drop stale conn
       idle-timeout: ${DB_POOL_IDLE_TIMEOUT_MS:180000}
@@ -151,8 +151,10 @@ server:
   shutdown: graceful
   tomcat:
     threads:
-      # P1-6: 50→80 for more concurrent request headroom (esp. SSE speaking streams that hold a thread).
-      max: ${TOMCAT_MAX_THREADS:80}
+      # P1-6 raised 50→80, but the EC2 app box is t3.medium (2 vCPU) and the RDS pool is 20 — 80
+      # threads on 2 cores just thrash and pile up waiters on the pool. 48 fits the hardware (and
+      # SSE speaking threads hold a Tomcat thread but NOT a DB connection, so they don't need pool).
+      max: ${TOMCAT_MAX_THREADS:48}
       min-spare: ${TOMCAT_MIN_SPARE_THREADS:10}
     accept-count: ${TOMCAT_ACCEPT_COUNT:30}
     max-connections: ${TOMCAT_MAX_CONNECTIONS:200}
@@ -491,3 +493,28 @@ payment:
     environment: ${APPLE_IAP_ENVIRONMENT:Sandbox} # Sandbox | Production | LocalTesting | Xcode
     root-cert-dir: ${APPLE_ROOT_CERT_DIR:}         # dir of Apple Root CA *.cer (download from apple.com/certificateauthority)
     online-checks: ${APPLE_IAP_ONLINE_CHECKS:false} # OCSP revocation; set true in Production
+
+# ============================================================
+# Resilience4j circuit breakers — outbound AI calls (see common/resilience/CircuitBreakers.java).
+# When an upstream is failing, the breaker OPENs and calls fail FAST (friendly error) instead of
+# each request eating the full HTTP timeout. Auto-recovers via half-open probes. Metrics on
+# /actuator/prometheus (resilience4j_circuitbreaker_state).
+# ============================================================
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 4          # need ≥4 calls before evaluating the failure rate
+        failure-rate-threshold: 50          # ≥50% failures → OPEN
+        wait-duration-in-open-state: 30s    # stay OPEN 30s, then probe
+        permitted-number-of-calls-in-half-open-state: 2
+        automatic-transition-from-open-to-half-open-enabled: true
+    instances:
+      aiServer:
+        base-config: default
+      groqChat:
+        base-config: default
+      groqWhisper:
+        base-config: default

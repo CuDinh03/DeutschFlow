@@ -7,6 +7,7 @@ import org.springframework.http.*;
 import lombok.extern.slf4j.Slf4j;
 
 import com.deutschflow.common.http.RestTemplates;
+import com.deutschflow.common.resilience.CircuitBreakers;
 
 import java.util.Map;
 
@@ -16,15 +17,18 @@ public class AIModelService {
 
     private final RestTemplate restTemplate;
     private final String aiServerUrl;
+    private final CircuitBreakers circuitBreakers;
 
     public AIModelService(
             @Value("${app.ai.server-url:http://localhost:8000}") String aiServerUrl,
-            @Value("${app.ai.timeout-ms:15000}") int aiTimeoutMs) {
+            @Value("${app.ai.timeout-ms:15000}") int aiTimeoutMs,
+            CircuitBreakers circuitBreakers) {
         // Previously a bare `new RestTemplate()` with no timeout — a hung AI server pinned the
         // request thread (and its DB connection) indefinitely. Honour app.ai.timeout-ms as the
         // read timeout (the config existed but was never wired in).
         this.restTemplate = RestTemplates.withTimeouts(3000, aiTimeoutMs);
         this.aiServerUrl = aiServerUrl;
+        this.circuitBreakers = circuitBreakers;
         log.info("AI Model Service initialized with URL: {} (timeout {}ms)", aiServerUrl, aiTimeoutMs);
     }
     
@@ -46,6 +50,15 @@ public class AIModelService {
      * Generate với custom parameters including top_p
      */
     public String generate(String instruction, String input, int maxTokens, double temperature, double topP) {
+        // Circuit-breaker guarded: if the AI server is down, trip fast instead of making every
+        // caller wait the full read timeout.
+        return circuitBreakers.call(
+                "aiServer",
+                () -> generateDirect(instruction, input, maxTokens, temperature, topP),
+                () -> new RuntimeException("AI server đang quá tải, thử lại sau ít phút."));
+    }
+
+    private String generateDirect(String instruction, String input, int maxTokens, double temperature, double topP) {
         try {
             String url = aiServerUrl + "/generate";
             
