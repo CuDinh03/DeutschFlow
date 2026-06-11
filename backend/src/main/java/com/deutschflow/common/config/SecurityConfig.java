@@ -82,6 +82,8 @@ public class SecurityConfig {
                         auth.requestMatchers("/api/payments/stripe/webhook").permitAll();
                         // Apple App Store Server Notifications V2: called by Apple servers (no JWT), secured via JWS signature verification
                         auth.requestMatchers("/api/payments/apple/notifications").permitAll();
+                        // SePay bank-transfer webhook: called by SePay servers (no JWT), secured via shared Apikey header (C3)
+                        auth.requestMatchers("/api/payments/sepay/webhook").permitAll();
 
                         // Public media reads for landing page and direct asset links (no directory listing)
                         auth.requestMatchers(HttpMethod.GET, "/api/v2/media/by-tag").permitAll();

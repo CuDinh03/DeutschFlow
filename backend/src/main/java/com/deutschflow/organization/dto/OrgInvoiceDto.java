@@ -12,6 +12,7 @@ public record OrgInvoiceDto(
         int seats,
         long amountVnd,
         String status,
+        String paymentCode,
         String note,
         Instant createdAt
 ) {}
