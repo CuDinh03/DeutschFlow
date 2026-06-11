@@ -25,6 +25,8 @@ public class TeacherAiGradingService {
     private final OpenAiChatClient openAiChatClient;
     private final com.deutschflow.teacher.repository.StudentAssignmentRepository studentAssignmentRepository;
     private final com.deutschflow.common.quota.AiUsageLedgerService aiUsageLedgerService;
+    /** Model CHẤM (tách hẳn model nói) — chấm Sprechen cũng dùng model chấm, không dùng scout của speaking. */
+    private final GradingModelConfig gradingModelConfig;
 
     @Async("taskExecutor")
     public void autoGradeSession(Long sessionId) {
@@ -65,7 +67,9 @@ public class TeacherAiGradingService {
             List<ChatMessage> openAiMessages = new ArrayList<>();
             openAiMessages.add(new ChatMessage("user", prompt));
 
-            AiChatCompletionResult aiResult = openAiChatClient.chatCompletion(openAiMessages, null, 0.3, 1000);
+            // Chấm Sprechen dùng MODEL CHẤM (không phải null → model nói). Tách hẳn model nói.
+            AiChatCompletionResult aiResult = openAiChatClient.chatCompletion(
+                    openAiMessages, gradingModelConfig.model(), 0.3, 1000);
             
             if (aiResult == null || aiResult.content() == null) {
                 log.warn("[Auto-Grading] AI response is null for session {}", sessionId);
