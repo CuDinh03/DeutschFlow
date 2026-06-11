@@ -6,6 +6,7 @@ import api, { httpStatus } from '@/lib/api'
 import { TeacherShell } from '@/components/layouts/TeacherShell'
 import { usePendingGradingCount } from '@/hooks/usePendingGradingCount'
 import { logout } from '@/lib/authSession'
+import { TeacherCenterCard } from '@/components/teacher/TeacherCenterCard'
 import {
   GraduationCap, Loader2, Save, CheckCircle, AlertCircle,
   Eye, Star, Edit3, User, BookOpen, BadgeCheck, ExternalLink
@@ -244,6 +245,9 @@ export default function TeacherProfilePage() {
               </p>
             )}
           </div>
+
+          {/* Teaching center self-declaration (D11 org-sales signal) */}
+          <TeacherCenterCard />
         </div>
 
         {/* Save / Preview Buttons */}

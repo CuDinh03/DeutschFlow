@@ -2,7 +2,9 @@ package com.deutschflow.marketing.controller;
 
 import com.deutschflow.marketing.dto.GrowthStatsDto;
 import com.deutschflow.marketing.dto.MarketingLeadDto;
+import com.deutschflow.marketing.dto.TeacherClusterDto;
 import com.deutschflow.marketing.service.LeadMagnetService;
+import com.deutschflow.marketing.service.TeacherClusterService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,6 +24,7 @@ import java.util.List;
 public class AdminMarketingLeadController {
 
     private final LeadMagnetService leadMagnetService;
+    private final TeacherClusterService teacherClusterService;
 
     /** GET /api/admin/marketing/stats — số liệu phễu tăng trưởng (lead magnet + report). */
     @GetMapping("/stats")
@@ -35,5 +38,14 @@ public class AdminMarketingLeadController {
             @RequestParam(defaultValue = "30") int days,
             @RequestParam(defaultValue = "200") int limit) {
         return leadMagnetService.listRecentLeads(days, limit);
+    }
+
+    /**
+     * GET /api/admin/marketing/teacher-clusters?minSize=3 — centers with ≥minSize non-org teachers
+     * (D11 org-sales trigger). Each row = a B2B lead with contact emails for follow-up.
+     */
+    @GetMapping("/teacher-clusters")
+    public List<TeacherClusterDto> teacherClusters(@RequestParam(defaultValue = "3") int minSize) {
+        return teacherClusterService.clusters(minSize);
     }
 }

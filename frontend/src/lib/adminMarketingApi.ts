@@ -34,3 +34,16 @@ export async function listLeads(days = 30, limit = 200): Promise<MarketingLead[]
   const res = await api.get<MarketingLead[]>('/admin/marketing/leads', { params: { days, limit } })
   return res.data ?? []
 }
+
+/** A center with ≥minSize non-org teachers who declared it — a B2B org-sales lead (D11). */
+export interface TeacherCluster {
+  centerName: string
+  teacherCount: number
+  contactEmails: string
+}
+
+/** GET /api/admin/marketing/teacher-clusters?minSize=3 — free-teacher clusters by center. */
+export async function getTeacherClusters(minSize = 3): Promise<TeacherCluster[]> {
+  const res = await api.get<TeacherCluster[]>('/admin/marketing/teacher-clusters', { params: { minSize } })
+  return res.data ?? []
+}

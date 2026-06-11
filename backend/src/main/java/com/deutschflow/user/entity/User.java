@@ -62,6 +62,10 @@ public class User implements UserDetails {
     @Column(name = "org_id")
     private Long orgId;
 
+    /** Self-declared teaching center for non-org (free) teachers — feeds the D11 org-sales cluster signal. */
+    @Column(name = "center_name")
+    private String centerName;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

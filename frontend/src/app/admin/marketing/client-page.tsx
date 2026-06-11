@@ -1,14 +1,15 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Mail, MessageCircle, Users, FileCheck2, Gauge, ExternalLink } from 'lucide-react'
+import { Mail, MessageCircle, Users, FileCheck2, Gauge, ExternalLink, Building2 } from 'lucide-react'
 import AdminShell from '@/components/admin/AdminShell'
 import { httpStatus } from '@/lib/api'
-import { getGrowthStats, listLeads, type GrowthStats, type MarketingLead } from '@/lib/adminMarketingApi'
+import { getGrowthStats, listLeads, getTeacherClusters, type GrowthStats, type MarketingLead, type TeacherCluster } from '@/lib/adminMarketingApi'
 
 export default function AdminMarketingClientPage() {
   const [stats, setStats] = useState<GrowthStats | null>(null)
   const [leads, setLeads] = useState<MarketingLead[]>([])
+  const [clusters, setClusters] = useState<TeacherCluster[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | undefined>(undefined)
@@ -18,9 +19,10 @@ export default function AdminMarketingClientPage() {
     silent ? setRefreshing(true) : setLoading(true)
     setError(undefined)
     try {
-      const [s, l] = await Promise.all([getGrowthStats(), listLeads(30, 200)])
+      const [s, l, c] = await Promise.all([getGrowthStats(), listLeads(30, 200), getTeacherClusters(3)])
       setStats(s)
       setLeads(l)
+      setClusters(c)
       setLastSyncedAt(new Date())
     } catch (e) {
       if (httpStatus(e) === 403) {
@@ -104,6 +106,45 @@ export default function AdminMarketingClientPage() {
                             )}
                           </td>
                           <td className="px-5 py-3 hidden text-xs text-slate-400 sm:table-cell">{formatDate(l.createdAt)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Teacher clusters by center (D11 org-sales trigger) */}
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-3">
+                <Building2 size={18} className="text-emerald-600" />
+                <div>
+                  <h2 className="text-sm font-bold text-slate-800">Cụm GV theo trung tâm (≥3 GV tự do)</h2>
+                  <p className="text-xs text-slate-400">Trung tâm có nhiều giáo viên tự do dùng app → cơ hội chào gói tổ chức (B2B).</p>
+                </div>
+              </div>
+              {clusters.length === 0 ? (
+                <div className="px-5 py-12 text-center text-sm text-slate-400">
+                  Chưa có cụm nào (cần ≥3 GV tự do khai cùng một trung tâm).
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      <tr>
+                        <th className="px-5 py-3">Trung tâm</th>
+                        <th className="px-5 py-3">Số GV</th>
+                        <th className="px-5 py-3">Email liên hệ</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {clusters.map((c) => (
+                        <tr key={c.centerName} className="hover:bg-slate-50/60">
+                          <td className="px-5 py-3 font-semibold text-slate-800">{c.centerName}</td>
+                          <td className="px-5 py-3">
+                            <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-700">{c.teacherCount} GV</span>
+                          </td>
+                          <td className="px-5 py-3 text-xs text-slate-500">{c.contactEmails}</td>
                         </tr>
                       ))}
                     </tbody>
