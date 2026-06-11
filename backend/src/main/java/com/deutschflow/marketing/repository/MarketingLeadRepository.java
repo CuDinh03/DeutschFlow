@@ -17,6 +17,9 @@ public interface MarketingLeadRepository extends JpaRepository<MarketingLead, Lo
     /** Số lead từ một IP (đã hash) kể từ {@code since} — per-IP rate limit. */
     long countByIpHashAndCreatedAtAfter(String ipHash, Instant since);
 
+    /** Số lead theo loại liên hệ (EMAIL/ZALO/PHONE) — growth funnel. */
+    long countByContactType(String contactType);
+
     /** Lead mới nhất cho admin follow-up. */
     @Query("SELECT l FROM MarketingLead l ORDER BY l.createdAt DESC")
     List<MarketingLead> findRecent(Pageable pageable);

@@ -22,6 +22,7 @@ import {
   PieChart,
   RefreshCw,
   Settings,
+  TrendingUp,
   Users,
   X,
 } from 'lucide-react'
@@ -43,6 +44,7 @@ export type AdminNavId =
   | 'media'
   | 'notifications'
   | 'organizations'
+  | 'marketing'
 
 type AdminShellProps = {
   title: string
@@ -77,6 +79,7 @@ export default function AdminShell({
     { id: 'interview-analytics' as const, label: 'Interview Analytics', href: '/admin/interview-analytics', icon: BarChart3 },
     { id: 'students' as const,      label: t('students'),        href: '/admin/users',         icon: Users },
     { id: 'organizations' as const, label: 'Tổ chức (B2B)',       href: '/admin/organizations', icon: Building2 },
+    { id: 'marketing' as const,     label: 'Tăng trưởng (Leads)', href: '/admin/marketing',     icon: TrendingUp },
     { id: 'plans' as const,         label: t('plans'),       href: '/admin/plans',          icon: Coins },
     { id: 'classes' as const,       label: t('classes'),           href: '/admin/classes',        icon: BookOpen },
     { id: 'vocabulary' as const,    label: t('vocabulary'),           href: '/admin/vocabulary',     icon: Database },

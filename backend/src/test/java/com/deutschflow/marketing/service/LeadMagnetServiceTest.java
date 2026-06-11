@@ -94,6 +94,39 @@ class LeadMagnetServiceTest {
     }
 
     @Test
+    @DisplayName("growth stats aggregate leads + reports for the admin funnel")
+    void growthStats() {
+        when(leadRepository.count()).thenReturn(10L);
+        when(leadRepository.countByCreatedAtAfter(any(Instant.class))).thenReturn(5L);
+        when(reportRepository.count()).thenReturn(8L);
+        when(reportRepository.countByCreatedAtAfter(any(Instant.class))).thenReturn(3L);
+        when(reportRepository.averageScore()).thenReturn(78.36);
+        when(leadRepository.countByContactType("EMAIL")).thenReturn(6L);
+        when(leadRepository.countByContactType("ZALO")).thenReturn(4L);
+
+        var stats = service.getGrowthStats();
+
+        assertThat(stats.leadsTotal()).isEqualTo(10);
+        assertThat(stats.reportsTotal()).isEqualTo(8);
+        assertThat(stats.reports7d()).isEqualTo(3);
+        assertThat(stats.avgScore()).isEqualTo(78.4); // làm tròn 1 chữ số
+        assertThat(stats.emailLeads()).isEqualTo(6);
+        assertThat(stats.zaloLeads()).isEqualTo(4);
+    }
+
+    @Test
+    @DisplayName("growth stats: chưa có report → avg 0.0")
+    void growthStats_noReports() {
+        when(leadRepository.count()).thenReturn(0L);
+        when(leadRepository.countByCreatedAtAfter(any(Instant.class))).thenReturn(0L);
+        when(reportRepository.count()).thenReturn(0L);
+        when(reportRepository.countByCreatedAtAfter(any(Instant.class))).thenReturn(0L);
+        when(reportRepository.averageScore()).thenReturn(null);
+
+        assertThat(service.getGrowthStats().avgScore()).isZero();
+    }
+
+    @Test
     @DisplayName("phone/zalo contact is classified as ZALO")
     void zaloContact() {
         allowRateLimits();
