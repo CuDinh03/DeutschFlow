@@ -15,6 +15,9 @@ import { B2B_EVENT } from '@/lib/analytics/b2bEvents'
 type OrgSummary = Awaited<ReturnType<typeof getOrgSummary>>
 type OrgAnalytics = Awaited<ReturnType<typeof getAnalytics>>
 
+/** Token-pool usage % that triggers the 80% early-warning event (mirrors backend POOL_ALERT_PERCENT). */
+const POOL_ALERT_PERCENT = 80
+
 export default function OrgDashboardClientPage() {
   const router = useRouter()
   const user = useUserStore((s) => s.user)
@@ -42,6 +45,18 @@ export default function OrgDashboardClientPage() {
         teacher_count: summaryData.teacherCount,
         plan_code: summaryData.planCode,
       })
+      // Fire the org token-pool alert when the org has a configured pool and has
+      // consumed >= 80% of it this month (margin-risk early warning, checklist D1).
+      if (
+        analyticsData.monthlyTokenPool > 0 &&
+        analyticsData.poolUsagePercent >= POOL_ALERT_PERCENT
+      ) {
+        trackEvent(B2B_EVENT.TOKEN_POOL_THRESHOLD_80, {
+          pool_usage_percent: analyticsData.poolUsagePercent,
+          tokens_this_month: analyticsData.tokensThisMonth,
+          monthly_token_pool: analyticsData.monthlyTokenPool,
+        })
+      }
     } catch (e) {
       if (httpStatus(e) === 401) {
         router.push('/login')
@@ -232,25 +247,76 @@ function AnalyticsSection({ analytics }: { analytics: OrgAnalytics }) {
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {/* Tokens this month */}
-        <div className="relative overflow-hidden rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-white p-6 shadow-sm">
-          <div className="absolute right-4 top-4 text-indigo-200">
-            <Sparkles size={40} />
-          </div>
-          <p className="mb-1 text-sm font-bold uppercase tracking-wider text-indigo-500">
-            Token AI tháng này
-          </p>
-          <p className="text-4xl font-black text-slate-800">
-            {analytics.tokensThisMonth.toLocaleString('vi-VN')}
-          </p>
-          <p className="mt-2 text-xs text-slate-500">
-            Tổng token tiêu thụ bởi toàn bộ thành viên tổ chức trong tháng hiện tại.
-          </p>
-        </div>
+        {/* Token AI pool usage */}
+        <TokenPoolCard analytics={analytics} />
 
         {/* CEFR distribution */}
         <CefrDistribution buckets={analytics.cefrDistribution} />
       </div>
+    </div>
+  )
+}
+
+function TokenPoolCard({ analytics }: { analytics: OrgAnalytics }) {
+  const used = analytics.tokensThisMonth
+  const pool = analytics.monthlyTokenPool
+  const hasPool = pool > 0
+  const pct = analytics.poolUsagePercent
+  const remaining = hasPool ? Math.max(0, pool - used) : 0
+  const barWidth = hasPool ? Math.min(100, pct) : 8
+  const tone =
+    !hasPool ? 'from-indigo-400 to-violet-500' :
+    pct >= 100 ? 'from-rose-500 to-red-600' :
+    pct >= POOL_ALERT_PERCENT ? 'from-amber-400 to-orange-500' :
+    'from-indigo-400 to-violet-500'
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-white p-6 shadow-sm">
+      <div className="absolute right-4 top-4 text-indigo-200">
+        <Sparkles size={40} />
+      </div>
+      <p className="mb-1 text-sm font-bold uppercase tracking-wider text-indigo-500">
+        Token AI tháng này
+      </p>
+      <p className="text-4xl font-black text-slate-800">
+        {used.toLocaleString('vi-VN')}
+        {hasPool && (
+          <span className="ml-1 text-lg font-bold text-slate-400">
+            / {pool.toLocaleString('vi-VN')}
+          </span>
+        )}
+      </p>
+
+      {hasPool ? (
+        <>
+          <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-slate-100">
+            <div
+              className={`h-full rounded-full bg-gradient-to-r ${tone} transition-all`}
+              style={{ width: `${barWidth}%` }}
+            />
+          </div>
+          <div className="mt-2 flex items-center justify-between text-xs">
+            <span className={`font-semibold ${pct >= POOL_ALERT_PERCENT ? 'text-amber-600' : 'text-slate-500'}`}>
+              Đã dùng {pct}% hạn mức
+            </span>
+            <span className="text-slate-500">
+              Còn lại {remaining.toLocaleString('vi-VN')}
+            </span>
+          </div>
+          {pct >= POOL_ALERT_PERCENT && (
+            <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
+              {pct >= 100
+                ? 'Tổ chức đã dùng hết ngân sách token AI tháng này — một số tính năng AI sẽ tạm khóa tới đầu tháng sau. Liên hệ quản trị nền tảng để nâng hạn mức.'
+                : 'Tổ chức sắp đạt hạn mức token AI tháng này. Cân nhắc nâng gói để không gián đoạn lớp học.'}
+            </p>
+          )}
+        </>
+      ) : (
+        <p className="mt-2 text-xs text-slate-500">
+          Tổng token tiêu thụ bởi toàn bộ thành viên tổ chức trong tháng hiện tại.
+          Tổ chức chưa cấu hình hạn mức (không giới hạn).
+        </p>
+      )}
     </div>
   )
 }

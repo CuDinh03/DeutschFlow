@@ -3,6 +3,7 @@ package com.deutschflow.teacher.controller;
 import com.deutschflow.common.async.AsyncJob;
 import com.deutschflow.common.async.AsyncJobService;
 import com.deutschflow.common.exception.ForbiddenException;
+import com.deutschflow.organization.service.OrgQuotaService;
 import com.deutschflow.teacher.service.DocumentParsingService;
 import com.deutschflow.teacher.service.PptxStore;
 import com.deutschflow.teacher.service.TeacherLessonPlanService;
@@ -37,8 +38,16 @@ public class TeacherMaterialController {
     private final AsyncJobService asyncJobService;
     private final com.deutschflow.common.async.AsyncJobSseService asyncJobSseService;
     private final PptxStore pptxStore;
+    private final OrgQuotaService orgQuotaService;
 
     private static final long MAX_FILE_SIZE = 20L * 1024 * 1024; // 20MB
+
+    /**
+     * Ước lượng token cho 1 lần tạo PPTX (Gemini multimodal đọc tài liệu + sinh slide) —
+     * dùng để hard-cap pool token cấp-org TRƯỚC khi chạy job async. Tính nhỉnh để bảo vệ
+     * biên lợi nhuận: PPTX là tính năng AI đắt nhất và không đi qua QuotaService như speaking.
+     */
+    private static final long PPTX_ESTIMATED_TOKENS = 40_000L;
 
     @PostMapping("/generate-pptx")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
@@ -57,6 +66,14 @@ public class TeacherMaterialController {
             if (!lower.endsWith(".pdf") && !lower.endsWith(".docx")) {
                 return ResponseEntity.badRequest().body(Map.of("error", "Chỉ hỗ trợ định dạng PDF và DOCX."));
             }
+        }
+
+        // Hard-cap pool token cấp-org: chặn tạo PPTX khi tổ chức đã dùng hết ngân sách token
+        // AI tháng này. Giáo viên B2C (không thuộc org) và org chưa cấu hình pool luôn cho qua.
+        if (user != null && orgQuotaService.wouldExceedOrgPool(user.getId(), PPTX_ESTIMATED_TOKENS)) {
+            log.warn("PPTX generation blocked: org token pool exhausted for userId={}", user.getId());
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(Map.of(
+                    "error", "Tổ chức đã dùng hết ngân sách token AI tháng này. Vui lòng liên hệ quản trị nền tảng để nâng hạn mức."));
         }
 
         try {
