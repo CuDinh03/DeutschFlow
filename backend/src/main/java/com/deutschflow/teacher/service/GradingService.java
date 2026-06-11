@@ -45,6 +45,13 @@ public class GradingService {
     private final AiUsageLedgerService aiUsageLedgerService;
 
     /**
+     * Model riêng cho chấm bài (tách khỏi model speaking real-time). Mặc định {@code llama-3.3-70b-versatile}
+     * — chấm chuẩn hơn scout-17B; đo/so sánh qua {@code /api/admin/grading-eval}. Đổi bằng env {@code GROQ_GRADING_MODEL}.
+     */
+    @org.springframework.beans.factory.annotation.Value("${app.ai.groq.grading-model:llama-3.3-70b-versatile}")
+    private String gradingModel;
+
+    /**
      * Lấy toàn bộ bài nộp cần chấm (status=SUBMITTED) thuộc các lớp của giáo viên.
      * Có thể filter theo classId và assignmentType.
      */
@@ -276,10 +283,18 @@ public class GradingService {
     public record EssayGrade(Integer score, String feedback, AiChatCompletionResult raw) {}
 
     /**
-     * Chấm đồng bộ một bài viết tiếng Đức — nguồn sự thật DUY NHẤT cho cả chấm bài-tập (async)
-     * và lead-magnet "chấm thử miễn phí" public, để prompt + cách parse không bị trôi giữa 2 luồng.
+     * Chấm đồng bộ một bài viết tiếng Đức bằng model chấm cấu hình ({@link #gradingModel}) — nguồn
+     * sự thật DUY NHẤT cho cả chấm bài-tập (async) và lead-magnet "chấm thử miễn phí" public.
      */
     public EssayGrade gradeGermanEssay(String topic, String content) {
+        return gradeGermanEssay(topic, content, gradingModel);
+    }
+
+    /**
+     * Như trên nhưng cho phép chỉ định model (dùng bởi grading-eval để so sánh nhiều model).
+     * {@code modelOverride} null/blank ⇒ dùng model mặc định của client.
+     */
+    public EssayGrade gradeGermanEssay(String topic, String content, String modelOverride) {
         String safeTopic = (topic == null || topic.isBlank()) ? "Bài viết tiếng Đức" : topic;
         String systemPrompt = GERMAN_ESSAY_GRADING_PROMPT.formatted(safeTopic);
 
@@ -287,7 +302,7 @@ public class GradingService {
         messages.add(new ChatMessage("system", systemPrompt));
         messages.add(new ChatMessage("user", "<submission>" + content + "</submission>"));
 
-        AiChatCompletionResult result = openAiChatClient.chatCompletion(messages, null, 0.3, 800);
+        AiChatCompletionResult result = openAiChatClient.chatCompletion(messages, modelOverride, 0.3, 800);
         if (result == null || result.content() == null) {
             return new EssayGrade(null, null, result);
         }
