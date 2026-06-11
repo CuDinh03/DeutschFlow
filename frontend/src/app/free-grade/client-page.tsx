@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Sparkles, Loader2, CheckCircle2, ArrowRight, PenLine, Clock, ShieldCheck } from 'lucide-react'
 import { httpStatus } from '@/lib/api'
 import { submitFreeGrade, type ContactType, type FreeGradeResult } from '@/lib/marketingApi'
+import { ShareButtons } from '@/components/marketing/ShareButtons'
 import { useTracking } from '@/hooks/useTracking'
 import { B2B_EVENT } from '@/lib/analytics/b2bEvents'
 
@@ -251,6 +252,12 @@ function ResultCard({ result }: { result: FreeGradeResult }) {
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <p className="text-sm font-bold uppercase tracking-wider text-slate-500">Nhận xét</p>
         <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-700">{result.feedback}</p>
+        {result.shareToken && (
+          <div className="mt-5 border-t border-slate-100 pt-5">
+            <p className="mb-3 text-sm font-semibold text-slate-700">Chia sẻ kết quả</p>
+            <ShareButtons url={`/report/${result.shareToken}/`} score={result.score} />
+          </div>
+        )}
       </div>
       <Link
         href="/register"

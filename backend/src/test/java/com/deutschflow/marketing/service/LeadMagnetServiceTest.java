@@ -33,6 +33,8 @@ class LeadMagnetServiceTest {
     @Mock
     private MarketingLeadRepository leadRepository;
     @Mock
+    private com.deutschflow.marketing.repository.SharedGradeReportRepository reportRepository;
+    @Mock
     private GradingService gradingService;
 
     @InjectMocks
@@ -71,6 +73,24 @@ class LeadMagnetServiceTest {
         assertThat(saved.getScore()).isEqualTo(85);
         assertThat(saved.getEssayChars()).isEqualTo(ESSAY.length());
         assertThat(saved.getIpHash()).isNotBlank().hasSize(64);
+    }
+
+    @Test
+    @DisplayName("happy path also persists a shareable report and returns its token")
+    void happyPath_sharesReport() {
+        allowRateLimits();
+        when(gradingService.gradeGermanEssay(any(), any()))
+                .thenReturn(new GradingService.EssayGrade(88, "Sehr gut.", null));
+
+        FreeGradeResponse res = service.gradeFree(req("Anna", "anna@example.com", null, ESSAY, null), IP);
+
+        assertThat(res.shareToken()).isNotBlank();
+        ArgumentCaptor<com.deutschflow.marketing.entity.SharedGradeReport> report =
+                ArgumentCaptor.forClass(com.deutschflow.marketing.entity.SharedGradeReport.class);
+        verify(reportRepository).save(report.capture());
+        assertThat(report.getValue().getScore()).isEqualTo(88);
+        assertThat(report.getValue().getShareToken()).isEqualTo(res.shareToken());
+        assertThat(report.getValue().getFeedback()).isEqualTo("Sehr gut.");
     }
 
     @Test

@@ -1,12 +1,16 @@
 package com.deutschflow.marketing.service;
 
 import com.deutschflow.common.exception.BadRequestException;
+import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.exception.RateLimitExceededException;
 import com.deutschflow.marketing.dto.FreeGradeRequest;
 import com.deutschflow.marketing.dto.FreeGradeResponse;
+import com.deutschflow.marketing.dto.GradeReportDto;
 import com.deutschflow.marketing.dto.MarketingLeadDto;
 import com.deutschflow.marketing.entity.MarketingLead;
+import com.deutschflow.marketing.entity.SharedGradeReport;
 import com.deutschflow.marketing.repository.MarketingLeadRepository;
+import com.deutschflow.marketing.repository.SharedGradeReportRepository;
 import com.deutschflow.speaking.exception.AiServiceException;
 import com.deutschflow.teacher.service.GradingService;
 import lombok.RequiredArgsConstructor;
@@ -52,6 +56,7 @@ public class LeadMagnetService {
     private static final Pattern PHONE = Pattern.compile("^[+0-9][0-9\\s.\\-]{7,19}$");
 
     private final MarketingLeadRepository leadRepository;
+    private final SharedGradeReportRepository reportRepository;
     private final GradingService gradingService;
 
     @Transactional
@@ -120,10 +125,35 @@ public class LeadMagnetService {
         String feedback = (grade.feedback() == null || grade.feedback().isBlank())
                 ? "Bài viết đã được chấm. Đăng ký để nhận nhận xét chi tiết hơn."
                 : grade.feedback();
+
+        // 5) Lưu report công khai (không PII) để chia sẻ qua Zalo — vòng lặp PLG D6.
+        String shareToken = newShareToken();
+        reportRepository.save(SharedGradeReport.builder()
+                .shareToken(shareToken)
+                .topic(topic)
+                .score(grade.score())
+                .feedback(feedback)
+                .source("FREE_GRADE_B1")
+                .build());
+
         return new FreeGradeResponse(
                 grade.score(),
                 feedback,
-                "Đây là bản chấm thử bằng AI. Đăng ký DeutschFlow để chấm không giới hạn, theo dõi tiến độ và luyện thi Goethe/telc.");
+                "Đây là bản chấm thử bằng AI. Đăng ký DeutschFlow để chấm không giới hạn, theo dõi tiến độ và luyện thi Goethe/telc.",
+                shareToken);
+    }
+
+    /** Xem report công khai theo share token (cho trang /report/{token}). */
+    @Transactional(readOnly = true)
+    public GradeReportDto getReport(String shareToken) {
+        return reportRepository.findByShareToken(shareToken)
+                .map(GradeReportDto::from)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy báo cáo."));
+    }
+
+    /** Token chia sẻ ngẫu nhiên, URL-safe (UUID bỏ dấu gạch). */
+    private static String newShareToken() {
+        return java.util.UUID.randomUUID().toString().replace("-", "");
     }
 
     /** Danh sách lead mới nhất cho admin follow-up (mặc định 30 ngày, giới hạn {@code limit}). */
