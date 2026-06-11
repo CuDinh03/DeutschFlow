@@ -1,9 +1,14 @@
 'use client'
 
 import axios from 'axios'
-import { getAccessToken, getRefreshToken, setTokens, clearTokens } from '@/lib/authSession'
+import { getAccessToken, setTokens } from '@/lib/authSession'
 
-const SSE_BASE = '/api'
+// SSE fetch must go directly to Spring Boot, not to the Next.js origin — a relative
+// `/api/...` resolves against window.location.origin and hits Next.js → 404 retry loop.
+// Mirror the baseURL derivation in api.ts / interviewReportApi.ts.
+const backendUrl = (process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080').replace(/\/+$/, '')
+const backendOrigin = backendUrl.replace(/\/api$/, '')
+const SSE_BASE = `${backendOrigin}/api`
 
 
 function sleepAbortable(ms: number, signal: AbortSignal): Promise<void> {
@@ -83,22 +88,21 @@ export function subscribeNotificationUnread(
 
       let res = await doFetch(getAccessToken())
       if (res.status === 401) {
-        const rt = getRefreshToken()
-        if (!rt) {
-          clearTokens()
-          if (typeof window !== 'undefined') window.location.href = '/login'
-          return
-        }
+        // Access token expired. The refresh token lives in an HttpOnly cookie on web, so
+        // POST with an empty body + credentials and let the browser attach it (same flow
+        // as api.ts). Hit the backend origin, not the relative /api (which 404s on Next.js).
         try {
           const { data } = await axios.post<{ accessToken?: string; refreshToken?: string | null }>(
-            '/api/auth/refresh',
-            { refreshToken: rt },
+            `${SSE_BASE}/auth/refresh`,
+            {},
+            { withCredentials: true },
           )
           setTokens(data)
           res = await doFetch(data.accessToken ?? null)
         } catch {
-          clearTokens()
-          if (typeof window !== 'undefined') window.location.href = '/login'
+          // Refresh failed — stop this background stream and defer global re-auth to the
+          // shared api client (useAuthRecoveryStore), instead of force-redirecting here.
+          onError?.('unauthorized')
           return
         }
       }
