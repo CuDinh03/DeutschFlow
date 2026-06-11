@@ -36,6 +36,13 @@ class AdminManagementServiceUnitTest {
     @InjectMocks
     AdminManagementService service;
 
+    @org.junit.jupiter.api.BeforeEach
+    void armDemoFilter() {
+        // Pre-arm the demo-exclusion clause so COGS tests added to this class later don't NPE on
+        // "...%s...".formatted(null). lenient() because the construction smoke test doesn't call it.
+        org.mockito.Mockito.lenient().when(demoDataFilter.andExcludeDemo()).thenReturn("");
+    }
+
     @Test
     void serviceConstructedWithMocks() {
         assertNotNull(service);
