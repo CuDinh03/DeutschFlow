@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Coins, CreditCard, CheckCircle2, RefreshCw, Zap, Shield } from 'lucide-react'
 import AdminShell from '@/components/admin/AdminShell'
+import api from '@/lib/api'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface SubscriptionPlan {
@@ -113,10 +114,10 @@ export default function AdminPlansPage() {
     else setRefreshing(true)
     setError(null)
     try {
-      const res = await fetch('/api/admin/plans', { credentials: 'include' })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const json: SubscriptionPlan[] = await res.json()
-      setPlans(json)
+      // Use the axios client (baseURL = backend origin + Bearer auth + refresh); a raw
+      // relative fetch('/api/...') resolves to the Next.js origin → 404 in production.
+      const { data } = await api.get<SubscriptionPlan[]>('/admin/plans')
+      setPlans(data)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Lỗi tải dữ liệu')
     } finally {
