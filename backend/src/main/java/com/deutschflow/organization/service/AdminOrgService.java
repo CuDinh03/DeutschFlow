@@ -24,8 +24,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Platform-admin provisioning of organizations ({@code /api/admin/organizations}).
@@ -170,6 +173,31 @@ public class AdminOrgService {
             log.info("[ORG-ADMIN] Reactivated org {}: granted entitlements for {} student(s)",
                     org.getId(), students.size());
         }
+    }
+
+    /** Active members of the org (OWNER/ADMIN/TEACHER/STUDENT), with user email + display name. */
+    @Transactional(readOnly = true)
+    public List<OrgMemberDto> listMembers(Long orgId) {
+        if (!organizationRepository.existsById(orgId)) {
+            throw new NotFoundException("Không tìm thấy tổ chức: " + orgId);
+        }
+        List<OrgMember> members = orgMemberRepository.findByIdOrgIdAndStatus(orgId, STATUS_ACTIVE);
+        Map<Long, User> usersById = userRepository
+                .findAllById(members.stream().map(m -> m.getId().getUserId()).toList())
+                .stream()
+                .collect(Collectors.toMap(User::getId, Function.identity()));
+        return members.stream()
+                .map(m -> {
+                    User u = usersById.get(m.getId().getUserId());
+                    return new OrgMemberDto(
+                            m.getId().getUserId(),
+                            u == null ? null : u.getEmail(),
+                            u == null ? null : u.getDisplayName(),
+                            m.getRole(),
+                            m.getStatus(),
+                            m.getJoinedAt());
+                })
+                .toList();
     }
 
     /** Manually assigns an existing user as OWNER/ADMIN (or any valid member role) of the org. */
