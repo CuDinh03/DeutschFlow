@@ -265,7 +265,7 @@ public class TeacherController {
             return ResponseEntity.status(403).body(Map.of("error", "Bạn không có quyền chấm bài này"));
         }
 
-        gradingService.aiGradeAssignment(assignmentId);
+        gradingService.aiGradeAssignment(assignmentId, user.getId());
         return ResponseEntity.ok(Map.of("message", "AI đang chấm bài, vui lòng chờ vài giây"));
     }
 }

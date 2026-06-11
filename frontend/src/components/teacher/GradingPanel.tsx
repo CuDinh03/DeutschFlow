@@ -38,41 +38,72 @@ export function GradingPanel({ item, onClose, onSaved }: GradingPanelProps) {
   if (!item) return null
 
   const handleAiGrade = async () => {
+    if (!item) return
     setAiLoading(true)
     setError('')
     try {
-      // Trigger AI grading (async on backend)
+      // Trigger AI grading (async on backend), then poll the submission's real state.
       await api.post(`/v2/teacher/assignments/${item.id}/ai-grade`)
-      // Poll for result after 5 seconds
-      setTimeout(async () => {
-        try {
-          // Re-fetch this specific submission via grading queue
-          const queueRes = await api.get(`/v2/teacher/grading/queue`)
-          const updated = (queueRes.data as GradingQueueItem[]).find(q => q.id === item.id)
-          if (updated && updated.score !== null) {
-            setScore(updated.score)
-            setFeedback(updated.feedback ?? '')
-            setAiSuggested(true)
-            trackEvent(B2B_EVENT.ASSIGNMENT_AI_GRADED, {
-              assignment_id: item.id,
-              class_id: item.classId,
-              assignment_type: item.assignmentType,
-              ai_score: updated.score,
-            })
-          } else {
-            // Try fetching student assignments directly
-            setError('AI đang xử lý, vui lòng đóng và mở lại sau vài giây')
-          }
-        } catch {
-          setError('Không thể lấy kết quả AI')
-        } finally {
-          setAiLoading(false)
-        }
-      }, 5000)
+      await pollAiResult(item)
     } catch {
       setError('Lỗi khi gọi AI chấm bài')
       setAiLoading(false)
     }
+  }
+
+  // Poll the per-assignment submissions endpoint (not the queue) so we can observe BOTH a
+  // successful GRADED result and a GRADING_FAILED outcome — a graded row leaves the
+  // SUBMITTED-only queue, so polling the queue would always read "still processing".
+  const pollAiResult = async (current: GradingQueueItem) => {
+    const MAX_ATTEMPTS = 8
+    const INTERVAL_MS = 3000
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, INTERVAL_MS))
+      try {
+        const res = await api.get(
+          `/v2/teacher/grading/classes/${current.classId}/assignments/${current.assignmentId}/submissions`,
+        )
+        const rows = res.data as Array<{
+          submissionId: number | null
+          status: string
+          score: number | null
+          feedback: string | null
+        }>
+        const row = rows.find(r => r.submissionId === current.id)
+        if (!row) continue
+
+        if (row.status === 'GRADING_FAILED') {
+          setError(cleanFailureReason(row.feedback))
+          setAiLoading(false)
+          return
+        }
+        if ((row.status === 'GRADED' || row.status === 'EVALUATED') && row.score !== null) {
+          setScore(row.score)
+          setFeedback(row.feedback ?? '')
+          setAiSuggested(true)
+          trackEvent(B2B_EVENT.ASSIGNMENT_AI_GRADED, {
+            assignment_id: current.id,
+            class_id: current.classId,
+            assignment_type: current.assignmentType,
+            ai_score: row.score,
+          })
+          setAiLoading(false)
+          return
+        }
+        // Still SUBMITTED — keep polling.
+      } catch {
+        // Transient fetch error — keep polling.
+      }
+    }
+    setError('AI vẫn đang xử lý. Vui lòng đóng và mở lại bài này sau giây lát.')
+    setAiLoading(false)
+  }
+
+  const cleanFailureReason = (feedback: string | null): string => {
+    const raw = (feedback ?? '').replace(/^\[AI ch[aấ]m l[oỗ]i\]\s*/i, '').trim()
+    return raw
+      ? `AI chấm bài thất bại: ${raw}`
+      : 'AI chấm bài thất bại. Vui lòng thử lại hoặc tự chấm điểm.'
   }
 
   const handleSave = async () => {

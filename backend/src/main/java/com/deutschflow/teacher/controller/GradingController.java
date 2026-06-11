@@ -83,7 +83,7 @@ public class GradingController {
             return ResponseEntity.status(403).body(Map.of("error", "Bạn không có quyền chấm bài này"));
         }
 
-        gradingService.aiGradeAssignment(submissionId);
+        gradingService.aiGradeAssignment(submissionId, teacher.getId());
         return ResponseEntity.ok(Map.of("message", "AI đang chấm bài, vui lòng chờ vài giây"));
     }
 }

@@ -38,7 +38,7 @@ public interface StudentAssignmentRepository extends JpaRepository<StudentAssign
     @Query("SELECT sa FROM StudentAssignment sa WHERE sa.assignmentId = :assignmentId AND sa.deleted = false")
     List<StudentAssignment> findByAssignmentId(@Param("assignmentId") Long assignmentId);
 
-    @Query("SELECT sa FROM StudentAssignment sa WHERE sa.assignmentId IN :assignmentIds AND sa.status = 'SUBMITTED' AND sa.deleted = false")
+    @Query("SELECT sa FROM StudentAssignment sa WHERE sa.assignmentId IN :assignmentIds AND sa.status IN ('SUBMITTED','GRADING_FAILED') AND sa.deleted = false")
     List<StudentAssignment> findSubmittedByAssignmentIds(@Param("assignmentIds") List<Long> assignmentIds);
 
     @Query("SELECT sa FROM StudentAssignment sa WHERE sa.assignmentId IN :assignmentIds AND sa.deleted = false")
