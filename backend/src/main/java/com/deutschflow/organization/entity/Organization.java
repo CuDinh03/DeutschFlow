@@ -24,6 +24,10 @@ public class Organization {
     @Column(nullable = false, unique = true)
     private String slug;
 
+    /** Optional co-brand logo URL shown on issued certificates (D5). Null = name-only branding. */
+    @Column(name = "logo_url", length = 512)
+    private String logoUrl;
+
     @Column(name = "plan_code")
     private String planCode;
 
