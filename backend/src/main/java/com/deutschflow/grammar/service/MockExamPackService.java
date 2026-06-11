@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Mock-exam packs (checklist D3): a curated, subscription-gated catalog over the existing mock
@@ -36,10 +37,12 @@ public class MockExamPackService {
     @Transactional(readOnly = true)
     public List<MockExamPackDto> listPacks(Long userId) {
         boolean paid = isPaid(userId);
+        Map<String, Integer> examCounts = MockExamCounts.byLevelFormat(jdbcTemplate);
         return packRepository.findByActiveTrueOrderBySortOrderAsc().stream()
                 .map(pack -> new MockExamPackDto(
                         pack.getId(), pack.getTitle(), pack.getDescriptionVi(),
-                        pack.getCefrLevel(), pack.getExamFormat(), examCount(pack),
+                        pack.getCefrLevel(), pack.getExamFormat(),
+                        examCounts.getOrDefault(MockExamCounts.key(pack.getCefrLevel(), pack.getExamFormat()), 0),
                         pack.isRequiresPaid(), pack.isRequiresPaid() && !paid))
                 .toList();
     }
@@ -67,13 +70,6 @@ public class MockExamPackService {
         QuotaSnapshot snapshot = quotaService.getSnapshotReadOnly(userId, Instant.now());
         String tier = snapshot == null ? null : QuotaService.publicTier(snapshot.planCode());
         return tier != null && !TIER_DEFAULT.equals(tier);
-    }
-
-    private int examCount(MockExamPack pack) {
-        Integer count = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM mock_exams WHERE cefr_level = ? AND exam_format = ? AND is_active = TRUE",
-                Integer.class, pack.getCefrLevel(), pack.getExamFormat());
-        return count == null ? 0 : count;
     }
 
     private List<PackExamDto> examsOf(MockExamPack pack) {

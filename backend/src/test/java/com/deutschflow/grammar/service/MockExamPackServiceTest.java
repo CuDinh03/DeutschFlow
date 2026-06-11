@@ -15,9 +15,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.jdbc.core.RowMapper;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -25,7 +27,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -60,7 +61,8 @@ class MockExamPackServiceTest {
         planIs("FREE");
         when(packRepository.findByActiveTrueOrderBySortOrderAsc())
                 .thenReturn(List.of(pack(1L, true), pack(2L, false)));
-        when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), any(), any())).thenReturn(3);
+        when(jdbcTemplate.query(anyString(), any(ResultSetExtractor.class)))
+                .thenReturn(Map.of(MockExamCounts.key("B1", "GOETHE"), 3));
 
         List<MockExamPackDto> packs = service.listPacks(7L);
 
@@ -75,7 +77,8 @@ class MockExamPackServiceTest {
     void listPacks_paidUser_allUnlocked() {
         planIs("PRO");
         when(packRepository.findByActiveTrueOrderBySortOrderAsc()).thenReturn(List.of(pack(1L, true)));
-        when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), any(), any())).thenReturn(5);
+        when(jdbcTemplate.query(anyString(), any(ResultSetExtractor.class)))
+                .thenReturn(Map.of(MockExamCounts.key("B1", "GOETHE"), 5));
 
         assertThat(service.listPacks(7L).get(0).locked()).isFalse();
     }
@@ -85,7 +88,8 @@ class MockExamPackServiceTest {
     void listPacks_defaultPlan_locked() {
         planIs("DEFAULT");
         when(packRepository.findByActiveTrueOrderBySortOrderAsc()).thenReturn(List.of(pack(1L, true)));
-        when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), any(), any())).thenReturn(3);
+        when(jdbcTemplate.query(anyString(), any(ResultSetExtractor.class)))
+                .thenReturn(Map.of(MockExamCounts.key("B1", "GOETHE"), 3));
 
         assertThat(service.listPacks(7L).get(0).locked()).isTrue();
     }

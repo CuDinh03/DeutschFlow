@@ -90,10 +90,10 @@ function PackCard({ pack }: { pack: MockExamPack }) {
           </Link>
         ) : (
           <Link
-            href="/student/mock-exam"
+            href={`/student/mock-exam/packs/${pack.id}`}
             className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-indigo-700"
           >
-            Vào luyện thi <ArrowRight size={15} />
+            Xem đề trong bộ <ArrowRight size={15} />
           </Link>
         )}
       </div>
