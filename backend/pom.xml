@@ -83,6 +83,20 @@
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
 
+        <!-- Resilience4j — circuit breakers for outbound AI / 3rd-party calls.
+             Auto-configures a CircuitBreakerRegistry bean (config bound from application.yml) and
+             binds breaker state/metrics to Micrometer → visible on /actuator/prometheus → Grafana.
+             Used programmatically (registry.circuitBreaker(name)), not via @CircuitBreaker AOP. -->
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-spring-boot3</artifactId>
+            <version>2.2.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+
         <!-- WebSocket / STOMP -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

@@ -21,6 +21,9 @@ services:
       dockerfile: Dockerfile
     container_name: deutschflow-backend
     restart: unless-stopped
+    # EC2 is t3.medium (4GB). Cap so blue-green's 2nd JVM + observability can't overcommit → OOM.
+    # Mirrors deploy-backend.sh's --memory=1500m. JVM heap = 75% (MaxRAMPercentage) ≈ 1.1GB.
+    mem_limit: 1500m
     ports:
       - "8080:8080"
     env_file:
@@ -80,6 +83,7 @@ services:
         NEXT_PUBLIC_POSTHOG_HOST: ${NEXT_PUBLIC_POSTHOG_HOST:-https://us.i.posthog.com}
     container_name: deutschflow-frontend
     restart: unless-stopped
+    mem_limit: 512m
     ports:
       - "3000:3000"
     environment:
@@ -100,6 +104,7 @@ services:
     image: prom/prometheus:latest
     container_name: deutschflow-prometheus
     restart: unless-stopped
+    mem_limit: 400m
     ports:
       - "9090:9090"
     volumes:
@@ -111,10 +116,30 @@ services:
     networks:
       - deutschflow-net
 
+  # ── Alertmanager — gửi alert (DbPoolExhausted/HighErrorRate) ra Telegram ──
+  # Config thật: docker/alertmanager/alertmanager.yml (gitignored, chứa bot token).
+  # Tạo từ alertmanager.yml.example — xem hướng dẫn trong file đó.
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: deutschflow-alertmanager
+    restart: unless-stopped
+    mem_limit: 128m
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./docker/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    networks:
+      - deutschflow-net
+
   loki:
     image: grafana/loki:3.0.0
     container_name: deutschflow-loki
     restart: unless-stopped
+    mem_limit: 256m
     ports:
       - "3100:3100"
     volumes:
@@ -128,6 +153,7 @@ services:
     image: grafana/promtail:3.0.0
     container_name: deutschflow-promtail
     restart: unless-stopped
+    mem_limit: 128m
     volumes:
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - ./docker/promtail:/etc/promtail
@@ -139,6 +165,7 @@ services:
     image: grafana/grafana:latest
     container_name: deutschflow-grafana
     restart: unless-stopped
+    mem_limit: 256m
     ports:
       - "3001:3000"
     environment:
@@ -158,3 +185,4 @@ volumes:
   prometheus_data:
   loki_data:
   grafana_data:
+  alertmanager_data:

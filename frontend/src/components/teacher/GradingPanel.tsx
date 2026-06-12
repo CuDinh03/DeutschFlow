@@ -138,7 +138,12 @@ export function GradingPanel({ item, onClose, onSaved }: GradingPanelProps) {
     }
   }
 
-  const canAiGrade = item.assignmentType !== 'SPEAKING_SCENARIO' && !!item.submissionContent
+  // AI grading applies to written work (not speaking scenarios, which use a different flow).
+  // Within a written assignment it still needs text content — but rather than HIDING the
+  // affordance for content-less submissions (which made the same assignment look like it
+  // sometimes offers AI and sometimes doesn't), we show it disabled with a reason.
+  const isAiGradableType = item.assignmentType !== 'SPEAKING_SCENARIO'
+  const hasSubmissionText = !!item.submissionContent
 
   return (
     <>
@@ -222,8 +227,9 @@ export function GradingPanel({ item, onClose, onSaved }: GradingPanelProps) {
             )}
           </div>
 
-          {/* AI Grade button */}
-          {canAiGrade && (
+          {/* AI Grade button — shown for all written assignments so the affordance is
+              consistent; disabled with a reason when the submission has no text to grade. */}
+          {isAiGradableType && (
             <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-2xl p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -232,8 +238,9 @@ export function GradingPanel({ item, onClose, onSaved }: GradingPanelProps) {
                 </div>
                 <button
                   onClick={handleAiGrade}
-                  disabled={aiLoading}
-                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold rounded-xl transition-colors disabled:opacity-60 shrink-0"
+                  disabled={aiLoading || !hasSubmissionText}
+                  title={!hasSubmissionText ? 'Bài nộp không có nội dung văn bản để AI chấm' : undefined}
+                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold rounded-xl transition-colors disabled:opacity-60 disabled:cursor-not-allowed shrink-0"
                 >
                   {aiLoading ? (
                     <><Loader2 size={15} className="animate-spin" /> Đang chấm...</>
@@ -242,6 +249,12 @@ export function GradingPanel({ item, onClose, onSaved }: GradingPanelProps) {
                   )}
                 </button>
               </div>
+              {!hasSubmissionText && (
+                <p className="mt-2 text-xs text-purple-700/80 flex items-start gap-1">
+                  <AlertCircle size={13} className="mt-0.5 shrink-0" />
+                  Bài này chỉ có file/ảnh đính kèm, không có nội dung văn bản. Hãy chấm thủ công, hoặc dùng “Chấm ảnh bài viết tay” cho bài viết tay.
+                </p>
+              )}
               {aiSuggested && (
                 <p className="mt-2 text-xs text-purple-700 font-medium flex items-center gap-1">
                   <CheckCircle2 size={13} /> AI đã đề xuất điểm — bạn có thể chỉnh sửa trước khi lưu

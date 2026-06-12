@@ -5,6 +5,14 @@ global:
 rule_files:
   - "alert.rules.yml"
 
+# Send firing alerts to Alertmanager (which fans them out to Telegram/Slack/email).
+# Without this block, the rules in alert.rules.yml fire but go nowhere — which is why
+# the DB-pool exhaustion incident produced no notification.
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
 scrape_configs:
   - job_name: 'prometheus'
     static_configs:

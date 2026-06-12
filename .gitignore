@@ -145,6 +145,9 @@ frontend/test-results/
 .env.production
 # .env.production.example được phép commit (không có secret)
 
+# Alertmanager config thật chứa Telegram bot token — chỉ commit .example
+docker/alertmanager/alertmanager.yml
+
 # ============================================================
 # COMPANION IMAGES — nếu dùng ảnh lớn (>1MB) thì dùng Git LFS
 # Tạm thời bỏ qua nếu cần (uncomment dưới đây)
@@ -162,6 +165,8 @@ deutschflow-key.pem
 *-credentials.json
 deutschflow-*.json
 google-sa.json
+# …but Grafana dashboards (committed infra config, no secrets) are an exception to the broad rule above
+!docker/grafana/provisioning/dashboards/deutschflow-*.json
 
 # Local test database — never commit
 test.db

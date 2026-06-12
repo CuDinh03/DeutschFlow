@@ -8,6 +8,8 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
+import com.deutschflow.common.http.RestTemplates;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -23,7 +25,8 @@ public class EmbeddingClient {
     private final RestTemplate restTemplate;
 
     public EmbeddingClient() {
-        this.restTemplate = new RestTemplate();
+        // 3s connect, 15s read — bounds the OpenAI embeddings call so it can't pin a thread/connection.
+        this.restTemplate = RestTemplates.withTimeouts(3000, 15000);
     }
 
     public float[] getEmbedding(String text) {

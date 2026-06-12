@@ -6,6 +6,8 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import com.deutschflow.common.http.RestTemplates;
+
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -37,7 +39,9 @@ public class DeepLTranslationService {
     private final RestTemplate restTemplate;
 
     public DeepLTranslationService() {
-        this.restTemplate = new RestTemplate();
+        // 5s connect, 20s read — DeepL is off the request hot path (scheduler/admin batch), but a
+        // bare RestTemplate with no timeout could hang the enrichment thread for minutes.
+        this.restTemplate = RestTemplates.withTimeouts(5000, 20000);
     }
 
     /** True when {@code app.deepl.api-key} is set (scheduler/services can skip work without logging each call). */

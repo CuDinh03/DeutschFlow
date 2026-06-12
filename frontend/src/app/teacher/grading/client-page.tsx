@@ -29,6 +29,7 @@ const ASSIGNMENT_TYPES = [
   { value: '', label: 'Tất cả loại' },
   { value: 'GENERAL', label: 'Bài tập chung' },
   { value: 'ESSAY', label: 'Viết luận' },
+  { value: 'WRITING', label: 'Viết (Schreiben)' },
   { value: 'SPEAKING_SCENARIO', label: 'Luyện Nói AI' },
   { value: 'VOCABULARY', label: 'Từ vựng' },
   { value: 'GRAMMAR', label: 'Ngữ pháp' },

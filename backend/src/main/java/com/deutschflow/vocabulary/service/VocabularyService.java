@@ -6,6 +6,7 @@ import com.deutschflow.vocabulary.entity.Word;
 import com.deutschflow.vocabulary.repository.WordRepository;
 import com.deutschflow.srs.dto.ScheduleVocabRequest;
 import com.deutschflow.srs.service.SrsVocabScheduler;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -38,6 +39,12 @@ public class VocabularyService {
                 null)));
     }
 
+    /**
+     * Cached by CEFR level (5-min TTL — see {@code CacheConfig "words"}). The no-level branch does a
+     * full {@code findAll()} over ~5k rows; without this cache that ran on every unauthenticated
+     * {@code GET /api/words} hit. Admin word edits propagate within the TTL.
+     */
+    @Cacheable(value = "words", key = "(#cefrLevel == null || #cefrLevel.isEmpty()) ? 'ALL' : #cefrLevel")
     public List<WordDto> getWordsByCefr(String cefrLevel) {
         List<Word> words;
         if (cefrLevel != null && !cefrLevel.isEmpty()) {

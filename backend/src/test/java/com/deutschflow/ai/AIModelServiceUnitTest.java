@@ -1,5 +1,7 @@
 package com.deutschflow.ai;
 
+import com.deutschflow.common.resilience.CircuitBreakers;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -12,6 +14,7 @@ class AIModelServiceUnitTest {
 
     @Test
     void constructsWithAiServerUrl() {
-        assertNotNull(new AIModelService("http://localhost:8000"));
+        var circuitBreakers = new CircuitBreakers(CircuitBreakerRegistry.ofDefaults());
+        assertNotNull(new AIModelService("http://localhost:8000", 15000, circuitBreakers));
     }
 }
