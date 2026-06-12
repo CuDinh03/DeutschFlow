@@ -2,10 +2,19 @@ package com.deutschflow.user.service;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.RedisScript;
 
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class AuthRateLimiterServiceUnitTest {
 
@@ -117,5 +126,30 @@ class AuthRateLimiterServiceUnitTest {
         assertTrue(service.allow(null, null));
         assertTrue(service.allowRegister(null));
         assertTrue(service.allowRefresh(null));
+    }
+
+    /**
+     * Regression guard for the 2026-06-13 prod outage: an unreachable Redis (deutschflow-redis
+     * container/network down) made {@code redis.execute(...)} throw. The rate-limit check is the
+     * FIRST thing /api/auth/login does, so if that throw is not swallowed, every login becomes a 500.
+     * The limiter MUST degrade to its in-memory window instead of propagating.
+     */
+    @Test
+    @DisplayName("Redis failure degrades to in-memory window — never propagates (login must not 500)")
+    @SuppressWarnings("unchecked")
+    void redisDown_degradesToInMemory_doesNotThrow() {
+        StringRedisTemplate redis = mock(StringRedisTemplate.class);
+        when(redis.execute(any(RedisScript.class), anyList(), any(), any(), any(), any()))
+                .thenThrow(new RuntimeException("Redis unreachable (simulated timeout)"));
+
+        // login 2/60s so we can prove the in-memory fallback still actually enforces a limit.
+        AuthRateLimiterService service =
+                new AuthRateLimiterService(2, 60, 2, 600, 4, 60, 2, 900, redis);
+
+        assertDoesNotThrow(() -> {
+            assertTrue(service.allow("5.5.5.5", "a@x.com"), "1st login allowed via in-memory fallback");
+            assertTrue(service.allow("5.5.5.5", "a@x.com"), "2nd login allowed (== max=2)");
+            assertFalse(service.allow("5.5.5.5", "a@x.com"), "3rd login blocked → fallback enforces the limit");
+        });
     }
 }

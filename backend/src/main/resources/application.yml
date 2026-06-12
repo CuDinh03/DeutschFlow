@@ -47,6 +47,14 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+      # Redis here is BEST-EFFORT: the shared rate-limit window (AuthRateLimiterService) and the
+      # optional L2 cache both degrade gracefully to in-process fallbacks when it's unreachable.
+      # The trap: with no explicit timeout, Lettuce blocks ~5s on a dead/unreachable Redis before the
+      # fallback can kick in. That blocking call is the FIRST thing /api/auth/login does (rate-limit
+      # check), so an unreachable Redis turned every login into a ~6s HTTP 500 (and dragged the
+      # health check to DOWN). Fail fast → the graceful fallback runs immediately, login stays sub-second.
+      timeout: ${REDIS_TIMEOUT:300ms}            # command timeout
+      connect-timeout: ${REDIS_CONNECT_TIMEOUT:300ms}  # socket connect timeout
 
 
   datasource:
@@ -117,6 +125,14 @@ management:
     # blocks blue-green deploy readiness. Mail is non-critical to serving traffic, so exclude it
     # from the health aggregate. Re-enable once SMTP credentials are configured.
     mail:
+      enabled: false
+    # Redis is non-critical (best-effort rate-limit window + optional L2 cache, both with in-process
+    # fallbacks). When the deutschflow-redis container/network link is down, RedisHealthIndicator
+    # otherwise drags /actuator/health to DOWN → the Docker healthcheck + blue-green readiness gate
+    # both see the node as dead even though it serves traffic fine. Exclude it so a missing Redis
+    # never reports the whole API as down. Redis-down stays observable via the rate-limiter WARN log
+    # + Prometheus (resilience metrics), not by failing the readiness probe.
+    redis:
       enabled: false
   metrics:
     tags:
