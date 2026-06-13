@@ -34,6 +34,7 @@ export default function StudentLayout() {
         <Tabs.Screen name="weekly-speaking" options={{ href: null }} />
         <Tabs.Screen name="weekly-detail" options={{ href: null }} />
         <Tabs.Screen name="classes" options={{ href: null }} />
+        <Tabs.Screen name="assignments" options={{ href: null }} />
       </Tabs>
 
       {/* One-time new-user tour; auto-shows once, replayable from the guide screen. */}
