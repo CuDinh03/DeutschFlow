@@ -110,6 +110,32 @@ class AuthServiceUnitTest {
         verify(refreshTokenRepository, never()).revokeAllByUserId(anyLong());
     }
 
+    /**
+     * RCA for "ERR-161": login's catch only handles {@link BadCredentialsException}. When the Hikari
+     * pool is exhausted (or Postgres is unreachable), {@code authenticate()} loads the user from the DB
+     * and fails with {@link org.springframework.jdbc.CannotGetJdbcConnectionException} after the 5s
+     * connection-timeout. That is NOT caught → it propagates to the advice. PRE-FIX it surfaced as the
+     * masked 500 "ERR-xxx" (the incident); it is now mapped to a retryable 503 by
+     * {@code GlobalExceptionHandler.handleDbUnavailable}. Contrast with
+     * {@link #login_mapsBadCredentialsToBadRequest} (a real auth failure → 400).
+     */
+    @Test
+    void login_dbConnectionFailure_propagatesUncaught_notMaskedAsBadRequest() {
+        LoginRequest req = new LoginRequest("a@b.com", RAW_PASSWORD);
+        var dbDown = new org.springframework.jdbc.CannotGetJdbcConnectionException(
+                "Failed to obtain JDBC Connection",
+                new java.sql.SQLTransientConnectionException(
+                        "HikariPool-1 - Connection is not available, request timed out after 5000ms"));
+        doThrow(dbDown).when(authenticationManager)
+                .authenticate(any(UsernamePasswordAuthenticationToken.class));
+
+        // The infra failure must NOT be swallowed/mis-classified as a 400 bad-request; it bubbles up
+        // (→ becomes the masked 500 / ERR-xxx at the controller-advice boundary).
+        assertThrows(org.springframework.jdbc.CannotGetJdbcConnectionException.class,
+                () -> authService.login(req));
+        verify(refreshTokenRepository, never()).revokeAllByUserId(anyLong());
+    }
+
     @Test
     void refresh_throwsWhenTokenExpired() {
         User u = User.builder()
