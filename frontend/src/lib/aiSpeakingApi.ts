@@ -265,7 +265,8 @@ export function chatStream(
   onDone: (meta: AiChatResponse) => void,
   onError: (err: string) => void,
   onAudio?: (frame: PcmAudioFrame) => void,
-  streamAudio = false
+  streamAudio = false,
+  onAudioStart?: () => void
 ): AbortController {
   const ctrl = new AbortController()
   const url = `${API_BASE}/ai-speaking/sessions/${sessionId}/chat/stream`
@@ -371,6 +372,8 @@ export function chatStream(
         if (eventName === 'token' && data) {
           const visible = speechStreamer(data)
           if (visible) onToken(visible)
+        } else if (eventName === 'audio_begin') {
+          onAudioStart?.()
         } else if (eventName === 'audio' && data) {
           if (onAudio) {
             try {
