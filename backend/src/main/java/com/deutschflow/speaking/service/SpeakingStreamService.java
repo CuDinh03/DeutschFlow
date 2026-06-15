@@ -161,16 +161,16 @@ public class SpeakingStreamService {
         final Object emitterLock = new Object();
         final SpeakingTtsPipeline ttsPipeline =
                 maybeBuildTtsPipeline(prep, emitter, emitterLock, streamCancelled, streamAudio);
+        if (ttsPipeline != null) {
+            // Tell the client up-front that streaming audio is coming, so it suppresses on-device TTS
+            // at "done". Audio events trail "done", so the client cannot infer this from their arrival.
+            sendQuietly(emitter, emitterLock, "audio_begin", "{}");
+        }
 
         Double tempConfig = systemConfigService.getDouble("ai.temperature", SPEAKING_CHAT_TEMPERATURE);
         return chatCompletionService.chatClientFor(prep.sessionMode()).chatCompletionStream(
                 prep.openAiMessages(), null, tempConfig, prep.maxTokens(),
-                token -> {
-                    sendQuietly(emitter, emitterLock, "token", token);
-                    if (ttsPipeline != null) {
-                        ttsPipeline.onToken(token);
-                    }
-                },
+                token -> sendQuietly(emitter, emitterLock, "token", token),
                 ai -> handleStreamCompletion(prep, userMessage, emitter, emitterLock, ai, finalizer, ttsPipeline),
                 streamCancelled);
     }
@@ -191,7 +191,11 @@ public class SpeakingStreamService {
             // "done" carries the structured payload — send it the moment the LLM finishes (text is ready).
             sendQuietly(emitter, emitterLock, "done", objectMapper.writeValueAsString(donePayload));
             if (ttsPipeline != null) {
-                // Audio trails the text: flush the final sentence, then close once all audio is delivered.
+                // Speak ONLY the clean German reply (parsed), NEVER the raw JSON token stream — that
+                // stream is structured JSON (content + Vietnamese translation + feedback/action), so
+                // feeding it verbatim would voice JSON syntax and Vietnamese. Split parsed German into
+                // sentences, synthesize, then close once all audio has been delivered (audio trails text).
+                ttsPipeline.onToken(parsed.aiSpeechDe());
                 ttsPipeline.finish();
                 ttsPipeline.drain().whenComplete((v, ex) -> completeQuietly(emitter));
             } else {

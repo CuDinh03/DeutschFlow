@@ -235,6 +235,11 @@ export function useAiSpeakingSession(opts: {
           audioQueue?.enqueue(frame);
         },
         autoTtsEnabled,
+        () => {
+          // Backend confirmed streaming audio is coming → suppress on-device TTS at "done"
+          // (audio events arrive after "done", so we can't infer this from their arrival).
+          audioStreamed = true;
+        },
       );
     },
     [

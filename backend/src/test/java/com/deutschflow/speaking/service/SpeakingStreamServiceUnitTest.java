@@ -36,6 +36,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
@@ -104,8 +105,9 @@ class SpeakingStreamServiceUnitTest {
     }
 
     private static AiResponseDto parsedDto() {
+        // The clean German reply (what TTS must speak) — two sentences.
         return new AiResponseDto(
-                "Sehr gut.", null, null, null, null, null,
+                "Hallo. Wie geht's?", null, null, null, null, null,
                 List.of(), "ON_TOPIC", null, null, null, null, null);
     }
 
@@ -320,18 +322,22 @@ class SpeakingStreamServiceUnitTest {
     }
 
     @Test
-    @DisplayName("streamAudio=true: each sentence is synthesized in order with previous_text; emitter completes")
-    void streamAudio_synthesizesEachSentenceInOrder() {
-        arrangeStreamFlow();
-        streamClientStreamsThenCompletes("Hallo. ", "Wie geht's? ");
+    @DisplayName("streamAudio: speaks the PARSED German reply sentence-by-sentence — NOT the raw JSON token stream")
+    void streamAudio_synthesizesParsedGermanNotRawTokens() {
+        arrangeStreamFlow(); // parsed reply = "Hallo. Wie geht's?"
+        // Raw token stream is structured JSON (content + Vietnamese translation) — must NOT be voiced.
+        streamClientStreamsThenCompletes("{\"content\":\"ignore. this?\",", "\"translation\":\"bỏ qua.\"}");
         when(xttsStreamClient.isConfigured()).thenReturn(true);
         when(voiceResolver.resolve(SpeakingPersona.DEFAULT)).thenReturn(Optional.of(TTS_VOICE));
         when(xttsStreamClient.synthesize(eq(TTS_VOICE), anyString(), any())).thenReturn(new byte[]{1});
 
         service.startStream(USER_ID, SESSION_ID, USER_MESSAGE, emitter, new AtomicBoolean(false), true, finalizer);
 
+        // Synthesizes the PARSED German sentences, in order, with previous_text — never the JSON tokens.
         verify(xttsStreamClient).synthesize(TTS_VOICE, "Hallo.", null);
         verify(xttsStreamClient).synthesize(TTS_VOICE, "Wie geht's?", "Hallo.");
+        verify(xttsStreamClient, never()).synthesize(eq(TTS_VOICE), contains("content"), any());
+        verify(xttsStreamClient, never()).synthesize(eq(TTS_VOICE), contains("translation"), any());
         verify(emitter).complete();
         verify(emitter, never()).completeWithError(any());
     }
