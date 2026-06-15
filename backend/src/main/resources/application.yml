@@ -367,6 +367,16 @@ app:
     # on-device speech. Point this at your own TTS service to enable persona voices.
     edge-tts:
       url: ${EDGE_TTS_URL:}
+    # Streaming TTS — self-hosted XTTS Streaming Voice Server (per-sentence, German).
+    # Empty by default → speaking stream omits `audio` events and clients keep their
+    # edge-tts / on-device fallback. Persona→voice mapping + presets live in
+    # XttsPersonaVoiceResolver (code). See docs/XTTS_STREAMING_API_CONTRACT.md.
+    xtts:
+      base-url: ${XTTS_BASE_URL:}
+      connect-timeout-ms: ${XTTS_CONNECT_TIMEOUT_MS:3000}
+      read-timeout-ms: ${XTTS_READ_TIMEOUT_MS:15000}
+      ngrok-skip-warning: ${XTTS_NGROK_SKIP_WARNING:true}
+      seed: ${XTTS_SEED:420}
     # AI cost reporting (admin COGS dashboards). Per-model token tariffs live in
     # AiCostEstimator.java; only the USD→VND rate is tuned here as FX moves.
     cost:

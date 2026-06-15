@@ -27,7 +27,8 @@ public interface AiSpeakingService {
             Long sessionId,
             String userMessage,
             SseEmitter emitter,
-            AtomicBoolean streamCancelled);
+            AtomicBoolean streamCancelled,
+            boolean streamAudio);
 
     List<AiSpeakingMessageDto> getMessages(Long userId, Long sessionId);
 

@@ -10,7 +10,7 @@ interface UseSpeechOptions {
 /**
  * TTS Priority: 
  * 1. Local voice file (/public/voices/{voiceFile}) — instant, no API cost
- * 2. ElevenLabs API (backend /api/ai-speaking/tts) — cloned voice, requires voiceId in .env
+ * 2. Server TTS (backend /api/ai-speaking/tts) — self-hosted persona voices, returns MP3 bytes
  * 3. Browser Web Speech API (speechSynthesis) — universal fallback
  */
 export function useSpeech(options: UseSpeechOptions = { lang: "de-DE" }) {
@@ -310,7 +310,7 @@ export function useSpeech(options: UseSpeechOptions = { lang: "de-DE" }) {
     [options.lang]
   );
 
-  // ─── Tier 2: ElevenLabs API (backend proxy) ─────────────────────────────
+  // ─── Tier 2: Server TTS (self-hosted persona voices via backend proxy) ──
 
   const speakElevenLabs = useCallback(
     async (text: string, personaId: string, onEnd?: () => void): Promise<boolean> => {
@@ -327,20 +327,24 @@ export function useSpeech(options: UseSpeechOptions = { lang: "de-DE" }) {
 
         if (!res.ok || res.status === 503) return false;
 
-        const data = await res.json();
-        if (!data || !data.audioUrl) return false;
+        // Backend (/api/ai-speaking/tts) returns raw audio/mpeg bytes, not JSON.
+        // Read the body as a Blob and play it via an object URL.
+        const blob = await res.blob();
+        if (!blob || blob.size === 0) return false;
 
-        const url = data.audioUrl;
+        const url = URL.createObjectURL(blob);
         const audio = new Audio(url);
         audioRef.current = audio;
         setIsSpeaking(true);
 
         await new Promise<void>((resolve, reject) => {
           audio.onended = () => {
+            URL.revokeObjectURL(url);
             audioRef.current = null;
             resolve();
           };
           audio.onerror = () => {
+            URL.revokeObjectURL(url);
             audioRef.current = null;
             reject(new Error("Audio playback failed"));
           };
