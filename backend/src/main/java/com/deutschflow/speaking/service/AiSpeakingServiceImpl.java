@@ -306,7 +306,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
                 messages, null, systemConfigService.getDouble("ai.temperature", GREETING_TEMPERATURE), greetMaxTokens);
         Long sessionId = sessionRow.getId();
         AiResponseDto parsed = parseGreetingResponse(result, responseSchema, userId, sessionId, policy, systemPrompt,
-                cefrLevel, topic, sessionMode, interviewContext, greetMaxTokens);
+                cefrLevel, topic, sessionMode, interviewContext, greetMaxTokens, persona);
 
         AiSpeakingMessage msg = messageRepository.save(AiSpeakingMessage.builder()
                 .sessionId(sessionId)
@@ -366,11 +366,12 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
                                                 String topic,
                                                 SpeakingSessionMode sessionMode,
                                                 InterviewPromptContext interviewContext,
-                                                int greetMaxTokens) {
+                                                int greetMaxTokens,
+                                                SpeakingPersona persona) {
         AiResponseDto parsedRaw = responseParser.parseWithOutcome(result.content(), responseSchema).dto();
         SpeakingChatPrep greetPrep = sessionMode == SpeakingSessionMode.INTERVIEW && interviewContext != null
                 ? new SpeakingChatPrep(userId, sessionId, policy, systemPrompt, cefrLevel, topic, List.of(),
-                greetMaxTokens, 0, responseSchema, sessionMode, interviewContext, null, Instant.now())
+                greetMaxTokens, 0, responseSchema, sessionMode, interviewContext, null, Instant.now(), persona)
                 : null;
         return greetPrep != null
                 ? chatCompletionService.applyInterviewPostProcessing(parsedRaw, "", greetPrep)
@@ -518,7 +519,8 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
             SpeakingSessionMode sessionMode,
             InterviewPromptContext interviewContext,
             InterviewAnswerAnalysis answerAnalysis,
-            Instant turnStartedAt
+            Instant turnStartedAt,
+            SpeakingPersona persona
     ) {}
 
     /**
@@ -530,9 +532,9 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
      */
     @Override
     public void chatStream(Long userId, Long sessionId, String userMessage, SseEmitter emitter,
-                           AtomicBoolean streamCancelled) {
+                           AtomicBoolean streamCancelled, boolean streamAudio) {
         speakingStreamService.startStream(userId, sessionId, userMessage, emitter, streamCancelled,
-                this::finalizeSpeakingChatPersistence);
+                streamAudio, this::finalizeSpeakingChatPersistence);
     }
 
     @Override

@@ -5,6 +5,10 @@ import com.deutschflow.speaking.ai.AiChatCompletionResult;
 import com.deutschflow.speaking.ai.AiResponseDto;
 import com.deutschflow.speaking.dto.AiSpeakingChatResponse;
 import com.deutschflow.speaking.metrics.SpeakingMetrics;
+import com.deutschflow.speaking.tts.SpeakingTtsPipeline;
+import com.deutschflow.speaking.tts.XttsPersonaVoiceResolver;
+import com.deutschflow.speaking.tts.XttsStreamClient;
+import com.deutschflow.speaking.tts.XttsVoice;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -14,7 +18,11 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Base64;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -51,6 +59,9 @@ public class SpeakingStreamService {
     private final SessionTurnGuard sessionTurnGuard;
     private final ChatPrepService chatPrepService;
     private final ChatCompletionService chatCompletionService;
+    private final XttsStreamClient xttsStreamClient;
+    private final XttsPersonaVoiceResolver voiceResolver;
+    private final Executor xttsTtsExecutor;
 
     public SpeakingStreamService(
             TransactionTemplate transactionTemplate,
@@ -60,7 +71,10 @@ public class SpeakingStreamService {
             @Qualifier("speakingStreamExecutor") Executor speakingStreamExecutor,
             SessionTurnGuard sessionTurnGuard,
             ChatPrepService chatPrepService,
-            ChatCompletionService chatCompletionService) {
+            ChatCompletionService chatCompletionService,
+            XttsStreamClient xttsStreamClient,
+            XttsPersonaVoiceResolver voiceResolver,
+            @Qualifier("xttsTtsExecutor") Executor xttsTtsExecutor) {
         this.transactionTemplate = transactionTemplate;
         this.objectMapper = objectMapper;
         this.speakingMetrics = speakingMetrics;
@@ -69,6 +83,9 @@ public class SpeakingStreamService {
         this.sessionTurnGuard = sessionTurnGuard;
         this.chatPrepService = chatPrepService;
         this.chatCompletionService = chatCompletionService;
+        this.xttsStreamClient = xttsStreamClient;
+        this.voiceResolver = voiceResolver;
+        this.xttsTtsExecutor = xttsTtsExecutor;
     }
 
     /**
@@ -82,7 +99,7 @@ public class SpeakingStreamService {
      *                  finalize write transaction once the stream completes normally.
      */
     public void startStream(Long userId, Long sessionId, String userMessage, SseEmitter emitter,
-                            AtomicBoolean streamCancelled, SpeakingTurnFinalizer finalizer) {
+                            AtomicBoolean streamCancelled, boolean streamAudio, SpeakingTurnFinalizer finalizer) {
         Instant start = Instant.now();
         boolean acquired = false;
         boolean failed = false;
@@ -92,7 +109,7 @@ public class SpeakingStreamService {
             }
             acquired = true;
             speakingStreamExecutor.execute(() -> runChatStreamOffServletThread(
-                    userId, sessionId, userMessage, emitter, streamCancelled, finalizer));
+                    userId, sessionId, userMessage, emitter, streamCancelled, streamAudio, finalizer));
         } catch (RuntimeException e) {
             failed = true;
             if (acquired) {
@@ -111,7 +128,7 @@ public class SpeakingStreamService {
      */
     private void runChatStreamOffServletThread(Long userId, Long sessionId, String userMessage,
                                                SseEmitter emitter, AtomicBoolean streamCancelled,
-                                               SpeakingTurnFinalizer finalizer) {
+                                               boolean streamAudio, SpeakingTurnFinalizer finalizer) {
         try {
             AiSpeakingServiceImpl.SpeakingChatPrep prep = transactionTemplate.execute(
                     status -> chatPrepService.prepareSpeakingChatTurn(userId, sessionId, userMessage));
@@ -121,7 +138,7 @@ public class SpeakingStreamService {
             }
 
             Instant streamStart = Instant.now();
-            boolean finished = streamChatCompletion(prep, userMessage, emitter, streamCancelled, finalizer);
+            boolean finished = streamChatCompletion(prep, userMessage, emitter, streamCancelled, streamAudio, finalizer);
             speakingMetrics.recordChatLatency("stream", Duration.between(streamStart, Instant.now()));
             if (!finished) {
                 handleStreamCancelled(emitter);
@@ -138,38 +155,113 @@ public class SpeakingStreamService {
                                          String userMessage,
                                          SseEmitter emitter,
                                          AtomicBoolean streamCancelled,
+                                         boolean streamAudio,
                                          SpeakingTurnFinalizer finalizer) {
+        // All emitter.send for this turn serialize on this lock (LLM token thread + TTS worker thread).
+        final Object emitterLock = new Object();
+        final SpeakingTtsPipeline ttsPipeline =
+                maybeBuildTtsPipeline(prep, emitter, emitterLock, streamCancelled, streamAudio);
+
         Double tempConfig = systemConfigService.getDouble("ai.temperature", SPEAKING_CHAT_TEMPERATURE);
-        return chatCompletionService.chatClientFor(prep.sessionMode()).chatCompletionStream(prep.openAiMessages(), null, tempConfig, prep.maxTokens(),
+        return chatCompletionService.chatClientFor(prep.sessionMode()).chatCompletionStream(
+                prep.openAiMessages(), null, tempConfig, prep.maxTokens(),
                 token -> {
-                    try {
-                        emitter.send(SseEmitter.event().name("token").data(token));
-                    } catch (Exception e) {
-                        log.warn("[SSE] Failed to send token: {}", e.getMessage());
+                    sendQuietly(emitter, emitterLock, "token", token);
+                    if (ttsPipeline != null) {
+                        ttsPipeline.onToken(token);
                     }
                 },
-                ai -> handleStreamCompletion(prep, userMessage, emitter, ai, finalizer),
+                ai -> handleStreamCompletion(prep, userMessage, emitter, emitterLock, ai, finalizer, ttsPipeline),
                 streamCancelled);
     }
 
     private void handleStreamCompletion(AiSpeakingServiceImpl.SpeakingChatPrep prep,
                                         String userMessage,
                                         SseEmitter emitter,
+                                        Object emitterLock,
                                         AiChatCompletionResult ai,
-                                        SpeakingTurnFinalizer finalizer) {
+                                        SpeakingTurnFinalizer finalizer,
+                                        SpeakingTtsPipeline ttsPipeline) {
         try {
             AiResponseDto parsed = chatCompletionService.parseAndPostProcess(ai, userMessage, prep);
             AiSpeakingChatResponse donePayload = Objects.requireNonNull(
                     transactionTemplate.execute(status ->
                             finalizer.finalizeTurn(prep, userMessage, ai, parsed, "SPEAKING_STREAM")));
             speakingMetrics.recordChatRequest("stream", "ok");
-            emitter.send(SseEmitter.event().name("done")
-                    .data(objectMapper.writeValueAsString(donePayload)));
-            emitter.complete();
+            // "done" carries the structured payload — send it the moment the LLM finishes (text is ready).
+            sendQuietly(emitter, emitterLock, "done", objectMapper.writeValueAsString(donePayload));
+            if (ttsPipeline != null) {
+                // Audio trails the text: flush the final sentence, then close once all audio is delivered.
+                ttsPipeline.finish();
+                ttsPipeline.drain().whenComplete((v, ex) -> completeQuietly(emitter));
+            } else {
+                emitter.complete();
+            }
         } catch (Exception ex) {
             log.error("[SSE] Error in onComplete handler", ex);
             speakingMetrics.recordChatRequest("stream", "error");
             emitter.completeWithError(ex);
+        }
+    }
+
+    /**
+     * Build the per-turn streaming-TTS pipeline, or {@code null} when audio was not requested, XTTS is
+     * not configured, or the persona has no streaming voice (e.g. Vietnamese tutors → on-device).
+     */
+    private SpeakingTtsPipeline maybeBuildTtsPipeline(AiSpeakingServiceImpl.SpeakingChatPrep prep,
+                                                      SseEmitter emitter,
+                                                      Object emitterLock,
+                                                      AtomicBoolean streamCancelled,
+                                                      boolean streamAudio) {
+        if (!streamAudio || !xttsStreamClient.isConfigured()) {
+            return null;
+        }
+        Optional<XttsVoice> voice = voiceResolver.resolve(prep.persona());
+        if (voice.isEmpty()) {
+            return null;
+        }
+        String voiceId = voice.get().voiceId();
+        return new SpeakingTtsPipeline(xttsStreamClient, voice.get(), xttsTtsExecutor,
+                (index, text, pcm) -> {
+                    if (!streamCancelled.get()) {
+                        sendAudioEvent(emitter, emitterLock, index, text, voiceId, pcm);
+                    }
+                });
+    }
+
+    /** Send one SSE event under the per-stream lock; failures are logged, never thrown. */
+    private void sendQuietly(SseEmitter emitter, Object emitterLock, String event, String data) {
+        try {
+            synchronized (emitterLock) {
+                emitter.send(SseEmitter.event().name(event).data(data));
+            }
+        } catch (Exception e) {
+            log.warn("[SSE] Failed to send '{}' event: {}", event, e.getMessage());
+        }
+    }
+
+    private void sendAudioEvent(SseEmitter emitter, Object emitterLock, int index, String text,
+                                String voiceId, byte[] pcm) {
+        try {
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("index", index);
+            payload.put("text", text);
+            payload.put("voiceId", voiceId);
+            payload.put("encoding", "pcm_s16le");
+            payload.put("sampleRate", 24000);
+            payload.put("channels", 1);
+            payload.put("pcmBase64", Base64.getEncoder().encodeToString(pcm));
+            sendQuietly(emitter, emitterLock, "audio", objectMapper.writeValueAsString(payload));
+        } catch (Exception e) {
+            log.warn("[SSE] Failed to build audio event #{}: {}", index, e.getMessage());
+        }
+    }
+
+    private void completeQuietly(SseEmitter emitter) {
+        try {
+            emitter.complete();
+        } catch (Exception e) {
+            log.trace("[SSE] Emitter already completed: {}", e.getMessage());
         }
     }
 

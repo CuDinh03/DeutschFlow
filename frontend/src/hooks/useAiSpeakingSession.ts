@@ -12,6 +12,7 @@ import {
 } from "@/lib/aiSpeakingApi";
 import { isAiSpeakingQuotaBlocked } from "@/lib/aiSpeakingQuota";
 import { getAutoTtsEnabled, setAutoTtsEnabled } from "@/lib/speakingPreferences";
+import { PcmAudioQueue } from "@/lib/pcmAudioQueue";
 
 type TFn = (key: string) => string;
 
@@ -48,9 +49,23 @@ export function useAiSpeakingSession(opts: {
   const [retryUserText, setRetryUserText] = useState<string | null>(null);
 
   const streamAbortRef = useRef<AbortController | null>(null);
+  const audioQueueRef = useRef<PcmAudioQueue | null>(null);
+
+  const getAudioQueue = useCallback(() => {
+    if (!audioQueueRef.current) audioQueueRef.current = new PcmAudioQueue();
+    return audioQueueRef.current;
+  }, []);
 
   useEffect(() => {
     setAutoTtsState(getAutoTtsEnabled());
+  }, []);
+
+  // Release the streaming-TTS AudioContext when the page unmounts / navigates away.
+  useEffect(() => {
+    return () => {
+      audioQueueRef.current?.dispose();
+      audioQueueRef.current = null;
+    };
   }, []);
 
   const refreshQuota = useCallback(() => {
@@ -123,7 +138,11 @@ export function useAiSpeakingSession(opts: {
       });
 
       let currentDe = "";
+      let audioStreamed = false;
       streamAbortRef.current?.abort();
+      audioQueueRef.current?.stop(); // barge-in: stop the previous turn's audio on a new reply
+      const audioQueue = autoTtsEnabled ? getAudioQueue() : null;
+      audioQueue?.resume(); // sendUserText runs inside a user gesture → safe to resume AudioContext
       const requestStartTime = Date.now();
 
       streamAbortRef.current = chatStream(
@@ -184,7 +203,9 @@ export function useAiSpeakingSession(opts: {
               mode: sessionMode,
             });
           }
-          maybeSpeakAi(meta.aiSpeechDe);
+          // XTTS streaming already voiced the reply per-sentence; fall back to on-device TTS only
+          // when no audio was streamed (XTTS off / not configured / persona without a voice).
+          if (!audioStreamed) maybeSpeakAi(meta.aiSpeechDe);
           void refreshQuota();
           if (meta.isSessionEnded && onInterviewEnded) {
             // Delay slightly so the farewell message renders before the popup
@@ -209,6 +230,11 @@ export function useAiSpeakingSession(opts: {
           });
           console.error("Chat stream error:", err);
         },
+        (frame) => {
+          audioStreamed = true;
+          audioQueue?.enqueue(frame);
+        },
+        autoTtsEnabled,
       );
     },
     [
@@ -223,6 +249,8 @@ export function useAiSpeakingSession(opts: {
       trackFeatureAction,
       quota,
       refreshQuota,
+      autoTtsEnabled,
+      getAudioQueue,
     ],
   );
 
@@ -235,6 +263,7 @@ export function useAiSpeakingSession(opts: {
   const abortStream = useCallback(() => {
     streamAbortRef.current?.abort();
     streamAbortRef.current = null;
+    audioQueueRef.current?.stop(); // stop the persona mid-sentence (session end / leave / Escape)
   }, []);
 
   const trackSuggestionUsed = useCallback(

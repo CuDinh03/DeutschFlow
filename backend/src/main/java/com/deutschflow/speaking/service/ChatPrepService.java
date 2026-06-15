@@ -242,7 +242,8 @@ public class ChatPrepService {
                 sessionMode,
                 interviewContext,
                 answerAnalysis,
-                turnStartedAt);
+                turnStartedAt,
+                persona);
     }
 
     private List<AiSpeakingMessage> loadRecentMessages(long sessionId, AiSpeakingSession session) {
