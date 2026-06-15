@@ -1,6 +1,7 @@
 import axios from 'axios'
 import api from './api'
 import { getAccessToken, getRefreshToken, setTokens, clearTokens } from './authSession'
+import type { PcmAudioFrame } from './pcmAudioQueue'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -262,13 +263,16 @@ export function chatStream(
   userMessage: string,
   onToken: (delta: string) => void,
   onDone: (meta: AiChatResponse) => void,
-  onError: (err: string) => void
+  onError: (err: string) => void,
+  onAudio?: (frame: PcmAudioFrame) => void,
+  streamAudio = false
 ): AbortController {
   const ctrl = new AbortController()
   const url = `${API_BASE}/ai-speaking/sessions/${sessionId}/chat/stream`
-  const body = JSON.stringify({ userMessage })
+  const body = JSON.stringify({ userMessage, streamAudio })
 
   let settled = false
+  let doneReceived = false
   let stallTimer: ReturnType<typeof setTimeout> | null = null
 
   const clearStall = () => {
@@ -367,9 +371,18 @@ export function chatStream(
         if (eventName === 'token' && data) {
           const visible = speechStreamer(data)
           if (visible) onToken(visible)
+        } else if (eventName === 'audio' && data) {
+          if (onAudio) {
+            try {
+              onAudio(JSON.parse(data) as PcmAudioFrame)
+            } catch {
+              // Skip a malformed audio frame; text + remaining audio keep flowing.
+            }
+          }
         } else if (eventName === 'done' && data) {
           try {
             onDone(JSON.parse(data) as AiChatResponse)
+            doneReceived = true
             finishOk()
           } catch (e) {
             if (typeof console !== 'undefined' && typeof console.warn === 'function') {
@@ -393,7 +406,9 @@ export function chatStream(
       while (true) {
         const { value, done } = await reader.read()
         if (done) break
-        bumpStall(reader)
+        // After "done", audio frames trail the text — don't let the inter-chunk stall guard
+        // (which cancels the reader) cut them off; the stream closes when audio finishes.
+        if (!doneReceived) bumpStall(reader)
         buf += dec.decode(value, { stream: true })
 
         const frames = buf.split('\n\n')

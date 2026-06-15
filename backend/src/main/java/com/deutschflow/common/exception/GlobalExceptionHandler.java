@@ -213,6 +213,39 @@ public class GlobalExceptionHandler {
                         + "Reference: " + errorId, request.getRequestURI(), null, null);
     }
 
+    // --- 503 — database temporarily unavailable (pool exhausted / DB unreachable) ---
+    // When a request cannot OBTAIN a DB connection — Hikari pool exhausted within connection-timeout
+    // (5s) or Postgres unreachable — Spring throws DataAccessResourceFailureException /
+    // CannotGetJdbcConnectionException, or — for @Transactional methods, where it fails at tx-begin —
+    // CannotCreateTransactionException. Without this they bubble to handleGeneral and masquerade as a
+    // scary 500 "ERR-x" — that was the ERR-161 / ERR-74C login incident. Map to an HONEST, RETRYABLE
+    // 503 + Retry-After so clients (and the FE's idempotent-retry) back off instead of treating a
+    // transient DB blip as a hard crash. ERROR-logged with a reference for support correlation; the
+    // client message stays generic (no pool/SQL internals).
+    @ExceptionHandler({
+            org.springframework.dao.DataAccessResourceFailureException.class,
+            org.springframework.transaction.CannotCreateTransactionException.class
+    })
+    public ResponseEntity<ProblemDetail> handleDbUnavailable(Exception ex, HttpServletRequest request) {
+        String errorId = "ERR-" + Long.toHexString(ERROR_SEQ.incrementAndGet()).toUpperCase();
+        log.error("[503][{}] Database temporarily unavailable on {}", errorId, request.getRequestURI(), ex);
+        int retryAfter = 3;
+        var body = new ProblemDetail(
+                BASE_TYPE + "db-unavailable",
+                "Service Temporarily Unavailable",
+                HttpStatus.SERVICE_UNAVAILABLE.value(),
+                "Hệ thống đang bận tạm thời, vui lòng thử lại sau giây lát. Reference: " + errorId,
+                request.getRequestURI(),
+                LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+                null,
+                Map.of("retryAfterSeconds", retryAfter)
+        );
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .header("Retry-After", String.valueOf(retryAfter))
+                .contentType(PROBLEM_JSON)
+                .body(body);
+    }
+
     // --- 500 fallback ---
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ProblemDetail> handleGeneral(Exception ex,

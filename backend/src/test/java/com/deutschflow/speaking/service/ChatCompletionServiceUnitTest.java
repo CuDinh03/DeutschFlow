@@ -70,7 +70,8 @@ class ChatCompletionServiceUnitTest {
                                                         InterviewPromptContext interviewContext) {
         return new AiSpeakingServiceImpl.SpeakingChatPrep(
                 1L, 2L, null, "system", "B1", "topic",
-                List.of(), 600, 0, schema, mode, interviewContext, null, Instant.now());
+                List.of(), 600, 0, schema, mode, interviewContext, null, Instant.now(),
+                com.deutschflow.speaking.persona.SpeakingPersona.DEFAULT);
     }
 
     private static InterviewTurnPlan plan(int userTurn) {

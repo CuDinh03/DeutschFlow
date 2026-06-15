@@ -8,6 +8,10 @@ import com.deutschflow.speaking.contract.SpeakingResponseSchema;
 import com.deutschflow.speaking.contract.SpeakingSessionMode;
 import com.deutschflow.speaking.dto.AiSpeakingChatResponse;
 import com.deutschflow.speaking.metrics.SpeakingMetrics;
+import com.deutschflow.speaking.persona.SpeakingPersona;
+import com.deutschflow.speaking.tts.XttsPersonaVoiceResolver;
+import com.deutschflow.speaking.tts.XttsStreamClient;
+import com.deutschflow.speaking.tts.XttsVoice;
 import com.deutschflow.system.service.SystemConfigService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +26,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -30,6 +35,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
@@ -57,6 +63,11 @@ class SpeakingStreamServiceUnitTest {
     @Mock SessionTurnGuard sessionTurnGuard;
     @Mock ChatPrepService chatPrepService;
     @Mock ChatCompletionService chatCompletionService;
+    @Mock XttsStreamClient xttsStreamClient;
+    @Mock XttsPersonaVoiceResolver voiceResolver;
+
+    /** Inline executor → TTS synthesis runs synchronously for deterministic assertions. */
+    private final Executor xttsTtsExecutor = Runnable::run;
 
     // Stream client returned by chatCompletionService.chatClientFor(mode).
     @Mock OpenAiChatClient streamClient;
@@ -75,7 +86,8 @@ class SpeakingStreamServiceUnitTest {
     void setUp() {
         service = new SpeakingStreamService(
                 transactionTemplate, objectMapper, speakingMetrics, systemConfigService,
-                speakingStreamExecutor, sessionTurnGuard, chatPrepService, chatCompletionService);
+                speakingStreamExecutor, sessionTurnGuard, chatPrepService, chatCompletionService,
+                xttsStreamClient, voiceResolver, xttsTtsExecutor);
     }
 
     // ---- fixtures ----
@@ -84,7 +96,7 @@ class SpeakingStreamServiceUnitTest {
         return new AiSpeakingServiceImpl.SpeakingChatPrep(
                 USER_ID, SESSION_ID, null, "system", "B1", "topic",
                 List.of(), 600, 0, SpeakingResponseSchema.V1,
-                SpeakingSessionMode.COMMUNICATION, null, null, Instant.now());
+                SpeakingSessionMode.COMMUNICATION, null, null, Instant.now(), SpeakingPersona.DEFAULT);
     }
 
     private static AiChatCompletionResult aiResult() {
@@ -158,7 +170,7 @@ class SpeakingStreamServiceUnitTest {
         when(objectMapper.writeValueAsString(any())).thenReturn("{\"messageId\":99}");
 
         // Act
-        service.startStream(USER_ID, SESSION_ID, USER_MESSAGE, emitter, new AtomicBoolean(false), finalizer);
+        service.startStream(USER_ID, SESSION_ID, USER_MESSAGE, emitter, new AtomicBoolean(false), false, finalizer);
 
         // Assert — guard taken, prep loaded, finalize ran with the stream purpose
         verify(sessionTurnGuard).tryAcquire(SESSION_ID);
@@ -191,7 +203,7 @@ class SpeakingStreamServiceUnitTest {
         streamClientCompletes(false); // aborts → onComplete never invoked
 
         // Act
-        service.startStream(USER_ID, SESSION_ID, USER_MESSAGE, emitter, new AtomicBoolean(true), finalizer);
+        service.startStream(USER_ID, SESSION_ID, USER_MESSAGE, emitter, new AtomicBoolean(true), false, finalizer);
 
         // Assert — no finalize, cancel event + complete, guard released
         verify(finalizer, never()).finalizeTurn(any(), any(), any(), any(), any());
@@ -217,7 +229,7 @@ class SpeakingStreamServiceUnitTest {
         when(chatPrepService.prepareSpeakingChatTurn(USER_ID, SESSION_ID, USER_MESSAGE)).thenThrow(boom);
 
         // Act
-        service.startStream(USER_ID, SESSION_ID, USER_MESSAGE, emitter, new AtomicBoolean(false), finalizer);
+        service.startStream(USER_ID, SESSION_ID, USER_MESSAGE, emitter, new AtomicBoolean(false), false, finalizer);
 
         // Assert — emitter errored, no finalize, guard released in finally
         verify(emitter).completeWithError(boom);
@@ -239,7 +251,7 @@ class SpeakingStreamServiceUnitTest {
         when(chatPrepService.prepareSpeakingChatTurn(USER_ID, SESSION_ID, USER_MESSAGE)).thenReturn(null);
 
         // Act
-        service.startStream(USER_ID, SESSION_ID, USER_MESSAGE, emitter, new AtomicBoolean(false), finalizer);
+        service.startStream(USER_ID, SESSION_ID, USER_MESSAGE, emitter, new AtomicBoolean(false), false, finalizer);
 
         // Assert — errored out before streaming, finalize never reached, guard still released
         verify(emitter).completeWithError(any(IllegalStateException.class));
@@ -260,7 +272,7 @@ class SpeakingStreamServiceUnitTest {
 
         // Act + Assert
         assertThatThrownBy(() ->
-                service.startStream(USER_ID, SESSION_ID, USER_MESSAGE, emitter, new AtomicBoolean(false), finalizer))
+                service.startStream(USER_ID, SESSION_ID, USER_MESSAGE, emitter, new AtomicBoolean(false), false, finalizer))
                 .isInstanceOf(ConflictException.class);
 
         // never dispatched, never released (it was never acquired)
@@ -268,5 +280,87 @@ class SpeakingStreamServiceUnitTest {
         verify(sessionTurnGuard, never()).release(SESSION_ID);
         verify(finalizer, never()).finalizeTurn(any(), any(), any(), any(), any());
         verify(speakingMetrics).recordChatRequest("stream_start", "error");
+    }
+
+    // ---------------------------------------------------------------------
+    // 6. Streaming TTS wiring (streamAudio)
+    // ---------------------------------------------------------------------
+
+    private static final XttsVoice TTS_VOICE = new XttsVoice("de-lukas_man", 1.0, 0.68, 5.0, "de");
+
+    /** Drive the stream client to emit the given tokens, then invoke onComplete (returns true). */
+    @SuppressWarnings("unchecked")
+    private void streamClientStreamsThenCompletes(String... tokens) {
+        when(chatCompletionService.chatClientFor(any())).thenReturn(streamClient);
+        when(streamClient.chatCompletionStream(any(), eq(null), anyDouble(), anyInt(), any(), any(), any()))
+                .thenAnswer(inv -> {
+                    java.util.function.Consumer<String> onToken = inv.getArgument(4);
+                    for (String t : tokens) {
+                        onToken.accept(t);
+                    }
+                    ((java.util.function.Consumer<AiChatCompletionResult>) inv.getArgument(5)).accept(aiResult());
+                    return true;
+                });
+    }
+
+    /** Shared happy-path stubs for the streaming flow up to (and including) "done". */
+    private void arrangeStreamFlow() {
+        when(sessionTurnGuard.tryAcquire(SESSION_ID)).thenReturn(true);
+        executorRunsInline();
+        transactionRunsInline();
+        when(chatPrepService.prepareSpeakingChatTurn(USER_ID, SESSION_ID, USER_MESSAGE)).thenReturn(prep());
+        when(systemConfigService.getDouble(eq("ai.temperature"), any())).thenReturn(0.35);
+        when(chatCompletionService.parseAndPostProcess(any(), eq(USER_MESSAGE), any())).thenReturn(parsedDto());
+        when(finalizer.finalizeTurn(any(), eq(USER_MESSAGE), any(), any(), eq("SPEAKING_STREAM"))).thenReturn(doneResponse());
+        try {
+            when(objectMapper.writeValueAsString(any())).thenReturn("{}");
+        } catch (Exception ignored) {
+            // writeValueAsString declares a checked exception; never thrown by the stub.
+        }
+    }
+
+    @Test
+    @DisplayName("streamAudio=true: each sentence is synthesized in order with previous_text; emitter completes")
+    void streamAudio_synthesizesEachSentenceInOrder() {
+        arrangeStreamFlow();
+        streamClientStreamsThenCompletes("Hallo. ", "Wie geht's? ");
+        when(xttsStreamClient.isConfigured()).thenReturn(true);
+        when(voiceResolver.resolve(SpeakingPersona.DEFAULT)).thenReturn(Optional.of(TTS_VOICE));
+        when(xttsStreamClient.synthesize(eq(TTS_VOICE), anyString(), any())).thenReturn(new byte[]{1});
+
+        service.startStream(USER_ID, SESSION_ID, USER_MESSAGE, emitter, new AtomicBoolean(false), true, finalizer);
+
+        verify(xttsStreamClient).synthesize(TTS_VOICE, "Hallo.", null);
+        verify(xttsStreamClient).synthesize(TTS_VOICE, "Wie geht's?", "Hallo.");
+        verify(emitter).complete();
+        verify(emitter, never()).completeWithError(any());
+    }
+
+    @Test
+    @DisplayName("streamAudio=true but XTTS not configured: no synthesis, text flow unaffected")
+    void streamAudio_notConfigured_skipsTts() {
+        arrangeStreamFlow();
+        streamClientStreamsThenCompletes("Hallo. ");
+        when(xttsStreamClient.isConfigured()).thenReturn(false);
+
+        service.startStream(USER_ID, SESSION_ID, USER_MESSAGE, emitter, new AtomicBoolean(false), true, finalizer);
+
+        verify(xttsStreamClient, never()).synthesize(any(), any(), any());
+        verify(emitter).complete();
+        verify(emitter, never()).completeWithError(any());
+    }
+
+    @Test
+    @DisplayName("streamAudio=true but persona has no streaming voice (e.g. VN tutor): no synthesis")
+    void streamAudio_personaWithoutVoice_skipsTts() {
+        arrangeStreamFlow();
+        streamClientStreamsThenCompletes("Hallo. ");
+        when(xttsStreamClient.isConfigured()).thenReturn(true);
+        when(voiceResolver.resolve(SpeakingPersona.DEFAULT)).thenReturn(Optional.empty());
+
+        service.startStream(USER_ID, SESSION_ID, USER_MESSAGE, emitter, new AtomicBoolean(false), true, finalizer);
+
+        verify(xttsStreamClient, never()).synthesize(any(), any(), any());
+        verify(emitter).complete();
     }
 }

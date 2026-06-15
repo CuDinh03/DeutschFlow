@@ -141,7 +141,7 @@ public class AiSessionController {
             cancelled.set(true);
         });
 
-        aiSpeakingService.chatStream(user.getId(), id, request.userMessage(), emitter, cancelled);
+        aiSpeakingService.chatStream(user.getId(), id, request.userMessage(), emitter, cancelled, request.streamAudio());
         return emitter;
     }
 
