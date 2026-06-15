@@ -83,4 +83,59 @@ class GlobalExceptionHandlerTest {
         assertThat(body.detail()).doesNotContain("organizations_plan_code_fkey");
         assertThat(body.detail()).doesNotContain("foreign key");
     }
+
+    /**
+     * RCA + fix for "An unexpected error occurred. Reference: ERR-161" (and ERR-74C).
+     *
+     * <p>The login incident: when the Hikari pool is exhausted (or Postgres is unreachable), the
+     * connection cannot be obtained within {@code connection-timeout} (5s) and Spring throws
+     * {@link org.springframework.jdbc.CannotGetJdbcConnectionException} (a
+     * {@code DataAccessResourceFailureException}). That is not a {@code BadCredentialsException}, so
+     * {@code AuthService.login} does not catch it; it bubbles to the advice. PRE-FIX it hit the
+     * catch-all {@code handleGeneral} and surfaced as the scary 500 "ERR-x". It NOW maps to an honest,
+     * RETRYABLE 503. (Redis failures are caught and degraded in {@code AuthRateLimiterService}, see
+     * {@code AuthRateLimiterServiceUnitTest} — so ERR-161 was a DB-connection failure, NOT Redis.)
+     */
+    @Test
+    @DisplayName("DB connection-pool failure → 503 retryable (was the masked 500 / ERR-161), no leak")
+    void dbConnectionFailure_mapsTo503Retryable() {
+        var ex = new org.springframework.jdbc.CannotGetJdbcConnectionException(
+                "Failed to obtain JDBC Connection",
+                new java.sql.SQLTransientConnectionException(
+                        "HikariPool-1 - Connection is not available, request timed out after 5000ms"));
+
+        ResponseEntity<ProblemDetail> response = handler.handleDbUnavailable(ex, requestTo("/api/auth/login"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+        assertThat(response.getHeaders().getFirst("Retry-After")).isEqualTo("3");
+        ProblemDetail body = response.getBody();
+        assertThat(body).isNotNull();
+        assertThat(body.status()).isEqualTo(503);
+        assertThat(body.type()).endsWith("db-unavailable");
+        assertThat(body.extensions()).containsEntry("retryAfterSeconds", 3);
+        // Carries a support reference, but no internal infra detail leaks to the client.
+        assertThat(body.detail()).contains("ERR-");
+        assertThat(body.detail()).doesNotContain("HikariPool").doesNotContain("JDBC").doesNotContain("5000ms");
+    }
+
+    /**
+     * The {@code @Transactional} variant: a login/transactional method fails at tx-begin because it
+     * cannot open a connection → {@link org.springframework.transaction.CannotCreateTransactionException}
+     * (wrapping the JDBC cause). Must also map to a retryable 503, not a 500.
+     */
+    @Test
+    @DisplayName("@Transactional begin failure (CannotCreateTransactionException) → 503 retryable")
+    void cannotCreateTransaction_mapsTo503() {
+        var ex = new org.springframework.transaction.CannotCreateTransactionException(
+                "Could not open JDBC Connection for transaction",
+                new org.springframework.jdbc.CannotGetJdbcConnectionException("pool timeout after 5000ms"));
+
+        ResponseEntity<ProblemDetail> response = handler.handleDbUnavailable(ex, requestTo("/api/auth/login"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+        ProblemDetail body = response.getBody();
+        assertThat(body).isNotNull();
+        assertThat(body.status()).isEqualTo(503);
+        assertThat(body.detail()).doesNotContain("5000ms"); // no leak of the wrapped cause's message
+    }
 }

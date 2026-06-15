@@ -46,18 +46,23 @@ export async function playTTS(text: string, speed: number = 1.0): Promise<void> 
 
   try {
     const payload = { text, persona: 'DEFAULT' };
-    const resp = await api.post('/ai-speaking/tts', payload, { responseType: 'json' });
-    const audioUrl = resp.data?.audioUrl;
+    // Backend (/api/ai-speaking/tts) trả raw audio/mpeg bytes, không phải JSON.
+    // Đọc body dưới dạng Blob rồi phát qua object URL.
+    const resp = await api.post('/ai-speaking/tts', payload, { responseType: 'blob' });
+    const blob = resp.data as Blob;
 
-    if (typeof audioUrl === 'string' && audioUrl.trim()) {
-      const audio = new Audio(audioUrl);
+    if (blob && blob.size > 0) {
+      const objectUrl = URL.createObjectURL(blob);
+      const audio = new Audio(objectUrl);
       _currentAudio = audio;
 
-      audio.onended = () => {
+      const cleanup = () => {
+        URL.revokeObjectURL(objectUrl);
         if (_currentAudio === audio) _currentAudio = null;
       };
+      audio.onended = cleanup;
       audio.onerror = async () => {
-        if (_currentAudio === audio) _currentAudio = null;
+        cleanup();
         try {
           await playBrowserTTS(text, speed);
         } catch {
