@@ -22,7 +22,7 @@ import type {
 } from '@/lib/learning-tree/core'
 import { hashUnit } from '@/lib/learning-tree/core'
 import { taperedLimbPath, trunkOutlinePath, leafPath, softBlobCircles } from '@/lib/learning-tree/render/paths'
-import { BARK, GROUP_COLORS, SKILL_COLORS, TOPIC_CHIP, branchFill, milestoneColors } from '@/lib/learning-tree/render/palette'
+import { BARK, GROUP_COLORS, SKILL_COLORS, SKILL_LABELS, TOPIC_CHIP, branchFill, milestoneColors } from '@/lib/learning-tree/render/palette'
 import { SKILL_ICONS, TOPIC_ICONS } from '@/lib/learning-tree/render/icons'
 import { TreeIcon } from './TreeIcon'
 
@@ -308,9 +308,13 @@ function LeafGlyph({ leaf }: { leaf: Leaf }): React.ReactElement {
       className={interactive ? 'lt-node' : undefined}
       transform={transform}
       tabIndex={interactive ? 0 : undefined}
+      role={interactive ? 'button' : undefined}
+      aria-label={interactive ? `${GROUP_COLORS[g].name} · ${SKILL_LABELS[leaf.skill]} · ${leaf.title}` : undefined}
       data-node-id={leaf.nodeId}
       data-state={state}
       data-group={g}
+      data-skill={leaf.skill}
+      data-title={leaf.title}
     >
       <g transform={`rotate(${leaf.orderIndex % 2 ? 36 : -36})`}>{glyph}</g>
       {/* Skill = a small upright badge at the node base, identical across every state (the colour is

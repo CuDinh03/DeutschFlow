@@ -7,7 +7,8 @@
 
 import * as React from 'react'
 import { computeTreeLayout } from '@/lib/learning-tree/core'
-import type { TreeParams } from '@/lib/learning-tree/core'
+import type { TreeParams, Skill, TopicGroup } from '@/lib/learning-tree/core'
+import { GROUP_COLORS, SKILL_LABELS } from '@/lib/learning-tree/render/palette'
 import type { TreeResponse } from '@/lib/learning-tree/treeApi'
 import { LearningTreeDefs, LearningTreeScene } from './treeScene'
 
@@ -38,6 +39,17 @@ export interface TappedNode {
   state: string
 }
 
+/** A node being hovered/peeked — drives the tooltip. x/y are the node-top, relative to the wrapper. */
+export interface HoveredNode {
+  nodeId: string
+  group: string
+  skill: string
+  title: string
+  state: string
+  x: number
+  y: number
+}
+
 interface LearningTreeProps {
   tree: TreeResponse
   onTapNode: (node: TappedNode) => void
@@ -59,6 +71,10 @@ export function LearningTree({ tree, onTapNode }: LearningTreeProps): React.Reac
   const cam = React.useRef<CamState>({ scale: 1, tx: 0, ty: 0, bbox: null })
   const tapRef = React.useRef(onTapNode)
   tapRef.current = onTapNode
+  // Tooltip state lives here (LearningTree owns the wrapper + node coords).
+  const [hovered, setHovered] = React.useState<HoveredNode | null>(null)
+  const hoverRef = React.useRef<(n: HoveredNode | null) => void>(() => {})
+  hoverRef.current = setHovered
   // True once the user pans/zooms — suppresses auto-recenter so we don't fight their navigation.
   const touched = React.useRef(false)
   const recenterRef = React.useRef<(dur: number) => void>(() => {})
@@ -141,6 +157,7 @@ export function LearningTree({ tree, onTapNode }: LearningTreeProps): React.Reac
       const dx = e.clientX - lx
       const dy = e.clientY - ly
       moved += Math.abs(dx) + Math.abs(dy)
+      if (moved > 6) hoverRef.current?.(null) // panning → drop the tooltip
       s.tx += dx
       s.ty += dy
       lx = e.clientX
@@ -161,6 +178,7 @@ export function LearningTree({ tree, onTapNode }: LearningTreeProps): React.Reac
         if (target instanceof HTMLElement || target instanceof SVGElement) {
           const nodeId = target.getAttribute('data-node-id')
           if (nodeId) {
+            hoverRef.current?.(null)
             tapRef.current({
               nodeId,
               group: target.getAttribute('data-group') ?? 'daily',
@@ -171,8 +189,31 @@ export function LearningTree({ tree, onTapNode }: LearningTreeProps): React.Reac
       }
       downNode = null
     }
+    // Tooltip: show on pointer-over OR keyboard-focus of a node (hover desktop, touch-over mobile,
+    // Tab keyboard); hide on leave/blur.
+    const onOver = (e: Event) => {
+      const node = e.target instanceof Element ? e.target.closest('.lt-node') : null
+      if (!node) return
+      const wr = wrap.getBoundingClientRect()
+      const nr = node.getBoundingClientRect()
+      setHovered({
+        nodeId: node.getAttribute('data-node-id') ?? '',
+        group: node.getAttribute('data-group') ?? 'daily',
+        skill: node.getAttribute('data-skill') ?? '',
+        title: node.getAttribute('data-title') ?? '',
+        state: node.getAttribute('data-state') ?? 'available',
+        x: nr.left + nr.width / 2 - wr.left,
+        y: nr.top - wr.top,
+      })
+    }
+    const onOut = (e: Event) => {
+      const node = e.target instanceof Element ? e.target.closest('.lt-node') : null
+      const to = (e as PointerEvent | FocusEvent).relatedTarget
+      if (node && (!(to instanceof Node) || !node.contains(to))) setHovered(null)
+    }
     const onWheel = (e: WheelEvent) => {
       e.preventDefault()
+      hoverRef.current?.(null)
       touched.current = true
       const r = wrap.getBoundingClientRect()
       const px = e.clientX - r.left
@@ -189,6 +230,10 @@ export function LearningTree({ tree, onTapNode }: LearningTreeProps): React.Reac
     svg.addEventListener('pointermove', onMove)
     svg.addEventListener('pointerup', onUp)
     svg.addEventListener('pointercancel', onUp)
+    svg.addEventListener('pointerover', onOver)
+    svg.addEventListener('pointerout', onOut)
+    svg.addEventListener('focusin', onOver)
+    svg.addEventListener('focusout', onOut)
     svg.addEventListener('wheel', onWheel, { passive: false })
 
     let ro: ResizeObserver | null = null
@@ -207,6 +252,10 @@ export function LearningTree({ tree, onTapNode }: LearningTreeProps): React.Reac
       svg.removeEventListener('pointermove', onMove)
       svg.removeEventListener('pointerup', onUp)
       svg.removeEventListener('pointercancel', onUp)
+      svg.removeEventListener('pointerover', onOver)
+      svg.removeEventListener('pointerout', onOut)
+      svg.removeEventListener('focusin', onOver)
+      svg.removeEventListener('focusout', onOut)
       svg.removeEventListener('wheel', onWheel)
     }
   }, [applyCam])
@@ -248,6 +297,29 @@ export function LearningTree({ tree, onTapNode }: LearningTreeProps): React.Reac
       <div className="ga-ui pointer-events-none absolute left-4 top-4 rounded-ga-pill bg-ga-card/80 px-3 py-1.5 text-[12px] text-ga-muted">
         Chạm vào lá đang sáng để học
       </div>
+      {hovered && <NodeTooltip node={hovered} wrapWidth={wrapRef.current?.clientWidth ?? 0} />}
+    </div>
+  )
+}
+
+/** Tooltip "Topic · Skill · title" above a node; flips below near the top edge, clamps horizontally. */
+function NodeTooltip({ node, wrapWidth }: { node: HoveredNode; wrapWidth: number }): React.ReactElement {
+  const topic = GROUP_COLORS[node.group as TopicGroup]?.name ?? node.group
+  const skill = SKILL_LABELS[node.skill as Skill] ?? node.skill
+  const flipBelow = node.y < 52
+  const left = wrapWidth ? Math.min(Math.max(node.x, 76), wrapWidth - 76) : node.x
+  return (
+    <div
+      role="tooltip"
+      className="pointer-events-none absolute z-30 max-w-[220px] truncate rounded-ga bg-ga-ink px-2.5 py-1.5 text-[11.5px] font-medium text-ga-bg shadow-md"
+      style={{
+        left,
+        top: flipBelow ? node.y + 20 : node.y - 8,
+        transform: flipBelow ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
+        fontFamily: 'var(--ga-vn)',
+      }}
+    >
+      {topic} · {skill} · {node.title}
     </div>
   )
 }
