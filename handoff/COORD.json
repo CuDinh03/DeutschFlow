@@ -1,0 +1,15 @@
+{
+  "patternLocks": { "list": "admin-users", "dashboard": "", "analytics": "", "form": "v2-login", "account": "" },
+  "queue": ["admin-orgs", "admin-vocab", "admin-audit", "..."],
+  "blocked": ["roadmap-tree (backend)", "node-lesson (backend)", "quiz (dropped)"],
+  "screens": {
+    "admin-users": {
+      "type": "list",
+      "status": "code-built",
+      "artifact": "handoff/artifacts/70-admin-users.html",
+      "screenshot": "handoff/qa/admin-users.png",
+      "qa": [],
+      "notes": ""
+    }
+  }
+}
