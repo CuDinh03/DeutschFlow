@@ -21,13 +21,16 @@ import type {
   MilestoneNode,
 } from '@/lib/learning-tree/core'
 import { hashUnit } from '@/lib/learning-tree/core'
-import { taperedLimbPath, trunkOutlinePath, leafPath, softBlobCircles } from '@/lib/learning-tree/render/paths'
+import { taperedLimbPath, trunkOutlinePath, softBlobCircles } from '@/lib/learning-tree/render/paths'
 import { BARK, GROUP_COLORS, SKILL_COLORS, SKILL_LABELS, TOPIC_CHIP, branchFill, milestoneColors } from '@/lib/learning-tree/render/palette'
 import { SKILL_ICONS, TOPIC_ICONS } from '@/lib/learning-tree/render/icons'
 import { TreeIcon } from './TreeIcon'
 
 /** Canonical skill order — pip slots ring the current milestone in this order. */
 const CANON_SKILLS = ['hoeren', 'sprechen', 'lesen', 'schreiben'] as const
+
+/** Decorative canopy foliage — a single soft green, deliberately NOT encoding topic. */
+const FOLIAGE_GREEN = '#C3D6AC'
 
 /** Flip the engine's downward y so the tree grows up the screen. */
 const fy = (y: number) => -y
@@ -65,6 +68,12 @@ export function LearningTreeDefs(): React.ReactElement {
           <feMergeNode in="SourceGraphic" />
         </feMerge>
       </filter>
+      {/* Ripe-fruit gradient (mastered node) — warm orange, state ripeness (not skill/topic). */}
+      <radialGradient id="lt-ripe" cx="0.38" cy="0.32" r="0.75">
+        <stop offset="0" stopColor="#F2B65A" />
+        <stop offset="0.6" stopColor="#E5912F" />
+        <stop offset="1" stopColor="#CE7A1E" />
+      </radialGradient>
     </defs>
   )
 }
@@ -130,8 +139,6 @@ export function LearningTreeScene({ layout, filter }: SceneProps): React.ReactEl
   const flowers: Array<{ key: string; x: number; y: number; soft: string }> = []
   Array.from(leavesByShoot.entries()).forEach(([shootId, group]: [string, Leaf[]]) => {
     if (group.length < 2) return
-    const g = groupFromSlot(group[0].colorSlot) ?? 'daily'
-    const gc = GROUP_COLORS[g]
     const cx = group.reduce((sum, l) => sum + l.pos.x, 0) / group.length
     const cy = group.reduce((sum, l) => sum + fy(l.pos.y), 0) / group.length
     const maxR = group.reduce((m, l) => Math.max(m, Math.hypot(l.pos.x - cx, fy(l.pos.y) - cy)), 0)
@@ -139,11 +146,11 @@ export function LearningTreeScene({ layout, filter }: SceneProps): React.ReactEl
     canopies.push({
       key: shootId,
       circles: softBlobCircles(cx, cy, maxR + 10, allDone ? 6 : 4, hashUnit(shootId)),
-      color: gc.soft,
-      op: allDone ? 0.34 : 0.22,
+      color: FOLIAGE_GREEN, // decorative foliage stays green/unencoded (topic lives only on the chip)
+      op: allDone ? 0.32 : 0.22,
     })
     const sh = shootById.get(shootId)
-    if (allDone && sh) flowers.push({ key: shootId, x: sh.to.x, y: fy(sh.to.y), soft: gc.soft })
+    if (allDone && sh) flowers.push({ key: shootId, x: sh.to.x, y: fy(sh.to.y), soft: '#FBEFD0' })
   })
 
   // One muted topic chip per limb on the CURRENT level only (the focal level), deduped per
@@ -288,45 +295,56 @@ export function LearningTreeScene({ layout, filter }: SceneProps): React.ReactEl
 
 function LeafGlyph({ leaf, dimmed }: { leaf: Leaf; dimmed?: boolean }): React.ReactElement {
   const g = groupFromSlot(leaf.colorSlot) ?? 'daily'
-  const gc = GROUP_COLORS[g]
   const state = leafState(leaf.state)
   const transform = `translate(${leaf.pos.x.toFixed(1)} ${fy(leaf.pos.y).toFixed(1)})`
   const interactive = state !== 'locked'
 
+  // State = motif + its NATURAL ripeness colour (skill stays the badge, never dyes the body):
+  // locked = closed bud · available = bloom + glow · in_progress = green fruit · mastered = ripe fruit.
   let glyph: React.ReactElement
   if (state === 'completed') {
     glyph = (
-      <>
-        <path d={leafPath(21, 9.5)} fill={gc.leaf} stroke={gc.dark} strokeWidth={1} />
-        <path d="M0 0 L 20 0" stroke={gc.dark} strokeWidth={0.9} opacity={0.5} fill="none" />
-      </>
+      <g transform="translate(0 -2)">
+        <circle r={8} fill="url(#lt-ripe)" stroke="#B5701C" strokeWidth={0.8} />
+        <ellipse cx={-2.6} cy={-3} rx={2.2} ry={1.3} fill="#FFFFFF" opacity={0.45} />
+        <path d="M0 -8 q 1.6 -3 3.6 -3.2" stroke="#6E5A45" strokeWidth={1} fill="none" strokeLinecap="round" />
+        <g transform="translate(7 -7)">
+          <circle r={4} fill="#1E9E61" stroke="#FBFAF7" strokeWidth={0.8} />
+          <path d="M-1.8 0 L-0.5 1.4 L2 -1.7" stroke="#FFFFFF" strokeWidth={1.3} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        </g>
+      </g>
     )
   } else if (state === 'in_progress') {
-    // Active leaf: saturated fill + strong breathing halo so it reads as "in play".
     glyph = (
-      <>
-        <circle className="lt-breathe" cx={6} cy={0} r={17} fill={gc.leaf} opacity={0.55} filter="url(#lt-glow)" />
-        <path d={leafPath(18, 8.5)} fill={gc.leaf} stroke={gc.dark} strokeWidth={1} />
-        <circle cx={18} cy={0} r={2.6} fill="#FFCD00" stroke={gc.dark} strokeWidth={0.8} />
-      </>
+      <g transform="translate(0 -2)">
+        <circle r={7.5} fill="#7FA86A" stroke="#4E7E3C" strokeWidth={0.8} />
+        <ellipse cx={-2.4} cy={-2.8} rx={1.9} ry={1.1} fill="#FFFFFF" opacity={0.4} />
+        <path d="M0 -7.5 q 1.6 -3 3.6 -3.2" stroke="#4E7E3C" strokeWidth={1} fill="none" strokeLinecap="round" />
+      </g>
     )
   } else if (state === 'available') {
-    // Active leaf: glowing invite to tap — saturated leaf + breathing halo.
+    // The glowing bloom — the tap point.
     glyph = (
-      <>
-        <circle className="lt-breathe" cx={6} cy={0} r={17} fill={gc.leaf} opacity={0.55} filter="url(#lt-glow)" />
-        <path d="M0 0 C 7.5 -5 14 -3.3 15 0 C 14 3.3 7.5 5 0 0 Z" fill={gc.leaf} stroke={gc.dark} strokeWidth={1} />
-      </>
+      <g>
+        <circle className="lt-breathe" cx={0} cy={-3} r={16} fill="#FFCD00" opacity={0.5} filter="url(#lt-glow)" />
+        <g transform="translate(0 -3)">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <ellipse key={i} cx={0} cy={-5} rx={3.2} ry={5} fill="#FBEFD0" stroke="#E6C766" strokeWidth={0.7} transform={`rotate(${i * 72})`} />
+          ))}
+          <circle r={3} fill="#FFCD00" stroke="#B8911C" strokeWidth={0.8} />
+        </g>
+      </g>
     )
   } else {
-    glyph = <circle cx={0} cy={0} r={4} fill="#CFC8BC" stroke="#B0A795" strokeWidth={1} />
+    // locked = closed bud
+    glyph = <path d="M0 1 C -3 -4 -3 -10 0 -12 C 3 -10 3 -4 0 1 Z" fill="#AEB49C" stroke="#868C72" strokeWidth={0.8} />
   }
 
   return (
     <g
       className={interactive ? 'lt-node' : undefined}
       transform={transform}
-      opacity={dimmed ? DIM : 1}
+      opacity={dimmed ? DIM : state === 'locked' ? 0.55 : 1}
       tabIndex={interactive ? 0 : undefined}
       role={interactive ? 'button' : undefined}
       aria-label={interactive ? `${GROUP_COLORS[g].name} · ${SKILL_LABELS[leaf.skill]} · ${leaf.title}` : undefined}
@@ -336,7 +354,7 @@ function LeafGlyph({ leaf, dimmed }: { leaf: Leaf; dimmed?: boolean }): React.Re
       data-skill={leaf.skill}
       data-title={leaf.title}
     >
-      <g transform={`rotate(${leaf.orderIndex % 2 ? 36 : -36})`}>{glyph}</g>
+      {glyph}
       {/* Skill = a small upright badge at the node base, identical across every state (the colour is
           the only skill signal; the motif/body colour stays the state's, never dyed by skill). */}
       <SkillBadge skill={leaf.skill} dim={state === 'locked'} />
