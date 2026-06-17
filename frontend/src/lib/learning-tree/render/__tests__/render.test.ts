@@ -6,7 +6,8 @@ import {
   leafletPath,
   softBlobCircles,
 } from '../paths'
-import { mix, branchFill, milestoneColors, GROUP_COLORS, SKILL_COLORS } from '../palette'
+import { mix, branchFill, milestoneColors, GROUP_COLORS, SKILL_COLORS, TOPIC_CHIP } from '../palette'
+import { SKILL_ICONS, TOPIC_ICONS } from '../icons'
 
 // Snapshots lock the geometry/colour the SVG renderer derives from the (separately-tested) layout
 // engine. They guard against accidental drift in the path builders and palette.
@@ -65,5 +66,19 @@ describe('render/palette', () => {
 
   it('group + skill palettes are stable', () => {
     expect({ GROUP_COLORS, SKILL_COLORS }).toMatchSnapshot()
+  })
+
+  it('topic chip palette stays neutral/muted', () => {
+    expect(TOPIC_CHIP).toMatchSnapshot()
+  })
+})
+
+describe('render/icons', () => {
+  it('skill icon path-sets are stable', () => {
+    expect(SKILL_ICONS).toMatchSnapshot()
+  })
+
+  it('topic icon path-sets are stable', () => {
+    expect(TOPIC_ICONS).toMatchSnapshot()
   })
 })

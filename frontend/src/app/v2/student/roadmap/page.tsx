@@ -8,6 +8,8 @@ import { fetchTree, completeNode, type TreeResponse } from '@/lib/learning-tree/
 import { LearningTree, type TappedNode } from '@/components/learning-tree/LearningTree'
 import { NodeLessonPanel } from '@/components/learning-tree/NodeLessonPanel'
 import { GROUP_COLORS, SKILL_COLORS, SKILL_LABELS } from '@/lib/learning-tree/render/palette'
+import { SKILL_ICONS } from '@/lib/learning-tree/render/icons'
+import { TreeIcon } from '@/components/learning-tree/TreeIcon'
 import {
   GaPageHdr,
   GaCard,
@@ -280,10 +282,16 @@ function TreeLegend() {
           </span>
         ))}
       </div>
+      {/* Skill key — icon + name, shown once (the badge motif used on every node). */}
       <div className="flex flex-wrap gap-x-3.5 gap-y-1.5">
         {skills.map((s) => (
-          <span key={s} className="ga-ui inline-flex items-center gap-1.5 text-[11.5px] text-ga-muted">
-            <i className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: SKILL_COLORS[s] }} />
+          <span key={s} className="inline-flex items-center gap-1.5 text-[11.5px] text-ga-muted">
+            <span
+              className="inline-flex h-4 w-4 items-center justify-center rounded-full"
+              style={{ background: SKILL_COLORS[s] }}
+            >
+              <TreeIcon paths={SKILL_ICONS[s]} size={10} color="#FFFFFF" strokeWidth={2.6} />
+            </span>
             {SKILL_LABELS[s]}
           </span>
         ))}

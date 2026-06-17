@@ -25,13 +25,24 @@ export const GROUP_COLORS: Record<TopicGroup, GroupColor> = {
   exam: { name: 'Luyện thi', leaf: '#D4A53A', dark: '#A77E1C', soft: '#EED391' },
 }
 
-/** Fixed branch colour per skill. */
+/**
+ * Skill colour — the single distinct signal carried on an icon-only node badge (Nghe/Nói/Đọc/Viết).
+ * Topic chips deliberately stay neutral (see TOPIC_CHIP) so the two systems never collide.
+ */
 export const SKILL_COLORS: Record<Skill, string> = {
-  hoeren: '#2F6FC9',
-  sprechen: '#E07B39',
-  lesen: '#1E9E61',
-  schreiben: '#7C56C8',
+  hoeren: '#4F86E0', // Nghe
+  sprechen: '#E8853A', // Nói
+  lesen: '#5E9150', // Đọc
+  schreiben: '#8257D8', // Viết
 }
+
+/** Muted, warm-neutral palette for topic chips — icon + text carry topic; colour stays quiet. */
+export const TOPIC_CHIP = {
+  bg: '#EFEAE0',
+  border: '#E0D8C8',
+  text: '#6B6457',
+  icon: '#8A8170',
+} as const
 
 export const SKILL_LABELS: Record<Skill, string> = {
   hoeren: 'Nghe',

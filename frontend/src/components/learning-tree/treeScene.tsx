@@ -13,6 +13,7 @@ import * as React from 'react'
 import type {
   TreeLayout,
   TopicGroup,
+  Skill,
   Leaf,
   Shoot,
   SkillBranch,
@@ -21,7 +22,9 @@ import type {
 } from '@/lib/learning-tree/core'
 import { hashUnit } from '@/lib/learning-tree/core'
 import { taperedLimbPath, trunkOutlinePath, leafPath, softBlobCircles } from '@/lib/learning-tree/render/paths'
-import { BARK, GROUP_COLORS, SKILL_COLORS, SKILL_LABELS, branchFill, milestoneColors } from '@/lib/learning-tree/render/palette'
+import { BARK, GROUP_COLORS, SKILL_COLORS, branchFill, milestoneColors } from '@/lib/learning-tree/render/palette'
+import { SKILL_ICONS } from '@/lib/learning-tree/render/icons'
+import { TreeIcon } from './TreeIcon'
 
 /** Canonical skill order — pip slots ring the current milestone in this order. */
 const CANON_SKILLS = ['hoeren', 'sprechen', 'lesen', 'schreiben'] as const
@@ -83,27 +86,6 @@ export function LearningTreeScene({ layout }: SceneProps): React.ReactElement {
   // Branch status per (level, skill) — feeds the current milestone's skill pips.
   const branchStateByLevelSkill = new Map<string, string>()
   branches.forEach((b) => branchStateByLevelSkill.set(`${b.level}:${b.skill}`, b.state))
-
-  // Skill-label pills sit on the CURRENT level's four branches only (≈⅓ from the base), rotated to
-  // the branch axis but kept upright — so a learner maps Nghe/Đọc/Viết/Nói to the legend at the foot
-  // of the tree. Limiting to the focal level keeps older levels' branches from stacking labels.
-  const currentLevel = milestones.find((m) => m.isCurrentGate)?.level
-  const skillTags = branches.filter((b) => b.level === currentLevel).map((b) => {
-    const from = fp(b.from)
-    const to = fp(b.to)
-    const t = 0.42
-    let angle = (Math.atan2(to.y - from.y, to.x - from.x) * 180) / Math.PI
-    if (angle > 90) angle -= 180
-    if (angle < -90) angle += 180
-    return {
-      id: b.id,
-      x: from.x + (to.x - from.x) * t,
-      y: from.y + (to.y - from.y) * t,
-      angle,
-      label: SKILL_LABELS[b.skill],
-      color: SKILL_COLORS[b.skill],
-    }
-  })
 
   // ── Trunk: chain segment endpoints into a single smoothed, thickness-offset outline ──
   const trunkD = React.useMemo(() => {
@@ -223,13 +205,6 @@ export function LearningTreeScene({ layout }: SceneProps): React.ReactElement {
         ))}
       </g>
 
-      {/* Skill labels on branches (map to the legend) */}
-      <g>
-        {skillTags.map((t) => (
-          <SkillTag key={t.id} x={t.x} y={t.y} angle={t.angle} label={t.label} color={t.color} />
-        ))}
-      </g>
-
       {/* Flowers (matured shoots) */}
       <g>
         {flowers.map((f) => (
@@ -311,30 +286,19 @@ function LeafGlyph({ leaf }: { leaf: Leaf }): React.ReactElement {
       data-group={g}
     >
       <g transform={`rotate(${leaf.orderIndex % 2 ? 36 : -36})`}>{glyph}</g>
+      {/* Skill = a small upright badge at the node base, identical across every state (the colour is
+          the only skill signal; the motif/body colour stays the state's, never dyed by skill). */}
+      <SkillBadge skill={leaf.skill} dim={state === 'locked'} />
     </g>
   )
 }
 
-function SkillTag({
-  x,
-  y,
-  angle,
-  label,
-  color,
-}: {
-  x: number
-  y: number
-  angle: number
-  label: string
-  color: string
-}): React.ReactElement {
-  const w = label.length * 5.6 + 13
+/** Small skill identifier pinned at a node's base — skill colour + white icon, constant per state. */
+function SkillBadge({ skill, dim }: { skill: Skill; dim?: boolean }): React.ReactElement {
   return (
-    <g transform={`translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${angle.toFixed(1)})`}>
-      <rect x={-w / 2} y={-7.5} width={w} height={15} rx={7.5} fill={color} stroke="#FBFAF7" strokeWidth={1.2} />
-      <text x={0} y={3} textAnchor="middle" fontSize={8.5} fontWeight={700} fill="#FFFFFF">
-        {label}
-      </text>
+    <g transform="translate(0 9)" opacity={dim ? 0.55 : 1}>
+      <circle r={6.5} fill={SKILL_COLORS[skill]} stroke="#FBFAF7" strokeWidth={1} />
+      <TreeIcon paths={SKILL_ICONS[skill]} size={9} color="#FFFFFF" strokeWidth={2.6} x={-4.5} y={-4.5} />
     </g>
   )
 }
@@ -404,8 +368,3 @@ function MilestoneGlyph({ ms, pips }: { ms: MilestoneNode; pips: string[] | null
     </g>
   )
 }
-
-/** Skill colour legend rows for the page chrome. */
-export const SKILL_LEGEND: Array<{ skill: keyof typeof SKILL_LABELS; color: string; label: string }> = (
-  Object.keys(SKILL_LABELS) as Array<keyof typeof SKILL_LABELS>
-).map((skill) => ({ skill, color: SKILL_COLORS[skill], label: SKILL_LABELS[skill] }))
