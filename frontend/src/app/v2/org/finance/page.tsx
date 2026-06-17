@@ -61,7 +61,7 @@ export default function V2OrgFinancePage() {
   const bars = issued.map((i) => ({ label: fmtDate(i.periodStart).slice(0, 5), value: i.amountVnd }))
 
   return (
-    <div className="flex min-h-screen flex-col" style={financeAccent}>
+    <div className="flex min-h-full flex-col" style={financeAccent}>
       <GaPageHdr accent title="Tài chính" subtitle="Tổng quan doanh thu, công nợ và hoá đơn của tổ chức" />
       <div className="flex-1 px-10 py-6">
         {error && (

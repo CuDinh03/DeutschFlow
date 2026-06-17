@@ -81,7 +81,7 @@ function PaymentBody() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-full flex-col">
       <GaPageHdr accent title="Nâng cấp gói" subtitle="Mở khoá toàn bộ sức mạnh AI cho hành trình tiếng Đức của bạn" />
       <div className="flex-1 px-10 py-8">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

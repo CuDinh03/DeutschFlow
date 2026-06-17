@@ -261,7 +261,7 @@ export default function V2AdminOrgsPage() {
   ]
 
   return (
-    <div className="flex min-h-screen flex-col" style={orgsAccentVars}>
+    <div className="flex min-h-full flex-col" style={orgsAccentVars}>
       <GaPageHdr
         accent
         title="Tổ chức B2B — Tài chính"

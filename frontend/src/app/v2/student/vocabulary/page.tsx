@@ -90,7 +90,7 @@ export default function V2StudentVocabularyPage() {
   }, [words, query, level])
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-full flex-col">
       <GaPageHdr
         accent
         title="Từ vựng"

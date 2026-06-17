@@ -63,7 +63,7 @@ export default function V2GradeImagePage() {
   }
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden">
+    <div className="flex h-full flex-col overflow-hidden">
       <GaPageHdr accent title="Chấm bài qua ảnh" subtitle="Học viên chụp bài viết tay · AI đọc & chấm Schreiben · giáo viên xác nhận" />
 
       <div className="grid min-h-0 flex-1" style={{ gridTemplateColumns: '1fr 380px' }}>

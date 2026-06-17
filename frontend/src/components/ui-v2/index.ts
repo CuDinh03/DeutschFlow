@@ -2,6 +2,7 @@
 // Per-screen components (charts, schedule grid, learning tree, …) land in Phase 2.
 export { GaShell } from './GaShell'
 export { GaSidebar } from './GaSidebar'
+export { GaTopBar } from './GaTopBar'
 export { GaPageHdr } from './GaPageHdr'
 export { GaLogo } from './GaLogo'
 export { GaBtn } from './GaBtn'

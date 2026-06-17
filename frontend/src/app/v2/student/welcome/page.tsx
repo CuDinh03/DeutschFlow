@@ -16,7 +16,7 @@ const STEPS = [
 
 export default function V2StudentWelcomePage() {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-full flex-col">
       <GaPageHdr accent title="Chào mừng đến DeutschFlow" subtitle="Hướng dẫn nhanh để bắt đầu hành trình tiếng Đức" />
       <div className="flex-1 px-10 py-6">
         <div className="mb-[22px] bg-ga-ink p-7 text-ga-bg">

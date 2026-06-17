@@ -36,7 +36,7 @@ export default function V2StudentRoadmapPage() {
   const currentIdx = phase ? ORDER.indexOf(phase.currentPhase) : -1
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-full flex-col">
       <GaPageHdr accent title="Lộ trình học" subtitle="Hành trình 4 giai đoạn từ người mới đến sẵn sàng thi" />
       <div className="flex-1 px-10 py-6">
         {error && (

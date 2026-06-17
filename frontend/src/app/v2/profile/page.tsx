@@ -161,7 +161,7 @@ function ProfileBody() {
   const setLp2 = (patch: Partial<LearningProfileData>) => setLp((prev) => (prev ? { ...prev, ...patch } : prev))
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-full flex-col">
       <GaPageHdr accent title="Hồ sơ" subtitle="Thông tin cá nhân, mục tiêu học tập và bảo mật" />
       <div className="flex-1 px-10 py-6">
         {/* Tabs */}

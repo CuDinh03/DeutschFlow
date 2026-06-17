@@ -61,7 +61,7 @@ export default function V2OrgRolesPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-full flex-col">
       <GaPageHdr accent title="Phân quyền" subtitle="Vai trò và quyền hạn của thành viên trong tổ chức" />
       <div className="flex-1 px-10 py-6">
         {error && (

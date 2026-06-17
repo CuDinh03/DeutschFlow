@@ -72,7 +72,7 @@ export default function V2AdminOverviewPage() {
   ]
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-full flex-col">
       <GaPageHdr accent title="Bảng điều khiển quản trị" subtitle="Tổng quan sức khỏe nền tảng DeutschFlow" />
       <div className="flex-1 px-10 py-6">
         {error && (

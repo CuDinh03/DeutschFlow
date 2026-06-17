@@ -61,7 +61,7 @@ export default function V2AiImagesPage() {
   }
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden">
+    <div className="flex h-full flex-col overflow-hidden">
       <GaPageHdr accent title="Tạo ảnh AI" subtitle="Sinh ảnh minh hoạ cho từ vựng và bài học bằng AI · lưu vào thư viện S3" />
 
       <div className="grid min-h-0 flex-1" style={{ gridTemplateColumns: '330px 1fr' }}>

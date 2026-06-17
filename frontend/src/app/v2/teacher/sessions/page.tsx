@@ -131,7 +131,7 @@ export default function V2TeacherSessionsPage() {
   const completedHours = completed.reduce((a, s) => a + s.durationMinutes, 0) / 60
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden">
+    <div className="flex h-full flex-col overflow-hidden">
       <GaPageHdr
         accent
         title="Buổi học 1:1"

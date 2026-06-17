@@ -36,7 +36,7 @@ export default function V2StudentLessonsPage() {
   const categories = ['ALL', ...Array.from(new Set(items.map((m) => m.category).filter(Boolean)))]
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-full flex-col">
       <GaPageHdr accent title="Thư viện bài học" subtitle="Hình ảnh & video minh hoạ kèm phát âm tiếng Đức" />
       <div className="flex-1 px-10 py-6">
         {/* Category filter */}

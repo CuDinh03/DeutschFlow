@@ -45,7 +45,7 @@ export default function V2StudentSpeakingPage() {
   }, [])
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-full flex-col">
       <GaPageHdr accent title="Luyện nói AI" subtitle="Thực hành phát âm và hội thoại tiếng Đức với gia sư AI" />
       <div className="flex-1 px-10 py-6">
         {/* Recommended */}

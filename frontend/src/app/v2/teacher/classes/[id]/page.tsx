@@ -131,7 +131,7 @@ export default function V2ClassDetailPage() {
     setSort((s) => (s.col === col ? { col, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { col, dir: 'desc' }))
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-full flex-col">
       <GaPageHdr
         accent
         title={info?.name ?? 'Chi tiết lớp'}

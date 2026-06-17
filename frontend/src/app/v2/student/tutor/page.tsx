@@ -92,7 +92,7 @@ export default function V2BookSessionPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-full flex-col">
       <GaPageHdr accent title="Gia sư 1:1" subtitle="Đặt lịch học trực tiếp với giáo viên" />
 
       <div className="flex-1 overflow-auto px-10 py-7">

@@ -49,7 +49,7 @@ export default function V2StudentMockExamPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-full flex-col">
       <GaPageHdr accent title="Thi thử" subtitle="Bộ đề mô phỏng Goethe có chấm điểm tự động" />
       <div className="flex-1 px-10 py-6">
         {error && (

@@ -239,7 +239,7 @@ export default function V2TeacherGradingPage() {
   const pct = total ? (graded / total) * 100 : 0
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden">
+    <div className="flex h-full flex-col overflow-hidden">
       <GaPageHdr
         accent
         title="Trung tâm Chấm bài"

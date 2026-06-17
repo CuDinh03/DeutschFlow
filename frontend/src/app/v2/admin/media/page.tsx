@@ -53,7 +53,7 @@ export default function V2AdminMediaPage() {
   }, [data])
 
   return (
-    <div className="flex min-h-screen flex-col" style={mediaAccentVars}>
+    <div className="flex min-h-full flex-col" style={mediaAccentVars}>
       <GaPageHdr
         accent
         title="Thư viện ảnh & media (S3)"

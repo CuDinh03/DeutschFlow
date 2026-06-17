@@ -98,7 +98,7 @@ export default function V2AdminTokensPage() {
   ]
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-full flex-col">
       <GaPageHdr accent title="Phân tích chi phí AI" subtitle="Token, chi phí theo tính năng và theo người dùng" />
       <div className="flex-1 px-10 py-6">
         {error && (

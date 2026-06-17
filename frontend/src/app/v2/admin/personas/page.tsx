@@ -108,7 +108,7 @@ export default function V2AdminPersonasPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col" style={personaAccentVars}>
+    <div className="flex min-h-full flex-col" style={personaAccentVars}>
       <GaPageHdr
         accent
         title="Persona & Rubric AI"

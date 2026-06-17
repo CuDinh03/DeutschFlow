@@ -80,7 +80,7 @@ export default function V2AdminVocabPage() {
   }, [data])
 
   return (
-    <div className="flex min-h-screen flex-col" style={vocabAccentVars}>
+    <div className="flex min-h-full flex-col" style={vocabAccentVars}>
       <GaPageHdr
         accent
         title="Cơ sở dữ liệu từ vựng"

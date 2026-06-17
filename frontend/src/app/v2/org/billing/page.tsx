@@ -62,7 +62,7 @@ export default function V2OrgBillingPage() {
 
   if (error) {
     return (
-      <div className="flex min-h-screen flex-col" style={billingAccent}>
+      <div className="flex min-h-full flex-col" style={billingAccent}>
         <GaPageHdr accent title="Gói & Thanh toán" subtitle="Quản lý ghế, gói B2B và hoá đơn của tổ chức" />
         <div className="flex-1 px-10 py-10">
           <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
@@ -76,7 +76,7 @@ export default function V2OrgBillingPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col" style={billingAccent}>
+    <div className="flex min-h-full flex-col" style={billingAccent}>
       <GaPageHdr accent title="Gói & Thanh toán" subtitle="Quản lý ghế, gói B2B và hoá đơn của tổ chức" />
 
       <div className="flex-1 overflow-auto px-10 py-7">

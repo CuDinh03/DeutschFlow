@@ -89,7 +89,7 @@ export default function V2TeacherAnalyticsPage() {
   const scored = rows.filter((r) => r.avgScore > 0)
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-full flex-col">
       <GaPageHdr
         accent
         title="Phân tích giảng dạy"

@@ -66,7 +66,7 @@ export default function V2AdminPlansPage() {
   })
 
   return (
-    <div className="flex min-h-screen flex-col" style={plansAccentVars}>
+    <div className="flex min-h-full flex-col" style={plansAccentVars}>
       <GaPageHdr
         accent
         title="Gói thuê bao"

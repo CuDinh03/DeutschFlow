@@ -35,6 +35,8 @@ import {
   Settings,
   ListChecks,
   Presentation,
+  Search,
+  HelpCircle,
   Circle,
   type LucideIcon,
 } from 'lucide-react'
@@ -82,6 +84,8 @@ const ICONS: Record<string, LucideIcon> = {
   settings: Settings,
   checklist: ListChecks,
   co_present: Presentation,
+  search: Search,
+  help: HelpCircle,
 }
 
 export interface GaIconProps {

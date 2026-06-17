@@ -68,7 +68,7 @@ export default function V2AdminAiConfigPage() {
   ]
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-full flex-col">
       <GaPageHdr
         accent
         title="Cấu hình AI"

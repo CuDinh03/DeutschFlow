@@ -49,7 +49,7 @@ export default function V2TcProgressPage() {
   const next = ordered.find((l) => !l.completed)
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-full flex-col">
       <GaPageHdr
         accent
         title="Tiến độ khóa học"

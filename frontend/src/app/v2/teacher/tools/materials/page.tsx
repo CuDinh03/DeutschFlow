@@ -27,7 +27,7 @@ export default function V2MaterialsAiPage() {
   const [count, setCount] = useState(5)
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden">
+    <div className="flex h-full flex-col overflow-hidden">
       <GaPageHdr accent title="Tạo Tài liệu AI" subtitle="Tự động tạo bài tập, đề kiểm tra và tài liệu học tập cá nhân hoá" />
 
       <div className="grid min-h-0 flex-1" style={{ gridTemplateColumns: '300px 1fr' }}>

@@ -12,7 +12,7 @@ export default function V2StudentTuitionPage() {
     router.replace('/v2/payment')
   }, [router])
   return (
-    <div className="grid min-h-screen place-items-center">
+    <div className="grid min-h-full place-items-center">
       <div className="text-center">
         <LoadingState label="Đang chuyển tới trang nâng cấp…" />
         <Link href="/v2/payment" className="ga-ui text-[13px] font-semibold text-ga-accent underline">

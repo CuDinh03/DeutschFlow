@@ -51,7 +51,7 @@ export default function V2OrgStudentsPage() {
   const activeN = members.filter((m) => m.status === 'ACTIVE').length
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-full flex-col">
       <GaPageHdr
         accent
         title="Học viên của tổ chức"

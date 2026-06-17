@@ -111,7 +111,7 @@ export default function V2AssignmentPage() {
   const isSpeaking = (a?.assignmentType ?? '').toUpperCase() === 'SPEAKING_SCENARIO'
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-full flex-col">
       <GaPageHdr
         accent
         title={a?.topic ?? (loading ? 'Đang tải…' : 'Bài tập')}

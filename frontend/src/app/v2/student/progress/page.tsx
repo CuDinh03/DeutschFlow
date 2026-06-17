@@ -60,7 +60,7 @@ export default function V2StProgressPage() {
   const next = currentIdx >= 0 && currentIdx + 1 < lessons.length ? lessons[currentIdx + 1] : null
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-full flex-col">
       <GaPageHdr accent title="Tiến độ khóa học" subtitle="Theo dõi lộ trình lớp do giáo viên cập nhật" />
 
       <div className="flex-1 overflow-auto px-10 py-7">

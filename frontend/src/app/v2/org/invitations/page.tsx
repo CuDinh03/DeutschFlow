@@ -84,7 +84,7 @@ export default function V2OrgInvitationsPage() {
   const freeSeats = summary ? Math.max(0, summary.seatLimit - summary.seatUsed) : 0
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-full flex-col">
       <GaPageHdr accent title="Lời mời thành viên" subtitle="Mời giáo viên bằng email · học viên tham gia qua mã tổ chức" />
 
       <div className="flex-1 overflow-auto px-10 py-7">

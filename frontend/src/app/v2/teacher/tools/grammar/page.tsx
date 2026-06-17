@@ -51,7 +51,7 @@ export default function V2GrammarAiPage() {
   const hasError = result && result.corrected.trim() !== result.original.trim()
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden">
+    <div className="flex h-full flex-col overflow-hidden">
       <GaPageHdr accent title="Ngữ pháp AI" subtitle="Kiểm tra và giải thích ngữ pháp tiếng Đức tức thì" />
 
       <div className="grid min-h-0 flex-1 grid-cols-2 border-t border-ga-line">

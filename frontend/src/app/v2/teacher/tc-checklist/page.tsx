@@ -79,7 +79,7 @@ export default function V2TcChecklistPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-full flex-col">
       <GaPageHdr
         accent
         title="Checklist khóa học"
