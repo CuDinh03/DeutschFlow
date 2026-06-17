@@ -23,6 +23,9 @@ import { hashUnit } from '@/lib/learning-tree/core'
 import { taperedLimbPath, trunkOutlinePath, leafPath, softBlobCircles } from '@/lib/learning-tree/render/paths'
 import { BARK, GROUP_COLORS, SKILL_COLORS, SKILL_LABELS, branchFill, milestoneColors } from '@/lib/learning-tree/render/palette'
 
+/** Canonical skill order — pip slots ring the current milestone in this order. */
+const CANON_SKILLS = ['hoeren', 'sprechen', 'lesen', 'schreiben'] as const
+
 /** Flip the engine's downward y so the tree grows up the screen. */
 const fy = (y: number) => -y
 const fp = (p: { x: number; y: number }) => ({ x: p.x, y: -p.y })
@@ -77,6 +80,10 @@ export function LearningTreeScene({ layout }: SceneProps): React.ReactElement {
   const leaves = els.filter((e): e is Leaf => e.kind === 'leaf')
   const milestones = els.filter((e): e is MilestoneNode => e.kind === 'milestone')
 
+  // Branch status per (level, skill) — feeds the current milestone's skill pips.
+  const branchStateByLevelSkill = new Map<string, string>()
+  branches.forEach((b) => branchStateByLevelSkill.set(`${b.level}:${b.skill}`, b.state))
+
   // ── Trunk: chain segment endpoints into a single smoothed, thickness-offset outline ──
   const trunkD = React.useMemo(() => {
     if (trunkSegs.length === 0) return ''
@@ -110,9 +117,9 @@ export function LearningTreeScene({ layout }: SceneProps): React.ReactElement {
     const allDone = group.every((l) => leafState(l.state) === 'completed')
     canopies.push({
       key: shootId,
-      circles: softBlobCircles(cx, cy, maxR + 16, allDone ? 6 : 4, hashUnit(shootId)),
+      circles: softBlobCircles(cx, cy, maxR + 10, allDone ? 6 : 4, hashUnit(shootId)),
       color: gc.soft,
-      op: allDone ? 0.42 : 0.28,
+      op: allDone ? 0.34 : 0.22,
     })
     const sh = shootById.get(shootId)
     if (allDone && sh) flowers.push({ key: shootId, x: sh.to.x, y: fy(sh.to.y), soft: gc.soft })
@@ -219,9 +226,12 @@ export function LearningTreeScene({ layout }: SceneProps): React.ReactElement {
 
       {/* Milestones (on top) */}
       <g>
-        {milestones.map((m) => (
-          <MilestoneGlyph key={m.id} ms={m} />
-        ))}
+        {milestones.map((m) => {
+          const pips = m.isCurrentGate
+            ? CANON_SKILLS.map((sk) => branchStateByLevelSkill.get(`${m.level}:${sk}`) ?? 'branch:locked')
+            : null
+          return <MilestoneGlyph key={m.id} ms={m} pips={pips} />
+        })}
       </g>
     </>
   )
@@ -275,7 +285,14 @@ function LeafGlyph({ leaf }: { leaf: Leaf }): React.ReactElement {
   )
 }
 
-function MilestoneGlyph({ ms }: { ms: MilestoneNode }): React.ReactElement {
+/** Pip colour by branch status (matured → green, growing → amber, locked → grey). */
+function pipColor(branchState: string): string {
+  if (branchState === 'branch:matured') return '#1E9E61'
+  if (branchState === 'branch:growing') return '#E0A23A'
+  return '#C9C2B6'
+}
+
+function MilestoneGlyph({ ms, pips }: { ms: MilestoneNode; pips: string[] | null }): React.ReactElement {
   const c = milestoneColors(ms.effectiveState)
   const r = ms.r
   return (
@@ -309,6 +326,20 @@ function MilestoneGlyph({ ms }: { ms: MilestoneNode }): React.ReactElement {
           <path d="M-2.6 0 L-0.7 2 L2.8 -2.4" stroke="#FFCD00" strokeWidth={1.6} fill="none" strokeLinecap="round" strokeLinejoin="round" />
         </g>
       )}
+      {pips?.map((st, i) => {
+        const ang = ((-128 + i * (256 / 3)) * Math.PI) / 180
+        return (
+          <circle
+            key={i}
+            cx={(r + 9) * Math.cos(ang)}
+            cy={(r + 9) * Math.sin(ang)}
+            r={3.4}
+            fill={pipColor(st)}
+            stroke="#FBFAF7"
+            strokeWidth={1.2}
+          />
+        )
+      })}
     </g>
   )
 }

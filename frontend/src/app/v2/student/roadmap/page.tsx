@@ -95,8 +95,10 @@ export default function V2StudentRoadmapPage() {
             <TkTabsTrigger value="phase">Giai đoạn</TkTabsTrigger>
           </TkTabsList>
 
-          {/* Tree tab */}
-          <TkTabsContent value="tree" className="flex min-h-0 flex-1 flex-col gap-3">
+          {/* Tree tab. `data-[state=active]:flex` (not bare `flex`) so the inactive panel respects
+              Radix's `hidden` — a bare `flex` class overrides [hidden]{display:none} and leaves the
+              panel occupying flex space, pushing the other tab's content down. */}
+          <TkTabsContent value="tree" className="min-h-0 flex-1 flex-col gap-3 data-[state=active]:flex">
             {treeError ? (
               <ErrorBanner message={treeError} onRetry={loadTree} />
             ) : treeLoading || !tree ? (
