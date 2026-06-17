@@ -125,3 +125,20 @@
 @media (prefers-reduced-motion: reduce) {
   .ga-scope .ga-shimmer { animation: none; }
 }
+
+/* Learning tree (Cây học tập) — glow on open leaves + ready milestones. */
+.lt-node { outline: none; cursor: pointer; }
+.lt-node:focus, .lt-node:focus-visible { outline: none; }
+.lt-breathe { transform-box: fill-box; transform-origin: center; animation: ltBreath 2.6s ease-in-out infinite; }
+.lt-pulse { animation: ltPulse 2.4s ease-in-out infinite; }
+@keyframes ltBreath {
+  0%, 100% { opacity: 0.16; transform: scale(0.8); }
+  50% { opacity: 0.5; transform: scale(1.14); }
+}
+@keyframes ltPulse {
+  0%, 100% { opacity: 0.1; }
+  50% { opacity: 0.32; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lt-breathe, .lt-pulse { animation: none; }
+}

@@ -1,0 +1,267 @@
+{
+  "_doc": {
+    "description": "Lo trinh hoc ca nhan hoa dang CAY cua DeutschFlow. File la NGUON NGU NGHIA: bo render (Claude Design / app) tu suy ra hinh hoc (goc, do dai, mau) theo QUY TAC SINH DANG, KHONG luu toa do.",
+    "geometryNote": {
+      "trunkHeight": "= cap dat duoc (so level co status completed/current).",
+      "branchAngle": "suy ra TAT DINH tu topicId (cung chu de => cung huong). To hop chu de khac nhau => dang cay khac nhau.",
+      "shootLength_density": "= so node co state 'completed' trong shoot do.",
+      "shootPosition": "thap/gan goc nhanh neu unlockOrder nho; cao/ngon neu unlockOrder lon.",
+      "colorMotif": "theo topicGroup (moi nhom 1 sac thai la/mau nhan trong palette Galerie).",
+      "aestheticGuardrails": "goc gioi han trong dai hinh quat, khong cat than, khong chong nhau; co luc keo nhe ve can bang."
+    },
+    "enums": {
+      "level": ["A0", "A1", "A2", "B1", "B2", "C1", "C2"],
+      "levelStatus": ["completed", "current", "locked"],
+      "milestoneState": ["locked", "ready", "in_progress", "passed"],
+      "skill": ["hoeren", "sprechen", "lesen", "schreiben"],
+      "branchStatus": ["locked", "growing", "matured"],
+      "topicGroup": ["daily", "work", "travel", "medical", "culture", "exam"],
+      "nodeState": ["locked", "available", "in_progress", "completed"]
+    },
+    "rules": {
+      "branchAppearFrom": "Tu cap A1 tro di moi cap moc 4 nhanh ky nang. A0 la than/mam, chua co nhanh.",
+      "nodeCapPerShoot_or_branch": 10,
+      "milestoneGate": "Node moc tren than la dieu kien RIENG. Cay khong cao them cho toi khi vuot moc. Khi nhanh day (matured) thi moc moi chuyen sang 'ready'."
+    }
+  },
+
+  "schemaVersion": "1.0",
+
+  "user": {
+    "id": "u_0001",
+    "displayName": "Nguyễn Thị Hoa",
+    "track": "nursing",
+    "goal": "telc B2 - dieu duong",
+    "currentLevel": "B1",
+    "startedAt": "2025-09-01"
+  },
+
+  "path": [
+    {
+      "level": "A0",
+      "status": "completed",
+      "note": "12 tuan nen tang. Than/mam, chua co nhanh ky nang.",
+      "milestone": {
+        "id": "ms_a0",
+        "title": "Khởi đầu — gieo mầm",
+        "state": "passed",
+        "passedAt": "2025-11-24"
+      },
+      "branches": []
+    },
+
+    {
+      "level": "A1",
+      "status": "completed",
+      "milestone": {
+        "id": "ms_a1",
+        "title": "Vượt cấp A1 (đề thi thử)",
+        "state": "passed",
+        "passedAt": "2026-01-30"
+      },
+      "branches": [
+        {
+          "skill": "hoeren", "label": "Nghe", "status": "matured", "nodeCap": 10,
+          "shoots": [
+            {
+              "topicId": "greetings", "topicLabel": "Chào hỏi & làm quen", "topicGroup": "daily",
+              "unlockOrder": 1, "chosenByUser": false,
+              "nodes": [
+                { "id": "a1_h_gr_1", "title": "Begrüßung", "state": "completed" },
+                { "id": "a1_h_gr_2", "title": "Sich vorstellen", "state": "completed" }
+              ]
+            },
+            {
+              "topicId": "family", "topicLabel": "Gia đình", "topicGroup": "daily",
+              "unlockOrder": 2, "chosenByUser": true,
+              "nodes": [
+                { "id": "a1_h_fa_1", "title": "Familie", "state": "completed" }
+              ]
+            }
+          ]
+        },
+        {
+          "skill": "sprechen", "label": "Nói", "status": "matured", "nodeCap": 10,
+          "shoots": [
+            {
+              "topicId": "greetings", "topicLabel": "Chào hỏi & làm quen", "topicGroup": "daily",
+              "unlockOrder": 1, "chosenByUser": false,
+              "nodes": [
+                { "id": "a1_s_gr_1", "title": "Dialog: Begrüßung", "state": "completed" }
+              ]
+            }
+          ]
+        },
+        {
+          "skill": "lesen", "label": "Đọc", "status": "matured", "nodeCap": 10,
+          "shoots": [
+            {
+              "topicId": "daily_life", "topicLabel": "Đời sống hằng ngày", "topicGroup": "daily",
+              "unlockOrder": 1, "chosenByUser": false,
+              "nodes": [
+                { "id": "a1_l_dl_1", "title": "Tagesablauf", "state": "completed" }
+              ]
+            }
+          ]
+        },
+        {
+          "skill": "schreiben", "label": "Viết", "status": "matured", "nodeCap": 10,
+          "shoots": [
+            {
+              "topicId": "forms", "topicLabel": "Điền biểu mẫu", "topicGroup": "daily",
+              "unlockOrder": 1, "chosenByUser": false,
+              "nodes": [
+                { "id": "a1_w_fo_1", "title": "Formular ausfüllen", "state": "completed" }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "level": "A2",
+      "status": "completed",
+      "milestone": {
+        "id": "ms_a2",
+        "title": "Vượt cấp A2 (đề thi thử)",
+        "state": "passed",
+        "passedAt": "2026-04-12"
+      },
+      "branches": [
+        {
+          "skill": "hoeren", "label": "Nghe", "status": "matured", "nodeCap": 10,
+          "shoots": [
+            {
+              "topicId": "health_basic", "topicLabel": "Sức khỏe cơ bản", "topicGroup": "medical",
+              "unlockOrder": 1, "chosenByUser": true,
+              "nodes": [
+                { "id": "a2_h_hb_1", "title": "Beim Arzt", "state": "completed" },
+                { "id": "a2_h_hb_2", "title": "Körperteile", "state": "completed" }
+              ]
+            }
+          ]
+        },
+        {
+          "skill": "sprechen", "label": "Nói", "status": "matured", "nodeCap": 10,
+          "shoots": [
+            {
+              "topicId": "health_basic", "topicLabel": "Sức khỏe cơ bản", "topicGroup": "medical",
+              "unlockOrder": 1, "chosenByUser": true,
+              "nodes": [
+                { "id": "a2_s_hb_1", "title": "Symptome beschreiben", "state": "completed" }
+              ]
+            }
+          ]
+        },
+        {
+          "skill": "lesen", "label": "Đọc", "status": "matured", "nodeCap": 10,
+          "shoots": [
+            {
+              "topicId": "work", "topicLabel": "Công việc", "topicGroup": "work",
+              "unlockOrder": 1, "chosenByUser": true,
+              "nodes": [
+                { "id": "a2_l_wk_1", "title": "Arbeitsplatz", "state": "completed" }
+              ]
+            }
+          ]
+        },
+        {
+          "skill": "schreiben", "label": "Viết", "status": "matured", "nodeCap": 10,
+          "shoots": [
+            {
+              "topicId": "messages", "topicLabel": "Tin nhắn / email ngắn", "topicGroup": "daily",
+              "unlockOrder": 1, "chosenByUser": false,
+              "nodes": [
+                { "id": "a2_w_ms_1", "title": "Kurze E-Mail", "state": "completed" }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "level": "B1",
+      "status": "current",
+      "milestone": {
+        "id": "ms_b1",
+        "title": "Vượt cấp B1 (đề thi thử telc)",
+        "state": "locked",
+        "unlocksWhen": "tat ca 4 nhanh dat status 'matured'"
+      },
+      "branches": [
+        {
+          "skill": "hoeren", "label": "Nghe", "status": "growing", "nodeCap": 10,
+          "shoots": [
+            {
+              "topicId": "nursing_care", "topicLabel": "Chăm sóc điều dưỡng", "topicGroup": "medical",
+              "unlockOrder": 1, "chosenByUser": true,
+              "nodes": [
+                { "id": "b1_h_nc_1", "title": "Pflegegespräch", "state": "completed" },
+                { "id": "b1_h_nc_2", "title": "Übergabe", "state": "in_progress" },
+                { "id": "b1_h_nc_3", "title": "Medikamente", "state": "available" },
+                { "id": "b1_h_nc_4", "title": "Notfall", "state": "locked" }
+              ]
+            },
+            {
+              "topicId": "daily_life", "topicLabel": "Đời sống hằng ngày", "topicGroup": "daily",
+              "unlockOrder": 2, "chosenByUser": false,
+              "nodes": [
+                { "id": "b1_h_dl_1", "title": "Wohnung", "state": "available" }
+              ]
+            }
+          ]
+        },
+        {
+          "skill": "sprechen", "label": "Nói", "status": "growing", "nodeCap": 10,
+          "shoots": [
+            {
+              "topicId": "nursing_care", "topicLabel": "Chăm sóc điều dưỡng", "topicGroup": "medical",
+              "unlockOrder": 1, "chosenByUser": true,
+              "nodes": [
+                { "id": "b1_s_nc_1", "title": "Patient beruhigen", "state": "completed" },
+                { "id": "b1_s_nc_2", "title": "Anweisungen geben", "state": "available" }
+              ]
+            }
+          ]
+        },
+        {
+          "skill": "lesen", "label": "Đọc", "status": "growing", "nodeCap": 10,
+          "shoots": [
+            {
+              "topicId": "health_docs", "topicLabel": "Hồ sơ / tài liệu y tế", "topicGroup": "medical",
+              "unlockOrder": 1, "chosenByUser": true,
+              "nodes": [
+                { "id": "b1_l_hd_1", "title": "Patientenakte", "state": "in_progress" }
+              ]
+            }
+          ]
+        },
+        {
+          "skill": "schreiben", "label": "Viết", "status": "locked", "nodeCap": 10,
+          "shoots": []
+        }
+      ]
+    },
+
+    {
+      "level": "B2",
+      "status": "locked",
+      "milestone": { "id": "ms_b2", "title": "Vượt cấp B2", "state": "locked" },
+      "branches": []
+    },
+    {
+      "level": "C1",
+      "status": "locked",
+      "milestone": { "id": "ms_c1", "title": "Vượt cấp C1", "state": "locked" },
+      "branches": []
+    },
+    {
+      "level": "C2",
+      "status": "locked",
+      "milestone": { "id": "ms_c2", "title": "Vượt cấp C2", "state": "locked" },
+      "branches": []
+    }
+  ]
+}
