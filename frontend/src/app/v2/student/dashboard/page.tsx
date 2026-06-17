@@ -113,8 +113,8 @@ export default function V2StudentDashboardPage() {
                 },
                 {
                   label: 'Cấp độ',
-                  value: xp ? `Lv ${xp.level}` : '—',
-                  sub: xp ? `${xp.totalXp.toLocaleString('vi-VN')} XP` : undefined,
+                  value: xp?.level != null ? `Lv ${xp.level}` : '—',
+                  sub: xp?.totalXp != null ? `${xp.totalXp.toLocaleString('vi-VN')} XP` : undefined,
                   color: YELLOW,
                 },
                 {

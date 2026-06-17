@@ -189,6 +189,15 @@ export async function middleware(request: NextRequest) {
   const passThrough = () => secure(NextResponse.next({ request: { headers: requestHeaders } }))
   const redirectTo = (url: URL) => secure(NextResponse.redirect(url))
 
+  // UI 2.0 (Galerie v2) EDGE kill-switch. Per-user staged rollout is governed by the PostHog
+  // `galerie-v2` flag client-side (V2Gate, src/app/v2/V2Gate.tsx). This env var is the global
+  // rollback lever: set GALERIE_V2_DISABLED=true to instantly bounce ALL /v2/* traffic to the legacy
+  // equivalent (no PostHog change needed). Unset/false (default) = /v2 served normally and the flag
+  // still decides who sees it → zero behaviour change today. Only ever affects the /v2 prefix.
+  if (pathname.startsWith('/v2') && process.env.GALERIE_V2_DISABLED === 'true') {
+    return redirectTo(new URL(pathname.replace(/^\/v2/, '') || '/', request.url))
+  }
+
   const required = requiredRole(pathname)
   const learnerShare = requiresLearnerShare(pathname)
   const orgGated = requiresOrg(pathname)
