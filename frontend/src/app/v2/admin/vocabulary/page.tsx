@@ -64,8 +64,12 @@ export default function V2AdminVocabPage() {
   })
 
   const { queue, stats } = useMemo(() => {
-    // Ignore stub rows (imported ids with no base form yet) — only real words count.
-    const real = data.filter((w) => w.de.trim() !== '')
+    // Ignore stub rows (imported ids with no base form yet) and literal null/undefined strings —
+    // only real words count.
+    const real = data.filter((w) => {
+      const d = w.de.trim().toLowerCase()
+      return d !== '' && d !== 'null' && d !== 'undefined'
+    })
     const total = real.length
     const q = real.filter((w) => !w.hasImage)
     const audio = real.filter((w) => w.hasAudio).length
