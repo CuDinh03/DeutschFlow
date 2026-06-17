@@ -84,6 +84,27 @@ export function LearningTreeScene({ layout }: SceneProps): React.ReactElement {
   const branchStateByLevelSkill = new Map<string, string>()
   branches.forEach((b) => branchStateByLevelSkill.set(`${b.level}:${b.skill}`, b.state))
 
+  // Skill-label pills sit on the CURRENT level's four branches only (≈⅓ from the base), rotated to
+  // the branch axis but kept upright — so a learner maps Nghe/Đọc/Viết/Nói to the legend at the foot
+  // of the tree. Limiting to the focal level keeps older levels' branches from stacking labels.
+  const currentLevel = milestones.find((m) => m.isCurrentGate)?.level
+  const skillTags = branches.filter((b) => b.level === currentLevel).map((b) => {
+    const from = fp(b.from)
+    const to = fp(b.to)
+    const t = 0.42
+    let angle = (Math.atan2(to.y - from.y, to.x - from.x) * 180) / Math.PI
+    if (angle > 90) angle -= 180
+    if (angle < -90) angle += 180
+    return {
+      id: b.id,
+      x: from.x + (to.x - from.x) * t,
+      y: from.y + (to.y - from.y) * t,
+      angle,
+      label: SKILL_LABELS[b.skill],
+      color: SKILL_COLORS[b.skill],
+    }
+  })
+
   // ── Trunk: chain segment endpoints into a single smoothed, thickness-offset outline ──
   const trunkD = React.useMemo(() => {
     if (trunkSegs.length === 0) return ''
@@ -202,6 +223,13 @@ export function LearningTreeScene({ layout }: SceneProps): React.ReactElement {
         ))}
       </g>
 
+      {/* Skill labels on branches (map to the legend) */}
+      <g>
+        {skillTags.map((t) => (
+          <SkillTag key={t.id} x={t.x} y={t.y} angle={t.angle} label={t.label} color={t.color} />
+        ))}
+      </g>
+
       {/* Flowers (matured shoots) */}
       <g>
         {flowers.map((f) => (
@@ -253,18 +281,20 @@ function LeafGlyph({ leaf }: { leaf: Leaf }): React.ReactElement {
       </>
     )
   } else if (state === 'in_progress') {
+    // Active leaf: saturated fill + strong breathing halo so it reads as "in play".
     glyph = (
       <>
-        <circle className="lt-breathe" cx={6} cy={0} r={15} fill={gc.leaf} opacity={0.5} filter="url(#lt-glow)" />
-        <path d={leafPath(17, 8)} fill={gc.soft} stroke={gc.dark} strokeWidth={1} />
-        <circle cx={17} cy={0} r={2.6} fill="#FFCD00" stroke={gc.dark} strokeWidth={0.8} />
+        <circle className="lt-breathe" cx={6} cy={0} r={17} fill={gc.leaf} opacity={0.55} filter="url(#lt-glow)" />
+        <path d={leafPath(18, 8.5)} fill={gc.leaf} stroke={gc.dark} strokeWidth={1} />
+        <circle cx={18} cy={0} r={2.6} fill="#FFCD00" stroke={gc.dark} strokeWidth={0.8} />
       </>
     )
   } else if (state === 'available') {
+    // Active leaf: glowing invite to tap — saturated leaf + breathing halo.
     glyph = (
       <>
-        <circle className="lt-breathe" cx={6} cy={0} r={14} fill={gc.leaf} opacity={0.45} filter="url(#lt-glow)" />
-        <path d="M0 0 C 7 -4.5 13 -3 14 0 C 13 3 7 4.5 0 0 Z" fill={gc.soft} stroke={gc.dark} strokeWidth={1} opacity={0.95} />
+        <circle className="lt-breathe" cx={6} cy={0} r={17} fill={gc.leaf} opacity={0.55} filter="url(#lt-glow)" />
+        <path d="M0 0 C 7.5 -5 14 -3.3 15 0 C 14 3.3 7.5 5 0 0 Z" fill={gc.leaf} stroke={gc.dark} strokeWidth={1} />
       </>
     )
   } else {
@@ -285,6 +315,38 @@ function LeafGlyph({ leaf }: { leaf: Leaf }): React.ReactElement {
   )
 }
 
+function SkillTag({
+  x,
+  y,
+  angle,
+  label,
+  color,
+}: {
+  x: number
+  y: number
+  angle: number
+  label: string
+  color: string
+}): React.ReactElement {
+  const w = label.length * 5.6 + 13
+  return (
+    <g transform={`translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${angle.toFixed(1)})`}>
+      <rect x={-w / 2} y={-7.5} width={w} height={15} rx={7.5} fill={color} stroke="#FBFAF7" strokeWidth={1.2} />
+      <text
+        x={0}
+        y={3}
+        textAnchor="middle"
+        fontFamily="'Instrument Sans', system-ui, sans-serif"
+        fontSize={8.5}
+        fontWeight={700}
+        fill="#FFFFFF"
+      >
+        {label}
+      </text>
+    </g>
+  )
+}
+
 /** Pip colour by branch status (matured → green, growing → amber, locked → grey). */
 function pipColor(branchState: string): string {
   if (branchState === 'branch:matured') return '#1E9E61'
@@ -294,17 +356,24 @@ function pipColor(branchState: string): string {
 
 function MilestoneGlyph({ ms, pips }: { ms: MilestoneNode; pips: string[] | null }): React.ReactElement {
   const c = milestoneColors(ms.effectiveState)
-  const r = ms.r
+  // The current level's gate is the focal point: bigger, brighter, always pulsing.
+  const focal = ms.isCurrentGate
+  const r = focal ? ms.r * 1.3 : ms.r
   return (
     <g transform={`translate(${ms.pos.x.toFixed(1)} ${fy(ms.pos.y).toFixed(1)})`}>
-      {c.glow && (
-        <circle className={ms.effectiveState === 'ready' ? 'lt-pulse' : undefined} r={r + 14} fill={c.glow} opacity={0.16} />
+      {(c.glow || focal) && (
+        <circle
+          className={ms.effectiveState === 'ready' || focal ? 'lt-pulse' : undefined}
+          r={r + (focal ? 20 : 14)}
+          fill={c.glow ?? '#FFCD00'}
+          opacity={focal ? 0.24 : 0.16}
+        />
       )}
       <circle
         r={r}
         fill={c.ringFill}
         stroke={c.ringStroke}
-        strokeWidth={2.8}
+        strokeWidth={focal ? 3.4 : 2.8}
         strokeDasharray={c.dashed ? '3.5 3.5' : undefined}
         filter="url(#lt-ms-shadow)"
       />

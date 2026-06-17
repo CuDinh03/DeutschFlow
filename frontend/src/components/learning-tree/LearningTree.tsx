@@ -7,8 +7,30 @@
 
 import * as React from 'react'
 import { computeTreeLayout } from '@/lib/learning-tree/core'
+import type { TreeParams } from '@/lib/learning-tree/core'
 import type { TreeResponse } from '@/lib/learning-tree/treeApi'
 import { LearningTreeDefs, LearningTreeScene } from './treeScene'
+
+/**
+ * Galerie web tuning of the (shared) layout engine — passed via its public `params` arg, so the
+ * engine + its snapshot tests stay untouched. Wider fan + longer branches/shoots make the tree fan
+ * sideways and fill the wide canvas instead of stacking thin and vertical.
+ */
+const GALERIE_TREE_PARAMS: Partial<TreeParams> = {
+  gmin: 36,
+  gmax: 84, // near-horizontal outer branches → wide canopy that fills the landscape canvas
+  upwardBias: 0.4, // keep upper levels wide (don't taper the crown inward)
+  balancePullMax: 5,
+  seedSegH: 46,
+  trunkSegBase: 64, // shorter trunk → squatter tree, less portrait
+  branchBaseLen: 132,
+  branchPerNode: 14,
+  branchMaxLen: 290,
+  shootBaseLen: 58,
+  shootPerCompleted: 13,
+  shootMaxLen: 210,
+  leafPerpOffset: 4,
+}
 
 export interface TappedNode {
   nodeId: string
@@ -28,7 +50,7 @@ interface CamState {
   bbox: { minX: number; minY: number; width: number; height: number } | null
 }
 
-const PAD = 34
+const PAD = 18
 
 export function LearningTree({ tree, onTapNode }: LearningTreeProps): React.ReactElement {
   const wrapRef = React.useRef<HTMLDivElement>(null)
@@ -41,7 +63,7 @@ export function LearningTree({ tree, onTapNode }: LearningTreeProps): React.Reac
   const touched = React.useRef(false)
   const recenterRef = React.useRef<(dur: number) => void>(() => {})
 
-  const layout = React.useMemo(() => computeTreeLayout(tree.path), [tree])
+  const layout = React.useMemo(() => computeTreeLayout(tree.path, GALERIE_TREE_PARAMS), [tree])
   // The scene negates y (tree grows up), so the camera fits the y-flipped bbox.
   const b = layout.bbox
   cam.current.bbox = { minX: b.minX, minY: -(b.minY + b.height), width: b.width, height: b.height }
@@ -83,7 +105,7 @@ export function LearningTree({ tree, onTapNode }: LearningTreeProps): React.Reac
       const r = wrap.getBoundingClientRect()
       const b = s.bbox
       if (!b || !r.width || !r.height) return
-      const ns = Math.max(0.08, Math.min((r.width - PAD * 2) / b.width, (r.height - PAD * 2) / b.height) * 0.98)
+      const ns = Math.max(0.08, Math.min((r.width - PAD * 2) / b.width, (r.height - PAD * 2) / b.height))
       animateCam(ns, r.width / 2 - (b.minX + b.width / 2) * ns, r.height / 2 - (b.minY + b.height / 2) * ns, dur)
     }
     recenterRef.current = recenter
@@ -198,7 +220,10 @@ export function LearningTree({ tree, onTapNode }: LearningTreeProps): React.Reac
     <div
       ref={wrapRef}
       className="relative min-h-0 flex-1 overflow-hidden"
-      style={{ background: 'radial-gradient(120% 80% at 50% 10%, #F3EFE6 0%, #FBFAF7 62%)' }}
+      style={{
+        // Soft vignette — light around the crown, gently darker pastel at the edges so foliage pops.
+        background: 'radial-gradient(105% 78% at 50% 40%, #FCFBF8 0%, #F1ECE1 58%, #E6DFD1 100%)',
+      }}
     >
       <svg ref={svgRef} className="block h-full w-full" style={{ cursor: 'grab', touchAction: 'none' }}>
         <LearningTreeDefs />
