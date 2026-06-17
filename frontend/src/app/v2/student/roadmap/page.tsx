@@ -40,6 +40,8 @@ export default function V2StudentRoadmapPage() {
   const [treeError, setTreeError] = useState<string | null>(null)
   const [tapped, setTapped] = useState<TappedNode | null>(null)
   const [completing, setCompleting] = useState(false)
+  const [fTopic, setFTopic] = useState<TopicGroup | null>(null)
+  const [fSkill, setFSkill] = useState<Skill | null>(null)
 
   const loadTree = useCallback(() => {
     setTreeLoading(true)
@@ -112,8 +114,18 @@ export default function V2StudentRoadmapPage() {
             ) : (
               <>
                 <TreeHeader tree={tree} />
+                <TreeFilterBar
+                  topic={fTopic}
+                  skill={fSkill}
+                  onTopic={setFTopic}
+                  onSkill={setFSkill}
+                  onClear={() => {
+                    setFTopic(null)
+                    setFSkill(null)
+                  }}
+                />
                 <div className="relative flex min-h-0 flex-1 border border-ga-line">
-                  <LearningTree tree={tree} onTapNode={setTapped} />
+                  <LearningTree tree={tree} onTapNode={setTapped} filter={{ topic: fTopic, skill: fSkill }} />
                   {tapped && (
                     <NodeLessonPanel
                       nodeId={tapped.nodeId}
@@ -297,6 +309,77 @@ function TreeLegend() {
           </span>
         ))}
       </div>
+    </div>
+  )
+}
+
+/** Filter chips (topic + skill) with clear + focus heading; selecting dims the rest of the tree. */
+function TreeFilterBar({
+  topic,
+  skill,
+  onTopic,
+  onSkill,
+  onClear,
+}: {
+  topic: TopicGroup | null
+  skill: Skill | null
+  onTopic: (t: TopicGroup | null) => void
+  onSkill: (s: Skill | null) => void
+  onClear: () => void
+}) {
+  const groups = Object.entries(GROUP_COLORS) as [TopicGroup, (typeof GROUP_COLORS)[TopicGroup]][]
+  const skills = Object.keys(SKILL_LABELS) as Skill[]
+  const active = !!(topic || skill)
+  const chip = 'inline-flex items-center gap-1 rounded-ga-pill border px-2.5 py-1 transition-colors'
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 text-[11.5px]">
+      <span className="text-ga-muted">Lọc:</span>
+      {groups.map(([key, g]) => {
+        const on = topic === key
+        return (
+          <button
+            key={key}
+            type="button"
+            aria-pressed={on}
+            onClick={() => onTopic(on ? null : key)}
+            className={`${chip} ${on ? 'border-ga-ink bg-ga-ink text-ga-bg' : 'border-ga-line text-ga-muted hover:text-ga-ink'}`}
+          >
+            <TreeIcon paths={TOPIC_ICONS[key]} size={12} color={on ? '#FFFFFF' : TOPIC_CHIP.icon} strokeWidth={2} />
+            {g.name}
+          </button>
+        )
+      })}
+      <span className="mx-0.5 text-ga-faint">·</span>
+      {skills.map((s) => {
+        const on = skill === s
+        return (
+          <button
+            key={s}
+            type="button"
+            aria-pressed={on}
+            onClick={() => onSkill(on ? null : s)}
+            className={`${chip} ${on ? 'text-white' : 'border-ga-line text-ga-muted hover:text-ga-ink'}`}
+            style={on ? { background: SKILL_COLORS[s], borderColor: SKILL_COLORS[s] } : undefined}
+          >
+            <TreeIcon paths={SKILL_ICONS[s]} size={12} color={on ? '#FFFFFF' : SKILL_COLORS[s]} strokeWidth={2.4} />
+            {SKILL_LABELS[s]}
+          </button>
+        )
+      })}
+      {active && (
+        <button
+          type="button"
+          onClick={onClear}
+          className={`${chip} border-ga-line font-semibold text-ga-ink hover:bg-ga-surface`}
+        >
+          Tất cả
+        </button>
+      )}
+      {active && (
+        <span className="ml-1 font-semibold text-ga-ink">
+          Chủ đề: {topic ? GROUP_COLORS[topic].name : 'tất cả'} · Kỹ năng: {skill ? SKILL_LABELS[skill] : 'tất cả'}
+        </span>
+      )}
     </div>
   )
 }

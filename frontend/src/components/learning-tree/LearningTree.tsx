@@ -10,7 +10,7 @@ import { computeTreeLayout } from '@/lib/learning-tree/core'
 import type { TreeParams, Skill, TopicGroup } from '@/lib/learning-tree/core'
 import { GROUP_COLORS, SKILL_LABELS } from '@/lib/learning-tree/render/palette'
 import type { TreeResponse } from '@/lib/learning-tree/treeApi'
-import { LearningTreeDefs, LearningTreeScene } from './treeScene'
+import { LearningTreeDefs, LearningTreeScene, type TreeFilter } from './treeScene'
 
 /**
  * Galerie web tuning of the (shared) layout engine — passed via its public `params` arg, so the
@@ -53,6 +53,7 @@ export interface HoveredNode {
 interface LearningTreeProps {
   tree: TreeResponse
   onTapNode: (node: TappedNode) => void
+  filter: TreeFilter
 }
 
 interface CamState {
@@ -64,7 +65,7 @@ interface CamState {
 
 const PAD = 18
 
-export function LearningTree({ tree, onTapNode }: LearningTreeProps): React.ReactElement {
+export function LearningTree({ tree, onTapNode, filter }: LearningTreeProps): React.ReactElement {
   const wrapRef = React.useRef<HTMLDivElement>(null)
   const svgRef = React.useRef<SVGSVGElement>(null)
   const camRef = React.useRef<SVGGElement>(null)
@@ -281,7 +282,7 @@ export function LearningTree({ tree, onTapNode }: LearningTreeProps): React.Reac
       >
         <LearningTreeDefs />
         <g ref={camRef}>
-          <LearningTreeScene layout={layout} />
+          <LearningTreeScene layout={layout} filter={filter} />
         </g>
       </svg>
       <button

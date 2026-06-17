@@ -69,13 +69,31 @@ export function LearningTreeDefs(): React.ReactElement {
   )
 }
 
-interface SceneProps {
-  layout: TreeLayout
+export interface TreeFilter {
+  topic: TopicGroup | null
+  skill: Skill | null
 }
 
+interface SceneProps {
+  layout: TreeLayout
+  filter: TreeFilter
+}
+
+const DIM = 0.22
+
 /** The full tree scene as a fragment of SVG elements (drawn back-to-front). */
-export function LearningTreeScene({ layout }: SceneProps): React.ReactElement {
+export function LearningTreeScene({ layout, filter }: SceneProps): React.ReactElement {
   const els = layout.elements
+
+  // Filter dimming: an element is dimmed when an active filter excludes it. Null group/skill means
+  // that dimension doesn't apply (e.g. a branch has a skill but no single topic).
+  const active = !!(filter.topic || filter.skill)
+  const dimEl = (group: TopicGroup | null, skill: Skill | null): boolean => {
+    if (!active) return false
+    if (filter.topic && group !== null && group !== filter.topic) return true
+    if (filter.skill && skill !== null && skill !== filter.skill) return true
+    return false
+  }
 
   const trunkSegs = els.filter((e): e is TrunkSegment => e.kind === 'trunkSegment')
   const branches = els.filter((e): e is SkillBranch => e.kind === 'skillBranch')
@@ -176,7 +194,7 @@ export function LearningTreeScene({ layout }: SceneProps): React.ReactElement {
           const from = fp(b.from)
           const to = fp(b.to)
           return (
-            <g key={b.id}>
+            <g key={b.id} opacity={dimEl(null, b.skill) ? DIM : 1}>
               <path d={taperedLimbPath(from, to, b.thickStart, b.thickEnd, bend)} fill={fill} stroke={BARK.dark} strokeWidth={0.8} />
               <circle cx={from.x} cy={from.y} r={3.4} fill={SKILL_COLORS[b.skill]} stroke="#FBFAF7" strokeWidth={1} />
               {matured && (
@@ -213,6 +231,7 @@ export function LearningTreeScene({ layout }: SceneProps): React.ReactElement {
               fill={GROUP_COLORS[g].dark}
               stroke={BARK.dark}
               strokeWidth={0.5}
+              opacity={dimEl(g, s.skill) ? DIM : 1}
             />
           )
         })}
@@ -221,7 +240,7 @@ export function LearningTreeScene({ layout }: SceneProps): React.ReactElement {
       {/* Leaves (interactive) */}
       <g>
         {leaves.map((lf) => (
-          <LeafGlyph key={lf.id} leaf={lf} />
+          <LeafGlyph key={lf.id} leaf={lf} dimmed={dimEl(groupFromSlot(lf.colorSlot), lf.skill)} />
         ))}
       </g>
 
@@ -250,7 +269,7 @@ export function LearningTreeScene({ layout }: SceneProps): React.ReactElement {
       {/* Topic chips — one muted chip per limb (icon + name) at the limb base; never per leaf */}
       <g>
         {topicChips.map((c) => (
-          <TopicChip key={c.id} x={c.x} y={c.y} group={c.group} />
+          <TopicChip key={c.id} x={c.x} y={c.y} group={c.group} dimmed={dimEl(c.group, null)} />
         ))}
       </g>
 
@@ -267,7 +286,7 @@ export function LearningTreeScene({ layout }: SceneProps): React.ReactElement {
   )
 }
 
-function LeafGlyph({ leaf }: { leaf: Leaf }): React.ReactElement {
+function LeafGlyph({ leaf, dimmed }: { leaf: Leaf; dimmed?: boolean }): React.ReactElement {
   const g = groupFromSlot(leaf.colorSlot) ?? 'daily'
   const gc = GROUP_COLORS[g]
   const state = leafState(leaf.state)
@@ -307,6 +326,7 @@ function LeafGlyph({ leaf }: { leaf: Leaf }): React.ReactElement {
     <g
       className={interactive ? 'lt-node' : undefined}
       transform={transform}
+      opacity={dimmed ? DIM : 1}
       tabIndex={interactive ? 0 : undefined}
       role={interactive ? 'button' : undefined}
       aria-label={interactive ? `${GROUP_COLORS[g].name} · ${SKILL_LABELS[leaf.skill]} · ${leaf.title}` : undefined}
@@ -335,11 +355,21 @@ function SkillBadge({ skill, dim }: { skill: Skill; dim?: boolean }): React.Reac
 }
 
 /** Muted topic chip — one per limb (icon + Vietnamese topic name), warm-neutral so topic ≠ skill. */
-function TopicChip({ x, y, group }: { x: number; y: number; group: TopicGroup }): React.ReactElement {
+function TopicChip({
+  x,
+  y,
+  group,
+  dimmed,
+}: {
+  x: number
+  y: number
+  group: TopicGroup
+  dimmed?: boolean
+}): React.ReactElement {
   const name = GROUP_COLORS[group].name
   const w = name.length * 6.2 + 26
   return (
-    <g transform={`translate(${x.toFixed(1)} ${y.toFixed(1)})`}>
+    <g transform={`translate(${x.toFixed(1)} ${y.toFixed(1)})`} opacity={dimmed ? DIM : 1}>
       <rect x={-w / 2} y={-9} width={w} height={18} rx={9} fill={TOPIC_CHIP.bg} stroke={TOPIC_CHIP.border} strokeWidth={1} />
       <TreeIcon paths={TOPIC_ICONS[group]} size={11} color={TOPIC_CHIP.icon} strokeWidth={2} x={-w / 2 + 6} y={-5.5} />
       <text x={-w / 2 + 20} y={3.4} fontSize={10} fontWeight={600} fill={TOPIC_CHIP.text}>
