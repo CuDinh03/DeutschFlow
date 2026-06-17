@@ -7,8 +7,8 @@ import { phaseApi, type PhaseStateResponse, type PhaseType } from '@/lib/phaseAp
 import { fetchTree, completeNode, type TreeResponse } from '@/lib/learning-tree/treeApi'
 import { LearningTree, type TappedNode } from '@/components/learning-tree/LearningTree'
 import { NodeLessonPanel } from '@/components/learning-tree/NodeLessonPanel'
-import { GROUP_COLORS, SKILL_COLORS, SKILL_LABELS } from '@/lib/learning-tree/render/palette'
-import { SKILL_ICONS } from '@/lib/learning-tree/render/icons'
+import { GROUP_COLORS, SKILL_COLORS, SKILL_LABELS, TOPIC_CHIP } from '@/lib/learning-tree/render/palette'
+import { SKILL_ICONS, TOPIC_ICONS } from '@/lib/learning-tree/render/icons'
 import { TreeIcon } from '@/components/learning-tree/TreeIcon'
 import {
   GaPageHdr,
@@ -274,10 +274,11 @@ function TreeLegend() {
   const skills = Object.keys(SKILL_LABELS) as Skill[]
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-2 border-t border-ga-line pt-3">
+      {/* Topic key — muted icon + name (matches the per-limb chips; topic colour stays quiet) */}
       <div className="flex flex-wrap gap-x-3.5 gap-y-1.5">
         {groups.map(([key, g]) => (
-          <span key={key} className="ga-ui inline-flex items-center gap-1.5 text-[11.5px] text-ga-muted">
-            <i className="inline-block h-2.5 w-2.5 rounded-[2px]" style={{ background: g.leaf }} />
+          <span key={key} className="inline-flex items-center gap-1.5 text-[11.5px] text-ga-muted">
+            <TreeIcon paths={TOPIC_ICONS[key]} size={13} color={TOPIC_CHIP.icon} strokeWidth={2} />
             {g.name}
           </span>
         ))}

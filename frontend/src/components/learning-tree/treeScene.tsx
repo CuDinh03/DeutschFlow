@@ -22,8 +22,8 @@ import type {
 } from '@/lib/learning-tree/core'
 import { hashUnit } from '@/lib/learning-tree/core'
 import { taperedLimbPath, trunkOutlinePath, leafPath, softBlobCircles } from '@/lib/learning-tree/render/paths'
-import { BARK, GROUP_COLORS, SKILL_COLORS, branchFill, milestoneColors } from '@/lib/learning-tree/render/palette'
-import { SKILL_ICONS } from '@/lib/learning-tree/render/icons'
+import { BARK, GROUP_COLORS, SKILL_COLORS, TOPIC_CHIP, branchFill, milestoneColors } from '@/lib/learning-tree/render/palette'
+import { SKILL_ICONS, TOPIC_ICONS } from '@/lib/learning-tree/render/icons'
 import { TreeIcon } from './TreeIcon'
 
 /** Canonical skill order — pip slots ring the current milestone in this order. */
@@ -128,6 +128,26 @@ export function LearningTreeScene({ layout }: SceneProps): React.ReactElement {
     if (allDone && sh) flowers.push({ key: shootId, x: sh.to.x, y: fy(sh.to.y), soft: gc.soft })
   })
 
+  // One muted topic chip per limb on the CURRENT level only (the focal level), deduped per
+  // branch×topic-group so repeated topics don't stack, placed mid-branch where limbs have fanned out.
+  const currentLevel = milestones.find((m) => m.isCurrentGate)?.level
+  const seenChip = new Set<string>()
+  const topicChips = shoots
+    .filter((s) => s.level === currentLevel)
+    .map((s) => ({ s, g: groupFromSlot(s.colorSlot) ?? ('daily' as TopicGroup) }))
+    .filter(({ s, g }) => {
+      const key = `${s.skill}:${g}`
+      if (seenChip.has(key)) return false
+      seenChip.add(key)
+      return true
+    })
+    .map(({ s, g }) => {
+      const from = fp(s.from)
+      const to = fp(s.to)
+      const t = 0.5
+      return { id: s.id, x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t, group: g }
+    })
+
   return (
     <>
       {/* Ground + roots (origin is the base of the trunk, below the start level) */}
@@ -227,6 +247,13 @@ export function LearningTreeScene({ layout }: SceneProps): React.ReactElement {
         ))}
       </g>
 
+      {/* Topic chips — one muted chip per limb (icon + name) at the limb base; never per leaf */}
+      <g>
+        {topicChips.map((c) => (
+          <TopicChip key={c.id} x={c.x} y={c.y} group={c.group} />
+        ))}
+      </g>
+
       {/* Milestones (on top) */}
       <g>
         {milestones.map((m) => {
@@ -299,6 +326,21 @@ function SkillBadge({ skill, dim }: { skill: Skill; dim?: boolean }): React.Reac
     <g transform="translate(0 9)" opacity={dim ? 0.55 : 1}>
       <circle r={6.5} fill={SKILL_COLORS[skill]} stroke="#FBFAF7" strokeWidth={1} />
       <TreeIcon paths={SKILL_ICONS[skill]} size={9} color="#FFFFFF" strokeWidth={2.6} x={-4.5} y={-4.5} />
+    </g>
+  )
+}
+
+/** Muted topic chip — one per limb (icon + Vietnamese topic name), warm-neutral so topic ≠ skill. */
+function TopicChip({ x, y, group }: { x: number; y: number; group: TopicGroup }): React.ReactElement {
+  const name = GROUP_COLORS[group].name
+  const w = name.length * 6.2 + 26
+  return (
+    <g transform={`translate(${x.toFixed(1)} ${y.toFixed(1)})`}>
+      <rect x={-w / 2} y={-9} width={w} height={18} rx={9} fill={TOPIC_CHIP.bg} stroke={TOPIC_CHIP.border} strokeWidth={1} />
+      <TreeIcon paths={TOPIC_ICONS[group]} size={11} color={TOPIC_CHIP.icon} strokeWidth={2} x={-w / 2 + 6} y={-5.5} />
+      <text x={-w / 2 + 20} y={3.4} fontSize={10} fontWeight={600} fill={TOPIC_CHIP.text}>
+        {name}
+      </text>
     </g>
   )
 }
