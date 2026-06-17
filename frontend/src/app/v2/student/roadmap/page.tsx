@@ -98,7 +98,11 @@ export default function V2StudentRoadmapPage() {
           {/* Tree tab. `data-[state=active]:flex` (not bare `flex`) so the inactive panel respects
               Radix's `hidden` — a bare `flex` class overrides [hidden]{display:none} and leaves the
               panel occupying flex space, pushing the other tab's content down. */}
-          <TkTabsContent value="tree" className="min-h-0 flex-1 flex-col gap-3 data-[state=active]:flex">
+          <TkTabsContent
+            value="tree"
+            className="min-h-0 flex-1 flex-col gap-3 data-[state=active]:flex"
+            style={{ fontFamily: 'var(--ga-vn)' }}
+          >
             {treeError ? (
               <ErrorBanner message={treeError} onRetry={loadTree} />
             ) : treeLoading || !tree ? (

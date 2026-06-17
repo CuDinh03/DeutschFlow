@@ -120,7 +120,11 @@ export function NodeLessonPanel({
   const isRight = pick === correctPos
 
   return (
-    <div className="ga-scope absolute inset-0 z-20 flex flex-col overflow-hidden bg-ga-bg" data-role="student">
+    <div
+      className="ga-scope absolute inset-0 z-20 flex flex-col overflow-hidden bg-ga-bg"
+      data-role="student"
+      style={{ fontFamily: 'var(--ga-vn)' }}
+    >
       {/* Header */}
       <div className="relative flex flex-shrink-0 items-center gap-4 border-b border-ga-line bg-ga-card px-7 py-4">
         <span className="absolute inset-y-0 left-0 w-1.5" style={{ background: accent }} />

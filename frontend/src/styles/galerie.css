@@ -12,6 +12,8 @@
   /* Type — Newsreader (display/serif) + Instrument Sans (UI). Font vars from next/font (layout.tsx). */
   --ga-display: var(--font-newsreader), Georgia, serif;
   --ga-ui: var(--font-instrument-sans), system-ui, sans-serif;
+  /* Be Vietnam Pro — full Vietnamese diacritics; used by the learning-tree surface. */
+  --ga-vn: var(--font-be-vietnam-pro), system-ui, sans-serif;
 
   /* Surface */
   --ga-bg: #FBFAF7;

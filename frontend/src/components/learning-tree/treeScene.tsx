@@ -332,15 +332,7 @@ function SkillTag({
   return (
     <g transform={`translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${angle.toFixed(1)})`}>
       <rect x={-w / 2} y={-7.5} width={w} height={15} rx={7.5} fill={color} stroke="#FBFAF7" strokeWidth={1.2} />
-      <text
-        x={0}
-        y={3}
-        textAnchor="middle"
-        fontFamily="'Instrument Sans', system-ui, sans-serif"
-        fontSize={8.5}
-        fontWeight={700}
-        fill="#FFFFFF"
-      >
+      <text x={0} y={3} textAnchor="middle" fontSize={8.5} fontWeight={700} fill="#FFFFFF">
         {label}
       </text>
     </g>
@@ -382,7 +374,7 @@ function MilestoneGlyph({ ms, pips }: { ms: MilestoneNode; pips: string[] | null
         x={0}
         y={r * 0.36}
         textAnchor="middle"
-        fontFamily="'Newsreader', Georgia, serif"
+        style={{ fontFamily: 'var(--ga-display)' }}
         fontSize={r * 0.98}
         fontWeight={600}
         fill={c.text}

@@ -225,7 +225,11 @@ export function LearningTree({ tree, onTapNode }: LearningTreeProps): React.Reac
         background: 'radial-gradient(105% 78% at 50% 40%, #FCFBF8 0%, #F1ECE1 58%, #E6DFD1 100%)',
       }}
     >
-      <svg ref={svgRef} className="block h-full w-full" style={{ cursor: 'grab', touchAction: 'none' }}>
+      <svg
+        ref={svgRef}
+        className="block h-full w-full"
+        style={{ cursor: 'grab', touchAction: 'none', fontFamily: 'var(--ga-vn)' }}
+      >
         <LearningTreeDefs />
         <g ref={camRef}>
           <LearningTreeScene layout={layout} />

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter, Newsreader, Instrument_Sans } from 'next/font/google'
+import { Inter, Newsreader, Instrument_Sans, Be_Vietnam_Pro } from 'next/font/google'
 import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages } from 'next-intl/server'
 import { Toaster } from '@/components/ui/sonner'
@@ -28,6 +28,14 @@ const instrumentSans = Instrument_Sans({
   subsets: ['latin', 'latin-ext'],
   display: 'swap',
   variable: '--font-instrument-sans',
+})
+// Be Vietnam Pro — full Vietnamese diacritic coverage (Instrument Sans lacks the `vietnamese`
+// subset). Used for the learning-tree surface (labels/chips/tooltip + SVG text) via `--ga-vn`.
+const beVietnamPro = Be_Vietnam_Pro({
+  subsets: ['latin', 'latin-ext', 'vietnamese'],
+  weight: ['400', '500', '600', '700'],
+  display: 'swap',
+  variable: '--font-be-vietnam-pro',
 })
 
 // Do NOT lock zoom — `maximumScale: 1` / `userScalable: false` is a WCAG 1.4.4 (Resize
@@ -67,7 +75,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html
       lang={locale}
-      className={`${inter.variable} ${newsreader.variable} ${instrumentSans.variable}`}
+      className={`${inter.variable} ${newsreader.variable} ${instrumentSans.variable} ${beVietnamPro.variable}`}
     >
       <body className={inter.className}>
         <NextIntlClientProvider locale={locale} messages={messages}>
