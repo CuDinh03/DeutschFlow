@@ -10,6 +10,7 @@ import { NodeLessonPanel } from '@/components/learning-tree/NodeLessonPanel'
 import { GROUP_COLORS, SKILL_COLORS, SKILL_LABELS, TOPIC_CHIP } from '@/lib/learning-tree/render/palette'
 import { SKILL_ICONS, TOPIC_ICONS } from '@/lib/learning-tree/render/icons'
 import { TreeIcon } from '@/components/learning-tree/TreeIcon'
+import { COMPANIONS, CompanionGlyph, type CompanionChoice } from '@/components/learning-tree/companions'
 import {
   GaPageHdr,
   GaCard,
@@ -42,6 +43,19 @@ export default function V2StudentRoadmapPage() {
   const [completing, setCompleting] = useState(false)
   const [fTopic, setFTopic] = useState<TopicGroup | null>(null)
   const [fSkill, setFSkill] = useState<Skill | null>(null)
+  const [companion, setCompanion] = useState<CompanionChoice>('owl')
+  useEffect(() => {
+    const saved = window.localStorage.getItem('lt_companion') as CompanionChoice | null
+    if (saved) setCompanion(saved)
+  }, [])
+  const chooseCompanion = useCallback((c: CompanionChoice) => {
+    setCompanion(c)
+    try {
+      window.localStorage.setItem('lt_companion', c)
+    } catch {
+      /* ignore */
+    }
+  }, [])
 
   const loadTree = useCallback(() => {
     setTreeLoading(true)
@@ -114,18 +128,26 @@ export default function V2StudentRoadmapPage() {
             ) : (
               <>
                 <TreeHeader tree={tree} />
-                <TreeFilterBar
-                  topic={fTopic}
-                  skill={fSkill}
-                  onTopic={setFTopic}
-                  onSkill={setFSkill}
-                  onClear={() => {
-                    setFTopic(null)
-                    setFSkill(null)
-                  }}
-                />
+                <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+                  <TreeFilterBar
+                    topic={fTopic}
+                    skill={fSkill}
+                    onTopic={setFTopic}
+                    onSkill={setFSkill}
+                    onClear={() => {
+                      setFTopic(null)
+                      setFSkill(null)
+                    }}
+                  />
+                  <CompanionPicker choice={companion} onChange={chooseCompanion} />
+                </div>
                 <div className="relative flex min-h-0 flex-1 border border-ga-line">
-                  <LearningTree tree={tree} onTapNode={setTapped} filter={{ topic: fTopic, skill: fSkill }} />
+                  <LearningTree
+                    tree={tree}
+                    onTapNode={setTapped}
+                    filter={{ topic: fTopic, skill: fSkill }}
+                    companion={companion}
+                  />
                   {tapped && (
                     <NodeLessonPanel
                       nodeId={tapped.nodeId}
@@ -380,6 +402,40 @@ function TreeFilterBar({
           Chủ đề: {topic ? GROUP_COLORS[topic].name : 'tất cả'} · Kỹ năng: {skill ? SKILL_LABELS[skill] : 'tất cả'}
         </span>
       )}
+    </div>
+  )
+}
+
+/** Companion picker — owl/bird/butterfly/squirrel or off (B2B). Persisted by the page in localStorage. */
+function CompanionPicker({
+  choice,
+  onChange,
+}: {
+  choice: CompanionChoice
+  onChange: (c: CompanionChoice) => void
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 text-[11.5px]">
+      <span className="text-ga-muted">Bạn đồng hành:</span>
+      {COMPANIONS.map((c) => {
+        const on = choice === c.id
+        return (
+          <button
+            key={c.id}
+            type="button"
+            aria-pressed={on}
+            onClick={() => onChange(c.id)}
+            className={`inline-flex items-center gap-1 rounded-ga-pill border px-2 py-1 transition-colors ${on ? 'border-ga-ink bg-ga-ink text-ga-bg' : 'border-ga-line text-ga-muted hover:text-ga-ink'}`}
+          >
+            {c.id !== 'none' && (
+              <svg width={16} height={16} viewBox="-14 -14 28 28" aria-hidden="true">
+                <CompanionGlyph choice={c.id} />
+              </svg>
+            )}
+            {c.label}
+          </button>
+        )
+      })}
     </div>
   )
 }

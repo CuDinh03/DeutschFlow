@@ -141,6 +141,12 @@
   0%, 100% { opacity: 0.1; }
   50% { opacity: 0.32; }
 }
+/* Companion idle bob (inner group; the outer group handles perch position + move transition). */
+.lt-bob { transform-box: fill-box; transform-origin: center; animation: ltBob 2.8s ease-in-out infinite; }
+@keyframes ltBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2.5px); }
+}
 @media (prefers-reduced-motion: reduce) {
-  .lt-breathe, .lt-pulse { animation: none; }
+  .lt-breathe, .lt-pulse, .lt-bob { animation: none; }
 }

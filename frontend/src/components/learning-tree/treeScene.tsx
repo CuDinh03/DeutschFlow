@@ -25,6 +25,7 @@ import { taperedLimbPath, trunkOutlinePath, softBlobCircles } from '@/lib/learni
 import { BARK, GROUP_COLORS, SKILL_COLORS, SKILL_LABELS, TOPIC_CHIP, branchFill, milestoneColors } from '@/lib/learning-tree/render/palette'
 import { SKILL_ICONS, TOPIC_ICONS } from '@/lib/learning-tree/render/icons'
 import { TreeIcon } from './TreeIcon'
+import { CompanionGlyph, type CompanionChoice } from './companions'
 
 /** Canonical skill order — pip slots ring the current milestone in this order. */
 const CANON_SKILLS = ['hoeren', 'sprechen', 'lesen', 'schreiben'] as const
@@ -86,12 +87,13 @@ export interface TreeFilter {
 interface SceneProps {
   layout: TreeLayout
   filter: TreeFilter
+  companion: CompanionChoice
 }
 
 const DIM = 0.22
 
 /** The full tree scene as a fragment of SVG elements (drawn back-to-front). */
-export function LearningTreeScene({ layout, filter }: SceneProps): React.ReactElement {
+export function LearningTreeScene({ layout, filter, companion }: SceneProps): React.ReactElement {
   const els = layout.elements
 
   // Filter dimming: an element is dimmed when an active filter excludes it. Null group/skill means
@@ -172,6 +174,15 @@ export function LearningTreeScene({ layout, filter }: SceneProps): React.ReactEl
       const t = 0.5
       return { id: s.id, x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t, group: g }
     })
+
+  // Recommended node = first available leaf in a chosen-by-user shoot at the current level (fallback:
+  // first available at the current level). The companion perches here.
+  const recommendedLeaf = (() => {
+    const avail = leaves.filter((l) => l.level === currentLevel && leafState(l.state) === 'available')
+    const chosen = avail.filter((l) => shootById.get(l.shootId)?.chosenByUser)
+    const pool = chosen.length ? chosen : avail
+    return pool.slice().sort((a, b) => a.orderIndex - b.orderIndex)[0] ?? null
+  })()
 
   return (
     <>
@@ -289,6 +300,20 @@ export function LearningTreeScene({ layout, filter }: SceneProps): React.ReactEl
           return <MilestoneGlyph key={m.id} ms={m} pips={pips} />
         })}
       </g>
+
+      {/* Companion — perches just above the recommended node; idle bob; glides when it moves. */}
+      {companion !== 'none' && recommendedLeaf && (
+        <g
+          style={{
+            transform: `translate(${recommendedLeaf.pos.x.toFixed(1)}px, ${(fy(recommendedLeaf.pos.y) - 21).toFixed(1)}px)`,
+            transition: 'transform 0.5s ease',
+          }}
+        >
+          <g className="lt-bob">
+            <CompanionGlyph choice={companion} />
+          </g>
+        </g>
+      )}
     </>
   )
 }
