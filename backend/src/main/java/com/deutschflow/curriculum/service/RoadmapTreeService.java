@@ -66,6 +66,7 @@ public class RoadmapTreeService {
     private final TreeMilestoneProgressRepository milestoneProgressRepository;
     private final UserRepository userRepository;
     private final UserLearningProfileRepository learningProfileRepository;
+    private final com.deutschflow.gamification.coin.service.CoinService coinService;
 
     /** Builds the full tree (user header + path of levels) for the given learner. */
     @Transactional(readOnly = true)
@@ -235,18 +236,29 @@ public class RoadmapTreeService {
 
         TreeNodeProgressId id = new TreeNodeProgressId(userId, node.getId());
         LocalDateTime now = LocalDateTime.now();
-        TreeNodeProgress progress = nodeProgressRepository.findById(id).orElseGet(() -> {
-            TreeNodeProgress p = new TreeNodeProgress();
-            p.setId(id);
-            p.setStartedAt(now);
-            return p;
-        });
+        TreeNodeProgress existing = nodeProgressRepository.findById(id).orElse(null);
+        boolean alreadyCompleted = existing != null && TreeNodeProgress.COMPLETED.equals(existing.getState());
+        TreeNodeProgress progress = existing != null ? existing : new TreeNodeProgress();
+        if (existing == null) {
+            progress.setId(id);
+            progress.setStartedAt(now);
+        }
         if (progress.getStartedAt() == null) {
             progress.setStartedAt(now);
         }
         progress.setState(TreeNodeProgress.COMPLETED);
         progress.setCompletedAt(now);
         nodeProgressRepository.save(progress);
+
+        // Award 1 coin on FIRST completion only. Best-effort + self-contained (REQUIRES_NEW inside
+        // CoinService): a coin issue must never break or roll back the node completion.
+        if (!alreadyCompleted) {
+            try {
+                coinService.awardNodeComplete(userId, node.getId(), "TREE");
+            } catch (Exception e) {
+                log.warn("[Coin] award on tree node {} for user {} failed: {}", node.getId(), userId, e.getMessage());
+            }
+        }
 
         return getTree(userId);
     }

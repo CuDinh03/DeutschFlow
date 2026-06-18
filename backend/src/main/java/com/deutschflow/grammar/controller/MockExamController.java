@@ -1,14 +1,18 @@
 package com.deutschflow.grammar.controller;
 
+import com.deutschflow.common.exception.ForbiddenException;
+import com.deutschflow.grammar.entity.MockExamPack;
 import com.deutschflow.grammar.service.AiExamEvaluatorService;
 import com.deutschflow.grammar.service.ExamGenerationService;
 import com.deutschflow.grammar.service.ExamQuestionSanitizer;
 import com.deutschflow.grammar.service.ExamScoringService;
+import com.deutschflow.grammar.service.MockExamPackService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
@@ -30,12 +34,16 @@ public class MockExamController {
     private final ExamQuestionSanitizer questionSanitizer;
     private final com.deutschflow.assessment.service.B1ReadinessService b1ReadinessService;
     private final com.deutschflow.progress.service.PhaseEngineService phaseEngineService;
+    private final MockExamPackService mockExamPackService;
+    private final com.deutschflow.gamification.coin.service.CoinService coinService;
 
     public MockExamController(JdbcTemplate jdbcTemplate, ExamScoringService scoringService,
                                AiExamEvaluatorService aiEvaluator, ExamGenerationService generationService,
                                ExamQuestionSanitizer questionSanitizer,
                                com.deutschflow.assessment.service.B1ReadinessService b1ReadinessService,
-                               com.deutschflow.progress.service.PhaseEngineService phaseEngineService) {
+                               com.deutschflow.progress.service.PhaseEngineService phaseEngineService,
+                               MockExamPackService mockExamPackService,
+                               com.deutschflow.gamification.coin.service.CoinService coinService) {
         this.jdbcTemplate = jdbcTemplate;
         this.scoringService = scoringService;
         this.aiEvaluator = aiEvaluator;
@@ -43,6 +51,8 @@ public class MockExamController {
         this.questionSanitizer = questionSanitizer;
         this.b1ReadinessService = b1ReadinessService;
         this.phaseEngineService = phaseEngineService;
+        this.mockExamPackService = mockExamPackService;
+        this.coinService = coinService;
     }
 
     private long userId(UserDetails p) {
@@ -67,6 +77,7 @@ public class MockExamController {
     }
 
     @PostMapping("/{examId}/start")
+    @Transactional
     public ResponseEntity<Map<String, Object>> startExam(
             @PathVariable long examId,
             @AuthenticationPrincipal UserDetails principal) {
@@ -77,9 +88,26 @@ public class MockExamController {
             SELECT id FROM mock_exam_attempts
             WHERE user_id = ? AND exam_id = ? AND status = 'IN_PROGRESS'
             """, uid, examId);
-        
+
+        boolean reusing = !existing.isEmpty();
+
+        // Access gate for paid packs. PRO/ULTRA unlock permanently; a FREE learner can start a single
+        // attempt with a coin trial pass, which is consumed here and re-locks the pack afterwards.
+        // Reusing an already-IN_PROGRESS attempt must NOT consume a second pass. (This also closes a
+        // prior hole where /start had no paid gate at all — FREE users could start paid-pack exams.)
+        MockExamPack pack = reusing ? null : mockExamPackService.findPackForExam(examId).orElse(null);
+        boolean needsTrialPass = false;
+        Long packId = null;
+        if (pack != null && pack.isRequiresPaid() && !mockExamPackService.isPaid(uid)) {
+            packId = pack.getId();
+            if (!coinService.hasTrialPassFor(uid, packId)) {
+                throw new ForbiddenException("Nâng cấp gói hoặc dùng xu để mở khoá bộ đề luyện thi này.");
+            }
+            needsTrialPass = true;
+        }
+
         Map<String, Object> attemptRow;
-        if (!existing.isEmpty()) {
+        if (reusing) {
             attemptRow = existing.get(0);
         } else {
             attemptRow = jdbcTemplate.queryForMap("""
@@ -87,6 +115,10 @@ public class MockExamController {
                 VALUES (?, ?, 'IN_PROGRESS')
                 RETURNING id, exam_id, started_at, status
                 """, uid, examId);
+            if (needsTrialPass) {
+                long attemptId = ((Number) attemptRow.get("id")).longValue();
+                coinService.consumeTrialPass(uid, packId, attemptId);
+            }
         }
 
         // Return attempt details AND the exam structure (answers stripped — scoring happens server-side)

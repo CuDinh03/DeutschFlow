@@ -160,7 +160,8 @@ public class QuotaService {
         }
 
         if (PLAN_FREE.equals(row.planCode)) {
-            long remaining = Math.max(0L, dailyGrant - usedToday);
+            long remaining = Math.max(0L, dailyGrant - usedToday)
+                    + bonusRemainingToday(userId, now, dailyGrant, usedToday);
             return new QuotaSnapshot(
                     PLAN_FREE,
                     false,
@@ -298,7 +299,8 @@ public class QuotaService {
         }
 
         if (PLAN_FREE.equals(row.planCode)) {
-            long remaining = Math.max(0L, dailyGrant - usedToday);
+            long remaining = Math.max(0L, dailyGrant - usedToday)
+                    + bonusRemainingToday(userId, now, dailyGrant, usedToday);
             return new QuotaSnapshot(
                     PLAN_FREE,
                     false,
@@ -587,6 +589,28 @@ public class QuotaService {
             case PLAN_ULTRA, PLAN_INTERNAL -> "ULTRA";
             default -> "DEFAULT";
         };
+    }
+
+    /**
+     * Coin-purchased bonus AI-speaking tokens still available for the current VN day (feature: student
+     * coins). Lets an exhausted FREE learner do one extra session. The bonus is consumed implicitly as
+     * same-day usage exceeds the daily grant (no separate debit); unused tokens lapse at day end.
+     * Returns 0 when none was purchased, so FREE behavior is unchanged for everyone who hasn't bought one.
+     */
+    private long bonusRemainingToday(long userId, Instant now, long dailyGrant, long usedToday) {
+        long granted = loadBonusSpeakingTokens(userId, QuotaVnCalendar.localDateOf(now));
+        if (granted <= 0L) {
+            return 0L;
+        }
+        long overflow = Math.max(0L, usedToday - dailyGrant);
+        return Math.max(0L, granted - overflow);
+    }
+
+    private long loadBonusSpeakingTokens(long userId, LocalDate day) {
+        List<Long> rows = jdbcTemplate.query(
+                "SELECT bonus_tokens FROM user_bonus_speaking_tokens WHERE user_id = ? AND local_date = ? LIMIT 1",
+                (rs, n) -> rs.getLong(1), userId, Date.valueOf(day));
+        return rows.isEmpty() ? 0L : rows.get(0);
     }
 
     private static boolean isWalletPlan(String planCode) {

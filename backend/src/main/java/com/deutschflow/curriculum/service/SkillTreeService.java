@@ -47,6 +47,7 @@ public class SkillTreeService {
     private final PracticeNodeService practiceNodeService;
     private final com.deutschflow.srs.service.SrsVocabScheduler srsVocabScheduler;
     private final com.deutschflow.progress.service.PhaseEngineService phaseEngineService;
+    private final com.deutschflow.gamification.coin.service.CoinService coinService;
     /**
      * Bounded pool for blocking LLM content generation. Field name matches the
      * {@code aiExecutor} bean (AsyncConfig) so Spring resolves it by name among the
@@ -624,6 +625,14 @@ public class SkillTreeService {
                 }
             } catch (Exception e) {
                 log.warn("[SkillTree] XP award failed for user {}: {}", userId, e.getMessage());
+            }
+
+            // Award 1 coin on first completion (this branch only runs on the COMPLETED transition —
+            // re-submitting a COMPLETED node is rejected above). Best-effort; never fails the submit.
+            try {
+                coinService.awardNodeComplete(userId, String.valueOf(nodeId), "SKILL_TREE");
+            } catch (Exception e) {
+                log.warn("[SkillTree] Coin award failed for user {}: {}", userId, e.getMessage());
             }
 
             // Trigger 4 Practice Nodes (Hören/Sprechen/Lesen/Schreiben) async
