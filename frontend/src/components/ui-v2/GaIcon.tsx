@@ -37,6 +37,12 @@ import {
   Presentation,
   Search,
   HelpCircle,
+  Repeat,
+  PlayCircle,
+  Route,
+  Trophy,
+  PenLine,
+  ClipboardList,
   Circle,
   type LucideIcon,
 } from 'lucide-react'
@@ -86,6 +92,13 @@ const ICONS: Record<string, LucideIcon> = {
   co_present: Presentation,
   search: Search,
   help: HelpCircle,
+  repeat: Repeat,
+  play_circle: PlayCircle,
+  route: Route,
+  mic: Mic,
+  quiz: ClipboardList,
+  emoji_events: Trophy,
+  draw: PenLine,
 }
 
 export interface GaIconProps {
