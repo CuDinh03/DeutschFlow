@@ -29,6 +29,14 @@ function roleHome(role: Role): string {
   return '/student'
 }
 
+// Galerie v2 home per role — used to bounce a wrong-role/unauth user while keeping them inside /v2
+// (the legacy roleHome would kick them out to the legacy surface).
+function v2RoleHome(role: Role): string {
+  if (role === 'ADMIN') return '/v2/admin/users'
+  if (role === 'TEACHER') return '/v2/teacher'
+  return '/v2/student/dashboard'
+}
+
 /** Trang chỉ dành cho một vai trò (prefix cứng). */
 function requiredRole(pathname: string): Role | null {
   if (pathname.startsWith('/admin')) return 'ADMIN'
@@ -188,6 +196,52 @@ export async function middleware(request: NextRequest) {
   }
   const passThrough = () => secure(NextResponse.next({ request: { headers: requestHeaders } }))
   const redirectTo = (url: URL) => secure(NextResponse.redirect(url))
+
+  // UI 2.0 (Galerie v2) EDGE kill-switch. Per-user staged rollout is governed by the PostHog
+  // `galerie-v2` flag client-side (V2Gate, src/app/v2/V2Gate.tsx). This env var is the global
+  // rollback lever: set GALERIE_V2_DISABLED=true to instantly bounce ALL /v2/* traffic to the legacy
+  // equivalent (no PostHog change needed). Unset/false (default) = /v2 served normally and the flag
+  // still decides who sees it → zero behaviour change today. Only ever affects the /v2 prefix.
+  if (pathname.startsWith('/v2') && process.env.GALERIE_V2_DISABLED === 'true') {
+    return redirectTo(new URL(pathname.replace(/^\/v2/, '') || '/', request.url))
+  }
+
+  // UI 2.0 (Galerie v2) EDGE auth gate. The /v2 role areas have their OWN login (/v2/login) and role
+  // homes, so the legacy gating below — which only matches unprefixed paths — never covers them and
+  // leaves /v2/admin/* etc. reachable (shell visible) by anonymous users. Gate them here, keeping the
+  // user inside /v2. Strip the "/v2" prefix to reuse the same role/org resolution. Degrade gracefully
+  // when no JWT verifier is configured (same posture as the legacy gate below — see the #67 note).
+  const hasVerifierForV2 = Boolean(process.env.JWT_SECRET || process.env.JWT_RSA_PUBLIC_KEY)
+  if (pathname.startsWith('/v2/') && hasVerifierForV2) {
+    const v2Path = pathname.slice(3) || '/'
+    const v2Required = requiredRole(v2Path)
+    const v2Org = requiresOrg(v2Path)
+    if (v2Required || v2Org) {
+      const v2Access = request.cookies.get(AUTH_ACCESS_COOKIE)?.value
+      const v2Claims = v2Access ? await verifyAccessToken(v2Access) : null
+      const v2Role = v2Claims?.role ?? null
+      if (!v2Role) {
+        // Returning user with only the persistent refresh cookie: let the client restore the access
+        // token (matches the legacy !authenticatedRole branch) rather than forcing a re-login.
+        if (request.cookies.get(AUTH_REFRESH_COOKIE)?.value) {
+          return passThrough()
+        }
+        const loginUrl = new URL('/v2/login', request.url)
+        loginUrl.searchParams.set('next', pathname)
+        return redirectTo(loginUrl)
+      }
+      if (v2Org) {
+        if (v2Claims?.orgRole === 'OWNER' || v2Claims?.orgRole === 'ADMIN') {
+          return passThrough()
+        }
+        return redirectTo(new URL(v2RoleHome(v2Role), request.url))
+      }
+      if (v2Required !== v2Role) {
+        return redirectTo(new URL(v2RoleHome(v2Role), request.url))
+      }
+      return passThrough()
+    }
+  }
 
   const required = requiredRole(pathname)
   const learnerShare = requiresLearnerShare(pathname)

@@ -1,0 +1,170 @@
+/**
+ * Galerie 2.0 — UI 2.0 design tokens (WEB).
+ * Source of truth: deutschflow-tokens.json (handoff). Values mapped 1:1, NOT hardcoded ad hoc.
+ *
+ * SCOPED on purpose: every token lives under `.ga-scope` so the legacy `:root`
+ * theme in globals.css is never mutated. The `ga-*` Tailwind utilities resolve
+ * these vars and are therefore inert outside `.ga-scope` (UI 2.0 surface only).
+ * Role accent (chrome + active state) overrides via `[data-role="…"]`.
+ */
+
+.ga-scope {
+  /* Type — Newsreader (display/serif) + Instrument Sans (UI). Font vars from next/font (layout.tsx). */
+  --ga-display: var(--font-newsreader), Georgia, serif;
+  --ga-ui: var(--font-instrument-sans), system-ui, sans-serif;
+  /* Be Vietnam Pro — full Vietnamese diacritics; used by the learning-tree surface. */
+  --ga-vn: var(--font-be-vietnam-pro), system-ui, sans-serif;
+
+  /* Surface */
+  --ga-bg: #FBFAF7;
+  --ga-card: #FFFFFF;
+  --ga-side-active: #F3F0E8;
+  --ga-slate-bg: #F4F6FA;
+
+  /* Text */
+  --ga-ink: #161513;
+  --ga-muted: #76716A;
+  --ga-subtle: #B3ADA5;
+  --ga-faint: #C9C4BC;
+
+  /* Line */
+  --ga-border: #E7E3DA;
+  --ga-slate-border: #E3E7EE;
+
+  /* Brand */
+  --ga-yellow: #FFCD00;
+  --ga-yellow-soft: rgba(255, 205, 0, 0.12);
+  --ga-gold: #C79A00;
+
+  /* Status */
+  --ga-red: #DA291C;
+  --ga-red-soft: rgba(218, 41, 28, 0.10);
+  --ga-green: #1E9E61;
+  --ga-green-soft: rgba(30, 158, 97, 0.12);
+
+  /* Accent family (skills / categories / charts) */
+  --ga-blue: #2F6FC9;
+  --ga-blue-soft: rgba(47, 111, 201, 0.12);
+  --ga-violet: #7C56C8;
+  --ga-violet-soft: rgba(124, 86, 200, 0.12);
+  --ga-teal: #11888A;
+  --ga-teal-soft: rgba(17, 136, 138, 0.12);
+  --ga-orange: #E07B39;
+  --ga-orange-soft: rgba(224, 123, 57, 0.12);
+  --ga-navy: #27406B;
+  --ga-navy-soft: rgba(39, 64, 107, 0.10);
+
+  /* Role accent — default (neutral). Overridden per-role below. */
+  --ga-accent: var(--ga-navy);
+  --ga-accent-soft: var(--ga-navy-soft);
+  --ga-accent-ink: #FFFFFF;
+
+  /* Role-aware surface + line. Default = warm (teacher/org); admin = slate
+     "control-room" (per 70-admin-users hi-fi). Card stays white for all. */
+  --ga-surface: var(--ga-bg);
+  --ga-line: var(--ga-border);
+
+  /* Role-aware page-header bg + border line (Prototype A: admin = navy tint). */
+  --ga-hdr-bg: var(--ga-card);
+  --ga-hdr-line: var(--ga-border);
+
+  /* Radius — base 2px (Tweaks options 0/2/8/14 in a later pass) */
+  --ga-radius: 2px;
+
+  /* Shadow */
+  --ga-shadow-card-hover: 0 4px 20px rgba(22, 21, 19, 0.07);
+  --ga-shadow-panel: 0 24px 70px rgba(44, 34, 20, 0.16);
+
+  /* Motion */
+  --ga-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  font-family: var(--ga-ui);
+  color: var(--ga-ink);
+}
+
+/* Role identity (chrome + sidebar active). Maps tokens.color.roleAccent. */
+.ga-scope [data-role="teacher"] {
+  --ga-accent: #7C56C8;
+  --ga-accent-soft: rgba(124, 86, 200, 0.16);
+  --ga-accent-ink: #FFFFFF;
+  --ga-hdr-bg: rgba(124, 86, 200, 0.07);
+  --ga-hdr-line: rgba(124, 86, 200, 0.20);
+}
+.ga-scope [data-role="admin"] {
+  --ga-accent: #27406B;
+  --ga-accent-soft: rgba(39, 64, 107, 0.14);
+  --ga-accent-ink: #FFFFFF;
+  /* Admin = slate control-room surface (70-admin-users hi-fi). */
+  --ga-surface: var(--ga-slate-bg);
+  --ga-line: var(--ga-slate-border);
+  /* Admin header = navy tint bg + navy border (Prototype A). */
+  --ga-hdr-bg: rgba(39, 64, 107, 0.07);
+  --ga-hdr-line: rgba(39, 64, 107, 0.20);
+}
+.ga-scope [data-role="org"] {
+  --ga-accent: #11888A;
+  --ga-accent-soft: rgba(17, 136, 138, 0.16);
+  --ga-accent-ink: #FFFFFF;
+  --ga-hdr-bg: rgba(17, 136, 138, 0.07);
+  --ga-hdr-line: rgba(17, 136, 138, 0.20);
+}
+.ga-scope [data-role="student"] {
+  --ga-accent: #FFCD00;
+  --ga-accent-soft: rgba(255, 205, 0, 0.20);
+  --ga-accent-ink: #161513;
+}
+
+/* Skeleton shimmer (DataTable loading) — 70-admin-users: 1.3s linear sweep. */
+.ga-scope .ga-shimmer {
+  background: linear-gradient(90deg, var(--ga-surface), var(--ga-card), var(--ga-surface));
+  background-size: 200% 100%;
+  animation: gaShimmer 1.3s linear infinite;
+}
+@keyframes gaShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ga-scope .ga-shimmer { animation: none; }
+}
+
+/* Learning tree (Cây học tập) — glow on open leaves + ready milestones. */
+.lt-node { outline: none; cursor: pointer; }
+/* Suppress the ring on pointer focus, but keep a clear keyboard focus indicator (WCAG 2.4.7). */
+.lt-node:focus { outline: none; }
+.lt-node:focus-visible { outline: 2px solid var(--ga-accent); outline-offset: 2px; border-radius: 6px; }
+.lt-breathe { transform-box: fill-box; transform-origin: center; animation: ltBreath 2.6s ease-in-out infinite; }
+.lt-pulse { animation: ltPulse 2.4s ease-in-out infinite; }
+@keyframes ltBreath {
+  0%, 100% { opacity: 0.16; transform: scale(0.8); }
+  50% { opacity: 0.5; transform: scale(1.14); }
+}
+@keyframes ltPulse {
+  0%, 100% { opacity: 0.1; }
+  50% { opacity: 0.32; }
+}
+/* Companion idle bob (inner group; the outer group handles perch position + move transition). */
+.lt-bob { transform-box: fill-box; transform-origin: center; animation: ltBob 2.8s ease-in-out infinite; }
+@keyframes ltBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2.5px); }
+}
+/* Level-up ritual — a single gold flash that blooms then fades when a milestone is passed. */
+.lt-levelup-flash {
+  animation: ltLevelUpFlash 1.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  pointer-events: none;
+}
+@keyframes ltLevelUpFlash {
+  0% { opacity: 0; transform: scale(0.6); }
+  22% { opacity: 0.95; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.5); }
+}
+/* Seedling cotyledons sway — the A0 "mầm" state breathing gently before the tree grows. */
+.lt-sprout-sway { transform-box: fill-box; transform-origin: bottom center; animation: ltSproutSway 4.2s ease-in-out infinite; }
+@keyframes ltSproutSway {
+  0%, 100% { transform: rotate(-2.2deg); }
+  50% { transform: rotate(2.2deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lt-breathe, .lt-pulse, .lt-bob, .lt-levelup-flash, .lt-sprout-sway { animation: none; }
+}

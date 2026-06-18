@@ -187,6 +187,17 @@ public class AdminManagementController {
         return adminManagementService.aiCostSummary(days);
     }
 
+    /** Paginated, filtered read of the audit log (admin audit screen). */
+    @GetMapping("/audit")
+    public Map<String, Object> auditLogs(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String cat,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "30") int size
+    ) {
+        return auditLogService.readAuditLogs(q, cat, page, size);
+    }
+
     @GetMapping("/users")
     public List<Map<String, Object>> users() {
         return adminManagementService.listUsers();
