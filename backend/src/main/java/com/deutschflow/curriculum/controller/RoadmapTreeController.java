@@ -37,8 +37,8 @@ public class RoadmapTreeController {
     /** Lesson descriptor for a single leaf — the context the FE lesson player loads on tap. */
     @GetMapping("/node/{id}")
     @PreAuthorize("isAuthenticated()")
-    public TreeNodeLessonDto getNode(@PathVariable("id") String id) {
-        return roadmapTreeService.getNodeLesson(id);
+    public TreeNodeLessonDto getNode(@AuthenticationPrincipal User user, @PathVariable("id") String id) {
+        return roadmapTreeService.getNodeLesson(user.getId(), id);
     }
 
     /** Marks a leaf completed for the current learner; returns the recomputed tree (the tree "grows"). */

@@ -291,11 +291,22 @@ public class RoadmapTreeService {
         return getTree(userId);
     }
 
-    /** Returns the lesson descriptor for a node (semantic context + content hook for the FE player). */
+    /**
+     * Returns the lesson descriptor for a node (semantic context + content hook for the FE player).
+     * Gated on the node being open for the learner — same rule as {@link #completeNode}, so a learner
+     * can't enumerate descriptors of locked / future-level nodes (and a future secret in
+     * {@code contentKey} can't leak through this read path).
+     */
     @Transactional(readOnly = true)
-    public TreeNodeLessonDto getNodeLesson(String nodeId) {
+    public TreeNodeLessonDto getNodeLesson(Long userId, String nodeId) {
         TreeNode node = nodeRepository.findById(nodeId)
                 .orElseThrow(() -> new NotFoundException("Tree node not found: id=" + nodeId));
+
+        String currentState = findNodeState(getTree(userId), node.getId());
+        if (currentState == null || TreeStateMachine.LOCKED.equals(currentState)) {
+            throw new BadRequestException("Tree node is not available yet: id=" + nodeId);
+        }
+
         TreeTopic topic = topicRepository.findById(node.getTopicPk())
                 .orElseThrow(() -> new NotFoundException("Tree topic not found: id=" + node.getTopicPk()));
         return new TreeNodeLessonDto(
