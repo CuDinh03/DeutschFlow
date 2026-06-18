@@ -28,7 +28,7 @@ export function GaAuthShell({
   return (
     <div className="flex min-h-screen flex-col bg-ga-bg text-ga-ink">
       <header className="flex items-center justify-between border-b border-ga-line bg-ga-card px-10 py-6">
-        <Link href="/" aria-label="DeutschFlow" className="inline-flex">
+        <Link href="/" aria-label="myDeutschFlow" className="inline-flex">
           <GaLogo />
         </Link>
         {showBackToLanding && (
