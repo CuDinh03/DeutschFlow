@@ -30,7 +30,7 @@ function str(r: Record<string, unknown>, ...keys: string[]): string {
   return ''
 }
 function normalize(r: Record<string, unknown>, i: number): Word {
-  const german = str(r, 'german', 'word', 'wordDe', 'lemma', 'text')
+  const german = str(r, 'german', 'word', 'wordDe', 'baseForm', 'lemma', 'text')
   let article = str(r, 'gender', 'artikel', 'article').toLowerCase() || null
   if (!article) {
     const first = german.split(/\s+/)[0]?.toLowerCase()
@@ -79,10 +79,15 @@ export default function V2StudentVocabularyPage() {
   const load = () => {
     setLoading(true)
     setError(null)
-    api
-      .get('/words')
-      .then((res) => {
-        const raw = (Array.isArray(res.data) ? res.data : (res.data?.content ?? [])) as Record<string, unknown>[]
+    // GET /api/words → paginated { items, total } (size cap 100). Pull a few pages so the
+    // meaning-bearing words (needed for the card back) add up to a usable deck.
+    Promise.all([0, 1, 2].map((p) => api.get('/words', { params: { size: 100, page: p } })))
+      .then((resList) => {
+        const raw = resList.flatMap((res) => {
+          const d = res.data as { items?: unknown[]; content?: unknown[] } | unknown[]
+          if (Array.isArray(d)) return d as Record<string, unknown>[]
+          return (d.items ?? d.content ?? []) as Record<string, unknown>[]
+        })
         setWords(raw.map(normalize).filter((w) => w.german && w.meaning))
       })
       .catch(() => setError('Không thể tải từ vựng.'))
