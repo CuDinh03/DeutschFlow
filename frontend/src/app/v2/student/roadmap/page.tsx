@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Check, ArrowRight } from 'lucide-react'
 import { toast } from 'sonner'
@@ -37,7 +37,9 @@ const ORDER: PhaseType[] = ['FOUNDATION', 'PRODUCTION', 'FLUENCY', 'GRADUATED']
 
 /** True when the tree carries no lessons yet (A0 "mầm" state — nothing to render but a seedling). */
 function treeIsSeed(tree: TreeResponse): boolean {
-  return !tree.path.some((l) => l.branches.some((b) => b.shoots.some((s) => s.nodes.length > 0)))
+  return !tree.path?.some((l) =>
+    l.branches?.some((b) => b.shoots?.some((s) => (s.nodes?.length ?? 0) > 0)),
+  )
 }
 
 /** The level whose milestone is ready to pass (all four skills matured), plus the level it unlocks. */
@@ -96,6 +98,10 @@ export default function V2StudentRoadmapPage() {
   // ── Level-up ritual (G3): pass the current milestone → gold flash + toast + grown tree ──
   const [leveling, setLeveling] = useState(false)
   const [flashing, setFlashing] = useState(false)
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => {
+    if (flashTimer.current) clearTimeout(flashTimer.current)
+  }, [])
   const onLevelUp = useCallback(() => {
     setLeveling(true)
     levelUp()
@@ -103,8 +109,9 @@ export default function V2StudentRoadmapPage() {
         setTree(next)
         setTapped(null)
         setFlashing(true)
-        window.setTimeout(() => setFlashing(false), 1500)
-        toast.success(`Chúc mừng! Cây của bạn đã vươn lên cấp ${next.user.currentLevel} 🎉`)
+        if (flashTimer.current) clearTimeout(flashTimer.current)
+        flashTimer.current = setTimeout(() => setFlashing(false), 1500)
+        toast.success(`Chúc mừng! Cây của bạn đã vươn lên cấp ${next.user.currentLevel ?? ''} 🎉`)
       })
       .catch(() => toast.error('Chưa thể lên cấp — hãy hoàn thành đủ 4 nhánh của cấp hiện tại.'))
       .finally(() => setLeveling(false))

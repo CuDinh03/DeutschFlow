@@ -90,10 +90,40 @@ class RoadmapTreeLevelUpIT extends AbstractPostgresIntegrationTest {
         assertThat(levelStatusOf(after, "A2")).isEqualTo(TreeStateMachine.CURRENT);
     }
 
-    /** Completes leaves of {@code levelCode} round by round until every node is completed. */
+    @Test
+    @DisplayName("rejects completing a node that is still locked (no skipping the unlock order)")
+    void rejectsCompletingLockedNode() {
+        profileRepository.save(UserLearningProfile.builder()
+                .user(learner)
+                .goalType(UserLearningProfile.GoalType.CERT)
+                .targetLevel(UserLearningProfile.TargetLevel.B1)
+                .currentLevel(UserLearningProfile.CurrentLevel.A1)
+                .sessionsPerWeek(3)
+                .minutesPerSession(30)
+                .build());
+
+        // Every shoot opens with node 1 available and the rest locked — grab one locked leaf.
+        String lockedNodeId = levelOf(service.getTree(learner.getId()), "A1").branches().stream()
+                .flatMap(b -> b.shoots().stream())
+                .flatMap(s -> s.nodes().stream())
+                .filter(n -> TreeStateMachine.LOCKED.equals(n.state()))
+                .map(TreeNodeDto::id)
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("Expected a locked leaf in A1."));
+
+        assertThatThrownBy(() -> service.completeNode(learner.getId(), lockedNodeId))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("not available");
+    }
+
+    /**
+     * Matures {@code levelCode} the way a real learner would: each round completes only the leaves
+     * that are currently completable ({@code available}/{@code in_progress}); completing them unlocks
+     * the next leaf in each shoot, so the loop walks the sequential-unlock path the service enforces.
+     */
     private void matureCurrentLevel(Long userId, String levelCode) {
         for (int guard = 0; guard < 50; guard++) {
-            List<String> openNodeIds = openLeafIds(service.getTree(userId), levelCode);
+            List<String> openNodeIds = completableLeafIds(service.getTree(userId), levelCode);
             if (openNodeIds.isEmpty()) {
                 return;
             }
@@ -102,11 +132,12 @@ class RoadmapTreeLevelUpIT extends AbstractPostgresIntegrationTest {
         throw new IllegalStateException("Could not mature level " + levelCode + " within the guard bound.");
     }
 
-    private static List<String> openLeafIds(TreeDto tree, String levelCode) {
+    private static List<String> completableLeafIds(TreeDto tree, String levelCode) {
         return levelOf(tree, levelCode).branches().stream()
                 .flatMap(b -> b.shoots().stream())
                 .flatMap(s -> s.nodes().stream())
-                .filter(n -> !TreeStateMachine.COMPLETED.equals(n.state()))
+                .filter(n -> TreeStateMachine.AVAILABLE.equals(n.state())
+                        || TreeStateMachine.IN_PROGRESS.equals(n.state()))
                 .map(TreeNodeDto::id)
                 .toList();
     }

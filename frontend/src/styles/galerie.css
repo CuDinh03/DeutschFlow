@@ -130,7 +130,9 @@
 
 /* Learning tree (Cây học tập) — glow on open leaves + ready milestones. */
 .lt-node { outline: none; cursor: pointer; }
-.lt-node:focus, .lt-node:focus-visible { outline: none; }
+/* Suppress the ring on pointer focus, but keep a clear keyboard focus indicator (WCAG 2.4.7). */
+.lt-node:focus { outline: none; }
+.lt-node:focus-visible { outline: 2px solid var(--ga-accent); outline-offset: 2px; border-radius: 6px; }
 .lt-breathe { transform-box: fill-box; transform-origin: center; animation: ltBreath 2.6s ease-in-out infinite; }
 .lt-pulse { animation: ltPulse 2.4s ease-in-out infinite; }
 @keyframes ltBreath {

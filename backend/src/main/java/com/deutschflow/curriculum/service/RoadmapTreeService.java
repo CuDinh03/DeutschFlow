@@ -91,7 +91,10 @@ public class RoadmapTreeService {
 
         // Effective current level = the higher of the profile level and (highest passed milestone + 1),
         // so a tree level-up advances the tree without mutating the shared profile CEFR level.
-        int profileOrder = orderOf(levels, profile != null ? profile.getCurrentLevel().name() : DEFAULT_LEVEL);
+        String profileLevel = (profile != null && profile.getCurrentLevel() != null)
+                ? profile.getCurrentLevel().name()
+                : DEFAULT_LEVEL;
+        int profileOrder = orderOf(levels, profileLevel);
         int maxPassedOrder = passedLevels.stream().mapToInt(code -> orderOf(levels, code)).max().orElse(-1);
         int lastOrder = levels.isEmpty() ? 0 : levels.get(levels.size() - 1).getOrderIndex();
         int currentOrder = Math.min(lastOrder, Math.max(profileOrder, maxPassedOrder + 1));
@@ -160,8 +163,10 @@ public class RoadmapTreeService {
                 maturedCount = matured;
             }
 
-            boolean allFourMatured = maturedCount == TreeStateMachine.SKILLS_PER_LEVEL;
-            String milestoneState = TreeStateMachine.milestoneState(levelStatus, allFourMatured);
+            // Gate on the actual number of skills loaded (data-driven), not a hardcoded 4, so adding a
+            // fifth skill to tree_skills can't make the milestone permanently un-reachable.
+            boolean allSkillsMatured = !skills.isEmpty() && maturedCount == skills.size();
+            String milestoneState = TreeStateMachine.milestoneState(levelStatus, allSkillsMatured);
             LocalDateTime passedAt = passedAtByLevel.get(level.getCode());
             TreeMilestoneDto milestone = new TreeMilestoneDto(
                     "ms_" + level.getCode().toLowerCase(),
@@ -219,6 +224,15 @@ public class RoadmapTreeService {
         TreeNode node = nodeRepository.findById(nodeId)
                 .orElseThrow(() -> new NotFoundException("Tree node not found: id=" + nodeId));
 
+        // Access gate: only a node currently available/in-progress (or already completed — idempotent)
+        // may be completed. Rejecting locked / not-yet-open nodes stops a learner from pre-completing
+        // future levels or skipping the sequential shoot-unlock to force a milestone to `ready` and
+        // level up without doing the work.
+        String currentState = findNodeState(getTree(userId), node.getId());
+        if (currentState == null || TreeStateMachine.LOCKED.equals(currentState)) {
+            throw new BadRequestException("Tree node is not available to complete yet: id=" + nodeId);
+        }
+
         TreeNodeProgressId id = new TreeNodeProgressId(userId, node.getId());
         LocalDateTime now = LocalDateTime.now();
         TreeNodeProgress progress = nodeProgressRepository.findById(id).orElseGet(() -> {
@@ -251,8 +265,13 @@ public class RoadmapTreeService {
         TreeLevelDto current = tree.path().stream()
                 .filter(l -> TreeStateMachine.CURRENT.equals(l.status()))
                 .findFirst()
-                .orElseThrow(() -> new BadRequestException(
-                        "No level to advance — the tree is already at the top level."));
+                .orElseThrow(() -> {
+                    boolean allCompleted = !tree.path().isEmpty() && tree.path().stream()
+                            .allMatch(l -> TreeStateMachine.COMPLETED.equals(l.status()));
+                    return new BadRequestException(allCompleted
+                            ? "Already completed every level — no further level-up is possible."
+                            : "No current level to advance — the curriculum may not be seeded.");
+                });
         if (!TreeStateMachine.READY.equals(current.milestone().state())) {
             throw new BadRequestException(
                     "Milestone " + current.level() + " is not ready — all four skills must mature first.");
@@ -283,6 +302,18 @@ public class RoadmapTreeService {
                 node.getId(), node.getTitleDe(),
                 topic.getSkillCode(), topic.getTopicId(), topic.getTopicLabel(),
                 topic.getGroupCode(), node.getContentKey());
+    }
+
+    /** The derived display state of a node in the assembled tree, or {@code null} if it is not open. */
+    private static String findNodeState(TreeDto tree, String nodeId) {
+        return tree.path().stream()
+                .flatMap(l -> l.branches().stream())
+                .flatMap(b -> b.shoots().stream())
+                .flatMap(s -> s.nodes().stream())
+                .filter(n -> n.id().equals(nodeId))
+                .map(TreeNodeDto::state)
+                .findFirst()
+                .orElse(null);
     }
 
     private static boolean isChosenByUser(TreeTopic topic, String track) {

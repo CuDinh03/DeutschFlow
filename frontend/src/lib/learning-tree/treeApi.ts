@@ -8,7 +8,7 @@ export interface TreeUser {
   id: string
   displayName: string
   track: string | null
-  goal: string
+  goal: string | null
   currentLevel: string
   startedAt: string | null
 }
