@@ -50,3 +50,13 @@ export async function completeNode(nodeId: string): Promise<TreeResponse> {
   const res = await api.post<TreeResponse>(`/roadmap/tree/node/${encodeURIComponent(nodeId)}/complete`)
   return res.data
 }
+
+/**
+ * Passes the current level's milestone (the level-up ritual). The backend rejects with 400 when the
+ * milestone is not yet ready (all four skills matured) or the learner is at the top level. Returns
+ * the recomputed (grown) tree, with the next level now current.
+ */
+export async function levelUp(): Promise<TreeResponse> {
+  const res = await api.post<TreeResponse>('/roadmap/tree/level-up')
+  return res.data
+}

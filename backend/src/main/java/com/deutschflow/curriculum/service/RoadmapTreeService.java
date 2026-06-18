@@ -1,5 +1,6 @@
 package com.deutschflow.curriculum.service;
 
+import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.curriculum.dto.tree.TreeBranchDto;
 import com.deutschflow.curriculum.dto.tree.TreeDto;
@@ -10,6 +11,7 @@ import com.deutschflow.curriculum.dto.tree.TreeNodeLessonDto;
 import com.deutschflow.curriculum.dto.tree.TreeShootDto;
 import com.deutschflow.curriculum.entity.TreeLevel;
 import com.deutschflow.curriculum.entity.TreeMilestoneProgress;
+import com.deutschflow.curriculum.entity.TreeMilestoneProgressId;
 import com.deutschflow.curriculum.entity.TreeNode;
 import com.deutschflow.curriculum.entity.TreeNodeProgress;
 import com.deutschflow.curriculum.entity.TreeNodeProgressId;
@@ -75,9 +77,7 @@ public class RoadmapTreeService {
         List<TreeLevel> levels = levelRepository.findAllByOrderByOrderIndexAsc();
         List<TreeSkill> skills = skillRepository.findAllByOrderByOrderIndexAsc();
 
-        String currentLevelCode = profile != null ? profile.getCurrentLevel().name() : DEFAULT_LEVEL;
         String track = profile != null ? profile.getIndustry() : null;
-        int currentOrder = orderOf(levels, currentLevelCode);
 
         List<TreeMilestoneProgress> milestones = milestoneProgressRepository.findByIdUserId(userId);
         Set<String> passedLevels = milestones.stream()
@@ -88,6 +88,18 @@ public class RoadmapTreeService {
                 .filter(m -> m.getPassedAt() != null)
                 .collect(Collectors.toMap(m -> m.getId().getLevelCode(), TreeMilestoneProgress::getPassedAt,
                         (a, b) -> a));
+
+        // Effective current level = the higher of the profile level and (highest passed milestone + 1),
+        // so a tree level-up advances the tree without mutating the shared profile CEFR level.
+        int profileOrder = orderOf(levels, profile != null ? profile.getCurrentLevel().name() : DEFAULT_LEVEL);
+        int maxPassedOrder = passedLevels.stream().mapToInt(code -> orderOf(levels, code)).max().orElse(-1);
+        int lastOrder = levels.isEmpty() ? 0 : levels.get(levels.size() - 1).getOrderIndex();
+        int currentOrder = Math.min(lastOrder, Math.max(profileOrder, maxPassedOrder + 1));
+        String currentLevelCode = levels.stream()
+                .filter(l -> l.getOrderIndex() == currentOrder)
+                .map(TreeLevel::getCode)
+                .findFirst()
+                .orElse(DEFAULT_LEVEL);
 
         // Which levels are "open" (not locked) — only those carry branches.
         List<String> activeLevelCodes = levels.stream()
@@ -221,6 +233,41 @@ public class RoadmapTreeService {
         progress.setState(TreeNodeProgress.COMPLETED);
         progress.setCompletedAt(now);
         nodeProgressRepository.save(progress);
+
+        return getTree(userId);
+    }
+
+    /**
+     * Passes the milestone of the learner's current level — the "level-up" ritual. Gated on the
+     * current level's milestone being {@code ready} (all four skills matured); writes only a
+     * {@code tree_milestone_progress} row so getTree derives the next level as current without
+     * mutating the shared profile CEFR level. Returns the recomputed (grown) tree.
+     *
+     * @throws BadRequestException when there is no current level (top reached) or it is not ready.
+     */
+    @Transactional
+    public TreeDto levelUp(Long userId) {
+        TreeDto tree = getTree(userId);
+        TreeLevelDto current = tree.path().stream()
+                .filter(l -> TreeStateMachine.CURRENT.equals(l.status()))
+                .findFirst()
+                .orElseThrow(() -> new BadRequestException(
+                        "No level to advance — the tree is already at the top level."));
+        if (!TreeStateMachine.READY.equals(current.milestone().state())) {
+            throw new BadRequestException(
+                    "Milestone " + current.level() + " is not ready — all four skills must mature first.");
+        }
+
+        TreeMilestoneProgressId id = new TreeMilestoneProgressId(userId, current.level());
+        TreeMilestoneProgress passed = milestoneProgressRepository.findById(id)
+                .orElseGet(() -> {
+                    TreeMilestoneProgress m = new TreeMilestoneProgress();
+                    m.setId(id);
+                    return m;
+                });
+        passed.setState(TreeMilestoneProgress.PASSED);
+        passed.setPassedAt(LocalDateTime.now());
+        milestoneProgressRepository.save(passed);
 
         return getTree(userId);
     }

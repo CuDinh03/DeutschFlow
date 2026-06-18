@@ -78,4 +78,11 @@ class RoadmapTreeRbacTest extends AbstractPostgresIntegrationTest {
         mockMvc.perform(post("/api/roadmap/tree/node/a1_h_greetings_1/complete"))
                 .andExpect(status().isUnauthorized());
     }
+
+    @Test
+    @DisplayName("anonymous is rejected (401) on POST /api/roadmap/tree/level-up")
+    void anonymousRejectedOnLevelUp() throws Exception {
+        mockMvc.perform(post("/api/roadmap/tree/level-up"))
+                .andExpect(status().isUnauthorized());
+    }
 }

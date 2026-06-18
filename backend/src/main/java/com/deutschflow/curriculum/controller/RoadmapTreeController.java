@@ -47,4 +47,14 @@ public class RoadmapTreeController {
     public TreeDto completeNode(@AuthenticationPrincipal User user, @PathVariable("id") String id) {
         return roadmapTreeService.completeNode(user.getId(), id);
     }
+
+    /**
+     * Passes the current level's milestone (the level-up ritual). 400 if the milestone is not yet
+     * ready or the learner is already at the top level. Returns the recomputed (grown) tree.
+     */
+    @PostMapping("/level-up")
+    @PreAuthorize("isAuthenticated()")
+    public TreeDto levelUp(@AuthenticationPrincipal User user) {
+        return roadmapTreeService.levelUp(user.getId());
+    }
 }
