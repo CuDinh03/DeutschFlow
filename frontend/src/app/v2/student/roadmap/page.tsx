@@ -3,10 +3,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Check, ArrowRight } from 'lucide-react'
+import { toast } from 'sonner'
 import { phaseApi, type PhaseStateResponse, type PhaseType } from '@/lib/phaseApi'
-import { fetchTree, completeNode, type TreeResponse } from '@/lib/learning-tree/treeApi'
+import { fetchTree, completeNode, levelUp, type TreeResponse } from '@/lib/learning-tree/treeApi'
 import { LearningTree, type TappedNode } from '@/components/learning-tree/LearningTree'
 import { NodeLessonPanel } from '@/components/learning-tree/NodeLessonPanel'
+import { TreeSeedState } from '@/components/learning-tree/TreeSeedState'
+import { LevelUpBanner } from '@/components/learning-tree/LevelUpBanner'
 import { GROUP_COLORS, SKILL_COLORS, SKILL_LABELS, TOPIC_CHIP } from '@/lib/learning-tree/render/palette'
 import { SKILL_ICONS, TOPIC_ICONS } from '@/lib/learning-tree/render/icons'
 import { TreeIcon } from '@/components/learning-tree/TreeIcon'
@@ -31,6 +34,18 @@ const PHASES: { type: PhaseType; label: string; desc: string }[] = [
   { type: 'GRADUATED', label: 'Tốt nghiệp', desc: 'Sẵn sàng cho kỳ thi Goethe & môi trường thực tế' },
 ]
 const ORDER: PhaseType[] = ['FOUNDATION', 'PRODUCTION', 'FLUENCY', 'GRADUATED']
+
+/** True when the tree carries no lessons yet (A0 "mầm" state — nothing to render but a seedling). */
+function treeIsSeed(tree: TreeResponse): boolean {
+  return !tree.path.some((l) => l.branches.some((b) => b.shoots.some((s) => s.nodes.length > 0)))
+}
+
+/** The level whose milestone is ready to pass (all four skills matured), plus the level it unlocks. */
+function readyMilestone(tree: TreeResponse): { readyLevel: string; nextLevel: string | null } | null {
+  const idx = tree.path.findIndex((l) => l.milestone.state === 'ready')
+  if (idx < 0) return null
+  return { readyLevel: tree.path[idx].level, nextLevel: tree.path[idx + 1]?.level ?? null }
+}
 
 export default function V2StudentRoadmapPage() {
   const [tab, setTab] = useState('tree')
@@ -76,6 +91,23 @@ export default function V2StudentRoadmapPage() {
       })
       .catch(() => setTreeError('Không thể cập nhật bài học.'))
       .finally(() => setCompleting(false))
+  }, [])
+
+  // ── Level-up ritual (G3): pass the current milestone → gold flash + toast + grown tree ──
+  const [leveling, setLeveling] = useState(false)
+  const [flashing, setFlashing] = useState(false)
+  const onLevelUp = useCallback(() => {
+    setLeveling(true)
+    levelUp()
+      .then((next) => {
+        setTree(next)
+        setTapped(null)
+        setFlashing(true)
+        window.setTimeout(() => setFlashing(false), 1500)
+        toast.success(`Chúc mừng! Cây của bạn đã vươn lên cấp ${next.user.currentLevel} 🎉`)
+      })
+      .catch(() => toast.error('Chưa thể lên cấp — hãy hoàn thành đủ 4 nhánh của cấp hiện tại.'))
+      .finally(() => setLeveling(false))
   }, [])
 
   // ── Phase journey (preserved from the previous roadmap; lazy-loaded) ──
@@ -125,6 +157,8 @@ export default function V2StudentRoadmapPage() {
               <ErrorBanner message={treeError} onRetry={loadTree} />
             ) : treeLoading || !tree ? (
               <LoadingState label="Đang tải cây học tập…" />
+            ) : treeIsSeed(tree) ? (
+              <TreeSeedState displayName={tree.user.displayName} />
             ) : (
               <>
                 <TreeHeader tree={tree} />
@@ -141,6 +175,17 @@ export default function V2StudentRoadmapPage() {
                   />
                   <CompanionPicker choice={companion} onChange={chooseCompanion} />
                 </div>
+                {(() => {
+                  const ready = readyMilestone(tree)
+                  return ready ? (
+                    <LevelUpBanner
+                      readyLevel={ready.readyLevel}
+                      nextLevel={ready.nextLevel}
+                      busy={leveling}
+                      onLevelUp={onLevelUp}
+                    />
+                  ) : null
+                })()}
                 <div className="relative flex min-h-0 flex-1 border border-ga-line">
                   <LearningTree
                     tree={tree}
@@ -148,6 +193,16 @@ export default function V2StudentRoadmapPage() {
                     filter={{ topic: fTopic, skill: fSkill }}
                     companion={companion}
                   />
+                  {flashing && (
+                    <div
+                      aria-hidden
+                      className="lt-levelup-flash absolute inset-0 z-20"
+                      style={{
+                        background:
+                          'radial-gradient(circle at 50% 60%, rgba(232,200,78,0.55), rgba(232,200,78,0.12) 45%, transparent 70%)',
+                      }}
+                    />
+                  )}
                   {tapped && (
                     <NodeLessonPanel
                       nodeId={tapped.nodeId}

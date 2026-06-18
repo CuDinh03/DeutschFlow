@@ -147,6 +147,22 @@
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-2.5px); }
 }
+/* Level-up ritual — a single gold flash that blooms then fades when a milestone is passed. */
+.lt-levelup-flash {
+  animation: ltLevelUpFlash 1.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  pointer-events: none;
+}
+@keyframes ltLevelUpFlash {
+  0% { opacity: 0; transform: scale(0.6); }
+  22% { opacity: 0.95; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.5); }
+}
+/* Seedling cotyledons sway — the A0 "mầm" state breathing gently before the tree grows. */
+.lt-sprout-sway { transform-box: fill-box; transform-origin: bottom center; animation: ltSproutSway 4.2s ease-in-out infinite; }
+@keyframes ltSproutSway {
+  0%, 100% { transform: rotate(-2.2deg); }
+  50% { transform: rotate(2.2deg); }
+}
 @media (prefers-reduced-motion: reduce) {
-  .lt-breathe, .lt-pulse, .lt-bob { animation: none; }
+  .lt-breathe, .lt-pulse, .lt-bob, .lt-levelup-flash, .lt-sprout-sway { animation: none; }
 }
