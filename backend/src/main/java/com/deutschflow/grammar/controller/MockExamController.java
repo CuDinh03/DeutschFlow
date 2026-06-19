@@ -255,7 +255,7 @@ public class MockExamController {
                         }
 
                         if (emailContent != null && !emailContent.isBlank()) {
-                            Map<String, Object> aiResult = aiEvaluator.evaluateSchreibenEmail(emailContent, taskPrompt);
+                            Map<String, Object> aiResult = aiEvaluator.evaluateSchreibenEmail(uid, emailContent, taskPrompt);
                             // Merge AI evaluation into schreiben scores
                             schreibenScores = new HashMap<>(schreibenScores);
                             schreibenScores.put("teil2_email", aiResult);
@@ -268,7 +268,7 @@ public class MockExamController {
                         detailedScores.put("SCHREIBEN", schreibenScores);
                     }
                     case "SPRECHEN" -> {
-                        sprechenScores = scoringService.scoreSperechenSection(answers, section);
+                        sprechenScores = scoringService.scoreSperechenSection(uid, answers, section);
                         detailedScores.put("SPRECHEN", sprechenScores);
                     }
                 }
