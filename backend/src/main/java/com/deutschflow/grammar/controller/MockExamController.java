@@ -1,20 +1,24 @@
 package com.deutschflow.grammar.controller;
 
 import com.deutschflow.common.exception.ForbiddenException;
+import com.deutschflow.common.quota.QuotaService;
 import com.deutschflow.grammar.entity.MockExamPack;
 import com.deutschflow.grammar.service.AiExamEvaluatorService;
 import com.deutschflow.grammar.service.ExamGenerationService;
 import com.deutschflow.grammar.service.ExamQuestionSanitizer;
 import com.deutschflow.grammar.service.ExamScoringService;
 import com.deutschflow.grammar.service.MockExamPackService;
+import com.deutschflow.organization.service.OrgPoolGuard;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
 import java.util.*;
 
 /**
@@ -23,9 +27,11 @@ import java.util.*;
  */
 @RestController
 @RequestMapping("/api/mock-exams")
+@PreAuthorize("isAuthenticated()")
 public class MockExamController {
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(MockExamController.class);
     private static final ObjectMapper om = new ObjectMapper();
+    private static final long EXAM_AI_ESTIMATED_TOKENS = 1_500L;
 
     private final JdbcTemplate jdbcTemplate;
     private final ExamScoringService scoringService;
@@ -36,6 +42,8 @@ public class MockExamController {
     private final com.deutschflow.progress.service.PhaseEngineService phaseEngineService;
     private final MockExamPackService mockExamPackService;
     private final com.deutschflow.gamification.coin.service.CoinService coinService;
+    private final QuotaService quotaService;
+    private final OrgPoolGuard orgPoolGuard;
 
     public MockExamController(JdbcTemplate jdbcTemplate, ExamScoringService scoringService,
                                AiExamEvaluatorService aiEvaluator, ExamGenerationService generationService,
@@ -43,7 +51,9 @@ public class MockExamController {
                                com.deutschflow.assessment.service.B1ReadinessService b1ReadinessService,
                                com.deutschflow.progress.service.PhaseEngineService phaseEngineService,
                                MockExamPackService mockExamPackService,
-                               com.deutschflow.gamification.coin.service.CoinService coinService) {
+                               com.deutschflow.gamification.coin.service.CoinService coinService,
+                               QuotaService quotaService,
+                               OrgPoolGuard orgPoolGuard) {
         this.jdbcTemplate = jdbcTemplate;
         this.scoringService = scoringService;
         this.aiEvaluator = aiEvaluator;
@@ -53,6 +63,8 @@ public class MockExamController {
         this.phaseEngineService = phaseEngineService;
         this.mockExamPackService = mockExamPackService;
         this.coinService = coinService;
+        this.quotaService = quotaService;
+        this.orgPoolGuard = orgPoolGuard;
     }
 
     private long userId(UserDetails p) {
@@ -160,6 +172,10 @@ public class MockExamController {
             @RequestBody(required = false) Map<String, Object> body,
             @AuthenticationPrincipal UserDetails principal) {
         long uid = userId(principal);
+
+        // Gate AI evaluation before entering the try-catch so QuotaExceededException propagates
+        quotaService.assertAllowed(uid, Instant.now(), EXAM_AI_ESTIMATED_TOKENS);
+        orgPoolGuard.assertOrgPoolAvailable(uid, EXAM_AI_ESTIMATED_TOKENS);
 
         try {
             // Get attempt details

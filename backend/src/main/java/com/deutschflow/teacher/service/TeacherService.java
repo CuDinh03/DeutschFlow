@@ -494,7 +494,7 @@ public class TeacherService {
 
         log.info("[Scenario] Lazily generating missing scenario for assignment {} (topic='{}')",
                 assignmentId, ca.getTopic());
-        PracticeScenario generated = speakingAiHelpersService.generateScenario(ca.getTopic(), "A2");
+        PracticeScenario generated = speakingAiHelpersService.generateScenario(studentId, ca.getTopic(), "A2");
         AssignmentScenario scenario = assignmentScenarioRepository.save(AssignmentScenario.builder()
                 .assignmentId(ca.getId())
                 .topic(generated.getTopic())
@@ -528,7 +528,7 @@ public class TeacherService {
         // Khởi tạo kịch bản AI nếu là SPEAKING_SCENARIO
         if ("SPEAKING_SCENARIO".equals(req.assignmentType())) {
             try {
-                PracticeScenario scenario = speakingAiHelpersService.generateScenario(req.topic(), "A2");
+                PracticeScenario scenario = speakingAiHelpersService.generateScenario(teacherId, req.topic(), "A2");
                 AssignmentScenario assignmentScenario = AssignmentScenario.builder()
                         .assignmentId(savedAssignment.getId())
                         .topic(scenario.getTopic())

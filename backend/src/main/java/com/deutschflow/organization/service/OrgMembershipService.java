@@ -59,8 +59,9 @@ public class OrgMembershipService {
     }
 
     /**
-     * Marks the membership REMOVED and clears {@code users.org_id} when it still points
-     * at this org. Global {@code User.Role} is intentionally left unchanged.
+     * Marks the membership REMOVED, clears {@code users.org_id} when it still points
+     * at this org, and demotes the global role back to STUDENT when the user has no
+     * remaining active teaching membership in any other org.
      */
     @Transactional
     public void removeMember(Long orgId, Long userId) {
@@ -72,8 +73,14 @@ public class OrgMembershipService {
         userRepository.findById(userId).ifPresent(user -> {
             if (orgId.equals(user.getOrgId())) {
                 user.setOrgId(null);
-                userRepository.save(user);
             }
+            // Demote to STUDENT when no other active teaching membership remains
+            if (user.getRole() == User.Role.TEACHER &&
+                    !memberRepo.existsByIdUserIdAndRoleInAndStatus(userId, TEACHING_ROLES, STATUS_ACTIVE)) {
+                log.info("Demoting user {} to STUDENT — no remaining active teaching membership", userId);
+                user.setRole(User.Role.STUDENT);
+            }
+            userRepository.save(user);
         });
     }
 

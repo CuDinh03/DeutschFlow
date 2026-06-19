@@ -335,7 +335,7 @@ class TeacherServiceTest {
         AssignmentScenario result = teacherService.getOrCreateScenarioForStudent(assignmentId, studentId);
 
         assertEquals(9L, result.getId());
-        verify(speakingAiHelpersService, never()).generateScenario(anyString(), anyString());
+        verify(speakingAiHelpersService, never()).generateScenario(any(Long.class), anyString(), anyString());
         verify(assignmentScenarioRepository, never()).save(any());
     }
 
@@ -349,7 +349,7 @@ class TeacherServiceTest {
         ClassAssignment ca = ClassAssignment.builder()
                 .id(assignmentId).topic("Nói về gia đình").assignmentType("SPEAKING_SCENARIO").build();
         when(assignmentRepository.findById(assignmentId)).thenReturn(java.util.Optional.of(ca));
-        when(speakingAiHelpersService.generateScenario("Nói về gia đình", "A2")).thenReturn(
+        when(speakingAiHelpersService.generateScenario(studentId, "Nói về gia đình", "A2")).thenReturn(
                 SpeakingAiHelpersService.PracticeScenario.builder()
                         .topic("Nói về gia đình").level("A2")
                         .scenarioDescription("desc").followUpQuestions("q").build());
@@ -376,7 +376,7 @@ class TeacherServiceTest {
 
         assertThrows(NotFoundException.class,
                 () -> teacherService.getOrCreateScenarioForStudent(500L, 200L));
-        verify(speakingAiHelpersService, never()).generateScenario(anyString(), anyString());
+        verify(speakingAiHelpersService, never()).generateScenario(any(Long.class), anyString(), anyString());
     }
 
     @Test
@@ -391,6 +391,6 @@ class TeacherServiceTest {
 
         assertThrows(NotFoundException.class,
                 () -> teacherService.getOrCreateScenarioForStudent(assignmentId, studentId));
-        verify(speakingAiHelpersService, never()).generateScenario(anyString(), anyString());
+        verify(speakingAiHelpersService, never()).generateScenario(any(Long.class), anyString(), anyString());
     }
 }
