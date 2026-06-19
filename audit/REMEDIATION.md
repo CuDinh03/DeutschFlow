@@ -50,7 +50,7 @@ Sắp xếp: Nghiêm trọng → Cao → TB → Thấp; trong cùng mức, công
 | **T-4** | Admin org endpoint không re-verify orgId từ path | Khắc phục | ⚪ Thấp | S | `AdminOrganizationController.java` (10 ep) | Backlog |
 | **dead** | `ErrorDetectionService` không có caller | Nâng cấp | ⚪ Thấp | S | `ErrorDetectionService.java:43` | Ngay (xóa) |
 | **M-1** | `exceptionHandling` cấu hình 2 lần (thừa) | Nâng cấp | ⚪ Thấp | S | `SecurityConfig.java:54,115` | Backlog |
-| **O-3** | 4 lớp rate-limiter rời, chỉ 1 có Redis | Nâng cấp | ⚪ Thấp | S | `AuthRateLimiterService` + `speaking/AiRateLimiterService` + `speaking/RateLimiterService` + `NotificationRateLimiterService` | Backlog |
+| **O-3** | ~~4 lớp rate-limiter rời~~ ✅ IMPROVED `3675aa83` | Nâng cấp | ⚪ Thấp | S | 3/4 Redis-backed; `NotificationRateLimiterService` in-memory (low-stakes) | Backlog |
 | **C** | `orgRole` JWT là display-hint, lệch tới 15' sau khi đổi quyền | Khắc phục | ⚪ Thấp | M | `JwtService.java:142-164` (claim); `JwtAuthFilter.java` | Backlog |
 | **J** | Roster seat-limit race (SELECT COUNT không lock) | Khắc phục | ⚪ Thấp | M | `OrgRosterService.java:113-114` | Backlog |
 | **S-6** | `SessionTurnGuard` in-memory → lượt nói đôi đa-node | Nâng cấp | ⚪ Thấp | M | `SessionTurnGuard.java:18` | Trước scale (hoặc sticky) |
@@ -271,11 +271,10 @@ Sắp xếp: Nghiêm trọng → Cao → TB → Thấp; trong cùng mức, công
 - **Hướng sửa**: Bỏ block trùng đầu tiên.
 - **Chi phí hoãn**: Không; chỉ gây nhầm khi đọc.
 
-### O-3 — 4 lớp rate-limiter rời ⚪
-- **Vấn đề**: 4 cài đặt sliding-window; chỉ `AuthRateLimiterService` có Redis+fallback.
-- **Ở đâu**: `AuthRateLimiterService` + `speaking/AiRateLimiterService` + `speaking/RateLimiterService` + `NotificationRateLimiterService`.
-- **Hướng sửa**: Gộp thành một abstraction có Redis backing; các nơi khác dùng chung.
-- **Chi phí hoãn**: Các limiter in-memory cũng vỡ khi scale ngang (cùng họ vấn đề S-1).
+### O-3 — 4 lớp rate-limiter rời ⚪ ✅ IMPROVED `3675aa83`
+- **Đã làm**: `RateLimiterService` (speaking turn limiter) chuyển sang Redis sorted-set Lua + in-memory fallback — giống pattern `AiRateLimiterService`. 3/4 service giờ multi-node safe.
+- **Còn lại**: `NotificationRateLimiterService` vẫn in-memory (polling/SSE limits, low-stakes financial).
+- **Xem thêm**: `audit/wave8_o3_rate_limiter_redis.md`
 
 ### O-2 — `QuotaService` 655 dòng + hàm nhân đôi ⚪
 - **Vấn đề**: `buildSnapshot`/`buildSnapshotReadOnly` trùng; `computeAccruedWalletBalance`/`accrueWalletThroughToday` trùng phép tính. Mô hình wallet-accrual phức tạp quá mức.
