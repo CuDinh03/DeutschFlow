@@ -48,6 +48,21 @@ public class AiUsageLedgerService {
                 feature, requestId, sessionId,
                 userId
         );
+
+        // S-3/P-10: atomically increment monthly counter for org (no-op for B2C users with org_id IS NULL).
+        // ON CONFLICT DO UPDATE is atomic — avoids the race that SUM(ledger) has.
+        jdbcTemplate.update("""
+                        INSERT INTO org_monthly_token_counters (org_id, month_start, tokens_used)
+                        SELECT u.org_id,
+                               date_trunc('month', now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date,
+                               ?
+                        FROM users u WHERE u.id = ? AND u.org_id IS NOT NULL
+                        ON CONFLICT (org_id, month_start)
+                        DO UPDATE SET tokens_used = org_monthly_token_counters.tokens_used + EXCLUDED.tokens_used
+                        """,
+                totalTokens, userId
+        );
+
         quotaService.applyUsageDebit(userId, totalTokens, Instant.now());
     }
 }

@@ -23,18 +23,19 @@ public class OrgQuotaService {
     }
 
     /**
-     * Tổng token AI org đã dùng trong tháng hiện tại.
-     * Sử dụng cột {@code ai_token_usage_events.org_id} (D-2) — index scan thay vì JOIN.
-     * Rows chưa backfill (org_id IS NULL) không được đếm, chấp nhận được với data hiện tại.
+     * Tổng token AI org đã dùng trong tháng hiện tại — O(1) PK lookup từ counter table (S-3/P-10).
+     * Counter được tăng atomic trong {@code AiUsageLedgerService.record()} mỗi khi có event.
+     * Trả 0 nếu tháng này chưa có event nào (row chưa tồn tại).
      */
     @Transactional(readOnly = true)
     public long orgUsageThisMonth(Long orgId) {
-        Long total = jdbcTemplate.queryForObject("""
-                SELECT COALESCE(SUM(total_tokens), 0)
-                FROM ai_token_usage_events
+        Long total = jdbcTemplate.query("""
+                SELECT tokens_used FROM org_monthly_token_counters
                 WHERE org_id = ?
-                  AND created_at >= date_trunc('month', now() AT TIME ZONE 'Asia/Ho_Chi_Minh') AT TIME ZONE 'Asia/Ho_Chi_Minh'
-                """, Long.class, orgId);
+                  AND month_start = date_trunc('month', now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date
+                """,
+                rs -> rs.next() ? rs.getLong(1) : null,
+                orgId);
         return total != null ? total : 0L;
     }
 
