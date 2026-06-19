@@ -45,11 +45,24 @@ public class QuotaService {
         return buildSnapshotReadOnly(userId, now);
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    /**
+     * Hot-path quota gate: read-only snapshot (no reconcile writes) so Hikari pool is not saturated
+     * under concurrent AI requests (S-4). FREE trial expiry is enforced via a 7-day virtual check;
+     * background {@code SubscriptionReconcileJob} handles the actual DB state update.
+     */
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     public QuotaSnapshot assertAllowed(long userId, Instant nowUtc, long estimatedMinTokens) {
-        QuotaSnapshot snap = buildSnapshot(userId, nowUtc);
+        QuotaSnapshot snap = buildSnapshotReadOnly(userId, nowUtc);
         if (snap.unlimitedInternal()) {
             return snap;
+        }
+        // Virtual 7-day FREE trial expiry — DB reconcile is async (SubscriptionReconcileJob);
+        // gating must not allow AI access to users whose trial expired but ends_at is not yet set.
+        if (PLAN_FREE.equals(snap.planCode())
+                && snap.subscriptionEndsAtUtc() == null
+                && snap.subscriptionStartsAtUtc() != null
+                && !nowUtc.isBefore(snap.subscriptionStartsAtUtc().plus(7, ChronoUnit.DAYS))) {
+            throw new QuotaExceededException("Gói dùng thử 7 ngày đã hết hạn. Hãy nâng cấp để tiếp tục.", snap);
         }
         if (snap.remainingSpendable() <= 0L) {
             throw new QuotaExceededException("AI token quota exceeded.", snap);
@@ -63,6 +76,12 @@ public class QuotaService {
             throw new QuotaExceededException("Tổ chức đã dùng hết ngân sách token AI tháng này.", snap);
         }
         return snap;
+    }
+
+    /** Called by {@code SubscriptionReconcileJob} to run subscription lifecycle cleanup per user. */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void reconcileForUser(long userId, Instant now) {
+        reconcileSubscriptions(userId, now);
     }
 
     @Transactional

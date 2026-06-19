@@ -116,9 +116,9 @@ public class OrgRosterService {
                     seatLimitHit = true;
                     errors.add("Dòng " + rowNum + ": đã đạt giới hạn chỗ ngồi ("
                             + org.getSeatLimit() + "), bỏ qua " + email);
-                    // Stop admitting NEW students; existing members below would still be allowed,
-                    // but per contract we halt new additions here.
-                    break;
+                    // Skip this new student but continue — existing members later in the CSV
+                    // are still allowed and must not be silently dropped (K).
+                    continue;
                 }
 
                 User user;

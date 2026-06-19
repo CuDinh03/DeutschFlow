@@ -5,6 +5,8 @@ import com.deutschflow.common.async.AsyncJobService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.quota.AiUsageLedgerService;
+import com.deutschflow.common.quota.QuotaService;
+import com.deutschflow.organization.service.OrgPoolGuard;
 import com.deutschflow.gamification.service.XpService;
 import com.deutschflow.speaking.ai.AiChatCompletionResult;
 import com.deutschflow.speaking.ai.ChatMessage;
@@ -20,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -43,6 +46,8 @@ public class PracticeNodeService {
     private final AsyncJobService asyncJobService;
     private final XpService xpService;
     private final com.deutschflow.srs.service.SrsVocabScheduler srsVocabScheduler;
+    private final QuotaService quotaService;
+    private final OrgPoolGuard orgPoolGuard;
     /**
      * Bounded pool for blocking LLM practice-node generation. Field name matches the
      * {@code aiExecutor} bean (AsyncConfig) so Spring resolves it by name. Replaces
@@ -52,6 +57,7 @@ public class PracticeNodeService {
     private final Executor aiExecutor;
 
     private static final int XP_PER_SESSION = 30;
+    private static final long PRACTICE_ESTIMATED_TOKENS = 4_096L;
     private static final List<String> ALL_SKILLS = List.of("HOEREN", "SPRECHEN", "LESEN", "SCHREIBEN");
 
     // Prevent duplicate concurrent generations
@@ -81,6 +87,8 @@ public class PracticeNodeService {
 
     public Map<String, Object> generatePracticeSession(long userId, long sourceNodeId, String skillType, int generation) {
         validateSkillType(skillType);
+        quotaService.assertAllowed(userId, Instant.now(), PRACTICE_ESTIMATED_TOKENS);
+        orgPoolGuard.assertOrgPoolAvailable(userId, PRACTICE_ESTIMATED_TOKENS);
 
         String lockKey = userId + ":" + sourceNodeId + ":" + skillType + ":" + generation;
         if (generationLocks.putIfAbsent(lockKey, true) != null) {

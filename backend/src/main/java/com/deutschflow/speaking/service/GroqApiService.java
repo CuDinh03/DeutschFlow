@@ -20,44 +20,22 @@ public class GroqApiService {
 
     private final GroqChatClient groqChatClient;
 
-    /**
-     * Generate dialogue response from Groq AI
-     */
-    public String generateDialogueResponse(String userMessage, String conversationHistory,
-                                          String topicContext, String learningLevel) {
+    public AiChatCompletionResult generateDialogueResponse(String userMessage, String conversationHistory,
+                                                            String topicContext, String learningLevel) {
         try {
             List<ChatMessage> messages = buildMessageHistory(userMessage, conversationHistory, topicContext, learningLevel);
-
-            AiChatCompletionResult result = groqChatClient.chatCompletion(
-                    messages,
-                    null,  // use default model
-                    0.7,   // temperature for natural variation
-                    200    // max tokens for dialogue response
-            );
-
-            return result.content();
+            return groqChatClient.chatCompletion(messages, null, 0.7, 200);
         } catch (Exception e) {
             log.error("Error generating dialogue response from Groq API", e);
             throw new AiServiceException("Failed to generate dialogue response: " + e.getMessage(), e);
         }
     }
 
-    /**
-     * Evaluate user response and generate feedback
-     */
-    public String evaluateAndFeedback(String userResponse, String expectedResponse,
-                                      String learningLevel, String topicContext) {
+    public AiChatCompletionResult evaluateAndFeedback(String userResponse, String expectedResponse,
+                                                       String learningLevel, String topicContext) {
         try {
             List<ChatMessage> messages = buildEvaluationMessages(userResponse, expectedResponse, learningLevel, topicContext);
-
-            AiChatCompletionResult result = groqChatClient.chatCompletion(
-                    messages,
-                    null,  // use default model
-                    0.5,   // lower temperature for more consistent evaluations
-                    300    // max tokens for feedback
-            );
-
-            return result.content();
+            return groqChatClient.chatCompletion(messages, null, 0.5, 300);
         } catch (Exception e) {
             log.error("Error evaluating user response from Groq API", e);
             throw new AiServiceException("Failed to evaluate response: " + e.getMessage(), e);

@@ -1,5 +1,7 @@
 package com.deutschflow.speaking.service;
 
+import com.deutschflow.common.quota.AiUsageLedgerService;
+import com.deutschflow.speaking.ai.AiChatCompletionResult;
 import com.deutschflow.speaking.dto.GreetingSessionDto;
 import com.deutschflow.speaking.entity.AiSpeakingSession;
 import com.deutschflow.speaking.entity.DialogueTemplate;
@@ -39,15 +41,22 @@ class GreetingServiceTest {
     @Mock
     private GroqApiService groqApiService;
 
+    @Mock
+    private AiUsageLedgerService ledgerService;
+
     private GreetingService service;
+
+    private static AiChatCompletionResult result(String content) {
+        return new AiChatCompletionResult(content, null, "groq", "llama");
+    }
 
     @BeforeEach
     void setUp() {
         lenient().when(groqApiService.generateDialogueResponse(any(), any(), any(), any()))
-                .thenReturn("Hallo! Wie heißt du?");
+                .thenReturn(result("Hallo! Wie heißt du?"));
         lenient().when(groqApiService.evaluateAndFeedback(any(), any(), any(), any()))
-                .thenReturn("Sehr gut! Deine Antwort war korrekt.");
-        service = new GreetingService(aiSpeakingSessionRepository, dialogueTemplateRepository, groqApiService);
+                .thenReturn(result("Sehr gut! Deine Antwort war korrekt."));
+        service = new GreetingService(aiSpeakingSessionRepository, dialogueTemplateRepository, groqApiService, ledgerService);
     }
 
     // -----------------------------------------------------------------------
@@ -343,7 +352,7 @@ class GreetingServiceTest {
             when(aiSpeakingSessionRepository.findById(1L)).thenReturn(Optional.of(session));
             when(aiSpeakingSessionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
             when(groqApiService.evaluateAndFeedback(eq("Guten Morgen"), any(), any(), any()))
-                    .thenReturn("Sehr gut! Guten Morgen ist richtig.");
+                    .thenReturn(result("Sehr gut! Guten Morgen ist richtig."));
 
             GreetingSessionDto result = service.submitUserResponse(1L, 1L, "Guten Morgen", 3);
 

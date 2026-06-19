@@ -1,6 +1,7 @@
 package com.deutschflow.video.service;
 
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.common.quota.AiUsageLedgerService;
 import com.deutschflow.grammar.entity.GrammarCase;
 import com.deutschflow.grammar.entity.GrammarCaseExample;
 import com.deutschflow.grammar.repository.GrammarCaseExampleRepository;
@@ -58,6 +59,7 @@ public class VideoLessonService {
     private final GrammarCaseExampleRepository grammarCaseExampleRepository;
     private final OpenAiChatClient llmClient;
     private final ObjectMapper objectMapper;
+    private final AiUsageLedgerService ledgerService;
 
     /** Build a vocab timeline for a CEFR level: most-frequent words that have an image. */
     public VideoTimelineDto buildVocabTimeline(String level, int limit) {
@@ -145,8 +147,8 @@ public class VideoLessonService {
      * topic, and each line becomes a text-card scene narrated by an alternating persona
      * voice. Returns an empty timeline if the LLM/JSON is unavailable.
      */
-    public VideoTimelineDto buildListeningTimeline(String topic, String level) {
-        List<Map<String, Object>> lines = generateDialogue(topic, level);
+    public VideoTimelineDto buildListeningTimeline(Long userId, String topic, String level) {
+        List<Map<String, Object>> lines = generateDialogue(userId, topic, level);
         Map<String, String> personaBySpeaker = new HashMap<>();
         String[] voices = {"LUKAS", "EMMA", "KLAUS"};
         AtomicInteger seq = new AtomicInteger(1);
@@ -171,7 +173,7 @@ public class VideoLessonService {
         return new VideoTimelineDto("LISTENING", topic, "DIALOG", scenes.size(), scenes);
     }
 
-    private List<Map<String, Object>> generateDialogue(String topic, String level) {
+    private List<Map<String, Object>> generateDialogue(Long userId, String topic, String level) {
         String system = """
                 You are a German teacher creating a short listening-practice dialogue.
                 Write a natural German conversation between two people on the given topic at the given CEFR level.
@@ -184,6 +186,11 @@ public class VideoLessonService {
             AiChatCompletionResult res = llmClient.chatCompletion(
                     List.of(new ChatMessage("system", system), new ChatMessage("user", user)),
                     null, 0.7, 900);
+            if (res.usage() != null) {
+                ledgerService.record(userId, res.provider(), res.model(),
+                        res.usage().promptTokens(), res.usage().completionTokens(),
+                        res.usage().totalTokens(), "VIDEO_LISTENING", null, null);
+            }
             return parseDialogueJson(res.content());
         } catch (Exception e) {
             log.warn("[VideoLesson] dialogue generation failed for topic \"{}\": {}", topic, e.getMessage());
