@@ -1,5 +1,7 @@
 package com.deutschflow.speaking.controller;
 
+import com.deutschflow.common.quota.QuotaService;
+import com.deutschflow.organization.service.OrgPoolGuard;
 import com.deutschflow.speaking.ai.OpenAiChatClient;
 import com.deutschflow.speaking.ai.ChatMessage;
 import com.deutschflow.user.entity.User;
@@ -11,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.jdbc.core.JdbcTemplate;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -20,11 +23,15 @@ import java.util.Map;
 @Slf4j
 public class AiSpeakingMockExamController {
 
+    private static final long MOCK_EVAL_ESTIMATED_TOKENS = 800L;
+
     private final OpenAiChatClient chatClient;
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
     private final com.deutschflow.speaking.service.SprechenTeil2Service sprechenTeil2Service;
     private final com.deutschflow.speaking.AiRateLimiterService aiRateLimiterService;
+    private final QuotaService quotaService;
+    private final OrgPoolGuard orgPoolGuard;
 
     @PostMapping("/mock-exam/evaluate")
     public ResponseEntity<Map<String, Object>> evaluateMockExam(
@@ -221,8 +228,10 @@ public class AiSpeakingMockExamController {
         }
     }
 
-    /** Throw 429 (Retry-After) when this user has spent their per-window LLM-evaluation budget. */
+    /** Throw 429/402 when this user has exceeded rate-limit or token quota. */
     private void requireEvalBudget(long userId) {
+        quotaService.assertAllowed(userId, Instant.now(), MOCK_EVAL_ESTIMATED_TOKENS);
+        orgPoolGuard.assertOrgPoolAvailable(userId, MOCK_EVAL_ESTIMATED_TOKENS);
         if (!aiRateLimiterService.allow(com.deutschflow.speaking.AiRateLimiterService.Bucket.EVAL, userId)) {
             throw new com.deutschflow.common.exception.RateLimitExceededException(
                     "Too many evaluations. Please slow down.",

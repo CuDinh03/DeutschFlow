@@ -2,6 +2,7 @@ package com.deutschflow.common.quota;
 
 import com.deutschflow.organization.service.OrgQuotaService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -16,6 +17,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class QuotaService {
@@ -95,6 +97,13 @@ public class QuotaService {
         }
 
         ensureWalletRow(userId);
+        Long currentBalance = jdbcTemplate.queryForObject(
+                "SELECT balance FROM user_ai_token_wallets WHERE user_id = ?", Long.class, userId);
+        long walletBalance = currentBalance != null ? currentBalance : 0L;
+        if (totalTokens > walletBalance) {
+            log.warn("[Quota] Debt absorbed: userId={} consumed={} balance={} overage={}",
+                    userId, totalTokens, walletBalance, totalTokens - walletBalance);
+        }
         jdbcTemplate.update(
                 """
                         UPDATE user_ai_token_wallets SET balance = GREATEST(0, balance - ?), updated_at = CURRENT_TIMESTAMP

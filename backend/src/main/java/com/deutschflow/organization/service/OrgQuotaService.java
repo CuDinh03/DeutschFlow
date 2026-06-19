@@ -30,7 +30,7 @@ public class OrgQuotaService {
                 FROM ai_token_usage_events e
                 JOIN users u ON u.id = e.user_id
                 WHERE u.org_id = ?
-                  AND e.created_at >= date_trunc('month', now())
+                  AND e.created_at >= date_trunc('month', now() AT TIME ZONE 'Asia/Ho_Chi_Minh') AT TIME ZONE 'Asia/Ho_Chi_Minh'
                 """, Long.class, orgId);
         return total != null ? total : 0L;
     }
