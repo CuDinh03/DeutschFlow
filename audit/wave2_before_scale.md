@@ -16,7 +16,7 @@
 | Seat | F | ✅ DONE | `bbce5ee7` |
 | Hạ tầng | S-4 | ✅ DONE | current session |
 | DB index | S-3 (index only) | ✅ DONE | current session |
-| Roster bug | K | ✅ DONE | current session |
+| Roster bug | K | ✅ DONE | `fdb208d1` |
 | Hạ tầng | S-1 | ⏳ DEFERRED | Redis ticket store |
 | Hạ tầng | S-2/B | ⏳ DEFERRED | JwtAuthFilter user cache |
 | Hạ tầng | S-5 | ⏳ DEFERRED | LLM async |

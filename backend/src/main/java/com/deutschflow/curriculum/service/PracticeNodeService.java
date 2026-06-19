@@ -82,6 +82,49 @@ public class PracticeNodeService {
     }
 
     // ─────────────────────────────────────────────────────────────
+    // 1b. ASYNC WRAPPERS — trả 202+jobId cho controller (S-5: off Tomcat thread)
+    // ─────────────────────────────────────────────────────────────
+
+    /**
+     * Sinh Gen-1 session cho 1 kỹ năng trên aiExecutor, trả jobId ngay.
+     * Controller trả 202; client poll {@code GET /api/async-jobs/{jobId}}.
+     */
+    public Map<String, Object> startPracticeSessionAsync(long userId, long nodeId, String skillType) {
+        AsyncJob job = asyncJobService.createJob("GENERATE_PRACTICE", userId);
+        CompletableFuture.runAsync(() -> {
+            try {
+                Map<String, Object> result = generatePracticeSession(userId, nodeId, skillType, 1);
+                asyncJobService.completeJob(job.getId(), objectMapper.writeValueAsString(result));
+            } catch (Exception e) {
+                asyncJobService.failJob(job.getId(),
+                        e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
+                log.error("[PracticeNode] Async start failed userId={} nodeId={} skill={}: {}",
+                        userId, nodeId, skillType, e.getMessage());
+            }
+        }, aiExecutor);
+        return Map.of("jobId", job.getId().toString(), "status", AsyncJob.Status.PENDING.name());
+    }
+
+    /**
+     * Sinh thế hệ tiếp theo (Gen N+1) trên aiExecutor, trả jobId ngay.
+     */
+    public Map<String, Object> generateNextAsync(long userId, long nodeId, String skillType) {
+        AsyncJob job = asyncJobService.createJob("GENERATE_PRACTICE_NEXT", userId);
+        CompletableFuture.runAsync(() -> {
+            try {
+                Map<String, Object> result = generateNextGeneration(userId, nodeId, skillType);
+                asyncJobService.completeJob(job.getId(), objectMapper.writeValueAsString(result));
+            } catch (Exception e) {
+                asyncJobService.failJob(job.getId(),
+                        e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
+                log.error("[PracticeNode] Async next-gen failed userId={} nodeId={} skill={}: {}",
+                        userId, nodeId, skillType, e.getMessage());
+            }
+        }, aiExecutor);
+        return Map.of("jobId", job.getId().toString(), "status", AsyncJob.Status.PENDING.name());
+    }
+
+    // ─────────────────────────────────────────────────────────────
     // 2. GENERATE — Sinh 1 practice session cho 1 kỹ năng
     // ─────────────────────────────────────────────────────────────
 
