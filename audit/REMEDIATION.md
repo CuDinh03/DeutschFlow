@@ -19,43 +19,43 @@ Sắp xếp: Nghiêm trọng → Cao → TB → Thấp; trong cùng mức, công
 
 | ID | Vấn đề | Loại | Mức độ | Công | File:dòng | Thời điểm |
 |---|---|---|---|---|---|---|
-| **P-3** | `AISpeakingController` /api/speaking/ai/* — không @PreAuthorize, không token, không ledger | Khắc phục | 🔴 Nghiêm trọng | S | `AISpeakingController.java:35-90`; `SpeakingAiHelpersService.java:26` | Ngay |
-| **P-4** | Teacher AI sinh bài tập bỏ qua cả org pool | Khắc phục | 🟠 Cao | S | `GrammarSyllabusController` generate (:66,72) | Ngay |
-| **P-6/E** | `catch(Exception)` nuốt `assertAllowed` ở 2 eval → quota vô hiệu + không ghi ledger | Khắc phục | 🟠 Cao | S | `ConversationEvaluationService.java:44-79`; `InterviewEvaluationService.java:43-78` | Ngay |
-| **P-7** | TTS endpoint không chốt, text user không giới hạn độ dài | Khắc phục | 🟠 Cao | S | `TtsController.java:37-62` | Ngay |
-| **I** | Auto-promote STUDENT→TEACHER, không auto-demote khi remove | Khắc phục | 🟠 Cao | S | `OrgMembershipService.java:55-57,65-78` | Ngay |
+| **P-3** | ~~`AISpeakingController` không auth/token/ledger~~ ✅ DONE (wave1) | Khắc phục | 🔴 Nghiêm trọng | S | auth+quota+ledger added | Ngay |
+| **P-4** | ~~Teacher AI sinh bài tập bỏ qua org pool~~ ✅ DONE (wave1) | Khắc phục | 🟠 Cao | S | orgPoolGuard+ledger added | Ngay |
+| **P-6/E** | ~~`catch(Exception)` nuốt `assertAllowed` ở 2 eval~~ ✅ DONE (wave1) | Khắc phục | 🟠 Cao | S | catch thu hẹp + ledger | Ngay |
+| **P-7** | ~~TTS endpoint không chốt~~ ✅ DONE (wave1) | Khắc phục | 🟠 Cao | S | cap độ dài + rate-limit | Ngay |
+| **I** | ~~Auto-promote không auto-demote~~ ✅ DONE (wave1) | Khắc phục | 🟠 Cao | S | removeMember hạ role | Ngay |
 | **S-3** | ~~Org-pool `SUM` không index theo org_id~~ ✅ DONE `f8c59380` | Nâng cấp | 🟠 Cao | S | `org_monthly_token_counters` V224; PK lookup O(1) | Trước scale |
-| **P-1** | LLM ungated + vô hình ledger: mock-exam finish, correct-writing, greeting, video | Khắc phục | 🟠 Cao | M | `AiExamEvaluatorService:50,169`; `SkillTreeController:245`; `GroqApiService:31,53`; `VideoLessonService:184` | Ngay→Trước scale |
-| **P-2** | LLM ungated (student) đốt pool gián tiếp: practice, satellite, pronunciation | Khắc phục | 🟠 Cao | M | `PracticeNodeService:117,143`; `SkillTreeService:417,886,1024` | Trước scale |
-| **S-1** | SSE ticket in-memory → chặn scale ngang (speaking hỏng đa-node) | Nâng cấp | 🟠 Cao | M | `SseTicketService.java:33` | Trước scale |
-| **S-4** | `reconcileSubscriptions` ghi DB mỗi `assertAllowed` (write-amp) | Nâng cấp | 🟠 Cao | M | `QuotaService.java:48,252,370` | Trước scale |
-| **B-leak** | Org pool = SUM(ledger) → mù với toàn bộ AI ungated; enforce sai đối tượng | Khắc phục | 🟠 Cao | L | `OrgQuotaService.java:28-34` | Trước scale |
-| **P-11** | Wallet clamp `GREATEST(0,...)` nuốt overage → thất thu im lặng | Khắc phục | 🟡 TB | S | `QuotaService.java:100` | Trước scale |
-| **P-5** | Onboarding mock-exam chỉ rate-limit, không token quota | Khắc phục | 🟡 TB | S | `AiSpeakingMockExamController.java:34,143` | Trước scale |
-| **M-3** | Org pool theo `date_trunc(UTC)` lệch personal-quota theo VN-day | Khắc phục | 🟡 TB | S | `OrgQuotaService.java:28-35` vs `QuotaVnCalendar.java` | Trước scale |
-| **M-5** | `FreeTierGuard` chỉ áp B2C; org member bỏ qua free-tier PPTX/OCR | Khắc phục | 🟡 TB | S | `FreeTierGuard.java:78-81` | Trước scale |
-| **P-9/D** | Check-then-debit không atomic → race over-spend | Khắc phục | 🟡 TB | M | `QuotaService.java:47-64,82-112` | Trước scale |
+| **P-1** | ~~LLM ungated + vô hình ledger~~ ✅ DONE (wave1) | Khắc phục | 🟠 Cao | M | ledger+gate cho mock-exam/correct-writing/greeting/video | Ngay→Trước scale |
+| **P-2** | ~~LLM ungated student đốt pool~~ ✅ DONE (wave1) | Khắc phục | 🟠 Cao | M | pre-check assertAllowed added | Trước scale |
+| **S-1** | ~~SSE ticket in-memory~~ ✅ DONE (wave4) | Nâng cấp | 🟠 Cao | M | SseTicketService Redis `0b431ee2` | Trước scale |
+| **S-4** | ~~reconcileSubscriptions write-amp~~ ✅ DONE (wave2) | Nâng cấp | 🟠 Cao | M | buildSnapshotReadOnly + SubscriptionReconcileJob | Trước scale |
+| **B-leak** | ~~Org pool SUM mù với AI ungated~~ ✅ DONE (wave1+7) | Khắc phục | 🟠 Cao | L | mọi đường AI ghi ledger (w1) + counter atomic (w7) | Trước scale |
+| **P-11** | ~~Wallet clamp nuốt overage~~ ✅ DONE (wave2) | Khắc phục | 🟡 TB | S | log.warn thất thu khi clamp | Trước scale |
+| **P-5** | ~~Onboarding chỉ rate-limit~~ ✅ DONE (wave2) | Khắc phục | 🟡 TB | S | assertAllowed+orgPoolGuard added | Trước scale |
+| **M-3** | ~~Org pool UTC lệch VN-day~~ ✅ DONE (wave2) | Khắc phục | 🟡 TB | S | date_trunc VN timezone | Trước scale |
+| **M-5** | `FreeTierGuard` chỉ áp B2C — ⏳ DEFERRED (policy decision) | Khắc phục | 🟡 TB | S | `FreeTierGuard.java:78-81` | Trước scale |
+| **P-9/D** | Check-then-debit không atomic — ⏳ DEFERRED (soft-cap accepted) | Khắc phục | 🟡 TB | M | `QuotaService.java:47-64,82-112` | Trước scale |
 | **P-10/M-4** | ~~Org pool không khóa → race vượt pool~~ ✅ IMPROVED `f8c59380` | Khắc phục | 🟡 TB | M | atomic counter (soft-cap; hard reserve = P-9 still deferred) | Trước scale |
-| **P-8** | STT không pre-check, chỉ ghi post-hoc | Khắc phục | 🟡 TB | M | `AiSessionController:106`; `PhonemeService:38`; `SkillTreeController:183`; `AiJobWorker:107`; `PronunciationScorerService:42` | Trước scale |
-| **T-1/D-1/M-2** | Hai nguồn tenant: `users.org_id` vs `org_members`, không constraint | Nâng cấp | 🟡 TB | M | `OrgQuotaService.java:65-74` vs `OrgGuard.java:31` | Trước scale |
-| **T-5/D-4** | Thiếu role accountant/TA → finance buộc làm org-admin (over-privilege) | Nâng cấp | 🟡 TB | M | `User.java:112`; `OrgController` billing | Trước scale |
-| **S-2/B** | `loadUserByUsername` mỗi request, không cache | Nâng cấp | 🟡 TB | M | `JwtAuthFilter.java:129` | Trước scale |
+| **P-8** | ~~STT không pre-check~~ ✅ DONE (wave2, controller-level) | Khắc phục | 🟡 TB | M | assertAllowed+orgPoolGuard tại AiSessionController+SkillTreeController | Trước scale |
+| **T-1/D-1/M-2** | ~~Hai nguồn tenant~~ ✅ DONE (wave5) | Nâng cấp | 🟡 TB | M | OrgQuotaService dùng org_members `2c91784c` | Trước scale |
+| **T-5/D-4** | ~~Thiếu role accountant~~ ✅ DONE (wave4) | Nâng cấp | 🟡 TB | M | assertOrgFinance+ACCOUNTANT `f8b97797` | Trước scale |
+| **S-2/B** | ~~loadUserByUsername mỗi request~~ ✅ DONE (wave4) | Nâng cấp | 🟡 TB | M | Caffeine 60s cache `f8b97797` | Trước scale |
 | **S-5** | ~~LLM đồng bộ giữ thread Tomcat~~ ✅ DONE `e7ea78ff` | Nâng cấp | 🟡 TB | M | `PracticeNodeService:async`; `MockExamController:processFinishExam` | Trước scale |
-| **D-2** | Không có `org_id` trên bảng nghiệp vụ → cách ly không nền cứng | Nâng cấp | 🟡 TB (latent) | L | classes/sessions/assignments/`ai_token_usage_events` (toàn cục) | Trước scale (quyết định) |
-| **D-3/G** | Invoice seats tĩnh, tách rời membership; thiếu metering/proration | Nâng cấp | 🟡 TB | L | `OrgBillingService.java:50-68` | Trước scale (quyết định SP) |
-| **A** | `System.err.println` cho lỗi trial → mất khỏi log container | Khắc phục | ⚪ Thấp | S | `AuthService.java:114` | Ngay |
-| **F** | Thêm member đơn lẻ qua API không check seat limit | Khắc phục | ⚪ Thấp | S | `OrgController` add-member | Trước scale |
-| **H** | `attachOwner` nuốt lỗi invite → org tạo xong không owner | Khắc phục | ⚪ Thấp | S | `AdminOrgService` attachOwner | Backlog |
-| **K** | `break` khi hit seat-limit bỏ qua existing member hàng sau | Khắc phục | ⚪ Thấp | S | `OrgRosterService.java:121` | Backlog |
-| **T-4** | Admin org endpoint không re-verify orgId từ path | Khắc phục | ⚪ Thấp | S | `AdminOrganizationController.java` (10 ep) | Backlog |
-| **dead** | `ErrorDetectionService` không có caller | Nâng cấp | ⚪ Thấp | S | `ErrorDetectionService.java:43` | Ngay (xóa) |
-| **M-1** | `exceptionHandling` cấu hình 2 lần (thừa) | Nâng cấp | ⚪ Thấp | S | `SecurityConfig.java:54,115` | Backlog |
+| **D-2** | ~~Không có `org_id` trên bảng nghiệp vụ~~ ✅ DONE (wave5) | Nâng cấp | 🟡 TB (latent) | L | V223 org_id on ai_token_usage_events+ai_speaking_sessions `8f090008` | Trước scale |
+| **D-3/G** | Invoice billing redesign — ⏳ DEFERRED (product decision) | Nâng cấp | 🟡 TB | L | `OrgBillingService.java:50-68` | Trước scale |
+| **A** | ~~`System.err.println` cho lỗi trial~~ ✅ DONE (wave1) | Khắc phục | ⚪ Thấp | S | log.warn added | Ngay |
+| **F** | ~~Thêm member đơn lẻ không check seat~~ ✅ DONE (wave2) | Khắc phục | ⚪ Thấp | S | AdminOrgService.addMember seat check | Trước scale |
+| **H** | `attachOwner` best-effort — ⏳ DEFERRED (accepted, log.warn in place) | Khắc phục | ⚪ Thấp | S | `AdminOrgService` attachOwner | Backlog |
+| **K** | ~~`break` → `continue` trong OrgRosterService~~ ✅ DONE (wave2) | Khắc phục | ⚪ Thấp | S | `OrgRosterService.java:121` `fdb208d1` | Backlog |
+| **T-4** | ~~Admin org re-verify orgId~~ ✅ N/A (service layer đã xử lý) | Khắc phục | ⚪ Thấp | S | service throws when org not found | Backlog |
+| **dead** | ~~`ErrorDetectionService` không có caller~~ ✅ DONE (wave1) | Nâng cấp | ⚪ Thấp | S | deleted | Ngay |
+| **M-1** | ~~`exceptionHandling` cấu hình 2 lần~~ ✅ DONE (wave3) | Nâng cấp | ⚪ Thấp | S | duplicate block removed `b72154a1` | Backlog |
 | **O-3** | ~~4 lớp rate-limiter rời~~ ✅ IMPROVED `3675aa83` | Nâng cấp | ⚪ Thấp | S | 3/4 Redis-backed; `NotificationRateLimiterService` in-memory (low-stakes) | Backlog |
-| **C** | `orgRole` JWT là display-hint, lệch tới 15' sau khi đổi quyền | Khắc phục | ⚪ Thấp | M | `JwtService.java:142-164` (claim); `JwtAuthFilter.java` | Backlog |
-| **J** | Roster seat-limit race (SELECT COUNT không lock) | Khắc phục | ⚪ Thấp | M | `OrgRosterService.java:113-114` | Backlog |
-| **S-6** | `SessionTurnGuard` in-memory → lượt nói đôi đa-node | Nâng cấp | ⚪ Thấp | M | `SessionTurnGuard.java:18` | Trước scale (hoặc sticky) |
-| **O-2** | `QuotaService` 655 dòng + 2 cặp hàm nhân đôi | Nâng cấp | ⚪ Thấp | M | `QuotaService.java:114/251`, `:219/530` | Backlog |
-| **O-1** | Pipeline speaking xé quá nhỏ + callback né vòng phụ thuộc | Nâng cấp | ⚪ Thấp | L | `SpeakingStreamService.java:37-42` + 7 service | Backlog |
+| **C** | ~~`orgRole` JWT display-hint lệch~~ ✅ DONE (wave4) | Khắc phục | ⚪ Thấp | M | comment added `0b431ee2` | Backlog |
+| **J** | ~~Roster seat-limit race~~ ✅ DONE (wave3) | Khắc phục | ⚪ Thấp | M | FOR UPDATE lock `b72154a1` | Backlog |
+| **S-6** | ~~`SessionTurnGuard` in-memory~~ ✅ DONE (wave4) | Nâng cấp | ⚪ Thấp | M | Redis SET NX EX `1e3db46f` | Trước scale |
+| **O-2** | `QuotaService` 655 dòng — ⏳ DEFERRED (refactor when needed) | Nâng cấp | ⚪ Thấp | M | `QuotaService.java:114/251`, `:219/530` | Backlog |
+| **O-1** | Pipeline speaking — ✅ ACCEPTED as-is per REMEDIATION | Nâng cấp | ⚪ Thấp | L | `SpeakingStreamService.java:37-42` + 7 service | Backlog |
 
 ---
 
