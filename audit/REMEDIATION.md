@@ -40,7 +40,7 @@ Sắp xếp: Nghiêm trọng → Cao → TB → Thấp; trong cùng mức, công
 | **T-1/D-1/M-2** | Hai nguồn tenant: `users.org_id` vs `org_members`, không constraint | Nâng cấp | 🟡 TB | M | `OrgQuotaService.java:65-74` vs `OrgGuard.java:31` | Trước scale |
 | **T-5/D-4** | Thiếu role accountant/TA → finance buộc làm org-admin (over-privilege) | Nâng cấp | 🟡 TB | M | `User.java:112`; `OrgController` billing | Trước scale |
 | **S-2/B** | `loadUserByUsername` mỗi request, không cache | Nâng cấp | 🟡 TB | M | `JwtAuthFilter.java:129` | Trước scale |
-| **S-5** | LLM đồng bộ giữ thread Tomcat | Nâng cấp | 🟡 TB | M | `SkillTreeService:417`; `PracticeNodeService:117`; `AiExamEvaluatorService:50`; `VideoLessonService:184` | Trước scale |
+| **S-5** | ~~LLM đồng bộ giữ thread Tomcat~~ ✅ DONE `e7ea78ff` | Nâng cấp | 🟡 TB | M | `PracticeNodeService:async`; `MockExamController:processFinishExam` | Trước scale |
 | **D-2** | Không có `org_id` trên bảng nghiệp vụ → cách ly không nền cứng | Nâng cấp | 🟡 TB (latent) | L | classes/sessions/assignments/`ai_token_usage_events` (toàn cục) | Trước scale (quyết định) |
 | **D-3/G** | Invoice seats tĩnh, tách rời membership; thiếu metering/proration | Nâng cấp | 🟡 TB | L | `OrgBillingService.java:50-68` | Trước scale (quyết định SP) |
 | **A** | `System.err.println` cho lỗi trial → mất khỏi log container | Khắc phục | ⚪ Thấp | S | `AuthService.java:114` | Ngay |
@@ -239,11 +239,9 @@ Sắp xếp: Nghiêm trọng → Cao → TB → Thấp; trong cùng mức, công
 - **Hướng sửa**: Cache user theo email/TTL ngắn (Redis/Caffeine), invalidate khi đổi role/active.
 - **Chi phí hoãn**: DB pool bão hòa sớm dưới tải đồng thời; latency cộng dồn mọi endpoint.
 
-### S-5 — LLM đồng bộ giữ thread Tomcat 🟡
-- **Vấn đề**: Chỉ speaking-stream dispatch off-thread; skill-tree/practice/mock-exam/video gọi Groq đồng bộ giữ thread 2-10s. Pool Tomcat = 48.
-- **Ở đâu**: `SkillTreeService:417`; `PracticeNodeService:117`; `AiExamEvaluatorService:50`; `VideoLessonService:184`.
-- **Hướng sửa**: Đưa các call sinh-nội-dung dài sang executor off-thread / job queue (đã có `ai/queue/AiJobWorker`); trả 202 + poll hoặc SSE.
-- **Chi phí hoãn**: ~48 lượt sinh-bài chậm làm đói toàn server → mọi user thấy chậm.
+### S-5 — LLM đồng bộ giữ thread Tomcat 🟡 ✅ DONE `e7ea78ff`
+- **Đã làm**: `PracticeNodeService` → `startPracticeSessionAsync`/`generateNextAsync` trả 202+jobId; `MockExamController.finishExam` → tách `processFinishExam` sang `aiExecutor`; quota gate giữ synchronous (fast). SkillTreeService + VideoLessonService đã async trước đó.
+- **Xem thêm**: `audit/wave6_s5_llm_async.md`
 
 ### D-2 — Không có `org_id` trên bảng nghiệp vụ 🟡 (latent, đắt nhất để sửa)
 - **Vấn đề**: classes/sessions/assignments/ledger không mang `org_id`; cách ly teacher dựa hoàn toàn vào đồ thị sở hữu lớp; ledger phải JOIN users mới biết org.

@@ -19,7 +19,7 @@
 | Roster bug | K | ✅ DONE | `fdb208d1` |
 | Hạ tầng | S-1 | ⏳ DEFERRED | Redis ticket store |
 | Hạ tầng | S-2/B | ⏳ DEFERRED | JwtAuthFilter user cache |
-| Hạ tầng | S-5 | ⏳ DEFERRED | LLM async |
+| Hạ tầng | S-5 | ✅ DONE | `e7ea78ff` |
 | Hạ tầng | S-6 | ⏳ DEFERRED | SessionTurnGuard Redis |
 | Race | P-9 | ⏳ DEFERRED | atomic reserve |
 | Race | P-10 | ⏳ DEFERRED | org pool counter |
@@ -89,10 +89,11 @@
 - Fix: cache user theo email/JWT subject (Caffeine 60s TTL), invalidate khi đổi role
 - **Thêm latency vào mọi endpoint** dưới tải
 
-**S-5** — LLM đồng bộ giữ thread Tomcat:
-- `SkillTreeService:417`, `PracticeNodeService:117`, `AiExamEvaluatorService:50`, `VideoLessonService:184`
-- Fix: đẩy sang executor off-thread hoặc job queue (đã có `AiJobWorker`)
-- **~48 lượt AI chậm (2-10s) làm đói toàn server**
+**S-5** — ✅ DONE (`e7ea78ff`, `wave6_s5_llm_async.md`):
+- `PracticeNodeService`: thêm `startPracticeSessionAsync` + `generateNextAsync` (202+jobId)
+- `PracticeNodeController`: cache-hit→200, cache-miss→202+jobId
+- `MockExamController.finishExam`: tách `processFinishExam` sang `aiExecutor`; quota gate giữ synchronous trên Tomcat
+- SkillTreeService đã @Async trước; VideoLessonService đã async trước
 
 **S-6** — `SessionTurnGuard` in-memory:
 - Thấp hơn S-1; chỉ cần Redis khi đã thật sự đa-node
