@@ -33,16 +33,20 @@ public class AiUsageLedgerService {
                        String feature,
                        String requestId,
                        Long sessionId) {
+        // Capture org_id at event time via subquery (D-2) — single round-trip, no separate lookup.
         jdbcTemplate.update("""
                         INSERT INTO ai_token_usage_events (
-                          user_id, provider, model,
+                          user_id, org_id, provider, model,
                           prompt_tokens, completion_tokens, total_tokens,
                           feature, request_id, session_id
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        )
+                        SELECT ?, u.org_id, ?, ?, ?, ?, ?, ?, ?, ?
+                        FROM users u WHERE u.id = ?
                         """,
                 userId, provider, model,
                 promptTokens, completionTokens, totalTokens,
-                feature, requestId, sessionId
+                feature, requestId, sessionId,
+                userId
         );
         quotaService.applyUsageDebit(userId, totalTokens, Instant.now());
     }
