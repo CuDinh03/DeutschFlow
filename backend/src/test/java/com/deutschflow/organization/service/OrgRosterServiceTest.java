@@ -23,6 +23,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
@@ -51,6 +52,7 @@ class OrgRosterServiceTest {
     @Mock private OrgMemberRepository orgMemberRepository;
     @Mock private ClassStudentRepository classStudentRepository;
     @Mock private TeacherClassRepository teacherClassRepository;
+    @Mock private JdbcTemplate jdbcTemplate;
 
     private OrgRosterService service;
 
@@ -67,8 +69,14 @@ class OrgRosterServiceTest {
                 entitlementService,
                 orgMemberRepository,
                 classStudentRepository,
-                teacherClassRepository
+                teacherClassRepository,
+                jdbcTemplate
         );
+        // Stub the advisory FOR UPDATE lock — no-op in tests (J).
+        lenient().when(jdbcTemplate.queryForObject(
+                org.mockito.ArgumentMatchers.contains("FOR UPDATE"),
+                org.mockito.ArgumentMatchers.eq(Long.class),
+                org.mockito.ArgumentMatchers.any())).thenReturn(ORG_ID);
         // CLASS_ID belongs to ORG_ID by default so the existing classId tests pass the IDOR guard.
         lenient().when(teacherClassRepository.findById(CLASS_ID))
                 .thenReturn(Optional.of(TeacherClass.builder().id(CLASS_ID).orgId(ORG_ID).build()));

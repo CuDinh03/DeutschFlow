@@ -16,6 +16,7 @@ import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,6 +52,7 @@ public class OrgRosterService {
     private final OrgMemberRepository orgMemberRepository;
     private final ClassStudentRepository classStudentRepository;
     private final TeacherClassRepository teacherClassRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     /**
      * Imports students from raw CSV text. Columns: {@code email,displayName[,phone]} (comma).
@@ -62,6 +64,12 @@ public class OrgRosterService {
     public RosterImportResultDto importStudents(Long orgId, String csvText, Long classIdOrNull) {
         Organization org = organizationRepository.findById(orgId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy tổ chức: id=" + orgId));
+
+        // Acquire a row-level lock on the org for the duration of this transaction so that two
+        // concurrent imports to the same org cannot both pass the seat-limit check and both insert
+        // students past the limit (J). The lock is held until the outer @Transactional commits.
+        jdbcTemplate.queryForObject("SELECT id FROM organizations WHERE id = ? FOR UPDATE",
+                Long.class, orgId);
 
         // IDOR guard: a target class must belong to THIS org, else an org-admin could enroll
         // students into another org's class by passing a foreign classId.

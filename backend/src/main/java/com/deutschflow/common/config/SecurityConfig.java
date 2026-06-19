@@ -112,9 +112,6 @@ public class SecurityConfig {
                         auth.anyRequest().authenticated();
                 })
                 .authenticationProvider(authenticationProvider())
-                .exceptionHandling(e -> e
-                        .accessDeniedHandler(securityExceptionLoggingHandler.accessDeniedHandler())
-                        .authenticationEntryPoint(securityExceptionLoggingHandler.authenticationEntryPoint()))
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
