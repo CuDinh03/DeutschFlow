@@ -24,7 +24,7 @@ Sắp xếp: Nghiêm trọng → Cao → TB → Thấp; trong cùng mức, công
 | **P-6/E** | `catch(Exception)` nuốt `assertAllowed` ở 2 eval → quota vô hiệu + không ghi ledger | Khắc phục | 🟠 Cao | S | `ConversationEvaluationService.java:44-79`; `InterviewEvaluationService.java:43-78` | Ngay |
 | **P-7** | TTS endpoint không chốt, text user không giới hạn độ dài | Khắc phục | 🟠 Cao | S | `TtsController.java:37-62` | Ngay |
 | **I** | Auto-promote STUDENT→TEACHER, không auto-demote khi remove | Khắc phục | 🟠 Cao | S | `OrgMembershipService.java:55-57,65-78` | Ngay |
-| **S-3** | Org-pool `SUM` không index theo org_id, chạy mỗi request | Nâng cấp | 🟠 Cao | S | `OrgQuotaService.java:28-34`; index V188 | Trước scale |
+| **S-3** | ~~Org-pool `SUM` không index theo org_id~~ ✅ DONE `f8c59380` | Nâng cấp | 🟠 Cao | S | `org_monthly_token_counters` V224; PK lookup O(1) | Trước scale |
 | **P-1** | LLM ungated + vô hình ledger: mock-exam finish, correct-writing, greeting, video | Khắc phục | 🟠 Cao | M | `AiExamEvaluatorService:50,169`; `SkillTreeController:245`; `GroqApiService:31,53`; `VideoLessonService:184` | Ngay→Trước scale |
 | **P-2** | LLM ungated (student) đốt pool gián tiếp: practice, satellite, pronunciation | Khắc phục | 🟠 Cao | M | `PracticeNodeService:117,143`; `SkillTreeService:417,886,1024` | Trước scale |
 | **S-1** | SSE ticket in-memory → chặn scale ngang (speaking hỏng đa-node) | Nâng cấp | 🟠 Cao | M | `SseTicketService.java:33` | Trước scale |
@@ -35,7 +35,7 @@ Sắp xếp: Nghiêm trọng → Cao → TB → Thấp; trong cùng mức, công
 | **M-3** | Org pool theo `date_trunc(UTC)` lệch personal-quota theo VN-day | Khắc phục | 🟡 TB | S | `OrgQuotaService.java:28-35` vs `QuotaVnCalendar.java` | Trước scale |
 | **M-5** | `FreeTierGuard` chỉ áp B2C; org member bỏ qua free-tier PPTX/OCR | Khắc phục | 🟡 TB | S | `FreeTierGuard.java:78-81` | Trước scale |
 | **P-9/D** | Check-then-debit không atomic → race over-spend | Khắc phục | 🟡 TB | M | `QuotaService.java:47-64,82-112` | Trước scale |
-| **P-10/M-4** | Org pool không khóa → race vượt pool | Khắc phục | 🟡 TB | M | `OrgQuotaService.java:64-85`; `OrgPoolGuard.java:29-39` | Trước scale |
+| **P-10/M-4** | ~~Org pool không khóa → race vượt pool~~ ✅ IMPROVED `f8c59380` | Khắc phục | 🟡 TB | M | atomic counter (soft-cap; hard reserve = P-9 still deferred) | Trước scale |
 | **P-8** | STT không pre-check, chỉ ghi post-hoc | Khắc phục | 🟡 TB | M | `AiSessionController:106`; `PhonemeService:38`; `SkillTreeController:183`; `AiJobWorker:107`; `PronunciationScorerService:42` | Trước scale |
 | **T-1/D-1/M-2** | Hai nguồn tenant: `users.org_id` vs `org_members`, không constraint | Nâng cấp | 🟡 TB | M | `OrgQuotaService.java:65-74` vs `OrgGuard.java:31` | Trước scale |
 | **T-5/D-4** | Thiếu role accountant/TA → finance buộc làm org-admin (over-privilege) | Nâng cấp | 🟡 TB | M | `User.java:112`; `OrgController` billing | Trước scale |
@@ -209,11 +209,9 @@ Sắp xếp: Nghiêm trọng → Cao → TB → Thấp; trong cùng mức, công
 - **Hướng sửa**: Chuyển ticket store sang Redis (TTL ngắn) — đúng pattern `AuthRateLimiterService` đã làm. Hoặc bật sticky-session ở load balancer như giải pháp tạm.
 - **Chi phí hoãn**: Trần scale cứng ở 1 instance cho speaking → không thể thêm node để chịu tải.
 
-### S-3 — Org-pool SUM không index theo org_id 🟠
-- **Vấn đề**: Query SUM JOIN users WHERE org_id chạy **mỗi request AI** của user org; index hiện chỉ `(user_id, created_at)` và `(feature, created_at)`. Bảng append-only, không partition.
-- **Ở đâu**: `OrgQuotaService.java:28-34`; index ở `V188`.
-- **Hướng sửa**: Tốt nhất là **counter tăng-dần per-org-per-month** (bảng riêng, cập nhật atomic khi ghi ledger) thay cho SUM động — đồng thời giải P-10. Nếu giữ SUM, tối thiểu thêm index hỗ trợ org_id + cân nhắc cột `org_id` trực tiếp trên ledger (gắn với D-2).
-- **Chi phí hoãn**: Latency mỗi request AI tăng theo kích thước ledger; tới 500 center là bom hiệu năng trên hot-path.
+### S-3 — Org-pool SUM không index theo org_id 🟠 ✅ DONE `f8c59380`
+- **Đã làm**: V224 `org_monthly_token_counters(org_id, month_start PK, tokens_used)`. `AiUsageLedgerService.record()` atomic `ON CONFLICT DO UPDATE`. `OrgQuotaService.orgUsageThisMonth()` = O(1) PK lookup.
+- **Xem thêm**: `audit/wave7_s3_p10_org_counter.md`
 
 ### S-4 — `reconcileSubscriptions` ghi DB mỗi `assertAllowed` 🟠
 - **Vấn đề**: Mỗi call AI gated mở `REQUIRES_NEW` + nhiều UPDATE trên `user_subscriptions`. Đường-đọc đang ghi → write-amp + tranh khóa.
