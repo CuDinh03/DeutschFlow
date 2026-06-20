@@ -1,15 +1,18 @@
 package com.deutschflow.speaking.controller;
 
 import com.deutschflow.speaking.ai.EdgeTtsService;
+import com.deutschflow.speaking.dto.TtsRequest;
+import com.deutschflow.speaking.dto.TtsStatusDto;
 import com.deutschflow.user.entity.User;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
 
 /**
  * REST controller for Text-to-Speech synthesis (self-hosted Edge TTS sidecar).
@@ -38,12 +41,15 @@ public class TtsController {
      */
     @PostMapping("/tts")
     @PreAuthorize("isAuthenticated()")
+    @ApiResponse(responseCode = "200", content = @Content(
+            mediaType = "audio/mpeg",
+            schema = @Schema(type = "string", format = "binary")))
     public ResponseEntity<byte[]> synthesize(
-            @RequestBody Map<String, String> body,
+            @RequestBody TtsRequest body,
             @AuthenticationPrincipal User user) {
 
-        String text = body.getOrDefault("text", "");
-        String persona = body.getOrDefault("persona", "DEFAULT");
+        String text = body.text() != null ? body.text() : "";
+        String persona = body.persona() != null ? body.persona() : "DEFAULT";
 
         if (text.isBlank()) {
             return ResponseEntity.badRequest().build();
@@ -74,8 +80,7 @@ public class TtsController {
      */
     @GetMapping("/tts/status")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Map<String, Object>> status() {
-        Map<String, Object> stats = ttsService.getUsageStats();
-        return ResponseEntity.ok(stats);
+    public ResponseEntity<TtsStatusDto> status() {
+        return ResponseEntity.ok(TtsStatusDto.from(ttsService.getUsageStats()));
     }
 }

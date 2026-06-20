@@ -147,4 +147,29 @@ class IosOpenApiContractTest extends AbstractPostgresIntegrationTest {
                 .andExpect(jsonPath("$.paths['/api/certificates/{id}/pdf'].get.responses.200.content['application/pdf'].schema.format")
                         .value("binary"));
     }
+
+    @Test
+    void shouldTypeAppleIapEndpoints() throws Exception {
+        // P1 Round 5 (AppleIap): /verify + /sync flipped ResponseEntity<?> → typed AppleActivationResult.
+        // springdoc only emits a component schema when an operation references it, so its existence
+        // proves the success body is typed (not a free-form object).
+        mockMvc.perform(get("/v3/api-docs/ios"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.components.schemas.AppleActivationResult").exists())
+                .andExpect(jsonPath("$.components.schemas.AppleActivationResult.properties.planCode").exists())
+                // Instant endsAt preserved as ISO date-time (not epoch / base64)
+                .andExpect(jsonPath("$.components.schemas.AppleActivationResult.properties.endsAt.format").value("date-time"));
+    }
+
+    @Test
+    void shouldDeclareTtsBinaryAndTypeStatus() throws Exception {
+        // P1 Round 5 (Tts): /tts declared binary audio/mpeg (so codegen emits Data, not base64 byte);
+        // /tts/status flipped Map<String,Object> → typed TtsStatusDto.
+        mockMvc.perform(get("/v3/api-docs/ios"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.paths['/api/ai-speaking/tts'].post.responses.200.content['audio/mpeg'].schema.format")
+                        .value("binary"))
+                .andExpect(jsonPath("$.components.schemas.TtsStatusDto").exists())
+                .andExpect(jsonPath("$.components.schemas.TtsStatusDto.properties.totalRequests").exists());
+    }
 }
