@@ -139,6 +139,7 @@ public class ExamScoringService {
      * Falls back to manual evaluation template if no transcript is found.
      */
     public Map<String, Object> scoreSperechenSection(
+            long userId,
             Map<String, Object> answers,
             Map<String, Object> examSection) {
 
@@ -147,7 +148,7 @@ public class ExamScoringService {
         String taskPrompt = extractSprechenTaskPrompt(examSection);
         String cefrLevel = extractCefrLevel(examSection);
 
-        Map<String, Object> aiEval = aiEvaluator.evaluateSprechen(transcript, taskPrompt, cefrLevel);
+        Map<String, Object> aiEval = aiEvaluator.evaluateSprechen(userId, transcript, taskPrompt, cefrLevel);
 
         Map<String, Object> result = new HashMap<>();
         result.put("ai_evaluation", aiEval);

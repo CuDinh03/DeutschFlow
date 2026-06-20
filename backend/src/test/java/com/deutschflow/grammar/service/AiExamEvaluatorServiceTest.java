@@ -1,5 +1,6 @@
 package com.deutschflow.grammar.service;
 
+import com.deutschflow.common.quota.AiUsageLedgerService;
 import com.deutschflow.speaking.ai.AiChatCompletionResult;
 import com.deutschflow.speaking.ai.ChatMessage;
 import com.deutschflow.speaking.ai.OpenAiChatClient;
@@ -25,12 +26,14 @@ class AiExamEvaluatorServiceTest {
 
     @Mock
     private OpenAiChatClient chatClient;
+    @Mock
+    private AiUsageLedgerService ledgerService;
 
     private AiExamEvaluatorService evaluatorService;
 
     @BeforeEach
     void setUp() {
-        evaluatorService = new AiExamEvaluatorService(chatClient);
+        evaluatorService = new AiExamEvaluatorService(chatClient, ledgerService);
     }
 
     @Test
@@ -53,7 +56,7 @@ class AiExamEvaluatorServiceTest {
         when(chatClient.chatCompletion(anyList(), isNull(), anyDouble(), anyInt()))
             .thenReturn(new AiChatCompletionResult(aiResponse, null, "GROQ", "test-model"));
 
-        Map<String, Object> result = evaluatorService.evaluateSchreibenEmail(
+        Map<String, Object> result = evaluatorService.evaluateSchreibenEmail(1L,
             "Hallo, ich heiße Anna und ich komme aus Vietnam.",
             "Schreibe eine Vorstellung."
         );
@@ -71,7 +74,7 @@ class AiExamEvaluatorServiceTest {
     @Test
     @DisplayName("returns pending when email content is empty")
     void evaluateSchreibenEmail_emptyContent_returnsPending() {
-        Map<String, Object> result = evaluatorService.evaluateSchreibenEmail("", "Task");
+        Map<String, Object> result = evaluatorService.evaluateSchreibenEmail(1L,"", "Task");
 
         assertEquals("PENDING_AI_EVALUATION", result.get("status"));
         assertEquals(0, result.get("total"));
@@ -81,7 +84,7 @@ class AiExamEvaluatorServiceTest {
     @Test
     @DisplayName("returns pending when email content is null")
     void evaluateSchreibenEmail_nullContent_returnsPending() {
-        Map<String, Object> result = evaluatorService.evaluateSchreibenEmail(null, "Task");
+        Map<String, Object> result = evaluatorService.evaluateSchreibenEmail(1L,null, "Task");
 
         assertEquals("PENDING_AI_EVALUATION", result.get("status"));
         verifyNoInteractions(chatClient);
@@ -107,7 +110,7 @@ class AiExamEvaluatorServiceTest {
         when(chatClient.chatCompletion(anyList(), isNull(), anyDouble(), anyInt()))
             .thenReturn(new AiChatCompletionResult(aiResponse, null, "GROQ", "test-model"));
 
-        Map<String, Object> result = evaluatorService.evaluateSchreibenEmail("Some email content here.", null);
+        Map<String, Object> result = evaluatorService.evaluateSchreibenEmail(1L,"Some email content here.", null);
 
         assertEquals(5, result.get("aufgabenerfuellung"), "Should clamp to max 5");
         assertEquals(0, result.get("kohaerenz"), "Should clamp to min 0");
@@ -123,7 +126,7 @@ class AiExamEvaluatorServiceTest {
         when(chatClient.chatCompletion(anyList(), isNull(), anyDouble(), anyInt()))
             .thenReturn(new AiChatCompletionResult("not valid json at all {{{{", null, "GROQ", "test-model"));
 
-        Map<String, Object> result = evaluatorService.evaluateSchreibenEmail("Some valid email.", null);
+        Map<String, Object> result = evaluatorService.evaluateSchreibenEmail(1L,"Some valid email.", null);
 
         assertEquals("PENDING_AI_EVALUATION", result.get("status"));
         assertEquals(0, result.get("total"));
@@ -151,7 +154,7 @@ class AiExamEvaluatorServiceTest {
         when(chatClient.chatCompletion(anyList(), isNull(), anyDouble(), anyInt()))
             .thenReturn(new AiChatCompletionResult(aiResponse, null, "GROQ", "test-model"));
 
-        Map<String, Object> result = evaluatorService.evaluateSchreibenEmail("Email text here.", null);
+        Map<String, Object> result = evaluatorService.evaluateSchreibenEmail(1L,"Email text here.", null);
 
         assertEquals("AI_EVALUATED", result.get("status"));
         assertEquals(7, result.get("total"));
@@ -163,7 +166,7 @@ class AiExamEvaluatorServiceTest {
         when(chatClient.chatCompletion(anyList(), isNull(), anyDouble(), anyInt()))
             .thenThrow(new RuntimeException("Service unavailable"));
 
-        Map<String, Object> result = evaluatorService.evaluateSchreibenEmail("Some email content.", null);
+        Map<String, Object> result = evaluatorService.evaluateSchreibenEmail(1L,"Some email content.", null);
 
         assertEquals("PENDING_AI_EVALUATION", result.get("status"));
         assertEquals(0, result.get("total"));

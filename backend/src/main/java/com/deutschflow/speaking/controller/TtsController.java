@@ -24,6 +24,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class TtsController {
 
+    private static final int TTS_MAX_TEXT_LENGTH = 500;
+
     private final EdgeTtsService ttsService;
 
     /**
@@ -44,6 +46,10 @@ public class TtsController {
         String persona = body.getOrDefault("persona", "DEFAULT");
 
         if (text.isBlank()) {
+            return ResponseEntity.badRequest().build();
+        }
+        if (text.length() > TTS_MAX_TEXT_LENGTH) {
+            log.warn("[TTS] Rejected oversized text ({} chars) from user {}", text.length(), user != null ? user.getId() : "unknown");
             return ResponseEntity.badRequest().build();
         }
 

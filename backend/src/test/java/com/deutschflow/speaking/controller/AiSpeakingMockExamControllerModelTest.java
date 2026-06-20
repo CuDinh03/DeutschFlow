@@ -1,5 +1,7 @@
 package com.deutschflow.speaking.controller;
 
+import com.deutschflow.common.quota.QuotaService;
+import com.deutschflow.organization.service.OrgPoolGuard;
 import com.deutschflow.speaking.AiRateLimiterService;
 import com.deutschflow.speaking.ai.AiChatCompletionResult;
 import com.deutschflow.speaking.ai.ChatMessage;
@@ -44,10 +46,13 @@ class AiSpeakingMockExamControllerModelTest {
     @Mock JdbcTemplate jdbcTemplate;
     @Mock SprechenTeil2Service sprechenTeil2Service;
     @Mock AiRateLimiterService aiRateLimiterService;
+    @Mock QuotaService quotaService;
+    @Mock OrgPoolGuard orgPoolGuard;
 
     private AiSpeakingMockExamController controller() {
         return new AiSpeakingMockExamController(
-                chatClient, jdbcTemplate, new ObjectMapper(), sprechenTeil2Service, aiRateLimiterService);
+                chatClient, jdbcTemplate, new ObjectMapper(), sprechenTeil2Service, aiRateLimiterService,
+                quotaService, orgPoolGuard);
     }
 
     @Test

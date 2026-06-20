@@ -1,5 +1,7 @@
 package com.deutschflow.speaking.service;
 
+import com.deutschflow.common.quota.AiUsageLedgerService;
+import com.deutschflow.speaking.ai.AiChatCompletionResult;
 import com.deutschflow.speaking.ai.ChatMessage;
 import com.deutschflow.speaking.ai.OpenAiChatClient;
 import lombok.RequiredArgsConstructor;
@@ -17,45 +19,62 @@ import java.util.List;
 public class SpeakingAiHelpersService {
 
     private final OpenAiChatClient openAiChatClient;
+    private final AiUsageLedgerService ledgerService;
 
-    private String generate(String instruction, String input, int maxTokens, double temperature) {
+    private AiChatCompletionResult generate(String instruction, String input, int maxTokens, double temperature) {
         List<ChatMessage> msgs = List.of(
                 new ChatMessage("system", instruction),
                 new ChatMessage("user", input != null ? input : "")
         );
-        return openAiChatClient.chatCompletion(msgs, null, temperature, maxTokens).content();
+        return openAiChatClient.chatCompletion(msgs, null, temperature, maxTokens);
     }
 
-    public String generateConversationResponse(String userMessage, String context, String level) {
+    private void recordUsage(Long userId, AiChatCompletionResult result, String feature) {
+        if (result.usage() != null) {
+            ledgerService.record(userId, result.provider(), result.model(),
+                    result.usage().promptTokens(), result.usage().completionTokens(),
+                    result.usage().totalTokens(), feature, null, null);
+        }
+    }
+
+    public String generateConversationResponse(Long userId, String userMessage, String context, String level) {
         log.info("Generating conversation response for level: {}", level);
         try {
             String instruction = buildConversationInstruction(context, level);
-            return generate(instruction, userMessage, 256, 0.8);
+            AiChatCompletionResult result = generate(instruction, userMessage, 256, 0.8);
+            recordUsage(userId, result, "SPEAKING_AI_CONVERSATION");
+            return result.content();
         } catch (Exception e) {
             log.error("Error generating conversation response", e);
             throw new RuntimeException("Conversation generation failed: " + e.getMessage(), e);
         }
     }
 
-    public SpeakingFeedback provideFeedback(String userText, String expectedTopic) {
+    public SpeakingFeedback provideFeedback(Long userId, String userText, String expectedTopic) {
         log.info("Providing feedback for topic: {}", expectedTopic);
         try {
             String correctGrammarInstruction = "Please correct the grammar of the following German text. Only output the corrected text without any explanations.";
-            String corrected = generate(correctGrammarInstruction, userText, 256, 0.3).trim();
+            AiChatCompletionResult correctedResult = generate(correctGrammarInstruction, userText, 256, 0.3);
+            recordUsage(userId, correctedResult, "SPEAKING_AI_FEEDBACK");
+            String corrected = correctedResult.content().trim();
 
             String pronunciationInstruction = String.format(
                     "Analyze potential pronunciation issues in this German text: '%s'. "
                             + "List common pronunciation mistakes English speakers might make with these words.",
                     userText
             );
-            String pronunciationTips = generate(pronunciationInstruction, "", 256, 0.7);
+            AiChatCompletionResult pronResult = generate(pronunciationInstruction, "", 256, 0.7);
+            recordUsage(userId, pronResult, "SPEAKING_AI_FEEDBACK");
+            String pronunciationTips = pronResult.content();
 
             String improvementInstruction = String.format(
                     "Suggest 3 ways to improve this German sentence: '%s'. "
                             + "Focus on making it more natural and fluent.",
                     userText
             );
-            String improvements = generate(improvementInstruction, "", 512, 0.7);
+            AiChatCompletionResult impResult = generate(improvementInstruction, "", 512, 0.7);
+            recordUsage(userId, impResult, "SPEAKING_AI_FEEDBACK");
+            String improvements = impResult.content();
 
             int fluencyScore = calculateFluencyScore(userText, corrected);
 
@@ -74,7 +93,7 @@ public class SpeakingAiHelpersService {
         }
     }
 
-    public PracticeScenario generateScenario(String topic, String level) {
+    public PracticeScenario generateScenario(Long userId, String topic, String level) {
         log.info("Generating scenario for topic: {}, level: {}", topic, level);
         try {
             String instruction = String.format(
@@ -82,13 +101,17 @@ public class SpeakingAiHelpersService {
                             + "Include: 1) Situation description, 2) Your role, 3) 3 starter questions, 4) Key vocabulary",
                     topic, level
             );
-            String scenarioText = generate(instruction, "", 512, 0.8);
+            AiChatCompletionResult scenResult = generate(instruction, "", 512, 0.8);
+            recordUsage(userId, scenResult, "SPEAKING_AI_SCENARIO");
+            String scenarioText = scenResult.content();
 
             String followUpInstruction = String.format(
                     "Generate 5 follow-up questions in German for a conversation about '%s' at %s level.",
                     topic, level
             );
-            String followUpQuestions = generate(followUpInstruction, "", 256, 0.7);
+            AiChatCompletionResult fuResult = generate(followUpInstruction, "", 256, 0.7);
+            recordUsage(userId, fuResult, "SPEAKING_AI_SCENARIO");
+            String followUpQuestions = fuResult.content();
 
             return PracticeScenario.builder()
                     .topic(topic)
@@ -103,7 +126,7 @@ public class SpeakingAiHelpersService {
         }
     }
 
-    public String generateErrorPractice(String errorType, int exerciseCount) {
+    public String generateErrorPractice(Long userId, String errorType, int exerciseCount) {
         log.info("Generating {} practice exercises for error: {}", exerciseCount, errorType);
         try {
             String instruction = String.format(
@@ -112,14 +135,16 @@ public class SpeakingAiHelpersService {
                             + "Number each exercise.",
                     exerciseCount, errorType
             );
-            return generate(instruction, "", 512, 0.7);
+            AiChatCompletionResult result = generate(instruction, "", 512, 0.7);
+            recordUsage(userId, result, "SPEAKING_AI_ERROR_PRACTICE");
+            return result.content();
         } catch (Exception e) {
             log.error("Error generating error practice", e);
             throw new RuntimeException("Error practice generation failed: " + e.getMessage(), e);
         }
     }
 
-    public String provideCulturalContext(String topic) {
+    public String provideCulturalContext(Long userId, String topic) {
         log.info("Providing cultural context for: {}", topic);
         try {
             String instruction = String.format(
@@ -127,14 +152,16 @@ public class SpeakingAiHelpersService {
                             + "Include dos and don'ts, common phrases, and cultural nuances.",
                     topic
             );
-            return generate(instruction, "", 512, 0.7);
+            AiChatCompletionResult result = generate(instruction, "", 512, 0.7);
+            recordUsage(userId, result, "SPEAKING_AI_CULTURAL");
+            return result.content();
         } catch (Exception e) {
             log.error("Error providing cultural context", e);
             throw new RuntimeException("Cultural context generation failed: " + e.getMessage(), e);
         }
     }
 
-    public String generateRolePlay(String situation, String userRole, String aiRole) {
+    public String generateRolePlay(Long userId, String situation, String userRole, String aiRole) {
         log.info("Generating role-play: {} as {}", situation, userRole);
         try {
             String instruction = String.format(
@@ -143,7 +170,9 @@ public class SpeakingAiHelpersService {
                             + "Provide the opening line and 3 possible user responses.",
                     situation, userRole, aiRole
             );
-            return generate(instruction, "", 512, 0.8);
+            AiChatCompletionResult result = generate(instruction, "", 512, 0.8);
+            recordUsage(userId, result, "SPEAKING_AI_ROLEPLAY");
+            return result.content();
         } catch (Exception e) {
             log.error("Error generating role-play", e);
             throw new RuntimeException("Role-play generation failed: " + e.getMessage(), e);

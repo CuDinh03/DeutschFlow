@@ -1,5 +1,7 @@
 package com.deutschflow.speaking.service;
 
+import com.deutschflow.common.quota.AiUsageLedgerService;
+import com.deutschflow.common.quota.QuotaExceededException;
 import com.deutschflow.common.quota.QuotaService;
 import com.deutschflow.speaking.ai.AiChatCompletionResult;
 import com.deutschflow.speaking.ai.ChatMessage;
@@ -37,6 +39,7 @@ public class ConversationEvaluationService {
     private final AiSpeakingMessageRepository messageRepository;
     private final OpenAiChatClient openAiChatClient;
     private final QuotaService quotaService;
+    private final AiUsageLedgerService ledgerService;
     private final ObjectMapper objectMapper;
 
     /** Generates the evaluation JSON for a conversation/lesson session. Null when there is nothing to assess. */
@@ -64,6 +67,12 @@ public class ConversationEvaluationService {
             AiChatCompletionResult result = openAiChatClient.chatCompletion(
                     aiMessages, null, EVAL_TEMPERATURE, maxTokens);
 
+            if (result.usage() != null) {
+                ledgerService.record(userId, result.provider(), result.model(),
+                        result.usage().promptTokens(), result.usage().completionTokens(),
+                        result.usage().totalTokens(), "CONVERSATION_EVAL", null, session.getId());
+            }
+
             String raw = result.content();
             if (raw != null && raw.contains("{")) {
                 int start = raw.indexOf('{');
@@ -73,6 +82,9 @@ public class ConversationEvaluationService {
                 }
             }
             return raw;
+        } catch (QuotaExceededException e) {
+            log.warn("Quota exceeded for conversation eval session {}: {}", session.getId(), e.getMessage());
+            throw e;
         } catch (Exception e) {
             log.error("Failed to generate conversation evaluation for session {}: {}", session.getId(), e.getMessage());
             return null;

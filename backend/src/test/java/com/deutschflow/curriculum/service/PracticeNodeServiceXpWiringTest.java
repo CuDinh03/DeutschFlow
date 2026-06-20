@@ -4,7 +4,9 @@ import com.deutschflow.common.async.AsyncJobService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.quota.AiUsageLedgerService;
+import com.deutschflow.common.quota.QuotaService;
 import com.deutschflow.gamification.service.XpService;
+import com.deutschflow.organization.service.OrgPoolGuard;
 import com.deutschflow.speaking.ai.GroqChatClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,6 +48,8 @@ class PracticeNodeServiceXpWiringTest {
     @Mock AsyncJobService asyncJobService;
     @Mock XpService xpService;
     @Mock com.deutschflow.srs.service.SrsVocabScheduler srsVocabScheduler;
+    @Mock QuotaService quotaService;
+    @Mock OrgPoolGuard orgPoolGuard;
     @Mock java.util.concurrent.Executor aiExecutor;
 
     ObjectMapper objectMapper = new ObjectMapper();
@@ -62,6 +66,8 @@ class PracticeNodeServiceXpWiringTest {
                 asyncJobService,
                 xpService,
                 srsVocabScheduler,
+                quotaService,
+                orgPoolGuard,
                 aiExecutor
         );
     }

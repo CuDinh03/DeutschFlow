@@ -214,6 +214,18 @@ public class AdminOrgService {
         User user = userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng: " + normalizedEmail));
 
+        // Enforce seat limit for STUDENT role when limit is configured (> 0 = limited)
+        if ("STUDENT".equals(normalizedRole) && org.getSeatLimit() > 0) {
+            boolean alreadyMember = orgMemberRepository.findByIdOrgIdAndIdUserId(org.getId(), user.getId()).isPresent();
+            if (!alreadyMember) {
+                long currentStudents = orgMembershipService.countByRole(org.getId(), "STUDENT");
+                if (currentStudents >= org.getSeatLimit()) {
+                    throw new BadRequestException(
+                            "Đã đạt giới hạn chỗ ngồi (" + org.getSeatLimit() + " student). Không thể thêm thành viên.");
+                }
+            }
+        }
+
         orgMembershipService.upsertMember(org.getId(), user.getId(), normalizedRole);
 
         OrgMember member = orgMemberRepository.findByIdOrgIdAndIdUserId(org.getId(), user.getId())
@@ -278,7 +290,11 @@ public class AdminOrgService {
         try {
             orgInvitationService.inviteTeacher(resolveActorId(), orgId, email);
         } catch (RuntimeException ex) {
-            log.warn("Không gửi được lời mời chủ sở hữu cho org {} ({}): {}", orgId, email, ex.getMessage());
+            // H: org được tạo nhưng KHÔNG gắn được owner → org "mồ côi", cần admin re-invite tay.
+            // log.error (không phải warn) để vào kênh alert — đây là trạng thái cần can thiệp.
+            log.error("[Org][ORPHAN] Tạo org {} thành công nhưng không gửi được lời mời OWNER ({}): {} "
+                    + "— org đang KHÔNG có chủ sở hữu, cần re-invite thủ công.",
+                    orgId, email, ex.getMessage());
         }
     }
 

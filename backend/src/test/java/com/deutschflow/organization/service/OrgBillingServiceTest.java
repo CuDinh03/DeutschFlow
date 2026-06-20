@@ -6,6 +6,7 @@ import com.deutschflow.organization.dto.CreateInvoiceRequest;
 import com.deutschflow.organization.dto.OrgInvoiceDto;
 import com.deutschflow.organization.entity.OrgInvoice;
 import com.deutschflow.organization.repository.OrgInvoiceRepository;
+import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.organization.repository.OrganizationRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -31,6 +32,7 @@ class OrgBillingServiceTest {
 
     @Mock private OrgInvoiceRepository invoiceRepo;
     @Mock private OrganizationRepository organizationRepository;
+    @Mock private OrgMemberRepository memberRepo;
 
     private OrgBillingService service;
 
@@ -41,7 +43,7 @@ class OrgBillingServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new OrgBillingService(invoiceRepo, organizationRepository);
+        service = new OrgBillingService(invoiceRepo, organizationRepository, memberRepo);
     }
 
     // ------------------------------------------------------------------ helpers
@@ -97,6 +99,39 @@ class OrgBillingServiceTest {
 
         assertThat(dto.status()).isEqualTo("DRAFT");
         assertThat(dto.orgId()).isEqualTo(ORG_ID);
+    }
+
+    @Test
+    @DisplayName("createInvoice: D-3/G — seats<=0 auto-snapshots ACTIVE student count")
+    void createInvoice_autoSnapshotsSeatsWhenNotProvided() {
+        when(organizationRepository.existsById(ORG_ID)).thenReturn(true);
+        when(memberRepo.countByIdOrgIdAndRoleAndStatus(ORG_ID, "STUDENT", "ACTIVE")).thenReturn(37L);
+        when(invoiceRepo.save(any(OrgInvoice.class))).thenReturn(savedInvoice(INVOICE_ID, ORG_ID, "DRAFT"));
+
+        CreateInvoiceRequest req = new CreateInvoiceRequest(
+                LocalDate.of(2026, 1, 1), LocalDate.of(2026, 3, 31), 0, 5_000_000L, "auto-seat");
+        service.createInvoice(ORG_ID, req, CREATED_BY);
+
+        ArgumentCaptor<OrgInvoice> captor = ArgumentCaptor.forClass(OrgInvoice.class);
+        verify(invoiceRepo).save(captor.capture());
+        assertThat(captor.getValue().getSeats()).isEqualTo(37);
+    }
+
+    @Test
+    @DisplayName("createInvoice: D-3/G — admin-provided seats>0 are respected, no snapshot")
+    void createInvoice_respectsExplicitSeats() {
+        when(organizationRepository.existsById(ORG_ID)).thenReturn(true);
+        when(invoiceRepo.save(any(OrgInvoice.class))).thenReturn(savedInvoice(INVOICE_ID, ORG_ID, "DRAFT"));
+
+        CreateInvoiceRequest req = new CreateInvoiceRequest(
+                LocalDate.of(2026, 1, 1), LocalDate.of(2026, 3, 31), 50, 5_000_000L, "explicit-seat");
+        service.createInvoice(ORG_ID, req, CREATED_BY);
+
+        ArgumentCaptor<OrgInvoice> captor = ArgumentCaptor.forClass(OrgInvoice.class);
+        verify(invoiceRepo).save(captor.capture());
+        assertThat(captor.getValue().getSeats()).isEqualTo(50);
+        verify(memberRepo, org.mockito.Mockito.never())
+                .countByIdOrgIdAndRoleAndStatus(any(), any(), any());
     }
 
     // ------------------------------------------------------------------ listInvoices

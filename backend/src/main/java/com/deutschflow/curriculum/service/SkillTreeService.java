@@ -5,6 +5,8 @@ import com.deutschflow.common.async.AsyncJobService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.quota.AiUsageLedgerService;
+import com.deutschflow.common.quota.QuotaService;
+import com.deutschflow.organization.service.OrgPoolGuard;
 import com.deutschflow.gamification.service.XpService;
 import com.deutschflow.speaking.ai.GroqChatClient;
 import com.deutschflow.speaking.ai.ChatMessage;
@@ -47,6 +49,8 @@ public class SkillTreeService {
     private final PracticeNodeService practiceNodeService;
     private final com.deutschflow.srs.service.SrsVocabScheduler srsVocabScheduler;
     private final com.deutschflow.progress.service.PhaseEngineService phaseEngineService;
+    private final QuotaService quotaService;
+    private final OrgPoolGuard orgPoolGuard;
     /**
      * Bounded pool for blocking LLM content generation. Field name matches the
      * {@code aiExecutor} bean (AsyncConfig) so Spring resolves it by name among the
@@ -58,6 +62,9 @@ public class SkillTreeService {
 
     // In-memory lock to prevent duplicate LLM calls for the same cache key
     private final ConcurrentHashMap<String, Boolean> generationLocks = new ConcurrentHashMap<>();
+
+    private static final long PRONUNCIATION_ESTIMATED_TOKENS = 1_024L;
+    private static final long INTERVIEW_REPORT_ESTIMATED_TOKENS = 1_024L;
 
     public GroqChatClient getGroqClient() { return groqChatClient; }
 
@@ -846,6 +853,9 @@ public class SkillTreeService {
             );
         }
 
+        quotaService.assertAllowed(userId, Instant.now(), PRONUNCIATION_ESTIMATED_TOKENS);
+        orgPoolGuard.assertOrgPoolAvailable(userId, PRONUNCIATION_ESTIMATED_TOKENS);
+
         String prompt = String.format("""
                 Đóng vai một chuyên gia ngữ âm học tiếng Đức chuyên giảng dạy cho người Việt Nam. Luôn giữ thái độ động viên, tích cực.
 
@@ -991,6 +1001,9 @@ public class SkillTreeService {
             conversation.append(role.equalsIgnoreCase("user") ? "Học viên" : "AI").append(": ").append(content).append("\n");
         }
 
+        quotaService.assertAllowed(userId, Instant.now(), INTERVIEW_REPORT_ESTIMATED_TOKENS);
+        orgPoolGuard.assertOrgPoolAvailable(userId, INTERVIEW_REPORT_ESTIMATED_TOKENS);
+
         String prompt = """
                 Phân tích cuộc hội thoại phỏng vấn tiếng Đức dưới đây và đánh giá kỹ năng người học.
                 Trả về DUY NHẤT JSON theo format:
@@ -1003,7 +1016,7 @@ public class SkillTreeService {
                   "improvements": ["cần cải thiện 1", "cần cải thiện 2"],
                   "summaryVi": "Tổng quan đánh giá bằng tiếng Việt, tối đa 3 câu."
                 }
-                
+
                 Cuộc hội thoại:
                 """ + conversation;
 

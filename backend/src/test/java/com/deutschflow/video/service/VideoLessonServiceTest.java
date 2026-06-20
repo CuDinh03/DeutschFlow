@@ -1,5 +1,6 @@
 package com.deutschflow.video.service;
 
+import com.deutschflow.common.quota.AiUsageLedgerService;
 import com.deutschflow.media.service.S3StorageService;
 import com.deutschflow.speaking.ai.EdgeTtsService;
 import com.deutschflow.srs.dto.VocabReviewCard;
@@ -43,6 +44,8 @@ class VideoLessonServiceTest {
     private com.deutschflow.grammar.repository.GrammarCaseExampleRepository grammarCaseExampleRepository;
     @Mock
     private com.deutschflow.speaking.ai.OpenAiChatClient llmClient;
+    @Mock
+    private AiUsageLedgerService ledgerService;
 
     private VideoLessonService service;
 
@@ -50,7 +53,7 @@ class VideoLessonServiceTest {
     void setUp() {
         service = new VideoLessonService(wordRepository, edgeTtsService, s3StorageService, srsService,
                 grammarCaseRepository, grammarCaseExampleRepository, llmClient,
-                new com.fasterxml.jackson.databind.ObjectMapper());
+                new com.fasterxml.jackson.databind.ObjectMapper(), ledgerService);
     }
 
     @Test
