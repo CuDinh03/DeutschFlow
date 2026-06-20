@@ -4,6 +4,13 @@
 # Các secret KHÔNG được hardcode ở đây — dùng profile-specific yml + .env (DB_*, JWT_*, …).
 # ============================================================
 
+# springdoc/OpenAPI: default response media type → application/json, so endpoints that don't
+# declare `produces` still emit `application/json` content (not `*/*`). This lets
+# swift-openapi-generator emit TYPED response bodies (.json) for the native iOS client instead of
+# opaque */* HTTPBody. Binary endpoints declare their own media type via @ApiResponse.
+springdoc:
+  default-produces-media-type: application/json
+
 aws:
   s3:
     bucket-name: ${AWS_S3_BUCKET_NAME:}
