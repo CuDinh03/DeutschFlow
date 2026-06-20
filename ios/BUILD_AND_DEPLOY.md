@@ -1,6 +1,7 @@
 # DeutschFlow iOS — Giải thích & Phân tích Build/Deploy
 
 > **Ngày:** 2026-06-21 · **Cho:** chủ dự án (không cần rành iOS) để hiểu app native đang ở đâu, build/deploy ra sao, và còn vướng gì.
+> 📒 **Tổng hợp toàn sáng kiến (đọc trước):** [`NATIVE_IOS_SYNTHESIS.md`](NATIVE_IOS_SYNTHESIS.md) — file này tập trung vào **build/deploy**.
 > **Trạng thái chốt:** app **build xanh** (đã dùng spec **có kiểu** `application/json`) + **archive được cho deploy** (Release, máy iOS). Dừng đúng ở **cổng ký số/Apple** (không thể tự động).
 > **➡️ Muốn build thử ra máy ngay:** xem **§5b — Chạy thử ra máy thật**.
 

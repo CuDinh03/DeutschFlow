@@ -1,6 +1,7 @@
 # DeutschFlow iOS — Native SwiftUI app (Phase 0 foundation)
 
 > **START HERE.** This is the native Swift/SwiftUI student app that replaces the Expo/React-Native app in `mobile/` (to be deprecated). It reuses 100% of the existing Java/Spring Boot backend via its OpenAPI contract.
+> 📒 **Whole-initiative overview (read first):** [`NATIVE_IOS_SYNTHESIS.md`](NATIVE_IOS_SYNTHESIS.md) — ties together the API contract, the app, and the App Store path.
 > Source of truth for this scaffold: `plans/2026-06-20-native-handoff-phase0.md` (Phase 0 + token table), `plans/2026-06-02-native-ios-migration-plan.md` (8 phases, tech stack), `plans/2026-06-20-appstore-release-plan.md` (release gating).
 
 ## What this is (Phase 0 = "Hello API")
