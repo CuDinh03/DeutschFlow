@@ -196,4 +196,20 @@ class IosOpenApiContractTest extends AbstractPostgresIntegrationTest {
                 .andExpect(jsonPath("$.components.schemas.CulturalContextResponseDto").exists())
                 .andExpect(jsonPath("$.components.schemas.RolePlayResponseDto").exists());
     }
+
+    @Test
+    void shouldTypeAIVocabularyEndpoints() throws Exception {
+        // P1 Round 8 (AIVocabulary): all 7 endpoints flipped Map<String,Object>/<String,String> → typed DTOs.
+        mockMvc.perform(get("/v3/api-docs/ios"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.components.schemas.VocabExamplesDto").exists())
+                .andExpect(jsonPath("$.components.schemas.VocabUsageDto").exists())
+                .andExpect(jsonPath("$.components.schemas.VocabMnemonicDto").exists())
+                .andExpect(jsonPath("$.components.schemas.VocabSimilarDto").exists())
+                .andExpect(jsonPath("$.components.schemas.VocabStoryDto").exists())
+                .andExpect(jsonPath("$.components.schemas.VocabEtymologyDto").exists())
+                .andExpect(jsonPath("$.components.schemas.VocabQuizDto").exists())
+                // quiz questions stay the nested {word, content} shape
+                .andExpect(jsonPath("$.components.schemas.QuizQuestion.properties.content").exists());
+    }
 }
