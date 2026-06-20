@@ -37,10 +37,11 @@ targets:
     platform: iOS
     sources:
       - path: Sources
-      # The pinned spec + generator config are target inputs for the build-tool plugin,
-      # not compiled sources.
+      # The pinned spec + generator config MUST be target members so the swift-openapi-generator
+      # build-tool plugin discovers them (added as resources; not compiled). `buildPhase: none`
+      # would drop target membership → plugin reports "No OpenAPI document found".
       - path: openapi
-        buildPhase: none
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.deutschflow.app
