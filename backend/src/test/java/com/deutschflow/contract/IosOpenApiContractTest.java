@@ -131,4 +131,20 @@ class IosOpenApiContractTest extends AbstractPostgresIntegrationTest {
                 .andExpect(jsonPath("$.components.schemas.GrammarTopicDto.properties.mastery_percent.type").value("number"))
                 .andExpect(jsonPath("$.components.schemas.GrammarSubmitResultDto.properties.correctAnswer").exists());
     }
+
+    @Test
+    void shouldTypeCertificateEndpoints() throws Exception {
+        // P1 Round 4 (Certificate): me (list) / claim (union) / pdf (binary).
+        mockMvc.perform(get("/v3/api-docs/ios"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.components.schemas.CertificateDto").exists())
+                .andExpect(jsonPath("$.components.schemas.CertificateClaimDto").exists())
+                .andExpect(jsonPath("$.components.schemas.CertificateDto.properties.cefr_level").exists())
+                // /claim union carries both success (alreadyHas) and error keys
+                .andExpect(jsonPath("$.components.schemas.CertificateClaimDto.properties.alreadyHas").exists())
+                .andExpect(jsonPath("$.components.schemas.CertificateClaimDto.properties.error").exists())
+                // PDF download declared as binary (not base64 byte)
+                .andExpect(jsonPath("$.paths['/api/certificates/{id}/pdf'].get.responses.200.content['application/pdf'].schema.format")
+                        .value("binary"));
+    }
 }
