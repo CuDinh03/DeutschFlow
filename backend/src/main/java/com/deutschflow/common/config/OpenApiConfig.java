@@ -79,6 +79,7 @@ public class OpenApiConfig {
                         "/api/auth/**",
                         "/api/onboarding/**",
                         "/api/today/**",
+                        "/api/plan/**",
                         "/api/student/**",
                         "/api/progress/**",
                         "/api/xp/**",
