@@ -1,0 +1,7 @@
+# swift-openapi-generator config. The pinned spec (openapi.json) is /v3/api-docs/ios — it already
+# contains only the student/auth surface, so no extra filtering is needed.
+generate:
+  - types
+  - client
+accessModifier: public
+namingStrategy: idiomatic

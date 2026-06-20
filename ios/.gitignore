@@ -1,0 +1,17 @@
+# XcodeGen regenerates these — never commit
+*.xcodeproj
+*.xcworkspace
+!default.xcworkspace
+
+# Xcode / SwiftPM build artifacts
+DerivedData/
+build/
+.build/
+.swiftpm/
+xcuserdata/
+*.xcuserstate
+
+# swift-openapi-generator output is produced at build time (in DerivedData), not committed
+Sources/Generated/
+
+.DS_Store

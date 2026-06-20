@@ -1,0 +1,56 @@
+# XcodeGen spec → run `xcodegen generate` to produce DeutschFlow.xcodeproj (kept out of git).
+name: DeutschFlow
+options:
+  bundleIdPrefix: com.deutschflow
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+
+packages:
+  OpenAPIRuntime:
+    url: https://github.com/apple/swift-openapi-runtime
+    from: "1.0.0"
+  OpenAPIURLSession:
+    url: https://github.com/apple/swift-openapi-urlsession
+    from: "1.0.0"
+  OpenAPIGenerator:
+    url: https://github.com/apple/swift-openapi-generator
+    from: "1.0.0"
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    DEVELOPMENT_TEAM: "" # TODO(admin): set Apple Developer Team ID for signing
+    GENERATE_INFOPLIST_FILE: YES
+    INFOPLIST_KEY_UILaunchScreen_Generation: YES
+    INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+    # Privacy / compliance (see appstore-release-plan.md §3.4, §3.6)
+    INFOPLIST_KEY_NSMicrophoneUsageDescription: "DeutschFlow cần microphone để luyện phát âm tiếng Đức."
+    INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: "DeutschFlow dùng nhận dạng giọng nói để chấm phát âm."
+    INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
+
+targets:
+  DeutschFlow:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+      # The pinned spec + generator config are target inputs for the build-tool plugin,
+      # not compiled sources.
+      - path: openapi
+        buildPhase: none
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.deutschflow.app
+        TARGETED_DEVICE_FAMILY: "1" # iPhone (add 2 for iPad later)
+    dependencies:
+      - package: OpenAPIRuntime
+        product: OpenAPIRuntime
+      - package: OpenAPIURLSession
+        product: OpenAPIURLSession
+    # swift-openapi-generator runs at build time → emits typed Client + DTOs from openapi/openapi.json.
+    buildToolPlugins:
+      - plugin: OpenAPIGenerator
+        package: OpenAPIGenerator
