@@ -9,6 +9,7 @@ import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.RateLimitExceededException;
 import com.deutschflow.common.quota.AiUsageLedgerService;
 import com.deutschflow.common.quota.QuotaService;
+import com.deutschflow.organization.service.OrgPoolGuard;
 import com.deutschflow.speaking.ai.GroqWhisperClient.TranscribeResult;
 import com.deutschflow.speaking.AiRateLimiterService;
 import com.deutschflow.speaking.AiRateLimiterService.Bucket;
@@ -44,9 +45,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @PreAuthorize("hasAnyRole('STUDENT','TEACHER','ADMIN')")
 public class AiSessionController {
 
+    private static final long STT_ESTIMATED_TOKENS = 200L;
+
     private final AiSpeakingService aiSpeakingService;
     private final com.deutschflow.speaking.ai.GroqWhisperClient groqWhisperClient;
     private final QuotaService quotaService;
+    private final OrgPoolGuard orgPoolGuard;
     private final AiRateLimiterService aiRateLimiterService;
     private final AiUsageLedgerService ledgerService;
 
@@ -97,6 +101,8 @@ public class AiSessionController {
     public Map<String, String> transcribe(
             @AuthenticationPrincipal User user,
             @RequestParam("audio") MultipartFile file) throws IOException {
+        quotaService.assertAllowed(user.getId(), Instant.now(), STT_ESTIMATED_TOKENS);
+        orgPoolGuard.assertOrgPoolAvailable(user.getId(), STT_ESTIMATED_TOKENS);
         // Per-user request-rate guard on top of the quota wallet. Whisper costs ~$0.006/min and
         // the wallet's audit lags by one call; without this, a single tight loop could rack up
         // significant spend and pin the Whisper API before the quota even debits.

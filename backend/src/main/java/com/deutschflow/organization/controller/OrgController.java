@@ -161,14 +161,14 @@ public class OrgController {
     @GetMapping("/invoices")
     public List<OrgInvoiceDto> listInvoices(@AuthenticationPrincipal User user) {
         Long orgId = requireOrgId(user);
-        orgGuard.assertOrgAdmin(user.getId(), orgId);
+        orgGuard.assertOrgFinance(user.getId(), orgId);
         return orgBillingService.listInvoices(orgId);
     }
 
     @GetMapping("/payment-info")
     public com.deutschflow.organization.dto.PaymentInfoDto getPaymentInfo(@AuthenticationPrincipal User user) {
         Long orgId = requireOrgId(user);
-        orgGuard.assertOrgAdmin(user.getId(), orgId);
+        orgGuard.assertOrgFinance(user.getId(), orgId);
         return orgBillingService.getPaymentInfo();
     }
 }

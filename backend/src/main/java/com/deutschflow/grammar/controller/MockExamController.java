@@ -1,17 +1,27 @@
 package com.deutschflow.grammar.controller;
 
+import com.deutschflow.common.async.AsyncJob;
+import com.deutschflow.common.async.AsyncJobService;
+import com.deutschflow.common.quota.QuotaService;
 import com.deutschflow.grammar.service.AiExamEvaluatorService;
 import com.deutschflow.grammar.service.ExamGenerationService;
 import com.deutschflow.grammar.service.ExamQuestionSanitizer;
 import com.deutschflow.grammar.service.ExamScoringService;
+import com.deutschflow.organization.service.OrgPoolGuard;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 /**
  * Mock Goethe Exam API
@@ -19,9 +29,11 @@ import java.util.*;
  */
 @RestController
 @RequestMapping("/api/mock-exams")
+@PreAuthorize("isAuthenticated()")
 public class MockExamController {
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(MockExamController.class);
     private static final ObjectMapper om = new ObjectMapper();
+    private static final long EXAM_AI_ESTIMATED_TOKENS = 1_500L;
 
     private final JdbcTemplate jdbcTemplate;
     private final ExamScoringService scoringService;
@@ -30,12 +42,20 @@ public class MockExamController {
     private final ExamQuestionSanitizer questionSanitizer;
     private final com.deutschflow.assessment.service.B1ReadinessService b1ReadinessService;
     private final com.deutschflow.progress.service.PhaseEngineService phaseEngineService;
+    private final QuotaService quotaService;
+    private final OrgPoolGuard orgPoolGuard;
+
+    // S-5: injected separately to avoid growing the explicit constructor
+    @Autowired private AsyncJobService asyncJobService;
+    @Autowired @Qualifier("aiExecutor") private Executor aiExecutor;
 
     public MockExamController(JdbcTemplate jdbcTemplate, ExamScoringService scoringService,
                                AiExamEvaluatorService aiEvaluator, ExamGenerationService generationService,
                                ExamQuestionSanitizer questionSanitizer,
                                com.deutschflow.assessment.service.B1ReadinessService b1ReadinessService,
-                               com.deutschflow.progress.service.PhaseEngineService phaseEngineService) {
+                               com.deutschflow.progress.service.PhaseEngineService phaseEngineService,
+                               QuotaService quotaService,
+                               OrgPoolGuard orgPoolGuard) {
         this.jdbcTemplate = jdbcTemplate;
         this.scoringService = scoringService;
         this.aiEvaluator = aiEvaluator;
@@ -43,6 +63,8 @@ public class MockExamController {
         this.questionSanitizer = questionSanitizer;
         this.b1ReadinessService = b1ReadinessService;
         this.phaseEngineService = phaseEngineService;
+        this.quotaService = quotaService;
+        this.orgPoolGuard = orgPoolGuard;
     }
 
     private long userId(UserDetails p) {
@@ -122,6 +144,10 @@ public class MockExamController {
         }
     }
 
+    /**
+     * S-5: finishExam now returns 202 + jobId immediately (quota check stays synchronous for fail-fast).
+     * Scoring + AI eval run on aiExecutor off the Tomcat thread; client polls GET /api/async-jobs/{jobId}.
+     */
     @PostMapping("/attempts/{attemptId}/finish")
     public ResponseEntity<Map<String, Object>> finishExam(
             @PathVariable long attemptId,
@@ -129,163 +155,178 @@ public class MockExamController {
             @AuthenticationPrincipal UserDetails principal) {
         long uid = userId(principal);
 
-        try {
-            // Get attempt details
-            var attempt = jdbcTemplate.queryForMap("""
-                SELECT a.exam_id, a.answers_submitted_json::text AS answers
-                FROM mock_exam_attempts a
-                WHERE a.id = ? AND a.user_id = ?
-                """, attemptId, uid);
+        // Quota gate stays synchronous — fast DB read, propagates QuotaExceededException immediately
+        quotaService.assertAllowed(uid, Instant.now(), EXAM_AI_ESTIMATED_TOKENS);
+        orgPoolGuard.assertOrgPoolAvailable(uid, EXAM_AI_ESTIMATED_TOKENS);
 
-            long examId = ((Number) attempt.get("exam_id")).longValue();
+        AsyncJob job = asyncJobService.createJob("FINISH_EXAM", uid);
+        Map<String, Object> safeBody = body != null ? new HashMap<>(body) : Map.of();
 
-            // Get exam structure
-            var exam = jdbcTemplate.queryForMap("""
-                SELECT sections_json::text AS sections_json
-                FROM mock_exams WHERE id = ?
-                """, examId);
-
-            String sectionsJson = (String) exam.get("sections_json");
-            Map<String, Object> examStructure = om.readValue(sectionsJson, Map.class);
-            List<Map<String, Object>> sections = (List<Map<String, Object>>) examStructure.get("sections");
-
-            // Parse submitted answers
-            Map<String, Object> answers = new HashMap<>();
-            if (body != null && body.containsKey("answers")) {
-                answers = (Map<String, Object>) body.get("answers");
+        UserDetails capturedPrincipal = principal;
+        CompletableFuture.runAsync(() -> {
+            try {
+                Map<String, Object> result = processFinishExam(uid, attemptId, safeBody, capturedPrincipal);
+                asyncJobService.completeJob(job.getId(), om.writeValueAsString(result));
+            } catch (Exception e) {
+                asyncJobService.failJob(job.getId(),
+                        e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
+                log.error("[MockExam] Async finish failed attempt={} uid={}: {}",
+                        attemptId, uid, e.getMessage(), e);
             }
+        }, aiExecutor);
 
-            // Calculate scores for each section using real rubrics
-            Map<String, Object> detailedScores = new HashMap<>();
-            int lesenScore = 0;
-            int hoerenScore = 0;
-            Map<String, Object> schreibenScores = new HashMap<>();
-            Map<String, Object> sprechenScores = new HashMap<>();
+        return ResponseEntity.accepted().body(Map.of(
+                "jobId", job.getId().toString(),
+                "status", AsyncJob.Status.PENDING.name(),
+                "attemptId", attemptId
+        ));
+    }
 
-            for (Map<String, Object> section : sections) {
-                String sectionName = (String) section.get("name");
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> processFinishExam(long uid, long attemptId,
+                                                   Map<String, Object> body,
+                                                   UserDetails caller) throws Exception {
+        // Get attempt details
+        var attempt = jdbcTemplate.queryForMap("""
+            SELECT a.exam_id, a.answers_submitted_json::text AS answers
+            FROM mock_exam_attempts a
+            WHERE a.id = ? AND a.user_id = ?
+            """, attemptId, uid);
 
-                switch (sectionName) {
-                    case "LESEN" -> {
-                        lesenScore = scoringService.scoreLesenSection(answers, section);
-                        detailedScores.put("LESEN", Map.of(
-                            "total", lesenScore,
-                            "max", 25,
-                            "percentage", (lesenScore * 100) / 25,
-                            "status", "COMPLETED"
-                        ));
+        long examId = ((Number) attempt.get("exam_id")).longValue();
+
+        // Get exam structure
+        var exam = jdbcTemplate.queryForMap("""
+            SELECT sections_json::text AS sections_json
+            FROM mock_exams WHERE id = ?
+            """, examId);
+
+        String sectionsJson = (String) exam.get("sections_json");
+        Map<String, Object> examStructure = om.readValue(sectionsJson, Map.class);
+        List<Map<String, Object>> sections = (List<Map<String, Object>>) examStructure.get("sections");
+
+        // Parse submitted answers
+        Map<String, Object> answers = new HashMap<>();
+        if (body.containsKey("answers")) {
+            answers = (Map<String, Object>) body.get("answers");
+        }
+
+        // Calculate scores for each section using real rubrics
+        Map<String, Object> detailedScores = new HashMap<>();
+        int lesenScore = 0;
+        int hoerenScore = 0;
+        Map<String, Object> schreibenScores = new HashMap<>();
+
+        for (Map<String, Object> section : sections) {
+            String sectionName = (String) section.get("name");
+
+            switch (sectionName) {
+                case "LESEN" -> {
+                    lesenScore = scoringService.scoreLesenSection(answers, section);
+                    detailedScores.put("LESEN", Map.of(
+                        "total", lesenScore,
+                        "max", 25,
+                        "percentage", (lesenScore * 100) / 25,
+                        "status", "COMPLETED"
+                    ));
+                }
+                case "HOEREN" -> {
+                    hoerenScore = scoringService.scoreHoerenSection(answers, section);
+                    detailedScores.put("HOEREN", Map.of(
+                        "total", hoerenScore,
+                        "max", 25,
+                        "percentage", (hoerenScore * 100) / 25,
+                        "status", "COMPLETED"
+                    ));
+                }
+                case "SCHREIBEN" -> {
+                    schreibenScores = scoringService.scoreSchreibenSection(answers, section);
+
+                    // AI-evaluate the email Teil 2 if content was submitted
+                    Object teil2Raw = schreibenScores.get("teil2_email");
+                    String emailContent = null;
+                    String taskPrompt = null;
+                    if (teil2Raw instanceof Map<?,?> t2Map) {
+                        Object ec = t2Map.get("email_content");
+                        emailContent = ec instanceof String s ? s : null;
                     }
-                    case "HOEREN" -> {
-                        hoerenScore = scoringService.scoreHoerenSection(answers, section);
-                        detailedScores.put("HOEREN", Map.of(
-                            "total", hoerenScore,
-                            "max", 25,
-                            "percentage", (hoerenScore * 100) / 25,
-                            "status", "COMPLETED"
-                        ));
-                    }
-                    case "SCHREIBEN" -> {
-                        schreibenScores = scoringService.scoreSchreibenSection(answers, section);
-
-                        // AI-evaluate the email Teil 2 if content was submitted
-                        Object teil2Raw = schreibenScores.get("teil2_email");
-                        String emailContent = null;
-                        String taskPrompt = null;
-                        if (teil2Raw instanceof Map<?,?> t2Map) {
-                            Object ec = t2Map.get("email_content");
-                            emailContent = ec instanceof String s ? s : null;
-                        }
-                        // Try to get task prompt from section structure
-                        if (section.get("teile") instanceof List<?> teile) {
-                            for (Object t : teile) {
-                                if (t instanceof Map<?,?> tm && "WRITE_EMAIL".equals(tm.get("type"))) {
-                                    Object inst = tm.get("instruction_vi");
-                                    if (inst == null) inst = tm.get("instruction_de");
-                                    if (inst instanceof String s) taskPrompt = s;
-                                }
+                    // Try to get task prompt from section structure
+                    if (section.get("teile") instanceof List<?> teile) {
+                        for (Object t : teile) {
+                            if (t instanceof Map<?,?> tm && "WRITE_EMAIL".equals(tm.get("type"))) {
+                                Object inst = tm.get("instruction_vi");
+                                if (inst == null) inst = tm.get("instruction_de");
+                                if (inst instanceof String s) taskPrompt = s;
                             }
                         }
+                    }
 
-                        if (emailContent != null && !emailContent.isBlank()) {
-                            Map<String, Object> aiResult = aiEvaluator.evaluateSchreibenEmail(emailContent, taskPrompt);
-                            // Merge AI evaluation into schreiben scores
-                            schreibenScores = new HashMap<>(schreibenScores);
-                            schreibenScores.put("teil2_email", aiResult);
-                            // Update provisional total with AI score
-                            int aiScore = ((Number) aiResult.get("total")).intValue();
-                            int teil1 = schreibenScores.containsKey("teil1_form")
-                                ? ((Number) schreibenScores.get("teil1_form")).intValue() : 0;
-                            schreibenScores.put("total_provisional", teil1 + aiScore);
-                        }
-                        detailedScores.put("SCHREIBEN", schreibenScores);
+                    if (emailContent != null && !emailContent.isBlank()) {
+                        Map<String, Object> aiResult = aiEvaluator.evaluateSchreibenEmail(uid, emailContent, taskPrompt);
+                        schreibenScores = new HashMap<>(schreibenScores);
+                        schreibenScores.put("teil2_email", aiResult);
+                        int aiScore = ((Number) aiResult.get("total")).intValue();
+                        int teil1 = schreibenScores.containsKey("teil1_form")
+                            ? ((Number) schreibenScores.get("teil1_form")).intValue() : 0;
+                        schreibenScores.put("total_provisional", teil1 + aiScore);
                     }
-                    case "SPRECHEN" -> {
-                        sprechenScores = scoringService.scoreSperechenSection(answers, section);
-                        detailedScores.put("SPRECHEN", sprechenScores);
-                    }
+                    detailedScores.put("SCHREIBEN", schreibenScores);
+                }
+                case "SPRECHEN" -> {
+                    Map<String, Object> sprechenScores = scoringService.scoreSperechenSection(uid, answers, section);
+                    detailedScores.put("SPRECHEN", sprechenScores);
                 }
             }
-
-            // Calculate total score (provisional — Speaking requires manual eval)
-            int totalScore = lesenScore + hoerenScore;
-            if (schreibenScores.containsKey("total_provisional")) {
-                totalScore += ((Number) schreibenScores.get("total_provisional")).intValue();
-            }
-
-            // Identify weak areas
-            List<String> weakAreas = scoringService.identifyWeakAreas(detailedScores);
-
-            // Save results
-            String detailedScoresJson = om.writeValueAsString(detailedScores);
-            String weakAreasJson = om.writeValueAsString(weakAreas);
-
-            jdbcTemplate.update("""
-                UPDATE mock_exam_attempts
-                SET status = 'COMPLETED',
-                    finished_at = NOW(),
-                    total_score = ?,
-                    passed = (? >= 60),
-                    detailed_scores_json = ?::jsonb,
-                    weak_areas = ?::jsonb,
-                    answers_submitted_json = ?::jsonb
-                WHERE id = ? AND user_id = ?
-                """, totalScore, totalScore, detailedScoresJson, weakAreasJson,
-                om.writeValueAsString(answers), attemptId, uid);
-
-            log.info("Exam {} finished for user {} with score {}", attemptId, uid, totalScore);
-
-            // Refresh learner phase progress from real signals, and — for B1 exams — feed the
-            // pass/fail into B1 graduation tracking. Without this wire, a passed B1 mock exam
-            // never reached B1ReadinessService and graduation could never be confirmed.
-            // Best-effort: never fail the exam-finish response on a progress-update error.
-            try {
-                if (principal instanceof com.deutschflow.user.entity.User user) {
-                    phaseEngineService.recompute(user);
-                    String cefr = jdbcTemplate.queryForObject(
-                            "SELECT cefr_level FROM mock_exams WHERE id = ?", String.class, examId);
-                    if ("B1".equalsIgnoreCase(cefr)) {
-                        b1ReadinessService.recordMockExamResult(user, totalScore >= 60);
-                    }
-                }
-            } catch (Exception ex) {
-                log.warn("Post-exam phase/B1 readiness update failed for attempt {}: {}",
-                        attemptId, ex.getMessage());
-            }
-
-            return ResponseEntity.ok(Map.of(
-                "attemptId", attemptId,
-                "totalScore", totalScore,
-                "passed", totalScore >= 60,
-                "detailedScores", detailedScores,
-                "weakAreas", weakAreas
-            ));
-
-        } catch (Exception e) {
-            log.error("Error finishing exam {}: {}", attemptId, e.getMessage(), e);
-            return ResponseEntity.badRequest().body(Map.of(
-                "error", "Could not process exam results: " + e.getMessage()
-            ));
         }
+
+        // Calculate total score (provisional — Speaking requires manual eval)
+        int totalScore = lesenScore + hoerenScore;
+        if (schreibenScores.containsKey("total_provisional")) {
+            totalScore += ((Number) schreibenScores.get("total_provisional")).intValue();
+        }
+
+        // Identify weak areas
+        List<String> weakAreas = scoringService.identifyWeakAreas(detailedScores);
+
+        // Save results
+        String detailedScoresJson = om.writeValueAsString(detailedScores);
+        String weakAreasJson = om.writeValueAsString(weakAreas);
+
+        jdbcTemplate.update("""
+            UPDATE mock_exam_attempts
+            SET status = 'COMPLETED',
+                finished_at = NOW(),
+                total_score = ?,
+                passed = (? >= 60),
+                detailed_scores_json = ?::jsonb,
+                weak_areas = ?::jsonb,
+                answers_submitted_json = ?::jsonb
+            WHERE id = ? AND user_id = ?
+            """, totalScore, totalScore, detailedScoresJson, weakAreasJson,
+            om.writeValueAsString(answers), attemptId, uid);
+
+        log.info("[MockExam] Exam {} finished for user {} with score {}", attemptId, uid, totalScore);
+
+        // Best-effort post-exam updates (phase recompute + B1 graduation)
+        try {
+            phaseEngineService.recompute(uid);
+            String cefr = jdbcTemplate.queryForObject(
+                    "SELECT cefr_level FROM mock_exams WHERE id = ?", String.class, examId);
+            if ("B1".equalsIgnoreCase(cefr) && caller instanceof com.deutschflow.user.entity.User user) {
+                b1ReadinessService.recordMockExamResult(user, totalScore >= 60);
+            }
+        } catch (Exception ex) {
+            log.warn("[MockExam] Post-exam phase/B1 update failed for attempt {}: {}",
+                    attemptId, ex.getMessage());
+        }
+
+        return Map.of(
+            "attemptId", attemptId,
+            "totalScore", totalScore,
+            "passed", totalScore >= 60,
+            "detailedScores", detailedScores,
+            "weakAreas", weakAreas
+        );
     }
 
     @GetMapping("/attempts/me")

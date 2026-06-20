@@ -5,6 +5,8 @@ import com.deutschflow.curriculum.service.SkillTreeService;
 import com.deutschflow.speaking.ai.GroqWhisperClient;
 import com.deutschflow.speaking.ai.GroqWhisperClient.TranscribeResult;
 import com.deutschflow.common.quota.AiUsageLedgerService;
+import com.deutschflow.common.quota.QuotaService;
+import com.deutschflow.organization.service.OrgPoolGuard;
 import com.deutschflow.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -14,6 +16,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -32,10 +35,16 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class SkillTreeController {
 
+    private static final long CORRECT_WRITING_ESTIMATED_TOKENS = 2_500L;
+    private static final long SATELLITE_GEN_ESTIMATED_TOKENS   = 4_000L;
+    private static final long STT_ESTIMATED_TOKENS              =   200L;
+
     private final SkillTreeService skillTreeService;
     private final PlacementTestService placementTestService;
     private final GroqWhisperClient groqWhisperClient;
     private final AiUsageLedgerService ledgerService;
+    private final QuotaService quotaService;
+    private final OrgPoolGuard orgPoolGuard;
 
     // ─────────────────────────────────────────────────────────────
     // POST /api/skill-tree/placement-test — Tạo bài test xếp lớp
@@ -95,6 +104,8 @@ public class SkillTreeController {
             @AuthenticationPrincipal User user,
             @PathVariable long nodeId
     ) {
+        quotaService.assertAllowed(user.getId(), Instant.now(), SATELLITE_GEN_ESTIMATED_TOKENS);
+        orgPoolGuard.assertOrgPoolAvailable(user.getId(), SATELLITE_GEN_ESTIMATED_TOKENS);
         Object result = skillTreeService.unlockSatelliteNode(user.getId(), nodeId);
 
         if (result instanceof Map<?, ?> map) {
@@ -123,6 +134,8 @@ public class SkillTreeController {
             return ResponseEntity.badRequest().body(Map.of("error", "Sở thích (hobby) không được để trống"));
         }
         
+        quotaService.assertAllowed(user.getId(), Instant.now(), SATELLITE_GEN_ESTIMATED_TOKENS);
+        orgPoolGuard.assertOrgPoolAvailable(user.getId(), SATELLITE_GEN_ESTIMATED_TOKENS);
         Object result = skillTreeService.generatePersonalizedSatelliteNode(user.getId(), coreNodeId, hobby);
 
         if (result instanceof Map<?, ?> map) {
@@ -178,6 +191,8 @@ public class SkillTreeController {
             @RequestParam("originalText") String originalText,
             @RequestParam(value = "focusPhonemes", required = false, defaultValue = "[]") String focusPhonemesJson
     ) {
+        quotaService.assertAllowed(user.getId(), Instant.now(), STT_ESTIMATED_TOKENS);
+        orgPoolGuard.assertOrgPoolAvailable(user.getId(), STT_ESTIMATED_TOKENS);
         try {
             // Step 1: Transcribe audio via Groq Whisper API (pass originalText as prompt)
             TranscribeResult stt = groqWhisperClient.transcribe(
@@ -218,6 +233,9 @@ public class SkillTreeController {
         String text = (String) request.get("text");
         String taskDe = (String) request.getOrDefault("taskDe", "");
 
+        quotaService.assertAllowed(user.getId(), Instant.now(), CORRECT_WRITING_ESTIMATED_TOKENS);
+        orgPoolGuard.assertOrgPoolAvailable(user.getId(), CORRECT_WRITING_ESTIMATED_TOKENS);
+
         try {
             String prompt = String.format("""
                     Đóng vai giáo viên tiếng Đức. Học viên A1 viết bài sau:
@@ -243,6 +261,11 @@ public class SkillTreeController {
                     new com.deutschflow.speaking.ai.ChatMessage("user", prompt)
             );
             var result = skillTreeService.getGroqClient().chatCompletion(messages, null, 0.2, 2048);
+            if (result.usage() != null) {
+                ledgerService.record(user.getId(), result.provider(), result.model(),
+                        result.usage().promptTokens(), result.usage().completionTokens(),
+                        result.usage().totalTokens(), "CORRECT_WRITING", null, null);
+            }
             var parsed = new com.fasterxml.jackson.databind.ObjectMapper().readTree(result.content());
             return ResponseEntity.ok(new com.fasterxml.jackson.databind.ObjectMapper().convertValue(parsed, Map.class));
         } catch (Exception e) {

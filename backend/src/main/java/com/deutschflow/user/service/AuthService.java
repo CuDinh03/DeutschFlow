@@ -111,7 +111,7 @@ public class AuthService {
                     studentTrialSubscriptionProvisioner.provisionSevenDayTrial(
                             user.getId(), start, start.plus(Duration.ofDays(7)));
                 } catch (Exception e) {
-                    System.err.println("⚠️ Failed to provision trial subscription for user " + user.getId() + ": " + e.getMessage());
+                    log.warn("Failed to provision trial subscription for user {}: {}", user.getId(), e.getMessage());
                     // User can still login — subscription creation can fail without blocking auth
                 }
             }

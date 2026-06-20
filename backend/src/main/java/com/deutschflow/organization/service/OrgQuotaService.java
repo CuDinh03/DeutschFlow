@@ -22,16 +22,20 @@ public class OrgQuotaService {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    /** Tổng token AI org đã dùng trong tháng hiện tại (mọi user thuộc org). */
+    /**
+     * Tổng token AI org đã dùng trong tháng hiện tại — O(1) PK lookup từ counter table (S-3/P-10).
+     * Counter được tăng atomic trong {@code AiUsageLedgerService.record()} mỗi khi có event.
+     * Trả 0 nếu tháng này chưa có event nào (row chưa tồn tại).
+     */
     @Transactional(readOnly = true)
     public long orgUsageThisMonth(Long orgId) {
-        Long total = jdbcTemplate.queryForObject("""
-                SELECT COALESCE(SUM(e.total_tokens), 0)
-                FROM ai_token_usage_events e
-                JOIN users u ON u.id = e.user_id
-                WHERE u.org_id = ?
-                  AND e.created_at >= date_trunc('month', now())
-                """, Long.class, orgId);
+        Long total = jdbcTemplate.query("""
+                SELECT tokens_used FROM org_monthly_token_counters
+                WHERE org_id = ?
+                  AND month_start = date_trunc('month', now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date
+                """,
+                rs -> rs.next() ? rs.getLong(1) : null,
+                orgId);
         return total != null ? total : 0L;
     }
 
@@ -57,13 +61,16 @@ public class OrgQuotaService {
 
     /**
      * True nếu user thuộc một org có pool {@code > 0} và việc nạp thêm
-     * {@code estimatedTokens} token trong tháng sẽ vượt pool. User B2C (org_id NULL) và
-     * org pool {@code <= 0} → false (cho qua). Gọi từ {@code QuotaService.assertAllowed}.
+     * {@code estimatedTokens} token trong tháng sẽ vượt pool. User B2C (không có org_members row)
+     * và org pool {@code <= 0} → false (cho qua). Gọi từ {@code QuotaService.assertAllowed}.
+     *
+     * <p>Dùng {@code org_members} làm nguồn tenant duy nhất (T-1/D-1) — không đọc
+     * {@code users.org_id} để tránh drift giữa hai nguồn.
      */
     @Transactional(readOnly = true)
     public boolean wouldExceedOrgPool(long userId, long estimatedTokens) {
         Long orgId = jdbcTemplate.query(
-                "SELECT org_id FROM users WHERE id = ?",
+                "SELECT org_id FROM org_members WHERE user_id = ? AND status = 'ACTIVE' LIMIT 1",
                 rs -> {
                     if (!rs.next()) {
                         return null;

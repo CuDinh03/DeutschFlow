@@ -1,5 +1,6 @@
 package com.deutschflow.grammar.service;
 
+import com.deutschflow.common.quota.AiUsageLedgerService;
 import com.deutschflow.speaking.ai.ChatMessage;
 import com.deutschflow.speaking.ai.OpenAiChatClient;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -26,16 +27,18 @@ public class AiExamEvaluatorService {
     private static final int MAX_USER_CONTENT_CHARS = 4000;
 
     private final OpenAiChatClient chatClient;
+    private final AiUsageLedgerService ledgerService;
 
-    public AiExamEvaluatorService(OpenAiChatClient chatClient) {
+    public AiExamEvaluatorService(OpenAiChatClient chatClient, AiUsageLedgerService ledgerService) {
         this.chatClient = chatClient;
+        this.ledgerService = ledgerService;
     }
 
     /**
      * Evaluate a Sprechen oral response against the official Goethe Sprechen rubric.
      * Returns a scored map with rubric scores and Vietnamese feedback.
      */
-    public Map<String, Object> evaluateSprechen(String transcript, String taskPrompt, String cefrLevel) {
+    public Map<String, Object> evaluateSprechen(long userId, String transcript, String taskPrompt, String cefrLevel) {
         if (transcript == null || transcript.isBlank()) {
             return buildEmptySprechenEvaluation("Không có nội dung bài nói");
         }
@@ -48,6 +51,11 @@ public class AiExamEvaluatorService {
             );
 
             var result = chatClient.chatCompletion(messages, null, 0.2, 800);
+            if (result.usage() != null) {
+                ledgerService.record(userId, result.provider(), result.model(),
+                        result.usage().promptTokens(), result.usage().completionTokens(),
+                        result.usage().totalTokens(), "EXAM_SPRECHEN", null, null);
+            }
             return parseSprechenResponse(result.content(), transcript);
 
         } catch (Exception e) {
@@ -154,7 +162,7 @@ public class AiExamEvaluatorService {
      * Evaluate a Schreiben Teil 2 email response against the official Goethe A1 rubric.
      * Returns a scored map with rubric scores and bilingual feedback.
      */
-    public Map<String, Object> evaluateSchreibenEmail(String emailContent, String taskPrompt) {
+    public Map<String, Object> evaluateSchreibenEmail(long userId, String emailContent, String taskPrompt) {
         if (emailContent == null || emailContent.isBlank()) {
             return buildEmptyEvaluation("Không có nội dung bài viết");
         }
@@ -167,6 +175,11 @@ public class AiExamEvaluatorService {
             );
 
             var result = chatClient.chatCompletion(messages, null, 0.2, 800);
+            if (result.usage() != null) {
+                ledgerService.record(userId, result.provider(), result.model(),
+                        result.usage().promptTokens(), result.usage().completionTokens(),
+                        result.usage().totalTokens(), "EXAM_SCHREIBEN", null, null);
+            }
             return parseEvaluationResponse(result.content(), emailContent);
 
         } catch (Exception e) {
