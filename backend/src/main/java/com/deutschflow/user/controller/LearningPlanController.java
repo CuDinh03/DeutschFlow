@@ -1,5 +1,6 @@
 package com.deutschflow.user.controller;
 
+import com.deutschflow.user.dto.AdaptiveRefreshDto;
 import com.deutschflow.user.dto.LearningSessionAttemptSummaryDto;
 import com.deutschflow.user.dto.LearningPlanResponse;
 import com.deutschflow.user.dto.SessionCompleteRequest;
@@ -8,7 +9,6 @@ import com.deutschflow.user.dto.SessionSubmitRequest;
 import com.deutschflow.user.dto.SessionSubmitResponse;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.service.LearningPlanService;
-import com.deutschflow.user.service.WeakPointGrammarPlanInjector.InjectionResult;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -23,9 +23,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/plan")
@@ -48,15 +45,8 @@ public class LearningPlanController {
     }
 
     @PostMapping("/me/adaptive-refresh")
-    public Map<String, Object> adaptiveRefresh(@AuthenticationPrincipal User user) {
-        InjectionResult r = learningPlanService.persistAdaptiveRefresh(user);
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("injected", r.injected());
-        body.put("reason", r.reason());
-        body.put("errorCode", r.errorCode());
-        body.put("week", r.week());
-        body.put("sessionIndex", r.sessionIndex());
-        return body;
+    public AdaptiveRefreshDto adaptiveRefresh(@AuthenticationPrincipal User user) {
+        return AdaptiveRefreshDto.from(learningPlanService.persistAdaptiveRefresh(user));
     }
 
     @GetMapping("/sessions/{week}/{sessionIndex}")

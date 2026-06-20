@@ -212,4 +212,16 @@ class IosOpenApiContractTest extends AbstractPostgresIntegrationTest {
                 // quiz questions stay the nested {word, content} shape
                 .andExpect(jsonPath("$.components.schemas.QuizQuestion.properties.content").exists());
     }
+
+    @Test
+    void shouldTypeLearningPlanAndCoverPlanGroup() throws Exception {
+        // P1 Round 9 (LearningPlan): /me/adaptive-refresh flipped Map<String,Object> → typed
+        // AdaptiveRefreshDto; AND /api/plan/** added to the ios group (was w2-only) so the native
+        // client sees the plan endpoints.
+        mockMvc.perform(get("/v3/api-docs/ios"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.paths['/api/plan/me/adaptive-refresh']").exists())
+                .andExpect(jsonPath("$.components.schemas.AdaptiveRefreshDto").exists())
+                .andExpect(jsonPath("$.components.schemas.AdaptiveRefreshDto.properties.sessionIndex").exists());
+    }
 }
