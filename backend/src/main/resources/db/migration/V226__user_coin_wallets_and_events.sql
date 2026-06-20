@@ -1,4 +1,7 @@
--- V221 — Student virtual currency ("coin").
+-- V226 — Student virtual currency ("coin").
+-- (Renumbered from V221 → V226 to land AFTER remediation V222–V224 (#125, on main) and
+--  M-5 V225 (#126) — keeps Flyway in-order when this merges to main. Assumes #126 merges first;
+--  if coin merges before #126, set spring.flyway.out-of-order=true.)
 --
 -- Bonus-only economy: coins are EARNED 1-per-learning-node-completion and SPENT on bonus access
 -- (a single-attempt mock-exam trial pass, or extra AI-speaking tokens for the day). Coins NEVER
