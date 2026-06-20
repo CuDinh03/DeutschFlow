@@ -118,8 +118,12 @@ class ExamGenerationServiceTest {
 
         var coverage = service.getExamCoverage("A1");
 
-        assertEquals("A1", coverage.get("cefrLevel"));
-        assertEquals(3, coverage.get("totalExams"));
-        assertEquals(exams, coverage.get("exams"));
+        assertEquals("A1", coverage.cefrLevel());
+        assertEquals(3, coverage.totalExams());
+        assertEquals(3, coverage.exams().size());
+        assertEquals(1L, coverage.exams().get(0).id());
+        assertEquals("Set 1", coverage.exams().get(0).title());
+        assertEquals(true, coverage.exams().get(0).isActive());
+        assertEquals(50L, coverage.exams().get(0).attemptCount());
     }
 }

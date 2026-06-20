@@ -1,6 +1,12 @@
 package com.deutschflow.grammar.service;
 
 import com.deutschflow.ai.AIModelService;
+import com.deutschflow.grammar.dto.GrammarDraftDto;
+import com.deutschflow.grammar.dto.GrammarExerciseDto;
+import com.deutschflow.grammar.dto.GrammarGeneratedExerciseDto;
+import com.deutschflow.grammar.dto.GrammarPendingReviewDto;
+import com.deutschflow.grammar.dto.GrammarSubmitResultDto;
+import com.deutschflow.grammar.dto.GrammarTopicDto;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -40,7 +46,7 @@ public class GrammarSyllabusService {
             """, cefrLevel);
     }
 
-    public List<Map<String, Object>> getTopicsWithProgress(String cefrLevel, long userId) {
+    public List<GrammarTopicDto> getTopicsWithProgress(String cefrLevel, long userId) {
         return jdbcTemplate.queryForList("""
             SELECT t.id, t.cefr_level, t.topic_code, t.title_de, t.title_vi, t.title_en,
                    t.description_vi, t.sort_order,
@@ -53,23 +59,23 @@ public class GrammarSyllabusService {
             LEFT JOIN grammar_topic_progress p ON p.topic_id = t.id AND p.user_id = ?
             WHERE t.cefr_level = ? AND t.is_active = TRUE
             ORDER BY t.sort_order
-            """, userId, cefrLevel);
+            """, userId, cefrLevel).stream().map(GrammarTopicDto::from).toList();
     }
 
     // ─── Exercises (Student) ─────────────────────────────────────
 
-    public List<Map<String, Object>> getApprovedExercises(long topicId, int limit) {
+    public List<GrammarExerciseDto> getApprovedExercises(long topicId, int limit) {
         return jdbcTemplate.queryForList("""
             SELECT id, exercise_type, difficulty, question_json::text AS question_json
             FROM grammar_exercises
             WHERE topic_id = ? AND status = 'APPROVED'
             ORDER BY difficulty, id
             LIMIT ?
-            """, topicId, limit);
+            """, topicId, limit).stream().map(GrammarExerciseDto::from).toList();
     }
 
     @Transactional
-    public Map<String, Object> submitAnswer(long userId, long exerciseId, String answer) {
+    public GrammarSubmitResultDto submitAnswer(long userId, long exerciseId, String answer) {
         var exercise = jdbcTemplate.queryForMap("""
             SELECT e.id, e.topic_id, e.question_json::text AS question_json
             FROM grammar_exercises e WHERE e.id = ? AND e.status = 'APPROVED'
@@ -101,11 +107,10 @@ public class GrammarSyllabusService {
                     isCorrect ? 1 : 0, isCorrect ? 100.0 : 0.0,
                     isCorrect ? 1 : 0, isCorrect ? 1 : 0);
 
-            return Map.of(
-                "correct", isCorrect,
-                "correctAnswer", correctAnswer,
-                "explanation", questionData.getOrDefault("explanation_vi", "")
-            );
+            return new GrammarSubmitResultDto(
+                isCorrect,
+                correctAnswer,
+                String.valueOf(questionData.getOrDefault("explanation_vi", "")));
         } catch (Exception e) {
             log.error("Error processing answer", e);
             throw new RuntimeException("Failed to process answer", e);
@@ -115,7 +120,7 @@ public class GrammarSyllabusService {
     // ─── AI Generation (Teacher) ─────────────────────────────────
 
     @Transactional
-    public List<Map<String, Object>> generateExercises(long topicId, int count, long teacherUserId) {
+    public List<GrammarGeneratedExerciseDto> generateExercises(long topicId, int count, long teacherUserId) {
         var topic = jdbcTemplate.queryForMap(
             "SELECT topic_code, title_de, title_vi, cefr_level FROM grammar_topics WHERE id = ?", topicId);
 
@@ -154,7 +159,7 @@ public class GrammarSyllabusService {
             }
 
             List<Map<String, Object>> exercises = objectMapper.readValue(json, new TypeReference<>() {});
-            List<Map<String, Object>> created = new ArrayList<>();
+            List<GrammarGeneratedExerciseDto> created = new ArrayList<>();
 
             for (var ex : exercises) {
                 String questionJson = objectMapper.writeValueAsString(ex);
@@ -168,7 +173,7 @@ public class GrammarSyllabusService {
                     """, topicId, exType, diff, questionJson, teacherUserId);
 
                 row.put("question_json", questionJson);
-                created.add(row);
+                created.add(GrammarGeneratedExerciseDto.from(row));
             }
 
             return created;
@@ -180,7 +185,7 @@ public class GrammarSyllabusService {
 
     // ─── Teacher CRUD ────────────────────────────────────────────
 
-    public List<Map<String, Object>> getMyDrafts(long teacherUserId) {
+    public List<GrammarDraftDto> getMyDrafts(long teacherUserId) {
         return jdbcTemplate.queryForList("""
             SELECT e.id, e.topic_id, t.title_de AS topic_title, e.exercise_type,
                    e.difficulty, e.question_json::text AS question_json, e.status,
@@ -189,7 +194,7 @@ public class GrammarSyllabusService {
             JOIN grammar_topics t ON t.id = e.topic_id
             WHERE e.created_by = ?
             ORDER BY e.created_at DESC
-            """, teacherUserId);
+            """, teacherUserId).stream().map(GrammarDraftDto::from).toList();
     }
 
     @Transactional
@@ -210,7 +215,7 @@ public class GrammarSyllabusService {
 
     // ─── Admin Review ────────────────────────────────────────────
 
-    public List<Map<String, Object>> getPendingReview() {
+    public List<GrammarPendingReviewDto> getPendingReview() {
         return jdbcTemplate.queryForList("""
             SELECT e.id, e.topic_id, t.title_de AS topic_title, t.cefr_level,
                    e.exercise_type, e.difficulty, e.question_json::text AS question_json,
@@ -219,7 +224,7 @@ public class GrammarSyllabusService {
             JOIN grammar_topics t ON t.id = e.topic_id
             WHERE e.status = 'PENDING_REVIEW'
             ORDER BY e.created_at
-            """);
+            """).stream().map(GrammarPendingReviewDto::from).toList();
     }
 
     @Transactional

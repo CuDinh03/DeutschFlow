@@ -2,6 +2,8 @@ package com.deutschflow.srs.controller;
 
 import com.deutschflow.srs.dto.ReviewRequest;
 import com.deutschflow.srs.dto.ScheduleVocabRequest;
+import com.deutschflow.srs.dto.SrsDueCountDto;
+import com.deutschflow.srs.dto.SrsStatsDto;
 import com.deutschflow.srs.dto.VocabReviewCard;
 import com.deutschflow.srs.service.SrsService;
 import com.deutschflow.user.entity.User;
@@ -14,7 +16,6 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * REST API for Spaced Repetition System (SRS).
@@ -52,14 +53,14 @@ public class SrsController {
 
     /** Count of due cards — used for the 📚 badge in the navbar */
     @GetMapping("/count")
-    public ResponseEntity<Map<String, Long>> getDueCount(
+    public ResponseEntity<SrsDueCountDto> getDueCount(
             @AuthenticationPrincipal User user) {
-        return ResponseEntity.ok(Map.of("dueCount", srsService.countDue(user.getId())));
+        return ResponseEntity.ok(new SrsDueCountDto(srsService.countDue(user.getId())));
     }
 
     /** Stats summary for dashboard */
     @GetMapping("/stats")
-    public ResponseEntity<Map<String, Object>> getStats(
+    public ResponseEntity<SrsStatsDto> getStats(
             @AuthenticationPrincipal User user) {
         return ResponseEntity.ok(srsService.getStats(user.getId()));
     }
