@@ -1,4 +1,6 @@
 import SwiftUI
+import Foundation
+import OpenAPIRuntime
 
 /// Phase 0 "Hello API": once the generated client exists, calls `GET /api/auth/me` and shows the
 /// real user — the Phase 0 Definition of Done. Phase 1 replaces this with the real Hôm nay screen
@@ -26,10 +28,24 @@ struct HomeView: View {
     private func callMe() async {
         loading = true
         defer { loading = false }
-        // TODO(Phase 0, after codegen): wire the generated client, e.g.
-        //   let client = APIClientFactory.make()
-        //   let me = try await client.<getCurrentUserOperationId>()
-        //   status = "Xin chào \(me.displayName ?? "user")"
-        status = "TODO: nối APIClientFactory sau khi chạy swift-openapi-generator (xem ios/README.md)."
+        do {
+            // Bearer header is injected by AuthenticationMiddleware → Input has no auth param.
+            let client = APIClientFactory.make()
+            let output = try await client.me1(.init())
+            switch output {
+            case .ok(let ok):
+                // The pinned spec declares responses as `*/*`, so the generated body is `.any`
+                // (opaque). Decode AuthResponse manually for now. Once the backend's
+                // springdoc.default-produces-media-type=application/json (PR #127) is deployed and
+                // the spec re-pinned, switch to the typed accessor: `let me = try ok.body.json`.
+                let bytes = try await Data(collecting: try ok.body.any, upTo: 1 * 1024 * 1024)
+                let me = try JSONDecoder().decode(Components.Schemas.AuthResponse.self, from: bytes)
+                status = "Xin chào \(me.displayName ?? me.email ?? "user") · role \(me.role ?? "?")"
+            default:
+                status = "Phản hồi không phải 200 (kiểm tra token/đăng nhập)."
+            }
+        } catch {
+            status = "Lỗi gọi /api/auth/me: \(error.localizedDescription)"
+        }
     }
 }
