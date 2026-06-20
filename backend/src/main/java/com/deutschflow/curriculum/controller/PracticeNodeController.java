@@ -70,16 +70,15 @@ public class PracticeNodeController {
             @PathVariable long nodeId,
             @PathVariable String skillType
     ) {
-        // Check if there's an existing ACTIVE session
+        // Cache hit: existing session → return immediately (no LLM needed)
         if (practiceNodeService.hasPracticeSessions(user.getId(), nodeId)) {
-            // Return existing sessions overview
             return ResponseEntity.ok(practiceNodeService.getPracticeSessionsForNode(user.getId(), nodeId));
         }
 
-        // Generate first session
-        Map<String, Object> result = practiceNodeService.generatePracticeSession(
-                user.getId(), nodeId, skillType.toUpperCase(), 1);
-        return ResponseEntity.ok(result);
+        // S-5: generate off the Tomcat thread — return 202 + jobId for client to poll
+        // GET /api/async-jobs/{jobId} once status = COMPLETED
+        return ResponseEntity.accepted().body(
+                practiceNodeService.startPracticeSessionAsync(user.getId(), nodeId, skillType.toUpperCase()));
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -94,9 +93,9 @@ public class PracticeNodeController {
             @PathVariable long nodeId,
             @PathVariable String skillType
     ) {
-        Map<String, Object> result = practiceNodeService.generateNextGeneration(
-                user.getId(), nodeId, skillType.toUpperCase());
-        return ResponseEntity.ok(result);
+        // S-5: generate off the Tomcat thread — return 202 + jobId
+        return ResponseEntity.accepted().body(
+                practiceNodeService.generateNextAsync(user.getId(), nodeId, skillType.toUpperCase()));
     }
 
     // ─────────────────────────────────────────────────────────────

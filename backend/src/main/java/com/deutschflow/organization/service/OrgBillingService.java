@@ -8,6 +8,7 @@ import com.deutschflow.organization.dto.OrgInvoiceDto;
 import com.deutschflow.organization.dto.PaymentInfoDto;
 import com.deutschflow.organization.entity.OrgInvoice;
 import com.deutschflow.organization.repository.OrgInvoiceRepository;
+import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.organization.repository.OrganizationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,8 +33,12 @@ public class OrgBillingService {
     private static final String STATUS_DRAFT = "DRAFT";
     private static final Set<String> VALID_STATUSES = Set.of("DRAFT", "SENT", "PAID", "VOID");
 
+    private static final String ROLE_STUDENT = "STUDENT";
+    private static final String STATUS_ACTIVE = "ACTIVE";
+
     private final OrgInvoiceRepository invoiceRepo;
     private final OrganizationRepository organizationRepository;
+    private final OrgMemberRepository memberRepo;
 
     @Value("${app.payment.sepay.bank-account:}")
     private String bankAccount;
@@ -57,7 +62,7 @@ public class OrgBillingService {
                 .orgId(orgId)
                 .periodStart(req.periodStart())
                 .periodEnd(req.periodEnd())
-                .seats(req.seats())
+                .seats(resolveSeats(orgId, req.seats()))
                 .amountVnd(req.amountVnd())
                 .status(STATUS_DRAFT)
                 .paymentCode(newPaymentCode())
@@ -65,6 +70,19 @@ public class OrgBillingService {
                 .createdBy(createdBy)
                 .build();
         return toDto(invoiceRepo.save(invoice));
+    }
+
+    /**
+     * D-3/G: nếu admin không nhập seats ({@code <= 0}), tự snapshot số HỌC VIÊN ACTIVE của org
+     * tại thời điểm tạo invoice — chống gõ sai và gắn hoá đơn với sĩ số thực. Admin nhập tay
+     * {@code > 0} thì tôn trọng giá trị đó (vd hợp đồng chốt số ghế khác sĩ số hiện tại).
+     * Chưa làm proration giữa kỳ (cần khi chuyển sang self-serve month-to-month — xem REMEDIATION D-3/G).
+     */
+    private int resolveSeats(Long orgId, int requestedSeats) {
+        if (requestedSeats > 0) {
+            return requestedSeats;
+        }
+        return (int) memberRepo.countByIdOrgIdAndRoleAndStatus(orgId, ROLE_STUDENT, STATUS_ACTIVE);
     }
 
     /** Lists an org's invoices, newest first. */

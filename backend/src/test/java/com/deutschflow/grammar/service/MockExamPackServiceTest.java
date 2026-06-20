@@ -4,6 +4,7 @@ import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.quota.QuotaService;
 import com.deutschflow.common.quota.QuotaSnapshot;
+import com.deutschflow.gamification.coin.service.CoinService;
 import com.deutschflow.grammar.dto.MockExamPackDetailDto;
 import com.deutschflow.grammar.dto.MockExamPackDto;
 import com.deutschflow.grammar.entity.MockExamPack;
@@ -38,6 +39,9 @@ class MockExamPackServiceTest {
     @Mock MockExamPackRepository packRepository;
     @Mock JdbcTemplate jdbcTemplate;
     @Mock QuotaService quotaService;
+    // Coin economy disabled in these tests: Mockito defaults (false / empty set) keep the
+    // pre-coin gating behavior, so the existing tier assertions hold unchanged.
+    @Mock CoinService coinService;
 
     @InjectMocks MockExamPackService service;
 

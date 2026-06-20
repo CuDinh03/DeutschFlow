@@ -8,6 +8,8 @@ import com.deutschflow.speaking.entity.AiSpeakingSession;
 import com.deutschflow.speaking.interview.InterviewSessionState;
 import com.deutschflow.speaking.interview.InterviewStateCodec;
 import com.deutschflow.speaking.repository.AiSpeakingMessageRepository;
+import com.deutschflow.common.quota.AiUsageLedgerService;
+import com.deutschflow.common.quota.QuotaExceededException;
 import com.deutschflow.common.quota.QuotaService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +35,7 @@ public class InterviewEvaluationService {
     private final AiSpeakingMessageRepository messageRepository;
     private final OpenAiChatClient openAiChatClient;
     private final QuotaService quotaService;
+    private final AiUsageLedgerService ledgerService;
     private final InterviewStateCodec interviewStateCodec;
 
     /**
@@ -62,6 +65,12 @@ public class InterviewEvaluationService {
             AiChatCompletionResult result = openAiChatClient.chatCompletion(
                     aiMessages, null, EVAL_TEMPERATURE, maxTokens);
 
+            if (result.usage() != null) {
+                ledgerService.record(userId, result.provider(), result.model(),
+                        result.usage().promptTokens(), result.usage().completionTokens(),
+                        result.usage().totalTokens(), "INTERVIEW_EVAL", null, session.getId());
+            }
+
             String raw = result.content();
             // Extract JSON from possible markdown fences
             if (raw != null && raw.contains("{")) {
@@ -72,6 +81,9 @@ public class InterviewEvaluationService {
                 }
             }
             return raw;
+        } catch (QuotaExceededException e) {
+            log.warn("Quota exceeded for interview eval session {}: {}", session.getId(), e.getMessage());
+            throw e;
         } catch (Exception e) {
             log.error("Failed to generate interview evaluation for session {}: {}", session.getId(), e.getMessage());
             return null;

@@ -129,4 +129,53 @@ class OrgGuardTest {
         assertThatThrownBy(() -> orgGuard.assertOrgAdmin(USER_ID, ORG_ID))
                 .isInstanceOf(ForbiddenException.class);
     }
+
+    // ------------------------------------------------------------------ assertOrgFinance — pass cases (T-5/D-4)
+
+    @Test
+    @DisplayName("assertOrgFinance passes for OWNER role")
+    void assertOrgFinance_owner_passes() {
+        stubMember(activeMember("OWNER"));
+        orgGuard.assertOrgFinance(USER_ID, ORG_ID);
+    }
+
+    @Test
+    @DisplayName("assertOrgFinance passes for ADMIN role")
+    void assertOrgFinance_admin_passes() {
+        stubMember(activeMember("ADMIN"));
+        orgGuard.assertOrgFinance(USER_ID, ORG_ID);
+    }
+
+    @Test
+    @DisplayName("assertOrgFinance passes for ACCOUNTANT role")
+    void assertOrgFinance_accountant_passes() {
+        stubMember(activeMember("ACCOUNTANT"));
+        orgGuard.assertOrgFinance(USER_ID, ORG_ID);
+    }
+
+    // ------------------------------------------------------------------ assertOrgFinance — deny cases
+
+    @Test
+    @DisplayName("assertOrgFinance throws ForbiddenException for TEACHER role")
+    void assertOrgFinance_teacher_throwsForbidden() {
+        stubMember(activeMember("TEACHER"));
+        assertThatThrownBy(() -> orgGuard.assertOrgFinance(USER_ID, ORG_ID))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    @DisplayName("assertOrgFinance throws ForbiddenException for STUDENT role")
+    void assertOrgFinance_student_throwsForbidden() {
+        stubMember(activeMember("STUDENT"));
+        assertThatThrownBy(() -> orgGuard.assertOrgFinance(USER_ID, ORG_ID))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    @DisplayName("assertOrgFinance throws ForbiddenException for non-member")
+    void assertOrgFinance_nonMember_throwsForbidden() {
+        stubMember(null);
+        assertThatThrownBy(() -> orgGuard.assertOrgFinance(USER_ID, ORG_ID))
+                .isInstanceOf(ForbiddenException.class);
+    }
 }

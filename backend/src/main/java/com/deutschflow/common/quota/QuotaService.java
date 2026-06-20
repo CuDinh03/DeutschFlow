@@ -2,6 +2,7 @@ package com.deutschflow.common.quota;
 
 import com.deutschflow.organization.service.OrgQuotaService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -16,6 +17,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class QuotaService {
@@ -43,11 +45,34 @@ public class QuotaService {
         return buildSnapshotReadOnly(userId, now);
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    /**
+     * Hot-path quota gate: read-only snapshot (no reconcile writes) so Hikari pool is not saturated
+     * under concurrent AI requests (S-4). FREE trial expiry is enforced via a 7-day virtual check;
+     * background {@code SubscriptionReconcileJob} handles the actual DB state update.
+     *
+     * <p><b>P-9 — soft-cap có chủ đích (KHÔNG phải hard cap):</b> đây là bước CHECK đọc-thuần,
+     * tách rời với bước DEBIT ({@link #applyUsageDebit}) chạy SAU lời gọi LLM (cách nhau 2-10s).
+     * Vì vậy N request đồng thời của cùng một user đều có thể pass check trước khi request đầu
+     * tiên kịp debit → overage tối đa ≈ (số request đồng thời) × (token/request). Đây là đánh đổi
+     * có chủ đích: overage chỉ ở cấp <b>per-user</b> (không phải org — org pool đã atomic, xem
+     * {@code org_monthly_token_counters}) và đã bị chặn trên bởi {@code AiRateLimiterService}
+     * (req/window/user). Hard-cap (reserve token atomic trước LLM, reconcile sau) sẽ phải sửa
+     * 20+ call-site và bị hoãn — symptom của overage được ghi ở {@link #applyUsageDebit}
+     * (marker {@code [Quota][P-9/P-11][OVERAGE]}) để log-based alert đếm được.
+     */
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     public QuotaSnapshot assertAllowed(long userId, Instant nowUtc, long estimatedMinTokens) {
-        QuotaSnapshot snap = buildSnapshot(userId, nowUtc);
+        QuotaSnapshot snap = buildSnapshotReadOnly(userId, nowUtc);
         if (snap.unlimitedInternal()) {
             return snap;
+        }
+        // Virtual 7-day FREE trial expiry — DB reconcile is async (SubscriptionReconcileJob);
+        // gating must not allow AI access to users whose trial expired but ends_at is not yet set.
+        if (PLAN_FREE.equals(snap.planCode())
+                && snap.subscriptionEndsAtUtc() == null
+                && snap.subscriptionStartsAtUtc() != null
+                && !nowUtc.isBefore(snap.subscriptionStartsAtUtc().plus(7, ChronoUnit.DAYS))) {
+            throw new QuotaExceededException("Gói dùng thử 7 ngày đã hết hạn. Hãy nâng cấp để tiếp tục.", snap);
         }
         if (snap.remainingSpendable() <= 0L) {
             throw new QuotaExceededException("AI token quota exceeded.", snap);
@@ -61,6 +86,12 @@ public class QuotaService {
             throw new QuotaExceededException("Tổ chức đã dùng hết ngân sách token AI tháng này.", snap);
         }
         return snap;
+    }
+
+    /** Called by {@code SubscriptionReconcileJob} to run subscription lifecycle cleanup per user. */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void reconcileForUser(long userId, Instant now) {
+        reconcileSubscriptions(userId, now);
     }
 
     @Transactional
@@ -95,6 +126,15 @@ public class QuotaService {
         }
 
         ensureWalletRow(userId);
+        Long currentBalance = jdbcTemplate.queryForObject(
+                "SELECT balance FROM user_ai_token_wallets WHERE user_id = ?", Long.class, userId);
+        long walletBalance = currentBalance != null ? currentBalance : 0L;
+        if (totalTokens > walletBalance) {
+            // Stable marker for log-based alerting/metric — symptom of P-9 soft-cap races
+            // (concurrent requests racing past assertAllowed) and P-11 wallet clamp absorbing overage.
+            log.warn("[Quota][P-9/P-11][OVERAGE] userId={} consumed={} balance={} overage={}",
+                    userId, totalTokens, walletBalance, totalTokens - walletBalance);
+        }
         jdbcTemplate.update(
                 """
                         UPDATE user_ai_token_wallets SET balance = GREATEST(0, balance - ?), updated_at = CURRENT_TIMESTAMP
@@ -160,7 +200,8 @@ public class QuotaService {
         }
 
         if (PLAN_FREE.equals(row.planCode)) {
-            long remaining = Math.max(0L, dailyGrant - usedToday);
+            long remaining = Math.max(0L, dailyGrant - usedToday)
+                    + bonusRemainingToday(userId, now, dailyGrant, usedToday);
             return new QuotaSnapshot(
                     PLAN_FREE,
                     false,
@@ -298,7 +339,8 @@ public class QuotaService {
         }
 
         if (PLAN_FREE.equals(row.planCode)) {
-            long remaining = Math.max(0L, dailyGrant - usedToday);
+            long remaining = Math.max(0L, dailyGrant - usedToday)
+                    + bonusRemainingToday(userId, now, dailyGrant, usedToday);
             return new QuotaSnapshot(
                     PLAN_FREE,
                     false,
@@ -587,6 +629,28 @@ public class QuotaService {
             case PLAN_ULTRA, PLAN_INTERNAL -> "ULTRA";
             default -> "DEFAULT";
         };
+    }
+
+    /**
+     * Coin-purchased bonus AI-speaking tokens still available for the current VN day (feature: student
+     * coins). Lets an exhausted FREE learner do one extra session. The bonus is consumed implicitly as
+     * same-day usage exceeds the daily grant (no separate debit); unused tokens lapse at day end.
+     * Returns 0 when none was purchased, so FREE behavior is unchanged for everyone who hasn't bought one.
+     */
+    private long bonusRemainingToday(long userId, Instant now, long dailyGrant, long usedToday) {
+        long granted = loadBonusSpeakingTokens(userId, QuotaVnCalendar.localDateOf(now));
+        if (granted <= 0L) {
+            return 0L;
+        }
+        long overflow = Math.max(0L, usedToday - dailyGrant);
+        return Math.max(0L, granted - overflow);
+    }
+
+    private long loadBonusSpeakingTokens(long userId, LocalDate day) {
+        List<Long> rows = jdbcTemplate.query(
+                "SELECT bonus_tokens FROM user_bonus_speaking_tokens WHERE user_id = ? AND local_date = ? LIMIT 1",
+                (rs, n) -> rs.getLong(1), userId, Date.valueOf(day));
+        return rows.isEmpty() ? 0L : rows.get(0);
     }
 
     private static boolean isWalletPlan(String planCode) {

@@ -2,6 +2,8 @@ package com.deutschflow.video.controller;
 
 import com.deutschflow.common.async.AsyncJob;
 import com.deutschflow.common.async.AsyncJobService;
+import com.deutschflow.common.quota.QuotaService;
+import com.deutschflow.organization.service.OrgPoolGuard;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.video.dto.RenderStatusDto;
 import com.deutschflow.video.dto.VideoTimelineDto;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
@@ -38,9 +41,13 @@ import java.util.UUID;
 @PreAuthorize("isAuthenticated()")
 public class VideoLessonController {
 
+    private static final long LISTENING_ESTIMATED_TOKENS = 1_000L;
+
     private final VideoLessonService videoLessonService;
     private final VideoRenderService videoRenderService;
     private final AsyncJobService asyncJobService;
+    private final QuotaService quotaService;
+    private final OrgPoolGuard orgPoolGuard;
 
     @GetMapping("/vocab")
     public ResponseEntity<VideoTimelineDto> vocab(
@@ -76,9 +83,12 @@ public class VideoLessonController {
     /** Listening-practice video: an LLM-generated German dialogue on a topic (text cards). */
     @GetMapping("/listening")
     public ResponseEntity<VideoTimelineDto> listening(
+            @AuthenticationPrincipal User user,
             @RequestParam(defaultValue = "Alltag") String topic,
             @RequestParam(defaultValue = "A2") String level) {
-        return ResponseEntity.ok(videoLessonService.buildListeningTimeline(topic, level));
+        quotaService.assertAllowed(user.getId(), Instant.now(), LISTENING_ESTIMATED_TOKENS);
+        orgPoolGuard.assertOrgPoolAvailable(user.getId(), LISTENING_ESTIMATED_TOKENS);
+        return ResponseEntity.ok(videoLessonService.buildListeningTimeline(user.getId(), topic, level));
     }
 
     /** Phase B — start an async .mp4 render of the vocab timeline; poll {@code GET /render/{jobId}}. */

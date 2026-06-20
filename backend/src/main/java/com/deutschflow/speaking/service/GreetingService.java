@@ -1,5 +1,7 @@
 package com.deutschflow.speaking.service;
 
+import com.deutschflow.common.quota.AiUsageLedgerService;
+import com.deutschflow.speaking.ai.AiChatCompletionResult;
 import com.deutschflow.speaking.dto.GreetingSessionDto;
 import com.deutschflow.speaking.entity.AiSpeakingSession;
 import com.deutschflow.speaking.entity.DialogueTemplate;
@@ -16,14 +18,17 @@ public class GreetingService {
     private final AiSpeakingSessionRepository aiSpeakingSessionRepository;
     private final DialogueTemplateRepository dialogueTemplateRepository;
     private final GroqApiService groqApiService;
+    private final AiUsageLedgerService ledgerService;
 
     public GreetingService(
             AiSpeakingSessionRepository aiSpeakingSessionRepository,
             DialogueTemplateRepository dialogueTemplateRepository,
-            GroqApiService groqApiService) {
+            GroqApiService groqApiService,
+            AiUsageLedgerService ledgerService) {
         this.aiSpeakingSessionRepository = aiSpeakingSessionRepository;
         this.dialogueTemplateRepository = dialogueTemplateRepository;
         this.groqApiService = groqApiService;
+        this.ledgerService = ledgerService;
     }
 
     @Transactional
@@ -32,8 +37,14 @@ public class GreetingService {
                 .orElseThrow(() -> new IllegalArgumentException("Template not found: " + templateId));
 
         String cefrLevel = difficultyLevel != null && difficultyLevel <= 2 ? "A1" : "A2";
-        String aiResponse = groqApiService.generateDialogueResponse(
+        AiChatCompletionResult dialogueResult = groqApiService.generateDialogueResponse(
                 template.getUserPromptTemplate(), null, template.getTemplateName(), cefrLevel);
+        if (dialogueResult.usage() != null) {
+            ledgerService.record(userId, dialogueResult.provider(), dialogueResult.model(),
+                    dialogueResult.usage().promptTokens(), dialogueResult.usage().completionTokens(),
+                    dialogueResult.usage().totalTokens(), "GREETING_DIALOGUE", null, null);
+        }
+        String aiResponse = dialogueResult.content();
 
         AiSpeakingSession session = new AiSpeakingSession();
         session.setUserId(userId);
@@ -59,9 +70,15 @@ public class GreetingService {
             throw new SecurityException("Unauthorized access to session");
         }
 
-        String feedback = groqApiService.evaluateAndFeedback(
+        AiChatCompletionResult evalResult = groqApiService.evaluateAndFeedback(
                 userInput, session.getAiResponse() != null ? session.getAiResponse() : "",
                 "A1", session.getTemplateId() != null ? session.getTemplateId().toString() : "greeting");
+        if (evalResult.usage() != null) {
+            ledgerService.record(userId, evalResult.provider(), evalResult.model(),
+                    evalResult.usage().promptTokens(), evalResult.usage().completionTokens(),
+                    evalResult.usage().totalTokens(), "GREETING_EVAL", null, null);
+        }
+        String feedback = evalResult.content();
 
         session.setUserInput(userInput);
         session.setUserConfidenceScore(confidence);

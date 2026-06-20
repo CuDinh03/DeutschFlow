@@ -21,7 +21,8 @@ import java.util.Set;
 public class OrgGuard {
 
     private static final String STATUS_ACTIVE = "ACTIVE";
-    private static final Set<String> ADMIN_ROLES = Set.of("OWNER", "ADMIN");
+    private static final Set<String> ADMIN_ROLES   = Set.of("OWNER", "ADMIN");
+    private static final Set<String> FINANCE_ROLES = Set.of("OWNER", "ADMIN", "ACCOUNTANT");
 
     private final OrgMemberRepository memberRepo;
 
@@ -39,6 +40,18 @@ public class OrgGuard {
         OrgMember member = assertMember(userId, orgId);
         if (!ADMIN_ROLES.contains(member.getRole())) {
             throw new ForbiddenException("Chỉ quản trị viên tổ chức mới được thao tác này");
+        }
+    }
+
+    /**
+     * Asserts the user may view financial information (OWNER, ADMIN, or ACCOUNTANT).
+     * ACCOUNTANT is a read-only finance role — it cannot manage members or settings (T-5/D-4).
+     */
+    @Transactional(readOnly = true)
+    public void assertOrgFinance(Long userId, Long orgId) {
+        OrgMember member = assertMember(userId, orgId);
+        if (!FINANCE_ROLES.contains(member.getRole())) {
+            throw new ForbiddenException("Chỉ quản trị viên hoặc kế toán mới xem được thông tin tài chính");
         }
     }
 }

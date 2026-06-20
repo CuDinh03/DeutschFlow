@@ -7,6 +7,8 @@ import { ArrowRight, Check } from 'lucide-react'
 import { todayApi, type TodayPlan } from '@/lib/todayApi'
 import { phaseApi, type PhaseStateResponse, type PhaseType } from '@/lib/phaseApi'
 import { xpApi, type XpSummaryDto } from '@/lib/xpApi'
+import { coinApi } from '@/lib/coinApi'
+import { useStudentCoins } from '@/lib/flags'
 import { getErrorSnippet } from '@/lib/errors/errorCatalog'
 import { useUserStore } from '@/stores/useUserStore'
 import { GaPageHdr, GaCard, GaCap, LoadingState, ErrorBanner } from '@/components/ui-v2'
@@ -35,10 +37,12 @@ interface PlanItem {
 
 export default function V2StudentDashboardPage() {
   const router = useRouter()
+  const coinsEnabled = useStudentCoins()
   const displayName = useUserStore((s) => s.user?.displayName)
   const [today, setToday] = useState<TodayPlan | null>(null)
   const [phase, setPhase] = useState<PhaseStateResponse | null>(null)
   const [xp, setXp] = useState<XpSummaryDto | null>(null)
+  const [coins, setCoins] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState<Set<string>>(new Set())
@@ -58,6 +62,15 @@ export default function V2StudentDashboardPage() {
       .finally(() => setLoading(false))
   }
   useEffect(load, [])
+
+  // Coin balance — separate, flag-gated, best-effort (never blocks the dashboard).
+  useEffect(() => {
+    if (!coinsEnabled) return
+    coinApi
+      .getBalance()
+      .then((b) => setCoins(b.balance))
+      .catch(() => setCoins(null))
+  }, [coinsEnabled])
 
   // `/today/me` may omit nested blocks for new students → guard fully.
   const streakDays = today?.progress?.streakDays ?? 0
@@ -142,6 +155,15 @@ export default function V2StudentDashboardPage() {
               <span className="font-ga-display text-[18px] font-medium">{streakDays}</span>
               <span className="text-ga-muted">ngày 🔥</span>
             </span>
+            {coinsEnabled && coins != null && (
+              <span
+                className="ga-ui inline-flex items-center gap-1.5 border border-ga-line bg-ga-bg px-3 py-2 text-[13px] text-ga-ink"
+                title="Xu thưởng — hoàn thành bài học để nhận, dùng để mở đề thi & lượt nói thêm"
+              >
+                <span className="font-ga-display text-[18px] font-medium">{coins.toLocaleString('vi-VN')}</span>
+                <span className="text-ga-muted">🪙 xu</span>
+              </span>
+            )}
             {xp && (
               <span className="ga-ui inline-flex items-center gap-1.5 border border-ga-line bg-ga-bg px-3 py-2 text-[13px] text-ga-ink">
                 <span className="font-ga-display text-[18px] font-medium">{xp.totalXp.toLocaleString('vi-VN')}</span>
