@@ -1,5 +1,6 @@
 package com.deutschflow.grammar.controller;
 
+import com.deutschflow.grammar.dto.ProgressOverviewDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -30,9 +31,8 @@ public class ProgressController {
     }
 
     @GetMapping("/me/overview")
-    public ResponseEntity<Map<String, Object>> getOverview(@AuthenticationPrincipal UserDetails principal) {
+    public ResponseEntity<ProgressOverviewDto> getOverview(@AuthenticationPrincipal UserDetails principal) {
         long userId = userId(principal);
-        Map<String, Object> result = new LinkedHashMap<>();
 
         // CEFR level from user profile
         String cefrLevel = "A1";
@@ -41,7 +41,6 @@ public class ProgressController {
                 "SELECT COALESCE(learning_target_level, 'A1') FROM users WHERE id = ?",
                 String.class, userId);
         } catch (Exception e) { log.warn("[Progress] cefrLevel query failed for user {}: {}", userId, e.getMessage()); }
-        result.put("cefrLevel", cefrLevel);
 
         // Speaking skill score (Sprechen) — from weekly speaking or AI speaking
         double sprechenScore = 0;
@@ -83,7 +82,6 @@ public class ProgressController {
         } catch (Exception e) { log.warn("[Progress] mockBest query failed for user {}: {}", userId, e.getMessage()); }
 
         // Skill data
-        Map<String, Object> skills = new LinkedHashMap<>();
         int exDone = 0;
         try {
             Integer d = jdbcTemplate.queryForObject(
@@ -92,18 +90,22 @@ public class ProgressController {
             exDone = d != null ? d : 0;
         } catch (Exception e) { log.warn("[Progress] exercisesDone query failed for user {}: {}", userId, e.getMessage()); }
 
-        skills.put("lesen", Map.of("score", (int) Math.min(100, vocabCoverage), "exercisesDone", exDone));
-        skills.put("hoeren", Map.of("score", (int) Math.min(100, vocabCoverage * 0.8), "exercisesDone", 0));
-        skills.put("schreiben", Map.of("score", (int) grammarMastery, "exercisesDone", exDone));
-        skills.put("sprechen", Map.of("score", (int) Math.min(100, sprechenScore), "exercisesDone", 0));
+        var skills = new ProgressOverviewDto.Skills(
+                new ProgressOverviewDto.SkillScore((int) Math.min(100, vocabCoverage), exDone),
+                new ProgressOverviewDto.SkillScore((int) Math.min(100, vocabCoverage * 0.8), 0),
+                new ProgressOverviewDto.SkillScore((int) grammarMastery, exDone),
+                new ProgressOverviewDto.SkillScore((int) Math.min(100, sprechenScore), 0));
 
-        result.put("skills", skills);
-        result.put("grammarMastery", Math.round(grammarMastery * 10.0) / 10.0);
-        result.put("vocabCoverage", Math.round(vocabCoverage * 10.0) / 10.0);
-        result.put("mockExamBestScore", mockBest);
-        result.put("examReady", mockBest >= 60 && grammarMastery >= 70 && sprechenScore >= 60);
-        result.put("weeklyProgress", List.of()); // Extend later
+        // weeklyProgress stays an empty list (same as before) until the weekly trend ships.
+        var overview = new ProgressOverviewDto(
+                cefrLevel,
+                skills,
+                Math.round(grammarMastery * 10.0) / 10.0,
+                Math.round(vocabCoverage * 10.0) / 10.0,
+                mockBest,
+                mockBest >= 60 && grammarMastery >= 70 && sprechenScore >= 60,
+                List.of());
 
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(overview);
     }
 }

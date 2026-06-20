@@ -1,6 +1,12 @@
 package com.deutschflow.grammar.controller;
 
 import com.deutschflow.common.quota.QuotaService;
+import com.deutschflow.grammar.dto.GrammarDraftDto;
+import com.deutschflow.grammar.dto.GrammarExerciseDto;
+import com.deutschflow.grammar.dto.GrammarGeneratedExerciseDto;
+import com.deutschflow.grammar.dto.GrammarPendingReviewDto;
+import com.deutschflow.grammar.dto.GrammarSubmitResultDto;
+import com.deutschflow.grammar.dto.GrammarTopicDto;
 import com.deutschflow.grammar.service.GrammarSyllabusService;
 import com.deutschflow.organization.service.OrgPoolGuard;
 import com.deutschflow.user.entity.User;
@@ -40,7 +46,7 @@ public class GrammarSyllabusController {
     // ─── Student: Topics ─────────────────────────────────────────
 
     @GetMapping("/topics")
-    public ResponseEntity<List<Map<String, Object>>> getTopics(
+    public ResponseEntity<List<GrammarTopicDto>> getTopics(
             @RequestParam(defaultValue = "A1") String cefrLevel,
             @AuthenticationPrincipal User principal) {
         return ResponseEntity.ok(service.getTopicsWithProgress(cefrLevel, userId(principal)));
@@ -49,14 +55,14 @@ public class GrammarSyllabusController {
     // ─── Student: Exercises ──────────────────────────────────────
 
     @GetMapping("/topics/{topicId}/exercises")
-    public ResponseEntity<List<Map<String, Object>>> getExercises(
+    public ResponseEntity<List<GrammarExerciseDto>> getExercises(
             @PathVariable long topicId,
             @RequestParam(defaultValue = "20") int limit) {
         return ResponseEntity.ok(service.getApprovedExercises(topicId, limit));
     }
 
     @PostMapping("/exercises/{exerciseId}/submit")
-    public ResponseEntity<Map<String, Object>> submitAnswer(
+    public ResponseEntity<GrammarSubmitResultDto> submitAnswer(
             @PathVariable long exerciseId,
             @RequestBody Map<String, String> body,
             @AuthenticationPrincipal User principal) {
@@ -68,7 +74,7 @@ public class GrammarSyllabusController {
 
     @PostMapping("/topics/{topicId}/generate")
     @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
-    public ResponseEntity<List<Map<String, Object>>> generateExercises(
+    public ResponseEntity<List<GrammarGeneratedExerciseDto>> generateExercises(
             @PathVariable long topicId,
             @RequestBody Map<String, Integer> body,
             @AuthenticationPrincipal User principal) {
@@ -81,7 +87,7 @@ public class GrammarSyllabusController {
 
     @GetMapping("/exercises/my-drafts")
     @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
-    public ResponseEntity<List<Map<String, Object>>> getMyDrafts(
+    public ResponseEntity<List<GrammarDraftDto>> getMyDrafts(
             @AuthenticationPrincipal User principal) {
         return ResponseEntity.ok(service.getMyDrafts(userId(principal)));
     }
@@ -108,7 +114,7 @@ public class GrammarSyllabusController {
 
     @GetMapping("/admin/pending")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<Map<String, Object>>> getPendingReview() {
+    public ResponseEntity<List<GrammarPendingReviewDto>> getPendingReview() {
         return ResponseEntity.ok(service.getPendingReview());
     }
 

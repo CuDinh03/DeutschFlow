@@ -1,5 +1,6 @@
 package com.deutschflow.grammar.service;
 
+import com.deutschflow.grammar.dto.ExamCoverageDto;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.stereotype.Service;
 
@@ -67,7 +68,7 @@ public class ExamGenerationService {
      * Returns a difficulty-balanced question selection for analytics.
      * topic_tag column is used when question_metadata is populated.
      */
-    public Map<String, Object> getExamCoverage(String cefrLevel) {
+    public ExamCoverageDto getExamCoverage(String cefrLevel) {
         var exams = jdbc.queryForList("""
             SELECT id, title, is_active,
                    (SELECT COUNT(*) FROM mock_exam_attempts WHERE exam_id = e.id) AS attempt_count
@@ -76,10 +77,14 @@ public class ExamGenerationService {
             ORDER BY id
             """, cefrLevel);
 
-        return Map.of(
-            "cefrLevel", cefrLevel,
-            "totalExams", exams.size(),
-            "exams", exams
-        );
+        List<ExamCoverageDto.Exam> rows = exams.stream()
+            .map(m -> new ExamCoverageDto.Exam(
+                ((Number) m.get("id")).longValue(),
+                (String) m.get("title"),
+                (Boolean) m.get("is_active"),
+                m.get("attempt_count") != null ? ((Number) m.get("attempt_count")).longValue() : null))
+            .toList();
+
+        return new ExamCoverageDto(cefrLevel, rows.size(), rows);
     }
 }
