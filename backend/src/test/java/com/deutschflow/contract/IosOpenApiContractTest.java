@@ -183,4 +183,17 @@ class IosOpenApiContractTest extends AbstractPostgresIntegrationTest {
                 .andExpect(jsonPath("$.components.schemas.GrammarPracticeSuggestionDto").exists())
                 .andExpect(jsonPath("$.components.schemas.GrammarPracticeSuggestionDto.properties.suggestions").exists());
     }
+
+    @Test
+    void shouldTypeAISpeakingEndpoints() throws Exception {
+        // P1 Round 7 (AISpeaking): conversation / error-practice / cultural-context / roleplay
+        // flipped Map<String,String|Object> → typed DTOs (/feedback + /scenario were already typed).
+        mockMvc.perform(get("/v3/api-docs/ios"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.components.schemas.ConversationResponseDto").exists())
+                .andExpect(jsonPath("$.components.schemas.ConversationResponseDto.properties.aiResponse").exists())
+                .andExpect(jsonPath("$.components.schemas.ErrorPracticeResponseDto").exists())
+                .andExpect(jsonPath("$.components.schemas.CulturalContextResponseDto").exists())
+                .andExpect(jsonPath("$.components.schemas.RolePlayResponseDto").exists());
+    }
 }
