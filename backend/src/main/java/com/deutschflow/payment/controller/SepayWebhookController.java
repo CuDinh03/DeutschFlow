@@ -1,6 +1,7 @@
 package com.deutschflow.payment.controller;
 
 import com.deutschflow.payment.dto.SepayWebhookPayload;
+import com.deutschflow.payment.dto.SepayWebhookResponse;
 import com.deutschflow.payment.service.SepayWebhookService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -11,7 +12,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.util.Map;
 
 /**
  * SePay bank-transfer webhook (checklist C3). SePay POSTs every incoming transfer here; we settle
@@ -30,12 +30,12 @@ public class SepayWebhookController {
     private String apiKey;
 
     @PostMapping("/webhook")
-    public ResponseEntity<Map<String, Object>> webhook(
+    public ResponseEntity<SepayWebhookResponse> webhook(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @RequestBody SepayWebhookPayload payload) {
         if (!authorized(authorization)) {
             log.warn("[SePay] webhook rejected: missing/invalid Apikey");
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("success", false));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new SepayWebhookResponse(false));
         }
         try {
             sepayWebhookService.handle(payload);
@@ -44,7 +44,7 @@ public class SepayWebhookController {
             // already processed by the winning request. Ack 200 so SePay does not keep retrying.
             log.info("[SePay] concurrent duplicate webhook — treated as already processed");
         }
-        return ResponseEntity.ok(Map.of("success", true));
+        return ResponseEntity.ok(new SepayWebhookResponse(true));
     }
 
     /**

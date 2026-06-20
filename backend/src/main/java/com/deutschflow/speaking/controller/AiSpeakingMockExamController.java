@@ -4,6 +4,9 @@ import com.deutschflow.common.quota.QuotaService;
 import com.deutschflow.organization.service.OrgPoolGuard;
 import com.deutschflow.speaking.ai.OpenAiChatClient;
 import com.deutschflow.speaking.ai.ChatMessage;
+import com.deutschflow.speaking.dto.MockExamEvalDto;
+import com.deutschflow.speaking.dto.PlacementTestDto;
+import com.deutschflow.speaking.dto.SprechenTurnDto;
 import com.deutschflow.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,6 +17,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
@@ -34,7 +38,7 @@ public class AiSpeakingMockExamController {
     private final OrgPoolGuard orgPoolGuard;
 
     @PostMapping("/mock-exam/evaluate")
-    public ResponseEntity<Map<String, Object>> evaluateMockExam(
+    public ResponseEntity<MockExamEvalDto> evaluateMockExam(
             @AuthenticationPrincipal User user,
             @RequestBody Map<String, String> payload) {
 
@@ -43,9 +47,8 @@ public class AiSpeakingMockExamController {
 
         // ── Input Validation ────────────────────────────────────
         if (transcript == null || transcript.trim().length() < 10) {
-            return ResponseEntity.badRequest().body(Map.of(
-                    "error", "Transcript quá ngắn hoặc không hợp lệ. Cần ít nhất 10 ký tự."
-            ));
+            return ResponseEntity.badRequest().body(
+                    MockExamEvalDto.error("Transcript quá ngắn hoặc không hợp lệ. Cần ít nhất 10 ký tự."));
         }
 
         // ── Sanitize: limit length to prevent prompt abuse ──────
@@ -101,9 +104,8 @@ public class AiSpeakingMockExamController {
             // ── Validate LLM output ─────────────────────────────
             if (!result.containsKey("estimated_cefr") || !result.containsKey("radar_chart")) {
                 log.warn("[MockExam] LLM returned incomplete JSON for user {}", user.getId());
-                return ResponseEntity.internalServerError().body(Map.of(
-                        "error", "AI trả về kết quả không đầy đủ. Hãy thử lại."
-                ));
+                return ResponseEntity.internalServerError().body(
+                        MockExamEvalDto.error("AI trả về kết quả không đầy đủ. Hãy thử lại."));
             }
 
             // ── Persist to database ─────────────────────────────
@@ -128,12 +130,11 @@ public class AiSpeakingMockExamController {
                     user.getId(), result.get("estimated_cefr"),
                     result.containsKey("top_errors") ? ((List<?>) result.get("top_errors")).size() : 0);
 
-            return ResponseEntity.ok(result);
+            return ResponseEntity.ok(MockExamEvalDto.success(result));
         } catch (Exception e) {
             log.error("[MockExam] Failed to evaluate for user {}", user.getId(), e);
-            return ResponseEntity.internalServerError().body(Map.of(
-                    "error", "Phân tích thất bại. Hãy thử lại sau."
-            ));
+            return ResponseEntity.internalServerError().body(
+                    MockExamEvalDto.error("Phân tích thất bại. Hãy thử lại sau."));
         }
     }
 
@@ -143,7 +144,7 @@ public class AiSpeakingMockExamController {
     }
 
     @PostMapping("/mock-exam/sprechen-teil2/turn")
-    public ResponseEntity<Map<String, Object>> evaluateSprechenTeil2Turn(
+    public ResponseEntity<SprechenTurnDto> evaluateSprechenTeil2Turn(
             @AuthenticationPrincipal User user,
             @RequestBody Map<String, String> payload) {
 
@@ -155,7 +156,7 @@ public class AiSpeakingMockExamController {
         String aiQuestionAsked = payload.get("ai_question_asked");
 
         if (stage == null || thema == null || wort == null || transcript == null) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Missing required fields"));
+            return ResponseEntity.badRequest().body(SprechenTurnDto.error("Missing required fields"));
         }
 
         try {
@@ -174,10 +175,10 @@ public class AiSpeakingMockExamController {
                 evaluation.put("next_stage", "FINISHED");
             }
             
-            return ResponseEntity.ok(evaluation);
+            return ResponseEntity.ok(SprechenTurnDto.from(evaluation));
         } catch (Exception e) {
             log.error("[MockExam] Failed to process Sprechen Teil 2 for user {}", user.getId(), e);
-            return ResponseEntity.internalServerError().body(Map.of("error", "AI processing failed"));
+            return ResponseEntity.internalServerError().body(SprechenTurnDto.error("AI processing failed"));
         }
     }
 
@@ -186,7 +187,7 @@ public class AiSpeakingMockExamController {
      * Fetch the most recent placement test result for the current user.
      */
     @GetMapping("/placement-tests/latest")
-    public ResponseEntity<Map<String, Object>> getLatestPlacementTest(
+    public ResponseEntity<PlacementTestDto> getLatestPlacementTest(
             @AuthenticationPrincipal User user) {
         try {
             List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
@@ -205,22 +206,15 @@ public class AiSpeakingMockExamController {
             }
 
             Map<String, Object> row = rows.get(0);
-            Map<String, Object> result = new java.util.LinkedHashMap<>();
-            result.put("id", row.get("id"));
-            result.put("transcript_de", row.get("transcript_de"));
-            result.put("estimated_cefr", row.get("estimated_cefr"));
-            result.put("created_at", row.get("created_at"));
-
             String radarJson = (String) row.get("radar_chart_data_json");
-            if (radarJson != null) {
-                result.put("radar_chart", objectMapper.readValue(radarJson, Map.class));
-            }
-
             String errorsJson = (String) row.get("top_errors_json");
-            if (errorsJson != null) {
-                result.put("top_errors", objectMapper.readValue(errorsJson, List.class));
-            }
-
+            PlacementTestDto result = new PlacementTestDto(
+                    ((Number) row.get("id")).longValue(),
+                    (String) row.get("transcript_de"),
+                    (String) row.get("estimated_cefr"),
+                    (Date) row.get("created_at"),
+                    radarJson != null ? objectMapper.readValue(radarJson, Object.class) : null,
+                    errorsJson != null ? objectMapper.readValue(errorsJson, Object.class) : null);
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             log.error("[MockExam] Failed to fetch latest test for user {}", user.getId(), e);

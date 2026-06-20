@@ -1,5 +1,10 @@
 package com.deutschflow.grammar.controller;
 
+import com.deutschflow.grammar.dto.CertificateClaimDto;
+import com.deutschflow.grammar.dto.CertificateDto;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -44,7 +49,7 @@ public class CertificateController {
 
     /** List all certificates for the current user */
     @GetMapping("/me")
-    public ResponseEntity<List<Map<String, Object>>> getMyCertificates(
+    public ResponseEntity<List<CertificateDto>> getMyCertificates(
             @AuthenticationPrincipal UserDetails principal) {
         long uid = userId(principal);
         var certs = jdbcTemplate.queryForList("""
@@ -53,12 +58,15 @@ public class CertificateController {
             FROM cefr_certificates
             WHERE user_id = ? AND is_active = TRUE
             ORDER BY issued_at DESC
-            """, uid);
+            """, uid).stream().map(CertificateDto::from).toList();
         return ResponseEntity.ok(certs);
     }
 
     /** Generate and download a PDF certificate */
     @GetMapping("/{id}/pdf")
+    @ApiResponse(responseCode = "200", content = @Content(
+            mediaType = MediaType.APPLICATION_PDF_VALUE,
+            schema = @Schema(type = "string", format = "binary")))
     public ResponseEntity<byte[]> downloadPdf(
             @PathVariable long id,
             @AuthenticationPrincipal UserDetails principal) {
@@ -171,7 +179,7 @@ public class CertificateController {
 
     /** Check if user is eligible and issue certificate for a CEFR level */
     @PostMapping("/claim")
-    public ResponseEntity<Map<String, Object>> claimCertificate(
+    public ResponseEntity<CertificateClaimDto> claimCertificate(
             @RequestBody Map<String, String> body,
             @AuthenticationPrincipal UserDetails principal) {
         long uid = userId(principal);
@@ -183,8 +191,8 @@ public class CertificateController {
             """, uid, cefrLevel);
         if (!existing.isEmpty()) {
             var cert = existing.get(0);
-            cert.put("alreadyHas", true);
-            return ResponseEntity.ok(cert);
+            return ResponseEntity.ok(CertificateClaimDto.existing(
+                    ((Number) cert.get("id")).longValue(), (String) cert.get("certificate_code")));
         }
 
         var passedExam = jdbcTemplate.queryForList("""
@@ -197,10 +205,9 @@ public class CertificateController {
             """, uid, cefrLevel);
 
         if (passedExam.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of(
-                "error", "Chưa pass mock exam " + cefrLevel,
-                "requirement", "Cần đạt ≥ 60 điểm trong bài thi mock Goethe " + cefrLevel
-            ));
+            return ResponseEntity.badRequest().body(CertificateClaimDto.error(
+                "Chưa pass mock exam " + cefrLevel,
+                "Cần đạt ≥ 60 điểm trong bài thi mock Goethe " + cefrLevel));
         }
 
         var bestAttempt = passedExam.get(0);
@@ -216,11 +223,16 @@ public class CertificateController {
                   SET exam_score = EXCLUDED.exam_score, is_active = TRUE
                 RETURNING id, cefr_level, issued_at, exam_score, certificate_code
                 """, uid, cefrLevel, score, attemptId, code);
-            cert.put("justIssued", true);
-            return ResponseEntity.ok(cert);
+            return ResponseEntity.ok(CertificateClaimDto.issued(
+                    ((Number) cert.get("id")).longValue(),
+                    (String) cert.get("certificate_code"),
+                    (String) cert.get("cefr_level"),
+                    (java.util.Date) cert.get("issued_at"),
+                    (Integer) cert.get("exam_score")));
         } catch (Exception e) {
             log.error("Error issuing certificate", e);
-            return ResponseEntity.internalServerError().body(Map.of("error", "Không thể cấp chứng chỉ"));
+            return ResponseEntity.internalServerError().body(
+                    CertificateClaimDto.error("Không thể cấp chứng chỉ", null));
         }
     }
 

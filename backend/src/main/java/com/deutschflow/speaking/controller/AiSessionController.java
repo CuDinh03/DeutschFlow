@@ -14,6 +14,7 @@ import com.deutschflow.speaking.ai.GroqWhisperClient.TranscribeResult;
 import com.deutschflow.speaking.AiRateLimiterService;
 import com.deutschflow.speaking.AiRateLimiterService.Bucket;
 import com.deutschflow.speaking.dto.AiSpeakingQuotaDto;
+import com.deutschflow.speaking.dto.TranscribeDto;
 import com.deutschflow.speaking.service.AiSpeakingService;
 import com.deutschflow.speaking.util.TranscribeUploads;
 import com.deutschflow.user.entity.User;
@@ -34,7 +35,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
@@ -98,7 +98,7 @@ public class AiSessionController {
     }
 
     @PostMapping("/transcribe")
-    public Map<String, String> transcribe(
+    public TranscribeDto transcribe(
             @AuthenticationPrincipal User user,
             @RequestParam("audio") MultipartFile file) throws IOException {
         quotaService.assertAllowed(user.getId(), Instant.now(), STT_ESTIMATED_TOKENS);
@@ -116,7 +116,7 @@ public class AiSessionController {
                 ""  // No context prompt for generic transcribe endpoint
         );
         ledgerService.recordStt(user.getId(), "STT_TRANSCRIBE", groqWhisperClient.getWhisperModel(), stt.durationSeconds());
-        return Map.of("transcript", stt.text());
+        return new TranscribeDto(stt.text());
     }
 
     @PostMapping("/sessions/{id}/chat")

@@ -1,6 +1,7 @@
 package com.deutschflow.payment.controller;
 
 import com.deutschflow.payment.apple.AppleIapService;
+import com.deutschflow.payment.apple.AppleIapService.AppleActivationResult;
 import com.deutschflow.payment.apple.AppleProductCatalog;
 import com.deutschflow.payment.apple.AppleServerNotificationService;
 import com.deutschflow.payment.apple.AppleSubscriptionStore;
@@ -14,7 +15,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -34,37 +34,34 @@ public class AppleIapController {
     public record AppleAccountTokenResponse(String appAccountToken) {}
     public record AppleProductResponse(String productId, String planCode, int durationMonths) {}
 
+    /** Error body for {@code /verify} and {@code /sync} — mirrors the legacy {@code {"error": "..."}} JSON. */
+    public record AppleErrorResponse(String error) {}
+
     private final AppleIapService appleIapService;
     private final AppleServerNotificationService notificationService;
     private final AppleSubscriptionStore subscriptionStore;
     private final AppleProductCatalog productCatalog;
 
-    /** Verify a StoreKit 2 purchase and activate the subscription for the authenticated user. */
+    /**
+     * Verify a StoreKit 2 purchase and activate the subscription for the authenticated user.
+     * On failure the request throws {@link IllegalStateException}/{@link IllegalArgumentException},
+     * mapped to the legacy {@code {"error": "..."}} body by the handlers below — so the success
+     * response is the typed {@link AppleActivationResult} the native client codegen wants.
+     */
     @PostMapping("/verify")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> verify(@AuthenticationPrincipal User currentUser,
-                                    @RequestBody AppleVerifyRequest request) {
-        try {
-            return ResponseEntity.ok(appleIapService.verifyAndActivate(currentUser.getId(), request.jws()));
-        } catch (IllegalStateException e) {
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("error", e.getMessage()));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
+    public ResponseEntity<AppleActivationResult> verify(@AuthenticationPrincipal User currentUser,
+                                                        @RequestBody AppleVerifyRequest request) {
+        return ResponseEntity.ok(appleIapService.verifyAndActivate(currentUser.getId(), request.jws()));
     }
 
     /** Restore purchases: reconcile every current entitlement the client holds. */
     @PostMapping("/sync")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> sync(@AuthenticationPrincipal User currentUser,
-                                  @RequestBody AppleSyncRequest request) {
-        try {
-            AppleIapService.AppleActivationResult result =
-                    appleIapService.syncEntitlements(currentUser.getId(), request.jws());
-            return result != null ? ResponseEntity.ok(result) : ResponseEntity.noContent().build();
-        } catch (IllegalStateException e) {
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("error", e.getMessage()));
-        }
+    public ResponseEntity<AppleActivationResult> sync(@AuthenticationPrincipal User currentUser,
+                                                      @RequestBody AppleSyncRequest request) {
+        AppleActivationResult result = appleIapService.syncEntitlements(currentUser.getId(), request.jws());
+        return result != null ? ResponseEntity.ok(result) : ResponseEntity.noContent().build();
     }
 
     /**
@@ -105,5 +102,22 @@ public class AppleIapController {
                 .map(p -> new AppleProductResponse(p.productId(), p.planCode(), p.durationMonths()))
                 .toList();
         return ResponseEntity.ok(products);
+    }
+
+    // ── Failure mapping for /verify and /sync ──────────────────────────────────────────────────
+    // Reproduces the exact bodies/status the old inline try/catch returned, so the success path
+    // stays typed as AppleActivationResult. Controller-scoped: /notifications catches its own
+    // exceptions, so these never intercept it.
+
+    /** Provider not configured / unavailable → 503 {@code {"error": "..."}}. */
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<AppleErrorResponse> onProviderUnavailable(IllegalStateException e) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(new AppleErrorResponse(e.getMessage()));
+    }
+
+    /** Invalid / forged / cross-account transaction → 400 {@code {"error": "..."}}. */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<AppleErrorResponse> onBadTransaction(IllegalArgumentException e) {
+        return ResponseEntity.badRequest().body(new AppleErrorResponse(e.getMessage()));
     }
 }

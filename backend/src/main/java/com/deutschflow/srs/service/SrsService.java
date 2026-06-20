@@ -2,6 +2,7 @@ package com.deutschflow.srs.service;
 
 import com.deutschflow.srs.dto.ReviewRequest;
 import com.deutschflow.srs.dto.ScheduleVocabRequest;
+import com.deutschflow.srs.dto.SrsStatsDto;
 import com.deutschflow.srs.dto.VocabReviewCard;
 import com.deutschflow.srs.entity.VocabReviewSchedule;
 import com.deutschflow.srs.entity.VocabReviewSchedule.AlgorithmVersion;
@@ -17,7 +18,6 @@ import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.List;
-import java.util.Map;
 
 /**
  * SRS Service — dual-algorithm router (SM-2 legacy + FSRS-4.5).
@@ -211,10 +211,10 @@ public class SrsService {
 
     // ─── Stats ────────────────────────────────────────────────────────────────
 
-    public Map<String, Object> getStats(Long userId) {
+    public SrsStatsDto getStats(Long userId) {
         long due   = repo.countDue(userId, OffsetDateTime.now());
         long total = repo.countByUserId(userId);
-        return Map.of("dueCount", due, "totalCards", total);
+        return new SrsStatsDto(due, total);
     }
 
     // ─── Mapping ──────────────────────────────────────────────────────────────

@@ -34,7 +34,10 @@ class W2OpenApiContractTest extends AbstractPostgresIntegrationTest {
 
     @Test
     void shouldKeepSecuredEndpointUnauthorizedWithoutToken() throws Exception {
+        // No credentials → 401 Unauthorized (matches this test's own name and the app's
+        // authentication entry point). The prior isForbidden()/403 expectation was stale and
+        // only surfaced once the IT actually runs (it skips when Testcontainers has no Docker).
         mockMvc.perform(get("/api/plan/me"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 }

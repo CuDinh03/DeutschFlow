@@ -1,6 +1,10 @@
 package com.deutschflow.grammar.controller;
 
 import com.deutschflow.common.exception.RateLimitExceededException;
+import com.deutschflow.grammar.dto.GrammarExplainRequest;
+import com.deutschflow.grammar.dto.GrammarExplanationDto;
+import com.deutschflow.grammar.dto.GrammarPracticeRequest;
+import com.deutschflow.grammar.dto.GrammarPracticeSuggestionDto;
 import com.deutschflow.grammar.service.AIGrammarService;
 import com.deutschflow.grammar.service.AIGrammarService.GrammarCorrectionResult;
 import com.deutschflow.grammar.service.AIGrammarService.GrammarAnalysisResult;
@@ -52,10 +56,10 @@ public class AIGrammarController {
      * POST /api/grammar/ai/explain
      */
     @PostMapping("/explain")
-    public ResponseEntity<Map<String, String>> explainGrammar(
+    public ResponseEntity<GrammarExplanationDto> explainGrammar(
             @AuthenticationPrincipal User user,
-            @RequestBody Map<String, String> request) {
-        String text = request.get("text");
+            @RequestBody GrammarExplainRequest request) {
+        String text = request.text();
 
         if (text == null || text.trim().isEmpty()) {
             return ResponseEntity.badRequest().build();
@@ -63,10 +67,7 @@ public class AIGrammarController {
 
         requireTextBudget(user);
         String explanation = aiGrammarService.explainGrammar(text);
-        return ResponseEntity.ok(Map.of(
-            "text", text,
-            "explanation", explanation
-        ));
+        return ResponseEntity.ok(new GrammarExplanationDto(text, explanation));
     }
 
     /**
@@ -93,10 +94,10 @@ public class AIGrammarController {
      * POST /api/grammar/ai/practice-suggestions
      */
     @PostMapping("/practice-suggestions")
-    public ResponseEntity<Map<String, String>> suggestPractice(
+    public ResponseEntity<GrammarPracticeSuggestionDto> suggestPractice(
             @AuthenticationPrincipal User user,
-            @RequestBody Map<String, String> request) {
-        String errorType = request.get("errorType");
+            @RequestBody GrammarPracticeRequest request) {
+        String errorType = request.errorType();
 
         if (errorType == null || errorType.trim().isEmpty()) {
             return ResponseEntity.badRequest().build();
@@ -104,10 +105,7 @@ public class AIGrammarController {
 
         requireTextBudget(user);
         String suggestions = aiGrammarService.suggestPractice(errorType);
-        return ResponseEntity.ok(Map.of(
-            "errorType", errorType,
-            "suggestions", suggestions
-        ));
+        return ResponseEntity.ok(new GrammarPracticeSuggestionDto(errorType, suggestions));
     }
 
     /** Per-user request-rate guard on raw LLM grammar helpers (cost control on top of the quota wallet). */

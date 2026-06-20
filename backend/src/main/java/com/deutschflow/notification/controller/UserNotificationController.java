@@ -2,6 +2,7 @@ package com.deutschflow.notification.controller;
 
 import com.deutschflow.common.exception.RateLimitExceededException;
 import com.deutschflow.notification.NotificationRateLimiterService;
+import com.deutschflow.notification.dto.AnnounceResultDto;
 import com.deutschflow.notification.dto.MarkNotificationsReadResponse;
 import com.deutschflow.notification.dto.NotificationPageResponse;
 import com.deutschflow.notification.dto.NotificationUnreadCountResponse;
@@ -27,8 +28,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/notifications")
@@ -94,7 +93,7 @@ public class UserNotificationController {
      */
     @PreAuthorize("hasRole('TEACHER')")
     @PostMapping("/teacher/announce")
-    public ResponseEntity<Map<String, Object>> announce(
+    public ResponseEntity<AnnounceResultDto> announce(
             @AuthenticationPrincipal User teacher,
             @Valid @RequestBody TeacherAnnounceRequest request
     ) {
@@ -106,7 +105,7 @@ public class UserNotificationController {
                 .orElse("Unknown");
         int count = userNotificationService.announceToClass(
                 teacher.getId(), teacher.getDisplayName(), request.classId(), className, request.message());
-        return ResponseEntity.ok(Map.of("recipientCount", count, "status", "sent"));
+        return ResponseEntity.ok(new AnnounceResultDto(count, "sent"));
     }
 
     private void enforceReadPoll(User user) {

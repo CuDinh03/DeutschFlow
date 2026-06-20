@@ -3,6 +3,16 @@ package com.deutschflow.grammar.controller;
 import com.deutschflow.common.async.AsyncJob;
 import com.deutschflow.common.async.AsyncJobService;
 import com.deutschflow.common.quota.QuotaService;
+import com.deutschflow.grammar.dto.ExamAttemptDto;
+import com.deutschflow.grammar.dto.ExamCoverageDto;
+import com.deutschflow.grammar.dto.ExamFinishAcceptedDto;
+import com.deutschflow.grammar.dto.ExamQuestionsDto;
+import com.deutschflow.grammar.dto.ExamRecommendationDto;
+import com.deutschflow.grammar.dto.ExamResultDto;
+import com.deutschflow.grammar.dto.ExamReviewDto;
+import com.deutschflow.grammar.dto.ExamStartDto;
+import com.deutschflow.grammar.dto.ExamStatDto;
+import com.deutschflow.grammar.dto.ExamSummaryDto;
 import com.deutschflow.grammar.service.AiExamEvaluatorService;
 import com.deutschflow.grammar.service.ExamGenerationService;
 import com.deutschflow.grammar.service.ExamQuestionSanitizer;
@@ -76,20 +86,29 @@ public class MockExamController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Map<String, Object>>> listExams(
+    public ResponseEntity<List<ExamSummaryDto>> listExams(
             @RequestParam(defaultValue = "A1") String cefrLevel) {
-        var exams = jdbcTemplate.queryForList("""
+        var exams = jdbcTemplate.query("""
             SELECT id, cefr_level, exam_format, title, description_vi,
                    total_points, pass_points, time_limit_minutes
             FROM mock_exams
             WHERE cefr_level = ? AND is_active = TRUE
             ORDER BY id
-            """, cefrLevel);
+            """, (rs, n) -> new ExamSummaryDto(
+                rs.getLong("id"),
+                rs.getString("cefr_level"),
+                rs.getString("exam_format"),
+                rs.getString("title"),
+                rs.getString("description_vi"),
+                (Integer) rs.getObject("total_points"),
+                (Integer) rs.getObject("pass_points"),
+                (Integer) rs.getObject("time_limit_minutes")),
+            cefrLevel);
         return ResponseEntity.ok(exams);
     }
 
     @PostMapping("/{examId}/start")
-    public ResponseEntity<Map<String, Object>> startExam(
+    public ResponseEntity<ExamStartDto> startExam(
             @PathVariable long examId,
             @AuthenticationPrincipal UserDetails principal) {
         long uid = userId(principal);
@@ -117,28 +136,31 @@ public class MockExamController {
             FROM mock_exams WHERE id = ?
             """, examId);
 
-        Map<String, Object> response = new HashMap<>(attemptRow);
         // Strip the answer key before sending to the client: an in-progress exam must not
         // expose `correct`/explanations. Scoring (/finish) and review re-read them from the DB.
-        response.put("sections_json",
-                questionSanitizer.stripAnswerKey((String) examDetails.get("sections_json")));
-        response.put("time_limit_minutes", examDetails.get("time_limit_minutes"));
+        // exam_id/started_at/status are absent when reusing an attempt (only `id` was selected) —
+        // @JsonInclude(NON_NULL) on ExamStartDto reproduces that omission.
+        ExamStartDto response = new ExamStartDto(
+                ((Number) attemptRow.get("id")).longValue(),
+                attemptRow.get("exam_id") != null ? ((Number) attemptRow.get("exam_id")).longValue() : null,
+                (java.util.Date) attemptRow.get("started_at"),
+                (String) attemptRow.get("status"),
+                questionSanitizer.stripAnswerKey((String) examDetails.get("sections_json")),
+                (Integer) examDetails.get("time_limit_minutes"));
 
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{examId}/questions")
-    public ResponseEntity<Map<String, Object>> getExamQuestions(@PathVariable long examId) {
+    public ResponseEntity<ExamQuestionsDto> getExamQuestions(@PathVariable long examId) {
         try {
             var row = jdbcTemplate.queryForMap("""
                 SELECT sections_json::text AS sections_json
                 FROM mock_exams WHERE id = ?
                 """, examId);
             // Strip the answer key before serving — same reason as /start.
-            Map<String, Object> safe = new HashMap<>();
-            safe.put("sections_json",
-                    questionSanitizer.stripAnswerKey((String) row.get("sections_json")));
-            return ResponseEntity.ok(safe);
+            return ResponseEntity.ok(new ExamQuestionsDto(
+                    questionSanitizer.stripAnswerKey((String) row.get("sections_json"))));
         } catch (Exception e) {
             return ResponseEntity.notFound().build();
         }
@@ -149,7 +171,7 @@ public class MockExamController {
      * Scoring + AI eval run on aiExecutor off the Tomcat thread; client polls GET /api/async-jobs/{jobId}.
      */
     @PostMapping("/attempts/{attemptId}/finish")
-    public ResponseEntity<Map<String, Object>> finishExam(
+    public ResponseEntity<ExamFinishAcceptedDto> finishExam(
             @PathVariable long attemptId,
             @RequestBody(required = false) Map<String, Object> body,
             @AuthenticationPrincipal UserDetails principal) {
@@ -175,11 +197,10 @@ public class MockExamController {
             }
         }, aiExecutor);
 
-        return ResponseEntity.accepted().body(Map.of(
-                "jobId", job.getId().toString(),
-                "status", AsyncJob.Status.PENDING.name(),
-                "attemptId", attemptId
-        ));
+        return ResponseEntity.accepted().body(new ExamFinishAcceptedDto(
+                job.getId().toString(),
+                AsyncJob.Status.PENDING.name(),
+                attemptId));
     }
 
     @SuppressWarnings("unchecked")
@@ -330,10 +351,10 @@ public class MockExamController {
     }
 
     @GetMapping("/attempts/me")
-    public ResponseEntity<List<Map<String, Object>>> myAttempts(
+    public ResponseEntity<List<ExamAttemptDto>> myAttempts(
             @AuthenticationPrincipal UserDetails principal) {
         long uid = userId(principal);
-        var attempts = jdbcTemplate.queryForList("""
+        var attempts = jdbcTemplate.query("""
             SELECT a.id, a.exam_id, e.title AS exam_title, a.started_at, a.finished_at,
                    a.total_score, a.passed, a.status,
                    a.detailed_scores_json::text AS detailed_scores_json,
@@ -342,17 +363,28 @@ public class MockExamController {
             JOIN mock_exams e ON e.id = a.exam_id
             WHERE a.user_id = ?
             ORDER BY a.created_at DESC
-            """, uid);
+            """, (rs, n) -> new ExamAttemptDto(
+                rs.getLong("id"),
+                (Long) rs.getObject("exam_id"),
+                rs.getString("exam_title"),
+                rs.getTimestamp("started_at"),
+                rs.getTimestamp("finished_at"),
+                (Integer) rs.getObject("total_score"),
+                (Boolean) rs.getObject("passed"),
+                rs.getString("status"),
+                rs.getString("detailed_scores_json"),
+                rs.getString("weak_areas")),
+            uid);
         return ResponseEntity.ok(attempts);
     }
 
     @GetMapping("/attempts/{attemptId}/result")
-    public ResponseEntity<Map<String, Object>> getResult(
+    public ResponseEntity<ExamResultDto> getResult(
             @PathVariable long attemptId,
             @AuthenticationPrincipal UserDetails principal) {
         long uid = userId(principal);
         try {
-            var row = jdbcTemplate.queryForMap("""
+            ExamResultDto row = jdbcTemplate.queryForObject("""
                 SELECT a.id, a.exam_id, e.title, a.started_at, a.finished_at,
                        a.total_score, a.passed, a.status,
                        a.detailed_scores_json::text AS detailed_scores_json,
@@ -360,7 +392,18 @@ public class MockExamController {
                 FROM mock_exam_attempts a
                 JOIN mock_exams e ON e.id = a.exam_id
                 WHERE a.id = ? AND a.user_id = ?
-                """, attemptId, uid);
+                """, (rs, n) -> new ExamResultDto(
+                    rs.getLong("id"),
+                    (Long) rs.getObject("exam_id"),
+                    rs.getString("title"),
+                    rs.getTimestamp("started_at"),
+                    rs.getTimestamp("finished_at"),
+                    (Integer) rs.getObject("total_score"),
+                    (Boolean) rs.getObject("passed"),
+                    rs.getString("status"),
+                    rs.getString("detailed_scores_json"),
+                    rs.getString("weak_areas")),
+                attemptId, uid);
             return ResponseEntity.ok(row);
         } catch (Exception e) {
             return ResponseEntity.notFound().build();
@@ -368,28 +411,26 @@ public class MockExamController {
     }
 
     @GetMapping("/recommend")
-    public ResponseEntity<Map<String, Object>> recommendExam(
+    public ResponseEntity<ExamRecommendationDto> recommendExam(
             @RequestParam(defaultValue = "A1") String cefrLevel,
             @AuthenticationPrincipal UserDetails principal) {
         long uid = userId(principal);
         var examId = generationService.recommendExamId(uid, cefrLevel);
-        var stats = generationService.getUserExamStats(uid, cefrLevel);
+        var examStats = generationService.getUserExamStats(uid, cefrLevel).stream()
+                .map(ExamStatDto::from)
+                .toList();
 
-        return ResponseEntity.ok(Map.of(
-            "recommendedExamId", examId.orElse(-1L),
-            "cefrLevel", cefrLevel,
-            "examStats", stats
-        ));
+        return ResponseEntity.ok(new ExamRecommendationDto(examId.orElse(-1L), cefrLevel, examStats));
     }
 
     @GetMapping("/coverage")
-    public ResponseEntity<Map<String, Object>> examCoverage(
+    public ResponseEntity<ExamCoverageDto> examCoverage(
             @RequestParam(defaultValue = "A1") String cefrLevel) {
         return ResponseEntity.ok(generationService.getExamCoverage(cefrLevel));
     }
 
     @GetMapping("/attempts/{attemptId}/review")
-    public ResponseEntity<Map<String, Object>> getAttemptReview(
+    public ResponseEntity<ExamReviewDto> getAttemptReview(
             @PathVariable long attemptId,
             @AuthenticationPrincipal UserDetails principal) {
         long uid = userId(principal);
@@ -441,10 +482,10 @@ public class MockExamController {
             List<Map<String, Object>> sections =
                 (List<Map<String, Object>>) examStructure.get("sections");
 
-            List<Map<String, Object>> reviewSections = new ArrayList<>();
+            List<ExamReviewDto.Section> reviewSections = new ArrayList<>();
             for (Map<String, Object> section : sections) {
                 String sectionName = (String) section.get("name");
-                List<Map<String, Object>> reviewItems = new ArrayList<>();
+                List<ExamReviewDto.Item> reviewItems = new ArrayList<>();
 
                 List<Map<String, Object>> teile =
                     (List<Map<String, Object>>) section.get("teile");
@@ -474,39 +515,23 @@ public class MockExamController {
                             isCorrect = userAnswer.trim().equalsIgnoreCase(correctAnswer.trim());
                         }
 
-                        Map<String, Object> reviewItem = new LinkedHashMap<>();
-                        reviewItem.put("id", itemId);
-                        reviewItem.put("question", question);
-                        reviewItem.put("user_answer", userAnswer);
-                        reviewItem.put("correct_answer", correctAnswer);
-                        reviewItem.put("is_correct", isCorrect);
-
+                        // explanation kept null when absent → @JsonInclude(NON_NULL) omits the key
+                        // (matches the old map, which only put "explanation" when non-null).
                         Object explanation = item.get("explanation_vi");
-                        if (explanation != null) {
-                            reviewItem.put("explanation", explanation);
-                        }
-
-                        reviewItems.add(reviewItem);
+                        reviewItems.add(new ExamReviewDto.Item(
+                            itemId, question, userAnswer, correctAnswer, isCorrect,
+                            explanation != null ? explanation.toString() : null));
                     }
                 }
 
-                Map<String, Object> reviewSection = new LinkedHashMap<>();
-                reviewSection.put("sectionName", sectionName);
-                reviewSection.put("items", reviewItems);
-                reviewSections.add(reviewSection);
+                reviewSections.add(new ExamReviewDto.Section(sectionName, reviewItems));
             }
 
-            return ResponseEntity.ok(Map.of(
-                "attemptId", attemptId,
-                "totalScore", totalScore,
-                "sections", reviewSections
-            ));
+            return ResponseEntity.ok(new ExamReviewDto(attemptId, totalScore, reviewSections));
 
         } catch (Exception e) {
             log.error("Error building review for attempt {}: {}", attemptId, e.getMessage(), e);
-            return ResponseEntity.badRequest().body(Map.of(
-                "error", "Could not build review: " + e.getMessage()
-            ));
+            return ResponseEntity.badRequest().build();
         }
     }
 }
