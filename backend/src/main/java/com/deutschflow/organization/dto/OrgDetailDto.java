@@ -10,5 +10,7 @@ public record OrgDetailDto(
         String status,
         long teacherCount,
         long studentCount,
-        long pendingInvites
+        long pendingInvites,
+        long monthlyTokenPool,
+        boolean poolUnlimited
 ) {}

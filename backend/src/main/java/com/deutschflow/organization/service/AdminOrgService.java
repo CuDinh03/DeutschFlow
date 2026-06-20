@@ -114,7 +114,9 @@ public class AdminOrgService {
                 org.getStatus(),
                 teacherCount,
                 studentCount,
-                pendingInvites
+                pendingInvites,
+                org.getMonthlyTokenPool(),
+                org.isPoolUnlimited()
         );
     }
 
@@ -142,6 +144,13 @@ public class AdminOrgService {
         }
         if (request.status() != null) {
             org.setStatus(request.status());
+        }
+        // M-5: pool giờ set được qua API (trước chỉ SQL tay). Clamp âm về 0.
+        if (request.monthlyTokenPool() != null) {
+            org.setMonthlyTokenPool(Math.max(0L, request.monthlyTokenPool()));
+        }
+        if (request.poolUnlimited() != null) {
+            org.setPoolUnlimited(request.poolUnlimited());
         }
         org = organizationRepository.save(org);
         applyStatusTransition(org, previousStatus, request.status());

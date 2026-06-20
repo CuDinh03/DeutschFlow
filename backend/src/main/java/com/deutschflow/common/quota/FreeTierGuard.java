@@ -12,12 +12,18 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
 /**
- * Hạn mức theo NGÀY cho tính năng AI ĐẮT ở gói miễn phí của GV tự do (non-org) — checklist D6
- * ("unlimited chấm core + cap AI đắt").
+ * Hạn mức theo NGÀY cho tính năng AI ĐẮT (PPTX, OCR-ảnh) ở gói miễn phí — checklist D6
+ * ("unlimited chấm core + cap AI đắt"). Chấm bài text (core) KHÔNG gọi guard này.
  *
- * <p>Chỉ áp cho GV KHÔNG thuộc org ({@code orgId == null}); GV thuộc org đã được org token-pool
- * quản (xem {@link com.deutschflow.organization.service.OrgPoolGuard}). Chấm bài text (core) KHÔNG
- * gọi guard này nên vẫn không giới hạn — chỉ PPTX và OCR-ảnh (đắt) mới bị cap.
+ * <p><b>M-5 — ai bị cap (đóng backdoor org member):</b>
+ * <ul>
+ *   <li>GV B2C ({@code orgId == null}) → cap (như cũ).</li>
+ *   <li>Org member, {@code pool_unlimited = true} → KHÔNG cap (unlimited có chủ đích).</li>
+ *   <li>Org member, {@code monthly_token_pool > 0} → KHÔNG cap ở đây (metered bởi
+ *       {@link com.deutschflow.organization.service.OrgPoolGuard}).</li>
+ *   <li>Org member, {@code pool = 0 & !unlimited} → <b>cap</b> (default fail-safe; trước M-5
+ *       org member bỏ qua hoàn toàn → dùng PPTX/OCR đắt miễn phí không giới hạn).</li>
+ * </ul>
  */
 @Service
 @Slf4j
@@ -75,10 +81,45 @@ public class FreeTierGuard {
         increment(userId, feature);
     }
 
-    /** Cap chỉ áp cho GV tự do (có user, không thuộc org). */
-    static boolean appliesTo(Long userId, Long orgId) {
-        return userId != null && orgId == null;
+    /**
+     * Free-tier cap áp cho request này không? (M-5 — xem class doc cho bảng quyết định).
+     * Org member phải tra cấu hình pool/unlimited; B2C và user-null quyết định ngay không chạm DB.
+     */
+    boolean appliesTo(Long userId, Long orgId) {
+        if (userId == null) {
+            return false;
+        }
+        if (orgId == null) {
+            return true; // GV B2C tự do
+        }
+        OrgPoolConfig cfg = loadOrgPoolConfig(orgId);
+        if (cfg.unlimited()) {
+            // Bước 5 — observability: org member bypass cap do unlimited tường minh (giám sát ai xài unlimited).
+            log.info("[FreeTier][UNLIMITED-BYPASS] userId={} orgId={} — bỏ qua cap do pool_unlimited=true",
+                    userId, orgId);
+        }
+        return orgMemberCapped(cfg.pool(), cfg.unlimited());
     }
+
+    /** Quyết định thuần cho org member (tách để test không cần DB). */
+    static boolean orgMemberCapped(long monthlyTokenPool, boolean poolUnlimited) {
+        if (poolUnlimited) {
+            return false;            // unlimited thật → không cap
+        }
+        return monthlyTokenPool <= 0L; // pool=0 → cap (đóng backdoor); pool>0 → metered bởi OrgPoolGuard
+    }
+
+    /** Cấu hình pool của org. Org không tồn tại → fail-safe (cap, không unlimited). */
+    private OrgPoolConfig loadOrgPoolConfig(Long orgId) {
+        return jdbcTemplate.query(
+                "SELECT monthly_token_pool, pool_unlimited FROM organizations WHERE id = ?",
+                rs -> rs.next()
+                        ? new OrgPoolConfig(rs.getLong(1), rs.getBoolean(2))
+                        : new OrgPoolConfig(0L, false),
+                orgId);
+    }
+
+    private record OrgPoolConfig(long pool, boolean unlimited) {}
 
     static boolean overLimit(int used, int limit) {
         return used >= limit;
