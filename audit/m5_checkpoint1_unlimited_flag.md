@@ -1,7 +1,13 @@
 # M-5 — CHECKPOINT 1: Điều tra nguồn-sự-thật "unlimited hợp lệ"
 
 **Date:** 2026-06-20
-**Status:** ⛔ CHECKPOINT 1 — báo cáo + đề xuất định nghĩa. CHƯA viết code. Chờ duyệt.
+**Status:** ✅ CHECKPOINT 1 DUYỆT 2026-06-20 — định nghĩa = **TẬP RỖNG + opt-in tường minh** (§4).
+M-5 **tạm dừng**, sẽ làm Bước 2→6 trong **PR riêng** sau (CHECKPOINT 2 trước khi đổi guard).
+Quick-wins H/P-9/D-3-G/Section-6 đã xong + commit (`a6d78961`).
+
+> **Quyết định đã chốt với user:** backfill KHÔNG ai. Mọi org `pool_unlimited=false`.
+> Unlimited = opt-in: thêm field pool/unlimited vào `UpdateOrgRequest`. Trước khi viết V225,
+> chạy `prod_verify_section6.sql` ITEM 5 để xác nhận `orgs_with_pool_set=0` (provably đúng tập rỗng).
 
 ---
 
