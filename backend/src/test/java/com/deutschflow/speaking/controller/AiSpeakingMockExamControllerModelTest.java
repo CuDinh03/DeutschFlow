@@ -6,6 +6,7 @@ import com.deutschflow.speaking.AiRateLimiterService;
 import com.deutschflow.speaking.ai.AiChatCompletionResult;
 import com.deutschflow.speaking.ai.ChatMessage;
 import com.deutschflow.speaking.ai.OpenAiChatClient;
+import com.deutschflow.speaking.dto.MockExamEvalDto;
 import com.deutschflow.speaking.service.SprechenTeil2Service;
 import com.deutschflow.user.entity.User;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -71,13 +72,14 @@ class AiSpeakingMockExamControllerModelTest {
         User user = mock(User.class);
         when(user.getId()).thenReturn(7L);
 
-        ResponseEntity<Map<String, Object>> resp = controller().evaluateMockExam(
+        ResponseEntity<MockExamEvalDto> resp = controller().evaluateMockExam(
                 user, Map.of("transcript_de",
                         "Ich heiße Anna und ich lerne seit zwei Jahren Deutsch in Hanoi."));
 
         // Reached the AI branch and parsed the result (not the 400/badRequest/500 path).
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(resp.getBody()).containsEntry("estimated_cefr", "B1");
+        assertThat(resp.getBody()).isNotNull();
+        assertThat(resp.getBody().estimatedCefr()).isEqualTo("B1");
 
         ArgumentCaptor<String> model = ArgumentCaptor.forClass(String.class);
         verify(chatClient).chatCompletion(any(), model.capture(), anyDouble(), any());
