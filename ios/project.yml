@@ -22,7 +22,11 @@ settings:
     SWIFT_VERSION: "6.0"
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
-    DEVELOPMENT_TEAM: "" # TODO(admin): set Apple Developer Team ID for signing
+    # Signing for a DEVICE run: open in Xcode → target → Signing & Capabilities → pick your Team
+    # (a FREE Apple ID works for development/device installs; the $99 program is only for
+    # TestFlight/App Store). Or set the team via env: `DEVELOPMENT_TEAM=XXXXXXXXXX xcodegen generate`.
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: "" # set in Xcode (Signing & Capabilities → Team), or edit this value
     GENERATE_INFOPLIST_FILE: YES
     INFOPLIST_KEY_UILaunchScreen_Generation: YES
     INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES

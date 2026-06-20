@@ -1,6 +1,5 @@
 import SwiftUI
 import Foundation
-import OpenAPIRuntime
 
 /// Phase 1 — Auth: real `POST /api/auth/login` → `AuthResponse` → `session.didSignIn(...)`.
 /// (Register / forgot-password come next in the Auth feature.)
@@ -65,11 +64,7 @@ struct LoginView: View {
             )
             switch output {
             case .ok(let ok):
-                // Response media type is `*/*` in the current pinned spec → decode manually.
-                // After the springdoc application/json fix (PR #127) is deployed + spec re-pinned,
-                // switch to the typed accessor: `let auth = try ok.body.json`.
-                let bytes = try await Data(collecting: try ok.body.any, upTo: 1 * 1024 * 1024)
-                let auth = try JSONDecoder().decode(Components.Schemas.AuthResponse.self, from: bytes)
+                let auth = try ok.body.json
                 guard let access = auth.accessToken else {
                     error = "Phản hồi thiếu access token."
                     return

@@ -1,7 +1,8 @@
 # DeutschFlow iOS — Giải thích & Phân tích Build/Deploy
 
 > **Ngày:** 2026-06-21 · **Cho:** chủ dự án (không cần rành iOS) để hiểu app native đang ở đâu, build/deploy ra sao, và còn vướng gì.
-> **Trạng thái chốt:** app **build xanh** + **archive được cho deploy** (Release, máy iOS). Dừng đúng ở **cổng ký số/Apple** (không thể tự động). Chi tiết bên dưới.
+> **Trạng thái chốt:** app **build xanh** (đã dùng spec **có kiểu** `application/json`) + **archive được cho deploy** (Release, máy iOS). Dừng đúng ở **cổng ký số/Apple** (không thể tự động).
+> **➡️ Muốn build thử ra máy ngay:** xem **§5b — Chạy thử ra máy thật**.
 
 ---
 
@@ -60,13 +61,13 @@ Features/
 
 ```
 Backend Spring Boot
-  └─ springdoc-openapi  →  /v3/api-docs/ios   (JSON mô tả 143 endpoint student/auth + kiểu DTO)
+  └─ springdoc-openapi  →  /v3/api-docs/ios   (JSON mô tả 150 endpoint student/auth + kiểu DTO)
                                   │  (mình "pin" 1 bản về repo: ios/openapi/openapi.json)
                                   ▼
   swift-openapi-generator (chạy như BUILD PLUGIN của Xcode khi build)
                                   │  đọc openapi.json → sinh:
                                   ▼
-  Client (các hàm như client.login(), client.me1()) + Types (struct AuthResponse, …)
+  Client (các hàm như client.login(), client.me2()) + Types (struct AuthResponse, …)
                                   │
                                   ▼
   App gọi client.login(...) → nhận struct AuthResponse có kiểu (không phải "dict mờ")
@@ -74,9 +75,9 @@ Backend Spring Boot
 
 **Lợi ích:** mỗi khi backend đổi API, build lại → code client tự cập nhật; CI bắt được "lệch hợp đồng" (drift). Không lo gõ sai tên field.
 
-### 🔑 Phát hiện quan trọng khi build (đã sửa)
-Lúc build thật, lộ ra: **springdoc khai báo kiểu nội dung trả về là `*/*`** (mặc định cho controller không ghi `produces`). Hệ quả: bộ sinh code coi **mọi** response là "byte thô" (`HTTPBody`) thay vì struct có kiểu → **mất hết typing** dù schema đã đúng. 
-→ Đã sửa ở **PR #127** bằng 1 dòng cấu hình: `springdoc.default-produces-media-type: application/json` (commit `f4f362a8`). Sau khi backend này merge + pin lại spec, client sẽ tự sinh body **có kiểu** (`try ok.body.json`). Hiện tại (spec cũ `*/*`) app **giải mã thủ công** ở 2 chỗ (Login, Home) — đã ghi chú để đổi sau. *Đây là ví dụ điển hình "build mới phát hiện được lỗi hợp đồng".*
+### 🔑 Phát hiện quan trọng khi build (đã sửa **và đã áp dụng**)
+Lúc build thật, lộ ra: **springdoc khai báo kiểu nội dung trả về là `*/*`** (mặc định cho controller không ghi `produces`). Hệ quả: bộ sinh code coi **mọi** response là "byte thô" (`HTTPBody`) thay vì struct có kiểu → **mất hết typing** dù schema đã đúng.
+→ Đã sửa ở **PR #127** bằng 1 dòng cấu hình: `springdoc.default-produces-media-type: application/json` (commit `f4f362a8`). **Đã pin lại spec** (`ios/openapi/openapi.json`, nay **150 path**, response `application/json`) và **đổi cả 2 chỗ (Login, Home) sang body có kiểu `try ok.body.json`** — bỏ hết giải mã thủ công. Build lại **xanh** với spec mới. *Đây là ví dụ điển hình "build mới phát hiện được lỗi hợp đồng".*
 
 ---
 
@@ -115,6 +116,39 @@ xcodebuild -project DeutschFlow.xcodeproj -scheme DeutschFlow -configuration Rel
 
 ---
 
+## 5b. 📱 Chạy thử ra máy thật (làm trên Mac có Xcode 16)
+
+> Mục tiêu: cắm iPhone vào Mac → bấm Run → app chạy trên máy. **Apple ID miễn phí là đủ** để chạy thử trên máy của chính bạn (chưa cần $99 — cái đó chỉ để TestFlight/App Store).
+
+**Bước 1 — chuẩn bị (1 lần):**
+```bash
+brew install xcodegen          # nếu chưa có
+cd ios && xcodegen generate    # sinh DeutschFlow.xcodeproj từ project.yml
+open DeutschFlow.xcodeproj      # mở bằng Xcode
+```
+Spec API đã **pin sẵn** trong repo (`ios/openapi/openapi.json`) → **không cần backend chạy** để build.
+
+**Bước 2 — chọn Team ký số (trong Xcode):**
+1. Cây trái chọn project **DeutschFlow** → target **DeutschFlow** → tab **Signing & Capabilities**.
+2. Tích **Automatically manage signing**.
+3. Ở ô **Team**, chọn Apple ID của bạn (bấm *Add an Account…* nếu chưa có — đăng nhập Apple ID thường, miễn phí).
+4. Nếu báo *"bundle identifier is not available"* (vì `com.deutschflow.app` đã đăng ký): đổi **Bundle Identifier** thành cái riêng, ví dụ `com.<tên-bạn>.deutschflow`.
+
+**Bước 3 — chạy:**
+1. Cắm iPhone bằng cáp → trên iPhone bấm **Trust** máy Mac.
+2. Trên thanh trên cùng Xcode, đổi đích chạy thành **iPhone của bạn** (thay cho simulator).
+3. Bấm **▶ Run** (`Cmd+R`).
+4. Lần đầu iPhone chặn "Untrusted Developer": vào **Settings → General → VPN & Device Management → [Apple ID của bạn] → Trust**, rồi mở lại app.
+
+**App nối backend nào?** Mặc định **production** (`https://api.mydeutschflow.com` — xem `AppEnvironment.current`). Cứ đăng nhập tài khoản thật → màn "Hôm nay" gọi `/api/auth/me`. (Trỏ backend khác: sửa `AppEnvironment.current` sang `.local`/`.staging`.)
+
+**Lưu ý quan trọng:**
+- **App này đang ở Phase 0–1:** vào app có luồng **đăng nhập thật** + tab "Hôm nay" (nút gọi `/api/auth/me` chứng minh thông backend). Các tab khác còn là khung (placeholder) — sẽ làm ở Phase 1–4.
+- **Free provisioning:** app ký bằng Apple ID **miễn phí** chỉ chạy được **7 ngày** rồi hết hạn → bấm Run lại để gia hạn. Có $99 thì hết giới hạn.
+- **Caveat tên hàm sinh tự động:** bộ sinh code đặt tên hàm theo path; nhiều path cùng kết thúc `/me` (auth/me, plan/me, profile/me…) nên thêm hậu tố số (`me`, `me2`…) **có thể đổi khi spec thêm path**. Hiện `GET /api/auth/me` = `client.me2()` (đã ghi chú ngay trong `HomeView.swift`). Muốn tên **ổn định** thì backend thêm `operationId` cho từng endpoint (khuyến nghị, không bắt buộc để build).
+
+---
+
 ## 6. Đã làm gì (đều đã verify bằng `xcodebuild`)
 
 | Mốc | Nội dung | Bằng chứng | Commit |
@@ -123,6 +157,8 @@ xcodebuild -project DeutschFlow.xcodeproj -scheme DeutschFlow -configuration Rel
 | Phase 0 codegen | pin spec 143 path + sinh client; sửa lỗi plugin "target membership" | **BUILD SUCCEEDED** | `1a3b43c6` |
 | Phase 0 Hello API | `HomeView` gọi `client.me1()` → /api/auth/me | **BUILD SUCCEEDED** | `79331d73` |
 | Phase 1 Login | form thật → `client.login()` → lưu token → vào app | **BUILD SUCCEEDED** | `2f828982` |
+| Typed `.json` | pin lại spec 150-path + Login/Home dùng `try ok.body.json` (bỏ giải mã thủ công); `me1`→`me2` | **BUILD SUCCEEDED** | (commit này) |
+| Signing cho device | `CODE_SIGN_STYLE: Automatic` + hướng dẫn chạy ra máy (§5b) | — | (commit này) |
 | **Deploy-build** | **Release archive (chưa ký) cho máy iOS** | **ARCHIVE SUCCEEDED** | (artifact, chưa commit) |
 | Backend fix | spec `*/*` → `application/json` cho codegen có kiểu | trên PR #127 | `f4f362a8` |
 
@@ -135,7 +171,7 @@ Nhánh: `feat/native-ios-phase0` (đã push). Backend typed-DTO: `feat/native-op
 **Code mình làm tiếp được (tự động, có build verify):**
 - Phase 1 nốt: Đăng ký, Quên mật khẩu, Onboarding, màn Hôm nay thật (`/api/today` + `/api/student` + `/api/progress` + `/api/xp`).
 - Phase 2–4: SRS + Từ vựng, Luyện nói (mic/audio), Cây học tập (`/api/roadmap/tree`), Thi (Mock Exam).
-- *Nên làm sau khi pin lại spec `application/json`* để các màn dùng body **có kiểu** (bỏ giải mã thủ công).
+- ✅ Spec `application/json` **đã pin** → các màn mới cứ dùng body **có kiểu** (`try ok.body.json`), không còn giải mã thủ công.
 
 **⛔ Cổng Apple/người — KHÔNG tự động được (đây là lý do dừng):**
 1. Đăng ký **Apple Developer Program** ($99/năm) + tạo **certificate/provisioning** (ký số).
@@ -161,8 +197,8 @@ Nhánh: `feat/native-ios-phase0` (đã push). Backend typed-DTO: `feat/native-op
 **Đánh giá tiến độ:** nền móng (cái khó nhất về kỹ thuật: scaffold + codegen + build + archive) **đã thông**. Từ đây về sau, viết thêm màn là việc "nhân bản theo mẫu" + cổng Apple. Tức là **đường đã mở**, phần còn lại là khối lượng + thủ tục Apple.
 
 **Khuyến nghị thứ tự:**
-1. Merge **PR #127** → `main` (typed DTO + fix `application/json`).
-2. Pin lại spec → đổi 2 chỗ giải mã thủ công sang `.json`.
+1. ✅ **Đã pin spec có kiểu + đổi Login/Home sang `try ok.body.json`** (build xanh). Còn lại: **merge PR #127 → `main`** để lần pin spec sau lấy bản typed chính thức.
+2. **Bạn build thử ra máy** theo **§5b** (Apple ID miễn phí là chạy được).
 3. Mình build tiếp Phase 1–4 (các màn) — tự động + verify.
 4. **Bạn** mở Apple Developer + App Store Connect (cổng A/E trong `plans/2026-06-20-appstore-release-plan.md`) → mở khoá Phase 5 (IAP) + nộp.
 4. Khi có chứng chỉ: ký + upload TestFlight → external beta → submit → phased release → khai tử Expo.
