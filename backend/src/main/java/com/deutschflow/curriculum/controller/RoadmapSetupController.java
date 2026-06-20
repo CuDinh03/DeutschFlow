@@ -1,6 +1,8 @@
 package com.deutschflow.curriculum.controller;
 
 import com.deutschflow.curriculum.dto.RoadmapSetupRequest;
+import com.deutschflow.curriculum.dto.RoadmapSetupResultDto;
+import com.deutschflow.curriculum.dto.RoadmapSetupStateDto;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.entity.UserLearningProfile;
 import com.deutschflow.user.repository.UserLearningProfileRepository;
@@ -10,9 +12,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/roadmap")
@@ -23,7 +23,7 @@ public class RoadmapSetupController {
 
     @PostMapping("/setup")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Map<String, Object>> createOrUpdateSetup(
+    public ResponseEntity<RoadmapSetupResultDto> createOrUpdateSetup(
             @AuthenticationPrincipal User user,
             @RequestBody RoadmapSetupRequest request
     ) {
@@ -42,34 +42,30 @@ public class RoadmapSetupController {
 
         profileRepository.save(profile);
 
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("saved", true);
-        response.put("roadmapVersion", profile.getCurrentLevel() == UserLearningProfile.CurrentLevel.A0 ? "A0_A1_Foundation_First" : "PERSONALIZED_CEFR_V1");
-        response.put("roadmapType", profile.getCurrentLevel() == UserLearningProfile.CurrentLevel.A0 ? "FOUNDATION_FIRST" : "PERSONALIZED");
-        response.put("currentLevel", profile.getCurrentLevel().name());
-        response.put("targetLevel", profile.getTargetLevel().name());
-        response.put("nextRoute", "/roadmap");
+        RoadmapSetupResultDto response = new RoadmapSetupResultDto(
+                true,
+                profile.getCurrentLevel() == UserLearningProfile.CurrentLevel.A0 ? "A0_A1_Foundation_First" : "PERSONALIZED_CEFR_V1",
+                profile.getCurrentLevel() == UserLearningProfile.CurrentLevel.A0 ? "FOUNDATION_FIRST" : "PERSONALIZED",
+                profile.getCurrentLevel().name(),
+                profile.getTargetLevel().name(),
+                "/roadmap");
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/setup")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Map<String, Object>> getSetup(@AuthenticationPrincipal User user) {
+    public ResponseEntity<RoadmapSetupStateDto> getSetup(@AuthenticationPrincipal User user) {
         return profileRepository.findByUserId(user.getId())
-                .map(profile -> {
-                    Map<String, Object> response = new LinkedHashMap<>();
-                    response.put("exists", true);
-                    response.put("goalType", profile.getGoalType().name());
-                    response.put("currentLevel", profile.getCurrentLevel().name());
-                    response.put("targetLevel", profile.getTargetLevel().name());
-                    response.put("sessionsPerWeek", profile.getSessionsPerWeek());
-                    response.put("minutesPerSession", profile.getMinutesPerSession());
-                    response.put("learningSpeed", profile.getLearningSpeed().name());
-                    response.put("industry", profile.getIndustry());
-                    response.put("examType", profile.getExamType());
-                    response.put("interestsJson", profile.getInterestsJson());
-                    return ResponseEntity.ok(response);
-                })
-                .orElseGet(() -> ResponseEntity.ok(Map.of("exists", false)));
+                .map(profile -> ResponseEntity.ok(RoadmapSetupStateDto.exists(
+                        profile.getGoalType().name(),
+                        profile.getCurrentLevel().name(),
+                        profile.getTargetLevel().name(),
+                        profile.getSessionsPerWeek(),
+                        profile.getMinutesPerSession(),
+                        profile.getLearningSpeed().name(),
+                        profile.getIndustry(),
+                        profile.getExamType(),
+                        profile.getInterestsJson())))
+                .orElseGet(() -> ResponseEntity.ok(RoadmapSetupStateDto.notExists()));
     }
 }

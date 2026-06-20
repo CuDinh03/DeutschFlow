@@ -1,5 +1,6 @@
 package com.deutschflow.curriculum.controller;
 
+import com.deutschflow.curriculum.dto.RoadmapMetaDto;
 import com.deutschflow.curriculum.dto.RoadmapNodeDto;
 import com.deutschflow.curriculum.service.RoadmapService;
 import com.deutschflow.user.entity.User;
@@ -10,9 +11,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/roadmap")
@@ -36,7 +35,7 @@ public class RoadmapController {
      */
     @GetMapping("/me/meta")
     @PreAuthorize("isAuthenticated()")
-    public Map<String, Object> getMyRoadmapMeta(@AuthenticationPrincipal User user) {
-        return roadmapService.getRoadmapMeta(user.getId());
+    public RoadmapMetaDto getMyRoadmapMeta(@AuthenticationPrincipal User user) {
+        return RoadmapMetaDto.from(roadmapService.getRoadmapMeta(user.getId()));
     }
 }

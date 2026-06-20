@@ -224,4 +224,30 @@ class IosOpenApiContractTest extends AbstractPostgresIntegrationTest {
                 .andExpect(jsonPath("$.components.schemas.AdaptiveRefreshDto").exists())
                 .andExpect(jsonPath("$.components.schemas.AdaptiveRefreshDto.properties.sessionIndex").exists());
     }
+
+    @Test
+    void shouldTypeRound10ResidualEndpoints() throws Exception {
+        // Round 10: transcribe / roadmap meta+setup / sepay webhook / teacher announce flipped Map → DTOs.
+        mockMvc.perform(get("/v3/api-docs/ios"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.components.schemas.TranscribeDto").exists())
+                .andExpect(jsonPath("$.components.schemas.RoadmapMetaDto").exists())
+                .andExpect(jsonPath("$.components.schemas.RoadmapSetupResultDto").exists())
+                .andExpect(jsonPath("$.components.schemas.RoadmapSetupStateDto").exists())
+                .andExpect(jsonPath("$.components.schemas.SepayWebhookResponse").exists())
+                .andExpect(jsonPath("$.components.schemas.AnnounceResultDto").exists());
+    }
+
+    @Test
+    void shouldTypeOnboardingAiEndpoints() throws Exception {
+        // Round 11: onboarding placement / mock-exam evaluate / sprechen-teil2 turn flipped raw AI Maps
+        // → typed envelope DTOs (radar_chart/top_errors/score kept loose to avoid AI-shape drift).
+        mockMvc.perform(get("/v3/api-docs/ios"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.components.schemas.PlacementTestDto").exists())
+                .andExpect(jsonPath("$.components.schemas.PlacementTestDto.properties.estimated_cefr").exists())
+                .andExpect(jsonPath("$.components.schemas.MockExamEvalDto").exists())
+                .andExpect(jsonPath("$.components.schemas.SprechenTurnDto").exists())
+                .andExpect(jsonPath("$.components.schemas.SprechenTurnDto.properties.feedback_vi").exists());
+    }
 }
