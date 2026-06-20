@@ -8,6 +8,10 @@ import com.deutschflow.speaking.controller.SpeakingAiHelperRequests.ErrorPractic
 import com.deutschflow.speaking.controller.SpeakingAiHelperRequests.FeedbackRequest;
 import com.deutschflow.speaking.controller.SpeakingAiHelperRequests.RolePlayRequest;
 import com.deutschflow.speaking.controller.SpeakingAiHelperRequests.ScenarioRequest;
+import com.deutschflow.speaking.dto.ConversationResponseDto;
+import com.deutschflow.speaking.dto.CulturalContextResponseDto;
+import com.deutschflow.speaking.dto.ErrorPracticeResponseDto;
+import com.deutschflow.speaking.dto.RolePlayResponseDto;
 import com.deutschflow.speaking.service.SpeakingAiHelpersService;
 import com.deutschflow.speaking.service.SpeakingAiHelpersService.PracticeScenario;
 import com.deutschflow.speaking.service.SpeakingAiHelpersService.SpeakingFeedback;
@@ -21,7 +25,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
-import java.util.Map;
 
 /**
  * REST API for AI-powered speaking practice features.
@@ -44,7 +47,7 @@ public class AISpeakingController {
      * POST /api/speaking/ai/conversation
      */
     @PostMapping("/conversation")
-    public ResponseEntity<Map<String, String>> generateConversation(
+    public ResponseEntity<ConversationResponseDto> generateConversation(
             @Valid @RequestBody ConversationRequest request,
             @AuthenticationPrincipal User user) {
         long userId = user.getId();
@@ -56,11 +59,8 @@ public class AISpeakingController {
                 request.message(),
                 request.normalizedContext(),
                 request.normalizedLevel());
-        return ResponseEntity.ok(Map.of(
-                "userMessage", request.message(),
-                "aiResponse", response,
-                "level", request.normalizedLevel()
-        ));
+        return ResponseEntity.ok(new ConversationResponseDto(
+                request.message(), response, request.normalizedLevel()));
     }
 
     /**
@@ -99,7 +99,7 @@ public class AISpeakingController {
      * POST /api/speaking/ai/error-practice
      */
     @PostMapping("/error-practice")
-    public ResponseEntity<Map<String, Object>> generateErrorPractice(
+    public ResponseEntity<ErrorPracticeResponseDto> generateErrorPractice(
             @Valid @RequestBody ErrorPracticeRequest request,
             @AuthenticationPrincipal User user) {
         long userId = user.getId();
@@ -108,17 +108,14 @@ public class AISpeakingController {
 
         String practice = speakingAiHelpersService.generateErrorPractice(
                 userId, request.errorType(), request.normalizedExerciseCount());
-        return ResponseEntity.ok(Map.of(
-                "errorType", request.errorType(),
-                "exercises", practice
-        ));
+        return ResponseEntity.ok(new ErrorPracticeResponseDto(request.errorType(), practice));
     }
 
     /**
      * POST /api/speaking/ai/cultural-context
      */
     @PostMapping("/cultural-context")
-    public ResponseEntity<Map<String, String>> provideCulturalContext(
+    public ResponseEntity<CulturalContextResponseDto> provideCulturalContext(
             @Valid @RequestBody CulturalContextRequest request,
             @AuthenticationPrincipal User user) {
         long userId = user.getId();
@@ -126,17 +123,14 @@ public class AISpeakingController {
         orgPoolGuard.assertOrgPoolAvailable(userId, ESTIMATED_MIN_TOKENS);
 
         String context = speakingAiHelpersService.provideCulturalContext(userId, request.topic());
-        return ResponseEntity.ok(Map.of(
-                "topic", request.topic(),
-                "culturalContext", context
-        ));
+        return ResponseEntity.ok(new CulturalContextResponseDto(request.topic(), context));
     }
 
     /**
      * POST /api/speaking/ai/roleplay
      */
     @PostMapping("/roleplay")
-    public ResponseEntity<Map<String, String>> generateRolePlay(
+    public ResponseEntity<RolePlayResponseDto> generateRolePlay(
             @Valid @RequestBody RolePlayRequest request,
             @AuthenticationPrincipal User user) {
         long userId = user.getId();
@@ -149,9 +143,6 @@ public class AISpeakingController {
                 request.normalizedUserRole(),
                 request.normalizedAiRole()
         );
-        return ResponseEntity.ok(Map.of(
-                "situation", request.situation(),
-                "rolePlay", rolePlay
-        ));
+        return ResponseEntity.ok(new RolePlayResponseDto(request.situation(), rolePlay));
     }
 }
