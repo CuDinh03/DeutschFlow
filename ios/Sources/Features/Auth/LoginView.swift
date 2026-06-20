@@ -1,32 +1,47 @@
 import SwiftUI
+import Foundation
+import OpenAPIRuntime
 
-/// Phase 0 placeholder. Phase 1 implements real `POST /api/auth/login` → `AuthResponse` →
-/// `session.didSignIn(...)`. For the Phase 0 "Hello API" milestone you can paste a test JWT to
-/// reach the signed-in shell and exercise `/api/auth/me`.
+/// Phase 1 — Auth: real `POST /api/auth/login` → `AuthResponse` → `session.didSignIn(...)`.
+/// (Register / forgot-password come next in the Auth feature.)
 struct LoginView: View {
     @Environment(AuthSession.self) private var session
-    @State private var pastedToken = ""
+    @State private var email = ""
+    @State private var password = ""
+    @State private var error: String?
+    @State private var loading = false
+
+    private var canSubmit: Bool {
+        !email.trimmingCharacters(in: .whitespaces).isEmpty && !password.isEmpty && !loading
+    }
 
     var body: some View {
-        VStack(spacing: GaSpace.xl) {
+        VStack(spacing: GaSpace.lg) {
             Spacer()
             Text("DeutschFlow").font(GaFont.displayXL).foregroundStyle(Color.gaInk)
+            Text("Đăng nhập để tiếp tục").font(GaFont.body).foregroundStyle(Color.gaMuted)
 
-            VStack(alignment: .leading, spacing: GaSpace.sm) {
-                Text("Dán JWT test (Phase 0)").font(GaFont.caption).foregroundStyle(Color.gaMuted)
-                TextField("eyJ…", text: $pastedToken, axis: .vertical)
-                    .textFieldStyle(.roundedBorder)
-                    .font(GaFont.caption)
+            VStack(spacing: GaSpace.md) {
+                TextField("Email", text: $email)
+                    .textContentType(.emailAddress)
+                    .keyboardType(.emailAddress)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
-                Button("Vào app") {
-                    let token = pastedToken.trimmingCharacters(in: .whitespacesAndNewlines)
-                    guard !token.isEmpty else { return }
-                    Task { await session.didSignIn(access: token, refresh: nil) }
+                    .textFieldStyle(.roundedBorder)
+                SecureField("Mật khẩu", text: $password)
+                    .textContentType(.password)
+                    .textFieldStyle(.roundedBorder)
+
+                if let error {
+                    Text(error).font(GaFont.caption).foregroundStyle(Color.gaRed)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(.gaAccent)
-                .disabled(pastedToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                Button(loading ? "Đang đăng nhập…" : "Đăng nhập") { Task { await login() } }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.gaAccent)
+                    .frame(maxWidth: .infinity)
+                    .disabled(!canSubmit)
             }
             .padding(GaSpace.lg)
             .background(Color.gaCard, in: RoundedRectangle(cornerRadius: GaRadius.card))
@@ -37,5 +52,34 @@ struct LoginView: View {
         .padding(GaSpace.xl)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.gaBg)
+    }
+
+    private func login() async {
+        loading = true
+        error = nil
+        defer { loading = false }
+        do {
+            let client = APIClientFactory.make()
+            let output = try await client.login(
+                body: .json(.init(email: email.trimmingCharacters(in: .whitespaces), password: password))
+            )
+            switch output {
+            case .ok(let ok):
+                // Response media type is `*/*` in the current pinned spec → decode manually.
+                // After the springdoc application/json fix (PR #127) is deployed + spec re-pinned,
+                // switch to the typed accessor: `let auth = try ok.body.json`.
+                let bytes = try await Data(collecting: try ok.body.any, upTo: 1 * 1024 * 1024)
+                let auth = try JSONDecoder().decode(Components.Schemas.AuthResponse.self, from: bytes)
+                guard let access = auth.accessToken else {
+                    error = "Phản hồi thiếu access token."
+                    return
+                }
+                await session.didSignIn(access: access, refresh: auth.refreshToken)
+            default:
+                error = "Email hoặc mật khẩu không đúng."
+            }
+        } catch {
+            self.error = "Lỗi đăng nhập: \(error.localizedDescription)"
+        }
     }
 }
