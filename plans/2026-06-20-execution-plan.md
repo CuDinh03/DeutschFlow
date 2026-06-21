@@ -23,6 +23,9 @@
 | 2026-06-21 | **B0.2** trạng thái #127/#128 | ✅ **Đã xác minh.** #128 **MERGED→main** (`467403b6`): phần lớn ios typed contract + **một phần** AppleIap. #127 **OPEN nhưng base=`feat/student-coin-currency`** (KHÔNG phải main) → không tự về main. Khối uncommitted (AppleIap R5 đầy đủ + Tts + DTO mới) = **increment CHƯA có ở main** (main `AppleActivationResult`×1/`Tts`×0 vs working ×6/×3). ⇒ **B0.1 phải commit khối này lên nhánh off-main + PR mới** (không chờ #127). Khi về main ⇒ phần IAP/Tts của **B3.3/B3.4 hoàn tất** (DTO MVP khác + nhóm `ios` đã ở main qua #128). |
 | 2026-06-21 | **W0.1 + B0.1** git hygiene | ✅ Tách nhánh sạch off main: `feat/web-v2-cutover` = `ec608eb3`(docs)+`3e1c6c09`(W1.1); `feat/native-iap-tts-typed` = `d5a9c04c`(IAP/Tts R5). `feat/native-ios-phase0` nguyên vẹn (`df1aab8f`). 2 stash sẵn có = của branch khác (onboarding/phase1) — KHÔNG đụng. ⏳ chưa push/PR. |
 | 2026-06-21 | **B1.1/B1.2** org-detail BE | ✅ `GET /api/org/classes/{id}` (`OrgClassDetailDto`: tên GV + roster + `skill_*`) & `GET /api/org/students/{id}` (`OrgStudentDetailDto`: membership + lớp lọc theo org). Org-admin gated + **IDOR-safe (404 nếu khác org)**. 4 DTO + service + controller + `OrgServiceDetailTest` (5 case). **Maven compile + test XANH.** Commit `d7bb94ca` trên `feat/web-v2-cutover`. ⏳ còn FE 2 màn (W1.4). |
+| 2026-06-21 | **PR #129 + #130** | ✅ Push + mở PR: [#129](https://github.com/CuDinh03/DeutschFlow/pull/129) IAP/Tts (ready) · [#130](https://github.com/CuDinh03/DeutschFlow/pull/130) web-v2-cutover (draft WIP). **CI cả 2 PR xanh** (Backend+Frontend+Security). |
+| 2026-06-21 | **B0.3** CI | ✅ **Billing Actions HẾT lỗi** (run 06-21 đều success). ⚠️ `main` IT (Testcontainers) fail pre-existing → **Deploy-to-EC2 skipped** → deploy thủ công là đường đúng. |
+| 2026-06-21 | **B2.1/W2.1/W2.2 + B6.1** | ✅ Viết **runbook turnkey** `plans/2026-06-20-deploy-ops-runbook.md` (verified): deploy prod (§1) + env Amplify (§2) + cờ PostHog (§3) + thứ tự go-live (§4) + Apple-register-later (§5). ⏸ **3 việc hạ tầng chờ BẠN chạy** (ssh chặn với tôi / Amplify+PostHog dashboard). |
 
 ---
 
@@ -200,7 +203,7 @@ App Swift native, tái dùng backend qua OpenAPI codegen. Hiện Phase 0 xong + 
 - [x] B0.1 ✅ Committed trên `feat/native-iap-tts-typed` (`d5a9c04c`) off main; ⏳ chưa push/PR (#127 base=coin → nhánh này là đường về main đúng)
 - [x] B0.2 ✅ #128 MERGED→main (phần lớn typed contract); #127 OPEN base=coin (không về main); khối uncommitted = increment IAP/Tts R5 chưa ở main
 - [x] W0.1 ✅ `feat/web-v2-cutover` off main (`ec608eb3` docs + `3e1c6c09` W1.1)
-- [ ] B0.3 CI xanh / xác minh billing Actions
+- [x] B0.3 ✅ CI billing HẾT lỗi (PR #129/#130 xanh); main IT fail pre-existing → auto-deploy skipped → deploy thủ công
 
 ### Mốc 1 — Parity-gap mọi vai trò
 - [x] 🔴 W1.1 ✅ Code xong (`login/page.tsx`, tsc+eslint sạch); ⏳ verify runtime 4 vai cần flag PostHog (W2.2/2.3)
@@ -215,11 +218,11 @@ App Swift native, tái dùng backend qua OpenAPI codegen. Hiện Phase 0 xong + 
 - [x] 🟡 B1.2 ✅ `GET /api/org/students/{id}` — compile+test xanh (`d7bb94ca`)
 
 ### Mốc 2 — Cutover web (go-live #1)
-- [ ] 🔴 B2.1 Deploy backend prod (tree/audit + org-detail nếu có)
-- [ ] 🔴 W2.1 Env Amplify (JWT verifier + URLs + PostHog)
-- [ ] 🔴 W2.2 Cấu hình cờ PostHog, bật nội bộ
-- [ ] 🔴 W2.3 Rollout nội bộ→10%→50%→100% (theo runbook)
-- [ ] 🟡 W2.4 Diễn tập rollback kill-switch
+- [ ] 🔴 B2.1 ⏸ **bạn chạy** — runbook `deploy-ops-runbook.md §1` (ssh chặn với tôi); deploy `main` = tree/audit
+- [ ] 🔴 W2.1 ⏸ **bạn set** env Amplify — runbook §2 (bảng biến đầy đủ)
+- [ ] 🔴 W2.2 ⏸ **bạn cấu hình** cờ PostHog — runbook §3 (⚠️ cần W1.1 ở prod trước)
+- [ ] 🔴 W2.3 Rollout nội bộ→10%→50%→100% (runbook §3)
+- [ ] 🟡 W2.4 Diễn tập rollback kill-switch (runbook §2)
 - [ ] 🟢 W2.5 (sau khi 100% ổn) swap /v2→canonical + redirect bookmark
 - [ ] 🟢 W2.6 (sau) gỡ UI legacy trừ phần phải giữ + gỡ cờ/V2Gate/kill-switch
 
@@ -244,7 +247,7 @@ App Swift native, tái dùng backend qua OpenAPI codegen. Hiện Phase 0 xong + 
 - [ ] 🔴 M5.4 Paywall + StoreKit IAP + verify/restore
 
 ### Mốc 6 — App Store compliance
-- [ ] 🔴 B6.1 Apple Developer + App ID + 4 IAP product + signing
+- [⏸] 🔴 B6.1 HOÃN theo yêu cầu — docs "đăng ký sau" ở `deploy-ops-runbook.md §5`
 - [ ] 🔴 M6.1 Chỉ StoreKit, không cổng web
 - [ ] 🟢 M6.2 Sign in with Apple = N/A
 - [ ] 🔴 M6.3 UI xoá tài khoản (`DELETE /api/profile/me`)
