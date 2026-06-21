@@ -21,6 +21,8 @@
 |---|---|---|
 | 2026-06-21 | **W1.1** route-in cờ `galerie-v2` | ✅ **Code xong** `frontend/src/app/login/page.tsx`: `identify` trước → `resolveGalerieV2()` bounded 700ms (fallback **legacy** an toàn, không hang) → `homeFor(role,v2)`; **native loại trừ**; redirect-map khớp middleware (`/v2/admin/users` · `/v2/teacher` · `/v2/student/dashboard`). **tsc + eslint sạch.** ⏳ Verify runtime 4 vai cần bật flag PostHog (ở W2.2/W2.3). ⚠️ Phạm vi = redirect **sau login**; user đã đăng nhập + bookmark legacy **chưa** bị kéo vào v2 → follow-up (V2RouteIn trên legacy home / edge Phase 3). |
 | 2026-06-21 | **B0.2** trạng thái #127/#128 | ✅ **Đã xác minh.** #128 **MERGED→main** (`467403b6`): phần lớn ios typed contract + **một phần** AppleIap. #127 **OPEN nhưng base=`feat/student-coin-currency`** (KHÔNG phải main) → không tự về main. Khối uncommitted (AppleIap R5 đầy đủ + Tts + DTO mới) = **increment CHƯA có ở main** (main `AppleActivationResult`×1/`Tts`×0 vs working ×6/×3). ⇒ **B0.1 phải commit khối này lên nhánh off-main + PR mới** (không chờ #127). Khi về main ⇒ phần IAP/Tts của **B3.3/B3.4 hoàn tất** (DTO MVP khác + nhóm `ios` đã ở main qua #128). |
+| 2026-06-21 | **W0.1 + B0.1** git hygiene | ✅ Tách nhánh sạch off main: `feat/web-v2-cutover` = `ec608eb3`(docs)+`3e1c6c09`(W1.1); `feat/native-iap-tts-typed` = `d5a9c04c`(IAP/Tts R5). `feat/native-ios-phase0` nguyên vẹn (`df1aab8f`). 2 stash sẵn có = của branch khác (onboarding/phase1) — KHÔNG đụng. ⏳ chưa push/PR. |
+| 2026-06-21 | **B1.1/B1.2** org-detail BE | ✅ `GET /api/org/classes/{id}` (`OrgClassDetailDto`: tên GV + roster + `skill_*`) & `GET /api/org/students/{id}` (`OrgStudentDetailDto`: membership + lớp lọc theo org). Org-admin gated + **IDOR-safe (404 nếu khác org)**. 4 DTO + service + controller + `OrgServiceDetailTest` (5 case). **Maven compile + test XANH.** Commit `d7bb94ca` trên `feat/web-v2-cutover`. ⏳ còn FE 2 màn (W1.4). |
 
 ---
 
@@ -195,22 +197,22 @@ App Swift native, tái dùng backend qua OpenAPI codegen. Hiện Phase 0 xong + 
 ## 5. CHECKLIST [ ] theo Mốc (copy dùng ngay)
 
 ### Mốc 0 — Checkpoint
-- [ ] B0.1 Commit khối IAP/Tts + DTO/test lên **nhánh off-main + PR mới** (KHÔNG chờ #127 — base của #127 = coin branch). Khối = increment chưa có ở main.
+- [x] B0.1 ✅ Committed trên `feat/native-iap-tts-typed` (`d5a9c04c`) off main; ⏳ chưa push/PR (#127 base=coin → nhánh này là đường về main đúng)
 - [x] B0.2 ✅ #128 MERGED→main (phần lớn typed contract); #127 OPEN base=coin (không về main); khối uncommitted = increment IAP/Tts R5 chưa ở main
-- [ ] W0.1 Tạo nhánh `feat/web-v2-cutover` từ main
+- [x] W0.1 ✅ `feat/web-v2-cutover` off main (`ec608eb3` docs + `3e1c6c09` W1.1)
 - [ ] B0.3 CI xanh / xác minh billing Actions
 
 ### Mốc 1 — Parity-gap mọi vai trò
 - [x] 🔴 W1.1 ✅ Code xong (`login/page.tsx`, tsc+eslint sạch); ⏳ verify runtime 4 vai cần flag PostHog (W2.2/2.3)
 - [ ] 🟡 W1.2 Punch-list P0/P1 fidelity + fix 404 hannie
 - [ ] 🟡 W1.3 Top QA_GAPS buildable
-- [ ] 🟡 W1.4 Wire org class-detail + student-detail (hoặc defer-có-ký)
+- [~] 🟡 W1.4 BE XONG (B1.1/B1.2 `d7bb94ca`, compile+test xanh); ⏳ FE 2 màn `/v2/org/classes/[id]` + `/v2/org/students/[id]`
 - [ ] 🟡 W1.5 Quyết org TEACHER visibility
 - [ ] 🟡 W1.6 Smoke-test runtime 57 màn × 4 vai
 - [ ] 🔴 W1.7 Quyết 12 màn admin legacy (giữ/migrate)
 - [ ] 🔴 W1.8 Quyết launcher legacy speaking/exam cho GA
-- [ ] 🟡 B1.1 `GET /api/org/classes/{id}`
-- [ ] 🟡 B1.2 `GET /api/org/students/{id}`
+- [x] 🟡 B1.1 ✅ `GET /api/org/classes/{id}` — compile+test xanh (`d7bb94ca`)
+- [x] 🟡 B1.2 ✅ `GET /api/org/students/{id}` — compile+test xanh (`d7bb94ca`)
 
 ### Mốc 2 — Cutover web (go-live #1)
 - [ ] 🔴 B2.1 Deploy backend prod (tree/audit + org-detail nếu có)
