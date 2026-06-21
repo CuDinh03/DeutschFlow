@@ -1,6 +1,8 @@
 package com.deutschflow.material.service;
 
+import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ForbiddenException;
+import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.material.dto.MaterialDto;
 import com.deutschflow.material.entity.Material;
 import com.deutschflow.material.repository.ClassMaterialRepository;
@@ -255,5 +257,29 @@ class MaterialServiceTest {
         assertThatThrownBy(() -> service.attachToClass(caller, 1L, 5L))
                 .isInstanceOf(ForbiddenException.class);
         verify(classMaterialRepository, never()).save(any());
+    }
+
+    // --------------------------------------------------------------- upload guards
+
+    @Test
+    @DisplayName("create rejects a browser-executable content-type (stored-XSS guard)")
+    void create_blockedMime_throwsBadRequest() {
+        User caller = user(7L, null);
+        MockMultipartFile html = new MockMultipartFile("file", "x.html", "text/html", "<script>".getBytes());
+
+        assertThatThrownBy(() -> service.create(caller, "PERSONAL", html, "Evil", null))
+                .isInstanceOf(BadRequestException.class);
+        verify(materialRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("get 404s an ARCHIVED material even for the owner (consistent with list)")
+    void get_archived_throwsNotFound() {
+        User caller = user(7L, null);
+        Material m = personalMaterial(1L, 7L);
+        m.setStatus("ARCHIVED");
+        when(materialRepository.findById(1L)).thenReturn(Optional.of(m));
+
+        assertThatThrownBy(() -> service.get(caller, 1L)).isInstanceOf(NotFoundException.class);
     }
 }

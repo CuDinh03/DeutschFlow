@@ -34,6 +34,7 @@ public class AdminTeacherService {
 
     private static final String EVENT_BREAK_GLASS = "ORG_TEACHER_BREAK_GLASS_VIEW";
     private static final String TARGET_TYPE = "ORG_TEACHER";
+    private static final String STATUS_ACTIVE = "ACTIVE";
     private static final Set<String> TEACHING_ROLES = Set.of("OWNER", "MANAGER", "TEACHER");
 
     private final UserRepository userRepository;
@@ -56,8 +57,10 @@ public class AdminTeacherService {
      */
     @Transactional
     public OrgMemberDto breakGlassViewTeacher(Long orgId, Long userId, User actor) {
+        // Only an ACTIVE teaching member "thuộc TT" (§3) is viewable — a REVOKED/LEFT ex-member 404s
+        // (and writes no audit row), avoiding disclosure of a departed teacher's status to admins.
         OrgMember member = orgMemberRepository.findByIdOrgIdAndIdUserId(orgId, userId)
-                .filter(m -> TEACHING_ROLES.contains(m.getRole()))
+                .filter(m -> TEACHING_ROLES.contains(m.getRole()) && STATUS_ACTIVE.equals(m.getStatus()))
                 .orElseThrow(() -> new NotFoundException("Giáo viên không thuộc tổ chức này"));
         User teacher = userRepository.findById(userId).orElse(null);
 

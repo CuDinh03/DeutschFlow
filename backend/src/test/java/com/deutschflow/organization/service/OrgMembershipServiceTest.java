@@ -242,4 +242,14 @@ class OrgMembershipServiceTest {
         assertThatThrownBy(() -> service.changeRole(ORG_ID, USER_ID, "MANAGER"))
                 .isInstanceOf(NotFoundException.class);
     }
+
+    @Test
+    @DisplayName("removeMember 404s when the member does not exist (no silent no-op)")
+    void removeMember_missing_throwsNotFound() {
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.removeMember(ORG_ID, USER_ID))
+                .isInstanceOf(NotFoundException.class);
+        verify(memberRepo, never()).save(any());
+    }
 }

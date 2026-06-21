@@ -120,4 +120,15 @@ class AdminTeacherServiceTest {
                 .isInstanceOf(NotFoundException.class);
         verify(auditLogService, never()).log(any(), any(), any(), any(), any(), any(), any());
     }
+
+    @Test
+    @DisplayName("breakGlassViewTeacher 404s a REVOKED/LEFT ex-member and writes NO audit row")
+    void breakGlass_revokedMember_throwsAndNoAudit() {
+        when(orgMemberRepository.findByIdOrgIdAndIdUserId(ORG_ID, TEACHER_ID))
+                .thenReturn(Optional.of(member("TEACHER", "REVOKED")));
+
+        assertThatThrownBy(() -> service.breakGlassViewTeacher(ORG_ID, TEACHER_ID, admin()))
+                .isInstanceOf(NotFoundException.class);
+        verify(auditLogService, never()).log(any(), any(), any(), any(), any(), any(), any());
+    }
 }

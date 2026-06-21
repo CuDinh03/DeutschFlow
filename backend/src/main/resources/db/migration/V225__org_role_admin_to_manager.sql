@@ -7,5 +7,14 @@
 --   UPDATE org_members     SET role = 'ADMIN' WHERE role = 'MANAGER';
 --   UPDATE org_invitations SET role = 'ADMIN' WHERE role = 'MANAGER';
 
+-- Fail loudly if any ACCOUNTANT membership exists: D2 drops the role, so a residual row would
+-- silently lose finance access. Reassign such rows before applying V225. (No rows expected —
+-- ACCOUNTANT was never assignable.)
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM org_members WHERE role = 'ACCOUNTANT') THEN
+    RAISE EXCEPTION 'V225: org_members.role=ACCOUNTANT rows exist — reassign to OWNER/MANAGER before applying (ACCOUNTANT dropped per D2).';
+  END IF;
+END $$;
+
 UPDATE org_members     SET role = 'MANAGER' WHERE role = 'ADMIN';
 UPDATE org_invitations SET role = 'MANAGER' WHERE role = 'ADMIN';

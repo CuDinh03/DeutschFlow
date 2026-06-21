@@ -156,11 +156,11 @@ public class OrgMembershipService {
     // ----------------------------------------------------------------- internals
 
     private void deactivate(Long orgId, Long userId, String status) {
-        memberRepo.findByIdOrgIdAndIdUserId(orgId, userId).ifPresent(member -> {
-            member.setStatus(status);
-            member.setLeftAt(Instant.now());
-            memberRepo.save(member);
-        });
+        OrgMember member = memberRepo.findByIdOrgIdAndIdUserId(orgId, userId)
+                .orElseThrow(() -> new NotFoundException("Thành viên không tồn tại trong tổ chức."));
+        member.setStatus(status);
+        member.setLeftAt(Instant.now());
+        memberRepo.save(member);
         detachUser(orgId, userId);
     }
 

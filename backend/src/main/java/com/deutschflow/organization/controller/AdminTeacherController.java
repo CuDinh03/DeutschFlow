@@ -29,7 +29,12 @@ public class AdminTeacherController {
         return adminTeacherService.listFreeTeachers();
     }
 
-    /** Break-glass view of an org-affiliated teacher — every call is audit-logged. */
+    /**
+     * Break-glass view of an org-affiliated teacher — every call is audit-logged.
+     * {@code orgId} is a client-supplied query param BY DESIGN (a platform-admin selects which org
+     * to inspect); it is not an IDOR because the service verifies the user is an ACTIVE teaching
+     * member of exactly that org before returning anything.
+     */
     @GetMapping("/{userId}/break-glass")
     public OrgMemberDto breakGlass(@PathVariable Long userId,
                                    @RequestParam Long orgId,

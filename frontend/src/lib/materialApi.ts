@@ -15,7 +15,6 @@ export interface Material {
   title: string
   description: string | null
   kind: MaterialKind
-  objectKey: string
   url: string
   mimeType: string | null
   sizeBytes: number | null

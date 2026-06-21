@@ -6,7 +6,7 @@ import java.time.Instant;
 
 /**
  * Read view of a {@link Material}. {@code url} is the resolvable object URL (filled by the service
- * from the S3 key); {@code objectKey} is kept for clients that build their own URL.
+ * from the S3 key). The raw S3 key is intentionally NOT exposed to clients.
  */
 public record MaterialDto(
         Long id,
@@ -14,7 +14,6 @@ public record MaterialDto(
         String title,
         String description,
         String kind,
-        String objectKey,
         String url,
         String mimeType,
         Long sizeBytes,
@@ -30,7 +29,6 @@ public record MaterialDto(
                 m.getTitle(),
                 m.getDescription(),
                 m.getKind(),
-                m.getObjectKey(),
                 url,
                 m.getMimeType(),
                 m.getSizeBytes(),

@@ -48,6 +48,15 @@ public class MaterialService {
     private static final String STORAGE_CATEGORY = "materials";
     private static final long MAX_FILE_SIZE = 20L * 1024 * 1024;
     private static final Set<String> ORG_ADMIN_ROLES = Set.of("OWNER", "MANAGER");
+    /**
+     * Content-types that a browser would execute/render inline. The uploaded content-type becomes
+     * the S3 object's Content-Type, and the bucket serves public URLs — so an HTML/SVG/XML upload
+     * could be served inline from the app's S3 origin (stored XSS). Block those; everything else
+     * (PDF/Office/images/octet-stream/OTHER) downloads or renders inertly.
+     */
+    private static final Set<String> BLOCKED_MIME = Set.of(
+            "text/html", "application/xhtml+xml", "image/svg+xml",
+            "application/xml", "text/xml", "application/javascript", "text/javascript");
 
     private final MaterialRepository materialRepository;
     private final ClassMaterialRepository classMaterialRepository;
@@ -61,6 +70,10 @@ public class MaterialService {
         if (file == null || file.isEmpty()) throw new BadRequestException("Tệp không được để trống.");
         if (file.getSize() > MAX_FILE_SIZE) throw new BadRequestException("Tệp quá lớn (tối đa 20MB).");
         if (title == null || title.isBlank()) throw new BadRequestException("Tiêu đề là bắt buộc.");
+        String mime = file.getContentType();
+        if (mime != null && BLOCKED_MIME.contains(mime.toLowerCase(Locale.ROOT).trim())) {
+            throw new BadRequestException("Loại tệp không được phép vì lý do bảo mật.");
+        }
         String scope = scopeRaw == null ? SCOPE_PERSONAL : scopeRaw.trim().toUpperCase(Locale.ROOT);
 
         Material.MaterialBuilder b = Material.builder()
@@ -113,6 +126,10 @@ public class MaterialService {
         Material m = materialRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy tài liệu."));
         assertCanAccess(caller, m);
+        // Archived/deleted materials are hidden from direct fetch too (consistent with list()).
+        if (!STATUS_ACTIVE.equals(m.getStatus())) {
+            throw new NotFoundException("Không tìm thấy tài liệu.");
+        }
         return toDto(m);
     }
 
@@ -177,7 +194,11 @@ public class MaterialService {
         }
     }
 
-    /** PERSONAL → owner only. ORG → tied to ACTIVE membership (users.org_id), NOT created_by. */
+    /**
+     * PERSONAL → owner only. ORG → tied to ACTIVE membership (users.org_id), NOT created_by.
+     * NOTE: {@code visibility='OWNER_ONLY'} is reserved for a future iteration (B2B model §5
+     * "Mở rộng sau") and is intentionally NOT enforced yet — every ORG material is ORG_ALL today.
+     */
     private boolean canAccess(User caller, Material m) {
         if (SCOPE_PERSONAL.equals(m.getOwnerScope())) {
             return caller.getId().equals(m.getTeacherId());

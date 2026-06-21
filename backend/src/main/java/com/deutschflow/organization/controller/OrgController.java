@@ -126,7 +126,7 @@ public class OrgController {
     @PatchMapping("/members/{userId}/role")
     public OrgMemberDto changeMemberRole(@AuthenticationPrincipal User user,
                                          @PathVariable Long userId,
-                                         @RequestBody com.deutschflow.organization.dto.ChangeRoleRequest body) {
+                                         @jakarta.validation.Valid @RequestBody com.deutschflow.organization.dto.ChangeRoleRequest body) {
         Long orgId = requireOrgId(user);
         orgGuard.assertOrgOwner(user.getId(), orgId);
         return orgMembershipService.changeRole(orgId, userId, body.role());
