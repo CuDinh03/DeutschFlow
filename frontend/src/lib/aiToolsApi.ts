@@ -10,10 +10,11 @@ export interface TranslateResponse {
   direction: 'de-en' | 'en-de' | 'de-vi'
 }
 
+// NOTE: POST /ai/grammar/correct returns ONLY { original, corrected }. The teaching
+// explanation comes from the separate /ai/grammar/explain endpoint (grammarExplain).
 export interface GrammarCorrectResponse {
   original: string
   corrected: string
-  explanation: string
 }
 
 export interface GrammarExplainResponse {

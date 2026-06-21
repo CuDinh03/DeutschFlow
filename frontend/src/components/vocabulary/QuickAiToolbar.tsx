@@ -66,8 +66,10 @@ export function QuickAiToolbar() {
           break
         }
         case 'grammar-correct': {
+          // /correct returns only { original, corrected }; for an explanation use the
+          // dedicated "grammar-explain" tool (grammarExplain).
           const r = await aiToolsApi.grammarCorrect(input)
-          content = `✅ ${r.corrected}\n\n💬 ${r.explanation}`
+          content = `✅ ${r.corrected}`
           break
         }
         case 'grammar-explain': {

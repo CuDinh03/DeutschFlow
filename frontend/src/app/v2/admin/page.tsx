@@ -9,7 +9,7 @@ import { GaSection, GaBars, GaDonut, GaLegend, fmtVnd, nfVN } from '../analytics
 
 type OverviewUser = { id: number; role?: string; isActive?: boolean; isactive?: boolean; usageLast30Days?: number }
 type ChartRow = { period: string; netVnd: number; subscribers: number }
-type RevenueResponse = { overview?: { netVnd: number }; chartData?: ChartRow[] }
+type RevenueResponse = { totals?: { netVnd: number }; chartData?: ChartRow[] }
 type DailyCostRow = { costUsd: number }
 type DailyCostDto = { data?: DailyCostRow[] }
 
@@ -52,7 +52,7 @@ export default function V2AdminOverviewPage() {
 
   const chart = revenue?.chartData ?? []
   const latest = chart.length > 0 ? chart[chart.length - 1] : null
-  const mrr = latest?.netVnd ?? revenue?.overview?.netVnd ?? 0
+  const mrr = latest?.netVnd ?? revenue?.totals?.netVnd ?? 0
   const aiCost = (daily?.data ?? []).reduce((s, r) => s + (Number(r.costUsd) || 0), 0)
   const activeUsers = users.filter((u) => (Number(u.usageLast30Days) || 0) > 0).length
   const pausedUsers = users.filter((u) => u.isActive === false || u.isactive === false).length
