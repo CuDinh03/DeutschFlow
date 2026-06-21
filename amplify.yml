@@ -35,8 +35,11 @@ applications:
           - '**/*'
       cache:
         paths:
-          # Next.js incremental build cache — reduces compile time significantly
-          - .next/cache/**/*
+          # NOTE: .next/cache is DELIBERATELY NOT cached. Restoring Next.js's
+          # incremental cache across builds caused Amplify to serve a STALE
+          # prerendered /login (old chunk refs → galerie-v2 route-in never shipped
+          # despite a successful deploy). Clean .next every build = correct output.
+          # Trade-off: ~1-2 min slower compile. Worth it to avoid stale deploys.
           # npm offline cache — speeds up npm ci
           - .npm/**/*
           # node_modules — avoid full re-download on unchanged dependencies
