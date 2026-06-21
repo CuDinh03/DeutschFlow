@@ -157,7 +157,7 @@ public class JwtService {
             // orgRole is a display hint for frontend routing only; backend never trusts it.
             // After an org-role change the claim stays stale for up to the JWT TTL (~15 min).
             // This is accepted behaviour (C): OrgGuard always re-verifies against org_members in DB.
-            builder.claim("orgRole", orgRole); // OWNER | ADMIN | ACCOUNTANT | TEACHER | STUDENT
+            builder.claim("orgRole", orgRole); // OWNER | MANAGER | TEACHER | STUDENT
         }
         String token = builder.signWith(signingKey).compact();
         // DEBUG + no PII (email) — token issuance is high-volume; avoid emails in logs.

@@ -21,4 +21,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     /** All active users — filtered at the DB instead of loading every row via findAll(). */
     List<User> findByActiveTrue();
+
+    /** "Free teachers" (B2B §4): active TEACHERs with no ACTIVE org membership (derived via
+     *  {@code users.org_id IS NULL} — the denormalized fast-path kept in sync by OrgMembershipService). */
+    List<User> findByRoleAndOrgIdIsNullAndActiveTrue(User.Role role);
 }

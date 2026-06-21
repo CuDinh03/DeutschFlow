@@ -23,10 +23,14 @@ public class OrgMember {
 
     @Column(nullable = false)
     @Builder.Default
-    private String status = "ACTIVE"; // ACTIVE | REMOVED
+    private String status = "ACTIVE"; // ACTIVE | REVOKED (admin) | LEFT (self)
 
     @Column(name = "joined_at", nullable = false, updatable = false)
     private Instant joinedAt;
+
+    /** Set when the membership leaves ACTIVE (revoke/self-leave); null while ACTIVE. */
+    @Column(name = "left_at")
+    private Instant leftAt;
 
     @PrePersist
     protected void onCreate() {

@@ -68,6 +68,14 @@ public class OrgController {
         return orgService.getSummary(orgId);
     }
 
+    /** Seat usage (ghế = học viên ACTIVE) — any active member may read it for the dashboard. */
+    @GetMapping("/seats")
+    public com.deutschflow.organization.dto.OrgSeatUsageDto getSeats(@AuthenticationPrincipal User user) {
+        Long orgId = requireOrgId(user);
+        orgGuard.assertMember(user.getId(), orgId);
+        return orgService.getSeatUsage(orgId);
+    }
+
     @GetMapping("/members")
     public List<OrgMemberDto> listMembers(@AuthenticationPrincipal User user,
                                           @RequestParam(required = false) String role) {
@@ -108,6 +116,30 @@ public class OrgController {
         orgMembershipService.removeMember(orgId, userId);
         // Removed student loses the org-granted plan; web/Apple subs are left untouched.
         orgEntitlementService.revokeStudent(userId);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Changes a staff member's org-role (MANAGER ↔ TEACHER). OWNER-only — the role of the OWNER
+     * itself, and promotion to OWNER, are out of scope here (ownership transfer is separate).
+     */
+    @PatchMapping("/members/{userId}/role")
+    public OrgMemberDto changeMemberRole(@AuthenticationPrincipal User user,
+                                         @PathVariable Long userId,
+                                         @jakarta.validation.Valid @RequestBody com.deutschflow.organization.dto.ChangeRoleRequest body) {
+        Long orgId = requireOrgId(user);
+        orgGuard.assertOrgOwner(user.getId(), orgId);
+        return orgMembershipService.changeRole(orgId, userId, body.role());
+    }
+
+    /**
+     * Self-leave: a TEACHER/MANAGER leaves their own org (membership → LEFT). The OWNER cannot
+     * self-leave (must transfer ownership first). orgId comes from the principal, never the client.
+     */
+    @PostMapping("/membership/leave")
+    public ResponseEntity<Void> leaveOrg(@AuthenticationPrincipal User user) {
+        Long orgId = requireOrgId(user);
+        orgMembershipService.selfLeave(orgId, user.getId());
         return ResponseEntity.noContent().build();
     }
 

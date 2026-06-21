@@ -94,9 +94,9 @@ class OrgGuardTest {
     }
 
     @Test
-    @DisplayName("assertOrgAdmin passes for ADMIN role")
-    void assertOrgAdmin_admin_passes() {
-        stubMember(activeMember("ADMIN"));
+    @DisplayName("assertOrgAdmin passes for MANAGER role")
+    void assertOrgAdmin_manager_passes() {
+        stubMember(activeMember("MANAGER"));
 
         orgGuard.assertOrgAdmin(USER_ID, ORG_ID);
     }
@@ -140,17 +140,18 @@ class OrgGuardTest {
     }
 
     @Test
-    @DisplayName("assertOrgFinance passes for ADMIN role")
-    void assertOrgFinance_admin_passes() {
-        stubMember(activeMember("ADMIN"));
+    @DisplayName("assertOrgFinance passes for MANAGER role")
+    void assertOrgFinance_manager_passes() {
+        stubMember(activeMember("MANAGER"));
         orgGuard.assertOrgFinance(USER_ID, ORG_ID);
     }
 
     @Test
-    @DisplayName("assertOrgFinance passes for ACCOUNTANT role")
-    void assertOrgFinance_accountant_passes() {
+    @DisplayName("assertOrgFinance throws ForbiddenException for ACCOUNTANT (role dropped, D2)")
+    void assertOrgFinance_accountant_throwsForbidden() {
         stubMember(activeMember("ACCOUNTANT"));
-        orgGuard.assertOrgFinance(USER_ID, ORG_ID);
+        assertThatThrownBy(() -> orgGuard.assertOrgFinance(USER_ID, ORG_ID))
+                .isInstanceOf(ForbiddenException.class);
     }
 
     // ------------------------------------------------------------------ assertOrgFinance — deny cases

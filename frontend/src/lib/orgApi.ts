@@ -8,8 +8,8 @@ import api from '@/lib/api'
  * preview/accept are public under `/public/org-invitations/*`.
  */
 
-export type OrgRole = 'OWNER' | 'ADMIN' | 'TEACHER' | 'STUDENT'
-export type MemberStatus = 'ACTIVE' | 'REMOVED'
+export type OrgRole = 'OWNER' | 'MANAGER' | 'TEACHER' | 'STUDENT'
+export type MemberStatus = 'ACTIVE' | 'REVOKED' | 'LEFT'
 export type InvitationStatus = 'PENDING' | 'ACCEPTED' | 'REVOKED' | 'EXPIRED'
 
 /** GET /org — "my org" overview for an org-admin. */
@@ -22,7 +22,15 @@ export interface OrgSummary {
   studentCount: number
 }
 
-/** A member of the organization (OWNER|ADMIN|TEACHER|STUDENT). */
+/** GET /org/seats — seat usage (ghế = học viên ACTIVE; remaining null = không giới hạn). */
+export interface OrgSeatUsage {
+  used: number
+  limit: number
+  remaining: number | null
+  validUntil: string | null
+}
+
+/** A member of the organization (OWNER|MANAGER|TEACHER|STUDENT). */
 export interface OrgMember {
   userId: number
   email: string
@@ -201,7 +209,13 @@ export async function getOrgSummary(): Promise<OrgSummary> {
   return res.data
 }
 
-/** GET /org/members — optionally filter by role (TEACHER|STUDENT|ADMIN). */
+/** GET /org/seats — seat usage for the current org (ghế = học viên ACTIVE). */
+export async function getSeatUsage(): Promise<OrgSeatUsage> {
+  const res = await api.get<OrgSeatUsage>('/org/seats')
+  return res.data
+}
+
+/** GET /org/members — optionally filter by role (TEACHER|STUDENT|MANAGER). */
 export async function listMembers(role?: OrgRole): Promise<OrgMember[]> {
   const res = await api.get<OrgMember[]>('/org/members', {
     params: role ? { role } : undefined,
@@ -226,9 +240,20 @@ export async function revokeInvitation(id: number): Promise<void> {
   await api.delete(`/org/invitations/${id}`)
 }
 
-/** DELETE /org/members/{userId} — remove a member from the org. */
+/** DELETE /org/members/{userId} — admin removes a member (membership → REVOKED). */
 export async function removeMember(userId: number): Promise<void> {
   await api.delete(`/org/members/${userId}`)
+}
+
+/** POST /org/membership/leave — current TEACHER/MANAGER leaves their own org (membership → LEFT). */
+export async function leaveOrg(): Promise<void> {
+  await api.post('/org/membership/leave')
+}
+
+/** PATCH /org/members/{userId}/role — OWNER changes a staff member's role (MANAGER ↔ TEACHER). */
+export async function changeMemberRole(userId: number, role: OrgRole): Promise<OrgMember> {
+  const res = await api.patch<OrgMember>(`/org/members/${userId}/role`, { role })
+  return res.data
 }
 
 /** GET /org/classes — read-only paginated list of the org's classes. */

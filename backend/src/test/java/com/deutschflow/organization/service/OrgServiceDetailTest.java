@@ -2,9 +2,11 @@ package com.deutschflow.organization.service;
 
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.organization.dto.OrgClassDetailDto;
+import com.deutschflow.organization.dto.OrgSeatUsageDto;
 import com.deutschflow.organization.dto.OrgStudentDetailDto;
 import com.deutschflow.organization.entity.OrgMember;
 import com.deutschflow.organization.entity.OrgMemberId;
+import com.deutschflow.organization.entity.Organization;
 import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.organization.repository.OrganizationRepository;
 import com.deutschflow.teacher.entity.ClassStudent;
@@ -140,5 +142,32 @@ class OrgServiceDetailTest {
 
         assertThatThrownBy(() -> orgService.getStudentDetail(ORG_ID, 7L))
                 .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("getSeatUsage: limited org → used/limit/remaining (D8 seat = học viên ACTIVE)")
+    void getSeatUsage_limited_computesRemaining() {
+        Organization org = Organization.builder().seatLimit(20).build();
+        when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org));
+        when(membershipService.countByRole(ORG_ID, "STUDENT")).thenReturn(12L);
+
+        OrgSeatUsageDto dto = orgService.getSeatUsage(ORG_ID);
+
+        assertThat(dto.used()).isEqualTo(12L);
+        assertThat(dto.limit()).isEqualTo(20);
+        assertThat(dto.remaining()).isEqualTo(8L);
+    }
+
+    @Test
+    @DisplayName("getSeatUsage: unlimited org (seatLimit 0) → remaining null")
+    void getSeatUsage_unlimited_remainingNull() {
+        Organization org = Organization.builder().seatLimit(0).build();
+        when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org));
+        when(membershipService.countByRole(ORG_ID, "STUDENT")).thenReturn(5L);
+
+        OrgSeatUsageDto dto = orgService.getSeatUsage(ORG_ID);
+
+        assertThat(dto.remaining()).isNull();
+        assertThat(dto.used()).isEqualTo(5L);
     }
 }

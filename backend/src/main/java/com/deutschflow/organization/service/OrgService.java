@@ -6,6 +6,7 @@ import com.deutschflow.organization.dto.OrgClassDto;
 import com.deutschflow.organization.dto.OrgClassStudentDto;
 import com.deutschflow.organization.dto.OrgMemberDto;
 import com.deutschflow.organization.dto.OrgStudentClassDto;
+import com.deutschflow.organization.dto.OrgSeatUsageDto;
 import com.deutschflow.organization.dto.OrgStudentDetailDto;
 import com.deutschflow.organization.dto.OrgSummaryDto;
 import com.deutschflow.organization.entity.OrgMember;
@@ -65,6 +66,19 @@ public class OrgService {
                 org.getSeatLimit(),
                 teacherCount,
                 studentCount);
+    }
+
+    /**
+     * Seat usage (B2B model §4, D8): seat = ACTIVE-student capacity. {@code remaining} is null
+     * when the org is unlimited (seatLimit = 0). Teachers never consume seats.
+     */
+    @Transactional(readOnly = true)
+    public OrgSeatUsageDto getSeatUsage(Long orgId) {
+        Organization org = organizationRepository.findById(orgId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy tổ chức"));
+        long used = membershipService.countByRole(orgId, ROLE_STUDENT);
+        Long remaining = org.getSeatLimit() > 0 ? Math.max(0L, org.getSeatLimit() - used) : null;
+        return new OrgSeatUsageDto(used, org.getSeatLimit(), remaining, org.getValidUntil());
     }
 
     /**
