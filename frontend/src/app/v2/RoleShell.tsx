@@ -14,7 +14,7 @@ export function RoleShell({ children }: { children: React.ReactNode }) {
   const roles = useUserStore((s) => s.user?.roles)
   const orgRole = useUserStore((s) => s.orgRole)
 
-  const has = (r: string) => roles?.some((x) => x.toUpperCase().includes(r)) ?? false
+  const has = (r: string) => roles?.some((x) => x.toUpperCase() === r) ?? false
   const role: RoleId = orgRole ? 'org' : has('ADMIN') ? 'admin' : has('TEACHER') ? 'teacher' : 'student'
 
   return <GaShell role={role}>{children}</GaShell>

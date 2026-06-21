@@ -34,6 +34,10 @@ export default function V2OrgStudentDetailPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
+      if (Number.isNaN(id)) {
+        setError('Mã học viên không hợp lệ.')
+        return
+      }
       setDetail(await getOrgStudentDetail(id))
       setError('')
     } catch (e: unknown) {

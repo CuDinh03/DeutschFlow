@@ -50,6 +50,11 @@ export default function V2AssignmentPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
+      if (Number.isNaN(classId) || Number.isNaN(assignmentId)) {
+        setA(null)
+        setError('Liên kết bài tập không hợp lệ.')
+        return
+      }
       const list = await fetchClassAssignments(classId)
       const found = list.find((x) => x.assignmentId === assignmentId) ?? null
       if (!found) setError('Không tìm thấy bài tập trong lớp này.')
