@@ -10,6 +10,7 @@ struct HomeView: View {
     @State private var progress = 0
     @State private var sessionsWeek = 0
     @State private var minutesWeek = 0
+    @State private var dueCount = 0
     @State private var loading = true
     @State private var error: String?
 
@@ -40,6 +41,20 @@ struct HomeView: View {
                         stat("Buổi học tuần này", "\(sessionsWeek)", "✅")
                     }
                     statWide("Phút học tuần này", "\(minutesWeek) phút")
+
+                    NavigationLink { ReviewView() } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Ôn tập từ vựng (SRS)").font(GaFont.body.bold()).foregroundStyle(Color.gaInk)
+                                Text("\(dueCount) thẻ đến hạn hôm nay").font(GaFont.caption).foregroundStyle(Color.gaMuted)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right").foregroundStyle(Color.gaMuted)
+                        }
+                        .padding(GaSpace.md)
+                        .background(Color.gaAccentSoft, in: RoundedRectangle(cornerRadius: GaRadius.card))
+                        .overlay(RoundedRectangle(cornerRadius: GaRadius.card).stroke(Color.gaLine))
+                    }
                 }
 
                 Spacer(minLength: 0)
@@ -85,6 +100,7 @@ struct HomeView: View {
             let client = APIClientFactory.make()
             async let meOut = client.me2(.init())
             async let dashOut = client.dashboard(.init())
+            async let countOut = client.getDueCount(.init())
 
             if case .ok(let ok) = try await meOut {
                 let me = try ok.body.json
@@ -97,6 +113,9 @@ struct HomeView: View {
                 progress = Int(d.planProgressPercent ?? 0)
                 sessionsWeek = Int(d.completedSessionsThisWeek ?? 0)
                 minutesWeek = Int(d.weeklyMinutesStudied ?? 0)
+            }
+            if case .ok(let ok) = try await countOut {
+                dueCount = Int((try ok.body.json).dueCount ?? 0)
             }
         } catch {
             self.error = "Lỗi tải dữ liệu: \(error.localizedDescription)"
