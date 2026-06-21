@@ -43,6 +43,7 @@ interface Analytics {
 
 type Tab = 'students' | 'tasks' | 'analytics'
 type SortCol = 'name' | 'cefr' | 'level' | 'xp'
+type JoinRequest = { id: number; studentId: number; studentName: string; studentEmail: string; status: string; createdAt: string }
 
 const TYPE_META: Record<string, { label: string; tone: string; Icon: typeof Mic }> = {
   SPEAKING_SCENARIO: { label: 'Speaking', tone: 'var(--ga-violet)', Icon: Mic },
@@ -69,6 +70,8 @@ export default function V2ClassDetailPage() {
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [analytics, setAnalytics] = useState<Analytics | null>(null)
   const [pendingByAssignment, setPendingByAssignment] = useState<Record<number, number>>({})
+  const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([])
+  const [actingReq, setActingReq] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -86,12 +89,13 @@ export default function V2ClassDetailPage() {
       return
     }
     try {
-      const [clsList, st, asg, an, queue] = await Promise.all([
+      const [clsList, st, asg, an, queue, jr] = await Promise.all([
         api.get('/v2/teacher/classes'),
         api.get(`/v2/teacher/classes/${id}/students`),
         api.get(`/v2/teacher/classes/${id}/assignments`),
         api.get(`/v2/teacher/classes/${id}/analytics`).catch(() => ({ data: null })),
         api.get(`/v2/teacher/grading/queue?classId=${id}`).catch(() => ({ data: [] })),
+        api.get(`/v2/teacher/classes/${id}/join-requests`).catch(() => ({ data: [] })),
       ])
       const cls = ((clsList.data ?? []) as Record<string, unknown>[]).find((c) => Number(c.id) === id)
       setInfo(
@@ -105,6 +109,7 @@ export default function V2ClassDetailPage() {
       const pend: Record<number, number> = {}
       for (const q of (queue.data ?? []) as { assignmentId: number }[]) pend[q.assignmentId] = (pend[q.assignmentId] ?? 0) + 1
       setPendingByAssignment(pend)
+      setJoinRequests((jr.data ?? []) as JoinRequest[])
       setError('')
     } catch (e: unknown) {
       setError(apiMessage(e))
@@ -116,6 +121,23 @@ export default function V2ClassDetailPage() {
   useEffect(() => {
     void load()
   }, [load])
+
+  const actOnRequest = useCallback(
+    async (reqId: number, action: 'approve' | 'reject') => {
+      setActingReq(reqId)
+      try {
+        await api.post(`/v2/teacher/classes/${id}/join-requests/${reqId}/${action}`)
+        setJoinRequests((rs) => rs.filter((r) => r.id !== reqId))
+        toast.success(action === 'approve' ? 'Đã duyệt vào lớp' : 'Đã từ chối yêu cầu')
+        if (action === 'approve') void load() // refresh roster + sĩ số
+      } catch (e: unknown) {
+        toast.error(apiMessage(e))
+      } finally {
+        setActingReq(null)
+      }
+    },
+    [id, load],
+  )
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -188,6 +210,35 @@ export default function V2ClassDetailPage() {
                   },
                 ]}
               />
+
+              {joinRequests.length > 0 && (
+                <div className="mt-[22px] border border-ga-line bg-ga-card">
+                  <div className="border-b border-ga-line px-5 py-3">
+                    <GaCap>Yêu cầu vào lớp · {joinRequests.length}</GaCap>
+                  </div>
+                  <ul>
+                    {joinRequests.map((r) => (
+                      <li key={r.id} className="flex items-center gap-3 border-b border-ga-line px-5 py-3 last:border-b-0">
+                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-ga-pill bg-ga-accent text-[13px] font-semibold text-ga-accent-ink">
+                          {initial(r.studentName)}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[14px] font-semibold text-ga-ink">{r.studentName}</p>
+                          <p className="ga-ui truncate text-[12.5px] text-ga-muted">{r.studentEmail} · {fmtDate(r.createdAt)}</p>
+                        </div>
+                        <div className="flex shrink-0 gap-2">
+                          <GaBtn variant="yellow" size="sm" loading={actingReq === r.id} disabled={actingReq !== null} onClick={() => actOnRequest(r.id, 'approve')}>
+                            Duyệt
+                          </GaBtn>
+                          <GaBtn variant="ghost" size="sm" disabled={actingReq !== null} onClick={() => actOnRequest(r.id, 'reject')}>
+                            Từ chối
+                          </GaBtn>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               <div className="mb-3.5 mt-[22px] flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
