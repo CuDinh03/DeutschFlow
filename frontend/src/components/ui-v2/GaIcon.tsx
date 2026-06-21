@@ -33,6 +33,7 @@ import {
   Mail,
   ShieldCheck,
   Settings,
+  LogOut,
   ListChecks,
   Presentation,
   Search,
@@ -86,6 +87,7 @@ const ICONS: Record<string, LucideIcon> = {
   co_present: Presentation,
   search: Search,
   help: HelpCircle,
+  logout: LogOut,
 }
 
 export interface GaIconProps {
