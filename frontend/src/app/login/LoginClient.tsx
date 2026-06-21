@@ -15,7 +15,6 @@ import { MobileLoginForm } from '@/components/auth/MobileLoginForm'
 import { useStatusBarStyle } from '@/lib/statusBar'
 import { lightImpact } from '@/lib/haptics'
 import { useIsNative } from '@/lib/native'
-import { FLAGS } from '@/lib/flags'
 
 type FieldErrors = Record<string, string>
 
@@ -30,35 +29,11 @@ function homeFor(role: string, v2: boolean): string {
   return v2 ? '/v2/student/dashboard' : '/dashboard'
 }
 
-// Structural shape of the PostHog client we touch — avoids importing its type.
-type FlagClient = {
-  onFeatureFlags?: (cb: () => void) => void
-  isFeatureEnabled?: (key: string) => boolean | undefined
-} | null | undefined
-
-// Resolve `galerie-v2` for the JUST-identified user, bounded so login never
-// blocks on PostHog. identify() (called first) reloads flags; onFeatureFlags
-// fires when the fresh per-user flags arrive. On timeout/no-PostHog → false,
-// so legacy is always the safe default. V2Gate still enforces /v2 access, so a
-// stale `true` here is corrected on arrival rather than stranding the user.
-function resolveGalerieV2(posthog: FlagClient, timeoutMs = 700): Promise<boolean> {
-  if (!posthog?.isFeatureEnabled) return Promise.resolve(false)
-  return new Promise<boolean>((resolve) => {
-    let done = false
-    const settle = (v: boolean) => {
-      if (!done) {
-        done = true
-        resolve(v)
-      }
-    }
-    try {
-      posthog.onFeatureFlags?.(() => settle(posthog.isFeatureEnabled?.(FLAGS.galerieV2) === true))
-    } catch {
-      /* ignore listener wiring errors — the timeout below still settles */
-    }
-    setTimeout(() => settle(posthog.isFeatureEnabled?.(FLAGS.galerieV2) === true), timeoutMs)
-  })
-}
+// FULL CUTOVER: Galerie v2 is the default surface for every web user. The
+// per-user `galerie-v2` PostHog flag proved unreliable (person-property
+// propagation + cross-origin flag-reload latency from VN routinely lost the
+// race against the bounded wait), so route-in no longer depends on it.
+// Rollback lever = GALERIE_V2_DISABLED env, enforced globally in middleware.ts.
 
 // ─── Maintenance Banner ──────────────────────────────────────────────────────
 // Hiển thị thông báo bảo trì ở màn hình đăng nhập.
@@ -117,7 +92,7 @@ function MaintenanceBanner() {
 export default function LoginPage() {
   const t = useTranslations('auth')
   const router = useRouter()
-  const { trackEvent, identifyUser, posthog } = useTracking()
+  const { trackEvent, identifyUser } = useTracking()
   const setOrg = useUserStore((s) => s.setOrg)
   const isNative = useIsNative()
   // Native auth screen uses a dark background → light status bar icons.
@@ -161,11 +136,10 @@ export default function LoginPage() {
         locale: user.locale,
       })
 
-      // W1.1 route-in: flagged WEB users land on the Galerie v2 home; everyone
-      // else stays on legacy. Native (Expo) is never sent to the desktop-first
-      // v2 surface. resolveGalerieV2 is bounded → on timeout/no-PostHog it
-      // returns false, so login can never hang and legacy is the safe default.
-      const useV2 = isNative ? false : await resolveGalerieV2(posthog)
+      // Route-in (FULL CUTOVER): every WEB user lands on the Galerie v2 home.
+      // Native (Expo) is never sent to the desktop-first v2 surface. Legacy stays
+      // reachable via direct links + the GALERIE_V2_DISABLED middleware kill-switch.
+      const useV2 = !isNative
       router.replace(homeFor(user.role, useV2))
 
       // Fire-and-forget after navigation.
