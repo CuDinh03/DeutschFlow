@@ -51,6 +51,47 @@ export interface OrgClass {
   createdAt: string
 }
 
+/** One student in an org class roster (with teacher-entered per-skill scores; null until graded). */
+export interface OrgClassStudent {
+  userId: number
+  email: string | null
+  displayName: string | null
+  joinedAt: string | null
+  skillHoren: number | null
+  skillLesen: number | null
+  skillSchreiben: number | null
+  skillSprechen: number | null
+}
+
+/** GET /org/classes/{id} — class detail: teacher name + full roster (B1.1). */
+export interface OrgClassDetail {
+  id: number
+  name: string
+  inviteCode: string | null
+  teacherId: number | null
+  teacherName: string | null
+  createdAt: string | null
+  studentCount: number
+  students: OrgClassStudent[]
+}
+
+/** A class (within this org) a student is enrolled in. */
+export interface OrgStudentClass {
+  classId: number
+  name: string
+}
+
+/** GET /org/students/{id} — student detail: membership + org-scoped enrolled classes (B1.2). */
+export interface OrgStudentDetail {
+  userId: number
+  email: string | null
+  displayName: string | null
+  role: OrgRole
+  status: MemberStatus
+  joinedAt: string | null
+  classes: OrgStudentClass[]
+}
+
 /** One CEFR-level bucket in the org-wide distribution (level → student count). */
 export interface CefrBucket {
   level: string
@@ -195,6 +236,18 @@ export async function listClasses(page = 0, size = 20): Promise<Page<OrgClass>> 
   const res = await api.get<Page<OrgClass>>('/org/classes', {
     params: { page, size },
   })
+  return res.data
+}
+
+/** GET /org/classes/{id} — class detail (teacher + roster). 404 if not in caller's org (B1.1). */
+export async function getOrgClassDetail(id: number): Promise<OrgClassDetail> {
+  const res = await api.get<OrgClassDetail>(`/org/classes/${id}`)
+  return res.data
+}
+
+/** GET /org/students/{id} — student detail (membership + classes). 404 if not in caller's org (B1.2). */
+export async function getOrgStudentDetail(id: number): Promise<OrgStudentDetail> {
+  const res = await api.get<OrgStudentDetail>(`/org/students/${id}`)
   return res.data
 }
 

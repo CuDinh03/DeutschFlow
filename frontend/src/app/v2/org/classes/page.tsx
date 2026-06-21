@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
@@ -21,6 +22,7 @@ const TEAL = '#11888A'
 const fmtDate = (d: string | null | undefined) => (d ? format(new Date(d), 'dd/MM/yyyy') : '—')
 
 export default function V2OrgClassesPage() {
+  const router = useRouter()
   const [classes, setClasses] = useState<OrgClass[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -104,7 +106,7 @@ export default function V2OrgClassesPage() {
                 </span>
                 <span>{c.inviteCode ? <code className="bg-ga-ink px-2 py-1 text-[11px] font-semibold tracking-[0.06em] text-ga-yellow">{c.inviteCode}</code> : <span className="text-[12px] text-ga-subtle">—</span>}</span>
                 <span className="text-[12.5px] text-ga-muted">{fmtDate(c.createdAt)}</span>
-                <button type="button" onClick={() => toast('Chi tiết lớp (sắp ra mắt)')} className="ga-ui justify-self-end border border-ga-line px-2.5 py-1.5 text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent">
+                <button type="button" onClick={() => router.push(`/v2/org/classes/${c.id}`)} className="ga-ui justify-self-end border border-ga-line px-2.5 py-1.5 text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent">
                   Chi tiết
                 </button>
               </div>

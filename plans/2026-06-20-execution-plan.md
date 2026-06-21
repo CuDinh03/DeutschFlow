@@ -26,6 +26,8 @@
 | 2026-06-21 | **PR #129 + #130** | ✅ Push + mở PR: [#129](https://github.com/CuDinh03/DeutschFlow/pull/129) IAP/Tts (ready) · [#130](https://github.com/CuDinh03/DeutschFlow/pull/130) web-v2-cutover (draft WIP). **CI cả 2 PR xanh** (Backend+Frontend+Security). |
 | 2026-06-21 | **B0.3** CI | ✅ **Billing Actions HẾT lỗi** (run 06-21 đều success). ⚠️ `main` IT (Testcontainers) fail pre-existing → **Deploy-to-EC2 skipped** → deploy thủ công là đường đúng. |
 | 2026-06-21 | **B2.1/W2.1/W2.2 + B6.1** | ✅ Viết **runbook turnkey** `plans/2026-06-20-deploy-ops-runbook.md` (verified): deploy prod (§1) + env Amplify (§2) + cờ PostHog (§3) + thứ tự go-live (§4) + Apple-register-later (§5). ⏸ **3 việc hạ tầng chờ BẠN chạy** (ssh chặn với tôi / Amplify+PostHog dashboard). |
+| 2026-06-21 | **B2.1 DEPLOY** ✅ | Bạn mở SSH → tôi chạy `deploy-backend.sh` → **prod UP** `{"status":"UP"}` trên `467403b6` (tree V219/V220 + curriculum + audit). Blue-green 258s (GREEN healthy 50s, DB warm-up 5/5, promote 8080). exit 1 = cleanup-prompt cosmetic. Verify độc lập `curl .../actuator/health = UP`. (org-detail B1.1/B1.2 lên prod khi #130 merge.) |
+| 2026-06-21 | **W1.4** org-detail FE ✅ | 2 màn teal mirror DETAIL setter: `/v2/org/classes/[id]` (roster + skill_*) + `/v2/org/students/[id]` (membership + lớp); `orgApi` + types; wire row→detail. **tsc + eslint sạch.** ⏳ visual QA ở W1.6. |
 
 ---
 
@@ -209,7 +211,7 @@ App Swift native, tái dùng backend qua OpenAPI codegen. Hiện Phase 0 xong + 
 - [x] 🔴 W1.1 ✅ Code xong (`login/page.tsx`, tsc+eslint sạch); ⏳ verify runtime 4 vai cần flag PostHog (W2.2/2.3)
 - [ ] 🟡 W1.2 Punch-list P0/P1 fidelity + fix 404 hannie
 - [ ] 🟡 W1.3 Top QA_GAPS buildable
-- [~] 🟡 W1.4 BE XONG (B1.1/B1.2 `d7bb94ca`, compile+test xanh); ⏳ FE 2 màn `/v2/org/classes/[id]` + `/v2/org/students/[id]`
+- [x] 🟡 W1.4 ✅ BE (B1.1/B1.2) + FE 2 màn org-detail (tsc+eslint sạch); ⏳ visual QA ở W1.6
 - [ ] 🟡 W1.5 Quyết org TEACHER visibility
 - [ ] 🟡 W1.6 Smoke-test runtime 57 màn × 4 vai
 - [ ] 🔴 W1.7 Quyết 12 màn admin legacy (giữ/migrate)
@@ -218,7 +220,7 @@ App Swift native, tái dùng backend qua OpenAPI codegen. Hiện Phase 0 xong + 
 - [x] 🟡 B1.2 ✅ `GET /api/org/students/{id}` — compile+test xanh (`d7bb94ca`)
 
 ### Mốc 2 — Cutover web (go-live #1)
-- [ ] 🔴 B2.1 ⏸ **bạn chạy** — runbook `deploy-ops-runbook.md §1` (ssh chặn với tôi); deploy `main` = tree/audit
+- [x] 🔴 B2.1 ✅ DEPLOYED — prod `{"status":"UP"}` trên `467403b6` (tree/audit); blue-green 258s
 - [ ] 🔴 W2.1 ⏸ **bạn set** env Amplify — runbook §2 (bảng biến đầy đủ)
 - [ ] 🔴 W2.2 ⏸ **bạn cấu hình** cờ PostHog — runbook §3 (⚠️ cần W1.1 ở prod trước)
 - [ ] 🔴 W2.3 Rollout nội bộ→10%→50%→100% (runbook §3)
