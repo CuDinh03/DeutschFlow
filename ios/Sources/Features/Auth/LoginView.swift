@@ -46,6 +46,10 @@ struct LoginView: View {
             .background(Color.gaCard, in: RoundedRectangle(cornerRadius: GaRadius.card))
             .overlay(RoundedRectangle(cornerRadius: GaRadius.card).stroke(Color.gaLine))
 
+            NavigationLink("Chưa có tài khoản? Đăng ký") { RegisterView() }
+                .font(GaFont.caption)
+                .foregroundStyle(Color.gaAccent)
+
             Spacer()
         }
         .padding(GaSpace.xl)

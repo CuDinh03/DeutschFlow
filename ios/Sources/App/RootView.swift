@@ -9,7 +9,7 @@ struct RootView: View {
         case .loading:
             ZStack { Color.gaBg.ignoresSafeArea(); ProgressView().tint(.gaAccent) }
         case .signedOut:
-            LoginView()
+            NavigationStack { LoginView() }
         case .signedIn:
             MainTabView()
         }
