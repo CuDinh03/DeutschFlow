@@ -35,6 +35,7 @@ export default function V2OrgClassDetailPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
+    if (Number.isNaN(id)) { setError('Mã lớp không hợp lệ.'); setLoading(false); return }
     try { setDetail(await getOrgClassDetail(id)); setError('') }
     catch (e: unknown) { setError(apiMessage(e)) }
     finally { setLoading(false) }

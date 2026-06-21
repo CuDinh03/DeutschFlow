@@ -146,6 +146,15 @@ export function DataTable<T>({
             <th
               key={col.key}
               onClick={col.sortable ? () => toggleSort(col.key) : undefined}
+              aria-sort={
+                col.sortable
+                  ? isSorted
+                    ? sortDir === 'asc'
+                      ? 'ascending'
+                      : 'descending'
+                    : 'none'
+                  : undefined
+              }
               className={cn(
                 'ga-ui select-none border-b border-ga-line bg-ga-surface px-5 py-3.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-ga-muted',
                 alignClass[col.align ?? 'left'],
@@ -177,10 +186,20 @@ export function DataTable<T>({
   if (loading) {
     return (
       <div className={cn(card, className)}>
-        <table className="w-full border-collapse">{thead}</table>
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="ga-shimmer h-[62px] border-b border-ga-line last:border-0" aria-hidden />
-        ))}
+        <table className="w-full border-collapse">
+          {thead}
+          <tbody>
+            {Array.from({ length: 6 }).map((_, i) => (
+              <tr key={i} className="border-b border-ga-line last:border-0">
+                <td
+                  colSpan={columns.length}
+                  className="ga-shimmer h-[62px] p-0"
+                  aria-hidden
+                />
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     )
   }

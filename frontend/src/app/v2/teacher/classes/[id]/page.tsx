@@ -80,6 +80,11 @@ export default function V2ClassDetailPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
+    if (Number.isNaN(id)) {
+      setError('Mã lớp không hợp lệ.')
+      setLoading(false)
+      return
+    }
     try {
       const [clsList, st, asg, an, queue] = await Promise.all([
         api.get('/v2/teacher/classes'),

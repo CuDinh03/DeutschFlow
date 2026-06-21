@@ -47,6 +47,11 @@ export default function V2ClassStudentPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
+    if (Number.isNaN(classId)) {
+      setError('Mã lớp không hợp lệ')
+      setLoading(false)
+      return
+    }
     try {
       const [d, a, l] = await Promise.all([
         fetchClassDetail(classId),
