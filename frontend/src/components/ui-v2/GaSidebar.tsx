@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { useUserStore } from '@/stores/useUserStore'
+import { logout } from '@/lib/authSession'
 import { GaLogo } from './GaLogo'
 import { GaIcon } from './GaIcon'
 import type { RoleId, RoleNav } from './nav'
@@ -82,14 +83,24 @@ export function GaSidebar({ nav }: GaSidebarProps) {
         ))}
       </nav>
 
-      <div className="mt-auto flex items-center gap-3 border-t border-ga-line pt-4">
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-ga-pill bg-ga-accent text-[13px] font-semibold text-ga-accent-ink">
-          {initials(displayName)}
-        </span>
-        <div className="min-w-0">
-          <p className="truncate text-[13px] font-semibold text-ga-ink">{displayName}</p>
-          {email && <p className="truncate text-[12px] text-ga-muted">{email}</p>}
+      <div className="mt-auto border-t border-ga-line pt-4">
+        <div className="flex items-center gap-3">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-ga-pill bg-ga-accent text-[13px] font-semibold text-ga-accent-ink">
+            {initials(displayName)}
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-[13px] font-semibold text-ga-ink">{displayName}</p>
+            {email && <p className="truncate text-[12px] text-ga-muted">{email}</p>}
+          </div>
         </div>
+        <button
+          type="button"
+          onClick={() => { void logout() }}
+          className="mt-3 flex w-full items-center gap-3 rounded-ga px-3 py-2.5 text-[14.5px] font-medium text-ga-muted transition-colors hover:bg-ga-surface hover:text-ga-ink"
+        >
+          <GaIcon name="logout" size={18} className="text-ga-subtle" />
+          <span>Đăng xuất</span>
+        </button>
       </div>
     </aside>
   )

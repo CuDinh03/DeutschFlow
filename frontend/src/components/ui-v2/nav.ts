@@ -30,10 +30,11 @@ export const teacherNav: RoleNav = {
     {
       label: 'Quản lý',
       items: [
-        { id: 'teacher', label: 'Tổng quan', href: '/v2/teacher', icon: 'dashboard' },
-        { id: 'class-detail', label: 'Lớp học', href: '/v2/teacher/classes', icon: 'groups' },
+        { id: 'teacher', label: 'Tổng quan & Lớp', href: '/v2/teacher', icon: 'dashboard' },
         { id: 'sessions', label: 'Buổi 1:1', href: '/v2/teacher/sessions', icon: 'calendar_month' },
         { id: 'grading', label: 'Chấm bài', href: '/v2/teacher/grading', icon: 'grading' },
+        { id: 'tc-checklist', label: 'Checklist bài giảng', href: '/v2/teacher/tc-checklist', icon: 'checklist' },
+        { id: 'tc-progress', label: 'Tiến độ lớp', href: '/v2/teacher/tc-progress', icon: 'trending_up' },
       ],
     },
     { label: 'Thống kê', items: [{ id: 'analytics', label: 'Phân tích', href: '/v2/teacher/analytics', icon: 'monitoring' }] },
@@ -145,6 +146,7 @@ export const studentNav: RoleNav = {
       label: 'Cá nhân',
       items: [
         { id: 'achievements', label: 'Thành tích', href: '/v2/student/achievements', icon: 'emoji_events' },
+        { id: 'tuition', label: 'Học phí', href: '/v2/student/tuition', icon: 'payments' },
         { id: 'notifications', label: 'Thông báo', href: '/v2/notifications', icon: 'notifications' },
         { id: 'profile', label: 'Hồ sơ', href: '/v2/profile', icon: 'person' },
       ],
