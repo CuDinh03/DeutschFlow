@@ -10,14 +10,15 @@ import { getAuthRole, getOrgRole } from '@/lib/authSession'
  * viewer's OWN role shell (sidebar + accent).
  *
  * Role is resolved from the auth cookies/JWT (authSession) — the same source the
- * middleware and the role layouts trust — NOT the Zustand user store. The store's
- * `user` is frequently unhydrated (null) and its `orgRole` can be stale across
- * logins, which is what made an ADMIN clicking the notification bell land on the
- * STUDENT shell.
+ * middleware and the role layouts trust — NOT the Zustand user store (its `user`
+ * is often null and `orgRole` stale).
  *
- * Precedence mirrors the login router (v2/login `switch`): global ADMIN → admin;
- * global TEACHER → org shell when they own/administer an org, else teacher;
- * otherwise student.
+ * A user may belong to MORE THAN ONE area (a TEACHER who owns an org has both a
+ * /v2/teacher and a /v2/org shell). The entry point (the GaTopBar bell) passes
+ * `?from=<area>` so a shared screen stays in the SAME shell the user came from —
+ * otherwise a teacher clicking the bell from /v2/teacher would jump to the org
+ * shell. `from` is honoured only when it is an area the user is actually entitled
+ * to; otherwise we fall back to their primary area (mirrors the login router).
  *
  * Resolved on the client (cookies aren't readable during SSR), so render is held
  * until the role is known — avoids flashing the wrong sidebar.
@@ -28,15 +29,20 @@ export function RoleShell({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     const authRole = getAuthRole() // ADMIN | TEACHER | STUDENT (cookie → JWT → default)
     const orgRole = getOrgRole() // OWNER | ADMIN | TEACHER | STUDENT | '' (cookie → JWT)
-    setRole(
+    const orgLead = authRole === 'TEACHER' && (orgRole === 'OWNER' || orgRole === 'ADMIN')
+
+    // Areas this user may legitimately see, primary first (mirrors the login router).
+    const allowed: RoleId[] =
       authRole === 'ADMIN'
-        ? 'admin'
-        : authRole === 'TEACHER'
-          ? orgRole === 'OWNER' || orgRole === 'ADMIN'
-            ? 'org'
-            : 'teacher'
-          : 'student',
-    )
+        ? ['admin']
+        : orgLead
+          ? ['org', 'teacher']
+          : authRole === 'TEACHER'
+            ? ['teacher']
+            : ['student']
+
+    const from = new URLSearchParams(window.location.search).get('from') as RoleId | null
+    setRole(from && allowed.includes(from) ? from : allowed[0])
   }, [])
 
   if (role === null) return null

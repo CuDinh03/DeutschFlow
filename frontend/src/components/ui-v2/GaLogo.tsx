@@ -18,7 +18,7 @@ export function GaLogo({ markOnly = false, className, ...props }: GaLogoProps) {
       </span>
       {!markOnly && (
         <span className="font-ga-display text-[18px] font-medium tracking-[-0.01em] text-ga-ink">
-          DeutschFlow
+          myDeutschFlow
         </span>
       )}
     </span>

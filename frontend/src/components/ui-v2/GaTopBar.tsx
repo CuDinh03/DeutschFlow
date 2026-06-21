@@ -56,7 +56,7 @@ export function GaTopBar({ role }: GaTopBarProps) {
         )}
 
         <Link
-          href="/v2/notifications"
+          href={`/v2/notifications?from=${role}`}
           aria-label="Thông báo"
           className="grid h-[38px] w-[38px] place-items-center rounded-ga border border-ga-line text-ga-muted transition-colors hover:bg-ga-surface hover:text-ga-ink"
         >

@@ -184,7 +184,7 @@ export function clearTokens(): void {
   setCookie(AUTH_LOGGED_IN_COOKIE, '', 0)
 }
 
-/** Full logout: revoke server-side, clear local state, redirect to /login. */
+/** Full logout: revoke server-side, clear local state, redirect to the v2 login. */
 export async function logout(): Promise<void> {
   try {
     const token = getAccessToken()
@@ -201,7 +201,8 @@ export async function logout(): Promise<void> {
     // ignore network errors — still clear locally
   }
   clearTokens()
-  window.location.href = '/login'
+  // Full cutover: land on the v2 login (the legacy /login is being retired).
+  window.location.href = '/v2/login'
 }
 
 // ─── Session keep-alive ───────────────────────────────────────────────────────
