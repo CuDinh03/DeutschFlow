@@ -6,7 +6,7 @@ struct MainTabView: View {
         TabView {
             NavigationStack { HomeView() }
                 .tabItem { Label("Hôm nay", systemImage: "sun.max") }
-            NavigationStack { PlaceholderScreen(title: "Lộ trình") }
+            NavigationStack { RoadmapView() }
                 .tabItem { Label("Lộ trình", systemImage: "map") }
             NavigationStack { PlaceholderScreen(title: "Luyện nói") }
                 .tabItem { Label("Luyện nói", systemImage: "mic") }
