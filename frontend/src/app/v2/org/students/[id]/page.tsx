@@ -15,7 +15,7 @@ import { GaPageHdr, GaBtn, GaCap, TkStatStrip } from '@/components/ui-v2'
 // 404 nếu user không phải thành viên org người gọi (IDOR-safe ở backend OrgService).
 // ─────────────────────────────────────────────────────────────────────────────
 
-const TEAL = '#11888A'
+const TEAL = 'var(--ga-teal)'
 const fmtDate = (d: string | null) => (d ? format(new Date(d), 'dd/MM/yyyy') : '—')
 const initial = (n: string | null) => (n?.trim()[0] ?? '?').toUpperCase()
 const ROLE_LABEL: Record<string, string> = {
@@ -84,7 +84,7 @@ export default function V2OrgStudentDetailPage() {
             <TkStatStrip
               items={[
                 { label: 'Vai trò', value: ROLE_LABEL[detail.role] ?? detail.role, color: TEAL },
-                { label: 'Trạng thái', value: detail.status === 'ACTIVE' ? 'Đang hoạt động' : 'Đã gỡ', color: detail.status === 'ACTIVE' ? '#1E9E61' : undefined },
+                { label: 'Trạng thái', value: detail.status === 'ACTIVE' ? 'Đang hoạt động' : 'Đã gỡ', color: detail.status === 'ACTIVE' ? 'var(--ga-green)' : undefined },
                 { label: 'Tham gia', value: fmtDate(detail.joinedAt), sub: 'vào tổ chức' },
                 { label: 'Số lớp', value: detail.classes.length, sub: 'đang theo học' },
               ]}
