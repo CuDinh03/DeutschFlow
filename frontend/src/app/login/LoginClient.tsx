@@ -94,6 +94,7 @@ export default function LoginPage() {
   const router = useRouter()
   const { trackEvent, identifyUser } = useTracking()
   const setOrg = useUserStore((s) => s.setOrg)
+  const setUser = useUserStore((s) => s.setUser)
   const isNative = useIsNative()
   // Native auth screen uses a dark background → light status bar icons.
   useStatusBarStyle('dark')
@@ -125,6 +126,15 @@ export default function LoginPage() {
 
       const userRes = await api.get('/auth/me')
       const user = userRes.data
+      // Populate the user store so shared screens (sidebar name/email, dashboard
+      // greeting, achievements self-highlight) have an identity to read.
+      setUser({
+        id: String(user.id),
+        email: user.email,
+        roles: [String(user.role)],
+        displayName: user.displayName,
+        avatarUrl: user.avatarUrl,
+      })
 
       // Identify to PostHog BEFORE routing so the galerie-v2 flag is evaluated
       // for THIS user — the rollout targets internal accounts / cohorts by user
