@@ -2,6 +2,7 @@ import * as React from 'react'
 import {
   LayoutDashboard,
   Calendar,
+  Clock,
   Users,
   ClipboardCheck,
   LineChart,
@@ -107,6 +108,8 @@ const ICONS: Record<string, LucideIcon> = {
   play_circle: PlayCircle,
   route: Route,
   emoji_events: Trophy,
+  schedule: Clock,
+  assignment: ClipboardList,
 }
 
 export interface GaIconProps {

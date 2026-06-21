@@ -21,7 +21,7 @@ import { GaAuthShell, GaField, AuthErrorBanner, AuthDivider, GoogleBtn, EMAIL_RE
 // Redirect targets land users in the v2 home that EXISTS today:
 //   ADMIN → /v2/admin/users (the admin dashboard index is not built yet) ·
 //   org OWNER/ADMIN → /v2/org · TEACHER → /v2/teacher.
-//   STUDENT → legacy /dashboard (the v2 student dashboard is P6, not built yet).
+//   STUDENT → /v2/student/dashboard (the working v2 student home).
 // Google sign-in / "quên mật khẩu" have no backend → honest toast (Option-1).
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -31,6 +31,7 @@ export default function V2LoginPage() {
   const router = useRouter()
   const { trackEvent, identifyUser } = useTracking()
   const setOrg = useUserStore((s) => s.setOrg)
+  const setUser = useUserStore((s) => s.setUser)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [errs, setErrs] = useState<FieldErrors>({})
@@ -61,6 +62,15 @@ export default function V2LoginPage() {
       }
 
       const { data: user } = await api.get('/auth/me')
+      // Populate the user store so shared screens (sidebar name/email, dashboard
+      // greeting, achievements self-highlight) have an identity to read.
+      setUser({
+        id: String(user.id),
+        email: user.email,
+        roles: [String(user.role)],
+        displayName: user.displayName,
+        avatarUrl: user.avatarUrl,
+      })
       const orgRole = String(data.orgRole ?? '').toUpperCase()
       switch (user.role) {
         case 'ADMIN':
@@ -72,8 +82,8 @@ export default function V2LoginPage() {
           break
         case 'STUDENT':
         default:
-          // v2 student dashboard ships in P6 — land on the real working dashboard for now.
-          router.replace('/dashboard')
+          // Full cutover: students land on the v2 dashboard (matches the /login route-in).
+          router.replace('/v2/student/dashboard')
           break
       }
 

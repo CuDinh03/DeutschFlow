@@ -20,7 +20,7 @@ const MODES = [
     icon: Briefcase,
     title: 'Luyện phỏng vấn',
     desc: 'Mô phỏng phỏng vấn xin việc với HR người Đức.',
-    href: '/interview',
+    href: '/student/interviews',
     tone: 'var(--ga-blue)',
   },
   {
