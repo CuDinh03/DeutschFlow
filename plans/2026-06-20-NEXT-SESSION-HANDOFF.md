@@ -3,6 +3,8 @@
 > **Đọc file này trước.** Tự chứa đủ để 1 session mới (không có context cũ) tiếp tục.
 > **ƯU TIÊN: Web v2 go-live.** Native iOS **HOÃN** — chờ Apple Developer duyệt đăng ký.
 
+> 📌 **HANDOFF MỚI NHẤT = `plans/2026-06-22-NEXT-SESSION-HANDOFF.md`** — đọc file đó để tiếp tục. File này chỉ còn giá trị lịch sử.
+>
 > ⚠️ **CẬP NHẬT 2026-06-21 — WEB v2 CUTOVER ĐÃ HOÀN TẤT (LIVE 100% mọi user).** Phần "go-live checklist" + "cờ PostHog `galerie-v2`" bên dưới = **LỊCH SỬ / SUPERSEDED**. Thực tế đã làm: cờ bị **BỎ** (flaky — email-property prod không propagate) → **hardcode v2-default** ([#134](https://github.com/CuDinh03/DeutschFlow/pull/134)); toàn bộ `/login`+`/v2` `force-dynamic` ([#132](https://github.com/CuDinh03/DeutschFlow/pull/132)/[#135](https://github.com/CuDinh03/DeutschFlow/pull/135)); sidebar logout+icon+nav fix ([#136](https://github.com/CuDinh03/DeutschFlow/pull/136)). **Rollback = `GALERIE_V2_DISABLED=true`** (middleware). Chi tiết: `execution-plan.md` (Nhật ký cuối + Mốc 2) + `docs/UI_2.0_SCREEN_CHECKLIST.md`.
 
 ---
