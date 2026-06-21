@@ -29,6 +29,7 @@ export default function V2GrammarAiPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [history, setHistory] = useState<string[]>([])
+  const [explanation, setExplanation] = useState('')
 
   const check = async (text?: string) => {
     const t = (text ?? input).trim()
@@ -37,10 +38,17 @@ export default function V2GrammarAiPage() {
     setLoading(true)
     setError('')
     setResult(null)
+    setExplanation('')
     try {
       const res = await aiToolsApi.grammarCorrect(t)
       setResult(res)
       setHistory((h) => [t, ...h.filter((x) => x !== t)].slice(0, 5))
+      // /correct returns only {original, corrected}; fetch the teaching explanation
+      // separately (best-effort) so the "Giải thích" panel the subtitle promises works.
+      aiToolsApi
+        .grammarExplain(res.corrected)
+        .then((ex) => setExplanation(ex.explanation))
+        .catch(() => {})
     } catch (e: unknown) {
       setError(apiMessage(e))
     } finally {
@@ -154,10 +162,10 @@ export default function V2GrammarAiPage() {
                 </div>
               )}
 
-              {result.explanation && (
+              {explanation && (
                 <div className="mb-4 border border-ga-line bg-ga-bg px-[18px] py-4">
                   <GaCap className="mb-2 block">Giải thích</GaCap>
-                  <p className="ga-ui m-0 text-[14.5px] leading-[1.72] text-ga-ink">{result.explanation}</p>
+                  <p className="ga-ui m-0 text-[14.5px] leading-[1.72] text-ga-ink">{explanation}</p>
                 </div>
               )}
 

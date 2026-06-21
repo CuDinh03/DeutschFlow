@@ -37,7 +37,8 @@ interface TransactionPage {
   totalElements: number
 }
 interface RevenueResponse {
-  overview: RevenueOverview
+  // Backend (AdminRevenueAnalyticsResponse) serialises this as `totals`, not `overview`.
+  totals: RevenueOverview
   chartData: ChartRow[]
   transactions: TransactionPage
 }
@@ -81,7 +82,7 @@ export default function V2AdminRevenuePage() {
     fetchData(0)
   }, [fetchData])
 
-  const overview = data?.overview
+  const overview = data?.totals
   const chart = data?.chartData ?? []
   const tx = data?.transactions
   const latest = chart.length > 0 ? chart[chart.length - 1] : null
