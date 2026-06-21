@@ -67,6 +67,7 @@ export const adminNav: RoleNav = {
         { id: 'admin-tokens', label: 'AI Token', href: '/v2/admin/tokens', icon: 'toll' },
         { id: 'admin-orgs', label: 'Tổ chức', href: '/v2/admin/organizations', icon: 'corporate_fare' },
         { id: 'admin-users', label: 'Người dùng', href: '/v2/admin/users', icon: 'group' },
+        { id: 'admin-classes', label: 'Lớp học', href: '/v2/admin/classes', icon: 'groups' },
         { id: 'admin-plans', label: 'Gói', href: '/v2/admin/plans', icon: 'sell' },
         { id: 'admin-vocab', label: 'Từ vựng', href: '/v2/admin/vocabulary', icon: 'menu_book' },
         { id: 'admin-media', label: 'Ảnh', href: '/v2/admin/media', icon: 'photo_library' },
