@@ -3,6 +3,8 @@
 > **Ngày:** 2026-06-21 · **Của:** delivery lead · **Bối cảnh:** thực thi `plans/2026-06-20-execution-plan.md` Mốc 2 + chuẩn bị Mốc 6.
 > **Vì sao là runbook (không phải tôi tự chạy):** B2.1 SSH vào EC2 (`ubuntu@35.175.232.152`, PEM + `.env.production` secrets) — môi trường của tôi **chặn ssh** + đây là hành động prod rủi ro cao; W2.1 = AWS Amplify Console; W2.2 = PostHog dashboard. Tôi đã **verify mọi tiền đề** để bạn chạy trong vài phút. Mọi lệnh dưới đây đã đối chiếu code/CI thật.
 
+> ⚠️ **CẬP NHẬT 2026-06-21 — CUTOVER ĐÃ XONG; phần cờ PostHog (§3) + rollout staged (§3-4) bên dưới = OBSOLETE.** Cờ `galerie-v2` bị **BỎ** (flaky person-property) → cutover ship dạng **v2-default hardcode** (#134), `/login`+/v2 `force-dynamic` (#132/#135), KHÔNG ramp %. Backend redeploy (§1) + env Amplify (§2, `GALERIE_V2_DISABLED` trống/`true` = kill-switch) vẫn **đúng & còn dùng**. Rollback hiện tại = `GALERIE_V2_DISABLED=true`. Trạng thái thật: `execution-plan.md` Nhật ký cuối.
+
 ---
 
 ## 🚀 GO-LIVE NOW — checklist hiện trạng (2026-06-21 · user tự chạy)

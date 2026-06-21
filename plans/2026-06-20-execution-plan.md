@@ -36,6 +36,7 @@
 | 2026-06-21 | **GO-LIVE thực thi (session mới)** | **B1** [#130](https://github.com/CuDinh03/DeutschFlow/pull/130) → MERGED main `b6c4a3c9`. **B2.1** redeploy backend (blue-green 257s) → org-detail B1.1/B1.2 **LIVE** (health UP; `/api/org/classes/1`=401-gated). **W2.1** env Amplify dọn (`GALERIE_V2_DISABLED` rỗng; xoá `NEXT_PUBLIC_POSTHOG_PERSONAL_KEY` lộ-client). **W2.2** cờ PostHog `galerie-v2` TẠO qua API (id 725702, cohort `email=admin@deutschflow.com` 100%). |
 | 2026-06-21 | **🔴 Route-in blocker: CloudFront cache /login 1 NĂM** | Route-in code ở main nhưng prod serve `/login` **CŨ** qua 3 deploy (#130 build 355/356/357 đều "Deployed"). Chẩn đoán bằng header: `/login/` → `x-cache: Hit from cloudfront, age 368, cache-control: s-maxage=31536000` → trang static bị **CloudFront cache 1 năm** → shell cũ trỏ chunk cũ → route-in không load → V2Gate đá về legacy. **Fix 2 PR:** **[#131](https://github.com/CuDinh03/DeutschFlow/pull/131) MERGED** (`51c0384e` — bỏ `.next/cache` khỏi amplify.yml → build sạch; poller xác nhận route-in vào bundle lúc build xong 20:43) + **[#132](https://github.com/CuDinh03/DeutschFlow/pull/132) OPEN** (split `LoginClient.tsx` + `page.tsx` server-wrapper `export const dynamic='force-dynamic'` → `next build` verify **`ƒ /login`** Dynamic, hết s-maxage) ← **CHỐT, chờ user merge**. |
 | 2026-06-21 | **Nợ kỹ thuật + tech-debt PR** | Audit code-reviewer (`docs/UI_2.0_TECHDEBT_AUDIT_2026-06-21.md`): **0 CRITICAL**, 4 HIGH/7 MED/5 LOW; cache-config hiện tại sạch (s-maxage thấy ở prod = build cũ). **[#133](https://github.com/CuDinh03/DeutschFlow/pull/133)** (held): H1 NaN-guard ×5 (org/student/teacher class-detail + assignment, hooks-safe trong `useCallback`) · M4 DataTable `aria-sort` · M5 shimmer→`<tbody>` (20 màn) · L4 RoleShell `===`. tsc+eslint clean. Workflow `go-live-prep` (9 agent) verify checklist + thiết kế fix. |
+| 2026-06-21 | **✅ CUTOVER HOÀN TẤT — pivot flag→v2-default** | #132 (/login dynamic) merged nhưng **CHƯA đủ**: trang `/v2/*` cũng cache 1 năm → V2Gate cũ (flag-gating) vẫn bounce. **+ Cờ PostHog FAIL bền vững** (đọc localStorage prod: `email_set=false` → điều kiện `email=admin@deutschflow.com` không match; %-rollout cũng không ngấm). ⇒ **BỎ cờ, hardcode v2-default:** **[#134](https://github.com/CuDinh03/DeutschFlow/pull/134)** (LoginClient `useV2=!isNative` + V2Gate passthrough) + **[#135](https://github.com/CuDinh03/DeutschFlow/pull/135)** (`force-dynamic` v2 layout → cả **71** trang /v2 dynamic, hết cache). **#132+#133+#134+#135+#136 MERGED.** **Verify cứng:** /login+/v2 = `no-store`; browser render `/v2/admin/users` data thật (38 user) → **cutover LIVE 100% mọi user**. **[#136](https://github.com/CuDinh03/DeutschFlow/pull/136):** sidebar thiếu nút Đăng xuất (mọi vai) + 10 icon Circle + nav gaps (teacher tc-checklist/tc-progress; student tuition) → fix hết (verified browser). **Rollback = `GALERIE_V2_DISABLED=true`** (middleware). Cờ `galerie-v2` giờ INERT (flags.ts còn định nghĩa, 0 consumer). |
 
 ---
 
@@ -227,15 +228,15 @@ App Swift native, tái dùng backend qua OpenAPI codegen. Hiện Phase 0 xong + 
 - [x] 🟡 B1.1 ✅ `GET /api/org/classes/{id}` — compile+test xanh (`d7bb94ca`)
 - [x] 🟡 B1.2 ✅ `GET /api/org/students/{id}` — compile+test xanh (`d7bb94ca`)
 
-### Mốc 2 — Cutover web (go-live #1)
+### Mốc 2 — Cutover web (go-live #1) → ✅ **DONE 2026-06-21 (full v2-default cutover, KHÔNG staged)**
 - [x] 🔴 B2.1 ✅ DEPLOYED ×2 — `467403b6` tree/audit + re-deploy `b6c4a3c9` org-detail B1.1/B1.2 (health UP, 401-gated)
 - [x] 🔴 W2.1 ✅ env Amplify dọn (`GALERIE_V2_DISABLED` rỗng; xoá personal-key lộ-client)
-- [x] 🔴 W2.2 ✅ cờ `galerie-v2` tạo qua API (id 725702, cohort admin@deutschflow.com)
-- [~] 🔴 W2.3 route-in: code ✅ → blocker = **CloudFront cache /login 1 năm** → fix [#131](https://github.com/CuDinh03/DeutschFlow/pull/131) MERGED + [#132](https://github.com/CuDinh03/DeutschFlow/pull/132) force-dynamic **CHỜ MERGE** → rồi rollout nội bộ→10→50→100
-- [ ] 🟡 W2.4 Diễn tập rollback kill-switch (runbook §2)
-- [ ] 🟡 TECH-DEBT [#133](https://github.com/CuDinh03/DeutschFlow/pull/133) (H1/M4/M5/L4) — held tới khi cutover verify
-- [ ] 🟢 W2.5 (sau khi 100% ổn) swap /v2→canonical + redirect bookmark
-- [ ] 🟢 W2.6 (sau) gỡ UI legacy trừ phần phải giữ + gỡ cờ/V2Gate/kill-switch
+- [x] ⚠️ W2.2 cờ `galerie-v2` tạo qua API nhưng **BỎ** (flaky: email-property prod không propagate → flag false → bounce). Cutover KHÔNG dùng cờ. flags.ts còn định nghĩa nhưng inert.
+- [x] 🔴 W2.3 ✅ **CUTOVER DONE — v2 = mặc định mọi user (hardcode, KHÔNG ramp %)**: #131 cache + #132 /login dynamic + #134 v2-default + #135 /v2 dynamic + #136 sidebar. Verify: /v2 render data thật, /login+/v2 `no-store`.
+- [ ] 🟡 W2.4 Rollback lever = `GALERIE_V2_DISABLED=true` (middleware) — giờ là lever LIVE cho cutover đã ship (không còn diễn tập pre-rollout)
+- [x] 🟡 TECH-DEBT [#133](https://github.com/CuDinh03/DeutschFlow/pull/133) ✅ MERGED (H1 NaN-guard/M4 aria-sort/M5 shimmer/L4 ===)
+- [ ] 🟢 W2.5 (sau khi ổn) swap /v2→canonical + redirect bookmark
+- [ ] 🟢 W2.6 (sau) gỡ UI legacy + gỡ V2Gate-passthrough + dead `flags.ts` (⚠️ GIỮ `GALERIE_V2_DISABLED` — đang là rollback lever)
 
 ### Mốc 3 — Backend mobile MVP
 - [ ] 🔴 B3.1 `ApnsPushSenderService` + routing platform
