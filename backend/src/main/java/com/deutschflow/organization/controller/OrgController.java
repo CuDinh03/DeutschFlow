@@ -4,10 +4,12 @@ import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.organization.dto.InviteTeacherRequest;
 import com.deutschflow.organization.dto.OrgAnalyticsDto;
+import com.deutschflow.organization.dto.OrgClassDetailDto;
 import com.deutschflow.organization.dto.OrgClassDto;
 import com.deutschflow.organization.dto.OrgInvitationDto;
 import com.deutschflow.organization.dto.OrgInvoiceDto;
 import com.deutschflow.organization.dto.OrgMemberDto;
+import com.deutschflow.organization.dto.OrgStudentDetailDto;
 import com.deutschflow.organization.dto.OrgSummaryDto;
 import com.deutschflow.organization.dto.RosterImportResultDto;
 import com.deutschflow.organization.service.OrgAnalyticsService;
@@ -116,6 +118,14 @@ public class OrgController {
         return orgService.listClasses(orgId, pageable);
     }
 
+    /** Chi tiết một lớp thuộc tổ chức (B1.1). 404 nếu lớp không thuộc org của người gọi. */
+    @GetMapping("/classes/{id}")
+    public OrgClassDetailDto getClassDetail(@AuthenticationPrincipal User user, @PathVariable Long id) {
+        Long orgId = requireOrgId(user);
+        orgGuard.assertOrgAdmin(user.getId(), orgId);
+        return orgService.getClassDetail(orgId, id);
+    }
+
     /**
      * Bulk import học viên từ file CSV (cột: email,displayName[,phone]).
      * classId tùy chọn — nếu có, mọi học viên import được enroll vào lớp đó.
@@ -149,6 +159,14 @@ public class OrgController {
         Long orgId = requireOrgId(user);
         orgGuard.assertOrgAdmin(user.getId(), orgId);
         return orgService.listMembers(orgId, "STUDENT");
+    }
+
+    /** Chi tiết một học viên thuộc tổ chức (B1.2). 404 nếu user không phải thành viên org của người gọi. */
+    @GetMapping("/students/{id}")
+    public OrgStudentDetailDto getStudentDetail(@AuthenticationPrincipal User user, @PathVariable Long id) {
+        Long orgId = requireOrgId(user);
+        orgGuard.assertOrgAdmin(user.getId(), orgId);
+        return orgService.getStudentDetail(orgId, id);
     }
 
     @GetMapping("/analytics")
