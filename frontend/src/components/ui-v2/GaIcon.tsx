@@ -39,6 +39,15 @@ import {
   Search,
   HelpCircle,
   Circle,
+  PenLine,
+  FileQuestion,
+  TrendingUp,
+  ClipboardList,
+  Database,
+  Repeat,
+  PlayCircle,
+  Route,
+  Trophy,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -88,6 +97,16 @@ const ICONS: Record<string, LucideIcon> = {
   search: Search,
   help: HelpCircle,
   logout: LogOut,
+  draw: PenLine,
+  quiz: FileQuestion,
+  trending_up: TrendingUp,
+  mic: Mic,
+  assessment: ClipboardList,
+  database: Database,
+  repeat: Repeat,
+  play_circle: PlayCircle,
+  route: Route,
+  emoji_events: Trophy,
 }
 
 export interface GaIconProps {
