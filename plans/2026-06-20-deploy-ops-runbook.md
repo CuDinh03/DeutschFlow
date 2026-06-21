@@ -5,6 +5,29 @@
 
 ---
 
+## 🚀 GO-LIVE NOW — checklist hiện trạng (2026-06-21 · user tự chạy)
+
+> Web v2 functionally-complete trên **[PR #130](https://github.com/CuDinh03/DeutschFlow/pull/130)** (route-in W1.1 + admin-12 + org-detail + B1.1/B1.2 + GaPageHdr). Backend prod đã có tree/audit (B2.1). Thứ tự bật:
+
+1. **Merge PR #130 → main** (bỏ draft → review → merge). ✅ Amplify **auto-deploy FRONTEND** (route-in, admin-12, org-detail FE…).
+2. **🔴 Redeploy BACKEND** — #130 có cả B1.1/B1.2 (`OrgController`/`OrgService`):
+   ```bash
+   git checkout main && git pull origin main
+   git status            # phải sạch (git stash -u nếu bẩn)
+   ./deploy-backend.sh   # đọc log; exit 1 ở cleanup-prompt = cosmetic
+   ```
+   ⚠️ **Bỏ bước này → `/v2/org/classes/[id]` + `/v2/org/students/[id]` sẽ 404** (endpoint chưa lên prod). Verify: `GET /api/org/classes/{id}` (org-admin) → 200.
+3. **Env Amplify** (§2): có JWT verifier + `NEXT_PUBLIC_POSTHOG_KEY`; `GALERIE_V2_DISABLED` để **trống**. (Prod web đang chạy nên phần lớn đã set.)
+4. **Cờ PostHog `galerie-v2`** (§3): tạo flag → bật tài khoản nội bộ trước.
+5. **Verify route-in**: login user nội bộ (đã bật cờ) → vào `/v2/*` đúng vai (admin→/v2/admin/users · teacher→/v2/teacher · org-owner→/v2/org · student→/v2/student/dashboard). Vẫn ở legacy → kiểm cờ + W1.1 đã ở prod.
+6. **W1.6 visual runtime-QA** (nấc nội bộ): smoke 4 vai + chụp `/v2/org/classes/[id]`, `/students/[id]`, vài màn admin-12 (1440px) đối chiếu Prototype A → ghi gap vào `UI_2.0_QA_GAPS.md`.
+7. **Rollout** (§3): nội bộ → 10% → 50% → 100% (legacy fallback). **Rollback** = `GALERIE_V2_DISABLED=true` hoặc giảm % PostHog.
+8. (tuỳ chọn, native) merge [#129](https://github.com/CuDinh03/DeutschFlow/pull/129) — IAP/Tts typed, không ảnh hưởng web.
+
+> **AI hỗ trợ khi rollout:** lỗi/console-error/feedback fidelity → gửi lại, vá ngay. Web dev khác (W1.2 còn lại · W1.3 · iOS Mốc 3–7) **tạm dừng** theo yêu cầu.
+
+---
+
 ## 0. Trạng thái CI (B0.3 — ✅ đã kiểm)
 
 - ✅ **Sự cố GitHub Actions billing ĐÃ HẾT** — các run 2026-06-21 đều `success`. PR #129 + #130: Backend CI/CD ✅ · Frontend CI ✅ · Security CI ✅.
