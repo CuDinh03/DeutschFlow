@@ -16,10 +16,13 @@ export interface GaPageHdrProps {
   right?: React.ReactNode
   /** 6px left role-accent bar (with-accent variant). */
   accent?: boolean
+  /** Per-screen accent override (6-digit hex, e.g. '#2F6FC9'). Colors the left bar + a soft
+   *  header tint, matching the prototype's per-section accent (`${hex}12` bg + `${hex}33` border). */
+  accentColor?: string
   className?: string
 }
 
-export function GaPageHdr({ title, subtitle, eyebrow, right, accent = false, className }: GaPageHdrProps) {
+export function GaPageHdr({ title, subtitle, eyebrow, right, accent = false, accentColor, className }: GaPageHdrProps) {
   return (
     <header
       className={cn(
@@ -28,12 +31,19 @@ export function GaPageHdr({ title, subtitle, eyebrow, right, accent = false, cla
         'relative flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-b px-[52px] pb-[26px] pt-9',
         className,
       )}
-      style={{
-        background: 'var(--ga-hdr-bg)',
-        borderBottomColor: 'var(--ga-hdr-line)',
-      }}
+      style={
+        accentColor
+          ? { background: `${accentColor}12`, borderBottomColor: `${accentColor}33` }
+          : { background: 'var(--ga-hdr-bg)', borderBottomColor: 'var(--ga-hdr-line)' }
+      }
     >
-      {accent && <span aria-hidden className="absolute inset-y-0 left-0 w-1.5 bg-ga-accent" />}
+      {(accent || accentColor) && (
+        <span
+          aria-hidden
+          className={cn('absolute inset-y-0 left-0 w-1.5', !accentColor && 'bg-ga-accent')}
+          style={accentColor ? { background: accentColor } : undefined}
+        />
+      )}
       <div className="min-w-0">
         {eyebrow && <GaCap className="mb-2">{eyebrow}</GaCap>}
         <h1 className="font-ga-display text-[36px] font-medium leading-[1.15] tracking-[-0.015em] text-ga-ink">
