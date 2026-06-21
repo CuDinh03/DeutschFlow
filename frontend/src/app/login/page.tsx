@@ -15,8 +15,50 @@ import { MobileLoginForm } from '@/components/auth/MobileLoginForm'
 import { useStatusBarStyle } from '@/lib/statusBar'
 import { lightImpact } from '@/lib/haptics'
 import { useIsNative } from '@/lib/native'
+import { FLAGS } from '@/lib/flags'
 
 type FieldErrors = Record<string, string>
+
+// ─── Post-login redirect (W1.1 — Galerie v2 "route-in") ───────────────────────
+// The galerie-v2 flag only EVICTS users from /v2 (see V2Gate); nothing routed a
+// flagged user INTO /v2 — post-login always went to legacy. This pulls flagged
+// web users to the v2 home per role. Redirect-map mirrors middleware v2RoleHome
+// (/v2/admin/users, not /v2/admin, is the established admin landing).
+function homeFor(role: string, v2: boolean): string {
+  if (role === 'ADMIN') return v2 ? '/v2/admin/users' : '/admin'
+  if (role === 'TEACHER') return v2 ? '/v2/teacher' : '/teacher'
+  return v2 ? '/v2/student/dashboard' : '/dashboard'
+}
+
+// Structural shape of the PostHog client we touch — avoids importing its type.
+type FlagClient = {
+  onFeatureFlags?: (cb: () => void) => void
+  isFeatureEnabled?: (key: string) => boolean | undefined
+} | null | undefined
+
+// Resolve `galerie-v2` for the JUST-identified user, bounded so login never
+// blocks on PostHog. identify() (called first) reloads flags; onFeatureFlags
+// fires when the fresh per-user flags arrive. On timeout/no-PostHog → false,
+// so legacy is always the safe default. V2Gate still enforces /v2 access, so a
+// stale `true` here is corrected on arrival rather than stranding the user.
+function resolveGalerieV2(posthog: FlagClient, timeoutMs = 700): Promise<boolean> {
+  if (!posthog?.isFeatureEnabled) return Promise.resolve(false)
+  return new Promise<boolean>((resolve) => {
+    let done = false
+    const settle = (v: boolean) => {
+      if (!done) {
+        done = true
+        resolve(v)
+      }
+    }
+    try {
+      posthog.onFeatureFlags?.(() => settle(posthog.isFeatureEnabled?.(FLAGS.galerieV2) === true))
+    } catch {
+      /* ignore listener wiring errors — the timeout below still settles */
+    }
+    setTimeout(() => settle(posthog.isFeatureEnabled?.(FLAGS.galerieV2) === true), timeoutMs)
+  })
+}
 
 // ─── Maintenance Banner ──────────────────────────────────────────────────────
 // Hiển thị thông báo bảo trì ở màn hình đăng nhập.
@@ -75,7 +117,7 @@ function MaintenanceBanner() {
 export default function LoginPage() {
   const t = useTranslations('auth')
   const router = useRouter()
-  const { trackEvent, identifyUser } = useTracking()
+  const { trackEvent, identifyUser, posthog } = useTracking()
   const setOrg = useUserStore((s) => s.setOrg)
   const isNative = useIsNative()
   // Native auth screen uses a dark background → light status bar icons.
@@ -109,31 +151,25 @@ export default function LoginPage() {
       const userRes = await api.get('/auth/me')
       const user = userRes.data
 
-      // Navigate FIRST — kills the visible "flash" caused by router.refresh()
-      // re-rendering the login page before navigation. Analytics + push
-      // registration are fire-and-forget; the target route picks up the new
-      // auth state via the freshly-set token cookie.
-      switch (user.role) {
-        case 'ADMIN':
-          router.replace('/admin')
-          break
-        case 'TEACHER':
-          router.replace('/teacher')
-          break
-        case 'STUDENT':
-        default:
-          router.replace('/dashboard')
-          break
-      }
-
-      // Non-blocking: PostHog identify + push reg happen after navigation.
+      // Identify to PostHog BEFORE routing so the galerie-v2 flag is evaluated
+      // for THIS user — the rollout targets internal accounts / cohorts by user
+      // id, so an anonymous eval would miss them. identify() reloads flags.
       identifyUser(String(user.id), {
         email: user.email,
         name: user.displayName,
         role: user.role,
         locale: user.locale,
       })
-      trackEvent('login_success', { role: user.role })
+
+      // W1.1 route-in: flagged WEB users land on the Galerie v2 home; everyone
+      // else stays on legacy. Native (Expo) is never sent to the desktop-first
+      // v2 surface. resolveGalerieV2 is bounded → on timeout/no-PostHog it
+      // returns false, so login can never hang and legacy is the safe default.
+      const useV2 = isNative ? false : await resolveGalerieV2(posthog)
+      router.replace(homeFor(user.role, useV2))
+
+      // Fire-and-forget after navigation.
+      trackEvent('login_success', { role: user.role, galerie_v2: useV2 })
       registerPushNotifications()
     } catch (err: unknown) {
       const res = (err as { response?: { data?: { detail?: string; errors?: FieldErrors } } })?.response?.data

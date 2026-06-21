@@ -1,14 +1,20 @@
 package com.deutschflow.organization.service;
 
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.organization.dto.OrgClassDetailDto;
 import com.deutschflow.organization.dto.OrgClassDto;
+import com.deutschflow.organization.dto.OrgClassStudentDto;
 import com.deutschflow.organization.dto.OrgMemberDto;
+import com.deutschflow.organization.dto.OrgStudentClassDto;
+import com.deutschflow.organization.dto.OrgStudentDetailDto;
 import com.deutschflow.organization.dto.OrgSummaryDto;
 import com.deutschflow.organization.entity.OrgMember;
 import com.deutschflow.organization.entity.Organization;
 import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.organization.repository.OrganizationRepository;
+import com.deutschflow.teacher.entity.ClassStudent;
 import com.deutschflow.teacher.entity.TeacherClass;
+import com.deutschflow.teacher.repository.ClassStudentRepository;
 import com.deutschflow.teacher.repository.TeacherClassRepository;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
@@ -43,6 +49,7 @@ public class OrgService {
     private final OrganizationRepository organizationRepository;
     private final TeacherClassRepository teacherClassRepository;
     private final UserRepository userRepository;
+    private final ClassStudentRepository classStudentRepository;
 
     /** Org dashboard: plan, seat usage, and teacher/student head counts. */
     @Transactional(readOnly = true)
@@ -85,6 +92,72 @@ public class OrgService {
     @Transactional(readOnly = true)
     public Page<OrgClassDto> listClasses(Long orgId, Pageable pageable) {
         return teacherClassRepository.findByOrgId(orgId, pageable).map(this::toClassDto);
+    }
+
+    /**
+     * Chi tiết một lớp thuộc tổ chức (B1.1): tên giáo viên + roster học viên (kèm skill_*).
+     * 404 nếu lớp không tồn tại hoặc không thuộc {@code orgId} (chống IDOR — không lộ lớp org khác).
+     */
+    @Transactional(readOnly = true)
+    public OrgClassDetailDto getClassDetail(Long orgId, Long classId) {
+        TeacherClass tc = teacherClassRepository.findById(classId)
+                .filter(c -> orgId.equals(c.getOrgId()))
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy lớp trong tổ chức"));
+
+        String teacherName = tc.getTeacherId() == null ? null
+                : userRepository.findById(tc.getTeacherId()).map(User::getDisplayName).orElse(null);
+
+        List<ClassStudent> roster = classStudentRepository.findByIdClassId(classId);
+        List<Long> studentIds = roster.stream().map(cs -> cs.getId().getStudentId()).toList();
+        Map<Long, User> usersById = userRepository.findAllById(studentIds).stream()
+                .collect(Collectors.toMap(User::getId, Function.identity()));
+
+        List<OrgClassStudentDto> students = roster.stream()
+                .map(cs -> {
+                    User u = usersById.get(cs.getId().getStudentId());
+                    return new OrgClassStudentDto(
+                            cs.getId().getStudentId(),
+                            u != null ? u.getEmail() : null,
+                            u != null ? u.getDisplayName() : null,
+                            cs.getJoinedAt(),
+                            cs.getSkillHoren(),
+                            cs.getSkillLesen(),
+                            cs.getSkillSchreiben(),
+                            cs.getSkillSprechen());
+                })
+                .toList();
+
+        return new OrgClassDetailDto(
+                tc.getId(), tc.getName(), tc.getInviteCode(), tc.getTeacherId(),
+                teacherName, tc.getCreatedAt(), students.size(), students);
+    }
+
+    /**
+     * Chi tiết một học viên thuộc tổ chức (B1.2): membership + các lớp đang theo học (lọc theo org).
+     * 404 nếu user không phải thành viên {@code orgId} (chống IDOR — không lộ user org khác).
+     */
+    @Transactional(readOnly = true)
+    public OrgStudentDetailDto getStudentDetail(Long orgId, Long userId) {
+        OrgMember member = memberRepo.findByIdOrgIdAndIdUserId(orgId, userId)
+                .orElseThrow(() -> new NotFoundException("Học viên không thuộc tổ chức"));
+        User user = userRepository.findById(userId).orElse(null);
+
+        List<Long> classIds = classStudentRepository.findByIdStudentId(userId).stream()
+                .map(cs -> cs.getId().getClassId())
+                .toList();
+        List<OrgStudentClassDto> classes = teacherClassRepository.findAllById(classIds).stream()
+                .filter(c -> orgId.equals(c.getOrgId()))
+                .map(c -> new OrgStudentClassDto(c.getId(), c.getName()))
+                .toList();
+
+        return new OrgStudentDetailDto(
+                member.getId().getUserId(),
+                user != null ? user.getEmail() : null,
+                user != null ? user.getDisplayName() : null,
+                member.getRole(),
+                member.getStatus(),
+                member.getJoinedAt(),
+                classes);
     }
 
     private OrgMemberDto toMemberDto(OrgMember member, User user) {

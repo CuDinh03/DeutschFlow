@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Download, Clock } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
@@ -21,6 +22,7 @@ const fmtDate = (d: string | null | undefined) => (d ? format(new Date(d), 'dd/M
 const initial = (n: string | null) => ((n ?? '?').trim()[0] ?? '?').toUpperCase()
 
 export default function V2OrgStudentsPage() {
+  const router = useRouter()
   const [members, setMembers] = useState<OrgMember[]>([])
   const [analytics, setAnalytics] = useState<OrgAnalytics | null>(null)
   const [loading, setLoading] = useState(true)
@@ -112,7 +114,7 @@ export default function V2OrgStudentsPage() {
                   </span>
                 </span>
                 <span className="flex items-center gap-1 text-[12.5px] text-ga-muted"><Clock size={12} /> {fmtDate(m.joinedAt)}</span>
-                <button type="button" onClick={() => toast('Hồ sơ học viên (sắp ra mắt)')} className="ga-ui justify-self-end border border-ga-line px-2.5 py-1.5 text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent">
+                <button type="button" onClick={() => router.push(`/v2/org/students/${m.userId}`)} className="ga-ui justify-self-end border border-ga-line px-2.5 py-1.5 text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent">
                   Hồ sơ
                 </button>
               </div>
