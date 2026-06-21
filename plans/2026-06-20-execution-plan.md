@@ -33,6 +33,9 @@
 | 2026-06-21 | **W1.2** punch-list (partial) | ✅ #1 `GaPageHdr accentColor?: string` (bar + tint hex8 `${hex}12`/`${hex}33`, backward-compat). ⚠️ #2 token-discipline **DEFER có lý do** (37+ file; **recharts cần hex thật trong SVG** → không sed; hex==giá-trị-token → 0 lệch màu). #10 **404 hannie định vị lại** = `/companions/${id}.png` ở `SpeakingWelcomeClient:66`+`CompanionSelect:148` (legacy ai-speaking, KHÔNG chặn v2; fix=onError fallback). #3/#4 a11y `DataTable` = follow-up. tsc+eslint sạch. Doc local `docs/UI_2.0_W1.2_PUNCHLIST_STATUS_2026-06-21.md`. |
 | 2026-06-21 | **Bàn giao GO-LIVE** | User chọn **"dừng web — tự go-live"**. Web v2 functionally-complete ([PR #130](https://github.com/CuDinh03/DeutschFlow/pull/130), 14 commit ahead main). Thêm checklist **GO-LIVE-NOW** vào `deploy-ops-runbook.md` (⚠️ merge #130 → **redeploy backend** cho B1.1/B1.2 kẻo org-detail 404 → env → cờ PostHog → rollout nội bộ→10→50→100 + W1.6 visual-QA). **Web dev TẠM DỪNG** (W1.2 còn lại · W1.3 · iOS Mốc 3–7); AI hỗ trợ khi rollout có lỗi/feedback. |
 | 2026-06-21 | **Chốt: web trước · native HOÃN** | User chốt: **ưu tiên web go-live** (tự làm ở **session mới** theo handoff); **native iOS HOÃN — chờ Apple Developer duyệt đăng ký**. iOS MVP core ĐÃ xong + **build-verified** (Auth+Register+Today+Lộ trình+SRS) trên `feat/native-ios-phase0` (+11 vs main; `ios/MVP_PROGRESS.md`) — Paywall(M5.4)+Mốc6-7 chờ Apple; M5.3 offline = online-only-OK-cho-v1. **Handoff session mới: `plans/2026-06-20-NEXT-SESSION-HANDOFF.md`.** AI standby vá lỗi khi rollout. |
+| 2026-06-21 | **GO-LIVE thực thi (session mới)** | **B1** [#130](https://github.com/CuDinh03/DeutschFlow/pull/130) → MERGED main `b6c4a3c9`. **B2.1** redeploy backend (blue-green 257s) → org-detail B1.1/B1.2 **LIVE** (health UP; `/api/org/classes/1`=401-gated). **W2.1** env Amplify dọn (`GALERIE_V2_DISABLED` rỗng; xoá `NEXT_PUBLIC_POSTHOG_PERSONAL_KEY` lộ-client). **W2.2** cờ PostHog `galerie-v2` TẠO qua API (id 725702, cohort `email=admin@deutschflow.com` 100%). |
+| 2026-06-21 | **🔴 Route-in blocker: CloudFront cache /login 1 NĂM** | Route-in code ở main nhưng prod serve `/login` **CŨ** qua 3 deploy (#130 build 355/356/357 đều "Deployed"). Chẩn đoán bằng header: `/login/` → `x-cache: Hit from cloudfront, age 368, cache-control: s-maxage=31536000` → trang static bị **CloudFront cache 1 năm** → shell cũ trỏ chunk cũ → route-in không load → V2Gate đá về legacy. **Fix 2 PR:** **[#131](https://github.com/CuDinh03/DeutschFlow/pull/131) MERGED** (`51c0384e` — bỏ `.next/cache` khỏi amplify.yml → build sạch; poller xác nhận route-in vào bundle lúc build xong 20:43) + **[#132](https://github.com/CuDinh03/DeutschFlow/pull/132) OPEN** (split `LoginClient.tsx` + `page.tsx` server-wrapper `export const dynamic='force-dynamic'` → `next build` verify **`ƒ /login`** Dynamic, hết s-maxage) ← **CHỐT, chờ user merge**. |
+| 2026-06-21 | **Nợ kỹ thuật + tech-debt PR** | Audit code-reviewer (`docs/UI_2.0_TECHDEBT_AUDIT_2026-06-21.md`): **0 CRITICAL**, 4 HIGH/7 MED/5 LOW; cache-config hiện tại sạch (s-maxage thấy ở prod = build cũ). **[#133](https://github.com/CuDinh03/DeutschFlow/pull/133)** (held): H1 NaN-guard ×5 (org/student/teacher class-detail + assignment, hooks-safe trong `useCallback`) · M4 DataTable `aria-sort` · M5 shimmer→`<tbody>` (20 màn) · L4 RoleShell `===`. tsc+eslint clean. Workflow `go-live-prep` (9 agent) verify checklist + thiết kế fix. |
 
 ---
 
@@ -225,11 +228,12 @@ App Swift native, tái dùng backend qua OpenAPI codegen. Hiện Phase 0 xong + 
 - [x] 🟡 B1.2 ✅ `GET /api/org/students/{id}` — compile+test xanh (`d7bb94ca`)
 
 ### Mốc 2 — Cutover web (go-live #1)
-- [x] 🔴 B2.1 ✅ DEPLOYED — prod `{"status":"UP"}` trên `467403b6` (tree/audit); blue-green 258s
-- [ ] 🔴 W2.1 ⏸ **bạn set** env Amplify — runbook §2 (bảng biến đầy đủ)
-- [ ] 🔴 W2.2 ⏸ **bạn cấu hình** cờ PostHog — runbook §3 (⚠️ cần W1.1 ở prod trước)
-- [ ] 🔴 W2.3 Rollout nội bộ→10%→50%→100% (runbook §3)
+- [x] 🔴 B2.1 ✅ DEPLOYED ×2 — `467403b6` tree/audit + re-deploy `b6c4a3c9` org-detail B1.1/B1.2 (health UP, 401-gated)
+- [x] 🔴 W2.1 ✅ env Amplify dọn (`GALERIE_V2_DISABLED` rỗng; xoá personal-key lộ-client)
+- [x] 🔴 W2.2 ✅ cờ `galerie-v2` tạo qua API (id 725702, cohort admin@deutschflow.com)
+- [~] 🔴 W2.3 route-in: code ✅ → blocker = **CloudFront cache /login 1 năm** → fix [#131](https://github.com/CuDinh03/DeutschFlow/pull/131) MERGED + [#132](https://github.com/CuDinh03/DeutschFlow/pull/132) force-dynamic **CHỜ MERGE** → rồi rollout nội bộ→10→50→100
 - [ ] 🟡 W2.4 Diễn tập rollback kill-switch (runbook §2)
+- [ ] 🟡 TECH-DEBT [#133](https://github.com/CuDinh03/DeutschFlow/pull/133) (H1/M4/M5/L4) — held tới khi cutover verify
 - [ ] 🟢 W2.5 (sau khi 100% ổn) swap /v2→canonical + redirect bookmark
 - [ ] 🟢 W2.6 (sau) gỡ UI legacy trừ phần phải giữ + gỡ cờ/V2Gate/kill-switch
 
