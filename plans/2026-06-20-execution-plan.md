@@ -28,7 +28,7 @@
 | 2026-06-21 | **B2.1/W2.1/W2.2 + B6.1** | ✅ Viết **runbook turnkey** `plans/2026-06-20-deploy-ops-runbook.md` (verified): deploy prod (§1) + env Amplify (§2) + cờ PostHog (§3) + thứ tự go-live (§4) + Apple-register-later (§5). ⏸ **3 việc hạ tầng chờ BẠN chạy** (ssh chặn với tôi / Amplify+PostHog dashboard). |
 | 2026-06-21 | **B2.1 DEPLOY** ✅ | Bạn mở SSH → tôi chạy `deploy-backend.sh` → **prod UP** `{"status":"UP"}` trên `467403b6` (tree V219/V220 + curriculum + audit). Blue-green 258s (GREEN healthy 50s, DB warm-up 5/5, promote 8080). exit 1 = cleanup-prompt cosmetic. Verify độc lập `curl .../actuator/health = UP`. (org-detail B1.1/B1.2 lên prod khi #130 merge.) |
 | 2026-06-21 | **W1.4** org-detail FE ✅ | 2 màn teal mirror DETAIL setter: `/v2/org/classes/[id]` (roster + skill_*) + `/v2/org/students/[id]` (membership + lớp); `orgApi` + types; wire row→detail. **tsc + eslint sạch.** ⏳ visual QA ở W1.6. |
-| 2026-06-21 | **W1.7** admin-12 (**3/12**) | ✅ `/v2/admin/classes` (LIST), `/v2/admin/settings` (static), `/v2/admin/marketing` (leads+clusters qua `adminMarketingApi`) + nav. tsc+eslint sạch. **Còn 9:** mock-exam-packs · weekly-speaking · grammar-review · analytics · training-dataset · reports(+3 con). |
+| 2026-06-21 | **W1.7** admin-12 (**4/12**) | ✅ classes (LIST) · settings (static) · marketing (leads/clusters) · analytics (PostHog iframe) + nav. tsc+eslint sạch. **Còn 8:** mock-exam-packs(CRUD) · weekly-speaking(CRUD) · grammar-review · training-dataset · reports(+3 con). |
 
 ---
 
