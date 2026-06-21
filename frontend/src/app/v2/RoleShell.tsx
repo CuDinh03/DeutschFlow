@@ -28,8 +28,9 @@ export function RoleShell({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     const authRole = getAuthRole() // ADMIN | TEACHER | STUDENT (cookie → JWT → default)
-    const orgRole = getOrgRole() // OWNER | ADMIN | TEACHER | STUDENT | '' (cookie → JWT)
-    const orgLead = authRole === 'TEACHER' && (orgRole === 'OWNER' || orgRole === 'ADMIN')
+    const orgRole = getOrgRole() // OWNER | MANAGER | TEACHER | STUDENT | '' (cookie → JWT)
+    // 'ADMIN' kept as a legacy alias for access tokens minted before the org-role rename (≤ JWT TTL).
+    const orgLead = authRole === 'TEACHER' && (orgRole === 'OWNER' || orgRole === 'MANAGER' || orgRole === 'ADMIN')
 
     // Areas this user may legitimately see, primary first (mirrors the login router).
     const allowed: RoleId[] =

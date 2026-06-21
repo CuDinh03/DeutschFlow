@@ -21,8 +21,8 @@ import java.util.Set;
 public class OrgGuard {
 
     private static final String STATUS_ACTIVE = "ACTIVE";
-    private static final Set<String> ADMIN_ROLES   = Set.of("OWNER", "ADMIN");
-    private static final Set<String> FINANCE_ROLES = Set.of("OWNER", "ADMIN", "ACCOUNTANT");
+    private static final Set<String> ADMIN_ROLES   = Set.of("OWNER", "MANAGER");
+    private static final Set<String> FINANCE_ROLES = Set.of("OWNER", "MANAGER");
 
     private final OrgMemberRepository memberRepo;
 
@@ -34,7 +34,7 @@ public class OrgGuard {
                 .orElseThrow(() -> new ForbiddenException("Bạn không thuộc tổ chức này"));
     }
 
-    /** Asserts the user is an ACTIVE OWNER/ADMIN of the org. */
+    /** Asserts the user is an ACTIVE OWNER/MANAGER of the org. */
     @Transactional(readOnly = true)
     public void assertOrgAdmin(Long userId, Long orgId) {
         OrgMember member = assertMember(userId, orgId);
@@ -43,9 +43,18 @@ public class OrgGuard {
         }
     }
 
+    /** Asserts the user is the ACTIVE OWNER of the org (role changes, ownership-level actions). */
+    @Transactional(readOnly = true)
+    public void assertOrgOwner(Long userId, Long orgId) {
+        OrgMember member = assertMember(userId, orgId);
+        if (!"OWNER".equals(member.getRole())) {
+            throw new ForbiddenException("Chỉ chủ sở hữu tổ chức mới được thao tác này");
+        }
+    }
+
     /**
-     * Asserts the user may view financial information (OWNER, ADMIN, or ACCOUNTANT).
-     * ACCOUNTANT is a read-only finance role — it cannot manage members or settings (T-5/D-4).
+     * Asserts the user may view financial information (OWNER or MANAGER).
+     * Org-role ADMIN was renamed to MANAGER and ACCOUNTANT dropped (B2B model §1, D2).
      */
     @Transactional(readOnly = true)
     public void assertOrgFinance(Long userId, Long orgId) {

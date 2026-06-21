@@ -322,23 +322,23 @@ class AdminOrgServiceLifecycleTest {
     // ------------------------------------------------------------------ toOrgDto role-precise count
 
     @Test
-    @DisplayName("toOrgDto counts only TEACHER members — OWNER and ADMIN are not included")
+    @DisplayName("toOrgDto counts only TEACHER members — OWNER and MANAGER are not included")
     void listOrganizations_toOrgDto_countsOnlyTeacherRole() {
         Organization org = orgWithStatus("ACTIVE");
         when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org));
         when(organizationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
         stubActiveMembersForDto(List.of());
 
-        // arrange: org has 1 OWNER, 1 ADMIN, 2 TEACHER, 3 STUDENT active members
+        // arrange: org has 1 OWNER, 1 MANAGER, 2 TEACHER, 3 STUDENT active members
         OrgMember owner = new OrgMember();
         owner.setId(new OrgMemberId(ORG_ID, 1L));
         owner.setRole("OWNER");
         owner.setStatus("ACTIVE");
 
-        OrgMember admin = new OrgMember();
-        admin.setId(new OrgMemberId(ORG_ID, 2L));
-        admin.setRole("ADMIN");
-        admin.setStatus("ACTIVE");
+        OrgMember manager = new OrgMember();
+        manager.setId(new OrgMemberId(ORG_ID, 2L));
+        manager.setRole("MANAGER");
+        manager.setStatus("ACTIVE");
 
         OrgMember t1 = new OrgMember();
         t1.setId(new OrgMemberId(ORG_ID, 3L));
@@ -355,7 +355,7 @@ class AdminOrgServiceLifecycleTest {
         OrgMember s3 = activeMember(7L);
 
         when(orgMemberRepository.findByIdOrgIdAndStatus(ORG_ID, "ACTIVE"))
-                .thenReturn(List.of(owner, admin, t1, t2, s1, s2, s3));
+                .thenReturn(List.of(owner, manager, t1, t2, s1, s2, s3));
 
         // trigger updateOrganization with no status change so toOrgDto is called
         OrgDto dto = service.updateOrganization(ORG_ID, new UpdateOrgRequest("PRO", null, null, null));

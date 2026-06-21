@@ -1,5 +1,5 @@
 import api from '@/lib/api'
-import type { OrgRole, MemberStatus, Page } from '@/lib/orgApi'
+import type { OrgRole, MemberStatus, Page, OrgMember } from '@/lib/orgApi'
 
 /**
  * Platform-admin Org API client — B2B Phase 3.
@@ -146,6 +146,30 @@ export async function activateEntitlements(id: number): Promise<number> {
     `/admin/organizations/${id}/activate-entitlements`,
   )
   return res.data?.granted ?? 0
+}
+
+/** A "free teacher" — TEACHER with no ACTIVE org membership (derived, no flag). */
+export interface FreeTeacher {
+  userId: number
+  email: string
+  displayName: string | null
+}
+
+/** GET /admin/teachers/free — TEACHERs not attached to any org (recruiting list). */
+export async function listFreeTeachers(): Promise<FreeTeacher[]> {
+  const res = await api.get<FreeTeacher[]>('/admin/teachers/free')
+  return res.data ?? []
+}
+
+/**
+ * GET /admin/teachers/{userId}/break-glass?orgId= — audited view of an org-affiliated teacher.
+ * Default-hidden per the permission matrix; every call writes an audit_logs row server-side.
+ */
+export async function breakGlassViewTeacher(userId: number, orgId: number): Promise<OrgMember> {
+  const res = await api.get<OrgMember>(`/admin/teachers/${userId}/break-glass`, {
+    params: { orgId },
+  })
+  return res.data
 }
 
 /** POST /admin/organizations/{id}/invoices — draft a new invoice (status DRAFT). */

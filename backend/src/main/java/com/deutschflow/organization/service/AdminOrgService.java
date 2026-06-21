@@ -34,7 +34,7 @@ import java.util.stream.Collectors;
  * Platform-admin provisioning of organizations ({@code /api/admin/organizations}).
  *
  * <p>Creates orgs, lists/views them with member &amp; seat counts, updates plan/seats/status,
- * and assigns OWNER/ADMIN members manually. Owner attachment reuses
+ * and assigns OWNER/MANAGER members manually. Owner attachment reuses
  * {@link OrgMembershipService} (sync {@code org_members} + {@code users.org_id} + role promotion);
  * if the owner email is unknown, an invitation is created via {@link OrgInvitationService}.
  */
@@ -48,7 +48,7 @@ public class AdminOrgService {
     private static final String ROLE_OWNER = "OWNER";
     private static final String ROLE_STUDENT = "STUDENT";
     private static final String ROLE_TEACHER = "TEACHER";
-    private static final Set<String> MEMBER_ROLES = Set.of("OWNER", "ADMIN", "TEACHER", "STUDENT");
+    private static final Set<String> MEMBER_ROLES = Set.of("OWNER", "MANAGER", "TEACHER", "STUDENT");
     /** Org lifecycle states (entity: ACTIVE | SUSPENDED). PENDING is an invitation state, not an org state. */
     private static final Set<String> VALID_ORG_STATUSES = Set.of(STATUS_ACTIVE, STATUS_SUSPENDED);
 
@@ -200,7 +200,7 @@ public class AdminOrgService {
                 .toList();
     }
 
-    /** Manually assigns an existing user as OWNER/ADMIN (or any valid member role) of the org. */
+    /** Manually assigns an existing user as OWNER/MANAGER (or any valid member role) of the org. */
     @Transactional
     public OrgMemberDto addMember(Long orgId, String email, String role) {
         Organization org = organizationRepository.findById(orgId)

@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
-import { listMembers, removeMember, type OrgMember, type OrgRole } from '@/lib/orgApi'
+import { changeMemberRole, listMembers, removeMember, type OrgMember, type OrgRole } from '@/lib/orgApi'
+import { getOrgRole } from '@/lib/authSession'
 import { GaPageHdr, TkStatStrip, TkBadge, ErrorBanner, LoadingState } from '@/components/ui-v2'
 import { GaSection, nfVN } from '../../analyticsShared'
 
@@ -15,7 +16,7 @@ const fmtDate = (d: string | null | undefined) => (d ? format(new Date(d), 'dd/M
 
 const ROLE_META: Record<OrgRole, { label: string; tone: 'red' | 'navy' | 'violet' | 'blue' }> = {
   OWNER: { label: 'Chủ sở hữu', tone: 'red' },
-  ADMIN: { label: 'Quản trị', tone: 'navy' },
+  MANAGER: { label: 'Quản lý', tone: 'navy' },
   TEACHER: { label: 'Giáo viên', tone: 'violet' },
   STUDENT: { label: 'Học viên', tone: 'blue' },
 }
@@ -25,6 +26,9 @@ export default function V2OrgRolesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<number | null>(null)
+  const [isOwner, setIsOwner] = useState(false)
+
+  useEffect(() => { setIsOwner(getOrgRole() === 'OWNER') }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -41,6 +45,20 @@ export default function V2OrgRolesPage() {
 
   const active = members.filter((m) => m.status === 'ACTIVE')
   const count = (...roles: OrgRole[]) => active.filter((m) => roles.includes(m.role)).length
+
+  const handleChangeRole = async (m: OrgMember, role: OrgRole) => {
+    if (role === m.role) return
+    setBusy(m.userId)
+    try {
+      await changeMemberRole(m.userId, role)
+      toast.success('Đã đổi vai trò.')
+      await load()
+    } catch (e: unknown) {
+      toast.error(apiMessage(e))
+    } finally {
+      setBusy(null)
+    }
+  }
 
   const handleRemove = async (m: OrgMember) => {
     if (m.role === 'OWNER') {
@@ -75,7 +93,7 @@ export default function V2OrgRolesPage() {
           <div className="space-y-[22px]">
             <TkStatStrip
               items={[
-                { label: 'Quản trị', value: count('OWNER', 'ADMIN'), sub: 'chủ sở hữu + admin', color: '#27406B' },
+                { label: 'Quản lý', value: count('OWNER', 'MANAGER'), sub: 'chủ sở hữu + quản lý', color: '#27406B' },
                 { label: 'Giáo viên', value: count('TEACHER'), color: '#7C56C8' },
                 { label: 'Học viên', value: count('STUDENT'), color: '#2F6FC9' },
                 { label: 'Tổng thành viên', value: active.length, color: '#11888A' },
@@ -109,7 +127,7 @@ export default function V2OrgRolesPage() {
                     ) : (
                       members.map((m) => {
                         const meta = ROLE_META[m.role]
-                        const removed = m.status === 'REMOVED'
+                        const removed = m.status !== 'ACTIVE'
                         return (
                           <tr
                             key={m.userId}
@@ -120,14 +138,20 @@ export default function V2OrgRolesPage() {
                               <p className="truncate text-[12px] text-ga-muted">{m.email}</p>
                             </td>
                             <td className="px-5 py-3">
-                              <button
-                                type="button"
-                                onClick={() => toast('Đổi vai trò (sắp ra mắt)')}
-                                disabled={m.role === 'OWNER'}
-                                className="disabled:cursor-default"
-                              >
+                              {isOwner && !removed && (m.role === 'MANAGER' || m.role === 'TEACHER') ? (
+                                <select
+                                  value={m.role}
+                                  disabled={busy === m.userId}
+                                  onChange={(e) => void handleChangeRole(m, e.target.value as OrgRole)}
+                                  className="ga-ui rounded-ga border border-ga-line bg-ga-surface px-2 py-1 text-[12.5px] font-semibold text-ga-ink transition-colors hover:border-ga-navy disabled:opacity-40"
+                                  aria-label={`Đổi vai trò của ${m.displayName || m.email}`}
+                                >
+                                  <option value="MANAGER">Quản lý</option>
+                                  <option value="TEACHER">Giáo viên</option>
+                                </select>
+                              ) : (
                                 <TkBadge tone={meta.tone}>{meta.label}</TkBadge>
-                              </button>
+                              )}
                             </td>
                             <td className="px-5 py-3">
                               <span
@@ -164,7 +188,7 @@ export default function V2OrgRolesPage() {
             </GaSection>
 
             <p className="ga-ui text-[12px] text-ga-subtle">
-              {nfVN.format(members.length)} thành viên · Đổi vai trò sẽ khả dụng khi backend hỗ trợ.
+              {nfVN.format(members.length)} thành viên · {isOwner ? 'Chủ sở hữu có thể đổi vai trò Quản lý ↔ Giáo viên.' : 'Chỉ chủ sở hữu mới đổi được vai trò.'}
             </p>
           </div>
         )}
