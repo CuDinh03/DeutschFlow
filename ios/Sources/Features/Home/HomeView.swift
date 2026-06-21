@@ -1,48 +1,105 @@
 import SwiftUI
 
-/// Phase 0 "Hello API": once the generated client exists, calls `GET /api/auth/me` and shows the
-/// real user — the Phase 0 Definition of Done. Phase 1 replaces this with the real Hôm nay screen
-/// (`/api/today`, `/api/student`, `/api/progress`, `/api/xp`).
+/// Phase 1 — "Hôm nay": real dashboard. Greeting from `GET /api/auth/me` (me2) + live stats from
+/// `GET /api/student/dashboard` (dashboard → StudentDashboardResponse). Replaces the Phase-0 hello.
 struct HomeView: View {
-    @State private var status = "Chưa gọi API"
-    @State private var loading = false
+    @Environment(AuthSession.self) private var session
+    @State private var name = ""
+    @State private var streak = 0
+    @State private var weeklyXp = 0
+    @State private var progress = 0
+    @State private var sessionsWeek = 0
+    @State private var minutesWeek = 0
+    @State private var loading = true
+    @State private var error: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: GaSpace.lg) {
-            Text("Hôm nay").font(GaFont.displayL).foregroundStyle(Color.gaInk)
-            Text(status).font(GaFont.body).foregroundStyle(Color.gaMuted)
-            Button(loading ? "Đang gọi…" : "Gọi /api/auth/me") {
-                Task { await callMe() }
+        ScrollView {
+            VStack(alignment: .leading, spacing: GaSpace.lg) {
+                Text("Hôm nay").font(GaFont.displayL).foregroundStyle(Color.gaInk)
+                Text(name.isEmpty ? "Chào mừng trở lại 👋" : "Xin chào, \(name) 👋")
+                    .font(GaFont.body).foregroundStyle(Color.gaMuted)
+
+                if loading {
+                    ProgressView().tint(.gaAccent).frame(maxWidth: .infinity).padding(.top, GaSpace.xl)
+                } else if let error {
+                    VStack(spacing: GaSpace.md) {
+                        Text(error).font(GaFont.caption).foregroundStyle(Color.gaRed)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        Button("Thử lại") { Task { await load() } }
+                            .buttonStyle(.bordered).tint(.gaAccent)
+                    }
+                    .padding(GaSpace.lg)
+                    .background(Color.gaCard, in: RoundedRectangle(cornerRadius: GaRadius.card))
+                    .overlay(RoundedRectangle(cornerRadius: GaRadius.card).stroke(Color.gaLine))
+                } else {
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: GaSpace.md) {
+                        stat("Chuỗi ngày", "\(streak)", "🔥")
+                        stat("XP tuần này", "\(weeklyXp)", "⚡️")
+                        stat("Tiến độ lộ trình", "\(progress)%", "🎯")
+                        stat("Buổi học tuần này", "\(sessionsWeek)", "✅")
+                    }
+                    statWide("Phút học tuần này", "\(minutesWeek) phút")
+                }
+
+                Spacer(minLength: 0)
             }
-            .buttonStyle(.borderedProminent).tint(.gaAccent).disabled(loading)
-            Spacer()
+            .padding(GaSpace.xl)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
-        .padding(GaSpace.xl)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.gaBg)
         .navigationTitle("DeutschFlow")
+        .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Đăng xuất") { Task { await session.signOut() } } } }
+        .task { await load() }
     }
 
-    private func callMe() async {
+    private func stat(_ label: String, _ value: String, _ icon: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(icon).font(.system(size: 20))
+            Text(value).font(GaFont.displayL).foregroundStyle(Color.gaInk)
+            Text(label).font(GaFont.caption).foregroundStyle(Color.gaMuted)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(GaSpace.md)
+        .background(Color.gaCard, in: RoundedRectangle(cornerRadius: GaRadius.card))
+        .overlay(RoundedRectangle(cornerRadius: GaRadius.card).stroke(Color.gaLine))
+    }
+
+    private func statWide(_ label: String, _ value: String) -> some View {
+        HStack {
+            Text(label).font(GaFont.body).foregroundStyle(Color.gaMuted)
+            Spacer()
+            Text(value).font(GaFont.body.bold()).foregroundStyle(Color.gaInk)
+        }
+        .padding(GaSpace.md)
+        .background(Color.gaCard, in: RoundedRectangle(cornerRadius: GaRadius.card))
+        .overlay(RoundedRectangle(cornerRadius: GaRadius.card).stroke(Color.gaLine))
+    }
+
+    private func load() async {
         loading = true
+        error = nil
         defer { loading = false }
         do {
-            // Bearer header is injected by AuthenticationMiddleware → Input has no auth param.
-            // NOTE: `me2` is the generator's auto-name for `GET /api/auth/me` — several paths end
-            // in `/me` (auth, plan, profile…) so the generator disambiguates with a numeric suffix
-            // that can shift when the spec gains paths. Stable names need backend operationIds
-            // (see ios/BUILD_AND_DEPLOY.md → "Known caveats").
             let client = APIClientFactory.make()
-            let output = try await client.me2(.init())
-            switch output {
-            case .ok(let ok):
+            async let meOut = client.me2(.init())
+            async let dashOut = client.dashboard(.init())
+
+            if case .ok(let ok) = try await meOut {
                 let me = try ok.body.json
-                status = "Xin chào \(me.displayName ?? me.email ?? "user") · role \(me.role ?? "?")"
-            default:
-                status = "Phản hồi không phải 200 (kiểm tra token/đăng nhập)."
+                name = me.displayName ?? me.email ?? ""
+            }
+            if case .ok(let ok) = try await dashOut {
+                let d = try ok.body.json
+                streak = Int(d.streakDays ?? 0)
+                weeklyXp = Int(d.weeklyXp ?? 0)
+                progress = Int(d.planProgressPercent ?? 0)
+                sessionsWeek = Int(d.completedSessionsThisWeek ?? 0)
+                minutesWeek = Int(d.weeklyMinutesStudied ?? 0)
             }
         } catch {
-            status = "Lỗi gọi /api/auth/me: \(error.localizedDescription)"
+            self.error = "Lỗi tải dữ liệu: \(error.localizedDescription)"
         }
     }
 }
