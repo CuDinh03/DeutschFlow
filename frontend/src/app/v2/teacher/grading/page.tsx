@@ -102,6 +102,7 @@ export default function V2TeacherGradingPage() {
   // Per-item editing drafts (preserved while switching between submissions).
   const [drafts, setDrafts] = useState<Record<number, Draft>>({})
   const [aiSuggested, setAiSuggested] = useState<Record<number, boolean>>({})
+  const [aiAssess, setAiAssess] = useState<Record<number, { confidence: number | null; criteria: Record<string, number> | null }>>({})
 
   // Transient per-active state.
   const [saving, setSaving] = useState(false)
@@ -176,6 +177,9 @@ export default function V2TeacherGradingPage() {
     const current = active
     setAiLoading(true)
     setPanelError('')
+    // Re-arm the poll guard: React Strict Mode (dev) runs the mount cleanup once, which would
+    // otherwise leave pollRef false and make the poll below return immediately (AI-grade hangs).
+    pollRef.current = true
     try {
       await api.post(`/v2/teacher/assignments/${current.id}/ai-grade`)
       const MAX = 8, INTERVAL = 3000
@@ -186,7 +190,7 @@ export default function V2TeacherGradingPage() {
           const res = await api.get(
             `/v2/teacher/grading/classes/${current.classId}/assignments/${current.assignmentId}/submissions`,
           )
-          const rows = (res.data ?? []) as Array<{ submissionId: number | null; status: string; score: number | null; feedback: string | null }>
+          const rows = (res.data ?? []) as Array<{ submissionId: number | null; status: string; score: number | null; feedback: string | null; aiConfidence: number | null; criteria: Record<string, number> | null }>
           const row = rows.find((r) => r.submissionId === current.id)
           if (!row) continue
           if (row.status === 'GRADING_FAILED') {
@@ -197,6 +201,7 @@ export default function V2TeacherGradingPage() {
           if ((row.status === 'GRADED' || row.status === 'EVALUATED') && row.score !== null) {
             setDrafts((d) => ({ ...d, [current.id]: { score: row.score as number, feedback: row.feedback ?? '' } }))
             setAiSuggested((m) => ({ ...m, [current.id]: true }))
+            setAiAssess((m) => ({ ...m, [current.id]: { confidence: row.aiConfidence ?? null, criteria: row.criteria ?? null } }))
             setAiLoading(false)
             return
           }
@@ -339,6 +344,8 @@ export default function V2TeacherGradingPage() {
               draft={draft}
               setDraft={setDraft}
               suggested={!!aiSuggested[active.id]}
+              confidence={aiAssess[active.id]?.confidence ?? null}
+              criteria={aiAssess[active.id]?.criteria ?? null}
               aiLoading={aiLoading}
               onAi={runAiGrade}
               saving={saving}
@@ -465,11 +472,19 @@ function Submission({ item }: { item: GradingQueueItem }) {
 // ── Scoring panel (single score + feedback + real AI suggest) ────────────────
 const SCORE_STEPS = [60, 65, 70, 75, 80, 85, 90, 95, 100]
 
+// AI per-criterion rubric labels (criteria keys come from the grading model).
+const CRITERIA_LABEL: Record<string, string> = {
+  grammar: 'Ngữ pháp', vocabulary: 'Từ vựng', content: 'Nội dung', structure: 'Bố cục',
+  pronunciation: 'Phát âm', fluency: 'Trôi chảy', coherence: 'Mạch lạc', task: 'Hoàn thành đề',
+}
+
 interface ScoringProps {
   item: GradingQueueItem
   draft: Draft
   setDraft: (patch: Partial<Draft>) => void
   suggested: boolean
+  confidence: number | null
+  criteria: Record<string, number> | null
   aiLoading: boolean
   onAi: () => void
   saving: boolean
@@ -478,7 +493,7 @@ interface ScoringProps {
   success: string
 }
 
-function Scoring({ item, draft, setDraft, suggested, aiLoading, onAi, saving, onSave, error, success }: ScoringProps) {
+function Scoring({ item, draft, setDraft, suggested, confidence, criteria, aiLoading, onAi, saving, onSave, error, success }: ScoringProps) {
   const isAiGradable = item.assignmentType !== 'SPEAKING_SCENARIO'
   const hasText = !!item.submissionContent
 
@@ -515,6 +530,39 @@ function Scoring({ item, draft, setDraft, suggested, aiLoading, onAi, saving, on
             <p className="ga-ui mt-2 flex items-center gap-1 text-[11.5px] font-medium" style={{ color: 'var(--ga-violet)' }}>
               <CheckCircle2 size={13} /> AI đã đề xuất — bạn có thể chỉnh trước khi lưu.
             </p>
+          )}
+        </div>
+      )}
+
+      {/* AI per-criterion rubric + confidence (populated after AI grading) */}
+      {(criteria || confidence != null) && (
+        <div className="mb-[18px] border border-ga-line bg-ga-card p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <span className="ga-ui flex items-center gap-1.5 text-[13px] font-semibold text-ga-ink">
+              <Sparkles size={14} style={{ color: 'var(--ga-violet)' }} /> AI đánh giá theo tiêu chí
+            </span>
+            {confidence != null && (
+              <span className="rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ color: 'var(--ga-violet)', background: 'var(--ga-violet-soft)' }}>
+                Độ tự tin {confidence}%
+              </span>
+            )}
+          </div>
+          {criteria ? (
+            <div className="flex flex-col gap-2.5">
+              {Object.entries(criteria).map(([k, v]) => (
+                <div key={k}>
+                  <div className="mb-1 flex items-center justify-between text-[12px]">
+                    <span className="text-ga-muted">{CRITERIA_LABEL[k] ?? k}</span>
+                    <span className="font-semibold text-ga-ink">{v}/100</span>
+                  </div>
+                  <span className="block h-1.5 rounded-full bg-ga-line">
+                    <span className="block h-full rounded-full" style={{ width: `${Math.min(100, Math.max(0, v))}%`, background: v >= 50 ? 'var(--ga-violet)' : 'var(--ga-orange)' }} />
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="ga-ui text-[12px] text-ga-muted">AI không trả về chi tiết tiêu chí cho bài này.</p>
           )}
         </div>
       )}
