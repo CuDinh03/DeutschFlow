@@ -54,6 +54,17 @@ export interface StudentAssignment {
   description: string
   assignmentType: string
   dueDate: string | null
+  // Present on the global /v2/students/assignments list (assignment detail);
+  // absent (undefined) on the lighter class-scoped list.
+  submissionContent?: string | null
+  submissionFileUrl?: string | null
+  attachmentUrl?: string | null
+  referenceId?: number | null
+}
+
+export interface SubmitAssignmentPayload {
+  submissionContent?: string
+  submissionFileUrl?: string
 }
 
 export interface ClassLesson {
@@ -88,4 +99,26 @@ export async function fetchClassLessons(classId: number): Promise<ClassLesson[]>
 
 export async function joinClassByInviteCode(inviteCode: string): Promise<void> {
   await api.post('/classes/join', { inviteCode })
+}
+
+/**
+ * Fetch one assignment by its ClassAssignment id. The backend exposes only the
+ * full student list (no single-GET), so we mirror the web client and resolve
+ * the row client-side. Returns null when the assignment isn't assigned to me.
+ */
+export async function fetchAssignmentDetail(assignmentId: number): Promise<StudentAssignment | null> {
+  const res = await api.get<StudentAssignment[]>('/v2/students/assignments')
+  return res.data?.find((a) => a.assignmentId === assignmentId) ?? null
+}
+
+/** Submit a written assignment. Backend: PENDING → SUBMITTED (409 if already submitted). */
+export async function submitAssignment(
+  assignmentId: number,
+  payload: SubmitAssignmentPayload,
+): Promise<StudentAssignment> {
+  const res = await api.post<StudentAssignment>(
+    `/v2/students/assignments/${assignmentId}/submit`,
+    payload,
+  )
+  return res.data
 }
