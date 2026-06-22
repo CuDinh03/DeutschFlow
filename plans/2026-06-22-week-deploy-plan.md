@@ -60,7 +60,7 @@ Phần còn lại nhỏ hơn nhiều so với lo ngại ban đầu.
 
 ### A4 🟡 B2B role model — đóng phần CÒN LẠI sau #143 (`plans/2026-06-22-b2b-role-model-checklist.md`)
 - [x] 🤖 **P0-1 (S)** ✅ **PR #144** — khôi phục khối "Vai trò hệ thống" (STUDENT/TEACHER/ADMIN + nút Đổi) ở `UserDetailModal.tsx` → `PATCH /admin/users/{id}/role`; baseline re-disable sau khi lưu.
-- [ ] 🤖 **P1-1 FE (S)** — wire `/v2/org/roles/page.tsx` gọi `PATCH /api/org/members/{id}/role` thật (BE đã có ở #143; FE còn comment "read-only = toast") + `orgApi.updateMemberRole`. ⚠️ **endpoint chỉ sống trên prod sau A1 deploy** → code được nhưng verify chờ A1.
+- [x] 🤖 **P1-1 (S)** ✅ **đã wire sẵn ở #143** — `/v2/org/roles` gọi `changeMemberRole`→`PATCH /org/members/{id}/role` thật + `<select>` MANAGER↔TEACHER (OWNER-only). #144 chỉ dọn comment stale ("read-only=toast" sai). Verify end-to-end chờ A1 deploy (endpoint chưa lên prod).
 - [ ] 🤖 **P0-3 (S, cosmetic — optional)** — tạo enum `OrgRole {OWNER,MANAGER,TEACHER,STUDENT}` thay String thô ở `OrgGuard`/`OrgMembershipService` (vocab nhất quán; **gộp Deploy #2**)
 - [ ] 🤖 verify **P1-2** (invite chọn role) + **P1-4** (org-admin phân teacher vào lớp) — kiểm #143 đã cover chưa, làm nốt nếu thiếu
 - **✅ #143 đã làm (không lặp):** P0-2 ACCOUNTANT đã drop · ADMIN→MANAGER · BE endpoint đổi org-role.
