@@ -25,37 +25,49 @@ export interface RoleNav {
   sections: NavSection[]
 }
 
+// teacherNav — khớp Prototype A (Galerie): nhóm QUẢN LÝ LỚP / GIẢNG DẠY / CÔNG CỤ AI / THỐNG KÊ.
+// "Thông báo" chuyển lên top bar (chuông + badge unread) → KHÔNG còn ở sidebar.
+// 2 mục để comment có chủ đích để tránh dead-link (bật lại khi route tồn tại):
+//   - schedule (Lịch dạy): chờ PROMPT 4 dựng /v2/teacher/schedule.
+//   - tc-messages (Tin nhắn học viên): chờ #146 (messaging) merge vào main → /v2/teacher/messages.
 export const teacherNav: RoleNav = {
   role: 'teacher',
   rootHref: '/v2/teacher',
   sections: [
     {
-      label: 'Quản lý',
+      label: 'Quản lý lớp',
       items: [
-        { id: 'teacher', label: 'Tổng quan & Lớp', href: '/v2/teacher', icon: 'dashboard' },
-        { id: 'sessions', label: 'Buổi 1:1', href: '/v2/teacher/sessions', icon: 'calendar_month' },
-        { id: 'grading', label: 'Chấm bài', href: '/v2/teacher/grading', icon: 'grading' },
-        { id: 'grade-image', label: 'Chấm ảnh viết tay', href: '/v2/teacher/grade-image', icon: 'draw' },
-        { id: 'tc-checklist', label: 'Checklist bài giảng', href: '/v2/teacher/tc-checklist', icon: 'checklist' },
-        { id: 'tc-progress', label: 'Tiến độ lớp', href: '/v2/teacher/tc-progress', icon: 'trending_up' },
-        { id: 'materials', label: 'Thư viện tài liệu', href: '/v2/teacher/materials', icon: 'folder' },
+        { id: 'teacher', label: 'Dashboard & Lớp học', href: '/v2/teacher', icon: 'dashboard' },
+        // TODO(PROMPT 4): { id: 'schedule', label: 'Lịch dạy', href: '/v2/teacher/schedule', icon: 'schedule' },
+        { id: 'tc-progress', label: 'Tiến độ khóa học', href: '/v2/teacher/tc-progress', icon: 'trending_up' },
+        { id: 'tc-checklist', label: 'Checklist khóa học', href: '/v2/teacher/tc-checklist', icon: 'checklist' },
+        { id: 'grading', label: 'Trung tâm Chấm bài', href: '/v2/teacher/grading', icon: 'grading' },
+        { id: 'grade-image', label: 'Chấm bài qua ảnh', href: '/v2/teacher/grade-image', icon: 'draw' },
+        { id: 'materials', label: 'Thư viện tài liệu', href: '/v2/teacher/materials', icon: 'menu_book' },
       ],
     },
-    { label: 'Thống kê', items: [{ id: 'analytics', label: 'Phân tích', href: '/v2/teacher/analytics', icon: 'monitoring' }] },
-    { label: 'Thông báo', items: [{ id: 'notifications', label: 'Thông báo', href: '/v2/notifications', icon: 'notifications' }] },
+    {
+      label: 'Giảng dạy',
+      items: [
+        { id: 'sessions', label: 'Buổi học 1:1', href: '/v2/teacher/sessions', icon: 'co_present' },
+        // TODO(#146 deploy): { id: 'tc-messages', label: 'Tin nhắn học viên', href: '/v2/teacher/messages', icon: 'chat' },
+      ],
+    },
     {
       label: 'Công cụ AI',
       items: [
         { id: 'grammar-ai', label: 'Ngữ pháp AI', href: '/v2/teacher/tools/grammar', icon: 'spellcheck' },
-        { id: 'materials-ai', label: 'Tài liệu AI', href: '/v2/teacher/tools/materials', icon: 'description' },
+        { id: 'materials-ai', label: 'Tạo Tài liệu AI', href: '/v2/teacher/tools/materials', icon: 'description' },
         { id: 'ai-images', label: 'Tạo ảnh AI', href: '/v2/teacher/tools/images', icon: 'image' },
       ],
     },
     {
+      label: 'Thống kê',
+      items: [{ id: 'analytics', label: 'Báo cáo & Phân tích', href: '/v2/teacher/analytics', icon: 'monitoring' }],
+    },
+    {
       label: 'Tài khoản',
-      items: [
-        { id: 't-profile', label: 'Hồ sơ', href: '/v2/teacher/profile', icon: 'person' },
-      ],
+      items: [{ id: 't-profile', label: 'Hồ sơ', href: '/v2/teacher/profile', icon: 'person' }],
     },
   ],
 }
