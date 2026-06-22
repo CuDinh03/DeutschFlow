@@ -5,9 +5,11 @@
 
 ---
 
-## 1. 🔴 VIỆC GẤP NHẤT — #149/V232 deploy bị INTERRUPTED (làm trước)
+## 1. ✅ #149/V232 deploy — ĐÃ HOÀN TẤT (recovery 2026-06-22 EOD)
 
-**Tình trạng:** deploy #149 (V232 skill-scale cleanup) **đã chạy nhưng BỊ NGẮT giữa chừng** — log `/tmp/deploy-149.log` kết thúc bằng `[INTERRUPTED] Deploy bị dừng` ở bước "Chờ GREEN healthy (35s/300s)". GREEN (container mới, có V232) **đang boot thì bị kill, CHƯA promote** → BLUE (cũ, V231) vẫn trên 8080.
+> **RESOLVED:** re-run `deploy-backend.sh` THÀNH CÔNG → prod `61cf0104`, DEPLOY THÀNH CÔNG (193s), GREEN healthy (V232 áp được — guard KHÔNG halt → prod không có dòng đã-đánh-giá ngoài 0–10), code #149 live. **#146→#149 (V228→V232) giờ full live + verified** (health UP, regression OK: messages/availability 200). Phần dưới = lịch sử/runbook tham chiếu.
+
+**(Lịch sử) Lần deploy đầu bị NGẮT:** log `/tmp/deploy-149.log` kết thúc `[INTERRUPTED]` ở "Chờ GREEN healthy (35s)". GREEN đang boot thì bị kill, chưa promote → BLUE (V231) vẫn chạy. Recovery (re-run) đã xử lý xong.
 
 **Hệ quả (cần xác minh):**
 - **Prod backend vẫn = `2501d0e7` (V231, code #148)** — health UP, BLUE còn chạy. Code #149 (StudentEvaluation validation app-level) **CHƯA live**.
@@ -103,6 +105,6 @@ git checkout <branch> && git stash pop
 - **docs/** gitignored (trừ BACKLOG_CHECKLIST.md); **plans/** tracked → handoff để ở plans/.
 
 ## VIỆC KẾ TIẾP NGAY
-> **1. Hoàn tất #149/V232 deploy** (§1, re-run `deploy-backend.sh`, cần user duyệt "deploy #149") → verify `chk_class_students_skill_range` + StudentEval validation live.
-> **2. 🔴 Đổi/khoá default-cred `teacher@`/`student@deutschflow.com` trên prod** (§4).
-> **3.** Quyết speaking WIP stash (§5) + triage 11 backlog PR.
+> **1. ✅ XONG — #149/V232 deploy** (prod `61cf0104`, V228→V232 full live, verified).
+> **2. 🔴 Đổi/khoá default-cred `teacher@`/`student@deutschflow.com` trên prod** (§4) — việc ưu tiên cao nhất còn lại.
+> **3.** Quyết speaking WIP stash (§5) + triage 11 backlog PR + PracticeNode.
