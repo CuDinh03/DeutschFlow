@@ -63,7 +63,7 @@ Phần còn lại nhỏ hơn nhiều so với lo ngại ban đầu.
 - [x] 🤖 **P1-1 (S)** ✅ **đã wire sẵn ở #143** — `/v2/org/roles` gọi `changeMemberRole`→`PATCH /org/members/{id}/role` thật + `<select>` MANAGER↔TEACHER (OWNER-only). #144 chỉ dọn comment stale ("read-only=toast" sai). Verify end-to-end chờ A1 deploy (endpoint chưa lên prod).
 - [x] 🤖 **P0-3 (S)** ✅ **PR #145** — enum `OrgRole {OWNER,MANAGER,TEACHER,STUDENT}` + tiers ADMIN/ASSIGNABLE + `from()` fail-closed; dùng ở `OrgGuard`+`changeRole` (bỏ String sets trùng). Bug `Set.of.contains(null)`→NPE đã bắt (OrgGuardTest) + fix null-safe. 45 org tests pass.
 - [x] 🤖 **P1-2 (M)** ✅ **PR #145** — invite nhận role MANAGER/TEACHER (cũ hardcode TEACHER): `InviteTeacherRequest`+controller+service validate; accept-flow map invitation.role→membership. FE `orgApi.inviteTeacher(email,role)` + selector `/v2/org/invitations` thêm MANAGER. Verify chờ Deploy #2.
-- [ ] ⏸ **P1-4 (M) — VERIFIED OPEN, chưa làm** — `/v2/org/teachers` "Phân công lớp" vẫn `toast('sắp ra mắt')`; không có endpoint org-scoped assign-teacher→class. Cần endpoint mới (tái dùng `ClassTeacher`/`addCoTeacher` gate `assertOrgAdmin`) + FE. **Để effort riêng** (chờ bạn quyết — M-sized).
+- [x] 🤖 **P1-4 (M)** ✅ **PR #145** — org-admin phân teacher→lớp: BE 3 endpoint (`POST/DELETE /org/classes/{id}/teachers` + `GET /org/members/{id}/classes`; `assertOrgAdmin` + IDOR-safe + reuse `ClassTeacher` ASSISTANT, PRIMARY-protected) + FE modal `/v2/org/teachers` "Phân công" (thay toast). +7 tests (happy/IDOR/non-member/student/dup/unassign-primary/ok). Verify chờ Deploy #2.
 - **✅ #143 đã làm (không lặp):** P0-2 ACCOUNTANT đã drop · ADMIN→MANAGER · BE endpoint đổi org-role.
 
 ### A5 🔴 Deploy #2 (batch BE) + đóng web
