@@ -91,6 +91,12 @@ export const adminNav: RoleNav = {
         { id: 'admin-settings', label: 'Cấu hình', href: '/v2/admin/settings', icon: 'settings' },
       ],
     },
+    {
+      label: 'Tài khoản',
+      items: [
+        { id: 'admin-profile', label: 'Hồ sơ', href: '/v2/profile', icon: 'person' },
+      ],
+    },
   ],
 }
 
