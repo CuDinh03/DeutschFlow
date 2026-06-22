@@ -58,6 +58,9 @@ export interface CreateOrgInput {
   planCode?: string
   seatLimit?: number
   ownerEmail?: string
+  /** B2B model §2.1: admin pre-create OWNER. Khi ownerEmail là email MỚI → tạo thẳng account OWNER. */
+  ownerName?: string
+  ownerPassword?: string
 }
 
 /** PATCH-style update body for an org (all fields optional → partial update). */

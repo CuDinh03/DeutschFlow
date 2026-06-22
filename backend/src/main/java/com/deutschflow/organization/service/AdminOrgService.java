@@ -20,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -58,6 +60,7 @@ public class AdminOrgService {
     private final OrgMemberRepository orgMemberRepository;
     private final OrgEntitlementService orgEntitlementService;
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
     /**
      * Creates an organization with a unique slug. If {@code ownerEmail} resolves to an existing
@@ -86,7 +89,7 @@ public class AdminOrgService {
                 .build();
         org = organizationRepository.save(org);
 
-        attachOwner(org.getId(), request.ownerEmail());
+        attachOwner(org.getId(), request.ownerEmail(), request.ownerName(), request.ownerPassword());
 
         return toOrgDto(org);
     }
@@ -277,7 +280,13 @@ public class AdminOrgService {
         return raw.trim().toUpperCase();
     }
 
-    private void attachOwner(Long orgId, String ownerEmail) {
+    /**
+     * Gắn OWNER cho org (B2B model §2.1 — admin <b>pre-create</b> OWNER):
+     * email đã có account → gắn làm OWNER; email mới → TẠO THẲNG account OWNER (password admin đặt,
+     * hoặc random nếu trống) thay vì mời self-register. Atomic với {@code createOrganization}
+     * (cùng {@code @Transactional}) → tạo owner lỗi thì rollback cả org, không còn "org mồ côi".
+     */
+    private void attachOwner(Long orgId, String ownerEmail, String ownerName, String ownerPassword) {
         if (ownerEmail == null || ownerEmail.isBlank()) {
             return;
         }
@@ -287,15 +296,27 @@ public class AdminOrgService {
             orgMembershipService.upsertMember(orgId, existing.get().getId(), ROLE_OWNER);
             return;
         }
-        try {
-            orgInvitationService.inviteTeacher(resolveActorId(), orgId, email);
-        } catch (RuntimeException ex) {
-            // H: org được tạo nhưng KHÔNG gắn được owner → org "mồ côi", cần admin re-invite tay.
-            // log.error (không phải warn) để vào kênh alert — đây là trạng thái cần can thiệp.
-            log.error("[Org][ORPHAN] Tạo org {} thành công nhưng không gửi được lời mời OWNER ({}): {} "
-                    + "— org đang KHÔNG có chủ sở hữu, cần re-invite thủ công.",
-                    orgId, email, ex.getMessage());
+        if (ownerPassword != null && !ownerPassword.isBlank() && ownerPassword.length() < 6) {
+            throw new BadRequestException("Mật khẩu chủ sở hữu tối thiểu 6 ký tự.");
         }
+        String rawPw = (ownerPassword != null && !ownerPassword.isBlank())
+                ? ownerPassword : UUID.randomUUID().toString();
+        String displayName = (ownerName != null && !ownerName.isBlank())
+                ? ownerName.trim() : localPart(email);
+        User owner = userRepository.save(User.builder()
+                .email(email)
+                .passwordHash(passwordEncoder.encode(rawPw))
+                .displayName(displayName)
+                .role(User.Role.TEACHER)
+                .createdVia(User.CreatedVia.ADMIN)
+                .build());
+        orgMembershipService.upsertMember(orgId, owner.getId(), ROLE_OWNER);
+        log.info("[Org] Pre-created OWNER account userId={} (email={}) cho org {}", owner.getId(), email, orgId);
+    }
+
+    private static String localPart(String email) {
+        int at = email.indexOf('@');
+        return at > 0 ? email.substring(0, at) : email;
     }
 
     /** Resolves the acting platform-admin's id from the security context (for invitation audit). */

@@ -46,6 +46,7 @@ class AdminOrgServiceLifecycleTest {
     @Mock private OrgMemberRepository orgMemberRepository;
     @Mock private OrgEntitlementService orgEntitlementService;
     @Mock private UserRepository userRepository;
+    @Mock private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
     private AdminOrgService service;
 
@@ -59,7 +60,8 @@ class AdminOrgServiceLifecycleTest {
                 orgInvitationService,
                 orgMemberRepository,
                 orgEntitlementService,
-                userRepository
+                userRepository,
+                passwordEncoder
         );
     }
 
@@ -123,6 +125,54 @@ class AdminOrgServiceLifecycleTest {
         service.createOrganization(new CreateOrgRequest("ATB", "atb-2", "   ", 0, null));
 
         assertThat(captor.getValue().getPlanCode()).isNull();
+    }
+
+    @Test
+    @DisplayName("createOrganization: ownerEmail mới → pre-create OWNER (TEACHER + createdVia=ADMIN) + membership OWNER")
+    void createOrganization_newOwnerEmail_preCreatesOwner() {
+        when(organizationRepository.existsBySlug(anyString())).thenReturn(false);
+        when(organizationRepository.save(any(Organization.class))).thenAnswer(i -> {
+            Organization o = i.getArgument(0);
+            o.setId(ORG_ID);
+            return o;
+        });
+        stubActiveMembersForDto(List.of());
+        when(userRepository.findByEmail("owner@new.test")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode(anyString())).thenReturn("HASH");
+        ArgumentCaptor<User> userCap = ArgumentCaptor.forClass(User.class);
+        when(userRepository.save(userCap.capture())).thenAnswer(i -> {
+            User u = i.getArgument(0);
+            u.setId(99L);
+            return u;
+        });
+
+        service.createOrganization(new CreateOrgRequest(
+                "New Org", "new-org", "PRO", 10, "owner@new.test", "Owner Name", "ownerpass123"));
+
+        assertThat(userCap.getValue().getRole()).isEqualTo(User.Role.TEACHER);
+        assertThat(userCap.getValue().getCreatedVia()).isEqualTo(User.CreatedVia.ADMIN);
+        assertThat(userCap.getValue().getDisplayName()).isEqualTo("Owner Name");
+        verify(orgMembershipService).upsertMember(ORG_ID, 99L, "OWNER");
+    }
+
+    @Test
+    @DisplayName("createOrganization: ownerEmail đã tồn tại → attach OWNER, KHÔNG tạo account mới")
+    void createOrganization_existingOwnerEmail_attachesNoCreate() {
+        when(organizationRepository.existsBySlug(anyString())).thenReturn(false);
+        when(organizationRepository.save(any(Organization.class))).thenAnswer(i -> {
+            Organization o = i.getArgument(0);
+            o.setId(ORG_ID);
+            return o;
+        });
+        stubActiveMembersForDto(List.of());
+        User existing = User.builder().id(7L).email("owner@old.test").role(User.Role.TEACHER).build();
+        when(userRepository.findByEmail("owner@old.test")).thenReturn(Optional.of(existing));
+
+        service.createOrganization(new CreateOrgRequest(
+                "Org2", "org2", "PRO", 10, "owner@old.test", "X", "pw123456"));
+
+        verify(orgMembershipService).upsertMember(ORG_ID, 7L, "OWNER");
+        verify(userRepository, never()).save(any(User.class));
     }
 
     // ------------------------------------------------------------------ listMembers (GET /{id}/members)
