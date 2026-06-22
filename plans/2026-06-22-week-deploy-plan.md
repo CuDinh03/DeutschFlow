@@ -56,7 +56,7 @@ Phần còn lại nhỏ hơn nhiều so với lo ngại ban đầu.
 - [x] 🤖 **weekly-speaking** (HIGH) ✅ **PR #144** — rewrite toàn bộ form+list theo `WeeklyPromptAdminUpsertRequest` (date-picker weekStart · cefrBand · title · promptDe · mandatory/optional points = textarea mỗi-dòng-1-ý · active); list đọc JDBC snake_case thật.
 - [x] 🤖 **3 reports con** (MED) ✅ **PR #144** — `vocabulary-quality`→2 time-series phủ giống-DT + bản-dịch · `grammar-feedback-coverage`→series ngày `{snapshotDate,coveragePercent,...}` · `personalization-ruleset`→`{version,dimensionsSupported[]}` (banner version + grid chiều). Bỏ hết field giả.
 - [x] 🤖 **Wire rubric phỏng vấn** (HIGH) ✅ **PR #144** — ⚠️ thực ra là **M không phải S**: backend per-template (nhiều rubric/ngành, 4-8 tiêu chí float Σ=1) ≠ editor giả 4-nhãn-VN. Wire ngây thơ sẽ **ghi đè phá rubric chấm AI**. Đã build per-template editor đúng: chọn template → sửa weight thật → `updateRubric` (%→fraction, gate Σ=100%).
-- [ ] 🤖+👤 **orgs seat/validUntil** (MED, ⚠️ cần BE) — thêm `seatUsed/validUntil/monthlyTokenPool/createdAt` vào `OrgDto`/`OrgDetailDto` (backend) + modal fetch detail → **gộp vào Deploy #2**
+- [x] 🤖 **orgs seat/validUntil** (MED) ✅ **PR #145** (BE) — `OrgDto`+`OrgDetailDto`+2 builder thêm `seatUsed`(=studentCount)/`monthlyTokenPool`/`validUntil`/`createdAt` (Instant→ISO). FE `AdminOrg` đã đọc sẵn → KHÔNG đổi FE. test-compile + AdminOrganizationControllerTest (3/0). **Surface trên prod sau Deploy #2.**
 
 ### A4 🟡 B2B role model — đóng phần CÒN LẠI sau #143 (`plans/2026-06-22-b2b-role-model-checklist.md`)
 - [x] 🤖 **P0-1 (S)** ✅ **PR #144** — khôi phục khối "Vai trò hệ thống" (STUDENT/TEACHER/ADMIN + nút Đổi) ở `UserDetailModal.tsx` → `PATCH /admin/users/{id}/role`; baseline re-disable sau khi lưu.
