@@ -20,10 +20,13 @@
 --   • fresh rebuild → V7/V8 just re-seeded password123 → this catches it and
 --     rotates to the strong random hash below.
 --
--- LOCAL DEV is unaffected: db/migration-local/R__seed_demo_users_local.sql is a
--- repeatable migration that runs AFTER this one (local profile only) and re-upserts
--- password123 for convenience. Prod does not load migration-local, so the rotation
--- stands there.
+-- LOCAL DEV: this rotates ONLY rows that still hold the public password123 hash.
+-- scripts/seed-internal-accounts.sql sets the @deutschflow.com demo accounts to a
+-- different password, so on a seeded local DB this is a no-op. A bare local DB (raw
+-- V7/V8 seed) has its demo accounts rotated to the strong hash below — re-run the
+-- seed script or sign up. (NB: db/migration-local/R__seed_demo_users_local.sql is
+-- NOT wired into Flyway locations — locations = classpath:db/migration only — so it
+-- never runs; do not rely on it to restore password123.)
 --
 -- We deliberately do NOT delete/relocate V7/V8/V48/V50: they are already applied on
 -- prod, and removing them would trip Flyway validateOnMigrate (applied-but-missing).
