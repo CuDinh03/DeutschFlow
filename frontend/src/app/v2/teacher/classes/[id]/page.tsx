@@ -21,17 +21,21 @@ import { getErrorSnippet } from '@/lib/errors/errorTaxonomy'
 //   /classes/{id}/students, /classes/{id}/assignments, /classes/{id}/analytics,
 //   /grading/queue?classId={id} (pending-per-assignment), POST /classes/{id}/assignments.
 // Option-1 (established pattern): roster carries only studentId/displayName/email/xp/
-//   level/cefrLevel → proto's per-student SCORE / STREAK / LẦN CUỐI columns DROPPED.
-//   Analytics tab rebuilt from the REAL class /analytics (totalXp, completedAssignments,
-//   avgSpeakingScore, reviewCoveragePct, topErrors, actionItems) + XP ranking derived from
-//   the roster → proto's score-bars / submission-donut / skill-heatmap DROPPED (no data;
-//   skill_* columns exist on class_students but aren't exposed by the API). → backlog.
+//   level/cefrLevel + 4 CEFR skill scores (Hören/Lesen/Schreiben/Sprechen, 0–10) → STREAK /
+//   LẦN CUỐI columns still DROPPED (no data). Analytics tab from the REAL class /analytics
+//   (totalXp, completedAssignments, avgSpeakingScore, reviewCoveragePct, topErrors, actionItems)
+//   + XP ranking from the roster. PROMPT 6: skill score-bars (roster) + class skill average
+//   (analytics) now wired — skill_* exposed via ClassStudentDto. submission-donut still backlog.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const VIOLET = '#7C56C8'
 
 interface ClassInfo { id: number; name: string; code: string; studentCount: number }
-interface Student { studentId: number; displayName: string; email: string; xp: number; level: number; cefrLevel: string }
+interface Student {
+  studentId: number; displayName: string; email: string; xp: number; level: number; cefrLevel: string
+  skillHoren: number | null; skillLesen: number | null; skillSchreiben: number | null; skillSprechen: number | null
+  evaluatedAt: string | null
+}
 interface Assignment { id: number; topic: string; description: string; assignmentType: string; dueDate: string | null; createdAt: string }
 interface ActionItem { title: string; detail: string; priority: string }
 interface Analytics {
@@ -59,6 +63,40 @@ const initial = (n: string) => (n.trim()[0] ?? '?').toUpperCase()
 const fmtDate = (d: string | null) => (d ? format(new Date(d), 'dd/MM/yyyy') : '—')
 
 const ASSIGNMENT_TYPES = ['GENERAL', 'ESSAY', 'WRITING', 'SPEAKING_SCENARIO', 'VOCABULARY', 'GRAMMAR', 'MOCK_TEST']
+
+// CEFR skill scores: 0–10, ≥5 = passing (StudentEvaluationService). Exposed on the roster DTO.
+const SKILL_MAX = 10
+const SKILLS = [
+  { key: 'skillHoren', label: 'H', name: 'Hören' },
+  { key: 'skillLesen', label: 'L', name: 'Lesen' },
+  { key: 'skillSchreiben', label: 'S', name: 'Schreiben' },
+  { key: 'skillSprechen', label: 'Sp', name: 'Sprechen' },
+] as const
+const skillVals = (s: Student): (number | null)[] => [s.skillHoren, s.skillLesen, s.skillSchreiben, s.skillSprechen]
+
+// Per-student score-bars (Hören/Lesen/Schreiben/Sprechen). Honest: '—' until evaluated; green ≥5.
+function SkillBars({ s }: { s: Student }) {
+  const vals = skillVals(s)
+  // Only show official evaluations (evaluatedAt set by StudentEvaluationService, 0–10 scale).
+  if (!s.evaluatedAt || vals.every((v) => v == null)) return <span className="text-[11px] text-ga-faint">—</span>
+  return (
+    <div className="flex items-end gap-[3px]" title="Hören · Lesen · Schreiben · Sprechen (0–10)">
+      {SKILLS.map((sk, i) => {
+        const v = vals[i]
+        const pct = v == null ? 0 : Math.max(8, Math.min(100, (v / SKILL_MAX) * 100))
+        const pass = v != null && v >= 5
+        return (
+          <span key={sk.key} className="flex flex-col items-center gap-[2px]" title={`${sk.name}: ${v == null ? 'chưa có' : v.toFixed(1)}`}>
+            <span className="flex h-6 w-[7px] items-end" style={{ background: 'var(--ga-side-active)' }}>
+              <span className="block w-full" style={{ height: `${pct}%`, background: v == null ? 'transparent' : pass ? '#1E9E61' : VIOLET }} />
+            </span>
+            <span className="text-[8px] font-bold text-ga-faint">{sk.label}</span>
+          </span>
+        )
+      })}
+    </div>
+  )
+}
 
 export default function V2ClassDetailPage() {
   const params = useParams()
@@ -268,7 +306,7 @@ export default function V2ClassDetailPage() {
               </div>
 
               <div className="border border-ga-line bg-ga-card">
-                <div className="grid items-center gap-2 border-b border-ga-line bg-ga-bg px-[18px] py-[11px]" style={{ gridTemplateColumns: '34px 1fr 90px 90px 90px 84px' }}>
+                <div className="grid items-center gap-2 border-b border-ga-line bg-ga-bg px-[18px] py-[11px]" style={{ gridTemplateColumns: '34px 1fr 84px 74px 68px 118px 84px' }}>
                   <input
                     type="checkbox"
                     aria-label="Chọn tất cả"
@@ -281,6 +319,7 @@ export default function V2ClassDetailPage() {
                       {label}{sort.col === col && <span>{sort.dir === 'asc' ? '↑' : '↓'}</span>}
                     </button>
                   ))}
+                  <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-ga-muted">Kỹ năng</span>
                   <span />
                 </div>
 
@@ -295,7 +334,7 @@ export default function V2ClassDetailPage() {
                     <div
                       key={s.studentId}
                       className="grid items-center gap-2 px-[18px] py-[13px] transition-colors hover:bg-ga-surface"
-                      style={{ gridTemplateColumns: '34px 1fr 90px 90px 90px 84px', borderTop: i ? '1px solid var(--ga-line)' : 'none', background: selected[s.studentId] ? 'var(--ga-violet-soft)' : undefined }}
+                      style={{ gridTemplateColumns: '34px 1fr 84px 74px 68px 118px 84px', borderTop: i ? '1px solid var(--ga-line)' : 'none', background: selected[s.studentId] ? 'var(--ga-violet-soft)' : undefined }}
                     >
                       <input type="checkbox" aria-label={`Chọn ${s.displayName}`} checked={!!selected[s.studentId]} onChange={(e) => setSelected((o) => ({ ...o, [s.studentId]: e.target.checked }))} style={{ accentColor: VIOLET }} />
                       <div className="flex min-w-0 items-center gap-2.5">
@@ -308,6 +347,7 @@ export default function V2ClassDetailPage() {
                       <span className="font-ga-display text-[14px] font-medium text-ga-ink">{s.cefrLevel || '—'}</span>
                       <span className="text-[13.5px] text-ga-muted">Cấp {s.level}</span>
                       <span className="text-[13.5px] font-semibold text-ga-ink">{s.xp.toLocaleString()}</span>
+                      <SkillBars s={s} />
                       <button
                         type="button"
                         onClick={() => toast('Báo cáo học viên (sắp ra mắt)')}
@@ -456,6 +496,36 @@ function AnalyticsTab({ analytics, students, loading }: { analytics: Analytics |
           )}
         </div>
       </div>
+
+      {/* Class skill average (CEFR skills 0–10) — from evaluated students */}
+      {(() => {
+        const evaluated = students.filter((s) => s.evaluatedAt != null)
+        if (evaluated.length === 0) return null
+        const avgs = SKILLS.map((sk, i) => {
+          const vs = evaluated.map((s) => skillVals(s)[i]).filter((v): v is number => v != null)
+          return { ...sk, avg: vs.length ? vs.reduce((a, b) => a + b, 0) / vs.length : null }
+        })
+        return (
+          <div className="mt-[22px] border border-ga-line bg-ga-card p-[22px]">
+            <GaCap className="mb-4 block">Kỹ năng trung bình lớp · {evaluated.length} đã đánh giá</GaCap>
+            <div className="flex flex-col gap-3">
+              {avgs.map((sk) => {
+                const pct = sk.avg == null ? 0 : Math.min(100, (sk.avg / SKILL_MAX) * 100)
+                const pass = sk.avg != null && sk.avg >= 5
+                return (
+                  <div key={sk.key}>
+                    <div className="mb-1 flex items-center justify-between gap-3 text-[13px]">
+                      <span className="text-ga-ink">{sk.name}</span>
+                      <span className="shrink-0 font-semibold text-ga-muted">{sk.avg == null ? '—' : `${sk.avg.toFixed(1)}/10`}</span>
+                    </div>
+                    <span className="block h-1.5 bg-ga-line"><span className="block h-full" style={{ width: `${pct}%`, background: pass ? '#1E9E61' : VIOLET }} /></span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Action items */}
       {analytics.actionItems.length > 0 && (
