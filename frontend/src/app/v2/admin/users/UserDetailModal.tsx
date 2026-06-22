@@ -110,6 +110,28 @@ export function UserDetailModal({
     }
   }
 
+  // Admin reset password — đặt mật khẩu mới cho user (không cần mật khẩu cũ). Admin-only, audit.
+  const [newPw, setNewPw] = useState('')
+  const [savingPw, setSavingPw] = useState(false)
+
+  const resetPassword = async () => {
+    if (newPw.length < 8) {
+      setError('Mật khẩu mới tối thiểu 8 ký tự.')
+      return
+    }
+    setSavingPw(true)
+    setError('')
+    try {
+      await api.patch(`/admin/users/${userId}/password`, { password: newPw })
+      setNewPw('')
+      toast.success('Đã đặt lại mật khẩu.')
+    } catch (e: unknown) {
+      setError(apiMessage(e))
+    } finally {
+      setSavingPw(false)
+    }
+  }
+
   const [code, setCode] = useState((planCode || 'FREE').toUpperCase())
   const [startsAt, setStartsAt] = useState('')
   const [endsAt, setEndsAt] = useState('')
@@ -277,6 +299,27 @@ export function UserDetailModal({
                 </GaBtn>
                 <p className="ga-ui text-[12px] text-ga-subtle">
                   Khóa = chặn đăng nhập nhưng giữ nguyên dữ liệu; mở lại bất cứ lúc nào. Chỉ admin.
+                </p>
+              </div>
+
+              {/* Admin reset password — đặt lại mật khẩu cho user (gỡ default-cred / user quên pass). */}
+              <div className="space-y-2 border-b border-ga-line pb-5">
+                <GaCap>Đặt lại mật khẩu</GaCap>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={newPw}
+                    onChange={(e) => setNewPw(e.target.value)}
+                    autoComplete="new-password"
+                    placeholder="Mật khẩu mới (≥ 8 ký tự)"
+                    className="ga-ui flex-1 rounded-ga border border-ga-line bg-ga-card px-3 py-2 text-[13px] text-ga-ink outline-none placeholder:text-ga-subtle"
+                  />
+                  <GaBtn variant="primary" loading={savingPw} disabled={newPw.length < 8} onClick={resetPassword}>
+                    Đặt lại
+                  </GaBtn>
+                </div>
+                <p className="ga-ui text-[12px] text-ga-subtle">
+                  Admin đặt mật khẩu mới trực tiếp (không cần mật khẩu cũ) — dùng khi gỡ tài khoản mật khẩu mặc định / user quên pass. Có ghi audit.
                 </p>
               </div>
 

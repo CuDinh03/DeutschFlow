@@ -173,4 +173,22 @@ class AdminManagementServiceUnitTest {
         verify(userRepository).save(cap.capture());
         assertEquals(User.CreatedVia.ADMIN, cap.getValue().getCreatedVia());
     }
+
+    @Test
+    void setUserPassword_encodesAndSaves() {
+        User u = User.builder().id(5L).email("u@x.com").displayName("U")
+                .role(User.Role.TEACHER).passwordHash("OLD").build();
+        when(userRepository.findById(5L)).thenReturn(Optional.of(u));
+        when(passwordEncoder.encode("newsecret8")).thenReturn("NEWHASH");
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.setUserPassword(5L, "newsecret8");
+
+        assertEquals("NEWHASH", u.getPasswordHash()); // mã hoá + lưu
+    }
+
+    @Test
+    void setUserPassword_tooShort_throwsBadRequest() {
+        assertThrows(BadRequestException.class, () -> service.setUserPassword(5L, "short")); // < 8 ký tự
+    }
 }

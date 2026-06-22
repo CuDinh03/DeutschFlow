@@ -740,6 +740,26 @@ public class AdminManagementService {
     }
 
     /**
+     * Admin đặt lại mật khẩu cho bất kỳ user (vận hành nền tảng: gỡ default-cred / hỗ trợ user quên pass).
+     * Chỉ ADMIN (controller gác {@code hasRole('ADMIN')}). Tối thiểu 8 ký tự (khớp policy self-service).
+     */
+    @Transactional
+    public Map<String, Object> setUserPassword(Long userId, String rawPassword) {
+        if (rawPassword == null || rawPassword.length() < 8) {
+            throw new BadRequestException("Mật khẩu tối thiểu 8 ký tự.");
+        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+        user.setPasswordHash(passwordEncoder.encode(rawPassword));
+        userRepository.save(user);
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("id", user.getId());
+        out.put("email", user.getEmail());
+        out.put("displayName", user.getDisplayName());
+        return out;
+    }
+
+    /**
      * Admin override: cập nhật displayName / phoneNumber của bất kỳ user nào không cần OTP.
      */
     @Transactional

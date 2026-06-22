@@ -253,6 +253,26 @@ public class AdminManagementController {
         return updated;
     }
 
+    /** Admin đặt lại mật khẩu cho user (vận hành: gỡ default-cred / hỗ trợ quên pass). Chỉ ADMIN; audit (KHÔNG log mật khẩu). */
+    @PatchMapping("/users/{userId}/password")
+    public Map<String, Object> setUserPassword(
+            @PathVariable Long userId,
+            @Valid @RequestBody SetPasswordRequest req,
+            Authentication authentication
+    ) {
+        Map<String, Object> updated = adminManagementService.setUserPassword(userId, req.password());
+        auditLogService.log(
+                "admin.user.password.reset",
+                null,
+                actorEmail(authentication),
+                actorRole(authentication),
+                "USER",
+                String.valueOf(userId),
+                Map.of()
+        );
+        return updated;
+    }
+
     @GetMapping("/plans")
     public List<Map<String, Object>> plans() {
         return adminManagementService.listPlans();
@@ -932,6 +952,8 @@ public class AdminManagementController {
     ) {}
 
     public record SetActiveRequest(@NotNull(message = "active is required") Boolean active) {}
+
+    public record SetPasswordRequest(@NotBlank(message = "password is required") String password) {}
     public record UpdatePlanRequest(
             @NotBlank(message = "planCode is required") String planCode,
             Long monthlyTokenLimitOverride,
