@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -47,6 +48,9 @@ public class MaterialService {
     private static final String STATUS_ARCHIVED = "ARCHIVED";
     private static final String STORAGE_CATEGORY = "materials";
     private static final long MAX_FILE_SIZE = 20L * 1024 * 1024;
+    // Materials are private (not public-read on S3) → serve a short-lived presigned GET so the
+    // owner / ACTIVE org member can VIEW the file in-browser. Re-presigned on every list/read.
+    private static final Duration MATERIAL_URL_TTL = Duration.ofHours(1);
     private static final Set<String> ORG_ADMIN_ROLES = Set.of("OWNER", "MANAGER");
     /**
      * Content-types that a browser would execute/render inline. The uploaded content-type becomes
@@ -235,7 +239,9 @@ public class MaterialService {
     }
 
     private MaterialDto toDto(Material m) {
-        return MaterialDto.from(m, s3StorageService.publicUrl(m.getObjectKey()));
+        // Presigned GET (not a public URL): teaching materials are private — this lets the owner /
+        // ACTIVE org member VIEW the file in-browser without making the S3 object world-readable.
+        return MaterialDto.from(m, s3StorageService.presignedGetUrl(m.getObjectKey(), MATERIAL_URL_TTL));
     }
 
     private static String kindOf(MultipartFile file) {

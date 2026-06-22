@@ -9,9 +9,12 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
@@ -95,6 +98,27 @@ public class S3StorageService {
     /** Public URL for an existing object key (no upload). */
     public String publicUrl(String key) {
         return bucketContext.publicObjectUrl(key);
+    }
+
+    /**
+     * Presigned GET URL for privately viewing/downloading an existing object. Works even when the
+     * bucket/prefix is NOT public-read (e.g. teaching materials), and the link expires after
+     * {@code ttl}. The browser renders viewable types (PDF/images) inline via the object's stored
+     * Content-Type; other types download.
+     */
+    public String presignedGetUrl(String objectKey, Duration ttl) {
+        GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                .bucket(bucketContext.bucketName())
+                .key(objectKey)
+                .build();
+
+        GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                .signatureDuration(ttl)
+                .getObjectRequest(getObjectRequest)
+                .build();
+
+        PresignedGetObjectRequest presignedRequest = s3Presigner.presignGetObject(presignRequest);
+        return presignedRequest.url().toString();
     }
 
     public String generatePresignedUrl(String objectKey, String contentType) {
