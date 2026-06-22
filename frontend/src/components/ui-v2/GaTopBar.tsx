@@ -1,6 +1,9 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { GaIcon } from './GaIcon'
+import { TeacherPendingPill } from './TeacherPendingPill'
+import { NotificationBell } from './NotificationBell'
+import { LanguageToggle } from './LanguageToggle'
 import type { RoleId } from './nav'
 
 /**
@@ -49,19 +52,17 @@ export function GaTopBar({ role }: GaTopBarProps) {
           >
             {ROLE_CHIP.admin}
           </span>
+        ) : role === 'teacher' ? (
+          <TeacherPendingPill />
         ) : (
           <span className="whitespace-nowrap rounded-ga bg-ga-accent-soft px-3 py-[7px] text-[12.5px] font-semibold text-ga-accent">
             {ROLE_CHIP[role]}
           </span>
         )}
 
-        <Link
-          href={`/v2/notifications?from=${role}`}
-          aria-label="Thông báo"
-          className="grid h-[38px] w-[38px] place-items-center rounded-ga border border-ga-line text-ga-muted transition-colors hover:bg-ga-surface hover:text-ga-ink"
-        >
-          <GaIcon name="notifications" size={20} />
-        </Link>
+        <LanguageToggle />
+
+        <NotificationBell role={role} />
 
         <Link
           href={HELP_HREF[role]}

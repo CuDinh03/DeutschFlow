@@ -63,4 +63,32 @@ class AiGradeResultParserTest {
     void parsesStringScore() {
         assertThat(AiGradeResultParser.parseScore("{\"score\": \"88\", \"feedback\": \"OK\"}")).isEqualTo(88);
     }
+
+    @Test
+    @DisplayName("parses confidence (clamped) and returns null when absent")
+    void parsesConfidence() {
+        assertThat(AiGradeResultParser.parseConfidence("{\"score\":80,\"confidence\":92}")).isEqualTo(92);
+        assertThat(AiGradeResultParser.parseConfidence("{\"score\":80,\"confidence\":150}")).isEqualTo(100);
+        assertThat(AiGradeResultParser.parseConfidence("{\"score\":80}")).isNull();
+        assertThat(AiGradeResultParser.parseConfidence(null)).isNull();
+    }
+
+    @Test
+    @DisplayName("parses criteria map (clamped) and drops non-numeric entries")
+    void parsesCriteria() {
+        String content = "{\"score\":80,\"criteria\":{\"grammar\":85,\"vocabulary\":\"70\",\"content\":120,\"structure\":\"n/a\"}}";
+
+        var criteria = AiGradeResultParser.parseCriteria(content);
+
+        assertThat(criteria).containsEntry("grammar", 85).containsEntry("vocabulary", 70).containsEntry("content", 100);
+        assertThat(criteria).doesNotContainKey("structure");
+    }
+
+    @Test
+    @DisplayName("returns null criteria when absent or empty")
+    void returnsNullCriteria() {
+        assertThat(AiGradeResultParser.parseCriteria("{\"score\":80}")).isNull();
+        assertThat(AiGradeResultParser.parseCriteria("{\"score\":80,\"criteria\":{}}")).isNull();
+        assertThat(AiGradeResultParser.parseCriteria(null)).isNull();
+    }
 }

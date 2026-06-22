@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
 import { updateProfile } from '@/lib/profileApi'
@@ -14,9 +15,6 @@ const TABS = [
   { id: 'reviews', label: 'Đánh giá' },
 ] as const
 type TabId = (typeof TABS)[number]['id']
-
-const AVAIL_DAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
-const AVAIL_SLOTS = ['Sáng', 'Chiều', 'Tối']
 
 interface Me {
   displayName: string
@@ -41,10 +39,10 @@ export default function V2TeacherProfilePage() {
   const [tab, setTab] = useState<TabId>('info')
   const [edit, setEdit] = useState(false)
   const [saving, setSaving] = useState(false)
-  // form (info tab) + availability (client-side — no teacher-availability endpoint yet)
+  // form (info tab)
   const [name, setName] = useState('')
   const [locale, setLocale] = useState('vi')
-  const [avail, setAvail] = useState<Record<string, boolean>>({})
+  const router = useRouter()
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -78,8 +76,6 @@ export default function V2TeacherProfilePage() {
   useEffect(() => {
     void load()
   }, [load])
-
-  const openCount = useMemo(() => Object.values(avail).filter(Boolean).length, [avail])
 
   const onPrimary = async () => {
     if (!edit) {
@@ -207,50 +203,13 @@ export default function V2TeacherProfilePage() {
 
           {tab === 'avail' && (
             <div className="border border-ga-line bg-ga-card px-8 py-7">
-              <div className="mb-[18px] flex items-center justify-between">
-                <GaCap>Khung giờ nhận dạy 1:1</GaCap>
-                <span className="text-[13px] text-ga-muted">{openCount} khung đang mở</span>
-              </div>
-              <div className="grid gap-1.5" style={{ gridTemplateColumns: '70px repeat(7, minmax(0, 1fr))' }}>
-                <div />
-                {AVAIL_DAYS.map((d) => (
-                  <div key={d} className="pb-1 text-center text-[11.5px] font-bold text-ga-ink">
-                    {d}
-                  </div>
-                ))}
-                {AVAIL_SLOTS.map((slot, si) => (
-                  <div key={slot} className="contents">
-                    <div className="flex items-center text-[12px] font-semibold text-ga-muted">{slot}</div>
-                    {AVAIL_DAYS.map((_, di) => {
-                      const k = `${di}-${si}`
-                      const on = !!avail[k]
-                      return (
-                        <button
-                          key={k}
-                          type="button"
-                          onClick={() => setAvail((a) => ({ ...a, [k]: !a[k] }))}
-                          className="h-[46px] border text-[13px] font-bold transition-colors"
-                          style={{
-                            borderColor: on ? VIOLET : 'var(--ga-line)',
-                            background: on ? 'var(--ga-violet-soft)' : 'transparent',
-                            color: on ? VIOLET : 'var(--ga-faint)',
-                          }}
-                        >
-                          {on ? '✓' : ''}
-                        </button>
-                      )
-                    })}
-                  </div>
-                ))}
-              </div>
-              <div className="mt-[18px] flex gap-2.5">
-                <GaBtn variant="yellow" onClick={() => toast('Lưu lịch rảnh (sắp ra mắt — chờ backend availability)')}>
-                  Lưu lịch
-                </GaBtn>
-                <GaBtn variant="ghost" onClick={() => setAvail({})}>
-                  Xoá hết
-                </GaBtn>
-              </div>
+              <GaCap className="mb-3 block">Khung giờ nhận dạy 1:1</GaCap>
+              <p className="ga-ui mb-5 max-w-md text-[13.5px] text-ga-subtle">
+                Quản lý khung giờ rảnh hằng tuần ở trang Lịch dạy — học viên đặt buổi 1:1 trong các khung này.
+              </p>
+              <GaBtn variant="yellow" onClick={() => router.push('/v2/teacher/schedule')}>
+                Mở trang Lịch dạy →
+              </GaBtn>
             </div>
           )}
 

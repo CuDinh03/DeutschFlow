@@ -382,17 +382,25 @@ public class TeacherService {
         List<UserLearningProfile> profiles = profileRepository.findByUserIdIn(studentIds);
         Map<Long, UserLearningProfile> profileMap = profiles.stream()
                 .collect(Collectors.toMap(p -> p.getUser().getId(), p -> p));
+        Map<Long, ClassStudent> evalMap = students.stream()
+                .collect(Collectors.toMap(s -> s.getId().getStudentId(), s -> s, (a, b) -> a));
 
         return users.stream().map(user -> {
             UserLearningProfile profile = profileMap.get(user.getId());
             XpSummaryDto xpSummary = xpService.getSummary(user.getId());
+            ClassStudent cs = evalMap.get(user.getId());
             return new ClassStudentDto(
                     user.getId(),
                     user.getDisplayName(),
                     user.getEmail(),
                     xpSummary.totalXp(),
                     xpSummary.level(), // Using streakDays field for level in DTO for now
-                    profile != null && profile.getTargetLevel() != null ? profile.getTargetLevel().name() : "N/A"
+                    profile != null && profile.getTargetLevel() != null ? profile.getTargetLevel().name() : "N/A",
+                    cs != null ? cs.getSkillHoren() : null,
+                    cs != null ? cs.getSkillLesen() : null,
+                    cs != null ? cs.getSkillSchreiben() : null,
+                    cs != null ? cs.getSkillSprechen() : null,
+                    cs != null ? cs.getEvaluatedAt() : null
             );
         }).collect(Collectors.toList());
     }

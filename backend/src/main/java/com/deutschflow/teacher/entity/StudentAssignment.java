@@ -2,8 +2,11 @@ package com.deutschflow.teacher.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Entity
 @Table(name = "student_assignments")
@@ -32,6 +35,15 @@ public class StudentAssignment {
 
     @Column(columnDefinition = "TEXT")
     private String feedback;
+
+    /** AI per-criterion sub-scores, e.g. {"grammar":85,"vocabulary":78,"content":90} (0–100). */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "criteria_json", columnDefinition = "jsonb")
+    private Map<String, Integer> criteria;
+
+    /** AI self-confidence (0–100) in its own auto-score; null when the model didn't report one. */
+    @Column(name = "ai_confidence")
+    private Integer aiConfidence;
 
     @Column(name = "submitted_at")
     private LocalDateTime submittedAt;

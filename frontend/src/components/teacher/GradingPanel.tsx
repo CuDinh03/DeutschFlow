@@ -14,12 +14,19 @@ interface GradingPanelProps {
   onSaved: (updatedItem: GradingQueueItem) => void
 }
 
+const CRITERIA_LABEL: Record<string, string> = {
+  grammar: 'Ngữ pháp', vocabulary: 'Từ vựng', content: 'Nội dung', structure: 'Bố cục',
+  pronunciation: 'Phát âm', fluency: 'Trôi chảy', coherence: 'Mạch lạc', task: 'Hoàn thành đề',
+}
+
 export function GradingPanel({ item, onClose, onSaved }: GradingPanelProps) {
   const [score, setScore] = useState<number | ''>('')
   const [feedback, setFeedback] = useState('')
   const [saving, setSaving] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
   const [aiSuggested, setAiSuggested] = useState(false)
+  const [aiConfidence, setAiConfidence] = useState<number | null>(null)
+  const [criteria, setCriteria] = useState<Record<string, number> | null>(null)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const { trackEvent } = useTracking()
@@ -30,6 +37,8 @@ export function GradingPanel({ item, onClose, onSaved }: GradingPanelProps) {
       setScore(item.score ?? '')
       setFeedback(item.feedback ?? '')
       setAiSuggested(false)
+      setAiConfidence(null)
+      setCriteria(null)
       setError('')
       setSuccess('')
     }
@@ -68,6 +77,8 @@ export function GradingPanel({ item, onClose, onSaved }: GradingPanelProps) {
           status: string
           score: number | null
           feedback: string | null
+          aiConfidence: number | null
+          criteria: Record<string, number> | null
         }>
         const row = rows.find(r => r.submissionId === current.id)
         if (!row) continue
@@ -80,6 +91,8 @@ export function GradingPanel({ item, onClose, onSaved }: GradingPanelProps) {
         if ((row.status === 'GRADED' || row.status === 'EVALUATED') && row.score !== null) {
           setScore(row.score)
           setFeedback(row.feedback ?? '')
+          setAiConfidence(row.aiConfidence ?? null)
+          setCriteria(row.criteria ?? null)
           setAiSuggested(true)
           trackEvent(B2B_EVENT.ASSIGNMENT_AI_GRADED, {
             assignment_id: current.id,
@@ -259,6 +272,39 @@ export function GradingPanel({ item, onClose, onSaved }: GradingPanelProps) {
                 <p className="mt-2 text-xs text-purple-700 font-medium flex items-center gap-1">
                   <CheckCircle2 size={13} /> AI đã đề xuất điểm — bạn có thể chỉnh sửa trước khi lưu
                 </p>
+              )}
+            </div>
+          )}
+
+          {/* AI per-criterion assessment + confidence (populated after AI grading) */}
+          {(criteria || aiConfidence != null) && (
+            <div className="bg-white border border-slate-200 rounded-2xl p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-bold text-slate-700 text-sm flex items-center gap-1.5">
+                  <Sparkles size={14} className="text-purple-600" /> AI đánh giá theo tiêu chí
+                </h4>
+                {aiConfidence != null && (
+                  <span className="text-xs font-bold px-2 py-1 rounded-full bg-purple-50 text-purple-700">
+                    Độ tự tin {aiConfidence}%
+                  </span>
+                )}
+              </div>
+              {criteria ? (
+                <div className="space-y-2.5">
+                  {Object.entries(criteria).map(([k, v]) => (
+                    <div key={k}>
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <span className="text-slate-600">{CRITERIA_LABEL[k] ?? k}</span>
+                        <span className="font-bold text-slate-700">{v}/100</span>
+                      </div>
+                      <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full" style={{ width: `${Math.min(100, Math.max(0, v))}%`, background: v >= 50 ? '#7c3aed' : '#f59e0b' }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400">AI không trả về chi tiết tiêu chí cho bài này.</p>
               )}
             </div>
           )}

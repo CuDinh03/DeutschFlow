@@ -3,6 +3,8 @@ package com.deutschflow.teacher.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -65,6 +67,43 @@ final class AiGradeResultParser {
             if (!fb.isBlank()) return fb;
         }
         return NO_FEEDBACK;
+    }
+
+    /** @return the AI self-confidence (0–100) from {@code "confidence"}, or {@code null} when absent. */
+    static Integer parseConfidence(String content) {
+        if (content == null) return null;
+        JsonNode obj = tryParseObject(content);
+        if (obj == null) return null;
+        return readScoreNode(obj.get("confidence"));
+    }
+
+    /**
+     * @return the {@code "criteria"} object as a sanitized {@code {dimension: 0–100}} map (non-numeric
+     * entries dropped, values clamped), or {@code null} when no usable criteria are present.
+     */
+    static Map<String, Integer> parseCriteria(String content) {
+        if (content == null) return null;
+        JsonNode obj = tryParseObject(content);
+        if (obj == null) return null;
+        JsonNode crit = obj.get("criteria");
+        if (crit == null || !crit.isObject() || crit.isEmpty()) return null;
+        Map<String, Integer> out = new LinkedHashMap<>();
+        crit.fields().forEachRemaining(e -> {
+            Integer v = readScoreNode(e.getValue());
+            if (v != null) out.put(e.getKey(), v);
+        });
+        return out.isEmpty() ? null : out;
+    }
+
+    /** Reads a numeric (or numeric-textual) node as a clamped 0–100 score, or null. */
+    private static Integer readScoreNode(JsonNode node) {
+        if (node == null) return null;
+        if (node.isNumber()) return clampScore(node.asInt());
+        if (node.isTextual()) {
+            Matcher d = DIGITS.matcher(node.asText());
+            if (d.find()) return clampScore(Integer.parseInt(d.group(1)));
+        }
+        return null;
     }
 
     static int clampScore(int raw) {

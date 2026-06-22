@@ -3,6 +3,8 @@ package com.deutschflow.teacher.entity;
 import com.deutschflow.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 
@@ -43,6 +45,11 @@ public class TeacherProfile {
     @Column(name = "max_students_per_week")
     @Builder.Default
     private int maxStudentsPerWeek = 10;
+
+    /** Weekly-recurring availability ("Lịch dạy") as JSON: [{ "day":0-6, "start":"HH:mm", "end":"HH:mm" }]. */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "available_slots_json", columnDefinition = "jsonb")
+    private String availableSlotsJson;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
