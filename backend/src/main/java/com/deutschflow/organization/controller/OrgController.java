@@ -2,6 +2,7 @@ package com.deutschflow.organization.controller;
 
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ForbiddenException;
+import com.deutschflow.organization.dto.CreateTeacherRequest;
 import com.deutschflow.organization.dto.InviteTeacherRequest;
 import com.deutschflow.organization.dto.OrgAnalyticsDto;
 import com.deutschflow.organization.dto.OrgClassDetailDto;
@@ -12,6 +13,7 @@ import com.deutschflow.organization.dto.OrgMemberDto;
 import com.deutschflow.organization.dto.OrgStudentDetailDto;
 import com.deutschflow.organization.dto.OrgSummaryDto;
 import com.deutschflow.organization.dto.RosterImportResultDto;
+import com.deutschflow.organization.entity.OrgMember;
 import com.deutschflow.organization.service.OrgAnalyticsService;
 import com.deutschflow.organization.service.OrgBillingService;
 import com.deutschflow.organization.service.OrgEntitlementService;
@@ -90,6 +92,24 @@ public class OrgController {
         Long orgId = requireOrgId(user);
         orgGuard.assertOrgAdmin(user.getId(), orgId);
         return orgInvitationService.inviteTeacher(user.getId(), orgId, body.email());
+    }
+
+    /**
+     * Org-admin (OWNER/MANAGER) PRE-CREATE giáo viên trực tiếp (B2B model §2.1, Phase 1 NOW).
+     * created_via = org-role người tạo (OWNER/MANAGER). MANAGER chỉ tạo TEACHER (endpoint chỉ sinh
+     * TEACHER → không tạo được MANAGER). Danh tính portable: rời TT chỉ đóng membership, account sống.
+     */
+    @PostMapping("/teachers")
+    public OrgMemberDto createTeacher(@AuthenticationPrincipal User user,
+                                      @jakarta.validation.Valid @RequestBody CreateTeacherRequest body) {
+        Long orgId = requireOrgId(user);
+        OrgMember caller = orgGuard.assertMember(user.getId(), orgId);
+        String callerRole = caller.getRole();
+        if (!"OWNER".equals(callerRole) && !"MANAGER".equals(callerRole)) {
+            throw new ForbiddenException("Chỉ chủ sở hữu hoặc quản lý mới tạo được giáo viên");
+        }
+        User.CreatedVia via = "OWNER".equals(callerRole) ? User.CreatedVia.OWNER : User.CreatedVia.MANAGER;
+        return orgInvitationService.preCreateTeacher(orgId, body.email(), body.displayName(), body.password(), via);
     }
 
     @GetMapping("/invitations")

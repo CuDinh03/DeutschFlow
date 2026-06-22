@@ -7,6 +7,7 @@ import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.organization.dto.AcceptInviteRequest;
 import com.deutschflow.organization.dto.InvitationPreviewDto;
 import com.deutschflow.organization.dto.OrgInvitationDto;
+import com.deutschflow.organization.dto.OrgMemberDto;
 import com.deutschflow.organization.entity.OrgInvitation;
 import com.deutschflow.organization.entity.OrgMember;
 import com.deutschflow.organization.entity.Organization;
@@ -182,6 +183,41 @@ public class OrgInvitationService {
         // Re-load so the issued JWT carries the freshly-set orgId.
         User refreshed = userRepository.findById(user.getId()).orElse(user);
         return authService.issueSession(refreshed);
+    }
+
+    /**
+     * Org-admin pre-create giáo viên (B2B model §2.1, Phase 1 NOW) — TẠO THẲNG account TEACHER +
+     * membership, KHÔNG qua invite. {@code createdVia} = org-role người tạo (OWNER/MANAGER).
+     * Danh tính person-owned &amp; portable: rời TT chỉ đóng membership, account vẫn sống.
+     */
+    @Transactional
+    public OrgMemberDto preCreateTeacher(Long orgId, String email, String displayName,
+                                         String rawPassword, User.CreatedVia createdVia) {
+        String normEmail = normalizeEmail(email);
+        if (normEmail.isBlank()) {
+            throw new BadRequestException("Email không được để trống.");
+        }
+        if (displayName == null || displayName.isBlank()) {
+            throw new BadRequestException("Tên hiển thị không được để trống.");
+        }
+        if (rawPassword == null || rawPassword.length() < 6) {
+            throw new BadRequestException("Mật khẩu tối thiểu 6 ký tự.");
+        }
+        if (userRepository.existsByEmail(normEmail)) {
+            throw new ConflictException("Email này đã có tài khoản.");
+        }
+        User teacher = userRepository.save(User.builder()
+                .email(normEmail)
+                .passwordHash(passwordEncoder.encode(rawPassword))
+                .displayName(displayName.trim())
+                .role(User.Role.TEACHER)
+                .createdVia(createdVia)
+                .build());
+        membershipService.upsertMember(orgId, teacher.getId(), "TEACHER");
+        log.info("[Org] Pre-created TEACHER userId={} (email={}) cho org {} (createdVia={})",
+                teacher.getId(), normEmail, orgId, createdVia);
+        return new OrgMemberDto(teacher.getId(), teacher.getEmail(), teacher.getDisplayName(),
+                "TEACHER", "ACTIVE", Instant.now());
     }
 
     /** Creates a new TEACHER user for an invite to an email with no existing account. */

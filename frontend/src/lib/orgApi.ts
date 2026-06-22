@@ -229,6 +229,19 @@ export async function inviteTeacher(email: string): Promise<OrgInvitation> {
   return res.data
 }
 
+/**
+ * POST /org/teachers — org-admin (OWNER/MANAGER) PRE-CREATE a teacher account (B2B model §2.1).
+ * Tạo thẳng account TEACHER + membership; danh tính portable (rời TT account vẫn sống).
+ */
+export async function createOrgTeacher(body: {
+  email: string
+  displayName: string
+  password: string
+}): Promise<OrgMember> {
+  const res = await api.post<OrgMember>('/org/teachers', body)
+  return res.data
+}
+
 /** GET /org/invitations — pending invitations for the org. */
 export async function listInvitations(): Promise<OrgInvitation[]> {
   const res = await api.get<OrgInvitation[]>('/org/invitations')

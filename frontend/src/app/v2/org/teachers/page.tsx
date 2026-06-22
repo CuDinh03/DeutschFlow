@@ -7,6 +7,7 @@ import { format } from 'date-fns'
 import { apiMessage } from '@/lib/api'
 import { listMembers, listInvitations, revokeInvitation, type OrgMember, type OrgInvitation } from '@/lib/orgApi'
 import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
+import { CreateTeacherModal } from './CreateTeacherModal'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Giáo viên của tổ chức (GaOrgTeachers) — teal, card grid.
@@ -28,6 +29,7 @@ export default function V2OrgTeachersPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState<number | null>(null)
+  const [showCreate, setShowCreate] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -65,8 +67,8 @@ export default function V2OrgTeachersPage() {
         title="Giáo viên của tổ chức"
         subtitle="Quản lý giáo viên, phân công lớp và lời mời"
         right={
-          <GaBtn variant="yellow" size="sm" onClick={() => toast('Mời giáo viên (sắp ra mắt)')}>
-            <UserPlus size={15} /> Mời giáo viên
+          <GaBtn variant="yellow" size="sm" onClick={() => setShowCreate(true)}>
+            <UserPlus size={15} /> Thêm giáo viên
           </GaBtn>
         }
       />
@@ -134,6 +136,10 @@ export default function V2OrgTeachersPage() {
           </>
         )}
       </div>
+
+      {showCreate && (
+        <CreateTeacherModal onClose={() => setShowCreate(false)} onCreated={() => void load()} />
+      )}
     </div>
   )
 }
