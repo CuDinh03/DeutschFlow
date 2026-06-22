@@ -350,7 +350,7 @@ export default function V2ClassDetailPage() {
                       <SkillBars s={s} />
                       <button
                         type="button"
-                        onClick={() => toast('Báo cáo học viên (sắp ra mắt)')}
+                        onClick={() => router.push(`/v2/teacher/classes/${id}/students/${s.studentId}?name=${encodeURIComponent(s.displayName)}`)}
                         className="ga-ui justify-self-end border border-ga-line px-2.5 py-1.5 text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent"
                       >
                         Chi tiết
