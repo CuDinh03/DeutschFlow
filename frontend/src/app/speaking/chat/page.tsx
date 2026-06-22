@@ -76,6 +76,7 @@ export default function AIChatInterface() {
     setPendingRepairGate,
     setInterviewReportJson,
     clearChat,
+    returnPath,
   } = useChatStore();
 
   const [inputText, setInputText] = useState("");
@@ -410,7 +411,7 @@ export default function AIChatInterface() {
             onReviewErrors={async (errors) => {
               await importReviewErrors(errors);
               clearChat();
-              router.push("/student/review");
+              router.push(returnPath?.startsWith("/v2/student") ? "/v2/student/review" : "/student/review");
             }}
             onViewHistory={() => {
               clearChat();
@@ -422,7 +423,7 @@ export default function AIChatInterface() {
             }}
             onExit={() => {
               clearChat();
-              router.push("/");
+              router.push(returnPath || "/");
             }}
           />
         </div>

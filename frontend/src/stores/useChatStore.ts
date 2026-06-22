@@ -56,6 +56,15 @@ interface ChatState {
   sessionTopic: string | null;
   setSessionTopic: (topic: string | null) => void;
 
+  /**
+   * Route to return to when the user exits the speaking flow (back / exit / summary).
+   * Set from the `?return=` param when entered from a v2 surface so the legacy
+   * conversation engine sends the user back into v2 instead of the old dashboard.
+   * Intentionally NOT reset by clearChat so it survives session setup and restarts.
+   */
+  returnPath: string | null;
+  setReturnPath: (path: string | null) => void;
+
   adaptiveMeta: AdaptiveMeta | null;
   setAdaptiveMeta: (meta: AdaptiveMeta | null) => void;
 
@@ -108,6 +117,9 @@ export const useChatStore = create<ChatState>((set) => ({
 
   sessionTopic: null,
   setSessionTopic: (topic) => set({ sessionTopic: topic }),
+
+  returnPath: null,
+  setReturnPath: (path) => set({ returnPath: path }),
 
   adaptiveMeta: null,
   setAdaptiveMeta: (meta) => set({ adaptiveMeta: meta }),
