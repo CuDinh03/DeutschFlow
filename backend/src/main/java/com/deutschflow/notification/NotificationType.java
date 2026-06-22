@@ -52,5 +52,10 @@ public enum NotificationType {
     /** Admin broadcast: a message sent to a targeted audience (all, tier, role, or single user). */
     ADMIN_BROADCAST,
     /** Teacher announcement: a message sent by a teacher to all students in a class. */
-    TEACHER_ANNOUNCEMENT
+    TEACHER_ANNOUNCEMENT,
+
+    // ── Direct messaging (student ↔ teacher 1-1 chat) ───────────────────
+
+    /** A new direct message was received. Recipient: the other party in the 1-1 thread. */
+    NEW_MESSAGE
 }
