@@ -67,11 +67,17 @@ Phần còn lại nhỏ hơn nhiều so với lo ngại ban đầu.
 - **✅ #143 đã làm (không lặp):** P0-2 ACCOUNTANT đã drop · ADMIN→MANAGER · BE endpoint đổi org-role.
 
 ### A5 🔴 Deploy #2 (batch BE) + đóng web
-- [ ] 👤 Cửa sổ SSH thứ 2 (cuối tuần) cho batch BE: orgs-DTO (A3) + OrgRole enum (A4 P0-3) + APNs nếu kịp
-- [ ] 🤖 `deploy-backend.sh` lần 2 → verify health + endpoint mới
+- [ ] 👤 Cửa sổ SSH thứ 2 (cuối tuần) cho batch BE = **[#145](https://github.com/CuDinh03/DeutschFlow/pull/145)** (orgs-DTO + OrgRole enum P0-3 + P1-2 + P1-4, **V không mới**) + **[#146](https://github.com/CuDinh03/DeutschFlow/pull/146)** (messaging, **V228**) — merge cả 2 trước rồi deploy.
+- [ ] 🤖 `deploy-backend.sh` lần 2 → verify health + V228 applied + endpoint mới (org assign-teacher · messages)
 - [ ] 🤖 Smoke 4 vai lần cuối → **WEB = DEPLOY-COMPLETE** ✅
 
 > **Hoãn có chủ đích (KHÔNG làm tuần này):** W2.5 swap `/v2`→canonical + W2.6 gỡ legacy/V2Gate — *destructive, cần duyệt riêng, chỉ làm sau khi 100% ổn định nhiều ngày*. Backlog BE→FE coverage (gradebook, comprehensive-report, co-teaching, bulk-assign…) — ngoài phạm vi "deploy", để đợt sau.
+
+### A6 🟡 Student↔Teacher messaging (thêm 06-22 theo yêu cầu "student tương tác giáo viên")
+> 6 kênh tương tác đã chạy (vào lớp · giao/nộp/chấm bài · feedback · buổi 1-1 · thông báo); chỉ thiếu **chat trực tiếp**.
+- [x] 🤖 **BE foundation** ✅ **[#146](https://github.com/CuDinh03/DeutschFlow/pull/146)** — V228 `messages` + Message/repo/service/controller; authz = cùng-lớp teacher↔student (re-check DB); send→noti `NEW_MESSAGE`. 5 tests (gồm no-share→403). 5 endpoint `/api/messages/*`.
+- [ ] 🤖 **FE chat (phase tiếp)** — `messagesApi` + màn `/v2/student/messages` + `/v2/teacher/messages` (list hội thoại + thread + gửi) + entry "Nhắn tin" (class-detail/tutor/roster) + render `NEW_MESSAGE` ở chuông + badge unread ở nav.
+- Cần backend deploy (V228) trước khi FE verify được.
 
 ---
 
