@@ -117,6 +117,12 @@ export const orgNav: RoleNav = {
         { id: 'org-roles', label: 'Phân quyền', href: '/v2/org/roles', icon: 'admin_panel_settings' },
       ],
     },
+    {
+      label: 'Tài khoản',
+      items: [
+        { id: 'org-profile', label: 'Hồ sơ', href: '/v2/profile', icon: 'person' },
+      ],
+    },
   ],
 }
 
