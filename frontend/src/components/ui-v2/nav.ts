@@ -38,7 +38,7 @@ export const teacherNav: RoleNav = {
       label: 'Quản lý lớp',
       items: [
         { id: 'teacher', label: 'Dashboard & Lớp học', href: '/v2/teacher', icon: 'dashboard' },
-        // TODO(PROMPT 4): { id: 'schedule', label: 'Lịch dạy', href: '/v2/teacher/schedule', icon: 'schedule' },
+        { id: 'schedule', label: 'Lịch dạy', href: '/v2/teacher/schedule', icon: 'schedule' },
         { id: 'tc-progress', label: 'Tiến độ khóa học', href: '/v2/teacher/tc-progress', icon: 'trending_up' },
         { id: 'tc-checklist', label: 'Checklist khóa học', href: '/v2/teacher/tc-checklist', icon: 'checklist' },
         { id: 'grading', label: 'Trung tâm Chấm bài', href: '/v2/teacher/grading', icon: 'grading' },
