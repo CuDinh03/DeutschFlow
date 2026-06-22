@@ -39,7 +39,10 @@ export const teacherNav: RoleNav = {
       ],
     },
     { label: 'Thống kê', items: [{ id: 'analytics', label: 'Phân tích', href: '/v2/teacher/analytics', icon: 'monitoring' }] },
-    { label: 'Thông báo', items: [{ id: 'notifications', label: 'Thông báo', href: '/v2/notifications', icon: 'notifications' }] },
+    { label: 'Thông báo', items: [
+      { id: 'tc-messages', label: 'Tin nhắn', href: '/v2/teacher/messages', icon: 'chat' },
+      { id: 'notifications', label: 'Thông báo', href: '/v2/notifications', icon: 'notifications' },
+    ] },
     {
       label: 'Công cụ AI',
       items: [
@@ -142,6 +145,7 @@ export const studentNav: RoleNav = {
         { id: 'my-classes', label: 'Lớp của tôi', href: '/v2/student/classes', icon: 'groups' },
         { id: 'st-progress', label: 'Tiến độ', href: '/v2/student/progress', icon: 'checklist' },
         { id: 'book-session', label: 'Gia sư 1:1', href: '/v2/student/tutor', icon: 'co_present' },
+        { id: 'st-messages', label: 'Tin nhắn', href: '/v2/student/messages', icon: 'chat' },
       ],
     },
     {

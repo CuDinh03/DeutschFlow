@@ -98,7 +98,17 @@ export default function V2ClassStudentPage() {
         right={
           <div className="flex gap-2.5">
             <GaBtn variant="ghost" size="sm" onClick={() => router.push('/v2/student/classes')}><ArrowLeft size={14} /> Lớp của tôi</GaBtn>
-            <GaBtn variant="yellow" size="sm" onClick={() => toast('Nhắn tin với giáo viên (sắp ra mắt)')}><MessageSquare size={14} /> Nhắn giáo viên</GaBtn>
+            <GaBtn
+              variant="yellow"
+              size="sm"
+              onClick={() => {
+                const t = cls?.teachers[0]
+                if (t) router.push(`/v2/student/messages?to=${t.id}&name=${encodeURIComponent(t.displayName)}`)
+                else toast('Lớp chưa có giáo viên để nhắn.')
+              }}
+            >
+              <MessageSquare size={14} /> Nhắn giáo viên
+            </GaBtn>
           </div>
         }
       />
