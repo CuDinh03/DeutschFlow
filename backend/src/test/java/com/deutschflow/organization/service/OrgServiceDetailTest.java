@@ -1,5 +1,7 @@
 package com.deutschflow.organization.service;
 
+import com.deutschflow.common.exception.BadRequestException;
+import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.organization.dto.OrgClassDetailDto;
 import com.deutschflow.organization.dto.OrgSeatUsageDto;
@@ -11,8 +13,11 @@ import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.organization.repository.OrganizationRepository;
 import com.deutschflow.teacher.entity.ClassStudent;
 import com.deutschflow.teacher.entity.ClassStudentId;
+import com.deutschflow.teacher.entity.ClassTeacher;
+import com.deutschflow.teacher.entity.ClassTeacherId;
 import com.deutschflow.teacher.entity.TeacherClass;
 import com.deutschflow.teacher.repository.ClassStudentRepository;
+import com.deutschflow.teacher.repository.ClassTeacherRepository;
 import com.deutschflow.teacher.repository.TeacherClassRepository;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
@@ -31,6 +36,11 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.mockito.ArgumentCaptor;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -49,13 +59,14 @@ class OrgServiceDetailTest {
     @Mock private TeacherClassRepository teacherClassRepository;
     @Mock private UserRepository userRepository;
     @Mock private ClassStudentRepository classStudentRepository;
+    @Mock private ClassTeacherRepository classTeacherRepository;
 
     private OrgService orgService;
 
     @BeforeEach
     void setUp() {
         orgService = new OrgService(membershipService, memberRepo, organizationRepository,
-                teacherClassRepository, userRepository, classStudentRepository);
+                teacherClassRepository, userRepository, classStudentRepository, classTeacherRepository);
     }
 
     private static User user(long id, String email, String name) {
@@ -169,5 +180,101 @@ class OrgServiceDetailTest {
 
         assertThat(dto.remaining()).isNull();
         assertThat(dto.used()).isEqualTo(5L);
+    }
+
+    // ----------------------------------------------------------- P1-4 teacher ↔ class assignment
+
+    private OrgMember orgMember(long userId, String role, String status) {
+        OrgMemberId mid = new OrgMemberId();
+        mid.setOrgId(ORG_ID);
+        mid.setUserId(userId);
+        return OrgMember.builder().id(mid).role(role).status(status).joinedAt(Instant.now()).build();
+    }
+
+    @Test
+    @DisplayName("assignTeacherToClass: lớp thuộc org + GV là member ACTIVE → lưu ClassTeacher ASSISTANT")
+    void assignTeacher_valid_savesAssistant() {
+        when(teacherClassRepository.findById(1L))
+                .thenReturn(Optional.of(TeacherClass.builder().id(1L).orgId(ORG_ID).build()));
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, 5L)).thenReturn(Optional.of(orgMember(5L, "TEACHER", "ACTIVE")));
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(1L, 5L)).thenReturn(false);
+
+        orgService.assignTeacherToClass(ORG_ID, 1L, 5L);
+
+        ArgumentCaptor<ClassTeacher> cap = ArgumentCaptor.forClass(ClassTeacher.class);
+        verify(classTeacherRepository).save(cap.capture());
+        assertThat(cap.getValue().getRole()).isEqualTo("ASSISTANT");
+        assertThat(cap.getValue().getId().getClassId()).isEqualTo(1L);
+        assertThat(cap.getValue().getId().getTeacherId()).isEqualTo(5L);
+    }
+
+    @Test
+    @DisplayName("assignTeacherToClass: lớp thuộc org khác → NotFound (chống IDOR), không lưu")
+    void assignTeacher_classAnotherOrg_throws() {
+        when(teacherClassRepository.findById(1L))
+                .thenReturn(Optional.of(TeacherClass.builder().id(1L).orgId(99L).build()));
+
+        assertThatThrownBy(() -> orgService.assignTeacherToClass(ORG_ID, 1L, 5L))
+                .isInstanceOf(NotFoundException.class);
+        verify(classTeacherRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("assignTeacherToClass: target không phải member ACTIVE → BadRequest")
+    void assignTeacher_notMember_throws() {
+        when(teacherClassRepository.findById(1L))
+                .thenReturn(Optional.of(TeacherClass.builder().id(1L).orgId(ORG_ID).build()));
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, 5L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> orgService.assignTeacherToClass(ORG_ID, 1L, 5L))
+                .isInstanceOf(BadRequestException.class);
+    }
+
+    @Test
+    @DisplayName("assignTeacherToClass: target là STUDENT → BadRequest (chỉ TEACHER/MANAGER)")
+    void assignTeacher_studentRole_throws() {
+        when(teacherClassRepository.findById(1L))
+                .thenReturn(Optional.of(TeacherClass.builder().id(1L).orgId(ORG_ID).build()));
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, 5L)).thenReturn(Optional.of(orgMember(5L, "STUDENT", "ACTIVE")));
+
+        assertThatThrownBy(() -> orgService.assignTeacherToClass(ORG_ID, 1L, 5L))
+                .isInstanceOf(BadRequestException.class);
+    }
+
+    @Test
+    @DisplayName("assignTeacherToClass: đã phân công → Conflict")
+    void assignTeacher_duplicate_throws() {
+        when(teacherClassRepository.findById(1L))
+                .thenReturn(Optional.of(TeacherClass.builder().id(1L).orgId(ORG_ID).build()));
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, 5L)).thenReturn(Optional.of(orgMember(5L, "MANAGER", "ACTIVE")));
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(1L, 5L)).thenReturn(true);
+
+        assertThatThrownBy(() -> orgService.assignTeacherToClass(ORG_ID, 1L, 5L))
+                .isInstanceOf(ConflictException.class);
+    }
+
+    @Test
+    @DisplayName("unassignTeacherFromClass: PRIMARY → BadRequest (không gỡ GV chính)")
+    void unassignTeacher_primary_throws() {
+        when(teacherClassRepository.findById(1L))
+                .thenReturn(Optional.of(TeacherClass.builder().id(1L).orgId(ORG_ID).build()));
+        when(classTeacherRepository.findById(new ClassTeacherId(1L, 5L)))
+                .thenReturn(Optional.of(ClassTeacher.builder().id(new ClassTeacherId(1L, 5L)).role("PRIMARY").build()));
+
+        assertThatThrownBy(() -> orgService.unassignTeacherFromClass(ORG_ID, 1L, 5L))
+                .isInstanceOf(BadRequestException.class);
+    }
+
+    @Test
+    @DisplayName("unassignTeacherFromClass: ASSISTANT → xóa link")
+    void unassignTeacher_assistant_deletes() {
+        when(teacherClassRepository.findById(1L))
+                .thenReturn(Optional.of(TeacherClass.builder().id(1L).orgId(ORG_ID).build()));
+        ClassTeacher ct = ClassTeacher.builder().id(new ClassTeacherId(1L, 5L)).role("ASSISTANT").build();
+        when(classTeacherRepository.findById(new ClassTeacherId(1L, 5L))).thenReturn(Optional.of(ct));
+
+        orgService.unassignTeacherFromClass(ORG_ID, 1L, 5L);
+
+        verify(classTeacherRepository).delete(ct);
     }
 }

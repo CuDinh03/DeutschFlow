@@ -2,6 +2,7 @@ package com.deutschflow.organization.controller;
 
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ForbiddenException;
+import com.deutschflow.organization.dto.AssignClassTeacherRequest;
 import com.deutschflow.organization.dto.InviteTeacherRequest;
 import com.deutschflow.organization.dto.OrgAnalyticsDto;
 import com.deutschflow.organization.dto.OrgClassDetailDto;
@@ -156,6 +157,33 @@ public class OrgController {
         Long orgId = requireOrgId(user);
         orgGuard.assertOrgAdmin(user.getId(), orgId);
         return orgService.getClassDetail(orgId, id);
+    }
+
+    /** Org-admin phân công một giáo viên (org member) vào lớp làm co-teacher (P1-4). */
+    @PostMapping("/classes/{classId}/teachers")
+    public void assignTeacher(@AuthenticationPrincipal User user, @PathVariable Long classId,
+                              @jakarta.validation.Valid @RequestBody AssignClassTeacherRequest body) {
+        Long orgId = requireOrgId(user);
+        orgGuard.assertOrgAdmin(user.getId(), orgId);
+        orgService.assignTeacherToClass(orgId, classId, body.userId());
+    }
+
+    /** Org-admin gỡ co-teacher khỏi lớp (không gỡ được giáo viên chính). */
+    @DeleteMapping("/classes/{classId}/teachers/{userId}")
+    @ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT)
+    public void unassignTeacher(@AuthenticationPrincipal User user, @PathVariable Long classId,
+                                @PathVariable Long userId) {
+        Long orgId = requireOrgId(user);
+        orgGuard.assertOrgAdmin(user.getId(), orgId);
+        orgService.unassignTeacherFromClass(orgId, classId, userId);
+    }
+
+    /** Các lớp (trong org) mà một giáo viên đang được phân công — cho modal "Phân công". */
+    @GetMapping("/members/{userId}/classes")
+    public List<Long> listTeacherClasses(@AuthenticationPrincipal User user, @PathVariable Long userId) {
+        Long orgId = requireOrgId(user);
+        orgGuard.assertOrgAdmin(user.getId(), orgId);
+        return orgService.listTeacherClassIds(orgId, userId);
     }
 
     /**

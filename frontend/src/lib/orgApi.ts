@@ -276,6 +276,24 @@ export async function getOrgStudentDetail(id: number): Promise<OrgStudentDetail>
   return res.data
 }
 
+// ── Teacher ↔ class assignment (org-admin, P1-4) ─────────────────────────────
+
+/** GET /org/members/{userId}/classes — class IDs (in org) the teacher is assigned to. */
+export async function listTeacherClassIds(userId: number): Promise<number[]> {
+  const res = await api.get<number[]>(`/org/members/${userId}/classes`)
+  return res.data ?? []
+}
+
+/** POST /org/classes/{classId}/teachers — assign an org teacher to the class as co-teacher. */
+export async function assignClassTeacher(classId: number, userId: number): Promise<void> {
+  await api.post(`/org/classes/${classId}/teachers`, { userId })
+}
+
+/** DELETE /org/classes/{classId}/teachers/{userId} — remove a co-teacher (not the primary). */
+export async function unassignClassTeacher(classId: number, userId: number): Promise<void> {
+  await api.delete(`/org/classes/${classId}/teachers/${userId}`)
+}
+
 /**
  * POST /org/students/import — bulk-import students from a CSV file
  * (columns: `email,displayName[,phone]`). When `classId` is supplied, every

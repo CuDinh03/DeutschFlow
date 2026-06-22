@@ -1,5 +1,7 @@
 package com.deutschflow.organization.service;
 
+import com.deutschflow.common.exception.BadRequestException;
+import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.organization.dto.OrgClassDetailDto;
 import com.deutschflow.organization.dto.OrgClassDto;
@@ -10,12 +12,16 @@ import com.deutschflow.organization.dto.OrgSeatUsageDto;
 import com.deutschflow.organization.dto.OrgStudentDetailDto;
 import com.deutschflow.organization.dto.OrgSummaryDto;
 import com.deutschflow.organization.entity.OrgMember;
+import com.deutschflow.organization.entity.OrgRole;
 import com.deutschflow.organization.entity.Organization;
 import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.organization.repository.OrganizationRepository;
 import com.deutschflow.teacher.entity.ClassStudent;
+import com.deutschflow.teacher.entity.ClassTeacher;
+import com.deutschflow.teacher.entity.ClassTeacherId;
 import com.deutschflow.teacher.entity.TeacherClass;
 import com.deutschflow.teacher.repository.ClassStudentRepository;
+import com.deutschflow.teacher.repository.ClassTeacherRepository;
 import com.deutschflow.teacher.repository.TeacherClassRepository;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
@@ -51,6 +57,7 @@ public class OrgService {
     private final TeacherClassRepository teacherClassRepository;
     private final UserRepository userRepository;
     private final ClassStudentRepository classStudentRepository;
+    private final ClassTeacherRepository classTeacherRepository;
 
     /** Org dashboard: plan, seat usage, and teacher/student head counts. */
     @Transactional(readOnly = true)
@@ -144,6 +151,71 @@ public class OrgService {
         return new OrgClassDetailDto(
                 tc.getId(), tc.getName(), tc.getInviteCode(), tc.getTeacherId(),
                 teacherName, tc.getCreatedAt(), students.size(), students);
+    }
+
+    // ----------------------------------------------------------- teacher ↔ class assignment (P1-4)
+
+    /** Verifies the class exists AND belongs to the org (IDOR-safe); returns it. */
+    private TeacherClass assertClassInOrg(Long orgId, Long classId) {
+        return teacherClassRepository.findById(classId)
+                .filter(c -> orgId.equals(c.getOrgId()))
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy lớp trong tổ chức"));
+    }
+
+    /** Verifies the user is an ACTIVE org member with a teaching role (TEACHER/MANAGER). */
+    private void assertOrgTeacher(Long orgId, Long userId) {
+        OrgMember m = memberRepo.findByIdOrgIdAndIdUserId(orgId, userId)
+                .filter(x -> STATUS_ACTIVE.equals(x.getStatus()))
+                .orElseThrow(() -> new BadRequestException("Giáo viên không thuộc tổ chức hoặc không hoạt động."));
+        OrgRole role = OrgRole.from(m.getRole());
+        if (role == null || !role.isAssignable()) {
+            throw new BadRequestException("Chỉ phân công được Giáo viên hoặc Quản lý vào lớp.");
+        }
+    }
+
+    /**
+     * Org-admin assigns an org teacher to one of the org's classes as a co-teacher (ASSISTANT).
+     * The class's PRIMARY teacher is untouched. Org-scoped sibling of {@code TeacherService.addCoTeacher}
+     * — gated by {@code OrgGuard.assertOrgAdmin} upstream instead of primary-teacher ownership.
+     */
+    @Transactional
+    public void assignTeacherToClass(Long orgId, Long classId, Long teacherUserId) {
+        assertClassInOrg(orgId, classId);
+        assertOrgTeacher(orgId, teacherUserId);
+        if (classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherUserId)) {
+            throw new ConflictException("Giáo viên đã được phân công vào lớp này.");
+        }
+        classTeacherRepository.save(ClassTeacher.builder()
+                .id(new ClassTeacherId(classId, teacherUserId))
+                .role("ASSISTANT")
+                .build());
+    }
+
+    /** Org-admin removes a co-teacher from an org class. The PRIMARY teacher cannot be removed here. */
+    @Transactional
+    public void unassignTeacherFromClass(Long orgId, Long classId, Long teacherUserId) {
+        assertClassInOrg(orgId, classId);
+        ClassTeacher ct = classTeacherRepository.findById(new ClassTeacherId(classId, teacherUserId))
+                .orElseThrow(() -> new NotFoundException("Giáo viên không thuộc lớp này."));
+        if ("PRIMARY".equals(ct.getRole())) {
+            throw new BadRequestException("Không thể gỡ giáo viên chính của lớp.");
+        }
+        classTeacherRepository.delete(ct);
+    }
+
+    /** Class IDs (within this org) the teacher is assigned to — drives the assignment modal. */
+    @Transactional(readOnly = true)
+    public List<Long> listTeacherClassIds(Long orgId, Long teacherUserId) {
+        List<Long> classIds = classTeacherRepository.findByIdTeacherId(teacherUserId).stream()
+                .map(ct -> ct.getId().getClassId())
+                .toList();
+        if (classIds.isEmpty()) {
+            return List.of();
+        }
+        return teacherClassRepository.findAllById(classIds).stream()
+                .filter(c -> orgId.equals(c.getOrgId()))
+                .map(TeacherClass::getId)
+                .toList();
     }
 
     /**
