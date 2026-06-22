@@ -1,21 +1,27 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, Clock } from 'lucide-react'
+import { CalendarClock, ChevronLeft, ChevronRight, Clock, Plus, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
 import { getAvailability, putAvailability, type AvailabilitySlot } from '@/lib/teacherAvailabilityApi'
+import {
+  fmtLocalIso,
+  getClassWeek,
+  getMyClasses,
+  type ClassSession,
+  type SessionSaveResult,
+  type TeacherClassLite,
+} from '@/lib/classScheduleApi'
 import { GaPageHdr, GaBtn, GaCap, TkSeg, type TkSegOption } from '@/components/ui-v2'
+import { CLASS_STATUS, CreateSessionModal, EditSessionModal, MODE_LABEL, PatternModal } from './scheduleClassParts'
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Lịch dạy (v2) — Pha 1 (frontend-only, zero backend mới).
-// Tab "Lịch tuần": lịch tuần buổi 1:1 thật (GET /teacher-sessions/teacher) + điều
-//   hướng tuần + panel "Sắp tới". Tái dùng pattern resolveProfile/load + WeekGrid
-//   từ v2/teacher/sessions/page.tsx.
-// Tab "Khung giờ rảnh": lưới khung giờ rảnh (GET/PUT /v2/teacher/availability) —
-//   nội dung cũ của màn này.
-// TODO Pha 2: buổi lớp (ClassSession) + nút "+ Thêm buổi" (cần backend) — KHÔNG
-//   thêm nút giả ở Pha 1.
+// Lịch dạy (v2).
+// Tab "Lịch tuần": buổi 1:1 thật (GET /teacher-sessions/teacher) + buổi LỚP thật
+//   (GET /v2/teacher/class-schedule/week — Pha 2) trên cùng lưới tuần; thêm/sửa
+//   buổi lớp + đặt lịch cố định (pattern, override sticky).
+// Tab "Khung giờ rảnh": lưới khung giờ rảnh (GET/PUT /v2/teacher/availability).
 // ─────────────────────────────────────────────────────────────────────────────
 
 const VIOLET = '#7C56C8'
@@ -71,7 +77,7 @@ export default function V2TeacherSchedulePage() {
       <GaPageHdr
         accent
         title="Lịch dạy"
-        subtitle="Lịch tuần các buổi học · khung giờ rảnh để học viên đặt buổi 1:1"
+        subtitle="Lịch tuần buổi 1:1 và buổi lớp · khung giờ rảnh để học viên đặt buổi 1:1"
         right={<TkSeg options={TABS} value={tab} onValueChange={setTab} aria-label="Chế độ xem" />}
       />
       <div className="flex-1 overflow-auto px-10 py-7">
@@ -81,14 +87,27 @@ export default function V2TeacherSchedulePage() {
   )
 }
 
-// ── Tab "Lịch tuần": buổi 1:1 thật theo tuần + điều hướng tuần + Sắp tới ───────
+// ── Tab "Lịch tuần": buổi 1:1 + buổi lớp theo tuần + Sắp tới ──────────────────
 function WeekView() {
   const [profileId, setProfileId] = useState<number | null>(null)
   const [noProfile, setNoProfile] = useState(false)
   const [sessions, setSessions] = useState<Session[]>([])
+  const [classSessions, setClassSessions] = useState<ClassSession[]>([])
+  const [classes, setClasses] = useState<TeacherClassLite[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [weekOffset, setWeekOffset] = useState(0)
+
+  const [editTarget, setEditTarget] = useState<ClassSession | null>(null)
+  const [showCreate, setShowCreate] = useState(false)
+  const [showPattern, setShowPattern] = useState(false)
+
+  const monday = useMemo(() => mondayOf(weekOffset), [weekOffset])
+  const weekEnd = useMemo(() => {
+    const d = new Date(monday)
+    d.setDate(d.getDate() + 6)
+    return d
+  }, [monday])
 
   const resolveProfile = useCallback(async () => {
     try {
@@ -121,19 +140,31 @@ function WeekView() {
     }
   }, [])
 
+  const loadClassWeek = useCallback(async (mon: Date) => {
+    try {
+      const end = new Date(mon)
+      end.setDate(end.getDate() + 7)
+      setClassSessions(await getClassWeek(fmtLocalIso(mon), fmtLocalIso(end)))
+    } catch (e: unknown) {
+      // Buổi lớp là phần bổ sung — báo lỗi nhưng không chặn lịch 1:1.
+      toast.error(apiMessage(e))
+    }
+  }, [])
+
   useEffect(() => {
     void resolveProfile()
   }, [resolveProfile])
   useEffect(() => {
     if (profileId) void load(profileId)
   }, [profileId, load])
-
-  const monday = useMemo(() => mondayOf(weekOffset), [weekOffset])
-  const weekEnd = useMemo(() => {
-    const d = new Date(monday)
-    d.setDate(d.getDate() + 6)
-    return d
-  }, [monday])
+  useEffect(() => {
+    void loadClassWeek(monday)
+  }, [monday, loadClassWeek])
+  useEffect(() => {
+    getMyClasses()
+      .then(setClasses)
+      .catch(() => setClasses([]))
+  }, [])
 
   const upcoming = useMemo(() => {
     const now = Date.now()
@@ -142,6 +173,14 @@ function WeekView() {
       .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
       .slice(0, 5)
   }, [sessions])
+
+  const handleSaved = useCallback(
+    (r: SessionSaveResult) => {
+      r.roomWarnings.forEach((w) => toast.warning(w))
+      void loadClassWeek(monday)
+    },
+    [loadClassWeek, monday],
+  )
 
   if (error) {
     return (
@@ -169,74 +208,105 @@ function WeekView() {
   }
 
   return (
-    <div className="grid gap-6" style={{ gridTemplateColumns: 'minmax(0, 1fr) 300px' }}>
-      <div className="min-w-0">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-ga-display text-[20px] font-medium text-ga-ink">
-            Tuần {fmtDate(monday)}–{fmtDate(weekEnd)}/{weekEnd.getFullYear()}
-          </h2>
-          <div className="flex items-center gap-2">
-            <GaBtn variant="ghost" size="sm" aria-label="Tuần trước" onClick={() => setWeekOffset((w) => w - 1)}>
-              <ChevronLeft size={15} />
-            </GaBtn>
-            <GaBtn variant="ghost" size="sm" disabled={weekOffset === 0} onClick={() => setWeekOffset(0)}>
-              Tuần này
-            </GaBtn>
-            <GaBtn variant="ghost" size="sm" aria-label="Tuần sau" onClick={() => setWeekOffset((w) => w + 1)}>
-              <ChevronRight size={15} />
-            </GaBtn>
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="ga-shimmer h-[560px] border border-ga-line" aria-hidden />
-        ) : (
-          <WeekGrid sessions={sessions} monday={monday} />
-        )}
-      </div>
-
-      <aside className="min-w-0">
-        <GaCap>Sắp tới</GaCap>
-        <div className="mt-3 flex flex-col gap-2.5">
-          {loading ? (
-            <div className="ga-shimmer h-[120px] border border-ga-line" aria-hidden />
-          ) : upcoming.length === 0 ? (
-            <div className="border border-dashed border-ga-line px-4 py-6 text-center text-[13px] text-ga-muted">
-              Chưa có buổi học sắp tới.
+    <>
+      <div className="grid gap-6" style={{ gridTemplateColumns: 'minmax(0, 1fr) 300px' }}>
+        <div className="min-w-0">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="font-ga-display text-[20px] font-medium text-ga-ink">
+              Tuần {fmtDate(monday)}–{fmtDate(weekEnd)}/{weekEnd.getFullYear()}
+            </h2>
+            <div className="flex flex-wrap items-center gap-2">
+              <GaBtn variant="ghost" size="sm" onClick={() => setShowCreate(true)}>
+                <Plus size={14} /> Thêm buổi
+              </GaBtn>
+              <GaBtn variant="ghost" size="sm" onClick={() => setShowPattern(true)}>
+                <CalendarClock size={14} /> Lịch cố định
+              </GaBtn>
+              <span className="mx-1 h-5 w-px bg-ga-line" aria-hidden />
+              <GaBtn variant="ghost" size="sm" aria-label="Tuần trước" onClick={() => setWeekOffset((w) => w - 1)}>
+                <ChevronLeft size={15} />
+              </GaBtn>
+              <GaBtn variant="ghost" size="sm" disabled={weekOffset === 0} onClick={() => setWeekOffset(0)}>
+                Tuần này
+              </GaBtn>
+              <GaBtn variant="ghost" size="sm" aria-label="Tuần sau" onClick={() => setWeekOffset((w) => w + 1)}>
+                <ChevronRight size={15} />
+              </GaBtn>
             </div>
+          </div>
+
+          {loading ? (
+            <div className="ga-shimmer h-[560px] border border-ga-line" aria-hidden />
           ) : (
-            upcoming.map((s) => {
-              const d = new Date(s.scheduledAt)
-              const c = statusOf(s.status)
-              return (
-                <div key={s.id} className="border border-ga-line bg-ga-card px-3.5 py-3" style={{ borderLeft: `3px solid ${c.fg}` }}>
-                  <div className="flex items-center gap-1.5 text-[12px] text-ga-muted">
-                    <Clock size={11} /> {fmtDate(d)} · {fmtTime(d)}
-                  </div>
-                  <div className="mt-1 truncate text-[13.5px] font-bold text-ga-ink">{s.studentName}</div>
-                  <div className="mt-0.5 truncate text-[12px] text-ga-subtle">{s.title}</div>
-                  <span
-                    className="mt-1.5 inline-block px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.05em]"
-                    style={{ color: c.fg, background: c.bg }}
-                  >
-                    {c.label}
-                  </span>
-                </div>
-              )
-            })
+            <WeekGrid sessions={sessions} classSessions={classSessions} monday={monday} onSessionClick={setEditTarget} />
           )}
         </div>
-      </aside>
-    </div>
+
+        <aside className="min-w-0">
+          <GaCap>Buổi 1:1 sắp tới</GaCap>
+          <div className="mt-3 flex flex-col gap-2.5">
+            {loading ? (
+              <div className="ga-shimmer h-[120px] border border-ga-line" aria-hidden />
+            ) : upcoming.length === 0 ? (
+              <div className="border border-dashed border-ga-line px-4 py-6 text-center text-[13px] text-ga-muted">
+                Chưa có buổi 1:1 sắp tới.
+              </div>
+            ) : (
+              upcoming.map((s) => {
+                const d = new Date(s.scheduledAt)
+                const c = statusOf(s.status)
+                return (
+                  <div key={s.id} className="border border-ga-line bg-ga-card px-3.5 py-3" style={{ borderLeft: `3px solid ${c.fg}` }}>
+                    <div className="flex items-center gap-1.5 text-[12px] text-ga-muted">
+                      <Clock size={11} /> {fmtDate(d)} · {fmtTime(d)}
+                    </div>
+                    <div className="mt-1 truncate text-[13.5px] font-bold text-ga-ink">{s.studentName}</div>
+                    <div className="mt-0.5 truncate text-[12px] text-ga-subtle">{s.title}</div>
+                    <span
+                      className="mt-1.5 inline-block px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.05em]"
+                      style={{ color: c.fg, background: c.bg }}
+                    >
+                      {c.label}
+                    </span>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </aside>
+      </div>
+
+      <EditSessionModal session={editTarget} onClose={() => setEditTarget(null)} onSaved={handleSaved} />
+      <CreateSessionModal open={showCreate} classes={classes} onClose={() => setShowCreate(false)} onSaved={handleSaved} />
+      <PatternModal open={showPattern} classes={classes} onClose={() => setShowPattern(false)} onSaved={() => void loadClassWeek(monday)} />
+    </>
   )
 }
 
-// ── Lịch tuần (real scheduledAt + duration cho tuần `monday`) ─────────────────
+// ── Lịch tuần: buổi 1:1 (theo status) + buổi lớp (teal, bấm để sửa) ───────────
 const START_HOUR = 7
 const END_HOUR = 22
 const GRID_H = 560
 
-function WeekGrid({ sessions, monday }: { sessions: Session[]; monday: Date }) {
+function blockTop(date: Date): number {
+  const hour = date.getHours() + date.getMinutes() / 60
+  return ((hour - START_HOUR) / (END_HOUR - START_HOUR)) * GRID_H
+}
+function blockHeight(durationMinutes: number): number {
+  return Math.max(((durationMinutes / 60) / (END_HOUR - START_HOUR)) * GRID_H, 38)
+}
+
+function WeekGrid({
+  sessions,
+  classSessions,
+  monday,
+  onSessionClick,
+}: {
+  sessions: Session[]
+  classSessions: ClassSession[]
+  monday: Date
+  onSessionClick: (s: ClassSession) => void
+}) {
   const end = useMemo(() => {
     const d = new Date(monday)
     d.setDate(d.getDate() + 7)
@@ -244,14 +314,17 @@ function WeekGrid({ sessions, monday }: { sessions: Session[]; monday: Date }) {
   }, [monday])
   const hours = Array.from({ length: (END_HOUR - START_HOUR) / 2 + 1 }, (_, i) => START_HOUR + i * 2)
 
-  const thisWeek = sessions
+  const week1on1 = sessions
     .map((s) => ({ s, d: new Date(s.scheduledAt) }))
     .filter(({ s, d }) => d >= monday && d < end && s.status !== 'CANCELLED')
+  const weekClass = classSessions
+    .map((s) => ({ s, d: new Date(s.startAt) }))
+    .filter(({ d }) => d >= monday && d < end)
 
-  if (thisWeek.length === 0) {
+  if (week1on1.length === 0 && weekClass.length === 0) {
     return (
       <div className="border border-dashed border-ga-line bg-ga-card px-10 py-[52px] text-center text-[14px] text-ga-muted">
-        Tuần này chưa có buổi học nào.
+        Tuần này chưa có buổi học nào. Bấm <b>Thêm buổi</b> hoặc <b>Lịch cố định</b> để thêm buổi lớp.
       </div>
     )
   }
@@ -287,23 +360,21 @@ function WeekGrid({ sessions, monday }: { sessions: Session[]; monday: Date }) {
             {Array.from({ length: hours.length - 1 }).map((_, r) => (
               <div key={r} className="absolute inset-x-0 border-t border-ga-line opacity-50" style={{ top: (GRID_H / hours.length) * (r + 1) }} />
             ))}
-            {thisWeek
+
+            {week1on1
               .filter(({ d: dt }) => (dt.getDay() + 6) % 7 === di)
               .map(({ s, d: dt }) => {
-                const hour = dt.getHours() + dt.getMinutes() / 60
-                const top = ((hour - START_HOUR) / (END_HOUR - START_HOUR)) * GRID_H
-                const h = Math.max(((s.durationMinutes / 60) / (END_HOUR - START_HOUR)) * GRID_H, 38)
                 const c = statusOf(s.status)
                 return (
                   <div
-                    key={s.id}
+                    key={`s${s.id}`}
                     title={`${s.studentName} · ${s.title} · ${fmtTime(dt)}`}
                     className="absolute overflow-hidden px-1.5 py-1"
                     style={{
-                      top,
+                      top: blockTop(dt),
                       left: 4,
                       right: 4,
-                      height: h,
+                      height: blockHeight(s.durationMinutes),
                       background: c.bg,
                       border: `1px solid color-mix(in srgb, ${c.fg} 35%, transparent)`,
                       borderLeft: `3px solid ${c.fg}`,
@@ -314,6 +385,41 @@ function WeekGrid({ sessions, monday }: { sessions: Session[]; monday: Date }) {
                   </div>
                 )
               })}
+
+            {weekClass
+              .filter(({ d: dt }) => (dt.getDay() + 6) % 7 === di)
+              .map(({ s, d: dt }) => {
+                const c = CLASS_STATUS[s.status]
+                const place = s.mode === 'ONLINE' ? MODE_LABEL.ONLINE : s.room ?? 'Tại lớp'
+                return (
+                  <button
+                    key={`c${s.id}`}
+                    type="button"
+                    onClick={() => onSessionClick(s)}
+                    title={`${s.className} · ${place} · ${fmtTime(dt)} · ${s.studentCount} HV`}
+                    className="absolute overflow-hidden px-1.5 py-1 text-left transition-shadow hover:shadow-ga-panel"
+                    style={{
+                      top: blockTop(dt),
+                      left: 4,
+                      right: 4,
+                      height: blockHeight(s.durationMinutes),
+                      background: c.bg,
+                      border: `1px solid color-mix(in srgb, ${c.fg} 35%, transparent)`,
+                      borderLeft: `3px solid ${c.fg}`,
+                    }}
+                  >
+                    <div
+                      className="truncate text-[11px] font-bold leading-tight text-ga-ink"
+                      style={{ textDecoration: s.status === 'CANCELLED' ? 'line-through' : undefined }}
+                    >
+                      {s.className}
+                    </div>
+                    <div className="flex items-center gap-1 truncate text-[10px]" style={{ color: c.fg }}>
+                      <Users size={9} /> {s.studentCount} · {place}
+                    </div>
+                  </button>
+                )
+              })}
           </div>
         ))}
       </div>
@@ -321,7 +427,7 @@ function WeekGrid({ sessions, monday }: { sessions: Session[]; monday: Date }) {
   )
 }
 
-// ── Tab "Khung giờ rảnh": lưới recurring availability (nội dung cũ của màn) ────
+// ── Tab "Khung giờ rảnh": lưới recurring availability ────────────────────────
 // 0 = Monday … 6 = Sunday (matches the backend `day` field).
 const AV_HOURS = Array.from({ length: 16 }, (_, i) => i + 6) // 06:00 … 21:00
 const avKey = (day: number, hour: number) => `${day}:${hour}`
