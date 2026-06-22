@@ -20,7 +20,19 @@ k6 run scripts/loadtest/ramp.js
 
 # 3) SPIKE — sốc tải đột ngột, xem có hồi phục không.
 k6 run scripts/loadtest/spike.js
+
+# 4) Kịch bản thực tế — đi đúng đường của user thật:
+k6 run --env LOADTEST_PASSWORD=<pw> scripts/loadtest/login-storm.js   # KHÔNG cần TOKEN
+k6 run scripts/loadtest/dashboard-mix.js
+k6 run scripts/loadtest/mock-exam-start.js   # tuỳ chọn EXAM_ID=<id> CEFR=B1
 ```
+
+## Kịch bản thực tế (đo đúng đường user, không chỉ 1 endpoint đọc)
+| Script | Mô phỏng | Đánh vào | Tín hiệu cần soi |
+|--------|----------|----------|------------------|
+| `login-storm.js` | Cả lớp đăng nhập đầu giờ | `POST /api/auth/login` | **bcrypt CPU** (~100–200ms/lần, serial) + rate limiter Redis. `login_5xx > 0` = **regression ERR-74C** (Redis-down → 500), phải = 0. `login_429` cao là OK (limiter làm đúng việc). |
+| `dashboard-mix.js` | Mở Home sau login | `/api/student/dashboard` + `/api/srs/count` + `/api/notifications/unread-count` (batch song song, đúng như `app/(student)/index.tsx`) | `hikaricp_connections_pending` — dashboard là call nhiều query nhất, bão hoà pool trước tiên. |
+| `mock-exam-start.js` | Cả lớp bấm "bắt đầu thi thử" cùng lúc (B2B đắt nhất) | `POST /api/mock-exams/{id}/start` (find-attempt + INSERT + đọc đề + strip đáp án) | RDS write IOPS + `hikaricp_pending`. 1 TOKEN → `/start` idempotent (đo chi phí đọc/strip); muốn tạo attempt thật theo từng học viên thì chạy bằng nhiều account (xem `scripts/load-test/`). |
 
 ## Theo dõi SONG SONG khi chạy (quan trọng hơn cả số k6)
 - **DB pool:** `hikaricp_connections_active`, `hikaricp_connections_pending` (qua `/actuator/prometheus`, token ADMIN, hoặc Grafana).
