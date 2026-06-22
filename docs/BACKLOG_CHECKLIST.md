@@ -55,9 +55,9 @@
 ### ❌ Chưa làm
 - [ ] **P1-4** Redis L2 vô hiệu → `CompositeCacheManager` (Caffeine L1 + Redis L2) cho skillTree/achievements/curriculum/ttsAudio · `RedisConfig.java:41` · **M**
 - [ ] **P1-5** Ảnh web `unoptimized:true` áp cả SSR → gate `isMobileBuild`; `<img>`→`<Image>` · `frontend/next.config.mjs:30` · **S**
-- [ ] **P1-6** Hikari pool=10 dưới mức → 30; Tomcat 80; dispatch Groq blocking khỏi thread Tomcat · `application.yml` · **S**
-- [ ] **P1-7** God-class `AiSpeakingServiceImpl` (1.444 dòng/30 dep) → tách 5 service theo blueprint · `speaking/.../AiSpeakingServiceImpl.java` · **L**
-- [ ] **P1-8** Nuốt `catch` grammar-persist (**mất dữ liệu học lõi**) → rethrow/dead-letter + metric · `AiSpeakingServiceImpl.java:1147,1325` · **S**
+- [~] **P1-6** Một phần (PR #113 stability): đã thêm timeout HTTP + tách `@Transactional` + telemetry async (cầm máu pool). CÒN: `maximum-pool-size` vẫn =20 (`application.yml:72`) — bump 20→30 đang **gated trên nâng RDS RAM** (RECOVERY Đợt 2.1: t4g.micro→small). · **S**
+- [x] **P1-7** ✅ ĐÃ TÁCH (phát hiện 2026-06-13) — `AiSpeakingServiceImpl` nay **664 dòng** (was 1.444); tách ra ~25 service (`GrammarPersistenceService`, `TurnEvaluatorService`, `ChatPrepService`, `ChatCompletionService`, `ReviewSchedulerService`, `ErrorDetectionService`…). Vượt blueprint "5 service". · **L**
+- [x] **P1-8** ✅ ĐÃ XỬ LÝ (phát hiện 2026-06-13, đã sửa từ trước) — logic tách sang `GrammarPersistenceService.java`; cả 2 catch (structured + legacy) ghi `speakingMetrics.recordGrammarPersistFailure(...)` + `log.error` đủ ngữ cảnh (userId/sessionId/messageId/errorCode/wrong/corrected + stack). Chủ đích **KHÔNG rethrow** (lượt nói live không được 500 vì lỗi persist feedback) → observable (metric/alert) + recoverable (log). *Line ref cũ `:1147,1325` đã lỗi thời.* · **S**
 - [ ] **P1-11** IAP mobile — backend đủ; wire `react-native-iap` (verify/sync/restore/fetchPlan) HOẶC ẩn paywall iOS · `mobile/app/(student)/upgrade.tsx` · **L / XS**
 - [ ] **P1-13** `TIMESTAMP`→`TIMESTAMPTZ` trên `user_subscriptions`/`payment_transactions`/`ai_token_usage_events` (biên quota ngày VN sai TZ) · migrations · **M**
 - [ ] **P1-14** XP lost-update (duplicate level-up) → atomic `user_xp_summary` / advisory lock; **enum thay VARCHAR** cho `PaymentTransaction.status`… · `XpService`, entities · **M**
