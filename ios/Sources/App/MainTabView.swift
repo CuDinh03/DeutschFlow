@@ -12,7 +12,7 @@ struct MainTabView: View {
                 .tabItem { Label("Luyện nói", systemImage: "mic") }
             NavigationStack { PlaceholderScreen(title: "Lớp học") }
                 .tabItem { Label("Lớp học", systemImage: "person.3") }
-            NavigationStack { ProfilePlaceholder() }
+            NavigationStack { ProfileView() }
                 .tabItem { Label("Hồ sơ", systemImage: "person.crop.circle") }
         }
         .tint(.gaAccent)

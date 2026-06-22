@@ -41,6 +41,8 @@ targets:
     platform: iOS
     sources:
       - path: Sources
+      # App icon + image assets (Assets.xcassets auto-compiled as a resource).
+      - path: Resources
       # The pinned spec + generator config MUST be target members so the swift-openapi-generator
       # build-tool plugin discovers them (added as resources; not compiled). `buildPhase: none`
       # would drop target membership → plugin reports "No OpenAPI document found".
@@ -50,6 +52,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.deutschflow.app
         TARGETED_DEVICE_FAMILY: "1" # iPhone (add 2 for iPad later)
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     dependencies:
       - package: OpenAPIRuntime
         product: OpenAPIRuntime

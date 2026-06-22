@@ -21,7 +21,15 @@
 | M5.4 Paywall (StoreKit 2 + verify) | ⏸ **chờ Apple Developer** | backend `AppleIapController` sẵn (#129); cần 4 IAP product trong ASC | — |
 
 ## Mốc 6–7 — Compliance + Release
-⏸ **Tất cả chờ Apple Developer** ($99 enroll + App ID + IAP products + cert) — đã hoãn theo quyết định ("đăng ký sau", xem `plans/2026-06-20-deploy-ops-runbook.md §5`). Gồm: UI xoá tài khoản (`DELETE /api/profile/me` sẵn), privacy labels/ATT, screenshots/metadata, TestFlight→submit, khai tử Expo.
+### ✅ Làm được KHÔNG cần Apple (2026-06-22)
+| Task | Trạng thái | Ghi chú | Verify |
+|---|---|---|---|
+| M6.3 UI Xoá tài khoản | ✅ | `ProfileView` (tab Hồ sơ) → alert xác nhận → `DELETE /api/profile/me` (op `deleteAccount`, 204) → signOut. Thay `ProfilePlaceholder`. App Store 5.1.1(v). | BUILD ✓ |
+| M6.4 Privacy Info.plist | ✅ | mic + speech + `ITSAppUsesNonExemptEncryption=NO` đã khai (project.yml). Rà: **0 camera / 0 tracking SDK** trong Sources → **ATT = none** (không cần NSCamera/NSUserTracking). | verified |
+| M6.5 App icon | ✅ placeholder | `Resources/Assets.xcassets/AppIcon` 1024 (ink #161513 + "DF" vàng #FFCD00, no-alpha) + `ASSETCATALOG_COMPILER_APPICON_NAME`. ⚠️ **design thay PNG thật trước submit.** | BUILD ✓ (actool ✓) |
+
+### ⏸ Chờ Apple Developer ($99 enroll + App ID + IAP products + cert)
+M5.4 Paywall (StoreKit) · App Privacy labels (ASC form) · screenshots/metadata · demo account · TestFlight→submit · khai tử Expo. Xem `plans/2026-06-22-week-deploy-plan.md` §B2.
 
 ## Backend cho mobile (Mốc 3)
 - B3.2 push-token platform discriminator ✅ (sẵn). B3.3 verify-receipt ✅ (AppleIapController, #129/#128).
