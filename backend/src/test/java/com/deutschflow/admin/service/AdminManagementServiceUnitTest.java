@@ -146,6 +146,18 @@ class AdminManagementServiceUnitTest {
     }
 
     @Test
+    void setUserActive_unlocksAccount_reversible() {
+        User u = User.builder().id(9L).email("u@x.com").displayName("U")
+                .role(User.Role.TEACHER).active(false).build();
+        when(userRepository.findById(9L)).thenReturn(Optional.of(u));
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        var out = service.setUserActive(9L, true);
+
+        assertEquals(true, out.get("isActive")); // lock có thể mở lại — reversible
+    }
+
+    @Test
     void createUser_setsCreatedVia_ADMIN() {
         when(userRepository.existsByEmail("cv@x.com")).thenReturn(false);
         when(passwordEncoder.encode(anyString())).thenReturn("HASH");
