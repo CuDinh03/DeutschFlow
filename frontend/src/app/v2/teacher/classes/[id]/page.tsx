@@ -293,7 +293,18 @@ export default function V2ClassDetailPage() {
                         <button
                           key={label}
                           type="button"
-                          onClick={() => { toast.success(`${label} cho ${selCount} học viên`); setSelected({}) }}
+                          onClick={() => {
+                            if (label === 'Nhắn tin') {
+                              const ids = Object.entries(selected).filter(([, v]) => v).map(([k]) => Number(k))
+                              if (ids.length !== 1) { toast('Chọn đúng 1 học viên để nhắn tin 1-1.'); return }
+                              const s = students.find((x) => x.studentId === ids[0])
+                              if (s) router.push(`/v2/teacher/messages?to=${s.studentId}&name=${encodeURIComponent(s.displayName)}`)
+                              setSelected({})
+                              return
+                            }
+                            toast.success(`${label} cho ${selCount} học viên`)
+                            setSelected({})
+                          }}
                           className="ga-ui inline-flex items-center gap-1.5 border border-ga-line px-2.5 py-1.5 text-[11.5px] font-semibold text-ga-ink transition-colors hover:border-ga-accent hover:text-ga-accent"
                         >
                           <Icon size={13} /> {label}

@@ -27,9 +27,7 @@ export interface RoleNav {
 
 // teacherNav — khớp Prototype A (Galerie): nhóm QUẢN LÝ LỚP / GIẢNG DẠY / CÔNG CỤ AI / THỐNG KÊ.
 // "Thông báo" chuyển lên top bar (chuông + badge unread) → KHÔNG còn ở sidebar.
-// 2 mục để comment có chủ đích để tránh dead-link (bật lại khi route tồn tại):
-//   - schedule (Lịch dạy): chờ PROMPT 4 dựng /v2/teacher/schedule.
-//   - tc-messages (Tin nhắn học viên): chờ #146 (messaging) merge vào main → /v2/teacher/messages.
+// schedule (Lịch dạy, PROMPT 4) + tc-messages (Tin nhắn, #146 messaging) đã active sau khi cả hai vào main.
 export const teacherNav: RoleNav = {
   role: 'teacher',
   rootHref: '/v2/teacher',
@@ -50,7 +48,7 @@ export const teacherNav: RoleNav = {
       label: 'Giảng dạy',
       items: [
         { id: 'sessions', label: 'Buổi học 1:1', href: '/v2/teacher/sessions', icon: 'co_present' },
-        // TODO(#146 deploy): { id: 'tc-messages', label: 'Tin nhắn học viên', href: '/v2/teacher/messages', icon: 'chat' },
+        { id: 'tc-messages', label: 'Tin nhắn học viên', href: '/v2/teacher/messages', icon: 'chat' },
       ],
     },
     {
@@ -168,6 +166,7 @@ export const studentNav: RoleNav = {
         { id: 'my-classes', label: 'Lớp của tôi', href: '/v2/student/classes', icon: 'groups' },
         { id: 'st-progress', label: 'Tiến độ', href: '/v2/student/progress', icon: 'checklist' },
         { id: 'book-session', label: 'Gia sư 1:1', href: '/v2/student/tutor', icon: 'co_present' },
+        { id: 'st-messages', label: 'Tin nhắn', href: '/v2/student/messages', icon: 'chat' },
       ],
     },
     {
