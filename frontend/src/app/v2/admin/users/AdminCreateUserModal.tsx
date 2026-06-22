@@ -8,8 +8,9 @@ import { TkModal, GaBtn, GaCap, ErrorBanner } from '@/components/ui-v2'
 
 /**
  * Admin "Thêm người dùng" — chỉ ADMIN tạo được, và tạo được MỌI vai trò (quy tắc 2026-06-22):
- *   Học viên (STUDENT) · Giáo viên (TEACHER) · Quản lý (TEACHER + org MANAGER) · Quản trị (ADMIN).
- * OWNER không tạo ở đây — chủ trung tâm được tạo qua luồng tạo tổ chức (giữ bất biến 1-OWNER).
+ *   Học viên (STUDENT) · Giáo viên (TEACHER) · Quản lý (MANAGER) · Quản trị (ADMIN).
+ * MANAGER/OWNER giờ là platform-role thật (không còn là TEACHER đội mũ org). OWNER không tạo ở đây —
+ * chủ trung tâm được tạo qua luồng tạo tổ chức (giữ bất biến 1-OWNER).
  * Backend: POST /admin/users (gác hasRole('ADMIN')).
  */
 
@@ -60,17 +61,17 @@ export function AdminCreateUserModal({ onClose, onCreated }: { onClose: () => vo
       return
     }
 
-    const role = kind === 'ADMIN' ? 'ADMIN' : kind === 'STUDENT' ? 'STUDENT' : 'TEACHER'
+    // AccountKind maps 1:1 to the platform role now (STUDENT/TEACHER/MANAGER/ADMIN). The backend
+    // derives the org-membership role from the platform role, so we only send orgId.
     const payload: Record<string, unknown> = {
       email: email.trim(),
       displayName: displayName.trim(),
       password,
-      role,
+      role: kind,
       locale: 'vi',
     }
     if (canOrg && orgId) {
       payload.orgId = Number(orgId)
-      payload.orgRole = kind === 'MANAGER' ? 'MANAGER' : 'TEACHER'
     }
 
     setSaving(true)

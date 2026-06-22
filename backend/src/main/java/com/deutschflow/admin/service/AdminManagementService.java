@@ -670,21 +670,19 @@ public class AdminManagementService {
         if (displayName == null || displayName.isBlank()) throw new BadRequestException("Tên hiển thị không được để trống.");
         if (rawPassword == null || rawPassword.length() < 6) throw new BadRequestException("Mật khẩu tối thiểu 6 ký tự.");
         String normRole = role == null ? "" : role.trim().toUpperCase();
-        if (!List.of("ADMIN", "TEACHER", "STUDENT").contains(normRole)) throw new BadRequestException("Vai trò không hợp lệ.");
+        if (!List.of("ADMIN", "TEACHER", "STUDENT", "MANAGER").contains(normRole)) throw new BadRequestException("Vai trò không hợp lệ.");
         if (userRepository.existsByEmail(normEmail)) throw new ConflictException("Email này đã có tài khoản.");
 
-        String normOrgRole = orgRole == null ? "" : orgRole.trim().toUpperCase();
-        boolean assignOrg = orgId != null && !normOrgRole.isBlank();
-        if (assignOrg) {
-            if (!List.of("TEACHER", "MANAGER").contains(normOrgRole)) {
-                throw new BadRequestException("Vai trò trong tổ chức chỉ có thể là TEACHER hoặc MANAGER.");
-            }
-            if (!"TEACHER".equals(normRole)) {
-                throw new BadRequestException("Chỉ tài khoản giáo viên mới gán vào tổ chức được (manager là giáo viên trong tổ chức).");
-            }
-            if (!organizationRepository.existsById(orgId)) {
-                throw new NotFoundException("Không tìm thấy tổ chức.");
-            }
+        // Org membership: a MANAGER must belong to an org; a TEACHER may optionally. The org-membership
+        // role equals the platform role (OrgMembershipService keeps users.role in lock-step). OWNER is
+        // created via the org-creation flow (attachOwner) to preserve the 1-OWNER invariant — not here.
+        boolean orgStaff = "TEACHER".equals(normRole) || "MANAGER".equals(normRole);
+        boolean assignOrg = orgStaff && orgId != null;
+        if ("MANAGER".equals(normRole) && orgId == null) {
+            throw new BadRequestException("Quản lý trung tâm bắt buộc thuộc một tổ chức.");
+        }
+        if (assignOrg && !organizationRepository.existsById(orgId)) {
+            throw new NotFoundException("Không tìm thấy tổ chức.");
         }
 
         User.Locale loc;
@@ -706,7 +704,7 @@ public class AdminManagementService {
         User saved = userRepository.save(user);
 
         if (assignOrg) {
-            orgMembershipService.upsertMember(orgId, saved.getId(), normOrgRole);
+            orgMembershipService.upsertMember(orgId, saved.getId(), normRole);
         }
 
         Map<String, Object> out = new LinkedHashMap<>();
@@ -716,7 +714,7 @@ public class AdminManagementService {
         out.put("role", saved.getRole().name());
         out.put("isActive", saved.isActive());
         out.put("orgId", assignOrg ? orgId : null);
-        out.put("orgRole", assignOrg ? normOrgRole : null);
+        out.put("orgRole", assignOrg ? normRole : null);
         return out;
     }
 

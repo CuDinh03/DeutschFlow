@@ -149,7 +149,7 @@ class AdminOrgServiceLifecycleTest {
         service.createOrganization(new CreateOrgRequest(
                 "New Org", "new-org", "PRO", 10, "owner@new.test", "Owner Name", "ownerpass123"));
 
-        assertThat(userCap.getValue().getRole()).isEqualTo(User.Role.TEACHER);
+        assertThat(userCap.getValue().getRole()).isEqualTo(User.Role.OWNER);
         assertThat(userCap.getValue().getCreatedVia()).isEqualTo(User.CreatedVia.ADMIN);
         assertThat(userCap.getValue().getDisplayName()).isEqualTo("Owner Name");
         verify(orgMembershipService).upsertMember(ORG_ID, 99L, "OWNER");

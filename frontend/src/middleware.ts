@@ -4,16 +4,13 @@
 import { jwtVerify, decodeProtectedHeader, importSPKI } from 'jose'
 import { NextRequest, NextResponse } from 'next/server'
 
-type Role = 'STUDENT' | 'TEACHER' | 'ADMIN'
+type Role = 'STUDENT' | 'TEACHER' | 'MANAGER' | 'OWNER' | 'ADMIN'
 
-// Org role is a SEPARATE claim from the global Role. It is intentionally NOT added to the Role
-// union: the centre owner is global TEACHER (so they keep /teacher access) AND OWNER inside the org.
-// Gating /org/* by orgRole instead of role is what lets both coexist.
-//
-// ORG-ADMIN ROLE = MANAGER. The org-level ADMIN role was renamed to MANAGER in backend migration
-// V225 (B2B model §1); the backend now issues orgRole='MANAGER' (JwtService) and OrgGuard authorizes
-// {OWNER, MANAGER}. This union must mirror that — gating on the old 'ADMIN' silently locked every org
-// MANAGER out of /org/* even though the backend authorized them.
+// MANAGER/OWNER are first-class PLATFORM roles (2026-06-22): a centre manager/owner is its own global
+// identity, NOT a TEACHER, and is strictly administrative (no teacher access). They route to /v2/org.
+// The org-scoped `orgRole` claim (OWNER|MANAGER) is still emitted by JwtService and still gates /org/*
+// — it works for both new tokens (role=OWNER/MANAGER) and any legacy token (role=TEACHER) until expiry,
+// so the cutover needs no forced re-login.
 type OrgRole = 'OWNER' | 'MANAGER'
 
 // Verified token claims relevant to routing. orgRole is null for B2C / non-org users.
@@ -30,6 +27,7 @@ const LOGIN_ROUTES = new Set(['/login', '/register'])
 
 function roleHome(role: Role): string {
   if (role === 'ADMIN') return '/admin'
+  if (role === 'OWNER' || role === 'MANAGER') return '/org'
   if (role === 'TEACHER') return '/teacher'
   return '/student'
 }
@@ -38,6 +36,7 @@ function roleHome(role: Role): string {
 // (the legacy roleHome would kick them out to the legacy surface).
 function v2RoleHome(role: Role): string {
   if (role === 'ADMIN') return '/v2/admin/users'
+  if (role === 'OWNER' || role === 'MANAGER') return '/v2/org'
   if (role === 'TEACHER') return '/v2/teacher'
   return '/v2/student/dashboard'
 }
@@ -79,7 +78,9 @@ function allowedOnLearnerPath(role: Role): boolean {
 
 function normalizeRole(value: unknown): Role | null {
   const role = String(value ?? '').trim().toUpperCase()
-  if (role === 'ADMIN' || role === 'TEACHER' || role === 'STUDENT') return role
+  if (role === 'ADMIN' || role === 'OWNER' || role === 'MANAGER' || role === 'TEACHER' || role === 'STUDENT') {
+    return role as Role
+  }
   return null
 }
 

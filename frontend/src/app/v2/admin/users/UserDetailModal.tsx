@@ -7,6 +7,8 @@ import { TkModal, GaBtn, GaCap, TkBadge, ErrorBanner, LoadingState } from '@/com
 import type { PlanRow } from './page'
 
 type GlobalRole = 'ADMIN' | 'TEACHER' | 'STUDENT'
+/** Org-admin roles are first-class platform roles but are managed via the org console, not here. */
+type AnyRole = GlobalRole | 'OWNER' | 'MANAGER'
 const ROLES: GlobalRole[] = ['STUDENT', 'TEACHER', 'ADMIN']
 
 type QuotaDetail = {
@@ -37,7 +39,7 @@ interface UserDetailModalProps {
   userName: string
   email: string
   /** Current global role (users.role) — drives the role-change control. */
-  role: GlobalRole
+  role: AnyRole
   /** Whether the account is active — drives the lock/unlock control. */
   isActive: boolean
   planCode?: string
@@ -86,9 +88,12 @@ export function UserDetailModal({
 
   // Global role (separate audited endpoint from plan). currentRole is the saved
   // baseline so the button re-disables after a successful change.
-  const [currentRole, setCurrentRole] = useState<GlobalRole>(role)
-  const [roleValue, setRoleValue] = useState<GlobalRole>(role)
+  const [currentRole, setCurrentRole] = useState<AnyRole>(role)
+  const [roleValue, setRoleValue] = useState<AnyRole>(role)
   const [savingRole, setSavingRole] = useState(false)
+  // OWNER/MANAGER are org-scoped admin identities — their platform role mirrors org membership and is
+  // changed via the org console, not this system-role dropdown.
+  const isOrgAdmin = currentRole === 'OWNER' || currentRole === 'MANAGER'
 
   // Account active state — soft delete (lock/unlock). Reversible, admin-only.
   const [active, setActive] = useState(isActive)
@@ -265,24 +270,32 @@ export function UserDetailModal({
                 <p className="ga-ui text-[13px] text-ga-muted">
                   Hiện tại: <span className="font-semibold text-ga-ink">{currentRole}</span>
                 </p>
-                <div className="flex items-center gap-2">
-                  <select
-                    value={roleValue}
-                    onChange={(e) => setRoleValue(e.target.value as GlobalRole)}
-                    aria-label="Vai trò hệ thống"
-                    className="ga-ui flex-1 rounded-ga border border-ga-line bg-ga-card px-3 py-2 text-[13px] font-semibold text-ga-ink outline-none"
-                  >
-                    {ROLES.map((r) => (
-                      <option key={r} value={r}>
-                        {r}
-                      </option>
-                    ))}
-                  </select>
-                  <GaBtn variant="primary" loading={savingRole} disabled={roleValue === currentRole} onClick={saveRole}>
-                    Đổi
-                  </GaBtn>
-                </div>
-                <p className="ga-ui text-[12px] text-ga-subtle">Đổi quyền truy cập toàn hệ thống — ghi log audit.</p>
+                {isOrgAdmin ? (
+                  <p className="ga-ui text-[12px] text-ga-subtle">
+                    Vai trò quản trị tổ chức (OWNER/MANAGER) được quản lý trong console tổ chức — không đổi tại đây.
+                  </p>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={roleValue}
+                        onChange={(e) => setRoleValue(e.target.value as GlobalRole)}
+                        aria-label="Vai trò hệ thống"
+                        className="ga-ui flex-1 rounded-ga border border-ga-line bg-ga-card px-3 py-2 text-[13px] font-semibold text-ga-ink outline-none"
+                      >
+                        {ROLES.map((r) => (
+                          <option key={r} value={r}>
+                            {r}
+                          </option>
+                        ))}
+                      </select>
+                      <GaBtn variant="primary" loading={savingRole} disabled={roleValue === currentRole} onClick={saveRole}>
+                        Đổi
+                      </GaBtn>
+                    </div>
+                    <p className="ga-ui text-[12px] text-ga-subtle">Đổi quyền truy cập toàn hệ thống — ghi log audit.</p>
+                  </>
+                )}
               </div>
 
               {/* Account active state — soft delete (lock/unlock). Admin-only, reversible. */}

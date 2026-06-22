@@ -35,8 +35,8 @@ public class OrgMembershipService {
     private static final String STATUS_LEFT = "LEFT";       // member left on their own
     private static final String ROLE_OWNER = "OWNER";
     private static final String ROLE_STUDENT = "STUDENT";
-    /** Staff roles that promote a global STUDENT → TEACHER and keep the user demotable on leave. */
-    private static final Set<String> TEACHING_ROLES = Set.of("MANAGER", "TEACHER");
+    /** Org-admin / teaching roles whose holders keep a non-STUDENT platform identity while active. */
+    private static final Set<String> STAFF_ROLES = Set.of("OWNER", "MANAGER", "TEACHER");
     /** Roles an OWNER may toggle a staff member between (no OWNER, no STUDENT here). */
     private static final Set<String> ASSIGNABLE_ROLES = Set.of("MANAGER", "TEACHER");
 
@@ -75,9 +75,7 @@ public class OrgMembershipService {
 
         User user = userRepository.findById(userId).orElseThrow();
         user.setOrgId(orgId);
-        if (TEACHING_ROLES.contains(role) && user.getRole() == User.Role.STUDENT) {
-            user.setRole(User.Role.TEACHER);
-        }
+        syncPlatformRole(user, role);
         userRepository.save(user);
     }
 
@@ -123,7 +121,7 @@ public class OrgMembershipService {
      * authorization (OWNER-only) is enforced upstream by {@code OrgGuard.assertOrgOwner}. Both the
      * current and the new role must be staff roles — the OWNER cannot be reassigned here, and a
      * STUDENT is not promoted through this path (use the teacher-invite flow). The global
-     * {@code users.role} stays TEACHER (both MANAGER and TEACHER map to it), so it is left untouched.
+     * {@code users.role} is kept in lock-step with the new org role (MANAGER ↔ TEACHER).
      */
     @Transactional
     public OrgMemberDto changeRole(Long orgId, Long targetUserId, String newRole) {
@@ -144,6 +142,10 @@ public class OrgMembershipService {
         memberRepo.save(member);
 
         User u = userRepository.findById(targetUserId).orElse(null);
+        if (u != null) {
+            syncPlatformRole(u, role);   // MANAGER ↔ TEACHER also flips the platform identity
+            userRepository.save(u);
+        }
         return new OrgMemberDto(
                 targetUserId,
                 u != null ? u.getEmail() : null,
@@ -173,12 +175,41 @@ public class OrgMembershipService {
             if (orgId.equals(user.getOrgId())) {
                 user.setOrgId(null);
             }
-            if (user.getRole() == User.Role.TEACHER
-                    && !memberRepo.existsByIdUserIdAndRoleInAndStatus(userId, TEACHING_ROLES, STATUS_ACTIVE)) {
-                log.info("Demoting user {} to STUDENT — no remaining active teaching membership", userId);
+            if (isStaffPlatformRole(user.getRole())
+                    && !memberRepo.existsByIdUserIdAndRoleInAndStatus(userId, STAFF_ROLES, STATUS_ACTIVE)) {
+                log.info("Demoting user {} to STUDENT — no remaining active staff membership", userId);
                 user.setRole(User.Role.STUDENT);
             }
             userRepository.save(user);
         });
+    }
+
+    /** Maps an org-membership role to the platform identity it grants. */
+    private static User.Role platformRoleFor(String orgRole) {
+        return switch (orgRole == null ? "" : orgRole.toUpperCase()) {
+            case "OWNER" -> User.Role.OWNER;
+            case "MANAGER" -> User.Role.MANAGER;
+            case "TEACHER" -> User.Role.TEACHER;
+            default -> User.Role.STUDENT;
+        };
+    }
+
+    private static boolean isStaffPlatformRole(User.Role role) {
+        return role == User.Role.OWNER || role == User.Role.MANAGER || role == User.Role.TEACHER;
+    }
+
+    /**
+     * Keeps {@code users.role} in lock-step with the user's org role: OWNER/MANAGER/TEACHER map to the
+     * matching platform identity. A platform ADMIN is never downgraded; joining as STUDENT never
+     * overrides an existing staff identity (that is handled on detach).
+     */
+    private void syncPlatformRole(User user, String orgRole) {
+        if (user.getRole() == User.Role.ADMIN) {
+            return;
+        }
+        User.Role target = platformRoleFor(orgRole);
+        if (target != User.Role.STUDENT && user.getRole() != target) {
+            user.setRole(target);
+        }
     }
 }

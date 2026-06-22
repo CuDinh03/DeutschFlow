@@ -77,10 +77,14 @@ export default function V2LoginPage() {
           // /v2/admin has no index page yet → land on the locked canonical list.
           router.replace('/v2/admin/users')
           break
+        case 'OWNER':
+        case 'MANAGER':
+          // First-class org-admin platform roles land in the org console.
+          router.replace('/v2/org')
+          break
         case 'TEACHER':
-          // Org admins (OWNER or MANAGER — org-role ADMIN was renamed to MANAGER in V225; 'ADMIN'
-          // kept as a legacy alias for pre-rename tokens) land in the org console; plain teachers
-          // land on /v2/teacher.
+          // Legacy tokens minted before org admins became first-class roles still carry role=TEACHER
+          // with an OWNER/MANAGER orgRole — keep routing them to the console until the token refreshes.
           router.replace(
             orgRole === 'OWNER' || orgRole === 'MANAGER' || orgRole === 'ADMIN' ? '/v2/org' : '/v2/teacher',
           )
