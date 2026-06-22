@@ -2,6 +2,10 @@ package com.deutschflow.admin.service;
 
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.common.exception.ConflictException;
+import com.deutschflow.organization.repository.OrganizationRepository;
+import com.deutschflow.organization.service.OrgMembershipService;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import com.deutschflow.common.telemetry.ApiTelemetryService;
 import com.deutschflow.common.config.VocabularyEnrichmentProperties;
 import com.deutschflow.common.quota.AiCostEstimator;
@@ -67,6 +71,9 @@ public class AdminManagementService {
     private final UserErrorSkillRepository errorSkillRepository;
     private final AiSpeakingSessionRepository speakingSessionRepository;
     private final AiSpeakingMessageRepository speakingMessageRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final OrgMembershipService orgMembershipService;
+    private final OrganizationRepository organizationRepository;
 
     @Transactional(readOnly = true)
     public Map<String, Object> overview() {
@@ -647,6 +654,88 @@ public class AdminManagementService {
                 "displayName", user.getDisplayName(),
                 "role", user.getRole().name()
         );
+    }
+
+    /**
+     * Admin tạo tài khoản mới (ADMIN làm được mọi vai trò).
+     * Platform-role ∈ {STUDENT, TEACHER, ADMIN}. Khi gán vào tổ chức ({@code orgId} + {@code orgRole}):
+     * chỉ cho TEACHER hoặc MANAGER (manager = giáo viên trong tổ chức) — OWNER tạo qua luồng tạo org
+     * để giữ bất biến 1-OWNER. Tái dùng {@link OrgMembershipService#upsertMember} để đồng bộ org_id.
+     */
+    @Transactional
+    public Map<String, Object> createUser(String email, String displayName, String rawPassword,
+                                          String role, String locale, Long orgId, String orgRole) {
+        String normEmail = email == null ? "" : email.trim().toLowerCase();
+        if (normEmail.isBlank()) throw new BadRequestException("Email không được để trống.");
+        if (displayName == null || displayName.isBlank()) throw new BadRequestException("Tên hiển thị không được để trống.");
+        if (rawPassword == null || rawPassword.length() < 6) throw new BadRequestException("Mật khẩu tối thiểu 6 ký tự.");
+        String normRole = role == null ? "" : role.trim().toUpperCase();
+        if (!List.of("ADMIN", "TEACHER", "STUDENT").contains(normRole)) throw new BadRequestException("Vai trò không hợp lệ.");
+        if (userRepository.existsByEmail(normEmail)) throw new ConflictException("Email này đã có tài khoản.");
+
+        String normOrgRole = orgRole == null ? "" : orgRole.trim().toUpperCase();
+        boolean assignOrg = orgId != null && !normOrgRole.isBlank();
+        if (assignOrg) {
+            if (!List.of("TEACHER", "MANAGER").contains(normOrgRole)) {
+                throw new BadRequestException("Vai trò trong tổ chức chỉ có thể là TEACHER hoặc MANAGER.");
+            }
+            if (!"TEACHER".equals(normRole)) {
+                throw new BadRequestException("Chỉ tài khoản giáo viên mới gán vào tổ chức được (manager là giáo viên trong tổ chức).");
+            }
+            if (!organizationRepository.existsById(orgId)) {
+                throw new NotFoundException("Không tìm thấy tổ chức.");
+            }
+        }
+
+        User.Locale loc;
+        try {
+            loc = User.Locale.valueOf(locale == null || locale.isBlank() ? "vi" : locale.trim());
+        } catch (IllegalArgumentException e) {
+            loc = User.Locale.vi;
+        }
+
+        User user = User.builder()
+                .email(normEmail)
+                .passwordHash(passwordEncoder.encode(rawPassword))
+                .displayName(displayName.trim())
+                .role(User.Role.valueOf(normRole))
+                .locale(loc)
+                .active(true)
+                .build();
+        User saved = userRepository.save(user);
+
+        if (assignOrg) {
+            orgMembershipService.upsertMember(orgId, saved.getId(), normOrgRole);
+        }
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("id", saved.getId());
+        out.put("email", saved.getEmail());
+        out.put("displayName", saved.getDisplayName());
+        out.put("role", saved.getRole().name());
+        out.put("isActive", saved.isActive());
+        out.put("orgId", assignOrg ? orgId : null);
+        out.put("orgRole", assignOrg ? normOrgRole : null);
+        return out;
+    }
+
+    /**
+     * Khóa / mở khóa tài khoản (soft-delete, hoàn tác được). is_active=false chặn đăng nhập
+     * (User#isEnabled) nhưng GIỮ nguyên dữ liệu. Chỉ ADMIN gọi được (controller gác hasRole('ADMIN')).
+     */
+    @Transactional
+    public Map<String, Object> setUserActive(Long userId, boolean active) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+        user.setActive(active);
+        userRepository.save(user);
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("id", user.getId());
+        out.put("email", user.getEmail());
+        out.put("displayName", user.getDisplayName());
+        out.put("role", user.getRole().name());
+        out.put("isActive", user.isActive());
+        return out;
     }
 
     /**

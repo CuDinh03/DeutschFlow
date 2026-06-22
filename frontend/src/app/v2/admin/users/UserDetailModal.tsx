@@ -38,6 +38,8 @@ interface UserDetailModalProps {
   email: string
   /** Current global role (users.role) — drives the role-change control. */
   role: GlobalRole
+  /** Whether the account is active — drives the lock/unlock control. */
+  isActive: boolean
   planCode?: string
   plans: PlanRow[]
   onClose: () => void
@@ -70,6 +72,7 @@ export function UserDetailModal({
   userName,
   email,
   role,
+  isActive,
   planCode,
   plans,
   onClose,
@@ -86,6 +89,26 @@ export function UserDetailModal({
   const [currentRole, setCurrentRole] = useState<GlobalRole>(role)
   const [roleValue, setRoleValue] = useState<GlobalRole>(role)
   const [savingRole, setSavingRole] = useState(false)
+
+  // Account active state — soft delete (lock/unlock). Reversible, admin-only.
+  const [active, setActive] = useState(isActive)
+  const [savingActive, setSavingActive] = useState(false)
+
+  const toggleActive = async () => {
+    setSavingActive(true)
+    setError('')
+    try {
+      const next = !active
+      await api.patch(`/admin/users/${userId}/active`, { active: next })
+      setActive(next)
+      toast.success(next ? 'Đã mở khóa tài khoản.' : 'Đã khóa tài khoản.')
+      onSaved()
+    } catch (e: unknown) {
+      setError(apiMessage(e))
+    } finally {
+      setSavingActive(false)
+    }
+  }
 
   const [code, setCode] = useState((planCode || 'FREE').toUpperCase())
   const [startsAt, setStartsAt] = useState('')
@@ -238,6 +261,23 @@ export function UserDetailModal({
                   </GaBtn>
                 </div>
                 <p className="ga-ui text-[12px] text-ga-subtle">Đổi quyền truy cập toàn hệ thống — ghi log audit.</p>
+              </div>
+
+              {/* Account active state — soft delete (lock/unlock). Admin-only, reversible. */}
+              <div className="space-y-2 border-b border-ga-line pb-5">
+                <GaCap>Trạng thái tài khoản</GaCap>
+                <p className="ga-ui text-[13px] text-ga-muted">
+                  Hiện tại:{' '}
+                  <span className={active ? 'font-semibold text-ga-green' : 'font-semibold text-ga-red'}>
+                    {active ? 'Hoạt động' : 'Đã khóa'}
+                  </span>
+                </p>
+                <GaBtn variant={active ? 'ghost' : 'primary'} loading={savingActive} onClick={toggleActive}>
+                  {active ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}
+                </GaBtn>
+                <p className="ga-ui text-[12px] text-ga-subtle">
+                  Khóa = chặn đăng nhập nhưng giữ nguyên dữ liệu; mở lại bất cứ lúc nào. Chỉ admin.
+                </p>
               </div>
 
               <GaCap>Đổi gói đăng ký</GaCap>

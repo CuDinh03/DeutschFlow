@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { useUserStore } from '@/stores/useUserStore'
-import { logout } from '@/lib/authSession'
+import { getOrgRole, logout } from '@/lib/authSession'
 import { GaLogo } from './GaLogo'
 import { GaIcon } from './GaIcon'
 import type { RoleId, RoleNav } from './nav'
@@ -38,6 +38,13 @@ export function GaSidebar({ nav }: GaSidebarProps) {
   const displayName = user?.displayName || ROLE_LABEL[nav.role]
   const email = user?.email || ''
 
+  // Org nav: ownerOnly items (Tài chính, Gói & Giấy phép) are hidden from MANAGER (nhân sự) —
+  // only the OWNER (giám đốc) sees finance/billing. Read from the cookie/JWT after mount (client
+  // only) to stay SSR-safe; before that isOwner=false so the items render hidden, never flashing to
+  // a MANAGER. Backend (OrgGuard.assertOrgFinance) is the real enforcement; this is the UX hide.
+  const [isOwner, setIsOwner] = React.useState(false)
+  React.useEffect(() => { setIsOwner(getOrgRole() === 'OWNER') }, [])
+
   return (
     <aside className="flex w-[248px] shrink-0 flex-col border-r border-ga-line bg-ga-card p-5">
       <div className="mb-2">
@@ -55,7 +62,7 @@ export function GaSidebar({ nav }: GaSidebarProps) {
                 {section.label}
               </p>
             )}
-            {section.items.map((item) => {
+            {section.items.filter((item) => !item.ownerOnly || isOwner).map((item) => {
               const active = isActive(item.href, nav.rootHref, pathname)
               return (
                 <Link

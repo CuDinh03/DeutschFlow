@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { UserPlus } from 'lucide-react'
-import { toast } from 'sonner'
 import api from '@/lib/api'
 import useAdminData from '@/hooks/useAdminData'
 import LearningDetailModal from '@/components/admin/LearningDetailModal'
@@ -15,6 +14,7 @@ import {
 } from '@/components/ui-v2'
 import { cn } from '@/lib/utils'
 import { UserDetailModal } from './UserDetailModal'
+import { AdminCreateUserModal } from './AdminCreateUserModal'
 
 // ── Normalized row (Prototype A shape) ───────────────────────────────────────
 type AdminUser = {
@@ -133,6 +133,7 @@ export default function V2AdminUsersPage() {
   const [plans, setPlans] = useState<PlanRow[]>([])
   const [detailUser, setDetailUser] = useState<AdminUser | null>(null)
   const [learningUser, setLearningUser] = useState<AdminUser | null>(null)
+  const [showCreate, setShowCreate] = useState(false)
 
   const { data, loading, error, reload } = useAdminData<AdminUser[]>({
     initialData: [],
@@ -295,10 +296,7 @@ export default function V2AdminUsersPage() {
               placeholder="Tìm tên / email…"
               containerClassName="w-[230px]"
             />
-            <GaBtn
-              variant="yellow"
-              onClick={() => toast('Tính năng tạo người dùng sắp ra mắt')}
-            >
+            <GaBtn variant="yellow" onClick={() => setShowCreate(true)}>
               <UserPlus size={16} aria-hidden />
               Thêm người dùng
             </GaBtn>
@@ -367,6 +365,7 @@ export default function V2AdminUsersPage() {
           userName={detailUser.displayName}
           email={detailUser.email}
           role={detailUser.role}
+          isActive={detailUser.isActive}
           planCode={detailUser.planCode}
           plans={plans}
           onClose={() => setDetailUser(null)}
@@ -383,6 +382,13 @@ export default function V2AdminUsersPage() {
           userId={learningUser.id}
           userName={learningUser.displayName}
           onClose={() => setLearningUser(null)}
+        />
+      )}
+
+      {showCreate && (
+        <AdminCreateUserModal
+          onClose={() => setShowCreate(false)}
+          onCreated={() => reload({ silent: true })}
         />
       )}
     </div>

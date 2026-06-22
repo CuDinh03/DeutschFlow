@@ -140,10 +140,11 @@ class OrgGuardTest {
     }
 
     @Test
-    @DisplayName("assertOrgFinance passes for MANAGER role")
-    void assertOrgFinance_manager_passes() {
+    @DisplayName("assertOrgFinance throws ForbiddenException for MANAGER role (finance narrowed to OWNER-only, 2026-06-22)")
+    void assertOrgFinance_manager_throwsForbidden() {
         stubMember(activeMember("MANAGER"));
-        orgGuard.assertOrgFinance(USER_ID, ORG_ID);
+        assertThatThrownBy(() -> orgGuard.assertOrgFinance(USER_ID, ORG_ID))
+                .isInstanceOf(ForbiddenException.class);
     }
 
     @Test
