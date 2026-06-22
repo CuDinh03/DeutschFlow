@@ -42,7 +42,7 @@ Phần còn lại nhỏ hơn nhiều so với lo ngại ban đầu.
 ## 3. TRACK A — WEB (cán đích) · 🤖 = tôi làm · 👤 = cần bạn
 
 ### A1 🔴 Deploy backend prod (#143) — **LÀM ĐẦU TIÊN, gỡ rủi ro LIVE**
-- [ ] 👤 Mở SSH: whitelist IP máy tôi + port 22 trên Security Group EC2 `35.175.232.152` *(gotcha cũ: từng nhầm `.190` vs IP thật → xác nhận IP đúng)*
+- [ ] 👤 ⏳ **ĐANG CHỜ:** whitelist **`117.5.147.64/32`** (IP máy tôi) cho **port 22** trên SG EC2 `35.175.232.152`. *(Thử 08:26 + retry → vẫn timeout. Instance OK: API `UP` trên 443 → thuần là SG chưa có IP này. Gotcha cũ: từng nhầm `.190`.)*
 - [ ] 🤖 `git checkout main && git pull` → cây sạch → `./deploy-backend.sh` (blue-green; **exit 1 ở cleanup-prompt = cosmetic, đọc log**)
 - [ ] 🤖 Verify: `curl -sf https://api.mydeutschflow.com/actuator/health` = `UP`; migration **V225/V226/V227 applied**
 - [ ] 🤖 Verify endpoint mới: `PATCH /api/org/members/{id}/role` (org-admin) · materials · free-teachers → 200/đúng-gate
@@ -55,12 +55,12 @@ Phần còn lại nhỏ hơn nhiều so với lo ngại ban đầu.
 ### A3 🟡 Round-2 audit FE fixes (`plans/2026-06-22-v2-audit-followups.md`)
 - [ ] 🤖 **weekly-speaking** (HIGH) — viết lại form+list theo DTO thật `WeeklyPromptAdminUpsertRequest` (`weekStartDate/cefrBand/title/promptDe/mandatoryPoints[]`); list đọc cột JDBC thật. *(đang gửi sai field → 400/trắng)*
 - [ ] 🤖 **3 reports con** (MED) — đọc field thật: `vocabulary-quality`→`{nounGenderCoverage,translationCoverage}` · `grammar-feedback-coverage`→`{snapshotDate,totalSubmits,coveragePercent}` · `personalization-ruleset`→`{version,dimensionsSupported}` (hub cha `reports/page.tsx` là tham chiếu đúng)
-- [ ] 🤖 **Wire rubric phỏng vấn** (HIGH) — `admin/personas/page.tsx` gọi `interviewAdminApi.updateRubric` (đang lưu client-side giả)
+- [x] 🤖 **Wire rubric phỏng vấn** (HIGH) ✅ **PR #144** — ⚠️ thực ra là **M không phải S**: backend per-template (nhiều rubric/ngành, 4-8 tiêu chí float Σ=1) ≠ editor giả 4-nhãn-VN. Wire ngây thơ sẽ **ghi đè phá rubric chấm AI**. Đã build per-template editor đúng: chọn template → sửa weight thật → `updateRubric` (%→fraction, gate Σ=100%).
 - [ ] 🤖+👤 **orgs seat/validUntil** (MED, ⚠️ cần BE) — thêm `seatUsed/validUntil/monthlyTokenPool/createdAt` vào `OrgDto`/`OrgDetailDto` (backend) + modal fetch detail → **gộp vào Deploy #2**
 
 ### A4 🟡 B2B role model — đóng phần CÒN LẠI sau #143 (`plans/2026-06-22-b2b-role-model-checklist.md`)
-- [ ] 🤖 **P0-1 (S)** — KHÔI PHỤC nút đổi **global-role** ở `v2/admin/users/UserDetailModal.tsx` (hiện chỉ có filter, không sửa được); BE `PATCH /api/admin/users/{id}/role` còn nguyên + audited (ref legacy `app/admin/users/page.tsx:183`)
-- [ ] 🤖 **P1-1 FE (S)** — wire `/v2/org/roles/page.tsx` gọi `PATCH /api/org/members/{id}/role` thật (BE đã có ở #143; FE còn comment "read-only = toast") + `orgApi.updateMemberRole`
+- [x] 🤖 **P0-1 (S)** ✅ **PR #144** — khôi phục khối "Vai trò hệ thống" (STUDENT/TEACHER/ADMIN + nút Đổi) ở `UserDetailModal.tsx` → `PATCH /admin/users/{id}/role`; baseline re-disable sau khi lưu.
+- [ ] 🤖 **P1-1 FE (S)** — wire `/v2/org/roles/page.tsx` gọi `PATCH /api/org/members/{id}/role` thật (BE đã có ở #143; FE còn comment "read-only = toast") + `orgApi.updateMemberRole`. ⚠️ **endpoint chỉ sống trên prod sau A1 deploy** → code được nhưng verify chờ A1.
 - [ ] 🤖 **P0-3 (S, cosmetic — optional)** — tạo enum `OrgRole {OWNER,MANAGER,TEACHER,STUDENT}` thay String thô ở `OrgGuard`/`OrgMembershipService` (vocab nhất quán; **gộp Deploy #2**)
 - [ ] 🤖 verify **P1-2** (invite chọn role) + **P1-4** (org-admin phân teacher vào lớp) — kiểm #143 đã cover chưa, làm nốt nếu thiếu
 - **✅ #143 đã làm (không lặp):** P0-2 ACCOUNTANT đã drop · ADMIN→MANAGER · BE endpoint đổi org-role.
