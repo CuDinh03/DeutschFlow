@@ -89,7 +89,7 @@ class MaterialServiceTest {
         when(s3StorageService.uploadFile(any(), eq("materials")))
                 .thenReturn(new S3StorageService.S3UploadResult("materials/k.pdf", "http://x/k.pdf"));
         when(materialRepository.save(any())).thenAnswer(i -> { Material m = i.getArgument(0); m.setId(1L); return m; });
-        when(s3StorageService.publicUrl("materials/k.pdf")).thenReturn("http://x/k.pdf");
+        when(s3StorageService.presignedGetUrl(eq("materials/k.pdf"), any())).thenReturn("http://x/k.pdf");
 
         MaterialDto dto = service.create(caller, "PERSONAL", file("a.pdf"), "Bài 1", "desc");
 
@@ -112,7 +112,7 @@ class MaterialServiceTest {
         when(s3StorageService.uploadFile(any(), eq("materials")))
                 .thenReturn(new S3StorageService.S3UploadResult("materials/k.pptx", "u"));
         when(materialRepository.save(any())).thenAnswer(i -> i.getArgument(0));
-        when(s3StorageService.publicUrl(any())).thenReturn("u");
+        when(s3StorageService.presignedGetUrl(any(), any())).thenReturn("u");
 
         service.create(caller, "ORG", file("s.pptx"), "Slide", null);
 
@@ -146,7 +146,7 @@ class MaterialServiceTest {
                 .thenReturn(List.of(personalMaterial(1L, 7L)));
         when(materialRepository.findByOwnerScopeAndOrgIdAndStatusOrderByCreatedAtDesc("ORG", 10L, "ACTIVE"))
                 .thenReturn(List.of(orgMaterial(2L, 10L, 7L)));
-        when(s3StorageService.publicUrl(any())).thenReturn("u");
+        when(s3StorageService.presignedGetUrl(any(), any())).thenReturn("u");
 
         List<MaterialDto> out = service.list(caller);
 
@@ -180,7 +180,7 @@ class MaterialServiceTest {
         when(materialRepository.findById(1L)).thenReturn(Optional.of(orgMaterial(1L, 10L, 7L)));
         when(orgMemberRepository.findByIdOrgIdAndIdUserId(10L, 8L))
                 .thenReturn(Optional.of(member(10L, 8L, "TEACHER", "ACTIVE")));
-        when(s3StorageService.publicUrl(any())).thenReturn("u");
+        when(s3StorageService.presignedGetUrl(any(), any())).thenReturn("u");
 
         assertThat(service.get(caller, 1L).id()).isEqualTo(1L);
     }
@@ -208,7 +208,7 @@ class MaterialServiceTest {
         when(orgMemberRepository.findByIdOrgIdAndIdUserId(10L, 7L))
                 .thenReturn(Optional.of(member(10L, 7L, "TEACHER", "ACTIVE")));
         when(materialRepository.save(any())).thenAnswer(i -> i.getArgument(0));
-        when(s3StorageService.publicUrl(any())).thenReturn("u");
+        when(s3StorageService.presignedGetUrl(any(), any())).thenReturn("u");
 
         service.archive(caller, 1L);
 
@@ -235,7 +235,7 @@ class MaterialServiceTest {
         when(orgMemberRepository.findByIdOrgIdAndIdUserId(10L, 9L))
                 .thenReturn(Optional.of(member(10L, 9L, "MANAGER", "ACTIVE")));
         when(materialRepository.save(any())).thenAnswer(i -> i.getArgument(0));
-        when(s3StorageService.publicUrl(any())).thenReturn("u");
+        when(s3StorageService.presignedGetUrl(any(), any())).thenReturn("u");
 
         service.archive(caller, 1L);
 

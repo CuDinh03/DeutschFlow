@@ -38,6 +38,8 @@ interface UserDetailModalProps {
   email: string
   /** Current global role (users.role) — drives the role-change control. */
   role: GlobalRole
+  /** Whether the account is active — drives the lock/unlock control. */
+  isActive: boolean
   planCode?: string
   plans: PlanRow[]
   onClose: () => void
@@ -70,6 +72,7 @@ export function UserDetailModal({
   userName,
   email,
   role,
+  isActive,
   planCode,
   plans,
   onClose,
@@ -86,6 +89,48 @@ export function UserDetailModal({
   const [currentRole, setCurrentRole] = useState<GlobalRole>(role)
   const [roleValue, setRoleValue] = useState<GlobalRole>(role)
   const [savingRole, setSavingRole] = useState(false)
+
+  // Account active state — soft delete (lock/unlock). Reversible, admin-only.
+  const [active, setActive] = useState(isActive)
+  const [savingActive, setSavingActive] = useState(false)
+
+  const toggleActive = async () => {
+    setSavingActive(true)
+    setError('')
+    try {
+      const next = !active
+      await api.patch(`/admin/users/${userId}/active`, { active: next })
+      setActive(next)
+      toast.success(next ? 'Đã mở khóa tài khoản.' : 'Đã khóa tài khoản.')
+      onSaved()
+    } catch (e: unknown) {
+      setError(apiMessage(e))
+    } finally {
+      setSavingActive(false)
+    }
+  }
+
+  // Admin reset password — đặt mật khẩu mới cho user (không cần mật khẩu cũ). Admin-only, audit.
+  const [newPw, setNewPw] = useState('')
+  const [savingPw, setSavingPw] = useState(false)
+
+  const resetPassword = async () => {
+    if (newPw.length < 8) {
+      setError('Mật khẩu mới tối thiểu 8 ký tự.')
+      return
+    }
+    setSavingPw(true)
+    setError('')
+    try {
+      await api.patch(`/admin/users/${userId}/password`, { password: newPw })
+      setNewPw('')
+      toast.success('Đã đặt lại mật khẩu.')
+    } catch (e: unknown) {
+      setError(apiMessage(e))
+    } finally {
+      setSavingPw(false)
+    }
+  }
 
   const [code, setCode] = useState((planCode || 'FREE').toUpperCase())
   const [startsAt, setStartsAt] = useState('')
@@ -238,6 +283,44 @@ export function UserDetailModal({
                   </GaBtn>
                 </div>
                 <p className="ga-ui text-[12px] text-ga-subtle">Đổi quyền truy cập toàn hệ thống — ghi log audit.</p>
+              </div>
+
+              {/* Account active state — soft delete (lock/unlock). Admin-only, reversible. */}
+              <div className="space-y-2 border-b border-ga-line pb-5">
+                <GaCap>Trạng thái tài khoản</GaCap>
+                <p className="ga-ui text-[13px] text-ga-muted">
+                  Hiện tại:{' '}
+                  <span className={active ? 'font-semibold text-ga-green' : 'font-semibold text-ga-red'}>
+                    {active ? 'Hoạt động' : 'Đã khóa'}
+                  </span>
+                </p>
+                <GaBtn variant={active ? 'ghost' : 'primary'} loading={savingActive} onClick={toggleActive}>
+                  {active ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}
+                </GaBtn>
+                <p className="ga-ui text-[12px] text-ga-subtle">
+                  Khóa = chặn đăng nhập nhưng giữ nguyên dữ liệu; mở lại bất cứ lúc nào. Chỉ admin.
+                </p>
+              </div>
+
+              {/* Admin reset password — đặt lại mật khẩu cho user (gỡ default-cred / user quên pass). */}
+              <div className="space-y-2 border-b border-ga-line pb-5">
+                <GaCap>Đặt lại mật khẩu</GaCap>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={newPw}
+                    onChange={(e) => setNewPw(e.target.value)}
+                    autoComplete="new-password"
+                    placeholder="Mật khẩu mới (≥ 8 ký tự)"
+                    className="ga-ui flex-1 rounded-ga border border-ga-line bg-ga-card px-3 py-2 text-[13px] text-ga-ink outline-none placeholder:text-ga-subtle"
+                  />
+                  <GaBtn variant="primary" loading={savingPw} disabled={newPw.length < 8} onClick={resetPassword}>
+                    Đặt lại
+                  </GaBtn>
+                </div>
+                <p className="ga-ui text-[12px] text-ga-subtle">
+                  Admin đặt mật khẩu mới trực tiếp (không cần mật khẩu cũ) — dùng khi gỡ tài khoản mật khẩu mặc định / user quên pass. Có ghi audit.
+                </p>
               </div>
 
               <GaCap>Đổi gói đăng ký</GaCap>

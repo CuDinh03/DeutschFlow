@@ -160,6 +160,8 @@ class OrgMembershipServiceTest {
         assertThat(active.getStatus()).isEqualTo("LEFT");
         assertThat(active.getLeftAt()).isNotNull();
         assertThat(user.getOrgId()).isNull();
+        // Portability (B2B model §2.2): rời TT chỉ đóng membership — account KHÔNG bị xoá → giáo viên tự do.
+        verify(userRepository, never()).delete(any());
     }
 
     @Test

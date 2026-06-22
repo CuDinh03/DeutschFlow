@@ -10,6 +10,8 @@ export interface NavItem {
   label: string
   href: string
   icon: string
+  /** Org nav: item visible to OWNER only (e.g. finance/billing). MANAGER (nhân sự) does not see it. */
+  ownerOnly?: boolean
 }
 
 export interface NavSection {
@@ -33,6 +35,7 @@ export const teacherNav: RoleNav = {
         { id: 'teacher', label: 'Tổng quan & Lớp', href: '/v2/teacher', icon: 'dashboard' },
         { id: 'sessions', label: 'Buổi 1:1', href: '/v2/teacher/sessions', icon: 'calendar_month' },
         { id: 'grading', label: 'Chấm bài', href: '/v2/teacher/grading', icon: 'grading' },
+        { id: 'grade-image', label: 'Chấm ảnh viết tay', href: '/v2/teacher/grade-image', icon: 'draw' },
         { id: 'tc-checklist', label: 'Checklist bài giảng', href: '/v2/teacher/tc-checklist', icon: 'checklist' },
         { id: 'tc-progress', label: 'Tiến độ lớp', href: '/v2/teacher/tc-progress', icon: 'trending_up' },
         { id: 'materials', label: 'Thư viện tài liệu', href: '/v2/teacher/materials', icon: 'folder' },
@@ -55,7 +58,6 @@ export const teacherNav: RoleNav = {
       label: 'Tài khoản',
       items: [
         { id: 't-profile', label: 'Hồ sơ', href: '/v2/teacher/profile', icon: 'person' },
-        { id: 'grade-image', label: 'Chấm ảnh viết tay', href: '/v2/teacher/grade-image', icon: 'draw' },
       ],
     },
   ],
@@ -92,6 +94,12 @@ export const adminNav: RoleNav = {
         { id: 'admin-settings', label: 'Cấu hình', href: '/v2/admin/settings', icon: 'settings' },
       ],
     },
+    {
+      label: 'Tài khoản',
+      items: [
+        { id: 'admin-profile', label: 'Hồ sơ', href: '/v2/profile', icon: 'person' },
+      ],
+    },
   ],
 }
 
@@ -106,10 +114,16 @@ export const orgNav: RoleNav = {
         { id: 'org-classes', label: 'Lớp học', href: '/v2/org/classes', icon: 'groups' },
         { id: 'org-teachers', label: 'Giáo viên', href: '/v2/org/teachers', icon: 'badge' },
         { id: 'org-analytics', label: 'Phân tích', href: '/v2/org/analytics', icon: 'monitoring' },
-        { id: 'org-finance', label: 'Tài chính', href: '/v2/org/finance', icon: 'account_balance' },
-        { id: 'org-billing', label: 'Gói & Giấy phép', href: '/v2/org/billing', icon: 'receipt' },
+        { id: 'org-finance', label: 'Tài chính', href: '/v2/org/finance', icon: 'account_balance', ownerOnly: true },
+        { id: 'org-billing', label: 'Gói & Giấy phép', href: '/v2/org/billing', icon: 'receipt', ownerOnly: true },
         { id: 'org-invitations', label: 'Lời mời', href: '/v2/org/invitations', icon: 'mail' },
         { id: 'org-roles', label: 'Phân quyền', href: '/v2/org/roles', icon: 'admin_panel_settings' },
+      ],
+    },
+    {
+      label: 'Tài khoản',
+      items: [
+        { id: 'org-profile', label: 'Hồ sơ', href: '/v2/profile', icon: 'person' },
       ],
     },
   ],

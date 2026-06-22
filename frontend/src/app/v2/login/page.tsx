@@ -78,7 +78,12 @@ export default function V2LoginPage() {
           router.replace('/v2/admin/users')
           break
         case 'TEACHER':
-          router.replace(orgRole === 'OWNER' || orgRole === 'ADMIN' ? '/v2/org' : '/v2/teacher')
+          // Org admins (OWNER or MANAGER — org-role ADMIN was renamed to MANAGER in V225; 'ADMIN'
+          // kept as a legacy alias for pre-rename tokens) land in the org console; plain teachers
+          // land on /v2/teacher.
+          router.replace(
+            orgRole === 'OWNER' || orgRole === 'MANAGER' || orgRole === 'ADMIN' ? '/v2/org' : '/v2/teacher',
+          )
           break
         case 'STUDENT':
         default:

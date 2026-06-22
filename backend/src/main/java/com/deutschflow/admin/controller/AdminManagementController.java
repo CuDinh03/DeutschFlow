@@ -22,6 +22,7 @@ import com.deutschflow.vocabulary.service.LlmViTranslationService;
 import com.deutschflow.vocabulary.service.LlmDtypeFixService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.CacheManager;
 import org.springframework.http.ResponseEntity;
@@ -201,6 +202,75 @@ public class AdminManagementController {
     @GetMapping("/users")
     public List<Map<String, Object>> users() {
         return adminManagementService.listUsers();
+    }
+
+    /** Admin tạo tài khoản mới (mọi vai trò). Tùy chọn gán vào tổ chức (TEACHER|MANAGER). */
+    @PostMapping("/users")
+    public Map<String, Object> createUser(
+            @Valid @RequestBody CreateUserRequest req,
+            Authentication authentication
+    ) {
+        Map<String, Object> created = adminManagementService.createUser(
+                req.email(), req.displayName(), req.password(), req.role(), req.locale(), req.orgId(), req.orgRole());
+        auditLogService.log(
+                "admin.user.created",
+                null,
+                actorEmail(authentication),
+                actorRole(authentication),
+                "USER",
+                String.valueOf(created.get("id")),
+                Map.of(
+                        "email", String.valueOf(created.get("email")),
+                        "role", String.valueOf(created.get("role")),
+                        "orgId", String.valueOf(created.get("orgId")),
+                        "orgRole", String.valueOf(created.get("orgRole"))
+                )
+        );
+        return created;
+    }
+
+    /** Khóa / mở khóa tài khoản (soft-delete). Chỉ ADMIN. Không thể tự khóa chính mình. */
+    @PatchMapping("/users/{userId}/active")
+    public Map<String, Object> setUserActive(
+            @PathVariable Long userId,
+            @Valid @RequestBody SetActiveRequest req,
+            @AuthenticationPrincipal User actor,
+            Authentication authentication
+    ) {
+        if (actor != null && actor.getId().equals(userId) && Boolean.FALSE.equals(req.active())) {
+            throw new BadRequestException("Bạn không thể tự khóa tài khoản của mình.");
+        }
+        Map<String, Object> updated = adminManagementService.setUserActive(userId, req.active());
+        auditLogService.log(
+                req.active() ? "admin.user.reactivated" : "admin.user.deactivated",
+                null,
+                actorEmail(authentication),
+                actorRole(authentication),
+                "USER",
+                String.valueOf(userId),
+                Map.of("active", req.active())
+        );
+        return updated;
+    }
+
+    /** Admin đặt lại mật khẩu cho user (vận hành: gỡ default-cred / hỗ trợ quên pass). Chỉ ADMIN; audit (KHÔNG log mật khẩu). */
+    @PatchMapping("/users/{userId}/password")
+    public Map<String, Object> setUserPassword(
+            @PathVariable Long userId,
+            @Valid @RequestBody SetPasswordRequest req,
+            Authentication authentication
+    ) {
+        Map<String, Object> updated = adminManagementService.setUserPassword(userId, req.password());
+        auditLogService.log(
+                "admin.user.password.reset",
+                null,
+                actorEmail(authentication),
+                actorRole(authentication),
+                "USER",
+                String.valueOf(userId),
+                Map.of()
+        );
+        return updated;
     }
 
     @GetMapping("/plans")
@@ -870,6 +940,20 @@ public class AdminManagementController {
     }
 
     public record UpdateRoleRequest(@NotBlank(message = "role is required") String role) {}
+
+    public record CreateUserRequest(
+            @NotBlank(message = "email is required") String email,
+            @NotBlank(message = "displayName is required") String displayName,
+            @NotBlank(message = "password is required") String password,
+            @NotBlank(message = "role is required") String role,
+            String locale,
+            Long orgId,
+            String orgRole
+    ) {}
+
+    public record SetActiveRequest(@NotNull(message = "active is required") Boolean active) {}
+
+    public record SetPasswordRequest(@NotBlank(message = "password is required") String password) {}
     public record UpdatePlanRequest(
             @NotBlank(message = "planCode is required") String planCode,
             Long monthlyTokenLimitOverride,

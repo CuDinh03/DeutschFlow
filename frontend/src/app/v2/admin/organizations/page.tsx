@@ -14,6 +14,7 @@ import {
   type OrgInvoice,
 } from '@/lib/adminOrgApi'
 import { GaPageHdr, GaBtn, GaCap, AdStatStrip, DataTable, TkModal, type DataTableColumn } from '@/components/ui-v2'
+import { CreateOrgModal } from './CreateOrgModal'
 
 const fmtDate = (d: string | null | undefined) => (d ? format(new Date(d), 'dd/MM/yyyy') : '—')
 
@@ -104,6 +105,7 @@ const PAY_TONE: Record<OrgPay, { c: string; s: string }> = {
 export default function V2AdminOrgsPage() {
   const [activating, setActivating] = useState<number | null>(null)
   const [detail, setDetail] = useState<OrgRow | null>(null)
+  const [showCreate, setShowCreate] = useState(false)
 
   const { data, loading, error, reload } = useAdminData<OrgRow[]>({
     initialData: [],
@@ -267,7 +269,7 @@ export default function V2AdminOrgsPage() {
         title="Tổ chức B2B — Tài chính"
         subtitle="Hợp đồng, ghế đã bán và dòng tiền từ các trung tâm đối tác"
         right={
-          <GaBtn variant="ghost" onClick={() => toast('Tính năng tạo tổ chức sắp ra mắt')}>
+          <GaBtn variant="ghost" onClick={() => setShowCreate(true)}>
             <Plus size={15} aria-hidden />
             Thêm tổ chức
           </GaBtn>
@@ -327,6 +329,10 @@ export default function V2AdminOrgsPage() {
       </div>
 
       <OrgFinanceModal row={detail} onClose={() => setDetail(null)} />
+
+      {showCreate && (
+        <CreateOrgModal onClose={() => setShowCreate(false)} onCreated={() => reload({ silent: true })} />
+      )}
     </div>
   )
 }

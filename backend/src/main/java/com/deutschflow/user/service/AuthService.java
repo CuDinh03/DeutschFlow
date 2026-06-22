@@ -75,6 +75,7 @@ public class AuthService {
                 .displayName(request.displayName())
                 .role(User.Role.STUDENT)
                 .locale(locale)
+                .createdVia(User.CreatedVia.SELF)
                 .build();
 
         userRepository.save(user);

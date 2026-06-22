@@ -136,7 +136,7 @@ export default function V2TeacherDashboardPage() {
         title="Dashboard & Lớp học"
         subtitle="Quản lý tổng quan tiến độ học tập và các lớp học của bạn"
         right={
-          <GaBtn variant="ghost" onClick={() => toast('Báo cáo phân tích (sắp ra mắt)')}>
+          <GaBtn variant="ghost" onClick={() => router.push('/v2/teacher/analytics')}>
             Xem báo cáo →
           </GaBtn>
         }
@@ -256,16 +256,20 @@ export default function V2TeacherDashboardPage() {
                     </button>
                     <div className="flex items-center justify-between gap-2.5 px-[22px] py-3">
                       <div className="flex gap-2">
-                        {['Vào lớp', 'Tài liệu AI'].map((a) => (
-                          <button
-                            key={a}
-                            type="button"
-                            onClick={() => toast(`${a} (sắp ra mắt)`)}
-                            className="rounded-ga border border-ga-line px-3 py-[7px] text-[11.5px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent"
-                          >
-                            {a}
-                          </button>
-                        ))}
+                        <button
+                          type="button"
+                          onClick={() => router.push(`/v2/teacher/classes/${c.id}`)}
+                          className="rounded-ga border border-ga-line px-3 py-[7px] text-[11.5px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent"
+                        >
+                          Vào lớp
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => toast('Tài liệu AI (sắp ra mắt)')}
+                          className="rounded-ga border border-ga-line px-3 py-[7px] text-[11.5px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent"
+                        >
+                          Tài liệu AI
+                        </button>
                       </div>
                       {c.code && (
                         <code className="bg-ga-ink px-2.5 py-1.5 text-[12px] font-semibold tracking-[0.08em] text-ga-yellow">

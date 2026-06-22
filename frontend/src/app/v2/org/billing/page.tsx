@@ -7,6 +7,7 @@ import { format } from 'date-fns'
 import { apiMessage } from '@/lib/api'
 import { getOrgSummary, listMyInvoices, type OrgSummary, type OrgInvoice } from '@/lib/orgApi'
 import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
+import { OrgOwnerOnly } from '../OwnerOnly'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Gói & Thanh toán (GaOrgBilling) — green accent. Plumbing reused 1:1 (zero backend):
@@ -30,7 +31,7 @@ const INV_STATUS: Record<string, { label: string; c: string }> = {
   VOID: { label: 'Đã huỷ', c: 'var(--ga-muted)' },
 }
 
-export default function V2OrgBillingPage() {
+function V2OrgBillingInner() {
   const [summary, setSummary] = useState<OrgSummary | null>(null)
   const [invoices, setInvoices] = useState<OrgInvoice[]>([])
   const [loading, setLoading] = useState(true)
@@ -147,5 +148,14 @@ export default function V2OrgBillingPage() {
         )}
       </div>
     </div>
+  )
+}
+
+// Gói & Giấy phép = OWNER-only (giám đốc). MANAGER (nhân sự) bị guard chặn → /v2/org.
+export default function V2OrgBillingPage() {
+  return (
+    <OrgOwnerOnly>
+      <V2OrgBillingInner />
+    </OrgOwnerOnly>
   )
 }

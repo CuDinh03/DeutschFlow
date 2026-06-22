@@ -140,6 +140,7 @@ public class OrgRosterService {
                             .passwordHash(passwordEncoder.encode(UUID.randomUUID().toString()))
                             .displayName(displayName)
                             .role(User.Role.STUDENT)
+                            .createdVia(User.CreatedVia.CSV)
                             .build());
                     created++;
                 }

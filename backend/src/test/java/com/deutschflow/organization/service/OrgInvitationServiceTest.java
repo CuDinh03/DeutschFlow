@@ -44,6 +44,8 @@ class OrgInvitationServiceTest {
     @Mock
     private OrganizationRepository organizationRepository;
     @Mock
+    private com.deutschflow.organization.repository.OrgMemberRepository memberRepo;
+    @Mock
     private UserRepository userRepository;
     @Mock
     private OrgMembershipService membershipService;
@@ -65,6 +67,7 @@ class OrgInvitationServiceTest {
         service = new OrgInvitationService(
                 invitationRepository,
                 organizationRepository,
+                memberRepo,
                 userRepository,
                 membershipService,
                 mailer,
@@ -261,5 +264,38 @@ class OrgInvitationServiceTest {
         // The actual promotion happens inside membershipService.upsertMember;
         // the service must delegate with the correct role so the upsert can promote.
         verify(membershipService).upsertMember(eq(ORG_ID), eq(77L), eq("TEACHER"));
+    }
+
+    @Test
+    @DisplayName("preCreateTeacher: tạo account TEACHER + membership + createdVia = role người tạo")
+    void preCreateTeacher_createsTeacherWithProvenance() {
+        when(userRepository.existsByEmail("t@x.com")).thenReturn(false);
+        when(passwordEncoder.encode(anyString())).thenReturn("HASH");
+        ArgumentCaptor<User> cap = ArgumentCaptor.forClass(User.class);
+        when(userRepository.save(cap.capture())).thenAnswer(i -> {
+            User u = i.getArgument(0);
+            u.setId(88L);
+            return u;
+        });
+
+        com.deutschflow.organization.dto.OrgMemberDto dto =
+                service.preCreateTeacher(ORG_ID, " T@x.com ", "Teacher X", "secret123", User.CreatedVia.OWNER);
+
+        assertThat(cap.getValue().getRole()).isEqualTo(User.Role.TEACHER);
+        assertThat(cap.getValue().getCreatedVia()).isEqualTo(User.CreatedVia.OWNER);
+        assertThat(cap.getValue().getEmail()).isEqualTo("t@x.com"); // normalized (trim + lowercase)
+        verify(membershipService).upsertMember(ORG_ID, 88L, "TEACHER");
+        assertThat(dto.role()).isEqualTo("TEACHER");
+        assertThat(dto.userId()).isEqualTo(88L);
+    }
+
+    @Test
+    @DisplayName("preCreateTeacher: email đã tồn tại → ConflictException (không tạo)")
+    void preCreateTeacher_duplicateEmail_conflict() {
+        when(userRepository.existsByEmail("dup@x.com")).thenReturn(true);
+        assertThatThrownBy(() ->
+                service.preCreateTeacher(ORG_ID, "dup@x.com", "D", "secret123", User.CreatedVia.MANAGER))
+                .isInstanceOf(com.deutschflow.common.exception.ConflictException.class);
+        verify(userRepository, never()).save(any(User.class));
     }
 }

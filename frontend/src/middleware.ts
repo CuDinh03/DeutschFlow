@@ -9,7 +9,12 @@ type Role = 'STUDENT' | 'TEACHER' | 'ADMIN'
 // Org role is a SEPARATE claim from the global Role. It is intentionally NOT added to the Role
 // union: the centre owner is global TEACHER (so they keep /teacher access) AND OWNER inside the org.
 // Gating /org/* by orgRole instead of role is what lets both coexist.
-type OrgRole = 'OWNER' | 'ADMIN'
+//
+// ORG-ADMIN ROLE = MANAGER. The org-level ADMIN role was renamed to MANAGER in backend migration
+// V225 (B2B model §1); the backend now issues orgRole='MANAGER' (JwtService) and OrgGuard authorizes
+// {OWNER, MANAGER}. This union must mirror that — gating on the old 'ADMIN' silently locked every org
+// MANAGER out of /org/* even though the backend authorized them.
+type OrgRole = 'OWNER' | 'MANAGER'
 
 // Verified token claims relevant to routing. orgRole is null for B2C / non-org users.
 type VerifiedClaims = { role: Role; orgRole: OrgRole | null }
@@ -46,7 +51,7 @@ function requiredRole(pathname: string): Role | null {
 }
 
 /**
- * /org/* is gated by the SEPARATE orgRole claim (OWNER|ADMIN), not the global role — the centre
+ * /org/* is gated by the SEPARATE orgRole claim (OWNER|MANAGER), not the global role — the centre
  * owner stays global TEACHER. Note: /org is NOT in requiredRole() on purpose; it has its own branch.
  *
  * EXCEPTION: /org/accept is the PUBLIC invite-acceptance page. Invited teachers reach it from an
@@ -78,10 +83,13 @@ function normalizeRole(value: unknown): Role | null {
   return null
 }
 
-// Only OWNER/ADMIN may enter /org/*. TEACHER/STUDENT memberships (or absent claim) → null = no access.
+// Only OWNER/MANAGER may enter /org/*. TEACHER/STUDENT memberships (or absent claim) → null = no access.
+// 'ADMIN' is accepted as a legacy alias for MANAGER (pre-V225 tokens) so a token minted right before
+// the rename still routes correctly until it expires; the backend no longer emits it.
 function normalizeOrgRole(value: unknown): OrgRole | null {
   const orgRole = String(value ?? '').trim().toUpperCase()
-  if (orgRole === 'OWNER' || orgRole === 'ADMIN') return orgRole
+  if (orgRole === 'OWNER') return 'OWNER'
+  if (orgRole === 'MANAGER' || orgRole === 'ADMIN') return 'MANAGER'
   return null
 }
 
@@ -231,7 +239,7 @@ export async function middleware(request: NextRequest) {
         return redirectTo(loginUrl)
       }
       if (v2Org) {
-        if (v2Claims?.orgRole === 'OWNER' || v2Claims?.orgRole === 'ADMIN') {
+        if (v2Claims?.orgRole === 'OWNER' || v2Claims?.orgRole === 'MANAGER') {
           return passThrough()
         }
         return redirectTo(new URL(v2RoleHome(v2Role), request.url))
@@ -319,7 +327,7 @@ export async function middleware(request: NextRequest) {
     // TEACHER and must keep /teacher access. A logged-in user without OWNER/ADMIN orgRole is bounced
     // back to their normal home (roleHome(role)) rather than /login — they ARE authenticated, just
     // not an org admin. Owners reach /org via an in-app link, so we never auto-redirect INTO /org.
-    if (claims?.orgRole === 'OWNER' || claims?.orgRole === 'ADMIN') {
+    if (claims?.orgRole === 'OWNER' || claims?.orgRole === 'MANAGER') {
       return passThrough()
     }
     return redirectTo(new URL(roleHome(authenticatedRole), request.url))

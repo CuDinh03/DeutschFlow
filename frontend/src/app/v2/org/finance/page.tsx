@@ -6,6 +6,7 @@ import { apiMessage } from '@/lib/api'
 import { getOrgSummary, listMyInvoices, type OrgSummary, type OrgInvoice } from '@/lib/orgApi'
 import { GaPageHdr, TkStatStrip, ErrorBanner, LoadingState } from '@/components/ui-v2'
 import { GaSection, GaBars, fmtVnd, nfVN } from '../../analyticsShared'
+import { OrgOwnerOnly } from '../OwnerOnly'
 
 // Reuse getOrgSummary + listMyInvoices (same plumbing as billing) — finance framing:
 // invoiced/outstanding aggregates + amount-by-period bars. No new endpoint.
@@ -25,7 +26,7 @@ const INV_STATUS: Record<string, { label: string; c: string }> = {
   VOID: { label: 'Đã huỷ', c: 'var(--ga-muted)' },
 }
 
-export default function V2OrgFinancePage() {
+function V2OrgFinanceInner() {
   const [summary, setSummary] = useState<OrgSummary | null>(null)
   const [invoices, setInvoices] = useState<OrgInvoice[]>([])
   const [loading, setLoading] = useState(true)
@@ -152,5 +153,14 @@ export default function V2OrgFinancePage() {
         )}
       </div>
     </div>
+  )
+}
+
+// Tài chính = OWNER-only (giám đốc). MANAGER (nhân sự) bị guard chặn → /v2/org.
+export default function V2OrgFinancePage() {
+  return (
+    <OrgOwnerOnly>
+      <V2OrgFinanceInner />
+    </OrgOwnerOnly>
   )
 }
