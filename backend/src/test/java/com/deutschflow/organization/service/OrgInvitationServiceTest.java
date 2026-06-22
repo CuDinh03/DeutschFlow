@@ -44,6 +44,8 @@ class OrgInvitationServiceTest {
     @Mock
     private OrganizationRepository organizationRepository;
     @Mock
+    private com.deutschflow.organization.repository.OrgMemberRepository memberRepo;
+    @Mock
     private UserRepository userRepository;
     @Mock
     private OrgMembershipService membershipService;
@@ -65,6 +67,7 @@ class OrgInvitationServiceTest {
         service = new OrgInvitationService(
                 invitationRepository,
                 organizationRepository,
+                memberRepo,
                 userRepository,
                 membershipService,
                 mailer,

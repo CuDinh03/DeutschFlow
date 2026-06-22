@@ -144,4 +144,21 @@ class AdminManagementServiceUnitTest {
         assertEquals(9L, out.get("id"));
         assertEquals(false, out.get("isActive"));
     }
+
+    @Test
+    void createUser_setsCreatedVia_ADMIN() {
+        when(userRepository.existsByEmail("cv@x.com")).thenReturn(false);
+        when(passwordEncoder.encode(anyString())).thenReturn("HASH");
+        org.mockito.ArgumentCaptor<User> cap = org.mockito.ArgumentCaptor.forClass(User.class);
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> {
+            User u = inv.getArgument(0);
+            u.setId(1L);
+            return u;
+        });
+
+        service.createUser("cv@x.com", "CV", "secret123", "STUDENT", "vi", null, null);
+
+        verify(userRepository).save(cap.capture());
+        assertEquals(User.CreatedVia.ADMIN, cap.getValue().getCreatedVia());
+    }
 }

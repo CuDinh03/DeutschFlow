@@ -66,6 +66,11 @@ public class User implements UserDetails {
     @Column(name = "center_name")
     private String centerName;
 
+    /** Nguồn tạo tài khoản (provenance, B2B model §2.2). Chỉ mô tả NGUỒN — KHÔNG ảnh hưởng quyền/sở hữu. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "created_via", length = 16)
+    private CreatedVia createdVia;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -111,4 +116,6 @@ public class User implements UserDetails {
 
     public enum Role { STUDENT, TEACHER, ADMIN }
     public enum Locale { vi, en, de }
+    /** Provenance: nguồn tạo tài khoản. ADMIN/OWNER/MANAGER = được cấp; SELF = tự đăng ký; CSV = import roster. */
+    public enum CreatedVia { ADMIN, OWNER, MANAGER, SELF, CSV }
 }

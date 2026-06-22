@@ -701,6 +701,7 @@ public class AdminManagementService {
                 .role(User.Role.valueOf(normRole))
                 .locale(loc)
                 .active(true)
+                .createdVia(User.CreatedVia.ADMIN)
                 .build();
         User saved = userRepository.save(user);
 

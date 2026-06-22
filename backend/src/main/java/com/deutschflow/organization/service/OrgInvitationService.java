@@ -8,8 +8,10 @@ import com.deutschflow.organization.dto.AcceptInviteRequest;
 import com.deutschflow.organization.dto.InvitationPreviewDto;
 import com.deutschflow.organization.dto.OrgInvitationDto;
 import com.deutschflow.organization.entity.OrgInvitation;
+import com.deutschflow.organization.entity.OrgMember;
 import com.deutschflow.organization.entity.Organization;
 import com.deutschflow.organization.repository.OrgInvitationRepository;
+import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.organization.repository.OrganizationRepository;
 import com.deutschflow.user.dto.AuthResponse;
 import com.deutschflow.user.entity.User;
@@ -47,6 +49,7 @@ public class OrgInvitationService {
 
     private final OrgInvitationRepository invitationRepository;
     private final OrganizationRepository organizationRepository;
+    private final OrgMemberRepository memberRepo;
     private final UserRepository userRepository;
     private final OrgMembershipService membershipService;
     private final OrgInvitationMailer mailer;
@@ -162,8 +165,9 @@ public class OrgInvitationService {
             throw new BadRequestException("Lời mời đã hết hạn. Vui lòng yêu cầu lời mời mới.");
         }
 
+        User.CreatedVia provenance = inviterProvenance(invitation);
         User user = userRepository.findByEmail(invitation.getEmail())
-                .orElseGet(() -> registerInvitedUser(invitation.getEmail(), body));
+                .orElseGet(() -> registerInvitedUser(invitation.getEmail(), body, provenance));
 
         // Insert/reactivate membership + sync users.org_id + promote STUDENT→TEACHER when applicable.
         membershipService.upsertMember(invitation.getOrgId(), user.getId(), invitation.getRole());
@@ -181,7 +185,7 @@ public class OrgInvitationService {
     }
 
     /** Creates a new TEACHER user for an invite to an email with no existing account. */
-    private User registerInvitedUser(String email, AcceptInviteRequest body) {
+    private User registerInvitedUser(String email, AcceptInviteRequest body, User.CreatedVia provenance) {
         if (body == null || body.password() == null || body.password().isBlank()
                 || body.displayName() == null || body.displayName().isBlank()) {
             throw new BadRequestException("Vui lòng nhập tên hiển thị và mật khẩu để tạo tài khoản.");
@@ -195,8 +199,22 @@ public class OrgInvitationService {
                 .passwordHash(passwordEncoder.encode(body.password()))
                 .displayName(body.displayName().trim())
                 .role(User.Role.TEACHER)
+                .createdVia(provenance)
                 .build();
         return userRepository.save(user);
+    }
+
+    /**
+     * Provenance của giáo viên được mời = org-role của NGƯỜI MỜI ({@code invited_by}) trong chính org đó.
+     * OWNER/MANAGER mời → OWNER/MANAGER; platform-admin (không là member) hoặc không suy được → ADMIN.
+     * (Chỉ ghi nguồn — không ảnh hưởng quyền.)
+     */
+    private User.CreatedVia inviterProvenance(OrgInvitation inv) {
+        String role = memberRepo.findByIdOrgIdAndIdUserId(inv.getOrgId(), inv.getInvitedBy())
+                .map(OrgMember::getRole).orElse("");
+        if ("OWNER".equals(role)) return User.CreatedVia.OWNER;
+        if ("MANAGER".equals(role)) return User.CreatedVia.MANAGER;
+        return User.CreatedVia.ADMIN;
     }
 
     private static boolean isExpired(OrgInvitation invitation) {
