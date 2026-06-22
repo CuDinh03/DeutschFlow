@@ -62,3 +62,15 @@ targets:
     buildToolPlugins:
       - plugin: OpenAPIGenerator
         package: OpenAPIGenerator
+
+schemes:
+  DeutschFlow:
+    build:
+      targets:
+        DeutschFlow: all
+    run:
+      # Local StoreKit Testing for the paywall (no Apple account needed). Swap to ASC products for release.
+      storeKitConfiguration: DeutschFlow.storekit
+    test:
+      targets:
+        - DeutschFlow

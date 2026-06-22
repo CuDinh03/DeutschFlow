@@ -11,6 +11,7 @@ struct ProfileView: View {
     @State private var email = ""
     @State private var deleting = false
     @State private var confirmDelete = false
+    @State private var showPaywall = false
     @State private var error: String?
 
     var body: some View {
@@ -36,6 +37,19 @@ struct ProfileView: View {
             if let error {
                 Section {
                     Text(error).font(GaFont.caption).foregroundStyle(Color.gaRed)
+                }
+            }
+
+            Section {
+                Button {
+                    showPaywall = true
+                } label: {
+                    HStack {
+                        Image(systemName: "sparkles").foregroundStyle(Color.gaAccent)
+                        Text("Nâng cấp tài khoản").foregroundStyle(Color.gaInk)
+                        Spacer()
+                        Image(systemName: "chevron.right").font(.caption).foregroundStyle(Color.gaMuted)
+                    }
                 }
             }
 
@@ -70,6 +84,7 @@ struct ProfileView: View {
         } message: {
             Text("Toàn bộ dữ liệu học tập sẽ bị xoá và không thể khôi phục.")
         }
+        .sheet(isPresented: $showPaywall) { PaywallView() }
     }
 
     private var initial: String {

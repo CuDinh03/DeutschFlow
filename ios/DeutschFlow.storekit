@@ -1,0 +1,110 @@
+{
+  "identifier" : "DEUTSCHFLOW_LOCAL",
+  "nonRenewingSubscriptions" : [],
+  "products" : [],
+  "settings" : {
+    "_applicationInternalID" : "0",
+    "_developerTeamID" : "",
+    "_failTransactionsEnabled" : false,
+    "_locale" : "vi_VN",
+    "_storefront" : "VNM",
+    "_storeKitErrors" : []
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "21000001",
+      "localizations" : [],
+      "name" : "DeutschFlow Premium",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "99000",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "PRO_MONTHLY",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Mở khoá luyện nói AI, chấm điểm chi tiết.",
+              "displayName" : "PRO — hàng tháng",
+              "locale" : "vi_VN"
+            }
+          ],
+          "productID" : "com.deutschflow.app.pro.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "PRO Monthly",
+          "subscriptionGroupID" : "21000001",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "990000",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "PRO_YEARLY",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Gói PRO trọn năm, tiết kiệm hơn.",
+              "displayName" : "PRO — hàng năm",
+              "locale" : "vi_VN"
+            }
+          ],
+          "productID" : "com.deutschflow.app.pro.yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "PRO Yearly",
+          "subscriptionGroupID" : "21000001",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "199000",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "ULTRA_MONTHLY",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Tất cả tính năng PRO + hạn mức AI cao nhất.",
+              "displayName" : "ULTRA — hàng tháng",
+              "locale" : "vi_VN"
+            }
+          ],
+          "productID" : "com.deutschflow.app.ultra.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "ULTRA Monthly",
+          "subscriptionGroupID" : "21000001",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "1990000",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "ULTRA_YEARLY",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Gói ULTRA trọn năm, tiết kiệm nhất.",
+              "displayName" : "ULTRA — hàng năm",
+              "locale" : "vi_VN"
+            }
+          ],
+          "productID" : "com.deutschflow.app.ultra.yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "ULTRA Yearly",
+          "subscriptionGroupID" : "21000001",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

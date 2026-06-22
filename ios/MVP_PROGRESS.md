@@ -18,7 +18,7 @@
 | M5.1 Lộ trình (RoadmapTree) | ✅ | `GET /api/roadmap/tree` (TreeDto) — Option-1: levels→branch progress (no SVG canvas) | BUILD ✓ |
 | M5.2 Ôn tập SRS (Từ vựng) | ✅ | `GET /api/srs/due` + `POST /api/srs/review` + `GET /api/srs/count`; flashcard→grade→next; entry trên Home | BUILD ✓ |
 | M5.3 Offline SRS (SwiftData) | ☐ optional | rủi ro cao; có thể giữ online-only cho v1 | — |
-| M5.4 Paywall (StoreKit 2 + verify) | ⏸ **chờ Apple Developer** | backend `AppleIapController` sẵn (#129); cần 4 IAP product trong ASC | — |
+| M5.4 Paywall (StoreKit 2 + verify) | ✅ **scaffold** · ⏸ test chờ Apple | `PaywallModel`+`PaywallView` (Features/Paywall): `products`∩StoreKit→`purchase`(appAccountToken)→`verify{jws}`→entitlement; restore=`AppStore.sync`+`sync`. Entry ở `ProfileView` (sheet) + disclosure auto-renew. Local `DeutschFlow.storekit` (StoreKit Testing, wired vào scheme). Sandbox/ASC products = Apple-gated. | BUILD ✓ |
 
 ## Mốc 6–7 — Compliance + Release
 ### ✅ Làm được KHÔNG cần Apple (2026-06-22)
