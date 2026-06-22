@@ -39,6 +39,8 @@ export function CompanionSelect() {
     setAdaptiveMeta,
     setPendingRepairGate,
     setInterviewUiHints,
+    returnPath,
+    setReturnPath,
   } = useChatStore();
   
   const [selected, setSelected] = useState<PersonaId | null>(null);
@@ -62,6 +64,14 @@ export function CompanionSelect() {
     if (topic) setLessonScenario(topic)
     if (cefr && ['A1', 'A2', 'B1', 'B2'].includes(cefr)) setCefrLevel(cefr)
   }, [searchParams])
+
+  // Remember where the user came from (e.g. the v2 launcher) so back / exit can
+  // return them into v2 instead of the legacy home. Only set when present so the
+  // value survives intra-flow navigation (re-pick companion, restart).
+  useEffect(() => {
+    const rp = searchParams.get('return')
+    if (rp) setReturnPath(rp)
+  }, [searchParams, setReturnPath])
 
   useEffect(() => {
     if (sessionMode === "INTERVIEW" && dbPersonas.length === 0) {
@@ -256,11 +266,11 @@ export function CompanionSelect() {
         {/* ── Header ── */}
         <div className="px-5 pt-[calc(3.5rem+env(safe-area-inset-top,0px))] pb-3 flex-shrink-0">
           <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-            <motion.button onClick={() => router.push("/")} className="flex items-center gap-2 mb-4" style={{ color: "rgba(255,255,255,0.5)" }} whileTap={{ scale: 0.92 }}>
+            <motion.button onClick={() => router.push(returnPath || "/")} className="flex items-center gap-2 mb-4" style={{ color: "rgba(255,255,255,0.5)" }} whileTap={{ scale: 0.92 }}>
               <div className="w-8 h-8 flex items-center justify-center rounded-full" style={{ background: "rgba(255,255,255,0.08)" }}>
                 <ArrowLeft size={15} />
               </div>
-              <span className="text-sm">Trang chủ</span>
+              <span className="text-sm">{returnPath ? "Quay lại" : "Trang chủ"}</span>
             </motion.button>
             <div className="flex items-center gap-2 mb-1">
               <Sparkles size={16} style={{ color: "#FFCD00" }} />

@@ -7,6 +7,11 @@ import { GaPageHdr, GaCard, GaCap, LoadingState } from '@/components/ui-v2'
 
 // Speaking launcher (v2). The live conversation engine (mic streaming + XTTS) is the proven
 // legacy flow → mode cards deep-link there. Full v2 chat reskin = deferred (backlog).
+// We pass ?return so the legacy flow sends the user back into v2 (not the old dashboard) on exit.
+
+const RETURN_TO = '/v2/student/speaking'
+const withReturn = (href: string) =>
+  `${href}${href.includes('?') ? '&' : '?'}return=${encodeURIComponent(RETURN_TO)}`
 
 const MODES = [
   {
@@ -50,7 +55,7 @@ export default function V2StudentSpeakingPage() {
       <div className="flex-1 px-10 py-6">
         {/* Recommended */}
         {!loading && today?.recommendedSpeaking?.topic && (
-          <a href={today.recommendedSpeaking.href || '/speaking'}>
+          <a href={withReturn(today.recommendedSpeaking.href || '/speaking')}>
             <div className="mb-[22px] flex flex-col items-start gap-4 bg-ga-ink p-7 text-ga-bg md:flex-row md:items-center md:justify-between">
               <div>
                 <GaCap className="mb-2 block" style={{ color: '#A39E94' }}>Gợi ý hôm nay</GaCap>
@@ -74,7 +79,7 @@ export default function V2StudentSpeakingPage() {
           {MODES.map((m) => {
             const Icon = m.icon
             return (
-              <a key={m.title} href={m.href}>
+              <a key={m.title} href={withReturn(m.href)}>
                 <GaCard hover className="group h-full p-5">
                   <span
                     className="mb-3 grid h-11 w-11 place-items-center rounded-ga"
