@@ -1,9 +1,13 @@
 'use client'
 
 import { useEffect, useState, type ReactNode } from 'react'
+import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
 import { TkModal, GaBtn, GaCap, TkBadge, ErrorBanner, LoadingState } from '@/components/ui-v2'
 import type { PlanRow } from './page'
+
+type GlobalRole = 'ADMIN' | 'TEACHER' | 'STUDENT'
+const ROLES: GlobalRole[] = ['STUDENT', 'TEACHER', 'ADMIN']
 
 type QuotaDetail = {
   quotaKind?: string
@@ -32,6 +36,8 @@ interface UserDetailModalProps {
   userId: number
   userName: string
   email: string
+  /** Current global role (users.role) — drives the role-change control. */
+  role: GlobalRole
   planCode?: string
   plans: PlanRow[]
   onClose: () => void
@@ -63,6 +69,7 @@ export function UserDetailModal({
   userId,
   userName,
   email,
+  role,
   planCode,
   plans,
   onClose,
@@ -73,6 +80,12 @@ export function UserDetailModal({
   const [usage, setUsage] = useState<UsageRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+
+  // Global role (separate audited endpoint from plan). currentRole is the saved
+  // baseline so the button re-disables after a successful change.
+  const [currentRole, setCurrentRole] = useState<GlobalRole>(role)
+  const [roleValue, setRoleValue] = useState<GlobalRole>(role)
+  const [savingRole, setSavingRole] = useState(false)
 
   const [code, setCode] = useState((planCode || 'FREE').toUpperCase())
   const [startsAt, setStartsAt] = useState('')
@@ -116,6 +129,23 @@ export function UserDetailModal({
       setError(apiMessage(e))
     } finally {
       setSaving(false)
+    }
+  }
+
+  const saveRole = async () => {
+    if (roleValue === currentRole) return
+    setSavingRole(true)
+    setError('')
+    try {
+      await api.patch(`/admin/users/${userId}/role`, { role: roleValue })
+      setCurrentRole(roleValue)
+      toast.success(`Đã đổi vai trò thành ${roleValue}.`)
+      onSaved()
+    } catch (e: unknown) {
+      setError(apiMessage(e))
+      setRoleValue(currentRole)
+    } finally {
+      setSavingRole(false)
     }
   }
 
@@ -182,8 +212,34 @@ export function UserDetailModal({
               )}
             </section>
 
-            {/* Plan edit */}
-            <section className="space-y-3">
+            {/* Role + Plan edit */}
+            <section className="space-y-5">
+              {/* Global role — separate audited endpoint (PATCH /admin/users/{id}/role) */}
+              <div className="space-y-2 border-b border-ga-line pb-5">
+                <GaCap>Vai trò hệ thống</GaCap>
+                <p className="ga-ui text-[13px] text-ga-muted">
+                  Hiện tại: <span className="font-semibold text-ga-ink">{currentRole}</span>
+                </p>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={roleValue}
+                    onChange={(e) => setRoleValue(e.target.value as GlobalRole)}
+                    aria-label="Vai trò hệ thống"
+                    className="ga-ui flex-1 rounded-ga border border-ga-line bg-ga-card px-3 py-2 text-[13px] font-semibold text-ga-ink outline-none"
+                  >
+                    {ROLES.map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </select>
+                  <GaBtn variant="primary" loading={savingRole} disabled={roleValue === currentRole} onClick={saveRole}>
+                    Đổi
+                  </GaBtn>
+                </div>
+                <p className="ga-ui text-[12px] text-ga-subtle">Đổi quyền truy cập toàn hệ thống — ghi log audit.</p>
+              </div>
+
               <GaCap>Đổi gói đăng ký</GaCap>
               <p className="ga-ui text-[13px] text-ga-muted">
                 Gói hiện tại: <span className="font-semibold text-ga-ink">{planCode ?? '—'}</span>

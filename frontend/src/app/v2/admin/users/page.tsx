@@ -366,6 +366,7 @@ export default function V2AdminUsersPage() {
           userId={detailUser.id}
           userName={detailUser.displayName}
           email={detailUser.email}
+          role={detailUser.role}
           planCode={detailUser.planCode}
           plans={plans}
           onClose={() => setDetailUser(null)}

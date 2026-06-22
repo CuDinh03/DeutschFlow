@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Plus, Briefcase, MessageSquareText, Mic, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
@@ -54,19 +54,63 @@ function avatarChar(label: string): string {
   return (parts[parts.length - 1]?.[0] ?? 'P').toUpperCase()
 }
 
+/** Per-template rubric (GET/PUT /admin/interviews/rubrics). weightJson = criterion→fraction (0–1, Σ=1). */
+type RubricTemplate = {
+  id: number
+  industry: string
+  roleGroup?: string
+  levelRange?: string
+  phase: string
+  criteriaJson: string
+  weightJson: string
+  version: number
+  active: boolean
+}
+/** VI labels for the common scoring criteria; unknown keys fall back to humanized snake_case. */
+const CRITERION_VI: Record<string, string> = {
+  relevance: 'Liên quan',
+  clarity: 'Rõ ràng',
+  completeness: 'Đầy đủ',
+  german_quality: 'Chất lượng tiếng Đức',
+  structure: 'Cấu trúc',
+  confidence: 'Tự tin',
+  profession_fit: 'Phù hợp nghề',
+  concrete_experience: 'Kinh nghiệm cụ thể',
+  empathy: 'Đồng cảm',
+  hygiene_awareness: 'Ý thức vệ sinh',
+  hygiene_protocol: 'Quy trình vệ sinh',
+  patient_communication: 'Giao tiếp bệnh nhân',
+  documentation: 'Ghi chép hồ sơ',
+  emergency_response: 'Xử lý khẩn cấp',
+  haccp_awareness: 'Ý thức HACCP',
+  teamwork: 'Làm việc nhóm',
+  rush_handling: 'Xử lý cao điểm',
+}
+const criterionLabel = (k: string): string =>
+  CRITERION_VI[k] ?? k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+const rubricLabel = (r: RubricTemplate): string =>
+  [r.industry, r.levelRange, r.phase].filter(Boolean).join(' · ')
+/** Parse weightJson (fractions 0–1) → percent ints for the sliders. */
+function parseWeightsPct(weightJson: string): Record<string, number> {
+  try {
+    const raw = JSON.parse(weightJson) as Record<string, number>
+    return Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, Math.round(Number(v) * 100)]))
+  } catch {
+    return {}
+  }
+}
+
 export default function V2AdminPersonasPage() {
   // No `active` field on the persona DTO → track on/off client-side (toggle still
   // hits the real endpoint, persisted server-side). Default all on.
   const [off, setOff] = useState<Record<string, boolean>>({})
   const [createOpen, setCreateOpen] = useState(false)
-  // Rubric weights + A/B split are client-side (proto behaviour). Real per-template
-  // rubric wiring (GET/PUT /admin/interviews/rubrics) is a follow-up.
-  const [weights, setWeights] = useState<Record<string, number>>({
-    'Phát âm': 30,
-    'Ngữ pháp': 25,
-    'Nội dung': 30,
-    'Trôi chảy': 15,
-  })
+  // Rubric = per-template (real backend). Pick a template → edit its real criteria
+  // weights → PUT. weights are percent ints in UI; persisted as fractions (Σ=1).
+  const [rubrics, setRubrics] = useState<RubricTemplate[]>([])
+  const [rubricId, setRubricId] = useState<number | null>(null)
+  const [weights, setWeights] = useState<Record<string, number>>({})
+  const [savingRubric, setSavingRubric] = useState(false)
   // A/B câu hỏi — client-side (proto behaviour; no backend yet). Mode drives the split.
   const [abMode, setAbMode] = useState<AbMode>('balanced')
 
@@ -94,6 +138,54 @@ export default function V2AdminPersonasPage() {
   }, [data, off])
 
   const sum = Object.values(weights).reduce((a, b) => a + b, 0)
+
+  // Load rubric templates; default-select the first active (else first) one.
+  useEffect(() => {
+    let cancelled = false
+    interviewAdminApi
+      .listRubrics()
+      .then((list) => {
+        if (cancelled) return
+        const arr = (list ?? []) as RubricTemplate[]
+        setRubrics(arr)
+        const initial = arr.find((r) => r.active) ?? arr[0]
+        if (initial) {
+          setRubricId(initial.id)
+          setWeights(parseWeightsPct(initial.weightJson))
+        }
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const selectRubric = (id: number) => {
+    const r = rubrics.find((x) => x.id === id)
+    if (!r) return
+    setRubricId(id)
+    setWeights(parseWeightsPct(r.weightJson))
+  }
+
+  const saveRubric = async () => {
+    if (rubricId == null || sum !== 100) {
+      toast.error(rubricId == null ? 'Chưa chọn rubric.' : 'Tổng trọng số phải bằng 100%')
+      return
+    }
+    setSavingRubric(true)
+    try {
+      const weightJson = JSON.stringify(
+        Object.fromEntries(Object.entries(weights).map(([k, v]) => [k, Number((v / 100).toFixed(4))])),
+      )
+      await interviewAdminApi.updateRubric(rubricId, { weightJson })
+      setRubrics((rs) => rs.map((r) => (r.id === rubricId ? { ...r, weightJson } : r)))
+      toast.success('Đã lưu trọng số rubric.')
+    } catch (e: unknown) {
+      toast.error(apiMessage(e))
+    } finally {
+      setSavingRubric(false)
+    }
+  }
 
   const toggle = async (p: InterviewPersonaInfo) => {
     const nowOff = !off[p.code]
@@ -225,50 +317,76 @@ export default function V2AdminPersonasPage() {
               </div>
             </div>
 
-            {/* Rubric + A/B (client-side, per proto) */}
+            {/* Rubric = per-template (real BE); A/B below stays client-side (proto) */}
             <div className="flex flex-col gap-5">
               <section className="border border-ga-line bg-ga-card p-5">
-                <GaCap className="mb-4 block">Trọng số rubric chấm điểm</GaCap>
-                {Object.entries(weights).map(([k, v]) => (
-                  <div key={k} className="mb-4">
-                    <div className="mb-[7px] flex items-center justify-between">
-                      <span className="text-[13px] font-semibold text-ga-ink">{k}</span>
-                      <span className="font-ga-display text-[16px] font-medium text-ga-ink">{v}%</span>
+                <GaCap className="mb-3 block">Trọng số rubric chấm điểm</GaCap>
+                {rubrics.length === 0 ? (
+                  <p className="ga-ui text-[13px] italic text-ga-muted">Chưa có bộ rubric nào.</p>
+                ) : (
+                  <>
+                    <label className="mb-4 block">
+                      <span className="ga-ui mb-1 block text-[11.5px] font-semibold uppercase tracking-[0.06em] text-ga-muted">
+                        Bộ rubric (theo ngành · trình độ · giai đoạn)
+                      </span>
+                      <select
+                        value={rubricId ?? ''}
+                        onChange={(e) => selectRubric(Number(e.target.value))}
+                        className="ga-ui w-full rounded-ga border border-ga-line bg-ga-card px-3 py-2 text-[13px] font-semibold text-ga-ink outline-none"
+                      >
+                        {rubrics.map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {rubricLabel(r)}
+                            {r.active ? '' : ' (ẩn)'}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    {Object.entries(weights).map(([k, v]) => (
+                      <div key={k} className="mb-4">
+                        <div className="mb-[7px] flex items-center justify-between">
+                          <span className="text-[13px] font-semibold text-ga-ink">{criterionLabel(k)}</span>
+                          <span className="font-ga-display text-[16px] font-medium text-ga-ink">{v}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={50}
+                          step={1}
+                          value={v}
+                          onChange={(e) => setWeights((w) => ({ ...w, [k]: Number(e.target.value) }))}
+                          className="w-full"
+                          aria-label={criterionLabel(k)}
+                          style={{ accentColor: VIOLET }}
+                        />
+                      </div>
+                    ))}
+                    <div
+                      className="mt-1 flex items-center justify-between px-3.5 py-3"
+                      style={{
+                        background: sum === 100 ? 'var(--ga-green-soft)' : 'var(--ga-red-soft)',
+                        border: `1px solid ${sum === 100 ? 'rgba(30,158,97,0.27)' : 'rgba(218,41,28,0.27)'}`,
+                      }}
+                    >
+                      <span className="text-[13px] text-ga-ink">Tổng trọng số</span>
+                      <span
+                        className="font-ga-display text-[18px] font-medium"
+                        style={{ color: sum === 100 ? 'var(--ga-green)' : 'var(--ga-red)' }}
+                      >
+                        {sum}%{sum !== 100 ? ' ⚠' : ' ✓'}
+                      </span>
                     </div>
-                    <input
-                      type="range"
-                      min={0}
-                      max={60}
-                      step={5}
-                      value={v}
-                      onChange={(e) => setWeights((w) => ({ ...w, [k]: Number(e.target.value) }))}
-                      className="w-full"
-                      style={{ accentColor: VIOLET }}
-                    />
-                  </div>
-                ))}
-                <div
-                  className="mt-1 flex items-center justify-between px-3.5 py-3"
-                  style={{
-                    background: sum === 100 ? 'var(--ga-green-soft)' : 'var(--ga-red-soft)',
-                    border: `1px solid ${sum === 100 ? 'rgba(30,158,97,0.27)' : 'rgba(218,41,28,0.27)'}`,
-                  }}
-                >
-                  <span className="text-[13px] text-ga-ink">Tổng trọng số</span>
-                  <span
-                    className="font-ga-display text-[18px] font-medium"
-                    style={{ color: sum === 100 ? 'var(--ga-green)' : 'var(--ga-red)' }}
-                  >
-                    {sum}%{sum !== 100 ? ' ⚠' : ' ✓'}
-                  </span>
-                </div>
-                <GaBtn
-                  variant="yellow"
-                  className="mt-3.5 w-full justify-center"
-                  onClick={() => toast(sum === 100 ? 'Lưu rubric (chờ backend per-template)' : 'Tổng phải bằng 100%')}
-                >
-                  Lưu rubric
-                </GaBtn>
+                    <GaBtn
+                      variant="yellow"
+                      loading={savingRubric}
+                      disabled={sum !== 100 || rubricId == null}
+                      className="mt-3.5 w-full justify-center"
+                      onClick={saveRubric}
+                    >
+                      Lưu rubric
+                    </GaBtn>
+                  </>
+                )}
               </section>
 
               {/* A/B câu hỏi (client-side) */}
