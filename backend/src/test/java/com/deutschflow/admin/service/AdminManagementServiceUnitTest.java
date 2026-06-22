@@ -117,19 +117,20 @@ class AdminManagementServiceUnitTest {
             return u;
         });
 
-        var out = service.createUser("m@x.com", "Mgr", "secret123", "TEACHER", "vi", 7L, "manager");
+        var out = service.createUser("m@x.com", "Mgr", "secret123", "MANAGER", "vi", 7L, null);
 
+        assertEquals("MANAGER", out.get("role"));
         assertEquals("MANAGER", out.get("orgRole"));
         assertEquals(7L, out.get("orgId"));
         verify(orgMembershipService).upsertMember(7L, 50L, "MANAGER");
     }
 
     @Test
-    void createUser_orgAssignButRoleNotTeacher_throwsBadRequest() {
-        when(userRepository.existsByEmail("s@x.com")).thenReturn(false);
-        // STUDENT cannot be assigned an org staff-role (manager must be a TEACHER).
+    void createUser_managerWithoutOrg_throwsBadRequest() {
+        when(userRepository.existsByEmail("m@x.com")).thenReturn(false);
+        // A MANAGER is a first-class org-admin platform role → it must belong to an organization.
         assertThrows(BadRequestException.class, () ->
-                service.createUser("s@x.com", "S", "secret123", "STUDENT", "vi", 7L, "MANAGER"));
+                service.createUser("m@x.com", "M", "secret123", "MANAGER", "vi", null, null));
     }
 
     @Test

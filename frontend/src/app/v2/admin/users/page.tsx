@@ -21,7 +21,7 @@ type AdminUser = {
   id: number
   email: string
   displayName: string
-  role: 'ADMIN' | 'TEACHER' | 'STUDENT'
+  role: 'ADMIN' | 'OWNER' | 'MANAGER' | 'TEACHER' | 'STUDENT'
   isActive: boolean
   planCode?: string
   /** True for INTERNAL_UNLIMITED — no meter, render "Không giới hạn". */
@@ -35,11 +35,13 @@ export type PlanRow = { code: string; name: string }
 
 /**
  * Role tints (Prototype A — avatar bg + RoleBadge bg/text).
- * ADMIN = red (not navy). STUDENT = blue. TEACHER = violet.
+ * ADMIN = red (not navy). STUDENT = blue. TEACHER = violet. MANAGER = teal. OWNER = amber.
  */
 const ROLE_TINT = {
   STUDENT: { c: '#2F6FC9', s: 'rgba(47,111,201,0.12)' },
   TEACHER: { c: '#7C56C8', s: 'rgba(124,86,200,0.12)' },
+  MANAGER: { c: '#0E7C7B', s: 'rgba(14,124,123,0.12)' },
+  OWNER:   { c: '#B26A00', s: 'rgba(178,106,0,0.12)' },
   ADMIN:   { c: '#DA291C', s: 'rgba(218,41,28,0.10)' },
 } as const
 
@@ -80,7 +82,7 @@ function normalizeUser(r: Record<string, unknown>): AdminUser {
   }
 }
 
-type RoleFilter = 'all' | 'STUDENT' | 'TEACHER' | 'ADMIN'
+type RoleFilter = 'all' | 'STUDENT' | 'TEACHER' | 'MANAGER' | 'OWNER' | 'ADMIN'
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/)
@@ -158,6 +160,8 @@ export default function V2AdminUsersPage() {
       total: data.length,
       student: data.filter((u) => u.role === 'STUDENT').length,
       teacher: data.filter((u) => u.role === 'TEACHER').length,
+      manager: data.filter((u) => u.role === 'MANAGER').length,
+      owner: data.filter((u) => u.role === 'OWNER').length,
       admin: data.filter((u) => u.role === 'ADMIN').length,
       paused: data.filter((u) => !u.isActive).length,
     }),
@@ -181,6 +185,8 @@ export default function V2AdminUsersPage() {
     { value: 'all', label: 'Tất cả' },
     { value: 'STUDENT', label: 'STUDENT', count: counts.student },
     { value: 'TEACHER', label: 'TEACHER', count: counts.teacher },
+    { value: 'MANAGER', label: 'MANAGER', count: counts.manager },
+    { value: 'OWNER', label: 'OWNER', count: counts.owner },
     { value: 'ADMIN', label: 'ADMIN', count: counts.admin },
   ]
 

@@ -69,7 +69,7 @@ class OrgMembershipServiceTest {
     // ----------------------------------------------------------------- upsertMember
 
     @Test
-    @DisplayName("upsertMember inserts ACTIVE membership and promotes STUDENT→TEACHER for MANAGER")
+    @DisplayName("upsertMember inserts ACTIVE membership and syncs the platform role to MANAGER")
     void upsertMember_newManager_promotesGlobalRole() {
         when(memberRepo.existsByIdUserIdAndStatusAndIdOrgIdNot(USER_ID, "ACTIVE", ORG_ID)).thenReturn(false);
         when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.empty());
@@ -83,7 +83,7 @@ class OrgMembershipServiceTest {
         assertThat(saved.getValue().getStatus()).isEqualTo("ACTIVE");
         assertThat(saved.getValue().getRole()).isEqualTo("MANAGER");
         assertThat(user.getOrgId()).isEqualTo(ORG_ID);
-        assertThat(user.getRole()).isEqualTo(User.Role.TEACHER);
+        assertThat(user.getRole()).isEqualTo(User.Role.MANAGER);
     }
 
     @Test

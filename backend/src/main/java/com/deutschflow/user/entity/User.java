@@ -114,7 +114,13 @@ public class User implements UserDetails {
         return active;
     }
 
-    public enum Role { STUDENT, TEACHER, ADMIN }
+    /**
+     * Platform identity. STUDENT/TEACHER/ADMIN are the original tiers; MANAGER/OWNER are first-class
+     * org-admin identities (2026-06-22): a centre manager/owner is no longer modelled as a TEACHER.
+     * They are strictly administrative — they do NOT inherit TEACHER capabilities (no role hierarchy).
+     * Org-scoped authorization still flows through {@code OrgGuard} reading {@code org_members}.
+     */
+    public enum Role { STUDENT, TEACHER, MANAGER, OWNER, ADMIN }
     public enum Locale { vi, en, de }
     /** Provenance: nguồn tạo tài khoản. ADMIN/OWNER/MANAGER = được cấp; SELF = tự đăng ký; CSV = import roster. */
     public enum CreatedVia { ADMIN, OWNER, MANAGER, SELF, CSV }

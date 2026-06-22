@@ -307,7 +307,7 @@ public class AdminOrgService {
                 .email(email)
                 .passwordHash(passwordEncoder.encode(rawPw))
                 .displayName(displayName)
-                .role(User.Role.TEACHER)
+                .role(User.Role.OWNER)
                 .createdVia(User.CreatedVia.ADMIN)
                 .build());
         orgMembershipService.upsertMember(orgId, owner.getId(), ROLE_OWNER);
