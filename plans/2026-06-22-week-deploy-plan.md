@@ -76,8 +76,8 @@ Phần còn lại nhỏ hơn nhiều so với lo ngại ban đầu.
 ### A6 🟡 Student↔Teacher messaging (thêm 06-22 theo yêu cầu "student tương tác giáo viên")
 > 6 kênh tương tác đã chạy (vào lớp · giao/nộp/chấm bài · feedback · buổi 1-1 · thông báo); chỉ thiếu **chat trực tiếp**.
 - [x] 🤖 **BE foundation** ✅ **[#146](https://github.com/CuDinh03/DeutschFlow/pull/146)** — V228 `messages` + Message/repo/service/controller; authz = cùng-lớp teacher↔student (re-check DB); send→noti `NEW_MESSAGE`. 5 tests (gồm no-share→403). 5 endpoint `/api/messages/*`.
-- [ ] 🤖 **FE chat (phase tiếp)** — `messagesApi` + màn `/v2/student/messages` + `/v2/teacher/messages` (list hội thoại + thread + gửi) + entry "Nhắn tin" (class-detail/tutor/roster) + render `NEW_MESSAGE` ở chuông + badge unread ở nav.
-- Cần backend deploy (V228) trước khi FE verify được.
+- [x] 🤖 **FE chat** ✅ **[#146](https://github.com/CuDinh03/DeutschFlow/pull/146)** — `messagesApi` + `messagesShared` MessagesView (list hội thoại + thread + composer, poll 12s, badge unread, responsive) + màn `/v2/student/messages` + `/v2/teacher/messages` (?to=&name= deep-link) + nav "Tin nhắn" (student+teacher) + render `NEW_MESSAGE` ở notifications + entry "Nhắn giáo viên" (student class-detail) & bulk "Nhắn tin" (teacher roster). tsc+eslint+build xanh.
+- ⏳ **Functional verify chờ Deploy #2** (V228 + 1 cặp student↔teacher cùng lớp): chat 2 chiều · khác lớp 403 · noti `NEW_MESSAGE`.
 
 ---
 
