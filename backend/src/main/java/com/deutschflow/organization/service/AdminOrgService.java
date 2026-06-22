@@ -114,7 +114,11 @@ public class AdminOrgService {
                 org.getStatus(),
                 teacherCount,
                 studentCount,
-                pendingInvites
+                pendingInvites,
+                studentCount,
+                org.getMonthlyTokenPool(),
+                org.getValidUntil() != null ? org.getValidUntil().toString() : null,
+                org.getCreatedAt() != null ? org.getCreatedAt().toString() : null
         );
     }
 
@@ -333,7 +337,11 @@ public class AdminOrgService {
                 org.getSeatLimit(),
                 org.getStatus(),
                 teacherCount,
-                studentCount
+                studentCount,
+                studentCount,
+                org.getMonthlyTokenPool(),
+                org.getValidUntil() != null ? org.getValidUntil().toString() : null,
+                org.getCreatedAt() != null ? org.getCreatedAt().toString() : null
         );
     }
 }
