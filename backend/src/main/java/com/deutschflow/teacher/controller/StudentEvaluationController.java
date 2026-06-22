@@ -5,6 +5,7 @@ import com.deutschflow.teacher.dto.StudentEvaluationDto;
 import com.deutschflow.teacher.dto.StudentEvaluationRequest;
 import com.deutschflow.teacher.service.StudentEvaluationService;
 import com.deutschflow.user.entity.User;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -47,7 +48,7 @@ public class StudentEvaluationController {
     public StudentEvaluationDto saveEvaluation(@AuthenticationPrincipal User teacher,
                                                 @PathVariable Long classId,
                                                 @PathVariable Long studentId,
-                                                @RequestBody StudentEvaluationRequest req) {
+                                                @Valid @RequestBody StudentEvaluationRequest req) {
         return evaluationService.saveEvaluation(teacher.getId(), classId, studentId, req);
     }
 }
