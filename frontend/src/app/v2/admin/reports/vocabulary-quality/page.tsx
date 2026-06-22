@@ -6,17 +6,56 @@ import { useRouter } from 'next/navigation'
 import api, { apiMessage } from '@/lib/api'
 import { GaPageHdr, GaBtn, GaCap, TkStatStrip } from '@/components/ui-v2'
 
-// Báo cáo chất lượng từ vựng (admin) — navy (W1.7 migrate admin/reports/vocabulary-quality).
-// GET /api/admin/reports/vocabulary-quality?days=N → VocabQualityData.
+// Báo cáo chất lượng từ vựng (admin) — navy.
+// GET /api/admin/reports/vocabulary-quality?days=N
+//   → { nounGenderCoverage: {days, items: WordCoverageResponse[]},
+//       translationCoverage: {days, items: WordTranslationCoverageResponse[]} }
 
-interface VocabQualityDay { date: string; total_generated: number; approved: number; rejected: number; pending: number; approval_rate_pct: number }
-interface Data { days: VocabQualityDay[]; total_generated: number; overall_approval_rate_pct: number }
+interface NounItem {
+  date: string
+  totalWords: number
+  nounWords: number
+  nounWithGender: number
+  nounCoveragePercent: number
+  verbWords: number
+  verbCoveragePercent: number
+}
+interface TransItem {
+  date: string
+  totalWords: number
+  deCoveragePercent: number
+  viCoveragePercent: number
+  enCoveragePercent: number
+  allLocalesCoveragePercent: number
+}
+interface Data {
+  nounGenderCoverage?: { days: number; items: NounItem[] }
+  translationCoverage?: { days: number; items: TransItem[] }
+}
 const selectCls = 'ga-ui border border-ga-line bg-ga-bg px-2.5 py-1.5 text-[12px] text-ga-ink outline-none'
+const pct = (n: number | undefined) => `${Math.round(Number(n ?? 0))}%`
+function coverageColor(p: number): string {
+  if (p >= 80) return 'var(--ga-green)'
+  if (p >= 50) return 'var(--ga-orange)'
+  return 'var(--ga-red)'
+}
 
-function rateColor(p: number) {
-  if (p >= 80) return { color: 'var(--ga-green)', background: 'var(--ga-green-soft)' }
-  if (p >= 60) return { color: 'var(--ga-orange)', background: 'var(--ga-orange-soft)' }
-  return { color: 'var(--ga-red)', background: 'var(--ga-red-soft)' }
+/** Daily coverage bar row. */
+function CovRow({ date, value, right, idx }: { date: string; value: number; right: string; idx: number }) {
+  return (
+    <div className="px-5 py-3" style={{ borderTop: idx ? '1px solid var(--ga-line)' : 'none' }}>
+      <div className="mb-1.5 flex items-center justify-between gap-3 text-[12.5px]">
+        <span className="font-mono text-ga-muted">{(date ?? '').slice(0, 10)}</span>
+        <span className="shrink-0 font-semibold text-ga-ink">{right}</span>
+      </div>
+      <span className="block h-1.5 bg-ga-line">
+        <span
+          className="block h-full"
+          style={{ width: `${Math.min(100, Math.max(0, value))}%`, background: coverageColor(value) }}
+        />
+      </span>
+    </div>
+  )
 }
 
 export default function V2VocabularyQualityPage() {
@@ -28,68 +67,127 @@ export default function V2VocabularyQualityPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    try { const { data: res } = await api.get<Data>(`/admin/reports/vocabulary-quality?days=${days}`); setData(res); setError('') }
-    catch (e: unknown) { setError(apiMessage(e)) }
-    finally { setLoading(false) }
+    try {
+      const { data: res } = await api.get<Data>(`/admin/reports/vocabulary-quality?days=${days}`)
+      setData(res)
+      setError('')
+    } catch (e: unknown) {
+      setError(apiMessage(e))
+    } finally {
+      setLoading(false)
+    }
   }, [days])
-  useEffect(() => { void load() }, [load])
+  useEffect(() => {
+    void load()
+  }, [load])
 
-  const GRID = '1fr 80px 80px 80px 70px 96px'
+  const nounItems = data?.nounGenderCoverage?.items ?? []
+  const transItems = data?.translationCoverage?.items ?? []
+  const latestNoun = nounItems[nounItems.length - 1]
+  const latestTrans = transItems[transItems.length - 1]
+  const empty = nounItems.length === 0 && transItems.length === 0
 
   return (
     <div className="flex min-h-full flex-col">
       <GaPageHdr
         accent
         title="Báo cáo chất lượng từ vựng"
-        subtitle="Tỷ lệ phê duyệt từ vựng AI theo ngày"
+        subtitle="Độ phủ giống danh từ & bản dịch theo ngày"
         right={
           <div className="flex items-center gap-2">
             <select className={selectCls} value={days} onChange={(e) => setDays(Number(e.target.value))} aria-label="Khoảng ngày">
-              {[7, 14, 30, 90].map((d) => <option key={d} value={d}>{d} ngày</option>)}
+              {[7, 14, 30, 90].map((d) => (
+                <option key={d} value={d}>
+                  {d} ngày
+                </option>
+              ))}
             </select>
-            <GaBtn variant="ghost" size="sm" onClick={() => router.push('/v2/admin/reports')}><ArrowLeft size={15} /> Báo cáo</GaBtn>
+            <GaBtn variant="ghost" size="sm" onClick={() => router.push('/v2/admin/reports')}>
+              <ArrowLeft size={15} /> Báo cáo
+            </GaBtn>
           </div>
         }
       />
       <div className="flex-1 overflow-auto px-10 py-6">
         {loading ? (
-          <div className="flex flex-col gap-2">{Array.from({ length: 6 }).map((_, i) => <div key={i} className="ga-shimmer h-[44px] border border-ga-line" aria-hidden />)}</div>
+          <div className="flex flex-col gap-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="ga-shimmer h-[44px] border border-ga-line" aria-hidden />
+            ))}
+          </div>
         ) : error ? (
           <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
             <h2 className="font-ga-display text-[24px] font-medium text-ga-red">Không tải được báo cáo</h2>
-            <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">{error} <code className="font-mono text-[12px] text-ga-accent">GET /api/admin/reports/vocabulary-quality</code></p>
-            <GaBtn variant="primary" onClick={load}>Thử lại</GaBtn>
+            <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">
+              {error} <code className="font-mono text-[12px] text-ga-accent">GET /api/admin/reports/vocabulary-quality</code>
+            </p>
+            <GaBtn variant="primary" onClick={load}>
+              Thử lại
+            </GaBtn>
           </div>
-        ) : !data ? (
-          <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">Không có dữ liệu.</div>
+        ) : empty ? (
+          <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">
+            Không có dữ liệu trong {days} ngày.
+          </div>
         ) : (
           <>
             <TkStatStrip
               items={[
-                { label: 'Tổng từ vựng sinh', value: (data.total_generated ?? 0).toLocaleString(), sub: `${days} ngày` },
-                { label: 'Tỷ lệ phê duyệt', value: `${data.overall_approval_rate_pct ?? 0}%`, sub: 'tổng thể', color: '#1E9E61' },
-                { label: 'Khoảng thời gian', value: `${days}`, sub: 'ngày', color: '#E07B39' },
+                { label: 'Tổng từ vựng', value: (latestNoun?.totalWords ?? latestTrans?.totalWords ?? 0).toLocaleString() },
+                { label: 'Phủ giống danh từ', value: pct(latestNoun?.nounCoveragePercent), sub: 'mới nhất', color: '#1E9E61' },
+                { label: 'Phủ bản dịch (VI)', value: pct(latestTrans?.viCoveragePercent), sub: 'mới nhất', color: '#2F6FC9' },
+                { label: 'Phủ đủ 3 ngôn ngữ', value: pct(latestTrans?.allLocalesCoveragePercent), sub: 'de · vi · en', color: '#E07B39' },
               ]}
             />
-            <div className="mb-3.5 mt-[22px]"><GaCap>Chi tiết theo ngày</GaCap></div>
-            <div className="border border-ga-line bg-ga-card">
-              <div className="grid items-center gap-2 border-b border-ga-line bg-ga-bg px-5 py-[11px]" style={{ gridTemplateColumns: GRID }}>
-                {['Ngày', 'Sinh ra', 'Duyệt', 'Từ chối', 'Chờ', 'Tỷ lệ'].map((h, i) => <span key={h} className={`ga-ui text-[10px] font-bold uppercase tracking-[0.1em] text-ga-muted ${i >= 1 ? 'text-center' : ''}`}>{h}</span>)}
+
+            <div className="mt-[22px] grid grid-cols-1 gap-6 lg:grid-cols-2">
+              {/* Noun-gender + verb coverage */}
+              <div>
+                <div className="mb-3.5">
+                  <GaCap>Phủ giống danh từ (der/die/das)</GaCap>
+                </div>
+                <div className="border border-ga-line bg-ga-card">
+                  {nounItems.length === 0 ? (
+                    <div className="px-6 py-[30px] text-center text-[13px] text-ga-muted">Chưa có dữ liệu.</div>
+                  ) : (
+                    nounItems
+                      .slice(-14)
+                      .map((r, i) => (
+                        <CovRow
+                          key={r.date}
+                          idx={i}
+                          date={r.date}
+                          value={r.nounCoveragePercent}
+                          right={`${pct(r.nounCoveragePercent)} · ${r.nounWithGender}/${r.nounWords} DT`}
+                        />
+                      ))
+                  )}
+                </div>
               </div>
-              {(data.days ?? []).length === 0 ? (
-                <div className="px-6 py-[30px] text-center text-[14px] text-ga-muted">Chưa có dữ liệu ngày nào.</div>
-              ) : (
-                (data.days ?? []).map((r, i) => (
-                  <div key={r.date} className="grid items-center gap-2 px-5 py-2.5 transition-colors hover:bg-ga-surface" style={{ gridTemplateColumns: GRID, borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
-                    <span className="font-mono text-[12px] text-ga-muted">{r.date}</span>
-                    <span className="text-center text-[13px] font-semibold text-ga-ink">{r.total_generated}</span>
-                    <span className="text-center text-[13px] font-semibold" style={{ color: 'var(--ga-green)' }}>{r.approved}</span>
-                    <span className="text-center text-[13px] font-semibold" style={{ color: 'var(--ga-red)' }}>{r.rejected}</span>
-                    <span className="text-center text-[13px] font-semibold" style={{ color: 'var(--ga-orange)' }}>{r.pending}</span>
-                    <span className="flex justify-center"><span className="px-2 py-0.5 text-[11px] font-bold" style={rateColor(r.approval_rate_pct)}>{r.approval_rate_pct}%</span></span>
-                  </div>
-                ))
-              )}
+
+              {/* Translation coverage */}
+              <div>
+                <div className="mb-3.5">
+                  <GaCap>Phủ bản dịch (VI)</GaCap>
+                </div>
+                <div className="border border-ga-line bg-ga-card">
+                  {transItems.length === 0 ? (
+                    <div className="px-6 py-[30px] text-center text-[13px] text-ga-muted">Chưa có dữ liệu.</div>
+                  ) : (
+                    transItems
+                      .slice(-14)
+                      .map((r, i) => (
+                        <CovRow
+                          key={r.date}
+                          idx={i}
+                          date={r.date}
+                          value={r.viCoveragePercent}
+                          right={`VI ${pct(r.viCoveragePercent)} · EN ${pct(r.enCoveragePercent)}`}
+                        />
+                      ))
+                  )}
+                </div>
+              </div>
             </div>
           </>
         )}

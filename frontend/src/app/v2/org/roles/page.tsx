@@ -9,8 +9,8 @@ import { getOrgRole } from '@/lib/authSession'
 import { GaPageHdr, TkStatStrip, TkBadge, ErrorBanner, LoadingState } from '@/components/ui-v2'
 import { GaSection, nfVN } from '../../analyticsShared'
 
-// Reuse listMembers() (all roles) + removeMember. Option-1: no role-CHANGE endpoint →
-// roles are read-only (change = toast); removal is real (removeMember).
+// listMembers() (all roles) + real mutations: changeMemberRole (PATCH /org/members/{id}/role,
+// OWNER-only, MANAGER↔TEACHER) and removeMember (DELETE → REVOKED). Both backed by #143.
 
 const fmtDate = (d: string | null | undefined) => (d ? format(new Date(d), 'dd/MM/yyyy') : '—')
 
