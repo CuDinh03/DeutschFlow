@@ -292,7 +292,8 @@ public class AdminOrgService {
             return;
         }
         try {
-            orgInvitationService.inviteTeacher(resolveActorId(), orgId, email);
+            // role=null ⇒ TEACHER (preserves prior behavior; OWNER is granted via attach, not invite).
+            orgInvitationService.inviteTeacher(resolveActorId(), orgId, email, null);
         } catch (RuntimeException ex) {
             // H: org được tạo nhưng KHÔNG gắn được owner → org "mồ côi", cần admin re-invite tay.
             // log.error (không phải warn) để vào kênh alert — đây là trạng thái cần can thiệp.

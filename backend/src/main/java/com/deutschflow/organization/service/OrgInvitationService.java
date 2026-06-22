@@ -8,6 +8,7 @@ import com.deutschflow.organization.dto.AcceptInviteRequest;
 import com.deutschflow.organization.dto.InvitationPreviewDto;
 import com.deutschflow.organization.dto.OrgInvitationDto;
 import com.deutschflow.organization.entity.OrgInvitation;
+import com.deutschflow.organization.entity.OrgRole;
 import com.deutschflow.organization.entity.Organization;
 import com.deutschflow.organization.repository.OrgInvitationRepository;
 import com.deutschflow.organization.repository.OrganizationRepository;
@@ -42,7 +43,6 @@ public class OrgInvitationService {
     private static final String STATUS_ACCEPTED = "ACCEPTED";
     private static final String STATUS_REVOKED = "REVOKED";
     private static final String STATUS_EXPIRED = "EXPIRED";
-    private static final String ROLE_TEACHER = "TEACHER";
     private static final int INVITE_TTL_DAYS = 7;
 
     private final OrgInvitationRepository invitationRepository;
@@ -54,16 +54,24 @@ public class OrgInvitationService {
     private final AuthService authService;
 
     /**
-     * Creates a PENDING teacher invitation and emails the accept link (best-effort).
+     * Creates a PENDING staff invitation (TEACHER or MANAGER) and emails the accept link
+     * (best-effort). {@code role} null/blank ⇒ TEACHER; only MANAGER/TEACHER are allowed
+     * (OWNER via ownership, STUDENT via roster). The accepted role becomes the membership role.
      *
      * @throws ConflictException if a PENDING invite already exists for this email + org
+     * @throws BadRequestException if {@code role} is not MANAGER/TEACHER
      */
     @Transactional
-    public OrgInvitationDto inviteTeacher(Long actorId, Long orgId, String email) {
+    public OrgInvitationDto inviteTeacher(Long actorId, Long orgId, String email, String role) {
         String normalizedEmail = normalizeEmail(email);
         if (normalizedEmail.isBlank()) {
             throw new BadRequestException("Email không được để trống.");
         }
+        OrgRole resolvedRole = (role == null || role.isBlank()) ? OrgRole.TEACHER : OrgRole.from(role);
+        if (resolvedRole == null || !resolvedRole.isAssignable()) {
+            throw new BadRequestException("Chỉ mời được vai trò MANAGER hoặc TEACHER.");
+        }
+        String roleName = resolvedRole.name();
 
         Organization org = organizationRepository.findById(orgId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy tổ chức."));
@@ -75,7 +83,7 @@ public class OrgInvitationService {
         OrgInvitation invitation = OrgInvitation.builder()
                 .orgId(orgId)
                 .email(normalizedEmail)
-                .role(ROLE_TEACHER)
+                .role(roleName)
                 .token(UUID.randomUUID().toString())
                 .status(STATUS_PENDING)
                 .invitedBy(actorId)
@@ -83,7 +91,7 @@ public class OrgInvitationService {
                 .build();
         invitationRepository.save(invitation);
 
-        mailer.sendInvite(normalizedEmail, org.getName(), ROLE_TEACHER, invitation.getToken());
+        mailer.sendInvite(normalizedEmail, org.getName(), roleName, invitation.getToken());
         return toDto(invitation);
     }
 

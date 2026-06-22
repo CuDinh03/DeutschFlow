@@ -13,15 +13,14 @@ import { GaPageHdr, GaBtn, GaCap, TkStatStrip } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Lời mời thành viên (GaOrgInvitations) — teal.
-// Plumbing reused 1:1 (zero backend): listInvitations + inviteTeacher + revokeInvitation
-//   + getOrgSummary (free seats). Option-1: backend has only a TEACHER invite endpoint —
-//   students self-join via the org code → the "Học viên" tab points there (no fake invite).
-//   "Gửi lại" has no endpoint → toast.
+// listInvitations + inviteTeacher (TEACHER|MANAGER, role wired P1-2) + revokeInvitation
+//   + getOrgSummary (free seats). Students self-join via the org code → the "Học viên" tab
+//   points there (no fake invite). "Gửi lại" has no endpoint → toast.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TEAL = '#11888A'
 const fmtDate = (d: string | null | undefined) => (d ? format(new Date(d), 'dd/MM/yyyy') : '—')
-const ROLE_LABEL: Record<string, string> = { TEACHER: 'Giáo viên', STUDENT: 'Học viên', ADMIN: 'Quản trị', OWNER: 'Chủ sở hữu' }
+const ROLE_LABEL: Record<string, string> = { TEACHER: 'Giáo viên', MANAGER: 'Quản lý', STUDENT: 'Học viên', ADMIN: 'Quản trị', OWNER: 'Chủ sở hữu' }
 
 export default function V2OrgInvitationsPage() {
   const [invites, setInvites] = useState<OrgInvitation[]>([])
@@ -55,7 +54,7 @@ export default function V2OrgInvitationsPage() {
     if (role === 'STUDENT') { toast('Học viên tham gia bằng mã tổ chức (xem bên dưới)'); return }
     setSending(true)
     try {
-      await inviteTeacher(e)
+      await inviteTeacher(e, role)
       toast.success(`Đã gửi lời mời tới ${e}`)
       setEmail('')
       await load()
@@ -107,7 +106,7 @@ export default function V2OrgInvitationsPage() {
               placeholder="email@vidu.com"
               className="ga-ui flex-1 bg-transparent px-4 py-3 text-[14.5px] text-ga-ink outline-none"
             />
-            {(['TEACHER', 'STUDENT'] as OrgRole[]).map((r) => (
+            {(['TEACHER', 'MANAGER', 'STUDENT'] as OrgRole[]).map((r) => (
               <button
                 key={r}
                 type="button"

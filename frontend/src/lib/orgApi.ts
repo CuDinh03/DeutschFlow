@@ -223,9 +223,9 @@ export async function listMembers(role?: OrgRole): Promise<OrgMember[]> {
   return res.data ?? []
 }
 
-/** POST /org/teachers/invite — invite a teacher by email. */
-export async function inviteTeacher(email: string): Promise<OrgInvitation> {
-  const res = await api.post<OrgInvitation>('/org/teachers/invite', { email })
+/** POST /org/teachers/invite — invite staff by email. role omitted ⇒ TEACHER (backend allows MANAGER/TEACHER). */
+export async function inviteTeacher(email: string, role?: OrgRole): Promise<OrgInvitation> {
+  const res = await api.post<OrgInvitation>('/org/teachers/invite', { email, role })
   return res.data
 }
 

@@ -2,12 +2,11 @@ package com.deutschflow.organization.service;
 
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.organization.entity.OrgMember;
+import com.deutschflow.organization.entity.OrgRole;
 import com.deutschflow.organization.repository.OrgMemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.Set;
 
 /**
  * DB-backed authorization guard for organization (tenant) access.
@@ -15,14 +14,15 @@ import java.util.Set;
  * <p>Mirrors {@code TeacherService.assertTeacherOwnsClass}: backend authz always re-verifies
  * membership in {@code org_members} from the DB rather than trusting the JWT {@code orgRole}
  * claim (the claim only drives frontend routing/UI).
+ *
+ * <p>Role tiers come from {@link OrgRole} (P0-3 — single source of truth); an unrecognized stored
+ * role parses to {@code null} and is denied (fail closed).
  */
 @Service
 @RequiredArgsConstructor
 public class OrgGuard {
 
     private static final String STATUS_ACTIVE = "ACTIVE";
-    private static final Set<String> ADMIN_ROLES   = Set.of("OWNER", "MANAGER");
-    private static final Set<String> FINANCE_ROLES = Set.of("OWNER", "MANAGER");
 
     private final OrgMemberRepository memberRepo;
 
@@ -38,7 +38,8 @@ public class OrgGuard {
     @Transactional(readOnly = true)
     public void assertOrgAdmin(Long userId, Long orgId) {
         OrgMember member = assertMember(userId, orgId);
-        if (!ADMIN_ROLES.contains(member.getRole())) {
+        OrgRole role = OrgRole.from(member.getRole());
+        if (role == null || !role.isAdmin()) {
             throw new ForbiddenException("Chỉ quản trị viên tổ chức mới được thao tác này");
         }
     }
@@ -47,7 +48,7 @@ public class OrgGuard {
     @Transactional(readOnly = true)
     public void assertOrgOwner(Long userId, Long orgId) {
         OrgMember member = assertMember(userId, orgId);
-        if (!"OWNER".equals(member.getRole())) {
+        if (OrgRole.from(member.getRole()) != OrgRole.OWNER) {
             throw new ForbiddenException("Chỉ chủ sở hữu tổ chức mới được thao tác này");
         }
     }
@@ -59,7 +60,8 @@ public class OrgGuard {
     @Transactional(readOnly = true)
     public void assertOrgFinance(Long userId, Long orgId) {
         OrgMember member = assertMember(userId, orgId);
-        if (!FINANCE_ROLES.contains(member.getRole())) {
+        OrgRole role = OrgRole.from(member.getRole());
+        if (role == null || !role.isAdmin()) {
             throw new ForbiddenException("Chỉ quản trị viên hoặc kế toán mới xem được thông tin tài chính");
         }
     }

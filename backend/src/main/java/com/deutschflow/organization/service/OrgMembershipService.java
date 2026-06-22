@@ -7,6 +7,7 @@ import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.organization.dto.OrgMemberDto;
 import com.deutschflow.organization.entity.OrgMember;
 import com.deutschflow.organization.entity.OrgMemberId;
+import com.deutschflow.organization.entity.OrgRole;
 import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
@@ -37,8 +38,6 @@ public class OrgMembershipService {
     private static final String ROLE_STUDENT = "STUDENT";
     /** Staff roles that promote a global STUDENT → TEACHER and keep the user demotable on leave. */
     private static final Set<String> TEACHING_ROLES = Set.of("MANAGER", "TEACHER");
-    /** Roles an OWNER may toggle a staff member between (no OWNER, no STUDENT here). */
-    private static final Set<String> ASSIGNABLE_ROLES = Set.of("MANAGER", "TEACHER");
 
     private final OrgMemberRepository memberRepo;
     private final UserRepository userRepository;
@@ -127,20 +126,21 @@ public class OrgMembershipService {
      */
     @Transactional
     public OrgMemberDto changeRole(Long orgId, Long targetUserId, String newRole) {
-        String role = newRole == null ? "" : newRole.trim().toUpperCase();
-        if (!ASSIGNABLE_ROLES.contains(role)) {
+        OrgRole target = OrgRole.from(newRole);
+        if (target == null || !target.isAssignable()) {
             throw new BadRequestException("Chỉ được đổi sang MANAGER hoặc TEACHER.");
         }
         OrgMember member = memberRepo.findByIdOrgIdAndIdUserId(orgId, targetUserId)
                 .filter(m -> STATUS_ACTIVE.equals(m.getStatus()))
                 .orElseThrow(() -> new NotFoundException("Thành viên không thuộc tổ chức hoặc không hoạt động."));
-        if (ROLE_OWNER.equals(member.getRole())) {
+        OrgRole current = OrgRole.from(member.getRole());
+        if (current == OrgRole.OWNER) {
             throw new BadRequestException("Không thể đổi vai trò của chủ sở hữu — hãy chuyển quyền sở hữu.");
         }
-        if (!ASSIGNABLE_ROLES.contains(member.getRole())) {
+        if (current == null || !current.isAssignable()) {
             throw new BadRequestException("Chỉ đổi vai trò giữa MANAGER và TEACHER — học viên không đổi qua đây.");
         }
-        member.setRole(role);
+        member.setRole(target.name());
         memberRepo.save(member);
 
         User u = userRepository.findById(targetUserId).orElse(null);

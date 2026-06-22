@@ -89,7 +89,7 @@ public class OrgController {
                                           @RequestBody InviteTeacherRequest body) {
         Long orgId = requireOrgId(user);
         orgGuard.assertOrgAdmin(user.getId(), orgId);
-        return orgInvitationService.inviteTeacher(user.getId(), orgId, body.email());
+        return orgInvitationService.inviteTeacher(user.getId(), orgId, body.email(), body.role());
     }
 
     @GetMapping("/invitations")
