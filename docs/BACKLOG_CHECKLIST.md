@@ -1,7 +1,7 @@
 # DeutschFlow — Backlog Checklist
 
 > **Nguồn:** [DEEP_REVIEW_2026-06-06.md](DEEP_REVIEW_2026-06-06.md) (PHẦN II — Backlog hợp nhất)
-> **Cập nhật:** 2026-06-07 — sau khi ship #57–#67 và deploy prod (backend `3c42a9d6`, frontend Amplify)
+> **Cập nhật:** 2026-06-07 — sau khi ship #57–#67. **2026-06-22:** +P0-15 (default-cred prod) sau khi deploy #146–#149 (prod `61cf0104`, V228→V232 live).
 > **Cách dùng:** tick `[x]` khi xong. Mỗi mục có vị trí file + effort: **XS** <1h · **S** nửa ngày · **M** 1–2 ngày · **L** 3+ ngày.
 > Mục đã xong ghi kèm PR đóng nó (để biết phần nào KHÔNG cần làm lại).
 
@@ -11,7 +11,7 @@
 
 | Nhóm | ✅ Xong | ⚠️ Một phần | ❌ Chưa | Ghi chú |
 |---|:--:|:--:|:--:|---|
-| **P0** (chặn release) | 13 | 0 | 2 | 2 việc còn lại đều **external** (cần tài khoản/nhà cung cấp) |
+| **P0** (chặn release) | 13 | 0 | 3 | P0-3b/P0-11 = external; **P0-15 default-cred prod = security gấp** |
 | **P1** (sửa trong tháng) | 6 | 2 | 9 | Nhóm đáng làm tiếp |
 | **P2 / P3** (bền vững) | 1 | 1 | ~17 | Nợ dài hạn, không chặn |
 
@@ -34,6 +34,7 @@
 - [x] **P0-12** `userRepository.findAll()` broadcast OOM → `findByActiveTrue()`/`findAllById()` · `UserNotificationService.java:615` — **#57**
 - [x] **P0-13** Thiếu FK (8 cột) → `V196` thêm FK + dọn orphan · migrations — **#66**, đã deploy
 - [x] **P0-14** deploy auto-commit `--no-verify` → abort khi cây bẩn · `deploy-backend.sh:177` — **#66**, đã deploy
+- [ ] **P0-15** ⚠️ **Default-cred prod còn sống (SECURITY, gấp)** — `teacher@`/`student@deutschflow.com` đăng nhập prod được bằng `password123` (verify 2026-06-22; `admin@` đã đổi, 2 account này CHƯA). Hash nằm trong migration seed `V7/V8/V48/V50` (công khai trong repo → ai cũng đoán được). → **đổi/khoá 2 account trên prod NGAY** + soạn migration rotate/disable default-cred + chuyển seed demo sang `db/migration-local` (chỉ local) · `db/migration/V48__reinsert_default_admin.sql`, `V50__restore_demo_student_teacher.sql` · **S**
 
 ---
 
