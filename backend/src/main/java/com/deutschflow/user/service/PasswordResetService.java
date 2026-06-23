@@ -100,8 +100,11 @@ public class PasswordResetService {
         long tokenId = ((Number) row.get("id")).longValue();
         jdbc.update("UPDATE password_reset_tokens SET used = TRUE WHERE id = ?", tokenId);
 
+        // Column is password_hash (see User entity / V3) — NOT "password". The old "SET password"
+        // referenced a non-existent column, so every OTP reset threw a SQL error AFTER the token was
+        // already consumed: the password never changed yet the user believed it had → "wrong password".
         int updated = jdbc.update(
-                "UPDATE users SET password = ? WHERE lower(email) = lower(?) AND active = TRUE",
+                "UPDATE users SET password_hash = ? WHERE lower(email) = lower(?) AND active = TRUE",
                 passwordEncoder.encode(newPassword), email.trim()
         );
 

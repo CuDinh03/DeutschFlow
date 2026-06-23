@@ -53,7 +53,10 @@ export default function V2LoginPage() {
     try {
       // Clear any stale tokens before login (prevents an expired token in the header).
       clearTokens()
-      const { data } = await api.post('/auth/login', { email, password })
+      // Canonicalize the email (trim + lowercase) so it matches the stored form. The backend also
+      // looks up case-insensitively, but normalizing here keeps the sent value clean and avoids the
+      // classic "a stray space / auto-capitalized first letter reads as wrong password" trap.
+      const { data } = await api.post('/auth/login', { email: email.trim().toLowerCase(), password })
       setTokens(data)
       setOrg({ orgId: data.orgId ?? null, orgRole: data.orgRole ?? null })
       recordTokenRefresh()
