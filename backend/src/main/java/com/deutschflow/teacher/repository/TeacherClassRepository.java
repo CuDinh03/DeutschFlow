@@ -16,4 +16,7 @@ public interface TeacherClassRepository extends JpaRepository<TeacherClass, Long
 
     /** Org-scoped read for the B2B org admin (GET /api/org/classes). */
     Page<TeacherClass> findByOrgId(Long orgId, Pageable pageable);
+
+    /** All classes in an org — for org-admin center-wide reads (G-3 schedule). */
+    List<TeacherClass> findByOrgId(Long orgId);
 }

@@ -71,6 +71,29 @@ public class ClassScheduleService {
         return sessions.stream().map(s -> toDto(s, names, counts)).toList();
     }
 
+    /**
+     * Lịch tuần buổi lớp TOÀN tổ chức (G-3) — đọc-chỉ cho org-admin (OWNER/MANAGER).
+     * Org-scoped theo orgId (lấy từ principal ở controller), KHÔNG theo teacher-ownership;
+     * tái dùng cùng truy vấn + DTO với {@link #weekForTeacher}.
+     */
+    @Transactional(readOnly = true)
+    public List<ClassSessionDto> weekForOrg(Long orgId, LocalDateTime from, LocalDateTime to) {
+        if (from == null || to == null || to.isBefore(from)) {
+            throw new BadRequestException("Khoảng thời gian không hợp lệ");
+        }
+        List<Long> classIds = classRepo.findByOrgId(orgId).stream()
+                .map(TeacherClass::getId)
+                .toList();
+        if (classIds.isEmpty()) return List.of();
+
+        List<ClassSession> sessions = sessionRepo.findForClassesInRange(classIds, from, to);
+        if (sessions.isEmpty()) return List.of();
+
+        Map<Long, String> names = classNameMap(classIds);
+        Map<Long, Integer> counts = studentCountMap(classIds);
+        return sessions.stream().map(s -> toDto(s, names, counts)).toList();
+    }
+
     /** Lịch cố định của một lớp (một dòng mỗi thứ). */
     @Transactional(readOnly = true)
     public List<ClassSchedulePatternDto> patternsForClass(Long teacherId, Long classId) {

@@ -121,6 +121,7 @@ export const orgNav: RoleNav = {
         { id: 'org', label: 'Tổng quan', href: '/v2/org', icon: 'dashboard' },
         { id: 'org-students', label: 'Học viên', href: '/v2/org/students', icon: 'school' },
         { id: 'org-classes', label: 'Lớp học', href: '/v2/org/classes', icon: 'groups' },
+        { id: 'org-schedule', label: 'Lịch trung tâm', href: '/v2/org/schedule', icon: 'schedule' },
         { id: 'org-teachers', label: 'Giáo viên', href: '/v2/org/teachers', icon: 'badge' },
         { id: 'org-analytics', label: 'Phân tích', href: '/v2/org/analytics', icon: 'monitoring' },
         { id: 'org-finance', label: 'Tài chính', href: '/v2/org/finance', icon: 'account_balance', ownerOnly: true },

@@ -95,6 +95,51 @@ class ClassScheduleServiceTest {
         assertThat(k30.room()).isEqualTo("P.302");
     }
 
+    // ── weekForOrg (G-3: center-wide, org-scoped) ──────────────────────────────
+
+    @Test
+    @DisplayName("weekForOrg returns empty (no DB scan) when org has no classes")
+    void weekForOrg_noClasses_empty() {
+        when(classRepo.findByOrgId(7L)).thenReturn(List.of());
+
+        List<ClassSessionDto> result = service.weekForOrg(
+                7L, LocalDateTime.now(), LocalDateTime.now().plusDays(7));
+
+        assertThat(result).isEmpty();
+        verify(sessionRepo, never()).findForClassesInRange(anyList(), any(), any());
+    }
+
+    @Test
+    @DisplayName("weekForOrg aggregates sessions across ALL org classes with name + count")
+    void weekForOrg_aggregatesOrgClasses() {
+        when(classRepo.findByOrgId(7L)).thenReturn(List.of(
+                teacherClass(10L, "K30 · B1 Pflege"), teacherClass(11L, "A2 tối")));
+        ClassSession a = session(100L, 10L, LocalDateTime.now().plusDays(1).withHour(18), "P.302", false);
+        ClassSession b = session(101L, 11L, LocalDateTime.now().plusDays(2).withHour(9), null, false);
+        when(sessionRepo.findForClassesInRange(anyList(), any(), any())).thenReturn(List.of(a, b));
+        when(classRepo.findAllById(anyList())).thenReturn(List.of(
+                teacherClass(10L, "K30 · B1 Pflege"), teacherClass(11L, "A2 tối")));
+        when(classStudentRepo.countByIdClassId(10L)).thenReturn(13L);
+        when(classStudentRepo.countByIdClassId(11L)).thenReturn(8L);
+
+        List<ClassSessionDto> result = service.weekForOrg(
+                7L, LocalDateTime.now(), LocalDateTime.now().plusDays(7));
+
+        assertThat(result).extracting(ClassSessionDto::classId).containsExactlyInAnyOrder(10L, 11L);
+        ClassSessionDto k30 = result.stream().filter(d -> d.classId().equals(10L)).findFirst().orElseThrow();
+        assertThat(k30.className()).isEqualTo("K30 · B1 Pflege");
+        assertThat(k30.studentCount()).isEqualTo(13);
+    }
+
+    @Test
+    @DisplayName("weekForOrg rejects an invalid range before any query")
+    void weekForOrg_invalidRange_throws() {
+        assertThatThrownBy(() -> service.weekForOrg(
+                7L, LocalDateTime.now(), LocalDateTime.now().minusDays(1)))
+                .isInstanceOf(com.deutschflow.common.exception.BadRequestException.class);
+        verify(classRepo, never()).findByOrgId(any(Long.class));
+    }
+
     // ── upsertPattern: regenerate + override sticky (PO #1) ────────────────────
 
     @Test
