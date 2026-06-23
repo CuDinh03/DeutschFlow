@@ -180,4 +180,29 @@ class OrgGuardTest {
         assertThatThrownBy(() -> orgGuard.assertOrgFinance(USER_ID, ORG_ID))
                 .isInstanceOf(ForbiddenException.class);
     }
+
+    // ------------------------------------------------------------------ assertOrgOwner
+
+    @Test
+    @DisplayName("assertOrgOwner passes for OWNER role")
+    void assertOrgOwner_owner_passes() {
+        stubMember(activeMember("OWNER"));
+        orgGuard.assertOrgOwner(USER_ID, ORG_ID); // no throw
+    }
+
+    @Test
+    @DisplayName("assertOrgOwner throws ForbiddenException for MANAGER role")
+    void assertOrgOwner_manager_throwsForbidden() {
+        stubMember(activeMember("MANAGER"));
+        assertThatThrownBy(() -> orgGuard.assertOrgOwner(USER_ID, ORG_ID))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    @DisplayName("assertOrgOwner throws ForbiddenException for TEACHER role")
+    void assertOrgOwner_teacher_throwsForbidden() {
+        stubMember(activeMember("TEACHER"));
+        assertThatThrownBy(() -> orgGuard.assertOrgOwner(USER_ID, ORG_ID))
+                .isInstanceOf(ForbiddenException.class);
+    }
 }

@@ -1,6 +1,7 @@
 package com.deutschflow.organization.service;
 
 import com.deutschflow.common.exception.BadRequestException;
+import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.organization.dto.AcceptInviteRequest;
 import com.deutschflow.organization.entity.OrgInvitation;
@@ -297,5 +298,40 @@ class OrgInvitationServiceTest {
                 service.preCreateTeacher(ORG_ID, "dup@x.com", "D", "secret123", User.CreatedVia.MANAGER))
                 .isInstanceOf(com.deutschflow.common.exception.ConflictException.class);
         verify(userRepository, never()).save(any(User.class));
+    }
+
+    // ------------------------------------------------------------------ revoke (B7 cross-org scoping)
+
+    @Test
+    @DisplayName("revoke: lời mời của org khác → Forbidden, KHÔNG đổi trạng thái (B7)")
+    void revoke_crossOrg_throwsForbidden() {
+        OrgInvitation inv = pendingInvitation("t@school.edu", Instant.now().plus(7, ChronoUnit.DAYS));
+        when(invitationRepository.findById(42L)).thenReturn(Optional.of(inv));
+
+        assertThatThrownBy(() -> service.revoke(999L, 42L)) // caller org 999 ≠ invite org 10
+                .isInstanceOf(ForbiddenException.class);
+        assertThat(inv.getStatus()).isEqualTo("PENDING");
+        verify(invitationRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("revoke: lời mời PENDING của org mình → REVOKED")
+    void revoke_ownOrgPending_setsRevoked() {
+        OrgInvitation inv = pendingInvitation("t@school.edu", Instant.now().plus(7, ChronoUnit.DAYS));
+        when(invitationRepository.findById(42L)).thenReturn(Optional.of(inv));
+
+        service.revoke(ORG_ID, 42L);
+
+        assertThat(inv.getStatus()).isEqualTo("REVOKED");
+        verify(invitationRepository).save(inv);
+    }
+
+    @Test
+    @DisplayName("revoke: lời mời không tồn tại → NotFound")
+    void revoke_missing_throwsNotFound() {
+        when(invitationRepository.findById(7L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.revoke(ORG_ID, 7L))
+                .isInstanceOf(NotFoundException.class);
     }
 }
