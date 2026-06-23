@@ -313,8 +313,12 @@ public class TeacherService {
 
         // Case-insensitive: emails are stored canonical lowercase, but a teacher may type the
         // co-teacher's address with any case. findByEmailIgnoreCase mirrors the login lookup.
-        User target = userRepository.findByEmailIgnoreCase(email == null ? null : email.trim())
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng với email: " + email));
+        String normalizedEmail = email == null ? "" : email.trim();
+        if (normalizedEmail.isBlank()) {
+            throw new BadRequestException("Email không được để trống");
+        }
+        User target = userRepository.findByEmailIgnoreCase(normalizedEmail)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng với email: " + normalizedEmail));
         if (target.getRole() != User.Role.TEACHER && target.getRole() != User.Role.ADMIN) {
             throw new BadRequestException("Người dùng này không có vai trò giáo viên");
         }
@@ -347,8 +351,12 @@ public class TeacherService {
         }
 
         // Case-insensitive lookup — the teacher may type the student's email in any case.
-        User user = userRepository.findByEmailIgnoreCase(email == null ? null : email.trim())
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng với email: " + email));
+        String normalizedEmail = email == null ? "" : email.trim();
+        if (normalizedEmail.isBlank()) {
+            throw new BadRequestException("Email không được để trống");
+        }
+        User user = userRepository.findByEmailIgnoreCase(normalizedEmail)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng với email: " + normalizedEmail));
 
         if (classStudentRepository.existsByIdClassIdAndIdStudentId(classId, user.getId())) {
             throw new ConflictException("Học viên đã tham gia lớp học này");

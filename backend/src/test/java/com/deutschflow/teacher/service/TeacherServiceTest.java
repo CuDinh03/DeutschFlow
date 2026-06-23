@@ -304,6 +304,19 @@ class TeacherServiceTest {
     }
 
     @Test
+    void addCoTeacher_blankEmail_throwsBadRequest_noLookupNoLeak() {
+        // A null/blank email must fail fast with a clear message — not pass null to the repo and
+        // surface "với email: null" to the client.
+        when(classTeacherRepository.findById(new ClassTeacherId(100L, 1L))).thenReturn(java.util.Optional.of(
+                ClassTeacher.builder().id(new ClassTeacherId(100L, 1L)).role("PRIMARY").build()));
+
+        assertThrows(com.deutschflow.common.exception.BadRequestException.class,
+                () -> teacherService.addCoTeacher(1L, 100L, "   "));
+        verify(userRepository, never()).findByEmailIgnoreCase(anyString());
+        verify(classTeacherRepository, never()).save(any());
+    }
+
+    @Test
     void removeCoTeacher_throwsBadRequest_whenTargetIsPrimary() {
         when(classTeacherRepository.findById(new ClassTeacherId(100L, 1L))).thenReturn(java.util.Optional.of(
                 ClassTeacher.builder().id(new ClassTeacherId(100L, 1L)).role("PRIMARY").build()));
