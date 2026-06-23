@@ -170,6 +170,18 @@ public class OrgController {
         return orgService.listClasses(orgId, pageable);
     }
 
+    /**
+     * Org-admin (OWNER/MANAGER) tạo lớp cho trung tâm. Lớp được stamp org_id của người gọi và
+     * gán giáo viên phụ trách (teacherId phải là TEACHER ACTIVE của chính org — verify trong service).
+     */
+    @PostMapping("/classes")
+    public OrgClassDto createClass(@AuthenticationPrincipal User user,
+                                   @jakarta.validation.Valid @RequestBody com.deutschflow.organization.dto.CreateClassRequest body) {
+        Long orgId = requireOrgId(user);
+        orgGuard.assertOrgAdmin(user.getId(), orgId);
+        return orgService.createClass(orgId, body.name(), body.teacherId());
+    }
+
     /** Chi tiết một lớp thuộc tổ chức (B1.1). 404 nếu lớp không thuộc org của người gọi. */
     @GetMapping("/classes/{id}")
     public OrgClassDetailDto getClassDetail(@AuthenticationPrincipal User user, @PathVariable Long id) {

@@ -3,19 +3,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus } from 'lucide-react'
-import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { apiMessage } from '@/lib/api'
 import { listClasses, type OrgClass } from '@/lib/orgApi'
 import { GaPageHdr, GaBtn, GaCap, TkSearch } from '@/components/ui-v2'
+import { CreateClassModal } from './CreateClassModal'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Lớp học của tổ chức (GaOrgClasses) — teal, class LIST.
-// Plumbing reused 1:1 (zero backend): orgApi.listClasses → Page<OrgClass>
-//   { id, name, inviteCode, teacherId, createdAt }.
+// Plumbing: orgApi.listClasses → Page<OrgClass> { id, name, inviteCode, teacherId, createdAt };
+//   "Tạo lớp" → POST /org/classes (chọn tên + giáo viên phụ trách, CreateClassModal).
 // Option-1: OrgClass has no teacher NAME / LEVEL / student count / avg score → dropped
-//   (the proto's level/students/avg columns + teacher-assign modal aren't backed).
-//   org-class-detail not built → "Chi tiết" toasts.
+//   (the proto's level/students/avg columns aren't backed).
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TEAL = '#11888A'
@@ -27,6 +26,7 @@ export default function V2OrgClassesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
+  const [showCreate, setShowCreate] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -53,7 +53,7 @@ export default function V2OrgClassesPage() {
         title="Lớp học của tổ chức"
         subtitle="Tất cả các lớp thuộc trung tâm và giáo viên phụ trách"
         right={
-          <GaBtn variant="yellow" size="sm" onClick={() => toast('Tạo lớp (sắp ra mắt)')}>
+          <GaBtn variant="yellow" size="sm" onClick={() => setShowCreate(true)}>
             <Plus size={15} /> Tạo lớp
           </GaBtn>
         }
@@ -114,6 +114,10 @@ export default function V2OrgClassesPage() {
           </div>
         )}
       </div>
+
+      {showCreate && (
+        <CreateClassModal onClose={() => setShowCreate(false)} onCreated={() => void load()} />
+      )}
     </div>
   )
 }
