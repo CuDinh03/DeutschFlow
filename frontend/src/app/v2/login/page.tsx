@@ -53,10 +53,11 @@ export default function V2LoginPage() {
     try {
       // Clear any stale tokens before login (prevents an expired token in the header).
       clearTokens()
-      // Canonicalize the email (trim + lowercase) so it matches the stored form. The backend also
-      // looks up case-insensitively, but normalizing here keeps the sent value clean and avoids the
-      // classic "a stray space / auto-capitalized first letter reads as wrong password" trap.
-      const { data } = await api.post('/auth/login', { email: email.trim().toLowerCase(), password })
+      // Trim only — drop stray leading/trailing whitespace (autofill/paste). We deliberately do NOT
+      // lowercase here: the backend now matches email case-insensitively, and lowercasing client-side
+      // would break users whose email was historically stored mixed-case while an older, still
+      // case-sensitive backend is live during a rollout. Trimming is safe against any backend version.
+      const { data } = await api.post('/auth/login', { email: email.trim(), password })
       setTokens(data)
       setOrg({ orgId: data.orgId ?? null, orgRole: data.orgRole ?? null })
       recordTokenRefresh()
