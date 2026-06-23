@@ -224,7 +224,7 @@ class AdminOrgServiceLifecycleTest {
         // stub the DTO projection call
         stubActiveMembersForDto(List.of(s1, s2));
 
-        UpdateOrgRequest req = new UpdateOrgRequest(null, null, "SUSPENDED", null);
+        UpdateOrgRequest req = new UpdateOrgRequest(null, null, "SUSPENDED", null, null, null);
         service.updateOrganization(ORG_ID, req);
 
         verify(orgEntitlementService).revokeStudent(101L);
@@ -243,7 +243,7 @@ class AdminOrgServiceLifecycleTest {
                 .thenReturn(List.of(activeMember(101L)));
         stubActiveMembersForDto(List.of(activeMember(101L)));
 
-        service.updateOrganization(ORG_ID, new UpdateOrgRequest(null, null, "SUSPENDED", null));
+        service.updateOrganization(ORG_ID, new UpdateOrgRequest(null, null, "SUSPENDED", null, null, null));
 
         verify(orgEntitlementService, never()).grantStudent(anyLong(), any());
     }
@@ -264,7 +264,7 @@ class AdminOrgServiceLifecycleTest {
                 .thenReturn(List.of(s1, s2, s3));
         stubActiveMembersForDto(List.of(s1, s2, s3));
 
-        service.updateOrganization(ORG_ID, new UpdateOrgRequest(null, null, "ACTIVE", null));
+        service.updateOrganization(ORG_ID, new UpdateOrgRequest(null, null, "ACTIVE", null, null, null));
 
         verify(orgEntitlementService).grantStudent(eq(201L), any(Organization.class));
         verify(orgEntitlementService).grantStudent(eq(202L), any(Organization.class));
@@ -284,7 +284,7 @@ class AdminOrgServiceLifecycleTest {
                 .thenReturn(List.of(s1));
         stubActiveMembersForDto(List.of(s1));
 
-        service.updateOrganization(ORG_ID, new UpdateOrgRequest(null, null, "ACTIVE", null));
+        service.updateOrganization(ORG_ID, new UpdateOrgRequest(null, null, "ACTIVE", null, null, null));
 
         verify(orgEntitlementService, never()).revokeStudent(anyLong());
     }
@@ -300,7 +300,7 @@ class AdminOrgServiceLifecycleTest {
         stubActiveMembersForDto(List.of());
 
         // No status field in request
-        service.updateOrganization(ORG_ID, new UpdateOrgRequest("BASIC", 20, null, null));
+        service.updateOrganization(ORG_ID, new UpdateOrgRequest("BASIC", 20, null, null, null, null));
 
         verify(orgEntitlementService, never()).revokeStudent(anyLong());
         verify(orgEntitlementService, never()).grantStudent(anyLong(), any());
@@ -318,7 +318,7 @@ class AdminOrgServiceLifecycleTest {
         stubActiveMembersForDto(List.of());
 
         // Sending same status as current
-        service.updateOrganization(ORG_ID, new UpdateOrgRequest(null, null, "ACTIVE", null));
+        service.updateOrganization(ORG_ID, new UpdateOrgRequest(null, null, "ACTIVE", null, null, null));
 
         verify(orgEntitlementService, never()).revokeStudent(anyLong());
         verify(orgEntitlementService, never()).grantStudent(anyLong(), any());
@@ -336,7 +336,7 @@ class AdminOrgServiceLifecycleTest {
                 .thenReturn(List.of());
         stubActiveMembersForDto(List.of());
 
-        service.updateOrganization(ORG_ID, new UpdateOrgRequest(null, null, "SUSPENDED", null));
+        service.updateOrganization(ORG_ID, new UpdateOrgRequest(null, null, "SUSPENDED", null, null, null));
 
         verify(orgEntitlementService, never()).revokeStudent(anyLong());
     }
@@ -350,7 +350,7 @@ class AdminOrgServiceLifecycleTest {
         when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org));
 
         assertThatThrownBy(() -> service.updateOrganization(ORG_ID,
-                new UpdateOrgRequest(null, null, "INACTIVE", null)))
+                new UpdateOrgRequest(null, null, "INACTIVE", null, null, null)))
                 .isInstanceOf(BadRequestException.class);
 
         verify(organizationRepository, never()).save(any());
@@ -363,7 +363,7 @@ class AdminOrgServiceLifecycleTest {
         when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(org));
 
         assertThatThrownBy(() -> service.updateOrganization(ORG_ID,
-                new UpdateOrgRequest(null, null, "PENDING", null)))
+                new UpdateOrgRequest(null, null, "PENDING", null, null, null)))
                 .isInstanceOf(BadRequestException.class);
 
         verify(organizationRepository, never()).save(any());
@@ -408,7 +408,7 @@ class AdminOrgServiceLifecycleTest {
                 .thenReturn(List.of(owner, manager, t1, t2, s1, s2, s3));
 
         // trigger updateOrganization with no status change so toOrgDto is called
-        OrgDto dto = service.updateOrganization(ORG_ID, new UpdateOrgRequest("PRO", null, null, null));
+        OrgDto dto = service.updateOrganization(ORG_ID, new UpdateOrgRequest("PRO", null, null, null, null, null));
 
         assertThat(dto.teacherCount()).isEqualTo(2L);
         assertThat(dto.studentCount()).isEqualTo(3L);
