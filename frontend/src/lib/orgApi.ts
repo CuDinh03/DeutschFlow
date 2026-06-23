@@ -277,6 +277,18 @@ export async function listClasses(page = 0, size = 20): Promise<Page<OrgClass>> 
   return res.data
 }
 
+/**
+ * POST /org/classes — org-admin (OWNER/MANAGER) tạo lớp cho trung tâm.
+ * teacherId bắt buộc (teacher_id NOT NULL) và phải là giáo viên TEACHER ACTIVE của org.
+ */
+export async function createOrgClass(body: {
+  name: string
+  teacherId: number
+}): Promise<OrgClass> {
+  const res = await api.post<OrgClass>('/org/classes', body)
+  return res.data
+}
+
 /** GET /org/classes/{id} — class detail (teacher + roster). 404 if not in caller's org (B1.1). */
 export async function getOrgClassDetail(id: number): Promise<OrgClassDetail> {
   const res = await api.get<OrgClassDetail>(`/org/classes/${id}`)

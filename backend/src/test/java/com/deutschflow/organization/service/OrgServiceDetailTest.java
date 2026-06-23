@@ -13,6 +13,7 @@ import com.deutschflow.teacher.entity.ClassStudent;
 import com.deutschflow.teacher.entity.ClassStudentId;
 import com.deutschflow.teacher.entity.TeacherClass;
 import com.deutschflow.teacher.repository.ClassStudentRepository;
+import com.deutschflow.teacher.repository.ClassTeacherRepository;
 import com.deutschflow.teacher.repository.TeacherClassRepository;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
@@ -47,6 +48,7 @@ class OrgServiceDetailTest {
     @Mock private OrgMemberRepository memberRepo;
     @Mock private OrganizationRepository organizationRepository;
     @Mock private TeacherClassRepository teacherClassRepository;
+    @Mock private ClassTeacherRepository classTeacherRepository;
     @Mock private UserRepository userRepository;
     @Mock private ClassStudentRepository classStudentRepository;
 
@@ -55,7 +57,7 @@ class OrgServiceDetailTest {
     @BeforeEach
     void setUp() {
         orgService = new OrgService(membershipService, memberRepo, organizationRepository,
-                teacherClassRepository, userRepository, classStudentRepository);
+                teacherClassRepository, classTeacherRepository, userRepository, classStudentRepository);
     }
 
     private static User user(long id, String email, String name) {

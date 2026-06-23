@@ -1,5 +1,6 @@
 package com.deutschflow.organization.service;
 
+import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.organization.dto.OrgClassDetailDto;
 import com.deutschflow.organization.dto.OrgClassDto;
@@ -14,8 +15,11 @@ import com.deutschflow.organization.entity.Organization;
 import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.organization.repository.OrganizationRepository;
 import com.deutschflow.teacher.entity.ClassStudent;
+import com.deutschflow.teacher.entity.ClassTeacher;
+import com.deutschflow.teacher.entity.ClassTeacherId;
 import com.deutschflow.teacher.entity.TeacherClass;
 import com.deutschflow.teacher.repository.ClassStudentRepository;
+import com.deutschflow.teacher.repository.ClassTeacherRepository;
 import com.deutschflow.teacher.repository.TeacherClassRepository;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
@@ -27,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -49,6 +54,7 @@ public class OrgService {
     private final OrgMemberRepository memberRepo;
     private final OrganizationRepository organizationRepository;
     private final TeacherClassRepository teacherClassRepository;
+    private final ClassTeacherRepository classTeacherRepository;
     private final UserRepository userRepository;
     private final ClassStudentRepository classStudentRepository;
 
@@ -106,6 +112,43 @@ public class OrgService {
     @Transactional(readOnly = true)
     public Page<OrgClassDto> listClasses(Long orgId, Pageable pageable) {
         return teacherClassRepository.findByOrgId(orgId, pageable).map(this::toClassDto);
+    }
+
+    /**
+     * Org-admin tạo lớp cho trung tâm: stamp {@code org_id} của người gọi và gán giáo viên phụ trách.
+     *
+     * <p>{@code teacherId} bắt buộc (cột teacher_id NOT NULL) và phải là một giáo viên TEACHER
+     * ACTIVE của chính org này — verify từ {@code org_members} để chống IDOR (không cho gán giáo
+     * viên thuộc org khác). Tạo kèm bản ghi {@code class_teachers} PRIMARY giống luồng giáo viên
+     * tự tạo lớp, để các truy vấn quyền sở hữu/đồng giảng dạy hoạt động đồng nhất.
+     */
+    @Transactional
+    public OrgClassDto createClass(Long orgId, String name, Long teacherId) {
+        String trimmed = name == null ? "" : name.trim();
+        if (trimmed.isEmpty()) {
+            throw new BadRequestException("Tên lớp không được để trống");
+        }
+        if (teacherId == null) {
+            throw new BadRequestException("Phải chọn giáo viên phụ trách");
+        }
+        OrgMember teacherMember = memberRepo.findByIdOrgIdAndIdUserId(orgId, teacherId)
+                .filter(m -> STATUS_ACTIVE.equals(m.getStatus()) && ROLE_TEACHER.equals(m.getRole()))
+                .orElseThrow(() -> new BadRequestException("Giáo viên không hợp lệ hoặc không thuộc tổ chức"));
+
+        Long assignedTeacherId = teacherMember.getId().getUserId();
+        TeacherClass saved = teacherClassRepository.save(TeacherClass.builder()
+                .teacherId(assignedTeacherId)
+                .orgId(orgId)
+                .name(trimmed)
+                .inviteCode(UUID.randomUUID().toString().substring(0, 8).toUpperCase())
+                .build());
+
+        classTeacherRepository.save(ClassTeacher.builder()
+                .id(new ClassTeacherId(saved.getId(), assignedTeacherId))
+                .role("PRIMARY")
+                .build());
+
+        return toClassDto(saved);
     }
 
     /**
