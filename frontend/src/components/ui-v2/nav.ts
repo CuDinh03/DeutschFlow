@@ -1,35 +1,65 @@
 /**
- * Role navigation — mapped from manifest navigation.primaryNav.
- * `id` = manifest screen id; `href` = canonical /v2 route; `icon` = Material Symbols name.
- * Hrefs to not-yet-built screens are intentional (Phase 2 fills them in).
+ * nav.ts — Cấu hình sidebar điều hướng cho UI /v2 (Galerie 2.0).
+ *
+ * Mỗi role có đúng một `RoleNav`. Sidebar render theo thứ tự:
+ *   RoleNav → sections[] (nhóm có heading tùy chọn) → items[] (từng thanh menu).
+ * Item nào đang active được suy ra bằng cách so `href` với pathname hiện tại
+ * (xem component sidebar tiêu thụ `ROLE_NAV`), nên `href` phải là route /v2 chuẩn.
+ *
+ * Quy ước:
+ *   - `id`    : khớp screen id trong manifest (dùng cho key/analytics, KHÔNG render).
+ *   - `label` : nhãn tiếng Việt hiển thị trên sidebar.
+ *   - `href`  : route /v2 chuẩn — một số trỏ tới màn chưa build (Phase 2 lấp dần), đây là chủ ý.
+ *   - `icon`  : tên icon Material Symbols.
+ *
+ * Sửa nav ở đây là nguồn sự thật duy nhất cho cả 4 role bên dưới.
  */
 export type RoleId = 'teacher' | 'admin' | 'org' | 'student'
 
+/** Một thanh menu trên sidebar. */
 export interface NavItem {
+  /** Screen id (khớp manifest) — dùng cho key/analytics, không hiển thị. */
   id: string
+  /** Nhãn tiếng Việt hiển thị. */
   label: string
+  /** Route /v2 chuẩn; dùng để so khớp trạng thái active. */
   href: string
+  /** Tên icon Material Symbols. */
   icon: string
-  /** Org nav: item visible to OWNER only (e.g. finance/billing). MANAGER (nhân sự) does not see it. */
+  /** Org nav: chỉ OWNER thấy (vd: tài chính/giấy phép). MANAGER (nhân sự) bị ẩn. */
   ownerOnly?: boolean
 }
 
+/** Một nhóm item, render kèm heading nếu có `label`. */
 export interface NavSection {
+  /** Tiêu đề nhóm (vd: "Quản lý lớp"); bỏ trống nếu nhóm không cần heading. */
   label?: string
   items: NavItem[]
 }
 
+/** Toàn bộ nav của một role. */
 export interface RoleNav {
   role: RoleId
+  /** Route gốc của role — đích redirect mặc định sau đăng nhập. */
   rootHref: string
   sections: NavSection[]
 }
 
-// teacherNav — khớp Prototype A (Galerie): nhóm QUẢN LÝ LỚP / GIẢNG DẠY / CÔNG CỤ AI / THỐNG KÊ.
-// "Thông báo" chuyển lên top bar (chuông + badge unread) → KHÔNG còn ở sidebar.
-// schedule (Lịch dạy, PROMPT 4) + tc-messages (Tin nhắn, #146 messaging) đã active sau khi cả hai vào main.
-// "Lịch dạy" = CHỈ buổi lớp trung tâm; buổi 1:1 (marketplace) + khung giờ rảnh nằm ở "Buổi học 1:1"
-// (sessions) — tách bạch B2B (lớp) ↔ B2C (1:1) để giáo viên trung tâm không vướng cổng hồ sơ public.
+/**
+ * teacherNav — giáo viên trung tâm (B2B). Khớp Prototype A (Galerie).
+ *
+ * Nhóm:
+ *   - Quản lý lớp : trang chủ, kế hoạch + nội dung + lịch sử giảng dạy, chấm bài (text/ảnh),
+ *                   thư viện tài liệu, phúc khảo.
+ *   - Giảng dạy   : tin nhắn học viên.
+ *   - Công cụ AI  : ngữ pháp AI, tạo tài liệu AI, tạo ảnh AI.
+ *   - Thống kê    : báo cáo & phân tích.
+ *   - Tài khoản   : hồ sơ.
+ *
+ * Ghi chú:
+ *   - "Thông báo" nằm ở top bar (chuông + badge unread), KHÔNG ở sidebar.
+ *   - "Buổi học 1:1" (sessions, marketplace B2C) đã bỏ — teacher chỉ tập trung lớp trung tâm.
+ */
 export const teacherNav: RoleNav = {
   role: 'teacher',
   rootHref: '/v2/teacher',
@@ -37,19 +67,20 @@ export const teacherNav: RoleNav = {
     {
       label: 'Quản lý lớp',
       items: [
-        { id: 'teacher', label: 'Dashboard & Lớp học', href: '/v2/teacher', icon: 'dashboard' },
-        { id: 'schedule', label: 'Lịch dạy', href: '/v2/teacher/schedule', icon: 'schedule' },
-        { id: 'tc-progress', label: 'Tiến độ khóa học', href: '/v2/teacher/tc-progress', icon: 'trending_up' },
-        { id: 'tc-checklist', label: 'Checklist khóa học', href: '/v2/teacher/tc-checklist', icon: 'checklist' },
-        { id: 'grading', label: 'Trung tâm Chấm bài', href: '/v2/teacher/grading', icon: 'grading' },
+        { id: 'teacher', label: 'Trang chủ', href: '/v2/teacher', icon: 'dashboard' },
+        { id: 'schedule', label: 'Kế hoạch giảng dạy', href: '/v2/teacher/schedule', icon: 'schedule' },
+        { id: 'tc-progress', label: 'Nội dung giảng dạy', href: '/v2/teacher/tc-progress', icon: 'trending_up' },
+        { id: 'tc-checklist', label: 'Lịch sử giảng dạy', href: '/v2/teacher/tc-checklist', icon: 'checklist' },
+        { id: 'grading', label: 'Chấm bài', href: '/v2/teacher/grading', icon: 'grading' },
         { id: 'grade-image', label: 'Chấm bài qua ảnh', href: '/v2/teacher/grade-image', icon: 'draw' },
         { id: 'materials', label: 'Thư viện tài liệu', href: '/v2/teacher/materials', icon: 'menu_book' },
+        // Phúc khảo (quiz/exam): màn chưa build — backend quiz teacher đã drop (V203), feature chờ duyệt build lại.
+        { id: 'quiz-exam', label: 'Phúc khảo', href: '/v2/teacher/quiz-exam', icon: 'menu_book' },
       ],
     },
     {
       label: 'Giảng dạy',
       items: [
-        { id: 'sessions', label: 'Buổi học 1:1', href: '/v2/teacher/sessions', icon: 'co_present' },
         { id: 'tc-messages', label: 'Tin nhắn học viên', href: '/v2/teacher/messages', icon: 'chat' },
       ],
     },
@@ -72,6 +103,13 @@ export const teacherNav: RoleNav = {
   ],
 }
 
+/**
+ * adminNav — quản trị nền tảng (platform ADMIN).
+ *
+ * Một nhóm chính không heading (vận hành: doanh thu, token AI, tổ chức, người dùng, lớp, gói,
+ * bộ đề, nội dung, cấu hình AI, marketing, phân tích, báo cáo, nhật ký, training data, cấu hình)
+ * + nhóm "Tài khoản" (hồ sơ). Đây là bề mặt rộng nhất, bao quát toàn hệ thống.
+ */
 export const adminNav: RoleNav = {
   role: 'admin',
   rootHref: '/v2/admin',
@@ -112,6 +150,15 @@ export const adminNav: RoleNav = {
   ],
 }
 
+/**
+ * orgNav — quản lý trung tâm (org OWNER & MANAGER).
+ *
+ * Một nhóm chính (tổng quan, học viên, lớp, lịch trung tâm, giáo viên, phân tích, tài chính,
+ * gói & giấy phép, lời mời, phân quyền) + nhóm "Tài khoản".
+ *
+ * Phân quyền: item gắn `ownerOnly: true` (tài chính, gói & giấy phép) CHỈ OWNER thấy;
+ * MANAGER (nhân sự) bị ẩn. Việc lọc do component sidebar thực hiện dựa trên role org.
+ */
 export const orgNav: RoleNav = {
   role: 'org',
   rootHref: '/v2/org',
@@ -139,7 +186,18 @@ export const orgNav: RoleNav = {
   ],
 }
 
-// Student nav — full student-daily surface (P6). Learn + practice + classes + account.
+/**
+ * studentNav — bề mặt học viên dùng hằng ngày (P6).
+ *
+ * Nhóm:
+ *   - Học tập  : tổng quan, từ vựng, ngữ pháp, ôn tập (SRS), bài học, lộ trình.
+ *   - Luyện thi: luyện nói AI, thi thử, luyện thi.
+ *   - Lớp học  : lớp của tôi, tiến độ, gia sư 1:1, tin nhắn.
+ *   - Cá nhân  : thành tích, học phí, thông báo, hồ sơ.
+ *
+ * Lưu ý: "Gia sư 1:1" (book-session) là cổng B2C của học viên — khác hẳn việc teacher
+ * đã bỏ tab 1:1; phía học viên vẫn giữ để đặt buổi với gia sư.
+ */
 export const studentNav: RoleNav = {
   role: 'student',
   rootHref: '/v2/student/dashboard',
@@ -184,6 +242,7 @@ export const studentNav: RoleNav = {
   ],
 }
 
+/** Tra cứu nav theo role — entry point component sidebar dùng để render đúng menu. */
 export const ROLE_NAV: Record<RoleId, RoleNav> = {
   teacher: teacherNav,
   admin: adminNav,
