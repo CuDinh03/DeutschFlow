@@ -137,7 +137,7 @@ class AdminOrgServiceLifecycleTest {
             return o;
         });
         stubActiveMembersForDto(List.of());
-        when(userRepository.findByEmail("owner@new.test")).thenReturn(Optional.empty());
+        when(userRepository.findByEmailIgnoreCase("owner@new.test")).thenReturn(Optional.empty());
         when(passwordEncoder.encode(anyString())).thenReturn("HASH");
         ArgumentCaptor<User> userCap = ArgumentCaptor.forClass(User.class);
         when(userRepository.save(userCap.capture())).thenAnswer(i -> {
@@ -166,7 +166,7 @@ class AdminOrgServiceLifecycleTest {
         });
         stubActiveMembersForDto(List.of());
         User existing = User.builder().id(7L).email("owner@old.test").role(User.Role.TEACHER).build();
-        when(userRepository.findByEmail("owner@old.test")).thenReturn(Optional.of(existing));
+        when(userRepository.findByEmailIgnoreCase("owner@old.test")).thenReturn(Optional.of(existing));
 
         service.createOrganization(new CreateOrgRequest(
                 "Org2", "org2", "PRO", 10, "owner@old.test", "X", "pw123456"));

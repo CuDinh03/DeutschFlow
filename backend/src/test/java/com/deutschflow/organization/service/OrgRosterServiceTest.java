@@ -117,7 +117,7 @@ class OrgRosterServiceTest {
         stubOrg(org);
 
         String csv = "alice@school.edu,Alice Tran";
-        when(userRepository.findByEmail("alice@school.edu")).thenReturn(Optional.empty());
+        when(userRepository.findByEmailIgnoreCase("alice@school.edu")).thenReturn(Optional.empty());
         when(passwordEncoder.encode(anyString())).thenReturn("hashed");
 
         User created = savedStudent(1L, "alice@school.edu");
@@ -150,7 +150,7 @@ class OrgRosterServiceTest {
         stubOrg(org);
 
         User existing = savedStudent(42L, "bob@school.edu");
-        when(userRepository.findByEmail("bob@school.edu")).thenReturn(Optional.of(existing));
+        when(userRepository.findByEmailIgnoreCase("bob@school.edu")).thenReturn(Optional.of(existing));
         when(orgMemberRepository.findByIdOrgIdAndIdUserId(ORG_ID, 42L))
                 .thenReturn(Optional.of(new OrgMember()));
 
@@ -176,7 +176,7 @@ class OrgRosterServiceTest {
         stubOrg(org);
 
         User created = savedStudent(7L, "charlie@school.edu");
-        when(userRepository.findByEmail("charlie@school.edu")).thenReturn(Optional.empty());
+        when(userRepository.findByEmailIgnoreCase("charlie@school.edu")).thenReturn(Optional.empty());
         when(passwordEncoder.encode(anyString())).thenReturn("hashed");
         when(userRepository.save(any(User.class))).thenReturn(created);
         when(classStudentRepository.existsByIdClassIdAndIdStudentId(CLASS_ID, 7L)).thenReturn(false);
@@ -199,7 +199,7 @@ class OrgRosterServiceTest {
         stubOrg(org);
 
         User existing = savedStudent(8L, "diana@school.edu");
-        when(userRepository.findByEmail("diana@school.edu")).thenReturn(Optional.of(existing));
+        when(userRepository.findByEmailIgnoreCase("diana@school.edu")).thenReturn(Optional.of(existing));
         when(orgMemberRepository.findByIdOrgIdAndIdUserId(ORG_ID, 8L))
                 .thenReturn(Optional.of(new OrgMember()));
         when(classStudentRepository.existsByIdClassIdAndIdStudentId(CLASS_ID, 8L)).thenReturn(true);
@@ -224,7 +224,7 @@ class OrgRosterServiceTest {
         // Row 2 is a valid student row.
         String csv = ",Blank First Col\nvalid@school.edu,Valid User";
         User created = savedStudent(99L, "valid@school.edu");
-        when(userRepository.findByEmail("valid@school.edu")).thenReturn(Optional.empty());
+        when(userRepository.findByEmailIgnoreCase("valid@school.edu")).thenReturn(Optional.empty());
         when(passwordEncoder.encode(anyString())).thenReturn("hashed");
         when(userRepository.save(any(User.class))).thenReturn(created);
 
@@ -246,7 +246,7 @@ class OrgRosterServiceTest {
         // "good@school.edu" is processed normally afterwards.
         String csv = "not-an-addr,Bad Row\ngood@school.edu,Good User";
         User created = savedStudent(100L, "good@school.edu");
-        when(userRepository.findByEmail("good@school.edu")).thenReturn(Optional.empty());
+        when(userRepository.findByEmailIgnoreCase("good@school.edu")).thenReturn(Optional.empty());
         when(passwordEncoder.encode(anyString())).thenReturn("hashed");
         when(userRepository.save(any(User.class))).thenReturn(created);
 
@@ -283,7 +283,7 @@ class OrgRosterServiceTest {
         stubOrg(org);
 
         // The single student is brand-new to the org
-        when(userRepository.findByEmail("over@school.edu")).thenReturn(Optional.empty());
+        when(userRepository.findByEmailIgnoreCase("over@school.edu")).thenReturn(Optional.empty());
         // Seat count is already at the limit
         when(membershipService.countByRole(ORG_ID, "STUDENT")).thenReturn(5L);
 
@@ -309,7 +309,7 @@ class OrgRosterServiceTest {
 
         // first student: brand-new, seat count = 0 (below limit)
         User first = savedStudent(1L, "first@school.edu");
-        when(userRepository.findByEmail("first@school.edu")).thenReturn(Optional.empty());
+        when(userRepository.findByEmailIgnoreCase("first@school.edu")).thenReturn(Optional.empty());
         when(membershipService.countByRole(ORG_ID, "STUDENT")).thenReturn(0L);
         when(passwordEncoder.encode(anyString())).thenReturn("hashed");
         when(userRepository.save(any(User.class))).thenReturn(first);
@@ -322,7 +322,7 @@ class OrgRosterServiceTest {
         when(membershipService.countByRole(ORG_ID, "STUDENT"))
                 .thenReturn(0L)   // first student check: below limit
                 .thenReturn(1L);  // second student check: at limit
-        when(userRepository.findByEmail("second@school.edu")).thenReturn(Optional.empty());
+        when(userRepository.findByEmailIgnoreCase("second@school.edu")).thenReturn(Optional.empty());
 
         RosterImportResultDto result = service.importStudents(ORG_ID, csv, null);
 
@@ -340,7 +340,7 @@ class OrgRosterServiceTest {
 
         String csv = "any@school.edu,Any User";
         User created = savedStudent(1L, "any@school.edu");
-        when(userRepository.findByEmail("any@school.edu")).thenReturn(Optional.empty());
+        when(userRepository.findByEmailIgnoreCase("any@school.edu")).thenReturn(Optional.empty());
         when(passwordEncoder.encode(anyString())).thenReturn("hashed");
         when(userRepository.save(any(User.class))).thenReturn(created);
 
@@ -362,7 +362,7 @@ class OrgRosterServiceTest {
 
         String csv = "email,displayName\nstudent@school.edu,Student Name";
         User created = savedStudent(5L, "student@school.edu");
-        when(userRepository.findByEmail("student@school.edu")).thenReturn(Optional.empty());
+        when(userRepository.findByEmailIgnoreCase("student@school.edu")).thenReturn(Optional.empty());
         when(passwordEncoder.encode(anyString())).thenReturn("hashed");
         when(userRepository.save(any(User.class))).thenReturn(created);
 
@@ -392,7 +392,7 @@ class OrgRosterServiceTest {
         stubOrg(org);
 
         String csv = "noname@school.edu";
-        when(userRepository.findByEmail("noname@school.edu")).thenReturn(Optional.empty());
+        when(userRepository.findByEmailIgnoreCase("noname@school.edu")).thenReturn(Optional.empty());
         when(passwordEncoder.encode(anyString())).thenReturn("hashed");
         User created = savedStudent(20L, "noname@school.edu");
         when(userRepository.save(any(User.class))).thenReturn(created);

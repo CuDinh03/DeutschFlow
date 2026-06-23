@@ -259,7 +259,7 @@ class TeacherServiceTest {
     void addCoTeacher_throwsBadRequest_whenTargetIsStudent() {
         when(classTeacherRepository.findById(new ClassTeacherId(100L, 1L))).thenReturn(java.util.Optional.of(
                 ClassTeacher.builder().id(new ClassTeacherId(100L, 1L)).role("PRIMARY").build()));
-        when(userRepository.findByEmail("s@y.de")).thenReturn(java.util.Optional.of(
+        when(userRepository.findByEmailIgnoreCase("s@y.de")).thenReturn(java.util.Optional.of(
                 com.deutschflow.user.entity.User.builder().id(5L)
                         .role(com.deutschflow.user.entity.User.Role.STUDENT).build()));
 
@@ -272,7 +272,7 @@ class TeacherServiceTest {
     void addCoTeacher_savesAssistant_whenValid() {
         when(classTeacherRepository.findById(new ClassTeacherId(100L, 1L))).thenReturn(java.util.Optional.of(
                 ClassTeacher.builder().id(new ClassTeacherId(100L, 1L)).role("PRIMARY").build()));
-        when(userRepository.findByEmail("t@y.de")).thenReturn(java.util.Optional.of(
+        when(userRepository.findByEmailIgnoreCase("t@y.de")).thenReturn(java.util.Optional.of(
                 com.deutschflow.user.entity.User.builder().id(7L)
                         .role(com.deutschflow.user.entity.User.Role.TEACHER).build()));
         when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(100L, 7L)).thenReturn(false);
@@ -283,6 +283,37 @@ class TeacherServiceTest {
         verify(classTeacherRepository).save(captor.capture());
         assertEquals("ASSISTANT", captor.getValue().getRole());
         assertEquals(7L, captor.getValue().getId().getTeacherId());
+    }
+
+    @Test
+    void addCoTeacher_trimsEmailAndUsesCaseInsensitiveLookup() {
+        // The teacher may type the co-teacher's address with surrounding spaces / any case. The
+        // service trims and delegates to findByEmailIgnoreCase (the repo matches upper(email)),
+        // so a stray space or capital letter no longer yields "không tìm thấy người dùng".
+        when(classTeacherRepository.findById(new ClassTeacherId(100L, 1L))).thenReturn(java.util.Optional.of(
+                ClassTeacher.builder().id(new ClassTeacherId(100L, 1L)).role("PRIMARY").build()));
+        when(userRepository.findByEmailIgnoreCase("T@Y.de")).thenReturn(java.util.Optional.of(
+                com.deutschflow.user.entity.User.builder().id(7L)
+                        .role(com.deutschflow.user.entity.User.Role.TEACHER).build()));
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(100L, 7L)).thenReturn(false);
+
+        teacherService.addCoTeacher(1L, 100L, "  T@Y.de  ");
+
+        verify(userRepository).findByEmailIgnoreCase("T@Y.de"); // trimmed (case preserved → repo is case-insensitive)
+        verify(classTeacherRepository).save(any());
+    }
+
+    @Test
+    void addCoTeacher_blankEmail_throwsBadRequest_noLookupNoLeak() {
+        // A null/blank email must fail fast with a clear message — not pass null to the repo and
+        // surface "với email: null" to the client.
+        when(classTeacherRepository.findById(new ClassTeacherId(100L, 1L))).thenReturn(java.util.Optional.of(
+                ClassTeacher.builder().id(new ClassTeacherId(100L, 1L)).role("PRIMARY").build()));
+
+        assertThrows(com.deutschflow.common.exception.BadRequestException.class,
+                () -> teacherService.addCoTeacher(1L, 100L, "   "));
+        verify(userRepository, never()).findByEmailIgnoreCase(anyString());
+        verify(classTeacherRepository, never()).save(any());
     }
 
     @Test
