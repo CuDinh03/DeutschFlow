@@ -69,7 +69,7 @@ class AdminManagementServiceUnitTest {
 
     @Test
     void createUser_student_happyPath_noOrg() {
-        when(userRepository.existsByEmail("new@x.com")).thenReturn(false);
+        when(userRepository.existsByEmailIgnoreCase("new@x.com")).thenReturn(false);
         when(passwordEncoder.encode("secret123")).thenReturn("HASH");
         when(userRepository.save(any(User.class))).thenAnswer(inv -> {
             User u = inv.getArgument(0);
@@ -89,7 +89,7 @@ class AdminManagementServiceUnitTest {
 
     @Test
     void createUser_duplicateEmail_throwsConflict() {
-        when(userRepository.existsByEmail("dup@x.com")).thenReturn(true);
+        when(userRepository.existsByEmailIgnoreCase("dup@x.com")).thenReturn(true);
         assertThrows(ConflictException.class, () ->
                 service.createUser("dup@x.com", "Dup", "secret123", "STUDENT", "vi", null, null));
     }
@@ -108,7 +108,7 @@ class AdminManagementServiceUnitTest {
 
     @Test
     void createUser_manager_assignsOrgMembership() {
-        when(userRepository.existsByEmail("m@x.com")).thenReturn(false);
+        when(userRepository.existsByEmailIgnoreCase("m@x.com")).thenReturn(false);
         when(passwordEncoder.encode(anyString())).thenReturn("HASH");
         when(organizationRepository.existsById(7L)).thenReturn(true);
         when(userRepository.save(any(User.class))).thenAnswer(inv -> {
@@ -127,7 +127,7 @@ class AdminManagementServiceUnitTest {
 
     @Test
     void createUser_managerWithoutOrg_throwsBadRequest() {
-        when(userRepository.existsByEmail("m@x.com")).thenReturn(false);
+        when(userRepository.existsByEmailIgnoreCase("m@x.com")).thenReturn(false);
         // A MANAGER is a first-class org-admin platform role → it must belong to an organization.
         assertThrows(BadRequestException.class, () ->
                 service.createUser("m@x.com", "M", "secret123", "MANAGER", "vi", null, null));
@@ -160,7 +160,7 @@ class AdminManagementServiceUnitTest {
 
     @Test
     void createUser_setsCreatedVia_ADMIN() {
-        when(userRepository.existsByEmail("cv@x.com")).thenReturn(false);
+        when(userRepository.existsByEmailIgnoreCase("cv@x.com")).thenReturn(false);
         when(passwordEncoder.encode(anyString())).thenReturn("HASH");
         org.mockito.ArgumentCaptor<User> cap = org.mockito.ArgumentCaptor.forClass(User.class);
         when(userRepository.save(any(User.class))).thenAnswer(inv -> {

@@ -113,7 +113,7 @@ public class OrgRosterService {
                     continue;
                 }
 
-                User existing = userRepository.findByEmail(email).orElse(null);
+                User existing = userRepository.findByEmailIgnoreCase(email).orElse(null);
 
                 // Seat check applies only when admitting a brand-new student to the org.
                 boolean isNewMember = existing == null

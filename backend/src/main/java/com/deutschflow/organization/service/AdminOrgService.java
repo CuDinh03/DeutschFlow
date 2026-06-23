@@ -223,7 +223,10 @@ public class AdminOrgService {
         String normalizedRole = normalizeRole(role);
         String normalizedEmail = email.trim();
 
-        User user = userRepository.findByEmail(normalizedEmail)
+        // Case-insensitive: an admin may type the member's address with any case; stored emails
+        // are canonical lowercase. Matches the login/register lookup so a capital letter no longer
+        // makes an existing user "not found".
+        User user = userRepository.findByEmailIgnoreCase(normalizedEmail)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng: " + normalizedEmail));
 
         // Enforce seat limit for STUDENT role when limit is configured (> 0 = limited)
@@ -299,8 +302,11 @@ public class AdminOrgService {
         if (ownerEmail == null || ownerEmail.isBlank()) {
             return;
         }
-        String email = ownerEmail.trim();
-        Optional<User> existing = userRepository.findByEmail(email);
+        // Canonical lowercase on write + case-insensitive lookup: keeps the owner account in the
+        // same canonical form as register/createUser, and links an existing user regardless of
+        // the case the admin typed.
+        String email = ownerEmail.trim().toLowerCase();
+        Optional<User> existing = userRepository.findByEmailIgnoreCase(email);
         if (existing.isPresent()) {
             orgMembershipService.upsertMember(orgId, existing.get().getId(), ROLE_OWNER);
             return;

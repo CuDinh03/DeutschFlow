@@ -671,7 +671,7 @@ public class AdminManagementService {
         if (rawPassword == null || rawPassword.length() < 6) throw new BadRequestException("Mật khẩu tối thiểu 6 ký tự.");
         String normRole = role == null ? "" : role.trim().toUpperCase();
         if (!List.of("ADMIN", "TEACHER", "STUDENT", "MANAGER").contains(normRole)) throw new BadRequestException("Vai trò không hợp lệ.");
-        if (userRepository.existsByEmail(normEmail)) throw new ConflictException("Email này đã có tài khoản.");
+        if (userRepository.existsByEmailIgnoreCase(normEmail)) throw new ConflictException("Email này đã có tài khoản.");
 
         // Org membership: a MANAGER must belong to an org; a TEACHER may optionally. The org-membership
         // role equals the platform role (OrgMembershipService keeps users.role in lock-step). OWNER is

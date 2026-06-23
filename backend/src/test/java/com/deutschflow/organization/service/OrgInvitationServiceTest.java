@@ -130,9 +130,9 @@ class OrgInvitationServiceTest {
 
         when(invitationRepository.findByTokenAndStatus(TOKEN, "PENDING"))
                 .thenReturn(Optional.of(invitation));
-        when(userRepository.findByEmail("newteacher@school.edu"))
+        when(userRepository.findByEmailIgnoreCase("newteacher@school.edu"))
                 .thenReturn(Optional.empty());
-        when(userRepository.existsByEmail("newteacher@school.edu"))
+        when(userRepository.existsByEmailIgnoreCase("newteacher@school.edu"))
                 .thenReturn(false);
 
         User createdUser = User.builder()
@@ -176,7 +176,7 @@ class OrgInvitationServiceTest {
         User existing = existingTeacherUser(50L, email);
         when(invitationRepository.findByTokenAndStatus(TOKEN, "PENDING"))
                 .thenReturn(Optional.of(invitation));
-        when(userRepository.findByEmail(email))
+        when(userRepository.findByEmailIgnoreCase(email))
                 .thenReturn(Optional.of(existing));
         when(userRepository.findById(50L)).thenReturn(Optional.of(existing));
         when(authService.issueSession(any(User.class))).thenReturn(dummyAuthResponse(50L));
@@ -189,7 +189,7 @@ class OrgInvitationServiceTest {
         // membership upserted for existing user
         verify(membershipService).upsertMember(eq(ORG_ID), eq(50L), eq("TEACHER"));
         // no new user saved (save only called from registerInvitedUser which is NOT called)
-        verify(userRepository, never()).existsByEmail(anyString());
+        verify(userRepository, never()).existsByEmailIgnoreCase(anyString());
     }
 
     // ------------------------------------------------------------------ expired token
@@ -256,7 +256,7 @@ class OrgInvitationServiceTest {
                 .build();
         when(invitationRepository.findByTokenAndStatus(TOKEN, "PENDING"))
                 .thenReturn(Optional.of(invitation));
-        when(userRepository.findByEmail(email)).thenReturn(Optional.of(studentUser));
+        when(userRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(studentUser));
         when(userRepository.findById(77L)).thenReturn(Optional.of(studentUser));
         when(authService.issueSession(any(User.class))).thenReturn(dummyAuthResponse(77L));
 
@@ -270,7 +270,7 @@ class OrgInvitationServiceTest {
     @Test
     @DisplayName("preCreateTeacher: tạo account TEACHER + membership + createdVia = role người tạo")
     void preCreateTeacher_createsTeacherWithProvenance() {
-        when(userRepository.existsByEmail("t@x.com")).thenReturn(false);
+        when(userRepository.existsByEmailIgnoreCase("t@x.com")).thenReturn(false);
         when(passwordEncoder.encode(anyString())).thenReturn("HASH");
         ArgumentCaptor<User> cap = ArgumentCaptor.forClass(User.class);
         when(userRepository.save(cap.capture())).thenAnswer(i -> {
@@ -293,7 +293,7 @@ class OrgInvitationServiceTest {
     @Test
     @DisplayName("preCreateTeacher: email đã tồn tại → ConflictException (không tạo)")
     void preCreateTeacher_duplicateEmail_conflict() {
-        when(userRepository.existsByEmail("dup@x.com")).thenReturn(true);
+        when(userRepository.existsByEmailIgnoreCase("dup@x.com")).thenReturn(true);
         assertThatThrownBy(() ->
                 service.preCreateTeacher(ORG_ID, "dup@x.com", "D", "secret123", User.CreatedVia.MANAGER))
                 .isInstanceOf(com.deutschflow.common.exception.ConflictException.class);

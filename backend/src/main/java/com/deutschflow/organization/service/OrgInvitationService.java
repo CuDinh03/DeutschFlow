@@ -137,7 +137,7 @@ public class OrgInvitationService {
                 .map(Organization::getName)
                 .orElse(null);
         boolean requiresRegistration =
-                userRepository.findByEmail(invitation.getEmail()).isEmpty();
+                userRepository.findByEmailIgnoreCase(invitation.getEmail()).isEmpty();
 
         return new InvitationPreviewDto(
                 orgName,
@@ -167,7 +167,7 @@ public class OrgInvitationService {
         }
 
         User.CreatedVia provenance = inviterProvenance(invitation);
-        User user = userRepository.findByEmail(invitation.getEmail())
+        User user = userRepository.findByEmailIgnoreCase(invitation.getEmail())
                 .orElseGet(() -> registerInvitedUser(invitation.getEmail(), body, provenance));
 
         // Insert/reactivate membership + sync users.org_id + promote STUDENT→TEACHER when applicable.
@@ -203,7 +203,7 @@ public class OrgInvitationService {
         if (rawPassword == null || rawPassword.length() < 6) {
             throw new BadRequestException("Mật khẩu tối thiểu 6 ký tự.");
         }
-        if (userRepository.existsByEmail(normEmail)) {
+        if (userRepository.existsByEmailIgnoreCase(normEmail)) {
             throw new ConflictException("Email này đã có tài khoản.");
         }
         User teacher = userRepository.save(User.builder()
@@ -226,7 +226,7 @@ public class OrgInvitationService {
                 || body.displayName() == null || body.displayName().isBlank()) {
             throw new BadRequestException("Vui lòng nhập tên hiển thị và mật khẩu để tạo tài khoản.");
         }
-        if (userRepository.existsByEmail(email)) {
+        if (userRepository.existsByEmailIgnoreCase(email)) {
             // Defensive: another request may have created the account between checks.
             throw new ConflictException("Tài khoản với email này đã tồn tại.");
         }
