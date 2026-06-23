@@ -27,20 +27,30 @@ export function RoleShell({ children }: { children: React.ReactNode }) {
   const [role, setRole] = React.useState<RoleId | null>(null)
 
   React.useEffect(() => {
-    const authRole = getAuthRole() // ADMIN | TEACHER | STUDENT (cookie → JWT → default)
+    const authRole = getAuthRole() // ADMIN | OWNER | MANAGER | TEACHER | STUDENT (cookie → JWT → default)
     const orgRole = getOrgRole() // OWNER | MANAGER | TEACHER | STUDENT | '' (cookie → JWT)
-    // 'ADMIN' kept as a legacy alias for access tokens minted before the org-role rename (≤ JWT TTL).
-    const orgLead = authRole === 'TEACHER' && (orgRole === 'OWNER' || orgRole === 'MANAGER' || orgRole === 'ADMIN')
+
+    // Org leads come in two flavours (mirrors the middleware's v2RoleHome):
+    //  • First-class platform role (2026-06-22 / V235): authRole is OWNER or MANAGER. A centre lead is
+    //    its OWN global identity, strictly administrative with NO teacher access → org shell only.
+    //  • Legacy: a global TEACHER who owns/manages an org (token minted before the rename, until it
+    //    expires) still carries an OWNER/MANAGER/ADMIN orgRole claim and keeps BOTH shells.
+    //    'ADMIN' is the legacy alias for MANAGER on those pre-rename tokens.
+    const isPlatformOrgLead = authRole === 'OWNER' || authRole === 'MANAGER'
+    const isLegacyOrgLead =
+      authRole === 'TEACHER' && (orgRole === 'OWNER' || orgRole === 'MANAGER' || orgRole === 'ADMIN')
 
     // Areas this user may legitimately see, primary first (mirrors the login router).
     const allowed: RoleId[] =
       authRole === 'ADMIN'
         ? ['admin']
-        : orgLead
-          ? ['org', 'teacher']
-          : authRole === 'TEACHER'
-            ? ['teacher']
-            : ['student']
+        : isPlatformOrgLead
+          ? ['org']
+          : isLegacyOrgLead
+            ? ['org', 'teacher']
+            : authRole === 'TEACHER'
+              ? ['teacher']
+              : ['student']
 
     const from = new URLSearchParams(window.location.search).get('from') as RoleId | null
     setRole(from && allowed.includes(from) ? from : allowed[0])
