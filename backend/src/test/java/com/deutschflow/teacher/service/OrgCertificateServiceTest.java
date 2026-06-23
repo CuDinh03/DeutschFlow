@@ -213,4 +213,15 @@ class OrgCertificateServiceTest {
         assertThat(cert.isActive()).isTrue();
         verify(certificateRepository, never()).save(any());
     }
+
+    @Test
+    @DisplayName("listByClass: GV không sở hữu lớp → Forbidden, KHÔNG truy vấn cert (L2)")
+    void listByClass_notOwner_throwsForbidden() {
+        doThrow(new ForbiddenException("Bạn không có quyền xem lớp này"))
+                .when(teacherService).assertTeacherOwnsClass(ISSUER_ID, CLASS_ID);
+
+        assertThatThrownBy(() -> service.listByClass(ISSUER_ID, CLASS_ID))
+                .isInstanceOf(ForbiddenException.class);
+        verify(certificateRepository, never()).findByClassIdOrderByCreatedAtDesc(anyLong());
+    }
 }

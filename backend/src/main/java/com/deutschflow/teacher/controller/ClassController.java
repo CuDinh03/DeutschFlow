@@ -4,6 +4,7 @@ import com.deutschflow.common.quota.RequestContext;
 import com.deutschflow.teacher.service.TeacherService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,7 +22,10 @@ public class ClassController {
 
     private final TeacherService teacherService;
 
+    // G-2: legacy join endpoint (duplicate of POST /api/v2/student/classes/join). Gate to STUDENT —
+    // joining a class is a learner action; staff/admin roles must not create join-requests.
     @PostMapping("/join")
+    @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<Void> joinClass(@AuthenticationPrincipal User user, @RequestBody Map<String, String> payload) {
         String inviteCode = payload.get("inviteCode");
         teacherService.joinClass(user.getId(), inviteCode);
