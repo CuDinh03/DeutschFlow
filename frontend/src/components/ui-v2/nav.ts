@@ -28,6 +28,8 @@ export interface RoleNav {
 // teacherNav — khớp Prototype A (Galerie): nhóm QUẢN LÝ LỚP / GIẢNG DẠY / CÔNG CỤ AI / THỐNG KÊ.
 // "Thông báo" chuyển lên top bar (chuông + badge unread) → KHÔNG còn ở sidebar.
 // schedule (Lịch dạy, PROMPT 4) + tc-messages (Tin nhắn, #146 messaging) đã active sau khi cả hai vào main.
+// "Lịch dạy" = CHỈ buổi lớp trung tâm; buổi 1:1 (marketplace) + khung giờ rảnh nằm ở "Buổi học 1:1"
+// (sessions) — tách bạch B2B (lớp) ↔ B2C (1:1) để giáo viên trung tâm không vướng cổng hồ sơ public.
 export const teacherNav: RoleNav = {
   role: 'teacher',
   rootHref: '/v2/teacher',

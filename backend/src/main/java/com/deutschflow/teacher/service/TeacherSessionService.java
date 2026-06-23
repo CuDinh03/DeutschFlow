@@ -39,6 +39,13 @@ public class TeacherSessionService {
         TeacherProfile profile = profileRepository.findByIdWithUser(teacherProfileId)
                 .orElseThrow(() -> new NotFoundException("Giáo viên không tồn tại"));
 
+        // G-1: Org teachers are not on the public marketplace — hide them from booking too
+        // (symmetric with GET /api/v2/teachers/{id}). Reuse the same "không tồn tại" message
+        // so a student cannot distinguish a real org-teacher id from a non-existent one.
+        if (profile.getUser().getOrgId() != null) {
+            throw new NotFoundException("Giáo viên không tồn tại");
+        }
+
         long price = profile.getHourlyRateVnd() * durationMinutes / 60L;
 
         TeacherSession session = TeacherSession.builder()

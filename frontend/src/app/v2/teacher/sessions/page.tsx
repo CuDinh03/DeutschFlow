@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Clock, Check, X, Star } from 'lucide-react'
 import { toast } from 'sonner'
+import Link from 'next/link'
 import api, { apiMessage } from '@/lib/api'
 import { GaPageHdr, GaBtn, GaCap, TkSeg, TkStatStrip, type TkSegOption } from '@/components/ui-v2'
+import { AvailabilityPanel } from './availabilityPanel'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Buổi học 1:1 (GaSessions) — violet. Week-calendar + list. Plumbing reused 1:1
@@ -35,10 +37,11 @@ interface Session {
 }
 interface Earnings { totalEarningsVnd: number; platformFeeVnd: number; netEarningsVnd: number }
 
-type View = 'week' | 'list'
+type View = 'week' | 'list' | 'availability'
 const VIEWS: TkSegOption<View>[] = [
   { value: 'week', label: 'Lịch tuần' },
   { value: 'list', label: 'Danh sách' },
+  { value: 'availability', label: 'Khung giờ rảnh' },
 ]
 
 const STATUS: Record<string, { label: string; fg: string; bg: string }> = {
@@ -69,6 +72,7 @@ function weekStart(): Date {
 export default function V2TeacherSessionsPage() {
   const [profileId, setProfileId] = useState<number | null>(null)
   const [noProfile, setNoProfile] = useState(false)
+  const [isOrgTeacher, setIsOrgTeacher] = useState(false)
   const [sessions, setSessions] = useState<Session[]>([])
   const [earnings, setEarnings] = useState<Earnings | null>(null)
   const [loading, setLoading] = useState(true)
@@ -80,6 +84,7 @@ export default function V2TeacherSessionsPage() {
   const resolveProfile = useCallback(async () => {
     try {
       const me = await api.get('/auth/me')
+      setIsOrgTeacher(me.data?.orgId != null)
       const uid = Number(me.data?.userId ?? me.data?.id)
       const pub = await api.get('/v2/teachers/public?size=100')
       const list = (pub.data?.content ?? []) as { id: number; userId: number }[]
@@ -149,12 +154,28 @@ export default function V2TeacherSessionsPage() {
             <GaBtn variant="primary" onClick={() => (profileId ? load(profileId) : resolveProfile())}>Thử lại</GaBtn>
           </div>
         ) : noProfile ? (
-          <div className="border border-dashed border-ga-line bg-ga-card px-10 py-[52px] text-center">
-            <h2 className="font-ga-display text-[22px] font-medium text-ga-ink">Chưa có hồ sơ giáo viên công khai</h2>
-            <p className="ga-ui mx-auto mt-2 max-w-md text-[14px] text-ga-muted">
-              Buổi học 1:1 cần một hồ sơ công khai để học viên đặt lịch. Tạo hồ sơ trong mục Hồ sơ giáo viên trước.
-            </p>
-          </div>
+          isOrgTeacher ? (
+            <div className="border border-dashed border-ga-line bg-ga-card px-10 py-[52px] text-center">
+              <h2 className="font-ga-display text-[22px] font-medium text-ga-ink">Lớp của bạn ở mục “Lịch dạy”</h2>
+              <p className="ga-ui mx-auto mt-2 max-w-md text-[14px] text-ga-muted">
+                Bạn là giáo viên thuộc trung tâm — buổi 1:1 chỉ dành cho giáo viên tự do trên marketplace. Lịch buổi lớp
+                của bạn nằm ở mục{' '}
+                <Link href="/v2/teacher/schedule" className="font-semibold text-ga-accent hover:underline">
+                  Lịch dạy
+                </Link>
+                .
+              </p>
+            </div>
+          ) : (
+            <div className="border border-dashed border-ga-line bg-ga-card px-10 py-[52px] text-center">
+              <h2 className="font-ga-display text-[22px] font-medium text-ga-ink">Chưa có hồ sơ giáo viên công khai</h2>
+              <p className="ga-ui mx-auto mt-2 max-w-md text-[14px] text-ga-muted">
+                Buổi học 1:1 cần một hồ sơ công khai để học viên đặt lịch. Tạo hồ sơ trong mục Hồ sơ giáo viên trước.
+              </p>
+            </div>
+          )
+        ) : view === 'availability' ? (
+          <AvailabilityPanel />
         ) : (
           <>
             <TkStatStrip

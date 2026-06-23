@@ -29,7 +29,7 @@ public class TeacherSessionController {
     // ── Student: book ─────────────────────────────────────────────────────────
 
     @PostMapping
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasRole('STUDENT')")   // 1:1 marketplace is a B2C product for learners (G-1)
     public ResponseEntity<TeacherSessionDto> book(
             @AuthenticationPrincipal User student,
             @RequestBody @Valid BookRequest req) {

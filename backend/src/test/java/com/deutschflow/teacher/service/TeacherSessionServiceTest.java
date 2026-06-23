@@ -14,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Optional;
 
@@ -40,6 +41,7 @@ class TeacherSessionServiceTest {
     private static final User OWNER = User.builder().id(1L).role(User.Role.TEACHER).build();
     private static final User OTHER_TEACHER = User.builder().id(2L).role(User.Role.TEACHER).build();
     private static final User ADMIN = User.builder().id(3L).role(User.Role.ADMIN).build();
+    private static final User STUDENT = User.builder().id(5L).role(User.Role.STUDENT).build();
 
     @BeforeEach
     void setUp() {
@@ -111,5 +113,41 @@ class TeacherSessionServiceTest {
 
         assertThrows(NotFoundException.class,
                 () -> service.getEarningsSummary(OWNER, 99L));
+    }
+
+    // ─── G-1: org teachers are hidden from 1:1 booking (symmetric with GET /{id}) ─
+
+    @Test
+    void bookSession_throwsNotFound_whenTeacherBelongsToOrg() {
+        User orgTeacher = User.builder().id(20L).role(User.Role.TEACHER).orgId(7L).build();
+        when(profileRepository.findByIdWithUser(30L)).thenReturn(Optional.of(
+                TeacherProfile.builder().id(30L).user(orgTeacher).build()));
+
+        assertThrows(NotFoundException.class,
+                () -> service.bookSession(STUDENT, 30L, "Ôn B1", null,
+                        LocalDateTime.now().plusDays(1), 60));
+        verify(sessionRepository, never()).save(any());
+    }
+
+    @Test
+    void bookSession_succeeds_forPublicTutor() {
+        User tutor = User.builder().id(21L).role(User.Role.TEACHER).orgId(null).build();
+        when(profileRepository.findByIdWithUser(31L)).thenReturn(Optional.of(
+                TeacherProfile.builder().id(31L).user(tutor).hourlyRateVnd(200_000L).build()));
+        when(sessionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.bookSession(STUDENT, 31L, "Ôn B1", null, LocalDateTime.now().plusDays(1), 60);
+
+        verify(sessionRepository).save(any());
+    }
+
+    @Test
+    void bookSession_throwsNotFound_whenProfileMissing() {
+        when(profileRepository.findByIdWithUser(99L)).thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class,
+                () -> service.bookSession(STUDENT, 99L, "x", null,
+                        LocalDateTime.now().plusDays(1), 60));
+        verify(sessionRepository, never()).save(any());
     }
 }
