@@ -19,7 +19,14 @@ public class UserDetailsServiceConfig {
 
     @Bean
     public UserDetailsService userDetailsService() {
-        return email -> userRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
+        // Trim + case-insensitive lookup: stored emails are canonical lowercase, but the submitted
+        // email may carry a stray space (autofill/paste) or a leading capital (mobile auto-capitalize).
+        // An exact match would miss → UsernameNotFoundException → DaoAuthenticationProvider reports it
+        // as BadCredentials → user sees "wrong password" though the password was never checked.
+        return rawEmail -> {
+            String email = rawEmail == null ? "" : rawEmail.trim();
+            return userRepository.findByEmailIgnoreCase(email)
+                    .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
+        };
     }
 }

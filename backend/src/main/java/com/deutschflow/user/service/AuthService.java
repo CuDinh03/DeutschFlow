@@ -55,7 +55,11 @@ public class AuthService {
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
-        if (userRepository.existsByEmail(request.email())) {
+        // Normalize to canonical lowercase + trimmed, matching admin createUser. Keeps stored emails
+        // consistent so the case-insensitive login lookup always resolves, and the IgnoreCase
+        // existence check blocks creating a case-variant duplicate (Foo@x.com vs foo@x.com).
+        String email = request.email() == null ? "" : request.email().trim().toLowerCase();
+        if (userRepository.existsByEmailIgnoreCase(email)) {
             throw new BadRequestException("Email này đã được đăng ký, vui lòng dùng email khác.");
         }
         if (request.phoneNumber() != null && !request.phoneNumber().isBlank()
@@ -69,7 +73,7 @@ public class AuthService {
                 : User.Locale.vi;
 
         var user = User.builder()
-                .email(request.email())
+                .email(email)
                 .phoneNumber(request.phoneNumber())
                 .passwordHash(passwordEncoder.encode(request.password()))
                 .displayName(request.displayName())
@@ -92,14 +96,18 @@ public class AuthService {
 
     @Transactional
     public AuthResponse login(LoginRequest request) {
+        // Trim the submitted email; the actual match is case-insensitive (UserDetailsServiceConfig +
+        // findByEmailIgnoreCase). Without this, a stray space or a single capital letter made login
+        // fail as "wrong password" even when the password was correct (the lookup just missed the row).
+        String email = request.email() == null ? "" : request.email().trim();
         try {
             authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.email(), request.password()));
+                    new UsernamePasswordAuthenticationToken(email, request.password()));
         } catch (BadCredentialsException e) {
             throw new BadRequestException("Invalid email or password");
         }
 
-        var user = userRepository.findByEmail(request.email())
+        var user = userRepository.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> new BadRequestException("Invalid email or password"));
 
         if (user.getRole() == User.Role.STUDENT) {

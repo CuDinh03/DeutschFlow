@@ -69,15 +69,44 @@ class AuthServiceUnitTest {
 
     @Test
     void register_throwsWhenEmailAlreadyExists() {
-        when(userRepository.existsByEmail("dup@x.com")).thenReturn(true);
+        when(userRepository.existsByEmailIgnoreCase("dup@x.com")).thenReturn(true);
         var req = new RegisterRequest("dup@x.com", "0912345678", RAW_PASSWORD, "Name", "vi");
         assertThrows(BadRequestException.class, () -> authService.register(req));
         verify(userRepository, never()).save(any());
     }
 
     @Test
+    void register_normalizesMixedCaseEmailToLowercase() {
+        when(userRepository.existsByEmailIgnoreCase("new@x.com")).thenReturn(false);
+        when(passwordEncoder.encode(RAW_PASSWORD)).thenReturn("HASH");
+        ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
+        when(userRepository.save(saved.capture())).thenAnswer(inv -> {
+            User u = inv.getArgument(0);
+            u.setId(1L);
+            return u;
+        });
+        when(jwtService.generateAccessToken(any(), any(), any())).thenReturn("ACCESS");
+        when(refreshTokenRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // Mixed case + stray spaces — must be stored canonical so the case-insensitive login finds it.
+        var req = new RegisterRequest("  New@X.Com ", "0912345678", RAW_PASSWORD, "Name", "vi");
+        authService.register(req);
+
+        assertEquals("new@x.com", saved.getValue().getEmail());
+    }
+
+    @Test
+    void register_rejectsCaseVariantDuplicate() {
+        // foo@x.com already exists; creating FOO@X.com must be blocked (case-insensitive uniqueness).
+        when(userRepository.existsByEmailIgnoreCase("foo@x.com")).thenReturn(true);
+        var req = new RegisterRequest("FOO@X.com", "0912345678", RAW_PASSWORD, "Name", "vi");
+        assertThrows(BadRequestException.class, () -> authService.register(req));
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
     void register_persistsStudentAndNotifiesAfterCommit() {
-        when(userRepository.existsByEmail("new@x.com")).thenReturn(false);
+        when(userRepository.existsByEmailIgnoreCase("new@x.com")).thenReturn(false);
         when(passwordEncoder.encode(RAW_PASSWORD)).thenReturn("HASH");
         when(userRepository.save(any(User.class))).thenAnswer(inv -> {
             User u = inv.getArgument(0);
@@ -98,6 +127,34 @@ class AuthServiceUnitTest {
         verify(runAfterCommitService).run(any());
         after.getValue().run();
         verify(userNotificationService).onStudentRegisteredAfterCommit(any(StudentRegisteredEvent.class));
+    }
+
+    @Test
+    void login_trimsEmailAndLooksUpCaseInsensitively() {
+        // The reported bug: stored email is lowercase but the user typed a leading space + capital
+        // letter (mobile auto-capitalize). The lookup must still resolve, so login trims and the repo
+        // matches case-insensitively — otherwise the row is missed and surfaces as "wrong password".
+        User u = User.builder()
+                .id(3L).email("user@x.com").passwordHash("HASH")
+                .displayName("U").role(User.Role.TEACHER).locale(User.Locale.vi)
+                .build();
+        when(userRepository.findByEmailIgnoreCase("User@X.com")).thenReturn(Optional.of(u));
+        when(jwtService.generateAccessToken(any(), any(), any())).thenReturn("ACCESS");
+        when(refreshTokenRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        var req = new LoginRequest("  User@X.com  ", RAW_PASSWORD);
+        var res = authService.login(req);
+
+        assertEquals("ACCESS", res.accessToken());
+        // authenticate() receives the trimmed email (not the raw spaced value).
+        ArgumentCaptor<UsernamePasswordAuthenticationToken> tok =
+                ArgumentCaptor.forClass(UsernamePasswordAuthenticationToken.class);
+        verify(authenticationManager).authenticate(tok.capture());
+        assertEquals("User@X.com", tok.getValue().getPrincipal());
+        // The post-auth lookup is case-insensitive on the trimmed value.
+        verify(userRepository).findByEmailIgnoreCase("User@X.com");
+        verify(userRepository, never()).findByEmail(anyString());
+        verify(refreshTokenRepository).revokeAllByUserId(3L);
     }
 
     @Test
