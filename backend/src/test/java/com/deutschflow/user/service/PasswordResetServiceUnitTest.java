@@ -1,6 +1,7 @@
 package com.deutschflow.user.service;
 
 import com.deutschflow.common.exception.BadRequestException;
+import com.deutschflow.user.repository.RefreshTokenRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -9,6 +10,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -33,6 +35,7 @@ class PasswordResetServiceUnitTest {
     @Mock JdbcTemplate jdbc;
     @Mock JavaMailSender mailSender;
     @Mock PasswordEncoder passwordEncoder;
+    @Mock RefreshTokenRepository refreshTokenRepository;
 
     @InjectMocks PasswordResetService service;
 
@@ -48,13 +51,16 @@ class PasswordResetServiceUnitTest {
                 .thenReturn(List.of(Map.of(
                         "id", 10L,
                         "expires_at", new Timestamp(System.currentTimeMillis() + 600_000))));
+        // AUTH-1: the service resolves the user id (needed to revoke that user's sessions) before updating.
+        when(jdbc.query(contains("SELECT id FROM users"), any(ResultSetExtractor.class), eq("user@x.com")))
+                .thenReturn(20L);
         when(passwordEncoder.encode("newpass12")).thenReturn("HASH");
-        // The users UPDATE must report a changed row, else the service throws "account not found".
-        when(jdbc.update(contains("UPDATE users"), eq("HASH"), eq("user@x.com"))).thenReturn(1);
 
         service.resetPassword("user@x.com", "123456", "newpass12");
 
-        verify(jdbc).update(contains("password_hash"), eq("HASH"), eq("user@x.com"));
+        verify(jdbc).update(contains("password_hash"), eq("HASH"), eq(20L));
+        // AUTH-1: a password reset must revoke all of the user's refresh tokens.
+        verify(refreshTokenRepository).revokeAllByUserId(20L);
     }
 
     @Test

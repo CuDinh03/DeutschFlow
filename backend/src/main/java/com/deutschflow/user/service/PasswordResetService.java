@@ -1,6 +1,7 @@
 package com.deutschflow.user.service;
 
 import com.deutschflow.common.exception.BadRequestException;
+import com.deutschflow.user.repository.RefreshTokenRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -33,6 +34,7 @@ public class PasswordResetService {
     private final JdbcTemplate jdbc;
     private final JavaMailSender mailSender;
     private final PasswordEncoder passwordEncoder;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     /**
      * Generates a 6-digit OTP for the given email, persists it with a TTL, and
@@ -103,16 +105,22 @@ public class PasswordResetService {
         // Column is password_hash (see User entity / V3) — NOT "password". The old "SET password"
         // referenced a non-existent column, so every OTP reset threw a SQL error AFTER the token was
         // already consumed: the password never changed yet the user believed it had → "wrong password".
-        int updated = jdbc.update(
-                "UPDATE users SET password_hash = ? WHERE lower(email) = lower(?) AND active = TRUE",
-                passwordEncoder.encode(newPassword), email.trim()
-        );
-
-        if (updated == 0) {
+        Long userId = jdbc.query(
+                "SELECT id FROM users WHERE lower(email) = lower(?) AND active = TRUE",
+                rs -> rs.next() ? rs.getLong(1) : null, email.trim());
+        if (userId == null) {
             throw new BadRequestException("Không tìm thấy tài khoản.");
         }
 
-        log.info("[PasswordReset] password updated for email={}***", email.substring(0, Math.min(3, email.length())));
+        jdbc.update("UPDATE users SET password_hash = ? WHERE id = ?",
+                passwordEncoder.encode(newPassword), userId);
+
+        // AUTH-1: revoke every refresh token for this user so a leaked/stolen session cannot survive a
+        // password reset (access tokens are stateless 15-min; the refresh token is the long-lived one).
+        refreshTokenRepository.revokeAllByUserId(userId);
+
+        log.info("[PasswordReset] password updated + sessions revoked for email={}***",
+                email.substring(0, Math.min(3, email.length())));
     }
 
     private void sendOtpEmail(String to, String code) {
