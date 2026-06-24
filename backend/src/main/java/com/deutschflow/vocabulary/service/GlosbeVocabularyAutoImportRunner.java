@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -32,6 +33,7 @@ public class GlosbeVocabularyAutoImportRunner {
     }
 
     @Scheduled(cron = "${app.vocabulary.glosbe.cron:0 0 3 * * *}")
+    @SchedulerLock(name = "glosbeAutoImport", lockAtMostFor = "PT1H", lockAtLeastFor = "PT5M")
     public void runScheduledImport() {
         runImport("scheduled");
     }

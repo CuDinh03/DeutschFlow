@@ -4,6 +4,7 @@ import com.deutschflow.notification.service.UserNotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -37,6 +38,7 @@ public class DailyNotificationJob {
      * and sends them the appropriate notification.
      */
     @Scheduled(cron = "0 0 * * * *")
+    @SchedulerLock(name = "dailyNotifications", lockAtMostFor = "PT10M", lockAtLeastFor = "PT1M")
     public void checkAndSendDailyNotifications() {
         log.debug("[DailyNotificationJob] Hourly check started");
 

@@ -8,6 +8,7 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -50,6 +51,7 @@ public class GlosbeViEnrichmentService {
     // ── Scheduled job ─────────────────────────────────────────────────────────
 
     @Scheduled(fixedDelayString = "${app.vocabulary.glosbe-vi.delay-ms:120000}")
+    @SchedulerLock(name = "glosbeViEnrichment", lockAtMostFor = "PT5M", lockAtLeastFor = "PT0S")
     public void runScheduled() {
         if (!enabled || enrichmentSuspendGate.isEnrichmentSuspended()) {
             return;
