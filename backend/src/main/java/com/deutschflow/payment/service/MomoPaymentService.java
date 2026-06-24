@@ -326,6 +326,13 @@ public class MomoPaymentService {
     }
 
     private boolean verifyIpnSignature(Map<String, Object> payload) {
+        // Fail-closed (audit PAY-1): nếu MoMo chưa cấu hình (secret/access rỗng hoặc "dummy"), KHÔNG verify
+        // bằng key đoán được. Ngược lại kẻ tấn công biết deploy chưa cấu hình có thể tự ký IPN hợp lệ bằng
+        // key "dummy" và kích hoạt subscription miễn phí.
+        if (isBlank(accessKey) || isBlank(secretKey) || "dummy".equals(accessKey) || "dummy".equals(secretKey)) {
+            log.error("[MOMO IPN] Rejected — MoMo credentials not configured (accessKey/secretKey blank or 'dummy').");
+            return false;
+        }
         try {
             // MoMo IPN v2 rawHash format (string values must match MoMo's concatenation, incl. integer fields)
             String rawHash = "accessKey=" + accessKey

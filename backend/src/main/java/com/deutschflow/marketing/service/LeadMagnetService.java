@@ -59,7 +59,13 @@ public class LeadMagnetService {
     private final SharedGradeReportRepository reportRepository;
     private final GradingService gradingService;
 
-    @Transactional
+    /**
+     * KHÔNG mở transaction quanh toàn bộ method (audit S-8/P-15): lời gọi LLM
+     * ({@link GradingService#gradeGermanEssay}) mất vài giây và endpoint này public + không auth —
+     * giữ một Hikari connection suốt lời gọi sẽ cạn pool khi bị spam (lặp lại sự cố DB-pool P0).
+     * Các thao tác DB ở đây (đếm rate-limit, lưu lead/report) độc lập, tự commit riêng lẻ nên
+     * không cần atomic chung.
+     */
     public FreeGradeResponse gradeFree(FreeGradeRequest req, String clientIp) {
         // 1) Honeypot: người thật để trống; bot điền → loại sớm, không tốn token AI.
         if (req.website() != null && !req.website().isBlank()) {
