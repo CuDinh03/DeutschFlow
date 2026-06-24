@@ -16,6 +16,14 @@ public interface UserXpEventRepository extends JpaRepository<UserXpEvent, Long> 
     @Query("SELECT COALESCE(SUM(e.xpAmount), 0) FROM UserXpEvent e WHERE e.userId = :userId")
     long sumXpByUserId(@Param("userId") Long userId);
 
+    /** Total XP across a batch of users in ONE query (teacher class analytics, S-10). */
+    @Query("SELECT COALESCE(SUM(e.xpAmount), 0) FROM UserXpEvent e WHERE e.userId IN :userIds")
+    long sumXpByUserIdIn(@Param("userIds") List<Long> userIds);
+
+    /** Per-user total XP for a batch of users in ONE query — returns [userId, totalXp] rows (S-10). */
+    @Query("SELECT e.userId, COALESCE(SUM(e.xpAmount), 0) FROM UserXpEvent e WHERE e.userId IN :userIds GROUP BY e.userId")
+    List<Object[]> sumXpGroupedByUserId(@Param("userIds") List<Long> userIds);
+
     /** Count of completed speaking sessions for achievement triggers. */
     @Query("SELECT COUNT(e) FROM UserXpEvent e WHERE e.userId = :userId AND e.eventType = 'SESSION_COMPLETE'")
     long countSessionCompleteByUserId(@Param("userId") Long userId);
