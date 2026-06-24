@@ -12,10 +12,12 @@ import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -42,6 +44,7 @@ public class OrgMembershipService {
 
     private final OrgMemberRepository memberRepo;
     private final UserRepository userRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     /**
      * Inserts a new org membership or reactivates an existing one, sets {@code users.org_id},
@@ -59,7 +62,24 @@ public class OrgMembershipService {
                     "Người dùng đã là thành viên đang hoạt động của một tổ chức khác — phải rời tổ chức cũ trước.");
         }
 
-        OrgMember member = memberRepo.findByIdOrgIdAndIdUserId(orgId, userId)
+        Optional<OrgMember> existingOpt = memberRepo.findByIdOrgIdAndIdUserId(orgId, userId);
+
+        // Seat-limit gate (ORG-1): centralized here so EVERY add path (admin add, roster import,
+        // invitation accept) enforces it, and race-safe — a `SELECT ... FOR UPDATE` on the org row
+        // serializes concurrent adds to the same org, so two admins cannot both pass the check and
+        // both insert past the limit (closes the J / admin-add race). Only a brand-new STUDENT
+        // increases the ACTIVE-student count. seat_limit = 0 means unlimited.
+        if (ROLE_STUDENT.equals(role) && existingOpt.isEmpty()) {
+            Long seatLimit = jdbcTemplate.query(
+                    "SELECT seat_limit FROM organizations WHERE id = ? FOR UPDATE",
+                    rs -> rs.next() ? rs.getLong(1) : null, orgId);
+            if (seatLimit != null && seatLimit > 0 && countByRole(orgId, ROLE_STUDENT) >= seatLimit) {
+                throw new BadRequestException(
+                        "Đã đạt giới hạn chỗ ngồi (" + seatLimit + " student). Không thể thêm thành viên.");
+            }
+        }
+
+        OrgMember member = existingOpt
                 .map(existing -> {
                     existing.setRole(role);
                     existing.setStatus(STATUS_ACTIVE);
