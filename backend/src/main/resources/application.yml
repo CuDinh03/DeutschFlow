@@ -220,8 +220,11 @@ app:
     redis-l2-enabled: ${APP_CACHE_REDIS_L2_ENABLED:false}
   flyway:
     # Aligns flyway_schema_history checksums when a versioned migration file changed after apply.
-    # Production: set APP_FLYWAY_REPAIR_BEFORE_MIGRATE=false (Spring Boot 3.2 has no spring.flyway.repair-on-migrate).
-    repair-before-migrate: ${APP_FLYWAY_REPAIR_BEFORE_MIGRATE:true}
+    # SAFE DEFAULT = false (audit D-11/INF-5): auto-repair masks the check that catches an edited
+    # already-applied migration — a tampered/rewritten V-script would have its checksum silently
+    # realigned instead of failing the deploy. Set APP_FLYWAY_REPAIR_BEFORE_MIGRATE=true only for
+    # local dev convenience (Spring Boot 3.2 has no spring.flyway.repair-on-migrate).
+    repair-before-migrate: ${APP_FLYWAY_REPAIR_BEFORE_MIGRATE:false}
   jwt:
     # Bắt buộc khi algorithm=HS256. Khi đã chuyển hẳn sang RS256 (sau cutover), có thể BỎ JWT_SECRET
     # (để trống) — JwtService cho phép rỗng nếu algorithm=RS256. Default rỗng để app vẫn start được
