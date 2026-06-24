@@ -85,9 +85,11 @@ public class SecurityConfig {
                         // SePay bank-transfer webhook: called by SePay servers (no JWT), secured via shared Apikey header (C3)
                         auth.requestMatchers("/api/payments/sepay/webhook").permitAll();
 
-                        // Public media reads for landing page and direct asset links (no directory listing)
+                        // Public media reads for the landing page are by TAG only (a known, non-enumerable
+                        // tag). GET /api/v2/media/{id} is NOT public (T-6): it exposed metadata (s3Key, CDN
+                        // url, uploader) for ANY sequential id to anonymous callers, so it now requires auth
+                        // via anyRequest().authenticated().
                         auth.requestMatchers(HttpMethod.GET, "/api/v2/media/by-tag").permitAll();
-                        auth.requestMatchers(HttpMethod.GET, "/api/v2/media/**").permitAll();
 
                         // Public org-invitation preview + accept (token is the secret; PublicOrgInvitationController)
                         auth.requestMatchers("/api/public/**").permitAll();
