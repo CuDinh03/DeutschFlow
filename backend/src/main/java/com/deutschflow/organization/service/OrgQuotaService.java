@@ -8,9 +8,14 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Hạn mức token AI cấp-org (monthly pool): vừa báo cáo, vừa enforcement.
  *
- * <p>{@code monthly_token_pool <= 0} nghĩa là KHÔNG giới hạn. {@link #wouldExceedOrgPool}
- * được {@code QuotaService.assertAllowed} gọi để chặn khi tổng tiêu thụ của org vượt pool;
- * người dùng B2C (không thuộc org) và org chưa cấu hình pool luôn cho qua → B2C không đổi.
+ * <p>Bảng quyết định (V237 / M-5 / P-14), khớp {@link com.deutschflow.common.quota.FreeTierGuard#orgMemberCapped}:
+ * <ul>
+ *   <li>B2C (không thuộc org) → cho qua (không đổi).</li>
+ *   <li>{@code pool_unlimited = true} → unlimited THẬT, cho qua.</li>
+ *   <li>{@code pool_unlimited = false & monthly_token_pool > 0} → metered theo pool.</li>
+ *   <li>{@code pool_unlimited = false & pool = 0} → CHƯA cấu hình → cap (fail-safe, đóng backdoor).</li>
+ * </ul>
+ * {@link #wouldExceedOrgPool} được {@code QuotaService.assertAllowed} và {@code OrgPoolGuard} gọi để chặn.
  */
 @Service
 @Slf4j
@@ -60,9 +65,9 @@ public class OrgQuotaService {
     }
 
     /**
-     * True nếu user thuộc một org có pool {@code > 0} và việc nạp thêm
-     * {@code estimatedTokens} token trong tháng sẽ vượt pool. User B2C (không có org_members row)
-     * và org pool {@code <= 0} → false (cho qua). Gọi từ {@code QuotaService.assertAllowed}.
+     * True nếu việc nạp thêm {@code estimatedTokens} cho user này sẽ vượt hạn mức org (xem bảng quyết
+     * định ở class doc). User B2C (không có {@code org_members} row) → false. Gọi từ
+     * {@code QuotaService.assertAllowed} và {@code OrgPoolGuard}.
      *
      * <p>Dùng {@code org_members} làm nguồn tenant duy nhất (T-1/D-1) — không đọc
      * {@code users.org_id} để tránh drift giữa hai nguồn.
@@ -80,16 +85,53 @@ public class OrgQuotaService {
                 },
                 userId);
         if (orgId == null) {
-            return false; // không thuộc org nào
+            return false; // không thuộc org nào (B2C)
         }
-        long pool = monthlyPool(orgId);
-        if (pool <= 0L) {
-            return false; // pool chưa cấu hình → bỏ qua truy vấn SUM tốn kém
+        OrgPoolConfig cfg = loadPoolConfig(orgId);
+        boolean metered = !cfg.unlimited() && cfg.pool() > 0L;
+        // Chỉ query usage khi thực sự metered (O(1) counter lookup); unlimited / pool=0 không cần.
+        long used = metered ? orgUsageThisMonth(orgId) : 0L;
+        boolean blocked = poolBlocks(cfg.pool(), cfg.unlimited(), used, estimatedTokens);
+        if (metered) {
+            maybeAlert80(orgId, cfg.pool(), used, estimatedTokens);
+        } else if (blocked) {
+            // pool = 0 & !unlimited → org CHƯA cấu hình ngân sách → cap (V237 fail-safe; đóng backdoor
+            // P-14/M-5, trước đây pool=0 bị coi là "unlimited"). ⚠ Cần chạy deploy-gate (set
+            // pool_unlimited=true / pool>0 cho org hợp lệ) TRƯỚC deploy — xem audit/prod_verify_section6.sql (ITEM 5).
+            log.warn("[OrgPool][P-14] Chặn AI: orgId={} chưa cấu hình pool token (pool=0, pool_unlimited=false). "
+                    + "Set monthly_token_pool>0 hoặc bật pool_unlimited qua admin.", orgId);
         }
-        long used = orgUsageThisMonth(orgId);
-        maybeAlert80(orgId, pool, used, estimatedTokens);
-        return exceeds(orgId, pool, used, estimatedTokens);
+        return blocked;
     }
+
+    /**
+     * Quyết định thuần (bảng V237 — xem class doc), tách để test không cần JDBC, khớp
+     * {@link com.deutschflow.common.quota.FreeTierGuard#orgMemberCapped}:
+     * {@code unlimited} → cho qua; {@code pool<=0 & !unlimited} → cap (bất kỳ tiêu thụ dương nào);
+     * {@code pool>0} → metered ({@code used + est > pool}).
+     */
+    static boolean poolBlocks(long pool, boolean unlimited, long used, long estimatedTokens) {
+        if (unlimited) {
+            return false;
+        }
+        long est = Math.max(estimatedTokens, 0L);
+        if (pool <= 0L) {
+            return est > 0L;
+        }
+        return used + est > pool;
+    }
+
+    /** Cấu hình pool của org (pool + cờ unlimited) trong 1 query. Org không tồn tại → fail-safe (0, false) = cap. */
+    private OrgPoolConfig loadPoolConfig(Long orgId) {
+        return jdbcTemplate.query(
+                "SELECT COALESCE(monthly_token_pool, 0), pool_unlimited FROM organizations WHERE id = ?",
+                rs -> rs.next()
+                        ? new OrgPoolConfig(rs.getLong(1), rs.getBoolean(2))
+                        : new OrgPoolConfig(0L, false),
+                orgId);
+    }
+
+    private record OrgPoolConfig(long pool, boolean unlimited) {}
 
     /**
      * Cảnh báo server-side khi org vừa CHẠM ngưỡng {@value #POOL_ALERT_PERCENT}% pool

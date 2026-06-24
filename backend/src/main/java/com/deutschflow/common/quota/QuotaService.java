@@ -519,6 +519,32 @@ public class QuotaService {
                 userId, PLAN_DEFAULT, Timestamp.from(now));
     }
 
+    /**
+     * D-5: phân biệt "không có subscription ACTIVE" (hợp lệ → DEFAULT) với "có subscription ACTIVE nhưng
+     * KHÔNG resolve được plan" (plan thiếu / {@code is_active=false}). Trường hợp sau âm thầm hạ một user
+     * trả tiền về DEFAULT (0 token); log ERROR để ops xử lý thay vì user mất quyền không dấu vết. Chỉ chạy
+     * khi {@link #loadActiveCoveringSubscription} trả null — hiếm trên hot-path (user mới chưa provision, hoặc anomaly).
+     */
+    private void warnIfUnresolvedActiveSubscription(long userId, Instant now) {
+        Map<String, Object> orphan = firstRow(jdbcTemplate, """
+                        SELECT us.plan_code AS planCode, sp.code AS planExists, sp.is_active AS planActive
+                        FROM user_subscriptions us
+                        LEFT JOIN subscription_plans sp ON sp.code = us.plan_code
+                        WHERE us.user_id = ?
+                          AND us.status = 'ACTIVE'
+                          AND us.starts_at <= ?
+                          AND (us.ends_at IS NULL OR us.ends_at > ?)
+                        ORDER BY us.starts_at DESC, us.id DESC
+                        LIMIT 1
+                        """, userId, Timestamp.from(now), Timestamp.from(now));
+        if (orphan != null) {
+            log.error("[Quota][D-5] userId={} có subscription ACTIVE plan_code={} nhưng plan KHÔNG resolve "
+                            + "(planExists={}, planActive={}) → bị phục vụ DEFAULT (0 token). "
+                            + "Kiểm tra subscription_plans.is_active / seed plan.",
+                    userId, orphan.get("planCode"), orphan.get("planExists") != null, orphan.get("planActive"));
+        }
+    }
+
     private SubscriptionRow loadActiveCoveringSubscription(long userId, Instant now) {
         Map<String, Object> raw = firstRow(jdbcTemplate, """
                         SELECT us.id AS sid,
@@ -539,6 +565,7 @@ public class QuotaService {
                         """, userId, Timestamp.from(now), Timestamp.from(now));
 
         if (raw == null) {
+            warnIfUnresolvedActiveSubscription(userId, now);
             return null;
         }
 
