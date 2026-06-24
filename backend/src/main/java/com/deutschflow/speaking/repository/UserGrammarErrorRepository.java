@@ -17,6 +17,16 @@ public interface UserGrammarErrorRepository extends JpaRepository<UserGrammarErr
 
     List<UserGrammarError> findTop20ByUserIdOrderByCreatedAtDesc(Long userId);
 
+    /** Class-wide top error codes across a batch of users in ONE query (S-10). Limit via Pageable. */
+    @Query("""
+            SELECT e.errorCode, COUNT(e)
+            FROM UserGrammarError e
+            WHERE e.userId IN :userIds AND e.errorCode IS NOT NULL
+            GROUP BY e.errorCode
+            ORDER BY COUNT(e) DESC
+            """)
+    List<Object[]> aggregateErrorCodesForUsers(@Param("userIds") List<Long> userIds, Pageable pageable);
+
     List<UserGrammarError> findByMessageIdIn(Collection<Long> messageIds);
 
     boolean existsByMessageIdAndErrorCode(Long messageId, String errorCode);

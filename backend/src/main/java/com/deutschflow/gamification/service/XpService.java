@@ -26,8 +26,10 @@ import java.time.LocalDateTime;
 import java.time.DayOfWeek;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -206,6 +208,28 @@ public class XpService {
                 userId, (int) totalXp, level, progressInLevel, xpNeededForNext,
                 allAchievements, pendingBadges
         );
+    }
+
+    /** Total XP across a batch of users in ONE query (teacher class analytics, S-10). */
+    @Transactional(readOnly = true)
+    public long totalXpForUsers(List<Long> userIds) {
+        return userIds.isEmpty() ? 0L : xpEventRepository.sumXpByUserIdIn(userIds);
+    }
+
+    /**
+     * Per-user total XP for a batch of users in ONE query — for teacher class views (S-10), instead of
+     * calling {@link #getSummary(Long)} (4 queries) per student. Users with no XP events are simply absent.
+     */
+    @Transactional(readOnly = true)
+    public Map<Long, Integer> totalXpByUserId(List<Long> userIds) {
+        if (userIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, Integer> out = new HashMap<>();
+        for (Object[] row : xpEventRepository.sumXpGroupedByUserId(userIds)) {
+            out.put(((Number) row[0]).longValue(), ((Number) row[1]).intValue());
+        }
+        return out;
     }
 
     @Transactional

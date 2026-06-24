@@ -4,7 +4,6 @@ import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.exception.BadRequestException;
-import com.deutschflow.speaking.entity.UserGrammarError;
 import com.deutschflow.speaking.repository.UserGrammarErrorRepository;
 import com.deutschflow.teacher.dto.*;
 import com.deutschflow.teacher.entity.ClassAssignment;
@@ -30,7 +29,7 @@ import com.deutschflow.user.entity.UserLearningProfile;
 import com.deutschflow.user.repository.UserLearningProfileRepository;
 import com.deutschflow.user.repository.UserRepository;
 import com.deutschflow.gamification.service.XpService;
-import com.deutschflow.gamification.dto.XpSummaryDto;
+import org.springframework.data.domain.PageRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -396,16 +395,19 @@ public class TeacherService {
         Map<Long, ClassStudent> evalMap = students.stream()
                 .collect(Collectors.toMap(s -> s.getId().getStudentId(), s -> s, (a, b) -> a));
 
+        // S-10: one batched XP query for the whole class instead of getSummary() (4 queries) per student.
+        Map<Long, Integer> xpByUser = xpService.totalXpByUserId(studentIds);
+
         return users.stream().map(user -> {
             UserLearningProfile profile = profileMap.get(user.getId());
-            XpSummaryDto xpSummary = xpService.getSummary(user.getId());
+            int totalXp = xpByUser.getOrDefault(user.getId(), 0);
             ClassStudent cs = evalMap.get(user.getId());
             return new ClassStudentDto(
                     user.getId(),
                     user.getDisplayName(),
                     user.getEmail(),
-                    xpSummary.totalXp(),
-                    xpSummary.level(), // Using streakDays field for level in DTO for now
+                    totalXp,
+                    XpService.computeLevel(totalXp), // Using streakDays field for level in DTO for now
                     profile != null && profile.getTargetLevel() != null ? profile.getTargetLevel().name() : "N/A",
                     cs != null ? cs.getSkillHoren() : null,
                     cs != null ? cs.getSkillLesen() : null,
@@ -429,26 +431,15 @@ public class TeacherService {
             return new ClassAnalyticsOverviewDto(0L, 0L, 0L, 0L, 0d, 0d, List.of(), List.of());
         }
 
-        // Calculate Total XP
-        long totalXp = 0;
-        for (Long studentId : studentIds) {
-            totalXp += xpService.getSummary(studentId).totalXp();
-        }
+        // S-10: one batched SUM for the whole class instead of getSummary() (4 queries) per student.
+        long totalXp = xpService.totalXpForUsers(studentIds);
 
-        // Lấy tất cả lỗi ngữ pháp của học sinh trong lớp
-        List<UserGrammarError> errors = new ArrayList<>();
-        for (Long studentId : studentIds) {
-            errors.addAll(grammarErrorRepository.findTop20ByUserIdOrderByCreatedAtDesc(studentId));
-        }
-
-        Map<String, Long> errorCounts = errors.stream()
-                .filter(e -> e.getErrorCode() != null)
-                .collect(Collectors.groupingBy(UserGrammarError::getErrorCode, Collectors.counting()));
-
-        List<ClassErrorAnalyticsDto> topErrors = errorCounts.entrySet().stream()
-                .map(entry -> new ClassErrorAnalyticsDto(entry.getKey(), entry.getValue()))
-                .sorted((a, b) -> Long.compare(b.count(), a.count()))
-                .limit(10)
+        // S-10: class-wide top error codes in ONE aggregated query instead of a per-student top-20 fetch
+        // (previously N queries → groupBy in memory). Now counts all error codes across the class.
+        List<ClassErrorAnalyticsDto> topErrors = grammarErrorRepository
+                .aggregateErrorCodesForUsers(studentIds, PageRequest.of(0, 10))
+                .stream()
+                .map(row -> new ClassErrorAnalyticsDto((String) row[0], ((Number) row[1]).longValue()))
                 .collect(Collectors.toList());
 
         long completedAssignments = 0L;
