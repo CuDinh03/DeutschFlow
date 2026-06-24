@@ -93,9 +93,11 @@ user = { id: "undefined", email, roles:[...], displayName }   // id là CHUỖI 
 - Các trang con (Phân tích, Lớp học, Giáo viên, Phân quyền, Lời mời) **luôn đúng** (1 lớp, 1 GV, ghế 100) → lỗi chỉ ở **summary của overview lần đầu** → nghi **race hydration** (gọi `getOrgSummary` trước khi `orgId` hydrate xong, hoặc dữ liệu org/seat chưa load → render zero + tên generic).
 - Ảnh hưởng: ấn tượng đầu tiên của Manager là "org rỗng".
 
-### M-2 · PostHog `identify("undefined")` ×4 mỗi login
+### M-2 · PostHog `identify("undefined")` ×4 mỗi login → ĐÃ XỬ LÝ 2 lớp
 - Console (login): `[PostHog.js] The string "undefined" was set in posthog.identify`.
-- Là hệ quả trực tiếp của H-3 → **đã fix gốc**. Nên bổ sung thêm guard trong `useTracking.identifyUser` (bỏ qua khi id rỗng/`"undefined"`) làm lớp phòng vệ.
+- **Lớp 1 (guard):** commit `2b422d03` đã thêm guard `if (posthog && userId && userId !== 'undefined')` trong `useTracking.identifyUser` — đã deploy. Log "undefined" tôi bắt được là từ **build cũ trước khi 2b422d03 lên prod giữa phiên test**.
+- **Lớp 2 (gốc):** H-3 fix `user.id → userId` (đã push) khiến store không còn chứa `"undefined"` nữa.
+- Chỉ còn **1 call site** `posthog.identify` (useTracking.ts) và đã được guard → an toàn.
 
 ---
 
