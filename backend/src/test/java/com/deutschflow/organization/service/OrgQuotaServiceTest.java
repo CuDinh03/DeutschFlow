@@ -79,4 +79,28 @@ class OrgQuotaServiceTest {
     void poolAlertPercent_is80() {
         assertThat(OrgQuotaService.POOL_ALERT_PERCENT).isEqualTo(80);
     }
+
+    // --- P-14: full V237 decision table (pool_unlimited honored) ---
+
+    @Test
+    @DisplayName("poolBlocks: pool_unlimited=true → never blocks, regardless of pool/usage")
+    void poolBlocks_unlimited_false() {
+        assertThat(OrgQuotaService.poolBlocks(0L, true, 0L, 100_000L)).isFalse();
+        assertThat(OrgQuotaService.poolBlocks(1_000L, true, 5_000L, 100L)).isFalse();
+    }
+
+    @Test
+    @DisplayName("poolBlocks: pool=0 & !unlimited → caps any positive consumption (closes M-5/P-14 backdoor)")
+    void poolBlocks_unconfigured_caps() {
+        assertThat(OrgQuotaService.poolBlocks(0L, false, 0L, 1L)).isTrue();
+        assertThat(OrgQuotaService.poolBlocks(0L, false, 0L, 0L)).isFalse();   // no-op request, no charge
+        assertThat(OrgQuotaService.poolBlocks(0L, false, 0L, -5L)).isFalse();  // negative estimate clamped
+    }
+
+    @Test
+    @DisplayName("poolBlocks: pool>0 & !unlimited → metered (only strictly over pool is blocked)")
+    void poolBlocks_metered() {
+        assertThat(OrgQuotaService.poolBlocks(1_000L, false, 600L, 400L)).isFalse(); // exactly at pool
+        assertThat(OrgQuotaService.poolBlocks(1_000L, false, 600L, 401L)).isTrue();  // over pool
+    }
 }
