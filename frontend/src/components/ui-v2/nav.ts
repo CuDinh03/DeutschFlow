@@ -74,8 +74,6 @@ export const teacherNav: RoleNav = {
         { id: 'grading', label: 'Chấm bài', href: '/v2/teacher/grading', icon: 'grading' },
         { id: 'grade-image', label: 'Chấm bài qua ảnh', href: '/v2/teacher/grade-image', icon: 'draw' },
         { id: 'materials', label: 'Thư viện tài liệu', href: '/v2/teacher/materials', icon: 'menu_book' },
-        // Phúc khảo (quiz/exam): màn chưa build — backend quiz teacher đã drop (V203), feature chờ duyệt build lại.
-        { id: 'quiz-exam', label: 'Phúc khảo', href: '/v2/teacher/quiz-exam', icon: 'menu_book' },
       ],
     },
     {

@@ -20,7 +20,7 @@ export function useTracking() {
    * Identify a user after login/registration
    */
   const identifyUser = useCallback((userId: string, traits?: Record<string, any>) => {
-    if (posthog) {
+    if (posthog && userId && userId !== 'undefined') {
       posthog.identify(userId, traits)
     }
   }, [posthog])
