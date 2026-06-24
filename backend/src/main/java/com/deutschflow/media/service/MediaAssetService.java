@@ -31,7 +31,9 @@ public class MediaAssetService {
     private final EntityManager entityManager;
 
     private static final List<String> ALLOWED_CONTENT_TYPES = Arrays.asList(
-            "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml", "image/avif"
+            // image/svg+xml intentionally excluded (audit SEC-9): SVG can carry <script> → stored XSS
+            // on the public-read media bucket served inline.
+            "image/jpeg", "image/png", "image/gif", "image/webp", "image/avif"
     );
 
     @Transactional

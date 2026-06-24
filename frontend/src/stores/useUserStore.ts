@@ -42,8 +42,16 @@ export const useUserStore = create<UserState>()(
     }),
     {
       name: 'deutschflow-user-store',
-      // We can pick what to persist, e.g., we probably shouldn't persist tokens in localStorage if we can avoid it, 
-      // but if we are migrating from localStorage.getItem('auth_access'), we can keep it here for now.
+      // NEVER persist the access token (audit FE-6): a raw JWT in localStorage survives browser close
+      // and is fully readable by any XSS. The token's source of truth is authSession (sessionStorage +
+      // httpOnly refresh cookie), so accessToken stays in-memory only and is excluded here.
+      partialize: (state) => ({
+        user: state.user,
+        isAuthenticated: state.isAuthenticated,
+        locale: state.locale,
+        orgId: state.orgId,
+        orgRole: state.orgRole,
+      }),
     }
   )
 );
