@@ -18,10 +18,10 @@ export interface GaTopBarProps {
 }
 
 const HELP_HREF: Record<RoleId, string> = {
-  student: '/v2/student/welcome',
-  teacher: '/v2/teacher',
-  org: '/v2/org',
-  admin: '/v2/admin',
+  student: '/help',
+  teacher: '/help',
+  org: '/help',
+  admin: '/help',
 }
 
 const ROLE_CHIP: Record<RoleId, string> = {

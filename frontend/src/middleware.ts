@@ -240,7 +240,14 @@ export async function middleware(request: NextRequest) {
         return redirectTo(loginUrl)
       }
       if (v2Org) {
-        if (v2Claims?.orgRole === 'OWNER' || v2Claims?.orgRole === 'MANAGER') {
+        // Platform OWNER/MANAGER always have org access (new roles, V235+).
+        // Legacy: TEACHER with org-level OWNER/MANAGER orgRole claim still works until token expiry.
+        // ADMIN platform role is intentionally excluded even if they carry an orgRole claim.
+        const canAccessOrg =
+          v2Role === 'OWNER' ||
+          v2Role === 'MANAGER' ||
+          (v2Role === 'TEACHER' && (v2Claims?.orgRole === 'OWNER' || v2Claims?.orgRole === 'MANAGER'))
+        if (canAccessOrg) {
           return passThrough()
         }
         return redirectTo(new URL(v2RoleHome(v2Role), request.url))

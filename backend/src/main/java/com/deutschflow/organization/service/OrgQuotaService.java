@@ -121,6 +121,11 @@ public class OrgQuotaService {
         return used + est > pool;
     }
 
+    /** Trả về {@code true} nếu org được đặt {@code pool_unlimited = true}. */
+    public boolean isPoolUnlimited(Long orgId) {
+        return loadPoolConfig(orgId).unlimited();
+    }
+
     /** Cấu hình pool của org (pool + cờ unlimited) trong 1 query. Org không tồn tại → fail-safe (0, false) = cap. */
     private OrgPoolConfig loadPoolConfig(Long orgId) {
         return jdbcTemplate.query(

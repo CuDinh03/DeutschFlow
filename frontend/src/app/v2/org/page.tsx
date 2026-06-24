@@ -74,7 +74,7 @@ export default function V2OrgDashboardPage() {
           <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
             <h2 className="font-ga-display text-[24px] font-medium text-ga-red">Không tải được tổ chức</h2>
             <p className="ga-ui mx-auto mb-5 mt-3 max-w-md text-[14px] text-ga-muted">
-              {error} <code className="font-mono text-[12px] text-ga-accent">GET /api/org</code>
+              {error || 'Không thể tải dữ liệu tổ chức. Vui lòng thử lại.'}
             </p>
             <GaBtn variant="primary" onClick={load}>Thử lại</GaBtn>
           </div>
@@ -103,9 +103,9 @@ export default function V2OrgDashboardPage() {
         <TkStatStrip
           items={[
             { label: 'Ghế đã dùng', value: summary ? `${summary.seatUsed}/${summary.seatLimit}` : '—', sub: `${seatPct}% sức chứa`, color: TEAL },
-            { label: 'Tổng học viên', value: analytics?.studentCount ?? summary?.studentCount ?? 0, sub: `${analytics?.activeStudents7d ?? 0} hoạt động 7 ngày`, color: '#2F6FC9' },
-            { label: 'Lớp đang mở', value: analytics?.classCount ?? classes.length, sub: `${summary?.teacherCount ?? 0} giáo viên`, color: '#7C56C8' },
-            { label: 'Token AI tháng này', value: analytics ? analytics.tokensThisMonth.toLocaleString('vi-VN') : '—', sub: analytics && analytics.monthlyTokenPool > 0 ? `${Math.round(analytics.poolUsagePercent)}% pool` : 'pool không giới hạn', color: '#1E9E61' },
+            { label: 'Tổng học viên', value: loading ? '—' : (analytics?.studentCount ?? summary?.studentCount ?? 0), sub: `${analytics?.activeStudents7d ?? 0} hoạt động 7 ngày`, color: '#2F6FC9' },
+            { label: 'Lớp đang mở', value: loading ? '—' : (analytics?.classCount ?? classes.length), sub: loading ? '—' : `${summary?.teacherCount ?? 0} giáo viên`, color: '#7C56C8' },
+            { label: 'Token AI tháng này', value: analytics ? analytics.tokensThisMonth.toLocaleString('vi-VN') : '—', sub: analytics?.poolUnlimited ? 'pool không giới hạn' : analytics && analytics.monthlyTokenPool > 0 ? `${Math.round(analytics.poolUsagePercent)}% pool` : 'Chưa cấu hình pool', color: '#1E9E61' },
           ]}
         />
 

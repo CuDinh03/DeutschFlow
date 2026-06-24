@@ -35,6 +35,7 @@ public class OrgAnalyticsService {
         long tokensThisMonth = tokensThisMonth(orgId);
         long monthlyTokenPool = orgQuotaService.monthlyPool(orgId);
         int poolUsagePercent = OrgQuotaService.usagePercent(monthlyTokenPool, tokensThisMonth);
+        boolean poolUnlimited = orgQuotaService.isPoolUnlimited(orgId);
         long activeStudents7d = activeStudents7d(orgId);
         List<CefrBucket> cefrDistribution = cefrDistribution(orgId);
 
@@ -45,6 +46,7 @@ public class OrgAnalyticsService {
                 tokensThisMonth,
                 monthlyTokenPool,
                 poolUsagePercent,
+                poolUnlimited,
                 activeStudents7d,
                 cefrDistribution);
     }

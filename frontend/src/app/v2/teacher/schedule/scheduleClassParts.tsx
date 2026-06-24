@@ -307,7 +307,7 @@ export function PatternModal({
   const [classId, setClassId] = useState<number | null>(null)
   const [patterns, setPatterns] = useState<ClassSchedulePattern[]>([])
   const [loadingP, setLoadingP] = useState(false)
-  const [dayOfWeek, setDayOfWeek] = useState(0)
+  const [dayOfWeek, setDayOfWeek] = useState(1)
   const [startTime, setStartTime] = useState('18:00')
   const [duration, setDuration] = useState(90)
   const [mode, setMode] = useState<ClassMode>('OFFLINE')
@@ -360,7 +360,7 @@ export function PatternModal({
         effectiveTo: effectiveTo || null,
       })
       toast.success(
-        `Đã lưu lịch ${DOW_LABEL[dayOfWeek]} · sinh ${result.generated} buổi` +
+        `Đã lưu lịch ${DOW_LABEL[dayOfWeek - 1]} · sinh ${result.generated} buổi` +
           (result.keptOverridden > 0 ? ` · giữ ${result.keptOverridden} buổi đã chỉnh tay` : ''),
       )
       onSaved(result)
@@ -418,7 +418,7 @@ export function PatternModal({
             <Field label="Thứ">
               <select className={inputCls} value={dayOfWeek} onChange={(e) => setDayOfWeek(Number(e.target.value))}>
                 {DOW_LABEL.map((d, i) => (
-                  <option key={d} value={i}>
+                  <option key={d} value={i + 1}>
                     {d}
                   </option>
                 ))}
@@ -481,7 +481,7 @@ export function PatternModal({
                     className="flex items-center justify-between border border-ga-line bg-ga-bg px-3.5 py-2.5 text-[13px] text-ga-ink"
                   >
                     <span>
-                      <b>{DOW_LABEL[p.dayOfWeek]}</b> · {p.startTime.slice(0, 5)} · {p.durationMinutes}′ ·{' '}
+                      <b>{DOW_LABEL[p.dayOfWeek - 1]}</b> · {p.startTime.slice(0, 5)} · {p.durationMinutes}′ ·{' '}
                       {MODE_LABEL[p.defaultMode]}
                       {p.defaultRoom ? ` · ${p.defaultRoom}` : ''}
                     </span>

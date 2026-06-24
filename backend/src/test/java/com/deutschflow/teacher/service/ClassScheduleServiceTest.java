@@ -151,10 +151,10 @@ class ClassScheduleServiceTest {
         LocalDate keptDate = nextMon.plusWeeks(1);
 
         UpsertPatternRequest req = new UpsertPatternRequest(
-                (short) 0, LocalTime.of(18, 0), 90, "OFFLINE", "P.302", effFrom, effTo);
+                (short) 1, LocalTime.of(18, 0), 90, "OFFLINE", "P.302", effFrom, effTo);
 
         allowOwner();
-        when(patternRepo.findByClassIdAndDayOfWeek(CLASS_ID, (short) 0)).thenReturn(List.of());
+        when(patternRepo.findByClassIdAndDayOfWeek(CLASS_ID, (short) 1)).thenReturn(List.of());
         when(patternRepo.save(any())).thenAnswer(inv -> {
             ClassSchedulePattern p = inv.getArgument(0);
             p.setId(99L);

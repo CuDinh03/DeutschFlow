@@ -15,11 +15,13 @@ import { GaPageHdr, GaBtn, GaCard, LoadingState } from '@/components/ui-v2'
 import { RoleShell } from '../RoleShell'
 
 type Tab = 'info' | 'learning' | 'security'
-const TABS: { id: Tab; label: string }[] = [
+const ALL_TABS: { id: Tab; label: string }[] = [
   { id: 'info', label: 'Thông tin' },
   { id: 'learning', label: 'Học tập' },
   { id: 'security', label: 'Bảo mật' },
 ]
+// MANAGER/OWNER/ADMIN không có learning profile → ẩn tab Học tập
+const ROLES_WITHOUT_LEARNING = new Set(['ADMIN', 'OWNER', 'MANAGER'])
 
 const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
 const SPEEDS = [
@@ -59,6 +61,9 @@ function ProfileBody() {
   const storeUser = useUserStore((s) => s.user)
   const setLocaleStore = useUserStore((s) => s.setLocale)
 
+  const TABS = ALL_TABS.filter(
+    (t) => t.id !== 'learning' || !ROLES_WITHOUT_LEARNING.has(storeUser?.roles?.[0] ?? '')
+  )
   const [tab, setTab] = useState<Tab>('info')
   const [loading, setLoading] = useState(true)
 

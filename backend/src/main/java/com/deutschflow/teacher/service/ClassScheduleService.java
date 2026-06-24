@@ -144,7 +144,8 @@ public class ClassScheduleService {
         }
         if (req.mode() != null) s.setMode(parseSessionMode(req.mode()));
         if (req.status() != null) s.setStatus(parseStatus(req.status()));
-        s.setRoom(req.room());                                   // ghi đè đầy đủ (null = xoá phòng)
+        // SCH-1: nếu PATCH chỉ set status=CANCELLED mà không gửi room → giữ nguyên phòng cũ
+        if (!"CANCELLED".equalsIgnoreCase(req.status()) || req.room() != null) s.setRoom(req.room());
         if (s.getMode() == ClassSession.Mode.ONLINE) s.setRoom(null);
         s.setOverridden(true);                                   // PO #1: chỉnh tay → sticky
         sessionRepo.save(s);
@@ -264,9 +265,9 @@ public class ClassScheduleService {
         return counts;
     }
 
-    /** java DayOfWeek (Mon=1…Sun=7) → quy ước nội bộ 0=Mon…6=Sun. */
+    /** java DayOfWeek (Mon=1…Sun=7) → ISO 1-7 (quy ước mới từ V240, trước đây 0-6). */
     private static short toPatternDow(LocalDate d) {
-        return (short) (d.getDayOfWeek().getValue() - 1);
+        return (short) d.getDayOfWeek().getValue();
     }
 
     private ClassSessionDto toDto(ClassSession s) {
@@ -293,7 +294,7 @@ public class ClassScheduleService {
     }
 
     private void validatePatternReq(UpsertPatternRequest req) {
-        if (req.dayOfWeek() < 0 || req.dayOfWeek() > 6) throw new BadRequestException("Thứ trong tuần không hợp lệ");
+        if (req.dayOfWeek() < 1 || req.dayOfWeek() > 7) throw new BadRequestException("Thứ trong tuần không hợp lệ (dùng ISO 1–7: 1=Thứ 2, 7=Chủ nhật)");
         if (req.startTime() == null) throw new BadRequestException("Thiếu giờ bắt đầu");
         if (req.durationMinutes() <= 0) throw new BadRequestException("Thời lượng phải lớn hơn 0");
         if (req.effectiveFrom() == null) throw new BadRequestException("Thiếu ngày bắt đầu áp dụng");

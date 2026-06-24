@@ -321,6 +321,12 @@ public class TeacherService {
         if (target.getRole() != User.Role.TEACHER && target.getRole() != User.Role.ADMIN) {
             throw new BadRequestException("Người dùng này không có vai trò giáo viên");
         }
+        // Org isolation: chỉ giáo viên trong cùng tổ chức mới được thêm vào lớp thuộc org đó
+        TeacherClass teacherClass = classRepository.findById(classId)
+                .orElseThrow(() -> new NotFoundException("Lớp không tồn tại"));
+        if (teacherClass.getOrgId() != null && !teacherClass.getOrgId().equals(target.getOrgId())) {
+            throw new BadRequestException("Giáo viên không thuộc tổ chức của lớp này.");
+        }
         if (classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, target.getId())) {
             throw new ConflictException("Giáo viên này đã tham gia lớp");
         }

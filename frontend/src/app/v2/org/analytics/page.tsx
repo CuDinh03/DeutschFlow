@@ -72,7 +72,7 @@ export default function V2OrgAnalyticsPage() {
                 {
                   label: 'Token AI tháng này',
                   value: analytics ? nfVN.format(analytics.tokensThisMonth) : '—',
-                  sub: analytics && analytics.monthlyTokenPool > 0 ? `${poolPct}% pool` : 'pool không giới hạn',
+                  sub: analytics?.poolUnlimited ? 'pool không giới hạn' : analytics && analytics.monthlyTokenPool > 0 ? `${poolPct}% pool` : 'Chưa cấu hình pool',
                   color: '#1E9E61',
                 },
               ]}

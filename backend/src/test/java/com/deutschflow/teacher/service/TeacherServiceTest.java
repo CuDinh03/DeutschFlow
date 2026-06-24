@@ -36,6 +36,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -275,6 +276,8 @@ class TeacherServiceTest {
         when(userRepository.findByEmailIgnoreCase("t@y.de")).thenReturn(java.util.Optional.of(
                 com.deutschflow.user.entity.User.builder().id(7L)
                         .role(com.deutschflow.user.entity.User.Role.TEACHER).build()));
+        when(classRepository.findById(100L)).thenReturn(Optional.of(
+                TeacherClass.builder().id(100L).build()));  // orgId=null → no org restriction
         when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(100L, 7L)).thenReturn(false);
 
         teacherService.addCoTeacher(1L, 100L, "t@y.de");
@@ -295,6 +298,8 @@ class TeacherServiceTest {
         when(userRepository.findByEmailIgnoreCase("T@Y.de")).thenReturn(java.util.Optional.of(
                 com.deutschflow.user.entity.User.builder().id(7L)
                         .role(com.deutschflow.user.entity.User.Role.TEACHER).build()));
+        when(classRepository.findById(100L)).thenReturn(Optional.of(
+                TeacherClass.builder().id(100L).build()));  // orgId=null → no org restriction
         when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(100L, 7L)).thenReturn(false);
 
         teacherService.addCoTeacher(1L, 100L, "  T@Y.de  ");

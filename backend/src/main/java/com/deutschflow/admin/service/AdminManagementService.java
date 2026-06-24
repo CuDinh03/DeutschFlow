@@ -261,7 +261,27 @@ public class AdminManagementService {
                 monthlyTokenLimitOverride
         );
 
-        jdbcTemplate.update("DELETE FROM user_ai_token_wallets WHERE user_id = ?", userId);
+        // Reset wallet: for wallet-eligible plans (PRO/ULTRA), seed with day-1 balance so
+        // applyUsageDebit() doesn't see balance=0 and immediately downgrade to DEFAULT (MON-1).
+        // For other plans (DEFAULT/FREE/INTERNAL), clear the wallet — no wallet is needed.
+        boolean isWalletPlan = "PRO".equals(code) || "ULTRA".equals(code);
+        if (isWalletPlan) {
+            Long planDailyGrant = jdbcTemplate.queryForObject(
+                    "SELECT daily_token_grant FROM subscription_plans WHERE code = ?",
+                    Long.class, code);
+            long dailyGrant = planDailyGrant != null ? planDailyGrant : 0L;
+            long initialBalance = monthlyTokenLimitOverride != null ? monthlyTokenLimitOverride : dailyGrant;
+            jdbcTemplate.update("""
+                    INSERT INTO user_ai_token_wallets (user_id, balance, last_accrual_local_date)
+                    VALUES (?, ?, CURRENT_DATE)
+                    ON CONFLICT (user_id) DO UPDATE
+                      SET balance               = EXCLUDED.balance,
+                          last_accrual_local_date = EXCLUDED.last_accrual_local_date,
+                          updated_at            = CURRENT_TIMESTAMP
+                    """, userId, initialBalance);
+        } else {
+            jdbcTemplate.update("DELETE FROM user_ai_token_wallets WHERE user_id = ?", userId);
+        }
 
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("id", user.getId());

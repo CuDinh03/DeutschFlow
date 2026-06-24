@@ -153,48 +153,50 @@ public class AIModelService {
      * Correct German grammar
      */
     public String correctGrammar(String germanText) {
+        return circuitBreakers.call(
+                "aiServer",
+                () -> correctGrammarDirect(germanText),
+                () -> new RuntimeException("AI server đang quá tải, thử lại sau ít phút."));
+    }
+
+    private String correctGrammarDirect(String germanText) {
         try {
-            String url = aiServerUrl + "/grammar/correct?text=" + 
+            String url = aiServerUrl + "/grammar/correct?text=" +
                         java.net.URLEncoder.encode(germanText, "UTF-8");
-            
-            ResponseEntity<AIResponse> response = restTemplate.postForEntity(
-                url,
-                null,
-                AIResponse.class
-            );
-            
+
+            ResponseEntity<AIResponse> response = restTemplate.postForEntity(url, null, AIResponse.class);
+
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
                 return response.getBody().getResponse();
             }
-            
-            throw new RuntimeException("Grammar correction failed");
-            
+            throw new RuntimeException("Grammar correction failed: empty response from AI server");
         } catch (Exception e) {
             log.error("Error correcting grammar", e);
             throw new RuntimeException("Grammar correction failed: " + e.getMessage(), e);
         }
     }
-    
+
     /**
      * Explain German grammar
      */
     public String explainGrammar(String germanText) {
+        return circuitBreakers.call(
+                "aiServer",
+                () -> explainGrammarDirect(germanText),
+                () -> new RuntimeException("AI server đang quá tải, thử lại sau ít phút."));
+    }
+
+    private String explainGrammarDirect(String germanText) {
         try {
-            String url = aiServerUrl + "/grammar/explain?text=" + 
+            String url = aiServerUrl + "/grammar/explain?text=" +
                         java.net.URLEncoder.encode(germanText, "UTF-8");
-            
-            ResponseEntity<AIResponse> response = restTemplate.postForEntity(
-                url,
-                null,
-                AIResponse.class
-            );
-            
+
+            ResponseEntity<AIResponse> response = restTemplate.postForEntity(url, null, AIResponse.class);
+
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
                 return response.getBody().getResponse();
             }
-            
-            throw new RuntimeException("Grammar explanation failed");
-            
+            throw new RuntimeException("Grammar explanation failed: empty response from AI server");
         } catch (Exception e) {
             log.error("Error explaining grammar", e);
             throw new RuntimeException("Grammar explanation failed: " + e.getMessage(), e);

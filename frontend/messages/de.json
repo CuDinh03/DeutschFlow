@@ -369,7 +369,9 @@
     "aiConfig": "KI-Konfiguration",
     "settings": "Einstellungen",
     "logout": "Abmelden",
-    "lastUpdated": "Zuletzt aktualisiert"
+    "lastUpdated": "Zuletzt aktualisiert",
+    "refresh": "Aktualisieren",
+    "refreshing": "Wird geladen..."
   },
   "plan": {
     "loading": "Lernplan wird geladen...",
@@ -740,7 +742,35 @@
       "stripSuggestions": "{n} Vorschläge",
       "stripView": "Öffnen",
       "quotaBlockedInputPlaceholder": "KI-Kontingent leer — Nachrichten gesperrt"
-    }
+    },
+    "personaNameLena": "Lena — Supermarkt",
+    "personaDescLena": "Supermarktmitarbeiterin A1-A2: Einkaufen, Kasse, Produkte.",
+    "personaNameThomas": "Thomas — Bäckerei",
+    "personaDescThomas": "Bäcker A1-A2: Brot, Gebäck, Bäckerei.",
+    "personaNamePetra": "Petra — Metzgerei",
+    "personaDescPetra": "Metzgereimitarbeiterin A1-A2: Fleisch, Wurst, Verarbeitung.",
+    "personaNameSarah": "Sarah — Arztpraxis",
+    "personaDescSarah": "Medizinische Fachangestellte A2-B1: Termine, Versicherung, Rezept.",
+    "personaNameSchneider": "Dr. Schneider — Augenarzt",
+    "personaDescSchneider": "Augenarzt B1-B2: Sehtest, Brille, Diagnose.",
+    "personaNameWeber": "Dr. Weber — Dermatologie",
+    "personaDescWeber": "Dermatologe B1-B2: Hautuntersuchung, Allergie, Behandlung.",
+    "personaNameMax": "Max — Maschinenbedienung",
+    "personaDescMax": "Maschinenführer B1-B2: Maschinen, Wartung, Sicherheit.",
+    "personaNameOliver": "Oliver — CNC",
+    "personaDescOliver": "CNC-Dreher B2: Programmierung, Zeichnung, Bearbeitung.",
+    "personaNameNiklas": "Niklas — Kellner",
+    "personaDescNiklas": "Kellner A2-B1: Speisekarte, Bestellung, Abrechnung.",
+    "personaNameNina": "Nina — Rezeption",
+    "personaDescNina": "Rezeptionistin A2-B1: Check-in, Zimmer, Service.",
+    "personaNameHannie": "Hannie — Moderatorin 🎤",
+    "personaDescHannie": "Moderatorin 20 Jahre, energetisch: Bühne, Events, Medien.",
+    "personaNameTuan": "Tuan — Berufsschüler",
+    "personaDescTuan": "Vietnamesischer Azubi in Deutschland — Unterricht auf Vietnamesisch mit deutschen Begriffen.",
+    "personaNameLan": "Lan — Erfahrene Migrantin",
+    "personaDescLan": "Seit 10 Jahren in Deutschland — Aussprache-Tipps und Integration auf Vietnamesisch.",
+    "personaNameMinh": "Minh — Kumpel",
+    "personaDescMinh": "Junger Vietnamese in Deutschland — Straßendeutsch, Vietnamesisch + deutsche Wörter."
   },
   "onboarding": {
     "title": "Lernplan personalisieren",

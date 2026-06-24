@@ -20,7 +20,7 @@ import AdminShell from '@/components/admin/AdminShell'
 import { ImageUploader } from '@/components/ui/ImageUploader'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -424,6 +424,7 @@ export default function AdminMediaPage() {
               <Edit2 size={18} className="text-blue-500" />
               {t('editDialogTitle')}
             </DialogTitle>
+            <DialogDescription className="sr-only">Chỉnh sửa thông tin tài nguyên media</DialogDescription>
           </DialogHeader>
           {editingAsset && (
             <div className="space-y-4 py-4">

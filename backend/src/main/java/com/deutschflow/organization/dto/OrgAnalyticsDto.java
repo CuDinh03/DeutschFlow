@@ -5,8 +5,9 @@ import java.util.List;
 /**
  * Số liệu phân tích cho org-admin (GET /api/org/analytics).
  *
- * <p>{@code monthlyTokenPool == 0} nghĩa là org chưa cấu hình hạn mức (không giới hạn);
- * khi đó {@code poolUsagePercent} cũng = 0 và frontend hiển thị "chưa giới hạn".
+ * <p>{@code poolUnlimited = true} → org có cờ {@code pool_unlimited}, cho qua mọi AI call.
+ * {@code poolUnlimited = false & monthlyTokenPool == 0} → org CHƯA cấu hình pool (V237 fail-safe, bị chặn).
+ * {@code poolUnlimited = false & monthlyTokenPool > 0} → metered, xem {@code poolUsagePercent}.
  */
 public record OrgAnalyticsDto(
         long studentCount,
@@ -15,6 +16,7 @@ public record OrgAnalyticsDto(
         long tokensThisMonth,
         long monthlyTokenPool,
         int poolUsagePercent,
+        boolean poolUnlimited,
         long activeStudents7d,
         List<CefrBucket> cefrDistribution
 ) {}

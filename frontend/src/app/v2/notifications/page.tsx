@@ -59,6 +59,31 @@ const TYPE_TONE: Record<string, string> = {
   ADMIN_LEARNER_SUBSCRIBED: 'var(--ga-green)',
 }
 
+// Vietnamese labels for notification types when payload.title is absent.
+const TYPE_LABEL: Record<string, string> = {
+  REVIEW_DUE: 'Đến hạn ôn tập',
+  STREAK_REMINDER: 'Nhắc nhở chuỗi học',
+  NEW_ASSIGNMENT: 'Bài tập mới',
+  NEW_CLASS_ASSIGNMENT: 'Bài tập lớp mới',
+  ASSIGNMENT_GRADED: 'Bài tập đã được chấm',
+  QUIZ_SUBMISSION_RECEIVED: 'Nhận bài kiểm tra',
+  ACHIEVEMENT_UNLOCKED: 'Mở khóa thành tích',
+  LEVEL_UP: 'Lên cấp độ',
+  ADDED_TO_CLASS: 'Được thêm vào lớp',
+  CLASS_STUDENT_ADDED: 'Học viên mới vào lớp',
+  CLASS_STUDENT_REMOVED: 'Học viên rời lớp',
+  JOIN_REQUEST_APPROVED: 'Yêu cầu tham gia được duyệt',
+  JOIN_REQUEST_REJECTED: 'Yêu cầu tham gia bị từ chối',
+  CLASS_JOIN_REQUEST_CREATED: 'Yêu cầu tham gia lớp',
+  ADMIN_BROADCAST: 'Thông báo hệ thống',
+  TEACHER_ANNOUNCEMENT: 'Thông báo từ giáo viên',
+  NEW_MESSAGE: 'Tin nhắn mới',
+  USER_REGISTERED: 'Người dùng đăng ký',
+  LEARNER_PLAN_UPDATED: 'Gói học được cập nhật',
+  ADMIN_LEARNER_PLAN_CHANGED: 'Gói học thay đổi',
+  ADMIN_LEARNER_SUBSCRIBED: 'Đăng ký gói học mới',
+}
+
 function pick(payload: Record<string, unknown>, ...keys: string[]): string | null {
   for (const k of keys) {
     const v = payload[k]
@@ -67,7 +92,7 @@ function pick(payload: Record<string, unknown>, ...keys: string[]): string | nul
   return null
 }
 function notifTitle(n: NotificationItem): string {
-  return pick(n.payload, 'title', 'heading', 'subject') ?? n.type.replace(/_/g, ' ')
+  return pick(n.payload, 'title', 'heading', 'subject') ?? TYPE_LABEL[n.type] ?? n.type.replace(/_/g, ' ')
 }
 function notifBody(n: NotificationItem): string | null {
   return pick(n.payload, 'message', 'body', 'text', 'description')

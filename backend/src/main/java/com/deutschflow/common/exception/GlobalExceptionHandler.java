@@ -67,6 +67,28 @@ public class GlobalExceptionHandler {
                 request.getRequestURI(), null, null);
     }
 
+    // --- 400 Type mismatch (e.g. date-only string where datetime is expected) --- [F-1]
+    // e.g. GET /class-schedule/week?from=2026-06-22 when @DateTimeFormat(ISO.DATE_TIME) is required.
+    @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ProblemDetail> handleTypeMismatch(
+            org.springframework.web.method.annotation.MethodArgumentTypeMismatchException ex,
+            HttpServletRequest request) {
+        return problem(HttpStatus.BAD_REQUEST, "bad-request", "Bad Request",
+                "Tham số '" + ex.getName() + "' sai kiểu hoặc định dạng. "
+                        + "Datetime phải theo ISO 8601: 2026-06-22T00:00:00",
+                request.getRequestURI(), null, null);
+    }
+
+    // --- 400 Missing multipart part (e.g. pronunciation check without audio field) --- [PRON]
+    @ExceptionHandler(org.springframework.web.multipart.support.MissingServletRequestPartException.class)
+    public ResponseEntity<ProblemDetail> handleMissingPart(
+            org.springframework.web.multipart.support.MissingServletRequestPartException ex,
+            HttpServletRequest request) {
+        return problem(HttpStatus.BAD_REQUEST, "bad-request", "Bad Request",
+                "Trường '" + ex.getRequestPartName() + "' là bắt buộc trong multipart request.",
+                request.getRequestURI(), null, null);
+    }
+
     // --- 400 Validation (JSR-303) ---
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ProblemDetail> handleValidation(MethodArgumentNotValidException ex,
@@ -176,6 +198,18 @@ public class GlobalExceptionHandler {
             HttpServletRequest request) {
         return problem(HttpStatus.SERVICE_UNAVAILABLE, "ai-unavailable", "AI Service Unavailable",
                 ex.getMessage(), request.getRequestURI(), null, null);
+    }
+
+    // --- 503 — AI provider bean not configured (e.g. Bedrock disabled, missing env vars) ---
+    // IllegalStateException from ObjectProvider.getIfAvailable when no ImageGenerationProvider bean
+    // is registered would otherwise fall through to handleGeneral and masquerade as a scary 500 "ERR-x".
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ProblemDetail> handleIllegalState(IllegalStateException ex,
+                                                            HttpServletRequest request) {
+        log.warn("[503] Service not configured on {}: {}", request.getRequestURI(), ex.getMessage());
+        return problem(HttpStatus.SERVICE_UNAVAILABLE, "ai-unavailable", "AI Service Unavailable",
+                "Tính năng AI này chưa được cấu hình trên môi trường hiện tại. Vui lòng thử lại sau.",
+                request.getRequestURI(), null, null);
     }
 
     // --- 401/403 — let Spring Security handle these, do NOT swallow them ---

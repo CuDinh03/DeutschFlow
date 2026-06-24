@@ -81,7 +81,7 @@ public class TeacherController {
     @DeleteMapping("/classes/{classId}")
     public ResponseEntity<Void> deleteClass(@AuthenticationPrincipal User user, @PathVariable Long classId) {
         teacherService.deleteClass(user.getId(), classId);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/classes/{classId}/students")
@@ -105,7 +105,7 @@ public class TeacherController {
     @DeleteMapping("/classes/{classId}/teachers/{coTeacherId}")
     public ResponseEntity<Void> removeCoTeacher(@AuthenticationPrincipal User user, @PathVariable Long classId, @PathVariable Long coTeacherId) {
         teacherService.removeCoTeacher(user.getId(), classId, coTeacherId);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/classes/{classId}/analytics")
@@ -175,12 +175,12 @@ public class TeacherController {
         return ResponseEntity.ok(teacherService.evaluateSpeakingSession(user.getId(), sessionId, req));
     }
 
-    @PostMapping("/assignments/{assignmentId}/evaluate")
+    @PostMapping("/assignments/{submissionId}/evaluate")
     public ResponseEntity<StudentAssignmentDto> evaluateAssignment(
             @AuthenticationPrincipal User user,
-            @PathVariable Long assignmentId,
+            @PathVariable Long submissionId,
             @RequestBody TeacherSessionEvaluationRequest req) {
-        return ResponseEntity.ok(teacherService.evaluateAssignment(user.getId(), assignmentId, req));
+        return ResponseEntity.ok(teacherService.evaluateAssignment(user.getId(), submissionId, req));
     }
 
     @GetMapping("/classes/{classId}/students/{studentId}/comprehensive-report")

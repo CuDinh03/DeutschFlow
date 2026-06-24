@@ -1,6 +1,7 @@
 package com.deutschflow.grammar.service;
 
 import com.deutschflow.ai.AIModelService;
+import com.deutschflow.speaking.exception.AiServiceException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -37,47 +38,44 @@ public class AIGrammarService {
                     .hasErrors(hasErrors)
                     .build();
                     
+        } catch (AiServiceException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error correcting grammar", e);
-            throw new RuntimeException("Grammar correction failed: " + e.getMessage(), e);
+            throw new AiServiceException("Dịch vụ AI tạm thời không khả dụng, vui lòng thử lại.", e);
         }
     }
-    
+
     /**
      * Explain grammar rules in a sentence
      */
     public String explainGrammar(String germanText) {
         log.info("Explaining grammar for: {}", germanText.substring(0, Math.min(50, germanText.length())));
-        
+
         try {
             return aiModelService.explainGrammar(germanText);
+        } catch (AiServiceException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error explaining grammar", e);
-            throw new RuntimeException("Grammar explanation failed: " + e.getMessage(), e);
+            throw new AiServiceException("Dịch vụ AI tạm thời không khả dụng, vui lòng thử lại.", e);
         }
     }
-    
+
     /**
      * Analyze grammar errors and provide detailed feedback
      */
     public GrammarAnalysisResult analyzeGrammar(String germanText) {
         log.info("Analyzing grammar for: {}", germanText.substring(0, Math.min(50, germanText.length())));
-        
+
         try {
-            // Get correction
             String corrected = aiModelService.correctGrammar(germanText);
-            
-            // Get explanation
             String explanation = aiModelService.explainGrammar(germanText);
-            
-            // Detect error types using AI
             String errorDetectionPrompt = "Identify the types of grammar errors in this German sentence: " + germanText;
             String errorTypes = aiModelService.generate(errorDetectionPrompt, "", 256, 0.3);
-            
-            // Calculate severity
             boolean hasErrors = !germanText.trim().equals(corrected.trim());
             String severity = determineSeverity(germanText, corrected);
-            
+
             return GrammarAnalysisResult.builder()
                     .originalText(germanText)
                     .correctedText(corrected)
@@ -86,25 +84,28 @@ public class AIGrammarService {
                     .severity(severity)
                     .hasErrors(hasErrors)
                     .build();
-                    
+        } catch (AiServiceException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error analyzing grammar", e);
-            throw new RuntimeException("Grammar analysis failed: " + e.getMessage(), e);
+            throw new AiServiceException("Dịch vụ AI tạm thời không khả dụng, vui lòng thử lại.", e);
         }
     }
-    
+
     /**
      * Provide grammar practice suggestions
      */
     public String suggestPractice(String errorType) {
         log.info("Suggesting practice for error type: {}", errorType);
-        
+
         try {
             String instruction = "Suggest 3 practice exercises for improving this German grammar point: " + errorType;
             return aiModelService.generate(instruction, "", 512, 0.7);
+        } catch (AiServiceException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error suggesting practice", e);
-            throw new RuntimeException("Practice suggestion failed: " + e.getMessage(), e);
+            throw new AiServiceException("Dịch vụ AI tạm thời không khả dụng, vui lòng thử lại.", e);
         }
     }
     
