@@ -133,7 +133,7 @@ export default function V2TeacherDashboardPage() {
     <div className="flex min-h-full flex-col">
       <GaPageHdr
         accent
-        title="Dashboard & Lớp học"
+        title="Trang chủ"
         subtitle="Quản lý tổng quan tiến độ học tập và các lớp học của bạn"
         right={
           <GaBtn variant="ghost" onClick={() => router.push('/v2/teacher/analytics')}>
