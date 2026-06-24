@@ -3,6 +3,7 @@ package com.deutschflow.speaking.service;
 import com.deutschflow.speaking.repository.AiSpeakingSessionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +31,7 @@ public class SessionCleanupJob {
      * Initial delay of 60 seconds to let the app finish startup.
      */
     @Scheduled(fixedRate = 30 * 60 * 1000, initialDelay = 60_000)
+    @SchedulerLock(name = "zombieSessionCleanup", lockAtMostFor = "PT10M", lockAtLeastFor = "PT0S")
     @Transactional
     public void cleanupZombieSessions() {
         LocalDateTime cutoff = LocalDateTime.now().minusHours(2);

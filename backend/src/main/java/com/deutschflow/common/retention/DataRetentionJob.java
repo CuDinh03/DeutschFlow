@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -52,6 +53,7 @@ public class DataRetentionJob {
 
     /** Runs nightly at 03:30 (after the 03:00 FSRS optimizer). */
     @Scheduled(cron = "${app.retention.cron:0 30 3 * * *}")
+    @SchedulerLock(name = "dataRetentionPurge", lockAtMostFor = "PT1H", lockAtLeastFor = "PT1M")
     public void purgeOldEvents() {
         if (!enabled) {
             return;

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,6 +43,7 @@ public class FsrsWeightOptimizerService {
     private final FsrsService fsrsService;
 
     @Scheduled(cron = "0 0 3 * * *", zone = "UTC")
+    @SchedulerLock(name = "fsrsNightlyOptimization", lockAtMostFor = "PT30M", lockAtLeastFor = "PT1M")
     public void runNightlyOptimization() {
         List<Long> eligibleUsers = findEligibleUsers();
         log.info("[FSRS-OPT] Starting nightly optimization for {} users", eligibleUsers.size());

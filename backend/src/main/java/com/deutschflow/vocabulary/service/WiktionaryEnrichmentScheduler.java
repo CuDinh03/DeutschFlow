@@ -3,6 +3,7 @@ package com.deutschflow.vocabulary.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -28,6 +29,7 @@ public class WiktionaryEnrichmentScheduler {
 
     // Chạy mỗi 5 phút (rate limit 1 req/s × 50 từ = ~50s/batch, nghỉ 4 phút)
     @Scheduled(fixedDelayString = "${app.vocabulary.wiktionary-scheduler.delay-ms:5000}")
+    @SchedulerLock(name = "wiktionaryEnrichment", lockAtMostFor = "PT2M", lockAtLeastFor = "PT0S")
     public void runEnrichBatch() {
         if (!enabled || enrichmentSuspendGate.isEnrichmentSuspended()) {
             return;

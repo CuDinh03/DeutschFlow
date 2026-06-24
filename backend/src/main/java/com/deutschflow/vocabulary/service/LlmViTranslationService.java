@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -47,6 +48,7 @@ public class LlmViTranslationService {
     // ── Scheduled: runs every delayMs, only if enabled ────────────────────────
 
     @Scheduled(fixedDelayString = "${app.vocabulary.llm-vi.delay-ms:60000}")
+    @SchedulerLock(name = "llmViTranslation", lockAtMostFor = "PT10M", lockAtLeastFor = "PT0S")
     public void runScheduled() {
         if (!enabled) return;
         try {

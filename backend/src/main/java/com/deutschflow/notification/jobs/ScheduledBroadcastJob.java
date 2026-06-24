@@ -5,6 +5,7 @@ import com.deutschflow.notification.repository.ScheduledBroadcastRepository;
 import com.deutschflow.notification.service.UserNotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -28,6 +29,7 @@ public class ScheduledBroadcastJob {
     private final UserNotificationService userNotificationService;
 
     @Scheduled(fixedDelayString = "${app.notifications.scheduled-broadcast.delay-ms:60000}")
+    @SchedulerLock(name = "scheduledBroadcastDispatch", lockAtMostFor = "PT5M", lockAtLeastFor = "PT0S")
     public void dispatchDueBroadcasts() {
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         List<ScheduledBroadcast> due = scheduledBroadcastRepository
