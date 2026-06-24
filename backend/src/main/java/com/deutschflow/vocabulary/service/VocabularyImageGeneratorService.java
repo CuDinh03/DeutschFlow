@@ -1,6 +1,7 @@
 package com.deutschflow.vocabulary.service;
 
 import com.deutschflow.aiimage.service.UnsplashImageService;
+import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.media.entity.MediaAsset;
 import com.deutschflow.media.service.MediaAssetService;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,10 @@ public class VocabularyImageGeneratorService {
     /** Download a specific image directly by URL (no Unsplash re-search needed). */
     @Transactional
     public MediaAsset generateFromUrl(long wordId, String baseForm, String imageUrl, String personaStyle, String prompt) {
+        // SSRF guard (audit SEC-6): only fetch from Unsplash hosts. Every legit caller passes an Unsplash
+        // URL (search result / reviewed image); centralizing here covers the /approve path whose
+        // client-supplied imageUrl was previously unguarded (could hit 169.254.169.254 / RFC1918).
+        requireAllowedImageHost(imageUrl);
         byte[] bytes = downloadImageBytes(imageUrl);
         String contentType = detectContentType(imageUrl, bytes);
         MultipartFile imageFile = new InMemoryImageFile(
@@ -44,6 +49,19 @@ public class VocabularyImageGeneratorService {
         MediaAsset asset = mediaAssetService.uploadMedia(imageFile, "VOCABULARY", "word-" + wordId, baseForm, null);
         vocabularyImageService.applyGeneratedImage(wordId, asset, personaStyle, prompt);
         return asset;
+    }
+
+    /** SSRF allowlist: only Unsplash hosts may be server-fetched (mirrors the /unsplash controller guard). */
+    private void requireAllowedImageHost(String imageUrl) {
+        String host;
+        try {
+            host = URI.create(imageUrl).getHost();
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException("URL ảnh không hợp lệ.");
+        }
+        if (host == null || !(host.equals("unsplash.com") || host.endsWith(".unsplash.com"))) {
+            throw new BadRequestException("Chỉ chấp nhận URL ảnh từ Unsplash.");
+        }
     }
 
     @Transactional

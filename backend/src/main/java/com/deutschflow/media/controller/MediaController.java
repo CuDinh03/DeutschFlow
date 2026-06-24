@@ -3,7 +3,6 @@ package com.deutschflow.media.controller;
 import com.deutschflow.media.dto.MediaAssetDto;
 import com.deutschflow.media.entity.MediaAsset;
 import com.deutschflow.media.service.MediaAssetService;
-import com.deutschflow.media.service.S3StorageService;
 import com.deutschflow.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -16,7 +15,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
 import java.util.Map;
 
 @RestController
@@ -24,19 +22,17 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class MediaController {
 
-    private final S3StorageService s3StorageService;
     private final MediaAssetService mediaAssetService;
 
-    // Legacy endpoint for compatibility
+    // Legacy endpoint kept for backward-compat but hardened (audit SEC-8): ADMIN-only, and routed
+    // through the validated upload path (content-type allowlist + size cap) instead of a raw,
+    // unvalidated write to a public-read bucket that any authenticated user (incl. STUDENT) could hit.
     @PostMapping("/api/media/upload")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Map<String, String>> uploadMediaLegacy(@RequestParam("file") MultipartFile file) {
-        try {
-            String url = s3StorageService.uploadFile(file);
-            return ResponseEntity.ok(Map.of("url", url));
-        } catch (IOException e) {
-            return ResponseEntity.internalServerError().body(Map.of("error", "Failed to upload file"));
-        }
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, String>> uploadMediaLegacy(@RequestParam("file") MultipartFile file,
+                                                                 @AuthenticationPrincipal User user) {
+        MediaAsset asset = mediaAssetService.uploadMedia(file, "GENERAL", null, null, user);
+        return ResponseEntity.ok(Map.of("url", asset.getUrl()));
     }
 
     // V2 Enhanced API
