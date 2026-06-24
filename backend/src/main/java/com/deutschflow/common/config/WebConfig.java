@@ -16,20 +16,16 @@ public class WebConfig implements WebMvcConfigurer {
     @Value("${app.cors.allowed-origins:http://localhost:3000}")
     private String allowedOrigins;
 
-    // Capacitor iOS/Android origins — always allowed regardless of env var
-    private static final String[] NATIVE_ORIGINS = {
-        "capacitor://localhost",
-        "ionic://localhost",
-        "http://localhost"
-    };
-
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        String[] configuredOrigins = allowedOrigins.split(",");
-        String[] allOrigins = java.util.stream.Stream
-                .concat(java.util.Arrays.stream(configuredOrigins),
-                        java.util.Arrays.stream(NATIVE_ORIGINS))
+        // SEC-4: CORS origins are env-driven only (CORS_ALLOWED_ORIGINS → prod domains; dev default
+        // http://localhost:3000). The old hardcoded NATIVE_ORIGINS (capacitor://, ionic://, http://localhost)
+        // were a retired Capacitor-webview leftover; with allowCredentials(true), a bare http://localhost
+        // made any local http app a trusted credentialed origin. The current mobile app is Expo/native
+        // (React Native HTTP, not a webview), so it does not rely on CORS.
+        String[] allOrigins = java.util.Arrays.stream(allowedOrigins.split(","))
                 .map(String::trim)
+                .filter(s -> !s.isEmpty())
                 .distinct()
                 .toArray(String[]::new);
 
