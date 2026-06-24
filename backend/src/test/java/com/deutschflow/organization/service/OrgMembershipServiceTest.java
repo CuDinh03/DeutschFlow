@@ -17,6 +17,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.ResultSetExtractor;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -25,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anySet;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -40,12 +43,13 @@ class OrgMembershipServiceTest {
 
     @Mock private OrgMemberRepository memberRepo;
     @Mock private UserRepository userRepository;
+    @Mock private JdbcTemplate jdbcTemplate;
 
     private OrgMembershipService service;
 
     @BeforeEach
     void setUp() {
-        service = new OrgMembershipService(memberRepo, userRepository);
+        service = new OrgMembershipService(memberRepo, userRepository, jdbcTemplate);
     }
 
     private User studentUser() {
@@ -56,6 +60,36 @@ class OrgMembershipServiceTest {
         User u = User.builder().id(USER_ID).role(User.Role.TEACHER).build();
         u.setOrgId(orgId);
         return u;
+    }
+
+    // ── ORG-1: centralized, race-safe seat-limit gate in upsertMember ──────────
+
+    @Test
+    @DisplayName("upsertMember: rejects a brand-new STUDENT when the org is at its seat limit")
+    void upsertMember_newStudentAtSeatLimit_rejected() {
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.empty());
+        when(jdbcTemplate.query(anyString(), any(ResultSetExtractor.class), eq(ORG_ID)))
+                .thenReturn(5L); // seat_limit = 5 (locked read)
+        when(memberRepo.countByIdOrgIdAndRoleAndStatus(ORG_ID, "STUDENT", "ACTIVE")).thenReturn(5L); // at limit
+
+        assertThatThrownBy(() -> service.upsertMember(ORG_ID, USER_ID, "STUDENT"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("giới hạn chỗ ngồi");
+
+        verify(memberRepo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("upsertMember: allows a new STUDENT when seat_limit is 0 (unlimited)")
+    void upsertMember_unlimitedSeats_allowed() {
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.empty());
+        when(jdbcTemplate.query(anyString(), any(ResultSetExtractor.class), eq(ORG_ID)))
+                .thenReturn(0L); // 0 = unlimited → no count query, no block
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(studentUser()));
+
+        service.upsertMember(ORG_ID, USER_ID, "STUDENT");
+
+        verify(memberRepo).save(any());
     }
 
     private OrgMember member(String role, String status) {

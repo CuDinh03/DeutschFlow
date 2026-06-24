@@ -229,18 +229,9 @@ public class AdminOrgService {
         User user = userRepository.findByEmailIgnoreCase(normalizedEmail)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng: " + normalizedEmail));
 
-        // Enforce seat limit for STUDENT role when limit is configured (> 0 = limited)
-        if ("STUDENT".equals(normalizedRole) && org.getSeatLimit() > 0) {
-            boolean alreadyMember = orgMemberRepository.findByIdOrgIdAndIdUserId(org.getId(), user.getId()).isPresent();
-            if (!alreadyMember) {
-                long currentStudents = orgMembershipService.countByRole(org.getId(), "STUDENT");
-                if (currentStudents >= org.getSeatLimit()) {
-                    throw new BadRequestException(
-                            "Đã đạt giới hạn chỗ ngồi (" + org.getSeatLimit() + " student). Không thể thêm thành viên.");
-                }
-            }
-        }
-
+        // Seat-limit enforcement (including the concurrent-add race) is centralized in
+        // OrgMembershipService.upsertMember (ORG-1): it locks the org row and rejects a brand-new
+        // STUDENT over seat_limit, so every add path inherits one race-safe gate.
         orgMembershipService.upsertMember(org.getId(), user.getId(), normalizedRole);
 
         OrgMember member = orgMemberRepository.findByIdOrgIdAndIdUserId(org.getId(), user.getId())
