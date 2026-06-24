@@ -64,7 +64,7 @@ export default function RegisterPage() {
       }
 
       // Non-blocking analytics — runs after navigation kicks off.
-      identifyUser(String(user.id), {
+      identifyUser(String(user.userId), {
         email: user.email,
         name: user.displayName,
         role: user.role,

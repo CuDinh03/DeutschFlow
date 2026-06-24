@@ -84,7 +84,7 @@ export default function V2RegisterPage() {
           break
       }
 
-      identifyUser(String(user.id), {
+      identifyUser(String(user.userId), {
         email: user.email, name: user.displayName, role: user.role, locale: user.locale,
         created_at: new Date().toISOString(),
       })

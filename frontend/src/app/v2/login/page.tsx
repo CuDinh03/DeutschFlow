@@ -69,7 +69,10 @@ export default function V2LoginPage() {
       // Populate the user store so shared screens (sidebar name/email, dashboard
       // greeting, achievements self-highlight) have an identity to read.
       setUser({
-        id: String(user.id),
+        // AuthResponse exposes the id as `userId` (not `id`); reading `user.id` here
+        // stored the literal string "undefined" and broke PostHog identify + any
+        // client-side id usage. Map from the correct field.
+        id: String(user.userId),
         email: user.email,
         roles: [String(user.role)],
         displayName: user.displayName,
@@ -100,7 +103,7 @@ export default function V2LoginPage() {
           break
       }
 
-      identifyUser(String(user.id), { email: user.email, name: user.displayName, role: user.role, locale: user.locale })
+      identifyUser(String(user.userId), { email: user.email, name: user.displayName, role: user.role, locale: user.locale })
       trackEvent('login_success', { role: user.role })
       registerPushNotifications()
     } catch (err: unknown) {

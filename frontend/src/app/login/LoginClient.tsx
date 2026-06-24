@@ -129,7 +129,8 @@ export default function LoginPage() {
       // Populate the user store so shared screens (sidebar name/email, dashboard
       // greeting, achievements self-highlight) have an identity to read.
       setUser({
-        id: String(user.id),
+        // AuthResponse exposes the id as `userId` (not `id`); `user.id` is undefined here.
+        id: String(user.userId),
         email: user.email,
         roles: [String(user.role)],
         displayName: user.displayName,
@@ -139,7 +140,7 @@ export default function LoginPage() {
       // Identify to PostHog BEFORE routing so the galerie-v2 flag is evaluated
       // for THIS user — the rollout targets internal accounts / cohorts by user
       // id, so an anonymous eval would miss them. identify() reloads flags.
-      identifyUser(String(user.id), {
+      identifyUser(String(user.userId), {
         email: user.email,
         name: user.displayName,
         role: user.role,
