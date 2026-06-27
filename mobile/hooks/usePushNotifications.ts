@@ -8,7 +8,10 @@ import api from '@/lib/api'
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    // SDK 54 (expo-notifications): `shouldShowAlert` was split into
+    // `shouldShowBanner` (heads-up banner) + `shouldShowList` (Notification Center).
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
   }),

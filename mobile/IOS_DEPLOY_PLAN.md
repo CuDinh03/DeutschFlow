@@ -58,7 +58,9 @@ Kiểm chứng: in ra nội dung mobile/UPGRADE_BASELINE.md và xác nhận đan
 - `babel.config.js` đang hack `reanimated: false` + thêm tay `'react-native-reanimated/plugin'`. **Reanimated 4 phải bỏ hack này**, để `babel-preset-expo` tự xử lý (nó dùng `react-native-worklets/plugin`). Để 2 nơi cùng khai = lỗi "duplicate plugin".
 - `app/(student)/speaking.tsx` dùng `expo-file-system` API cũ (`cacheDirectory`, `writeAsStringAsync`, `EncodingType`). SDK 54 đổi default export → phải đổi import sang `expo-file-system/legacy` hoặc migrate sang API mới.
 - `metro.config.js` set `unstable_enablePackageExports = true` — từ SDK 53+ đã mặc định bật, dòng này thừa (vô hại, có thể bỏ).
-- `moti` và `@gorhom/bottom-sheet` không phải gói Expo nên `expo install --fix` không tự nâng — phải kiểm tra tương thích Reanimated 4 thủ công.
+- `moti` và `@gorhom/bottom-sheet` không phải gói Expo nên `expo install --fix` không tự nâng — phải kiểm tra tương thích Reanimated 4 thủ công. (Đã soi npm: `@gorhom/bottom-sheet@5.2.14` đã hỗ trợ Reanimated `>=4.0.0-`; `moti@0.30` peer wildcard → cài được, chỉ cần QA runtime.)
+- **`expo-av` (mới phát hiện 2026-06-27):** dùng ở 3 file lõi — `app/(student)/speaking.tsx`, `app/(student)/weekly-speaking.tsx`, `components/video/VideoLessonPlayer.tsx` (ghi âm + phát TTS/audio). SDK 54 **deprecate** expo-av (tách khỏi SDK), **SDK 55 mới xóa hẳn**. **Quyết định: GIỮ expo-av ở Pha 1** — pin `expo-av@^16` (bản SDK 54, vẫn cài + chạy được, dev-client riêng nên không vướng Expo Go). Apple không quan tâm lib nội bộ → submit lần này không cần bỏ. ➡️ **Nợ kỹ thuật: migrate expo-av → `expo-audio`/`expo-video` dời vào PHA 4** (lúc restyle 3 màn đó, sửa + QA một lần). Phải trả trước khi lên SDK 55.
+- **React 18 → 19.1 (mới phát hiện):** SDK 54 đi kèm React 19.1 (baseline ghi nhầm target 18.3.1). Cần bump `@types/react`→19 và sửa lỗi type do React 19.
 
 ```
 Bối cảnh: app Expo trong mobile/, hiện Expo SDK 52 / RN 0.76 / Reanimated 3.16, New Architecture ĐÃ bật. Cần nâng lên Expo SDK 54 (RN 0.81, Reanimated 4) để đáp ứng yêu cầu Apple (build bằng Xcode 26 / iOS 26 SDK). Bám theo hướng dẫn chính thức "How to upgrade to Expo SDK 54" của Expo; tra changelog SDK 53 và 54 trước khi sửa.
@@ -162,6 +164,8 @@ Giữ nguyên build profiles. In lại eas.json sau khi sửa.
 # PHA 4 — Restyle giao diện v2 (15 màn)
 
 **Mục tiêu:** đưa thiết kế "Native Student – Galerie" vào app RN, giữ nguyên logic/route hiện có.
+
+> 💳 **Nợ kỹ thuật chuyển từ Pha 1:** migrate `expo-av` → `expo-audio` + `expo-video` ở đúng 3 màn sẽ restyle (`speaking.tsx`, `weekly-speaking.tsx`, `VideoLessonPlayer.tsx`). Làm cùng lúc restyle để chỉ QA ghi-âm/phát-audio một lần. **Bắt buộc xong trước khi nâng SDK 55.**
 
 ### 4.0 — 👤 Đưa thiết kế v2 vào repo (bắt buộc, vì Claude Code không mở được link claude.ai)
 Trong trang design (claude.ai/design) bấm **Export** từng trang (hoặc copy file HTML/JSX: `Native Student - Galerie.html`, `na-intro.jsx`) và lưu vào `mobile/design/v2/`. Mỗi màn 1 file (đặt tên theo route: `home.html`, `roadmap.html`, `vocabulary.html`, `srs.html`, `speaking-select.html`, `speaking-interview.html`, `speaking-result.html`, `classes.html`, `class-detail.html`, `profile.html`, `upgrade.html`, `notifications.html`...). Có ảnh chụp kèm thì càng tốt.
