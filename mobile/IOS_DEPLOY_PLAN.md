@@ -6,10 +6,11 @@ Tham chiếu phát hiện: xem `mobile/IOS_DEPLOY_AUDIT.md`. Plan này biến au
 ---
 
 ## ▶️ TRẠNG THÁI HIỆN TẠI — Claude Code bắt đầu từ đây
-- ✅ **PHA 0 đã xong** (2026-06-27): nhánh `chore/ios-deploy-sdk54` đã tạo từ `main`; baseline **xanh** — `tsc --noEmit` sạch, `jest` 18/18 pass. Chi tiết: [`mobile/UPGRADE_BASELINE.md`](./UPGRADE_BASELINE.md).
-- 👉 **BẮT ĐẦU TỪ: PHA 1 — Nâng Expo SDK 52 → 54.** Trình tự: `git checkout chore/ios-deploy-sdk54` → `cd mobile` → `npx expo-doctor` (xác nhận trạng thái cục bộ, lệnh này chưa chạy được ở môi trường chuẩn bị) → dùng prompt PHA 1 bên dưới.
-- ⚠️ 4 điểm migration riêng của repo đã được chốt sẵn (babel reanimated hack, `expo-file-system/legacy` trong `speaking.tsx`, dòng metro `unstable_enablePackageExports` thừa, kiểm tra `moti`/`@gorhom/bottom-sheet` với Reanimated 4) — đã nhúng trong prompt PHA 1 + `UPGRADE_BASELINE.md`.
-- ⏳ Pha 2 → 5: chưa bắt đầu.
+- ✅ **PHA 0 đã xong** (2026-06-27): nhánh `chore/ios-deploy-sdk54` từ `main`; baseline xanh. Chi tiết: [`UPGRADE_BASELINE.md`](./UPGRADE_BASELINE.md).
+- ✅ **PHA 1 đã xong** (2026-06-27, commit `23148f10`): Expo 54.0.35 · RN 0.81.5 · React 19.1 · Reanimated 4.1.7 + worklets 0.5.1. 4 cổng xanh (expo-doctor 18/18, tsc 0, jest 18/18, Metro bundle OK). expo-av giữ → nợ Pha 4. Chi tiết: `UPGRADE_BASELINE.md` §KẾT QUẢ PHA 1.
+- 🔄 **PHA 2 đang dở:** ✅ P0-2 `eas init` xong → projectId thật `26fa9e21-…` (`@cudinh3502/deutschflow`, owner ghi vào app.json); ✅ push token gate qua được + log `__DEV__`; ✅ P0-3 prebuild SDK 54 sinh `aps-environment=development` (EAS→`production` khi release); ✅ KHÔNG thêm `UIBackgroundModes` (chỉ foreground); ✅ verified backend `POST /api/profile/me/push-token` khớp `{token,platform}` + fix race auth-gate. 👉 **CÒN LẠI PHA 2 (👤):** tạo APNs Key (.p8) trên Apple Developer + `eas credentials` (hoặc để `eas build` lần đầu tự tạo).
+- 👉 **TIẾP THEO: PHA 3** (compliance) — hoặc làm APNs key trước rồi nhảy build thử.
+- ⏳ Pha 3 → 5: chưa bắt đầu.
 
 ---
 
@@ -229,9 +230,9 @@ Kiểm chứng: in link build EAS + trạng thái submit. Liệt kê mọi cản
 ---
 
 ## Checklist tổng (rút gọn)
-- [ ] Pha 0: nhánh + baseline
-- [ ] Pha 1: SDK 54 (babel reanimated, expo-file-system/legacy, moti/bottom-sheet) — doctor/tsc/test xanh
-- [ ] Pha 2: `eas init` projectId thật · entitlements có aps-environment · APNs key
+- [x] Pha 0: nhánh + baseline
+- [x] Pha 1: SDK 54 (babel reanimated, expo-file-system/legacy, moti/bottom-sheet) — doctor/tsc/test xanh ✅ `23148f10`
+- [~] Pha 2: `eas init` projectId thật ✅ · entitlements có aps-environment ✅ · push auth-gate fix ✅ · **APNs key ⏳ (👤)**
 - [ ] Pha 3: bỏ camera/speech · privacyManifests PostHog · Sentry + ErrorBoundary · supportsTablet=false · eas submit
 - [ ] Pha 4: tokens v2 → components → 15 màn
 - [ ] Pha 5: EAS build → submit → TestFlight thật → metadata → review

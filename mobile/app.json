@@ -36,7 +36,8 @@
       "package": "com.deutschflow.app",
       "permissions": [
         "android.permission.RECORD_AUDIO",
-        "android.permission.INTERNET"
+        "android.permission.INTERNET",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ]
     },
     "scheme": "deutschflow",
@@ -60,15 +61,17 @@
       "expo-localization"
     ],
     "extra": {
-      "eas": {
-        "projectId": "YOUR_EAS_PROJECT_ID"
-      },
       "sentryDsn": "",
       "posthogKey": "phc_vFERGwkAxSWCTagc39wk3uevgueqhZsXvjcc5dDSKoHB",
-      "posthogHost": "https://us.i.posthog.com"
+      "posthogHost": "https://us.i.posthog.com",
+      "router": {},
+      "eas": {
+        "projectId": "26fa9e21-f563-4891-953e-e00c704c3c6b"
+      }
     },
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "owner": "cudinh3502"
   }
 }
