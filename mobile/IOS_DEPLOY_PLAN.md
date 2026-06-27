@@ -9,8 +9,10 @@ Tham chiếu phát hiện: xem `mobile/IOS_DEPLOY_AUDIT.md`. Plan này biến au
 - ✅ **PHA 0 đã xong** (2026-06-27): nhánh `chore/ios-deploy-sdk54` từ `main`; baseline xanh. Chi tiết: [`UPGRADE_BASELINE.md`](./UPGRADE_BASELINE.md).
 - ✅ **PHA 1 đã xong** (2026-06-27, commit `23148f10`): Expo 54.0.35 · RN 0.81.5 · React 19.1 · Reanimated 4.1.7 + worklets 0.5.1. 4 cổng xanh (expo-doctor 18/18, tsc 0, jest 18/18, Metro bundle OK). expo-av giữ → nợ Pha 4. Chi tiết: `UPGRADE_BASELINE.md` §KẾT QUẢ PHA 1.
 - 🔄 **PHA 2 đang dở:** ✅ P0-2 `eas init` xong → projectId thật `26fa9e21-…` (`@cudinh3502/deutschflow`, owner ghi vào app.json); ✅ push token gate qua được + log `__DEV__`; ✅ P0-3 prebuild SDK 54 sinh `aps-environment=development` (EAS→`production` khi release); ✅ KHÔNG thêm `UIBackgroundModes` (chỉ foreground); ✅ verified backend `POST /api/profile/me/push-token` khớp `{token,platform}` + fix race auth-gate. 👉 **CÒN LẠI PHA 2 (👤):** tạo APNs Key (.p8) trên Apple Developer + `eas credentials` (hoặc để `eas build` lần đầu tự tạo).
-- 👉 **TIẾP THEO: PHA 3** (compliance) — hoặc làm APNs key trước rồi nhảy build thử.
-- ⏳ Pha 3 → 5: chưa bắt đầu.
+- ✅ **PHA 3 đã xong** (2026-06-27): bỏ camera/speech permission (chỉ còn Microphone); `supportsTablet=false` (TARGETED_DEVICE_FAMILY=1); suppress `NSFaceIDUsageDescription` (`["expo-secure-store",{faceIDPermission:false}]` — app không dùng biometric); `ios.privacyManifests` khai PostHog (ProductInteraction+OtherUsageData) + Sentry (CrashData+PerformanceData) + 4 required-reason API (UserDefaults/FileTimestamp/SystemBootTime/DiskSpace), NSPrivacyTracking=false; **Sentry** cài `@sentry/react-native@7.2.0` + plugin (org/project placeholder, inert khi chưa có SENTRY_AUTH_TOKEN) + `getSentryExpoConfig` metro + `initObservability` no-op khi DSN rỗng + `Sentry.wrap` root; **ErrorBoundary** (Expo Router) màn lỗi tiếng Việt + retry + report Sentry; `eas.json` submit.production.ios placeholder. Fix: hoist `promise@8.3.0` (Sentry import `promise/setimmediate/done`, bị nest do legacy-peer-deps). 5 cổng xanh: prebuild (Info.plist chỉ Microphone, PrivacyInfo.xcprivacy đủ, aps-environment còn), tsc 0, jest 18/18, expo-doctor 18/18, Metro bundle OK. Screen-capture (P2) DEFER.
+- 👉 **CÒN LẠI (👤):** APNs Key (.p8) [Pha 2] · tạo Sentry project → điền DSN + thay org/project placeholder + `eas secret SENTRY_AUTH_TOKEN` **+ bỏ `SENTRY_DISABLE_AUTO_UPLOAD` khỏi eas.json** (đang set true để build qua được khi chưa có token; bỏ đi mới upload source map) · điền 3 giá trị `eas.json submit` · Privacy Policy/Support URL (App Store Connect).
+- 👉 **TIẾP THEO: PHA 4** (restyle v2 + trả nợ expo-av→expo-audio/video) — hoặc build thử EAS trước để smoke-test máy thật.
+- ⏳ Pha 4 → 5: chưa bắt đầu.
 
 ---
 
@@ -233,7 +235,7 @@ Kiểm chứng: in link build EAS + trạng thái submit. Liệt kê mọi cản
 - [x] Pha 0: nhánh + baseline
 - [x] Pha 1: SDK 54 (babel reanimated, expo-file-system/legacy, moti/bottom-sheet) — doctor/tsc/test xanh ✅ `23148f10`
 - [~] Pha 2: `eas init` projectId thật ✅ · entitlements có aps-environment ✅ · push auth-gate fix ✅ · **APNs key ⏳ (👤)**
-- [ ] Pha 3: bỏ camera/speech · privacyManifests PostHog · Sentry + ErrorBoundary · supportsTablet=false · eas submit
+- [x] Pha 3: bỏ camera/speech ✅ · privacyManifests PostHog+Sentry ✅ · Sentry + ErrorBoundary ✅ · supportsTablet=false ✅ · eas submit ✅ · FaceID suppressed ✅ · screen-capture DEFER
 - [ ] Pha 4: tokens v2 → components → 15 màn
 - [ ] Pha 5: EAS build → submit → TestFlight thật → metadata → review
 

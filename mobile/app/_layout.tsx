@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { AppState } from 'react-native'
-import { Stack, router, useRootNavigationState } from 'expo-router'
+import { AppState, View } from 'react-native'
+import { Stack, router, useRootNavigationState, type ErrorBoundaryProps } from 'expo-router'
 
 import { StatusBar } from 'expo-status-bar'
 import * as SplashScreen from 'expo-splash-screen'
@@ -30,7 +30,8 @@ import { usePlanStore } from '@/stores/usePlanStore'
 import { useSrsOfflineStore } from '@/stores/useSrsOfflineStore'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
 import { getAccessToken } from '@/lib/auth'
-import { initObservability } from '@/lib/observability'
+import { initObservability, wrapWithObservability, reportError } from '@/lib/observability'
+import { ThemedText, Button } from '@/components/ui'
 import { initCertPinning } from '@/lib/certPinning'
 import { initDeviceIntegrity } from '@/lib/deviceIntegrity'
 import { ThemeProvider, useTheme } from '@/lib/theme'
@@ -70,6 +71,47 @@ function RootStack() {
         <Stack.Screen name="(student)" />
       </Stack>
     </>
+  )
+}
+
+// Expo Router root error boundary — catches render errors anywhere in the tree.
+// It renders OUTSIDE RootLayout's providers, so it brings its own ThemeProvider +
+// SafeAreaProvider, and reports to Sentry (a no-op until a DSN is configured).
+function ErrorFallback({ retry }: { retry: () => void }) {
+  const theme = useTheme()
+  return (
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: theme.colors.bg,
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 32,
+        gap: 16,
+      }}
+    >
+      <ThemedText variant="display" align="center">
+        Đã có lỗi xảy ra
+      </ThemedText>
+      <ThemedText variant="body" color="muted" align="center">
+        Ứng dụng gặp sự cố ngoài ý muốn. Bạn thử lại nhé — nếu vẫn lỗi, hãy đóng và mở lại ứng dụng.
+      </ThemedText>
+      <Button label="Thử lại" onPress={retry} />
+    </View>
+  )
+}
+
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  useEffect(() => {
+    reportError(error)
+  }, [error])
+
+  return (
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <ErrorFallback retry={retry} />
+      </ThemeProvider>
+    </SafeAreaProvider>
   )
 }
 
@@ -179,4 +221,4 @@ function RootLayout() {
   )
 }
 
-export default RootLayout
+export default wrapWithObservability(RootLayout)
