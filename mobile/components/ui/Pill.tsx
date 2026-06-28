@@ -1,9 +1,9 @@
-// Compact status/label chip. `tone` maps to a semantic soft-background pair.
+// Compact editorial status/label chip (Galerie v2): sharp corners, UPPERCASE,
+// letter-spaced. `tone` maps to a semantic colour; `solid` fills instead of soft.
 
 import type { LucideIcon } from 'lucide-react-native'
-import { View, type ViewStyle, type StyleProp } from 'react-native'
-import { radius, space, useTheme } from '@/lib/theme'
-import { ThemedText } from './ThemedText'
+import { View, Text, type ViewStyle, type StyleProp } from 'react-native'
+import { fonts, radius, space, useTheme } from '@/lib/theme'
 
 type Tone = 'neutral' | 'accent' | 'success' | 'danger' | 'info' | 'der' | 'die' | 'das'
 
@@ -11,25 +11,29 @@ interface PillProps {
   label: string
   tone?: Tone
   icon?: LucideIcon
+  /** Fill the chip with the tone colour instead of the soft tint. */
+  solid?: boolean
   style?: StyleProp<ViewStyle>
 }
 
-export function Pill({ label, tone = 'neutral', icon, style }: PillProps) {
-  const theme = useTheme()
-  const c = theme.colors
+export function Pill({ label, tone = 'neutral', icon, solid = false, style }: PillProps) {
+  const c = useTheme().colors
 
-  const toneMap: Record<Tone, { bg: string; fg: string }> = {
-    neutral: { bg: c.surfaceSunken, fg: c.textSecondary },
-    accent: { bg: c.accentSoft, fg: c.accentText },
-    success: { bg: c.successSoft, fg: c.success },
-    danger: { bg: c.dangerSoft, fg: c.danger },
-    info: { bg: c.infoSoft, fg: c.info },
-    der: { bg: c.infoSoft, fg: c.der },
-    die: { bg: c.dangerSoft, fg: c.die },
-    das: { bg: c.successSoft, fg: c.das },
+  const toneMap: Record<Tone, { soft: string; fg: string; fill: string }> = {
+    neutral: { soft: c.surfaceSunken, fg: c.textSecondary, fill: c.textSecondary },
+    accent: { soft: c.accentSoft, fg: c.accentText, fill: c.accent },
+    success: { soft: c.successSoft, fg: c.success, fill: c.success },
+    danger: { soft: c.dangerSoft, fg: c.danger, fill: c.danger },
+    info: { soft: c.infoSoft, fg: c.info, fill: c.info },
+    der: { soft: c.infoSoft, fg: c.der, fill: c.der },
+    die: { soft: c.dangerSoft, fg: c.die, fill: c.die },
+    das: { soft: c.successSoft, fg: c.das, fill: c.das },
   }
 
   const picked = toneMap[tone]
+  const bg = solid ? picked.fill : picked.soft
+  // On a solid fill, yellow needs ink for AA; everything else takes white.
+  const fg = solid ? (tone === 'accent' ? c.onAccent : c.onBrand) : picked.fg
 
   return (
     <View
@@ -38,19 +42,28 @@ export function Pill({ label, tone = 'neutral', icon, style }: PillProps) {
           flexDirection: 'row',
           alignItems: 'center',
           gap: space[1],
-          backgroundColor: picked.bg,
-          borderRadius: radius.full,
-          paddingHorizontal: space[3],
-          paddingVertical: space[1],
+          backgroundColor: bg,
+          borderRadius: radius.sm,
+          paddingHorizontal: space[2],
+          paddingVertical: 5,
           alignSelf: 'flex-start',
         },
         style,
       ]}
     >
-      {icon ? <LeadingIcon icon={icon} color={picked.fg} /> : null}
-      <ThemedText variant="label" style={{ color: picked.fg }}>
+      {icon ? <LeadingIcon icon={icon} color={fg} /> : null}
+      <Text
+        style={{
+          fontFamily: fonts.bodySemi,
+          fontSize: 10,
+          lineHeight: 12,
+          letterSpacing: 0.9,
+          textTransform: 'uppercase',
+          color: fg,
+        }}
+      >
         {label}
-      </ThemedText>
+      </Text>
     </View>
   )
 }

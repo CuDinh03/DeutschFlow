@@ -55,7 +55,7 @@ export function Card({
 
   const base: ViewStyle = {
     backgroundColor: toneMap[tone],
-    borderRadius: radius['2xl'],
+    borderRadius: radius.md,
     padding: padded ? space[4] : 0,
     borderWidth: bordered ? 1 : 0,
     borderColor: theme.colors.border,
