@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { AppState, View } from 'react-native'
-import { Stack, router, useRootNavigationState, type ErrorBoundaryProps } from 'expo-router'
+import { Stack, type ErrorBoundaryProps } from 'expo-router'
 
 import { StatusBar } from 'expo-status-bar'
 import * as SplashScreen from 'expo-splash-screen'
@@ -34,7 +34,6 @@ import { ThemeProvider, useTheme } from '@/lib/theme'
 import { SplashAnimated } from '@/components/SplashAnimated'
 import { PostHogProvider } from 'posthog-react-native'
 import { posthog, setSubscriptionTier } from '@/lib/analytics'
-import '../global.css'
 
 void SplashScreen.preventAutoHideAsync()
 
@@ -115,12 +114,10 @@ function RootLayout() {
   // Select individual slices (not the whole store) so this root component only
   // re-renders when these specific values change — avoids re-render churn during
   // the auth bootstrap.
-  const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
   const isLoading = useAuthStore((s) => s.isLoading)
   const fetchMe = useAuthStore((s) => s.fetchMe)
   const fetchPlan = usePlanStore((s) => s.fetchPlan)
   const planTier = usePlanStore((s) => s.plan?.tier)
-  const rootNavState = useRootNavigationState()
   const [splashDone, setSplashDone] = useState(false)
 
   const [serifLoaded] = useSerif({
@@ -137,10 +134,10 @@ function RootLayout() {
   })
   const fontsReady = serifLoaded && sansLoaded
 
-  // The animated splash holds until the app is genuinely ready: fonts loaded,
-  // auth resolved, and the navigator mounted. This masks the cold-launch
-  // auth redirect (home → login) so it never flashes on screen.
-  const appReady = fontsReady && !isLoading && !!rootNavState?.key
+  // The animated splash holds until the app is genuinely ready: fonts loaded and
+  // auth resolved. This masks the cold-launch auth gate (app/index.tsx redirect)
+  // so it never flashes on screen.
+  const appReady = fontsReady && !isLoading
 
   usePushNotifications()
 
@@ -177,15 +174,14 @@ function RootLayout() {
     setSubscriptionTier(planTier)
   }, [planTier])
 
-  useEffect(() => {
-    // Don't navigate until the root navigator has mounted, otherwise expo-router throws
-    // "Attempted to navigate before mounting the Root Layout component."
-    if (!rootNavState?.key) return
-    if (isLoading) return
-    if (!isLoggedIn) {
-      router.replace('/(auth)/login')
-    }
-  }, [isLoggedIn, isLoading, rootNavState?.key])
+  // Auth routing lives in app/index.tsx (`/`) as a declarative <Redirect>, NOT as an
+  // imperative router.replace() from this root layout. The old effect-driven redirect
+  // depended on the root navigation state (useRootNavigationState), so each redirect
+  // mutated that state and re-rendered this layout, which re-rendered the navigator,
+  // which re-synced its state — an infinite feedback loop. Under React 19 + the New
+  // Architecture that tripped @react-navigation/core's useSyncState into "Maximum
+  // update depth exceeded" and crashed the app at launch. Keeping the root layout
+  // free of navigation-state subscriptions removes the amplifier entirely.
 
   useEffect(() => {
     if (fontsReady) {
