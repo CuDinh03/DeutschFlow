@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from 'react'
-import { View, Pressable, TextInput, Alert } from 'react-native'
+import { View, Pressable, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { router, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
@@ -118,6 +118,10 @@ export default function NodePracticeScreen() {
           <EmptyState icon={Trophy} title="Chưa có bài tập" message="Bài học này chưa có bài tập trên app." />
         </View>
       ) : (
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
         <Screen scroll edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[3], paddingTop: space[2] }}>
           {result ? (
             <Card style={{ gap: space[2], borderColor: result.completed ? c.success + '66' : c.border }}>
@@ -165,6 +169,7 @@ export default function NodePracticeScreen() {
             <Button label="Xong" variant="secondary" onPress={() => router.back()} />
           )}
         </Screen>
+        </KeyboardAvoidingView>
       )}
     </Screen>
   )

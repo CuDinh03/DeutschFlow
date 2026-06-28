@@ -37,6 +37,7 @@ import {
   clearActiveSession,
   type ActiveSessionRef,
 } from '@/lib/activeSession'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon } from '@/components/ui'
 import { SessionSummary } from '@/components/speaking/SessionSummary'
@@ -62,6 +63,7 @@ const PULSE_MAX = 1.2
 export default function SpeakingScreen() {
   const theme = useTheme()
   const c = theme.colors
+  const insets = useSafeAreaInsets()
   const { isPro } = usePlanStore()
 
   // Onboarding (and deep links) can preselect a speaking mode — e.g. the
@@ -97,6 +99,7 @@ export default function SpeakingScreen() {
   const scrollRef = useRef<ScrollView | null>(null)
   const typingRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const reactionRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const speakTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pulseAnim = useSharedValue(1)
 
   // Offer to resume an interrupted session left over from a previous app run.
@@ -118,6 +121,7 @@ export default function SpeakingScreen() {
     () => () => {
       if (typingRef.current) clearInterval(typingRef.current)
       if (reactionRef.current) clearTimeout(reactionRef.current)
+      if (speakTimerRef.current) clearTimeout(speakTimerRef.current)
       stopSpeech()
     },
     [],
@@ -145,7 +149,8 @@ export default function SpeakingScreen() {
     }
     const trimmed = text.trim()
     if (!trimmed) {
-      setTimeout(finish, 600)
+      if (speakTimerRef.current) clearTimeout(speakTimerRef.current)
+      speakTimerRef.current = setTimeout(finish, 600)
       return
     }
 
@@ -188,7 +193,8 @@ export default function SpeakingScreen() {
       return
     } catch {
       // 3. Neither available — pace by length so the flow never blocks.
-      setTimeout(finish, Math.min(4200, 1200 + trimmed.length * 42))
+      if (speakTimerRef.current) clearTimeout(speakTimerRef.current)
+      speakTimerRef.current = setTimeout(finish, Math.min(4200, 1200 + trimmed.length * 42))
     }
   }
 
@@ -201,6 +207,10 @@ export default function SpeakingScreen() {
   }
 
   async function stopSpeech() {
+    if (speakTimerRef.current) {
+      clearTimeout(speakTimerRef.current)
+      speakTimerRef.current = null
+    }
     if (soundRef.current) {
       const s = soundRef.current
       soundRef.current = null
@@ -666,7 +676,7 @@ export default function SpeakingScreen() {
           gap: space[2],
           paddingHorizontal: space[4],
           paddingTop: space[2],
-          paddingBottom: space[4],
+          paddingBottom: insets.bottom > 0 ? insets.bottom : space[4],
           borderTopWidth: 1,
           borderTopColor: c.border,
           backgroundColor: c.surface,

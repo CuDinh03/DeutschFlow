@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, Pressable, Alert } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
-import { router, useLocalSearchParams, type Href } from 'expo-router'
+import { router, useLocalSearchParams, useNavigation, type Href } from 'expo-router'
 import { Check, BookOpen } from 'lucide-react-native'
 import api, { apiMessage } from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
@@ -23,9 +23,53 @@ export default function ExamAttemptScreen() {
   const examId = Number(params.examId)
   const attemptId = Number(params.attemptId)
 
+  const navigation = useNavigation()
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
   const [score, setScore] = useState<number | null>(null)
+
+  // An attempt is "in progress" once the student has answered something and the
+  // attempt has not been finished/scored yet. Leaving now silently discards the
+  // answers and orphans the server-created attempt, so we confirm first.
+  const hasUnsavedAttempt = Object.keys(answers).length > 0 && score == null
+  // Set right before a confirmed navigation so the beforeRemove guard lets it through.
+  const allowLeaveRef = useRef(false)
+
+  // Confirm leaving mid-attempt; runs `proceed` only if the student chooses to exit.
+  const confirmLeave = useCallback((proceed: () => void) => {
+    Alert.alert(
+      'Thoát bài thi?',
+      'Bạn chưa nộp bài. Thoát bây giờ sẽ mất các câu đã trả lời.',
+      [
+        { text: 'Ở lại', style: 'cancel' },
+        { text: 'Thoát', style: 'destructive', onPress: proceed },
+      ],
+    )
+  }, [])
+
+  const handleBack = useCallback(() => {
+    if (hasUnsavedAttempt) {
+      confirmLeave(() => {
+        allowLeaveRef.current = true
+        router.back()
+      })
+      return
+    }
+    router.back()
+  }, [hasUnsavedAttempt, confirmLeave])
+
+  // Guard the swipe-back / hardware-back gesture too, not just the header button.
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      if (!hasUnsavedAttempt || allowLeaveRef.current) return
+      e.preventDefault()
+      confirmLeave(() => {
+        allowLeaveRef.current = true
+        navigation.dispatch(e.data.action)
+      })
+    })
+    return unsubscribe
+  }, [navigation, hasUnsavedAttempt, confirmLeave])
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['exam-questions', examId],
@@ -60,7 +104,7 @@ export default function ExamAttemptScreen() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title={params.title ?? 'Bài thi'} subtitle="Phần Đọc (Lesen)" onBack={() => router.back()} />
+      <AppHeader title={params.title ?? 'Bài thi'} subtitle="Phần Đọc (Lesen)" onBack={handleBack} />
 
       {isLoading ? (
         <View style={{ paddingHorizontal: space[5], gap: space[3], paddingTop: space[2] }}>

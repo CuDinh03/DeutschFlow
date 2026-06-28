@@ -11,13 +11,13 @@ import {
   type LucideIcon,
 } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, SectionHeader, FadeIn } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, SectionHeader, FadeIn, ErrorState } from '@/components/ui'
 import { skillTreeApi, type SkillNode } from '@/lib/skillTreeApi'
 
 type StatusTone = 'success' | 'accent' | 'info'
 
 export default function LearnScreen() {
-  const { data: nodes = [], refetch, isFetching } = useQuery({
+  const { data: nodes = [], refetch, isFetching, isError } = useQuery({
     queryKey: ['skill-tree'],
     queryFn: () => skillTreeApi.getMySkillTree(),
     staleTime: 120_000,
@@ -37,6 +37,26 @@ export default function LearnScreen() {
     // model has no backend equivalent — hidden until reworked to the duration-based
     // /api/teacher-sessions flow. See docs reconciliation §book-session.
   ]
+
+  if (isError && nodes.length === 0) {
+    return (
+      <Screen
+        scroll
+        edges={['top']}
+        contentStyle={{ paddingBottom: space[6] }}
+        refreshing={isFetching}
+        onRefresh={() => void refetch()}
+      >
+        <View style={{ paddingHorizontal: space[5], paddingTop: space[3], paddingBottom: space[2], gap: 2 }}>
+          <ThemedText variant="display">Học tập</ThemedText>
+          <ThemedText variant="body" color="muted">
+            Tiếp tục lộ trình của bạn
+          </ThemedText>
+        </View>
+        <ErrorState onRetry={() => void refetch()} />
+      </Screen>
+    )
+  }
 
   return (
     <Screen

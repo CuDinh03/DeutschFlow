@@ -1,10 +1,10 @@
-import { View, FlatList, Pressable, RefreshControl } from 'react-native'
+import { View, FlatList, Pressable, RefreshControl, Alert } from 'react-native'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { router } from 'expo-router'
 import { Bell, CheckCheck } from 'lucide-react-native'
 import { formatDistanceToNow } from 'date-fns'
 import { vi } from 'date-fns/locale'
-import api from '@/lib/api'
+import api, { apiMessage } from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, AppHeader, EmptyState, ErrorState, Skeleton } from '@/components/ui'
 import { mapNotification, type NotificationPage } from '@/lib/notificationsApi'
@@ -27,7 +27,9 @@ export default function NotificationsScreen() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['notifications'] })
       qc.invalidateQueries({ queryKey: ['dashboard'] })
+      qc.invalidateQueries({ queryKey: ['unread-count'] })
     },
+    onError: (e) => Alert.alert('Lỗi', apiMessage(e)),
   })
 
   const markOneRead = useMutation({
@@ -35,7 +37,9 @@ export default function NotificationsScreen() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['notifications'] })
       qc.invalidateQueries({ queryKey: ['dashboard'] })
+      qc.invalidateQueries({ queryKey: ['unread-count'] })
     },
+    onError: (e) => Alert.alert('Lỗi', apiMessage(e)),
   })
 
   return (

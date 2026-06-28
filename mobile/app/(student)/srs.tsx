@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { View, Pressable } from 'react-native'
+import { View, Pressable, Alert } from 'react-native'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Animated, {
   useSharedValue,
@@ -14,10 +14,10 @@ import { GestureDetector, Gesture } from 'react-native-gesture-handler'
 import * as Haptics from 'expo-haptics'
 import { router } from 'expo-router'
 import { RotateCcw, Check, X, Minus, PartyPopper } from 'lucide-react-native'
-import api from '@/lib/api'
+import api, { apiMessage } from '@/lib/api'
 import { trackFeatureAction } from '@/lib/analytics'
 import { radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, Pill, Button, ProgressBar, AppHeader, EmptyState, Skeleton } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, Pill, Button, ProgressBar, AppHeader, EmptyState, ErrorState, Skeleton } from '@/components/ui'
 import type { ThemeColors } from '@/lib/theme'
 
 interface DueCard {
@@ -39,7 +39,7 @@ export default function SrsScreen() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const queryClient = useQueryClient()
 
-  const { data: cards = [], isLoading, refetch } = useQuery({
+  const { data: cards = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['srs-due'],
     queryFn: () => api.get<DueCard[]>('/srs/due?limit=20').then((r) => r.data),
   })
@@ -71,6 +71,9 @@ export default function SrsScreen() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
     },
+    onError: (e) => {
+      Alert.alert('Lỗi', apiMessage(e))
+    },
   })
 
   const advance = useCallback(() => {
@@ -84,7 +87,7 @@ export default function SrsScreen() {
   const submitReview = useCallback(
     (quality: number) => {
       if (!currentCard) return
-      void reviewMutation.mutateAsync({ vocabId: currentCard.id, quality })
+      reviewMutation.mutate({ vocabId: currentCard.id, quality })
       advance()
     },
     [currentCard, reviewMutation, advance],
@@ -140,6 +143,17 @@ export default function SrsScreen() {
         <View style={{ paddingHorizontal: space[5], gap: space[4], paddingTop: space[2] }}>
           <Skeleton height={6} radius="full" />
           <Skeleton height={360} radius="3xl" />
+        </View>
+      </Screen>
+    )
+  }
+
+  if (isError) {
+    return (
+      <Screen edges={['top']}>
+        <AppHeader title="Ôn tập SRS" onBack={() => router.back()} />
+        <View style={{ flex: 1, justifyContent: 'center' }}>
+          <ErrorState onRetry={() => void refetch()} />
         </View>
       </Screen>
     )

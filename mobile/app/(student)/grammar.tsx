@@ -2,11 +2,11 @@ import { useState, useEffect, useRef } from 'react'
 import { View, Pressable } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router, type Href } from 'expo-router'
-import { ChevronDown, ChevronUp, Check, Film } from 'lucide-react-native'
+import { ChevronDown, ChevronUp, Check, Film, BookOpen } from 'lucide-react-native'
 import api from '@/lib/api'
 import { trackFeatureAction } from '@/lib/analytics'
 import { radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, Pill, AppHeader, SectionHeader, ErrorState, Skeleton } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, Pill, AppHeader, SectionHeader, EmptyState, ErrorState, Skeleton } from '@/components/ui'
 import { mapGrammarTopic, type RawGrammarTopic } from '@/lib/grammarApi'
 
 const CASES = [
@@ -202,7 +202,15 @@ export default function GrammarScreen() {
               </Card>
             ))}
           </>
-        ) : null}
+        ) : (
+          <View style={{ marginTop: space[4] }}>
+            <EmptyState
+              icon={BookOpen}
+              title="Chưa có bài học ngữ pháp"
+              message="Bảng cách vẫn xem được. Bài học ngữ pháp sẽ xuất hiện ở đây khi có nội dung."
+            />
+          </View>
+        )}
       </Screen>
     </Screen>
   )

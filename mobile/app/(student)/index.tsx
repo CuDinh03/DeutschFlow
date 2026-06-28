@@ -18,6 +18,7 @@ import {
   ListRow,
   SectionHeader,
   Skeleton,
+  ErrorState,
 } from '@/components/ui'
 
 // Only the fields the home actually uses from the (plan-oriented) dashboard.
@@ -38,7 +39,7 @@ export default function DashboardScreen() {
   const { user } = useAuthStore()
   const { isPro } = usePlanStore()
 
-  const { data, isLoading, refetch, isRefetching } = useQuery({
+  const { data, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ['dashboard'],
     queryFn: () => api.get<DashboardData>('/student/dashboard').then((r) => r.data),
     staleTime: 60_000,
@@ -143,6 +144,8 @@ export default function DashboardScreen() {
 
       {isLoading ? (
         <DashboardSkeleton />
+      ) : isError && !data ? (
+        <ErrorState onRetry={onRefresh} />
       ) : (
         <MotiView
           from={{ opacity: 0, translateY: 12 }}

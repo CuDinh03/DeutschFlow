@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Alert, FlatList, Pressable, RefreshControl, View } from 'react-native'
+import { Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, RefreshControl, View } from 'react-native'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { router } from 'expo-router'
 import {
@@ -266,59 +266,63 @@ function JoinClassModal({
         position: 'absolute',
         top: 0, left: 0, right: 0, bottom: 0,
         backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'flex-end',
       }}
     >
-      <Pressable
-        style={{ flex: 1 }}
-        accessibilityLabel="Đóng"
-        onPress={() => {
-          if (!mutation.isPending) onClose()
-        }}
-      />
-      <View
-        style={{
-          backgroundColor: theme.colors.surface,
-          borderTopLeftRadius: radius['2xl'],
-          borderTopRightRadius: radius['2xl'],
-          padding: space[5],
-          gap: space[4],
-        }}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1, justifyContent: 'flex-end' }}
       >
-        <View style={{ gap: space[1] }}>
-          <ThemedText variant="title">Tham gia lớp</ThemedText>
-          <ThemedText variant="body" color="secondary">
-            Nhập mã mời mà giáo viên đã gửi cho bạn. Yêu cầu sẽ được giáo viên duyệt.
-          </ThemedText>
-        </View>
-
-        <TextField
-          label="Mã mời"
-          value={code}
-          onChangeText={(t) => setCode(t.toUpperCase())}
-          autoCapitalize="characters"
-          autoCorrect={false}
-          placeholder="VD: ABC123"
-          editable={!mutation.isPending}
-          maxLength={32}
+        <Pressable
+          style={{ flex: 1 }}
+          accessibilityLabel="Đóng"
+          onPress={() => {
+            if (!mutation.isPending) onClose()
+          }}
         />
+        <View
+          style={{
+            backgroundColor: theme.colors.surface,
+            borderTopLeftRadius: radius['2xl'],
+            borderTopRightRadius: radius['2xl'],
+            padding: space[5],
+            gap: space[4],
+          }}
+        >
+          <View style={{ gap: space[1] }}>
+            <ThemedText variant="title">Tham gia lớp</ThemedText>
+            <ThemedText variant="body" color="secondary">
+              Nhập mã mời mà giáo viên đã gửi cho bạn. Yêu cầu sẽ được giáo viên duyệt.
+            </ThemedText>
+          </View>
 
-        <View style={{ flexDirection: 'row', gap: space[2] }}>
-          <Button
-            label="Huỷ"
-            variant="ghost"
-            onPress={onClose}
-            disabled={mutation.isPending}
-            style={{ flex: 1 }}
+          <TextField
+            label="Mã mời"
+            value={code}
+            onChangeText={(t) => setCode(t.toUpperCase())}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            placeholder="VD: ABC123"
+            editable={!mutation.isPending}
+            maxLength={32}
           />
-          <Button
-            label={mutation.isPending ? 'Đang gửi…' : 'Gửi yêu cầu'}
-            onPress={() => mutation.mutate()}
-            disabled={!code.trim() || mutation.isPending}
-            style={{ flex: 1 }}
-          />
+
+          <View style={{ flexDirection: 'row', gap: space[2] }}>
+            <Button
+              label="Huỷ"
+              variant="ghost"
+              onPress={onClose}
+              disabled={mutation.isPending}
+              style={{ flex: 1 }}
+            />
+            <Button
+              label={mutation.isPending ? 'Đang gửi…' : 'Gửi yêu cầu'}
+              onPress={() => mutation.mutate()}
+              disabled={!code.trim() || mutation.isPending}
+              style={{ flex: 1 }}
+            />
+          </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </View>
   )
 }

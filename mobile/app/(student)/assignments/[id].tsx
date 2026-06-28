@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { Alert, Linking, RefreshControl, ScrollView, View } from 'react-native'
+import {
+  Alert, KeyboardAvoidingView, Linking, Platform, RefreshControl, ScrollView, View,
+} from 'react-native'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { router, useLocalSearchParams } from 'expo-router'
 import {
@@ -81,25 +83,30 @@ export default function AssignmentDetail() {
   return (
     <Screen>
       <AppHeader title={a.topic || 'Chi tiết bài tập'} subtitle={typeLabel(a.assignmentType)} onBack={() => router.back()} />
-      <ScrollView
-        contentContainerStyle={{ paddingHorizontal: space[5], paddingBottom: space[8], gap: space[4] }}
-        refreshControl={<RefreshControl refreshing={detailQ.isRefetching} onRefresh={() => void detailQ.refetch()} />}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <MetaCard assignment={a} />
-        <DescriptionCard assignment={a} />
+        <ScrollView
+          contentContainerStyle={{ paddingHorizontal: space[5], paddingBottom: space[8], gap: space[4] }}
+          refreshControl={<RefreshControl refreshing={detailQ.isRefetching} onRefresh={() => void detailQ.refetch()} />}
+          keyboardShouldPersistTaps="handled"
+        >
+          <MetaCard assignment={a} />
+          <DescriptionCard assignment={a} />
 
-        {pending && speaking && <SpeakingNotice />}
-        {pending && !speaking && (
-          <SubmitForm
-            content={content}
-            setContent={setContent}
-            loading={submitMut.isPending}
-            onSubmit={() => submitMut.mutate()}
-          />
-        )}
-        {!pending && <SubmissionView assignment={a} />}
-      </ScrollView>
+          {pending && speaking && <SpeakingNotice />}
+          {pending && !speaking && (
+            <SubmitForm
+              content={content}
+              setContent={setContent}
+              loading={submitMut.isPending}
+              onSubmit={() => submitMut.mutate()}
+            />
+          )}
+          {!pending && <SubmissionView assignment={a} />}
+        </ScrollView>
+      </KeyboardAvoidingView>
     </Screen>
   )
 }

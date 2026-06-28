@@ -85,10 +85,29 @@ export default function StudentClassDetail() {
         <HeaderCard detail={detail} />
         <ProgressStrip detail={detail} />
         <TabBar tab={tab} setTab={setTab} />
-        {tab === 'assignments' && <AssignmentsTab assignments={assignments} />}
-        {tab === 'grades' && <GradesTab assignments={assignments} />}
+        {tab === 'assignments' && (
+          <AssignmentsTab
+            assignments={assignments}
+            isError={assignmentsQ.isError}
+            onRetry={() => void assignmentsQ.refetch()}
+          />
+        )}
+        {tab === 'grades' && (
+          <GradesTab
+            assignments={assignments}
+            isError={assignmentsQ.isError}
+            onRetry={() => void assignmentsQ.refetch()}
+          />
+        )}
         {tab === 'teachers' && <TeachersTab teachers={detail.teachers} />}
-        {tab === 'progress' && <ProgressTab detail={detail} lessons={lessons} />}
+        {tab === 'progress' && (
+          <ProgressTab
+            detail={detail}
+            lessons={lessons}
+            isError={lessonsQ.isError}
+            onRetry={() => void lessonsQ.refetch()}
+          />
+        )}
       </ScrollView>
     </Screen>
   )
@@ -247,7 +266,18 @@ function TabBar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
   )
 }
 
-function AssignmentsTab({ assignments }: { assignments: StudentAssignment[] }) {
+function AssignmentsTab({
+  assignments, isError, onRetry,
+}: { assignments: StudentAssignment[]; isError: boolean; onRetry: () => void }) {
+  if (assignments.length === 0 && isError) {
+    return (
+      <ErrorState
+        title="Không tải được bài tập"
+        message="Không thể tải danh sách bài tập của lớp. Vui lòng thử lại."
+        onRetry={onRetry}
+      />
+    )
+  }
   if (assignments.length === 0) {
     return (
       <EmptyState icon={BookOpen} title="Chưa có bài tập" message="Lớp này chưa có bài tập nào." />
@@ -293,11 +323,22 @@ function StatusPill({ status, score }: { status: string; score: number | null })
   return <Pill tone="danger" icon={AlertCircle} label="Chưa nộp" />
 }
 
-function GradesTab({ assignments }: { assignments: StudentAssignment[] }) {
+function GradesTab({
+  assignments, isError, onRetry,
+}: { assignments: StudentAssignment[]; isError: boolean; onRetry: () => void }) {
   const graded = useMemo(
     () => assignments.filter((a) => a.status === 'GRADED' || a.status === 'EVALUATED'),
     [assignments],
   )
+  if (assignments.length === 0 && isError) {
+    return (
+      <ErrorState
+        title="Không tải được điểm"
+        message="Không thể tải danh sách bài tập của lớp. Vui lòng thử lại."
+        onRetry={onRetry}
+      />
+    )
+  }
   if (graded.length === 0) {
     return <EmptyState icon={Sparkles} title="Chưa có điểm" message="Chưa có bài nào được chấm." />
   }
@@ -370,8 +411,17 @@ function TeachersTab({ teachers }: { teachers: TeacherSummary[] }) {
 }
 
 function ProgressTab({
-  detail, lessons,
-}: { detail: ClassroomDetail; lessons: ClassLesson[] }) {
+  detail, lessons, isError, onRetry,
+}: { detail: ClassroomDetail; lessons: ClassLesson[]; isError: boolean; onRetry: () => void }) {
+  if (lessons.length === 0 && isError) {
+    return (
+      <ErrorState
+        title="Không tải được tiến độ"
+        message="Không thể tải danh sách buổi học của lớp. Vui lòng thử lại."
+        onRetry={onRetry}
+      />
+    )
+  }
   if (lessons.length === 0) {
     return (
       <EmptyState

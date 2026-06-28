@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { View, Alert, Linking, Pressable, ActivityIndicator } from 'react-native'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { router, type Href } from 'expo-router'
@@ -10,7 +10,7 @@ import { speakingApi } from '@/lib/speakingApi'
 import { weeklyApi, rubricScore } from '@/lib/weeklyApi'
 import { radius, space, useTheme } from '@/lib/theme'
 import { PAYWALL_ENABLED } from '@/lib/paywall'
-import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, SectionHeader, Skeleton } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, ErrorState, SectionHeader, Skeleton } from '@/components/ui'
 import { usePlanStore } from '@/stores/usePlanStore'
 
 interface WeeklyPrompt {
@@ -33,7 +33,7 @@ export default function WeeklySpeakingScreen() {
   const c = theme.colors
   const { isPro } = usePlanStore()
 
-  const { data: prompt, isLoading: promptLoading, refetch: refetchPrompt, isFetching } = useQuery({
+  const { data: prompt, isLoading: promptLoading, isError: promptError, refetch: refetchPrompt, isFetching } = useQuery({
     queryKey: ['weekly-prompt'],
     queryFn: () =>
       api
@@ -88,6 +88,13 @@ export default function WeeklySpeakingScreen() {
       >
         {promptLoading ? (
           <Skeleton height={170} radius="2xl" />
+        ) : promptError ? (
+          <ErrorState
+            onRetry={() => {
+              void refetchPrompt()
+              void refetchHistory()
+            }}
+          />
         ) : prompt ? (
           <Card style={{ borderColor: c.info + '66' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], marginBottom: space[3] }}>
@@ -165,6 +172,25 @@ function WeeklyRecorder({ promptId, cefrBand }: { promptId: number; cefrBand: st
   const [score, setScore] = useState<number | null>(null)
   const [summary, setSummary] = useState<string | null>(null)
   const [recording, setRecording] = useState<Audio.Recording | null>(null)
+  // Mirror the active recording in a ref so the unmount cleanup reaches the
+  // current instance without re-running (and tearing down) on every state change.
+  const recordingRef = useRef<Audio.Recording | null>(null)
+
+  // Stop & unload any in-progress recording on unmount so navigating away
+  // mid-record doesn't leak the mic or leave iOS stuck in record mode.
+  useEffect(() => {
+    return () => {
+      const active = recordingRef.current
+      if (!active) return
+      recordingRef.current = null
+      active
+        .stopAndUnloadAsync()
+        .catch(() => {})
+        .finally(() => {
+          void Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true }).catch(() => {})
+        })
+    }
+  }, [])
 
   async function start() {
     try {
@@ -187,6 +213,7 @@ function WeeklyRecorder({ promptId, cefrBand }: { promptId: number; cefrBand: st
       }
       await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true })
       const { recording: rec } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY)
+      recordingRef.current = rec
       setRecording(rec)
       setPhase('recording')
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
@@ -203,6 +230,7 @@ function WeeklyRecorder({ promptId, cefrBand }: { promptId: number; cefrBand: st
       // Leave iOS record mode so other screens' TTS plays from the speaker, not the earpiece.
       await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true })
       const uri = recording.getURI()
+      recordingRef.current = null
       setRecording(null)
       if (!uri) throw new Error('no_uri')
       const transcript = await speakingApi.transcribe(uri)
