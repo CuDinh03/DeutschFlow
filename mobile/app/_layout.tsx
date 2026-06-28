@@ -8,23 +8,19 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import {
-  useFonts as useSora,
-  Sora_600SemiBold,
-  Sora_700Bold,
-  Sora_800ExtraBold,
-} from '@expo-google-fonts/sora'
+  useFonts as useSerif,
+  Newsreader_400Regular,
+  Newsreader_500Medium,
+  Newsreader_600SemiBold,
+  Newsreader_700Bold,
+} from '@expo-google-fonts/newsreader'
 import {
-  useFonts as useJakarta,
-  PlusJakartaSans_400Regular,
-  PlusJakartaSans_500Medium,
-  PlusJakartaSans_600SemiBold,
-  PlusJakartaSans_700Bold,
-} from '@expo-google-fonts/plus-jakarta-sans'
-import {
-  useFonts as useMono,
-  JetBrainsMono_500Medium,
-  JetBrainsMono_700Bold,
-} from '@expo-google-fonts/jetbrains-mono'
+  useFonts as useSans,
+  InstrumentSans_400Regular,
+  InstrumentSans_500Medium,
+  InstrumentSans_600SemiBold,
+  InstrumentSans_700Bold,
+} from '@expo-google-fonts/instrument-sans'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { useSrsOfflineStore } from '@/stores/useSrsOfflineStore'
@@ -127,15 +123,19 @@ function RootLayout() {
   const rootNavState = useRootNavigationState()
   const [splashDone, setSplashDone] = useState(false)
 
-  const [soraLoaded] = useSora({ Sora_600SemiBold, Sora_700Bold, Sora_800ExtraBold })
-  const [jakartaLoaded] = useJakarta({
-    PlusJakartaSans_400Regular,
-    PlusJakartaSans_500Medium,
-    PlusJakartaSans_600SemiBold,
-    PlusJakartaSans_700Bold,
+  const [serifLoaded] = useSerif({
+    Newsreader_400Regular,
+    Newsreader_500Medium,
+    Newsreader_600SemiBold,
+    Newsreader_700Bold,
   })
-  const [monoLoaded] = useMono({ JetBrainsMono_500Medium, JetBrainsMono_700Bold })
-  const fontsReady = soraLoaded && jakartaLoaded && monoLoaded
+  const [sansLoaded] = useSans({
+    InstrumentSans_400Regular,
+    InstrumentSans_500Medium,
+    InstrumentSans_600SemiBold,
+    InstrumentSans_700Bold,
+  })
+  const fontsReady = serifLoaded && sansLoaded
 
   // The animated splash holds until the app is genuinely ready: fonts loaded,
   // auth resolved, and the navigator mounted. This masks the cold-launch

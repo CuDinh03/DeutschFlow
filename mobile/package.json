@@ -32,7 +32,9 @@
     }
   },
   "dependencies": {
+    "@expo-google-fonts/instrument-sans": "^0.4.2",
     "@expo-google-fonts/jetbrains-mono": "^0.4.1",
+    "@expo-google-fonts/newsreader": "^0.4.1",
     "@expo-google-fonts/plus-jakarta-sans": "^0.4.2",
     "@expo-google-fonts/sora": "^0.4.2",
     "@gorhom/bottom-sheet": "^5.1.1",
