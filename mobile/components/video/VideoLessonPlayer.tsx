@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { View, Pressable } from 'react-native'
-import { Audio } from 'expo-av'
+import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio'
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, cancelAnimation } from 'react-native-reanimated'
 import { Play, Pause, ChevronLeft, ChevronRight } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
@@ -14,7 +14,7 @@ const MIN_SCENE_MS = 2500
  * Plays a learning-video timeline: each scene shows an image (crossfade + Ken Burns)
  * while its German narration plays, then auto-advances. When a scene has no narration
  * audio it is paced by `durationMs` instead. Audio streams straight from the scene's
- * S3 URL via expo-av (same approach as the AI-speaking screen).
+ * S3 URL via expo-audio (same approach as the AI-speaking screen).
  */
 export function VideoLessonPlayer({ timeline }: { timeline: VideoTimeline }) {
   const c = useTheme().colors
@@ -24,7 +24,7 @@ export function VideoLessonPlayer({ timeline }: { timeline: VideoTimeline }) {
   const [index, setIndex] = useState(0)
   const [playing, setPlaying] = useState(true)
 
-  const soundRef = useRef<Audio.Sound | null>(null)
+  const soundRef = useRef<AudioPlayer | null>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const opacity = useSharedValue(0)
@@ -47,19 +47,14 @@ export function VideoLessonPlayer({ timeline }: { timeline: VideoTimeline }) {
         timerRef.current = null
       }
     }
-    const stopSound = async () => {
+    const stopSound = () => {
       const s = soundRef.current
       soundRef.current = null
       if (!s) return
       try {
-        await s.stopAsync()
+        s.remove()
       } catch {
-        /* already stopped */
-      }
-      try {
-        await s.unloadAsync()
-      } catch {
-        /* already unloaded */
+        /* already released */
       }
     }
     const advance = () => {
@@ -83,16 +78,17 @@ export function VideoLessonPlayer({ timeline }: { timeline: VideoTimeline }) {
       if (cancelled) return
       if (scene.narrationAudioUrl) {
         try {
-          await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true })
-          const { sound } = await Audio.Sound.createAsync({ uri: scene.narrationAudioUrl }, { shouldPlay: true })
+          await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true })
+          const player = createAudioPlayer({ uri: scene.narrationAudioUrl })
           if (cancelled) {
-            await sound.unloadAsync()
+            player.remove()
             return
           }
-          soundRef.current = sound
-          sound.setOnPlaybackStatusUpdate((st) => {
-            if (st.isLoaded && st.didJustFinish) advance()
+          soundRef.current = player
+          player.addListener('playbackStatusUpdate', (st) => {
+            if (st.didJustFinish) advance()
           })
+          player.play()
           return
         } catch {
           /* narration unavailable — pace by duration instead */

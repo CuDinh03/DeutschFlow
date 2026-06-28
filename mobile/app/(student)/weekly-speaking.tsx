@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { View, Alert, Linking, Pressable, ActivityIndicator } from 'react-native'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { router, type Href } from 'expo-router'
-import { Audio } from 'expo-av'
+import { useAudioRecorder, AudioModule, RecordingPresets, setAudioModeAsync } from 'expo-audio'
 import * as Haptics from 'expo-haptics'
 import { Flame, Lock, Mic, Square, RotateCcw, ChevronRight } from 'lucide-react-native'
 import api, { apiMessage } from '@/lib/api'
@@ -171,31 +171,28 @@ function WeeklyRecorder({ promptId, cefrBand }: { promptId: number; cefrBand: st
   const [phase, setPhase] = useState<RecPhase>('idle')
   const [score, setScore] = useState<number | null>(null)
   const [summary, setSummary] = useState<string | null>(null)
-  const [recording, setRecording] = useState<Audio.Recording | null>(null)
-  // Mirror the active recording in a ref so the unmount cleanup reaches the
-  // current instance without re-running (and tearing down) on every state change.
-  const recordingRef = useRef<Audio.Recording | null>(null)
+  // expo-audio recorder (hook-based, stable across renders). `recorder.isRecording`
+  // + the `phase` state drive the UI and guards (replacing the old recording ref).
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY)
 
-  // Stop & unload any in-progress recording on unmount so navigating away
-  // mid-record doesn't leak the mic or leave iOS stuck in record mode.
+  // Stop any in-progress recording on unmount so navigating away mid-record doesn't
+  // leak the mic or leave iOS stuck in record mode.
   useEffect(() => {
     return () => {
-      const active = recordingRef.current
-      if (!active) return
-      recordingRef.current = null
-      active
-        .stopAndUnloadAsync()
+      if (!recorder.isRecording) return
+      void recorder
+        .stop()
         .catch(() => {})
         .finally(() => {
-          void Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true }).catch(() => {})
+          void setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => {})
         })
     }
-  }, [])
+  }, [recorder])
 
   async function start() {
     try {
       // Honour the permission result; route hard denial to Settings (iOS won't re-prompt).
-      const { status, canAskAgain } = await Audio.requestPermissionsAsync()
+      const { status, canAskAgain } = await AudioModule.requestRecordingPermissionsAsync()
       if (status !== 'granted') {
         if (!canAskAgain) {
           Alert.alert(
@@ -211,10 +208,9 @@ function WeeklyRecorder({ promptId, cefrBand }: { promptId: number; cefrBand: st
         }
         return
       }
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true })
-      const { recording: rec } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY)
-      recordingRef.current = rec
-      setRecording(rec)
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true })
+      await recorder.prepareToRecordAsync()
+      recorder.record()
       setPhase('recording')
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     } catch {
@@ -223,15 +219,13 @@ function WeeklyRecorder({ promptId, cefrBand }: { promptId: number; cefrBand: st
   }
 
   async function stopAndSubmit() {
-    if (!recording) return
+    if (phase !== 'recording') return
     setPhase('processing')
     try {
-      await recording.stopAndUnloadAsync()
+      await recorder.stop()
       // Leave iOS record mode so other screens' TTS plays from the speaker, not the earpiece.
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true })
-      const uri = recording.getURI()
-      recordingRef.current = null
-      setRecording(null)
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true })
+      const uri = recorder.uri
       if (!uri) throw new Error('no_uri')
       const transcript = await speakingApi.transcribe(uri)
       if (!transcript.trim()) throw new Error('empty')
