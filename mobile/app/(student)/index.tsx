@@ -19,6 +19,7 @@ import {
   SectionHeader,
   Skeleton,
   ErrorState,
+  Caption,
 } from '@/components/ui'
 
 // Only the fields the home actually uses from the (plan-oriented) dashboard.
@@ -96,10 +97,8 @@ export default function DashboardScreen() {
           paddingBottom: space[2],
         }}
       >
-        <View style={{ gap: 2 }}>
-          <ThemedText variant="caption" color="muted">
-            {greeting},
-          </ThemedText>
+        <View style={{ gap: 4 }}>
+          <Caption>{greeting},</Caption>
           <ThemedText variant="titleLg">{firstName}</ThemedText>
         </View>
         <Pressable onPress={() => router.push('/(student)/notifications')} hitSlop={8}>
@@ -133,8 +132,8 @@ export default function DashboardScreen() {
                   borderColor: theme.colors.bg,
                 }}
               >
-                <ThemedText variant="caption" style={{ color: '#FFF', fontSize: 10 }}>
-                  {Math.min(unread, 9)}
+                <ThemedText variant="caption" style={{ color: theme.colors.onBrand, fontSize: 10 }}>
+                  {unread > 9 ? '9+' : String(unread)}
                 </ThemedText>
               </View>
             ) : null}
@@ -153,29 +152,32 @@ export default function DashboardScreen() {
           transition={{ type: 'timing', duration: motion.duration.normal }}
         >
           <View style={{ paddingHorizontal: space[5], marginTop: space[3] }}>
-            {/* Streak hero — brand red, the day-one engagement metric */}
-            <Card>
+            {/* Streak hero — editorial ink card, the day-one engagement metric */}
+            <Card style={{ backgroundColor: theme.colors.inkSurface, borderColor: theme.colors.inkSurface }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[4] }}>
                 <View
                   style={{
                     width: 60,
                     height: 60,
-                    borderRadius: radius.xl,
-                    backgroundColor: theme.colors.brandSoft,
+                    borderRadius: radius.lg,
+                    backgroundColor: theme.colors.accentSoft,
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}
                 >
-                  <Icon icon={Flame} size={30} color="brand" fill />
+                  <Icon icon={Flame} size={30} color="accent" fill />
                 </View>
-                <View style={{ flex: 1, gap: 2 }}>
+                <View style={{ flex: 1, gap: 4 }}>
+                  <Caption color={theme.colors.accent}>Chuỗi học</Caption>
                   <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space[2] }}>
-                    <ThemedText variant="displayLg">{String(data?.streakDays ?? 0)}</ThemedText>
-                    <ThemedText variant="bodyStrong" color="secondary">
-                      ngày streak
+                    <ThemedText variant="displayLg" style={{ color: theme.colors.onInk }}>
+                      {String(data?.streakDays ?? 0)}
+                    </ThemedText>
+                    <ThemedText variant="bodyStrong" style={{ color: theme.colors.onInkMuted }}>
+                      ngày 🔥
                     </ThemedText>
                   </View>
-                  <ThemedText variant="caption" color="muted">
+                  <ThemedText variant="caption" style={{ color: theme.colors.onInkMuted }}>
                     Giữ lửa mỗi ngày để không mất chuỗi
                   </ThemedText>
                 </View>
@@ -193,7 +195,7 @@ export default function DashboardScreen() {
             <Card
               onPress={() => router.push('/(student)/srs')}
               bordered
-              style={{ marginHorizontal: space[5], marginTop: space[4], borderColor: theme.colors.accent + '4D' }}
+              style={{ marginHorizontal: space[5], marginTop: space[4], borderColor: theme.colors.accentSoft }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
@@ -254,7 +256,7 @@ export default function DashboardScreen() {
             <Card
               onPress={() => router.push('/(student)/upgrade')}
               elevation="lifted"
-              style={{ marginHorizontal: space[5], marginTop: space[6], borderColor: theme.colors.accent + '66' }}
+              style={{ marginHorizontal: space[5], marginTop: space[6], borderColor: theme.colors.accentSoft }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space[3] }}>
                 <View style={{ flex: 1, gap: space[1] }}>

@@ -48,6 +48,10 @@ export interface ThemeColors {
   der: string
   die: string
   das: string
+  // Ink surface (editorial dark hero cards) + its foregrounds
+  inkSurface: string
+  onInk: string
+  onInkMuted: string
   // Misc
   overlay: string
   skeletonBase: string
@@ -94,6 +98,9 @@ export const lightColors: ThemeColors = {
   der: '#2F6FC9', // blue
   die: '#DA291C', // red
   das: '#1E9E61', // green
+  inkSurface: '#161513', // editorial dark hero card
+  onInk: '#FBFAF7', // primary text on ink
+  onInkMuted: '#A39E94', // secondary text on ink
   overlay: 'rgba(22,21,19,0.45)',
   skeletonBase: '#EFEBE2',
   skeletonHighlight: '#F7F4ED',
