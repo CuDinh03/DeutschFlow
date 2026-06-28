@@ -13,8 +13,8 @@ import {
 } from '@/lib/studentClassesApi'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
-  AppHeader, Card, EmptyState, ErrorState, Icon, Pill, ProgressBar,
-  Screen, Skeleton, ThemedText,
+  AppHeader, Caption, Card, EmptyState, ErrorState, Icon, Pill, ProgressBar,
+  Screen, SectionHeader, Skeleton, ThemedText, YellowSquare,
 } from '@/components/ui'
 
 type Tab = 'assignments' | 'grades' | 'teachers' | 'progress'
@@ -113,6 +113,8 @@ export default function StudentClassDetail() {
   )
 }
 
+// Editorial ink hero — the "who teaches this class" primary fact, with the
+// invite-code as a hairline chip beneath it.
 function HeaderCard({ detail }: { detail: ClassroomDetail }) {
   const theme = useTheme()
   const c = theme.colors
@@ -124,12 +126,13 @@ function HeaderCard({ detail }: { detail: ClassroomDetail }) {
     }
   }
   return (
-    <Card>
-      <View style={{ gap: space[2] }}>
-        <ThemedText variant="caption" color="secondary">
-          Dạy bởi
-        </ThemedText>
-        <ThemedText variant="bodyStrong">
+    <Card style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface }}>
+      <View style={{ gap: space[3] }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+          <YellowSquare size={8} />
+          <Caption color={c.accent}>Dạy bởi</Caption>
+        </View>
+        <ThemedText variant="titleLg" style={{ color: c.onInk }}>
           {detail.teachers.length > 0
             ? detail.teachers.map((t) => t.displayName).join(', ')
             : 'Chưa có giáo viên'}
@@ -139,20 +142,23 @@ function HeaderCard({ detail }: { detail: ClassroomDetail }) {
           accessibilityLabel={`Chia sẻ mã mời ${detail.inviteCode}`}
           onPress={onShareCode}
           style={({ pressed }) => ({
-            marginTop: space[2],
+            marginTop: space[1],
             flexDirection: 'row',
             alignItems: 'center',
             gap: space[2],
-            backgroundColor: c.surfaceSunken,
-            borderRadius: radius.md,
+            borderWidth: 1,
+            borderColor: c.onInkMuted,
+            borderRadius: radius.sm,
             paddingHorizontal: space[3],
             paddingVertical: space[2],
             alignSelf: 'flex-start',
             opacity: pressed ? 0.6 : 1,
           })}
         >
-          <Icon icon={Copy} size={12} color="muted" />
-          <ThemedText variant="caption">{detail.inviteCode}</ThemedText>
+          <Copy size={12} color={c.onInkMuted} strokeWidth={2} />
+          <ThemedText variant="caption" style={{ color: c.onInk, letterSpacing: 1 }}>
+            {detail.inviteCode}
+          </ThemedText>
         </Pressable>
       </View>
     </Card>
@@ -202,11 +208,9 @@ function ProgressCard({
   return (
     <Card style={{ flex: 1 }}>
       <View style={{ gap: space[1] }}>
-        <ThemedText variant="caption" color="secondary">
-          {label}
-        </ThemedText>
+        <Caption>{label}</Caption>
         <ThemedText variant="title">{value}</ThemedText>
-        <ThemedText variant="caption" color="secondary" numberOfLines={1}>
+        <ThemedText variant="caption" color="muted" numberOfLines={1}>
           {sub}
         </ThemedText>
         {typeof percent === 'number' && (
@@ -219,6 +223,8 @@ function ProgressCard({
   )
 }
 
+// Sharp editorial segmented control — UPPERCASE labels, active segment lifts to
+// the surface layer with a yellow underline mark.
 function TabBar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
   const theme = useTheme()
   const c = theme.colors
@@ -233,8 +239,11 @@ function TabBar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
       style={{
         flexDirection: 'row',
         backgroundColor: c.surfaceSunken,
-        borderRadius: radius.lg,
+        borderRadius: radius.sm,
+        borderWidth: 1,
+        borderColor: c.border,
         padding: 4,
+        gap: 4,
       }}
     >
       {tabs.map((t) => {
@@ -249,16 +258,15 @@ function TabBar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
               flex: 1,
               paddingVertical: space[2],
               backgroundColor: active ? c.surface : 'transparent',
-              borderRadius: radius.md,
+              borderRadius: radius.sm,
+              borderWidth: active ? 1 : 0,
+              borderColor: c.border,
               alignItems: 'center',
+              gap: 4,
             }}
           >
-            <ThemedText
-              variant="caption"
-              color={active ? 'primary' : 'secondary'}
-            >
-              {t.label}
-            </ThemedText>
+            <Caption color={active ? c.textPrimary : c.textMuted}>{t.label}</Caption>
+            {active ? <YellowSquare size={5} /> : null}
           </Pressable>
         )
       })}
@@ -284,31 +292,35 @@ function AssignmentsTab({
     )
   }
   return (
-    <View style={{ gap: space[2] }}>
-      {assignments.map((a) => (
-        <Card
-          key={a.id}
-          onPress={() => router.push(`/(student)/assignments/${a.assignmentId}` as never)}
-          accessibilityLabel={`Mở bài tập ${a.topic || 'bài tập'}`}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[3] }}>
-            <View style={{ flex: 1, gap: space[1] }}>
-              <ThemedText variant="bodyStrong" numberOfLines={1}>
-                {a.topic || 'Bài tập'}
-              </ThemedText>
-              {a.dueDate && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[1] }}>
-                  <Icon icon={Clock} size={11} color="muted" />
-                  <ThemedText variant="caption" color="secondary">
-                    Hạn {new Date(a.dueDate).toLocaleString('vi-VN')}
-                  </ThemedText>
-                </View>
-              )}
+    <View style={{ gap: space[4] }}>
+      <SectionHeader title="Bài tập của lớp" />
+      <View style={{ gap: space[2] }}>
+        {assignments.map((a) => (
+          <Card
+            key={a.id}
+            onPress={() => router.push(`/(student)/assignments/${a.assignmentId}` as never)}
+            accessibilityLabel={`Mở bài tập ${a.topic || 'bài tập'}`}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[3] }}>
+              <View style={{ flex: 1, gap: space[1] }}>
+                <Caption>Bài tập</Caption>
+                <ThemedText variant="title" numberOfLines={1}>
+                  {a.topic || 'Bài tập'}
+                </ThemedText>
+                {a.dueDate && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[1], marginTop: space[1] }}>
+                    <Icon icon={Clock} size={11} color="muted" />
+                    <ThemedText variant="caption" color="muted">
+                      Hạn {new Date(a.dueDate).toLocaleString('vi-VN')}
+                    </ThemedText>
+                  </View>
+                )}
+              </View>
+              <StatusPill status={a.status} score={a.teacherScore} />
             </View>
-            <StatusPill status={a.status} score={a.teacherScore} />
-          </View>
-        </Card>
-      ))}
+          </Card>
+        ))}
+      </View>
     </View>
   )
 }
@@ -326,6 +338,8 @@ function StatusPill({ status, score }: { status: string; score: number | null })
 function GradesTab({
   assignments, isError, onRetry,
 }: { assignments: StudentAssignment[]; isError: boolean; onRetry: () => void }) {
+  const theme = useTheme()
+  const c = theme.colors
   const graded = useMemo(
     () => assignments.filter((a) => a.status === 'GRADED' || a.status === 'EVALUATED'),
     [assignments],
@@ -343,29 +357,54 @@ function GradesTab({
     return <EmptyState icon={Sparkles} title="Chưa có điểm" message="Chưa có bài nào được chấm." />
   }
   return (
-    <View style={{ gap: space[2] }}>
-      {graded.map((a) => (
-        <Card key={a.id}>
-          <View style={{ gap: space[2] }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <ThemedText variant="bodyStrong" numberOfLines={1} style={{ flex: 1 }}>
-                {a.topic || 'Bài tập'}
-              </ThemedText>
-              {a.teacherScore != null && (
-                <Pill
-                  tone={a.teacherScore >= 8 ? 'success' : a.teacherScore >= 5 ? 'accent' : 'danger'}
-                  label={String(a.teacherScore)}
-                />
-              )}
-            </View>
-            {a.teacherFeedback && (
-              <ThemedText variant="caption" color="secondary">
-                {a.teacherFeedback}
-              </ThemedText>
-            )}
-          </View>
-        </Card>
-      ))}
+    <View style={{ gap: space[4] }}>
+      <SectionHeader title="Điểm đã chấm" />
+      <View style={{ gap: space[2] }}>
+        {graded.map((a) => {
+          const tone = a.teacherScore == null
+            ? 'accent'
+            : a.teacherScore >= 8 ? 'success' : a.teacherScore >= 5 ? 'accent' : 'danger'
+          const figColor = a.teacherScore == null
+            ? c.textPrimary
+            : a.teacherScore >= 8 ? c.success : a.teacherScore >= 5 ? c.accentText : c.danger
+          return (
+            <Card key={a.id}>
+              <View style={{ gap: space[2] }}>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: space[3] }}>
+                  <View style={{ flex: 1, gap: space[1] }}>
+                    <Caption>Bài tập</Caption>
+                    <ThemedText variant="title" numberOfLines={1}>
+                      {a.topic || 'Bài tập'}
+                    </ThemedText>
+                  </View>
+                  {a.teacherScore != null && (
+                    <View style={{ alignItems: 'center', gap: 2 }}>
+                      <ThemedText variant="displayLg" style={{ color: figColor }}>
+                        {String(a.teacherScore)}
+                      </ThemedText>
+                      <Pill tone={tone} label="Điểm" />
+                    </View>
+                  )}
+                </View>
+                {a.teacherFeedback && (
+                  <View
+                    style={{
+                      borderTopWidth: 1,
+                      borderTopColor: c.border,
+                      paddingTop: space[2],
+                    }}
+                  >
+                    <Caption>Nhận xét</Caption>
+                    <ThemedText variant="caption" color="secondary" style={{ marginTop: space[1] }}>
+                      {a.teacherFeedback}
+                    </ThemedText>
+                  </View>
+                )}
+              </View>
+            </Card>
+          )
+        })}
+      </View>
     </View>
   )
 }
@@ -376,36 +415,39 @@ function TeachersTab({ teachers }: { teachers: TeacherSummary[] }) {
     return <EmptyState icon={Users} title="Chưa có giáo viên" message="Lớp này chưa có giáo viên nào." />
   }
   return (
-    <View style={{ gap: space[2] }}>
-      {teachers.map((t) => (
-        <Card key={t.id}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-            <View
-              style={{
-                width: 48,
-                height: 48,
-                borderRadius: 24,
-                backgroundColor: theme.colors.accentSoft,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Icon icon={GraduationCap} size={20} color="accent" />
-            </View>
-            <View style={{ flex: 1, gap: space[1] }}>
-              <ThemedText variant="bodyStrong" numberOfLines={1}>
-                {t.displayName}
-              </ThemedText>
-              <ThemedText variant="caption" color="secondary" numberOfLines={1}>
-                {t.email}
-              </ThemedText>
-              <View style={{ flexDirection: 'row' }}>
-                <Pill tone="accent" label={t.role} />
+    <View style={{ gap: space[4] }}>
+      <SectionHeader title="Giáo viên phụ trách" />
+      <View style={{ gap: space[2] }}>
+        {teachers.map((t) => (
+          <Card key={t.id}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+              <View
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: radius.sm,
+                  backgroundColor: theme.colors.accentSoft,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Icon icon={GraduationCap} size={20} color="accent" />
+              </View>
+              <View style={{ flex: 1, gap: space[1] }}>
+                <ThemedText variant="bodyStrong" numberOfLines={1}>
+                  {t.displayName}
+                </ThemedText>
+                <ThemedText variant="caption" color="muted" numberOfLines={1}>
+                  {t.email}
+                </ThemedText>
+                <View style={{ flexDirection: 'row', marginTop: space[1] }}>
+                  <Pill tone="accent" label={t.role} />
+                </View>
               </View>
             </View>
-          </View>
-        </Card>
-      ))}
+          </Card>
+        ))}
+      </View>
     </View>
   )
 }
@@ -413,6 +455,8 @@ function TeachersTab({ teachers }: { teachers: TeacherSummary[] }) {
 function ProgressTab({
   detail, lessons, isError, onRetry,
 }: { detail: ClassroomDetail; lessons: ClassLesson[]; isError: boolean; onRetry: () => void }) {
+  const theme = useTheme()
+  const c = theme.colors
   if (lessons.length === 0 && isError) {
     return (
       <ErrorState
@@ -432,28 +476,33 @@ function ProgressTab({
     )
   }
   return (
-    <View style={{ gap: space[3] }}>
+    <View style={{ gap: space[4] }}>
       {detail.currentLessonTitle && (
-        <Card>
-          <View style={{ gap: space[1] }}>
-            <ThemedText variant="caption" color="accent">
-              Buổi hiện tại của lớp
+        <Card style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface }}>
+          <View style={{ gap: space[2] }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+              <YellowSquare size={8} />
+              <Caption color={c.accent}>Buổi hiện tại của lớp</Caption>
+            </View>
+            <ThemedText variant="title" style={{ color: c.onInk }}>
+              {detail.currentLessonTitle}
             </ThemedText>
-            <ThemedText variant="bodyStrong">{detail.currentLessonTitle}</ThemedText>
           </View>
         </Card>
       )}
-      <View style={{ gap: space[2] }}>
-        {lessons.map((l, idx) => (
-          <LessonRow key={l.id} lesson={l} index={idx} />
-        ))}
+      <View style={{ gap: space[3] }}>
+        <SectionHeader title="Lộ trình buổi học" />
+        <View style={{ gap: space[2] }}>
+          {lessons.map((l, idx) => (
+            <LessonRow key={l.id} lesson={l} index={idx} />
+          ))}
+        </View>
       </View>
     </View>
   )
 }
 
 function LessonRow({ lesson, index }: { lesson: ClassLesson; index: number }) {
-  const theme = useTheme()
   return (
     <Card tone={lesson.completed ? 'sunken' : 'surface'}>
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[3] }}>
@@ -463,16 +512,12 @@ function LessonRow({ lesson, index }: { lesson: ClassLesson; index: number }) {
           color={lesson.completed ? 'success' : 'muted'}
         />
         <View style={{ flex: 1, gap: space[1] }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-            <ThemedText variant="caption" color="secondary">
-              Buổi {index + 1}
-            </ThemedText>
-            <ThemedText variant="bodyStrong" style={{ flex: 1 }} numberOfLines={2}>
-              {lesson.title}
-            </ThemedText>
-          </View>
+          <Caption>Buổi {index + 1}</Caption>
+          <ThemedText variant="bodyStrong" numberOfLines={2}>
+            {lesson.title}
+          </ThemedText>
           {lesson.description ? (
-            <ThemedText variant="caption" color="secondary">
+            <ThemedText variant="caption" color="muted">
               {lesson.description}
             </ThemedText>
           ) : null}

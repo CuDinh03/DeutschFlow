@@ -1,15 +1,16 @@
 import { useState } from 'react'
 import { View, Pressable, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native'
 import { router } from 'expo-router'
-import { Check } from 'lucide-react-native'
+import { Check, Lock } from 'lucide-react-native'
 import { useMutation } from '@tanstack/react-query'
 import { useAuthStore } from '@/stores/useAuthStore'
 import api from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
-import { Screen, ThemedText, Icon, AppHeader, TextField } from '@/components/ui'
+import { Screen, ThemedText, Icon, AppHeader, TextField, Card, Caption } from '@/components/ui'
 
 export default function EditProfileScreen() {
   const theme = useTheme()
+  const c = theme.colors
   const { user, setUser } = useAuthStore()
   const [displayName, setDisplayName] = useState(user?.displayName ?? '')
 
@@ -38,6 +39,7 @@ export default function EditProfileScreen() {
       >
       <AppHeader
         title="Chỉnh sửa hồ sơ"
+        subtitle="Thông tin cá nhân"
         onBack={() => router.back()}
         right={
           <Pressable onPress={() => canSave && mutation.mutate(trimmed)} disabled={!canSave || mutation.isPending} hitSlop={8}>
@@ -50,57 +52,72 @@ export default function EditProfileScreen() {
         }
       />
 
-      <View style={{ paddingHorizontal: space[5], marginTop: space[4], gap: space[5] }}>
-        <View style={{ alignItems: 'center', gap: space[3] }}>
-          <View
-            style={{
-              width: 80,
-              height: 80,
-              borderRadius: radius.full,
-              backgroundColor: theme.colors.accent,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <ThemedText variant="displayLg" color="onAccent">
-              {initial}
-            </ThemedText>
+      <View style={{ paddingHorizontal: space[5], marginTop: space[4], gap: space[6] }}>
+        {/* Identity — editorial ink hero, mirroring the Home/Profile idiom */}
+        <Card style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[4] }}>
+            <View
+              style={{
+                width: 64,
+                height: 64,
+                borderRadius: radius.md,
+                backgroundColor: c.accent,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <ThemedText variant="displayLg" color="onAccent">
+                {initial}
+              </ThemedText>
+            </View>
+            <View style={{ flex: 1, gap: space[1] }}>
+              <Caption color={c.accent}>Đang chỉnh sửa</Caption>
+              <ThemedText variant="titleLg" style={{ color: c.onInk }} numberOfLines={1}>
+                {trimmed || user?.displayName || 'Hồ sơ của bạn'}
+              </ThemedText>
+              <ThemedText variant="caption" style={{ color: c.onInkMuted }} numberOfLines={1}>
+                {user?.email}
+              </ThemedText>
+            </View>
           </View>
-          <ThemedText variant="caption" color="muted">
-            {user?.email}
-          </ThemedText>
+        </Card>
+
+        {/* Display name */}
+        <View style={{ gap: space[2] }}>
+          <Caption>Tên hiển thị</Caption>
+          <TextField
+            value={displayName}
+            onChangeText={setDisplayName}
+            placeholder="Nhập tên của bạn"
+            autoFocus
+            returnKeyType="done"
+            onSubmitEditing={() => canSave && mutation.mutate(trimmed)}
+            error={tooShort ? 'Tên phải có ít nhất 2 ký tự.' : undefined}
+          />
         </View>
 
-        <TextField
-          label="Tên hiển thị"
-          value={displayName}
-          onChangeText={setDisplayName}
-          placeholder="Nhập tên của bạn"
-          autoFocus
-          returnKeyType="done"
-          onSubmitEditing={() => canSave && mutation.mutate(trimmed)}
-          error={tooShort ? 'Tên phải có ít nhất 2 ký tự.' : undefined}
-        />
-
+        {/* Email — locked field */}
         <View style={{ gap: space[2] }}>
-          <ThemedText variant="label" color="secondary">
-            Email
-          </ThemedText>
-          <View
-            style={{
-              backgroundColor: theme.colors.surface,
-              borderWidth: 1,
-              borderColor: theme.colors.border,
-              borderRadius: radius.lg,
-              paddingHorizontal: space[4],
-              paddingVertical: space[4],
-              opacity: 0.6,
-            }}
-          >
-            <ThemedText variant="bodyLg" color="muted">
+          <Caption>Email</Caption>
+          <Card tone="sunken" style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+            <View
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: radius.sm,
+                backgroundColor: c.surface,
+                borderWidth: 1,
+                borderColor: c.border,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Icon icon={Lock} size={16} color="muted" />
+            </View>
+            <ThemedText variant="bodyLg" color="muted" style={{ flex: 1 }} numberOfLines={1}>
               {user?.email}
             </ThemedText>
-          </View>
+          </Card>
           <ThemedText variant="caption" color="muted">
             Email không thể thay đổi từ ứng dụng.
           </ThemedText>
