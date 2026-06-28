@@ -2,12 +2,12 @@ import { useState } from 'react'
 import { View, Pressable } from 'react-native'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { router, type Href } from 'expo-router'
-import { Trophy, Clock, Target, Lock, ChevronRight } from 'lucide-react-native'
+import { Trophy, Clock, Lock, ChevronRight } from 'lucide-react-native'
 import { Alert } from 'react-native'
 import api, { apiMessage } from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
 import { PAYWALL_ENABLED } from '@/lib/paywall'
-import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, ErrorState, SectionHeader, Skeleton } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, ErrorState, SectionHeader, Skeleton, Caption } from '@/components/ui'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { mapExam, examApi, type RawMockExam, type ExamVariant, type ExamAttempt } from '@/lib/examApi'
 import { trackFeatureAction } from '@/lib/analytics'
@@ -75,28 +75,32 @@ export default function ExamScreen() {
       <AppHeader title="Thi thử Goethe" onBack={() => router.back()} />
 
       {isPro ? (
-        <View style={{ flexDirection: 'row', gap: space[2], paddingHorizontal: space[5], paddingVertical: space[3] }}>
-          {EXAM_LEVELS.map((lv) => {
-            const active = level === lv
-            return (
-              <Pressable
-                key={lv}
-                onPress={() => setLevel(lv)}
-                style={{
-                  paddingHorizontal: space[4],
-                  paddingVertical: space[2],
-                  borderRadius: radius.full,
-                  borderWidth: 1,
-                  borderColor: active ? theme.colors.accent : theme.colors.border,
-                  backgroundColor: active ? theme.colors.accentSoft : theme.colors.surface,
-                }}
-              >
-                <ThemedText variant="label" color={active ? 'accent' : 'secondary'}>
-                  {lv}
-                </ThemedText>
-              </Pressable>
-            )
-          })}
+        <View style={{ paddingHorizontal: space[5], paddingTop: space[2], paddingBottom: space[3], gap: space[2] }}>
+          <Caption>Cấp độ</Caption>
+          <View style={{ flexDirection: 'row', gap: space[2] }}>
+            {EXAM_LEVELS.map((lv) => {
+              const active = level === lv
+              return (
+                <Pressable
+                  key={lv}
+                  onPress={() => setLevel(lv)}
+                  style={{
+                    flex: 1,
+                    alignItems: 'center',
+                    paddingVertical: space[2],
+                    borderRadius: radius.sm,
+                    borderWidth: 1,
+                    borderColor: active ? theme.colors.accentText : theme.colors.border,
+                    backgroundColor: active ? theme.colors.accentSoft : theme.colors.surface,
+                  }}
+                >
+                  <ThemedText variant="label" color={active ? 'accent' : 'secondary'}>
+                    {lv}
+                  </ThemedText>
+                </Pressable>
+              )
+            })}
+          </View>
         </View>
       ) : null}
 
@@ -128,6 +132,19 @@ export default function ExamScreen() {
             void refetchAttempts()
           }}
         >
+          {/* Orientation hero — editorial ink card framing the section (no data dependency) */}
+          <Card style={{ backgroundColor: theme.colors.inkSurface, borderColor: theme.colors.inkSurface }}>
+            <Caption color={theme.colors.accent}>Luyện đề chuẩn Goethe</Caption>
+            <ThemedText variant="title" style={{ color: theme.colors.onInk, marginTop: space[2] }}>
+              Thi thử như thi thật
+            </ThemedText>
+            <ThemedText variant="caption" style={{ color: theme.colors.onInkMuted, marginTop: space[1] }}>
+              Phần Đọc chấm tự động trên app; Nghe, Viết và Nói làm trên web.
+            </ThemedText>
+          </Card>
+
+          {variants.length > 0 ? <Caption style={{ marginTop: space[2] }}>Đề thi {level}</Caption> : null}
+
           {variants.length === 0 ? (
             <EmptyState icon={Trophy} title="Chưa có đề thi" message={`Chưa có đề thi ${level}. Thử cấp độ khác.`} />
           ) : null}
@@ -137,16 +154,23 @@ export default function ExamScreen() {
               <Card
                 key={variant.id}
                 onPress={() => handleStart(variant)}
-                style={{ borderColor: isRec ? theme.colors.accent + '66' : theme.colors.border }}
+                style={{ borderColor: isRec ? theme.colors.accentText : theme.colors.border }}
               >
                 {isRec ? <Pill label="Gợi ý cho bạn" tone="accent" style={{ marginBottom: space[3] }} /> : null}
-                <ThemedText variant="title" style={{ marginBottom: space[2] }}>
-                  {variant.title}
-                </ThemedText>
-                <View style={{ flexDirection: 'row', gap: space[4] }}>
-                  <MetaItem icon={Target} label={variant.cefrLevel} />
-                  {variant.totalQuestions > 0 ? <MetaItem icon={Trophy} label={`${variant.totalQuestions} câu`} /> : null}
-                  <MetaItem icon={Clock} label={`${variant.timeLimitMinutes} phút`} />
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[3] }}>
+                  <LevelBadge level={variant.cefrLevel} />
+                  <View style={{ flex: 1 }}>
+                    <ThemedText variant="title" style={{ marginBottom: space[2] }}>
+                      {variant.title}
+                    </ThemedText>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[4] }}>
+                      {variant.totalQuestions > 0 ? (
+                        <MetaItem icon={Trophy} label={`${variant.totalQuestions} câu`} />
+                      ) : null}
+                      <MetaItem icon={Clock} label={`${variant.timeLimitMinutes} phút`} />
+                    </View>
+                  </View>
+                  <Icon icon={ChevronRight} size={18} color="faint" />
                 </View>
               </Card>
             )
@@ -154,7 +178,7 @@ export default function ExamScreen() {
 
           {completedAttempts.length > 0 ? (
             <View style={{ marginTop: space[4], gap: space[2] }}>
-              <SectionHeader title="Lịch sử thi" />
+              <SectionHeader title="Lịch sử thi" eyebrow="Đã hoàn thành" />
               {completedAttempts.map((a) => (
                 <AttemptRow key={a.id} attempt={a} />
               ))}
@@ -203,13 +227,34 @@ function shortDate(iso: string | null): string {
   return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : ''
 }
 
-function MetaItem({ icon, label }: { icon: typeof Target; label: string }) {
+function MetaItem({ icon, label }: { icon: typeof Trophy; label: string }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[1] }}>
       <Icon icon={icon} size={13} color="muted" />
       <ThemedText variant="caption" color="muted">
         {label}
       </ThemedText>
+    </View>
+  )
+}
+
+// Editorial level chip — sharp paper square echoing the na-exam pack badge.
+function LevelBadge({ level }: { level: string }) {
+  const c = useTheme().colors
+  return (
+    <View
+      style={{
+        width: 46,
+        height: 46,
+        borderRadius: radius.sm,
+        backgroundColor: c.surfaceSunken,
+        borderWidth: 1,
+        borderColor: c.border,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <ThemedText variant="title">{level}</ThemedText>
     </View>
   )
 }

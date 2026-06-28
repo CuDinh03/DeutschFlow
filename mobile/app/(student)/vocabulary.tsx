@@ -8,7 +8,19 @@ import api from '@/lib/api'
 import { trackFeatureAction } from '@/lib/analytics'
 import { learningApi } from '@/lib/learningApi'
 import { fonts, radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, ErrorState, Skeleton } from '@/components/ui'
+import {
+  Screen,
+  Card,
+  ThemedText,
+  Icon,
+  Pill,
+  Caption,
+  YellowSquare,
+  AppHeader,
+  EmptyState,
+  ErrorState,
+  Skeleton,
+} from '@/components/ui'
 import { useDebounce } from '@/hooks/useDebounce'
 
 // Display shape used by WordRow.
@@ -83,7 +95,7 @@ export default function VocabularyScreen() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title="Từ vựng" onBack={() => router.back()} />
+      <AppHeader title="Từ vựng" subtitle="Wortschatz · Spaced repetition" onBack={() => router.back()} />
 
       <View
         style={{
@@ -91,11 +103,11 @@ export default function VocabularyScreen() {
           marginBottom: space[3],
           flexDirection: 'row',
           alignItems: 'center',
-          gap: space[2],
-          backgroundColor: c.surfaceSunken,
+          gap: space[3],
+          backgroundColor: c.surface,
           borderWidth: 1,
           borderColor: c.border,
-          borderRadius: radius.lg,
+          borderRadius: radius.md,
           paddingHorizontal: space[4],
           paddingVertical: space[3],
         }}
@@ -110,6 +122,7 @@ export default function VocabularyScreen() {
         />
       </View>
 
+      {/* Editorial filter chips — active filter takes a solid accent fill */}
       <View style={{ flexDirection: 'row', gap: space[2], paddingHorizontal: space[5], marginBottom: space[4] }}>
         {STATUS_FILTERS.map((f) => {
           const active = statusFilter === f
@@ -117,48 +130,65 @@ export default function VocabularyScreen() {
             <Pressable
               key={f}
               onPress={() => setStatusFilter(f)}
-              style={{
-                paddingHorizontal: space[3],
-                paddingVertical: 6,
-                borderRadius: radius.full,
-                backgroundColor: active ? c.accent : c.surfaceSunken,
-                borderWidth: active ? 0 : 1,
-                borderColor: c.border,
-              }}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
             >
-              <ThemedText variant="label" color={active ? 'onAccent' : 'muted'}>
-                {FILTER_LABEL[f]}
-              </ThemedText>
+              <Pill label={FILTER_LABEL[f]} tone={active ? 'accent' : 'neutral'} solid={active} />
             </Pressable>
           )
         })}
       </View>
 
-      <Pressable
+      {/* Video review entry — sharp paper card with the yellow-square motif */}
+      <Card
         onPress={() => router.push('/(student)/video-lesson' as unknown as Href)}
+        accessibilityLabel="Xem video ôn tập"
+        style={{ marginHorizontal: space[5], marginBottom: space[5], borderColor: c.accentSoft }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+          <View
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: radius.md,
+              backgroundColor: c.accentSoft,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Icon icon={Film} size={20} color="accent" />
+          </View>
+          <View style={{ flex: 1, gap: 3 }}>
+            <Caption color={c.accentText}>Video ôn tập</Caption>
+            <ThemedText variant="bodyStrong">Xem từ vựng qua hình ảnh</ThemedText>
+            <ThemedText variant="caption" color="muted">
+              Hình ảnh + lồng tiếng Đức theo cấp độ
+            </ThemedText>
+          </View>
+          <Icon icon={ChevronRight} size={18} color="muted" />
+        </View>
+      </Card>
+
+      {/* Section eyebrow over the word list */}
+      <View
         style={{
-          marginHorizontal: space[5],
-          marginBottom: space[4],
           flexDirection: 'row',
           alignItems: 'center',
-          gap: space[3],
-          backgroundColor: c.accentSoft,
-          borderRadius: radius.lg,
-          paddingHorizontal: space[4],
-          paddingVertical: space[3],
+          justifyContent: 'space-between',
+          paddingHorizontal: space[5],
+          marginBottom: space[3],
         }}
       >
-        <Icon icon={Film} size={20} color="accent" />
-        <View style={{ flex: 1 }}>
-          <ThemedText variant="bodyStrong" color="accent">
-            Xem video ôn tập
-          </ThemedText>
-          <ThemedText variant="caption" color="muted">
-            Hình ảnh + lồng tiếng Đức theo cấp độ
-          </ThemedText>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+          <YellowSquare size={8} />
+          <Caption>{statusFilter === 'ALL' ? 'Tất cả từ' : FILTER_LABEL[statusFilter]}</Caption>
         </View>
-        <Icon icon={ChevronRight} size={18} color="accent" />
-      </Pressable>
+        {!isLoading && !isError ? (
+          <ThemedText variant="caption" color="faint">
+            {words.length} từ
+          </ThemedText>
+        ) : null}
+      </View>
 
       {isLoading ? (
         <View style={{ paddingHorizontal: space[5], gap: space[2] }}>
@@ -212,23 +242,31 @@ function WordRow({ word }: { word: Word }) {
     }
   }
 
+  // German article shown as a serif colored glyph (der=info, die=danger, das=success).
+  const articleColor = word.gender ? c[word.gender] : c.textFaint
+
   return (
     <Card>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space[2] }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], flex: 1 }}>
-          {word.gender ? <Pill label={word.gender} tone={word.gender} /> : null}
-          <View style={{ flex: 1, gap: 2 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+        <ThemedText
+          style={{
+            width: 30,
+            fontFamily: fonts.displaySemi,
+            fontSize: 15,
+            color: articleColor,
+          }}
+        >
+          {word.gender ?? '—'}
+        </ThemedText>
+        <View style={{ flex: 1, gap: 2 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space[2] }}>
             <ThemedText variant="bodyStrong">{word.word}</ThemedText>
-            <ThemedText variant="caption" color="muted">
-              {word.translation}
-            </ThemedText>
+            {word.cefrLevel ? <Caption color={c.textFaint}>{word.cefrLevel}</Caption> : null}
           </View>
-        </View>
-        {word.cefrLevel ? (
-          <ThemedText variant="caption" color="faint">
-            {word.cefrLevel}
+          <ThemedText variant="caption" color="muted">
+            {word.translation}
           </ThemedText>
-        ) : null}
+        </View>
         <Pressable
           onPress={add}
           disabled={done || busy}
@@ -237,7 +275,7 @@ function WordRow({ word }: { word: Word }) {
             flexDirection: 'row',
             alignItems: 'center',
             gap: 4,
-            borderRadius: radius.full,
+            borderRadius: radius.sm,
             paddingHorizontal: space[3],
             paddingVertical: 6,
             backgroundColor: done ? c.successSoft : c.accentSoft,

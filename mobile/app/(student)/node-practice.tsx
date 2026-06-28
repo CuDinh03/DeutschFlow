@@ -7,7 +7,7 @@ import { Check, X, Eye, Trophy } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { trackFeatureAction } from '@/lib/analytics'
 import { fonts, radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, Pill, Button, AppHeader, EmptyState, ErrorState, Skeleton } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, Pill, Button, AppHeader, EmptyState, ErrorState, Skeleton, Caption } from '@/components/ui'
 import {
   skillTreeApi,
   isFillCorrect,
@@ -108,8 +108,8 @@ export default function NodePracticeScreen() {
 
       {isLoading ? (
         <View style={{ paddingHorizontal: space[5], gap: space[3], paddingTop: space[2] }}>
-          <Skeleton height={110} radius="2xl" />
-          <Skeleton height={110} radius="2xl" />
+          <Skeleton height={110} radius="md" />
+          <Skeleton height={110} radius="md" />
         </View>
       ) : isError ? (
         <ErrorState onRetry={() => void refetch()} />
@@ -124,21 +124,59 @@ export default function NodePracticeScreen() {
         >
         <Screen scroll edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[3], paddingTop: space[2] }}>
           {result ? (
-            <Card style={{ gap: space[2], borderColor: result.completed ? c.success + '66' : c.border }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <ThemedText variant="bodyStrong">{result.completed ? '🎉 Hoàn thành!' : 'Kết quả'}</ThemedText>
-                {scoredCount > 0 ? (
-                  <ThemedText variant="monoLg" color="accent">
-                    {result.correct}/{result.total}
+            result.completed ? (
+              // Completion = the climactic moment: editorial ink hero (mirrors Home).
+              <Card style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface, gap: space[3] }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Caption color={c.accent}>Hoàn thành chặng</Caption>
+                  {scoredCount > 0 ? (
+                    <ThemedText variant="monoLg" style={{ color: c.onInk }}>
+                      {result.correct}/{result.total}
+                    </ThemedText>
+                  ) : null}
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+                  <View
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: radius.md,
+                      backgroundColor: c.accentSoft,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Icon icon={Trophy} size={18} color="accent" fill />
+                  </View>
+                  <ThemedText variant="title" style={{ flex: 1, color: c.onInk }}>
+                    {`Tuyệt vời! +${result.xp} XP`}
                   </ThemedText>
-                ) : null}
-              </View>
-              <ThemedText variant="caption" color="muted">
-                {result.completed
-                  ? `Tuyệt vời! +${result.xp} XP. Bài học đã mở khoá bài tiếp theo.`
-                  : 'Cần đúng tất cả câu trắc nghiệm để hoàn thành. Xem đáp án bên dưới rồi thử lại.'}
-              </ThemedText>
-            </Card>
+                </View>
+                <ThemedText variant="caption" style={{ color: c.onInkMuted }}>
+                  Bài học đã mở khoá bài tiếp theo trên lộ trình.
+                </ThemedText>
+              </Card>
+            ) : (
+              <Card style={{ gap: space[2], borderColor: c.borderStrong }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Caption>Kết quả</Caption>
+                  {scoredCount > 0 ? (
+                    <ThemedText variant="monoLg" color="accent">
+                      {result.correct}/{result.total}
+                    </ThemedText>
+                  ) : null}
+                </View>
+                <ThemedText variant="caption" color="muted">
+                  Cần đúng tất cả câu trắc nghiệm để hoàn thành. Xem đáp án bên dưới rồi thử lại.
+                </ThemedText>
+              </Card>
+            )
+          ) : null}
+
+          {!result ? (
+            <Caption style={{ paddingHorizontal: space[1], paddingTop: space[1] }}>
+              {scoredCount > 0 ? `${exercises.length} bài tập` : 'Tự luyện'}
+            </Caption>
           ) : null}
 
           {exercises.map((ex, i) => (

@@ -2,15 +2,54 @@ import { View, FlatList, Pressable, RefreshControl, Alert } from 'react-native'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { router } from 'expo-router'
 import { Bell, CheckCheck } from 'lucide-react-native'
-import { formatDistanceToNow } from 'date-fns'
+import { formatDistanceToNow, isToday, isYesterday } from 'date-fns'
 import { vi } from 'date-fns/locale'
 import api, { apiMessage } from '@/lib/api'
-import { radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, AppHeader, EmptyState, ErrorState, Skeleton } from '@/components/ui'
-import { mapNotification, type NotificationPage } from '@/lib/notificationsApi'
+import { space, useTheme } from '@/lib/theme'
+import {
+  Screen,
+  Card,
+  ThemedText,
+  Icon,
+  Caption,
+  YellowSquare,
+  AppHeader,
+  EmptyState,
+  ErrorState,
+  Skeleton,
+} from '@/components/ui'
+import { mapNotification, notificationTypeLabel, type Notification, type NotificationPage } from '@/lib/notificationsApi'
+
+// Presentation-only: editorial date buckets (HÔM NAY / HÔM QUA / TRƯỚC ĐÓ)
+// derived from the already-fetched list. No extra fetch.
+type ListEntry =
+  | { kind: 'header'; key: string; label: string }
+  | { kind: 'item'; key: string; notif: Notification }
+
+function dateBucket(iso: string): string {
+  const d = new Date(iso)
+  if (isToday(d)) return 'Hôm nay'
+  if (isYesterday(d)) return 'Hôm qua'
+  return 'Trước đó'
+}
+
+function buildEntries(notifs: Notification[]): ListEntry[] {
+  const entries: ListEntry[] = []
+  let lastBucket: string | null = null
+  for (const notif of notifs) {
+    const bucket = dateBucket(notif.createdAt)
+    if (bucket !== lastBucket) {
+      entries.push({ kind: 'header', key: `h-${bucket}`, label: bucket })
+      lastBucket = bucket
+    }
+    entries.push({ kind: 'item', key: `n-${notif.id}`, notif })
+  }
+  return entries
+}
 
 export default function NotificationsScreen() {
   const theme = useTheme()
+  const c = theme.colors
   const qc = useQueryClient()
 
   const { data: notifs = [], isLoading, isError, refetch, isFetching } = useQuery({
@@ -42,6 +81,9 @@ export default function NotificationsScreen() {
     onError: (e) => Alert.alert('Lỗi', apiMessage(e)),
   })
 
+  const unreadCount = notifs.filter((n) => !n.isRead).length
+  const entries = buildEntries(notifs)
+
   return (
     <Screen edges={['top']}>
       <AppHeader
@@ -55,59 +97,82 @@ export default function NotificationsScreen() {
       />
       {isLoading ? (
         <View style={{ paddingHorizontal: space[5], gap: space[2] }}>
-          <Skeleton height={72} radius="lg" />
-          <Skeleton height={72} radius="lg" />
-          <Skeleton height={72} radius="lg" />
+          <Skeleton height={76} radius="md" />
+          <Skeleton height={76} radius="md" />
+          <Skeleton height={76} radius="md" />
         </View>
       ) : isError ? (
         <ErrorState onRetry={() => void refetch()} />
       ) : (
         <FlatList
-          data={notifs}
-          keyExtractor={(item) => String(item.id)}
-          contentContainerStyle={{ paddingHorizontal: space[5], paddingBottom: space[6], gap: space[2] }}
+          data={entries}
+          keyExtractor={(entry) => entry.key}
+          contentContainerStyle={{ paddingHorizontal: space[5], paddingBottom: space[6] }}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
               refreshing={isFetching && !isLoading}
               onRefresh={() => void refetch()}
-              tintColor={theme.colors.accent}
-              colors={[theme.colors.accent]}
+              tintColor={c.accent}
+              colors={[c.accent]}
             />
+          }
+          ListHeaderComponent={
+            notifs.length > 0 ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], paddingVertical: space[3] }}>
+                <YellowSquare size={9} />
+                <Caption>
+                  {unreadCount > 0 ? `${unreadCount} thông báo chưa đọc` : 'Tất cả đã đọc'}
+                </Caption>
+              </View>
+            ) : null
           }
           ListEmptyComponent={
             <EmptyState icon={Bell} title="Chưa có thông báo" message="Thông báo mới sẽ xuất hiện ở đây." />
           }
-          renderItem={({ item }) => (
-            <Card
-              bordered
-              onPress={item.isRead ? undefined : () => markOneRead.mutate(item.id)}
-              style={{ borderColor: item.isRead ? theme.colors.border : theme.colors.accent + '4D' }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[2] }}>
-                {!item.isRead ? (
-                  <View
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: radius.full,
-                      backgroundColor: theme.colors.accent,
-                      marginTop: 6,
-                    }}
-                  />
-                ) : null}
-                <View style={{ flex: 1, gap: 2 }}>
-                  <ThemedText variant="bodyStrong">{item.title}</ThemedText>
-                  <ThemedText variant="caption" color="secondary">
-                    {item.body}
-                  </ThemedText>
-                  <ThemedText variant="caption" color="faint" style={{ marginTop: 2 }}>
-                    {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true, locale: vi })}
-                  </ThemedText>
+          renderItem={({ item: entry }) => {
+            if (entry.kind === 'header') {
+              return (
+                <Caption color={c.textMuted} style={{ marginTop: space[4], marginBottom: space[2] }}>
+                  {entry.label}
+                </Caption>
+              )
+            }
+            const item = entry.notif
+            return (
+              <Card
+                bordered
+                onPress={item.isRead ? undefined : () => markOneRead.mutate(item.id)}
+                style={{
+                  marginBottom: space[2],
+                  borderColor: item.isRead ? c.border : c.accentSoft,
+                  backgroundColor: item.isRead ? c.surface : c.accentSoft,
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[3] }}>
+                  {!item.isRead ? (
+                    <YellowSquare size={9} style={{ marginTop: 5 }} />
+                  ) : (
+                    <View style={{ width: 9 }} />
+                  )}
+                  <View style={{ flex: 1, gap: 3 }}>
+                    <Caption color={item.isRead ? c.textFaint : c.accentText}>
+                      {notificationTypeLabel(item.type)}
+                    </Caption>
+                    <ThemedText variant="bodyStrong">{item.title}</ThemedText>
+                    {item.body ? (
+                      <ThemedText variant="caption" color="secondary">
+                        {item.body}
+                      </ThemedText>
+                    ) : null}
+                    <ThemedText variant="caption" color="faint" style={{ marginTop: 2 }}>
+                      {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true, locale: vi })}
+                    </ThemedText>
+                  </View>
                 </View>
-              </View>
-            </Card>
-          )}
+              </Card>
+            )
+          }}
         />
       )}
     </Screen>

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { View, Pressable, Alert } from 'react-native'
+import { View, Text, Pressable, Alert } from 'react-native'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Animated, {
   useSharedValue,
@@ -16,8 +16,8 @@ import { router } from 'expo-router'
 import { RotateCcw, Check, X, Minus, PartyPopper } from 'lucide-react-native'
 import api, { apiMessage } from '@/lib/api'
 import { trackFeatureAction } from '@/lib/analytics'
-import { radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, Pill, Button, ProgressBar, AppHeader, EmptyState, ErrorState, Skeleton } from '@/components/ui'
+import { fonts, radius, space, useTheme } from '@/lib/theme'
+import { Screen, ThemedText, Icon, ProgressBar, AppHeader, EmptyState, ErrorState, Skeleton, Caption, YellowSquare } from '@/components/ui'
 import type { ThemeColors } from '@/lib/theme'
 
 interface DueCard {
@@ -205,68 +205,167 @@ export default function SrsScreen() {
             style={[frontStyle, cardFaceStyle(c)]}
             onTouchEnd={() => { void flipCard() }}
           >
-            {genderTone ? <Pill label={currentCard.gender!} tone={genderTone} /> : null}
-            <ThemedText variant="displayLg" align="center" style={{ marginTop: space[4] }}>
-              {currentCard.word}
-            </ThemedText>
-            {currentCard.cefrLevel ? (
-              <ThemedText variant="caption" color="muted" style={{ marginTop: space[2] }}>
-                {currentCard.cefrLevel}
+            <View style={cardEyebrowStyle}>
+              <Caption color={c.textMuted}>Tiếng Đức</Caption>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: space[2], flexWrap: 'wrap' }}>
+              {genderTone ? (
+                <ThemedText variant="display" align="center" style={{ color: genderColor(c, genderTone) }}>
+                  {currentCard.gender}
+                </ThemedText>
+              ) : null}
+              <ThemedText variant="displayLg" align="center">
+                {currentCard.word}
               </ThemedText>
+            </View>
+            {currentCard.cefrLevel ? (
+              <View style={{ marginTop: space[4] }}>
+                <Caption color={c.textFaint}>{currentCard.cefrLevel}</Caption>
+              </View>
             ) : null}
-            <ThemedText variant="caption" color="faint" style={{ marginTop: space[6] }}>
-              Nhấn để lật thẻ
-            </ThemedText>
+            <View style={cardHintStyle}>
+              <ThemedText variant="caption" color="faint">
+                Chạm để xem nghĩa
+              </ThemedText>
+            </View>
           </Animated.View>
 
           <Animated.View
             style={[backStyle, cardFaceStyle(c)]}
             onTouchEnd={() => { void flipCard() }}
           >
-            <ThemedText variant="caption" color="muted">
-              Dịch nghĩa
-            </ThemedText>
-            <ThemedText variant="display" align="center" style={{ marginTop: space[2] }}>
+            <View style={cardEyebrowStyle}>
+              <Caption color={c.textMuted}>Nghĩa tiếng Việt</Caption>
+            </View>
+            <ThemedText variant="display" align="center">
               {currentCard.translation}
             </ThemedText>
             {currentCard.exampleSentence ? (
-              <Card tone="sunken" style={{ width: '100%', marginTop: space[6] }}>
-                <ThemedText variant="caption" color="muted">
-                  Ví dụ
-                </ThemedText>
-                <ThemedText variant="body" style={{ marginTop: space[1], fontStyle: 'italic' }}>
+              <View
+                style={{
+                  width: '100%',
+                  marginTop: space[6],
+                  paddingTop: space[5],
+                  borderTopWidth: 1,
+                  borderTopColor: c.border,
+                }}
+              >
+                <Caption color={c.textMuted}>Ví dụ</Caption>
+                <ThemedText variant="body" align="center" style={{ marginTop: space[2], fontStyle: 'italic' }}>
                   {currentCard.exampleSentence}
                 </ThemedText>
-              </Card>
+              </View>
             ) : null}
           </Animated.View>
         </Animated.View>
       </GestureDetector>
 
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: space[6], marginBottom: space[3] }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: space[6], marginBottom: space[4] }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[1] }}>
-          <Icon icon={X} size={14} color="danger" />
-          <ThemedText variant="caption" color="danger">
-            Khó (vuốt trái)
-          </ThemedText>
+          <Icon icon={X} size={13} color="danger" />
+          <Caption color={c.danger}>Vuốt trái · khó</Caption>
         </View>
+        <YellowSquare size={6} />
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[1] }}>
-          <Icon icon={Check} size={14} color="success" />
-          <ThemedText variant="caption" color="success">
-            Dễ (vuốt phải)
-          </ThemedText>
+          <Caption color={c.success}>Dễ · vuốt phải</Caption>
+          <Icon icon={Check} size={13} color="success" />
         </View>
       </View>
 
       {flipped ? (
-        <View style={{ flexDirection: 'row', gap: space[3], paddingHorizontal: space[5], marginBottom: space[6] }}>
-          <Button label="Quên" variant="danger" icon={X} style={{ flex: 1 }} onPress={() => submitReview(1)} />
-          <Button label="Khó" variant="secondary" icon={Minus} style={{ flex: 1 }} onPress={() => submitReview(3)} />
-          <Button label="Dễ" variant="primary" icon={Check} style={{ flex: 1 }} onPress={() => submitReview(5)} />
+        <View style={{ paddingHorizontal: space[5], marginBottom: space[6] }}>
+          <View style={{ marginBottom: space[3] }}>
+            <Caption>Mức độ nhớ</Caption>
+          </View>
+          <View style={{ flexDirection: 'row', gap: space[2] }}>
+            <GradeButton label="Quên" hint="< 1 phút" icon={X} tone="danger" onPress={() => submitReview(1)} />
+            <GradeButton label="Khó" hint="Ôn lại" icon={Minus} tone="neutral" onPress={() => submitReview(3)} />
+            <GradeButton label="Dễ" hint="Vài ngày" icon={Check} tone="success" onPress={() => submitReview(5)} />
+          </View>
         </View>
       ) : null}
     </Screen>
   )
+}
+
+function GradeButton({
+  label,
+  hint,
+  icon,
+  tone,
+  onPress,
+}: {
+  label: string
+  hint: string
+  icon: typeof Check
+  tone: 'danger' | 'neutral' | 'success'
+  onPress: () => void
+}) {
+  const c = useTheme().colors
+  const toneMap = {
+    danger: { soft: c.dangerSoft, fg: c.danger },
+    neutral: { soft: c.surfaceSunken, fg: c.textSecondary },
+    success: { soft: c.successSoft, fg: c.success },
+  } as const
+  const picked = toneMap[tone]
+
+  const handlePress = () => {
+    void Haptics.selectionAsync()
+    onPress()
+  }
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={handlePress}
+      style={{
+        flex: 1,
+        alignItems: 'center',
+        gap: space[1],
+        paddingVertical: space[3],
+        backgroundColor: picked.soft,
+        borderWidth: 1,
+        borderColor: picked.soft,
+        borderRadius: radius.md,
+      }}
+    >
+      <Icon icon={icon} size={18} color={tone === 'neutral' ? 'secondary' : tone} />
+      <ThemedText variant="bodyStrong" style={{ color: picked.fg }}>
+        {label}
+      </ThemedText>
+      <Text
+        style={{
+          fontFamily: fonts.bodyMedium,
+          fontSize: 10,
+          lineHeight: 13,
+          color: c.textFaint,
+        }}
+      >
+        {hint}
+      </Text>
+    </Pressable>
+  )
+}
+
+function genderColor(c: ThemeColors, tone: 'der' | 'die' | 'das') {
+  return c[tone]
+}
+
+const cardEyebrowStyle = {
+  position: 'absolute' as const,
+  top: space[6],
+  left: 0,
+  right: 0,
+  alignItems: 'center' as const,
+}
+
+const cardHintStyle = {
+  position: 'absolute' as const,
+  bottom: space[6],
+  left: 0,
+  right: 0,
+  alignItems: 'center' as const,
 }
 
 function cardFaceStyle(c: ThemeColors) {

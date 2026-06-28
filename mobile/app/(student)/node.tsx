@@ -4,7 +4,20 @@ import { useQuery } from '@tanstack/react-query'
 import { router, useLocalSearchParams, type Href } from 'expo-router'
 import { Lock, BookOpen, Sparkles, Quote, Star } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, Pill, Button, AppHeader, EmptyState, ErrorState, Skeleton } from '@/components/ui'
+import {
+  Screen,
+  Card,
+  ThemedText,
+  Icon,
+  Pill,
+  Button,
+  AppHeader,
+  Caption,
+  YellowSquare,
+  EmptyState,
+  ErrorState,
+  Skeleton,
+} from '@/components/ui'
 import {
   skillTreeApi,
   type TheoryCard,
@@ -30,6 +43,8 @@ export default function NodeScreen() {
   const empty = !content || data?.hasContent === false
   const exerciseCount =
     (content?.exercises?.theory_gate?.length ?? 0) + (content?.exercises?.practice?.length ?? 0)
+  const inProgress = data?.userStatus === 'IN_PROGRESS'
+  const done = data?.userStatus === 'COMPLETED'
 
   return (
     <Screen edges={['top']}>
@@ -41,8 +56,8 @@ export default function NodeScreen() {
 
       {isLoading ? (
         <View style={{ paddingHorizontal: space[5], gap: space[3], paddingTop: space[2] }}>
-          <Skeleton height={90} radius="2xl" />
-          <Skeleton height={140} radius="2xl" />
+          <Skeleton height={120} radius="md" />
+          <Skeleton height={140} radius="md" />
         </View>
       ) : isError ? (
         <ErrorState onRetry={() => void refetch()} />
@@ -55,17 +70,32 @@ export default function NodeScreen() {
           <EmptyState icon={BookOpen} title="Nội dung đang cập nhật" message="Bài học này chưa có nội dung trên app." />
         </View>
       ) : (
-        <Screen scroll edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[3], paddingTop: space[2] }}>
-          {/* Overview */}
+        <Screen scroll edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[5], paddingTop: space[2] }}>
+          {/* Overview — editorial ink hero: the lede + key reward for this lesson */}
           {content?.overview?.vi ? (
-            <Card>
-              <ThemedText variant="body" color="secondary">
+            <Card style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], marginBottom: space[3] }}>
+                <Pill label={done ? 'Đã hoàn thành' : inProgress ? 'Đang học' : 'Bắt đầu'} tone="accent" solid />
+                {data?.cefrLevel ? <Caption color={c.onInkMuted}>{data.cefrLevel}</Caption> : null}
+              </View>
+              <Caption color={c.accent}>Tổng quan</Caption>
+              <ThemedText variant="bodyLg" style={{ color: c.onInk, marginTop: 6 }}>
                 {content.overview.vi}
               </ThemedText>
               {data?.xpReward ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: space[3] }}>
-                  <Icon icon={Star} size={14} color="accent" fill />
-                  <ThemedText variant="caption" color="muted">
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: space[2],
+                    marginTop: space[4],
+                    paddingTop: space[3],
+                    borderTopWidth: 1,
+                    borderTopColor: c.accentSoft,
+                  }}
+                >
+                  <Icon icon={Star} size={15} color="accent" fill />
+                  <ThemedText variant="caption" style={{ color: c.onInkMuted }}>
                     +{data.xpReward} XP khi hoàn thành
                   </ThemedText>
                 </View>
@@ -84,7 +114,7 @@ export default function NodeScreen() {
 
           {/* Vocabulary */}
           {(content?.vocabulary?.length ?? 0) > 0 ? (
-            <Section icon={BookOpen} title={`Từ vựng (${content!.vocabulary!.length})`}>
+            <Section icon={BookOpen} title={`Từ vựng · ${content!.vocabulary!.length}`}>
               <Card style={{ gap: space[3] }}>
                 {content!.vocabulary!.map((v, i) => (
                   <VocabRow key={v.id ?? i} item={v} divider={i > 0} />
@@ -105,7 +135,7 @@ export default function NodeScreen() {
           ) : null}
 
           {exerciseCount > 0 ? (
-            <View style={{ gap: space[2], marginTop: space[2] }}>
+            <View style={{ gap: space[2] }}>
               <Button
                 label={`Bắt đầu luyện tập (${exerciseCount} câu)`}
                 onPress={() =>
@@ -128,12 +158,11 @@ export default function NodeScreen() {
 
 function Section({ icon, title, children }: { icon: typeof BookOpen; title: string; children: ReactNode }) {
   return (
-    <View style={{ gap: space[2] }}>
+    <View style={{ gap: space[3] }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-        <Icon icon={icon} size={16} color="accent" />
-        <ThemedText variant="label" color="muted">
-          {title}
-        </ThemedText>
+        <YellowSquare size={7} />
+        <Icon icon={icon} size={14} color="accent" />
+        <Caption>{title}</Caption>
       </View>
       {children}
     </View>
@@ -141,15 +170,21 @@ function Section({ icon, title, children }: { icon: typeof BookOpen; title: stri
 }
 
 function TheoryCardView({ card }: { card: TheoryCard }) {
+  const c = useTheme().colors
   const title = card.title?.vi ?? card.title?.de
   const body = card.content?.vi ?? card.content?.de
   return (
     <Card style={{ gap: space[2] }}>
-      {title ? <ThemedText variant="bodyStrong">{title}</ThemedText> : null}
+      {title ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+          <View style={{ width: 4, height: 18, borderRadius: radius.sm, backgroundColor: c.accent }} />
+          <ThemedText variant="title" style={{ flex: 1 }}>
+            {title}
+          </ThemedText>
+        </View>
+      ) : null}
       {card.title?.de && card.title?.vi ? (
-        <ThemedText variant="caption" color="faint">
-          {card.title.de}
-        </ThemedText>
+        <Caption color={c.textFaint}>{card.title.de}</Caption>
       ) : null}
       {body ? (
         <ThemedText variant="body" color="secondary">

@@ -2,22 +2,23 @@ import { useState } from 'react'
 import { View, Pressable } from 'react-native'
 import { router } from 'expo-router'
 import { MotiView } from 'moti'
-import { Sparkles, PlayCircle, ChevronDown, ArrowUpRight } from 'lucide-react-native'
+import { PlayCircle, ChevronDown, ArrowUpRight } from 'lucide-react-native'
 import { motion, radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, SectionHeader, FadeIn } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, Caption, SectionHeader, FadeIn } from '@/components/ui'
 import { useTourStore } from '@/stores/useTourStore'
 import { captureEvent } from '@/lib/analytics'
 import { GUIDE_ITEMS, FAQ, toneStyles, type GuideItem } from '@/components/guide/tourContent'
 
 export default function GuideScreen() {
-  const theme = useTheme()
+  const c = useTheme().colors
   const show = useTourStore((s) => s.show)
 
   return (
     <Screen scroll edges={['top']} contentStyle={{ paddingBottom: space[10] }}>
-      <View style={{ paddingHorizontal: space[5], paddingTop: space[4], gap: space[5] }}>
+      <View style={{ paddingHorizontal: space[5], paddingTop: space[4], gap: space[6] }}>
         <FadeIn>
-          <View style={{ gap: space[1] }}>
+          <View style={{ gap: space[2] }}>
+            <Caption>Sổ tay học viên</Caption>
             <ThemedText variant="display">Hướng dẫn</ThemedText>
             <ThemedText variant="body" color="muted">
               Tất cả những gì bạn cần để bắt đầu học hiệu quả
@@ -25,7 +26,7 @@ export default function GuideScreen() {
           </View>
         </FadeIn>
 
-        {/* Replay tour */}
+        {/* Replay tour — editorial ink hero for the primary action */}
         <FadeIn delay={60}>
           <Card
             onPress={() => {
@@ -33,35 +34,42 @@ export default function GuideScreen() {
               show()
             }}
             elevation="lifted"
-            style={{ borderColor: theme.colors.accent + '66' }}
+            accessibilityLabel="Xem lại hướng dẫn nhanh"
+            accessibilityHint="Chạy lại tour giới thiệu bốn tính năng chính"
+            style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface }}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[4] }}>
               <View
                 style={{
-                  width: 44,
-                  height: 44,
+                  width: 52,
+                  height: 52,
                   borderRadius: radius.lg,
-                  backgroundColor: theme.colors.accentSoft,
+                  backgroundColor: c.accentSoft,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
-                <Icon icon={Sparkles} size={22} color="accent" />
+                <Icon icon={PlayCircle} size={26} color="accent" />
               </View>
-              <View style={{ flex: 1, gap: 2 }}>
-                <ThemedText variant="bodyStrong">Xem lại hướng dẫn nhanh</ThemedText>
-                <ThemedText variant="caption" color="muted">
+              <View style={{ flex: 1, gap: space[1] }}>
+                <Caption color={c.accent}>Tour nhanh</Caption>
+                <ThemedText variant="title" style={{ color: c.onInk }}>
+                  Xem lại hướng dẫn nhanh
+                </ThemedText>
+                <ThemedText variant="caption" style={{ color: c.onInkMuted }}>
                   Chạy lại tour giới thiệu 4 tính năng chính
                 </ThemedText>
               </View>
-              <Icon icon={PlayCircle} size={24} color="accent" />
             </View>
           </Card>
         </FadeIn>
 
         {/* Feature catalogue */}
         <View>
-          <SectionHeader title="Các tính năng chính" />
+          <View style={{ gap: space[1], marginBottom: space[3] }}>
+            <Caption>Khám phá</Caption>
+            <ThemedText variant="titleLg">Các tính năng chính</ThemedText>
+          </View>
           <View style={{ gap: space[3] }}>
             {GUIDE_ITEMS.map((item, i) => (
               <FadeIn key={item.title} delay={100 + i * 40}>
@@ -73,7 +81,10 @@ export default function GuideScreen() {
 
         {/* FAQ */}
         <View>
-          <SectionHeader title="Câu hỏi thường gặp" />
+          <View style={{ gap: space[1], marginBottom: space[3] }}>
+            <Caption>Hỏi & Đáp</Caption>
+            <ThemedText variant="titleLg">Câu hỏi thường gặp</ThemedText>
+          </View>
           <Card padded={false} style={{ paddingHorizontal: space[4] }}>
             {FAQ.map((entry, i) => (
               <FaqRow key={entry.q} question={entry.q} answer={entry.a} divider={i > 0} />

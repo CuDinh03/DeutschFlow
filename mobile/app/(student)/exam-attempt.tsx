@@ -5,7 +5,19 @@ import { router, useLocalSearchParams, useNavigation, type Href } from 'expo-rou
 import { Check, BookOpen } from 'lucide-react-native'
 import api, { apiMessage } from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, Pill, Button, AppHeader, EmptyState, ErrorState, Skeleton } from '@/components/ui'
+import {
+  Screen,
+  Card,
+  ThemedText,
+  Icon,
+  Button,
+  AppHeader,
+  EmptyState,
+  ErrorState,
+  Skeleton,
+  Caption,
+  ProgressBar,
+} from '@/components/ui'
 import { parseLesenItems, type ExamObjItem } from '@/lib/examApi'
 import { trackFeatureAction } from '@/lib/analytics'
 
@@ -114,23 +126,54 @@ export default function ExamAttemptScreen() {
       ) : isError ? (
         <ErrorState onRetry={() => void refetch()} />
       ) : score != null ? (
-        <View style={{ flex: 1, justifyContent: 'center' }}>
-          <EmptyState
-            icon={Check}
-            title={`Bạn được ${score} điểm`}
-            message="Phần Đọc đã được chấm tự động. Phần Nghe, Viết và Nói làm trên web để có điểm đầy đủ."
-            actionLabel="Xem lại bài"
-            onAction={() =>
-              router.replace({
-                pathname: '/(student)/exam-review',
-                params: { attemptId: String(attemptId), title: params.title ?? 'Bài thi' },
-              } as unknown as Href)
-            }
-          />
-          <View style={{ alignItems: 'center', marginTop: space[3] }}>
-            <ThemedText variant="label" color="muted" onPress={() => router.back()}>
-              Xong
-            </ThemedText>
+        <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: space[5], gap: space[5] }}>
+          {/* Result hero — editorial ink card carrying the auto-scored Lesen result */}
+          <Card style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[4] }}>
+              <View
+                style={{
+                  width: 60,
+                  height: 60,
+                  borderRadius: radius.md,
+                  backgroundColor: c.accentSoft,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Icon icon={Check} size={30} color="accent" />
+              </View>
+              <View style={{ flex: 1, gap: 4 }}>
+                <Caption color={c.accent}>Phần Đọc · Đã chấm</Caption>
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space[2] }}>
+                  <ThemedText variant="displayLg" style={{ color: c.onInk }}>
+                    {String(score)}
+                  </ThemedText>
+                  <ThemedText variant="bodyStrong" style={{ color: c.onInkMuted }}>
+                    điểm
+                  </ThemedText>
+                </View>
+                <ThemedText variant="caption" style={{ color: c.onInkMuted }}>
+                  Nghe, Viết và Nói làm trên web để có điểm đầy đủ.
+                </ThemedText>
+              </View>
+            </View>
+          </Card>
+
+          <View style={{ gap: space[2] }}>
+            <Button
+              label="Xem lại bài"
+              onPress={() =>
+                router.replace({
+                  pathname: '/(student)/exam-review',
+                  params: { attemptId: String(attemptId), title: params.title ?? 'Bài thi' },
+                } as unknown as Href)
+              }
+            />
+            <View style={{ alignItems: 'center', marginTop: space[1] }}>
+              <ThemedText variant="label" color="muted" onPress={() => router.back()}>
+                Xong
+              </ThemedText>
+            </View>
           </View>
         </View>
       ) : !parsed || parsed.groups.length === 0 ? (
@@ -142,28 +185,42 @@ export default function ExamAttemptScreen() {
           />
         </View>
       ) : (
-        <Screen scroll edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[3], paddingTop: space[2] }}>
+        <Screen scroll edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[4], paddingTop: space[2] }}>
+          {/* Progress — answered / total, mirrors the run-view progress bar */}
+          <View style={{ gap: space[2] }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Caption>Tiến độ</Caption>
+              <ThemedText variant="monoLg" style={{ fontSize: 16, lineHeight: 20 }}>
+                {answeredCount}
+                <ThemedText variant="caption" color="faint">
+                  {' '}
+                  / {totalItems}
+                </ThemedText>
+              </ThemedText>
+            </View>
+            <ProgressBar value={totalItems > 0 ? answeredCount / totalItems : 0} height={6} />
+          </View>
+
+          {/* Editorial info banner */}
           <View
             style={{
               flexDirection: 'row',
               alignItems: 'center',
-              gap: space[2],
+              gap: space[3],
               backgroundColor: c.infoSoft,
               borderRadius: radius.md,
               padding: space[3],
             }}
           >
-            <Icon icon={BookOpen} size={16} color="info" />
+            <Icon icon={BookOpen} size={18} color="info" />
             <ThemedText variant="caption" color="info" style={{ flex: 1 }}>
               Phần Đọc trắc nghiệm. Nghe/Viết/Nói làm trên web để có điểm đầy đủ.
             </ThemedText>
           </View>
 
           {parsed.groups.map((group, gi) => (
-            <View key={gi} style={{ gap: space[2] }}>
-              <ThemedText variant="label" color="muted">
-                {group.title}
-              </ThemedText>
+            <View key={gi} style={{ gap: space[3] }}>
+              <Caption>{group.title}</Caption>
               {group.items.map((item) => (
                 <QuestionCard
                   key={item.id}
@@ -175,9 +232,6 @@ export default function ExamAttemptScreen() {
             </View>
           ))}
 
-          <ThemedText variant="caption" color="faint" align="center">
-            Đã trả lời {answeredCount}/{totalItems} câu
-          </ThemedText>
           <Button
             label={submitting ? 'Đang chấm…' : 'Nộp bài'}
             onPress={submit}
@@ -199,16 +253,27 @@ function QuestionCard({
   selected?: string
   onSelect: (val: string) => void
 }) {
+  const { colors } = useTheme()
   const choices = item.options ?? ['richtig', 'falsch']
   const labelFor = (v: string) => (v === 'richtig' ? 'Richtig' : v === 'falsch' ? 'Falsch' : v)
   return (
-    <Card style={{ gap: space[3] }}>
+    <Card style={{ gap: space[4] }}>
       {item.passage ? (
-        <ThemedText variant="caption" color="secondary">
-          {item.passage}
-        </ThemedText>
+        <View
+          style={{
+            gap: space[2],
+            backgroundColor: colors.surfaceSunken,
+            borderRadius: radius.md,
+            padding: space[3],
+          }}
+        >
+          <Caption>Đoạn văn</Caption>
+          <ThemedText variant="body" color="secondary">
+            {item.passage}
+          </ThemedText>
+        </View>
       ) : null}
-      <ThemedText variant="bodyStrong">{item.question}</ThemedText>
+      <ThemedText variant="title">{item.question}</ThemedText>
       <View style={{ gap: space[2] }}>
         {choices.map((choice) => (
           <Choice key={choice} label={labelFor(choice)} active={selected === choice} onPress={() => onSelect(choice)} />
@@ -222,34 +287,41 @@ function Choice({ label, active, onPress }: { label: string; active: boolean; on
   const { colors } = useTheme()
   return (
     <Pressable
+      accessibilityRole="radio"
+      accessibilityState={{ selected: active }}
       onPress={onPress}
       style={{
         flexDirection: 'row',
         alignItems: 'center',
-        gap: space[2],
-        borderWidth: 1,
+        gap: space[3],
+        borderWidth: active ? 2 : 1,
         borderColor: active ? colors.accent : colors.border,
         backgroundColor: active ? colors.accentSoft : colors.surface,
-        borderRadius: radius.md,
-        paddingHorizontal: space[3],
-        paddingVertical: space[3],
+        borderRadius: radius.sm,
+        paddingHorizontal: space[4],
+        // Compensate the +1px active border so rows don't shift height.
+        paddingVertical: active ? space[4] - 1 : space[4],
       }}
     >
       <View
         style={{
-          width: 20,
-          height: 20,
+          width: 22,
+          height: 22,
           borderRadius: radius.full,
           borderWidth: 2,
-          borderColor: active ? colors.accent : colors.border,
+          borderColor: active ? colors.accent : colors.borderStrong,
           backgroundColor: active ? colors.accent : 'transparent',
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        {active ? <Icon icon={Check} size={12} color="onAccent" /> : null}
+        {active ? <Icon icon={Check} size={13} color="onAccent" strokeWidth={3} /> : null}
       </View>
-      <ThemedText variant="body" color={active ? 'primary' : 'secondary'} style={{ flex: 1 }}>
+      <ThemedText
+        variant={active ? 'bodyStrong' : 'body'}
+        color={active ? 'primary' : 'secondary'}
+        style={{ flex: 1 }}
+      >
         {label}
       </ThemedText>
     </Pressable>
