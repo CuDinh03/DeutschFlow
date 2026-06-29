@@ -101,7 +101,12 @@ export default function DashboardScreen() {
           <Caption>{greeting},</Caption>
           <ThemedText variant="titleLg">{firstName}</ThemedText>
         </View>
-        <Pressable onPress={() => router.push('/(student)/notifications')} hitSlop={8}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={unread > 0 ? `Thông báo, ${unread} chưa đọc` : 'Thông báo'}
+          onPress={() => router.push('/(student)/notifications')}
+          hitSlop={8}
+        >
           <View
             style={{
               width: 44,

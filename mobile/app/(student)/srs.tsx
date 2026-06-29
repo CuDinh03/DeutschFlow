@@ -189,7 +189,7 @@ export default function SrsScreen() {
         title={`${currentIndex + 1} / ${cards.length}`}
         onBack={() => router.back()}
         right={
-          <Pressable onPress={() => { setCurrentIndex(0); void refetch() }} hitSlop={8}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Bắt đầu lại" onPress={() => { setCurrentIndex(0); void refetch() }} hitSlop={8}>
             <Icon icon={RotateCcw} size={20} color="secondary" />
           </Pressable>
         }

@@ -170,6 +170,8 @@ export default function GrammarScreen() {
                     </View>
                   </View>
                   <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Video: ${kasus.label}`}
                     onPress={() =>
                       router.push({
                         pathname: '/(student)/video-lesson',

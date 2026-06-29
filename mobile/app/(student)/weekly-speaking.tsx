@@ -286,6 +286,8 @@ function WeeklyRecorder({ promptId, cefrBand }: { promptId: number; cefrBand: st
           ) : null}
         </View>
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Ghi lại"
           onPress={() => {
             void Haptics.selectionAsync()
             reset()
@@ -304,6 +306,8 @@ function WeeklyRecorder({ promptId, cefrBand }: { promptId: number; cefrBand: st
   const isRec = phase === 'recording'
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={isRec ? 'Dừng và nộp bài' : 'Ghi âm trả lời'}
       onPress={isRec ? stopAndSubmit : start}
       style={{
         height: 52,

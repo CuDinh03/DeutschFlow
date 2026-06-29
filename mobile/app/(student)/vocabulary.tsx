@@ -131,6 +131,7 @@ export default function VocabularyScreen() {
               key={f}
               onPress={() => setStatusFilter(f)}
               accessibilityRole="button"
+              accessibilityLabel={FILTER_LABEL[f]}
               accessibilityState={{ selected: active }}
             >
               <Pill label={FILTER_LABEL[f]} tone={active ? 'accent' : 'neutral'} solid={active} />
@@ -268,6 +269,9 @@ function WordRow({ word }: { word: Word }) {
           </ThemedText>
         </View>
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={done ? 'Đã thuộc' : 'Đánh dấu đã thuộc'}
+          accessibilityState={{ disabled: done || busy }}
           onPress={add}
           disabled={done || busy}
           hitSlop={6}

@@ -42,7 +42,14 @@ export default function EditProfileScreen() {
         subtitle="Thông tin cá nhân"
         onBack={() => router.back()}
         right={
-          <Pressable onPress={() => canSave && mutation.mutate(trimmed)} disabled={!canSave || mutation.isPending} hitSlop={8}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Lưu thay đổi"
+            accessibilityState={{ disabled: !canSave || mutation.isPending }}
+            onPress={() => canSave && mutation.mutate(trimmed)}
+            disabled={!canSave || mutation.isPending}
+            hitSlop={8}
+          >
             {mutation.isPending ? (
               <ActivityIndicator size="small" color={theme.colors.accent} />
             ) : (

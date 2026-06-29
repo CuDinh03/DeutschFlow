@@ -90,7 +90,14 @@ export default function NotificationsScreen() {
         title="Thông báo"
         onBack={() => router.back()}
         right={
-          <Pressable onPress={() => markAllRead.mutate()} hitSlop={8} disabled={notifs.length === 0}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Đánh dấu tất cả đã đọc"
+            accessibilityState={{ disabled: notifs.length === 0 }}
+            onPress={() => markAllRead.mutate()}
+            hitSlop={8}
+            disabled={notifs.length === 0}
+          >
             <Icon icon={CheckCheck} size={22} color={notifs.length === 0 ? 'faint' : 'secondary'} />
           </Pressable>
         }

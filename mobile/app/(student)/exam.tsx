@@ -83,6 +83,9 @@ export default function ExamScreen() {
               return (
                 <Pressable
                   key={lv}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Cấp ${lv}`}
+                  accessibilityState={{ selected: active }}
                   onPress={() => setLevel(lv)}
                   style={{
                     flex: 1,

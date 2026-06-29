@@ -98,6 +98,8 @@ export default function ProfileScreen() {
                 <Pill label={plan?.tier ?? 'FREE'} tone={isPro ? 'accent' : 'neutral'} solid={isPro} />
                 {xp ? (
                   <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Cấp ${xp.level}, ${xp.totalXp} điểm kinh nghiệm. Xem thống kê`}
                     onPress={() => router.push('/(student)/stats')}
                     hitSlop={8}
                     style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}

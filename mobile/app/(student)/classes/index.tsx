@@ -313,6 +313,7 @@ function JoinClassModal({
       >
         <Pressable
           style={{ flex: 1 }}
+          accessibilityRole="button"
           accessibilityLabel="Đóng"
           onPress={() => {
             if (!mutation.isPending) onClose()

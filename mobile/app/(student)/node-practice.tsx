@@ -289,6 +289,9 @@ function McCard({
           return (
             <Pressable
               key={i}
+              accessibilityRole="button"
+              accessibilityLabel={opt}
+              accessibilityState={{ selected, disabled: submitted }}
               onPress={() => onChoice(i)}
               disabled={submitted}
               style={{
@@ -385,6 +388,8 @@ function RevealCard({ index, prompt, answer, kind }: { index: number; prompt?: s
         </ThemedText>
       ) : (
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Xem đáp án"
           onPress={() => setShown(true)}
           style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start' }}
         >
