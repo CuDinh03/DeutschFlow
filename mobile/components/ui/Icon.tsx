@@ -15,6 +15,7 @@ type IconColorRole =
   | 'danger'
   | 'info'
   | 'onAccent'
+  | 'onInk'
 
 interface IconProps {
   icon: LucideIcon
@@ -44,6 +45,7 @@ export function Icon({
     danger: theme.colors.danger,
     info: theme.colors.info,
     onAccent: theme.colors.onAccent,
+    onInk: theme.colors.onInk,
   }
 
   const resolved = colorMap[color]

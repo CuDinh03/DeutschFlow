@@ -15,6 +15,7 @@ type ColorRole =
   | 'danger'
   | 'info'
   | 'onAccent'
+  | 'onInk'
 
 interface ThemedTextProps extends TextProps {
   variant?: TypeVariant
@@ -42,6 +43,7 @@ export function ThemedText({
     danger: theme.colors.danger,
     info: theme.colors.info,
     onAccent: theme.colors.onAccent,
+    onInk: theme.colors.onInk,
   }
 
   return (
