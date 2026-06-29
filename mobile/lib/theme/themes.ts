@@ -44,6 +44,11 @@ export interface ThemeColors {
   dangerSoft: string
   info: string
   infoSoft: string
+  // Extended editorial hues (na-theme.jsx NA.violet/teal/orange) — teacher
+  // avatars, secondary categories, and the password-strength "medium" tier.
+  violet: string
+  teal: string
+  orange: string
   // German article genders
   der: string
   die: string
@@ -95,6 +100,9 @@ export const lightColors: ThemeColors = {
   dangerSoft: 'rgba(218,41,28,0.12)',
   info: '#2F6FC9',
   infoSoft: 'rgba(47,111,201,0.12)',
+  violet: '#7C56C8',
+  teal: '#11888A',
+  orange: '#E07B39',
   der: '#2F6FC9', // blue
   die: '#DA291C', // red
   das: '#1E9E61', // green
