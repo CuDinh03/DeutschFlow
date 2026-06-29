@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { View, Pressable } from 'react-native'
+import { View } from 'react-native'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { router, type Href } from 'expo-router'
 import { Trophy, Clock, Lock, ChevronRight } from 'lucide-react-native'
@@ -7,7 +7,7 @@ import { Alert } from 'react-native'
 import api, { apiMessage } from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
 import { PAYWALL_ENABLED } from '@/lib/paywall'
-import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, ErrorState, SectionHeader, Skeleton, Caption } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, ErrorState, SectionHeader, Skeleton, Caption, SelectableChip } from '@/components/ui'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { mapExam, examApi, type RawMockExam, type ExamVariant, type ExamAttempt } from '@/lib/examApi'
 import { trackFeatureAction } from '@/lib/analytics'
@@ -81,11 +81,10 @@ export default function ExamScreen() {
             {EXAM_LEVELS.map((lv) => {
               const active = level === lv
               return (
-                <Pressable
+                <SelectableChip
                   key={lv}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Cấp ${lv}`}
-                  accessibilityState={{ selected: active }}
+                  label={`Cấp ${lv}`}
+                  selected={active}
                   onPress={() => setLevel(lv)}
                   style={{
                     flex: 1,
@@ -100,7 +99,7 @@ export default function ExamScreen() {
                   <ThemedText variant="label" color={active ? 'accent' : 'secondary'}>
                     {lv}
                   </ThemedText>
-                </Pressable>
+                </SelectableChip>
               )
             })}
           </View>

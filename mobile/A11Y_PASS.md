@@ -22,7 +22,7 @@ Commits: `b11b76b4` (HIGH) · `aa042b2f` (MEDIUM sweep) · `d066a41a` (auth).
 
 `QA_SCREENS_AUDIT.md` khuyến nghị làm a11y **trong shared components** (extract `Chip`/`SelectableRow`, để `Pill` enforce 44pt) — đúng về DRY, nhưng audit được viết **trước** reskin v2. Lúc làm pass này, reskin đã xong 24/24 màn với inline style editorial. Extract primitive mới lúc này = phải khớp lại visual của 24 màn vừa style → rủi ro vỡ giao diện cao.
 
-Đánh đổi đã chọn: **thêm thuộc tính a11y tại chỗ** (0 rủi ro visual), tái dùng `IconButton`/`Card` (vốn đã centralize role/label/state) **chỉ khi markup đã sẵn vừa**. Việc extract `SelectableChip`/`SelectableRow` để DRY được **hoãn** (xem §6).
+Đánh đổi đã chọn: **thêm thuộc tính a11y tại chỗ** (0 rủi ro visual), tái dùng `IconButton`/`Card` (vốn đã centralize role/label/state) **chỉ khi markup đã sẵn vừa**. Việc extract `SelectableChip`/`SelectableRow` để DRY lúc đó được hoãn — **nay đã làm xong** (2026-06-29) theo cách presentation-only giữ style ở caller (xem §7.2).
 
 Nền tảng sẵn có (không cần sửa):
 - **`IconButton`** — role `button`, `accessibilityLabel` **bắt buộc ở type-level**, hint/state, `hitSlop` mặc định 8 (icon 22pt → ≥44pt). Primitive chuẩn cho icon-only button.
@@ -91,7 +91,7 @@ Audit liệt "open" vì snapshot **trước** pass đó → stale. Sweep xác nh
 Không thuộc screen-reader role/label, nên không nằm trong pass gốc:
 
 1. ✅ **Color-only meaning cho người nhìn (color-blind) — gần đủ.** Trạng thái selected/correct/status đã announce cho VoiceOver qua `accessibilityState`. Phần lớn các điểm cũng đã có **cue phi-màu (icon hình dạng)** từ reskin v2: roadmap status (`Check`/`YellowSquare`/`Lock`/dot theo state), exam-attempt radio selected (dấu `Check` trong vòng tròn), node-practice sau khi nộp (`Check` đúng / `X` sai), và **node-practice option đã chọn trước khi nộp** (đã vá 2026-06-29 `7b4c939f`: thêm `Check` accent — trước đó chỉ phân biệt bằng viền/nền accent). Còn yếu (chấp nhận được): notifications unread chỉ phân biệt bằng có/không `YellowSquare` + đổi nền — rà thêm các status/badge khác nếu mở rộng.
-2. ⏸️ **Extract `SelectableChip` / `SelectableRow` shared (DRY) — vẫn HOÃN (chủ đích).** Chip filter (video-lesson, exam, vocabulary) + radio (exam-attempt, node-practice) hiện là inline Pressable. **Không gom được sạch:** style từng màn KHÁC nhau thật sự (chip video-lesson ≠ chip exam ≠ option node-practice), nên một primitive chung hoặc phải nhận rất nhiều style-prop (lợi ích DRY thấp) hoặc phải đổi visual (vi phạm nguyên tắc 0-visual-regression). A11y (role/label/state/44pt) **đã đủ inline** → đây thuần tech-debt maintainability, **0 lợi ích cho người dùng**. Giữ hoãn tới khi reskin ổn định hẳn + có verify visual trên simulator; khi làm phải khớp editorial v2 1:1, presentation-only.
+2. ✅ **Extract `SelectableChip` / `SelectableRow` shared (DRY) — XONG 2026-06-29.** Hai primitive mới ở `components/ui/`: **`SelectableChip`** (chip filter/toggle: role `button` + label + `selected` + hitSlop mặc định 44pt-safe; bỏ `selected` cho action chip để không announce "not selected") và **`SelectableRow`** (option/radio: `role` cấu hình `button|radio` + label + `selected`/`disabled`). **Cách giữ 0-visual-regression:** primitive chỉ tập trung phần lặp (Pressable + a11y triple + 44pt), **style và children vẫn do caller truyền nguyên xi** → visual giống hệt by-construction (style từng màn vốn khác nhau nên không ép chung). Đã migrate 5 màn: video-lesson (4 chip + topic + export), exam (level chip), vocabulary (filter chip + mark-known), exam-attempt (radio), node-practice (option). Verify: `tsc` 0 · `jest` 18/18 · sweep 0 Pressable thiếu role. **Còn nợ: device-QA visual trên simulator** (xác nhận parity bằng mắt). Nút one-off không phải chip (vd "Xem đáp án") giữ `Pressable` inline.
 3. ✅ **`maxFontSizeMultiplier` policy (Dynamic Type) — XONG 2026-06-29.** Cap phóng chữ theo variant ở `lib/theme/tokens.ts` (`maxFontScale`), tiêu thụ trong `ThemedText` (per-variant: display/title serif cap chặt 1.25–1.4, body/label rộng hơn 1.5–1.6) + `Caption` (1.4) + `TextField` input (1.6 = bodyLg). Đặt trước `{...rest}` nên caller vẫn override được per-instance. Layout editorial v2 không vỡ khi user bật font lớn trong iOS Settings. (Verify device thật còn nợ — xem §8.)
 
 ---
@@ -139,4 +139,4 @@ done
 ---
 
 ## 9. Tài liệu liên quan
-`mobile/QA_SCREENS_AUDIT.md` (nguồn finding) · `mobile/SESSION_HANDOFF.md` (trạng thái deploy tổng) · `components/ui/IconButton.tsx` / `Card.tsx` (primitive a11y).
+`mobile/QA_SCREENS_AUDIT.md` (nguồn finding) · `mobile/SESSION_HANDOFF.md` (trạng thái deploy tổng) · `components/ui/IconButton.tsx` / `Card.tsx` / `SelectableChip.tsx` / `SelectableRow.tsx` (primitive a11y) · `lib/theme/tokens.ts` (`maxFontScale` — Dynamic Type caps).

@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { View, Pressable, ActivityIndicator, Alert, Share } from 'react-native'
+import { View, ActivityIndicator, Alert, Share } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router, useLocalSearchParams } from 'expo-router'
 import { Film, Download } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
-import { Screen, AppHeader, ThemedText, Icon, EmptyState, ErrorState } from '@/components/ui'
+import { Screen, AppHeader, ThemedText, Icon, EmptyState, ErrorState, SelectableChip } from '@/components/ui'
 import { apiMessage } from '@/lib/api'
 import { videoLessonApi } from '@/lib/videoLessonApi'
 import { VideoLessonPlayer } from '@/components/video/VideoLessonPlayer'
@@ -112,12 +112,10 @@ export default function VideoLessonScreen() {
             {LEVELS.map((lv) => {
               const active = !due && !listening && lv === level
               return (
-                <Pressable
+                <SelectableChip
                   key={lv}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Cấp ${lv}`}
-                  accessibilityState={{ selected: active }}
-                  hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                  label={`Cấp ${lv}`}
+                  selected={active}
                   onPress={() => {
                     setLevel(lv)
                     setDue(false)
@@ -135,14 +133,12 @@ export default function VideoLessonScreen() {
                   <ThemedText variant="label" color={active ? 'onAccent' : 'muted'}>
                     {lv}
                   </ThemedText>
-                </Pressable>
+                </SelectableChip>
               )
             })}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Tới hạn"
-              accessibilityState={{ selected: due }}
-              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+            <SelectableChip
+              label="Tới hạn"
+              selected={due}
               onPress={() => {
                 setDue(true)
                 setListening(false)
@@ -159,12 +155,10 @@ export default function VideoLessonScreen() {
               <ThemedText variant="label" color={due ? 'onAccent' : 'muted'}>
                 Tới hạn
               </ThemedText>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Hội thoại"
-              accessibilityState={{ selected: listening }}
-              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+            </SelectableChip>
+            <SelectableChip
+              label="Hội thoại"
+              selected={listening}
               onPress={() => {
                 setListening(true)
                 setDue(false)
@@ -181,14 +175,12 @@ export default function VideoLessonScreen() {
               <ThemedText variant="label" color={listening ? 'onAccent' : 'muted'}>
                 Hội thoại
               </ThemedText>
-            </Pressable>
+            </SelectableChip>
           </View>
 
           {mode === 'level' && !!data && data.scenes.length > 0 && (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Xuất video mp4"
-              accessibilityState={{ disabled: exporting }}
+            <SelectableChip
+              label="Xuất video mp4"
               onPress={() => void startExport()}
               disabled={exporting}
               hitSlop={8}
@@ -202,7 +194,7 @@ export default function VideoLessonScreen() {
               <ThemedText variant="label" color="accent">
                 {exporting ? 'Đang xuất…' : '.mp4'}
               </ThemedText>
-            </Pressable>
+            </SelectableChip>
           )}
         </View>
       )}
@@ -220,11 +212,10 @@ export default function VideoLessonScreen() {
           {LISTEN_TOPICS.map((t) => {
             const active = topic === t.de
             return (
-              <Pressable
+              <SelectableChip
                 key={t.de}
-                accessibilityRole="button"
-                accessibilityLabel={t.vi}
-                accessibilityState={{ selected: active }}
+                label={t.vi}
+                selected={active}
                 hitSlop={{ top: 10, bottom: 10, left: 4, right: 4 }}
                 onPress={() => setTopic(t.de)}
                 style={{
@@ -239,7 +230,7 @@ export default function VideoLessonScreen() {
                 <ThemedText variant="caption" color={active ? 'accent' : 'muted'}>
                   {t.vi}
                 </ThemedText>
-              </Pressable>
+              </SelectableChip>
             )
           })}
         </View>

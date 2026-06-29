@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { View, Pressable, Alert } from 'react-native'
+import { View, Alert } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router, useLocalSearchParams, useNavigation, type Href } from 'expo-router'
 import { Check, BookOpen } from 'lucide-react-native'
@@ -17,6 +17,7 @@ import {
   Skeleton,
   Caption,
   ProgressBar,
+  SelectableRow,
 } from '@/components/ui'
 import { parseLesenItems, type ExamObjItem } from '@/lib/examApi'
 import { trackFeatureAction } from '@/lib/analytics'
@@ -286,10 +287,10 @@ function QuestionCard({
 function Choice({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   const { colors } = useTheme()
   return (
-    <Pressable
-      accessibilityRole="radio"
-      accessibilityLabel={label}
-      accessibilityState={{ selected: active }}
+    <SelectableRow
+      role="radio"
+      label={label}
+      selected={active}
       onPress={onPress}
       style={{
         flexDirection: 'row',
@@ -325,6 +326,6 @@ function Choice({ label, active, onPress }: { label: string; active: boolean; on
       >
         {label}
       </ThemedText>
-    </Pressable>
+    </SelectableRow>
   )
 }

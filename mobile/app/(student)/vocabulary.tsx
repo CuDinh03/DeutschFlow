@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { View, TextInput, FlatList, Pressable, RefreshControl } from 'react-native'
+import { View, TextInput, FlatList, RefreshControl } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router, type Href } from 'expo-router'
 import * as Haptics from 'expo-haptics'
@@ -20,6 +20,7 @@ import {
   EmptyState,
   ErrorState,
   Skeleton,
+  SelectableChip,
 } from '@/components/ui'
 import { useDebounce } from '@/hooks/useDebounce'
 
@@ -127,15 +128,14 @@ export default function VocabularyScreen() {
         {STATUS_FILTERS.map((f) => {
           const active = statusFilter === f
           return (
-            <Pressable
+            <SelectableChip
               key={f}
+              label={FILTER_LABEL[f]}
+              selected={active}
               onPress={() => setStatusFilter(f)}
-              accessibilityRole="button"
-              accessibilityLabel={FILTER_LABEL[f]}
-              accessibilityState={{ selected: active }}
             >
               <Pill label={FILTER_LABEL[f]} tone={active ? 'accent' : 'neutral'} solid={active} />
-            </Pressable>
+            </SelectableChip>
           )
         })}
       </View>
@@ -268,10 +268,8 @@ function WordRow({ word }: { word: Word }) {
             {word.translation}
           </ThemedText>
         </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={done ? 'Đã thuộc' : 'Đánh dấu đã thuộc'}
-          accessibilityState={{ disabled: done || busy }}
+        <SelectableChip
+          label={done ? 'Đã thuộc' : 'Đánh dấu đã thuộc'}
           onPress={add}
           disabled={done || busy}
           hitSlop={6}
@@ -290,7 +288,7 @@ function WordRow({ word }: { word: Word }) {
           <ThemedText variant="label" color={done ? 'success' : 'accent'}>
             {done ? 'Đã học' : 'Học'}
           </ThemedText>
-        </Pressable>
+        </SelectableChip>
       </View>
     </Card>
   )

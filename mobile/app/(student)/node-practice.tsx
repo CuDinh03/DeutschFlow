@@ -7,7 +7,7 @@ import { Check, X, Eye, Trophy } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { trackFeatureAction } from '@/lib/analytics'
 import { fonts, radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, Pill, Button, AppHeader, EmptyState, ErrorState, Skeleton, Caption } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, Pill, Button, AppHeader, EmptyState, ErrorState, Skeleton, Caption, SelectableRow } from '@/components/ui'
 import {
   skillTreeApi,
   isFillCorrect,
@@ -287,13 +287,12 @@ function McCard({
           const border = submitted ? (isAnswer ? c.success : selected ? c.danger : c.border) : selected ? c.accent : c.border
           const bg = submitted ? (isAnswer ? c.successSoft : selected ? c.dangerSoft : c.surface) : selected ? c.accentSoft : c.surface
           return (
-            <Pressable
+            <SelectableRow
               key={i}
-              accessibilityRole="button"
-              accessibilityLabel={opt}
-              accessibilityState={{ selected, disabled: submitted }}
-              onPress={() => onChoice(i)}
+              label={opt}
+              selected={selected}
               disabled={submitted}
+              onPress={() => onChoice(i)}
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -313,7 +312,7 @@ function McCard({
               {!submitted && selected ? <Icon icon={Check} size={16} color="accent" /> : null}
               {submitted && isAnswer ? <Icon icon={Check} size={16} color="success" /> : null}
               {submitted && selected && !isAnswer ? <Icon icon={X} size={16} color="danger" /> : null}
-            </Pressable>
+            </SelectableRow>
           )
         })}
       </View>
