@@ -184,6 +184,9 @@ export default function ProfileScreen() {
         </Card>
 
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Xoá tài khoản"
+          accessibilityHint="Xoá vĩnh viễn tài khoản và toàn bộ dữ liệu, không thể hoàn tác"
           onPress={confirmDeleteAccount}
           hitSlop={8}
           style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space[2], paddingVertical: space[2] }}

@@ -288,6 +288,7 @@ function Choice({ label, active, onPress }: { label: string; active: boolean; on
   return (
     <Pressable
       accessibilityRole="radio"
+      accessibilityLabel={label}
       accessibilityState={{ selected: active }}
       onPress={onPress}
       style={{

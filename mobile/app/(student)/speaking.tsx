@@ -547,6 +547,9 @@ export default function SpeakingScreen() {
             <Card style={{ borderColor: c.accent + '99' }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
                 <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Tiếp tục buổi học"
+                  accessibilityState={{ disabled: resuming }}
                   onPress={() => void resumeSession(pendingResume)}
                   disabled={resuming}
                   style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[3] }}
@@ -573,7 +576,12 @@ export default function SpeakingScreen() {
                 {resuming ? (
                   <ActivityIndicator color={c.accent} />
                 ) : (
-                  <Pressable hitSlop={8} onPress={dismissResume}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Bỏ qua buổi học dang dở"
+                    hitSlop={8}
+                    onPress={dismissResume}
+                  >
                     <Icon icon={X} size={18} color="faint" />
                   </Pressable>
                 )}
@@ -605,7 +613,7 @@ export default function SpeakingScreen() {
           borderBottomColor: c.border,
         }}
       >
-        <Pressable hitSlop={8} onPress={handleClose}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Đóng" hitSlop={8} onPress={handleClose}>
           <Icon icon={X} size={22} color="muted" />
         </Pressable>
         <View style={{ flex: 1, gap: 2 }}>
@@ -620,6 +628,9 @@ export default function SpeakingScreen() {
           </ThemedText>
         </View>
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Kết thúc và xem đánh giá"
+          accessibilityState={{ disabled: finishing || userTurns === 0 }}
           hitSlop={8}
           onPress={() =>
             Alert.alert('Kết thúc phỏng vấn?', 'Bạn sẽ nhận được báo cáo đánh giá.', [
@@ -682,6 +693,9 @@ export default function SpeakingScreen() {
       >
         <Animated.View style={isRecording ? pulseStyle : undefined}>
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={isRecording ? 'Dừng ghi âm' : 'Ghi âm câu trả lời'}
+            accessibilityState={{ disabled: sending || finishing || transcribing }}
             onPress={isRecording ? stopRecordingAndTranscribe : startRecording}
             disabled={sending || finishing || transcribing}
             style={{
@@ -725,6 +739,9 @@ export default function SpeakingScreen() {
         />
 
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Gửi câu trả lời"
+          accessibilityState={{ disabled: !draft.trim() || busy }}
           onPress={() => void submitAnswer(draft)}
           disabled={!draft.trim() || busy}
           style={{

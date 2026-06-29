@@ -170,14 +170,14 @@ function NodeRow({ node, isLast }: { node: SkillNode; isLast: boolean }) {
   const isDone = node.status === 'COMPLETED'
   const isActive = node.status === 'IN_PROGRESS'
 
-  const onPress = isLocked
-    ? undefined
-    : () =>
-        router.push({
-          // Route exists; typed-route union regenerates on next `expo start`.
-          pathname: '/(student)/node',
-          params: { nodeId: String(node.id), title: node.title },
-        } as unknown as Href)
+  // VoiceOver status word so the marker icon's meaning isn't conveyed by colour/shape alone.
+  const statusText = isDone ? 'đã hoàn thành' : isActive ? 'đang học' : isLocked ? 'đã khoá' : 'sẵn sàng'
+  const onPress = () =>
+    router.push({
+      // Route exists; typed-route union regenerates on next `expo start`.
+      pathname: '/(student)/node',
+      params: { nodeId: String(node.id), title: node.title },
+    } as unknown as Href)
 
   // Timeline dot: ink (done), card + yellow ring (active), faint hairline (locked/available).
   const dotBg = isDone ? c.inkSurface : isActive ? c.surface : c.bg
@@ -219,6 +219,8 @@ function NodeRow({ node, isLast }: { node: SkillNode; isLast: boolean }) {
       <Card
         bordered
         onPress={onPress}
+        disabled={isLocked}
+        accessibilityLabel={`${node.title}, ngày ${node.dayNumber}, ${statusText}`}
         style={{
           flex: 1,
           marginLeft: space[3],

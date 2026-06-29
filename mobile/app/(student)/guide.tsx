@@ -157,6 +157,10 @@ function FaqRow({ question, answer, divider }: { question: string; answer: strin
   return (
     <View style={divider ? { borderTopWidth: 1, borderTopColor: theme.colors.border } : undefined}>
       <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={question}
+        accessibilityState={{ expanded: open }}
+        accessibilityHint="Nhấn để mở hoặc đóng câu trả lời"
         onPress={() => setOpen((v) => !v)}
         style={{
           flexDirection: 'row',
