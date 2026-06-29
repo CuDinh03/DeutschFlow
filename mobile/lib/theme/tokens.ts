@@ -66,6 +66,24 @@ export const type = {
 
 export type TypeVariant = keyof typeof type
 
+// Dynamic Type caps (iOS Settings → larger text). Per-variant so low-vision
+// users still get meaningful scaling without the editorial v2 layout breaking:
+// large serif display/titles are already big and overflow fastest, so they cap
+// tighter; body/label scale more generously where it matters most for reading.
+export const maxFontScale: Record<TypeVariant, number> = {
+  displayLg: 1.25,
+  display: 1.3,
+  titleLg: 1.35,
+  title: 1.4,
+  bodyLg: 1.6,
+  body: 1.6,
+  bodyStrong: 1.6,
+  label: 1.5,
+  caption: 1.5,
+  mono: 1.5,
+  monoLg: 1.3,
+}
+
 export const motion = {
   duration: { fast: 150, normal: 250, slow: 400 },
   spring: {

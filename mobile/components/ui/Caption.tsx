@@ -16,6 +16,9 @@ export function Caption({ children, color, style }: CaptionProps) {
   const c = useTheme().colors
   return (
     <Text
+      // Dynamic Type cap: eyebrow/overline text stays subordinate to titles even
+      // at large font settings, keeping the editorial v2 hierarchy intact.
+      maxFontSizeMultiplier={1.4}
       style={[
         {
           fontFamily: fonts.bodySemi,

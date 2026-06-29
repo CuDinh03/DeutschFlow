@@ -86,13 +86,13 @@ Audit liệt "open" vì snapshot **trước** pass đó → stale. Sweep xác nh
 
 ---
 
-## 7. Còn nợ (a11y mở rộng — chưa làm)
+## 7. Còn nợ (a11y mở rộng)
 
-Không thuộc screen-reader role/label, nên không nằm trong pass này:
+Không thuộc screen-reader role/label, nên không nằm trong pass gốc:
 
-1. **Color-only meaning cho người nhìn (color-blind).** Trạng thái selected/correct/status hiện đã announce cho VoiceOver qua `accessibilityState`. Phần lớn các điểm cũng đã có **cue phi-màu (icon hình dạng)** từ reskin v2: roadmap status (`Check`/`YellowSquare`/`Lock`/dot theo state), exam-attempt radio selected (dấu `Check` trong vòng tròn), node-practice sau khi nộp (`Check` đúng / `X` sai), và **node-practice option đã chọn trước khi nộp** (đã vá 2026-06-29: thêm `Check` accent — trước đó chỉ phân biệt bằng viền/nền accent). Còn yếu: notifications unread chỉ phân biệt bằng có/không `YellowSquare` + đổi nền (cue phi-màu nhưng nhẹ); rà thêm các status/badge khác nếu mở rộng.
-2. **Extract `SelectableChip` / `SelectableRow` shared (DRY).** Chip filter (video-lesson, exam, vocabulary) + radio (exam-attempt, node-practice) hiện vẫn là inline Pressable lặp lại. Gom thành primitive (centralize 44pt + role/label/state) sẽ DRY hơn — **hoãn** để tránh đụng reskin. Khi làm: phải khớp visual editorial v2 1:1, presentation-only.
-3. **`maxFontSizeMultiplier` policy trên `ThemedText` (Dynamic Type).** Bake giới hạn phóng chữ để layout không vỡ khi user bật font lớn trong iOS Settings.
+1. ✅ **Color-only meaning cho người nhìn (color-blind) — gần đủ.** Trạng thái selected/correct/status đã announce cho VoiceOver qua `accessibilityState`. Phần lớn các điểm cũng đã có **cue phi-màu (icon hình dạng)** từ reskin v2: roadmap status (`Check`/`YellowSquare`/`Lock`/dot theo state), exam-attempt radio selected (dấu `Check` trong vòng tròn), node-practice sau khi nộp (`Check` đúng / `X` sai), và **node-practice option đã chọn trước khi nộp** (đã vá 2026-06-29 `7b4c939f`: thêm `Check` accent — trước đó chỉ phân biệt bằng viền/nền accent). Còn yếu (chấp nhận được): notifications unread chỉ phân biệt bằng có/không `YellowSquare` + đổi nền — rà thêm các status/badge khác nếu mở rộng.
+2. ⏸️ **Extract `SelectableChip` / `SelectableRow` shared (DRY) — vẫn HOÃN (chủ đích).** Chip filter (video-lesson, exam, vocabulary) + radio (exam-attempt, node-practice) hiện là inline Pressable. **Không gom được sạch:** style từng màn KHÁC nhau thật sự (chip video-lesson ≠ chip exam ≠ option node-practice), nên một primitive chung hoặc phải nhận rất nhiều style-prop (lợi ích DRY thấp) hoặc phải đổi visual (vi phạm nguyên tắc 0-visual-regression). A11y (role/label/state/44pt) **đã đủ inline** → đây thuần tech-debt maintainability, **0 lợi ích cho người dùng**. Giữ hoãn tới khi reskin ổn định hẳn + có verify visual trên simulator; khi làm phải khớp editorial v2 1:1, presentation-only.
+3. ✅ **`maxFontSizeMultiplier` policy (Dynamic Type) — XONG 2026-06-29.** Cap phóng chữ theo variant ở `lib/theme/tokens.ts` (`maxFontScale`), tiêu thụ trong `ThemedText` (per-variant: display/title serif cap chặt 1.25–1.4, body/label rộng hơn 1.5–1.6) + `Caption` (1.4) + `TextField` input (1.6 = bodyLg). Đặt trước `{...rest}` nên caller vẫn override được per-instance. Layout editorial v2 không vỡ khi user bật font lớn trong iOS Settings. (Verify device thật còn nợ — xem §8.)
 
 ---
 

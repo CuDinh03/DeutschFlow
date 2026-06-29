@@ -3,7 +3,7 @@
 
 import { useState } from 'react'
 import { TextInput, View, type TextInputProps } from 'react-native'
-import { fonts, radius, space, type, useTheme } from '@/lib/theme'
+import { fonts, maxFontScale, radius, space, type, useTheme } from '@/lib/theme'
 import { ThemedText } from './ThemedText'
 
 interface TextFieldProps extends TextInputProps {
@@ -29,6 +29,8 @@ export function TextField({ label, error, style, onFocus, onBlur, ...rest }: Tex
         </ThemedText>
       ) : null}
       <TextInput
+        // Dynamic Type cap (matches bodyLg) so large font settings keep the field usable.
+        maxFontSizeMultiplier={maxFontScale.bodyLg}
         placeholderTextColor={theme.colors.textFaint}
         selectionColor={theme.colors.accent}
         onFocus={(e) => {
