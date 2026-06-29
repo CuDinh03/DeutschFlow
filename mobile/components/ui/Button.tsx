@@ -15,7 +15,7 @@ import { Icon } from './Icon'
 import { ThemedText } from './ThemedText'
 import { YellowSquare } from './YellowSquare'
 
-type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
+type Variant = 'primary' | 'yellow' | 'secondary' | 'ghost' | 'danger'
 type Size = 'sm' | 'md' | 'lg'
 
 interface ButtonProps {
@@ -55,6 +55,7 @@ export function Button({
   // leading yellow-square accent. (Mockup `Btn variant="primary"`: bg ink, color bg.)
   const surfaces: Record<Variant, { bg: string; border: string }> = {
     primary: { bg: theme.colors.inkSurface, border: theme.colors.inkSurface },
+    yellow: { bg: theme.colors.accent, border: theme.colors.accent },
     secondary: { bg: theme.colors.surfaceElevated, border: theme.colors.border },
     ghost: { bg: 'transparent', border: 'transparent' },
     danger: { bg: theme.colors.danger, border: theme.colors.danger },
@@ -63,7 +64,7 @@ export function Button({
   const textColor =
     variant === 'primary'
       ? 'onInk'
-      : variant === 'danger'
+      : variant === 'yellow' || variant === 'danger'
         ? 'onAccent'
         : variant === 'ghost'
           ? 'accent'
@@ -119,6 +120,7 @@ export function Button({
       ) : (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
           {variant === 'primary' ? <YellowSquare size={7} /> : null}
+          {variant === 'yellow' ? <YellowSquare size={7} color={theme.colors.inkSurface} /> : null}
           {icon && !iconRight ? <Icon icon={icon} size={size === 'sm' ? 16 : 18} color={iconColor} /> : null}
           <ThemedText variant="bodyStrong" color={textColor}>
             {label}

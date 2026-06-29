@@ -3,7 +3,7 @@ import { View, TextInput, FlatList, RefreshControl } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router, type Href } from 'expo-router'
 import * as Haptics from 'expo-haptics'
-import { Search, BookMarked, Plus, Check, Film, ChevronRight } from 'lucide-react-native'
+import { Search, BookMarked, Plus, Check, Film, ChevronRight, Repeat, Layers, BarChart3 } from 'lucide-react-native'
 import api from '@/lib/api'
 import { trackFeatureAction } from '@/lib/analytics'
 import { learningApi } from '@/lib/learningApi'
@@ -21,6 +21,7 @@ import {
   ErrorState,
   Skeleton,
   SelectableChip,
+  Button,
 } from '@/components/ui'
 import { useDebounce } from '@/hooks/useDebounce'
 
@@ -86,6 +87,14 @@ export default function VocabularyScreen() {
 
   const words = data ?? []
 
+  // SRS due count (real data) for the dashboard hero — /srs/due returns the due
+  // queue; we count it (capped) rather than fabricating learning/mastered totals.
+  const { data: dueCount = 0 } = useQuery({
+    queryKey: ['srs-due-count'],
+    queryFn: () => api.get<unknown[]>('/srs/due?limit=99').then((r) => (r.data ?? []).length),
+    staleTime: 60_000,
+  })
+
   const searchedRef = useRef(false)
   useEffect(() => {
     if (debouncedSearch.trim() && !searchedRef.current) {
@@ -97,6 +106,65 @@ export default function VocabularyScreen() {
   return (
     <Screen edges={['top']}>
       <AppHeader title="Từ vựng" subtitle="Wortschatz · Spaced repetition" onBack={() => router.back()} />
+
+      {/* SRS due hero (real /srs/due count) — the dashboard's primary call to review. */}
+      {dueCount > 0 ? (
+        <Card
+          style={{
+            marginHorizontal: space[5],
+            marginBottom: space[3],
+            backgroundColor: c.inkSurface,
+            borderColor: c.inkSurface,
+            gap: space[3],
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View style={{ gap: 6 }}>
+              <Caption color={c.accent}>Đến hạn ôn hôm nay</Caption>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space[2] }}>
+                <ThemedText variant="displayLg" color="onInk">
+                  {dueCount}
+                </ThemedText>
+                <ThemedText variant="body" style={{ color: c.onInkMuted }}>
+                  thẻ
+                </ThemedText>
+              </View>
+            </View>
+            <Icon icon={Repeat} size={28} color="secondary" />
+          </View>
+          <Button
+            variant="yellow"
+            label={`Ôn ${dueCount} từ hôm nay`}
+            onPress={() => router.push('/(student)/srs' as unknown as Href)}
+          />
+        </Card>
+      ) : null}
+
+      {/* Quick actions — flashcards + SRS stats (parity with na-vocab dashboard). */}
+      <View style={{ flexDirection: 'row', gap: space[3], marginHorizontal: space[5], marginBottom: space[4] }}>
+        <Card
+          onPress={() => router.push('/(student)/srs' as unknown as Href)}
+          accessibilityLabel="Học thẻ"
+          style={{ flex: 1, gap: space[2] }}
+        >
+          <Icon icon={Layers} size={20} color="accent" />
+          <ThemedText variant="bodyStrong">Học thẻ (vuốt)</ThemedText>
+          <ThemedText variant="caption" color="muted">
+            Vuốt biết / chưa biết
+          </ThemedText>
+        </Card>
+        <Card
+          onPress={() => router.push('/(student)/stats' as unknown as Href)}
+          accessibilityLabel="Thống kê SRS"
+          style={{ flex: 1, gap: space[2] }}
+        >
+          <Icon icon={BarChart3} size={20} color="accent" />
+          <ThemedText variant="bodyStrong">Thống kê SRS</ThemedText>
+          <ThemedText variant="caption" color="muted">
+            Tiến độ ghi nhớ
+          </ThemedText>
+        </Card>
+      </View>
 
       <View
         style={{
