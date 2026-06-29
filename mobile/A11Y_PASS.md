@@ -90,7 +90,7 @@ Audit liệt "open" vì snapshot **trước** pass đó → stale. Sweep xác nh
 
 Không thuộc screen-reader role/label, nên không nằm trong pass này:
 
-1. **Color-only meaning cho người nhìn (color-blind).** Trạng thái selected/correct/status hiện đã announce cho VoiceOver qua `accessibilityState`, nhưng với người **nhìn** bị mù màu vẫn còn vài chỗ phân biệt chủ yếu bằng màu (chưa thêm cue phi-màu: icon/nhãn/độ đậm). Vd: roadmap status, exam-attempt/node-practice option trước khi nộp, notifications unread dot.
+1. **Color-only meaning cho người nhìn (color-blind).** Trạng thái selected/correct/status hiện đã announce cho VoiceOver qua `accessibilityState`. Phần lớn các điểm cũng đã có **cue phi-màu (icon hình dạng)** từ reskin v2: roadmap status (`Check`/`YellowSquare`/`Lock`/dot theo state), exam-attempt radio selected (dấu `Check` trong vòng tròn), node-practice sau khi nộp (`Check` đúng / `X` sai), và **node-practice option đã chọn trước khi nộp** (đã vá 2026-06-29: thêm `Check` accent — trước đó chỉ phân biệt bằng viền/nền accent). Còn yếu: notifications unread chỉ phân biệt bằng có/không `YellowSquare` + đổi nền (cue phi-màu nhưng nhẹ); rà thêm các status/badge khác nếu mở rộng.
 2. **Extract `SelectableChip` / `SelectableRow` shared (DRY).** Chip filter (video-lesson, exam, vocabulary) + radio (exam-attempt, node-practice) hiện vẫn là inline Pressable lặp lại. Gom thành primitive (centralize 44pt + role/label/state) sẽ DRY hơn — **hoãn** để tránh đụng reskin. Khi làm: phải khớp visual editorial v2 1:1, presentation-only.
 3. **`maxFontSizeMultiplier` policy trên `ThemedText` (Dynamic Type).** Bake giới hạn phóng chữ để layout không vỡ khi user bật font lớn trong iOS Settings.
 

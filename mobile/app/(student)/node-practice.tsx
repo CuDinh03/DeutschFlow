@@ -309,6 +309,8 @@ function McCard({
               <ThemedText variant="body" style={{ flex: 1 }}>
                 {opt}
               </ThemedText>
+              {/* Non-colour cue so the chosen option isn't conveyed by accent fill alone (color-blind). */}
+              {!submitted && selected ? <Icon icon={Check} size={16} color="accent" /> : null}
               {submitted && isAnswer ? <Icon icon={Check} size={16} color="success" /> : null}
               {submitted && selected && !isAnswer ? <Icon icon={X} size={16} color="danger" /> : null}
             </Pressable>
