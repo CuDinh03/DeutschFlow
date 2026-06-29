@@ -2,8 +2,8 @@
 
 > Tài liệu bàn giao đầy đủ: **ĐÃ LÀM** và **CHƯA LÀM** cho việc đưa app Expo (`mobile/`) lên App Store.
 > Cập nhật: **2026-06-29**. App = Expo React Native ở `mobile/` (KHÁC app SwiftUI native ở `ios/`).
-> Nhánh: **`chore/ios-deploy-sdk54`** — 19 commit, đứng trên `main`, **CHƯA merge, CHƯA push**. `main` nguyên vẹn.
-> HEAD hiện tại: `ae96e2b7`.
+> Nhánh: **`chore/ios-deploy-sdk54`** — 22 commit, đứng trên `main`, **CHƯA merge, CHƯA push**. `main` nguyên vẹn.
+> HEAD hiện tại: `aa042b2f` (+2 commit a11y so với handoff trước).
 
 ---
 
@@ -87,7 +87,8 @@ QA toàn bộ 24 màn → 181 findings (0 CRITICAL / 25 HIGH / 59 MEDIUM / 97 LO
 ### 🤖 Việc tôi làm được (chờ bạn ra hiệu)
 - [ ] **Pha 5 — production build/submit**: EAS build production → `eas submit` → TestFlight → metadata → review. (Chạy được khi có các giá trị 👤 ở trên.)
 - [ ] **Re-add Sentry** đúng cách (bản mới hơn / cấu hình New-Arch, **test device trước khi tin**). Cần: Sentry project (DSN + org/project) + `eas secret SENTRY_AUTH_TOKEN` + bỏ `SENTRY_DISABLE_AUTO_UPLOAD` trong `eas.json`.
-- [ ] **Nợ a11y từ QA**: 8 HIGH + 59 MEDIUM (làm trong shared components: extract Chip/IconButton/SelectableRow + 44pt touch target + accessibilityRole/Label/State). Lưu ý: làm cẩn thận để không vỡ reskin vừa xong.
+- [x] **Nợ a11y screen-reader từ QA — XONG** (`b11b76b4` HIGH + `aa042b2f` MEDIUM): tất cả 24 màn student giờ có `accessibilityRole` + `Label` (+ `selected/disabled/expanded` state) trên mọi control tương tác. HIGH a11y (H3 roadmap, H8 speaking ×6, H11 exam-attempt, H15/H16 video-lesson + hitSlop 44pt, H19 profile delete, H20 guide FAQ) + sweep 11 màn còn lại. **Additive only — 0 thay đổi visual**, không đụng reskin. Verify tsc 0 + jest 18/18 + grep xác nhận 0 Pressable thiếu role trên student screens. (Dùng `IconButton`/`Card` a11y sẵn có thay vì extract primitive mới — tránh rủi ro vỡ reskin.)
+  - **Còn lại (a11y mở rộng, chưa làm):** (a) KeyboardAvoidingView HIGH — H12 node-practice, H22 classes join-sheet, H23 settings/profile, H25 assignments (đây là *keyboard handling*, không phải screen-reader); (b) color-only-meaning cho sighted color-blind (state đã announce cho VoiceOver, nhưng chưa thêm cue phi-màu cho người nhìn); (c) 6 Pressable màn `(auth)` login/register/onboarding (ngoài scope QA 24 màn student); (d) extract `SelectableChip`/`SelectableRow` shared (DRY, hoãn); (e) `maxFontSizeMultiplier` policy trên `ThemedText` (Dynamic Type).
 - [ ] **Gỡ hẳn NativeWind** (đã gỡ wiring; còn dep `nativewind`/`tailwindcss` + file `global.css`/`tailwind.config.js` mồ côi). Đã flag thành background task.
 - [ ] Tiện ích nhỏ: `withAlpha()` helper thay hex-alpha string-concat, `TAB_BAR_CLEARANCE` chung.
 
@@ -116,6 +117,9 @@ QA toàn bộ 24 màn → 181 findings (0 CRITICAL / 25 HIGH / 59 MEDIUM / 97 LO
 | `e9f935ff` | feat — **migrate expo-av → expo-audio** |
 | `06cf4df7` | docs — handoff (reskin 24/24 + audio + EAS building) |
 | `ae96e2b7` | docs — handoff (EAS preview xanh + verify) |
+| `0e9913b8` | docs — rewrite full handoff (done/not-done) |
+| `b11b76b4` | fix — **a11y HIGH cluster** (role/label/state + 44pt) |
+| `aa042b2f` | fix — **a11y MEDIUM sweep** (label remaining Pressables, 24/24 màn) |
 
 > `*` Sentry ở `a87b741a` đã bị gỡ ở `43917cc4`.
 
