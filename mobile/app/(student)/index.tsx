@@ -8,6 +8,7 @@ import { usePlanStore } from '@/stores/usePlanStore'
 import api from '@/lib/api'
 import { PAYWALL_ENABLED } from '@/lib/paywall'
 import { gamificationApi } from '@/lib/gamificationApi'
+import { skillTreeApi } from '@/lib/skillTreeApi'
 import { motion, space, radius, useTheme } from '@/lib/theme'
 import {
   Screen,
@@ -20,6 +21,7 @@ import {
   Skeleton,
   ErrorState,
   Caption,
+  ProgressBar,
 } from '@/components/ui'
 
 // Only the fields the home actually uses from the (plan-oriented) dashboard.
@@ -63,6 +65,17 @@ export default function DashboardScreen() {
     queryFn: () => api.get<{ unreadCount: number }>('/notifications/unread-count').then((r) => r.data),
     staleTime: 30_000,
   })
+
+  // Roadmap progress (real skill-tree data, shared cache with the roadmap screen)
+  // → the na-home PathCard entry.
+  const { data: treeNodes = [] } = useQuery({
+    queryKey: ['skill-tree'],
+    queryFn: () => skillTreeApi.getMySkillTree(),
+    staleTime: 120_000,
+  })
+  const treeTotal = treeNodes.length
+  const treeDone = treeNodes.filter((n) => n.status === 'COMPLETED').length
+  const pathPct = treeTotal > 0 ? Math.round((treeDone / treeTotal) * 100) : 0
 
   const firstName = user?.displayName?.split(' ').at(-1) ?? 'bạn'
   const greeting = greetingFor(new Date().getHours())
@@ -225,6 +238,27 @@ export default function DashboardScreen() {
                 </View>
                 <Pill label={`${dueSrs} thẻ`} tone="accent" />
               </View>
+            </Card>
+          ) : null}
+
+          {/* Roadmap progress entry (na-home PathCard) — real skill-tree % to B2. */}
+          {treeTotal > 0 ? (
+            <Card
+              onPress={() => router.push('/(student)/roadmap')}
+              accessibilityLabel={`Lộ trình đến B2, ${pathPct}%`}
+              style={{ marginHorizontal: space[5], marginTop: space[4], gap: space[3] }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ gap: 6 }}>
+                  <Caption>Lộ trình đến B2</Caption>
+                  <ThemedText variant="display">{pathPct}%</ThemedText>
+                </View>
+                <Icon icon={Map} size={24} color="muted" />
+              </View>
+              <ProgressBar value={pathPct / 100} />
+              <ThemedText variant="caption" color="muted">
+                {treeDone}/{treeTotal} chặng hoàn thành
+              </ThemedText>
             </Card>
           ) : null}
 
