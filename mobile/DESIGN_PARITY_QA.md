@@ -57,16 +57,17 @@ Các "SIGNIFICANT DRIFT" sau là **quyết định product đúng**, mockup mớ
 
 ---
 
-## 3. Bug nhỏ — FIX NHANH (high value / low effort)
+## 3. Bug nhỏ — FIX NHANH
 
-| # | Bug | Vị trí | Tác động |
+| # | Bug | Vị trí | Trạng thái |
 |---|---|---|---|
-| B1 | **YSq (ô vuông vàng) thiếu trong `Button`** → vắng trên MỌI CTA. Đây là motif chữ ký của Galerie. | `components/ui/Button.tsx` | HIGH visual, fix 1 component |
-| B2 | **Font v1 cũ `PlusJakartaSans_400Regular` còn sót** | `app/(student)/speaking.tsx:736` | MEDIUM, đổi sang Instrument Sans token |
-| B3 | **Hardcode màu Tailwind green/red** (`#22C55E`/`#EF4444`/`#15803D`) thay vì token | `app/(auth)/onboarding.tsx:533-556` (GuestQuickWin) | MEDIUM, lệch palette warm-paper |
-| B4 | **Version string "v1.0.0"** vs mockup "2.0" | `app/(student)/profile.tsx` | LOW |
-| B5 | **`borderStrong #D8D2C6` là token tự chế** (mockup dùng ink cho divider mạnh) → đường kẻ nhạt hơn thiết kế | `lib/theme/themes.ts` | LOW |
-| B6 | **Thiếu hue semantic `violet`/`orange`/`teal`** trong ThemeColors → avatar giáo viên thành vàng (mockup violet); assignment todo/overdue gộp về đỏ (mockup tách orange-vs-red) | `lib/theme/themes.ts` | MEDIUM |
+| B2 | Font v1 cũ `PlusJakartaSans_400Regular` còn sót → đổi sang `fonts.bodyRegular` (Instrument Sans) | `app/(student)/speaking.tsx:736` | ✅ **FIXED** `0eb1dd0e` |
+| B3 | Hardcode màu Tailwind green/red (`#22C55E`/`#EF4444`/`#F0FDF4`/`#FEF2F2`/`#15803D`) → token `success/danger/successSoft/dangerSoft` | `app/(auth)/onboarding.tsx:533-556` (GuestQuickWin) | ✅ **FIXED** `0eb1dd0e` |
+| B4 | ~~Version "v1.0.0" vs mockup "2.0"~~ | `profile.tsx:203` | ⚪ **KHÔNG fix** — `app.json` version thật = 1.0.0, hiển thị ĐÚNG; mockup "2.0" chỉ minh hoạ |
+| B5 | `borderStrong #D8D2C6` là token tự chế (mockup dùng ink) | `lib/theme/themes.ts` | ⏸️ **HOÃN** — đổi sang ink làm divider đen đậm toàn app (ripple visual), cần review, không phải quick-win |
+| B6 | Thiếu hue `violet`/`orange`/`teal` → avatar GV thành vàng; assignment todo/overdue gộp đỏ | `lib/theme/themes.ts` + classes/assignments | ⏸️ **HOÃN** — thêm token mà chưa wire = dead code; wire cần đổi visual nhiều màn + review |
+
+> **B1 ĐÍNH CHÍNH (không phải quick-win):** Agent ban đầu báo "Button thiếu YSq, là ink button". **Sai.** Thực tế impl primary button nền **VÀNG** (`Button.tsx:54`), còn mockup primary nền **INK đen + chữ sáng + YSq vàng** (`na-theme.jsx:167`). Đặt YSq vàng lên nền vàng → vô hình. Đây là **quyết định design lớn** (đổi primary button vàng→ink toàn app), thay đổi visual đáng kể, cần product confirm + review trên simulator — KHÔNG fix mù.
 
 ---
 
