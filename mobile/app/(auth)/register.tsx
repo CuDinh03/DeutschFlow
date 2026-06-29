@@ -142,7 +142,7 @@ export default function RegisterScreen() {
                 Đã có tài khoản?{' '}
               </ThemedText>
               <Link href="/(auth)/login" asChild>
-                <Pressable hitSlop={6}>
+                <Pressable accessibilityRole="button" accessibilityLabel="Đăng nhập" hitSlop={6}>
                   <ThemedText variant="bodyStrong" color="accent">
                     Đăng nhập
                   </ThemedText>

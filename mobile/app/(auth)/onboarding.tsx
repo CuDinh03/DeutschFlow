@@ -478,6 +478,9 @@ function ChipRow({
         return (
           <Pressable
             key={opt.value}
+            accessibilityRole="button"
+            accessibilityLabel={opt.label}
+            accessibilityState={{ selected: active }}
             onPress={() => {
               void Haptics.selectionAsync()
               onSelect(opt.value)
@@ -532,6 +535,9 @@ function GuestQuickWin({ mentor, onSignup }: { mentor: OnboardingMentor | null; 
             return (
               <Pressable
                 key={opt}
+                accessibilityRole="button"
+                accessibilityLabel={opt}
+                accessibilityState={{ selected: picked, disabled: solved }}
                 disabled={solved}
                 onPress={() => {
                   void Haptics.selectionAsync()
