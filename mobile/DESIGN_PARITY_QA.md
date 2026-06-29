@@ -5,6 +5,27 @@
 
 ---
 
+## BUILD LOG (parity fixes — 2026-06-29/30)
+
+Verify = **self-QA so code với `na-*.jsx`** (sim không mở được window → không screenshot tự động được). Mỗi commit tsc 0 · jest 18/18.
+
+| ✅ | Item | Data thật | Commit |
+|---|---|---|---|
+| ✅ | SkillRadar SVG (stats) | `progressApi.skills` | `a6fc73f9` |
+| ✅ | Primary Button → ink + YSq; + variant `yellow` | — | `44cdfd0e`·`3a569ea6` |
+| ✅ | Password reveal toggle (TextField) | — | `d99de65a` |
+| ✅ | Register strength meter + terms checkbox | — | `9bd9ac3a` |
+| ✅ | Token violet/teal/orange (B6) | — | `9bd9ac3a` |
+| ✅ | Vocabulary SRS due-hero + quick-actions | `/srs/due` | `3a569ea6` |
+| ✅ | Home PathCard (roadmap %) | `skillTreeApi` | `c0599852` |
+| ✅ | Font v1 + hardcode màu → token (B2/B3) | — | `0eb1dd0e` |
+
+**Còn lại (chưa làm — lớn / rủi ro build-mù cao):** Grammar leveled hub + quiz flow (`grammarApi`); Skill Tree SVG canvas (`skillTreeApi`).
+**Backend-blocked (bỏ):** tutor-booking, tuition, announcements, teacher-chat.
+**Cần visual-QA Xcode:** vocabulary header height; Button ink+YSq mọi CTA; strength meter/terms.
+
+---
+
 ## 0. TL;DR
 
 **Token/primitive layer = FAITHFUL gần như tuyệt đối.** Palette warm-paper, sharp 4px, Newsreader serif + Instrument Sans, ink-hero, yellow-square, caption eyebrow — đều port đúng. App "trông Galerie".
