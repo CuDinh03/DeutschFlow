@@ -192,4 +192,4 @@ npx eas-cli@latest build:view <id> --json                       # status/artifac
 ---
 
 ## 8. Tài liệu liên quan trong repo
-`mobile/IOS_DEPLOY_PLAN.md` · `mobile/IOS_DEPLOY_AUDIT.md` · `mobile/UPGRADE_BASELINE.md` · `mobile/QA_SCREENS_AUDIT.md` · `mobile/design/v2/native/na-*.jsx` (design source).
+`mobile/IOS_DEPLOY_PLAN.md` · `mobile/IOS_DEPLOY_AUDIT.md` · `mobile/UPGRADE_BASELINE.md` · `mobile/QA_SCREENS_AUDIT.md` · `mobile/A11Y_PASS.md` (a11y screen-reader pass) · `mobile/design/v2/native/na-*.jsx` (design source).
