@@ -35,6 +35,7 @@ import {
   ErrorState,
   FadeIn,
   Skeleton,
+  SkillRadar,
 } from '@/components/ui'
 
 interface StatsData {
@@ -176,23 +177,33 @@ export default function StatsScreen() {
                 </View>
                 <Pill label={overview.cefrLevel || 'A1'} tone="accent" solid />
               </View>
-              {SKILLS.map(({ key, label, icon }) => {
-                const score = Math.round(overview.skills?.[key]?.score ?? 0)
-                return (
-                  <View key={key} style={{ gap: space[2] }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-                      <Icon icon={icon} size={16} color="muted" />
-                      <ThemedText variant="label" color="secondary">
-                        {label}
-                      </ThemedText>
-                      <ThemedText variant="label" color="muted" style={{ marginLeft: 'auto' }}>
-                        {score}/100
-                      </ThemedText>
+              <SkillRadar
+                size={200}
+                style={{ alignSelf: 'center' }}
+                data={[
+                  { label: 'Nghe', value: Math.round(overview.skills?.hoeren?.score ?? 0) },
+                  { label: 'Đọc', value: Math.round(overview.skills?.lesen?.score ?? 0) },
+                  { label: 'Nói', value: Math.round(overview.skills?.sprechen?.score ?? 0) },
+                  { label: 'Viết', value: Math.round(overview.skills?.schreiben?.score ?? 0) },
+                ]}
+              />
+              {/* 2×2 score grid below the radar (mockup pairs the radar with skill figures). */}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                {SKILLS.map(({ key, label, icon }) => {
+                  const score = Math.round(overview.skills?.[key]?.score ?? 0)
+                  return (
+                    <View key={key} style={{ width: '50%', paddingVertical: space[2], gap: 2 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+                        <Icon icon={icon} size={14} color="muted" />
+                        <ThemedText variant="label" color="secondary">
+                          {label}
+                        </ThemedText>
+                      </View>
+                      <ThemedText variant="monoLg">{score}</ThemedText>
                     </View>
-                    <ProgressBar value={score / 100} />
-                  </View>
-                )
-              })}
+                  )
+                })}
+              </View>
             </Card>
             </FadeIn>
           ) : null}
