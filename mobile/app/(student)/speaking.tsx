@@ -38,7 +38,7 @@ import {
   type ActiveSessionRef,
 } from '@/lib/activeSession'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { radius, space, useTheme } from '@/lib/theme'
+import { fonts, radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon } from '@/components/ui'
 import { SessionSummary } from '@/components/speaking/SessionSummary'
 import { ConversationSummary } from '@/components/speaking/ConversationSummary'
@@ -733,7 +733,7 @@ export default function SpeakingScreen() {
             paddingTop: 12,
             paddingBottom: 12,
             color: c.textPrimary,
-            fontFamily: 'PlusJakartaSans_400Regular',
+            fontFamily: fonts.bodyRegular,
             fontSize: 15,
           }}
         />
