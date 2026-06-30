@@ -202,11 +202,13 @@ app/(student)/roadmap.tsx  // tab host: tree | phase
 5. ✅ Canvas height = `TOP_PAD + Σ tierHeight + BOTTOM_PAD` (H1).
    **Data:** không cần field mới.
 
-### Pha 2 — Lifecycle motifs đúng + companion + gestures
-1. `NodeMotif` 4 motif (quả+✓ / hoa 5 cánh / nụ+glow / nub xám) + `nodeOffsets` fan N-node (C2).
-2. **C4: `useTreeGestures` (GestureDetector + Reanimated shared values + Animated.G/useAnimatedProps)** + ZoomButtons + FitButton; reduced-motion tắt anim spin/bloom.
-3. Companion (5 lựa chọn, **expo-secure-store** — C3) + `recId` pass-2 (H2) + vòng vàng xoay.
-4. `NodeSheet` tap-tại-chỗ. **H5: NodeLessonPanel wire `getNodeSession`/`submitNode` THẬT** hoặc CTA deep-link `node.tsx` — KHÔNG dùng micro-quiz stub của design (regression).
+### Pha 2 — Lifecycle motifs đúng + companion + gestures — ✅ XONG
+> **✅ HOÀN THÀNH.** Design + research multi-agent → impl single-writer → adversarial review (8 agent: 4 reviewer + verify từng finding) chỉ 1 issue thật (TabBar nổi che control đáy → fix root-cause). tsc 0; +13 test invariant (`__tests__/skillTreePha2.test.ts`: nodeOffsets/zoomMath/recId); jest 42/42. Chưa device-verify (cần Metro/EAS).
+1. ✅ `NodeMotif` 4 motif (quả+✓ / hoa 5 cánh / nụ / nub xám) — port react-native-svg dùng `rotation`/`originX/Y` (KHÔNG web `rotate(a x y)`); + `nodeOffsets(N)` fan không chồng cho N≥5 (C2, test); skill badge = dot cosmetic `dayNumber%4` (M2, no Material font).
+2. ✅ **C4:** `useTreeGestures` = `GestureDetector` Pan(minDistance 5)/Pinch(clamp `[0.32,1.5]` + focal)/Tap(double 0.46↔1.1, single→hit-test) qua `Gesture.Simultaneous(Race(pan,pinch), Exclusive(double,single))`; transform = `useAnimatedProps` STRING `translate(tx ty) scale(s)` trên `Animated.G` (mirror `SplashAnimated.tsx`/`ProgressRing.tsx`); ZoomButtons+FitButton ("Toàn cảnh"); `useReducedMotion()` tắt spin/bloom (functional pan/zoom giữ). **Lưu ý:** `<G onPress>` KHÔNG đáng tin dưới GestureDetector → tap route qua single-Tap + inverse-transform hit-test (`zoomMath.toCanvas`).
+3. ✅ Companion 5 lựa chọn persist `expo-secure-store` key `lt_companion` default owl (C3, `lib/treeCompanion.ts`) + `recommendedNodeId` = node AVAILABLE đầu theo CEFR/day (H2, test) + vòng vàng dashed xoay + emoji đậu rec-node.
+4. ✅ `NodeSheet` tap-tại-chỗ (RN overlay ngoài Svg, SlideInDown) — **H5:** CTA `router.push('/(student)/node')` THẬT (server-graded), KHÔNG stub quiz. State ở host (`roadmap.tsx`); fruit tap → `onSelectNode`. Locked node mở sheet (giải thích) với CTA disabled.
+   **Bonus:** TabBar nổi tự ẩn trên màn detail `href:null` (`components/ui/TabBar.tsx`) — fix root-cause control đáy bị che (toàn app). Host: ScrollView→canvas đo `onLayout` (guard chống loop `Maximum update depth`), refresh dời lên `AppHeader.right`, PathHero compact overlay; tab "Giai đoạn" SectionList = a11y fallback (canvas gesture mất per-node a11y).
    **Data:** 6 field; skill/topic cosmetic tạm.
 
 ### Pha 3 — Mở DTO → limb-topic + leaf-skill + DAG thật

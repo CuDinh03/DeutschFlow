@@ -108,6 +108,26 @@ export function buildTreeLayout(
   return { tiers, groundY, topY, height, cx, goalLabel }
 }
 
+// The "recommended next" lesson = the first AVAILABLE node in CEFR-then-day
+// order. Lower levels are fully COMPLETED so their nodes are never AVAILABLE,
+// which means the first AVAILABLE node always lands in the current (in_progress)
+// tier — the design's pass-2 result without needing the design-only `chosenByUser`
+// field (spec H2). Returns null when nothing is unlocked-not-started.
+export function recommendedNodeId(nodes: SkillNode[]): number | null {
+  let best: SkillNode | null = null
+  for (const n of nodes) {
+    if (n.status !== 'AVAILABLE') continue
+    if (
+      best === null ||
+      cefrRank(n.cefrLevel) < cefrRank(best.cefrLevel) ||
+      (cefrRank(n.cefrLevel) === cefrRank(best.cefrLevel) && n.dayNumber < best.dayNumber)
+    ) {
+      best = n
+    }
+  }
+  return best ? best.id : null
+}
+
 // Tapered bark-ribbon trunk: wide at the base (ground), thin at the crown, with
 // a gentle sway that fades out toward the top. Returns an SVG path `d`.
 export function trunkPath(cx: number, groundY: number, topY: number): string {

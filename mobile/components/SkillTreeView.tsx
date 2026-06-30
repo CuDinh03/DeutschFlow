@@ -1,20 +1,16 @@
-// SkillTreeView — bottom-up "Cây học tập" (SKILL_TREE_SPEC Pha 1).
+// SkillTreeView — the interactive bottom-up "Cây học tập" surface (Pha 2).
 //
-// The tree grows UP from the ground: the lowest CEFR level sits on a soil mound
-// with a sprout at the trunk's base; each higher level stacks above it on the
-// tapering bark trunk; the crown (goal) caps the top. Every level carries a
-// milestone disc (gold trophy = passed, white = in-progress, dashed grey lock =
-// locked) and fans its lessons onto curved branches with topic-tinted foliage.
-// Lesson fruit: ripe orange + ✓ = completed, accent halo = in-progress, green
-// bud = available (tappable), grey nub = locked.
-//
-// Geometry is computed in `skill-tree/layout.ts` (pure, unit-tested); colours in
-// `skill-tree/palette.ts`; motif glyphs in `skill-tree/glyphs.tsx`. Pan/zoom,
-// the lifecycle motifs, and the companion arrive in Pha 2.
+// The tree is laid out in a fixed canvas space (CANVAS_W × layout.height) and
+// painted once inside an <Animated.G>; pan / pinch / double-tap-zoom drive that
+// group's transform on the UI thread via useTreeGestures, so the SVG never
+// re-renders per frame (spec C4). Lesson taps are hit-tested in canvas space (the
+// per-node <G onPress> is unreliable under a GestureDetector), then surfaced to
+// the host via onSelectNode, which opens the NodeSheet. Zoom/fit/companion chrome
+// are RN overlays outside the <Svg>.
 
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { View } from 'react-native'
-import { router, type Href } from 'expo-router'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Svg, {
   Circle,
   Defs,
@@ -26,98 +22,236 @@ import Svg, {
   Stop,
   Text as SvgText,
 } from 'react-native-svg'
-import { fonts, useTheme } from '@/lib/theme'
+import { GestureDetector } from 'react-native-gesture-handler'
+import { useReducedMotion } from 'react-native-reanimated'
+import { fonts, space, useTheme } from '@/lib/theme'
 import type { SkillNode } from '@/lib/skillTreeApi'
-import { buildTreeLayout, trunkPath, type BranchRow, type MilestoneState } from './skill-tree/layout'
-import { BARK, CROWN_LEAVES, FOLIAGE, GROUND, MS_PAL } from './skill-tree/palette'
-import { CheckGlyph, LockGlyph, SproutGlyph, TrophyGlyph } from './skill-tree/glyphs'
+import { companionEmoji, type CompanionKey } from '@/lib/treeCompanion'
+import {
+  buildTreeLayout,
+  recommendedNodeId,
+  trunkPath,
+  type MilestoneState,
+} from './skill-tree/layout'
+import { BARK, CROWN_LEAVES, FOLIAGE, GROUND, MS_PAL, SKILL_DOTS } from './skill-tree/palette'
+import { LockGlyph, SproutGlyph, TrophyGlyph } from './skill-tree/glyphs'
+import { nodeOffsets } from './skill-tree/nodeOffsets'
+import { AnimatedG, useTreeGestures } from './skill-tree/controls/useTreeGestures'
+import { FitButton, ZoomButtons } from './skill-tree/controls/TreeControls'
+import { CompanionChips } from './skill-tree/controls/CompanionChips'
+import { BloomHalo, CompanionEmoji, NodeMotif, RecRing, SkillBadge } from './skill-tree/motifs/NodeMotif'
 
-const FRUIT_R = 13
+const CANVAS_W = 380 // fixed layout width; the gesture transform maps it to the viewport
+const ARM_X = Math.min(CANVAS_W / 2 - 56, 120)
+const TAP_R = 26 // tap hit radius in canvas px
 
 function truncate(s: string, n = 14): string {
   return s.length > n ? `${s.slice(0, n - 1)}…` : s
 }
 
-interface SkillTreeViewProps {
-  nodes: SkillNode[]
-  width: number
+interface PlacedNode {
+  node: SkillNode
+  x: number
+  y: number
+}
+interface BranchVisual {
+  key: string
+  fx: number
+  fy: number
+  foliage: string
+  chipLabel: string
 }
 
-export function SkillTreeView({ nodes, width }: SkillTreeViewProps) {
+interface SkillTreeViewProps {
+  nodes: SkillNode[]
+  viewportW: number
+  viewportH: number
+  companion: CompanionKey
+  onCompanionChange: (key: CompanionKey) => void
+  onSelectNode: (node: SkillNode) => void
+}
+
+export function SkillTreeView({
+  nodes,
+  viewportW,
+  viewportH,
+  companion,
+  onCompanionChange,
+  onSelectNode,
+}: SkillTreeViewProps) {
   const c = useTheme().colors
-  const layout = useMemo(() => buildTreeLayout(nodes, width, FOLIAGE), [nodes, width])
+  const insets = useSafeAreaInsets()
+  const reduced = useReducedMotion()
+  const layout = useMemo(() => buildTreeLayout(nodes, CANVAS_W, FOLIAGE), [nodes])
+  const recId = useMemo(() => recommendedNodeId(nodes), [nodes])
+  const compEmoji = companionEmoji(companion)
 
-  if (nodes.length === 0) return null
+  // Foliage clusters + per-node canvas positions (shared by render + hit-test).
+  const geom = useMemo(() => {
+    const branches: BranchVisual[] = []
+    const placed: PlacedNode[] = []
+    layout.tiers.forEach((tier) => {
+      tier.branchRows.forEach((b, bi) => {
+        const fx = layout.cx + b.side * ARM_X
+        const fy = b.y
+        branches.push({
+          key: `${tier.level}-${bi}`,
+          fx,
+          fy,
+          foliage: b.foliage,
+          chipLabel: truncate(
+            b.nodes[0]?.tags?.[0]?.replace(/^#/, '') || `Ngày ${b.nodes[0]?.dayNumber ?? ''}`,
+          ),
+        })
+        const offs = nodeOffsets(b.nodes.length)
+        b.nodes.forEach((node, j) => {
+          const [dx, dy] = offs[j]
+          placed.push({ node, x: fx + dx, y: fy + dy })
+        })
+      })
+    })
+    return { branches, placed }
+  }, [layout])
 
-  const { tiers, groundY, topY, height, cx, goalLabel } = layout
-  const armX = Math.min(width / 2 - 56, 120) // branch foliage centre offset
+  const onTapCanvas = useCallback(
+    (px: number, py: number) => {
+      let best: PlacedNode | null = null
+      let bestD = TAP_R * TAP_R
+      for (const p of geom.placed) {
+        const d = (p.x - px) * (p.x - px) + (p.y - py) * (p.y - py)
+        if (d < bestD) {
+          bestD = d
+          best = p
+        }
+      }
+      if (best) onSelectNode(best.node)
+    },
+    [geom, onSelectNode],
+  )
 
-  const fruitFill = (status: SkillNode['status']) =>
-    status === 'COMPLETED'
-      ? 'url(#naRipe)'
-      : status === 'IN_PROGRESS'
-        ? c.accent
-        : status === 'AVAILABLE'
-          ? 'url(#naBud)'
-          : '#AEBCA4'
+  const { animatedProps, gesture, fitView, zoomIn, zoomOut } = useTreeGestures({
+    canvasW: CANVAS_W,
+    canvasH: layout.height,
+    viewportW,
+    viewportH,
+    onTapCanvas,
+  })
+
+  if (nodes.length === 0 || viewportW === 0 || viewportH === 0) return null
 
   return (
-    <View style={{ width, height }}>
-      <Svg width={width} height={height}>
-        <Defs>
-          <RadialGradient id="naRipe" cx="38%" cy="34%" r="68%">
-            <Stop offset="0%" stopColor="#F6B85A" />
-            <Stop offset="55%" stopColor="#EE8C2E" />
-            <Stop offset="100%" stopColor="#D86E1C" />
-          </RadialGradient>
-          <RadialGradient id="naBud" cx="40%" cy="36%" r="70%">
-            <Stop offset="0%" stopColor="#B6D49E" />
-            <Stop offset="100%" stopColor="#7FA86A" />
-          </RadialGradient>
-          <LinearGradient id="naTrunk" x1="0" y1="1" x2="0" y2="0">
-            <Stop offset="0" stopColor={BARK.dark} />
-            <Stop offset="1" stopColor={BARK.light} />
-          </LinearGradient>
-        </Defs>
+    <View
+      style={{ flex: 1, overflow: 'hidden' }}
+      accessibilityLabel="Cây học tập — kéo để di chuyển, chụm để phóng to. Dùng tab Giai đoạn để xem danh sách bài học."
+    >
+      <GestureDetector gesture={gesture}>
+        <Svg width={viewportW} height={viewportH}>
+          <Defs>
+            <RadialGradient id="naRipe" cx="38%" cy="34%" r="68%">
+              <Stop offset="0%" stopColor="#F6B85A" />
+              <Stop offset="55%" stopColor="#EE8C2E" />
+              <Stop offset="100%" stopColor="#D86E1C" />
+            </RadialGradient>
+            <RadialGradient id="naBud" cx="40%" cy="36%" r="70%">
+              <Stop offset="0%" stopColor="#B6D49E" />
+              <Stop offset="100%" stopColor="#7FA86A" />
+            </RadialGradient>
+            <LinearGradient id="naTrunk" x1="0" y1="1" x2="0" y2="0">
+              <Stop offset="0" stopColor={BARK.dark} />
+              <Stop offset="1" stopColor={BARK.light} />
+            </LinearGradient>
+          </Defs>
 
-        {/* Ground mound */}
-        <Ellipse cx={cx} cy={groundY + 30} rx={Math.min(width * 0.42, 200)} ry={30} fill={GROUND.moundOuter} opacity={0.55} />
-        <Ellipse cx={cx} cy={groundY + 26} rx={Math.min(width * 0.3, 140)} ry={20} fill={GROUND.moundInner} opacity={0.5} />
+          <AnimatedG animatedProps={animatedProps}>
+            {/* ground mound */}
+            <Ellipse cx={layout.cx} cy={layout.groundY + 30} rx={180} ry={30} fill={GROUND.moundOuter} opacity={0.55} />
+            <Ellipse cx={layout.cx} cy={layout.groundY + 26} rx={130} ry={20} fill={GROUND.moundInner} opacity={0.5} />
 
-        {/* Tapering trunk (wide at the base, thin at the crown) */}
-        <Path d={trunkPath(cx, groundY, topY)} fill="url(#naTrunk)" stroke={BARK.dark} strokeWidth={1.5} />
-
-        {/* Crown canopy + goal label */}
-        <Crown cx={cx} topY={topY} goalLabel={goalLabel} />
-
-        {/* Branches (arms + foliage + fruit) */}
-        {tiers.map((tier) =>
-          tier.branchRows.map((branch, bi) => (
-            <Branch
-              key={`${tier.level}-${bi}`}
-              branch={branch}
-              cx={cx}
-              armX={armX}
-              fruitFill={fruitFill}
-              labelColor={c.textSecondary}
-              accent={c.accent}
-              success={c.success}
+            {/* trunk */}
+            <Path
+              d={trunkPath(layout.cx, layout.groundY, layout.topY)}
+              fill="url(#naTrunk)"
+              stroke={BARK.dark}
+              strokeWidth={1.5}
             />
-          )),
-        )}
 
-        {/* Milestone discs on the trunk */}
-        {tiers.map((tier) => (
-          <Milestone key={tier.level} level={tier.level} state={tier.state} cx={cx} y={tier.milestoneY} />
-        ))}
+            <Crown cx={layout.cx} topY={layout.topY} goalLabel={layout.goalLabel} />
 
-        {/* Sprout at the base of the trunk */}
-        <G transform={`translate(${cx},${groundY + 6})`}>
-          <Circle r={16} fill="#fff" stroke={GROUND.sproutRing} strokeWidth={2.5} />
-          <SproutGlyph />
-        </G>
-      </Svg>
+            {/* branch arms + foliage + topic chip */}
+            {geom.branches.map((b) => (
+              <BranchFoliage key={b.key} branch={b} cx={layout.cx} labelColor={c.textSecondary} />
+            ))}
+
+            {/* lesson fruit motifs */}
+            {geom.placed.map(({ node, x, y }) => {
+              const isRec = node.id === recId
+              return (
+                <G key={node.id} transform={`translate(${x},${y})`} opacity={node.status === 'LOCKED' ? 0.5 : 1}>
+                  {isRec ? <RecRing reduced={reduced} /> : null}
+                  {node.status === 'IN_PROGRESS' ? <BloomHalo reduced={reduced} /> : null}
+                  <NodeMotif status={node.status} success={c.success} />
+                  <SkillBadge color={SKILL_DOTS[node.dayNumber % 4].color} />
+                  {isRec && compEmoji ? <CompanionEmoji emoji={compEmoji} /> : null}
+                </G>
+              )
+            })}
+
+            {/* milestone discs */}
+            {layout.tiers.map((tier) => (
+              <Milestone key={tier.level} level={tier.level} state={tier.state} cx={layout.cx} y={tier.milestoneY} />
+            ))}
+
+            {/* sprout at the trunk base */}
+            <G transform={`translate(${layout.cx},${layout.groundY + 6})`}>
+              <Circle r={16} fill="#fff" stroke={GROUND.sproutRing} strokeWidth={2.5} />
+              <SproutGlyph />
+            </G>
+          </AnimatedG>
+        </Svg>
+      </GestureDetector>
+
+      {/* zoom / fit cluster — sits above the companion row, clear of the home indicator */}
+      <View
+        style={{ position: 'absolute', right: space[4], bottom: insets.bottom + space[12], alignItems: 'flex-end', gap: space[2] }}
+      >
+        <FitButton onFit={fitView} />
+        <ZoomButtons onZoomIn={zoomIn} onZoomOut={zoomOut} />
+      </View>
+
+      {/* companion picker */}
+      <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, bottom: insets.bottom + space[2] }}>
+        <CompanionChips value={companion} onChange={onCompanionChange} />
+      </View>
     </View>
+  )
+}
+
+function BranchFoliage({
+  branch,
+  cx,
+  labelColor,
+}: {
+  branch: BranchVisual
+  cx: number
+  labelColor: string
+}) {
+  const { fx, fy, foliage, chipLabel } = branch
+  return (
+    <G>
+      <Path
+        d={`M ${cx} ${fy + 8} Q ${(cx + fx) / 2} ${fy - 16} ${fx} ${fy - 2}`}
+        stroke={BARK.dark}
+        strokeWidth={7}
+        strokeLinecap="round"
+        fill="none"
+      />
+      <Ellipse cx={fx - 16} cy={fy - 6} rx={34} ry={26} fill={foliage} opacity={0.55} />
+      <Ellipse cx={fx + 18} cy={fy - 2} rx={30} ry={24} fill={foliage} opacity={0.42} />
+      <Ellipse cx={fx} cy={fy + 14} rx={32} ry={22} fill={foliage} opacity={0.5} />
+      <SvgText x={fx} y={fy - 30} textAnchor="middle" fontFamily={fonts.bodyMedium} fontSize={10} fill={labelColor}>
+        {chipLabel}
+      </SvgText>
+    </G>
   )
 }
 
@@ -132,25 +266,10 @@ function Crown({ cx, topY, goalLabel }: { cx: number; topY: number; goalLabel: s
   return (
     <G opacity={0.92}>
       {blobs.map((b, i) => (
-        <Ellipse
-          key={i}
-          cx={b[0]}
-          cy={b[1]}
-          rx={b[2]}
-          ry={b[2] * 0.82}
-          fill={CROWN_LEAVES[i % 2]}
-          opacity={0.55 + 0.1 * (i % 3)}
-        />
+        <Ellipse key={i} cx={b[0]} cy={b[1]} rx={b[2]} ry={b[2] * 0.82} fill={CROWN_LEAVES[i % 2]} opacity={0.55 + 0.1 * (i % 3)} />
       ))}
       {goalLabel ? (
-        <SvgText
-          x={cx}
-          y={topY - 36}
-          textAnchor="middle"
-          fontFamily={fonts.displayBold}
-          fontSize={15}
-          fill="#fff"
-        >
+        <SvgText x={cx} y={topY - 36} textAnchor="middle" fontFamily={fonts.displayBold} fontSize={15} fill="#fff">
           {goalLabel}
         </SvgText>
       ) : null}
@@ -158,113 +277,7 @@ function Crown({ cx, topY, goalLabel }: { cx: number; topY: number; goalLabel: s
   )
 }
 
-function Branch({
-  branch,
-  cx,
-  armX,
-  fruitFill,
-  labelColor,
-  accent,
-  success,
-}: {
-  branch: BranchRow
-  cx: number
-  armX: number
-  fruitFill: (s: SkillNode['status']) => string
-  labelColor: string
-  accent: string
-  success: string
-}) {
-  const fx = cx + branch.side * armX
-  const fy = branch.y
-  const chipLabel = truncate(
-    branch.nodes[0]?.tags?.[0]?.replace(/^#/, '') || `Ngày ${branch.nodes[0]?.dayNumber ?? ''}`,
-  )
-
-  return (
-    <G>
-      {/* arm from trunk to foliage centre */}
-      <Path
-        d={`M ${cx} ${fy + 8} Q ${cx + branch.side * armX * 0.5} ${fy - 16} ${fx} ${fy - 2}`}
-        stroke={BARK.dark}
-        strokeWidth={7}
-        strokeLinecap="round"
-        fill="none"
-      />
-
-      {/* leaf blobs */}
-      <Ellipse cx={fx - 16} cy={fy - 6} rx={34} ry={26} fill={branch.foliage} opacity={0.55} />
-      <Ellipse cx={fx + 18} cy={fy - 2} rx={30} ry={24} fill={branch.foliage} opacity={0.42} />
-      <Ellipse cx={fx} cy={fy + 14} rx={32} ry={22} fill={branch.foliage} opacity={0.5} />
-
-      {/* topic chip (Pha 3 wires real topic groups; until then: tag/day) */}
-      <SvgText x={fx} y={fy - 30} textAnchor="middle" fontFamily={fonts.bodyMedium} fontSize={10} fill={labelColor}>
-        {chipLabel}
-      </SvgText>
-
-      {/* lesson fruit */}
-      {branch.nodes.map((node, j) => {
-        const angle = (-50 + j * 50) * (Math.PI / 180)
-        const nx = fx + Math.cos(angle) * 20
-        const ny = fy + Math.sin(angle) * 18
-        const locked = node.status === 'LOCKED'
-        const statusWord =
-          node.status === 'COMPLETED'
-            ? 'đã hoàn thành'
-            : node.status === 'IN_PROGRESS'
-              ? 'đang học'
-              : node.status === 'AVAILABLE'
-                ? 'sẵn sàng học'
-                : 'đã khoá'
-        return (
-          <G
-            key={node.id}
-            opacity={locked ? 0.5 : 1}
-            accessibilityRole={locked ? undefined : 'button'}
-            accessibilityLabel={`${node.title}, ${statusWord}`}
-            onPress={
-              locked
-                ? undefined
-                : () =>
-                    router.push({
-                      pathname: '/(student)/node',
-                      params: { nodeId: String(node.id), title: node.title },
-                    } as unknown as Href)
-            }
-          >
-            {node.status === 'IN_PROGRESS' ? <Circle cx={nx} cy={ny} r={FRUIT_R + 5} fill={accent} opacity={0.2} /> : null}
-            <Circle
-              cx={nx}
-              cy={ny}
-              r={FRUIT_R}
-              fill={fruitFill(node.status)}
-              stroke={node.status === 'COMPLETED' ? '#C2611A' : '#ffffff'}
-              strokeWidth={1.5}
-            />
-            {node.status === 'COMPLETED' ? (
-              <G transform={`translate(${nx + 9},${ny + 9})`}>
-                <Circle r={6.5} fill={success} stroke="#fff" strokeWidth={1.2} />
-                <CheckGlyph />
-              </G>
-            ) : null}
-          </G>
-        )
-      })}
-    </G>
-  )
-}
-
-function Milestone({
-  level,
-  state,
-  cx,
-  y,
-}: {
-  level: string
-  state: MilestoneState
-  cx: number
-  y: number
-}) {
+function Milestone({ level, state, cx, y }: { level: string; state: MilestoneState; cx: number; y: number }) {
   const p = MS_PAL[state]
   return (
     <G>
@@ -284,14 +297,7 @@ function Milestone({
         ) : state === 'locked' ? (
           <LockGlyph />
         ) : (
-          <SvgText
-            x={0}
-            y={5}
-            textAnchor="middle"
-            fontFamily={fonts.displayBold}
-            fontSize={14}
-            fill="#161513"
-          >
+          <SvgText x={0} y={5} textAnchor="middle" fontFamily={fonts.displayBold} fontSize={14} fill="#161513">
             {level}
           </SvgText>
         )}

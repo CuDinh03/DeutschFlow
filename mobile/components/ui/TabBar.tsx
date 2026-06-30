@@ -70,6 +70,13 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
     opacity: ready.value,
   }))
 
+  // Hide the floating bar on pushed detail screens (href:null routes that aren't
+  // one of the 4 real tabs). They have their own AppHeader + back button, and the
+  // bar would otherwise float over their bottom content — e.g. the skill tree's
+  // companion/zoom controls. Placed after all hooks to respect rules-of-hooks.
+  const focusedName = state.routes[state.index]?.name
+  if (!focusedName || !ICONS[focusedName]) return null
+
   const onTabLayout = (index: number) => (e: LayoutChangeEvent) => {
     const { x, width } = e.nativeEvent.layout
     setLayouts((prev) => {

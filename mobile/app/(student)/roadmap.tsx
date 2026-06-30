@@ -1,14 +1,15 @@
 import { useState } from 'react'
-import { Pressable, RefreshControl, ScrollView, SectionList, View, useWindowDimensions } from 'react-native'
+import { Pressable, SectionList, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router, type Href } from 'expo-router'
-import { Lock, Check } from 'lucide-react-native'
+import { Lock, Check, RefreshCw } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
   Screen,
   Card,
   ThemedText,
   Icon,
+  IconButton,
   Pill,
   Caption,
   YellowSquare,
@@ -19,14 +20,18 @@ import {
   Skeleton,
 } from '@/components/ui'
 import { SkillTreeView } from '@/components/SkillTreeView'
+import { NodeSheet } from '@/components/skill-tree/sheets/NodeSheet'
 import { skillTreeApi, type SkillNode } from '@/lib/skillTreeApi'
+import { useCompanion } from '@/lib/treeCompanion'
 
 type LevelState = 'done' | 'current' | 'locked'
 type RoadmapTab = 'tree' | 'phase'
 
 export default function RoadmapScreen() {
-  const { width } = useWindowDimensions()
   const [tab, setTab] = useState<RoadmapTab>('tree')
+  const [viewport, setViewport] = useState<{ w: number; h: number } | null>(null)
+  const [selectedNode, setSelectedNode] = useState<SkillNode | null>(null)
+  const { companion, setCompanion } = useCompanion()
   const { data: nodes = [], isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['skill-tree'],
     queryFn: () => skillTreeApi.getMySkillTree(),
@@ -48,7 +53,12 @@ export default function RoadmapScreen() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title="Lộ trình học" subtitle="Hành trình A1 → B2" onBack={() => router.back()} />
+      <AppHeader
+        title="Lộ trình học"
+        subtitle="Hành trình A1 → B2"
+        onBack={() => router.back()}
+        right={<IconButton icon={RefreshCw} accessibilityLabel="Làm mới" onPress={() => void refetch()} />}
+      />
       <RoadmapTabs tab={tab} onTab={setTab} />
       {isLoading ? (
         <View style={{ paddingHorizontal: space[5], gap: space[3], paddingTop: space[2] }}>
@@ -68,20 +78,30 @@ export default function RoadmapScreen() {
             />
           </View>
         ) : (
-          <ScrollView
-            contentContainerStyle={{ paddingBottom: space[8], alignItems: 'center' }}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl refreshing={isFetching && !isLoading} onRefresh={() => void refetch()} />
-            }
+          <View
+            style={{ flex: 1 }}
+            onLayout={(e) => {
+              const { width: w, height: h } = e.nativeEvent.layout
+              // no-op guard: re-setting identical dims would re-render → loop (memory 660c753a)
+              setViewport((prev) => (prev && prev.w === w && prev.h === h ? prev : { w, h }))
+            }}
           >
+            {viewport ? (
+              <SkillTreeView
+                nodes={nodes}
+                viewportW={viewport.w}
+                viewportH={viewport.h}
+                companion={companion}
+                onCompanionChange={setCompanion}
+                onSelectNode={setSelectedNode}
+              />
+            ) : null}
             {total > 0 ? (
-              <View style={{ width: '100%', paddingHorizontal: space[5], paddingTop: space[2] }}>
-                <PathHero done={done} total={total} pct={pct} />
+              <View pointerEvents="box-none" style={{ position: 'absolute', top: space[3], left: space[5], right: space[5] }}>
+                <PathHeroCompact done={done} total={total} pct={pct} />
               </View>
             ) : null}
-            <SkillTreeView nodes={nodes} width={width} />
-          </ScrollView>
+          </View>
         )
       ) : (
         <SectionList
@@ -111,7 +131,29 @@ export default function RoadmapScreen() {
           removeClippedSubviews
         />
       )}
+      <NodeSheet node={selectedNode} onClose={() => setSelectedNode(null)} />
     </Screen>
+  )
+}
+
+// Compact path-completion metric, pinned as an overlay on the pan/zoom tree tab
+// (the full ink PathHero is the phase tab's list header).
+function PathHeroCompact({ done, total, pct }: { done: number; total: number; pct: number }) {
+  const c = useTheme().colors
+  return (
+    <Card style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface, paddingVertical: space[3] }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+        <ThemedText variant="titleLg" style={{ color: c.onInk }}>
+          {String(pct)}%
+        </ThemedText>
+        <View style={{ flex: 1, gap: space[1] }}>
+          <ThemedText variant="caption" style={{ color: c.onInkMuted }}>
+            {done}/{total} chặng
+          </ThemedText>
+          <ProgressBar value={total > 0 ? done / total : 0} fillColor={c.accent} />
+        </View>
+      </View>
+    </Card>
   )
 }
 

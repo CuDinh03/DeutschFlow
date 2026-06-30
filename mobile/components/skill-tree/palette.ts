@@ -35,3 +35,13 @@ export const GROUND = {
 
 // Crown canopy leaf tints (alternated).
 export const CROWN_LEAVES = ['#6FA85B', '#4E7E3C'] as const
+
+// Skill accent dots on each lesson fruit. COSMETIC in Pha 2 — there is no
+// per-node skill on the wire, so the dot is cycled by `dayNumber % 4` (stable
+// across re-sorts). Real per-node skill is Pha 3. Hex verbatim from na-tree SKILLS.
+export const SKILL_DOTS = [
+  { k: 'hoeren', color: '#4F86E0' }, // Nghe
+  { k: 'lesen', color: '#5E9150' }, // Đọc
+  { k: 'sprechen', color: '#E8853A' }, // Nói
+  { k: 'schreiben', color: '#8257D8' }, // Viết
+] as const
