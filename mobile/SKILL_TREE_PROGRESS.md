@@ -4,7 +4,7 @@
 > **Nhánh:** `chore/ios-deploy-sdk54` (các commit skill-tree xếp chồng trên nhánh này, độc lập với việc deploy iOS).
 > **Trạng thái:** ✅ Toàn bộ phần *làm được* của spec đã xong (Pha 1–4 + share). Phần còn lại bị chặn bởi quyết định product / cần backend.
 > **Kiểm thử:** `tsc` 0 lỗi · `jest` **69/69 pass** · ✅ **Device-QA trên iOS Simulator (2026-06-30)** — render + tương tác xác minh; **vá 1 bug CRITICAL (Fabric transform §10) + 1 bug MEDIUM (cold-start trunk §11)**; **mô hình "mọc từ mầm" + redesign thanh progress (§11)**.
-> ✅ **Committed** trên `chore/ios-deploy-sdk54`: `a736c31e` (code: Fabric fix + growth model + strip) · `5365ab05` (docs). Còn nợ: QA Android (emoji) · pinch trên ngón thật · ảnh share quá cao (§11).
+> ✅ **Committed** trên `chore/ios-deploy-sdk54`: `a736c31e` (Fabric fix + growth model + strip) · `6ad3e795` (docs) · `94c12725` (mầm tip-sprout) · `f639770b` (gold discs + stage tabs). **Design match A/B/C — §12.** Còn nợ: "Lên cấp" ritual (gated) · QA Android (emoji) · pinch ngón thật · ảnh share quá cao.
 
 ---
 
@@ -225,3 +225,20 @@ Toàn bộ phần *làm được* của spec đã xong. Phần còn lại cần 
 **Redesign thanh progress (`PathHeroCompact`):** khối **ink đen nặng** (đè crown) → **strip giấy-ấm mảnh 1 dòng**: ô vuông vàng (brand) + `0%` serif Newsreader + track mỏng (h6, fill vàng) + `0/55 CHẶNG` caption — `surface` + hairline `borderStrong` + sharp `radius.sm` + shadow nhẹ. Gọn hơn ~⅓ chiều cao, hợp editorial v2, không còn đè crown.
 
 **Kiểm thử:** `tsc` 0 · `jest` **69/69** (+10 test growth/cold-start/floor). Verify simulator: cây mọc theo cấp + thanh mới render đẹp.
+
+---
+
+## 12. Khớp design mới "mọc từ mầm" (2026-06-30, Phase A/B/C)
+
+User đưa 3 mockup (A0·Mầm / B1·Hiện tại / C1·Cây lớn) — design tinh hơn `na-tree.jsx` repo. Phản hồi: "hình dáng cây chưa khớp với mầm". Làm 3 phase, mỗi phase 1 commit, verify simulator (computer-use ngắt giữa chừng → chụp `xcrun simctl` thay vì tap; verify stage qua đổi default tạm rồi revert).
+
+- **Phase A — mầm shape** (`94c12725`): chồi 2-lá (`SproutGlyph`) chuyển từ **gốc → NGỌN thân** (growing point), hiện tới khi `goalReached`; **rễ** fan vào gò; **thân tối thiểu** (`MIN_TRUNK_STUB`) cho cold-start thay vì "ẩn thân" (sửa lại hướng bản vá cold-start §11 cho đúng design). → mầm = thân côn ngắn + chồi ở ngọn + rễ + không nhánh.
+- **Phase B — đĩa milestone gold** (`f639770b`): `passed` = đĩa gold + **chữ cấp** + **badge ✓ xanh** góc (thay `TrophyGlyph` che mất chữ cấp). Khớp đĩa trong mockup.
+- **Phase C — stage tabs** (`f639770b`): `buildTreeLayout(nodes, w, preview)` — `preview` override **chỉ render**: `mam`=ép tất cả locked (sprout), `big`=ép tất cả passed (cây lush + đĩa gold), `current`=tiến độ thật. Tab segmented "Mầm / Hiện tại / Cây lớn" dưới FilterBar (`StageTabs` trong `roadmap.tsx`). +3 unit test (preview invariants).
+
+**Verify simulator (3 stage):** mầm = chồi 2-lá ở ngọn + rễ + không nhánh + skeleton mờ lên goal (khớp A0·Mầm) · cây lớn = lush + đĩa gold "A2"+✓ (khớp C1·Cây lớn) · hiện tại = cây non theo tiến độ thật. `tsc` 0 · `jest` **72/72**.
+
+**HOÃN (gated/placeholder, KHÔNG làm):**
+- **"Lên cấp" ritual button** — cần action level-up backend + tín hiệu "ready" branch-maturity (H4); thêm nút cosmetic không hành động thật là UX kém. Hoãn tới khi có backend + device-QA tương tác (computer-use đã mất).
+- **Nhãn KỸ NĂNG màu trên nhánh** (Đọc/Viết/Nghe/Nói như mockup) — cần skill thật per-node (§4.4 backend); giữ nhãn **topic thật** thay vì bịa skill.
+- **Crown → goal-dot mờ** ở đỉnh (mockup là chấm đứt nét, mình là tán mờ) — cosmetic nhỏ.
