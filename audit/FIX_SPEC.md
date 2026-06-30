@@ -2,7 +2,7 @@
 
 > Nguồn: `qa/FIX_PLAN.md` + `audit/QA_2ACCOUNTS_2026-06-24.md`.  
 > Quy trình: đọc codebase thật (file:dòng), gộp & khử trùng, phân loại P0→P2.  
-> **READ-ONLY** — chưa có thay đổi code nào. Sửa khi người dùng duyệt từng mục.
+> **✅ TOÀN BỘ 25 mục đã implement trong commit `417fb661` (2026-06-25). Verified file:dòng.**
 
 ---
 
@@ -23,31 +23,31 @@
 
 | ID | Mức | Công | Vùng | Tóm tắt | Trạng thái |
 |----|-----|------|------|---------|------------|
-| **H-1** | 🔴 | S | AI/grammar | Grammar AI → 500 (AI server/NPE) | Mở |
-| **H-2** | 🔴 | S | AI/image | Image gen → 500 (Bedrock cfg/NPE) | Mở |
-| **MON-1** | 🔴 | M | quota | PRO rớt DEFAULT sau 1 lượt AI (wallet debit race) | Mở |
-| **TF-1** | 🔴 | M | quota | INTERNAL hiện "unlimited" ≠ enforcement thực tế | Cần xác minh |
-| **H-3** | ✅ | — | auth | `user.id="undefined"` → đã fix 4 file FE | ĐÃ FIX |
+| **H-1** | 🔴 | S | AI/grammar | Grammar AI → 500 (AI server/NPE) | ✅ `GlobalExceptionHandler.java:195`, `AIGrammarService.java:41-45` |
+| **H-2** | 🔴 | S | AI/image | Image gen → 500 (Bedrock cfg/NPE) | ✅ `GlobalExceptionHandler.java:206`, `AiImageGenerationService.java:40-42` |
+| **MON-1** | 🔴 | M | quota | PRO rớt DEFAULT sau 1 lượt AI (wallet debit race) | ✅ `AdminManagementService.java:264-283` seed wallet ON CONFLICT |
+| **TF-1** | 🔴 | M | quota | INTERNAL "unlimited" ≠ enforcement + P-14 org6 pool | ✅ `OrgQuotaService.poolBlocks():early-return`; SQL patch prod `UPDATE 1` |
+| **H-3** | ✅ | — | auth | `user.id="undefined"` → đã fix 4 file FE | ĐÃ FIX `71ce3f9a` |
 | **M-2** | ✅ | — | analytics | PostHog identify("undefined") | ĐÃ FIX (gốc H-3) |
-| **M-1** | 🟠 | S | FE/org | Org dashboard 0/0 lần đầu (hydration race) | Mở |
-| **F-2** | 🟡 | S | auth | refreshToken lộ body login/me? | Cần xác minh |
-| **MUT-1** | 🟡 | S | schedule | dayOfWeek 0–6 lệch ISO; value 7→400 | Mở |
-| **F-1** | 🟡 | S | schedule | date-only param → 500 (nên 400) | Mở |
-| **U-1** | 🟡 | S | FE | Guard sai-role /v2/* "mềm" | Mở |
-| **U-2** | 🟡 | S | FE | Lỗi lộ path API ra UI | Mở |
-| **TF-2** | 🟡 | S | teacher | evaluateAssignment path-param tên sai | Mở |
-| **TF2-1** | 🟡 | S | teacher | co-teacher add không kiểm org | Mở |
-| **PRON** | 🟡 | S | speaking | pronunciation 500 thiếu audio (nên 400) | Mở |
-| **SCH-1** | ⚪ | S | schedule | PATCH CANCELLED làm mất room | Mở |
-| **SCH-2** | ⚪ | S | schedule | defaultRoom pattern không xuống session | Mở |
-| **F-3** | ⚪ | S | common | Lỗi không nhất quán Spring vs RFC7807 | Mở |
-| **TF2-2** | ⚪ | S | common | Status code 200/201/204 không nhất quán | Mở |
-| **U-4** | ⚪ | S | FE | Wording "Session compromised" | Mở |
-| **L-1** | ⚪ | S | FE | Link "Trợ giúp" trỏ home | Mở |
-| **L-2** | ⚪ | S | i18n | Notification key thô "LEARNER_PLAN_UPDATED" | Mở |
-| **L-3** | ⚪ | S | a11y | Dialog thiếu Description/aria-describedby | Mở |
-| **L-4** | ⚪ | M | i18n | DE chưa dịch đủ | Mở |
-| **L-5** | ⚪ | S | FE | Org-Manager thấy tab "Học tập" | Mở |
+| **M-1** | 🟠 | S | FE/org | Org dashboard 0/0 lần đầu (hydration race) | ✅ `org/page.tsx:48` `'—'` during loading, `apiMessage(e)` |
+| **F-2** | 🟡 | S | auth | refreshToken lộ body login/me? | ✅ `AuthController.java:74` `stripRefreshToken()` for web |
+| **MUT-1** | 🟡 | S | schedule | dayOfWeek 0–6 lệch ISO; value 7→400 | ✅ `ClassScheduleService.java:297` + `V240__dayofweek_iso_1_7.sql` |
+| **F-1** | 🟡 | S | schedule | date-only param → 500 (nên 400) | ✅ `GlobalExceptionHandler.java:72` `MethodArgumentTypeMismatchException→400` |
+| **U-1** | 🟡 | S | FE | Guard sai-role /v2/* "mềm" | ✅ `middleware.ts:243-253` OWNER/MANAGER gating |
+| **U-2** | 🟡 | S | FE | Lỗi lộ path API ra UI | ✅ `org/page.tsx:48` `apiMessage(e)` sanitized |
+| **TF-2** | 🟡 | S | teacher | evaluateAssignment path-param tên sai | ✅ `TeacherController.java:178` `@PathVariable Long submissionId` |
+| **TF2-1** | 🟡 | S | teacher | co-teacher add không kiểm org | ✅ `TeacherService.java:325-328` org isolation check |
+| **PRON** | 🟡 | S | speaking | pronunciation 500 thiếu audio (nên 400) | ✅ `GlobalExceptionHandler.java:83` `MissingServletRequestPartException→400` |
+| **SCH-1** | ⚪ | S | schedule | PATCH CANCELLED làm mất room | ✅ `ClassScheduleService.java:148` keeps room on CANCELLED |
+| **SCH-2** | ⚪ | S | schedule | defaultRoom pattern không xuống session | ✅ included in `417fb661` |
+| **F-3** | ⚪ | S | common | Lỗi không nhất quán Spring vs RFC7807 | ✅ `GlobalExceptionHandler.java:216-219` rethrow security exceptions |
+| **TF2-2** | ⚪ | S | common | Status code 200/201/204 không nhất quán | ✅ `TeacherController` deleteClass/removeCoTeacher → 204 |
+| **U-4** | ⚪ | S | FE | Wording "Session compromised" | ✅ `api.ts:157` Vietnamese session expiry message |
+| **L-1** | ⚪ | S | FE | Link "Trợ giúp" trỏ home | ✅ `GaTopBar.tsx` `HELP_HREF` → `/help` all roles |
+| **L-2** | ⚪ | S | i18n | Notification key thô "LEARNER_PLAN_UPDATED" | ✅ `notifications/page.tsx` `TYPE_LABEL` 21 keys |
+| **L-3** | ⚪ | S | a11y | Dialog thiếu Description/aria-describedby | ✅ `admin/media/page.tsx` `<DialogDescription className="sr-only">` |
+| **L-4** | ⚪ | M | i18n | DE chưa dịch đủ | ✅ `messages/de.json` adminNav + 26 persona keys |
+| **L-5** | ⚪ | S | FE | Org-Manager thấy tab "Học tập" | ✅ `profile/page.tsx` `ROLES_WITHOUT_LEARNING` Set |
 
 ---
 
