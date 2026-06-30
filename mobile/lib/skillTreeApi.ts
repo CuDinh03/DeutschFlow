@@ -126,6 +126,17 @@ export interface SkillNode {
   tags: string[]
 }
 
+// Backend lifecycle is LOCKED → UNLOCKED → IN_PROGRESS → COMPLETED, but the app
+// uses 'AVAILABLE' for the unlocked-not-started state. Without this normalization a
+// real 'UNLOCKED' row matches none of the app's motifs and renders as locked-grey,
+// non-tappable — so unlocked lessons (incl. the recommended next one) look locked.
+function normalizeStatus(raw: string | null | undefined): NodeStatus {
+  const s = (raw ?? '').toUpperCase()
+  if (s === 'UNLOCKED' || s === 'AVAILABLE') return 'AVAILABLE'
+  if (s === 'IN_PROGRESS' || s === 'COMPLETED' || s === 'LOCKED') return s
+  return 'LOCKED'
+}
+
 export function mapSkillNode(r: RawSkillNode): SkillNode {
   let tags: string[] = []
   if (Array.isArray(r.tags)) tags = r.tags
@@ -141,7 +152,7 @@ export function mapSkillNode(r: RawSkillNode): SkillNode {
     id: r.id,
     title: r.title_vi || r.title_de || `Ngày ${r.day_number ?? ''}`.trim(),
     cefrLevel: r.cefr_level ?? '',
-    status: (r.user_status ?? r.status ?? 'LOCKED') as NodeStatus,
+    status: normalizeStatus(r.user_status ?? r.status),
     dayNumber: r.day_number ?? 0,
     tags,
   }
