@@ -6,6 +6,7 @@ import { Platform } from 'react-native'
 import { router } from 'expo-router'
 import api from '@/lib/api'
 import { useAuthStore } from '@/stores/useAuthStore'
+import { invalidateNotificationQueries } from '@/lib/queryClient'
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -109,12 +110,16 @@ export function usePushNotifications() {
   // that itself enforces auth); mount once for the app's lifetime.
   useEffect(() => {
     notificationListener.current = Notifications.addNotificationReceivedListener(() => {
-      // foreground notification received — badge updates automatically
+      // Foreground push: the OS badge updates on its own, but the in-app unread
+      // badge + inbox are react-query caches — invalidate them so they refetch now
+      // instead of waiting for the stale window / a manual pull-to-refresh.
+      invalidateNotificationQueries()
     })
 
     responseListener.current = Notifications.addNotificationResponseReceivedListener(() => {
       // Tapping a notification opens the in-app notifications inbox. Per-item deep
       // links are a follow-up (needs a shared route scheme between backend and app).
+      invalidateNotificationQueries()
       router.push('/(student)/notifications')
     })
 
