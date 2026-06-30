@@ -1,8 +1,9 @@
 // useTreeGestures — pan / pinch / double-tap-zoom over the SVG tree, driven by
 // Reanimated shared values so the 24-layer canvas never re-renders per frame
-// (spec C4). The transform is applied to an <Animated.G> via useAnimatedProps as
-// the string `translate(tx ty) scale(s)` — the form react-native-svg 15 reliably
-// parses (proven by ProgressRing.tsx / SplashAnimated.tsx in this repo).
+// (spec C4). The transform is applied via useAnimatedStyle to a wrapping RN
+// <Animated.View> (see SkillTreeView) rather than an svg <G>: on the New
+// Architecture (Fabric), react-native-svg does not update an animated <G>
+// transform, so pan/pinch/zoom driven through <Animated.G> silently do nothing.
 //
 // Single taps are routed through a Gesture.Tap (NOT per-node <G onPress>, which is
 // swallowed by the active pan/pinch detector under GestureDetector); the tap point
@@ -10,14 +11,13 @@
 // thread via runOnJS, where the host hit-tests it against the lesson positions.
 
 import { useCallback, useEffect } from 'react'
-import Animated, {
-  useAnimatedProps,
+import {
+  useAnimatedStyle,
   useSharedValue,
   withTiming,
   runOnJS,
 } from 'react-native-reanimated'
 import { Gesture } from 'react-native-gesture-handler'
-import { G } from 'react-native-svg'
 import {
   clampScale,
   fitTransform,
@@ -25,8 +25,6 @@ import {
   toggleScale,
   ZOOM_OUT,
 } from './zoomMath'
-
-export const AnimatedG = Animated.createAnimatedComponent(G)
 
 interface UseTreeGesturesArgs {
   canvasW: number
@@ -52,8 +50,15 @@ export function useTreeGestures({
   const startTx = useSharedValue(0)
   const startTy = useSharedValue(0)
 
-  const animatedProps = useAnimatedProps(() => ({
-    transform: `translate(${tx.value} ${ty.value}) scale(${s.value})`,
+  // Transform lives on a wrapping RN <Animated.View> (see SkillTreeView). The view
+  // is sized to the full canvas with transformOrigin '0 0', so `translate(tx,ty)
+  // scale(s)` about the origin matches zoomMath exactly (a point x → tx + s*x).
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: tx.value },
+      { translateY: ty.value },
+      { scale: s.value },
+    ],
   }))
 
   // Snap to fit whenever the canvas or viewport dimensions change. Writes only
@@ -160,5 +165,5 @@ export function useTreeGestures({
     Gesture.Exclusive(doubleTap, singleTap),
   )
 
-  return { animatedProps, gesture, fitView, zoomIn, zoomOut }
+  return { animatedStyle, gesture, fitView, zoomIn, zoomOut }
 }

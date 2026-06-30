@@ -157,24 +157,44 @@ export default function RoadmapScreen() {
   )
 }
 
-// Compact path-completion metric, pinned as an overlay on the pan/zoom tree tab
-// (the full ink PathHero is the phase tab's list header).
+// Compact path-completion metric, pinned as an overlay on the pan/zoom tree tab.
+// Slim editorial strip (warm paper, hairline border, sharp 4px, brand yellow square,
+// serif %) — replaces the heavy ink block so it sits lighter over the canopy and
+// no longer buries the crown. The full ink PathHero stays as the phase tab's header.
 function PathHeroCompact({ done, total, pct }: { done: number; total: number; pct: number }) {
   const c = useTheme().colors
   return (
-    <Card style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface, paddingVertical: space[3] }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-        <ThemedText variant="titleLg" style={{ color: c.onInk }}>
-          {String(pct)}%
-        </ThemedText>
-        <View style={{ flex: 1, gap: space[1] }}>
-          <ThemedText variant="caption" style={{ color: c.onInkMuted }}>
-            {done}/{total} chặng
-          </ThemedText>
-          <ProgressBar value={total > 0 ? done / total : 0} fillColor={c.accent} />
-        </View>
-      </View>
-    </Card>
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: space[3],
+        backgroundColor: c.surface,
+        borderWidth: 1,
+        borderColor: c.borderStrong,
+        borderRadius: radius.sm,
+        paddingVertical: space[2],
+        paddingHorizontal: space[3],
+        shadowColor: '#000',
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 2 },
+      }}
+    >
+      <YellowSquare size={10} />
+      <ThemedText variant="title" style={{ color: c.textPrimary }}>
+        {String(pct)}%
+      </ThemedText>
+      <ProgressBar
+        value={total > 0 ? done / total : 0}
+        height={6}
+        fillColor={c.accent}
+        style={{ flex: 1 }}
+      />
+      <Caption color={c.textSecondary}>
+        {done}/{total} chặng
+      </Caption>
+    </View>
   )
 }
 

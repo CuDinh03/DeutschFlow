@@ -84,6 +84,81 @@ describe('buildTreeLayout — running-sum heights (H1)', () => {
   })
 })
 
+describe('buildTreeLayout — growth model (mọc từ mầm)', () => {
+  test('reached levels grow with branches; fully-locked levels become a faint skeleton (no branches)', () => {
+    const byLevel = Object.fromEntries(buildTreeLayout(sample, 360).tiers.map((t) => [t.level, t]))
+    expect(byLevel.A1.grown).toBe(true)
+    expect(byLevel.A2.grown).toBe(true)
+    expect(byLevel.B1.grown).toBe(false)
+    expect(byLevel.B1.branchRows).toHaveLength(0)
+    expect(byLevel.A2.branchRows.length).toBeGreaterThan(0)
+  })
+
+  test('fillRatio = completed / total per level', () => {
+    const byLevel = Object.fromEntries(buildTreeLayout(sample, 360).tiers.map((t) => [t.level, t]))
+    expect(byLevel.A1.fillRatio).toBe(1) // 2/2 completed
+    expect(byLevel.A2.fillRatio).toBe(0) // 0/2 completed
+  })
+
+  test('foliageScale: passed lush (1), future none (0), current floored (0..1) at 0%', () => {
+    const byLevel = Object.fromEntries(buildTreeLayout(sample, 360).tiers.map((t) => [t.level, t]))
+    expect(byLevel.A1.foliageScale).toBe(1)
+    expect(byLevel.B1.foliageScale).toBe(0)
+    expect(byLevel.A2.foliageScale).toBeGreaterThan(0)
+    expect(byLevel.A2.foliageScale).toBeLessThan(1)
+  })
+
+  test('current-level foliage fills in as lessons complete (floor → 1)', () => {
+    const zero = buildTreeLayout([node(1, 'A1', 'IN_PROGRESS'), node(2, 'A1', 'AVAILABLE')], 360).tiers[0]
+    const half = buildTreeLayout([node(1, 'A1', 'COMPLETED'), node(2, 'A1', 'IN_PROGRESS')], 360).tiers[0]
+    expect(half.state).toBe('in_progress')
+    expect(half.fillRatio).toBe(0.5)
+    expect(half.foliageScale).toBeGreaterThan(zero.foliageScale)
+    expect(half.foliageScale).toBeLessThan(1)
+  })
+
+  test('grownTopY = living trunk top: above ground, below the full top when a skeleton exists', () => {
+    const { grownTopY, groundY, topY, tiers } = buildTreeLayout(sample, 360)
+    expect(grownTopY).toBeLessThan(groundY) // grew up from the ground
+    expect(grownTopY).toBeGreaterThan(topY) // faint skeleton (B1) sits above the living top
+    const a2 = tiers.find((t) => t.level === 'A2')!
+    expect(grownTopY).toBeLessThan(a2.milestoneY)
+  })
+
+  test('no skeleton when every level is reached: grownTopY === topY', () => {
+    const all = buildTreeLayout(
+      [node(1, 'A1', 'COMPLETED'), node(2, 'A2', 'COMPLETED'), node(3, 'B1', 'IN_PROGRESS')],
+      360,
+    )
+    expect(all.grownTopY).toBe(all.topY)
+  })
+
+  test('goalReached only when the highest level is fully passed', () => {
+    expect(buildTreeLayout(sample, 360).goalReached).toBe(false) // B1 locked
+    expect(buildTreeLayout([node(1, 'A1', 'COMPLETED'), node(2, 'A2', 'COMPLETED')], 360).goalReached).toBe(true)
+  })
+
+  test('a future (skeleton) level is more compact than the same level grown', () => {
+    const locked = buildTreeLayout([node(1, 'A1', 'IN_PROGRESS'), node(2, 'B1', 'LOCKED')], 360)
+    const reached = buildTreeLayout([node(1, 'A1', 'IN_PROGRESS'), node(2, 'B1', 'AVAILABLE')], 360)
+    expect(reached.height).toBeGreaterThan(locked.height)
+  })
+
+  test('cold-start (every level locked) → nothing grown: hasGrown false, grownTopY === groundY', () => {
+    const cold = buildTreeLayout([node(1, 'A1', 'LOCKED'), node(2, 'A2', 'LOCKED')], 360)
+    expect(cold.hasGrown).toBe(false)
+    expect(cold.grownTopY).toBe(cold.groundY) // renderer suppresses the living trunk here
+    expect(cold.tiers.every((t) => !t.grown)).toBe(true)
+    expect(buildTreeLayout(sample, 360).hasGrown).toBe(true)
+  })
+
+  test('current-level foliageScale at 0% equals the floor exactly (0.25)', () => {
+    const zero = buildTreeLayout([node(1, 'A1', 'IN_PROGRESS'), node(2, 'A1', 'AVAILABLE')], 360).tiers[0]
+    expect(zero.fillRatio).toBe(0)
+    expect(zero.foliageScale).toBeCloseTo(0.25, 5)
+  })
+})
+
 describe('trunkPath', () => {
   test('produces a closed SVG path', () => {
     const d = trunkPath(180, 1000, 200)

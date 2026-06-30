@@ -1,12 +1,15 @@
 // SkillTreeView — the interactive bottom-up "Cây học tập" surface (Pha 2).
 //
 // The tree is laid out in a fixed canvas space (CANVAS_W × layout.height) and
-// painted once inside an <Animated.G>; pan / pinch / double-tap-zoom drive that
-// group's transform on the UI thread via useTreeGestures, so the SVG never
-// re-renders per frame (spec C4). Lesson taps are hit-tested in canvas space (the
-// per-node <G onPress> is unreliable under a GestureDetector), then surfaced to
-// the host via onSelectNode, which opens the NodeSheet. Zoom/fit/companion chrome
-// are RN overlays outside the <Svg>.
+// painted once inside a static <G>. Pan / pinch / double-tap-zoom drive a wrapping
+// RN <Animated.View> (transformOrigin '0 0') on the UI thread via useTreeGestures'
+// animatedStyle, so the SVG never re-renders per frame (spec C4). The transform is
+// NOT on an svg <Animated.G>: on the New Architecture (Fabric), react-native-svg
+// does not update an animated <G> transform (see SKILL_TREE_PROGRESS.md §10/§11).
+// The <Svg> is sized to the full canvas and clipped by an overflow:hidden viewport
+// View. Lesson taps are hit-tested in canvas space (per-node <G onPress> is
+// unreliable under a GestureDetector), then surfaced via onSelectNode → NodeSheet.
+// Zoom/fit/companion chrome are RN overlays outside the <Svg>.
 
 import { useCallback, useMemo, useRef } from 'react'
 import { View } from 'react-native'
@@ -23,7 +26,7 @@ import Svg, {
   Text as SvgText,
 } from 'react-native-svg'
 import { GestureDetector } from 'react-native-gesture-handler'
-import { useReducedMotion } from 'react-native-reanimated'
+import Animated, { useReducedMotion } from 'react-native-reanimated'
 import { fonts, space, useTheme } from '@/lib/theme'
 import type { SkillNode } from '@/lib/skillTreeApi'
 import { companionEmoji, type CompanionKey } from '@/lib/treeCompanion'
@@ -37,7 +40,7 @@ import { BARK, CROWN_LEAVES, GROUND, GROUP_COLORS, MS_PAL, SKILL_DOTS, type Topi
 import { LockGlyph, SproutGlyph, TrophyGlyph } from './skill-tree/glyphs'
 import { nodeOffsets } from './skill-tree/nodeOffsets'
 import { topicGroupOf, topicLabelOf } from './skill-tree/topicGroup'
-import { AnimatedG, useTreeGestures } from './skill-tree/controls/useTreeGestures'
+import { useTreeGestures } from './skill-tree/controls/useTreeGestures'
 import { FitButton, ShareButton, ZoomButtons } from './skill-tree/controls/TreeControls'
 import { shareTreePng, treeCaption } from '@/lib/shareTree'
 import { CompanionChips } from './skill-tree/controls/CompanionChips'
@@ -64,6 +67,9 @@ interface BranchVisual {
   foliage: string
   chipLabel: string
   group: TopicGroupKey
+  /** current (in-progress) level fills in its foliage as lessons complete (0..1);
+   *  1 for already-passed levels. Drives the "tán dày dần" growth feel. */
+  growth: number
 }
 
 interface SkillTreeViewProps {
@@ -109,6 +115,9 @@ export function SkillTreeView({
         // (phase/industry → group), replacing the cosmetic palette cycle.
         const lead = b.nodes[0]
         const group: TopicGroupKey = lead ? topicGroupOf(lead) : 'daily'
+        // Foliage density coefficient now lives in the pure layout layer (tier.foliageScale):
+        // passed = lush, current level fills floor→1 by completion, future = none.
+        const growth = tier.foliageScale
         branches.push({
           key: `${tier.level}-${bi}`,
           fx,
@@ -116,6 +125,7 @@ export function SkillTreeView({
           group,
           foliage: GROUP_COLORS[group].leaf,
           chipLabel: lead ? truncate(topicLabelOf(lead)) : '',
+          growth,
         })
         const offs = nodeOffsets(b.nodes.length)
         b.nodes.forEach((node, j) => {
@@ -148,7 +158,7 @@ export function SkillTreeView({
     [geom, onSelectNode, filterTopic, filterSkill],
   )
 
-  const { animatedProps, gesture, fitView, zoomIn, zoomOut } = useTreeGestures({
+  const { animatedStyle, gesture, fitView, zoomIn, zoomOut } = useTreeGestures({
     canvasW: CANVAS_W,
     canvasH: layout.height,
     viewportW,
@@ -181,8 +191,18 @@ export function SkillTreeView({
       {/* The View carries RNGH's injected ref so svgRef stays bound to the Svg
           instance (toDataURL) regardless of gesture-handler/svg internals. */}
       <GestureDetector gesture={gesture}>
-        <View collapsable={false} style={{ width: viewportW, height: viewportH }}>
-          <Svg ref={svgRef} width={viewportW} height={viewportH}>
+        <View collapsable={false} style={{ width: viewportW, height: viewportH, overflow: 'hidden' }}>
+          {/* Pan/zoom transform on this wrapping View, NOT on an svg <G>: Fabric +
+              react-native-svg does not update an animated <G> transform. The Svg is
+              sized to the full canvas so nothing clips before the View scales it;
+              transformOrigin '0 0' keeps the scale about the origin to match zoomMath. */}
+          <Animated.View
+            style={[
+              { position: 'absolute', top: 0, left: 0, width: CANVAS_W, height: layout.height, transformOrigin: '0 0' },
+              animatedStyle,
+            ]}
+          >
+          <Svg ref={svgRef} width={CANVAS_W} height={layout.height}>
           <Defs>
             <RadialGradient id="naRipe" cx="38%" cy="34%" r="68%">
               <Stop offset="0%" stopColor="#F6B85A" />
@@ -199,26 +219,46 @@ export function SkillTreeView({
             </LinearGradient>
           </Defs>
 
-          <AnimatedG animatedProps={animatedProps}>
+          <G>
             {/* ground mound */}
             <Ellipse cx={layout.cx} cy={layout.groundY + 30} rx={180} ry={30} fill={GROUND.moundOuter} opacity={0.55} />
             <Ellipse cx={layout.cx} cy={layout.groundY + 26} rx={130} ry={20} fill={GROUND.moundInner} opacity={0.5} />
 
-            {/* trunk */}
-            <Path
-              d={trunkPath(layout.cx, layout.groundY, layout.topY)}
-              fill="url(#naTrunk)"
-              stroke={BARK.dark}
-              strokeWidth={1.5}
-            />
+            {/* faint "still to grow" trunk — from the living tree's top up to the crown */}
+            {layout.grownTopY > layout.topY ? (
+              <Path
+                d={`M ${layout.cx} ${layout.grownTopY} L ${layout.cx} ${layout.topY + 8}`}
+                stroke={BARK.dark}
+                strokeWidth={6}
+                strokeLinecap="round"
+                strokeDasharray="2 13"
+                opacity={0.28}
+              />
+            ) : null}
 
-            <Crown cx={layout.cx} topY={layout.topY} goalLabel={layout.goalLabel} />
+            {/* living trunk — only as tall as the levels reached so far (grows up per
+                level). Suppressed entirely at cold-start (nothing grown yet) so the
+                sprout + faint skeleton stand alone, not a degenerate ground-level stub. */}
+            {layout.hasGrown ? (
+              <Path
+                d={trunkPath(layout.cx, layout.groundY, layout.grownTopY)}
+                fill="url(#naTrunk)"
+                stroke={BARK.dark}
+                strokeWidth={1.5}
+              />
+            ) : null}
+
+            {/* crown (goal) caps the top — faint until the goal level is actually reached */}
+            <G opacity={layout.goalReached ? 1 : 0.34}>
+              <Crown cx={layout.cx} topY={layout.topY} goalLabel={layout.goalLabel} />
+            </G>
 
             {/* branch arms + foliage + topic chip */}
             {geom.branches.map((b) => {
               const dim = filterTopic !== null && b.group !== filterTopic
+              // current level's foliage fills in with completion (b.growth); passed = 1
               return (
-                <G key={b.key} opacity={dim ? 0.16 : 1}>
+                <G key={b.key} opacity={dim ? 0.16 : b.growth}>
                   <BranchFoliage branch={b} cx={layout.cx} labelColor={c.textSecondary} />
                 </G>
               )
@@ -241,18 +281,23 @@ export function SkillTreeView({
               )
             })}
 
-            {/* milestone discs */}
-            {layout.tiers.map((tier) => (
-              <Milestone key={tier.level} level={tier.level} state={tier.state} cx={layout.cx} y={tier.milestoneY} />
-            ))}
+            {/* milestone discs — solid for reached levels, faint skeleton for the future */}
+            {layout.tiers.map((tier) =>
+              tier.grown ? (
+                <Milestone key={tier.level} level={tier.level} state={tier.state} cx={layout.cx} y={tier.milestoneY} />
+              ) : (
+                <SkeletonMilestone key={tier.level} level={tier.level} cx={layout.cx} y={tier.milestoneY} color={c.textFaint} />
+              ),
+            )}
 
             {/* sprout at the trunk base */}
             <G transform={`translate(${layout.cx},${layout.groundY + 6})`}>
               <Circle r={16} fill="#fff" stroke={GROUND.sproutRing} strokeWidth={2.5} />
               <SproutGlyph />
             </G>
-          </AnimatedG>
+          </G>
         </Svg>
+          </Animated.View>
         </View>
       </GestureDetector>
 
@@ -349,6 +394,19 @@ function Milestone({ level, state, cx, y }: { level: string; state: MilestoneSta
           </SvgText>
         )}
       </G>
+    </G>
+  )
+}
+
+// A not-yet-reached level: a faint dashed dot with its CEFR letter, marking where
+// the tree will grow next. Stacked up the faint trunk toward the (faint) crown.
+function SkeletonMilestone({ level, cx, y, color }: { level: string; cx: number; y: number; color: string }) {
+  return (
+    <G opacity={0.4}>
+      <Circle cx={cx} cy={y} r={15} fill="none" stroke={color} strokeWidth={1.5} strokeDasharray="3 4" />
+      <SvgText x={cx} y={y + 4} textAnchor="middle" fontFamily={fonts.displayBold} fontSize={11} fill={color}>
+        {level}
+      </SvgText>
     </G>
   )
 }
