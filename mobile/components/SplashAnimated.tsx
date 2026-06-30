@@ -1,11 +1,16 @@
-// Branded launch splash — RN/Reanimated port of the native (Capacitor) splash.
-// Sequence: draw the 'D' outline → red glow → colour details → wordmark → tagline,
-// then self-fade and unmount. Brand-locked (always dark + logo colours), theme-independent.
+// Branded launch splash — Galerie v2 port of na-intro.jsx `NASplash`.
+// Yellow canvas → an ink logo tile whose 'D' stroke draws in (yellow), then the
+// red triangle + yellow square pop, then the serif "DeutschFlow" wordmark fades
+// in. A spinner + "Đang khởi động…" sits near the home indicator. Brand-locked
+// (theme-independent): yellow paper, ink mark.
+//
+// Holds (after a minimum on-screen time) until the app is ready, then self-fades
+// and unmounts — a safety cap guarantees it never traps the user on the splash.
 
 import { useEffect, useState } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
 import { MotiView } from 'moti'
-import Svg, { Path, Rect, G, Defs, RadialGradient, Stop, Ellipse } from 'react-native-svg'
+import Svg, { G, Path, Polygon, Rect } from 'react-native-svg'
 import Animated, {
   Easing,
   useAnimatedProps,
@@ -18,22 +23,19 @@ import { fonts } from '@/lib/theme'
 const AnimatedPath = Animated.createAnimatedComponent(Path)
 const AnimatedG = Animated.createAnimatedComponent(G)
 
-// Logo colours locked to the brand mark (do not theme these).
-const BG = '#0B0B0C'
-const STROKE = '#FFFFFF'
-const GOLD = '#FFCD00'
+// Brand-locked colours (na-theme NA.yellow / NA.ink / NA.red).
+const YELLOW = '#FFCD00'
+const INK = '#161513'
 const RED = '#DA291C'
 
-// 'D' outline path in a 100×100 viewBox (matches DFLogo.swift geometry).
+// 'D' outline in a 100×100 viewBox (matches the brand mark geometry).
 const D_PATH = 'M20 18 L20 82 L52 82 L74 62 L74 38 L52 18 Z'
-// Perimeter of D_PATH ≈ 211.4 viewBox units — used for the stroke-draw animation.
-const PATH_LEN = 212
-
-const LOGO = 132
+const PATH_LEN = 212 // perimeter ≈ stroke-draw length
+const LOGO = 52
+const TILE = 88
 
 interface SplashAnimatedProps {
-  /** App-readiness gate: the splash holds (after its min display time) until
-   *  this is true, so the cold-launch auth redirect settles behind it. */
+  /** App-readiness gate: the splash holds (after its min display time) until true. */
   ready: boolean
   onDone: () => void
 }
@@ -45,19 +47,16 @@ export function SplashAnimated({ ready, onDone }: SplashAnimatedProps) {
   const [forced, setForced] = useState(false)
   const [leaving, setLeaving] = useState(false)
 
-  const outlineProps = useAnimatedProps(() => ({
-    strokeDashoffset: PATH_LEN * (1 - draw.value),
-  }))
+  const outlineProps = useAnimatedProps(() => ({ strokeDashoffset: PATH_LEN * (1 - draw.value) }))
   const detailProps = useAnimatedProps(() => ({ opacity: detail.value }))
 
-  // Play the brand animation, enforce a minimum on-screen time (so a fast launch
-  // still shows the full mark), and arm a safety cap so a stalled readiness
-  // signal can never trap the user on the splash.
+  // Sequence: draw the 'D' (delay 0.35s), then pop the red triangle + yellow
+  // square (~1.1s). Enforce a 2.3s minimum, and a 6s safety cap.
   useEffect(() => {
-    draw.value = withTiming(1, { duration: 900, easing: Easing.inOut(Easing.ease) })
-    detail.value = withDelay(820, withTiming(1, { duration: 320, easing: Easing.out(Easing.quad) }))
+    draw.value = withDelay(350, withTiming(1, { duration: 850, easing: Easing.inOut(Easing.ease) }))
+    detail.value = withDelay(1150, withTiming(1, { duration: 360, easing: Easing.out(Easing.quad) }))
 
-    const min = setTimeout(() => setMinElapsed(true), 2400)
+    const min = setTimeout(() => setMinElapsed(true), 2300)
     const cap = setTimeout(() => setForced(true), 6000)
     return () => {
       clearTimeout(min)
@@ -65,14 +64,12 @@ export function SplashAnimated({ ready, onDone }: SplashAnimatedProps) {
     }
   }, [draw, detail])
 
-  // Fade out once the min display time has elapsed AND the app is ready — or the
-  // safety cap fires. This is what removes the launch "giật": the splash masks
-  // the screen until the correct first route is settled, not on a blind timer.
+  // Fade out once min time elapsed AND the app is ready — or the safety cap fires.
   useEffect(() => {
     if (leaving) return
     if (!((minElapsed && ready) || forced)) return
     setLeaving(true)
-    const done = setTimeout(onDone, 460)
+    const done = setTimeout(onDone, 420)
     return () => clearTimeout(done)
   }, [minElapsed, ready, forced, leaving, onDone])
 
@@ -81,81 +78,73 @@ export function SplashAnimated({ ready, onDone }: SplashAnimatedProps) {
       pointerEvents="none"
       style={[StyleSheet.absoluteFill, styles.root]}
       animate={{ opacity: leaving ? 0 : 1 }}
-      transition={{ type: 'timing', duration: 420, easing: Easing.inOut(Easing.ease) }}
+      transition={{ type: 'timing', duration: 380, easing: Easing.inOut(Easing.ease) }}
     >
-      {/* Red radial glow behind the mark */}
+      {/* Logo tile + wordmark — the tile springs in, the mark draws, the word fades. */}
       <MotiView
-        style={styles.glow}
-        from={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ type: 'timing', duration: 550, delay: 500 }}
+        style={styles.center}
+        from={{ opacity: 0, scale: 0.84 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ type: 'timing', duration: 520, easing: Easing.out(Easing.back(1.5)) }}
       >
-        <Svg width={320} height={320}>
-          <Defs>
-            <RadialGradient id="g" cx="50%" cy="50%" r="50%">
-              <Stop offset="0%" stopColor={RED} stopOpacity={0.26} />
-              <Stop offset="55%" stopColor={RED} stopOpacity={0.08} />
-              <Stop offset="100%" stopColor={RED} stopOpacity={0} />
-            </RadialGradient>
-          </Defs>
-          <Ellipse cx={160} cy={160} rx={160} ry={160} fill="url(#g)" />
-        </Svg>
+        <View style={styles.tile}>
+          <Svg width={LOGO} height={LOGO} viewBox="0 0 100 100">
+            <AnimatedPath
+              d={D_PATH}
+              stroke={YELLOW}
+              strokeWidth={6}
+              strokeLinejoin="miter"
+              fill="none"
+              strokeDasharray={PATH_LEN}
+              animatedProps={outlineProps}
+            />
+            <AnimatedG animatedProps={detailProps}>
+              <Polygon points="52,38 74,50 52,62" fill={RED} />
+              <Rect x={24} y={45} width={9} height={9} fill={YELLOW} />
+            </AnimatedG>
+          </Svg>
+        </View>
+
+        <MotiView
+          from={{ opacity: 0, translateY: 6 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: 520, delay: 1500 }}
+        >
+          <Text style={styles.wordmark}>DeutschFlow</Text>
+        </MotiView>
       </MotiView>
 
-      {/* The 'D' mark */}
-      <Svg width={LOGO} height={LOGO} viewBox="0 0 100 100">
-        <AnimatedPath
-          d={D_PATH}
-          stroke={STROKE}
-          strokeWidth={5}
-          strokeLinecap="round"
-          strokeLinejoin="miter"
-          fill="none"
-          strokeDasharray={PATH_LEN}
-          animatedProps={outlineProps}
-        />
-        <AnimatedG animatedProps={detailProps}>
-          <Path d="M52 38 L74 50 L52 62 Z" fill={RED} />
-          <Rect x={24} y={45} width={9} height={9} fill={GOLD} />
-        </AnimatedG>
-      </Svg>
-
-      {/* Wordmark */}
-      <MotiView
-        style={styles.wordmarkRow}
-        from={{ opacity: 0, translateY: 8 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'timing', duration: 450, delay: 1050 }}
-      >
-        <Text style={styles.my}>my</Text>
-        <Text style={styles.deutsch}>Deutsch</Text>
-        <Text style={styles.flow}>Flow</Text>
-      </MotiView>
-
-      {/* Tagline */}
-      <MotiView
-        from={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ type: 'timing', duration: 400, delay: 1350 }}
-      >
-        <Text style={styles.tagline}>GERMAN LANGUAGE LEARNING</Text>
-      </MotiView>
+      {/* Loading indicator near the home indicator. */}
+      <View style={styles.bottom}>
+        <ActivityIndicator color={INK} />
+        <Text style={styles.loadingLabel}>Đang khởi động…</Text>
+      </View>
     </MotiView>
   )
 }
 
 const styles = StyleSheet.create({
-  root: { backgroundColor: BG, alignItems: 'center', justifyContent: 'center', zIndex: 999 },
-  glow: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
-  wordmarkRow: { flexDirection: 'row', alignItems: 'flex-end', marginTop: 32 },
-  my: { fontFamily: fonts.bodyRegular, fontSize: 24, color: 'rgba(255,255,255,0.72)', lineHeight: 30 },
-  deutsch: { fontFamily: fonts.displayBold, fontSize: 30, color: '#FFFFFF', lineHeight: 32 },
-  flow: { fontFamily: fonts.displayBold, fontSize: 30, color: RED, lineHeight: 32 },
-  tagline: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: 10.5,
-    letterSpacing: 3.5,
-    color: 'rgba(255,255,255,0.42)',
-    marginTop: 10,
+  root: { backgroundColor: YELLOW, alignItems: 'center', justifyContent: 'center', zIndex: 999 },
+  center: { alignItems: 'center', gap: 20 },
+  tile: {
+    width: TILE,
+    height: TILE,
+    borderRadius: 22,
+    backgroundColor: INK,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: INK,
+    shadowOpacity: 0.25,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 14 },
+    elevation: 10,
+  },
+  wordmark: { fontFamily: fonts.displayBold, fontSize: 30, letterSpacing: -0.6, color: INK },
+  bottom: { position: 'absolute', bottom: 56, left: 0, right: 0, alignItems: 'center', gap: 14 },
+  loadingLabel: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 12,
+    letterSpacing: 0.5,
+    color: 'rgba(22,21,19,0.55)',
   },
 })
