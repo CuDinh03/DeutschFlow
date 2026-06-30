@@ -33,7 +33,7 @@ import {
   trunkPath,
   type MilestoneState,
 } from './skill-tree/layout'
-import { BARK, CROWN_LEAVES, FOLIAGE, GROUND, GROUP_COLORS, MS_PAL, SKILL_DOTS } from './skill-tree/palette'
+import { BARK, CROWN_LEAVES, FOLIAGE, GROUND, GROUP_COLORS, MS_PAL, SKILL_DOTS, type TopicGroupKey } from './skill-tree/palette'
 import { LockGlyph, SproutGlyph, TrophyGlyph } from './skill-tree/glyphs'
 import { nodeOffsets } from './skill-tree/nodeOffsets'
 import { topicGroupOf, topicLabelOf } from './skill-tree/topicGroup'
@@ -54,6 +54,7 @@ interface PlacedNode {
   node: SkillNode
   x: number
   y: number
+  branchGroup: TopicGroupKey
 }
 interface BranchVisual {
   key: string
@@ -61,6 +62,7 @@ interface BranchVisual {
   fy: number
   foliage: string
   chipLabel: string
+  group: TopicGroupKey
 }
 
 interface SkillTreeViewProps {
@@ -70,6 +72,10 @@ interface SkillTreeViewProps {
   companion: CompanionKey
   onCompanionChange: (key: CompanionKey) => void
   onSelectNode: (node: SkillNode) => void
+  /** Pha 4 filter: dim branches whose topic group ≠ this (null = no filter). */
+  filterTopic?: TopicGroupKey | null
+  /** Pha 4 filter: dim nodes whose skill index (dayNumber % 4) ≠ this. */
+  filterSkill?: number | null
 }
 
 export function SkillTreeView({
@@ -79,6 +85,8 @@ export function SkillTreeView({
   companion,
   onCompanionChange,
   onSelectNode,
+  filterTopic = null,
+  filterSkill = null,
 }: SkillTreeViewProps) {
   const c = useTheme().colors
   const insets = useSafeAreaInsets()
@@ -98,17 +106,19 @@ export function SkillTreeView({
         // Pha 3: tint + label each branch by its lead lesson's real topic group
         // (phase/industry → group), replacing the cosmetic palette cycle.
         const lead = b.nodes[0]
+        const group: TopicGroupKey = lead ? topicGroupOf(lead) : 'daily'
         branches.push({
           key: `${tier.level}-${bi}`,
           fx,
           fy,
-          foliage: lead ? GROUP_COLORS[topicGroupOf(lead)].leaf : b.foliage,
+          group,
+          foliage: GROUP_COLORS[group].leaf,
           chipLabel: lead ? truncate(topicLabelOf(lead)) : '',
         })
         const offs = nodeOffsets(b.nodes.length)
         b.nodes.forEach((node, j) => {
           const [dx, dy] = offs[j]
-          placed.push({ node, x: fx + dx, y: fy + dy })
+          placed.push({ node, x: fx + dx, y: fy + dy, branchGroup: group })
         })
       })
     })
@@ -120,6 +130,11 @@ export function SkillTreeView({
       let best: PlacedNode | null = null
       let bestD = TAP_R * TAP_R
       for (const p of geom.placed) {
+        // Skip filtered-out (dimmed) nodes so the filter gates interaction, not
+        // just opacity — and so a nearby visible node still wins an overlapping tap.
+        const branchDim = filterTopic !== null && p.branchGroup !== filterTopic
+        const dimmed = branchDim || (filterSkill !== null && p.node.dayNumber % 4 !== filterSkill)
+        if (dimmed) continue
         const d = (p.x - px) * (p.x - px) + (p.y - py) * (p.y - py)
         if (d < bestD) {
           bestD = d
@@ -128,7 +143,7 @@ export function SkillTreeView({
       }
       if (best) onSelectNode(best.node)
     },
-    [geom, onSelectNode],
+    [geom, onSelectNode, filterTopic, filterSkill],
   )
 
   const { animatedProps, gesture, fitView, zoomIn, zoomOut } = useTreeGestures({
@@ -180,15 +195,23 @@ export function SkillTreeView({
             <Crown cx={layout.cx} topY={layout.topY} goalLabel={layout.goalLabel} />
 
             {/* branch arms + foliage + topic chip */}
-            {geom.branches.map((b) => (
-              <BranchFoliage key={b.key} branch={b} cx={layout.cx} labelColor={c.textSecondary} />
-            ))}
+            {geom.branches.map((b) => {
+              const dim = filterTopic !== null && b.group !== filterTopic
+              return (
+                <G key={b.key} opacity={dim ? 0.16 : 1}>
+                  <BranchFoliage branch={b} cx={layout.cx} labelColor={c.textSecondary} />
+                </G>
+              )
+            })}
 
             {/* lesson fruit motifs */}
-            {geom.placed.map(({ node, x, y }) => {
+            {geom.placed.map(({ node, x, y, branchGroup }) => {
               const isRec = node.id === recId
+              const branchDim = filterTopic !== null && branchGroup !== filterTopic
+              const nodeDim = branchDim || (filterSkill !== null && node.dayNumber % 4 !== filterSkill)
+              const baseOpacity = node.status === 'LOCKED' ? 0.5 : 1
               return (
-                <G key={node.id} transform={`translate(${x},${y})`} opacity={node.status === 'LOCKED' ? 0.5 : 1}>
+                <G key={node.id} transform={`translate(${x},${y})`} opacity={nodeDim ? 0.12 : baseOpacity}>
                   {isRec ? <RecRing reduced={reduced} /> : null}
                   {node.status === 'IN_PROGRESS' ? <BloomHalo reduced={reduced} /> : null}
                   <NodeMotif status={node.status} success={c.success} />

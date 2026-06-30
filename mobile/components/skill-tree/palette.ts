@@ -54,8 +54,8 @@ export const GROUP_COLORS: Record<TopicGroupKey, { name: string; leaf: string; d
 // per-node skill on the wire, so the dot is cycled by `dayNumber % 4` (stable
 // across re-sorts). Real per-node skill is Pha 3. Hex verbatim from na-tree SKILLS.
 export const SKILL_DOTS = [
-  { k: 'hoeren', color: '#4F86E0' }, // Nghe
-  { k: 'lesen', color: '#5E9150' }, // Đọc
-  { k: 'sprechen', color: '#E8853A' }, // Nói
-  { k: 'schreiben', color: '#8257D8' }, // Viết
+  { k: 'hoeren', label: 'Nghe', color: '#4F86E0' },
+  { k: 'lesen', label: 'Đọc', color: '#5E9150' },
+  { k: 'sprechen', label: 'Nói', color: '#E8853A' },
+  { k: 'schreiben', label: 'Viết', color: '#8257D8' },
 ] as const

@@ -218,11 +218,12 @@ app/(student)/roadmap.tsx  // tab host: tree | phase
 3. ◐ DAG: `dependenciesMet`+`prerequisites` đã plumb vào DTO; **gate vẫn theo `user_status` backend** (đã đúng — backend trả LOCKED khi chưa đủ prereq). Fork/merge geometry + index `node_code→id` **HOÃN** (H3, §8 Q7).
 4. ⏸️ **HOÃN — CẦN BACKEND:** skill thật per-node (§4.4 endpoint practice chưa có) → giữ skill-dot cosmetic `dayNumber%4`. + **HOÃN:** re-group node theo topic thành limb (hiện vẫn chunk 3, tô màu theo lead node) = quyết định product §8 Q2.
 
-### Pha 4 — Filter, growth-stage preview, "Khoe cây", phase-tab
-1. `FilterBar` (topic+skill dim) + `Legend` + `LevelUpBanner`/`doRitual` (khi `ready`).
-2. Growth-stage preview (cây ở cấp tương lai, skeleton mờ).
-3. "Khoe cây" share (SVG→PNG snapshot + caption).
-4. Phase-tab = stage-stepper `na-roadmap.jsx` (Nền tảng→Sản sinh→Lưu loát→Tốt nghiệp) thay flat SectionList.
+### Pha 4 — Filter, growth-stage preview, "Khoe cây", phase-tab — ◐ SLICE XONG
+> **◐ SLICE (filter+legend + phase-stepper) HOÀN THÀNH.** Review adversarial (filter/overlay + stepper/regression, verify từng finding) → 2 issue thật đã vá: FilterBar ScrollView nuốt pan (dời ra in-flow ngoài GestureDetector); node bị lọc-mờ vẫn tap được (hit-test bỏ qua node dimmed). tsc 0; +4 test (`__tests__/skillTreeStages.test.ts`); jest 59/59. Chưa device-verify.
+1. ✅ `FilterBar` (`controls/FilterBar.tsx`) = 6 topic-group + 4 skill chip **có màu = kiêm Legend** (§7 "6+4"); chọn → dim branch (topic) / node (skill `dayNumber%4`) opacity 0.16/0.12; "Tất cả" clear; hit-test filter-aware (node mờ không tap). Đặt **in-flow trên canvas** (không overlay — tránh nuốt pan). `LevelUpBanner`/`doRitual` **HOÃN** (cần `ready` milestone = H4).
+4. ✅ Phase-tab = `PhaseStepper` (`PhaseStepper.tsx`) — 4 stage (Nền tảng→Sản sinh→Lưu loát→Tốt nghiệp) state từ data thật (`stages.ts` `deriveStages`, test) + progress snapshot + next-actions deep-link (node/srs/speaking). Là **ListHeaderComponent**, GIỮ list node per-level bên dưới (a11y fallback cho gesture tree — KHÔNG thay hẳn SectionList).
+2. ⏸️ **HOÃN:** Growth-stage preview (cây cấp tương lai skeleton) — speculative, value thấp.
+3. ⏸️ **HOÃN — RỦI RO native dep:** "Khoe cây" share (SVG→PNG) cần `react-native-view-shot` + EAS rebuild (project nhạy cảm rebuild — memory). Cần user OK thêm dep.
 
 ---
 

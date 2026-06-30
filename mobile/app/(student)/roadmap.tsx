@@ -21,6 +21,9 @@ import {
 } from '@/components/ui'
 import { SkillTreeView } from '@/components/SkillTreeView'
 import { NodeSheet } from '@/components/skill-tree/sheets/NodeSheet'
+import { FilterBar } from '@/components/skill-tree/controls/FilterBar'
+import { PhaseStepper } from '@/components/skill-tree/PhaseStepper'
+import type { TopicGroupKey } from '@/components/skill-tree/palette'
 import { skillTreeApi, type SkillNode } from '@/lib/skillTreeApi'
 import { useCompanion } from '@/lib/treeCompanion'
 
@@ -31,6 +34,8 @@ export default function RoadmapScreen() {
   const [tab, setTab] = useState<RoadmapTab>('tree')
   const [viewport, setViewport] = useState<{ w: number; h: number } | null>(null)
   const [selectedNode, setSelectedNode] = useState<SkillNode | null>(null)
+  const [filterTopic, setFilterTopic] = useState<TopicGroupKey | null>(null)
+  const [filterSkill, setFilterSkill] = useState<number | null>(null)
   const { companion, setCompanion } = useCompanion()
   const { data: nodes = [], isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['skill-tree'],
@@ -78,29 +83,45 @@ export default function RoadmapScreen() {
             />
           </View>
         ) : (
-          <View
-            style={{ flex: 1 }}
-            onLayout={(e) => {
-              const { width: w, height: h } = e.nativeEvent.layout
-              // no-op guard: re-setting identical dims would re-render → loop (memory 660c753a)
-              setViewport((prev) => (prev && prev.w === w && prev.h === h ? prev : { w, h }))
-            }}
-          >
-            {viewport ? (
-              <SkillTreeView
-                nodes={nodes}
-                viewportW={viewport.w}
-                viewportH={viewport.h}
-                companion={companion}
-                onCompanionChange={setCompanion}
-                onSelectNode={setSelectedNode}
-              />
-            ) : null}
-            {total > 0 ? (
-              <View pointerEvents="box-none" style={{ position: 'absolute', top: space[3], left: space[5], right: space[5] }}>
-                <PathHeroCompact done={done} total={total} pct={pct} />
-              </View>
-            ) : null}
+          <View style={{ flex: 1 }}>
+            {/* FilterBar sits in document flow (NOT overlaid on the canvas) — a
+                full-width ScrollView over the GestureDetector would swallow pans. */}
+            <FilterBar
+              topic={filterTopic}
+              skill={filterSkill}
+              onTopicChange={setFilterTopic}
+              onSkillChange={setFilterSkill}
+              onClear={() => {
+                setFilterTopic(null)
+                setFilterSkill(null)
+              }}
+            />
+            <View
+              style={{ flex: 1 }}
+              onLayout={(e) => {
+                const { width: w, height: h } = e.nativeEvent.layout
+                // no-op guard: re-setting identical dims would re-render → loop (memory 660c753a)
+                setViewport((prev) => (prev && prev.w === w && prev.h === h ? prev : { w, h }))
+              }}
+            >
+              {viewport ? (
+                <SkillTreeView
+                  nodes={nodes}
+                  viewportW={viewport.w}
+                  viewportH={viewport.h}
+                  companion={companion}
+                  onCompanionChange={setCompanion}
+                  onSelectNode={setSelectedNode}
+                  filterTopic={filterTopic}
+                  filterSkill={filterSkill}
+                />
+              ) : null}
+              {total > 0 ? (
+                <View pointerEvents="box-none" style={{ position: 'absolute', top: space[3], left: space[5], right: space[5] }}>
+                  <PathHeroCompact done={done} total={total} pct={pct} />
+                </View>
+              ) : null}
+            </View>
           </View>
         )
       ) : (
@@ -112,7 +133,7 @@ export default function RoadmapScreen() {
           refreshing={isFetching && !isLoading}
           onRefresh={() => void refetch()}
           contentContainerStyle={{ paddingHorizontal: space[5], paddingBottom: space[8], flexGrow: 1 }}
-          ListHeaderComponent={total > 0 ? <PathHero done={done} total={total} pct={pct} /> : null}
+          ListHeaderComponent={total > 0 ? <PhaseStepper nodes={nodes} /> : null}
           ListEmptyComponent={
             <View style={{ flex: 1, justifyContent: 'center' }}>
               <EmptyState
@@ -208,31 +229,6 @@ function RoadmapTabs({ tab, onTab }: { tab: RoadmapTab; onTab: (t: RoadmapTab) =
         )
       })}
     </View>
-  )
-}
-
-// Editorial ink hero — the headline path-completion metric, mirrors the Home hero.
-function PathHero({ done, total, pct }: { done: number; total: number; pct: number }) {
-  const c = useTheme().colors
-  return (
-    <Card style={{ marginTop: space[3], backgroundColor: c.inkSurface, borderColor: c.inkSurface }}>
-      <Caption color={c.accent}>Tiến độ lộ trình</Caption>
-      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space[2], marginTop: space[1] }}>
-        <ThemedText variant="displayLg" style={{ color: c.onInk }}>
-          {String(pct)}%
-        </ThemedText>
-        <ThemedText variant="bodyStrong" style={{ color: c.onInkMuted }}>
-          {done}/{total} chặng
-        </ThemedText>
-      </View>
-      <View style={{ marginTop: space[3] }}>
-        {/* default light track (surfaceSunken) reads as a neutral rail on the dark ink card */}
-        <ProgressBar value={total > 0 ? done / total : 0} fillColor={c.accent} />
-      </View>
-      <ThemedText variant="caption" style={{ color: c.onInkMuted, marginTop: space[2] }}>
-        Hoàn thành từng chặng để mở khoá cấp độ tiếp theo
-      </ThemedText>
-    </Card>
   )
 }
 
