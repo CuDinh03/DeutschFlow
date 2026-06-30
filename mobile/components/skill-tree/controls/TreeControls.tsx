@@ -3,7 +3,7 @@
 // transform via the callbacks from useTreeGestures, so they never re-render the SVG.
 
 import { View } from 'react-native'
-import { Maximize, Minus, Plus } from 'lucide-react-native'
+import { Maximize, Minus, Plus, Share2 } from 'lucide-react-native'
 import { Button, IconButton } from '@/components/ui'
 import { radius, space, useTheme } from '@/lib/theme'
 
@@ -35,6 +35,20 @@ export function FitButton({ onFit }: { onFit: () => void }) {
       size="sm"
       fullWidth={false}
       onPress={onFit}
+      style={{ paddingHorizontal: space[3] }}
+    />
+  )
+}
+
+export function ShareButton({ onShare }: { onShare: () => void }) {
+  return (
+    <Button
+      label="Khoe cây"
+      icon={Share2}
+      variant="primary"
+      size="sm"
+      fullWidth={false}
+      onPress={onShare}
       style={{ paddingHorizontal: space[3] }}
     />
   )

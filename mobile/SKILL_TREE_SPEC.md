@@ -222,8 +222,8 @@ app/(student)/roadmap.tsx  // tab host: tree | phase
 > **◐ SLICE (filter+legend + phase-stepper) HOÀN THÀNH.** Review adversarial (filter/overlay + stepper/regression, verify từng finding) → 2 issue thật đã vá: FilterBar ScrollView nuốt pan (dời ra in-flow ngoài GestureDetector); node bị lọc-mờ vẫn tap được (hit-test bỏ qua node dimmed). tsc 0; +4 test (`__tests__/skillTreeStages.test.ts`); jest 59/59. Chưa device-verify.
 1. ✅ `FilterBar` (`controls/FilterBar.tsx`) = 6 topic-group + 4 skill chip **có màu = kiêm Legend** (§7 "6+4"); chọn → dim branch (topic) / node (skill `dayNumber%4`) opacity 0.16/0.12; "Tất cả" clear; hit-test filter-aware (node mờ không tap). Đặt **in-flow trên canvas** (không overlay — tránh nuốt pan). `LevelUpBanner`/`doRitual` **HOÃN** (cần `ready` milestone = H4).
 4. ✅ Phase-tab = `PhaseStepper` (`PhaseStepper.tsx`) — 4 stage (Nền tảng→Sản sinh→Lưu loát→Tốt nghiệp) state từ data thật (`stages.ts` `deriveStages`, test) + progress snapshot + next-actions deep-link (node/srs/speaking). Là **ListHeaderComponent**, GIỮ list node per-level bên dưới (a11y fallback cho gesture tree — KHÔNG thay hẳn SectionList).
+3. ✅ "Khoe cây" share (`lib/shareTree.ts` + `ShareButton`) — **KHÔNG cần dep mới / KHÔNG rebuild**: `react-native-svg` `Svg.toDataURL()` (PNG base64) → `expo-file-system/legacy` `writeAsStringAsync` cache → RN `Share.share` (đã dùng sẵn trong app). Auto-fit rồi capture qua `fitView(onDone)` completion-callback (hết race). iOS đính kèm ảnh; **Android chỉ share caption** (giới hạn RN Share — full image cần expo-sharing/rebuild). Review fix: guard `base64` undefined + bọc `<Svg>` trong `<View collapsable>` cho ref bền vững dưới GestureDetector.
 2. ⏸️ **HOÃN:** Growth-stage preview (cây cấp tương lai skeleton) — speculative, value thấp.
-3. ⏸️ **HOÃN — RỦI RO native dep:** "Khoe cây" share (SVG→PNG) cần `react-native-view-shot` + EAS rebuild (project nhạy cảm rebuild — memory). Cần user OK thêm dep.
 
 ---
 

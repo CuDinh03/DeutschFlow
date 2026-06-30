@@ -8,7 +8,7 @@
 // the host via onSelectNode, which opens the NodeSheet. Zoom/fit/companion chrome
 // are RN overlays outside the <Svg>.
 
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useRef } from 'react'
 import { View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Svg, {
@@ -38,7 +38,8 @@ import { LockGlyph, SproutGlyph, TrophyGlyph } from './skill-tree/glyphs'
 import { nodeOffsets } from './skill-tree/nodeOffsets'
 import { topicGroupOf, topicLabelOf } from './skill-tree/topicGroup'
 import { AnimatedG, useTreeGestures } from './skill-tree/controls/useTreeGestures'
-import { FitButton, ZoomButtons } from './skill-tree/controls/TreeControls'
+import { FitButton, ShareButton, ZoomButtons } from './skill-tree/controls/TreeControls'
+import { shareTreePng, treeCaption } from '@/lib/shareTree'
 import { CompanionChips } from './skill-tree/controls/CompanionChips'
 import { BloomHalo, CompanionEmoji, NodeMotif, RecRing, SkillBadge } from './skill-tree/motifs/NodeMotif'
 
@@ -91,6 +92,7 @@ export function SkillTreeView({
   const c = useTheme().colors
   const insets = useSafeAreaInsets()
   const reduced = useReducedMotion()
+  const svgRef = useRef<Svg>(null)
   const layout = useMemo(() => buildTreeLayout(nodes, CANVAS_W, FOLIAGE), [nodes])
   const recId = useMemo(() => recommendedNodeId(nodes), [nodes])
   const compEmoji = companionEmoji(companion)
@@ -154,6 +156,21 @@ export function SkillTreeView({
     onTapCanvas,
   })
 
+  const total = nodes.length
+  const done = nodes.filter((n) => n.status === 'COMPLETED').length
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0
+  const onShare = useCallback(() => {
+    // Auto-fit so the shared image is the whole tree, then capture exactly when
+    // the fit animation completes (no thread race). react-native-svg toDataURL →
+    // PNG, no extra native dep. base64 is undefined if the snapshot fails.
+    fitView(() => {
+      svgRef.current?.toDataURL((base64) => {
+        if (!base64) return
+        void shareTreePng(base64, treeCaption(done, total, pct))
+      })
+    })
+  }, [fitView, done, total, pct])
+
   if (nodes.length === 0 || viewportW === 0 || viewportH === 0) return null
 
   return (
@@ -161,8 +178,11 @@ export function SkillTreeView({
       style={{ flex: 1, overflow: 'hidden' }}
       accessibilityLabel="Cây học tập — kéo để di chuyển, chụm để phóng to. Dùng tab Giai đoạn để xem danh sách bài học."
     >
+      {/* The View carries RNGH's injected ref so svgRef stays bound to the Svg
+          instance (toDataURL) regardless of gesture-handler/svg internals. */}
       <GestureDetector gesture={gesture}>
-        <Svg width={viewportW} height={viewportH}>
+        <View collapsable={false} style={{ width: viewportW, height: viewportH }}>
+          <Svg ref={svgRef} width={viewportW} height={viewportH}>
           <Defs>
             <RadialGradient id="naRipe" cx="38%" cy="34%" r="68%">
               <Stop offset="0%" stopColor="#F6B85A" />
@@ -233,12 +253,14 @@ export function SkillTreeView({
             </G>
           </AnimatedG>
         </Svg>
+        </View>
       </GestureDetector>
 
-      {/* zoom / fit cluster — sits above the companion row, clear of the home indicator */}
+      {/* share / zoom / fit cluster — sits above the companion row, clear of the home indicator */}
       <View
         style={{ position: 'absolute', right: space[4], bottom: insets.bottom + space[12], alignItems: 'flex-end', gap: space[2] }}
       >
+        <ShareButton onShare={onShare} />
         <FitButton onFit={fitView} />
         <ZoomButtons onZoomIn={zoomIn} onZoomOut={zoomOut} />
       </View>

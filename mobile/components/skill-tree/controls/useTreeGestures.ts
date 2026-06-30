@@ -68,15 +68,26 @@ export function useTreeGestures({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canvasW, canvasH, viewportW, viewportH])
 
-  const fitView = useCallback(() => {
-    if (!viewportW || !viewportH || !canvasW || !canvasH) return
-    const f = fitTransform(canvasW, canvasH, viewportW, viewportH, 1.0)
-    const d = 260
-    s.value = withTiming(f.s, { duration: d })
-    tx.value = withTiming(f.tx, { duration: d })
-    ty.value = withTiming(f.ty, { duration: d })
+  // onDone (if given) fires on the JS thread once the fit animation settles —
+  // used by "Khoe cây" to capture the tree only after it has finished fitting
+  // (no UI/JS-thread race vs a fixed setTimeout).
+  const fitView = useCallback(
+    (onDone?: () => void) => {
+      if (!viewportW || !viewportH || !canvasW || !canvasH) {
+        onDone?.()
+        return
+      }
+      const f = fitTransform(canvasW, canvasH, viewportW, viewportH, 1.0)
+      const d = 260
+      tx.value = withTiming(f.tx, { duration: d })
+      ty.value = withTiming(f.ty, { duration: d })
+      s.value = withTiming(f.s, { duration: d }, (finished) => {
+        if (finished && onDone) runOnJS(onDone)()
+      })
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canvasW, canvasH, viewportW, viewportH])
+    [canvasW, canvasH, viewportW, viewportH],
+  )
 
   // Zoom about the viewport centre (used by the +/- buttons).
   const zoomAbout = useCallback(
