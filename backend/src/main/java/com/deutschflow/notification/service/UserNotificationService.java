@@ -481,6 +481,7 @@ public class UserNotificationService {
         notificationRepository.saveAll(notifications);
         for (UserNotification n : notifications) {
             unreadPushCoordinator.afterCommit(n.getRecipient().getId());
+            pushForNotification(n);
         }
         log.info("[notifications] {} broadcast → {} recipients, audience={}", notificationType, notifications.size(), request.audienceType());
         return notifications.size();

@@ -23,6 +23,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -36,6 +37,7 @@ class UserNotificationServiceUnitTest {
     @Mock NotificationUnreadPushCoordinator unreadPushCoordinator;
     @Mock JdbcTemplate jdbcTemplate;
     @Mock ScheduledBroadcastRepository scheduledBroadcastRepository;
+    @Mock ExpoPushSenderService expoPushSenderService;
 
     @InjectMocks
     UserNotificationService service;
@@ -61,6 +63,21 @@ class UserNotificationServiceUnitTest {
         verify(notificationRepository).saveAll(any());
         verify(unreadPushCoordinator).afterCommit(42L);
         verify(scheduledBroadcastRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("immediate broadcast sends an Expo push to recipients that have a push token")
+    void broadcast_immediate_sendsExpoPush() {
+        User active = org.mockito.Mockito.mock(User.class);
+        when(active.getId()).thenReturn(42L);
+        when(active.getPushToken()).thenReturn("ExponentPushToken[abc]");
+        when(userRepository.findByActiveTrue()).thenReturn(List.of(active));
+
+        service.broadcastToAudience(allAudience(null));
+
+        // Regression: deliverBroadcast previously omitted the push fan-out, so admin
+        // and scheduled broadcasts (which carry real title/body) never reached mobile.
+        verify(expoPushSenderService).sendAsync(eq("ExponentPushToken[abc]"), eq("Title"), eq("Body"), any());
     }
 
     @Test

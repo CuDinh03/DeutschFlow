@@ -54,6 +54,28 @@ function parseSseDataLines(lines: string[]): { eventName: string; data: string }
 }
 
 /**
+ * The backend (NotificationSseBroadcaster) emits the unread count as a BARE
+ * integer payload under the event name `unreadCount` (and the same on the
+ * initial register snapshot). Tolerate a JSON object `{ unreadCount: n }` too,
+ * so the client survives either wire format. Returns null for unparseable data.
+ */
+export function parseUnreadCount(data: string): number | null {
+  const trimmed = data.trim()
+  if (!trimmed) return null
+  const direct = Number(trimmed)
+  if (Number.isFinite(direct)) return Math.max(0, Math.floor(direct))
+  try {
+    const o = JSON.parse(trimmed) as { unreadCount?: unknown }
+    if (typeof o.unreadCount === 'number' && Number.isFinite(o.unreadCount)) {
+      return Math.max(0, Math.floor(o.unreadCount))
+    }
+  } catch {
+    /* not JSON — fall through */
+  }
+  return null
+}
+
+/**
  * Subscribes to GET /notifications/stream (SSE via fetch ReadableStream).
  * Reconnects with backoff until `AbortController.abort()`.
  */
@@ -137,16 +159,10 @@ export function subscribeNotificationUnread(
           if (!frame.trim()) continue
           const lines = frame.split('\n')
           const { eventName, data } = parseSseDataLines(lines)
-          if (eventName === 'unread' && data) {
-            try {
-              const o = JSON.parse(data) as { unreadCount?: unknown }
-              const n = o.unreadCount
-              if (typeof n === 'number' && Number.isFinite(n)) {
-                onUnread(Math.max(0, Math.floor(n)))
-              }
-            } catch {
-              /* skip malformed */
-            }
+          // Backend event name is `unreadCount`; keep `unread` for forward-compat.
+          if ((eventName === 'unreadCount' || eventName === 'unread') && data) {
+            const n = parseUnreadCount(data)
+            if (n !== null) onUnread(n)
           }
         }
       }
