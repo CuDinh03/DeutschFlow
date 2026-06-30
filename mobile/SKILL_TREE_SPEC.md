@@ -185,7 +185,7 @@ app/(student)/roadmap.tsx  // tab host: tree | phase
 ```
 
 - `skillTreeModel.ts` = **adapter** flat `SkillNode[]` → `TREE{path[].branches[].shoots[].nodes[]}` (gom cefr→tier; cosmetic 4-branch nếu chưa có skill thật; suy `topicGroup`).
-- **1 SVG, transform ở outer `Animated.G`** (pan/zoom). HUD/header/chip/sheet là **RN overlay NGOÀI svg**.
+- **1 SVG, transform ở outer `Animated.G`** (pan/zoom). HUD/header/chip/sheet là **RN overlay NGOÀI svg**. ⚠️ **ĐÃ THAY khi build (SKILL_TREE_PROGRESS.md §10/§11):** transform KHÔNG đặt trên `Animated.G` — trên New Architecture/Fabric `react-native-svg` không cập nhật animated `<G>` transform; transform giờ ở `<Animated.View>` bọc ngoài (`useAnimatedStyle`, `transformOrigin '0 0'`), Svg vẽ full-canvas trong View clip.
 - Bọc root `<GestureHandlerRootView>`.
 
 ---

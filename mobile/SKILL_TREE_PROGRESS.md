@@ -3,7 +3,8 @@
 > **Phạm vi:** Toàn bộ việc làm lại màn Skill Tree trên app Expo `mobile/` theo `SKILL_TREE_SPEC.md`.
 > **Nhánh:** `chore/ios-deploy-sdk54` (các commit skill-tree xếp chồng trên nhánh này, độc lập với việc deploy iOS).
 > **Trạng thái:** ✅ Toàn bộ phần *làm được* của spec đã xong (Pha 1–4 + share). Phần còn lại bị chặn bởi quyết định product / cần backend.
-> **Kiểm thử:** `tsc` 0 lỗi · `jest` **59/59 pass** · **CHƯA verify trên thiết bị** (cần Metro/EAS).
+> **Kiểm thử:** `tsc` 0 lỗi · `jest` **69/69 pass** · ✅ **Device-QA trên iOS Simulator (2026-06-30)** — render + tương tác xác minh; **vá 1 bug CRITICAL (Fabric transform §10) + 1 bug MEDIUM (cold-start trunk §11)**; **mô hình "mọc từ mầm" + redesign thanh progress (§11)**.
+> ✅ **Committed** trên `chore/ios-deploy-sdk54`: `a736c31e` (code: Fabric fix + growth model + strip) · `5365ab05` (docs). Còn nợ: QA Android (emoji) · pinch trên ngón thật · ảnh share quá cao (§11).
 
 ---
 
@@ -46,7 +47,7 @@ Mỗi pha lớn theo chu trình: **nghiên cứu (multi-agent) → thiết kế 
 ### Pha 2 — Tương tác + vòng đời + companion (`15a36472`)
 - **Gestures** (`useTreeGestures.ts`): `GestureDetector` ghép `Gesture.Simultaneous(Race(pan, pinch), Exclusive(doubleTap, singleTap))`.
   - Pan bỏ qua < 5px; Pinch kẹp scale `[0.32, 1.5]` + bù tiêu điểm (focal); double-tap toggle `0.46 ↔ 1.1`; "Toàn cảnh" fit cả cây.
-  - Transform đặt trên `<Animated.G>` qua `useAnimatedProps` dạng **chuỗi** `translate(tx ty) scale(s)` → SVG **không re-render mỗi frame** (C4).
+  - Transform: ⚠️ **ĐÃ THAY (§11)** — cách cũ `<Animated.G>` + `useAnimatedProps` (chuỗi `translate scale`) **chết trên New Architecture/Fabric**; transform giờ đặt trên `<Animated.View>` bọc ngoài qua `useAnimatedStyle` → SVG **không re-render mỗi frame** (C4).
 - **Tap bằng hit-test, KHÔNG dùng `<G onPress>`**: dưới `GestureDetector`, `onPress` từng node không đáng tin → tap đơn được nghịch-biến-đổi về toạ độ canvas rồi dò node gần nhất (`zoomMath.toCanvas`).
 - **4 motif vòng đời** (`NodeMotif.tsx`): quả chín + ✓ (completed) / hoa 5 cánh (in_progress) / nụ (available) / nút xám (locked). Port web → react-native-svg bằng `rotation`/`originX`/`originY` (không dùng `rotate(a x y)` của web). Bloom nhấp nháy + vòng "gợi ý" xoay — **tắt theo `useReducedMotion()`**.
 - **Companion** (`treeCompanion.ts`): 5 lựa chọn, lưu bằng `expo-secure-store` key `lt_companion` mặc định `owl` (C3 — KHÔNG cần async-storage). Mascot đậu trên **node gợi ý** = node `AVAILABLE` đầu tiên theo thứ tự CEFR/ngày (`recommendedNodeId`, H2).
@@ -102,7 +103,7 @@ mobile/
 └── __tests__/skillTree*.test.ts     # 5 file test
 ```
 
-**Nguyên tắc render**: 1 `<Svg>` cỡ viewport, nội dung cây nằm trong `<Animated.G>` (pan/zoom UI-thread). Mọi chrome (PathHero, FilterBar, controls, companion, sheet) là **RN overlay NGOÀI svg**. **FilterBar phải đặt in-flow trên canvas** (không overlay) vì `ScrollView` phủ lên `GestureDetector` sẽ nuốt thao tác pan.
+**Nguyên tắc render** (cập nhật §11): 1 `<Svg>` cỡ **full-canvas** nằm trong `<Animated.View>` bọc ngoài (pan/zoom UI-thread qua `useAnimatedStyle`, `transformOrigin '0 0'`), trong View viewport `overflow:hidden` để clip; nội dung cây là `<G>` **tĩnh** (KHÔNG `<Animated.G>` — chết trên Fabric). Mọi chrome (PathHero, FilterBar, controls, companion, sheet) là **RN overlay NGOÀI svg**. **FilterBar phải đặt in-flow trên canvas** (không overlay) vì `ScrollView` phủ lên `GestureDetector` sẽ nuốt thao tác pan.
 
 ---
 
@@ -110,7 +111,7 @@ mobile/
 
 | Quyết định | Lý do |
 |---|---|
-| `<Animated.G>` + `useAnimatedProps` chuỗi `translate() scale()` | Pan/zoom chạy UI-thread, SVG không re-render → mượt (C4). Đã chứng minh trong repo (`SplashAnimated.tsx`). |
+| `<Animated.View>` bọc ngoài + `useAnimatedStyle` (transform array, `transformOrigin '0 0'`, Svg full-canvas) ⚠️ thay `<Animated.G>`+`useAnimatedProps` (§11) | Pan/zoom UI-thread, SVG không re-render → mượt (C4). `<Animated.G>` transform **không cập nhật trên Fabric** → phải transform trên RN View. |
 | Tap qua hit-test, không `<G onPress>` | Dưới `GestureDetector`, press từng node SVG không đáng tin (bị detector nuốt). |
 | `rotation`/`originX/Y` cho motif | Port web `rotate(a x y)` không sang RN; props này xoay quanh tâm rõ ràng, bền version. |
 | `expo-secure-store` cho companion | Web dùng `localStorage` (không có ở RN); `async-storage` chưa cài; secure-store đã có sẵn (C3). |
@@ -170,7 +171,7 @@ Toàn bộ phần *làm được* của spec đã xong. Phần còn lại cần 
 7. **Growth-stage preview** — cây ở cấp tương lai (skeleton mờ). Suy đoán, giá trị thấp.
 
 ### D. Vận hành (BẮT BUỘC trước khi ship)
-8. **QA trên thiết bị** — chạy EAS preview build và kiểm thực tế: pan/pinch/double-tap/fit, 4 motif + bloom/spin (và reduced-motion tắt), companion persist qua restart, tap → sheet (không nhảy route), filter dim, share (iOS đính ảnh / Android caption). Gói vào lần EAS build tới của nhánh.
+8. **QA trên thiết bị** — ✅ **ĐÃ LÀM trên iOS Simulator 2026-06-30 (xem §10)**: render/zoom/pan/tap→sheet/share đã xác minh, phát hiện+vá bug CRITICAL Fabric. **Còn nợ:** QA Android (R1 emoji), pinch/double-tap trên ngón thật, persist-companion qua restart, filter-dim + companion-switch (chưa bấm thử).
 
 ---
 
@@ -178,5 +179,49 @@ Toàn bộ phần *làm được* của spec đã xong. Phần còn lại cần 
 
 - **Spec nguồn**: `mobile/SKILL_TREE_SPEC.md` (đã đồng bộ marker ✅ từng pha).
 - **Nhánh**: `chore/ios-deploy-sdk54` — 7 commit skill-tree xếp chồng, **chưa merge**.
-- **Gotcha nhớ kỹ**: transform phải là **chuỗi** trên `Animated.G`; tap qua hit-test (không `<G onPress>`); FilterBar **in-flow** không overlay; `<Svg>` bọc `<View collapsable>` cho ref.
+- **Gotcha nhớ kỹ**: transform là **array** trên `<Animated.View>` bọc ngoài qua `useAnimatedStyle` + `transformOrigin '0 0'` + Svg **full-canvas** (KHÔNG `useAnimatedProps`/`Animated.G` — chết trên Fabric, §11); tap qua hit-test (không `<G onPress>`); FilterBar **in-flow** không overlay; `<Svg>` bọc `<View collapsable>` cho ref.
 - **Build local**: `export LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8` + `ENABLE_USER_SCRIPT_SANDBOXING=NO` trước build (EAS không bị) — theo handoff deploy.
+
+---
+
+## 10. Device-QA trên iOS Simulator (2026-06-30) + bản vá Fabric
+
+**Cách chạy:** dev build local `npx expo run:ios` (simulator iPhone 16 Pro, 0 signing) + Metro; điều hướng deep-link `deutschflow://roadmap`; điều khiển qua computer-use; chụp bằng `xcrun simctl io booted screenshot`.
+
+### 🔴 Bug CRITICAL phát hiện — gesture/zoom CHẾT trên New Architecture (Fabric)
+- **Triệu chứng:** pan, pinch, double-tap, tap-node→sheet, **và cả nút Zoom +/−** đều không phản hồi; nhưng Pressable thường (tab "Giai đoạn") thì chạy.
+- **Root cause:** app bật `newArchEnabled: true`. Trên **Fabric, `react-native-svg` 15 KHÔNG cập nhật prop `transform` của `<G>` qua `useAnimatedProps`** → mọi thay đổi transform đổi shared value nhưng SVG không vẽ lại. Hệ quả phụ: node render ở transform mặc định (0.46) còn hit-test tính theo fit → toạ độ lệch → tap node cũng trượt. `tsc`/`jest` không bắt được (lỗi tích hợp runtime).
+- **Bản vá:** chuyển transform từ SVG `<G>` (`useAnimatedProps`) sang **RN `<Animated.View>` bọc ngoài** (`useAnimatedStyle`, transform array) — reanimated transform trên View chạy tốt trên Fabric. Svg vẽ **full-canvas** (`CANVAS_W × layout.height`) trong View clip viewport, `transformOrigin '0 0'` giữ nguyên zoomMath (translate rồi scale quanh gốc). Sửa `controls/useTreeGestures.ts` (bỏ `AnimatedG`/`useAnimatedProps` → `animatedStyle`) + `SkillTreeView.tsx` (bọc `<Animated.View>`, Svg full-canvas, `<G>` tĩnh).
+- **Xác minh sau vá (cùng simulator, hot-reload):** Zoom + → cây phóng to ✅ · drag → **pan** ✅ · tap node → **NodeSheet** mở đúng bài ("Giới từ hai hướng (Akk/Dat)", ĐÃ KHOÁ) ✅. `tsc` 0 lỗi · `jest` 59/59.
+
+### ✅ Đã xác minh tốt (iOS)
+- Build dev iOS chạy (0 signing trên simulator); cây bottom-up render đẹp (thân/nhánh/tán/crown/ground/sprout).
+- **R1 emoji** mascot 🦉 + chip 🦉🐦🦋🐿️ render màu, đúng (iOS). **R2 font** nhãn topic + nút serif đúng, không tofu.
+- Milestone: khoá (đĩa xám viền đứt + lock glyph) + in-progress (đĩa "A1") render đúng; motif hoa (in-progress) hiện.
+- Tab "Giai đoạn": PhaseStepper 4 giai đoạn + `deriveStages` ("1 đang học") + deep-link SRS/AI render đúng.
+- **R3 share:** `toDataURL` ghi `cay-hoc-tap.png` **1.33 MB hợp lệ**, capture full-canvas trung thực (tán/nhãn/milestone/sprout/motif/skill-dot). **Lưu ý:** ảnh giờ là full-canvas rất cao (1140×9726) thay vì khung-fit → cân nhắc giới hạn chiều cao / Svg capture riêng.
+
+### ⚠️ CÒN NỢ (chưa xác minh)
+- **QA Android** — R1 emoji-trong-SVG-`<Text>` + emoji-trong-`toDataURL` rủi ro nhất ở Android (iOS đã OK).
+- **Pinch + double-tap trên ngón thật** — pipeline đã chứng minh (zoom+pan+tap chạy) nhưng input tổng hợp không kích được RNGH; cần ngón thật / Option+drag.
+- **Filter dim, companion-switch + persist-qua-restart** — chưa bấm thử (đều là Pressable set state → render đã chạy nên khả năng cao OK).
+- **Mascot emoji trong ảnh share** — không thấy rõ trong crop capture (minor cosmetic; live view có).
+- **Data limit:** tài khoản QA 0/55 hoàn thành → chưa soi được motif "quả chín" (completed) + milestone "trophy" (passed).
+
+---
+
+## 11. Mô hình "mọc từ mầm" + redesign thanh progress (2026-06-30)
+
+**Lệch spec đã vá:** trước đây `buildTreeLayout` dựng nguyên cây A1→B2 bất kể tiến độ. Spec §2 yêu cầu cây **lớn dần** (mầm → cấp hiện tại; goal nổi phía trên). Logic mới đưa trọn vào `layout.ts` (lớp thuần, unit-test):
+- **`grown`** per tier = `state !== 'locked'` (cấp đã đạt vẽ đầy nhánh; cấp khoá = **skeleton** mờ, `branchRows:[]`, band compact `SKELETON_BAND`).
+- **`fillRatio`** = completed/total; **`foliageScale`** = passed→1 · in_progress→`CURRENT_FOLIAGE_FLOOR(0.25)+(1-floor)*fillRatio` · future→0 (tán cấp hiện tại **dày dần theo %**, đổi mỗi tuần dù chưa lên cấp).
+- **`grownTopY`** (ngọn trunk solid) · **`topY`** (đỉnh cả skeleton, neo crown) · **`goalReached`** (crown mờ→đậm) · **`hasGrown`**.
+- Render (`SkillTreeView`): trunk solid `ground→grownTopY` (gate `hasGrown`), dashed faint `grownTopY→topY`, crown mờ 0.34 nếu chưa goal, `SkeletonMilestone` (chấm đứt nét mờ) cho cấp tương lai, foliage opacity = `tier.foliageScale`.
+
+**Review đối kháng (workflow ultracode, 14 agent):** 10 finding → **3 thật** / 7 false-positive (loại đúng "crown label", "foliage floor" — đều cố ý):
+- 🔴 **MEDIUM (đã vá):** cold-start **toàn bộ node LOCKED** (user mới / `user_status` null→LOCKED) → `grownTopY===groundY` → `trunkPath(groundY,groundY)` vẽ ribbon degenerate lộn ngược vào gò đất. **Fix:** thêm `hasGrown`, gate trunk solid; chỉ hiện mầm + skeleton mờ. + test cold-start.
+- **test (đã vá):** assert `foliageScale` 0% = đúng floor 0.25 (trước chỉ `>0 && <1`).
+
+**Redesign thanh progress (`PathHeroCompact`):** khối **ink đen nặng** (đè crown) → **strip giấy-ấm mảnh 1 dòng**: ô vuông vàng (brand) + `0%` serif Newsreader + track mỏng (h6, fill vàng) + `0/55 CHẶNG` caption — `surface` + hairline `borderStrong` + sharp `radius.sm` + shadow nhẹ. Gọn hơn ~⅓ chiều cao, hợp editorial v2, không còn đè crown.
+
+**Kiểm thử:** `tsc` 0 · `jest` **69/69** (+10 test growth/cold-start/floor). Verify simulator: cây mọc theo cấp + thanh mới render đẹp.
