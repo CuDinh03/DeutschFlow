@@ -14,7 +14,7 @@ Một session làm theo draft gốc sẽ build cây mà node mở-khoá không b
 
 **C1 (CRITICAL · cũng là bug code HIỆN TẠI). Backend gửi `UNLOCKED`, không phải `AVAILABLE`.**
 `SkillTreeService.java` serialize `COALESCE(p.status,'LOCKED')`, vòng đời thật = `LOCKED → UNLOCKED → IN_PROGRESS → COMPLETED`. **Không hề có `AVAILABLE`** ở backend. Nhưng `na-tree.jsx`, `skillTreeApi.ts` (`NodeStatus`), `roadmap.tsx:120`, `SkillTreeView.tsx` đều so với `'AVAILABLE'`. → Hệ quả với data thật: **mọi node unlocked-chưa-học render xám + không bấm được** (node recommended, companion, CTA "chạm vào lá đang sáng" đều chết).
-→ **Fix (Pha 1 item 0):** chuẩn hoá trong `mapSkillNode`: map `UNLOCKED → 'available'` (hoặc đổi literal thành `'unlocked'` ở mọi nơi). Sửa `NodeStatus` + mọi so sánh `'AVAILABLE'` trong `roadmap.tsx`/`SkillTreeView.tsx`. **Đây là bug có thể vá NGAY** (không cần chờ rebuild tree).
+→ **Fix (Pha 1 item 0):** chuẩn hoá trong `mapSkillNode`: map `UNLOCKED → 'available'`. **✅ ĐÃ VÁ** (commit `571e5fc3`): thêm `normalizeStatus()` tại boundary `mapSkillNode` (`UNLOCKED→AVAILABLE`, defensive `→LOCKED`) → mọi consumer `'AVAILABLE'` (roadmap/learn/SkillTreeView) chạy đúng; + test `__tests__/skillTreeApi.test.ts`. Session mới KHÔNG cần làm lại item này.
 
 **C2 (CRITICAL). `nodeCap=10`/branch là ảo — `na-tree.jsx` chỉ có 4 slot, node 5+ chồng tại gốc.**
 `na-tree.jsx:328`: `off=[[0,-6],[-30,18],[30,16],[0,40]][ni]||[0,0]` — chỉ 4 vị trí; node ≥5 sập về `[0,0]` (chồng lên nhau). Seed `TREE` không bao giờ >4 node/branch nên design không lộ. Data thật: 1 cấp CEFR có hàng chục ngày/node → **vỡ ở node thứ 5**, không phải 40.
