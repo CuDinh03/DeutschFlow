@@ -49,6 +49,7 @@ import { BloomHalo, CompanionEmoji, NodeMotif, RecRing, SkillBadge } from './ski
 const CANVAS_W = 380 // fixed layout width; the gesture transform maps it to the viewport
 const ARM_X = Math.min(CANVAS_W / 2 - 56, 120)
 const TAP_R = 26 // tap hit radius in canvas px
+const MIN_TRUNK_STUB = 220 // cold-start (mầm) living-trunk height so the sprout has a stub to perch on
 
 function truncate(s: string, n = 14): string {
   return s.length > n ? `${s.slice(0, n - 1)}…` : s
@@ -181,6 +182,11 @@ export function SkillTreeView({
     })
   }, [fitView, done, total, pct])
 
+  // Living-trunk tip = the highest reached level, or a short stub at cold-start so
+  // the "mầm" (bare trunk + sprout) shows instead of a degenerate/absent trunk. The
+  // sprout perches here as the growing point until the goal/crown is reached.
+  const trunkTopY = layout.hasGrown ? layout.grownTopY : layout.groundY - MIN_TRUNK_STUB
+
   if (nodes.length === 0 || viewportW === 0 || viewportH === 0) return null
 
   return (
@@ -220,14 +226,25 @@ export function SkillTreeView({
           </Defs>
 
           <G>
-            {/* ground mound */}
+            {/* ground mound + roots fanning into it */}
             <Ellipse cx={layout.cx} cy={layout.groundY + 30} rx={180} ry={30} fill={GROUND.moundOuter} opacity={0.55} />
             <Ellipse cx={layout.cx} cy={layout.groundY + 26} rx={130} ry={20} fill={GROUND.moundInner} opacity={0.5} />
-
-            {/* faint "still to grow" trunk — from the living tree's top up to the crown */}
-            {layout.grownTopY > layout.topY ? (
+            {[-66, -32, 34, 64].map((dx, i) => (
               <Path
-                d={`M ${layout.cx} ${layout.grownTopY} L ${layout.cx} ${layout.topY + 8}`}
+                key={i}
+                d={`M ${layout.cx + (dx < 0 ? -8 : 8)} ${layout.groundY + 2} Q ${layout.cx + dx * 0.6} ${layout.groundY + 12} ${layout.cx + dx} ${layout.groundY + 27}`}
+                stroke={BARK.dark}
+                strokeWidth={3}
+                fill="none"
+                strokeLinecap="round"
+                opacity={0.3}
+              />
+            ))}
+
+            {/* faint "still to grow" trunk — from the living tip up to the goal crown */}
+            {trunkTopY > layout.topY ? (
+              <Path
+                d={`M ${layout.cx} ${trunkTopY} L ${layout.cx} ${layout.topY + 8}`}
                 stroke={BARK.dark}
                 strokeWidth={6}
                 strokeLinecap="round"
@@ -236,17 +253,14 @@ export function SkillTreeView({
               />
             ) : null}
 
-            {/* living trunk — only as tall as the levels reached so far (grows up per
-                level). Suppressed entirely at cold-start (nothing grown yet) so the
-                sprout + faint skeleton stand alone, not a degenerate ground-level stub. */}
-            {layout.hasGrown ? (
-              <Path
-                d={trunkPath(layout.cx, layout.groundY, layout.grownTopY)}
-                fill="url(#naTrunk)"
-                stroke={BARK.dark}
-                strokeWidth={1.5}
-              />
-            ) : null}
+            {/* living trunk — grows up per reached level; at cold-start a short bare
+                stub (MIN_TRUNK_STUB) so the mầm reads as a sprouting trunk, not nothing. */}
+            <Path
+              d={trunkPath(layout.cx, layout.groundY, trunkTopY)}
+              fill="url(#naTrunk)"
+              stroke={BARK.dark}
+              strokeWidth={1.5}
+            />
 
             {/* crown (goal) caps the top — faint until the goal level is actually reached */}
             <G opacity={layout.goalReached ? 1 : 0.34}>
@@ -290,11 +304,13 @@ export function SkillTreeView({
               ),
             )}
 
-            {/* sprout at the trunk base */}
-            <G transform={`translate(${layout.cx},${layout.groundY + 6})`}>
-              <Circle r={16} fill="#fff" stroke={GROUND.sproutRing} strokeWidth={2.5} />
-              <SproutGlyph />
-            </G>
+            {/* sprout at the living tip — the growing point. The 2-leaf chồi marks
+                "mọc từ mầm"; it gives way to the goal crown once the goal is reached. */}
+            {!layout.goalReached ? (
+              <G transform={`translate(${layout.cx} ${trunkTopY}) scale(1.7)`}>
+                <SproutGlyph />
+              </G>
+            ) : null}
           </G>
         </Svg>
           </Animated.View>
