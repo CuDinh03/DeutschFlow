@@ -296,10 +296,12 @@ app:
       password-reset-window-seconds: ${APP_AUTH_PWRESET_RL_WINDOW:900}
 
   notifications:
-    # In-process SSE (single node / local dev). Clients reconnect periodically.
+    # SSE unread-count stream. Single-node by default; enable Redis pub/sub fan-out
+    # for multi-node prod (requires a reachable Redis). Clients reconnect periodically.
     sse:
       timeout-ms: ${APP_NOTIFICATION_SSE_TIMEOUT_MS:900000}
       ping-interval-seconds: ${APP_NOTIFICATION_SSE_PING_SECONDS:20}
+      redis-pubsub-enabled: ${APP_NOTIFICATION_SSE_REDIS_PUBSUB:false}
     # Sliding-window limits per user (in-memory); tune if many tabs/aggressive polling.
     rate-limit:
       read-max-per-window: ${APP_NOTIFICATION_READ_RL_MAX:120}
