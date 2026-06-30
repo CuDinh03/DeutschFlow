@@ -192,13 +192,14 @@ app/(student)/roadmap.tsx  // tab host: tree | phase
 
 ## §6. Kế hoạch theo PHA
 
-### Pha 1 — Sửa hướng bottom-up + status-fix + milestone 3-state (data 6 field hiện có)
-0. **C1: chuẩn hoá `UNLOCKED→available`** trong `mapSkillNode` + sửa `NodeStatus` + mọi `'AVAILABLE'` (`roadmap.tsx`, `SkillTreeView.tsx`). ← cũng vá bug hiện tại.
-1. Đảo `layout()` bottom-up: A1 ở đáy, cấp cao lên trên; tier y = **running-sum** (H1).
-2. Trunk ribbon gốc-rộng→ngọn-thuôn + sway + `naTrunk`.
-3. `Ground` (đất + mầm `eco`) + `Crown` (tán + goal).
-4. `Milestone` **3 state tính được** (`passed/in_progress/locked`) — `ready` HOÃN (H4).
-5. Canvas height = f(số tầng) (H1).
+### Pha 1 — Sửa hướng bottom-up + status-fix + milestone 3-state (data 6 field hiện có) — ✅ XONG
+> **✅ HOÀN THÀNH.** Tách module `components/skill-tree/{layout.ts,palette.ts,glyphs.tsx}` + rewrite `SkillTreeView.tsx`. tsc xanh; +6 test invariant `__tests__/skillTreeLayout.test.ts` (31/31 jest pass). Chưa device-verify (cần Metro/EAS — Pha 2 gắn gestures sẽ QA chung).
+0. **C1: chuẩn hoá `UNLOCKED→available`** trong `mapSkillNode` + sửa `NodeStatus` + mọi `'AVAILABLE'` (`roadmap.tsx`, `SkillTreeView.tsx`). ← cũng vá bug hiện tại. **✅** (commit `571e5fc3`).
+1. ✅ `buildTreeLayout()` bottom-up: A1 ở đáy, cấp cao lên trên; tier y = **running-sum** `f(branchCount)` (H1) — test parity.
+2. ✅ Trunk ribbon gốc-rộng(46)→ngọn-thuôn(14) + sway fade-out + gradient `naTrunk` (`LinearGradient`).
+3. ✅ `Ground` (mound + sprout glyph inline-SVG thay `eco`) + `Crown` (5-blob canopy + goal label = cấp CEFR cao nhất).
+4. ✅ `Milestone` **3 state tính được** (`passed`=trophy/gold · `in_progress`=trắng/level-text · `locked`=dashed/lock) đúng `MS_PAL` — `ready` HOÃN (H4). Glyph = inline `<Path>` (M2, KHÔNG Material Symbols font).
+5. ✅ Canvas height = `TOP_PAD + Σ tierHeight + BOTTOM_PAD` (H1).
    **Data:** không cần field mới.
 
 ### Pha 2 — Lifecycle motifs đúng + companion + gestures
