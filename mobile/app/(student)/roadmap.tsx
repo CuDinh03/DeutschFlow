@@ -1,4 +1,5 @@
-import { SectionList, View } from 'react-native'
+import { useState } from 'react'
+import { Pressable, RefreshControl, ScrollView, SectionList, View, useWindowDimensions } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router, type Href } from 'expo-router'
 import { Lock, Check } from 'lucide-react-native'
@@ -17,11 +18,15 @@ import {
   ErrorState,
   Skeleton,
 } from '@/components/ui'
+import { SkillTreeView } from '@/components/SkillTreeView'
 import { skillTreeApi, type SkillNode } from '@/lib/skillTreeApi'
 
 type LevelState = 'done' | 'current' | 'locked'
+type RoadmapTab = 'tree' | 'phase'
 
 export default function RoadmapScreen() {
+  const { width } = useWindowDimensions()
+  const [tab, setTab] = useState<RoadmapTab>('tree')
   const { data: nodes = [], isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['skill-tree'],
     queryFn: () => skillTreeApi.getMySkillTree(),
@@ -44,6 +49,7 @@ export default function RoadmapScreen() {
   return (
     <Screen edges={['top']}>
       <AppHeader title="Lộ trình học" subtitle="Hành trình A1 → B2" onBack={() => router.back()} />
+      <RoadmapTabs tab={tab} onTab={setTab} />
       {isLoading ? (
         <View style={{ paddingHorizontal: space[5], gap: space[3], paddingTop: space[2] }}>
           <Skeleton height={108} radius="md" />
@@ -52,6 +58,31 @@ export default function RoadmapScreen() {
         </View>
       ) : isError ? (
         <ErrorState onRetry={() => void refetch()} />
+      ) : tab === 'tree' ? (
+        nodes.length === 0 ? (
+          <View style={{ flex: 1, justifyContent: 'center' }}>
+            <EmptyState
+              icon={Lock}
+              title="Chưa có lộ trình"
+              message="Hoàn thành bài đánh giá đầu vào để mở lộ trình học của bạn."
+            />
+          </View>
+        ) : (
+          <ScrollView
+            contentContainerStyle={{ paddingBottom: space[8], alignItems: 'center' }}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl refreshing={isFetching && !isLoading} onRefresh={() => void refetch()} />
+            }
+          >
+            {total > 0 ? (
+              <View style={{ width: '100%', paddingHorizontal: space[5], paddingTop: space[2] }}>
+                <PathHero done={done} total={total} pct={pct} />
+              </View>
+            ) : null}
+            <SkillTreeView nodes={nodes} width={width} />
+          </ScrollView>
+        )
       ) : (
         <SectionList
           sections={sections}
@@ -89,6 +120,53 @@ function levelStateOf(data: SkillNode[]): LevelState {
   if (data.some((n) => n.status === 'AVAILABLE')) return 'current'
   if (data.length > 0 && data.every((n) => n.status === 'COMPLETED')) return 'done'
   return 'locked'
+}
+
+// Tree / phase view switch (na-tree RmTabs) — ink-active segmented control.
+function RoadmapTabs({ tab, onTab }: { tab: RoadmapTab; onTab: (t: RoadmapTab) => void }) {
+  const c = useTheme().colors
+  const tabs: [RoadmapTab, string][] = [
+    ['tree', 'Cây học tập'],
+    ['phase', 'Giai đoạn'],
+  ]
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        gap: 1,
+        marginHorizontal: space[5],
+        marginTop: space[2],
+        marginBottom: space[3],
+        borderWidth: 1,
+        borderColor: c.border,
+        borderRadius: radius.md,
+        overflow: 'hidden',
+      }}
+    >
+      {tabs.map(([k, label]) => {
+        const active = tab === k
+        return (
+          <Pressable
+            key={k}
+            accessibilityRole="button"
+            accessibilityState={{ selected: active }}
+            accessibilityLabel={label}
+            onPress={() => onTab(k)}
+            style={{
+              flex: 1,
+              paddingVertical: space[2],
+              alignItems: 'center',
+              backgroundColor: active ? c.inkSurface : c.surface,
+            }}
+          >
+            <ThemedText variant="label" color={active ? 'onInk' : 'muted'}>
+              {label}
+            </ThemedText>
+          </Pressable>
+        )
+      })}
+    </View>
+  )
 }
 
 // Editorial ink hero — the headline path-completion metric, mirrors the Home hero.
