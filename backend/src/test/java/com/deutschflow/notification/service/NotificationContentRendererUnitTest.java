@@ -41,15 +41,18 @@ class NotificationContentRendererUnitTest {
     }
 
     @Test
-    @DisplayName("assignment graded includes the score when present")
+    @DisplayName("assignment graded shows a 0-100 score scale-agnostically (no fixed denominator)")
     void assignmentGraded_includesScore() {
+        // Scores are on a 0–100 scale; the body must NOT impose a "/10" (or any) denominator,
+        // matching the prior scale-agnostic web wording.
         RenderedContent withScore = renderer.render(NotificationType.ASSIGNMENT_GRADED,
-                Map.of("assignmentType", "SPEAKING", "score", 8));
-        assertThat(withScore.body()).contains("nói").contains("8/10");
+                Map.of("assignmentType", "SPEAKING", "score", 85));
+        assertThat(withScore.body()).contains("nói").contains("Điểm: 85.");
+        assertThat(withScore.body()).doesNotContain("/10").doesNotContain("/100");
 
         RenderedContent noScore = renderer.render(NotificationType.ASSIGNMENT_GRADED,
                 new LinkedHashMap<>(Map.of("assignmentType", "WRITING")));
-        assertThat(noScore.body()).doesNotContain("/10");
+        assertThat(noScore.body()).contains("tập").doesNotContain("Điểm");
     }
 
     @Test

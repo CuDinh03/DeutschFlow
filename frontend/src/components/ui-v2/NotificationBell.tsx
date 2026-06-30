@@ -15,16 +15,19 @@ import type { RoleId } from './nav'
  */
 export function NotificationBell({ role }: { role: RoleId }) {
   const [unread, setUnread] = React.useState(0)
+  // Once the SSE stream has produced a value, the one-shot initial fetch must not
+  // overwrite it with a now-stale count (both fire on mount).
+  const sseSeen = React.useRef(false)
 
   React.useEffect(() => {
     let alive = true
     notificationApi
       .unreadCount()
       .then((res) => {
-        if (alive) setUnread(Number(res.data?.unreadCount) || 0)
+        if (alive && !sseSeen.current) setUnread(Number(res.data?.unreadCount) || 0)
       })
       .catch(() => {
-        if (alive) setUnread(0)
+        if (alive && !sseSeen.current) setUnread(0)
       })
     return () => {
       alive = false
@@ -34,7 +37,10 @@ export function NotificationBell({ role }: { role: RoleId }) {
   // Live realtime updates — the SSE stream pushes the unread count on every change.
   React.useEffect(() => {
     const ac = subscribeNotificationUnread(
-      (n) => setUnread(n),
+      (n) => {
+        sseSeen.current = true
+        setUnread(n)
+      },
       () => {},
     )
     return () => ac.abort()

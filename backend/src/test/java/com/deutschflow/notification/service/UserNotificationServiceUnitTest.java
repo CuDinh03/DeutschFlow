@@ -1,13 +1,17 @@
 package com.deutschflow.notification.service;
 
+import com.deutschflow.notification.NotificationType;
 import com.deutschflow.notification.dto.BroadcastNotificationRequest;
 import com.deutschflow.notification.dto.BroadcastNotificationResponse;
+import com.deutschflow.notification.dto.NotificationPageResponse;
 import com.deutschflow.notification.entity.ScheduledBroadcast;
+import com.deutschflow.notification.entity.UserNotification;
 import com.deutschflow.notification.repository.ScheduledBroadcastRepository;
 import com.deutschflow.notification.repository.UserNotificationRepository;
 import com.deutschflow.notification.sse.NotificationUnreadPushCoordinator;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
+import org.springframework.data.domain.PageImpl;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,7 +24,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -80,6 +86,49 @@ class UserNotificationServiceUnitTest {
         // Regression: deliverBroadcast previously omitted the push fan-out, so admin
         // and scheduled broadcasts (which carry real title/body) never reached mobile.
         verify(expoPushSenderService).sendAsync(eq("ExponentPushToken[abc]"), eq("Title"), eq("Body"), any());
+        // ...and prove the push text comes through the shared renderer, not raw payload reads.
+        verify(contentRenderer).render(eq(NotificationType.ADMIN_BROADCAST), any());
+    }
+
+    @Test
+    @DisplayName("push uses the SERVER-RENDERED title/body, not raw payload (LEVEL_UP: rendered != payload)")
+    void insertForUser_pushesRenderedContent() {
+        // LEVEL_UP payload has no title/body keys, so a passing assertion proves the renderer
+        // (not the old raw-payload fallback) produced the push text.
+        User user = org.mockito.Mockito.mock(User.class);
+        when(user.getId()).thenReturn(7L);
+        when(user.getPushToken()).thenReturn("ExponentPushToken[xyz]");
+        when(notificationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("newLevel", 5);
+        service.insertForUser(user, NotificationType.LEVEL_UP, payload);
+
+        verify(expoPushSenderService).sendAsync(
+                eq("ExponentPushToken[xyz]"), eq("⬆️ Lên cấp"), eq("Chúc mừng! Bạn đã lên Level 5!"), any());
+    }
+
+    @Test
+    @DisplayName("listForRecipient renders server-side title/body onto each item (toDto)")
+    void listForRecipient_rendersTitleBody() {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("newLevel", 5);
+        UserNotification row = UserNotification.builder()
+                .id(1L)
+                .recipient(org.mockito.Mockito.mock(User.class))
+                .type(NotificationType.LEVEL_UP)
+                .payload(payload)
+                .createdAt(LocalDateTime.of(2026, 7, 1, 8, 0))
+                .build();
+        when(notificationRepository.findByRecipient_IdOrderByIdDesc(eq(1L), any()))
+                .thenReturn(new PageImpl<>(List.of(row)));
+
+        NotificationPageResponse resp = service.listForRecipient(1L, 0, 20, false);
+
+        assertThat(resp.items()).hasSize(1);
+        assertThat(resp.items().get(0).title()).isEqualTo("⬆️ Lên cấp");
+        assertThat(resp.items().get(0).body()).isEqualTo("Chúc mừng! Bạn đã lên Level 5!");
+        assertThat(resp.items().get(0).read()).isFalse();
     }
 
     @Test

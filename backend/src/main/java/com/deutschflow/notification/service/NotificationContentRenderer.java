@@ -102,7 +102,9 @@ public class NotificationContentRenderer {
     private RenderedContent renderAssignmentGraded(Map<String, Object> p) {
         String typeLabel = "SPEAKING".equals(str(p, "assignmentType")) ? "nói" : "tập";
         Object score = p.get("score");
-        String scorePart = score != null ? " — Điểm: " + score + "/10." : ".";
+        // Scores are on a 0–100 scale (AI + teacher grading). Render scale-agnostically
+        // (matching the prior web wording) — never a fixed "/10" denominator.
+        String scorePart = score != null ? " — Điểm: " + score + "." : ".";
         return new RenderedContent(
                 "✅ Bài đã chấm",
                 "Bài " + typeLabel + " của bạn đã được chấm" + scorePart + " Xem phản hồi.");

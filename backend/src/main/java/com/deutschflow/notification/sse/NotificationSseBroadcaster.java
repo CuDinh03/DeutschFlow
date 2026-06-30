@@ -142,6 +142,11 @@ public class NotificationSseBroadcaster implements MessageListener {
             fanOutLocal(userId);
         } catch (NumberFormatException e) {
             log.debug("[SSE] ignoring malformed pub/sub message: {}", e.getMessage());
+        } catch (Exception e) {
+            // fanOutLocal's count query can throw DataAccessException under DB-pool stress;
+            // keep the Redis listener thread healthy instead of letting it bubble to the
+            // container's error handler. (The publish side likewise catches broadly.)
+            log.warn("[SSE] fan-out from pub/sub message failed: {}", e.getMessage());
         }
     }
 

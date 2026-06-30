@@ -35,7 +35,7 @@ function parseSseFrames(buf: string): { rest: string; frames: string[] } {
   return { rest, frames }
 }
 
-function parseSseDataLines(lines: string[]): { eventName: string; data: string } {
+export function parseSseDataLines(lines: string[]): { eventName: string; data: string } {
   let eventName = ''
   const dataParts: string[] = []
   for (const raw of lines) {

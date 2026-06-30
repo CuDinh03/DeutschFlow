@@ -17,9 +17,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -54,18 +55,22 @@ class NotificationSseBroadcasterUnitTest {
     }
 
     @Test
-    @DisplayName("onMessage parses the userId and fans out to local emitters")
+    @DisplayName("onMessage parses the userId and fans out ONLY to that user's local emitters")
     void onMessage_fansOutForPublishedUser() {
         var broadcaster = new NotificationSseBroadcaster(notificationRepository, redis, true);
-        broadcaster.register(7L, 60_000L); // registering creates a local emitter for user 7
+        broadcaster.register(7L, 60_000L);
+        broadcaster.register(8L, 60_000L);
+        // register() already sent each user's initial snapshot; reset so we measure ONLY onMessage.
+        clearInvocations(notificationRepository);
         Message msg = mock(Message.class);
-        when(msg.getBody()).thenReturn("7".getBytes(StandardCharsets.UTF_8));
+        when(msg.getBody()).thenReturn("8".getBytes(StandardCharsets.UTF_8));
 
         broadcaster.onMessage(msg, null);
 
-        // A registered emitter for user 7 means the count is queried to push the update.
-        verify(notificationRepository, org.mockito.Mockito.atLeastOnce())
-                .countByRecipient_IdAndReadAtIsNull(7L);
+        // The published body '8' must drive a count for user 8 and NOT user 7 — proving the
+        // body is actually parsed and routed, not coincidentally satisfied by setup.
+        verify(notificationRepository, times(1)).countByRecipient_IdAndReadAtIsNull(8L);
+        verify(notificationRepository, never()).countByRecipient_IdAndReadAtIsNull(7L);
     }
 
     @Test
@@ -95,11 +100,12 @@ class NotificationSseBroadcasterUnitTest {
     void publishFailure_fallsBackToLocal() {
         var broadcaster = new NotificationSseBroadcaster(notificationRepository, redis, true);
         broadcaster.register(9L, 60_000L);
+        clearInvocations(notificationRepository); // ignore register()'s initial snapshot count
         when(redis.convertAndSend(any(), any())).thenThrow(new RuntimeException("redis down"));
 
         broadcaster.notifyUnreadChanged(9L);
 
-        verify(notificationRepository, org.mockito.Mockito.atLeastOnce())
-                .countByRecipient_IdAndReadAtIsNull(9L);
+        // Publish threw → must still fan out locally → exactly one count query for user 9.
+        verify(notificationRepository, times(1)).countByRecipient_IdAndReadAtIsNull(9L);
     }
 }
