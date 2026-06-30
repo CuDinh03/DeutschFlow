@@ -8,12 +8,16 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.connection.Message;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.nio.charset.StandardCharsets;
+import java.util.stream.Collectors;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -62,6 +66,28 @@ class NotificationSseBroadcasterUnitTest {
         // A registered emitter for user 7 means the count is queried to push the update.
         verify(notificationRepository, org.mockito.Mockito.atLeastOnce())
                 .countByRecipient_IdAndReadAtIsNull(7L);
+    }
+
+    @Test
+    @DisplayName("SSE wire format contract: event name 'unreadCount' carrying a bare integer")
+    void sseWireFormat_eventNameAndBareInteger() {
+        // Pins the exact frame the web client parses (notificationStream.ts). The
+        // original bug was a drift here: backend emitted event 'unreadCount' + a bare
+        // int while the client expected event 'unread' + JSON {unreadCount}. If anyone
+        // changes the emit name/shape, this and the frontend parser test must both move.
+        assertThat(NotificationSseBroadcaster.UNREAD_EVENT_NAME).isEqualTo("unreadCount");
+
+        // Build the frame exactly as the broadcaster does (same public constant) and
+        // assert the serialized bytes: `event:unreadCount` + a bare integer `data:3`.
+        String frame = SseEmitter.event()
+                .name(NotificationSseBroadcaster.UNREAD_EVENT_NAME)
+                .data(3L)
+                .build().stream()
+                .map(part -> String.valueOf(part.getData()))
+                .collect(Collectors.joining());
+
+        assertThat(frame).contains("event:unreadCount");
+        assertThat(frame).contains("data:3");
     }
 
     @Test

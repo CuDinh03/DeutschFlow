@@ -42,6 +42,12 @@ public class NotificationSseBroadcaster implements MessageListener {
     /** Shared Redis channel carrying the recipient userId whose unread count changed. */
     public static final String UNREAD_CHANNEL = "deutschflow:notif:unread";
 
+    /**
+     * SSE event name for unread-count frames. The web client (notificationStream.ts)
+     * subscribes to this exact name; changing it requires changing the client too.
+     */
+    public static final String UNREAD_EVENT_NAME = "unreadCount";
+
     private final UserNotificationRepository notificationRepository;
     /** Null when no Redis is configured (e.g. local dev / CI). */
     @Nullable
@@ -146,7 +152,7 @@ public class NotificationSseBroadcaster implements MessageListener {
         long unread = notificationRepository.countByRecipient_IdAndReadAtIsNull(userId);
         for (SseEmitter emitter : emitters) {
             try {
-                emitter.send(SseEmitter.event().name("unreadCount").data(unread));
+                emitter.send(SseEmitter.event().name(UNREAD_EVENT_NAME).data(unread));
             } catch (Exception e) {
                 remove(userId, emitter);
             }
@@ -168,7 +174,7 @@ public class NotificationSseBroadcaster implements MessageListener {
 
     private void sendUnreadSnapshot(long userId, SseEmitter emitter) throws IOException {
         long unread = notificationRepository.countByRecipient_IdAndReadAtIsNull(userId);
-        emitter.send(SseEmitter.event().name("unreadCount").data(unread));
+        emitter.send(SseEmitter.event().name(UNREAD_EVENT_NAME).data(unread));
     }
 
     private void remove(long userId, SseEmitter emitter) {
