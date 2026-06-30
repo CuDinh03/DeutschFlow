@@ -15,7 +15,24 @@ import {
 import type { SkillNode } from '@/lib/skillTreeApi'
 
 function node(id: number, cefr: string, status: SkillNode['status'], day = id): SkillNode {
-  return { id, title: `N${id}`, cefrLevel: cefr, status, dayNumber: day, tags: [] }
+  return {
+    id,
+    title: `N${id}`,
+    cefrLevel: cefr,
+    status,
+    dayNumber: day,
+    sortOrder: day,
+    tags: [],
+    phase: null,
+    industry: null,
+    moduleTitle: null,
+    sessionType: null,
+    emoji: null,
+    coreTopics: [],
+    grammarPoints: [],
+    prerequisites: [],
+    dependenciesMet: false,
+  }
 }
 
 describe('nodeOffsets — N-node fan, no collapse (C2)', () => {

@@ -4,7 +4,24 @@ import type { SkillNode } from '@/lib/skillTreeApi'
 const FOLIAGE = ['#a', '#b', '#c'] as const
 
 function node(id: number, cefr: string, status: SkillNode['status'], day = id): SkillNode {
-  return { id, title: `Node ${id}`, cefrLevel: cefr, status, dayNumber: day, tags: [] }
+  return {
+    id,
+    title: `Node ${id}`,
+    cefrLevel: cefr,
+    status,
+    dayNumber: day,
+    sortOrder: day,
+    tags: [],
+    phase: null,
+    industry: null,
+    moduleTitle: null,
+    sessionType: null,
+    emoji: null,
+    coreTopics: [],
+    grammarPoints: [],
+    prerequisites: [],
+    dependenciesMet: false,
+  }
 }
 
 // A1 (all done), A2 (in progress), B1 (locked).

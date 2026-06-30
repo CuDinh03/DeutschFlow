@@ -211,11 +211,12 @@ app/(student)/roadmap.tsx  // tab host: tree | phase
    **Bonus:** TabBar nổi tự ẩn trên màn detail `href:null` (`components/ui/TabBar.tsx`) — fix root-cause control đáy bị che (toàn app). Host: ScrollView→canvas đo `onLayout` (guard chống loop `Maximum update depth`), refresh dời lên `AppHeader.right`, PathHero compact overlay; tab "Giai đoạn" SectionList = a11y fallback (canvas gesture mất per-node a11y).
    **Data:** 6 field; skill/topic cosmetic tạm.
 
-### Pha 3 — Mở DTO → limb-topic + leaf-skill + DAG thật
-1. Nới DTO (§4.3, phần lớn client-only) + `JSON.parse` json-text (null-safe).
-2. `topicGroup`/`topicLabel` thật (phase/industry→group, M4) → foliage + chip đúng màu.
-3. DAG: index `node_code→id` (H3) + `dependencies_met` gate; hoặc chỉ gate boolean, hoãn fork/merge.
-4. **CẦN BACKEND** cho skill thật: endpoint/field practice (§4.4); chưa có → giữ cosmetic 4-lá.
+### Pha 3 — Mở DTO → limb-topic + leaf-skill + DAG thật — ◐ SLICE client-only XONG
+> **◐ SLICE UNBLOCKED HOÀN THÀNH** (verified: `/skill-tree/me` = `queryForList` raw, MỌI field trên wire — backend `SkillTreeService.java:82-129`). Review adversarial (data-shape + mapping/regression, verify từng finding) **0 issue thật**. tsc 0; +13 test (`__tests__/skillTreeTopic.test.ts`: topicGroup/topicLabel/DTO-parse edge); jest 55/55.
+1. ✅ Nới DTO (`skillTreeApi.ts`): `RawSkillNode`+`SkillNode`+`mapSkillNode` thêm `sortOrder, phase, industry, moduleTitle, sessionType, emoji, coreTopics[], grammarPoints[], prerequisites[] (node_code), dependenciesMet`; helper `asStringArray()` parse json-text (string|array, object→node_code/code/id) null-safe, KHÔNG throw.
+2. ✅ `topicGroupOf`/`topicLabelOf` (`topicGroup.ts`, pure+test) = industry→group (Medizin/Pflege→medical, IT/Gastro→work, Tourismus→travel) → phase→daily → default daily; sessionType EXAM→exam. Foliage + chip dùng `GROUP_COLORS` (6 nhóm thật) thay palette cycle; NodeSheet thêm eyebrow nhóm.
+3. ◐ DAG: `dependenciesMet`+`prerequisites` đã plumb vào DTO; **gate vẫn theo `user_status` backend** (đã đúng — backend trả LOCKED khi chưa đủ prereq). Fork/merge geometry + index `node_code→id` **HOÃN** (H3, §8 Q7).
+4. ⏸️ **HOÃN — CẦN BACKEND:** skill thật per-node (§4.4 endpoint practice chưa có) → giữ skill-dot cosmetic `dayNumber%4`. + **HOÃN:** re-group node theo topic thành limb (hiện vẫn chunk 3, tô màu theo lead node) = quyết định product §8 Q2.
 
 ### Pha 4 — Filter, growth-stage preview, "Khoe cây", phase-tab
 1. `FilterBar` (topic+skill dim) + `Legend` + `LevelUpBanner`/`doRitual` (khi `ready`).

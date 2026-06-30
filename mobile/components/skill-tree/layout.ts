@@ -73,7 +73,7 @@ export function buildTreeLayout(
 
   let foliageI = 0
   const built = levels.map((level) => {
-    const lv = grouped[level].slice().sort((a, b) => a.dayNumber - b.dayNumber)
+    const lv = grouped[level].slice().sort((a, b) => a.dayNumber - b.dayNumber || a.sortOrder - b.sortOrder)
     const branches: Omit<BranchRow, 'y'>[] = []
     for (let i = 0; i < lv.length; i += BRANCH_SIZE) {
       branches.push({

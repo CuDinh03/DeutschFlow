@@ -10,7 +10,8 @@ import { router, type Href } from 'expo-router'
 import { Lock, Play, RotateCcw } from 'lucide-react-native'
 import { Button, Pill, ThemedText } from '@/components/ui'
 import { fonts, radius, space, useTheme } from '@/lib/theme'
-import { SKILL_DOTS } from '@/components/skill-tree/palette'
+import { GROUP_COLORS, SKILL_DOTS } from '@/components/skill-tree/palette'
+import { topicGroupOf } from '@/components/skill-tree/topicGroup'
 import type { NodeStatus, SkillNode } from '@/lib/skillTreeApi'
 
 type SheetMeta = { status: string; cta: string; tone: 'success' | 'accent' | 'info' | 'neutral' }
@@ -29,6 +30,7 @@ export function NodeSheet({ node, onClose }: { node: SkillNode | null; onClose: 
   const meta = SHEET[node.status]
   const locked = node.status === 'LOCKED'
   const skillColor = SKILL_DOTS[node.dayNumber % 4].color
+  const group = GROUP_COLORS[topicGroupOf(node)]
 
   const onStart = () => {
     onClose()
@@ -64,6 +66,13 @@ export function NodeSheet({ node, onClose }: { node: SkillNode | null; onClose: 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
           <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: skillColor }} />
           <Pill label={meta.status} tone={meta.tone} />
+        </View>
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <View style={{ width: 9, height: 9, borderRadius: 2, backgroundColor: group.leaf }} />
+          <ThemedText variant="label" color="muted">
+            {`${group.name.toUpperCase()}${node.moduleTitle ? ` · ${node.moduleTitle}` : ''}`}
+          </ThemedText>
         </View>
 
         <ThemedText style={{ fontFamily: fonts.displayBold, fontSize: 24, lineHeight: 30, color: c.textPrimary }}>

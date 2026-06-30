@@ -33,9 +33,10 @@ import {
   trunkPath,
   type MilestoneState,
 } from './skill-tree/layout'
-import { BARK, CROWN_LEAVES, FOLIAGE, GROUND, MS_PAL, SKILL_DOTS } from './skill-tree/palette'
+import { BARK, CROWN_LEAVES, FOLIAGE, GROUND, GROUP_COLORS, MS_PAL, SKILL_DOTS } from './skill-tree/palette'
 import { LockGlyph, SproutGlyph, TrophyGlyph } from './skill-tree/glyphs'
 import { nodeOffsets } from './skill-tree/nodeOffsets'
+import { topicGroupOf, topicLabelOf } from './skill-tree/topicGroup'
 import { AnimatedG, useTreeGestures } from './skill-tree/controls/useTreeGestures'
 import { FitButton, ZoomButtons } from './skill-tree/controls/TreeControls'
 import { CompanionChips } from './skill-tree/controls/CompanionChips'
@@ -94,14 +95,15 @@ export function SkillTreeView({
       tier.branchRows.forEach((b, bi) => {
         const fx = layout.cx + b.side * ARM_X
         const fy = b.y
+        // Pha 3: tint + label each branch by its lead lesson's real topic group
+        // (phase/industry → group), replacing the cosmetic palette cycle.
+        const lead = b.nodes[0]
         branches.push({
           key: `${tier.level}-${bi}`,
           fx,
           fy,
-          foliage: b.foliage,
-          chipLabel: truncate(
-            b.nodes[0]?.tags?.[0]?.replace(/^#/, '') || `Ngày ${b.nodes[0]?.dayNumber ?? ''}`,
-          ),
+          foliage: lead ? GROUP_COLORS[topicGroupOf(lead)].leaf : b.foliage,
+          chipLabel: lead ? truncate(topicLabelOf(lead)) : '',
         })
         const offs = nodeOffsets(b.nodes.length)
         b.nodes.forEach((node, j) => {
