@@ -5,7 +5,7 @@ import { Stack, type ErrorBoundaryProps } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import * as SplashScreen from 'expo-splash-screen'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider, focusManager } from '@tanstack/react-query'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import {
   useFonts as useSerif,
@@ -25,6 +25,7 @@ import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { useSrsOfflineStore } from '@/stores/useSrsOfflineStore'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
+import { queryClient } from '@/lib/queryClient'
 import { getAccessToken } from '@/lib/auth'
 import { initObservability, wrapWithObservability, reportError } from '@/lib/observability'
 import { ThemedText, Button } from '@/components/ui'
@@ -43,12 +44,6 @@ initObservability()
 initCertPinning()
 // Jailbreak/root tamper check — soft signal, dev-warn only; no-op until jail-monkey installed (S13).
 initDeviceIntegrity()
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: { staleTime: 30_000, retry: 1 },
-  },
-})
 
 function RootStack() {
   const theme = useTheme()
@@ -149,6 +144,10 @@ function RootLayout() {
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
+      // Bridge AppState → react-query: RN has no window-focus event, so without this
+      // stale queries (unread count, inbox) never refetch when the app returns to the
+      // foreground. setFocused(true) lets refetchOnWindowFocus do its job.
+      focusManager.setFocused(state === 'active')
       if (state === 'active') {
         void useSrsOfflineStore.getState().sync()
       }

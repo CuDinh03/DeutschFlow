@@ -3,6 +3,10 @@ import api from "@/lib/api";
 export interface NotificationItem {
   id: number;
   type: string;
+  /** Server-rendered display content (NotificationContentRenderer). Prefer these
+   *  over per-type client switches; `payload` stays for structured deep-link data. */
+  title?: string;
+  body?: string;
   payload: Record<string, unknown>;
   read: boolean;
   createdAtUtc: string;

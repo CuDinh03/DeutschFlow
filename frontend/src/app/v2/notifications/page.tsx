@@ -92,9 +92,12 @@ function pick(payload: Record<string, unknown>, ...keys: string[]): string | nul
   return null
 }
 function notifTitle(n: NotificationItem): string {
-  return pick(n.payload, 'title', 'heading', 'subject') ?? TYPE_LABEL[n.type] ?? n.type.replace(/_/g, ' ')
+  // Prefer the server-rendered title; fall back to payload keys / a typed label.
+  if (typeof n.title === 'string' && n.title.trim()) return n.title
+  return pick(n.payload, 'title', 'heading', 'subject') ?? TYPE_LABEL[n.type] ?? 'Thông báo'
 }
 function notifBody(n: NotificationItem): string | null {
+  if (typeof n.body === 'string' && n.body.trim()) return n.body
   return pick(n.payload, 'message', 'body', 'text', 'description')
 }
 function relTime(iso: string): string {

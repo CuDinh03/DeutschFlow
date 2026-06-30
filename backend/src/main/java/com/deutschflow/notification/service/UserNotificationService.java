@@ -45,6 +45,7 @@ public class UserNotificationService {
     private final JdbcTemplate jdbcTemplate;
     private final ScheduledBroadcastRepository scheduledBroadcastRepository;
     private final ExpoPushSenderService expoPushSenderService;
+    private final NotificationContentRenderer contentRenderer;
 
     /** A scheduledAt within this window of "now" is treated as immediate delivery. */
     private static final long SCHEDULE_THRESHOLD_SECONDS = 30;
@@ -481,6 +482,7 @@ public class UserNotificationService {
         notificationRepository.saveAll(notifications);
         for (UserNotification n : notifications) {
             unreadPushCoordinator.afterCommit(n.getRecipient().getId());
+            pushForNotification(n);
         }
         log.info("[notifications] {} broadcast → {} recipients, audience={}", notificationType, notifications.size(), request.audienceType());
         return notifications.size();
@@ -633,10 +635,10 @@ public class UserNotificationService {
         String token = n.getRecipient().getPushToken();
         if (token == null || token.isBlank()) return;
         Map<String, Object> p = n.getPayload() != null ? n.getPayload() : Map.of();
-        String title = p.get("title") instanceof String t && !t.isBlank() ? t
-                : n.getType() != null ? n.getType().name().replace('_', ' ') : "DeutschFlow";
-        String body = p.get("body") instanceof String b ? b : "";
-        expoPushSenderService.sendAsync(token, title, body, p);
+        // Use the shared renderer so the push text matches the in-app content exactly,
+        // instead of the old raw-enum title / empty body fallback.
+        NotificationContentRenderer.RenderedContent rendered = contentRenderer.render(n.getType(), p);
+        expoPushSenderService.sendAsync(token, rendered.title(), rendered.body(), p);
     }
 
     private static int normalizeSize(int size) {
@@ -646,14 +648,19 @@ public class UserNotificationService {
         return Math.min(size, 100);
     }
 
-    private static NotificationItemResponse toDto(UserNotification n) {
+    private NotificationItemResponse toDto(UserNotification n) {
         Map<String, Object> p = n.getPayload();
         if (p == null) {
             p = Map.of();
         }
+        // Render title/body on read so the content is consistent across surfaces
+        // and populated even for rows written before a type's payload had text.
+        NotificationContentRenderer.RenderedContent rendered = contentRenderer.render(n.getType(), p);
         return new NotificationItemResponse(
                 n.getId(),
                 n.getType(),
+                rendered.title(),
+                rendered.body(),
                 p,
                 n.getReadAt() != null,
                 n.getCreatedAt().atOffset(ZoneOffset.UTC).toInstant()

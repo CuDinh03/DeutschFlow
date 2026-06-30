@@ -116,7 +116,8 @@ function notifSummary(item: NotificationItem): string {
     case "ADMIN_BROADCAST":
       return String(p.title ?? p.message ?? "Thông báo từ hệ thống");
     default:
-      return item.type.replace(/_/g, " ");
+      // Unmapped type: use the server-rendered content instead of the raw enum.
+      return item.body || item.title || "Bạn có thông báo mới";
   }
 }
 
