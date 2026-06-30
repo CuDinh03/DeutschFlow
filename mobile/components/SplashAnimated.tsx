@@ -117,7 +117,6 @@ export function SplashAnimated({ ready, onDone }: SplashAnimatedProps) {
       {/* Loading indicator near the home indicator. */}
       <View style={styles.bottom}>
         <ActivityIndicator color={INK} />
-        <Text style={styles.loadingLabel}>Đang khởi động…</Text>
       </View>
     </MotiView>
   )
@@ -140,11 +139,5 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   wordmark: { fontFamily: fonts.displayBold, fontSize: 30, letterSpacing: -0.6, color: INK },
-  bottom: { position: 'absolute', bottom: 56, left: 0, right: 0, alignItems: 'center', gap: 14 },
-  loadingLabel: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 12,
-    letterSpacing: 0.5,
-    color: 'rgba(22,21,19,0.55)',
-  },
+  bottom: { position: 'absolute', bottom: 56, left: 0, right: 0, alignItems: 'center' },
 })
