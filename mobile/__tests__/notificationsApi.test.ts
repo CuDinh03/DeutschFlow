@@ -20,6 +20,21 @@ describe('mapNotification', () => {
     })
   })
 
+  it('prefers the server-rendered title/body over payload', () => {
+    const raw: RawNotificationItem = {
+      id: 8,
+      type: 'LEVEL_UP',
+      title: '⬆️ Lên cấp',
+      body: 'Chúc mừng! Bạn đã lên Level 5!',
+      payload: { oldLevel: 4, newLevel: 5 },
+      read: false,
+      createdAtUtc: '2026-06-01T05:00:00Z',
+    }
+    const mapped = mapNotification(raw)
+    expect(mapped.title).toBe('⬆️ Lên cấp')
+    expect(mapped.body).toBe('Chúc mừng! Bạn đã lên Level 5!')
+  })
+
   it('falls back to a typed label when payload has no title, and to message for body', () => {
     const raw: RawNotificationItem = {
       id: 6,

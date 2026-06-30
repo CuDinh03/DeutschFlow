@@ -4,12 +4,14 @@ import * as React from 'react'
 import Link from 'next/link'
 import { GaIcon } from './GaIcon'
 import { notificationApi } from '@/lib/notificationApi'
+import { subscribeNotificationUnread } from '@/lib/notificationStream'
 import type { RoleId } from './nav'
 
 /**
  * NotificationBell — the top-bar bell with a live unread badge (all roles). Replaces the static bell
- * link. Unread count from GET /notifications/unread-count; the badge hides at 0 and on error (no
- * fabricated number). Clicking still opens /v2/notifications.
+ * link. Initial count from GET /notifications/unread-count; afterwards a live SSE stream keeps the
+ * badge realtime. The badge hides at 0 and on error (no fabricated number). Clicking opens
+ * /v2/notifications.
  */
 export function NotificationBell({ role }: { role: RoleId }) {
   const [unread, setUnread] = React.useState(0)
@@ -27,6 +29,15 @@ export function NotificationBell({ role }: { role: RoleId }) {
     return () => {
       alive = false
     }
+  }, [])
+
+  // Live realtime updates — the SSE stream pushes the unread count on every change.
+  React.useEffect(() => {
+    const ac = subscribeNotificationUnread(
+      (n) => setUnread(n),
+      () => {},
+    )
+    return () => ac.abort()
   }, [])
 
   return (

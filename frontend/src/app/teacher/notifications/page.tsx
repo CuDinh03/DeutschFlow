@@ -39,7 +39,8 @@ function notifMeta(item: NotificationItem) {
     case "ADMIN_BROADCAST":
       return { icon: Bell, accent: "bg-orange-100 text-orange-700", title: String(p.title ?? p.message ?? "Thông báo hệ thống") };
     default:
-      return { icon: Bell, accent: "bg-slate-100 text-slate-700", title: item.type.replace(/_/g, " ") };
+      // Unmapped type: use the server-rendered content instead of the raw enum.
+      return { icon: Bell, accent: "bg-slate-100 text-slate-700", title: item.body || item.title || "Bạn có thông báo mới" };
   }
 }
 
