@@ -33,7 +33,7 @@ import {
   trunkPath,
   type MilestoneState,
 } from './skill-tree/layout'
-import { BARK, CROWN_LEAVES, FOLIAGE, GROUND, GROUP_COLORS, MS_PAL, SKILL_DOTS, type TopicGroupKey } from './skill-tree/palette'
+import { BARK, CROWN_LEAVES, GROUND, GROUP_COLORS, MS_PAL, SKILL_DOTS, type TopicGroupKey } from './skill-tree/palette'
 import { LockGlyph, SproutGlyph, TrophyGlyph } from './skill-tree/glyphs'
 import { nodeOffsets } from './skill-tree/nodeOffsets'
 import { topicGroupOf, topicLabelOf } from './skill-tree/topicGroup'
@@ -93,7 +93,7 @@ export function SkillTreeView({
   const insets = useSafeAreaInsets()
   const reduced = useReducedMotion()
   const svgRef = useRef<Svg>(null)
-  const layout = useMemo(() => buildTreeLayout(nodes, CANVAS_W, FOLIAGE), [nodes])
+  const layout = useMemo(() => buildTreeLayout(nodes, CANVAS_W), [nodes])
   const recId = useMemo(() => recommendedNodeId(nodes), [nodes])
   const compEmoji = companionEmoji(companion)
 

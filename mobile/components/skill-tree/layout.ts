@@ -21,7 +21,6 @@ const BOTTOM_PAD = 80 // room below the lowest tier for ground + sprout
 export interface BranchRow {
   nodes: SkillNode[]
   side: -1 | 1
-  foliage: string
   /** vertical centre of the foliage cluster */
   y: number
 }
@@ -60,18 +59,13 @@ function cefrRank(level: string): number {
   return i === -1 ? 99 : i
 }
 
-export function buildTreeLayout(
-  nodes: SkillNode[],
-  width: number,
-  foliagePalette: readonly string[],
-): TreeLayout {
+export function buildTreeLayout(nodes: SkillNode[], width: number): TreeLayout {
   const cx = width / 2
 
   const grouped: Record<string, SkillNode[]> = {}
   for (const n of nodes) (grouped[n.cefrLevel || '—'] ??= []).push(n)
   const levels = Object.keys(grouped).sort((a, b) => cefrRank(a) - cefrRank(b))
 
-  let foliageI = 0
   const built = levels.map((level) => {
     const lv = grouped[level].slice().sort((a, b) => a.dayNumber - b.dayNumber || a.sortOrder - b.sortOrder)
     const branches: Omit<BranchRow, 'y'>[] = []
@@ -79,7 +73,6 @@ export function buildTreeLayout(
       branches.push({
         nodes: lv.slice(i, i + BRANCH_SIZE),
         side: branches.length % 2 === 0 ? -1 : 1,
-        foliage: foliagePalette[foliageI++ % foliagePalette.length],
       })
     }
     return { level, branches, state: milestoneState(lv) }

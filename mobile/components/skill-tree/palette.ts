@@ -7,10 +7,6 @@ import type { MilestoneState } from './layout'
 // Bark tones for the trunk ribbon + gradient stops.
 export const BARK = { dark: '#352B21', mid: '#564636', light: '#6E5A45' } as const
 
-// Foliage tints cycled per branch (topic-group leaves come in Pha 3; until then
-// branches cycle this palette so adjacent clusters stay visually distinct).
-export const FOLIAGE = ['#8FB36B', '#6FB0A8', '#7FA8D8', '#B79BD8', '#E0A36A', '#9FC27A'] as const
-
 // Milestone disc palette. Pha 1 ships only the three computable states; `ready`
 // (branch-maturity gated) is deferred to a later phase (spec H4).
 interface MilestonePaint {
