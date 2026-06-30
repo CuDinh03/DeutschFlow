@@ -157,6 +157,28 @@ describe('buildTreeLayout — growth model (mọc từ mầm)', () => {
     expect(zero.fillRatio).toBe(0)
     expect(zero.foliageScale).toBeCloseTo(0.25, 5)
   })
+
+  test('preview "big" forces a fully grown tree (every level passed + lush, goalReached)', () => {
+    const big = buildTreeLayout(sample, 360, 'big')
+    expect(big.tiers.every((t) => t.grown && t.state === 'passed' && t.foliageScale === 1)).toBe(true)
+    expect(big.goalReached).toBe(true)
+    expect(big.hasGrown).toBe(true)
+  })
+
+  test('preview "mam" forces a bare sprout (every level locked, nothing grown)', () => {
+    const mam = buildTreeLayout(sample, 360, 'mam')
+    expect(mam.tiers.every((t) => !t.grown && t.state === 'locked')).toBe(true)
+    expect(mam.hasGrown).toBe(false)
+    expect(mam.goalReached).toBe(false)
+    expect(mam.grownTopY).toBe(mam.groundY)
+  })
+
+  test('preview defaults to "current" (real progress) when omitted', () => {
+    const omitted = buildTreeLayout(sample, 360).tiers.map((t) => t.state)
+    const explicit = buildTreeLayout(sample, 360, 'current').tiers.map((t) => t.state)
+    expect(omitted).toEqual(explicit)
+    expect(omitted).toEqual(['passed', 'in_progress', 'locked'])
+  })
 })
 
 describe('trunkPath', () => {

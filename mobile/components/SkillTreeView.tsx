@@ -35,9 +35,10 @@ import {
   recommendedNodeId,
   trunkPath,
   type MilestoneState,
+  type PreviewStage,
 } from './skill-tree/layout'
 import { BARK, CROWN_LEAVES, GROUND, GROUP_COLORS, MS_PAL, SKILL_DOTS, type TopicGroupKey } from './skill-tree/palette'
-import { LockGlyph, SproutGlyph, TrophyGlyph } from './skill-tree/glyphs'
+import { CheckGlyph, LockGlyph, SproutGlyph } from './skill-tree/glyphs'
 import { nodeOffsets } from './skill-tree/nodeOffsets'
 import { topicGroupOf, topicLabelOf } from './skill-tree/topicGroup'
 import { useTreeGestures } from './skill-tree/controls/useTreeGestures'
@@ -84,6 +85,8 @@ interface SkillTreeViewProps {
   filterTopic?: TopicGroupKey | null
   /** Pha 4 filter: dim nodes whose skill index (dayNumber % 4) ≠ this. */
   filterSkill?: number | null
+  /** Maturity-preview tab: render the tree as a sprout / current / fully grown. */
+  previewStage?: PreviewStage
 }
 
 export function SkillTreeView({
@@ -95,12 +98,13 @@ export function SkillTreeView({
   onSelectNode,
   filterTopic = null,
   filterSkill = null,
+  previewStage = 'current',
 }: SkillTreeViewProps) {
   const c = useTheme().colors
   const insets = useSafeAreaInsets()
   const reduced = useReducedMotion()
   const svgRef = useRef<Svg>(null)
-  const layout = useMemo(() => buildTreeLayout(nodes, CANVAS_W), [nodes])
+  const layout = useMemo(() => buildTreeLayout(nodes, CANVAS_W, previewStage), [nodes, previewStage])
   const recId = useMemo(() => recommendedNodeId(nodes), [nodes])
   const compEmoji = companionEmoji(companion)
 
@@ -400,15 +404,21 @@ function Milestone({ level, state, cx, y }: { level: string; state: MilestoneSta
         strokeDasharray={p.dashed ? '5 5' : undefined}
       />
       <G transform={`translate(${cx},${y})`}>
-        {state === 'passed' ? (
-          <TrophyGlyph />
-        ) : state === 'locked' ? (
+        {state === 'locked' ? (
           <LockGlyph />
         ) : (
           <SvgText x={0} y={5} textAnchor="middle" fontFamily={fonts.displayBold} fontSize={14} fill="#161513">
             {level}
           </SvgText>
         )}
+        {/* passed → keep the level letter + a small ✓ badge (matches the design's
+            gold discs); the trophy hid which level it was. */}
+        {state === 'passed' ? (
+          <G transform="translate(15,-15)">
+            <Circle cx={0} cy={0} r={8} fill="#1E9E61" stroke="#fff" strokeWidth={1.5} />
+            <CheckGlyph />
+          </G>
+        ) : null}
       </G>
     </G>
   )

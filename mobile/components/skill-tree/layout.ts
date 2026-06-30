@@ -12,6 +12,13 @@ export const CEFR_ORDER = ['A0', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2']
 
 export type MilestoneState = 'passed' | 'in_progress' | 'locked'
 
+// View-only maturity preview (the A0·Mầm / Hiện tại / C1·Cây lớn tabs). Overrides
+// how levels are classified for RENDER only — it never changes lesson data/gating.
+//   mam     → force every level locked → a bare sprout (what a brand-new tree looks like)
+//   current → the learner's actual progress
+//   big     → force every level passed → the full grown tree (the goal preview)
+export type PreviewStage = 'mam' | 'current' | 'big'
+
 const BRANCH_SIZE = 3 // lessons per branch cluster
 const ROW = 150 // vertical space one branch row occupies
 const MS_BAND = 72 // milestone disc band at a tier's base
@@ -81,7 +88,7 @@ function cefrRank(level: string): number {
   return i === -1 ? 99 : i
 }
 
-export function buildTreeLayout(nodes: SkillNode[], width: number): TreeLayout {
+export function buildTreeLayout(nodes: SkillNode[], width: number, preview: PreviewStage = 'current'): TreeLayout {
   const cx = width / 2
 
   const grouped: Record<string, SkillNode[]> = {}
@@ -97,8 +104,12 @@ export function buildTreeLayout(nodes: SkillNode[], width: number): TreeLayout {
         side: branches.length % 2 === 0 ? -1 : 1,
       })
     }
-    const state = milestoneState(lv)
-    const completed = lv.filter((n) => n.status === 'COMPLETED').length
+    // Maturity preview overrides classification for render only (mam=all locked,
+    // big=all passed), else use the learner's real progress.
+    const state =
+      preview === 'big' ? 'passed' : preview === 'mam' ? 'locked' : milestoneState(lv)
+    const completed =
+      preview === 'big' ? lv.length : preview === 'mam' ? 0 : lv.filter((n) => n.status === 'COMPLETED').length
     // A level "grows" once it is reachable (passed or in-progress); levels still
     // fully locked are the unreached future, drawn as a faint skeleton (spec §2:
     // the tree grows from a sprout to the CURRENT level, the goal floats above).

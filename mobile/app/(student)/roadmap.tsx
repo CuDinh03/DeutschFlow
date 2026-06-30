@@ -24,6 +24,7 @@ import { NodeSheet } from '@/components/skill-tree/sheets/NodeSheet'
 import { FilterBar } from '@/components/skill-tree/controls/FilterBar'
 import { PhaseStepper } from '@/components/skill-tree/PhaseStepper'
 import type { TopicGroupKey } from '@/components/skill-tree/palette'
+import type { PreviewStage } from '@/components/skill-tree/layout'
 import { skillTreeApi, type SkillNode } from '@/lib/skillTreeApi'
 import { useCompanion } from '@/lib/treeCompanion'
 
@@ -36,6 +37,7 @@ export default function RoadmapScreen() {
   const [selectedNode, setSelectedNode] = useState<SkillNode | null>(null)
   const [filterTopic, setFilterTopic] = useState<TopicGroupKey | null>(null)
   const [filterSkill, setFilterSkill] = useState<number | null>(null)
+  const [previewStage, setPreviewStage] = useState<PreviewStage>('current')
   const { companion, setCompanion } = useCompanion()
   const { data: nodes = [], isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['skill-tree'],
@@ -96,6 +98,7 @@ export default function RoadmapScreen() {
                 setFilterSkill(null)
               }}
             />
+            <StageTabs value={previewStage} onChange={setPreviewStage} />
             <View
               style={{ flex: 1 }}
               onLayout={(e) => {
@@ -114,6 +117,7 @@ export default function RoadmapScreen() {
                   onSelectNode={setSelectedNode}
                   filterTopic={filterTopic}
                   filterSkill={filterSkill}
+                  previewStage={previewStage}
                 />
               ) : null}
               {total > 0 ? (
@@ -203,6 +207,54 @@ function levelStateOf(data: SkillNode[]): LevelState {
   if (data.some((n) => n.status === 'AVAILABLE')) return 'current'
   if (data.length > 0 && data.every((n) => n.status === 'COMPLETED')) return 'done'
   return 'locked'
+}
+
+// Maturity-preview segmented control — see the tree as a sprout (Mầm) / actual
+// progress (Hiện tại) / fully grown (Cây lớn). Render-only; never changes data.
+function StageTabs({ value, onChange }: { value: PreviewStage; onChange: (s: PreviewStage) => void }) {
+  const c = useTheme().colors
+  const opts: [PreviewStage, string][] = [
+    ['mam', 'Mầm'],
+    ['current', 'Hiện tại'],
+    ['big', 'Cây lớn'],
+  ]
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        gap: 1,
+        alignSelf: 'center',
+        marginBottom: space[2],
+        borderWidth: 1,
+        borderColor: c.border,
+        borderRadius: radius.md,
+        overflow: 'hidden',
+      }}
+    >
+      {opts.map(([k, label]) => {
+        const active = value === k
+        return (
+          <Pressable
+            key={k}
+            accessibilityRole="button"
+            accessibilityState={{ selected: active }}
+            accessibilityLabel={`Xem cây giai đoạn ${label}`}
+            onPress={() => onChange(k)}
+            style={{
+              paddingVertical: space[1],
+              paddingHorizontal: space[4],
+              alignItems: 'center',
+              backgroundColor: active ? c.inkSurface : c.surface,
+            }}
+          >
+            <ThemedText variant="caption" color={active ? 'onInk' : 'muted'}>
+              {label}
+            </ThemedText>
+          </Pressable>
+        )
+      })}
+    </View>
+  )
 }
 
 // Tree / phase view switch (na-tree RmTabs) — ink-active segmented control.
