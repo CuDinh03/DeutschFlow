@@ -2,7 +2,9 @@ package com.deutschflow.teacher.service;
 
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.teacher.dto.MySkillReportDto;
 import com.deutschflow.teacher.dto.SkillReportDto;
+import com.deutschflow.teacher.dto.StudentAttendanceDto;
 import com.deutschflow.teacher.dto.StudentEvaluationDto;
 import com.deutschflow.teacher.dto.StudentEvaluationRequest;
 import com.deutschflow.teacher.entity.*;
@@ -127,11 +129,76 @@ public class StudentEvaluationService {
         return new SkillReportDto(classId, cls.getName(), rows);
     }
 
+    // ── Student-facing reads (P4): a student may see ONLY their own data ────────
+
+    /**
+     * The requesting student's own attendance for a class — one row per session log, with
+     * PRESENT/ABSENT/LATE (or null when not marked). Never exposes other students' attendance.
+     */
+    @Transactional(readOnly = true)
+    public List<StudentAttendanceDto> myAttendance(Long studentId, Long classId) {
+        assertEnrolled(studentId, classId);
+        List<ClassLessonLog> logs = lessonLogRepository.findByClassIdOrderBySessionDateDesc(classId);
+        if (logs.isEmpty()) return List.of();
+        List<Long> logIds = logs.stream().map(ClassLessonLog::getId).toList();
+        Map<Long, ClassAttendance> mine = attendanceRepository.findByLessonLogIds(logIds).stream()
+                .filter(a -> a.getId().getStudentId().equals(studentId))
+                .collect(Collectors.toMap(a -> a.getId().getLessonLogId(), a -> a, (a, b) -> a));
+        return logs.stream()
+                .map(log -> {
+                    ClassAttendance att = mine.get(log.getId());
+                    return new StudentAttendanceDto(
+                            log.getId(), log.getSessionDate(), log.getSessionNumber(), log.getTopic(),
+                            att != null ? att.getStatus() : null,
+                            att != null ? att.getNote() : null);
+                })
+                .toList();
+    }
+
+    /**
+     * The requesting student's OWN 4-skill report row (teacher-set score, or their own
+     * skill-tagged assignment averages as a fallback). Never returns the class list.
+     */
+    @Transactional(readOnly = true)
+    public MySkillReportDto mySkillReport(Long studentId, Long classId) {
+        assertEnrolled(studentId, classId);
+        ClassStudent cs = classStudentRepository.findById(new ClassStudentId(classId, studentId))
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy lớp học"));
+
+        Map<String, List<Integer>> myScoresBySkill = new HashMap<>();
+        List<ClassAssignment> assignments = assignmentRepository.findByClassIdOrderByCreatedAtDesc(classId);
+        if (!assignments.isEmpty()) {
+            List<Long> assignmentIds = assignments.stream().map(ClassAssignment::getId).toList();
+            Map<Long, String> skillByAssignment = assignments.stream()
+                    .filter(a -> a.getSkill() != null)
+                    .collect(Collectors.toMap(ClassAssignment::getId, a -> a.getSkill().toUpperCase()));
+            for (StudentAssignment sa : studentAssignmentRepository.findByAssignmentIds(assignmentIds)) {
+                if (sa.getScore() == null || !sa.getStudentId().equals(studentId)) continue;
+                String skill = skillByAssignment.getOrDefault(sa.getAssignmentId(), "GENERAL");
+                myScoresBySkill.computeIfAbsent(skill, k -> new ArrayList<>()).add(sa.getScore());
+            }
+        }
+
+        Double horen = toDouble(cs.getSkillHoren(), myScoresBySkill.get("HOREN"));
+        Double lesen = toDouble(cs.getSkillLesen(), myScoresBySkill.get("LESEN"));
+        Double schreiben = toDouble(cs.getSkillSchreiben(), myScoresBySkill.get("SCHREIBEN"));
+        Double sprechen = toDouble(cs.getSkillSprechen(), myScoresBySkill.get("SPRECHEN"));
+        Double total = avgOfPresent(horen, lesen, schreiben, sprechen);
+        return new MySkillReportDto(horen, lesen, schreiben, sprechen, total, SkillReportDto.gradeOf(total));
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private void assertTeacherOwnsClass(Long teacherId, Long classId) {
         if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
             throw new ForbiddenException("Bạn không có quyền truy cập lớp này");
+        }
+    }
+
+    /** A student may only read their own class data — reject non-members. */
+    private void assertEnrolled(Long studentId, Long classId) {
+        if (!classStudentRepository.existsById(new ClassStudentId(classId, studentId))) {
+            throw new NotFoundException("Không tìm thấy lớp học");
         }
     }
 
