@@ -112,7 +112,8 @@
         {
           "microphonePermission": "DeutschFlow cần microphone để luyện phát âm tiếng Đức."
         }
-      ]
+      ],
+      "expo-asset"
     ],
     "extra": {
       "sentryDsn": "",

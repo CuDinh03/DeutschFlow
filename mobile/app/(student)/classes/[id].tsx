@@ -4,7 +4,7 @@ import { useQueries } from '@tanstack/react-query'
 import { router, useLocalSearchParams } from 'expo-router'
 import {
   AlertCircle, BookOpen, CheckCircle2, Circle, Clock, Copy,
-  GraduationCap, Sparkles, Upload, Users,
+  GraduationCap, MessageCircle, Sparkles, Upload, Users,
 } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import {
@@ -13,7 +13,7 @@ import {
 } from '@/lib/studentClassesApi'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
-  AppHeader, Caption, Card, EmptyState, ErrorState, Icon, Pill, ProgressBar,
+  AppHeader, Button, Caption, Card, EmptyState, ErrorState, Icon, Pill, ProgressBar,
   Screen, SectionHeader, Skeleton, ThemedText, YellowSquare,
 } from '@/components/ui'
 
@@ -420,30 +420,44 @@ function TeachersTab({ teachers }: { teachers: TeacherSummary[] }) {
       <View style={{ gap: space[2] }}>
         {teachers.map((t) => (
           <Card key={t.id}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-              <View
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: radius.sm,
-                  backgroundColor: theme.colors.accentSoft,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Icon icon={GraduationCap} size={20} color="accent" />
-              </View>
-              <View style={{ flex: 1, gap: space[1] }}>
-                <ThemedText variant="bodyStrong" numberOfLines={1}>
-                  {t.displayName}
-                </ThemedText>
-                <ThemedText variant="caption" color="muted" numberOfLines={1}>
-                  {t.email}
-                </ThemedText>
-                <View style={{ flexDirection: 'row', marginTop: space[1] }}>
-                  <Pill tone="accent" label={t.role} />
+            <View style={{ gap: space[3] }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+                <View
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: radius.sm,
+                    backgroundColor: theme.colors.accentSoft,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Icon icon={GraduationCap} size={20} color="accent" />
+                </View>
+                <View style={{ flex: 1, gap: space[1] }}>
+                  <ThemedText variant="bodyStrong" numberOfLines={1}>
+                    {t.displayName}
+                  </ThemedText>
+                  <ThemedText variant="caption" color="muted" numberOfLines={1}>
+                    {t.email}
+                  </ThemedText>
+                  <View style={{ flexDirection: 'row', marginTop: space[1] }}>
+                    <Pill tone="accent" label={t.role} />
+                  </View>
                 </View>
               </View>
+              <Button
+                label="Nhắn tin"
+                icon={MessageCircle}
+                variant="secondary"
+                size="sm"
+                onPress={() =>
+                  router.push({
+                    pathname: '/(student)/messages/[userId]',
+                    params: { userId: String(t.id), name: t.displayName },
+                  })
+                }
+              />
             </View>
           </Card>
         ))}
