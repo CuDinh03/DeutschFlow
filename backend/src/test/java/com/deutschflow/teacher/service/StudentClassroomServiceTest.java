@@ -4,8 +4,10 @@ import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.teacher.dto.ClassroomDetailDto;
 import com.deutschflow.teacher.dto.MyClassroomDto;
 import com.deutschflow.teacher.dto.StudentAssignmentDto;
+import com.deutschflow.teacher.dto.StudentSessionDto;
 import com.deutschflow.teacher.entity.ClassAssignment;
 import com.deutschflow.teacher.entity.ClassLesson;
+import com.deutschflow.teacher.entity.ClassSession;
 import com.deutschflow.teacher.entity.ClassStudent;
 import com.deutschflow.teacher.entity.ClassStudentId;
 import com.deutschflow.teacher.entity.ClassTeacher;
@@ -14,6 +16,7 @@ import com.deutschflow.teacher.entity.StudentAssignment;
 import com.deutschflow.teacher.entity.TeacherClass;
 import com.deutschflow.teacher.repository.ClassAssignmentRepository;
 import com.deutschflow.teacher.repository.ClassLessonRepository;
+import com.deutschflow.teacher.repository.ClassSessionRepository;
 import com.deutschflow.teacher.repository.ClassStudentRepository;
 import com.deutschflow.teacher.repository.ClassTeacherRepository;
 import com.deutschflow.teacher.repository.StudentAssignmentRepository;
@@ -45,6 +48,7 @@ class StudentClassroomServiceTest {
     @Mock private ClassAssignmentRepository assignmentRepository;
     @Mock private ClassLessonRepository lessonRepository;
     @Mock private StudentAssignmentRepository studentAssignmentRepository;
+    @Mock private ClassSessionRepository classSessionRepository;
     @Mock private UserRepository userRepository;
 
     private StudentClassroomService service;
@@ -57,7 +61,8 @@ class StudentClassroomServiceTest {
     void setUp() {
         service = new StudentClassroomService(
                 classRepository, classStudentRepository, classTeacherRepository,
-                assignmentRepository, lessonRepository, studentAssignmentRepository, userRepository);
+                assignmentRepository, lessonRepository, studentAssignmentRepository,
+                classSessionRepository, userRepository);
     }
 
     @Test
@@ -190,6 +195,40 @@ class StudentClassroomServiceTest {
         assertThat(out).hasSize(1);
         assertThat(out.get(0).studentId()).isEqualTo(STUDENT_ID);
         assertThat(out.get(0).teacherScore()).isEqualTo(7);
+    }
+
+    @Test
+    @DisplayName("listSessions rejects when student not enrolled (P5 IDOR guard)")
+    void listSessions_rejectsNonMember() {
+        when(classStudentRepository.existsByIdClassIdAndIdStudentId(CLASS_ID, STUDENT_ID)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.listSessions(STUDENT_ID, CLASS_ID))
+                .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("listSessions maps time/mode/room/status for an enrolled student")
+    void listSessions_mapsFields() {
+        when(classStudentRepository.existsByIdClassIdAndIdStudentId(CLASS_ID, STUDENT_ID)).thenReturn(true);
+        ClassSession s = ClassSession.builder()
+                .id(7L).classId(CLASS_ID)
+                .startAt(LocalDateTime.of(2026, 7, 1, 18, 0))
+                .durationMinutes(90)
+                .mode(ClassSession.Mode.OFFLINE)
+                .room("P.201")
+                .status(ClassSession.Status.SCHEDULED)
+                .build();
+        when(classSessionRepository.findByClassIdOrderByStartAt(CLASS_ID)).thenReturn(List.of(s));
+
+        List<StudentSessionDto> out = service.listSessions(STUDENT_ID, CLASS_ID);
+
+        assertThat(out).hasSize(1);
+        StudentSessionDto dto = out.get(0);
+        assertThat(dto.id()).isEqualTo(7L);
+        assertThat(dto.durationMinutes()).isEqualTo(90);
+        assertThat(dto.mode()).isEqualTo("OFFLINE");
+        assertThat(dto.room()).isEqualTo("P.201");
+        assertThat(dto.status()).isEqualTo("SCHEDULED");
     }
 
     // ── helpers ───────────────────────────────────────────────

@@ -142,6 +142,22 @@ export async function fetchMySkillReport(classId: number): Promise<MySkillReport
   return res.data
 }
 
+// P5: the class's session schedule (read-only, offline focus per PO — no online link).
+export interface ClassSession {
+  id: number
+  startAt: string
+  durationMinutes: number
+  mode: 'ONLINE' | 'OFFLINE' | null
+  room: string | null
+  status: 'SCHEDULED' | 'CANCELLED' | 'MOVED' | null
+}
+
+/** The class's session schedule (ordered by time) for the enrolled student. */
+export async function fetchClassSessions(classId: number): Promise<ClassSession[]> {
+  const res = await api.get<ClassSession[]>(`/v2/students/classes/${classId}/sessions`)
+  return res.data ?? []
+}
+
 /**
  * Fetch one assignment by its ClassAssignment id. The backend exposes only the
  * full student list (no single-GET), so we mirror the web client and resolve

@@ -12,8 +12,8 @@ jest.mock('expo-file-system/legacy', () => ({
 import api from '@/lib/api'
 import * as FileSystem from 'expo-file-system/legacy'
 import {
-  fetchAssignmentDetail, fetchMyAttendance, fetchMySkillReport, submitAssignment,
-  uploadAssignmentFile, type StudentAssignment,
+  fetchAssignmentDetail, fetchClassSessions, fetchMyAttendance, fetchMySkillReport,
+  submitAssignment, uploadAssignmentFile, type StudentAssignment,
 } from '@/lib/studentClassesApi'
 
 const get = api.get as unknown as jest.Mock
@@ -122,5 +122,13 @@ describe('P4 evaluation reads', () => {
     expect(get).toHaveBeenCalledWith('/v2/students/classes/10/my-skill-report')
     expect(r.grade).toBe('Giỏi')
     expect(r.horen).toBe(8)
+  })
+})
+
+describe('fetchClassSessions (P5 schedule)', () => {
+  it('hits the per-class sessions endpoint and defaults to []', async () => {
+    get.mockResolvedValue({ data: undefined })
+    expect(await fetchClassSessions(10)).toEqual([])
+    expect(get).toHaveBeenCalledWith('/v2/students/classes/10/sessions')
   })
 })
