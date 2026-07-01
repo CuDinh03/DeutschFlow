@@ -12,7 +12,8 @@ jest.mock('expo-file-system/legacy', () => ({
 import api from '@/lib/api'
 import * as FileSystem from 'expo-file-system/legacy'
 import {
-  fetchAssignmentDetail, submitAssignment, uploadAssignmentFile, type StudentAssignment,
+  fetchAssignmentDetail, fetchMyAttendance, fetchMySkillReport, submitAssignment,
+  uploadAssignmentFile, type StudentAssignment,
 } from '@/lib/studentClassesApi'
 
 const get = api.get as unknown as jest.Mock
@@ -105,5 +106,21 @@ describe('uploadAssignmentFile', () => {
     await expect(
       uploadAssignmentFile(1, { uri: 'f', name: 'n', contentType: 'image/jpeg' }),
     ).rejects.toThrow(/S3 403/)
+  })
+})
+
+describe('P4 evaluation reads', () => {
+  it('fetchMyAttendance hits the per-class my-attendance endpoint and defaults to []', async () => {
+    get.mockResolvedValue({ data: undefined })
+    expect(await fetchMyAttendance(10)).toEqual([])
+    expect(get).toHaveBeenCalledWith('/v2/students/classes/10/my-attendance')
+  })
+
+  it('fetchMySkillReport hits the per-class my-skill-report endpoint', async () => {
+    get.mockResolvedValue({ data: { horen: 8, lesen: null, schreiben: null, sprechen: null, total: 8, grade: 'Giỏi' } })
+    const r = await fetchMySkillReport(10)
+    expect(get).toHaveBeenCalledWith('/v2/students/classes/10/my-skill-report')
+    expect(r.grade).toBe('Giỏi')
+    expect(r.horen).toBe(8)
   })
 })

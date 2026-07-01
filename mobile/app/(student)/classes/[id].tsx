@@ -1,15 +1,17 @@
 import { useMemo, useState } from 'react'
 import { Alert, Pressable, RefreshControl, ScrollView, Share, View } from 'react-native'
-import { useQueries } from '@tanstack/react-query'
+import { useQueries, useQuery } from '@tanstack/react-query'
 import { router, useLocalSearchParams } from 'expo-router'
 import {
-  AlertCircle, BookOpen, CheckCircle2, Circle, Clock, Copy,
-  GraduationCap, MessageCircle, Sparkles, Upload, Users,
+  AlertCircle, BarChart3, BookOpen, CalendarCheck, CheckCircle2, Circle, Clock, Copy,
+  GraduationCap, MessageCircle, Sparkles, Upload, Users, X,
 } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import {
   fetchClassAssignments, fetchClassDetail, fetchClassLessons,
-  type ClassLesson, type ClassroomDetail, type StudentAssignment, type TeacherSummary,
+  fetchMyAttendance, fetchMySkillReport,
+  type ClassLesson, type ClassroomDetail, type MySkillReport, type StudentAssignment,
+  type StudentAttendance, type TeacherSummary,
 } from '@/lib/studentClassesApi'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
@@ -17,7 +19,7 @@ import {
   Screen, SectionHeader, Skeleton, ThemedText, YellowSquare,
 } from '@/components/ui'
 
-type Tab = 'assignments' | 'grades' | 'teachers' | 'progress'
+type Tab = 'assignments' | 'grades' | 'teachers' | 'progress' | 'evaluation'
 
 export default function StudentClassDetail() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -100,6 +102,7 @@ export default function StudentClassDetail() {
           />
         )}
         {tab === 'teachers' && <TeachersTab teachers={detail.teachers} />}
+        {tab === 'evaluation' && <EvaluationTab classId={classId} />}
         {tab === 'progress' && (
           <ProgressTab
             detail={detail}
@@ -231,6 +234,7 @@ function TabBar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
   const tabs: { key: Tab; label: string }[] = [
     { key: 'assignments', label: 'Bài tập' },
     { key: 'grades', label: 'Điểm' },
+    { key: 'evaluation', label: 'Đánh giá' },
     { key: 'teachers', label: 'Giáo viên' },
     { key: 'progress', label: 'Tiến độ' },
   ]
@@ -406,6 +410,209 @@ function GradesTab({
         })}
       </View>
     </View>
+  )
+}
+
+// P4: the student's own evaluation — 4-skill report + attendance history (own data only).
+function EvaluationTab({ classId }: { classId: number }) {
+  const reportQ = useQuery({
+    queryKey: ['my-skill-report', classId],
+    queryFn: () => fetchMySkillReport(classId),
+    enabled: Number.isFinite(classId),
+    staleTime: 30_000,
+  })
+  const attendanceQ = useQuery({
+    queryKey: ['my-attendance', classId],
+    queryFn: () => fetchMyAttendance(classId),
+    enabled: Number.isFinite(classId),
+    staleTime: 30_000,
+  })
+
+  if (reportQ.isLoading && attendanceQ.isLoading) {
+    return (
+      <View style={{ gap: space[3] }}>
+        <Skeleton height={168} />
+        <Skeleton height={120} />
+      </View>
+    )
+  }
+  if (reportQ.isError && attendanceQ.isError) {
+    return (
+      <ErrorState
+        title="Không tải được đánh giá"
+        message="Không thể tải bảng điểm và điểm danh. Vui lòng thử lại."
+        onRetry={() => {
+          void reportQ.refetch()
+          void attendanceQ.refetch()
+        }}
+      />
+    )
+  }
+
+  const report = reportQ.data
+  const attendance = attendanceQ.data ?? []
+
+  return (
+    <View style={{ gap: space[5] }}>
+      <View style={{ gap: space[3] }}>
+        <SectionHeader title="Bảng điểm 4 kỹ năng" />
+        {reportQ.isError ? (
+          <ErrorState title="Không tải được bảng điểm" onRetry={() => void reportQ.refetch()} />
+        ) : report && hasAnySkill(report) ? (
+          <SkillReportCard report={report} />
+        ) : (
+          <EmptyState
+            icon={BarChart3}
+            title="Chưa có điểm kỹ năng"
+            message="Giáo viên chưa chấm điểm 4 kỹ năng cho bạn."
+          />
+        )}
+      </View>
+
+      <View style={{ gap: space[3] }}>
+        <SectionHeader title="Điểm danh" />
+        {attendanceQ.isError ? (
+          <ErrorState title="Không tải được điểm danh" onRetry={() => void attendanceQ.refetch()} />
+        ) : attendance.length === 0 ? (
+          <EmptyState
+            icon={CalendarCheck}
+            title="Chưa có buổi học"
+            message="Lớp chưa có buổi học nào được ghi nhận."
+          />
+        ) : (
+          <>
+            <AttendanceSummary rows={attendance} />
+            <View style={{ gap: space[2] }}>
+              {attendance.map((a) => (
+                <AttendanceRow key={a.lessonLogId} row={a} />
+              ))}
+            </View>
+          </>
+        )}
+      </View>
+    </View>
+  )
+}
+
+const SKILLS: { key: 'horen' | 'lesen' | 'schreiben' | 'sprechen'; label: string }[] = [
+  { key: 'horen', label: 'Nghe' },
+  { key: 'lesen', label: 'Đọc' },
+  { key: 'schreiben', label: 'Viết' },
+  { key: 'sprechen', label: 'Nói' },
+]
+
+function hasAnySkill(r: MySkillReport): boolean {
+  return r.horen != null || r.lesen != null || r.schreiben != null || r.sprechen != null
+}
+
+function gradeTone(total: number | null): 'success' | 'accent' | 'danger' | 'neutral' {
+  if (total == null) return 'neutral'
+  if (total >= 8) return 'success'
+  if (total >= 5) return 'accent'
+  return 'danger'
+}
+
+function SkillReportCard({ report }: { report: MySkillReport }) {
+  return (
+    <Card style={{ gap: space[4] }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <View>
+          <Caption>Tổng kết</Caption>
+          <ThemedText variant="displayLg">
+            {report.total != null ? report.total.toFixed(1) : '—'}
+          </ThemedText>
+        </View>
+        <Pill tone={gradeTone(report.total)} label={report.grade} solid />
+      </View>
+      <View style={{ gap: space[3] }}>
+        {SKILLS.map((s) => {
+          const v = report[s.key]
+          return (
+            <View key={s.key} style={{ gap: 4 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <ThemedText variant="caption" color="muted">{s.label}</ThemedText>
+                <ThemedText variant="caption" color={v != null ? 'primary' : 'faint'}>
+                  {v != null ? v.toFixed(1) : 'Chưa có'}
+                </ThemedText>
+              </View>
+              <ProgressBar value={v != null ? Math.min(1, v / 10) : 0} height={5} />
+            </View>
+          )
+        })}
+      </View>
+    </Card>
+  )
+}
+
+function AttendanceSummary({ rows }: { rows: StudentAttendance[] }) {
+  const present = rows.filter((r) => r.status === 'PRESENT').length
+  const late = rows.filter((r) => r.status === 'LATE').length
+  const absent = rows.filter((r) => r.status === 'ABSENT').length
+  const marked = present + late + absent
+  const rate = marked > 0 ? Math.round(((present + late) / marked) * 100) : null
+  return (
+    <Card>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <View style={{ flexDirection: 'row', gap: space[5] }}>
+          <SummaryStat label="Có mặt" value={present} tone="success" />
+          <SummaryStat label="Muộn" value={late} tone="accent" />
+          <SummaryStat label="Vắng" value={absent} tone="danger" />
+        </View>
+        {rate != null ? (
+          <View style={{ alignItems: 'flex-end' }}>
+            <Caption>Chuyên cần</Caption>
+            <ThemedText variant="title">{rate}%</ThemedText>
+          </View>
+        ) : null}
+      </View>
+    </Card>
+  )
+}
+
+function SummaryStat({ label, value, tone }: { label: string; value: number; tone: 'success' | 'accent' | 'danger' }) {
+  const c = useTheme().colors
+  const col = tone === 'success' ? c.success : tone === 'danger' ? c.danger : c.accentText
+  return (
+    <View style={{ alignItems: 'center' }}>
+      <ThemedText variant="title" style={{ color: col }}>{String(value)}</ThemedText>
+      <Caption>{label}</Caption>
+    </View>
+  )
+}
+
+function attendanceStatus(status: StudentAttendance['status']) {
+  switch (status) {
+    case 'PRESENT':
+      return { label: 'Có mặt', tone: 'success' as const, color: 'success' as const, icon: CheckCircle2 }
+    case 'LATE':
+      return { label: 'Muộn', tone: 'accent' as const, color: 'accent' as const, icon: Clock }
+    case 'ABSENT':
+      return { label: 'Vắng', tone: 'danger' as const, color: 'danger' as const, icon: X }
+    default:
+      return { label: 'Chưa điểm danh', tone: 'neutral' as const, color: 'muted' as const, icon: Circle }
+  }
+}
+
+function AttendanceRow({ row }: { row: StudentAttendance }) {
+  const s = attendanceStatus(row.status)
+  const date = new Date(row.sessionDate)
+  const dateLabel = Number.isNaN(date.getTime()) ? row.sessionDate : date.toLocaleDateString('vi-VN')
+  return (
+    <Card>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+        <Icon icon={s.icon} size={18} color={s.color} />
+        <View style={{ flex: 1, gap: 2 }}>
+          <ThemedText variant="bodyStrong" numberOfLines={1}>
+            {row.topic || (row.sessionNumber != null ? `Buổi ${row.sessionNumber}` : 'Buổi học')}
+          </ThemedText>
+          <ThemedText variant="caption" color="muted" numberOfLines={1}>
+            {dateLabel}
+            {row.note ? ` · ${row.note}` : ''}
+          </ThemedText>
+        </View>
+        <Pill tone={s.tone} label={s.label} />
+      </View>
+    </Card>
   )
 }
 

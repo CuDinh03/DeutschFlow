@@ -294,6 +294,72 @@ class StudentEvaluationServiceTest {
         assertThat(result.certificateEligible()).isFalse();
     }
 
+    // ── student-facing reads (P4): own-data-only invariant ─────────────────────
+
+    @Test
+    @DisplayName("myAttendance rejects a non-member (cannot read another class's attendance)")
+    void myAttendance_notEnrolled_throwsNotFound() {
+        when(classStudentRepository.existsById(new ClassStudentId(CLASS_ID, STUDENT_ID))).thenReturn(false);
+
+        assertThatThrownBy(() -> service.myAttendance(STUDENT_ID, CLASS_ID))
+                .isInstanceOf(NotFoundException.class);
+        verifyNoInteractions(lessonLogRepository, attendanceRepository);
+    }
+
+    @Test
+    @DisplayName("mySkillReport rejects a non-member")
+    void mySkillReport_notEnrolled_throwsNotFound() {
+        when(classStudentRepository.existsById(new ClassStudentId(CLASS_ID, STUDENT_ID))).thenReturn(false);
+
+        assertThatThrownBy(() -> service.mySkillReport(STUDENT_ID, CLASS_ID))
+                .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("myAttendance returns only the caller's rows; unmarked sessions are null, never another student's status")
+    void myAttendance_returnsOnlyOwnRows() {
+        final Long OTHER = 999L;
+        when(classStudentRepository.existsById(new ClassStudentId(CLASS_ID, STUDENT_ID))).thenReturn(true);
+        when(lessonLogRepository.findByClassIdOrderBySessionDateDesc(CLASS_ID))
+                .thenReturn(List.of(buildLog(1L, CLASS_ID), buildLog(2L, CLASS_ID)));
+        when(attendanceRepository.findByLessonLogIds(any())).thenReturn(List.of(
+                buildAttendance(1L, STUDENT_ID, "PRESENT"),
+                buildAttendance(1L, OTHER, "ABSENT")));   // another student's row must be ignored
+
+        var rows = service.myAttendance(STUDENT_ID, CLASS_ID);
+
+        assertThat(rows).hasSize(2);
+        assertThat(rows).noneMatch(r -> "ABSENT".equals(r.status()));      // never leak OTHER's status
+        assertThat(rows).filteredOn(r -> r.lessonLogId().equals(1L))
+                .singleElement().extracting(r -> r.status()).isEqualTo("PRESENT");
+        assertThat(rows).filteredOn(r -> r.lessonLogId().equals(2L))
+                .singleElement().extracting(r -> r.status()).isNull();     // unmarked → null
+    }
+
+    @Test
+    @DisplayName("mySkillReport averages only the caller's own skill-tagged assignment scores")
+    void mySkillReport_usesOnlyOwnScores() {
+        final Long OTHER = 999L;
+        when(classStudentRepository.existsById(new ClassStudentId(CLASS_ID, STUDENT_ID))).thenReturn(true);
+        when(classStudentRepository.findById(new ClassStudentId(CLASS_ID, STUDENT_ID)))
+                .thenReturn(Optional.of(buildClassStudent(CLASS_ID, STUDENT_ID)));   // no manual scores
+        when(assignmentRepository.findByClassIdOrderByCreatedAtDesc(CLASS_ID))
+                .thenReturn(List.of(buildAssignment(1L, CLASS_ID, "HOREN")));
+
+        StudentAssignment mine = new StudentAssignment();
+        mine.setAssignmentId(1L); mine.setStudentId(STUDENT_ID); mine.setScore(8);
+        StudentAssignment other = new StudentAssignment();
+        other.setAssignmentId(1L); other.setStudentId(OTHER); other.setScore(2);   // must NOT count
+        when(studentAssignmentRepository.findByAssignmentIds(List.of(1L)))
+                .thenReturn(List.of(mine, other));
+
+        var report = service.mySkillReport(STUDENT_ID, CLASS_ID);
+
+        assertThat(report.horen()).isEqualTo(8.0);   // 8 only, not (8+2)/2
+        assertThat(report.lesen()).isNull();
+        assertThat(report.total()).isEqualTo(8.0);
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private void allowAccess() {

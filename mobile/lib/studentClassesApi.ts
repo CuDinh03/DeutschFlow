@@ -87,6 +87,25 @@ export interface ClassLesson {
   completedAt: string | null
 }
 
+// P4: the student's OWN evaluation data. Backend enforces own-data-only + never the class list.
+export interface StudentAttendance {
+  lessonLogId: number
+  sessionDate: string
+  sessionNumber: number | null
+  topic: string | null
+  status: 'PRESENT' | 'ABSENT' | 'LATE' | null
+  note: string | null
+}
+
+export interface MySkillReport {
+  horen: number | null
+  lesen: number | null
+  schreiben: number | null
+  sprechen: number | null
+  total: number | null
+  grade: string
+}
+
 export async function fetchMyClasses(): Promise<MyClassroom[]> {
   const res = await api.get<MyClassroom[]>('/v2/students/classes')
   return res.data ?? []
@@ -109,6 +128,18 @@ export async function fetchClassLessons(classId: number): Promise<ClassLesson[]>
 
 export async function joinClassByInviteCode(inviteCode: string): Promise<void> {
   await api.post('/classes/join', { inviteCode })
+}
+
+/** The student's own attendance for a class (one row per session, status null when unmarked). */
+export async function fetchMyAttendance(classId: number): Promise<StudentAttendance[]> {
+  const res = await api.get<StudentAttendance[]>(`/v2/students/classes/${classId}/my-attendance`)
+  return res.data ?? []
+}
+
+/** The student's own 4-skill report row (never the class list). */
+export async function fetchMySkillReport(classId: number): Promise<MySkillReport> {
+  const res = await api.get<MySkillReport>(`/v2/students/classes/${classId}/my-skill-report`)
+  return res.data
 }
 
 /**
