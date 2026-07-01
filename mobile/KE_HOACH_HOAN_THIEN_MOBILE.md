@@ -8,6 +8,37 @@
 
 ---
 
+## ✅ TRẠNG THÁI THỰC THI — Rev 2 (2026-07-01, cập nhật sau khi code)
+
+> **Toàn bộ P1–P7 đã CODE + MERGE vào `main` + BACKEND ĐÃ DEPLOY.** Phần chẩn đoán (PHẦN 1) và bộ prompt (PHẦN 3) giữ nguyên làm tham chiếu lịch sử; các mục dưới đây đánh dấu trạng thái thật.
+
+| # | Hạng mục | Trạng thái | Commit (feat) | Merge PR | Backend |
+|---|---|---|---|---|---|
+| P1 | Sửa spine hoàn thành lộ trình | ✅ DONE | `9b4be087` | #179 | ✅ deployed |
+| P2 | Nộp bài ảnh/file/audio | ✅ DONE | `16ea9b4b` | #180 | (dùng endpoint sẵn có) |
+| P3 | Chat 1:1 giáo viên | ✅ DONE | `4371f152` | #181 | (dùng `/api/messages` sẵn có) |
+| P4 | Xem điểm danh + skill report | ✅ DONE | `1ff263c3` | #183 | ✅ deployed (endpoint student mới) |
+| P5 | Lịch buổi học | ✅ DONE | `fc7c6e3f` | #185 | ✅ deployed (endpoint student mới) |
+| P6 | Chat nhóm lớp + soft-delete | ✅ DONE | `f529b2a6` | #184 | ✅ deployed (migration `V241__class_channel.sql`) |
+| P7 | Làm sống feature phụ thuộc + QA polish | ✅ DONE | `aca7d14d` | #182 | — |
+
+**Bằng chứng code (đã verify):**
+- P1: `node.tsx` `markNodeComplete()` + nút "Đánh dấu đã học" (node lý thuyết); `node-practice.tsx` bỏ auto-pass vô hình (tin `res.completed` từ server); `SkillTreeService.java:583-587` dùng `mastery_threshold` (default 70) thay hardcode 100, Speaking/Writing = `max(threshold, 80)`; endpoint `SkillTreeController:193 markNodeComplete`.
+- P2: deps `expo-image-picker` / `expo-document-picker` / `expo-file-system` đã thêm vào `package.json`.
+- P3: route `app/(student)/messages/{index,[userId]}.tsx` + `lib/messagesApi.ts`.
+- P5: route `app/(student)/class-schedule/`. P6: route `app/(student)/class-chat/` + `lib/classChannelApi.ts`.
+
+**Live-gap CÒN LẠI (merge + backend deploy xong, nhưng chưa tới user):**
+- 🔴 **EAS build mobile chưa cut** → các thay đổi mobile (P1–P7) chưa lên TestFlight. Cần thủ công `eas build -p ios --profile production` → `eas submit` (EAS không có trong CI). Đây là bước duy nhất còn chặn giữa "đã deploy backend" và "user thấy".
+- 👤 **Trước khi submit Store cần bạn** (Apple): APNs key (.p8), Privacy Policy URL + Support URL, ASC privacy questionnaire. Xem `mobile/VIEC_CAN_LAM.md` §1.1.
+
+**Việc còn dang dở khác (không chặn build):**
+- 🟡 **Device QA thật** (mới test simulator/unit): luồng spine alphabet; audio record/playback (expo-audio); push thật; chat nhóm lớp; Android emoji/layout.
+- 🟢 **Cleanup**: gỡ hẳn NativeWind (còn dep + file mồ côi); xoá nhánh đã merge.
+- 🟡 **P7 [Rev] chưa khép kín**: cần verify **từng đường nuôi SRS/Stats độc lập** (vocabulary "mark learned", learning-plan session, speaking) chứ không chỉ spine — xem §1.3.
+
+---
+
 # PHẦN 1 — CHẨN ĐOÁN
 
 ## 1.0 TL;DR
@@ -103,15 +134,17 @@ Speaking (AI real-time, persona) · Lớp học phần xem cơ bản · Design s
 
 **Nguyên tắc thứ tự:** sửa **spine** trước (mở khoá việc học) → **tương tác giáo viên** (ưu tiên #1 của PO) → **làm sống feature phụ thuộc** → **polish QA**. Ước lượng theo T-shirt (S<M<L) tính bằng phiên Claude Code, không phải ngày công.
 
-| # | Hạng mục | Phase | Lực | Phụ thuộc | Cần PO chốt |
-|---|---|---|---|---|---|
-| P1 | Sửa cơ chế hoàn thành lộ trình (spine) | 1 | M | — | 🟡 ngưỡng qua bài; node lý thuyết qua bài kiểu gì |
-| P2 | Nộp bài ảnh/file/audio | 2 | M | — | — |
-| P3 | Chat 1:1 giáo viên | 2 | M | — | — |
-| P4 | Xem đánh giá/điểm danh/nhận xét | 2 | M–L | endpoint student mới | 🟡 lộ dữ liệu nào cho HV |
-| P5 | Lịch buổi học + link online | 2 | L | endpoint student mới | 🟡 nguồn link online |
-| P6 | Chat nhóm lớp | 2 | L | **backend mới** | 🟡 mô hình nhóm + kiểm duyệt |
-| P7 | Làm sống feature phụ thuộc + QA polish | 3–4 | M | P1 | — |
+> **Bảng dưới là kế hoạch gốc (đã thực thi xong — xem cột Trạng thái).**
+
+| # | Trạng thái | Hạng mục | Phase | Lực | Phụ thuộc | Cần PO chốt |
+|---|---|---|---|---|---|---|
+| P1 | ✅ DONE | Sửa cơ chế hoàn thành lộ trình (spine) | 1 | M | — | 🟡 ngưỡng qua bài; node lý thuyết qua bài kiểu gì |
+| P2 | ✅ DONE | Nộp bài ảnh/file/audio | 2 | M | — | — |
+| P3 | ✅ DONE | Chat 1:1 giáo viên | 2 | M | — | — |
+| P4 | ✅ DONE | Xem đánh giá/điểm danh/nhận xét | 2 | M–L | endpoint student mới | 🟡 lộ dữ liệu nào cho HV |
+| P5 | ✅ DONE | Lịch buổi học + link online | 2 | L | endpoint student mới | 🟡 nguồn link online |
+| P6 | ✅ DONE | Chat nhóm lớp | 2 | L | **backend mới** | 🟡 mô hình nhóm + kiểm duyệt |
+| P7 | ✅ DONE | Làm sống feature phụ thuộc + QA polish | 3–4 | M | P1 | — |
 
 **Phase 0 — PO chốt trước khi code (5 câu, ở Phần 3 mục "Prompt 0").** Vì có 🟡, PO nên trả lời trước để Claude Code không phải dừng giữa chừng.
 
@@ -156,6 +189,7 @@ Không sửa code trong phiên này. Chỉ trả lời + hỏi.
 ---
 
 ## Prompt P1 — Sửa cơ chế hoàn thành lộ trình (spine) 🎯 làm trước
+> ✅ **ĐÃ THỰC THI** (`9b4be087`, #179) · backend đã deploy. Prompt giữ làm tham chiếu.
 
 ```
 [Dán Guardrail chung]
@@ -189,6 +223,7 @@ TIÊU CHÍ HOÀN THÀNH:
 ---
 
 ## Prompt P2 — Nộp bài bằng ảnh/file/audio
+> ✅ **ĐÃ THỰC THI** (`16ea9b4b`, #180). Prompt giữ làm tham chiếu.
 
 ```
 [Dán Guardrail chung]
@@ -215,6 +250,7 @@ TIÊU CHÍ HOÀN THÀNH:
 ---
 
 ## Prompt P3 — Chat 1:1 với giáo viên
+> ✅ **ĐÃ THỰC THI** (`4371f152`, #181). Prompt giữ làm tham chiếu.
 
 ```
 [Dán Guardrail chung]
@@ -241,6 +277,7 @@ TIÊU CHÍ HOÀN THÀNH:
 ---
 
 ## Prompt P4 — Xem đánh giá / điểm danh / nhận xét của giáo viên
+> ✅ **ĐÃ THỰC THI** (`1ff263c3`, #183) · backend đã deploy (endpoint student mới). Prompt giữ làm tham chiếu.
 
 ```
 [Dán Guardrail chung]
@@ -269,6 +306,7 @@ TIÊU CHÍ HOÀN THÀNH:
 ---
 
 ## Prompt P5 — Lịch buổi học + link học online
+> ✅ **ĐÃ THỰC THI** (`fc7c6e3f`, #185) · backend đã deploy (endpoint student mới). Prompt giữ làm tham chiếu.
 
 ```
 [Dán Guardrail chung]
@@ -294,6 +332,7 @@ TIÊU CHÍ HOÀN THÀNH:
 ---
 
 ## Prompt P6 — Chat nhóm lớp (cần backend mới)
+> ✅ **ĐÃ THỰC THI** (`f529b2a6`, #184) · backend đã deploy (migration `V241__class_channel.sql` + soft-delete moderation). Prompt giữ làm tham chiếu.
 
 ```
 [Dán Guardrail chung]
@@ -320,6 +359,7 @@ TIÊU CHÍ HOÀN THÀNH:
 ---
 
 ## Prompt P7 — Làm sống feature phụ thuộc + polish QA
+> ✅ **ĐÃ THỰC THI** (`aca7d14d`, #182). ⚠️ Còn nợ: verify **từng đường nuôi SRS/Stats độc lập** trên device (xem §1.3 [Rev]). Prompt giữ làm tham chiếu.
 
 ```
 [Dán Guardrail chung]
