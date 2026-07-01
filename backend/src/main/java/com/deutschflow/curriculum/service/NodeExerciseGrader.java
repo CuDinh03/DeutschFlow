@@ -57,21 +57,9 @@ public final class NodeExerciseGrader {
             return new Result(0, 0);
         }
 
-        List<Map<String, Object>> exercises = new ArrayList<>();
-        try {
-            Map<?, ?> content = mapper.readValue(contentJson, Map.class);
-            Object ex = content.get("exercises");
-            if (ex instanceof Map<?, ?> exMap) {
-                collect(exMap.get("theory_gate"), exercises);
-                collect(exMap.get("practice"), exercises);
-            }
-        } catch (Exception e) {
-            return new Result(0, 0);
-        }
-
         int scored = 0;
         int correct = 0;
-        for (Map<String, Object> exercise : exercises) {
+        for (Map<String, Object> exercise : extractExercises(mapper, contentJson)) {
             String type = String.valueOf(exercise.get("type"));
             Object id = exercise.get("id");
             if (id == null) {
@@ -93,6 +81,43 @@ public final class NodeExerciseGrader {
             }
         }
         return new Result(scored, correct);
+    }
+
+    /**
+     * Count the deterministically-gradeable exercises ({@code MULTIPLE_CHOICE} + {@code FILL_BLANK})
+     * in {@code contentJson}, independent of any answers. Used to distinguish a "theory-only" node
+     * (0 scored items → may be completed via an explicit "mark as learned" action) from a node that
+     * must be graded before it counts as passed — so a client can't skip grading. Never throws.
+     */
+    public static int countScored(ObjectMapper mapper, String contentJson) {
+        if (contentJson == null || contentJson.isBlank()) {
+            return 0;
+        }
+        int scored = 0;
+        for (Map<String, Object> exercise : extractExercises(mapper, contentJson)) {
+            String type = String.valueOf(exercise.get("type"));
+            if (exercise.get("id") != null
+                    && ("MULTIPLE_CHOICE".equals(type) || "FILL_BLANK".equals(type))) {
+                scored++;
+            }
+        }
+        return scored;
+    }
+
+    /** Flatten {@code content_json.exercises.theory_gate[]} + {@code .practice[]} into a list. */
+    private static List<Map<String, Object>> extractExercises(ObjectMapper mapper, String contentJson) {
+        List<Map<String, Object>> exercises = new ArrayList<>();
+        try {
+            Map<?, ?> content = mapper.readValue(contentJson, Map.class);
+            Object ex = content.get("exercises");
+            if (ex instanceof Map<?, ?> exMap) {
+                collect(exMap.get("theory_gate"), exercises);
+                collect(exMap.get("practice"), exercises);
+            }
+        } catch (Exception e) {
+            return List.of();
+        }
+        return exercises;
     }
 
     @SuppressWarnings("unchecked")

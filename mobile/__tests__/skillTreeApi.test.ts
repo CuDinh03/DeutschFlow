@@ -1,4 +1,12 @@
-import { mapSkillNode, type RawSkillNode } from '@/lib/skillTreeApi'
+jest.mock('@/lib/api', () => ({
+  __esModule: true,
+  default: { get: jest.fn(), post: jest.fn() },
+}))
+
+import api from '@/lib/api'
+import { mapSkillNode, skillTreeApi, type RawSkillNode } from '@/lib/skillTreeApi'
+
+const post = api.post as unknown as jest.Mock
 
 const base: RawSkillNode = { id: 1, title_vi: 'Bảng chữ cái', cefr_level: 'A1', day_number: 1 }
 
@@ -27,5 +35,19 @@ describe('mapSkillNode status normalization (C1)', () => {
 
   test('parses tags from a JSON-text array', () => {
     expect(mapSkillNode({ ...base, tags: '["#Alphabet","#A1"]' }).tags).toEqual(['#Alphabet', '#A1'])
+  })
+})
+
+describe('markNodeComplete (theory-only "mark as learned")', () => {
+  beforeEach(() => post.mockReset())
+
+  test('posts to the node complete endpoint and returns the result', async () => {
+    post.mockResolvedValue({ data: { completed: true, xpEarned: 100, status: 'COMPLETED' } })
+
+    const result = await skillTreeApi.markNodeComplete(42)
+
+    expect(post).toHaveBeenCalledWith('/skill-tree/42/complete')
+    expect(result.completed).toBe(true)
+    expect(result.xpEarned).toBe(100)
   })
 })

@@ -167,7 +167,7 @@ export default function NodePracticeScreen() {
                   ) : null}
                 </View>
                 <ThemedText variant="caption" color="muted">
-                  Cần đúng tất cả câu trắc nghiệm để hoàn thành. Xem đáp án bên dưới rồi thử lại.
+                  Chưa đạt yêu cầu để hoàn thành. Xem đáp án bên dưới rồi thử lại.
                 </ThemedText>
               </Card>
             )
@@ -192,7 +192,11 @@ export default function NodePracticeScreen() {
           ))}
 
           {!submitted ? (
-            <Button label={busy ? 'Đang chấm…' : 'Nộp bài'} onPress={submit} loading={busy} />
+            <Button
+              label={busy ? (scoredCount > 0 ? 'Đang chấm…' : 'Đang lưu…') : scoredCount > 0 ? 'Nộp bài' : 'Hoàn thành'}
+              onPress={submit}
+              loading={busy}
+            />
           ) : result && !result.completed ? (
             <Button
               label="Làm lại"

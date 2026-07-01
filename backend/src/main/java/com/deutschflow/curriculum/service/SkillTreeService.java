@@ -575,14 +575,17 @@ public class SkillTreeService {
 
         String sessionType = (String) node.get("session_type");
         boolean isSpeakingOrWriting = "SPEAKING".equals(sessionType) || "WRITING".equals(sessionType);
-        
-        // Strict completion rule: 100% for normal exercises, >= 80% for AI grading (Speaking/Writing)
-        boolean completed = false;
-        if (isSpeakingOrWriting) {
-            completed = scorePercent >= 80;
-        } else {
-            completed = scorePercent >= 100;
+
+        // Completion rule: the node's own mastery_threshold (schema default 70%) — previously this
+        // was hardcoded to 100 (any single wrong answer blocked the node) while the mastery_threshold
+        // column was ignored, which is what stuck learners on the roadmap. AI-graded Speaking/Writing
+        // keep a floor of 80% since their partial-credit score is inherently fuzzy.
+        int masteryThreshold = safeInt(node.get("mastery_threshold"), 70);
+        if (masteryThreshold <= 0 || masteryThreshold > 100) {
+            masteryThreshold = 70;
         }
+        int requiredPercent = isSpeakingOrWriting ? Math.max(masteryThreshold, 80) : masteryThreshold;
+        boolean completed = scorePercent >= requiredPercent;
 
         int attempts = safeInt(progress.get("attempts"), 0) + 1;
         int bestScore = Math.max(safeInt(progress.get("best_score"), 0), scorePercent);
@@ -590,6 +593,105 @@ public class SkillTreeService {
 
         String newStatus = completed ? "COMPLETED" : "IN_PROGRESS";
 
+        writeProgress(userId, nodeId, newStatus, scorePercent, bestScore, attempts, xpEarned);
+
+        // Trigger pre-fetch if score >= 80
+        if (scorePercent >= 80) {
+            checkAndTriggerPrefetch(userId, nodeId, scorePercent);
+        }
+
+        // Award XP + trigger achievements/practice-nodes/SRS/phase (shared with markNodeComplete)
+        if (completed) {
+            awardCompletionSideEffects(userId, nodeId, node);
+        }
+
+        return Map.of(
+                "nodeId", nodeId,
+                "scorePercent", scorePercent,
+                "bestScore", bestScore,
+                "attempts", attempts,
+                "completed", completed,
+                "xpEarned", xpEarned,
+                "status", newStatus
+        );
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 5b. MARK COMPLETE — hoàn thành node lý thuyết (không có câu chấm được)
+    // ─────────────────────────────────────────────────────────────
+
+    /**
+     * Complete a "theory-only" node (no gradeable exercises, e.g. the alphabet lesson) via an
+     * explicit "mark as learned" action. Without this path such nodes had no completion affordance
+     * on mobile — the practice runner (and thus {@code submitNodeExercises}) is only reachable when
+     * the node has exercises — so learners got stuck at the very first lesson.
+     *
+     * <p>Guards against bypass: a node that DOES have gradeable items must go through
+     * {@link #submitNodeExercises} so its score is server-graded; this endpoint rejects it.
+     */
+    @Transactional
+    public Map<String, Object> markNodeComplete(long userId, long nodeId) {
+        Map<String, Object> progress;
+        try {
+            progress = loadProgressOrThrow(userId, nodeId);
+        } catch (NotFoundException e) {
+            progress = Map.of("status", "LOCKED", "attempts", 0, "best_score", 0);
+        }
+
+        String status = (String) progress.get("status");
+        if ("COMPLETED".equals(status)) {
+            throw new BadRequestException("Bạn đã hoàn thành bài này rồi");
+        }
+        if (!"IN_PROGRESS".equals(status) && !checkDependenciesMet(userId, nodeId)) {
+            throw new BadRequestException("Bạn cần hoàn thành các bài học trước đó trước");
+        }
+
+        Map<String, Object> node = loadNodeOrThrow(nodeId);
+        int scored = NodeExerciseGrader.countScored(objectMapper, (String) node.get("content_json"));
+        if (scored > 0) {
+            throw new BadRequestException("Bài này có bài tập chấm điểm — hãy làm bài và nộp để hoàn thành.");
+        }
+
+        int attempts = safeInt(progress.get("attempts"), 0) + 1;
+        int xpEarned = safeInt(node.get("xp_reward"), 100);
+        writeProgress(userId, nodeId, "COMPLETED", 100, 100, attempts, xpEarned);
+        awardCompletionSideEffects(userId, nodeId, node);
+
+        return Map.of(
+                "nodeId", nodeId,
+                "scorePercent", 100,
+                "bestScore", 100,
+                "attempts", attempts,
+                "completed", true,
+                "xpEarned", xpEarned,
+                "status", "COMPLETED"
+        );
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // ── Helpers ──
+    // ─────────────────────────────────────────────────────────────
+
+    private Map<String, Object> loadNodeOrThrow(long nodeId) {
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                SELECT id, node_type, title_de, title_vi, description_vi, emoji,
+                       phase, day_number, week_number, cefr_level, difficulty,
+                       xp_reward, energy_cost, mastery_threshold, industry, industry_vocab_percent,
+                       vocab_strategy, content_json::text AS content_json, content_hash,
+                       module_number, module_title_vi, module_title_de, session_type,
+                       satellite_status, creator_user_id,
+                       to_jsonb(core_topics)::text AS core_topics,
+                       to_jsonb(grammar_points)::text AS grammar_points,
+                       to_jsonb(tags)::text AS tags
+                FROM skill_tree_nodes WHERE id = ? AND is_active = TRUE
+                """, nodeId);
+        if (rows.isEmpty()) throw new NotFoundException("Node not found: " + nodeId);
+        return rows.get(0);
+    }
+
+    /** Upsert a learner's per-node progress row. Shared by submit + mark-complete to avoid drift. */
+    private void writeProgress(long userId, long nodeId, String status,
+                              int scorePercent, int bestScore, int attempts, int xpEarned) {
         jdbcTemplate.update("""
                 INSERT INTO skill_tree_user_progress (
                     user_id, node_id, status, score_percent, best_score,
@@ -611,78 +713,46 @@ public class SkillTreeService {
                     last_attempt_at = NOW(),
                     updated_at = NOW()
                 """,
-                userId, nodeId, newStatus, scorePercent, bestScore,
-                attempts, xpEarned, newStatus);
-
-        // Trigger pre-fetch if score >= 80
-        if (scorePercent >= 80) {
-            checkAndTriggerPrefetch(userId, nodeId, scorePercent);
-        }
-
-        // Award satellite XP + trigger industry achievements
-        if (completed) {
-            try {
-                String nodeType = (String) node.getOrDefault("node_type", "");
-                if ("SATELLITE_LEAF".equals(nodeType)) {
-                    String industry = (String) node.getOrDefault("industry", null);
-                    xpService.awardSatelliteComplete(userId, industry);
-                } else {
-                    xpService.awardSessionComplete(userId, null);
-                }
-            } catch (Exception e) {
-                log.warn("[SkillTree] XP award failed for user {}: {}", userId, e.getMessage());
-            }
-
-            // Trigger 4 Practice Nodes (Hören/Sprechen/Lesen/Schreiben) async
-            try {
-                practiceNodeService.triggerAllPracticeNodes(userId, nodeId);
-            } catch (Exception e) {
-                log.warn("[SkillTree] Practice node trigger failed for user={}, node={}: {}",
-                        userId, nodeId, e.getMessage());
-            }
-
-            // Feed the node's vocabulary into the FSRS spaced-repetition queue (best-effort)
-            srsVocabScheduler.scheduleFromContentJson(userId, nodeId, (String) node.get("content_json"));
-
-            // Recompute learner phase progress from real signals so completing nodes actually
-            // advances FOUNDATION → PRODUCTION → FLUENCY (best-effort; never fails the submit).
-            try {
-                phaseEngineService.recompute(userId);
-            } catch (Exception e) {
-                log.warn("[SkillTree] Phase recompute failed for user {}: {}", userId, e.getMessage());
-            }
-        }
-
-        return Map.of(
-                "nodeId", nodeId,
-                "scorePercent", scorePercent,
-                "bestScore", bestScore,
-                "attempts", attempts,
-                "completed", completed,
-                "xpEarned", xpEarned,
-                "status", newStatus
-        );
+                userId, nodeId, status, scorePercent, bestScore,
+                attempts, xpEarned, status);
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // ── Helpers ──
-    // ─────────────────────────────────────────────────────────────
+    /**
+     * XP award + practice-node trigger + SRS seeding + phase recompute for a completed node.
+     * All steps are best-effort (a failure here never fails the completing transaction's intent).
+     * Shared by {@link #submitNodeExercises} and {@link #markNodeComplete}.
+     */
+    private void awardCompletionSideEffects(long userId, long nodeId, Map<String, Object> node) {
+        try {
+            String nodeType = (String) node.getOrDefault("node_type", "");
+            if ("SATELLITE_LEAF".equals(nodeType)) {
+                String industry = (String) node.getOrDefault("industry", null);
+                xpService.awardSatelliteComplete(userId, industry);
+            } else {
+                xpService.awardSessionComplete(userId, null);
+            }
+        } catch (Exception e) {
+            log.warn("[SkillTree] XP award failed for user {}: {}", userId, e.getMessage());
+        }
 
-    private Map<String, Object> loadNodeOrThrow(long nodeId) {
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
-                SELECT id, node_type, title_de, title_vi, description_vi, emoji,
-                       phase, day_number, week_number, cefr_level, difficulty,
-                       xp_reward, energy_cost, industry, industry_vocab_percent,
-                       vocab_strategy, content_json::text AS content_json, content_hash,
-                       module_number, module_title_vi, module_title_de, session_type,
-                       satellite_status, creator_user_id,
-                       to_jsonb(core_topics)::text AS core_topics,
-                       to_jsonb(grammar_points)::text AS grammar_points,
-                       to_jsonb(tags)::text AS tags
-                FROM skill_tree_nodes WHERE id = ? AND is_active = TRUE
-                """, nodeId);
-        if (rows.isEmpty()) throw new NotFoundException("Node not found: " + nodeId);
-        return rows.get(0);
+        // Trigger 4 Practice Nodes (Hören/Sprechen/Lesen/Schreiben) async
+        try {
+            practiceNodeService.triggerAllPracticeNodes(userId, nodeId);
+        } catch (Exception e) {
+            log.warn("[SkillTree] Practice node trigger failed for user={}, node={}: {}",
+                    userId, nodeId, e.getMessage());
+        }
+
+        // Feed the node's vocabulary into the FSRS spaced-repetition queue (best-effort)
+        srsVocabScheduler.scheduleFromContentJson(userId, nodeId, (String) node.get("content_json"));
+
+        // Recompute learner phase progress from real signals so completing nodes actually
+        // advances FOUNDATION → PRODUCTION → FLUENCY (best-effort; never fails completion).
+        try {
+            phaseEngineService.recompute(userId);
+        } catch (Exception e) {
+            log.warn("[SkillTree] Phase recompute failed for user {}: {}", userId, e.getMessage());
+        }
     }
 
     private Map<String, Object> loadProgressOrThrow(long userId, long nodeId) {
