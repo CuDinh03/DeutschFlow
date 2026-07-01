@@ -3,14 +3,18 @@ package com.deutschflow.notification.sse;
 import com.deutschflow.notification.repository.UserNotificationRepository;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.connection.Message;
+import org.springframework.data.redis.connection.MessageListener;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.lang.Nullable;
 import org.springframework.scheduling.concurrent.CustomizableThreadFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -19,14 +23,36 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
- * In-process SSE subscribers per user. Pushes unread counts after DB commit; safe for single-node / local dev.
+ * SSE subscribers per user. Pushes the unread count after a notification's DB
+ * commit so clients keep a realtime badge.
+ *
+ * <p><b>Multi-node:</b> emitters are held in-process per JVM, so a write on node
+ * A would never reach a client whose stream is pinned to node B. To make this
+ * correct behind a load balancer, count-change events are fanned out via Redis
+ * pub/sub (when {@code app.notifications.sse.redis-pubsub-enabled=true}): every
+ * node — including the originating one — receives the published userId on the
+ * shared channel and pushes to ITS local emitters. When pub/sub is disabled or
+ * Redis is unreachable, it degrades to a direct single-node local fan-out, which
+ * is correct for single-node / local dev.
  */
 @Component
 @Slf4j
-@RequiredArgsConstructor
-public class NotificationSseBroadcaster {
+public class NotificationSseBroadcaster implements MessageListener {
+
+    /** Shared Redis channel carrying the recipient userId whose unread count changed. */
+    public static final String UNREAD_CHANNEL = "deutschflow:notif:unread";
+
+    /**
+     * SSE event name for unread-count frames. The web client (notificationStream.ts)
+     * subscribes to this exact name; changing it requires changing the client too.
+     */
+    public static final String UNREAD_EVENT_NAME = "unreadCount";
 
     private final UserNotificationRepository notificationRepository;
+    /** Null when no Redis is configured (e.g. local dev / CI). */
+    @Nullable
+    private final StringRedisTemplate redis;
+    private final boolean redisPubSubEnabled;
 
     @Value("${app.notifications.sse.ping-interval-seconds:20}")
     private int pingIntervalSeconds;
@@ -35,6 +61,18 @@ public class NotificationSseBroadcaster {
     private final Map<Long, Set<SseEmitter>> subscribers = new ConcurrentHashMap<>();
 
     private ScheduledExecutorService pingScheduler;
+    private volatile boolean redisPublishWarned = false;
+
+    public NotificationSseBroadcaster(
+            UserNotificationRepository notificationRepository,
+            @Nullable StringRedisTemplate redis,
+            @Value("${app.notifications.sse.redis-pubsub-enabled:false}") boolean redisPubSubEnabled) {
+        this.notificationRepository = notificationRepository;
+        this.redis = redis;
+        this.redisPubSubEnabled = redisPubSubEnabled && redis != null;
+        log.info("[SSE] notification fan-out = {}",
+                this.redisPubSubEnabled ? "Redis pub/sub (multi-node) + local fallback" : "local single-node");
+    }
 
     @PostConstruct
     void startPingScheduler() {
@@ -75,13 +113,51 @@ public class NotificationSseBroadcaster {
         return emitter;
     }
 
+    /**
+     * Signals that the recipient's unread count changed. Publishes to Redis so
+     * every node fans out to its own emitters; falls back to a local-only fan-out
+     * when pub/sub is disabled or the publish fails.
+     */
     public void notifyUnreadChanged(long userId) {
-        long unread = notificationRepository.countByRecipient_IdAndReadAtIsNull(userId);
+        if (redisPubSubEnabled && redis != null) {
+            try {
+                redis.convertAndSend(UNREAD_CHANNEL, Long.toString(userId));
+                return; // onMessage on each node (incl. this one) performs the fan-out
+            } catch (Exception e) {
+                if (!redisPublishWarned) {
+                    redisPublishWarned = true;
+                    log.warn("[SSE] Redis publish failed — falling back to local fan-out: {}", e.getMessage());
+                }
+                // fall through to local fan-out so at least this node's clients update
+            }
+        }
+        fanOutLocal(userId);
+    }
+
+    /** Redis pub/sub callback — a count change for {@code userId} was published. */
+    @Override
+    public void onMessage(Message message, @Nullable byte[] pattern) {
+        try {
+            long userId = Long.parseLong(new String(message.getBody(), StandardCharsets.UTF_8).trim());
+            fanOutLocal(userId);
+        } catch (NumberFormatException e) {
+            log.debug("[SSE] ignoring malformed pub/sub message: {}", e.getMessage());
+        } catch (Exception e) {
+            // fanOutLocal's count query can throw DataAccessException under DB-pool stress;
+            // keep the Redis listener thread healthy instead of letting it bubble to the
+            // container's error handler. (The publish side likewise catches broadly.)
+            log.warn("[SSE] fan-out from pub/sub message failed: {}", e.getMessage());
+        }
+    }
+
+    /** Pushes the current unread count to this node's emitters for the user. */
+    private void fanOutLocal(long userId) {
         Set<SseEmitter> emitters = subscribers.get(userId);
         if (emitters == null || emitters.isEmpty()) return;
+        long unread = notificationRepository.countByRecipient_IdAndReadAtIsNull(userId);
         for (SseEmitter emitter : emitters) {
             try {
-                emitter.send(SseEmitter.event().name("unreadCount").data(unread));
+                emitter.send(SseEmitter.event().name(UNREAD_EVENT_NAME).data(unread));
             } catch (Exception e) {
                 remove(userId, emitter);
             }
@@ -103,7 +179,7 @@ public class NotificationSseBroadcaster {
 
     private void sendUnreadSnapshot(long userId, SseEmitter emitter) throws IOException {
         long unread = notificationRepository.countByRecipient_IdAndReadAtIsNull(userId);
-        emitter.send(SseEmitter.event().name("unreadCount").data(unread));
+        emitter.send(SseEmitter.event().name(UNREAD_EVENT_NAME).data(unread));
     }
 
     private void remove(long userId, SseEmitter emitter) {

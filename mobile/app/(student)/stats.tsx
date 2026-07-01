@@ -23,7 +23,20 @@ import { gamificationApi, type Achievement, type Rarity, type LeaderboardEntry }
 import { learningApi, type ErrorSkill } from '@/lib/learningApi'
 import { getErrorTitle } from '@/lib/errorTaxonomy'
 import { radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, Pill, AppHeader, ProgressBar, ErrorState, FadeIn, Skeleton } from '@/components/ui'
+import {
+  Screen,
+  Card,
+  ThemedText,
+  Icon,
+  Pill,
+  Caption,
+  AppHeader,
+  ProgressBar,
+  ErrorState,
+  FadeIn,
+  Skeleton,
+  SkillRadar,
+} from '@/components/ui'
 
 interface StatsData {
   streakDays: number
@@ -34,8 +47,6 @@ interface StatsData {
   grammarAccuracy: number
   weeklyProgress: number[]
 }
-
-type Accent = 'accent' | 'success' | 'danger' | 'info'
 
 const SKILLS: { key: keyof SkillsShape; label: string; icon: LucideIcon }[] = [
   { key: 'lesen', label: 'Đọc hiểu', icon: BookOpen },
@@ -133,14 +144,14 @@ export default function StatsScreen() {
           refreshing={isFetching && !isLoading}
           onRefresh={onRefresh}
         >
-          {/* Aggregate tiles */}
+          {/* Streak hero + totals — editorial ink card (the day-one metric) */}
           <FadeIn delay={0}>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[3] }}>
-              <StatTileCard icon={Flame} accent="accent" label="Streak" value={`${stats?.streakDays ?? 0} ngày`} />
-              <StatTileCard icon={Star} accent="info" label="Level" value={`Lv ${stats?.xpLevel ?? 1}`} />
-              <StatTileCard icon={BookOpen} accent="info" label="Từ đã học" value={`${stats?.wordsLearned ?? 0}`} />
-              <StatTileCard icon={Mic} accent="success" label="Phút nói" value={`${stats?.speakingMinutes ?? 0}`} />
-            </View>
+            <StreakHeroCard
+              streakDays={stats?.streakDays ?? 0}
+              xpLevel={stats?.xpLevel ?? 1}
+              wordsLearned={stats?.wordsLearned ?? 0}
+              speakingMinutes={stats?.speakingMinutes ?? 0}
+            />
           </FadeIn>
 
           {/* XP & level progress */}
@@ -160,26 +171,39 @@ export default function StatsScreen() {
             <FadeIn delay={80}>
             <Card style={{ gap: space[4] }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <ThemedText variant="bodyStrong">Kỹ năng theo CEFR</ThemedText>
-                <Pill label={overview.cefrLevel || 'A1'} tone="accent" />
+                <View style={{ gap: 4 }}>
+                  <Caption>Năng lực 4 kỹ năng</Caption>
+                  <ThemedText variant="title">Kỹ năng theo CEFR</ThemedText>
+                </View>
+                <Pill label={overview.cefrLevel || 'A1'} tone="accent" solid />
               </View>
-              {SKILLS.map(({ key, label, icon }) => {
-                const score = Math.round(overview.skills?.[key]?.score ?? 0)
-                return (
-                  <View key={key} style={{ gap: space[2] }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-                      <Icon icon={icon} size={16} color="muted" />
-                      <ThemedText variant="label" color="secondary">
-                        {label}
-                      </ThemedText>
-                      <ThemedText variant="label" color="muted" style={{ marginLeft: 'auto' }}>
-                        {score}/100
-                      </ThemedText>
+              <SkillRadar
+                size={200}
+                style={{ alignSelf: 'center' }}
+                data={[
+                  { label: 'Nghe', value: Math.round(overview.skills?.hoeren?.score ?? 0) },
+                  { label: 'Đọc', value: Math.round(overview.skills?.lesen?.score ?? 0) },
+                  { label: 'Nói', value: Math.round(overview.skills?.sprechen?.score ?? 0) },
+                  { label: 'Viết', value: Math.round(overview.skills?.schreiben?.score ?? 0) },
+                ]}
+              />
+              {/* 2×2 score grid below the radar (mockup pairs the radar with skill figures). */}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                {SKILLS.map(({ key, label, icon }) => {
+                  const score = Math.round(overview.skills?.[key]?.score ?? 0)
+                  return (
+                    <View key={key} style={{ width: '50%', paddingVertical: space[2], gap: 2 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+                        <Icon icon={icon} size={14} color="muted" />
+                        <ThemedText variant="label" color="secondary">
+                          {label}
+                        </ThemedText>
+                      </View>
+                      <ThemedText variant="monoLg">{score}</ThemedText>
                     </View>
-                    <ProgressBar value={score / 100} />
-                  </View>
-                )
-              })}
+                  )
+                })}
+              </View>
             </Card>
             </FadeIn>
           ) : null}
@@ -187,8 +211,13 @@ export default function StatsScreen() {
           {/* Weekly trend — "am I improving" */}
           {overview && overview.weeklyProgress?.length > 0 ? (
             <FadeIn delay={160}>
-              <Card style={{ gap: space[3] }}>
-                <ThemedText variant="bodyStrong">Hoạt động hàng tuần</ThemedText>
+              <Card style={{ gap: space[4] }}>
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
+                  <Caption>Phút học mỗi tuần</Caption>
+                  <ThemedText variant="monoLg">
+                    {overview.weeklyProgress.slice(-8).reduce((sum, p) => sum + p.minutesStudied, 0)}
+                  </ThemedText>
+                </View>
                 <WeeklyTrend points={overview.weeklyProgress} />
               </Card>
             </FadeIn>
@@ -218,7 +247,10 @@ export default function StatsScreen() {
           {/* Recent sessions — history */}
           <FadeIn delay={240}>
             <Card style={{ gap: space[3] }}>
-              <ThemedText variant="bodyStrong">Buổi luyện gần đây</ThemedText>
+              <View style={{ gap: 4 }}>
+                <Caption>Lịch sử</Caption>
+                <ThemedText variant="title">Buổi luyện gần đây</ThemedText>
+              </View>
               {sessions.length === 0 ? (
                 <ThemedText variant="caption" color="muted">
                   Chưa có buổi luyện nào. Hãy bắt đầu một buổi phỏng vấn!
@@ -308,43 +340,76 @@ function SessionRow({ session, isLast }: { session: AiSpeakingSession; isLast: b
   )
 }
 
-function StatTileCard({
-  icon,
-  accent,
-  label,
-  value,
+function StreakHeroCard({
+  streakDays,
+  xpLevel,
+  wordsLearned,
+  speakingMinutes,
 }: {
-  icon: LucideIcon
-  accent: Accent
-  label: string
-  value: string
+  streakDays: number
+  xpLevel: number
+  wordsLearned: number
+  speakingMinutes: number
 }) {
-  const theme = useTheme()
-  const c = theme.colors
-  const softMap: Record<Accent, string> = {
-    accent: c.accentSoft,
-    success: c.successSoft,
-    danger: c.dangerSoft,
-    info: c.infoSoft,
-  }
+  const { colors } = useTheme()
+  const totals: { label: string; value: string }[] = [
+    { label: 'Cấp độ', value: `Lv ${xpLevel}` },
+    { label: 'Từ đã học', value: String(wordsLearned) },
+    { label: 'Phút nói', value: String(speakingMinutes) },
+  ]
   return (
-    <Card style={{ width: '47%', alignItems: 'center', gap: space[2] }}>
-      <View
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: radius.md,
-          backgroundColor: softMap[accent],
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Icon icon={icon} size={20} color={accent} />
+    <Card
+      padded={false}
+      style={{ backgroundColor: colors.inkSurface, borderColor: colors.inkSurface, overflow: 'hidden' }}
+    >
+      {/* Streak — the day-one engagement metric */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[4], padding: space[5] }}>
+        <View
+          style={{
+            width: 60,
+            height: 60,
+            borderRadius: radius.lg,
+            backgroundColor: colors.accentSoft,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Icon icon={Flame} size={30} color="accent" fill />
+        </View>
+        <View style={{ flex: 1, gap: 4 }}>
+          <Caption color={colors.accent}>Chuỗi học</Caption>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space[2] }}>
+            <ThemedText variant="displayLg" style={{ color: colors.onInk }}>
+              {String(streakDays)}
+            </ThemedText>
+            <ThemedText variant="bodyStrong" style={{ color: colors.onInkMuted }}>
+              ngày 🔥
+            </ThemedText>
+          </View>
+        </View>
       </View>
-      <ThemedText variant="monoLg">{value}</ThemedText>
-      <ThemedText variant="caption" color="muted">
-        {label}
-      </ThemedText>
+      {/* Totals strip — hairline-divided editorial figures */}
+      <View style={{ flexDirection: 'row', borderTopWidth: 1, borderTopColor: colors.onInkMuted }}>
+        {totals.map((t, i) => (
+          <View
+            key={t.label}
+            style={{
+              flex: 1,
+              paddingVertical: space[3],
+              paddingHorizontal: space[4],
+              borderLeftWidth: i > 0 ? 1 : 0,
+              borderLeftColor: colors.onInkMuted,
+            }}
+          >
+            <ThemedText variant="monoLg" style={{ color: colors.onInk, fontSize: 20, lineHeight: 24 }}>
+              {t.value}
+            </ThemedText>
+            <Caption color={colors.onInkMuted} style={{ marginTop: 2 }}>
+              {t.label}
+            </Caption>
+          </View>
+        ))}
+      </View>
     </Card>
   )
 }
@@ -381,7 +446,8 @@ function XpLevelCard({
           </ThemedText>
         </View>
         <View style={{ flex: 1, gap: 2 }}>
-          <ThemedText variant="bodyStrong">Cấp độ {level}</ThemedText>
+          <Caption>Kinh nghiệm</Caption>
+          <ThemedText variant="title">Cấp độ {level}</ThemedText>
           <ThemedText variant="caption" color="muted">
             {totalXp} XP tích luỹ
           </ThemedText>
@@ -403,10 +469,13 @@ function AchievementsCard({ achievements, pending }: { achievements: Achievement
   const unlocked = achievements.filter((a) => a.unlocked).length
   return (
     <Card style={{ gap: space[3] }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-          <Icon icon={Trophy} size={18} color="accent" />
-          <ThemedText variant="bodyStrong">Thành tựu</ThemedText>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+        <View style={{ gap: 4 }}>
+          <Caption>Huy hiệu</Caption>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+            <Icon icon={Trophy} size={18} color="accent" />
+            <ThemedText variant="title">Thành tựu</ThemedText>
+          </View>
         </View>
         <Pill label={`${unlocked}/${achievements.length}`} tone="accent" />
       </View>
@@ -475,9 +544,12 @@ function LeaderboardCard({ entries, meId }: { entries: LeaderboardEntry[]; meId?
     rank === 1 ? colors.brand : rank <= 3 ? colors.accentText : colors.textMuted
   return (
     <Card style={{ gap: space[2] }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-        <Icon icon={Trophy} size={18} color="accent" />
-        <ThemedText variant="bodyStrong">Bảng xếp hạng</ThemedText>
+      <View style={{ gap: 4, marginBottom: space[1] }}>
+        <Caption>Cộng đồng</Caption>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+          <Icon icon={Trophy} size={18} color="accent" />
+          <ThemedText variant="title">Bảng xếp hạng</ThemedText>
+        </View>
       </View>
       {entries.map((e) => {
         const me = meId != null && e.userId === meId
@@ -516,9 +588,12 @@ function ErrorSkillsCard({ errors }: { errors: ErrorSkill[] }) {
   const { colors } = useTheme()
   return (
     <Card style={{ gap: space[3] }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-        <Icon icon={Target} size={18} color="danger" />
-        <ThemedText variant="bodyStrong">Cần cải thiện</ThemedText>
+      <View style={{ gap: 4 }}>
+        <Caption color={colors.danger}>Trọng tâm ôn tập</Caption>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+          <Icon icon={Target} size={18} color="danger" />
+          <ThemedText variant="title">Cần cải thiện</ThemedText>
+        </View>
       </View>
       {errors.map((e, i) => (
         <View

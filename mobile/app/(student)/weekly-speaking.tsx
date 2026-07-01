@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { View, Alert, Linking, Pressable, ActivityIndicator } from 'react-native'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { router, type Href } from 'expo-router'
-import { Audio } from 'expo-av'
+import { useAudioRecorder, AudioModule, RecordingPresets, setAudioModeAsync } from 'expo-audio'
 import * as Haptics from 'expo-haptics'
 import { Flame, Lock, Mic, Square, RotateCcw, ChevronRight } from 'lucide-react-native'
 import api, { apiMessage } from '@/lib/api'
@@ -10,7 +10,7 @@ import { speakingApi } from '@/lib/speakingApi'
 import { weeklyApi, rubricScore } from '@/lib/weeklyApi'
 import { radius, space, useTheme } from '@/lib/theme'
 import { PAYWALL_ENABLED } from '@/lib/paywall'
-import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, SectionHeader, Skeleton } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, ErrorState, SectionHeader, Skeleton } from '@/components/ui'
 import { usePlanStore } from '@/stores/usePlanStore'
 
 interface WeeklyPrompt {
@@ -33,7 +33,7 @@ export default function WeeklySpeakingScreen() {
   const c = theme.colors
   const { isPro } = usePlanStore()
 
-  const { data: prompt, isLoading: promptLoading, refetch: refetchPrompt, isFetching } = useQuery({
+  const { data: prompt, isLoading: promptLoading, isError: promptError, refetch: refetchPrompt, isFetching } = useQuery({
     queryKey: ['weekly-prompt'],
     queryFn: () =>
       api
@@ -88,6 +88,13 @@ export default function WeeklySpeakingScreen() {
       >
         {promptLoading ? (
           <Skeleton height={170} radius="2xl" />
+        ) : promptError ? (
+          <ErrorState
+            onRetry={() => {
+              void refetchPrompt()
+              void refetchHistory()
+            }}
+          />
         ) : prompt ? (
           <Card style={{ borderColor: c.info + '66' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], marginBottom: space[3] }}>
@@ -164,12 +171,28 @@ function WeeklyRecorder({ promptId, cefrBand }: { promptId: number; cefrBand: st
   const [phase, setPhase] = useState<RecPhase>('idle')
   const [score, setScore] = useState<number | null>(null)
   const [summary, setSummary] = useState<string | null>(null)
-  const [recording, setRecording] = useState<Audio.Recording | null>(null)
+  // expo-audio recorder (hook-based, stable across renders). `recorder.isRecording`
+  // + the `phase` state drive the UI and guards (replacing the old recording ref).
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY)
+
+  // Stop any in-progress recording on unmount so navigating away mid-record doesn't
+  // leak the mic or leave iOS stuck in record mode.
+  useEffect(() => {
+    return () => {
+      if (!recorder.isRecording) return
+      void recorder
+        .stop()
+        .catch(() => {})
+        .finally(() => {
+          void setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => {})
+        })
+    }
+  }, [recorder])
 
   async function start() {
     try {
       // Honour the permission result; route hard denial to Settings (iOS won't re-prompt).
-      const { status, canAskAgain } = await Audio.requestPermissionsAsync()
+      const { status, canAskAgain } = await AudioModule.requestRecordingPermissionsAsync()
       if (status !== 'granted') {
         if (!canAskAgain) {
           Alert.alert(
@@ -185,9 +208,9 @@ function WeeklyRecorder({ promptId, cefrBand }: { promptId: number; cefrBand: st
         }
         return
       }
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true })
-      const { recording: rec } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY)
-      setRecording(rec)
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true })
+      await recorder.prepareToRecordAsync()
+      recorder.record()
       setPhase('recording')
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     } catch {
@@ -196,14 +219,13 @@ function WeeklyRecorder({ promptId, cefrBand }: { promptId: number; cefrBand: st
   }
 
   async function stopAndSubmit() {
-    if (!recording) return
+    if (phase !== 'recording') return
     setPhase('processing')
     try {
-      await recording.stopAndUnloadAsync()
+      await recorder.stop()
       // Leave iOS record mode so other screens' TTS plays from the speaker, not the earpiece.
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true })
-      const uri = recording.getURI()
-      setRecording(null)
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true })
+      const uri = recorder.uri
       if (!uri) throw new Error('no_uri')
       const transcript = await speakingApi.transcribe(uri)
       if (!transcript.trim()) throw new Error('empty')
@@ -264,6 +286,8 @@ function WeeklyRecorder({ promptId, cefrBand }: { promptId: number; cefrBand: st
           ) : null}
         </View>
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Ghi lại"
           onPress={() => {
             void Haptics.selectionAsync()
             reset()
@@ -282,6 +306,8 @@ function WeeklyRecorder({ promptId, cefrBand }: { promptId: number; cefrBand: st
   const isRec = phase === 'recording'
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={isRec ? 'Dừng và nộp bài' : 'Ghi âm trả lời'}
       onPress={isRec ? stopAndSubmit : start}
       style={{
         height: 52,

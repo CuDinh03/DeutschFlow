@@ -9,45 +9,93 @@
     "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0B0B0C"
+      "resizeMode": "cover",
+      "backgroundColor": "#FFCD00"
     },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.deutschflow.app",
+      "supportsTablet": false,
+      "bundleIdentifier": "com.cudinh.mydeutschflow",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": false
         },
-        "NSMicrophoneUsageDescription": "DeutschFlow cần microphone để luyện phát âm tiếng Đức.",
-        "NSCameraUsageDescription": "DeutschFlow cần camera cho tính năng học.",
-        "NSSpeechRecognitionUsageDescription": "DeutschFlow dùng nhận diện giọng nói để đánh giá phát âm."
+        "NSMicrophoneUsageDescription": "DeutschFlow cần microphone để luyện phát âm tiếng Đức."
+      },
+      "privacyManifests": {
+        "NSPrivacyTracking": false,
+        "NSPrivacyTrackingDomains": [],
+        "NSPrivacyCollectedDataTypes": [
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeProductInteraction",
+            "NSPrivacyCollectedDataTypeLinked": false,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAnalytics"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeOtherUsageData",
+            "NSPrivacyCollectedDataTypeLinked": false,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAnalytics"
+            ]
+          }
+        ],
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "CA92.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "C617.1",
+              "0A2A.1",
+              "3B52.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategorySystemBootTime",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "35F9.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryDiskSpace",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "E174.1",
+              "85F4.1"
+            ]
+          }
+        ]
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0D0D0D"
+        "backgroundColor": "#FFCD00"
       },
       "package": "com.deutschflow.app",
-      "usesCleartextTraffic": false,
       "permissions": [
         "android.permission.RECORD_AUDIO",
-        "android.permission.INTERNET"
+        "android.permission.INTERNET",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ]
     },
     "scheme": "deutschflow",
     "plugins": [
       "expo-router",
-      "expo-secure-store",
       [
-        "expo-av",
+        "expo-secure-store",
         {
-          "microphonePermission": "DeutschFlow cần microphone để luyện phát âm tiếng Đức."
+          "faceIDPermission": false
         }
       ],
       [
@@ -58,18 +106,26 @@
           "sounds": []
         }
       ],
-      "expo-localization"
+      "expo-localization",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "DeutschFlow cần microphone để luyện phát âm tiếng Đức."
+        }
+      ]
     ],
     "extra": {
-      "eas": {
-        "projectId": "YOUR_EAS_PROJECT_ID"
-      },
       "sentryDsn": "",
       "posthogKey": "phc_vFERGwkAxSWCTagc39wk3uevgueqhZsXvjcc5dDSKoHB",
-      "posthogHost": "https://us.i.posthog.com"
+      "posthogHost": "https://us.i.posthog.com",
+      "router": {},
+      "eas": {
+        "projectId": "26fa9e21-f563-4891-953e-e00c704c3c6b"
+      }
     },
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "owner": "cudinh3502"
   }
 }

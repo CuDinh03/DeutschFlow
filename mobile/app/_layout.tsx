@@ -1,43 +1,40 @@
 import { useEffect, useState } from 'react'
-import { AppState } from 'react-native'
-import { Stack, router, useRootNavigationState } from 'expo-router'
+import { AppState, View } from 'react-native'
+import { Stack, type ErrorBoundaryProps } from 'expo-router'
 
 import { StatusBar } from 'expo-status-bar'
 import * as SplashScreen from 'expo-splash-screen'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider, focusManager } from '@tanstack/react-query'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import {
-  useFonts as useSora,
-  Sora_600SemiBold,
-  Sora_700Bold,
-  Sora_800ExtraBold,
-} from '@expo-google-fonts/sora'
+  useFonts as useSerif,
+  Newsreader_400Regular,
+  Newsreader_500Medium,
+  Newsreader_600SemiBold,
+  Newsreader_700Bold,
+} from '@expo-google-fonts/newsreader'
 import {
-  useFonts as useJakarta,
-  PlusJakartaSans_400Regular,
-  PlusJakartaSans_500Medium,
-  PlusJakartaSans_600SemiBold,
-  PlusJakartaSans_700Bold,
-} from '@expo-google-fonts/plus-jakarta-sans'
-import {
-  useFonts as useMono,
-  JetBrainsMono_500Medium,
-  JetBrainsMono_700Bold,
-} from '@expo-google-fonts/jetbrains-mono'
+  useFonts as useSans,
+  InstrumentSans_400Regular,
+  InstrumentSans_500Medium,
+  InstrumentSans_600SemiBold,
+  InstrumentSans_700Bold,
+} from '@expo-google-fonts/instrument-sans'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { useSrsOfflineStore } from '@/stores/useSrsOfflineStore'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
+import { queryClient } from '@/lib/queryClient'
 import { getAccessToken } from '@/lib/auth'
-import { initObservability } from '@/lib/observability'
+import { initObservability, wrapWithObservability, reportError } from '@/lib/observability'
+import { ThemedText, Button } from '@/components/ui'
 import { initCertPinning } from '@/lib/certPinning'
 import { initDeviceIntegrity } from '@/lib/deviceIntegrity'
 import { ThemeProvider, useTheme } from '@/lib/theme'
 import { SplashAnimated } from '@/components/SplashAnimated'
 import { PostHogProvider } from 'posthog-react-native'
 import { posthog, setSubscriptionTier } from '@/lib/analytics'
-import '../global.css'
 
 void SplashScreen.preventAutoHideAsync()
 
@@ -47,12 +44,6 @@ initObservability()
 initCertPinning()
 // Jailbreak/root tamper check — soft signal, dev-warn only; no-op until jail-monkey installed (S13).
 initDeviceIntegrity()
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: { staleTime: 30_000, retry: 1 },
-  },
-})
 
 function RootStack() {
   const theme = useTheme()
@@ -73,32 +64,75 @@ function RootStack() {
   )
 }
 
+// Expo Router root error boundary — catches render errors anywhere in the tree.
+// It renders OUTSIDE RootLayout's providers, so it brings its own ThemeProvider +
+// SafeAreaProvider, and reports to Sentry (a no-op until a DSN is configured).
+function ErrorFallback({ retry }: { retry: () => void }) {
+  const theme = useTheme()
+  return (
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: theme.colors.bg,
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 32,
+        gap: 16,
+      }}
+    >
+      <ThemedText variant="display" align="center">
+        Đã có lỗi xảy ra
+      </ThemedText>
+      <ThemedText variant="body" color="muted" align="center">
+        Ứng dụng gặp sự cố ngoài ý muốn. Bạn thử lại nhé — nếu vẫn lỗi, hãy đóng và mở lại ứng dụng.
+      </ThemedText>
+      <Button label="Thử lại" onPress={retry} />
+    </View>
+  )
+}
+
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  useEffect(() => {
+    reportError(error)
+  }, [error])
+
+  return (
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <ErrorFallback retry={retry} />
+      </ThemeProvider>
+    </SafeAreaProvider>
+  )
+}
+
 function RootLayout() {
   // Select individual slices (not the whole store) so this root component only
   // re-renders when these specific values change — avoids re-render churn during
   // the auth bootstrap.
-  const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
   const isLoading = useAuthStore((s) => s.isLoading)
   const fetchMe = useAuthStore((s) => s.fetchMe)
   const fetchPlan = usePlanStore((s) => s.fetchPlan)
   const planTier = usePlanStore((s) => s.plan?.tier)
-  const rootNavState = useRootNavigationState()
   const [splashDone, setSplashDone] = useState(false)
 
-  const [soraLoaded] = useSora({ Sora_600SemiBold, Sora_700Bold, Sora_800ExtraBold })
-  const [jakartaLoaded] = useJakarta({
-    PlusJakartaSans_400Regular,
-    PlusJakartaSans_500Medium,
-    PlusJakartaSans_600SemiBold,
-    PlusJakartaSans_700Bold,
+  const [serifLoaded] = useSerif({
+    Newsreader_400Regular,
+    Newsreader_500Medium,
+    Newsreader_600SemiBold,
+    Newsreader_700Bold,
   })
-  const [monoLoaded] = useMono({ JetBrainsMono_500Medium, JetBrainsMono_700Bold })
-  const fontsReady = soraLoaded && jakartaLoaded && monoLoaded
+  const [sansLoaded] = useSans({
+    InstrumentSans_400Regular,
+    InstrumentSans_500Medium,
+    InstrumentSans_600SemiBold,
+    InstrumentSans_700Bold,
+  })
+  const fontsReady = serifLoaded && sansLoaded
 
-  // The animated splash holds until the app is genuinely ready: fonts loaded,
-  // auth resolved, and the navigator mounted. This masks the cold-launch
-  // auth redirect (home → login) so it never flashes on screen.
-  const appReady = fontsReady && !isLoading && !!rootNavState?.key
+  // The animated splash holds until the app is genuinely ready: fonts loaded and
+  // auth resolved. This masks the cold-launch auth gate (app/index.tsx redirect)
+  // so it never flashes on screen.
+  const appReady = fontsReady && !isLoading
 
   usePushNotifications()
 
@@ -110,6 +144,10 @@ function RootLayout() {
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
+      // Bridge AppState → react-query: RN has no window-focus event, so without this
+      // stale queries (unread count, inbox) never refetch when the app returns to the
+      // foreground. setFocused(true) lets refetchOnWindowFocus do its job.
+      focusManager.setFocused(state === 'active')
       if (state === 'active') {
         void useSrsOfflineStore.getState().sync()
       }
@@ -135,15 +173,14 @@ function RootLayout() {
     setSubscriptionTier(planTier)
   }, [planTier])
 
-  useEffect(() => {
-    // Don't navigate until the root navigator has mounted, otherwise expo-router throws
-    // "Attempted to navigate before mounting the Root Layout component."
-    if (!rootNavState?.key) return
-    if (isLoading) return
-    if (!isLoggedIn) {
-      router.replace('/(auth)/login')
-    }
-  }, [isLoggedIn, isLoading, rootNavState?.key])
+  // Auth routing lives in app/index.tsx (`/`) as a declarative <Redirect>, NOT as an
+  // imperative router.replace() from this root layout. The old effect-driven redirect
+  // depended on the root navigation state (useRootNavigationState), so each redirect
+  // mutated that state and re-rendered this layout, which re-rendered the navigator,
+  // which re-synced its state — an infinite feedback loop. Under React 19 + the New
+  // Architecture that tripped @react-navigation/core's useSyncState into "Maximum
+  // update depth exceeded" and crashed the app at launch. Keeping the root layout
+  // free of navigation-state subscriptions removes the amplifier entirely.
 
   useEffect(() => {
     if (fontsReady) {
@@ -179,4 +216,4 @@ function RootLayout() {
   )
 }
 
-export default RootLayout
+export default wrapWithObservability(RootLayout)

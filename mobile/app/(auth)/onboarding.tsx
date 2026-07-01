@@ -478,6 +478,9 @@ function ChipRow({
         return (
           <Pressable
             key={opt.value}
+            accessibilityRole="button"
+            accessibilityLabel={opt.label}
+            accessibilityState={{ selected: active }}
             onPress={() => {
               void Haptics.selectionAsync()
               onSelect(opt.value)
@@ -527,11 +530,14 @@ function GuestQuickWin({ mentor, onSignup }: { mentor: OnboardingMentor | null; 
             const picked = choice === opt
             const correct = opt === 'Guten Morgen'
             const showResult = choice !== null
-            const borderColor = showResult && correct ? '#22C55E' : picked ? '#EF4444' : colors.border
-            const bg = showResult && correct ? '#F0FDF4' : picked ? '#FEF2F2' : colors.surface
+            const borderColor = showResult && correct ? colors.success : picked ? colors.danger : colors.border
+            const bg = showResult && correct ? colors.successSoft : picked ? colors.dangerSoft : colors.surface
             return (
               <Pressable
                 key={opt}
+                accessibilityRole="button"
+                accessibilityLabel={opt}
+                accessibilityState={{ selected: picked, disabled: solved }}
                 disabled={solved}
                 onPress={() => {
                   void Haptics.selectionAsync()
@@ -547,7 +553,7 @@ function GuestQuickWin({ mentor, onSignup }: { mentor: OnboardingMentor | null; 
         </View>
         {solved && (
           <View style={{ gap: space[3] }}>
-            <ThemedText variant="bodyStrong" style={{ color: '#15803D' }}>Richtig! 🎉 Bạn vừa học từ đầu tiên.</ThemedText>
+            <ThemedText variant="bodyStrong" color="success">Richtig! 🎉 Bạn vừa học từ đầu tiên.</ThemedText>
             {mentor && (
               <View
                 style={{

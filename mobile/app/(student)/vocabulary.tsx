@@ -1,14 +1,28 @@
 import { useState, useEffect, useRef } from 'react'
-import { View, TextInput, FlatList, Pressable, RefreshControl } from 'react-native'
+import { View, TextInput, FlatList, RefreshControl } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router, type Href } from 'expo-router'
 import * as Haptics from 'expo-haptics'
-import { Search, BookMarked, Plus, Check, Film, ChevronRight } from 'lucide-react-native'
+import { Search, BookMarked, Plus, Check, Film, ChevronRight, Repeat, Layers, BarChart3 } from 'lucide-react-native'
 import api from '@/lib/api'
 import { trackFeatureAction } from '@/lib/analytics'
 import { learningApi } from '@/lib/learningApi'
 import { fonts, radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, Pill, AppHeader, EmptyState, ErrorState, Skeleton } from '@/components/ui'
+import {
+  Screen,
+  Card,
+  ThemedText,
+  Icon,
+  Pill,
+  Caption,
+  YellowSquare,
+  AppHeader,
+  EmptyState,
+  ErrorState,
+  Skeleton,
+  SelectableChip,
+  Button,
+} from '@/components/ui'
 import { useDebounce } from '@/hooks/useDebounce'
 
 // Display shape used by WordRow.
@@ -73,6 +87,14 @@ export default function VocabularyScreen() {
 
   const words = data ?? []
 
+  // SRS due count (real data) for the dashboard hero — /srs/due returns the due
+  // queue; we count it (capped) rather than fabricating learning/mastered totals.
+  const { data: dueCount = 0 } = useQuery({
+    queryKey: ['srs-due-count'],
+    queryFn: () => api.get<unknown[]>('/srs/due?limit=99').then((r) => (r.data ?? []).length),
+    staleTime: 60_000,
+  })
+
   const searchedRef = useRef(false)
   useEffect(() => {
     if (debouncedSearch.trim() && !searchedRef.current) {
@@ -83,7 +105,66 @@ export default function VocabularyScreen() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title="Từ vựng" onBack={() => router.back()} />
+      <AppHeader title="Từ vựng" subtitle="Wortschatz · Spaced repetition" onBack={() => router.back()} />
+
+      {/* SRS due hero (real /srs/due count) — the dashboard's primary call to review. */}
+      {dueCount > 0 ? (
+        <Card
+          style={{
+            marginHorizontal: space[5],
+            marginBottom: space[3],
+            backgroundColor: c.inkSurface,
+            borderColor: c.inkSurface,
+            gap: space[3],
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View style={{ gap: 6 }}>
+              <Caption color={c.accent}>Đến hạn ôn hôm nay</Caption>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space[2] }}>
+                <ThemedText variant="displayLg" color="onInk">
+                  {dueCount}
+                </ThemedText>
+                <ThemedText variant="body" style={{ color: c.onInkMuted }}>
+                  thẻ
+                </ThemedText>
+              </View>
+            </View>
+            <Icon icon={Repeat} size={28} color="secondary" />
+          </View>
+          <Button
+            variant="yellow"
+            label={`Ôn ${dueCount} từ hôm nay`}
+            onPress={() => router.push('/(student)/srs' as unknown as Href)}
+          />
+        </Card>
+      ) : null}
+
+      {/* Quick actions — flashcards + SRS stats (parity with na-vocab dashboard). */}
+      <View style={{ flexDirection: 'row', gap: space[3], marginHorizontal: space[5], marginBottom: space[4] }}>
+        <Card
+          onPress={() => router.push('/(student)/srs' as unknown as Href)}
+          accessibilityLabel="Học thẻ"
+          style={{ flex: 1, gap: space[2] }}
+        >
+          <Icon icon={Layers} size={20} color="accent" />
+          <ThemedText variant="bodyStrong">Học thẻ (vuốt)</ThemedText>
+          <ThemedText variant="caption" color="muted">
+            Vuốt biết / chưa biết
+          </ThemedText>
+        </Card>
+        <Card
+          onPress={() => router.push('/(student)/stats' as unknown as Href)}
+          accessibilityLabel="Thống kê SRS"
+          style={{ flex: 1, gap: space[2] }}
+        >
+          <Icon icon={BarChart3} size={20} color="accent" />
+          <ThemedText variant="bodyStrong">Thống kê SRS</ThemedText>
+          <ThemedText variant="caption" color="muted">
+            Tiến độ ghi nhớ
+          </ThemedText>
+        </Card>
+      </View>
 
       <View
         style={{
@@ -91,11 +172,11 @@ export default function VocabularyScreen() {
           marginBottom: space[3],
           flexDirection: 'row',
           alignItems: 'center',
-          gap: space[2],
-          backgroundColor: c.surfaceSunken,
+          gap: space[3],
+          backgroundColor: c.surface,
           borderWidth: 1,
           borderColor: c.border,
-          borderRadius: radius.lg,
+          borderRadius: radius.md,
           paddingHorizontal: space[4],
           paddingVertical: space[3],
         }}
@@ -110,55 +191,73 @@ export default function VocabularyScreen() {
         />
       </View>
 
+      {/* Editorial filter chips — active filter takes a solid accent fill */}
       <View style={{ flexDirection: 'row', gap: space[2], paddingHorizontal: space[5], marginBottom: space[4] }}>
         {STATUS_FILTERS.map((f) => {
           const active = statusFilter === f
           return (
-            <Pressable
+            <SelectableChip
               key={f}
+              label={FILTER_LABEL[f]}
+              selected={active}
               onPress={() => setStatusFilter(f)}
-              style={{
-                paddingHorizontal: space[3],
-                paddingVertical: 6,
-                borderRadius: radius.full,
-                backgroundColor: active ? c.accent : c.surfaceSunken,
-                borderWidth: active ? 0 : 1,
-                borderColor: c.border,
-              }}
             >
-              <ThemedText variant="label" color={active ? 'onAccent' : 'muted'}>
-                {FILTER_LABEL[f]}
-              </ThemedText>
-            </Pressable>
+              <Pill label={FILTER_LABEL[f]} tone={active ? 'accent' : 'neutral'} solid={active} />
+            </SelectableChip>
           )
         })}
       </View>
 
-      <Pressable
+      {/* Video review entry — sharp paper card with the yellow-square motif */}
+      <Card
         onPress={() => router.push('/(student)/video-lesson' as unknown as Href)}
+        accessibilityLabel="Xem video ôn tập"
+        style={{ marginHorizontal: space[5], marginBottom: space[5], borderColor: c.accentSoft }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+          <View
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: radius.md,
+              backgroundColor: c.accentSoft,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Icon icon={Film} size={20} color="accent" />
+          </View>
+          <View style={{ flex: 1, gap: 3 }}>
+            <Caption color={c.accentText}>Video ôn tập</Caption>
+            <ThemedText variant="bodyStrong">Xem từ vựng qua hình ảnh</ThemedText>
+            <ThemedText variant="caption" color="muted">
+              Hình ảnh + lồng tiếng Đức theo cấp độ
+            </ThemedText>
+          </View>
+          <Icon icon={ChevronRight} size={18} color="muted" />
+        </View>
+      </Card>
+
+      {/* Section eyebrow over the word list */}
+      <View
         style={{
-          marginHorizontal: space[5],
-          marginBottom: space[4],
           flexDirection: 'row',
           alignItems: 'center',
-          gap: space[3],
-          backgroundColor: c.accentSoft,
-          borderRadius: radius.lg,
-          paddingHorizontal: space[4],
-          paddingVertical: space[3],
+          justifyContent: 'space-between',
+          paddingHorizontal: space[5],
+          marginBottom: space[3],
         }}
       >
-        <Icon icon={Film} size={20} color="accent" />
-        <View style={{ flex: 1 }}>
-          <ThemedText variant="bodyStrong" color="accent">
-            Xem video ôn tập
-          </ThemedText>
-          <ThemedText variant="caption" color="muted">
-            Hình ảnh + lồng tiếng Đức theo cấp độ
-          </ThemedText>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+          <YellowSquare size={8} />
+          <Caption>{statusFilter === 'ALL' ? 'Tất cả từ' : FILTER_LABEL[statusFilter]}</Caption>
         </View>
-        <Icon icon={ChevronRight} size={18} color="accent" />
-      </Pressable>
+        {!isLoading && !isError ? (
+          <ThemedText variant="caption" color="faint">
+            {words.length} từ
+          </ThemedText>
+        ) : null}
+      </View>
 
       {isLoading ? (
         <View style={{ paddingHorizontal: space[5], gap: space[2] }}>
@@ -212,24 +311,33 @@ function WordRow({ word }: { word: Word }) {
     }
   }
 
+  // German article shown as a serif colored glyph (der=info, die=danger, das=success).
+  const articleColor = word.gender ? c[word.gender] : c.textFaint
+
   return (
     <Card>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space[2] }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], flex: 1 }}>
-          {word.gender ? <Pill label={word.gender} tone={word.gender} /> : null}
-          <View style={{ flex: 1, gap: 2 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+        <ThemedText
+          style={{
+            width: 30,
+            fontFamily: fonts.displaySemi,
+            fontSize: 15,
+            color: articleColor,
+          }}
+        >
+          {word.gender ?? '—'}
+        </ThemedText>
+        <View style={{ flex: 1, gap: 2 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space[2] }}>
             <ThemedText variant="bodyStrong">{word.word}</ThemedText>
-            <ThemedText variant="caption" color="muted">
-              {word.translation}
-            </ThemedText>
+            {word.cefrLevel ? <Caption color={c.textFaint}>{word.cefrLevel}</Caption> : null}
           </View>
-        </View>
-        {word.cefrLevel ? (
-          <ThemedText variant="caption" color="faint">
-            {word.cefrLevel}
+          <ThemedText variant="caption" color="muted">
+            {word.translation}
           </ThemedText>
-        ) : null}
-        <Pressable
+        </View>
+        <SelectableChip
+          label={done ? 'Đã thuộc' : 'Đánh dấu đã thuộc'}
           onPress={add}
           disabled={done || busy}
           hitSlop={6}
@@ -237,7 +345,7 @@ function WordRow({ word }: { word: Word }) {
             flexDirection: 'row',
             alignItems: 'center',
             gap: 4,
-            borderRadius: radius.full,
+            borderRadius: radius.sm,
             paddingHorizontal: space[3],
             paddingVertical: 6,
             backgroundColor: done ? c.successSoft : c.accentSoft,
@@ -248,7 +356,7 @@ function WordRow({ word }: { word: Word }) {
           <ThemedText variant="label" color={done ? 'success' : 'accent'}>
             {done ? 'Đã học' : 'Học'}
           </ThemedText>
-        </Pressable>
+        </SelectableChip>
       </View>
     </Card>
   )

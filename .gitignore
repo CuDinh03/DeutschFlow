@@ -186,5 +186,12 @@ test-*.js
 *.jpg
 *.png
 
+# …but the Expo mobile app's committed icon/splash/adaptive-icon ARE required by
+# EAS Build. EAS excludes any .gitignore-matched file from the build upload even
+# when it is tracked, so the broad *.png rule above would drop mobile/assets/* and
+# break prebuild (icon "cannot access file" / ENOENT). Re-include the app assets:
+!mobile/assets/
+!mobile/assets/**
+
 # Scratch/temp scripts — thường chứa key hardcode, không commit
 scratch/

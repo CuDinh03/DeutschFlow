@@ -3,13 +3,25 @@ import { useQuery } from '@tanstack/react-query'
 import { router, useLocalSearchParams } from 'expo-router'
 import { Check, X } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, AppHeader, EmptyState, ErrorState, Skeleton } from '@/components/ui'
+import {
+  Screen,
+  Card,
+  ThemedText,
+  Icon,
+  AppHeader,
+  Caption,
+  ProgressBar,
+  EmptyState,
+  ErrorState,
+  Skeleton,
+} from '@/components/ui'
 import { examApi, type ReviewItem } from '@/lib/examApi'
 
 const TF_LABEL: Record<string, string> = { richtig: 'Richtig', falsch: 'Falsch' }
 const label = (v: string | null) => (v == null ? '—' : (TF_LABEL[v.toLowerCase()] ?? v))
 
 export default function ExamReviewScreen() {
+  const c = useTheme().colors
   const params = useLocalSearchParams<{ attemptId: string; title?: string }>()
   const attemptId = Number(params.attemptId)
 
@@ -39,26 +51,44 @@ export default function ExamReviewScreen() {
           <EmptyState icon={Check} title="Không có câu để xem lại" message="Bài thi này chưa có câu trắc nghiệm phần Đọc." />
         </View>
       ) : (
-        <Screen scroll edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[3], paddingTop: space[2] }}>
-          <Card>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <ThemedText variant="bodyStrong">Kết quả phần Đọc</ThemedText>
-              <ThemedText variant="monoLg" color="accent">
-                {correct}/{totalItems}
+        <Screen scroll edges={[]} contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[5], paddingTop: space[2] }}>
+          {/* Score hero — editorial ink card for the key result metric */}
+          <Card style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface, gap: space[4] }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+              <View style={{ gap: space[1] }}>
+                <Caption color={c.accent}>Kết quả phần Đọc</Caption>
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space[1] }}>
+                  <ThemedText variant="displayLg" style={{ color: c.onInk }}>
+                    {String(correct)}
+                  </ThemedText>
+                  <ThemedText variant="title" style={{ color: c.onInkMuted }}>
+                    / {totalItems}
+                  </ThemedText>
+                </View>
+              </View>
+              <ThemedText variant="monoLg" style={{ color: c.accent }}>
+                {Math.round((correct / totalItems) * 100)}%
               </ThemedText>
             </View>
+            <ProgressBar
+              value={correct / totalItems}
+              fillColor={c.accent}
+              trackColor={c.onInkMuted}
+              height={6}
+            />
           </Card>
 
-          {sections.map((s, si) => (
-            <View key={si} style={{ gap: space[2] }}>
-              <ThemedText variant="label" color="muted">
-                {s.sectionName}
-              </ThemedText>
-              {s.items.map((item) => (
-                <ReviewItemCard key={item.id} item={item} />
-              ))}
-            </View>
-          ))}
+          <View style={{ gap: space[4] }}>
+            <Caption>Chi tiết từng câu</Caption>
+            {sections.map((s, si) => (
+              <View key={si} style={{ gap: space[3] }}>
+                <Caption color={c.textMuted}>{s.sectionName}</Caption>
+                {s.items.map((item) => (
+                  <ReviewItemCard key={item.id} item={item} />
+                ))}
+              </View>
+            ))}
+          </View>
         </Screen>
       )}
     </Screen>
@@ -69,50 +99,48 @@ function ReviewItemCard({ item }: { item: ReviewItem }) {
   const c = useTheme().colors
   const ok = item.is_correct
   return (
-    <Card style={{ gap: space[2], borderLeftWidth: 3, borderLeftColor: ok ? c.success : c.danger }}>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[2] }}>
+    <Card style={{ gap: space[3], borderLeftWidth: 3, borderLeftColor: ok ? c.success : c.danger }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[3] }}>
         <View
           style={{
-            width: 20,
-            height: 20,
-            borderRadius: radius.full,
+            width: 22,
+            height: 22,
+            borderRadius: radius.sm,
             backgroundColor: ok ? c.successSoft : c.dangerSoft,
             alignItems: 'center',
             justifyContent: 'center',
-            marginTop: 2,
+            marginTop: 1,
           }}
         >
-          <Icon icon={ok ? Check : X} size={12} color={ok ? 'success' : 'danger'} />
+          <Icon icon={ok ? Check : X} size={13} color={ok ? 'success' : 'danger'} />
         </View>
         <ThemedText variant="bodyStrong" style={{ flex: 1 }}>
           {item.question}
         </ThemedText>
       </View>
 
-      {!ok ? (
-        <ThemedText variant="caption">
-          <ThemedText variant="caption" color="muted">
-            Bạn chọn:{' '}
+      <View style={{ gap: space[2], paddingLeft: space[3] + 22 }}>
+        {!ok ? (
+          <View style={{ gap: space[1] }}>
+            <Caption color={c.textMuted}>Bạn chọn</Caption>
+            <ThemedText variant="bodyStrong" style={{ color: c.danger }}>
+              {label(item.user_answer)}
+            </ThemedText>
+          </View>
+        ) : null}
+        <View style={{ gap: space[1] }}>
+          <Caption color={c.textMuted}>Đáp án</Caption>
+          <ThemedText variant="bodyStrong" style={{ color: c.success }}>
+            {label(item.correct_answer)}
           </ThemedText>
-          <ThemedText variant="caption" style={{ color: c.danger }}>
-            {label(item.user_answer)}
-          </ThemedText>
-        </ThemedText>
-      ) : null}
-      <ThemedText variant="caption">
-        <ThemedText variant="caption" color="muted">
-          Đáp án:{' '}
-        </ThemedText>
-        <ThemedText variant="caption" style={{ color: c.success }}>
-          {label(item.correct_answer)}
-        </ThemedText>
-      </ThemedText>
+        </View>
 
-      {item.explanation ? (
-        <ThemedText variant="caption" color="muted">
-          {item.explanation}
-        </ThemedText>
-      ) : null}
+        {item.explanation ? (
+          <ThemedText variant="caption" color="muted" style={{ marginTop: space[1] }}>
+            {item.explanation}
+          </ThemedText>
+        ) : null}
+      </View>
     </Card>
   )
 }

@@ -1,15 +1,17 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { View, KeyboardAvoidingView, Platform, Alert, ScrollView, Pressable } from 'react-native'
 import { router, Link } from 'expo-router'
 import { MotiView } from 'moti'
 import * as Haptics from 'expo-haptics'
+import { Check } from 'lucide-react-native'
 import api from '@/lib/api'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { setTokens } from '@/lib/auth'
 import { captureEvent } from '@/lib/analytics'
+import { passwordStrength } from '@/lib/passwordStrength'
 import { motion, radius, space, useTheme } from '@/lib/theme'
-import { Screen, ThemedText, TextField, Button } from '@/components/ui'
+import { Screen, ThemedText, TextField, Button, Icon } from '@/components/ui'
 
 export default function RegisterScreen() {
   const theme = useTheme()
@@ -17,14 +19,21 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
+  const [agree, setAgree] = useState(false)
   const [loading, setLoading] = useState(false)
   const { fetchMe } = useAuthStore()
   const { fetchPlan } = usePlanStore()
+
+  const strength = useMemo(() => passwordStrength(password), [password])
 
   async function handleRegister() {
     const phoneTrimmed = phone.trim()
     if (!displayName.trim() || !email.trim() || !phoneTrimmed || !password.trim()) {
       Alert.alert('Thiếu thông tin', 'Vui lòng điền đầy đủ thông tin.')
+      return
+    }
+    if (!agree) {
+      Alert.alert('Điều khoản', 'Vui lòng đồng ý với Điều khoản và Chính sách bảo mật.')
       return
     }
     // Backend requires a Vietnamese mobile number (RegisterRequest @Pattern).
@@ -126,15 +135,75 @@ export default function RegisterScreen() {
                 keyboardType="phone-pad"
                 autoComplete="tel"
               />
-              <TextField
-                label="Mật khẩu"
-                value={password}
-                onChangeText={setPassword}
-                placeholder="Tối thiểu 8 ký tự"
-                secureTextEntry
-                autoComplete="new-password"
+              <View style={{ gap: space[2] }}>
+                <TextField
+                  label="Mật khẩu"
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="Tối thiểu 8 ký tự"
+                  secureTextEntry
+                  autoComplete="new-password"
+                />
+                {password.length > 0 ? (
+                  <View style={{ gap: space[1] }}>
+                    <View style={{ flexDirection: 'row', gap: 4 }}>
+                      {[0, 1, 2, 3].map((i) => (
+                        <View
+                          key={i}
+                          style={{
+                            flex: 1,
+                            height: 4,
+                            borderRadius: 2,
+                            backgroundColor:
+                              i < strength.level ? theme.colors[strength.tone] : theme.colors.border,
+                          }}
+                        />
+                      ))}
+                    </View>
+                    <ThemedText variant="caption" style={{ color: theme.colors[strength.tone] }}>
+                      Độ mạnh: {strength.label}
+                    </ThemedText>
+                  </View>
+                ) : null}
+              </View>
+
+              {/* Terms agreement — gates the submit, matching the v2 auth mockup. */}
+              <Pressable
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: agree }}
+                accessibilityLabel="Đồng ý với Điều khoản sử dụng và Chính sách bảo mật"
+                onPress={() => setAgree((a) => !a)}
+                hitSlop={6}
+                style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[3] }}
+              >
+                <View
+                  style={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: radius.md,
+                    borderWidth: 1.5,
+                    borderColor: agree ? theme.colors.textPrimary : theme.colors.border,
+                    backgroundColor: agree ? theme.colors.inkSurface : 'transparent',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginTop: 1,
+                  }}
+                >
+                  {agree ? <Icon icon={Check} size={15} color="accent" /> : null}
+                </View>
+                <ThemedText variant="caption" color="secondary" style={{ flex: 1, lineHeight: 18 }}>
+                  Tôi đồng ý với <ThemedText variant="caption" color="primary">Điều khoản sử dụng</ThemedText> và{' '}
+                  <ThemedText variant="caption" color="primary">Chính sách bảo mật</ThemedText> của DeutschFlow.
+                </ThemedText>
+              </Pressable>
+
+              <Button
+                label="Tạo tài khoản"
+                onPress={handleRegister}
+                loading={loading}
+                disabled={!agree}
+                style={{ marginTop: space[1] }}
               />
-              <Button label="Tạo tài khoản" onPress={handleRegister} loading={loading} style={{ marginTop: space[1] }} />
             </View>
 
             <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: space[6] }}>
@@ -142,7 +211,7 @@ export default function RegisterScreen() {
                 Đã có tài khoản?{' '}
               </ThemedText>
               <Link href="/(auth)/login" asChild>
-                <Pressable hitSlop={6}>
+                <Pressable accessibilityRole="button" accessibilityLabel="Đăng nhập" hitSlop={6}>
                   <ThemedText variant="bodyStrong" color="accent">
                     Đăng nhập
                   </ThemedText>

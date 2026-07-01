@@ -112,9 +112,21 @@ export interface RawSkillNode {
   title_vi?: string | null
   cefr_level?: string | null
   day_number?: number | null
+  sort_order?: number | null
   user_status?: string | null
   status?: string | null
+  // Curriculum/topic context. /skill-tree/me returns these as raw snake_case
+  // (queryForList); the JSON-text columns arrive as `to_jsonb(...)::text` strings.
+  phase?: string | null
+  industry?: string | null
+  module_title_vi?: string | null
+  session_type?: string | null
+  emoji?: string | null
+  dependencies_met?: boolean | null
   tags?: string | string[] | null
+  core_topics?: string | string[] | null
+  grammar_points?: string | string[] | null
+  prerequisites_json?: string | unknown[] | null
 }
 
 export interface SkillNode {
@@ -123,27 +135,76 @@ export interface SkillNode {
   cefrLevel: string
   status: NodeStatus
   dayNumber: number
+  sortOrder: number
   tags: string[]
+  // Pha 3: full topic/curriculum context (previously dropped at the TS boundary).
+  phase: string | null
+  industry: string | null
+  moduleTitle: string | null
+  sessionType: string | null
+  emoji: string | null
+  coreTopics: string[]
+  grammarPoints: string[]
+  prerequisites: string[] // node_code list, from prerequisites_json
+  dependenciesMet: boolean
+}
+
+// Backend lifecycle is LOCKED → UNLOCKED → IN_PROGRESS → COMPLETED, but the app
+// uses 'AVAILABLE' for the unlocked-not-started state. Without this normalization a
+// real 'UNLOCKED' row matches none of the app's motifs and renders as locked-grey,
+// non-tappable — so unlocked lessons (incl. the recommended next one) look locked.
+function normalizeStatus(raw: string | null | undefined): NodeStatus {
+  const s = (raw ?? '').toUpperCase()
+  if (s === 'UNLOCKED' || s === 'AVAILABLE') return 'AVAILABLE'
+  if (s === 'IN_PROGRESS' || s === 'COMPLETED' || s === 'LOCKED') return s
+  return 'LOCKED'
+}
+
+// Parse a wire value that is either an array, a JSON-text array (the backend's
+// `to_jsonb(...)::text`), or null, into a clean string[]. Strings pass through;
+// objects contribute their node_code/code/id (prerequisites_json may be a list of
+// either bare codes or `{node_code}` objects — spec H3). Never throws.
+function asStringArray(raw: string | unknown[] | null | undefined): string[] {
+  let val: unknown = raw
+  if (typeof raw === 'string') {
+    try {
+      val = JSON.parse(raw)
+    } catch {
+      return []
+    }
+  }
+  if (!Array.isArray(val)) return []
+  const out: string[] = []
+  for (const item of val) {
+    if (typeof item === 'string') {
+      out.push(item)
+    } else if (item && typeof item === 'object') {
+      const o = item as Record<string, unknown>
+      const code = o.node_code ?? o.code ?? o.id
+      if (typeof code === 'string') out.push(code)
+    }
+  }
+  return out
 }
 
 export function mapSkillNode(r: RawSkillNode): SkillNode {
-  let tags: string[] = []
-  if (Array.isArray(r.tags)) tags = r.tags
-  else if (typeof r.tags === 'string') {
-    try {
-      const parsed = JSON.parse(r.tags)
-      if (Array.isArray(parsed)) tags = parsed.filter((t): t is string => typeof t === 'string')
-    } catch {
-      // leave empty
-    }
-  }
   return {
     id: r.id,
     title: r.title_vi || r.title_de || `Ngày ${r.day_number ?? ''}`.trim(),
     cefrLevel: r.cefr_level ?? '',
-    status: (r.user_status ?? r.status ?? 'LOCKED') as NodeStatus,
+    status: normalizeStatus(r.user_status ?? r.status),
     dayNumber: r.day_number ?? 0,
-    tags,
+    sortOrder: r.sort_order ?? 0,
+    tags: asStringArray(r.tags),
+    phase: r.phase ?? null,
+    industry: r.industry ?? null,
+    moduleTitle: r.module_title_vi ?? null,
+    sessionType: r.session_type ?? null,
+    emoji: r.emoji ?? null,
+    coreTopics: asStringArray(r.core_topics),
+    grammarPoints: asStringArray(r.grammar_points),
+    prerequisites: asStringArray(r.prerequisites_json),
+    dependenciesMet: r.dependencies_met === true,
   }
 }
 

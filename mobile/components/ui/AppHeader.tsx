@@ -5,7 +5,7 @@ import { ChevronLeft } from 'lucide-react-native'
 import type { ReactNode } from 'react'
 import { Pressable, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
-import { radius, space, useTheme } from '@/lib/theme'
+import { space } from '@/lib/theme'
 import { Icon } from './Icon'
 import { ThemedText } from './ThemedText'
 
@@ -17,8 +17,6 @@ interface AppHeaderProps {
 }
 
 export function AppHeader({ title, subtitle, onBack, right }: AppHeaderProps) {
-  const theme = useTheme()
-
   return (
     <View
       style={{
@@ -37,18 +35,18 @@ export function AppHeader({ title, subtitle, onBack, right }: AppHeaderProps) {
             void Haptics.selectionAsync()
             onBack()
           }}
-          hitSlop={8}
+          hitSlop={10}
           style={({ pressed }) => ({
-            width: 40,
-            height: 40,
-            borderRadius: radius.md,
-            backgroundColor: theme.colors.surfaceSunken,
+            width: 44,
+            height: 44,
+            marginLeft: -10,
+            marginRight: -space[1],
             alignItems: 'center',
             justifyContent: 'center',
-            opacity: pressed ? 0.6 : 1,
+            opacity: pressed ? 0.5 : 1,
           })}
         >
-          <Icon icon={ChevronLeft} size={22} color="primary" />
+          <Icon icon={ChevronLeft} size={26} color="primary" />
         </Pressable>
       ) : null}
       <View style={{ flex: 1, gap: 2 }}>

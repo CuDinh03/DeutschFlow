@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { Alert, FlatList, Pressable, RefreshControl, View } from 'react-native'
+import { Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, RefreshControl, View } from 'react-native'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { router } from 'expo-router'
 import {
-  BookOpen, ChevronRight, Clock, GraduationCap, Plus, Presentation, Sparkles,
+  BookOpen, ChevronRight, Clock, Plus, Presentation, Sparkles,
 } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import {
@@ -11,8 +11,8 @@ import {
 } from '@/lib/studentClassesApi'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
-  AppHeader, Button, Card, EmptyState, ErrorState, FadeIn, Icon, Pill, ProgressBar,
-  Screen, Skeleton, TextField, ThemedText,
+  AppHeader, Button, Caption, Card, EmptyState, ErrorState, FadeIn, Icon,
+  ProgressBar, Screen, Skeleton, TextField, ThemedText, YellowSquare,
 } from '@/components/ui'
 
 export default function StudentClassesIndex() {
@@ -60,8 +60,8 @@ export default function StudentClassesIndex() {
 
       {isLoading ? (
         <View style={{ paddingHorizontal: space[5], gap: space[3] }}>
-          <Skeleton height={120} />
-          <Skeleton height={120} />
+          <Skeleton height={150} radius="md" />
+          <Skeleton height={150} radius="md" />
         </View>
       ) : error ? (
         <ErrorState
@@ -88,12 +88,29 @@ export default function StudentClassesIndex() {
             paddingBottom: space[8],
             gap: space[3],
           }}
+          showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
               refreshing={isRefetching}
               onRefresh={() => void refetch()}
               tintColor={theme.colors.accent}
             />
+          }
+          ListHeaderComponent={
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: space[2],
+                paddingTop: space[3],
+                paddingBottom: space[1],
+              }}
+            >
+              <YellowSquare size={9} />
+              <Caption>
+                {`${classes.length} lớp đang tham gia`}
+              </Caption>
+            </View>
           }
           renderItem={({ item, index }) => (
             <FadeIn delay={index * 60}>
@@ -121,113 +138,135 @@ function ClassCard({ classroom }: { classroom: MyClassroom }) {
 
   return (
     <Card
+      padded={false}
       onPress={() => router.push(`/(student)/classes/${classroom.id}` as never)}
       accessibilityLabel={`Mở lớp ${classroom.name}`}
     >
-      <View style={{ gap: space[3] }}>
-        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[3] }}>
-          <View
-            style={{
-              width: 42,
-              height: 42,
-              borderRadius: radius.lg,
-              backgroundColor: c.accentSoft,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Icon icon={Presentation} size={20} color="accent" />
-          </View>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <ThemedText variant="bodyStrong" numberOfLines={1}>
-              {classroom.name}
-            </ThemedText>
-            <ThemedText variant="caption" color="secondary" numberOfLines={1}>
-              {classroom.teachers.length > 0
-                ? classroom.teachers.map((t) => t.displayName).join(', ')
-                : 'Chưa có giáo viên'}
-            </ThemedText>
-          </View>
-          <Icon icon={ChevronRight} size={16} color="muted" />
+      {/* Editorial header — eyebrow + serif title, teacher line, chevron affordance */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'flex-start',
+          gap: space[3],
+          padding: space[4],
+          borderBottomWidth: 1,
+          borderBottomColor: c.border,
+        }}
+      >
+        <View
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: radius.md,
+            backgroundColor: c.accentSoft,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Icon icon={Presentation} size={20} color="accent" />
         </View>
-
-        <View style={{ flexDirection: 'row', gap: space[2] }}>
-          <MiniStat icon={BookOpen} label="Bài tập" value={String(classroom.assignmentCount)} />
-          <MiniStat
-            icon={Clock}
-            label="Chưa nộp"
-            value={String(classroom.pendingCount)}
-            tone={classroom.pendingCount > 0 ? 'danger' : undefined}
-          />
-          <MiniStat
-            icon={Sparkles}
-            label="Điểm TB"
-            value={classroom.avgScore != null ? classroom.avgScore.toFixed(1) : '–'}
-          />
+        <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+          <Caption color={c.accentText}>Lớp học</Caption>
+          <ThemedText variant="title" numberOfLines={1}>
+            {classroom.name}
+          </ThemedText>
+          <ThemedText variant="caption" color="secondary" numberOfLines={1}>
+            {classroom.teachers.length > 0
+              ? classroom.teachers.map((t) => t.displayName).join(', ')
+              : 'Chưa có giáo viên'}
+          </ThemedText>
         </View>
+        <Icon icon={ChevronRight} size={18} color="faint" />
+      </View>
 
-        {classroom.lessonTotal > 0 && (
-          <View style={{ gap: space[1] }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <ThemedText variant="caption" color="secondary">
-                Tiến độ lớp
-              </ThemedText>
-              <ThemedText variant="caption" color="secondary">
-                {classroom.lessonCompleted}/{classroom.lessonTotal} buổi
-              </ThemedText>
-            </View>
-            <ProgressBar value={lessonPercent} />
-          </View>
-        )}
+      {/* Mini-stats — hairline sharp tiles */}
+      <View style={{ flexDirection: 'row', borderBottomWidth: classroom.lessonTotal > 0 || classroom.latestAssignmentTopic ? 1 : 0, borderBottomColor: c.border }}>
+        <MiniStat icon={BookOpen} label="Bài tập" value={String(classroom.assignmentCount)} />
+        <MiniStat
+          icon={Clock}
+          label="Chưa nộp"
+          value={String(classroom.pendingCount)}
+          tone={classroom.pendingCount > 0 ? 'danger' : undefined}
+          divider
+        />
+        <MiniStat
+          icon={Sparkles}
+          label="Điểm TB"
+          value={classroom.avgScore != null ? classroom.avgScore.toFixed(1) : '–'}
+          divider
+        />
+      </View>
 
-        {classroom.latestAssignmentTopic && (
-          <View
-            style={{
-              backgroundColor: c.surfaceSunken,
-              borderRadius: radius.md,
-              padding: space[3],
-            }}
-          >
+      {classroom.lessonTotal > 0 && (
+        <View
+          style={{
+            gap: space[2],
+            padding: space[4],
+            borderBottomWidth: classroom.latestAssignmentTopic ? 1 : 0,
+            borderBottomColor: c.border,
+          }}
+        >
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Caption>Tiến độ lớp</Caption>
             <ThemedText variant="caption" color="secondary">
-              Bài mới nhất
+              {classroom.lessonCompleted}/{classroom.lessonTotal} buổi
             </ThemedText>
-            <ThemedText variant="body" numberOfLines={1}>
+          </View>
+          <ProgressBar value={lessonPercent} />
+        </View>
+      )}
+
+      {classroom.latestAssignmentTopic && (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            gap: space[2],
+            padding: space[4],
+          }}
+        >
+          <YellowSquare size={9} style={{ marginTop: 4 }} />
+          <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+            <Caption>Bài mới nhất</Caption>
+            <ThemedText variant="bodyStrong" numberOfLines={1}>
               {classroom.latestAssignmentTopic}
             </ThemedText>
           </View>
-        )}
-      </View>
+        </View>
+      )}
     </Card>
   )
 }
 
 function MiniStat({
-  icon, label, value, tone,
+  icon, label, value, tone, divider,
 }: {
   icon: typeof BookOpen
   label: string
   value: string
   tone?: 'danger'
+  divider?: boolean
 }) {
   const theme = useTheme()
   const c = theme.colors
+  const isDanger = tone === 'danger'
   return (
     <View
       style={{
         flex: 1,
-        backgroundColor: tone === 'danger' ? c.dangerSoft : c.surfaceSunken,
-        borderRadius: radius.md,
-        paddingVertical: space[2],
+        paddingVertical: space[3],
         paddingHorizontal: space[2],
         alignItems: 'center',
-        gap: 2,
+        gap: 4,
+        borderLeftWidth: divider ? 1 : 0,
+        borderLeftColor: c.border,
       }}
     >
-      <Icon icon={icon} size={12} color={tone === 'danger' ? 'danger' : 'muted'} />
-      <ThemedText variant="caption" color={tone === 'danger' ? 'danger' : 'secondary'}>
-        {label}
+      <Icon icon={icon} size={14} color={isDanger ? 'danger' : 'muted'} />
+      <ThemedText variant="monoLg" color={isDanger ? 'danger' : 'primary'}>
+        {value}
       </ThemedText>
-      <ThemedText variant="bodyStrong">{value}</ThemedText>
+      <Caption color={isDanger ? c.danger : c.textMuted}>{label}</Caption>
     </View>
   )
 }
@@ -265,60 +304,71 @@ function JoinClassModal({
       style={{
         position: 'absolute',
         top: 0, left: 0, right: 0, bottom: 0,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'flex-end',
+        backgroundColor: theme.colors.overlay,
       }}
     >
-      <Pressable
-        style={{ flex: 1 }}
-        accessibilityLabel="Đóng"
-        onPress={() => {
-          if (!mutation.isPending) onClose()
-        }}
-      />
-      <View
-        style={{
-          backgroundColor: theme.colors.surface,
-          borderTopLeftRadius: radius['2xl'],
-          borderTopRightRadius: radius['2xl'],
-          padding: space[5],
-          gap: space[4],
-        }}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1, justifyContent: 'flex-end' }}
       >
-        <View style={{ gap: space[1] }}>
-          <ThemedText variant="title">Tham gia lớp</ThemedText>
-          <ThemedText variant="body" color="secondary">
-            Nhập mã mời mà giáo viên đã gửi cho bạn. Yêu cầu sẽ được giáo viên duyệt.
-          </ThemedText>
-        </View>
-
-        <TextField
-          label="Mã mời"
-          value={code}
-          onChangeText={(t) => setCode(t.toUpperCase())}
-          autoCapitalize="characters"
-          autoCorrect={false}
-          placeholder="VD: ABC123"
-          editable={!mutation.isPending}
-          maxLength={32}
+        <Pressable
+          style={{ flex: 1 }}
+          accessibilityRole="button"
+          accessibilityLabel="Đóng"
+          onPress={() => {
+            if (!mutation.isPending) onClose()
+          }}
         />
+        <View
+          style={{
+            backgroundColor: theme.colors.surface,
+            borderTopLeftRadius: radius['2xl'],
+            borderTopRightRadius: radius['2xl'],
+            borderTopWidth: 1,
+            borderColor: theme.colors.border,
+            padding: space[5],
+            gap: space[4],
+          }}
+        >
+          <View style={{ gap: space[2] }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+              <YellowSquare size={9} />
+              <Caption color={theme.colors.accentText}>Tham gia lớp</Caption>
+            </View>
+            <ThemedText variant="titleLg">Nhập mã mời</ThemedText>
+            <ThemedText variant="body" color="secondary">
+              Nhập mã mời mà giáo viên đã gửi cho bạn. Yêu cầu sẽ được giáo viên duyệt.
+            </ThemedText>
+          </View>
 
-        <View style={{ flexDirection: 'row', gap: space[2] }}>
-          <Button
-            label="Huỷ"
-            variant="ghost"
-            onPress={onClose}
-            disabled={mutation.isPending}
-            style={{ flex: 1 }}
+          <TextField
+            label="Mã mời"
+            value={code}
+            onChangeText={(t) => setCode(t.toUpperCase())}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            placeholder="VD: ABC123"
+            editable={!mutation.isPending}
+            maxLength={32}
           />
-          <Button
-            label={mutation.isPending ? 'Đang gửi…' : 'Gửi yêu cầu'}
-            onPress={() => mutation.mutate()}
-            disabled={!code.trim() || mutation.isPending}
-            style={{ flex: 1 }}
-          />
+
+          <View style={{ flexDirection: 'row', gap: space[2] }}>
+            <Button
+              label="Huỷ"
+              variant="ghost"
+              onPress={onClose}
+              disabled={mutation.isPending}
+              style={{ flex: 1 }}
+            />
+            <Button
+              label={mutation.isPending ? 'Đang gửi…' : 'Gửi yêu cầu'}
+              onPress={() => mutation.mutate()}
+              disabled={!code.trim() || mutation.isPending}
+              style={{ flex: 1 }}
+            />
+          </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </View>
   )
 }

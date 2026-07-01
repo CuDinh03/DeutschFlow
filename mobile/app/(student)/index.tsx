@@ -8,6 +8,7 @@ import { usePlanStore } from '@/stores/usePlanStore'
 import api from '@/lib/api'
 import { PAYWALL_ENABLED } from '@/lib/paywall'
 import { gamificationApi } from '@/lib/gamificationApi'
+import { skillTreeApi } from '@/lib/skillTreeApi'
 import { motion, space, radius, useTheme } from '@/lib/theme'
 import {
   Screen,
@@ -18,6 +19,9 @@ import {
   ListRow,
   SectionHeader,
   Skeleton,
+  ErrorState,
+  Caption,
+  ProgressBar,
 } from '@/components/ui'
 
 // Only the fields the home actually uses from the (plan-oriented) dashboard.
@@ -38,7 +42,7 @@ export default function DashboardScreen() {
   const { user } = useAuthStore()
   const { isPro } = usePlanStore()
 
-  const { data, isLoading, refetch, isRefetching } = useQuery({
+  const { data, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ['dashboard'],
     queryFn: () => api.get<DashboardData>('/student/dashboard').then((r) => r.data),
     staleTime: 60_000,
@@ -61,6 +65,17 @@ export default function DashboardScreen() {
     queryFn: () => api.get<{ unreadCount: number }>('/notifications/unread-count').then((r) => r.data),
     staleTime: 30_000,
   })
+
+  // Roadmap progress (real skill-tree data, shared cache with the roadmap screen)
+  // → the na-home PathCard entry.
+  const { data: treeNodes = [] } = useQuery({
+    queryKey: ['skill-tree'],
+    queryFn: () => skillTreeApi.getMySkillTree(),
+    staleTime: 120_000,
+  })
+  const treeTotal = treeNodes.length
+  const treeDone = treeNodes.filter((n) => n.status === 'COMPLETED').length
+  const pathPct = treeTotal > 0 ? Math.round((treeDone / treeTotal) * 100) : 0
 
   const firstName = user?.displayName?.split(' ').at(-1) ?? 'bạn'
   const greeting = greetingFor(new Date().getHours())
@@ -95,13 +110,16 @@ export default function DashboardScreen() {
           paddingBottom: space[2],
         }}
       >
-        <View style={{ gap: 2 }}>
-          <ThemedText variant="caption" color="muted">
-            {greeting},
-          </ThemedText>
+        <View style={{ gap: 4 }}>
+          <Caption>{greeting},</Caption>
           <ThemedText variant="titleLg">{firstName}</ThemedText>
         </View>
-        <Pressable onPress={() => router.push('/(student)/notifications')} hitSlop={8}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={unread > 0 ? `Thông báo, ${unread} chưa đọc` : 'Thông báo'}
+          onPress={() => router.push('/(student)/notifications')}
+          hitSlop={8}
+        >
           <View
             style={{
               width: 44,
@@ -132,8 +150,8 @@ export default function DashboardScreen() {
                   borderColor: theme.colors.bg,
                 }}
               >
-                <ThemedText variant="caption" style={{ color: '#FFF', fontSize: 10 }}>
-                  {Math.min(unread, 9)}
+                <ThemedText variant="caption" style={{ color: theme.colors.onBrand, fontSize: 10 }}>
+                  {unread > 9 ? '9+' : String(unread)}
                 </ThemedText>
               </View>
             ) : null}
@@ -143,6 +161,8 @@ export default function DashboardScreen() {
 
       {isLoading ? (
         <DashboardSkeleton />
+      ) : isError && !data ? (
+        <ErrorState onRetry={onRefresh} />
       ) : (
         <MotiView
           from={{ opacity: 0, translateY: 12 }}
@@ -150,29 +170,32 @@ export default function DashboardScreen() {
           transition={{ type: 'timing', duration: motion.duration.normal }}
         >
           <View style={{ paddingHorizontal: space[5], marginTop: space[3] }}>
-            {/* Streak hero — brand red, the day-one engagement metric */}
-            <Card>
+            {/* Streak hero — editorial ink card, the day-one engagement metric */}
+            <Card style={{ backgroundColor: theme.colors.inkSurface, borderColor: theme.colors.inkSurface }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[4] }}>
                 <View
                   style={{
                     width: 60,
                     height: 60,
-                    borderRadius: radius.xl,
-                    backgroundColor: theme.colors.brandSoft,
+                    borderRadius: radius.lg,
+                    backgroundColor: theme.colors.accentSoft,
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}
                 >
-                  <Icon icon={Flame} size={30} color="brand" fill />
+                  <Icon icon={Flame} size={30} color="accent" fill />
                 </View>
-                <View style={{ flex: 1, gap: 2 }}>
+                <View style={{ flex: 1, gap: 4 }}>
+                  <Caption color={theme.colors.accent}>Chuỗi học</Caption>
                   <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space[2] }}>
-                    <ThemedText variant="displayLg">{String(data?.streakDays ?? 0)}</ThemedText>
-                    <ThemedText variant="bodyStrong" color="secondary">
-                      ngày streak
+                    <ThemedText variant="displayLg" style={{ color: theme.colors.onInk }}>
+                      {String(data?.streakDays ?? 0)}
+                    </ThemedText>
+                    <ThemedText variant="bodyStrong" style={{ color: theme.colors.onInkMuted }}>
+                      ngày 🔥
                     </ThemedText>
                   </View>
-                  <ThemedText variant="caption" color="muted">
+                  <ThemedText variant="caption" style={{ color: theme.colors.onInkMuted }}>
                     Giữ lửa mỗi ngày để không mất chuỗi
                   </ThemedText>
                 </View>
@@ -190,7 +213,7 @@ export default function DashboardScreen() {
             <Card
               onPress={() => router.push('/(student)/srs')}
               bordered
-              style={{ marginHorizontal: space[5], marginTop: space[4], borderColor: theme.colors.accent + '4D' }}
+              style={{ marginHorizontal: space[5], marginTop: space[4], borderColor: theme.colors.accentSoft }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
@@ -215,6 +238,27 @@ export default function DashboardScreen() {
                 </View>
                 <Pill label={`${dueSrs} thẻ`} tone="accent" />
               </View>
+            </Card>
+          ) : null}
+
+          {/* Roadmap progress entry (na-home PathCard) — real skill-tree % to B2. */}
+          {treeTotal > 0 ? (
+            <Card
+              onPress={() => router.push('/(student)/roadmap')}
+              accessibilityLabel={`Lộ trình đến B2, ${pathPct}%`}
+              style={{ marginHorizontal: space[5], marginTop: space[4], gap: space[3] }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ gap: 6 }}>
+                  <Caption>Lộ trình đến B2</Caption>
+                  <ThemedText variant="display">{pathPct}%</ThemedText>
+                </View>
+                <Icon icon={Map} size={24} color="muted" />
+              </View>
+              <ProgressBar value={pathPct / 100} />
+              <ThemedText variant="caption" color="muted">
+                {treeDone}/{treeTotal} chặng hoàn thành
+              </ThemedText>
             </Card>
           ) : null}
 
@@ -251,7 +295,7 @@ export default function DashboardScreen() {
             <Card
               onPress={() => router.push('/(student)/upgrade')}
               elevation="lifted"
-              style={{ marginHorizontal: space[5], marginTop: space[6], borderColor: theme.colors.accent + '66' }}
+              style={{ marginHorizontal: space[5], marginTop: space[6], borderColor: theme.colors.accentSoft }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space[3] }}>
                 <View style={{ flex: 1, gap: space[1] }}>

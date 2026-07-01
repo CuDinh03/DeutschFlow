@@ -16,6 +16,10 @@ import { useRouter } from "next/navigation";
 type NotifItem = {
   id: number;
   type: string;
+  /** Server-rendered content (NotificationContentRenderer); used for types this
+   *  client doesn't have a localized case for, instead of showing the raw enum. */
+  title?: string;
+  body?: string;
   payload: Record<string, unknown>;
   read: boolean;
   createdAtUtc: string;
@@ -92,7 +96,8 @@ function summarizeNotification(t: (key: string, values?: Record<string, string>)
     case "ADMIN_BROADCAST":
       return `📣 ${String(p.title ?? p.message ?? "Thông báo từ hệ thống")}`;
     default:
-      return item.type;
+      // Unmapped type: use the server-rendered content instead of the raw enum.
+      return item.body || item.title || "Bạn có thông báo mới";
   }
 }
 

@@ -3,7 +3,7 @@ import { View } from 'react-native'
 import { router } from 'expo-router'
 import { Star, Zap, Mic, Trophy, BookOpen, Check, type LucideIcon } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, AppHeader } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, AppHeader, Caption, YellowSquare } from '@/components/ui'
 import { trackFeatureAction } from '@/lib/analytics'
 import { PAYWALL_ENABLED } from '@/lib/paywall'
 
@@ -16,7 +16,6 @@ const PRO_FEATURES: { icon: LucideIcon; label: string }[] = [
 ]
 
 export default function UpgradeScreen() {
-  const theme = useTheme()
   useEffect(() => {
     // Only a real paywall (Android) is a 'paywall_viewed'; the iOS neutral screen is not — don't
     // pollute the monetization funnel with views that have no purchase path.
@@ -30,27 +29,20 @@ export default function UpgradeScreen() {
   // unlock automatically. Re-enable the full paywall once react-native-iap is live (see lib/paywall.ts).
   if (!PAYWALL_ENABLED) {
     return (
-      <Screen edges={['top']}>
+      <Screen scroll edges={['top']} contentStyle={{ paddingBottom: space[10] }}>
         <AppHeader title="DeutschFlow PRO" onBack={() => router.back()} />
-        <View style={{ flex: 1, paddingHorizontal: space[5], justifyContent: 'center', alignItems: 'center', gap: space[4] }}>
-          <View
-            style={{
-              width: 80,
-              height: 80,
-              borderRadius: radius['3xl'],
-              backgroundColor: theme.colors.accentSoft,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Icon icon={Star} size={40} color="accent" fill />
-          </View>
-          <ThemedText variant="display" align="center">
-            DeutschFlow PRO
-          </ThemedText>
-          <ThemedText variant="body" color="secondary" align="center">
-            Tài khoản PRO mở khoá các tính năng nâng cao như AI Speaking không giới hạn, Mock Exam và
-            lộ trình học đầy đủ.
+        <View style={{ paddingHorizontal: space[5], paddingTop: space[3] }}>
+          <ProHero
+            eyebrow="Tài khoản nâng cao"
+            title="DeutschFlow PRO"
+            body="Tài khoản PRO mở khoá các tính năng nâng cao như AI Speaking không giới hạn, Mock Exam và lộ trình học đầy đủ."
+          />
+
+          <Caption style={{ marginTop: space[7], marginBottom: space[3] }}>Bao gồm trong PRO</Caption>
+          <FeatureList />
+
+          <ThemedText variant="caption" color="faint" align="center" style={{ marginTop: space[5] }}>
+            Gói PRO được quản lý trong tài khoản DeutschFlow của bạn.
           </ThemedText>
         </View>
       </Screen>
@@ -58,58 +50,80 @@ export default function UpgradeScreen() {
   }
 
   return (
-    <Screen edges={['top']}>
+    <Screen scroll edges={['top']} contentStyle={{ paddingBottom: space[10] }}>
       <AppHeader title="DeutschFlow PRO" onBack={() => router.back()} />
-      <View style={{ flex: 1, paddingHorizontal: space[5] }}>
-        <View style={{ alignItems: 'center', paddingVertical: space[8] }}>
-          <View
-            style={{
-              width: 80,
-              height: 80,
-              borderRadius: radius['3xl'],
-              backgroundColor: theme.colors.accentSoft,
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: space[4],
-            }}
-          >
-            <Icon icon={Star} size={40} color="accent" fill />
-          </View>
-          <ThemedText variant="display" align="center">
-            Mở khoá toàn bộ
-          </ThemedText>
-          <ThemedText variant="body" color="secondary" align="center" style={{ marginTop: space[2] }}>
-            Học tiếng Đức không giới hạn với AI coach và lộ trình cá nhân hoá
-          </ThemedText>
-        </View>
+      <View style={{ paddingHorizontal: space[5], paddingTop: space[3] }}>
+        <ProHero
+          eyebrow="Nâng cấp tài khoản"
+          title="Mở khoá toàn bộ"
+          body="Học tiếng Đức không giới hạn với AI coach và lộ trình cá nhân hoá."
+        />
 
-        <Card style={{ marginBottom: space[6], gap: space[4] }}>
-          {PRO_FEATURES.map((f) => (
-            <View key={f.label} style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-              <View
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: radius.md,
-                  backgroundColor: theme.colors.accentSoft,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Icon icon={f.icon} size={16} color="accent" />
-              </View>
-              <ThemedText variant="body" style={{ flex: 1 }}>
-                {f.label}
-              </ThemedText>
-              <Icon icon={Check} size={16} color="success" />
-            </View>
-          ))}
-        </Card>
+        <Caption style={{ marginTop: space[7], marginBottom: space[3] }}>Bạn sẽ nhận được</Caption>
+        <FeatureList />
 
-        <ThemedText variant="caption" color="faint" align="center" style={{ marginTop: space[2] }}>
+        <ThemedText variant="caption" color="faint" align="center" style={{ marginTop: space[5] }}>
           Gói PRO được quản lý trong tài khoản DeutschFlow của bạn.
         </ThemedText>
       </View>
     </Screen>
+  )
+}
+
+/** Editorial ink hero (Galerie v2): the ProBadge motif — ink square + gold star — with a serif title. */
+function ProHero({ eyebrow, title, body }: { eyebrow: string; title: string; body: string }) {
+  const c = useTheme().colors
+  return (
+    <Card style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface, gap: space[4] }}>
+      <View
+        style={{
+          width: 52,
+          height: 52,
+          borderRadius: radius.md,
+          backgroundColor: c.accentSoft,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Icon icon={Star} size={28} color="accent" fill />
+      </View>
+      <View style={{ gap: space[2] }}>
+        <Caption color={c.accent}>{eyebrow}</Caption>
+        <ThemedText variant="display" style={{ color: c.onInk }}>
+          {title}
+        </ThemedText>
+        <ThemedText variant="body" style={{ color: c.onInkMuted }}>
+          {body}
+        </ThemedText>
+      </View>
+    </Card>
+  )
+}
+
+/** Editorial feature list — hairline-divided rows with the yellow-square motif and a success tick. */
+function FeatureList() {
+  const c = useTheme().colors
+  return (
+    <Card padded={false} style={{ paddingHorizontal: space[4] }}>
+      {PRO_FEATURES.map((f, i) => (
+        <View key={f.label}>
+          {i > 0 ? <View style={{ height: 1, backgroundColor: c.border }} /> : null}
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: space[3],
+              paddingVertical: space[3],
+            }}
+          >
+            <YellowSquare size={8} />
+            <ThemedText variant="body" style={{ flex: 1 }}>
+              {f.label}
+            </ThemedText>
+            <Icon icon={Check} size={16} color="success" />
+          </View>
+        </View>
+      ))}
+    </Card>
   )
 }

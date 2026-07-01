@@ -11,8 +11,8 @@ import {
   Platform,
   Keyboard,
 } from 'react-native'
-import { Audio } from 'expo-av'
-import * as FileSystem from 'expo-file-system'
+import { createAudioPlayer, useAudioRecorder, AudioModule, RecordingPresets, setAudioModeAsync, type AudioPlayer } from 'expo-audio'
+import * as FileSystem from 'expo-file-system/legacy'
 import * as Haptics from 'expo-haptics'
 import { router, useLocalSearchParams } from 'expo-router'
 import { Mic, Send, ChevronRight, Flame, X, Flag, RotateCcw } from 'lucide-react-native'
@@ -37,7 +37,8 @@ import {
   clearActiveSession,
   type ActiveSessionRef,
 } from '@/lib/activeSession'
-import { radius, space, useTheme } from '@/lib/theme'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { fonts, radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon } from '@/components/ui'
 import { SessionSummary } from '@/components/speaking/SessionSummary'
 import { ConversationSummary } from '@/components/speaking/ConversationSummary'
@@ -62,6 +63,7 @@ const PULSE_MAX = 1.2
 export default function SpeakingScreen() {
   const theme = useTheme()
   const c = theme.colors
+  const insets = useSafeAreaInsets()
   const { isPro } = usePlanStore()
 
   // Onboarding (and deep links) can preselect a speaking mode — e.g. the
@@ -90,13 +92,14 @@ export default function SpeakingScreen() {
   const [pendingResume, setPendingResume] = useState<ActiveSessionRef | null>(null)
   const [resuming, setResuming] = useState(false)
 
-  const recordingRef = useRef<Audio.Recording | null>(null)
-  const soundRef = useRef<Audio.Sound | null>(null)
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY)
+  const soundRef = useRef<AudioPlayer | null>(null)
   const ttsSeqRef = useRef(0)
   const ttsPathRef = useRef<string | null>(null)
   const scrollRef = useRef<ScrollView | null>(null)
   const typingRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const reactionRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const speakTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pulseAnim = useSharedValue(1)
 
   // Offer to resume an interrupted session left over from a previous app run.
@@ -118,6 +121,7 @@ export default function SpeakingScreen() {
     () => () => {
       if (typingRef.current) clearInterval(typingRef.current)
       if (reactionRef.current) clearTimeout(reactionRef.current)
+      if (speakTimerRef.current) clearTimeout(speakTimerRef.current)
       stopSpeech()
     },
     [],
@@ -130,7 +134,7 @@ export default function SpeakingScreen() {
   }, [])
 
   // Speak the AI's German line, cascading by availability so the flow never breaks:
-  //   1. Server TTS (persona voice) → played via expo-av (no extra native module)
+  //   1. Server TTS (persona voice) → played via expo-audio
   //   2. On-device speech (expo-speech) if present in the binary
   //   3. Timed delay paced by text length
   // The persona "talks" for the audio duration, then runs onDone.
@@ -145,11 +149,12 @@ export default function SpeakingScreen() {
     }
     const trimmed = text.trim()
     if (!trimmed) {
-      setTimeout(finish, 600)
+      if (speakTimerRef.current) clearTimeout(speakTimerRef.current)
+      speakTimerRef.current = setTimeout(finish, 600)
       return
     }
 
-    // 1. Server TTS — persona voice, played through expo-av.
+    // 1. Server TTS — persona voice, played through expo-audio.
     try {
       // On the opening greeting `session` state hasn't flushed yet (startSession just
       // called setSession), so the caller passes the fresh persona explicitly. Without
@@ -161,20 +166,21 @@ export default function SpeakingScreen() {
       ttsPathRef.current = path
       await FileSystem.writeAsStringAsync(path, base64, { encoding: FileSystem.EncodingType.Base64 })
       // Reset out of iOS record mode so playback routes to the main speaker (loud),
-      // not the earpiece. expo-av merges partial audio modes, so a prior
-      // allowsRecordingIOS:true would otherwise stick app-wide and mute every reply
+      // not the earpiece. The audio mode merges partial settings, so a prior
+      // allowsRecording:true would otherwise stick app-wide and mute every reply
       // after the first recorded answer.
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true })
-      const { sound } = await Audio.Sound.createAsync({ uri: path }, { shouldPlay: true })
-      soundRef.current = sound
-      sound.setOnPlaybackStatusUpdate((st) => {
-        if (st.isLoaded && st.didJustFinish) {
-          void sound.unloadAsync()
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true })
+      const player = createAudioPlayer({ uri: path })
+      soundRef.current = player
+      player.addListener('playbackStatusUpdate', (st) => {
+        if (st.didJustFinish) {
+          player.remove()
           void FileSystem.deleteAsync(path, { idempotent: true })
-          if (soundRef.current === sound) soundRef.current = null
+          if (soundRef.current === player) soundRef.current = null
           finish()
         }
       })
+      player.play()
       return
     } catch {
       // Provider not configured / playback failed — fall through.
@@ -188,7 +194,8 @@ export default function SpeakingScreen() {
       return
     } catch {
       // 3. Neither available — pace by length so the flow never blocks.
-      setTimeout(finish, Math.min(4200, 1200 + trimmed.length * 42))
+      if (speakTimerRef.current) clearTimeout(speakTimerRef.current)
+      speakTimerRef.current = setTimeout(finish, Math.min(4200, 1200 + trimmed.length * 42))
     }
   }
 
@@ -201,17 +208,20 @@ export default function SpeakingScreen() {
   }
 
   async function stopSpeech() {
+    if (speakTimerRef.current) {
+      clearTimeout(speakTimerRef.current)
+      speakTimerRef.current = null
+    }
     if (soundRef.current) {
       const s = soundRef.current
       soundRef.current = null
       const pathToDelete = ttsPathRef.current
       ttsPathRef.current = null
       try {
-        await s.stopAsync()
-        await s.unloadAsync()
+        s.remove()
         if (pathToDelete) void FileSystem.deleteAsync(pathToDelete, { idempotent: true })
       } catch {
-        // already unloaded
+        // already released
       }
     }
     try {
@@ -336,7 +346,7 @@ export default function SpeakingScreen() {
       // Honour the permission result. The previous code discarded `status`, so a hard
       // denial fell through to a generic catch-all error with no way for the user to
       // fix it — iOS won't re-prompt after first denial, the only path is Settings.
-      const { status, canAskAgain } = await Audio.requestPermissionsAsync()
+      const { status, canAskAgain } = await AudioModule.requestRecordingPermissionsAsync()
       if (status !== 'granted') {
         if (!canAskAgain) {
           Alert.alert(
@@ -352,9 +362,9 @@ export default function SpeakingScreen() {
         }
         return
       }
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true })
-      const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY)
-      recordingRef.current = recording
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true })
+      await recorder.prepareToRecordAsync()
+      recorder.record()
       setIsRecording(true)
       setStage('listening')
       setReaction(null)
@@ -368,7 +378,7 @@ export default function SpeakingScreen() {
   // Stop recording and drop the transcript into the input bar for review.
   // The user edits if needed and presses send — we never auto-submit speech.
   async function stopRecordingAndTranscribe() {
-    if (!recordingRef.current || !session) return
+    if (!isRecording || !session) return
     cancelAnimation(pulseAnim)
     pulseAnim.value = 1
     setIsRecording(false)
@@ -376,12 +386,10 @@ export default function SpeakingScreen() {
     setTranscribing(true)
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     try {
-      const recording = recordingRef.current
-      recordingRef.current = null
-      await recording.stopAndUnloadAsync()
+      await recorder.stop()
       // Leave record mode so the next TTS reply plays from the speaker, not the earpiece.
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true })
-      const uri = recording.getURI()
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true })
+      const uri = recorder.uri
       if (!uri) throw new Error('no_uri')
       const transcript = (await speakingApi.transcribe(uri)).trim()
       if (!transcript) {
@@ -539,6 +547,9 @@ export default function SpeakingScreen() {
             <Card style={{ borderColor: c.accent + '99' }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
                 <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Tiếp tục buổi học"
+                  accessibilityState={{ disabled: resuming }}
                   onPress={() => void resumeSession(pendingResume)}
                   disabled={resuming}
                   style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[3] }}
@@ -565,7 +576,12 @@ export default function SpeakingScreen() {
                 {resuming ? (
                   <ActivityIndicator color={c.accent} />
                 ) : (
-                  <Pressable hitSlop={8} onPress={dismissResume}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Bỏ qua buổi học dang dở"
+                    hitSlop={8}
+                    onPress={dismissResume}
+                  >
                     <Icon icon={X} size={18} color="faint" />
                   </Pressable>
                 )}
@@ -597,7 +613,7 @@ export default function SpeakingScreen() {
           borderBottomColor: c.border,
         }}
       >
-        <Pressable hitSlop={8} onPress={handleClose}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Đóng" hitSlop={8} onPress={handleClose}>
           <Icon icon={X} size={22} color="muted" />
         </Pressable>
         <View style={{ flex: 1, gap: 2 }}>
@@ -612,6 +628,9 @@ export default function SpeakingScreen() {
           </ThemedText>
         </View>
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Kết thúc và xem đánh giá"
+          accessibilityState={{ disabled: finishing || userTurns === 0 }}
           hitSlop={8}
           onPress={() =>
             Alert.alert('Kết thúc phỏng vấn?', 'Bạn sẽ nhận được báo cáo đánh giá.', [
@@ -666,7 +685,7 @@ export default function SpeakingScreen() {
           gap: space[2],
           paddingHorizontal: space[4],
           paddingTop: space[2],
-          paddingBottom: space[4],
+          paddingBottom: insets.bottom > 0 ? insets.bottom : space[4],
           borderTopWidth: 1,
           borderTopColor: c.border,
           backgroundColor: c.surface,
@@ -674,6 +693,9 @@ export default function SpeakingScreen() {
       >
         <Animated.View style={isRecording ? pulseStyle : undefined}>
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={isRecording ? 'Dừng ghi âm' : 'Ghi âm câu trả lời'}
+            accessibilityState={{ disabled: sending || finishing || transcribing }}
             onPress={isRecording ? stopRecordingAndTranscribe : startRecording}
             disabled={sending || finishing || transcribing}
             style={{
@@ -711,12 +733,15 @@ export default function SpeakingScreen() {
             paddingTop: 12,
             paddingBottom: 12,
             color: c.textPrimary,
-            fontFamily: 'PlusJakartaSans_400Regular',
+            fontFamily: fonts.bodyRegular,
             fontSize: 15,
           }}
         />
 
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Gửi câu trả lời"
+          accessibilityState={{ disabled: !draft.trim() || busy }}
           onPress={() => void submitAnswer(draft)}
           disabled={!draft.trim() || busy}
           style={{

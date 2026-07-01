@@ -117,12 +117,14 @@ export default function LoginScreen() {
               />
               <Button label="Đăng nhập" onPress={handleLogin} loading={loading} style={{ marginTop: space[1] }} />
 
-              <Pressable hitSlop={8} onPress={() => router.push('/(auth)/forgot-password')} style={{ alignItems: 'center', marginTop: space[2] }}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Quên mật khẩu" hitSlop={8} onPress={() => router.push('/(auth)/forgot-password')} style={{ alignItems: 'center', marginTop: space[2] }}>
                 <ThemedText variant="caption" color="accent">Quên mật khẩu?</ThemedText>
               </Pressable>
 
               {valueFirst && (
                 <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Học thử miễn phí — không cần tài khoản"
                   hitSlop={8}
                   onPress={() => { void Haptics.selectionAsync(); router.push('/(auth)/onboarding') }}
                   style={{ alignItems: 'center', marginTop: space[3] }}
@@ -139,7 +141,7 @@ export default function LoginScreen() {
                 Chưa có tài khoản?{' '}
               </ThemedText>
               <Link href="/(auth)/register" asChild>
-                <Pressable hitSlop={6}>
+                <Pressable accessibilityRole="button" accessibilityLabel="Đăng ký miễn phí" hitSlop={6}>
                   <ThemedText variant="bodyStrong" color="accent">
                     Đăng ký miễn phí
                   </ThemedText>

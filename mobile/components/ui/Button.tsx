@@ -13,8 +13,9 @@ import Animated, {
 import { motion, radius, space, useTheme } from '@/lib/theme'
 import { Icon } from './Icon'
 import { ThemedText } from './ThemedText'
+import { YellowSquare } from './YellowSquare'
 
-type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
+type Variant = 'primary' | 'yellow' | 'secondary' | 'ghost' | 'danger'
 type Size = 'sm' | 'md' | 'lg'
 
 interface ButtonProps {
@@ -50,8 +51,11 @@ export function Button({
   const scale = useSharedValue(1)
   const isInactive = disabled || loading
 
+  // primary = editorial ink button (Galerie v2): dark surface, light text, with a
+  // leading yellow-square accent. (Mockup `Btn variant="primary"`: bg ink, color bg.)
   const surfaces: Record<Variant, { bg: string; border: string }> = {
-    primary: { bg: theme.colors.accent, border: theme.colors.accent },
+    primary: { bg: theme.colors.inkSurface, border: theme.colors.inkSurface },
+    yellow: { bg: theme.colors.accent, border: theme.colors.accent },
     secondary: { bg: theme.colors.surfaceElevated, border: theme.colors.border },
     ghost: { bg: 'transparent', border: 'transparent' },
     danger: { bg: theme.colors.danger, border: theme.colors.danger },
@@ -59,14 +63,21 @@ export function Button({
 
   const textColor =
     variant === 'primary'
-      ? 'onAccent'
-      : variant === 'danger'
+      ? 'onInk'
+      : variant === 'yellow' || variant === 'danger'
         ? 'onAccent'
         : variant === 'ghost'
           ? 'accent'
           : 'primary'
 
-  const iconColor = textColor === 'onAccent' ? 'onAccent' : variant === 'ghost' ? 'accent' : 'primary'
+  const iconColor = textColor
+
+  const spinnerColor =
+    textColor === 'onInk'
+      ? theme.colors.onInk
+      : textColor === 'onAccent'
+        ? theme.colors.onAccent
+        : theme.colors.accent
 
   const base: ViewStyle = {
     height: heights[size],
@@ -105,11 +116,11 @@ export function Button({
       style={[base, animatedStyle, style]}
     >
       {loading ? (
-        <ActivityIndicator
-          color={textColor === 'onAccent' ? theme.colors.onAccent : theme.colors.accent}
-        />
+        <ActivityIndicator color={spinnerColor} />
       ) : (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+          {variant === 'primary' ? <YellowSquare size={7} /> : null}
+          {variant === 'yellow' ? <YellowSquare size={7} color={theme.colors.inkSurface} /> : null}
           {icon && !iconRight ? <Icon icon={icon} size={size === 'sm' ? 16 : 18} color={iconColor} /> : null}
           <ThemedText variant="bodyStrong" color={textColor}>
             {label}

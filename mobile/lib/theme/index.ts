@@ -1,4 +1,4 @@
-export { space, radius, fonts, type, motion } from './tokens'
+export { space, radius, fonts, type, motion, maxFontScale } from './tokens'
 export type { TypeVariant } from './tokens'
 export { darkColors, lightColors, darkTheme, lightTheme, themeShadowStyle } from './themes'
 export type { Theme, ThemeColors, ShadowToken } from './themes'
