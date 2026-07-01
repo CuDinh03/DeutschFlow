@@ -39,7 +39,10 @@ public class StudentAssignmentController {
         "image/jpeg", "image/png", "image/gif", "image/webp",
         "application/pdf",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        // audio/mp4, audio/m4a, audio/x-m4a, audio/aac: native mobile recording formats
+        // (expo-audio HIGH_QUALITY records .m4a/AAC on both iOS and Android).
         "audio/mpeg", "audio/mp3", "audio/wav", "audio/ogg", "audio/webm",
+        "audio/mp4", "audio/m4a", "audio/x-m4a", "audio/aac",
         "video/mp4",
         "text/plain"
     );
