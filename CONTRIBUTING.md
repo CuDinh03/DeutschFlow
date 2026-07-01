@@ -68,4 +68,9 @@ cd backend && ./mvnw spring-boot:run
 
 # Frontend (separate terminal)
 cd frontend && npm install && npm run dev
+
+# Mobile (Expo — separate terminal)
+cd mobile && npm install && npm start
 ```
+
+**Mobile app** (Expo React Native in `mobile/`): see **`mobile/DEVELOPMENT.md`** for the full dev/version/build/submit + OTA (EAS Update) guide.
