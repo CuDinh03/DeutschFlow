@@ -3,6 +3,12 @@
     "name": "DeutschFlow",
     "slug": "deutschflow",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/26fa9e21-f563-4891-953e-e00c704c3c6b"
+    },
     "newArchEnabled": true,
     "orientation": "portrait",
     "icon": "./assets/icon.png",
