@@ -1,5 +1,7 @@
 # DeutschFlow Mobile — QA toàn bộ màn hình học viên (2026-06-28)
 
+> **⟳ Re-verify 2026-07-01 (P7):** Toàn bộ 25 HIGH đã được đối chiếu lại với code hiện tại. **24/25 đã được khắc phục** từ sau audit (error-states H1/H4/H9/H13/H21, review onError H5, notifications badge+onError H17/H18, grammar empty H14, exam-attempt back-guard H10, KAV H12/H22/H23/H25, a11y H3/H8/H11/H19 + response-guard H24; các chip/nút đã chuyển sang `SelectableChip`/`IconButton`/`SelectableRow` centralize a11y+44pt → H15/H16). **Chỉ còn H2** (roadmap back không guard `canGoBack`) → **đã fix trong nhánh này** (`roadmap.tsx` onBack → `canGoBack() ? back() : replace('/(student)')`). Còn lại là MEDIUM/LOW + dọn shared-component/token của Pha 4 (mục "Mức sẵn sàng Pha 4").
+
 **Phạm vi:** 24 màn (student) · **Phương pháp:** 24 agent QA song song (code/UX, KHÔNG fidelity vì chưa có design v2 trong repo).
 
 **Tổng:** 0 CRITICAL · 25 HIGH · 59 MEDIUM · 97 LOW. 24 student screens, 0 CRITICAL / 25 HIGH / 59 MEDIUM / 97 LOW (181 findings). No crashers; the app is functionally shippable. Risk is concentrated in three recurring, systemic gaps: (1) data-fetch screens that silently swallow errors and render a failed load as a misleading empty/zero state, (2) accessibility debt on hand-rolled Pressables (no role/label/selected-state, sub-44pt touch targets, color-only meaning), and (3) text-entry screens with no KeyboardAvoidingView. Fix the HIGH cluster (error states, keyboard handling, the unread-badge cache bug, data-loss-on-back) before App Store submission.
