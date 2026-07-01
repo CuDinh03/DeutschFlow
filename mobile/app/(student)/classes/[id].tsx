@@ -4,7 +4,7 @@ import { useQueries, useQuery } from '@tanstack/react-query'
 import { router, useLocalSearchParams } from 'expo-router'
 import {
   AlertCircle, BarChart3, BookOpen, CalendarCheck, CalendarClock, CheckCircle2, Circle, Clock,
-  Copy, GraduationCap, MessageCircle, Sparkles, Upload, Users, X,
+  Copy, GraduationCap, MessageCircle, MessagesSquare, Sparkles, Upload, Users, X,
 } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import {
@@ -15,7 +15,7 @@ import {
 } from '@/lib/studentClassesApi'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
-  AppHeader, Button, Caption, Card, EmptyState, ErrorState, Icon, Pill, ProgressBar,
+  AppHeader, Button, Caption, Card, EmptyState, ErrorState, Icon, IconButton, Pill, ProgressBar,
   Screen, SectionHeader, Skeleton, ThemedText, YellowSquare,
 } from '@/components/ui'
 
@@ -75,6 +75,18 @@ export default function StudentClassDetail() {
         title={detail.name}
         subtitle={`${detail.studentCount} học viên · ${detail.assignmentCount} bài tập`}
         onBack={() => router.back()}
+        right={
+          <IconButton
+            icon={MessagesSquare}
+            accessibilityLabel="Chat lớp"
+            onPress={() =>
+              router.push({
+                pathname: '/(student)/class-chat/[classId]',
+                params: { classId: String(classId), className: detail.name },
+              })
+            }
+          />
+        }
       />
       <ScrollView
         contentContainerStyle={{
