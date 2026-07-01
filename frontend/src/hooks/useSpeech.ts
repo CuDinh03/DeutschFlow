@@ -3,6 +3,15 @@
 import { useState, useCallback, useRef } from "react";
 import { getAccessToken } from "@/lib/authSession";
 
+/**
+ * Absolute backend API base. In production the frontend (mydeutschflow.com) and backend
+ * (api.mydeutschflow.com) are different origins with no Next.js rewrite, so a relative
+ * "/api/..." fetch would hit the frontend origin and 404 — the persona-voice TTS then silently
+ * fell back to the browser's single Web Speech voice, making every persona's greeting sound
+ * identical. Mirrors the base used across lib/* (api.ts, interviewReportApi.ts, jobSseApi.ts).
+ */
+const TTS_BACKEND_URL = (process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8080").replace(/\/+$/, "");
+
 interface UseSpeechOptions {
   lang?: string;
 }
@@ -316,7 +325,7 @@ export function useSpeech(options: UseSpeechOptions = { lang: "de-DE" }) {
     async (text: string, personaId: string, onEnd?: () => void): Promise<boolean> => {
       try {
         const token = getAccessToken();
-        const res = await fetch("/api/ai-speaking/tts", {
+        const res = await fetch(`${TTS_BACKEND_URL}/api/ai-speaking/tts`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
