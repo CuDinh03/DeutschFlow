@@ -230,6 +230,12 @@ export const skillTreeApi = {
         item_answers: itemAnswers ?? {},
       })
       .then((r) => r.data),
+
+  // Mark a theory-only node (no gradeable exercises, e.g. the alphabet lesson) as learned.
+  // The backend rejects this for nodes that DO have scored exercises — those must go through
+  // submitNode so their score is graded server-side.
+  markNodeComplete: (nodeId: number | string) =>
+    api.post<NodeSubmitResult>(`/skill-tree/${nodeId}/complete`).then((r) => r.data),
 }
 
 // ── Local grading helpers (for the scored MC + FILL_BLANK items) ────────────

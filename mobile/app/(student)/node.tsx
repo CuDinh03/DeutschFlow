@@ -1,8 +1,10 @@
 import type { ReactNode } from 'react'
-import { View } from 'react-native'
-import { useQuery } from '@tanstack/react-query'
+import { View, Alert } from 'react-native'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { router, useLocalSearchParams, type Href } from 'expo-router'
-import { Lock, BookOpen, Sparkles, Quote, Star } from 'lucide-react-native'
+import * as Haptics from 'expo-haptics'
+import { Lock, BookOpen, Sparkles, Quote, Star, CircleCheck } from 'lucide-react-native'
+import { apiMessage } from '@/lib/api'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
   Screen,
@@ -26,7 +28,8 @@ import {
 } from '@/lib/skillTreeApi'
 
 // Lesson detail for a skill-tree node: theory cards + vocabulary + phrases.
-// The interactive exercises (multi-skill) live on web for now.
+// Nodes with exercises open the practice runner (node-practice.tsx); theory-only nodes
+// (no gradeable exercises) complete via the "Đánh dấu đã học" action below.
 export default function NodeScreen() {
   const c = useTheme().colors
   const params = useLocalSearchParams<{ nodeId: string; title?: string }>()
@@ -45,6 +48,17 @@ export default function NodeScreen() {
     (content?.exercises?.theory_gate?.length ?? 0) + (content?.exercises?.practice?.length ?? 0)
   const inProgress = data?.userStatus === 'IN_PROGRESS'
   const done = data?.userStatus === 'COMPLETED'
+
+  const qc = useQueryClient()
+  const markLearned = useMutation({
+    mutationFn: () => skillTreeApi.markNodeComplete(nodeId),
+    onSuccess: async () => {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+      qc.invalidateQueries({ queryKey: ['skill-tree'] })
+      qc.invalidateQueries({ queryKey: ['node-session', nodeId] })
+    },
+    onError: (e) => Alert.alert('Lỗi', apiMessage(e)),
+  })
 
   return (
     <Screen edges={['top']}>
@@ -149,7 +163,35 @@ export default function NodeScreen() {
                 Trắc nghiệm & điền từ được chấm điểm; dịch & sắp xếp để tự kiểm tra.
               </ThemedText>
             </View>
-          ) : null}
+          ) : done ? (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: space[2],
+                paddingVertical: space[2],
+              }}
+            >
+              <Icon icon={CircleCheck} size={18} color="success" />
+              <ThemedText variant="bodyStrong" style={{ color: c.success }}>
+                Đã hoàn thành bài học
+              </ThemedText>
+            </View>
+          ) : (
+            // Theory-only node (no gradeable exercises): explicit "mark as learned" so the lesson
+            // can be completed and unlock the next node — otherwise it dead-ends (no practice runner).
+            <View style={{ gap: space[2] }}>
+              <Button
+                label={markLearned.isPending ? 'Đang lưu…' : 'Đánh dấu đã học'}
+                loading={markLearned.isPending}
+                onPress={() => markLearned.mutate()}
+              />
+              <ThemedText variant="caption" color="faint" align="center">
+                Đánh dấu để hoàn thành bài lý thuyết và mở khoá bài tiếp theo.
+              </ThemedText>
+            </View>
+          )}
         </Screen>
       )}
     </Screen>

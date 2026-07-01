@@ -131,4 +131,44 @@ class NodeExerciseGraderTest {
         assertThat(result.scoredCount()).isEqualTo(1);
         assertThat(result.percent()).isEqualTo(100);
     }
+
+    // ── countScored: distinguishes theory-only nodes (mark-as-learned) from graded ones ──
+
+    @Test
+    @DisplayName("countScored counts MC + FILL_BLANK only, ignoring THEORY_CARD and answers")
+    void countScored_countsGradeableOnly() {
+        assertThat(NodeExerciseGrader.countScored(mapper, CONTENT)).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("countScored is 0 for a theory-only node (alphabet-style: theory_cards, no exercises)")
+    void countScored_theoryOnly_isZero() {
+        String theoryOnly = """
+            {
+              "theory_cards": [ { "type": "GRAMMAR", "title": { "vi": "Các chữ cái" } } ],
+              "exercises": { "theory_gate": [], "practice": [] }
+            }
+            """;
+        assertThat(NodeExerciseGrader.countScored(mapper, theoryOnly)).isZero();
+    }
+
+    @Test
+    @DisplayName("countScored is 0 for self-check-only nodes (TRANSLATE/REORDER are not gradeable)")
+    void countScored_selfCheckOnly_isZero() {
+        String selfCheck = """
+            { "exercises": { "practice": [
+              { "id": "r1", "type": "REORDER", "words": ["a","b"], "correct_order": ["a","b"] },
+              { "id": "tr1", "type": "TRANSLATE", "sentence": "Hallo", "answer": "Xin chào" }
+            ] } }
+            """;
+        assertThat(NodeExerciseGrader.countScored(mapper, selfCheck)).isZero();
+    }
+
+    @Test
+    @DisplayName("countScored handles null / blank / malformed content safely")
+    void countScored_nullBlankMalformed() {
+        assertThat(NodeExerciseGrader.countScored(mapper, null)).isZero();
+        assertThat(NodeExerciseGrader.countScored(mapper, "")).isZero();
+        assertThat(NodeExerciseGrader.countScored(mapper, "{not valid json")).isZero();
+    }
 }

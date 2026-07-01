@@ -180,6 +180,21 @@ public class SkillTreeController {
     }
 
     // ─────────────────────────────────────────────────────────────
+    // POST /api/skill-tree/{nodeId}/complete — Đánh dấu đã học (bài lý thuyết)
+    // Chỉ dành cho node KHÔNG có câu chấm được; node có bài tập phải nộp qua /submit.
+    // ─────────────────────────────────────────────────────────────
+
+    @PostMapping("/{nodeId}/complete")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, Object>> completeTheoryNode(
+            @AuthenticationPrincipal User user,
+            @PathVariable long nodeId
+    ) {
+        Map<String, Object> result = skillTreeService.markNodeComplete(user.getId(), nodeId);
+        return ResponseEntity.ok(result);
+    }
+
+    // ─────────────────────────────────────────────────────────────
     // POST /api/skill-tree/evaluate-pronunciation — Đánh giá phát âm
     // ─────────────────────────────────────────────────────────────
 
