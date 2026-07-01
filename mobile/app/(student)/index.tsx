@@ -2,13 +2,14 @@ import { View, RefreshControl, Pressable } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router } from 'expo-router'
 import { MotiView } from 'moti'
-import { Flame, BookOpen, Mic, Star, Map, Bell, Zap } from 'lucide-react-native'
+import { Flame, BookOpen, Mic, Star, Map, Bell, Zap, MessageCircle, type LucideIcon } from 'lucide-react-native'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
 import api from '@/lib/api'
 import { PAYWALL_ENABLED } from '@/lib/paywall'
 import { gamificationApi } from '@/lib/gamificationApi'
 import { skillTreeApi } from '@/lib/skillTreeApi'
+import { messagesApi } from '@/lib/messagesApi'
 import { motion, space, radius, useTheme } from '@/lib/theme'
 import {
   Screen,
@@ -66,6 +67,12 @@ export default function DashboardScreen() {
     staleTime: 30_000,
   })
 
+  const { data: msgUnread = 0, refetch: refetchMsgUnread } = useQuery({
+    queryKey: ['messages-unread'],
+    queryFn: () => messagesApi.unreadCount(),
+    staleTime: 30_000,
+  })
+
   // Roadmap progress (real skill-tree data, shared cache with the roadmap screen)
   // → the na-home PathCard entry.
   const { data: treeNodes = [] } = useQuery({
@@ -90,6 +97,7 @@ export default function DashboardScreen() {
     void refetchXp()
     void refetchSrs()
     void refetchUnread()
+    void refetchMsgUnread()
   }
 
   return (
@@ -114,49 +122,20 @@ export default function DashboardScreen() {
           <Caption>{greeting},</Caption>
           <ThemedText variant="titleLg">{firstName}</ThemedText>
         </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={unread > 0 ? `Thông báo, ${unread} chưa đọc` : 'Thông báo'}
-          onPress={() => router.push('/(student)/notifications')}
-          hitSlop={8}
-        >
-          <View
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: radius.md,
-              backgroundColor: theme.colors.surface,
-              borderWidth: 1,
-              borderColor: theme.colors.border,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Icon icon={Bell} size={20} color="secondary" />
-            {unread > 0 ? (
-              <View
-                style={{
-                  position: 'absolute',
-                  top: -2,
-                  right: -2,
-                  minWidth: 18,
-                  height: 18,
-                  paddingHorizontal: 4,
-                  borderRadius: radius.full,
-                  backgroundColor: theme.colors.danger,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderWidth: 2,
-                  borderColor: theme.colors.bg,
-                }}
-              >
-                <ThemedText variant="caption" style={{ color: theme.colors.onBrand, fontSize: 10 }}>
-                  {unread > 9 ? '9+' : String(unread)}
-                </ThemedText>
-              </View>
-            ) : null}
-          </View>
-        </Pressable>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+          <HeaderIconButton
+            icon={MessageCircle}
+            label={msgUnread > 0 ? `Tin nhắn, ${msgUnread} chưa đọc` : 'Tin nhắn'}
+            badge={msgUnread}
+            onPress={() => router.push('/(student)/messages')}
+          />
+          <HeaderIconButton
+            icon={Bell}
+            label={unread > 0 ? `Thông báo, ${unread} chưa đọc` : 'Thông báo'}
+            badge={unread}
+            onPress={() => router.push('/(student)/notifications')}
+          />
+        </View>
       </View>
 
       {isLoading ? (
@@ -323,6 +302,58 @@ export default function DashboardScreen() {
         </MotiView>
       )}
     </Screen>
+  )
+}
+
+// Header action: a bordered icon button with an optional unread badge (bell + messages).
+function HeaderIconButton({
+  icon, label, badge, onPress,
+}: {
+  icon: LucideIcon
+  label: string
+  badge: number
+  onPress: () => void
+}) {
+  const theme = useTheme()
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} hitSlop={8}>
+      <View
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: radius.md,
+          backgroundColor: theme.colors.surface,
+          borderWidth: 1,
+          borderColor: theme.colors.border,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Icon icon={icon} size={20} color="secondary" />
+        {badge > 0 ? (
+          <View
+            style={{
+              position: 'absolute',
+              top: -2,
+              right: -2,
+              minWidth: 18,
+              height: 18,
+              paddingHorizontal: 4,
+              borderRadius: radius.full,
+              backgroundColor: theme.colors.danger,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 2,
+              borderColor: theme.colors.bg,
+            }}
+          >
+            <ThemedText variant="caption" style={{ color: theme.colors.onBrand, fontSize: 10 }}>
+              {badge > 9 ? '9+' : String(badge)}
+            </ThemedText>
+          </View>
+        ) : null}
+      </View>
+    </Pressable>
   )
 }
 
