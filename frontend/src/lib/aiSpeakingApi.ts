@@ -266,7 +266,8 @@ export function chatStream(
   onError: (err: string) => void,
   onAudio?: (frame: PcmAudioFrame) => void,
   streamAudio = false,
-  onAudioStart?: () => void
+  onAudioStart?: () => void,
+  onAudioFallback?: () => void
 ): AbortController {
   const ctrl = new AbortController()
   const url = `${API_BASE}/ai-speaking/sessions/${sessionId}/chat/stream`
@@ -274,6 +275,8 @@ export function chatStream(
 
   let settled = false
   let doneReceived = false
+  let audioBeginSeen = false
+  let anyAudio = false
   let stallTimer: ReturnType<typeof setTimeout> | null = null
 
   const clearStall = () => {
@@ -373,8 +376,10 @@ export function chatStream(
           const visible = speechStreamer(data)
           if (visible) onToken(visible)
         } else if (eventName === 'audio_begin') {
+          audioBeginSeen = true
           onAudioStart?.()
         } else if (eventName === 'audio' && data) {
+          anyAudio = true
           if (onAudio) {
             try {
               onAudio(JSON.parse(data) as PcmAudioFrame)
@@ -427,6 +432,11 @@ export function chatStream(
       }
 
       clearStall()
+      // XTTS announced streaming audio (audio_begin) but delivered none — server unreachable or
+      // every sentence failed. Fall back to on-device TTS so the reply is never silent.
+      if (doneReceived && audioBeginSeen && !anyAudio && !ctrl.signal.aborted) {
+        onAudioFallback?.()
+      }
       if (!settled && !ctrl.signal.aborted) {
         settled = true
         onError('Stream ended without a complete response')
