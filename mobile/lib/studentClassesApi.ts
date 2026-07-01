@@ -1,4 +1,14 @@
+import * as FileSystem from 'expo-file-system/legacy'
 import api from './api'
+
+// Max upload size mirrors the web client (backend/S3 also bound this). Keep in sync.
+export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+
+export interface UploadFile {
+  uri: string
+  name: string
+  contentType: string
+}
 
 export interface TeacherSummary {
   id: number
@@ -109,6 +119,37 @@ export async function joinClassByInviteCode(inviteCode: string): Promise<void> {
 export async function fetchAssignmentDetail(assignmentId: number): Promise<StudentAssignment | null> {
   const res = await api.get<StudentAssignment[]>('/v2/students/assignments')
   return res.data?.find((a) => a.assignmentId === assignmentId) ?? null
+}
+
+/**
+ * Upload an assignment attachment (image / PDF / Word / audio) to S3 and return the stored URL.
+ * Mirrors the web flow: ask the backend for a presigned PUT URL bound to the file's contentType,
+ * PUT the bytes straight to S3, then return the object URL (presigned URL minus its query string)
+ * — that URL is what {@link submitAssignment} stores as `submissionFileUrl`.
+ * Throws with a clear message on validation / network / S3 failure.
+ */
+export async function uploadAssignmentFile(
+  assignmentId: number,
+  file: UploadFile,
+): Promise<string> {
+  const presign = await api.get<{ url: string; objectKey: string }>(
+    '/v2/students/assignments/presigned-url',
+    { params: { assignmentId, filename: file.name, contentType: file.contentType } },
+  )
+  const { url } = presign.data
+  if (!url) throw new Error('Không lấy được đường dẫn tải lên')
+
+  const res = await FileSystem.uploadAsync(url, file.uri, {
+    httpMethod: 'PUT',
+    uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+    headers: { 'Content-Type': file.contentType },
+  })
+  if (res.status < 200 || res.status >= 300) {
+    throw new Error(`Tải file lên thất bại (S3 ${res.status})`)
+  }
+
+  // The object is now at the presigned URL without its query params (mirrors the web client).
+  return url.split('?')[0]
 }
 
 /** Submit a written assignment. Backend: PENDING → SUBMITTED (409 if already submitted). */

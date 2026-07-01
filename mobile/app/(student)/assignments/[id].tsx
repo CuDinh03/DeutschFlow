@@ -1,15 +1,25 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
-  Alert, KeyboardAvoidingView, Linking, Platform, RefreshControl, ScrollView, View,
+  Alert, KeyboardAvoidingView, Linking, Platform, Pressable, RefreshControl, ScrollView, View,
 } from 'react-native'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { router, useLocalSearchParams } from 'expo-router'
+import * as ImagePicker from 'expo-image-picker'
+import * as DocumentPicker from 'expo-document-picker'
 import {
-  AlertCircle, CheckCircle2, Clock, FileText, Globe, MessageSquare, Upload,
+  useAudioRecorder,
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+} from 'expo-audio'
+import {
+  AlertCircle, Camera, CheckCircle2, Clock, FileText, Image as ImageIcon, MessageSquare, Mic,
+  Paperclip, Square, Upload, X,
 } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import {
-  fetchAssignmentDetail, submitAssignment, type StudentAssignment,
+  fetchAssignmentDetail, submitAssignment, uploadAssignmentFile,
+  MAX_UPLOAD_BYTES, type StudentAssignment, type UploadFile,
 } from '@/lib/studentClassesApi'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
@@ -40,9 +50,18 @@ export default function AssignmentDetail() {
   })
 
   const [content, setContent] = useState('')
+  const [file, setFile] = useState<UploadFile | null>(null)
 
   const submitMut = useMutation({
-    mutationFn: () => submitAssignment(assignmentId, { submissionContent: content.trim() }),
+    // Upload the attachment (if any) to S3 first, then submit with its URL. isPending covers
+    // both steps so the button shows a single loading state through upload + submit.
+    mutationFn: async () => {
+      const submissionFileUrl = file ? await uploadAssignmentFile(assignmentId, file) : undefined
+      return submitAssignment(assignmentId, {
+        submissionContent: content.trim() || undefined,
+        submissionFileUrl,
+      })
+    },
     onSuccess: () => {
       // Refresh this screen + every class surface whose counts/score depend on it.
       void queryClient.invalidateQueries({ queryKey: ['assignment-detail', assignmentId] })
@@ -50,6 +69,7 @@ export default function AssignmentDetail() {
       void queryClient.invalidateQueries({ queryKey: ['class-detail'] })
       void queryClient.invalidateQueries({ queryKey: ['my-classes'] })
       setContent('')
+      setFile(null)
     },
     onError: (e) => Alert.alert('Nộp bài thất bại', apiMessage(e)),
   })
@@ -102,6 +122,8 @@ export default function AssignmentDetail() {
             <SubmitForm
               content={content}
               setContent={setContent}
+              file={file}
+              setFile={setFile}
               loading={submitMut.isPending}
               onSubmit={() => submitMut.mutate()}
             />
@@ -222,11 +244,16 @@ function DescriptionCard({ assignment: a }: { assignment: StudentAssignment }) {
 }
 
 function SubmitForm({
-  content, setContent, loading, onSubmit,
+  content, setContent, file, setFile, loading, onSubmit,
 }: {
-  content: string; setContent: (v: string) => void; loading: boolean; onSubmit: () => void
+  content: string
+  setContent: (v: string) => void
+  file: UploadFile | null
+  setFile: (f: UploadFile | null) => void
+  loading: boolean
+  onSubmit: () => void
 }) {
-  const c = useTheme().colors
+  const canSubmit = content.trim().length > 0 || file != null
   return (
     <View style={{ gap: space[3] }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
@@ -236,31 +263,21 @@ function SubmitForm({
       <Card>
         <View style={{ gap: space[3] }}>
           <TextField
-            label="Nội dung bài làm"
+            label="Nội dung bài làm (không bắt buộc nếu đã đính kèm)"
             placeholder="Nhập bài viết của bạn vào đây…"
             value={content}
             onChangeText={setContent}
             multiline
             textAlignVertical="top"
-            style={{ minHeight: 160 }}
+            style={{ minHeight: 140 }}
             accessibilityLabel="Nội dung bài làm"
           />
-          <View
-            style={{
-              flexDirection: 'row', alignItems: 'center', gap: space[2],
-              backgroundColor: c.surfaceSunken, borderRadius: radius.md, padding: space[3],
-            }}
-          >
-            <Icon icon={Globe} size={14} color="muted" />
-            <ThemedText variant="caption" color="secondary" style={{ flex: 1 }}>
-              Đính kèm file (PDF, Word) hiện hỗ trợ trên ứng dụng web.
-            </ThemedText>
-          </View>
+          <AttachmentPicker file={file} setFile={setFile} disabled={loading} />
           <Button
-            label="Xác nhận nộp bài"
+            label={loading ? 'Đang nộp…' : 'Xác nhận nộp bài'}
             icon={CheckCircle2}
             loading={loading}
-            disabled={content.trim().length === 0}
+            disabled={!canSubmit}
             onPress={onSubmit}
           />
           <ThemedText variant="caption" color="muted" align="center">
@@ -270,6 +287,175 @@ function SubmitForm({
       </Card>
     </View>
   )
+}
+
+// Attach an image (camera/library), a document (PDF/Word), or a voice recording, then upload on
+// submit. expo-audio recording (HIGH_QUALITY) writes .m4a → audio/mp4-family, allow-listed backend.
+const AUDIO_CONTENT_TYPE = 'audio/m4a'
+
+function AttachmentPicker({
+  file, setFile, disabled,
+}: {
+  file: UploadFile | null
+  setFile: (f: UploadFile | null) => void
+  disabled: boolean
+}) {
+  const c = useTheme().colors
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY)
+  const [recording, setRecording] = useState(false)
+  const [seconds, setSeconds] = useState(0)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current) }, [])
+
+  const oversize = () => Alert.alert('File quá lớn', 'Vui lòng chọn tệp dưới 10MB.')
+  const tooBig = (size?: number) => size != null && size > MAX_UPLOAD_BYTES
+
+  async function pickImage(fromCamera: boolean) {
+    const perm = fromCamera
+      ? await ImagePicker.requestCameraPermissionsAsync()
+      : await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (!perm.granted) {
+      Alert.alert('Cần cấp quyền', fromCamera ? 'Hãy cho phép truy cập máy ảnh.' : 'Hãy cho phép truy cập ảnh.')
+      return
+    }
+    const result = fromCamera
+      ? await ImagePicker.launchCameraAsync({ quality: 0.7 })
+      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', quality: 0.7 })
+    if (result.canceled) return
+    const asset = result.assets[0]
+    if (tooBig(asset.fileSize)) return oversize()
+    setFile({
+      uri: asset.uri,
+      name: asset.fileName ?? `anh-${asset.assetId ?? 'moi'}.jpg`,
+      contentType: asset.mimeType ?? 'image/jpeg',
+    })
+  }
+
+  async function pickDocument() {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: [
+        'application/pdf',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      ],
+      copyToCacheDirectory: true,
+    })
+    if (result.canceled) return
+    const asset = result.assets[0]
+    if (tooBig(asset.size ?? undefined)) return oversize()
+    setFile({ uri: asset.uri, name: asset.name, contentType: asset.mimeType ?? 'application/pdf' })
+  }
+
+  async function startRecording() {
+    const perm = await requestRecordingPermissionsAsync()
+    if (!perm.granted) {
+      Alert.alert('Cần quyền micro', 'Hãy cho phép truy cập micro để ghi âm.')
+      return
+    }
+    await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true })
+    await recorder.prepareToRecordAsync()
+    recorder.record()
+    setSeconds(0)
+    setRecording(true)
+    timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000)
+  }
+
+  async function stopRecording() {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
+    setRecording(false)
+    try {
+      await recorder.stop()
+    } catch {
+      Alert.alert('Lỗi ghi âm', 'Không lưu được bản ghi. Vui lòng thử lại.')
+      return
+    }
+    const uri = recorder.uri
+    if (!uri) return
+    setFile({ uri, name: `ghi-am-${seconds || 1}s.m4a`, contentType: AUDIO_CONTENT_TYPE })
+  }
+
+  if (recording) {
+    return (
+      <View
+        style={{
+          flexDirection: 'row', alignItems: 'center', gap: space[3],
+          backgroundColor: c.dangerSoft, borderRadius: radius.md, padding: space[3],
+        }}
+      >
+        <Icon icon={Mic} size={16} color="danger" />
+        <ThemedText variant="bodyStrong" style={{ flex: 1, color: c.danger }}>
+          Đang ghi… {formatSeconds(seconds)}
+        </ThemedText>
+        <Button label="Dừng" variant="secondary" size="sm" icon={Square} fullWidth={false} onPress={() => void stopRecording()} />
+      </View>
+    )
+  }
+
+  if (file) {
+    return (
+      <View
+        style={{
+          flexDirection: 'row', alignItems: 'center', gap: space[3],
+          backgroundColor: c.surfaceSunken, borderRadius: radius.md, padding: space[3],
+        }}
+      >
+        <Icon icon={fileIcon(file.contentType)} size={18} color="accent" />
+        <View style={{ flex: 1 }}>
+          <ThemedText variant="bodyStrong" numberOfLines={1}>{file.name}</ThemedText>
+          <ThemedText variant="caption" color="muted">{fileKindLabel(file.contentType)}</ThemedText>
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Xoá tệp đính kèm"
+          disabled={disabled}
+          onPress={() => setFile(null)}
+          hitSlop={8}
+        >
+          <Icon icon={X} size={18} color="muted" />
+        </Pressable>
+      </View>
+    )
+  }
+
+  return (
+    <View style={{ gap: space[2] }}>
+      <ThemedText variant="caption" color="muted">Đính kèm (không bắt buộc) · tối đa 10MB</ThemedText>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2] }}>
+        <PickButton icon={Camera} label="Chụp ảnh" disabled={disabled} onPress={() => void pickImage(true)} />
+        <PickButton icon={ImageIcon} label="Ảnh" disabled={disabled} onPress={() => void pickImage(false)} />
+        <PickButton icon={Paperclip} label="File" disabled={disabled} onPress={() => void pickDocument()} />
+        <PickButton icon={Mic} label="Ghi âm" disabled={disabled} onPress={() => void startRecording()} />
+      </View>
+    </View>
+  )
+}
+
+function PickButton({
+  icon, label, disabled, onPress,
+}: {
+  icon: typeof Camera; label: string; disabled: boolean; onPress: () => void
+}) {
+  return <Button label={label} icon={icon} variant="secondary" size="sm" fullWidth={false} disabled={disabled} onPress={onPress} />
+}
+
+function formatSeconds(s: number): string {
+  const m = Math.floor(s / 60)
+  const sec = s % 60
+  return `${m}:${String(sec).padStart(2, '0')}`
+}
+
+function fileIcon(contentType: string): typeof FileText {
+  if (contentType.startsWith('image/')) return ImageIcon
+  if (contentType.startsWith('audio/')) return Mic
+  return FileText
+}
+
+function fileKindLabel(contentType: string): string {
+  if (contentType.startsWith('image/')) return 'Ảnh'
+  if (contentType.startsWith('audio/')) return 'Bản ghi âm'
+  if (contentType === 'application/pdf') return 'PDF'
+  if (contentType.includes('word')) return 'Tài liệu Word'
+  return 'Tệp đính kèm'
 }
 
 function SpeakingNotice() {

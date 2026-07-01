@@ -3,13 +3,21 @@ jest.mock('@/lib/api', () => ({
   default: { get: jest.fn(), post: jest.fn() },
 }))
 
+jest.mock('expo-file-system/legacy', () => ({
+  __esModule: true,
+  FileSystemUploadType: { BINARY_CONTENT: 0, MULTIPART: 1 },
+  uploadAsync: jest.fn(),
+}))
+
 import api from '@/lib/api'
+import * as FileSystem from 'expo-file-system/legacy'
 import {
-  fetchAssignmentDetail, submitAssignment, type StudentAssignment,
+  fetchAssignmentDetail, submitAssignment, uploadAssignmentFile, type StudentAssignment,
 } from '@/lib/studentClassesApi'
 
 const get = api.get as unknown as jest.Mock
 const post = api.post as unknown as jest.Mock
+const uploadAsync = FileSystem.uploadAsync as unknown as jest.Mock
 
 const row = (assignmentId: number): StudentAssignment => ({
   id: assignmentId * 10,
@@ -63,5 +71,39 @@ describe('submitAssignment', () => {
       submissionContent: 'Mein Aufsatz',
     })
     expect(result.status).toBe('SUBMITTED')
+  })
+})
+
+describe('uploadAssignmentFile', () => {
+  beforeEach(() => uploadAsync.mockReset())
+
+  it('gets a presigned url, PUTs the file, and returns the object url (query stripped)', async () => {
+    get.mockResolvedValue({
+      data: { url: 'https://s3.example.com/assignments/1/x.jpg?sig=abc', objectKey: 'assignments/1/x.jpg' },
+    })
+    uploadAsync.mockResolvedValue({ status: 200 })
+
+    const url = await uploadAssignmentFile(7, {
+      uri: 'file:///tmp/x.jpg', name: 'x.jpg', contentType: 'image/jpeg',
+    })
+
+    expect(get).toHaveBeenCalledWith('/v2/students/assignments/presigned-url', {
+      params: { assignmentId: 7, filename: 'x.jpg', contentType: 'image/jpeg' },
+    })
+    expect(uploadAsync).toHaveBeenCalledWith(
+      'https://s3.example.com/assignments/1/x.jpg?sig=abc',
+      'file:///tmp/x.jpg',
+      expect.objectContaining({ httpMethod: 'PUT', headers: { 'Content-Type': 'image/jpeg' } }),
+    )
+    expect(url).toBe('https://s3.example.com/assignments/1/x.jpg')
+  })
+
+  it('throws when S3 rejects the upload (non-2xx)', async () => {
+    get.mockResolvedValue({ data: { url: 'https://s3/x?sig', objectKey: 'k' } })
+    uploadAsync.mockResolvedValue({ status: 403 })
+
+    await expect(
+      uploadAssignmentFile(1, { uri: 'f', name: 'n', contentType: 'image/jpeg' }),
+    ).rejects.toThrow(/S3 403/)
   })
 })
