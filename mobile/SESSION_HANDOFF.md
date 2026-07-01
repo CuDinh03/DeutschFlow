@@ -134,10 +134,10 @@ QA toàn bộ 24 màn → 181 findings (0 CRITICAL / 25 HIGH / 59 MEDIUM / 97 LO
 - **Stack:** expo `^54` · RN `0.81.5` · React `19.1` · **New Architecture ON** · expo-router `6` · Reanimated `4.1.7` · zustand `5` · @react-navigation `7` · **expo-audio `~1.1.1`** (expo-av đã gỡ).
 - **EAS project:** `@cudinh3502/deutschflow` · **projectId** `26fa9e21-f563-4891-953e-e00c704c3c6b`.
 - **Apple auth = ASC API Key** (KHÔNG cần password Apple):
-  - file `~/.appstoreconnect/private_keys/AuthKey_FADUS86X4V.p8` (perms 600, ngoài iCloud)
-  - **Key ID** `FADUS86X4V` · **Issuer ID** `c32647c2-006c-4e10-be92-0a3bfd5dab4f`
+  - file `~/.appstoreconnect/private_keys/AuthKey_<KEY_ID>.p8` (perms 600, ngoài iCloud)
+  - **Key ID** `<REDACTED>` · **Issuer ID** `<REDACTED>` — xem `mobile/DEPLOYMENT.md` (local, không commit)
   - env: `EXPO_ASC_API_KEY_PATH` / `EXPO_ASC_KEY_ID` / `EXPO_ASC_ISSUER_ID`
-  - ⚠️ key role **Admin** + nội dung từng hiện trong transcript → cân nhắc **revoke + tạo lại role App Manager**.
+  - ⚠️ key role **Admin** → cân nhắc **revoke + tạo lại role App Manager**.
 - **EAS preview build verify:** `30ec9041-7b63-4fb3-9908-3dc4ef46c46a` (simulator) FINISHED ~8' → `eas build:run` cài bản release standalone → mở sạch tới login, 0 crash. Artifact: https://expo.dev/accounts/cudinh3502/projects/deutschflow/builds/30ec9041-7b63-4fb3-9908-3dc4ef46c46a
 - **Bundle id:** `com.deutschflow.app`. Scheme: `deutschflow`. App mobile-only STUDENT role.
 
@@ -179,9 +179,9 @@ npx expo run:ios --device "iPhone 16 Pro"
 **EAS build + cài Simulator:**
 ```bash
 cd mobile
-export EXPO_ASC_API_KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_FADUS86X4V.p8"
-export EXPO_ASC_KEY_ID="FADUS86X4V"
-export EXPO_ASC_ISSUER_ID="c32647c2-006c-4e10-be92-0a3bfd5dab4f"
+export EXPO_ASC_API_KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_<KEY_ID>.p8"
+export EXPO_ASC_KEY_ID="<KEY_ID>"        # xem DEPLOYMENT.md (local)
+export EXPO_ASC_ISSUER_ID="<ISSUER_ID>"  # xem DEPLOYMENT.md (local)
 npx eas-cli@latest build -p ios --profile preview --no-wait     # simulator
 npx eas-cli@latest build:run -p ios --latest                    # download + cài + launch
 npx eas-cli@latest build:view <id> --json                       # status/artifact

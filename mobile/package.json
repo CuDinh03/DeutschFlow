@@ -62,7 +62,6 @@
     "expo-status-bar": "~3.0.9",
     "lucide-react-native": "^0.468.0",
     "moti": "^0.30.0",
-    "nativewind": "^4.1.23",
     "posthog-react-native": "^4.46.12",
     "promise": "^8.3.0",
     "react": "19.1.0",
@@ -74,7 +73,6 @@
     "react-native-screens": "~4.16.0",
     "react-native-svg": "15.12.1",
     "react-native-worklets": "0.5.1",
-    "tailwindcss": "^3.4.0",
     "zustand": "^5.0.2"
   },
   "devDependencies": {
