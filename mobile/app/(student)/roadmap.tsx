@@ -63,7 +63,9 @@ export default function RoadmapScreen() {
       <AppHeader
         title="Lộ trình học"
         subtitle="Hành trình A1 → B2"
-        onBack={() => router.back()}
+        // Roadmap is reached via router.replace from onboarding, so there may be no
+        // history beneath it — fall back to Home so back is never a dead control.
+        onBack={() => (router.canGoBack() ? router.back() : router.replace('/(student)'))}
         right={<IconButton icon={RefreshCw} accessibilityLabel="Làm mới" onPress={() => void refetch()} />}
       />
       <RoadmapTabs tab={tab} onTab={setTab} />
