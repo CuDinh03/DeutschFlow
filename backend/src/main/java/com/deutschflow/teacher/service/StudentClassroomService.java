@@ -4,15 +4,18 @@ import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.teacher.dto.ClassroomDetailDto;
 import com.deutschflow.teacher.dto.MyClassroomDto;
 import com.deutschflow.teacher.dto.StudentAssignmentDto;
+import com.deutschflow.teacher.dto.StudentSessionDto;
 import com.deutschflow.teacher.dto.TeacherSummaryDto;
 import com.deutschflow.teacher.entity.ClassAssignment;
 import com.deutschflow.teacher.entity.ClassLesson;
+import com.deutschflow.teacher.entity.ClassSession;
 import com.deutschflow.teacher.entity.ClassStudent;
 import com.deutschflow.teacher.entity.ClassTeacher;
 import com.deutschflow.teacher.entity.StudentAssignment;
 import com.deutschflow.teacher.entity.TeacherClass;
 import com.deutschflow.teacher.repository.ClassAssignmentRepository;
 import com.deutschflow.teacher.repository.ClassLessonRepository;
+import com.deutschflow.teacher.repository.ClassSessionRepository;
 import com.deutschflow.teacher.repository.ClassStudentRepository;
 import com.deutschflow.teacher.repository.ClassTeacherRepository;
 import com.deutschflow.teacher.repository.StudentAssignmentRepository;
@@ -41,6 +44,7 @@ public class StudentClassroomService {
     private final ClassAssignmentRepository assignmentRepository;
     private final ClassLessonRepository lessonRepository;
     private final StudentAssignmentRepository studentAssignmentRepository;
+    private final ClassSessionRepository classSessionRepository;
     private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
@@ -164,6 +168,21 @@ public class StudentClassroomService {
                 .filter(sa -> sa.getStudentId().equals(studentId))
                 .sorted(Comparator.comparing(StudentAssignment::getCreatedAt).reversed())
                 .map(sa -> toDto(sa, assignmentById.get(sa.getAssignmentId())))
+                .toList();
+    }
+
+    /** The class's session schedule for an enrolled student (P5) — read-only, ordered by time. */
+    @Transactional(readOnly = true)
+    public List<StudentSessionDto> listSessions(Long studentId, Long classId) {
+        assertEnrolled(studentId, classId);
+        return classSessionRepository.findByClassIdOrderByStartAt(classId).stream()
+                .map(s -> new StudentSessionDto(
+                        s.getId(),
+                        s.getStartAt(),
+                        s.getDurationMinutes(),
+                        s.getMode() != null ? s.getMode().name() : null,
+                        s.getRoom(),
+                        s.getStatus() != null ? s.getStatus().name() : null))
                 .toList();
     }
 

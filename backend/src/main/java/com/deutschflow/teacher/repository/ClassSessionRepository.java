@@ -16,6 +16,9 @@ public interface ClassSessionRepository extends JpaRepository<ClassSession, Long
     List<ClassSession> findByClassIdAndStartAtBetweenOrderByStartAt(
             Long classId, LocalDateTime from, LocalDateTime to);
 
+    /** Toàn bộ lịch buổi của một lớp (cho học viên xem, P5). */
+    List<ClassSession> findByClassIdOrderByStartAt(Long classId);
+
     /** Lịch tuần gộp của nhiều lớp (các lớp một giáo viên dạy). */
     @Query("""
             SELECT cs FROM ClassSession cs

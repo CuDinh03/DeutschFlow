@@ -3,7 +3,7 @@ import { Alert, Pressable, RefreshControl, ScrollView, Share, View } from 'react
 import { useQueries } from '@tanstack/react-query'
 import { router, useLocalSearchParams } from 'expo-router'
 import {
-  AlertCircle, BookOpen, CheckCircle2, Circle, Clock, Copy,
+  AlertCircle, BookOpen, CalendarClock, CheckCircle2, Circle, Clock, Copy,
   GraduationCap, Sparkles, Upload, Users,
 } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
@@ -13,7 +13,7 @@ import {
 } from '@/lib/studentClassesApi'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
-  AppHeader, Caption, Card, EmptyState, ErrorState, Icon, Pill, ProgressBar,
+  AppHeader, Button, Caption, Card, EmptyState, ErrorState, Icon, Pill, ProgressBar,
   Screen, SectionHeader, Skeleton, ThemedText, YellowSquare,
 } from '@/components/ui'
 
@@ -457,47 +457,56 @@ function ProgressTab({
 }: { detail: ClassroomDetail; lessons: ClassLesson[]; isError: boolean; onRetry: () => void }) {
   const theme = useTheme()
   const c = theme.colors
-  if (lessons.length === 0 && isError) {
-    return (
-      <ErrorState
-        title="Không tải được tiến độ"
-        message="Không thể tải danh sách buổi học của lớp. Vui lòng thử lại."
-        onRetry={onRetry}
-      />
-    )
-  }
-  if (lessons.length === 0) {
-    return (
-      <EmptyState
-        icon={BookOpen}
-        title="Chưa có checklist"
-        message="Giáo viên chưa tạo danh sách buổi học. Tiến độ lớp sẽ hiển thị tại đây khi có."
-      />
-    )
-  }
   return (
     <View style={{ gap: space[4] }}>
-      {detail.currentLessonTitle && (
-        <Card style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface }}>
-          <View style={{ gap: space[2] }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-              <YellowSquare size={8} />
-              <Caption color={c.accent}>Buổi hiện tại của lớp</Caption>
+      <Button
+        label="Xem lịch buổi học"
+        variant="secondary"
+        icon={CalendarClock}
+        onPress={() =>
+          router.push({
+            pathname: '/(student)/class-schedule/[classId]',
+            params: { classId: String(detail.id), className: detail.name },
+          })
+        }
+      />
+      {lessons.length === 0 && isError ? (
+        <ErrorState
+          title="Không tải được tiến độ"
+          message="Không thể tải danh sách buổi học của lớp. Vui lòng thử lại."
+          onRetry={onRetry}
+        />
+      ) : lessons.length === 0 ? (
+        <EmptyState
+          icon={BookOpen}
+          title="Chưa có checklist"
+          message="Giáo viên chưa tạo danh sách buổi học. Tiến độ lớp sẽ hiển thị tại đây khi có."
+        />
+      ) : (
+        <>
+          {detail.currentLessonTitle && (
+            <Card style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface }}>
+              <View style={{ gap: space[2] }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+                  <YellowSquare size={8} />
+                  <Caption color={c.accent}>Buổi hiện tại của lớp</Caption>
+                </View>
+                <ThemedText variant="title" style={{ color: c.onInk }}>
+                  {detail.currentLessonTitle}
+                </ThemedText>
+              </View>
+            </Card>
+          )}
+          <View style={{ gap: space[3] }}>
+            <SectionHeader title="Lộ trình buổi học" />
+            <View style={{ gap: space[2] }}>
+              {lessons.map((l, idx) => (
+                <LessonRow key={l.id} lesson={l} index={idx} />
+              ))}
             </View>
-            <ThemedText variant="title" style={{ color: c.onInk }}>
-              {detail.currentLessonTitle}
-            </ThemedText>
           </View>
-        </Card>
+        </>
       )}
-      <View style={{ gap: space[3] }}>
-        <SectionHeader title="Lộ trình buổi học" />
-        <View style={{ gap: space[2] }}>
-          {lessons.map((l, idx) => (
-            <LessonRow key={l.id} lesson={l} index={idx} />
-          ))}
-        </View>
-      </View>
     </View>
   )
 }

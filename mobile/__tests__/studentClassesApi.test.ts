@@ -5,7 +5,7 @@ jest.mock('@/lib/api', () => ({
 
 import api from '@/lib/api'
 import {
-  fetchAssignmentDetail, submitAssignment, type StudentAssignment,
+  fetchAssignmentDetail, fetchClassSessions, submitAssignment, type StudentAssignment,
 } from '@/lib/studentClassesApi'
 
 const get = api.get as unknown as jest.Mock
@@ -63,5 +63,13 @@ describe('submitAssignment', () => {
       submissionContent: 'Mein Aufsatz',
     })
     expect(result.status).toBe('SUBMITTED')
+  })
+})
+
+describe('fetchClassSessions (P5 schedule)', () => {
+  it('hits the per-class sessions endpoint and defaults to []', async () => {
+    get.mockResolvedValue({ data: undefined })
+    expect(await fetchClassSessions(10)).toEqual([])
+    expect(get).toHaveBeenCalledWith('/v2/students/classes/10/sessions')
   })
 })

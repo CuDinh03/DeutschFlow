@@ -4,6 +4,7 @@ import com.deutschflow.teacher.dto.ClassLessonDto;
 import com.deutschflow.teacher.dto.ClassroomDetailDto;
 import com.deutschflow.teacher.dto.MyClassroomDto;
 import com.deutschflow.teacher.dto.StudentAssignmentDto;
+import com.deutschflow.teacher.dto.StudentSessionDto;
 import com.deutschflow.teacher.service.ClassLessonService;
 import com.deutschflow.teacher.service.StudentClassroomService;
 import com.deutschflow.user.entity.User;
@@ -51,5 +52,13 @@ public class StudentClassroomController {
             @AuthenticationPrincipal User user,
             @PathVariable Long classId) {
         return ResponseEntity.ok(classLessonService.listForStudent(user.getId(), classId));
+    }
+
+    /** The class's session schedule for the enrolled student (P5). */
+    @GetMapping("/{classId}/sessions")
+    public ResponseEntity<List<StudentSessionDto>> listSessions(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long classId) {
+        return ResponseEntity.ok(studentClassroomService.listSessions(user.getId(), classId));
     }
 }
