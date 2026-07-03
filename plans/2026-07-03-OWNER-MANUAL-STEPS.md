@@ -20,6 +20,14 @@
 
 ✅ **Free Apps Agreement đã Active** → v1.0 free-only **không còn chặn bởi agreement**.
 
+### ✅ TIẾN ĐỘ (cập nhật 2026-07-03)
+- [x] Free Apps Agreement = **Active** (xác nhận ASC)
+- [x] Legal entity = **"Cu Dinh"** → đã điền vào `/privacy` `/terms`
+- [x] **RDS snapshot `deutschflow-pre-v243-20260706`** đã tạo (Manual snapshots, us-east-1) → an toàn để deploy
+- [ ] **A. Deploy** (merge main → `deploy-backend.sh`) ← **BƯỚC KẾ TIẾP**
+- [ ] B. Hardening (automated backups ≥7 + deletion protection + branch protection + UptimeRobot + đổi pass `nvb@gmail.com`)
+- [ ] C. 2 demo account FREE · [ ] D. ASC metadata + review notes · [ ] E. eas build/submit · [ ] F. (tùy chọn) DSA trader
+
 ---
 
 ## 🟥 PHẦN 1 — DEPLOY (đưa fix xóa-tài-khoản + V243 + trang pháp lý lên live)
@@ -74,7 +82,7 @@ git status            # PHẢI sạch — script abort nếu cây bẩn
 
 ### 2.1 — RDS backup + deletion protection + encryption (làm TRƯỚC deploy)
 AWS Console → region **us-east-1 (N. Virginia)** → **RDS → Databases → `deutschflow`** (db.t4g.micro, us-east-1a).
-1. **⭐ Snapshot ngay (bắt buộc trước V243):** tick radio dòng `deutschflow` → **Actions ▾ → Take snapshot** → tên `deutschflow-pre-v243-<ngày>` → **Take snapshot** → chờ menu **Snapshots** báo **Available**.
+1. ✅ **ĐÃ LÀM** — snapshot `deutschflow-pre-v243-20260706` đã tạo (Manual snapshots, us-east-1). *(Cách làm lại nếu cần: tick radio `deutschflow` → **Actions ▾ → Take snapshot** → đặt tên → **Take snapshot** → chờ **Available**.)*
 2. **Automated backups:** click `deutschflow` → tab **Maintenance & backups → Backup** → **Backup retention period** ≥ **7**. Nếu **0/Disabled** → **Modify** → Backup section → retention = 7 → **Continue** → **Apply immediately**. ⚠️ 0→7 gây outage ngắn (làm giờ thấp điểm).
 3. **Deletion protection:** cùng **Modify** → mục cuối → tick **Enable**.
 4. Ghi nhận **Storage encrypted = Yes/No** (nếu No → task Phase 2: snapshot→copy-encrypted→restore, có downtime — không chặn submit).
