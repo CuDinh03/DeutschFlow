@@ -22,10 +22,16 @@ import static org.assertj.core.api.Assertions.assertThat;
  * ({@code messages}) and V241 ({@code class_channel_messages}) added non-cascading FKs to
  * {@code users(id)}, so deleting a learner who had ever sent/received a DM or posted in a class
  * channel threw a Postgres FK violation and rolled the whole delete back.
+ *
+ * <p>NOTE ON NAMING: this is a Testcontainers-backed test but is named {@code *Test} (not {@code *IT})
+ * on purpose. In this project's pom, Surefire's default includes only match {@code *Test}/{@code *Tests}
+ * and Failsafe includes only {@code *IntegrationTest}/{@code *ContractTest} — so {@code *IT} classes run
+ * in NEITHER stage (they are orphaned). Naming it {@code *Test} makes it run in the Unit Tests CI stage
+ * (which has Docker on ubuntu-latest) on every push/PR. Proper CI-stage cleanup is a Phase 2 item.
  */
 @SpringBootTest
-@DisplayName("Account deletion Integration Tests (5.1.1(v) FK coverage)")
-class AccountDeletionIT extends AbstractPostgresIntegrationTest {
+@DisplayName("Account deletion — DB coverage (App Store 5.1.1(v) FK)")
+class AccountDeletionServiceDbTest extends AbstractPostgresIntegrationTest {
 
     @Autowired private AccountDeletionService accountDeletionService;
     @Autowired private UserRepository userRepository;

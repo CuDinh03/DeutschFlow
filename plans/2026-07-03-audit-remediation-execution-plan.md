@@ -54,7 +54,7 @@
 
 ## 📦 PHASE 0 — Trước submit 6–7/7 (P0, ≈ 3.5–4.5 ngày)
 
-- [x] **0.2 Fix delete-account** 🔴 ✅ (AccountDeletionService + messages/class_channel_messages + IT `AccountDeletionIT`; reviewer APPROVED; IT run in CI) *(A3b-1, A7-2 · App Store 5.1.1(v) + NĐ13)* — **~0.5–1d**
+- [x] **0.2 Fix delete-account** 🔴 ✅ (AccountDeletionService + messages/class_channel_messages + test `AccountDeletionServiceDbTest`; reviewer APPROVED. ⚠️ đổi tên `*IT`→`*Test` vì `*IT` orphaned trong pom — giờ chạy ở CI Unit Tests stage) *(A3b-1, A7-2 · App Store 5.1.1(v) + NĐ13)* — **~0.5–1d**
   - File: `backend/src/main/java/com/deutschflow/user/service/AccountDeletionService.java` (mảng `NON_CASCADING_BY_USER_ID`).
   - ⚠️ **Rộng hơn báo cáo** — các FK non-cascading tới `users(id)` mà service ĐANG THIẾU (learner path):
     - `messages.sender_id` **và** `messages.recipient_id` (V228 — cả người GỬI và người NHẬN đều chặn xóa)

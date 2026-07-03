@@ -1,6 +1,6 @@
 # 🚀 LAUNCH RUNBOOK — CHỦ DỰ ÁN TỰ LÀM (v1.0 free-only)
 
-> Đây là **danh sách đầy đủ** những việc **chỉ bạn làm được** (console Apple/GitHub/AWS + deploy qua SSH — môi trường AI **chặn SSH** nên deploy bắt buộc bạn chạy từ laptop). Toàn bộ phần **code + docs đã xong** (branch `chore/phase0-audit-remediation`, 8 commit, đã verify: backend compile ✅, frontend `tsc`+`next build` ✅, java-reviewer APPROVED, `AccountDeletionIT` chứng minh tĩnh PASS).
+> Đây là **danh sách đầy đủ** những việc **chỉ bạn làm được** (console Apple/GitHub/AWS + deploy qua SSH — môi trường AI **chặn SSH** nên deploy bắt buộc bạn chạy từ laptop). Toàn bộ phần **code + docs đã xong** (branch `chore/phase0-audit-remediation`, 8 commit, đã verify: backend compile ✅, frontend `tsc`+`next build` ✅, java-reviewer APPROVED, `AccountDeletionServiceDbTest` chứng minh tĩnh PASS + chạy CI).
 >
 > **Khóa dữ liệu (dán khi cần):** Repo `CuDinh03/DeutschFlow` · Bundle `com.cudinh.mydeutschflow` · Team `4M3CU3X9SS` · Legal entity Apple **`Cu Dinh`** · EC2 `ubuntu@35.175.232.152` · PEM `/Users/dinhcu/Developer/DeutschFlow/deutschflow-key.pem` · **RDS+EC2 region `us-east-1`** (DB identifier **`deutschflow`**, db.t4g.micro) · S3 media region `ap-southeast-1` · Web `https://mydeutschflow.com` · API `https://api.mydeutschflow.com`.
 
@@ -56,7 +56,7 @@ git merge --no-ff chore/phase0-audit-remediation -m "Merge Phase 0: delete-accou
 git push origin main
 ```
 > ⚠️ **Chưa bật branch protection lúc này** (bật ở Phần 2 SAU khi merge) — để tránh gate CI đỏ chặn merge.
-> Push `main` → **Amplify tự build web** (~5–10'). CI backend cũng chạy → job **Unit Tests** sẽ chạy luôn `AccountDeletionIT` (Testcontainers) → xem kết quả per-test.
+> Push `main` → **Amplify tự build web** (~5–10'). CI backend job **Unit Tests** chạy `AccountDeletionServiceDbTest` (Testcontainers) → xem kết quả per-test.
 
 ### 1.3 — Deploy backend (blue-green, từ laptop)
 ```bash
