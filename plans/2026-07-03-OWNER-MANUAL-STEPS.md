@@ -119,7 +119,7 @@ AWS Console → region **us-east-1 (N. Virginia)** → **RDS → Databases → `
 - [ ] **Screenshots 6.9"** (iPhone 15/16 Pro Max) — theo `plans/appstore/SCREENSHOTS_ICON_SPEC.md`. Không cần iPad (`supportsTablet:false`).
 - [ ] **Name / Subtitle / Keywords / Description** — copy từ `plans/appstore/STORE_COPY.md` (EN + VI).
 - [ ] **Privacy Policy URL** = `https://mydeutschflow.com/privacy` · **Support URL** = `https://mydeutschflow.com/support`.
-- [ ] **App Privacy (nutrition labels)** — khai theo app **v1.0 THẬT**: có PostHog analytics; **KHÔNG** khai ad-data, **KHÔNG** khai purchase-data (v1.0 chưa có ads/IAP), **KHÔNG** khai Sentry (inactive). `NSPrivacyTracking = false`, không ATT.
+- [ ] **App Privacy (nutrition labels)** — làm theo **`plans/appstore/APP_PRIVACY_LABELS.md`** (đã map từ code, evidence-backed). Tóm tắt: khai **Contact Info** (email/tên/**SĐT**), **User Content** (audio + ảnh bài tập), **Identifiers** (user id + push token), **Usage Data** (PostHog) — tất cả *Linked=Yes, Tracking=No*. **KHÔNG** khai ad/purchase/Sentry/location. `NSPrivacyTracking=false`, không ATT. ⚠️ Nhiều hơn "chỉ analytics" như ghi chú cũ — thiếu Contact/User-Content = rủi ro reject 5.1.1.
 
 ### 4.2 — App Review Information
 - [ ] **Sign-in required = Yes**; dán **2 demo account** (Phần 3).
