@@ -24,7 +24,8 @@
 - [x] Free Apps Agreement = **Active** (xác nhận ASC)
 - [x] Legal entity = **"Cu Dinh"** → đã điền vào `/privacy` `/terms`
 - [x] **RDS snapshot `deutschflow-pre-v243-20260706`** đã tạo (Manual snapshots, us-east-1) → an toàn để deploy
-- [ ] **A. Deploy** (merge main → `deploy-backend.sh`) ← **BƯỚC KẾ TIẾP**
+- [x] **A1. Merge + push `main`** — `57e902d1` (2026-07-03), origin synced, gồm 11 commit phase-0 + 4 commit OTA/docs cũ chưa push. **Amplify tự build web (~5–10').**
+- [ ] **A2. Deploy BACKEND** (`./deploy-backend.sh` từ laptop — AI **chặn SSH**) ← **BƯỚC KẾ TIẾP CỦA BẠN**
 - [ ] B. Hardening (automated backups ≥7 + deletion protection + branch protection + UptimeRobot + đổi pass `nvb@gmail.com`)
 - [ ] C. 2 demo account FREE · [ ] D. ASC metadata + review notes · [ ] E. eas build/submit · [ ] F. (tùy chọn) DSA trader
 

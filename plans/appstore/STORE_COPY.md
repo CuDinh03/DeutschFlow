@@ -28,7 +28,7 @@ Master German A1–B1 with bite-size lessons, AI speaking practice, and full moc
 german,learn german,goethe,deutsch,a1,a2,b1,german exam,vocabulary,grammar,speaking,flashcards,srs
 ```
 
-**Description** — ~1780 / 4000
+**Description** — ~1432 / 4000
 ```
 DeutschFlow helps you learn German and pass the Goethe exam — from your very first word at A1 to exam-ready B1.
 
@@ -47,22 +47,21 @@ STAY MOTIVATED
 • Daily reminders, streaks, and clear goals keep you coming back.
 • Track your mastery and always know exactly what to study next.
 
-FREE + PRO
-• Learn for free — core lessons and practice cost nothing (ad-supported).
-• DeutschFlow Pro unlocks a higher daily practice allowance, full mock-exam packs, deeper AI feedback, and an ad-free experience.
+FREE TO LEARN
+• Core lessons and practice are free: vocabulary, grammar, listening, reading, spaced repetition, streaks, and your full learning path.
+• Some advanced AI features (such as AI Speaking) are marked Pro; in-app purchasing will arrive in a future update.
 
 Whether you're moving to Germany, preparing for Ausbildung or Pflege, or learning for yourself — DeutschFlow gives you a focused, exam-driven way to reach B1.
 
 Start free today. Viel Erfolg!
 
 —
-Subscriptions: DeutschFlow Pro is an auto-renewable subscription. The price and billing period are shown in the app before you buy and are charged to your Apple ID. Your subscription renews automatically unless auto-renew is turned off at least 24 hours before the current period ends. Manage or cancel anytime in App Store → your name → Subscriptions.
-Privacy Policy: [[privacy-policy-url]]
-Terms of Use (EULA): [[terms-url]]
+Privacy Policy: https://mydeutschflow.com/privacy
+Terms of Use: https://mydeutschflow.com/terms
 ```
 
-**Support URL** (required) — `[[https://your-domain/support]]`
-**Marketing URL** (optional) — `[[https://your-domain]]`
+**Support URL** (required) — `https://mydeutschflow.com/support`
+**Marketing URL** (optional) — `https://mydeutschflow.com`
 
 ---
 
@@ -82,7 +81,7 @@ Chinh phục tiếng Đức A1–B1 với bài học ngắn gọn, luyện nói 
 tiếng đức,học tiếng đức,goethe,deutsch,a1,a2,b1,thi tiếng đức,từ vựng,ngữ pháp,luyện nói,flashcard,ôn thi
 ```
 
-**Description** — ~1850 / 4000
+**Description** — ~1431 / 4000
 ```
 DeutschFlow giúp bạn học tiếng Đức và chinh phục kỳ thi Goethe — từ chữ đầu tiên ở trình độ A1 đến khi sẵn sàng thi B1.
 
@@ -101,22 +100,21 @@ GIỮ ĐỘNG LỰC
 • Nhắc học hằng ngày, chuỗi ngày và mục tiêu rõ ràng giúp bạn học đều.
 • Theo dõi mức thành thạo và luôn biết chính xác nên học gì tiếp theo.
 
-MIỄN PHÍ + PRO
-• Học miễn phí — các bài học và luyện tập cốt lõi hoàn toàn miễn phí (có quảng cáo).
-• DeutschFlow Pro mở khóa hạn mức luyện tập mỗi ngày cao hơn, trọn bộ đề thi thử, phản hồi AI sâu hơn và trải nghiệm không quảng cáo.
+MIỄN PHÍ ĐỂ HỌC
+• Các bài học và luyện tập cốt lõi hoàn toàn miễn phí: từ vựng, ngữ pháp, nghe, đọc, lặp lại ngắt quãng, chuỗi ngày và toàn bộ lộ trình học.
+• Một số tính năng AI nâng cao (như Luyện nói với AI) được đánh dấu Pro; tính năng mua trong ứng dụng sẽ có ở bản cập nhật sau.
 
 Dù bạn sắp sang Đức, chuẩn bị cho Ausbildung/điều dưỡng (Pflege) hay học cho bản thân — DeutschFlow mang đến cách học tập trung, bám sát kỳ thi để đạt B1.
 
 Bắt đầu miễn phí hôm nay. Viel Erfolg!
 
 —
-Đăng ký: DeutschFlow Pro là gói đăng ký tự động gia hạn. Giá và chu kỳ thanh toán hiển thị trong app trước khi mua và được tính vào Apple ID của bạn. Gói tự động gia hạn trừ khi bạn tắt tự động gia hạn ít nhất 24 giờ trước khi kỳ hiện tại kết thúc. Quản lý hoặc hủy bất cứ lúc nào tại App Store → tên của bạn → Đăng ký.
-Chính sách quyền riêng tư: [[privacy-policy-url]]
-Điều khoản sử dụng (EULA): [[terms-url]]
+Chính sách quyền riêng tư: https://mydeutschflow.com/privacy
+Điều khoản sử dụng: https://mydeutschflow.com/terms
 ```
 
-**Support URL** — `[[https://your-domain/support]]`
-**Marketing URL** — `[[https://your-domain]]`
+**Support URL** — `https://mydeutschflow.com/support`
+**Marketing URL** — `https://mydeutschflow.com`
 
 ---
 
@@ -172,4 +170,5 @@ Privacy Policy: https://mydeutschflow.com/privacy
 > Ghi chú kiểm chứng
 > - Delete-account path verified in repo: `mobile/app/(student)/profile.tsx:46` `confirmDeleteAccount()` → `:57` `api.delete('/profile/me')`, button at `:192` (backend `ProfileController @DeleteMapping("/me")` → `/api/profile/me`).
 > - **RESOLVED 2026-07-03 (submit approach A):** v1.0 ships **FREE-ONLY** — the ADS + SUBSCRIPTION review sections were removed and replaced with the "AI is Pro-gated, no purchase path yet" note. Mobile paywall stays iOS-disabled (`mobile/lib/paywall.ts:13` `PAYWALL_ENABLED = Platform.OS !== 'ios'`), which is correct for a free-only build. Ads (AdMob non-personalized) + Apple IAP subscription move to v1.1.
-> - "FREE + PRO" copy is deliberately generic ("higher daily practice allowance") rather than "unlimited": Pro is AI-token-quota-based (PRO tier), not literally unlimited. Avoid promising "unlimited" in the listing.
+> - **DESCRIPTION also made free-only (2026-07-03):** EN + VI Descriptions previously said "ad-supported" / "ad-free experience" and carried a full auto-renewable-subscription disclosure — all removed (a Guideline 2.3.1 metadata-mismatch risk against a build with no ads and no IAP). Now: "FREE TO LEARN" + "some advanced AI features are marked Pro; in-app purchasing arrives in a future update." Real legal/support URLs filled (`mydeutschflow.com/privacy` `/terms` `/support`). When IAP ships in v1.1, re-add the subscription disclosure + auto-renew terms to both Descriptions.
+> - Pro is AI-token-quota-based (PRO tier), not literally unlimited. Avoid promising "unlimited" in the listing.
