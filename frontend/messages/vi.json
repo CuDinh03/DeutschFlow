@@ -1394,6 +1394,8 @@
     "perMonth": "/tháng",
     "per2Months": "/2 tháng",
     "currentPlan": "Gói hiện tại",
+    "comingSoon": "Sắp ra mắt",
+    "comingSoonNote": "Thanh toán qua SePay sẽ sớm có mặt.",
     "payMomo": "Thanh toán qua MoMo",
     "payStripe": "Thanh toán thẻ (Stripe)",
     "connecting": "Đang kết nối MoMo...",
@@ -1406,13 +1408,12 @@
         "name": "Miễn Phí",
         "badge": null,
         "features": [
-          "✅ 2 Persona (Emma & Anna)",
+          "✅ Học từ vựng A1–B1",
           "✅ Tối đa 20 thẻ ôn tập/ngày",
-          "✅ Xem từ vựng A1-B1",
-          "✅ Mini Quiz AI (2 tab)",
-          "❌ Hội thoại AI phỏng vấn",
-          "❌ Giọng AI chuyên nghiệp",
-          "❌ Phân tích tiến độ nâng cao"
+          "✅ Bài học & ngữ pháp cơ bản",
+          "❌ Hội thoại AI",
+          "❌ Giọng đọc AI chuyên nghiệp",
+          "❌ Chấm bài & phân tích AI"
         ]
       },
       "PRO": {
@@ -1426,19 +1427,6 @@
           "✅ 6 tab AI Vocabulary Insights",
           "✅ Phân tích từ vựng (CEFR Chart)",
           "✅ Quick AI Toolbar"
-        ]
-      },
-      "ULTRA": {
-        "name": "Ultra",
-        "badge": "Mạnh nhất",
-        "features": [
-          "✅ Tất cả tính năng Pro",
-          "✅ Mock Exam CEFR (A1–C1)",
-          "✅ Persona tùy chỉnh",
-          "✅ Đánh giá độ nghiêm ngặt nâng cao",
-          "✅ Crash Course mode",
-          "✅ Bộ thẻ từ vựng tùy chỉnh",
-          "✅ Huy hiệu ULTRA GOLD trên Leaderboard"
         ]
       }
     }

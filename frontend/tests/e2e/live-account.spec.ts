@@ -43,9 +43,14 @@ test.describe('Live Account Testing', () => {
     await page.screenshot({ path: path.join(artifactDir, 'live_0_login_page.png') });
 
     // 2. Fill credentials & Login
+    // Credentials come from env — never hardcode a real prod account in a checked-in test.
+    const liveEmail = process.env.E2E_LIVE_EMAIL;
+    const livePassword = process.env.E2E_LIVE_PASSWORD;
+    test.skip(!liveEmail || !livePassword,
+      'Set E2E_LIVE_EMAIL and E2E_LIVE_PASSWORD to run the live-account smoke test.');
     console.log('Logging in...');
-    await page.fill('input[type="email"]', 'nvb@gmail.com');
-    await page.fill('input[type="password"]', '123456');
+    await page.fill('input[type="email"]', liveEmail!);
+    await page.fill('input[type="password"]', livePassword!);
     await page.click('button[type="submit"]');
 
     // Wait for dashboard

@@ -6,6 +6,7 @@ import { LayoutDashboard, Users, BarChart2, LogOut, Menu, BookOpen, FileText, St
 import { motion, AnimatePresence } from 'framer-motion'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { getOrgRole } from '@/lib/authSession'
+import { MARKETPLACE_ENABLED } from '@/lib/features'
 
 interface TeacherShellProps {
   children: React.ReactNode
@@ -67,12 +68,14 @@ export function TeacherShell({
       ]
     },
   ]
-    // Drop marketplace items (and any group left empty) for org teachers.
+    // Drop marketplace items (and any group left empty) for org teachers, and hide the C2C
+    // marketplace entirely for v1.0 unless the flag is on (see lib/features.ts).
     .map((group) => ({
       ...group,
-      items: group.items.filter(
-        (item) => !(isOrgTeacher && (item.id === 'profile' || item.id === 'marketplace')),
-      ),
+      items: group.items.filter((item) => {
+        if (item.id === 'marketplace' && !MARKETPLACE_ENABLED) return false
+        return !(isOrgTeacher && (item.id === 'profile' || item.id === 'marketplace'))
+      }),
     }))
     .filter((group) => group.items.length > 0)
 

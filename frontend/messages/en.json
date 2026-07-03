@@ -1392,6 +1392,8 @@
     "perMonth": "/month",
     "per2Months": "/2 months",
     "currentPlan": "Current plan",
+    "comingSoon": "Coming soon",
+    "comingSoonNote": "SePay payment is coming soon.",
     "payMomo": "Pay via MoMo",
     "payStripe": "Pay by card (Stripe)",
     "connecting": "Connecting to MoMo...",
@@ -1404,13 +1406,12 @@
         "name": "Free",
         "badge": null,
         "features": [
-          "✅ 2 Personas (Emma & Anna)",
+          "✅ A1–B1 vocabulary",
           "✅ Up to 20 review cards/day",
-          "✅ A1-B1 vocabulary access",
-          "✅ Mini AI Quiz (2 tabs)",
-          "❌ AI interview conversation",
+          "✅ Core lessons & grammar",
+          "❌ AI conversation",
           "❌ Professional AI voices",
-          "❌ Advanced progress analytics"
+          "❌ AI grading & analytics"
         ]
       },
       "PRO": {
@@ -1424,19 +1425,6 @@
           "✅ 6-tab AI Vocabulary Insights",
           "✅ Vocabulary analytics (CEFR Chart)",
           "✅ Quick AI Toolbar"
-        ]
-      },
-      "ULTRA": {
-        "name": "Ultra",
-        "badge": "Most powerful",
-        "features": [
-          "✅ All Pro features",
-          "✅ Mock CEFR Exam (A1–C1)",
-          "✅ Custom persona",
-          "✅ Advanced grading strictness",
-          "✅ Crash Course mode",
-          "✅ Custom vocabulary decks",
-          "✅ ULTRA GOLD badge on Leaderboard"
         ]
       }
     }

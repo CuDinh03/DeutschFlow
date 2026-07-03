@@ -1,11 +1,13 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { notFound } from 'next/navigation'
 import { BadgeCheck, Clock, CalendarClock } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import api, { apiMessage } from '@/lib/api'
 import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
+import { MARKETPLACE_ENABLED } from '@/lib/features'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Gia sư 1:1 — đặt lịch (GaBookSession, proto-learn.jsx) — student↔teacher, yellow.
@@ -90,6 +92,9 @@ export default function V2BookSessionPage() {
       setBooking(false)
     }
   }
+
+  // C2C marketplace hidden for v1.0 — block direct-URL access (nav entry is also gated).
+  if (!MARKETPLACE_ENABLED) notFound()
 
   return (
     <div className="flex min-h-full flex-col">

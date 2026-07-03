@@ -14,6 +14,8 @@
  *
  * Sửa nav ở đây là nguồn sự thật duy nhất cho cả 4 role bên dưới.
  */
+import { MARKETPLACE_ENABLED } from '@/lib/features'
+
 export type RoleId = 'teacher' | 'admin' | 'org' | 'student'
 
 /** Một thanh menu trên sidebar. */
@@ -224,7 +226,10 @@ export const studentNav: RoleNav = {
       items: [
         { id: 'my-classes', label: 'Lớp của tôi', href: '/v2/student/classes', icon: 'groups' },
         { id: 'st-progress', label: 'Tiến độ', href: '/v2/student/progress', icon: 'checklist' },
-        { id: 'book-session', label: 'Gia sư 1:1', href: '/v2/student/tutor', icon: 'co_present' },
+        // C2C tutor marketplace — hidden for v1.0 (off-GTM, unfinished money flow). See lib/features.ts.
+        ...(MARKETPLACE_ENABLED
+          ? [{ id: 'book-session', label: 'Gia sư 1:1', href: '/v2/student/tutor', icon: 'co_present' }]
+          : []),
         { id: 'st-messages', label: 'Tin nhắn', href: '/v2/student/messages', icon: 'chat' },
       ],
     },
