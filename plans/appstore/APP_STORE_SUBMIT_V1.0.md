@@ -23,7 +23,7 @@ Toàn bộ backend đã deploy + healthy, legal đã live free-only, delete-acco
 
 ## 📊 Trạng thái một-dòng
 
-> **~90% XONG.** Code/backend/legal/metadata đã verify; tên seller đã chốt **"Dinh Huy Cu"** (deploy `41f6da00`). **Build:** đã có **build 2 (1/7)** = code y hệt hiện tại (mobile không đổi từ đó) + có OTA → **nộp build này được** (chủ app đã `eas submit --latest` 2026-07-03); hoặc `eas build --profile production` nếu muốn build mới. ⚠️ **`eas submit` chỉ UPLOAD binary lên ASC — CHƯA phải Submit for Review.** Việc tay còn BẮT BUỘC trước khi bấm Submit: (1) **tạo mới 2 demo account** (trial 7 ngày), (2) **dán reviewer-notes bản đúng** (§2.1), (3) hoàn tất **App Privacy + metadata + screenshots** trong ASC, (4) **gắn build → Submit for Review**.
+> **Code XONG.** Backend/legal/metadata verify; seller **"Dinh Huy Cu"**. **🆕 Guideline 1.2 (an toàn UGC) ĐÃ BUILD + MERGE main** (block/report/word-filter — PR #188 `f2aea378`) → khai **Messaging = YES** hợp lệ. ⚠️ **ĐỔI KẾ HOẠCH BUILD: build 2 (1/7) KHÔNG chứa UI 1.2 → KHÔNG nộp build 2.** Đường mới, đúng thứ tự: **(0) `./deploy-backend.sh`** (áp **V244** + endpoints `/api/moderation/*` — app khi review sẽ gọi) → **(1) `eas build --platform ios --profile production` MỚI** (binary chứa 1.2) → **(2) `eas submit`** build mới. Việc tay còn BẮT BUỘC trước Submit: **tạo mới 2 demo account**, **dán reviewer-notes đúng** (§2.1 + §2.7), hoàn tất **App Privacy + metadata + screenshots**, **Age Rating Messaging=YES**, gắn build → **Submit for Review**. *(`eas submit` chỉ upload binary, chưa phải Submit for Review.)*
 
 ---
 
@@ -193,6 +193,24 @@ Privacy Policy: https://mydeutschflow.com/privacy
 
 **Cách kiểm.** 📄 Xác nhận Description hiện tại **không** chứa: "unlimited", "ad-free", "auto-renewable", "subscription". Câu về AI đúng phải là *"some advanced AI features (such as AI Speaking) are marked Pro; in-app purchasing will arrive in a future update"* → khớp build free-only (tránh Guideline 2.3.1 metadata-mismatch). Nếu đúng → không cần làm gì.
 
+### 2.7 🔴 Guideline 1.2 — thêm ghi chú an toàn UGC vào Reviewer Notes
+
+**Vì sao.** App có nhắn tin GV↔HV + kênh lớp → phải cho reviewer thấy công cụ **report/block/kiểm duyệt** (đã build ở PR #188). Với account demo solo, hộp thư TRỐNG (chỉ nhắn được trong lớp có GV), nên phải chỉ reviewer tới màn quản lý.
+
+**Cách sửa.** 🌐 Dán **thêm** đoạn sau vào cuối khối Notes ở ASC:
+
+```
+USER SAFETY (Guideline 1.2). The app has messaging (student↔teacher direct messages) and
+class channels. Users can REPORT any message or user (long-press a message, or the ⋮ menu in a
+conversation) and BLOCK any user — a blocked user cannot message them and their content is hidden.
+A "Blocked users" management screen is at Profile → "An toàn & chặn" (always reachable). Objectionable
+words are filtered server-side and all reports are reviewed by an admin. Note: messaging only exists
+between a teacher and their enrolled students / within a class, so a fresh solo demo account has an
+empty inbox — the safety tools are still visible under Profile → "An toàn & chặn".
+```
+
+---
+
 ### Ghi chú kiểm chứng (mục 2)
 
 - Trial 7 ngày: `backend/.../user/service/StudentTrialSubscriptionProvisioner.java` + `AuthService.java` (register & login top-up khi 0 sub).
@@ -242,7 +260,7 @@ D2 App Information ─► D3 Pricing ─► D4 App Privacy ─► D5 Version    
 
 ### 🏗️ E1 — Build production trên EAS *(chạy TRƯỚC — vì E2/D7 cần nó)*
 
-> 💡 **Có thể BỎ QUA build mới:** đã có **build 2 (1/7)** và `mobile/` KHÔNG đổi gì kể từ đó → build 2 = code hiện tại + có OTA → nộp thẳng được (`eas submit -p ios --latest`, chủ app đã chạy 2026-07-03). Chỉ build mới nếu sau này sửa code trong `mobile/`. **Verify:** build 2 phải hiện trong ASC là build **App Store** hợp lệ để gắn vào version; nếu không hiện/sai loại → build lại `eas build --platform ios --profile production`.
+> ⚠️ **PHẢI build MỚI — KHÔNG dùng build 2.** Sau khi thêm Guideline 1.2 (moderation UI: màn An toàn, report/block) vào `mobile/`, build 2 (1/7) đã **lỗi thời** (thiếu 1.2). Bắt buộc `eas build --platform ios --profile production` mới để binary chứa 1.2. **TRƯỚC đó phải `./deploy-backend.sh`** (áp migration **V244** + endpoints `/api/moderation/*` mà app 1.2 gọi tới) — nếu không, report/block sẽ 404 khi reviewer test.
 
 ```bash
 cd mobile
@@ -285,11 +303,11 @@ eas build --platform ios --profile production
 | **Subtitle** | EN `Learn German, pass Goethe` · VI `Học tiếng Đức & luyện thi` | STORE_COPY.md |
 | **Category → Primary** | **Education** | — |
 | **Category → Secondary** | *(để trống hoặc "Reference")* | — |
-| **Age Rating → Edit** | trả lời tất cả **None/No** → ra **4+** | app không có nội dung nhạy cảm |
+| **Age Rating → Edit** | **Messaging and Chat = YES**; mọi mục còn lại **None/No** | có DM GV↔HV + kênh lớp, đã có report/block/word-filter (1.2); Apple tự tính rating |
 | **Privacy Policy URL** | `https://mydeutschflow.com/privacy` | ✅ live 200 |
 | **License Agreement** | Apple's standard EULA (mặc định) | — |
 
-> ⚠️ **Age Rating = 4+**: mọi mục (bạo lực, cờ bạc, nội dung người lớn, unrestricted web…) chọn **None/No**. App có AI chat nhưng phạm vi học tiếng Đức — 4+ hợp lệ.
+> ⚠️ **Messaging and Chat = YES** (bắt buộc — app có nhắn tin GV↔HV + kênh lớp; đã trang bị report/block/word-filter theo Guideline 1.2). Các mục bạo lực/cờ bạc/người lớn/unrestricted-web… chọn **None/No**. Apple tự tính age-rating từ bảng hỏi; giao tiếp CÓ kiểm duyệt nên rating thường vẫn thấp.
 
 ---
 
@@ -502,6 +520,10 @@ App được coi là **đã nộp thành công v1.0** khi tất cả các mục 
 - [ ] **Build XANH:** `eas build --platform ios --profile production` finished; `eas submit --latest` đẩy lên ASC và build ở trạng thái **Processing → hết** (thấy trong TestFlight → Builds).
 - [ ] **App record đúng tọa độ:** Apple ID = `6785281013`, bundle = `com.cudinh.mydeutschflow`, Team = `4M3CU3X9SS`.
 - [ ] **Pricing = Free, KHÔNG có IAP product nào** trong ASC.
+- [x] **Guideline 1.2 (an toàn UGC) BUILT + merged** (block/report/word-filter — PR #188 `f2aea378`); Age Rating **Messaging=YES**.
+- [ ] **Backend V244 DEPLOYED** (`./deploy-backend.sh`) — endpoints `/api/moderation/*` live TRƯỚC khi reviewer test.
+- [ ] **iOS build MỚI** (`eas build`, chứa UI 1.2) — **KHÔNG** dùng build 2.
+- [ ] **Reviewer Notes có đoạn Guideline 1.2** (§2.7) — trỏ tới Profile → "An toàn & chặn".
 - [ ] **App Privacy khai đủ 4 nhóm** (Contact / User Content / Identifiers / Usage), **Tracking = No** toàn bộ.
 - [ ] **Metadata free-only cho cả `vi` + `en-US`:** Subtitle, Keywords, Description (không "unlimited/ad-free/subscription"), What's New, Support URL.
 - [ ] **6 screenshots `1320×2868`** (verify bằng `sips`), ảnh AI Speaking chụp từ account **còn trial**, không iPad/paywall/ads.
