@@ -16,6 +16,9 @@ import com.deutschflow.teacher.repository.ClassStudentRepository;
 import com.deutschflow.teacher.repository.ClassTeacherRepository;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
+import com.deutschflow.moderation.service.UserBlockService;
+import com.deutschflow.moderation.service.WordFilterService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -52,8 +55,15 @@ class MessageServiceTest {
     @Mock private ClassStudentRepository classStudentRepository;
     @Mock private UserRepository userRepository;
     @Mock private UserNotificationService notificationService;
+    @Mock private UserBlockService blockService;
+    @Mock private WordFilterService wordFilter;
 
     @InjectMocks private MessageService service;
+
+    @BeforeEach
+    void stubModeration() {
+        when(blockService.blockedIds(any())).thenReturn(java.util.Set.of());
+    }
 
     private void shareClass(long teacherId, long studentId, long classId) {
         when(classTeacherRepository.findByIdTeacherId(teacherId))
