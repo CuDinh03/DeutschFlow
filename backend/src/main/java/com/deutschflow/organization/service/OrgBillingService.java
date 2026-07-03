@@ -10,6 +10,7 @@ import com.deutschflow.organization.entity.OrgInvoice;
 import com.deutschflow.organization.repository.OrgInvoiceRepository;
 import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.organization.repository.OrganizationRepository;
+import com.deutschflow.notification.service.UserNotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -31,6 +32,7 @@ import java.util.Set;
 public class OrgBillingService {
 
     private static final String STATUS_DRAFT = "DRAFT";
+    private static final String STATUS_PAID = "PAID";
     private static final Set<String> VALID_STATUSES = Set.of("DRAFT", "SENT", "PAID", "VOID");
 
     private static final String ROLE_STUDENT = "STUDENT";
@@ -39,6 +41,7 @@ public class OrgBillingService {
     private final OrgInvoiceRepository invoiceRepo;
     private final OrganizationRepository organizationRepository;
     private final OrgMemberRepository memberRepo;
+    private final UserNotificationService userNotificationService;
 
     @Value("${app.payment.sepay.bank-account:}")
     private String bankAccount;
@@ -104,8 +107,15 @@ public class OrgBillingService {
         if (status == null || !VALID_STATUSES.contains(status)) {
             throw new BadRequestException("Trạng thái hoá đơn không hợp lệ");
         }
+        boolean nowPaid = STATUS_PAID.equals(status) && !STATUS_PAID.equals(invoice.getStatus());
         invoice.setStatus(status);
-        return toDto(invoiceRepo.save(invoice));
+        OrgInvoiceDto dto = toDto(invoiceRepo.save(invoice));
+        if (nowPaid) {
+            String orgName = organizationRepository.findById(orgId)
+                    .map(org -> org.getName()).orElse("");
+            userNotificationService.onOrgInvoicePaid(orgId, orgName, invoice.getPaymentCode(), invoice.getAmountVnd());
+        }
+        return dto;
     }
 
     /** Memo code embedded in the VietQR transfer; the SePay webhook matches the payment by it (C3).

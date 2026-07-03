@@ -15,6 +15,7 @@ import org.springframework.data.domain.PageImpl;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
@@ -27,6 +28,7 @@ import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -169,6 +171,114 @@ class UserNotificationServiceUnitTest {
 
         assertThat(response.status()).isEqualTo("sent");
         verify(scheduledBroadcastRepository, never()).save(any());
+    }
+
+    // ── v1.7 admin ops & audit notifications ─────────────────────────────
+
+    private User activeAdmin(long id) {
+        User admin = org.mockito.Mockito.mock(User.class);
+        when(admin.isActive()).thenReturn(true);
+        when(admin.getRole()).thenReturn(User.Role.ADMIN);
+        when(admin.getId()).thenReturn(id);
+        return admin;
+    }
+
+    /** One active admin recipient + pass-through save, shared by the audit-notification tests. */
+    private void stubOneAdmin(long id) {
+        User admin = activeAdmin(id); // build (and stub) the admin BEFORE the enclosing when(...)
+        when(userRepository.findActiveIdsByRole("ADMIN")).thenReturn(List.of(id));
+        when(userRepository.findById(id)).thenReturn(Optional.of(admin));
+        when(notificationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+    }
+
+    private UserNotification captureSaved() {
+        ArgumentCaptor<UserNotification> cap = ArgumentCaptor.forClass(UserNotification.class);
+        verify(notificationRepository).save(cap.capture());
+        return cap.getValue();
+    }
+
+    @Test
+    @DisplayName("onAccountProvisioned records the creation source (via) and notifies admins")
+    void onAccountProvisioned_setsViaAndNotifiesAdmins() {
+        stubOneAdmin(1L);
+
+        service.onAccountProvisioned(42L, "new@x.com", "New User", "ADMIN");
+
+        UserNotification saved = captureSaved();
+        assertThat(saved.getType()).isEqualTo(NotificationType.USER_REGISTERED);
+        assertThat(saved.getPayload())
+                .containsEntry("via", "ADMIN")
+                .containsEntry("email", "new@x.com")
+                .containsEntry("newStudentId", 42L);
+    }
+
+    @Test
+    @DisplayName("onAccountDeleted inserts ACCOUNT_DELETED for each active admin")
+    void onAccountDeleted_notifiesAdmins() {
+        stubOneAdmin(1L);
+
+        service.onAccountDeleted(99L, "gone@x.com", "Gone");
+
+        UserNotification saved = captureSaved();
+        assertThat(saved.getType()).isEqualTo(NotificationType.ACCOUNT_DELETED);
+        assertThat(saved.getPayload()).containsEntry("email", "gone@x.com");
+    }
+
+    @Test
+    @DisplayName("onLearnerSubscriptionEnded resolves the learner email and notifies admins")
+    void onLearnerSubscriptionEnded_notifiesAdmins() {
+        stubOneAdmin(1L);
+        User learner = org.mockito.Mockito.mock(User.class);
+        when(learner.getEmail()).thenReturn("learner@x.com");
+        when(userRepository.findById(99L)).thenReturn(Optional.of(learner));
+
+        service.onLearnerSubscriptionEnded(99L, "PRO", "EXPIRED");
+
+        UserNotification saved = captureSaved();
+        assertThat(saved.getType()).isEqualTo(NotificationType.ADMIN_LEARNER_SUBSCRIPTION_ENDED);
+        assertThat(saved.getPayload())
+                .containsEntry("planCode", "PRO")
+                .containsEntry("reason", "EXPIRED")
+                .containsEntry("learnerEmail", "learner@x.com");
+    }
+
+    @Test
+    @DisplayName("onSystemAlert inserts ADMIN_SYSTEM_ALERT with source + extra context")
+    void onSystemAlert_notifiesAdmins() {
+        stubOneAdmin(1L);
+
+        service.onSystemAlert("AI_GRADING", "AI chấm bài thất bại", "Kiểm tra LLM.",
+                Map.of("submissionId", 7L));
+
+        UserNotification saved = captureSaved();
+        assertThat(saved.getType()).isEqualTo(NotificationType.ADMIN_SYSTEM_ALERT);
+        assertThat(saved.getPayload())
+                .containsEntry("source", "AI_GRADING")
+                .containsEntry("submissionId", 7L);
+    }
+
+    @Test
+    @DisplayName("onOrgInvoicePaid inserts ADMIN_ORG_INVOICE_PAID with the amount")
+    void onOrgInvoicePaid_notifiesAdmins() {
+        stubOneAdmin(1L);
+
+        service.onOrgInvoicePaid(5L, "ABC", "DFINV-1", 2_500_000L);
+
+        UserNotification saved = captureSaved();
+        assertThat(saved.getType()).isEqualTo(NotificationType.ADMIN_ORG_INVOICE_PAID);
+        assertThat(saved.getPayload())
+                .containsEntry("orgName", "ABC")
+                .containsEntry("amountVnd", 2_500_000L);
+    }
+
+    @Test
+    @DisplayName("no active admins → nothing is inserted")
+    void noAdmins_insertsNothing() {
+        when(userRepository.findActiveIdsByRole("ADMIN")).thenReturn(List.of());
+
+        service.onAccountDeleted(99L, "gone@x.com", "Gone");
+
+        verify(notificationRepository, never()).save(any());
     }
 
     @Test

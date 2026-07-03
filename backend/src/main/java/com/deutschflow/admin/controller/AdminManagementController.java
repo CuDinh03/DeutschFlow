@@ -226,6 +226,12 @@ public class AdminManagementController {
                         "orgRole", String.valueOf(created.get("orgRole"))
                 )
         );
+        // createUser() is @Transactional and has committed by now — audit the new account to admins.
+        userNotificationService.onAccountProvisioned(
+                Long.parseLong(String.valueOf(created.get("id"))),
+                String.valueOf(created.get("email")),
+                String.valueOf(created.get("displayName")),
+                "ADMIN");
         return created;
     }
 

@@ -47,6 +47,7 @@ class AdminOrgServiceLifecycleTest {
     @Mock private OrgEntitlementService orgEntitlementService;
     @Mock private UserRepository userRepository;
     @Mock private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
+    @Mock private com.deutschflow.notification.service.UserNotificationService userNotificationService;
 
     private AdminOrgService service;
 
@@ -61,7 +62,8 @@ class AdminOrgServiceLifecycleTest {
                 orgMemberRepository,
                 orgEntitlementService,
                 userRepository,
-                passwordEncoder
+                passwordEncoder,
+                userNotificationService
         );
     }
 

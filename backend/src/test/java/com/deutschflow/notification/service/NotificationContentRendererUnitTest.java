@@ -56,6 +56,75 @@ class NotificationContentRendererUnitTest {
     }
 
     @Test
+    @DisplayName("user registered distinguishes self-signup from staff-created (via)")
+    void userRegistered_distinguishesSource() {
+        RenderedContent self = renderer.render(NotificationType.USER_REGISTERED,
+                Map.of("displayName", "An", "email", "an@x.com", "via", "SELF"));
+        assertThat(self.title()).isEqualTo("Đăng ký mới");
+        assertThat(self.body()).isEqualTo("An (an@x.com) vừa tạo tài khoản.");
+
+        RenderedContent byAdmin = renderer.render(NotificationType.USER_REGISTERED,
+                Map.of("displayName", "An", "email", "an@x.com", "via", "ADMIN"));
+        assertThat(byAdmin.body()).contains("admin tạo");
+
+        RenderedContent byOrg = renderer.render(NotificationType.USER_REGISTERED,
+                Map.of("displayName", "An", "email", "an@x.com", "via", "MANAGER"));
+        assertThat(byOrg.body()).contains("trung tâm");
+    }
+
+    @Test
+    @DisplayName("account deleted names the user, with a safe fallback when identity is absent")
+    void accountDeleted_rendersIdentity() {
+        RenderedContent named = renderer.render(NotificationType.ACCOUNT_DELETED,
+                Map.of("displayName", "Bình", "email", "binh@x.com"));
+        assertThat(named.body()).isEqualTo("Bình (binh@x.com) đã xoá tài khoản.");
+
+        RenderedContent empty = renderer.render(NotificationType.ACCOUNT_DELETED, Map.of());
+        assertThat(empty.body()).isEqualTo("Một người dùng đã xoá tài khoản.");
+    }
+
+    @Test
+    @DisplayName("subscription ended maps the reason to a Vietnamese label")
+    void subscriptionEnded_labelsReason() {
+        RenderedContent refunded = renderer.render(NotificationType.ADMIN_LEARNER_SUBSCRIPTION_ENDED,
+                Map.of("planCode", "PRO", "learnerEmail", "c@x.com", "reason", "REFUNDED"));
+        assertThat(refunded.body()).contains("PRO").contains("c@x.com").contains("hoàn tiền");
+
+        RenderedContent expired = renderer.render(NotificationType.ADMIN_LEARNER_SUBSCRIPTION_ENDED,
+                Map.of("planCode", "PRO", "reason", "EXPIRED"));
+        assertThat(expired.body()).contains("hết hạn");
+    }
+
+    @Test
+    @DisplayName("system alert surfaces the caller's title/message")
+    void systemAlert_usesTitleMessage() {
+        RenderedContent c = renderer.render(NotificationType.ADMIN_SYSTEM_ALERT,
+                Map.of("title", "AI chấm bài thất bại", "message", "Kiểm tra cấu hình LLM."));
+        assertThat(c.title()).contains("AI chấm bài thất bại");
+        assertThat(c.body()).isEqualTo("Kiểm tra cấu hình LLM.");
+    }
+
+    @Test
+    @DisplayName("org invoice paid formats a VND amount and names the org")
+    void orgInvoicePaid_formatsAmount() {
+        RenderedContent c = renderer.render(NotificationType.ADMIN_ORG_INVOICE_PAID,
+                Map.of("orgName", "Trung tâm ABC", "paymentCode", "DFINV-1A2B", "amountVnd", 2500000L));
+        assertThat(c.body()).contains("Trung tâm ABC").contains("DFINV-1A2B").contains("2.500.000₫");
+
+        RenderedContent noAmount = renderer.render(NotificationType.ADMIN_ORG_INVOICE_PAID,
+                Map.of("orgName", "Trung tâm ABC", "paymentCode", "DFINV-1A2B"));
+        assertThat(noAmount.body()).doesNotContain("₫");
+    }
+
+    @Test
+    @DisplayName("org created names the organization")
+    void orgCreated_namesOrg() {
+        RenderedContent c = renderer.render(NotificationType.ADMIN_ORG_CREATED,
+                Map.of("orgName", "Trung tâm ABC", "slug", "abc"));
+        assertThat(c.body()).contains("Trung tâm ABC");
+    }
+
+    @Test
     @DisplayName("missing payload keys never throw and never emit 'null'")
     void emptyPayload_isSafe() {
         for (NotificationType type : NotificationType.values()) {

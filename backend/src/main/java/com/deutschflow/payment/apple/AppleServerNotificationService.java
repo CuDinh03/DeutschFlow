@@ -7,6 +7,7 @@ import com.apple.itunes.storekit.model.NotificationTypeV2;
 import com.apple.itunes.storekit.model.ResponseBodyV2DecodedPayload;
 import com.apple.itunes.storekit.model.Subtype;
 import com.apple.itunes.storekit.verification.VerificationException;
+import com.deutschflow.notification.service.UserNotificationService;
 import com.deutschflow.payment.service.SubscriptionActivationService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -30,15 +31,18 @@ public class AppleServerNotificationService {
     private final AppleProductCatalog productCatalog;
     private final AppleSubscriptionStore store;
     private final SubscriptionActivationService activationService;
+    private final UserNotificationService userNotificationService;
 
     public AppleServerNotificationService(AppleJwsVerifier verifier,
                                           AppleProductCatalog productCatalog,
                                           AppleSubscriptionStore store,
-                                          SubscriptionActivationService activationService) {
+                                          SubscriptionActivationService activationService,
+                                          UserNotificationService userNotificationService) {
         this.verifier = verifier;
         this.productCatalog = productCatalog;
         this.store = store;
         this.activationService = activationService;
+        this.userNotificationService = userNotificationService;
     }
 
     /**
@@ -172,10 +176,12 @@ public class AppleServerNotificationService {
             case END -> {
                 store.markStatus(originalTransactionId, "EXPIRED");
                 activationService.endAppleSubscription(userId);
+                userNotificationService.onLearnerSubscriptionEnded(userId, planCode, "EXPIRED");
             }
             case REFUND -> {
                 store.markStatus(originalTransactionId, "REFUNDED");
                 activationService.endAppleSubscription(userId);
+                userNotificationService.onLearnerSubscriptionEnded(userId, planCode, "REFUNDED");
                 // Follow-up: surface a user-facing refund notification (needs a NotificationType.REFUND entry).
                 log.info("[APPLE NOTIFY] Refund processed for userId={} — entitlement ended.", userId);
             }

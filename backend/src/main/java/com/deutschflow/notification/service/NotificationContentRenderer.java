@@ -28,10 +28,7 @@ public class NotificationContentRenderer {
     public RenderedContent render(NotificationType type, Map<String, Object> payloadOrNull) {
         Map<String, Object> p = payloadOrNull != null ? payloadOrNull : Map.of();
         return switch (type) {
-            case USER_REGISTERED -> new RenderedContent(
-                    "Đăng ký mới",
-                    nonBlankOr(str(p, "displayName") + " (" + str(p, "email") + ") vừa tạo tài khoản.",
-                            "Có học viên mới đăng ký."));
+            case USER_REGISTERED -> renderUserRegistered(p);
             case LEARNER_PLAN_UPDATED -> new RenderedContent(
                     "Cập nhật gói học",
                     "Gói học của bạn đã được cập nhật thành " + str(p, "planCode") + ".");
@@ -96,7 +93,75 @@ public class NotificationContentRenderer {
             case NEW_MESSAGE -> new RenderedContent(
                     "💬 Tin nhắn mới",
                     nonBlankOr(str(p, "senderName"), "Ai đó") + ": " + str(p, "preview"));
+
+            // ── v1.7 — Admin ops & audit ─────────────────────────────────────
+            case ACCOUNT_DELETED -> new RenderedContent(
+                    "🗑️ Xoá tài khoản",
+                    who(p).isBlank() ? "Một người dùng đã xoá tài khoản."
+                            : who(p) + " đã xoá tài khoản.");
+            case ADMIN_LEARNER_SUBSCRIPTION_ENDED -> new RenderedContent(
+                    "Gói học kết thúc",
+                    "Gói " + nonBlankOr(str(p, "planCode"), "học") + " của "
+                            + nonBlankOr(str(p, "learnerEmail"), "học viên") + " đã kết thúc ("
+                            + endReasonLabel(str(p, "reason")) + ").");
+            case ADMIN_SYSTEM_ALERT -> new RenderedContent(
+                    "⚠️ " + nonBlankOr(str(p, "title"), "Cảnh báo hệ thống"),
+                    nonBlankOr(str(p, "message"), "Có sự cố hệ thống cần kiểm tra."));
+            case ADMIN_ORG_CREATED -> new RenderedContent(
+                    "🏢 Tổ chức mới",
+                    "Đã tạo tổ chức \"" + nonBlankOr(str(p, "orgName"), "(không tên)") + "\".");
+            case ADMIN_ORG_INVOICE_PAID -> new RenderedContent(
+                    "💰 Hoá đơn đã thanh toán",
+                    "Hoá đơn " + nonBlankOr(str(p, "paymentCode"), "") + " của tổ chức \""
+                            + nonBlankOr(str(p, "orgName"), "(không tên)") + "\" đã được thanh toán"
+                            + amountSuffix(p) + ".");
         };
+    }
+
+    /**
+     * "Đăng ký mới" distinguishes how the account was created (self-signup vs
+     * created by staff), so the admin knows whether it's an organic signup.
+     */
+    private RenderedContent renderUserRegistered(Map<String, Object> p) {
+        String who = who(p);
+        String action = switch (str(p, "via").toUpperCase()) {
+            case "ADMIN" -> " vừa được admin tạo tài khoản.";
+            case "MANAGER", "OWNER" -> " vừa được trung tâm tạo tài khoản.";
+            case "CSV" -> " vừa được nhập từ danh sách.";
+            default -> " vừa tạo tài khoản.";
+        };
+        return new RenderedContent("Đăng ký mới",
+                nonBlankOr(who.isBlank() ? "" : who + action, "Có người dùng mới đăng ký."));
+    }
+
+    /** "Name (email)" when present, else whichever half exists, else "". */
+    private static String who(Map<String, Object> p) {
+        String name = str(p, "displayName");
+        String email = str(p, "email");
+        if (!name.isBlank() && !email.isBlank()) return name + " (" + email + ")";
+        return !name.isBlank() ? name : email;
+    }
+
+    private static String endReasonLabel(String reason) {
+        return switch (reason == null ? "" : reason.toUpperCase()) {
+            case "EXPIRED" -> "hết hạn";
+            case "REFUNDED" -> "hoàn tiền";
+            case "REVOKED" -> "thu hồi";
+            case "CANCELLED", "CANCELED" -> "huỷ";
+            default -> "kết thúc";
+        };
+    }
+
+    /** " — 250.000₫" when a positive amountVnd is present, else "". */
+    private static String amountSuffix(Map<String, Object> p) {
+        Object raw = p.get("amountVnd");
+        if (raw == null) return "";
+        try {
+            long amount = Long.parseLong(String.valueOf(raw));
+            return amount > 0 ? " — " + String.format("%,d", amount).replace(',', '.') + "₫" : "";
+        } catch (NumberFormatException e) {
+            return "";
+        }
     }
 
     private RenderedContent renderAssignmentGraded(Map<String, Object> p) {

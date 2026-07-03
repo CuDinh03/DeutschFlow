@@ -22,6 +22,7 @@ import com.deutschflow.organization.service.OrgInvitationService;
 import com.deutschflow.organization.service.OrgMembershipService;
 import com.deutschflow.organization.service.OrgRosterService;
 import com.deutschflow.organization.service.OrgService;
+import com.deutschflow.notification.service.UserNotificationService;
 import com.deutschflow.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -54,6 +55,7 @@ public class OrgController {
     private final OrgAnalyticsService orgAnalyticsService;
     private final OrgEntitlementService orgEntitlementService;
     private final OrgBillingService orgBillingService;
+    private final UserNotificationService userNotificationService;
 
     private Long requireOrgId(User user) {
         Long orgId = user.getOrgId();
@@ -109,7 +111,12 @@ public class OrgController {
             throw new ForbiddenException("Chỉ chủ sở hữu hoặc quản lý mới tạo được giáo viên");
         }
         User.CreatedVia via = "OWNER".equals(callerRole) ? User.CreatedVia.OWNER : User.CreatedVia.MANAGER;
-        return orgInvitationService.preCreateTeacher(orgId, body.email(), body.displayName(), body.password(), via);
+        OrgMemberDto created = orgInvitationService.preCreateTeacher(
+                orgId, body.email(), body.displayName(), body.password(), via);
+        // preCreateTeacher always creates a fresh user (rejects existing email), so this is a real new account.
+        userNotificationService.onAccountProvisioned(
+                created.userId(), created.email(), created.displayName(), via.name());
+        return created;
     }
 
     @GetMapping("/invitations")

@@ -34,6 +34,11 @@ const TYPE_ICON: Record<string, string> = {
   LEARNER_PLAN_UPDATED: 'description',
   ADMIN_LEARNER_PLAN_CHANGED: 'description',
   ADMIN_LEARNER_SUBSCRIBED: 'payments',
+  ACCOUNT_DELETED: 'person_off',
+  ADMIN_LEARNER_SUBSCRIPTION_ENDED: 'money_off',
+  ADMIN_SYSTEM_ALERT: 'warning',
+  ADMIN_ORG_CREATED: 'apartment',
+  ADMIN_ORG_INVOICE_PAID: 'paid',
 }
 const TYPE_TONE: Record<string, string> = {
   REVIEW_DUE: 'var(--ga-orange)',
@@ -57,6 +62,11 @@ const TYPE_TONE: Record<string, string> = {
   LEARNER_PLAN_UPDATED: 'var(--ga-blue)',
   ADMIN_LEARNER_PLAN_CHANGED: 'var(--ga-blue)',
   ADMIN_LEARNER_SUBSCRIBED: 'var(--ga-green)',
+  ACCOUNT_DELETED: 'var(--ga-red)',
+  ADMIN_LEARNER_SUBSCRIPTION_ENDED: 'var(--ga-orange)',
+  ADMIN_SYSTEM_ALERT: 'var(--ga-red)',
+  ADMIN_ORG_CREATED: 'var(--ga-teal)',
+  ADMIN_ORG_INVOICE_PAID: 'var(--ga-green)',
 }
 
 // Vietnamese labels for notification types when payload.title is absent.
@@ -82,6 +92,11 @@ const TYPE_LABEL: Record<string, string> = {
   LEARNER_PLAN_UPDATED: 'Gói học được cập nhật',
   ADMIN_LEARNER_PLAN_CHANGED: 'Gói học thay đổi',
   ADMIN_LEARNER_SUBSCRIBED: 'Đăng ký gói học mới',
+  ACCOUNT_DELETED: 'Xoá tài khoản',
+  ADMIN_LEARNER_SUBSCRIPTION_ENDED: 'Gói học kết thúc',
+  ADMIN_SYSTEM_ALERT: 'Cảnh báo hệ thống',
+  ADMIN_ORG_CREATED: 'Tổ chức mới',
+  ADMIN_ORG_INVOICE_PAID: 'Hoá đơn đã thanh toán',
 }
 
 function pick(payload: Record<string, unknown>, ...keys: string[]): string | null {

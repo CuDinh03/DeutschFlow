@@ -27,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 @Service
@@ -45,6 +46,10 @@ public class GradingService {
     private final AiUsageLedgerService aiUsageLedgerService;
     /** Model chấm bài (tách hẳn model nói) — xem {@link GradingModelConfig}. */
     private final GradingModelConfig gradingModelConfig;
+
+    /** Throttle admin AI-grading alerts so a systemic outage (LLM env down) can't flood the bell. */
+    private static final long GRADING_ALERT_COOLDOWN_MS = 10 * 60 * 1000L;
+    private final AtomicLong lastGradingAlertMs = new AtomicLong(0);
 
     /**
      * Lấy toàn bộ bài nộp cần chấm (status=SUBMITTED) thuộc các lớp của giáo viên.
@@ -388,8 +393,32 @@ public class GradingService {
             sa.setFeedback("[AI cham loi] " + r);
             studentAssignmentRepository.save(sa);
             log.warn("[AI-Grading] Marked submission {} as GRADING_FAILED: {}", submissionId, r);
+            alertAdminsThrottled(submissionId, r);
         } catch (Exception persistErr) {
             log.warn("[AI-Grading] Could not persist GRADING_FAILED for {}: {}", submissionId, persistErr.toString());
+        }
+    }
+
+    /**
+     * Emits an admin ops-alert for an AI grading failure, throttled to one per
+     * {@link #GRADING_ALERT_COOLDOWN_MS} so a systemic outage doesn't flood every admin's bell.
+     * Never lets an alert failure disrupt the grading path.
+     */
+    private void alertAdminsThrottled(Long submissionId, String reason) {
+        long now = System.currentTimeMillis();
+        long last = lastGradingAlertMs.get();
+        if (now - last < GRADING_ALERT_COOLDOWN_MS || !lastGradingAlertMs.compareAndSet(last, now)) {
+            return;
+        }
+        try {
+            userNotificationService.onSystemAlert(
+                    "AI_GRADING",
+                    "AI chấm bài thất bại",
+                    "Có bài không chấm được tự động (bài #" + submissionId + "): " + reason
+                            + ". Kiểm tra cấu hình LLM.",
+                    Map.of("submissionId", submissionId));
+        } catch (Exception alertErr) {
+            log.warn("[AI-Grading] Could not emit admin system alert for {}: {}", submissionId, alertErr.toString());
         }
     }
 

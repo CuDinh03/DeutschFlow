@@ -90,27 +90,124 @@ public class UserNotificationService {
     }
 
     /**
-     * Runs in a new transaction after registration commits.
+     * Runs in a new transaction after a self-service registration commits.
      */
     @Transactional
     public void onStudentRegisteredAfterCommit(StudentRegisteredEvent event) {
-        List<Long> adminIds = userRepository.findActiveIdsByRole(User.Role.ADMIN.name());
-        if (adminIds.isEmpty()) {
-            log.warn("[notifications] USER_REGISTERED skipped: no active ADMIN rows in users table");
-            return;
-        }
-        Map<String, Object> payloadTemplate = new LinkedHashMap<>();
-        payloadTemplate.put("newStudentId", event.newStudentId());
-        payloadTemplate.put("email", event.email());
-        payloadTemplate.put("displayName", event.displayName());
+        notifyAdminsOfNewAccount(event.newStudentId(), event.email(), event.displayName(), "SELF");
+    }
 
+    /**
+     * Notifies every active admin that a new account was provisioned by staff
+     * (admin panel / org OWNER / MANAGER), so the "new account" audit trail is
+     * complete regardless of how the account was created.
+     *
+     * @param via one of {@code ADMIN}, {@code MANAGER}, {@code OWNER}, {@code CSV}
+     */
+    @Transactional
+    public void onAccountProvisioned(long newUserId, String email, String displayName, String via) {
+        notifyAdminsOfNewAccount(newUserId, email, displayName, via);
+    }
+
+    private void notifyAdminsOfNewAccount(long newUserId, String email, String displayName, String via) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("newStudentId", newUserId);
+        payload.put("email", email);
+        payload.put("displayName", displayName);
+        payload.put("via", via == null ? "SELF" : via);
+        int notified = notifyAllAdmins(NotificationType.USER_REGISTERED, payload);
+        if (notified == 0) {
+            log.warn("[notifications] USER_REGISTERED skipped: no active ADMIN rows in users table");
+        }
+    }
+
+    /**
+     * Notifies every active admin that a user permanently deleted their account.
+     * The user row is already gone by the time this runs, so identity comes from
+     * the captured {@code email}/{@code displayName}, not a lookup.
+     */
+    @Transactional
+    public void onAccountDeleted(long deletedUserId, String email, String displayName) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("deletedUserId", deletedUserId);
+        payload.put("email", email);
+        payload.put("displayName", displayName);
+        notifyAllAdmins(NotificationType.ACCOUNT_DELETED, payload);
+    }
+
+    /**
+     * Notifies every active admin that a learner's subscription ended.
+     *
+     * @param reason one of {@code EXPIRED}, {@code REFUNDED}, {@code REVOKED}, {@code CANCELLED}
+     */
+    @Transactional
+    public void onLearnerSubscriptionEnded(long learnerUserId, String planCode, String reason) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("learnerUserId", learnerUserId);
+        userRepository.findById(learnerUserId)
+                .ifPresent(u -> payload.put("learnerEmail", u.getEmail()));
+        payload.put("planCode", planCode);
+        payload.put("reason", reason == null ? "EXPIRED" : reason);
+        notifyAllAdmins(NotificationType.ADMIN_LEARNER_SUBSCRIPTION_ENDED, payload);
+    }
+
+    /**
+     * Notifies every active admin of a background/system failure worth attention
+     * (e.g. AI grading failed). Generic ops-alert channel — reuse for future signals.
+     *
+     * @param source short machine tag for the origin, e.g. {@code AI_GRADING}
+     */
+    @Transactional
+    public void onSystemAlert(String source, String title, String message, Map<String, Object> extra) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("source", source);
+        payload.put("title", title);
+        payload.put("message", message);
+        if (extra != null) {
+            extra.forEach(payload::putIfAbsent);
+        }
+        notifyAllAdmins(NotificationType.ADMIN_SYSTEM_ALERT, payload);
+    }
+
+    /** Notifies every active admin that a new organization was created. */
+    @Transactional
+    public void onOrgCreated(long orgId, String orgName, String slug) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("orgId", orgId);
+        payload.put("orgName", orgName);
+        payload.put("slug", slug);
+        notifyAllAdmins(NotificationType.ADMIN_ORG_CREATED, payload);
+    }
+
+    /** Notifies every active admin that an organization invoice was marked paid. */
+    @Transactional
+    public void onOrgInvoicePaid(long orgId, String orgName, String paymentCode, long amountVnd) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("orgId", orgId);
+        payload.put("orgName", orgName);
+        payload.put("paymentCode", paymentCode);
+        payload.put("amountVnd", amountVnd);
+        notifyAllAdmins(NotificationType.ADMIN_ORG_INVOICE_PAID, payload);
+    }
+
+    /**
+     * Inserts {@code type} for every active ADMIN. The payload is defensively copied per
+     * recipient by {@link #insert}, so the same map is safe to pass for all admins.
+     *
+     * @return the number of admins notified
+     */
+    private int notifyAllAdmins(NotificationType type, Map<String, Object> payload) {
+        List<Long> adminIds = userRepository.findActiveIdsByRole(User.Role.ADMIN.name());
+        int notified = 0;
         for (Long adminId : adminIds) {
             User admin = userRepository.findById(adminId).orElse(null);
             if (admin == null || !admin.isActive() || admin.getRole() != User.Role.ADMIN) {
                 continue;
             }
-            insert(admin, NotificationType.USER_REGISTERED, payloadTemplate);
+            insert(admin, type, payload);
+            notified++;
         }
+        return notified;
     }
 
     /**

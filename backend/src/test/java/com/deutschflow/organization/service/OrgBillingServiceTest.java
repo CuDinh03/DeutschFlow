@@ -8,6 +8,7 @@ import com.deutschflow.organization.entity.OrgInvoice;
 import com.deutschflow.organization.repository.OrgInvoiceRepository;
 import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.organization.repository.OrganizationRepository;
+import com.deutschflow.notification.service.UserNotificationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -33,6 +34,7 @@ class OrgBillingServiceTest {
     @Mock private OrgInvoiceRepository invoiceRepo;
     @Mock private OrganizationRepository organizationRepository;
     @Mock private OrgMemberRepository memberRepo;
+    @Mock private UserNotificationService userNotificationService;
 
     private OrgBillingService service;
 
@@ -43,7 +45,7 @@ class OrgBillingServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new OrgBillingService(invoiceRepo, organizationRepository, memberRepo);
+        service = new OrgBillingService(invoiceRepo, organizationRepository, memberRepo, userNotificationService);
     }
 
     // ------------------------------------------------------------------ helpers

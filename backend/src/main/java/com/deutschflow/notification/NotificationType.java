@@ -57,5 +57,18 @@ public enum NotificationType {
     // ── Direct messaging (student ↔ teacher 1-1 chat) ───────────────────
 
     /** A new direct message was received. Recipient: the other party in the 1-1 thread. */
-    NEW_MESSAGE
+    NEW_MESSAGE,
+
+    // ── v1.7 — Admin ops & audit notifications ──────────────────────────
+
+    /** Admin audit: a user permanently deleted their account. Materialized for each active admin. */
+    ACCOUNT_DELETED,
+    /** Admin audit: a learner's paid subscription ended (expired/refunded/revoked). Materialized for each active admin. */
+    ADMIN_LEARNER_SUBSCRIPTION_ENDED,
+    /** Admin ops alert: a background/system failure that needs attention (e.g. AI grading failed). Materialized for each active admin. */
+    ADMIN_SYSTEM_ALERT,
+    /** Admin audit: a new organization was created. Materialized for each active admin. */
+    ADMIN_ORG_CREATED,
+    /** Admin audit: an organization invoice was marked paid. Materialized for each active admin. */
+    ADMIN_ORG_INVOICE_PAID
 }

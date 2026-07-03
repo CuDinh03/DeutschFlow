@@ -5,6 +5,7 @@ import com.deutschflow.user.dto.*;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.entity.UserLearningProfile;
 import com.deutschflow.user.repository.UserLearningProfileRepository;
+import com.deutschflow.notification.service.UserNotificationService;
 import com.deutschflow.user.service.AccountDeletionService;
 import com.deutschflow.user.service.AuthService;
 import com.deutschflow.user.service.UserLearningProfileService;
@@ -31,6 +32,7 @@ public class ProfileController {
     private final UserLearningProfileService learningProfileService;
     private final UserLearningProfileRepository learningProfileRepository;
     private final AccountDeletionService accountDeletionService;
+    private final UserNotificationService userNotificationService;
 
     /**
      * PATCH /api/profile/me
@@ -101,6 +103,12 @@ public class ProfileController {
     @DeleteMapping("/me")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteAccount(@AuthenticationPrincipal User user) {
-        accountDeletionService.deleteAccount(user.getId());
+        // Capture identity BEFORE deletion — the users row is gone once deleteAccount commits.
+        long deletedId = user.getId();
+        String email = user.getEmail();
+        String displayName = user.getDisplayName();
+        accountDeletionService.deleteAccount(deletedId);
+        // deleteAccount() is @Transactional and has committed here; audit the deletion to admins.
+        userNotificationService.onAccountDeleted(deletedId, email, displayName);
     }
 }

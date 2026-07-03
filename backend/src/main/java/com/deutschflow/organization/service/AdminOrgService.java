@@ -13,6 +13,7 @@ import com.deutschflow.organization.entity.OrgMember;
 import com.deutschflow.organization.entity.Organization;
 import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.organization.repository.OrganizationRepository;
+import com.deutschflow.notification.service.UserNotificationService;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -61,6 +62,7 @@ public class AdminOrgService {
     private final OrgEntitlementService orgEntitlementService;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final UserNotificationService userNotificationService;
 
     /**
      * Creates an organization with a unique slug. If {@code ownerEmail} resolves to an existing
@@ -91,6 +93,7 @@ public class AdminOrgService {
 
         attachOwner(org.getId(), request.ownerEmail(), request.ownerName(), request.ownerPassword());
 
+        userNotificationService.onOrgCreated(org.getId(), org.getName(), org.getSlug());
         return toOrgDto(org);
     }
 
