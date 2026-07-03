@@ -34,7 +34,11 @@
 
 ---
 
-## ⚡ HÔM NAY — việc "click", làm ngay (bất kể A/B)
+## ⚡ VIỆC CỦA CHỦ DỰ ÁN — xem runbook chi tiết
+
+> **📕 Hướng dẫn từng bước đầy đủ (deploy → hardening → demo account → ASC → submit): [`plans/2026-07-03-OWNER-MANUAL-STEPS.md`](2026-07-03-OWNER-MANUAL-STEPS.md).** Phần dưới là bản rút gọn.
+
+### Rút gọn — việc "click" (bất kể A/B)
 
 - [x] **T1. Apple agreements** — ✅ **Free Apps Agreement ĐÃ Active** (xác nhận ASC 2026-07-06) → v1.0 free-only đủ điều kiện. Paid Apps Agreement (status New) + Edit Legal Entity + W-8BEN + banking = **để dành v1.1**.
 - [ ] **T1b. (tùy chọn, cho EU) Khai DSA trader status** — ASC báo đỏ; nếu để trống app có thể không hiển thị ở EU. Xem `plans/2026-07-03-OWNER-MANUAL-STEPS.md` §VIỆC #1.
