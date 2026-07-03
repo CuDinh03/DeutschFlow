@@ -17,8 +17,11 @@ const SRC_DIR = path.resolve(HERE, '../../plans/appstore')
 const OUT_DIR = path.resolve(HERE, '../src/content/legal')
 
 // ── Fill these ──────────────────────────────────────────────────────────────
-const LEGAL_NAME_EN = 'an independent individual developer' // TODO: replace with registered legal name (matches Apple seller / tax)
-const LEGAL_NAME_VI = 'một nhà phát triển cá nhân độc lập'   // TODO: thay bằng tên pháp lý đã đăng ký (khớp Apple / thuế)
+// Set to the Apple-registered legal entity / seller name (App Store Connect → Business).
+// Confirmed 2026-07-06 = "Cu Dinh" (individual, Hanoi VN). If your full legal name on your ID
+// (CCCD) is longer, use that instead — it must match the name Apple displays as the seller.
+const LEGAL_NAME_EN = 'Cu Dinh'
+const LEGAL_NAME_VI = 'Cu Dinh'
 const EFFECTIVE_DATE = '2026-07-03'
 const DOMAIN = 'https://mydeutschflow.com'
 const SUPPORT_EMAIL = 'dinhhuycu0305@gmail.com'
