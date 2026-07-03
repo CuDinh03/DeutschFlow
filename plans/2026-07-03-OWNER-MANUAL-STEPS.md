@@ -24,8 +24,9 @@
 - [x] Free Apps Agreement = **Active** (xác nhận ASC)
 - [x] Legal entity = **"Cu Dinh"** → đã điền vào `/privacy` `/terms`
 - [x] **RDS snapshot `deutschflow-pre-v243-20260706`** đã tạo (Manual snapshots, us-east-1) → an toàn để deploy
-- [x] **A1. Merge + push `main`** — `57e902d1` (2026-07-03), origin synced, gồm 11 commit phase-0 + 4 commit OTA/docs cũ chưa push. **Amplify tự build web (~5–10').**
-- [ ] **A2. Deploy BACKEND** (`./deploy-backend.sh` từ laptop — AI **chặn SSH**) ← **BƯỚC KẾ TIẾP CỦA BẠN**
+- [x] **A1. Merge + push `main`** — `57e902d1` (2026-07-03), origin synced, gồm 11 commit phase-0 + 4 commit OTA/docs cũ chưa push. **Web ĐÃ LIVE** (Amplify ~3'): `/privacy` `/terms` `/support` 200 + "Cu Dinh", pricing visible=FREE+PRO.
+- [x] **A2. Deploy BACKEND** — DONE 2026-07-03. `actuator/health` = UP; V243 applied (blue-green promote qua health-gate 300s ⇒ Flyway boot OK). Delete-account fix VERIFIED by CI: `AccountDeletionServiceDbTest` 2/2 PASS vs real Postgres (Testcontainers) trong job **Unit Tests** (BUILD SUCCESS, 1234 tests 0 fail). ⚠️ "Backend CI/CD failure" = CHỈ suite **Integration Tests** (Failsafe) đỏ sẵn từ 24/06, KHÔNG liên quan fix.
+- [ ] (tùy chọn) A3. Smoke-test xóa TK trên app thật (junk account) — CI đã chứng minh; làm thêm để chắc.
 - [ ] B. Hardening (automated backups ≥7 + deletion protection + branch protection + UptimeRobot + đổi pass `nvb@gmail.com`)
 - [ ] C. 2 demo account FREE · [ ] D. ASC metadata + review notes · [ ] E. eas build/submit · [ ] F. (tùy chọn) DSA trader
 
