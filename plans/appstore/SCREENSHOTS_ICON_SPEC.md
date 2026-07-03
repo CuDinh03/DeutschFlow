@@ -58,16 +58,14 @@ Table order = Store display order. **Screens 1–2 matter most** (shown directly
 | 4 | Bài học / Lesson node | `learn.tsx` hoặc `node.tsx` | Học qua thực hành, ngắn gọn | Bite-size lessons that stick | Bài học ngắn, nhớ lâu |
 | 5 | SRS / Từ vựng | `srs.tsx` hoặc `vocabulary.tsx` | Điểm mạnh ghi nhớ ngắt quãng | Smart spaced repetition | Lặp lại ngắt quãng thông minh |
 | 6 | Tiến độ / Stats | `stats.tsx` | Tạo động lực, cho thấy tiến bộ | See your mastery grow | Theo dõi tiến bộ mỗi ngày |
-| 7 | DeutschFlow Pro (paywall) | `upgrade.tsx` | **Bắt buộc cho review subscription** — reviewer phải thấy paywall rõ giá + chu kỳ + điều khoản | Unlock everything with Pro | Mở khóa tất cả với Pro |
-| 8 *(tùy chọn)* | Lớp học / Chat | `classes/index.tsx` hoặc `class-chat/` | Nếu muốn nhấn tính năng lớp học B2B | Learn with your class | Học cùng lớp của bạn |
+| ~~7~~ | ~~DeutschFlow Pro (paywall)~~ | `upgrade.tsx` | ⛔ **SKIP cho free-only v1.0** — không có subscription để review; **KHÔNG** bật `PAYWALL_ENABLED` iOS. Chỉ cần ở v1.1 (IAP). | — | — |
+| 7 *(tùy chọn)* | Lớp học / Chat | `classes/index.tsx` hoặc `class-chat/` | Nếu muốn nhấn tính năng lớp học B2B | Learn with your class | Học cùng lớp của bạn |
 
-> **Quảng cáo (Hướng B):** **không** chụp màn có quảng cáo AdMob — ads không phải điểm bán và không cần trưng bày. **Bắt buộc chụp màn Pro (`upgrade.tsx`)** để bộ phận review đánh giá được auto-renewable subscription; ảnh paywall phải thể hiện rõ **giá, chu kỳ gia hạn, và điều khoản**.
+> ✅ **FREE-ONLY v1.0 (submit approach A):** **KHÔNG** chụp paywall, **KHÔNG** bật `PAYWALL_ENABLED` iOS (giữ nguyên `Platform.OS !== 'ios'` — paywall tắt trên iOS là ĐÚNG cho free-only). Không có ads/IAP nên không có màn quảng cáo lẫn màn mua để chụp. Bộ ảnh = 6 màn cốt lõi (#1–#6). Paywall + màn Pro để dành v1.1 khi có IAP.
 >
-> **Ads (Strategy B):** do **not** screenshot the AdMob ad surface — ads aren't a selling point. The Pro paywall (`upgrade.tsx`) **must** be included so review can assess the auto-renewable subscription; the paywall image must clearly show **price, renewal period, and terms**.
-
-> ⚠️ **Điều kiện để chụp được paywall trên iOS:** hiện `mobile/lib/paywall.ts:13` đặt `PAYWALL_ENABLED = Platform.OS !== 'ios'`, nên trên iOS màn `upgrade.tsx` đang bị vô hiệu hóa. Trước khi chụp ảnh #7, phải bật paywall iOS (đây cũng là điều kiện của bản build monetization). Nếu chưa bật kịp, dùng bản build đã bật IAP để chụp, không chụp từ build đang tắt paywall.
+> ✅ **FREE-ONLY v1.0 (submit approach A):** Do **not** screenshot a paywall and do **not** enable the iOS paywall (keep `PAYWALL_ENABLED = Platform.OS !== 'ios'` — a disabled iOS paywall is correct for free-only). With no ads/IAP there is neither an ad surface nor a purchase screen to capture. The set = the 6 core screens (#1–#6). Paywall/Pro shots are deferred to v1.1 when IAP ships.
 >
-> ⚠️ **Precondition for the iOS paywall shot:** `mobile/lib/paywall.ts:13` currently sets `PAYWALL_ENABLED = Platform.OS !== 'ios'`, so `upgrade.tsx` is disabled on iOS. Screenshot #7 requires the iOS paywall to be enabled first (also a prerequisite of the monetization build). Capture it from an IAP-enabled build, not from a paywall-disabled one.
+> ⚠️ **Màn Pro-gated (AI Speaking #2, một số tính năng Exam):** ở tài khoản FREE chúng hiện "thẻ khóa PRO". Muốn ảnh đẹp thể hiện tính năng thật, chụp từ tài khoản CÓ quyền (admin cấp PRO tạm `PATCH /api/admin/users/{id}/plan`, hoặc INTERNAL) rồi hạ lại — App Review chấp nhận vì tính năng có thật và review-notes đã giải thích gating. / Pro-gated screens show a "PRO lock" on FREE accounts; capture them from a PRO/INTERNAL account for a real feature shot (the review notes explain the gating).
 
 ### 2.3 Cách chụp bằng simulator / Capture via simulator
 
@@ -124,9 +122,9 @@ Any file that isn't `1320×2868` will be rejected → recapture on the iPhone 16
 
 - [ ] Icon 1024 xác nhận `1024×1024`, `hasAlpha: no` (dùng `mobile/assets/icon.png`)
 - [ ] ≥6 screenshots 6.9″, mỗi ảnh verified `1320×2868` bằng `sips`
-- [ ] Màn Pro/paywall (`upgrade.tsx`) có trong bộ ảnh, hiển thị rõ giá + chu kỳ + điều khoản
-- [ ] iOS paywall đã được bật (`lib/paywall.ts`) trên build dùng để chụp ảnh #7
-- [ ] KHÔNG có màn quảng cáo trong bộ ảnh
+- [ ] ~~Màn Pro/paywall~~ — ⛔ SKIP cho free-only v1.0 (để dành v1.1 khi có IAP)
+- [ ] iOS paywall GIỮ TẮT (`lib/paywall.ts` = `Platform.OS !== 'ios'`) — đúng cho free-only, đừng bật
+- [ ] KHÔNG có màn quảng cáo trong bộ ảnh (v1.0 không có ads)
 - [ ] Không lộ PII trong bất kỳ ảnh nào
 - [ ] Caption EN + VI chuẩn bị sẵn (nếu ghép khung)
 - [ ] *(Tùy chọn)* Bộ ảnh riêng cho locale `vi` và `en-US`
