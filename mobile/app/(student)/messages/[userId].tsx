@@ -5,9 +5,10 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { router, useLocalSearchParams } from 'expo-router'
-import { MessageCircle, Send } from 'lucide-react-native'
+import { MessageCircle, MoreVertical, Send } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { messagesApi, type Message } from '@/lib/messagesApi'
+import { reportFlow, userSafetyMenu } from '@/lib/moderationActions'
 import { fonts, radius, space, useTheme } from '@/lib/theme'
 import {
   AppHeader, Caption, EmptyState, ErrorState, Icon, Screen, Skeleton, ThemedText,
@@ -55,7 +56,27 @@ export default function MessageThreadScreen() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title={name} subtitle="Nhắn tin với giáo viên" onBack={() => router.back()} />
+      <AppHeader
+        title={name}
+        subtitle="Nhắn tin với giáo viên"
+        onBack={() => router.back()}
+        right={
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Tùy chọn an toàn"
+            hitSlop={8}
+            onPress={() =>
+              userSafetyMenu(userId, name, () => {
+                void qc.invalidateQueries({ queryKey: ['conversations'] })
+                router.back()
+              })
+            }
+            style={{ padding: space[2] }}
+          >
+            <Icon icon={MoreVertical} size={20} color="faint" />
+          </Pressable>
+        }
+      />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -81,7 +102,16 @@ export default function MessageThreadScreen() {
             data={ordered}
             inverted
             keyExtractor={(m) => String(m.id)}
-            renderItem={({ item }) => <Bubble msg={item} />}
+            renderItem={({ item }) => (
+              <Bubble
+                msg={item}
+                onReport={
+                  item.mine
+                    ? undefined
+                    : () => reportFlow({ context: 'DIRECT_MESSAGE', messageId: item.id }, 'Báo cáo tin nhắn')
+                }
+              />
+            )}
             contentContainerStyle={{ paddingHorizontal: space[5], paddingVertical: space[3] }}
             keyboardDismissMode="interactive"
           />
@@ -150,12 +180,15 @@ export default function MessageThreadScreen() {
   )
 }
 
-function Bubble({ msg }: { msg: Message }) {
+function Bubble({ msg, onReport }: { msg: Message; onReport?: () => void }) {
   const c = useTheme().colors
   const mine = msg.mine
   return (
     <View style={{ alignItems: mine ? 'flex-end' : 'flex-start', marginBottom: space[2] }}>
-      <View
+      <Pressable
+        onLongPress={onReport}
+        accessibilityRole={onReport ? 'button' : undefined}
+        accessibilityLabel={onReport ? 'Giữ để báo cáo tin nhắn' : undefined}
         style={{
           maxWidth: '82%',
           backgroundColor: mine ? c.accent : c.surface,
@@ -169,7 +202,7 @@ function Bubble({ msg }: { msg: Message }) {
         <ThemedText variant="body" style={{ color: mine ? c.onBrand : c.textPrimary }}>
           {msg.body}
         </ThemedText>
-      </View>
+      </Pressable>
       <Caption color={c.textFaint} style={{ marginTop: 2, paddingHorizontal: space[1] }}>
         {clock(msg.createdAt)}
       </Caption>

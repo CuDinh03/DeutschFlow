@@ -26,6 +26,8 @@ DeutschFlow is **free to download and use**. Some advanced features (such as AI 
 
 You agree not to misuse the App. In particular, you will not: reverse engineer, decompile, or disassemble the App except as permitted by law; scrape or extract content by automated means; attempt to breach or circumvent security or rate limits; upload unlawful, infringing, or harmful content; or use the App in any way that violates applicable law or the rights of others.
 
+**Messaging and user content — zero tolerance.** DeutschFlow includes direct messages and class channels. We have **zero tolerance** for objectionable content and abusive users. You must not post or send content that is harassing, hateful, sexual, threatening, spam, or otherwise objectionable, and you must not impersonate others. We use automated filtering and human review; within the app you can **report** any message or user and **block** any user. Violations may result in content removal, account suspension, or a permanent ban.
+
 ### 6. Intellectual property
 
 The App, its software, and its learning materials are owned by us or our licensors and are protected by intellectual-property law. Content you submit (answers, recordings, submissions) remains yours; you grant us a limited license to process it solely to provide the service — for example, to grade work, generate feedback, and track your progress.
@@ -73,6 +75,8 @@ DeutschFlow **miễn phí tải và sử dụng**. Một số tính năng nâng 
 ### 5. Sử dụng hợp lệ
 
 Bạn đồng ý không lạm dụng Ứng dụng. Cụ thể, bạn sẽ không: dịch ngược, phân tách hoặc tháo rời Ứng dụng ngoài phạm vi luật cho phép; thu thập hoặc trích xuất nội dung bằng phương thức tự động; tìm cách xâm phạm hoặc vượt qua bảo mật, giới hạn tần suất; tải lên nội dung vi phạm pháp luật, xâm phạm quyền hoặc gây hại; hoặc sử dụng Ứng dụng theo cách vi phạm pháp luật hoặc quyền của người khác.
+
+**Tin nhắn và nội dung người dùng — không khoan nhượng.** DeutschFlow có tính năng nhắn tin trực tiếp và kênh lớp. Chúng tôi **không khoan nhượng** với nội dung phản cảm và người dùng lạm dụng. Bạn không được đăng hoặc gửi nội dung quấy rối, thù ghét, khiêu dâm, đe dọa, spam hoặc phản cảm khác, và không được mạo danh người khác. Chúng tôi áp dụng lọc tự động và xem xét thủ công; ngay trong ứng dụng bạn có thể **báo cáo** bất kỳ tin nhắn/người dùng nào và **chặn** bất kỳ người dùng nào. Vi phạm có thể dẫn đến gỡ nội dung, tạm ngưng hoặc cấm tài khoản vĩnh viễn.
 
 ### 6. Sở hữu trí tuệ
 

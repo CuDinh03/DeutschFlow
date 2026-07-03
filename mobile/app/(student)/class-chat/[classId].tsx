@@ -8,6 +8,7 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { MessagesSquare, Send } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { classChannelApi, type ClassMessage } from '@/lib/classChannelApi'
+import { reportFlow } from '@/lib/moderationActions'
 import { fonts, radius, space, useTheme } from '@/lib/theme'
 import {
   AppHeader, Caption, EmptyState, ErrorState, Icon, Screen, Skeleton, ThemedText,
@@ -52,6 +53,22 @@ export default function ClassChatScreen() {
     ])
   }
 
+  // Long-press any message → report it (Apple 1.2); own/teacher messages also offer delete.
+  const messageActions = (m: ClassMessage) => {
+    const buttons: Parameters<typeof Alert.alert>[2] = [
+      {
+        text: 'Báo cáo tin nhắn',
+        onPress: () =>
+          reportFlow({ context: 'CLASS_MESSAGE', classMessageId: m.id, classId }, 'Báo cáo tin nhắn'),
+      },
+    ]
+    if (m.canDelete) {
+      buttons!.push({ text: 'Xoá tin nhắn', style: 'destructive', onPress: () => confirmDelete(m) })
+    }
+    buttons!.push({ text: 'Huỷ', style: 'cancel' })
+    Alert.alert('Tin nhắn', undefined, buttons)
+  }
+
   // Inverted list renders index 0 at the bottom → feed it newest-first.
   const ordered = useMemo(() => (q.data ?? []).slice().reverse(), [q.data])
   const trimmed = draft.trim()
@@ -86,7 +103,7 @@ export default function ClassChatScreen() {
             inverted
             keyExtractor={(m) => String(m.id)}
             renderItem={({ item }) => (
-              <Bubble msg={item} onLongPress={item.canDelete ? () => confirmDelete(item) : undefined} />
+              <Bubble msg={item} onLongPress={() => messageActions(item)} />
             )}
             contentContainerStyle={{ paddingHorizontal: space[5], paddingVertical: space[3] }}
             keyboardDismissMode="interactive"
