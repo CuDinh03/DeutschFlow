@@ -20,8 +20,8 @@ const OUT_DIR = path.resolve(HERE, '../src/content/legal')
 // Set to the Apple-registered legal entity / seller name (App Store Connect → Business).
 // Confirmed 2026-07-06 = "Cu Dinh" (individual, Hanoi VN). If your full legal name on your ID
 // (CCCD) is longer, use that instead — it must match the name Apple displays as the seller.
-const LEGAL_NAME_EN = 'Dinh Huy Cu'
-const LEGAL_NAME_VI = 'Đinh Huy Cự'
+const LEGAL_NAME_EN = 'Cu Dinh'
+const LEGAL_NAME_VI = 'Cự Đinh'
 const EFFECTIVE_DATE = '2026-07-03'
 const DOMAIN = 'https://mydeutschflow.com'
 const SUPPORT_EMAIL = 'dinhhuycu0305@gmail.com'
