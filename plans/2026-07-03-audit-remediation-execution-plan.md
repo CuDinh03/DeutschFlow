@@ -30,7 +30,7 @@
 
 **Đường găng:** Paid Apps Agreement (0 code, lead-time Apple) → phải ký **hôm nay**.
 
-> **✅ PROGRESS 2026-07-03 (session — branch `chore/phase0-audit-remediation`):** Phase 0 code hoàn tất & verified (backend compile ✅, frontend `tsc` + `next build` ✅, java-reviewer APPROVED delete-account). Chi tiết từng item ở checkbox bên dưới. Việc CÒN LẠI thủ công: 3 việc "click" (doc riêng), tạo 2 demo account + điền `[[Legal name]]` vào `frontend/src/content/legal/*.ts`, rồi 0.8 submit. ⚠️ IT delete-account đã viết nhưng CHƯA chạy được ở máy này (không có Docker/Postgres) → chạy trong CI. ⚠️ Đổi mật khẩu account `nvb@gmail.com` (đã gỡ khỏi test).
+> **✅ PROGRESS 2026-07-03 (session — branch `chore/phase0-audit-remediation`):** Phase 0 code hoàn tất & verified (backend compile ✅, frontend `tsc` + `next build` ✅, java-reviewer APPROVED delete-account). Chi tiết từng item ở checkbox bên dưới. Việc CÒN LẠI thủ công: 3 việc "click" (doc riêng), tạo 2 demo account, thay tên pháp lý thật trong `gen-legal.mjs` lúc submit (đã có interim, không còn placeholder), rồi 0.8 submit. ⚠️ IT delete-account đã viết nhưng CHƯA chạy được ở máy này (không có Docker/Postgres) → chạy trong CI. ⚠️ Đổi mật khẩu account `nvb@gmail.com` (đã gỡ khỏi test).
 
 ---
 
@@ -63,7 +63,7 @@
   - V243: `ALTER … DROP CONSTRAINT` cũ, thêm `CHECK (day_of_week BETWEEN 1 AND 7)`; áp cho cả `class_schedule_patterns` và `class_sessions` nếu có.
   - Gộp luôn: canonicalize row plan **ULTRA** (fresh-replay `daily_token_grant=0`, price NULL, features rỗng — A7-3) + `is_active=FALSE`.
   - DoD: tạo lịch Chủ nhật OK trên staging; fresh-DB Flyway replay xanh.
-- [x] **0.4 Host Privacy Policy + Terms + Support** *(C-12)* — **~0.5d** ✅ (routes `/privacy` `/terms` `/support`; ⚠️ điền `[[Legal name]]` vào `src/content/legal/*.ts`)
+- [x] **0.4 Host Privacy Policy + Terms + Support** *(C-12)* — **~0.5d** ✅ (routes `/privacy` `/terms` `/support`; 0 literal placeholder — data-controller = interim "an independent individual developer" + email; ⚠️ tại lúc submit thay tên pháp lý thật = sửa `LEGAL_NAME_*` trong `frontend/scripts/gen-legal.mjs` + `node scripts/gen-legal.mjs`)
   - Draft đã có sẵn: `plans/appstore/PRIVACY_POLICY.md`, `TERMS_OF_USE.md` → render thành route Next.js công khai (điền hết `[[…]]`: tên pháp lý cá nhân, email support).
   - DoD: 3 URL public truy cập được; dán vào App Store Connect metadata.
 - [x] **0.5 Dọn bề mặt bán hàng theo quyết định** *(B-3, C-5, C-6)* — **~0.5–1d** ✅ (pricing v1 + v2/payment: bỏ ULTRA/MoMo/Stripe → coming-soon SePay; i18n vi/en/de FREE bỏ AI/unlimited)
