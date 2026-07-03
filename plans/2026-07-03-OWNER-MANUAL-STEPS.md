@@ -2,7 +2,7 @@
 
 > Đây là **danh sách đầy đủ** những việc **chỉ bạn làm được** (console Apple/GitHub/AWS + deploy qua SSH — môi trường AI **chặn SSH** nên deploy bắt buộc bạn chạy từ laptop). Toàn bộ phần **code + docs đã xong** (branch `chore/phase0-audit-remediation`, 8 commit, đã verify: backend compile ✅, frontend `tsc`+`next build` ✅, java-reviewer APPROVED, `AccountDeletionIT` chứng minh tĩnh PASS).
 >
-> **Khóa dữ liệu (dán khi cần):** Repo `CuDinh03/DeutschFlow` · Bundle `com.cudinh.mydeutschflow` · Team `4M3CU3X9SS` · Legal entity Apple **`Cu Dinh`** · EC2 `ubuntu@35.175.232.152` · PEM `/Users/dinhcu/Developer/DeutschFlow/deutschflow-key.pem` · Region AWS `ap-southeast-1` · Web `https://mydeutschflow.com` · API `https://api.mydeutschflow.com`.
+> **Khóa dữ liệu (dán khi cần):** Repo `CuDinh03/DeutschFlow` · Bundle `com.cudinh.mydeutschflow` · Team `4M3CU3X9SS` · Legal entity Apple **`Cu Dinh`** · EC2 `ubuntu@35.175.232.152` · PEM `/Users/dinhcu/Developer/DeutschFlow/deutschflow-key.pem` · **RDS+EC2 region `us-east-1`** (DB identifier **`deutschflow`**, db.t4g.micro) · S3 media region `ap-southeast-1` · Web `https://mydeutschflow.com` · API `https://api.mydeutschflow.com`.
 
 ---
 
@@ -73,12 +73,12 @@ git status            # PHẢI sạch — script abort nếu cây bẩn
 ## 🟧 PHẦN 2 — GITHUB / AWS HARDENING (rẻ, ~40', làm quanh deploy)
 
 ### 2.1 — RDS backup + deletion protection + encryption (làm TRƯỚC deploy)
-1. AWS Console → region **ap-southeast-1** → **RDS → Databases → instance DeutschFlow**.
-2. Tab **Maintenance & backups → Backup**: **Automated backups Enabled**, **Retention ≥ 7 ngày**. Nếu tắt → **Modify** → Backup retention = 7 → **Apply immediately**.
-3. **Modify → Deletion protection = Enabled**.
-4. Ghi nhận **Storage encrypted = Yes/No** (nếu No → task Phase 2, cần snapshot→copy-encrypted→restore, có downtime — không chặn submit).
-5. (Nên) **Take snapshot** thủ công trước khi deploy V243.
-- CLI nhanh: `aws rds describe-db-instances --region ap-southeast-1 --query "DBInstances[].{ID:DBInstanceIdentifier,Backup:BackupRetentionPeriod,DelProtect:DeletionProtection,Encrypted:StorageEncrypted}" --output table`
+AWS Console → region **us-east-1 (N. Virginia)** → **RDS → Databases → `deutschflow`** (db.t4g.micro, us-east-1a).
+1. **⭐ Snapshot ngay (bắt buộc trước V243):** tick radio dòng `deutschflow` → **Actions ▾ → Take snapshot** → tên `deutschflow-pre-v243-<ngày>` → **Take snapshot** → chờ menu **Snapshots** báo **Available**.
+2. **Automated backups:** click `deutschflow` → tab **Maintenance & backups → Backup** → **Backup retention period** ≥ **7**. Nếu **0/Disabled** → **Modify** → Backup section → retention = 7 → **Continue** → **Apply immediately**. ⚠️ 0→7 gây outage ngắn (làm giờ thấp điểm).
+3. **Deletion protection:** cùng **Modify** → mục cuối → tick **Enable**.
+4. Ghi nhận **Storage encrypted = Yes/No** (nếu No → task Phase 2: snapshot→copy-encrypted→restore, có downtime — không chặn submit).
+- CLI (region **us-east-1**): `aws rds describe-db-instances --region us-east-1 --db-instance-identifier deutschflow --query "DBInstances[].{Backup:BackupRetentionPeriod,DelProtect:DeletionProtection,Encrypted:StorageEncrypted}" --output table`
 
 ### 2.2 — Branch protection cho `main` (SAU khi merge ở Phần 1.2)
 1. `https://github.com/CuDinh03/DeutschFlow/settings/branches` → **Add branch ruleset** → pattern `main`.
