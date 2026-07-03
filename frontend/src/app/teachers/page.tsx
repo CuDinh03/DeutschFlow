@@ -1,9 +1,11 @@
 import React from 'react';
 import Link from 'next/link';
 import { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { MARKETPLACE_ENABLED } from '@/lib/features';
 
 export const metadata: Metadata = {
     title: 'Đội ngũ chuyên gia | DeutschFlow',
@@ -35,6 +37,8 @@ async function getPublicTeachers(): Promise<TeacherProfileDto[]> {
 }
 
 export default async function TeachersMarketplacePage() {
+    // C2C marketplace hidden for v1.0 — block direct-URL access (nav entry is also gated).
+    if (!MARKETPLACE_ENABLED) notFound();
     const teachers = await getPublicTeachers();
 
     return (

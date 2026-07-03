@@ -1394,6 +1394,8 @@
     "perMonth": "/Monat",
     "per2Months": "/2 Monate",
     "currentPlan": "Aktueller Plan",
+    "comingSoon": "Demnächst",
+    "comingSoonNote": "SePay-Zahlung ist bald verfügbar.",
     "payMomo": "Mit MoMo bezahlen",
     "payStripe": "Mit Karte bezahlen (Stripe)",
     "connecting": "MoMo wird verbunden...",
@@ -1406,13 +1408,12 @@
         "name": "Kostenlos",
         "badge": null,
         "features": [
-          "✅ 2 Personas (Emma & Anna)",
+          "✅ Vokabular A1–B1",
           "✅ Max. 20 Karten/Tag",
-          "✅ Vokabular A1-B1",
-          "✅ Mini-KI-Quiz (2 Tabs)",
-          "❌ KI-Interview-Gespräch",
+          "✅ Grundlektionen & Grammatik",
+          "❌ KI-Gespräch",
           "❌ Professionelle KI-Stimmen",
-          "❌ Erweiterte Fortschrittsanalyse"
+          "❌ KI-Korrektur & Analyse"
         ]
       },
       "PRO": {
@@ -1426,19 +1427,6 @@
           "✅ 6-Tab KI-Vokabelanalyse",
           "✅ Vokabelanalyse (CEFR-Diagramm)",
           "✅ Quick AI Toolbar"
-        ]
-      },
-      "ULTRA": {
-        "name": "Ultra",
-        "badge": "Am leistungsstärksten",
-        "features": [
-          "✅ Alle Pro-Funktionen",
-          "✅ Mock CEFR-Prüfung (A1–C1)",
-          "✅ Benutzerdefinierte Persona",
-          "✅ Erweiterte Bewertungsstrenge",
-          "✅ Crash-Course-Modus",
-          "✅ Benutzerdefinierte Vokabelsets",
-          "✅ ULTRA GOLD-Abzeichen im Leaderboard"
         ]
       }
     }

@@ -1,8 +1,9 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, notFound } from "next/navigation";
 import { Calendar, Clock, MessageSquare, ArrowLeft, CheckCircle2, Loader2 } from "lucide-react";
+import { MARKETPLACE_ENABLED } from "@/lib/features";
 
 interface TeacherProfile {
   id: number;
@@ -229,6 +230,8 @@ function BookSessionFallback() {
 }
 
 export default function BookSessionPage() {
+  // C2C marketplace hidden for v1.0 — block direct-URL access (nav entry is also gated).
+  if (!MARKETPLACE_ENABLED) notFound();
   return (
     <Suspense fallback={<BookSessionFallback />}>
       <BookSessionContent />

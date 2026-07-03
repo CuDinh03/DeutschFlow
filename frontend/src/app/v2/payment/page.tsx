@@ -1,18 +1,15 @@
 'use client'
 
-import { useState } from 'react'
-import { Check, CreditCard } from 'lucide-react'
-import { toast } from 'sonner'
-import { createStripeSession, createMomoOrder } from '@/lib/paymentApi'
+import { Check } from 'lucide-react'
 import { GaPageHdr, GaBtn } from '@/components/ui-v2'
 import { RoleShell } from '../RoleShell'
 
-// Reuse paymentApi (Stripe primary; MoMo secondary). Plans mirror the legacy /student/pricing
-// constants (no plan-list endpoint exists). Option-1: Stripe is the primary CTA per strategy.
+// v1.0: PRO only (ULTRA deferred). Web self-serve payment (SePay "gói N ngày") ships in v1.1;
+// until then the paid card shows a "coming soon" CTA. MoMo/Stripe removed per the locked billing
+// decision (SePay is the VN channel; Stripe hidden; MoMo deferred).
 
-type PaidPlan = 'PRO' | 'ULTRA'
 interface Plan {
-  code: 'FREE' | PaidPlan
+  code: 'FREE' | 'PRO'
   name: string
   priceVnd: number
   period: string
@@ -28,7 +25,7 @@ const PLANS: Plan[] = [
     priceVnd: 0,
     period: 'mãi mãi',
     accent: 'var(--ga-muted)',
-    features: ['Học từ vựng & ngữ pháp cơ bản', 'Giới hạn token AI mỗi ngày', 'Theo dõi tiến độ cơ bản'],
+    features: ['Học từ vựng & ngữ pháp cơ bản', 'Bài học lộ trình A1–B1', 'Theo dõi tiến độ cơ bản'],
   },
   {
     code: 'PRO',
@@ -44,47 +41,16 @@ const PLANS: Plan[] = [
       'Lộ trình cá nhân hoá',
     ],
   },
-  {
-    code: 'ULTRA',
-    name: 'Ultra',
-    priceVnd: 699000,
-    period: 'mỗi 2 tháng',
-    accent: 'var(--ga-gold)',
-    features: ['Mọi thứ trong Pro', 'Hạn mức token cao nhất', 'Ưu tiên hàng đợi AI', 'Hỗ trợ ưu tiên'],
-  },
 ]
 
 const vnd = (n: number) => (n === 0 ? 'Miễn phí' : `${n.toLocaleString('vi-VN')}₫`)
 
 function PaymentBody() {
-  const [busy, setBusy] = useState<string | null>(null)
-
-  const payStripe = async (plan: PaidPlan) => {
-    setBusy(`stripe-${plan}`)
-    try {
-      const res = await createStripeSession({ planCode: plan })
-      window.location.href = res.url
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : 'Không thể tạo phiên thanh toán.')
-      setBusy(null)
-    }
-  }
-  const payMomo = async (plan: PaidPlan) => {
-    setBusy(`momo-${plan}`)
-    try {
-      const res = await createMomoOrder({ planCode: plan, durationMonths: plan === 'ULTRA' ? 2 : 1 })
-      window.location.href = res.payUrl
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : 'Không thể tạo đơn MoMo.')
-      setBusy(null)
-    }
-  }
-
   return (
     <div className="flex min-h-full flex-col">
       <GaPageHdr accent title="Nâng cấp gói" subtitle="Mở khoá toàn bộ sức mạnh AI cho hành trình tiếng Đức của bạn" />
       <div className="flex-1 px-10 py-8">
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="mx-auto grid max-w-3xl grid-cols-1 gap-6 lg:grid-cols-2">
           {PLANS.map((plan) => {
             const paid = plan.code !== 'FREE'
             return (
@@ -123,23 +89,12 @@ function PaymentBody() {
 
                 {paid ? (
                   <div className="space-y-2.5">
-                    <GaBtn
-                      variant="primary"
-                      className="w-full justify-center"
-                      onClick={() => payStripe(plan.code as PaidPlan)}
-                      disabled={busy !== null}
-                    >
-                      <CreditCard size={15} aria-hidden />
-                      {busy === `stripe-${plan.code}` ? 'Đang chuyển…' : 'Thanh toán thẻ (Stripe)'}
+                    <GaBtn variant="primary" className="w-full justify-center" disabled>
+                      Sắp ra mắt
                     </GaBtn>
-                    <GaBtn
-                      variant="ghost"
-                      className="w-full justify-center"
-                      onClick={() => payMomo(plan.code as PaidPlan)}
-                      disabled={busy !== null}
-                    >
-                      {busy === `momo-${plan.code}` ? 'Đang tạo đơn…' : 'Thanh toán MoMo'}
-                    </GaBtn>
+                    <p className="ga-ui text-center text-[12px] text-ga-subtle">
+                      Thanh toán qua SePay sẽ sớm có mặt.
+                    </p>
                   </div>
                 ) : (
                   <div className="ga-ui rounded-ga border border-ga-line py-2.5 text-center text-[13px] font-semibold text-ga-muted">
@@ -150,10 +105,6 @@ function PaymentBody() {
             )
           })}
         </div>
-
-        <p className="ga-ui mt-6 text-center text-[12.5px] text-ga-subtle">
-          Thanh toán an toàn qua Stripe hoặc MoMo. Gói tự động kích hoạt sau khi thanh toán thành công.
-        </p>
       </div>
     </div>
   )
