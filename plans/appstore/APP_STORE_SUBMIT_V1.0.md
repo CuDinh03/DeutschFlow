@@ -23,7 +23,9 @@ Toàn bộ backend đã deploy + healthy, legal đã live free-only, delete-acco
 
 ## 📊 Trạng thái một-dòng
 
-> **Code XONG.** Backend/legal/metadata verify; seller **"Dinh Huy Cu"**. **🆕 Guideline 1.2 (an toàn UGC) ĐÃ BUILD + MERGE main** (block/report/word-filter — PR #188 `f2aea378`) → khai **Messaging = YES** hợp lệ. ⚠️ **ĐỔI KẾ HOẠCH BUILD: build 2 (1/7) KHÔNG chứa UI 1.2 → KHÔNG nộp build 2.** Đường mới, đúng thứ tự: **(0) `./deploy-backend.sh`** (áp **V244** + endpoints `/api/moderation/*` — app khi review sẽ gọi) → **(1) `eas build --platform ios --profile production` MỚI** (binary chứa 1.2) → **(2) `eas submit`** build mới. Việc tay còn BẮT BUỘC trước Submit: **tạo mới 2 demo account**, **dán reviewer-notes đúng** (§2.1 + §2.7), hoàn tất **App Privacy + metadata + screenshots**, **Age Rating Messaging=YES**, gắn build → **Submit for Review**. *(`eas submit` chỉ upload binary, chưa phải Submit for Review.)*
+> **Backend + web + 1.2 ĐÃ LIVE PROD.** Backend deployed 2026-07-04 (V244 + `/api/moderation/*`, verified health UP + 401); legal free-only live; Guideline 1.2 UGC-safety merged (PR #188). **✅ ĐÃ LÀM trong ASC:** 2 demo account (fresh); **Age Rating = 4+** (Messaging=YES, Not Applicable). ⚠️ **KHÔNG nộp build 2** (thiếu UI 1.2) → phải `eas build` MỚI.
+>
+> **📋 CÒN LẠI để Submit (theo thứ tự):** (1) **App Privacy** — `APP_PRIVACY_LABELS.md` · (2) **App Encryption = No** (đã set `ITSAppUsesNonExemptEncryption:false`) · (3) **Metadata + Screenshots** — `STORE_COPY.md` + `SCREENSHOTS_ICON_SPEC.md` · (4) **App Review notes = §2.1 + §2.7** + dán 2 demo creds · (5) **`eas build --platform ios --profile production` MỚI** → **`eas submit`** → gắn build vào version → **Submit for Review**. *(`eas submit` chỉ upload binary, chưa phải Submit.)*
 
 ---
 
@@ -82,7 +84,7 @@ Một audit trước đây báo động 3 lỗi build mobile. Cả 3 đã bị *
 | # | Việc | Loại | Chặn nộp? | ☐ |
 |---|------|------|-----------|---|
 | 2.1 | Viết lại **Reviewer Notes** cho đúng cơ chế trial 7 ngày (bản hiện tại SAI) | 📄 Doc → 🌐 dán ASC | 🔴 CAO — dễ bị reject vì "app broken" | ☐ |
-| 2.2 | **Tạo mới demo account** (fresh, < 7 ngày) ngay sát giờ nộp | 🌐 App + ASC | 🔴 CAO — account cũ làm AI trông như hỏng | ☐ |
+| 2.2 | ✅ **Demo account** — ĐÃ TẠO 2 account fresh 2026-07-04. Còn: dán creds vào ASC + dùng account CÓ data để chụp screenshots | 🌐 App + ASC | 🔴 | ☑ |
 | 2.3 | **Điền placeholder** `[[demo-email]]`… vào ASC lúc nộp | 🌐 ASC | 🔴 CAO — thiếu demo login = reject ngay | ☐ |
 | 2.4 | ✅ **Tên seller** `LEGAL_NAME` = "Dinh Huy Cu"/"Đinh Huy Cự" — đã set + regenerate + redeploy (`41f6da00`); còn tick khớp tên Apple seller trong ASC | 📄✅ + 🌐 tick | 🟡 | ☑ |
 | 2.5 | Chốt **1 số điện thoại** cho ô App Review contact | 🌐 ASC | 🟡 TRUNG BÌNH | ☐ |
@@ -303,11 +305,11 @@ eas build --platform ios --profile production
 | **Subtitle** | EN `Learn German, pass Goethe` · VI `Học tiếng Đức & luyện thi` | STORE_COPY.md |
 | **Category → Primary** | **Education** | — |
 | **Category → Secondary** | *(để trống hoặc "Reference")* | — |
-| **Age Rating → Edit** | **Messaging and Chat = YES**; mọi mục còn lại **None/No** | có DM GV↔HV + kênh lớp, đã có report/block/word-filter (1.2); Apple tự tính rating |
+| **Age Rating → Edit** | ✅ **XONG = 4+** (Messaging=YES; mọi mục khác None/No; Age Categories = Not Applicable) | Apple tính ra 4+ dù có messaging — vì không nội dung nhạy cảm |
 | **Privacy Policy URL** | `https://mydeutschflow.com/privacy` | ✅ live 200 |
 | **License Agreement** | Apple's standard EULA (mặc định) | — |
 
-> ⚠️ **Messaging and Chat = YES** (bắt buộc — app có nhắn tin GV↔HV + kênh lớp; đã trang bị report/block/word-filter theo Guideline 1.2). Các mục bạo lực/cờ bạc/người lớn/unrestricted-web… chọn **None/No**. Apple tự tính age-rating từ bảng hỏi; giao tiếp CÓ kiểm duyệt nên rating thường vẫn thấp.
+> ⚠️ **Messaging and Chat = YES** (bắt buộc — app có nhắn tin GV↔HV + kênh lớp; đã trang bị report/block/word-filter theo Guideline 1.2). Các mục bạo lực/cờ bạc/người lớn/unrestricted-web… chọn **None/No**. Apple tự tính age-rating từ bảng hỏi; giao tiếp CÓ kiểm duyệt nên rating thường vẫn thấp. **✅ KẾT QUẢ (2026-07-04): Calculated Rating = 4+**, Age Categories = **Not Applicable** (ĐỪNG chọn Made-for-Kids / Override). Cảnh báo "không bán ở Afghanistan/Morocco" = hệ quả tự động của Messaging=YES theo luật địa phương — bình thường, không cần làm gì (VN + Đức vẫn OK).
 
 ---
 
@@ -521,13 +523,14 @@ App được coi là **đã nộp thành công v1.0** khi tất cả các mục 
 - [ ] **App record đúng tọa độ:** Apple ID = `6785281013`, bundle = `com.cudinh.mydeutschflow`, Team = `4M3CU3X9SS`.
 - [ ] **Pricing = Free, KHÔNG có IAP product nào** trong ASC.
 - [x] **Guideline 1.2 (an toàn UGC) BUILT + merged** (block/report/word-filter — PR #188 `f2aea378`); Age Rating **Messaging=YES**.
-- [ ] **Backend V244 DEPLOYED** (`./deploy-backend.sh`) — endpoints `/api/moderation/*` live TRƯỚC khi reviewer test.
+- [x] **Backend V244 DEPLOYED prod 2026-07-04** (`/api/moderation/*` live — verified 401 + health UP).
+- [x] **Age Rating = 4+ XONG** (Messaging=YES; Not Applicable).
 - [ ] **iOS build MỚI** (`eas build`, chứa UI 1.2) — **KHÔNG** dùng build 2.
 - [ ] **Reviewer Notes có đoạn Guideline 1.2** (§2.7) — trỏ tới Profile → "An toàn & chặn".
 - [ ] **App Privacy khai đủ 4 nhóm** (Contact / User Content / Identifiers / Usage), **Tracking = No** toàn bộ.
 - [ ] **Metadata free-only cho cả `vi` + `en-US`:** Subtitle, Keywords, Description (không "unlimited/ad-free/subscription"), What's New, Support URL.
 - [ ] **6 screenshots `1320×2868`** (verify bằng `sips`), ảnh AI Speaking chụp từ account **còn trial**, không iPad/paywall/ads.
-- [ ] **Demo account PRIMARY + SECONDARY tạo MỚI** (< 7 ngày, còn trial), điền vào ASC — không để placeholder `[[…]]`.
+- [~] **Demo account PRIMARY + SECONDARY** — đã TẠO MỚI 2 account (2026-07-04); CÒN: điền creds vào ASC (không để placeholder `[[…]]`) + dùng account có data cho screenshots.
 - [ ] **Reviewer Notes = bản ĐÃ SỬA ở mục 2.1** (mô tả đúng: AI text chạy với account mới; voice + persona nâng cao là Pro; hết trial hiện thông báo có chủ đích, không crash; không có nút mua trong app).
 - [ ] **App Review Contact đầy đủ:** tên, email `dinhhuycu0305@gmail.com`, **số điện thoại**.
 - [x] **Tên seller (`LEGAL_NAME`) = "Dinh Huy Cu"** — set + regenerate + redeploy (`41f6da00`); còn tick khớp tên Apple seller trong ASC.
