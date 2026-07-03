@@ -7,6 +7,8 @@ import com.deutschflow.messaging.dto.MessagingDtos.ConversationDto;
 import com.deutschflow.messaging.dto.MessagingDtos.MessageDto;
 import com.deutschflow.messaging.entity.Message;
 import com.deutschflow.messaging.repository.MessageRepository;
+import com.deutschflow.moderation.service.UserBlockService;
+import com.deutschflow.moderation.service.WordFilterService;
 import com.deutschflow.notification.NotificationType;
 import com.deutschflow.notification.service.UserNotificationService;
 import com.deutschflow.teacher.repository.ClassStudentRepository;
@@ -44,11 +46,17 @@ public class MessageService {
     private final ClassStudentRepository classStudentRepository;
     private final UserRepository userRepository;
     private final UserNotificationService notificationService;
+    private final UserBlockService blockService;
+    private final WordFilterService wordFilter;
 
     /** Sends a message; recipient gets a NEW_MESSAGE notification (best-effort). */
     @Transactional
     public MessageDto send(Long senderId, Long recipientId, String body) {
         assertCanMessage(senderId, recipientId);
+        if (blockService.isBlockedEitherWay(senderId, recipientId)) {
+            throw new ForbiddenException("Không thể gửi tin — một trong hai người đã chặn người kia.");
+        }
+        wordFilter.assertClean(body);
         User recipient = userRepository.findById(recipientId)
                 .orElseThrow(() -> new NotFoundException("Người nhận không tồn tại."));
 
@@ -69,7 +77,10 @@ public class MessageService {
         List<Message> thread = messageRepository
                 .findBySenderIdAndRecipientIdOrSenderIdAndRecipientIdOrderByIdAsc(me, otherId, otherId, me);
         messageRepository.markThreadRead(me, otherId, Instant.now());
-        return thread.stream().map(m -> toDto(m, me)).toList();
+        Set<Long> blocked = blockService.blockedIds(me);
+        return thread.stream()
+                .filter(m -> !blocked.contains(m.getSenderId()))
+                .map(m -> toDto(m, me)).toList();
     }
 
     /** Marks the thread from {@code otherId} as read; returns how many were updated. */
@@ -88,10 +99,14 @@ public class MessageService {
     @Transactional(readOnly = true)
     public List<ConversationDto> listConversations(Long me) {
         List<Message> recent = messageRepository.findTop300BySenderIdOrRecipientIdOrderByIdDesc(me, me);
+        Set<Long> blocked = blockService.blockedIds(me);
         LinkedHashMap<Long, Message> lastByOther = new LinkedHashMap<>();
         Map<Long, Long> unreadByOther = new java.util.HashMap<>();
         for (Message m : recent) {
             Long other = m.getSenderId().equals(me) ? m.getRecipientId() : m.getSenderId();
+            if (blocked.contains(other)) {
+                continue;
+            }
             lastByOther.putIfAbsent(other, m); // desc order → first seen is the latest
             if (m.getRecipientId().equals(me) && m.getReadAt() == null) {
                 unreadByOther.merge(other, 1L, Long::sum);

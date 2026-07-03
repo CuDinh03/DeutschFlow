@@ -8,6 +8,8 @@ import com.deutschflow.teacher.repository.ClassStudentRepository;
 import com.deutschflow.teacher.repository.ClassTeacherRepository;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
+import com.deutschflow.moderation.service.UserBlockService;
+import com.deutschflow.moderation.service.WordFilterService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -30,6 +32,8 @@ class ClassChannelServiceTest {
     @Mock private ClassStudentRepository classStudentRepository;
     @Mock private ClassTeacherRepository classTeacherRepository;
     @Mock private UserRepository userRepository;
+    @Mock private WordFilterService wordFilter;
+    @Mock private UserBlockService blockService;
 
     private ClassChannelService service;
 
@@ -41,7 +45,9 @@ class ClassChannelServiceTest {
     @BeforeEach
     void setUp() {
         service = new ClassChannelService(
-                channelRepository, classStudentRepository, classTeacherRepository, userRepository);
+                channelRepository, classStudentRepository, classTeacherRepository, userRepository,
+                wordFilter, blockService);
+        lenient().when(blockService.blockedIds(any())).thenReturn(java.util.Set.of());
     }
 
     @Test

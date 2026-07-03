@@ -5,6 +5,8 @@ import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.messaging.dto.ClassChannelDtos.ClassMessageDto;
 import com.deutschflow.messaging.entity.ClassChannelMessage;
 import com.deutschflow.messaging.repository.ClassChannelMessageRepository;
+import com.deutschflow.moderation.service.UserBlockService;
+import com.deutschflow.moderation.service.WordFilterService;
 import com.deutschflow.teacher.repository.ClassStudentRepository;
 import com.deutschflow.teacher.repository.ClassTeacherRepository;
 import com.deutschflow.user.entity.User;
@@ -17,6 +19,7 @@ import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -34,6 +37,8 @@ public class ClassChannelService {
     private final ClassStudentRepository classStudentRepository;
     private final ClassTeacherRepository classTeacherRepository;
     private final UserRepository userRepository;
+    private final WordFilterService wordFilter;
+    private final UserBlockService blockService;
 
     @Transactional(readOnly = true)
     public List<ClassMessageDto> listMessages(Long userId, Long classId) {
@@ -41,10 +46,12 @@ public class ClassChannelService {
         boolean callerIsTeacher = isTeacher(userId, classId);
 
         List<ClassChannelMessage> recent = channelRepository.findTop200ByClassIdOrderByIdDesc(classId);
+        Set<Long> blocked = blockService.blockedIds(userId);
         Map<Long, String> names = resolveNames(recent);
 
         // Oldest-first for display (the query returns newest-first for the LIMIT).
         return recent.stream()
+                .filter(m -> !blocked.contains(m.getSenderId()))
                 .sorted(Comparator.comparing(ClassChannelMessage::getId))
                 .map(m -> toDto(m, userId, callerIsTeacher, names))
                 .toList();
@@ -53,6 +60,7 @@ public class ClassChannelService {
     @Transactional
     public ClassMessageDto post(Long userId, Long classId, String body) {
         assertMember(userId, classId);
+        wordFilter.assertClean(body);
         ClassChannelMessage saved = channelRepository.save(ClassChannelMessage.builder()
                 .classId(classId)
                 .senderId(userId)
