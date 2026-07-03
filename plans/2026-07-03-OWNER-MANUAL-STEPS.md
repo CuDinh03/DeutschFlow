@@ -1,39 +1,34 @@
 # HƯỚNG DẪN 3 VIỆC "CLICK" — CHỦ DỰ ÁN TỰ LÀM (2026-07-03)
 
-> Ba việc này **không code được** (nằm trên console Apple/GitHub/AWS) nhưng là **đường găng** của launch. Làm càng sớm càng tốt — mục #1 (Apple) có lead-time duyệt ngoài tầm kiểm soát.
-> Repo: `CuDinh03/DeutschFlow` · Bundle iOS: `com.cudinh.mydeutschflow` · Team: `4M3CU3X9SS` · Region AWS: `ap-southeast-1`.
+> Các việc này **không code được** (console Apple/GitHub/AWS). **Cập nhật 2026-07-06:** Free Apps Agreement **đã Active** → v1.0 free-only **không còn** đường-găng-agreement. Còn lại cho v1.0 = DSA trader (nếu muốn EU) + #2 + #3. Paid Apps Agreement chỉ cần cho v1.1.
+> Repo: `CuDinh03/DeutschFlow` · Bundle iOS: `com.cudinh.mydeutschflow` · Team: `4M3CU3X9SS` · Legal entity Apple: `Cu Dinh` · Region AWS: `ap-southeast-1`.
 
-**Thứ tự khuyến nghị:** #1 (ngay, chờ Apple duyệt) → #3 (15') → #2 (10').
+**Thứ tự khuyến nghị cho v1.0:** #2 branch protection (10') → #3 RDS backup (15') → DSA trader (EU, tùy chọn). (#1 Paid Apps = để dành v1.1.)
 
 ---
 
-## ✅ VIỆC #1 — Ký Paid Apps Agreement + W-8BEN + Banking (Apple)
+## ✅ VIỆC #1 — Apple Agreements (đã cập nhật theo ASC 2026-07-06)
 
-**Vì sao gấp:** Đây là **đường găng dài nhất** của cả launch. Không có hợp đồng này ở trạng thái **Active**, mọi sản phẩm In-App Purchase (v1.1) sẽ kẹt "Missing Metadata" và **không submit được**. Ngay cả khi v1.0 nộp free-only, ký ngay để hợp đồng Active sẵn cho v1.1.
+> **TIN TỐT — v1.0 free-only KHÔNG bị chặn bởi agreement.** Ảnh chụp ASC → Business cho thấy:
+> - ✅ **Free Apps Agreement = Active** (Jun 25 2026 – Jun 25 2027) → **đủ để nộp app free**. Không phải làm gì thêm cho v1.0.
+> - ⏳ **Paid Apps Agreement = New** (chưa ký) → **chỉ cần cho v1.1** (IAP). KHÔNG phải đường găng của v1.0 như bản trước ghi.
+> - Legal entity đã đăng ký = **"Cu Dinh"** (đã dùng làm data-controller trong Privacy/Terms).
 
-**Điều kiện tiên quyết:** bạn là Account Holder (hoặc Admin) của Apple Developer account.
+### Cho v1.0 (free-only): 0 việc agreement. Bỏ qua phần dưới, sang #2/#3.
 
-### Bước làm (App Store Connect)
-1. Vào **https://appstoreconnect.apple.com** → đăng nhập.
-2. Click **Business** (hoặc **Agreements, Tax, and Banking** — tùy giao diện).
-3. Ở mục **Agreements**:
-   - Tìm hàng **Paid Apps** (Paid Applications Agreement).
-   - Nếu trạng thái là "New" hoặc có nút **Set Up** / **Request** → click và **Review Agreement** → tick đồng ý → **Agree/Accept**.
-4. **Tax Forms** (điền cho từng khu vực bán — tối thiểu US):
-   - Là cá nhân/tổ chức **ngoài Mỹ** → điền **W-8BEN** (cá nhân) hoặc **W-8BEN-E** (công ty).
-   - Cần: **Foreign TIN** (mã số thuế cá nhân VN — MST cá nhân), địa chỉ thường trú, quốc gia cư trú thuế = Vietnam.
-   - Việt Nam có hiệp định thuế với Mỹ → có thể khai treaty benefits để giảm withholding (mục "Claim of Tax Treaty Benefits").
-5. **Bank Account** (nhận doanh thu):
-   - Thêm tài khoản ngân hàng VN nhận USD (hoặc VND tùy ngân hàng hỗ trợ). Cần: tên chủ TK khớp danh tính pháp lý, số TK, **SWIFT/BIC** của ngân hàng.
-6. **Contact Info**: điền đủ Senior Management / Financial / Technical / Legal contacts (có thể cùng 1 người là bạn).
+### Cho v1.1 (monetization — làm SAU submit v1.0): ký Paid Apps Agreement
+1. ASC → **Business** → **Edit Legal Entity**: ASC đang báo *"you must update your legal entity information prior to signing the Paid Apps Agreement"* → cập nhật cho đầy đủ trước.
+2. **Agreements → Paid Apps** (status "New") → **Review/Accept**.
+3. **Tax Forms** (tối thiểu US): cá nhân ngoài Mỹ → **W-8BEN**; cần **Foreign TIN** (MST cá nhân VN), địa chỉ thường trú, cư trú thuế = Vietnam; khai **treaty benefits** (VN có hiệp định với Mỹ) để giảm withholding.
+4. **Bank Account**: TK ngân hàng VN nhận USD/VND; tên chủ TK khớp legal entity; số TK + **SWIFT/BIC**.
+5. **Contact Info**: Senior Management / Financial / Technical / Legal (có thể cùng là bạn).
+- **DoD (v1.1):** Paid Apps = **Active**; Tax = Complete; Bank = Verified. ⚠️ Apple verify tax/bank mất vài giờ→vài ngày.
 
-### ✔️ Định nghĩa hoàn thành (DoD)
-- Mục **Agreements → Paid Apps** hiển thị trạng thái **Active** (không còn "Pending" hay cảnh báo vàng).
-- Tax form status = **Complete/Approved**; Bank account = **Verified/Active**.
-
-### ⚠️ Lưu ý
-- Apple có thể mất **vài giờ → vài ngày** để verify tax/bank. **Đừng đợi tới sát deadline.**
-- Tên pháp lý (legal name) khai ở đây **phải khớp** tên bạn dùng cho Privacy Policy / danh tính publisher cá nhân.
+### 🔴 VIỆC MỚI — DSA "trader status" (EU) — cần cho phân phối tại EU
+ASC đang cảnh báo đỏ: *"you need to let us know whether or not you are a trader… DSA requires Apple to verify and display trader contact information."*
+- Vào **Business → Complete Compliance Requirements** → khai trader status.
+- Ý nghĩa: nếu khai **"trader"** (phân phối vì mục đích thương mại — đúng khi có ads/IAP), Apple **hiển thị công khai thông tin liên hệ** của bạn (tên/địa chỉ/email) tại EU và **verify** thông tin đó. Nếu **không khai**, app có thể **không hiển thị ở EU**.
+- Với v1.0 free-only không ads: có thể khai theo thực tế; nhưng khi lên v1.1 (ads/IAP) chắc chắn là "trader" → chuẩn bị thông tin liên hệ verify được. **Quyết định phân loại là của bạn** (nên tham chiếu định nghĩa trader của Apple/EU); nếu để trống → mất thị trường EU.
 
 ---
 

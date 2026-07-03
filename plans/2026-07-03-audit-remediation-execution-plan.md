@@ -28,7 +28,7 @@
 | 🛡️ Phase 2 — ổn định & scale | 0 | 8 | ≈ 12–15 ngày · tháng 8 |
 | 🧑‍💼 Phase 3 — HR/Payroll | 0 | 6 | ≈ 16–20 ngày · tháng 8–9 |
 
-**Đường găng:** Paid Apps Agreement (0 code, lead-time Apple) → phải ký **hôm nay**.
+**Đường găng (cập nhật 2026-07-06):** ~~Paid Apps Agreement~~ — **Free Apps Agreement ĐÃ Active** → v1.0 free-only KHÔNG còn chặn bởi agreement. Đường găng còn lại của v1.0 = deploy backend + tạo demo account + build/submit. Paid Apps Agreement + DSA trader = việc của v1.1/EU.
 
 > **✅ PROGRESS 2026-07-03 (session — branch `chore/phase0-audit-remediation`):** Phase 0 code hoàn tất & verified (backend compile ✅, frontend `tsc` + `next build` ✅, java-reviewer APPROVED delete-account). Chi tiết từng item ở checkbox bên dưới. Việc CÒN LẠI thủ công: 3 việc "click" (doc riêng), tạo 2 demo account, thay tên pháp lý thật trong `gen-legal.mjs` lúc submit (đã có interim, không còn placeholder), rồi 0.8 submit. ⚠️ IT delete-account đã viết nhưng CHƯA chạy được ở máy này (không có Docker/Postgres) → chạy trong CI. ⚠️ Đổi mật khẩu account `nvb@gmail.com` (đã gỡ khỏi test).
 
@@ -36,8 +36,8 @@
 
 ## ⚡ HÔM NAY — việc "click", làm ngay (bất kể A/B)
 
-- [ ] **T1. Ký Paid Apps Agreement + W-8BEN + banking** trên App Store Connect *(finding C-7 · đường găng dài nhất)*
-  - DoD: Agreements → **Active**. Không có bước này thì IAP không thể "Ready to Submit".
+- [x] **T1. Apple agreements** — ✅ **Free Apps Agreement ĐÃ Active** (xác nhận ASC 2026-07-06) → v1.0 free-only đủ điều kiện. Paid Apps Agreement (status New) + Edit Legal Entity + W-8BEN + banking = **để dành v1.1**.
+- [ ] **T1b. (tùy chọn, cho EU) Khai DSA trader status** — ASC báo đỏ; nếu để trống app có thể không hiển thị ở EU. Xem `plans/2026-07-03-OWNER-MANUAL-STEPS.md` §VIỆC #1.
 - [ ] **T2. Xác minh RDS automated backup + deletion protection** (AWS console 15') *(A6-1 🔴, A7-8)*
   - Nếu backup TẮT → bật retention ≥7 ngày; bật deletion protection. Chụp màn hình lưu vào repo (`plans/appstore/` hoặc runbook).
   - DoD: có bằng chứng backup đang chạy + 1 lần thử restore snapshot.
