@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Plus, Briefcase, MessageSquareText, Mic, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
@@ -37,16 +38,12 @@ interface PersonaData {
 }
 
 type AbMode = 'fixed' | 'balanced' | 'adaptive'
-const AB_MODES: TkSegOption<AbMode>[] = [
-  { value: 'fixed', label: 'Cố định' },
-  { value: 'balanced', label: 'Cân bằng' },
-  { value: 'adaptive', label: 'Thích ứng' },
-]
 const AB_SPLIT: Record<AbMode, number[]> = { fixed: [100, 0, 0], balanced: [34, 33, 33], adaptive: [50, 30, 20] }
-const AB_NOTE: Record<AbMode, string> = {
-  fixed: 'Luôn dùng bộ câu hỏi A — kết quả ổn định, không thử nghiệm.',
-  balanced: 'Chia đều 3 biến thể để so sánh hiệu quả câu hỏi.',
-  adaptive: 'Ưu tiên biến thể đang cho điểm phân hoá tốt nhất.',
+// AbMode → catalog note key (resolved via t()).
+const AB_NOTE_KEY: Record<AbMode, string> = {
+  fixed: 'abNoteFixed',
+  balanced: 'abNoteBalanced',
+  adaptive: 'abNoteAdaptive',
 }
 
 function avatarChar(label: string): string {
@@ -66,28 +63,26 @@ type RubricTemplate = {
   version: number
   active: boolean
 }
-/** VI labels for the common scoring criteria; unknown keys fall back to humanized snake_case. */
-const CRITERION_VI: Record<string, string> = {
-  relevance: 'Liên quan',
-  clarity: 'Rõ ràng',
-  completeness: 'Đầy đủ',
-  german_quality: 'Chất lượng tiếng Đức',
-  structure: 'Cấu trúc',
-  confidence: 'Tự tin',
-  profession_fit: 'Phù hợp nghề',
-  concrete_experience: 'Kinh nghiệm cụ thể',
-  empathy: 'Đồng cảm',
-  hygiene_awareness: 'Ý thức vệ sinh',
-  hygiene_protocol: 'Quy trình vệ sinh',
-  patient_communication: 'Giao tiếp bệnh nhân',
-  documentation: 'Ghi chép hồ sơ',
-  emergency_response: 'Xử lý khẩn cấp',
-  haccp_awareness: 'Ý thức HACCP',
-  teamwork: 'Làm việc nhóm',
-  rush_handling: 'Xử lý cao điểm',
+/** Backend criterion key (snake_case) → catalog label key; unknown keys fall back to humanized snake_case. */
+const CRITERION_KEY: Record<string, string> = {
+  relevance: 'criterionRelevance',
+  clarity: 'criterionClarity',
+  completeness: 'criterionCompleteness',
+  german_quality: 'criterionGermanQuality',
+  structure: 'criterionStructure',
+  confidence: 'criterionConfidence',
+  profession_fit: 'criterionProfessionFit',
+  concrete_experience: 'criterionConcreteExperience',
+  empathy: 'criterionEmpathy',
+  hygiene_awareness: 'criterionHygieneAwareness',
+  hygiene_protocol: 'criterionHygieneProtocol',
+  patient_communication: 'criterionPatientCommunication',
+  documentation: 'criterionDocumentation',
+  emergency_response: 'criterionEmergencyResponse',
+  haccp_awareness: 'criterionHaccpAwareness',
+  teamwork: 'criterionTeamwork',
+  rush_handling: 'criterionRushHandling',
 }
-const criterionLabel = (k: string): string =>
-  CRITERION_VI[k] ?? k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 const rubricLabel = (r: RubricTemplate): string =>
   [r.industry, r.levelRange, r.phase].filter(Boolean).join(' · ')
 /** Parse weightJson (fractions 0–1) → percent ints for the sliders. */
@@ -101,6 +96,15 @@ function parseWeightsPct(weightJson: string): Record<string, number> {
 }
 
 export default function V2AdminPersonasPage() {
+  const t = useTranslations('v2.adminContent.personas')
+  const tc = useTranslations('v2.common')
+  const criterionLabel = (k: string): string =>
+    CRITERION_KEY[k] ? t(CRITERION_KEY[k]) : k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+  const AB_MODES: TkSegOption<AbMode>[] = [
+    { value: 'fixed', label: t('abFixed') },
+    { value: 'balanced', label: t('abBalanced') },
+    { value: 'adaptive', label: t('abAdaptive') },
+  ]
   // No `active` field on the persona DTO → track on/off client-side (toggle still
   // hits the real endpoint, persisted server-side). Default all on.
   const [off, setOff] = useState<Record<string, boolean>>({})
@@ -116,7 +120,7 @@ export default function V2AdminPersonasPage() {
 
   const { data, loading, error, reload } = useAdminData<PersonaData>({
     initialData: { personas: [], sessionsByPersona: {}, totalSessions: 0 },
-    errorMessage: 'Không thể tải danh sách persona.',
+    errorMessage: t('loadDataError'),
     fetchData: async () => {
       const [personas, analytics] = await Promise.all([
         interviewAdminApi.listAllPersonas(),
@@ -169,7 +173,7 @@ export default function V2AdminPersonasPage() {
 
   const saveRubric = async () => {
     if (rubricId == null || sum !== 100) {
-      toast.error(rubricId == null ? 'Chưa chọn rubric.' : 'Tổng trọng số phải bằng 100%')
+      toast.error(rubricId == null ? t('noRubricSelected') : t('weightMustBe100'))
       return
     }
     setSavingRubric(true)
@@ -179,7 +183,7 @@ export default function V2AdminPersonasPage() {
       )
       await interviewAdminApi.updateRubric(rubricId, { weightJson })
       setRubrics((rs) => rs.map((r) => (r.id === rubricId ? { ...r, weightJson } : r)))
-      toast.success('Đã lưu trọng số rubric.')
+      toast.success(t('rubricSaved'))
     } catch (e: unknown) {
       toast.error(apiMessage(e))
     } finally {
@@ -192,7 +196,7 @@ export default function V2AdminPersonasPage() {
     setOff((m) => ({ ...m, [p.code]: nowOff }))
     try {
       await interviewAdminApi.togglePersona(p.code)
-      toast.success(nowOff ? `Đã tắt ${p.label}` : `Đã bật ${p.label}`)
+      toast.success(nowOff ? t('personaDisabled', { label: p.label }) : t('personaEnabled', { label: p.label }))
     } catch (e: unknown) {
       setOff((m) => ({ ...m, [p.code]: !nowOff })) // rollback
       toast.error(apiMessage(e))
@@ -203,12 +207,12 @@ export default function V2AdminPersonasPage() {
     <div className="flex min-h-full flex-col" style={personaAccentVars}>
       <GaPageHdr
         accent
-        title="Persona & Rubric AI"
-        subtitle="Quản lý nhân vật HR phỏng vấn, trọng số chấm điểm và thử nghiệm A/B"
+        title={t('title')}
+        subtitle={t('subtitle')}
         right={
           <GaBtn variant="yellow" onClick={() => setCreateOpen(true)}>
             <Plus size={16} aria-hidden />
-            Thêm persona
+            {t('addPersona')}
           </GaBtn>
         }
       />
@@ -217,10 +221,10 @@ export default function V2AdminPersonasPage() {
         <AdStatStrip
           className="mb-6"
           cells={[
-            { label: 'Tổng persona', value: stats.total, color: VIOLET },
-            { label: 'Đang bật', value: `${stats.activeN}/${stats.total}`, color: '#1E9E61', sub: 'hiển thị cho học viên' },
-            { label: 'Số ngành', value: stats.industries, color: '#2F6FC9' },
-            { label: 'Phiên (30N)', value: stats.sessions.toLocaleString('vi-VN'), color: '#E07B39' },
+            { label: t('statTotal'), value: stats.total, color: VIOLET },
+            { label: t('statActive'), value: `${stats.activeN}/${stats.total}`, color: '#1E9E61', sub: t('statActiveSub') },
+            { label: t('statIndustries'), value: stats.industries, color: '#2F6FC9' },
+            { label: t('statSessions'), value: stats.sessions.toLocaleString('vi-VN'), color: '#E07B39' },
           ]}
         />
 
@@ -233,21 +237,21 @@ export default function V2AdminPersonasPage() {
         ) : error ? (
           <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
             <h2 className="font-ga-display text-[26px] font-medium leading-[1.2] text-ga-red">
-              Không tải được persona
+              {t('loadError')}
             </h2>
             <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14.5px] text-ga-muted">
               {error}{' '}
               <code className="font-mono text-[12px] text-ga-accent">GET /api/admin/interviews/personas</code>
             </p>
             <GaBtn variant="primary" onClick={() => reload({ silent: false })}>
-              Thử lại
+              {tc('retry')}
             </GaBtn>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-[22px] xl:grid-cols-[1.5fr_1fr] xl:items-start">
             {/* Persona list */}
             <div>
-              <GaCap className="mb-3.5 block">Nhân vật HR phỏng vấn ({data.personas.length})</GaCap>
+              <GaCap className="mb-3.5 block">{t('personaListCap', { count: data.personas.length })}</GaCap>
               <div className="flex flex-col gap-3">
                 {data.personas.map((p) => {
                   const isOff = !!off[p.code]
@@ -286,7 +290,7 @@ export default function V2AdminPersonasPage() {
                             <span className="inline-flex items-center gap-1"><MessageSquareText size={12} className="text-ga-subtle" /> {p.questionStyle}</span>
                           )}
                           {p.tone && <span className="inline-flex items-center gap-1"><Mic size={12} className="text-ga-subtle" /> {p.tone}</span>}
-                          <span className="inline-flex items-center gap-1"><Users size={12} className="text-ga-subtle" /> {(data.sessionsByPersona[p.code] ?? 0).toLocaleString('vi-VN')} phiên</span>
+                          <span className="inline-flex items-center gap-1"><Users size={12} className="text-ga-subtle" /> {t('sessionsSuffix', { count: (data.sessionsByPersona[p.code] ?? 0).toLocaleString('vi-VN') })}</span>
                         </div>
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-2">
@@ -305,10 +309,10 @@ export default function V2AdminPersonasPage() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => toast('Trình sửa persona (chờ backend)')}
+                          onClick={() => toast(t('editSoon'))}
                           className="rounded-ga border border-ga-line px-[10px] py-[6px] text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent"
                         >
-                          Sửa
+                          {t('edit')}
                         </button>
                       </div>
                     </div>
@@ -320,14 +324,14 @@ export default function V2AdminPersonasPage() {
             {/* Rubric = per-template (real BE); A/B below stays client-side (proto) */}
             <div className="flex flex-col gap-5">
               <section className="border border-ga-line bg-ga-card p-5">
-                <GaCap className="mb-3 block">Trọng số rubric chấm điểm</GaCap>
+                <GaCap className="mb-3 block">{t('rubricCap')}</GaCap>
                 {rubrics.length === 0 ? (
-                  <p className="ga-ui text-[13px] italic text-ga-muted">Chưa có bộ rubric nào.</p>
+                  <p className="ga-ui text-[13px] italic text-ga-muted">{t('noRubric')}</p>
                 ) : (
                   <>
                     <label className="mb-4 block">
                       <span className="ga-ui mb-1 block text-[11.5px] font-semibold uppercase tracking-[0.06em] text-ga-muted">
-                        Bộ rubric (theo ngành · trình độ · giai đoạn)
+                        {t('rubricSelectLabel')}
                       </span>
                       <select
                         value={rubricId ?? ''}
@@ -337,7 +341,7 @@ export default function V2AdminPersonasPage() {
                         {rubrics.map((r) => (
                           <option key={r.id} value={r.id}>
                             {rubricLabel(r)}
-                            {r.active ? '' : ' (ẩn)'}
+                            {r.active ? '' : t('rubricHidden')}
                           </option>
                         ))}
                       </select>
@@ -368,7 +372,7 @@ export default function V2AdminPersonasPage() {
                         border: `1px solid ${sum === 100 ? 'rgba(30,158,97,0.27)' : 'rgba(218,41,28,0.27)'}`,
                       }}
                     >
-                      <span className="text-[13px] text-ga-ink">Tổng trọng số</span>
+                      <span className="text-[13px] text-ga-ink">{t('totalWeight')}</span>
                       <span
                         className="font-ga-display text-[18px] font-medium"
                         style={{ color: sum === 100 ? 'var(--ga-green)' : 'var(--ga-red)' }}
@@ -383,7 +387,7 @@ export default function V2AdminPersonasPage() {
                       className="mt-3.5 w-full justify-center"
                       onClick={saveRubric}
                     >
-                      Lưu rubric
+                      {t('saveRubric')}
                     </GaBtn>
                   </>
                 )}
@@ -392,8 +396,8 @@ export default function V2AdminPersonasPage() {
               {/* A/B câu hỏi (client-side) */}
               <section className="border border-ga-line bg-ga-card p-5">
                 <div className="mb-3.5 flex items-center justify-between gap-3">
-                  <GaCap>Thử nghiệm A/B câu hỏi</GaCap>
-                  <TkSeg options={AB_MODES} value={abMode} onValueChange={setAbMode} aria-label="Chế độ A/B" />
+                  <GaCap>{t('abCap')}</GaCap>
+                  <TkSeg options={AB_MODES} value={abMode} onValueChange={setAbMode} aria-label={t('abModeAria')} />
                 </div>
                 <div className="flex flex-col gap-3">
                   {(['A', 'B', 'C'] as const).map((variant, i) => {
@@ -401,7 +405,7 @@ export default function V2AdminPersonasPage() {
                     return (
                       <div key={variant}>
                         <div className="mb-1 flex items-center justify-between text-[12.5px]">
-                          <span className="font-semibold text-ga-ink">Biến thể {variant}</span>
+                          <span className="font-semibold text-ga-ink">{t('variant', { variant })}</span>
                           <span className="text-ga-muted">{pct}%</span>
                         </div>
                         <span className="block h-2 bg-ga-bg">
@@ -411,7 +415,7 @@ export default function V2AdminPersonasPage() {
                     )
                   })}
                 </div>
-                <p className="ga-ui mt-3.5 text-[12px] leading-[1.55] text-ga-muted">{AB_NOTE[abMode]}</p>
+                <p className="ga-ui mt-3.5 text-[12px] leading-[1.55] text-ga-muted">{t(AB_NOTE_KEY[abMode])}</p>
               </section>
             </div>
           </div>
@@ -424,34 +428,37 @@ export default function V2AdminPersonasPage() {
   )
 }
 
-const FIELDS: { key: string; label: string; placeholder: string }[] = [
-  { key: 'code', label: 'Mã (code)', placeholder: 'vd: schmidt' },
-  { key: 'label', label: 'Tên nhân vật', placeholder: 'vd: Frau Schmidt' },
-  { key: 'roleTitle', label: 'Chức danh', placeholder: 'vd: HR Manager' },
-  { key: 'industry', label: 'Ngành', placeholder: 'vd: Pflege' },
-  { key: 'difficulty', label: 'Độ khó', placeholder: 'vd: B1–B2' },
-  { key: 'tone', label: 'Giọng điệu', placeholder: 'vd: thân thiện' },
-  { key: 'questionStyle', label: 'Kiểu câu hỏi', placeholder: 'vd: tình huống' },
-  { key: 'evaluationBias', label: 'Thiên hướng chấm', placeholder: 'vd: cân bằng' },
+// key = API field + form state key (kept), labelKey/placeholderKey resolve via t().
+const FIELDS: { key: string; labelKey: string; placeholderKey: string }[] = [
+  { key: 'code', labelKey: 'fieldCode', placeholderKey: 'fieldCodePlaceholder' },
+  { key: 'label', labelKey: 'fieldLabel', placeholderKey: 'fieldLabelPlaceholder' },
+  { key: 'roleTitle', labelKey: 'fieldRoleTitle', placeholderKey: 'fieldRoleTitlePlaceholder' },
+  { key: 'industry', labelKey: 'fieldIndustry', placeholderKey: 'fieldIndustryPlaceholder' },
+  { key: 'difficulty', labelKey: 'fieldDifficulty', placeholderKey: 'fieldDifficultyPlaceholder' },
+  { key: 'tone', labelKey: 'fieldTone', placeholderKey: 'fieldTonePlaceholder' },
+  { key: 'questionStyle', labelKey: 'fieldQuestionStyle', placeholderKey: 'fieldQuestionStylePlaceholder' },
+  { key: 'evaluationBias', labelKey: 'fieldEvaluationBias', placeholderKey: 'fieldEvaluationBiasPlaceholder' },
 ]
 
 function CreatePersonaModal({ onClose }: { onClose: () => void }) {
+  const t = useTranslations('v2.adminContent.personas')
+  const tc = useTranslations('v2.common')
   const [form, setForm] = useState<Record<string, string>>({})
   return (
     <TkModal
       open
       onOpenChange={(o) => !o && onClose()}
       size="md"
-      title="Tạo nhân vật phỏng vấn"
+      title={t('createTitle')}
       footer={
         <div className="flex items-center justify-between gap-3">
-          <span className="text-[11.5px] text-ga-subtle">Lưu tạm khoá — chờ endpoint backend</span>
+          <span className="text-[11.5px] text-ga-subtle">{t('createLockedNote')}</span>
           <div className="flex gap-2.5">
             <GaBtn variant="ghost" onClick={onClose}>
-              Huỷ
+              {tc('cancel')}
             </GaBtn>
-            <GaBtn variant="primary" disabled title="Cần POST /admin/interviews/personas (backend)">
-              Lưu nhân vật
+            <GaBtn variant="primary" disabled title={t('savePersonaHint')}>
+              {t('savePersona')}
             </GaBtn>
           </div>
         </div>
@@ -460,11 +467,11 @@ function CreatePersonaModal({ onClose }: { onClose: () => void }) {
       <div className="grid grid-cols-2 gap-4">
         {FIELDS.map((f) => (
           <label key={f.key} className="block">
-            <GaCap className="mb-1.5 block">{f.label}</GaCap>
+            <GaCap className="mb-1.5 block">{t(f.labelKey)}</GaCap>
             <input
               value={form[f.key] ?? ''}
               onChange={(e) => setForm((s) => ({ ...s, [f.key]: e.target.value }))}
-              placeholder={f.placeholder}
+              placeholder={t(f.placeholderKey)}
               className="block w-full rounded-ga border border-ga-line bg-ga-bg px-3 py-2.5 text-[14px] text-ga-ink outline-none"
             />
           </label>

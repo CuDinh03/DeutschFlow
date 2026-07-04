@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
+import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import useAdminData from '@/hooks/useAdminData'
 import { listMedia, type MediaAsset } from '@/lib/mediaApi'
@@ -14,17 +15,15 @@ const mediaAccentVars = {
   '--ga-hdr-line': 'rgba(47,111,201,0.20)',
 } as React.CSSProperties
 
-// Category → label + accent (mirrors proto AD_MEDIA tag colours).
-const CAT: Record<string, { label: string; color: string }> = {
-  WORD_IMAGE: { label: 'Ảnh từ vựng', color: '#1E9E61' },
-  AI_IMAGE: { label: 'Ảnh AI (Bedrock)', color: '#7C56C8' },
-  VIDEO_SCENE: { label: 'Cảnh video bài học', color: '#2F6FC9' },
-  PERSONA: { label: 'Ảnh đại diện HR', color: '#E07B39' },
-  AVATAR: { label: 'Ảnh người dùng', color: '#11888A' },
-  MARKETING: { label: 'Ảnh marketing', color: '#DA291C' },
-}
-function catOf(c: string): { label: string; color: string } {
-  return CAT[c?.toUpperCase()] ?? { label: c || 'Khác', color: '#76716A' }
+// Category → labelKey + accent (mirrors proto AD_MEDIA tag colours). labelKey resolves
+// via t(`cat${labelKey}`); unknown categories fall back to the raw value or catOther.
+const CAT: Record<string, { labelKey: string; color: string }> = {
+  WORD_IMAGE: { labelKey: 'WordImage', color: '#1E9E61' },
+  AI_IMAGE: { labelKey: 'AiImage', color: '#7C56C8' },
+  VIDEO_SCENE: { labelKey: 'VideoScene', color: '#2F6FC9' },
+  PERSONA: { labelKey: 'Persona', color: '#E07B39' },
+  AVATAR: { labelKey: 'Avatar', color: '#11888A' },
+  MARKETING: { labelKey: 'Marketing', color: '#DA291C' },
 }
 
 function fmtSize(bytes: number): string {
@@ -35,14 +34,22 @@ function fmtSize(bytes: number): string {
 }
 
 export default function V2AdminMediaPage() {
+  const t = useTranslations('v2.adminContent.media')
+  const tc = useTranslations('v2.common')
   const { data, loading, error, reload } = useAdminData<MediaAsset[]>({
     initialData: [],
-    errorMessage: 'Không thể tải thư viện media.',
+    errorMessage: t('loadDataError'),
     fetchData: async () => {
       const res = await listMedia('ALL', 0, 100)
       return res.content ?? []
     },
   })
+
+  const catOf = (c: string): { label: string; color: string } => {
+    const hit = CAT[c?.toUpperCase()]
+    if (hit) return { label: t(`cat${hit.labelKey}`), color: hit.color }
+    return { label: c || t('catOther'), color: '#76716A' }
+  }
 
   const stats = useMemo(() => {
     const total = data.length
@@ -56,12 +63,12 @@ export default function V2AdminMediaPage() {
     <div className="flex min-h-full flex-col" style={mediaAccentVars}>
       <GaPageHdr
         accent
-        title="Thư viện ảnh & media (S3)"
-        subtitle="Ảnh từ vựng, ảnh AI và cảnh video bài học"
+        title={t('title')}
+        subtitle={t('subtitle')}
         right={
-          <GaBtn variant="yellow" onClick={() => toast('Mở trình tải lên media (sắp ra mắt)')}>
+          <GaBtn variant="yellow" onClick={() => toast(t('uploadSoon'))}>
             <span aria-hidden className="inline-block h-[7px] w-[7px] bg-ga-ink" />
-            Tải lên
+            {t('upload')}
           </GaBtn>
         }
       />
@@ -70,10 +77,10 @@ export default function V2AdminMediaPage() {
         <AdStatStrip
           className="mb-6"
           cells={[
-            { label: 'Tổng tài nguyên', value: stats.total.toLocaleString('vi-VN'), color: BLUE },
-            { label: 'Dung lượng', value: fmtSize(stats.size), color: '#E07B39' },
-            { label: 'Ảnh do AI sinh', value: stats.ai.toLocaleString('vi-VN'), color: '#7C56C8' },
-            { label: 'Cảnh video', value: stats.video.toLocaleString('vi-VN'), color: '#1E9E61' },
+            { label: t('statTotal'), value: stats.total.toLocaleString('vi-VN'), color: BLUE },
+            { label: t('statSize'), value: fmtSize(stats.size), color: '#E07B39' },
+            { label: t('statAi'), value: stats.ai.toLocaleString('vi-VN'), color: '#7C56C8' },
+            { label: t('statVideo'), value: stats.video.toLocaleString('vi-VN'), color: '#1E9E61' },
           ]}
         />
 
@@ -86,18 +93,18 @@ export default function V2AdminMediaPage() {
         ) : error ? (
           <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
             <h2 className="font-ga-display text-[26px] font-medium leading-[1.2] text-ga-red">
-              Không tải được thư viện media
+              {t('loadError')}
             </h2>
             <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14.5px] text-ga-muted">
               {error} <code className="font-mono text-[12px] text-ga-accent">GET /api/v2/media</code>
             </p>
             <GaBtn variant="primary" onClick={() => reload({ silent: false })}>
-              Thử lại
+              {tc('retry')}
             </GaBtn>
           </div>
         ) : data.length === 0 ? (
           <div className="border border-dashed border-ga-line px-10 py-10 text-center">
-            <p className="ga-ui text-[14.5px] text-ga-muted">Chưa có tài nguyên media nào.</p>
+            <p className="ga-ui text-[14.5px] text-ga-muted">{t('empty')}</p>
           </div>
         ) : (
           <div className="grid grid-cols-4 gap-4">

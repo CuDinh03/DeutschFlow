@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Megaphone } from 'lucide-react'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
@@ -8,19 +9,20 @@ import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
 import { cn } from '@/lib/utils'
 
 // Visual category (preview colour + badge). Sent to backend as default type.
-const CAT: Record<string, { color: string; desc: string }> = {
-  INFO: { color: '#2F6FC9', desc: 'Thông tin' },
-  ACTION: { color: '#E07B39', desc: 'Cần hành động' },
-  BROADCAST: { color: '#7C56C8', desc: 'Truyền thông' },
+// `descKey` → t('cat.<descKey>'); the id (INFO/ACTION/BROADCAST) is also the badge label + backend type.
+const CAT: Record<string, { color: string; descKey: 'info' | 'action' | 'broadcast' }> = {
+  INFO: { color: '#2F6FC9', descKey: 'info' },
+  ACTION: { color: '#E07B39', descKey: 'action' },
+  BROADCAST: { color: '#7C56C8', descKey: 'broadcast' },
 }
 
-// audience id → label + backend audienceType/tier/role (BroadcastNotificationRequest).
-const AUDIENCE: { id: string; label: string; payload: Record<string, string> }[] = [
-  { id: 'all', label: 'Tất cả người dùng', payload: { audienceType: 'ALL' } },
-  { id: 'student', label: 'Học viên', payload: { audienceType: 'ROLE', role: 'STUDENT' } },
-  { id: 'teacher', label: 'Giáo viên', payload: { audienceType: 'ROLE', role: 'TEACHER' } },
-  { id: 'free', label: 'Gói miễn phí', payload: { audienceType: 'TIER', tier: 'FREE' } },
-  { id: 'pro', label: 'Gói Pro', payload: { audienceType: 'TIER', tier: 'PRO' } },
+// audience id → labelKey + backend audienceType/tier/role (BroadcastNotificationRequest).
+const AUDIENCE: { id: string; labelKey: 'all' | 'student' | 'teacher' | 'free' | 'pro'; payload: Record<string, string> }[] = [
+  { id: 'all', labelKey: 'all', payload: { audienceType: 'ALL' } },
+  { id: 'student', labelKey: 'student', payload: { audienceType: 'ROLE', role: 'STUDENT' } },
+  { id: 'teacher', labelKey: 'teacher', payload: { audienceType: 'ROLE', role: 'TEACHER' } },
+  { id: 'free', labelKey: 'free', payload: { audienceType: 'TIER', tier: 'FREE' } },
+  { id: 'pro', labelKey: 'pro', payload: { audienceType: 'TIER', tier: 'PRO' } },
 ]
 
 interface SentItem {
@@ -32,6 +34,7 @@ interface SentItem {
 }
 
 export default function V2AdminBroadcastPage() {
+  const t = useTranslations('v2.adminOps.broadcast')
   const [cat, setCat] = useState('BROADCAST')
   const [aud, setAud] = useState('all')
   const [when, setWhen] = useState<'now' | 'schedule'>('now')
@@ -42,10 +45,11 @@ export default function V2AdminBroadcastPage() {
   const [sent, setSent] = useState<SentItem[]>([])
 
   const audience = AUDIENCE.find((a) => a.id === aud) ?? AUDIENCE[0]
+  const audienceLabel = t(`audience.${audience.labelKey}`)
 
   const send = async () => {
     if (!title.trim()) {
-      toast('Nhập tiêu đề thông báo')
+      toast(t('enterTitle'))
       return
     }
     const scheduled = when === 'schedule'
@@ -59,14 +63,14 @@ export default function V2AdminBroadcastPage() {
       setSent((s) => [
         {
           title: title.trim(),
-          audienceLabel: audience.label,
-          when: scheduled ? `Hẹn ${at || '…'}` : 'vừa xong',
+          audienceLabel,
+          when: scheduled ? t('scheduledAt', { time: at || '…' }) : t('justNow'),
           cat,
           scheduled,
         },
         ...s,
       ])
-      toast.success(scheduled ? 'Đã đưa vào hàng đợi lịch gửi' : `Đã gửi tới ${audience.label}`)
+      toast.success(scheduled ? t('queuedSchedule') : t('sentTo', { audience: audienceLabel }))
     } catch (e: unknown) {
       toast.error(apiMessage(e))
     } finally {
@@ -80,14 +84,14 @@ export default function V2AdminBroadcastPage() {
     <div className="flex min-h-full flex-col">
       <GaPageHdr
         accent
-        title="Gửi thông báo hệ thống"
-        subtitle="Soạn, phân loại và gửi ngay hoặc hẹn giờ tới nhóm người dùng"
+        title={t('title')}
+        subtitle={t('subtitle')}
       />
 
       <div className="grid flex-1 overflow-hidden lg:grid-cols-[1fr_360px]">
         {/* Compose */}
         <div className="overflow-auto border-r border-ga-line px-9 py-[26px]">
-          <GaCap className="mb-2.5 block">Phân loại</GaCap>
+          <GaCap className="mb-2.5 block">{t('categoryLabel')}</GaCap>
           <div className="mb-[22px] flex gap-2">
             {Object.entries(CAT).map(([id, m]) => {
               const on = cat === id
@@ -110,14 +114,14 @@ export default function V2AdminBroadcastPage() {
                   >
                     {id}
                   </div>
-                  <div className="mt-1 text-[11.5px] text-ga-muted">{m.desc}</div>
+                  <div className="mt-1 text-[11.5px] text-ga-muted">{t(`cat.${m.descKey}`)}</div>
                 </button>
               )
             })}
           </div>
 
           <GaCap className="mb-2.5 block">
-            Đối tượng nhận · <span className="text-ga-ink">{audience.label}</span>
+            {t('audienceLabelPre')}<span className="text-ga-ink">{audienceLabel}</span>
           </GaCap>
           <div className="mb-[22px] flex flex-wrap gap-2">
             {AUDIENCE.map((a) => (
@@ -132,28 +136,28 @@ export default function V2AdminBroadcastPage() {
                     : 'border-ga-line bg-ga-card text-ga-muted hover:border-ga-ink hover:text-ga-ink',
                 )}
               >
-                {a.label}
+                {t(`audience.${a.labelKey}`)}
               </button>
             ))}
           </div>
 
-          <GaCap className="mb-2 block">Tiêu đề</GaCap>
+          <GaCap className="mb-2 block">{t('titleLabel')}</GaCap>
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="VD: myDeutschFlow vừa cập nhật!"
+            placeholder={t('titlePlaceholder')}
             className="mb-[18px] block w-full rounded-ga border border-ga-line bg-ga-bg px-[15px] py-3 text-[15px] font-semibold text-ga-ink outline-none"
           />
-          <GaCap className="mb-2 block">Nội dung</GaCap>
+          <GaCap className="mb-2 block">{t('bodyLabel')}</GaCap>
           <textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
             rows={4}
-            placeholder="Nội dung thông báo…"
+            placeholder={t('bodyPlaceholder')}
             className="mb-[18px] block w-full resize-y rounded-ga border border-ga-line bg-ga-bg px-[15px] py-3 text-[14.5px] leading-[1.65] text-ga-ink outline-none"
           />
 
-          <GaCap className="mb-2.5 block">Thời điểm gửi</GaCap>
+          <GaCap className="mb-2.5 block">{t('sendTimeLabel')}</GaCap>
           <div className="mb-[22px] flex items-center gap-3">
             <div className="flex border border-ga-line">
               {(['now', 'schedule'] as const).map((id, i) => (
@@ -167,7 +171,7 @@ export default function V2AdminBroadcastPage() {
                     when === id ? 'bg-ga-ink text-ga-card' : 'bg-transparent text-ga-muted',
                   )}
                 >
-                  {id === 'now' ? 'Gửi ngay' : 'Hẹn giờ'}
+                  {id === 'now' ? t('sendNow') : t('schedule')}
                 </button>
               ))}
             </div>
@@ -183,13 +187,13 @@ export default function V2AdminBroadcastPage() {
 
           <GaBtn variant="yellow" disabled={sending} onClick={send}>
             <span aria-hidden className="inline-block h-[7px] w-[7px] bg-ga-ink" />
-            {sending ? 'Đang gửi…' : when === 'schedule' ? 'Lên lịch gửi' : 'Gửi ngay'}
+            {sending ? t('sending') : when === 'schedule' ? t('scheduleSend') : t('sendNow')}
           </GaBtn>
         </div>
 
         {/* Preview + history */}
         <div className="overflow-auto bg-ga-card px-6 py-[26px]">
-          <GaCap className="mb-3.5 block">Xem trước</GaCap>
+          <GaCap className="mb-3.5 block">{t('preview')}</GaCap>
           <div
             className="flex gap-3.5 border border-ga-line px-[18px] py-4"
             style={{ background: `${catColor}10`, borderLeft: `3px solid ${catColor}` }}
@@ -203,21 +207,21 @@ export default function V2AdminBroadcastPage() {
                 {cat}
               </div>
               <div className="text-[14.5px] font-bold text-ga-ink" style={{ overflowWrap: 'anywhere' }}>
-                {title || 'Tiêu đề thông báo'}
+                {title || t('previewTitle')}
               </div>
               <div className="mt-1 text-[13px] leading-[1.5] text-ga-muted" style={{ overflowWrap: 'anywhere' }}>
-                {body || 'Nội dung thông báo…'}
+                {body || t('previewBody')}
               </div>
               <div className="mt-2 text-[11.5px] text-ga-subtle">
-                {when === 'schedule' ? `Hẹn: ${at || 'chưa chọn giờ'}` : 'Vừa xong'} · {audience.label}
+                {when === 'schedule' ? t('scheduledPreview', { time: at || t('noTimeChosen') }) : t('previewJustNow')} · {audienceLabel}
               </div>
             </div>
           </div>
 
           <div className="mt-6">
-            <GaCap className="mb-3 block">Đã gửi & lên lịch</GaCap>
+            <GaCap className="mb-3 block">{t('sentAndScheduled')}</GaCap>
             {sent.length === 0 ? (
-              <p className="text-[12.5px] text-ga-muted">Gửi thông báo đầu tiên để xem ở đây.</p>
+              <p className="text-[12.5px] text-ga-muted">{t('sentEmpty')}</p>
             ) : (
               sent.map((r, i) => (
                 <div
@@ -242,7 +246,7 @@ export default function V2AdminBroadcastPage() {
                       className="shrink-0 px-1.5 py-[3px] text-[9px] font-bold"
                       style={{ color: 'var(--ga-gold)', background: 'var(--ga-yellow-soft)' }}
                     >
-                      ĐÃ LÊN LỊCH
+                      {t('scheduledBadge')}
                     </span>
                   )}
                 </div>

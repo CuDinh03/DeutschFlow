@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { UserPlus } from 'lucide-react'
 import api from '@/lib/api'
 import useAdminData from '@/hooks/useAdminData'
@@ -130,6 +131,7 @@ function AdStat({
 }
 
 export default function V2AdminUsersPage() {
+  const t = useTranslations('v2.adminOps.users')
   const [query, setQuery] = useState('')
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all')
   const [plans, setPlans] = useState<PlanRow[]>([])
@@ -139,7 +141,7 @@ export default function V2AdminUsersPage() {
 
   const { data, loading, error, reload } = useAdminData<AdminUser[]>({
     initialData: [],
-    errorMessage: 'Không thể tải danh sách người dùng.',
+    errorMessage: t('loadError'),
     fetchData: async () => {
       const res = await api.get('/admin/users')
       return ((res.data ?? []) as Record<string, unknown>[]).map(normalizeUser)
@@ -181,8 +183,9 @@ export default function V2AdminUsersPage() {
     })
   }, [data, query, roleFilter])
 
+  // Role-filter chips: 'all' uses a translated label; role values render their raw enum (data label).
   const ROLE_FILTERS: { value: RoleFilter; label: string; count?: number }[] = [
-    { value: 'all', label: 'Tất cả' },
+    { value: 'all', label: t('filterAll') },
     { value: 'STUDENT', label: 'STUDENT', count: counts.student },
     { value: 'TEACHER', label: 'TEACHER', count: counts.teacher },
     { value: 'MANAGER', label: 'MANAGER', count: counts.manager },
@@ -193,16 +196,16 @@ export default function V2AdminUsersPage() {
   const columns: DataTableColumn<AdminUser>[] = [
     {
       key: 'user',
-      header: 'Tài khoản',
+      header: t('col.account'),
       sortable: true,
       sortValue: (u) => u.displayName.toLowerCase(),
       render: (u) => {
-        const t = ROLE_TINT[u.role]
+        const tint = ROLE_TINT[u.role]
         return (
           <div className="flex items-center gap-3">
             <span
               className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-full text-[13px] font-bold"
-              style={{ background: t.s, color: t.c }}
+              style={{ background: tint.s, color: tint.c }}
             >
               {initials(u.displayName || 'U')}
             </span>
@@ -216,13 +219,13 @@ export default function V2AdminUsersPage() {
     },
     {
       key: 'role',
-      header: 'Vai trò',
+      header: t('col.role'),
       render: (u) => {
-        const t = ROLE_TINT[u.role]
+        const tint = ROLE_TINT[u.role]
         return (
           <span
             className="inline-block rounded-ga px-[9px] py-1 text-[10px] font-bold tracking-[0.06em]"
-            style={{ background: t.s, color: t.c }}
+            style={{ background: tint.s, color: tint.c }}
           >
             {u.role}
           </span>
@@ -231,14 +234,14 @@ export default function V2AdminUsersPage() {
     },
     {
       key: 'plan',
-      header: 'Gói',
+      header: t('col.plan'),
       render: (u) => <span className="text-[13.5px] text-ga-ink">{u.planCode || '—'}</span>,
     },
     {
       key: 'quota',
-      header: 'Hạn mức AI',
+      header: t('col.quota'),
       render: (u) => {
-        if (u.unlimited) return <span className="text-[12px] text-ga-subtle">Không giới hạn</span>
+        if (u.unlimited) return <span className="text-[12px] text-ga-subtle">{t('unlimited')}</span>
         if (!u.hasQuota) return <span className="text-[12px] text-ga-subtle">—</span>
         return (
           <div className="pr-[18px]">
@@ -248,14 +251,14 @@ export default function V2AdminUsersPage() {
                 style={{ width: `${u.quotaPercent}%`, background: quotaColor(u.quotaPercent) }}
               />
             </div>
-            <p className="mt-1 text-[11px] text-ga-muted">{u.quotaPercent}% dùng</p>
+            <p className="mt-1 text-[11px] text-ga-muted">{t('quotaUsed', { pct: u.quotaPercent })}</p>
           </div>
         )
       },
     },
     {
       key: 'status',
-      header: 'Trạng thái',
+      header: t('col.status'),
       render: (u) => (
         <span
           className="ga-ui inline-flex items-center gap-1.5 text-[12.5px]"
@@ -265,7 +268,7 @@ export default function V2AdminUsersPage() {
             className="inline-block h-1.5 w-1.5 rounded-full"
             style={{ background: u.isActive ? 'var(--ga-green)' : 'var(--ga-subtle)' }}
           />
-          {u.isActive ? 'Hoạt động' : 'Tạm dừng'}
+          {u.isActive ? t('statusActive') : t('statusPaused')}
         </span>
       ),
     },
@@ -282,7 +285,7 @@ export default function V2AdminUsersPage() {
           }}
           className="ga-ui rounded-ga border border-ga-line px-[10px] py-[6px] text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent"
         >
-          Quản lý
+          {t('manage')}
         </button>
       ),
     },
@@ -292,19 +295,19 @@ export default function V2AdminUsersPage() {
     <div className="flex min-h-full flex-col">
       <GaPageHdr
         accent
-        title="Quản lý người dùng"
-        subtitle="Phân quyền, gói cước và hạn mức của từng tài khoản"
+        title={t('title')}
+        subtitle={t('subtitle')}
         right={
           <>
             <TkSearch
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Tìm tên / email…"
+              placeholder={t('searchPlaceholder')}
               containerClassName="w-[230px]"
             />
             <GaBtn variant="yellow" onClick={() => setShowCreate(true)}>
               <UserPlus size={16} aria-hidden />
-              Thêm người dùng
+              {t('addUser')}
             </GaBtn>
           </>
         }
@@ -313,14 +316,14 @@ export default function V2AdminUsersPage() {
       <div className="flex-1 px-10 py-6">
         {/* AdStat strip — always visible (0 when loading) */}
         <div className="mb-[22px] grid grid-cols-4 border border-ga-border border-l-0">
-          <AdStat label="Tổng người dùng" value={counts.total} color="var(--ga-navy)" />
-          <AdStat label="Học viên" value={counts.student} color="var(--ga-blue)" />
-          <AdStat label="Giáo viên" value={counts.teacher} color="var(--ga-violet)" />
+          <AdStat label={t('stats.totalUsers')} value={counts.total} color="var(--ga-navy)" />
+          <AdStat label={t('stats.students')} value={counts.student} color="var(--ga-blue)" />
+          <AdStat label={t('stats.teachers')} value={counts.teacher} color="var(--ga-violet)" />
           <AdStat
-            label="Tạm dừng"
+            label={t('stats.paused')}
             value={counts.paused}
             color="var(--ga-orange)"
-            sub={counts.paused > 0 ? 'cần xem lại' : 'không có'}
+            sub={counts.paused > 0 ? t('stats.pausedReview') : t('stats.pausedNone')}
             alert={counts.paused > 0}
           />
         </div>
@@ -353,13 +356,13 @@ export default function V2AdminUsersPage() {
           error={error || null}
           onRetry={() => reload({ silent: false })}
           errorEndpoint="GET /api/admin/users"
-          itemNoun="người dùng"
+          itemNoun={t('itemNoun')}
           pageSize={0}
           rowClassName={(u) => (!u.isActive ? 'opacity-60' : undefined)}
           onRowClick={(u) => setDetailUser(u)}
           empty={
             <div className="px-10 py-7 text-center">
-              <p className="ga-ui text-[14.5px] text-ga-muted">Không tìm thấy người dùng.</p>
+              <p className="ga-ui text-[14.5px] text-ga-muted">{t('empty')}</p>
             </div>
           }
         />

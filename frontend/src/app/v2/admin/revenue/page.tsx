@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import api from '@/lib/api'
 import { AdStatStrip, type AdStatCell, ErrorBanner, LoadingState } from '@/components/ui-v2'
@@ -57,6 +58,7 @@ function StatusDot({ status }: { status: string }) {
 }
 
 export default function V2AdminRevenuePage() {
+  const t = useTranslations('v2.adminOps.revenue')
   const [data, setData] = useState<RevenueResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -72,11 +74,11 @@ export default function V2AdminRevenuePage() {
       setData(res.data)
       setPage(pageNum)
     } catch {
-      setError('Không thể tải dữ liệu doanh thu.')
+      setError(t('loadError'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     fetchData(0)
@@ -89,34 +91,34 @@ export default function V2AdminRevenuePage() {
   const mrr = latest?.netVnd ?? overview?.netVnd ?? 0
 
   const cells: AdStatCell[] = [
-    { label: 'MRR (kỳ gần nhất)', value: fmtVnd(mrr), color: '#1E9E61', sub: latest ? latest.period : '—' },
-    { label: 'ARR (dự phóng)', value: fmtVnd(mrr * 12), color: '#2F6FC9', sub: '12 × MRR' },
+    { label: t('stats.mrr'), value: fmtVnd(mrr), color: '#1E9E61', sub: latest ? latest.period : '—' },
+    { label: t('stats.arr'), value: fmtVnd(mrr * 12), color: '#2F6FC9', sub: t('stats.arrSub') },
     {
-      label: 'Thuê bao',
+      label: t('stats.subscribers'),
       value: latest ? nfVN.format(latest.subscribers) : '—',
       color: '#7C56C8',
-      sub: 'kỳ gần nhất',
+      sub: t('stats.subscribersSub'),
     },
     {
-      label: 'Biên lợi nhuận',
+      label: t('stats.margin'),
       value: overview ? `${overview.marginPct.toFixed(1)}%` : '—',
       color: overview && overview.marginPct >= 50 ? '#1E9E61' : '#E07B39',
-      sub: 'Gross − phí − chi phí AI',
+      sub: t('stats.marginSub'),
     },
   ]
 
   // Cost breakdown of latest period (real) — replaces proto's plan-mix donut (no plan-breakdown EP).
   const breakdownSegs = latest
     ? [
-        { label: 'Lợi nhuận ròng', value: Math.max(0, latest.netVnd), color: GA_CHART[4] },
-        { label: 'Phí cổng/cửa hàng', value: Math.max(0, latest.storeFeeVnd), color: GA_CHART[3] },
-        { label: 'Chi phí AI', value: Math.max(0, latest.apiCostVnd), color: GA_CHART[7] },
+        { label: t('segNet'), value: Math.max(0, latest.netVnd), color: GA_CHART[4] },
+        { label: t('segStoreFee'), value: Math.max(0, latest.storeFeeVnd), color: GA_CHART[3] },
+        { label: t('segAiCost'), value: Math.max(0, latest.apiCostVnd), color: GA_CHART[7] },
       ].filter((s) => s.value > 0)
     : []
 
   return (
     <div className="flex min-h-full flex-col">
-      <GaPageHdr accent title="Doanh thu & Thuê bao" subtitle="Theo dõi MRR, tăng trưởng và giao dịch gần đây" />
+      <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
 
       <div className="flex-1 px-10 py-6">
         {error && (
@@ -126,13 +128,13 @@ export default function V2AdminRevenuePage() {
         )}
 
         {loading && !data ? (
-          <LoadingState label="Đang tải doanh thu…" />
+          <LoadingState label={t('loading')} />
         ) : (
           <div className="space-y-[22px]">
             <AdStatStrip cells={cells} />
 
             <div className="grid grid-cols-1 gap-[22px] lg:grid-cols-[2fr_1fr]">
-              <GaSection title="Doanh thu ròng theo kỳ">
+              <GaSection title={t('netByPeriod')}>
                 {chart.length > 0 ? (
                   <GaBars
                     data={chart.map((r) => ({ label: r.period, value: r.netVnd }))}
@@ -141,11 +143,11 @@ export default function V2AdminRevenuePage() {
                     valueFmt={fmtVnd}
                   />
                 ) : (
-                  <p className="ga-ui py-10 text-center text-[14px] text-ga-muted">Chưa có dữ liệu kỳ.</p>
+                  <p className="ga-ui py-10 text-center text-[14px] text-ga-muted">{t('noPeriodData')}</p>
                 )}
               </GaSection>
 
-              <GaSection title="Cơ cấu kỳ gần nhất">
+              <GaSection title={t('latestBreakdown')}>
                 {breakdownSegs.length > 0 ? (
                   <div className="flex items-center gap-5">
                     <GaDonut segments={breakdownSegs} />
@@ -154,16 +156,16 @@ export default function V2AdminRevenuePage() {
                     </div>
                   </div>
                 ) : (
-                  <p className="ga-ui py-10 text-center text-[14px] text-ga-muted">Chưa có dữ liệu kỳ.</p>
+                  <p className="ga-ui py-10 text-center text-[14px] text-ga-muted">{t('noPeriodData')}</p>
                 )}
               </GaSection>
             </div>
 
             <GaSection
-              title="Giao dịch gần đây"
+              title={t('recentTransactions')}
               right={
                 tx ? (
-                  <span className="ga-ui text-[12.5px] text-ga-muted">{nfVN.format(tx.totalElements)} giao dịch</span>
+                  <span className="ga-ui text-[12.5px] text-ga-muted">{t('txCount', { count: nfVN.format(tx.totalElements) })}</span>
                 ) : null
               }
               bodyClassName="p-0"
@@ -172,12 +174,20 @@ export default function V2AdminRevenuePage() {
                 <table className="w-full text-left">
                   <thead>
                     <tr className="border-b border-ga-border">
-                      {['#', 'Email', 'Gói', 'Số tiền', 'Trạng thái', 'Mã giao dịch', 'Ngày'].map((h) => (
+                      {[
+                        { key: 'colId', label: t('colId') },
+                        { key: 'colEmail', label: t('colEmail') },
+                        { key: 'colPlan', label: t('colPlan') },
+                        { key: 'colAmount', label: t('colAmount') },
+                        { key: 'colStatus', label: t('colStatus') },
+                        { key: 'colTxId', label: t('colTxId') },
+                        { key: 'colDate', label: t('colDate') },
+                      ].map((h) => (
                         <th
-                          key={h}
+                          key={h.key}
                           className="ga-ui px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-ga-muted"
                         >
-                          {h}
+                          {h.label}
                         </th>
                       ))}
                     </tr>
@@ -186,7 +196,7 @@ export default function V2AdminRevenuePage() {
                     {!tx || tx.content.length === 0 ? (
                       <tr>
                         <td colSpan={7} className="ga-ui px-5 py-10 text-center text-[14px] text-ga-muted">
-                          Không có giao dịch.
+                          {t('noTransactions')}
                         </td>
                       </tr>
                     ) : (
@@ -221,7 +231,7 @@ export default function V2AdminRevenuePage() {
               {tx && tx.totalPages > 1 && (
                 <div className="flex items-center justify-between border-t border-ga-border px-5 py-3">
                   <p className="ga-ui text-[12.5px] text-ga-muted">
-                    Trang {page + 1} / {tx.totalPages}
+                    {t('pageInfo', { page: page + 1, total: tx.totalPages })}
                   </p>
                   <div className="flex items-center gap-2">
                     <button
@@ -230,7 +240,7 @@ export default function V2AdminRevenuePage() {
                       onClick={() => fetchData(page - 1)}
                       className="ga-ui flex items-center gap-1 rounded-ga border border-ga-line px-3 py-1.5 text-[12px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent disabled:opacity-40"
                     >
-                      <ChevronLeft size={14} aria-hidden /> Trước
+                      <ChevronLeft size={14} aria-hidden /> {t('prev')}
                     </button>
                     <button
                       type="button"
@@ -238,7 +248,7 @@ export default function V2AdminRevenuePage() {
                       onClick={() => fetchData(page + 1)}
                       className="ga-ui flex items-center gap-1 rounded-ga border border-ga-line px-3 py-1.5 text-[12px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent disabled:opacity-40"
                     >
-                      Tiếp <ChevronRight size={14} aria-hidden />
+                      {t('next')} <ChevronRight size={14} aria-hidden />
                     </button>
                   </div>
                 </div>

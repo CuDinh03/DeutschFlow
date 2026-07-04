@@ -1,0 +1,422 @@
+{
+  "adminOps": {
+    "overview": {
+      "title": "Admin-Dashboard",
+      "subtitle": "Überblick über die Plattformgesundheit von DeutschFlow",
+      "loadError": "Übersichtsdaten konnten nicht geladen werden.",
+      "loading": "Übersicht wird geladen…",
+      "roles": {
+        "STUDENT": "Lernende",
+        "TEACHER": "Lehrkraft",
+        "ADMIN": "Admin"
+      },
+      "stats": {
+        "totalUsers": "Nutzer gesamt",
+        "mrr": "Umsatz (MRR)",
+        "aiCost": "KI-Kosten (30 Tage)",
+        "aiCostSub": "Ledger-Schätzung",
+        "aiActivity": "KI-Aktivität",
+        "aiActivitySub": "KI in 30 Tagen genutzt"
+      },
+      "subscribersByPeriod": "Zahlende Abonnenten nach Zeitraum",
+      "recentPeriods": "letzte {count} Zeiträume",
+      "noPeriodData": "Noch keine Zeitraumdaten.",
+      "roleDistribution": "Verteilung nach Rolle",
+      "noUsers": "Noch keine Nutzer.",
+      "todoTitle": "Zu erledigen",
+      "todo": {
+        "pausedAccounts": "{count} pausierte Konten — prüfen",
+        "reviewVocabImages": "Fehlende Vokabelbilder prüfen",
+        "checkPendingOrgs": "B2B-Organisationen zur Aktivierung prüfen",
+        "trackAiBudget": "KI-Kostenbudget verfolgen"
+      }
+    },
+    "revenue": {
+      "title": "Umsatz & Abonnements",
+      "subtitle": "MRR, Wachstum und aktuelle Transaktionen verfolgen",
+      "loadError": "Umsatzdaten konnten nicht geladen werden.",
+      "loading": "Umsatz wird geladen…",
+      "stats": {
+        "mrr": "MRR (letzter Zeitraum)",
+        "arr": "ARR (Prognose)",
+        "arrSub": "12 × MRR",
+        "subscribers": "Abonnenten",
+        "subscribersSub": "letzter Zeitraum",
+        "margin": "Gewinnmarge",
+        "marginSub": "Brutto − Gebühren − KI-Kosten"
+      },
+      "netByPeriod": "Nettoumsatz nach Zeitraum",
+      "noPeriodData": "Noch keine Zeitraumdaten.",
+      "latestBreakdown": "Aufschlüsselung des letzten Zeitraums",
+      "segNet": "Nettogewinn",
+      "segStoreFee": "Gateway-/Store-Gebühr",
+      "segAiCost": "KI-Kosten",
+      "recentTransactions": "Aktuelle Transaktionen",
+      "txCount": "{count} Transaktionen",
+      "colId": "#",
+      "colEmail": "E-Mail",
+      "colPlan": "Tarif",
+      "colAmount": "Betrag",
+      "colStatus": "Status",
+      "colTxId": "Transaktions-ID",
+      "colDate": "Datum",
+      "noTransactions": "Keine Transaktionen.",
+      "pageInfo": "Seite {page} / {total}",
+      "prev": "Zurück",
+      "next": "Weiter"
+    },
+    "tokens": {
+      "title": "KI-Kostenanalyse",
+      "subtitle": "Tokens, Kosten nach Funktion und Nutzer",
+      "loadError": "Token-Daten konnten nicht geladen werden.",
+      "loading": "Token-Daten werden geladen…",
+      "featureLabels": {
+        "SPEAKING": "Sprechen (KI)",
+        "INTERVIEW": "Interview",
+        "GRAMMAR": "KI-Grammatik",
+        "GRADING": "KI-Bewertung",
+        "MATERIALS": "KI-Materialien",
+        "IMAGE": "Bildgenerierung",
+        "TTS": "TTS-Vertonung",
+        "VOCAB": "KI-Vokabeln",
+        "other": "Sonstige"
+      },
+      "stats": {
+        "totalTokens": "Tokens gesamt (30 Tage)",
+        "cost": "Kosten (14 Tage)",
+        "costSub": "Ledger-Schätzung",
+        "aiUsers": "KI-Nutzer",
+        "aiUsersSub": "in 30 Tagen genutzt",
+        "features": "Funktionen",
+        "featuresSub": "werden verfolgt"
+      },
+      "tokensByFeature": "Tokens nach Funktion",
+      "noFeatureLedger": "Noch keine Ledger-Daten nach Funktion.",
+      "dailyCost": "Tägliche KI-Kosten (14 Tage)",
+      "noDailyCost": "Noch keine täglichen Kostendaten.",
+      "topUsers": "Nutzer mit den meisten Tokens (30 Tage)",
+      "colUser": "Nutzer",
+      "colRole": "Rolle",
+      "colTokens": "Tokens (30 Tage)",
+      "noUserData": "Keine Nutzerdaten."
+    },
+    "organizations": {
+      "title": "B2B-Organisationen — Finanzen",
+      "subtitle": "Verträge, verkaufte Plätze und Cashflow von Partnerzentren",
+      "loadError": "Organisationsliste konnte nicht geladen werden.",
+      "addOrg": "Organisation hinzufügen",
+      "noPlan": "Kein Tarif",
+      "activated": "Berechtigungen für {count} Lernende aktiviert.",
+      "status": {
+        "ACTIVE": "Aktiv",
+        "SUSPENDED": "Ausgesetzt",
+        "PENDING": "Aktivierung ausstehend"
+      },
+      "pay": {
+        "paid": "Bezahlt",
+        "pending": "Zahlung ausstehend",
+        "overdue": "Überfällig",
+        "none": "Keine Rechnung"
+      },
+      "col": {
+        "org": "Organisation",
+        "seats": "Verkaufte Plätze",
+        "revenue": "Umsatz",
+        "pay": "Zahlung"
+      },
+      "studentsSuffix": "{count} Lernende",
+      "seatsUnit": "Plätze",
+      "issuedInvoices": "Fakturiert",
+      "debtSuffix": " · offen {amount}",
+      "renewOn": "Verlängerung {date}",
+      "activating": "Wird aktiviert…",
+      "activate": "Aktivieren",
+      "viewFinance": "Finanzen ansehen",
+      "privacyNotice": "Plattform-Admin sieht nur <strong>Finanzdaten</strong>. Lernende, Klassen, Noten und Fortschritt jedes Zentrums sind <strong>privat geschützt</strong> — Sie haben keinen Zugriff.",
+      "stats": {
+        "issuedRevenue": "Fakturierter Umsatz",
+        "issuedRevenueSub": "Rechnungs-Rollup",
+        "totalSeats": "Verkaufte Plätze gesamt",
+        "totalSeatsSub": "{count} Organisationen",
+        "unpaidInvoices": "Unbezahlte Rechnungen",
+        "unpaidInvoicesSub": "muss abgeglichen werden",
+        "pendingActivation": "Aktivierung ausstehend"
+      },
+      "emptyOrgs": "Noch keine Organisationen.",
+      "modal": {
+        "description": "Finanzdetails · Vertrag & Rechnungen",
+        "privacyBanner": "Plattform-Admin sieht nur die Finanzdaten der Organisation.",
+        "contractInfo": "Vertragsinformationen",
+        "facts": {
+          "plan": "Tarif",
+          "seats": "Plätze",
+          "issuedRevenue": "Fakturierter Umsatz",
+          "debt": "Offener Betrag",
+          "payMethod": "Zahlungsstatus",
+          "renewUntil": "Verlängerung bis"
+        },
+        "invoiceHistory": "Rechnungsverlauf ({count})",
+        "noIssued": "Noch keine ausgestellten Rechnungen.",
+        "colPeriod": "Zeitraum",
+        "colSeats": "Plätze",
+        "colAmount": "Betrag",
+        "colStatus": "Status",
+        "invStatus": {
+          "paid": "Eingezogen",
+          "sent": "Ausgestellt",
+          "draft": "Entwurf",
+          "void": "Storniert"
+        },
+        "learningData": "Lerndaten",
+        "lockedFields": {
+          "students": "Lernendenliste",
+          "classes": "Klassen & Lehrkräfte",
+          "scores": "Noten & Abgaben",
+          "progress": "Lernfortschritt"
+        },
+        "noAccess": "kein Zugriff",
+        "remindPayment": "Erinnerung senden",
+        "remindPaymentSoon": "Zahlungserinnerung (bald verfügbar)",
+        "exportInvoice": "Rechnung exportieren",
+        "exportInvoiceSoon": "Rechnung exportieren (bald verfügbar)",
+        "activate": "Aktivieren",
+        "activateFromList": "Aus der externen Liste aktivieren"
+      }
+    },
+    "freeTeachers": {
+      "title": "Freie Lehrkräfte",
+      "subtitle": "Lehrkräfte, die noch keinem Zentrum angehören — zum Einladen oder Koordinieren",
+      "loadError": "Liste der freien Lehrkräfte konnte nicht geladen werden",
+      "colTeacher": "Lehrkraft",
+      "colUserId": "Nutzer-ID",
+      "itemNoun": "Lehrkräfte",
+      "empty": "Keine freien Lehrkräfte."
+    },
+    "users": {
+      "title": "Nutzerverwaltung",
+      "subtitle": "Rollen, Tarife und Kontingente jedes Kontos",
+      "loadError": "Nutzerliste konnte nicht geladen werden.",
+      "searchPlaceholder": "Name / E-Mail suchen…",
+      "addUser": "Nutzer hinzufügen",
+      "stats": {
+        "totalUsers": "Nutzer gesamt",
+        "students": "Lernende",
+        "teachers": "Lehrkräfte",
+        "paused": "Pausiert",
+        "pausedReview": "muss geprüft werden",
+        "pausedNone": "keine"
+      },
+      "filterAll": "Alle",
+      "col": {
+        "account": "Konto",
+        "role": "Rolle",
+        "plan": "Tarif",
+        "quota": "KI-Kontingent",
+        "status": "Status"
+      },
+      "unlimited": "Unbegrenzt",
+      "quotaUsed": "{pct}% genutzt",
+      "statusActive": "Aktiv",
+      "statusPaused": "Pausiert",
+      "manage": "Verwalten",
+      "itemNoun": "Nutzer",
+      "empty": "Keine Nutzer gefunden."
+    },
+    "classes": {
+      "title": "Klassenverwaltung",
+      "subtitle": "Alle Klassen im System — in Echtzeit mit der Datenbank synchronisiert",
+      "loadError": "Klassen konnten nicht geladen werden",
+      "stats": {
+        "totalClasses": "Klassen gesamt",
+        "totalClassesSub": "systemweit",
+        "totalStudents": "Lernende gesamt",
+        "totalStudentsSub": "eingeschrieben",
+        "unassigned": "Keine Lehrkraft",
+        "unassignedSub": "muss zugewiesen werden"
+      },
+      "count": "{count} Klassen",
+      "searchPlaceholder": "Klasse / Lehrkraft / ID suchen…",
+      "colId": "ID",
+      "colClass": "Klasse",
+      "colTeacher": "Lehrkraft",
+      "colStudents": "Lernende",
+      "unassignedBadge": "Nicht zugewiesen",
+      "emptyOrg": "Noch keine Klassen im System.",
+      "emptySearch": "Keine Klassen gefunden."
+    },
+    "plans": {
+      "title": "Abo-Tarife",
+      "subtitle": "Tarife, Token-Limits und Leistungen verwalten",
+      "loadError": "Tarifliste konnte nicht geladen werden",
+      "loadErrorToast": "Tarifliste konnte nicht geladen werden.",
+      "createPlan": "+ Tarif erstellen",
+      "createPlanSoon": "Formular für neuen Tarif (bald verfügbar)",
+      "unlimited": "Unbegrenzt",
+      "tokensPerMonth": "{count} Tokens/Monat",
+      "tokensPerDay": "{count} Tokens/Tag",
+      "inactive": "Aus",
+      "walletRollover": "Wallet-Übertrag {days} Tage",
+      "grantDaily": "Täglich gewährt",
+      "edit": "Bearbeiten",
+      "editPlan": "Tarif {name} bearbeiten",
+      "empty": "Noch keine Tarife."
+    },
+    "marketing": {
+      "title": "Wachstum (Leads)",
+      "subtitle": "Lead-Magnet-Funnel & geteilte Reports — interessierte Kontakte nachverfolgen",
+      "loadError": "Wachstumskennzahlen konnten nicht geladen werden",
+      "gradePageLink": "Testbewertungsseite",
+      "pctOfTotal": "{pct}% aller Leads",
+      "stats": {
+        "leadsTotal": "Leads (gesamt)",
+        "leadsTotalSub": "+{count} in 7 Tagen",
+        "leadsToday": "Leads heute",
+        "leadsTodaySub": "letzte 24 Stunden",
+        "reportsTotal": "Testbewertungen",
+        "reportsTotalSub": "+{count} in 7 Tagen",
+        "avgScore": "Ø-Punktzahl",
+        "avgScoreSub": "von 100"
+      },
+      "emailLeads": "Leads per E-Mail",
+      "zaloLeads": "Leads per Zalo/Telefon",
+      "recentLeads": "Aktuelle Leads (30 Tage) · {count}",
+      "noLeads": "Noch keine Leads.",
+      "colName": "Name",
+      "colContact": "Kontakt",
+      "colTopic": "Thema",
+      "colScore": "Punktzahl",
+      "colDate": "Datum",
+      "aiError": "KI-Fehler",
+      "clusters": "Lehrkraft-Cluster nach Zentrum (≥3 freie Lehrkräfte) · B2B-Chance",
+      "noClusters": "Noch keine Cluster (≥3 freie Lehrkräfte aus demselben Zentrum erforderlich).",
+      "colCenter": "Zentrum",
+      "colTeacherCount": "Lehrkräfte",
+      "colContactEmail": "Kontakt-E-Mail",
+      "teacherCountBadge": "{count} Lehrkräfte"
+    },
+    "weeklySpeaking": {
+      "title": "Weekly Speaking Prompts",
+      "subtitle": "Wöchentliche Sprech-Prompts verwalten (CEFR-Niveau · Pflichtpunkte)",
+      "createNew": "Neu erstellen",
+      "loadError": "Prompts konnten nicht geladen werden",
+      "count": "{count} Prompts",
+      "empty": "Noch keine Prompts — auf „Neu erstellen“ klicken.",
+      "inactive": "Aus",
+      "mandatoryCount": "{count} Pflichtpunkte",
+      "optionalCount": "{count} optional",
+      "edit": "Bearbeiten",
+      "deactivate": "Aus",
+      "confirmDeactivate": "Prompt \"{title}\" (Woche {week}) wirklich deaktivieren?",
+      "validation": {
+        "weekStart": "Wochenstartdatum wählen",
+        "cefrRequired": "CEFR-Niveau ist erforderlich",
+        "titleRequired": "Titel ist erforderlich",
+        "promptRequired": "Prompt (Deutsch) ist erforderlich",
+        "mandatoryMin": "Mindestens 1 Pflichtpunkt erforderlich"
+      },
+      "saved": "Änderungen gespeichert",
+      "created": "Prompt erstellt",
+      "modalTitleCreate": "Neuen Prompt erstellen",
+      "modalTitleEdit": "Prompt bearbeiten",
+      "submitCreate": "Erstellen",
+      "submitSave": "Änderungen speichern",
+      "weekStartLabel": "Wochenstartdatum",
+      "cefrLabel": "CEFR-Niveau",
+      "titleLabel": "Titel",
+      "titlePlaceholder": "Arbeit und Beruf",
+      "promptLabel": "Prompt (Deutsch)",
+      "promptPlaceholder": "Beschreiben Sie Ihren Arbeitsalltag…",
+      "mandatoryLabel": "Pflichtpunkte — ein Punkt pro Zeile",
+      "mandatoryPlaceholder": "Beruf nennen\nArbeitszeiten beschreiben\nKollegen erwähnen",
+      "optionalLabel": "Optionale Punkte — ein Punkt pro Zeile (optional)",
+      "activeLabel": "Aktivieren"
+    },
+    "analytics": {
+      "title": "Product Analytics",
+      "subtitle": "Nutzerverhalten, Conversion-Rate & Systemleistung (PostHog)",
+      "dashboardTitle": "Product Analytics Dashboard",
+      "notConfiguredTitle": "Dashboard nicht konfiguriert",
+      "notConfiguredPre": "Setzen Sie die Umgebungsvariable ",
+      "notConfiguredPost": " (Shared-Dashboard-Link von PostHog), um hier Diagramme anzuzeigen.",
+      "postHogGuide": "PostHog-Anleitung"
+    },
+    "broadcast": {
+      "title": "Systembenachrichtigung senden",
+      "subtitle": "Verfassen, kategorisieren und sofort senden oder für eine Nutzergruppe planen",
+      "cat": {
+        "info": "Information",
+        "action": "Aktion erforderlich",
+        "broadcast": "Broadcast"
+      },
+      "audience": {
+        "all": "Alle Nutzer",
+        "student": "Lernende",
+        "teacher": "Lehrkräfte",
+        "free": "Kostenloser Tarif",
+        "pro": "Pro-Tarif"
+      },
+      "enterTitle": "Benachrichtigungstitel eingeben",
+      "queuedSchedule": "Zum geplanten Versand in die Warteschlange gestellt",
+      "sentTo": "An {audience} gesendet",
+      "scheduledAt": "Geplant {time}",
+      "justNow": "gerade eben",
+      "categoryLabel": "Kategorie",
+      "audienceLabelPre": "Empfänger · ",
+      "titleLabel": "Titel",
+      "titlePlaceholder": "z. B. myDeutschFlow wurde gerade aktualisiert!",
+      "bodyLabel": "Inhalt",
+      "bodyPlaceholder": "Benachrichtigungsinhalt…",
+      "sendTimeLabel": "Sendezeitpunkt",
+      "sendNow": "Sofort senden",
+      "schedule": "Planen",
+      "sending": "Wird gesendet…",
+      "scheduleSend": "Versand planen",
+      "preview": "Vorschau",
+      "previewTitle": "Benachrichtigungstitel",
+      "previewBody": "Benachrichtigungsinhalt…",
+      "scheduledPreview": "Geplant: {time}",
+      "noTimeChosen": "keine Zeit gewählt",
+      "previewJustNow": "Gerade eben",
+      "sentAndScheduled": "Gesendet & geplant",
+      "sentEmpty": "Senden Sie Ihre erste Benachrichtigung, um sie hier zu sehen.",
+      "scheduledBadge": "GEPLANT"
+    },
+    "settings": {
+      "title": "Systemkonfiguration",
+      "subtitle": "Überblick über die Admin-Betriebskonfiguration (schreibgeschützt)",
+      "footer": "Details über das jeweils zuständige Modul bearbeiten.",
+      "sections": {
+        "platform": {
+          "title": "Plattformkonfiguration",
+          "desc": "Betriebskonfiguration, Branding und Standardoptionen für das gesamte System verwalten.",
+          "items": {
+            "branding": "Branding",
+            "timezone": "Zeitzone",
+            "defaultLang": "Standardsprache",
+            "registration": "Registrierungsmodus"
+          }
+        },
+        "security": {
+          "title": "Sicherheit & Zugriff",
+          "desc": "Sicherheit, Berechtigungen und Zugriffskontrolle für Admins und Lehrkräfte einrichten.",
+          "items": {
+            "password": "Passwortrichtlinie",
+            "twoFa": "2FA-Richtlinie",
+            "roles": "Rollenberechtigungen",
+            "session": "Sitzungslimits"
+          }
+        },
+        "integrations": {
+          "title": "Integrationen",
+          "desc": "Verbundene Integrationen: Zahlung, Speicher und KI-Dienste.",
+          "items": {
+            "payment": "SePay / VietQR",
+            "storage": "AWS S3",
+            "ai": "KI-Anbieter",
+            "webhook": "Webhook-Endpunkte"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,422 @@
+{
+  "adminOps": {
+    "overview": {
+      "title": "Admin dashboard",
+      "subtitle": "DeutschFlow platform health overview",
+      "loadError": "Could not load overview data.",
+      "loading": "Loading overview…",
+      "roles": {
+        "STUDENT": "Student",
+        "TEACHER": "Teacher",
+        "ADMIN": "Admin"
+      },
+      "stats": {
+        "totalUsers": "Total users",
+        "mrr": "Revenue (MRR)",
+        "aiCost": "AI cost (30 days)",
+        "aiCostSub": "ledger estimate",
+        "aiActivity": "AI activity",
+        "aiActivitySub": "used AI in 30 days"
+      },
+      "subscribersByPeriod": "Paid subscribers by period",
+      "recentPeriods": "last {count} periods",
+      "noPeriodData": "No period data yet.",
+      "roleDistribution": "Distribution by role",
+      "noUsers": "No users yet.",
+      "todoTitle": "To do",
+      "todo": {
+        "pausedAccounts": "{count} paused accounts — review",
+        "reviewVocabImages": "Review missing vocabulary images",
+        "checkPendingOrgs": "Check B2B organizations pending activation",
+        "trackAiBudget": "Track AI cost budget"
+      }
+    },
+    "revenue": {
+      "title": "Revenue & Subscriptions",
+      "subtitle": "Track MRR, growth and recent transactions",
+      "loadError": "Could not load revenue data.",
+      "loading": "Loading revenue…",
+      "stats": {
+        "mrr": "MRR (latest period)",
+        "arr": "ARR (projected)",
+        "arrSub": "12 × MRR",
+        "subscribers": "Subscribers",
+        "subscribersSub": "latest period",
+        "margin": "Profit margin",
+        "marginSub": "Gross − fees − AI cost"
+      },
+      "netByPeriod": "Net revenue by period",
+      "noPeriodData": "No period data yet.",
+      "latestBreakdown": "Latest period breakdown",
+      "segNet": "Net profit",
+      "segStoreFee": "Gateway/store fee",
+      "segAiCost": "AI cost",
+      "recentTransactions": "Recent transactions",
+      "txCount": "{count} transactions",
+      "colId": "#",
+      "colEmail": "Email",
+      "colPlan": "Plan",
+      "colAmount": "Amount",
+      "colStatus": "Status",
+      "colTxId": "Transaction ID",
+      "colDate": "Date",
+      "noTransactions": "No transactions.",
+      "pageInfo": "Page {page} / {total}",
+      "prev": "Prev",
+      "next": "Next"
+    },
+    "tokens": {
+      "title": "AI cost analytics",
+      "subtitle": "Tokens, cost by feature and by user",
+      "loadError": "Could not load token data.",
+      "loading": "Loading token data…",
+      "featureLabels": {
+        "SPEAKING": "Speaking (AI)",
+        "INTERVIEW": "Interview",
+        "GRAMMAR": "AI Grammar",
+        "GRADING": "AI Grading",
+        "MATERIALS": "AI Materials",
+        "IMAGE": "Image generation",
+        "TTS": "TTS narration",
+        "VOCAB": "AI Vocabulary",
+        "other": "Other"
+      },
+      "stats": {
+        "totalTokens": "Total tokens (30 days)",
+        "cost": "Cost (14 days)",
+        "costSub": "ledger estimate",
+        "aiUsers": "AI users",
+        "aiUsersSub": "used in 30 days",
+        "features": "Features",
+        "featuresSub": "being tracked"
+      },
+      "tokensByFeature": "Tokens by feature",
+      "noFeatureLedger": "No ledger data by feature yet.",
+      "dailyCost": "Daily AI cost (14 days)",
+      "noDailyCost": "No daily cost data yet.",
+      "topUsers": "Top token users (30 days)",
+      "colUser": "User",
+      "colRole": "Role",
+      "colTokens": "Tokens (30 days)",
+      "noUserData": "No user data."
+    },
+    "organizations": {
+      "title": "B2B Organizations — Finance",
+      "subtitle": "Contracts, seats sold and cash flow from partner centers",
+      "loadError": "Could not load organization list.",
+      "addOrg": "Add organization",
+      "noPlan": "No plan",
+      "activated": "Activated entitlements for {count} students.",
+      "status": {
+        "ACTIVE": "Active",
+        "SUSPENDED": "Suspended",
+        "PENDING": "Pending activation"
+      },
+      "pay": {
+        "paid": "Paid",
+        "pending": "Awaiting payment",
+        "overdue": "Overdue",
+        "none": "No invoice"
+      },
+      "col": {
+        "org": "Organization",
+        "seats": "Seats sold",
+        "revenue": "Revenue",
+        "pay": "Payment"
+      },
+      "studentsSuffix": "{count} students",
+      "seatsUnit": "seats",
+      "issuedInvoices": "Invoiced",
+      "debtSuffix": " · owed {amount}",
+      "renewOn": "Renews {date}",
+      "activating": "Activating…",
+      "activate": "Activate",
+      "viewFinance": "View finance",
+      "privacyNotice": "Platform admin only sees <strong>financial data</strong>. Each center's students, classes, scores and progress are <strong>kept private</strong> — you have no access.",
+      "stats": {
+        "issuedRevenue": "Invoiced revenue",
+        "issuedRevenueSub": "invoice rollup",
+        "totalSeats": "Total seats sold",
+        "totalSeatsSub": "{count} organizations",
+        "unpaidInvoices": "Unpaid invoices",
+        "unpaidInvoicesSub": "needs reconciliation",
+        "pendingActivation": "Pending activation"
+      },
+      "emptyOrgs": "No organizations yet.",
+      "modal": {
+        "description": "Financial detail · contract & invoices",
+        "privacyBanner": "Platform admin only sees the organization's financial data.",
+        "contractInfo": "Contract information",
+        "facts": {
+          "plan": "Plan",
+          "seats": "Seats",
+          "issuedRevenue": "Invoiced revenue",
+          "debt": "Outstanding",
+          "payMethod": "Payment status",
+          "renewUntil": "Renews until"
+        },
+        "invoiceHistory": "Invoice history ({count})",
+        "noIssued": "No issued invoices yet.",
+        "colPeriod": "Period",
+        "colSeats": "Seats",
+        "colAmount": "Amount",
+        "colStatus": "Status",
+        "invStatus": {
+          "paid": "Collected",
+          "sent": "Issued",
+          "draft": "Draft",
+          "void": "Voided"
+        },
+        "learningData": "Learning data",
+        "lockedFields": {
+          "students": "Student list",
+          "classes": "Classes & teachers",
+          "scores": "Scores & submissions",
+          "progress": "Learning progress"
+        },
+        "noAccess": "no access",
+        "remindPayment": "Send reminder",
+        "remindPaymentSoon": "Payment reminder (coming soon)",
+        "exportInvoice": "Export invoice",
+        "exportInvoiceSoon": "Export invoice (coming soon)",
+        "activate": "Activate",
+        "activateFromList": "Activate from the external list"
+      }
+    },
+    "freeTeachers": {
+      "title": "Free teachers",
+      "subtitle": "Teachers not yet in any center — to invite or coordinate",
+      "loadError": "Could not load free teacher list",
+      "colTeacher": "Teacher",
+      "colUserId": "User ID",
+      "itemNoun": "teachers",
+      "empty": "No free teachers."
+    },
+    "users": {
+      "title": "User management",
+      "subtitle": "Roles, plans and quota for each account",
+      "loadError": "Could not load user list.",
+      "searchPlaceholder": "Search name / email…",
+      "addUser": "Add user",
+      "stats": {
+        "totalUsers": "Total users",
+        "students": "Students",
+        "teachers": "Teachers",
+        "paused": "Paused",
+        "pausedReview": "needs review",
+        "pausedNone": "none"
+      },
+      "filterAll": "All",
+      "col": {
+        "account": "Account",
+        "role": "Role",
+        "plan": "Plan",
+        "quota": "AI quota",
+        "status": "Status"
+      },
+      "unlimited": "Unlimited",
+      "quotaUsed": "{pct}% used",
+      "statusActive": "Active",
+      "statusPaused": "Paused",
+      "manage": "Manage",
+      "itemNoun": "users",
+      "empty": "No users found."
+    },
+    "classes": {
+      "title": "Class management",
+      "subtitle": "All classes in the system — synced in realtime with the database",
+      "loadError": "Could not load classes",
+      "stats": {
+        "totalClasses": "Total classes",
+        "totalClassesSub": "system-wide",
+        "totalStudents": "Total students",
+        "totalStudentsSub": "enrolled",
+        "unassigned": "No teacher",
+        "unassignedSub": "needs assignment"
+      },
+      "count": "{count} classes",
+      "searchPlaceholder": "Search class / teacher / ID…",
+      "colId": "ID",
+      "colClass": "Class",
+      "colTeacher": "Teacher",
+      "colStudents": "Students",
+      "unassignedBadge": "Unassigned",
+      "emptyOrg": "No classes in the system yet.",
+      "emptySearch": "No classes found."
+    },
+    "plans": {
+      "title": "Subscription plans",
+      "subtitle": "Manage plans, token limits and benefits",
+      "loadError": "Could not load plan list",
+      "loadErrorToast": "Could not load plan list.",
+      "createPlan": "+ Create plan",
+      "createPlanSoon": "New plan form (coming soon)",
+      "unlimited": "Unlimited",
+      "tokensPerMonth": "{count} tokens/month",
+      "tokensPerDay": "{count} tokens/day",
+      "inactive": "Off",
+      "walletRollover": "Wallet rollover {days} days",
+      "grantDaily": "Granted daily",
+      "edit": "Edit",
+      "editPlan": "Edit plan {name}",
+      "empty": "No plans yet."
+    },
+    "marketing": {
+      "title": "Growth (Leads)",
+      "subtitle": "Lead magnet funnel & shared reports — follow up interested prospects",
+      "loadError": "Could not load growth metrics",
+      "gradePageLink": "Free grading page",
+      "pctOfTotal": "{pct}% of total leads",
+      "stats": {
+        "leadsTotal": "Leads (total)",
+        "leadsTotalSub": "+{count} in 7 days",
+        "leadsToday": "Leads today",
+        "leadsTodaySub": "last 24 hours",
+        "reportsTotal": "Free gradings",
+        "reportsTotalSub": "+{count} in 7 days",
+        "avgScore": "Avg score",
+        "avgScoreSub": "out of 100"
+      },
+      "emailLeads": "Leads via Email",
+      "zaloLeads": "Leads via Zalo/Phone",
+      "recentLeads": "Recent leads (30 days) · {count}",
+      "noLeads": "No leads yet.",
+      "colName": "Name",
+      "colContact": "Contact",
+      "colTopic": "Topic",
+      "colScore": "Score",
+      "colDate": "Date",
+      "aiError": "AI error",
+      "clusters": "Teacher clusters by center (≥3 free teachers) · B2B opportunity",
+      "noClusters": "No clusters yet (needs ≥3 free teachers declaring the same center).",
+      "colCenter": "Center",
+      "colTeacherCount": "Teachers",
+      "colContactEmail": "Contact email",
+      "teacherCountBadge": "{count} teachers"
+    },
+    "weeklySpeaking": {
+      "title": "Weekly Speaking Prompts",
+      "subtitle": "Manage weekly speaking prompts (CEFR band · mandatory points)",
+      "createNew": "Create new",
+      "loadError": "Could not load prompts",
+      "count": "{count} prompts",
+      "empty": "No prompts yet — click “Create new”.",
+      "inactive": "Off",
+      "mandatoryCount": "{count} mandatory points",
+      "optionalCount": "{count} optional",
+      "edit": "Edit",
+      "deactivate": "Off",
+      "confirmDeactivate": "Confirm turning off prompt \"{title}\" (week {week})?",
+      "validation": {
+        "weekStart": "Choose the week start date",
+        "cefrRequired": "CEFR band is required",
+        "titleRequired": "Title is required",
+        "promptRequired": "Prompt (German) is required",
+        "mandatoryMin": "At least 1 mandatory point is required"
+      },
+      "saved": "Changes saved",
+      "created": "Prompt created",
+      "modalTitleCreate": "Create new prompt",
+      "modalTitleEdit": "Edit prompt",
+      "submitCreate": "Create",
+      "submitSave": "Save changes",
+      "weekStartLabel": "Week start date",
+      "cefrLabel": "CEFR band",
+      "titleLabel": "Title",
+      "titlePlaceholder": "Arbeit und Beruf",
+      "promptLabel": "Prompt (German)",
+      "promptPlaceholder": "Beschreiben Sie Ihren Arbeitsalltag…",
+      "mandatoryLabel": "Mandatory points — one per line",
+      "mandatoryPlaceholder": "Beruf nennen\nArbeitszeiten beschreiben\nKollegen erwähnen",
+      "optionalLabel": "Optional points — one per line (optional)",
+      "activeLabel": "Activate"
+    },
+    "analytics": {
+      "title": "Product Analytics",
+      "subtitle": "User behavior, conversion rate & system performance (PostHog)",
+      "dashboardTitle": "Product Analytics Dashboard",
+      "notConfiguredTitle": "Dashboard not configured",
+      "notConfiguredPre": "Set the environment variable ",
+      "notConfiguredPost": " (Shared Dashboard link from PostHog) to display charts here.",
+      "postHogGuide": "PostHog guide"
+    },
+    "broadcast": {
+      "title": "Send system notification",
+      "subtitle": "Compose, categorize and send now or schedule to a user group",
+      "cat": {
+        "info": "Information",
+        "action": "Action needed",
+        "broadcast": "Broadcast"
+      },
+      "audience": {
+        "all": "All users",
+        "student": "Students",
+        "teacher": "Teachers",
+        "free": "Free plan",
+        "pro": "Pro plan"
+      },
+      "enterTitle": "Enter a notification title",
+      "queuedSchedule": "Queued for scheduled sending",
+      "sentTo": "Sent to {audience}",
+      "scheduledAt": "Scheduled {time}",
+      "justNow": "just now",
+      "categoryLabel": "Category",
+      "audienceLabelPre": "Recipients · ",
+      "titleLabel": "Title",
+      "titlePlaceholder": "e.g. myDeutschFlow just got updated!",
+      "bodyLabel": "Content",
+      "bodyPlaceholder": "Notification content…",
+      "sendTimeLabel": "Send time",
+      "sendNow": "Send now",
+      "schedule": "Schedule",
+      "sending": "Sending…",
+      "scheduleSend": "Schedule send",
+      "preview": "Preview",
+      "previewTitle": "Notification title",
+      "previewBody": "Notification content…",
+      "scheduledPreview": "Scheduled: {time}",
+      "noTimeChosen": "no time chosen",
+      "previewJustNow": "Just now",
+      "sentAndScheduled": "Sent & scheduled",
+      "sentEmpty": "Send your first notification to see it here.",
+      "scheduledBadge": "SCHEDULED"
+    },
+    "settings": {
+      "title": "System settings",
+      "subtitle": "Overview of admin operating configuration (read-only)",
+      "footer": "Edit details through each corresponding module.",
+      "sections": {
+        "platform": {
+          "title": "Platform configuration",
+          "desc": "Manage operating configuration, branding and default options for the whole system.",
+          "items": {
+            "branding": "Branding",
+            "timezone": "Time zone",
+            "defaultLang": "Default language",
+            "registration": "Registration mode"
+          }
+        },
+        "security": {
+          "title": "Security & access",
+          "desc": "Set up security, permissions and access control for admins and teachers.",
+          "items": {
+            "password": "Password policy",
+            "twoFa": "2FA policy",
+            "roles": "Role permissions",
+            "session": "Session limits"
+          }
+        },
+        "integrations": {
+          "title": "Integrations",
+          "desc": "Connected integrations: payment, storage and AI services.",
+          "items": {
+            "payment": "SePay / VietQR",
+            "storage": "AWS S3",
+            "ai": "AI providers",
+            "webhook": "Webhook endpoints"
+          }
+        }
+      }
+    }
+  }
+}

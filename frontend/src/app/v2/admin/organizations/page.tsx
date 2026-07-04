@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Plus, ShieldCheck, Lock, Bell, FileDown, Sparkles } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
@@ -84,17 +85,8 @@ function vndFull(n: number): string {
   return `${Math.round(n).toLocaleString('vi-VN')}₫`
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  ACTIVE: 'Đang hoạt động',
-  SUSPENDED: 'Tạm ngưng',
-  PENDING: 'Chờ kích hoạt',
-}
-const PAY_LABEL: Record<OrgPay, string> = {
-  paid: 'Đã thanh toán',
-  pending: 'Chờ thanh toán',
-  overdue: 'Quá hạn',
-  none: 'Chưa có HĐ',
-}
+// Enum → catalog-key maps (labels resolved via t('status.<KEY>') / t('pay.<key>')).
+const STATUS_KEYS = ['ACTIVE', 'SUSPENDED', 'PENDING'] as const
 const PAY_TONE: Record<OrgPay, { c: string; s: string }> = {
   paid: { c: 'var(--ga-green)', s: 'var(--ga-green-soft)' },
   pending: { c: 'var(--ga-orange)', s: 'var(--ga-orange-soft)' },
@@ -103,13 +95,14 @@ const PAY_TONE: Record<OrgPay, { c: string; s: string }> = {
 }
 
 export default function V2AdminOrgsPage() {
+  const t = useTranslations('v2.adminOps.organizations')
   const [activating, setActivating] = useState<number | null>(null)
   const [detail, setDetail] = useState<OrgRow | null>(null)
   const [showCreate, setShowCreate] = useState(false)
 
   const { data, loading, error, reload } = useAdminData<OrgRow[]>({
     initialData: [],
-    errorMessage: 'Không thể tải danh sách tổ chức.',
+    errorMessage: t('loadError'),
     fetchData: async () => {
       const page = await listOrganizations(0, 200)
       const orgs = page.content ?? []
@@ -147,7 +140,7 @@ export default function V2AdminOrgsPage() {
     setActivating(id)
     try {
       const granted = await activateEntitlements(id)
-      toast.success(`Đã kích hoạt quyền lợi cho ${granted} học viên.`)
+      toast.success(t('activated', { count: granted }))
       await reload({ silent: true })
     } catch (e: unknown) {
       toast.error(apiMessage(e))
@@ -156,10 +149,15 @@ export default function V2AdminOrgsPage() {
     }
   }
 
+  const statusLabel = (status: string | null | undefined): string => {
+    const key = (status ?? '').toUpperCase()
+    return (STATUS_KEYS as readonly string[]).includes(key) ? t(`status.${key}`) : (status ?? '')
+  }
+
   const columns: DataTableColumn<OrgRow>[] = [
     {
       key: 'org',
-      header: 'Tổ chức',
+      header: t('col.org'),
       render: ({ org }) => (
         <div className="flex items-center gap-3.5">
           <span
@@ -171,7 +169,7 @@ export default function V2AdminOrgsPage() {
           <div className="min-w-0">
             <p className="text-[15px] font-bold leading-[1.25] text-ga-ink">{org.name}</p>
             <p className="mt-0.5 text-[12.5px] text-ga-muted">
-              {org.planCode || 'Chưa có gói'} · {Number(org.studentCount ?? 0).toLocaleString('vi-VN')} HV
+              {org.planCode || t('noPlan')} · {t('studentsSuffix', { count: Number(org.studentCount ?? 0).toLocaleString('vi-VN') })}
             </p>
           </div>
         </div>
@@ -179,26 +177,26 @@ export default function V2AdminOrgsPage() {
     },
     {
       key: 'seats',
-      header: 'Ghế đã bán',
+      header: t('col.seats'),
       className: 'w-[120px]',
       render: ({ org }) => (
         <p className="font-ga-display text-[18px] font-medium text-ga-ink">
           {Number(org.seatLimit ?? 0).toLocaleString('vi-VN')}{' '}
-          <span className="ga-ui text-[12.5px] text-ga-muted">ghế</span>
+          <span className="ga-ui text-[12.5px] text-ga-muted">{t('seatsUnit')}</span>
         </p>
       ),
     },
     {
       key: 'revenue',
-      header: 'Doanh thu',
+      header: t('col.revenue'),
       className: 'w-[180px]',
       render: ({ finance }) => (
         <div>
           <p className="text-[14px] font-semibold text-ga-ink">{vndCompact(finance.totalInvoiced)}</p>
           <p className="mt-0.5 text-[11.5px] text-ga-muted">
-            Đã xuất HĐ
+            {t('issuedInvoices')}
             {finance.outstanding > 0 && (
-              <span style={{ color: 'var(--ga-red)' }}> · nợ {vndFull(finance.outstanding)}</span>
+              <span style={{ color: 'var(--ga-red)' }}>{t('debtSuffix', { amount: vndFull(finance.outstanding) })}</span>
             )}
           </p>
         </div>
@@ -206,7 +204,7 @@ export default function V2AdminOrgsPage() {
     },
     {
       key: 'pay',
-      header: 'Thanh toán',
+      header: t('col.pay'),
       className: 'w-[150px]',
       render: ({ finance, org }) => {
         const tone = PAY_TONE[finance.pay]
@@ -217,9 +215,9 @@ export default function V2AdminOrgsPage() {
               style={{ color: tone.c, background: tone.s }}
             >
               <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: tone.c }} />
-              {PAY_LABEL[finance.pay]}
+              {t(`pay.${finance.pay}`)}
             </span>
-            <p className="mt-[5px] text-[11px] text-ga-muted">Gia hạn {fmtDate(org.validUntil)}</p>
+            <p className="mt-[5px] text-[11px] text-ga-muted">{t('renewOn', { date: fmtDate(org.validUntil) })}</p>
           </div>
         )
       },
@@ -241,12 +239,12 @@ export default function V2AdminOrgsPage() {
                 onClick={() => doActivate(org.id)}
                 className="rounded-ga bg-ga-yellow px-3 py-2 text-[11.5px] font-bold text-ga-ink transition-opacity disabled:opacity-60"
               >
-                {activating === org.id ? 'Đang kích hoạt…' : 'Kích hoạt'}
+                {activating === org.id ? t('activating') : t('activate')}
               </button>
             ) : (
               <span className="inline-flex items-center gap-1.5 text-[12px]" style={{ color: 'var(--ga-green)' }}>
                 <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: 'var(--ga-green)' }} />
-                {STATUS_LABEL[(org.status ?? '').toUpperCase()] ?? org.status}
+                {statusLabel(org.status)}
               </span>
             )}
             <button
@@ -254,7 +252,7 @@ export default function V2AdminOrgsPage() {
               onClick={() => setDetail(row)}
               className="rounded-ga border border-ga-line px-[10px] py-[6px] text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent"
             >
-              Xem tài chính
+              {t('viewFinance')}
             </button>
           </div>
         )
@@ -266,12 +264,12 @@ export default function V2AdminOrgsPage() {
     <div className="flex min-h-full flex-col" style={orgsAccentVars}>
       <GaPageHdr
         accent
-        title="Tổ chức B2B — Tài chính"
-        subtitle="Hợp đồng, ghế đã bán và dòng tiền từ các trung tâm đối tác"
+        title={t('title')}
+        subtitle={t('subtitle')}
         right={
           <GaBtn variant="ghost" onClick={() => setShowCreate(true)}>
             <Plus size={15} aria-hidden />
-            Thêm tổ chức
+            {t('addOrg')}
           </GaBtn>
         }
       />
@@ -284,29 +282,28 @@ export default function V2AdminOrgsPage() {
         >
           <ShieldCheck size={20} aria-hidden style={{ color: 'var(--ga-navy)', flexShrink: 0 }} />
           <p className="text-[13.5px] leading-[1.5] text-ga-ink">
-            Quản trị nền tảng chỉ xem <strong>dữ liệu tài chính</strong>. Học viên, lớp học, điểm số và tiến độ của mỗi
-            trung tâm được <strong>bảo mật riêng</strong> — bạn không có quyền truy cập.
+            {t.rich('privacyNotice', { strong: (chunks) => <strong>{chunks}</strong> })}
           </p>
         </div>
 
         <AdStatStrip
           className="mb-6"
           cells={[
-            { label: 'Doanh thu đã xuất (HĐ)', value: vndCompact(stats.revenue), color: '#1E9E61', sub: 'rollup hoá đơn' },
+            { label: t('stats.issuedRevenue'), value: vndCompact(stats.revenue), color: '#1E9E61', sub: t('stats.issuedRevenueSub') },
             {
-              label: 'Tổng ghế đã bán',
+              label: t('stats.totalSeats'),
               value: stats.seats.toLocaleString('vi-VN'),
               color: '#7C56C8',
-              sub: `${stats.count} tổ chức`,
+              sub: t('stats.totalSeatsSub', { count: stats.count }),
             },
             {
-              label: 'Hoá đơn chưa thu',
+              label: t('stats.unpaidInvoices'),
               value: stats.unpaid,
               color: '#E07B39',
-              sub: 'cần đối soát',
+              sub: t('stats.unpaidInvoicesSub'),
               alert: stats.unpaid > 0,
             },
-            { label: 'Chờ kích hoạt', value: stats.pending, color: '#2F6FC9', alert: stats.pending > 0 },
+            { label: t('stats.pendingActivation'), value: stats.pending, color: '#2F6FC9', alert: stats.pending > 0 },
           ]}
         />
 
@@ -318,11 +315,11 @@ export default function V2AdminOrgsPage() {
           error={error || null}
           onRetry={() => reload({ silent: false })}
           errorEndpoint="GET /api/admin/organizations"
-          itemNoun="tổ chức"
+          itemNoun={t('col.org')}
           pageSize={0}
           empty={
             <div className="px-10 py-7 text-center">
-              <p className="ga-ui text-[14.5px] text-ga-muted">Chưa có tổ chức nào.</p>
+              <p className="ga-ui text-[14.5px] text-ga-muted">{t('emptyOrgs')}</p>
             </div>
           }
         />
@@ -338,15 +335,17 @@ export default function V2AdminOrgsPage() {
 }
 
 // ── Financial-detail modal (admin sees finance only; learning data is locked) ─
-const INV_STATUS: Record<string, { label: string; tone: OrgPay }> = {
-  PAID: { label: 'Đã thu', tone: 'paid' },
-  SENT: { label: 'Đã xuất', tone: 'pending' },
-  DRAFT: { label: 'Nháp', tone: 'none' },
-  VOID: { label: 'Đã huỷ', tone: 'none' },
+// Invoice status enum → catalog key + tone (label via t('modal.invStatus.<key>')).
+const INV_STATUS: Record<string, { labelKey: 'paid' | 'sent' | 'draft' | 'void'; tone: OrgPay }> = {
+  PAID: { labelKey: 'paid', tone: 'paid' },
+  SENT: { labelKey: 'sent', tone: 'pending' },
+  DRAFT: { labelKey: 'draft', tone: 'none' },
+  VOID: { labelKey: 'void', tone: 'none' },
 }
-const LOCKED_FIELDS = ['Danh sách học viên', 'Lớp học & giáo viên', 'Điểm số & bài làm', 'Tiến độ học tập']
+const LOCKED_FIELD_KEYS = ['students', 'classes', 'scores', 'progress'] as const
 
 function OrgFinanceModal({ row, onClose }: { row: OrgRow | null; onClose: () => void }) {
+  const t = useTranslations('v2.adminOps.organizations')
   if (!row) return null
   const { org, finance, invoices } = row
   const issued = [...invoices]
@@ -354,26 +353,26 @@ function OrgFinanceModal({ row, onClose }: { row: OrgRow | null; onClose: () => 
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
   const facts: [string, React.ReactNode][] = [
-    ['Gói', org.planCode || 'Chưa có gói'],
-    ['Ghế', `${(org.seatUsed ?? 0).toLocaleString('vi-VN')}/${(org.seatLimit ?? 0).toLocaleString('vi-VN')}`],
-    ['Doanh thu đã xuất (HĐ)', vndCompact(finance.totalInvoiced)],
-    ['Công nợ', finance.outstanding > 0 ? vndFull(finance.outstanding) : '—'],
-    ['Hình thức TT', PAY_LABEL[finance.pay]],
-    ['Gia hạn đến', fmtDate(org.validUntil)],
+    [t('modal.facts.plan'), org.planCode || t('noPlan')],
+    [t('modal.facts.seats'), `${(org.seatUsed ?? 0).toLocaleString('vi-VN')}/${(org.seatLimit ?? 0).toLocaleString('vi-VN')}`],
+    [t('modal.facts.issuedRevenue'), vndCompact(finance.totalInvoiced)],
+    [t('modal.facts.debt'), finance.outstanding > 0 ? vndFull(finance.outstanding) : '—'],
+    [t('modal.facts.payMethod'), t(`pay.${finance.pay}`)],
+    [t('modal.facts.renewUntil'), fmtDate(org.validUntil)],
   ]
 
   return (
-    <TkModal open={!!row} onOpenChange={(o) => !o && onClose()} title={org.name} description="Chi tiết tài chính · hợp đồng & hoá đơn" size="lg">
+    <TkModal open={!!row} onOpenChange={(o) => !o && onClose()} title={org.name} description={t('modal.description')} size="lg">
       <div className="flex flex-col gap-5">
         {/* Privacy banner */}
         <div className="flex items-center gap-2.5 border px-4 py-2.5" style={{ background: 'var(--ga-navy-soft)', borderColor: 'rgba(39,64,107,0.20)' }}>
           <ShieldCheck size={17} style={{ color: 'var(--ga-navy)' }} className="shrink-0" />
-          <p className="ga-ui m-0 text-[12.5px] leading-[1.5] text-ga-ink">Quản trị nền tảng chỉ xem dữ liệu tài chính của tổ chức.</p>
+          <p className="ga-ui m-0 text-[12.5px] leading-[1.5] text-ga-ink">{t('modal.privacyBanner')}</p>
         </div>
 
         {/* Contract facts grid */}
         <div>
-          <GaCap className="mb-2.5 block">Thông tin hợp đồng</GaCap>
+          <GaCap className="mb-2.5 block">{t('modal.contractInfo')}</GaCap>
           <div className="grid grid-cols-2 gap-px border border-ga-line bg-ga-line sm:grid-cols-3">
             {facts.map(([k, v]) => (
               <div key={k} className="bg-ga-card px-3.5 py-3">
@@ -386,24 +385,25 @@ function OrgFinanceModal({ row, onClose }: { row: OrgRow | null; onClose: () => 
 
         {/* Invoice history */}
         <div>
-          <GaCap className="mb-2.5 block">Lịch sử hoá đơn ({issued.length})</GaCap>
+          <GaCap className="mb-2.5 block">{t('modal.invoiceHistory', { count: issued.length })}</GaCap>
           {issued.length === 0 ? (
-            <div className="border border-dashed border-ga-line px-4 py-6 text-center text-[13px] text-ga-muted">Chưa có hoá đơn đã xuất.</div>
+            <div className="border border-dashed border-ga-line px-4 py-6 text-center text-[13px] text-ga-muted">{t('modal.noIssued')}</div>
           ) : (
             <div className="border border-ga-line">
               <div className="grid grid-cols-[1fr_64px_110px_92px] gap-2 border-b border-ga-line bg-ga-bg px-3.5 py-2 text-[10px] font-bold uppercase tracking-[0.08em] text-ga-muted">
-                <span>Kỳ</span><span className="text-right">Ghế</span><span className="text-right">Số tiền</span><span className="text-right">Trạng thái</span>
+                <span>{t('modal.colPeriod')}</span><span className="text-right">{t('modal.colSeats')}</span><span className="text-right">{t('modal.colAmount')}</span><span className="text-right">{t('modal.colStatus')}</span>
               </div>
               {issued.map((inv, i) => {
-                const st = INV_STATUS[(inv.status ?? '').toUpperCase()] ?? { label: inv.status, tone: 'none' as OrgPay }
-                const tone = PAY_TONE[st.tone]
+                const st = INV_STATUS[(inv.status ?? '').toUpperCase()]
+                const stLabel = st ? t(`modal.invStatus.${st.labelKey}`) : inv.status
+                const tone = PAY_TONE[st?.tone ?? 'none']
                 return (
                   <div key={inv.id} className="grid grid-cols-[1fr_64px_110px_92px] items-center gap-2 px-3.5 py-2.5 text-[12.5px]" style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
                     <span className="text-ga-ink">{fmtDate(inv.periodStart)} – {fmtDate(inv.periodEnd)}</span>
                     <span className="text-right text-ga-muted">{inv.seats}</span>
                     <span className="text-right font-semibold text-ga-ink">{vndFull(inv.amountVnd)}</span>
                     <span className="text-right">
-                      <span className="px-1.5 py-0.5 text-[10.5px] font-bold" style={{ color: tone.c, background: tone.s }}>{st.label}</span>
+                      <span className="px-1.5 py-0.5 text-[10.5px] font-bold" style={{ color: tone.c, background: tone.s }}>{stLabel}</span>
                     </span>
                   </div>
                 )
@@ -414,11 +414,11 @@ function OrgFinanceModal({ row, onClose }: { row: OrgRow | null; onClose: () => 
 
         {/* Locked learning data (privacy) */}
         <div>
-          <GaCap className="mb-2.5 block">Dữ liệu học tập</GaCap>
+          <GaCap className="mb-2.5 block">{t('modal.learningData')}</GaCap>
           <div className="grid grid-cols-2 gap-2">
-            {LOCKED_FIELDS.map((f) => (
+            {LOCKED_FIELD_KEYS.map((f) => (
               <div key={f} className="flex items-center gap-2 border border-dashed border-ga-line bg-ga-bg px-3 py-2.5 text-[12.5px] text-ga-subtle">
-                <Lock size={13} className="shrink-0" /> {f} <span className="ml-auto text-[10.5px]">không có quyền xem</span>
+                <Lock size={13} className="shrink-0" /> {t(`modal.lockedFields.${f}`)} <span className="ml-auto text-[10.5px]">{t('modal.noAccess')}</span>
               </div>
             ))}
           </div>
@@ -426,10 +426,10 @@ function OrgFinanceModal({ row, onClose }: { row: OrgRow | null; onClose: () => 
       </div>
 
       <div className="mt-5 flex flex-wrap justify-end gap-2 border-t border-ga-line pt-4">
-        <GaBtn variant="ghost" size="sm" onClick={() => toast('Nhắc thanh toán (sắp ra mắt)')}><Bell size={14} /> Nhắc thanh toán</GaBtn>
-        <GaBtn variant="ghost" size="sm" onClick={() => toast('Xuất hoá đơn (sắp ra mắt)')}><FileDown size={14} /> Xuất hoá đơn</GaBtn>
+        <GaBtn variant="ghost" size="sm" onClick={() => toast(t('modal.remindPaymentSoon'))}><Bell size={14} /> {t('modal.remindPayment')}</GaBtn>
+        <GaBtn variant="ghost" size="sm" onClick={() => toast(t('modal.exportInvoiceSoon'))}><FileDown size={14} /> {t('modal.exportInvoice')}</GaBtn>
         {(org.status ?? '').toUpperCase() === 'PENDING' && (
-          <GaBtn variant="yellow" size="sm" onClick={() => toast('Kích hoạt từ danh sách bên ngoài')}><Sparkles size={14} /> Kích hoạt</GaBtn>
+          <GaBtn variant="yellow" size="sm" onClick={() => toast(t('modal.activateFromList'))}><Sparkles size={14} /> {t('modal.activate')}</GaBtn>
         )}
       </div>
     </TkModal>

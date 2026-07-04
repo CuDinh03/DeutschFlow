@@ -64,10 +64,13 @@ parity, page NOT yet wired to `useTranslations` — mechanical wiring remains) �
 _Minor: a few rare `Lớp {id}` fallbacks (missing class name) + AI-payload/regex strings left VN by
 design (not display) — see leftover-VN audit notes._
 
-### admin (`area: admin`) — ~25 pages
-- ⬜ (root) · revenue · tokens · organizations · free-teachers · users · classes · plans
-- ⬜ mock-exam-packs · vocabulary · grammar-review · media · ai-config · broadcast · marketing
-- ⬜ analytics · weekly-speaking · reports(+3) · personas · interviews · audit · training-dataset · settings
+### admin — ✅ 26/26 wired (split into 2 areas: `adminOps` + `adminContent`)
+- ✅ adminOps: (root) · revenue · tokens · organizations · free-teachers · users · classes · plans
+  · marketing · weekly-speaking · analytics · broadcast · settings
+- ✅ adminContent: mock-exam-packs · vocabulary · grammar-review · media · ai-config · personas
+  · interviews · audit · training-dataset · reports · reports/grammar-feedback-coverage
+  · reports/personalization-ruleset · reports/vocabulary-quality
+- Admin is internal platform tooling → machine German is sanctioned (no learner-facing content).
 
 ### shared / account (`area: account`)
 - ⬜ profile · payment · notifications _(notifications/page.tsx blocked on in-flight notification WIP)_

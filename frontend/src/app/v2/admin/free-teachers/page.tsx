@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import useAdminData from '@/hooks/useAdminData'
 import { listFreeTeachers, type FreeTeacher } from '@/lib/adminOrgApi'
 import { GaPageHdr, DataTable, type DataTableColumn } from '@/components/ui-v2'
@@ -8,32 +9,33 @@ import { GaPageHdr, DataTable, type DataTableColumn } from '@/components/ui-v2'
 // cờ/bảng). Platform-admin xem để mời/điều phối vào trung tâm (B2B model §4/§6).
 
 export default function V2AdminFreeTeachersPage() {
+  const t = useTranslations('v2.adminOps.freeTeachers')
   const { data, loading, error, reload } = useAdminData<FreeTeacher[]>({
     initialData: [],
     fetchData: listFreeTeachers,
-    errorMessage: 'Không tải được danh sách giáo viên tự do',
+    errorMessage: t('loadError'),
   })
 
   const columns: DataTableColumn<FreeTeacher>[] = [
     {
       key: 'displayName',
-      header: 'Giáo viên',
+      header: t('colTeacher'),
       sortable: true,
-      sortValue: (t) => t.displayName || t.email,
-      render: (t) => (
+      sortValue: (row) => row.displayName || row.email,
+      render: (row) => (
         <div>
-          <p className="text-[14px] font-semibold text-ga-ink">{t.displayName || '—'}</p>
-          <p className="truncate text-[12px] text-ga-muted">{t.email}</p>
+          <p className="text-[14px] font-semibold text-ga-ink">{row.displayName || '—'}</p>
+          <p className="truncate text-[12px] text-ga-muted">{row.email}</p>
         </div>
       ),
     },
     {
       key: 'userId',
-      header: 'ID người dùng',
+      header: t('colUserId'),
       align: 'right',
       sortable: true,
-      sortValue: (t) => t.userId,
-      render: (t) => <span className="ga-ui text-[13px] text-ga-muted">#{t.userId}</span>,
+      sortValue: (row) => row.userId,
+      render: (row) => <span className="ga-ui text-[13px] text-ga-muted">#{row.userId}</span>,
     },
   ]
 
@@ -41,20 +43,20 @@ export default function V2AdminFreeTeachersPage() {
     <div className="flex min-h-full flex-col">
       <GaPageHdr
         accent
-        title="Giáo viên tự do"
-        subtitle="Giáo viên chưa thuộc trung tâm nào — để mời hoặc điều phối"
+        title={t('title')}
+        subtitle={t('subtitle')}
       />
       <div className="flex-1 px-10 py-6">
         <DataTable
           columns={columns}
           data={data}
-          rowKey={(t) => t.userId}
+          rowKey={(row) => row.userId}
           loading={loading}
           error={error || null}
           onRetry={() => void reload()}
           errorEndpoint="GET /api/admin/teachers/free"
-          itemNoun="giáo viên"
-          empty={<p className="ga-ui text-[14px] text-ga-muted">Không có giáo viên tự do nào.</p>}
+          itemNoun={t('itemNoun')}
+          empty={<p className="ga-ui text-[14px] text-ga-muted">{t('empty')}</p>}
         />
       </div>
     </div>

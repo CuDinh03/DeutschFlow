@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { GaPageHdr, GaBtn, GaCap, GaIcon } from '@/components/ui-v2'
 import api from '@/lib/api'
 
@@ -24,27 +25,28 @@ interface AuditRow {
 
 const PAGE_SIZE = 30
 
-const CAT_LABEL: Record<string, string> = {
-  USER: 'Người dùng',
-  VOCABULARY: 'Từ vựng',
-  ORG: 'Tổ chức',
-  PLAN: 'Gói',
-  SYSTEM: 'Hệ thống',
-}
-
-function relTime(iso: string | null): string {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  const diff = Date.now() - d.getTime()
-  const m = Math.round(diff / 60000)
-  if (m < 1) return 'vừa xong'
-  if (m < 60) return `${m} phút trước`
-  const h = Math.round(m / 60)
-  if (h < 24) return `${h} giờ trước`
-  return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+// Category key → catalog label key (resolved via t(`cat${key}`)).
+const CAT_LABEL_KEY: Record<string, string> = {
+  USER: 'catUser',
+  VOCABULARY: 'catVocabulary',
+  ORG: 'catOrg',
+  PLAN: 'catPlan',
+  SYSTEM: 'catSystem',
 }
 
 export default function AdminAuditPage() {
+  const t = useTranslations('v2.adminContent.audit')
+  const relTime = (iso: string | null): string => {
+    if (!iso) return '—'
+    const d = new Date(iso)
+    const diff = Date.now() - d.getTime()
+    const m = Math.round(diff / 60000)
+    if (m < 1) return t('relJustNow')
+    if (m < 60) return t('relMinutes', { count: m })
+    const h = Math.round(m / 60)
+    if (h < 24) return t('relHours', { count: h })
+    return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  }
   const [rows, setRows] = useState<AuditRow[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -85,9 +87,9 @@ export default function AdminAuditPage() {
   const filters = useMemo(() => ['all', ...seenCats], [seenCats])
 
   const exportCsv = () => {
-    const head = ['Người thực hiện', 'Vai trò', 'Hành động', 'Đối tượng', 'Mã', 'Thời gian']
+    const head = [t('csvActor'), t('csvRole'), t('csvAction'), t('csvTarget'), t('csvId'), t('csvTime')]
     const lines = rows.map((r) =>
-      [r.actorEmail ?? 'Hệ thống', r.actorRole ?? '', r.eventName, r.targetType ?? '', r.targetId ?? '', r.createdAt ?? '']
+      [r.actorEmail ?? t('system'), r.actorRole ?? '', r.eventName, r.targetType ?? '', r.targetId ?? '', r.createdAt ?? '']
         .map((c) => `"${String(c).replace(/"/g, '""')}"`)
         .join(','),
     )
@@ -103,11 +105,11 @@ export default function AdminAuditPage() {
   return (
     <div className="flex min-h-full flex-col">
       <GaPageHdr
-        title="Nhật ký hệ thống"
-        subtitle="Lịch sử thao tác quản trị và sự kiện hệ thống (audit log)"
+        title={t('title')}
+        subtitle={t('subtitle')}
         right={
           <GaBtn variant="ghost" size="sm" onClick={exportCsv} disabled={!rows.length}>
-            <GaIcon name="description" size={15} />Xuất CSV
+            <GaIcon name="description" size={15} />{t('exportCsv')}
           </GaBtn>
         }
       />
@@ -124,7 +126,7 @@ export default function AdminAuditPage() {
                     on ? 'border-ga-ink bg-ga-ink text-ga-bg' : 'border-ga-line bg-ga-card text-ga-muted hover:text-ga-ink'
                   }`}
                 >
-                  {f === 'all' ? 'Tất cả' : CAT_LABEL[f] ?? f}
+                  {f === 'all' ? t('filterAll') : CAT_LABEL_KEY[f] ? t(CAT_LABEL_KEY[f]) : f}
                 </button>
               )
             })}
@@ -134,7 +136,7 @@ export default function AdminAuditPage() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Tìm hành động / đối tượng…"
+              placeholder={t('searchPlaceholder')}
               className="ga-ui w-[240px] max-w-[50vw] border-none bg-transparent text-[13px] text-ga-ink outline-none placeholder:text-ga-subtle"
             />
           </div>
@@ -142,21 +144,21 @@ export default function AdminAuditPage() {
 
         <div className="border border-ga-line bg-ga-card">
           <div className="grid grid-cols-[1.2fr_1.4fr_1.4fr_130px] gap-2 border-b border-ga-line bg-ga-surface px-5 py-3">
-            {['Người thực hiện', 'Hành động', 'Đối tượng', 'Thời gian'].map((h) => (
+            {[t('colActor'), t('colAction'), t('colTarget'), t('colTime')].map((h) => (
               <GaCap key={h} className="text-[10px]">{h}</GaCap>
             ))}
           </div>
 
           {loading && (
-            <div className="px-5 py-[30px] text-center text-[13px] text-ga-muted">Đang tải nhật ký…</div>
+            <div className="px-5 py-[30px] text-center text-[13px] text-ga-muted">{t('loading')}</div>
           )}
           {error && !loading && (
             <div className="px-5 py-[30px] text-center text-[13px] text-ga-red">
-              Không tải được nhật ký. <button onClick={load} className="font-semibold underline">Thử lại</button>
+              {t('loadError')} <button onClick={load} className="font-semibold underline">{t('retry')}</button>
             </div>
           )}
           {!loading && !error && rows.length === 0 && (
-            <div className="px-5 py-[30px] text-center text-[13px] text-ga-muted">Không có bản ghi phù hợp.</div>
+            <div className="px-5 py-[30px] text-center text-[13px] text-ga-muted">{t('empty')}</div>
           )}
 
           {!loading && !error && rows.map((r, i) => {
@@ -172,10 +174,10 @@ export default function AdminAuditPage() {
                       sys ? 'bg-ga-surface text-ga-muted' : 'bg-ga-ink text-ga-yellow'
                     }`}
                   >
-                    {(r.actorEmail ?? 'Hệ thống')[0].toUpperCase()}
+                    {(r.actorEmail ?? t('system'))[0].toUpperCase()}
                   </span>
-                  <span className="truncate text-[13px] font-semibold text-ga-ink" title={r.actorEmail ?? 'Hệ thống'}>
-                    {r.actorEmail ?? 'Hệ thống'}
+                  <span className="truncate text-[13px] font-semibold text-ga-ink" title={r.actorEmail ?? t('system')}>
+                    {r.actorEmail ?? t('system')}
                   </span>
                 </div>
                 <span className="break-words text-[13.5px] text-ga-ink">{r.eventName}</span>
@@ -190,7 +192,7 @@ export default function AdminAuditPage() {
 
         {!loading && !error && total > rows.length && (
           <p className="ga-ui mt-3 text-[12.5px] text-ga-muted">
-            Hiển thị {rows.length} bản ghi mới nhất · tổng {total.toLocaleString('vi-VN')}
+            {t('footerCount', { shown: rows.length, total: total.toLocaleString('vi-VN') })}
           </p>
         )}
       </div>

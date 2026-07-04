@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { UploadCloud, CheckCircle2 } from 'lucide-react'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
@@ -52,11 +53,13 @@ function normalizeWord(r: Record<string, unknown>): VocabWord {
 }
 
 export default function V2AdminVocabPage() {
+  const t = useTranslations('v2.adminContent.vocabulary')
+  const tc = useTranslations('v2.common')
   const [target, setTarget] = useState<VocabWord | null>(null)
 
   const { data, loading, error, reload } = useAdminData<VocabWord[]>({
     initialData: [],
-    errorMessage: 'Không thể tải cơ sở dữ liệu từ vựng.',
+    errorMessage: t('loadDataError'),
     fetchData: async () => {
       const res = await api.get('/vocabulary/words')
       return ((res.data ?? []) as Record<string, unknown>[]).map(normalizeWord)
@@ -87,12 +90,12 @@ export default function V2AdminVocabPage() {
     <div className="flex min-h-full flex-col" style={vocabAccentVars}>
       <GaPageHdr
         accent
-        title="Cơ sở dữ liệu từ vựng"
-        subtitle="Duyệt từ, gắn ảnh và làm giàu dữ liệu"
+        title={t('title')}
+        subtitle={t('subtitle')}
         right={
-          <GaBtn variant="ghost" onClick={() => toast('Mở hộp thoại nhập CSV (sắp ra mắt)')}>
+          <GaBtn variant="ghost" onClick={() => toast(t('importSoon'))}>
             <UploadCloud size={15} aria-hidden />
-            Nhập CSV
+            {t('importCsv')}
           </GaBtn>
         }
       />
@@ -101,20 +104,20 @@ export default function V2AdminVocabPage() {
         <AdStatStrip
           className="mb-6"
           cells={[
-            { label: 'Tổng từ vựng', value: stats.total.toLocaleString('vi-VN'), color: GREEN },
+            { label: t('statTotal'), value: stats.total.toLocaleString('vi-VN'), color: GREEN },
             {
-              label: 'Thiếu ảnh',
+              label: t('statMissing'),
               value: stats.missing.toLocaleString('vi-VN'),
               color: '#E07B39',
-              sub: 'cần gắn ảnh',
+              sub: t('statMissingSub'),
               alert: stats.missing > 0,
             },
-            { label: 'Chờ duyệt', value: stats.missing.toLocaleString('vi-VN'), color: '#C79A00' },
-            { label: 'Đã có audio (TTS)', value: `${stats.audioPct}%`, color: '#2F6FC9' },
+            { label: t('statPending'), value: stats.missing.toLocaleString('vi-VN'), color: '#C79A00' },
+            { label: t('statAudio'), value: `${stats.audioPct}%`, color: '#2F6FC9' },
           ]}
         />
 
-        <GaCap className="mb-3.5 block">Hàng đợi duyệt từ vựng ({queue.length})</GaCap>
+        <GaCap className="mb-3.5 block">{t('queueCap', { count: queue.length })}</GaCap>
 
         {loading ? (
           <div className="grid grid-cols-2 gap-4">
@@ -125,19 +128,19 @@ export default function V2AdminVocabPage() {
         ) : error ? (
           <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
             <h2 className="font-ga-display text-[26px] font-medium leading-[1.2] text-ga-red">
-              Không tải được từ vựng
+              {t('loadError')}
             </h2>
             <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14.5px] text-ga-muted">
               {error} <code className="font-mono text-[12px] text-ga-accent">GET /api/vocabulary/words</code>
             </p>
             <GaBtn variant="primary" onClick={() => reload({ silent: false })}>
-              Thử lại
+              {tc('retry')}
             </GaBtn>
           </div>
         ) : queue.length === 0 ? (
           <div className="border border-dashed border-ga-line px-10 py-10 text-center">
             <CheckCircle2 size={32} className="mx-auto mb-2" style={{ color: GREEN }} aria-hidden />
-            <p className="font-ga-display text-[18px] italic text-ga-ink">Đã duyệt hết hàng đợi 🎉</p>
+            <p className="font-ga-display text-[18px] italic text-ga-ink">{t('queueDone')}</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-4">
@@ -147,7 +150,7 @@ export default function V2AdminVocabPage() {
                   className="grid h-24 w-24 shrink-0 place-items-center text-center text-[10px] font-semibold uppercase tracking-[0.08em]"
                   style={{ background: 'var(--ga-orange-soft)', color: 'var(--ga-orange)' }}
                 >
-                  Thiếu ảnh
+                  {t('missingImage')}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="mb-1 flex items-center gap-2">
@@ -169,23 +172,23 @@ export default function V2AdminVocabPage() {
                       className="rounded-ga px-[11px] py-[6px] text-[11.5px] font-semibold text-white transition-opacity hover:opacity-90"
                       style={{ background: GREEN }}
                     >
-                      Gắn ảnh
+                      {t('attachImage')}
                     </button>
                     <button
                       type="button"
                       disabled
-                      title="Cần gắn ảnh trước khi duyệt"
+                      title={t('approveNeedsImage')}
                       className="rounded-ga border border-ga-line px-[11px] py-[6px] text-[11.5px] font-semibold text-ga-subtle disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      Duyệt
+                      {t('approve')}
                     </button>
                     <button
                       type="button"
-                      onClick={() => toast('Từ chối từ vựng — cần endpoint backend')}
+                      onClick={() => toast(t('rejectSoon'))}
                       className="rounded-ga px-[11px] py-[6px] text-[11.5px] font-semibold transition-colors"
                       style={{ color: 'var(--ga-red)' }}
                     >
-                      Từ chối
+                      {t('reject')}
                     </button>
                   </div>
                 </div>
@@ -195,7 +198,7 @@ export default function V2AdminVocabPage() {
         )}
         {!loading && !error && queue.length > QUEUE_CAP && (
           <p className="mt-4 text-center text-[13px] text-ga-muted">
-            Hiển thị {QUEUE_CAP} từ đầu · còn {(queue.length - QUEUE_CAP).toLocaleString('vi-VN')} từ trong hàng đợi
+            {t('queueMore', { cap: QUEUE_CAP, rest: (queue.length - QUEUE_CAP).toLocaleString('vi-VN') })}
           </p>
         )}
       </div>
@@ -224,6 +227,8 @@ function AttachImageModal({
   onClose: () => void
   onDone: () => void
 }) {
+  const t = useTranslations('v2.adminContent.vocabulary')
+  const tc = useTranslations('v2.common')
   const [review, setReview] = useState<VocabularyImageReviewResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
@@ -256,7 +261,7 @@ function AttachImageModal({
         decision: 'APPROVE',
         imageUrl: chosen.regularUrl,
       })
-      toast.success(`Đã gắn ảnh cho "${word.de}"`)
+      toast.success(t('attachedToast', { word: word.de }))
       onDone()
     } catch (e: unknown) {
       toast.error(apiMessage(e))
@@ -270,14 +275,14 @@ function AttachImageModal({
       open
       onOpenChange={(o) => !o && onClose()}
       size="lg"
-      title={`Gắn ảnh — ${word.de}`}
+      title={t('attachTitle', { word: word.de })}
       footer={
         <div className="flex justify-end gap-2.5">
           <GaBtn variant="ghost" onClick={onClose}>
-            Huỷ
+            {tc('cancel')}
           </GaBtn>
           <GaBtn variant="primary" disabled={!chosen || saving} onClick={approve}>
-            {saving ? 'Đang gắn…' : 'Duyệt ảnh đã chọn'}
+            {saving ? t('attaching') : t('approveSelected')}
           </GaBtn>
         </div>
       }
@@ -291,7 +296,7 @@ function AttachImageModal({
       ) : err ? (
         <p className="py-8 text-center text-[14px] text-ga-red">{err}</p>
       ) : !review?.suggestions.length ? (
-        <p className="py-8 text-center text-[14px] text-ga-muted">Không tìm thấy ảnh gợi ý cho từ này.</p>
+        <p className="py-8 text-center text-[14px] text-ga-muted">{t('noSuggestions')}</p>
       ) : (
         <div className="grid grid-cols-4 gap-3">
           {review.suggestions.map((s) => {

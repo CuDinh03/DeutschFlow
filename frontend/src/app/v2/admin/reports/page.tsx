@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { ChevronRight, RefreshCw } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import api, { apiMessage } from '@/lib/api'
@@ -29,12 +30,14 @@ const passStyle = (ok: boolean) => (ok ? { color: 'var(--ga-green)' } : { color:
 const badge = (ok: boolean) => (ok ? { color: 'var(--ga-green)', background: 'var(--ga-green-soft)' } : { color: 'var(--ga-red)', background: 'var(--ga-red-soft)' })
 
 const CHILD_REPORTS = [
-  { href: '/v2/admin/reports/grammar-feedback-coverage', label: 'Phản hồi ngữ pháp' },
-  { href: '/v2/admin/reports/personalization-ruleset', label: 'Ruleset cá nhân hoá' },
-  { href: '/v2/admin/reports/vocabulary-quality', label: 'Chất lượng từ vựng' },
+  { href: '/v2/admin/reports/grammar-feedback-coverage', labelKey: 'childGrammar' },
+  { href: '/v2/admin/reports/personalization-ruleset', labelKey: 'childPersonalization' },
+  { href: '/v2/admin/reports/vocabulary-quality', labelKey: 'childVocab' },
 ]
 
 export default function V2AdminReportsPage() {
+  const t = useTranslations('v2.adminContent.reports')
+  const tc = useTranslations('v2.common')
   const router = useRouter()
   const [overview, setOverview] = useState<Overview | null>(null)
   const [progress, setProgress] = useState<ProgressRow[]>([])
@@ -97,27 +100,27 @@ export default function V2AdminReportsPage() {
   }, [progress, onlyUnder20, sortBy])
 
   const signals = [
-    { title: 'Submit latency (p95)', value: p95 != null ? `${Math.round(p95)}ms` : '—', ok: p95 != null && p95 < 500 },
-    { title: 'Grammar coverage', value: grammarPct != null ? `${grammarPct.toFixed(0)}%` : '—', ok: grammarPct != null && grammarPct >= 100 },
-    { title: 'Học viên < 20%', value: progress.length ? `${under20}` : '—', ok: under20 === 0 },
+    { title: t('signalLatency'), value: p95 != null ? `${Math.round(p95)}ms` : '—', ok: p95 != null && p95 < 500 },
+    { title: t('signalGrammar'), value: grammarPct != null ? `${grammarPct.toFixed(0)}%` : '—', ok: grammarPct != null && grammarPct >= 100 },
+    { title: t('signalUnder20'), value: progress.length ? `${under20}` : '—', ok: under20 === 0 },
   ]
 
   return (
     <div className="flex min-h-full flex-col">
-      <GaPageHdr accent title="Báo cáo hệ thống" subtitle="Chỉ số vận hành & tiến độ lộ trình học viên"
-        right={<GaBtn variant="ghost" size="sm" onClick={load}><RefreshCw size={15} /> Làm mới</GaBtn>} />
+      <GaPageHdr accent title={t('title')} subtitle={t('subtitle')}
+        right={<GaBtn variant="ghost" size="sm" onClick={load}><RefreshCw size={15} /> {t('refresh')}</GaBtn>} />
 
       <div className="flex-1 overflow-auto px-10 py-6">
         {loading ? (
           <div className="flex flex-col gap-3">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="ga-shimmer h-[80px] border border-ga-line" aria-hidden />)}</div>
         ) : error ? (
           <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">Không tải được báo cáo</h2>
+            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadError')}</h2>
             <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">{error} <code className="font-mono text-[12px] text-ga-accent">GET /api/admin/reports/*</code></p>
-            <GaBtn variant="primary" onClick={load}>Thử lại</GaBtn>
+            <GaBtn variant="primary" onClick={load}>{tc('retry')}</GaBtn>
           </div>
         ) : !overview ? (
-          <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">Không có dữ liệu.</div>
+          <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">{t('noData')}</div>
         ) : (
           <>
             {/* Action signals */}
@@ -126,7 +129,7 @@ export default function V2AdminReportsPage() {
                 <div key={s.title} className="border border-ga-line bg-ga-card p-[18px]">
                   <div className="mb-2 flex items-center justify-between">
                     <GaCap>{s.title}</GaCap>
-                    <span className="px-2 py-0.5 text-[10.5px] font-bold" style={badge(s.ok)}>{s.ok ? 'PASS' : 'CHÚ Ý'}</span>
+                    <span className="px-2 py-0.5 text-[10.5px] font-bold" style={badge(s.ok)}>{s.ok ? t('pass') : t('attention')}</span>
                   </div>
                   <div className="font-ga-display text-[26px] font-medium text-ga-ink">{s.value}</div>
                 </div>
@@ -136,85 +139,85 @@ export default function V2AdminReportsPage() {
             {/* Overview */}
             <div className="mt-[22px]">
               <TkStatStrip items={[
-                { label: 'Tổng user', value: (overview.userCount ?? 0).toLocaleString() },
-                { label: 'GV / HV', value: `${overview.teacherCount ?? 0} / ${overview.studentCount ?? 0}`, color: '#2F6FC9' },
-                { label: 'Lớp học', value: overview.classCount ?? 0, color: '#11888A' },
-                { label: 'Điểm TB quiz', value: Number(overview.avgQuizScore ?? 0).toFixed(2), color: '#E07B39' },
+                { label: t('statUsers'), value: (overview.userCount ?? 0).toLocaleString() },
+                { label: t('statTeacherStudent'), value: `${overview.teacherCount ?? 0} / ${overview.studentCount ?? 0}`, color: '#2F6FC9' },
+                { label: t('statClasses'), value: overview.classCount ?? 0, color: '#11888A' },
+                { label: t('statAvgQuiz'), value: Number(overview.avgQuizScore ?? 0).toFixed(2), color: '#E07B39' },
               ]} />
             </div>
 
             {/* Child reports */}
-            <div className="mb-3.5 mt-[22px]"><GaCap>Báo cáo chi tiết</GaCap></div>
+            <div className="mb-3.5 mt-[22px]"><GaCap>{t('childReportsCap')}</GaCap></div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               {CHILD_REPORTS.map((c) => (
                 <button key={c.href} type="button" onClick={() => router.push(c.href)}
                   className="flex items-center justify-between gap-2 border border-ga-line bg-ga-card px-4 py-3.5 text-left transition-colors hover:border-ga-accent">
-                  <span className="text-[13.5px] font-semibold text-ga-ink">{c.label}</span>
+                  <span className="text-[13.5px] font-semibold text-ga-ink">{t(c.labelKey)}</span>
                   <ChevronRight size={16} className="text-ga-muted" />
                 </button>
               ))}
             </div>
 
             {/* KPI W4 */}
-            <div className="mb-3.5 mt-[22px]"><GaCap>KPI W4 — Core system</GaCap></div>
+            <div className="mb-3.5 mt-[22px]"><GaCap>{t('kpiCap')}</GaCap></div>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
               <div className="border border-ga-line bg-ga-card p-[18px]">
-                <GaCap>Submit latency p95</GaCap>
+                <GaCap>{t('kpiLatency')}</GaCap>
                 <div className="mt-2 font-ga-display text-[22px] font-medium text-ga-ink">{p95 != null ? `${Math.round(p95)} ms` : '—'}</div>
-                <p className="mt-1 text-[12px] font-bold" style={passStyle(p95 != null && p95 < 500)}>{p95 != null && p95 < 500 ? 'PASS < 500ms' : 'FAIL ≥ 500ms'}</p>
+                <p className="mt-1 text-[12px] font-bold" style={passStyle(p95 != null && p95 < 500)}>{p95 != null && p95 < 500 ? t('kpiLatencyPass') : t('kpiLatencyFail')}</p>
               </div>
               <div className="border border-ga-line bg-ga-card p-[18px]">
-                <GaCap>Grammar coverage (mới nhất)</GaCap>
+                <GaCap>{t('kpiGrammar')}</GaCap>
                 <div className="mt-2 font-ga-display text-[22px] font-medium text-ga-ink">{grammarPct != null ? `${grammarPct.toFixed(2)}%` : '—'}</div>
-                <p className="mt-1 text-[12px] font-bold" style={passStyle(grammarPct != null && grammarPct >= 100)}>{grammarPct != null && grammarPct >= 100 ? 'PASS = 100%' : 'FAIL < 100%'}</p>
+                <p className="mt-1 text-[12px] font-bold" style={passStyle(grammarPct != null && grammarPct >= 100)}>{grammarPct != null && grammarPct >= 100 ? t('kpiGrammarPass') : t('kpiGrammarFail')}</p>
               </div>
               <div className="border border-ga-line bg-ga-card p-[18px]">
-                <GaCap>Personalization ruleset</GaCap>
+                <GaCap>{t('kpiRuleset')}</GaCap>
                 <div className="mt-2 font-ga-display text-[18px] font-medium text-ga-ink">{ruleset?.version ?? '—'}</div>
-                <p className="ga-ui mt-1 truncate text-[12px] text-ga-muted">{(ruleset?.dimensionsSupported ?? []).join(', ') || 'Không có dữ liệu'}</p>
+                <p className="ga-ui mt-1 truncate text-[12px] text-ga-muted">{(ruleset?.dimensionsSupported ?? []).join(', ') || t('rulesetEmpty')}</p>
               </div>
             </div>
 
             {/* Gate checklist */}
-            <div className="mb-3.5 mt-[22px]"><GaCap>Gate W4 — pass/fail theo ngày</GaCap></div>
+            <div className="mb-3.5 mt-[22px]"><GaCap>{t('gateCap')}</GaCap></div>
             <div className="border border-ga-line bg-ga-card">
               <div className="grid items-center gap-2 border-b border-ga-line bg-ga-bg px-5 py-[11px]" style={{ gridTemplateColumns: '1fr 130px 120px 110px 80px' }}>
-                {['Ngày', 'Grammar', 'Error rate', 'p95', 'Gate'].map((h, i) => <span key={h} className={`ga-ui text-[10px] font-bold uppercase tracking-[0.1em] text-ga-muted ${i === 4 ? 'text-right' : ''}`}>{h}</span>)}
+                {[t('gateColDate'), t('gateColGrammar'), t('gateColErrorRate'), t('gateColP95'), t('gateColGate')].map((h, i) => <span key={i} className={`ga-ui text-[10px] font-bold uppercase tracking-[0.1em] text-ga-muted ${i === 4 ? 'text-right' : ''}`}>{h}</span>)}
               </div>
               {gate.length === 0 ? (
-                <div className="px-6 py-[26px] text-center text-[13.5px] text-ga-muted">Chưa có dữ liệu checklist theo ngày.</div>
+                <div className="px-6 py-[26px] text-center text-[13.5px] text-ga-muted">{t('gateEmpty')}</div>
               ) : gate.map((r, i) => (
                 <div key={r.snapshotDate} className="grid items-center gap-2 px-5 py-2.5 transition-colors hover:bg-ga-surface" style={{ gridTemplateColumns: '1fr 130px 120px 110px 80px', borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
                   <span className="font-mono text-[12px] text-ga-muted">{r.snapshotDate}</span>
-                  <span className="text-[12.5px]">{Number(r.grammarCoveragePercent ?? 0).toFixed(1)}% <span className="text-[10px] font-bold" style={passStyle(r.grammarPass)}>{r.grammarPass ? 'PASS' : 'FAIL'}</span></span>
-                  <span className="text-[12.5px]">{Number(r.errorRatePercent ?? 0).toFixed(1)}% <span className="text-[10px] font-bold" style={passStyle(r.errorPass)}>{r.errorPass ? 'PASS' : 'FAIL'}</span></span>
-                  <span className="text-[12.5px]">{Math.round(r.p95LatencyMs ?? 0)}ms <span className="text-[10px] font-bold" style={passStyle(r.p95Pass)}>{r.p95Pass ? 'PASS' : 'FAIL'}</span></span>
-                  <span className="flex justify-end"><span className="px-2 py-0.5 text-[10.5px] font-bold" style={badge(r.allPass)}>{r.allPass ? 'PASS' : 'FAIL'}</span></span>
+                  <span className="text-[12.5px]">{Number(r.grammarCoveragePercent ?? 0).toFixed(1)}% <span className="text-[10px] font-bold" style={passStyle(r.grammarPass)}>{r.grammarPass ? t('pass') : t('fail')}</span></span>
+                  <span className="text-[12.5px]">{Number(r.errorRatePercent ?? 0).toFixed(1)}% <span className="text-[10px] font-bold" style={passStyle(r.errorPass)}>{r.errorPass ? t('pass') : t('fail')}</span></span>
+                  <span className="text-[12.5px]">{Math.round(r.p95LatencyMs ?? 0)}ms <span className="text-[10px] font-bold" style={passStyle(r.p95Pass)}>{r.p95Pass ? t('pass') : t('fail')}</span></span>
+                  <span className="flex justify-end"><span className="px-2 py-0.5 text-[10.5px] font-bold" style={badge(r.allPass)}>{r.allPass ? t('pass') : t('fail')}</span></span>
                 </div>
               ))}
             </div>
 
             {/* Student progress */}
             <div className="mb-3.5 mt-[22px] flex flex-wrap items-center justify-between gap-3">
-              <GaCap>Tiến độ lộ trình ({visibleProgress.length}/{progress.length})</GaCap>
+              <GaCap>{t('progressCap', { shown: visibleProgress.length, total: progress.length })}</GaCap>
               <div className="flex items-center gap-3">
                 <label className="ga-ui flex items-center gap-1.5 text-[12px] text-ga-muted">
-                  <input type="checkbox" checked={onlyUnder20} onChange={(e) => setOnlyUnder20(e.target.checked)} style={{ accentColor: 'var(--ga-accent)' }} /> Chỉ &lt; 20%
+                  <input type="checkbox" checked={onlyUnder20} onChange={(e) => setOnlyUnder20(e.target.checked)} style={{ accentColor: 'var(--ga-accent)' }} /> {t('onlyUnder20')}
                 </label>
-                <select className={selectCls} value={sortBy} onChange={(e) => setSortBy(e.target.value as SortBy)} aria-label="Sắp xếp">
-                  <option value="lastStudyDesc">Học gần nhất</option>
-                  <option value="lastStudyAsc">Học lâu nhất</option>
-                  <option value="progressDesc">Tiến độ cao→thấp</option>
-                  <option value="progressAsc">Tiến độ thấp→cao</option>
+                <select className={selectCls} value={sortBy} onChange={(e) => setSortBy(e.target.value as SortBy)} aria-label={t('sortAria')}>
+                  <option value="lastStudyDesc">{t('sortStudyDesc')}</option>
+                  <option value="lastStudyAsc">{t('sortStudyAsc')}</option>
+                  <option value="progressDesc">{t('sortProgressDesc')}</option>
+                  <option value="progressAsc">{t('sortProgressAsc')}</option>
                 </select>
               </div>
             </div>
             <div className="border border-ga-line bg-ga-card">
               <div className="grid items-center gap-2 border-b border-ga-line bg-ga-bg px-5 py-[11px]" style={{ gridTemplateColumns: '1.4fr 100px 90px 90px 1fr' }}>
-                {['Học viên', 'Hiện tại', 'Hoàn thành', 'Tiến độ', 'Học gần nhất'].map((h) => <span key={h} className="ga-ui text-[10px] font-bold uppercase tracking-[0.1em] text-ga-muted">{h}</span>)}
+                {[t('progressColStudent'), t('progressColCurrent'), t('progressColCompleted'), t('progressColProgress'), t('progressColLastStudy')].map((h) => <span key={h} className="ga-ui text-[10px] font-bold uppercase tracking-[0.1em] text-ga-muted">{h}</span>)}
               </div>
               {visibleProgress.length === 0 ? (
-                <div className="px-6 py-[26px] text-center text-[13.5px] text-ga-muted">{progress.length === 0 ? 'Chưa có dữ liệu học viên.' : 'Không có học viên phù hợp bộ lọc.'}</div>
+                <div className="px-6 py-[26px] text-center text-[13.5px] text-ga-muted">{progress.length === 0 ? t('progressEmptyNone') : t('progressEmptyFilter')}</div>
               ) : visibleProgress.slice(0, 50).map((r, i) => (
                 <div key={r.studentId} className="grid items-center gap-2 px-5 py-2.5 transition-colors hover:bg-ga-surface" style={{ gridTemplateColumns: '1.4fr 100px 90px 90px 1fr', borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
                   <span className="min-w-0"><span className="block truncate text-[13.5px] font-semibold text-ga-ink">{r.name}</span><span className="block text-[11px] text-ga-muted">#{r.studentId}</span></span>
@@ -227,22 +230,22 @@ export default function V2AdminReportsPage() {
             </div>
 
             {/* Wiktionary enrich tool */}
-            <div className="mb-3.5 mt-[22px]"><GaCap>Công cụ — làm giàu từ vựng (Wiktionary)</GaCap></div>
+            <div className="mb-3.5 mt-[22px]"><GaCap>{t('wiktionaryCap')}</GaCap></div>
             <div className="border border-ga-line bg-ga-card p-[18px]">
               <div className="flex flex-wrap items-end gap-3">
-                <label className="ga-ui flex items-center gap-2 text-[12px] text-ga-muted">Limit
+                <label className="ga-ui flex items-center gap-2 text-[12px] text-ga-muted">{t('wiktionaryLimit')}
                   <input type="number" min={1} max={2000} className={`${selectCls} w-[100px]`} value={wktLimit} onChange={(e) => setWktLimit(Number(e.target.value) || 0)} />
                 </label>
                 <label className="ga-ui flex items-center gap-1.5 text-[12px] text-ga-muted">
-                  <input type="checkbox" checked={wktReset} onChange={(e) => setWktReset(e.target.checked)} style={{ accentColor: 'var(--ga-accent)' }} /> Chạy lại từ đầu
+                  <input type="checkbox" checked={wktReset} onChange={(e) => setWktReset(e.target.checked)} style={{ accentColor: 'var(--ga-accent)' }} /> {t('wiktionaryReset')}
                 </label>
                 <GaBtn variant="primary" size="sm" loading={wktRunning} onClick={runWiktionary}>
-                  {wktRunning ? 'Đang làm giàu…' : 'Làm giàu Wiktionary'}
+                  {wktRunning ? t('wiktionaryRunning') : t('wiktionaryRun')}
                 </GaBtn>
               </div>
               {wktResult && (
                 <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 md:grid-cols-7">
-                  {([['Processed', wktResult.processedRows], ['IPA', wktResult.ipaFilled], ['EN', wktResult.enUpserts], ['DE', wktResult.deUpserts], ['Failed', wktResult.failed], ['Retries', wktResult.lockRetries], ['Cursor', wktResult.lastProcessedWordId]] as [string, number | undefined][]).map(([k, v]) => (
+                  {([[t('wktProcessed'), wktResult.processedRows], [t('wktIpa'), wktResult.ipaFilled], [t('wktEn'), wktResult.enUpserts], [t('wktDe'), wktResult.deUpserts], [t('wktFailed'), wktResult.failed], [t('wktRetries'), wktResult.lockRetries], [t('wktCursor'), wktResult.lastProcessedWordId]] as [string, number | undefined][]).map(([k, v]) => (
                     <div key={k} className="border border-ga-line p-2">
                       <p className="ga-ui text-[10px] text-ga-muted">{k}</p>
                       <p className="text-[13px] font-semibold text-ga-ink">{v ?? '—'}</p>

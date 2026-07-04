@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import api from '@/lib/api'
 import type { AiUsageByFeatureDto } from '@/lib/adminTokenPie'
 import { AdStatStrip, type AdStatCell, ErrorBanner, LoadingState, GaPageHdr, TkBadge } from '@/components/ui-v2'
@@ -23,26 +24,21 @@ type TokenState = {
   daily: DailyCostDto | null
 }
 
-const FEATURE_LABELS: Record<string, string> = {
-  SPEAKING: 'Speaking (AI)',
-  INTERVIEW: 'Phỏng vấn',
-  GRAMMAR: 'Ngữ pháp AI',
-  GRADING: 'Chấm bài AI',
-  MATERIALS: 'Tài liệu AI',
-  IMAGE: 'Sinh ảnh',
-  TTS: 'TTS narration',
-  VOCAB: 'Từ vựng AI',
-}
-
-function featureLabel(f?: string): string {
-  if (!f) return 'Khác'
-  return FEATURE_LABELS[f.toUpperCase()] ?? f
-}
+// Known AI-feature enum keys (from GET /admin/reports/ai-usage-by-feature). Label resolved
+// via t('featureLabels.<KEY>'); unknown keys fall back to the raw feature string.
+const FEATURE_KEYS = ['SPEAKING', 'INTERVIEW', 'GRAMMAR', 'GRADING', 'MATERIALS', 'IMAGE', 'TTS', 'VOCAB']
 
 export default function V2AdminTokensPage() {
+  const t = useTranslations('v2.adminOps.tokens')
   const [state, setState] = useState<TokenState>({ users: [], ledger: null, daily: null })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  const featureLabel = (f?: string): string => {
+    if (!f) return t('featureLabels.other')
+    const key = f.toUpperCase()
+    return FEATURE_KEYS.includes(key) ? t(`featureLabels.${key}`) : f
+  }
 
   const load = () => {
     setLoading(true)
@@ -59,7 +55,7 @@ export default function V2AdminTokensPage() {
           daily: d.status === 'fulfilled' ? (d.value.data ?? null) : null,
         })
         if (u.status === 'rejected' && l.status === 'rejected' && d.status === 'rejected') {
-          setError('Không thể tải dữ liệu token.')
+          setError(t('loadError'))
         }
       })
       .finally(() => setLoading(false))
@@ -91,15 +87,15 @@ export default function V2AdminTokensPage() {
     .slice(0, 8)
 
   const cells: AdStatCell[] = [
-    { label: 'Tổng token (30 ngày)', value: nfVN.format(totalTokens), color: '#E07B39' },
-    { label: 'Chi phí (14 ngày)', value: `$${totalCost.toFixed(2)}`, color: '#DA291C', sub: 'ước tính theo ledger' },
-    { label: 'Người dùng AI', value: nfVN.format(activeUsers), color: '#2F6FC9', sub: 'có dùng 30 ngày' },
-    { label: 'Tính năng', value: nfVN.format(featureSegs.length), color: '#1E9E61', sub: 'đang theo dõi' },
+    { label: t('stats.totalTokens'), value: nfVN.format(totalTokens), color: '#E07B39' },
+    { label: t('stats.cost'), value: `$${totalCost.toFixed(2)}`, color: '#DA291C', sub: t('stats.costSub') },
+    { label: t('stats.aiUsers'), value: nfVN.format(activeUsers), color: '#2F6FC9', sub: t('stats.aiUsersSub') },
+    { label: t('stats.features'), value: nfVN.format(featureSegs.length), color: '#1E9E61', sub: t('stats.featuresSub') },
   ]
 
   return (
     <div className="flex min-h-full flex-col">
-      <GaPageHdr accent title="Phân tích chi phí AI" subtitle="Token, chi phí theo tính năng và theo người dùng" />
+      <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
       <div className="flex-1 px-10 py-6">
         {error && (
           <div className="mb-5">
@@ -107,13 +103,13 @@ export default function V2AdminTokensPage() {
           </div>
         )}
         {loading ? (
-          <LoadingState label="Đang tải dữ liệu token…" />
+          <LoadingState label={t('loading')} />
         ) : (
           <div className="space-y-[22px]">
             <AdStatStrip cells={cells} />
 
             <div className="grid grid-cols-1 gap-[22px] lg:grid-cols-[1fr_1.6fr]">
-              <GaSection title="Token theo tính năng">
+              <GaSection title={t('tokensByFeature')}>
                 {featureSegs.length > 0 ? (
                   <div className="flex flex-col items-center gap-5">
                     <GaDonut segments={featureSegs} size={170} />
@@ -122,32 +118,36 @@ export default function V2AdminTokensPage() {
                     </div>
                   </div>
                 ) : (
-                  <p className="ga-ui py-10 text-center text-[14px] text-ga-muted">Chưa có dữ liệu ledger theo tính năng.</p>
+                  <p className="ga-ui py-10 text-center text-[14px] text-ga-muted">{t('noFeatureLedger')}</p>
                 )}
               </GaSection>
 
-              <GaSection title="Chi phí AI theo ngày (14 ngày)">
+              <GaSection title={t('dailyCost')}>
                 {dailyByDay.length > 0 ? (
                   <GaArea data={dailyByDay} color="#E07B39" height={230} valueFmt={(v) => `$${v.toFixed(2)}`} />
                 ) : (
-                  <p className="ga-ui py-10 text-center text-[14px] text-ga-muted">Chưa có dữ liệu chi phí theo ngày.</p>
+                  <p className="ga-ui py-10 text-center text-[14px] text-ga-muted">{t('noDailyCost')}</p>
                 )}
               </GaSection>
             </div>
 
-            <GaSection title="Người dùng tốn token nhất (30 ngày)" bodyClassName="p-0">
+            <GaSection title={t('topUsers')} bodyClassName="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
                   <thead>
                     <tr className="border-b border-ga-border">
-                      {['Người dùng', 'Vai trò', 'Token (30 ngày)'].map((h, i) => (
+                      {[
+                        { key: 'colUser', label: t('colUser') },
+                        { key: 'colRole', label: t('colRole') },
+                        { key: 'colTokens', label: t('colTokens') },
+                      ].map((h, i) => (
                         <th
-                          key={h}
+                          key={h.key}
                           className={`ga-ui px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-ga-muted ${
                             i === 2 ? 'text-right' : ''
                           }`}
                         >
-                          {h}
+                          {h.label}
                         </th>
                       ))}
                     </tr>
@@ -156,7 +156,7 @@ export default function V2AdminTokensPage() {
                     {topUsers.length === 0 ? (
                       <tr>
                         <td colSpan={3} className="ga-ui px-5 py-10 text-center text-[14px] text-ga-muted">
-                          Không có dữ liệu người dùng.
+                          {t('noUserData')}
                         </td>
                       </tr>
                     ) : (

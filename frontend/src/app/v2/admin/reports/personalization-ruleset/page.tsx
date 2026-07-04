@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { ArrowLeft, GitBranch, Check } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import api, { apiMessage } from '@/lib/api'
@@ -14,18 +15,24 @@ interface Data {
   version?: string
   dimensionsSupported?: string[]
 }
-const DIMENSION_VI: Record<string, { label: string; desc: string }> = {
-  goalType: { label: 'Mục tiêu học', desc: 'Công việc · Du học · Định cư · Thi cử' },
-  targetLevel: { label: 'Trình độ đích', desc: 'CEFR mục tiêu (A1–C2)' },
-  learningSpeed: { label: 'Tốc độ học', desc: 'Nhịp độ mong muốn' },
-  industry: { label: 'Ngành nghề', desc: 'Bối cảnh chuyên ngành' },
-  sessionsPerWeek: { label: 'Buổi / tuần', desc: 'Tần suất học' },
-  minutesPerSession: { label: 'Phút / buổi', desc: 'Thời lượng mỗi buổi' },
+// Backend dimension key → catalog label/desc keys (resolved via t()).
+const DIMENSION_KEY: Record<string, { labelKey: string; descKey: string }> = {
+  goalType: { labelKey: 'dimGoalType', descKey: 'dimGoalTypeDesc' },
+  targetLevel: { labelKey: 'dimTargetLevel', descKey: 'dimTargetLevelDesc' },
+  learningSpeed: { labelKey: 'dimLearningSpeed', descKey: 'dimLearningSpeedDesc' },
+  industry: { labelKey: 'dimIndustry', descKey: 'dimIndustryDesc' },
+  sessionsPerWeek: { labelKey: 'dimSessionsPerWeek', descKey: 'dimSessionsPerWeekDesc' },
+  minutesPerSession: { labelKey: 'dimMinutesPerSession', descKey: 'dimMinutesPerSessionDesc' },
 }
-const dimMeta = (k: string) =>
-  DIMENSION_VI[k] ?? { label: k.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase()), desc: '' }
 
 export default function V2PersonalizationRulesetPage() {
+  const t = useTranslations('v2.adminContent.reportPersonalization')
+  const tc = useTranslations('v2.common')
+  const dimMeta = (k: string): { label: string; desc: string } => {
+    const hit = DIMENSION_KEY[k]
+    if (hit) return { label: t(hit.labelKey), desc: t(hit.descKey) }
+    return { label: k.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase()), desc: '' }
+  }
   const router = useRouter()
   const [data, setData] = useState<Data | null>(null)
   const [loading, setLoading] = useState(true)
@@ -53,11 +60,11 @@ export default function V2PersonalizationRulesetPage() {
     <div className="flex min-h-full flex-col">
       <GaPageHdr
         accent
-        title="Ruleset cá nhân hoá"
-        subtitle="Bộ quy tắc suy ra loại buổi học từ hồ sơ học viên"
+        title={t('title')}
+        subtitle={t('subtitle')}
         right={
           <GaBtn variant="ghost" size="sm" onClick={() => router.push('/v2/admin/reports')}>
-            <ArrowLeft size={15} /> Báo cáo
+            <ArrowLeft size={15} /> {t('backToReports')}
           </GaBtn>
         }
       />
@@ -70,16 +77,16 @@ export default function V2PersonalizationRulesetPage() {
           </div>
         ) : error ? (
           <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">Không tải được báo cáo</h2>
+            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadError')}</h2>
             <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">
               {error} <code className="font-mono text-[12px] text-ga-accent">GET /api/admin/reports/personalization-ruleset</code>
             </p>
             <GaBtn variant="primary" onClick={load}>
-              Thử lại
+              {tc('retry')}
             </GaBtn>
           </div>
         ) : !data ? (
-          <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">Không có dữ liệu.</div>
+          <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">{t('noData')}</div>
         ) : (
           <>
             {/* Active version banner */}
@@ -88,17 +95,17 @@ export default function V2PersonalizationRulesetPage() {
                 <GitBranch size={22} style={{ color: 'var(--ga-accent)' }} />
               </span>
               <div>
-                <GaCap>Phiên bản ruleset đang hoạt động</GaCap>
+                <GaCap>{t('activeVersionCap')}</GaCap>
                 <p className="mt-1 font-ga-display text-[28px] font-medium text-ga-ink">{data.version ?? '—'}</p>
               </div>
             </div>
 
             <div className="mb-3.5 mt-[26px]">
-              <GaCap>Các chiều cá nhân hoá được hỗ trợ ({dims.length})</GaCap>
+              <GaCap>{t('dimensionsCap', { count: dims.length })}</GaCap>
             </div>
             {dims.length === 0 ? (
               <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">
-                Ruleset chưa khai báo chiều nào.
+                {t('noDimensions')}
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">

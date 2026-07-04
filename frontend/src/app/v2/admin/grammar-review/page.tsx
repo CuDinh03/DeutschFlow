@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { CheckCircle2, XCircle, Loader2, ChevronDown, ChevronUp, CheckCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
@@ -28,6 +29,8 @@ interface ParsedQ { prompt?: string; options?: string[]; correct_answer?: string
 const LEVELS = ['ALL', 'A1', 'A2', 'B1', 'B2'] as const
 
 export default function V2AdminGrammarReviewPage() {
+  const t = useTranslations('v2.adminContent.grammarReview')
+  const tc = useTranslations('v2.common')
   const [exercises, setExercises] = useState<PendingExercise[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -66,7 +69,7 @@ export default function V2AdminGrammarReviewPage() {
     try {
       await api.post(`/grammar/syllabus/admin/exercises/${id}/approve`)
       setExercises((prev) => prev.filter((e) => e.id !== id))
-      toast.success('Đã phê duyệt bài tập')
+      toast.success(t('approved'))
     } catch (e: unknown) { toast.error(apiMessage(e)) }
     finally { setActionId(null) }
   }
@@ -75,7 +78,7 @@ export default function V2AdminGrammarReviewPage() {
     try {
       await api.post(`/grammar/syllabus/admin/exercises/${id}/reject`, { reason: rejectReason[id] ?? '' })
       setExercises((prev) => prev.filter((e) => e.id !== id))
-      toast.success('Đã từ chối bài tập')
+      toast.success(t('rejected'))
     } catch (e: unknown) { toast.error(apiMessage(e)) }
     finally { setActionId(null) }
   }
@@ -85,7 +88,7 @@ export default function V2AdminGrammarReviewPage() {
     try {
       await api.post('/grammar/syllabus/admin/exercises/bulk-approve', { ids: Array.from(selected) })
       setExercises((prev) => prev.filter((e) => !selected.has(e.id)))
-      toast.success(`Đã duyệt ${selected.size} bài tập`)
+      toast.success(t('bulkApproved', { count: selected.size }))
       setSelected(new Set())
     } catch (e: unknown) { toast.error(apiMessage(e)) }
     finally { setBulkWorking(false) }
@@ -97,11 +100,11 @@ export default function V2AdminGrammarReviewPage() {
     <div className="flex min-h-full flex-col">
       <GaPageHdr
         accent
-        title="Duyệt bài tập ngữ pháp"
-        subtitle={`${exercises.length} bài đang chờ phê duyệt`}
+        title={t('title')}
+        subtitle={t('subtitle', { count: exercises.length })}
         right={selected.size > 0
-          ? <GaBtn variant="yellow" size="sm" loading={bulkWorking} onClick={bulkApprove}><CheckCheck size={15} /> Duyệt {selected.size} bài</GaBtn>
-          : <GaBtn variant="ghost" size="sm" onClick={load}>Làm mới</GaBtn>}
+          ? <GaBtn variant="yellow" size="sm" loading={bulkWorking} onClick={bulkApprove}><CheckCheck size={15} /> {t('bulkApprove', { count: selected.size })}</GaBtn>
+          : <GaBtn variant="ghost" size="sm" onClick={load}>{t('refresh')}</GaBtn>}
       />
 
       <div className="flex-1 overflow-auto px-10 py-6">
@@ -110,13 +113,13 @@ export default function V2AdminGrammarReviewPage() {
             <button key={lv} type="button" onClick={() => setFilterLevel(lv)}
               className="ga-ui border px-3 py-1 text-[11.5px] font-bold transition-colors"
               style={filterLevel === lv ? { color: 'var(--ga-bg)', background: 'var(--ga-accent)', borderColor: 'var(--ga-accent)' } : { color: 'var(--ga-muted)', borderColor: 'var(--ga-line)' }}>
-              {lv === 'ALL' ? 'Tất cả' : lv}
+              {lv === 'ALL' ? t('levelAll') : lv}
             </button>
           ))}
           {filtered.length > 0 && (
             <button type="button" onClick={() => setSelected(allSelected ? new Set() : new Set(filtered.map((e) => e.id)))}
               className="ga-ui ml-auto text-[12px] font-semibold text-ga-accent hover:underline">
-              {allSelected ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+              {allSelected ? t('deselectAll') : t('selectAll')}
             </button>
           )}
         </div>
@@ -125,14 +128,14 @@ export default function V2AdminGrammarReviewPage() {
           <div className="flex flex-col gap-2.5">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="ga-shimmer h-[72px] border border-ga-line" aria-hidden />)}</div>
         ) : error ? (
           <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">Không tải được hàng đợi</h2>
+            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadError')}</h2>
             <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">{error} <code className="font-mono text-[12px] text-ga-accent">GET /api/grammar/syllabus/admin/pending</code></p>
-            <GaBtn variant="primary" onClick={load}>Thử lại</GaBtn>
+            <GaBtn variant="primary" onClick={load}>{tc('retry')}</GaBtn>
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center gap-3 border border-dashed border-ga-line px-10 py-[52px] text-center text-ga-muted">
             <CheckCircle2 size={36} className="opacity-30" />
-            <p className="text-[14px] font-medium">Không có bài tập nào cần duyệt.</p>
+            <p className="text-[14px] font-medium">{t('emptyQueue')}</p>
           </div>
         ) : (
           <div className="flex flex-col gap-2.5">
@@ -144,9 +147,9 @@ export default function V2AdminGrammarReviewPage() {
               return (
                 <div key={ex.id} className="border bg-ga-card transition-colors" style={{ borderColor: isSel ? 'var(--ga-accent)' : 'var(--ga-line)' }}>
                   <div className="flex items-start gap-3 p-4">
-                    <input type="checkbox" checked={isSel} onChange={() => toggleSelect(ex.id)} className="mt-1 shrink-0" style={{ accentColor: 'var(--ga-accent)' }} aria-label={`Chọn bài ${ex.id}`} />
+                    <input type="checkbox" checked={isSel} onChange={() => toggleSelect(ex.id)} className="mt-1 shrink-0" style={{ accentColor: 'var(--ga-accent)' }} aria-label={t('selectAria', { id: ex.id })} />
                     <div className="min-w-0 flex-1">
-                      <p className="text-[14px] font-semibold text-ga-ink">{parsed.prompt ?? 'Bài tập'}</p>
+                      <p className="text-[14px] font-semibold text-ga-ink">{parsed.prompt ?? t('exerciseFallback')}</p>
                       <div className="mt-1 flex flex-wrap items-center gap-2">
                         {ex.cefr_level && <span className="px-1.5 py-0.5 text-[10px] font-bold" style={{ color: 'var(--ga-violet)', background: 'var(--ga-violet-soft)' }}>{ex.cefr_level}</span>}
                         <span className="px-1.5 py-0.5 text-[10px] font-bold uppercase text-ga-muted" style={{ background: 'var(--ga-side-active)' }}>{ex.exercise_type}</span>
@@ -157,7 +160,7 @@ export default function V2AdminGrammarReviewPage() {
                       <button type="button" disabled={actionId === ex.id} onClick={() => approve(ex.id)}
                         className="ga-ui inline-flex items-center gap-1.5 border px-3 py-1.5 text-[11.5px] font-bold transition-colors disabled:opacity-60"
                         style={{ color: 'var(--ga-green)', borderColor: 'var(--ga-green)' }}>
-                        {actionId === ex.id ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />} Duyệt
+                        {actionId === ex.id ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />} {t('approve')}
                       </button>
                       <button type="button" onClick={() => setExpandedId(open ? null : ex.id)} className="text-ga-muted transition-colors hover:text-ga-ink">
                         {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -178,13 +181,13 @@ export default function V2AdminGrammarReviewPage() {
                       )}
                       {parsed.explanation_vi && <p className="ga-ui text-[12.5px] italic text-ga-muted">{parsed.explanation_vi}</p>}
                       <div className="flex gap-2">
-                        <input type="text" placeholder="Lý do từ chối (tuỳ chọn)…" value={rejectReason[ex.id] ?? ''}
+                        <input type="text" placeholder={t('rejectPlaceholder')} value={rejectReason[ex.id] ?? ''}
                           onChange={(e) => setRejectReason((prev) => ({ ...prev, [ex.id]: e.target.value }))}
                           className="ga-ui flex-1 border border-ga-line bg-ga-bg px-3 py-2 text-[12.5px] text-ga-ink outline-none focus:border-ga-red" />
                         <button type="button" disabled={actionId === ex.id} onClick={() => reject(ex.id)}
                           className="ga-ui inline-flex items-center gap-1.5 border px-3 py-2 text-[11.5px] font-bold transition-colors disabled:opacity-60"
                           style={{ color: 'var(--ga-red)', borderColor: 'var(--ga-red)' }}>
-                          {actionId === ex.id ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={12} />} Từ chối
+                          {actionId === ex.id ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={12} />} {t('reject')}
                         </button>
                       </div>
                     </div>

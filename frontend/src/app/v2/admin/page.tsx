@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { ArrowRight } from 'lucide-react'
 import api from '@/lib/api'
 import { AdStatStrip, type AdStatCell, ErrorBanner, LoadingState, GaPageHdr } from '@/components/ui-v2'
@@ -14,9 +15,9 @@ type DailyCostRow = { costUsd: number }
 type DailyCostDto = { data?: DailyCostRow[] }
 
 const ROLE_COLOR: Record<string, string> = { STUDENT: '#2F6FC9', TEACHER: '#7C56C8', ADMIN: '#DA291C' }
-const ROLE_LABEL: Record<string, string> = { STUDENT: 'Học viên', TEACHER: 'Giáo viên', ADMIN: 'Quản trị' }
 
 export default function V2AdminOverviewPage() {
+  const t = useTranslations('v2.adminOps.overview')
   const [users, setUsers] = useState<OverviewUser[]>([])
   const [revenue, setRevenue] = useState<RevenueResponse | null>(null)
   const [daily, setDaily] = useState<DailyCostDto | null>(null)
@@ -33,7 +34,7 @@ export default function V2AdminOverviewPage() {
     ])
       .then(([u, r, d]) => {
         if (u.status === 'fulfilled') setUsers(u.value.data ?? [])
-        else setError('Không thể tải dữ liệu tổng quan.')
+        else setError(t('loadError'))
         if (r.status === 'fulfilled') setRevenue(r.value.data ?? null)
         if (d.status === 'fulfilled') setDaily(d.value.data ?? null)
       })
@@ -46,9 +47,9 @@ export default function V2AdminOverviewPage() {
     acc[r] = (acc[r] ?? 0) + 1
     return acc
   }, {})
-  const roleSegs = ['STUDENT', 'TEACHER', 'ADMIN']
+  const roleSegs = (['STUDENT', 'TEACHER', 'ADMIN'] as const)
     .filter((r) => (roleCounts[r] ?? 0) > 0)
-    .map((r) => ({ label: ROLE_LABEL[r] ?? r, value: roleCounts[r], color: ROLE_COLOR[r] ?? '#76716A' }))
+    .map((r) => ({ label: t(`roles.${r}`), value: roleCounts[r], color: ROLE_COLOR[r] ?? '#76716A' }))
 
   const chart = revenue?.chartData ?? []
   const latest = chart.length > 0 ? chart[chart.length - 1] : null
@@ -58,22 +59,22 @@ export default function V2AdminOverviewPage() {
   const pausedUsers = users.filter((u) => u.isActive === false || u.isactive === false).length
 
   const cells: AdStatCell[] = [
-    { label: 'Tổng người dùng', value: nfVN.format(users.length), color: '#27406B' },
-    { label: 'Doanh thu (MRR)', value: fmtVnd(mrr), color: '#1E9E61', sub: latest?.period },
-    { label: 'Chi phí AI (30 ngày)', value: `$${aiCost.toFixed(2)}`, color: '#E07B39', sub: 'ước tính ledger' },
-    { label: 'Hoạt động AI', value: nfVN.format(activeUsers), color: '#7C56C8', sub: 'dùng AI 30 ngày' },
+    { label: t('stats.totalUsers'), value: nfVN.format(users.length), color: '#27406B' },
+    { label: t('stats.mrr'), value: fmtVnd(mrr), color: '#1E9E61', sub: latest?.period },
+    { label: t('stats.aiCost'), value: `$${aiCost.toFixed(2)}`, color: '#E07B39', sub: t('stats.aiCostSub') },
+    { label: t('stats.aiActivity'), value: nfVN.format(activeUsers), color: '#7C56C8', sub: t('stats.aiActivitySub') },
   ]
 
   const todo: { text: string; href: string }[] = [
-    ...(pausedUsers > 0 ? [{ text: `${pausedUsers} tài khoản đang tạm dừng — xem lại`, href: '/v2/admin/users' }] : []),
-    { text: 'Duyệt ảnh từ vựng còn thiếu', href: '/v2/admin/vocabulary' },
-    { text: 'Kiểm tra tổ chức B2B chờ kích hoạt', href: '/v2/admin/organizations' },
-    { text: 'Theo dõi ngân sách chi phí AI', href: '/v2/admin/tokens' },
+    ...(pausedUsers > 0 ? [{ text: t('todo.pausedAccounts', { count: pausedUsers }), href: '/v2/admin/users' }] : []),
+    { text: t('todo.reviewVocabImages'), href: '/v2/admin/vocabulary' },
+    { text: t('todo.checkPendingOrgs'), href: '/v2/admin/organizations' },
+    { text: t('todo.trackAiBudget'), href: '/v2/admin/tokens' },
   ]
 
   return (
     <div className="flex min-h-full flex-col">
-      <GaPageHdr accent title="Bảng điều khiển quản trị" subtitle="Tổng quan sức khỏe nền tảng DeutschFlow" />
+      <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
       <div className="flex-1 px-10 py-6">
         {error && (
           <div className="mb-5">
@@ -81,21 +82,21 @@ export default function V2AdminOverviewPage() {
           </div>
         )}
         {loading ? (
-          <LoadingState label="Đang tải tổng quan…" />
+          <LoadingState label={t('loading')} />
         ) : (
           <div className="space-y-[22px]">
             <AdStatStrip cells={cells} />
 
             <div className="grid grid-cols-1 gap-[22px] lg:grid-cols-[2fr_1fr]">
-              <GaSection title="Thuê bao trả phí theo kỳ" right={<span className="ga-ui text-[12.5px] text-ga-muted">{chart.length} kỳ gần nhất</span>}>
+              <GaSection title={t('subscribersByPeriod')} right={<span className="ga-ui text-[12.5px] text-ga-muted">{t('recentPeriods', { count: chart.length })}</span>}>
                 {chart.length > 0 ? (
                   <GaBars data={chart.map((r) => ({ label: r.period, value: r.subscribers }))} color="#27406B" height={180} />
                 ) : (
-                  <p className="ga-ui py-10 text-center text-[14px] text-ga-muted">Chưa có dữ liệu kỳ.</p>
+                  <p className="ga-ui py-10 text-center text-[14px] text-ga-muted">{t('noPeriodData')}</p>
                 )}
               </GaSection>
 
-              <GaSection title="Phân bổ theo vai trò">
+              <GaSection title={t('roleDistribution')}>
                 {roleSegs.length > 0 ? (
                   <div className="flex items-center gap-5">
                     <GaDonut segments={roleSegs} />
@@ -104,12 +105,12 @@ export default function V2AdminOverviewPage() {
                     </div>
                   </div>
                 ) : (
-                  <p className="ga-ui py-10 text-center text-[14px] text-ga-muted">Chưa có người dùng.</p>
+                  <p className="ga-ui py-10 text-center text-[14px] text-ga-muted">{t('noUsers')}</p>
                 )}
               </GaSection>
             </div>
 
-            <GaSection title="Cần xử lý">
+            <GaSection title={t('todoTitle')}>
               <div className="-my-1">
                 {todo.map((item, i) => (
                   <Link
