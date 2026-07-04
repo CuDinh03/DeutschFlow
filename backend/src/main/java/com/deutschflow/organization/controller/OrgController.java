@@ -37,7 +37,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
- * "Org của tôi" — quản trị tổ chức cho org-admin (OWNER/ADMIN).
+ * "Org của tôi" — quản trị tổ chức cho org-admin (OWNER/MANAGER).
  * orgId luôn lấy từ principal (user.getOrgId()), không nhận từ client để tránh giả mạo org.
  * Authz verify trong DB qua OrgGuard (mirror assertTeacherOwnsClass), JWT chỉ phục vụ frontend.
  */

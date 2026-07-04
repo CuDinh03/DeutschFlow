@@ -191,7 +191,7 @@ public class AdminOrgService {
         }
     }
 
-    /** Active members of the org (OWNER/ADMIN/TEACHER/STUDENT), with user email + display name. */
+    /** Active members of the org (OWNER/MANAGER/TEACHER/STUDENT), with user email + display name. */
     @Transactional(readOnly = true)
     public List<OrgMemberDto> listMembers(Long orgId) {
         if (!organizationRepository.existsById(orgId)) {
