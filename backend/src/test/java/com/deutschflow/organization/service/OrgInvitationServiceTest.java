@@ -4,9 +4,11 @@ import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.organization.dto.AcceptInviteRequest;
+import com.deutschflow.organization.dto.InvitationPreviewDto;
 import com.deutschflow.organization.entity.OrgInvitation;
 import com.deutschflow.organization.entity.OrgMember;
 import com.deutschflow.organization.entity.OrgMemberId;
+import com.deutschflow.organization.entity.Organization;
 import com.deutschflow.organization.repository.OrgInvitationRepository;
 import com.deutschflow.organization.repository.OrganizationRepository;
 import com.deutschflow.user.dto.AuthResponse;
@@ -112,6 +114,10 @@ class OrgInvitationServiceTest {
         );
     }
 
+    private Organization orgNamed(String name) {
+        return Organization.builder().id(ORG_ID).name(name).slug("atb").build();
+    }
+
     private OrgMember activeMember(Long orgId, Long userId) {
         OrgMember m = new OrgMember();
         m.setId(new OrgMemberId(orgId, userId));
@@ -167,8 +173,8 @@ class OrgInvitationServiceTest {
     // ------------------------------------------------------------------ accept happy path: existing user
 
     @Test
-    @DisplayName("accept existing user: adds membership only, no new user created")
-    void accept_existingUser_addsMembershipWithoutCreatingUser() {
+    @DisplayName("accept existing user WITH correct password: adds membership only, no new user created")
+    void accept_existingUser_correctPassword_addsMembershipWithoutCreatingUser() {
         Instant future = Instant.now().plus(7, ChronoUnit.DAYS);
         String email = "existing@school.edu";
         OrgInvitation invitation = pendingInvitation(email, future);
@@ -178,10 +184,12 @@ class OrgInvitationServiceTest {
                 .thenReturn(Optional.of(invitation));
         when(userRepository.findByEmailIgnoreCase(email))
                 .thenReturn(Optional.of(existing));
+        // Existing account must prove ownership with its own password.
+        when(passwordEncoder.matches("Correct1!", "hashed")).thenReturn(true);
         when(userRepository.findById(50L)).thenReturn(Optional.of(existing));
         when(authService.issueSession(any(User.class))).thenReturn(dummyAuthResponse(50L));
 
-        AcceptInviteRequest body = new AcceptInviteRequest(null, null);
+        AcceptInviteRequest body = new AcceptInviteRequest(null, "Correct1!");
         AuthResponse response = service.accept(TOKEN, body);
 
         assertThat(response.userId()).isEqualTo(50L);
@@ -190,6 +198,54 @@ class OrgInvitationServiceTest {
         verify(membershipService).upsertMember(eq(ORG_ID), eq(50L), eq("TEACHER"));
         // no new user saved (save only called from registerInvitedUser which is NOT called)
         verify(userRepository, never()).existsByEmailIgnoreCase(anyString());
+    }
+
+    // ---------------------------------------------------- C-1: token alone must NOT mint a session
+
+    @Test
+    @DisplayName("accept existing user WITHOUT password: throws, no membership, no session (C-1 takeover blocked)")
+    void accept_existingUser_missingPassword_throwsAndIssuesNoSession() {
+        Instant future = Instant.now().plus(7, ChronoUnit.DAYS);
+        String email = "victim@school.edu";
+        OrgInvitation invitation = pendingInvitation(email, future);
+
+        User victim = existingTeacherUser(50L, email);
+        when(invitationRepository.findByTokenAndStatus(TOKEN, "PENDING"))
+                .thenReturn(Optional.of(invitation));
+        when(userRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(victim));
+
+        // Attacker holds a leaked/forwarded token but supplies no password.
+        assertThatThrownBy(() -> service.accept(TOKEN, new AcceptInviteRequest(null, null)))
+                .isInstanceOf(BadRequestException.class);
+
+        // The takeover primitives must never fire.
+        verify(membershipService, never()).upsertMember(anyLong(), anyLong(), anyString());
+        verify(authService, never()).issueSession(any(User.class));
+        // Invite is NOT consumed — status stays PENDING, nothing persisted as ACCEPTED.
+        assertThat(invitation.getStatus()).isEqualTo("PENDING");
+        verify(invitationRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("accept existing user WITH wrong password: throws, no membership, no session (C-1 takeover blocked)")
+    void accept_existingUser_wrongPassword_throwsAndIssuesNoSession() {
+        Instant future = Instant.now().plus(7, ChronoUnit.DAYS);
+        String email = "victim@school.edu";
+        OrgInvitation invitation = pendingInvitation(email, future);
+
+        User victim = existingTeacherUser(50L, email);
+        when(invitationRepository.findByTokenAndStatus(TOKEN, "PENDING"))
+                .thenReturn(Optional.of(invitation));
+        when(userRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(victim));
+        when(passwordEncoder.matches("guessed-wrong", "hashed")).thenReturn(false);
+
+        assertThatThrownBy(() -> service.accept(TOKEN, new AcceptInviteRequest(null, "guessed-wrong")))
+                .isInstanceOf(BadRequestException.class);
+
+        verify(membershipService, never()).upsertMember(anyLong(), anyLong(), anyString());
+        verify(authService, never()).issueSession(any(User.class));
+        assertThat(invitation.getStatus()).isEqualTo("PENDING");
+        verify(invitationRepository, never()).save(any());
     }
 
     // ------------------------------------------------------------------ expired token
@@ -257,14 +313,53 @@ class OrgInvitationServiceTest {
         when(invitationRepository.findByTokenAndStatus(TOKEN, "PENDING"))
                 .thenReturn(Optional.of(invitation));
         when(userRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(studentUser));
+        when(passwordEncoder.matches("Student1!", "hashed")).thenReturn(true);
         when(userRepository.findById(77L)).thenReturn(Optional.of(studentUser));
         when(authService.issueSession(any(User.class))).thenReturn(dummyAuthResponse(77L));
 
-        service.accept(TOKEN, new AcceptInviteRequest(null, null));
+        service.accept(TOKEN, new AcceptInviteRequest(null, "Student1!"));
 
         // The actual promotion happens inside membershipService.upsertMember;
         // the service must delegate with the correct role so the upsert can promote.
         verify(membershipService).upsertMember(eq(ORG_ID), eq(77L), eq("TEACHER"));
+    }
+
+    // ------------------------------------------------------------------ preview (read-only, no oracle)
+
+    @Test
+    @DisplayName("preview: read-only — does NOT flip an expired invite to EXPIRED (no write on GET)")
+    void preview_expiredInvite_isReadOnly_doesNotPersist() {
+        Instant past = Instant.now().minus(1, ChronoUnit.DAYS);
+        OrgInvitation invitation = pendingInvitation("teacher@school.edu", past);
+        when(invitationRepository.findByTokenAndStatus(TOKEN, "PENDING"))
+                .thenReturn(Optional.of(invitation));
+        when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.empty());
+
+        InvitationPreviewDto dto = service.preview(TOKEN);
+
+        assertThat(dto.expired()).isTrue();
+        // GET must not mutate: status stays PENDING and nothing is persisted.
+        assertThat(invitation.getStatus()).isEqualTo("PENDING");
+        verify(invitationRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("preview: does NOT probe user existence — no account-existence oracle (C-1 hardening)")
+    void preview_doesNotDiscloseAccountExistence() {
+        Instant future = Instant.now().plus(7, ChronoUnit.DAYS);
+        OrgInvitation invitation = pendingInvitation("someone@school.edu", future);
+        when(invitationRepository.findByTokenAndStatus(TOKEN, "PENDING"))
+                .thenReturn(Optional.of(invitation));
+        when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(orgNamed("ATB")));
+
+        InvitationPreviewDto dto = service.preview(TOKEN);
+
+        assertThat(dto.orgName()).isEqualTo("ATB");
+        assertThat(dto.role()).isEqualTo("TEACHER");
+        assertThat(dto.email()).isEqualTo("someone@school.edu");
+        assertThat(dto.expired()).isFalse();
+        // Preview must never look up whether the email already has an account.
+        verify(userRepository, never()).findByEmailIgnoreCase(anyString());
     }
 
     @Test

@@ -163,20 +163,29 @@ export interface PaymentInfo {
   accountName: string
 }
 
-/** Public invitation preview (token is the secret). */
+/**
+ * Public invitation preview (token is the secret).
+ *
+ * Intentionally does NOT reveal whether the invite email already has an account — that would be
+ * an account-existence oracle for anyone holding the token. Account existence is resolved only on
+ * accept, after the user proves ownership with their password.
+ */
 export interface InvitationPreview {
   orgName: string
   role: OrgRole
   email: string
   expired: boolean
-  /** True when no user exists for the invite email yet — displayName+password required to accept. */
-  requiresRegistration: boolean
 }
 
-/** Body for accepting an invitation; both fields required only when registering a new user. */
+/**
+ * Body for accepting an invitation.
+ * - `password` is always required: for an existing account it proves ownership; for a brand-new
+ *   account it becomes the account's password.
+ * - `displayName` is only used when a new account is being created.
+ */
 export interface AcceptInvitationInput {
   displayName?: string
-  password?: string
+  password: string
 }
 
 /** Auth payload returned on successful invite acceptance (mirrors backend AuthResponse). */
