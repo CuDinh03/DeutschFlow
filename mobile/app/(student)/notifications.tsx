@@ -19,6 +19,7 @@ import {
   Skeleton,
 } from '@/components/ui'
 import { mapNotification, notificationTypeLabel, type Notification, type NotificationPage } from '@/lib/notificationsApi'
+import { resolveNotificationRoute } from '@/lib/notificationRoute'
 
 // Presentation-only: editorial date buckets (HÔM NAY / HÔM QUA / TRƯỚC ĐÓ)
 // derived from the already-fetched list. No extra fetch.
@@ -80,6 +81,14 @@ export default function NotificationsScreen() {
     },
     onError: (e) => Alert.alert('Lỗi', apiMessage(e)),
   })
+
+  // Tapping a row marks it read (if unread) and deep-links to where it belongs
+  // (the assignment, the class, the chat thread, …). No destination → just marks read.
+  const openNotification = (item: Notification) => {
+    if (!item.isRead) markOneRead.mutate(item.id)
+    const route = resolveNotificationRoute(item.type, item.payload)
+    if (route) router.push(route)
+  }
 
   const unreadCount = notifs.filter((n) => !n.isRead).length
   const entries = buildEntries(notifs)
@@ -149,7 +158,7 @@ export default function NotificationsScreen() {
             return (
               <Card
                 bordered
-                onPress={item.isRead ? undefined : () => markOneRead.mutate(item.id)}
+                onPress={() => openNotification(item)}
                 style={{
                   marginBottom: space[2],
                   borderColor: item.isRead ? c.border : c.accentSoft,

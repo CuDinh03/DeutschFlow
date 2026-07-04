@@ -7,6 +7,7 @@ import { router } from 'expo-router'
 import api from '@/lib/api'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { invalidateNotificationQueries } from '@/lib/queryClient'
+import { resolveNotificationRoute } from '@/lib/notificationRoute'
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -116,11 +117,15 @@ export function usePushNotifications() {
       invalidateNotificationQueries()
     })
 
-    responseListener.current = Notifications.addNotificationResponseReceivedListener(() => {
-      // Tapping a notification opens the in-app notifications inbox. Per-item deep
-      // links are a follow-up (needs a shared route scheme between backend and app).
+    responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
+      // Tapping a push deep-links to where it belongs (assignment, class, chat, …). The push
+      // `data` carries the notification `type` + payload ids (backend pushForNotification). Older
+      // pushes without a resolvable route fall back to the inbox.
       invalidateNotificationQueries()
-      router.push('/(student)/notifications')
+      const data = response?.notification?.request?.content?.data as Record<string, unknown> | undefined
+      const type = typeof data?.type === 'string' ? data.type : ''
+      const route = type ? resolveNotificationRoute(type, data ?? null) : null
+      router.push(route ?? '/(student)/notifications')
     })
 
     return () => {

@@ -17,6 +17,7 @@ describe('mapNotification', () => {
       type: 'BROADCAST',
       isRead: true,
       createdAt: '2026-06-01T02:00:00Z',
+      payload: { title: 'Bảo trì', body: 'Hệ thống bảo trì lúc 2h sáng' },
     })
   })
 
