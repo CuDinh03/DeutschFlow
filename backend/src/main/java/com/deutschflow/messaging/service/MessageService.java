@@ -86,6 +86,10 @@ public class MessageService {
     /** Marks the thread from {@code otherId} as read; returns how many were updated. */
     @Transactional
     public int markRead(Long me, Long otherId) {
+        // Audit L-7: gate on the shared-class relationship for consistency with send/getThread/
+        // listConversations. The UPDATE itself only touches rows addressed to the caller (no leak),
+        // but skipping the check let a caller poke arbitrary user ids — defense-in-depth.
+        assertCanMessage(me, otherId);
         return messageRepository.markThreadRead(me, otherId, Instant.now());
     }
 

@@ -111,6 +111,13 @@ public class SecurityConfig {
                                 auth.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").hasRole("ADMIN");
                         }
 
+                        // Audit M-10: URL-level backstop for the platform-admin surface. Every
+                        // /api/admin/** controller already carries @PreAuthorize("hasRole('ADMIN')"),
+                        // but this ensures a future admin controller that forgets the annotation is
+                        // NOT silently reachable by any authenticated STUDENT — defense-in-depth so
+                        // method-security is a second layer, not the sole one.
+                        auth.requestMatchers("/api/admin/**").hasRole("ADMIN");
+
                         auth.anyRequest().authenticated();
                 })
                 .authenticationProvider(authenticationProvider())

@@ -8,8 +8,10 @@ import com.deutschflow.teacher.dto.CertificateDto;
 import com.deutschflow.teacher.dto.CertificateSummaryDto;
 import com.deutschflow.teacher.dto.IssueCertificateRequest;
 import com.deutschflow.teacher.entity.OrgCertificate;
+import com.deutschflow.teacher.entity.TeacherClass;
 import com.deutschflow.teacher.repository.ClassStudentRepository;
 import com.deutschflow.teacher.repository.OrgCertificateRepository;
+import com.deutschflow.teacher.repository.TeacherClassRepository;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +45,7 @@ public class OrgCertificateService {
     private final OrgCertificateRepository certificateRepository;
     private final TeacherService teacherService;
     private final ClassStudentRepository classStudentRepository;
+    private final TeacherClassRepository classRepository;
     private final UserRepository userRepository;
     private final OrganizationRepository organizationRepository;
 
@@ -71,7 +74,13 @@ public class OrgCertificateService {
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy học viên"));
 
         User issuer = userRepository.findById(issuerUserId).orElse(null);
-        Long orgId = issuer != null ? issuer.getOrgId() : null;
+
+        // Audit M-7: co-brand from the CLASS's stamped org_id (the institution that owns the class),
+        // not the issuer's CURRENT org — a teacher who changed orgs, or an independent/legacy class
+        // with no org, must not mislabel the certificate with the issuer's present center.
+        Long orgId = classRepository.findById(req.classId())
+                .map(TeacherClass::getOrgId)
+                .orElse(null);
         String orgName = null;
         String orgLogoUrl = null;
         if (orgId != null) {
