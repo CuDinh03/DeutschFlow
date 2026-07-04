@@ -164,6 +164,7 @@ export function resolveNotificationHref(item: NotificationItem, role: RoleId): s
   const assignmentId = payloadId(p, 'assignmentId')
   const studentId = payloadId(p, 'studentId')
   const senderId = payloadId(p, 'senderId')
+  const senderName = payloadId(p, 'senderName')
   const referenceId = payloadId(p, 'referenceId')
 
   switch (item.type) {
@@ -207,8 +208,15 @@ export function resolveNotificationHref(item: NotificationItem, role: RoleId): s
       return '/v2/teacher/grading'
 
     // ── Cross-role — route into the viewer's own area ─────────────────────────
-    case 'NEW_MESSAGE':
-      return role === 'teacher' ? '/v2/teacher/messages' : '/v2/student/messages'
+    case 'NEW_MESSAGE': {
+      // Open the exact sender thread (the messages page reads ?to=<userId>&name=<name>),
+      // matching the mobile deep-link. No senderId → just the conversation list.
+      const base = role === 'teacher' ? '/v2/teacher/messages' : '/v2/student/messages'
+      if (!senderId) return base
+      const q = new URLSearchParams({ to: senderId })
+      if (senderName) q.set('name', senderName)
+      return `${base}?${q.toString()}`
+    }
 
     // ── Admin / Org ───────────────────────────────────────────────────────────
     case 'USER_REGISTERED':

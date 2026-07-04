@@ -33,9 +33,15 @@ describe('resolveNotificationHref', () => {
     }
   })
 
-  it('routes a new message into the viewer’s own area', () => {
-    expect(resolveNotificationHref(notif('NEW_MESSAGE', { senderId: 4 }), 'student')).toBe('/v2/student/messages')
-    expect(resolveNotificationHref(notif('NEW_MESSAGE', { senderId: 4 }), 'teacher')).toBe('/v2/teacher/messages')
+  it('deep-links a new message to the sender thread in the viewer’s own area', () => {
+    expect(resolveNotificationHref(notif('NEW_MESSAGE', { senderId: 4, senderName: 'Cô Lan' }), 'student')).toBe(
+      '/v2/student/messages?to=4&name=C%C3%B4+Lan',
+    )
+    expect(resolveNotificationHref(notif('NEW_MESSAGE', { senderId: 4 }), 'teacher')).toBe('/v2/teacher/messages?to=4')
+  })
+
+  it('falls back to the conversation list when a new message lacks a sender id', () => {
+    expect(resolveNotificationHref(notif('NEW_MESSAGE', {}), 'student')).toBe('/v2/student/messages')
   })
 
   it('routes teacher submission events to the per-student grading page', () => {

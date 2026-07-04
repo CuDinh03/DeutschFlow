@@ -6,7 +6,7 @@ import { Platform } from 'react-native'
 import { router } from 'expo-router'
 import api from '@/lib/api'
 import { useAuthStore } from '@/stores/useAuthStore'
-import { invalidateNotificationQueries } from '@/lib/queryClient'
+import { invalidateMessagingQueries, invalidateNotificationQueries } from '@/lib/queryClient'
 import { resolveNotificationRoute } from '@/lib/notificationRoute'
 
 Notifications.setNotificationHandler({
@@ -115,6 +115,10 @@ export function usePushNotifications() {
       // badge + inbox are react-query caches — invalidate them so they refetch now
       // instead of waiting for the stale window / a manual pull-to-refresh.
       invalidateNotificationQueries()
+      // A NEW_MESSAGE push arrives while the student may be sitting in the chat thread.
+      // Refresh the messaging caches too so the incoming message appears live instead of
+      // only after leaving and re-opening the thread.
+      invalidateMessagingQueries()
     })
 
     responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
@@ -122,6 +126,7 @@ export function usePushNotifications() {
       // `data` carries the notification `type` + payload ids (backend pushForNotification). Older
       // pushes without a resolvable route fall back to the inbox.
       invalidateNotificationQueries()
+      invalidateMessagingQueries()
       const data = response?.notification?.request?.content?.data as Record<string, unknown> | undefined
       const type = typeof data?.type === 'string' ? data.type : ''
       const route = type ? resolveNotificationRoute(type, data ?? null) : null

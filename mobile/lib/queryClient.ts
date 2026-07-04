@@ -21,3 +21,29 @@ export function invalidateNotificationQueries(): void {
     void queryClient.invalidateQueries({ queryKey: key as unknown as string[] })
   }
 }
+
+/**
+ * Messaging surfaces: DM thread, class channel, conversation list, and the home unread badge.
+ * `['message-thread']` / `['class-channel']` are PREFIXES — they match every mounted
+ * `['message-thread', userId]` / `['class-channel', classId]`, so the exact chat the user is
+ * looking at refreshes without knowing its id here.
+ */
+export const MESSAGING_QUERY_KEYS = [
+  ['conversations'],
+  ['message-thread'],
+  ['class-channel'],
+  ['messages-unread'],
+] as const
+
+/**
+ * Invalidate the messaging queries so an open chat refreshes the instant a NEW_MESSAGE push
+ * arrives — react-query only refetches *active* (mounted) queries, so inactive chats are merely
+ * marked stale and cost nothing. This is what turns "message shows up only after leaving and
+ * re-entering the thread" into a live update; the per-screen `refetchInterval` is the fallback
+ * for when a foreground push is missed (permission denied, simulator, delivery hiccup).
+ */
+export function invalidateMessagingQueries(): void {
+  for (const key of MESSAGING_QUERY_KEYS) {
+    void queryClient.invalidateQueries({ queryKey: key as unknown as string[] })
+  }
+}

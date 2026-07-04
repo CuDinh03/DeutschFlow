@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   FlatList, KeyboardAvoidingView, Platform, Pressable, TextInput, View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { router, useLocalSearchParams } from 'expo-router'
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import { MessageCircle, MoreVertical, Send } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { messagesApi, type Message } from '@/lib/messagesApi'
@@ -13,6 +13,11 @@ import { fonts, radius, space, useTheme } from '@/lib/theme'
 import {
   AppHeader, Caption, EmptyState, ErrorState, Icon, Screen, Skeleton, ThemedText,
 } from '@/components/ui'
+
+// Poll the open thread so a teacher's reply appears live. A NEW_MESSAGE push already
+// invalidates this query on arrival (usePushNotifications), so polling is the fallback for a
+// missed foreground push; it pauses on background via the AppState→focusManager bridge.
+const THREAD_POLL_MS = 5_000
 
 export default function MessageThreadScreen() {
   const c = useTheme().colors
@@ -28,8 +33,14 @@ export default function MessageThreadScreen() {
     queryKey: ['message-thread', userId],
     queryFn: () => messagesApi.thread(userId),
     enabled: Number.isFinite(userId),
-    staleTime: 10_000,
+    staleTime: 2_000,
+    refetchInterval: THREAD_POLL_MS,
   })
+
+  // Re-fetch whenever the thread regains focus (e.g. after backgrounding the app or popping
+  // back to it) so it never shows a stale snapshot on return.
+  const refetch = q.refetch
+  useFocusEffect(useCallback(() => { void refetch() }, [refetch]))
 
   // Fetching the thread marks it read server-side → refresh the list + unread badge.
   useEffect(() => {

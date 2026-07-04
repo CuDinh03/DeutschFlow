@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import {
   Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, TextInput, View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { router, useLocalSearchParams } from 'expo-router'
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import { MessagesSquare, Send } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { classChannelApi, type ClassMessage } from '@/lib/classChannelApi'
@@ -27,9 +27,13 @@ export default function ClassChatScreen() {
     queryKey: ['class-channel', classId],
     queryFn: () => classChannelApi.list(classId),
     enabled: Number.isFinite(classId),
-    staleTime: 8_000,
-    refetchInterval: 15_000, // light polling for near-realtime (no SSE in this MVP)
+    staleTime: 3_000,
+    refetchInterval: 8_000, // light polling for near-realtime (no SSE in this MVP)
   })
+
+  // Refetch when the channel regains focus so a returning member never sees a stale thread.
+  const refetch = q.refetch
+  useFocusEffect(useCallback(() => { void refetch() }, [refetch]))
 
   const sendMut = useMutation({
     mutationFn: (body: string) => classChannelApi.post(classId, body),
