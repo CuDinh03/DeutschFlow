@@ -70,9 +70,13 @@ export default function OrgAcceptPage() {
     setSubmitting(true)
     setSubmitError(null)
 
-    const body: AcceptInvitationInput = preview.requiresRegistration
-      ? { displayName: form.displayName.trim(), password: form.password }
-      : {}
+    // Preview no longer reveals whether the account exists (that would be an existence oracle),
+    // so we always send the password. The backend treats it as ownership proof for an existing
+    // account, or as the new password when creating one; displayName is used only in the latter.
+    const body: AcceptInvitationInput = {
+      password: form.password,
+      displayName: form.displayName.trim() || undefined,
+    }
 
     try {
       // Mirror the login flow: clear any stale token before establishing the new session.
@@ -164,9 +168,10 @@ export default function OrgAcceptPage() {
   }
 
   const roleLabel = ROLE_LABELS[preview.role] ?? preview.role
-  const canSubmit = preview.requiresRegistration
-    ? form.displayName.trim().length > 0 && form.password.length >= 8
-    : true
+  // Password is always required (ownership proof for an existing account, or the new password
+  // for a fresh one). We can't tell which case applies — the backend enforces displayName when
+  // it turns out a new account must be created.
+  const canSubmit = form.password.length > 0
 
   // ─── Valid invitation ─────────────────────────────────────────────────────────
   return (
@@ -204,46 +209,41 @@ export default function OrgAcceptPage() {
         )}
 
         <form onSubmit={handleAccept} className="space-y-5">
-          {preview.requiresRegistration ? (
-            <>
-              <p className="text-sm text-slate-500">
-                Đây là lần đầu bạn tham gia DeutschFlow. Hãy đặt tên hiển thị và mật khẩu để tạo tài khoản.
-              </p>
-              <div className="space-y-1.5">
-                <label className="block text-sm font-semibold text-slate-700">Tên hiển thị</label>
-                <input
-                  type="text"
-                  required
-                  autoComplete="name"
-                  value={form.displayName}
-                  onChange={(e) => setForm((f) => ({ ...f, displayName: e.target.value }))}
-                  placeholder="Nguyễn Văn A"
-                  className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="block text-sm font-semibold text-slate-700">Mật khẩu</label>
-                <input
-                  type="password"
-                  required
-                  minLength={8}
-                  autoComplete="new-password"
-                  value={form.password}
-                  onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                  placeholder="Tối thiểu 8 ký tự"
-                  className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-                <p className="text-xs text-slate-400">Dùng ít nhất 8 ký tự.</p>
-              </div>
-            </>
-          ) : (
-            <div className="flex items-start gap-3 rounded-xl border border-emerald-100 bg-emerald-50/60 px-4 py-3 text-sm text-emerald-800">
-              <ShieldCheck size={18} className="mt-0.5 shrink-0 text-emerald-500" />
-              <span>
-                Tài khoản của bạn đã tồn tại. Nhấn nút bên dưới để tham gia tổ chức và đăng nhập ngay.
-              </span>
-            </div>
-          )}
+          <div className="flex items-start gap-3 rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3 text-sm text-slate-600">
+            <ShieldCheck size={18} className="mt-0.5 shrink-0 text-indigo-500" />
+            <span>
+              Nhập mật khẩu để xác nhận. Nếu bạn <span className="font-semibold">đã có tài khoản</span> DeutschFlow
+              với email này, hãy dùng mật khẩu hiện tại. Nếu <span className="font-semibold">chưa có</span>, hãy
+              đặt mật khẩu mới và tên hiển thị để tạo tài khoản.
+            </span>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-sm font-semibold text-slate-700">Mật khẩu</label>
+            <input
+              type="password"
+              required
+              autoComplete="current-password"
+              value={form.password}
+              onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+              placeholder="Mật khẩu tài khoản"
+              className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-sm font-semibold text-slate-700">
+              Tên hiển thị <span className="font-normal text-slate-400">(nếu tạo tài khoản mới)</span>
+            </label>
+            <input
+              type="text"
+              autoComplete="name"
+              value={form.displayName}
+              onChange={(e) => setForm((f) => ({ ...f, displayName: e.target.value }))}
+              placeholder="Nguyễn Văn A"
+              className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
 
           <button
             type="submit"
@@ -258,7 +258,7 @@ export default function OrgAcceptPage() {
             ) : (
               <>
                 <CheckCircle2 size={18} />
-                {preview.requiresRegistration ? 'Tạo tài khoản & tham gia' : 'Tham gia tổ chức'}
+                Tham gia tổ chức
               </>
             )}
           </button>
