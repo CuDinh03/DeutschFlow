@@ -67,6 +67,45 @@ export type Exercise =
   | ExerciseReorder
   | ExerciseBase
 
+// ── 4-skill authored exercises (content_json.skill_exercises) ────────────────
+// One heterogeneous item shape covering all 16 exercise types across the 4 skills
+// (Hören/Sprechen/Lesen/Schreiben). Only the fields the runner reads are typed; the
+// server (PracticeExerciseGrader) is authoritative on grading.
+export interface SkillExerciseItem {
+  type: string
+  instruction_vi?: string
+  explanation_vi?: string
+  audio_transcript?: string // Hören: TTS reads this aloud
+  question_vi?: string
+  options?: string[]
+  correct_index?: number
+  sentence_with_blank?: string
+  sentence_vi?: string
+  hint_vi?: string
+  grammar_rule_vi?: string
+  correct_answer?: string | boolean
+  accept_also?: string[]
+  statement_de?: string // READ_TRUE_FALSE
+  words?: string[] // REORDER_WORDS
+  correct_order?: string[]
+  translation_vi?: string
+  sentence_de?: string // SPEAKING_REPEAT
+  question_de?: string // SPEAKING_RESPONSE
+  expected_answer?: string
+  focus_sounds?: string[]
+  grading_keywords?: string[]
+}
+export interface LesenBlock {
+  reading_passage?: { text_de?: string; text_type?: string; text_vi_hint?: string }
+  exercises?: SkillExerciseItem[]
+}
+export interface SkillExercises {
+  HOEREN?: SkillExerciseItem[]
+  SPRECHEN?: SkillExerciseItem[]
+  LESEN?: LesenBlock
+  SCHREIBEN?: SkillExerciseItem[]
+}
+
 export interface NodeContent {
   title?: { de?: string; vi?: string }
   overview?: { de?: string; vi?: string }
@@ -74,6 +113,7 @@ export interface NodeContent {
   vocabulary?: NodeVocabItem[]
   phrases?: NodePhrase[]
   exercises?: { theory_gate?: Exercise[]; practice?: Exercise[] }
+  skill_exercises?: SkillExercises
 }
 
 export interface NodeSession {
@@ -236,6 +276,21 @@ export const skillTreeApi = {
   // submitNode so their score is graded server-side.
   markNodeComplete: (nodeId: number | string) =>
     api.post<NodeSubmitResult>(`/skill-tree/${nodeId}/complete`).then((r) => r.data),
+
+  // Submit the authored 4-skill exercise sets (content_json.skill_exercises). The backend
+  // re-grades every item server-side (PracticeExerciseGrader) and completes the node when the
+  // aggregate reaches its mastery_threshold. `skillAnswers` is keyed by skill → item index →
+  // { answer } (answer = option index for choice items, or the typed/joined string, or "spoken").
+  submitSkillExercises: (
+    nodeId: number | string,
+    skillAnswers: Record<string, Record<string, { answer: number | string }>>,
+  ) =>
+    api
+      .post<NodeSubmitResult & { perSkill?: Record<string, { scored: number; correct: number }> }>(
+        `/skill-tree/${nodeId}/skill-exercises/submit`,
+        { skill_answers: skillAnswers },
+      )
+      .then((r) => r.data),
 }
 
 // ── Local grading helpers (for the scored MC + FILL_BLANK items) ────────────

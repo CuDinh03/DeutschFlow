@@ -79,7 +79,7 @@ public class SkillTreeService {
 
         // Lấy tất cả nodes + progress của user (LEFT JOIN để bao gồm cả LOCKED nodes)
         // Cast TEXT[] → TEXT và JSONB → TEXT để tránh lỗi serialization Jackson
-        return jdbcTemplate.queryForList("""
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
                 SELECT
                     n.id, n.node_type, n.title_de, n.title_vi, n.description_vi, n.emoji,
                     n.phase, n.day_number, n.week_number, n.sort_order,
@@ -116,8 +116,7 @@ public class SkillTreeService {
                             LEFT JOIN skill_tree_user_progress dp
                                 ON dp.node_id = d.depends_on_node_id AND dp.user_id = ?
                             WHERE d.node_id = n.id
-                              AND (dp.status IS NULL OR dp.status <> 'COMPLETED'
-                                   OR dp.score_percent < d.min_score_percent)
+                              AND (dp.status IS NULL OR dp.status <> 'COMPLETED')
                         ) THEN TRUE
                         ELSE FALSE
                     END AS dependencies_met
@@ -127,6 +126,19 @@ public class SkillTreeService {
                 WHERE n.is_active = TRUE
                 ORDER BY COALESCE(n.day_number, 9999) ASC, n.sort_order ASC
                 """, userId, userId);
+
+        // Derive-at-read unlock (bug A fix): a node whose dependencies are satisfied but has no
+        // started progress row is AVAILABLE, not LOCKED. Nothing else ever writes the successor's
+        // UNLOCKED row when the previous node completes, so without this the node after a completed
+        // one stays LOCKED forever and the UI dead-ends the learner. Only promote 'LOCKED'/no-row;
+        // IN_PROGRESS / COMPLETED / UNLOCKED are left untouched. FE normalizes UNLOCKED → AVAILABLE.
+        for (Map<String, Object> row : rows) {
+            if (Boolean.TRUE.equals(row.get("dependencies_met"))
+                    && "LOCKED".equals(row.get("user_status"))) {
+                row.put("user_status", "UNLOCKED");
+            }
+        }
+        return rows;
     }
 
     /**
@@ -174,6 +186,10 @@ public class SkillTreeService {
         boolean depsMet = checkDependenciesMet(userId, nodeId);
         if (depsMet && !"COMPLETED".equals(currentStatus)) {
             upsertProgress(userId, nodeId, "IN_PROGRESS");
+            // Bug C fix: reflect the auto-unlock we just persisted. Previously the response kept the
+            // pre-upsert value (LOCKED), so the lesson screen showed "Chưa mở khoá" on first open and
+            // only rendered correctly on a second visit.
+            currentStatus = "IN_PROGRESS";
         }
 
         // Parse content_json
@@ -669,6 +685,111 @@ public class SkillTreeService {
     }
 
     // ─────────────────────────────────────────────────────────────
+    // 5c. SUBMIT SKILL EXERCISES — nộp bộ bài tập 4 kỹ năng soạn sẵn (CORE Hybrid)
+    // ─────────────────────────────────────────────────────────────
+
+    /** The four practice skills, in fixed order, for the authored CORE exercise sets. */
+    private static final List<String> CORE_SKILLS = List.of("HOEREN", "SPRECHEN", "LESEN", "SCHREIBEN");
+
+    /**
+     * Submit the authored 4-skill exercise sets stored under
+     * {@code content_json.skill_exercises.{HOEREN,SPRECHEN,LESEN,SCHREIBEN}} for a CORE node
+     * (the Hybrid model: frozen content graded server-side, no per-user LLM tokens). Each skill's
+     * answers are graded by {@link PracticeExerciseGrader}; the node completes when the aggregate
+     * score over every deterministically-gradeable item across the four skills reaches the node's
+     * {@code mastery_threshold}. Speaking / free-write items are AI-graded elsewhere and submit the
+     * {@code "spoken"} sentinel (counted as attempted). Shares the same progress + side-effect path
+     * as {@link #submitNodeExercises} so completion still unlocks the next node and seeds SRS/phase.
+     *
+     * @param skillAnswers map skill → (itemIndex "0","1"… → raw answer / {@code {"answer": …}})
+     */
+    @Transactional
+    public Map<String, Object> submitSkillExercises(long userId, long nodeId, Map<String, Object> skillAnswers) {
+        Map<String, Object> progress;
+        try {
+            progress = loadProgressOrThrow(userId, nodeId);
+        } catch (NotFoundException e) {
+            progress = Map.of("status", "LOCKED", "attempts", 0, "best_score", 0);
+        }
+
+        String status = (String) progress.get("status");
+        if ("COMPLETED".equals(status)) {
+            throw new BadRequestException("Bạn đã hoàn thành bài này rồi");
+        }
+        if (!"IN_PROGRESS".equals(status) && !checkDependenciesMet(userId, nodeId)) {
+            throw new BadRequestException("Bạn cần hoàn thành các bài học trước đó trước");
+        }
+
+        Map<String, Object> node = loadNodeOrThrow(nodeId);
+        String contentJson = (String) node.get("content_json");
+
+        // Grade each skill's exercises with the shared practice grader and aggregate across all four.
+        int totalItems = 0;
+        int totalCorrect = 0;
+        Map<String, Object> perSkill = new LinkedHashMap<>();
+        for (String skill : CORE_SKILLS) {
+            String skillJson = extractSkillExercisesJson(contentJson, skill);
+            @SuppressWarnings("unchecked")
+            Map<String, Object> answers = skillAnswers.get(skill) instanceof Map<?, ?> m
+                    ? (Map<String, Object>) m : null;
+            PracticeExerciseGrader.Result r = PracticeExerciseGrader.grade(objectMapper, skillJson, answers);
+            totalItems += r.total();
+            totalCorrect += r.correctCount();
+            perSkill.put(skill, Map.of("scored", r.total(), "correct", r.correctCount()));
+        }
+
+        int scorePercent = totalItems == 0 ? 0 : (int) Math.round(totalCorrect * 100.0 / totalItems);
+        int masteryThreshold = safeInt(node.get("mastery_threshold"), 70);
+        if (masteryThreshold <= 0 || masteryThreshold > 100) {
+            masteryThreshold = 70;
+        }
+        boolean completed = totalItems > 0 && scorePercent >= masteryThreshold;
+
+        int attempts = safeInt(progress.get("attempts"), 0) + 1;
+        int bestScore = Math.max(safeInt(progress.get("best_score"), 0), scorePercent);
+        int xpEarned = completed ? safeInt(node.get("xp_reward"), 100) : 0;
+        String newStatus = completed ? "COMPLETED" : "IN_PROGRESS";
+
+        writeProgress(userId, nodeId, newStatus, scorePercent, bestScore, attempts, xpEarned);
+        if (scorePercent >= 80) {
+            checkAndTriggerPrefetch(userId, nodeId, scorePercent);
+        }
+        if (completed) {
+            awardCompletionSideEffects(userId, nodeId, node);
+        }
+
+        return Map.of(
+                "nodeId", nodeId,
+                "scorePercent", scorePercent,
+                "bestScore", bestScore,
+                "attempts", attempts,
+                "completed", completed,
+                "xpEarned", xpEarned,
+                "status", newStatus,
+                "perSkill", perSkill
+        );
+    }
+
+    /**
+     * Extract {@code content_json.skill_exercises.<SKILL>} back to a JSON string for the practice
+     * grader. The value is either a JSON array (Hören/Sprechen/Schreiben) or an object with an
+     * {@code exercises} array (Lesen, which also carries {@code reading_passage}); the grader handles
+     * both shapes. Returns null when absent so grading contributes zero items.
+     */
+    private String extractSkillExercisesJson(String contentJson, String skill) {
+        if (contentJson == null || contentJson.isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode se = objectMapper.readTree(contentJson).path("skill_exercises").path(skill);
+            return se.isMissingNode() || se.isNull() ? null : objectMapper.writeValueAsString(se);
+        } catch (Exception e) {
+            log.warn("[SkillTree] Failed to extract skill_exercises[{}]: {}", skill, e.getMessage());
+            return null;
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
     // ── Helpers ──
     // ─────────────────────────────────────────────────────────────
 
@@ -763,14 +884,17 @@ public class SkillTreeService {
     }
 
     private boolean checkDependenciesMet(long userId, long nodeId) {
+        // Bug B fix: a prerequisite counts as met once it is COMPLETED. The completion score gate
+        // is already enforced by the node's own mastery_threshold at submit/mark-complete time, so
+        // the extra `score_percent < min_score_percent` clause (seed value 100) wrongly kept the
+        // successor locked after a legitimate pass at 70–99%. min_score_percent is now advisory.
         Integer unmetCount = jdbcTemplate.queryForObject("""
                 SELECT COUNT(*)
                 FROM skill_tree_node_dependencies d
                 LEFT JOIN skill_tree_user_progress p
                     ON p.node_id = d.depends_on_node_id AND p.user_id = ?
                 WHERE d.node_id = ?
-                  AND (p.status IS NULL OR p.status <> 'COMPLETED'
-                       OR p.score_percent < d.min_score_percent)
+                  AND (p.status IS NULL OR p.status <> 'COMPLETED')
                 """, Integer.class, userId, nodeId);
         return unmetCount != null && unmetCount == 0;
     }
