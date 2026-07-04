@@ -47,7 +47,7 @@ Legend: ✅ done · 🟡 in progress · ⬜ not started
 
 ### student (`area: student`) — 18 pages
 - ✅ dashboard
-- ⬜ vocabulary · grammar · review · lessons · roadmap
+- ✅ vocabulary · ✅ grammar · ✅ review · ✅ lessons · ✅ roadmap
 - ⬜ speaking · mock-exam · exam
 - ⬜ classes · classes/[id] · classes/[id]/assignments/[aid] · progress · messages
 - ⬜ achievements · tuition · tutor · welcome
@@ -78,4 +78,7 @@ Strings whose German rendering should be checked by a German-language expert bef
 DE users (learner-facing / pedagogically sensitive). Nothing from the dashboard pilot qualifies
 (all UI chrome). Append here as content-heavy screens are migrated.
 
-_(none yet)_
+- Học tập group (vocabulary · grammar · review · lessons · roadmap): all extracted strings are
+  UI chrome (buttons, labels, headers, toasts, empty/error states, CEFR phase descriptions). No
+  hardcoded example German sentences or pedagogical grammar explanations — that content is
+  backend-supplied. **No German-review flags required for this group.**

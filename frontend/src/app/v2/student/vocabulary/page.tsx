@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Volume2 } from 'lucide-react'
 import api from '@/lib/api'
 import { GaPageHdr, TkSearch, GaCap, LoadingState, ErrorBanner } from '@/components/ui-v2'
@@ -56,6 +57,7 @@ function speak(text: string) {
 }
 
 export default function V2StudentVocabularyPage() {
+  const t = useTranslations('v2.student.vocabulary')
   const [words, setWords] = useState<Word[]>([])
   const [query, setQuery] = useState('')
   const [level, setLevel] = useState('ALL')
@@ -71,7 +73,7 @@ export default function V2StudentVocabularyPage() {
         const raw = (Array.isArray(res.data) ? res.data : (res.data?.content ?? [])) as Record<string, unknown>[]
         setWords(raw.map(normalize).filter((w) => w.german))
       })
-      .catch(() => setError('Không thể tải từ vựng.'))
+      .catch(() => setError(t('loadError')))
       .finally(() => setLoading(false))
   }
   useEffect(load, [])
@@ -93,13 +95,13 @@ export default function V2StudentVocabularyPage() {
     <div className="flex min-h-full flex-col">
       <GaPageHdr
         accent
-        title="Từ vựng"
-        subtitle="Học từ theo màu giống — der (xanh) · die (đỏ) · das (lục)"
+        title={t('title')}
+        subtitle={t('subtitle')}
         right={
           <TkSearch
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Tìm từ / nghĩa…"
+            placeholder={t('searchPlaceholder')}
             containerClassName="w-[230px]"
           />
         }
@@ -118,7 +120,7 @@ export default function V2StudentVocabularyPage() {
                     : 'border-ga-border bg-ga-card text-ga-muted hover:border-ga-ink hover:text-ga-ink'
                 }`}
               >
-                {l === 'ALL' ? 'Tất cả' : l}
+                {l === 'ALL' ? t('all') : l}
               </button>
             ))}
           </div>
@@ -131,15 +133,15 @@ export default function V2StudentVocabularyPage() {
         )}
 
         {loading ? (
-          <LoadingState label="Đang tải từ vựng…" />
+          <LoadingState label={t('loading')} />
         ) : filtered.length === 0 ? (
           <div className="border border-ga-line bg-ga-card py-16 text-center">
-            <p className="font-ga-display text-[20px] font-medium text-ga-ink">Không có từ nào</p>
-            <p className="ga-ui mt-2 text-[14px] text-ga-muted">Thử từ khoá khác hoặc đổi cấp độ.</p>
+            <p className="font-ga-display text-[20px] font-medium text-ga-ink">{t('emptyTitle')}</p>
+            <p className="ga-ui mt-2 text-[14px] text-ga-muted">{t('emptyDesc')}</p>
           </div>
         ) : (
           <>
-            <GaCap className="mb-3 block">{filtered.length} từ</GaCap>
+            <GaCap className="mb-3 block">{t('count', { count: filtered.length })}</GaCap>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {filtered.slice(0, 300).map((w) => {
                 const color = w.article ? ARTICLE_COLOR[w.article] : 'var(--ga-ink)'
@@ -157,7 +159,7 @@ export default function V2StudentVocabularyPage() {
                         type="button"
                         onClick={() => speak(w.german)}
                         className="shrink-0 text-ga-subtle transition-colors hover:text-ga-accent"
-                        aria-label="Nghe phát âm"
+                        aria-label={t('speakAria')}
                       >
                         <Volume2 size={17} aria-hidden />
                       </button>
@@ -175,7 +177,7 @@ export default function V2StudentVocabularyPage() {
             </div>
             {filtered.length > 300 && (
               <p className="ga-ui mt-5 text-center text-[12.5px] text-ga-subtle">
-                Hiển thị 300/{filtered.length} từ — dùng tìm kiếm để thu hẹp.
+                {t('cappedNote', { count: filtered.length })}
               </p>
             )}
           </>
