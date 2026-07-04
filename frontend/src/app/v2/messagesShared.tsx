@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { format } from 'date-fns'
 import { ArrowLeft, Send } from 'lucide-react'
 import { apiMessage } from '@/lib/api'
@@ -23,10 +23,17 @@ interface MessagesViewProps {
   initialUserId?: number | null
   /** Counterpart name for a fresh thread not yet in the conversation list (`?to=` from class/roster). */
   initialName?: string | null
+  /**
+   * Optional action rendered in the conversation-list header (e.g. a "message a new student"
+   * compose button). Receives `openThread` so the action can open/start a thread with any user.
+   */
+  headerAction?: (openThread: (userId: number, name: string) => void) => ReactNode
+  /** Empty-state copy for the conversation list (defaults to the "open from class page" hint). */
+  emptyText?: ReactNode
 }
 
 /** Shared student/teacher 1-1 chat surface (conversation list + thread + composer). */
-export function MessagesView({ initialUserId, initialName }: MessagesViewProps) {
+export function MessagesView({ initialUserId, initialName, headerAction, emptyText }: MessagesViewProps) {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [activeId, setActiveId] = useState<number | null>(initialUserId ?? null)
   const [activeName, setActiveName] = useState<string | null>(initialName ?? null)
@@ -97,6 +104,12 @@ export function MessagesView({ initialUserId, initialName }: MessagesViewProps) 
     setActiveName(c.displayName)
   }
 
+  // Open (or start) a thread with an arbitrary user — used by the compose picker.
+  const openThread = useCallback((userId: number, name: string) => {
+    setActiveId(userId)
+    setActiveName(name)
+  }, [])
+
   const send = async () => {
     const text = draft.trim()
     if (!text || activeId == null) return
@@ -121,20 +134,23 @@ export function MessagesView({ initialUserId, initialName }: MessagesViewProps) 
       <aside
         className={`${activeId != null ? 'hidden md:flex' : 'flex'} w-full shrink-0 flex-col border-r border-ga-line md:w-[300px]`}
       >
-        <div className="flex items-center justify-between px-4 py-3">
-          <GaCap>Hội thoại</GaCap>
-          {totalUnread > 0 && (
-            <span className="rounded-full bg-ga-accent px-2 py-0.5 text-[11px] font-bold text-ga-accent-ink">
-              {totalUnread}
-            </span>
-          )}
+        <div className="flex items-center justify-between gap-2 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <GaCap>Hội thoại</GaCap>
+            {totalUnread > 0 && (
+              <span className="rounded-full bg-ga-accent px-2 py-0.5 text-[11px] font-bold text-ga-accent-ink">
+                {totalUnread}
+              </span>
+            )}
+          </div>
+          {headerAction?.(openThread)}
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
           {loadingConvos ? (
             <LoadingState label="Đang tải hội thoại…" />
           ) : conversations.length === 0 ? (
             <p className="ga-ui px-4 py-8 text-center text-[13px] text-ga-muted">
-              Chưa có hội thoại. Mở từ trang lớp/gia sư để nhắn tin với giáo viên/học viên.
+              {emptyText ?? 'Chưa có hội thoại. Mở từ trang lớp/gia sư để nhắn tin với giáo viên/học viên.'}
             </p>
           ) : (
             conversations.map((c) => {
