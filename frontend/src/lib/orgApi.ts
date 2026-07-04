@@ -365,15 +365,3 @@ export async function acceptInvitation(
   )
   return res.data
 }
-
-/**
- * POST /admin/organizations/{id}/activate-entitlements — platform-admin action
- * that grants the org's plan to every active student (seeds wallets / sub).
- * Returns the number of students newly granted entitlements.
- */
-export async function activateEntitlements(orgId: number): Promise<number> {
-  const res = await api.post<{ granted: number }>(
-    `/admin/organizations/${orgId}/activate-entitlements`,
-  )
-  return res.data?.granted ?? 0
-}
