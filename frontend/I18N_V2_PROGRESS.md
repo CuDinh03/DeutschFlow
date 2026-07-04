@@ -73,7 +73,8 @@ design (not display) — see leftover-VN audit notes._
 - Admin is internal platform tooling → machine German is sanctioned (no learner-facing content).
 
 ### shared / account (`area: account`)
-- ⬜ profile · payment · notifications _(notifications/page.tsx blocked on in-flight notification WIP)_
+- ✅ profile · ✅ payment
+- ⬜ notifications _(notifications/page.tsx blocked on in-flight notification WIP)_
 
 ### public legacy (out of the v2 tree, in scope)
 - ⬜ login · register · home (`/`) · pricing · terms · privacy

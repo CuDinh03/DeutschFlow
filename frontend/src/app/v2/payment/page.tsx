@@ -1,6 +1,7 @@
 'use client'
 
 import { Check } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { GaPageHdr, GaBtn } from '@/components/ui-v2'
 import { RoleShell } from '../RoleShell'
 
@@ -8,47 +9,43 @@ import { RoleShell } from '../RoleShell'
 // until then the paid card shows a "coming soon" CTA. MoMo/Stripe removed per the locked billing
 // decision (SePay is the VN channel; Stripe hidden; MoMo deferred).
 
+// nameKey/periodKey/featureKeys resolve via t(); code/priceVnd/accent/highlight stay as logic values.
 interface Plan {
   code: 'FREE' | 'PRO'
-  name: string
+  nameKey: string
   priceVnd: number
-  period: string
+  periodKey: string
   accent: string
-  features: string[]
+  featureKeys: string[]
   highlight?: boolean
 }
 
 const PLANS: Plan[] = [
   {
     code: 'FREE',
-    name: 'Miễn phí',
+    nameKey: 'planFreeName',
     priceVnd: 0,
-    period: 'mãi mãi',
+    periodKey: 'planFreePeriod',
     accent: 'var(--ga-muted)',
-    features: ['Học từ vựng & ngữ pháp cơ bản', 'Bài học lộ trình A1–B1', 'Theo dõi tiến độ cơ bản'],
+    featureKeys: ['planFreeFeature1', 'planFreeFeature2', 'planFreeFeature3'],
   },
   {
     code: 'PRO',
-    name: 'Pro',
+    nameKey: 'planProName',
     priceVnd: 299000,
-    period: 'mỗi tháng',
+    periodKey: 'planProPeriod',
     accent: 'var(--ga-violet)',
     highlight: true,
-    features: [
-      'Toàn bộ tính năng AI Speaking',
-      'Chấm bài & phản hồi AI không giới hạn',
-      'Luyện phỏng vấn & thi thử Goethe',
-      'Lộ trình cá nhân hoá',
-    ],
+    featureKeys: ['planProFeature1', 'planProFeature2', 'planProFeature3', 'planProFeature4'],
   },
 ]
 
-const vnd = (n: number) => (n === 0 ? 'Miễn phí' : `${n.toLocaleString('vi-VN')}₫`)
-
 function PaymentBody() {
+  const t = useTranslations('v2.account.payment')
+  const vnd = (n: number) => (n === 0 ? t('priceFree') : `${n.toLocaleString('vi-VN')}₫`)
   return (
     <div className="flex min-h-full flex-col">
-      <GaPageHdr accent title="Nâng cấp gói" subtitle="Mở khoá toàn bộ sức mạnh AI cho hành trình tiếng Đức của bạn" />
+      <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
       <div className="flex-1 px-10 py-8">
         <div className="mx-auto grid max-w-3xl grid-cols-1 gap-6 lg:grid-cols-2">
           {PLANS.map((plan) => {
@@ -67,22 +64,22 @@ function PaymentBody() {
                     className="ga-ui absolute -top-3 left-7 rounded-ga-pill px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-white"
                     style={{ background: plan.accent }}
                   >
-                    Phổ biến nhất
+                    {t('mostPopular')}
                   </span>
                 )}
-                <p className="font-ga-display text-[24px] font-medium text-ga-ink">{plan.name}</p>
+                <p className="font-ga-display text-[24px] font-medium text-ga-ink">{t(plan.nameKey)}</p>
                 <div className="mt-3 flex items-baseline gap-1.5">
                   <span className="font-ga-display text-[34px] font-medium" style={{ color: plan.accent }}>
                     {vnd(plan.priceVnd)}
                   </span>
-                  <span className="ga-ui text-[13px] text-ga-muted">/ {plan.period}</span>
+                  <span className="ga-ui text-[13px] text-ga-muted">{t('perPeriod', { period: t(plan.periodKey) })}</span>
                 </div>
 
                 <ul className="my-6 flex-1 space-y-3">
-                  {plan.features.map((f) => (
-                    <li key={f} className="ga-ui flex items-start gap-2.5 text-[13.5px] text-ga-ink">
+                  {plan.featureKeys.map((fKey) => (
+                    <li key={fKey} className="ga-ui flex items-start gap-2.5 text-[13.5px] text-ga-ink">
                       <Check size={16} className="mt-0.5 shrink-0" style={{ color: plan.accent }} aria-hidden />
-                      {f}
+                      {t(fKey)}
                     </li>
                   ))}
                 </ul>
@@ -90,15 +87,15 @@ function PaymentBody() {
                 {paid ? (
                   <div className="space-y-2.5">
                     <GaBtn variant="primary" className="w-full justify-center" disabled>
-                      Sắp ra mắt
+                      {t('comingSoon')}
                     </GaBtn>
                     <p className="ga-ui text-center text-[12px] text-ga-subtle">
-                      Thanh toán qua SePay sẽ sớm có mặt.
+                      {t('comingSoonNote')}
                     </p>
                   </div>
                 ) : (
                   <div className="ga-ui rounded-ga border border-ga-line py-2.5 text-center text-[13px] font-semibold text-ga-muted">
-                    Gói mặc định
+                    {t('defaultPlan')}
                   </div>
                 )}
               </div>

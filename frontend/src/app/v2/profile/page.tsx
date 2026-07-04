@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import api from '@/lib/api'
 import {
@@ -15,24 +16,26 @@ import { GaPageHdr, GaBtn, GaCard, LoadingState } from '@/components/ui-v2'
 import { RoleShell } from '../RoleShell'
 
 type Tab = 'info' | 'learning' | 'security'
-const ALL_TABS: { id: Tab; label: string }[] = [
-  { id: 'info', label: 'Thông tin' },
-  { id: 'learning', label: 'Học tập' },
-  { id: 'security', label: 'Bảo mật' },
+// labelKey resolves via t('tab…'); id drives tab logic (stable).
+const ALL_TABS: { id: Tab; labelKey: 'tabInfo' | 'tabLearning' | 'tabSecurity' }[] = [
+  { id: 'info', labelKey: 'tabInfo' },
+  { id: 'learning', labelKey: 'tabLearning' },
+  { id: 'security', labelKey: 'tabSecurity' },
 ]
 // MANAGER/OWNER/ADMIN không có learning profile → ẩn tab Học tập
 const ROLES_WITHOUT_LEARNING = new Set(['ADMIN', 'OWNER', 'MANAGER'])
 
 const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
+// v = API enum value (logic key, stays as-is); labelKey resolves the display via t(labelKey).
 const SPEEDS = [
-  { v: 'SLOW', l: 'Chậm' },
-  { v: 'NORMAL', l: 'Bình thường' },
-  { v: 'FAST', l: 'Nhanh' },
-]
+  { v: 'SLOW', labelKey: 'speedSlow' },
+  { v: 'NORMAL', labelKey: 'speedNormal' },
+  { v: 'FAST', labelKey: 'speedFast' },
+] as const
 const GOALS = [
-  { v: 'WORK', l: 'Công việc / Nghề nghiệp' },
-  { v: 'CERT', l: 'Chứng chỉ (Goethe…)' },
-]
+  { v: 'WORK', labelKey: 'goalWork' },
+  { v: 'CERT', labelKey: 'goalCert' },
+] as const
 
 function Field({
   label,
@@ -58,11 +61,12 @@ const inputCls =
   'ga-ui w-full rounded-ga border border-ga-line bg-ga-card px-3.5 py-2.5 text-[14px] text-ga-ink outline-none transition-colors focus:border-ga-accent'
 
 function ProfileBody() {
+  const t = useTranslations('v2.account.profile')
   const storeUser = useUserStore((s) => s.user)
   const setLocaleStore = useUserStore((s) => s.setLocale)
 
   const TABS = ALL_TABS.filter(
-    (t) => t.id !== 'learning' || !ROLES_WITHOUT_LEARNING.has(storeUser?.roles?.[0] ?? '')
+    (tab) => tab.id !== 'learning' || !ROLES_WITHOUT_LEARNING.has(storeUser?.roles?.[0] ?? '')
   )
   const [tab, setTab] = useState<Tab>('info')
   const [loading, setLoading] = useState(true)
@@ -116,9 +120,9 @@ function ProfileBody() {
     try {
       await updateProfile({ displayName, phoneNumber: phone || undefined, locale })
       setLocaleStore(locale)
-      toast.success('Đã lưu thông tin cá nhân.')
+      toast.success(t('savedInfo'))
     } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : 'Không thể lưu.')
+      toast.error(e instanceof Error ? e.message : t('saveError'))
     } finally {
       setSavingInfo(false)
     }
@@ -137,9 +141,9 @@ function ProfileBody() {
         minutesPerSession: lp.minutesPerSession,
       })
       setLp(updated)
-      toast.success('Đã lưu mục tiêu học tập.')
+      toast.success(t('savedLearning'))
     } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : 'Không thể lưu.')
+      toast.error(e instanceof Error ? e.message : t('saveError'))
     } finally {
       setSavingLp(false)
     }
@@ -147,7 +151,7 @@ function ProfileBody() {
 
   const savePw = async () => {
     if (newPw.length < 8) {
-      toast.error('Mật khẩu mới phải có ít nhất 8 ký tự.')
+      toast.error(t('passwordTooShort'))
       return
     }
     setSavingPw(true)
@@ -155,9 +159,9 @@ function ProfileBody() {
       await changePassword({ currentPassword: curPw, newPassword: newPw })
       setCurPw('')
       setNewPw('')
-      toast.success('Đã đổi mật khẩu.')
+      toast.success(t('savedPassword'))
     } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : 'Không thể đổi mật khẩu.')
+      toast.error(e instanceof Error ? e.message : t('passwordError'))
     } finally {
       setSavingPw(false)
     }
@@ -167,57 +171,57 @@ function ProfileBody() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <GaPageHdr accent title="Hồ sơ" subtitle="Thông tin cá nhân, mục tiêu học tập và bảo mật" />
+      <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
       <div className="flex-1 px-10 py-6">
         {/* Tabs */}
         <div className="mb-6 flex gap-2">
-          {TABS.map((t) => (
+          {TABS.map((tabItem) => (
             <button
-              key={t.id}
+              key={tabItem.id}
               type="button"
-              onClick={() => setTab(t.id)}
+              onClick={() => setTab(tabItem.id)}
               className={`ga-ui rounded-ga border px-[14px] py-2 text-[13px] font-semibold transition-colors ${
-                tab === t.id
+                tab === tabItem.id
                   ? 'border-ga-ink bg-ga-ink text-ga-card'
                   : 'border-ga-border bg-ga-card text-ga-muted hover:border-ga-ink hover:text-ga-ink'
               }`}
             >
-              {t.label}
+              {t(tabItem.labelKey)}
             </button>
           ))}
         </div>
 
         {loading ? (
-          <LoadingState label="Đang tải hồ sơ…" />
+          <LoadingState label={t('loading')} />
         ) : (
           <GaCard className="max-w-2xl p-7">
             {tab === 'info' && (
               <div className="space-y-5">
-                <Field label="Tên hiển thị">
+                <Field label={t('fieldDisplayName')}>
                   <input className={inputCls} value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
                 </Field>
-                <Field label="Email" hint="Email đăng nhập không thể thay đổi tại đây.">
+                <Field label={t('fieldEmail')} hint={t('fieldEmailHint')}>
                   <input className={`${inputCls} opacity-60`} value={email} disabled />
                 </Field>
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                  <Field label="Số điện thoại">
+                  <Field label={t('fieldPhone')}>
                     <input
                       className={inputCls}
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      placeholder="0xxxxxxxxx"
+                      placeholder={t('phonePlaceholder')}
                     />
                   </Field>
-                  <Field label="Ngôn ngữ">
+                  <Field label={t('fieldLanguage')}>
                     <select className={inputCls} value={locale} onChange={(e) => setLocale(e.target.value)}>
-                      <option value="vi">Tiếng Việt</option>
-                      <option value="en">English</option>
-                      <option value="de">Deutsch</option>
+                      <option value="vi">{t('langVi')}</option>
+                      <option value="en">{t('langEn')}</option>
+                      <option value="de">{t('langDe')}</option>
                     </select>
                   </Field>
                 </div>
                 <GaBtn variant="primary" onClick={saveInfo} disabled={savingInfo}>
-                  {savingInfo ? 'Đang lưu…' : 'Lưu thay đổi'}
+                  {savingInfo ? t('saving') : t('saveChanges')}
                 </GaBtn>
               </div>
             )}
@@ -226,27 +230,27 @@ function ProfileBody() {
               (lp ? (
                 <div className="space-y-5">
                   <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                    <Field label="Mục tiêu">
+                    <Field label={t('fieldGoal')}>
                       <select
                         className={inputCls}
                         value={lp.goalType ?? ''}
                         onChange={(e) => setLp2({ goalType: e.target.value })}
                       >
-                        <option value="">— Chọn —</option>
+                        <option value="">{t('selectPlaceholder')}</option>
                         {GOALS.map((g) => (
                           <option key={g.v} value={g.v}>
-                            {g.l}
+                            {t(g.labelKey)}
                           </option>
                         ))}
                       </select>
                     </Field>
-                    <Field label="Trình độ mục tiêu">
+                    <Field label={t('fieldTargetLevel')}>
                       <select
                         className={inputCls}
                         value={lp.targetLevel ?? ''}
                         onChange={(e) => setLp2({ targetLevel: e.target.value })}
                       >
-                        <option value="">— Chọn —</option>
+                        <option value="">{t('selectPlaceholder')}</option>
                         {LEVELS.map((l) => (
                           <option key={l} value={l}>
                             {l}
@@ -255,7 +259,7 @@ function ProfileBody() {
                       </select>
                     </Field>
                   </div>
-                  <Field label="Lĩnh vực / Ngành" hint="Ví dụ: Điều dưỡng, Cơ khí, Du học…">
+                  <Field label={t('fieldIndustry')} hint={t('industryHint')}>
                     <input
                       className={inputCls}
                       value={lp.industry ?? ''}
@@ -263,21 +267,21 @@ function ProfileBody() {
                     />
                   </Field>
                   <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
-                    <Field label="Tốc độ học">
+                    <Field label={t('fieldLearningSpeed')}>
                       <select
                         className={inputCls}
                         value={lp.learningSpeed ?? ''}
                         onChange={(e) => setLp2({ learningSpeed: e.target.value })}
                       >
-                        <option value="">— Chọn —</option>
+                        <option value="">{t('selectPlaceholder')}</option>
                         {SPEEDS.map((s) => (
                           <option key={s.v} value={s.v}>
-                            {s.l}
+                            {t(s.labelKey)}
                           </option>
                         ))}
                       </select>
                     </Field>
-                    <Field label="Buổi / tuần">
+                    <Field label={t('fieldSessionsPerWeek')}>
                       <input
                         type="number"
                         min={1}
@@ -287,7 +291,7 @@ function ProfileBody() {
                         onChange={(e) => setLp2({ sessionsPerWeek: Number(e.target.value) })}
                       />
                     </Field>
-                    <Field label="Phút / buổi">
+                    <Field label={t('fieldMinutesPerSession')}>
                       <input
                         type="number"
                         min={5}
@@ -300,16 +304,16 @@ function ProfileBody() {
                     </Field>
                   </div>
                   <GaBtn variant="primary" onClick={saveLearning} disabled={savingLp}>
-                    {savingLp ? 'Đang lưu…' : 'Lưu mục tiêu'}
+                    {savingLp ? t('saving') : t('saveGoal')}
                   </GaBtn>
                 </div>
               ) : (
-                <p className="ga-ui py-6 text-[14px] text-ga-muted">Chưa có hồ sơ học tập.</p>
+                <p className="ga-ui py-6 text-[14px] text-ga-muted">{t('noLearningProfile')}</p>
               ))}
 
             {tab === 'security' && (
               <div className="max-w-md space-y-5">
-                <Field label="Mật khẩu hiện tại">
+                <Field label={t('fieldCurrentPassword')}>
                   <input
                     type="password"
                     className={inputCls}
@@ -318,7 +322,7 @@ function ProfileBody() {
                     autoComplete="current-password"
                   />
                 </Field>
-                <Field label="Mật khẩu mới" hint="Tối thiểu 8 ký tự.">
+                <Field label={t('fieldNewPassword')} hint={t('newPasswordHint')}>
                   <input
                     type="password"
                     className={inputCls}
@@ -328,7 +332,7 @@ function ProfileBody() {
                   />
                 </Field>
                 <GaBtn variant="primary" onClick={savePw} disabled={savingPw || !curPw || !newPw}>
-                  {savingPw ? 'Đang đổi…' : 'Đổi mật khẩu'}
+                  {savingPw ? t('changingPassword') : t('changePassword')}
                 </GaBtn>
               </div>
             )}
