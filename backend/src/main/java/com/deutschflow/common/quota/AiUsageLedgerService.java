@@ -14,6 +14,15 @@ public class AiUsageLedgerService {
     private final JdbcTemplate jdbcTemplate;
     private final QuotaService quotaService;
 
+    /**
+     * Token-tương-đương cho mỗi giây audio STT. Whisper bị Groq tính theo giây (không theo
+     * token), nên để STT cũng trừ vào org token pool + ví người dùng như các tính năng token
+     * khác (audit M-3: trước đây STT KHÔNG trừ gì → org metered chạy Speaking "miễn phí" với
+     * pool). Hiệu chỉnh để 1 clip ~10s ≈ {@code STT_ESTIMATED_TOKENS} (200) mà OrgPoolGuard
+     * dùng ở bước pre-check gate.
+     */
+    private static final long STT_TOKENS_PER_SECOND = 20L;
+
     @Transactional(rollbackFor = Exception.class)
     public void recordStt(Long userId, String feature, String model, double durationSeconds) {
         jdbcTemplate.update("""
@@ -21,6 +30,12 @@ public class AiUsageLedgerService {
                         VALUES (?, ?, ?, ?)
                         """,
                 userId, feature, model, durationSeconds);
+
+        // B2B-COGS (audit M-3): quy giây audio → token-tương-đương và trừ vào org pool + ví,
+        // giống record(). No-op cho user không thuộc org (pool) / plan không có ví.
+        if (userId != null && durationSeconds > 0) {
+            chargeOrgPoolAndWallet(userId, Math.round(durationSeconds * STT_TOKENS_PER_SECOND));
+        }
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -49,8 +64,23 @@ public class AiUsageLedgerService {
                 userId
         );
 
-        // S-3/P-10: atomically increment monthly counter for org (no-op for B2C users with org_id IS NULL).
-        // ON CONFLICT DO UPDATE is atomic — avoids the race that SUM(ledger) has.
+        chargeOrgPoolAndWallet(userId, totalTokens);
+    }
+
+    /**
+     * Trừ {@code totalTokens} vào bộ đếm token tháng cấp-org và ví rollover của user.
+     * Dùng chung cho {@link #record} (tính năng token) và {@link #recordStt} (STT).
+     *
+     * <ul>
+     *   <li>Bộ đếm org: no-op cho user B2C (org_id IS NULL). ON CONFLICT DO UPDATE là atomic —
+     *       tránh race của SUM(ledger) (S-3/P-10).</li>
+     *   <li>Ví: {@link QuotaService#applyUsageDebit} tự no-op cho plan không phải ví (FREE/INTERNAL).</li>
+     * </ul>
+     */
+    private void chargeOrgPoolAndWallet(long userId, long totalTokens) {
+        if (totalTokens <= 0) {
+            return;
+        }
         jdbcTemplate.update("""
                         INSERT INTO org_monthly_token_counters (org_id, month_start, tokens_used)
                         SELECT u.org_id,
