@@ -39,6 +39,12 @@ export function notificationTypeLabel(type: string): string {
       return 'Bài tập mới'
     case 'ASSIGNMENT_GRADED':
       return 'Bài đã chấm'
+    case 'CLASS_SESSION_SCHEDULED':
+      return 'Lịch học mới'
+    case 'CLASS_SESSION_CANCELLED':
+      return 'Buổi học bị huỷ'
+    case 'CLASS_SESSION_RESCHEDULED':
+      return 'Đổi lịch học'
     default:
       return 'Thông báo'
   }

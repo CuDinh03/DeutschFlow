@@ -94,6 +94,20 @@ public class NotificationContentRenderer {
                     "💬 Tin nhắn mới",
                     nonBlankOr(str(p, "senderName"), "Ai đó") + ": " + str(p, "preview"));
 
+            // ── Class schedule changes ───────────────────────────────────────
+            case CLASS_SESSION_SCHEDULED -> new RenderedContent(
+                    "🗓️ Lịch học mới",
+                    nonBlankOr(str(p, "message"),
+                            "Lớp " + nonBlankOr(str(p, "className"), "của bạn") + " có buổi học mới."));
+            case CLASS_SESSION_CANCELLED -> new RenderedContent(
+                    "🚫 Buổi học bị huỷ",
+                    nonBlankOr(str(p, "message"),
+                            "Một buổi học của lớp " + nonBlankOr(str(p, "className"), "bạn") + " đã bị huỷ."));
+            case CLASS_SESSION_RESCHEDULED -> new RenderedContent(
+                    "🔄 Đổi lịch học",
+                    nonBlankOr(str(p, "message"),
+                            "Buổi học của lớp " + nonBlankOr(str(p, "className"), "bạn") + " đã thay đổi."));
+
             // ── v1.7 — Admin ops & audit ─────────────────────────────────────
             case ACCOUNT_DELETED -> new RenderedContent(
                     "🗑️ Xoá tài khoản",

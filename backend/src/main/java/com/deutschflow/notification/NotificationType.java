@@ -59,6 +59,15 @@ public enum NotificationType {
     /** A new direct message was received. Recipient: the other party in the 1-1 thread. */
     NEW_MESSAGE,
 
+    // ── Class schedule changes (teacher → all students in the class) ─────
+
+    /** Teacher added a session or a recurring fixed schedule. Recipient: all students in the class. */
+    CLASS_SESSION_SCHEDULED,
+    /** Teacher cancelled a session or a fixed schedule (nghỉ học). Recipient: all students in the class. */
+    CLASS_SESSION_CANCELLED,
+    /** Teacher moved/changed a session's time, room, or mode. Recipient: all students in the class. */
+    CLASS_SESSION_RESCHEDULED,
+
     // ── v1.7 — Admin ops & audit notifications ──────────────────────────
 
     /** Admin audit: a user permanently deleted their account. Materialized for each active admin. */

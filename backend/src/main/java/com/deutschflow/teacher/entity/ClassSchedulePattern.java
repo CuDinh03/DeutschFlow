@@ -28,7 +28,7 @@ public class ClassSchedulePattern {
     @Column(name = "class_id", nullable = false)
     private Long classId;
 
-    /** 0 = Monday … 6 = Sunday (khớp FE DAYS + availability). */
+    /** ISO 1–7: 1 = Thứ 2 (Monday) … 7 = Chủ nhật (Sunday). Đổi từ 0–6 sang 1–7 ở V240/V243. */
     @Column(name = "day_of_week", nullable = false)
     private short dayOfWeek;
 

@@ -1,7 +1,10 @@
 package com.deutschflow.teacher;
 
+import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.teacher.dto.ClassSessionDto;
+import com.deutschflow.teacher.dto.CreateSessionRequest;
+import com.deutschflow.teacher.dto.SessionSaveResult;
 import com.deutschflow.teacher.dto.UpsertPatternRequest;
 import com.deutschflow.teacher.dto.UpsertPatternResult;
 import com.deutschflow.teacher.entity.ClassSession;
@@ -100,7 +103,7 @@ class ClassScheduleIT extends AbstractPostgresIntegrationTest {
         LocalDate from = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
         LocalDate to = from.plusWeeks(2); // Mondays: from, +1w, +2w → 3
         UpsertPatternRequest req = new UpsertPatternRequest(
-                (short) 0, LocalTime.of(18, 0), 90, "OFFLINE", "P.302", from, to);
+                (short) 1, LocalTime.of(18, 0), 90, "OFFLINE", "P.302", from, to); // 1 = Monday (ISO)
 
         UpsertPatternResult r1 = service.upsertPattern(t.getId(), c.getId(), req);
         assertThat(r1.generated()).isEqualTo(3);
@@ -133,9 +136,32 @@ class ClassScheduleIT extends AbstractPostgresIntegrationTest {
         TeacherClass c = newClass(t.getId()); // intentionally NO class_teachers link
 
         assertThatThrownBy(() -> service.upsertPattern(t.getId(), c.getId(),
-                new UpsertPatternRequest((short) 0, LocalTime.of(18, 0), 90, "OFFLINE", "P.302",
+                new UpsertPatternRequest((short) 1, LocalTime.of(18, 0), 90, "OFFLINE", "P.302",
                         LocalDate.now(), null)))
                 .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    @DisplayName("teacher double-booking: an overlapping session in another taught class is HARD-blocked")
+    void teacherConflict_blocksOverlap_acrossClasses() {
+        User t = newTeacher();
+        TeacherClass a = newClass(t.getId());
+        TeacherClass b = newClass(t.getId());
+        link(a.getId(), t.getId());
+        link(b.getId(), t.getId());
+
+        LocalDateTime base = LocalDate.now().plusDays(5).atTime(18, 0); // 18:00–19:30 in class B
+        saveSession(b.getId(), base, 90, "P.1");
+
+        // Same teacher, DIFFERENT class, overlapping time → blocked (this is the reported bug).
+        assertThatThrownBy(() -> service.createSession(t.getId(), a.getId(),
+                new CreateSessionRequest(base.plusMinutes(30), 90, "OFFLINE", "P.2")))
+                .isInstanceOf(BadRequestException.class);
+
+        // A clearly non-overlapping slot for the same teacher still succeeds.
+        SessionSaveResult ok = service.createSession(t.getId(), a.getId(),
+                new CreateSessionRequest(base.plusHours(3), 60, "OFFLINE", "P.2"));
+        assertThat(ok.session().id()).isNotNull();
     }
 
     // ── fixtures ────────────────────────────────────────────────────────────────

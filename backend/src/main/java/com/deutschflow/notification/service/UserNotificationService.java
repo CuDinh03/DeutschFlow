@@ -668,6 +668,63 @@ public class UserNotificationService {
         return notifications.size();
     }
 
+    /**
+     * Fans a class-schedule change (new/cancelled/moved session, fixed schedule set or removed)
+     * out to every active student in the class. Mirrors {@link #onNewClassAssignment}: runs
+     * off the request thread so a slow push never blocks the teacher's save, and reads
+     * {@code class_students} directly to batch-insert one notification per student.
+     *
+     * <p>The caller (schedule service) has already authorised the teacher and composed the
+     * human-readable {@code message}; the teacher's display name is resolved here for the payload.
+     *
+     * @param type one of {@code CLASS_SESSION_SCHEDULED}, {@code CLASS_SESSION_CANCELLED},
+     *             {@code CLASS_SESSION_RESCHEDULED}
+     * @return the number of students notified
+     */
+    @Async("taskExecutor")
+    @Transactional
+    public void notifyClassScheduleEvent(NotificationType type, Long classId, String className,
+                                         Long teacherId, String message) {
+        List<Long> studentIds = jdbcTemplate.queryForList(
+                "SELECT student_id FROM class_students WHERE class_id = ?",
+                Long.class, classId);
+        if (studentIds.isEmpty()) {
+            log.info("[notifications] {} skipped — no students in class={}", type, classId);
+            return;
+        }
+
+        String teacherName = teacherId == null ? "" : userRepository.findById(teacherId)
+                .map(User::getDisplayName).orElse("");
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("classId", classId);
+        payload.put("className", className);
+        payload.put("teacherId", teacherId);
+        payload.put("teacherName", teacherName);
+        payload.put("message", message);
+
+        List<UserNotification> notifications = new ArrayList<>(studentIds.size());
+        for (Long studentId : studentIds) {
+            User student = userRepository.findById(studentId).orElse(null);
+            if (student != null && student.isActive()) {
+                notifications.add(UserNotification.builder()
+                        .recipient(student)
+                        .type(type)
+                        .payload(new LinkedHashMap<>(payload))
+                        .build());
+            }
+        }
+
+        if (!notifications.isEmpty()) {
+            notificationRepository.saveAll(notifications);
+            for (UserNotification n : notifications) {
+                unreadPushCoordinator.afterCommit(n.getRecipient().getId());
+                pushForNotification(n);
+            }
+        }
+        log.info("[notifications] {} → {} students in class={}", type, notifications.size(), classId);
+    }
+
     private List<User> resolveAudience(BroadcastNotificationRequest request) {
         return switch (request.audienceType().toUpperCase()) {
             // Filter at the DB rather than loading every user row into the JVM via findAll().

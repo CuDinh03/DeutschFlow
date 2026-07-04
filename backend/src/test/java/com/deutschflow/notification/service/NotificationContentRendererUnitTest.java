@@ -125,6 +125,25 @@ class NotificationContentRendererUnitTest {
     }
 
     @Test
+    @DisplayName("class schedule events read the composed 'message', with safe fallbacks")
+    void classScheduleEvents_useMessage() {
+        RenderedContent scheduled = renderer.render(NotificationType.CLASS_SESSION_SCHEDULED,
+                Map.of("className", "K30", "message", "Lớp K30 có buổi học mới: 06/07/2026 lúc 18:00, phòng P.302."));
+        assertThat(scheduled.title()).contains("Lịch học mới");
+        assertThat(scheduled.body()).contains("P.302").contains("18:00");
+
+        RenderedContent cancelled = renderer.render(NotificationType.CLASS_SESSION_CANCELLED,
+                Map.of("className", "K30", "message", "Buổi học lớp K30 06/07/2026 lúc 18:00 đã bị huỷ (nghỉ học)."));
+        assertThat(cancelled.title()).contains("huỷ");
+        assertThat(cancelled.body()).contains("nghỉ học");
+
+        RenderedContent moved = renderer.render(NotificationType.CLASS_SESSION_RESCHEDULED,
+                Map.of("className", "K30"));
+        assertThat(moved.title()).contains("Đổi lịch");
+        assertThat(moved.body()).contains("K30"); // fallback when no explicit message
+    }
+
+    @Test
     @DisplayName("missing payload keys never throw and never emit 'null'")
     void emptyPayload_isSafe() {
         for (NotificationType type : NotificationType.values()) {
