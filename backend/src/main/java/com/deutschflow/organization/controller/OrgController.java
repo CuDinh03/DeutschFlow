@@ -160,6 +160,21 @@ public class OrgController {
     }
 
     /**
+     * Transfers ownership of the org to another ACTIVE staff member ({@code userId}), demoting the
+     * caller (the current OWNER) to MANAGER — atomically. OWNER-only. This is the in-tenant recovery
+     * path: because the OWNER cannot be removed or self-leave, an owner must transfer ownership before
+     * leaving, and the org therefore always keeps exactly one ACTIVE OWNER. orgId comes from the
+     * principal, never the client.
+     */
+    @PostMapping("/members/{userId}/transfer-ownership")
+    public OrgMemberDto transferOwnership(@AuthenticationPrincipal User user,
+                                          @PathVariable Long userId) {
+        Long orgId = requireOrgId(user);
+        orgGuard.assertOrgOwner(user.getId(), orgId);
+        return orgMembershipService.transferOwnership(orgId, user.getId(), userId);
+    }
+
+    /**
      * Self-leave: a TEACHER/MANAGER leaves their own org (membership → LEFT). The OWNER cannot
      * self-leave (must transfer ownership first). orgId comes from the principal, never the client.
      */

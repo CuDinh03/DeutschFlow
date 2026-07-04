@@ -36,6 +36,7 @@ public class OrgMembershipService {
     private static final String STATUS_REVOKED = "REVOKED"; // admin removed the member
     private static final String STATUS_LEFT = "LEFT";       // member left on their own
     private static final String ROLE_OWNER = "OWNER";
+    private static final String ROLE_MANAGER = "MANAGER";
     private static final String ROLE_STUDENT = "STUDENT";
     /** Org-admin / teaching roles whose holders keep a non-STUDENT platform identity while active. */
     private static final Set<String> STAFF_ROLES = Set.of("OWNER", "MANAGER", "TEACHER");
@@ -166,20 +167,97 @@ public class OrgMembershipService {
             syncPlatformRole(u, role);   // MANAGER ↔ TEACHER also flips the platform identity
             userRepository.save(u);
         }
+        return toDto(targetUserId, u, member);
+    }
+
+    /**
+     * Transfers org ownership: promotes an ACTIVE staff member ({@code newOwnerUserId}) to OWNER and
+     * demotes the current OWNER ({@code currentOwnerUserId}) to MANAGER — atomically, in one
+     * transaction. Caller authorization (OWNER-only) is enforced upstream by
+     * {@code OrgGuard.assertOrgOwner}.
+     *
+     * <p>This is the ONLY path that (re)creates an OWNER from inside the tenant, and it is the
+     * recovery path for owner removal: since {@link #removeMember} and {@link #selfLeave} both refuse
+     * to touch an OWNER, an owner leaves an org by first transferring ownership, then being removed as
+     * a MANAGER. Because the promotion and demotion happen together, the org always retains exactly
+     * one ACTIVE OWNER — never zero (the last-owner invariant).
+     *
+     * @throws ForbiddenException  if the caller is not the ACTIVE OWNER of the org
+     * @throws NotFoundException   if the target is not a member of the org
+     * @throws BadRequestException if the target is the caller, or is not an ACTIVE staff member
+     */
+    @Transactional
+    public OrgMemberDto transferOwnership(Long orgId, Long currentOwnerUserId, Long newOwnerUserId) {
+        if (currentOwnerUserId.equals(newOwnerUserId)) {
+            throw new BadRequestException("Chủ sở hữu mới phải khác chủ sở hữu hiện tại.");
+        }
+
+        OrgMember currentOwner = memberRepo.findByIdOrgIdAndIdUserId(orgId, currentOwnerUserId)
+                .filter(m -> STATUS_ACTIVE.equals(m.getStatus()))
+                .orElseThrow(() -> new ForbiddenException("Bạn không thuộc tổ chức này."));
+        if (!ROLE_OWNER.equals(currentOwner.getRole())) {
+            throw new ForbiddenException("Chỉ chủ sở hữu hiện tại mới chuyển được quyền sở hữu.");
+        }
+
+        OrgMember newOwner = memberRepo.findByIdOrgIdAndIdUserId(orgId, newOwnerUserId)
+                .filter(m -> STATUS_ACTIVE.equals(m.getStatus()))
+                .orElseThrow(() -> new NotFoundException("Người nhận quyền không thuộc tổ chức hoặc không hoạt động."));
+        if (!STAFF_ROLES.contains(newOwner.getRole())) {
+            throw new BadRequestException("Chỉ có thể chuyển quyền sở hữu cho quản lý hoặc giáo viên.");
+        }
+
+        // Atomic swap: promote the target and demote the current owner in the same transaction, so
+        // the org never momentarily loses its owner. The new owner keeps the org's single OWNER seat.
+        newOwner.setRole(ROLE_OWNER);
+        currentOwner.setRole(ROLE_MANAGER);
+        memberRepo.save(newOwner);
+        memberRepo.save(currentOwner);
+
+        User newOwnerUser = userRepository.findById(newOwnerUserId).orElse(null);
+        if (newOwnerUser != null) {
+            syncPlatformRole(newOwnerUser, ROLE_OWNER);
+            userRepository.save(newOwnerUser);
+        }
+        userRepository.findById(currentOwnerUserId).ifPresent(u -> {
+            syncPlatformRole(u, ROLE_MANAGER);  // OWNER → MANAGER platform identity
+            userRepository.save(u);
+        });
+
+        return toDto(newOwnerUserId, newOwnerUser, newOwner);
+    }
+
+    /** Counts ACTIVE OWNERs in the org — supports the "an org always has an owner" invariant. */
+    @Transactional(readOnly = true)
+    public long countActiveOwners(Long orgId) {
+        return memberRepo.countByIdOrgIdAndRoleAndStatus(orgId, ROLE_OWNER, STATUS_ACTIVE);
+    }
+
+    // ----------------------------------------------------------------- internals
+
+    private OrgMemberDto toDto(Long userId, User user, OrgMember member) {
         return new OrgMemberDto(
-                targetUserId,
-                u != null ? u.getEmail() : null,
-                u != null ? u.getDisplayName() : null,
+                userId,
+                user != null ? user.getEmail() : null,
+                user != null ? user.getDisplayName() : null,
                 member.getRole(),
                 member.getStatus(),
                 member.getJoinedAt());
     }
 
-    // ----------------------------------------------------------------- internals
-
     private void deactivate(Long orgId, Long userId, String status) {
         OrgMember member = memberRepo.findByIdOrgIdAndIdUserId(orgId, userId)
                 .orElseThrow(() -> new NotFoundException("Thành viên không tồn tại trong tổ chức."));
+        // Owner-protection (mirrors selfLeave/changeRole): the OWNER is NEVER removed through the
+        // admin member-remove path. Without this, a MANAGER — who also passes OrgGuard.assertOrgAdmin
+        // — could revoke the OWNER's membership and seize de-facto control of the org. This is also
+        // the last-owner invariant guard: because ownership only ever *moves* via transferOwnership
+        // (an atomic promote+demote), refusing every OWNER removal here guarantees the org can never
+        // reach zero ACTIVE OWNERs. To remove an ex-owner, first transfer ownership, then remove them
+        // as a MANAGER.
+        if (ROLE_OWNER.equals(member.getRole())) {
+            throw new BadRequestException(
+                    "Không thể gỡ chủ sở hữu khỏi tổ chức — hãy chuyển quyền sở hữu cho người khác trước.");
+        }
         member.setStatus(status);
         member.setLeftAt(Instant.now());
         memberRepo.save(member);
