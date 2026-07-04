@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
@@ -14,14 +15,16 @@ import { GaSection, nfVN } from '../../analyticsShared'
 
 const fmtDate = (d: string | null | undefined) => (d ? format(new Date(d), 'dd/MM/yyyy') : '—')
 
-const ROLE_META: Record<OrgRole, { label: string; tone: 'red' | 'navy' | 'violet' | 'blue' }> = {
-  OWNER: { label: 'Chủ sở hữu', tone: 'red' },
-  MANAGER: { label: 'Quản lý', tone: 'navy' },
-  TEACHER: { label: 'Giáo viên', tone: 'violet' },
-  STUDENT: { label: 'Học viên', tone: 'blue' },
+// Role → badge tone only; the label comes from t('meta.<ROLE>').
+const ROLE_TONE: Record<OrgRole, 'red' | 'navy' | 'violet' | 'blue'> = {
+  OWNER: 'red',
+  MANAGER: 'navy',
+  TEACHER: 'violet',
+  STUDENT: 'blue',
 }
 
 export default function V2OrgRolesPage() {
+  const t = useTranslations('v2.org.roles')
   const [members, setMembers] = useState<OrgMember[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -51,7 +54,7 @@ export default function V2OrgRolesPage() {
     setBusy(m.userId)
     try {
       await changeMemberRole(m.userId, role)
-      toast.success('Đã đổi vai trò.')
+      toast.success(t('changed'))
       await load()
     } catch (e: unknown) {
       toast.error(apiMessage(e))
@@ -62,14 +65,14 @@ export default function V2OrgRolesPage() {
 
   const handleRemove = async (m: OrgMember) => {
     if (m.role === 'OWNER') {
-      toast.error('Không thể gỡ chủ sở hữu.')
+      toast.error(t('cannotRemoveOwner'))
       return
     }
-    if (!window.confirm(`Gỡ ${m.displayName || m.email} khỏi tổ chức?`)) return
+    if (!window.confirm(t('confirmRemove', { name: m.displayName || m.email }))) return
     setBusy(m.userId)
     try {
       await removeMember(m.userId)
-      toast.success('Đã gỡ thành viên.')
+      toast.success(t('removed'))
       await load()
     } catch (e: unknown) {
       toast.error(apiMessage(e))
@@ -80,7 +83,7 @@ export default function V2OrgRolesPage() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <GaPageHdr accent title="Phân quyền" subtitle="Vai trò và quyền hạn của thành viên trong tổ chức" />
+      <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
       <div className="flex-1 px-10 py-6">
         {error && (
           <div className="mb-5">
@@ -88,24 +91,24 @@ export default function V2OrgRolesPage() {
           </div>
         )}
         {loading ? (
-          <LoadingState label="Đang tải thành viên…" />
+          <LoadingState label={t('loading')} />
         ) : (
           <div className="space-y-[22px]">
             <TkStatStrip
               items={[
-                { label: 'Quản lý', value: count('OWNER', 'MANAGER'), sub: 'chủ sở hữu + quản lý', color: '#27406B' },
-                { label: 'Giáo viên', value: count('TEACHER'), color: '#7C56C8' },
-                { label: 'Học viên', value: count('STUDENT'), color: '#2F6FC9' },
-                { label: 'Tổng thành viên', value: active.length, color: '#11888A' },
+                { label: t('stats.managers'), value: count('OWNER', 'MANAGER'), sub: t('stats.managersSub'), color: '#27406B' },
+                { label: t('stats.teachers'), value: count('TEACHER'), color: '#7C56C8' },
+                { label: t('stats.students'), value: count('STUDENT'), color: '#2F6FC9' },
+                { label: t('stats.totalMembers'), value: active.length, color: '#11888A' },
               ]}
             />
 
-            <GaSection title="Thành viên & vai trò" bodyClassName="p-0">
+            <GaSection title={t('sectionTitle')} bodyClassName="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
                   <thead>
                     <tr className="border-b border-ga-border">
-                      {['Thành viên', 'Vai trò', 'Trạng thái', 'Tham gia', ''].map((h, i) => (
+                      {[t('colMember'), t('colRole'), t('colStatus'), t('colJoined'), ''].map((h, i) => (
                         <th
                           key={i}
                           className={`ga-ui px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-ga-muted ${
@@ -121,12 +124,12 @@ export default function V2OrgRolesPage() {
                     {members.length === 0 ? (
                       <tr>
                         <td colSpan={5} className="ga-ui px-5 py-10 text-center text-[14px] text-ga-muted">
-                          Chưa có thành viên.
+                          {t('emptyMembers')}
                         </td>
                       </tr>
                     ) : (
                       members.map((m) => {
-                        const meta = ROLE_META[m.role]
+                        const tone = ROLE_TONE[m.role]
                         const removed = m.status !== 'ACTIVE'
                         return (
                           <tr
@@ -144,13 +147,13 @@ export default function V2OrgRolesPage() {
                                   disabled={busy === m.userId}
                                   onChange={(e) => void handleChangeRole(m, e.target.value as OrgRole)}
                                   className="ga-ui rounded-ga border border-ga-line bg-ga-surface px-2 py-1 text-[12.5px] font-semibold text-ga-ink transition-colors hover:border-ga-navy disabled:opacity-40"
-                                  aria-label={`Đổi vai trò của ${m.displayName || m.email}`}
+                                  aria-label={t('changeRoleAria', { name: m.displayName || m.email })}
                                 >
-                                  <option value="MANAGER">Quản lý</option>
-                                  <option value="TEACHER">Giáo viên</option>
+                                  <option value="MANAGER">{t('optManager')}</option>
+                                  <option value="TEACHER">{t('optTeacher')}</option>
                                 </select>
                               ) : (
-                                <TkBadge tone={meta.tone}>{meta.label}</TkBadge>
+                                <TkBadge tone={tone}>{t(`meta.${m.role}`)}</TkBadge>
                               )}
                             </td>
                             <td className="px-5 py-3">
@@ -162,7 +165,7 @@ export default function V2OrgRolesPage() {
                                   className="h-1.5 w-1.5 rounded-full"
                                   style={{ background: removed ? 'var(--ga-subtle)' : 'var(--ga-green)' }}
                                 />
-                                {removed ? 'Đã gỡ' : 'Hoạt động'}
+                                {removed ? t('statusRemoved') : t('statusActive')}
                               </span>
                             </td>
                             <td className="px-5 py-3 text-[13px] text-ga-muted">{fmtDate(m.joinedAt)}</td>
@@ -174,7 +177,7 @@ export default function V2OrgRolesPage() {
                                   onClick={() => handleRemove(m)}
                                   className="ga-ui rounded-ga border border-ga-line px-[10px] py-[6px] text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-red hover:text-ga-red disabled:opacity-40"
                                 >
-                                  Gỡ
+                                  {t('remove')}
                                 </button>
                               )}
                             </td>
@@ -188,7 +191,7 @@ export default function V2OrgRolesPage() {
             </GaSection>
 
             <p className="ga-ui text-[12px] text-ga-subtle">
-              {nfVN.format(members.length)} thành viên · {isOwner ? 'Chủ sở hữu có thể đổi vai trò Quản lý ↔ Giáo viên.' : 'Chỉ chủ sở hữu mới đổi được vai trò.'}
+              {isOwner ? t('footerOwner', { count: nfVN.format(members.length) }) : t('footerMember', { count: nfVN.format(members.length) })}
             </p>
           </div>
         )}

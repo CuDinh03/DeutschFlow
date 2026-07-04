@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Plus, CreditCard, FileDown } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
@@ -24,14 +25,17 @@ const billingAccent = {
 } as React.CSSProperties
 const fmtDate = (d: string | null | undefined) => (d ? format(new Date(d), 'dd/MM/yyyy') : '—')
 const vnd = (n: number) => `${Math.round(n).toLocaleString('vi-VN')}₫`
-const INV_STATUS: Record<string, { label: string; c: string }> = {
-  PAID: { label: 'Đã thanh toán', c: 'var(--ga-green)' },
-  SENT: { label: 'Chờ thanh toán', c: 'var(--ga-orange)' },
-  DRAFT: { label: 'Nháp', c: 'var(--ga-muted)' },
-  VOID: { label: 'Đã huỷ', c: 'var(--ga-muted)' },
+// Invoice status → color + catalog key for the label (resolved via t('status.<key>')).
+const INV_STATUS: Record<string, { key: 'paid' | 'sent' | 'draft' | 'void'; c: string }> = {
+  PAID: { key: 'paid', c: 'var(--ga-green)' },
+  SENT: { key: 'sent', c: 'var(--ga-orange)' },
+  DRAFT: { key: 'draft', c: 'var(--ga-muted)' },
+  VOID: { key: 'void', c: 'var(--ga-muted)' },
 }
 
 function V2OrgBillingInner() {
+  const t = useTranslations('v2.org.billing')
+  const tc = useTranslations('v2.common')
   const [summary, setSummary] = useState<OrgSummary | null>(null)
   const [invoices, setInvoices] = useState<OrgInvoice[]>([])
   const [loading, setLoading] = useState(true)
@@ -64,12 +68,12 @@ function V2OrgBillingInner() {
   if (error) {
     return (
       <div className="flex min-h-full flex-col" style={billingAccent}>
-        <GaPageHdr accent title="Gói & Thanh toán" subtitle="Quản lý ghế, gói B2B và hoá đơn của tổ chức" />
+        <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
         <div className="flex-1 px-10 py-10">
           <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">Không tải được thông tin gói</h2>
+            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadError')}</h2>
             <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">{error}</p>
-            <GaBtn variant="primary" onClick={load}>Thử lại</GaBtn>
+            <GaBtn variant="primary" onClick={load}>{tc('retry')}</GaBtn>
           </div>
         </div>
       </div>
@@ -78,7 +82,7 @@ function V2OrgBillingInner() {
 
   return (
     <div className="flex min-h-full flex-col" style={billingAccent}>
-      <GaPageHdr accent title="Gói & Thanh toán" subtitle="Quản lý ghế, gói B2B và hoá đơn của tổ chức" />
+      <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
 
       <div className="flex-1 overflow-auto px-10 py-7">
         {loading ? (
@@ -88,31 +92,31 @@ function V2OrgBillingInner() {
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               {/* Current plan */}
               <div className="bg-ga-ink p-7 text-ga-bg">
-                <GaCap className="mb-2.5 block" style={{ color: '#A39E94' }}>Gói hiện tại</GaCap>
-                <div className="font-ga-display text-[28px] font-medium">{summary?.planCode || 'Chưa có gói'}</div>
+                <GaCap className="mb-2.5 block" style={{ color: '#A39E94' }}>{t('currentPlanCap')}</GaCap>
+                <div className="font-ga-display text-[28px] font-medium">{summary?.planCode || t('noPlan')}</div>
                 <p className="mb-[18px] mt-2 text-[14px]" style={{ color: '#A39E94' }}>
-                  {summary?.seatLimit ?? 0} ghế · token cho mỗi học viên · hỗ trợ ưu tiên
+                  {t('planDesc', { seats: summary?.seatLimit ?? 0 })}
                 </p>
                 <div className="mb-2 h-2 overflow-hidden bg-white/15"><div className="h-full" style={{ width: `${Math.min(100, seatPct)}%`, background: 'var(--ga-yellow)' }} /></div>
-                <div className="text-[13px]" style={{ color: '#A39E94' }}>{summary?.seatUsed ?? 0}/{summary?.seatLimit ?? 0} ghế đã dùng · còn {freeSeats} ghế trống</div>
-                <GaBtn variant="yellow" size="sm" className="mt-[18px]" onClick={() => toast('Mua thêm ghế (sắp ra mắt)')}><Plus size={14} /> Mua thêm ghế</GaBtn>
+                <div className="text-[13px]" style={{ color: '#A39E94' }}>{t('seatsUsedDesc', { used: summary?.seatUsed ?? 0, limit: summary?.seatLimit ?? 0, free: freeSeats })}</div>
+                <GaBtn variant="yellow" size="sm" className="mt-[18px]" onClick={() => toast(t('buySeatsSoon'))}><Plus size={14} /> {t('buySeats')}</GaBtn>
               </div>
 
               {/* Next invoice */}
               <div className="flex flex-col border border-ga-line bg-ga-card p-7">
-                <GaCap className="mb-3.5 block">Hoá đơn kế tiếp</GaCap>
+                <GaCap className="mb-3.5 block">{t('nextInvoiceCap')}</GaCap>
                 {nextDue ? (
                   <>
                     <div className="font-ga-display text-[32px] font-medium text-ga-ink">{vnd(nextDue.amountVnd)}</div>
-                    <div className="mb-auto mt-1.5 text-[13.5px] text-ga-muted">Đến hạn {fmtDate(nextDue.periodEnd)} · {nextDue.seats} ghế</div>
+                    <div className="mb-auto mt-1.5 text-[13.5px] text-ga-muted">{t('dueDesc', { date: fmtDate(nextDue.periodEnd), seats: nextDue.seats })}</div>
                     <div className="mt-4 flex gap-2.5">
-                      <GaBtn variant="yellow" size="sm" onClick={() => toast('Chuyển tới cổng thanh toán (sắp ra mắt)')}><CreditCard size={14} /> Thanh toán</GaBtn>
-                      <GaBtn variant="ghost" size="sm" onClick={() => toast('Tải hoá đơn PDF (sắp ra mắt)')}><FileDown size={14} /> Tải hoá đơn</GaBtn>
+                      <GaBtn variant="yellow" size="sm" onClick={() => toast(t('paySoon'))}><CreditCard size={14} /> {t('pay')}</GaBtn>
+                      <GaBtn variant="ghost" size="sm" onClick={() => toast(t('downloadSoon'))}><FileDown size={14} /> {t('downloadInvoice')}</GaBtn>
                     </div>
                   </>
                 ) : (
                   <div className="flex flex-1 items-center justify-center text-center">
-                    <p className="ga-ui text-[14px] text-ga-muted">Không có hoá đơn nào đang chờ thanh toán 🎉</p>
+                    <p className="ga-ui text-[14px] text-ga-muted">{t('noNextInvoice')}</p>
                   </div>
                 )}
               </div>
@@ -120,23 +124,25 @@ function V2OrgBillingInner() {
 
             {/* Invoice history */}
             <div className="mt-[26px] border border-ga-line bg-ga-card p-[26px]">
-              <GaCap className="mb-4 block">Lịch sử hoá đơn ({issued.length})</GaCap>
+              <GaCap className="mb-4 block">{t('invoiceHistoryCap', { count: issued.length })}</GaCap>
               {issued.length === 0 ? (
-                <p className="py-6 text-center text-[13px] text-ga-muted">Chưa có hoá đơn đã xuất.</p>
+                <p className="py-6 text-center text-[13px] text-ga-muted">{t('noIssued')}</p>
               ) : (
                 <div>
                   <div className="grid gap-2 border-b border-ga-line pb-2.5 text-[10px] font-bold uppercase tracking-[0.08em] text-ga-muted" style={{ gridTemplateColumns: '1.4fr 1fr 1fr 140px' }}>
-                    <span>Kỳ</span><span>Ngày xuất</span><span>Số tiền</span><span className="text-right">Trạng thái</span>
+                    <span>{t('colPeriod')}</span><span>{t('colIssued')}</span><span>{t('colAmount')}</span><span className="text-right">{t('colStatus')}</span>
                   </div>
                   {issued.map((inv) => {
-                    const st = INV_STATUS[(inv.status ?? '').toUpperCase()] ?? { label: inv.status, c: 'var(--ga-muted)' }
+                    const st = INV_STATUS[(inv.status ?? '').toUpperCase()]
+                    const stLabel = st ? t(`status.${st.key}`) : inv.status
+                    const stColor = st ? st.c : 'var(--ga-muted)'
                     return (
                       <div key={inv.id} className="grid items-center gap-2 border-t border-ga-line py-3 text-[14px]" style={{ gridTemplateColumns: '1.4fr 1fr 1fr 140px' }}>
                         <span className="font-semibold text-ga-ink">{fmtDate(inv.periodStart)} – {fmtDate(inv.periodEnd)}</span>
                         <span className="text-ga-muted">{fmtDate(inv.createdAt)}</span>
                         <span className="font-ga-display font-medium text-ga-ink">{vnd(inv.amountVnd)}</span>
-                        <span className="flex items-center justify-end gap-1.5 text-[12.5px]" style={{ color: st.c }}>
-                          <span className="h-1.5 w-1.5 rounded-full" style={{ background: st.c }} /> {st.label}
+                        <span className="flex items-center justify-end gap-1.5 text-[12.5px]" style={{ color: stColor }}>
+                          <span className="h-1.5 w-1.5 rounded-full" style={{ background: stColor }} /> {stLabel}
                         </span>
                       </div>
                     )

@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { GaPageHdr, TkSeg } from '@/components/ui-v2'
 import { MessagesView } from '../../messagesShared'
 import { ComposePicker } from './ComposePicker'
@@ -10,6 +11,7 @@ import { ClassChannelView } from './ClassChannelView'
 type Mode = 'direct' | 'class'
 
 function Body() {
+  const t = useTranslations('v2.teacher.messages')
   const sp = useSearchParams()
   const to = sp.get('to')
   const [mode, setMode] = useState<Mode>('direct')
@@ -20,10 +22,10 @@ function Body() {
         <TkSeg<Mode>
           value={mode}
           onValueChange={setMode}
-          aria-label="Chế độ nhắn tin"
+          aria-label={t('modeAria')}
           options={[
-            { value: 'direct', label: 'Trực tiếp' },
-            { value: 'class', label: 'Nhóm lớp' },
+            { value: 'direct', label: t('modeDirect') },
+            { value: 'class', label: t('modeClass') },
           ]}
         />
       </div>
@@ -33,7 +35,7 @@ function Body() {
           initialUserId={to ? Number(to) : null}
           initialName={sp.get('name')}
           headerAction={(openThread) => <ComposePicker onPick={openThread} />}
-          emptyText="Chưa có hội thoại. Nhấn “Nhắn học viên” ở trên để bắt đầu trò chuyện riêng với học viên."
+          emptyText={t('emptyDirect')}
         />
       ) : (
         <ClassChannelView />
@@ -43,9 +45,10 @@ function Body() {
 }
 
 export default function TeacherMessagesPage() {
+  const t = useTranslations('v2.teacher.messages')
   return (
     <div className="flex h-full flex-col">
-      <GaPageHdr accent title="Tin nhắn" subtitle="Nhắn riêng từng học viên hoặc cả nhóm lớp" />
+      <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
       <Suspense fallback={<div className="flex-1" />}>
         <Body />
       </Suspense>

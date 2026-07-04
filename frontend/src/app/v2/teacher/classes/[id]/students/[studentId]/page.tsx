@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { ArrowLeft, Sparkles, AlertCircle, Mic, BookOpen } from 'lucide-react'
 import { format } from 'date-fns'
 import api, { apiMessage } from '@/lib/api'
@@ -40,20 +41,21 @@ interface AssignmentRow {
 
 type Tab = 'analysis' | 'assignments' | 'speaking'
 
-const STATUS_LABEL: Record<string, string> = {
-  PENDING: 'Chưa làm', SUBMITTED: 'Đã nộp · chờ chấm', GRADED: 'Đã chấm', EVALUATED: 'Đã chấm',
-  ENDED: 'Đã kết thúc', ACTIVE: 'Đang học',
-}
+// Known status keys → v2.teacher.studentDetail.statusLabels.<key>; unknown falls back to raw value.
+const STATUS_KEYS = new Set(['PENDING', 'SUBMITTED', 'GRADED', 'EVALUATED', 'ENDED', 'ACTIVE'])
 const fmt = (d: string | null) => (d ? format(new Date(d), 'dd/MM/yyyy') : '—')
 const score = (v: number | null) => (v == null ? '—' : `${v}/100`)
 
 function StudentReport() {
+  const t = useTranslations('v2.teacher.studentDetail')
+  const tc = useTranslations('v2.common')
   const router = useRouter()
   const params = useParams()
   const sp = useSearchParams()
   const classId = Number(params.id)
   const studentId = Number(params.studentId)
-  const nameHint = sp.get('name') || `Học viên #${studentId}`
+  const nameHint = sp.get('name') || t('nameFallback', { id: studentId })
+  const statusLabel = (status: string) => (STATUS_KEYS.has(status) ? t(`statusLabels.${status}`) : status)
 
   const [tab, setTab] = useState<Tab>('assignments')
   const [speaking, setSpeaking] = useState<SpeakingSession[]>([])
@@ -114,10 +116,10 @@ function StudentReport() {
       <GaPageHdr
         accent
         title={studentName}
-        subtitle="Báo cáo học viên — bài tập, luyện nói & phân tích AI"
+        subtitle={t('subtitle')}
         right={
           <GaBtn variant="ghost" size="sm" onClick={() => router.push(`/v2/teacher/classes/${classId}`)}>
-            <ArrowLeft size={15} /> Về lớp
+            <ArrowLeft size={15} /> {t('backToClass')}
           </GaBtn>
         }
       />
@@ -125,18 +127,18 @@ function StudentReport() {
       <div className="flex-1 overflow-auto px-10 py-6">
         <TkStatStrip
           items={[
-            { label: 'Bài tập', value: assignments.length, sub: `${gradedCount} đã chấm`, color: VIOLET },
-            { label: 'Buổi luyện nói', value: speaking.length, sub: 'với AI', color: '#2F6FC9' },
-            { label: 'Điểm nói TB (GV)', value: avgTeacherSpeaking ?? '—', sub: avgTeacherSpeaking != null ? '/100' : 'chưa chấm', color: '#1E9E61' },
+            { label: t('stats.assignments'), value: assignments.length, sub: t('stats.assignmentsSub', { count: gradedCount }), color: VIOLET },
+            { label: t('stats.speakingSessions'), value: speaking.length, sub: t('stats.speakingSessionsSub'), color: '#2F6FC9' },
+            { label: t('stats.avgSpeaking'), value: avgTeacherSpeaking ?? '—', sub: avgTeacherSpeaking != null ? t('stats.avgSpeakingSub') : t('stats.avgSpeakingSubEmpty'), color: '#1E9E61' },
           ]}
         />
 
         <div className="mt-[22px]">
           <TkTabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
             <TkTabsList>
-              <TkTabsTrigger value="assignments">Bài tập · {assignments.length}</TkTabsTrigger>
-              <TkTabsTrigger value="speaking">Luyện nói · {speaking.length}</TkTabsTrigger>
-              <TkTabsTrigger value="analysis">Phân tích AI</TkTabsTrigger>
+              <TkTabsTrigger value="assignments">{t('tabAssignments')} · {assignments.length}</TkTabsTrigger>
+              <TkTabsTrigger value="speaking">{t('tabSpeaking')} · {speaking.length}</TkTabsTrigger>
+              <TkTabsTrigger value="analysis">{t('tabAnalysis')}</TkTabsTrigger>
             </TkTabsList>
 
             {/* ── Assignments (read-only; chấm ở Trung tâm Chấm bài) ── */}
@@ -144,16 +146,16 @@ function StudentReport() {
               {loading ? (
                 <div className="ga-shimmer h-[160px] border border-ga-line" aria-hidden />
               ) : assignments.length === 0 ? (
-                <Empty icon={BookOpen} text="Chưa có bài tập nào được giao cho học viên này." />
+                <Empty icon={BookOpen} text={t('assignmentsEmpty')} />
               ) : (
                 <div className="border border-ga-line bg-ga-card">
                   {assignments.map((a, i) => (
                     <div key={a.id} className="flex items-center gap-4 px-[18px] py-[13px]" style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-[14px] font-semibold text-ga-ink">{a.topic || `Bài tập #${a.assignmentId}`}</p>
-                        <p className="ga-ui text-[12px] text-ga-muted">Nộp {fmt(a.submittedAt)}</p>
+                        <p className="truncate text-[14px] font-semibold text-ga-ink">{a.topic || t('assignmentFallback', { id: a.assignmentId })}</p>
+                        <p className="ga-ui text-[12px] text-ga-muted">{t('submitted', { date: fmt(a.submittedAt) })}</p>
                       </div>
-                      <span className="shrink-0 text-[12px] font-semibold text-ga-muted">{STATUS_LABEL[a.status] ?? a.status}</span>
+                      <span className="shrink-0 text-[12px] font-semibold text-ga-muted">{statusLabel(a.status)}</span>
                       <span className="w-[64px] shrink-0 text-right text-[13.5px] font-semibold text-ga-ink">{score(a.teacherScore)}</span>
                     </div>
                   ))}
@@ -166,16 +168,16 @@ function StudentReport() {
               {loading ? (
                 <div className="ga-shimmer h-[160px] border border-ga-line" aria-hidden />
               ) : speaking.length === 0 ? (
-                <Empty icon={Mic} text="Học viên chưa thực hiện buổi luyện nói nào." />
+                <Empty icon={Mic} text={t('speakingEmpty')} />
               ) : (
                 <div className="border border-ga-line bg-ga-card">
                   {speaking.map((s, i) => (
                     <div key={s.id} className="flex items-center gap-4 px-[18px] py-[13px]" style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-[14px] font-semibold text-ga-ink">{s.topic || 'Buổi luyện nói'}</p>
-                        <p className="ga-ui text-[12px] text-ga-muted">{s.cefrLevel} · {fmt(s.startedAt)} · {STATUS_LABEL[s.status] ?? s.status}</p>
+                        <p className="truncate text-[14px] font-semibold text-ga-ink">{s.topic || t('speakingFallback')}</p>
+                        <p className="ga-ui text-[12px] text-ga-muted">{s.cefrLevel} · {fmt(s.startedAt)} · {statusLabel(s.status)}</p>
                       </div>
-                      <span className="shrink-0 text-[12px] text-ga-muted">AI {score(s.aiScore)}</span>
+                      <span className="shrink-0 text-[12px] text-ga-muted">{t('aiPrefix')} {score(s.aiScore)}</span>
                       <span className="w-[64px] shrink-0 text-right text-[13.5px] font-semibold text-ga-ink">{score(s.teacherScore)}</span>
                     </div>
                   ))}
@@ -188,18 +190,18 @@ function StudentReport() {
               {reportLoading ? (
                 <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
                   <Sparkles size={28} className="mx-auto mb-3 animate-pulse" style={{ color: VIOLET }} />
-                  <p className="text-[14px] text-ga-muted">Đang tạo phân tích AI…</p>
+                  <p className="text-[14px] text-ga-muted">{t('analysisLoading')}</p>
                 </div>
               ) : reportError ? (
                 <div className="border border-ga-line bg-ga-card px-10 py-[40px] text-center">
                   <p className="ga-ui mb-4 text-[14px] text-ga-red">{reportError}</p>
-                  <GaBtn variant="ghost" onClick={() => void fetchReport()}>Thử lại</GaBtn>
+                  <GaBtn variant="ghost" onClick={() => void fetchReport()}>{tc('retry')}</GaBtn>
                 </div>
               ) : report ? (
                 <Analysis report={report} />
               ) : (
                 <div className="border border-dashed border-ga-line px-10 py-[40px] text-center">
-                  <GaBtn variant="yellow" onClick={() => void fetchReport()}><Sparkles size={15} /> Tạo phân tích AI</GaBtn>
+                  <GaBtn variant="yellow" onClick={() => void fetchReport()}><Sparkles size={15} /> {t('generateAnalysis')}</GaBtn>
                 </div>
               )}
             </TkTabsContent>
@@ -219,21 +221,23 @@ function Empty({ icon: Icon, text }: { icon: typeof Mic; text: string }) {
   )
 }
 
-const METRIC_ROWS: [keyof Metrics, string, boolean][] = [
-  ['totalAssignmentsCompleted', 'Bài tập đã làm', false],
-  ['averageScore', 'Điểm TB bài tập', true],
-  ['totalSpeakingSessions', 'Buổi Speaking', false],
-  ['averageSpeakingScore', 'Điểm Speaking TB', true],
+// metricKey → v2.teacher.studentDetail.metricRows.<key>; pct flags a percentage value.
+const METRIC_ROWS: [keyof Metrics, boolean][] = [
+  ['totalAssignmentsCompleted', false],
+  ['averageScore', true],
+  ['totalSpeakingSessions', false],
+  ['averageSpeakingScore', true],
 ]
 
 function MetricCard({ title, m, accent }: { title: string; m: Metrics | null; accent: boolean }) {
+  const t = useTranslations('v2.teacher.studentDetail')
   return (
     <div className="border border-ga-line bg-ga-card p-[18px]" style={accent ? { borderColor: VIOLET } : undefined}>
       <GaCap className="mb-3 block" style={accent ? { color: VIOLET } : undefined}>{title}</GaCap>
       <ul className="flex flex-col gap-2">
-        {METRIC_ROWS.map(([k, label, pct]) => (
+        {METRIC_ROWS.map(([k, pct]) => (
           <li key={k} className="flex items-center justify-between border-b border-ga-line pb-1.5 text-[13px] last:border-b-0 last:pb-0">
-            <span className="text-ga-muted">{label}</span>
+            <span className="text-ga-muted">{t(`metricRows.${k}`)}</span>
             <span className="font-semibold text-ga-ink">{m ? `${m[k]}${pct ? '%' : ''}` : '—'}</span>
           </li>
         ))}
@@ -243,16 +247,17 @@ function MetricCard({ title, m, accent }: { title: string; m: Metrics | null; ac
 }
 
 function Analysis({ report }: { report: Report }) {
+  const t = useTranslations('v2.teacher.studentDetail')
   return (
     <div className="flex flex-col gap-[22px]">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <MetricCard title="Trước khi vào lớp" m={report.preClassMetrics} accent={false} />
-        <MetricCard title="Sau khi vào lớp" m={report.inClassMetrics} accent />
+        <MetricCard title={t('metricPre')} m={report.preClassMetrics} accent={false} />
+        <MetricCard title={t('metricIn')} m={report.inClassMetrics} accent />
       </div>
 
       {report.topWeaknesses?.length > 0 && (
         <div className="border border-ga-line bg-ga-card p-[22px]">
-          <GaCap className="mb-3 flex items-center gap-1.5"><AlertCircle size={13} className="text-ga-red" /> Lỗi sai thường gặp</GaCap>
+          <GaCap className="mb-3 flex items-center gap-1.5"><AlertCircle size={13} className="text-ga-red" /> {t('weaknessesCap')}</GaCap>
           <ul className="list-disc pl-5 text-[13.5px] text-ga-ink">
             {report.topWeaknesses.map((w, i) => <li key={i} className="mb-1">{w}</li>)}
           </ul>
@@ -261,7 +266,7 @@ function Analysis({ report }: { report: Report }) {
 
       {report.recommendedNextActions?.length > 0 && (
         <div className="border border-ga-line bg-ga-card p-[22px]">
-          <GaCap className="mb-3 block">Hành động đề xuất</GaCap>
+          <GaCap className="mb-3 block">{t('nextActionsCap')}</GaCap>
           <ul className="list-disc pl-5 text-[13.5px] text-ga-ink">
             {report.recommendedNextActions.map((a, i) => <li key={i} className="mb-1">{a}</li>)}
           </ul>
@@ -270,7 +275,7 @@ function Analysis({ report }: { report: Report }) {
 
       {report.aiAdvisoryReport && (
         <div className="border border-ga-line p-[22px]" style={{ background: 'var(--ga-violet-soft)' }}>
-          <GaCap className="mb-3 flex items-center gap-1.5" style={{ color: VIOLET }}><Sparkles size={14} /> Lộ trình đề xuất (AI)</GaCap>
+          <GaCap className="mb-3 flex items-center gap-1.5" style={{ color: VIOLET }}><Sparkles size={14} /> {t('aiRoadmapCap')}</GaCap>
           <div className="whitespace-pre-line text-[14px] leading-relaxed text-ga-ink">{report.aiAdvisoryReport}</div>
         </div>
       )}

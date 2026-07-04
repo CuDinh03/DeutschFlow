@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { FileDown } from 'lucide-react'
 import api from '@/lib/api'
 import { GaPageHdr, GaBtn, TkStatStrip, ErrorBanner, LoadingState } from '@/components/ui-v2'
@@ -37,6 +38,7 @@ function num(r: Record<string, unknown>, ...keys: string[]): number {
 }
 
 export default function V2TeacherAnalyticsPage() {
+  const t = useTranslations('v2.teacher.analytics')
   const [overview, setOverview] = useState<Overview | null>(null)
   const [rows, setRows] = useState<ClassRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -78,11 +80,11 @@ export default function V2TeacherAnalyticsPage() {
       )
       setRows(detail)
     } catch {
-      setError('Không thể tải dữ liệu phân tích.')
+      setError(t('loadError'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => { void load() }, [load])
 
@@ -92,11 +94,11 @@ export default function V2TeacherAnalyticsPage() {
     <div className="flex min-h-full flex-col">
       <GaPageHdr
         accent
-        title="Phân tích giảng dạy"
-        subtitle="Tổng quan lớp học, bài tập và điểm trung bình"
+        title={t('title')}
+        subtitle={t('subtitle')}
         right={
           <GaBtn variant="ghost" size="sm" onClick={() => window.print()}>
-            <FileDown size={15} aria-hidden /> Xuất PDF
+            <FileDown size={15} aria-hidden /> {t('exportPdf')}
           </GaBtn>
         }
       />
@@ -107,24 +109,24 @@ export default function V2TeacherAnalyticsPage() {
           </div>
         )}
         {loading ? (
-          <LoadingState label="Đang tải phân tích…" />
+          <LoadingState label={t('loading')} />
         ) : (
           <div className="space-y-[22px]">
             <TkStatStrip
               items={[
-                { label: 'Lớp học', value: overview?.classCount ?? 0, color: VIOLET },
-                { label: 'Học viên', value: overview?.studentCount ?? 0, sub: 'tổng cộng', color: '#2F6FC9' },
-                { label: 'Bài tập', value: overview?.assignmentCount ?? 0, sub: 'đã giao', color: '#11888A' },
+                { label: t('stats.classes'), value: overview?.classCount ?? 0, color: VIOLET },
+                { label: t('stats.students'), value: overview?.studentCount ?? 0, sub: t('stats.studentsSub'), color: '#2F6FC9' },
+                { label: t('stats.assignments'), value: overview?.assignmentCount ?? 0, sub: t('stats.assignmentsSub'), color: '#11888A' },
                 {
-                  label: 'Điểm trung bình',
+                  label: t('stats.avgScore'),
                   value: overview && overview.avgScore > 0 ? overview.avgScore.toFixed(1) : '—',
-                  sub: 'thang 100',
+                  sub: t('stats.avgScoreSub'),
                   color: '#1E9E61',
                 },
               ]}
             />
 
-            <GaSection title="Điểm trung bình theo lớp">
+            <GaSection title={t('avgByClass')}>
               {scored.length > 0 ? (
                 <div className="space-y-1">
                   {scored
@@ -136,23 +138,23 @@ export default function V2TeacherAnalyticsPage() {
                         value={r.avgScore}
                         max={100}
                         color={GA_CHART[i % GA_CHART.length]}
-                        display={`${r.avgScore.toFixed(1)}đ`}
+                        display={t('scoreUnit', { value: r.avgScore.toFixed(1) })}
                       />
                     ))}
                 </div>
               ) : (
                 <p className="ga-ui py-8 text-center text-[14px] text-ga-muted">
-                  Chưa có điểm trung bình theo lớp (chưa có bài chấm).
+                  {t('avgByClassEmpty')}
                 </p>
               )}
             </GaSection>
 
-            <GaSection title="Chi tiết theo lớp" bodyClassName="p-0">
+            <GaSection title={t('byClassDetail')} bodyClassName="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
                   <thead>
                     <tr className="border-b border-ga-border">
-                      {['Lớp', 'Học viên', 'Bài tập', 'Điểm TB'].map((h, i) => (
+                      {[t('colClass'), t('colStudents'), t('colAssignments'), t('colAvgScore')].map((h, i) => (
                         <th
                           key={h}
                           className={`ga-ui px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-ga-muted ${
@@ -168,7 +170,7 @@ export default function V2TeacherAnalyticsPage() {
                     {rows.length === 0 ? (
                       <tr>
                         <td colSpan={4} className="ga-ui px-5 py-10 text-center text-[14px] text-ga-muted">
-                          Chưa có lớp học nào.
+                          {t('noClasses')}
                         </td>
                       </tr>
                     ) : (

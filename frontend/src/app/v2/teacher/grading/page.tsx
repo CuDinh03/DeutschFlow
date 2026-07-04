@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import {
   Mic, PenLine, FileText, BookOpen, SpellCheck, Sparkles, Save, Loader2,
   CheckCircle2, AlertCircle, AlertTriangle, Play, ExternalLink, Clock,
@@ -60,24 +61,21 @@ const TONE_BG: Record<Tone, string> = {
   teal: 'var(--ga-teal-soft)', orange: 'var(--ga-orange-soft)', muted: 'var(--ga-side-active)',
 }
 
-const TYPE_META: Record<string, { label: string; tone: Tone; Icon: typeof Mic }> = {
-  SPEAKING_SCENARIO: { label: 'Luyện Nói AI', tone: 'violet', Icon: Mic },
-  ESSAY: { label: 'Viết luận', tone: 'blue', Icon: PenLine },
-  WRITING: { label: 'Viết · Schreiben', tone: 'blue', Icon: PenLine },
-  MOCK_TEST: { label: 'Thi thử', tone: 'orange', Icon: FileText },
-  VOCABULARY: { label: 'Từ vựng', tone: 'green', Icon: BookOpen },
-  GRAMMAR: { label: 'Ngữ pháp', tone: 'teal', Icon: SpellCheck },
-  GENERAL: { label: 'Bài tập chung', tone: 'muted', Icon: FileText },
+// labelKey → v2.teacher.grading.types.<key>; tone/Icon are logic/visual (kept).
+const TYPE_META: Record<string, { labelKey: string; tone: Tone; Icon: typeof Mic }> = {
+  SPEAKING_SCENARIO: { labelKey: 'SPEAKING_SCENARIO', tone: 'violet', Icon: Mic },
+  ESSAY: { labelKey: 'ESSAY', tone: 'blue', Icon: PenLine },
+  WRITING: { labelKey: 'WRITING', tone: 'blue', Icon: PenLine },
+  MOCK_TEST: { labelKey: 'MOCK_TEST', tone: 'orange', Icon: FileText },
+  VOCABULARY: { labelKey: 'VOCABULARY', tone: 'green', Icon: BookOpen },
+  GRAMMAR: { labelKey: 'GRAMMAR', tone: 'teal', Icon: SpellCheck },
+  GENERAL: { labelKey: 'GENERAL', tone: 'muted', Icon: FileText },
 }
 const metaOf = (type: string) => TYPE_META[type] ?? TYPE_META.GENERAL
 
 // Honest medium-based filter (the proto's manual/auto split doesn't exist in real data).
 type Bucket = 'all' | 'speaking' | 'written'
-const BUCKETS: TkSegOption<Bucket>[] = [
-  { value: 'all', label: 'Tất cả' },
-  { value: 'speaking', label: 'Nói AI' },
-  { value: 'written', label: 'Bài viết' },
-]
+const BUCKET_VALUES: Bucket[] = ['all', 'speaking', 'written']
 const bucketOf = (type: string): Exclude<Bucket, 'all'> =>
   type === 'SPEAKING_SCENARIO' ? 'speaking' : 'written'
 
@@ -91,6 +89,9 @@ const waveBars = (id: number): number[] =>
 interface Draft { score: number | ''; feedback: string }
 
 export default function V2TeacherGradingPage() {
+  const t = useTranslations('v2.teacher.grading')
+  const tc = useTranslations('v2.common')
+  const BUCKETS: TkSegOption<Bucket>[] = BUCKET_VALUES.map((value) => ({ value, label: t(`buckets.${value}`) }))
   const [queue, setQueue] = useState<GradingQueueItem[]>([])
   const [stats, setStats] = useState<GradingStats | null>(null)
   const [loading, setLoading] = useState(true)
@@ -169,7 +170,7 @@ export default function V2TeacherGradingPage() {
   // ── Real AI grade: trigger async, then poll the per-assignment submissions endpoint ──
   const cleanFailure = (fb: string | null) => {
     const raw = (fb ?? '').replace(/^\[AI ch[aấ]m l[oỗ]i\]\s*/i, '').trim()
-    return raw ? `AI chấm bài thất bại: ${raw}` : 'AI chấm bài thất bại. Vui lòng tự chấm điểm.'
+    return raw ? t('aiFailedWithReason', { reason: raw }) : t('aiFailedGeneric')
   }
 
   const runAiGrade = async () => {
@@ -209,17 +210,17 @@ export default function V2TeacherGradingPage() {
           // transient — keep polling
         }
       }
-      setPanelError('AI vẫn đang xử lý. Vui lòng thử lại sau giây lát.')
+      setPanelError(t('aiStillProcessing'))
       setAiLoading(false)
     } catch {
-      setPanelError('Lỗi khi gọi AI chấm bài')
+      setPanelError(t('aiCallError'))
       setAiLoading(false)
     }
   }
 
   const save = async () => {
     if (!active) return
-    if (draft.score === '') { setPanelError('Vui lòng nhập điểm số'); return }
+    if (draft.score === '') { setPanelError(t('enterScore')); return }
     setSaving(true)
     setPanelError('')
     setPanelSuccess('')
@@ -228,8 +229,8 @@ export default function V2TeacherGradingPage() {
         teacherScore: Number(draft.score),
         teacherFeedback: draft.feedback,
       })
-      setPanelSuccess('Đã lưu điểm thành công!')
-      toast.success(`Đã lưu điểm cho ${active.studentName}`)
+      setPanelSuccess(t('saveSuccess'))
+      toast.success(t('saveSuccessToast', { name: active.studentName }))
       const savedId = active.id
       setTimeout(() => advance(savedId), 700)
     } catch (e: unknown) {
@@ -247,8 +248,8 @@ export default function V2TeacherGradingPage() {
     <div className="flex h-full flex-col overflow-hidden">
       <GaPageHdr
         accent
-        title="Trung tâm Chấm bài"
-        subtitle="AI chấm sơ bộ · giáo viên xác nhận điểm & nhận xét"
+        title={t('title')}
+        subtitle={t('subtitle')}
         right={
           stats ? (
             <div className="flex items-center gap-2.5">
@@ -256,7 +257,7 @@ export default function V2TeacherGradingPage() {
                 <span className="block h-full bg-ga-green transition-[width] duration-300" style={{ width: `${pct}%` }} />
               </span>
               <span className="ga-ui text-[12.5px] font-semibold text-ga-muted">
-                {graded}/{total} đã chấm
+                {t('gradedProgress', { graded, total })}
               </span>
             </div>
           ) : undefined
@@ -267,15 +268,15 @@ export default function V2TeacherGradingPage() {
         {/* ── Queue ── */}
         <div className="flex flex-col overflow-auto border-r border-ga-line bg-ga-card">
           <div className="px-3.5 pb-2.5 pt-3.5">
-            <GaCap className="mb-2.5 block">Hàng đợi chấm</GaCap>
-            <TkSeg options={BUCKETS} value={filter} onValueChange={setFilter} className="w-full [&>button]:flex-1" aria-label="Lọc loại bài" />
+            <GaCap className="mb-2.5 block">{t('queueCap')}</GaCap>
+            <TkSeg options={BUCKETS} value={filter} onValueChange={setFilter} className="w-full [&>button]:flex-1" aria-label={t('filterAria')} />
           </div>
 
           {loading ? (
             Array.from({ length: 5 }).map((_, i) => <div key={i} className="ga-shimmer mx-3.5 mb-2 h-[52px]" aria-hidden />)
           ) : filtered.length === 0 ? (
             <div className="px-4 py-6 text-center text-[13px] text-ga-muted">
-              {queue.length === 0 ? 'Không có bài chờ chấm 🎉' : 'Không có bài loại này.'}
+              {queue.length === 0 ? t('queueEmpty') : t('queueEmptyFiltered')}
             </div>
           ) : (
             filtered.map((g) => {
@@ -303,7 +304,7 @@ export default function V2TeacherGradingPage() {
                     <span className="block truncate text-[13px] font-semibold text-ga-ink">{g.studentName}</span>
                     <span className="mt-[3px] flex items-center gap-1.5">
                       <m.Icon size={13} style={{ color: TONE_FG[m.tone] }} />
-                      <span className="truncate text-[11px] text-ga-muted">{m.label}</span>
+                      <span className="truncate text-[11px] text-ga-muted">{t(`types.${m.labelKey}`)}</span>
                     </span>
                   </span>
                   {failed && <AlertTriangle size={14} className="shrink-0 text-ga-red" />}
@@ -317,18 +318,18 @@ export default function V2TeacherGradingPage() {
         <div className="overflow-auto border-r border-ga-line px-[30px] py-6">
           {error ? (
             <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-              <h2 className="font-ga-display text-[24px] font-medium text-ga-red">Không tải được hàng đợi</h2>
+              <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadError')}</h2>
               <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">
                 {error} <code className="font-mono text-[12px] text-ga-accent">GET /api/v2/teacher/grading/queue</code>
               </p>
-              <GaBtn variant="primary" onClick={load}>Thử lại</GaBtn>
+              <GaBtn variant="primary" onClick={load}>{tc('retry')}</GaBtn>
             </div>
           ) : !active ? (
             <div className="grid h-full place-items-center text-center">
               <div>
                 <CheckCircle2 size={40} className="mx-auto mb-3 text-ga-green" />
-                <p className="font-ga-display text-[22px] font-medium text-ga-ink">Đã chấm hết bài</p>
-                <p className="ga-ui mt-1.5 text-[14px] text-ga-muted">Chưa có bài nộp nào chờ chấm.</p>
+                <p className="font-ga-display text-[22px] font-medium text-ga-ink">{t('allGraded')}</p>
+                <p className="ga-ui mt-1.5 text-[14px] text-ga-muted">{t('allGradedSub')}</p>
               </div>
             </div>
           ) : (
@@ -362,6 +363,7 @@ export default function V2TeacherGradingPage() {
 
 // ── Submission viewer (varies by type) ──────────────────────────────────────
 function Submission({ item }: { item: GradingQueueItem }) {
+  const t = useTranslations('v2.teacher.grading')
   const m = metaOf(item.assignmentType)
   const isSpeaking = item.assignmentType === 'SPEAKING_SCENARIO'
   const serif = item.assignmentType === 'ESSAY' || item.assignmentType === 'WRITING'
@@ -385,13 +387,13 @@ function Submission({ item }: { item: GradingQueueItem }) {
           className="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.04em]"
           style={{ color: TONE_FG[m.tone], background: TONE_BG[m.tone] }}
         >
-          <m.Icon size={14} /> {m.label}
+          <m.Icon size={14} /> {t(`types.${m.labelKey}`)}
         </span>
       </div>
 
       {/* Prompt / task */}
       <div className="mb-3.5 border border-ga-line bg-ga-bg px-[18px] py-[15px]">
-        <GaCap className="mb-2 block">{isSpeaking ? 'Câu hỏi / Tình huống' : 'Đề bài'}</GaCap>
+        <GaCap className="mb-2 block">{isSpeaking ? t('promptSpeaking') : t('promptWritten')}</GaCap>
         <div className="font-ga-display text-[15.5px] italic leading-[1.55] text-ga-ink">{item.topic}</div>
         {item.description && <p className="ga-ui mt-2 text-[13.5px] leading-[1.6] text-ga-muted">{item.description}</p>}
       </div>
@@ -400,14 +402,14 @@ function Submission({ item }: { item: GradingQueueItem }) {
       {item.submissionContent ? (
         isSpeaking ? (
           <div className="mb-[18px] border px-[18px] py-[15px]" style={{ background: 'var(--ga-yellow-soft)', borderColor: 'var(--ga-yellow)' }}>
-            <GaCap className="mb-2 block" style={{ color: '#8B7000' }}>Câu trả lời của học viên</GaCap>
+            <GaCap className="mb-2 block" style={{ color: '#8B7000' }}>{t('studentAnswer')}</GaCap>
             <div className="text-[15px] leading-[1.65] text-ga-ink">{item.submissionContent}</div>
           </div>
         ) : (
           <>
             <div className="mb-2 flex items-center justify-between">
-              <GaCap>Bài làm của học viên</GaCap>
-              <span className="text-[12px] text-ga-muted">{wordCount(item.submissionContent)} từ</span>
+              <GaCap>{t('studentWork')}</GaCap>
+              <span className="text-[12px] text-ga-muted">{t('wordCount', { count: wordCount(item.submissionContent) })}</span>
             </div>
             <div
               className="whitespace-pre-wrap border border-ga-line bg-ga-card px-[22px] py-[18px] text-[15px] leading-[1.75] text-ga-ink"
@@ -420,7 +422,7 @@ function Submission({ item }: { item: GradingQueueItem }) {
       ) : (
         !item.submissionFileUrl && (
           <div className="border border-dashed border-ga-line bg-ga-bg px-4 py-8 text-center text-[13.5px] text-ga-muted">
-            Không có nội dung văn bản — chấm thủ công theo file đính kèm.
+            {t('noTextContent')}
           </div>
         )
       )}
@@ -447,14 +449,14 @@ function Submission({ item }: { item: GradingQueueItem }) {
       {item.submissionFileUrl && !isSpeaking && (
         isImageUrl(item.submissionFileUrl) ? (
           <div className="mt-3.5">
-            <GaCap className="mb-2 block">Ảnh bài nộp</GaCap>
+            <GaCap className="mb-2 block">{t('submissionImage')}</GaCap>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={item.submissionFileUrl} alt="Bài nộp của học viên" className="max-h-[360px] w-full border border-ga-line object-contain" />
+            <img src={item.submissionFileUrl} alt={t('submissionImageAlt')} className="max-h-[360px] w-full border border-ga-line object-contain" />
           </div>
         ) : (
           <a href={item.submissionFileUrl} target="_blank" rel="noopener noreferrer"
             className="mt-3.5 inline-flex items-center gap-2 text-[13.5px] font-semibold text-ga-accent hover:underline">
-            <FileText size={15} /> Xem file đính kèm <ExternalLink size={13} />
+            <FileText size={15} /> {t('viewAttachment')} <ExternalLink size={13} />
           </a>
         )
       )}
@@ -462,7 +464,7 @@ function Submission({ item }: { item: GradingQueueItem }) {
       {item.attachmentUrl && (
         <a href={item.attachmentUrl} target="_blank" rel="noopener noreferrer"
           className="mt-2.5 ml-1 inline-flex items-center gap-2 text-[12.5px] font-medium text-ga-muted hover:text-ga-ink hover:underline">
-          <FileText size={14} /> Tài liệu đề bài <ExternalLink size={12} />
+          <FileText size={14} /> {t('promptDoc')} <ExternalLink size={12} />
         </a>
       )}
     </>
@@ -472,11 +474,9 @@ function Submission({ item }: { item: GradingQueueItem }) {
 // ── Scoring panel (single score + feedback + real AI suggest) ────────────────
 const SCORE_STEPS = [60, 65, 70, 75, 80, 85, 90, 95, 100]
 
-// AI per-criterion rubric labels (criteria keys come from the grading model).
-const CRITERIA_LABEL: Record<string, string> = {
-  grammar: 'Ngữ pháp', vocabulary: 'Từ vựng', content: 'Nội dung', structure: 'Bố cục',
-  pronunciation: 'Phát âm', fluency: 'Trôi chảy', coherence: 'Mạch lạc', task: 'Hoàn thành đề',
-}
+// AI per-criterion rubric label keys (criteria keys come from the grading model).
+// → v2.teacher.grading.criteriaLabels.<key>; falls back to the raw key when unknown.
+const CRITERIA_KEYS = new Set(['grammar', 'vocabulary', 'content', 'structure', 'pronunciation', 'fluency', 'coherence', 'task'])
 
 interface ScoringProps {
   item: GradingQueueItem
@@ -494,6 +494,7 @@ interface ScoringProps {
 }
 
 function Scoring({ item, draft, setDraft, suggested, confidence, criteria, aiLoading, onAi, saving, onSave, error, success }: ScoringProps) {
+  const t = useTranslations('v2.teacher.grading')
   const isAiGradable = item.assignmentType !== 'SPEAKING_SCENARIO'
   const hasText = !!item.submissionContent
 
@@ -505,30 +506,30 @@ function Scoring({ item, draft, setDraft, suggested, confidence, criteria, aiLoa
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="ga-ui flex items-center gap-1.5 text-[12.5px] font-bold uppercase tracking-[0.04em]" style={{ color: 'var(--ga-violet)' }}>
-                <Sparkles size={14} /> Chấm bằng AI
+                <Sparkles size={14} /> {t('aiGradeCap')}
               </p>
-              <p className="ga-ui mt-1 text-[12px] text-ga-muted">AI đọc bài làm → đề xuất điểm + nhận xét</p>
+              <p className="ga-ui mt-1 text-[12px] text-ga-muted">{t('aiGradeDesc')}</p>
             </div>
             <button
               type="button"
               onClick={onAi}
               disabled={aiLoading || !hasText}
-              title={!hasText ? 'Bài nộp không có nội dung văn bản để AI chấm' : undefined}
+              title={!hasText ? t('aiNoTextTitle') : undefined}
               className="ga-ui inline-flex shrink-0 items-center gap-2 rounded-ga px-4 py-2 text-[13px] font-bold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-60"
               style={{ background: 'var(--ga-violet)' }}
             >
-              {aiLoading ? <><Loader2 size={15} className="animate-spin" /> Đang chấm…</> : <><Sparkles size={15} /> Chấm AI</>}
+              {aiLoading ? <><Loader2 size={15} className="animate-spin" /> {t('aiGradeButtonBusy')}</> : <><Sparkles size={15} /> {t('aiGradeButton')}</>}
             </button>
           </div>
           {!hasText && (
             <p className="ga-ui mt-2 flex items-start gap-1 text-[11.5px]" style={{ color: 'var(--ga-violet)' }}>
               <AlertCircle size={13} className="mt-0.5 shrink-0" />
-              Bài chỉ có file/ảnh đính kèm — hãy chấm thủ công hoặc dùng &quot;Chấm ảnh bài viết tay&quot;.
+              {t('aiNoTextHint')}
             </p>
           )}
           {suggested && (
             <p className="ga-ui mt-2 flex items-center gap-1 text-[11.5px] font-medium" style={{ color: 'var(--ga-violet)' }}>
-              <CheckCircle2 size={13} /> AI đã đề xuất — bạn có thể chỉnh trước khi lưu.
+              <CheckCircle2 size={13} /> {t('aiSuggested')}
             </p>
           )}
         </div>
@@ -539,11 +540,11 @@ function Scoring({ item, draft, setDraft, suggested, confidence, criteria, aiLoa
         <div className="mb-[18px] border border-ga-line bg-ga-card p-4">
           <div className="mb-3 flex items-center justify-between">
             <span className="ga-ui flex items-center gap-1.5 text-[13px] font-semibold text-ga-ink">
-              <Sparkles size={14} style={{ color: 'var(--ga-violet)' }} /> AI đánh giá theo tiêu chí
+              <Sparkles size={14} style={{ color: 'var(--ga-violet)' }} /> {t('aiCriteriaCap')}
             </span>
             {confidence != null && (
               <span className="rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ color: 'var(--ga-violet)', background: 'var(--ga-violet-soft)' }}>
-                Độ tự tin {confidence}%
+                {t('aiConfidence', { value: confidence })}
               </span>
             )}
           </div>
@@ -552,7 +553,7 @@ function Scoring({ item, draft, setDraft, suggested, confidence, criteria, aiLoa
               {Object.entries(criteria).map(([k, v]) => (
                 <div key={k}>
                   <div className="mb-1 flex items-center justify-between text-[12px]">
-                    <span className="text-ga-muted">{CRITERIA_LABEL[k] ?? k}</span>
+                    <span className="text-ga-muted">{CRITERIA_KEYS.has(k) ? t(`criteriaLabels.${k}`) : k}</span>
                     <span className="font-semibold text-ga-ink">{v}/100</span>
                   </div>
                   <span className="block h-1.5 rounded-full bg-ga-line">
@@ -562,21 +563,21 @@ function Scoring({ item, draft, setDraft, suggested, confidence, criteria, aiLoa
               ))}
             </div>
           ) : (
-            <p className="ga-ui text-[12px] text-ga-muted">AI không trả về chi tiết tiêu chí cho bài này.</p>
+            <p className="ga-ui text-[12px] text-ga-muted">{t('aiNoCriteria')}</p>
           )}
         </div>
       )}
 
-      <GaCap className="mb-3.5 block">Giáo viên xác nhận điểm</GaCap>
+      <GaCap className="mb-3.5 block">{t('teacherConfirm')}</GaCap>
 
       {/* Score: quick steps + exact input */}
       <div className="mb-4">
         <div className="mb-2.5 flex items-center justify-between">
           <span className="ga-ui text-[13px] font-semibold text-ga-ink">
-            Điểm số <span className="text-ga-muted">(0–100)</span>
+            {t('scoreLabel')} <span className="text-ga-muted">{t('scoreRange')}</span>
             {suggested && (
               <span className="ml-2 rounded-full px-2 py-0.5 text-[11px] font-medium" style={{ color: 'var(--ga-violet)', background: 'var(--ga-violet-soft)' }}>
-                Đề xuất từ AI
+                {t('aiSuggestBadge')}
               </span>
             )}
           </span>
@@ -608,7 +609,7 @@ function Scoring({ item, draft, setDraft, suggested, confidence, criteria, aiLoa
           max={100}
           value={draft.score}
           onChange={(e) => setDraft({ score: e.target.value === '' ? '' : Math.max(0, Math.min(100, Number(e.target.value))) })}
-          placeholder="Nhập điểm chính xác 0–100"
+          placeholder={t('scoreInputPlaceholder')}
           className="ga-ui block w-full border border-ga-line bg-ga-bg px-3 py-2.5 text-[15px] font-semibold text-ga-ink outline-none focus:border-ga-accent"
         />
       </div>
@@ -616,17 +617,17 @@ function Scoring({ item, draft, setDraft, suggested, confidence, criteria, aiLoa
       {/* Feedback */}
       <div className="border-t border-ga-line pt-4">
         <label className="ga-ui mb-2 block text-[12.5px] font-semibold text-ga-muted">
-          Nhận xét cho học viên
+          {t('feedbackLabel')}
           {suggested && (
             <span className="ml-2 rounded-full px-2 py-0.5 text-[11px] font-medium" style={{ color: 'var(--ga-violet)', background: 'var(--ga-violet-soft)' }}>
-              Đề xuất từ AI
+              {t('aiSuggestBadge')}
             </span>
           )}
         </label>
         <textarea
           value={draft.feedback}
           onChange={(e) => setDraft({ feedback: e.target.value })}
-          placeholder="Nhận xét về ngữ pháp, từ vựng, cấu trúc câu…"
+          placeholder={t('feedbackPlaceholder')}
           rows={5}
           className="ga-ui block w-full resize-y border border-ga-line bg-ga-bg px-3 py-2.5 text-[14px] leading-[1.6] text-ga-ink outline-none focus:border-ga-accent"
         />
@@ -650,7 +651,7 @@ function Scoring({ item, draft, setDraft, suggested, confidence, criteria, aiLoa
         disabled={saving || draft.score === ''}
         className="mt-[18px] w-full"
       >
-        <Save size={16} /> Lưu &amp; Tiếp theo →
+        <Save size={16} /> {t('saveNext')}
       </GaBtn>
     </>
   )
