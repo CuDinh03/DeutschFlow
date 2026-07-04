@@ -67,9 +67,18 @@ public class OrgMembershipService {
         // Seat-limit gate (ORG-1): centralized here so EVERY add path (admin add, roster import,
         // invitation accept) enforces it, and race-safe — a `SELECT ... FOR UPDATE` on the org row
         // serializes concurrent adds to the same org, so two admins cannot both pass the check and
-        // both insert past the limit (closes the J / admin-add race). Only a brand-new STUDENT
-        // increases the ACTIVE-student count. seat_limit = 0 means unlimited.
-        if (ROLE_STUDENT.equals(role) && existingOpt.isEmpty()) {
+        // both insert past the limit (closes the J / admin-add race). seat_limit = 0 means unlimited.
+        //
+        // Audit M-1: the gate must fire whenever this upsert would ADD an ACTIVE student seat — a
+        // brand-new membership, a REVOKED/LEFT student being re-added, OR a non-student member
+        // switching to STUDENT — but NOT when the member is already an ACTIVE student (idempotent
+        // re-save, no new seat). Earlier this only checked `existingOpt.isEmpty()`, so re-adding a
+        // formerly-removed student bypassed the cap entirely.
+        boolean addsActiveStudentSeat = ROLE_STUDENT.equals(role)
+                && !(existingOpt.isPresent()
+                        && STATUS_ACTIVE.equals(existingOpt.get().getStatus())
+                        && ROLE_STUDENT.equals(existingOpt.get().getRole()));
+        if (addsActiveStudentSeat) {
             Long seatLimit = jdbcTemplate.query(
                     "SELECT seat_limit FROM organizations WHERE id = ? FOR UPDATE",
                     rs -> rs.next() ? rs.getLong(1) : null, orgId);
