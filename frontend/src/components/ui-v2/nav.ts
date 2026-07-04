@@ -14,7 +14,7 @@
  *
  * Sửa nav ở đây là nguồn sự thật duy nhất cho cả 4 role bên dưới.
  */
-import { MARKETPLACE_ENABLED } from '@/lib/features'
+import { MARKETPLACE_ENABLED, TEACHER_AI_TOOLS_ENABLED } from '@/lib/features'
 
 export type RoleId = 'teacher' | 'admin' | 'org' | 'student'
 
@@ -88,15 +88,21 @@ export const teacherNav: RoleNav = {
         { id: 'tc-messages', label: 'Tin nhắn học viên', href: '/v2/teacher/messages', icon: 'chat' },
       ],
     },
-    {
-      label: 'Công cụ AI',
-      labelKey: 'aiTools',
-      items: [
-        { id: 'grammar-ai', label: 'Ngữ pháp AI', href: '/v2/teacher/tools/grammar', icon: 'spellcheck' },
-        { id: 'materials-ai', label: 'Tạo Tài liệu AI', href: '/v2/teacher/tools/materials', icon: 'description' },
-        { id: 'ai-images', label: 'Tạo ảnh AI', href: '/v2/teacher/tools/images', icon: 'image' },
-      ],
-    },
+    // "Công cụ AI" — temporarily hidden (AI grammar/image gen 500 in prod). Flip
+    // NEXT_PUBLIC_TEACHER_AI_TOOLS_ENABLED=true to restore. See lib/features.ts.
+    ...(TEACHER_AI_TOOLS_ENABLED
+      ? [
+          {
+            label: 'Công cụ AI',
+            labelKey: 'aiTools',
+            items: [
+              { id: 'grammar-ai', label: 'Ngữ pháp AI', href: '/v2/teacher/tools/grammar', icon: 'spellcheck' },
+              { id: 'materials-ai', label: 'Tạo Tài liệu AI', href: '/v2/teacher/tools/materials', icon: 'description' },
+              { id: 'ai-images', label: 'Tạo ảnh AI', href: '/v2/teacher/tools/images', icon: 'image' },
+            ],
+          },
+        ]
+      : []),
     {
       label: 'Thống kê',
       labelKey: 'stats',

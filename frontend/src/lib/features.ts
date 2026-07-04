@@ -8,3 +8,12 @@
  * optionality — flip this on with `NEXT_PUBLIC_MARKETPLACE_ENABLED=true` to re-enable, no code change.
  */
 export const MARKETPLACE_ENABLED = process.env.NEXT_PUBLIC_MARKETPLACE_ENABLED === 'true'
+
+/**
+ * TEACHER_AI_TOOLS_ENABLED gates the teacher "Công cụ AI" sidebar section (Ngữ pháp AI, Tạo Tài
+ * liệu AI, Tạo ảnh AI → /v2/teacher/tools/*). Hidden by default: two of these (AI grammar and AI
+ * image generation) currently 500 in prod (LLM env not wired), so the whole section is temporarily
+ * removed from the teacher UI. The pages/endpoints stay in code — flip this on with
+ * `NEXT_PUBLIC_TEACHER_AI_TOOLS_ENABLED=true` to re-enable once the AI backend is healthy, no code change.
+ */
+export const TEACHER_AI_TOOLS_ENABLED = process.env.NEXT_PUBLIC_TEACHER_AI_TOOLS_ENABLED === 'true'
