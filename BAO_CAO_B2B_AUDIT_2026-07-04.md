@@ -4,6 +4,56 @@
 > **Phạm vi:** Toàn bộ tầng B2B (organization / trung tâm tiếng Đức) trên backend, frontend, migrations và docs.
 > **Phương pháp:** Audit đa tác nhân (9 trục) — mỗi finding được một tác nhân độc lập _phản biện đối kháng_ (adversarial verify) đọc lại code thật trước khi được tính. 48 agents, ~5.0M tokens, ~700 tool calls.
 > **Kết luận tổng:** `READY_WITH_FIXES` — kiến trúc B2B vững, cô lập tenant (chống IDOR) **mạnh thật sự**, nhưng **bị chặn bởi 2 lỗi CRITICAL** phải vá trước khi onboard khách B2B.
+>
+> **🔧 CẬP NHẬT KHẮC PHỤC 2026-07-04:** 2 CRITICAL + phần lớn HIGH/MEDIUM/LOW **ĐÃ VÁ** trên 4 branch (chi tiết §0.1). Còn lại là các mục lớn/rủi ro cao đã **defer có chủ đích** (H-3 TOCTOU app-wide, gộp cây FE, build G-3, migration M-4).
+
+---
+
+## 0.1 Trạng thái khắc phục (Remediation Status) — 2026-07-04
+
+**Branch đã tạo (chưa merge main — merge độc lập được vì đụng file rời nhau):**
+
+| Branch | Findings | Test |
+|---|---|---|
+| `claude/nice-easley-7cd3df` | **C-1** account-takeover | 15/15 ✅ |
+| `claude/confident-mclaren-3b587d` | **C-2** MANAGER-lật-OWNER + H-5 (transfer-ownership) | 51/51 ✅ |
+| `fix/b2b-audit-remediation` (session này) | H-1, H-2, H-4, M-1, M-3, M-6, M-7, M-9, M-10, M-14, M-15, M-16, L-1, L-3, L-4, L-7, L-8 | ✅ green từng nhóm |
+
+### ✅ ĐÃ VÁ (17 findings, session `fix/b2b-audit-remediation`)
+
+| # | Tóm tắt fix | Commit |
+|---|---|---|
+| **H-1** | Sinh ảnh Bedrock giờ `record()` trừ pool + ví sau khi sinh | `f0bec667` |
+| **H-2** | PPTX thread userId → charge 40k on-success | `f0bec667` |
+| **M-3** | STT quy giây→token (`20/s`) trừ pool + ví, gom trong `recordStt` | `f0bec667` |
+| **H-4** | Skill report chuẩn hoá fallback 0-100 → 0-10 trước khi chấm | `0d803fa7` |
+| **M-1** | Seat gate chạy cả khi re-add học viên REVOKED/LEFT | `0d803fa7` |
+| **M-14** | `createInvoice` từ chối amount ≤ 0 | `0d803fa7` |
+| **M-15** | Invoice state machine forward-only (PAID/VOID terminal) | `0d803fa7` |
+| **M-16** | Manual PAID activate org (`AdminOrgService.activateForPaidInvoice`) | `0d803fa7` |
+| **M-6** | Analytics activeStudents7d/CEFR join org_members STUDENT/ACTIVE | `0d803fa7` |
+| **M-10** | SecurityConfig backstop `/api/admin/**`→hasRole('ADMIN') | `e290f977` |
+| **M-9** | Schedule dùng `QuotaVnCalendar.ZONE` (VN) thay UTC | `e290f977` |
+| **M-7** | Cert co-brand lấy từ `class.org_id` (không phải issuer.org) | `e290f977` |
+| **L-7** | `markRead` thêm `assertCanMessage` | `e290f977` |
+| **L-4** | `TeacherReportService.overview` 1 query IN thay N+1 | `b1d157ae` |
+| **L-3** | Roster CSV strip UTF-8 BOM (quoted-comma vẫn là residual) | `b1d157ae` |
+| **L-1** | Quét sạch Javadoc org-role `ADMIN` → `MANAGER` | `b1d157ae` |
+| **L-8** | Xoá dead `orgApi.activateEntitlements` | `96ff7f73` |
+
+**Docs reconciliation** (H-6, M-18, L-11, L-12): ✅ đã cập nhật. M-18 (`plans/…`) commit `af50e773`; H-6/L-11/L-12 (`docs/*` — gitignored theo quy ước repo) sửa trên đĩa.
+
+### ⏸ DEFER CÓ CHỦ ĐÍCH (lý do rõ ràng)
+
+| # | Lý do defer |
+|---|---|
+| **H-3** pool TOCTOU | Reserve-then-reconcile đụng ~25 call-site AI toàn app (không chỉ B2B), rủi ro regression rộng. Post-charge (H-1/H-2/M-3) đã đóng lỗ "miễn phí" — TOCTOU chỉ cho vượt 1 burst nhỏ. User đã chọn "post-charge only". |
+| **M-4** stt_usage_events org_id | Migration mới (V245) giữa 5 branch đang bay = rủi ro va số version. KHÔNG cần cho charge (M-3 derive org từ `users.org_id`) — chỉ cho reporting per-tenant. |
+| **M-5** pool dual-source | Refactor charge=`users.org_id` → `org_members`; đụng đúng SQL vừa sửa ở M-3, cần cân nhắc kỹ. Invariant hiện vẫn giữ. |
+| **M-11/M-12/M-13** cây FE kép | Gộp/xoá legacy tree + redirect = rủi ro deep-link + KHÔNG type-check được ở đây (thiếu `node_modules`). Backend đã enforce nên không rò data. |
+| **M-17** G-3 4 endpoint | Là build feature (roster/gradebook/lesson-logs cho org-supervision), không phải sửa lỗi. |
+| **M-2/L-5** rate-limit `/api/public/**` | Cần hạ tầng rate-limit filter; phần oracle của M-2 đã đóng ở C-1 (bỏ `requiresRegistration` + preview read-only). |
+| **L-2** invite token rotation · **L-6** Sunday IT · **L-10** invoice audit trail · **M-8** V240 (lịch sử, không sửa ngược được) | Nhỏ/không chặn; L-6 cần IT vs Postgres thật. |
 
 ---
 
