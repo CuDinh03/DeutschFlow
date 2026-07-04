@@ -6,7 +6,7 @@ const SUPPORTED = new Set(['vi', 'en', 'de'])
 // Per-area v2 message files (messages/v2/<area>.<locale>.json). The /v2 (Galerie 2.0) catalog is
 // split per area so each area migrates + translates independently instead of churning one giant
 // file. Add an area here when its pages are migrated to next-intl.
-const V2_AREAS = ['chrome', 'student'] as const
+const V2_AREAS = ['chrome', 'student', 'teacher', 'org'] as const
 
 export default getRequestConfig(async () => {
   // SSR (static-export path đã retired): đọc locale từ cookie `locale` — cookie chuẩn của app, đặt

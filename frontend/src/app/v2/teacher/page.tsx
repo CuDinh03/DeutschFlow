@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
@@ -29,17 +30,8 @@ interface QueueItem {
   assignmentType: string
   submittedAt: string | null
 }
-const TYPE_LABEL: Record<string, string> = {
-  SPEAKING_SCENARIO: 'Speaking', ESSAY: 'Viết luận', WRITING: 'Viết', MOCK_TEST: 'Thi thử',
-  VOCABULARY: 'Từ vựng', GRAMMAR: 'Ngữ pháp', GENERAL: 'Bài tập',
-}
-const relTime = (iso: string | null): string => {
-  if (!iso) return ''
-  const diff = (Date.now() - new Date(iso).getTime()) / 36e5 // hours
-  if (diff < 1) return 'vừa nộp'
-  if (diff < 24) return `${Math.floor(diff)} giờ trước`
-  return `${Math.floor(diff / 24)} ngày trước`
-}
+// Assignment-type keys map to teacherHome.types.<KEY> labels.
+const TYPE_KEYS = ['SPEAKING_SCENARIO', 'ESSAY', 'WRITING', 'MOCK_TEST', 'VOCABULARY', 'GRAMMAR', 'GENERAL'] as const
 
 function normalizeClass(r: Record<string, unknown>): TClass {
   const num = (...keys: string[]) => {
@@ -60,7 +52,20 @@ function normalizeClass(r: Record<string, unknown>): TClass {
 }
 
 export default function V2TeacherDashboardPage() {
+  const t = useTranslations('v2.teacher.teacherHome')
+  const tc = useTranslations('v2.common')
   const router = useRouter()
+
+  const typeLabel = (type: string) =>
+    (TYPE_KEYS as readonly string[]).includes(type) ? t(`types.${type}`) : t('types.GENERAL')
+  const relTime = (iso: string | null): string => {
+    if (!iso) return ''
+    const diff = (Date.now() - new Date(iso).getTime()) / 36e5 // hours
+    if (diff < 1) return t('relTime.justNow')
+    if (diff < 24) return t('relTime.hoursAgo', { count: Math.floor(diff) })
+    return t('relTime.daysAgo', { count: Math.floor(diff / 24) })
+  }
+
   const [classes, setClasses] = useState<TClass[]>([])
   const [summary, setSummary] = useState<Summary>({ pendingReviewCount: 0, pendingJoinRequests: 0 })
   const [queue, setQueue] = useState<QueueItem[]>([])
@@ -120,7 +125,7 @@ export default function V2TeacherDashboardPage() {
     try {
       await api.post('/v2/teacher/classes', { name })
       setNewClass('')
-      toast.success(`Đã tạo lớp "${name}"`)
+      toast.success(t('createClassSuccess', { name }))
       await load()
     } catch (e: unknown) {
       toast.error(apiMessage(e))
@@ -133,11 +138,11 @@ export default function V2TeacherDashboardPage() {
     <div className="flex min-h-full flex-col">
       <GaPageHdr
         accent
-        title="Trang chủ"
-        subtitle="Quản lý tổng quan tiến độ học tập và các lớp học của bạn"
+        title={t('title')}
+        subtitle={t('subtitle')}
         right={
           <GaBtn variant="ghost" onClick={() => router.push('/v2/teacher/analytics')}>
-            Xem báo cáo →
+            {t('viewReports')}
           </GaBtn>
         }
       />
@@ -145,19 +150,19 @@ export default function V2TeacherDashboardPage() {
       <div className="flex-1 overflow-auto px-[52px] py-[30px]">
         <TkStatStrip
           items={[
-            { label: 'Tổng học viên', value: totals.students, sub: `Hoạt động trong ${classes.length} lớp` },
+            { label: t('stats.students'), value: totals.students, sub: t('stats.studentsSub', { count: classes.length }) },
             {
-              label: 'Cần chấm điểm',
+              label: t('stats.toGrade'),
               value: summary.pendingReviewCount,
-              sub: 'Bài tập & Speaking',
+              sub: t('stats.toGradeSub'),
               color: '#E07B39',
               alert: summary.pendingReviewCount > 0,
             },
-            { label: 'Bài tập đang giao', value: totals.tasks, sub: 'trên các lớp', color: '#2F6FC9' },
+            { label: t('stats.assignments'), value: totals.tasks, sub: t('stats.assignmentsSub'), color: '#2F6FC9' },
             {
-              label: 'Yêu cầu vào lớp',
+              label: t('stats.joinRequests'),
               value: summary.pendingJoinRequests,
-              sub: 'chờ duyệt',
+              sub: t('stats.joinRequestsSub'),
               color: '#1E9E61',
               alert: summary.pendingJoinRequests > 0,
             },
@@ -172,7 +177,7 @@ export default function V2TeacherDashboardPage() {
                 value={newClass}
                 onChange={(e) => setNewClass(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && createClass()}
-                placeholder="Nhập tên lớp học (VD: A1.1 Lớp tối 2-4-6)"
+                placeholder={t('newClassPlaceholder')}
                 className="flex-1 bg-transparent px-5 py-[15px] text-[15px] text-ga-ink outline-none"
               />
               <button
@@ -181,19 +186,19 @@ export default function V2TeacherDashboardPage() {
                 disabled={creating}
                 className="flex shrink-0 items-center gap-2 bg-ga-ink px-[26px] py-[15px] text-[14px] font-semibold text-ga-bg disabled:opacity-60"
               >
-                <Plus size={18} /> Tạo lớp
+                <Plus size={18} /> {t('createClass')}
               </button>
             </div>
 
             <div className="mb-[18px] flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <GaCap>Các lớp đang giảng dạy</GaCap>
+                <GaCap>{t('teachingClasses')}</GaCap>
                 <span className="bg-ga-ink px-2.5 py-[3px] text-[11px] font-bold text-ga-bg">{classes.length}</span>
               </div>
               <TkSearch
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Tìm lớp…"
+                placeholder={t('searchClass')}
                 containerClassName="w-[200px]"
               />
             </div>
@@ -207,18 +212,18 @@ export default function V2TeacherDashboardPage() {
             ) : error ? (
               <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
                 <h2 className="font-ga-display text-[26px] font-medium leading-[1.2] text-ga-red">
-                  Không tải được lớp học
+                  {t('loadClassError')}
                 </h2>
                 <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14.5px] text-ga-muted">
                   {error} <code className="font-mono text-[12px] text-ga-accent">GET /api/v2/teacher/classes</code>
                 </p>
                 <GaBtn variant="primary" onClick={load}>
-                  Thử lại
+                  {tc('retry')}
                 </GaBtn>
               </div>
             ) : list.length === 0 ? (
               <div className="border border-dashed border-ga-line px-10 py-[30px] text-center text-[14px] text-ga-muted">
-                {classes.length === 0 ? 'Chưa có lớp nào — tạo lớp đầu tiên ở trên.' : 'Không tìm thấy lớp nào.'}
+                {classes.length === 0 ? t('noClasses') : t('noClassesFound')}
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-[18px]">
@@ -237,10 +242,10 @@ export default function V2TeacherDashboardPage() {
                           <div className="text-[15.5px] font-bold leading-[1.3] text-ga-ink">{c.name}</div>
                           <div className="mt-[7px] flex gap-3.5 text-[13px] text-ga-muted">
                             <span>
-                              <strong className="text-ga-ink">{c.students}</strong> HV
+                              <strong className="text-ga-ink">{c.students}</strong> {t('studentAbbr')}
                             </span>
                             <span>
-                              <strong className="text-ga-ink">{c.tasks}</strong> bài
+                              <strong className="text-ga-ink">{c.tasks}</strong> {t('taskAbbr')}
                             </span>
                           </div>
                         </div>
@@ -250,7 +255,7 @@ export default function V2TeacherDashboardPage() {
                           className="shrink-0 px-2.5 py-[5px] text-[11.5px] font-bold"
                           style={{ color: VIOLET, background: 'var(--ga-violet-soft)', border: `1px solid ${VIOLET}55` }}
                         >
-                          {c.pending} chờ chấm
+                          {t('pendingGrade', { count: c.pending })}
                         </span>
                       )}
                     </button>
@@ -261,14 +266,14 @@ export default function V2TeacherDashboardPage() {
                           onClick={() => router.push(`/v2/teacher/classes/${c.id}`)}
                           className="rounded-ga border border-ga-line px-3 py-[7px] text-[11.5px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent"
                         >
-                          Vào lớp
+                          {t('enterClass')}
                         </button>
                         <button
                           type="button"
-                          onClick={() => toast('Tài liệu AI (sắp ra mắt)')}
+                          onClick={() => toast(t('aiMaterialsComing'))}
                           className="rounded-ga border border-ga-line px-3 py-[7px] text-[11.5px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent"
                         >
-                          Tài liệu AI
+                          {t('aiMaterials')}
                         </button>
                       </div>
                       {c.code && (
@@ -288,7 +293,7 @@ export default function V2TeacherDashboardPage() {
             <div className="border border-ga-line bg-ga-card p-[22px]">
               <div className="mb-3.5 flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <GaCap>Cần chấm điểm</GaCap>
+                  <GaCap>{t('toGradeCap')}</GaCap>
                   {summary.pendingReviewCount > 0 && (
                     <span className="px-2 py-0.5 text-[11px] font-bold" style={{ color: VIOLET, background: 'var(--ga-violet-soft)' }}>
                       {summary.pendingReviewCount}
@@ -301,11 +306,11 @@ export default function V2TeacherDashboardPage() {
                   className="text-[12px] font-semibold underline"
                   style={{ color: VIOLET }}
                 >
-                  Vào chấm →
+                  {t('toGradeLink')}
                 </button>
               </div>
               {queue.length === 0 ? (
-                <p className="py-3 text-[13px] text-ga-muted">Không có bài chờ chấm 🎉</p>
+                <p className="py-3 text-[13px] text-ga-muted">{t('queueEmpty')}</p>
               ) : (
                 <div className="flex flex-col">
                   {queue.map((q, i) => (
@@ -325,7 +330,7 @@ export default function V2TeacherDashboardPage() {
                       </span>
                       <span className="shrink-0 text-right">
                         <span className="block px-1.5 py-0.5 text-[10px] font-bold" style={{ color: VIOLET, background: 'var(--ga-violet-soft)' }}>
-                          {TYPE_LABEL[q.assignmentType] ?? 'Bài tập'}
+                          {typeLabel(q.assignmentType)}
                         </span>
                         <span className="mt-0.5 block text-[10px] text-ga-subtle">{relTime(q.submittedAt)}</span>
                       </span>
@@ -336,11 +341,11 @@ export default function V2TeacherDashboardPage() {
             </div>
 
             <div className="border border-ga-line bg-ga-card p-[22px]">
-              <GaCap className="mb-3.5 block">Yêu cầu vào lớp</GaCap>
+              <GaCap className="mb-3.5 block">{t('joinRequestsCap')}</GaCap>
               <div className="font-ga-display text-[32px] font-medium leading-none text-ga-ink">
                 {summary.pendingJoinRequests}
               </div>
-              <p className="mt-2 text-[12.5px] text-ga-muted">học viên chờ duyệt vào lớp</p>
+              <p className="mt-2 text-[12.5px] text-ga-muted">{t('joinRequestsWaiting')}</p>
             </div>
           </div>
         </div>

@@ -35,7 +35,10 @@ Legacy authed screens are out of scope (deprecated tree).
 
 ## Status
 
-Legend: ✅ done · 🟡 in progress · ⬜ not started
+Legend: ✅ wired (page renders translations) · 📝 catalog-ready (vi/en/de keys written & in
+parity, page NOT yet wired to `useTranslations` — mechanical wiring remains) · ⬜ not started
+
+`V2_AREAS` (request.ts): `chrome, student, teacher, org`. (Add `admin`, `account` when built.)
 
 ### Foundation
 - ✅ `messages/v2/` per-area structure + `request.ts` merge (`V2_AREAS`)
@@ -45,28 +48,27 @@ Legend: ✅ done · 🟡 in progress · ⬜ not started
 - ⬜ `GaTopBar` chrome strings (search placeholder, bell/notifications aria, etc.)
 - ⬜ `GaPageHdr` / shared EmptyState / ErrorBanner / LoadingState default copy
 
-### student (`area: student`) — 18 pages
-- ✅ dashboard
-- ✅ vocabulary · ✅ grammar · ✅ review · ✅ lessons · ✅ roadmap
-- ⬜ speaking · mock-exam · exam
-- ⬜ classes · classes/[id] · classes/[id]/assignments/[aid] · progress · messages
-- ⬜ achievements · tuition · tutor · welcome
+### student (`area: student`) — 17 in-scope pages (tutor skipped: marketplace off)
+- ✅ dashboard · vocabulary · grammar · review · lessons · roadmap
+- ✅ speaking · exam · messages · achievements · tuition · welcome
+- 📝 mock-exam · classes · classes/[id] · classes/[id]/assignments/[aid] · progress
 
-### teacher (`area: teacher`) — ~15 pages
-- ⬜ (root) · schedule · tc-progress · tc-checklist · grading · grade-image · materials
-- ⬜ messages · analytics · profile · tools/grammar · tools/materials · tools/images · classes/[id]/students…
+### teacher (`area: teacher`) — 12 in-scope pages (tools/* hidden, sessions dead)
+- ✅ (root) · schedule · tc-progress
+- 📝 tc-checklist · grading · grade-image · materials · messages · analytics · profile
+  · classes/[id] · classes/[id]/students/[studentId]
+
+### org (`area: org`) — 12 pages
+- ✅ (root) · students · students/[id] · classes
+- 📝 classes/[id] · schedule · teachers · analytics · finance · billing · invitations · roles
 
 ### admin (`area: admin`) — ~25 pages
 - ⬜ (root) · revenue · tokens · organizations · free-teachers · users · classes · plans
 - ⬜ mock-exam-packs · vocabulary · grammar-review · media · ai-config · broadcast · marketing
 - ⬜ analytics · weekly-speaking · reports(+3) · personas · interviews · audit · training-dataset · settings
 
-### org (`area: org`) — ~10 pages
-- ⬜ (root) · students · students/[id] · classes · classes/[id] · schedule · teachers · analytics
-- ⬜ finance · billing · invitations · roles
-
 ### shared / account (`area: account`)
-- ⬜ profile · payment · notifications
+- ⬜ profile · payment · notifications _(notifications/page.tsx blocked on in-flight notification WIP)_
 
 ### public legacy (out of the v2 tree, in scope)
 - ⬜ login · register · home (`/`) · pricing · terms · privacy
@@ -82,3 +84,11 @@ DE users (learner-facing / pedagogically sensitive). Nothing from the dashboard 
   UI chrome (buttons, labels, headers, toasts, empty/error states, CEFR phase descriptions). No
   hardcoded example German sentences or pedagogical grammar explanations — that content is
   backend-supplied. **No German-review flags required for this group.**
+- ⚠️ **speaking · exam · mock-exam (student) — NEEDS A GERMAN PASS.** These were migrated by a
+  background agent that was cut off by a session limit before returning its German-review report,
+  so its flags were lost. The `de` values in `student.de.json` for these screens are LLM-generated
+  and unreviewed; any strings that render as model German to a learner (speaking prompts/starters,
+  German exam instructions) must be spot-checked by a German speaker before shipping to DE users.
+  UI chrome in them is fine.
+- teacher (root/schedule/tc-progress) · org (overview/students/classes) + the 📝 catalog-ready
+  screens: LLM-generated de, unreviewed but all UI/admin chrome (no learner-facing model German).

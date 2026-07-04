@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { Download, Clock } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
@@ -22,6 +23,8 @@ const fmtDate = (d: string | null | undefined) => (d ? format(new Date(d), 'dd/M
 const initial = (n: string | null) => ((n ?? '?').trim()[0] ?? '?').toUpperCase()
 
 export default function V2OrgStudentsPage() {
+  const t = useTranslations('v2.org.students')
+  const tc = useTranslations('v2.common')
   const router = useRouter()
   const [members, setMembers] = useState<OrgMember[]>([])
   const [analytics, setAnalytics] = useState<OrgAnalytics | null>(null)
@@ -56,11 +59,11 @@ export default function V2OrgStudentsPage() {
     <div className="flex min-h-full flex-col">
       <GaPageHdr
         accent
-        title="Học viên của tổ chức"
-        subtitle="Danh sách học viên đang dùng ghế của trung tâm"
+        title={t('title')}
+        subtitle={t('subtitle')}
         right={
-          <GaBtn variant="ghost" size="sm" onClick={() => toast('Xuất danh sách học viên (sắp ra mắt)')}>
-            <Download size={15} /> Xuất danh sách
+          <GaBtn variant="ghost" size="sm" onClick={() => toast(t('exportSoon'))}>
+            <Download size={15} /> {t('exportList')}
           </GaBtn>
         }
       />
@@ -68,34 +71,34 @@ export default function V2OrgStudentsPage() {
       <div className="flex-1 overflow-auto px-10 py-6">
         <TkStatStrip
           items={[
-            { label: 'Tổng học viên', value: analytics?.studentCount ?? members.length, sub: 'đang dùng ghế' },
-            { label: 'Đang hoạt động', value: activeN, sub: 'thành viên ACTIVE', color: '#1E9E61' },
-            { label: 'Hoạt động 7 ngày', value: analytics?.activeStudents7d ?? 0, sub: 'có học gần đây', color: '#2F6FC9' },
-            { label: 'Lớp đang học', value: analytics?.classCount ?? 0, sub: 'của trung tâm', color: TEAL },
+            { label: t('stats.totalStudents'), value: analytics?.studentCount ?? members.length, sub: t('stats.usingSeats') },
+            { label: t('stats.active'), value: activeN, sub: t('stats.activeMembers'), color: '#1E9E61' },
+            { label: t('stats.active7d'), value: analytics?.activeStudents7d ?? 0, sub: t('stats.activeRecently'), color: '#2F6FC9' },
+            { label: t('stats.classes'), value: analytics?.classCount ?? 0, sub: t('stats.ofCenter'), color: TEAL },
           ]}
         />
 
         <div className="mb-3.5 mt-[22px] flex items-center justify-between gap-3">
-          <GaCap>{rows.length} học viên</GaCap>
-          <TkSearch value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Tìm học viên / email…" containerClassName="w-[240px]" />
+          <GaCap>{t('count', { count: rows.length })}</GaCap>
+          <TkSearch value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('searchPlaceholder')} containerClassName="w-[240px]" />
         </div>
 
         {loading ? (
           <div className="flex flex-col gap-2">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="ga-shimmer h-[54px] border border-ga-line" aria-hidden />)}</div>
         ) : error ? (
           <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">Không tải được học viên</h2>
+            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadError')}</h2>
             <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">{error} <code className="font-mono text-[12px] text-ga-accent">GET /api/org/members</code></p>
-            <GaBtn variant="primary" onClick={load}>Thử lại</GaBtn>
+            <GaBtn variant="primary" onClick={load}>{tc('retry')}</GaBtn>
           </div>
         ) : rows.length === 0 ? (
           <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">
-            {members.length === 0 ? 'Tổ chức chưa có học viên nào.' : 'Không tìm thấy học viên.'}
+            {members.length === 0 ? t('emptyOrg') : t('emptySearch')}
           </div>
         ) : (
           <div className="border border-ga-line bg-ga-card">
             <div className="grid items-center gap-2 border-b border-ga-line bg-ga-bg px-5 py-[11px]" style={{ gridTemplateColumns: '1fr 130px 120px 84px' }}>
-              {['Học viên', 'Trạng thái', 'Tham gia', ''].map((h, i) => (
+              {[t('colStudent'), t('colStatus'), t('colJoined'), ''].map((h, i) => (
                 <span key={i} className="ga-ui text-[10px] font-bold uppercase tracking-[0.1em] text-ga-muted">{h}</span>
               ))}
             </div>
@@ -110,12 +113,12 @@ export default function V2OrgStudentsPage() {
                 </div>
                 <span>
                   <span className="px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-[0.04em]" style={m.status === 'ACTIVE' ? { color: 'var(--ga-green)', background: 'var(--ga-green-soft)' } : { color: 'var(--ga-muted)', background: 'var(--ga-side-active)' }}>
-                    {m.status === 'ACTIVE' ? 'Hoạt động' : 'Đã rời'}
+                    {m.status === 'ACTIVE' ? t('statusActive') : t('statusLeft')}
                   </span>
                 </span>
                 <span className="flex items-center gap-1 text-[12.5px] text-ga-muted"><Clock size={12} /> {fmtDate(m.joinedAt)}</span>
                 <button type="button" onClick={() => router.push(`/v2/org/students/${m.userId}`)} className="ga-ui justify-self-end border border-ga-line px-2.5 py-1.5 text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent">
-                  Hồ sơ
+                  {t('profile')}
                 </button>
               </div>
             ))}

@@ -2,6 +2,7 @@
 
 import { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { GaPageHdr } from '@/components/ui-v2'
 import { MessagesView } from '../../messagesShared'
 
@@ -12,9 +13,10 @@ function Body() {
 }
 
 export default function StudentMessagesPage() {
+  const t = useTranslations('v2.student.messages')
   return (
     <div className="flex h-full flex-col">
-      <GaPageHdr accent title="Tin nhắn" subtitle="Trao đổi trực tiếp với giáo viên của bạn" />
+      <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
       <Suspense fallback={<div className="flex-1" />}>
         <Body />
       </Suspense>

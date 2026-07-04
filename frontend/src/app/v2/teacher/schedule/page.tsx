@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { CalendarClock, ChevronLeft, ChevronRight, Clock, Plus, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
@@ -38,6 +39,8 @@ function mondayOf(offset: number): Date {
 }
 
 export default function V2TeacherSchedulePage() {
+  const t = useTranslations('v2.teacher.schedule')
+  const tc = useTranslations('v2.common')
   const [classSessions, setClassSessions] = useState<ClassSession[]>([])
   const [classes, setClasses] = useState<TeacherClassLite[]>([])
   const [loading, setLoading] = useState(true)
@@ -96,17 +99,17 @@ export default function V2TeacherSchedulePage() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <GaPageHdr accent title="Lịch dạy" subtitle="Lịch tuần buổi lớp tại trung tâm · thêm buổi và đặt lịch cố định" />
+      <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
       <div className="flex-1 overflow-auto px-10 py-7">
         {error ? (
           <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">Không tải được lịch buổi lớp</h2>
+            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadError')}</h2>
             <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">
               {error}{' '}
               <code className="font-mono text-[12px] text-ga-accent">GET /api/v2/teacher/class-schedule/week</code>
             </p>
             <GaBtn variant="primary" onClick={() => void loadClassWeek(monday)}>
-              Thử lại
+              {tc('retry')}
             </GaBtn>
           </div>
         ) : (
@@ -114,23 +117,23 @@ export default function V2TeacherSchedulePage() {
             <div className="min-w-0">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <h2 className="font-ga-display text-[20px] font-medium text-ga-ink">
-                  Tuần {fmtDate(monday)}–{fmtDate(weekEnd)}/{weekEnd.getFullYear()}
+                  {t('week', { range: `${fmtDate(monday)}–${fmtDate(weekEnd)}/${weekEnd.getFullYear()}` })}
                 </h2>
                 <div className="flex flex-wrap items-center gap-2">
                   <GaBtn variant="ghost" size="sm" onClick={() => setShowCreate(true)}>
-                    <Plus size={14} /> Thêm buổi
+                    <Plus size={14} /> {t('addSession')}
                   </GaBtn>
                   <GaBtn variant="ghost" size="sm" onClick={() => setShowPattern(true)}>
-                    <CalendarClock size={14} /> Lịch cố định
+                    <CalendarClock size={14} /> {t('fixedSchedule')}
                   </GaBtn>
                   <span className="mx-1 h-5 w-px bg-ga-line" aria-hidden />
-                  <GaBtn variant="ghost" size="sm" aria-label="Tuần trước" onClick={() => setWeekOffset((w) => w - 1)}>
+                  <GaBtn variant="ghost" size="sm" aria-label={t('prevWeek')} onClick={() => setWeekOffset((w) => w - 1)}>
                     <ChevronLeft size={15} />
                   </GaBtn>
                   <GaBtn variant="ghost" size="sm" disabled={weekOffset === 0} onClick={() => setWeekOffset(0)}>
-                    Tuần này
+                    {t('thisWeek')}
                   </GaBtn>
-                  <GaBtn variant="ghost" size="sm" aria-label="Tuần sau" onClick={() => setWeekOffset((w) => w + 1)}>
+                  <GaBtn variant="ghost" size="sm" aria-label={t('nextWeek')} onClick={() => setWeekOffset((w) => w + 1)}>
                     <ChevronRight size={15} />
                   </GaBtn>
                 </div>
@@ -144,19 +147,19 @@ export default function V2TeacherSchedulePage() {
             </div>
 
             <aside className="min-w-0">
-              <GaCap>Buổi lớp sắp tới</GaCap>
+              <GaCap>{t('upcomingCap')}</GaCap>
               <div className="mt-3 flex flex-col gap-2.5">
                 {loading ? (
                   <div className="ga-shimmer h-[120px] border border-ga-line" aria-hidden />
                 ) : upcoming.length === 0 ? (
                   <div className="border border-dashed border-ga-line px-4 py-6 text-center text-[13px] text-ga-muted">
-                    Chưa có buổi lớp sắp tới.
+                    {t('noUpcoming')}
                   </div>
                 ) : (
                   upcoming.map((s) => {
                     const d = new Date(s.startAt)
                     const c = CLASS_STATUS[s.status]
-                    const place = s.mode === 'ONLINE' ? MODE_LABEL.ONLINE : s.room ?? 'Tại lớp'
+                    const place = s.mode === 'ONLINE' ? MODE_LABEL.ONLINE : s.room ?? t('atClass')
                     return (
                       <button
                         key={s.id}
@@ -211,6 +214,7 @@ function WeekGrid({
   monday: Date
   onSessionClick: (s: ClassSession) => void
 }) {
+  const t = useTranslations('v2.teacher.schedule')
   const end = useMemo(() => {
     const d = new Date(monday)
     d.setDate(d.getDate() + 7)
@@ -225,7 +229,7 @@ function WeekGrid({
   if (weekClass.length === 0) {
     return (
       <div className="border border-dashed border-ga-line bg-ga-card px-10 py-[52px] text-center text-[14px] text-ga-muted">
-        Tuần này chưa có buổi lớp nào. Bấm <b>Thêm buổi</b> hoặc <b>Lịch cố định</b> để thêm.
+        {t('emptyWeekPrefix')} <b>{t('addSession')}</b> {t('emptyWeekMid')} <b>{t('fixedSchedule')}</b> {t('emptyWeekSuffix')}
       </div>
     )
   }
@@ -266,13 +270,13 @@ function WeekGrid({
               .filter(({ d: dt }) => (dt.getDay() + 6) % 7 === di)
               .map(({ s, d: dt }) => {
                 const c = CLASS_STATUS[s.status]
-                const place = s.mode === 'ONLINE' ? MODE_LABEL.ONLINE : s.room ?? 'Tại lớp'
+                const place = s.mode === 'ONLINE' ? MODE_LABEL.ONLINE : s.room ?? t('atClass')
                 return (
                   <button
                     key={`c${s.id}`}
                     type="button"
                     onClick={() => onSessionClick(s)}
-                    title={`${s.className} · ${place} · ${fmtTime(dt)} · ${s.studentCount} HV`}
+                    title={t('sessionTitle', { className: s.className, place, time: fmtTime(dt), count: s.studentCount })}
                     className="absolute overflow-hidden px-1.5 py-1 text-left transition-shadow hover:shadow-ga-panel"
                     style={{
                       top: blockTop(dt),

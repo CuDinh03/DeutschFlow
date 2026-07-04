@@ -1,18 +1,20 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { xpApi, type XpSummaryDto, type LeaderboardEntry, type AchievementDto } from '@/lib/xpApi'
 import { useUserStore } from '@/stores/useUserStore'
 import { GaPageHdr, TkStatStrip, GaCap, LoadingState, ErrorBanner } from '@/components/ui-v2'
 
-const RARITY: Record<string, { label: string; color: string }> = {
-  COMMON: { label: 'Thường', color: '#76716A' },
-  RARE: { label: 'Hiếm', color: '#2F6FC9' },
-  EPIC: { label: 'Sử thi', color: '#7C56C8' },
-  LEGENDARY: { label: 'Huyền thoại', color: '#C79A00' },
+const RARITY: Record<string, { labelKey: string; color: string }> = {
+  COMMON: { labelKey: 'rarity.common', color: '#76716A' },
+  RARE: { labelKey: 'rarity.rare', color: '#2F6FC9' },
+  EPIC: { labelKey: 'rarity.epic', color: '#7C56C8' },
+  LEGENDARY: { labelKey: 'rarity.legendary', color: '#C79A00' },
 }
 
 function AchievementCard({ a }: { a: AchievementDto }) {
+  const t = useTranslations('v2.student.achievements')
   const r = RARITY[a.rarity?.toUpperCase()] ?? RARITY.COMMON
   return (
     <div
@@ -27,13 +29,14 @@ function AchievementCard({ a }: { a: AchievementDto }) {
       <p className="text-[13.5px] font-semibold leading-tight text-ga-ink">{a.nameVi}</p>
       <p className="ga-ui line-clamp-2 text-[11.5px] text-ga-muted">{a.descriptionVi}</p>
       <span className="ga-ui mt-auto text-[11px] font-semibold" style={{ color: r.color }}>
-        {r.label} · +{a.xpReward} XP
+        {t('rarityReward', { rarity: t(r.labelKey), xp: a.xpReward })}
       </span>
     </div>
   )
 }
 
 export default function V2AchievementsPage() {
+  const t = useTranslations('v2.student.achievements')
   const myId = useUserStore((s) => s.user?.id)
   const [xp, setXp] = useState<XpSummaryDto | null>(null)
   const [board, setBoard] = useState<LeaderboardEntry[]>([])
@@ -46,7 +49,7 @@ export default function V2AchievementsPage() {
     Promise.allSettled([xpApi.getMyXp(), xpApi.getLeaderboard(20)])
       .then(([x, b]) => {
         if (x.status === 'fulfilled') setXp(x.value)
-        else setError('Không thể tải thành tích.')
+        else setError(t('loadError'))
         if (b.status === 'fulfilled') setBoard(b.value)
       })
       .finally(() => setLoading(false))
@@ -63,7 +66,7 @@ export default function V2AchievementsPage() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <GaPageHdr accent title="Thành tích" subtitle="Huy hiệu, cấp độ và bảng xếp hạng XP" />
+      <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
       <div className="flex-1 px-10 py-6">
         {error && (
           <div className="mb-5">
@@ -71,21 +74,21 @@ export default function V2AchievementsPage() {
           </div>
         )}
         {loading ? (
-          <LoadingState label="Đang tải thành tích…" />
+          <LoadingState label={t('loading')} />
         ) : (
           <div className="space-y-[22px]">
             <TkStatStrip
               items={[
-                { label: 'Cấp độ', value: xp ? `Lv ${xp.level}` : '—', color: '#C79A00' },
-                { label: 'Tổng XP', value: xp ? xp.totalXp.toLocaleString('vi-VN') : '—', color: '#7C56C8' },
-                { label: 'Huy hiệu', value: `${unlocked}/${total}`, sub: 'đã mở khoá', color: '#1E9E61' },
-                { label: 'Xếp hạng', value: myRank ? `#${myRank}` : '—', sub: 'bảng XP', color: '#2F6FC9' },
+                { label: t('stats.level'), value: xp ? `Lv ${xp.level}` : '—', color: '#C79A00' },
+                { label: t('stats.totalXp'), value: xp ? xp.totalXp.toLocaleString('vi-VN') : '—', color: '#7C56C8' },
+                { label: t('stats.badges'), value: `${unlocked}/${total}`, sub: t('stats.badgesSub'), color: '#1E9E61' },
+                { label: t('stats.rank'), value: myRank ? `#${myRank}` : '—', sub: t('stats.rankSub'), color: '#2F6FC9' },
               ]}
             />
 
             <div className="grid grid-cols-1 gap-[22px] lg:grid-cols-[2fr_1fr]">
               <div>
-                <GaCap className="mb-3 block">Huy hiệu ({unlocked}/{total})</GaCap>
+                <GaCap className="mb-3 block">{t('badgesCap', { unlocked, total })}</GaCap>
                 {sorted.length > 0 ? (
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
                     {sorted.map((a) => (
@@ -93,15 +96,15 @@ export default function V2AchievementsPage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="ga-ui py-8 text-[14px] text-ga-muted">Chưa có huy hiệu nào.</p>
+                  <p className="ga-ui py-8 text-[14px] text-ga-muted">{t('noBadges')}</p>
                 )}
               </div>
 
               <div>
-                <GaCap className="mb-3 block">Bảng xếp hạng</GaCap>
+                <GaCap className="mb-3 block">{t('leaderboardCap')}</GaCap>
                 <div className="border border-ga-line bg-ga-card">
                   {board.length === 0 ? (
-                    <p className="ga-ui py-8 text-center text-[13.5px] text-ga-muted">Chưa có dữ liệu xếp hạng.</p>
+                    <p className="ga-ui py-8 text-center text-[13.5px] text-ga-muted">{t('noLeaderboard')}</p>
                   ) : (
                     board.map((e, i) => {
                       const me = String(e.userId) === String(myId)
@@ -126,9 +129,9 @@ export default function V2AchievementsPage() {
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-[13.5px] font-semibold text-ga-ink">
                               {e.displayName}
-                              {me && <span className="ml-1.5 text-[11px] text-ga-accent">(Bạn)</span>}
+                              {me && <span className="ml-1.5 text-[11px] text-ga-accent">{t('you')}</span>}
                             </p>
-                            <p className="text-[11.5px] text-ga-muted">Cấp {e.level}</p>
+                            <p className="text-[11.5px] text-ga-muted">{t('levelShort', { level: e.level })}</p>
                           </div>
                           <span className="shrink-0 font-ga-display text-[14px] font-medium text-ga-ink">
                             {e.totalXp.toLocaleString('vi-VN')}
