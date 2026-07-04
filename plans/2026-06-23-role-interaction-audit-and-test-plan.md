@@ -9,8 +9,8 @@
 
 | # | Mức | Khu vực | Tóm tắt |
 |---|-----|---------|---------|
-| G-1 | **HIGH** | Student → Teacher session | `POST /api/teacher-sessions` (bookSession) **không chặn org-teacher**. Org teacher bị loại khỏi marketplace UI nhưng API booking chỉ kiểm tra profile tồn tại → student đoán/biết `teacherProfileId` của giáo viên org có thể đặt lịch 1:1. |
-| G-2 | **MEDIUM** | Class join | `POST /api/classes/join` (legacy) **không có `@PreAuthorize`** → mọi role (kể cả ADMIN/OWNER/MANAGER) gửi được join-request. Trùng chức năng với `POST /api/v2/student/classes/join` (đã gate `hasRole('STUDENT')`). |
+| G-1 | ~~HIGH~~ ✅ **ĐÃ VÁ** (audit M-18) | Student → Teacher session | `POST /api/teacher-sessions` (bookSession) **không chặn org-teacher**. **FIX ĐÃ CÓ trong code:** `TeacherSessionService.bookSession` giờ ném Forbidden khi `profile.getUser().getOrgId() != null`. (Doc này viết trước khi fix land; test case H2 "hiện tại 200 (BUG)" giờ SAI — kỳ vọng 403.) |
+| G-2 | ~~MEDIUM~~ ✅ **ĐÃ VÁ** (audit M-18) | Class join | `POST /api/classes/join` (legacy) **không có `@PreAuthorize`**. **FIX ĐÃ CÓ trong code:** `ClassController` join giờ gắn `@PreAuthorize("hasRole('STUDENT')")` (comment "G-2:"). Test case E3 kỳ vọng 200-BUG giờ SAI — kỳ vọng 403 cho non-student. |
 | G-3 | **MEDIUM (product — ĐÃ QUYẾT ĐỊNH)** | Manager/Owner ↔ Teacher data | Toàn bộ `/api/v2/teacher/**` gate cứng `hasRole('TEACHER')` → MANAGER/OWNER không xem được roster/gradebook/lịch lớp. **Quyết định 2026-06-23: CÓ cho xem — read-only, org-scoped, cả OWNER+MANAGER, qua endpoint `/api/org/**` MỚI (KHÔNG nới `hasRole('TEACHER')`). Finance vẫn OWNER-only.** Chi tiết §4. |
 | G-4 | **LOW** | Teacher AI tool | `POST /api/v2/teacher/grading/grade-image` chỉ check quota, **không nhận classId/studentId** → không phải IDOR (không đọc/ghi dữ liệu học viên khác) nhưng là tool stateless không ràng buộc ngữ cảnh; tiêu quota org-pool tự do. |
 | G-5 | **LOW** | Middleware FE | Nếu thiếu cả `JWT_SECRET` + `JWT_RSA_PUBLIC_KEY`, gating `/v2/*` **tắt hoàn toàn** (degrade gracefully). Chấp nhận được vì backend authz là lưới an toàn, nhưng cần giám sát env lúc deploy. |

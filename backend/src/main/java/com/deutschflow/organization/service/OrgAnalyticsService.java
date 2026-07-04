@@ -79,20 +79,27 @@ public class OrgAnalyticsService {
         return orgQuotaService.orgUsageThisMonth(orgId);
     }
 
-    /** Số học viên (distinct user) có ít nhất 1 sự kiện AI trong 7 ngày qua, scope theo org. */
+    /**
+     * Số HỌC VIÊN (distinct) có ít nhất 1 sự kiện AI trong 7 ngày qua, scope theo org.
+     * Audit M-6: join {@code org_members} STUDENT/ACTIVE (không chỉ {@code users.org_id}) để staff
+     * (OWNER/MANAGER/TEACHER) dùng AI KHÔNG bị đếm là "active student" — nhất quán với {@code studentCount}.
+     */
     private long activeStudents7d(Long orgId) {
         Long count = jdbcTemplate.queryForObject("""
                 SELECT COUNT(DISTINCT e.user_id)
                 FROM ai_token_usage_events e
-                JOIN users u ON u.id = e.user_id
-                WHERE u.org_id = ?
+                JOIN org_members om ON om.user_id = e.user_id
+                WHERE om.org_id = ?
+                  AND om.role = 'STUDENT'
+                  AND om.status = 'ACTIVE'
                   AND e.created_at >= now() - INTERVAL '7 days'
                 """, Long.class, orgId);
         return count != null ? count : 0L;
     }
 
     /**
-     * Phân bố trình độ CEFR (current_level) của user trong org.
+     * Phân bố trình độ CEFR (current_level) của HỌC VIÊN trong org.
+     * Audit M-6: chỉ tính org_members STUDENT/ACTIVE (không gồm learning-profile của staff).
      * Defensive: COALESCE NULL/blank về 'A0'; org chưa có profile → danh sách rỗng.
      */
     private List<CefrBucket> cefrDistribution(Long orgId) {
@@ -100,8 +107,10 @@ public class OrgAnalyticsService {
                 SELECT COALESCE(NULLIF(p.current_level, ''), 'A0') AS level,
                        COUNT(*) AS cnt
                 FROM user_learning_profiles p
-                JOIN users u ON u.id = p.user_id
-                WHERE u.org_id = ?
+                JOIN org_members om ON om.user_id = p.user_id
+                WHERE om.org_id = ?
+                  AND om.role = 'STUDENT'
+                  AND om.status = 'ACTIVE'
                 GROUP BY COALESCE(NULLIF(p.current_level, ''), 'A0')
                 ORDER BY level
                 """,

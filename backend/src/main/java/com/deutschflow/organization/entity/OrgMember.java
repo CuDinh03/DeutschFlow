@@ -19,7 +19,7 @@ public class OrgMember {
 
     @Column(nullable = false)
     @Builder.Default
-    private String role = "TEACHER"; // OWNER | ADMIN | TEACHER | STUDENT
+    private String role = "TEACHER"; // OWNER | MANAGER | TEACHER | STUDENT (ADMIN renamed → MANAGER: V225/V229)
 
     @Column(nullable = false)
     @Builder.Default

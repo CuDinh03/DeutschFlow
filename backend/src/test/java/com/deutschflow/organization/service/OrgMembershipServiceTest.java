@@ -40,6 +40,7 @@ class OrgMembershipServiceTest {
     private static final Long ORG_ID = 10L;
     private static final Long OTHER_ORG = 20L;
     private static final Long USER_ID = 99L;
+    private static final Long NEW_OWNER_ID = 77L;
 
     @Mock private OrgMemberRepository memberRepo;
     @Mock private UserRepository userRepository;
@@ -59,6 +60,12 @@ class OrgMembershipServiceTest {
     private User teacherUser(Long orgId) {
         User u = User.builder().id(USER_ID).role(User.Role.TEACHER).build();
         u.setOrgId(orgId);
+        return u;
+    }
+
+    private User userWith(Long id, User.Role role) {
+        User u = User.builder().id(id).role(role).email("u" + id + "@trungtam.com").displayName("U" + id).build();
+        u.setOrgId(ORG_ID);
         return u;
     }
 
@@ -93,8 +100,12 @@ class OrgMembershipServiceTest {
     }
 
     private OrgMember member(String role, String status) {
+        return member(USER_ID, role, status);
+    }
+
+    private OrgMember member(Long userId, String role, String status) {
         OrgMember m = new OrgMember();
-        m.setId(new OrgMemberId(ORG_ID, USER_ID));
+        m.setId(new OrgMemberId(ORG_ID, userId));
         m.setRole(role);
         m.setStatus(status);
         return m;
@@ -176,6 +187,23 @@ class OrgMembershipServiceTest {
         assertThat(active.getLeftAt()).isNotNull();
         assertThat(user.getOrgId()).isNull();
         assertThat(user.getRole()).isEqualTo(User.Role.STUDENT);
+    }
+
+    @Test
+    @DisplayName("removeMember refuses to revoke the OWNER (a MANAGER-authorized caller cannot seize control; last-owner protected)")
+    void removeMember_ownerTarget_throwsBadRequest() {
+        // C-2/H-5: DELETE /api/org/members/{id} is gated by assertOrgAdmin = {OWNER, MANAGER}, so a
+        // MANAGER reaches removeMember. The service must still refuse when the target is the OWNER —
+        // otherwise the MANAGER revokes the OWNER and seizes the org. This also guards the last-owner
+        // invariant (ownership only moves via transferOwnership).
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID))
+                .thenReturn(Optional.of(member("OWNER", "ACTIVE")));
+
+        assertThatThrownBy(() -> service.removeMember(ORG_ID, USER_ID))
+                .isInstanceOf(BadRequestException.class);
+
+        verify(memberRepo, never()).save(any());
+        verify(userRepository, never()).save(any());
     }
 
     // ----------------------------------------------------------------- selfLeave
@@ -287,5 +315,113 @@ class OrgMembershipServiceTest {
         assertThatThrownBy(() -> service.removeMember(ORG_ID, USER_ID))
                 .isInstanceOf(NotFoundException.class);
         verify(memberRepo, never()).save(any());
+    }
+
+    // ----------------------------------------------------------------- transferOwnership (C-2 recovery path)
+
+    @Test
+    @DisplayName("transferOwnership promotes the target to OWNER and demotes the current owner to MANAGER")
+    void transferOwnership_promotesTargetDemotesOwner() {
+        OrgMember currentOwner = member(USER_ID, "OWNER", "ACTIVE");
+        OrgMember target = member(NEW_OWNER_ID, "MANAGER", "ACTIVE");
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.of(currentOwner));
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, NEW_OWNER_ID)).thenReturn(Optional.of(target));
+        User ownerUser = userWith(USER_ID, User.Role.OWNER);
+        User targetUser = userWith(NEW_OWNER_ID, User.Role.MANAGER);
+        when(userRepository.findById(NEW_OWNER_ID)).thenReturn(Optional.of(targetUser));
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(ownerUser));
+
+        OrgMemberDto dto = service.transferOwnership(ORG_ID, USER_ID, NEW_OWNER_ID);
+
+        // Ownership seat moved: exactly one OWNER (the target), old owner is now MANAGER — never zero.
+        assertThat(target.getRole()).isEqualTo("OWNER");
+        assertThat(currentOwner.getRole()).isEqualTo("MANAGER");
+        assertThat(targetUser.getRole()).isEqualTo(User.Role.OWNER);
+        assertThat(ownerUser.getRole()).isEqualTo(User.Role.MANAGER);
+        assertThat(dto.userId()).isEqualTo(NEW_OWNER_ID);
+        assertThat(dto.role()).isEqualTo("OWNER");
+    }
+
+    @Test
+    @DisplayName("transferOwnership can promote an ACTIVE TEACHER to OWNER")
+    void transferOwnership_teacherTarget_allowed() {
+        OrgMember currentOwner = member(USER_ID, "OWNER", "ACTIVE");
+        OrgMember target = member(NEW_OWNER_ID, "TEACHER", "ACTIVE");
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.of(currentOwner));
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, NEW_OWNER_ID)).thenReturn(Optional.of(target));
+        when(userRepository.findById(NEW_OWNER_ID)).thenReturn(Optional.of(userWith(NEW_OWNER_ID, User.Role.TEACHER)));
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(userWith(USER_ID, User.Role.OWNER)));
+
+        service.transferOwnership(ORG_ID, USER_ID, NEW_OWNER_ID);
+
+        assertThat(target.getRole()).isEqualTo("OWNER");
+        assertThat(currentOwner.getRole()).isEqualTo("MANAGER");
+    }
+
+    @Test
+    @DisplayName("transferOwnership rejects transferring to yourself")
+    void transferOwnership_sameUser_throwsBadRequest() {
+        assertThatThrownBy(() -> service.transferOwnership(ORG_ID, USER_ID, USER_ID))
+                .isInstanceOf(BadRequestException.class);
+
+        verify(memberRepo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("transferOwnership rejects a caller who is not the current OWNER (e.g. a MANAGER)")
+    void transferOwnership_callerNotOwner_throwsForbidden() {
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID))
+                .thenReturn(Optional.of(member(USER_ID, "MANAGER", "ACTIVE")));
+
+        assertThatThrownBy(() -> service.transferOwnership(ORG_ID, USER_ID, NEW_OWNER_ID))
+                .isInstanceOf(ForbiddenException.class);
+
+        verify(memberRepo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("transferOwnership throws Forbidden when the caller is not an ACTIVE member")
+    void transferOwnership_callerNotMember_throwsForbidden() {
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.transferOwnership(ORG_ID, USER_ID, NEW_OWNER_ID))
+                .isInstanceOf(ForbiddenException.class);
+
+        verify(memberRepo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("transferOwnership 404s when the target is not a member of the org")
+    void transferOwnership_targetMissing_throwsNotFound() {
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID))
+                .thenReturn(Optional.of(member(USER_ID, "OWNER", "ACTIVE")));
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, NEW_OWNER_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.transferOwnership(ORG_ID, USER_ID, NEW_OWNER_ID))
+                .isInstanceOf(NotFoundException.class);
+
+        verify(memberRepo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("transferOwnership rejects a non-staff (STUDENT) target")
+    void transferOwnership_studentTarget_throwsBadRequest() {
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID))
+                .thenReturn(Optional.of(member(USER_ID, "OWNER", "ACTIVE")));
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, NEW_OWNER_ID))
+                .thenReturn(Optional.of(member(NEW_OWNER_ID, "STUDENT", "ACTIVE")));
+
+        assertThatThrownBy(() -> service.transferOwnership(ORG_ID, USER_ID, NEW_OWNER_ID))
+                .isInstanceOf(BadRequestException.class);
+
+        verify(memberRepo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("countActiveOwners delegates to the ACTIVE OWNER count query")
+    void countActiveOwners_delegates() {
+        when(memberRepo.countByIdOrgIdAndRoleAndStatus(ORG_ID, "OWNER", "ACTIVE")).thenReturn(1L);
+
+        assertThat(service.countActiveOwners(ORG_ID)).isEqualTo(1L);
     }
 }

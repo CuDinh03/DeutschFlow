@@ -195,13 +195,13 @@ class StudentEvaluationServiceTest {
         StudentAssignment sa = new StudentAssignment();
         sa.setAssignmentId(1L);
         sa.setStudentId(STUDENT_ID);
-        sa.setScore(8);
+        sa.setScore(80);   // assignment scores are 0–100 (GradingService)
         when(studentAssignmentRepository.findByAssignmentIds(List.of(1L))).thenReturn(List.of(sa));
 
         SkillReportDto report = service.skillReport(TEACHER_ID, CLASS_ID);
 
         SkillReportDto.StudentSkillRow row = report.students().get(0);
-        assertThat(row.horen()).isEqualTo(8.0);
+        assertThat(row.horen()).isEqualTo(8.0);   // H-4: 80/100 normalized to the 0–10 skill scale
         assertThat(row.lesen()).isNull();
         assertThat(row.schreiben()).isNull();
         assertThat(row.sprechen()).isNull();
@@ -347,15 +347,15 @@ class StudentEvaluationServiceTest {
                 .thenReturn(List.of(buildAssignment(1L, CLASS_ID, "HOREN")));
 
         StudentAssignment mine = new StudentAssignment();
-        mine.setAssignmentId(1L); mine.setStudentId(STUDENT_ID); mine.setScore(8);
+        mine.setAssignmentId(1L); mine.setStudentId(STUDENT_ID); mine.setScore(80);   // 0–100 scale
         StudentAssignment other = new StudentAssignment();
-        other.setAssignmentId(1L); other.setStudentId(OTHER); other.setScore(2);   // must NOT count
+        other.setAssignmentId(1L); other.setStudentId(OTHER); other.setScore(20);   // must NOT count
         when(studentAssignmentRepository.findByAssignmentIds(List.of(1L)))
                 .thenReturn(List.of(mine, other));
 
         var report = service.mySkillReport(STUDENT_ID, CLASS_ID);
 
-        assertThat(report.horen()).isEqualTo(8.0);   // 8 only, not (8+2)/2
+        assertThat(report.horen()).isEqualTo(8.0);   // H-4: 80/100→8.0, mine only (not (80+20)/2)
         assertThat(report.lesen()).isNull();
         assertThat(report.total()).isEqualTo(8.0);
     }

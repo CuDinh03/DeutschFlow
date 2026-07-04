@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -35,6 +36,18 @@ public class OrgBillingService {
     private static final String STATUS_PAID = "PAID";
     private static final Set<String> VALID_STATUSES = Set.of("DRAFT", "SENT", "PAID", "VOID");
 
+    /**
+     * Forward-only invoice lifecycle (audit M-15): a status may only move to itself (idempotent)
+     * or forward. PAID and VOID are terminal — a settled or voided invoice can never be reopened
+     * (prevents un-paying a paid invoice or reviving a voided one). DRAFT→PAID stays allowed so an
+     * admin can manually reconcile an off-band transfer.
+     */
+    private static final Map<String, Set<String>> ALLOWED_TRANSITIONS = Map.of(
+            "DRAFT", Set.of("DRAFT", "SENT", "PAID", "VOID"),
+            "SENT", Set.of("SENT", "PAID", "VOID"),
+            "PAID", Set.of("PAID"),
+            "VOID", Set.of("VOID"));
+
     private static final String ROLE_STUDENT = "STUDENT";
     private static final String STATUS_ACTIVE = "ACTIVE";
 
@@ -42,6 +55,7 @@ public class OrgBillingService {
     private final OrganizationRepository organizationRepository;
     private final OrgMemberRepository memberRepo;
     private final UserNotificationService userNotificationService;
+    private final AdminOrgService adminOrgService;
 
     @Value("${app.payment.sepay.bank-account:}")
     private String bankAccount;
@@ -60,6 +74,11 @@ public class OrgBillingService {
     public OrgInvoiceDto createInvoice(Long orgId, CreateInvoiceRequest req, Long createdBy) {
         if (!organizationRepository.existsById(orgId)) {
             throw new NotFoundException("Không tìm thấy tổ chức");
+        }
+        // Audit M-14: reject non-positive amounts — a 0₫/âm invoice would auto-settle on ANY
+        // positive transfer (webhook gate is `amount < invoice.amountVnd`) and grant a free licence.
+        if (req.amountVnd() <= 0) {
+            throw new BadRequestException("Số tiền hoá đơn phải lớn hơn 0");
         }
         OrgInvoice invoice = OrgInvoice.builder()
                 .orgId(orgId)
@@ -107,10 +126,19 @@ public class OrgBillingService {
         if (status == null || !VALID_STATUSES.contains(status)) {
             throw new BadRequestException("Trạng thái hoá đơn không hợp lệ");
         }
-        boolean nowPaid = STATUS_PAID.equals(status) && !STATUS_PAID.equals(invoice.getStatus());
+        // Audit M-15: enforce the forward-only lifecycle — reject backward/terminal-reopen moves.
+        String current = invoice.getStatus();
+        if (!ALLOWED_TRANSITIONS.getOrDefault(current, Set.of()).contains(status)) {
+            throw new BadRequestException(
+                    "Không thể chuyển trạng thái hoá đơn từ " + current + " sang " + status);
+        }
+        boolean nowPaid = STATUS_PAID.equals(status) && !STATUS_PAID.equals(current);
         invoice.setStatus(status);
         OrgInvoiceDto dto = toDto(invoiceRepo.save(invoice));
         if (nowPaid) {
+            // Audit M-16: a manually-reconciled payment must provision the org identically to the
+            // SePay webhook path (org ACTIVE + validUntil + re-grant entitlements), not just notify.
+            adminOrgService.activateForPaidInvoice(invoice);
             String orgName = organizationRepository.findById(orgId)
                     .map(org -> org.getName()).orElse("");
             userNotificationService.onOrgInvoicePaid(orgId, orgName, invoice.getPaymentCode(), invoice.getAmountVnd());

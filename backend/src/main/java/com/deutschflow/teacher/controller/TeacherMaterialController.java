@@ -112,7 +112,8 @@ public class TeacherMaterialController {
 
             // Gọi phương thức Async (Spring sẽ dùng TaskExecutor và chạy ở background)
             // LƯU Ý: Phải gọi thông qua proxy (từ một bean khác) để @Async hoạt động.
-            lessonPlanService.processDocumentToPptxAsync(jobId, fileBytes, mimeType);
+            lessonPlanService.processDocumentToPptxAsync(
+                    jobId, user != null ? user.getId() : null, fileBytes, mimeType);
 
             return ResponseEntity.accepted().body(Map.of(
                     "jobId", jobId,

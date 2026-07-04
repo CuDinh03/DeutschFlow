@@ -2,6 +2,7 @@ package com.deutschflow.organization.controller;
 
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.organization.dto.OrgClassDto;
+import com.deutschflow.organization.dto.OrgMemberDto;
 import com.deutschflow.organization.service.OrgAnalyticsService;
 import com.deutschflow.organization.service.OrgBillingService;
 import com.deutschflow.organization.service.OrgEntitlementService;
@@ -23,6 +24,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -34,6 +36,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -56,7 +59,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * advice is needed (null), mirroring {@link AdminOrganizationControllerTest}.
  */
 @ExtendWith(MockitoExtension.class)
-@DisplayName("OrgController — POST /api/org/classes")
+@DisplayName("OrgController — RBAC boundaries")
 class OrgControllerTest {
 
     private MockMvc mvc;
@@ -162,5 +165,46 @@ class OrgControllerTest {
                 .andExpect(status().isBadRequest());
 
         verify(orgService, never()).createClass(anyLong(), anyString(), anyLong());
+    }
+
+    // ── DELETE /api/org/members/{userId} — RBAC boundary (C-2/H-5) ──────────────
+
+    @Test
+    @DisplayName("DELETE member: non-admin (guard ném Forbidden) → 403, KHÔNG gọi service")
+    void removeMember_nonAdmin_returns403_serviceNotCalled() throws Exception {
+        doThrow(new ForbiddenException("Chỉ quản trị viên tổ chức mới được thao tác này"))
+                .when(orgGuard).assertOrgAdmin(anyLong(), anyLong());
+
+        mvc.perform(delete("/api/org/members/77"))
+                .andExpect(status().isForbidden());
+
+        verify(orgMembershipService, never()).removeMember(anyLong(), anyLong());
+        verify(orgEntitlementService, never()).revokeStudent(anyLong());
+    }
+
+    // ── POST /api/org/members/{userId}/transfer-ownership — OWNER-only (C-2 recovery) ──
+
+    @Test
+    @DisplayName("transfer-ownership: OWNER hợp lệ → 200 + thành viên chủ sở hữu mới")
+    void transferOwnership_owner_returns200() throws Exception {
+        when(orgMembershipService.transferOwnership(eq(10L), eq(1L), eq(77L)))
+                .thenReturn(new OrgMemberDto(77L, "new@trungtam.com", "Chủ mới", "OWNER", "ACTIVE", Instant.now()));
+
+        mvc.perform(post("/api/org/members/77/transfer-ownership"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.userId").value(77))
+                .andExpect(jsonPath("$.role").value("OWNER"));
+    }
+
+    @Test
+    @DisplayName("transfer-ownership: không phải OWNER (guard ném Forbidden) → 403, KHÔNG gọi service")
+    void transferOwnership_nonOwner_returns403_serviceNotCalled() throws Exception {
+        doThrow(new ForbiddenException("Chỉ chủ sở hữu tổ chức mới được thao tác này"))
+                .when(orgGuard).assertOrgOwner(anyLong(), anyLong());
+
+        mvc.perform(post("/api/org/members/77/transfer-ownership"))
+                .andExpect(status().isForbidden());
+
+        verify(orgMembershipService, never()).transferOwnership(anyLong(), anyLong(), anyLong());
     }
 }

@@ -248,10 +248,17 @@ public class StudentEvaluationService {
                 cs.getEvaluatedAt());
     }
 
+    /**
+     * Resolves a skill score onto the 0–10 scale used by the manual {@code skill_*} columns
+     * (V232 CHECK) and {@link SkillReportDto#gradeOf}. The assignment-derived fallback is a
+     * 0–100 grade (GradingService), so it MUST be normalized to 0–10 before it is averaged with
+     * manual scores or graded — otherwise a 75/100 fallback maps to "Xuất sắc" (audit H-4).
+     */
     private Double toDouble(BigDecimal explicit, List<Integer> fallbackScores) {
         if (explicit != null) return explicit.doubleValue();
         if (fallbackScores == null || fallbackScores.isEmpty()) return null;
-        return fallbackScores.stream().mapToInt(Integer::intValue).average().orElse(0.0);
+        double avg100 = fallbackScores.stream().mapToInt(Integer::intValue).average().orElse(0.0);
+        return avg100 / 10.0;
     }
 
     private Double avgOfPresent(Double... values) {

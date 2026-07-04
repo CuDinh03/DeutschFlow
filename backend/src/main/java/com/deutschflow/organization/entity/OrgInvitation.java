@@ -25,7 +25,7 @@ public class OrgInvitation {
     private String email;
 
     @Column(nullable = false)
-    private String role; // ADMIN|TEACHER|STUDENT
+    private String role; // MANAGER|TEACHER|STUDENT (ADMIN renamed → MANAGER: V225/V229)
 
     @Column(nullable = false, unique = true)
     private String token;

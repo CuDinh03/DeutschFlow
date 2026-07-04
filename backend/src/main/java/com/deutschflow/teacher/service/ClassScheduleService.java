@@ -16,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.deutschflow.common.quota.QuotaVnCalendar;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -181,8 +182,11 @@ public class ClassScheduleService {
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy lịch cố định"));
         assertTeacherOwnsClass(teacherId, p.getClassId());
 
+        // Audit M-9: resolve "today" in VN time (UTC+7), not the container's UTC default — else
+        // between 00:00–07:00 VN the boundary day is off by one and a same-day session can be
+        // wrongly classified stale/future.
         List<ClassSession> future = sessionRepo.findByPatternIdAndStartAtGreaterThanEqual(
-                patternId, LocalDate.now().atStartOfDay());
+                patternId, LocalDate.now(QuotaVnCalendar.ZONE).atStartOfDay());
         List<ClassSession> removable = future.stream().filter(s -> !s.isOverridden()).toList();
         sessionRepo.deleteAll(removable);
         patternRepo.delete(p);   // ON DELETE SET NULL gỡ buổi override khỏi pattern
@@ -192,7 +196,7 @@ public class ClassScheduleService {
     // ── Regenerate ─────────────────────────────────────────────────────────────
 
     private Regen regenerate(ClassSchedulePattern p) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(QuotaVnCalendar.ZONE);   // audit M-9: VN time, not UTC
         List<ClassSession> future = sessionRepo.findByPatternIdAndStartAtGreaterThanEqual(
                 p.getId(), today.atStartOfDay());
 

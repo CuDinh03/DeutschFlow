@@ -37,7 +37,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
- * "Org của tôi" — quản trị tổ chức cho org-admin (OWNER/ADMIN).
+ * "Org của tôi" — quản trị tổ chức cho org-admin (OWNER/MANAGER).
  * orgId luôn lấy từ principal (user.getOrgId()), không nhận từ client để tránh giả mạo org.
  * Authz verify trong DB qua OrgGuard (mirror assertTeacherOwnsClass), JWT chỉ phục vụ frontend.
  */
@@ -157,6 +157,21 @@ public class OrgController {
         Long orgId = requireOrgId(user);
         orgGuard.assertOrgOwner(user.getId(), orgId);
         return orgMembershipService.changeRole(orgId, userId, body.role());
+    }
+
+    /**
+     * Transfers ownership of the org to another ACTIVE staff member ({@code userId}), demoting the
+     * caller (the current OWNER) to MANAGER — atomically. OWNER-only. This is the in-tenant recovery
+     * path: because the OWNER cannot be removed or self-leave, an owner must transfer ownership before
+     * leaving, and the org therefore always keeps exactly one ACTIVE OWNER. orgId comes from the
+     * principal, never the client.
+     */
+    @PostMapping("/members/{userId}/transfer-ownership")
+    public OrgMemberDto transferOwnership(@AuthenticationPrincipal User user,
+                                          @PathVariable Long userId) {
+        Long orgId = requireOrgId(user);
+        orgGuard.assertOrgOwner(user.getId(), orgId);
+        return orgMembershipService.transferOwnership(orgId, user.getId(), userId);
     }
 
     /**

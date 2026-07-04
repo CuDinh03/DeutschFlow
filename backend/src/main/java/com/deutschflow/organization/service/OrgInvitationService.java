@@ -117,34 +117,30 @@ public class OrgInvitationService {
     }
 
     /**
-     * Public token preview. Marks the invite EXPIRED (best-effort) when past its TTL
-     * so the client can render an "expired" state without leaking other details.
+     * Public token preview — READ-ONLY. Computes the {@code expired} flag on the fly so the
+     * client can render an "expired" state, but never mutates the invite (a GET must not write).
+     * Flipping the row to EXPIRED is left to {@link #accept} (a POST) or a cleanup job.
+     *
+     * <p>Deliberately discloses NOTHING about whether the invite email already has an account:
+     * to an anonymous caller that would be an account-existence oracle enabling a deterministic
+     * account takeover. Account existence is resolved only in {@link #accept} after ownership proof.
      *
      * @throws NotFoundException if no PENDING invite matches the token
      */
-    @Transactional
+    @Transactional(readOnly = true)
     public InvitationPreviewDto preview(String token) {
         OrgInvitation invitation = invitationRepository.findByTokenAndStatus(token, STATUS_PENDING)
                 .orElseThrow(() -> new NotFoundException("Lời mời không hợp lệ hoặc đã được sử dụng."));
 
-        boolean expired = isExpired(invitation);
-        if (expired) {
-            invitation.setStatus(STATUS_EXPIRED);
-            invitationRepository.save(invitation);
-        }
-
         String orgName = organizationRepository.findById(invitation.getOrgId())
                 .map(Organization::getName)
                 .orElse(null);
-        boolean requiresRegistration =
-                userRepository.findByEmailIgnoreCase(invitation.getEmail()).isEmpty();
 
         return new InvitationPreviewDto(
                 orgName,
                 invitation.getRole(),
                 invitation.getEmail(),
-                expired,
-                requiresRegistration
+                isExpired(invitation)
         );
     }
 
@@ -152,8 +148,15 @@ public class OrgInvitationService {
      * Accepts a PENDING invitation: links an existing user (or registers a new one),
      * upserts the org membership, marks the invite ACCEPTED, and issues a session.
      *
+     * <p><b>Security (C-1 account takeover):</b> the invite token can be leaked or forwarded, so it
+     * is NOT proof of identity. When the invited email already belongs to a registered account we
+     * require the account's own password before attaching membership or issuing a session — the
+     * token alone must never mint a session for an existing (possibly privileged) account.
+     * Only the new-account branch treats {@code body.password()} as a password to <i>set</i>.
+     *
      * @throws NotFoundException   if no PENDING invite matches the token
-     * @throws BadRequestException if the invite is expired, or registration fields are missing
+     * @throws BadRequestException if the invite is expired, registration fields are missing, or the
+     *                             existing-account password proof is absent/incorrect
      */
     @Transactional
     public AuthResponse accept(String token, AcceptInviteRequest body) {
@@ -168,6 +171,7 @@ public class OrgInvitationService {
 
         User.CreatedVia provenance = inviterProvenance(invitation);
         User user = userRepository.findByEmailIgnoreCase(invitation.getEmail())
+                .map(existing -> requireOwnership(existing, body))
                 .orElseGet(() -> registerInvitedUser(invitation.getEmail(), body, provenance));
 
         // Insert/reactivate membership + sync users.org_id + promote STUDENT→TEACHER when applicable.
@@ -218,6 +222,25 @@ public class OrgInvitationService {
                 teacher.getId(), normEmail, orgId, createdVia);
         return new OrgMemberDto(teacher.getId(), teacher.getEmail(), teacher.getDisplayName(),
                 "TEACHER", "ACTIVE", Instant.now());
+    }
+
+    /**
+     * Existing-account branch of {@link #accept}: verify the caller actually owns the account
+     * whose email matches the invite before we link membership + mint a session. Proof = the
+     * account's current password (bcrypt-checked). Without this, holding the invite token was
+     * enough to take over any registered account — including OWNER/MANAGER/ADMIN, since
+     * membership upsert never downgrades platform role (C-1).
+     *
+     * @throws BadRequestException if the password is missing or does not match
+     */
+    private User requireOwnership(User existing, AcceptInviteRequest body) {
+        String password = body == null ? null : body.password();
+        if (password == null || password.isBlank()
+                || !passwordEncoder.matches(password, existing.getPasswordHash())) {
+            throw new BadRequestException(
+                    "Email này đã có tài khoản. Vui lòng nhập đúng mật khẩu tài khoản để tham gia tổ chức.");
+        }
+        return existing;
     }
 
     /** Creates a new TEACHER user for an invite to an email with no existing account. */

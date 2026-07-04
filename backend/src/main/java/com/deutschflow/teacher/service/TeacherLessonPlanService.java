@@ -2,6 +2,7 @@ package com.deutschflow.teacher.service;
 
 import com.deutschflow.common.async.AsyncJob;
 import com.deutschflow.common.async.AsyncJobService;
+import com.deutschflow.common.quota.AiUsageLedgerService;
 import com.deutschflow.speaking.ai.GeminiApiClient;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -30,6 +31,14 @@ public class TeacherLessonPlanService {
     private final ObjectMapper objectMapper;
     private final PptxStore pptxStore;
     private final GoogleSlidesService googleSlidesService;
+    private final AiUsageLedgerService aiUsageLedgerService;
+
+    /**
+     * Token-tương-đương cho 1 lần tạo PPTX (Gemini đọc tài liệu + sinh slide) — khớp với
+     * {@code PPTX_ESTIMATED_TOKENS} mà TeacherMaterialController dùng ở bước gate. Trừ vào org
+     * pool + ví sau khi tạo thành công (audit H-2: trước đây gate nhưng KHÔNG trừ gì).
+     */
+    private static final long PPTX_CHARGED_TOKENS = 40_000L;
 
     // ── Slide dimensions: 16:9 widescreen (720 × 405 pt = 10in × 5.625in) ──
     private static final int SLIDE_W = 720;
@@ -140,7 +149,7 @@ public class TeacherLessonPlanService {
 
     // ── Async entry point ─────────────────────────────────────────────────────
     @Async("taskExecutor")
-    public void processDocumentToPptxAsync(UUID jobId, byte[] fileBytes, String mimeType) {
+    public void processDocumentToPptxAsync(UUID jobId, Long userId, byte[] fileBytes, String mimeType) {
         log.info("[LessonPlan] Starting PPTX generation for Job {}", jobId);
         asyncJobService.updateStatus(jobId, AsyncJob.Status.PROCESSING);
 
@@ -204,6 +213,19 @@ public class TeacherLessonPlanService {
             log.info("[LessonPlan] Completed PPTX ({} slides, {} KB) via {} for Job {}",
                     slideCount, pptxBytes.length / 1024,
                     googleSlidesService.isAvailable() ? "GoogleSlides" : "POI", jobId);
+
+            // B2B-COGS (audit H-2): trừ token-tương-đương PPTX vào org pool + ví CHỈ khi tạo
+            // thành công (best-effort). No-op cho GV B2C không thuộc org / plan không có ví.
+            if (userId != null) {
+                try {
+                    aiUsageLedgerService.record(
+                            userId, "GOOGLE", "gemini-1.5-flash",
+                            0, (int) PPTX_CHARGED_TOKENS, (int) PPTX_CHARGED_TOKENS,
+                            "TEACHER_PPTX_GEN", null, null);
+                } catch (Exception e) {
+                    log.warn("[LessonPlan] Could not record AI usage for PPTX (non-fatal): {}", e.toString());
+                }
+            }
 
         } catch (JsonProcessingException e) {
             log.error("[LessonPlan] JSON parse error for Job {}: {}", jobId, e.getMessage());

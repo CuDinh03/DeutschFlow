@@ -92,12 +92,17 @@ public class OrgRosterService {
 
         boolean first = true;
         for (String rawLine : rows) {
+            // Audit L-3: strip a leading UTF-8 BOM (U+FEFF). Excel/Google-Sheets exports prepend it
+            // to the first line, which otherwise makes the header cell read "﻿email" — the
+            // header check fails, the header is parsed as a data row, and (with no header) the first
+            // real email is corrupted. NOTE: fields quoted to contain commas are still not handled.
+            String line = rawLine.startsWith("\uFEFF") ? rawLine.substring(1) : rawLine;
             // Skip a header line: only the first non-empty line, and only when its FIRST column is
             // literally "email". Checking the whole line for "email" would wrongly drop a data row
             // whose address (e.g. "emailguy@x.com") or name contains the substring.
             if (first) {
                 first = false;
-                if (col(rawLine.split(",", -1), 0).trim().equalsIgnoreCase("email")) {
+                if (col(line.split(",", -1), 0).trim().equalsIgnoreCase("email")) {
                     continue;
                 }
             }
@@ -105,7 +110,7 @@ public class OrgRosterService {
             total++;
             int rowNum = total;
             try {
-                String[] cols = rawLine.split(",", -1);
+                String[] cols = line.split(",", -1);
                 String email = normalizeEmail(col(cols, 0));
                 if (email.isBlank() || !EMAIL_PATTERN.matcher(email).matches()) {
                     failed++;

@@ -35,6 +35,7 @@ class OrgBillingServiceTest {
     @Mock private OrganizationRepository organizationRepository;
     @Mock private OrgMemberRepository memberRepo;
     @Mock private UserNotificationService userNotificationService;
+    @Mock private AdminOrgService adminOrgService;
 
     private OrgBillingService service;
 
@@ -45,7 +46,8 @@ class OrgBillingServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new OrgBillingService(invoiceRepo, organizationRepository, memberRepo, userNotificationService);
+        service = new OrgBillingService(invoiceRepo, organizationRepository, memberRepo,
+                userNotificationService, adminOrgService);
     }
 
     // ------------------------------------------------------------------ helpers
@@ -216,7 +218,7 @@ class OrgBillingServiceTest {
     }
 
     @Test
-    @DisplayName("updateStatus: all valid statuses are accepted (DRAFT, SENT, PAID, VOID)")
+    @DisplayName("updateStatus: all valid statuses are accepted from DRAFT (DRAFT, SENT, PAID, VOID)")
     void updateStatus_allValidStatuses_accepted() {
         for (String status : List.of("DRAFT", "SENT", "PAID", "VOID")) {
             OrgInvoice inv = savedInvoice(INVOICE_ID, ORG_ID, "DRAFT");
@@ -226,5 +228,69 @@ class OrgBillingServiceTest {
             OrgInvoiceDto dto = service.updateStatus(ORG_ID, INVOICE_ID, status);
             assertThat(dto.status()).isEqualTo(status);
         }
+    }
+
+    // ------------------------------------------------------------------ M-14: amount validation
+
+    @Test
+    @DisplayName("createInvoice: rejects a non-positive amount (audit M-14)")
+    void createInvoice_nonPositiveAmount_throwsBadRequest() {
+        when(organizationRepository.existsById(ORG_ID)).thenReturn(true);
+        CreateInvoiceRequest zero = new CreateInvoiceRequest(
+                LocalDate.of(2026, 1, 1), LocalDate.of(2026, 3, 31), 10, 0L, "free?");
+
+        assertThatThrownBy(() -> service.createInvoice(ORG_ID, zero, CREATED_BY))
+                .isInstanceOf(BadRequestException.class);
+        verify(invoiceRepo, org.mockito.Mockito.never()).save(any());
+    }
+
+    // ------------------------------------------------------------------ M-15: forward-only state machine
+
+    @Test
+    @DisplayName("updateStatus: PAID→DRAFT is rejected (terminal, audit M-15)")
+    void updateStatus_paidToDraft_rejected() {
+        when(invoiceRepo.findById(INVOICE_ID)).thenReturn(Optional.of(savedInvoice(INVOICE_ID, ORG_ID, "PAID")));
+
+        assertThatThrownBy(() -> service.updateStatus(ORG_ID, INVOICE_ID, "DRAFT"))
+                .isInstanceOf(BadRequestException.class);
+        verify(invoiceRepo, org.mockito.Mockito.never()).save(any());
+    }
+
+    @Test
+    @DisplayName("updateStatus: VOID→PAID is rejected (terminal, audit M-15)")
+    void updateStatus_voidToPaid_rejected() {
+        when(invoiceRepo.findById(INVOICE_ID)).thenReturn(Optional.of(savedInvoice(INVOICE_ID, ORG_ID, "VOID")));
+
+        assertThatThrownBy(() -> service.updateStatus(ORG_ID, INVOICE_ID, "PAID"))
+                .isInstanceOf(BadRequestException.class);
+        verify(adminOrgService, org.mockito.Mockito.never()).activateForPaidInvoice(any());
+    }
+
+    // ------------------------------------------------------------------ M-16: manual PAID activates the org
+
+    @Test
+    @DisplayName("updateStatus: DRAFT→PAID activates the org licence, not just a notification (audit M-16)")
+    void updateStatus_draftToPaid_activatesOrg() {
+        OrgInvoice inv = savedInvoice(INVOICE_ID, ORG_ID, "DRAFT");
+        when(invoiceRepo.findById(INVOICE_ID)).thenReturn(Optional.of(inv));
+        when(invoiceRepo.save(any(OrgInvoice.class))).thenAnswer(i -> i.getArgument(0));
+
+        service.updateStatus(ORG_ID, INVOICE_ID, "PAID");
+
+        verify(adminOrgService).activateForPaidInvoice(inv);
+        verify(userNotificationService).onOrgInvoicePaid(org.mockito.ArgumentMatchers.eq(ORG_ID),
+                any(), any(), org.mockito.ArgumentMatchers.anyLong());
+    }
+
+    @Test
+    @DisplayName("updateStatus: PAID→PAID is idempotent and does NOT re-activate (audit M-16)")
+    void updateStatus_paidToPaid_noReactivation() {
+        OrgInvoice inv = savedInvoice(INVOICE_ID, ORG_ID, "PAID");
+        when(invoiceRepo.findById(INVOICE_ID)).thenReturn(Optional.of(inv));
+        when(invoiceRepo.save(any(OrgInvoice.class))).thenAnswer(i -> i.getArgument(0));
+
+        service.updateStatus(ORG_ID, INVOICE_ID, "PAID");
+
+        verify(adminOrgService, org.mockito.Mockito.never()).activateForPaidInvoice(any());
     }
 }

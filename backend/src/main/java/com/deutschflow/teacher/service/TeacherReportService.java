@@ -51,11 +51,12 @@ public class TeacherReportService {
         List<TeacherClass> classes = classRepository.findByTeacherId(teacherId);
         List<Long> classIds = classes.stream().map(TeacherClass::getId).toList();
 
-        Set<Long> studentIds = new HashSet<>();
-        for (TeacherClass c : classes) {
-            classStudentRepository.findByIdClassId(c.getId())
-                    .forEach(cs -> studentIds.add(cs.getId().getStudentId()));
-        }
+        // Audit L-4: one IN-list query instead of one query per class (N+1).
+        Set<Long> studentIds = classIds.isEmpty()
+                ? new HashSet<>()
+                : classStudentRepository.findByIdClassIdIn(classIds).stream()
+                        .map(cs -> cs.getId().getStudentId())
+                        .collect(Collectors.toCollection(HashSet::new));
 
         List<ClassAssignment> assignments = classIds.isEmpty()
                 ? List.of()

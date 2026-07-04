@@ -46,10 +46,19 @@ class OrgCertificateServiceTest {
     @Mock OrgCertificateRepository certificateRepository;
     @Mock TeacherService teacherService;
     @Mock ClassStudentRepository classStudentRepository;
+    @Mock com.deutschflow.teacher.repository.TeacherClassRepository classRepository;
     @Mock UserRepository userRepository;
     @Mock OrganizationRepository organizationRepository;
 
     @InjectMocks OrgCertificateService service;
+
+    /** A class stamped with the given org (audit M-7 co-brand source). */
+    private void stubClassOrg(Long orgId) {
+        com.deutschflow.teacher.entity.TeacherClass cls =
+                org.mockito.Mockito.mock(com.deutschflow.teacher.entity.TeacherClass.class);
+        when(cls.getOrgId()).thenReturn(orgId);
+        when(classRepository.findById(CLASS_ID)).thenReturn(Optional.of(cls));
+    }
 
     private IssueCertificateRequest req(String level, Integer score, String note) {
         return new IssueCertificateRequest(CLASS_ID, STUDENT_ID, level, score, note);
@@ -68,7 +77,7 @@ class OrgCertificateServiceTest {
         User student = userMock("Nguyễn Văn A");
         when(student.getId()).thenReturn(STUDENT_ID);
         User issuer = userMock("Cô Lan");
-        when(issuer.getOrgId()).thenReturn(ORG_ID);
+        stubClassOrg(ORG_ID);   // M-7: co-brand comes from the class's org, not the issuer's
         when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student));
         when(userRepository.findById(ISSUER_ID)).thenReturn(Optional.of(issuer));
         when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(
@@ -142,7 +151,7 @@ class OrgCertificateServiceTest {
         User student = userMock("Trần Thị B");
         when(student.getId()).thenReturn(STUDENT_ID);
         User issuer = userMock("Thầy Nam");
-        when(issuer.getOrgId()).thenReturn(null); // no org → no co-brand, no lookup
+        stubClassOrg(null); // class has no org → no co-brand, no org lookup (M-7)
         when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student));
         when(userRepository.findById(ISSUER_ID)).thenReturn(Optional.of(issuer));
         when(certificateRepository.save(any(OrgCertificate.class))).thenAnswer(inv -> inv.getArgument(0));

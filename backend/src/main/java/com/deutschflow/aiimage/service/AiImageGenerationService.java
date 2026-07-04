@@ -5,10 +5,12 @@ import com.deutschflow.aiimage.dto.AiImageGenerateResponse;
 import com.deutschflow.config.S3BucketContext;
 import com.deutschflow.media.dto.MediaAssetDto;
 import com.deutschflow.media.entity.MediaAsset;
+import com.deutschflow.common.quota.AiUsageLedgerService;
 import com.deutschflow.media.service.MediaAssetService;
 import com.deutschflow.organization.service.OrgPoolGuard;
 import com.deutschflow.user.entity.User;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
@@ -18,6 +20,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AiImageGenerationService {
 
     /** Trần số ảnh / request — Bedrock Stable Image đắt; DTO đã @Max nhưng clamp phòng thủ thêm. */
@@ -30,6 +33,7 @@ public class AiImageGenerationService {
     private final S3BucketContext bucketContext;
     private final MediaAssetService mediaAssetService;
     private final OrgPoolGuard orgPoolGuard;
+    private final AiUsageLedgerService aiUsageLedgerService;
 
     /**
      * KHÔNG mở @Transactional quanh vòng lặp (audit S-8/P-16): mỗi {@code provider.generate()} là
@@ -72,7 +76,30 @@ public class AiImageGenerationService {
             assets.add(MediaAssetDto.fromEntity(asset));
         }
 
+        // B2B-COGS (audit H-1): tính năng gate pool TRƯỚC nhưng trước đây KHÔNG trừ pool → org
+        // metered sinh ảnh Bedrock "miễn phí". Trừ token-tương-đương theo số ảnh thực sinh (best-effort).
+        recordImageGenUsage(user, provider, assets.size());
+
         return new AiImageGenerateResponse(provider.getClass().getSimpleName(), finalPrompt, assets);
+    }
+
+    /** Ghi token-tương-đương sinh ảnh vào ledger (trừ org pool + ví). Best-effort — không ném vào luồng sinh ảnh. */
+    private void recordImageGenUsage(User user, ImageGenerationProvider provider, int imageCount) {
+        if (user == null || user.getId() == null || imageCount <= 0) {
+            return;
+        }
+        int tokens = (int) (IMAGE_GEN_ESTIMATED_TOKENS_PER_IMAGE * imageCount);
+        try {
+            aiUsageLedgerService.record(
+                    user.getId(),
+                    "BEDROCK",
+                    provider.getClass().getSimpleName(),
+                    0, tokens, tokens,
+                    "AI_IMAGE_GEN",
+                    null, null);
+        } catch (Exception e) {
+            log.warn("[AI-Image] Could not record AI usage for image gen (non-fatal): {}", e.toString());
+        }
     }
 
     private String buildKey(String preset, String style) {

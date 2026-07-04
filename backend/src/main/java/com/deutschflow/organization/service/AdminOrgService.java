@@ -9,6 +9,7 @@ import com.deutschflow.organization.dto.OrgDetailDto;
 import com.deutschflow.organization.dto.OrgDto;
 import com.deutschflow.organization.dto.OrgMemberDto;
 import com.deutschflow.organization.dto.UpdateOrgRequest;
+import com.deutschflow.organization.entity.OrgInvoice;
 import com.deutschflow.organization.entity.OrgMember;
 import com.deutschflow.organization.entity.Organization;
 import com.deutschflow.organization.repository.OrgMemberRepository;
@@ -190,7 +191,7 @@ public class AdminOrgService {
         }
     }
 
-    /** Active members of the org (OWNER/ADMIN/TEACHER/STUDENT), with user email + display name. */
+    /** Active members of the org (OWNER/MANAGER/TEACHER/STUDENT), with user email + display name. */
     @Transactional(readOnly = true)
     public List<OrgMemberDto> listMembers(Long orgId) {
         if (!organizationRepository.existsById(orgId)) {
@@ -267,6 +268,31 @@ public class AdminOrgService {
         }
         log.info("[ORG-ADMIN] Re-activated entitlements for {} student(s) in org {}", granted, orgId);
         return granted;
+    }
+
+    /**
+     * Activates an org's licence after an invoice is settled through the MANUAL admin path
+     * (audit M-16) — mirrors {@code SepayWebhookService.activateOrg} for the auto path so a
+     * manually-reconciled payment provisions students identically: org → ACTIVE, extend
+     * {@code validUntil} to the paid period end (never shorten), and re-grant member entitlements.
+     */
+    @Transactional
+    public void activateForPaidInvoice(OrgInvoice invoice) {
+        Organization org = organizationRepository.findById(invoice.getOrgId()).orElse(null);
+        if (org == null) {
+            log.warn("[ORG-ADMIN] paid invoice {} references missing org {}", invoice.getId(), invoice.getOrgId());
+            return;
+        }
+        org.setStatus(STATUS_ACTIVE);
+        if (invoice.getPeriodEnd() != null) {
+            java.time.Instant newEnd = invoice.getPeriodEnd()
+                    .plusDays(1).atStartOfDay(java.time.ZoneOffset.UTC).toInstant();
+            if (org.getValidUntil() == null || newEnd.isAfter(org.getValidUntil())) {
+                org.setValidUntil(newEnd);
+            }
+        }
+        organizationRepository.save(org);
+        activateEntitlements(org.getId());
     }
 
     /**
