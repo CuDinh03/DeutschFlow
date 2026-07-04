@@ -1,0 +1,50 @@
+{
+  "student": {
+    "dashboard": {
+      "greeting": "Hallo, {name}",
+      "titleFallback": "Dashboard",
+      "subtitle": "Setze heute deine Deutsch-Reise fort",
+      "streakBadge": "{days} Tage Streak",
+      "loadError": "Dashboard konnte nicht geladen werden.",
+      "loading": "Dashboard wird geladen…",
+      "stats": {
+        "streak": "Streak",
+        "streakSub": "Tage in Folge",
+        "accuracy": "Genauigkeit",
+        "accuracySub": "kürzlich",
+        "level": "Level",
+        "mastered": "Gelernte Wörter",
+        "masteredSub": "Wörter"
+      },
+      "todayCap": "Was heute lernen",
+      "actions": {
+        "speakingTitle": "KI-Sprechen",
+        "speakingDesc": "Deutsches Gespräch mit KI",
+        "vocabTitle": "Wortschatz lernen",
+        "vocabDesc": "Wörter nach ähnlicher Farbe wiederholen",
+        "srsTitle": "SRS-Wiederholung",
+        "srsQueue": "Wiederholungswarteschlange",
+        "srsDue": "{count} Einträge heute fällig"
+      },
+      "phaseCap": "Lernphase",
+      "phase": {
+        "FOUNDATION": "Grundlagen",
+        "PRODUCTION": "Produktion",
+        "FLUENCY": "Flüssigkeit",
+        "GRADUATED": "Abgeschlossen"
+      },
+      "phaseMetrics": {
+        "vocabMastered": "Gelernte Wörter",
+        "speakingMinutes": "Sprechminuten",
+        "grammarAccuracy": "Grammatik-Genauigkeit",
+        "sessionsCompleted": "Abgeschlossene Sitzungen"
+      },
+      "readyToAdvance": "🎉 Du bist bereit für die nächste Phase!",
+      "levelCap": "Level-Fortschritt",
+      "levelValue": "Level {level}",
+      "xpToNext": "Noch {xp} XP bis zum nächsten Level",
+      "recentAch": "Aktuelle Erfolge",
+      "viewAllAch": "Alle Erfolge anzeigen"
+    }
+  }
+}

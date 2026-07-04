@@ -1,0 +1,50 @@
+{
+  "student": {
+    "dashboard": {
+      "greeting": "Xin chào, {name}",
+      "titleFallback": "Bảng điều khiển",
+      "subtitle": "Tiếp tục hành trình tiếng Đức của bạn hôm nay",
+      "streakBadge": "{days} ngày streak",
+      "loadError": "Không thể tải bảng điều khiển.",
+      "loading": "Đang tải bảng điều khiển…",
+      "stats": {
+        "streak": "Streak",
+        "streakSub": "ngày liên tiếp",
+        "accuracy": "Độ chính xác",
+        "accuracySub": "gần đây",
+        "level": "Cấp độ",
+        "mastered": "Từ đã thuộc",
+        "masteredSub": "từ vựng"
+      },
+      "todayCap": "Hôm nay học gì",
+      "actions": {
+        "speakingTitle": "Luyện nói AI",
+        "speakingDesc": "Hội thoại tiếng Đức với AI",
+        "vocabTitle": "Học từ vựng",
+        "vocabDesc": "Ôn từ theo màu giống",
+        "srsTitle": "Ôn tập SRS",
+        "srsQueue": "Hàng đợi ôn tập",
+        "srsDue": "{count} mục cần ôn hôm nay"
+      },
+      "phaseCap": "Giai đoạn học",
+      "phase": {
+        "FOUNDATION": "Nền tảng",
+        "PRODUCTION": "Sản sinh",
+        "FLUENCY": "Lưu loát",
+        "GRADUATED": "Tốt nghiệp"
+      },
+      "phaseMetrics": {
+        "vocabMastered": "Từ vựng đã thuộc",
+        "speakingMinutes": "Phút luyện nói",
+        "grammarAccuracy": "Độ chính xác ngữ pháp",
+        "sessionsCompleted": "Phiên đã hoàn thành"
+      },
+      "readyToAdvance": "🎉 Bạn đã sẵn sàng lên giai đoạn tiếp theo!",
+      "levelCap": "Tiến độ cấp độ",
+      "levelValue": "Cấp {level}",
+      "xpToNext": "Còn {xp} XP để lên cấp tiếp theo",
+      "recentAch": "Thành tích gần đây",
+      "viewAllAch": "Xem tất cả thành tích"
+    }
+  }
+}

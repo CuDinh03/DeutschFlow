@@ -1,0 +1,50 @@
+{
+  "student": {
+    "dashboard": {
+      "greeting": "Hi, {name}",
+      "titleFallback": "Dashboard",
+      "subtitle": "Continue your German journey today",
+      "streakBadge": "{days}-day streak",
+      "loadError": "Couldn't load the dashboard.",
+      "loading": "Loading dashboard…",
+      "stats": {
+        "streak": "Streak",
+        "streakSub": "days in a row",
+        "accuracy": "Accuracy",
+        "accuracySub": "recent",
+        "level": "Level",
+        "mastered": "Words learned",
+        "masteredSub": "words"
+      },
+      "todayCap": "What to study today",
+      "actions": {
+        "speakingTitle": "AI Speaking",
+        "speakingDesc": "German conversation with AI",
+        "vocabTitle": "Learn vocabulary",
+        "vocabDesc": "Review words by similar color",
+        "srsTitle": "SRS Review",
+        "srsQueue": "Review queue",
+        "srsDue": "{count} items due today"
+      },
+      "phaseCap": "Learning phase",
+      "phase": {
+        "FOUNDATION": "Foundation",
+        "PRODUCTION": "Production",
+        "FLUENCY": "Fluency",
+        "GRADUATED": "Graduated"
+      },
+      "phaseMetrics": {
+        "vocabMastered": "Words learned",
+        "speakingMinutes": "Speaking minutes",
+        "grammarAccuracy": "Grammar accuracy",
+        "sessionsCompleted": "Sessions completed"
+      },
+      "readyToAdvance": "🎉 You're ready for the next phase!",
+      "levelCap": "Level progress",
+      "levelValue": "Level {level}",
+      "xpToNext": "{xp} XP to the next level",
+      "recentAch": "Recent achievements",
+      "viewAllAch": "View all achievements"
+    }
+  }
+}
