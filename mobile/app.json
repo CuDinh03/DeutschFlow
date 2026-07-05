@@ -127,7 +127,8 @@
         }
       ],
       "expo-asset",
-      "expo-iap"
+      "expo-iap",
+      "@sentry/react-native"
     ],
     "extra": {
       "sentryDsn": "",
