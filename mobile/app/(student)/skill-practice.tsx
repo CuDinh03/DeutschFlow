@@ -1,0 +1,613 @@
+import { useMemo, useState } from 'react'
+import { View, Pressable, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { router, useLocalSearchParams } from 'expo-router'
+import * as Haptics from 'expo-haptics'
+import { Check, X, Trophy, Volume2, Mic } from 'lucide-react-native'
+import { apiMessage } from '@/lib/api'
+import { trackFeatureAction } from '@/lib/analytics'
+import { fonts, radius, space, useTheme } from '@/lib/theme'
+import {
+  Screen,
+  Card,
+  ThemedText,
+  Icon,
+  Pill,
+  Button,
+  AppHeader,
+  EmptyState,
+  ErrorState,
+  Skeleton,
+  Caption,
+  SelectableRow,
+} from '@/components/ui'
+import { skillTreeApi, type SkillExerciseItem } from '@/lib/skillTreeApi'
+import {
+  activeSkills,
+  itemsOf,
+  passageOf,
+  buildSkillAnswers,
+  localIsCorrect,
+  answerKey,
+  isChoiceType,
+  isTrueFalse,
+  isReorder,
+  isSpeaking,
+  SKILL_LABEL,
+  SKILL_EMOJI,
+  type SkillKey,
+  type SkillAnswer,
+} from '@/lib/skillExercises'
+
+// Speak German aloud via on-device TTS (expo-speech). Lazy-required so a build without the
+// native module degrades gracefully (mirrors app/(student)/speaking.tsx).
+function speakDe(text?: string) {
+  if (!text) return
+  try {
+    const Speech = require('expo-speech') as typeof import('expo-speech')
+    Speech.stop()
+    Speech.speak(text, { language: 'de-DE', rate: 0.96 })
+  } catch {
+    // expo-speech not linked in this build — silently skip audio.
+  }
+}
+
+type Result = { scorePercent: number; completed: boolean; xp: number } | null
+
+export default function SkillPracticeScreen() {
+  const c = useTheme().colors
+  const qc = useQueryClient()
+  const params = useLocalSearchParams<{ nodeId: string; title?: string }>()
+  const nodeId = Number(params.nodeId)
+
+  const [answers, setAnswers] = useState<Record<string, SkillAnswer>>({})
+  const [submitted, setSubmitted] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [result, setResult] = useState<Result>(null)
+
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['node-session', nodeId],
+    queryFn: () => skillTreeApi.getNodeSession(nodeId),
+    enabled: Number.isFinite(nodeId),
+  })
+
+  const se = data?.content?.skill_exercises
+  const skills = useMemo(() => activeSkills(se), [se])
+
+  function setAnswer(key: string, value: SkillAnswer) {
+    if (submitted) return
+    setAnswers((p) => ({ ...p, [key]: value }))
+  }
+
+  async function submit() {
+    if (busy) return
+    setBusy(true)
+    try {
+      const payload = buildSkillAnswers(se, answers)
+      const res = await skillTreeApi.submitSkillExercises(nodeId, payload)
+      const completed = res.completed ?? (res.scorePercent ?? 0) >= 70
+      setSubmitted(true)
+      setResult({ scorePercent: res.scorePercent ?? 0, completed, xp: res.xpEarned ?? 0 })
+      trackFeatureAction('lesson', 'completed', { node_id: nodeId, completed, percent: res.scorePercent ?? 0 })
+      qc.invalidateQueries({ queryKey: ['skill-tree'] })
+      qc.invalidateQueries({ queryKey: ['node-session', nodeId] })
+      await Haptics.notificationAsync(
+        completed ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning,
+      )
+    } catch (e) {
+      Alert.alert('Lỗi', apiMessage(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function retry() {
+    setSubmitted(false)
+    setResult(null)
+    setAnswers({})
+  }
+
+  return (
+    <Screen edges={['top']}>
+      <AppHeader
+        title={params.title ?? data?.titleVi ?? 'Luyện 4 kỹ năng'}
+        subtitle="Nghe · Nói · Đọc · Viết"
+        onBack={() => router.back()}
+      />
+
+      {isLoading ? (
+        <View style={{ paddingHorizontal: space[5], gap: space[3], paddingTop: space[2] }}>
+          <Skeleton height={110} radius="md" />
+          <Skeleton height={110} radius="md" />
+        </View>
+      ) : isError ? (
+        <ErrorState onRetry={() => void refetch()} />
+      ) : skills.length === 0 ? (
+        <View style={{ flex: 1, justifyContent: 'center' }}>
+          <EmptyState icon={Trophy} title="Chưa có bài tập" message="Bài học này chưa có bài luyện 4 kỹ năng." />
+        </View>
+      ) : (
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <Screen
+            scroll
+            edges={[]}
+            contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[3], paddingTop: space[2] }}
+          >
+            {result ? <ResultHero result={result} /> : null}
+
+            {skills.map((skill) => (
+              <SkillSection
+                key={skill}
+                skill={skill}
+                items={itemsOf(se, skill)}
+                passage={skill === 'LESEN' ? passageOf(se) : undefined}
+                answers={answers}
+                submitted={submitted}
+                onAnswer={setAnswer}
+              />
+            ))}
+
+            {!submitted ? (
+              <Button label={busy ? 'Đang chấm…' : 'Nộp bài'} onPress={submit} loading={busy} />
+            ) : result && !result.completed ? (
+              <Button label="Làm lại" variant="secondary" onPress={retry} />
+            ) : (
+              <Button label="Xong" variant="secondary" onPress={() => router.back()} />
+            )}
+          </Screen>
+        </KeyboardAvoidingView>
+      )}
+    </Screen>
+  )
+}
+
+function ResultHero({ result }: { result: NonNullable<Result> }) {
+  const c = useTheme().colors
+  if (result.completed) {
+    return (
+      <Card style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface, gap: space[3] }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Caption color={c.accent}>Hoàn thành chặng</Caption>
+          <ThemedText variant="monoLg" style={{ color: c.onInk }}>
+            {result.scorePercent}%
+          </ThemedText>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+          <View
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: radius.md,
+              backgroundColor: c.accentSoft,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Icon icon={Trophy} size={18} color="accent" fill />
+          </View>
+          <ThemedText variant="title" style={{ flex: 1, color: c.onInk }}>
+            {`Tuyệt vời! +${result.xp} XP`}
+          </ThemedText>
+        </View>
+        <ThemedText variant="caption" style={{ color: c.onInkMuted }}>
+          Bài học đã mở khoá bài tiếp theo trên lộ trình.
+        </ThemedText>
+      </Card>
+    )
+  }
+  return (
+    <Card style={{ gap: space[2], borderColor: c.borderStrong }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Caption>Kết quả</Caption>
+        <ThemedText variant="monoLg" color="accent">
+          {result.scorePercent}%
+        </ThemedText>
+      </View>
+      <ThemedText variant="caption" color="muted">
+        Chưa đạt yêu cầu để hoàn thành. Xem đáp án bên dưới rồi thử lại.
+      </ThemedText>
+    </Card>
+  )
+}
+
+function SkillSection({
+  skill,
+  items,
+  passage,
+  answers,
+  submitted,
+  onAnswer,
+}: {
+  skill: SkillKey
+  items: SkillExerciseItem[]
+  passage?: { text_de?: string; text_type?: string; text_vi_hint?: string }
+  answers: Record<string, SkillAnswer>
+  submitted: boolean
+  onAnswer: (key: string, v: SkillAnswer) => void
+}) {
+  const c = useTheme().colors
+  return (
+    <View style={{ gap: space[3], marginTop: space[2] }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+        <ThemedText variant="title">{SKILL_EMOJI[skill]}</ThemedText>
+        <ThemedText variant="title" style={{ flex: 1 }}>
+          {SKILL_LABEL[skill]}
+        </ThemedText>
+        <Pill label={`${items.length} câu`} tone="neutral" />
+      </View>
+
+      {passage?.text_de ? (
+        <Card style={{ gap: space[2], backgroundColor: c.surfaceSunken }}>
+          {passage.text_type ? <Caption color={c.textFaint}>{passage.text_type}</Caption> : null}
+          <ThemedText variant="body">{passage.text_de}</ThemedText>
+          {submitted && passage.text_vi_hint ? (
+            <ThemedText variant="caption" color="muted">
+              {passage.text_vi_hint}
+            </ThemedText>
+          ) : null}
+        </Card>
+      ) : null}
+
+      {items.map((item, i) => (
+        <SkillItemCard
+          key={`${skill}:${i}`}
+          index={i + 1}
+          item={item}
+          value={answers[answerKey(skill, i)]}
+          submitted={submitted}
+          onAnswer={(v) => onAnswer(answerKey(skill, i), v)}
+        />
+      ))}
+    </View>
+  )
+}
+
+function SkillItemCard({
+  index,
+  item,
+  value,
+  submitted,
+  onAnswer,
+}: {
+  index: number
+  item: SkillExerciseItem
+  value: SkillAnswer
+  submitted: boolean
+  onAnswer: (v: SkillAnswer) => void
+}) {
+  const c = useTheme().colors
+  const ok = submitted && localIsCorrect(item, value)
+  const speaking = isSpeaking(item.type)
+
+  return (
+    <Card style={{ gap: space[3] }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[2] }}>
+        <ThemedText variant="label" color="faint">
+          {index}.
+        </ThemedText>
+        <ThemedText variant="bodyStrong" style={{ flex: 1 }}>
+          {item.instruction_vi ?? item.question_vi ?? item.sentence_vi ?? item.statement_de ?? ''}
+        </ThemedText>
+        {item.audio_transcript ? <PlayButton text={item.audio_transcript} label="Nghe" /> : null}
+        {submitted && !speaking ? (
+          <Icon icon={ok ? Check : X} size={18} color={ok ? 'success' : 'danger'} />
+        ) : null}
+      </View>
+
+      {isChoiceType(item.type) ? (
+        <ChoiceInput item={item} value={value} submitted={submitted} onAnswer={onAnswer} />
+      ) : isTrueFalse(item.type) ? (
+        <TrueFalseInput value={value} submitted={submitted} onAnswer={onAnswer} />
+      ) : isReorder(item.type) ? (
+        <ReorderInput item={item} submitted={submitted} onAnswer={onAnswer} />
+      ) : speaking ? (
+        <SpeakingInput item={item} value={value} submitted={submitted} onAnswer={onAnswer} />
+      ) : (
+        <TextAnswerInput item={item} value={value} submitted={submitted} onAnswer={onAnswer} />
+      )}
+
+      {submitted && item.explanation_vi ? (
+        <ThemedText variant="caption" color="muted">
+          💡 {item.explanation_vi}
+        </ThemedText>
+      ) : null}
+    </Card>
+  )
+}
+
+function PlayButton({ text, label }: { text: string; label: string }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Phát âm thanh: ${label}`}
+      onPress={() => speakDe(text)}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+      hitSlop={8}
+    >
+      <Icon icon={Volume2} size={18} color="accent" />
+    </Pressable>
+  )
+}
+
+function ChoiceInput({
+  item,
+  value,
+  submitted,
+  onAnswer,
+}: {
+  item: SkillExerciseItem
+  value: SkillAnswer
+  submitted: boolean
+  onAnswer: (v: SkillAnswer) => void
+}) {
+  const c = useTheme().colors
+  return (
+    <View style={{ gap: space[2] }}>
+      {(item.options ?? []).map((opt, i) => {
+        const selected = value === i
+        const isAnswer = i === item.correct_index
+        const border = submitted ? (isAnswer ? c.success : selected ? c.danger : c.border) : selected ? c.accent : c.border
+        const bg = submitted ? (isAnswer ? c.successSoft : selected ? c.dangerSoft : c.surface) : selected ? c.accentSoft : c.surface
+        return (
+          <SelectableRow
+            key={i}
+            label={opt}
+            selected={selected}
+            disabled={submitted}
+            onPress={() => onAnswer(i)}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: space[2],
+              borderWidth: 1,
+              borderColor: border,
+              backgroundColor: bg,
+              borderRadius: radius.md,
+              paddingHorizontal: space[3],
+              paddingVertical: space[3],
+            }}
+          >
+            <ThemedText variant="body" style={{ flex: 1 }}>
+              {opt}
+            </ThemedText>
+            {!submitted && selected ? <Icon icon={Check} size={16} color="accent" /> : null}
+            {submitted && isAnswer ? <Icon icon={Check} size={16} color="success" /> : null}
+            {submitted && selected && !isAnswer ? <Icon icon={X} size={16} color="danger" /> : null}
+          </SelectableRow>
+        )
+      })}
+    </View>
+  )
+}
+
+function TrueFalseInput({
+  value,
+  submitted,
+  onAnswer,
+}: {
+  value: SkillAnswer
+  submitted: boolean
+  onAnswer: (v: SkillAnswer) => void
+}) {
+  const c = useTheme().colors
+  const opts: [string, string][] = [
+    ['richtig', 'Richtig (Đúng)'],
+    ['falsch', 'Falsch (Sai)'],
+  ]
+  return (
+    <View style={{ flexDirection: 'row', gap: space[2] }}>
+      {opts.map(([val, label]) => {
+        const selected = value === val
+        return (
+          <Pressable
+            key={val}
+            accessibilityRole="button"
+            accessibilityState={{ selected }}
+            disabled={submitted}
+            onPress={() => onAnswer(val)}
+            style={{
+              flex: 1,
+              alignItems: 'center',
+              paddingVertical: space[3],
+              borderRadius: radius.md,
+              borderWidth: 1,
+              borderColor: selected ? c.accent : c.border,
+              backgroundColor: selected ? c.accentSoft : c.surface,
+            }}
+          >
+            <ThemedText variant="body">{label}</ThemedText>
+          </Pressable>
+        )
+      })}
+    </View>
+  )
+}
+
+function TextAnswerInput({
+  item,
+  value,
+  submitted,
+  onAnswer,
+}: {
+  item: SkillExerciseItem
+  value: SkillAnswer
+  submitted: boolean
+  onAnswer: (v: SkillAnswer) => void
+}) {
+  const c = useTheme().colors
+  const ok = submitted && localIsCorrect(item, value)
+  return (
+    <View style={{ gap: space[2] }}>
+      {item.sentence_with_blank ? <ThemedText variant="body">{item.sentence_with_blank}</ThemedText> : null}
+      {item.hint_vi ? (
+        <ThemedText variant="caption" color="faint">
+          💡 {item.hint_vi}
+        </ThemedText>
+      ) : null}
+      <TextInput
+        value={typeof value === 'string' ? value : ''}
+        onChangeText={(t) => onAnswer(t)}
+        editable={!submitted}
+        placeholder="Nhập đáp án…"
+        placeholderTextColor={c.textFaint}
+        autoCapitalize="none"
+        style={{
+          backgroundColor: c.surfaceSunken,
+          borderRadius: radius.md,
+          borderWidth: 1,
+          borderColor: submitted ? (ok ? c.success : c.danger) : c.border,
+          paddingHorizontal: space[3],
+          paddingVertical: space[3],
+          color: c.textPrimary,
+          fontFamily: fonts.bodyRegular,
+          fontSize: 15,
+        }}
+      />
+      {submitted && !ok && item.correct_answer != null ? (
+        <ThemedText variant="caption">
+          <ThemedText variant="caption" color="muted">
+            Đáp án:{' '}
+          </ThemedText>
+          <ThemedText variant="caption" style={{ color: c.success }}>
+            {String(item.correct_answer)}
+          </ThemedText>
+        </ThemedText>
+      ) : null}
+      {item.grammar_rule_vi && submitted ? (
+        <ThemedText variant="caption" color="muted">
+          {item.grammar_rule_vi}
+        </ThemedText>
+      ) : null}
+    </View>
+  )
+}
+
+// Tap words in order to build the sentence; the joined string is the graded answer.
+function ReorderInput({
+  item,
+  submitted,
+  onAnswer,
+}: {
+  item: SkillExerciseItem
+  submitted: boolean
+  onAnswer: (v: SkillAnswer) => void
+}) {
+  const c = useTheme().colors
+  const words = item.words ?? []
+  const [order, setOrder] = useState<number[]>([])
+  const used = new Set(order)
+
+  function tap(i: number) {
+    if (submitted) return
+    const next = used.has(i) ? order.filter((x) => x !== i) : [...order, i]
+    setOrder(next)
+    onAnswer(next.map((x) => words[x]).join(' '))
+  }
+
+  return (
+    <View style={{ gap: space[2] }}>
+      {order.length > 0 ? (
+        <ThemedText variant="bodyStrong" style={{ color: c.accentText }}>
+          {order.map((x) => words[x]).join(' ')}
+        </ThemedText>
+      ) : (
+        <ThemedText variant="caption" color="faint">
+          Chạm các từ theo đúng thứ tự…
+        </ThemedText>
+      )}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2] }}>
+        {words.map((w, i) => {
+          const isUsed = used.has(i)
+          return (
+            <Pressable
+              key={i}
+              accessibilityRole="button"
+              disabled={submitted}
+              onPress={() => tap(i)}
+              style={{
+                paddingHorizontal: space[3],
+                paddingVertical: space[2],
+                borderRadius: radius.sm,
+                borderWidth: 1,
+                borderColor: isUsed ? c.accent : c.border,
+                backgroundColor: isUsed ? c.accentSoft : c.surface,
+                opacity: submitted ? 0.7 : 1,
+              }}
+            >
+              <ThemedText variant="body" color={isUsed ? 'accent' : 'primary'}>
+                {w}
+              </ThemedText>
+            </Pressable>
+          )
+        })}
+      </View>
+      {submitted && item.correct_answer != null ? (
+        <ThemedText variant="caption">
+          <ThemedText variant="caption" color="muted">
+            Đúng:{' '}
+          </ThemedText>
+          <ThemedText variant="caption" style={{ color: c.success }}>
+            {String(item.correct_answer)}
+          </ThemedText>
+        </ThemedText>
+      ) : null}
+    </View>
+  )
+}
+
+// Speaking is AI-graded elsewhere; here the learner reads/repeats aloud then marks it done,
+// which submits the "spoken" sentinel (counts as attempted). TTS plays the model sentence.
+function SpeakingInput({
+  item,
+  value,
+  submitted,
+  onAnswer,
+}: {
+  item: SkillExerciseItem
+  value: SkillAnswer
+  submitted: boolean
+  onAnswer: (v: SkillAnswer) => void
+}) {
+  const c = useTheme().colors
+  const model = item.sentence_de ?? item.question_de ?? ''
+  const done = value === 'spoken'
+  return (
+    <View style={{ gap: space[2] }}>
+      {model ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+          <ThemedText variant="body" style={{ flex: 1 }}>
+            {model}
+          </ThemedText>
+          <PlayButton text={model} label="Nghe mẫu" />
+        </View>
+      ) : null}
+      {item.expected_answer ? (
+        <ThemedText variant="caption" color="faint">
+          Gợi ý: {item.expected_answer}
+        </ThemedText>
+      ) : null}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ selected: done }}
+        disabled={submitted}
+        onPress={() => onAnswer(done ? undefined : 'spoken')}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: space[2],
+          paddingVertical: space[3],
+          borderRadius: radius.md,
+          borderWidth: 1,
+          borderColor: done ? c.success : c.border,
+          backgroundColor: done ? c.successSoft : c.surface,
+        }}
+      >
+        <Icon icon={done ? Check : Mic} size={16} color={done ? 'success' : 'accent'} />
+        <ThemedText variant="label" color={done ? 'success' : 'accent'}>
+          {done ? 'Đã luyện nói' : 'Nói theo rồi đánh dấu'}
+        </ThemedText>
+      </Pressable>
+    </View>
+  )
+}

@@ -34,9 +34,15 @@ export const messagesApi = {
   unreadCount: () =>
     api.get<{ count: number }>('/messages/unread-count').then((r) => r.data?.count ?? 0),
 
-  /** Full thread with another user; the backend also marks incoming messages read. */
-  thread: (userId: number) =>
-    api.get<Message[]>(`/messages/with/${userId}`).then((r) => r.data ?? []),
+  /**
+   * Thread with another user; the backend also marks incoming messages read. Pass `afterId` to
+   * fetch only messages newer than that id (incremental/delta polling — the client merges the
+   * delta into its cache); omit it for the full thread (first load / cold cache).
+   */
+  thread: (userId: number, afterId?: number) =>
+    api
+      .get<Message[]>(`/messages/with/${userId}`, afterId ? { params: { afterId } } : undefined)
+      .then((r) => r.data ?? []),
 
   /** Send a message (recipient must share a class with the caller). */
   send: (recipientId: number, body: string) =>

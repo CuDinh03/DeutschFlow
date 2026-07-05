@@ -6,6 +6,16 @@ import type { RoleId } from '@/components/ui-v2'
 import { getAuthRole, getOrgRole } from '@/lib/authSession'
 
 /**
+ * The viewer's resolved area, exposed to shared /v2 screens (e.g. the notifications page) so they
+ * can route notifications into the viewer's own shell. Defaults to 'student' when read outside a
+ * RoleShell (the shared screens are always rendered inside one).
+ */
+const ViewerRoleContext = React.createContext<RoleId>('student')
+export function useViewerRole(): RoleId {
+  return React.useContext(ViewerRoleContext)
+}
+
+/**
  * RoleShell — wraps a SHARED /v2 screen (notifications · profile · payment) in the
  * viewer's OWN role shell (sidebar + accent).
  *
@@ -57,5 +67,9 @@ export function RoleShell({ children }: { children: React.ReactNode }) {
   }, [])
 
   if (role === null) return null
-  return <GaShell role={role}>{children}</GaShell>
+  return (
+    <ViewerRoleContext.Provider value={role}>
+      <GaShell role={role}>{children}</GaShell>
+    </ViewerRoleContext.Provider>
+  )
 }
