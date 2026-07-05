@@ -735,7 +735,11 @@ public class UserNotificationService {
         // Use the shared renderer so the push text matches the in-app content exactly,
         // instead of the old raw-enum title / empty body fallback.
         NotificationContentRenderer.RenderedContent rendered = contentRenderer.render(n.getType(), p);
-        expoPushSenderService.sendAsync(token, rendered.title(), rendered.body(), p);
+        // Carry the type + payload ids in the push `data` so tapping the OS notification can
+        // deep-link to the right screen (mobile resolveNotificationRoute), same as an in-app tap.
+        Map<String, Object> data = new LinkedHashMap<>(p);
+        data.put("type", n.getType().name());
+        expoPushSenderService.sendAsync(token, rendered.title(), rendered.body(), data);
     }
 
     private static int normalizeSize(int size) {
