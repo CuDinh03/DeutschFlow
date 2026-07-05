@@ -1,11 +1,13 @@
 import { useEffect } from 'react'
-import { View } from 'react-native'
+import { ActivityIndicator, View } from 'react-native'
 import { router } from 'expo-router'
 import { Star, Zap, Mic, Trophy, BookOpen, Check, type LucideIcon } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, AppHeader, Caption, YellowSquare } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, AppHeader, Caption, YellowSquare, Button, Pill } from '@/components/ui'
 import { trackFeatureAction } from '@/lib/analytics'
-import { PAYWALL_ENABLED } from '@/lib/paywall'
+import { IAP_ENABLED, PAYWALL_ENABLED } from '@/lib/paywall'
+import { useAppleIap } from '@/hooks/useAppleIap'
+import { metaForProductId } from '@/lib/iapProducts'
 
 const PRO_FEATURES: { icon: LucideIcon; label: string }[] = [
   { icon: Mic, label: 'AI Speaking không giới hạn' },
@@ -17,16 +19,20 @@ const PRO_FEATURES: { icon: LucideIcon; label: string }[] = [
 
 export default function UpgradeScreen() {
   useEffect(() => {
-    // Only a real paywall (Android) is a 'paywall_viewed'; the iOS neutral screen is not — don't
-    // pollute the monetization funnel with views that have no purchase path.
+    // Only a real paywall (Android, or iOS once StoreKit is live) is a 'paywall_viewed'; the iOS
+    // neutral screen is not — don't pollute the monetization funnel with views that have no purchase path.
     if (PAYWALL_ENABLED) {
       trackFeatureAction('monetization', 'paywall_viewed')
     }
   }, [])
 
-  // iOS: no StoreKit IAP wired yet, and App Store Review 3.1.1 forbids steering to an external (web)
-  // purchase. Render a neutral, non-commercial screen — accounts already PRO (bought on the web) still
-  // unlock automatically. Re-enable the full paywall once react-native-iap is live (see lib/paywall.ts).
+  // iOS with StoreKit IAP wired: the real, purchasable paywall.
+  if (IAP_ENABLED) {
+    return <IapPaywall />
+  }
+
+  // iOS without StoreKit IAP: neutral, non-commercial screen. Accounts already PRO (bought on the web)
+  // still unlock automatically — App Store Review 3.1.1 forbids steering to an external purchase.
   if (!PAYWALL_ENABLED) {
     return (
       <Screen scroll edges={['top']} contentStyle={{ paddingBottom: space[10] }}>
@@ -49,6 +55,7 @@ export default function UpgradeScreen() {
     )
   }
 
+  // Android: PRO is managed on the web; this screen explains the value.
   return (
     <Screen scroll edges={['top']} contentStyle={{ paddingBottom: space[10] }}>
       <AppHeader title="DeutschFlow PRO" onBack={() => router.back()} />
@@ -65,6 +72,107 @@ export default function UpgradeScreen() {
         <ThemedText variant="caption" color="faint" align="center" style={{ marginTop: space[5] }}>
           Gói PRO được quản lý trong tài khoản DeutschFlow của bạn.
         </ThemedText>
+      </View>
+    </Screen>
+  )
+}
+
+/** Real StoreKit paywall: fetches products from the store, purchases, and restores. */
+function IapPaywall() {
+  const c = useTheme().colors
+  const { connected, products, phase, activeSku, error, succeeded, buy, restore } = useAppleIap(true)
+  const isBusy = phase === 'purchasing' || phase === 'restoring'
+  const isLoadingProducts = (phase === 'loading' || !connected) && products.length === 0
+
+  return (
+    <Screen scroll edges={['top']} contentStyle={{ paddingBottom: space[10] }}>
+      <AppHeader title="DeutschFlow PRO" onBack={() => router.back()} />
+      <View style={{ paddingHorizontal: space[5], paddingTop: space[3] }}>
+        <ProHero
+          eyebrow="Nâng cấp tài khoản"
+          title="Mở khoá toàn bộ"
+          body="Học tiếng Đức không giới hạn với AI coach và lộ trình cá nhân hoá."
+        />
+
+        {succeeded ? (
+          <Card style={{ marginTop: space[6], gap: space[3], borderColor: c.success }}>
+            <Icon icon={Check} size={28} color="success" />
+            <ThemedText variant="title">Đã kích hoạt gói PRO!</ThemedText>
+            <ThemedText variant="body" color="muted">
+              Cảm ơn bạn. Toàn bộ tính năng nâng cao đã được mở khoá.
+            </ThemedText>
+            <Button label="Tiếp tục học" onPress={() => router.back()} />
+          </Card>
+        ) : (
+          <>
+            <Caption style={{ marginTop: space[7], marginBottom: space[3] }}>Chọn gói</Caption>
+
+            {isLoadingProducts ? (
+              <Card style={{ alignItems: 'center', paddingVertical: space[7] }}>
+                <ActivityIndicator color={c.accent} />
+                <ThemedText variant="caption" color="faint" style={{ marginTop: space[3] }}>
+                  Đang tải các gói…
+                </ThemedText>
+              </Card>
+            ) : products.length === 0 ? (
+              <Card style={{ paddingVertical: space[6] }}>
+                <ThemedText variant="body" color="muted" align="center">
+                  Chưa tải được gói nào. Vui lòng kiểm tra kết nối và thử lại sau.
+                </ThemedText>
+              </Card>
+            ) : (
+              <View style={{ gap: space[3] }}>
+                {products.map((p) => {
+                  const meta = metaForProductId(p.id)
+                  const period = meta?.durationMonths === 12 ? '/năm' : meta?.durationMonths === 1 ? '/tháng' : ''
+                  return (
+                    <Card key={p.id} style={{ gap: space[3] }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+                        <ThemedText variant="title" style={{ flex: 1 }}>
+                          {p.title || p.displayName || meta?.planCode || 'PRO'}
+                        </ThemedText>
+                        {meta ? <Pill label={meta.planCode} tone={meta.planCode === 'ULTRA' ? 'accent' : 'neutral'} /> : null}
+                      </View>
+                      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space[1] }}>
+                        <ThemedText variant="display">{p.displayPrice}</ThemedText>
+                        {period ? (
+                          <ThemedText variant="caption" color="faint">
+                            {period}
+                          </ThemedText>
+                        ) : null}
+                      </View>
+                      <Button
+                        label="Đăng ký"
+                        onPress={() => buy(p.id)}
+                        loading={phase === 'purchasing' && activeSku === p.id}
+                        disabled={isBusy && activeSku !== p.id}
+                      />
+                    </Card>
+                  )
+                })}
+              </View>
+            )}
+
+            {error ? (
+              <ThemedText variant="caption" color="danger" align="center" style={{ marginTop: space[4] }}>
+                {error}
+              </ThemedText>
+            ) : null}
+
+            <Button
+              label="Khôi phục giao dịch"
+              variant="ghost"
+              onPress={restore}
+              loading={phase === 'restoring'}
+              disabled={isBusy}
+              style={{ marginTop: space[4] }}
+            />
+
+            <ThemedText variant="caption" color="faint" align="center" style={{ marginTop: space[4] }}>
+              Gói tự động gia hạn, huỷ bất cứ lúc nào trong Cài đặt App Store. Thanh toán qua tài khoản Apple của bạn.
+            </ThemedText>
+          </>
+        )}
       </View>
     </Screen>
   )
