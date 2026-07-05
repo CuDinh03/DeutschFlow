@@ -73,4 +73,6 @@
 - **2026-07-02:** chốt v1.0 free-only, monetization để v1.1 (memory `deutschflow-monetization-v1-decisions`).
 - **2026-07-05:** submit build `1.0(4)` — **vẫn lộ bề mặt PRO** (chưa có `PRO_UNLOCKED_FREE`).
 - **2026-07-05/06:** reject 2.1(b) + 5.1.1(v)×2.
-- **2026-07-06:** thêm `PRO_UNLOCKED_FREE`, iOS free thật sự → nộp lại build `1.0(5)`.
+- **2026-07-06:** thêm `PRO_UNLOCKED_FREE` + `hasProAccess`, iOS free thật sự; phone optional (FE+BE); delete-account = card đỏ nổi bật. Committed `62c23d8d`.
+- **2026-07-06:** ⚠️ **BÀI HỌC — `EMAIL_CAPTURE_UPSELL` có 2 call-site trong `onboarding.tsx`** (`handleSubmit` d.253 + resume-from-draft d.176). Lần đầu chỉ guard 1, sót nhánh resume (guest-signup happy-path beginner iOS) → pre-merge review (workflow adversarial) bắt được, vá cả 2 (`a51a97fe`). **Khi bật lại/đổi cờ ở v1.1 phải rà HẾT call-site, đừng tin 1 chỗ.**
+- **2026-07-06:** ✅ **MERGED PR #201 → main `9b34e9b3`** (CI xanh) + **backend DEPLOYED prod** (`9b34e9b3`, `actuator/health`=200 UP, phone-optional live). Còn owner: EAS build `production` → submit → reply 2.1(b)+video → resubmit (build number auto qua `appVersionSource:remote`).

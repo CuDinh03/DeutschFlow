@@ -9,17 +9,22 @@ Ký hiệu đường dẫn: `mobile/…` = React Native (Expo); `backend/…` = 
 
 ---
 
-## 📊 Trạng thái (cập nhật 2026-07-06)
+## 📊 Trạng thái (cập nhật 2026-07-06 — MERGED + BACKEND DEPLOYED)
 
-| Nhóm | Code | Kiểm thử tự động | Việc còn lại (owner) |
+| Nhóm | Code | Kiểm thử tự động | Trạng thái |
 |---|---|---|---|
-| **A. Phone optional** (FE+BE) | ✅ XONG | ✅ mobile tsc + jest 151/151; backend RegisterRequest 6/6 + AuthService 15/15 | curl `/api/auth/register` bỏ trống SĐT trên prod (sau deploy BE) |
-| **B. Account deletion nổi bật** | ✅ XONG (card đỏ ngang hàng "Đăng xuất") | tsc/jest xanh | Quay **video demo** xoá tài khoản trên thiết bị thật |
-| **C. iOS free mode** (ẩn PRO + mở khoá) | ✅ XONG (`PRO_UNLOCKED_FREE` + `hasProAccess`) | tsc/jest xanh; grep text-PRO → mọi chỗ còn lại đều unreachable trên iOS | QA trên build mới |
-| **D. Build & nộp lại** | — | — | EAS build (buildNumber auto qua `appVersionSource:remote`) → submit → reply 2.1(b) |
+| **A. Phone optional** (FE+BE) | ✅ XONG | ✅ mobile tsc + jest 151/151; backend RegisterRequest **8/8** + AuthService 15/15 | ✅ **BE LIVE prod** (`9b34e9b3`, health UP) — phone-optional đã chạy |
+| **B. Account deletion nổi bật** | ✅ XONG (card đỏ ngang hàng "Đăng xuất") | tsc/jest xanh | ⏳ owner quay **video demo** xoá tài khoản |
+| **C. iOS free mode** (ẩn PRO + mở khoá) | ✅ XONG (`PRO_UNLOCKED_FREE` + `hasProAccess`) | tsc/jest xanh; grep text-PRO → unreachable trên iOS | ⏳ QA trên build mới |
+| **D. Build & nộp lại** | ✅ merged main | — | ⏳ owner: EAS build (chạy) → submit → reply 2.1(b)+video |
 
-**Đã sửa (code-complete):** `paywall.ts` (+`PRO_UNLOCKED_FREE`), `usePlanStore.ts` (+`hasProAccess`), `speaking.tsx`, `exam.tsx`, `weekly-speaking.tsx`, `profile.tsx`, `upsell.ts`, `tourContent.ts`+`guide.tsx`, `onboarding.tsx`, `upgrade.tsx`, `register.tsx`; BE `RegisterRequest.java` + `AuthService.java`; tests `RegisterRequestTest`/`AuthServiceUnitTest`.
-**⚠️ Chưa deploy/build:** cần **deploy backend** (phone-optional) + **EAS build iOS mới** (native flag `PRO_UNLOCKED_FREE`) — không OTA được vì đổi hành vi gate. Rồi submit + video + reply.
+**✅ MERGED:** PR [#201](https://github.com/CuDinh03/DeutschFlow/pull/201) → main merge commit **`9b34e9b3`** (2 commit: `62c23d8d` fix chính + `a51a97fe` fix blocker review). CI xanh (Compile + Unit Tests + SAST). Files: `paywall.ts` (+`PRO_UNLOCKED_FREE`), `usePlanStore.ts` (+`hasProAccess`), `speaking/exam/weekly-speaking/profile/upgrade/register.tsx`, `upsell.ts`, `tourContent.ts`+`guide.tsx`, `onboarding.tsx`; BE `RegisterRequest.java`+`AuthService.java`; tests.
+
+**🔬 PRE-MERGE REVIEW (workflow adversarial, 15 agent) bắt 1 BLOCKER thật đã VÁ trước khi merge:** `onboarding.tsx` có **2 nhánh** `EMAIL_CAPTURE_UPSELL` — mình chỉ guard nhánh `handleSubmit` (d.253), BỎ SÓT nhánh **resume-from-draft** (d.176) = đường guest-signup happy-path của beginner iOS → vẫn lộ màn PRO email-capture (2.1(b)). Đã thêm `&& !PRO_UNLOCKED_FREE` cho cả 2 nhánh. Kèm fix nhỏ: `RegisterRequest` trim phone trong compact constructor (whitespace-only "   " → "" → NULL, không 400).
+
+**✅ BACKEND DEPLOYED prod 2026-07-06** — `./deploy-backend.sh` blue-green OK 266s, promote `9b34e9b3`, banner `DEPLOY THÀNH CÔNG ✓`; verify ngoài EC2: `curl https://api.mydeutschflow.com/actuator/health` = **200 `{"status":"UP"}`**. (⚠️ script exit 1 do trailing `read` EOF — verify bằng banner+curl, KHÔNG bằng exit code.)
+
+**⏳ CÒN (owner):** EAS build iOS `production` (đang chạy — native flag `PRO_UNLOCKED_FREE` không OTA được) → `eas submit` → gắn build vào version 1.0 → Resolution Center reply 2.1(b) + **video xoá tài khoản** (`APPLE_REPLY_2026-07-06.md`) → demo student còn trial → Resubmit.
 
 ---
 
@@ -110,12 +115,13 @@ Quyết định sản phẩm (chọn 1, ghi vào `IOS_FREE_MODE.md`):
 ## D. Build & nộp lại
 
 - [x] `cd mobile && npx tsc --noEmit` (xanh 0 lỗi) + `jest` (151/151 xanh — `quota`/`iapProducts` không đổi).
-- [x] Backend `RegisterRequestTest` (6/6) + `AuthServiceUnitTest` (15/15) xanh.
+- [x] Backend `RegisterRequestTest` (**8/8**) + `AuthServiceUnitTest` (15/15) xanh + CI (Compile/Unit Tests/SAST) xanh trên PR #201.
 - [x] **Build number**: KHÔNG bump tay — `eas.json` dùng `appVersionSource:remote` + production `autoIncrement:true` ⇒ EAS tự tăng khi build. (`app.json` không có `ios.buildNumber`, đúng.)
-- [ ] *(owner)* **Deploy backend** trước (phone-optional cần live để đăng ký bỏ trống SĐT không 400).
-- [ ] *(owner)* `eas build --platform ios --profile production` → `eas submit` (bắt buộc build mới: `PRO_UNLOCKED_FREE` là flag native, không OTA được).
+- [x] **Merge PR #201 → main** (`9b34e9b3`).
+- [x] **Deploy backend** — DONE 2026-07-06 (`9b34e9b3` LIVE, `curl .../actuator/health`=200 UP). Phone-optional live → đăng ký bỏ trống SĐT không còn 400.
+- [ ] *(owner)* `eas build --platform ios --profile production` (ĐANG CHẠY) → `eas submit` (bắt buộc build mới: `PRO_UNLOCKED_FREE` là flag native, không OTA được).
 - [ ] *(owner)* Gắn build mới vào version 1.0, dán demo creds (student, còn trial) + review notes.
-- [ ] *(owner)* **Reply 2.1(b)** trong ASC kèm **video xoá tài khoản** (nội dung ở `APPLE_REPLY_2026-07-06.md`).
+- [ ] *(owner)* **Reply 2.1(b)** trong Resolution Center kèm **video xoá tài khoản** (nội dung ở `APPLE_REPLY_2026-07-06.md`).
 - [ ] *(owner)* Resubmit for Review.
 
 ## E. Định nghĩa "Done"
