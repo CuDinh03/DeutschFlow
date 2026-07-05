@@ -26,6 +26,7 @@ import {
   type NodeVocabItem,
   type NodePhrase,
 } from '@/lib/skillTreeApi'
+import { hasAnySkillExercise } from '@/lib/skillExercises'
 
 // Lesson detail for a skill-tree node: theory cards + vocabulary + phrases.
 // Nodes with exercises open the practice runner (node-practice.tsx); theory-only nodes
@@ -48,6 +49,7 @@ export default function NodeScreen() {
     (content?.exercises?.theory_gate?.length ?? 0) + (content?.exercises?.practice?.length ?? 0)
   const inProgress = data?.userStatus === 'IN_PROGRESS'
   const done = data?.userStatus === 'COMPLETED'
+  const hasSkillExercises = hasAnySkillExercise(content?.skill_exercises)
 
   const qc = useQueryClient()
   const markLearned = useMutation({
@@ -176,6 +178,22 @@ export default function NodeScreen() {
               <Icon icon={CircleCheck} size={18} color="success" />
               <ThemedText variant="bodyStrong" style={{ color: c.success }}>
                 Đã hoàn thành bài học
+              </ThemedText>
+            </View>
+          ) : hasSkillExercises ? (
+            // Authored 4-skill node: route to the Nghe/Nói/Đọc/Viết runner (server-graded).
+            <View style={{ gap: space[2] }}>
+              <Button
+                label="Bắt đầu luyện 4 kỹ năng"
+                onPress={() =>
+                  router.push({
+                    pathname: '/(student)/skill-practice',
+                    params: { nodeId: String(nodeId), title: params.title ?? data?.titleVi ?? 'Luyện tập' },
+                  } as unknown as Href)
+                }
+              />
+              <ThemedText variant="caption" color="faint" align="center">
+                Nghe · Nói · Đọc · Viết — chấm điểm để hoàn thành và mở bài tiếp theo.
               </ThemedText>
             </View>
           ) : (

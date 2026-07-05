@@ -180,6 +180,24 @@ public class SkillTreeController {
     }
 
     // ─────────────────────────────────────────────────────────────
+    // POST /api/skill-tree/{nodeId}/skill-exercises/submit — Nộp bộ bài tập 4 kỹ năng (CORE Hybrid)
+    // Body: { "skill_answers": { "HOEREN": {"0": ...}, "SPRECHEN": {...}, "LESEN": {...}, "SCHREIBEN": {...} } }
+    // ─────────────────────────────────────────────────────────────
+
+    @PostMapping("/{nodeId}/skill-exercises/submit")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, Object>> submitSkillExercises(
+            @AuthenticationPrincipal User user,
+            @PathVariable long nodeId,
+            @RequestBody Map<String, Object> body
+    ) {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> skillAnswers = body.get("skill_answers") instanceof Map<?, ?> m
+                ? (Map<String, Object>) m : Map.of();
+        return ResponseEntity.ok(skillTreeService.submitSkillExercises(user.getId(), nodeId, skillAnswers));
+    }
+
+    // ─────────────────────────────────────────────────────────────
     // POST /api/skill-tree/{nodeId}/complete — Đánh dấu đã học (bài lý thuyết)
     // Chỉ dành cho node KHÔNG có câu chấm được; node có bài tập phải nộp qua /submit.
     // ─────────────────────────────────────────────────────────────
