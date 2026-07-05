@@ -126,7 +126,8 @@
           "cameraPermission": "DeutschFlow cần máy ảnh để bạn chụp và nộp bài tập viết tay."
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      "expo-iap"
     ],
     "extra": {
       "sentryDsn": "",
