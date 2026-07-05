@@ -1,9 +1,26 @@
-import { useMemo, useState } from 'react'
-import { View, Pressable, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  View,
+  Pressable,
+  TextInput,
+  Alert,
+  ActivityIndicator,
+  Linking,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native'
+import {
+  useAudioRecorder,
+  AudioModule,
+  RecordingPresets,
+  setAudioModeAsync,
+  createAudioPlayer,
+  type AudioPlayer,
+} from 'expo-audio'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { router, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
-import { Check, X, Trophy, Volume2, Mic } from 'lucide-react-native'
+import { Check, X, Trophy, Volume2, Mic, Square } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { trackFeatureAction } from '@/lib/analytics'
 import { fonts, radius, space, useTheme } from '@/lib/theme'
@@ -38,19 +55,7 @@ import {
   type SkillKey,
   type SkillAnswer,
 } from '@/lib/skillExercises'
-
-// Speak German aloud via on-device TTS (expo-speech). Lazy-required so a build without the
-// native module degrades gracefully (mirrors app/(student)/speaking.tsx).
-function speakDe(text?: string) {
-  if (!text) return
-  try {
-    const Speech = require('expo-speech') as typeof import('expo-speech')
-    Speech.stop()
-    Speech.speak(text, { language: 'de-DE', rate: 0.96 })
-  } catch {
-    // expo-speech not linked in this build — silently skip audio.
-  }
-}
+import { speakGerman, stopGermanSpeech, setGermanRecordingActive } from '@/lib/germanTts'
 
 type Result = { scorePercent: number; completed: boolean; xp: number } | null
 
@@ -286,7 +291,7 @@ function SkillItemCard({
           {index}.
         </ThemedText>
         <ThemedText variant="bodyStrong" style={{ flex: 1 }}>
-          {item.instruction_vi ?? item.question_vi ?? item.sentence_vi ?? item.statement_de ?? ''}
+          {item.instruction_vi ?? item.question_vi ?? item.statement_de ?? ''}
         </ThemedText>
         {item.audio_transcript ? <PlayButton text={item.audio_transcript} label="Nghe" /> : null}
         {submitted && !speaking ? (
@@ -315,16 +320,42 @@ function SkillItemCard({
   )
 }
 
-function PlayButton({ text, label }: { text: string; label: string }) {
+function PlayButton({ text, label, disabled }: { text: string; label: string; disabled?: boolean }) {
+  const c = useTheme().colors
+  const [loading, setLoading] = useState(false)
+  const alive = useRef(true)
+  useEffect(() => {
+    alive.current = true
+    return () => {
+      alive.current = false
+    }
+  }, [])
+
+  async function play() {
+    if (loading) return
+    setLoading(true)
+    try {
+      await speakGerman(text)
+    } finally {
+      if (alive.current) setLoading(false)
+    }
+  }
+
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`Phát âm thanh: ${label}`}
-      onPress={() => speakDe(text)}
-      style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+      accessibilityState={{ busy: loading, disabled: !!disabled }}
+      disabled={disabled}
+      onPress={() => void play()}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 4, opacity: disabled ? 0.4 : 1 }}
       hitSlop={8}
     >
-      <Icon icon={Volume2} size={18} color="accent" />
+      {loading ? (
+        <ActivityIndicator size="small" color={c.accent} />
+      ) : (
+        <Icon icon={Volume2} size={18} color="accent" />
+      )}
     </Pressable>
   )
 }
@@ -438,6 +469,9 @@ function TextAnswerInput({
   const ok = submitted && localIsCorrect(item, value)
   return (
     <View style={{ gap: space[2] }}>
+      {/* Translate items (TRANSLATE_VI_DE) carry the source sentence in sentence_vi — the actual
+          prompt the learner must translate. Without this it renders blank (only the instruction shows). */}
+      {item.sentence_vi ? <ThemedText variant="bodyStrong">{item.sentence_vi}</ThemedText> : null}
       {item.sentence_with_blank ? <ThemedText variant="body">{item.sentence_with_blank}</ThemedText> : null}
       {item.hint_vi ? (
         <ThemedText variant="caption" color="faint">
@@ -555,8 +589,10 @@ function ReorderInput({
   )
 }
 
-// Speaking is AI-graded elsewhere; here the learner reads/repeats aloud then marks it done,
-// which submits the "spoken" sentinel (counts as attempted). TTS plays the model sentence.
+// Speaking drill: the learner hears the model (TTS), records themselves saying it, then plays
+// their own take back to compare. Recording marks the "spoken" sentinel (counts as attempted —
+// pronunciation is AI-graded elsewhere). No PRO gate: this is a free CORE practice aid (record +
+// listen back), no server call. Mirrors the recorder/permission flow in app/(student)/speaking.tsx.
 function SpeakingInput({
   item,
   value,
@@ -570,7 +606,118 @@ function SpeakingInput({
 }) {
   const c = useTheme().colors
   const model = item.sentence_de ?? item.question_de ?? ''
+  const gloss = item.sentence_vi ?? item.question_vi ?? ''
   const done = value === 'spoken'
+
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY)
+  const [recording, setRecording] = useState(false)
+  const [preparing, setPreparing] = useState(false)
+  const [recordedUri, setRecordedUri] = useState<string | null>(null)
+  const [playingBack, setPlayingBack] = useState(false)
+  const playerRef = useRef<AudioPlayer | null>(null)
+  const recordingRef = useRef(false)
+
+  function stopPlayback() {
+    const p = playerRef.current
+    if (p) {
+      playerRef.current = null
+      try {
+        p.remove()
+      } catch {
+        // already released
+      }
+    }
+    setPlayingBack(false)
+  }
+
+  // Clean up any live player / recording when the card unmounts.
+  useEffect(
+    () => () => {
+      const p = playerRef.current
+      if (p) {
+        try {
+          p.remove()
+        } catch {
+          // already released
+        }
+      }
+      if (recordingRef.current) {
+        setGermanRecordingActive(false)
+        void recorder.stop().catch(() => undefined)
+      }
+    },
+    [recorder],
+  )
+
+  async function playRecording(uri: string) {
+    stopPlayback()
+    try {
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true })
+      const player = createAudioPlayer({ uri })
+      playerRef.current = player
+      setPlayingBack(true)
+      player.addListener('playbackStatusUpdate', (st) => {
+        if (st.didJustFinish) stopPlayback()
+      })
+      player.play()
+    } catch {
+      setPlayingBack(false)
+    }
+  }
+
+  async function startRecording() {
+    if (submitted || recording || preparing) return
+    try {
+      const { status, canAskAgain } = await AudioModule.requestRecordingPermissionsAsync()
+      if (status !== 'granted') {
+        if (!canAskAgain) {
+          Alert.alert('Cần quyền microphone', 'Hãy bật microphone trong Cài đặt để luyện nói.', [
+            { text: 'Để sau', style: 'cancel' },
+            { text: 'Mở Cài đặt', onPress: () => void Linking.openSettings() },
+          ])
+        } else {
+          Alert.alert('Không có quyền microphone', 'Bạn cần cấp quyền để ghi âm.')
+        }
+        return
+      }
+      await stopGermanSpeech() // don't record over the model TTS
+      stopPlayback()
+      setPreparing(true)
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true })
+      await recorder.prepareToRecordAsync()
+      recorder.record()
+      recordingRef.current = true
+      setGermanRecordingActive(true) // block model TTS from stealing the audio session mid-record
+      setRecording(true)
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    } catch {
+      Alert.alert('Lỗi', 'Không thể khởi động microphone. Vui lòng kiểm tra quyền truy cập.')
+    } finally {
+      setPreparing(false)
+    }
+  }
+
+  async function stopRecording() {
+    if (!recording) return
+    setRecording(false)
+    recordingRef.current = false
+    setGermanRecordingActive(false)
+    try {
+      await recorder.stop()
+      // Leave record mode so playback routes to the loud speaker, not the earpiece.
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true })
+      const uri = recorder.uri
+      if (uri) {
+        setRecordedUri(uri)
+        onAnswer('spoken')
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+        void playRecording(uri) // let them hear themselves right away
+      }
+    } catch {
+      Alert.alert('Lỗi', 'Không thể lưu bản ghi. Bạn thử lại nhé.')
+    }
+  }
+
   return (
     <View style={{ gap: space[2] }}>
       {model ? (
@@ -578,19 +725,26 @@ function SpeakingInput({
           <ThemedText variant="body" style={{ flex: 1 }}>
             {model}
           </ThemedText>
-          <PlayButton text={model} label="Nghe mẫu" />
+          <PlayButton text={model} label="Nghe mẫu" disabled={recording || preparing} />
         </View>
+      ) : null}
+      {gloss ? (
+        <ThemedText variant="caption" color="muted">
+          {gloss}
+        </ThemedText>
       ) : null}
       {item.expected_answer ? (
         <ThemedText variant="caption" color="faint">
           Gợi ý: {item.expected_answer}
         </ThemedText>
       ) : null}
+
       <Pressable
         accessibilityRole="button"
-        accessibilityState={{ selected: done }}
-        disabled={submitted}
-        onPress={() => onAnswer(done ? undefined : 'spoken')}
+        accessibilityLabel={recording ? 'Dừng ghi âm' : 'Ghi âm và nói theo'}
+        accessibilityState={{ selected: done, busy: preparing, disabled: submitted }}
+        disabled={submitted || preparing}
+        onPress={() => (recording ? void stopRecording() : void startRecording())}
         style={{
           flexDirection: 'row',
           alignItems: 'center',
@@ -599,15 +753,43 @@ function SpeakingInput({
           paddingVertical: space[3],
           borderRadius: radius.md,
           borderWidth: 1,
-          borderColor: done ? c.success : c.border,
-          backgroundColor: done ? c.successSoft : c.surface,
+          borderColor: recording ? c.danger : done ? c.success : c.border,
+          backgroundColor: recording ? c.dangerSoft : done ? c.successSoft : c.surface,
+          opacity: submitted ? 0.7 : 1,
         }}
       >
-        <Icon icon={done ? Check : Mic} size={16} color={done ? 'success' : 'accent'} />
-        <ThemedText variant="label" color={done ? 'success' : 'accent'}>
-          {done ? 'Đã luyện nói' : 'Nói theo rồi đánh dấu'}
+        {preparing ? (
+          <ActivityIndicator size="small" color={c.accent} />
+        ) : (
+          <Icon
+            icon={recording ? Square : done ? Check : Mic}
+            size={16}
+            color={recording ? 'danger' : done ? 'success' : 'accent'}
+          />
+        )}
+        <ThemedText variant="label" color={recording ? 'danger' : done ? 'success' : 'accent'}>
+          {recording ? 'Đang ghi… Chạm để dừng' : done ? 'Đã ghi âm — ghi lại' : 'Nhấn để nói theo'}
         </ThemedText>
       </Pressable>
+
+      {recordedUri && !recording ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Nghe lại bản ghi của bạn"
+          onPress={() => void playRecording(recordedUri)}
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: space[1] }}
+          hitSlop={8}
+        >
+          {playingBack ? (
+            <ActivityIndicator size="small" color={c.accent} />
+          ) : (
+            <Icon icon={Volume2} size={16} color="accent" />
+          )}
+          <ThemedText variant="caption" color="accent">
+            Nghe lại bản ghi của bạn
+          </ThemedText>
+        </Pressable>
+      ) : null}
     </View>
   )
 }
