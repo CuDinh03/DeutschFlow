@@ -50,4 +50,24 @@ public interface ClassSessionRepository extends JpaRepository<ClassSession, Long
                                          @Param("start") LocalDateTime start,
                                          @Param("end") LocalDateTime end,
                                          @Param("selfId") Long selfId);
+
+    /**
+     * Teacher double-booking guard: SCHEDULED sessions in any of the given classes (the classes a
+     * teacher teaches) whose time window overlaps [start, end). Used to HARD-block scheduling the
+     * same teacher into two places at once. Interval math mirrors {@link #findRoomConflicts}.
+     * {@code selfId} excludes the session being edited (null when creating a not-yet-persisted one).
+     */
+    @Query(value = """
+            SELECT * FROM class_sessions cs
+            WHERE cs.class_id IN (:classIds)
+              AND cs.status = 'SCHEDULED'
+              AND (:selfId IS NULL OR cs.id <> :selfId)
+              AND cs.start_at < :end
+              AND :start < cs.start_at + (cs.duration_minutes * INTERVAL '1 minute')
+            ORDER BY cs.start_at
+            """, nativeQuery = true)
+    List<ClassSession> findTeacherTimeConflicts(@Param("classIds") List<Long> classIds,
+                                                @Param("start") LocalDateTime start,
+                                                @Param("end") LocalDateTime end,
+                                                @Param("selfId") Long selfId);
 }

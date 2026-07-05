@@ -1,6 +1,9 @@
 package com.deutschflow.teacher.service;
 
+import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ForbiddenException;
+import com.deutschflow.notification.NotificationType;
+import com.deutschflow.notification.service.UserNotificationService;
 import com.deutschflow.teacher.dto.*;
 import com.deutschflow.teacher.entity.ClassSchedulePattern;
 import com.deutschflow.teacher.entity.ClassSession;
@@ -46,15 +49,18 @@ class ClassScheduleServiceTest {
     @Mock private TeacherClassRepository classRepo;
     @Mock private ClassStudentRepository classStudentRepo;
     @Mock private ClassTeacherRepository classTeacherRepo;
+    @Mock private UserNotificationService notificationService;
 
     private ClassScheduleService service;
 
     private static final Long TEACHER_ID = 1L;
     private static final Long CLASS_ID = 10L;
+    private static final Long OTHER_CLASS_ID = 11L;
 
     @BeforeEach
     void setUp() {
-        service = new ClassScheduleService(patternRepo, sessionRepo, classRepo, classStudentRepo, classTeacherRepo);
+        service = new ClassScheduleService(
+                patternRepo, sessionRepo, classRepo, classStudentRepo, classTeacherRepo, notificationService);
     }
 
     // ── weekForTeacher ───────────────────────────────────────────────────────
@@ -280,7 +286,7 @@ class ClassScheduleServiceTest {
     @DisplayName("deletePattern removes future non-overridden sessions, keeps overridden, deletes the pattern")
     void deletePattern_keepsOverridden() {
         ClassSchedulePattern p = ClassSchedulePattern.builder()
-                .id(99L).classId(CLASS_ID).dayOfWeek((short) 0).startTime(LocalTime.of(18, 0))
+                .id(99L).classId(CLASS_ID).dayOfWeek((short) 1).startTime(LocalTime.of(18, 0))
                 .durationMinutes(90).defaultMode(ClassSchedulePattern.Mode.OFFLINE)
                 .effectiveFrom(LocalDate.now()).build();
         when(patternRepo.findById(99L)).thenReturn(Optional.of(p));
@@ -297,6 +303,114 @@ class ClassScheduleServiceTest {
         assertThat(delCap.getValue()).extracting(ClassSession::getId).containsExactly(501L);
         verify(patternRepo).delete(p);
         assertThat(removed).isEqualTo(1);
+    }
+
+    // ── teacher double-booking guard (hard block) ─────────────────────────────
+
+    @Test
+    @DisplayName("createSession HARD-BLOCKS when the teacher already has an overlapping session in another class")
+    void createSession_teacherConflict_blocks() {
+        LocalDateTime start = LocalDateTime.now().plusDays(1).withHour(18).withMinute(0);
+        allowOwner();
+        when(classTeacherRepo.findByIdTeacherId(TEACHER_ID))
+                .thenReturn(List.of(classTeacher(CLASS_ID), classTeacher(OTHER_CLASS_ID)));
+        ClassSession busy = session(700L, OTHER_CLASS_ID, start.plusMinutes(30), null, false);
+        when(sessionRepo.findTeacherTimeConflicts(anyList(), any(), any(), any())).thenReturn(List.of(busy));
+        when(classRepo.findById(OTHER_CLASS_ID)).thenReturn(Optional.of(teacherClass(OTHER_CLASS_ID, "A2 tối")));
+
+        assertThatThrownBy(() -> service.createSession(TEACHER_ID, CLASS_ID,
+                new CreateSessionRequest(start, 90, "OFFLINE", "P.101")))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Trùng lịch")
+                .hasMessageContaining("A2 tối");
+
+        verify(sessionRepo, never()).save(any());
+        verify(notificationService, never()).notifyClassScheduleEvent(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("createSession succeeds when the teacher is free and notifies all students of the class")
+    void createSession_free_notifies() {
+        LocalDateTime start = LocalDateTime.now().plusDays(2).withHour(9).withMinute(0);
+        allowOwner();
+        when(classTeacherRepo.findByIdTeacherId(TEACHER_ID)).thenReturn(List.of(classTeacher(CLASS_ID)));
+        when(sessionRepo.findTeacherTimeConflicts(anyList(), any(), any(), any())).thenReturn(List.of());
+        when(sessionRepo.save(any())).thenAnswer(inv -> {
+            ClassSession x = inv.getArgument(0);
+            x.setId(901L);
+            return x;
+        });
+        when(sessionRepo.findRoomConflicts(any(), any(), any(), any())).thenReturn(List.of());
+        when(classRepo.findById(CLASS_ID)).thenReturn(Optional.of(teacherClass(CLASS_ID, "K30")));
+        when(classStudentRepo.countByIdClassId(CLASS_ID)).thenReturn(5L);
+
+        service.createSession(TEACHER_ID, CLASS_ID,
+                new CreateSessionRequest(start, 90, "OFFLINE", "P.101"));
+
+        verify(notificationService).notifyClassScheduleEvent(
+                eq(NotificationType.CLASS_SESSION_SCHEDULED), eq(CLASS_ID), any(), eq(TEACHER_ID), any());
+    }
+
+    @Test
+    @DisplayName("updateSession HARD-BLOCKS a reschedule that collides with the teacher's other class")
+    void updateSession_rescheduleConflict_blocks() {
+        LocalDateTime newStart = LocalDateTime.now().plusDays(3).withHour(18).withMinute(0);
+        ClassSession s = session(5L, CLASS_ID, LocalDateTime.now().plusDays(3).withHour(9), "P.302", false);
+        when(sessionRepo.findById(5L)).thenReturn(Optional.of(s));
+        allowOwner();
+        when(classTeacherRepo.findByIdTeacherId(TEACHER_ID))
+                .thenReturn(List.of(classTeacher(CLASS_ID), classTeacher(OTHER_CLASS_ID)));
+        ClassSession busy = session(800L, OTHER_CLASS_ID, newStart.plusMinutes(15), null, false);
+        when(sessionRepo.findTeacherTimeConflicts(anyList(), any(), any(), eq(5L))).thenReturn(List.of(busy));
+        when(classRepo.findById(OTHER_CLASS_ID)).thenReturn(Optional.of(teacherClass(OTHER_CLASS_ID, "A2")));
+
+        assertThatThrownBy(() -> service.updateSession(TEACHER_ID, 5L,
+                new UpdateSessionRequest(newStart, 90, "OFFLINE", "P.302", "SCHEDULED")))
+                .isInstanceOf(BadRequestException.class);
+
+        verify(sessionRepo, never()).save(any());
+        verify(notificationService, never()).notifyClassScheduleEvent(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("updateSession → CANCELLED notifies students (nghỉ học) and skips the double-booking check")
+    void updateSession_cancel_notifies() {
+        ClassSession s = session(5L, CLASS_ID, LocalDateTime.now().plusDays(1).withHour(18), "P.302", false);
+        when(sessionRepo.findById(5L)).thenReturn(Optional.of(s));
+        allowOwner();
+        when(sessionRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(classRepo.findById(CLASS_ID)).thenReturn(Optional.of(teacherClass(CLASS_ID, "K30")));
+        when(classStudentRepo.countByIdClassId(CLASS_ID)).thenReturn(5L);
+
+        service.updateSession(TEACHER_ID, 5L,
+                new UpdateSessionRequest(null, null, null, null, "CANCELLED"));
+
+        assertThat(s.getStatus()).isEqualTo(ClassSession.Status.CANCELLED);
+        verify(notificationService).notifyClassScheduleEvent(
+                eq(NotificationType.CLASS_SESSION_CANCELLED), eq(CLASS_ID), any(), eq(TEACHER_ID), any());
+        verify(sessionRepo, never()).findTeacherTimeConflicts(anyList(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("upsertPattern HARD-BLOCKS when a generated occurrence collides with the teacher's other class")
+    void upsertPattern_teacherConflict_blocks() {
+        LocalDate nextMon = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+        UpsertPatternRequest req = new UpsertPatternRequest(
+                (short) 1, LocalTime.of(18, 0), 90, "OFFLINE", "P.302", nextMon, nextMon.plusWeeks(2));
+        allowOwner();
+        when(patternRepo.findByClassIdAndDayOfWeek(CLASS_ID, (short) 1)).thenReturn(List.of());
+        when(classTeacherRepo.findByIdTeacherId(TEACHER_ID))
+                .thenReturn(List.of(classTeacher(CLASS_ID), classTeacher(OTHER_CLASS_ID)));
+        ClassSession busy = session(850L, OTHER_CLASS_ID, nextMon.atTime(18, 15), null, false);
+        when(sessionRepo.findTeacherTimeConflicts(anyList(), any(), any(), any())).thenReturn(List.of(busy));
+        when(classRepo.findById(OTHER_CLASS_ID)).thenReturn(Optional.of(teacherClass(OTHER_CLASS_ID, "A2")));
+
+        assertThatThrownBy(() -> service.upsertPattern(TEACHER_ID, CLASS_ID, req))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Trùng lịch");
+
+        verify(patternRepo, never()).save(any());
+        verify(notificationService, never()).notifyClassScheduleEvent(any(), any(), any(), any(), any());
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────────
