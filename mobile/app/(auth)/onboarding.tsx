@@ -173,7 +173,10 @@ export default function OnboardingScreen() {
             onboardingType: data.onboardingType, postAction: data.postAction, paywallAllowed: data.paywallAllowed,
           })
         } catch { /* route is best-effort */ }
-        if (route?.postAction === 'EMAIL_CAPTURE_UPSELL') {
+        // iOS v1.0 free build ships with NO commercial surface — skip the web-upsell consent here too
+        // (mirrors handleSubmit's guard). Without this, the guest-signup resume path re-introduces the
+        // PRO email-capture screen on iOS (App Store 2.1(b)/3.1.1). Falls through to the practice route.
+        if (route?.postAction === 'EMAIL_CAPTURE_UPSELL' && !PRO_UNLOCKED_FREE) {
           if (active) { setResuming(false); setShowUpsell(true) }
           return
         }

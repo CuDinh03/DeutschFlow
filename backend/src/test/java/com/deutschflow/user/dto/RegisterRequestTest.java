@@ -67,6 +67,22 @@ class RegisterRequestTest {
     }
 
     @Test
+    void whitespaceOnlyPhonePassesValidation() {
+        // The compact constructor trims "   " → "" so the "^$" alternative accepts it (stored NULL);
+        // otherwise Bean Validation's full-region @Pattern match would 400 a whitespace-only entry.
+        var req = new RegisterRequest("a@b.com", "   ", "secret12", "Name", "vi");
+        assertEquals("", req.phoneNumber());
+        assertFalse(phoneHasViolation("   "));
+    }
+
+    @Test
+    void phoneWithSurroundingWhitespaceIsTrimmedAndPasses() {
+        var req = new RegisterRequest("a@b.com", "  0912345678 ", "secret12", "Name", "vi");
+        assertEquals("0912345678", req.phoneNumber());
+        assertFalse(phoneHasViolation("  0912345678 "));
+    }
+
+    @Test
     void malformedPhoneStillFailsValidation() {
         assertTrue(phoneHasViolation("0212345678")); // invalid leading prefix
         assertTrue(phoneHasViolation("091234567"));  // too short
