@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   FlatList, KeyboardAvoidingView, Platform, Pressable, TextInput, View,
 } from 'react-native'
@@ -8,7 +8,8 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import { MessageCircle, MoreVertical, Send } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
-import { messagesApi } from '@/lib/messagesApi'
+import { messagesApi, type Message } from '@/lib/messagesApi'
+import { adaptivePollMs, maxMessageId, mergeThreadById } from '@/lib/chatDelta'
 import { buildDmBubbles, type ChatBubbleVM } from '@/lib/chatBubbles'
 import { itemsForChannel } from '@/lib/chatOutbox'
 import { useChatOutboxStore } from '@/stores/useChatOutboxStore'
@@ -18,10 +19,11 @@ import {
   AppHeader, Caption, EmptyState, ErrorState, Icon, Screen, Skeleton, ThemedText,
 } from '@/components/ui'
 
-// Poll the open thread so a teacher's reply appears live. A NEW_MESSAGE push already
-// invalidates this query on arrival (usePushNotifications), so polling is the fallback for a
-// missed foreground push; it pauses on background via the AppState→focusManager bridge.
-const THREAD_POLL_MS = 5_000
+// The open thread polls so a teacher's reply appears live. A NEW_MESSAGE push already invalidates
+// this query on arrival (usePushNotifications), so polling is the fallback for a missed foreground
+// push; it pauses on background via the AppState→focusManager bridge. Each poll is a DELTA fetch
+// (only messages newer than the cursor) merged into the cache, and the cadence backs off while the
+// thread is idle (adaptivePollMs) — snappy when active, calm when quiet, to save battery + data.
 
 export default function MessageThreadScreen() {
   const c = useTheme().colors
@@ -41,18 +43,30 @@ export default function MessageThreadScreen() {
   const flush = useChatOutboxStore((s) => s.flush)
   const reconcile = useChatOutboxStore((s) => s.reconcile)
 
+  // Timestamp of the last thread activity (send / focus / a poll that brought new messages).
+  // Drives the adaptive poll cadence — reset to "now" makes the next intervals snappy again.
+  const lastActivityRef = useRef(Date.now())
+
   const q = useQuery({
     queryKey: ['message-thread', userId],
-    queryFn: () => messagesApi.thread(userId),
+    queryFn: async () => {
+      const prev = qc.getQueryData<Message[]>(['message-thread', userId]) ?? []
+      const cursor = maxMessageId(prev) // from the CACHE (server truth), never from optimistic shadows
+      const delta = await messagesApi.thread(userId, cursor > 0 ? cursor : undefined)
+      const merged = cursor > 0 ? mergeThreadById(prev, delta) : delta
+      if (merged.length !== prev.length) lastActivityRef.current = Date.now() // new messages → poll fast
+      return merged
+    },
     enabled: Number.isFinite(userId),
     staleTime: 2_000,
-    refetchInterval: THREAD_POLL_MS,
+    refetchInterval: () => adaptivePollMs(Date.now() - lastActivityRef.current),
   })
 
   // Re-fetch + retry any stuck sends whenever the thread regains focus (e.g. after backgrounding
   // and returning) so it never shows a stale snapshot and a queued message goes out promptly.
   const refetch = q.refetch
   useFocusEffect(useCallback(() => {
+    lastActivityRef.current = Date.now() // returning to the thread → poll snappily again
     void refetch()
     flush()
   }, [refetch, flush]))
@@ -82,6 +96,7 @@ export default function MessageThreadScreen() {
   const onSend = () => {
     if (!canSend) return
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    lastActivityRef.current = Date.now() // just sent → keep polling snappy to surface the reply
     send('dm', userId, trimmed)
     setDraft('')
   }

@@ -29,10 +29,16 @@ describe('messagesApi endpoints', () => {
     expect(get).toHaveBeenCalledWith('/messages/unread-count')
   })
 
-  test('thread(userId) hits /messages/with/{userId}', async () => {
+  test('thread(userId) hits /messages/with/{userId} with no params (full fetch)', async () => {
     get.mockResolvedValue({ data: [] })
     await messagesApi.thread(42)
-    expect(get).toHaveBeenCalledWith('/messages/with/42')
+    expect(get).toHaveBeenCalledWith('/messages/with/42', undefined)
+  })
+
+  test('thread(userId, afterId) sends the delta cursor as ?afterId', async () => {
+    get.mockResolvedValue({ data: [] })
+    await messagesApi.thread(42, 100)
+    expect(get).toHaveBeenCalledWith('/messages/with/42', { params: { afterId: 100 } })
   })
 
   test('send(recipientId, body) POSTs the payload', async () => {

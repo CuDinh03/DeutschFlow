@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, TextInput, View,
 } from 'react-native'
@@ -8,7 +8,8 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import { MessagesSquare, Send } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
-import { classChannelApi } from '@/lib/classChannelApi'
+import { classChannelApi, type ClassMessage } from '@/lib/classChannelApi'
+import { adaptivePollMs } from '@/lib/chatDelta'
 import { buildClassBubbles, type ChatBubbleVM } from '@/lib/chatBubbles'
 import { itemsForChannel } from '@/lib/chatOutbox'
 import { useChatOutboxStore } from '@/stores/useChatOutboxStore'
@@ -33,18 +34,29 @@ export default function ClassChatScreen() {
   const flush = useChatOutboxStore((s) => s.flush)
   const reconcile = useChatOutboxStore((s) => s.reconcile)
 
+  const lastActivityRef = useRef(Date.now())
+
   const q = useQuery({
     queryKey: ['class-channel', classId],
-    queryFn: () => classChannelApi.list(classId),
+    // Full fetch (no delta): a soft-delete flips an existing row's `deleted` flag without changing
+    // its id, so an id-cursor delta would miss deletions — the channel must always see current
+    // moderation state. The adaptive cadence keeps the cost down when the channel is quiet.
+    queryFn: async () => {
+      const prev = qc.getQueryData<ClassMessage[]>(['class-channel', classId]) ?? []
+      const next = await classChannelApi.list(classId)
+      if (next.length !== prev.length) lastActivityRef.current = Date.now()
+      return next
+    },
     enabled: Number.isFinite(classId),
     staleTime: 3_000,
-    refetchInterval: 8_000, // light polling for near-realtime (no SSE in this MVP)
+    refetchInterval: () => adaptivePollMs(Date.now() - lastActivityRef.current),
   })
 
   // Refetch + retry queued sends when the channel regains focus so a returning member never sees
   // a stale thread and a message queued offline goes out promptly.
   const refetch = q.refetch
   useFocusEffect(useCallback(() => {
+    lastActivityRef.current = Date.now()
     void refetch()
     flush()
   }, [refetch, flush]))
@@ -93,6 +105,7 @@ export default function ClassChatScreen() {
   const onSend = () => {
     if (!canSend) return
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    lastActivityRef.current = Date.now()
     send('class', classId, trimmed)
     setDraft('')
   }
