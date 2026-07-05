@@ -23,7 +23,7 @@ import Animated, {
   withTiming,
   cancelAnimation,
 } from 'react-native-reanimated'
-import { apiMessage } from '@/lib/api'
+import { handleAiError } from '@/lib/upsell'
 import {
   speakingApi,
   type SpeakingSessionMode,
@@ -273,7 +273,7 @@ export default function SpeakingScreen() {
       speakGerman(greeting, () => flashReaction(null), created.persona)
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     } catch (e) {
-      Alert.alert('Không thể bắt đầu', apiMessage(e))
+      handleAiError(e, 'Không thể bắt đầu')
     } finally {
       setStarting(false)
     }
@@ -303,7 +303,7 @@ export default function SpeakingScreen() {
       if (res.isSessionEnded) await finishSession()
     } catch (e) {
       setStage('idle')
-      Alert.alert('Lỗi', apiMessage(e))
+      handleAiError(e)
     } finally {
       setSending(false)
     }
@@ -399,7 +399,7 @@ export default function SpeakingScreen() {
       setDraft(transcript)
       scrollToEnd()
     } catch (e) {
-      Alert.alert('Lỗi', apiMessage(e))
+      handleAiError(e)
     } finally {
       setTranscribing(false)
     }
@@ -426,7 +426,7 @@ export default function SpeakingScreen() {
       }
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
     } catch (e) {
-      Alert.alert('Không thể tạo báo cáo', apiMessage(e))
+      handleAiError(e, 'Không thể tạo báo cáo')
     } finally {
       setFinishing(false)
     }
@@ -501,7 +501,7 @@ export default function SpeakingScreen() {
       setView('chat')
       scrollToEnd()
     } catch (e) {
-      Alert.alert('Không thể tiếp tục', apiMessage(e))
+      handleAiError(e, 'Không thể tiếp tục')
       await clearActiveSession()
       setPendingResume(null)
     } finally {
