@@ -73,9 +73,22 @@ public class MessageService {
     /** Full thread with another user (oldest → newest); marks incoming messages read as a side effect. */
     @Transactional
     public List<MessageDto> getThread(Long me, Long otherId) {
+        return getThread(me, otherId, null);
+    }
+
+    /**
+     * Thread with another user (oldest → newest); marks incoming messages read as a side effect.
+     * When {@code afterId} is non-null the result is a DELTA — only messages newer than that id —
+     * so a polling client transfers just what it hasn't seen. The mark-read still covers the whole
+     * incoming side (not only the delta), so read-state stays correct regardless of the cursor.
+     */
+    @Transactional
+    public List<MessageDto> getThread(Long me, Long otherId, Long afterId) {
         assertCanMessage(me, otherId);
-        List<Message> thread = messageRepository
-                .findBySenderIdAndRecipientIdOrSenderIdAndRecipientIdOrderByIdAsc(me, otherId, otherId, me);
+        List<Message> thread = (afterId == null)
+                ? messageRepository.findBySenderIdAndRecipientIdOrSenderIdAndRecipientIdOrderByIdAsc(
+                        me, otherId, otherId, me)
+                : messageRepository.findThreadAfter(me, otherId, afterId);
         messageRepository.markThreadRead(me, otherId, Instant.now());
         Set<Long> blocked = blockService.blockedIds(me);
         return thread.stream()

@@ -24,6 +24,7 @@ import {
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { useSrsOfflineStore } from '@/stores/useSrsOfflineStore'
+import { useChatOutboxStore } from '@/stores/useChatOutboxStore'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
 import { queryClient } from '@/lib/queryClient'
 import { getAccessToken } from '@/lib/auth'
@@ -140,6 +141,8 @@ function RootLayout() {
     useSrsOfflineStore.getState().loadCount()
     // Sync any offline reviews queued while the app was offline or backgrounded.
     void useSrsOfflineStore.getState().sync()
+    // Flush any chat messages that were queued (or failed to send) before a kill/restart.
+    useChatOutboxStore.getState().flush()
   }, [])
 
   useEffect(() => {
@@ -150,6 +153,8 @@ function RootLayout() {
       focusManager.setFocused(state === 'active')
       if (state === 'active') {
         void useSrsOfflineStore.getState().sync()
+        // Retry chat sends that were queued or failed while the app was backgrounded/offline.
+        useChatOutboxStore.getState().flush()
       }
     })
     return () => sub.remove()
