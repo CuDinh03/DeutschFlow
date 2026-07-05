@@ -8,10 +8,13 @@ import { Screen, Card, ThemedText, Icon, Caption, SectionHeader, FadeIn } from '
 import { useTourStore } from '@/stores/useTourStore'
 import { captureEvent } from '@/lib/analytics'
 import { GUIDE_ITEMS, FAQ, toneStyles, type GuideItem } from '@/components/guide/tourContent'
+import { PRO_UNLOCKED_FREE } from '@/lib/paywall'
 
 export default function GuideScreen() {
   const c = useTheme().colors
   const show = useTourStore((s) => s.show)
+  // The iOS free build ships with no commercial PRO surface, so drop FAQ entries that mention it.
+  const faqs = PRO_UNLOCKED_FREE ? FAQ.filter((entry) => !entry.proOnly) : FAQ
 
   return (
     <Screen scroll edges={['top']} contentStyle={{ paddingBottom: space[10] }}>
@@ -86,7 +89,7 @@ export default function GuideScreen() {
             <ThemedText variant="titleLg">Câu hỏi thường gặp</ThemedText>
           </View>
           <Card padded={false} style={{ paddingHorizontal: space[4] }}>
-            {FAQ.map((entry, i) => (
+            {faqs.map((entry, i) => (
               <FaqRow key={entry.q} question={entry.q} answer={entry.a} divider={i > 0} />
             ))}
           </Card>

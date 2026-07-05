@@ -19,3 +19,13 @@ export const IAP_ENABLED = false
  * Subscriptions bought on the web still unlock automatically — this only gates the upsell surfaces.
  */
 export const PAYWALL_ENABLED = Platform.OS !== 'ios' || IAP_ENABLED
+
+/**
+ * v1.0: iOS ships fully free — no purchase, no locked content, no "PRO"/"upgrade" wording — so the app
+ * clears App Store Review 2.1(b) (business model) and removes any 3.1.1 "unlock content bought outside
+ * IAP" risk. When true, every PRO *feature* gate opens and every commercial label is hidden on iOS.
+ *
+ * v1.1: flip {@link IAP_ENABLED} to `true` and this derives back to `false` automatically — all PRO
+ * gates and labels return to normal with no per-screen edits. See `plans/appstore/IOS_FREE_MODE.md`.
+ */
+export const PRO_UNLOCKED_FREE = Platform.OS === 'ios' && !IAP_ENABLED

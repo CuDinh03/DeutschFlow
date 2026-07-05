@@ -28,7 +28,7 @@ export default function RegisterScreen() {
 
   async function handleRegister() {
     const phoneTrimmed = phone.trim()
-    if (!displayName.trim() || !email.trim() || !phoneTrimmed || !password.trim()) {
+    if (!displayName.trim() || !email.trim() || !password.trim()) {
       Alert.alert('Thiếu thông tin', 'Vui lòng điền đầy đủ thông tin.')
       return
     }
@@ -36,8 +36,8 @@ export default function RegisterScreen() {
       Alert.alert('Điều khoản', 'Vui lòng đồng ý với Điều khoản và Chính sách bảo mật.')
       return
     }
-    // Backend requires a Vietnamese mobile number (RegisterRequest @Pattern).
-    if (!/^0[35789]\d{8}$/.test(phoneTrimmed)) {
+    // Phone is optional (App Store 5.1.1(v)); only validate the format when the user actually enters one.
+    if (phoneTrimmed && !/^0[35789]\d{8}$/.test(phoneTrimmed)) {
       Alert.alert('Số điện thoại không hợp lệ', 'Nhập số di động VN 10 chữ số, ví dụ 0912345678.')
       return
     }
@@ -51,7 +51,8 @@ export default function RegisterScreen() {
       const res = await api.post<{ accessToken: string; refreshToken: string }>('/auth/register', {
         displayName: displayName.trim(),
         email: email.trim(),
-        phoneNumber: phoneTrimmed,
+        // Omit entirely when blank — never send "" (the phone column is UNIQUE; the backend stores NULL).
+        ...(phoneTrimmed ? { phoneNumber: phoneTrimmed } : {}),
         password,
         locale: 'vi',
       })
@@ -128,7 +129,7 @@ export default function RegisterScreen() {
                 autoComplete="email"
               />
               <TextField
-                label="Số điện thoại"
+                label="Số điện thoại (không bắt buộc)"
                 value={phone}
                 onChangeText={setPhone}
                 placeholder="0912345678"

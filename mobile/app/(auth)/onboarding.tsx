@@ -8,6 +8,7 @@ import { useAuthStore } from '@/stores/useAuthStore'
 import { motion, radius, space, useTheme } from '@/lib/theme'
 import { captureEvent } from '@/lib/analytics'
 import { saveOnboardingDraft, readOnboardingDraft, clearOnboardingDraft } from '@/lib/onboardingDraft'
+import { PRO_UNLOCKED_FREE } from '@/lib/paywall'
 import { Screen, ThemedText, Button } from '@/components/ui'
 
 // Onboarding for iOS B2C (MVP checklist §5.1): collect goal, target level, and
@@ -172,7 +173,10 @@ export default function OnboardingScreen() {
             onboardingType: data.onboardingType, postAction: data.postAction, paywallAllowed: data.paywallAllowed,
           })
         } catch { /* route is best-effort */ }
-        if (route?.postAction === 'EMAIL_CAPTURE_UPSELL') {
+        // iOS v1.0 free build ships with NO commercial surface — skip the web-upsell consent here too
+        // (mirrors handleSubmit's guard). Without this, the guest-signup resume path re-introduces the
+        // PRO email-capture screen on iOS (App Store 2.1(b)/3.1.1). Falls through to the practice route.
+        if (route?.postAction === 'EMAIL_CAPTURE_UPSELL' && !PRO_UNLOCKED_FREE) {
           if (active) { setResuming(false); setShowUpsell(true) }
           return
         }
@@ -247,7 +251,9 @@ export default function OnboardingScreen() {
       } catch { /* analytics/route is best-effort */ }
 
       // iOS "reader app" (Apple 3.1.1): no in-app pricing — offer email-upsell consent.
-      if (route?.postAction === 'EMAIL_CAPTURE_UPSELL') {
+      // The iOS v1.0 free build ships with NO commercial surface at all: skip this consent (it steers
+      // toward a web PRO, a 2.1(b)/3.1.1 risk) and fall through to the first practice session.
+      if (route?.postAction === 'EMAIL_CAPTURE_UPSELL' && !PRO_UNLOCKED_FREE) {
         setShowUpsell(true)
         return
       }

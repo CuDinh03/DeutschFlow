@@ -64,7 +64,7 @@ export default function SpeakingScreen() {
   const theme = useTheme()
   const c = theme.colors
   const insets = useSafeAreaInsets()
-  const { isPro } = usePlanStore()
+  const { hasProAccess } = usePlanStore()
 
   // Onboarding (and deep links) can preselect a speaking mode — e.g. the
   // INTERVIEW_FIRST archetype routes here as `?mode=INTERVIEW`.
@@ -338,8 +338,8 @@ export default function SpeakingScreen() {
   const onUseSuggestion = useCallback((text: string) => useSuggestionRef.current(text), [])
 
   async function startRecording() {
-    if (!isPro) {
-      Alert.alert('Tính năng PRO', 'Trả lời bằng giọng nói cần PRO. Bạn vẫn có thể gõ câu trả lời.')
+    if (!hasProAccess) {
+      Alert.alert('Tính năng nâng cao', 'Trả lời bằng giọng nói cần tài khoản nâng cao. Bạn vẫn có thể gõ câu trả lời.')
       return
     }
     try {
@@ -590,7 +590,7 @@ export default function SpeakingScreen() {
           </View>
         ) : null}
 
-        <CompanionSelect isPro={isPro} starting={starting} onStart={startSession} initialMode={initialMode} />
+        <CompanionSelect isPro={hasProAccess} starting={starting} onStart={startSession} initialMode={initialMode} />
       </Screen>
     )
   }

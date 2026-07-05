@@ -16,7 +16,7 @@ const EXAM_LEVELS = ['A1', 'A2', 'B1', 'B2'] as const
 
 export default function ExamScreen() {
   const theme = useTheme()
-  const { isPro } = usePlanStore()
+  const { hasProAccess } = usePlanStore()
 
   const [level, setLevel] = useState<string>('B1')
 
@@ -24,21 +24,21 @@ export default function ExamScreen() {
     queryKey: ['exam-variants', level],
     queryFn: () =>
       api.get<RawMockExam[]>('/mock-exams', { params: { cefrLevel: level } }).then((r) => r.data.map(mapExam)),
-    enabled: isPro,
+    enabled: hasProAccess,
     staleTime: 300_000,
   })
 
   const { data: recommendedId } = useQuery({
     queryKey: ['exam-recommend', level],
     queryFn: () => examApi.recommend(level),
-    enabled: isPro,
+    enabled: hasProAccess,
     staleTime: 300_000,
   })
 
   const { data: attempts = [], refetch: refetchAttempts } = useQuery({
     queryKey: ['exam-attempts'],
     queryFn: () => examApi.listAttempts(),
-    enabled: isPro,
+    enabled: hasProAccess,
     staleTime: 60_000,
   })
 
@@ -74,7 +74,7 @@ export default function ExamScreen() {
     <Screen edges={['top']}>
       <AppHeader title="Thi thử Goethe" onBack={() => router.back()} />
 
-      {isPro ? (
+      {hasProAccess ? (
         <View style={{ paddingHorizontal: space[5], paddingTop: space[2], paddingBottom: space[3], gap: space[2] }}>
           <Caption>Cấp độ</Caption>
           <View style={{ flexDirection: 'row', gap: space[2] }}>
@@ -106,7 +106,7 @@ export default function ExamScreen() {
         </View>
       ) : null}
 
-      {!isPro ? (
+      {!hasProAccess ? (
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <EmptyState
             icon={Lock}

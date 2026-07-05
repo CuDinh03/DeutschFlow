@@ -11,8 +11,10 @@ public record RegisterRequest(
         @NotBlank(message = "Email is required")
         String email,
 
-        @NotBlank(message = "Số điện thoại không được để trống")
-        @Pattern(regexp = "^0[35789]\\d{8}$",
+        // Phone is OPTIONAL (App Store 5.1.1(v): a non-core field cannot be forced at sign-up). When
+        // provided it must be a valid VN mobile number; empty/blank is accepted and stored as NULL by
+        // AuthService.register. The "^$|" alternative lets the empty string through @Pattern.
+        @Pattern(regexp = "^$|^0[35789]\\d{8}$",
                 message = "Số điện thoại không hợp lệ (VD: 0912345678, phải là số VN 10 chữ số)")
         String phoneNumber,
 
@@ -27,12 +29,17 @@ public record RegisterRequest(
         @Pattern(regexp = "^(vi|en|de)$", message = "Locale must be one of: vi, en, de")
         String locale
 ) {
-    // Trim the email BEFORE Bean Validation runs, mirroring LoginRequest. @Email rejects
-    // leading/trailing whitespace, so a pasted/autofilled address with a stray space would 400
-    // at the controller instead of registering. AuthService.register lowercases at write time.
+    // Trim email + phone BEFORE Bean Validation runs, mirroring LoginRequest. @Email/@Pattern do a
+    // full-region match and reject surrounding whitespace, so a pasted/autofilled value with a stray
+    // space would 400 at the controller instead of registering. Trimming phone here also makes a
+    // whitespace-only entry collapse to "" (accepted by the "^$|" alternative → stored NULL), keeping
+    // the "blank = omitted" contract true end-to-end. AuthService lowercases email / nulls blank phone.
     public RegisterRequest {
         if (email != null) {
             email = email.trim();
+        }
+        if (phoneNumber != null) {
+            phoneNumber = phoneNumber.trim();
         }
     }
 }
