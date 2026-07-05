@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import api, { apiMessage } from '@/lib/api'
 import { GaPageHdr, GaCap, GaBtn, TkSearch, TkStatStrip } from '@/components/ui-v2'
 
@@ -17,6 +18,8 @@ interface AdminClass {
 }
 
 export default function V2AdminClassesPage() {
+  const t = useTranslations('v2.adminOps.classes')
+  const tc = useTranslations('v2.common')
   const [items, setItems] = useState<AdminClass[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -51,20 +54,20 @@ export default function V2AdminClassesPage() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <GaPageHdr accent title="Quản lý lớp học" subtitle="Tất cả lớp trên hệ thống — đồng bộ realtime với database" />
+      <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
 
       <div className="flex-1 overflow-auto px-10 py-6">
         <TkStatStrip
           items={[
-            { label: 'Tổng lớp', value: items.length, sub: 'toàn hệ thống' },
-            { label: 'Tổng học viên', value: totalStudents.toLocaleString(), sub: 'đã ghi danh', color: '#2F6FC9' },
-            { label: 'Chưa có GV', value: unassigned, sub: 'cần phân công', color: unassigned ? 'var(--ga-red)' : undefined },
+            { label: t('stats.totalClasses'), value: items.length, sub: t('stats.totalClassesSub') },
+            { label: t('stats.totalStudents'), value: totalStudents.toLocaleString(), sub: t('stats.totalStudentsSub'), color: '#2F6FC9' },
+            { label: t('stats.unassigned'), value: unassigned, sub: t('stats.unassignedSub'), color: unassigned ? 'var(--ga-red)' : undefined },
           ]}
         />
 
         <div className="mb-3.5 mt-[22px] flex items-center justify-between gap-3">
-          <GaCap>{rows.length} lớp</GaCap>
-          <TkSearch value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Tìm lớp / giáo viên / ID…" containerClassName="w-[260px]" />
+          <GaCap>{t('count', { count: rows.length })}</GaCap>
+          <TkSearch value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('searchPlaceholder')} containerClassName="w-[260px]" />
         </div>
 
         {loading ? (
@@ -73,19 +76,24 @@ export default function V2AdminClassesPage() {
           </div>
         ) : error ? (
           <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">Không tải được lớp học</h2>
+            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadError')}</h2>
             <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">{error} <code className="font-mono text-[12px] text-ga-accent">GET /api/admin/classes</code></p>
-            <GaBtn variant="primary" onClick={load}>Thử lại</GaBtn>
+            <GaBtn variant="primary" onClick={load}>{tc('retry')}</GaBtn>
           </div>
         ) : rows.length === 0 ? (
           <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">
-            {items.length === 0 ? 'Hệ thống chưa có lớp nào.' : 'Không tìm thấy lớp.'}
+            {items.length === 0 ? t('emptyOrg') : t('emptySearch')}
           </div>
         ) : (
           <div className="border border-ga-line bg-ga-card">
             <div className="grid items-center gap-2 border-b border-ga-line bg-ga-bg px-5 py-[11px]" style={{ gridTemplateColumns: GRID }}>
-              {['ID', 'Lớp', 'Giáo viên', 'Học viên'].map((h, i) => (
-                <span key={h} className={`ga-ui text-[10px] font-bold uppercase tracking-[0.1em] text-ga-muted ${i === 3 ? 'text-right' : ''}`}>{h}</span>
+              {[
+                { key: 'colId', label: t('colId') },
+                { key: 'colClass', label: t('colClass') },
+                { key: 'colTeacher', label: t('colTeacher') },
+                { key: 'colStudents', label: t('colStudents') },
+              ].map((h, i) => (
+                <span key={h.key} className={`ga-ui text-[10px] font-bold uppercase tracking-[0.1em] text-ga-muted ${i === 3 ? 'text-right' : ''}`}>{h.label}</span>
               ))}
             </div>
             {rows.map((c, i) => (
@@ -93,7 +101,7 @@ export default function V2AdminClassesPage() {
                 <span className="font-mono text-[12px] text-ga-muted">#{c.id}</span>
                 <span className="truncate text-[14px] font-semibold text-ga-ink">{c.name}</span>
                 <span className="min-w-0 truncate text-[13px] text-ga-muted">
-                  {c.teacherName || <span className="px-2 py-0.5 text-[11px] font-bold" style={{ color: 'var(--ga-red)', background: 'var(--ga-red-soft)' }}>Chưa phân công</span>}
+                  {c.teacherName || <span className="px-2 py-0.5 text-[11px] font-bold" style={{ color: 'var(--ga-red)', background: 'var(--ga-red-soft)' }}>{t('unassignedBadge')}</span>}
                 </span>
                 <span className="text-right text-[13.5px] font-semibold text-ga-ink">{(c.studentCount || 0).toLocaleString()}</span>
               </div>

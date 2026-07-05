@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { interviewDomainApi, type InterviewAnalytics } from '@/lib/interviewDomainApi'
 import { AdStatStrip, type AdStatCell, ErrorBanner, LoadingState, GaPageHdr } from '@/components/ui-v2'
 import { GaSection, GaDonut, GaLegend, GaBarRow, GA_CHART, nfVN } from '../../analyticsShared'
@@ -18,6 +19,7 @@ function recToSegs(rec: Record<string, number>): { label: string; value: number;
 }
 
 export default function V2AdminInterviewsPage() {
+  const t = useTranslations('v2.adminContent.interviews')
   const [data, setData] = useState<InterviewAnalytics | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -28,7 +30,7 @@ export default function V2AdminInterviewsPage() {
     interviewDomainApi
       .getAnalytics()
       .then(setData)
-      .catch(() => setError('Không thể tải phân tích phỏng vấn.'))
+      .catch(() => setError(t('loadError')))
       .finally(() => setLoading(false))
   }
   useEffect(load, [])
@@ -42,19 +44,19 @@ export default function V2AdminInterviewsPage() {
   const avgScore = data ? avgOfValues(data.avgScoreByIndustry) : 0
 
   const cells: AdStatCell[] = [
-    { label: 'Tổng phiên', value: data ? nfVN.format(data.totalSessions) : '—', color: '#2F6FC9' },
+    { label: t('statTotal'), value: data ? nfVN.format(data.totalSessions) : '—', color: '#2F6FC9' },
     {
-      label: 'Tỷ lệ hoàn thành',
+      label: t('statCompletion'),
       value: data ? `${Math.round(data.completionRate * (data.completionRate <= 1 ? 100 : 1))}%` : '—',
       color: '#1E9E61',
-      sub: data ? `${nfVN.format(data.completedSessions)} phiên xong` : undefined,
+      sub: data ? t('statCompletionSub', { count: nfVN.format(data.completedSessions) }) : undefined,
     },
-    { label: 'Điểm TB', value: avgScore > 0 ? avgScore.toFixed(1) : '—', color: '#7C56C8', sub: 'thang 100' },
+    { label: t('statAvgScore'), value: avgScore > 0 ? avgScore.toFixed(1) : '—', color: '#7C56C8', sub: t('statAvgScoreSub') },
     {
-      label: 'Biến thể A/B',
+      label: t('statVariants'),
       value: data ? nfVN.format(Object.keys(data.variantDistribution).length) : '—',
       color: '#E07B39',
-      sub: 'đang chạy',
+      sub: t('statVariantsSub'),
     },
   ]
 
@@ -62,8 +64,8 @@ export default function V2AdminInterviewsPage() {
     <div className="flex min-h-full flex-col">
       <GaPageHdr
         accent
-        title="Phân tích Phỏng vấn AI"
-        subtitle="Tỷ lệ hoàn thành, điểm rơi theo giai đoạn và phân phối biến thể"
+        title={t('title')}
+        subtitle={t('subtitle')}
       />
       <div className="flex-1 px-10 py-6">
         {error && (
@@ -72,13 +74,13 @@ export default function V2AdminInterviewsPage() {
           </div>
         )}
         {loading && !data ? (
-          <LoadingState label="Đang tải phân tích…" />
+          <LoadingState label={t('loading')} />
         ) : data ? (
           <div className="space-y-[22px]">
             <AdStatStrip cells={cells} />
 
             <div className="grid grid-cols-1 gap-[22px] lg:grid-cols-[1.4fr_1fr]">
-              <GaSection title="Điểm rơi theo giai đoạn (phase drop-off)">
+              <GaSection title={t('phaseDropOffTitle')}>
                 {data.phaseDropOff.length > 0 ? (
                   <div className="space-y-1">
                     {data.phaseDropOff.map((p) => (
@@ -95,11 +97,11 @@ export default function V2AdminInterviewsPage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="ga-ui py-8 text-center text-[14px] text-ga-muted">Chưa có dữ liệu giai đoạn.</p>
+                  <p className="ga-ui py-8 text-center text-[14px] text-ga-muted">{t('noPhaseData')}</p>
                 )}
               </GaSection>
 
-              <GaSection title="Phân phối & điểm theo biến thể">
+              <GaSection title={t('variantDistTitle')}>
                 {variantEntries.length > 0 ? (
                   <div className="space-y-3">
                     {variantEntries.map(([variant, sess], i) => {
@@ -113,7 +115,7 @@ export default function V2AdminInterviewsPage() {
                           color={GA_CHART[i % GA_CHART.length]}
                           display={
                             <>
-                              {nfVN.format(sess)} phiên
+                              {t('sessionsSuffix', { count: nfVN.format(sess) })}
                               {Number.isFinite(score) && <span className="text-ga-subtle"> · {score.toFixed(1)}đ</span>}
                             </>
                           }
@@ -122,13 +124,13 @@ export default function V2AdminInterviewsPage() {
                     })}
                   </div>
                 ) : (
-                  <p className="ga-ui py-8 text-center text-[14px] text-ga-muted">Chưa có biến thể.</p>
+                  <p className="ga-ui py-8 text-center text-[14px] text-ga-muted">{t('noVariants')}</p>
                 )}
               </GaSection>
             </div>
 
             <div className="grid grid-cols-1 gap-[22px] lg:grid-cols-2">
-              <GaSection title="Phiên theo ngành">
+              <GaSection title={t('sessionsByIndustryTitle')}>
                 {industrySegs.length > 0 ? (
                   <div className="flex items-center gap-5">
                     <GaDonut segments={industrySegs} />
@@ -137,11 +139,11 @@ export default function V2AdminInterviewsPage() {
                     </div>
                   </div>
                 ) : (
-                  <p className="ga-ui py-8 text-center text-[14px] text-ga-muted">Chưa có dữ liệu ngành.</p>
+                  <p className="ga-ui py-8 text-center text-[14px] text-ga-muted">{t('noIndustryData')}</p>
                 )}
               </GaSection>
 
-              <GaSection title="Điểm trung bình theo ngành">
+              <GaSection title={t('avgScoreByIndustryTitle')}>
                 {Object.keys(data.avgScoreByIndustry).length > 0 ? (
                   <div className="space-y-1">
                     {Object.entries(data.avgScoreByIndustry)
@@ -158,13 +160,13 @@ export default function V2AdminInterviewsPage() {
                       ))}
                   </div>
                 ) : (
-                  <p className="ga-ui py-8 text-center text-[14px] text-ga-muted">Chưa có điểm theo ngành.</p>
+                  <p className="ga-ui py-8 text-center text-[14px] text-ga-muted">{t('noScoreByIndustry')}</p>
                 )}
               </GaSection>
             </div>
           </div>
         ) : (
-          !error && <p className="ga-ui py-10 text-center text-[14px] text-ga-muted">Không có dữ liệu.</p>
+          !error && <p className="ga-ui py-10 text-center text-[14px] text-ga-muted">{t('noData')}</p>
         )}
       </div>
     </div>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Plus, Pencil, Eye, EyeOff, FileText, Lock } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
@@ -24,6 +25,8 @@ interface FormState { title: string; descriptionVi: string; cefrLevel: string; e
 const EMPTY: FormState = { title: '', descriptionVi: '', cefrLevel: 'B1', examFormat: 'GOETHE', requiresPaid: true, sortOrder: 0 }
 
 export default function V2AdminMockPacksPage() {
+  const t = useTranslations('v2.adminContent.mockPacks')
+  const tc = useTranslations('v2.common')
   const [packs, setPacks] = useState<AdminMockPack[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -51,7 +54,7 @@ export default function V2AdminMockPacksPage() {
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => ({ ...f, [k]: v }))
 
   const submit = async () => {
-    if (!form.title.trim()) { toast.error('Tiêu đề là bắt buộc'); return }
+    if (!form.title.trim()) { toast.error(t('titleRequired')); return }
     setSaving(true)
     const body = {
       title: form.title.trim(),
@@ -64,7 +67,7 @@ export default function V2AdminMockPacksPage() {
     try {
       if (editingId == null) await createMockPack(body)
       else await updateMockPack(editingId, body)
-      toast.success(editingId == null ? 'Đã tạo bộ đề' : 'Đã lưu thay đổi')
+      toast.success(editingId == null ? t('created') : t('saved'))
       setModal(false)
       await load()
     } catch (e: unknown) { toast.error(apiMessage(e)) }
@@ -85,29 +88,29 @@ export default function V2AdminMockPacksPage() {
     <div className="flex min-h-full flex-col">
       <GaPageHdr
         accent
-        title="Bộ đề thi thử"
-        subtitle="Tạo / sửa / ẩn-hiện bộ đề luyện thi (D3) — không cần SQL"
-        right={<GaBtn variant="yellow" size="sm" onClick={openCreate}><Plus size={15} /> Tạo bộ đề</GaBtn>}
+        title={t('title')}
+        subtitle={t('subtitle')}
+        right={<GaBtn variant="yellow" size="sm" onClick={openCreate}><Plus size={15} /> {t('createPack')}</GaBtn>}
       />
 
       <div className="flex-1 overflow-auto px-10 py-6">
-        <GaCap className="mb-3.5 block">Một bộ đề gom các đề thi thử đang bật trùng (trình độ × định dạng). Cột “Đề” = số đề hiện gom được.</GaCap>
+        <GaCap className="mb-3.5 block">{t('hint')}</GaCap>
 
         {loading ? (
           <div className="flex flex-col gap-2">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="ga-shimmer h-[54px] border border-ga-line" aria-hidden />)}</div>
         ) : error ? (
           <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">Không tải được bộ đề</h2>
+            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadError')}</h2>
             <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">{error} <code className="font-mono text-[12px] text-ga-accent">GET /api/admin/mock-exam-packs</code></p>
-            <GaBtn variant="primary" onClick={load}>Thử lại</GaBtn>
+            <GaBtn variant="primary" onClick={load}>{tc('retry')}</GaBtn>
           </div>
         ) : packs.length === 0 ? (
-          <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">Chưa có bộ đề nào — bấm “Tạo bộ đề”.</div>
+          <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">{t('empty')}</div>
         ) : (
           <div className="border border-ga-line bg-ga-card">
             <div className="grid items-center gap-2 border-b border-ga-line bg-ga-bg px-5 py-[11px]" style={{ gridTemplateColumns: GRID }}>
-              {['#', 'Bộ đề', 'Cấp · Định dạng', 'Đề', 'Truy cập', 'Trạng thái', 'Thao tác'].map((h, i) => (
-                <span key={h} className={`ga-ui text-[10px] font-bold uppercase tracking-[0.1em] text-ga-muted ${i === 3 ? 'text-center' : ''} ${i === 6 ? 'text-right' : ''}`}>{h}</span>
+              {[t('colNum'), t('colPack'), t('colLevelFormat'), t('colExams'), t('colAccess'), t('colStatus'), t('colActions')].map((h, i) => (
+                <span key={i} className={`ga-ui text-[10px] font-bold uppercase tracking-[0.1em] text-ga-muted ${i === 3 ? 'text-center' : ''} ${i === 6 ? 'text-right' : ''}`}>{h}</span>
               ))}
             </div>
             {packs.map((p, i) => (
@@ -121,18 +124,18 @@ export default function V2AdminMockPacksPage() {
                 <span className={`inline-flex items-center justify-center gap-1 text-[13px] font-semibold ${p.examCount === 0 ? 'text-ga-red' : 'text-ga-ink'}`}><FileText size={12} /> {p.examCount}</span>
                 <span>
                   {p.requiresPaid
-                    ? <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-bold" style={{ color: 'var(--ga-orange)', background: 'var(--ga-orange-soft)' }}><Lock size={10} /> Trả phí</span>
-                    : <span className="px-2 py-0.5 text-[11px] font-bold" style={{ color: 'var(--ga-green)', background: 'var(--ga-green-soft)' }}>Miễn phí</span>}
+                    ? <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-bold" style={{ color: 'var(--ga-orange)', background: 'var(--ga-orange-soft)' }}><Lock size={10} /> {t('paid')}</span>
+                    : <span className="px-2 py-0.5 text-[11px] font-bold" style={{ color: 'var(--ga-green)', background: 'var(--ga-green-soft)' }}>{t('free')}</span>}
                 </span>
                 <span>
                   {p.active
-                    ? <span className="px-2 py-0.5 text-[11px] font-bold" style={{ color: 'var(--ga-green)', background: 'var(--ga-green-soft)' }}>Đang hiện</span>
-                    : <span className="px-2 py-0.5 text-[11px] font-bold" style={{ color: 'var(--ga-muted)', background: 'var(--ga-side-active)' }}>Đã ẩn</span>}
+                    ? <span className="px-2 py-0.5 text-[11px] font-bold" style={{ color: 'var(--ga-green)', background: 'var(--ga-green-soft)' }}>{t('shown')}</span>
+                    : <span className="px-2 py-0.5 text-[11px] font-bold" style={{ color: 'var(--ga-muted)', background: 'var(--ga-side-active)' }}>{t('hidden')}</span>}
                 </span>
                 <span className="flex items-center justify-end gap-1.5">
-                  <button type="button" onClick={() => openEdit(p)} className="ga-ui inline-flex items-center gap-1 border border-ga-line px-2 py-1.5 text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent"><Pencil size={12} /> Sửa</button>
+                  <button type="button" onClick={() => openEdit(p)} className="ga-ui inline-flex items-center gap-1 border border-ga-line px-2 py-1.5 text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent"><Pencil size={12} /> {t('edit')}</button>
                   <button type="button" disabled={busyId === p.id} onClick={() => toggle(p)} className="ga-ui inline-flex items-center gap-1 border border-ga-line px-2 py-1.5 text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent disabled:opacity-50">
-                    {p.active ? <><EyeOff size={12} /> Ẩn</> : <><Eye size={12} /> Hiện</>}
+                    {p.active ? <><EyeOff size={12} /> {t('hide')}</> : <><Eye size={12} /> {t('show')}</>}
                   </button>
                 </span>
               </div>
@@ -144,44 +147,44 @@ export default function V2AdminMockPacksPage() {
       <TkModal
         open={modal}
         onOpenChange={setModal}
-        title={editingId == null ? 'Tạo bộ đề mới' : 'Sửa bộ đề'}
+        title={editingId == null ? t('createModalTitle') : t('editModalTitle')}
         size="sm"
         footer={
           <>
-            <GaBtn variant="ghost" size="sm" onClick={() => setModal(false)}>Huỷ</GaBtn>
-            <GaBtn variant="yellow" size="sm" loading={saving} onClick={submit}>{editingId == null ? 'Tạo bộ đề' : 'Lưu thay đổi'}</GaBtn>
+            <GaBtn variant="ghost" size="sm" onClick={() => setModal(false)}>{tc('cancel')}</GaBtn>
+            <GaBtn variant="yellow" size="sm" loading={saving} onClick={submit}>{editingId == null ? t('createPack') : t('saveChanges')}</GaBtn>
           </>
         }
       >
         <div className="flex flex-col gap-4">
           <div>
-            <GaCap className="mb-2 block">Tiêu đề</GaCap>
-            <input className={field} value={form.title} onChange={(e) => set('title', e.target.value)} maxLength={200} placeholder="VD: Luyện thi Goethe B1 — Bộ đề đầy đủ" />
+            <GaCap className="mb-2 block">{t('fieldTitle')}</GaCap>
+            <input className={field} value={form.title} onChange={(e) => set('title', e.target.value)} maxLength={200} placeholder={t('titlePlaceholder')} />
           </div>
           <div>
-            <GaCap className="mb-2 block">Mô tả (tiếng Việt)</GaCap>
-            <textarea className={`${field} resize-none`} rows={2} value={form.descriptionVi} onChange={(e) => set('descriptionVi', e.target.value)} placeholder="Mô tả ngắn hiển thị cho học viên" />
+            <GaCap className="mb-2 block">{t('fieldDescription')}</GaCap>
+            <textarea className={`${field} resize-none`} rows={2} value={form.descriptionVi} onChange={(e) => set('descriptionVi', e.target.value)} placeholder={t('descriptionPlaceholder')} />
           </div>
           <div className="grid grid-cols-2 gap-3.5">
             <div>
-              <GaCap className="mb-2 block">Trình độ (CEFR)</GaCap>
+              <GaCap className="mb-2 block">{t('fieldLevel')}</GaCap>
               <select className={field} value={form.cefrLevel} onChange={(e) => set('cefrLevel', e.target.value)}>
                 {CEFR.map((lv) => <option key={lv} value={lv}>{lv}</option>)}
               </select>
             </div>
             <div>
-              <GaCap className="mb-2 block">Định dạng đề</GaCap>
+              <GaCap className="mb-2 block">{t('fieldFormat')}</GaCap>
               <input className={field} value={form.examFormat} onChange={(e) => set('examFormat', e.target.value.toUpperCase())} maxLength={30} placeholder="GOETHE" />
             </div>
           </div>
           <div className="grid grid-cols-2 items-end gap-3.5">
             <div>
-              <GaCap className="mb-2 block">Thứ tự hiển thị</GaCap>
+              <GaCap className="mb-2 block">{t('fieldSortOrder')}</GaCap>
               <input type="number" className={field} value={form.sortOrder} onChange={(e) => set('sortOrder', Number.parseInt(e.target.value, 10) || 0)} />
             </div>
             <label className="flex items-center gap-2 pb-2.5">
               <input type="checkbox" checked={form.requiresPaid} onChange={(e) => set('requiresPaid', e.target.checked)} style={{ accentColor: 'var(--ga-accent)' }} />
-              <span className="text-[13.5px] font-semibold text-ga-ink">Yêu cầu gói trả phí</span>
+              <span className="text-[13.5px] font-semibold text-ga-ink">{t('requiresPaid')}</span>
             </label>
           </div>
         </div>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Check, PlayCircle, Lightbulb } from 'lucide-react'
 import { format } from 'date-fns'
 import { apiMessage } from '@/lib/api'
@@ -19,6 +20,8 @@ import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
 const fmtDate = (d: string | null | undefined) => (d ? format(new Date(d), 'dd/MM/yyyy') : '—')
 
 export default function V2StProgressPage() {
+  const t = useTranslations('v2.student.progress')
+  const tc = useTranslations('v2.common')
   const [classes, setClasses] = useState<MyClassroom[]>([])
   const [selId, setSelId] = useState<number | null>(null)
   const [lessons, setLessons] = useState<ClassLesson[]>([])
@@ -61,24 +64,24 @@ export default function V2StProgressPage() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <GaPageHdr accent title="Tiến độ khóa học" subtitle="Theo dõi lộ trình lớp do giáo viên cập nhật" />
+      <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
 
       <div className="flex-1 overflow-auto px-10 py-7">
         {loading ? (
           <div className="ga-shimmer h-[160px] border border-ga-line" aria-hidden />
         ) : error ? (
           <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">Không tải được tiến độ</h2>
+            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadErrorTitle')}</h2>
             <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">{error}</p>
-            <GaBtn variant="primary" onClick={loadClasses}>Thử lại</GaBtn>
+            <GaBtn variant="primary" onClick={loadClasses}>{tc('retry')}</GaBtn>
           </div>
         ) : classes.length === 0 ? (
-          <div className="border border-dashed border-ga-line px-10 py-[44px] text-center text-[14.5px] text-ga-muted">Bạn chưa tham gia lớp nào để theo dõi tiến độ.</div>
+          <div className="border border-dashed border-ga-line px-10 py-[44px] text-center text-[14.5px] text-ga-muted">{t('emptyState')}</div>
         ) : (
           <>
             {/* Class picker */}
             <div className="mb-6 flex items-center gap-3">
-              <GaCap>Lớp</GaCap>
+              <GaCap>{t('classLabel')}</GaCap>
               <select
                 value={selId ?? ''}
                 onChange={(e) => setSelId(Number(e.target.value))}
@@ -90,10 +93,10 @@ export default function V2StProgressPage() {
 
             {/* Progress hero (dark) */}
             <div className="bg-ga-ink p-7 text-ga-bg">
-              <GaCap className="mb-2.5 block" style={{ color: '#A39E94' }}>Tiến độ lớp · {sel?.name}</GaCap>
+              <GaCap className="mb-2.5 block" style={{ color: '#A39E94' }}>{t('classProgressCap', { name: sel?.name ?? '' })}</GaCap>
               <div className="flex items-end gap-3">
                 <span className="font-ga-display text-[52px] font-medium leading-none">{pct}%</span>
-                <span className="mb-1.5 text-[14px]" style={{ color: '#A39E94' }}>{done}/{total} bài học · do giáo viên cập nhật</span>
+                <span className="mb-1.5 text-[14px]" style={{ color: '#A39E94' }}>{t('lessonsUpdated', { done, total })}</span>
               </div>
               <div className="mt-4 h-2.5 overflow-hidden bg-white/15"><div className="h-full transition-[width] duration-500" style={{ width: `${pct}%`, background: 'var(--ga-yellow)' }} /></div>
             </div>
@@ -103,19 +106,19 @@ export default function V2StProgressPage() {
               <div className="mt-3.5 flex items-center gap-3.5 border border-l-4 p-[14px_18px]" style={{ background: 'rgba(47,111,201,0.08)', borderColor: 'rgba(47,111,201,0.27)', borderLeftColor: '#2F6FC9' }}>
                 <PlayCircle size={26} style={{ color: '#2F6FC9' }} />
                 <div className="flex-1">
-                  <div className="ga-ui text-[9px] font-bold uppercase tracking-[0.14em]" style={{ color: '#2F6FC9' }}>Lớp đang học</div>
+                  <div className="ga-ui text-[9px] font-bold uppercase tracking-[0.14em]" style={{ color: '#2F6FC9' }}>{t('nowLearning')}</div>
                   <div className="mt-0.5 font-ga-display text-[18px] font-medium text-ga-ink">{current.title}</div>
                 </div>
-                <span className="text-[12.5px] text-ga-muted">Tiếp theo: {next?.title ?? 'Ôn tập & thi'}</span>
+                <span className="text-[12.5px] text-ga-muted">{t('nextUp', { title: next?.title ?? t('nextFallback') })}</span>
               </div>
             )}
 
             {/* Lesson timeline */}
-            <GaCap className="mb-3 mt-6 block">Lộ trình khóa học ({done}/{total} đã dạy)</GaCap>
+            <GaCap className="mb-3 mt-6 block">{t('coursePathCap', { done, total })}</GaCap>
             {lessonsLoading ? (
               <div className="flex flex-col gap-2">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="ga-shimmer h-[56px] border border-ga-line" aria-hidden />)}</div>
             ) : lessons.length === 0 ? (
-              <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">Giáo viên chưa thêm bài học nào cho lớp này.</div>
+              <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">{t('noLessons')}</div>
             ) : (
               <div className="border border-ga-line bg-ga-card">
                 {lessons.map((l, i) => {
@@ -130,7 +133,7 @@ export default function V2StProgressPage() {
                         {l.description && <div className="truncate text-[12.5px] text-ga-muted">{l.description}</div>}
                       </div>
                       <span className="shrink-0 text-[12.5px]" style={{ color: l.completed ? 'var(--ga-green)' : isCurrent ? '#2F6FC9' : 'var(--ga-muted)' }}>
-                        {l.completed ? `Đã dạy · ${fmtDate(l.completedAt)}` : isCurrent ? 'Đang học' : 'Chưa dạy'}
+                        {l.completed ? t('taughtAt', { date: fmtDate(l.completedAt) }) : isCurrent ? t('learning') : t('notTaught')}
                       </span>
                     </div>
                   )
@@ -140,7 +143,7 @@ export default function V2StProgressPage() {
 
             <div className="mt-4 flex items-center gap-3 border p-[14px_18px]" style={{ background: 'var(--ga-yellow-soft)', borderColor: 'color-mix(in srgb, var(--ga-gold) 40%, transparent)' }}>
               <Lightbulb size={20} style={{ color: 'var(--ga-gold)' }} />
-              <div className="text-[13.5px] leading-relaxed text-ga-ink">Tiến độ lớp do <strong>giáo viên cập nhật</strong> — bạn theo dõi để biết lớp đang học đến đâu và chuẩn bị bài kế tiếp.</div>
+              <div className="text-[13.5px] leading-relaxed text-ga-ink">{t.rich('teacherNote', { strong: (chunks) => <strong>{chunks}</strong> })}</div>
             </div>
           </>
         )}

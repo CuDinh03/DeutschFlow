@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { Check, Clock } from 'lucide-react'
 import { format } from 'date-fns'
 import { apiMessage } from '@/lib/api'
@@ -22,6 +23,8 @@ const VIOLET = '#7C56C8'
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function V2TcProgressPage() {
+  const t = useTranslations('v2.teacher.tcProgress')
+  const tc = useTranslations('v2.common')
   const router = useRouter()
   const { classes, classId, setClassId, loadingClasses } = useTeacherClasses()
   const [lessons, setLessons] = useState<ClassLesson[]>([])
@@ -52,12 +55,12 @@ export default function V2TcProgressPage() {
     <div className="flex min-h-full flex-col">
       <GaPageHdr
         accent
-        title="Tiến độ khóa học"
-        subtitle="Tổng quan tiến độ giảng dạy theo lớp"
+        title={t('title')}
+        subtitle={t('subtitle')}
         right={
           <div className="flex items-center gap-3">
             <ClassPicker classes={classes} classId={classId} onChange={setClassId} disabled={loadingClasses} />
-            <GaBtn variant="yellow" size="sm" onClick={() => router.push('/v2/teacher/tc-checklist')}>Mở checklist</GaBtn>
+            <GaBtn variant="yellow" size="sm" onClick={() => router.push('/v2/teacher/tc-checklist')}>{t('openChecklist')}</GaBtn>
           </div>
         }
       />
@@ -67,13 +70,13 @@ export default function V2TcProgressPage() {
           <div className="ga-shimmer h-[180px] border border-ga-line" aria-hidden />
         ) : error ? (
           <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">Không tải được tiến độ</h2>
+            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadError')}</h2>
             <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">{error}</p>
-            <GaBtn variant="primary" onClick={() => classId && load(classId)}>Thử lại</GaBtn>
+            <GaBtn variant="primary" onClick={() => classId && load(classId)}>{tc('retry')}</GaBtn>
           </div>
         ) : lessons.length === 0 ? (
           <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">
-            Lớp chưa có bài học nào. <button type="button" onClick={() => router.push('/v2/teacher/tc-checklist')} className="font-semibold underline" style={{ color: VIOLET }}>Thêm bài trong checklist →</button>
+            {t('emptyPrefix')} <button type="button" onClick={() => router.push('/v2/teacher/tc-checklist')} className="font-semibold underline" style={{ color: VIOLET }}>{t('addInChecklist')}</button>
           </div>
         ) : (
           <>
@@ -82,15 +85,15 @@ export default function V2TcProgressPage() {
               <div>
                 {next ? (
                   <div className="mb-3.5 flex items-center gap-2.5">
-                    <span className="ga-ui text-[11px] font-semibold uppercase tracking-[0.14em]" style={{ color: '#A39E94' }}>Bài kế tiếp</span>
+                    <span className="ga-ui text-[11px] font-semibold uppercase tracking-[0.14em]" style={{ color: '#A39E94' }}>{t('nextLesson')}</span>
                     <span className="font-ga-display text-[17px] font-medium text-ga-bg">{next.title}</span>
                   </div>
                 ) : (
-                  <div className="mb-3.5 font-ga-display text-[17px] font-medium text-ga-bg">🎉 Đã hoàn thành toàn bộ khóa học</div>
+                  <div className="mb-3.5 font-ga-display text-[17px] font-medium text-ga-bg">{t('allDone')}</div>
                 )}
                 <div className="mb-3.5 flex items-baseline gap-2.5">
                   <span className="font-ga-display text-[54px] font-medium leading-none">{progress}%</span>
-                  <span className="text-[15px]" style={{ color: '#A39E94' }}>đã hoàn thành · {done.length}/{lessons.length} bài</span>
+                  <span className="text-[15px]" style={{ color: '#A39E94' }}>{t('completedSummary', { done: done.length, total: lessons.length })}</span>
                 </div>
                 <div className="h-3 bg-white/15">
                   <div className="h-full transition-[width] duration-500" style={{ width: `${progress}%`, background: 'var(--ga-yellow)' }} />
@@ -98,9 +101,9 @@ export default function V2TcProgressPage() {
               </div>
               <div className="border-l border-white/15 pl-[30px]">
                 {[
-                  ['Buổi đã dạy', `${done.length}/${lessons.length}`],
-                  ['Bài gần nhất hoàn thành', lastDone ? lastDone.title : '—'],
-                  ['Hoàn thành lúc', lastDone?.completedAt ? format(new Date(lastDone.completedAt), 'dd/MM/yyyy') : '—'],
+                  [t('taughtSessions'), `${done.length}/${lessons.length}`],
+                  [t('lastCompletedLesson'), lastDone ? lastDone.title : '—'],
+                  [t('completedAt'), lastDone?.completedAt ? format(new Date(lastDone.completedAt), 'dd/MM/yyyy') : '—'],
                 ].map(([k, v], i) => (
                   <div key={k} className="py-[11px]" style={{ borderTop: i ? '1px solid rgba(255,255,255,0.12)' : 'none' }}>
                     <div className="ga-ui text-[10px] font-semibold uppercase tracking-[0.12em]" style={{ color: '#A39E94' }}>{k}</div>
@@ -111,7 +114,7 @@ export default function V2TcProgressPage() {
             </div>
 
             {/* Lesson timeline (read-only) */}
-            <GaCap className="mb-3.5 mt-7 block">Trình tự bài học</GaCap>
+            <GaCap className="mb-3.5 mt-7 block">{t('lessonSequence')}</GaCap>
             <div className="border border-ga-line bg-ga-card">
               {ordered.map((l, i) => (
                 <div key={l.id} className="flex items-center gap-3.5 px-5 py-3.5" style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
@@ -132,7 +135,7 @@ export default function V2TcProgressPage() {
                   {l.completed ? (
                     l.completedAt && <span className="shrink-0 text-[12px] font-medium" style={{ color: 'var(--ga-green)' }}>{format(new Date(l.completedAt), 'dd/MM')}</span>
                   ) : (
-                    <span className="flex shrink-0 items-center gap-1 text-[12px] text-ga-subtle"><Clock size={12} /> chưa dạy</span>
+                    <span className="flex shrink-0 items-center gap-1 text-[12px] text-ga-subtle"><Clock size={12} /> {t('notTaught')}</span>
                   )}
                 </div>
               ))}

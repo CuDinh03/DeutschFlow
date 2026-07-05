@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { ArrowLeft } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import api, { apiMessage } from '@/lib/api'
@@ -25,6 +26,8 @@ function coverageColor(p: number): string {
 }
 
 export default function V2GrammarFeedbackCoveragePage() {
+  const t = useTranslations('v2.adminContent.reportGrammarCoverage')
+  const tc = useTranslations('v2.common')
   const router = useRouter()
   const [rows, setRows] = useState<Row[]>([])
   const [days, setDays] = useState(14)
@@ -60,19 +63,19 @@ export default function V2GrammarFeedbackCoveragePage() {
     <div className="flex min-h-full flex-col">
       <GaPageHdr
         accent
-        title="Phủ phản hồi ngữ pháp"
-        subtitle="Tỷ lệ lỗi ngữ pháp được AI phản hồi theo ngày"
+        title={t('title')}
+        subtitle={t('subtitle')}
         right={
           <div className="flex items-center gap-2">
-            <select className={selectCls} value={days} onChange={(e) => setDays(Number(e.target.value))} aria-label="Khoảng ngày">
+            <select className={selectCls} value={days} onChange={(e) => setDays(Number(e.target.value))} aria-label={t('rangeAria')}>
               {[7, 14, 30].map((d) => (
                 <option key={d} value={d}>
-                  {d} ngày
+                  {t('rangeDays', { days: d })}
                 </option>
               ))}
             </select>
             <GaBtn variant="ghost" size="sm" onClick={() => router.push('/v2/admin/reports')}>
-              <ArrowLeft size={15} /> Báo cáo
+              <ArrowLeft size={15} /> {t('backToReports')}
             </GaBtn>
           </div>
         }
@@ -86,30 +89,30 @@ export default function V2GrammarFeedbackCoveragePage() {
           </div>
         ) : error ? (
           <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">Không tải được báo cáo</h2>
+            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadError')}</h2>
             <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">
               {error} <code className="font-mono text-[12px] text-ga-accent">GET /api/admin/reports/grammar-feedback-coverage</code>
             </p>
             <GaBtn variant="primary" onClick={load}>
-              Thử lại
+              {tc('retry')}
             </GaBtn>
           </div>
         ) : rows.length === 0 ? (
           <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">
-            Không có dữ liệu trong {days} ngày.
+            {t('emptyRange', { days })}
           </div>
         ) : (
           <>
             <TkStatStrip
               items={[
-                { label: 'Tổng lượt nộp', value: totals.submits.toLocaleString(), sub: `${days} ngày qua` },
-                { label: 'Tổng lỗi', value: totals.items.toLocaleString(), sub: 'mục ngữ pháp', color: '#2F6FC9' },
-                { label: 'Phủ trung bình', value: `${totals.avg}%`, sub: 'có phản hồi', color: '#1E9E61' },
-                { label: 'Phủ ngày mới nhất', value: `${Math.round(totals.latest)}%`, sub: 'gần nhất', color: '#E07B39' },
+                { label: t('statSubmits'), value: totals.submits.toLocaleString(), sub: t('statSubmitsSub', { days }) },
+                { label: t('statItems'), value: totals.items.toLocaleString(), sub: t('statItemsSub'), color: '#2F6FC9' },
+                { label: t('statAvg'), value: `${totals.avg}%`, sub: t('statAvgSub'), color: '#1E9E61' },
+                { label: t('statLatest'), value: `${Math.round(totals.latest)}%`, sub: t('statLatestSub'), color: '#E07B39' },
               ]}
             />
             <div className="mb-3.5 mt-[22px]">
-              <GaCap>Độ phủ phản hồi theo ngày</GaCap>
+              <GaCap>{t('dailyCap')}</GaCap>
             </div>
             <div className="border border-ga-line bg-ga-card">
               {rows
@@ -122,9 +125,9 @@ export default function V2GrammarFeedbackCoveragePage() {
                       <div className="mb-2 flex items-center justify-between gap-3">
                         <span className="font-mono text-[12.5px] text-ga-muted">{(r.snapshotDate ?? '').slice(0, 10)}</span>
                         <span className="flex shrink-0 items-center gap-3 text-[12px] text-ga-muted">
-                          <span>{Number(r.totalSubmits ?? 0)} lượt</span>
+                          <span>{t('submitsSuffix', { count: Number(r.totalSubmits ?? 0) })}</span>
                           <span>
-                            {Number(r.itemsWithFeedback ?? 0)}/{Number(r.totalItems ?? 0)} mục
+                            {t('itemsSuffix', { withFb: Number(r.itemsWithFeedback ?? 0), total: Number(r.totalItems ?? 0) })}
                           </span>
                           <span className="font-bold" style={{ color: coverageColor(cov) }}>
                             {Math.round(cov)}%

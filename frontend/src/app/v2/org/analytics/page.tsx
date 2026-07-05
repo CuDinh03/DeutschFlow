@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { apiMessage } from '@/lib/api'
 import { getAnalytics, listClasses, type OrgAnalytics, type OrgClass } from '@/lib/orgApi'
 import { GaPageHdr, TkStatStrip, ErrorBanner, LoadingState } from '@/components/ui-v2'
@@ -12,6 +13,7 @@ import { GaSection, GaDonut, GaLegend, GaBarRow, GA_CHART, nfVN } from '../../an
 const TEAL = '#11888A'
 
 export default function V2OrgAnalyticsPage() {
+  const t = useTranslations('v2.org.analytics')
   const [analytics, setAnalytics] = useState<OrgAnalytics | null>(null)
   const [classes, setClasses] = useState<OrgClass[]>([])
   const [loading, setLoading] = useState(true)
@@ -48,7 +50,7 @@ export default function V2OrgAnalyticsPage() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <GaPageHdr accent title="Phân tích tổ chức" subtitle="Phân bố trình độ, mức độ hoạt động và sử dụng token AI" />
+      <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
       <div className="flex-1 px-10 py-6">
         {error && (
           <div className="mb-5">
@@ -56,30 +58,30 @@ export default function V2OrgAnalyticsPage() {
           </div>
         )}
         {loading ? (
-          <LoadingState label="Đang tải phân tích…" />
+          <LoadingState label={t('loading')} />
         ) : (
           <div className="space-y-[22px]">
             <TkStatStrip
               items={[
-                { label: 'Tổng học viên', value: analytics?.studentCount ?? 0, color: TEAL },
+                { label: t('stats.totalStudents'), value: analytics?.studentCount ?? 0, color: TEAL },
                 {
-                  label: 'Hoạt động 7 ngày',
+                  label: t('stats.active7d'),
                   value: analytics?.activeStudents7d ?? 0,
-                  sub: `${engagementPct}% học viên`,
+                  sub: t('stats.ofStudents', { pct: engagementPct }),
                   color: '#2F6FC9',
                 },
-                { label: 'Lớp đang mở', value: analytics?.classCount ?? classes.length, color: '#7C56C8' },
+                { label: t('stats.openClasses'), value: analytics?.classCount ?? classes.length, color: '#7C56C8' },
                 {
-                  label: 'Token AI tháng này',
+                  label: t('stats.tokensThisMonth'),
                   value: analytics ? nfVN.format(analytics.tokensThisMonth) : '—',
-                  sub: analytics?.poolUnlimited ? 'pool không giới hạn' : analytics && analytics.monthlyTokenPool > 0 ? `${poolPct}% pool` : 'Chưa cấu hình pool',
+                  sub: analytics?.poolUnlimited ? t('stats.poolUnlimited') : analytics && analytics.monthlyTokenPool > 0 ? t('stats.poolPercent', { pct: poolPct }) : t('stats.noPool'),
                   color: '#1E9E61',
                 },
               ]}
             />
 
             <div className="grid grid-cols-1 gap-[22px] lg:grid-cols-[1fr_1fr]">
-              <GaSection title="Phân bố trình độ (CEFR)">
+              <GaSection title={t('cefrTitle')}>
                 {cefrSegs.length > 0 ? (
                   <div className="flex items-center gap-5">
                     <GaDonut segments={cefrSegs} />
@@ -88,15 +90,15 @@ export default function V2OrgAnalyticsPage() {
                     </div>
                   </div>
                 ) : (
-                  <p className="ga-ui py-10 text-center text-[14px] text-ga-muted">Chưa có dữ liệu phân bố trình độ.</p>
+                  <p className="ga-ui py-10 text-center text-[14px] text-ga-muted">{t('cefrEmpty')}</p>
                 )}
               </GaSection>
 
-              <GaSection title="Mức độ sử dụng">
+              <GaSection title={t('usageTitle')}>
                 <div className="space-y-5 py-1">
                   <div>
                     <div className="ga-ui mb-1.5 flex items-baseline justify-between text-[13px]">
-                      <span className="text-ga-ink">Học viên hoạt động (7 ngày)</span>
+                      <span className="text-ga-ink">{t('activeStudents')}</span>
                       <span className="font-medium text-ga-muted">{engagementPct}%</span>
                     </div>
                     <div className="h-2.5 overflow-hidden rounded-[3px] bg-ga-border">
@@ -106,7 +108,7 @@ export default function V2OrgAnalyticsPage() {
                   {analytics && analytics.monthlyTokenPool > 0 && (
                     <div>
                       <div className="ga-ui mb-1.5 flex items-baseline justify-between text-[13px]">
-                        <span className="text-ga-ink">Pool token AI</span>
+                        <span className="text-ga-ink">{t('tokenPool')}</span>
                         <span className="font-medium text-ga-muted">
                           {nfVN.format(analytics.tokensThisMonth)} / {nfVN.format(analytics.monthlyTokenPool)}
                         </span>
@@ -126,12 +128,12 @@ export default function V2OrgAnalyticsPage() {
               </GaSection>
             </div>
 
-            <GaSection title="Lớp học của tổ chức" bodyClassName="p-0">
+            <GaSection title={t('classesTitle')} bodyClassName="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
                   <thead>
                     <tr className="border-b border-ga-border">
-                      {['Lớp', 'Mã lớp', 'Giáo viên'].map((h, i) => (
+                      {[t('colClass'), t('colCode'), t('colTeacher')].map((h, i) => (
                         <th
                           key={h}
                           className={`ga-ui px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-ga-muted ${
@@ -147,7 +149,7 @@ export default function V2OrgAnalyticsPage() {
                     {classes.length === 0 ? (
                       <tr>
                         <td colSpan={3} className="ga-ui px-5 py-10 text-center text-[14px] text-ga-muted">
-                          Chưa có lớp nào.
+                          {t('emptyClasses')}
                         </td>
                       </tr>
                     ) : (
@@ -165,9 +167,9 @@ export default function V2OrgAnalyticsPage() {
                           </td>
                           <td className="px-5 py-3 text-right text-[13px]">
                             {c.teacherId == null ? (
-                              <span className="text-ga-red">Chưa phân</span>
+                              <span className="text-ga-red">{t('unassigned')}</span>
                             ) : (
-                              <span className="text-ga-muted">Đã có GV</span>
+                              <span className="text-ga-muted">{t('assigned')}</span>
                             )}
                           </td>
                         </tr>

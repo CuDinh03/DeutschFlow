@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { MessageCircle, Briefcase, CalendarDays, ArrowRight, Mic } from 'lucide-react'
 import { todayApi, type TodayPlan } from '@/lib/todayApi'
 import { GaPageHdr, GaCard, GaCap, LoadingState } from '@/components/ui-v2'
@@ -16,28 +17,29 @@ const withReturn = (href: string) =>
 const MODES = [
   {
     icon: MessageCircle,
-    title: 'Hội thoại tự do',
-    desc: 'Trò chuyện tiếng Đức với AI theo chủ đề bạn chọn.',
+    titleKey: 'modes.freeTitle',
+    descKey: 'modes.freeDesc',
     href: '/speaking',
     tone: 'var(--ga-violet)',
   },
   {
     icon: Briefcase,
-    title: 'Luyện phỏng vấn',
-    desc: 'Mô phỏng phỏng vấn xin việc với HR người Đức.',
+    titleKey: 'modes.interviewTitle',
+    descKey: 'modes.interviewDesc',
     href: '/student/interviews',
     tone: 'var(--ga-blue)',
   },
   {
     icon: CalendarDays,
-    title: 'Chủ đề theo tuần',
-    desc: 'Bài luyện nói có chủ đề, cập nhật mỗi tuần.',
+    titleKey: 'modes.weeklyTitle',
+    descKey: 'modes.weeklyDesc',
     href: '/speaking',
     tone: 'var(--ga-teal)',
   },
 ]
 
 export default function V2StudentSpeakingPage() {
+  const t = useTranslations('v2.student.speaking')
   const [today, setToday] = useState<TodayPlan | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -51,35 +53,35 @@ export default function V2StudentSpeakingPage() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <GaPageHdr accent title="Luyện nói AI" subtitle="Thực hành phát âm và hội thoại tiếng Đức với gia sư AI" />
+      <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
       <div className="flex-1 px-10 py-6">
         {/* Recommended */}
         {!loading && today?.recommendedSpeaking?.topic && (
           <a href={withReturn(today.recommendedSpeaking.href || '/speaking')}>
             <div className="mb-[22px] flex flex-col items-start gap-4 bg-ga-ink p-7 text-ga-bg md:flex-row md:items-center md:justify-between">
               <div>
-                <GaCap className="mb-2 block" style={{ color: '#A39E94' }}>Gợi ý hôm nay</GaCap>
+                <GaCap className="mb-2 block" style={{ color: '#A39E94' }}>{t('recommendedCap')}</GaCap>
                 <p className="font-ga-display text-[24px] font-medium">{today.recommendedSpeaking.topic}</p>
                 {today.recommendedSpeaking.cefrLevel && (
                   <p className="ga-ui mt-1.5 text-[14px]" style={{ color: '#A39E94' }}>
-                    Cấp độ {today.recommendedSpeaking.cefrLevel}
+                    {t('levelLabel', { level: today.recommendedSpeaking.cefrLevel })}
                   </p>
                 )}
               </div>
               <span className="ga-ui inline-flex shrink-0 items-center gap-2 bg-ga-yellow px-5 py-3 text-[14px] font-semibold text-ga-ink">
-                <Mic size={16} aria-hidden /> Bắt đầu nói
+                <Mic size={16} aria-hidden /> {t('startSpeaking')}
               </span>
             </div>
           </a>
         )}
-        {loading && <LoadingState label="Đang tải gợi ý…" />}
+        {loading && <LoadingState label={t('loading')} />}
 
-        <GaCap className="mb-3 block">Chế độ luyện nói</GaCap>
+        <GaCap className="mb-3 block">{t('modesCap')}</GaCap>
         <div className="grid grid-cols-1 gap-[18px] md:grid-cols-3">
           {MODES.map((m) => {
             const Icon = m.icon
             return (
-              <a key={m.title} href={withReturn(m.href)}>
+              <a key={m.titleKey} href={withReturn(m.href)}>
                 <GaCard hover className="group h-full p-5">
                   <span
                     className="mb-3 grid h-11 w-11 place-items-center rounded-ga"
@@ -87,10 +89,10 @@ export default function V2StudentSpeakingPage() {
                   >
                     <Icon size={22} aria-hidden />
                   </span>
-                  <p className="font-ga-display text-[18px] font-medium text-ga-ink">{m.title}</p>
-                  <p className="ga-ui mt-1 text-[13.5px] text-ga-muted">{m.desc}</p>
+                  <p className="font-ga-display text-[18px] font-medium text-ga-ink">{t(m.titleKey)}</p>
+                  <p className="ga-ui mt-1 text-[13.5px] text-ga-muted">{t(m.descKey)}</p>
                   <span className="ga-ui mt-3 inline-flex items-center gap-1 text-[13px] font-semibold text-ga-accent">
-                    Vào luyện <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" aria-hidden />
+                    {t('enter')} <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" aria-hidden />
                   </span>
                 </GaCard>
               </a>

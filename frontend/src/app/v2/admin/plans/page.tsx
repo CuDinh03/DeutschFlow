@@ -1,6 +1,7 @@
 'use client'
 
 import { toast } from 'sonner'
+import { useTranslations } from 'next-intl'
 import api from '@/lib/api'
 import useAdminData from '@/hooks/useAdminData'
 import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
@@ -47,18 +48,21 @@ function normalizePlan(r: Record<string, unknown>): AdminPlan {
 
 // Plans are token-budget tiers (price lives in the payment provider, not stored
 // here) → headline shows the token allowance instead of a currency price.
-function allowance(p: AdminPlan): string {
+type PlansT = ReturnType<typeof useTranslations>
+function allowance(p: AdminPlan, t: PlansT): string {
   // INTERNAL uses a 999_999_999 sentinel for "unlimited".
-  if (p.monthlyTokenLimit >= 999_000_000) return 'Không giới hạn'
-  if (p.monthlyTokenLimit > 0) return `${p.monthlyTokenLimit.toLocaleString('vi-VN')} token/tháng`
-  if (p.dailyTokenGrant > 0) return `${p.dailyTokenGrant.toLocaleString('vi-VN')} token/ngày`
+  if (p.monthlyTokenLimit >= 999_000_000) return t('unlimited')
+  if (p.monthlyTokenLimit > 0) return t('tokensPerMonth', { count: p.monthlyTokenLimit.toLocaleString('vi-VN') })
+  if (p.dailyTokenGrant > 0) return t('tokensPerDay', { count: p.dailyTokenGrant.toLocaleString('vi-VN') })
   return '—'
 }
 
 export default function V2AdminPlansPage() {
+  const t = useTranslations('v2.adminOps.plans')
+  const tc = useTranslations('v2.common')
   const { data, loading, error, reload } = useAdminData<AdminPlan[]>({
     initialData: [],
-    errorMessage: 'Không thể tải danh sách gói.',
+    errorMessage: t('loadErrorToast'),
     fetchData: async () => {
       const res = await api.get('/admin/plans')
       return ((res.data ?? []) as Record<string, unknown>[]).map(normalizePlan)
@@ -69,11 +73,11 @@ export default function V2AdminPlansPage() {
     <div className="flex min-h-full flex-col" style={plansAccentVars}>
       <GaPageHdr
         accent
-        title="Gói thuê bao"
-        subtitle="Quản lý gói, hạn mức token và quyền lợi"
+        title={t('title')}
+        subtitle={t('subtitle')}
         right={
-          <GaBtn variant="ghost" onClick={() => toast('Biểu mẫu tạo gói mới (sắp ra mắt)')}>
-            + Tạo gói
+          <GaBtn variant="ghost" onClick={() => toast(t('createPlanSoon'))}>
+            {t('createPlan')}
           </GaBtn>
         }
       />
@@ -88,18 +92,18 @@ export default function V2AdminPlansPage() {
         ) : error ? (
           <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
             <h2 className="font-ga-display text-[26px] font-medium leading-[1.2] text-ga-red">
-              Không tải được danh sách gói
+              {t('loadError')}
             </h2>
             <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14.5px] text-ga-muted">
               {error} <code className="font-mono text-[12px] text-ga-accent">GET /api/admin/plans</code>
             </p>
             <GaBtn variant="primary" onClick={() => reload({ silent: false })}>
-              Thử lại
+              {tc('retry')}
             </GaBtn>
           </div>
         ) : data.length === 0 ? (
           <div className="border border-dashed border-ga-line px-10 py-10 text-center">
-            <p className="ga-ui text-[14.5px] text-ga-muted">Chưa có gói nào.</p>
+            <p className="ga-ui text-[14.5px] text-ga-muted">{t('empty')}</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-[18px] sm:grid-cols-3 xl:grid-cols-4">
@@ -113,22 +117,22 @@ export default function V2AdminPlansPage() {
                   <GaCap>{p.name}</GaCap>
                   {!p.isActive && (
                     <span className="text-[10px] font-semibold uppercase tracking-[0.06em] text-ga-subtle">
-                      Tắt
+                      {t('inactive')}
                     </span>
                   )}
                 </div>
                 <div className="mb-1 break-words font-ga-display text-[24px] font-medium leading-tight text-ga-ink">
-                  {allowance(p)}
+                  {allowance(p, t)}
                 </div>
                 <div className="mb-[18px] text-[13px] text-ga-muted">
-                  {p.walletCapDays > 0 ? `Ví rollover ${p.walletCapDays} ngày` : 'Cấp theo ngày'}
+                  {p.walletCapDays > 0 ? t('walletRollover', { days: p.walletCapDays }) : t('grantDaily')}
                 </div>
                 <button
                   type="button"
-                  onClick={() => toast(`Chỉnh sửa gói ${p.name}`)}
+                  onClick={() => toast(t('editPlan', { name: p.name }))}
                   className="ga-ui w-full rounded-ga border border-ga-line py-[9px] text-[12.5px] font-semibold text-ga-ink transition-colors hover:border-ga-accent hover:text-ga-accent"
                 >
-                  Chỉnh sửa
+                  {t('edit')}
                 </button>
               </div>
             ))}

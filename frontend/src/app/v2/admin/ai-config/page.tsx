@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
 import useAdminData from '@/hooks/useAdminData'
@@ -16,17 +17,19 @@ interface AiConfig {
 const DEFAULT_CONFIG: AiConfig = { prompt: '', temperature: 0.7, maxTokens: 1024, topP: 0.9 }
 
 // Static reference (proto GaAdminAIConfig "Mô hình đang dùng" — informational).
+// [labelKey, provider] — labelKey resolves via t(), provider stays as-is (technical id).
 const MODELS: [string, string][] = [
-  ['Speaking', 'Claude · Sonnet'],
-  ['Grammar AI', 'Claude · Haiku'],
-  ['Sinh ảnh', 'AWS Bedrock'],
-  ['Lồng tiếng', 'Edge TTS (DE)'],
+  ['modelSpeaking', 'Claude · Sonnet'],
+  ['modelGrammar', 'Claude · Haiku'],
+  ['modelImage', 'AWS Bedrock'],
+  ['modelTts', 'Edge TTS (DE)'],
 ]
 
 export default function V2AdminAiConfigPage() {
+  const t = useTranslations('v2.adminContent.aiConfig')
   const { data, loading, reload } = useAdminData<AiConfig>({
     initialData: DEFAULT_CONFIG,
-    errorMessage: 'Không thể tải cấu hình AI.',
+    errorMessage: t('loadDataError'),
     fetchData: async () => {
       const res = await api.get('/admin/ai-config')
       return (res.data ?? DEFAULT_CONFIG) as AiConfig
@@ -52,7 +55,7 @@ export default function V2AdminAiConfigPage() {
     setSaving(true)
     try {
       await api.put('/admin/ai-config', { prompt, temperature, maxTokens, topP })
-      toast.success('Đã lưu cấu hình AI')
+      toast.success(t('saved'))
       await reload({ silent: true })
     } catch (e: unknown) {
       toast.error(apiMessage(e))
@@ -62,21 +65,21 @@ export default function V2AdminAiConfigPage() {
   }
 
   const sliders: { label: string; val: number; set: (v: number) => void; min: number; max: number; step: number }[] = [
-    { label: 'Temperature', val: temperature, set: setTemperature, min: 0, max: 1, step: 0.05 },
-    { label: 'Top-P', val: topP, set: setTopP, min: 0, max: 1, step: 0.05 },
-    { label: 'Max tokens', val: maxTokens, set: setMaxTokens, min: 256, max: 4096, step: 256 },
+    { label: t('sliderTemperature'), val: temperature, set: setTemperature, min: 0, max: 1, step: 0.05 },
+    { label: t('sliderTopP'), val: topP, set: setTopP, min: 0, max: 1, step: 0.05 },
+    { label: t('sliderMaxTokens'), val: maxTokens, set: setMaxTokens, min: 256, max: 4096, step: 256 },
   ]
 
   return (
     <div className="flex min-h-full flex-col">
       <GaPageHdr
         accent
-        title="Cấu hình AI"
-        subtitle="System prompt, nhiệt độ và giới hạn token cho mô hình"
+        title={t('title')}
+        subtitle={t('subtitle')}
         right={
           <GaBtn variant="yellow" disabled={saving || loading} onClick={save}>
             <span aria-hidden className="inline-block h-[7px] w-[7px] bg-ga-ink" />
-            {saving ? 'Đang lưu…' : 'Lưu cấu hình'}
+            {saving ? t('saving') : t('saveConfig')}
           </GaBtn>
         }
       />
@@ -84,7 +87,7 @@ export default function V2AdminAiConfigPage() {
       <div className="grid flex-1 overflow-hidden lg:grid-cols-[1fr_320px]">
         {/* Left — system prompt */}
         <div className="overflow-auto border-r border-ga-line px-9 py-[26px]">
-          <GaCap className="mb-2.5 block">System prompt · AI HR Speaking</GaCap>
+          <GaCap className="mb-2.5 block">{t('promptCap')}</GaCap>
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
@@ -97,17 +100,17 @@ export default function V2AdminAiConfigPage() {
             style={{ background: 'var(--ga-navy-soft)', border: '1px solid rgba(39,64,107,0.20)' }}
           >
             <div className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.06em]" style={{ color: 'var(--ga-navy)' }}>
-              Lưu ý
+              {t('noteLabel')}
             </div>
             <p className="text-[13.5px] leading-[1.6] text-ga-ink">
-              Thay đổi prompt ảnh hưởng tới toàn bộ buổi phỏng vấn AI. Phiên bản cũ được lưu lại để có thể khôi phục.
+              {t('noteBody')}
             </p>
           </div>
         </div>
 
         {/* Right — model params */}
         <div className="overflow-auto bg-ga-card px-6 py-[26px]">
-          <GaCap className="mb-[18px] block">Tham số mô hình</GaCap>
+          <GaCap className="mb-[18px] block">{t('paramsCap')}</GaCap>
           {sliders.map((s) => (
             <div key={s.label} className="mb-[22px]">
               <div className="mb-2 flex items-center justify-between">
@@ -129,13 +132,13 @@ export default function V2AdminAiConfigPage() {
           ))}
 
           <div className="mt-2 border-t border-ga-line pt-[18px]">
-            <GaCap className="mb-3 block">Mô hình đang dùng</GaCap>
+            <GaCap className="mb-3 block">{t('modelsInUse')}</GaCap>
             {MODELS.map(([k, v], i) => (
               <div
                 key={k}
                 className={`flex items-center justify-between py-2 text-[13px] ${i ? 'border-t border-ga-line' : ''}`}
               >
-                <span className="text-ga-muted">{k}</span>
+                <span className="text-ga-muted">{t(k)}</span>
                 <span className="font-medium text-ga-ink">{v}</span>
               </div>
             ))}

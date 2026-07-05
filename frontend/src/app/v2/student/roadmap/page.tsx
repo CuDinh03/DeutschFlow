@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { Check, ArrowRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { phaseApi, type PhaseStateResponse, type PhaseType } from '@/lib/phaseApi'
@@ -27,11 +28,11 @@ import {
 } from '@/components/ui-v2'
 import type { Skill, TopicGroup } from '@/lib/learning-tree/core'
 
-const PHASES: { type: PhaseType; label: string; desc: string }[] = [
-  { type: 'FOUNDATION', label: 'Nền tảng', desc: 'Bảng chữ cái, từ vựng & ngữ pháp cơ bản (A1)' },
-  { type: 'PRODUCTION', label: 'Sản sinh', desc: 'Tạo câu, luyện nói có cấu trúc (A2–B1)' },
-  { type: 'FLUENCY', label: 'Lưu loát', desc: 'Hội thoại tự nhiên, phỏng vấn, thi thử (B1–B2)' },
-  { type: 'GRADUATED', label: 'Tốt nghiệp', desc: 'Sẵn sàng cho kỳ thi Goethe & môi trường thực tế' },
+const PHASES: { type: PhaseType; labelKey: string; descKey: string }[] = [
+  { type: 'FOUNDATION', labelKey: 'phases.foundationLabel', descKey: 'phases.foundationDesc' },
+  { type: 'PRODUCTION', labelKey: 'phases.productionLabel', descKey: 'phases.productionDesc' },
+  { type: 'FLUENCY', labelKey: 'phases.fluencyLabel', descKey: 'phases.fluencyDesc' },
+  { type: 'GRADUATED', labelKey: 'phases.graduatedLabel', descKey: 'phases.graduatedDesc' },
 ]
 const ORDER: PhaseType[] = ['FOUNDATION', 'PRODUCTION', 'FLUENCY', 'GRADUATED']
 
@@ -50,6 +51,7 @@ function readyMilestone(tree: TreeResponse): { readyLevel: string; nextLevel: st
 }
 
 export default function V2StudentRoadmapPage() {
+  const t = useTranslations('v2.student.roadmap')
   const [tab, setTab] = useState('tree')
 
   // ── Tree (Cây học tập) ──
@@ -79,9 +81,9 @@ export default function V2StudentRoadmapPage() {
     setTreeError(null)
     fetchTree()
       .then(setTree)
-      .catch(() => setTreeError('Không thể tải cây học tập.'))
+      .catch(() => setTreeError(t('treeLoadError')))
       .finally(() => setTreeLoading(false))
-  }, [])
+  }, [t])
   useEffect(loadTree, [loadTree])
 
   const onComplete = useCallback((nodeId: string) => {
@@ -91,9 +93,9 @@ export default function V2StudentRoadmapPage() {
         setTree(next)
         setTapped(null)
       })
-      .catch(() => setTreeError('Không thể cập nhật bài học.'))
+      .catch(() => setTreeError(t('nodeUpdateError')))
       .finally(() => setCompleting(false))
-  }, [])
+  }, [t])
 
   // ── Level-up ritual (G3): pass the current milestone → gold flash + toast + grown tree ──
   const [leveling, setLeveling] = useState(false)
@@ -111,11 +113,11 @@ export default function V2StudentRoadmapPage() {
         setFlashing(true)
         if (flashTimer.current) clearTimeout(flashTimer.current)
         flashTimer.current = setTimeout(() => setFlashing(false), 1500)
-        toast.success(`Chúc mừng! Cây của bạn đã vươn lên cấp ${next.user.currentLevel ?? ''} 🎉`)
+        toast.success(t('levelUpToast', { level: next.user.currentLevel ?? '' }))
       })
-      .catch(() => toast.error('Chưa thể lên cấp — hãy hoàn thành đủ 4 nhánh của cấp hiện tại.'))
+      .catch(() => toast.error(t('levelUpError')))
       .finally(() => setLeveling(false))
-  }, [])
+  }, [t])
 
   // ── Phase journey (preserved from the previous roadmap; lazy-loaded) ──
   const [phase, setPhase] = useState<PhaseStateResponse | null>(null)
@@ -130,12 +132,12 @@ export default function V2StudentRoadmapPage() {
     Promise.allSettled([phaseApi.getCurrent(), phaseApi.getNextActions()])
       .then(([p, n]) => {
         if (p.status === 'fulfilled') setPhase(p.value.data)
-        else setPhaseError('Không thể tải giai đoạn.')
+        else setPhaseError(t('phaseLoadError'))
         if (n.status === 'fulfilled') setNextActions(n.value.data.nextActions ?? [])
         setPhaseLoaded(true)
       })
       .finally(() => setPhaseLoading(false))
-  }, [])
+  }, [t])
   useEffect(() => {
     if (tab === 'phase' && !phaseLoaded && !phaseLoading) loadPhase()
   }, [tab, phaseLoaded, phaseLoading, loadPhase])
@@ -144,12 +146,12 @@ export default function V2StudentRoadmapPage() {
 
   return (
     <div className="flex h-full flex-col">
-      <GaPageHdr accent title="Lộ trình học" subtitle="Cây học tập cá nhân hoá — chạm vào lá đang sáng để học" />
+      <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
       <div className="flex min-h-0 flex-1 flex-col px-10 pb-6 pt-4">
         <TkTabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
           <TkTabsList>
-            <TkTabsTrigger value="tree">Cây học tập</TkTabsTrigger>
-            <TkTabsTrigger value="phase">Giai đoạn</TkTabsTrigger>
+            <TkTabsTrigger value="tree">{t('tabTree')}</TkTabsTrigger>
+            <TkTabsTrigger value="phase">{t('tabPhase')}</TkTabsTrigger>
           </TkTabsList>
 
           {/* Tree tab. `data-[state=active]:flex` (not bare `flex`) so the inactive panel respects
@@ -163,7 +165,7 @@ export default function V2StudentRoadmapPage() {
             {treeError ? (
               <ErrorBanner message={treeError} onRetry={loadTree} />
             ) : treeLoading || !tree ? (
-              <LoadingState label="Đang tải cây học tập…" />
+              <LoadingState label={t('treeLoading')} />
             ) : treeIsSeed(tree) ? (
               <TreeSeedState displayName={tree.user.displayName} />
             ) : (
@@ -234,7 +236,7 @@ export default function V2StudentRoadmapPage() {
               </div>
             )}
             {phaseLoading ? (
-              <LoadingState label="Đang tải giai đoạn…" />
+              <LoadingState label={t('phaseLoading')} />
             ) : (
               <div className="space-y-[22px]">
                 <div className="space-y-0">
@@ -260,15 +262,15 @@ export default function V2StudentRoadmapPage() {
                         </div>
                         <div className={`mb-4 flex-1 border bg-ga-card p-5 ${active ? 'border-ga-accent' : 'border-ga-line'}`}>
                           <div className="flex items-center gap-2">
-                            <p className="font-ga-display text-[19px] font-medium text-ga-ink">{p.label}</p>
+                            <p className="font-ga-display text-[19px] font-medium text-ga-ink">{t(p.labelKey)}</p>
                             {active && (
                               <span className="ga-ui rounded-ga-pill bg-ga-accent-soft px-2 py-0.5 text-[11px] font-semibold text-ga-accent">
-                                Hiện tại
+                                {t('phaseCurrent')}
                               </span>
                             )}
-                            {done && <span className="ga-ui text-[12px] font-semibold text-ga-green">Hoàn thành</span>}
+                            {done && <span className="ga-ui text-[12px] font-semibold text-ga-green">{t('phaseDone')}</span>}
                           </div>
-                          <p className="ga-ui mt-1 text-[13.5px] text-ga-muted">{p.desc}</p>
+                          <p className="ga-ui mt-1 text-[13.5px] text-ga-muted">{t(p.descKey)}</p>
                         </div>
                       </div>
                     )
@@ -278,13 +280,13 @@ export default function V2StudentRoadmapPage() {
                 <div className="grid grid-cols-1 gap-[22px] lg:grid-cols-2">
                   {phase && (
                     <GaCard className="p-6">
-                      <GaCap className="mb-3 block">Tiến độ hiện tại</GaCap>
+                      <GaCap className="mb-3 block">{t('currentProgressCap')}</GaCap>
                       <div className="space-y-3">
                         {[
-                          ['Từ vựng đã thuộc', phase.vocabularyMasteredCount],
-                          ['Phút luyện nói', phase.speakingMinutesTotal],
-                          ['Độ chính xác ngữ pháp', `${Math.round(phase.grammarAccuracyPercent)}%`],
-                          ['Phiên hoàn thành', phase.sessionsCompleted],
+                          [t('metrics.vocabMastered'), phase.vocabularyMasteredCount],
+                          [t('metrics.speakingMinutes'), phase.speakingMinutesTotal],
+                          [t('metrics.grammarAccuracy'), `${Math.round(phase.grammarAccuracyPercent)}%`],
+                          [t('metrics.sessionsCompleted'), phase.sessionsCompleted],
                         ].map(([k, v]) => (
                           <div key={String(k)} className="ga-ui flex items-center justify-between text-[13.5px]">
                             <span className="text-ga-muted">{k}</span>
@@ -296,7 +298,7 @@ export default function V2StudentRoadmapPage() {
                   )}
 
                   <GaCard className="p-6">
-                    <GaCap className="mb-3 block">Việc nên làm tiếp theo</GaCap>
+                    <GaCap className="mb-3 block">{t('nextActionsCap')}</GaCap>
                     {nextActions.length > 0 ? (
                       <ul className="space-y-2.5">
                         {nextActions.map((a, i) => (
@@ -307,13 +309,13 @@ export default function V2StudentRoadmapPage() {
                         ))}
                       </ul>
                     ) : (
-                      <p className="ga-ui text-[13.5px] text-ga-muted">Tiếp tục luyện tập hằng ngày để tiến bộ.</p>
+                      <p className="ga-ui text-[13.5px] text-ga-muted">{t('noNextActions')}</p>
                     )}
                     <Link
                       href="/v2/student/dashboard"
                       className="ga-ui mt-4 inline-flex items-center gap-1 text-[13px] font-semibold text-ga-accent"
                     >
-                      Tới bảng điều khiển <ArrowRight size={14} aria-hidden />
+                      {t('toDashboard')} <ArrowRight size={14} aria-hidden />
                     </Link>
                   </GaCard>
                 </div>
@@ -328,6 +330,7 @@ export default function V2StudentRoadmapPage() {
 
 /** Goal line + CEFR level chips above the tree. */
 function TreeHeader({ tree }: { tree: TreeResponse }) {
+  const t = useTranslations('v2.student.roadmap')
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="ga-ui text-[13.5px] text-ga-muted">
@@ -353,7 +356,7 @@ function TreeHeader({ tree }: { tree: TreeResponse }) {
               {passed && <Check size={11} aria-hidden style={{ color: current ? 'var(--ga-yellow)' : '#B8911C' }} />}
               {(current || ready) && (
                 <span className="text-[9px] uppercase tracking-[0.1em]" style={{ color: 'var(--ga-yellow)' }}>
-                  {ready ? 'sẵn sàng' : 'đang'}
+                  {ready ? t('levelReady') : t('levelCurrent')}
                 </span>
               )}
             </span>
@@ -411,13 +414,14 @@ function TreeFilterBar({
   onSkill: (s: Skill | null) => void
   onClear: () => void
 }) {
+  const t = useTranslations('v2.student.roadmap')
   const groups = Object.entries(GROUP_COLORS) as [TopicGroup, (typeof GROUP_COLORS)[TopicGroup]][]
   const skills = Object.keys(SKILL_LABELS) as Skill[]
   const active = !!(topic || skill)
   const chip = 'inline-flex items-center gap-1 rounded-ga-pill border px-2.5 py-1 transition-colors'
   return (
     <div className="flex flex-wrap items-center gap-1.5 text-[11.5px]">
-      <span className="text-ga-muted">Lọc:</span>
+      <span className="text-ga-muted">{t('filterLabel')}</span>
       {groups.map(([key, g]) => {
         const on = topic === key
         return (
@@ -456,12 +460,15 @@ function TreeFilterBar({
           onClick={onClear}
           className={`${chip} border-ga-line font-semibold text-ga-ink hover:bg-ga-surface`}
         >
-          Tất cả
+          {t('filterAll')}
         </button>
       )}
       {active && (
         <span className="ml-1 font-semibold text-ga-ink">
-          Chủ đề: {topic ? GROUP_COLORS[topic].name : 'tất cả'} · Kỹ năng: {skill ? SKILL_LABELS[skill] : 'tất cả'}
+          {t('filterSummary', {
+            topic: topic ? GROUP_COLORS[topic].name : t('filterAllTopics'),
+            skill: skill ? SKILL_LABELS[skill] : t('filterAllSkills'),
+          })}
         </span>
       )}
     </div>
@@ -476,9 +483,10 @@ function CompanionPicker({
   choice: CompanionChoice
   onChange: (c: CompanionChoice) => void
 }) {
+  const t = useTranslations('v2.student.roadmap')
   return (
     <div className="flex flex-wrap items-center gap-1.5 text-[11.5px]">
-      <span className="text-ga-muted">Bạn đồng hành:</span>
+      <span className="text-ga-muted">{t('companionLabel')}</span>
       {COMPANIONS.map((c) => {
         const on = choice === c.id
         return (

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { ArrowLeft, ChevronRight } from 'lucide-react'
 import { format } from 'date-fns'
 import { apiMessage } from '@/lib/api'
@@ -18,11 +19,10 @@ import { GaPageHdr, GaBtn, GaCap, TkStatStrip } from '@/components/ui-v2'
 const TEAL = 'var(--ga-teal)'
 const fmtDate = (d: string | null) => (d ? format(new Date(d), 'dd/MM/yyyy') : '—')
 const initial = (n: string | null) => (n?.trim()[0] ?? '?').toUpperCase()
-const ROLE_LABEL: Record<string, string> = {
-  OWNER: 'Chủ sở hữu', ADMIN: 'Quản trị', TEACHER: 'Giáo viên', STUDENT: 'Học viên',
-}
 
 export default function V2OrgStudentDetailPage() {
+  const t = useTranslations('v2.org.studentDetail')
+  const tc = useTranslations('v2.common')
   const params = useParams()
   const router = useRouter()
   const id = Number(params.id)
@@ -35,7 +35,7 @@ export default function V2OrgStudentDetailPage() {
     setLoading(true)
     try {
       if (Number.isNaN(id)) {
-        setError('Mã học viên không hợp lệ.')
+        setError(t('invalidId'))
         return
       }
       setDetail(await getOrgStudentDetail(id))
@@ -45,7 +45,7 @@ export default function V2OrgStudentDetailPage() {
     } finally {
       setLoading(false)
     }
-  }, [id])
+  }, [id, t])
 
   useEffect(() => { void load() }, [load])
 
@@ -53,11 +53,11 @@ export default function V2OrgStudentDetailPage() {
     <div className="flex min-h-full flex-col">
       <GaPageHdr
         accent
-        title={detail?.displayName || 'Chi tiết học viên'}
-        subtitle={detail ? detail.email || '—' : 'Đang tải…'}
+        title={detail?.displayName || t('titleFallback')}
+        subtitle={detail ? detail.email || '—' : t('subtitleLoading')}
         right={
           <GaBtn variant="ghost" size="sm" onClick={() => router.push('/v2/org/students')}>
-            <ArrowLeft size={15} /> Học viên
+            <ArrowLeft size={15} /> {t('backToStudents')}
           </GaBtn>
         }
       />
@@ -69,11 +69,11 @@ export default function V2OrgStudentDetailPage() {
           </div>
         ) : error ? (
           <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">Không tải được học viên</h2>
+            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadError')}</h2>
             <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">
               {error} <code className="font-mono text-[12px] text-ga-accent">{`GET /api/org/students/${id}`}</code>
             </p>
-            <GaBtn variant="primary" onClick={load}>Thử lại</GaBtn>
+            <GaBtn variant="primary" onClick={load}>{tc('retry')}</GaBtn>
           </div>
         ) : detail ? (
           <>
@@ -87,17 +87,17 @@ export default function V2OrgStudentDetailPage() {
 
             <TkStatStrip
               items={[
-                { label: 'Vai trò', value: ROLE_LABEL[detail.role] ?? detail.role, color: TEAL },
-                { label: 'Trạng thái', value: detail.status === 'ACTIVE' ? 'Đang hoạt động' : 'Đã gỡ', color: detail.status === 'ACTIVE' ? 'var(--ga-green)' : undefined },
-                { label: 'Tham gia', value: fmtDate(detail.joinedAt), sub: 'vào tổ chức' },
-                { label: 'Số lớp', value: detail.classes.length, sub: 'đang theo học' },
+                { label: t('stats.role'), value: t.has(`roles.${detail.role}`) ? t(`roles.${detail.role}`) : detail.role, color: TEAL },
+                { label: t('stats.status'), value: detail.status === 'ACTIVE' ? t('stats.statusActive') : t('stats.statusRemoved'), color: detail.status === 'ACTIVE' ? 'var(--ga-green)' : undefined },
+                { label: t('stats.joined'), value: fmtDate(detail.joinedAt), sub: t('stats.joinedSub') },
+                { label: t('stats.classCount'), value: detail.classes.length, sub: t('stats.classCountSub') },
               ]}
             />
 
-            <div className="mb-3.5 mt-[22px]"><GaCap>Lớp đang theo học</GaCap></div>
+            <div className="mb-3.5 mt-[22px]"><GaCap>{t('classesCap')}</GaCap></div>
             {detail.classes.length === 0 ? (
               <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">
-                Học viên chưa tham gia lớp nào trong tổ chức.
+                {t('noClasses')}
               </div>
             ) : (
               <div className="border border-ga-line bg-ga-card">

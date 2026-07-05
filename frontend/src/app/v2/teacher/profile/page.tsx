@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
 import { updateProfile } from '@/lib/profileApi'
@@ -10,9 +11,9 @@ import { cn } from '@/lib/utils'
 
 const VIOLET = '#7C56C8'
 const TABS = [
-  { id: 'info', label: 'Thông tin' },
-  { id: 'avail', label: 'Lịch dạy' },
-  { id: 'reviews', label: 'Đánh giá' },
+  { id: 'info', labelKey: 'tabInfo' },
+  { id: 'avail', labelKey: 'tabAvail' },
+  { id: 'reviews', labelKey: 'tabReviews' },
 ] as const
 type TabId = (typeof TABS)[number]['id']
 
@@ -32,6 +33,7 @@ function initials(name: string): string {
 }
 
 export default function V2TeacherProfilePage() {
+  const t = useTranslations('v2.teacher.profile')
   const [me, setMe] = useState<Me | null>(null)
   const [classCount, setClassCount] = useState(0)
   const [studentCount, setStudentCount] = useState(0)
@@ -85,7 +87,7 @@ export default function V2TeacherProfilePage() {
     setSaving(true)
     try {
       await updateProfile({ displayName: name.trim() || undefined, locale })
-      toast.success('Đã lưu hồ sơ')
+      toast.success(t('saveSuccess'))
       setEdit(false)
       await load()
     } catch (e: unknown) {
@@ -95,15 +97,16 @@ export default function V2TeacherProfilePage() {
     }
   }
 
-  const ROLE_LABEL: Record<string, string> = { TEACHER: 'Giáo viên', ADMIN: 'Quản trị viên', STUDENT: 'Học viên' }
-  const fields: [string, React.ReactNode, boolean][] = me
+  const ROLE_LABEL: Record<string, string> = { TEACHER: t('roleTeacher'), ADMIN: t('roleAdmin'), STUDENT: t('roleStudent') }
+  // fieldKey drives edit logic (stable), label is the translated display value.
+  const fields: { key: 'name' | 'email' | 'role' | 'locale' | 'industry' | 'org'; label: string; value: React.ReactNode; editable: boolean }[] = me
     ? [
-        ['Họ và tên', name, true],
-        ['Email', me.email, false],
-        ['Vai trò', ROLE_LABEL[me.role] ?? me.role, false],
-        ['Ngôn ngữ', locale, true],
-        ['Ngành', me.industry || 'Chưa cập nhật', false],
-        ['Tổ chức', me.orgId ? `#${me.orgId}` : 'Cá nhân', false],
+        { key: 'name', label: t('fieldName'), value: name, editable: true },
+        { key: 'email', label: t('fieldEmail'), value: me.email, editable: false },
+        { key: 'role', label: t('fieldRole'), value: ROLE_LABEL[me.role] ?? me.role, editable: false },
+        { key: 'locale', label: t('fieldLocale'), value: locale, editable: true },
+        { key: 'industry', label: t('fieldIndustry'), value: me.industry || t('notSet'), editable: false },
+        { key: 'org', label: t('fieldOrg'), value: me.orgId ? `#${me.orgId}` : t('personal'), editable: false },
       ]
     : []
 
@@ -111,30 +114,30 @@ export default function V2TeacherProfilePage() {
     <div className="flex min-h-full flex-col">
       <GaPageHdr
         accent
-        title="Hồ sơ giáo viên"
-        subtitle="Thông tin hiển thị với học viên và tổ chức"
+        title={t('title')}
+        subtitle={t('subtitle')}
         right={
           <GaBtn variant={edit ? 'yellow' : 'ghost'} disabled={saving || loading} onClick={onPrimary}>
-            {edit ? (saving ? 'Đang lưu…' : 'Lưu thay đổi') : 'Chỉnh sửa'}
+            {edit ? (saving ? t('saving') : t('saveChanges')) : t('edit')}
           </GaBtn>
         }
       />
 
       {/* Tab bar */}
       <div className="flex gap-1 border-b border-ga-line bg-ga-card px-10">
-        {TABS.map((t) => (
+        {TABS.map((tabItem) => (
           <button
-            key={t.id}
+            key={tabItem.id}
             type="button"
-            onClick={() => setTab(t.id)}
+            onClick={() => setTab(tabItem.id)}
             className={cn(
               'relative -mb-px border-b-2 px-4 py-3.5 text-[13.5px] font-semibold transition-colors',
-              tab === t.id
+              tab === tabItem.id
                 ? 'border-ga-accent text-ga-ink'
                 : 'border-transparent text-ga-muted hover:text-ga-ink',
             )}
           >
-            {t.label}
+            {t(tabItem.labelKey)}
           </button>
         ))}
       </div>
@@ -151,13 +154,13 @@ export default function V2TeacherProfilePage() {
             </span>
             <div className="text-[20px] font-bold text-ga-ink">{me?.displayName || '—'}</div>
             <div className="mb-4 mt-1 text-[13.5px] text-ga-muted">
-              {ROLE_LABEL[me?.role ?? ''] ?? me?.role} {me?.orgId ? `· Tổ chức #${me.orgId}` : '· Cá nhân'}
+              {ROLE_LABEL[me?.role ?? ''] ?? me?.role} {me?.orgId ? t('orgWithId', { id: me.orgId }) : `· ${t('personal')}`}
             </div>
             <div className="mb-4 flex border border-ga-line">
               {[
-                [classCount, 'Lớp'],
-                [studentCount, 'Học viên'],
-                ['—', 'Đánh giá'],
+                [classCount, t('statClasses')],
+                [studentCount, t('statStudents')],
+                ['—', t('statReviews')],
               ].map(([v, l], i) => (
                 <div key={l as string} className={cn('flex-1 py-3', i && 'border-l border-ga-line')}>
                   <div className="font-ga-display text-[18px] font-medium text-ga-ink">{v}</div>
@@ -166,10 +169,10 @@ export default function V2TeacherProfilePage() {
               ))}
             </div>
             <div className="text-left">
-              <GaCap className="mb-2 block">Ngành chuyên môn</GaCap>
+              <GaCap className="mb-2 block">{t('industryCap')}</GaCap>
               <div className="flex flex-wrap gap-1.5">
                 <span className="border border-ga-line px-[9px] py-[5px] text-[11px] font-semibold text-ga-muted">
-                  {me?.industry || 'Chưa cập nhật'}
+                  {me?.industry || t('notSet')}
                 </span>
               </div>
             </div>
@@ -178,15 +181,15 @@ export default function V2TeacherProfilePage() {
           {/* Right content by tab */}
           {tab === 'info' && (
             <div className="border border-ga-line bg-ga-card px-8 py-7">
-              <GaCap className="mb-5 block">Thông tin chuyên môn</GaCap>
+              <GaCap className="mb-5 block">{t('infoCap')}</GaCap>
               <div className="grid grid-cols-1 gap-x-[22px] sm:grid-cols-2">
-                {fields.map(([label, value, editable]) => (
-                  <div key={label} className="mb-[18px]">
+                {fields.map(({ key, label, value, editable }) => (
+                  <div key={key} className="mb-[18px]">
                     <label className="mb-[7px] block text-[12.5px] font-semibold text-ga-muted">{label}</label>
                     {edit && editable ? (
                       <input
-                        value={label === 'Ngôn ngữ' ? locale : name}
-                        onChange={(e) => (label === 'Ngôn ngữ' ? setLocale(e.target.value) : setName(e.target.value))}
+                        value={key === 'locale' ? locale : name}
+                        onChange={(e) => (key === 'locale' ? setLocale(e.target.value) : setName(e.target.value))}
                         className="block w-full rounded-ga border border-ga-line bg-ga-bg px-3.5 py-2.5 text-[15px] text-ga-ink outline-none"
                       />
                     ) : (
@@ -196,28 +199,28 @@ export default function V2TeacherProfilePage() {
                 ))}
               </div>
               <p className="mt-2 border-t border-ga-line pt-4 text-[11.5px] text-ga-subtle">
-                Giới thiệu &amp; chứng chỉ chi tiết — sắp ra mắt (cần mở rộng hồ sơ ở backend).
+                {t('infoNote')}
               </p>
             </div>
           )}
 
           {tab === 'avail' && (
             <div className="border border-ga-line bg-ga-card px-8 py-7">
-              <GaCap className="mb-3 block">Khung giờ nhận dạy 1:1</GaCap>
+              <GaCap className="mb-3 block">{t('availCap')}</GaCap>
               <p className="ga-ui mb-5 max-w-md text-[13.5px] text-ga-subtle">
-                Quản lý khung giờ rảnh hằng tuần ở trang Lịch dạy — học viên đặt buổi 1:1 trong các khung này.
+                {t('availNote')}
               </p>
               <GaBtn variant="yellow" onClick={() => router.push('/v2/teacher/schedule')}>
-                Mở trang Lịch dạy →
+                {t('openSchedule')}
               </GaBtn>
             </div>
           )}
 
           {tab === 'reviews' && (
             <div className="border border-dashed border-ga-line px-10 py-[52px] text-center">
-              <div className="font-ga-display text-[20px] italic text-ga-muted">Chưa có đánh giá</div>
+              <div className="font-ga-display text-[20px] italic text-ga-muted">{t('reviewsEmpty')}</div>
               <p className="ga-ui mx-auto mt-2 max-w-sm text-[13.5px] text-ga-subtle">
-                Đánh giá của học viên sẽ hiển thị ở đây (cần endpoint đánh giá giáo viên — backlog backend).
+                {t('reviewsNote')}
               </p>
             </div>
           )}

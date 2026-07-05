@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { ArrowLeft } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import api, { apiMessage } from '@/lib/api'
@@ -59,6 +60,8 @@ function CovRow({ date, value, right, idx }: { date: string; value: number; righ
 }
 
 export default function V2VocabularyQualityPage() {
+  const t = useTranslations('v2.adminContent.reportVocabQuality')
+  const tc = useTranslations('v2.common')
   const router = useRouter()
   const [data, setData] = useState<Data | null>(null)
   const [days, setDays] = useState(30)
@@ -91,19 +94,19 @@ export default function V2VocabularyQualityPage() {
     <div className="flex min-h-full flex-col">
       <GaPageHdr
         accent
-        title="Báo cáo chất lượng từ vựng"
-        subtitle="Độ phủ giống danh từ & bản dịch theo ngày"
+        title={t('title')}
+        subtitle={t('subtitle')}
         right={
           <div className="flex items-center gap-2">
-            <select className={selectCls} value={days} onChange={(e) => setDays(Number(e.target.value))} aria-label="Khoảng ngày">
+            <select className={selectCls} value={days} onChange={(e) => setDays(Number(e.target.value))} aria-label={t('rangeAria')}>
               {[7, 14, 30, 90].map((d) => (
                 <option key={d} value={d}>
-                  {d} ngày
+                  {t('rangeDays', { days: d })}
                 </option>
               ))}
             </select>
             <GaBtn variant="ghost" size="sm" onClick={() => router.push('/v2/admin/reports')}>
-              <ArrowLeft size={15} /> Báo cáo
+              <ArrowLeft size={15} /> {t('backToReports')}
             </GaBtn>
           </div>
         }
@@ -117,26 +120,26 @@ export default function V2VocabularyQualityPage() {
           </div>
         ) : error ? (
           <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">Không tải được báo cáo</h2>
+            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadError')}</h2>
             <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">
               {error} <code className="font-mono text-[12px] text-ga-accent">GET /api/admin/reports/vocabulary-quality</code>
             </p>
             <GaBtn variant="primary" onClick={load}>
-              Thử lại
+              {tc('retry')}
             </GaBtn>
           </div>
         ) : empty ? (
           <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">
-            Không có dữ liệu trong {days} ngày.
+            {t('emptyRange', { days })}
           </div>
         ) : (
           <>
             <TkStatStrip
               items={[
-                { label: 'Tổng từ vựng', value: (latestNoun?.totalWords ?? latestTrans?.totalWords ?? 0).toLocaleString() },
-                { label: 'Phủ giống danh từ', value: pct(latestNoun?.nounCoveragePercent), sub: 'mới nhất', color: '#1E9E61' },
-                { label: 'Phủ bản dịch (VI)', value: pct(latestTrans?.viCoveragePercent), sub: 'mới nhất', color: '#2F6FC9' },
-                { label: 'Phủ đủ 3 ngôn ngữ', value: pct(latestTrans?.allLocalesCoveragePercent), sub: 'de · vi · en', color: '#E07B39' },
+                { label: t('statTotal'), value: (latestNoun?.totalWords ?? latestTrans?.totalWords ?? 0).toLocaleString() },
+                { label: t('statNounGender'), value: pct(latestNoun?.nounCoveragePercent), sub: t('statNounGenderSub'), color: '#1E9E61' },
+                { label: t('statTranslationVi'), value: pct(latestTrans?.viCoveragePercent), sub: t('statTranslationViSub'), color: '#2F6FC9' },
+                { label: t('statAllLocales'), value: pct(latestTrans?.allLocalesCoveragePercent), sub: t('statAllLocalesSub'), color: '#E07B39' },
               ]}
             />
 
@@ -144,11 +147,11 @@ export default function V2VocabularyQualityPage() {
               {/* Noun-gender + verb coverage */}
               <div>
                 <div className="mb-3.5">
-                  <GaCap>Phủ giống danh từ (der/die/das)</GaCap>
+                  <GaCap>{t('nounCap')}</GaCap>
                 </div>
                 <div className="border border-ga-line bg-ga-card">
                   {nounItems.length === 0 ? (
-                    <div className="px-6 py-[30px] text-center text-[13px] text-ga-muted">Chưa có dữ liệu.</div>
+                    <div className="px-6 py-[30px] text-center text-[13px] text-ga-muted">{t('noData')}</div>
                   ) : (
                     nounItems
                       .slice(-14)
@@ -158,7 +161,7 @@ export default function V2VocabularyQualityPage() {
                           idx={i}
                           date={r.date}
                           value={r.nounCoveragePercent}
-                          right={`${pct(r.nounCoveragePercent)} · ${r.nounWithGender}/${r.nounWords} DT`}
+                          right={t('nounRight', { pct: pct(r.nounCoveragePercent), withGender: r.nounWithGender, nounWords: r.nounWords })}
                         />
                       ))
                   )}
@@ -168,11 +171,11 @@ export default function V2VocabularyQualityPage() {
               {/* Translation coverage */}
               <div>
                 <div className="mb-3.5">
-                  <GaCap>Phủ bản dịch (VI)</GaCap>
+                  <GaCap>{t('translationCap')}</GaCap>
                 </div>
                 <div className="border border-ga-line bg-ga-card">
                   {transItems.length === 0 ? (
-                    <div className="px-6 py-[30px] text-center text-[13px] text-ga-muted">Chưa có dữ liệu.</div>
+                    <div className="px-6 py-[30px] text-center text-[13px] text-ga-muted">{t('noData')}</div>
                   ) : (
                     transItems
                       .slice(-14)
@@ -182,7 +185,7 @@ export default function V2VocabularyQualityPage() {
                           idx={i}
                           date={r.date}
                           value={r.viCoveragePercent}
-                          right={`VI ${pct(r.viCoveragePercent)} · EN ${pct(r.enCoveragePercent)}`}
+                          right={t('transRight', { vi: pct(r.viCoveragePercent), en: pct(r.enCoveragePercent) })}
                         />
                       ))
                   )}

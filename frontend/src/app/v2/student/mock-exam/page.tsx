@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Lock, ChevronRight, Clock, ArrowRight } from 'lucide-react'
 import { getMockPacks, getMockPack, type MockExamPack, type MockExamPackDetail } from '@/lib/mockPackApi'
 import { GaPageHdr, GaCard, GaCap, TkBadge, LoadingState, ErrorBanner } from '@/components/ui-v2'
@@ -13,6 +14,7 @@ const LEVEL_COLOR: Record<string, string> = {
 }
 
 export default function V2StudentMockExamPage() {
+  const t = useTranslations('v2.student.mockExam')
   const [packs, setPacks] = useState<MockExamPack[]>([])
   const [openId, setOpenId] = useState<number | null>(null)
   const [detail, setDetail] = useState<MockExamPackDetail | null>(null)
@@ -25,7 +27,7 @@ export default function V2StudentMockExamPage() {
     setError(null)
     getMockPacks()
       .then(setPacks)
-      .catch(() => setError('Không thể tải danh sách đề thi.'))
+      .catch(() => setError(t('loadError')))
       .finally(() => setLoading(false))
   }
   useEffect(load, [])
@@ -50,7 +52,7 @@ export default function V2StudentMockExamPage() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <GaPageHdr accent title="Thi thử" subtitle="Bộ đề mô phỏng Goethe có chấm điểm tự động" />
+      <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
       <div className="flex-1 px-10 py-6">
         {error && (
           <div className="mb-5">
@@ -58,11 +60,11 @@ export default function V2StudentMockExamPage() {
           </div>
         )}
         {loading ? (
-          <LoadingState label="Đang tải bộ đề…" />
+          <LoadingState label={t('loading')} />
         ) : packs.length === 0 ? (
           <div className="border border-ga-line bg-ga-card py-16 text-center">
-            <p className="font-ga-display text-[20px] font-medium text-ga-ink">Chưa có bộ đề</p>
-            <p className="ga-ui mt-2 text-[14px] text-ga-muted">Các bộ đề thi thử sẽ sớm được cập nhật.</p>
+            <p className="font-ga-display text-[20px] font-medium text-ga-ink">{t('emptyTitle')}</p>
+            <p className="ga-ui mt-2 text-[14px] text-ga-muted">{t('emptyDesc')}</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -90,7 +92,7 @@ export default function V2StudentMockExamPage() {
                       </div>
                       {p.descriptionVi && <p className="ga-ui mt-0.5 truncate text-[13px] text-ga-muted">{p.descriptionVi}</p>}
                       <p className="ga-ui mt-0.5 text-[12px] text-ga-subtle">
-                        {p.examFormat} · {p.examCount} đề
+                        {t('packMeta', { format: p.examFormat, count: p.examCount })}
                       </p>
                     </div>
                     {p.locked ? (
@@ -107,7 +109,7 @@ export default function V2StudentMockExamPage() {
                   {open && (
                     <div className="border-t border-ga-border bg-ga-surface px-5 py-4">
                       {detailLoading ? (
-                        <LoadingState label="Đang tải đề…" />
+                        <LoadingState label={t('detailLoading')} />
                       ) : detail && detail.exams.length > 0 ? (
                         <div className="space-y-2">
                           {detail.exams.map((ex) => (
@@ -117,24 +119,24 @@ export default function V2StudentMockExamPage() {
                                 <p className="ga-ui mt-0.5 flex items-center gap-3 text-[12px] text-ga-muted">
                                   {ex.timeLimitMinutes != null && (
                                     <span className="inline-flex items-center gap-1">
-                                      <Clock size={12} aria-hidden /> {ex.timeLimitMinutes}′
+                                      <Clock size={12} aria-hidden /> {t('examTime', { minutes: ex.timeLimitMinutes })}
                                     </span>
                                   )}
-                                  {ex.totalPoints != null && <span>{ex.totalPoints} điểm</span>}
-                                  {ex.passPoints != null && <span>Đạt: {ex.passPoints}</span>}
+                                  {ex.totalPoints != null && <span>{t('examPoints', { points: ex.totalPoints })}</span>}
+                                  {ex.passPoints != null && <span>{t('examPass', { points: ex.passPoints })}</span>}
                                 </p>
                               </div>
                               <a
                                 href="/student/mock-exam"
                                 className="ga-ui inline-flex shrink-0 items-center gap-1 rounded-ga bg-ga-accent px-3.5 py-2 text-[12.5px] font-semibold text-ga-accent-ink"
                               >
-                                Bắt đầu <ArrowRight size={13} aria-hidden />
+                                {t('start')} <ArrowRight size={13} aria-hidden />
                               </a>
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <p className="ga-ui py-3 text-center text-[13px] text-ga-muted">Bộ đề này chưa có đề con.</p>
+                        <p className="ga-ui py-3 text-center text-[13px] text-ga-muted">{t('noExams')}</p>
                       )}
                     </div>
                   )}

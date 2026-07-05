@@ -1,0 +1,422 @@
+{
+  "adminOps": {
+    "overview": {
+      "title": "Bảng điều khiển quản trị",
+      "subtitle": "Tổng quan sức khỏe nền tảng DeutschFlow",
+      "loadError": "Không thể tải dữ liệu tổng quan.",
+      "loading": "Đang tải tổng quan…",
+      "roles": {
+        "STUDENT": "Học viên",
+        "TEACHER": "Giáo viên",
+        "ADMIN": "Quản trị"
+      },
+      "stats": {
+        "totalUsers": "Tổng người dùng",
+        "mrr": "Doanh thu (MRR)",
+        "aiCost": "Chi phí AI (30 ngày)",
+        "aiCostSub": "ước tính ledger",
+        "aiActivity": "Hoạt động AI",
+        "aiActivitySub": "dùng AI 30 ngày"
+      },
+      "subscribersByPeriod": "Thuê bao trả phí theo kỳ",
+      "recentPeriods": "{count} kỳ gần nhất",
+      "noPeriodData": "Chưa có dữ liệu kỳ.",
+      "roleDistribution": "Phân bổ theo vai trò",
+      "noUsers": "Chưa có người dùng.",
+      "todoTitle": "Cần xử lý",
+      "todo": {
+        "pausedAccounts": "{count} tài khoản đang tạm dừng — xem lại",
+        "reviewVocabImages": "Duyệt ảnh từ vựng còn thiếu",
+        "checkPendingOrgs": "Kiểm tra tổ chức B2B chờ kích hoạt",
+        "trackAiBudget": "Theo dõi ngân sách chi phí AI"
+      }
+    },
+    "revenue": {
+      "title": "Doanh thu & Thuê bao",
+      "subtitle": "Theo dõi MRR, tăng trưởng và giao dịch gần đây",
+      "loadError": "Không thể tải dữ liệu doanh thu.",
+      "loading": "Đang tải doanh thu…",
+      "stats": {
+        "mrr": "MRR (kỳ gần nhất)",
+        "arr": "ARR (dự phóng)",
+        "arrSub": "12 × MRR",
+        "subscribers": "Thuê bao",
+        "subscribersSub": "kỳ gần nhất",
+        "margin": "Biên lợi nhuận",
+        "marginSub": "Gross − phí − chi phí AI"
+      },
+      "netByPeriod": "Doanh thu ròng theo kỳ",
+      "noPeriodData": "Chưa có dữ liệu kỳ.",
+      "latestBreakdown": "Cơ cấu kỳ gần nhất",
+      "segNet": "Lợi nhuận ròng",
+      "segStoreFee": "Phí cổng/cửa hàng",
+      "segAiCost": "Chi phí AI",
+      "recentTransactions": "Giao dịch gần đây",
+      "txCount": "{count} giao dịch",
+      "colId": "#",
+      "colEmail": "Email",
+      "colPlan": "Gói",
+      "colAmount": "Số tiền",
+      "colStatus": "Trạng thái",
+      "colTxId": "Mã giao dịch",
+      "colDate": "Ngày",
+      "noTransactions": "Không có giao dịch.",
+      "pageInfo": "Trang {page} / {total}",
+      "prev": "Trước",
+      "next": "Tiếp"
+    },
+    "tokens": {
+      "title": "Phân tích chi phí AI",
+      "subtitle": "Token, chi phí theo tính năng và theo người dùng",
+      "loadError": "Không thể tải dữ liệu token.",
+      "loading": "Đang tải dữ liệu token…",
+      "featureLabels": {
+        "SPEAKING": "Speaking (AI)",
+        "INTERVIEW": "Phỏng vấn",
+        "GRAMMAR": "Ngữ pháp AI",
+        "GRADING": "Chấm bài AI",
+        "MATERIALS": "Tài liệu AI",
+        "IMAGE": "Sinh ảnh",
+        "TTS": "TTS narration",
+        "VOCAB": "Từ vựng AI",
+        "other": "Khác"
+      },
+      "stats": {
+        "totalTokens": "Tổng token (30 ngày)",
+        "cost": "Chi phí (14 ngày)",
+        "costSub": "ước tính theo ledger",
+        "aiUsers": "Người dùng AI",
+        "aiUsersSub": "có dùng 30 ngày",
+        "features": "Tính năng",
+        "featuresSub": "đang theo dõi"
+      },
+      "tokensByFeature": "Token theo tính năng",
+      "noFeatureLedger": "Chưa có dữ liệu ledger theo tính năng.",
+      "dailyCost": "Chi phí AI theo ngày (14 ngày)",
+      "noDailyCost": "Chưa có dữ liệu chi phí theo ngày.",
+      "topUsers": "Người dùng tốn token nhất (30 ngày)",
+      "colUser": "Người dùng",
+      "colRole": "Vai trò",
+      "colTokens": "Token (30 ngày)",
+      "noUserData": "Không có dữ liệu người dùng."
+    },
+    "organizations": {
+      "title": "Tổ chức B2B — Tài chính",
+      "subtitle": "Hợp đồng, ghế đã bán và dòng tiền từ các trung tâm đối tác",
+      "loadError": "Không thể tải danh sách tổ chức.",
+      "addOrg": "Thêm tổ chức",
+      "noPlan": "Chưa có gói",
+      "activated": "Đã kích hoạt quyền lợi cho {count} học viên.",
+      "status": {
+        "ACTIVE": "Đang hoạt động",
+        "SUSPENDED": "Tạm ngưng",
+        "PENDING": "Chờ kích hoạt"
+      },
+      "pay": {
+        "paid": "Đã thanh toán",
+        "pending": "Chờ thanh toán",
+        "overdue": "Quá hạn",
+        "none": "Chưa có HĐ"
+      },
+      "col": {
+        "org": "Tổ chức",
+        "seats": "Ghế đã bán",
+        "revenue": "Doanh thu",
+        "pay": "Thanh toán"
+      },
+      "studentsSuffix": "{count} HV",
+      "seatsUnit": "ghế",
+      "issuedInvoices": "Đã xuất HĐ",
+      "debtSuffix": " · nợ {amount}",
+      "renewOn": "Gia hạn {date}",
+      "activating": "Đang kích hoạt…",
+      "activate": "Kích hoạt",
+      "viewFinance": "Xem tài chính",
+      "privacyNotice": "Quản trị nền tảng chỉ xem <strong>dữ liệu tài chính</strong>. Học viên, lớp học, điểm số và tiến độ của mỗi trung tâm được <strong>bảo mật riêng</strong> — bạn không có quyền truy cập.",
+      "stats": {
+        "issuedRevenue": "Doanh thu đã xuất (HĐ)",
+        "issuedRevenueSub": "rollup hoá đơn",
+        "totalSeats": "Tổng ghế đã bán",
+        "totalSeatsSub": "{count} tổ chức",
+        "unpaidInvoices": "Hoá đơn chưa thu",
+        "unpaidInvoicesSub": "cần đối soát",
+        "pendingActivation": "Chờ kích hoạt"
+      },
+      "emptyOrgs": "Chưa có tổ chức nào.",
+      "modal": {
+        "description": "Chi tiết tài chính · hợp đồng & hoá đơn",
+        "privacyBanner": "Quản trị nền tảng chỉ xem dữ liệu tài chính của tổ chức.",
+        "contractInfo": "Thông tin hợp đồng",
+        "facts": {
+          "plan": "Gói",
+          "seats": "Ghế",
+          "issuedRevenue": "Doanh thu đã xuất (HĐ)",
+          "debt": "Công nợ",
+          "payMethod": "Hình thức TT",
+          "renewUntil": "Gia hạn đến"
+        },
+        "invoiceHistory": "Lịch sử hoá đơn ({count})",
+        "noIssued": "Chưa có hoá đơn đã xuất.",
+        "colPeriod": "Kỳ",
+        "colSeats": "Ghế",
+        "colAmount": "Số tiền",
+        "colStatus": "Trạng thái",
+        "invStatus": {
+          "paid": "Đã thu",
+          "sent": "Đã xuất",
+          "draft": "Nháp",
+          "void": "Đã huỷ"
+        },
+        "learningData": "Dữ liệu học tập",
+        "lockedFields": {
+          "students": "Danh sách học viên",
+          "classes": "Lớp học & giáo viên",
+          "scores": "Điểm số & bài làm",
+          "progress": "Tiến độ học tập"
+        },
+        "noAccess": "không có quyền xem",
+        "remindPayment": "Nhắc thanh toán",
+        "remindPaymentSoon": "Nhắc thanh toán (sắp ra mắt)",
+        "exportInvoice": "Xuất hoá đơn",
+        "exportInvoiceSoon": "Xuất hoá đơn (sắp ra mắt)",
+        "activate": "Kích hoạt",
+        "activateFromList": "Kích hoạt từ danh sách bên ngoài"
+      }
+    },
+    "freeTeachers": {
+      "title": "Giáo viên tự do",
+      "subtitle": "Giáo viên chưa thuộc trung tâm nào — để mời hoặc điều phối",
+      "loadError": "Không tải được danh sách giáo viên tự do",
+      "colTeacher": "Giáo viên",
+      "colUserId": "ID người dùng",
+      "itemNoun": "giáo viên",
+      "empty": "Không có giáo viên tự do nào."
+    },
+    "users": {
+      "title": "Quản lý người dùng",
+      "subtitle": "Phân quyền, gói cước và hạn mức của từng tài khoản",
+      "loadError": "Không thể tải danh sách người dùng.",
+      "searchPlaceholder": "Tìm tên / email…",
+      "addUser": "Thêm người dùng",
+      "stats": {
+        "totalUsers": "Tổng người dùng",
+        "students": "Học viên",
+        "teachers": "Giáo viên",
+        "paused": "Tạm dừng",
+        "pausedReview": "cần xem lại",
+        "pausedNone": "không có"
+      },
+      "filterAll": "Tất cả",
+      "col": {
+        "account": "Tài khoản",
+        "role": "Vai trò",
+        "plan": "Gói",
+        "quota": "Hạn mức AI",
+        "status": "Trạng thái"
+      },
+      "unlimited": "Không giới hạn",
+      "quotaUsed": "{pct}% dùng",
+      "statusActive": "Hoạt động",
+      "statusPaused": "Tạm dừng",
+      "manage": "Quản lý",
+      "itemNoun": "người dùng",
+      "empty": "Không tìm thấy người dùng."
+    },
+    "classes": {
+      "title": "Quản lý lớp học",
+      "subtitle": "Tất cả lớp trên hệ thống — đồng bộ realtime với database",
+      "loadError": "Không tải được lớp học",
+      "stats": {
+        "totalClasses": "Tổng lớp",
+        "totalClassesSub": "toàn hệ thống",
+        "totalStudents": "Tổng học viên",
+        "totalStudentsSub": "đã ghi danh",
+        "unassigned": "Chưa có GV",
+        "unassignedSub": "cần phân công"
+      },
+      "count": "{count} lớp",
+      "searchPlaceholder": "Tìm lớp / giáo viên / ID…",
+      "colId": "ID",
+      "colClass": "Lớp",
+      "colTeacher": "Giáo viên",
+      "colStudents": "Học viên",
+      "unassignedBadge": "Chưa phân công",
+      "emptyOrg": "Hệ thống chưa có lớp nào.",
+      "emptySearch": "Không tìm thấy lớp."
+    },
+    "plans": {
+      "title": "Gói thuê bao",
+      "subtitle": "Quản lý gói, hạn mức token và quyền lợi",
+      "loadError": "Không tải được danh sách gói",
+      "loadErrorToast": "Không thể tải danh sách gói.",
+      "createPlan": "+ Tạo gói",
+      "createPlanSoon": "Biểu mẫu tạo gói mới (sắp ra mắt)",
+      "unlimited": "Không giới hạn",
+      "tokensPerMonth": "{count} token/tháng",
+      "tokensPerDay": "{count} token/ngày",
+      "inactive": "Tắt",
+      "walletRollover": "Ví rollover {days} ngày",
+      "grantDaily": "Cấp theo ngày",
+      "edit": "Chỉnh sửa",
+      "editPlan": "Chỉnh sửa gói {name}",
+      "empty": "Chưa có gói nào."
+    },
+    "marketing": {
+      "title": "Tăng trưởng (Leads)",
+      "subtitle": "Phễu lead magnet & report chia sẻ — follow-up khách quan tâm",
+      "loadError": "Không tải được số liệu tăng trưởng",
+      "gradePageLink": "Trang chấm thử",
+      "pctOfTotal": "{pct}% tổng lead",
+      "stats": {
+        "leadsTotal": "Lead (tổng)",
+        "leadsTotalSub": "+{count} trong 7 ngày",
+        "leadsToday": "Lead hôm nay",
+        "leadsTodaySub": "24 giờ qua",
+        "reportsTotal": "Lượt chấm thử",
+        "reportsTotalSub": "+{count} trong 7 ngày",
+        "avgScore": "Điểm TB",
+        "avgScoreSub": "trên 100"
+      },
+      "emailLeads": "Lead để lại Email",
+      "zaloLeads": "Lead để lại Zalo/ĐT",
+      "recentLeads": "Lead gần đây (30 ngày) · {count}",
+      "noLeads": "Chưa có lead nào.",
+      "colName": "Tên",
+      "colContact": "Liên hệ",
+      "colTopic": "Chủ đề",
+      "colScore": "Điểm",
+      "colDate": "Ngày",
+      "aiError": "AI lỗi",
+      "clusters": "Cụm GV theo trung tâm (≥3 GV tự do) · cơ hội B2B",
+      "noClusters": "Chưa có cụm nào (cần ≥3 GV tự do khai cùng một trung tâm).",
+      "colCenter": "Trung tâm",
+      "colTeacherCount": "Số GV",
+      "colContactEmail": "Email liên hệ",
+      "teacherCountBadge": "{count} GV"
+    },
+    "weeklySpeaking": {
+      "title": "Weekly Speaking Prompts",
+      "subtitle": "Quản lý đề nói theo tuần (CEFR band · điểm bắt buộc)",
+      "createNew": "Tạo mới",
+      "loadError": "Không tải được prompts",
+      "count": "{count} prompt",
+      "empty": "Chưa có prompt nào — bấm “Tạo mới”.",
+      "inactive": "Tắt",
+      "mandatoryCount": "{count} điểm bắt buộc",
+      "optionalCount": "{count} tuỳ chọn",
+      "edit": "Sửa",
+      "deactivate": "Tắt",
+      "confirmDeactivate": "Xác nhận tắt prompt \"{title}\" (tuần {week})?",
+      "validation": {
+        "weekStart": "Chọn ngày bắt đầu tuần",
+        "cefrRequired": "CEFR band là bắt buộc",
+        "titleRequired": "Tiêu đề là bắt buộc",
+        "promptRequired": "Đề bài (tiếng Đức) là bắt buộc",
+        "mandatoryMin": "Cần ít nhất 1 điểm bắt buộc"
+      },
+      "saved": "Đã lưu thay đổi",
+      "created": "Đã tạo prompt",
+      "modalTitleCreate": "Tạo Prompt mới",
+      "modalTitleEdit": "Sửa Prompt",
+      "submitCreate": "Tạo",
+      "submitSave": "Lưu thay đổi",
+      "weekStartLabel": "Ngày bắt đầu tuần",
+      "cefrLabel": "CEFR band",
+      "titleLabel": "Tiêu đề",
+      "titlePlaceholder": "Arbeit und Beruf",
+      "promptLabel": "Đề bài (tiếng Đức)",
+      "promptPlaceholder": "Beschreiben Sie Ihren Arbeitsalltag…",
+      "mandatoryLabel": "Điểm bắt buộc — mỗi dòng 1 ý",
+      "mandatoryPlaceholder": "Beruf nennen\nArbeitszeiten beschreiben\nKollegen erwähnen",
+      "optionalLabel": "Điểm tuỳ chọn — mỗi dòng 1 ý (không bắt buộc)",
+      "activeLabel": "Kích hoạt"
+    },
+    "analytics": {
+      "title": "Product Analytics",
+      "subtitle": "Hành vi người dùng, tỷ lệ chuyển đổi & hiệu suất hệ thống (PostHog)",
+      "dashboardTitle": "Product Analytics Dashboard",
+      "notConfiguredTitle": "Chưa cấu hình Dashboard",
+      "notConfiguredPre": "Đặt biến môi trường ",
+      "notConfiguredPost": " (link Shared Dashboard từ PostHog) để hiển thị biểu đồ tại đây.",
+      "postHogGuide": "Hướng dẫn PostHog"
+    },
+    "broadcast": {
+      "title": "Gửi thông báo hệ thống",
+      "subtitle": "Soạn, phân loại và gửi ngay hoặc hẹn giờ tới nhóm người dùng",
+      "cat": {
+        "info": "Thông tin",
+        "action": "Cần hành động",
+        "broadcast": "Truyền thông"
+      },
+      "audience": {
+        "all": "Tất cả người dùng",
+        "student": "Học viên",
+        "teacher": "Giáo viên",
+        "free": "Gói miễn phí",
+        "pro": "Gói Pro"
+      },
+      "enterTitle": "Nhập tiêu đề thông báo",
+      "queuedSchedule": "Đã đưa vào hàng đợi lịch gửi",
+      "sentTo": "Đã gửi tới {audience}",
+      "scheduledAt": "Hẹn {time}",
+      "justNow": "vừa xong",
+      "categoryLabel": "Phân loại",
+      "audienceLabelPre": "Đối tượng nhận · ",
+      "titleLabel": "Tiêu đề",
+      "titlePlaceholder": "VD: myDeutschFlow vừa cập nhật!",
+      "bodyLabel": "Nội dung",
+      "bodyPlaceholder": "Nội dung thông báo…",
+      "sendTimeLabel": "Thời điểm gửi",
+      "sendNow": "Gửi ngay",
+      "schedule": "Hẹn giờ",
+      "sending": "Đang gửi…",
+      "scheduleSend": "Lên lịch gửi",
+      "preview": "Xem trước",
+      "previewTitle": "Tiêu đề thông báo",
+      "previewBody": "Nội dung thông báo…",
+      "scheduledPreview": "Hẹn: {time}",
+      "noTimeChosen": "chưa chọn giờ",
+      "previewJustNow": "Vừa xong",
+      "sentAndScheduled": "Đã gửi & lên lịch",
+      "sentEmpty": "Gửi thông báo đầu tiên để xem ở đây.",
+      "scheduledBadge": "ĐÃ LÊN LỊCH"
+    },
+    "settings": {
+      "title": "Cấu hình hệ thống",
+      "subtitle": "Tổng quan cấu hình vận hành quản trị (chỉ xem)",
+      "footer": "Chỉnh sửa chi tiết thực hiện qua từng module tương ứng.",
+      "sections": {
+        "platform": {
+          "title": "Cấu hình nền tảng",
+          "desc": "Quản lý cấu hình vận hành, thương hiệu và các tuỳ chọn mặc định cho toàn hệ thống.",
+          "items": {
+            "branding": "Thương hiệu (Branding)",
+            "timezone": "Múi giờ",
+            "defaultLang": "Ngôn ngữ mặc định",
+            "registration": "Chế độ đăng ký"
+          }
+        },
+        "security": {
+          "title": "Bảo mật & truy cập",
+          "desc": "Thiết lập bảo mật, phân quyền và kiểm soát truy cập cho quản trị viên và giảng viên.",
+          "items": {
+            "password": "Chính sách mật khẩu",
+            "twoFa": "Chính sách 2FA",
+            "roles": "Phân quyền vai trò",
+            "session": "Giới hạn phiên"
+          }
+        },
+        "integrations": {
+          "title": "Tích hợp",
+          "desc": "Các tích hợp đang kết nối: thanh toán, lưu trữ và dịch vụ AI.",
+          "items": {
+            "payment": "SePay / VietQR",
+            "storage": "AWS S3",
+            "ai": "AI providers",
+            "webhook": "Webhook endpoints"
+          }
+        }
+      }
+    }
+  }
+}

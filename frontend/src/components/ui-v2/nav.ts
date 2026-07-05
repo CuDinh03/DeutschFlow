@@ -14,7 +14,7 @@
  *
  * Sửa nav ở đây là nguồn sự thật duy nhất cho cả 4 role bên dưới.
  */
-import { MARKETPLACE_ENABLED } from '@/lib/features'
+import { MARKETPLACE_ENABLED, TEACHER_AI_TOOLS_ENABLED } from '@/lib/features'
 
 export type RoleId = 'teacher' | 'admin' | 'org' | 'student'
 
@@ -34,8 +34,10 @@ export interface NavItem {
 
 /** Một nhóm item, render kèm heading nếu có `label`. */
 export interface NavSection {
-  /** Tiêu đề nhóm (vd: "Quản lý lớp"); bỏ trống nếu nhóm không cần heading. */
+  /** Tiêu đề nhóm (vd: "Quản lý lớp"); bỏ trống nếu nhóm không cần heading. Dùng làm fallback tiếng Việt. */
   label?: string
+  /** Khoá i18n ổn định của heading (messages: v2.nav.sections.<labelKey>). Sidebar dịch theo khoá này. */
+  labelKey?: string
   items: NavItem[]
 }
 
@@ -68,6 +70,7 @@ export const teacherNav: RoleNav = {
   sections: [
     {
       label: 'Quản lý lớp',
+      labelKey: 'classMgmt',
       items: [
         { id: 'teacher', label: 'Trang chủ', href: '/v2/teacher', icon: 'dashboard' },
         { id: 'schedule', label: 'Kế hoạch giảng dạy', href: '/v2/teacher/schedule', icon: 'schedule' },
@@ -80,24 +83,34 @@ export const teacherNav: RoleNav = {
     },
     {
       label: 'Giảng dạy',
+      labelKey: 'teaching',
       items: [
         { id: 'tc-messages', label: 'Tin nhắn học viên', href: '/v2/teacher/messages', icon: 'chat' },
       ],
     },
-    {
-      label: 'Công cụ AI',
-      items: [
-        { id: 'grammar-ai', label: 'Ngữ pháp AI', href: '/v2/teacher/tools/grammar', icon: 'spellcheck' },
-        { id: 'materials-ai', label: 'Tạo Tài liệu AI', href: '/v2/teacher/tools/materials', icon: 'description' },
-        { id: 'ai-images', label: 'Tạo ảnh AI', href: '/v2/teacher/tools/images', icon: 'image' },
-      ],
-    },
+    // "Công cụ AI" — temporarily hidden (AI grammar/image gen 500 in prod). Flip
+    // NEXT_PUBLIC_TEACHER_AI_TOOLS_ENABLED=true to restore. See lib/features.ts.
+    ...(TEACHER_AI_TOOLS_ENABLED
+      ? [
+          {
+            label: 'Công cụ AI',
+            labelKey: 'aiTools',
+            items: [
+              { id: 'grammar-ai', label: 'Ngữ pháp AI', href: '/v2/teacher/tools/grammar', icon: 'spellcheck' },
+              { id: 'materials-ai', label: 'Tạo Tài liệu AI', href: '/v2/teacher/tools/materials', icon: 'description' },
+              { id: 'ai-images', label: 'Tạo ảnh AI', href: '/v2/teacher/tools/images', icon: 'image' },
+            ],
+          },
+        ]
+      : []),
     {
       label: 'Thống kê',
+      labelKey: 'stats',
       items: [{ id: 'analytics', label: 'Báo cáo & Phân tích', href: '/v2/teacher/analytics', icon: 'monitoring' }],
     },
     {
       label: 'Tài khoản',
+      labelKey: 'account',
       items: [{ id: 't-profile', label: 'Hồ sơ', href: '/v2/teacher/profile', icon: 'person' }],
     },
   ],
@@ -143,6 +156,7 @@ export const adminNav: RoleNav = {
     },
     {
       label: 'Tài khoản',
+      labelKey: 'account',
       items: [
         { id: 'admin-profile', label: 'Hồ sơ', href: '/v2/profile', icon: 'person' },
       ],
@@ -179,6 +193,7 @@ export const orgNav: RoleNav = {
     },
     {
       label: 'Tài khoản',
+      labelKey: 'account',
       items: [
         { id: 'org-profile', label: 'Hồ sơ', href: '/v2/profile', icon: 'person' },
       ],
@@ -204,6 +219,7 @@ export const studentNav: RoleNav = {
   sections: [
     {
       label: 'Học tập',
+      labelKey: 'learning',
       items: [
         { id: 'dashboard', label: 'Tổng quan', href: '/v2/student/dashboard', icon: 'dashboard' },
         { id: 'vocabulary', label: 'Từ vựng', href: '/v2/student/vocabulary', icon: 'menu_book' },
@@ -215,6 +231,7 @@ export const studentNav: RoleNav = {
     },
     {
       label: 'Luyện thi',
+      labelKey: 'examPrep',
       items: [
         { id: 'speaking', label: 'Luyện nói AI', href: '/v2/student/speaking', icon: 'mic' },
         { id: 'mock-exam', label: 'Thi thử', href: '/v2/student/mock-exam', icon: 'quiz' },
@@ -223,6 +240,7 @@ export const studentNav: RoleNav = {
     },
     {
       label: 'Lớp học',
+      labelKey: 'classes',
       items: [
         { id: 'my-classes', label: 'Lớp của tôi', href: '/v2/student/classes', icon: 'groups' },
         { id: 'st-progress', label: 'Tiến độ', href: '/v2/student/progress', icon: 'checklist' },
@@ -235,6 +253,7 @@ export const studentNav: RoleNav = {
     },
     {
       label: 'Cá nhân',
+      labelKey: 'personal',
       items: [
         { id: 'achievements', label: 'Thành tích', href: '/v2/student/achievements', icon: 'emoji_events' },
         { id: 'tuition', label: 'Học phí', href: '/v2/student/tuition', icon: 'payments' },
