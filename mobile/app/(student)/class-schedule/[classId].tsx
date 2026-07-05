@@ -113,7 +113,7 @@ function SessionRow({ session, past }: { session: ClassSession; past?: boolean }
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
             <Icon icon={online ? Video : MapPin} size={13} color="faint" />
             <ThemedText variant="caption" color="muted">
-              {online ? 'Học online' : session.room ? session.room : 'Chưa có phòng'}
+              {online ? 'Học online' : session.room ? `Phòng ${session.room}` : 'Chưa có phòng'}
             </ThemedText>
           </View>
         </View>
