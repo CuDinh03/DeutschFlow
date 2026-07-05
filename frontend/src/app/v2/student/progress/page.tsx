@@ -6,6 +6,7 @@ import { Check, PlayCircle, Lightbulb } from 'lucide-react'
 import { format } from 'date-fns'
 import { apiMessage } from '@/lib/api'
 import { fetchMyClasses, fetchClassLessons, type MyClassroom, type ClassLesson } from '@/lib/studentClassesApi'
+import { parseKnowledgePoints } from '@/lib/knowledgePoints'
 import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -123,16 +124,26 @@ export default function V2StProgressPage() {
               <div className="border border-ga-line bg-ga-card">
                 {lessons.map((l, i) => {
                   const isCurrent = i === currentIdx
+                  const points = parseKnowledgePoints(l.description)
                   return (
-                    <div key={l.id} className="flex items-center gap-3.5 px-5 py-3.5" style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none', background: isCurrent ? 'rgba(47,111,201,0.06)' : 'transparent', borderLeft: isCurrent ? '3px solid #2F6FC9' : '3px solid transparent' }}>
-                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[12px] font-bold" style={l.completed ? { background: 'var(--ga-green-soft)', color: 'var(--ga-green)' } : { background: 'var(--ga-side-active)', color: 'var(--ga-muted)' }}>
+                    <div key={l.id} className="flex items-start gap-3.5 px-5 py-3.5" style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none', background: isCurrent ? 'rgba(47,111,201,0.06)' : 'transparent', borderLeft: isCurrent ? '3px solid #2F6FC9' : '3px solid transparent' }}>
+                      <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full text-[12px] font-bold" style={l.completed ? { background: 'var(--ga-green-soft)', color: 'var(--ga-green)' } : { background: 'var(--ga-side-active)', color: 'var(--ga-muted)' }}>
                         {l.completed ? <Check size={14} /> : i + 1}
                       </span>
                       <div className="min-w-0 flex-1">
-                        <div className="truncate text-[14.5px] font-semibold text-ga-ink">{l.title}</div>
-                        {l.description && <div className="truncate text-[12.5px] text-ga-muted">{l.description}</div>}
+                        <div className="text-[14.5px] font-semibold text-ga-ink">{l.title}</div>
+                        {points.length > 0 && (
+                          <ul className="mt-1 flex flex-col gap-1">
+                            {points.map((p, idx) => (
+                              <li key={idx} className="flex gap-2 text-[12.5px] leading-[1.5] text-ga-muted">
+                                <span className="mt-[1px] shrink-0 text-ga-subtle">•</span>
+                                <span className="min-w-0 break-words">{p}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
                       </div>
-                      <span className="shrink-0 text-[12.5px]" style={{ color: l.completed ? 'var(--ga-green)' : isCurrent ? '#2F6FC9' : 'var(--ga-muted)' }}>
+                      <span className="mt-0.5 shrink-0 text-[12.5px]" style={{ color: l.completed ? 'var(--ga-green)' : isCurrent ? '#2F6FC9' : 'var(--ga-muted)' }}>
                         {l.completed ? t('taughtAt', { date: fmtDate(l.completedAt) }) : isCurrent ? t('learning') : t('notTaught')}
                       </span>
                     </div>

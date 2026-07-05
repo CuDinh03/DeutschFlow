@@ -11,6 +11,7 @@ import {
   fetchClassDetail, fetchClassAssignments, fetchClassLessons,
   type ClassroomDetail, type StudentAssignment, type ClassLesson,
 } from '@/lib/studentClassesApi'
+import { parseKnowledgePoints } from '@/lib/knowledgePoints'
 import { GaPageHdr, GaBtn, GaCap, TkStatStrip } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -214,20 +215,32 @@ export default function V2ClassStudentPage() {
             <>
               <GaCap className="mb-4 block">{t('lessonPathCap', { done: doneLessons, total: lessons.length })}</GaCap>
               <div className="border border-ga-line bg-ga-card">
-                {lessons.map((l, i) => (
-                  <div key={l.id} className="flex items-center gap-3.5 px-5 py-3.5" style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
-                    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[12px] font-bold" style={l.completed ? { background: 'var(--ga-green-soft)', color: 'var(--ga-green)' } : { background: 'var(--ga-side-active)', color: 'var(--ga-muted)' }}>
-                      {l.completed ? <Check size={14} /> : i + 1}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-[14.5px] font-semibold text-ga-ink">{l.title}</div>
-                      {l.description && <div className="truncate text-[12.5px] text-ga-muted">{l.description}</div>}
+                {lessons.map((l, i) => {
+                  const points = parseKnowledgePoints(l.description)
+                  return (
+                    <div key={l.id} className="flex items-start gap-3.5 px-5 py-3.5" style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
+                      <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full text-[12px] font-bold" style={l.completed ? { background: 'var(--ga-green-soft)', color: 'var(--ga-green)' } : { background: 'var(--ga-side-active)', color: 'var(--ga-muted)' }}>
+                        {l.completed ? <Check size={14} /> : i + 1}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[14.5px] font-semibold text-ga-ink">{l.title}</div>
+                        {points.length > 0 && (
+                          <ul className="mt-1 flex flex-col gap-1">
+                            {points.map((p, idx) => (
+                              <li key={idx} className="flex gap-2 text-[12.5px] leading-[1.5] text-ga-muted">
+                                <span className="mt-[1px] shrink-0 text-ga-subtle">•</span>
+                                <span className="min-w-0 break-words">{p}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                      <span className="mt-0.5 shrink-0 text-[12.5px]" style={{ color: l.completed ? 'var(--ga-green)' : 'var(--ga-muted)' }}>
+                        {l.completed ? t('taughtAt', { date: fmtDate(l.completedAt) }) : t('notTaught')}
+                      </span>
                     </div>
-                    <span className="shrink-0 text-[12.5px]" style={{ color: l.completed ? 'var(--ga-green)' : 'var(--ga-muted)' }}>
-                      {l.completed ? t('taughtAt', { date: fmtDate(l.completedAt) }) : t('notTaught')}
-                    </span>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </>
           )

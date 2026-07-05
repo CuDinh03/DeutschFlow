@@ -392,25 +392,40 @@ class ClassScheduleServiceTest {
     }
 
     @Test
-    @DisplayName("upsertPattern HARD-BLOCKS when a generated occurrence collides with the teacher's other class")
-    void upsertPattern_teacherConflict_blocks() {
+    @DisplayName("upsertPattern SKIPS only the conflicting occurrence and still generates the free dates")
+    void upsertPattern_teacherConflict_skipsConflictingDate() {
         LocalDate nextMon = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+        // Mondays in window: nextMon, +1w, +2w
         UpsertPatternRequest req = new UpsertPatternRequest(
                 (short) 1, LocalTime.of(18, 0), 90, "OFFLINE", "P.302", nextMon, nextMon.plusWeeks(2));
         allowOwner();
         when(patternRepo.findByClassIdAndDayOfWeek(CLASS_ID, (short) 1)).thenReturn(List.of());
+        when(patternRepo.save(any())).thenAnswer(inv -> {
+            ClassSchedulePattern p = inv.getArgument(0);
+            p.setId(99L);
+            return p;
+        });
         when(classTeacherRepo.findByIdTeacherId(TEACHER_ID))
                 .thenReturn(List.of(classTeacher(CLASS_ID), classTeacher(OTHER_CLASS_ID)));
+        // Busy session in the OTHER class overlaps ONLY the first Monday (18:00–19:30).
         ClassSession busy = session(850L, OTHER_CLASS_ID, nextMon.atTime(18, 15), null, false);
         when(sessionRepo.findTeacherTimeConflicts(anyList(), any(), any(), any())).thenReturn(List.of(busy));
-        when(classRepo.findById(OTHER_CLASS_ID)).thenReturn(Optional.of(teacherClass(OTHER_CLASS_ID, "A2")));
+        when(classRepo.findById(CLASS_ID)).thenReturn(Optional.of(teacherClass(CLASS_ID, "A1")));
 
-        assertThatThrownBy(() -> service.upsertPattern(TEACHER_ID, CLASS_ID, req))
-                .isInstanceOf(BadRequestException.class)
-                .hasMessageContaining("Trùng lịch");
+        UpsertPatternResult res = service.upsertPattern(TEACHER_ID, CLASS_ID, req);
 
-        verify(patternRepo, never()).save(any());
-        verify(notificationService, never()).notifyClassScheduleEvent(any(), any(), any(), any(), any());
+        // The pattern is saved (NOT rejected) — the whole schedule is no longer blocked by one clash.
+        verify(patternRepo).save(any());
+        // Only the two free Mondays are generated; the conflicting first Monday is skipped.
+        ArgumentCaptor<List<ClassSession>> saveCap = listCaptor();
+        verify(sessionRepo).saveAll(saveCap.capture());
+        List<ClassSession> generated = saveCap.getValue();
+        assertThat(generated).hasSize(2);
+        assertThat(generated).noneMatch(s -> s.getStartAt().toLocalDate().equals(nextMon));
+        assertThat(res.generated()).isEqualTo(2);
+        assertThat(res.skipped()).isEqualTo(1);
+        // Students are still notified because sessions were actually generated.
+        verify(notificationService).notifyClassScheduleEvent(any(), any(), any(), any(), any());
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────────

@@ -24,6 +24,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -118,6 +119,11 @@ public class ClassScheduleService {
     /**
      * Đặt/đổi lịch cố định cho một thứ của lớp + regenerate buổi tương lai CHƯA override.
      * Upsert theo (classId, dayOfWeek). Giữ nguyên buổi đã chỉnh tay (override sticky).
+     *
+     * <p>Chống trùng lịch giáo viên (PR #190) nay theo hướng BỎ QUA thay vì CHẶN CỨNG cả pattern:
+     * những buổi sắp sinh trùng giờ với lớp KHÁC mà giáo viên cũng dạy sẽ bị bỏ qua (không tạo →
+     * không bao giờ có chuyện dạy hai nơi cùng lúc), còn các ngày trống vẫn được sinh bình thường.
+     * Nhờ vậy một ngày kẹt không khoá toàn bộ lịch; FE báo "bỏ qua Y buổi trùng lịch".</p>
      */
     @Transactional
     public UpsertPatternResult upsertPattern(Long teacherId, Long classId, UpsertPatternRequest req) {
@@ -135,23 +141,26 @@ public class ClassScheduleService {
         pattern.setEffectiveFrom(req.effectiveFrom());
         pattern.setEffectiveTo(req.effectiveTo());
 
-        // Chặn cứng trùng lịch giáo viên: mọi buổi lịch cố định sắp sinh không được đè lên
-        // buổi của lớp KHÁC mà giáo viên này cũng dạy. Kiểm tra TRƯỚC khi ghi để không đụng DB.
-        assertTeacherFreeForPattern(teacherId, classId, pattern);
+        // Những ngày trùng lịch dạy của giáo viên (ở lớp khác) — sẽ bị bỏ qua khi regenerate.
+        Set<LocalDate> conflictDates = findTeacherConflictDates(teacherId, classId, pattern);
 
         pattern = patternRepo.save(pattern);
 
-        Regen regen = regenerate(pattern);
+        Regen regen = regenerate(pattern, conflictDates);
 
-        String name = className(classId);
-        String message = "Lớp " + name + " có lịch học cố định: "
-                + dowLabel(pattern.getDayOfWeek()) + " hàng tuần lúc " + pattern.getStartTime()
-                + " (" + pattern.getDurationMinutes() + " phút), áp dụng từ "
-                + DATE_FMT.format(pattern.getEffectiveFrom()) + ".";
-        notificationService.notifyClassScheduleEvent(
-                NotificationType.CLASS_SESSION_SCHEDULED, classId, name, teacherId, message);
+        // Chỉ báo học viên khi thực sự có buổi được sinh — tránh "có lịch học cố định" khi mọi ngày
+        // đều bị bỏ qua do trùng lịch (khi đó chỉ mình giáo viên thấy cảnh báo ở FE).
+        if (regen.generated() > 0) {
+            String name = className(classId);
+            String message = "Lớp " + name + " có lịch học cố định: "
+                    + dowLabel(pattern.getDayOfWeek()) + " hàng tuần lúc " + pattern.getStartTime()
+                    + " (" + pattern.getDurationMinutes() + " phút), áp dụng từ "
+                    + DATE_FMT.format(pattern.getEffectiveFrom()) + ".";
+            notificationService.notifyClassScheduleEvent(
+                    NotificationType.CLASS_SESSION_SCHEDULED, classId, name, teacherId, message);
+        }
 
-        return new UpsertPatternResult(pattern.getId(), regen.generated(), regen.kept());
+        return new UpsertPatternResult(pattern.getId(), regen.generated(), regen.kept(), regen.skipped());
     }
 
     /** Sửa một buổi → đánh dấu overridden=true; trả cảnh báo mềm nếu trùng phòng. */
@@ -250,7 +259,12 @@ public class ClassScheduleService {
 
     // ── Regenerate ─────────────────────────────────────────────────────────────
 
-    private Regen regenerate(ClassSchedulePattern p) {
+    /**
+     * Regenerate buổi tương lai cho pattern. {@code skipDates} là các ngày KHÔNG sinh buổi vì trùng
+     * lịch dạy của giáo viên ở lớp khác (được đếm vào {@code skipped} để FE cảnh báo). Buổi đã chỉnh
+     * tay (override) luôn được giữ và chiếm chỗ trước cả skip.
+     */
+    private Regen regenerate(ClassSchedulePattern p, Set<LocalDate> skipDates) {
         LocalDate today = LocalDate.now(QuotaVnCalendar.ZONE);   // audit M-9: VN time, not UTC
         List<ClassSession> future = sessionRepo.findByPatternIdAndStartAtGreaterThanEqual(
                 p.getId(), today.atStartOfDay());
@@ -266,9 +280,11 @@ public class ClassScheduleService {
         ClassSession.Mode mode = p.getDefaultMode() == ClassSchedulePattern.Mode.ONLINE
                 ? ClassSession.Mode.ONLINE : ClassSession.Mode.OFFLINE;
 
+        int skipped = 0;
         List<ClassSession> created = new ArrayList<>();
         for (LocalDate d : patternOccurrenceDates(p)) {
             if (keptDates.contains(d)) continue;                 // buổi override đã chiếm chỗ
+            if (skipDates.contains(d)) { skipped++; continue; } // trùng lịch GV lớp khác → bỏ qua
             created.add(ClassSession.builder()
                     .classId(p.getClassId())
                     .patternId(p.getId())
@@ -281,7 +297,7 @@ public class ClassScheduleService {
                     .build());
         }
         sessionRepo.saveAll(created);
-        return new Regen(created.size(), keptDates.size());
+        return new Regen(created.size(), keptDates.size(), skipped);
     }
 
     /**
@@ -300,7 +316,7 @@ public class ClassScheduleService {
         return out;
     }
 
-    private record Regen(int generated, int kept) {}
+    private record Regen(int generated, int kept, int skipped) {}
 
     // ── Chặn cứng trùng lịch giáo viên ──────────────────────────────────────────
 
@@ -321,34 +337,37 @@ public class ClassScheduleService {
     }
 
     /**
-     * Chặn cứng lịch cố định: không buổi nào sắp sinh được đè lên buổi của lớp KHÁC mà giáo viên
-     * cũng dạy. Một truy vấn theo cửa sổ [buổi đầu … buổi cuối] rồi đối chiếu overlap chính xác trong
-     * bộ nhớ (pattern là thao tác thưa nên chi phí không đáng kể).
+     * Các ngày (occurrence) mà lịch cố định sắp sinh sẽ ĐÈ lên buổi của lớp KHÁC mà giáo viên cũng
+     * dạy — những ngày này bị bỏ qua khi regenerate (không tạo buổi chồng chỗ dạy). Một truy vấn theo
+     * cửa sổ [buổi đầu … buổi cuối] rồi đối chiếu overlap chính xác trong bộ nhớ (pattern thưa nên rẻ).
      */
-    private void assertTeacherFreeForPattern(Long teacherId, Long classId, ClassSchedulePattern pattern) {
+    private Set<LocalDate> findTeacherConflictDates(Long teacherId, Long classId, ClassSchedulePattern pattern) {
         List<LocalDate> dates = patternOccurrenceDates(pattern);
-        if (dates.isEmpty()) return;
+        if (dates.isEmpty()) return Set.of();
         List<Long> otherClassIds = teacherClassIds(teacherId).stream()
                 .filter(id -> !id.equals(classId))
                 .toList();
-        if (otherClassIds.isEmpty()) return;
+        if (otherClassIds.isEmpty()) return Set.of();
 
         int duration = pattern.getDurationMinutes();
         LocalDateTime windowStart = dates.get(0).atTime(pattern.getStartTime());
         LocalDateTime windowEnd = dates.get(dates.size() - 1).atTime(pattern.getStartTime()).plusMinutes(duration);
         List<ClassSession> others = sessionRepo.findTeacherTimeConflicts(otherClassIds, windowStart, windowEnd, null);
-        if (others.isEmpty()) return;
+        if (others.isEmpty()) return Set.of();
 
+        Set<LocalDate> conflicts = new HashSet<>();
         for (LocalDate d : dates) {
             LocalDateTime occStart = d.atTime(pattern.getStartTime());
             LocalDateTime occEnd = occStart.plusMinutes(duration);
             for (ClassSession o : others) {
                 LocalDateTime oEnd = o.getStartAt().plusMinutes(o.getDurationMinutes());
                 if (o.getStartAt().isBefore(occEnd) && occStart.isBefore(oEnd)) {
-                    throw teacherConflict(o);
+                    conflicts.add(d);
+                    break;
                 }
             }
         }
+        return conflicts;
     }
 
     private BadRequestException teacherConflict(ClassSession c) {

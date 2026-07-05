@@ -98,6 +98,17 @@ export default function StudentClassDetail() {
       >
         <HeaderCard detail={detail} />
         <ProgressStrip detail={detail} />
+        <Button
+          label="Xem lịch buổi học"
+          variant="secondary"
+          icon={CalendarClock}
+          onPress={() =>
+            router.push({
+              pathname: '/(student)/class-schedule/[classId]',
+              params: { classId: String(classId), className: detail.name },
+            })
+          }
+        />
         <TabBar tab={tab} setTab={setTab} />
         {tab === 'assignments' && (
           <AssignmentsTab
@@ -692,17 +703,6 @@ function ProgressTab({
   const c = theme.colors
   return (
     <View style={{ gap: space[4] }}>
-      <Button
-        label="Xem lịch buổi học"
-        variant="secondary"
-        icon={CalendarClock}
-        onPress={() =>
-          router.push({
-            pathname: '/(student)/class-schedule/[classId]',
-            params: { classId: String(detail.id), className: detail.name },
-          })
-        }
-      />
       {lessons.length === 0 && isError ? (
         <ErrorState
           title="Không tải được tiến độ"
