@@ -5,7 +5,7 @@ import { LogOut, Star, Bell, Globe, BarChart3, User, ChevronRight, Trash2, HelpC
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
 import api, { apiMessage } from '@/lib/api'
-import { PAYWALL_ENABLED } from '@/lib/paywall'
+import { PAYWALL_ENABLED, PRO_UNLOCKED_FREE } from '@/lib/paywall'
 import { gamificationApi } from '@/lib/gamificationApi'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, Pill, ListRow, Caption, FadeIn } from '@/components/ui'
@@ -95,7 +95,10 @@ export default function ProfileScreen() {
                 {user?.email}
               </ThemedText>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], marginTop: space[1] }}>
-                <Pill label={plan?.tier ?? 'FREE'} tone={isPro ? 'accent' : 'neutral'} solid={isPro} />
+                {/* Commercial tier label — hidden on the iOS free build (App Store 2.1(b)). */}
+                {!PRO_UNLOCKED_FREE ? (
+                  <Pill label={plan?.tier ?? 'FREE'} tone={isPro ? 'accent' : 'neutral'} solid={isPro} />
+                ) : null}
                 {xp ? (
                   <Pressable
                     accessibilityRole="button"
@@ -178,28 +181,39 @@ export default function ProfileScreen() {
           </Card>
         </View>
 
-        <Card onPress={confirmLogout} elevation="flat">
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-            <Icon icon={LogOut} size={18} color="danger" />
-            <ThemedText variant="bodyStrong" color="danger">
-              Đăng xuất
-            </ThemedText>
-          </View>
-        </Card>
+        <View style={{ gap: space[3] }}>
+          <Card onPress={confirmLogout} elevation="flat">
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+              <Icon icon={LogOut} size={18} color="danger" />
+              <ThemedText variant="bodyStrong" color="danger">
+                Đăng xuất
+              </ThemedText>
+            </View>
+          </Card>
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Xoá tài khoản"
-          accessibilityHint="Xoá vĩnh viễn tài khoản và toàn bộ dữ liệu, không thể hoàn tác"
-          onPress={confirmDeleteAccount}
-          hitSlop={8}
-          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space[2], paddingVertical: space[2] }}
-        >
-          <Icon icon={Trash2} size={14} color="faint" />
-          <ThemedText variant="caption" color="faint">
-            Xoá tài khoản
-          </ThemedText>
-        </Pressable>
+          {/* Account deletion — surfaced at the same level as logout so App Review (5.1.1(v)) can
+              find it without hunting. Confirmation happens in the Alert inside confirmDeleteAccount. */}
+          <Card
+            onPress={confirmDeleteAccount}
+            elevation="flat"
+            accessibilityLabel="Xoá tài khoản"
+            accessibilityHint="Xoá vĩnh viễn tài khoản và toàn bộ dữ liệu, không thể hoàn tác"
+            style={{ backgroundColor: c.dangerSoft, borderColor: c.danger }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+              <Icon icon={Trash2} size={18} color="danger" />
+              <View style={{ flex: 1, gap: 2 }}>
+                <ThemedText variant="bodyStrong" color="danger">
+                  Xoá tài khoản
+                </ThemedText>
+                <ThemedText variant="caption" color="muted">
+                  Xoá vĩnh viễn tài khoản và toàn bộ dữ liệu học tập
+                </ThemedText>
+              </View>
+              <Icon icon={ChevronRight} size={18} color="danger" />
+            </View>
+          </Card>
+        </View>
 
         <ThemedText variant="caption" color="faint" align="center">
           DeutschFlow v1.0.0 • iOS/Android

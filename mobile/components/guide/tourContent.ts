@@ -134,6 +134,8 @@ export const TOUR_ITEMS: readonly GuideItem[] = [
 export interface FaqEntry {
   q: string
   a: string
+  /** Mentions the commercial PRO plan — filtered out on the iOS free build (App Store 2.1(b)). */
+  proOnly?: boolean
 }
 
 export const FAQ: readonly FaqEntry[] = [
@@ -156,5 +158,6 @@ export const FAQ: readonly FaqEntry[] = [
   {
     q: 'Làm sao để mở khoá mọi tính năng?',
     a: 'Một số tính năng nâng cao thuộc gói PRO. Vào mục Nâng cấp PRO trong Hồ sơ để xem chi tiết.',
+    proOnly: true,
   },
 ] as const

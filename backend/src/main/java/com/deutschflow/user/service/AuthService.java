@@ -62,8 +62,13 @@ public class AuthService {
         if (userRepository.existsByEmailIgnoreCase(email)) {
             throw new BadRequestException("Email này đã được đăng ký, vui lòng dùng email khác.");
         }
-        if (request.phoneNumber() != null && !request.phoneNumber().isBlank()
-                && userRepository.existsByPhoneNumber(request.phoneNumber())) {
+        // Phone is optional (App Store 5.1.1(v)). Store NULL — not "" — when omitted: the column is
+        // UNIQUE, and Postgres permits many NULLs but only one empty string, so a second no-phone
+        // signup would otherwise collide. Uniqueness is only checked when a real number is given.
+        String phoneNumber = (request.phoneNumber() == null || request.phoneNumber().isBlank())
+                ? null
+                : request.phoneNumber().trim();
+        if (phoneNumber != null && userRepository.existsByPhoneNumber(phoneNumber)) {
             throw new BadRequestException("Số điện thoại này đã được đăng ký, vui lòng dùng số khác.");
         }
 
@@ -74,7 +79,7 @@ public class AuthService {
 
         var user = User.builder()
                 .email(email)
-                .phoneNumber(request.phoneNumber())
+                .phoneNumber(phoneNumber)
                 .passwordHash(passwordEncoder.encode(request.password()))
                 .displayName(request.displayName())
                 .role(User.Role.STUDENT)

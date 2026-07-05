@@ -5,7 +5,7 @@ import { Star, Zap, Mic, Trophy, BookOpen, Check, type LucideIcon } from 'lucide
 import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, AppHeader, Caption, YellowSquare, Button, Pill } from '@/components/ui'
 import { trackFeatureAction } from '@/lib/analytics'
-import { IAP_ENABLED, PAYWALL_ENABLED } from '@/lib/paywall'
+import { IAP_ENABLED, PAYWALL_ENABLED, PRO_UNLOCKED_FREE } from '@/lib/paywall'
 import { useAppleIap } from '@/hooks/useAppleIap'
 import { metaForProductId } from '@/lib/iapProducts'
 
@@ -19,12 +19,23 @@ const PRO_FEATURES: { icon: LucideIcon; label: string }[] = [
 
 export default function UpgradeScreen() {
   useEffect(() => {
+    // v1.0 iOS free build: there is no PRO surface at all, so this route should never be reachable —
+    // if something links here, bounce straight home rather than show any commercial screen (2.1(b)).
+    if (PRO_UNLOCKED_FREE) {
+      router.replace('/(student)')
+      return
+    }
     // Only a real paywall (Android, or iOS once StoreKit is live) is a 'paywall_viewed'; the iOS
     // neutral screen is not — don't pollute the monetization funnel with views that have no purchase path.
     if (PAYWALL_ENABLED) {
       trackFeatureAction('monetization', 'paywall_viewed')
     }
   }, [])
+
+  // v1.0 iOS free build: render nothing while the effect above redirects home.
+  if (PRO_UNLOCKED_FREE) {
+    return null
+  }
 
   // iOS with StoreKit IAP wired: the real, purchasable paywall.
   if (IAP_ENABLED) {

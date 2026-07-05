@@ -105,6 +105,71 @@ class AuthServiceUnitTest {
     }
 
     @Test
+    void register_blankPhone_storedAsNull_andSkipsUniquenessCheck() {
+        when(userRepository.existsByEmailIgnoreCase("new@x.com")).thenReturn(false);
+        when(passwordEncoder.encode(RAW_PASSWORD)).thenReturn("HASH");
+        ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
+        when(userRepository.save(saved.capture())).thenAnswer(inv -> {
+            User u = inv.getArgument(0);
+            u.setId(1L);
+            return u;
+        });
+        when(jwtService.generateAccessToken(any(), any(), any())).thenReturn("ACCESS");
+        when(refreshTokenRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // Phone is optional at sign-up (App Store 5.1.1(v)). A blank value must persist as NULL — not
+        // "" — because phone_number is UNIQUE and Postgres allows many NULLs but only one empty string,
+        // so a second no-phone account would otherwise collide. The uniqueness lookup is also skipped.
+        var req = new RegisterRequest("new@x.com", "   ", RAW_PASSWORD, "Name", "vi");
+        authService.register(req);
+
+        assertNull(saved.getValue().getPhoneNumber());
+        verify(userRepository, never()).existsByPhoneNumber(anyString());
+    }
+
+    @Test
+    void register_nullPhone_storedAsNull() {
+        when(userRepository.existsByEmailIgnoreCase("new@x.com")).thenReturn(false);
+        when(passwordEncoder.encode(RAW_PASSWORD)).thenReturn("HASH");
+        ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
+        when(userRepository.save(saved.capture())).thenAnswer(inv -> {
+            User u = inv.getArgument(0);
+            u.setId(2L);
+            return u;
+        });
+        when(jwtService.generateAccessToken(any(), any(), any())).thenReturn("ACCESS");
+        when(refreshTokenRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        var req = new RegisterRequest("new@x.com", null, RAW_PASSWORD, "Name", "vi");
+        authService.register(req);
+
+        assertNull(saved.getValue().getPhoneNumber());
+        verify(userRepository, never()).existsByPhoneNumber(anyString());
+    }
+
+    @Test
+    void register_withPhone_trimsAndChecksUniqueness() {
+        when(userRepository.existsByEmailIgnoreCase("new@x.com")).thenReturn(false);
+        when(userRepository.existsByPhoneNumber("0912345678")).thenReturn(false);
+        when(passwordEncoder.encode(RAW_PASSWORD)).thenReturn("HASH");
+        ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
+        when(userRepository.save(saved.capture())).thenAnswer(inv -> {
+            User u = inv.getArgument(0);
+            u.setId(3L);
+            return u;
+        });
+        when(jwtService.generateAccessToken(any(), any(), any())).thenReturn("ACCESS");
+        when(refreshTokenRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // A provided number is trimmed, checked for uniqueness, and stored as-is.
+        var req = new RegisterRequest("new@x.com", "  0912345678 ", RAW_PASSWORD, "Name", "vi");
+        authService.register(req);
+
+        assertEquals("0912345678", saved.getValue().getPhoneNumber());
+        verify(userRepository).existsByPhoneNumber("0912345678");
+    }
+
+    @Test
     void register_persistsStudentAndNotifiesAfterCommit() {
         when(userRepository.existsByEmailIgnoreCase("new@x.com")).thenReturn(false);
         when(passwordEncoder.encode(RAW_PASSWORD)).thenReturn("HASH");

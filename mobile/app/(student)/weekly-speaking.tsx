@@ -31,7 +31,7 @@ interface WeeklySubmission {
 export default function WeeklySpeakingScreen() {
   const theme = useTheme()
   const c = theme.colors
-  const { isPro } = usePlanStore()
+  const { hasProAccess } = usePlanStore()
 
   const { data: prompt, isLoading: promptLoading, isError: promptError, refetch: refetchPrompt, isFetching } = useQuery({
     queryKey: ['weekly-prompt'],
@@ -39,7 +39,7 @@ export default function WeeklySpeakingScreen() {
       api
         .get<WeeklyPrompt>('/ai-speaking/weekly/current-prompt', { params: { cefrBand: 'B1' } })
         .then((r) => r.data),
-    enabled: isPro,
+    enabled: hasProAccess,
     staleTime: 60_000 * 30,
   })
 
@@ -51,11 +51,11 @@ export default function WeeklySpeakingScreen() {
           params: { page: 0, size: 10 },
         })
         .then((r) => r.data.content ?? []),
-    enabled: isPro,
+    enabled: hasProAccess,
     staleTime: 60_000,
   })
 
-  if (!isPro) {
+  if (!hasProAccess) {
     return (
       <Screen edges={['top']}>
         <AppHeader title="Weekly Speaking" onBack={() => router.back()} />
