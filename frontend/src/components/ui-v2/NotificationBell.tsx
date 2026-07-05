@@ -8,6 +8,7 @@ import { notificationApi, type NotificationItem } from '@/lib/notificationApi'
 import { subscribeNotificationUnread } from '@/lib/notificationStream'
 import { TYPE_TONE, TYPE_ICON, notifTitle, notifBody, relTime, resolveNotificationHref } from '@/lib/notificationDisplay'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { toast } from 'sonner'
 import type { RoleId } from './nav'
 
 /**
@@ -35,6 +36,11 @@ export function NotificationBell({ role }: { role: RoleId }) {
   React.useEffect(() => {
     openRef.current = open
   }, [open])
+
+  // Last unread count the SSE stream reported. Lets the handler tell a genuine new arrival
+  // (count went up) apart from the initial baseline or a mark-read decrement — so we only
+  // "pop" a toast when something actually new landed.
+  const lastCountRef = React.useRef<number | null>(null)
 
   const fetchUnread = React.useCallback(async () => {
     try {
@@ -74,19 +80,44 @@ export function NotificationBell({ role }: { role: RoleId }) {
     }
   }, [])
 
+  // When a new notification arrives while the panel is closed, surface it as a transient toast
+  // (top-center) so it actually gets noticed — not just a silent bump of the badge number.
+  // Fetches the newest item for its real title/body and deep-links on "Xem".
+  const notifyNewArrival = React.useCallback(async () => {
+    try {
+      const res = await notificationApi.list(0, 1)
+      const top = res.data.items?.[0]
+      if (!top) return
+      const href = resolveNotificationHref(top, role)
+      toast(notifTitle(top), {
+        description: notifBody(top) ?? undefined,
+        action: href ? { label: 'Xem', onClick: () => router.push(href) } : undefined,
+      })
+    } catch {
+      /* toast is best-effort — the badge still updates */
+    }
+  }, [role, router])
+
   // Live realtime updates — the SSE stream pushes the unread count on every change; refresh the
-  // open panel so newly arrived items show without reopening.
+  // open panel so newly arrived items show without reopening, and pop a toast on a fresh arrival.
   React.useEffect(() => {
     const ac = subscribeNotificationUnread(
       (n) => {
         sseSeen.current = true
+        const prev = lastCountRef.current
+        lastCountRef.current = n
         setUnread(n)
-        if (openRef.current) void fetchList()
+        if (openRef.current) {
+          void fetchList()
+        } else if (prev !== null && n > prev) {
+          // A genuine increase (not the initial baseline) — something new arrived.
+          void notifyNewArrival()
+        }
       },
       () => {},
     )
     return () => ac.abort()
-  }, [fetchList])
+  }, [fetchList, notifyNewArrival])
 
   const onOpenChange = (next: boolean) => {
     setOpen(next)
@@ -139,12 +170,20 @@ export function NotificationBell({ role }: { role: RoleId }) {
         >
           <GaIcon name="notifications" size={20} />
           {unread > 0 && (
-            <span
-              className="absolute -right-1 -top-1 grid h-[18px] min-w-[18px] place-items-center rounded-full px-1 text-[10px] font-bold leading-none"
-              style={{ background: '#ef4444', color: '#fff' }}
-            >
-              {unread > 99 ? '99+' : unread}
-            </span>
+            <>
+              {/* Radar ping so a fresh count draws the eye; paused for reduced-motion users. */}
+              <span
+                aria-hidden
+                className="pointer-events-none absolute -right-1 -top-1 h-[18px] w-[18px] rounded-full motion-safe:animate-ping"
+                style={{ background: '#ef4444', opacity: 0.5 }}
+              />
+              <span
+                className="absolute -right-1 -top-1 grid h-[18px] min-w-[18px] place-items-center rounded-full px-1 text-[10px] font-bold leading-none shadow-sm ring-2 ring-[var(--ga-hdr-bg)]"
+                style={{ background: '#ef4444', color: '#fff' }}
+              >
+                {unread > 99 ? '99+' : unread}
+              </span>
+            </>
           )}
         </button>
       </PopoverTrigger>
@@ -152,8 +191,13 @@ export function NotificationBell({ role }: { role: RoleId }) {
       <PopoverContent
         align="end"
         sideOffset={8}
-        className="w-[min(100vw-2rem,24rem)] overflow-hidden rounded-ga border-ga-line bg-ga-card p-0 shadow-ga-panel"
+        className="ga-scope w-[min(100vw-2rem,24rem)] overflow-hidden rounded-ga border border-ga-line bg-ga-card p-0 text-ga-ink shadow-ga-panel"
       >
+        {/* `ga-scope` re-declares the design tokens on this portaled panel — Radix renders it on
+            document.body, OUTSIDE the app's .ga-scope, so bg-ga-card / border-ga-line / text-ga-*
+            would otherwise resolve to nothing and the panel renders transparent. `data-role`
+            re-applies the role accent (matches the .ga-scope [data-role] pattern in galerie.css). */}
+        <div data-role={role}>
         {/* Header */}
         <div className="flex items-center justify-between border-b border-ga-line bg-ga-surface px-4 py-3">
           <span className="font-ga-display text-[15px] font-semibold text-ga-ink">Thông báo</span>
@@ -230,6 +274,7 @@ export function NotificationBell({ role }: { role: RoleId }) {
           >
             Xem tất cả thông báo →
           </Link>
+        </div>
         </div>
       </PopoverContent>
     </Popover>
