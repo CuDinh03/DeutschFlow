@@ -17,7 +17,8 @@
       "^@/(.*)$": "<rootDir>/$1",
       "^react-native$": "<rootDir>/test/mocks/react-native.ts",
       "^expo-router$": "<rootDir>/test/mocks/expo-router.ts",
-      "^expo-secure-store$": "<rootDir>/test/mocks/expo-secure-store.ts"
+      "^expo-secure-store$": "<rootDir>/test/mocks/expo-secure-store.ts",
+      "^react-native-mmkv$": "<rootDir>/test/mocks/react-native-mmkv.ts"
     },
     "testMatch": [
       "**/__tests__/**/*.test.ts"
