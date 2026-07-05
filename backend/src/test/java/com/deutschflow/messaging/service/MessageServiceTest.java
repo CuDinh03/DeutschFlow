@@ -129,6 +129,36 @@ class MessageServiceTest {
     }
 
     @Test
+    @DisplayName("getThread(afterId): chỉ trả tin mới hơn cursor + vẫn đánh dấu đã đọc")
+    void getThread_delta_returnsOnlyNewerAndStillMarksRead() {
+        shareClass(TEACHER, STUDENT, CLASS);
+        Message newer = Message.builder().id(6L).senderId(STUDENT).recipientId(TEACHER).body("tin mới").createdAt(Instant.now()).build();
+        when(messageRepository.findThreadAfter(TEACHER, STUDENT, 5L)).thenReturn(List.of(newer));
+
+        List<MessageDto> delta = service.getThread(TEACHER, STUDENT, 5L);
+
+        assertThat(delta).extracting(MessageDto::id).containsExactly(6L);
+        // Delta path must NOT hit the full-thread query, and must still mark the whole incoming side read.
+        verify(messageRepository).findThreadAfter(TEACHER, STUDENT, 5L);
+        verify(messageRepository, never())
+                .findBySenderIdAndRecipientIdOrSenderIdAndRecipientIdOrderByIdAsc(anyLong(), anyLong(), anyLong(), anyLong());
+        verify(messageRepository).markThreadRead(eq(TEACHER), eq(STUDENT), any(Instant.class));
+    }
+
+    @Test
+    @DisplayName("getThread(afterId=null): về đúng đường full thread")
+    void getThread_nullAfterId_usesFullThread() {
+        shareClass(TEACHER, STUDENT, CLASS);
+        when(messageRepository.findBySenderIdAndRecipientIdOrSenderIdAndRecipientIdOrderByIdAsc(TEACHER, STUDENT, STUDENT, TEACHER))
+                .thenReturn(List.of());
+
+        service.getThread(TEACHER, STUDENT, null);
+
+        verify(messageRepository).findBySenderIdAndRecipientIdOrSenderIdAndRecipientIdOrderByIdAsc(TEACHER, STUDENT, STUDENT, TEACHER);
+        verify(messageRepository, never()).findThreadAfter(anyLong(), anyLong(), anyLong());
+    }
+
+    @Test
     @DisplayName("listConversations: gộp theo counterpart + đếm chưa đọc")
     void listConversations_groupsAndCountsUnread() {
         // recent desc: latest first. Two from STUDENT→me unread, one from me→STUDENT.

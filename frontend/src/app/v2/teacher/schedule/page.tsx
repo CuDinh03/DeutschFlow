@@ -13,6 +13,7 @@ import {
   type SessionSaveResult,
   type TeacherClassLite,
 } from '@/lib/classScheduleApi'
+import { assignLanes } from '@/lib/scheduleLayout'
 import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
 import { CLASS_STATUS, CreateSessionModal, EditSessionModal, MODE_LABEL, PatternModal } from './scheduleClassParts'
 
@@ -193,16 +194,24 @@ export default function V2TeacherSchedulePage() {
 }
 
 // ── Lịch tuần: chỉ buổi lớp (teal, bấm để sửa) ───────────────────────────────
+// Cửa sổ 7:00–23:00 phủ cả lớp tối (VD 21:00 + 90′ = 22:30) mà không cắt đáy.
 const START_HOUR = 7
-const END_HOUR = 22
+const END_HOUR = 23
 const GRID_H = 560
+const MIN_BLOCK_H = 38
+
+/** Phút trong ngày (0–1439) của một buổi — mốc để chia làn buổi trùng giờ. */
+function startMinuteOfDay(date: Date): number {
+  return date.getHours() * 60 + date.getMinutes()
+}
 
 function blockTop(date: Date): number {
   const hour = date.getHours() + date.getMinutes() / 60
-  return ((hour - START_HOUR) / (END_HOUR - START_HOUR)) * GRID_H
+  // Kẹp ≥ 0 để buổi trước 7:00 (hiếm) không tràn lên trên khỏi lưới.
+  return Math.max(0, ((hour - START_HOUR) / (END_HOUR - START_HOUR)) * GRID_H)
 }
 function blockHeight(durationMinutes: number): number {
-  return Math.max(((durationMinutes / 60) / (END_HOUR - START_HOUR)) * GRID_H, 38)
+  return Math.max(((durationMinutes / 60) / (END_HOUR - START_HOUR)) * GRID_H, MIN_BLOCK_H)
 }
 
 function WeekGrid({
@@ -260,28 +269,36 @@ function WeekGrid({
             </div>
           ))}
         </div>
-        {DAYS.map((d, di) => (
-          <div key={d} className={`relative ${di < 6 ? 'border-r border-ga-line' : ''}`} style={{ background: di >= 5 ? 'var(--ga-bg)' : undefined }}>
-            {Array.from({ length: hours.length - 1 }).map((_, r) => (
-              <div key={r} className="absolute inset-x-0 border-t border-ga-line opacity-50" style={{ top: (GRID_H / hours.length) * (r + 1) }} />
-            ))}
+        {DAYS.map((d, di) => {
+          // Buổi trùng giờ trong cùng ngày phải nằm cạnh nhau (mỗi buổi 1 làn),
+          // không đè lên nhau. assignLanes trả về { lane, lanes } để chia bề rộng cột.
+          const dayItems = weekClass.filter(({ d: dt }) => (dt.getDay() + 6) % 7 === di)
+          const laid = assignLanes(
+            dayItems,
+            ({ d: dt }) => startMinuteOfDay(dt),
+            ({ d: dt, s }) => startMinuteOfDay(dt) + s.durationMinutes,
+          )
+          return (
+            <div key={d} className={`relative ${di < 6 ? 'border-r border-ga-line' : ''}`} style={{ background: di >= 5 ? 'var(--ga-bg)' : undefined }}>
+              {Array.from({ length: hours.length - 1 }).map((_, r) => (
+                <div key={r} className="absolute inset-x-0 border-t border-ga-line opacity-50" style={{ top: (GRID_H / hours.length) * (r + 1) }} />
+              ))}
 
-            {weekClass
-              .filter(({ d: dt }) => (dt.getDay() + 6) % 7 === di)
-              .map(({ s, d: dt }) => {
+              {laid.map(({ item: { s, d: dt }, lane, lanes }) => {
                 const c = CLASS_STATUS[s.status]
                 const place = s.mode === 'ONLINE' ? MODE_LABEL.ONLINE : s.room ?? t('atClass')
+                const laneW = 100 / lanes
                 return (
                   <button
                     key={`c${s.id}`}
                     type="button"
                     onClick={() => onSessionClick(s)}
                     title={t('sessionTitle', { className: s.className, place, time: fmtTime(dt), count: s.studentCount })}
-                    className="absolute overflow-hidden px-1.5 py-1 text-left transition-shadow hover:shadow-ga-panel"
+                    className="absolute overflow-hidden px-1.5 py-1 text-left transition-shadow hover:z-10 hover:shadow-ga-panel"
                     style={{
                       top: blockTop(dt),
-                      left: 4,
-                      right: 4,
+                      left: `calc(${lane * laneW}% + 4px)`,
+                      width: `calc(${laneW}% - 8px)`,
                       height: blockHeight(s.durationMinutes),
                       background: c.bg,
                       border: `1px solid color-mix(in srgb, ${c.fg} 35%, transparent)`,
@@ -300,8 +317,9 @@ function WeekGrid({
                   </button>
                 )
               })}
-          </div>
-        ))}
+            </div>
+          )
+        })}
       </div>
     </div>
   )

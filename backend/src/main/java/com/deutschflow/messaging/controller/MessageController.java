@@ -39,10 +39,14 @@ public class MessageController {
         return Map.of("count", messageService.totalUnread(user.getId()));
     }
 
-    /** Full thread with another user; marks incoming messages read. */
+    /**
+     * Thread with another user; marks incoming messages read. Pass {@code afterId} to fetch only
+     * messages newer than that id (incremental/delta polling); omit it for the full thread.
+     */
     @GetMapping("/with/{userId}")
-    public List<MessageDto> thread(@AuthenticationPrincipal User user, @PathVariable Long userId) {
-        return messageService.getThread(user.getId(), userId);
+    public List<MessageDto> thread(@AuthenticationPrincipal User user, @PathVariable Long userId,
+                                   @RequestParam(required = false) Long afterId) {
+        return messageService.getThread(user.getId(), userId, afterId);
     }
 
     /** Send a message (recipient must share a class with the caller). */

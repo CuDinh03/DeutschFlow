@@ -13,7 +13,8 @@ import {
 } from '@/lib/messagesApi'
 import { GaCap, LoadingState } from '@/components/ui-v2'
 
-const POLL_MS = 12_000
+const POLL_MS = 12_000 // conversation-list refresh cadence
+const THREAD_POLL_MS = 5_000 // active thread — snappier so an incoming reply appears near-live
 const fmtTime = (d: string | null | undefined) => (d ? format(new Date(d), 'HH:mm') : '')
 const fmtDay = (d: string | null | undefined) => (d ? format(new Date(d), 'dd/MM HH:mm') : '')
 const initial = (n: string | null | undefined) => ((n ?? '?').trim()[0] ?? '?').toUpperCase()
@@ -89,7 +90,7 @@ export function MessagesView({ initialUserId, initialName, headerAction, emptyTe
       return
     }
     void loadThread(activeId, true)
-    const t = setInterval(() => void loadThread(activeId, false), POLL_MS)
+    const t = setInterval(() => void loadThread(activeId, false), THREAD_POLL_MS)
     return () => clearInterval(t)
   }, [activeId, loadThread])
 

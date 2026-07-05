@@ -12,6 +12,8 @@ export interface Notification {
   type: string
   isRead: boolean
   createdAt: string
+  /** Freeform structured data (ids, codes) kept for deep-link routing on tap. */
+  payload: Record<string, unknown>
 }
 
 export interface RawNotificationItem {
@@ -67,5 +69,5 @@ export function mapNotification(item: RawNotificationItem): Notification {
         : typeof p.message === 'string' && p.message
           ? p.message
           : ''
-  return { id: item.id, title, body, type: item.type, isRead: item.read, createdAt: item.createdAtUtc }
+  return { id: item.id, title, body, type: item.type, isRead: item.read, createdAt: item.createdAtUtc, payload: p }
 }
