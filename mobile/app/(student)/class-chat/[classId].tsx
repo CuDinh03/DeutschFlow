@@ -13,6 +13,7 @@ import { adaptivePollMs } from '@/lib/chatDelta'
 import { buildClassBubbles, type ChatBubbleVM } from '@/lib/chatBubbles'
 import { itemsForChannel } from '@/lib/chatOutbox'
 import { useChatOutboxStore } from '@/stores/useChatOutboxStore'
+import { useChatAutoScroll } from '@/hooks/useChatAutoScroll'
 import { reportFlow } from '@/lib/moderationActions'
 import { fonts, radius, space, useTheme } from '@/lib/theme'
 import {
@@ -99,6 +100,10 @@ export default function ClassChatScreen() {
 
   const outbox = useMemo(() => itemsForChannel(outboxItems, 'class', classId), [outboxItems, classId])
   const bubbles = useMemo(() => buildClassBubbles(q.data ?? [], outbox), [q.data, outbox])
+
+  // Follow the newest bubble (own send or an incoming message) when at the bottom; don't yank a
+  // user reading history. bubbles[0] is the newest (list is inverted / newest-first).
+  const { listRef, onScroll } = useChatAutoScroll(bubbles[0])
   const trimmed = draft.trim()
   const canSend = trimmed.length > 0
 
@@ -134,11 +139,13 @@ export default function ClassChatScreen() {
           </View>
         ) : (
           <FlatList
+            ref={listRef}
             style={{ flex: 1 }}
             data={bubbles}
             inverted
             keyExtractor={(b) => b.key}
-            maintainVisibleContentPosition={{ minIndexForVisible: 1 }}
+            onScroll={onScroll}
+            scrollEventThrottle={16}
             renderItem={({ item }) => (
               <Bubble
                 vm={item}

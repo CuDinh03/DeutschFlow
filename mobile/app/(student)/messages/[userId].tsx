@@ -13,6 +13,7 @@ import { adaptivePollMs, maxMessageId, mergeThreadById } from '@/lib/chatDelta'
 import { buildDmBubbles, type ChatBubbleVM } from '@/lib/chatBubbles'
 import { itemsForChannel } from '@/lib/chatOutbox'
 import { useChatOutboxStore } from '@/stores/useChatOutboxStore'
+import { useChatAutoScroll } from '@/hooks/useChatAutoScroll'
 import { reportFlow, userSafetyMenu } from '@/lib/moderationActions'
 import { fonts, radius, space, useTheme } from '@/lib/theme'
 import {
@@ -89,6 +90,10 @@ export default function MessageThreadScreen() {
   const outbox = useMemo(() => itemsForChannel(outboxItems, 'dm', userId), [outboxItems, userId])
   const bubbles = useMemo(() => buildDmBubbles(q.data ?? [], outbox), [q.data, outbox])
 
+  // Follow the newest bubble (own send or an incoming reply) when at the bottom; don't yank a
+  // user reading history. bubbles[0] is the newest (list is inverted / newest-first).
+  const { listRef, onScroll } = useChatAutoScroll(bubbles[0])
+
   const trimmed = draft.trim()
   const canSend = trimmed.length > 0
 
@@ -145,13 +150,13 @@ export default function MessageThreadScreen() {
           </View>
         ) : (
           <FlatList
+            ref={listRef}
             style={{ flex: 1 }}
             data={bubbles}
             inverted
             keyExtractor={(b) => b.key}
-            // Keep the visible thread anchored when a new bubble arrives at the bottom (index 0),
-            // so an incoming reply never shoves the messages you're reading.
-            maintainVisibleContentPosition={{ minIndexForVisible: 1 }}
+            onScroll={onScroll}
+            scrollEventThrottle={16}
             renderItem={({ item }) => (
               <Bubble
                 vm={item}
