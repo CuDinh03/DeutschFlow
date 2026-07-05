@@ -3,11 +3,15 @@ import {
   FlatList, KeyboardAvoidingView, Platform, Pressable, TextInput, View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'
+import * as Haptics from 'expo-haptics'
 import { MessageCircle, MoreVertical, Send } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
-import { messagesApi, type Message } from '@/lib/messagesApi'
+import { messagesApi } from '@/lib/messagesApi'
+import { buildDmBubbles, type ChatBubbleVM } from '@/lib/chatBubbles'
+import { itemsForChannel } from '@/lib/chatOutbox'
+import { useChatOutboxStore } from '@/stores/useChatOutboxStore'
 import { reportFlow, userSafetyMenu } from '@/lib/moderationActions'
 import { fonts, radius, space, useTheme } from '@/lib/theme'
 import {
@@ -29,6 +33,14 @@ export default function MessageThreadScreen() {
 
   const [draft, setDraft] = useState('')
 
+  // Local-first send: the composer never blocks on the network. Sending enqueues an optimistic
+  // bubble in the outbox store; the store POSTs in the background and reconciles the cache.
+  const outboxItems = useChatOutboxStore((s) => s.items)
+  const send = useChatOutboxStore((s) => s.send)
+  const retry = useChatOutboxStore((s) => s.retry)
+  const flush = useChatOutboxStore((s) => s.flush)
+  const reconcile = useChatOutboxStore((s) => s.reconcile)
+
   const q = useQuery({
     queryKey: ['message-thread', userId],
     queryFn: () => messagesApi.thread(userId),
@@ -37,10 +49,13 @@ export default function MessageThreadScreen() {
     refetchInterval: THREAD_POLL_MS,
   })
 
-  // Re-fetch whenever the thread regains focus (e.g. after backgrounding the app or popping
-  // back to it) so it never shows a stale snapshot on return.
+  // Re-fetch + retry any stuck sends whenever the thread regains focus (e.g. after backgrounding
+  // and returning) so it never shows a stale snapshot and a queued message goes out promptly.
   const refetch = q.refetch
-  useFocusEffect(useCallback(() => { void refetch() }, [refetch]))
+  useFocusEffect(useCallback(() => {
+    void refetch()
+    flush()
+  }, [refetch, flush]))
 
   // Fetching the thread marks it read server-side → refresh the list + unread badge.
   useEffect(() => {
@@ -50,20 +65,26 @@ export default function MessageThreadScreen() {
     }
   }, [q.isSuccess, q.dataUpdatedAt, qc])
 
-  const sendMut = useMutation({
-    mutationFn: (body: string) => messagesApi.send(userId, body),
-    onSuccess: () => {
-      setDraft('')
-      void qc.invalidateQueries({ queryKey: ['message-thread', userId] })
-      void qc.invalidateQueries({ queryKey: ['conversations'] })
-    },
-  })
+  // When a real fetch surfaces our just-sent messages, retire their optimistic shadows so the
+  // server rows take over cleanly. Driven only by genuine server data (react-query keeps the
+  // same ref when unchanged, so this no-ops between polls).
+  useEffect(() => {
+    if (q.data) reconcile('dm', userId, q.data.map((m) => m.id))
+  }, [q.data, userId, reconcile])
 
-  // Inverted list renders index 0 at the bottom → feed it newest-first.
-  const ordered = useMemo(() => (q.data ?? []).slice().reverse(), [q.data])
+  const outbox = useMemo(() => itemsForChannel(outboxItems, 'dm', userId), [outboxItems, userId])
+  const bubbles = useMemo(() => buildDmBubbles(q.data ?? [], outbox), [q.data, outbox])
 
   const trimmed = draft.trim()
-  const canSend = trimmed.length > 0 && !sendMut.isPending
+  const canSend = trimmed.length > 0
+
+  // Optimistic send: clear the composer + haptic immediately, enqueue, done.
+  const onSend = () => {
+    if (!canSend) return
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    send('dm', userId, trimmed)
+    setDraft('')
+  }
 
   return (
     <Screen edges={['top']}>
@@ -99,7 +120,7 @@ export default function MessageThreadScreen() {
           </View>
         ) : q.isError ? (
           <ErrorState message={apiMessage(q.error)} onRetry={() => void q.refetch()} />
-        ) : ordered.length === 0 ? (
+        ) : bubbles.length === 0 ? (
           <View style={{ flex: 1, justifyContent: 'center' }}>
             <EmptyState
               icon={MessageCircle}
@@ -110,16 +131,20 @@ export default function MessageThreadScreen() {
         ) : (
           <FlatList
             style={{ flex: 1 }}
-            data={ordered}
+            data={bubbles}
             inverted
-            keyExtractor={(m) => String(m.id)}
+            keyExtractor={(b) => b.key}
+            // Keep the visible thread anchored when a new bubble arrives at the bottom (index 0),
+            // so an incoming reply never shoves the messages you're reading.
+            maintainVisibleContentPosition={{ minIndexForVisible: 1 }}
             renderItem={({ item }) => (
               <Bubble
-                msg={item}
+                vm={item}
+                onRetry={item.status === 'failed' ? () => retry(item.tempId!) : undefined}
                 onReport={
-                  item.mine
+                  item.mine || item.realId == null
                     ? undefined
-                    : () => reportFlow({ context: 'DIRECT_MESSAGE', messageId: item.id }, 'Báo cáo tin nhắn')
+                    : () => reportFlow({ context: 'DIRECT_MESSAGE', messageId: item.realId! }, 'Báo cáo tin nhắn')
                 }
               />
             )}
@@ -168,7 +193,7 @@ export default function MessageThreadScreen() {
             accessibilityLabel="Gửi tin nhắn"
             accessibilityState={{ disabled: !canSend }}
             disabled={!canSend}
-            onPress={() => sendMut.mutate(trimmed)}
+            onPress={onSend}
             style={{
               width: 44,
               height: 44,
@@ -181,27 +206,28 @@ export default function MessageThreadScreen() {
             <Icon icon={Send} size={18} color={canSend ? 'onAccent' : 'faint'} />
           </Pressable>
         </View>
-        {sendMut.isError ? (
-          <Caption color={c.danger} style={{ paddingHorizontal: space[5], paddingBottom: space[2] }}>
-            {apiMessage(sendMut.error)}
-          </Caption>
-        ) : null}
       </KeyboardAvoidingView>
     </Screen>
   )
 }
 
-function Bubble({ msg, onReport }: { msg: Message; onReport?: () => void }) {
+function Bubble({ vm, onReport, onRetry }: { vm: ChatBubbleVM; onReport?: () => void; onRetry?: () => void }) {
   const c = useTheme().colors
-  const mine = msg.mine
+  const mine = vm.mine
+  const failed = vm.status === 'failed'
+  const sending = vm.status === 'sending'
   return (
     <View style={{ alignItems: mine ? 'flex-end' : 'flex-start', marginBottom: space[2] }}>
       <Pressable
         onLongPress={onReport}
-        accessibilityRole={onReport ? 'button' : undefined}
-        accessibilityLabel={onReport ? 'Giữ để báo cáo tin nhắn' : undefined}
+        onPress={onRetry}
+        accessibilityRole={onReport || onRetry ? 'button' : undefined}
+        accessibilityLabel={
+          onRetry ? 'Gửi lại tin nhắn' : onReport ? 'Giữ để báo cáo tin nhắn' : undefined
+        }
         style={{
           maxWidth: '82%',
+          opacity: sending ? 0.65 : 1,
           backgroundColor: mine ? c.accent : c.surface,
           borderWidth: mine ? 0 : 1,
           borderColor: c.border,
@@ -211,12 +237,18 @@ function Bubble({ msg, onReport }: { msg: Message; onReport?: () => void }) {
         }}
       >
         <ThemedText variant="body" style={{ color: mine ? c.onBrand : c.textPrimary }}>
-          {msg.body}
+          {vm.body}
         </ThemedText>
       </Pressable>
-      <Caption color={c.textFaint} style={{ marginTop: 2, paddingHorizontal: space[1] }}>
-        {clock(msg.createdAt)}
-      </Caption>
+      {failed ? (
+        <Caption color={c.danger} style={{ marginTop: 2, paddingHorizontal: space[1] }}>
+          Gửi lỗi · Chạm để thử lại
+        </Caption>
+      ) : (
+        <Caption color={c.textFaint} style={{ marginTop: 2, paddingHorizontal: space[1] }}>
+          {sending ? 'Đang gửi…' : clock(vm.createdAt)}
+        </Caption>
+      )}
     </View>
   )
 }
