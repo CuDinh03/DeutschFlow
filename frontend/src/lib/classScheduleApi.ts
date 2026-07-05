@@ -45,6 +45,8 @@ export interface UpsertPatternResult {
   patternId: number
   generated: number
   keptOverridden: number
+  /** Buổi bị bỏ qua vì trùng lịch dạy của giáo viên (lớp khác) — FE cảnh báo, không chặn. */
+  skipped: number
 }
 
 export interface TeacherClassLite {

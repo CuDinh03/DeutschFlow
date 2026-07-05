@@ -44,6 +44,17 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
+/** Như {@link Field} nhưng bọc bằng `<div>` (không phải `<label>`) — dùng cho nhóm nút/điều
+ *  khiển tuỳ biến (vd. các chip chọn thứ) để tránh label trỏ mơ hồ vào nhiều nút con. */
+function FieldGroup({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="ga-ui text-[12px] font-bold uppercase tracking-[0.05em] text-ga-muted">{label}</span>
+      {children}
+    </div>
+  )
+}
+
 const MODE_OPTS: ClassMode[] = ['OFFLINE', 'ONLINE']
 const STATUS_OPTS: ClassSessionStatus[] = ['SCHEDULED', 'MOVED', 'CANCELLED']
 
@@ -307,7 +318,8 @@ export function PatternModal({
   const [classId, setClassId] = useState<number | null>(null)
   const [patterns, setPatterns] = useState<ClassSchedulePattern[]>([])
   const [loadingP, setLoadingP] = useState(false)
-  const [dayOfWeek, setDayOfWeek] = useState(1)
+  // Nhiều thứ trong tuần (ISO 1–7: 1=Thứ 2 … 7=Chủ nhật). Mỗi thứ = một pattern độc lập.
+  const [days, setDays] = useState<Set<number>>(() => new Set([1]))
   const [startTime, setStartTime] = useState('18:00')
   const [duration, setDuration] = useState(90)
   const [mode, setMode] = useState<ClassMode>('OFFLINE')
@@ -315,6 +327,7 @@ export function PatternModal({
   const [effectiveFrom, setEffectiveFrom] = useState('')
   const [effectiveTo, setEffectiveTo] = useState('')
   const [saving, setSaving] = useState(false)
+  const [deletingId, setDeletingId] = useState<number | null>(null)
 
   const loadPatterns = useCallback(async (cid: number) => {
     setLoadingP(true)
@@ -339,9 +352,22 @@ export function PatternModal({
     void loadPatterns(cid)
   }
 
+  const toggleDay = (dow: number) =>
+    setDays((prev) => {
+      const next = new Set(prev)
+      if (next.has(dow)) next.delete(dow)
+      else next.add(dow)
+      return next
+    })
+
   const save = async () => {
     if (!classId) {
       toast.error('Chọn lớp')
+      return
+    }
+    const selected = Array.from(days).sort((a, b) => a - b)
+    if (selected.length === 0) {
+      toast.error('Chọn ít nhất một thứ')
       return
     }
     if (!startTime || !effectiveFrom) {
@@ -350,20 +376,53 @@ export function PatternModal({
     }
     setSaving(true)
     try {
-      const result = await upsertClassPattern(classId, {
-        dayOfWeek,
+      const body = {
         startTime,
         durationMinutes: duration,
         defaultMode: mode,
         defaultRoom: mode === 'ONLINE' ? null : room.trim() || null,
         effectiveFrom,
         effectiveTo: effectiveTo || null,
-      })
-      toast.success(
-        `Đã lưu lịch ${DOW_LABEL[dayOfWeek - 1]} · sinh ${result.generated} buổi` +
-          (result.keptOverridden > 0 ? ` · giữ ${result.keptOverridden} buổi đã chỉnh tay` : ''),
-      )
-      onSaved(result)
+      }
+      // Mỗi thứ là một upsert (classId, dayOfWeek) độc lập. Chạy tuần tự để việc chặn
+      // trùng lịch giáo viên đọc trạng thái nhất quán và không dồn ghi đồng thời; thu kết
+      // quả từng thứ để báo rõ thứ nào lưu được, thứ nào trùng lịch.
+      const savedDays: number[] = []
+      const failed: { dow: number; msg: string }[] = []
+      let generated = 0
+      let kept = 0
+      let skipped = 0
+      let lastResult: UpsertPatternResult | null = null
+      for (const dow of selected) {
+        try {
+          const r = await upsertClassPattern(classId, { dayOfWeek: dow, ...body })
+          savedDays.push(dow)
+          generated += r.generated
+          kept += r.keptOverridden
+          skipped += r.skipped ?? 0
+          lastResult = r
+        } catch (e: unknown) {
+          failed.push({ dow, msg: apiMessage(e) })
+        }
+      }
+
+      if (savedDays.length > 0) {
+        const label = savedDays.map((d) => DOW_LABEL[d - 1]).join(', ')
+        toast.success(
+          `Đã lưu lịch ${label} · sinh ${generated} buổi` +
+            (kept > 0 ? ` · giữ ${kept} buổi đã chỉnh tay` : '') +
+            (skipped > 0 ? ` · bỏ qua ${skipped} buổi trùng lịch` : ''),
+        )
+      }
+      if (failed.length > 0) {
+        const label = failed.map((f) => DOW_LABEL[f.dow - 1]).join(', ')
+        // Only attach a specific reason when every failed day failed for the SAME reason;
+        // otherwise a generic message avoids misattributing day A's cause to day B.
+        const reasons = Array.from(new Set(failed.map((f) => f.msg)))
+        const detail = reasons.length === 1 ? reasons[0] : 'trùng lịch hoặc thông tin không hợp lệ'
+        toast.error(`Không lưu được ${label}: ${detail}`)
+      }
+      if (lastResult) onSaved(lastResult)
       await loadPatterns(classId)
     } catch (e: unknown) {
       toast.error(apiMessage(e))
@@ -373,12 +432,16 @@ export function PatternModal({
   }
 
   const remove = async (patternId: number) => {
+    if (deletingId !== null) return // chặn double-click: một lần xoá đang chạy
+    setDeletingId(patternId)
     try {
       await deleteClassPattern(patternId)
       toast.success('Đã xoá lịch cố định')
       if (classId) await loadPatterns(classId)
     } catch (e: unknown) {
       toast.error(apiMessage(e))
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -387,7 +450,7 @@ export function PatternModal({
       open={open}
       onOpenChange={(o) => !o && onClose()}
       title="Lịch cố định của lớp"
-      description="Đặt lịch định kỳ theo thứ — buổi tương lai sẽ tự sinh; buổi đã chỉnh tay được giữ nguyên."
+      description="Đặt lịch định kỳ theo các thứ trong tuần — buổi tương lai sẽ tự sinh; buổi đã chỉnh tay được giữ nguyên."
       size="lg"
       footer={
         <>
@@ -414,16 +477,31 @@ export function PatternModal({
             </select>
           </Field>
 
-          <div className="grid grid-cols-3 gap-4">
-            <Field label="Thứ">
-              <select className={inputCls} value={dayOfWeek} onChange={(e) => setDayOfWeek(Number(e.target.value))}>
-                {DOW_LABEL.map((d, i) => (
-                  <option key={d} value={i + 1}>
+          <FieldGroup label="Các thứ trong tuần">
+            <div role="group" aria-label="Chọn các thứ trong tuần" className="flex flex-wrap gap-2">
+              {DOW_LABEL.map((d, i) => {
+                const dow = i + 1
+                const on = days.has(dow)
+                return (
+                  <button
+                    key={d}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => toggleDay(dow)}
+                    className={`h-[38px] rounded-ga border px-3.5 text-[13px] font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ga-accent focus-visible:ring-offset-2 focus-visible:ring-offset-ga-bg ${
+                      on
+                        ? 'border-ga-teal bg-ga-teal-soft text-ga-teal'
+                        : 'border-ga-line bg-ga-bg text-ga-muted hover:border-ga-teal hover:text-ga-ink'
+                    }`}
+                  >
                     {d}
-                  </option>
-                ))}
-              </select>
-            </Field>
+                  </button>
+                )
+              })}
+            </div>
+          </FieldGroup>
+
+          <div className="grid grid-cols-2 gap-4">
             <Field label="Giờ bắt đầu">
               <input type="time" className={inputCls} value={startTime} onChange={(e) => setStartTime(e.target.value)} />
             </Field>
@@ -489,7 +567,8 @@ export function PatternModal({
                       type="button"
                       aria-label="Xoá lịch cố định"
                       onClick={() => remove(p.id)}
-                      className="grid h-7 w-7 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-red-soft hover:text-ga-red"
+                      disabled={deletingId !== null}
+                      className="grid h-7 w-7 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-red-soft hover:text-ga-red disabled:pointer-events-none disabled:opacity-50"
                     >
                       <Trash2 size={14} />
                     </button>
