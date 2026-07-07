@@ -7,3 +7,9 @@ export const Platform = {
   select: <T>(specifics: { ios?: T; android?: T; native?: T; default?: T }): T | undefined =>
     specifics.ios ?? specifics.native ?? specifics.default,
 }
+
+// Minimal `Alert` stub. Real RN shows a native dialog; unit tests only need the call to be
+// observable, so tests typically replace `Alert.alert` with a recorder/spy. Default is a no-op.
+export const Alert = {
+  alert: (_title: string, _message?: string, _buttons?: unknown[]): void => {},
+}

@@ -3,7 +3,8 @@ import { View, Alert } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router, useLocalSearchParams, useNavigation, type Href } from 'expo-router'
 import { Check, BookOpen } from 'lucide-react-native'
-import api, { apiMessage } from '@/lib/api'
+import api from '@/lib/api'
+import { handleAiError } from '@/lib/upsell'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
   Screen,
@@ -109,7 +110,9 @@ export default function ExamAttemptScreen() {
       trackFeatureAction('mock_exam', 'completed', { score: total })
       setScore(total)
     } catch (e) {
-      Alert.alert('Lỗi', apiMessage(e))
+      // Mock-exam scoring consumes AI quota; neutralise a quota / trial-expired response on the iOS
+      // free build so no "nâng cấp" steering appears (App Store 3.1.1).
+      handleAiError(e)
     } finally {
       setSubmitting(false)
     }

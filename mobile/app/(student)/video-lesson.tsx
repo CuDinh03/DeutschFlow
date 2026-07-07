@@ -5,7 +5,7 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { Film, Download } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, AppHeader, ThemedText, Icon, EmptyState, ErrorState, SelectableChip } from '@/components/ui'
-import { apiMessage } from '@/lib/api'
+import { handleAiError } from '@/lib/upsell'
 import { videoLessonApi } from '@/lib/videoLessonApi'
 import { VideoLessonPlayer } from '@/components/video/VideoLessonPlayer'
 
@@ -87,7 +87,9 @@ export default function VideoLessonScreen() {
       void pollRender(jobId)
     } catch (e) {
       setExporting(false)
-      Alert.alert('Không xuất được', apiMessage(e))
+      // Starting a render consumes AI quota; neutralise a quota / trial-expired response on the iOS
+      // free build so no "nâng cấp" steering appears (App Store 3.1.1).
+      handleAiError(e, 'Không xuất được')
     }
   }
 
