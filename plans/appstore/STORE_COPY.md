@@ -1,6 +1,6 @@
-# DeutschFlow — App Store Listing Copy (EN + VI)
+# MyDeutschFlow — App Store Listing Copy (EN + VI)
 
-App Store Connect listing copy for **DeutschFlow** (Education, Free with In-App Purchases). Every constrained field is annotated with its character count.
+App Store Connect listing copy for **MyDeutschFlow** (Education, Free — no in-app purchases in v1.0). Every constrained field is annotated with its character count.
 
 **Where each field goes in App Store Connect**
 - **App Information** (locale-independent-ish): App name, Subtitle.
@@ -14,7 +14,7 @@ App Store Connect listing copy for **DeutschFlow** (Education, Free with In-App 
 
 ## English — en-US (primary locale)
 
-**App name** — `DeutschFlow` — 11 / 30
+**App name** — `MyDeutschFlow` — 13 / 30
 
 **Subtitle** — `Learn German, pass Goethe` — 25 / 30
 
@@ -30,7 +30,7 @@ german,learn german,goethe,deutsch,a1,a2,b1,german exam,vocabulary,grammar,speak
 
 **Description** — ~1432 / 4000
 ```
-DeutschFlow helps you learn German and pass the Goethe exam — from your very first word at A1 to exam-ready B1.
+MyDeutschFlow helps you learn German and pass the Goethe exam — from your very first word at A1 to exam-ready B1.
 
 A CLEAR PATH TO B1
 • A structured route from A1 to B1, built around what the Goethe and ÖSD exams actually test.
@@ -48,10 +48,10 @@ STAY MOTIVATED
 • Track your mastery and always know exactly what to study next.
 
 FREE TO LEARN
-• Core lessons and practice are free: vocabulary, grammar, listening, reading, spaced repetition, streaks, and your full learning path.
-• Some advanced AI features (such as AI Speaking) are marked Pro; in-app purchasing will arrive in a future update.
+• This release is completely free: every feature is available to everyone at no charge — vocabulary, grammar, listening, reading, spaced repetition, streaks, AI Speaking, mock exams, and your full learning path.
+• There are no in-app purchases and nothing to buy inside the app.
 
-Whether you're moving to Germany, preparing for Ausbildung or Pflege, or learning for yourself — DeutschFlow gives you a focused, exam-driven way to reach B1.
+Whether you're moving to Germany, preparing for Ausbildung or Pflege, or learning for yourself — MyDeutschFlow gives you a focused, exam-driven way to reach B1.
 
 Start free today. Viel Erfolg!
 
@@ -67,7 +67,7 @@ Terms of Use: https://mydeutschflow.com/terms
 
 ## Tiếng Việt — vi
 
-**Tên app** — `DeutschFlow` — 11 / 30
+**Tên app** — `MyDeutschFlow` — 13 / 30
 
 **Subtitle** — `Học tiếng Đức & luyện thi` — 25 / 30
 
@@ -83,7 +83,7 @@ tiếng đức,học tiếng đức,goethe,deutsch,a1,a2,b1,thi tiếng đức,t
 
 **Description** — ~1431 / 4000
 ```
-DeutschFlow giúp bạn học tiếng Đức và chinh phục kỳ thi Goethe — từ chữ đầu tiên ở trình độ A1 đến khi sẵn sàng thi B1.
+MyDeutschFlow giúp bạn học tiếng Đức và chinh phục kỳ thi Goethe — từ chữ đầu tiên ở trình độ A1 đến khi sẵn sàng thi B1.
 
 LỘ TRÌNH RÕ RÀNG ĐẾN B1
 • Lộ trình bài bản A1 → B1, bám sát nội dung kỳ thi Goethe và ÖSD thực tế.
@@ -101,10 +101,10 @@ GIỮ ĐỘNG LỰC
 • Theo dõi mức thành thạo và luôn biết chính xác nên học gì tiếp theo.
 
 MIỄN PHÍ ĐỂ HỌC
-• Các bài học và luyện tập cốt lõi hoàn toàn miễn phí: từ vựng, ngữ pháp, nghe, đọc, lặp lại ngắt quãng, chuỗi ngày và toàn bộ lộ trình học.
-• Một số tính năng AI nâng cao (như Luyện nói với AI) được đánh dấu Pro; tính năng mua trong ứng dụng sẽ có ở bản cập nhật sau.
+• Bản phát hành này hoàn toàn miễn phí: mọi tính năng đều mở cho tất cả người dùng — từ vựng, ngữ pháp, nghe, đọc, lặp lại ngắt quãng, chuỗi ngày, luyện nói AI, thi thử và toàn bộ lộ trình học.
+• Không có mua trong ứng dụng — không có gì để mua bên trong app.
 
-Dù bạn sắp sang Đức, chuẩn bị cho Ausbildung/điều dưỡng (Pflege) hay học cho bản thân — DeutschFlow mang đến cách học tập trung, bám sát kỳ thi để đạt B1.
+Dù bạn sắp sang Đức, chuẩn bị cho Ausbildung/điều dưỡng (Pflege) hay học cho bản thân — MyDeutschFlow mang đến cách học tập trung, bám sát kỳ thi để đạt B1.
 
 Bắt đầu miễn phí hôm nay. Viel Erfolg!
 
@@ -122,12 +122,12 @@ Chính sách quyền riêng tư: https://mydeutschflow.com/privacy
 
 **EN** — 178 chars
 ```
-Welcome to DeutschFlow! Learn German from A1 to B1 with bite-size lessons, AI speaking practice, and full mock Goethe exams. This is our first release — we'd love your feedback!
+Welcome to MyDeutschFlow! Learn German from A1 to B1 with bite-size lessons, AI speaking practice, and full mock Goethe exams. This is our first release — we'd love your feedback!
 ```
 
 **VI** — 168 chars
 ```
-Chào mừng đến với DeutschFlow! Học tiếng Đức từ A1 đến B1 với bài học ngắn gọn, luyện nói AI và thi thử Goethe đầy đủ. Đây là bản phát hành đầu tiên — rất mong nhận góp ý của bạn!
+Chào mừng đến với MyDeutschFlow! Học tiếng Đức từ A1 đến B1 với bài học ngắn gọn, luyện nói AI và thi thử Goethe đầy đủ. Đây là bản phát hành đầu tiên — rất mong nhận góp ý của bạn!
 ```
 
 ---
@@ -143,26 +143,17 @@ Fill this in at **Submit for Review**. **v1.0 ships FREE-ONLY** — no ads and n
 
 **Notes to reviewer:**
 ```
-DeutschFlow is a German-learning app (A1–B1 Goethe/ÖSD prep). Sign in with the primary demo
+MyDeutschFlow is a German-learning app (A1–B1 Goethe/ÖSD prep). Sign in with the primary demo
 account above. This version is FREE-ONLY: there are NO ads and NO in-app purchases anywhere
-in the app — there is no purchase button, StoreKit is not wired in this build.
+in the app — there is no purchase button, no upgrade prompt, and no external purchase link anywhere.
 
-FREE 7-DAY AI TRIAL (this is by design, not a bug)
-• Every new account automatically starts a 7-day full-access trial. The demo accounts we
-  provided were created fresh right before submission, so they are inside this trial window.
-• During the trial, AI Speaking works: open Luyện nói (Speaking), pick Emma or Anna, and hold
-  a German text conversation — you'll get real AI replies and feedback. This is the core free
-  experience.
-• Two things are reserved for the paid Pro plan even during/after trial: (a) answering by VOICE
-  (tapping the mic shows a short "Tính năng PRO — trả lời bằng giọng nói cần PRO; bạn vẫn có thể
-  gõ" notice, and typing still works), and (b) a few advanced (harder) speaking personas, which
-  appear with a small lock icon. Emma and Anna are always free.
-
-AFTER THE TRIAL (only relevant if you test with an aged account)
-• Once the 7-day trial ends, AI requests return an intentional notice reading "Gói dùng thử 7
-  ngày đã hết hạn. Hãy nâng cấp để tiếp tục." (7-day trial ended — please upgrade to continue).
-  This is a deliberate, handled message — NOT a crash. Because v1.0 has no in-app purchase,
-  there is intentionally no upgrade button; monetization ships in a later version.
+EVERYTHING IS FREE (no trial, no tiers, no purchase)
+• Every feature is unlocked for every user at no charge — including AI Speaking by TEXT and by
+  VOICE (tap the mic), all conversation partners, mock exams, and weekly challenges. There is
+  no "Pro"/"Premium" tier, no lock icons, no trial, and no "upgrade" prompt anywhere in the app.
+• The only limit is a daily fair-use cap on AI generation that applies to all users and resets
+  each day; it is not a paid feature. The demo account has an elevated cap so AI works
+  throughout your review, with no interruption.
 
 WHAT WORKS FOR FREE (no trial needed, no purchase)
 • Lessons & practice under the Học (Learn) tab: vocabulary, grammar, listening, reading.
@@ -191,5 +182,8 @@ Privacy Policy: https://mydeutschflow.com/privacy
 > - Delete-account path verified in repo: `mobile/app/(student)/profile.tsx:46` `confirmDeleteAccount()` → `:57` `api.delete('/profile/me')`, button at `:192` (backend `ProfileController @DeleteMapping("/me")` → `/api/profile/me`).
 > - **RESOLVED 2026-07-03 (submit approach A):** v1.0 ships **FREE-ONLY** — the ADS + SUBSCRIPTION review sections were removed. Mobile paywall stays iOS-disabled (`mobile/lib/paywall.ts:13` `PAYWALL_ENABLED = Platform.OS !== 'ios'`), which is correct for a free-only build. Ads (AdMob non-personalized) + Apple IAP subscription move to v1.1.
 > - **CORRECTED 2026-07-04 (submit-doc §2.1 + §2.7):** the reviewer Notes above were rewritten. The earlier "AI is fully Pro-gated → opening it shows an intentional lock card, not an error" wording was **inaccurate** and a Guideline 2.1 rejection risk: new accounts actually get a **7-day PRO trial** during which AI Speaking text chat works (Emma/Anna); only voice-input + a few advanced personas are Pro. After 7 days, AI returns a handled "trial expired" notice (title "Lỗi", not a crash), with no in-app upgrade button in v1.0. The Notes now describe this truthfully and add the Guideline 1.2 user-safety paragraph (report/block/word-filter → Profile → "An toàn & chặn"). Demo accounts must be created fresh right before submitting so they are inside the trial window.
-> - **DESCRIPTION also made free-only (2026-07-03):** EN + VI Descriptions previously said "ad-supported" / "ad-free experience" and carried a full auto-renewable-subscription disclosure — all removed (a Guideline 2.3.1 metadata-mismatch risk against a build with no ads and no IAP). Now: "FREE TO LEARN" + "some advanced AI features are marked Pro; in-app purchasing arrives in a future update." Real legal/support URLs filled (`mydeutschflow.com/privacy` `/terms` `/support`). When IAP ships in v1.1, re-add the subscription disclosure + auto-renew terms to both Descriptions.
+> - **DESCRIPTION also made free-only (2026-07-03):** EN + VI Descriptions previously said "ad-supported" / "ad-free experience" and carried a full auto-renewable-subscription disclosure — all removed (a Guideline 2.3.1 metadata-mismatch risk against a build with no ads and no IAP). Real legal/support URLs filled (`mydeutschflow.com/privacy` `/terms` `/support`).
+> - **METADATA-MISMATCH residue removed (2026-07-05):** two remaining lines still advertised a purchase the free-only, StoreKit-not-wired build cannot fulfil (Guideline 2.3.1). Fixed: (a) file header changed from "Free with In-App Purchases" → "Free — no in-app purchases in v1.0"; (b) EN + VI Description line "in-app purchasing will arrive in a future update" → "This release is completely free — there is nothing to buy inside the app". When IAP ships in v1.1, re-add the subscription disclosure + auto-renew terms + restore an accurate purchase mention to both Descriptions, and update ASC Pricing to add the IAP products.
 > - Pro is AI-token-quota-based (PRO tier), not literally unlimited. Avoid promising "unlimited" in the listing.
+> - **3.1.1 FIX 2026-07-07 (build 1.0(9), submission ec05409d):** build 1.0(8) was rejected under Guideline 3.1.1 — the reviewed build and these Notes still exposed a 7-day PRO trial, a voice-input "Tính năng PRO" gate, and a post-trial "Hãy nâng cấp để tiếp tục" message, with no IAP to buy it (textbook "access paid content bought outside, not sold via IAP"). Fix = Path A (stay free on iOS): (a) rebuild from the clean free-mode tip (PR #201) where `PRO_UNLOCKED_FREE` unlocks every feature for all iOS users and neutralises the AI-quota message — audited 2026-07-07: no PRO/upgrade/trial surface is reachable on iOS (every hit gated by `PAYWALL_ENABLED` / `!PRO_UNLOCKED_FREE` / `!hasProAccess`, all false→hidden on iOS); (b) scrubbed "marked Pro" from EN+VI Descriptions; (c) rewrote these Review Notes to a fully-free build (no trial/tier/upgrade); (d) reviewer demo account granted permanent full access + elevated AI quota so nothing expires mid-review. Paste-ready reply + resubmit checklist in `APPLE_REPLY_3.1.1_2026-07-07.md`. `expo-iap` left in the binary (not the cause; optional to remove) — revisit at v1.1.
+> - **3.1.1 DEFENSE-IN-DEPTH 2026-07-08 (code hardening):** re-audited every quota-gated AI endpoint (backend `QuotaService.assertAllowed`) against how the mobile screen shows its error. The `PRO_UNLOCKED_FREE` flag is client-only — the backend still enforces the real token quota, so a genuine post-trial free account (NOT the elevated demo account) hitting AI could still receive the server's `"Gói dùng thử 7 ngày đã hết hạn. Hãy nâng cấp để tiếp tục."` (429). Three screens surfaced that raw message via `Alert.alert('…', apiMessage(e))` instead of the neutral `handleAiError`: `weekly-speaking.tsx` (weekly speaking grading), `exam-attempt.tsx` (`/mock-exams/attempts/{id}/finish` scoring), `video-lesson.tsx` (`startVocabRender`). All three now route through `handleAiError`, which on the iOS free build replaces the message with `"Bạn đã dùng hết lượt AI hôm nay, vui lòng thử lại sau."` and shows NO "Nâng cấp" button (3.1.1-safe); Android behaviour unchanged. This removes the last dependency on the demo account's elevated quota being the only thing hiding the upgrade-steering text. Verified: `tsc` clean, `jest` 151/151. Cleared as NOT leaking: `skill-practice`/`node-practice` submits (deterministic grading, not quota-gated), `srs` (self-graded), `grammar` (reads topic list via generic `ErrorState`), and the satellite/practice-generate quota endpoints (not wired to any mobile screen).

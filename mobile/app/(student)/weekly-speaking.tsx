@@ -5,7 +5,8 @@ import { router, type Href } from 'expo-router'
 import { useAudioRecorder, AudioModule, RecordingPresets, setAudioModeAsync } from 'expo-audio'
 import * as Haptics from 'expo-haptics'
 import { Flame, Lock, Mic, Square, RotateCcw, ChevronRight } from 'lucide-react-native'
-import api, { apiMessage } from '@/lib/api'
+import api from '@/lib/api'
+import { handleAiError } from '@/lib/upsell'
 import { speakingApi } from '@/lib/speakingApi'
 import { weeklyApi, rubricScore } from '@/lib/weeklyApi'
 import { radius, space, useTheme } from '@/lib/theme'
@@ -237,7 +238,9 @@ function WeeklyRecorder({ promptId, cefrBand }: { promptId: number; cefrBand: st
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
     } catch (e) {
       setPhase('idle')
-      Alert.alert('Lỗi', apiMessage(e))
+      // Route AI-grading errors through the shared handler so an out-of-quota / trial-expired
+      // response is neutralised on the iOS free build (no "nâng cấp" steering — App Store 3.1.1).
+      handleAiError(e)
     }
   }
 
