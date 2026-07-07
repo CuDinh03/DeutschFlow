@@ -278,7 +278,7 @@ export default function DashboardScreen() {
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space[3] }}>
                 <View style={{ flex: 1, gap: space[1] }}>
-                  <Pill label="DeutschFlow PRO" tone="accent" icon={Star} />
+                  <Pill label="MyDeutschFlow PRO" tone="accent" icon={Star} />
                   <ThemedText variant="title">Mở khoá toàn bộ tính năng</ThemedText>
                   <ThemedText variant="caption" color="muted">
                     Speaking AI, Mock Exam, Weekly Challenge

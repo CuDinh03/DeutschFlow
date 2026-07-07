@@ -127,7 +127,7 @@ export function TourOverlay() {
                   <ThemedText variant="label" color="muted">
                     CHÀO MỪNG
                   </ThemedText>
-                  <ThemedText variant="display">Chào mừng đến với DeutschFlow! 🇩🇪</ThemedText>
+                  <ThemedText variant="display">Chào mừng đến với MyDeutschFlow! 🇩🇪</ThemedText>
                   <ThemedText variant="body" color="secondary">
                     Xem nhanh 4 tính năng chính giúp bạn học tiếng Đức hiệu quả mỗi ngày. Chỉ mất 30 giây.
                   </ThemedText>

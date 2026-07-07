@@ -216,7 +216,7 @@ export default function ProfileScreen() {
         </View>
 
         <ThemedText variant="caption" color="faint" align="center">
-          DeutschFlow v1.0.0 • iOS/Android
+          MyDeutschFlow v1.0.0 • iOS/Android
         </ThemedText>
       </FadeIn>
     </Screen>

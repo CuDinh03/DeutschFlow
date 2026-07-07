@@ -19,5 +19,5 @@ export async function shareTreePng(base64: string, caption: string): Promise<voi
 }
 
 export function treeCaption(done: number, total: number, pct: number): string {
-  return `Cây tiếng Đức của tôi 🌳 ${pct}% · ${done}/${total} chặng — học cùng DeutschFlow`
+  return `Cây tiếng Đức của tôi 🌳 ${pct}% · ${done}/${total} chặng — học cùng MyDeutschFlow`
 }

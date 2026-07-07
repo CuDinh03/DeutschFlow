@@ -1,4 +1,4 @@
-// Static DeutschFlow 'D' logo mark (matches the splash + app icon geometry).
+// Static MyDeutschFlow 'D' logo mark (matches the splash + app icon geometry).
 // Outline follows the theme text colour so it reads in light + dark; the gold
 // square and red play-triangle are brand-locked.
 
