@@ -5,10 +5,11 @@ import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.organization.service.OrgPoolGuard;
 import com.deutschflow.teacher.dto.GradeImageResponse;
 import com.deutschflow.teacher.dto.TeacherSessionEvaluationRequest;
+import com.deutschflow.teacher.entity.ClassAssignment;
 import com.deutschflow.teacher.entity.StudentAssignment;
+import com.deutschflow.teacher.repository.ClassAssignmentRepository;
 import com.deutschflow.teacher.repository.StudentAssignmentRepository;
 import com.deutschflow.teacher.repository.ClassTeacherRepository;
-import com.deutschflow.teacher.repository.ClassStudentRepository;
 import com.deutschflow.teacher.service.GradingService;
 import com.deutschflow.teacher.service.HandwritingOcrService;
 import com.deutschflow.user.entity.User;
@@ -30,8 +31,8 @@ public class GradingController {
 
     private final GradingService gradingService;
     private final StudentAssignmentRepository studentAssignmentRepository;
+    private final ClassAssignmentRepository classAssignmentRepository;
     private final ClassTeacherRepository classTeacherRepository;
-    private final ClassStudentRepository classStudentRepository;
     private final HandwritingOcrService handwritingOcrService;
     private final OrgPoolGuard orgPoolGuard;
     private final com.deutschflow.common.quota.FreeTierGuard freeTierGuard;
@@ -92,13 +93,21 @@ public class GradingController {
         StudentAssignment sa = studentAssignmentRepository.findById(submissionId)
                 .orElseThrow(() -> new NotFoundException("Bài nộp không tồn tại"));
 
-        // Verify teacher has access via class membership
-        boolean hasAccess = classTeacherRepository.findByIdTeacherId(teacher.getId()).stream()
-                .anyMatch(ct -> classStudentRepository.existsByIdClassIdAndIdStudentId(
-                        ct.getId().getClassId(), sa.getStudentId()));
-
+        // Authorize on the assignment's OWNING class — not merely on sharing the student. A teacher may
+        // only grade submissions that belong to a class they teach; otherwise a teacher who shares one
+        // student with another class/org could grade that student's work in a foreign assignment (IDOR).
+        ClassAssignment ca = classAssignmentRepository.findById(sa.getAssignmentId()).orElse(null);
+        boolean hasAccess = ca != null
+                && classTeacherRepository.existsByIdClassIdAndIdTeacherId(ca.getClassId(), teacher.getId());
         if (!hasAccess) {
             return ResponseEntity.status(403).body(Map.of("error", "Bạn không có quyền chấm bài này"));
+        }
+
+        // Reject a finalized/already-graded submission up front (the async job also guards, but a 409
+        // gives the teacher immediate feedback instead of a silent no-op).
+        String status = sa.getStatus();
+        if (!"SUBMITTED".equals(status) && !"GRADING_FAILED".equals(status)) {
+            return ResponseEntity.status(409).body(Map.of("error", "Bài này đã được chấm; không thể chấm lại bằng AI."));
         }
 
         // Hard-cap pool token cấp-org trước khi kích hoạt AI chấm (429 nếu org hết ngân sách).

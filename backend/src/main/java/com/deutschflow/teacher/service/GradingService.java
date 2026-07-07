@@ -321,6 +321,18 @@ public class GradingService {
             StudentAssignment sa = studentAssignmentRepository.findById(submissionId).orElse(null);
             if (sa == null) return;
 
+            // Guard the state machine: only grade a submission that is still awaiting a grade. This
+            // prevents an AI grade from (a) overwriting a teacher's authoritative EVALUATED grade, or
+            // (b) re-grading an already-GRADED row — which would re-notify the student and re-spend tokens.
+            // Mirrors the EVALUATED/GRADED guard already in markGradingFailed (previously only the failure
+            // branch was guarded; the success branch was not).
+            String currentStatus = sa.getStatus();
+            if (!"SUBMITTED".equals(currentStatus) && !"GRADING_FAILED".equals(currentStatus)) {
+                log.info("[AI-Grading] Submission {} not in a gradable state (status={}); skipping AI grade",
+                        submissionId, currentStatus);
+                return;
+            }
+
             ClassAssignment ca = classAssignmentRepository.findById(sa.getAssignmentId()).orElse(null);
             String topic = ca != null ? ca.getTopic() : "Bài tập tiếng Đức";
             String content = sa.getSubmissionContent();
