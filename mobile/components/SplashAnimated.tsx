@@ -1,6 +1,6 @@
 // Branded launch splash — Galerie v2 port of na-intro.jsx `NASplash`.
 // Yellow canvas → an ink logo tile whose 'D' stroke draws in (yellow), then the
-// red triangle + yellow square pop, then the serif "DeutschFlow" wordmark fades
+// red triangle + yellow square pop, then the serif "MyDeutschFlow" wordmark fades
 // in. A spinner + "Đang khởi động…" sits near the home indicator. Brand-locked
 // (theme-independent): yellow paper, ink mark.
 //
@@ -110,7 +110,7 @@ export function SplashAnimated({ ready, onDone }: SplashAnimatedProps) {
           animate={{ opacity: 1, translateY: 0 }}
           transition={{ type: 'timing', duration: 520, delay: 1500 }}
         >
-          <Text style={styles.wordmark}>DeutschFlow</Text>
+          <Text style={styles.wordmark}>MyDeutschFlow</Text>
         </MotiView>
       </MotiView>
 

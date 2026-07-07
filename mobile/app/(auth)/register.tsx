@@ -194,7 +194,7 @@ export default function RegisterScreen() {
                 </View>
                 <ThemedText variant="caption" color="secondary" style={{ flex: 1, lineHeight: 18 }}>
                   Tôi đồng ý với <ThemedText variant="caption" color="primary">Điều khoản sử dụng</ThemedText> và{' '}
-                  <ThemedText variant="caption" color="primary">Chính sách bảo mật</ThemedText> của DeutschFlow.
+                  <ThemedText variant="caption" color="primary">Chính sách bảo mật</ThemedText> của MyDeutschFlow.
                 </ThemedText>
               </Pressable>
 

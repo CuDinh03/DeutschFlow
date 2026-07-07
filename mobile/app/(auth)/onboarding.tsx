@@ -449,7 +449,7 @@ function UpsellConsent({ onChoice }: { onChoice: (optIn: boolean) => void }) {
         >
           <ThemedText variant="display">Học đến đâu, nhắc đến đó ✉️</ThemedText>
           <ThemedText variant="body" color="muted">
-            Bạn có muốn nhận email gợi ý lộ trình và các tính năng nâng cao của DeutschFlow không?
+            Bạn có muốn nhận email gợi ý lộ trình và các tính năng nâng cao của MyDeutschFlow không?
             Chúng tôi chỉ gửi nội dung hữu ích và bạn có thể huỷ bất cứ lúc nào.
           </ThemedText>
         </MotiView>

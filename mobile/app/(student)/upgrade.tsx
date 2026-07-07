@@ -47,11 +47,11 @@ export default function UpgradeScreen() {
   if (!PAYWALL_ENABLED) {
     return (
       <Screen scroll edges={['top']} contentStyle={{ paddingBottom: space[10] }}>
-        <AppHeader title="DeutschFlow PRO" onBack={() => router.back()} />
+        <AppHeader title="MyDeutschFlow PRO" onBack={() => router.back()} />
         <View style={{ paddingHorizontal: space[5], paddingTop: space[3] }}>
           <ProHero
             eyebrow="Tài khoản nâng cao"
-            title="DeutschFlow PRO"
+            title="MyDeutschFlow PRO"
             body="Tài khoản PRO mở khoá các tính năng nâng cao như AI Speaking không giới hạn, Mock Exam và lộ trình học đầy đủ."
           />
 
@@ -59,7 +59,7 @@ export default function UpgradeScreen() {
           <FeatureList />
 
           <ThemedText variant="caption" color="faint" align="center" style={{ marginTop: space[5] }}>
-            Gói PRO được quản lý trong tài khoản DeutschFlow của bạn.
+            Gói PRO được quản lý trong tài khoản MyDeutschFlow của bạn.
           </ThemedText>
         </View>
       </Screen>
@@ -69,7 +69,7 @@ export default function UpgradeScreen() {
   // Android: PRO is managed on the web; this screen explains the value.
   return (
     <Screen scroll edges={['top']} contentStyle={{ paddingBottom: space[10] }}>
-      <AppHeader title="DeutschFlow PRO" onBack={() => router.back()} />
+      <AppHeader title="MyDeutschFlow PRO" onBack={() => router.back()} />
       <View style={{ paddingHorizontal: space[5], paddingTop: space[3] }}>
         <ProHero
           eyebrow="Nâng cấp tài khoản"
@@ -81,7 +81,7 @@ export default function UpgradeScreen() {
         <FeatureList />
 
         <ThemedText variant="caption" color="faint" align="center" style={{ marginTop: space[5] }}>
-          Gói PRO được quản lý trong tài khoản DeutschFlow của bạn.
+          Gói PRO được quản lý trong tài khoản MyDeutschFlow của bạn.
         </ThemedText>
       </View>
     </Screen>
@@ -97,7 +97,7 @@ function IapPaywall() {
 
   return (
     <Screen scroll edges={['top']} contentStyle={{ paddingBottom: space[10] }}>
-      <AppHeader title="DeutschFlow PRO" onBack={() => router.back()} />
+      <AppHeader title="MyDeutschFlow PRO" onBack={() => router.back()} />
       <View style={{ paddingHorizontal: space[5], paddingTop: space[3] }}>
         <ProHero
           eyebrow="Nâng cấp tài khoản"

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "DeutschFlow",
+    "name": "MyDeutschFlow",
     "slug": "deutschflow",
     "version": "1.0.0",
     "runtimeVersion": {
@@ -29,7 +29,7 @@
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": false
         },
-        "NSMicrophoneUsageDescription": "DeutschFlow cần microphone để luyện phát âm tiếng Đức."
+        "NSMicrophoneUsageDescription": "MyDeutschFlow cần microphone để luyện phát âm tiếng Đức."
       },
       "privacyManifests": {
         "NSPrivacyTracking": false,
@@ -116,14 +116,14 @@
       [
         "expo-audio",
         {
-          "microphonePermission": "DeutschFlow cần microphone để luyện phát âm tiếng Đức và ghi âm nộp bài tập."
+          "microphonePermission": "MyDeutschFlow cần microphone để luyện phát âm tiếng Đức và ghi âm nộp bài tập."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "DeutschFlow cần truy cập ảnh để bạn nộp bài tập bằng hình ảnh.",
-          "cameraPermission": "DeutschFlow cần máy ảnh để bạn chụp và nộp bài tập viết tay."
+          "photosPermission": "MyDeutschFlow cần truy cập ảnh để bạn nộp bài tập bằng hình ảnh.",
+          "cameraPermission": "MyDeutschFlow cần máy ảnh để bạn chụp và nộp bài tập viết tay."
         }
       ],
       "expo-asset",
