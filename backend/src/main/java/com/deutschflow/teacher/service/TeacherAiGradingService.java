@@ -38,6 +38,9 @@ public class TeacherAiGradingService {
     /** Ước lượng token cho 1 lần chấm Sprechen (transcript vào + ~1000 token feedback ra). */
     private static final long SPEAKING_GRADING_ESTIMATED_TOKENS = 2_000L;
 
+    /** Student-/teacher-safe note when auto-grading fails — the raw cause stays in logs/admin alerts only (D8). */
+    private static final String GRADING_FAILED_FEEDBACK = "Chưa chấm tự động được, giáo viên sẽ chấm lại.";
+
     /** Throttle admin alert khi chấm Sprechen lỗi để 1 sự cố hệ thống không làm ngập chuông (như GradingService). */
     private static final long SPEAKING_GRADING_ALERT_COOLDOWN_MS = 10 * 60 * 1000L;
     private final AtomicLong lastSpeakingGradingAlertMs = new AtomicLong(0);
@@ -181,19 +184,19 @@ public class TeacherAiGradingService {
         if (session == null) return;
         String r = (reason == null || reason.isBlank()) ? "không rõ nguyên nhân" : reason;
         if (r.length() > 480) r = r.substring(0, 480);
+        // Generic student-facing note; the raw reason goes only to the log + admin alert below. [D8]
         try {
-            session.setAiFeedback("[AI chấm lỗi] " + r);
+            session.setAiFeedback(GRADING_FAILED_FEEDBACK);
             sessionRepository.save(session);
         } catch (Exception persistErr) {
             log.warn("[Auto-Grading] Could not persist failure note for session {}: {}", session.getId(), persistErr.toString());
         }
         if (session.getAssignmentId() != null) {
-            final String reasonFinal = r;
             try {
                 studentAssignmentRepository.findById(session.getAssignmentId()).ifPresent(sa -> {
                     if ("EVALUATED".equals(sa.getStatus()) || "GRADED".equals(sa.getStatus())) return;
                     sa.setStatus("GRADING_FAILED");
-                    sa.setFeedback("[AI chấm lỗi] " + reasonFinal);
+                    sa.setFeedback(GRADING_FAILED_FEEDBACK);
                     studentAssignmentRepository.save(sa);
                 });
             } catch (Exception persistErr) {

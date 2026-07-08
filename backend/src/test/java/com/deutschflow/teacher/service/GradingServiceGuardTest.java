@@ -109,6 +109,22 @@ class GradingServiceGuardTest {
     }
 
     @Test
+    @DisplayName("D8: chấm lỗi ghi feedback CHUNG cho HV, không lộ nguyên nhân raw")
+    void aiGradeAssignment_failure_writesGenericFeedback() {
+        StudentAssignment sa = StudentAssignment.builder()
+                .id(11L).assignmentId(9L).studentId(3L).status("SUBMITTED")
+                .submissionContent("   ").build(); // blank → fail before any AI call
+        when(studentAssignmentRepository.findById(11L)).thenReturn(Optional.of(sa));
+
+        gradingService().aiGradeAssignment(11L, 1L);
+
+        assertThat(sa.getStatus()).isEqualTo("GRADING_FAILED");
+        assertThat(sa.getFeedback()).isEqualTo("Chưa chấm tự động được, giáo viên sẽ chấm lại.");
+        assertThat(sa.getFeedback()).doesNotContain("[AI").doesNotContain("Exception");
+        verifyNoInteractions(openAiChatClient);
+    }
+
+    @Test
     @DisplayName("aiGradeAssignment chấm lại bài GRADING_FAILED (cho retry) → GRADED")
     void aiGradeAssignment_retriesFailed() {
         StudentAssignment sa = StudentAssignment.builder()
