@@ -12,7 +12,9 @@ import com.deutschflow.teacher.entity.ClassStudentId;
 import com.deutschflow.teacher.entity.TeacherClass;
 import com.deutschflow.teacher.entity.ClassTeacher;
 import com.deutschflow.teacher.entity.ClassTeacherId;
+import com.deutschflow.teacher.entity.ClassLesson;
 import com.deutschflow.teacher.repository.ClassAssignmentRepository;
+import com.deutschflow.teacher.repository.ClassLessonRepository;
 import com.deutschflow.teacher.repository.ClassStudentRepository;
 import com.deutschflow.teacher.repository.TeacherClassRepository;
 import com.deutschflow.teacher.repository.ClassTeacherRepository;
@@ -60,6 +62,7 @@ public class TeacherService {
     private final SpeakingAiHelpersService speakingAiHelpersService;
     private final AssignmentScenarioRepository assignmentScenarioRepository;
     private final S3StorageService s3StorageService;
+    private final ClassLessonRepository lessonRepository;
 
     @Transactional
     public TeacherClassDto createClass(Long teacherId, String name) {
@@ -528,9 +531,18 @@ public class TeacherService {
         if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
             throw new ForbiddenException("Bạn không có quyền thao tác trên lớp này");
         }
+        // If linking to a lesson (Phase 1d-D1), it must belong to this class (reject cross-class).
+        if (req.lessonId() != null) {
+            ClassLesson lesson = lessonRepository.findById(req.lessonId())
+                    .orElseThrow(() -> new NotFoundException("Bài học không tồn tại"));
+            if (!lesson.getClassId().equals(classId)) {
+                throw new ForbiddenException("Bài học không thuộc lớp này");
+            }
+        }
 
         ClassAssignment assignment = ClassAssignment.builder()
                 .classId(classId)
+                .lessonId(req.lessonId())
                 .topic(req.topic())
                 .description(req.description())
                 .assignmentType(req.assignmentType())
@@ -734,7 +746,8 @@ public class TeacherService {
 
     private ClassAssignmentDto toAssignmentDto(ClassAssignment a) {
         return new ClassAssignmentDto(a.getId(), a.getClassId(), a.getTopic(), a.getDescription(),
-                a.getAssignmentType(), a.getReferenceId(), a.getDueDate(), a.getCreatedAt(), a.getAttachmentUrl());
+                a.getAssignmentType(), a.getReferenceId(), a.getDueDate(), a.getCreatedAt(),
+                a.getAttachmentUrl(), a.getLessonId());
     }
 
     private TeacherSpeakingSessionDto toTeacherSpeakingSessionDto(com.deutschflow.speaking.entity.AiSpeakingSession s) {

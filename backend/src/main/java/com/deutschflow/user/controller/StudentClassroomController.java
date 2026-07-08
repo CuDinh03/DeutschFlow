@@ -2,12 +2,14 @@ package com.deutschflow.user.controller;
 
 import com.deutschflow.teacher.dto.ClassLessonDto;
 import com.deutschflow.teacher.dto.ClassroomDetailDto;
+import com.deutschflow.teacher.dto.CurriculumModuleDto;
 import com.deutschflow.teacher.dto.MyClassroomDto;
 import com.deutschflow.teacher.dto.MySkillReportDto;
 import com.deutschflow.teacher.dto.StudentAssignmentDto;
 import com.deutschflow.teacher.dto.StudentAttendanceDto;
 import com.deutschflow.teacher.dto.StudentSessionDto;
 import com.deutschflow.teacher.service.ClassLessonService;
+import com.deutschflow.teacher.service.CurriculumModuleService;
 import com.deutschflow.teacher.service.StudentClassroomService;
 import com.deutschflow.teacher.service.StudentEvaluationService;
 import com.deutschflow.user.entity.User;
@@ -30,6 +32,7 @@ public class StudentClassroomController {
 
     private final StudentClassroomService studentClassroomService;
     private final ClassLessonService classLessonService;
+    private final CurriculumModuleService curriculumModuleService;
     private final StudentEvaluationService studentEvaluationService;
 
     @GetMapping
@@ -56,6 +59,14 @@ public class StudentClassroomController {
             @AuthenticationPrincipal User user,
             @PathVariable Long classId) {
         return ResponseEntity.ok(classLessonService.listForStudent(user.getId(), classId));
+    }
+
+    /** Curriculum modules of the class (for grouping the lesson list). */
+    @GetMapping("/{classId}/modules")
+    public ResponseEntity<List<CurriculumModuleDto>> listModules(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long classId) {
+        return ResponseEntity.ok(curriculumModuleService.listForStudent(user.getId(), classId));
     }
 
     /** The student's OWN attendance for the class (P4) — never other students'. */

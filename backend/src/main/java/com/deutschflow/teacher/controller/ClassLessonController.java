@@ -1,5 +1,6 @@
 package com.deutschflow.teacher.controller;
 
+import com.deutschflow.teacher.dto.AssignModuleRequest;
 import com.deutschflow.teacher.dto.ClassLessonDto;
 import com.deutschflow.teacher.dto.CreateLessonRequest;
 import com.deutschflow.teacher.dto.ReorderLessonsRequest;
@@ -61,5 +62,14 @@ public class ClassLessonController {
             @PathVariable Long classId,
             @RequestBody ReorderLessonsRequest req) {
         return ResponseEntity.ok(lessonService.reorder(user.getId(), classId, req));
+    }
+
+    @PatchMapping("/{lessonId}/module")
+    public ResponseEntity<ClassLessonDto> assignModule(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long classId,
+            @PathVariable Long lessonId,
+            @RequestBody AssignModuleRequest req) {
+        return ResponseEntity.ok(lessonService.assignModule(user.getId(), classId, lessonId, req.moduleId()));
     }
 }

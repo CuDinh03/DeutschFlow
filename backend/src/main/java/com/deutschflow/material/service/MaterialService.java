@@ -6,12 +6,17 @@ import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.material.dto.MaterialDto;
 import com.deutschflow.material.entity.ClassMaterial;
 import com.deutschflow.material.entity.ClassMaterialId;
+import com.deutschflow.material.entity.LessonMaterial;
+import com.deutschflow.material.entity.LessonMaterialId;
 import com.deutschflow.material.entity.Material;
 import com.deutschflow.material.repository.ClassMaterialRepository;
+import com.deutschflow.material.repository.LessonMaterialRepository;
 import com.deutschflow.material.repository.MaterialRepository;
 import com.deutschflow.media.service.S3StorageService;
 import com.deutschflow.organization.repository.OrgMemberRepository;
+import com.deutschflow.teacher.entity.ClassLesson;
 import com.deutschflow.teacher.entity.TeacherClass;
+import com.deutschflow.teacher.repository.ClassLessonRepository;
 import com.deutschflow.teacher.repository.TeacherClassRepository;
 import com.deutschflow.user.entity.User;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +30,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -67,6 +73,8 @@ public class MaterialService {
     private final S3StorageService s3StorageService;
     private final TeacherClassRepository teacherClassRepository;
     private final OrgMemberRepository orgMemberRepository;
+    private final LessonMaterialRepository lessonMaterialRepository;
+    private final ClassLessonRepository lessonRepository;
 
     /** Creates a PERSONAL (teacher-owned) or ORG (center-owned) material from an uploaded file. */
     @Transactional
@@ -188,6 +196,67 @@ public class MaterialService {
                 .filter(m -> STATUS_ACTIVE.equals(m.getStatus()))
                 .map(this::toDto)
                 .toList();
+    }
+
+    // --------------------------------------------------------------- lesson attach (Phase 1d-D2)
+
+    /** Attaches a material the caller can access to a lesson of a class the caller teaches (or org-admins). */
+    @Transactional
+    public void attachToLesson(User caller, Long materialId, Long lessonId) {
+        Material m = materialRepository.findById(materialId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy tài liệu."));
+        assertCanAccess(caller, m);
+        TeacherClass tc = resolveClassForLesson(caller, lessonId);
+        // An ORG material may only be attached within its OWN org (no cross-org leak).
+        if (SCOPE_ORG.equals(m.getOwnerScope()) && !m.getOrgId().equals(tc.getOrgId())) {
+            throw new ForbiddenException("Tài liệu của tổ chức chỉ gắn được vào lớp của tổ chức đó.");
+        }
+        if (!lessonMaterialRepository.existsByIdLessonIdAndIdMaterialId(lessonId, materialId)) {
+            int nextOrder = lessonMaterialRepository.findMaxOrderIndex(lessonId) + 1;
+            lessonMaterialRepository.save(LessonMaterial.builder()
+                    .id(new LessonMaterialId(lessonId, materialId))
+                    .orderIndex(nextOrder)
+                    .attachedBy(caller.getId())
+                    .build());
+        }
+    }
+
+    /** Detaches a material from a lesson (idempotent). Same authz as attach. */
+    @Transactional
+    public void detachFromLesson(User caller, Long materialId, Long lessonId) {
+        resolveClassForLesson(caller, lessonId);
+        lessonMaterialRepository.deleteByIdLessonIdAndIdMaterialId(lessonId, materialId);
+    }
+
+    /** Active materials attached to a lesson, in order_index order. */
+    @Transactional(readOnly = true)
+    public List<MaterialDto> listForLesson(User caller, Long lessonId) {
+        resolveClassForLesson(caller, lessonId);
+        // Preserve attach order (order_index) while dropping archived/deleted materials.
+        List<Long> orderedIds = lessonMaterialRepository.findByIdLessonIdOrderByOrderIndexAsc(lessonId).stream()
+                .map(lm -> lm.getId().getMaterialId())
+                .toList();
+        if (orderedIds.isEmpty()) return List.of();
+        Map<Long, Material> byId = materialRepository.findAllById(orderedIds).stream()
+                .filter(m -> STATUS_ACTIVE.equals(m.getStatus()))
+                .collect(java.util.stream.Collectors.toMap(Material::getId, m -> m));
+        return orderedIds.stream()
+                .map(byId::get)
+                .filter(java.util.Objects::nonNull)
+                .map(this::toDto)
+                .toList();
+    }
+
+    /** Loads the lesson, resolves its class, and enforces the same attach authz as classes. */
+    private TeacherClass resolveClassForLesson(User caller, Long lessonId) {
+        ClassLesson lesson = lessonRepository.findById(lessonId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy bài học."));
+        TeacherClass tc = teacherClassRepository.findById(lesson.getClassId())
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy lớp học."));
+        if (!canAttachToClass(caller, tc)) {
+            throw new ForbiddenException("Bạn không có quyền thao tác tài liệu cho bài học này.");
+        }
+        return tc;
     }
 
     // --------------------------------------------------------------- access rules

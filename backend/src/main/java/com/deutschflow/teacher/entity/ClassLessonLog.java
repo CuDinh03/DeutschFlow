@@ -22,6 +22,12 @@ public class ClassLessonLog {
     @Column(name = "class_id", nullable = false)
     private Long classId;
 
+    // Optional link to the ClassLesson (class_lessons) this journal entry taught. Nullable —
+    // legacy free-text-only entries stay valid; ON DELETE SET NULL keeps the entry if the lesson
+    // is deleted (see V252).
+    @Column(name = "lesson_id")
+    private Long lessonId;
+
     @Column(name = "session_date", nullable = false)
     private LocalDate sessionDate;
 

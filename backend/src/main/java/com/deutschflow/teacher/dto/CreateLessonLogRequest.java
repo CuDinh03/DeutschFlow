@@ -9,7 +9,8 @@ public record CreateLessonLogRequest(
         String topic,
         String homework,
         String note,
-        List<AttendanceInput> attendance
+        List<AttendanceInput> attendance,
+        Long lessonId
 ) {
     public record AttendanceInput(Long studentId, String status, String note) {}
 }

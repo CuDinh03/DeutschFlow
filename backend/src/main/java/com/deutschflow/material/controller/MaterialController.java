@@ -63,4 +63,24 @@ public class MaterialController {
         materialService.attachToClass(user, id, classId);
         return ResponseEntity.noContent().build();
     }
+
+    /** Materials attached to a lesson, in order (Phase 1d-D2). */
+    @GetMapping("/lesson/{lessonId}")
+    public List<MaterialDto> listForLesson(@AuthenticationPrincipal User user, @PathVariable Long lessonId) {
+        return materialService.listForLesson(user, lessonId);
+    }
+
+    @PostMapping("/{id}/lessons/{lessonId}")
+    public ResponseEntity<Void> attachToLesson(@AuthenticationPrincipal User user,
+                                               @PathVariable Long id, @PathVariable Long lessonId) {
+        materialService.attachToLesson(user, id, lessonId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}/lessons/{lessonId}")
+    public ResponseEntity<Void> detachFromLesson(@AuthenticationPrincipal User user,
+                                                 @PathVariable Long id, @PathVariable Long lessonId) {
+        materialService.detachFromLesson(user, id, lessonId);
+        return ResponseEntity.noContent().build();
+    }
 }

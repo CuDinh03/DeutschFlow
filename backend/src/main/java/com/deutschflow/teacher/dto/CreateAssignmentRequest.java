@@ -10,5 +10,7 @@ public record CreateAssignmentRequest(
         String skill,
         Long referenceId,
         LocalDateTime dueDate,
-        String attachmentUrl
+        String attachmentUrl,
+        /** Optional link to a ClassLesson in the same class (Phase 1d-D1). */
+        Long lessonId
 ) {}

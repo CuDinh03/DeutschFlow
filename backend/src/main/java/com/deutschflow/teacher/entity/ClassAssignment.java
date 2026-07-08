@@ -21,6 +21,11 @@ public class ClassAssignment {
     @Column(name = "class_id", nullable = false)
     private Long classId;
 
+    /** Optional link to the ClassLesson this assignment belongs to (Phase 1d-D1). Nullable;
+     *  ON DELETE SET NULL keeps the assignment (and its grades) if the lesson is deleted. */
+    @Column(name = "lesson_id")
+    private Long lessonId;
+
     @Column(nullable = false)
     private String topic;
 

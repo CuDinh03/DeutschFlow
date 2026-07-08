@@ -4,9 +4,11 @@ import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.material.dto.MaterialDto;
+import com.deutschflow.material.entity.LessonMaterial;
 import com.deutschflow.material.entity.Material;
 import com.deutschflow.material.repository.ClassMaterialRepository;
 import com.deutschflow.material.repository.MaterialRepository;
+import com.deutschflow.teacher.entity.ClassLesson;
 import com.deutschflow.media.service.S3StorageService;
 import com.deutschflow.organization.entity.OrgMember;
 import com.deutschflow.organization.entity.OrgMemberId;
@@ -43,13 +45,16 @@ class MaterialServiceTest {
     @Mock private S3StorageService s3StorageService;
     @Mock private TeacherClassRepository teacherClassRepository;
     @Mock private OrgMemberRepository orgMemberRepository;
+    @Mock private com.deutschflow.material.repository.LessonMaterialRepository lessonMaterialRepository;
+    @Mock private com.deutschflow.teacher.repository.ClassLessonRepository lessonRepository;
 
     private MaterialService service;
 
     @BeforeEach
     void setUp() {
         service = new MaterialService(materialRepository, classMaterialRepository,
-                s3StorageService, teacherClassRepository, orgMemberRepository);
+                s3StorageService, teacherClassRepository, orgMemberRepository,
+                lessonMaterialRepository, lessonRepository);
     }
 
     private User user(long id, Long orgId) {
@@ -257,6 +262,86 @@ class MaterialServiceTest {
         assertThatThrownBy(() -> service.attachToClass(caller, 1L, 5L))
                 .isInstanceOf(ForbiddenException.class);
         verify(classMaterialRepository, never()).save(any());
+    }
+
+    // --------------------------------------------------------------- lesson attach (Phase 1d-D2)
+
+    private ClassLesson lesson(long id, long classId) {
+        return ClassLesson.builder().id(id).classId(classId).orderIndex(0).title("Lektion").build();
+    }
+
+    @Test
+    @DisplayName("attach an ORG material to a lesson of a DIFFERENT org's class → Forbidden (no cross-org leak)")
+    void attachToLesson_orgMaterial_otherOrg_forbidden() {
+        User caller = user(7L, 10L);
+        when(materialRepository.findById(1L)).thenReturn(Optional.of(orgMaterial(1L, 10L, 7L)));
+        when(orgMemberRepository.findByIdOrgIdAndIdUserId(10L, 7L))
+                .thenReturn(Optional.of(member(10L, 7L, "MANAGER", "ACTIVE")));
+        when(lessonRepository.findById(50L)).thenReturn(Optional.of(lesson(50L, 5L)));
+        when(teacherClassRepository.findById(5L))
+                .thenReturn(Optional.of(TeacherClass.builder().id(5L).teacherId(7L).orgId(99L).build()));
+
+        assertThatThrownBy(() -> service.attachToLesson(caller, 1L, 50L))
+                .isInstanceOf(ForbiddenException.class);
+        verify(lessonMaterialRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("attach a PERSONAL material to a lesson of the caller's own class → persists with order_index max+1")
+    void attachToLesson_personalMaterial_ownClass_persists() {
+        User caller = user(7L, null);
+        when(materialRepository.findById(1L)).thenReturn(Optional.of(personalMaterial(1L, 7L)));
+        when(lessonRepository.findById(50L)).thenReturn(Optional.of(lesson(50L, 5L)));
+        when(teacherClassRepository.findById(5L))
+                .thenReturn(Optional.of(TeacherClass.builder().id(5L).teacherId(7L).build()));
+        when(lessonMaterialRepository.existsByIdLessonIdAndIdMaterialId(50L, 1L)).thenReturn(false);
+        when(lessonMaterialRepository.findMaxOrderIndex(50L)).thenReturn(2);
+
+        service.attachToLesson(caller, 1L, 50L);
+
+        ArgumentCaptor<LessonMaterial> cap = ArgumentCaptor.forClass(LessonMaterial.class);
+        verify(lessonMaterialRepository).save(cap.capture());
+        assertThat(cap.getValue().getId().getLessonId()).isEqualTo(50L);
+        assertThat(cap.getValue().getId().getMaterialId()).isEqualTo(1L);
+        assertThat(cap.getValue().getOrderIndex()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("attach to a lesson of a class the caller does not teach → Forbidden")
+    void attachToLesson_notOwnedClass_forbidden() {
+        User caller = user(7L, null);
+        when(materialRepository.findById(1L)).thenReturn(Optional.of(personalMaterial(1L, 7L)));
+        when(lessonRepository.findById(50L)).thenReturn(Optional.of(lesson(50L, 5L)));
+        when(teacherClassRepository.findById(5L))
+                .thenReturn(Optional.of(TeacherClass.builder().id(5L).teacherId(999L).build()));
+
+        assertThatThrownBy(() -> service.attachToLesson(caller, 1L, 50L))
+                .isInstanceOf(ForbiddenException.class);
+        verify(lessonMaterialRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("listForLesson drops ARCHIVED materials and preserves order_index order")
+    void listForLesson_filtersArchived_preservesOrder() {
+        User caller = user(7L, null);
+        when(lessonRepository.findById(50L)).thenReturn(Optional.of(lesson(50L, 5L)));
+        when(teacherClassRepository.findById(5L))
+                .thenReturn(Optional.of(TeacherClass.builder().id(5L).teacherId(7L).build()));
+        // Attach order: material 2 then material 1.
+        LessonMaterial lm2 = LessonMaterial.builder()
+                .id(new com.deutschflow.material.entity.LessonMaterialId(50L, 2L)).orderIndex(0).attachedBy(7L).build();
+        LessonMaterial lm1 = LessonMaterial.builder()
+                .id(new com.deutschflow.material.entity.LessonMaterialId(50L, 1L)).orderIndex(1).attachedBy(7L).build();
+        when(lessonMaterialRepository.findByIdLessonIdOrderByOrderIndexAsc(50L)).thenReturn(List.of(lm2, lm1));
+        Material active = personalMaterial(2L, 7L);
+        Material archived = personalMaterial(1L, 7L);
+        archived.setStatus("ARCHIVED");
+        when(materialRepository.findAllById(List.of(2L, 1L))).thenReturn(List.of(active, archived));
+        when(s3StorageService.presignedGetUrl(any(), any())).thenReturn("u");
+
+        List<MaterialDto> out = service.listForLesson(caller, 50L);
+
+        assertThat(out).extracting(MaterialDto::id).containsExactly(2L); // archived #1 dropped, order kept
     }
 
     // --------------------------------------------------------------- upload guards

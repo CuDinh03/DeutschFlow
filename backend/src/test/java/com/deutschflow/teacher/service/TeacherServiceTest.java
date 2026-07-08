@@ -11,6 +11,7 @@ import com.deutschflow.teacher.dto.CreateAssignmentRequest;
 import com.deutschflow.teacher.dto.StudentAssignmentDto;
 import com.deutschflow.teacher.entity.AssignmentScenario;
 import com.deutschflow.teacher.entity.ClassAssignment;
+import com.deutschflow.teacher.entity.ClassLesson;
 import com.deutschflow.teacher.entity.ClassStudent;
 import com.deutschflow.teacher.entity.ClassStudentId;
 import com.deutschflow.teacher.entity.ClassTeacher;
@@ -98,6 +99,9 @@ class TeacherServiceTest {
     @Mock
     private S3StorageService s3StorageService;
 
+    @Mock
+    private com.deutschflow.teacher.repository.ClassLessonRepository lessonRepository;
+
     private TeacherService teacherService;
 
     @BeforeEach
@@ -118,7 +122,8 @@ class TeacherServiceTest {
                 userNotificationService,
                 speakingAiHelpersService,
                 assignmentScenarioRepository,
-                s3StorageService
+                s3StorageService,
+                lessonRepository
         );
     }
 
@@ -126,7 +131,7 @@ class TeacherServiceTest {
     void createAssignment_Success() {
         Long teacherId = 1L;
         Long classId = 100L;
-        CreateAssignmentRequest req = new CreateAssignmentRequest("Test Topic", "Test Desc", "GENERAL", null, 10L, LocalDateTime.now().plusDays(7), null);
+        CreateAssignmentRequest req = new CreateAssignmentRequest("Test Topic", "Test Desc", "GENERAL", null, 10L, LocalDateTime.now().plusDays(7), null, null);
 
         when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)).thenReturn(true);
 
@@ -154,6 +159,45 @@ class TeacherServiceTest {
         assertEquals("PENDING", capturedAssignments.get(0).getStatus());
         assertEquals(200L, capturedAssignments.get(0).getStudentId());
         assertEquals(500L, capturedAssignments.get(0).getAssignmentId());
+    }
+
+    @Test
+    void createAssignment_lessonFromOtherClass_throwsForbidden() {
+        Long teacherId = 1L, classId = 100L, lessonId = 55L;
+        CreateAssignmentRequest req = new CreateAssignmentRequest(
+                "T", "D", "GENERAL", null, null, null, null, lessonId);
+
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)).thenReturn(true);
+        when(lessonRepository.findById(lessonId)).thenReturn(Optional.of(
+                ClassLesson.builder().id(lessonId).classId(999L).orderIndex(0).title("Fremd").build()));
+
+        assertThrows(ForbiddenException.class, () -> teacherService.createAssignment(teacherId, classId, req));
+        verify(assignmentRepository, never()).save(any());
+    }
+
+    @Test
+    void createAssignment_withValidLesson_setsLessonId() {
+        Long teacherId = 1L, classId = 100L, lessonId = 55L;
+        CreateAssignmentRequest req = new CreateAssignmentRequest(
+                "T", "D", "GENERAL", null, null, null, null, lessonId);
+
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)).thenReturn(true);
+        when(lessonRepository.findById(lessonId)).thenReturn(Optional.of(
+                ClassLesson.builder().id(lessonId).classId(classId).orderIndex(0).title("Lektion 5").build()));
+        when(classRepository.findById(classId)).thenReturn(Optional.of(
+                TeacherClass.builder().id(classId).name("Class A").build()));
+        when(userRepository.findById(teacherId)).thenReturn(Optional.empty());
+        when(classStudentRepository.findByIdClassId(classId)).thenReturn(List.of());
+        ClassAssignment saved = ClassAssignment.builder()
+                .id(500L).classId(classId).lessonId(lessonId).topic("T").build();
+        when(assignmentRepository.save(any(ClassAssignment.class))).thenReturn(saved);
+
+        ClassAssignmentDto dto = teacherService.createAssignment(teacherId, classId, req);
+
+        assertEquals(lessonId, dto.lessonId());
+        ArgumentCaptor<ClassAssignment> captor = ArgumentCaptor.forClass(ClassAssignment.class);
+        verify(assignmentRepository).save(captor.capture());
+        assertEquals(lessonId, captor.getValue().getLessonId());
     }
 
     @Test
