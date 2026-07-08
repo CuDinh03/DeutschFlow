@@ -29,7 +29,13 @@ public class StudentAssignment {
 
     @Column(length = 50, nullable = false)
     @Builder.Default
-    private String status = "PENDING"; // PENDING, SUBMITTED, GRADED
+    private String status = "PENDING"; // PENDING, SUBMITTED, GRADED, GRADING_FAILED, EVALUATED
+
+    /** Optimistic-lock version — a stale grade write throws instead of clobbering (auto-grade audit, Đợt 3). */
+    @Version
+    @Column(nullable = false)
+    @Builder.Default
+    private Long version = 0L;
 
     private Integer score;
 

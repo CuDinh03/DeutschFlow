@@ -144,6 +144,20 @@ public class GlobalExceptionHandler {
                 ex.getMessage(), request.getRequestURI(), null, null);
     }
 
+    // --- 409 Optimistic lock — a concurrent update lost the race (auto-grade audit, Đợt 3) ---
+    // @Version on student_assignments makes a stale write throw ObjectOptimisticLockingFailureException.
+    // Without this it would bubble to handleGeneral as a scary 500; map it to a retryable 409 so a
+    // double-submit / simultaneous grade+evaluate degrades gracefully. (The async grade path catches
+    // this itself and no-ops via its EVALUATED/GRADED guard, so this mainly covers user-facing saves.)
+    @ExceptionHandler(org.springframework.orm.ObjectOptimisticLockingFailureException.class)
+    public ResponseEntity<ProblemDetail> handleOptimisticLock(
+            org.springframework.orm.ObjectOptimisticLockingFailureException ex, HttpServletRequest request) {
+        log.warn("[409] Optimistic lock conflict on {}: {}", request.getRequestURI(), ex.getMessage());
+        return problem(HttpStatus.CONFLICT, "conflict", "Conflict",
+                "Bản ghi vừa được cập nhật bởi một thao tác khác. Vui lòng tải lại và thử lại.",
+                request.getRequestURI(), null, null);
+    }
+
     // --- 429 Quota exceeded ---
     @ExceptionHandler(QuotaExceededException.class)
     public ResponseEntity<ProblemDetail> handleQuotaExceeded(QuotaExceededException ex,

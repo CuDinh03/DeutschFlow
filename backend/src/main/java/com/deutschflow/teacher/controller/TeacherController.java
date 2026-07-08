@@ -39,6 +39,7 @@ public class TeacherController {
     private final com.deutschflow.teacher.service.TeacherAdvisoryService advisoryService;
     private final com.deutschflow.teacher.service.GradingService gradingService;
     private final com.deutschflow.teacher.repository.StudentAssignmentRepository assignmentRepository;
+    private final com.deutschflow.teacher.repository.ClassAssignmentRepository classAssignmentRepository;
     private final com.deutschflow.teacher.repository.ClassStudentRepository classStudentRepository;
     private final com.deutschflow.organization.service.OrgPoolGuard orgPoolGuard;
 
@@ -255,18 +256,21 @@ public class TeacherController {
         com.deutschflow.teacher.entity.StudentAssignment sa = assignmentRepository.findById(assignmentId)
                 .orElseThrow(() -> new com.deutschflow.common.exception.NotFoundException("Bài nộp không tồn tại"));
 
-        boolean hasAccess = classStudentRepository.findByIdStudentId(sa.getStudentId()).stream()
-                .anyMatch(cs -> {
-                    try {
-                        return teacherService.getClassesForTeacher(user.getId()).stream()
-                                .anyMatch(cls -> cls.id().equals(cs.getId().getClassId()));
-                    } catch (Exception e) {
-                        return false;
-                    }
-                });
+        // Authorize on the assignment's OWNING class, not on merely sharing the student (IDOR): only a
+        // teacher of the class that owns this assignment may grade its submissions.
+        com.deutschflow.teacher.entity.ClassAssignment ca =
+                classAssignmentRepository.findById(sa.getAssignmentId()).orElse(null);
+        boolean hasAccess = ca != null && teacherService.getClassesForTeacher(user.getId()).stream()
+                .anyMatch(cls -> cls.id().equals(ca.getClassId()));
 
         if (!hasAccess) {
             return ResponseEntity.status(403).body(Map.of("error", "Bạn không có quyền chấm bài này"));
+        }
+
+        // Reject a finalized/already-graded submission up front (the async job also guards).
+        String status = sa.getStatus();
+        if (!"SUBMITTED".equals(status) && !"GRADING_FAILED".equals(status)) {
+            return ResponseEntity.status(409).body(Map.of("error", "Bài này đã được chấm; không thể chấm lại bằng AI."));
         }
 
         // Hard-cap pool token cấp-org trước khi kích hoạt AI chấm (429 nếu org hết ngân sách).

@@ -1,6 +1,8 @@
 package com.deutschflow.teacher.service;
 
 import com.deutschflow.common.quota.AiUsageLedgerService;
+import com.deutschflow.notification.service.UserNotificationService;
+import com.deutschflow.organization.service.OrgPoolGuard;
 import com.deutschflow.speaking.ai.AiChatCompletionResult;
 import com.deutschflow.speaking.ai.OpenAiChatClient;
 import com.deutschflow.speaking.ai.TokenUsage;
@@ -39,6 +41,8 @@ class TeacherAiGradingModelTest {
     @Mock StudentAssignmentRepository studentAssignmentRepository;
     @Mock AiUsageLedgerService aiUsageLedgerService;
     @Mock GradingModelConfig gradingModelConfig;
+    @Mock UserNotificationService userNotificationService;
+    @Mock OrgPoolGuard orgPoolGuard;
 
     private AiSpeakingMessage userMsg(String text) {
         return AiSpeakingMessage.builder()
@@ -66,7 +70,8 @@ class TeacherAiGradingModelTest {
 
         new TeacherAiGradingService(
                 sessionRepository, messageRepository, openAiChatClient,
-                studentAssignmentRepository, aiUsageLedgerService, gradingModelConfig)
+                studentAssignmentRepository, aiUsageLedgerService, gradingModelConfig,
+                userNotificationService, orgPoolGuard)
                 .autoGradeSession(sessionId);
 
         ArgumentCaptor<String> model = ArgumentCaptor.forClass(String.class);

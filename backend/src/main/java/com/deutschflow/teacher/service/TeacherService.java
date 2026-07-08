@@ -687,11 +687,14 @@ public class TeacherService {
         StudentAssignment assignment = studentAssignmentRepository.findById(assignmentId)
                 .orElseThrow(() -> new NotFoundException("Bài tập không tồn tại"));
 
-        boolean hasAccess = classTeacherRepository.findByIdTeacherId(teacherId).stream()
-                .anyMatch(ct -> classStudentRepository.existsByIdClassIdAndIdStudentId(ct.getId().getClassId(), assignment.getStudentId()));
+        // Authorize on the assignment's OWNING class, not merely on sharing the student (IDOR): only a
+        // teacher of the class that owns this assignment may finalize its grade.
+        ClassAssignment classAssignment = assignmentRepository.findById(assignment.getAssignmentId()).orElse(null);
+        boolean hasAccess = classAssignment != null
+                && classTeacherRepository.existsByIdClassIdAndIdTeacherId(classAssignment.getClassId(), teacherId);
 
         if (!hasAccess) {
-            throw new ConflictException("Học viên không thuộc lớp của bạn");
+            throw new ConflictException("Bài tập không thuộc lớp của bạn");
         }
 
         // Scores are graded on a 0-100 scale; reject out-of-range manual entry so it can't pollute

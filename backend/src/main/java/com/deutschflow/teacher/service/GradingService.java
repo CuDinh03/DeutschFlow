@@ -47,6 +47,9 @@ public class GradingService {
     /** Model chấm bài (tách hẳn model nói) — xem {@link GradingModelConfig}. */
     private final GradingModelConfig gradingModelConfig;
 
+    /** Student-/teacher-safe note when AI grading fails — the raw cause stays in logs/admin alerts only (D8). */
+    private static final String GRADING_FAILED_FEEDBACK = "Chưa chấm tự động được, giáo viên sẽ chấm lại.";
+
     /** Throttle admin AI-grading alerts so a systemic outage (LLM env down) can't flood the bell. */
     private static final long GRADING_ALERT_COOLDOWN_MS = 10 * 60 * 1000L;
     private final AtomicLong lastGradingAlertMs = new AtomicLong(0);
@@ -301,9 +304,13 @@ public class GradingService {
         String safeTopic = (topic == null || topic.isBlank()) ? "Bài viết tiếng Đức" : topic;
         String systemPrompt = GERMAN_ESSAY_GRADING_PROMPT.formatted(safeTopic);
 
+        // Neutralize the delimiter in student content so a submission can't close the <submission> tag
+        // early and append text that reads as "outside the submission" (parity with speaking <transcript>).
+        String safeContent = content == null ? ""
+                : content.replace("<submission>", " ").replace("</submission>", " ");
         List<ChatMessage> messages = new ArrayList<>();
         messages.add(new ChatMessage("system", systemPrompt));
-        messages.add(new ChatMessage("user", "<submission>" + content + "</submission>"));
+        messages.add(new ChatMessage("user", "<submission>" + safeContent + "</submission>"));
 
         AiChatCompletionResult result = openAiChatClient.chatCompletion(messages, modelOverride, 0.3, 800);
         if (result == null || result.content() == null) {
@@ -320,6 +327,18 @@ public class GradingService {
         try {
             StudentAssignment sa = studentAssignmentRepository.findById(submissionId).orElse(null);
             if (sa == null) return;
+
+            // Guard the state machine: only grade a submission that is still awaiting a grade. This
+            // prevents an AI grade from (a) overwriting a teacher's authoritative EVALUATED grade, or
+            // (b) re-grading an already-GRADED row — which would re-notify the student and re-spend tokens.
+            // Mirrors the EVALUATED/GRADED guard already in markGradingFailed (previously only the failure
+            // branch was guarded; the success branch was not).
+            String currentStatus = sa.getStatus();
+            if (!"SUBMITTED".equals(currentStatus) && !"GRADING_FAILED".equals(currentStatus)) {
+                log.info("[AI-Grading] Submission {} not in a gradable state (status={}); skipping AI grade",
+                        submissionId, currentStatus);
+                return;
+            }
 
             ClassAssignment ca = classAssignmentRepository.findById(sa.getAssignmentId()).orElse(null);
             String topic = ca != null ? ca.getTopic() : "Bài tập tiếng Đức";
@@ -390,7 +409,9 @@ public class GradingService {
             sa.setStatus("GRADING_FAILED");
             String r = (reason == null || reason.isBlank()) ? "khong ro nguyen nhan" : reason;
             if (r.length() > 480) r = r.substring(0, 480);
-            sa.setFeedback("[AI cham loi] " + r);
+            // Generic student-/teacher-facing note; the raw reason (exception/AI snippet) goes only to the
+            // log + throttled admin alert below, never into a column the student can read. [D8]
+            sa.setFeedback(GRADING_FAILED_FEEDBACK);
             studentAssignmentRepository.save(sa);
             log.warn("[AI-Grading] Marked submission {} as GRADING_FAILED: {}", submissionId, r);
             alertAdminsThrottled(submissionId, r);
