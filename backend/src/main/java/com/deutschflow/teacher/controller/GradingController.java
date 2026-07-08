@@ -145,6 +145,6 @@ public class GradingController {
         } catch (java.io.IOException e) {
             throw new BadRequestException("Không đọc được ảnh.");
         }
-        return handwritingOcrService.ocrAndGrade(bytes, file.getContentType(), topic);
+        return handwritingOcrService.ocrAndGrade(bytes, file.getContentType(), topic, teacher.getId());
     }
 }

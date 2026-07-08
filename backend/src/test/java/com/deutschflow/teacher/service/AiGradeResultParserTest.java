@@ -91,4 +91,29 @@ class AiGradeResultParserTest {
         assertThat(AiGradeResultParser.parseCriteria("{\"score\":80,\"criteria\":{}}")).isNull();
         assertThat(AiGradeResultParser.parseCriteria(null)).isNull();
     }
+
+    @Test
+    @DisplayName("D4a: KHÔNG bịa điểm từ số trong feedback khi JSON object không có 'score'")
+    void doesNotFabricateScoreFromFeedbackProse() {
+        // Valid JSON object whose feedback mentions "score: 95" but there is NO top-level score key.
+        String content = "{\"feedback\":\"Your score: 95 is only an estimate.\"}";
+        assertThat(AiGradeResultParser.parseScore(content)).isNull();
+    }
+
+    @Test
+    @DisplayName("D4b: điểm dạng tỉ lệ ('7/10', '8 von 10', '9 of 10') được quy về thang 100")
+    void rescalesRatioScore() {
+        assertThat(AiGradeResultParser.parseScore("{\"score\":\"7/10\"}")).isEqualTo(70);
+        assertThat(AiGradeResultParser.parseScore("{\"score\":\"8 von 10\"}")).isEqualTo(80);
+        assertThat(AiGradeResultParser.parseScore("{\"score\":\"9 of 10\"}")).isEqualTo(90);
+    }
+
+    @Test
+    @DisplayName("D4c: chọn object chứa 'score', bỏ qua số 'score: 40' trong prose giữa nhiều JSON")
+    void prefersJsonScoreObjectOverProseNumber() {
+        String content = "{\"aspect\":\"grammar\"} — score: 40 trên thang nháp, chốt: "
+                + "{\"score\":88,\"feedback\":\"tốt\"}";
+        assertThat(AiGradeResultParser.parseScore(content)).isEqualTo(88);
+        assertThat(AiGradeResultParser.parseFeedback(content)).isEqualTo("tốt");
+    }
 }

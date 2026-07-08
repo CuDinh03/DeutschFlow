@@ -3,7 +3,7 @@
 **Ngày:** 2026-07-06
 **Phạm vi:** Backend `backend/src/main/java/com/deutschflow` — 4 luồng chấm (essay AI, Sprechen auto-grade, OCR chữ viết tay, GV chấm tay)
 **Phương pháp:** Đọc trực tiếp toàn bộ code lõi + audit đa tác nhân (41 agent / 7 trục), mỗi phát hiện được **kiểm chứng đối kháng** (adversarial verify). 31 phát hiện CONFIRMED/PLAUSIBLE, **2 nghi vấn bị bác bỏ đúng**.
-**Trạng thái:** 🔧 Đợt 1 (D1/D2/D3) ĐÃ FIX + test trên nhánh `fix/teacher-autograde-hardening`. D4–D8 còn mở.
+**Trạng thái:** 🔧 Đợt 1 (D1/D2/D3) + Đợt 2 (D4, D6, D5a) ĐÃ FIX + test trên nhánh `fix/teacher-autograde-hardening`. Còn: D5 reservation-pool + Đợt 3 (`@Version`), D7/D8. D4d/D5b/D5c bỏ có lý do (xem dưới).
 
 ---
 
@@ -14,9 +14,9 @@
 | D1 | Essay AI chấm không có status/idempotency guard → đè điểm GV đã chốt, chấm lại tốn tiền + báo trùng | 🔴 HIGH | `GradingService.java:318` | ✅ Đợt 1 |
 | D2 | Sprechen `autoGradeSession` gộp 5 lỗi (đè điểm, hỏng timestamp, không báo HV, không cô lập prompt, không chặn pool) | 🔴 HIGH | `TeacherAiGradingService.java:105` | ✅ Đợt 1 |
 | D3 | IDOR/phân quyền: check "học viên trong lớp tôi" thay vì "bài tập thuộc lớp tôi" (2 endpoint AI + chấm tay) | 🔴 HIGH | `GradingController.java:96` | ✅ Đợt 1 |
-| D4 | Parser bịa điểm từ prose / lệch thang tỉ lệ / cắt JSON lẫn lộn / clamp nuốt output vô lý | 🟠 MEDIUM | `AiGradeResultParser.java:49` | ❌ |
-| D5 | Chi phí: pool là pre-check không reservation; OCR Gemini không tính tiền; null-usage ghi 0; text-grade không cap B2C | 🟠 MEDIUM | `OrgPoolGuard.java:33` | ⚠️ Một phần (pool-guard Sprechen thêm ở Đợt 1); còn reservation/OCR/null-usage/text-cap |
-| D6 | Async pool reject (AbortPolicy) → 500 dù đã báo "đang chấm" | 🟠 MEDIUM | `AsyncConfig` / `GradingController.java:107` | ❌ |
+| D4 | Parser bịa điểm từ prose / lệch thang tỉ lệ / cắt JSON lẫn lộn / clamp nuốt output vô lý | 🟠 MEDIUM | `AiGradeResultParser.java:49` | ✅ Đợt 2 (a/b/c); **D4d cố ý bỏ** |
+| D5 | Chi phí: pool là pre-check không reservation; OCR Gemini không tính tiền; null-usage ghi 0; text-grade không cap B2C | 🟠 MEDIUM | `OrgPoolGuard.java:33` | ⚠️ D5a (OCR charge) ✅ Đợt 2 + pool-guard Sprechen (Đợt 1); **D5b/D5c cố ý bỏ**; reservation-pool → Đợt 3 |
+| D6 | Async pool reject (AbortPolicy) → 500 dù đã báo "đang chấm" | 🟠 MEDIUM | `AsyncConfig` / `GradingController.java:107` | ✅ Đợt 2 (CallerRunsPolicy) |
 | D7 | Essay `<submission>` không escape `</submission>` → HV đóng tag sớm | 🟢 LOW | `GradingService.java:306` | ⚠️ Sprechen đã escape `<transcript>` (Đợt 1); essay còn |
 | D8 | Rò rỉ nguyên văn exception/AI snippet vào feedback học viên đọc được | 🟢 LOW | `GradingService.java:374` | ❌ (Sprechen pool-fail đã dùng message an toàn) |
 
@@ -153,10 +153,15 @@ JSON-mode + chữ "json" trong mọi prompt chấm (bug #94 đã vá) · `GRADIN
 3. ✅ D3: đổi authz sang assignment-ownership ở 2 endpoint AI + `evaluateAssignment`. (`evaluateSpeakingSession` giữ nguyên: phiên nói không gắn lớp — reviewing phiên luyện của HV chia sẻ là chấp nhận được; nếu muốn có thể siết theo assignmentId khi có.)
 - ✅ Unit test (+9): `GradingServiceGuardTest`, `TeacherAiGradingServiceGuardTest`, `GradingControllerAuthzTest` — guard không đè `EVALUATED`, authz chặn cross-class (403), 409 khi đã chấm, speaking `gradedAt`+notify. 22 test chấm bài xanh.
 
-**Đợt 2 — MEDIUM chất lượng chấm & vận hành:**
-4. D4 parser (fabricate/ratio/embedded-JSON/clamp).
-5. D6 async reject → `CallerRunsPolicy` / catch → `GRADING_FAILED`.
-6. D5 phần rẻ: OCR charge, null-usage estimate, text-grade cap.
+**Đợt 2 — MEDIUM chất lượng chấm & vận hành — ✅ ĐÃ XONG (nhánh `fix/teacher-autograde-hardening`):**
+4. ✅ **D4a/b/c** parser: chỉ dùng SCORE/FEEDBACK regex khi KHÔNG có JSON object (chống bịa điểm từ prose); score tỉ lệ `7/10`→70 (`parseScoreText`); trích JSON bằng quét `{...}` cân bằng (`balancedObjects`), ưu tiên object có key `score`. +3 test.
+5. ✅ **D6**: `taskExecutor` set `CallerRunsPolicy` → khi bão hòa chạy trên caller thread thay vì ném `TaskRejectedException`→500 (bao mọi `@Async("taskExecutor")`).
+6. ✅ **D5a**: `ocrAndGrade(...)` nhận `teacherUserId` + ghi ledger cho cả OCR (ước lượng cố định) và bước chấm-text (usage thật) → chấm-ảnh không còn khấu trừ thiếu pool.
+
+**Cố ý KHÔNG làm (ghi rõ lý do — không phải bỏ sót):**
+- **D4d** (clamp nuốt output vô lý): giữ nguyên `clampScore`. Test `AiGradeResultParserTest.clampsScore` khoá chủ đích hành vi `130→100 / -5→0` — coi clamp là quyết định thiết kế, không phải bug (finding này PLAUSIBLE/LOW).
+- **D5c** (cap free-tier chấm-text B2C): giữ nguyên. `FreeTierGuard` ghi rõ triết lý "unlimited chấm core + cap AI đắt (PPTX/OCR)"; chấm-text là core → cap sẽ mâu thuẫn quyết định sản phẩm. Ghi nhận là **có chủ đích**.
+- **D5b** (null-usage ghi 0 token): hoãn. Cần luồng prompt-token vào `recordGradingUsage` để ước lượng; Groq thực tế luôn trả `usage` → ROI thấp, để Đợt 3 nếu cần.
 
 **Đợt 3 — cần schema/deploy prod (tách nhỏ, review riêng):**
 7. `@Version` trên `StudentAssignment` (optimistic lock chống double-grade race) hoặc conditional UPDATE claim `GRADING`.

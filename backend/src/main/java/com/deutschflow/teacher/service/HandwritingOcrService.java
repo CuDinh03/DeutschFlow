@@ -1,6 +1,8 @@
 package com.deutschflow.teacher.service;
 
 import com.deutschflow.common.exception.BadRequestException;
+import com.deutschflow.common.quota.AiUsageLedgerService;
+import com.deutschflow.speaking.ai.AiChatCompletionResult;
 import com.deutschflow.speaking.ai.GeminiApiClient;
 import com.deutschflow.speaking.exception.AiServiceException;
 import com.deutschflow.teacher.dto.GradeImageResponse;
@@ -31,6 +33,9 @@ public class HandwritingOcrService {
 
     private static final int OCR_TIMEOUT_SECONDS = 45;
 
+    /** Ước lượng token cho lượt OCR (Gemini vision) — API không trả usage nên ghi ước lượng cố định. */
+    private static final int OCR_ESTIMATED_TOKENS = 8_000;
+
     /**
      * Prompt OCR-only (forced JSON; chứa "json"): trích nguyên văn tiếng Đức, giữ xuống dòng,
      * KHÔNG sửa lỗi chính tả/ngữ pháp (để bước chấm còn thấy lỗi thật của học viên).
@@ -46,6 +51,7 @@ public class HandwritingOcrService {
     private final GeminiApiClient geminiApiClient;
     private final ObjectMapper objectMapper;
     private final GradingService gradingService;
+    private final AiUsageLedgerService aiUsageLedgerService;
 
     /** OCR ảnh → văn bản tiếng Đức (đã trim). Rỗng nếu ảnh không có chữ đọc được. */
     public String ocr(byte[] imageBytes, String mimeType) {
@@ -68,7 +74,7 @@ public class HandwritingOcrService {
     }
 
     /** OCR rồi chấm luôn bằng model chấm cấu hình. Ném 400 nếu ảnh không có chữ đọc được. */
-    public GradeImageResponse ocrAndGrade(byte[] imageBytes, String mimeType, String topic) {
+    public GradeImageResponse ocrAndGrade(byte[] imageBytes, String mimeType, String topic, Long teacherUserId) {
         String transcription = ocr(imageBytes, mimeType);
         if (transcription.isBlank()) {
             throw new BadRequestException("Không tìm thấy chữ tiếng Đức trong ảnh. Vui lòng chụp rõ hơn.");
@@ -77,10 +83,35 @@ public class HandwritingOcrService {
         if (grade.score() == null) {
             throw new AiServiceException("Đọc được bài nhưng AI chấm chưa xong. Vui lòng thử lại.");
         }
+        // Charge the org pool for BOTH the Gemini OCR (fixed estimate) and the text grade (real usage);
+        // previously image grading advanced the pool counter by neither, so it systematically under-billed.
+        recordOcrGradeUsage(teacherUserId, grade.raw());
         String feedback = (grade.feedback() == null || grade.feedback().isBlank())
                 ? "Đã chấm. Rà lại phần OCR nếu cần."
                 : grade.feedback();
         return new GradeImageResponse(transcription, grade.score(), feedback);
+    }
+
+    /** Best-effort ledger record for an OCR-grade (OCR estimate + real text-grade usage). Never throws. */
+    private void recordOcrGradeUsage(Long teacherUserId, AiChatCompletionResult textGrade) {
+        if (teacherUserId == null) return;
+        try {
+            aiUsageLedgerService.record(teacherUserId, "GEMINI", "gemini-ocr",
+                    OCR_ESTIMATED_TOKENS, 0, OCR_ESTIMATED_TOKENS, "TEACHER_OCR_GRADE", null, null);
+        } catch (Exception e) {
+            log.warn("[OCR] Không ghi được usage OCR (non-fatal): {}", e.toString());
+        }
+        if (textGrade != null && textGrade.usage() != null) {
+            try {
+                aiUsageLedgerService.record(teacherUserId,
+                        textGrade.provider() != null ? textGrade.provider() : "GROQ",
+                        textGrade.model() != null ? textGrade.model() : "unknown",
+                        textGrade.usage().promptTokens(), textGrade.usage().completionTokens(),
+                        textGrade.usage().totalTokens(), "TEACHER_OCR_TEXT_GRADE", null, null);
+            } catch (Exception e) {
+                log.warn("[OCR] Không ghi được usage chấm-text (non-fatal): {}", e.toString());
+            }
+        }
     }
 
     /** Trích {@code text} từ JSON Gemini trả về; chịu được khi model bọc ```json hoặc thêm chữ. */

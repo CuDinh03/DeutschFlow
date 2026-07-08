@@ -68,6 +68,11 @@ public class AsyncConfig {
         exec.setThreadNamePrefix("task-executor-");
         exec.setWaitForTasksToCompleteOnShutdown(true);
         exec.setAwaitTerminationSeconds(30);
+        // Backpressure: when the pool + queue saturate, run the task on the CALLING thread instead of
+        // throwing TaskRejectedException up into the HTTP request (which surfaced as a 500 while the
+        // caller was told grading was queued, leaving the submission stuck SUBMITTED). Slower under
+        // load, but the task is never dropped. Covers every @Async("taskExecutor") caller at once.
+        exec.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy());
         
         // Propagate MDC (e.g. jobId) from parent thread to async thread
         exec.setTaskDecorator(runnable -> {
