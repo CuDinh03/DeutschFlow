@@ -7,11 +7,15 @@ import com.deutschflow.messaging.entity.ClassChannelMessage;
 import com.deutschflow.messaging.repository.ClassChannelMessageRepository;
 import com.deutschflow.moderation.service.UserBlockService;
 import com.deutschflow.moderation.service.WordFilterService;
+import com.deutschflow.notification.service.UserNotificationService;
+import com.deutschflow.teacher.entity.TeacherClass;
 import com.deutschflow.teacher.repository.ClassStudentRepository;
 import com.deutschflow.teacher.repository.ClassTeacherRepository;
+import com.deutschflow.teacher.repository.TeacherClassRepository;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,16 +33,22 @@ import java.util.stream.Collectors;
  * <p>Deletion is a SOFT delete (retains the row + original body for teacher audit). A member may
  * delete their own message; a teacher of the class may delete anyone's.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ClassChannelService {
 
+    /** Max characters of the body carried in a notification preview (matches DM messaging). */
+    private static final int PREVIEW_MAX = 120;
+
     private final ClassChannelMessageRepository channelRepository;
     private final ClassStudentRepository classStudentRepository;
     private final ClassTeacherRepository classTeacherRepository;
+    private final TeacherClassRepository teacherClassRepository;
     private final UserRepository userRepository;
     private final WordFilterService wordFilter;
     private final UserBlockService blockService;
+    private final UserNotificationService notificationService;
 
     @Transactional(readOnly = true)
     public List<ClassMessageDto> listMessages(Long userId, Long classId) {
@@ -67,7 +77,9 @@ public class ClassChannelService {
                 .body(body)
                 .createdAt(Instant.now())
                 .build());
-        return toDto(saved, userId, isTeacher(userId, classId), resolveNames(List.of(saved)));
+        Map<Long, String> names = resolveNames(List.of(saved));
+        notifyMembers(classId, userId, names.getOrDefault(userId, "Thành viên"), saved.getBody());
+        return toDto(saved, userId, isTeacher(userId, classId), names);
     }
 
     /** Soft-delete: a member may delete their own message; a teacher of the class may delete any. */
@@ -93,6 +105,28 @@ public class ClassChannelService {
     }
 
     // ── helpers ────────────────────────────────────────────────────────────────
+
+    /**
+     * Best-effort fan-out of a new channel message to every other member. Runs the actual delivery
+     * off-thread ({@link UserNotificationService#notifyClassChannelMessage}); this method only
+     * resolves the class name synchronously and swallows any failure so a notification problem can
+     * never break the sender's post.
+     */
+    private void notifyMembers(Long classId, Long senderId, String senderName, String body) {
+        try {
+            String className = teacherClassRepository.findById(classId)
+                    .map(TeacherClass::getName)
+                    .orElse("Chat lớp");
+            notificationService.notifyClassChannelMessage(classId, className, senderId, senderName, preview(body));
+        } catch (RuntimeException ex) {
+            log.warn("[class-channel] failed to notify members of class {} message: {}", classId, ex.getMessage());
+        }
+    }
+
+    private static String preview(String body) {
+        String trimmed = body == null ? "" : body.strip();
+        return trimmed.length() <= PREVIEW_MAX ? trimmed : trimmed.substring(0, PREVIEW_MAX) + "…";
+    }
 
     private ClassMessageDto toDto(ClassChannelMessage m, Long userId, boolean callerIsTeacher,
                                   Map<Long, String> names) {

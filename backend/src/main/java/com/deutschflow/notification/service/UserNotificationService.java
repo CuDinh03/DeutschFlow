@@ -31,6 +31,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -723,6 +724,64 @@ public class UserNotificationService {
             }
         }
         log.info("[notifications] {} → {} students in class={}", type, notifications.size(), classId);
+    }
+
+    /**
+     * Fans a class group-channel message out to every OTHER member of the class (enrolled students
+     * + the class's teachers), so a member sitting outside the chat gets an in-app + push
+     * notification that deep-links straight to the channel. Mirrors {@link #notifyClassScheduleEvent}:
+     * runs off the request thread so the sender's POST never waits on the fan-out, and reads the
+     * membership tables directly to batch-insert one row per recipient.
+     *
+     * <p>The {@code senderId} is always excluded (you never notify yourself of your own message).
+     * The caller (channel service) has already authorised the sender as a class member and
+     * persisted the message; {@code preview} is an already-trimmed excerpt of the body.
+     *
+     * @return nothing — best-effort, off-thread; a failure here never affects the sender's post.
+     */
+    @Async("taskExecutor")
+    @Transactional
+    public void notifyClassChannelMessage(Long classId, String className, Long senderId,
+                                          String senderName, String preview) {
+        // Union of enrolled students + the class's teachers, minus the sender. LinkedHashSet keeps
+        // a stable order and dedupes a user who is somehow both roles in the class (defensive).
+        LinkedHashSet<Long> recipientIds = new LinkedHashSet<>(jdbcTemplate.queryForList(
+                "SELECT student_id FROM class_students WHERE class_id = ?", Long.class, classId));
+        recipientIds.addAll(jdbcTemplate.queryForList(
+                "SELECT teacher_id FROM class_teachers WHERE class_id = ?", Long.class, classId));
+        recipientIds.remove(senderId);
+        if (recipientIds.isEmpty()) {
+            log.info("[notifications] CLASS_CHANNEL_MESSAGE skipped — no other members in class={}", classId);
+            return;
+        }
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("classId", classId);
+        payload.put("className", className);
+        payload.put("senderId", senderId);
+        payload.put("senderName", senderName);
+        payload.put("preview", preview);
+
+        List<UserNotification> notifications = new ArrayList<>(recipientIds.size());
+        for (Long recipientId : recipientIds) {
+            User recipient = userRepository.findById(recipientId).orElse(null);
+            if (recipient != null && recipient.isActive()) {
+                notifications.add(UserNotification.builder()
+                        .recipient(recipient)
+                        .type(NotificationType.CLASS_CHANNEL_MESSAGE)
+                        .payload(new LinkedHashMap<>(payload))
+                        .build());
+            }
+        }
+
+        if (!notifications.isEmpty()) {
+            notificationRepository.saveAll(notifications);
+            for (UserNotification n : notifications) {
+                unreadPushCoordinator.afterCommit(n.getRecipient().getId());
+                pushForNotification(n);
+            }
+        }
+        log.info("[notifications] CLASS_CHANNEL_MESSAGE → {} members in class={}", notifications.size(), classId);
     }
 
     private List<User> resolveAudience(BroadcastNotificationRequest request) {

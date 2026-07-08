@@ -59,6 +59,9 @@ public enum NotificationType {
     /** A new direct message was received. Recipient: the other party in the 1-1 thread. */
     NEW_MESSAGE,
 
+    /** A new message was posted in a class group channel. Recipient: every other class member. */
+    CLASS_CHANNEL_MESSAGE,
+
     // ── Class schedule changes (teacher → all students in the class) ─────
 
     /** Teacher added a session or a recurring fixed schedule. Recipient: all students in the class. */

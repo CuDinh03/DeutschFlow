@@ -93,6 +93,9 @@ public class NotificationContentRenderer {
             case NEW_MESSAGE -> new RenderedContent(
                     "💬 Tin nhắn mới",
                     nonBlankOr(str(p, "senderName"), "Ai đó") + ": " + str(p, "preview"));
+            case CLASS_CHANNEL_MESSAGE -> new RenderedContent(
+                    "💬 " + nonBlankOr(str(p, "className"), "Chat lớp"),
+                    nonBlankOr(str(p, "senderName"), "Thành viên") + ": " + str(p, "preview"));
 
             // ── Class schedule changes ───────────────────────────────────────
             case CLASS_SESSION_SCHEDULED -> new RenderedContent(

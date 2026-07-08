@@ -32,6 +32,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.never;
@@ -108,6 +109,59 @@ class UserNotificationServiceUnitTest {
 
         verify(expoPushSenderService).sendAsync(
                 eq("ExponentPushToken[xyz]"), eq("⬆️ Lên cấp"), eq("Chúc mừng! Bạn đã lên Level 5!"), any());
+    }
+
+    @Test
+    @DisplayName("notifyClassChannelMessage fans out to every OTHER active member (students + teachers), excluding the sender")
+    void notifyClassChannelMessage_fansOutExcludingSender() {
+        long senderId = 100L;
+        when(jdbcTemplate.queryForList(contains("class_students"), eq(Long.class), eq(10L)))
+                .thenReturn(List.of(100L, 200L, 300L));
+        when(jdbcTemplate.queryForList(contains("class_teachers"), eq(Long.class), eq(10L)))
+                .thenReturn(List.of(5L));
+        // Build the recipient mocks BEFORE stubbing findById — activeUser() itself calls when(),
+        // and nesting that inside a when(...).thenReturn(...) argument trips Mockito's strict
+        // UnfinishedStubbing check.
+        User u200 = activeUser(200L);
+        User u300 = activeUser(300L);
+        User u5 = activeUser(5L);
+        when(userRepository.findById(200L)).thenReturn(Optional.of(u200));
+        when(userRepository.findById(300L)).thenReturn(Optional.of(u300));
+        when(userRepository.findById(5L)).thenReturn(Optional.of(u5));
+
+        service.notifyClassChannelMessage(10L, "A1 Sáng", senderId, "An", "chào cả lớp");
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<UserNotification>> captor = ArgumentCaptor.forClass(List.class);
+        verify(notificationRepository).saveAll(captor.capture());
+        List<Long> recipientIds = captor.getValue().stream().map(n -> n.getRecipient().getId()).toList();
+        assertThat(recipientIds).containsExactlyInAnyOrder(200L, 300L, 5L);
+        assertThat(recipientIds).doesNotContain(senderId);
+        assertThat(captor.getValue()).allSatisfy(n -> {
+            assertThat(n.getType()).isEqualTo(NotificationType.CLASS_CHANNEL_MESSAGE);
+            assertThat(n.getPayload()).containsEntry("className", "A1 Sáng");
+            assertThat(n.getPayload()).containsEntry("preview", "chào cả lớp");
+        });
+    }
+
+    @Test
+    @DisplayName("notifyClassChannelMessage with no other members inserts nothing")
+    void notifyClassChannelMessage_soleMember_insertsNothing() {
+        when(jdbcTemplate.queryForList(contains("class_students"), eq(Long.class), eq(10L)))
+                .thenReturn(List.of(100L));
+        when(jdbcTemplate.queryForList(contains("class_teachers"), eq(Long.class), eq(10L)))
+                .thenReturn(List.of());
+
+        service.notifyClassChannelMessage(10L, "A1", 100L, "An", "hi");
+
+        verify(notificationRepository, never()).saveAll(any());
+    }
+
+    private static User activeUser(long id) {
+        User u = org.mockito.Mockito.mock(User.class);
+        when(u.getId()).thenReturn(id);
+        when(u.isActive()).thenReturn(true);
+        return u;
     }
 
     @Test
