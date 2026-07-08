@@ -10,6 +10,7 @@ import {
 import { format } from 'date-fns'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
+import { listLessons, type ClassLesson } from '@/lib/teacherLessonsApi'
 import {
   GaPageHdr, GaBtn, GaCap, TkStatStrip, TkSearch, TkModal,
   TkTabs, TkTabsList, TkTabsTrigger, TkTabsContent,
@@ -37,7 +38,7 @@ interface Student {
   skillHoren: number | null; skillLesen: number | null; skillSchreiben: number | null; skillSprechen: number | null
   evaluatedAt: string | null
 }
-interface Assignment { id: number; topic: string; description: string; assignmentType: string; dueDate: string | null; createdAt: string }
+interface Assignment { id: number; topic: string; description: string; assignmentType: string; dueDate: string | null; createdAt: string; lessonId?: number | null }
 interface ActionItem { title: string; detail: string; priority: string }
 interface Analytics {
   totalStudents: number; totalXp: number; completedAssignments: number
@@ -111,6 +112,7 @@ export default function V2ClassDetailPage() {
   const [info, setInfo] = useState<ClassInfo | null>(null)
   const [students, setStudents] = useState<Student[]>([])
   const [assignments, setAssignments] = useState<Assignment[]>([])
+  const [lessons, setLessons] = useState<ClassLesson[]>([])
   const [analytics, setAnalytics] = useState<Analytics | null>(null)
   const [pendingByAssignment, setPendingByAssignment] = useState<Record<number, number>>({})
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([])
@@ -132,13 +134,15 @@ export default function V2ClassDetailPage() {
       return
     }
     try {
-      const [clsList, st, asg, an, queue, jr] = await Promise.all([
+      const [clsList, st, asg, an, queue, jr, les] = await Promise.all([
         api.get('/v2/teacher/classes'),
         api.get(`/v2/teacher/classes/${id}/students`),
         api.get(`/v2/teacher/classes/${id}/assignments`),
         api.get(`/v2/teacher/classes/${id}/analytics`).catch(() => ({ data: null })),
         api.get(`/v2/teacher/grading/queue?classId=${id}`).catch(() => ({ data: [] })),
         api.get(`/v2/teacher/classes/${id}/join-requests`).catch(() => ({ data: [] })),
+        // Lessons feed the assignment lesson-picker + badge (Phase 1d-D1); non-blocking.
+        listLessons(id).then((data) => ({ data })).catch(() => ({ data: [] as ClassLesson[] })),
       ])
       const cls = ((clsList.data ?? []) as Record<string, unknown>[]).find((c) => Number(c.id) === id)
       setInfo(
@@ -148,6 +152,7 @@ export default function V2ClassDetailPage() {
       )
       setStudents((st.data ?? []) as Student[])
       setAssignments((asg.data ?? []) as Assignment[])
+      setLessons((les.data ?? []) as ClassLesson[])
       setAnalytics((an.data as Analytics | null) ?? null)
       const pend: Record<number, number> = {}
       for (const q of (queue.data ?? []) as { assignmentId: number }[]) pend[q.assignmentId] = (pend[q.assignmentId] ?? 0) + 1
@@ -394,6 +399,11 @@ export default function V2ClassDetailPage() {
                             <span className="inline-flex items-center gap-1 px-2 py-[3px] text-[10px] font-bold uppercase tracking-[0.06em]" style={{ color: m.tone, background: `color-mix(in srgb, ${m.tone} 12%, transparent)` }}>
                               <m.Icon size={12} /> {t(`types.${m.labelKey}`)}
                             </span>
+                            {task.lessonId != null && lessons.find((l) => l.id === task.lessonId) && (
+                              <span className="ga-ui inline-flex items-center rounded-ga px-1.5 py-[3px] text-[10px] font-bold" style={{ color: 'var(--ga-violet)', background: 'var(--ga-violet-soft)' }}>
+                                {lessons.find((l) => l.id === task.lessonId)!.title}
+                              </span>
+                            )}
                           </div>
                           <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[13px] text-ga-muted">
                             <span>{t('due')} <strong className="text-ga-ink">{fmtDate(task.dueDate)}</strong></span>
@@ -435,7 +445,7 @@ export default function V2ClassDetailPage() {
         )}
       </div>
 
-      <AddAssignmentModal open={modal} onOpenChange={setModal} classId={id} onCreated={load} />
+      <AddAssignmentModal open={modal} onOpenChange={setModal} classId={id} lessons={lessons} onCreated={load} />
     </div>
   )
 }
@@ -569,12 +579,13 @@ function AnalyticsTab({ analytics, students, loading }: { analytics: Analytics |
 }
 
 // ── Add-assignment modal (real POST) ─────────────────────────────────────────
-function AddAssignmentModal({ open, onOpenChange, classId, onCreated }: { open: boolean; onOpenChange: (o: boolean) => void; classId: number; onCreated: () => void }) {
+function AddAssignmentModal({ open, onOpenChange, classId, lessons, onCreated }: { open: boolean; onOpenChange: (o: boolean) => void; classId: number; lessons: ClassLesson[]; onCreated: () => void }) {
   const t = useTranslations('v2.teacher.classDetail')
   const tc = useTranslations('v2.common')
   const [topic, setTopic] = useState('')
   const [type, setType] = useState('GENERAL')
   const [due, setDue] = useState('')
+  const [lessonId, setLessonId] = useState('')
   const [saving, setSaving] = useState(false)
 
   const submit = async () => {
@@ -588,9 +599,10 @@ function AddAssignmentModal({ open, onOpenChange, classId, onCreated }: { open: 
         skill: 'GENERAL',
         dueDate: due ? new Date(due).toISOString() : null,
         attachmentUrl: null,
+        lessonId: lessonId ? Number(lessonId) : null,
       })
       toast.success(t('modalCreateSuccess'))
-      setTopic(''); setType('GENERAL'); setDue('')
+      setTopic(''); setType('GENERAL'); setDue(''); setLessonId('')
       onOpenChange(false)
       onCreated()
     } catch (e: unknown) {
@@ -632,6 +644,15 @@ function AddAssignmentModal({ open, onOpenChange, classId, onCreated }: { open: 
             <input type="date" className={field} value={due} onChange={(e) => setDue(e.target.value)} />
           </div>
         </div>
+        {lessons.length > 0 && (
+          <div>
+            <GaCap className="mb-2 block">{t('modalLessonCap')}</GaCap>
+            <select className={field} value={lessonId} onChange={(e) => setLessonId(e.target.value)}>
+              <option value="">{t('modalLessonNone')}</option>
+              {lessons.map((l) => <option key={l.id} value={l.id}>{l.title}</option>)}
+            </select>
+          </div>
+        )}
       </div>
     </TkModal>
   )

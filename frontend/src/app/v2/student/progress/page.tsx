@@ -6,7 +6,7 @@ import { Check, PlayCircle, Lightbulb } from 'lucide-react'
 import { format } from 'date-fns'
 import { apiMessage } from '@/lib/api'
 import { fetchMyClasses, fetchClassLessons, type MyClassroom, type ClassLesson } from '@/lib/studentClassesApi'
-import { parseKnowledgePoints } from '@/lib/knowledgePoints'
+import { resolvePointTexts } from '@/lib/knowledgePoints'
 import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -124,7 +124,7 @@ export default function V2StProgressPage() {
               <div className="border border-ga-line bg-ga-card">
                 {lessons.map((l, i) => {
                   const isCurrent = i === currentIdx
-                  const points = parseKnowledgePoints(l.description)
+                  const points = resolvePointTexts(l.knowledgePoints, l.description)
                   return (
                     <div key={l.id} className="flex items-start gap-3.5 px-5 py-3.5" style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none', background: isCurrent ? 'rgba(47,111,201,0.06)' : 'transparent', borderLeft: isCurrent ? '3px solid #2F6FC9' : '3px solid transparent' }}>
                       <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full text-[12px] font-bold" style={l.completed ? { background: 'var(--ga-green-soft)', color: 'var(--ga-green)' } : { background: 'var(--ga-side-active)', color: 'var(--ga-muted)' }}>

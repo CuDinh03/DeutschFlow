@@ -64,3 +64,19 @@ export async function listClassMaterials(classId: number): Promise<Material[]> {
 export async function attachMaterialToClass(materialId: number, classId: number): Promise<void> {
   await api.post(`/v2/materials/${materialId}/classes/${classId}`)
 }
+
+/** GET /v2/materials/lesson/{lessonId} — active materials attached to a lesson, in order (Phase 1d-D2). */
+export async function listLessonMaterials(lessonId: number): Promise<Material[]> {
+  const res = await api.get<Material[]>(`/v2/materials/lesson/${lessonId}`)
+  return res.data ?? []
+}
+
+/** POST /v2/materials/{id}/lessons/{lessonId} — attach a material to a lesson. */
+export async function attachMaterialToLesson(materialId: number, lessonId: number): Promise<void> {
+  await api.post(`/v2/materials/${materialId}/lessons/${lessonId}`)
+}
+
+/** DELETE /v2/materials/{id}/lessons/{lessonId} — detach a material from a lesson. */
+export async function detachMaterialFromLesson(materialId: number, lessonId: number): Promise<void> {
+  await api.delete(`/v2/materials/${materialId}/lessons/${lessonId}`)
+}

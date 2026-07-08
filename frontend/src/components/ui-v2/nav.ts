@@ -74,8 +74,8 @@ export const teacherNav: RoleNav = {
       items: [
         { id: 'teacher', label: 'Trang chủ', href: '/v2/teacher', icon: 'dashboard' },
         { id: 'schedule', label: 'Kế hoạch giảng dạy', href: '/v2/teacher/schedule', icon: 'schedule' },
-        { id: 'tc-progress', label: 'Nội dung giảng dạy', href: '/v2/teacher/tc-progress', icon: 'trending_up' },
-        { id: 'tc-checklist', label: 'Lịch sử giảng dạy', href: '/v2/teacher/tc-checklist', icon: 'checklist' },
+        { id: 'tc-progress', label: 'Tiến độ khóa học', href: '/v2/teacher/tc-progress', icon: 'trending_up' },
+        { id: 'tc-checklist', label: 'Nội dung giảng dạy', href: '/v2/teacher/tc-checklist', icon: 'checklist' },
         { id: 'grading', label: 'Chấm bài', href: '/v2/teacher/grading', icon: 'grading' },
         { id: 'grade-image', label: 'Chấm bài qua ảnh', href: '/v2/teacher/grade-image', icon: 'draw' },
         { id: 'materials', label: 'Thư viện tài liệu', href: '/v2/teacher/materials', icon: 'menu_book' },

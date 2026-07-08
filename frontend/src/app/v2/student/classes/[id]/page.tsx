@@ -11,7 +11,7 @@ import {
   fetchClassDetail, fetchClassAssignments, fetchClassLessons,
   type ClassroomDetail, type StudentAssignment, type ClassLesson,
 } from '@/lib/studentClassesApi'
-import { parseKnowledgePoints } from '@/lib/knowledgePoints'
+import { resolvePointTexts } from '@/lib/knowledgePoints'
 import { GaPageHdr, GaBtn, GaCap, TkStatStrip } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -216,7 +216,7 @@ export default function V2ClassStudentPage() {
               <GaCap className="mb-4 block">{t('lessonPathCap', { done: doneLessons, total: lessons.length })}</GaCap>
               <div className="border border-ga-line bg-ga-card">
                 {lessons.map((l, i) => {
-                  const points = parseKnowledgePoints(l.description)
+                  const points = resolvePointTexts(l.knowledgePoints, l.description)
                   return (
                     <div key={l.id} className="flex items-start gap-3.5 px-5 py-3.5" style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
                       <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full text-[12px] font-bold" style={l.completed ? { background: 'var(--ga-green-soft)', color: 'var(--ga-green)' } : { background: 'var(--ga-side-active)', color: 'var(--ga-muted)' }}>
@@ -230,6 +230,16 @@ export default function V2ClassStudentPage() {
                               <li key={idx} className="flex gap-2 text-[12.5px] leading-[1.5] text-ga-muted">
                                 <span className="mt-[1px] shrink-0 text-ga-subtle">•</span>
                                 <span className="min-w-0 break-words">{p}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {l.canDoStatements && l.canDoStatements.length > 0 && (
+                          <ul className="mt-1 flex flex-col gap-1">
+                            {l.canDoStatements.map((c) => (
+                              <li key={c.id ?? c.orderIndex} className="flex gap-2 text-[12.5px] leading-[1.5]" style={{ color: 'var(--ga-violet)' }}>
+                                <span className="mt-[1px] shrink-0">✓</span>
+                                <span className="min-w-0 break-words">{c.text}</span>
                               </li>
                             ))}
                           </ul>
