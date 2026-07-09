@@ -73,10 +73,11 @@ spring:
     # "Failed to obtain JDBC Connection" + ~30s timeouts often mean Postgres down/saturated or pool exhausted.
     hikari:
       pool-name: DeutschFlowPool
-      # P1-6: default raised 10→20 (pool was the throughput bottleneck under shared JVM + schedulers).
-      # Blue-green deploy briefly runs TWO instances, so effective peak ≈ 2× this against RDS max_connections —
-      # confirm your RDS instance class before raising further (checklist target 30; 20 is the safe default).
-      maximum-pool-size: ${DB_POOL_MAX_SIZE:20}
+      # P1-6: default raised 10→20; 2026-07-09 raised 20→30 as headroom after the OSIV/SSE pool-exhaustion
+      # outage (real fix is open-in-view=false above; 30 is the pre-vetted checklist target).
+      # Blue-green deploy briefly runs TWO instances, so effective peak ≈ 2× this against RDS max_connections:
+      # 2×30 = 60 < ~112 (db.t4g.micro). Confirm the RDS instance class before raising further.
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:30}
       minimum-idle: ${DB_POOL_MIN_IDLE:5}
       connection-timeout: ${DB_POOL_CONNECTION_TIMEOUT_MS:5000}
       # Recycle idle connections nhanh hơn để tránh RDS drop stale conn
@@ -95,6 +96,15 @@ spring:
       auto-commit: true
 
   jpa:
+    # OSIV disabled (was Spring default `true`). With open-in-view=true a DB connection is pinned to
+    # each HTTP request for its ENTIRE lifetime. Long-lived SSE streams — /api/notifications/stream has
+    # a 15-min timeout, plus skill-tree / ai-job / speaking streams — then each hold one Hikari
+    # connection for the whole stream. ~20 concurrent streams exhaust the pool (max 20/30) → every
+    # request incl. /auth/login fails with 503 "db-unavailable ERR-x". That was the 2026-07-09 prod
+    # login outage (connections held ~15 min = the SSE timeout, seen in Hikari leak-detection logs).
+    # With OSIV off, connections are released right after each query/transaction, so open streams no
+    # longer pin them. Safe here: every controller returns DTOs (no entity serialized outside a session).
+    open-in-view: false
     hibernate:
       ddl-auto: validate
     show-sql: false
