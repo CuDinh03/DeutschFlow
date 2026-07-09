@@ -60,14 +60,29 @@ export function mapMessagesToTurns(messages: AiSpeakingMessage[]): ChatTurn[] {
     if (isUser) {
       if (m.userText) turns.push({ role: 'user', content: m.userText })
     } else if (m.aiSpeechDe) {
+      // Correction is persisted on the assistant row but describes the learner's previous turn —
+      // attach it to the most recent user turn so it renders under the user bubble (matches the live
+      // flow). Suggestions are not persisted, so the assistant turn carries an empty list on resume.
+      if (m.correction) {
+        for (let k = turns.length - 1; k >= 0; k--) {
+          if (turns[k].role === 'user') {
+            turns[k] = {
+              ...turns[k],
+              feedback: {
+                correction: m.correction,
+                explanationVi: m.explanationVi,
+                grammarPoint: m.grammarPoint,
+              },
+            }
+            break
+          }
+        }
+      }
       turns.push({
         role: 'assistant',
         content: m.aiSpeechDe,
         feedback: {
           aiSpeechDe: m.aiSpeechDe,
-          correction: m.correction,
-          explanationVi: m.explanationVi,
-          grammarPoint: m.grammarPoint,
           feedback: m.assistantFeedback,
           action: m.assistantAction,
           suggestions: [],

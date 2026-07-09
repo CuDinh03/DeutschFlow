@@ -297,7 +297,20 @@ export default function SpeakingScreen() {
     scrollToEnd()
     try {
       const res = await speakingApi.chat(session.id, trimmed)
-      setMessages((prev) => [...prev, { role: 'assistant', content: res.aiSpeechDe ?? '…', feedback: res }])
+      // The correction targets the learner's turn (rendered under the user bubble); the suggestions
+      // answer the AI's new question (rendered under the assistant bubble). Same payload feeds both —
+      // MessageBubble picks the relevant half per role. Attach to the most recent user turn.
+      setMessages((prev) => {
+        const next = prev.slice()
+        for (let k = next.length - 1; k >= 0; k--) {
+          if (next[k].role === 'user') {
+            next[k] = { ...next[k], feedback: res }
+            break
+          }
+        }
+        next.push({ role: 'assistant', content: res.aiSpeechDe ?? '…', feedback: res })
+        return next
+      })
       if (res.interviewPhaseKey) setPhaseKey(res.interviewPhaseKey)
       const r = reactionFor(res, session.sessionMode)
       speakGerman(res.aiSpeechDe ?? '', () => {
