@@ -141,3 +141,35 @@ export async function fetchClassModules(classId: number): Promise<CurriculumModu
 export async function joinClassByInviteCode(inviteCode: string): Promise<void> {
   await api.post('/classes/join', { inviteCode })
 }
+
+// ── Competency ledger / Selbstevaluation (Phase 2a) ──────────────────────────
+
+export type CompetencyStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'MASTERED'
+/** Origin of a competency status: student self-report, auto from grading, or auto from SRS. */
+export type CompetencySource = 'SELF' | 'GRADING' | 'SRS'
+
+/** A student's competency status for one can-do statement (self-reported or auto-derived). */
+export interface StudentCompetency {
+  canDoStatementId: number
+  status: CompetencyStatus
+  source?: CompetencySource
+}
+
+/** GET the student's OWN competency statuses for this class's can-dos. Missing = NOT_STARTED. */
+export async function fetchClassCompetency(classId: number): Promise<StudentCompetency[]> {
+  const res = await api.get<StudentCompetency[]>(`/v2/students/classes/${classId}/competency`)
+  return res.data ?? []
+}
+
+/** PUT the student's self-assessment of one can-do (upsert). */
+export async function setCompetency(
+  classId: number,
+  canDoStatementId: number,
+  status: CompetencyStatus,
+): Promise<StudentCompetency> {
+  const res = await api.put<StudentCompetency>(
+    `/v2/students/classes/${classId}/competency/${canDoStatementId}`,
+    { status },
+  )
+  return res.data
+}

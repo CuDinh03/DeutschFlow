@@ -267,6 +267,7 @@
       "doAndSubmit": "Do & submit →",
       "noLessons": "The teacher hasn't added any lessons yet.",
       "lessonPathCap": "Class roadmap ({done}/{total} taught)",
+      "competency": { "label": "Self-assessment", "notStarted": "Not started", "inProgress": "Learning", "mastered": "Mastered", "summary": "Can-do goals: {mastered}/{total} mastered", "autoHint": "auto" },
       "taughtAt": "Taught · {date}",
       "notTaught": "Not taught"
     },
