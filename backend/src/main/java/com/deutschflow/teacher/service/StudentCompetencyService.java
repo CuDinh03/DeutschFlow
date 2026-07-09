@@ -3,6 +3,7 @@ package com.deutschflow.teacher.service;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.teacher.dto.ClassCompetencyDto;
 import com.deutschflow.teacher.dto.SetCompetencyRequest;
 import com.deutschflow.teacher.dto.StudentCompetencyDto;
 import com.deutschflow.teacher.entity.CanDoStatement;
@@ -13,7 +14,10 @@ import com.deutschflow.teacher.repository.CanDoStatementRepository;
 import com.deutschflow.teacher.repository.ClassAssignmentRepository;
 import com.deutschflow.teacher.repository.ClassLessonRepository;
 import com.deutschflow.teacher.repository.ClassStudentRepository;
+import com.deutschflow.teacher.repository.ClassTeacherRepository;
 import com.deutschflow.teacher.repository.StudentCompetencyRepository;
+
+import java.util.HashMap;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -46,6 +50,7 @@ public class StudentCompetencyService {
     private final ClassLessonRepository lessonRepository;
     private final ClassStudentRepository classStudentRepository;
     private final ClassAssignmentRepository assignmentRepository;
+    private final ClassTeacherRepository classTeacherRepository;
 
     /** The student's competency rows for this class's can-dos (missing = NOT_STARTED on the client). */
     @Transactional(readOnly = true)
@@ -56,6 +61,52 @@ public class StudentCompetencyService {
         return competencyRepository.findByStudentIdAndCanDoStatementIdIn(studentId, canDoIds).stream()
                 .map(c -> new StudentCompetencyDto(c.getCanDoStatementId(), c.getStatus(), c.getSource()))
                 .toList();
+    }
+
+    /**
+     * Teacher view (Phase 2c): per-can-do mastery counts across the class's CURRENTLY enrolled students
+     * — the read-side of the ledger, for spotting which competencies the class needs to work on.
+     * Scoped to the teacher's own class; can-dos in lesson order, each with mastered/in-progress counts.
+     */
+    @Transactional(readOnly = true)
+    public ClassCompetencyDto getClassCompetencyOverview(Long teacherId, Long classId) {
+        assertTeacherOwns(teacherId, classId);
+        List<ClassLesson> lessons = lessonRepository.findByClassIdOrderByOrderIndexAsc(classId);
+        if (lessons.isEmpty()) return new ClassCompetencyDto(0, List.of());
+
+        // Current roster: rows of students who have since left the class are ignored in the counts.
+        Set<Long> enrolledIds = classStudentRepository.findByIdClassId(classId).stream()
+                .map(cs -> cs.getId().getStudentId()).collect(Collectors.toSet());
+        int enrolled = enrolledIds.size();
+
+        List<CanDoStatement> canDos = canDoRepository.findByLessonIdInOrderByLessonIdAscOrderIndexAsc(
+                lessons.stream().map(ClassLesson::getId).toList());
+        if (canDos.isEmpty()) return new ClassCompetencyDto(enrolled, List.of());
+
+        // Count MASTERED / IN_PROGRESS per can-do (one query; anything else is NOT_STARTED).
+        Map<Long, int[]> counts = new HashMap<>(); // canDoId -> [mastered, inProgress]
+        for (StudentCompetency c : competencyRepository.findByCanDoStatementIdIn(
+                canDos.stream().map(CanDoStatement::getId).toList())) {
+            if (!enrolledIds.contains(c.getStudentId())) continue;
+            int[] arr = counts.computeIfAbsent(c.getCanDoStatementId(), k -> new int[2]);
+            if ("MASTERED".equals(c.getStatus())) arr[0]++;
+            else if ("IN_PROGRESS".equals(c.getStatus())) arr[1]++;
+        }
+
+        // Assemble in the teacher's SYLLABUS order: group can-dos by lesson, then iterate `lessons`
+        // (already orderIndex-sorted) — NOT the lessonId-sorted can-do list — so a reorder is reflected.
+        Map<Long, List<CanDoStatement>> canDosByLesson = canDos.stream()
+                .collect(Collectors.groupingBy(CanDoStatement::getLessonId));
+        List<ClassCompetencyDto.CanDoCompetencyDto> items = lessons.stream()
+                .flatMap(l -> canDosByLesson.getOrDefault(l.getId(), List.of()).stream()
+                        .map(cd -> {
+                            int[] arr = counts.getOrDefault(cd.getId(), new int[2]);
+                            return new ClassCompetencyDto.CanDoCompetencyDto(
+                                    cd.getId(), cd.getLessonId(), l.getTitle(),
+                                    cd.getText(), cd.getSkillTag(), cd.getCefrLevel(), arr[0], arr[1]);
+                        }))
+                .toList();
+        return new ClassCompetencyDto(enrolled, items);
     }
 
     /** Upserts the student's self-assessment of one can-do (must belong to a lesson of this class). */
@@ -147,6 +198,12 @@ public class StudentCompetencyService {
     private void assertEnrolled(Long studentId, Long classId) {
         if (!classStudentRepository.existsByIdClassIdAndIdStudentId(classId, studentId)) {
             throw new NotFoundException("Không tìm thấy lớp học");
+        }
+    }
+
+    private void assertTeacherOwns(Long teacherId, Long classId) {
+        if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
+            throw new ForbiddenException("Bạn không có quyền với lớp học này");
         }
     }
 

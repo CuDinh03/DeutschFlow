@@ -13,4 +13,7 @@ public interface StudentCompetencyRepository extends JpaRepository<StudentCompet
     Optional<StudentCompetency> findByStudentIdAndCanDoStatementId(Long studentId, Long canDoStatementId);
 
     List<StudentCompetency> findByStudentIdAndCanDoStatementIdIn(Long studentId, List<Long> canDoStatementIds);
+
+    /** All students' rows for a set of can-dos (teacher class-competency overview, Phase 2c). */
+    List<StudentCompetency> findByCanDoStatementIdIn(List<Long> canDoStatementIds);
 }

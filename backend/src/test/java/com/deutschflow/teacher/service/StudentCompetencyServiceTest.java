@@ -3,16 +3,20 @@ package com.deutschflow.teacher.service;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.teacher.dto.ClassCompetencyDto;
 import com.deutschflow.teacher.dto.SetCompetencyRequest;
 import com.deutschflow.teacher.dto.StudentCompetencyDto;
 import com.deutschflow.teacher.entity.CanDoStatement;
 import com.deutschflow.teacher.entity.ClassAssignment;
 import com.deutschflow.teacher.entity.ClassLesson;
+import com.deutschflow.teacher.entity.ClassStudent;
+import com.deutschflow.teacher.entity.ClassStudentId;
 import com.deutschflow.teacher.entity.StudentCompetency;
 import com.deutschflow.teacher.repository.CanDoStatementRepository;
 import com.deutschflow.teacher.repository.ClassAssignmentRepository;
 import com.deutschflow.teacher.repository.ClassLessonRepository;
 import com.deutschflow.teacher.repository.ClassStudentRepository;
+import com.deutschflow.teacher.repository.ClassTeacherRepository;
 import com.deutschflow.teacher.repository.StudentCompetencyRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -43,6 +47,7 @@ class StudentCompetencyServiceTest {
     @Mock private ClassLessonRepository lessonRepository;
     @Mock private ClassStudentRepository classStudentRepository;
     @Mock private ClassAssignmentRepository assignmentRepository;
+    @Mock private ClassTeacherRepository classTeacherRepository;
 
     private StudentCompetencyService service;
 
@@ -51,12 +56,13 @@ class StudentCompetencyServiceTest {
     private static final Long LESSON_ID = 1L;
     private static final Long CAN_DO_ID = 50L;
     private static final Long ASSIGNMENT_ID = 500L;
+    private static final Long TEACHER_ID = 100L;
 
     @BeforeEach
     void setUp() {
         service = new StudentCompetencyService(
                 competencyRepository, canDoRepository, lessonRepository, classStudentRepository,
-                assignmentRepository);
+                assignmentRepository, classTeacherRepository);
     }
 
     private void enrolled() {
@@ -302,5 +308,93 @@ class StudentCompetencyServiceTest {
         verify(competencyRepository).save(prior);
         assertThat(prior.getStatus()).isEqualTo("IN_PROGRESS");   // a prior GRADING row is overwritten downward
         assertThat(prior.getSource()).isEqualTo("GRADING");
+    }
+
+    // ── getClassCompetencyOverview (Phase 2c) ─────────────────────────────────
+
+    private ClassStudent classStudent(Long studentId) {
+        return ClassStudent.builder().id(new ClassStudentId(CLASS_ID, studentId)).build();
+    }
+
+    private StudentCompetency compRow(Long studentId, Long canDoId, String status) {
+        return StudentCompetency.builder().studentId(studentId).canDoStatementId(canDoId).status(status).source("SELF").build();
+    }
+
+    @Test
+    @DisplayName("getClassCompetencyOverview rejects a teacher who does not own the class")
+    void getClassCompetencyOverview_notOwner_throwsForbidden() {
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(false);
+        assertThatThrownBy(() -> service.getClassCompetencyOverview(TEACHER_ID, CLASS_ID))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    @DisplayName("getClassCompetencyOverview aggregates mastered/in-progress counts per can-do over enrolled students")
+    void getClassCompetencyOverview_aggregatesCounts() {
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(true);
+        when(lessonRepository.findByClassIdOrderByOrderIndexAsc(CLASS_ID)).thenReturn(List.of(lesson(CLASS_ID)));
+        when(classStudentRepository.findByIdClassId(CLASS_ID))
+                .thenReturn(List.of(classStudent(201L), classStudent(202L), classStudent(203L)));
+        when(canDoRepository.findByLessonIdInOrderByLessonIdAscOrderIndexAsc(List.of(LESSON_ID)))
+                .thenReturn(List.of(canDoTagged(51L, null), canDoTagged(52L, "LESEN")));
+        when(competencyRepository.findByCanDoStatementIdIn(List.of(51L, 52L))).thenReturn(List.of(
+                compRow(201L, 51L, "MASTERED"),
+                compRow(202L, 51L, "IN_PROGRESS"),
+                compRow(203L, 52L, "MASTERED")));
+
+        ClassCompetencyDto out = service.getClassCompetencyOverview(TEACHER_ID, CLASS_ID);
+
+        assertThat(out.enrolledCount()).isEqualTo(3);
+        assertThat(out.items()).hasSize(2);
+        var cd51 = out.items().stream().filter(i -> i.canDoStatementId().equals(51L)).findFirst().orElseThrow();
+        assertThat(cd51.mastered()).isEqualTo(1);
+        assertThat(cd51.inProgress()).isEqualTo(1);
+        assertThat(cd51.lessonTitle()).isEqualTo("Lektion");
+        var cd52 = out.items().stream().filter(i -> i.canDoStatementId().equals(52L)).findFirst().orElseThrow();
+        assertThat(cd52.mastered()).isEqualTo(1);
+        assertThat(cd52.inProgress()).isZero();
+    }
+
+    @Test
+    @DisplayName("getClassCompetencyOverview ignores rows of students who have left the class")
+    void getClassCompetencyOverview_ignoresFormerStudent() {
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(true);
+        when(lessonRepository.findByClassIdOrderByOrderIndexAsc(CLASS_ID)).thenReturn(List.of(lesson(CLASS_ID)));
+        when(classStudentRepository.findByIdClassId(CLASS_ID)).thenReturn(List.of(classStudent(201L)));
+        when(canDoRepository.findByLessonIdInOrderByLessonIdAscOrderIndexAsc(List.of(LESSON_ID)))
+                .thenReturn(List.of(canDoTagged(51L, null)));
+        when(competencyRepository.findByCanDoStatementIdIn(List.of(51L))).thenReturn(List.of(
+                compRow(201L, 51L, "MASTERED"),
+                compRow(999L, 51L, "MASTERED"))); // 999 is not on the roster
+
+        ClassCompetencyDto out = service.getClassCompetencyOverview(TEACHER_ID, CLASS_ID);
+
+        assertThat(out.enrolledCount()).isEqualTo(1);
+        assertThat(out.items().get(0).mastered()).isEqualTo(1); // only the enrolled student counted
+    }
+
+    @Test
+    @DisplayName("getClassCompetencyOverview lists can-dos in the class's SYLLABUS (orderIndex) order, not lesson-creation order")
+    void getClassCompetencyOverview_ordersBySyllabus() {
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(true);
+        // Lesson B (id=2) was reordered ABOVE lesson A (id=1): orderIndex B=0, A=1 (id order != syllabus order).
+        ClassLesson b = ClassLesson.builder().id(2L).classId(CLASS_ID).orderIndex(0).title("Lektion B").build();
+        ClassLesson a = ClassLesson.builder().id(1L).classId(CLASS_ID).orderIndex(1).title("Lektion A").build();
+        when(lessonRepository.findByClassIdOrderByOrderIndexAsc(CLASS_ID)).thenReturn(List.of(b, a));
+        when(classStudentRepository.findByIdClassId(CLASS_ID)).thenReturn(List.of(classStudent(201L)));
+        // The repo returns can-dos ordered by lessonId ASC → A's (lessonId 1) BEFORE B's (lessonId 2).
+        CanDoStatement cdA = CanDoStatement.builder().id(11L).lessonId(1L).orderIndex(0).text("A1").build();
+        CanDoStatement cdB = CanDoStatement.builder().id(22L).lessonId(2L).orderIndex(0).text("B1").build();
+        when(canDoRepository.findByLessonIdInOrderByLessonIdAscOrderIndexAsc(List.of(2L, 1L)))
+                .thenReturn(List.of(cdA, cdB));
+        when(competencyRepository.findByCanDoStatementIdIn(List.of(11L, 22L))).thenReturn(List.of());
+
+        ClassCompetencyDto out = service.getClassCompetencyOverview(TEACHER_ID, CLASS_ID);
+
+        // Output must follow SYLLABUS order (B then A), NOT the lessonId-sorted can-do order (A then B).
+        assertThat(out.items()).extracting(ClassCompetencyDto.CanDoCompetencyDto::lessonTitle)
+                .containsExactly("Lektion B", "Lektion A");
+        assertThat(out.items()).extracting(ClassCompetencyDto.CanDoCompetencyDto::canDoStatementId)
+                .containsExactly(22L, 11L);
     }
 }
