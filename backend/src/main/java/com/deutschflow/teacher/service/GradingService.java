@@ -46,6 +46,7 @@ public class GradingService {
     private final AiUsageLedgerService aiUsageLedgerService;
     /** Model chấm bài (tách hẳn model nói) — xem {@link GradingModelConfig}. */
     private final GradingModelConfig gradingModelConfig;
+    private final StudentCompetencyService studentCompetencyService;
 
     /** Student-/teacher-safe note when AI grading fails — the raw cause stays in logs/admin alerts only (D8). */
     private static final String GRADING_FAILED_FEEDBACK = "Chưa chấm tự động được, giáo viên sẽ chấm lại.";
@@ -387,6 +388,15 @@ public class GradingService {
             userNotificationService.onAssignmentGraded(
                 sa.getStudentId(), "ASSIGNMENT", sa.getAssignmentId(), aiScore, aiFeedback
             );
+
+            // Auto-update the competency ledger (Phase 2b). Its OWN try/catch (not the outer one):
+            // a ledger error must NOT reach the catch below, which would flip this already-committed
+            // GRADED row to GRADING_FAILED.
+            try {
+                studentCompetencyService.applyGradingResult(sa.getStudentId(), sa.getAssignmentId(), aiScore);
+            } catch (Exception ce) {
+                log.warn("[Competency] applyGradingResult failed for assignment {}: {}", sa.getAssignmentId(), ce.toString());
+            }
 
         } catch (Exception e) {
             log.error("[AI-Grading] Error grading submission {}", submissionId, e);

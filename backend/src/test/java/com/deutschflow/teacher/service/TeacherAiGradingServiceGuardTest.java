@@ -44,6 +44,7 @@ class TeacherAiGradingServiceGuardTest {
     @Mock GradingModelConfig gradingModelConfig;
     @Mock UserNotificationService userNotificationService;
     @Mock OrgPoolGuard orgPoolGuard;
+    @Mock StudentCompetencyService studentCompetencyService;
 
     private static final long SESSION_ID = 7L;
     private static final long LINKED_ASSIGNMENT_ID = 100L; // StudentAssignment PK
@@ -53,7 +54,7 @@ class TeacherAiGradingServiceGuardTest {
         return new TeacherAiGradingService(
                 sessionRepository, messageRepository, openAiChatClient,
                 studentAssignmentRepository, aiUsageLedgerService, gradingModelConfig,
-                userNotificationService, orgPoolGuard);
+                userNotificationService, orgPoolGuard, studentCompetencyService);
     }
 
     private AiSpeakingMessage userMsg(String text) {

@@ -267,6 +267,7 @@
       "doAndSubmit": "Làm bài & nộp →",
       "noLessons": "Giáo viên chưa thêm bài học nào.",
       "lessonPathCap": "Lộ trình lớp ({done}/{total} đã dạy)",
+      "competency": { "label": "Tự đánh giá", "notStarted": "Chưa bắt đầu", "inProgress": "Đang học", "mastered": "Thành thạo", "summary": "Mục tiêu năng lực: {mastered}/{total} đã đạt", "autoHint": "tự động" },
       "taughtAt": "Đã dạy · {date}",
       "notTaught": "Chưa dạy"
     },

@@ -13,7 +13,9 @@ public record ClassLessonLogDto(
         String homework,
         String note,
         LocalDateTime createdAt,
-        List<AttendanceEntry> attendance
+        List<AttendanceEntry> attendance,
+        Long lessonId,
+        String lessonTitle
 ) {
     public record AttendanceEntry(Long studentId, String name, String email, String status, String note) {}
 }

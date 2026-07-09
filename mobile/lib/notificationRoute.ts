@@ -54,6 +54,7 @@ export function resolveNotificationRoute(
       return classId ? { pathname: '/(student)/class-schedule/[classId]', params: { classId, className } } : null
 
     case 'TEACHER_ANNOUNCEMENT':
+    case 'CLASS_CHANNEL_MESSAGE':
       return classId ? { pathname: '/(student)/class-chat/[classId]', params: { classId, className } } : null
 
     case 'NEW_MESSAGE':

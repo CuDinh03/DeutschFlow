@@ -267,6 +267,7 @@
       "doAndSubmit": "Bearbeiten & abgeben →",
       "noLessons": "Die Lehrkraft hat noch keine Lektionen hinzugefügt.",
       "lessonPathCap": "Kurs-Lernpfad ({done}/{total} unterrichtet)",
+      "competency": { "label": "Selbsteinschätzung", "notStarted": "Nicht begonnen", "inProgress": "Am Lernen", "mastered": "Beherrscht", "summary": "Kann-Ziele: {mastered}/{total} beherrscht", "autoHint": "auto" },
       "taughtAt": "Unterrichtet · {date}",
       "notTaught": "Nicht unterrichtet"
     },

@@ -27,6 +27,7 @@ export const TYPE_ICON: Record<string, string> = {
   CLASS_SESSION_CANCELLED: 'event_busy',
   CLASS_SESSION_RESCHEDULED: 'edit_calendar',
   NEW_MESSAGE: 'chat',
+  CLASS_CHANNEL_MESSAGE: 'forum',
   USER_REGISTERED: 'person',
   LEARNER_PLAN_UPDATED: 'description',
   ADMIN_LEARNER_PLAN_CHANGED: 'description',
@@ -59,6 +60,7 @@ export const TYPE_TONE: Record<string, string> = {
   CLASS_SESSION_CANCELLED: 'var(--ga-red)',
   CLASS_SESSION_RESCHEDULED: 'var(--ga-orange)',
   NEW_MESSAGE: 'var(--ga-blue)',
+  CLASS_CHANNEL_MESSAGE: 'var(--ga-blue)',
   USER_REGISTERED: 'var(--ga-muted)',
   LEARNER_PLAN_UPDATED: 'var(--ga-blue)',
   ADMIN_LEARNER_PLAN_CHANGED: 'var(--ga-blue)',
@@ -92,6 +94,7 @@ export const TYPE_LABEL: Record<string, string> = {
   CLASS_SESSION_CANCELLED: 'Buổi học bị huỷ',
   CLASS_SESSION_RESCHEDULED: 'Đổi lịch học',
   NEW_MESSAGE: 'Tin nhắn mới',
+  CLASS_CHANNEL_MESSAGE: 'Tin nhắn lớp',
   USER_REGISTERED: 'Người dùng đăng ký',
   LEARNER_PLAN_UPDATED: 'Gói học được cập nhật',
   ADMIN_LEARNER_PLAN_CHANGED: 'Gói học thay đổi',
@@ -216,6 +219,11 @@ export function resolveNotificationHref(item: NotificationItem, role: RoleId): s
       const q = new URLSearchParams({ to: senderId })
       if (senderName) q.set('name', senderName)
       return `${base}?${q.toString()}`
+    }
+    case 'CLASS_CHANNEL_MESSAGE': {
+      // Group-channel message — open the class it belongs to, in the viewer's own area.
+      const area = role === 'teacher' ? '/v2/teacher/classes' : '/v2/student/classes'
+      return classId ? `${area}/${classId}` : area
     }
 
     // ── Admin / Org ───────────────────────────────────────────────────────────

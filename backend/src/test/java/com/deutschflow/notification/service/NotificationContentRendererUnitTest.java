@@ -33,6 +33,24 @@ class NotificationContentRendererUnitTest {
     }
 
     @Test
+    @DisplayName("class channel message shows the class name in the title and sender: preview in the body")
+    void classChannelMessage_rendersClassAndSender() {
+        RenderedContent c = renderer.render(NotificationType.CLASS_CHANNEL_MESSAGE,
+                Map.of("className", "A1 Sáng", "senderName", "An", "preview", "chào cả lớp"));
+        assertThat(c.title()).contains("A1 Sáng");
+        assertThat(c.body()).isEqualTo("An: chào cả lớp");
+    }
+
+    @Test
+    @DisplayName("class channel message falls back gracefully when class/sender names are absent")
+    void classChannelMessage_fallsBackWhenNamesMissing() {
+        RenderedContent c = renderer.render(NotificationType.CLASS_CHANNEL_MESSAGE,
+                Map.of("preview", "hi"));
+        assertThat(c.title()).contains("Chat lớp");
+        assertThat(c.body()).isEqualTo("Thành viên: hi");
+    }
+
+    @Test
     @DisplayName("structured-only types render a meaningful Vietnamese sentence")
     void levelUp_rendersFromStructuredPayload() {
         RenderedContent c = renderer.render(NotificationType.LEVEL_UP,

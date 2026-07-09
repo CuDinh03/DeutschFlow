@@ -2,13 +2,18 @@ package com.deutschflow.user.controller;
 
 import com.deutschflow.teacher.dto.ClassLessonDto;
 import com.deutschflow.teacher.dto.ClassroomDetailDto;
+import com.deutschflow.teacher.dto.CurriculumModuleDto;
 import com.deutschflow.teacher.dto.MyClassroomDto;
 import com.deutschflow.teacher.dto.MySkillReportDto;
 import com.deutschflow.teacher.dto.StudentAssignmentDto;
+import com.deutschflow.teacher.dto.SetCompetencyRequest;
 import com.deutschflow.teacher.dto.StudentAttendanceDto;
+import com.deutschflow.teacher.dto.StudentCompetencyDto;
 import com.deutschflow.teacher.dto.StudentSessionDto;
 import com.deutschflow.teacher.service.ClassLessonService;
+import com.deutschflow.teacher.service.CurriculumModuleService;
 import com.deutschflow.teacher.service.StudentClassroomService;
+import com.deutschflow.teacher.service.StudentCompetencyService;
 import com.deutschflow.teacher.service.StudentEvaluationService;
 import com.deutschflow.user.entity.User;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +22,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -30,7 +37,9 @@ public class StudentClassroomController {
 
     private final StudentClassroomService studentClassroomService;
     private final ClassLessonService classLessonService;
+    private final CurriculumModuleService curriculumModuleService;
     private final StudentEvaluationService studentEvaluationService;
+    private final StudentCompetencyService studentCompetencyService;
 
     @GetMapping
     public ResponseEntity<List<MyClassroomDto>> listMyClasses(@AuthenticationPrincipal User user) {
@@ -58,6 +67,14 @@ public class StudentClassroomController {
         return ResponseEntity.ok(classLessonService.listForStudent(user.getId(), classId));
     }
 
+    /** Curriculum modules of the class (for grouping the lesson list). */
+    @GetMapping("/{classId}/modules")
+    public ResponseEntity<List<CurriculumModuleDto>> listModules(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long classId) {
+        return ResponseEntity.ok(curriculumModuleService.listForStudent(user.getId(), classId));
+    }
+
     /** The student's OWN attendance for the class (P4) — never other students'. */
     @GetMapping("/{classId}/my-attendance")
     public ResponseEntity<List<StudentAttendanceDto>> myAttendance(
@@ -80,5 +97,24 @@ public class StudentClassroomController {
             @AuthenticationPrincipal User user,
             @PathVariable Long classId) {
         return ResponseEntity.ok(studentClassroomService.listSessions(user.getId(), classId));
+    }
+
+    /** The student's OWN competency (Selbstevaluation) statuses for this class's can-dos (Phase 2a). */
+    @GetMapping("/{classId}/competency")
+    public ResponseEntity<List<StudentCompetencyDto>> getCompetency(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long classId) {
+        return ResponseEntity.ok(studentCompetencyService.getForClass(user.getId(), classId));
+    }
+
+    /** Upsert the student's self-assessment of one can-do of this class (Phase 2a). */
+    @PutMapping("/{classId}/competency/{canDoStatementId}")
+    public ResponseEntity<StudentCompetencyDto> setCompetency(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long classId,
+            @PathVariable Long canDoStatementId,
+            @RequestBody SetCompetencyRequest req) {
+        return ResponseEntity.ok(
+                studentCompetencyService.setSelfAssessment(user.getId(), classId, canDoStatementId, req));
     }
 }

@@ -12,7 +12,9 @@ import com.deutschflow.teacher.entity.ClassStudentId;
 import com.deutschflow.teacher.entity.TeacherClass;
 import com.deutschflow.teacher.entity.ClassTeacher;
 import com.deutschflow.teacher.entity.ClassTeacherId;
+import com.deutschflow.teacher.entity.ClassLesson;
 import com.deutschflow.teacher.repository.ClassAssignmentRepository;
+import com.deutschflow.teacher.repository.ClassLessonRepository;
 import com.deutschflow.teacher.repository.ClassStudentRepository;
 import com.deutschflow.teacher.repository.TeacherClassRepository;
 import com.deutschflow.teacher.repository.ClassTeacherRepository;
@@ -60,6 +62,8 @@ public class TeacherService {
     private final SpeakingAiHelpersService speakingAiHelpersService;
     private final AssignmentScenarioRepository assignmentScenarioRepository;
     private final S3StorageService s3StorageService;
+    private final ClassLessonRepository lessonRepository;
+    private final StudentCompetencyService studentCompetencyService;
 
     @Transactional
     public TeacherClassDto createClass(Long teacherId, String name) {
@@ -528,9 +532,18 @@ public class TeacherService {
         if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
             throw new ForbiddenException("Bạn không có quyền thao tác trên lớp này");
         }
+        // If linking to a lesson (Phase 1d-D1), it must belong to this class (reject cross-class).
+        if (req.lessonId() != null) {
+            ClassLesson lesson = lessonRepository.findById(req.lessonId())
+                    .orElseThrow(() -> new NotFoundException("Bài học không tồn tại"));
+            if (!lesson.getClassId().equals(classId)) {
+                throw new ForbiddenException("Bài học không thuộc lớp này");
+            }
+        }
 
         ClassAssignment assignment = ClassAssignment.builder()
                 .classId(classId)
+                .lessonId(req.lessonId())
                 .topic(req.topic())
                 .description(req.description())
                 .assignmentType(req.assignmentType())
@@ -715,7 +728,34 @@ public class TeacherService {
             req.teacherScore(), req.teacherFeedback()
         );
 
+        // Auto-update the competency ledger from the grade (Phase 2b) — fire only AFTER this grade tx
+        // commits, so a failed commit (e.g. the @Version optimistic-lock conflict this guards against)
+        // never leaves an orphan GRADING competency row. Best-effort: a ledger error never affects the grade.
+        final Long gradedStudentId = assignment.getStudentId();
+        final Long gradedAssignmentId = assignment.getAssignmentId();
+        final Integer gradedScore = req.teacherScore();
+        if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                    new org.springframework.transaction.support.TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() {
+                            applyCompetencyBestEffort(gradedStudentId, gradedAssignmentId, gradedScore);
+                        }
+                    });
+        } else {
+            applyCompetencyBestEffort(gradedStudentId, gradedAssignmentId, gradedScore);
+        }
+
         return result;
+    }
+
+    /** Best-effort competency-ledger update from a grade (Phase 2b): a ledger error never affects the grade. */
+    private void applyCompetencyBestEffort(Long studentId, Long assignmentId, Integer score) {
+        try {
+            studentCompetencyService.applyGradingResult(studentId, assignmentId, score);
+        } catch (Exception e) {
+            log.warn("[Competency] applyGradingResult failed for assignment {}: {}", assignmentId, e.toString());
+        }
     }
 
     private String generateInviteCode() {
@@ -734,7 +774,8 @@ public class TeacherService {
 
     private ClassAssignmentDto toAssignmentDto(ClassAssignment a) {
         return new ClassAssignmentDto(a.getId(), a.getClassId(), a.getTopic(), a.getDescription(),
-                a.getAssignmentType(), a.getReferenceId(), a.getDueDate(), a.getCreatedAt(), a.getAttachmentUrl());
+                a.getAssignmentType(), a.getReferenceId(), a.getDueDate(), a.getCreatedAt(),
+                a.getAttachmentUrl(), a.getLessonId());
     }
 
     private TeacherSpeakingSessionDto toTeacherSpeakingSessionDto(com.deutschflow.speaking.entity.AiSpeakingSession s) {

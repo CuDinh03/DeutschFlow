@@ -4,8 +4,11 @@ import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.messaging.dto.ClassChannelDtos.ClassMessageDto;
 import com.deutschflow.messaging.entity.ClassChannelMessage;
 import com.deutschflow.messaging.repository.ClassChannelMessageRepository;
+import com.deutschflow.notification.service.UserNotificationService;
+import com.deutschflow.teacher.entity.TeacherClass;
 import com.deutschflow.teacher.repository.ClassStudentRepository;
 import com.deutschflow.teacher.repository.ClassTeacherRepository;
+import com.deutschflow.teacher.repository.TeacherClassRepository;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
 import com.deutschflow.moderation.service.UserBlockService;
@@ -31,9 +34,11 @@ class ClassChannelServiceTest {
     @Mock private ClassChannelMessageRepository channelRepository;
     @Mock private ClassStudentRepository classStudentRepository;
     @Mock private ClassTeacherRepository classTeacherRepository;
+    @Mock private TeacherClassRepository teacherClassRepository;
     @Mock private UserRepository userRepository;
     @Mock private WordFilterService wordFilter;
     @Mock private UserBlockService blockService;
+    @Mock private UserNotificationService notificationService;
 
     private ClassChannelService service;
 
@@ -45,8 +50,8 @@ class ClassChannelServiceTest {
     @BeforeEach
     void setUp() {
         service = new ClassChannelService(
-                channelRepository, classStudentRepository, classTeacherRepository, userRepository,
-                wordFilter, blockService);
+                channelRepository, classStudentRepository, classTeacherRepository, teacherClassRepository,
+                userRepository, wordFilter, blockService, notificationService);
         lenient().when(blockService.blockedIds(any())).thenReturn(java.util.Set.of());
     }
 
@@ -66,6 +71,41 @@ class ClassChannelServiceTest {
         assertThatThrownBy(() -> service.post(STUDENT_A, CLASS_ID, "hi"))
                 .isInstanceOf(ForbiddenException.class);
         verify(channelRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("post fans a CLASS_CHANNEL_MESSAGE notification out to the other members")
+    void post_notifiesOtherMembers() {
+        asStudentMember(STUDENT_A);
+        when(channelRepository.save(any(ClassChannelMessage.class))).thenAnswer(inv -> inv.getArgument(0));
+        stubNames(STUDENT_A, "An");
+        when(teacherClassRepository.findById(CLASS_ID))
+                .thenReturn(Optional.of(TeacherClass.builder().id(CLASS_ID).name("A1 Sáng").build()));
+
+        service.post(STUDENT_A, CLASS_ID, "  chào cả lớp  ");
+
+        // Delivery is off-thread in UserNotificationService; the service only triggers it with the
+        // resolved class name + sender name and a trimmed preview (never the sender's own id).
+        verify(notificationService).notifyClassChannelMessage(
+                eq(CLASS_ID), eq("A1 Sáng"), eq(STUDENT_A), eq("An"), eq("chào cả lớp"));
+    }
+
+    @Test
+    @DisplayName("post never lets a notification failure break the send (best-effort)")
+    void post_notificationFailure_doesNotBreakSend() {
+        asStudentMember(STUDENT_A);
+        when(channelRepository.save(any(ClassChannelMessage.class))).thenAnswer(inv -> inv.getArgument(0));
+        stubNames(STUDENT_A, "An");
+        when(teacherClassRepository.findById(CLASS_ID))
+                .thenReturn(Optional.of(TeacherClass.builder().id(CLASS_ID).name("A1").build()));
+        doThrow(new RuntimeException("push down")).when(notificationService)
+                .notifyClassChannelMessage(any(), any(), any(), any(), any());
+
+        // The post still returns the saved message even though notification dispatch threw.
+        ClassMessageDto dto = service.post(STUDENT_A, CLASS_ID, "vẫn gửi được");
+
+        assertThat(dto.body()).isEqualTo("vẫn gửi được");
+        assertThat(dto.mine()).isTrue();
     }
 
     @Test

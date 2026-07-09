@@ -34,6 +34,7 @@ public class TeacherAiGradingService {
     private final GradingModelConfig gradingModelConfig;
     private final UserNotificationService userNotificationService;
     private final OrgPoolGuard orgPoolGuard;
+    private final StudentCompetencyService studentCompetencyService;
 
     /** Ước lượng token cho 1 lần chấm Sprechen (transcript vào + ~1000 token feedback ra). */
     private static final long SPEAKING_GRADING_ESTIMATED_TOKENS = 2_000L;
@@ -155,6 +156,15 @@ public class TeacherAiGradingService {
                     } catch (Exception notifyErr) {
                         log.warn("[Auto-Grading] Could not notify student for assignment {}: {}",
                                 sa.getId(), notifyErr.toString());
+                    }
+
+                    // Auto-update the competency ledger (Phase 2b). Best-effort — never fail the async grade.
+                    try {
+                        studentCompetencyService.applyGradingResult(
+                                sa.getStudentId(), sa.getAssignmentId(), finalAiScore);
+                    } catch (Exception compErr) {
+                        log.warn("[Competency] applyGradingResult failed for assignment {}: {}",
+                                sa.getAssignmentId(), compErr.toString());
                     }
                 });
             }

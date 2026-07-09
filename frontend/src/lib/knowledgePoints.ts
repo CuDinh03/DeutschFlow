@@ -22,3 +22,16 @@ export function formatKnowledgePoints(points: string[]): string {
     .filter((p) => p.length > 0)
     .join('\n')
 }
+
+/**
+ * Display texts for a lesson (Phase 1b): the structured knowledge points when present,
+ * otherwise the legacy newline-encoded description. Lets read-only views migrate to the
+ * sub-table while still rendering lessons that haven't been re-saved yet.
+ */
+export function resolvePointTexts(
+  points: { text: string }[] | null | undefined,
+  description: string | null | undefined,
+): string[] {
+  if (points && points.length > 0) return points.map((p) => p.text)
+  return parseKnowledgePoints(description)
+}

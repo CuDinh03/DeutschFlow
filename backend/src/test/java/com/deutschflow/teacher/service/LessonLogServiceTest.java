@@ -6,9 +6,11 @@ import com.deutschflow.teacher.dto.ClassLessonLogDto;
 import com.deutschflow.teacher.dto.CreateLessonLogRequest;
 import com.deutschflow.teacher.entity.ClassAttendance;
 import com.deutschflow.teacher.entity.ClassAttendanceId;
+import com.deutschflow.teacher.entity.ClassLesson;
 import com.deutschflow.teacher.entity.ClassLessonLog;
 import com.deutschflow.teacher.repository.ClassAttendanceRepository;
 import com.deutschflow.teacher.repository.ClassLessonLogRepository;
+import com.deutschflow.teacher.repository.ClassLessonRepository;
 import com.deutschflow.teacher.repository.ClassStudentRepository;
 import com.deutschflow.teacher.repository.ClassTeacherRepository;
 import com.deutschflow.user.entity.User;
@@ -37,6 +39,7 @@ class LessonLogServiceTest {
     @Mock private ClassAttendanceRepository attendanceRepository;
     @Mock private ClassTeacherRepository classTeacherRepository;
     @Mock private ClassStudentRepository classStudentRepository;
+    @Mock private ClassLessonRepository lessonRepository;
     @Mock private UserRepository userRepository;
 
     private LessonLogService service;
@@ -45,12 +48,13 @@ class LessonLogServiceTest {
     private static final Long CLASS_ID   = 10L;
     private static final Long LOG_ID     = 100L;
     private static final Long STUDENT_ID = 200L;
+    private static final Long LESSON_ID  = 300L;
 
     @BeforeEach
     void setUp() {
         service = new LessonLogService(
                 lessonLogRepository, attendanceRepository,
-                classTeacherRepository, classStudentRepository, userRepository);
+                classTeacherRepository, classStudentRepository, lessonRepository, userRepository);
     }
 
     // ── getLogs ───────────────────────────────────────────────────────────────
@@ -106,7 +110,7 @@ class LessonLogServiceTest {
         allowAccess();
         CreateLessonLogRequest req = new CreateLessonLogRequest(
                 LocalDate.of(2026, 6, 10), 1, "Lektion 3", "Write sentences", null,
-                List.of(new CreateLessonLogRequest.AttendanceInput(STUDENT_ID, "PRESENT", null)));
+                List.of(new CreateLessonLogRequest.AttendanceInput(STUDENT_ID, "PRESENT", null)), null);
 
         ClassLessonLog saved = buildLog(LOG_ID, CLASS_ID, req.sessionDate());
         when(lessonLogRepository.save(any())).thenReturn(saved);
@@ -131,7 +135,7 @@ class LessonLogServiceTest {
         allowAccess();
         CreateLessonLogRequest req = new CreateLessonLogRequest(
                 LocalDate.of(2026, 6, 10), null, null, null, null,
-                List.of(new CreateLessonLogRequest.AttendanceInput(STUDENT_ID, null, null)));
+                List.of(new CreateLessonLogRequest.AttendanceInput(STUDENT_ID, null, null)), null);
 
         when(lessonLogRepository.save(any())).thenReturn(buildLog(LOG_ID, CLASS_ID, req.sessionDate()));
         when(userRepository.findAllById(any())).thenReturn(List.of());
@@ -142,6 +146,46 @@ class LessonLogServiceTest {
         ArgumentCaptor<List<ClassAttendance>> captor = ArgumentCaptor.forClass(List.class);
         verify(attendanceRepository).saveAll(captor.capture());
         assertThat(captor.getValue().get(0).getStatus()).isEqualTo("PRESENT");
+    }
+
+    @Test
+    @DisplayName("createLog with a lesson from another class throws ForbiddenException (cross-class guard)")
+    void createLog_lessonFromOtherClass_throwsForbidden() {
+        allowAccess();
+        when(lessonRepository.findById(LESSON_ID))
+                .thenReturn(Optional.of(buildLesson(LESSON_ID, 999L, "Fremde Lektion")));
+
+        CreateLessonLogRequest req = new CreateLessonLogRequest(
+                LocalDate.of(2026, 6, 10), 1, null, null, null, List.of(), LESSON_ID);
+
+        assertThatThrownBy(() -> service.createLog(TEACHER_ID, CLASS_ID, req))
+                .isInstanceOf(ForbiddenException.class);
+        verify(lessonLogRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("createLog with a valid same-class lesson persists lessonId and resolves lessonTitle")
+    void createLog_validLesson_setsLessonIdAndTitle() {
+        allowAccess();
+        when(lessonRepository.findById(LESSON_ID))
+                .thenReturn(Optional.of(buildLesson(LESSON_ID, CLASS_ID, "Lektion 5")));
+
+        ClassLessonLog saved = buildLog(LOG_ID, CLASS_ID, LocalDate.of(2026, 6, 10));
+        saved.setLessonId(LESSON_ID);
+        when(lessonLogRepository.save(any())).thenReturn(saved);
+
+        // Empty attendance → the service never queries userRepository, so no stub for it.
+        CreateLessonLogRequest req = new CreateLessonLogRequest(
+                LocalDate.of(2026, 6, 10), 1, null, null, null, List.of(), LESSON_ID);
+
+        ClassLessonLogDto result = service.createLog(TEACHER_ID, CLASS_ID, req);
+
+        assertThat(result.lessonId()).isEqualTo(LESSON_ID);
+        assertThat(result.lessonTitle()).isEqualTo("Lektion 5");
+
+        ArgumentCaptor<ClassLessonLog> captor = ArgumentCaptor.forClass(ClassLessonLog.class);
+        verify(lessonLogRepository).save(captor.capture());
+        assertThat(captor.getValue().getLessonId()).isEqualTo(LESSON_ID);
     }
 
     // ── updateLog ─────────────────────────────────────────────────────────────
@@ -156,7 +200,7 @@ class LessonLogServiceTest {
 
         CreateLessonLogRequest req = new CreateLessonLogRequest(
                 LocalDate.of(2026, 6, 10), 2, "Lektion 4 updated", null, null,
-                List.of(new CreateLessonLogRequest.AttendanceInput(STUDENT_ID, "ABSENT", null)));
+                List.of(new CreateLessonLogRequest.AttendanceInput(STUDENT_ID, "ABSENT", null)), null);
         when(userRepository.findAllById(List.of(STUDENT_ID))).thenReturn(List.of(
                 buildUser(STUDENT_ID, "Test", "t@test.com")));
 
@@ -173,7 +217,7 @@ class LessonLogServiceTest {
         when(lessonLogRepository.findById(LOG_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.updateLog(TEACHER_ID, CLASS_ID, LOG_ID,
-                new CreateLessonLogRequest(LocalDate.now(), null, null, null, null, null)))
+                new CreateLessonLogRequest(LocalDate.now(), null, null, null, null, null, null)))
                 .isInstanceOf(NotFoundException.class);
     }
 
@@ -185,7 +229,7 @@ class LessonLogServiceTest {
         when(lessonLogRepository.findById(LOG_ID)).thenReturn(Optional.of(logOtherClass));
 
         assertThatThrownBy(() -> service.updateLog(TEACHER_ID, CLASS_ID, LOG_ID,
-                new CreateLessonLogRequest(LocalDate.now(), null, null, null, null, null)))
+                new CreateLessonLogRequest(LocalDate.now(), null, null, null, null, null, null)))
                 .isInstanceOf(ForbiddenException.class);
     }
 
@@ -234,6 +278,10 @@ class LessonLogServiceTest {
         log.setId(id);
         log.setCreatedAt(LocalDateTime.now());
         return log;
+    }
+
+    private static ClassLesson buildLesson(Long id, Long classId, String title) {
+        return ClassLesson.builder().id(id).classId(classId).orderIndex(0).title(title).build();
     }
 
     private static ClassAttendance buildAttendance(Long logId, Long studentId, String status) {

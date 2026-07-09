@@ -9,9 +9,11 @@ import { format } from 'date-fns'
 import { apiMessage } from '@/lib/api'
 import {
   fetchClassDetail, fetchClassAssignments, fetchClassLessons,
+  fetchClassCompetency, setCompetency,
   type ClassroomDetail, type StudentAssignment, type ClassLesson,
+  type StudentCompetency, type CompetencyStatus,
 } from '@/lib/studentClassesApi'
-import { parseKnowledgePoints } from '@/lib/knowledgePoints'
+import { resolvePointTexts } from '@/lib/knowledgePoints'
 import { GaPageHdr, GaBtn, GaCap, TkStatStrip } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -48,6 +50,9 @@ export default function V2ClassStudentPage() {
   const [cls, setCls] = useState<ClassroomDetail | null>(null)
   const [tasks, setTasks] = useState<StudentAssignment[]>([])
   const [lessons, setLessons] = useState<ClassLesson[]>([])
+  const [competencyMap, setCompetencyMap] = useState<Record<number, CompetencyStatus>>({})
+  const [competencySourceMap, setCompetencySourceMap] = useState<Record<number, string>>({})
+  const [savingCanDo, setSavingCanDo] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -59,12 +64,22 @@ export default function V2ClassStudentPage() {
       return
     }
     try {
-      const [d, a, l] = await Promise.all([
+      const [d, a, l, comp] = await Promise.all([
         fetchClassDetail(classId),
         fetchClassAssignments(classId).catch(() => [] as StudentAssignment[]),
         fetchClassLessons(classId).catch(() => [] as ClassLesson[]),
+        fetchClassCompetency(classId).catch(() => [] as StudentCompetency[]),
       ])
-      setCls(d); setTasks(a); setLessons(l); setError('')
+      setCls(d); setTasks(a); setLessons(l)
+      const cmap: Record<number, CompetencyStatus> = {}
+      const smap: Record<number, string> = {}
+      for (const c of comp) {
+        cmap[c.canDoStatementId] = c.status
+        if (c.source) smap[c.canDoStatementId] = c.source
+      }
+      setCompetencyMap(cmap)
+      setCompetencySourceMap(smap)
+      setError('')
     } catch (e: unknown) {
       setError(apiMessage(e))
     } finally {
@@ -76,6 +91,36 @@ export default function V2ClassStudentPage() {
 
   const lessonPct = cls && cls.lessonTotal > 0 ? Math.round((cls.lessonCompleted / cls.lessonTotal) * 100) : 0
   const doneLessons = useMemo(() => lessons.filter((l) => l.completed).length, [lessons])
+
+  // Competency (Selbstevaluation) aggregate across all the class's can-dos.
+  const canDoStats = useMemo(() => {
+    let total = 0
+    let mastered = 0
+    for (const l of lessons) {
+      for (const c of l.canDoStatements ?? []) {
+        total++
+        if (c.id != null && competencyMap[c.id] === 'MASTERED') mastered++
+      }
+    }
+    return { total, mastered }
+  }, [lessons, competencyMap])
+
+  const onSetCompetency = async (canDoId: number, status: CompetencyStatus): Promise<void> => {
+    const prev = competencyMap[canDoId] ?? 'NOT_STARTED'
+    const prevSource = competencySourceMap[canDoId]
+    setCompetencyMap((m) => ({ ...m, [canDoId]: status })) // optimistic
+    setCompetencySourceMap((m) => ({ ...m, [canDoId]: 'SELF' })) // a manual change is now self-reported
+    setSavingCanDo(canDoId)
+    try {
+      await setCompetency(classId, canDoId, status)
+    } catch (e: unknown) {
+      setCompetencyMap((m) => ({ ...m, [canDoId]: prev })) // rollback
+      setCompetencySourceMap((m) => ({ ...m, [canDoId]: prevSource ?? '' }))
+      toast.error(apiMessage(e))
+    } finally {
+      setSavingCanDo(null)
+    }
+  }
   const teacherLine = cls
     ? t('teacherLine', { teacher: cls.teachers[0]?.displayName ?? '—', code: cls.inviteCode, count: cls.studentCount })
     : ''
@@ -214,9 +259,14 @@ export default function V2ClassStudentPage() {
           ) : (
             <>
               <GaCap className="mb-4 block">{t('lessonPathCap', { done: doneLessons, total: lessons.length })}</GaCap>
+              {canDoStats.total > 0 && (
+                <div className="mb-4 text-[13px] font-medium" style={{ color: 'var(--ga-violet)' }}>
+                  {t('competency.summary', { mastered: canDoStats.mastered, total: canDoStats.total })}
+                </div>
+              )}
               <div className="border border-ga-line bg-ga-card">
                 {lessons.map((l, i) => {
-                  const points = parseKnowledgePoints(l.description)
+                  const points = resolvePointTexts(l.knowledgePoints, l.description)
                   return (
                     <div key={l.id} className="flex items-start gap-3.5 px-5 py-3.5" style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
                       <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full text-[12px] font-bold" style={l.completed ? { background: 'var(--ga-green-soft)', color: 'var(--ga-green)' } : { background: 'var(--ga-side-active)', color: 'var(--ga-muted)' }}>
@@ -232,6 +282,38 @@ export default function V2ClassStudentPage() {
                                 <span className="min-w-0 break-words">{p}</span>
                               </li>
                             ))}
+                          </ul>
+                        )}
+                        {l.canDoStatements && l.canDoStatements.length > 0 && (
+                          <ul className="mt-1 flex flex-col gap-1.5">
+                            {l.canDoStatements.map((c) => {
+                              const st: CompetencyStatus = c.id != null ? (competencyMap[c.id] ?? 'NOT_STARTED') : 'NOT_STARTED'
+                              const mastered = st === 'MASTERED'
+                              return (
+                                <li key={c.id ?? c.orderIndex} className="flex items-start gap-2 text-[12.5px] leading-[1.5]">
+                                  <span className="mt-[2px] shrink-0" style={{ color: mastered ? 'var(--ga-green)' : 'var(--ga-violet)' }}>✓</span>
+                                  <span className="min-w-0 flex-1 break-words" style={{ color: 'var(--ga-violet)' }}>
+                                    {c.text}
+                                    {c.id != null && competencySourceMap[c.id] === 'GRADING' && (
+                                      <span className="ga-ui ml-1.5 rounded-ga px-1 text-[9px] font-bold uppercase text-ga-subtle" style={{ background: 'var(--ga-side-active)' }}>{t('competency.autoHint')}</span>
+                                    )}
+                                  </span>
+                                  {c.id != null && (
+                                    <select
+                                      aria-label={t('competency.label')}
+                                      value={st}
+                                      disabled={savingCanDo === c.id}
+                                      onChange={(e) => onSetCompetency(c.id as number, e.target.value as CompetencyStatus)}
+                                      className="shrink-0 rounded-ga border border-ga-line bg-ga-bg px-1.5 py-0.5 text-[11px] text-ga-ink outline-none focus:border-ga-accent disabled:opacity-50"
+                                    >
+                                      <option value="NOT_STARTED">{t('competency.notStarted')}</option>
+                                      <option value="IN_PROGRESS">{t('competency.inProgress')}</option>
+                                      <option value="MASTERED">{t('competency.mastered')}</option>
+                                    </select>
+                                  )}
+                                </li>
+                              )
+                            })}
                           </ul>
                         )}
                       </div>

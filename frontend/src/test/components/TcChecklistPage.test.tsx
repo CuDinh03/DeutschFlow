@@ -1,5 +1,5 @@
 /**
- * Tests for the teacher "Lịch sử giảng dạy" page (tc-checklist/page.tsx).
+ * Tests for the teacher "Nội dung giảng dạy" page (tc-checklist/page.tsx).
  *
  * A lesson now carries a title + a list of knowledge points ("kiến thức cần
  * học"), stored newline-separated in ClassLesson.description. We mock next-intl
@@ -7,7 +7,7 @@
  * router, toast and the tcShared plumbing so the page runs in jsdom.
  */
 import React from 'react'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import Page from '@/app/v2/teacher/tc-checklist/page'
@@ -94,13 +94,13 @@ async function renderPage() {
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
-describe('Lịch sử giảng dạy — lessons with knowledge points', () => {
+describe('Nội dung giảng dạy — lessons with knowledge points', () => {
   it('renders the renamed page title', async () => {
     await renderPage()
     expect(screen.getByRole('heading', { name: 'title' })).toBeInTheDocument()
   })
 
-  it('creates a lesson with a title and its knowledge points joined into description', async () => {
+  it('creates a lesson with a title and structured knowledge points', async () => {
     const user = userEvent.setup()
     createLesson.mockResolvedValue(lesson())
     await renderPage()
@@ -116,11 +116,72 @@ describe('Lịch sử giảng dạy — lessons with knowledge points', () => {
     await user.click(screen.getByRole('button', { name: 'addLesson' }))
 
     await waitFor(() => expect(createLesson).toHaveBeenCalledTimes(1))
-    expect(createLesson).toHaveBeenCalledWith(1, {
+    expect(createLesson).toHaveBeenCalledWith(1, expect.objectContaining({
       title: 'Bài 2 — Gia đình',
-      description: 'Từ vựng gia đình\nSở hữu cách',
-    })
+      knowledgePoints: [
+        { text: 'Từ vựng gia đình', skillTag: null, contentTag: null },
+        { text: 'Sở hữu cách', skillTag: null, contentTag: null },
+      ],
+    }))
     expect(toastSuccess).toHaveBeenCalled()
+  })
+
+  it('includes the skill/content tag chosen per knowledge point', async () => {
+    const user = userEvent.setup()
+    createLesson.mockResolvedValue(lesson())
+    await renderPage()
+
+    await user.type(screen.getByPlaceholderText('newLessonPlaceholder'), 'Bài 3')
+    await user.type(screen.getAllByPlaceholderText('knowledgePlaceholder')[0], 'Perfekt')
+    await user.selectOptions(screen.getByRole('combobox', { name: 'skillTagLabel' }), 'SCHREIBEN')
+    await user.selectOptions(screen.getByRole('combobox', { name: 'contentTagLabel' }), 'GRAMMATIK')
+
+    await user.click(screen.getByRole('button', { name: 'addLesson' }))
+
+    await waitFor(() => expect(createLesson).toHaveBeenCalledTimes(1))
+    expect(createLesson).toHaveBeenCalledWith(1, expect.objectContaining({
+      knowledgePoints: [{ text: 'Perfekt', skillTag: 'SCHREIBEN', contentTag: 'GRAMMATIK' }],
+    }))
+  })
+
+  it('creates a lesson with CEFR level, planned date and estimated units', async () => {
+    const user = userEvent.setup()
+    createLesson.mockResolvedValue(lesson())
+    await renderPage()
+
+    await user.type(screen.getByPlaceholderText('newLessonPlaceholder'), 'Lektion 1')
+    await user.selectOptions(screen.getByRole('combobox', { name: 'cefrLabel' }), 'A1')
+    const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement
+    fireEvent.change(dateInput, { target: { value: '2026-07-20' } })
+    await user.type(screen.getByPlaceholderText('estimatedUnitsPlaceholder'), '3')
+
+    await user.click(screen.getByRole('button', { name: 'addLesson' }))
+
+    await waitFor(() => expect(createLesson).toHaveBeenCalledTimes(1))
+    expect(createLesson).toHaveBeenCalledWith(1, expect.objectContaining({
+      title: 'Lektion 1',
+      cefrLevel: 'A1',
+      plannedDate: '2026-07-20',
+      estimatedUnits: 3,
+    }))
+  })
+
+  it('sends a clear flag when a previously-set CEFR level is emptied on edit', async () => {
+    const user = userEvent.setup()
+    const withCefr = lesson({ cefrLevel: 'A1' })
+    listLessons.mockResolvedValue([withCefr])
+    updateLesson.mockResolvedValue(withCefr)
+    await renderPage()
+
+    await waitFor(() => expect(screen.getByText('Bài 1')).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: 'edit' }))
+
+    // the edit form's CEFR select is the one seeded to 'A1' (the add form's is empty)
+    await user.selectOptions(screen.getByDisplayValue('A1'), '')
+    await user.click(screen.getByRole('button', { name: 'save' }))
+
+    await waitFor(() => expect(updateLesson).toHaveBeenCalledTimes(1))
+    expect(updateLesson).toHaveBeenCalledWith(1, 10, expect.objectContaining({ clearCefrLevel: true }))
   })
 
   it('shows existing lessons with their knowledge points as a nested list', async () => {
@@ -151,7 +212,7 @@ describe('Lịch sử giảng dạy — lessons with knowledge points', () => {
     expect(updateLesson).toHaveBeenCalledWith(1, 10, { title: 'Bài 1 (mới)' })
   })
 
-  it('re-saves description only when the knowledge points change', async () => {
+  it('re-sends knowledgePoints only when the points change', async () => {
     const user = userEvent.setup()
     listLessons.mockResolvedValue([lesson()])
     updateLesson.mockResolvedValue(lesson())
@@ -168,7 +229,10 @@ describe('Lịch sử giảng dạy — lessons with knowledge points', () => {
     await waitFor(() => expect(updateLesson).toHaveBeenCalledTimes(1))
     expect(updateLesson).toHaveBeenCalledWith(1, 10, {
       title: 'Bài 1',
-      description: 'Chào hỏi\nGiới thiệu (sửa)',
+      knowledgePoints: [
+        { text: 'Chào hỏi', skillTag: null, contentTag: null },
+        { text: 'Giới thiệu (sửa)', skillTag: null, contentTag: null },
+      ],
     })
   })
 

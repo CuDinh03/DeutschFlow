@@ -40,6 +40,17 @@ describe('resolveNotificationRoute', () => {
     })
   })
 
+  it('routes a class-channel message to the class chat with the class name', () => {
+    expect(resolveNotificationRoute('CLASS_CHANNEL_MESSAGE', { classId: 7, className: 'A2', senderName: 'An' })).toEqual({
+      pathname: '/(student)/class-chat/[classId]',
+      params: { classId: '7', className: 'A2' },
+    })
+  })
+
+  it('does not route a class-channel message that is missing its classId', () => {
+    expect(resolveNotificationRoute('CLASS_CHANNEL_MESSAGE', { senderName: 'An' })).toBeNull()
+  })
+
   it('routes a new message to the sender thread', () => {
     expect(resolveNotificationRoute('NEW_MESSAGE', { senderId: 42, senderName: 'Cô Lan' })).toEqual({
       pathname: '/(student)/messages/[userId]',

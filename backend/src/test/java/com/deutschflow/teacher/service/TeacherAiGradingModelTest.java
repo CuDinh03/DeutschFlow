@@ -43,6 +43,7 @@ class TeacherAiGradingModelTest {
     @Mock GradingModelConfig gradingModelConfig;
     @Mock UserNotificationService userNotificationService;
     @Mock OrgPoolGuard orgPoolGuard;
+    @Mock StudentCompetencyService studentCompetencyService;
 
     private AiSpeakingMessage userMsg(String text) {
         return AiSpeakingMessage.builder()
@@ -71,7 +72,7 @@ class TeacherAiGradingModelTest {
         new TeacherAiGradingService(
                 sessionRepository, messageRepository, openAiChatClient,
                 studentAssignmentRepository, aiUsageLedgerService, gradingModelConfig,
-                userNotificationService, orgPoolGuard)
+                userNotificationService, orgPoolGuard, studentCompetencyService)
                 .autoGradeSession(sessionId);
 
         ArgumentCaptor<String> model = ArgumentCaptor.forClass(String.class);

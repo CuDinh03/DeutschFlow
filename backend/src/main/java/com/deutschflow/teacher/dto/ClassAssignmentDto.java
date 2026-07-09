@@ -11,5 +11,6 @@ public record ClassAssignmentDto(
         Long referenceId,
         LocalDateTime dueDate,
         LocalDateTime createdAt,
-        String attachmentUrl
+        String attachmentUrl,
+        Long lessonId
 ) {}

@@ -44,6 +44,19 @@ describe('resolveNotificationHref', () => {
     expect(resolveNotificationHref(notif('NEW_MESSAGE', {}), 'student')).toBe('/v2/student/messages')
   })
 
+  it('routes a class-channel message to its class in the viewer’s own area', () => {
+    expect(resolveNotificationHref(notif('CLASS_CHANNEL_MESSAGE', { classId: 9, senderName: 'An' }), 'student')).toBe(
+      '/v2/student/classes/9',
+    )
+    expect(resolveNotificationHref(notif('CLASS_CHANNEL_MESSAGE', { classId: 9 }), 'teacher')).toBe(
+      '/v2/teacher/classes/9',
+    )
+  })
+
+  it('falls back to the class list when a class-channel message lacks a class id', () => {
+    expect(resolveNotificationHref(notif('CLASS_CHANNEL_MESSAGE', {}), 'student')).toBe('/v2/student/classes')
+  })
+
   it('routes teacher submission events to the per-student grading page', () => {
     expect(resolveNotificationHref(notif('QUIZ_SUBMISSION_RECEIVED', { classId: 2, studentId: 7 }), 'teacher')).toBe(
       '/v2/teacher/classes/2/students/7',
