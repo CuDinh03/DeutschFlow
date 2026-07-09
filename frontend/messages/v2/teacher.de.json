@@ -162,8 +162,10 @@
         "gradebook": "Notenbuch",
         "skills": "4-Fertigkeiten-Bewertung",
         "attendance": "Protokoll & Anwesenheit",
+        "competency": "Kompetenz",
         "evaluation": "Bewertungen"
       },
+      "competency": { "empty": "Noch keine Kompetenzziele — füge Kann-Beschreibungen im Bereich Lehrinhalte hinzu.", "enrolledLabel": "{count} Lernende", "ungrouped": "Nicht gruppiert", "masteredCount": "{mastered}/{total} beherrscht", "legendMastered": "Beherrscht", "legendInProgress": "Am Lernen", "legendNotStarted": "Nicht begonnen" },
       "skillLabels": {
         "horen": "Hören",
         "lesen": "Lesen",

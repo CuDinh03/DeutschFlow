@@ -8,12 +8,14 @@ import { getGradebook, getSkillReport, type Gradebook, type SkillReport } from '
 import { listLessonLogs, type ClassLessonLog } from '@/lib/teacherLessonLogApi'
 import { listLessons, type ClassLesson } from '@/lib/teacherLessonsApi'
 import { listEvaluations, type StudentEvaluation } from '@/lib/teacherEvaluationApi'
+import { getClassCompetency, type ClassCompetency } from '@/lib/teacherCompetencyApi'
 import { GaPageHdr, GaBtn, TkTabs, TkTabsList, TkTabsTrigger, TkTabsContent } from '@/components/ui-v2'
 import { ClassPicker, useTeacherClasses } from '../tcShared'
 import { GradebookTab } from './GradebookTab'
 import { SkillReportTab } from './SkillReportTab'
 import { AttendanceTab } from './AttendanceTab'
 import { EvaluationTab } from './EvaluationTab'
+import { CompetencyTab } from './CompetencyTab'
 
 // Per-class report suite (Phase 0.3/0.4): ports the four v1 `/teacher/reports` tabs
 // (gradebook, skill report, attendance/lesson-log, evaluation) onto the Galerie v2
@@ -27,6 +29,7 @@ const SECTION_TAB_KEY: Record<string, string> = {
   skills: 'tabs.skills',
   attendance: 'tabs.attendance',
   evaluation: 'tabs.evaluation',
+  competency: 'tabs.competency',
 }
 
 export default function V2TcReportsPage() {
@@ -39,6 +42,7 @@ export default function V2TcReportsPage() {
   const [lessonLogs, setLessonLogs] = useState<ClassLessonLog[]>([])
   const [lessons, setLessons] = useState<ClassLesson[]>([])
   const [evaluations, setEvaluations] = useState<StudentEvaluation[]>([])
+  const [competency, setCompetency] = useState<ClassCompetency | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [failedSections, setFailedSections] = useState<string[]>([])
@@ -51,7 +55,7 @@ export default function V2TcReportsPage() {
     setLoading(true)
     setError('')
     setFailedSections([])
-    // The first four feed the four tabs and drive the degradation banner; listLessons is
+    // The first five feed the five tabs and drive the degradation banner; listLessons is
     // supplemental (it only populates the attendance lesson-picker), so it is fetched
     // alongside but excluded from the section-failure accounting below.
     const results = await Promise.allSettled([
@@ -59,17 +63,19 @@ export default function V2TcReportsPage() {
       getSkillReport(cid),
       listLessonLogs(cid),
       listEvaluations(cid),
+      getClassCompetency(cid),
       listLessons(cid),
     ])
     if (seq !== loadSeq.current) return // a newer class-switch superseded this load
 
-    const [gbR, srR, logsR, evalsR, lessonsR] = results
-    const sectionResults = [gbR, srR, logsR, evalsR]
+    const [gbR, srR, logsR, evalsR, compR, lessonsR] = results
+    const sectionResults = [gbR, srR, logsR, evalsR, compR]
     const failed: string[] = []
     if (gbR.status === 'rejected') failed.push('gradebook')
     if (srR.status === 'rejected') failed.push('skills')
     if (logsR.status === 'rejected') failed.push('attendance')
     if (evalsR.status === 'rejected') failed.push('evaluation')
+    if (compR.status === 'rejected') failed.push('competency')
 
     if (failed.length === sectionResults.length) {
       const firstRejected = sectionResults.find((r) => r.status === 'rejected') as PromiseRejectedResult | undefined
@@ -82,6 +88,7 @@ export default function V2TcReportsPage() {
     setSkillReport(srR.status === 'fulfilled' ? srR.value : null)
     setLessonLogs(logsR.status === 'fulfilled' ? logsR.value : [])
     setEvaluations(evalsR.status === 'fulfilled' ? evalsR.value : [])
+    setCompetency(compR.status === 'fulfilled' ? compR.value : null)
     setLessons(lessonsR.status === 'fulfilled' ? lessonsR.value : [])
     setFailedSections(failed)
     setLoading(false)
@@ -153,6 +160,7 @@ export default function V2TcReportsPage() {
                 <TkTabsTrigger value="gradebook">{t('tabs.gradebook')}</TkTabsTrigger>
                 <TkTabsTrigger value="skills">{t('tabs.skills')}</TkTabsTrigger>
                 <TkTabsTrigger value="attendance">{t('tabs.attendance')}</TkTabsTrigger>
+                <TkTabsTrigger value="competency">{t('tabs.competency')}</TkTabsTrigger>
                 <TkTabsTrigger value="evaluation">{t('tabs.evaluation')}</TkTabsTrigger>
               </TkTabsList>
 
@@ -171,6 +179,9 @@ export default function V2TcReportsPage() {
                   lessons={lessons}
                   classDisplayName={classDisplayName}
                 />
+              </TkTabsContent>
+              <TkTabsContent value="competency">
+                <CompetencyTab competency={competency} />
               </TkTabsContent>
               <TkTabsContent value="evaluation">
                 <EvaluationTab

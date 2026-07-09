@@ -18,6 +18,7 @@ const createLessonLog = vi.fn()
 const updateLessonLog = vi.fn()
 const deleteLessonLog = vi.fn()
 const listLessons = vi.fn()
+const getClassCompetency = vi.fn()
 const listEvaluations = vi.fn()
 const saveEvaluation = vi.fn()
 
@@ -43,6 +44,10 @@ vi.mock('@/lib/teacherLessonLogApi', () => ({
 
 vi.mock('@/lib/teacherLessonsApi', () => ({
   listLessons: (...a: unknown[]) => listLessons(...a),
+}))
+
+vi.mock('@/lib/teacherCompetencyApi', () => ({
+  getClassCompetency: (...a: unknown[]) => getClassCompetency(...a),
 }))
 
 vi.mock('@/lib/teacherEvaluationApi', () => ({
@@ -112,6 +117,7 @@ beforeEach(() => {
   getSkillReport.mockResolvedValue(skillReportFixture)
   listLessonLogs.mockResolvedValue([lessonLogFixture])
   listLessons.mockResolvedValue([])
+  getClassCompetency.mockResolvedValue({ enrolledCount: 0, items: [] })
   listEvaluations.mockResolvedValue([evaluationFixture])
 })
 

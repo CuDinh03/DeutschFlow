@@ -162,8 +162,10 @@
         "gradebook": "Gradebook",
         "skills": "4-Skill Scores",
         "attendance": "Log & Attendance",
+        "competency": "Competency",
         "evaluation": "Evaluations"
       },
+      "competency": { "empty": "No competency goals yet — add can-dos in the Teaching Content screen.", "enrolledLabel": "{count} students", "ungrouped": "Ungrouped", "masteredCount": "{mastered}/{total} mastered", "legendMastered": "Mastered", "legendInProgress": "Learning", "legendNotStarted": "Not started" },
       "skillLabels": {
         "horen": "Listening (Hören)",
         "lesen": "Reading (Lesen)",

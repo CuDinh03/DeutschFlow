@@ -162,8 +162,10 @@
         "gradebook": "Sổ điểm",
         "skills": "Điểm 4 kỹ năng",
         "attendance": "Nhật ký & Điểm danh",
+        "competency": "Năng lực",
         "evaluation": "Phiếu đánh giá"
       },
+      "competency": { "empty": "Chưa có mục tiêu năng lực nào — thêm can-do trong màn Nội dung giảng dạy.", "enrolledLabel": "{count} học viên", "ungrouped": "Chưa phân nhóm", "masteredCount": "{mastered}/{total} thành thạo", "legendMastered": "Thành thạo", "legendInProgress": "Đang học", "legendNotStarted": "Chưa bắt đầu" },
       "skillLabels": {
         "horen": "Nghe (Hören)",
         "lesen": "Đọc (Lesen)",
