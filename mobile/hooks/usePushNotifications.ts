@@ -37,7 +37,7 @@ async function ensureNotificationPermission(): Promise<boolean> {
 
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('default', {
-      name: 'DeutschFlow',
+      name: 'MyDeutschFlow',
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#F5C842',

@@ -214,7 +214,7 @@ export default function RegisterScreen() {
                   >
                     Chính sách bảo mật
                   </ThemedText>{' '}
-                  của DeutschFlow.
+                  của MyDeutschFlow.
                 </ThemedText>
               </Pressable>
 
