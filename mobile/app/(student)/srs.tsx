@@ -22,11 +22,38 @@ import type { ThemeColors } from '@/lib/theme'
 
 interface DueCard {
   id: string
+  vocabId: string
   word: string
   translation: string
   exampleSentence?: string
   gender?: 'der' | 'die' | 'das'
   cefrLevel?: string
+}
+
+// Backend VocabReviewCard (record): german/meaning/exampleDe — NOT word/translation/exampleSentence.
+// Casting the response straight to DueCard rendered cards with blank text.
+interface RawDueCard {
+  id: number
+  vocabId: string
+  german: string
+  meaning: string | null
+  exampleDe?: string
+  speakDe?: string
+  gender?: string
+  cefrLevel?: string
+}
+
+function mapCard(r: RawDueCard): DueCard {
+  const g = r.gender === 'der' || r.gender === 'die' || r.gender === 'das' ? r.gender : undefined
+  return {
+    id: String(r.id),
+    vocabId: r.vocabId,
+    word: r.german,
+    translation: r.meaning ?? '',
+    exampleSentence: r.exampleDe,
+    gender: g,
+    cefrLevel: r.cefrLevel,
+  }
 }
 
 const SWIPE_THRESHOLD = 80
@@ -41,7 +68,9 @@ export default function SrsScreen() {
 
   const { data: cards = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['srs-due'],
-    queryFn: () => api.get<DueCard[]>('/srs/due?limit=20').then((r) => r.data),
+    // The server ignores a `limit` query param (it caps server-side); map the raw record
+    // shape into the display shape so the German word/meaning actually render.
+    queryFn: () => api.get<RawDueCard[]>('/srs/due').then((r) => r.data.map(mapCard)),
   })
 
   const currentCard = cards[currentIndex]
@@ -87,7 +116,9 @@ export default function SrsScreen() {
   const submitReview = useCallback(
     (quality: number) => {
       if (!currentCard) return
-      reviewMutation.mutate({ vocabId: currentCard.id, quality })
+      // Review is keyed by the vocab string id ("sg01_01"), NOT the schedule row PK — sending
+      // the PK made the backend throw "Vocab not found in SRS schedule" on every swipe.
+      reviewMutation.mutate({ vocabId: currentCard.vocabId, quality })
       advance()
     },
     [currentCard, reviewMutation, advance],

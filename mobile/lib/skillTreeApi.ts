@@ -91,6 +91,7 @@ export interface SkillExerciseItem {
   translation_vi?: string
   sentence_de?: string // SPEAKING_REPEAT
   question_de?: string // SPEAKING_RESPONSE
+  prompt?: string // defensive: some authored Sprechen items carry the German prompt here
   expected_answer?: string
   focus_sounds?: string[]
   grading_keywords?: string[]

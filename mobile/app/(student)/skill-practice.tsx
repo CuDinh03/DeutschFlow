@@ -606,7 +606,10 @@ function SpeakingInput({
   onAnswer: (v: SkillAnswer) => void
 }) {
   const c = useTheme().colors
-  const model = item.sentence_de ?? item.question_de ?? ''
+  // Defensive: fall back to `prompt` if the German model sentence is authored under that key
+  // (the card header already renders instruction_vi/question_vi, so a broken item is never
+  // answer-only). gloss stays the Vietnamese translation of the model line.
+  const model = item.sentence_de ?? item.question_de ?? item.prompt ?? ''
   const gloss = item.sentence_vi ?? item.question_vi ?? ''
   const done = value === 'spoken'
 
@@ -736,7 +739,7 @@ function SpeakingInput({
           {gloss}
         </ThemedText>
       ) : null}
-      {item.expected_answer ? (
+      {submitted && item.expected_answer ? (
         <ThemedText variant="caption" color="faint">
           Gợi ý: {item.expected_answer}
         </ThemedText>

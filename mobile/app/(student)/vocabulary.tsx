@@ -80,7 +80,9 @@ export default function VocabularyScreen() {
       const params = new URLSearchParams({ page: '0', size: '30' })
       if (debouncedSearch) params.set('q', debouncedSearch)
       if (statusFilter !== 'ALL') params.set('status', statusFilter.toLowerCase())
-      return api.get<{ content: RawWord[] }>(`/words?${params}`).then((r) => (r.data.content ?? []).map(mapWord))
+      // Backend WordListResponse wraps the list in `items` (not `content`) — reading the wrong
+      // key silently yielded an empty list on every load.
+      return api.get<{ items: RawWord[] }>(`/words?${params}`).then((r) => (r.data.items ?? []).map(mapWord))
     },
     staleTime: 30_000,
   })
