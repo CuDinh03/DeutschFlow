@@ -29,9 +29,22 @@ const SUPPORT_EMAIL = 'dinhhuycu0305@gmail.com'
 // ────────────────────────────────────────────────────────────────────────────
 
 const FILES = [
-  { md: 'PRIVACY_POLICY.md', out: 'privacy.ts', constName: 'PRIVACY_MD' },
+  // `multilang`: the markdown is split on `<!--LANG:xx-->` markers into a { en, vi, de }
+  // object so the page can offer a language switcher; otherwise it is emitted as one string.
+  { md: 'PRIVACY_POLICY.md', out: 'privacy.ts', constName: 'PRIVACY', multilang: true },
   { md: 'TERMS_OF_USE.md', out: 'terms.ts', constName: 'TERMS_MD' },
 ]
+
+// Split a filled multilingual markdown into { en, vi, de }. Content before the first
+// marker (authoring notes) is discarded. Order/casing of markers is irrelevant.
+function splitLangs(filled) {
+  const parts = filled.split(/<!--\s*LANG:(EN|VI|DE)\s*-->/i)
+  const map = {}
+  for (let i = 1; i < parts.length; i += 2) {
+    map[parts[i].toLowerCase()] = parts[i + 1].trim()
+  }
+  return map
+}
 
 function fill(md) {
   return md
@@ -57,9 +70,21 @@ for (const f of FILES) {
     `// edit the markdown template or the constants in gen-legal.mjs and re-run the script.\n` +
     `// Data-controller identity is currently the interim '${LEGAL_NAME_EN}' — replace with the\n` +
     `// registered legal name (Apple seller / tax) in gen-legal.mjs before App Store submission.\n`
-  fs.writeFileSync(
-    path.join(OUT_DIR, f.out),
-    `${banner}export const ${f.constName} = ${JSON.stringify(filled)};\n`,
-  )
-  console.log(`✓ ${f.out}: ${filled.length} chars`)
+  if (f.multilang) {
+    const langs = splitLangs(filled)
+    const found = Object.keys(langs)
+    if (found.length === 0) console.warn(`⚠️  ${f.out}: no <!--LANG:xx--> markers found`)
+    fs.writeFileSync(
+      path.join(OUT_DIR, f.out),
+      `${banner}export type LegalLang = 'vi' | 'en' | 'de';\n` +
+        `export const ${f.constName}: Record<LegalLang, string> = ${JSON.stringify(langs)};\n`,
+    )
+    console.log(`✓ ${f.out}: ${found.join(', ')} (${filled.length} chars)`)
+  } else {
+    fs.writeFileSync(
+      path.join(OUT_DIR, f.out),
+      `${banner}export const ${f.constName} = ${JSON.stringify(filled)};\n`,
+    )
+    console.log(`✓ ${f.out}: ${filled.length} chars`)
+  }
 }
