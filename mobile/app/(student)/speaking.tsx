@@ -24,6 +24,7 @@ import Animated, {
   cancelAnimation,
 } from 'react-native-reanimated'
 import { handleAiError } from '@/lib/upsell'
+import { ensureAiConsent } from '@/lib/aiConsent'
 import {
   speakingApi,
   type SpeakingSessionMode,
@@ -241,6 +242,9 @@ export default function SpeakingScreen() {
   }
 
   async function startSession(args: StartArgs) {
+    // 5.1.1(i): the whole conversation (voice + typed text) is processed by a third-party
+    // AI (Groq/OpenAI) — disclose & get consent before the session ever starts.
+    if (!(await ensureAiConsent())) return
     setStarting(true)
     trackFeatureAction('ai_speaking', 'started', { mode: args.sessionMode })
     try {
@@ -282,6 +286,9 @@ export default function SpeakingScreen() {
   async function submitAnswer(text: string) {
     const trimmed = text.trim()
     if (!trimmed || !session || sending) return
+    // 5.1.1(i): a resumed session can run after consent was revoked in Profile — re-check before
+    // sending typed text to the third-party AI. Instant no-op when consent is already granted.
+    if (!(await ensureAiConsent())) return
     setDraft('')
     setMessages((prev) => [...prev, { role: 'user', content: trimmed }])
     setSending(true)
@@ -342,6 +349,8 @@ export default function SpeakingScreen() {
       Alert.alert('Tính năng nâng cao', 'Trả lời bằng giọng nói cần tài khoản nâng cao. Bạn vẫn có thể gõ câu trả lời.')
       return
     }
+    // 5.1.1(i): the recording is transcribed by a third-party AI — disclose & get consent first.
+    if (!(await ensureAiConsent())) return
     try {
       // Honour the permission result. The previous code discarded `status`, so a hard
       // denial fell through to a generic catch-all error with no way for the user to

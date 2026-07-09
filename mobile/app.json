@@ -29,7 +29,7 @@
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": false
         },
-        "NSMicrophoneUsageDescription": "DeutschFlow cần microphone để luyện phát âm tiếng Đức."
+        "NSMicrophoneUsageDescription": "MyDeutschFlow cần microphone để luyện phát âm và nộp bài nói. Bản ghi âm được gửi tới máy chủ của chúng tôi và đối tác AI (Groq, OpenAI) để nhận dạng giọng nói và chấm bài."
       },
       "privacyManifests": {
         "NSPrivacyTracking": false,
@@ -116,14 +116,14 @@
       [
         "expo-audio",
         {
-          "microphonePermission": "DeutschFlow cần microphone để luyện phát âm tiếng Đức và ghi âm nộp bài tập."
+          "microphonePermission": "MyDeutschFlow cần microphone để luyện phát âm và nộp bài nói. Bản ghi âm được gửi tới máy chủ của chúng tôi và đối tác AI (Groq, OpenAI) để nhận dạng giọng nói và chấm bài."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "DeutschFlow cần truy cập ảnh để bạn nộp bài tập bằng hình ảnh.",
-          "cameraPermission": "DeutschFlow cần máy ảnh để bạn chụp và nộp bài tập viết tay."
+          "photosPermission": "MyDeutschFlow cần truy cập ảnh để bạn nộp bài tập bằng hình ảnh. Ảnh bài làm được gửi tới máy chủ của chúng tôi và đối tác AI (Google Gemini) để đọc chữ và chấm bài.",
+          "cameraPermission": "MyDeutschFlow cần máy ảnh để bạn chụp và nộp bài tập viết tay. Ảnh bài làm được gửi tới máy chủ của chúng tôi và đối tác AI (Google Gemini) để đọc chữ và chấm bài."
         }
       ],
       "expo-asset",

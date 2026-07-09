@@ -22,6 +22,7 @@ import { router, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import { Check, X, Trophy, Volume2, Mic, Square } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
+import { ensureAiConsent } from '@/lib/aiConsent'
 import { trackFeatureAction } from '@/lib/analytics'
 import { fonts, radius, space, useTheme } from '@/lib/theme'
 import {
@@ -667,6 +668,8 @@ function SpeakingInput({
 
   async function startRecording() {
     if (submitted || recording || preparing) return
+    // 5.1.1(i): the recording is transcribed by a third-party AI — disclose & get consent first.
+    if (!(await ensureAiConsent())) return
     try {
       const { status, canAskAgain } = await AudioModule.requestRecordingPermissionsAsync()
       if (status !== 'granted') {

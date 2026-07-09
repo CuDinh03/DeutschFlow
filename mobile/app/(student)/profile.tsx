@@ -1,13 +1,15 @@
 import { View, Alert, Pressable } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router, type Href } from 'expo-router'
-import { LogOut, Star, Bell, Globe, BarChart3, User, ChevronRight, Trash2, HelpCircle, Presentation, ShieldCheck } from 'lucide-react-native'
+import { LogOut, Star, Bell, Globe, BarChart3, User, ChevronRight, Trash2, HelpCircle, Presentation, ShieldCheck, FileText, Lock, Sparkles } from 'lucide-react-native'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
 import api, { apiMessage } from '@/lib/api'
 import { PAYWALL_ENABLED, PRO_UNLOCKED_FREE } from '@/lib/paywall'
 import { gamificationApi } from '@/lib/gamificationApi'
 import { radius, space, useTheme } from '@/lib/theme'
+import { openPrivacyPolicy, openTermsOfUse } from '@/lib/legal'
+import { getAiConsent, resetAiConsent, setAiConsent } from '@/lib/aiConsent'
 import { Screen, Card, ThemedText, Icon, Pill, ListRow, Caption, FadeIn } from '@/components/ui'
 
 export default function ProfileScreen() {
@@ -28,6 +30,29 @@ export default function ProfileScreen() {
       .join('')
       .slice(0, 2)
       .toUpperCase() ?? '?'
+
+  async function manageAiConsent() {
+    const status = await getAiConsent()
+    const label = status === 'granted' ? 'Đang bật' : status === 'denied' ? 'Đang tắt' : 'Chưa quyết định'
+    Alert.alert(
+      'Dữ liệu & tính năng AI',
+      `Trạng thái hiện tại: ${label}.\n\nKhi bật, bản ghi âm, ảnh bài viết và nội dung hội thoại của bạn được gửi tới đối tác AI (Groq, OpenAI, Google Gemini) để nhận dạng giọng nói, chấm và phản hồi bài. Không dùng cho quảng cáo.`,
+      [
+        { text: 'Đóng', style: 'cancel' },
+        status === 'granted'
+          ? {
+              text: 'Tắt chia sẻ với AI',
+              style: 'destructive',
+              onPress: () => void resetAiConsent(),
+            }
+          : {
+              text: 'Bật tính năng AI',
+              onPress: () => void setAiConsent(true),
+            },
+        { text: 'Xem Chính sách bảo mật', onPress: openPrivacyPolicy },
+      ],
+    )
+  }
 
   function confirmLogout() {
     Alert.alert('Đăng xuất', 'Bạn có chắc muốn đăng xuất?', [
@@ -178,6 +203,24 @@ export default function ProfileScreen() {
               subtitle="Lớp đang tham gia, bài tập, tiến độ"
               onPress={() => router.push('/(student)/classes' as never)}
             />
+          </Card>
+        </View>
+
+        {/* Legal & privacy — App Review 5.1.1(i): the privacy policy (naming our AI sub-processors)
+            and the AI data-sharing choice must be reachable from inside the app. */}
+        <View style={{ gap: space[3] }}>
+          <Caption>Quyền riêng tư & pháp lý</Caption>
+          <Card padded={false} style={{ paddingHorizontal: space[4] }}>
+            <ListRow
+              icon={Sparkles}
+              title="Dữ liệu & tính năng AI"
+              subtitle="Xem hoặc thay đổi lựa chọn chia sẻ dữ liệu với đối tác AI"
+              onPress={manageAiConsent}
+            />
+            <Divider />
+            <ListRow icon={Lock} title="Chính sách bảo mật" onPress={openPrivacyPolicy} />
+            <Divider />
+            <ListRow icon={FileText} title="Điều khoản sử dụng" onPress={openTermsOfUse} />
           </Card>
         </View>
 

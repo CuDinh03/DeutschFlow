@@ -17,6 +17,7 @@ import {
   Paperclip, Square, Upload, X,
 } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
+import { ensureAiConsent } from '@/lib/aiConsent'
 import {
   fetchAssignmentDetail, submitAssignment, uploadAssignmentFile,
   MAX_UPLOAD_BYTES, type StudentAssignment, type UploadFile,
@@ -125,7 +126,13 @@ export default function AssignmentDetail() {
               file={file}
               setFile={setFile}
               loading={submitMut.isPending}
-              onSubmit={() => submitMut.mutate()}
+              onSubmit={async () => {
+                // 5.1.1(i): typed-text and document submissions have no capture-time consent gate,
+                // and a prior grant may have been revoked — confirm before the submission is sent to
+                // third-party AI grading. Instant no-op when consent is already granted.
+                if (!(await ensureAiConsent())) return
+                submitMut.mutate()
+              }}
             />
           )}
           {!pending && <SubmissionView assignment={a} />}
@@ -312,6 +319,8 @@ function AttachmentPicker({
   const tooBig = (size?: number) => size != null && size > MAX_UPLOAD_BYTES
 
   async function pickImage(fromCamera: boolean) {
+    // 5.1.1(i): submitted photos are OCR'd/graded by a third-party AI — disclose & get consent first.
+    if (!(await ensureAiConsent())) return
     const perm = fromCamera
       ? await ImagePicker.requestCameraPermissionsAsync()
       : await ImagePicker.requestMediaLibraryPermissionsAsync()
@@ -333,6 +342,8 @@ function AttachmentPicker({
   }
 
   async function pickDocument() {
+    // 5.1.1(i): submitted documents are OCR'd/graded by a third-party AI — disclose & get consent first.
+    if (!(await ensureAiConsent())) return
     const result = await DocumentPicker.getDocumentAsync({
       type: [
         'application/pdf',
@@ -347,6 +358,8 @@ function AttachmentPicker({
   }
 
   async function startRecording() {
+    // 5.1.1(i): the recording is transcribed/graded by a third-party AI — disclose & get consent first.
+    if (!(await ensureAiConsent())) return
     const perm = await requestRecordingPermissionsAsync()
     if (!perm.granted) {
       Alert.alert('Cần quyền micro', 'Hãy cho phép truy cập micro để ghi âm.')

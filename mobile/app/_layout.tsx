@@ -34,6 +34,7 @@ import { initCertPinning } from '@/lib/certPinning'
 import { initDeviceIntegrity } from '@/lib/deviceIntegrity'
 import { ThemeProvider, useTheme } from '@/lib/theme'
 import { SplashAnimated } from '@/components/SplashAnimated'
+import { AiConsentHost } from '@/components/AiConsentSheet'
 import { PostHogProvider } from 'posthog-react-native'
 import { posthog, setSubscriptionTier } from '@/lib/analytics'
 
@@ -213,6 +214,8 @@ function RootLayout() {
             ) : (
               <RootStack />
             )}
+            {/* AI data-sharing consent sheet (5.1.1(i)) — presented on demand via ensureAiConsent(). */}
+            <AiConsentHost />
           </QueryClientProvider>
         </ThemeProvider>
       </SafeAreaProvider>

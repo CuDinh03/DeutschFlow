@@ -10,6 +10,7 @@ import { usePlanStore } from '@/stores/usePlanStore'
 import { setTokens } from '@/lib/auth'
 import { captureEvent } from '@/lib/analytics'
 import { passwordStrength } from '@/lib/passwordStrength'
+import { openPrivacyPolicy, openTermsOfUse } from '@/lib/legal'
 import { motion, radius, space, useTheme } from '@/lib/theme'
 import { Screen, ThemedText, TextField, Button, Icon } from '@/components/ui'
 
@@ -193,8 +194,27 @@ export default function RegisterScreen() {
                   {agree ? <Icon icon={Check} size={15} color="accent" /> : null}
                 </View>
                 <ThemedText variant="caption" color="secondary" style={{ flex: 1, lineHeight: 18 }}>
-                  Tôi đồng ý với <ThemedText variant="caption" color="primary">Điều khoản sử dụng</ThemedText> và{' '}
-                  <ThemedText variant="caption" color="primary">Chính sách bảo mật</ThemedText> của DeutschFlow.
+                  Tôi đồng ý với{' '}
+                  <ThemedText
+                    variant="caption"
+                    color="primary"
+                    style={{ textDecorationLine: 'underline' }}
+                    onPress={openTermsOfUse}
+                    accessibilityRole="link"
+                  >
+                    Điều khoản sử dụng
+                  </ThemedText>{' '}
+                  và{' '}
+                  <ThemedText
+                    variant="caption"
+                    color="primary"
+                    style={{ textDecorationLine: 'underline' }}
+                    onPress={openPrivacyPolicy}
+                    accessibilityRole="link"
+                  >
+                    Chính sách bảo mật
+                  </ThemedText>{' '}
+                  của DeutschFlow.
                 </ThemedText>
               </Pressable>
 

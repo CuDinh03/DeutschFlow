@@ -6,6 +6,7 @@ import { useAudioRecorder, AudioModule, RecordingPresets, setAudioModeAsync } fr
 import * as Haptics from 'expo-haptics'
 import { Flame, Lock, Mic, Square, RotateCcw, ChevronRight } from 'lucide-react-native'
 import api, { apiMessage } from '@/lib/api'
+import { ensureAiConsent } from '@/lib/aiConsent'
 import { speakingApi } from '@/lib/speakingApi'
 import { weeklyApi, rubricScore } from '@/lib/weeklyApi'
 import { radius, space, useTheme } from '@/lib/theme'
@@ -190,6 +191,8 @@ function WeeklyRecorder({ promptId, cefrBand }: { promptId: number; cefrBand: st
   }, [recorder])
 
   async function start() {
+    // 5.1.1(i): the recording is transcribed by a third-party AI — disclose & get consent first.
+    if (!(await ensureAiConsent())) return
     try {
       // Honour the permission result; route hard denial to Settings (iOS won't re-prompt).
       const { status, canAskAgain } = await AudioModule.requestRecordingPermissionsAsync()
