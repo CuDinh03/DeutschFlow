@@ -5,13 +5,17 @@ import com.deutschflow.speaking.ai.AiErrorSanitizer;
 import com.deutschflow.speaking.ai.AiParseOutcome;
 import com.deutschflow.speaking.ai.AiResponseDto;
 import com.deutschflow.speaking.ai.AiResponseParser;
+import com.deutschflow.speaking.ai.ErrorItem;
 import com.deutschflow.speaking.ai.GroqChatClient;
 import com.deutschflow.speaking.ai.OpenAiChatClient;
+import com.deutschflow.speaking.contract.SpeakingResponseSchema;
 import com.deutschflow.speaking.contract.SpeakingSessionMode;
 import com.deutschflow.speaking.interview.InterviewSpeechSanitizer;
 import com.deutschflow.speaking.interview.InterviewTurnPlan;
 import com.deutschflow.speaking.metrics.SpeakingMetrics;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 /**
  * AI-completion execution + response-parsing core extracted from {@code AiSpeakingServiceImpl}.
@@ -78,14 +82,27 @@ public class ChatCompletionService {
 
     public AiResponseDto applyInterviewPostProcessing(AiResponseDto parsedRaw, String userMessage,
                                                       AiSpeakingServiceImpl.SpeakingChatPrep prep) {
+        // Sanitize the structured errors against the CURRENT user message (drops stale/hallucinated
+        // spans), then reconcile the free-text correction triple with the result: the mobile UI shows
+        // correction/explanationVi/grammarPoint but never errors[], so an ungrounded correction (one
+        // with no surviving sanitized error) is exactly the stale echo we must suppress — otherwise it
+        // renders a wrong "Nên nói" card AND poisons the grammar-error ledger downstream.
+        //
+        // V1-ONLY: the V2 contract repurposes explanationVi as the AI-speech translation and never
+        // emits errors[], so applying the grounding gate there would blank out the translation on every
+        // turn. Scope the suppression to V1, where the triple genuinely means a grammar correction.
+        List<ErrorItem> sanitizedErrors = AiErrorSanitizer.sanitize(userMessage, parsedRaw.errors());
+        boolean dropUngroundedCorrection =
+                prep.responseSchema() == SpeakingResponseSchema.V1
+                        && !AiErrorSanitizer.keepCorrection(sanitizedErrors);
         AiResponseDto base = new AiResponseDto(
                 parsedRaw.aiSpeechDe(),
-                parsedRaw.correction(),
-                parsedRaw.explanationVi(),
-                parsedRaw.grammarPoint(),
+                dropUngroundedCorrection ? null : parsedRaw.correction(),
+                dropUngroundedCorrection ? null : parsedRaw.explanationVi(),
+                dropUngroundedCorrection ? null : parsedRaw.grammarPoint(),
                 parsedRaw.newWord(),
                 parsedRaw.userInterestDetected(),
-                AiErrorSanitizer.sanitize(userMessage, parsedRaw.errors()),
+                sanitizedErrors,
                 parsedRaw.status(),
                 parsedRaw.similarityScore(),
                 parsedRaw.feedback(),

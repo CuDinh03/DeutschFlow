@@ -7,6 +7,7 @@ import com.deutschflow.speaking.ai.AiResponseDto;
 import com.deutschflow.speaking.ai.GroqChatClient;
 import com.deutschflow.speaking.ai.OpenAiChatClient;
 import com.deutschflow.speaking.ai.AiResponseParser;
+import com.deutschflow.speaking.ai.ErrorItem;
 import com.deutschflow.speaking.contract.SpeakingResponseSchema;
 import com.deutschflow.speaking.contract.SpeakingSessionMode;
 import com.deutschflow.speaking.interview.InterviewDirectiveType;
@@ -256,6 +257,80 @@ class ChatCompletionServiceUnitTest {
         assertThat(result.aiSpeechDe()).isEqualTo("Bereinigter Text.");
         verify(interviewSpeechSanitizer).sanitize(eq("Rohtext der Antwort."), any(InterviewTurnPlan.class), eq(2));
         verify(interviewSpeechSanitizer, never()).composeFromMeta(any(), any(), any(), anyInt());
+    }
+
+    // ---------------------------------------------------------------------
+    // applyInterviewPostProcessing — correction ↔ errors[] reconciliation
+    // ---------------------------------------------------------------------
+
+    @Test
+    @DisplayName("applyInterviewPostProcessing nulls the correction triple when the only error is a stale span not in the current message")
+    void applyInterviewPostProcessing_ungroundedCorrection_isSuppressed() {
+        // Screenshot bug: model echoes an earlier "ich hatten" error onto an unrelated turn.
+        AiResponseDto raw = new AiResponseDto(
+                "Ach, Minor Projects! Welches Projekt?",
+                "Ich hatte",                       // correction (mobile-visible)
+                "nhầm lỗi động từ haben",           // explanation_vi
+                "HABEN",                            // grammar_point (pill)
+                null, null,
+                List.of(new ErrorItem("VERB.CONJ_PERSON_ENDING", "MAJOR", 0.9,
+                        "ich hatten", "ich hatte", "rule", "ex")),
+                "ON_TOPIC", null, null, List.of(), null, null);
+
+        AiResponseDto result = service.applyInterviewPostProcessing(
+                raw, "Minor Projects ist so difficult",
+                prep(SpeakingSessionMode.COMMUNICATION, SpeakingResponseSchema.V1, null));
+
+        // Stale span dropped from errors[] → whole correction triple suppressed.
+        assertThat(result.errors()).isEmpty();
+        assertThat(result.correction()).isNull();
+        assertThat(result.explanationVi()).isNull();
+        assertThat(result.grammarPoint()).isNull();
+        // Conversation reply itself is untouched.
+        assertThat(result.aiSpeechDe()).isEqualTo("Ach, Minor Projects! Welches Projekt?");
+    }
+
+    @Test
+    @DisplayName("applyInterviewPostProcessing keeps the correction triple when a grounded error survives sanitation")
+    void applyInterviewPostProcessing_groundedCorrection_isKept() {
+        AiResponseDto raw = new AiResponseDto(
+                "Ach, Stress! Was hat dich gestresst?",
+                "Ich hatte Stress.",
+                "Sai lỗi động từ haben: 'ich hatten' → 'Ich hatte'",
+                "HABEN",
+                null, null,
+                List.of(new ErrorItem("VERB.CONJ_PERSON_ENDING", "MAJOR", 0.9,
+                        "hatten", "hatte", "rule", "ex")),
+                "ON_TOPIC", null, null, List.of(), null, null);
+
+        AiResponseDto result = service.applyInterviewPostProcessing(
+                raw, "Ich hatten Stress.",
+                prep(SpeakingSessionMode.COMMUNICATION, SpeakingResponseSchema.V1, null));
+
+        assertThat(result.errors()).hasSize(1);
+        assertThat(result.correction()).isEqualTo("Ich hatte Stress.");
+        assertThat(result.grammarPoint()).isEqualTo("HABEN");
+    }
+
+    @Test
+    @DisplayName("applyInterviewPostProcessing preserves the V2 translation (explanationVi) even though V2 always has empty errors[]")
+    void applyInterviewPostProcessing_v2Translation_isPreserved() {
+        // V2 parser maps `translation` → explanationVi and never emits errors[]. The grounding gate is
+        // V1-only, so the translation must survive here (regression guard for the web V2 bubble).
+        AiResponseDto raw = new AiResponseDto(
+                "Hallo! Wie geht's dir heute?",
+                null,                               // correction (null in V2)
+                "Xin chào! Hôm nay bạn thế nào?",   // explanationVi == translation in V2
+                null,                               // grammarPoint (null in V2)
+                null, null,
+                List.of(),                          // V2 always empty
+                "ON_TOPIC", null, "gut gemacht", List.of(), "Erzähl mir mehr.", null);
+
+        AiResponseDto result = service.applyInterviewPostProcessing(
+                raw, "Hi", prep(SpeakingSessionMode.COMMUNICATION, SpeakingResponseSchema.V2, null));
+
+        assertThat(result.explanationVi()).isEqualTo("Xin chào! Hôm nay bạn thế nào?");
+        assertThat(result.aiSpeechDe()).isEqualTo("Hallo! Wie geht's dir heute?");
     }
 
     // anyDouble helper for static-import readability

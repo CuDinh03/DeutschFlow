@@ -54,5 +54,38 @@ class AiErrorSanitizerTest {
         );
         assertThat(AiErrorSanitizer.sanitize(user, raw)).isEmpty();
     }
+
+    @Test
+    void keepCorrection_falseWhenNoGroundedErrorSurvives() {
+        // Reproduces the screenshot bug: the model echoes an earlier turn's "ich hatte" error onto a
+        // turn where the user typed something unrelated. The span is not in the current message, so
+        // sanitize() drops it → the free-text correction must be suppressed too.
+        String user = "Minor Projects ist so difficult";
+        List<ErrorItem> raw = List.of(
+                new ErrorItem("VERB.CONJ_PERSON_ENDING", "MAJOR", 0.9,
+                        "ich hatten", "ich hatte", "rule", "ex")
+        );
+        List<ErrorItem> sanitized = AiErrorSanitizer.sanitize(user, raw);
+        assertThat(sanitized).isEmpty();
+        assertThat(AiErrorSanitizer.keepCorrection(sanitized)).isFalse();
+    }
+
+    @Test
+    void keepCorrection_trueWhenGroundedErrorSurvives() {
+        String user = "Ich hatten Stress.";
+        List<ErrorItem> raw = List.of(
+                new ErrorItem("VERB.CONJ_PERSON_ENDING", "MAJOR", 0.9,
+                        "hatten", "hatte", "rule", "ex")
+        );
+        List<ErrorItem> sanitized = AiErrorSanitizer.sanitize(user, raw);
+        assertThat(sanitized).hasSize(1);
+        assertThat(AiErrorSanitizer.keepCorrection(sanitized)).isTrue();
+    }
+
+    @Test
+    void keepCorrection_falseWhenListNullOrEmpty() {
+        assertThat(AiErrorSanitizer.keepCorrection(null)).isFalse();
+        assertThat(AiErrorSanitizer.keepCorrection(List.of())).isFalse();
+    }
 }
 
