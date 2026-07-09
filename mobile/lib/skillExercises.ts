@@ -50,6 +50,21 @@ export const isSpeaking = (t: string): boolean => t.startsWith('SPEAKING') || t 
 export const isTextType = (t: string): boolean =>
   ['LISTEN_AND_FILL', 'DICTATION', 'READ_AND_FILL', 'TRANSLATE_VI_DE', 'FILL_GRAMMAR'].includes(t)
 
+/**
+ * The prompt the card HEADER hides. The runner header shows `instruction_vi ?? question_vi ??
+ * statement_de`, so when an item has BOTH an instruction and a real prompt — the question
+ * (READ_AND_CHOOSE / LISTEN_AND_CHOOSE → question_vi) or the statement to judge (READ_TRUE_FALSE
+ * → statement_de) — only the instruction shows and the actual question is dropped (card looks
+ * "answer-only"). This returns the dropped prompt so the runner can render it explicitly.
+ * Returns undefined for speaking items (SpeakingInput renders its own model/gloss) and when there
+ * is no instruction (the header already shows the question).
+ */
+export function hiddenPromptOf(item: SkillExerciseItem): string | undefined {
+  if (isSpeaking(item.type)) return undefined
+  if (!item.instruction_vi) return undefined
+  return item.question_vi ?? item.statement_de ?? undefined
+}
+
 /** The answer a runner stores per item: option index (choice), a typed/joined string, or undefined. */
 export type SkillAnswer = number | string | undefined
 

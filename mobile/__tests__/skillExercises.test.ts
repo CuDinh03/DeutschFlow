@@ -8,6 +8,7 @@ import {
   isChoiceType,
   isTextType,
   isSpeaking,
+  hiddenPromptOf,
 } from '@/lib/skillExercises'
 import type { SkillExercises, SkillExerciseItem } from '@/lib/skillTreeApi'
 
@@ -104,5 +105,31 @@ describe('skillExercises helpers', () => {
   test('buildSkillAnswers omits skills with no items', () => {
     const body = buildSkillAnswers({ HOEREN: [{ type: 'DICTATION', correct_answer: 'x' }], SPRECHEN: [] }, {})
     expect(Object.keys(body)).toEqual(['HOEREN'])
+  })
+
+  test('hiddenPromptOf surfaces the question/statement the instruction header hides', () => {
+    // READ_AND_CHOOSE: instruction shown in header → the real question must be surfaced
+    expect(
+      hiddenPromptOf({ type: 'READ_AND_CHOOSE', instruction_vi: 'Đọc và chọn', question_vi: 'Anna thích làm gì?' }),
+    ).toBe('Anna thích làm gì?')
+    // READ_TRUE_FALSE: the German statement to judge must be surfaced
+    expect(
+      hiddenPromptOf({ type: 'READ_TRUE_FALSE', instruction_vi: 'Đúng/Sai', statement_de: 'Das Wetter ist schlecht.' }),
+    ).toBe('Das Wetter ist schlecht.')
+    // Hören choice item too
+    expect(
+      hiddenPromptOf({ type: 'LISTEN_AND_CHOOSE', instruction_vi: 'Nghe và chọn', question_vi: 'Bạn nghe gì?' }),
+    ).toBe('Bạn nghe gì?')
+  })
+
+  test('hiddenPromptOf returns undefined when there is nothing hidden', () => {
+    // Speaking items render their own model/gloss
+    expect(
+      hiddenPromptOf({ type: 'SPEAKING_RESPONSE', instruction_vi: 'Trả lời', question_de: 'Wie heißt du?', question_vi: 'Tên?' }),
+    ).toBeUndefined()
+    // No instruction → the header already shows the question, so nothing is hidden
+    expect(hiddenPromptOf({ type: 'READ_AND_CHOOSE', question_vi: 'Anna thích làm gì?' })).toBeUndefined()
+    // Text/fill items carry their prompt elsewhere (sentence_vi / sentence_with_blank), not question_vi/statement_de
+    expect(hiddenPromptOf({ type: 'TRANSLATE_VI_DE', instruction_vi: 'Dịch', sentence_vi: 'Tôi đọc sách.' })).toBeUndefined()
   })
 })

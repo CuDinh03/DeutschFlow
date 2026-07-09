@@ -51,6 +51,7 @@ import {
   isTrueFalse,
   isReorder,
   isSpeaking,
+  hiddenPromptOf,
   SKILL_LABEL,
   SKILL_EMOJI,
   type SkillKey,
@@ -284,6 +285,7 @@ function SkillItemCard({
   const c = useTheme().colors
   const ok = submitted && localIsCorrect(item, value)
   const speaking = isSpeaking(item.type)
+  const hiddenPrompt = hiddenPromptOf(item)
 
   return (
     <Card style={{ gap: space[3] }}>
@@ -299,6 +301,11 @@ function SkillItemCard({
           <Icon icon={ok ? Check : X} size={18} color={ok ? 'success' : 'danger'} />
         ) : null}
       </View>
+
+      {/* The header renders instruction_vi, which HIDES the real question/statement for
+          choice + true-false items (see hiddenPromptOf). Surface it so the card isn't
+          "only answers". */}
+      {hiddenPrompt ? <ThemedText variant="body">{hiddenPrompt}</ThemedText> : null}
 
       {isChoiceType(item.type) ? (
         <ChoiceInput item={item} value={value} submitted={submitted} onAnswer={onAnswer} />
