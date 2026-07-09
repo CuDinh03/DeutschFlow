@@ -3,12 +3,14 @@ import { Platform } from 'react-native'
 /**
  * Master switch for the StoreKit in-app purchase flow.
  *
- * Keep this FALSE until the purchase + restore flow has been verified on a real device with an App
- * Store sandbox tester. `expo-iap` adds a native module, so turning this on ships in a NEW EAS build
- * that must clear App Review — it cannot be delivered over OTA. Flipping the flag alone does nothing
- * without that build.
+ * v1.0(10): ON. App Review rejected 1.0(9) under 3.1.1 because web-purchased PRO (SePay) unlocked
+ * on iOS with no IAP path. Per 3.1.3(b), cross-platform PRO may keep unlocking on iOS ONLY while
+ * the same subscription is also purchasable via IAP — so this stays true from now on.
+ * Requires the 4 auto-renewable products (lib/iapProducts.ts) to be approved in App Store Connect,
+ * and a NEW EAS build (native module — not OTA-able). Verify purchase + restore with a sandbox
+ * tester before submitting.
  */
-export const IAP_ENABLED = false
+export const IAP_ENABLED = true
 
 /**
  * Whether to show in-app upgrade / paywall surfaces.

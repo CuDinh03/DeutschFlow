@@ -6,6 +6,7 @@ import { radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, AppHeader, Caption, YellowSquare, Button, Pill } from '@/components/ui'
 import { trackFeatureAction } from '@/lib/analytics'
 import { IAP_ENABLED, PAYWALL_ENABLED, PRO_UNLOCKED_FREE } from '@/lib/paywall'
+import { openPrivacyPolicy, openTermsOfUse } from '@/lib/legal'
 import { useAppleIap } from '@/hooks/useAppleIap'
 import { metaForProductId } from '@/lib/iapProducts'
 
@@ -182,6 +183,36 @@ function IapPaywall() {
             <ThemedText variant="caption" color="faint" align="center" style={{ marginTop: space[4] }}>
               Gói tự động gia hạn, huỷ bất cứ lúc nào trong Cài đặt App Store. Thanh toán qua tài khoản Apple của bạn.
             </ThemedText>
+
+            {/* 3.1.2: auto-renewable subscriptions must link to a functional Terms of Use (EULA)
+                and Privacy Policy inside the app. */}
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'center',
+                gap: space[4],
+                marginTop: space[3],
+              }}
+            >
+              <ThemedText
+                variant="caption"
+                color="accent"
+                onPress={openTermsOfUse}
+                accessibilityRole="link"
+                style={{ textDecorationLine: 'underline' }}
+              >
+                Điều khoản sử dụng
+              </ThemedText>
+              <ThemedText
+                variant="caption"
+                color="accent"
+                onPress={openPrivacyPolicy}
+                accessibilityRole="link"
+                style={{ textDecorationLine: 'underline' }}
+              >
+                Chính sách bảo mật
+              </ThemedText>
+            </View>
           </>
         )}
       </View>
