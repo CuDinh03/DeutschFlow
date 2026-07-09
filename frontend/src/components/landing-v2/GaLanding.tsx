@@ -22,6 +22,14 @@ const NAV_LINKS: [string, string][] = [
   ['Dành cho giáo viên', 'teachers'],
 ]
 
+// Footer legal/support links — [label, href]. Route to the standalone pages.
+const FOOTER_LINKS: [string, string][] = [
+  ['Về chúng tôi', '/about'],
+  ['Chính sách bảo mật', '/privacy'],
+  ['Điều khoản sử dụng', '/terms'],
+  ['Hỗ trợ', '/support'],
+]
+
 const PAINS = [
   { title: 'Warum wollen Sie bei uns arbeiten?', body: 'Câu hỏi này đơn giản nhưng hàng ngàn ứng viên Việt trả lời sai hoàn toàn — vì không hiểu văn hóa phỏng vấn Đức.' },
   { title: 'Phát âm rõ khi bình tĩnh, mất khi căng thẳng', body: 'Luyện một mình không ai sửa lỗi. Đến lúc phỏng vấn thật, áp lực khiến bạn phát âm sai những gì đã thuộc.' },
@@ -467,6 +475,25 @@ export function GaLanding() {
           </GaBtn>
         </div>
       </section>
+
+      {/* Site footer — brand + legal/support links */}
+      <footer className="border-t border-ga-border bg-ga-bg">
+        <div className="mx-auto flex max-w-[1240px] flex-col gap-6 px-[60px] py-12 md:flex-row md:items-center md:justify-between">
+          <GaLogo />
+          <nav aria-label="Liên kết pháp lý" className="flex flex-wrap items-center gap-x-7 gap-y-2">
+            {FOOTER_LINKS.map(([label, href]) => (
+              <Link
+                key={href}
+                href={href}
+                className="text-[14px] font-medium text-ga-muted transition-colors hover:text-ga-ink"
+              >
+                {label}
+              </Link>
+            ))}
+          </nav>
+          <p className="text-[12.5px] text-ga-faint">© {new Date().getFullYear()} myDeutschFlow</p>
+        </div>
+      </footer>
     </div>
   )
 }
