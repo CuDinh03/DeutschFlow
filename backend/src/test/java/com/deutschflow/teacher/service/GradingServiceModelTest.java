@@ -44,12 +44,14 @@ class GradingServiceModelTest {
     @Mock OpenAiChatClient openAiChatClient;
     @Mock AiUsageLedgerService aiUsageLedgerService;
     @Mock GradingModelConfig gradingModelConfig;
+    @Mock StudentCompetencyService studentCompetencyService;
 
     private GradingService gradingService() {
         return new GradingService(
                 studentAssignmentRepository, classAssignmentRepository, classStudentRepository,
                 classTeacherRepository, teacherClassRepository, userRepository,
-                userNotificationService, openAiChatClient, aiUsageLedgerService, gradingModelConfig);
+                userNotificationService, openAiChatClient, aiUsageLedgerService, gradingModelConfig,
+                studentCompetencyService);
     }
 
     @Test

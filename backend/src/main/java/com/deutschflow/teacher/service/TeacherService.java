@@ -63,6 +63,7 @@ public class TeacherService {
     private final AssignmentScenarioRepository assignmentScenarioRepository;
     private final S3StorageService s3StorageService;
     private final ClassLessonRepository lessonRepository;
+    private final StudentCompetencyService studentCompetencyService;
 
     @Transactional
     public TeacherClassDto createClass(Long teacherId, String name) {
@@ -727,7 +728,34 @@ public class TeacherService {
             req.teacherScore(), req.teacherFeedback()
         );
 
+        // Auto-update the competency ledger from the grade (Phase 2b) — fire only AFTER this grade tx
+        // commits, so a failed commit (e.g. the @Version optimistic-lock conflict this guards against)
+        // never leaves an orphan GRADING competency row. Best-effort: a ledger error never affects the grade.
+        final Long gradedStudentId = assignment.getStudentId();
+        final Long gradedAssignmentId = assignment.getAssignmentId();
+        final Integer gradedScore = req.teacherScore();
+        if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                    new org.springframework.transaction.support.TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() {
+                            applyCompetencyBestEffort(gradedStudentId, gradedAssignmentId, gradedScore);
+                        }
+                    });
+        } else {
+            applyCompetencyBestEffort(gradedStudentId, gradedAssignmentId, gradedScore);
+        }
+
         return result;
+    }
+
+    /** Best-effort competency-ledger update from a grade (Phase 2b): a ledger error never affects the grade. */
+    private void applyCompetencyBestEffort(Long studentId, Long assignmentId, Integer score) {
+        try {
+            studentCompetencyService.applyGradingResult(studentId, assignmentId, score);
+        } catch (Exception e) {
+            log.warn("[Competency] applyGradingResult failed for assignment {}: {}", assignmentId, e.toString());
+        }
     }
 
     private String generateInviteCode() {

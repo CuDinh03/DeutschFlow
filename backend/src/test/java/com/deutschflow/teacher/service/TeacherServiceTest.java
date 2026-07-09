@@ -102,6 +102,9 @@ class TeacherServiceTest {
     @Mock
     private com.deutschflow.teacher.repository.ClassLessonRepository lessonRepository;
 
+    @Mock
+    private StudentCompetencyService studentCompetencyService;
+
     private TeacherService teacherService;
 
     @BeforeEach
@@ -123,7 +126,8 @@ class TeacherServiceTest {
                 speakingAiHelpersService,
                 assignmentScenarioRepository,
                 s3StorageService,
-                lessonRepository
+                lessonRepository,
+                studentCompetencyService
         );
     }
 
