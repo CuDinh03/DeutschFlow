@@ -22,7 +22,10 @@ export const MessageBubble = memo(function MessageBubble({
   const { colors } = useTheme()
   const isUser = turn.role === 'user'
   const fb = turn.feedback
-  const hasFeedback = !isUser && fb && (fb.correction || (fb.suggestions?.length ?? 0) > 0)
+  // Correction belongs to what the LEARNER said → render under the user bubble.
+  // Suggestions answer the AI's latest question → render under the assistant bubble.
+  const showCorrection = isUser && !!fb?.correction
+  const suggestions = !isUser ? fb?.suggestions?.slice(0, 2) ?? [] : []
 
   const inner = (
     <View style={{ flex: isUser ? undefined : 1, alignItems: isUser ? 'flex-end' : 'flex-start', gap: space[2] }}>
@@ -46,40 +49,42 @@ export const MessageBubble = memo(function MessageBubble({
         )}
       </View>
 
-      {hasFeedback ? (
-        <View style={{ maxWidth: '92%', gap: space[2] }}>
-          {fb?.correction ? (
+      {showCorrection ? (
+        <View style={{ maxWidth: '92%' }}>
+          <View
+            style={{
+              backgroundColor: colors.successSoft,
+              borderRadius: radius.md,
+              borderLeftWidth: 3,
+              borderLeftColor: colors.success,
+              paddingHorizontal: space[3],
+              paddingVertical: space[3],
+              gap: space[2],
+            }}
+          >
             <View
-              style={{
-                backgroundColor: colors.successSoft,
-                borderRadius: radius.md,
-                borderLeftWidth: 3,
-                borderLeftColor: colors.success,
-                paddingHorizontal: space[3],
-                paddingVertical: space[3],
-                gap: space[2],
-              }}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space[2] }}
             >
-              <View
-                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space[2] }}
-              >
-                <ThemedText variant="label" color="success">
-                  ✍️ Nên nói
-                </ThemedText>
-                {fb.grammarPoint ? <Pill label={fb.grammarPoint} tone="success" /> : null}
-              </View>
-              <ThemedText variant="bodyStrong" color="primary">
-                {fb.correction}
+              <ThemedText variant="label" color="success">
+                ✍️ Nên nói
               </ThemedText>
-              {fb.explanationVi ? (
-                <ThemedText variant="caption" color="muted">
-                  {fb.explanationVi}
-                </ThemedText>
-              ) : null}
+              {fb?.grammarPoint ? <Pill label={fb.grammarPoint} tone="success" /> : null}
             </View>
-          ) : null}
+            <ThemedText variant="bodyStrong" color="primary">
+              {fb?.correction}
+            </ThemedText>
+            {fb?.explanationVi ? (
+              <ThemedText variant="caption" color="muted">
+                {fb.explanationVi}
+              </ThemedText>
+            ) : null}
+          </View>
+        </View>
+      ) : null}
 
-          {fb?.suggestions?.slice(0, 1).map((s, i) => (
+      {suggestions.length > 0 ? (
+        <View style={{ maxWidth: '92%', gap: space[2] }}>
+          {suggestions.map((s, i) => (
             <Pressable
               key={i}
               onPress={() => onUseSuggestion?.(s.germanText)}
