@@ -84,7 +84,7 @@ public class SrsService {
 
     // ─── Due cards ────────────────────────────────────────────────────────────
 
-    /** Returns up to 10 cards due for review today (both SM-2 and FSRS cards). */
+    /** Returns the full due queue for today (capped at 500; both SM-2 and FSRS cards). */
     @Transactional(readOnly = true)
     public List<VocabReviewCard> getDueCards(Long userId) {
         return repo.findDueCards(userId, OffsetDateTime.now())

@@ -21,6 +21,8 @@ public record WordListItem(
         WordNounDetails nounDetails,
         WordVerbDetails verbDetails,
         WordAdjectiveDetails adjectiveDetails,
-        String imageUrl
+        String imageUrl,
+        /** Per-user SRS state derived from vocab_review_schedule: NEW | LEARNING | MASTERED. */
+        String srsStatus
 ) {}
 

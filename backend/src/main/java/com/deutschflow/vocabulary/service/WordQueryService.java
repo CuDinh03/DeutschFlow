@@ -35,16 +35,21 @@ public class WordQueryService {
     private static final Set<String> ALLOWED_DTYPES = Set.of("Noun", "Verb", "Adjective", "Word");
     private static final Set<String> ALLOWED_GENDERS = Set.of("DER", "DIE", "DAS");
     private static final Set<String> ALLOWED_CEFR = Set.of("A1", "A2", "B1", "B2", "C1", "C2");
+    private static final Set<String> ALLOWED_SRS_STATUS = Set.of("NEW", "LEARNING", "MASTERED");
+    /** Canonical "mastered" boundary — interval >= 21d (matches VocabReviewRepository.countMastered). */
+    private static final int MASTERED_INTERVAL_DAYS = 21;
     /** Lowercase lemma only between slashes — not real IPA (from old backfill). */
     private static final Pattern PSEUDO_IPA_LEMMA = Pattern.compile("^/[a-zA-ZäöüÄÖÜß\\s\\-]+/$");
 
-    public WordListResponse listWords(String cefr,
+    public WordListResponse listWords(Long userId,
+                                     String cefr,
                                      String q,
                                      String topic,
                                      String focus,
                                      String tag,
                                      String dtype,
                                      String gender,
+                                     String status,
                                      String locale,
                                      int page,
                                      int size) {
@@ -57,6 +62,8 @@ public class WordQueryService {
         }
         String normalizedTag = (tag == null || tag.isBlank()) ? null : tag.trim();
         String normalizedGender = (gender == null || gender.isBlank()) ? null : gender.trim().toUpperCase(Locale.ROOT);
+        // Case-insensitive: the mobile chip sends lowercase (new/learning/mastered).
+        String normalizedStatus = (status == null || status.isBlank()) ? null : status.trim().toUpperCase(Locale.ROOT);
 
         if (normalizedDtype != null && !ALLOWED_DTYPES.contains(normalizedDtype)) {
             throw new BadRequestException("Invalid dtype");
@@ -67,9 +74,19 @@ public class WordQueryService {
         if (normalizedGender != null && !ALLOWED_GENDERS.contains(normalizedGender)) {
             throw new BadRequestException("Invalid gender");
         }
+        if (normalizedStatus != null && !ALLOWED_SRS_STATUS.contains(normalizedStatus)) {
+            throw new BadRequestException("Invalid status");
+        }
         if (page < 0) page = 0;
         if (size < 1) size = 20;
         if (size > 100) size = 100;
+
+        // A dictionary word is "in the user's SRS" iff a schedule row exists with vocab_id
+        // 'word_{id}' (see VocabularyService.markWordLearned) — an exact key, no text matching.
+        // -1 (no such user) makes every word resolve to NEW for an unexpected null principal.
+        long uid = userId != null ? userId : -1L;
+        String srsJoin = " LEFT JOIN vocab_review_schedule srs "
+                + " ON srs.vocab_id = ('word_' || w.id) AND srs.user_id = ? ";
 
         List<Object> filterParams = new ArrayList<>();
         StringBuilder where = new StringBuilder(" WHERE 1=1 ");
@@ -131,15 +148,30 @@ public class WordQueryService {
             filterParams.add(normalizedGender);
         }
 
+        // SRS status filter — resolves against the srs LEFT JOIN (no param, threshold is a constant).
+        if (normalizedStatus != null) {
+            switch (normalizedStatus) {
+                case "NEW" -> where.append(" AND srs.vocab_id IS NULL ");
+                case "LEARNING" -> where.append(
+                        " AND srs.vocab_id IS NOT NULL AND srs.interval_days < " + MASTERED_INTERVAL_DAYS + " ");
+                case "MASTERED" -> where.append(
+                        " AND srs.vocab_id IS NOT NULL AND srs.interval_days >= " + MASTERED_INTERVAL_DAYS + " ");
+                default -> { /* unreachable — validated above */ }
+            }
+        }
+
+        // Both the count and the page query carry the srs join so the status filter resolves
+        // and pagination/total stay consistent. The join's userId '?' is the FIRST bound param.
         long total = jdbcTemplate.queryForObject(
-                "SELECT COUNT(DISTINCT w.id) FROM words w LEFT JOIN nouns n ON n.id = w.id" + where,
-                filterParams.toArray(),
+                "SELECT COUNT(DISTINCT w.id) FROM words w LEFT JOIN nouns n ON n.id = w.id" + srsJoin + where,
+                prependUserId(uid, filterParams),
                 Long.class
         );
 
         int offset = page * size;
         List<Object> queryParams = new ArrayList<>();
-        queryParams.add(normalizedLocale);
+        queryParams.add(uid);              // srs join (first '?', placed before t_loc below)
+        queryParams.add(normalizedLocale); // t_loc locale
         queryParams.addAll(filterParams);
 
         String sql = """
@@ -157,8 +189,15 @@ public class WordQueryService {
                   t_de.example AS example_de,
                   t_en.example AS example_en,
                   n.gender,
-                  STRING_AGG(DISTINCT tg_all.name, '|' ORDER BY tg_all.name) AS tags
+                  STRING_AGG(DISTINCT tg_all.name, '|' ORDER BY tg_all.name) AS tags,
+                  CASE
+                    WHEN srs.vocab_id IS NULL THEN 'NEW'
+                    WHEN srs.interval_days >= 21 THEN 'MASTERED'
+                    ELSE 'LEARNING'
+                  END AS srs_status
                 FROM words w
+                LEFT JOIN vocab_review_schedule srs
+                  ON srs.vocab_id = ('word_' || w.id) AND srs.user_id = ?
                 LEFT JOIN word_translations t_loc
                   ON t_loc.word_id = w.id AND t_loc.locale = ?
                 LEFT JOIN word_translations t_de
@@ -175,7 +214,8 @@ public class WordQueryService {
                 GROUP BY
                   w.id, w.dtype, w.base_form, w.cefr_level, w.phonetic, w.usage_note, w.image_url,
                   t_loc.meaning, t_en.meaning, t_de.meaning,
-                  t_loc.example, t_en.example, t_de.example, n.gender
+                  t_loc.example, t_en.example, t_de.example, n.gender,
+                  srs.vocab_id, srs.interval_days
                 ORDER BY
                   CASE w.cefr_level
                     WHEN 'A1' THEN 1 WHEN 'A2' THEN 2 WHEN 'B1' THEN 3 WHEN 'B2' THEN 4 WHEN 'C1' THEN 5 WHEN 'C2' THEN 6
@@ -201,6 +241,7 @@ public class WordQueryService {
             String exampleEn = rs.getString("example_en");
             String nounGender = rs.getString("gender");
             String tagsRaw = rs.getString("tags");
+            String srsStatus = rs.getString("srs_status");
 
             String article = null;
             String genderColor = null;
@@ -247,7 +288,8 @@ public class WordQueryService {
                     nounDetails,
                     verbDetails,
                     adjectiveDetails,
-                    imageUrl
+                    imageUrl,
+                    srsStatus
             );
         });
 
@@ -266,6 +308,14 @@ public class WordQueryService {
             return null;
         }
         return tail.length() > 48 ? tail.substring(0, 48) : tail;
+    }
+
+    /** Prepends the srs-join userId param ahead of the shared filter params (count query). */
+    private static Object[] prependUserId(long userId, List<Object> filterParams) {
+        List<Object> params = new ArrayList<>(filterParams.size() + 1);
+        params.add(userId);
+        params.addAll(filterParams);
+        return params.toArray();
     }
 
     public WordCoverageResponse coverage() {

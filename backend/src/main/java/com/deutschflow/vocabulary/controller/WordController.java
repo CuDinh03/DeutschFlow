@@ -5,8 +5,10 @@ import com.deutschflow.vocabulary.dto.WordCoverageResponse;
 import com.deutschflow.vocabulary.dto.WordListResponse;
 import com.deutschflow.vocabulary.dto.WordTranslationCoverageHistoryResponse;
 import com.deutschflow.vocabulary.dto.WordTranslationCoverageResponse;
+import com.deutschflow.user.entity.User;
 import com.deutschflow.vocabulary.service.WordQueryService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -21,6 +23,7 @@ public class WordController {
 
     @GetMapping
     public WordListResponse list(
+            @AuthenticationPrincipal User user,
             @RequestParam(required = false) String cefr,
             @RequestParam(required = false) String q,
             @RequestParam(required = false) String topic,
@@ -28,11 +31,13 @@ public class WordController {
             @RequestParam(required = false) String tag,
             @RequestParam(required = false) String dtype,
             @RequestParam(required = false) String gender,
+            @RequestParam(required = false) String status,
             @RequestParam(required = false) String locale,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        return wordQueryService.listWords(cefr, q, topic, focus, tag, dtype, gender, locale, page, size);
+        Long userId = user != null ? user.getId() : null;
+        return wordQueryService.listWords(userId, cefr, q, topic, focus, tag, dtype, gender, status, locale, page, size);
     }
 
     @GetMapping("/coverage")

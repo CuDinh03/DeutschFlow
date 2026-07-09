@@ -15,13 +15,21 @@ public interface VocabReviewRepository extends JpaRepository<VocabReviewSchedule
 
     Optional<VocabReviewSchedule> findByUserIdAndVocabId(Long userId, String vocabId);
 
-    /** Cards due for review (next_review_at <= now), max 10 */
+    /**
+     * Cards due for review (next_review_at <= now).
+     *
+     * <p>Returns the WHOLE due queue (capped at 500 as a safety valve for accounts that have
+     * been away for a long time — 500 cards is already far more than one sitting). Previously
+     * this hard-capped at 10, which made the review screen show only 10 of e.g. 42 due cards
+     * and never matched the {@code /srs/count} badge. The count query below is uncapped, so
+     * the two now agree for any realistic backlog.
+     */
     @Query("""
         SELECT v FROM VocabReviewSchedule v
         WHERE v.userId = :userId
           AND v.nextReviewAt <= :now
         ORDER BY v.nextReviewAt ASC
-        LIMIT 10
+        LIMIT 500
     """)
     List<VocabReviewSchedule> findDueCards(@Param("userId") Long userId,
                                             @Param("now") OffsetDateTime now);

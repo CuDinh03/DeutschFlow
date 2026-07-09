@@ -27,7 +27,7 @@ import java.util.List;
  *
  * <h3>Endpoints:</h3>
  * <ul>
- *   <li>GET  /api/srs/due                — Cards due today (max 10)</li>
+ *   <li>GET  /api/srs/due                — Cards due today (whole queue, capped at 500)</li>
  *   <li>GET  /api/srs/count              — Count of due cards (for nav badge)</li>
  *   <li>GET  /api/srs/stats              — Summary stats</li>
  *   <li>POST /api/srs/schedule           — Schedule a single vocab item</li>
