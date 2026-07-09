@@ -20,6 +20,27 @@ public final class AiErrorSanitizer {
 
     private AiErrorSanitizer() {}
 
+    /**
+     * Reconcile the free-text correction triple ({@code correction} / {@code explanation_vi} /
+     * {@code grammar_point}) with the sanitized {@code errors[]} list.
+     *
+     * <p>The mobile UI renders the triple but never the structured {@code errors[]} array, so the
+     * free-text correction is the ONLY error signal the learner actually sees. The model frequently
+     * re-surfaces an EARLIER turn's error in this triple even when the current sentence has none — a
+     * stale echo pulled from the conversation history that is still in its context (e.g. correcting
+     * "ich hatten" on a turn where the user typed something unrelated). {@link #sanitize} already
+     * strips such ungrounded spans from {@code errors[]}, so an empty sanitized list means
+     * "no grounded error in THIS turn".
+     *
+     * <p>Rule: keep the correction triple only when at least one grounded error survived sanitation.
+     * Callers null out {@code correction}/{@code explanationVi}/{@code grammarPoint} when this returns
+     * false, which also keeps the grammar-error ledger clean (its legacy correction-based branch can
+     * no longer persist a hallucinated weak point).
+     */
+    public static boolean keepCorrection(List<ErrorItem> sanitizedErrors) {
+        return sanitizedErrors != null && !sanitizedErrors.isEmpty();
+    }
+
     public static List<ErrorItem> sanitize(String userMessage, List<ErrorItem> raw) {
         if (raw == null || raw.isEmpty()) return List.of();
         String msg = userMessage == null ? "" : userMessage;

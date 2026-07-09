@@ -51,6 +51,10 @@ public class GrammarPersistenceService {
                 saveStructuredGrammarError(userId, sessionId, assistantMessageId, userMessage, err, profile);
             }
         } else if (parsed.correction() != null && parsed.grammarPoint() != null) {
+            // Legacy fallback: only reached when the model emitted a correction but no structured error.
+            // ChatCompletionService.applyInterviewPostProcessing nulls the correction whenever the
+            // sanitized errors[] is empty, so a stale/hallucinated correction can no longer land here
+            // and poison the weak-point ledger — this branch now persists only grounded corrections.
             saveLegacyGrammarError(userId, sessionId, assistantMessageId,
                     parsed.grammarPoint(), userMessage, parsed.correction(), profile);
         }
