@@ -38,7 +38,7 @@ public class SystemPromptBuilder {
               "status": "OFF_TOPIC | ON_TOPIC_NEEDS_IMPROVEMENT | EXCELLENT",
               "similarity_score": 0.0,
               "feedback": "kurz, ermutigend, Vietnamesisch",
-              "correction": null oder korrigierter Satz",
+              "correction": null ODER korrigierte Fassung NUR der ALLERLETZTEN Nutzer-Nachricht — frühere Turns aus der History NIEMALS korrigieren; null, wenn die letzte Nachricht sprachlich korrekt ist",
               "explanation_vi": null oder kurz Vietnamesisch",
               "grammar_point": null oder Stichwort",
               "errors": [
