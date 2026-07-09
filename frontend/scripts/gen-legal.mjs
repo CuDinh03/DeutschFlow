@@ -32,7 +32,7 @@ const FILES = [
   // `multilang`: the markdown is split on `<!--LANG:xx-->` markers into a { en, vi, de }
   // object so the page can offer a language switcher; otherwise it is emitted as one string.
   { md: 'PRIVACY_POLICY.md', out: 'privacy.ts', constName: 'PRIVACY', multilang: true },
-  { md: 'TERMS_OF_USE.md', out: 'terms.ts', constName: 'TERMS_MD' },
+  { md: 'TERMS_OF_USE.md', out: 'terms.ts', constName: 'TERMS', multilang: true },
 ]
 
 // Split a filled multilingual markdown into { en, vi, de }. Content before the first

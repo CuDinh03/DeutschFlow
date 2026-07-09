@@ -1,12 +1,21 @@
 import type { Metadata } from 'next'
-import { LegalDoc } from '@/components/legal/LegalDoc'
-import { TERMS_MD } from '@/content/legal/terms'
+import '@/styles/galerie.css'
+import { LegalDocGa } from '@/components/legal/LegalDocGa'
+import { TERMS } from '@/content/legal/terms'
 
 export const metadata: Metadata = {
   title: 'Terms of Use · DeutschFlow',
-  description: 'DeutschFlow Terms of Use / Điều khoản sử dụng.',
+  description: 'DeutschFlow Terms of Use / Điều khoản sử dụng / Nutzungsbedingungen.',
 }
 
+/**
+ * /terms — the App Store Connect EULA URL. Rendered in the Galerie homepage
+ * theme (`.ga-scope`) with a VN/EN/DE language switcher (LegalDocGa), matching /privacy.
+ */
 export default function TermsPage() {
-  return <LegalDoc markdown={TERMS_MD} />
+  return (
+    <div className="ga-scope">
+      <LegalDocGa docs={TERMS} />
+    </div>
+  )
 }

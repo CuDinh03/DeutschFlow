@@ -226,7 +226,7 @@ Diese Seite ist unter [[https://your-domain/privacy]] veröffentlicht und ist di
 
 **Bundle-ID:** `com.cudinh.mydeutschflow`
 
-**Anbieter / Verantwortlicher:** [[Legal name]] („wir", „uns", „unser").
+**Anbieter / Verantwortlicher:** [[Legal name]] („wir“, „uns“, „unser“).
 
 **Kontakt:** [[support@your-domain]] · alternativ: dinhhuycu0305@gmail.com
 
@@ -295,7 +295,7 @@ Wir bewahren Ihre personenbezogenen Daten auf, solange Ihr Konto aktiv ist. **Si
 Je nach Wohnort haben Sie möglicherweise Rechte an Ihren personenbezogenen Daten:
 
 - **EU / EWR / UK (DSGVO / UK-GDPR):** Auskunft, Berichtigung, Löschung, Einschränkung, Datenübertragbarkeit, Widerspruch und das Recht, die Einwilligung zu widerrufen.
-- **Kalifornien (CCPA / CPRA):** Wissen, Zugang, Löschung, Berichtigung und Widerspruch gegen „Verkauf"/„Weitergabe" (wir verkaufen oder teilen keine personenbezogenen Daten im Sinne dieser Gesetze).
+- **Kalifornien (CCPA / CPRA):** Wissen, Zugang, Löschung, Berichtigung und Widerspruch gegen „Verkauf“/„Weitergabe“ (wir verkaufen oder teilen keine personenbezogenen Daten im Sinne dieser Gesetze).
 - **Vietnam (Dekret 13/2023/ND-CP zum Schutz personenbezogener Daten):** Zugang, Berichtigung, Löschung, Widerruf der Einwilligung und Widerspruch gegen die Verarbeitung.
 
 Die meisten dieser Rechte können Sie direkt in der App ausüben (Profil bearbeiten oder Konto löschen). Für alles Weitere kontaktieren Sie [[support@your-domain]]; wir antworten innerhalb der gesetzlich vorgeschriebenen Fristen. Sie haben zudem das Recht, sich bei Ihrer örtlichen Datenschutzbehörde zu beschweren.
@@ -314,7 +314,7 @@ Ihre Daten können in anderen Ländern als Ihrem Wohnsitzland verarbeitet werden
 
 ### 11. Änderungen dieser Erklärung
 
-Wir können diese Erklärung von Zeit zu Zeit aktualisieren. Wir aktualisieren das Datum „Zuletzt aktualisiert" oben und benachrichtigen Sie bei wesentlichen Änderungen in der App, bevor die Änderung wirksam wird.
+Wir können diese Erklärung von Zeit zu Zeit aktualisieren. Wir aktualisieren das Datum „Zuletzt aktualisiert“ oben und benachrichtigen Sie bei wesentlichen Änderungen in der App, bevor die Änderung wirksam wird.
 
 ### 12. Kontakt
 
