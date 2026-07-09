@@ -841,20 +841,3 @@
   /* Skill bar colors */
   .print-bar-fill { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 }
-
-/* Legal document rendering (privacy / terms) — no @tailwindcss/typography plugin, so scope styles here. */
-.legal-doc { color: #1f2937; line-height: 1.7; font-size: 15px; }
-.legal-doc h1 { font-size: 1.75rem; font-weight: 700; margin: 0 0 0.75rem; line-height: 1.25; }
-.legal-doc h2 { font-size: 1.35rem; font-weight: 700; margin: 2rem 0 0.6rem; }
-.legal-doc h3 { font-size: 1.1rem; font-weight: 600; margin: 1.5rem 0 0.4rem; }
-.legal-doc p { margin: 0.7rem 0; }
-.legal-doc ul, .legal-doc ol { margin: 0.7rem 0; padding-left: 1.4rem; }
-.legal-doc li { margin: 0.3rem 0; }
-.legal-doc a { color: #4f46e5; text-decoration: underline; }
-.legal-doc strong { font-weight: 600; }
-.legal-doc hr { border: 0; border-top: 1px solid #e5e7eb; margin: 2rem 0; }
-.legal-doc blockquote { border-left: 3px solid #c7d2fe; margin: 1rem 0; padding: 0.25rem 0 0.25rem 1rem; color: #4b5563; background: #f8fafc; }
-.legal-doc code { background: #f1f5f9; padding: 0.1rem 0.3rem; border-radius: 4px; font-size: 0.9em; }
-.legal-doc table { width: 100%; border-collapse: collapse; margin: 1rem 0; display: block; overflow-x: auto; }
-.legal-doc th, .legal-doc td { border: 1px solid #e5e7eb; padding: 0.5rem 0.7rem; text-align: left; vertical-align: top; }
-.legal-doc th { background: #f8fafc; font-weight: 600; }
