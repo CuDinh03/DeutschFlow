@@ -114,6 +114,23 @@ export function useTreeGestures({
   const zoomIn = useCallback(() => zoomAbout(1.3), [zoomAbout])
   const zoomOut = useCallback(() => zoomAbout(1 / 1.3), [zoomAbout])
 
+  // Centre a canvas-space point in the viewport (used by "Về bài đang học" and the
+  // level-jump rail). Additive over the existing pan/pinch/fit — same shared values,
+  // same origin-'0 0' math (a canvas point x maps to tx + s*x, so centring x needs
+  // tx = viewportW/2 − s*x). Optionally animate to a target scale.
+  const focusOn = useCallback(
+    (cx: number, cy: number, targetScale?: number) => {
+      if (!viewportW || !viewportH) return
+      const ns = clampScale(targetScale ?? s.value)
+      const d = 320
+      tx.value = withTiming(viewportW / 2 - ns * cx, { duration: d })
+      ty.value = withTiming(viewportH / 2 - ns * cy, { duration: d })
+      s.value = withTiming(ns, { duration: d })
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    },
+    [viewportW, viewportH],
+  )
+
   const pan = Gesture.Pan()
     .minDistance(PAN_SLOP)
     .onStart(() => {
@@ -165,5 +182,5 @@ export function useTreeGestures({
     Gesture.Exclusive(doubleTap, singleTap),
   )
 
-  return { animatedStyle, gesture, fitView, zoomIn, zoomOut }
+  return { animatedStyle, gesture, fitView, zoomIn, zoomOut, focusOn }
 }

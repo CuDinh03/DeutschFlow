@@ -26,9 +26,9 @@ import { PhaseStepper } from '@/components/skill-tree/PhaseStepper'
 import type { TopicGroupKey } from '@/components/skill-tree/palette'
 import type { PreviewStage } from '@/components/skill-tree/layout'
 import { skillTreeApi, type SkillNode } from '@/lib/skillTreeApi'
+import { levelStateOf, type LevelState } from '@/lib/levelState'
 import { useCompanion } from '@/lib/treeCompanion'
 
-type LevelState = 'done' | 'current' | 'locked'
 type RoadmapTab = 'tree' | 'phase'
 
 export default function RoadmapScreen() {
@@ -202,13 +202,6 @@ function PathHeroCompact({ done, total, pct }: { done: number; total: number; pc
       </Caption>
     </View>
   )
-}
-
-function levelStateOf(data: SkillNode[]): LevelState {
-  if (data.some((n) => n.status === 'IN_PROGRESS')) return 'current'
-  if (data.some((n) => n.status === 'AVAILABLE')) return 'current'
-  if (data.length > 0 && data.every((n) => n.status === 'COMPLETED')) return 'done'
-  return 'locked'
 }
 
 // Maturity-preview segmented control — see the tree as a sprout (Mầm) / actual

@@ -32,6 +32,7 @@ import type { SkillNode } from '@/lib/skillTreeApi'
 import { companionEmoji, type CompanionKey } from '@/lib/treeCompanion'
 import {
   buildTreeLayout,
+  focusTargetId,
   recommendedNodeId,
   trunkPath,
   type MilestoneState,
@@ -42,7 +43,7 @@ import { CheckGlyph, LockGlyph, SproutGlyph } from './skill-tree/glyphs'
 import { nodeOffsets } from './skill-tree/nodeOffsets'
 import { topicGroupOf, topicLabelOf } from './skill-tree/topicGroup'
 import { useTreeGestures } from './skill-tree/controls/useTreeGestures'
-import { FitButton, ShareButton, ZoomButtons } from './skill-tree/controls/TreeControls'
+import { FitButton, FocusButton, LevelRail, ShareButton, ZoomButtons } from './skill-tree/controls/TreeControls'
 import { shareTreePng, treeCaption } from '@/lib/shareTree'
 import { CompanionChips } from './skill-tree/controls/CompanionChips'
 import { BloomHalo, CompanionEmoji, NodeMotif, RecRing, SkillBadge } from './skill-tree/motifs/NodeMotif'
@@ -129,7 +130,7 @@ export function SkillTreeView({
           fy,
           group,
           foliage: GROUP_COLORS[group].leaf,
-          chipLabel: lead ? truncate(topicLabelOf(lead)) : '',
+          chipLabel: lead ? truncate(topicLabelOf(lead), 18) : '',
           growth,
         })
         const offs = nodeOffsets(b.nodes.length)
@@ -163,13 +164,26 @@ export function SkillTreeView({
     [geom, onSelectNode, filterTopic, filterSkill],
   )
 
-  const { animatedStyle, gesture, fitView, zoomIn, zoomOut } = useTreeGestures({
+  const { animatedStyle, gesture, fitView, zoomIn, zoomOut, focusOn } = useTreeGestures({
     canvasW: CANVAS_W,
     canvasH: layout.height,
     viewportW,
     viewportH,
     onTapCanvas,
   })
+
+  // Canvas position of the lesson "Về bài đang học" recentres on — the active IN_PROGRESS
+  // lesson if any, else the recommended next-to-start (recId stays AVAILABLE-only for the
+  // ring/companion). Plus a level-jump handler for the CEFR rail; both use focusOn.
+  const focusId = useMemo(() => focusTargetId(nodes), [nodes])
+  const focusPos = useMemo(() => geom.placed.find((p) => p.node.id === focusId), [geom, focusId])
+  const jumpToLevel = useCallback(
+    (level: string) => {
+      const tier = layout.tiers.find((t) => t.level === level)
+      if (tier) focusOn(layout.cx, tier.milestoneY)
+    },
+    [layout, focusOn],
+  )
 
   const total = nodes.length
   const done = nodes.filter((n) => n.status === 'COMPLETED').length
@@ -277,7 +291,7 @@ export function SkillTreeView({
               // current level's foliage fills in with completion (b.growth); passed = 1
               return (
                 <G key={b.key} opacity={dim ? 0.16 : b.growth}>
-                  <BranchFoliage branch={b} cx={layout.cx} labelColor={c.textSecondary} />
+                  <BranchFoliage branch={b} cx={layout.cx} labelColor={c.textPrimary} />
                 </G>
               )
             })}
@@ -288,6 +302,10 @@ export function SkillTreeView({
               const branchDim = filterTopic !== null && branchGroup !== filterTopic
               const nodeDim = branchDim || (filterSkill !== null && node.dayNumber % 4 !== filterSkill)
               const baseOpacity = node.status === 'LOCKED' ? 0.5 : 1
+              // Name the frontier (recommended / in-progress / available) so learners can tell
+              // which lesson is which without tapping — the many completed/locked nodes stay
+              // unlabelled to avoid clutter (the cluster topic chip covers those). Fix "mò từng cái".
+              const showLabel = isRec || node.status === 'IN_PROGRESS' || node.status === 'AVAILABLE'
               return (
                 <G key={node.id} transform={`translate(${x},${y})`} opacity={nodeDim ? 0.12 : baseOpacity}>
                   {isRec ? <RecRing reduced={reduced} /> : null}
@@ -295,6 +313,18 @@ export function SkillTreeView({
                   <NodeMotif status={node.status} success={c.success} />
                   <SkillBadge color={SKILL_DOTS[node.dayNumber % 4].color} />
                   {isRec && compEmoji ? <CompanionEmoji emoji={compEmoji} /> : null}
+                  {showLabel ? (
+                    <SvgText
+                      x={0}
+                      y={27}
+                      textAnchor="middle"
+                      fontFamily={fonts.bodyMedium}
+                      fontSize={8.5}
+                      fill={c.textSecondary}
+                    >
+                      {truncate(node.title, 12)}
+                    </SvgText>
+                  ) : null}
                 </G>
               )
             })}
@@ -321,14 +351,25 @@ export function SkillTreeView({
         </View>
       </GestureDetector>
 
-      {/* share / zoom / fit cluster — sits above the companion row, clear of the home indicator */}
+      {/* share / focus / zoom / fit cluster — sits above the companion row, clear of the home indicator */}
       <View
         style={{ position: 'absolute', right: space[4], bottom: insets.bottom + space[12], alignItems: 'flex-end', gap: space[2] }}
       >
         <ShareButton onShare={onShare} />
+        {focusPos ? <FocusButton onFocus={() => focusOn(focusPos.x, focusPos.y, 1)} /> : null}
         <FitButton onFit={fitView} />
         <ZoomButtons onZoomIn={zoomIn} onZoomOut={zoomOut} />
       </View>
+
+      {/* CEFR level-jump rail — left edge, highest level at the top to match the bottom-up canvas */}
+      {layout.tiers.length > 1 ? (
+        <View style={{ position: 'absolute', left: space[3], top: '32%' }}>
+          <LevelRail
+            levels={[...layout.tiers].reverse().map((t) => ({ level: t.level, state: t.state }))}
+            onJump={jumpToLevel}
+          />
+        </View>
+      ) : null}
 
       {/* companion picker */}
       <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, bottom: insets.bottom + space[2] }}>
@@ -360,7 +401,7 @@ function BranchFoliage({
       <Ellipse cx={fx - 16} cy={fy - 6} rx={34} ry={26} fill={foliage} opacity={0.55} />
       <Ellipse cx={fx + 18} cy={fy - 2} rx={30} ry={24} fill={foliage} opacity={0.42} />
       <Ellipse cx={fx} cy={fy + 14} rx={32} ry={22} fill={foliage} opacity={0.5} />
-      <SvgText x={fx} y={fy - 30} textAnchor="middle" fontFamily={fonts.bodyMedium} fontSize={10} fill={labelColor}>
+      <SvgText x={fx} y={fy - 30} textAnchor="middle" fontFamily={fonts.bodyMedium} fontSize={12} fill={labelColor}>
         {chipLabel}
       </SvgText>
     </G>

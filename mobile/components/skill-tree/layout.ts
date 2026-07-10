@@ -184,6 +184,26 @@ export function recommendedNodeId(nodes: SkillNode[]): number | null {
   return best ? best.id : null
 }
 
+// The lesson to recentre on for "Về bài đang học". Prefer the IN_PROGRESS lesson the
+// learner is actively studying (CEFR-then-day order) — the ordinary frontier once a lesson
+// is opened and its successor is still locked, i.e. exactly when NO node is AVAILABLE and
+// recommendedNodeId returns null. Fall back to the recommended next-to-start node otherwise.
+// recommendedNodeId is left AVAILABLE-only so the "next" ring/companion keep their meaning.
+export function focusTargetId(nodes: SkillNode[]): number | null {
+  let best: SkillNode | null = null
+  for (const n of nodes) {
+    if (n.status !== 'IN_PROGRESS') continue
+    if (
+      best === null ||
+      cefrRank(n.cefrLevel) < cefrRank(best.cefrLevel) ||
+      (cefrRank(n.cefrLevel) === cefrRank(best.cefrLevel) && n.dayNumber < best.dayNumber)
+    ) {
+      best = n
+    }
+  }
+  return best ? best.id : recommendedNodeId(nodes)
+}
+
 // Tapered bark-ribbon trunk: wide at the base (ground), thin at the crown, with
 // a gentle sway that fades out toward the top. Returns an SVG path `d`.
 export function trunkPath(cx: number, groundY: number, topY: number): string {

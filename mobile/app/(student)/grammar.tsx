@@ -1,13 +1,24 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { View, Pressable } from 'react-native'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueries } from '@tanstack/react-query'
 import { router, type Href } from 'expo-router'
-import { ChevronDown, ChevronUp, Check, Film, BookOpen } from 'lucide-react-native'
+import { ChevronDown, ChevronUp, Check, Film, Lock } from 'lucide-react-native'
 import api from '@/lib/api'
 import { trackFeatureAction } from '@/lib/analytics'
 import { radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, Pill, AppHeader, SectionHeader, Caption, EmptyState, ErrorState, Skeleton } from '@/components/ui'
-import { mapGrammarTopic, type RawGrammarTopic } from '@/lib/grammarApi'
+import { Screen, Card, ThemedText, Icon, Pill, AppHeader, SectionHeader, Caption, Skeleton, ErrorState } from '@/components/ui'
+import { mapGrammarTopic, type GrammarTopic, type RawGrammarTopic } from '@/lib/grammarApi'
+import { skillTreeApi } from '@/lib/skillTreeApi'
+import { levelsFromTree, type CefrLevelState, type LevelState } from '@/lib/levelState'
+
+// Minimal shape of a useQueries result element the level block reads (avoids importing
+// the full UseQueryResult generic; the real element is structurally compatible).
+interface TopicQueryLike {
+  data?: GrammarTopic[]
+  isLoading: boolean
+  isError: boolean
+  refetch: () => unknown
+}
 
 const CASES = [
   { key: 'nominativ', label: 'Nominativ', desc: 'Chủ ngữ (Wer? Was?)' },
@@ -49,14 +60,41 @@ export default function GrammarScreen() {
     }
   }, [])
 
-  const { data: topics = [], isLoading, isError, refetch, isFetching } = useQuery({
-    queryKey: ['grammar-topics'],
-    queryFn: () =>
-      api
-        .get<RawGrammarTopic[]>('/grammar/syllabus/topics', { params: { cefrLevel: 'A1' } })
-        .then((r) => r.data.map(mapGrammarTopic)),
-    staleTime: 5 * 60_000,
+  // Which CEFR levels the learner's roadmap spans + their unlock state, derived from the
+  // already-cached skill tree (no extra /roadmap fetch). Grammar is gated to match: levels
+  // above the current one are shown dimmed and locked ("Mở khi đạt …"); the Kasus reference
+  // table above stays open for everyone.
+  const treeQuery = useQuery({
+    queryKey: ['skill-tree'],
+    queryFn: () => skillTreeApi.getMySkillTree(),
+    staleTime: 120_000,
   })
+  const levels = useMemo<CefrLevelState[]>(() => {
+    const ls = levelsFromTree(treeQuery.data ?? [])
+    if (ls.length > 0) return ls
+    // Only fall back to a lone A1 when the tree genuinely loaded empty (a new learner). On a
+    // fetch error we keep this empty and render an error+retry branch below, so a returning
+    // B1/B2 learner is never silently collapsed to a single "A1" block with no way to recover.
+    return treeQuery.isSuccess ? [{ level: 'A1', state: 'current' }] : []
+  }, [treeQuery.data, treeQuery.isSuccess])
+
+  // One topics query per level, run in parallel (bounded by the ≤~4 CEFR levels a tree spans).
+  const topicQueries = useQueries({
+    queries: levels.map((l) => ({
+      queryKey: ['grammar-topics', l.level],
+      queryFn: () =>
+        api
+          .get<RawGrammarTopic[]>('/grammar/syllabus/topics', { params: { cefrLevel: l.level } })
+          .then((r) => r.data.map(mapGrammarTopic)),
+      staleTime: 5 * 60_000,
+    })),
+  })
+  const topicByLevel = new Map(levels.map((l, i) => [l.level, topicQueries[i] as TopicQueryLike]))
+  const isFetching = treeQuery.isFetching || topicQueries.some((q) => q.isFetching)
+  const refetchAll = () => {
+    void treeQuery.refetch()
+    topicQueries.forEach((q) => void q.refetch())
+  }
 
   return (
     <Screen edges={['top']}>
@@ -66,8 +104,8 @@ export default function GrammarScreen() {
         scroll
         edges={[]}
         contentStyle={{ paddingBottom: space[8] }}
-        refreshing={isFetching && !isLoading}
-        onRefresh={() => void refetch()}
+        refreshing={isFetching && !treeQuery.isLoading}
+        onRefresh={refetchAll}
       >
         {/* Editorial ink hero — the Kasus system is the conceptual anchor of this screen */}
         <View style={{ paddingHorizontal: space[5], marginTop: space[1], marginBottom: space[5] }}>
@@ -202,55 +240,115 @@ export default function GrammarScreen() {
           )
         })}
 
-        {isLoading ? (
+        {treeQuery.isLoading ? (
           <View style={{ paddingHorizontal: space[5], marginTop: space[5], gap: space[2] }}>
             <Skeleton height={72} radius="2xl" />
             <Skeleton height={72} radius="2xl" />
           </View>
-        ) : isError ? (
+        ) : treeQuery.isError && !treeQuery.data ? (
           <View style={{ marginTop: space[4] }}>
             <ErrorState
-              title="Không tải được bài học"
-              message="Bảng cách vẫn xem được. Kéo xuống hoặc thử lại để tải bài học ngữ pháp."
-              onRetry={() => void refetch()}
+              title="Không tải được lộ trình"
+              message="Bảng cách vẫn xem được. Kéo xuống hoặc thử lại để tải bài học ngữ pháp theo cấp."
+              onRetry={refetchAll}
             />
           </View>
-        ) : topics.length > 0 ? (
+        ) : (
           <>
             <View style={{ paddingHorizontal: space[5], marginTop: space[6] }}>
               <Caption style={{ marginBottom: space[1] }}>Grammatik</Caption>
               <SectionHeader title="Bài học ngữ pháp" />
             </View>
-            {topics.map((topic) => (
-              <Card key={topic.id} style={{ marginHorizontal: space[5], marginBottom: space[2] }}>
-                <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: space[3] }}>
-                  <View style={{ flex: 1, gap: space[1] }}>
-                    <ThemedText variant="bodyStrong">{topic.title}</ThemedText>
-                    {topic.summary ? (
-                      <ThemedText variant="caption" color="muted">
-                        {topic.summary}
-                      </ThemedText>
-                    ) : null}
-                  </View>
-                  <View style={{ alignItems: 'flex-end', gap: space[2] }}>
-                    <Pill label={topic.cefrLevel} tone="neutral" />
-                    {topic.isCompleted ? <Pill label="Xong" tone="success" icon={Check} /> : null}
-                  </View>
-                </View>
-              </Card>
+            {levels.map((l) => (
+              <LevelBlock key={l.level} level={l.level} state={l.state} query={topicByLevel.get(l.level)} />
             ))}
           </>
-        ) : (
-          <View style={{ marginTop: space[4] }}>
-            <EmptyState
-              icon={BookOpen}
-              title="Chưa có bài học ngữ pháp"
-              message="Bảng cách vẫn xem được. Bài học ngữ pháp sẽ xuất hiện ở đây khi có nội dung."
-            />
-          </View>
         )}
       </Screen>
     </Screen>
+  )
+}
+
+// One CEFR level's grammar lessons. Unlocked levels (done/current) list their topics; a
+// locked level is dimmed with a "Mở khi đạt {level}" lock and lists any authored topics as a
+// disabled teaser (empty higher levels just show the header). The gate is visual-only — the
+// topic cards aren't interactive, so nothing needs to block navigation.
+function LevelBlock({ level, state, query }: { level: string; state: LevelState; query?: TopicQueryLike }) {
+  const locked = state === 'locked'
+  const topics = query?.data ?? []
+  const tone = state === 'done' ? 'success' : state === 'current' ? 'accent' : 'neutral'
+  return (
+    <View style={{ marginTop: space[4], opacity: locked ? 0.55 : 1 }}>
+      <View
+        style={{
+          paddingHorizontal: space[5],
+          marginBottom: space[2],
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: space[2],
+        }}
+      >
+        <Pill label={level} tone={tone} />
+        {locked ? (
+          <>
+            <Icon icon={Lock} size={13} color="faint" />
+            <ThemedText variant="caption" color="faint">
+              Mở khi đạt {level}
+            </ThemedText>
+          </>
+        ) : (
+          <ThemedText variant="caption" color="muted">
+            {state === 'done' ? 'Đã hoàn thành' : 'Đang học'}
+          </ThemedText>
+        )}
+      </View>
+
+      {query?.isLoading ? (
+        <View style={{ paddingHorizontal: space[5] }}>
+          <Skeleton height={64} radius="2xl" />
+        </View>
+      ) : query?.isError && !locked ? (
+        <View style={{ paddingHorizontal: space[5], flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+          <ThemedText variant="caption" color="muted">
+            Không tải được bài học.
+          </ThemedText>
+          <Pressable accessibilityRole="button" accessibilityLabel="Thử lại" onPress={() => query.refetch()}>
+            <ThemedText variant="label" color="accent">
+              Thử lại
+            </ThemedText>
+          </Pressable>
+        </View>
+      ) : topics.length > 0 ? (
+        topics.map((topic) => <TopicCard key={topic.id} topic={topic} />)
+      ) : !locked ? (
+        <View style={{ paddingHorizontal: space[5] }}>
+          <ThemedText variant="caption" color="faint">
+            Chưa có bài học cho cấp này.
+          </ThemedText>
+        </View>
+      ) : null}
+    </View>
+  )
+}
+
+function TopicCard({ topic }: { topic: GrammarTopic }) {
+  return (
+    <Card style={{ marginHorizontal: space[5], marginBottom: space[2] }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: space[3] }}>
+        <View style={{ flex: 1, gap: space[1] }}>
+          <ThemedText variant="bodyStrong">{topic.title}</ThemedText>
+          {topic.summary ? (
+            <ThemedText variant="caption" color="muted">
+              {topic.summary}
+            </ThemedText>
+          ) : null}
+        </View>
+        <View style={{ alignItems: 'flex-end', gap: space[2] }}>
+          <Pill label={topic.cefrLevel} tone="neutral" />
+          {topic.isCompleted ? <Pill label="Xong" tone="success" icon={Check} /> : null}
+        </View>
+      </View>
+    </Card>
   )
 }
 

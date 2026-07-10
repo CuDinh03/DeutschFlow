@@ -1,4 +1,4 @@
-import { buildTreeLayout, trunkPath } from '@/components/skill-tree/layout'
+import { buildTreeLayout, focusTargetId, trunkPath } from '@/components/skill-tree/layout'
 import type { SkillNode } from '@/lib/skillTreeApi'
 
 function node(id: number, cefr: string, status: SkillNode['status'], day = id): SkillNode {
@@ -178,6 +178,33 @@ describe('buildTreeLayout — growth model (mọc từ mầm)', () => {
     const explicit = buildTreeLayout(sample, 360, 'current').tiers.map((t) => t.state)
     expect(omitted).toEqual(explicit)
     expect(omitted).toEqual(['passed', 'in_progress', 'locked'])
+  })
+})
+
+describe('focusTargetId — "Về bài đang học" target', () => {
+  test('prefers the IN_PROGRESS lesson even when an AVAILABLE one also exists', () => {
+    const nodes = [node(1, 'A1', 'COMPLETED'), node(2, 'A1', 'IN_PROGRESS'), node(3, 'A1', 'AVAILABLE')]
+    expect(focusTargetId(nodes)).toBe(2)
+  })
+
+  test('returns the IN_PROGRESS node when nothing is AVAILABLE (recommendedNodeId would be null)', () => {
+    // The ordinary post-open state: day opened → IN_PROGRESS, successor still LOCKED.
+    const nodes = [node(1, 'A1', 'COMPLETED'), node(2, 'A1', 'IN_PROGRESS'), node(3, 'A1', 'LOCKED')]
+    expect(focusTargetId(nodes)).toBe(2)
+  })
+
+  test('picks the earliest IN_PROGRESS by CEFR-then-day', () => {
+    const nodes = [node(9, 'A2', 'IN_PROGRESS', 9), node(4, 'A1', 'IN_PROGRESS', 4)]
+    expect(focusTargetId(nodes)).toBe(4)
+  })
+
+  test('falls back to the recommended AVAILABLE node when none is in progress', () => {
+    const nodes = [node(1, 'A1', 'COMPLETED'), node(2, 'A1', 'AVAILABLE'), node(3, 'A1', 'AVAILABLE', 3)]
+    expect(focusTargetId(nodes)).toBe(2)
+  })
+
+  test('null when nothing is in progress or available', () => {
+    expect(focusTargetId([node(1, 'A1', 'COMPLETED'), node(2, 'A1', 'LOCKED')])).toBeNull()
   })
 })
 
