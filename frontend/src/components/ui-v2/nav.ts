@@ -78,6 +78,7 @@ export const teacherNav: RoleNav = {
         { id: 'tc-checklist', label: 'Nội dung giảng dạy', href: '/v2/teacher/tc-checklist', icon: 'checklist' },
         { id: 'grading', label: 'Chấm bài', href: '/v2/teacher/grading', icon: 'grading' },
         { id: 'grade-image', label: 'Chấm bài qua ảnh', href: '/v2/teacher/grade-image', icon: 'draw' },
+        { id: 'tc-reports', label: 'Sổ điểm & Báo cáo', href: '/v2/teacher/tc-reports', icon: 'assessment' },
         { id: 'materials', label: 'Thư viện tài liệu', href: '/v2/teacher/materials', icon: 'menu_book' },
       ],
     },
