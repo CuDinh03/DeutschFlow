@@ -4,13 +4,17 @@ import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.material.dto.MaterialDto;
+import com.deutschflow.material.dto.MaterialFolderDto;
+import com.deutschflow.material.dto.PresignUploadResponse;
 import com.deutschflow.material.entity.ClassMaterial;
 import com.deutschflow.material.entity.ClassMaterialId;
 import com.deutschflow.material.entity.LessonMaterial;
 import com.deutschflow.material.entity.LessonMaterialId;
 import com.deutschflow.material.entity.Material;
+import com.deutschflow.material.entity.MaterialFolder;
 import com.deutschflow.material.repository.ClassMaterialRepository;
 import com.deutschflow.material.repository.LessonMaterialRepository;
+import com.deutschflow.material.repository.MaterialFolderRepository;
 import com.deutschflow.material.repository.MaterialRepository;
 import com.deutschflow.media.service.S3StorageService;
 import com.deutschflow.organization.repository.OrgMemberRepository;
@@ -26,12 +30,16 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.net.URI;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * CRUD for teaching materials (B2B model §5/§6) with ownership-correct access:
@@ -52,8 +60,15 @@ public class MaterialService {
     private static final String SCOPE_ORG = "ORG";
     private static final String STATUS_ACTIVE = "ACTIVE";
     private static final String STATUS_ARCHIVED = "ARCHIVED";
+    private static final String STATUS_UPLOADING = "UPLOADING"; // presigned-PUT record chưa verify
+    private static final String KIND_LINK = "LINK";
     private static final String STORAGE_CATEGORY = "materials";
-    private static final long MAX_FILE_SIZE = 20L * 1024 * 1024;
+    // Multipart path: file nhỏ đẩy qua backend (khớp spring.servlet.multipart.max-file-size=25MB).
+    private static final long MAX_FILE_SIZE = 25L * 1024 * 1024;
+    // Presigned-PUT path: hard-cap chống abuse; kiểm CUỐI CÙNG bằng size thật từ S3 HEAD ở complete().
+    private static final long MAX_PRESIGN_SIZE = 500L * 1024 * 1024;
+    // Kẹp thời lượng audio/video do FE gửi (không tin cậy): 24h là trần hợp lý cho 1 track.
+    private static final int MAX_DURATION_SECONDS = 86400;
     // Materials are private (not public-read on S3) → serve a short-lived presigned GET so the
     // owner / ACTIVE org member can VIEW the file in-browser. Re-presigned on every list/read.
     private static final Duration MATERIAL_URL_TTL = Duration.ofHours(1);
@@ -69,6 +84,7 @@ public class MaterialService {
             "application/xml", "text/xml", "application/javascript", "text/javascript");
 
     private final MaterialRepository materialRepository;
+    private final MaterialFolderRepository folderRepository;
     private final ClassMaterialRepository classMaterialRepository;
     private final S3StorageService s3StorageService;
     private final TeacherClassRepository teacherClassRepository;
@@ -76,47 +92,251 @@ public class MaterialService {
     private final LessonMaterialRepository lessonMaterialRepository;
     private final ClassLessonRepository lessonRepository;
 
-    /** Creates a PERSONAL (teacher-owned) or ORG (center-owned) material from an uploaded file. */
+    /** Creates a PERSONAL (teacher-owned) or ORG (center-owned) material from an uploaded file (≤25MB). */
     @Transactional
-    public MaterialDto create(User caller, String scopeRaw, MultipartFile file, String title, String description) {
+    public MaterialDto create(User caller, String scopeRaw, MultipartFile file, String title, String description,
+                              Long folderId, List<String> tags) {
         if (file == null || file.isEmpty()) throw new BadRequestException("Tệp không được để trống.");
-        if (file.getSize() > MAX_FILE_SIZE) throw new BadRequestException("Tệp quá lớn (tối đa 20MB).");
+        if (file.getSize() > MAX_FILE_SIZE) {
+            throw new BadRequestException("Tệp quá lớn (tối đa 25MB). Với tệp lớn hơn, hãy dùng luồng tải trực tiếp.");
+        }
         if (title == null || title.isBlank()) throw new BadRequestException("Tiêu đề là bắt buộc.");
-        String mime = file.getContentType();
-        if (mime != null && BLOCKED_MIME.contains(mime.toLowerCase(Locale.ROOT).trim())) {
+        if (isBlockedMime(file.getContentType())) {
             throw new BadRequestException("Loại tệp không được phép vì lý do bảo mật.");
         }
-        String scope = scopeRaw == null ? SCOPE_PERSONAL : scopeRaw.trim().toUpperCase(Locale.ROOT);
+        OwnerRef owner = resolveOwner(caller, scopeRaw);
+        assertFolderAssignable(caller, owner, folderId);
 
+        String objectKey;
+        try {
+            objectKey = s3StorageService.uploadFile(file, ownerPrefix(owner)).getS3Key();
+        } catch (IOException ex) {
+            throw new BadRequestException("Tải tệp lên thất bại: " + ex.getMessage());
+        }
         Material.MaterialBuilder b = Material.builder()
                 .createdBy(caller.getId())
                 .title(title.trim())
                 .description(description)
                 .kind(kindOf(file))
+                .objectKey(objectKey)
                 .mimeType(file.getContentType())
                 .sizeBytes(file.getSize())
+                .folderId(folderId)
+                .tags(toTagArray(tags))
                 .status(STATUS_ACTIVE);
+        owner.applyTo(b);
+        return toDto(materialRepository.save(b.build()));
+    }
 
-        if (SCOPE_PERSONAL.equals(scope)) {
-            b.ownerScope(SCOPE_PERSONAL).teacherId(caller.getId());
-        } else if (SCOPE_ORG.equals(scope)) {
-            Long orgId = caller.getOrgId();
-            if (orgId == null || !isActiveMember(caller.getId(), orgId)) {
-                throw new ForbiddenException("Bạn không thuộc tổ chức nào để tạo tài liệu cấp tổ chức.");
-            }
-            b.ownerScope(SCOPE_ORG).orgId(orgId);
-        } else {
-            throw new BadRequestException("Phạm vi không hợp lệ: " + scopeRaw);
-        }
-
-        String objectKey;
+    /**
+     * Creates a {@code kind=LINK} material pointing at an external URL (allango / YouTube / Drive…).
+     * No S3 object is stored ({@code objectKey} stays null — the DB CHECK allows null only for LINK).
+     */
+    @Transactional
+    public MaterialDto createLink(User caller, String scopeRaw, String url, String title, String description,
+                                  Long folderId, List<String> tags) {
+        if (title == null || title.isBlank()) throw new BadRequestException("Tiêu đề là bắt buộc.");
+        if (url == null || url.isBlank()) throw new BadRequestException("Liên kết là bắt buộc.");
+        String scheme;
         try {
-            objectKey = s3StorageService.uploadFile(file, STORAGE_CATEGORY).getS3Key();
-        } catch (IOException ex) {
-            throw new BadRequestException("Tải tệp lên thất bại: " + ex.getMessage());
+            scheme = URI.create(url.trim()).getScheme();
+        } catch (IllegalArgumentException ex) {
+            throw new BadRequestException("Liên kết không hợp lệ.");
         }
-        Material saved = materialRepository.save(b.objectKey(objectKey).build());
-        return toDto(saved);
+        if (scheme == null || !(scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"))) {
+            throw new BadRequestException("Liên kết phải bắt đầu bằng http:// hoặc https://");
+        }
+        OwnerRef owner = resolveOwner(caller, scopeRaw);
+        assertFolderAssignable(caller, owner, folderId);
+
+        Material.MaterialBuilder b = Material.builder()
+                .createdBy(caller.getId())
+                .title(title.trim())
+                .description(description)
+                .kind(KIND_LINK)
+                .externalUrl(url.trim())
+                .folderId(folderId)
+                .tags(toTagArray(tags))
+                .status(STATUS_ACTIVE);
+        owner.applyTo(b);
+        return toDto(materialRepository.save(b.build()));
+    }
+
+    /**
+     * Step 1 of the large-file (&gt;25MB) upload: reserve an {@code UPLOADING} record and hand back a
+     * presigned PUT URL. The browser PUTs the bytes straight to S3, then calls {@link #complete}. The
+     * client-declared size is only a fast fail here; the authoritative size is read from S3 at complete.
+     */
+    @Transactional
+    public PresignUploadResponse presignUpload(User caller, String scopeRaw, String filename, String contentType,
+                                               Long declaredSize, String title, String description,
+                                               Long folderId, List<String> tags) {
+        if (title == null || title.isBlank()) throw new BadRequestException("Tiêu đề là bắt buộc.");
+        if (filename == null || filename.isBlank()) throw new BadRequestException("Tên tệp là bắt buộc.");
+        if (isBlockedMime(contentType)) {
+            throw new BadRequestException("Loại tệp không được phép vì lý do bảo mật.");
+        }
+        if (declaredSize != null && declaredSize > MAX_PRESIGN_SIZE) {
+            throw new BadRequestException("Tệp quá lớn (tối đa 500MB).");
+        }
+        OwnerRef owner = resolveOwner(caller, scopeRaw);
+        assertFolderAssignable(caller, owner, folderId);
+
+        String objectKey = buildPresignKey(owner, filename);
+        Material.MaterialBuilder b = Material.builder()
+                .createdBy(caller.getId())
+                .title(title.trim())
+                .description(description)
+                .kind(kindFromFilename(filename))
+                .objectKey(objectKey)
+                .mimeType(contentType)
+                .sizeBytes(declaredSize) // provisional; overwritten from S3 HEAD at complete()
+                .folderId(folderId)
+                .tags(toTagArray(tags))
+                .status(STATUS_UPLOADING);
+        owner.applyTo(b);
+        Material saved = materialRepository.save(b.build());
+        String uploadUrl = s3StorageService.generatePresignedUrl(objectKey, contentType);
+        return new PresignUploadResponse(saved.getId(), uploadUrl, objectKey);
+    }
+
+    /**
+     * Step 2 of the large-file upload: verify the object landed on S3, read its REAL size (untrusted
+     * client size is discarded), enforce the 500MB hard cap (deleting the object if it overflows), then
+     * flip {@code UPLOADING → ACTIVE}. {@code durationSeconds} (from the browser's &lt;audio&gt;) is clamped.
+     */
+    @Transactional
+    public MaterialDto complete(User caller, Long id, Integer durationSeconds) {
+        Material m = materialRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy tài liệu."));
+        if (!canManage(caller, m)) throw new ForbiddenException("Bạn không có quyền hoàn tất tài liệu này.");
+        if (!STATUS_UPLOADING.equals(m.getStatus())) {
+            throw new BadRequestException("Tài liệu không ở trạng thái đang tải lên.");
+        }
+        if (m.getObjectKey() == null || !s3StorageService.objectExists(m.getObjectKey())) {
+            throw new BadRequestException("Chưa thấy tệp trên kho lưu trữ. Hãy tải lên trước khi hoàn tất.");
+        }
+        S3StorageService.S3ObjectMetadata meta = s3StorageService.headObject(m.getObjectKey());
+        if (meta.getContentLength() > MAX_PRESIGN_SIZE) {
+            s3StorageService.deleteFile(m.getObjectKey());
+            throw new BadRequestException("Tệp quá lớn (tối đa 500MB).");
+        }
+        String realMime = meta.getContentType();
+        if (isBlockedMime(realMime)) {
+            // Client set a dangerous Content-Type on the PUT despite the presign-time check — reject + purge.
+            s3StorageService.deleteFile(m.getObjectKey());
+            throw new BadRequestException("Loại tệp không được phép vì lý do bảo mật.");
+        }
+        m.setSizeBytes(meta.getContentLength());
+        if (realMime != null) m.setMimeType(realMime);
+        m.setDurationSeconds(clampDuration(durationSeconds));
+        m.setStatus(STATUS_ACTIVE);
+        return toDto(materialRepository.save(m));
+    }
+
+    /**
+     * Fresh resolvable URL for a material (presigned GET re-signed, or the external link) — the player /
+     * preview calls this when a previous presigned URL expired mid-listen. Same access rule as {@link #get}.
+     */
+    @Transactional(readOnly = true)
+    public String refreshUrl(User caller, Long id) {
+        Material m = materialRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy tài liệu."));
+        assertCanAccess(caller, m);
+        if (!STATUS_ACTIVE.equals(m.getStatus())) throw new NotFoundException("Không tìm thấy tài liệu.");
+        return resolveUrl(m);
+    }
+
+    /**
+     * Edits mutable metadata: title, tags, and folder. {@code clearFolder=true} moves the material back to
+     * the root (unfiled); otherwise a non-null {@code folderId} moves it into that folder (validated to the
+     * same owner). PERSONAL: owner; ORG: author or OWNER/MANAGER (same as {@link #archive}).
+     */
+    @Transactional
+    public MaterialDto patch(User caller, Long id, String title, List<String> tags, Long folderId,
+                             boolean clearFolder) {
+        Material m = materialRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy tài liệu."));
+        if (!canManage(caller, m)) throw new ForbiddenException("Bạn không có quyền sửa tài liệu này.");
+        if (title != null && !title.isBlank()) m.setTitle(title.trim());
+        if (tags != null) m.setTags(toTagArray(tags));
+        if (clearFolder) {
+            m.setFolderId(null); // move back to root (unfile) — the only wire way to leave a folder
+        } else if (folderId != null) {
+            assertFolderAssignable(caller, ownerOf(m), folderId);
+            m.setFolderId(folderId); // move into a folder of the same owner
+        }
+        return toDto(materialRepository.save(m));
+    }
+
+    /**
+     * Filtered list (title ILIKE {@code query}, {@code kind}, single {@code tag}, {@code folderId}). Falls
+     * back to the unfiltered UNION when no filter is supplied. Same PERSONAL ∪ ORG(ACTIVE-member) scoping.
+     */
+    @Transactional(readOnly = true)
+    public List<MaterialDto> list(User caller, String query, String kind, String tag, Long folderId) {
+        if (isBlank(query) && isBlank(kind) && isBlank(tag) && folderId == null) {
+            return list(caller);
+        }
+        String q = normalize(query);
+        String k = normalizeUpper(kind); // kind stored upper-case (PDF/AUDIO/LINK…) → match case-insensitively
+        String t = normalize(tag);        // tags keep original case (exact @> containment, GIN-indexed)
+        List<Material> out = new ArrayList<>(
+                materialRepository.searchPersonal(caller.getId(), STATUS_ACTIVE, q, k, t, folderId));
+        Long orgId = caller.getOrgId();
+        if (orgId != null && isActiveMember(caller.getId(), orgId)) {
+            out.addAll(materialRepository.searchOrg(orgId, STATUS_ACTIVE, q, k, t, folderId));
+        }
+        return out.stream().map(this::toDto).toList();
+    }
+
+    // --------------------------------------------------------------- folders (Materials Library)
+
+    /** Combined folders: PERSONAL of the caller ∪ ORG of the caller's org (only while ACTIVE there). */
+    @Transactional(readOnly = true)
+    public List<MaterialFolderDto> listFolders(User caller) {
+        List<MaterialFolder> out = new ArrayList<>(folderRepository
+                .findByOwnerScopeAndTeacherIdOrderByOrderIndexAscNameAsc(SCOPE_PERSONAL, caller.getId()));
+        Long orgId = caller.getOrgId();
+        if (orgId != null && isActiveMember(caller.getId(), orgId)) {
+            out.addAll(folderRepository
+                    .findByOwnerScopeAndOrgIdOrderByOrderIndexAscNameAsc(SCOPE_ORG, orgId));
+        }
+        return out.stream().map(MaterialFolderDto::from).toList();
+    }
+
+    @Transactional
+    public MaterialFolderDto createFolder(User caller, String scopeRaw, String name, Integer orderIndex) {
+        if (name == null || name.isBlank()) throw new BadRequestException("Tên thư mục là bắt buộc.");
+        OwnerRef owner = resolveOwner(caller, scopeRaw);
+        MaterialFolder f = MaterialFolder.builder()
+                .createdBy(caller.getId())
+                .name(name.trim())
+                .orderIndex(orderIndex == null ? 0 : orderIndex)
+                .ownerScope(owner.scope())
+                .teacherId(owner.teacherId())
+                .orgId(owner.orgId())
+                .build();
+        return MaterialFolderDto.from(folderRepository.save(f));
+    }
+
+    @Transactional
+    public MaterialFolderDto renameFolder(User caller, Long id, String name, Integer orderIndex) {
+        MaterialFolder f = folderRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy thư mục."));
+        if (!canManageFolder(caller, f)) throw new ForbiddenException("Bạn không có quyền sửa thư mục này.");
+        if (name != null && !name.isBlank()) f.setName(name.trim());
+        if (orderIndex != null) f.setOrderIndex(orderIndex);
+        return MaterialFolderDto.from(folderRepository.save(f));
+    }
+
+    /** Hard-deletes the folder row; FK {@code ON DELETE SET NULL} unfiles its materials (none is deleted). */
+    @Transactional
+    public void deleteFolder(User caller, Long id) {
+        MaterialFolder f = folderRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy thư mục."));
+        if (!canManageFolder(caller, f)) throw new ForbiddenException("Bạn không có quyền xoá thư mục này.");
+        folderRepository.delete(f);
     }
 
     /** Combined list: PERSONAL of the caller ∪ ORG of the caller's org (only while ACTIVE there). */
@@ -307,14 +527,154 @@ public class MaterialService {
                 .orElse(false);
     }
 
+    // --------------------------------------------------------------- owner / folder / metadata helpers
+
+    /** Resolves the target owner (PERSONAL of the caller, or the caller's ORG while ACTIVE there). */
+    private OwnerRef resolveOwner(User caller, String scopeRaw) {
+        String scope = scopeRaw == null ? SCOPE_PERSONAL : scopeRaw.trim().toUpperCase(Locale.ROOT);
+        if (SCOPE_PERSONAL.equals(scope)) {
+            return new OwnerRef(SCOPE_PERSONAL, caller.getId(), null);
+        }
+        if (SCOPE_ORG.equals(scope)) {
+            Long orgId = caller.getOrgId();
+            if (orgId == null || !isActiveMember(caller.getId(), orgId)) {
+                throw new ForbiddenException("Bạn không thuộc tổ chức nào để tạo tài liệu cấp tổ chức.");
+            }
+            return new OwnerRef(SCOPE_ORG, null, orgId);
+        }
+        throw new BadRequestException("Phạm vi không hợp lệ: " + scopeRaw);
+    }
+
+    private OwnerRef ownerOf(Material m) {
+        return new OwnerRef(m.getOwnerScope(), m.getTeacherId(), m.getOrgId());
+    }
+
+    /** S3 key prefix per owner: {@code materials/{p-<teacherId>|<orgId>}/{yyyy}/{MM}} (usage/cleanup by prefix). */
+    private String ownerPrefix(OwnerRef owner) {
+        String seg = SCOPE_PERSONAL.equals(owner.scope())
+                ? ("p-" + owner.teacherId()) : String.valueOf(owner.orgId());
+        LocalDate now = LocalDate.now();
+        return String.format(Locale.ROOT, "%s/%s/%04d/%02d",
+                STORAGE_CATEGORY, seg, now.getYear(), now.getMonthValue());
+    }
+
+    private String buildPresignKey(OwnerRef owner, String filename) {
+        return ownerPrefix(owner) + "/" + UUID.randomUUID() + extensionOf(filename);
+    }
+
+    private static String extensionOf(String filename) {
+        if (filename != null && filename.contains(".")) {
+            return filename.substring(filename.lastIndexOf('.')).toLowerCase(Locale.ROOT); // includes the dot
+        }
+        return "";
+    }
+
+    /** Normalizes free tags: trim, drop blanks, dedupe. Never null (matches the NOT NULL text[] column). */
+    private static String[] toTagArray(List<String> tags) {
+        if (tags == null) return new String[0];
+        return tags.stream()
+                .filter(t -> t != null && !t.isBlank())
+                .map(String::trim)
+                .distinct()
+                .toArray(String[]::new);
+    }
+
+    private static Integer clampDuration(Integer d) {
+        if (d == null) return null;
+        if (d < 0) return 0;
+        return Math.min(d, MAX_DURATION_SECONDS);
+    }
+
+    private static boolean isBlank(String s) {
+        return s == null || s.isBlank();
+    }
+
+    private static String normalize(String s) {
+        return isBlank(s) ? null : s.trim();
+    }
+
+    private static String normalizeUpper(String s) {
+        return isBlank(s) ? null : s.trim().toUpperCase(Locale.ROOT);
+    }
+
+    /**
+     * True if the media type — ignoring any parameters (e.g. "; charset=utf-8") and case — is one we refuse
+     * to store because a browser could execute/render it inline from the S3 origin (stored XSS). The MIME
+     * value is client-controlled on both the multipart part and the presigned PUT, so this runs at create,
+     * presign, and complete.
+     */
+    private static boolean isBlockedMime(String contentType) {
+        if (contentType == null) return false;
+        String mediaType = contentType.toLowerCase(Locale.ROOT).trim();
+        int semi = mediaType.indexOf(';');
+        if (semi >= 0) mediaType = mediaType.substring(0, semi).trim();
+        return BLOCKED_MIME.contains(mediaType);
+    }
+
+    /**
+     * A material may only be filed under a folder of the SAME owner (no cross-owner filing). Skips when
+     * {@code folderId} is null (unfiled).
+     */
+    private void assertFolderAssignable(User caller, OwnerRef materialOwner, Long folderId) {
+        if (folderId == null) return;
+        MaterialFolder f = folderRepository.findById(folderId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy thư mục."));
+        if (!canAccessFolder(caller, f)) {
+            throw new ForbiddenException("Bạn không có quyền dùng thư mục này.");
+        }
+        boolean sameOwner = f.getOwnerScope().equals(materialOwner.scope())
+                && Objects.equals(f.getTeacherId(), materialOwner.teacherId())
+                && Objects.equals(f.getOrgId(), materialOwner.orgId());
+        if (!sameOwner) {
+            throw new BadRequestException("Thư mục không cùng phạm vi sở hữu với tài liệu.");
+        }
+    }
+
+    private boolean canAccessFolder(User caller, MaterialFolder f) {
+        if (SCOPE_PERSONAL.equals(f.getOwnerScope())) {
+            return caller.getId().equals(f.getTeacherId());
+        }
+        return f.getOrgId() != null
+                && f.getOrgId().equals(caller.getOrgId())
+                && isActiveMember(caller.getId(), f.getOrgId());
+    }
+
+    private boolean canManageFolder(User caller, MaterialFolder f) {
+        if (SCOPE_PERSONAL.equals(f.getOwnerScope())) {
+            return caller.getId().equals(f.getTeacherId());
+        }
+        return canAccessFolder(caller, f)
+                && (caller.getId().equals(f.getCreatedBy()) || isOrgAdmin(caller.getId(), f.getOrgId()));
+    }
+
+    /** Owner tuple used across create/link/presign/folder — DRYs the PERSONAL/ORG resolution. */
+    private record OwnerRef(String scope, Long teacherId, Long orgId) {
+        void applyTo(Material.MaterialBuilder b) {
+            b.ownerScope(scope).teacherId(teacherId).orgId(orgId);
+        }
+    }
+
     private MaterialDto toDto(Material m) {
-        // Presigned GET (not a public URL): teaching materials are private — this lets the owner /
-        // ACTIVE org member VIEW the file in-browser without making the S3 object world-readable.
-        return MaterialDto.from(m, s3StorageService.presignedGetUrl(m.getObjectKey(), MATERIAL_URL_TTL));
+        return MaterialDto.from(m, resolveUrl(m));
+    }
+
+    /**
+     * Client-facing URL: a short-lived presigned GET for file materials (private — lets the owner / ACTIVE
+     * org member view/stream in-browser without a world-readable object; Range-capable so {@code <audio>}
+     * seeks), or the raw external URL for {@code kind=LINK}. Single QĐ-1 abstraction point for a later
+     * CloudFront swap. Re-signed on every list/read.
+     */
+    private String resolveUrl(Material m) {
+        return (m.getObjectKey() != null)
+                ? s3StorageService.presignedGetUrl(m.getObjectKey(), MATERIAL_URL_TTL)
+                : m.getExternalUrl();
     }
 
     private static String kindOf(MultipartFile file) {
-        String name = file.getOriginalFilename();
+        return kindFromFilename(file.getOriginalFilename());
+    }
+
+    private static String kindFromFilename(String name) {
         String ext = "";
         if (name != null && name.contains(".")) {
             ext = name.substring(name.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT);
@@ -324,6 +684,8 @@ public class MaterialService {
             case "pdf" -> "PDF";
             case "docx", "doc" -> "DOCX";
             case "png", "jpg", "jpeg", "gif", "webp" -> "IMAGE";
+            case "mp3", "m4a", "wav", "ogg", "aac", "flac" -> "AUDIO";
+            case "mp4", "mov", "webm", "mkv" -> "VIDEO";
             default -> "OTHER";
         };
     }

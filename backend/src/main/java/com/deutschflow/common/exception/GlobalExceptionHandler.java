@@ -89,6 +89,20 @@ public class GlobalExceptionHandler {
                 request.getRequestURI(), null, null);
     }
 
+    // --- 413 Payload Too Large — multipart upload vượt spring.servlet.multipart.max-file-size (25MB) ---
+    // Không có handler riêng thì nó rơi xuống handleGeneral(Exception) và giả dạng 500. Map sang 413
+    // trung thực để client hiển thị "tệp quá lớn" và chuyển sang luồng presigned PUT (tệp >25MB đẩy
+    // thẳng lên S3). Materials Library — xem MaterialService.presignUpload.
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    public ResponseEntity<ProblemDetail> handleMaxUploadSize(
+            org.springframework.web.multipart.MaxUploadSizeExceededException ex,
+            HttpServletRequest request) {
+        log.warn("[413] Upload vượt giới hạn trên {}: {}", request.getRequestURI(), ex.getMessage());
+        return problem(HttpStatus.PAYLOAD_TOO_LARGE, "payload-too-large", "Payload Too Large",
+                "Tệp tải lên vượt quá giới hạn 25MB. Với tệp lớn hơn, hãy dùng luồng tải trực tiếp (presigned upload).",
+                request.getRequestURI(), null, null);
+    }
+
     // --- 400 Validation (JSR-303) ---
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ProblemDetail> handleValidation(MethodArgumentNotValidException ex,

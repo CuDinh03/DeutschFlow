@@ -9,6 +9,7 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
@@ -95,6 +96,19 @@ public class S3StorageService {
         }
     }
 
+    /**
+     * HEAD an existing object and return its authoritative size + content-type. Used by the presigned-PUT
+     * "complete" step: the client-declared size is untrusted, so the real length read here is what the
+     * server persists and caps. Throws {@link NoSuchKeyException} if the object was never PUT.
+     */
+    public S3ObjectMetadata headObject(String objectKey) {
+        HeadObjectResponse head = s3Client.headObject(HeadObjectRequest.builder()
+                .bucket(bucketContext.bucketName())
+                .key(objectKey)
+                .build());
+        return new S3ObjectMetadata(head.contentLength(), head.contentType());
+    }
+
     /** Public URL for an existing object key (no upload). */
     public String publicUrl(String key) {
         return bucketContext.publicObjectUrl(key);
@@ -144,5 +158,12 @@ public class S3StorageService {
     public static class S3UploadResult {
         String s3Key;
         String url;
+    }
+
+    /** Authoritative object metadata read from an S3 HEAD (size + content-type). */
+    @lombok.Value
+    public static class S3ObjectMetadata {
+        long contentLength;
+        String contentType;
     }
 }

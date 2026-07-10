@@ -192,10 +192,15 @@ server:
     accept-count: ${TOMCAT_ACCEPT_COUNT:30}
     max-connections: ${TOMCAT_MAX_CONNECTIONS:200}
     connection-timeout: ${TOMCAT_CONNECTION_TIMEOUT:20000}
+    # -1 = đừng chặn size body: khi Spring từ chối multipart >25MB, Tomcat vẫn đọc hết phần còn lại
+    # để trả 413 JSON sạch thay vì reset kết nối (nếu không, client thấy connection reset khó hiểu).
+    max-swallow-size: -1
   servlet:
     multipart:
-      max-file-size: 10MB
-      max-request-size: 10MB
+      # Materials Library: nâng 10MB→25MB. Tệp >25MB KHÔNG đi qua backend — dùng presigned PUT thẳng
+      # lên S3 (MaterialService.presignUpload). ⚠️ nginx client_max_body_size cũng phải ≥25M (deploy infra).
+      max-file-size: 25MB
+      max-request-size: 25MB
     encoding:
       charset: UTF-8
       force: true

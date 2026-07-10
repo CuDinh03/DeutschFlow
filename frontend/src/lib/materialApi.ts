@@ -6,8 +6,8 @@ import api from '@/lib/api'
  */
 
 export type MaterialScope = 'PERSONAL' | 'ORG'
-export type MaterialKind = 'PPTX' | 'PDF' | 'DOCX' | 'IMAGE' | 'OTHER'
-export type MaterialStatus = 'ACTIVE' | 'ARCHIVED' | 'DELETED'
+export type MaterialKind = 'PPTX' | 'PDF' | 'DOCX' | 'IMAGE' | 'AUDIO' | 'VIDEO' | 'LINK' | 'OTHER'
+export type MaterialStatus = 'ACTIVE' | 'ARCHIVED' | 'DELETED' | 'UPLOADING'
 
 export interface Material {
   id: number
@@ -15,7 +15,16 @@ export interface Material {
   title: string
   description: string | null
   kind: MaterialKind
+  /** Presigned GET for file materials; the raw external link for kind=LINK. */
   url: string
+  /** kind=LINK only: the external source URL (allango/YouTube/Drive…). */
+  externalUrl: string | null
+  /** Folder the material is filed under, or null when unfiled (root). */
+  folderId: number | null
+  /** Audio/video track length in seconds (allango-style display), or null. */
+  durationSeconds: number | null
+  /** Free-form tags for filtering ("Netzwerk A1", "Hören", …). */
+  tags: string[]
   mimeType: string | null
   sizeBytes: number | null
   visibility: string

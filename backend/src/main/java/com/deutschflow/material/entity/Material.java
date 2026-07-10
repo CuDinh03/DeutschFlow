@@ -2,6 +2,8 @@ package com.deutschflow.material.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 
@@ -43,10 +45,28 @@ public class Material {
     private String description;
 
     @Column(nullable = false)
-    private String kind; // PPTX | PDF | DOCX | IMAGE | OTHER
+    private String kind; // PPTX | PDF | DOCX | IMAGE | AUDIO | VIDEO | LINK | OTHER
 
-    @Column(name = "object_key", nullable = false)
+    // NULL cho kind=LINK (link ngoài không có object S3). DB CHECK chk_material_object_key (V258)
+    // vẫn buộc NOT NULL cho mọi kind khác 'LINK'.
+    @Column(name = "object_key")
     private String objectKey; // S3 key
+
+    @Column(name = "folder_id")
+    private Long folderId; // thư mục chứa (NULL = chưa xếp thư mục); FK ON DELETE SET NULL
+
+    @Column(name = "external_url")
+    private String externalUrl; // kind=LINK: URL nguồn ngoài (allango/YouTube/Drive...)
+
+    @Column(name = "duration_seconds")
+    private Integer durationSeconds; // audio/video: thời lượng track (hiển thị allango-style 12:34)
+
+    // Tag tự do ("Netzwerk A1", "Hören", "Lektion 3"). Postgres text[] + GIN index (V258) cho filter.
+    // Hibernate 6.4 map native qua @JdbcTypeCode(SqlTypes.ARRAY) — không cần hypersistence.
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "tags", columnDefinition = "text[]", nullable = false)
+    @Builder.Default
+    private String[] tags = new String[0];
 
     @Column(name = "mime_type")
     private String mimeType;
