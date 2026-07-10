@@ -11,8 +11,9 @@
 // unreliable under a GestureDetector), then surfaced via onSelectNode → NodeSheet.
 // Zoom/fit/companion chrome are RN overlays outside the <Svg>.
 
-import { useCallback, useMemo, useRef } from 'react'
-import { View } from 'react-native'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Text, View } from 'react-native'
+import { MotiView } from 'moti'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Svg, {
   Circle,
@@ -27,16 +28,17 @@ import Svg, {
 } from 'react-native-svg'
 import { GestureDetector } from 'react-native-gesture-handler'
 import Animated, { useReducedMotion } from 'react-native-reanimated'
-import { fonts, space, useTheme } from '@/lib/theme'
+import { fonts, radius, space, useTheme } from '@/lib/theme'
 import type { SkillNode } from '@/lib/skillTreeApi'
 import { companionEmoji, type CompanionKey } from '@/lib/treeCompanion'
 import {
   buildTreeLayout,
+  detectLevelUp,
   focusTargetId,
   recommendedNodeId,
   trunkPath,
+  type LevelUpEvent,
   type MilestoneState,
-  type PreviewStage,
 } from './skill-tree/layout'
 import { BARK, CROWN_LEAVES, GROUND, GROUP_COLORS, MS_PAL, SKILL_DOTS, type TopicGroupKey } from './skill-tree/palette'
 import { CheckGlyph, LockGlyph, SproutGlyph } from './skill-tree/glyphs'
@@ -46,7 +48,7 @@ import { useTreeGestures } from './skill-tree/controls/useTreeGestures'
 import { FitButton, FocusButton, LevelRail, ShareButton, ZoomButtons } from './skill-tree/controls/TreeControls'
 import { shareTreePng, treeCaption } from '@/lib/shareTree'
 import { CompanionChips } from './skill-tree/controls/CompanionChips'
-import { BloomHalo, CompanionEmoji, NodeMotif, RecRing, SkillBadge } from './skill-tree/motifs/NodeMotif'
+import { BloomHalo, CompanionEmoji, NodeMotif, RecRing, RootMotif, SkillBadge } from './skill-tree/motifs/NodeMotif'
 
 const CANVAS_W = 380 // fixed layout width; the gesture transform maps it to the viewport
 const ARM_X = Math.min(CANVAS_W / 2 - 56, 120)
@@ -62,6 +64,8 @@ interface PlacedNode {
   x: number
   y: number
   branchGroup: TopicGroupKey
+  /** foundation-root node (lowest tier's seed cluster) — rendered as a seed/root, not fruit. */
+  isRoot?: boolean
 }
 interface BranchVisual {
   key: string
@@ -73,6 +77,8 @@ interface BranchVisual {
   /** current (in-progress) level fills in its foliage as lessons complete (0..1);
    *  1 for already-passed levels. Drives the "tán dày dần" growth feel. */
   growth: number
+  /** the ground-anchored foundation cluster — skips the branch arm + foliage (roots instead). */
+  isRoot?: boolean
 }
 
 interface SkillTreeViewProps {
@@ -86,8 +92,6 @@ interface SkillTreeViewProps {
   filterTopic?: TopicGroupKey | null
   /** Pha 4 filter: dim nodes whose skill index (dayNumber % 4) ≠ this. */
   filterSkill?: number | null
-  /** Maturity-preview tab: render the tree as a sprout / current / fully grown. */
-  previewStage?: PreviewStage
 }
 
 export function SkillTreeView({
@@ -99,13 +103,12 @@ export function SkillTreeView({
   onSelectNode,
   filterTopic = null,
   filterSkill = null,
-  previewStage = 'current',
 }: SkillTreeViewProps) {
   const c = useTheme().colors
   const insets = useSafeAreaInsets()
   const reduced = useReducedMotion()
   const svgRef = useRef<Svg>(null)
-  const layout = useMemo(() => buildTreeLayout(nodes, CANVAS_W, previewStage), [nodes, previewStage])
+  const layout = useMemo(() => buildTreeLayout(nodes, CANVAS_W), [nodes])
   const recId = useMemo(() => recommendedNodeId(nodes), [nodes])
   const compEmoji = companionEmoji(companion)
 
@@ -115,7 +118,9 @@ export function SkillTreeView({
     const placed: PlacedNode[] = []
     layout.tiers.forEach((tier) => {
       tier.branchRows.forEach((b, bi) => {
-        const fx = layout.cx + b.side * ARM_X
+        // The foundation root cluster is centred on the trunk base (seeds spread symmetrically
+        // around the roots), not offset to one side — fixes #6 gap 2 ("lệch một bên").
+        const fx = b.isRoot ? layout.cx : layout.cx + b.side * ARM_X
         const fy = b.y
         // Pha 3: tint + label each branch by its lead lesson's real topic group
         // (phase/industry → group), replacing the cosmetic palette cycle.
@@ -132,11 +137,12 @@ export function SkillTreeView({
           foliage: GROUP_COLORS[group].leaf,
           chipLabel: lead ? truncate(topicLabelOf(lead), 18) : '',
           growth,
+          isRoot: b.isRoot,
         })
         const offs = nodeOffsets(b.nodes.length)
         b.nodes.forEach((node, j) => {
           const [dx, dy] = offs[j]
-          placed.push({ node, x: fx + dx, y: fy + dy, branchGroup: group })
+          placed.push({ node, x: fx + dx, y: fy + dy, branchGroup: group, isRoot: b.isRoot })
         })
       })
     })
@@ -200,10 +206,36 @@ export function SkillTreeView({
     })
   }, [fitView, done, total, pct])
 
+  // Growth celebration (#6): when a CEFR level is newly passed/unlocked (the tree "mọc" a stage),
+  // flash a banner. The foliage itself already fills in via foliageScale on the next render — this
+  // just announces the milestone. Detection runs on the pure tier-state signature (unit-tested).
+  const prevTierStates = useRef<Record<string, MilestoneState> | null>(null)
+  const [levelUp, setLevelUp] = useState<LevelUpEvent | null>(null)
+  useEffect(() => {
+    const cur: Record<string, MilestoneState> = {}
+    for (const t of layout.tiers) cur[t.level] = t.state
+    const prev = prevTierStates.current
+    prevTierStates.current = cur
+    if (prev) {
+      const ev = detectLevelUp(prev, cur)
+      if (ev) setLevelUp(ev)
+    }
+  }, [layout.tiers])
+  useEffect(() => {
+    if (!levelUp) return
+    const id = setTimeout(() => setLevelUp(null), 4200)
+    return () => clearTimeout(id)
+  }, [levelUp])
+
   // Living-trunk tip = the highest reached level, or a short stub at cold-start so
   // the "mầm" (bare trunk + sprout) shows instead of a degenerate/absent trunk. The
   // sprout perches here as the growing point until the goal/crown is reached.
-  const trunkTopY = layout.hasGrown ? layout.grownTopY : layout.groundY - MIN_TRUNK_STUB
+  // Clamp the cold-start stub to the canvas band: on a short all-locked tree (≤2 tiers,
+  // totalContent < MIN_TRUNK_STUB) an unclamped groundY − stub would push the sprout/trunk tip
+  // above topY (even off the top edge), hiding the very "mầm" this branch exists to show.
+  const trunkTopY = layout.hasGrown
+    ? layout.grownTopY
+    : Math.max(layout.topY, layout.groundY - MIN_TRUNK_STUB)
 
   if (nodes.length === 0 || viewportW === 0 || viewportH === 0) return null
 
@@ -287,6 +319,9 @@ export function SkillTreeView({
 
             {/* branch arms + foliage + topic chip */}
             {geom.branches.map((b) => {
+              // Root (foundation) clusters render as seeds/roots at the ground per node, not a
+              // fruit cluster up a branch arm — so skip the arm + foliage + chip for them.
+              if (b.isRoot) return null
               const dim = filterTopic !== null && b.group !== filterTopic
               // current level's foliage fills in with completion (b.growth); passed = 1
               return (
@@ -297,21 +332,27 @@ export function SkillTreeView({
             })}
 
             {/* lesson fruit motifs */}
-            {geom.placed.map(({ node, x, y, branchGroup }) => {
+            {geom.placed.map(({ node, x, y, branchGroup, isRoot }) => {
               const isRec = node.id === recId
               const branchDim = filterTopic !== null && branchGroup !== filterTopic
               const nodeDim = branchDim || (filterSkill !== null && node.dayNumber % 4 !== filterSkill)
               const baseOpacity = node.status === 'LOCKED' ? 0.5 : 1
-              // Name the frontier (recommended / in-progress / available) so learners can tell
-              // which lesson is which without tapping — the many completed/locked nodes stay
-              // unlabelled to avoid clutter (the cluster topic chip covers those). Fix "mò từng cái".
-              const showLabel = isRec || node.status === 'IN_PROGRESS' || node.status === 'AVAILABLE'
+              // Name the frontier (recommended / in-progress / available) + every foundation-root
+              // node so learners can tell lessons apart without tapping; the many completed/locked
+              // ones stay unlabelled to avoid clutter (the cluster topic chip covers those).
+              const showLabel = isRoot || isRec || node.status === 'IN_PROGRESS' || node.status === 'AVAILABLE'
               return (
                 <G key={node.id} transform={`translate(${x},${y})`} opacity={nodeDim ? 0.12 : baseOpacity}>
                   {isRec ? <RecRing reduced={reduced} /> : null}
                   {node.status === 'IN_PROGRESS' ? <BloomHalo reduced={reduced} /> : null}
-                  <NodeMotif status={node.status} success={c.success} />
-                  <SkillBadge color={SKILL_DOTS[node.dayNumber % 4].color} />
+                  {isRoot ? (
+                    <RootMotif status={node.status} />
+                  ) : (
+                    <>
+                      <NodeMotif status={node.status} success={c.success} />
+                      <SkillBadge color={SKILL_DOTS[node.dayNumber % 4].color} />
+                    </>
+                  )}
                   {isRec && compEmoji ? <CompanionEmoji emoji={compEmoji} /> : null}
                   {showLabel ? (
                     <SvgText
@@ -375,7 +416,58 @@ export function SkillTreeView({
       <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, bottom: insets.bottom + space[2] }}>
         <CompanionChips value={companion} onChange={onCompanionChange} />
       </View>
+
+      {/* growth celebration — announces a newly passed/unlocked level (#6) */}
+      {levelUp ? <GrowthBanner event={levelUp} reduced={reduced} top={insets.top} /> : null}
     </View>
+  )
+}
+
+// Brief "cây vừa lớn thêm" overlay when a level is passed/unlocked. RN overlay OUTSIDE the Svg
+// (spec §5); MotiView entrance, or a static box under reduced motion. Non-interactive.
+function GrowthBanner({ event, reduced, top }: { event: LevelUpEvent; reduced: boolean; top: number }) {
+  const c = useTheme().colors
+  const text =
+    event.kind === 'passed'
+      ? `Hoàn thành ${event.level}! 🌳 Cây của bạn vừa lớn thêm`
+      : `🌱 ${event.level} đã mở khoá — cây vươn cao hơn!`
+  const box = (
+    <View
+      style={{
+        backgroundColor: c.inkSurface,
+        borderRadius: radius.md,
+        paddingVertical: space[3],
+        paddingHorizontal: space[4],
+        maxWidth: 320,
+      }}
+    >
+      <Text style={{ color: c.onInk, fontFamily: fonts.bodyMedium, fontSize: 14, textAlign: 'center' }}>{text}</Text>
+    </View>
+  )
+  const wrap = {
+    position: 'absolute' as const,
+    top: top + space[3],
+    left: space[4],
+    right: space[4],
+    alignItems: 'center' as const,
+  }
+  if (reduced) {
+    return (
+      <View pointerEvents="none" style={wrap}>
+        {box}
+      </View>
+    )
+  }
+  return (
+    <MotiView
+      pointerEvents="none"
+      style={wrap}
+      from={{ opacity: 0, translateY: -12 }}
+      animate={{ opacity: 1, translateY: 0 }}
+      transition={{ type: 'timing', duration: 320 }}
+    >
+      {box}
+    </MotiView>
   )
 }
 

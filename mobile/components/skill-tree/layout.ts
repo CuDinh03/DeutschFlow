@@ -12,26 +12,23 @@ export const CEFR_ORDER = ['A0', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2']
 
 export type MilestoneState = 'passed' | 'in_progress' | 'locked'
 
-// View-only maturity preview (the A0·Mầm / Hiện tại / C1·Cây lớn tabs). Overrides
-// how levels are classified for RENDER only — it never changes lesson data/gating.
-//   mam     → force every level locked → a bare sprout (what a brand-new tree looks like)
-//   current → the learner's actual progress
-//   big     → force every level passed → the full grown tree (the goal preview)
-export type PreviewStage = 'mam' | 'current' | 'big'
-
 const BRANCH_SIZE = 3 // lessons per branch cluster
-const ROW = 150 // vertical space one branch row occupies
+const ROW = 132 // vertical space one (paired) branch row occupies — reduced now clusters pair 2-per-row
 const MS_BAND = 72 // milestone disc band at a tier's base
 const TOP_PAD = 96 // room above the highest tier for the crown
-const BOTTOM_PAD = 80 // room below the lowest tier for ground + sprout
+const BOTTOM_PAD = 96 // room below the lowest tier for the ground + roots/sprout
 const SKELETON_BAND = 116 // compact vertical space per not-yet-reached (future) level
 const CURRENT_FOLIAGE_FLOOR = 0.25 // current level's foliage opacity at 0% done (→ 1.0 at 100%)
+const ROOT_RISE = 40 // the foundation "root" cluster hugs the ground this far above groundY (no floating gap)
 
 export interface BranchRow {
   nodes: SkillNode[]
   side: -1 | 1
   /** vertical centre of the foliage cluster */
   y: number
+  /** the foundation "root" cluster of the lowest tier — rendered as seeds/roots at the
+   *  ground (not fruit up a branch). Also the cold-start seed cluster shown when all-locked. */
+  isRoot?: boolean
 }
 
 export interface TierLayout {
@@ -88,73 +85,87 @@ function cefrRank(level: string): number {
   return i === -1 ? 99 : i
 }
 
-export function buildTreeLayout(nodes: SkillNode[], width: number, preview: PreviewStage = 'current'): TreeLayout {
+interface BuiltTier {
+  level: string
+  branches: Omit<BranchRow, 'y'>[]
+  state: MilestoneState
+  grown: boolean
+  fillRatio: number
+  foliageScale: number
+  isRootTier: boolean
+}
+
+export function buildTreeLayout(nodes: SkillNode[], width: number): TreeLayout {
   const cx = width / 2
 
   const grouped: Record<string, SkillNode[]> = {}
   for (const n of nodes) (grouped[n.cefrLevel || '—'] ??= []).push(n)
   const levels = Object.keys(grouped).sort((a, b) => cefrRank(a) - cefrRank(b))
 
-  const built = levels.map((level) => {
+  const built: BuiltTier[] = levels.map((level, idx) => {
     const lv = grouped[level].slice().sort((a, b) => a.dayNumber - b.dayNumber || a.sortOrder - b.sortOrder)
+    // The lowest CEFR tier is the "root tier": its first cluster is the foundation, drawn as
+    // roots/seeds at the ground — and it always shows, even at cold-start when every node is
+    // still locked, so a brand-new learner sees a tappable seed cluster, not a bare stub.
+    const isRootTier = idx === 0
     const branches: Omit<BranchRow, 'y'>[] = []
     for (let i = 0; i < lv.length; i += BRANCH_SIZE) {
-      branches.push({
-        nodes: lv.slice(i, i + BRANCH_SIZE),
-        side: branches.length % 2 === 0 ? -1 : 1,
-      })
+      branches.push({ nodes: lv.slice(i, i + BRANCH_SIZE), side: -1 })
     }
-    // Maturity preview overrides classification for render only (mam=all locked,
-    // big=all passed), else use the learner's real progress.
-    const state =
-      preview === 'big' ? 'passed' : preview === 'mam' ? 'locked' : milestoneState(lv)
-    const completed =
-      preview === 'big' ? lv.length : preview === 'mam' ? 0 : lv.filter((n) => n.status === 'COMPLETED').length
-    // A level "grows" once it is reachable (passed or in-progress); levels still
-    // fully locked are the unreached future, drawn as a faint skeleton (spec §2:
-    // the tree grows from a sprout to the CURRENT level, the goal floats above).
+    const state = milestoneState(lv)
+    const completed = lv.filter((n) => n.status === 'COMPLETED').length
+    // A level "grows" once it is reachable (passed or in-progress); a still-locked level is the
+    // unreached future, drawn as a faint skeleton (spec §2). fillRatio drives foliage density.
     const grown = state !== 'locked'
     const fillRatio = lv.length > 0 ? completed / lv.length : 0
-    // Foliage coefficient: passed = lush (1); current level fills floor→1 by its
-    // completion; future = none (no clusters drawn).
     const foliageScale = !grown
       ? 0
       : state === 'in_progress'
         ? CURRENT_FOLIAGE_FLOOR + (1 - CURRENT_FOLIAGE_FLOOR) * fillRatio
         : 1
-    return { level, branches, state, grown, fillRatio, foliageScale }
+    return { level, branches, state, grown, fillRatio, foliageScale, isRootTier }
   })
 
-  // Grown levels carry their full measured height; future levels collapse to a
-  // compact faint band so the skeleton + crown sit just above the living tree.
-  const tierHeight = (branchCount: number) => MS_BAND + branchCount * ROW
-  const totalContent = built.reduce(
-    (sum, t) => sum + (t.grown ? tierHeight(t.branches.length) : SKELETON_BAND),
-    0,
-  )
+  // Clusters lay out TWO per row (left + right of the trunk) so a level with many lessons is
+  // ~half as tall and uses both sides of the canvas (fixes "trống trải" + the over-long column).
+  // The root tier's first cluster sits in the ground band, so only its remaining clusters pair.
+  const nonRootClusters = (t: BuiltTier) => (t.isRootTier ? Math.max(0, t.branches.length - 1) : t.branches.length)
+  const rowsOf = (t: BuiltTier) => Math.ceil(nonRootClusters(t) / 2)
+  const tierHeight = (t: BuiltTier) => MS_BAND + rowsOf(t) * ROW
+  // Reached tier → measured height; future (locked) tier → faint skeleton band, EXCEPT the root
+  // tier which keeps a ground band so its cold-start seed cluster is visible.
+  const bandOf = (t: BuiltTier) => (t.grown ? tierHeight(t) : t.isRootTier ? MS_BAND : SKELETON_BAND)
+
+  const totalContent = built.reduce((sum, t) => sum + bandOf(t), 0)
   const height = TOP_PAD + totalContent + BOTTOM_PAD
   const groundY = height - BOTTOM_PAD
 
-  // Place bottom-up: the lowest level sits on the ground; later levels stack
-  // upward. Grown levels get branch rows; future (skeleton) levels get just a
-  // faint milestone band. `grownTopY` marks where the solid trunk ends and the
-  // faint "still to grow" trunk begins.
+  // Place bottom-up from the ground. Two clusters share each row's y (sides -1/+1). The root
+  // cluster is pinned near the ground (ROOT_RISE) rather than a full row up, so the foundation
+  // never floats mid-trunk. `grownTopY` marks where the solid trunk ends.
   let yBottom = groundY
   let grownTopY = groundY
   const tiers: TierLayout[] = built.map((t) => {
+    const milestoneY = yBottom - (t.grown || t.isRootTier ? MS_BAND : SKELETON_BAND) / 2
+    const branchRows: BranchRow[] = []
+    if (t.isRootTier && t.branches.length > 0) {
+      branchRows.push({ ...t.branches[0], side: -1, y: groundY - ROOT_RISE, isRoot: true })
+    }
     if (t.grown) {
-      const milestoneY = yBottom - MS_BAND / 2
-      const branchRows: BranchRow[] = t.branches.map((b, i) => ({
-        ...b,
-        y: yBottom - MS_BAND - i * ROW - ROW / 2,
-      }))
-      yBottom -= tierHeight(t.branches.length)
+      const rest = t.isRootTier ? t.branches.slice(1) : t.branches
+      rest.forEach((b, i) => {
+        const row = Math.floor(i / 2)
+        const side: -1 | 1 = i % 2 === 0 ? -1 : 1
+        branchRows.push({ ...b, side, y: yBottom - MS_BAND - row * ROW - ROW / 2 })
+      })
+      yBottom -= tierHeight(t)
       grownTopY = yBottom
       return { level: t.level, state: t.state, milestoneY, branchRows, grown: true, fillRatio: t.fillRatio, foliageScale: t.foliageScale }
     }
-    const milestoneY = yBottom - SKELETON_BAND / 2
-    yBottom -= SKELETON_BAND
-    return { level: t.level, state: t.state, milestoneY, branchRows: [], grown: false, fillRatio: t.fillRatio, foliageScale: t.foliageScale }
+    // Not grown: root tier keeps its seed cluster (pushed above) in a ground band; other future
+    // tiers are a bare skeleton with no branches.
+    yBottom -= bandOf(t)
+    return { level: t.level, state: t.state, milestoneY, branchRows, grown: false, fillRatio: t.fillRatio, foliageScale: t.foliageScale }
   })
 
   const topY = yBottom
@@ -202,6 +213,40 @@ export function focusTargetId(nodes: SkillNode[]): number | null {
     }
   }
   return best ? best.id : recommendedNodeId(nodes)
+}
+
+export interface LevelUpEvent {
+  level: string
+  kind: 'passed' | 'unlocked'
+}
+
+// Compare previous vs current per-level milestone states to detect a level-up worth
+// celebrating (#6 growth): a level newly fully-passed ('passed') or newly unlocked from
+// locked→in_progress ('unlocked'). Prefers a 'passed' event, then the higher CEFR level.
+// A level that only just appeared (absent in prev) is not a level-up. Pure → unit-tested;
+// the renderer turns a non-null result into the "cây vừa lớn thêm" banner.
+export function detectLevelUp(
+  prev: Record<string, MilestoneState>,
+  next: Record<string, MilestoneState>,
+): LevelUpEvent | null {
+  let best: LevelUpEvent | null = null
+  for (const level of Object.keys(next)) {
+    const before = prev[level]
+    const after = next[level]
+    if (before === undefined) continue
+    let kind: LevelUpEvent['kind'] | null = null
+    if (before !== 'passed' && after === 'passed') kind = 'passed'
+    else if (before === 'locked' && after === 'in_progress') kind = 'unlocked'
+    if (!kind) continue
+    if (
+      best === null ||
+      (kind === 'passed' && best.kind === 'unlocked') ||
+      (kind === best.kind && cefrRank(level) > cefrRank(best.level))
+    ) {
+      best = { level, kind }
+    }
+  }
+  return best
 }
 
 // Tapered bark-ribbon trunk: wide at the base (ground), thin at the crown, with

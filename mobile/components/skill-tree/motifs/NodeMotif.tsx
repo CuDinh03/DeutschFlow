@@ -90,6 +90,42 @@ export function NodeMotif({ status, success }: { status: SkillNode['status']; su
   return <LockedMotif />
 }
 
+// The foundation "root/seed" motif (#6) for the lowest tier's kiến-thức-nền lessons: a seed at
+// the ground with little roots — closed when locked, cracking open / sprouting as it becomes
+// available/in-progress, an established rooted seed when completed. Distinct from the fruit
+// lifecycle so the base of the tree reads as roots, not fruit floating at the ground.
+export function RootMotif({ status }: { status: SkillNode['status'] }) {
+  const seedFill = status === 'LOCKED' ? '#C4B49A' : '#C89A5E'
+  const seedStroke = status === 'LOCKED' ? '#A69A82' : '#8A6A3F'
+  return (
+    <G opacity={status === 'LOCKED' ? 0.7 : 1}>
+      {/* roots reaching into the soil */}
+      <Path d="M -6 9 Q -12 16 -15 24" stroke="#6B4F2C" strokeWidth={2} fill="none" strokeLinecap="round" opacity={0.75} />
+      <Path d="M 0 11 Q 0 18 0 26" stroke="#6B4F2C" strokeWidth={2} fill="none" strokeLinecap="round" opacity={0.75} />
+      <Path d="M 6 9 Q 12 16 15 24" stroke="#6B4F2C" strokeWidth={2} fill="none" strokeLinecap="round" opacity={0.75} />
+      {/* the seed */}
+      <Ellipse cx={0} cy={2} rx={11} ry={13} fill={seedFill} stroke={seedStroke} strokeWidth={1.4} />
+      {status === 'COMPLETED' ? (
+        <G>
+          <Path d="M 0 -9 Q 3 2 0 12" stroke={seedStroke} strokeWidth={1} fill="none" opacity={0.6} />
+          <Path d="M 0 -8 Q -8 -14 -12 -22 Q -4 -20 0 -11 Z" fill="#5E7C3F" />
+          <Path d="M 0 -9 Q 8 -15 12 -23 Q 4 -21 0 -12 Z" fill="#6E9B5C" />
+        </G>
+      ) : status === 'IN_PROGRESS' ? (
+        <G>
+          <Path d="M 0 -8 Q -8 -13 -11 -20 Q -3 -18 0 -10 Z" fill="#7FA86A" />
+          <Path d="M 0 -9 Q 8 -14 11 -21 Q 3 -19 0 -11 Z" fill="#6E9B5C" />
+        </G>
+      ) : status === 'AVAILABLE' ? (
+        <G>
+          <Path d="M -4 -9 Q 0 -2 4 -9" stroke={seedStroke} strokeWidth={1.2} fill="none" />
+          <Circle cx={0} cy={-10} r={3} fill="#7FA86A" />
+        </G>
+      ) : null}
+    </G>
+  )
+}
+
 // Pulsing halo behind an in-progress flower. Static under reduced motion.
 export function BloomHalo({ reduced }: { reduced: boolean }) {
   const o = useSharedValue(0.18)

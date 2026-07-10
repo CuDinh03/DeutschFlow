@@ -1,4 +1,4 @@
-import { buildTreeLayout, focusTargetId, trunkPath } from '@/components/skill-tree/layout'
+import { buildTreeLayout, detectLevelUp, focusTargetId, trunkPath } from '@/components/skill-tree/layout'
 import type { SkillNode } from '@/lib/skillTreeApi'
 
 function node(id: number, cefr: string, status: SkillNode['status'], day = id): SkillNode {
@@ -149,6 +149,8 @@ describe('buildTreeLayout — growth model (mọc từ mầm)', () => {
     expect(cold.hasGrown).toBe(false)
     expect(cold.grownTopY).toBe(cold.groundY) // renderer suppresses the living trunk here
     expect(cold.tiers.every((t) => !t.grown)).toBe(true)
+    // #6 cold-start: the foundation seed cluster still shows at the root even when all-locked.
+    expect(cold.tiers[0].branchRows.some((b) => b.isRoot)).toBe(true)
     expect(buildTreeLayout(sample, 360).hasGrown).toBe(true)
   })
 
@@ -158,26 +160,57 @@ describe('buildTreeLayout — growth model (mọc từ mầm)', () => {
     expect(zero.foliageScale).toBeCloseTo(0.25, 5)
   })
 
-  test('preview "big" forces a fully grown tree (every level passed + lush, goalReached)', () => {
-    const big = buildTreeLayout(sample, 360, 'big')
-    expect(big.tiers.every((t) => t.grown && t.state === 'passed' && t.foliageScale === 1)).toBe(true)
-    expect(big.goalReached).toBe(true)
-    expect(big.hasGrown).toBe(true)
+})
+
+describe('buildTreeLayout — foundation anchored at the root (#6)', () => {
+  test('the root tier first cluster is flagged isRoot and hugs the ground (no floating gap)', () => {
+    const { tiers, groundY } = buildTreeLayout(sample, 360)
+    const root = tiers[0].branchRows.find((b) => b.isRoot)
+    expect(root).toBeDefined()
+    // within the ground band — NOT a full branch row (~132px) up the trunk
+    expect(root!.y).toBeGreaterThan(groundY - 80)
+    expect(root!.y).toBeLessThan(groundY)
   })
 
-  test('preview "mam" forces a bare sprout (every level locked, nothing grown)', () => {
-    const mam = buildTreeLayout(sample, 360, 'mam')
-    expect(mam.tiers.every((t) => !t.grown && t.state === 'locked')).toBe(true)
-    expect(mam.hasGrown).toBe(false)
-    expect(mam.goalReached).toBe(false)
-    expect(mam.grownTopY).toBe(mam.groundY)
+  test('cold-start shows the foundation seed cluster at the root even when all-locked', () => {
+    const cold = buildTreeLayout(
+      [node(1, 'A1', 'LOCKED'), node(2, 'A1', 'LOCKED'), node(3, 'A2', 'LOCKED')],
+      360,
+    )
+    expect(cold.hasGrown).toBe(false)
+    const rootRows = cold.tiers[0].branchRows
+    expect(rootRows.length).toBeGreaterThanOrEqual(1)
+    expect(rootRows[0].isRoot).toBe(true)
+  })
+})
+
+describe('buildTreeLayout — balanced two-per-row (#5 step 2/4)', () => {
+  test('a non-root tier with 4 clusters places 2 per row (halved height)', () => {
+    const nodes = [node(1, 'A1', 'COMPLETED')].concat(
+      Array.from({ length: 12 }, (_, i) => node(i + 2, 'A2', i === 0 ? 'IN_PROGRESS' : 'AVAILABLE', i + 2)),
+    )
+    const a2 = buildTreeLayout(nodes, 360).tiers.find((t) => t.level === 'A2')!
+    expect(a2.branchRows.length).toBe(4) // 12 nodes → 4 clusters
+    const ys = [...new Set(a2.branchRows.map((b) => b.y))]
+    expect(ys.length).toBe(2) // 4 clusters → 2 rows
+    for (const y of ys) {
+      const sides = a2.branchRows
+        .filter((b) => b.y === y)
+        .map((b) => b.side)
+        .sort()
+      expect(sides).toEqual([-1, 1])
+    }
   })
 
-  test('preview defaults to "current" (real progress) when omitted', () => {
-    const omitted = buildTreeLayout(sample, 360).tiers.map((t) => t.state)
-    const explicit = buildTreeLayout(sample, 360, 'current').tiers.map((t) => t.state)
-    expect(omitted).toEqual(explicit)
-    expect(omitted).toEqual(['passed', 'in_progress', 'locked'])
+  test('root tier pairs its non-root clusters (root cluster + rest)', () => {
+    // 36 A1 nodes = 12 clusters; root cluster + 11 paired.
+    const big = buildTreeLayout(
+      Array.from({ length: 36 }, (_, i) => node(i + 1, 'A1', 'AVAILABLE', i + 1)),
+      360,
+    )
+    const root = big.tiers[0]
+    expect(root.branchRows.length).toBe(12)
+    expect(root.branchRows.filter((b) => b.isRoot).length).toBe(1)
   })
 })
 
@@ -205,6 +238,32 @@ describe('focusTargetId — "Về bài đang học" target', () => {
 
   test('null when nothing is in progress or available', () => {
     expect(focusTargetId([node(1, 'A1', 'COMPLETED'), node(2, 'A1', 'LOCKED')])).toBeNull()
+  })
+})
+
+describe('detectLevelUp — growth celebration (#6)', () => {
+  test('a level newly fully-passed fires a "passed" event', () => {
+    expect(detectLevelUp({ A1: 'in_progress' }, { A1: 'passed' })).toEqual({ level: 'A1', kind: 'passed' })
+  })
+
+  test('a level newly unlocked (locked → in_progress) fires an "unlocked" event', () => {
+    expect(detectLevelUp({ B1: 'locked' }, { B1: 'in_progress' })).toEqual({ level: 'B1', kind: 'unlocked' })
+  })
+
+  test('no change → null', () => {
+    expect(detectLevelUp({ A1: 'passed', A2: 'in_progress' }, { A1: 'passed', A2: 'in_progress' })).toBeNull()
+  })
+
+  test('a level that only just appeared is not a level-up', () => {
+    expect(detectLevelUp({ A1: 'in_progress' }, { A1: 'in_progress', A2: 'in_progress' })).toBeNull()
+  })
+
+  test('prefers the "passed" event over a simultaneous "unlocked"', () => {
+    const ev = detectLevelUp(
+      { A1: 'in_progress', A2: 'locked' },
+      { A1: 'passed', A2: 'in_progress' },
+    )
+    expect(ev).toEqual({ level: 'A1', kind: 'passed' })
   })
 })
 
