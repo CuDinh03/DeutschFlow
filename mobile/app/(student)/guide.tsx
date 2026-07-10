@@ -4,7 +4,7 @@ import { router } from 'expo-router'
 import { MotiView } from 'moti'
 import { PlayCircle, ChevronDown, ArrowUpRight } from 'lucide-react-native'
 import { motion, radius, space, useTheme } from '@/lib/theme'
-import { Screen, Card, ThemedText, Icon, Caption, SectionHeader, FadeIn } from '@/components/ui'
+import { Screen, Card, ThemedText, Icon, Caption, SectionHeader, FadeIn, AppHeader } from '@/components/ui'
 import { useTourStore } from '@/stores/useTourStore'
 import { captureEvent } from '@/lib/analytics'
 import { GUIDE_ITEMS, FAQ, toneStyles, type GuideItem } from '@/components/guide/tourContent'
@@ -17,16 +17,18 @@ export default function GuideScreen() {
   const faqs = PRO_UNLOCKED_FREE ? FAQ.filter((entry) => !entry.proOnly) : FAQ
 
   return (
-    <Screen scroll edges={['top']} contentStyle={{ paddingBottom: space[10] }}>
+    <Screen edges={['top']}>
+      <AppHeader
+        title="Hướng dẫn"
+        subtitle="Sổ tay học viên"
+        onBack={() => (router.canGoBack() ? router.back() : router.replace('/(student)'))}
+      />
+      <Screen scroll edges={[]} contentStyle={{ paddingBottom: space[10] }}>
       <View style={{ paddingHorizontal: space[5], paddingTop: space[4], gap: space[6] }}>
         <FadeIn>
-          <View style={{ gap: space[2] }}>
-            <Caption>Sổ tay học viên</Caption>
-            <ThemedText variant="display">Hướng dẫn</ThemedText>
-            <ThemedText variant="body" color="muted">
-              Tất cả những gì bạn cần để bắt đầu học hiệu quả
-            </ThemedText>
-          </View>
+          <ThemedText variant="body" color="muted">
+            Tất cả những gì bạn cần để bắt đầu học hiệu quả
+          </ThemedText>
         </FadeIn>
 
         {/* Replay tour — editorial ink hero for the primary action */}
@@ -95,6 +97,7 @@ export default function GuideScreen() {
           </Card>
         </View>
       </View>
+      </Screen>
     </Screen>
   )
 }

@@ -25,6 +25,7 @@ import {
   ErrorState,
 } from '@/components/ui'
 import { skillTreeApi, type SkillNode } from '@/lib/skillTreeApi'
+import { nextStudyDay } from '@/lib/roadmapDay'
 
 type StatusTone = 'success' | 'accent' | 'info'
 
@@ -57,7 +58,7 @@ export default function LearnScreen() {
 
   const tiles: { icon: LucideIcon; label: string; count: string; onPress: () => void }[] = [
     { icon: BookOpen, label: 'SRS Flashcards', count: `${completed} đã học`, onPress: () => router.push('/(student)/srs') },
-    { icon: Map, label: 'Lộ trình', count: `Ngày ${inProgress[0]?.dayNumber ?? 1}`, onPress: () => router.push('/(student)/roadmap') },
+    { icon: Map, label: 'Lộ trình', count: `Ngày ${nextStudyDay(nodes)}`, onPress: () => router.push('/(student)/roadmap') },
     { icon: FlaskConical, label: 'Từ vựng', count: 'Tìm & luyện', onPress: () => router.push('/(student)/vocabulary') },
     { icon: Trophy, label: 'Thi thử', count: 'Mock Exam', onPress: () => router.push('/(student)/exam') },
     { icon: BookMarked, label: 'Ngữ pháp', count: 'Casus & quy tắc', onPress: () => router.push('/(student)/grammar') },

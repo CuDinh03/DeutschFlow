@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect, useRef } from 'react'
 import { View, Pressable, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { router, useLocalSearchParams } from 'expo-router'
+import { router, useLocalSearchParams, type Href } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import { Check, X, Eye, Trophy } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
@@ -17,11 +17,24 @@ import {
   type ExerciseTranslate,
   type ExerciseReorder,
 } from '@/lib/skillTreeApi'
+import { findNextNode } from '@/lib/nextNode'
+import { LessonCompleteNav } from '@/components/LessonCompleteNav'
 
 type Answer = { choice?: number; text?: string }
 const SCORED = new Set(['MULTIPLE_CHOICE', 'FILL_BLANK'])
+// Cap how long we hold the loading state waiting for the fresh tree before revealing the
+// result: happy-path refetch lands well under this; a slow refetch reveals anyway and the
+// derived nextNode self-heals when the observer catches up (the lesson is already graded).
+const REVEAL_TREE_CAP_MS = 3000
 
 export default function NodePracticeScreen() {
+  // Remount the runner when nodeId changes so stale submitted/result/answers (and the
+  // per-exercise child state) from the previous lesson never leak in via "Bài tiếp theo".
+  const { nodeId } = useLocalSearchParams<{ nodeId: string }>()
+  return <NodePracticeRunner key={nodeId ?? 'none'} />
+}
+
+function NodePracticeRunner() {
   const c = useTheme().colors
   const qc = useQueryClient()
   const params = useLocalSearchParams<{ nodeId: string; title?: string }>()
@@ -46,12 +59,21 @@ export default function NodePracticeScreen() {
     enabled: Number.isFinite(nodeId),
   })
 
+  // Observe the tree so "Bài tiếp theo" is derived (never held as stale state); it refreshes
+  // when submit invalidates the tree below, re-deriving to the freshly-unlocked node.
+  const { data: tree = [] } = useQuery({
+    queryKey: ['skill-tree'],
+    queryFn: () => skillTreeApi.getMySkillTree(),
+    staleTime: 120_000,
+  })
+
   const exercises = useMemo<Exercise[]>(() => {
     const ex = data?.content?.exercises
     return [...(ex?.theory_gate ?? []), ...(ex?.practice ?? [])].filter((e) => e && e.id && e.type)
   }, [data?.content?.exercises])
 
   const scoredCount = exercises.filter((e) => SCORED.has(e.type)).length
+  const nextNode = result?.completed ? findNextNode(tree, nodeId) : undefined
 
   function setChoice(id: string, choice: number) {
     if (submitted) return
@@ -85,11 +107,19 @@ export default function NodePracticeScreen() {
       // instant UI feedback and uses the same rules as the server.
       const res = await skillTreeApi.submitNode(nodeId, percent, answers)
       const completed = res.completed ?? percent >= 100
+      trackFeatureAction('lesson', 'completed', { node_id: nodeId, completed, percent })
+      // node-session drives the node-detail view; the tree unlocks the next node + refreshes
+      // Home/roadmap and feeds the derived "Bài tiếp theo".
+      qc.invalidateQueries({ queryKey: ['node-session', nodeId] })
+      const treeRefresh = qc.invalidateQueries({ queryKey: ['skill-tree'] }).catch(() => {})
+      // On completion, wait for the fresh tree BEFORE revealing the result so the derived
+      // nextNode is correct on first render (no transient "hết bài" caption / missing button).
+      // `busy` keeps the submit button in its loading state throughout, so nothing flashes.
+      if (completed) {
+        await Promise.race([treeRefresh, new Promise<void>((resolve) => setTimeout(resolve, REVEAL_TREE_CAP_MS))])
+      }
       setSubmitted(true)
       setResult({ correct, total: scoredCount, completed, xp: res.xpEarned ?? 0 })
-      trackFeatureAction('lesson', 'completed', { node_id: nodeId, completed, percent })
-      qc.invalidateQueries({ queryKey: ['skill-tree'] })
-      qc.invalidateQueries({ queryKey: ['node-session', nodeId] })
       await Haptics.notificationAsync(
         completed
           ? Haptics.NotificationFeedbackType.Success
@@ -104,7 +134,10 @@ export default function NodePracticeScreen() {
 
   return (
     <Screen edges={['top']}>
-      <AppHeader title={params.title ?? data?.titleVi ?? 'Luyện tập'} onBack={() => router.back()} />
+      <AppHeader
+        title={params.title ?? data?.titleVi ?? 'Luyện tập'}
+        onBack={() => (router.canGoBack() ? router.back() : router.replace('/(student)/roadmap'))}
+      />
 
       {isLoading ? (
         <View style={{ paddingHorizontal: space[5], gap: space[3], paddingTop: space[2] }}>
@@ -153,7 +186,9 @@ export default function NodePracticeScreen() {
                   </ThemedText>
                 </View>
                 <ThemedText variant="caption" style={{ color: c.onInkMuted }}>
-                  Bài học đã mở khoá bài tiếp theo trên lộ trình.
+                  {nextNode
+                    ? 'Bài học đã mở khoá bài tiếp theo trên lộ trình.'
+                    : 'Bạn đã hoàn thành mọi bài đang mở khoá.'}
                 </ThemedText>
               </Card>
             ) : (
@@ -208,7 +243,18 @@ export default function NodePracticeScreen() {
               }}
             />
           ) : (
-            <Button label="Xong" variant="secondary" onPress={() => router.back()} />
+            <LessonCompleteNav
+              onNext={
+                nextNode
+                  ? () =>
+                      router.replace({
+                        pathname: '/(student)/node',
+                        params: { nodeId: String(nextNode.id), title: nextNode.title },
+                      } as unknown as Href)
+                  : undefined
+              }
+              onRoadmap={() => router.replace('/(student)/roadmap')}
+            />
           )}
         </Screen>
         </KeyboardAvoidingView>

@@ -175,7 +175,7 @@ export default function DashboardScreen() {
                     </ThemedText>
                   </View>
                   <ThemedText variant="caption" style={{ color: theme.colors.onInkMuted }}>
-                    Giữ lửa mỗi ngày để không mất chuỗi
+                    Hoàn thành 2 hoạt động mỗi ngày để giữ chuỗi
                   </ThemedText>
                 </View>
               </View>

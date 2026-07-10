@@ -27,6 +27,12 @@ import {
   type NodePhrase,
 } from '@/lib/skillTreeApi'
 import { hasAnySkillExercise } from '@/lib/skillExercises'
+import { findNextNode } from '@/lib/nextNode'
+import { LessonCompleteNav } from '@/components/LessonCompleteNav'
+
+// Cap how long markLearned holds the button loading while waiting for the fresh tree that
+// feeds "Bài tiếp theo"; a slow tree refetch reveals anyway and nextNode self-heals.
+const REVEAL_TREE_CAP_MS = 3000
 
 // Lesson detail for a skill-tree node: theory cards + vocabulary + phrases.
 // Nodes with exercises open the practice runner (node-practice.tsx); theory-only nodes
@@ -42,6 +48,15 @@ export default function NodeScreen() {
     enabled: Number.isFinite(nodeId),
   })
 
+  // Observe the skill tree so "Bài tiếp theo" can be derived (never held as stale state):
+  // it stays correct whether the node was just completed this session or opened already
+  // done from the roadmap, and refreshes when markLearned invalidates the tree below.
+  const { data: tree = [] } = useQuery({
+    queryKey: ['skill-tree'],
+    queryFn: () => skillTreeApi.getMySkillTree(),
+    staleTime: 120_000,
+  })
+
   const content = data?.content
   const locked = data?.userStatus === 'LOCKED'
   const empty = !content || data?.hasContent === false
@@ -50,14 +65,20 @@ export default function NodeScreen() {
   const inProgress = data?.userStatus === 'IN_PROGRESS'
   const done = data?.userStatus === 'COMPLETED'
   const hasSkillExercises = hasAnySkillExercise(content?.skill_exercises)
+  const nextNode = done ? findNextNode(tree, nodeId) : undefined
 
   const qc = useQueryClient()
   const markLearned = useMutation({
     mutationFn: () => skillTreeApi.markNodeComplete(nodeId),
     onSuccess: async () => {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-      qc.invalidateQueries({ queryKey: ['skill-tree'] })
-      qc.invalidateQueries({ queryKey: ['node-session', nodeId] })
+      const treeRefresh = qc.invalidateQueries({ queryKey: ['skill-tree'] }).catch(() => {})
+      // Await node-session fully — it flips this screen to done; the mutation stays pending
+      // (button loading) until onSuccess settles, so there's no wrong-state flash or re-tap
+      // window. Then wait for the fresh tree that feeds "Bài tiếp theo", but cap it so a slow
+      // tree refetch can't hold the button loading indefinitely (nextNode self-heals later).
+      await qc.invalidateQueries({ queryKey: ['node-session', nodeId] }).catch(() => {})
+      await Promise.race([treeRefresh, new Promise<void>((resolve) => setTimeout(resolve, REVEAL_TREE_CAP_MS))])
     },
     onError: (e) => Alert.alert('Lỗi', apiMessage(e)),
   })
@@ -67,7 +88,7 @@ export default function NodeScreen() {
       <AppHeader
         title={params.title ?? data?.titleVi ?? 'Bài học'}
         subtitle={data?.cefrLevel ? `${data.cefrLevel}${data.titleDe ? ` · ${data.titleDe}` : ''}` : undefined}
-        onBack={() => router.back()}
+        onBack={() => (router.canGoBack() ? router.back() : router.replace('/(student)/roadmap'))}
       />
 
       {isLoading ? (
@@ -166,19 +187,33 @@ export default function NodeScreen() {
               </ThemedText>
             </View>
           ) : done ? (
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: space[2],
-                paddingVertical: space[2],
-              }}
-            >
-              <Icon icon={CircleCheck} size={18} color="success" />
-              <ThemedText variant="bodyStrong" style={{ color: c.success }}>
-                Đã hoàn thành bài học
-              </ThemedText>
+            <View style={{ gap: space[3] }}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: space[2],
+                  paddingVertical: space[2],
+                }}
+              >
+                <Icon icon={CircleCheck} size={18} color="success" />
+                <ThemedText variant="bodyStrong" style={{ color: c.success }}>
+                  Đã hoàn thành bài học
+                </ThemedText>
+              </View>
+              <LessonCompleteNav
+                onNext={
+                  nextNode
+                    ? () =>
+                        router.replace({
+                          pathname: '/(student)/node',
+                          params: { nodeId: String(nextNode.id), title: nextNode.title },
+                        } as unknown as Href)
+                    : undefined
+                }
+                onRoadmap={() => router.replace('/(student)/roadmap')}
+              />
             </View>
           ) : hasSkillExercises ? (
             // Authored 4-skill node: route to the Nghe/Nói/Đọc/Viết runner (server-graded).

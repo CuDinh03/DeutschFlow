@@ -18,7 +18,7 @@ import {
   type AudioPlayer,
 } from 'expo-audio'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { router, useLocalSearchParams } from 'expo-router'
+import { router, useLocalSearchParams, type Href } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import { Check, X, Trophy, Volume2, Mic, Square } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
@@ -58,10 +58,23 @@ import {
   type SkillAnswer,
 } from '@/lib/skillExercises'
 import { speakGerman, stopGermanSpeech, setGermanRecordingActive } from '@/lib/germanTts'
+import { findNextNode } from '@/lib/nextNode'
+import { LessonCompleteNav } from '@/components/LessonCompleteNav'
 
 type Result = { scorePercent: number; completed: boolean; xp: number } | null
+// Cap how long we hold the loading state waiting for the fresh tree before revealing the
+// result: happy-path refetch lands well under this; a slow refetch reveals anyway and the
+// derived nextNode self-heals when the observer catches up (the lesson is already graded).
+const REVEAL_TREE_CAP_MS = 3000
 
 export default function SkillPracticeScreen() {
+  // Remount the runner when nodeId changes so stale submitted/result/answers and per-skill
+  // child state (reorder order, recording) never leak from the previous lesson via "Bài tiếp theo".
+  const { nodeId } = useLocalSearchParams<{ nodeId: string }>()
+  return <SkillPracticeRunner key={nodeId ?? 'none'} />
+}
+
+function SkillPracticeRunner() {
   const c = useTheme().colors
   const qc = useQueryClient()
   const params = useLocalSearchParams<{ nodeId: string; title?: string }>()
@@ -78,8 +91,17 @@ export default function SkillPracticeScreen() {
     enabled: Number.isFinite(nodeId),
   })
 
+  // Observe the tree so "Bài tiếp theo" is derived (never held as stale state); it refreshes
+  // when submit invalidates the tree below, re-deriving to the freshly-unlocked node.
+  const { data: tree = [] } = useQuery({
+    queryKey: ['skill-tree'],
+    queryFn: () => skillTreeApi.getMySkillTree(),
+    staleTime: 120_000,
+  })
+
   const se = data?.content?.skill_exercises
   const skills = useMemo(() => activeSkills(se), [se])
+  const nextNode = result?.completed ? findNextNode(tree, nodeId) : undefined
 
   function setAnswer(key: string, value: SkillAnswer) {
     if (submitted) return
@@ -93,11 +115,19 @@ export default function SkillPracticeScreen() {
       const payload = buildSkillAnswers(se, answers)
       const res = await skillTreeApi.submitSkillExercises(nodeId, payload)
       const completed = res.completed ?? (res.scorePercent ?? 0) >= 70
+      trackFeatureAction('lesson', 'completed', { node_id: nodeId, completed, percent: res.scorePercent ?? 0 })
+      // node-session drives the node-detail view; the tree unlocks the next node + refreshes
+      // Home/roadmap and feeds the derived "Bài tiếp theo".
+      qc.invalidateQueries({ queryKey: ['node-session', nodeId] })
+      const treeRefresh = qc.invalidateQueries({ queryKey: ['skill-tree'] }).catch(() => {})
+      // On completion, wait for the fresh tree BEFORE revealing the result so the derived
+      // nextNode is correct on first render (no transient "hết bài" caption / missing button).
+      // `busy` keeps the submit button in its loading state throughout, so nothing flashes.
+      if (completed) {
+        await Promise.race([treeRefresh, new Promise<void>((resolve) => setTimeout(resolve, REVEAL_TREE_CAP_MS))])
+      }
       setSubmitted(true)
       setResult({ scorePercent: res.scorePercent ?? 0, completed, xp: res.xpEarned ?? 0 })
-      trackFeatureAction('lesson', 'completed', { node_id: nodeId, completed, percent: res.scorePercent ?? 0 })
-      qc.invalidateQueries({ queryKey: ['skill-tree'] })
-      qc.invalidateQueries({ queryKey: ['node-session', nodeId] })
       await Haptics.notificationAsync(
         completed ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning,
       )
@@ -119,7 +149,7 @@ export default function SkillPracticeScreen() {
       <AppHeader
         title={params.title ?? data?.titleVi ?? 'Luyện 4 kỹ năng'}
         subtitle="Nghe · Nói · Đọc · Viết"
-        onBack={() => router.back()}
+        onBack={() => (router.canGoBack() ? router.back() : router.replace('/(student)/roadmap'))}
       />
 
       {isLoading ? (
@@ -140,7 +170,7 @@ export default function SkillPracticeScreen() {
             edges={[]}
             contentStyle={{ paddingHorizontal: space[5], paddingBottom: space[10], gap: space[3], paddingTop: space[2] }}
           >
-            {result ? <ResultHero result={result} /> : null}
+            {result ? <ResultHero result={result} hasNext={!!nextNode} /> : null}
 
             {skills.map((skill) => (
               <SkillSection
@@ -159,7 +189,18 @@ export default function SkillPracticeScreen() {
             ) : result && !result.completed ? (
               <Button label="Làm lại" variant="secondary" onPress={retry} />
             ) : (
-              <Button label="Xong" variant="secondary" onPress={() => router.back()} />
+              <LessonCompleteNav
+                onNext={
+                  nextNode
+                    ? () =>
+                        router.replace({
+                          pathname: '/(student)/node',
+                          params: { nodeId: String(nextNode.id), title: nextNode.title },
+                        } as unknown as Href)
+                    : undefined
+                }
+                onRoadmap={() => router.replace('/(student)/roadmap')}
+              />
             )}
           </Screen>
         </KeyboardAvoidingView>
@@ -168,7 +209,7 @@ export default function SkillPracticeScreen() {
   )
 }
 
-function ResultHero({ result }: { result: NonNullable<Result> }) {
+function ResultHero({ result, hasNext }: { result: NonNullable<Result>; hasNext: boolean }) {
   const c = useTheme().colors
   if (result.completed) {
     return (
@@ -197,7 +238,9 @@ function ResultHero({ result }: { result: NonNullable<Result> }) {
           </ThemedText>
         </View>
         <ThemedText variant="caption" style={{ color: c.onInkMuted }}>
-          Bài học đã mở khoá bài tiếp theo trên lộ trình.
+          {hasNext
+            ? 'Bài học đã mở khoá bài tiếp theo trên lộ trình.'
+            : 'Bạn đã hoàn thành mọi bài đang mở khoá.'}
         </ThemedText>
       </Card>
     )
