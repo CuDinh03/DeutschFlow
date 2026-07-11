@@ -40,6 +40,10 @@ COPY --from=builder /build/target/deutschflow-backend-*.jar app.jar
 # Copy wordlists (cần khi chạy vocab import)
 COPY src/main/resources/wordlists/ /app/wordlists/
 
+# Apple Root CA (StoreKit 2 JWS verification) — baked in so AppleJwsVerifier is enabled by default.
+# See payment.apple.root-cert-dir in application.yml (defaults to /app/apple-certs).
+COPY src/main/resources/apple-certs/ /app/apple-certs/
+
 # Chown về non-root
 RUN chown -R app:app /app
 USER app
