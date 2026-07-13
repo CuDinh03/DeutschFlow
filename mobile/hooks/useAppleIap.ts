@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { getAvailablePurchases, useIAP, type Product } from 'expo-iap'
+import { getAvailablePurchases, useIAP, type ProductSubscription } from 'expo-iap'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { APPLE_PRODUCT_IDS, collectJwsTokens, extractJws, sortByCatalogOrder } from '@/lib/iapProducts'
 import { fetchAppleAccountToken, syncApplePurchases, verifyApplePurchase } from '@/lib/iapApi'
@@ -10,7 +10,7 @@ export interface AppleIap {
   /** StoreKit connection is live and products can be fetched/purchased. */
   connected: boolean
   /** Fetched subscription products, ordered by the catalog (PRO monthly → … → ULTRA yearly). */
-  products: Product[]
+  products: ProductSubscription[]
   phase: IapPhase
   /** SKU currently being purchased, for per-button spinners. */
   activeSku: string | null
@@ -58,7 +58,10 @@ export function useAppleIap(enabled: boolean): AppleIap {
 
   const {
     connected,
-    products,
+    // expo-iap keeps auto-renewable subscriptions in `subscriptions`, NOT `products` — the latter
+    // only ever holds `type: 'in-app'` results. Reading `products` here left the paywall permanently
+    // empty ("Chưa tải được gói nào") even with a fully-active Paid Apps Agreement.
+    subscriptions,
     fetchProducts,
     requestPurchase,
     finishTransaction,
@@ -167,7 +170,7 @@ export function useAppleIap(enabled: boolean): AppleIap {
 
   return {
     connected,
-    products: sortByCatalogOrder(products),
+    products: sortByCatalogOrder(subscriptions),
     phase,
     activeSku,
     error,
