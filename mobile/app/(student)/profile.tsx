@@ -1,14 +1,15 @@
-import { View, Alert, Pressable } from 'react-native'
+import { View, Alert, Pressable, Platform } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router, type Href } from 'expo-router'
-import { LogOut, Star, Bell, Globe, BarChart3, User, ChevronRight, Trash2, HelpCircle, Presentation, ShieldCheck, FileText, Lock, Sparkles } from 'lucide-react-native'
+import { LogOut, Star, Bell, Globe, BarChart3, User, ChevronRight, Trash2, HelpCircle, Presentation, ShieldCheck, FileText, Lock, Sparkles, CreditCard, RotateCcw } from 'lucide-react-native'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
 import api, { apiMessage } from '@/lib/api'
-import { PAYWALL_ENABLED, PRO_UNLOCKED_FREE } from '@/lib/paywall'
+import { IAP_ENABLED, PAYWALL_ENABLED, PRO_UNLOCKED_FREE } from '@/lib/paywall'
 import { gamificationApi } from '@/lib/gamificationApi'
 import { radius, space, useTheme } from '@/lib/theme'
 import { openPrivacyPolicy, openTermsOfUse } from '@/lib/legal'
+import { openManageSubscriptions, openRefundRequest } from '@/lib/iapManage'
 import { getAiConsent, resetAiConsent, setAiConsent } from '@/lib/aiConsent'
 import { Screen, Card, ThemedText, Icon, Pill, ListRow, Caption, FadeIn } from '@/components/ui'
 
@@ -16,7 +17,7 @@ export default function ProfileScreen() {
   const theme = useTheme()
   const c = theme.colors
   const { user, logout } = useAuthStore()
-  const { plan, isPro } = usePlanStore()
+  const { plan, isPro, isUltra } = usePlanStore()
   const { data: xp } = useQuery({
     queryKey: ['xp-summary'],
     queryFn: () => gamificationApi.getXpSummary(),
@@ -30,6 +31,14 @@ export default function ProfileScreen() {
       .join('')
       .slice(0, 2)
       .toUpperCase() ?? '?'
+
+  // Renewal/expiry date of the active subscription, formatted for the "Gói đăng ký" card. Guarded
+  // against a malformed date so a bad value never crashes the profile screen.
+  const renewalLabel = (() => {
+    if (!plan?.endsAtUtc) return null
+    const d = new Date(plan.endsAtUtc)
+    return Number.isNaN(d.getTime()) ? null : `Gia hạn: ${d.toLocaleDateString('vi-VN')}`
+  })()
 
   async function manageAiConsent() {
     const status = await getAiConsent()
@@ -50,6 +59,17 @@ export default function ProfileScreen() {
               onPress: () => void setAiConsent(true),
             },
         { text: 'Xem Chính sách bảo mật', onPress: openPrivacyPolicy },
+      ],
+    )
+  }
+
+  function confirmRefund() {
+    Alert.alert(
+      'Yêu cầu hoàn tiền',
+      'Việc hoàn tiền cho gói mua qua App Store do Apple xử lý, không phải qua ứng dụng. Bạn sẽ được mở trang yêu cầu hoàn tiền chính thức của Apple.',
+      [
+        { text: 'Đóng', style: 'cancel' },
+        { text: 'Mở trang Apple', onPress: openRefundRequest },
       ],
     )
   }
@@ -170,6 +190,62 @@ export default function ProfileScreen() {
               <Icon icon={ChevronRight} size={18} color="faint" />
             </View>
           </Card>
+        ) : null}
+
+        {/* Subscription management — shown for an active IAP subscriber on iOS. Lets them see the current
+            plan, change/upgrade it (StoreKit handles PRO→ULTRA & period changes), and — per App Store
+            policy where cancellation & refunds are Apple's — deep-link into Apple's own surfaces. */}
+        {Platform.OS === 'ios' && IAP_ENABLED && isPro ? (
+          <View style={{ gap: space[3] }}>
+            <Caption>Gói đăng ký</Caption>
+            <Card style={{ gap: space[3] }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+                <View
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: radius.md,
+                    backgroundColor: c.accentSoft,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Icon icon={Star} size={20} color="accent" fill />
+                </View>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <ThemedText variant="bodyStrong">Gói {plan?.tier ?? 'PRO'} đang hoạt động</ThemedText>
+                  {renewalLabel ? (
+                    <ThemedText variant="caption" color="muted">
+                      {renewalLabel}
+                    </ThemedText>
+                  ) : null}
+                </View>
+                <Pill label={plan?.tier ?? 'PRO'} tone="accent" solid />
+              </View>
+            </Card>
+            <Card padded={false} style={{ paddingHorizontal: space[4] }}>
+              <ListRow
+                icon={Star}
+                title={isUltra ? 'Xem & đổi gói' : 'Nâng cấp / đổi gói'}
+                subtitle={isUltra ? 'Đổi kỳ hạn thanh toán' : 'Lên ULTRA hoặc đổi kỳ hạn'}
+                onPress={() => router.push('/(student)/upgrade')}
+              />
+              <Divider />
+              <ListRow
+                icon={CreditCard}
+                title="Quản lý & huỷ gói"
+                subtitle="Đổi hoặc huỷ gói trong App Store"
+                onPress={() => void openManageSubscriptions()}
+              />
+              <Divider />
+              <ListRow
+                icon={RotateCcw}
+                title="Yêu cầu hoàn tiền"
+                subtitle="Hoàn tiền do Apple xử lý"
+                onPress={confirmRefund}
+              />
+            </Card>
+          </View>
         ) : null}
 
         <View style={{ gap: space[3] }}>

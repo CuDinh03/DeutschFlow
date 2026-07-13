@@ -7,6 +7,7 @@ import { Screen, Card, ThemedText, Icon, AppHeader, Caption, YellowSquare, Butto
 import { trackFeatureAction } from '@/lib/analytics'
 import { IAP_ENABLED, PAYWALL_ENABLED, PRO_UNLOCKED_FREE } from '@/lib/paywall'
 import { openPrivacyPolicy, openTermsOfUse } from '@/lib/legal'
+import { openManageSubscriptions } from '@/lib/iapManage'
 import { useAppleIap } from '@/hooks/useAppleIap'
 import { metaForProductId } from '@/lib/iapProducts'
 
@@ -114,6 +115,11 @@ function IapPaywall() {
               Cảm ơn bạn. Toàn bộ tính năng nâng cao đã được mở khoá.
             </ThemedText>
             <Button label="Tiếp tục học" onPress={() => router.back()} />
+            <Button
+              label="Quản lý gói đăng ký"
+              variant="ghost"
+              onPress={() => void openManageSubscriptions()}
+            />
           </Card>
         ) : (
           <>
