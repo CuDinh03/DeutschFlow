@@ -3,7 +3,7 @@ import { View, Pressable, TextInput, Alert, KeyboardAvoidingView, Platform } fro
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { router, useLocalSearchParams, type Href } from 'expo-router'
 import * as Haptics from 'expo-haptics'
-import { Check, X, Eye, Trophy } from 'lucide-react-native'
+import { Check, X, Eye, Trophy, ListChecks, PenLine, type LucideIcon } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { trackFeatureAction } from '@/lib/analytics'
 import { fonts, radius, space, useTheme } from '@/lib/theme'
@@ -280,9 +280,9 @@ function ExerciseCard({
 }) {
   switch (exercise.type) {
     case 'MULTIPLE_CHOICE':
-      return <McCard index={index} ex={exercise as ExerciseMultipleChoice} answer={answer} submitted={submitted} onChoice={onChoice} />
+      return <McCard index={index} ex={exercise as ExerciseMultipleChoice} answer={answer} submitted={submitted} onChoice={onChoice} icon={EXERCISE_ICON.MULTIPLE_CHOICE} />
     case 'FILL_BLANK':
-      return <FillCard index={index} ex={exercise as ExerciseFillBlank} answer={answer} submitted={submitted} onText={onText} />
+      return <FillCard index={index} ex={exercise as ExerciseFillBlank} answer={answer} submitted={submitted} onText={onText} icon={EXERCISE_ICON.FILL_BLANK} />
     case 'TRANSLATE':
       return <RevealCard index={index} prompt={(exercise as ExerciseTranslate).sentence} answer={(exercise as ExerciseTranslate).answer} kind="Dịch" />
     case 'REORDER':
@@ -299,9 +299,34 @@ function ExerciseCard({
   }
 }
 
-function Prompt({ index, text, badge }: { index: number; text?: string; badge?: string }) {
+// Exercise-type glyph — a quiet leading cue for the recognition tasks (MC/Fill),
+// which otherwise carry no type marker. TRANSLATE/REORDER keep their existing
+// "Dịch"/"Sắp xếp" text badge, so an icon there would just duplicate it.
+const EXERCISE_ICON: Record<'MULTIPLE_CHOICE' | 'FILL_BLANK', LucideIcon> = {
+  MULTIPLE_CHOICE: ListChecks,
+  FILL_BLANK: PenLine,
+}
+
+function Prompt({ index, text, badge, icon }: { index: number; text?: string; badge?: string; icon?: LucideIcon }) {
+  const c = useTheme().colors
   return (
     <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[2] }}>
+      {icon ? (
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={{
+            width: 22,
+            height: 22,
+            borderRadius: radius.sm,
+            backgroundColor: c.surfaceSunken,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Icon icon={icon} size={13} color="muted" />
+        </View>
+      ) : null}
       <ThemedText variant="label" color="faint">
         {index}.
       </ThemedText>
@@ -319,17 +344,19 @@ function McCard({
   answer,
   submitted,
   onChoice,
+  icon,
 }: {
   index: number
   ex: ExerciseMultipleChoice
   answer?: Answer
   submitted: boolean
   onChoice: (v: number) => void
+  icon?: LucideIcon
 }) {
   const c = useTheme().colors
   return (
     <Card style={{ gap: space[3] }}>
-      <Prompt index={index} text={ex.question_vi ?? ex.question} />
+      <Prompt index={index} text={ex.question_vi ?? ex.question} icon={icon} />
       <View style={{ gap: space[2] }}>
         {ex.options.map((opt, i) => {
           const selected = answer?.choice === i
@@ -376,18 +403,20 @@ function FillCard({
   answer,
   submitted,
   onText,
+  icon,
 }: {
   index: number
   ex: ExerciseFillBlank
   answer?: Answer
   submitted: boolean
   onText: (v: string) => void
+  icon?: LucideIcon
 }) {
   const c = useTheme().colors
   const ok = submitted && isFillCorrect(answer?.text ?? '', ex)
   return (
     <Card style={{ gap: space[2] }}>
-      <Prompt index={index} text={ex.sentence_de ?? ex.question_vi} />
+      <Prompt index={index} text={ex.sentence_de ?? ex.question_vi} icon={icon} />
       {ex.hint_vi ? (
         <ThemedText variant="caption" color="faint">
           💡 {ex.hint_vi}
