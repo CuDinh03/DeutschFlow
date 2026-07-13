@@ -22,6 +22,7 @@ import {
   Skeleton,
   SelectableChip,
   Button,
+  VocabGlyphTile,
 } from '@/components/ui'
 import { useDebounce } from '@/hooks/useDebounce'
 
@@ -318,7 +319,13 @@ function WordRow({ word }: { word: Word }) {
 
   return (
     <Card>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+        {/* Icon slot (fixed) + article column (fixed). der/die/das stays a
+            prominent, colour-coded, consistently-placed column — important for
+            German — and both fixed widths keep the word column aligned. */}
+        <View style={{ width: 36, alignItems: 'center', justifyContent: 'center' }}>
+          <VocabGlyphTile german={word.word} meaning={word.translation} size={36} />
+        </View>
         <ThemedText
           style={{
             width: 30,

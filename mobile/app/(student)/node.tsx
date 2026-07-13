@@ -19,6 +19,7 @@ import {
   EmptyState,
   ErrorState,
   Skeleton,
+  VocabGlyphTile,
 } from '@/components/ui'
 import {
   skillTreeApi,
@@ -296,6 +297,11 @@ function VocabRow({ item, divider }: { item: NodeVocabItem; divider: boolean }) 
   return (
     <View style={{ gap: 4, paddingTop: divider ? space[3] : 0, borderTopWidth: divider ? 1 : 0, borderTopColor: c.border }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+        {/* Fixed 36px slot keeps rows left-aligned whether or not the word has
+            an icon (VocabGlyphTile renders null for abstract words). */}
+        <View style={{ width: 36, alignItems: 'center', justifyContent: 'center' }}>
+          <VocabGlyphTile german={item.german} meaning={item.meaning} size={36} />
+        </View>
         {gender ? <Pill label={gender} tone={gender} /> : null}
         <ThemedText variant="bodyStrong" style={{ flex: 1 }}>
           {item.german}
