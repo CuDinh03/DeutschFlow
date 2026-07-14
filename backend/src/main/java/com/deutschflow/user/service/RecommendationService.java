@@ -1,5 +1,6 @@
 package com.deutschflow.user.service;
 
+import com.deutschflow.common.WebRoutes;
 import com.deutschflow.speaking.repository.UserGrammarErrorRepository;
 import com.deutschflow.user.dto.RecommendationDto;
 import com.deutschflow.user.dto.RecommendationDto.RecommendationItem;
@@ -33,7 +34,9 @@ public class RecommendationService {
                     "Review " + Math.min(wordsDue, 20) + " words due today",
                     "Spaced repetition keeps vocabulary fresh. Don't let reviews pile up.",
                     "HIGH",
-                    "/vocabulary/review"
+                    // Trước đây là "/vocabulary/review" — một trang CHƯA BAO GIỜ tồn tại. Ôn tập từ
+                    // vựng tới hạn nằm ở trang Ôn tập (gộp cả FSRS lẫn bài sửa lỗi).
+                    WebRoutes.STUDENT_REVIEW
             ));
         }
 
@@ -44,7 +47,9 @@ public class RecommendationService {
                     "Practice: " + formatGrammarPoint(wp.grammarPoint()),
                     "You've made " + wp.count() + " errors with this pattern recently.",
                     wp.count() >= 5 ? "HIGH" : "MEDIUM",
-                    "/speaking/drill?focus=" + wp.grammarPoint()
+                    // Trước đây là "/speaking/drill" — cũng là một trang CHƯA BAO GIỜ tồn tại. Màn
+                    // chọn chủ đề đọc `?focus=` rồi mở engine hội thoại với trọng tâm ngữ pháp đó.
+                    WebRoutes.STUDENT_SPEAKING_SETUP + "?focus=" + wp.grammarPoint()
             ));
         }
 
@@ -58,7 +63,7 @@ public class RecommendationService {
                     "Speaking practice to reinforce corrections",
                     "Practice speaking to turn grammar corrections into natural habits.",
                     "MEDIUM",
-                    "/speaking"
+                    WebRoutes.STUDENT_SPEAKING_SETUP
             ));
         }
 
@@ -68,7 +73,7 @@ public class RecommendationService {
                     "Learn 5 new words today",
                     "Consistent daily vocabulary building accelerates fluency.",
                     "MEDIUM",
-                    "/vocabulary"
+                    WebRoutes.STUDENT_VOCABULARY
             ));
         }
 
