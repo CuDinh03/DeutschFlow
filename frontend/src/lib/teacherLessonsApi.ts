@@ -12,6 +12,10 @@ export interface KnowledgePointInput {
 
 /** One Kann-Beschreibung in a create/update payload (Phase 1e; cefr/skill optional). */
 export interface CanDoStatementInput {
+  /** Id of an existing statement — send it back so the server updates that row in place. Omitting it
+   *  (or null) means "new statement". Rows the server no longer receives are deleted, which also drops
+   *  their students' competency records; rows it recognises keep their id, and the records survive. */
+  id?: number | null
   text: string
   cefrLevel?: string | null
   skillTag?: string | null

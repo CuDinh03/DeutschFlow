@@ -1,5 +1,6 @@
 package com.deutschflow.teacher.service;
 
+import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.teacher.dto.ClassLessonLogDto;
@@ -129,23 +130,61 @@ class LessonLogServiceTest {
         assertThat(captor.getValue().get(0).getStatus()).isEqualTo("PRESENT");
     }
 
+    /**
+     * This test used to assert that a null status "defaults to PRESENT" — i.e. it locked in the bug.
+     * Defaulting to PRESENT is exactly how a caller that says nothing about a student ends up marking
+     * them present, which then feeds the attendance rate and the certificate gate. A missing status is
+     * now a client error; a student the caller does not mention simply gets no attendance row.
+     */
     @Test
-    @DisplayName("createLog defaults absent status to PRESENT when null")
-    void createLog_nullStatus_defaultsToPresent() {
+    @DisplayName("createLog rejects a null attendance status instead of defaulting it to PRESENT")
+    void createLog_nullStatus_isRejected() {
         allowAccess();
         CreateLessonLogRequest req = new CreateLessonLogRequest(
                 LocalDate.of(2026, 6, 10), null, null, null, null,
                 List.of(new CreateLessonLogRequest.AttendanceInput(STUDENT_ID, null, null)), null);
 
         when(lessonLogRepository.save(any())).thenReturn(buildLog(LOG_ID, CLASS_ID, req.sessionDate()));
-        when(userRepository.findAllById(any())).thenReturn(List.of());
+
+        assertThatThrownBy(() -> service.createLog(TEACHER_ID, CLASS_ID, req))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("PRESENT");
+
+        verify(attendanceRepository, never()).saveAll(any());
+    }
+
+    @Test
+    @DisplayName("createLog rejects an unknown attendance status")
+    void createLog_unknownStatus_isRejected() {
+        allowAccess();
+        CreateLessonLogRequest req = new CreateLessonLogRequest(
+                LocalDate.of(2026, 6, 10), null, null, null, null,
+                List.of(new CreateLessonLogRequest.AttendanceInput(STUDENT_ID, "MAYBE", null)), null);
+
+        when(lessonLogRepository.save(any())).thenReturn(buildLog(LOG_ID, CLASS_ID, req.sessionDate()));
+
+        assertThatThrownBy(() -> service.createLog(TEACHER_ID, CLASS_ID, req))
+                .isInstanceOf(BadRequestException.class);
+
+        verify(attendanceRepository, never()).saveAll(any());
+    }
+
+    @Test
+    @DisplayName("createLog with no attendance list writes no attendance rows (unmarked ≠ present)")
+    @SuppressWarnings("unchecked")
+    void createLog_noAttendance_writesNoRows() {
+        allowAccess();
+        CreateLessonLogRequest req = new CreateLessonLogRequest(
+                LocalDate.of(2026, 6, 10), null, "Nur der Stoff", null, null, List.of(), null);
+
+        when(lessonLogRepository.save(any())).thenReturn(buildLog(LOG_ID, CLASS_ID, req.sessionDate()));
 
         service.createLog(TEACHER_ID, CLASS_ID, req);
 
-        @SuppressWarnings("unchecked")
+        // The teacher only recorded what was taught — nobody was marked, so nobody is recorded.
         ArgumentCaptor<List<ClassAttendance>> captor = ArgumentCaptor.forClass(List.class);
         verify(attendanceRepository).saveAll(captor.capture());
-        assertThat(captor.getValue().get(0).getStatus()).isEqualTo("PRESENT");
+        assertThat(captor.getValue()).isEmpty();
     }
 
     @Test

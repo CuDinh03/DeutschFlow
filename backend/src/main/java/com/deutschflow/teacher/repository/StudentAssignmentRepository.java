@@ -43,4 +43,12 @@ public interface StudentAssignmentRepository extends JpaRepository<StudentAssign
 
     @Query("SELECT sa FROM StudentAssignment sa WHERE sa.assignmentId IN :assignmentIds AND sa.deleted = false")
     List<StudentAssignment> findByAssignmentIds(@Param("assignmentIds") List<Long> assignmentIds);
+
+    /**
+     * One student's submissions, restricted to a given set of assignments — used by the teacher-facing
+     * student detail view so it can only ever return work from classes that teacher actually shares
+     * with the student (see {@code TeacherService.sharedAssignmentIds}).
+     */
+    List<StudentAssignment> findByStudentIdAndAssignmentIdInAndDeletedFalseOrderByCreatedAtDesc(
+            Long studentId, List<Long> assignmentIds);
 }

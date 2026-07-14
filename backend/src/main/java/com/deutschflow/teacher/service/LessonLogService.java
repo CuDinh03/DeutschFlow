@@ -1,5 +1,6 @@
 package com.deutschflow.teacher.service;
 
+import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.teacher.dto.ClassLessonLogDto;
@@ -23,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -159,11 +161,28 @@ public class LessonLogService {
                 .collect(Collectors.toMap(ClassLesson::getId, ClassLesson::getTitle));
     }
 
+    /** The only attendance values that may be stored. Anything else is a client bug, not a default. */
+    private static final Set<String> ATTENDANCE_STATUSES = Set.of("PRESENT", "LATE", "ABSENT");
+
+    /**
+     * Builds the attendance rows for a log. A student the caller did not send is simply not recorded —
+     * "no row" means "not marked", which is what the certificate/attendance-rate maths needs to be able
+     * to tell apart from "present".
+     *
+     * <p>A missing or unknown status is rejected rather than defaulted. It used to fall back to PRESENT,
+     * which is how a caller that omitted the field could silently mark a student present.
+     */
     private List<ClassAttendance> buildAttendance(Long logId, CreateLessonLogRequest req) {
         if (req.attendance() == null) return List.of();
         List<ClassAttendance> list = new ArrayList<>();
         for (CreateLessonLogRequest.AttendanceInput input : req.attendance()) {
-            String status = input.status() != null ? input.status().toUpperCase() : "PRESENT";
+            // Null-check first: Set.of(...) is an immutable set, and its contains(null) throws NPE.
+            String status = input.status() == null ? null : input.status().toUpperCase();
+            if (status == null || !ATTENDANCE_STATUSES.contains(status)) {
+                throw new BadRequestException(
+                        "Trạng thái điểm danh không hợp lệ cho học viên #" + input.studentId()
+                                + " (chỉ nhận PRESENT, LATE, ABSENT).");
+            }
             list.add(ClassAttendance.builder()
                     .id(new ClassAttendanceId(logId, input.studentId()))
                     .status(status)

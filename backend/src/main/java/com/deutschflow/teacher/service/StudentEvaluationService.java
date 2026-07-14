@@ -24,6 +24,14 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class StudentEvaluationService {
 
+    /**
+     * Certificate gate. {@code avgScore} is the mean of {@link StudentAssignment#getScore()}, which is a
+     * 0–100 grade (GradingService validates 0–100) — NOT the 0–10 scale used by the manual {@code skill_*}
+     * columns. The threshold must live on the same scale: 50/100 is the pass mark.
+     */
+    private static final double CERT_MIN_AVG_SCORE = 50.0;   // 0–100 scale
+    private static final double CERT_MIN_ATTENDANCE = 0.8;   // 80% of recorded sessions
+
     private final ClassStudentRepository classStudentRepository;
     private final ClassTeacherRepository classTeacherRepository;
     private final ClassLessonLogRepository lessonLogRepository;
@@ -231,10 +239,16 @@ public class StudentEvaluationService {
             if (avg.isPresent()) avgScore = avg.getAsDouble();
         }
 
-        // Certificate: avgScore >= 5 AND attendance rate >= 80%
-        double attendanceRate = totalSessions == 0 ? 1.0
-                : (double) (presentCount + lateCount) / totalSessions;
-        boolean eligible = avgScore >= 5.0 && attendanceRate >= 0.8;
+        // Certificate: avg assignment score >= 50/100 AND attendance >= 80% of recorded sessions.
+        // A class with no lesson logs yet has no attendance evidence at all — it must not read as a
+        // perfect 100% (the old `totalSessions == 0 ? 1.0` made a brand-new class instantly eligible).
+        boolean hasAttendanceEvidence = totalSessions > 0;
+        double attendanceRate = hasAttendanceEvidence
+                ? (double) (presentCount + lateCount) / totalSessions
+                : 0.0;
+        boolean eligible = hasAttendanceEvidence
+                && avgScore >= CERT_MIN_AVG_SCORE
+                && attendanceRate >= CERT_MIN_ATTENDANCE;
 
         return new StudentEvaluationDto(
                 studentId,

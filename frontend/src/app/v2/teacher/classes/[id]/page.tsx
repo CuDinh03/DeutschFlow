@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import {
-  Plus, Mail, ClipboardList, ChevronRight, AlertTriangle, Trophy,
+  Plus, Mail, ChevronRight, AlertTriangle, Trophy,
   ArrowLeft, Sparkles, Mic, PenLine, FileText, BookOpen, SpellCheck, UserPlus, Trash2,
 } from 'lucide-react'
 import { format } from 'date-fns'
@@ -357,30 +357,24 @@ export default function V2ClassDetailPage() {
                       <span className="px-2 py-0.5 text-[11.5px] font-bold" style={{ color: VIOLET, background: 'var(--ga-violet-soft)' }}>
                         {t('selectedCount', { count: selCount })}
                       </span>
-                      {[
-                        { key: 'message' as const, label: t('message'), Icon: Mail },
-                        { key: 'assign' as const, label: t('assign'), Icon: ClipboardList },
-                      ].map(({ key, label, Icon }) => (
-                        <button
-                          key={key}
-                          type="button"
-                          onClick={() => {
-                            if (key === 'message') {
-                              const ids = Object.entries(selected).filter(([, v]) => v).map(([k]) => Number(k))
-                              if (ids.length !== 1) { toast(t('messagePickOne')); return }
-                              const s = students.find((x) => x.studentId === ids[0])
-                              if (s) router.push(`/v2/teacher/messages?to=${s.studentId}&name=${encodeURIComponent(s.displayName)}`)
-                              setSelected({})
-                              return
-                            }
-                            toast.success(t('bulkActionDone', { action: label, count: selCount }))
-                            setSelected({})
-                          }}
-                          className="ga-ui inline-flex items-center gap-1.5 border border-ga-line px-2.5 py-1.5 text-[11.5px] font-semibold text-ga-ink transition-colors hover:border-ga-accent hover:text-ga-accent"
-                        >
-                          <Icon size={13} /> {label}
-                        </button>
-                      ))}
+                      {/* Bulk "Giao bài" removed: it only ever fired a success toast — no request was
+                          sent, so the teacher believed the work was assigned while nothing happened.
+                          createAssignment() fans out to the whole class and takes no studentIds, so
+                          there is no per-selection assign to wire up. Assignments are created from the
+                          "Thêm bài tập" modal (whole class) until the backend supports a subset. */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const ids = Object.entries(selected).filter(([, v]) => v).map(([k]) => Number(k))
+                          if (ids.length !== 1) { toast(t('messagePickOne')); return }
+                          const s = students.find((x) => x.studentId === ids[0])
+                          if (s) router.push(`/v2/teacher/messages?to=${s.studentId}&name=${encodeURIComponent(s.displayName)}`)
+                          setSelected({})
+                        }}
+                        className="ga-ui inline-flex items-center gap-1.5 border border-ga-line px-2.5 py-1.5 text-[11.5px] font-semibold text-ga-ink transition-colors hover:border-ga-accent hover:text-ga-accent"
+                      >
+                        <Mail size={13} /> {t('message')}
+                      </button>
                     </span>
                   )}
                 </div>

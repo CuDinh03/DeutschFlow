@@ -213,11 +213,17 @@ class TeacherServiceTest {
         when(classTeacherRepository.findByIdTeacherId(teacherId)).thenReturn(List.of(ct));
         when(classStudentRepository.existsByIdClassIdAndIdStudentId(100L, studentId)).thenReturn(true);
 
+        // The read is scoped to the assignments of the shared class, not to the student globally.
+        when(assignmentRepository.findByClassIdIn(List.of(100L)))
+                .thenReturn(List.of(ClassAssignment.builder().id(500L).classId(100L).build()));
+
         StudentAssignment sa = StudentAssignment.builder()
                 .id(1L).assignmentId(500L).studentId(studentId).status("SUBMITTED").score(90).feedback("Good")
                 .build();
 
-        when(studentAssignmentRepository.findByStudentIdOrderByCreatedAtDesc(studentId)).thenReturn(List.of(sa));
+        when(studentAssignmentRepository
+                .findByStudentIdAndAssignmentIdInAndDeletedFalseOrderByCreatedAtDesc(studentId, List.of(500L)))
+                .thenReturn(List.of(sa));
 
         List<StudentAssignmentDto> result = teacherService.getStudentAssignments(teacherId, studentId);
 
@@ -476,5 +482,52 @@ class TeacherServiceTest {
         assertThrows(NotFoundException.class,
                 () -> teacherService.getOrCreateScenarioForStudent(assignmentId, studentId));
         verify(speakingAiHelpersService, never()).generateScenario(any(Long.class), anyString(), anyString());
+    }
+
+    // ── student detail: cross-class / cross-tenant scoping ─────────────────────
+
+    /**
+     * The audit bug: access was gated on "do we share ANY class?" and the student's work was then read
+     * by studentId alone. A student enrolled at two centres (common) meant the teacher at centre A could
+     * read every submission, score and feedback the teacher at centre B had produced. The query must be
+     * scoped to the assignments of the classes actually shared.
+     */
+    @Test
+    void getStudentAssignments_returnsOnlyWorkFromClassesSharedWithThisTeacher() {
+        Long teacherId = 1L, studentId = 50L;
+        Long myClassId = 10L;
+
+        // Teacher owns class 10; the student is in it (and also, invisibly here, in someone else's class).
+        when(classTeacherRepository.findByIdTeacherId(teacherId))
+                .thenReturn(List.of(ClassTeacher.builder().id(new ClassTeacherId(myClassId, teacherId)).build()));
+        when(classStudentRepository.existsByIdClassIdAndIdStudentId(myClassId, studentId)).thenReturn(true);
+
+        // Only class 10's assignments may be considered.
+        when(assignmentRepository.findByClassIdIn(List.of(myClassId)))
+                .thenReturn(List.of(ClassAssignment.builder().id(100L).classId(myClassId).topic("Brief").build()));
+
+        StudentAssignment mine = StudentAssignment.builder()
+                .id(1L).assignmentId(100L).studentId(studentId).status("GRADED").score(80).build();
+        when(studentAssignmentRepository
+                .findByStudentIdAndAssignmentIdInAndDeletedFalseOrderByCreatedAtDesc(studentId, List.of(100L)))
+                .thenReturn(List.of(mine));
+
+        List<StudentAssignmentDto> result = teacherService.getStudentAssignments(teacherId, studentId);
+
+        assertEquals(1, result.size());
+        assertEquals(100L, result.get(0).assignmentId());
+        // The unscoped read is gone: no query may fetch this student's work by studentId alone.
+        verify(studentAssignmentRepository, never()).findByStudentIdOrderByCreatedAtDesc(any());
+    }
+
+    @Test
+    void getStudentAssignments_rejectsAStudentTheTeacherSharesNoClassWith() {
+        Long teacherId = 1L, studentId = 50L;
+        when(classTeacherRepository.findByIdTeacherId(teacherId))
+                .thenReturn(List.of(ClassTeacher.builder().id(new ClassTeacherId(10L, teacherId)).build()));
+        when(classStudentRepository.existsByIdClassIdAndIdStudentId(10L, studentId)).thenReturn(false);
+
+        assertThrows(com.deutschflow.common.exception.ConflictException.class,
+                () -> teacherService.getStudentAssignments(teacherId, studentId));
     }
 }

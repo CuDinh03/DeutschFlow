@@ -618,16 +618,43 @@ public class TeacherService {
                 .collect(Collectors.toList());
     }
 
-    @Transactional(readOnly = true)
-    public List<StudentAssignmentDto> getStudentAssignments(Long teacherId, Long studentId) {
-        boolean hasAccess = classTeacherRepository.findByIdTeacherId(teacherId).stream()
-                .anyMatch(ct -> classStudentRepository.existsByIdClassIdAndIdStudentId(ct.getId().getClassId(), studentId));
+    /**
+     * The classes this teacher and this student actually share. Empty means the teacher has no business
+     * reading anything about the student.
+     *
+     * <p>This is deliberately a LIST, not a boolean. The old code only asked "do we share <em>any</em>
+     * class?" and then read the student's records by {@code studentId} alone — so a teacher who shared
+     * one class with a student also read that student's work from every <em>other</em> class, including
+     * classes run by other teachers at other centres (a student enrolled at two schools is common).
+     * Callers must scope their query to these class ids, not just gate on them.
+     */
+    private List<Long> sharedClassIds(Long teacherId, Long studentId) {
+        return classTeacherRepository.findByIdTeacherId(teacherId).stream()
+                .map(ct -> ct.getId().getClassId())
+                .filter(classId -> classStudentRepository.existsByIdClassIdAndIdStudentId(classId, studentId))
+                .collect(Collectors.toList());
+    }
 
-        if (!hasAccess) {
+    /** Ids of every assignment issued in the classes this teacher shares with this student. */
+    private List<Long> sharedAssignmentIds(Long teacherId, Long studentId) {
+        List<Long> classIds = sharedClassIds(teacherId, studentId);
+        if (classIds.isEmpty()) {
             throw new ConflictException("Học viên không thuộc lớp của bạn");
         }
+        return assignmentRepository.findByClassIdIn(classIds).stream()
+                .map(ClassAssignment::getId)
+                .collect(Collectors.toList());
+    }
 
-        return studentAssignmentRepository.findByStudentIdOrderByCreatedAtDesc(studentId)
+    @Transactional(readOnly = true)
+    public List<StudentAssignmentDto> getStudentAssignments(Long teacherId, Long studentId) {
+        List<Long> assignmentIds = sharedAssignmentIds(teacherId, studentId);
+        if (assignmentIds.isEmpty()) return List.of();
+
+        // Scoped by assignment, not by student: the DTO carries score, feedback and the submission
+        // itself, none of which another centre's teacher may see.
+        return studentAssignmentRepository
+                .findByStudentIdAndAssignmentIdInAndDeletedFalseOrderByCreatedAtDesc(studentId, assignmentIds)
                 .stream()
                 .map(this::toStudentAssignmentDto)
                 .collect(Collectors.toList());
@@ -635,16 +662,15 @@ public class TeacherService {
 
     @Transactional(readOnly = true)
     public List<TeacherSpeakingSessionDto> getStudentSpeakingSessions(Long teacherId, Long studentId) {
-        // Teacher can only view if student is in one of their classes
-        boolean hasAccess = classTeacherRepository.findByIdTeacherId(teacherId).stream()
-                .anyMatch(ct -> classStudentRepository.existsByIdClassIdAndIdStudentId(ct.getId().getClassId(), studentId));
+        Set<Long> assignmentIds = new HashSet<>(sharedAssignmentIds(teacherId, studentId));
 
-        if (!hasAccess) {
-            throw new ConflictException("Học viên không thuộc lớp của bạn");
-        }
-
+        // AiSpeakingSession has no classId, so scope by the assignment it was created from. Free-practice
+        // sessions (assignmentId == null) are the student's own work and stay visible to their teacher;
+        // a session tied to ANOTHER class's assignment is not — it carries that teacher's score and
+        // feedback.
         return speakingSessionRepository.findByUserIdOrderByStartedAtDesc(studentId)
                 .stream()
+                .filter(s -> s.getAssignmentId() == null || assignmentIds.contains(s.getAssignmentId()))
                 .map(this::toTeacherSpeakingSessionDto)
                 .collect(Collectors.toList());
     }
