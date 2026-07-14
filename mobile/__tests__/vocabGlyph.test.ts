@@ -22,6 +22,35 @@ describe('resolveVocabGlyph — German base word', () => {
     expect(resolveVocabGlyph('das Auto')?.key).toBe('car')
   })
 
+  // B0 expansion — farm animals, clothing, body, jobs, etc. (Lucide + Phosphor).
+  const b0: [string, string][] = [
+    ['Pferd', 'horse'], ['Kuh', 'cow'], ['Huhn', 'bird'],
+    ['Hose', 'pants'], ['Jacke', 'jacket'], ['Schuh', 'shoe'], ['Stiefel', 'boot'],
+    ['Hut', 'hat'], ['Socke', 'sock'], ['Kleid', 'dress'],
+    ['Käse', 'cheese'], ['Orange', 'citrus'], ['Salat', 'salad'],
+    ['Zahn', 'tooth'], ['Ohr', 'ear'], ['Mund', 'face'], ['Fuß', 'foot'],
+    ['Bahnhof', 'train'], ['Flughafen', 'plane'], ['Park', 'park'], ['Büro', 'office'],
+    ['Polizist', 'police'], ['Bäcker', 'chef'], ['Vater', 'person'], ['Tisch', 'table'],
+    ['Krankenschwester', 'nurse'],
+  ]
+  test.each(b0)('B0: %s → %s', (german, expected) => {
+    expect(resolveVocabGlyph(german)?.key).toBe(expected)
+  })
+
+  // Words with no accurate icon stay null rather than borrow a wrong/duplicate
+  // glyph next to the real word in the same lesson (review 14/07).
+  test.each(['Löwe', 'Schwein', 'Schaf', 'Rock', 'Mantel', 'Kopf'])(
+    'no misleading icon: %s → null',
+    (german) => {
+      expect(resolveVocabGlyph(german)).toBeNull()
+    },
+  )
+
+  test('nurse and doctor get distinct icons', () => {
+    expect(resolveVocabGlyph('Krankenschwester')?.key).toBe('nurse')
+    expect(resolveVocabGlyph('Arzt')?.key).toBe('doctor')
+  })
+
   test('is case-insensitive and tolerates trailing punctuation', () => {
     expect(resolveVocabGlyph('HAUS')?.key).toBe('house')
     expect(resolveVocabGlyph('Hund.')?.key).toBe('dog')
