@@ -81,10 +81,16 @@ Verify từ `amplify.yml` (build **fail** nếu thiếu cả 2 JWT verifier) + `
 | `NEXT_PUBLIC_CLOUDFRONT_URL` | ✅ | vd `https://dxxxx.cloudfront.net` (vào CSP `connect-src`/`img`) |
 | `NEXT_PUBLIC_POSTHOG_KEY` | ✅ | PostHog project API key (public) — **cần cho cờ `galerie-v2`** |
 | `NEXT_PUBLIC_POSTHOG_HOST` | ✅ | vd `https://us.i.posthog.com` |
-| `GALERIE_V2_DISABLED` | ⛔ để TRỐNG khi go-live | đặt `true` = kill-switch bounce mọi `/v2`→legacy (rollback tức thì) |
+| ~~`GALERIE_V2_DISABLED`~~ | 🗑️ **ĐÃ KHAI TỬ 2026-07-14** — xoá khỏi Amplify | Kill-switch cũ (bounce `/v2`→legacy) đã bị **gỡ khỏi code** ở đợt 0 của kế hoạch xoá cây v1 (`plans/2026-07-14-xoa-sach-v1-web.md`). Đặt env này giờ **KHÔNG có tác dụng gì** — bật lên chỉ khiến người trực tưởng đã rollback. Xem mục Rollback bên dưới. |
 | `NEXT_PUBLIC_MAINTENANCE_MESSAGE` | tuỳ chọn | banner bảo trì ở màn login |
 
-Sau khi set → **redeploy** Amplify (FE auto-deploy khi merge main; hoặc bấm redeploy). **Test 1 lần** `GALERIE_V2_DISABLED=true` ở staging rồi gỡ.
+Sau khi set → **redeploy** Amplify (FE auto-deploy khi merge main; hoặc bấm redeploy).
+
+### ⚠️ Rollback bề mặt web (thay cho kill-switch cũ)
+
+Kill-switch `GALERIE_V2_DISABLED` đã bị gỡ vì nó **tạo vòng lặp redirect vô hạn**: từ 2026-07-14 `next.config.mjs` redirect `/login`→`/v2/login`, nên nếu kill-switch còn sống và bounce `/v2/login`→`/login`, hai lớp sẽ đá qua đá lại và **sập cả site**. Nó cũng đã vô nghĩa từ lúc cutover (trang `/login` legacy cũng đẩy người dùng sang v2 sau khi đăng nhập).
+
+**Rollback đúng cách bây giờ:** revert commit trên `main` (Amplify tự deploy lại), hoặc vào Amplify Console → chọn bản deploy trước đó → **Redeploy this version**.
 
 ---
 
@@ -98,7 +104,7 @@ Các bước (PostHog dashboard → Feature flags):
 3. **Nấc 1 — 10%** → theo dõi error-rate/CWV/ticket ≥24h.
 4. **Nấc 2 — 50%** → ổn ≥24–48h.
 5. **Nấc 3 — 100%** → legacy vẫn sống làm fallback.
-- **Rollback:** giảm % trên PostHog (không deploy) **hoặc** `GALERIE_V2_DISABLED=true` (toàn cục).
+- **Rollback:** ~~giảm % PostHog / `GALERIE_V2_DISABLED=true`~~ → cả hai đã chết (cờ bị bỏ 2026-06-21, kill-switch bị gỡ 2026-07-14). Xem mục Rollback ở §2.
 - (Tuỳ chọn) `student-coins-v1` nếu bật coin song song.
 
 > Phần "swap /v2→canonical + xoá legacy" (Mốc 2b) chỉ làm **sau khi 100% ổn** — runbook riêng, cần duyệt.

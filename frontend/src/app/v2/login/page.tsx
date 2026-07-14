@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { toast } from 'sonner'
 import api from '@/lib/api'
 import { setTokens, clearTokens, recordTokenRefresh } from '@/lib/authSession'
+import { homeFor } from '@/lib/roleRouting'
 import { useUserStore } from '@/stores/useUserStore'
 import { useTracking } from '@/hooks/useTracking'
 import { registerPushNotifications } from '@/hooks/usePushNotifications'
@@ -26,6 +27,16 @@ import { GaAuthShell, GaField, AuthErrorBanner, AuthDivider, GoogleBtn, EMAIL_RE
 // ─────────────────────────────────────────────────────────────────────────────
 
 type FieldErrors = Record<string, string>
+
+/**
+ * `?next=` chỉ được phép là đường dẫn NỘI BỘ — cùng đúng một luật với `safeNext()` trong
+ * `src/middleware.ts` (không import chung được: middleware chạy ở edge runtime riêng). `//evil.com`
+ * và `https://evil.com` đều bị loại; chỉ nhận path bắt đầu bằng đúng một dấu "/".
+ */
+function safeNext(value: string | null): string | null {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) return null
+  return value
+}
 
 export default function V2LoginPage() {
   const router = useRouter()
@@ -78,30 +89,18 @@ export default function V2LoginPage() {
         displayName: user.displayName,
         avatarUrl: user.avatarUrl,
       })
-      const orgRole = String(data.orgRole ?? '').toUpperCase()
-      switch (user.role) {
-        case 'ADMIN':
-          // /v2/admin has no index page yet → land on the locked canonical list.
-          router.replace('/v2/admin/users')
-          break
-        case 'OWNER':
-        case 'MANAGER':
-          // First-class org-admin platform roles land in the org console.
-          router.replace('/v2/org')
-          break
-        case 'TEACHER':
-          // Legacy tokens minted before org admins became first-class roles still carry role=TEACHER
-          // with an OWNER/MANAGER orgRole — keep routing them to the console until the token refreshes.
-          router.replace(
-            orgRole === 'OWNER' || orgRole === 'MANAGER' || orgRole === 'ADMIN' ? '/v2/org' : '/v2/teacher',
-          )
-          break
-        case 'STUDENT':
-        default:
-          // Full cutover: students land on the v2 dashboard (matches the /login route-in).
-          router.replace('/v2/student/dashboard')
-          break
-      }
+      // Bản đồ vai trò → trang chủ dùng chung với /login (@/lib/roleRouting): ADMIN → /v2/admin/users
+      // (chưa có trang index), OWNER/MANAGER → /v2/org (console trung tâm), TEACHER legacy mang
+      // orgRole OWNER/MANAGER cũng vào console, còn lại → /v2/student/dashboard.
+      //
+      // `?next=` (middleware đặt khi đá người CHƯA đăng nhập ra khỏi một trang cần quyền) được ưu
+      // tiên hơn bản đồ trên — thiếu nhánh này thì mọi deep-link đều bị nuốt, ai cũng rơi về trang
+      // chủ theo vai trò. Đọc thẳng `window.location` thay vì `useSearchParams()`: hook đó buộc
+      // component phải nằm trong <Suspense>, mà khi đó Next chỉ prerender nổi phần fallback → bề mặt
+      // đăng nhập DUY NHẤT của cả app chớp trắng rồi mới hydrate. Handler này chỉ chạy trên trình
+      // duyệt nên đọc location là an toàn tuyệt đối với prerender.
+      const next = safeNext(new URLSearchParams(window.location.search).get('next'))
+      router.replace(next ?? homeFor(user.role, { orgRole: data.orgRole }))
 
       identifyUser(String(user.userId), { email: user.email, name: user.displayName, role: user.role, locale: user.locale })
       trackEvent('login_success', { role: user.role })

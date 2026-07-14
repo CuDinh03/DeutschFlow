@@ -5,10 +5,11 @@ import * as React from 'react'
 /**
  * V2Gate — Galerie 2.0 is now the DEFAULT surface (full cutover).
  *
- * Access control lives in middleware.ts: per-role gating of `/v2/*` plus the
- * global `GALERIE_V2_DISABLED` kill-switch (set it to "true" in Amplify env to
- * instantly bounce every `/v2` request back to the legacy surface — the rollback
- * lever for this cutover).
+ * Access control lives in middleware.ts: per-role gating of `/v2/*`. The global
+ * `GALERIE_V2_DISABLED` kill-switch that used to sit alongside it is GONE — it
+ * bounced `/v2/*` to the legacy surface, which now collides with the
+ * `/login` → `/v2/login` redirect in next.config and loops forever. Rollback is a
+ * revert / Amplify "Redeploy this version".
  *
  * This used to gate on the per-user `galerie-v2` PostHog flag, but that flag
  * proved unreliable (person-property propagation + cross-origin flag-reload
