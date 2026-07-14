@@ -15,7 +15,7 @@ import { studentCookies, STUDENT_TOKEN } from '../helpers/tokens';
 /**
  * Assembles an unsigned, deliberately-fake JWT at runtime. It is joined from parts rather than
  * written as a literal because the CI secret scanner (gitleaks rule `jwt`) matches any three-part
- * base64 literal on sight — including obvious mocks like this one — and fails the build.
+ * base64 literal on sight — including obvious mocks like this one — and it is a BLOCKING check.
  *
  * The signature is garbage on purpose: the edge middleware cannot verify it, so it treats the
  * request as unauthenticated. That is exactly what the assertions below rely on.

@@ -1,0 +1,12 @@
+# gitleaks — findings đã xem xét và xác nhận KHÔNG phải bí mật thật.
+#
+# Mỗi dòng là một "fingerprint" (commit:file:rule:line). Chỉ thêm vào đây sau khi đã MỞ đúng dòng đó
+# và xác nhận bằng mắt rằng nó không phải khoá/token thật. Đừng dùng file này để làm im một cảnh báo
+# chưa hiểu rõ.
+
+# JWT GIẢ trong e2e test đăng nhập: chữ ký là chuỗi "FAKESIGNATURE", cố ý không hợp lệ để middleware
+# KHÔNG xác thực được (đó chính là điều bài test dựa vào). Rule `jwt` của gitleaks khớp mọi literal
+# base64 ba phần nên bắt nhầm.
+# Bản thân source đã được sửa ở commit kế tiếp (ghép chuỗi lúc chạy, không còn literal), nhưng commit
+# bên dưới vẫn nằm trong lịch sử của PR nên vẫn bị quét.
+7134a20937c2e922bd4d9f6ccf268f27e0b6e972:frontend/tests/e2e/auth.spec.ts:jwt:85
