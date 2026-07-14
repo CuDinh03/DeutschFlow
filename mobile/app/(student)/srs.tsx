@@ -17,7 +17,7 @@ import { RotateCcw, Check, X, Minus, PartyPopper } from 'lucide-react-native'
 import api, { apiMessage } from '@/lib/api'
 import { trackFeatureAction } from '@/lib/analytics'
 import { fonts, radius, space, useTheme } from '@/lib/theme'
-import { Screen, ThemedText, Icon, ProgressBar, AppHeader, EmptyState, ErrorState, Skeleton, Caption, YellowSquare } from '@/components/ui'
+import { Screen, ThemedText, Icon, ProgressBar, AppHeader, EmptyState, ErrorState, Skeleton, Caption, YellowSquare, VocabGlyphTile } from '@/components/ui'
 import type { ThemeColors } from '@/lib/theme'
 
 interface DueCard {
@@ -239,6 +239,7 @@ export default function SrsScreen() {
             <View style={cardEyebrowStyle}>
               <Caption color={c.textMuted}>Tiếng Đức</Caption>
             </View>
+            <VocabGlyphTile german={currentCard.word} meaning={currentCard.translation} size={96} style={{ marginBottom: space[5] }} />
             <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: space[2], flexWrap: 'wrap' }}>
               {genderTone ? (
                 <ThemedText variant="display" align="center" style={{ color: genderColor(c, genderTone) }}>

@@ -13,6 +13,7 @@ import {
   Pill,
   Caption,
   YellowSquare,
+  TopicGlyphTile,
   ProgressBar,
   AppHeader,
   EmptyState,
@@ -361,7 +362,8 @@ function NodeRow({ node, isLast }: { node: SkillNode; isLast: boolean }) {
           opacity: isLocked ? 0.55 : 1,
         }}
       >
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: space[2] }}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[3] }}>
+          <TopicGlyphTile node={node} size={40} muted={isLocked} />
           <View style={{ flex: 1, gap: space[1] }}>
             <Caption color={isLocked ? c.textFaint : c.textSecondary}>
               {isDone ? 'Hoàn thành' : isActive ? 'Đang học' : isLocked ? 'Mở khoá sau' : `Ngày ${node.dayNumber}`}
