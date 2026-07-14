@@ -3,6 +3,7 @@ package com.deutschflow.teacher.service;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.teacher.dto.GradebookDto;
+import com.deutschflow.teacher.entity.AssignmentStatus;
 import com.deutschflow.teacher.entity.ClassAssignment;
 import com.deutschflow.teacher.entity.ClassStudent;
 import com.deutschflow.teacher.entity.StudentAssignment;
@@ -137,7 +138,9 @@ public class TeacherReportService {
                 StudentAssignment sa = byAssignment.get(a.getId());
                 if (sa == null) continue; // chưa từng được giao → ô trống
                 cells.put(a.getId(), new GradebookDto.Cell(sa.getStatus(), sa.getScore(), sa.getSubmittedAt()));
-                if (sa.getScore() != null) scores.add(sa.getScore());
+                // Only a CONFIRMED grade may move the average. An AI_GRADED row carries a score, but it is
+                // a proposal nobody has signed off — counting it would let the AI quietly set the average.
+                if (sa.getScore() != null && AssignmentStatus.isFinal(sa.getStatus())) scores.add(sa.getScore());
             }
 
             Double avgScore = scores.isEmpty() ? null

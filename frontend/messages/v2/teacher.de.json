@@ -181,6 +181,8 @@
         "avgScoreColumn": "Ø Punktzahl",
         "pendingGrade": "Ausstehend",
         "notSubmitted": "Nicht eingereicht",
+        "awaitingConfirm": "Bestätigung ausstehend",
+        "regradeNeeded": "Neu zu bewerten",
         "printTitle": "Notenbuch"
       },
       "skills": {
@@ -283,6 +285,8 @@
       "queueEmptyFiltered": "Keine Abgaben dieses Typs.",
       "loadError": "Warteschlange konnte nicht geladen werden",
       "allGraded": "Alles bewertet",
+      "awaitingConfirm": "Bestätigen",
+      "aiFailedHint": "KI-Bewertung fehlgeschlagen — manuell bewerten oder erneut versuchen",
       "allGradedSub": "Keine Abgaben warten auf Bewertung.",
       "types": {
         "SPEAKING_SCENARIO": "KI-Speaking",

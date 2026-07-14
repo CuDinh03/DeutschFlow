@@ -151,8 +151,22 @@ class StudentEvaluationServiceTest {
         assertThat(result.certificateEligible()).isFalse();
     }
 
+    @Test
+    @DisplayName("certificate: an unconfirmed AI score (AI_GRADED) does not count toward the average")
+    void certificate_unconfirmedAiScore_isNotCounted() {
+        StudentEvaluationDto result = evaluateWith(95, 10, 10, AssignmentStatus.AI_GRADED);
+
+        // The AI proposed 95, but no teacher signed it off — it must not carry a certificate.
+        assertThat(result.avgScore()).isZero();
+        assertThat(result.certificateEligible()).isFalse();
+    }
+
     /** Builds an evaluation for a student with {@code avgScore}, {@code present} of {@code sessions} attended. */
     private StudentEvaluationDto evaluateWith(int avgScore, int present, int sessions) {
+        return evaluateWith(avgScore, present, sessions, AssignmentStatus.GRADED);
+    }
+
+    private StudentEvaluationDto evaluateWith(int avgScore, int present, int sessions, String status) {
         allowAccess();
         ClassStudent cs = buildClassStudent(CLASS_ID, STUDENT_ID);
         when(classStudentRepository.findById(new ClassStudentId(CLASS_ID, STUDENT_ID)))
@@ -185,7 +199,7 @@ class StudentEvaluationServiceTest {
         when(assignmentRepository.findByClassIdOrderByCreatedAtDesc(CLASS_ID)).thenReturn(List.of(ca));
 
         StudentAssignment sa = StudentAssignment.builder()
-                .id(1L).assignmentId(900L).studentId(STUDENT_ID).score(avgScore).status("GRADED").build();
+                .id(1L).assignmentId(900L).studentId(STUDENT_ID).score(avgScore).status(status).build();
         when(studentAssignmentRepository.findByAssignmentIds(anyList())).thenReturn(List.of(sa));
 
         return service.getEvaluation(TEACHER_ID, CLASS_ID, STUDENT_ID);
@@ -333,13 +347,15 @@ class StudentEvaluationServiceTest {
                 buildAttendance(4L, STUDENT_ID, "PRESENT"),
                 buildAttendance(5L, STUDENT_ID, "ABSENT")));
 
-        // avg score = 60 (out of 100 — a pass)
+        // avg score = 60 (out of 100 — a pass), and CONFIRMED: only a teacher-signed grade may count
+        // toward a certificate, never an unreviewed AI proposal (AI_GRADED).
         ClassAssignment a = buildAssignment(10L, CLASS_ID, "GENERAL");
         when(assignmentRepository.findByClassIdOrderByCreatedAtDesc(CLASS_ID)).thenReturn(List.of(a));
         StudentAssignment sa = new StudentAssignment();
         sa.setAssignmentId(10L);
         sa.setStudentId(STUDENT_ID);
         sa.setScore(60);
+        sa.setStatus(AssignmentStatus.EVALUATED);
         when(studentAssignmentRepository.findByAssignmentIds(List.of(10L))).thenReturn(List.of(sa));
 
         StudentEvaluationDto result = service.getEvaluation(TEACHER_ID, CLASS_ID, STUDENT_ID);

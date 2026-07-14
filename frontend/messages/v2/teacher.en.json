@@ -181,6 +181,8 @@
         "avgScoreColumn": "Avg. score",
         "pendingGrade": "Pending",
         "notSubmitted": "Not submitted",
+        "awaitingConfirm": "Awaiting confirmation",
+        "regradeNeeded": "Needs re-grading",
         "printTitle": "Gradebook"
       },
       "skills": {
@@ -283,6 +285,8 @@
       "queueEmptyFiltered": "No submissions of this type.",
       "loadError": "Could not load the queue",
       "allGraded": "All graded",
+      "awaitingConfirm": "Confirm",
+      "aiFailedHint": "AI grading failed — grade by hand or retry",
       "allGradedSub": "No submissions awaiting grading.",
       "types": {
         "SPEAKING_SCENARIO": "AI Speaking",

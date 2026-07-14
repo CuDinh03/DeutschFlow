@@ -25,11 +25,15 @@ import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
 const fmtDate = (d: string | null | undefined) => (d ? format(new Date(d), 'dd/MM/yyyy') : '—')
 const fmtDateTime = (d: string | null | undefined) => (d ? format(new Date(d), 'dd/MM/yyyy HH:mm') : '—')
 
+/**
+ * EVALUATED (teacher-confirmed) is the normal end state and used to be missing — it fell through to
+ * "chưa nộp". AI_GRADED reads as "đã nộp": the AI's proposed score is not a grade until confirmed.
+ */
 function statusLabel(s: string, t: (key: string) => string): { label: string; color: string } {
   const v = (s ?? '').toUpperCase()
-  if (v === 'GRADED') return { label: t('status.graded'), color: 'var(--ga-green)' }
+  if (v === 'EVALUATED' || v === 'GRADED') return { label: t('status.graded'), color: 'var(--ga-green)' }
   if (v === 'GRADING_FAILED') return { label: t('status.gradingFailed'), color: 'var(--ga-red)' }
-  if (v === 'SUBMITTED' || v === 'GRADING') return { label: t('status.submitted'), color: '#2F6FC9' }
+  if (v === 'SUBMITTED' || v === 'GRADING' || v === 'AI_GRADED') return { label: t('status.submitted'), color: '#2F6FC9' }
   return { label: t('status.pending'), color: 'var(--ga-orange)' }
 }
 
@@ -115,7 +119,8 @@ export default function V2AssignmentPage() {
 
   const st = a ? statusLabel(a.status, t) : { label: '', color: '' }
   const isPending = (a?.status ?? '').toUpperCase() === 'PENDING'
-  const isGraded = (a?.status ?? '').toUpperCase() === 'GRADED'
+  // Only a confirmed grade is shown to the student — an AI_GRADED proposal is not one.
+  const isGraded = ['GRADED', 'EVALUATED'].includes((a?.status ?? '').toUpperCase())
   const isSpeaking = (a?.assignmentType ?? '').toUpperCase() === 'SPEAKING_SCENARIO'
 
   return (

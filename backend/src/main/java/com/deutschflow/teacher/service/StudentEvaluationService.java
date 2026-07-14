@@ -233,7 +233,10 @@ public class StudentEvaluationService {
         if (!assignments.isEmpty()) {
             List<Long> aIds = assignments.stream().map(ClassAssignment::getId).toList();
             OptionalDouble avg = studentAssignmentRepository.findByAssignmentIds(aIds).stream()
-                    .filter(sa -> sa.getStudentId().equals(studentId) && sa.getScore() != null)
+                    .filter(sa -> sa.getStudentId().equals(studentId)
+                            && sa.getScore() != null
+                            // An unconfirmed AI proposal (AI_GRADED) must not decide a certificate.
+                            && AssignmentStatus.isFinal(sa.getStatus()))
                     .mapToInt(StudentAssignment::getScore)
                     .average();
             if (avg.isPresent()) avgScore = avg.getAsDouble();

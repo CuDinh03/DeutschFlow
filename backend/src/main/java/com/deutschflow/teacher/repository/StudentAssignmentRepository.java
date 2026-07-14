@@ -38,7 +38,15 @@ public interface StudentAssignmentRepository extends JpaRepository<StudentAssign
     @Query("SELECT sa FROM StudentAssignment sa WHERE sa.assignmentId = :assignmentId AND sa.deleted = false")
     List<StudentAssignment> findByAssignmentId(@Param("assignmentId") Long assignmentId);
 
-    @Query("SELECT sa FROM StudentAssignment sa WHERE sa.assignmentId IN :assignmentIds AND sa.status IN ('SUBMITTED','GRADING_FAILED') AND sa.deleted = false")
+    /**
+     * The teacher's grading queue: everything handed in that still needs a human.
+     *
+     * <p>AI_GRADED is in here on purpose. The AI pass used to write GRADED, which dropped the row out of
+     * this query — so a teacher who triggered "Chấm AI" and then reloaded lost the submission from the
+     * queue entirely, leaving an unreviewed AI score standing as the final grade.
+     */
+    @Query("SELECT sa FROM StudentAssignment sa WHERE sa.assignmentId IN :assignmentIds "
+           + "AND sa.status IN ('SUBMITTED','AI_GRADED','GRADING_FAILED') AND sa.deleted = false")
     List<StudentAssignment> findSubmittedByAssignmentIds(@Param("assignmentIds") List<Long> assignmentIds);
 
     @Query("SELECT sa FROM StudentAssignment sa WHERE sa.assignmentId IN :assignmentIds AND sa.deleted = false")

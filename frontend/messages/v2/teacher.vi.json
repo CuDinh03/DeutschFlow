@@ -181,6 +181,8 @@
         "avgScoreColumn": "Điểm TB",
         "pendingGrade": "Chờ chấm",
         "notSubmitted": "Chưa nộp",
+        "awaitingConfirm": "Chờ xác nhận",
+        "regradeNeeded": "Chờ chấm lại",
         "printTitle": "Sổ điểm"
       },
       "skills": {
@@ -283,6 +285,8 @@
       "queueEmptyFiltered": "Không có bài loại này.",
       "loadError": "Không tải được hàng đợi",
       "allGraded": "Đã chấm hết bài",
+      "awaitingConfirm": "Chờ xác nhận",
+      "aiFailedHint": "AI chấm lỗi — chấm tay hoặc thử lại",
       "allGradedSub": "Chưa có bài nộp nào chờ chấm.",
       "types": {
         "SPEAKING_SCENARIO": "Luyện Nói AI",

@@ -88,6 +88,17 @@ const waveBars = (id: number): number[] =>
 
 interface Draft { score: number | ''; feedback: string }
 
+/**
+ * Feedback to seed the grading form with.
+ *
+ * A GRADING_FAILED row carries a placeholder note the BACKEND wrote about itself ("Chưa chấm tự động
+ * được, giáo viên sẽ chấm lại.") — an ops message, not a teacher's comment. Seeding it into the box
+ * meant a teacher who typed a score and hit save sent that sentence to the student as the official
+ * feedback. Start empty instead and let them write something real.
+ */
+const seedFeedback = (status: string, feedback: string | null): string =>
+  status === 'GRADING_FAILED' ? '' : (feedback ?? '')
+
 export default function V2TeacherGradingPage() {
   const t = useTranslations('v2.teacher.grading')
   const tc = useTranslations('v2.common')
@@ -150,7 +161,7 @@ export default function V2TeacherGradingPage() {
   }, [activeId])
 
   const draft: Draft = active
-    ? drafts[active.id] ?? { score: active.score ?? '', feedback: active.feedback ?? '' }
+    ? drafts[active.id] ?? { score: active.score ?? '', feedback: seedFeedback(active.status, active.feedback) }
     : { score: '', feedback: '' }
 
   const setDraft = (patch: Partial<Draft>) => {
@@ -199,7 +210,9 @@ export default function V2TeacherGradingPage() {
             setAiLoading(false)
             return
           }
-          if ((row.status === 'GRADED' || row.status === 'EVALUATED') && row.score !== null) {
+          // AI_GRADED is what the AI pass now writes: a proposal, not a grade. (GRADED/EVALUATED are
+          // still accepted so a row graded by the old flow, or already confirmed, resolves the poll.)
+          if (['AI_GRADED', 'GRADED', 'EVALUATED'].includes(row.status) && row.score !== null) {
             setDrafts((d) => ({ ...d, [current.id]: { score: row.score as number, feedback: row.feedback ?? '' } }))
             setAiSuggested((m) => ({ ...m, [current.id]: true }))
             setAiAssess((m) => ({ ...m, [current.id]: { confidence: row.aiConfidence ?? null, criteria: row.criteria ?? null } }))
@@ -283,6 +296,9 @@ export default function V2TeacherGradingPage() {
               const m = metaOf(g.assignmentType)
               const on = g.id === activeId
               const failed = g.status === 'GRADING_FAILED'
+              // The AI has proposed a score but nobody has signed it off — the student has not been
+              // told anything yet. Flag it so the teacher knows this row is a confirm, not a fresh grade.
+              const awaitingConfirm = g.status === 'AI_GRADED'
               return (
                 <button
                   key={g.id}
@@ -305,9 +321,19 @@ export default function V2TeacherGradingPage() {
                     <span className="mt-[3px] flex items-center gap-1.5">
                       <m.Icon size={13} style={{ color: TONE_FG[m.tone] }} />
                       <span className="truncate text-[11px] text-ga-muted">{t(`types.${m.labelKey}`)}</span>
+                      {awaitingConfirm && (
+                        <span
+                          className="ga-ui shrink-0 px-1.5 py-px text-[10px] font-bold uppercase tracking-[0.04em]"
+                          style={{ color: 'var(--ga-violet)', background: 'var(--ga-violet-soft)' }}
+                        >
+                          {t('awaitingConfirm')}
+                        </span>
+                      )}
                     </span>
                   </span>
-                  {failed && <AlertTriangle size={14} className="shrink-0 text-ga-red" />}
+                  {failed && (
+                    <AlertTriangle size={14} className="shrink-0 text-ga-red" aria-label={t('aiFailedHint')} />
+                  )}
                 </button>
               )
             })
