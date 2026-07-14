@@ -54,7 +54,7 @@ export interface RoleNav {
  *
  * Nhóm:
  *   - Quản lý lớp : trang chủ, kế hoạch + nội dung + lịch sử giảng dạy, chấm bài (text/ảnh),
- *                   thư viện tài liệu, phúc khảo.
+ *                   thư viện tài liệu, thư viện ảnh, phúc khảo.
  *   - Giảng dạy   : tin nhắn học viên.
  *   - Công cụ AI  : ngữ pháp AI, tạo tài liệu AI, tạo ảnh AI.
  *   - Thống kê    : báo cáo & phân tích.
@@ -80,6 +80,9 @@ export const teacherNav: RoleNav = {
         { id: 'grade-image', label: 'Chấm bài qua ảnh', href: '/v2/teacher/grade-image', icon: 'draw' },
         { id: 'tc-reports', label: 'Sổ điểm & Báo cáo', href: '/v2/teacher/tc-reports', icon: 'assessment' },
         { id: 'materials', label: 'Thư viện tài liệu', href: '/v2/teacher/materials', icon: 'menu_book' },
+        // "Thư viện ảnh" (media asset S3) ≠ "Thư viện tài liệu" (file tài liệu): ảnh minh hoạ cho
+        // slide/đề bài, có tag + alt text, upload/sửa/xoá theo uploader.
+        { id: 'tc-media', label: 'Thư viện ảnh', href: '/v2/teacher/media', icon: 'photo_library' },
       ],
     },
     {

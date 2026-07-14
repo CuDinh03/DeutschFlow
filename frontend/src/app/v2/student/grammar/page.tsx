@@ -2,12 +2,19 @@
 
 import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { ChevronRight, ArrowRight } from 'lucide-react'
+import { ChevronRight, ArrowRight, Dumbbell } from 'lucide-react'
 import api from '@/lib/api'
 import { GaPageHdr, GaCard, GaCap, TkBadge, LoadingState, ErrorBanner } from '@/components/ui-v2'
 
 // Reuse GET /grammar/topics + /grammar/topics/{id}/exercises. Tolerant shapes. Topic browser
-// + per-topic exercise preview; full practice runner = legacy /student/grammar (Option-1).
+// + per-topic exercise preview; the full practice runner now lives in v2 at
+// /v2/student/grammar/practice (grammar-syllabus flow, ported from the legacy /student/grammar).
+//
+// CTA "Luyện tập" nằm ở HEADER (không chỉ trong thẻ chủ đề đã mở): danh mục này đọc
+// GET /grammar/topics — endpoint backend hiện KHÔNG có (chỉ có /grammar/syllabus/topics), nên
+// trang thường rơi vào loadError/empty và lối vào runner bên trong thẻ chủ đề không bao giờ hiện.
+// Runner tự liệt kê chủ đề từ syllabus nên vào thẳng vẫn chạy được — CTA header giữ nó luôn tới được.
+const PRACTICE_HREF = '/v2/student/grammar/practice'
 
 interface Topic {
   id: number
@@ -81,7 +88,19 @@ export default function V2StudentGrammarPage() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
+      <GaPageHdr
+        accent
+        title={t('title')}
+        subtitle={t('subtitle')}
+        right={
+          <a
+            href={PRACTICE_HREF}
+            className="ga-ui inline-flex items-center gap-1.5 rounded-ga bg-ga-accent px-4 py-2.5 text-[13px] font-semibold text-ga-accent-ink transition-opacity hover:opacity-90"
+          >
+            <Dumbbell size={14} aria-hidden /> {t('practiceCta')}
+          </a>
+        }
+      />
       <div className="flex-1 px-10 py-6">
         {error && (
           <div className="mb-5">
@@ -138,8 +157,10 @@ export default function V2StudentGrammarPage() {
                               </li>
                             ))}
                           </ul>
+                          {/* The practice runner (v2) lists the syllabus topics itself — the catalog's
+                              topic ids come from a different endpoint, so we only carry the LEVEL. */}
                           <a
-                            href="/student/grammar"
+                            href={`/v2/student/grammar/practice${topic.level ? `?cefr=${encodeURIComponent(topic.level)}` : ''}`}
                             className="ga-ui mt-3 inline-flex items-center gap-1 text-[13px] font-semibold text-ga-accent"
                           >
                             {t('practiceThisTopic')} <ArrowRight size={14} aria-hidden />

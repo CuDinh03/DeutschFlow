@@ -17,11 +17,14 @@ export interface GaTopBarProps {
   role: RoleId
 }
 
+// `/help` chưa bao giờ tồn tại (không có `src/app/help`) — nút trợ giúp trên thanh trên cùng của
+// CẢ BỐN vai trò dẫn thẳng vào 404. `/support` là trang thật, công khai, và nằm trong nhóm được
+// giữ lại khi cây v1 bị xoá.
 const HELP_HREF: Record<RoleId, string> = {
-  student: '/help',
-  teacher: '/help',
-  org: '/help',
-  admin: '/help',
+  student: '/support',
+  teacher: '/support',
+  org: '/support',
+  admin: '/support',
 }
 
 const ROLE_CHIP: Record<RoleId, string> = {

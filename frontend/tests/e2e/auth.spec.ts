@@ -60,8 +60,9 @@ test.describe('Authentication Flow', () => {
     // 3. Go to login page
     await page.goto('/v2/login');
 
-    // 4. Fill in credentials and submit. The v2 form is not a <form> — its CTA is a plain button
-    // (no type="submit" attribute), so it must be addressed by its accessible name.
+    // 4. Fill in credentials and submit. /v2/login is a real <form> with a type="submit" CTA (Enter
+    // đăng nhập được, như /login legacy); vẫn nhắm nút bằng accessible name để test không phụ thuộc
+    // vào thuộc tính type.
     await page.fill('input[type="email"]', 'test@student.com');
     await page.fill('input[type="password"]', 'password123');
     await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();

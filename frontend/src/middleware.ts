@@ -82,9 +82,21 @@ function requiresOrg(pathname: string): boolean {
   return pathname.startsWith('/org')
 }
 
+/**
+ * Funnel onboarding "value-first": KHÁCH (chưa có tài khoản) chạy hết funnel rồi mới đăng ký, nên
+ * hai route này phải lọt qua cổng đăng nhập (xem nhánh `!authenticatedRole` bên dưới).
+ * `/v2/onboarding` là bản port Galerie của `/onboarding` — thiếu nó ở đây thì user mới của v2
+ * (đăng ký xong bị đẩy tới `/v2/onboarding`) và mọi khách vào thẳng đều bị đá về `/v2/login`.
+ *
+ * CHỈ hai path GỐC này được miễn. Hai nhánh con `/v2/onboarding/mock-exam` và
+ * `/v2/onboarding/error-report` không nằm trong tập nào (giống hệt `/onboarding/mock-exam` ở v1):
+ * chúng rơi vào nhánh "trang công khai" và tự gọi API có auth để tự gác mình.
+ */
+const GUEST_ONBOARDING_ROUTES = new Set(['/onboarding', '/v2/onboarding'])
+
 /** Trang học viên nhưng giáo viên/admin vẫn được mở (demo + tránh JWT/cookie STUDENT stale khi DB đã TEACHER). */
 function learnerSharedPaths(): Set<string> {
-  return new Set(['/dashboard', '/speaking', '/roadmap', '/onboarding', '/news'])
+  return new Set(['/dashboard', '/speaking', '/roadmap', '/onboarding', '/v2/onboarding', '/news'])
 }
 
 function requiresLearnerShare(pathname: string): boolean {
@@ -337,9 +349,10 @@ export async function middleware(request: NextRequest) {
     if (hasRefreshSession) {
       return passThrough()
     }
-    // Value-first onboarding: /onboarding is reachable by guests (no account yet). The page runs
-    // the guest funnel and gates signup itself; every other learner path still redirects to login.
-    if (routeKey(pathname) === '/onboarding') {
+    // Value-first onboarding: /onboarding (v1) và /v2/onboarding (Galerie) đều mở cho khách chưa có
+    // tài khoản. Trang tự chạy funnel guest rồi tự chặn ở bước đăng ký; mọi learner path còn lại
+    // vẫn bị đá về login.
+    if (GUEST_ONBOARDING_ROUTES.has(routeKey(pathname))) {
       return passThrough()
     }
     // Bề mặt đăng nhập DUY NHẤT từ nay là /v2/login (trang /login legacy đã bị next.config đá sang
