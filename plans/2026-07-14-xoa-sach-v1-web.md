@@ -8,11 +8,24 @@
 |---|---|---|
 | Đợt 0 | Chặn mọi đường vào v1 (redirect + nắn link) — **giải quyết ngay "login nhầm"** | ✅ 2026-07-14 · nhánh `chore/v1-lockout-wave0` |
 | Đợt 1 | Bù GAP tính năng v2 còn deep-link về v1 | ✅ 2026-07-15 · PR #220 (11 route v2 mới) |
-| Đợt 2 | Backend đổi URL sinh ra (email, payment, DTO href) | ⬜ ← **tiếp theo** |
-| Đợt 3 | Xóa cây v1 (~161 file / ~38k dòng) + redirect map + gỡ kill-switch | ⬜ |
+| Đợt 2 | Backend đổi URL sinh ra (email, payment, DTO href) | ✅ 2026-07-15 · PR #221 (backend-only) |
+| **Đợt 2.5** | **Port nốt ~13 tính năng THẬT còn kẹt ở v1** — *phát sinh, không có trong plan gốc* | 🔄 đang làm · nhánh `feat/v1-lockout-wave2h` |
+| Đợt 3 | Xóa cây v1 + redirect map + nâng 307→permanent | ⬜ (bị chặn bởi Đợt 2.5) |
 | Đợt 4 | Dọn dead code, dependencies, docs, PostHog | ⬜ |
 
-**Thứ tự deploy bắt buộc**: FE (Đợt 0 → 1) → BE (Đợt 2) → FE (Đợt 3) → dọn (Đợt 4). Đảo thứ tự = nút trên chính trang v2 (`v2/student/speaking/page.tsx:60` dùng href backend trả) trỏ vào 404.
+**Thứ tự deploy bắt buộc**: FE (Đợt 0 → 1) → BE (Đợt 2) → FE (Đợt 2.5 → 3) → dọn (Đợt 4).
+
+### 🚨 Đợt 2.5 phát sinh: plan gốc ĐÁNH GIÁ THẤP khối lượng
+
+Plan gốc (Q9) giả định nhóm route "GAP thuần" chỉ cần **đo PostHog rồi xóa nếu ít traffic**. Kiểm kê thực tế ở Đợt 1 cho thấy **sai**: đó là **~13 tính năng thật, backend vẫn sống**, và người dùng v2 hiện **không có cửa nào** vào chúng. Xóa v1 bây giờ = mất tính năng, không phải dọn rác.
+
+**Nặng nhất — cụm skill-tree**: `/student/practice-node/[nodeId]`, `/student/practice-session/[nodeId]/[skill]` (runner luyện 4 kỹ năng **có chấm điểm**), `/student/learn/node/[nodeId]`. `/v2/student/roadmap` **KHÔNG** thay thế được: nó dùng `NodeLessonPanel`, mà panel đó chạy backend khác (`/roadmap/tree/node/{id}`) và **nội dung bài học là demo hardcode** — `NodeLessonPanel.tsx:3-6` tự ghi *"the lesson body + check are a group-keyed demo set"* (6 chủ đề × 1 câu + 1 trắc nghiệm).
+
+**Đứt thứ hai — weekly-speaking**: `/v2/admin/weekly-speaking` cho admin **ra đề**, nhưng ô "Speaking tuần" ở `/v2/student/speaking` trỏ vào setup free-talk → **học viên không có cửa nộp bài**.
+
+**Còn lại**: certificates (danh sách của HV), assessment B1, beginner (buổi học đầu), drill từ vựng (`vocab-practice`, `swipe-cards`, `article-quiz`, `vocab-analytics` — v2 chỉ có *tra cứu*), `speaking-history`, `exercise-history`, `grammar-practice` (AI — khác hẳn `/v2/student/grammar` vốn là bài soạn sẵn), `curriculum` (Netzwerk Neu A1), `student/game`, `news`.
+
+**Xóa được ngay, không cần port** (đã có bản v2, hoặc là code chết): `leaderboard`→`/v2/student/achievements` (cùng API) · `grammar-review`→`/v2/student/review` (cùng API) · `groq-usage` (94 dòng, **0 API call**, metrics hardcode `'N/A'`) · `/lesson` (478 dòng, **0 API call**) · `/game` (demo LegoGameScreen) · `/student/practice` (nộp cứng `scorePercent: 100` — không chấm thật).
 
 ---
 
