@@ -1,7 +1,5 @@
 package com.deutschflow.user.controller;
 
-import com.deutschflow.notification.NotificationType;
-import com.deutschflow.notification.service.UserNotificationService;
 import com.deutschflow.teacher.service.TeacherService;
 import com.deutschflow.teacher.dto.StudentAssignmentDto;
 import com.deutschflow.user.entity.User;
@@ -24,7 +22,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -51,7 +48,6 @@ public class StudentAssignmentController {
     private final StudentAssignmentRepository studentAssignmentRepository;
     private final ClassAssignmentRepository classAssignmentRepository;
     private final S3StorageService s3StorageService;
-    private final UserNotificationService userNotificationService;
 
     @GetMapping
     @Transactional(readOnly = true)
@@ -131,25 +127,15 @@ public class StudentAssignmentController {
         }
         
         assignment = studentAssignmentRepository.save(assignment);
-        
         ClassAssignment ca = classAssignmentRepository.findById(assignment.getAssignmentId()).orElse(null);
-        if (ca != null) {
-            Map<String, Object> payload = new LinkedHashMap<>();
-            payload.put("assignmentId", ca.getId());
-            payload.put("classId", ca.getClassId());
-            payload.put("className", ca.getTopic() != null ? ca.getTopic() : "");
-            payload.put("topic", ca.getTopic() != null ? ca.getTopic() : "");
-            payload.put("studentId", user.getId());
-            payload.put("studentName", user.getDisplayName());
-            payload.put("assignmentType", ca.getAssignmentType());
-            payload.put("referenceId", ca.getReferenceId());
-            userNotificationService.insertForUser(
-                user,
-                NotificationType.QUIZ_SUBMISSION_RECEIVED,
-                payload
-            );
-        }
-        
+
+        // Tell the TEACHERS of the class. This used to be insertForUser(user, ...) — and `user` is the
+        // @AuthenticationPrincipal of a STUDENT-only endpoint, so the notification went back to the
+        // student who had just submitted, rendered with the teacher-facing copy ("📥 Bài cần xem — Có bài
+        // cần xem từ {studentName}"). The teacher, meanwhile, was told nothing whatsoever.
+        teacherService.notifyTeachersOfSubmission(
+                assignment.getAssignmentId(), user.getId(), user.getDisplayName());
+
         return ResponseEntity.ok(new StudentAssignmentDto(
                 assignment.getId(), assignment.getAssignmentId(), assignment.getStudentId(), assignment.getStatus(),
                 assignment.getScore(), assignment.getFeedback(), assignment.getSubmittedAt(), assignment.getCreatedAt(),

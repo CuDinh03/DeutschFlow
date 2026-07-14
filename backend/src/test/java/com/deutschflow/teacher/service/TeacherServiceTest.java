@@ -44,6 +44,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -518,6 +520,39 @@ class TeacherServiceTest {
         assertEquals(100L, result.get(0).assignmentId());
         // The unscoped read is gone: no query may fetch this student's work by studentId alone.
         verify(studentAssignmentRepository, never()).findByStudentIdOrderByCreatedAtDesc(any());
+    }
+
+    // ── notifications point at the right person ───────────────────────────────
+
+    /**
+     * The audit bug: submitting work notified the STUDENT (insertForUser was passed the student's own
+     * principal) with copy written for a teacher, and the teacher was told nothing at all. It also put
+     * the assignment's topic into the "className" field.
+     */
+    @Test
+    void notifyTeachersOfSubmission_notifiesEveryTeacherOfTheClass_withTheRealClassName() {
+        Long classId = 10L, classAssignmentId = 500L, studentId = 50L;
+
+        when(assignmentRepository.findById(classAssignmentId)).thenReturn(java.util.Optional.of(
+                ClassAssignment.builder().id(classAssignmentId).classId(classId).topic("Brief schreiben").build()));
+        when(classRepository.findById(classId)).thenReturn(java.util.Optional.of(
+                TeacherClass.builder().id(classId).name("A1.2 — Thứ 3").build()));
+        // Two teachers on the class (primary + co-teacher): both must hear about it.
+        when(classTeacherRepository.findByIdClassId(classId)).thenReturn(List.of(
+                ClassTeacher.builder().id(new ClassTeacherId(classId, 1L)).build(),
+                ClassTeacher.builder().id(new ClassTeacherId(classId, 2L)).build()));
+
+        teacherService.notifyTeachersOfSubmission(classAssignmentId, studentId, "Nguyễn Vũ Hiệp");
+
+        verify(userNotificationService).onTeacherGradingEvent(
+                eq(1L), eq(classId), eq("A1.2 — Thứ 3"), eq(classAssignmentId),
+                eq(studentId), eq("Nguyễn Vũ Hiệp"), eq("SUBMISSION_RECEIVED"), isNull());
+        verify(userNotificationService).onTeacherGradingEvent(
+                eq(2L), eq(classId), eq("A1.2 — Thứ 3"), eq(classAssignmentId),
+                eq(studentId), eq("Nguyễn Vũ Hiệp"), eq("SUBMISSION_RECEIVED"), isNull());
+        // NOT the assignment topic — that is what the old payload put in the className field.
+        verify(userNotificationService, never()).onTeacherGradingEvent(
+                any(), any(), eq("Brief schreiben"), any(), any(), any(), any(), any());
     }
 
     @Test

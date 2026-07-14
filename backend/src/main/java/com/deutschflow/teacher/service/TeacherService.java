@@ -144,6 +144,26 @@ public class TeacherService {
                 .status("PENDING")
                 .build();
         joinRequestRepository.save(req);
+
+        // Tell the teachers NOW, while the request is actually pending. The only calls to
+        // onTeacherJoinRequestCreated used to sit inside approveJoinRequest/rejectJoinRequest — so a
+        // teacher was told "X asked to join" only AFTER they had already approved or rejected X, and was
+        // never told when the request arrived. A student could sit unapproved for days.
+        try {
+            User student = userRepository.findById(studentId).orElse(null);
+            for (ClassTeacher ct : classTeacherRepository.findByIdClassId(teacherClass.getId())) {
+                userNotificationService.onTeacherJoinRequestCreated(
+                        ct.getId().getTeacherId(),
+                        teacherClass.getId(),
+                        teacherClass.getName(),
+                        studentId,
+                        student != null ? student.getDisplayName() : "",
+                        student != null ? student.getEmail() : "");
+            }
+        } catch (Exception e) {
+            log.warn("[notifications] Could not notify teachers of join request for class {}: {}",
+                    teacherClass.getId(), e.toString());
+        }
     }
 
     @Transactional(readOnly = true)
@@ -195,8 +215,10 @@ public class TeacherService {
             classStudentRepository.save(classStudent);
         }
 
-        User student = userRepository.findById(req.getStudentId()).orElse(null);
-        // Notify student
+        // Notify the student. The teacher is NOT notified here: they are the one who just clicked
+        // approve. (There used to be an onTeacherJoinRequestCreated call right here, telling the teacher
+        // "X yêu cầu tham gia lớp" immediately after they had approved X. The notification now fires in
+        // joinClass, when the request actually arrives.)
         TeacherClass teacherClass = classRepository.findById(classId).orElse(null);
         User teacher = userRepository.findById(teacherId).orElse(null);
         userNotificationService.onJoinRequestApproved(
@@ -205,17 +227,6 @@ public class TeacherService {
             teacherClass != null ? teacherClass.getName() : "",
             teacher != null ? teacher.getDisplayName() : ""
         );
-
-        if (teacher != null) {
-            userNotificationService.onTeacherJoinRequestCreated(
-                teacherId,
-                classId,
-                teacherClass != null ? teacherClass.getName() : "",
-                req.getStudentId(),
-                student != null ? student.getDisplayName() : "",
-                student != null ? student.getEmail() : ""
-            );
-        }
     }
 
     @Transactional
@@ -238,27 +249,16 @@ public class TeacherService {
         req.setStatus("REJECTED");
         joinRequestRepository.save(req);
 
-        // Notify student
+        // Notify the student. As in approveJoinRequest, the teacher is not told anything: they just
+        // clicked reject.
         TeacherClass teacherClass = classRepository.findById(classId).orElse(null);
         User teacher = userRepository.findById(teacherId).orElse(null);
-        User student = userRepository.findById(req.getStudentId()).orElse(null);
         userNotificationService.onJoinRequestRejected(
             req.getStudentId(),
             classId,
             teacherClass != null ? teacherClass.getName() : "",
             teacher != null ? teacher.getDisplayName() : ""
         );
-
-        if (teacher != null) {
-            userNotificationService.onTeacherJoinRequestCreated(
-                teacherId,
-                classId,
-                teacherClass != null ? teacherClass.getName() : "",
-                req.getStudentId(),
-                student != null ? student.getDisplayName() : "",
-                student != null ? student.getEmail() : ""
-            );
-        }
     }
 
     @Transactional
@@ -619,6 +619,45 @@ public class TeacherService {
     }
 
     /**
+     * Tell every teacher of the class that a student has handed work in.
+     *
+     * <p>Nobody used to be told. The submit endpoint called {@code insertForUser(user, ...)} where
+     * {@code user} was the {@code @AuthenticationPrincipal} — i.e. the STUDENT — so the student received
+     * a notification written for a teacher ("📥 Bài cần xem — Có bài cần xem từ [their own name]") and the
+     * teacher received nothing at all. A teacher had to keep opening the grading screen to find out that
+     * work had arrived.
+     *
+     * <p>Best-effort: a notification failure must never fail the student's submission.
+     */
+    @Transactional
+    public void notifyTeachersOfSubmission(Long classAssignmentId, Long studentId, String studentName) {
+        try {
+            ClassAssignment ca = assignmentRepository.findById(classAssignmentId).orElse(null);
+            if (ca == null) return;
+
+            TeacherClass cls = classRepository.findById(ca.getClassId()).orElse(null);
+            // The real class name — this used to be populated with ca.getTopic(), i.e. the title of the
+            // assignment, so the notification named the homework where it claimed to name the class.
+            String className = cls != null ? cls.getName() : "";
+
+            for (ClassTeacher ct : classTeacherRepository.findByIdClassId(ca.getClassId())) {
+                userNotificationService.onTeacherGradingEvent(
+                        ct.getId().getTeacherId(),
+                        ca.getClassId(),
+                        className,
+                        ca.getId(),
+                        studentId,
+                        studentName,
+                        "SUBMISSION_RECEIVED",
+                        null);
+            }
+        } catch (Exception e) {
+            log.warn("[notifications] Could not notify teachers of submission for assignment {}: {}",
+                    classAssignmentId, e.toString());
+        }
+    }
+
+    /**
      * The classes this teacher and this student actually share. Empty means the teacher has no business
      * reading anything about the student.
      *
@@ -692,31 +731,16 @@ public class TeacherService {
         session.setReviewedAt(java.time.LocalDateTime.now());
         TeacherSpeakingSessionDto result = toTeacherSpeakingSessionDto(speakingSessionRepository.save(session));
 
-        // Notify student
+        // Notify the student that their speaking session has been graded.
+        //
+        // The teacher is deliberately NOT notified. This used to fire onTeacherGradingEvent at the
+        // teacher who had just done the grading — rendered as "📥 Bài cần xem — Có bài cần xem từ X",
+        // i.e. the teacher was told there was work to review about the very session they had just
+        // finished reviewing. It was, in fact, the only place that helper was ever called: teachers got
+        // no notification when work actually arrived, and one bogus one after they finished.
         userNotificationService.onAssignmentGraded(
             session.getUserId(), "SPEAKING", sessionId, req.teacherScore(), req.teacherFeedback()
         );
-
-        User student = userRepository.findById(session.getUserId()).orElse(null);
-        // Find the specific class where both this teacher and the student are enrolled.
-        Long sharedClassId = classTeacherRepository.findByIdTeacherId(teacherId).stream()
-                .filter(ct -> classStudentRepository.existsByIdClassIdAndIdStudentId(ct.getId().getClassId(), session.getUserId()))
-                .map(ct -> ct.getId().getClassId())
-                .findFirst()
-                .orElse(null);
-        TeacherClass teacherClass = sharedClassId != null ? classRepository.findById(sharedClassId).orElse(null) : null;
-        if (teacherClass != null) {
-            userNotificationService.onTeacherGradingEvent(
-                teacherId,
-                teacherClass.getId(),
-                teacherClass.getName(),
-                sessionId,
-                session.getUserId(),
-                student != null ? student.getDisplayName() : "",
-                "SPEAKING_GRADED",
-                req.teacherScore()
-            );
-        }
 
         return result;
     }

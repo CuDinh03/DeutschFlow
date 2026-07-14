@@ -207,7 +207,8 @@ export function resolveNotificationHref(item: NotificationItem, role: RoleId): s
     case 'CLASS_JOIN_REQUEST_CREATED':
       return classId ? `/v2/teacher/classes/${classId}` : null
     case 'QUIZ_SUBMISSION_RECEIVED':
-      if (classId && studentId) return `/v2/teacher/classes/${classId}/students/${studentId}`
+      // "Bài cần xem" means there is work to GRADE, so open the grading queue — not the student's
+      // read-only detail page, where the teacher can look at the submission but not act on it.
       return '/v2/teacher/grading'
 
     // ── Cross-role — route into the viewer's own area ─────────────────────────
