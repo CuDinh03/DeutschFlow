@@ -2,12 +2,15 @@
 
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { Mic, BookOpen, Repeat, Route, Trophy, ArrowRight } from 'lucide-react'
+import { Mic, BookOpen, Repeat, Route, Trophy, ArrowRight, Sparkles } from 'lucide-react'
 import { GaPageHdr, GaCard, GaCap } from '@/components/ui-v2'
 
 // Welcome / help tour (client-side, no backend) — quick orientation to the daily surfaces.
+// The first card is the ONLY permanent entry into /v2/student/beginner (the dashboard CTA only
+// shows while sessionsCompleted === 0), so a returning student can still replay day 1.
 
 const STEPS = [
+  { icon: Sparkles, titleKey: 'steps.beginnerTitle', descKey: 'steps.beginnerDesc', href: '/v2/student/beginner', tone: 'var(--ga-gold)' },
   { icon: Route, titleKey: 'steps.roadmapTitle', descKey: 'steps.roadmapDesc', href: '/v2/student/roadmap', tone: 'var(--ga-teal)' },
   { icon: BookOpen, titleKey: 'steps.vocabTitle', descKey: 'steps.vocabDesc', href: '/v2/student/vocabulary', tone: 'var(--ga-blue)' },
   { icon: Mic, titleKey: 'steps.speakingTitle', descKey: 'steps.speakingDesc', href: '/v2/student/speaking', tone: 'var(--ga-violet)' },
@@ -43,7 +46,12 @@ export default function V2StudentWelcomePage() {
               <Link key={s.titleKey} href={s.href}>
                 <GaCard hover className="group h-full p-5">
                   <div className="flex items-center gap-3">
-                    <span className="grid h-10 w-10 place-items-center rounded-ga" style={{ background: `${s.tone}1a`, color: s.tone }}>
+                    {/* `${s.tone}1a` KHÔNG hợp lệ khi tone là `var(--ga-…)` → CSS bị bỏ qua, chip mất nền.
+                        color-mix giữ đúng ý đồ (tint 10%) và chạy với cả biến CSS lẫn hex. */}
+                    <span
+                      className="grid h-10 w-10 place-items-center rounded-ga"
+                      style={{ background: `color-mix(in srgb, ${s.tone} 10%, transparent)`, color: s.tone }}
+                    >
                       <Icon size={20} aria-hidden />
                     </span>
                     <span className="font-ga-display text-[15px] font-medium text-ga-subtle">0{i + 1}</span>

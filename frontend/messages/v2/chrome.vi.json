@@ -8,6 +8,7 @@
       "lessons": "Bài học",
       "roadmap": "Lộ trình",
       "speaking": "Luyện nói AI",
+      "weekly-speaking": "Speaking tuần",
       "mock-exam": "Thi thử",
       "exam": "Luyện thi",
       "my-classes": "Lớp của tôi",
@@ -18,6 +19,7 @@
       "tuition": "Học phí",
       "notifications": "Thông báo",
       "profile": "Hồ sơ",
+      "welcome": "Hướng dẫn",
       "teacher": "Trang chủ",
       "schedule": "Kế hoạch giảng dạy",
       "tc-progress": "Tiến độ khóa học",
@@ -67,7 +69,13 @@
       "org-billing": "Gói & Giấy phép",
       "org-invitations": "Lời mời",
       "org-roles": "Phân quyền",
-      "org-profile": "Hồ sơ"
+      "org-profile": "Hồ sơ",
+      "st-exercise-history": "Lịch sử làm bài",
+      "curriculum": "Giáo trình",
+      "game": "Trò chơi",
+      "news": "Tin tức Đức",
+      "b1-assessment": "Đánh giá B1",
+      "certificates": "Chứng chỉ"
     },
     "sections": {
       "classMgmt": "Quản lý lớp",

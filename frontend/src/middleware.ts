@@ -103,6 +103,17 @@ function requiresLearnerShare(pathname: string): boolean {
   return learnerSharedPaths().has(routeKey(pathname))
 }
 
+/**
+ * Bản /v2 của learnerSharedPaths. Mọi route dưới `/v2/student/*` mặc định bị cổng vai trò
+ * STUDENT chặn (requiredRole('/student/…') === 'STUDENT'), nên một trang vốn DÙNG CHUNG ở v1 sẽ
+ * mất quyền của GV/admin khi port sang đây.
+ *
+ * `/v2/student/news` là port của `/news` — vốn nằm trong learnerSharedPaths() ở trên (GV/admin
+ * cũng đọc báo Đức). Thiếu ngoại lệ này thì sau khi xoá cây v1, GV/admin bấm vào tin tức sẽ bị đá
+ * về trang chủ vai trò của họ.
+ */
+const V2_LEARNER_SHARED = new Set(['/v2/student/news'])
+
 function allowedOnLearnerPath(role: Role): boolean {
   return role === 'STUDENT' || role === 'TEACHER' || role === 'ADMIN'
 }
@@ -284,6 +295,14 @@ export async function middleware(request: NextRequest) {
           return passThrough()
         }
         return redirectTo(new URL(v2RoleHome(v2Role), request.url))
+      }
+      // Trang /v2 dùng chung cho người học (xem V2_LEARNER_SHARED): STUDENT/TEACHER/ADMIN đều vào
+      // được, đúng như bản v1 tương ứng. Phải xét TRƯỚC cổng vai trò cứng bên dưới.
+      if (V2_LEARNER_SHARED.has(routeKey(pathname))) {
+        if (!allowedOnLearnerPath(v2Role)) {
+          return redirectTo(new URL(v2RoleHome(v2Role), request.url))
+        }
+        return passThrough()
       }
       if (v2Required !== v2Role) {
         return redirectTo(new URL(v2RoleHome(v2Role), request.url))

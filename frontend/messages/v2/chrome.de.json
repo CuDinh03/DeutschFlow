@@ -8,6 +8,7 @@
       "lessons": "Lektionen",
       "roadmap": "Lernpfad",
       "speaking": "KI-Sprechen",
+      "weekly-speaking": "Wöchentliches Sprechen",
       "mock-exam": "Probeprüfung",
       "exam": "Prüfungstraining",
       "my-classes": "Meine Kurse",
@@ -18,6 +19,7 @@
       "tuition": "Studiengebühren",
       "notifications": "Benachrichtigungen",
       "profile": "Profil",
+      "welcome": "Anleitung",
       "teacher": "Startseite",
       "schedule": "Unterrichtsplan",
       "tc-progress": "Kursfortschritt",
@@ -67,7 +69,13 @@
       "org-billing": "Tarife & Lizenzen",
       "org-invitations": "Einladungen",
       "org-roles": "Rollen",
-      "org-profile": "Profil"
+      "org-profile": "Profil",
+      "st-exercise-history": "Versuchs-Historie",
+      "curriculum": "Lehrplan",
+      "game": "Spiel",
+      "news": "Nachrichten",
+      "b1-assessment": "B1-Einstufung",
+      "certificates": "Zertifikate"
     },
     "sections": {
       "classMgmt": "Kursverwaltung",

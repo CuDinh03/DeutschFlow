@@ -8,6 +8,7 @@
       "lessons": "Lessons",
       "roadmap": "Roadmap",
       "speaking": "AI Speaking",
+      "weekly-speaking": "Weekly Speaking",
       "mock-exam": "Mock Exam",
       "exam": "Exam Prep",
       "my-classes": "My Classes",
@@ -18,6 +19,7 @@
       "tuition": "Tuition",
       "notifications": "Notifications",
       "profile": "Profile",
+      "welcome": "Guide",
       "teacher": "Home",
       "schedule": "Teaching Plan",
       "tc-progress": "Course Progress",
@@ -67,7 +69,13 @@
       "org-billing": "Plans & Licenses",
       "org-invitations": "Invitations",
       "org-roles": "Roles",
-      "org-profile": "Profile"
+      "org-profile": "Profile",
+      "st-exercise-history": "Attempt history",
+      "curriculum": "Curriculum",
+      "game": "Game",
+      "news": "German news",
+      "b1-assessment": "B1 assessment",
+      "certificates": "Certificates"
     },
     "sections": {
       "classMgmt": "Class Management",

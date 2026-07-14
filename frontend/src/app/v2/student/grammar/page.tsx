@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { ChevronRight, ArrowRight, Dumbbell } from 'lucide-react'
+import { ChevronRight, ArrowRight, Dumbbell, Sparkles } from 'lucide-react'
 import api from '@/lib/api'
 import { GaPageHdr, GaCard, GaCap, TkBadge, LoadingState, ErrorBanner } from '@/components/ui-v2'
 
@@ -15,6 +15,7 @@ import { GaPageHdr, GaCard, GaCap, TkBadge, LoadingState, ErrorBanner } from '@/
 // trang thường rơi vào loadError/empty và lối vào runner bên trong thẻ chủ đề không bao giờ hiện.
 // Runner tự liệt kê chủ đề từ syllabus nên vào thẳng vẫn chạy được — CTA header giữ nó luôn tới được.
 const PRACTICE_HREF = '/v2/student/grammar/practice'
+const AI_HREF = '/v2/student/grammar/ai'
 
 interface Topic {
   id: number
@@ -93,12 +94,23 @@ export default function V2StudentGrammarPage() {
         title={t('title')}
         subtitle={t('subtitle')}
         right={
-          <a
-            href={PRACTICE_HREF}
-            className="ga-ui inline-flex items-center gap-1.5 rounded-ga bg-ga-accent px-4 py-2.5 text-[13px] font-semibold text-ga-accent-ink transition-opacity hover:opacity-90"
-          >
-            <Dumbbell size={14} aria-hidden /> {t('practiceCta')}
-          </a>
+          <>
+            {/* Công cụ ngữ pháp AI (POST /grammar/ai/correct · explain · analyze + văn hoá Đức) —
+                port từ /student/grammar-practice. Backend RIÊNG với /grammar/syllabus/* mà catalog
+                + runner đang dùng, nên đây là đường vào duy nhất của phần AI trong /v2. */}
+            <a
+              href={AI_HREF}
+              className="ga-ui inline-flex items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-4 py-2.5 text-[13px] font-semibold text-ga-ink transition-colors hover:bg-ga-surface"
+            >
+              <Sparkles size={14} aria-hidden /> {t('aiCta')}
+            </a>
+            <a
+              href={PRACTICE_HREF}
+              className="ga-ui inline-flex items-center gap-1.5 rounded-ga bg-ga-accent px-4 py-2.5 text-[13px] font-semibold text-ga-accent-ink transition-opacity hover:opacity-90"
+            >
+              <Dumbbell size={14} aria-hidden /> {t('practiceCta')}
+            </a>
+          </>
         }
       />
       <div className="flex-1 px-10 py-6">

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { MessageCircle, Briefcase, CalendarDays, ArrowRight, Mic } from 'lucide-react'
+import { MessageCircle, Briefcase, CalendarDays, ArrowRight, History, Mic } from 'lucide-react'
 import { todayApi, type TodayPlan } from '@/lib/todayApi'
 import { GaPageHdr, GaCard, GaCap, LoadingState } from '@/components/ui-v2'
 
@@ -13,6 +13,10 @@ import { GaPageHdr, GaCard, GaCap, LoadingState } from '@/components/ui-v2'
 
 const SETUP_HREF = '/v2/student/speaking/setup'
 const LIVE_HREF = '/v2/student/speaking/live'
+// Bài nói theo tuần (admin ra đề ở /v2/admin/weekly-speaking) là LUỒNG NỘP BÀI riêng, KHÔNG phải
+// engine free-talk — ô "Speaking tuần" trước đây trỏ nhầm vào SETUP_HREF nên học viên không có
+// cửa nộp bài.
+const WEEKLY_HREF = '/v2/student/weekly-speaking'
 
 const RETURN_TO = '/v2/student/speaking'
 const withReturn = (href: string) =>
@@ -37,7 +41,19 @@ function toV2SpeakingHref(href: string | null | undefined): string {
   return query ? `${mapped}?${query}` : mapped
 }
 
+// TodayPlan.recommendedWeeklySpeaking.href hiện là path v1 ('/student/weekly-speaking?cefBand=B1')
+// → nắn sang route v2 nhưng GIỮ query (?cefBand là hợp đồng trang weekly đọc để chọn sẵn band).
+// Không phụ thuộc cứng: thiếu field / path lạ ⇒ vẫn về trang weekly mặc định.
+function toWeeklyHref(href: string | null | undefined): string {
+  if (!href) return WEEKLY_HREF
+  if (href.startsWith('/v2/')) return href
+  const [path, query] = href.split('?')
+  if (path !== '/student/weekly-speaking') return WEEKLY_HREF
+  return query ? `${WEEKLY_HREF}?${query}` : WEEKLY_HREF
+}
+
 // Interview/lesson are modes of the same picker → ?mode= lands on the right tab.
+// `weekly: true` = luồng nộp bài tuần (route riêng, không phải engine → không gắn ?return).
 const MODES = [
   {
     icon: MessageCircle,
@@ -45,6 +61,7 @@ const MODES = [
     descKey: 'modes.freeDesc',
     href: SETUP_HREF,
     tone: 'var(--ga-violet)',
+    weekly: false,
   },
   {
     icon: Briefcase,
@@ -52,13 +69,15 @@ const MODES = [
     descKey: 'modes.interviewDesc',
     href: `${SETUP_HREF}?mode=INTERVIEW`,
     tone: 'var(--ga-blue)',
+    weekly: false,
   },
   {
     icon: CalendarDays,
     titleKey: 'modes.weeklyTitle',
     descKey: 'modes.weeklyDesc',
-    href: SETUP_HREF,
+    href: WEEKLY_HREF,
     tone: 'var(--ga-teal)',
+    weekly: true,
   },
 ]
 
@@ -82,14 +101,24 @@ export default function V2StudentSpeakingPage() {
         title={t('title')}
         subtitle={t('subtitle')}
         right={
-          // Interview RESULTS (report + phase breakdown) — ported to v2; the legacy
-          // /student/interviews page is no longer linked from anywhere in /v2.
-          <a
-            href="/v2/student/interviews"
-            className="ga-ui inline-flex items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-4 py-2.5 text-[13px] font-semibold text-ga-ink transition-colors hover:bg-ga-surface"
-          >
-            <Briefcase size={14} aria-hidden /> {t('interviewResults')}
-          </a>
+          <>
+            {/* Lịch sử hội thoại + xem lại (GET /ai-speaking/sessions) — port từ
+                /student/speaking-history; đây là đường vào duy nhất của trang đó trong /v2. */}
+            <a
+              href="/v2/student/speaking/history"
+              className="ga-ui inline-flex items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-4 py-2.5 text-[13px] font-semibold text-ga-ink transition-colors hover:bg-ga-surface"
+            >
+              <History size={14} aria-hidden /> {t('historyCta')}
+            </a>
+            {/* Interview RESULTS (report + phase breakdown) — ported to v2; the legacy
+                /student/interviews page is no longer linked from anywhere in /v2. */}
+            <a
+              href="/v2/student/interviews"
+              className="ga-ui inline-flex items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-4 py-2.5 text-[13px] font-semibold text-ga-ink transition-colors hover:bg-ga-surface"
+            >
+              <Briefcase size={14} aria-hidden /> {t('interviewResults')}
+            </a>
+          </>
         }
       />
       <div className="flex-1 px-10 py-6">
@@ -118,8 +147,13 @@ export default function V2StudentSpeakingPage() {
         <div className="grid grid-cols-1 gap-[18px] md:grid-cols-3">
           {MODES.map((m) => {
             const Icon = m.icon
+            // Ô "Speaking tuần" → trang nộp bài tuần (kèm ?cefBand gợi ý nếu backend có trả),
+            // các ô còn lại → engine luyện nói (kèm ?return để thoát về đúng launcher này).
+            const href = m.weekly
+              ? toWeeklyHref(today?.recommendedWeeklySpeaking?.href)
+              : withReturn(m.href)
             return (
-              <a key={m.titleKey} href={withReturn(m.href)}>
+              <a key={m.titleKey} href={href}>
                 <GaCard hover className="group h-full p-5">
                   <span
                     className="mb-3 grid h-11 w-11 place-items-center rounded-ga"
