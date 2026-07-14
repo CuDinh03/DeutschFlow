@@ -231,6 +231,33 @@ export default function V2TeacherGradingPage() {
     }
   }
 
+  /**
+   * OCR-grade a submission the student handed in as a PHOTO.
+   *
+   * This used to be a dead end: the AI button was disabled for an image-only submission and the teacher
+   * was sent to the standalone "Chấm bài qua ảnh" tool, which knew nothing about the submission — so
+   * they downloaded the student's photo, re-uploaded it there, and typed the score and comments back
+   * into this form by hand. The backend now reads the student's file straight from S3 and stores the
+   * result on the submission as an AI proposal, same as the text path. Synchronous (a few seconds), so
+   * no polling.
+   */
+  const runAiGradeImage = async () => {
+    if (!active) return
+    const current = active
+    setAiLoading(true)
+    setPanelError('')
+    try {
+      const res = await api.post(`/v2/teacher/grading/submissions/${current.id}/ai-grade-image`)
+      const { score, feedback } = res.data as { transcription: string; score: number; feedback: string }
+      setDrafts((d) => ({ ...d, [current.id]: { score, feedback: feedback ?? '' } }))
+      setAiSuggested((m) => ({ ...m, [current.id]: true }))
+    } catch (e) {
+      setPanelError(apiMessage(e) || t('aiCallError'))
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
   const save = async () => {
     if (!active) return
     if (draft.score === '') { setPanelError(t('enterScore')); return }
@@ -375,6 +402,7 @@ export default function V2TeacherGradingPage() {
               criteria={aiAssess[active.id]?.criteria ?? null}
               aiLoading={aiLoading}
               onAi={runAiGrade}
+              onAiImage={runAiGradeImage}
               saving={saving}
               onSave={save}
               error={panelError}
@@ -513,16 +541,21 @@ interface ScoringProps {
   criteria: Record<string, number> | null
   aiLoading: boolean
   onAi: () => void
+  onAiImage: () => void
   saving: boolean
   onSave: () => void
   error: string
   success: string
 }
 
-function Scoring({ item, draft, setDraft, suggested, confidence, criteria, aiLoading, onAi, saving, onSave, error, success }: ScoringProps) {
+function Scoring({ item, draft, setDraft, suggested, confidence, criteria, aiLoading, onAi, onAiImage, saving, onSave, error, success }: ScoringProps) {
   const t = useTranslations('v2.teacher.grading')
   const isAiGradable = item.assignmentType !== 'SPEAKING_SCENARIO'
   const hasText = !!item.submissionContent
+  // A photo of handwritten work. The backend can OCR-grade it in place, so this is no longer a reason
+  // to disable the button and send the teacher off to a separate upload tool.
+  const hasImage = !hasText && !!item.submissionFileUrl && isImageUrl(item.submissionFileUrl)
+  const canAiGrade = hasText || hasImage
 
   return (
     <>
@@ -534,20 +567,24 @@ function Scoring({ item, draft, setDraft, suggested, confidence, criteria, aiLoa
               <p className="ga-ui flex items-center gap-1.5 text-[12.5px] font-bold uppercase tracking-[0.04em]" style={{ color: 'var(--ga-violet)' }}>
                 <Sparkles size={14} /> {t('aiGradeCap')}
               </p>
-              <p className="ga-ui mt-1 text-[12px] text-ga-muted">{t('aiGradeDesc')}</p>
+              <p className="ga-ui mt-1 text-[12px] text-ga-muted">
+                {hasImage ? t('aiGradeImageDesc') : t('aiGradeDesc')}
+              </p>
             </div>
             <button
               type="button"
-              onClick={onAi}
-              disabled={aiLoading || !hasText}
-              title={!hasText ? t('aiNoTextTitle') : undefined}
+              onClick={hasImage ? onAiImage : onAi}
+              disabled={aiLoading || !canAiGrade}
+              title={!canAiGrade ? t('aiNoTextTitle') : undefined}
               className="ga-ui inline-flex shrink-0 items-center gap-2 rounded-ga px-4 py-2 text-[13px] font-bold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-60"
               style={{ background: 'var(--ga-violet)' }}
             >
-              {aiLoading ? <><Loader2 size={15} className="animate-spin" /> {t('aiGradeButtonBusy')}</> : <><Sparkles size={15} /> {t('aiGradeButton')}</>}
+              {aiLoading
+                ? <><Loader2 size={15} className="animate-spin" /> {t('aiGradeButtonBusy')}</>
+                : <><Sparkles size={15} /> {hasImage ? t('aiGradeImageButton') : t('aiGradeButton')}</>}
             </button>
           </div>
-          {!hasText && (
+          {!canAiGrade && (
             <p className="ga-ui mt-2 flex items-start gap-1 text-[11.5px]" style={{ color: 'var(--ga-violet)' }}>
               <AlertCircle size={13} className="mt-0.5 shrink-0" />
               {t('aiNoTextHint')}

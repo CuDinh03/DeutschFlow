@@ -320,6 +320,8 @@
       "aiGradeCap": "Grade with AI",
       "aiGradeDesc": "AI reads the work → suggests a score + feedback",
       "aiGradeButton": "Grade with AI",
+      "aiGradeImageButton": "AI-grade the photo",
+      "aiGradeImageDesc": "AI reads the handwriting in the submission and proposes a score · teacher confirms",
       "aiGradeButtonBusy": "Grading…",
       "aiNoTextHint": "This submission has only a file/image attachment — grade manually or use \"Grade handwritten image\".",
       "aiNoTextTitle": "Submission has no text content for AI to grade",

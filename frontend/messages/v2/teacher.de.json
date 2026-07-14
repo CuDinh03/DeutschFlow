@@ -320,6 +320,8 @@
       "aiGradeCap": "Mit KI bewerten",
       "aiGradeDesc": "KI liest die Arbeit → schlägt Note + Feedback vor",
       "aiGradeButton": "Mit KI bewerten",
+      "aiGradeImageButton": "Foto mit KI bewerten",
+      "aiGradeImageDesc": "Die KI liest die Handschrift der Abgabe und schlägt eine Note vor · Lehrkraft bestätigt",
       "aiGradeButtonBusy": "Bewertung läuft…",
       "aiNoTextHint": "Diese Abgabe hat nur einen Datei-/Bildanhang — bewerte manuell oder nutze „Handschriftliches Bild bewerten“.",
       "aiNoTextTitle": "Abgabe hat keinen Textinhalt für die KI-Bewertung",

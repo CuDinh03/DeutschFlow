@@ -320,6 +320,8 @@
       "aiGradeCap": "Chấm bằng AI",
       "aiGradeDesc": "AI đọc bài làm → đề xuất điểm + nhận xét",
       "aiGradeButton": "Chấm AI",
+      "aiGradeImageButton": "Chấm ảnh bằng AI",
+      "aiGradeImageDesc": "AI đọc chữ viết tay trong bài nộp rồi đề xuất điểm · giáo viên xác nhận",
       "aiGradeButtonBusy": "Đang chấm…",
       "aiNoTextHint": "Bài chỉ có file/ảnh đính kèm — hãy chấm thủ công hoặc dùng \"Chấm ảnh bài viết tay\".",
       "aiNoTextTitle": "Bài nộp không có nội dung văn bản để AI chấm",
