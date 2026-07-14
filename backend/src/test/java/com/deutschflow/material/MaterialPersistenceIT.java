@@ -3,7 +3,9 @@ package com.deutschflow.material;
 import com.deutschflow.material.entity.ClassMaterial;
 import com.deutschflow.material.entity.ClassMaterialId;
 import com.deutschflow.material.entity.Material;
+import com.deutschflow.material.entity.MaterialFolder;
 import com.deutschflow.material.repository.ClassMaterialRepository;
+import com.deutschflow.material.repository.MaterialFolderRepository;
 import com.deutschflow.material.repository.MaterialRepository;
 import com.deutschflow.organization.entity.Organization;
 import com.deutschflow.organization.repository.OrganizationRepository;
@@ -17,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -36,10 +39,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class MaterialPersistenceIT extends AbstractPostgresIntegrationTest {
 
     @Autowired private MaterialRepository materialRepository;
+    @Autowired private MaterialFolderRepository folderRepository;
     @Autowired private ClassMaterialRepository classMaterialRepository;
     @Autowired private UserRepository userRepository;
     @Autowired private OrganizationRepository organizationRepository;
     @Autowired private TeacherClassRepository teacherClassRepository;
+    @Autowired private JdbcTemplate jdbcTemplate;
 
     private User newUser() {
         return userRepository.save(User.builder()
@@ -135,5 +140,153 @@ class MaterialPersistenceIT extends AbstractPostgresIntegrationTest {
         assertThat(classMaterialRepository.existsByIdClassIdAndIdMaterialId(tc.getId(), m.getId())).isTrue();
         assertThat(classMaterialRepository.findByIdClassId(tc.getId()))
                 .extracting(cm -> cm.getId().getMaterialId()).contains(m.getId());
+    }
+
+    // --------------------------------------------------------------- V258 Materials Library schema
+
+    @Test
+    @DisplayName("kind=LINK persists with a NULL object_key (chk_material_object_key allows it)")
+    void linkMaterial_nullObjectKey_persists() {
+        User teacher = newUser();
+        Material link = materialRepository.saveAndFlush(Material.builder()
+                .ownerScope("PERSONAL").teacherId(teacher.getId()).createdBy(teacher.getId())
+                .title("allango Track").kind("LINK").externalUrl("https://allango.net/x")
+                .status("ACTIVE").build());
+
+        assertThat(link.getId()).isNotNull();
+        assertThat(link.getObjectKey()).isNull();
+    }
+
+    @Test
+    @DisplayName("chk_material_object_key rejects a non-LINK material with a NULL object_key")
+    void fileMaterial_nullObjectKey_violatesCheck() {
+        User teacher = newUser();
+        Material bad = Material.builder()
+                .ownerScope("PERSONAL").teacherId(teacher.getId()).createdBy(teacher.getId())
+                .title("Thiếu file").kind("PDF").objectKey(null).status("ACTIVE").build();
+
+        assertThatThrownBy(() -> materialRepository.saveAndFlush(bad))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    @DisplayName("tags text[] round-trips and is filterable via the GIN @> containment query")
+    void tags_textArray_roundtripsAndGinQueryable() {
+        User teacher = newUser();
+        Material m = materialRepository.saveAndFlush(Material.builder()
+                .ownerScope("PERSONAL").teacherId(teacher.getId()).createdBy(teacher.getId())
+                .title("Hörtext Lektion 3").kind("AUDIO").objectKey("materials/p/x.mp3").status("ACTIVE")
+                .tags(new String[]{"Hören", "Netzwerk A1"}).build());
+
+        assertThat(materialRepository.findById(m.getId()).orElseThrow().getTags())
+                .containsExactly("Hören", "Netzwerk A1");
+        // tag containment hit
+        assertThat(materialRepository.searchPersonal(teacher.getId(), "ACTIVE", null, null, "Hören", null))
+                .extracting(Material::getId).contains(m.getId());
+        // tag miss
+        assertThat(materialRepository.searchPersonal(teacher.getId(), "ACTIVE", null, null, "Sprechen", null))
+                .isEmpty();
+        // query (ILIKE) + kind together
+        assertThat(materialRepository.searchPersonal(teacher.getId(), "ACTIVE", "hörtext", "AUDIO", null, null))
+                .extracting(Material::getId).contains(m.getId());
+    }
+
+    @Test
+    @DisplayName("searchPersonal is owner-scoped — never returns another teacher's material")
+    void searchPersonal_isOwnerScoped() {
+        User a = newUser();
+        User b = newUser();
+        Material mb = materialRepository.saveAndFlush(Material.builder()
+                .ownerScope("PERSONAL").teacherId(b.getId()).createdBy(b.getId())
+                .title("B's file").kind("PDF").objectKey("materials/b.pdf").status("ACTIVE")
+                .tags(new String[]{"Hören"}).build());
+
+        assertThat(materialRepository.searchPersonal(a.getId(), "ACTIVE", null, null, "Hören", null))
+                .extracting(Material::getId).doesNotContain(mb.getId());
+    }
+
+    @Test
+    @DisplayName("chk_folder_owner rejects an ORG folder that also carries a teacher_id")
+    void folder_mixedOwner_violatesCheck() {
+        User author = newUser();
+        Organization org = newOrg();
+        MaterialFolder bad = MaterialFolder.builder()
+                .ownerScope("ORG").orgId(org.getId()).teacherId(author.getId()) // both set → violates CHECK
+                .createdBy(author.getId()).name("Sai chủ").orderIndex(0).build();
+
+        assertThatThrownBy(() -> folderRepository.saveAndFlush(bad))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    @DisplayName("deleting a folder SET NULLs folder_id on its materials (material survives)")
+    void deleteFolder_setsNullOnMaterials() {
+        User teacher = newUser();
+        MaterialFolder folder = folderRepository.saveAndFlush(MaterialFolder.builder()
+                .ownerScope("PERSONAL").teacherId(teacher.getId()).createdBy(teacher.getId())
+                .name("Lektion 3").orderIndex(0).build());
+        Material m = materialRepository.saveAndFlush(Material.builder()
+                .ownerScope("PERSONAL").teacherId(teacher.getId()).createdBy(teacher.getId())
+                .title("Trong thư mục").kind("PDF").objectKey("materials/f.pdf").status("ACTIVE")
+                .folderId(folder.getId()).build());
+
+        folderRepository.delete(folder);
+        folderRepository.flush();
+
+        // Read via JDBC to bypass the JPA first-level cache and see the DB's SET NULL cascade.
+        Long folderIdAfter = jdbcTemplate.queryForObject(
+                "SELECT folder_id FROM materials WHERE id = ?", Long.class, m.getId());
+        assertThat(folderIdAfter).isNull(); // FK ON DELETE SET NULL — material row itself not deleted
+        assertThat(materialRepository.existsById(m.getId())).isTrue();
+    }
+
+    @Test
+    @DisplayName("assignment_material FK rejects a dangling material_id/assignment_id (table + FKs exist)")
+    void assignmentMaterial_fkRejectsDangling() {
+        assertThatThrownBy(() -> jdbcTemplate.update(
+                "INSERT INTO assignment_material (assignment_id, material_id) VALUES (?, ?)",
+                999_999_999L, 999_999_999L))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    @DisplayName("searchOrg is org-scoped — a member of one org never sees another org's materials")
+    void searchOrg_isOrgScoped() {
+        Organization orgA = newOrg();
+        Organization orgB = newOrg();
+        User author = newUser();
+        Material inB = materialRepository.saveAndFlush(Material.builder()
+                .ownerScope("ORG").orgId(orgB.getId()).createdBy(author.getId())
+                .title("B org Hörtext").kind("AUDIO").objectKey("materials/b-org.mp3").status("ACTIVE")
+                .tags(new String[]{"Hören"}).build());
+
+        // org A's search must NOT return org B's material...
+        assertThat(materialRepository.searchOrg(orgA.getId(), "ACTIVE", null, null, "Hören", null))
+                .extracting(Material::getId).doesNotContain(inB.getId());
+        // ...but org B's own search DOES.
+        assertThat(materialRepository.searchOrg(orgB.getId(), "ACTIVE", null, null, "Hören", null))
+                .extracting(Material::getId).contains(inB.getId());
+    }
+
+    @Test
+    @DisplayName("the folder_id search predicate narrows results to a single folder")
+    void search_folderIdFilter_narrows() {
+        User teacher = newUser();
+        MaterialFolder folder = folderRepository.saveAndFlush(MaterialFolder.builder()
+                .ownerScope("PERSONAL").teacherId(teacher.getId()).createdBy(teacher.getId())
+                .name("Lektion 5").orderIndex(0).build());
+        Material inFolder = materialRepository.saveAndFlush(Material.builder()
+                .ownerScope("PERSONAL").teacherId(teacher.getId()).createdBy(teacher.getId())
+                .title("Trong thư mục").kind("PDF").objectKey("materials/in.pdf").status("ACTIVE")
+                .folderId(folder.getId()).build());
+        Material outOfFolder = materialRepository.saveAndFlush(Material.builder()
+                .ownerScope("PERSONAL").teacherId(teacher.getId()).createdBy(teacher.getId())
+                .title("Ngoài thư mục").kind("PDF").objectKey("materials/out.pdf").status("ACTIVE")
+                .build());
+
+        List<Material> filtered = materialRepository.searchPersonal(
+                teacher.getId(), "ACTIVE", null, null, null, folder.getId());
+        assertThat(filtered).extracting(Material::getId)
+                .contains(inFolder.getId()).doesNotContain(outOfFolder.getId());
     }
 }

@@ -1,6 +1,7 @@
 package com.deutschflow.material.controller;
 
 import com.deutschflow.material.dto.MaterialDto;
+import com.deutschflow.material.dto.PresignUploadResponse;
 import com.deutschflow.material.service.MaterialService;
 import com.deutschflow.user.entity.User;
 import lombok.RequiredArgsConstructor;
@@ -25,25 +26,66 @@ public class MaterialController {
 
     private final MaterialService materialService;
 
-    /** Create a PERSONAL or ORG material from an uploaded file (multipart). */
+    /** Create a PERSONAL or ORG material from an uploaded file (multipart, ≤25MB). */
     @PostMapping(consumes = "multipart/form-data")
     public MaterialDto create(@AuthenticationPrincipal User user,
                               @RequestParam("file") MultipartFile file,
                               @RequestParam("title") String title,
                               @RequestParam(value = "description", required = false) String description,
-                              @RequestParam(value = "scope", defaultValue = "PERSONAL") String scope) {
-        return materialService.create(user, scope, file, title, description);
+                              @RequestParam(value = "scope", defaultValue = "PERSONAL") String scope,
+                              @RequestParam(value = "folderId", required = false) Long folderId,
+                              @RequestParam(value = "tags", required = false) List<String> tags) {
+        return materialService.create(user, scope, file, title, description, folderId, tags);
     }
 
-    /** PERSONAL of the caller ∪ ORG of the caller's org (ACTIVE only). */
+    /** PERSONAL ∪ ORG (ACTIVE only), optionally filtered by query/kind/tag/folderId. */
     @GetMapping
-    public List<MaterialDto> list(@AuthenticationPrincipal User user) {
-        return materialService.list(user);
+    public List<MaterialDto> list(@AuthenticationPrincipal User user,
+                                  @RequestParam(value = "query", required = false) String query,
+                                  @RequestParam(value = "kind", required = false) String kind,
+                                  @RequestParam(value = "tag", required = false) String tag,
+                                  @RequestParam(value = "folderId", required = false) Long folderId) {
+        return materialService.list(user, query, kind, tag, folderId);
     }
 
     @GetMapping("/{id}")
     public MaterialDto get(@AuthenticationPrincipal User user, @PathVariable Long id) {
         return materialService.get(user, id);
+    }
+
+    /** Create a kind=LINK material (external URL — allango/YouTube/Drive; no file hosted). */
+    @PostMapping("/link")
+    public MaterialDto createLink(@AuthenticationPrincipal User user, @RequestBody CreateLinkRequest req) {
+        return materialService.createLink(user, req.scope(), req.url(), req.title(),
+                req.description(), req.folderId(), req.tags());
+    }
+
+    /** Step 1 for files &gt;25MB: reserve an UPLOADING record + return a presigned PUT URL. */
+    @PostMapping("/presign-upload")
+    public PresignUploadResponse presignUpload(@AuthenticationPrincipal User user,
+                                               @RequestBody PresignUploadRequest req) {
+        return materialService.presignUpload(user, req.scope(), req.filename(), req.contentType(),
+                req.sizeBytes(), req.title(), req.description(), req.folderId(), req.tags());
+    }
+
+    /** Step 2 for files &gt;25MB: verify the S3 object + real size, flip UPLOADING → ACTIVE. */
+    @PostMapping("/{id}/complete")
+    public MaterialDto complete(@AuthenticationPrincipal User user, @PathVariable Long id,
+                                @RequestBody(required = false) CompleteRequest req) {
+        return materialService.complete(user, id, req == null ? null : req.durationSeconds());
+    }
+
+    /** Fresh resolvable URL (re-signed presigned GET, or external link) when a previous URL expired. */
+    @GetMapping("/{id}/url")
+    public MaterialUrlResponse url(@AuthenticationPrincipal User user, @PathVariable Long id) {
+        return new MaterialUrlResponse(materialService.refreshUrl(user, id));
+    }
+
+    /** Edit mutable metadata: title / tags / folder (folderId moves into a folder; clearFolder unfiles to root). */
+    @PatchMapping("/{id}")
+    public MaterialDto patch(@AuthenticationPrincipal User user, @PathVariable Long id,
+                             @RequestBody PatchMaterialRequest req) {
+        return materialService.patch(user, id, req.title(), req.tags(), req.folderId(), req.clearFolder());
     }
 
     @PostMapping("/{id}/archive")
@@ -83,4 +125,19 @@ public class MaterialController {
         materialService.detachFromLesson(user, id, lessonId);
         return ResponseEntity.noContent().build();
     }
+
+    // --------------------------------------------------------------- request/response bodies
+
+    public record CreateLinkRequest(String scope, String url, String title, String description,
+                                    Long folderId, List<String> tags) {}
+
+    public record PresignUploadRequest(String scope, String filename, String contentType, Long sizeBytes,
+                                       String title, String description, Long folderId, List<String> tags) {}
+
+    public record CompleteRequest(Integer durationSeconds) {}
+
+    /** {@code clearFolder=true} unfiles the material to root; otherwise a non-null {@code folderId} moves it. */
+    public record PatchMaterialRequest(String title, List<String> tags, Long folderId, boolean clearFolder) {}
+
+    public record MaterialUrlResponse(String url) {}
 }

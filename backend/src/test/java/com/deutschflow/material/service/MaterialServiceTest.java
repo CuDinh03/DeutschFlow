@@ -4,9 +4,12 @@ import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.material.dto.MaterialDto;
+import com.deutschflow.material.dto.PresignUploadResponse;
 import com.deutschflow.material.entity.LessonMaterial;
 import com.deutschflow.material.entity.Material;
+import com.deutschflow.material.entity.MaterialFolder;
 import com.deutschflow.material.repository.ClassMaterialRepository;
+import com.deutschflow.material.repository.MaterialFolderRepository;
 import com.deutschflow.material.repository.MaterialRepository;
 import com.deutschflow.teacher.entity.ClassLesson;
 import com.deutschflow.media.service.S3StorageService;
@@ -32,6 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -41,6 +45,7 @@ import static org.mockito.Mockito.when;
 class MaterialServiceTest {
 
     @Mock private MaterialRepository materialRepository;
+    @Mock private MaterialFolderRepository folderRepository;
     @Mock private ClassMaterialRepository classMaterialRepository;
     @Mock private S3StorageService s3StorageService;
     @Mock private TeacherClassRepository teacherClassRepository;
@@ -52,7 +57,7 @@ class MaterialServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new MaterialService(materialRepository, classMaterialRepository,
+        service = new MaterialService(materialRepository, folderRepository, classMaterialRepository,
                 s3StorageService, teacherClassRepository, orgMemberRepository,
                 lessonMaterialRepository, lessonRepository);
     }
@@ -91,12 +96,12 @@ class MaterialServiceTest {
     @DisplayName("create PERSONAL → owner_scope=PERSONAL, teacher_id=caller, org_id null")
     void create_personal() throws Exception {
         User caller = user(7L, null);
-        when(s3StorageService.uploadFile(any(), eq("materials")))
+        when(s3StorageService.uploadFile(any(), any()))
                 .thenReturn(new S3StorageService.S3UploadResult("materials/k.pdf", "http://x/k.pdf"));
         when(materialRepository.save(any())).thenAnswer(i -> { Material m = i.getArgument(0); m.setId(1L); return m; });
         when(s3StorageService.presignedGetUrl(eq("materials/k.pdf"), any())).thenReturn("http://x/k.pdf");
 
-        MaterialDto dto = service.create(caller, "PERSONAL", file("a.pdf"), "Bài 1", "desc");
+        MaterialDto dto = service.create(caller, "PERSONAL", file("a.pdf"), "Bài 1", "desc", null, null);
 
         ArgumentCaptor<Material> cap = ArgumentCaptor.forClass(Material.class);
         verify(materialRepository).save(cap.capture());
@@ -114,12 +119,12 @@ class MaterialServiceTest {
         User caller = user(7L, 10L);
         when(orgMemberRepository.findByIdOrgIdAndIdUserId(10L, 7L))
                 .thenReturn(Optional.of(member(10L, 7L, "TEACHER", "ACTIVE")));
-        when(s3StorageService.uploadFile(any(), eq("materials")))
+        when(s3StorageService.uploadFile(any(), any()))
                 .thenReturn(new S3StorageService.S3UploadResult("materials/k.pptx", "u"));
         when(materialRepository.save(any())).thenAnswer(i -> i.getArgument(0));
         when(s3StorageService.presignedGetUrl(any(), any())).thenReturn("u");
 
-        service.create(caller, "ORG", file("s.pptx"), "Slide", null);
+        service.create(caller, "ORG", file("s.pptx"), "Slide", null, null, null);
 
         ArgumentCaptor<Material> cap = ArgumentCaptor.forClass(Material.class);
         verify(materialRepository).save(cap.capture());
@@ -134,7 +139,7 @@ class MaterialServiceTest {
     void create_org_noOrg_forbidden() {
         User caller = user(7L, null);
 
-        assertThatThrownBy(() -> service.create(caller, "ORG", file("a.pdf"), "x", null))
+        assertThatThrownBy(() -> service.create(caller, "ORG", file("a.pdf"), "x", null, null, null))
                 .isInstanceOf(ForbiddenException.class);
         verify(materialRepository, never()).save(any());
     }
@@ -352,7 +357,7 @@ class MaterialServiceTest {
         User caller = user(7L, null);
         MockMultipartFile html = new MockMultipartFile("file", "x.html", "text/html", "<script>".getBytes());
 
-        assertThatThrownBy(() -> service.create(caller, "PERSONAL", html, "Evil", null))
+        assertThatThrownBy(() -> service.create(caller, "PERSONAL", html, "Evil", null, null, null))
                 .isInstanceOf(BadRequestException.class);
         verify(materialRepository, never()).save(any());
     }
@@ -366,5 +371,338 @@ class MaterialServiceTest {
         when(materialRepository.findById(1L)).thenReturn(Optional.of(m));
 
         assertThatThrownBy(() -> service.get(caller, 1L)).isInstanceOf(NotFoundException.class);
+    }
+
+    // --------------------------------------------------------------- link / presign / complete (Materials Library)
+
+    @Test
+    @DisplayName("createLink persists kind=LINK with external_url and NO S3 object; url falls back to the link")
+    void createLink_validUrl_persistsLinkNoObject() {
+        User caller = user(7L, null);
+        when(materialRepository.save(any())).thenAnswer(i -> { Material m = i.getArgument(0); m.setId(1L); return m; });
+
+        MaterialDto dto = service.createLink(caller, "PERSONAL",
+                "https://allango.net/x", "Netzwerk A1 · Track 2.11", null, null, List.of("Hören", " A1 ", "Hören"));
+
+        ArgumentCaptor<Material> cap = ArgumentCaptor.forClass(Material.class);
+        verify(materialRepository).save(cap.capture());
+        assertThat(cap.getValue().getKind()).isEqualTo("LINK");
+        assertThat(cap.getValue().getObjectKey()).isNull();
+        assertThat(cap.getValue().getExternalUrl()).isEqualTo("https://allango.net/x");
+        assertThat(cap.getValue().getTags()).containsExactly("Hören", "A1"); // " A1 " trimmed, dup "Hören" dropped
+        assertThat(dto.url()).isEqualTo("https://allango.net/x");
+        verify(s3StorageService, never()).presignedGetUrl(any(), any());
+    }
+
+    @Test
+    @DisplayName("createLink rejects a non-http(s) URL (javascript: scheme)")
+    void createLink_nonHttpUrl_throwsBadRequest() {
+        User caller = user(7L, null);
+
+        assertThatThrownBy(() -> service.createLink(caller, "PERSONAL",
+                "javascript:alert(1)", "Evil", null, null, null))
+                .isInstanceOf(BadRequestException.class);
+        verify(materialRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("presignUpload reserves an UPLOADING record (kind AUDIO from ext, owner-prefixed key) and returns PUT url")
+    void presignUpload_createsUploadingRecord() {
+        User caller = user(7L, null);
+        when(materialRepository.save(any())).thenAnswer(i -> { Material m = i.getArgument(0); m.setId(1L); return m; });
+        when(s3StorageService.generatePresignedUrl(any(), eq("audio/mpeg"))).thenReturn("https://s3/put");
+
+        PresignUploadResponse res = service.presignUpload(caller, "PERSONAL",
+                "lektion3.mp3", "audio/mpeg", 60L * 1024 * 1024, "Hörtext", null, null, null);
+
+        ArgumentCaptor<Material> cap = ArgumentCaptor.forClass(Material.class);
+        verify(materialRepository).save(cap.capture());
+        assertThat(cap.getValue().getStatus()).isEqualTo("UPLOADING");
+        assertThat(cap.getValue().getKind()).isEqualTo("AUDIO");
+        assertThat(cap.getValue().getObjectKey()).startsWith("materials/p-7/");
+        assertThat(res.materialId()).isEqualTo(1L);
+        assertThat(res.uploadUrl()).isEqualTo("https://s3/put");
+    }
+
+    @Test
+    @DisplayName("presignUpload rejects a declared size over the 500MB hard cap (nothing saved)")
+    void presignUpload_overHardCap_throwsBadRequest() {
+        User caller = user(7L, null);
+
+        assertThatThrownBy(() -> service.presignUpload(caller, "PERSONAL",
+                "big.mp4", "video/mp4", 501L * 1024 * 1024, "Big", null, null, null))
+                .isInstanceOf(BadRequestException.class);
+        verify(materialRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("complete verifies the S3 object, uses the REAL HEAD size, clamps duration, flips ACTIVE")
+    void complete_objectPresent_flipsActive() {
+        User caller = user(7L, null);
+        Material m = Material.builder().id(1L).ownerScope("PERSONAL").teacherId(7L).createdBy(7L)
+                .title("t").kind("AUDIO").objectKey("materials/p-7/2026/07/x.mp3").status("UPLOADING")
+                .sizeBytes(60L * 1024 * 1024).build(); // provisional client-declared size
+        when(materialRepository.findById(1L)).thenReturn(Optional.of(m));
+        when(s3StorageService.objectExists("materials/p-7/2026/07/x.mp3")).thenReturn(true);
+        when(s3StorageService.headObject("materials/p-7/2026/07/x.mp3"))
+                .thenReturn(new S3StorageService.S3ObjectMetadata(1234L, "audio/mpeg"));
+        when(materialRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(s3StorageService.presignedGetUrl(any(), any())).thenReturn("u");
+
+        service.complete(caller, 1L, 999999); // duration beyond 24h → clamp
+
+        assertThat(m.getStatus()).isEqualTo("ACTIVE");
+        assertThat(m.getSizeBytes()).isEqualTo(1234L);           // authoritative HEAD size, not the declared 60MB
+        assertThat(m.getDurationSeconds()).isEqualTo(86400);     // clamped to MAX_DURATION_SECONDS
+    }
+
+    @Test
+    @DisplayName("complete deletes the object and throws when the REAL size exceeds 500MB (stays UPLOADING)")
+    void complete_overCap_deletesAndThrows() {
+        User caller = user(7L, null);
+        Material m = Material.builder().id(1L).ownerScope("PERSONAL").teacherId(7L).createdBy(7L)
+                .title("t").kind("VIDEO").objectKey("materials/p-7/2026/07/x.mp4").status("UPLOADING").build();
+        when(materialRepository.findById(1L)).thenReturn(Optional.of(m));
+        when(s3StorageService.objectExists("materials/p-7/2026/07/x.mp4")).thenReturn(true);
+        when(s3StorageService.headObject("materials/p-7/2026/07/x.mp4"))
+                .thenReturn(new S3StorageService.S3ObjectMetadata(600L * 1024 * 1024, "video/mp4"));
+
+        assertThatThrownBy(() -> service.complete(caller, 1L, null))
+                .isInstanceOf(BadRequestException.class);
+        verify(s3StorageService).deleteFile("materials/p-7/2026/07/x.mp4");
+        assertThat(m.getStatus()).isEqualTo("UPLOADING"); // not flipped
+    }
+
+    @Test
+    @DisplayName("complete on a material that is not UPLOADING → BadRequest")
+    void complete_notUploading_throwsBadRequest() {
+        User caller = user(7L, null);
+        when(materialRepository.findById(1L)).thenReturn(Optional.of(personalMaterial(1L, 7L))); // ACTIVE
+
+        assertThatThrownBy(() -> service.complete(caller, 1L, null))
+                .isInstanceOf(BadRequestException.class);
+    }
+
+    @Test
+    @DisplayName("create rejects a multipart file over 25MB with a friendly BadRequest (nothing uploaded)")
+    void create_over25MB_throwsBadRequest() {
+        User caller = user(7L, null);
+        MockMultipartFile big = new MockMultipartFile("file", "big.pdf", "application/pdf",
+                new byte[26 * 1024 * 1024]);
+
+        assertThatThrownBy(() -> service.create(caller, "PERSONAL", big, "Big", null, null, null))
+                .isInstanceOf(BadRequestException.class);
+        verify(materialRepository, never()).save(any());
+    }
+
+    // --------------------------------------------------------------- folder filing (assertFolderAssignable)
+
+    private MaterialFolder personalFolder(long id, long teacherId) {
+        return MaterialFolder.builder().id(id).ownerScope("PERSONAL").teacherId(teacherId)
+                .createdBy(teacherId).name("Netzwerk A1").orderIndex(0).build();
+    }
+
+    private MaterialFolder orgFolder(long id, long orgId, long createdBy) {
+        return MaterialFolder.builder().id(id).ownerScope("ORG").orgId(orgId)
+                .createdBy(createdBy).name("Trung tâm A1").orderIndex(0).build();
+    }
+
+    @Test
+    @DisplayName("createLink into the caller's OWN personal folder → persists with that folderId")
+    void createLink_ownFolder_persistsFolderId() {
+        User caller = user(7L, null);
+        when(folderRepository.findById(3L)).thenReturn(Optional.of(personalFolder(3L, 7L)));
+        when(materialRepository.save(any())).thenAnswer(i -> { Material m = i.getArgument(0); m.setId(1L); return m; });
+
+        service.createLink(caller, "PERSONAL", "https://x.de/a", "t", null, 3L, null);
+
+        ArgumentCaptor<Material> cap = ArgumentCaptor.forClass(Material.class);
+        verify(materialRepository).save(cap.capture());
+        assertThat(cap.getValue().getFolderId()).isEqualTo(3L);
+    }
+
+    @Test
+    @DisplayName("filing into a folder owned by ANOTHER teacher → Forbidden (cross-owner), nothing saved")
+    void createLink_otherOwnerFolder_forbidden() {
+        User caller = user(7L, null);
+        when(folderRepository.findById(3L)).thenReturn(Optional.of(personalFolder(3L, 999L)));
+
+        assertThatThrownBy(() -> service.createLink(caller, "PERSONAL", "https://x.de/a", "t", null, 3L, null))
+                .isInstanceOf(ForbiddenException.class);
+        verify(materialRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("filing a PERSONAL material into an accessible ORG folder → BadRequest (owner-scope mismatch)")
+    void createLink_personalMaterialIntoOrgFolder_badRequest() {
+        User caller = user(7L, 10L);
+        when(orgMemberRepository.findByIdOrgIdAndIdUserId(10L, 7L))
+                .thenReturn(Optional.of(member(10L, 7L, "TEACHER", "ACTIVE")));
+        when(folderRepository.findById(3L)).thenReturn(Optional.of(orgFolder(3L, 10L, 7L)));
+
+        assertThatThrownBy(() -> service.createLink(caller, "PERSONAL", "https://x.de/a", "t", null, 3L, null))
+                .isInstanceOf(BadRequestException.class);
+        verify(materialRepository, never()).save(any());
+    }
+
+    // --------------------------------------------------------------- patch
+
+    @Test
+    @DisplayName("patch by a non-owner (PERSONAL) → Forbidden, nothing saved")
+    void patch_nonOwner_forbidden() {
+        User caller = user(99L, null);
+        when(materialRepository.findById(1L)).thenReturn(Optional.of(personalMaterial(1L, 7L)));
+
+        assertThatThrownBy(() -> service.patch(caller, 1L, "New", null, null, false))
+                .isInstanceOf(ForbiddenException.class);
+        verify(materialRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("patch updates title (trimmed) + tags for the owner")
+    void patch_ownerUpdatesTitleAndTags() {
+        User caller = user(7L, null);
+        Material m = personalMaterial(1L, 7L);
+        when(materialRepository.findById(1L)).thenReturn(Optional.of(m));
+        when(materialRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(s3StorageService.presignedGetUrl(any(), any())).thenReturn("u");
+
+        service.patch(caller, 1L, "  Tiêu đề mới  ", List.of("Lesen"), null, false);
+
+        assertThat(m.getTitle()).isEqualTo("Tiêu đề mới");
+        assertThat(m.getTags()).containsExactly("Lesen");
+    }
+
+    @Test
+    @DisplayName("patch moving into a folder owned by another teacher → Forbidden")
+    void patch_moveIntoForeignFolder_forbidden() {
+        User caller = user(7L, null);
+        when(materialRepository.findById(1L)).thenReturn(Optional.of(personalMaterial(1L, 7L)));
+        when(folderRepository.findById(3L)).thenReturn(Optional.of(personalFolder(3L, 999L)));
+
+        assertThatThrownBy(() -> service.patch(caller, 1L, null, null, 3L, false))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    @DisplayName("patch with clearFolder=true unfiles the material (folderId → null), skipping folder lookup")
+    void patch_clearFolder_unfiles() {
+        User caller = user(7L, null);
+        Material m = personalMaterial(1L, 7L);
+        m.setFolderId(5L);
+        when(materialRepository.findById(1L)).thenReturn(Optional.of(m));
+        when(materialRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(s3StorageService.presignedGetUrl(any(), any())).thenReturn("u");
+
+        service.patch(caller, 1L, null, null, null, true);
+
+        assertThat(m.getFolderId()).isNull();
+        verify(folderRepository, never()).findById(any());
+    }
+
+    // --------------------------------------------------------------- refreshUrl
+
+    @Test
+    @DisplayName("refreshUrl for a file material re-signs a presigned GET")
+    void refreshUrl_file_returnsPresigned() {
+        User caller = user(7L, null);
+        when(materialRepository.findById(1L)).thenReturn(Optional.of(personalMaterial(1L, 7L)));
+        when(s3StorageService.presignedGetUrl(eq("k"), any())).thenReturn("https://s3/fresh");
+
+        assertThat(service.refreshUrl(caller, 1L)).isEqualTo("https://s3/fresh");
+    }
+
+    @Test
+    @DisplayName("refreshUrl for a LINK returns the external URL (no presign)")
+    void refreshUrl_link_returnsExternal() {
+        User caller = user(7L, null);
+        Material link = Material.builder().id(1L).ownerScope("PERSONAL").teacherId(7L).createdBy(7L)
+                .title("t").kind("LINK").externalUrl("https://allango.net/x").status("ACTIVE").build();
+        when(materialRepository.findById(1L)).thenReturn(Optional.of(link));
+
+        assertThat(service.refreshUrl(caller, 1L)).isEqualTo("https://allango.net/x");
+        verify(s3StorageService, never()).presignedGetUrl(any(), any());
+    }
+
+    @Test
+    @DisplayName("refreshUrl by a non-owner → Forbidden (the URL-minting endpoint is access-gated)")
+    void refreshUrl_nonOwner_forbidden() {
+        User caller = user(99L, null);
+        when(materialRepository.findById(1L)).thenReturn(Optional.of(personalMaterial(1L, 7L)));
+
+        assertThatThrownBy(() -> service.refreshUrl(caller, 1L)).isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    @DisplayName("refreshUrl for an ARCHIVED material → NotFound")
+    void refreshUrl_archived_notFound() {
+        User caller = user(7L, null);
+        Material m = personalMaterial(1L, 7L);
+        m.setStatus("ARCHIVED");
+        when(materialRepository.findById(1L)).thenReturn(Optional.of(m));
+
+        assertThatThrownBy(() -> service.refreshUrl(caller, 1L)).isInstanceOf(NotFoundException.class);
+    }
+
+    // --------------------------------------------------------------- complete guards
+
+    @Test
+    @DisplayName("complete deletes + rejects when the real Content-Type is blocked, incl. a parameterized text/html")
+    void complete_blockedParameterizedMime_deletesAndThrows() {
+        User caller = user(7L, null);
+        Material m = Material.builder().id(1L).ownerScope("PERSONAL").teacherId(7L).createdBy(7L)
+                .title("t").kind("OTHER").objectKey("materials/p-7/2026/07/x.bin").status("UPLOADING").build();
+        when(materialRepository.findById(1L)).thenReturn(Optional.of(m));
+        when(s3StorageService.objectExists("materials/p-7/2026/07/x.bin")).thenReturn(true);
+        when(s3StorageService.headObject("materials/p-7/2026/07/x.bin"))
+                .thenReturn(new S3StorageService.S3ObjectMetadata(10L, "text/html; charset=utf-8"));
+
+        assertThatThrownBy(() -> service.complete(caller, 1L, null))
+                .isInstanceOf(BadRequestException.class);
+        verify(s3StorageService).deleteFile("materials/p-7/2026/07/x.bin");
+        assertThat(m.getStatus()).isEqualTo("UPLOADING"); // not flipped
+    }
+
+    @Test
+    @DisplayName("complete when the object was never PUT → BadRequest, stays UPLOADING, no HEAD")
+    void complete_objectMissing_throwsBadRequest() {
+        User caller = user(7L, null);
+        Material m = Material.builder().id(1L).ownerScope("PERSONAL").teacherId(7L).createdBy(7L)
+                .title("t").kind("AUDIO").objectKey("materials/p-7/2026/07/x.mp3").status("UPLOADING").build();
+        when(materialRepository.findById(1L)).thenReturn(Optional.of(m));
+        when(s3StorageService.objectExists("materials/p-7/2026/07/x.mp3")).thenReturn(false);
+
+        assertThatThrownBy(() -> service.complete(caller, 1L, null))
+                .isInstanceOf(BadRequestException.class);
+        assertThat(m.getStatus()).isEqualTo("UPLOADING");
+        verify(s3StorageService, never()).headObject(any());
+    }
+
+    // --------------------------------------------------------------- filter normalization + MIME guard
+
+    @Test
+    @DisplayName("list upper-cases a lower-case kind filter before querying (kind is stored upper-case)")
+    void list_kindFilter_upperCasedBeforeQuery() {
+        User caller = user(7L, null);
+        when(materialRepository.searchPersonal(eq(7L), eq("ACTIVE"), isNull(), eq("PDF"), isNull(), isNull()))
+                .thenReturn(List.of(personalMaterial(1L, 7L)));
+        when(s3StorageService.presignedGetUrl(any(), any())).thenReturn("u");
+
+        List<MaterialDto> out = service.list(caller, null, "pdf", null, null);
+
+        assertThat(out).extracting(MaterialDto::id).containsExactly(1L);
+        verify(materialRepository).searchPersonal(eq(7L), eq("ACTIVE"), isNull(), eq("PDF"), isNull(), isNull());
+    }
+
+    @Test
+    @DisplayName("create rejects a PARAMETERIZED executable content-type (text/html; charset=utf-8)")
+    void create_parameterizedBlockedMime_throwsBadRequest() {
+        User caller = user(7L, null);
+        MockMultipartFile html = new MockMultipartFile("file", "x.html",
+                "text/html; charset=utf-8", "<script>".getBytes());
+
+        assertThatThrownBy(() -> service.create(caller, "PERSONAL", html, "Evil", null, null, null))
+                .isInstanceOf(BadRequestException.class);
+        verify(materialRepository, never()).save(any());
     }
 }
