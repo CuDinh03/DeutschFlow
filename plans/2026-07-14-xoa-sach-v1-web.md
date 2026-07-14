@@ -7,8 +7,8 @@
 | Đợt | Nội dung | Trạng thái |
 |---|---|---|
 | Đợt 0 | Chặn mọi đường vào v1 (redirect + nắn link) — **giải quyết ngay "login nhầm"** | ✅ 2026-07-14 · nhánh `chore/v1-lockout-wave0` |
-| Đợt 1 | Bù GAP tính năng v2 còn deep-link về v1 | ⬜ |
-| Đợt 2 | Backend đổi URL sinh ra (email, payment, DTO href) | ⬜ |
+| Đợt 1 | Bù GAP tính năng v2 còn deep-link về v1 | ✅ 2026-07-15 · PR #220 (11 route v2 mới) |
+| Đợt 2 | Backend đổi URL sinh ra (email, payment, DTO href) | ⬜ ← **tiếp theo** |
 | Đợt 3 | Xóa cây v1 (~161 file / ~38k dòng) + redirect map + gỡ kill-switch | ⬜ |
 | Đợt 4 | Dọn dead code, dependencies, docs, PostHog | ⬜ |
 
