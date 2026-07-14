@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import {
   Plus, Mail, ClipboardList, ChevronRight, AlertTriangle, Trophy,
-  ArrowLeft, Sparkles, Mic, PenLine, FileText, BookOpen, SpellCheck,
+  ArrowLeft, Sparkles, Mic, PenLine, FileText, BookOpen, SpellCheck, UserPlus, Trash2,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
@@ -16,6 +16,8 @@ import {
   TkTabs, TkTabsList, TkTabsTrigger, TkTabsContent,
 } from '@/components/ui-v2'
 import { getErrorSnippet } from '@/lib/errors/errorTaxonomy'
+import { useUserStore } from '@/stores/useUserStore'
+import { isPrimaryTeacher, isRemovable, type ClassTeacher } from '@/lib/coTeaching'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Chi tiết lớp (GaClassDetail) — violet. Tabs: Học viên · Bài tập · Thống kê.
@@ -47,7 +49,7 @@ interface Analytics {
   actionItems: ActionItem[]
 }
 
-type Tab = 'students' | 'tasks' | 'analytics'
+type Tab = 'students' | 'tasks' | 'analytics' | 'teachers'
 type SortCol = 'name' | 'cefr' | 'level' | 'xp'
 type JoinRequest = { id: number; studentId: number; studentName: string; studentEmail: string; status: string; createdAt: string }
 
@@ -108,6 +110,7 @@ export default function V2ClassDetailPage() {
   const params = useParams()
   const router = useRouter()
   const id = Number(params.id)
+  const currentUserId = useUserStore((s) => s.user?.id)
 
   const [info, setInfo] = useState<ClassInfo | null>(null)
   const [students, setStudents] = useState<Student[]>([])
@@ -126,6 +129,14 @@ export default function V2ClassDetailPage() {
   const [selected, setSelected] = useState<Record<number, boolean>>({})
   const [modal, setModal] = useState(false)
 
+  // Co-teaching (buried BE→v2). List is supplementary; add/remove gated to the PRIMARY teacher.
+  const [teachers, setTeachers] = useState<ClassTeacher[]>([])
+  const [coEmail, setCoEmail] = useState('')
+  const [addingCo, setAddingCo] = useState(false)
+  const [removingCo, setRemovingCo] = useState<number | null>(null)
+  // Every class always has ≥1 PRIMARY, so an empty list can only mean the fetch failed → show retry.
+  const [teachersError, setTeachersError] = useState(false)
+
   const load = useCallback(async () => {
     setLoading(true)
     if (Number.isNaN(id)) {
@@ -134,7 +145,7 @@ export default function V2ClassDetailPage() {
       return
     }
     try {
-      const [clsList, st, asg, an, queue, jr, les] = await Promise.all([
+      const [clsList, st, asg, an, queue, jr, les, tea] = await Promise.all([
         api.get('/v2/teacher/classes'),
         api.get(`/v2/teacher/classes/${id}/students`),
         api.get(`/v2/teacher/classes/${id}/assignments`),
@@ -143,6 +154,9 @@ export default function V2ClassDetailPage() {
         api.get(`/v2/teacher/classes/${id}/join-requests`).catch(() => ({ data: [] })),
         // Lessons feed the assignment lesson-picker + badge (Phase 1d-D1); non-blocking.
         listLessons(id).then((data) => ({ data })).catch(() => ({ data: [] as ClassLesson[] })),
+        // Co-teachers (buried BE→v2); supplementary — must not break the page. null = fetch failed
+        // (distinct from a genuinely empty list, which never happens — every class has a PRIMARY).
+        api.get(`/v2/teacher/classes/${id}/teachers`).catch(() => ({ data: null })),
       ])
       const cls = ((clsList.data ?? []) as Record<string, unknown>[]).find((c) => Number(c.id) === id)
       setInfo(
@@ -158,6 +172,8 @@ export default function V2ClassDetailPage() {
       for (const q of (queue.data ?? []) as { assignmentId: number }[]) pend[q.assignmentId] = (pend[q.assignmentId] ?? 0) + 1
       setPendingByAssignment(pend)
       setJoinRequests((jr.data ?? []) as JoinRequest[])
+      setTeachers(Array.isArray(tea.data) ? (tea.data as ClassTeacher[]) : [])
+      setTeachersError(tea.data == null)
       setError('')
     } catch (e: unknown) {
       setError(apiMessage(e))
@@ -186,6 +202,50 @@ export default function V2ClassDetailPage() {
     },
     [id, load, t],
   )
+
+  const reloadTeachers = useCallback(async () => {
+    try {
+      const res = await api.get(`/v2/teacher/classes/${id}/teachers`)
+      setTeachers((res.data ?? []) as ClassTeacher[])
+      setTeachersError(false)
+    } catch {
+      setTeachersError(true)
+    }
+  }, [id])
+
+  const addCoTeacher = useCallback(async () => {
+    const email = coEmail.trim()
+    if (!email) return
+    setAddingCo(true)
+    try {
+      await api.post(`/v2/teacher/classes/${id}/teachers`, { email })
+      setCoEmail('')
+      toast.success(t('addTeacherSuccess'))
+      await reloadTeachers()
+    } catch (e: unknown) {
+      toast.error(apiMessage(e))
+    } finally {
+      setAddingCo(false)
+    }
+  }, [coEmail, id, reloadTeachers, t])
+
+  const removeCoTeacher = useCallback(
+    async (teacherId: number) => {
+      setRemovingCo(teacherId)
+      try {
+        await api.delete(`/v2/teacher/classes/${id}/teachers/${teacherId}`)
+        toast.success(t('removeTeacherSuccess'))
+        await reloadTeachers()
+      } catch (e: unknown) {
+        toast.error(apiMessage(e))
+      } finally {
+        setRemovingCo(null)
+      }
+    },
+    [id, reloadTeachers, t],
+  )
+
+  const isPrimary = useMemo(() => isPrimaryTeacher(teachers, currentUserId), [teachers, currentUserId])
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -241,6 +301,7 @@ export default function V2ClassDetailPage() {
               <TkTabsTrigger value="students">{t('tabStudents')} · {students.length}</TkTabsTrigger>
               <TkTabsTrigger value="tasks">{t('tabTasks')} · {assignments.length}</TkTabsTrigger>
               <TkTabsTrigger value="analytics">{t('tabAnalytics')}</TkTabsTrigger>
+              <TkTabsTrigger value="teachers">{t('tabTeachers')} · {teachers.length}</TkTabsTrigger>
             </TkTabsList>
 
             {/* ── Students ── */}
@@ -440,6 +501,77 @@ export default function V2ClassDetailPage() {
             {/* ── Analytics (Option-1: real class /analytics + roster XP) ── */}
             <TkTabsContent value="analytics">
               <AnalyticsTab analytics={analytics} students={students} loading={loading} />
+            </TkTabsContent>
+
+            {/* ── Teachers (co-teaching: PRIMARY + ASSISTANT) ── */}
+            <TkTabsContent value="teachers">
+              <div className="mb-3.5 mt-[22px]"><GaCap>{t('teachersCap')}</GaCap></div>
+              <div className="border border-ga-line bg-ga-card">
+                {loading ? (
+                  <div className="ga-shimmer h-16" aria-hidden />
+                ) : teachersError ? (
+                  <div className="px-5 py-6 text-center">
+                    <p className="mb-3 text-[13px] text-ga-muted">{t('teachersLoadError')}</p>
+                    <GaBtn variant="ghost" size="sm" onClick={reloadTeachers}>{tc('retry')}</GaBtn>
+                  </div>
+                ) : teachers.length === 0 ? (
+                  <p className="px-5 py-6 text-center text-[13px] text-ga-muted">{t('teachersEmpty')}</p>
+                ) : (
+                  <ul>
+                    {teachers.map((tt) => {
+                      const primary = tt.role === 'PRIMARY'
+                      return (
+                        <li key={tt.teacherId} className="flex items-center gap-3 border-b border-ga-line px-5 py-3.5 last:border-b-0">
+                          <span
+                            className="grid h-9 w-9 shrink-0 place-items-center rounded-ga-pill text-[13px] font-semibold"
+                            style={primary ? { background: 'linear-gradient(135deg,#F5B301,#E8830C)', color: '#fff' } : { background: 'var(--ga-violet-soft)', color: 'var(--ga-violet)' }}
+                          >
+                            {initial(tt.name)}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[14px] font-semibold text-ga-ink">{tt.name}</p>
+                            <p className="ga-ui truncate text-[12.5px] text-ga-muted">{tt.email || '—'}</p>
+                          </div>
+                          <span
+                            className="shrink-0 px-2 py-0.5 text-[11px] font-bold"
+                            style={primary ? { color: 'var(--ga-ink)', background: 'var(--ga-yellow-soft)', border: '1px solid var(--ga-yellow)' } : { color: 'var(--ga-violet)', background: 'var(--ga-violet-soft)' }}
+                          >
+                            {primary ? t('rolePrimary') : t('roleAssistant')}
+                          </span>
+                          {isPrimary && isRemovable(tt) && (
+                            <GaBtn variant="ghost" size="sm" loading={removingCo === tt.teacherId} disabled={removingCo !== null} onClick={() => removeCoTeacher(tt.teacherId)}>
+                              <Trash2 size={14} /> {t('removeTeacher')}
+                            </GaBtn>
+                          )}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </div>
+
+              {!teachersError && (isPrimary ? (
+                <div className="mt-4 flex flex-wrap items-center gap-2.5">
+                  <input
+                    type="email"
+                    value={coEmail}
+                    onChange={(e) => setCoEmail(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !addingCo) void addCoTeacher() }}
+                    placeholder={t('addTeacherPlaceholder')}
+                    aria-label={t('addTeacher')}
+                    className="ga-ui min-w-[240px] flex-1 border border-ga-line bg-ga-card px-3.5 py-2.5 text-[14px] text-ga-ink outline-none focus:border-ga-accent"
+                  />
+                  <GaBtn variant="primary" size="sm" loading={addingCo} disabled={!coEmail.trim()} onClick={() => void addCoTeacher()}>
+                    <UserPlus size={15} /> {t('addTeacher')}
+                  </GaBtn>
+                </div>
+              ) : (
+                <p className="mt-4 text-[12.5px] text-ga-muted">{t('teachersPrimaryOnly')}</p>
+              ))}
+
+              <p className="mt-3 flex items-start gap-1.5 text-[12px] text-ga-faint">
+                <AlertTriangle size={13} className="mt-0.5 shrink-0" /> {t('coTeacherAccessNote')}
+              </p>
             </TkTabsContent>
           </TkTabs>
         )}
