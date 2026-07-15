@@ -206,6 +206,56 @@ class TeacherServiceTest {
         assertEquals(lessonId, captor.getValue().getLessonId());
     }
 
+    /**
+     * The audit bug: a SPEAKING_SCENARIO was always generated at a hardcoded "A2", so a B1/B2 class got
+     * an A2 scenario. When the assignment links a lesson, the lesson's CEFR level is used instead.
+     */
+    @Test
+    void createAssignment_speakingScenario_usesLinkedLessonCefrLevel() {
+        Long teacherId = 1L, classId = 100L, lessonId = 55L;
+        CreateAssignmentRequest req = new CreateAssignmentRequest(
+                "Im Restaurant", "D", "SPEAKING_SCENARIO", null, null, null, null, lessonId);
+
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)).thenReturn(true);
+        when(lessonRepository.findById(lessonId)).thenReturn(Optional.of(
+                ClassLesson.builder().id(lessonId).classId(classId).orderIndex(0).title("L5").cefrLevel("B1").build()));
+        when(assignmentRepository.save(any(ClassAssignment.class))).thenAnswer(inv -> {
+            ClassAssignment a = inv.getArgument(0);
+            if (a.getId() == null) a.setId(500L);
+            return a;
+        });
+        when(classStudentRepository.findByIdClassId(classId)).thenReturn(List.of());
+        when(speakingAiHelpersService.generateScenario(eq(teacherId), anyString(), anyString()))
+                .thenReturn(com.deutschflow.speaking.service.SpeakingAiHelpersService.PracticeScenario.builder().build());
+
+        teacherService.createAssignment(teacherId, classId, req);
+
+        // B1, taken from the linked lesson — NOT the old hardcoded "A2".
+        verify(speakingAiHelpersService).generateScenario(eq(teacherId), eq("Im Restaurant"), eq("B1"));
+        verify(speakingAiHelpersService, never()).generateScenario(any(), anyString(), eq("A2"));
+    }
+
+    @Test
+    void createAssignment_speakingScenario_noLesson_fallsBackToA2() {
+        Long teacherId = 1L, classId = 100L;
+        CreateAssignmentRequest req = new CreateAssignmentRequest(
+                "Smalltalk", "D", "SPEAKING_SCENARIO", null, null, null, null, null);
+
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)).thenReturn(true);
+        when(assignmentRepository.save(any(ClassAssignment.class))).thenAnswer(inv -> {
+            ClassAssignment a = inv.getArgument(0);
+            if (a.getId() == null) a.setId(501L);
+            return a;
+        });
+        when(classStudentRepository.findByIdClassId(classId)).thenReturn(List.of());
+        when(speakingAiHelpersService.generateScenario(eq(teacherId), anyString(), anyString()))
+                .thenReturn(com.deutschflow.speaking.service.SpeakingAiHelpersService.PracticeScenario.builder().build());
+
+        teacherService.createAssignment(teacherId, classId, req);
+
+        verify(speakingAiHelpersService).generateScenario(eq(teacherId), eq("Smalltalk"), eq("A2"));
+    }
+
     @Test
     void getStudentAssignments_Success() {
         Long teacherId = 1L;

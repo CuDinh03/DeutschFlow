@@ -15,14 +15,13 @@ import {
 } from '@/lib/studentClassesApi'
 import { resolvePointTexts } from '@/lib/knowledgePoints'
 import { GaPageHdr, GaBtn, GaCap, TkStatStrip } from '@/components/ui-v2'
+import { LessonMaterials } from './LessonMaterials'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Chi tiết lớp — học viên (GaClassStudent, proto-classroom.jsx) — DETAIL, yellow.
-// Plumbing reused 1:1 (zero backend): fetchClassDetail + fetchClassAssignments +
-// fetchClassLessons. Option-1: proto's feed (no announcements EP) / materials
-// (no student-facing materials list) / members roster (only studentCount exposed)
-// / rank (no leaderboard EP) are DROPPED → backed tabs: Tổng quan · Bài tập · Lộ trình.
-// "Nhắn giáo viên" has no messaging backend → toast.
+// Backed tabs: Tổng quan · Bài tập · Lộ trình. Each lesson in Lộ trình now shows the materials the
+// teacher attached to it (LessonMaterials, lazy-loaded) — the student-facing read path added in wave 3.
+// Still proto-only (no backend): feed / members roster / rank. "Nhắn giáo viên" → toast.
 // ─────────────────────────────────────────────────────────────────────────────
 
 type Tab = 'overview' | 'tasks' | 'lessons'
@@ -332,6 +331,7 @@ export default function V2ClassStudentPage() {
                             })}
                           </ul>
                         )}
+                        <LessonMaterials lessonId={l.id} />
                       </div>
                       <span className="mt-0.5 shrink-0 text-[12.5px]" style={{ color: l.completed ? 'var(--ga-green)' : 'var(--ga-muted)' }}>
                         {l.completed ? t('taughtAt', { date: fmtDate(l.completedAt) }) : t('notTaught')}

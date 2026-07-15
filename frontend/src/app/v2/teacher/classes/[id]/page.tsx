@@ -709,6 +709,8 @@ function AddAssignmentModal({ open, onOpenChange, classId, lessons, onCreated }:
   const t = useTranslations('v2.teacher.classDetail')
   const tc = useTranslations('v2.common')
   const [topic, setTopic] = useState('')
+  const [description, setDescription] = useState('')
+  const [attachmentUrl, setAttachmentUrl] = useState('')
   const [type, setType] = useState('GENERAL')
   const [due, setDue] = useState('')
   const [lessonId, setLessonId] = useState('')
@@ -716,19 +718,25 @@ function AddAssignmentModal({ open, onOpenChange, classId, lessons, onCreated }:
 
   const submit = async () => {
     if (!topic.trim()) { toast.error(t('modalTopicRequired')); return }
+    const link = attachmentUrl.trim()
+    if (link && !/^https?:\/\//i.test(link)) { toast.error(t('modalLinkInvalid')); return }
     setSaving(true)
     try {
       await api.post(`/v2/teacher/classes/${classId}/assignments`, {
         topic: topic.trim(),
-        description: '',
+        // Real values now instead of hardcoded '' / null: students saw a one-line topic and no way to
+        // attach a reference. description is shown on the student's assignment page; attachmentUrl is
+        // rendered there as an external link (so it must be a stable URL — allango/Drive/YouTube — not a
+        // presigned S3 link; hosted files reach students via lesson materials instead).
+        description: description.trim(),
         assignmentType: type,
         skill: 'GENERAL',
         dueDate: due ? new Date(due).toISOString() : null,
-        attachmentUrl: null,
+        attachmentUrl: link || null,
         lessonId: lessonId ? Number(lessonId) : null,
       })
       toast.success(t('modalCreateSuccess'))
-      setTopic(''); setType('GENERAL'); setDue(''); setLessonId('')
+      setTopic(''); setDescription(''); setAttachmentUrl(''); setType('GENERAL'); setDue(''); setLessonId('')
       onOpenChange(false)
       onCreated()
     } catch (e: unknown) {
@@ -757,6 +765,25 @@ function AddAssignmentModal({ open, onOpenChange, classId, lessons, onCreated }:
         <div>
           <GaCap className="mb-2 block">{t('modalTopicCap')}</GaCap>
           <input className={field} value={topic} onChange={(e) => setTopic(e.target.value)} placeholder={t('modalTopicPlaceholder')} />
+        </div>
+        <div>
+          <GaCap className="mb-2 block">{t('modalDescCap')}</GaCap>
+          <textarea
+            className={`${field} min-h-[84px] resize-y`}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder={t('modalDescPlaceholder')}
+          />
+        </div>
+        <div>
+          <GaCap className="mb-2 block">{t('modalLinkCap')}</GaCap>
+          <input
+            type="url"
+            className={field}
+            value={attachmentUrl}
+            onChange={(e) => setAttachmentUrl(e.target.value)}
+            placeholder={t('modalLinkPlaceholder')}
+          />
         </div>
         <div className="grid grid-cols-2 gap-3.5">
           <div>

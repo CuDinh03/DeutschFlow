@@ -269,7 +269,8 @@
       "lessonPathCap": "Lộ trình lớp ({done}/{total} đã dạy)",
       "competency": { "label": "Tự đánh giá", "notStarted": "Chưa bắt đầu", "inProgress": "Đang học", "mastered": "Thành thạo", "summary": "Mục tiêu năng lực: {mastered}/{total} đã đạt", "autoHint": "tự động" },
       "taughtAt": "Đã dạy · {date}",
-      "notTaught": "Chưa dạy"
+      "notTaught": "Chưa dạy",
+      "materials": { "heading": "Tài liệu", "loading": "Đang tải…", "empty": "Chưa có tài liệu cho bài này.", "loadError": "Không tải được tài liệu.", "openError": "Không mở được tài liệu." }
     },
     "assignment": {
       "titleFallback": "Bài tập",

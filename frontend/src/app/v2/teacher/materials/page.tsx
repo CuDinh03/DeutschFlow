@@ -7,8 +7,11 @@ import { toast } from 'sonner'
 import { apiMessage } from '@/lib/api'
 import {
   listMaterials,
+  listArchivedMaterials,
   uploadMaterial,
   archiveMaterial,
+  unarchiveMaterial,
+  fetchMaterialAttachments,
   type Material,
   type MaterialScope,
 } from '@/lib/materialApi'
@@ -34,6 +37,7 @@ const fmtSize = (b: number | null) =>
 export default function V2TeacherMaterialsPage() {
   const t = useTranslations('v2.teacher.materials')
   const [materials, setMaterials] = useState<Material[]>([])
+  const [view, setView] = useState<'active' | 'archived'>('active')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<number | null>(null)
@@ -50,13 +54,13 @@ export default function V2TeacherMaterialsPage() {
     setLoading(true)
     setError(null)
     try {
-      setMaterials(await listMaterials())
+      setMaterials(await (view === 'archived' ? listArchivedMaterials() : listMaterials()))
     } catch (e: unknown) {
       setError(apiMessage(e))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [view])
   useEffect(() => { void load() }, [load])
 
   const handleUpload = async (e: React.FormEvent) => {
@@ -79,11 +83,32 @@ export default function V2TeacherMaterialsPage() {
   }
 
   const handleArchive = async (m: Material) => {
-    if (!window.confirm(t('archiveConfirm', { title: m.title }))) return
     setBusy(m.id)
     try {
+      // Warn with the real attachment count first: archiving pulls the material out of every lesson it
+      // is attached to (listForLesson drops non-ACTIVE), so "Lưu trữ" is not the harmless tidy-up it
+      // sounds like. It IS reversible now (Restore), which the message also says.
+      const { lessons, classes } = await fetchMaterialAttachments(m.id)
+      const attached = lessons + classes
+      const msg = attached > 0
+        ? t('archiveConfirmAttached', { title: m.title, lessons, classes })
+        : t('archiveConfirm', { title: m.title })
+      if (!window.confirm(msg)) return
       await archiveMaterial(m.id)
       toast.success(t('archiveSuccess'))
+      await load()
+    } catch (err: unknown) {
+      toast.error(apiMessage(err))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const handleUnarchive = async (m: Material) => {
+    setBusy(m.id)
+    try {
+      await unarchiveMaterial(m.id)
+      toast.success(t('unarchiveSuccess'))
       await load()
     } catch (err: unknown) {
       toast.error(apiMessage(err))
@@ -134,10 +159,26 @@ export default function V2TeacherMaterialsPage() {
           </form>
         </GaSection>
 
+        <div className="mb-3 flex items-center gap-1.5">
+          {(['active', 'archived'] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setView(v)}
+              className="ga-ui rounded-ga border px-3 py-1.5 text-[12.5px] font-semibold transition-colors"
+              style={view === v
+                ? { borderColor: 'var(--ga-accent)', color: 'var(--ga-accent)', background: 'var(--ga-side-active)' }
+                : { borderColor: 'var(--ga-line)', color: 'var(--ga-muted)' }}
+            >
+              {v === 'active' ? t('viewActive') : t('viewArchived')}
+            </button>
+          ))}
+        </div>
+
         {loading ? (
           <LoadingState label={t('loading')} />
         ) : (
-          <GaSection title={t('listTitle', { count: materials.length })} bodyClassName="p-0">
+          <GaSection title={view === 'archived' ? t('archivedTitle', { count: materials.length }) : t('listTitle', { count: materials.length })} bodyClassName="p-0">
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
@@ -153,7 +194,7 @@ export default function V2TeacherMaterialsPage() {
                   {materials.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="ga-ui px-5 py-10 text-center text-[14px] text-ga-muted">
-                        {t('empty')}
+                        {view === 'archived' ? t('archivedEmpty') : t('empty')}
                       </td>
                     </tr>
                   ) : (
@@ -174,14 +215,25 @@ export default function V2TeacherMaterialsPage() {
                         <td className="px-5 py-3 text-[13px] text-ga-muted">{fmtSize(m.sizeBytes)}</td>
                         <td className="px-5 py-3 text-[13px] text-ga-muted">{fmtDate(m.createdAt)}</td>
                         <td className="px-5 py-3 text-right">
-                          <button
-                            type="button"
-                            disabled={busy === m.id}
-                            onClick={() => handleArchive(m)}
-                            className="ga-ui rounded-ga border border-ga-line px-[10px] py-[6px] text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-red hover:text-ga-red disabled:opacity-40"
-                          >
-                            {t('archive')}
-                          </button>
+                          {view === 'archived' ? (
+                            <button
+                              type="button"
+                              disabled={busy === m.id}
+                              onClick={() => handleUnarchive(m)}
+                              className="ga-ui rounded-ga border border-ga-line px-[10px] py-[6px] text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent disabled:opacity-40"
+                            >
+                              {t('unarchive')}
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={busy === m.id}
+                              onClick={() => handleArchive(m)}
+                              className="ga-ui rounded-ga border border-ga-line px-[10px] py-[6px] text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-red hover:text-ga-red disabled:opacity-40"
+                            >
+                              {t('archive')}
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))

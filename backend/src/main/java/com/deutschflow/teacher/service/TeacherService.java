@@ -514,7 +514,8 @@ public class TeacherService {
 
         log.info("[Scenario] Lazily generating missing scenario for assignment {} (topic='{}')",
                 assignmentId, ca.getTopic());
-        PracticeScenario generated = speakingAiHelpersService.generateScenario(studentId, ca.getTopic(), "A2");
+        PracticeScenario generated = speakingAiHelpersService.generateScenario(
+                studentId, ca.getTopic(), scenarioLevelFor(ca.getLessonId()));
         AssignmentScenario scenario = assignmentScenarioRepository.save(AssignmentScenario.builder()
                 .assignmentId(ca.getId())
                 .topic(generated.getTopic())
@@ -525,6 +526,22 @@ public class TeacherService {
         ca.setReferenceId(scenario.getId());
         assignmentRepository.save(ca);
         return scenario;
+    }
+
+    /** CEFR default for the whole "generate a speaking scenario" family. */
+    private static final String DEFAULT_SCENARIO_LEVEL = "A2";
+
+    /**
+     * The CEFR level to generate a speaking scenario at. Uses the linked lesson's CEFR when the
+     * assignment is tied to one, so a B1/B2 class no longer gets a hardcoded A2 scenario; falls back to
+     * {@value #DEFAULT_SCENARIO_LEVEL} when the assignment has no lesson or the lesson has no level set.
+     */
+    private String scenarioLevelFor(Long lessonId) {
+        if (lessonId == null) return DEFAULT_SCENARIO_LEVEL;
+        return lessonRepository.findById(lessonId)
+                .map(ClassLesson::getCefrLevel)
+                .filter(l -> l != null && !l.isBlank())
+                .orElse(DEFAULT_SCENARIO_LEVEL);
     }
 
     @Transactional
@@ -557,7 +574,8 @@ public class TeacherService {
         // Khởi tạo kịch bản AI nếu là SPEAKING_SCENARIO
         if ("SPEAKING_SCENARIO".equals(req.assignmentType())) {
             try {
-                PracticeScenario scenario = speakingAiHelpersService.generateScenario(teacherId, req.topic(), "A2");
+                PracticeScenario scenario = speakingAiHelpersService.generateScenario(
+                        teacherId, req.topic(), scenarioLevelFor(savedAssignment.getLessonId()));
                 AssignmentScenario assignmentScenario = AssignmentScenario.builder()
                         .assignmentId(savedAssignment.getId())
                         .topic(scenario.getTopic())
