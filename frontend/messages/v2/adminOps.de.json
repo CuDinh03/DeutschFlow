@@ -348,13 +348,40 @@
         "action": "Aktion erforderlich",
         "broadcast": "Broadcast"
       },
+      "tpl": {
+        "system": {
+          "label": "Systemmitteilung",
+          "title": "Eine Nachricht von myDeutschFlow"
+        },
+        "feature": {
+          "label": "Neue Funktion",
+          "title": "myDeutschFlow wurde gerade aktualisiert!"
+        },
+        "review": {
+          "label": "SRS-Wiederholung",
+          "title": "Zeit zum Wiederholen!",
+          "body": "Heute stehen Karten zur Wiederholung an."
+        },
+        "streak": {
+          "label": "Streak-Erinnerung",
+          "title": "Vergiss das Lernen heute nicht!",
+          "body": "Halte deine Streak am Leben."
+        }
+      },
       "audience": {
         "all": "Alle Nutzer",
         "student": "Lernende",
         "teacher": "Lehrkräfte",
         "free": "Kostenloser Tarif",
-        "pro": "Pro-Tarif"
+        "pro": "Pro-Tarif",
+        "premium": "Premium-Tarif",
+        "single": "Einzelne Person"
       },
+      "typeLabel": "Benachrichtigungstyp",
+      "emailLabel": "E-Mail der Empfängerin/des Empfängers",
+      "emailPlaceholder": "z. B. lernende@example.com",
+      "enterBody": "Benachrichtigungsinhalt eingeben",
+      "enterEmail": "Empfänger-E-Mail eingeben",
       "enterTitle": "Benachrichtigungstitel eingeben",
       "queuedSchedule": "Zum geplanten Versand in die Warteschlange gestellt",
       "sentTo": "An {audience} gesendet",

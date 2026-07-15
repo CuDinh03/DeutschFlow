@@ -330,7 +330,7 @@ export function chatStream(
           res = await doFetch(newToken)
         } catch {
           clearTokens()
-          if (typeof window !== 'undefined') window.location.href = '/login'
+          if (typeof window !== 'undefined') window.location.href = '/v2/login'
           if (!settled) {
             settled = true
             onError(AI_SPEAKING_UNAUTHORIZED)
@@ -341,7 +341,7 @@ export function chatStream(
 
       if (res.status === 401) {
         clearTokens()
-        if (typeof window !== 'undefined') window.location.href = '/login'
+        if (typeof window !== 'undefined') window.location.href = '/v2/login'
         if (!settled) {
           settled = true
           onError(AI_SPEAKING_UNAUTHORIZED)

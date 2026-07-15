@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { Flame, ArrowRight, Mic, BookOpen, Repeat } from 'lucide-react'
+import { Flame, ArrowRight, Mic, BookOpen, Repeat, Sparkles } from 'lucide-react'
 import { todayApi, type TodayPlan } from '@/lib/todayApi'
 import { phaseApi, type PhaseStateResponse } from '@/lib/phaseApi'
 import { xpApi, type XpSummaryDto } from '@/lib/xpApi'
@@ -121,6 +121,29 @@ export default function V2StudentDashboardPage() {
                 },
               ]}
             />
+
+            {/* First-session CTA — same condition as the legacy dashboard (sessionsCompleted === 0),
+                the only entry point into /v2/student/beginner for a brand-new student. */}
+            {phase && phase.sessionsCompleted === 0 && (
+              <Link
+                href="/v2/student/beginner"
+                className="flex items-center gap-4 bg-ga-ink p-5 text-ga-bg transition-opacity hover:opacity-95"
+              >
+                <span
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-ga"
+                  style={{ background: 'var(--ga-yellow)', color: 'var(--ga-ink)' }}
+                >
+                  <Sparkles size={20} aria-hidden />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-ga-display text-[19px] font-medium">{t('beginnerTitle')}</span>
+                  <span className="ga-ui mt-0.5 block text-[13px]" style={{ color: '#A39E94' }}>
+                    {t('beginnerDesc')}
+                  </span>
+                </span>
+                <ArrowRight size={18} style={{ color: '#A39E94' }} aria-hidden />
+              </Link>
+            )}
 
             {/* Today's actions */}
             <div>

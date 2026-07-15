@@ -348,13 +348,40 @@
         "action": "Action needed",
         "broadcast": "Broadcast"
       },
+      "tpl": {
+        "system": {
+          "label": "System notice",
+          "title": "A message from myDeutschFlow"
+        },
+        "feature": {
+          "label": "New feature",
+          "title": "myDeutschFlow just got updated!"
+        },
+        "review": {
+          "label": "SRS review reminder",
+          "title": "Time to review!",
+          "body": "You have cards due for review today."
+        },
+        "streak": {
+          "label": "Streak reminder",
+          "title": "Don't forget to study today!",
+          "body": "Keep your streak alive."
+        }
+      },
       "audience": {
         "all": "All users",
         "student": "Students",
         "teacher": "Teachers",
         "free": "Free plan",
-        "pro": "Pro plan"
+        "pro": "Pro plan",
+        "premium": "Premium plan",
+        "single": "A single user"
       },
+      "typeLabel": "Notification type",
+      "emailLabel": "Recipient email",
+      "emailPlaceholder": "e.g. student@example.com",
+      "enterBody": "Enter the notification content",
+      "enterEmail": "Enter the recipient email",
       "enterTitle": "Enter a notification title",
       "queuedSchedule": "Queued for scheduled sending",
       "sentTo": "Sent to {audience}",

@@ -4,7 +4,7 @@
 
 ## 1. TL;DR — đang ở đâu
 - **Web v2 "Galerie" cutover = ✅ LIVE 100% mọi user** (hardcode v2-default, KHÔNG cờ). Landing công khai `/`, `/login`→app, toàn bộ `/v2/*` (4 vai) đều là v2.
-- **Rollback lever** = `GALERIE_V2_DISABLED=true` (env Amplify → middleware bounce /v2→legacy). Không cần PostHog.
+- ~~**Rollback lever** = `GALERIE_V2_DISABLED=true`~~ → ⚠️ **ĐÃ GỠ 2026-07-14** (đợt 0 kế hoạch xoá cây v1). Env này giờ là no-op; bật lên KHÔNG rollback được gì. Rollback = revert commit / Amplify "Redeploy this version". Xem `plans/2026-07-14-xoa-sach-v1-web.md` và `plans/2026-06-20-deploy-ops-runbook.md` §2.
 - **Prod:** web `https://mydeutschflow.com` (Amplify auto-deploy khi merge `main`, ~4 phút); API `https://api.mydeutschflow.com` (EC2 `ubuntu@35.175.232.152`, ssh có thể bị chặn IP).
 - iOS native = **HOÃN** (chờ Apple Developer). KHÔNG đụng `feat/native-ios-phase0`.
 
