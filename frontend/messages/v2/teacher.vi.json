@@ -402,7 +402,17 @@
       "colSize": "Kích thước",
       "colDate": "Ngày",
       "empty": "Chưa có tài liệu nào.",
-      "archive": "Lưu trữ"
+      "archive": "Lưu trữ",
+      "previewHint": "Xem ngay trong trình duyệt — tệp Word/PowerPoint lần đầu mở có thể mất vài giây.",
+      "previewLoading": "Đang chuẩn bị bản xem trước…",
+      "previewOf": "Xem trước: {title}",
+      "previewFailed": "Không tạo được bản xem trước cho tệp này. Bạn có thể thử lại hoặc tải tệp về.",
+      "previewUnsupported": "Định dạng này không xem trước được trong trình duyệt. Hãy tải tệp về để mở.",
+      "previewLink": "Tài liệu này là một liên kết ngoài, không nhúng xem trực tiếp được.",
+      "openExternal": "Mở liên kết",
+      "download": "Tải về",
+      "retry": "Thử lại",
+      "close": "Đóng"
     },
     "messages": {
       "title": "Tin nhắn",

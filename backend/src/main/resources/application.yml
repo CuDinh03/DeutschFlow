@@ -572,3 +572,19 @@ resilience4j:
         base-config: default
       groqWhisper:
         base-config: default
+
+# ============================================================
+# MATERIALS — in-browser preview (Thư viện tài liệu)
+# ============================================================
+# Word/PowerPoint/Excel cannot be rendered by any browser, so MaterialPreviewService converts them to
+# PDF with headless LibreOffice INSIDE this container (baked into backend/Dockerfile) and caches the
+# result in S3 under materials/preview/. Nothing is sent to a third-party viewer.
+#
+# soffice is CPU/RAM-hungry and prod is a t3.medium (2 vCPU) — the three bounds below exist so a big
+# deck cannot starve the request threads. Exceeding any of them degrades to a download link, not a 500.
+materials:
+  preview:
+    soffice-path: ${SOFFICE_PATH:soffice}
+    max-convert-bytes: ${MATERIALS_PREVIEW_MAX_BYTES:41943040}  # 40MB
+    timeout-seconds: ${MATERIALS_PREVIEW_TIMEOUT_SEC:90}
+    max-concurrent: ${MATERIALS_PREVIEW_MAX_CONCURRENT:2}

@@ -57,6 +57,33 @@ export async function uploadMaterial(
   return res.data
 }
 
+/**
+ * How a material should be rendered in-browser, and the URL to render.
+ *
+ * `mode` is NOT the file kind: a Word file comes back as `PDF`, because the backend converted it to
+ * one (in our own container — the document is never handed to a third-party viewer).
+ * - `UNSUPPORTED` — the format has no in-browser preview at all; offer the download.
+ * - `FAILED` — previewable in principle, but this attempt failed or the converter was busy. Retryable.
+ */
+export type PreviewMode = 'PDF' | 'IMAGE' | 'AUDIO' | 'VIDEO' | 'LINK' | 'UNSUPPORTED' | 'FAILED'
+
+export interface MaterialPreview {
+  mode: PreviewMode
+  /** Short-lived presigned GET (or the raw link for LINK); null for UNSUPPORTED and FAILED. */
+  url: string | null
+}
+
+/**
+ * GET /v2/materials/{id}/preview — resolve the viewer for a material.
+ *
+ * The first call on a given Office file converts it server-side and can take a few seconds; the result
+ * is cached, so later calls return immediately.
+ */
+export async function getMaterialPreview(id: number): Promise<MaterialPreview> {
+  const res = await api.get<MaterialPreview>(`/v2/materials/${id}/preview`)
+  return res.data
+}
+
 /** POST /v2/materials/{id}/archive — soft-archive (status → ARCHIVED). */
 export async function archiveMaterial(id: number): Promise<Material> {
   const res = await api.post<Material>(`/v2/materials/${id}/archive`)

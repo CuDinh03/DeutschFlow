@@ -402,7 +402,17 @@
       "colSize": "Size",
       "colDate": "Date",
       "empty": "No materials yet.",
-      "archive": "Archive"
+      "archive": "Archive",
+      "previewHint": "Read it right here — the first open of a Word/PowerPoint file may take a few seconds.",
+      "previewLoading": "Preparing the preview…",
+      "previewOf": "Preview: {title}",
+      "previewFailed": "This file could not be previewed. Try again, or download it instead.",
+      "previewUnsupported": "This format cannot be previewed in the browser. Download it to open it.",
+      "previewLink": "This material is an external link and cannot be embedded here.",
+      "openExternal": "Open link",
+      "download": "Download",
+      "retry": "Try again",
+      "close": "Close"
     },
     "messages": {
       "title": "Messages",

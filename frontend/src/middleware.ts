@@ -174,6 +174,12 @@ function buildCsp(nonce: string): string {
     "img-src 'self' data: blob: https:",
     "font-src 'self' data: https://fonts.gstatic.com",
     `connect-src ${connectSrc}`,
+    // The material reader embeds a presigned S3 object: the PDF (native, or converted from Word) in an
+    // <iframe>, audio/video in their own elements. Without these two, both fall back to default-src
+    // 'self' and every open reports a violation today — and would be blocked outright the day this
+    // policy is flipped to enforced.
+    "frame-src 'self' https:",
+    "media-src 'self' blob: data: https:",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",

@@ -48,6 +48,7 @@ class MaterialServiceTest {
     @Mock private MaterialFolderRepository folderRepository;
     @Mock private ClassMaterialRepository classMaterialRepository;
     @Mock private S3StorageService s3StorageService;
+    @Mock private MaterialPreviewService materialPreviewService;
     @Mock private TeacherClassRepository teacherClassRepository;
     @Mock private OrgMemberRepository orgMemberRepository;
     @Mock private com.deutschflow.material.repository.LessonMaterialRepository lessonMaterialRepository;
@@ -59,7 +60,7 @@ class MaterialServiceTest {
     @BeforeEach
     void setUp() {
         service = new MaterialService(materialRepository, folderRepository, classMaterialRepository,
-                s3StorageService, teacherClassRepository, orgMemberRepository,
+                s3StorageService, materialPreviewService, teacherClassRepository, orgMemberRepository,
                 lessonMaterialRepository, lessonRepository, classStudentRepository);
     }
 

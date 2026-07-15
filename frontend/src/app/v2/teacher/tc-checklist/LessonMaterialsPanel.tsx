@@ -17,6 +17,7 @@ import {
   type Material,
 } from '@/lib/materialApi'
 import { GaBtn } from '@/components/ui-v2'
+import { MaterialPreviewModal } from '../materials/MaterialPreviewModal'
 
 const labelCls = 'ga-ui mb-1.5 block text-[12px] font-bold uppercase tracking-[0.05em] text-ga-muted'
 const selectCls =
@@ -29,6 +30,7 @@ export function LessonMaterialsPanel({ lessonId }: { lessonId: number }) {
   const [loading, setLoading] = useState(true)
   const [pick, setPick] = useState('')
   const [busy, setBusy] = useState(false)
+  const [previewing, setPreviewing] = useState<Material | null>(null)
 
   useEffect(() => {
     let active = true
@@ -82,9 +84,14 @@ export function LessonMaterialsPanel({ lessonId }: { lessonId: number }) {
               {attached.map((m) => (
                 <li key={m.id} className="flex items-center gap-2 border border-ga-line bg-ga-bg px-2.5 py-1.5">
                   <Paperclip size={12} className="shrink-0 text-ga-subtle" />
-                  <a href={m.url} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-ga-ink hover:underline">
+                  {/* Same reader as the library — a raw link to a .docx only ever downloads it. */}
+                  <button
+                    type="button"
+                    onClick={() => setPreviewing(m)}
+                    className="min-w-0 flex-1 truncate text-left text-[12.5px] font-medium text-ga-ink hover:underline"
+                  >
                     {m.title}
-                  </a>
+                  </button>
                   <span className="ga-ui shrink-0 text-[10px] font-bold uppercase text-ga-subtle">{m.kind}</span>
                   <button
                     type="button"
@@ -118,6 +125,8 @@ export function LessonMaterialsPanel({ lessonId }: { lessonId: number }) {
           )}
         </>
       )}
+
+      <MaterialPreviewModal material={previewing} onClose={() => setPreviewing(null)} />
     </div>
   )
 }
