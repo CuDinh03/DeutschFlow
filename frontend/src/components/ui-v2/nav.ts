@@ -112,7 +112,9 @@ export const teacherNav: RoleNav = {
     {
       label: 'Tài khoản',
       labelKey: 'account',
-      items: [{ id: 't-profile', label: 'Hồ sơ', href: '/v2/teacher/profile', icon: 'person' }],
+      // Shared profile page (like admin/org/student) — it has the password-change form the old
+      // teacher-only /v2/teacher/profile lacked, which is why teachers couldn't change their password.
+      items: [{ id: 't-profile', label: 'Hồ sơ', href: '/v2/profile', icon: 'person' }],
     },
   ],
 }

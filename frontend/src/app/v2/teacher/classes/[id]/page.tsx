@@ -36,7 +36,9 @@ const VIOLET = '#7C56C8'
 
 interface ClassInfo { id: number; name: string; code: string; studentCount: number }
 interface Student {
-  studentId: number; displayName: string; email: string; xp: number; level: number; cefrLevel: string
+  studentId: number; displayName: string; email: string; xp: number; level: number
+  // cefrLevel is the CURRENT level (real ability); targetLevel is the student's goal, shown as context.
+  cefrLevel: string; levelSource: string | null; targetLevel: string | null
   skillHoren: number | null; skillLesen: number | null; skillSchreiben: number | null; skillSprechen: number | null
   evaluatedAt: string | null
 }
@@ -44,7 +46,10 @@ interface Assignment { id: number; topic: string; description: string; assignmen
 interface ActionItem { title: string; detail: string; priority: string }
 interface Analytics {
   totalStudents: number; totalXp: number; completedAssignments: number
-  avgSpeakingScore: number; reviewCoveragePct: number
+  // null when there is no honest source (speaking sessions aren't class-scoped; no review-coverage
+  // aggregate). The card is hidden rather than showing a fabricated 0 that reads as "the class did nothing".
+  activeSpeakingSessions: number | null
+  avgSpeakingScore: number | null; reviewCoveragePct: number | null
   topErrors: { errorCode: string; count: number }[]
   actionItems: ActionItem[]
 }
@@ -311,12 +316,9 @@ export default function V2ClassDetailPage() {
                   { label: t('stats.size'), value: students.length, sub: t('stats.sizeSub', { count: info?.studentCount ?? 0 }) },
                   { label: t('stats.totalXp'), value: (analytics?.totalXp ?? 0).toLocaleString(), sub: t('stats.totalXpSub'), color: '#2F6FC9' },
                   { label: t('stats.assignments'), value: assignments.length, sub: t('stats.assignmentsSub'), color: VIOLET },
-                  {
-                    label: t('stats.avgSpeaking'),
-                    value: analytics?.avgSpeakingScore ? analytics.avgSpeakingScore.toFixed(1) : '—',
-                    sub: analytics?.avgSpeakingScore ? t('stats.avgSpeakingSub') : t('stats.avgSpeakingSubEmpty'),
-                    color: '#1E9E61',
-                  },
+                  // Was "Điểm nói TB — chưa có phiên", which was permanently empty (no class-scoped
+                  // speaking source). Replaced with the real graded-count so the 4th tile carries a fact.
+                  { label: t('stats.completed'), value: analytics?.completedAssignments ?? 0, sub: t('stats.completedSub'), color: '#1E9E61' },
                 ]}
               />
 
@@ -420,7 +422,17 @@ export default function V2ClassDetailPage() {
                           <span className="block truncate text-[11.5px] text-ga-muted">{s.email}</span>
                         </span>
                       </div>
-                      <span className="font-ga-display text-[14px] font-medium text-ga-ink">{s.cefrLevel || '—'}</span>
+                      <span className="flex flex-col leading-tight">
+                        <span
+                          className="font-ga-display text-[14px] font-medium text-ga-ink"
+                          title={s.levelSource === 'ASSESSED' ? t('cefrAssessed') : t('cefrSelf')}
+                        >
+                          {s.cefrLevel || '—'}
+                        </span>
+                        {s.targetLevel && s.targetLevel !== s.cefrLevel && (
+                          <span className="ga-ui text-[10.5px] text-ga-subtle">{t('cefrTarget', { level: s.targetLevel })}</span>
+                        )}
+                      </span>
                       <span className="text-[13.5px] text-ga-muted">{t('levelValue', { level: s.level })}</span>
                       <span className="text-[13.5px] font-semibold text-ga-ink">{s.xp.toLocaleString()}</span>
                       <SkillBars s={s} />
@@ -596,8 +608,14 @@ function AnalyticsTab({ analytics, students, loading }: { analytics: Analytics |
         {[
           { label: t('analyticsStats.totalXp'), value: analytics.totalXp.toLocaleString(), color: '#2F6FC9' },
           { label: t('analyticsStats.completedAssignments'), value: analytics.completedAssignments, color: VIOLET },
-          { label: t('analyticsStats.avgSpeaking'), value: analytics.avgSpeakingScore ? analytics.avgSpeakingScore.toFixed(1) : '—', color: '#1E9E61' },
-          { label: t('analyticsStats.reviewCoverage'), value: `${Math.round(analytics.reviewCoveragePct)}%`, color: '#E07B39' },
+          // Only render the speaking / review-coverage cards when the backend has a real value; a null
+          // means "no source", and a fabricated 0/— card is worse than no card.
+          ...(analytics.avgSpeakingScore != null
+            ? [{ label: t('analyticsStats.avgSpeaking'), value: analytics.avgSpeakingScore.toFixed(1), color: '#1E9E61' }]
+            : []),
+          ...(analytics.reviewCoveragePct != null
+            ? [{ label: t('analyticsStats.reviewCoverage'), value: `${Math.round(analytics.reviewCoveragePct)}%`, color: '#E07B39' }]
+            : []),
         ].map((s) => (
           <div key={s.label} className="border border-ga-line bg-ga-card p-[18px]">
             <span className="block h-[3px] w-8" style={{ background: s.color }} />

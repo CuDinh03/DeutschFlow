@@ -12,7 +12,7 @@ import { listModules, createModule, updateModule, deleteModule, reorderModules, 
 import { groupLessonsByModule, swapInOrder, type LessonModuleGroup } from '@/lib/moduleGrouping'
 import { parseKnowledgePoints, resolvePointTexts } from '@/lib/knowledgePoints'
 import { GaPageHdr, GaBtn } from '@/components/ui-v2'
-import { ClassPicker, useTeacherClasses, pct } from '../tcShared'
+import { ClassPicker, useTeacherClasses, pct, classHref } from '../tcShared'
 import { parseIsoDateLocal } from '../lessonPacing'
 import { LessonMaterialsPanel } from './LessonMaterialsPanel'
 import { CanDoEditor, emptyCanDo, seedEditableCanDos, toCanDoPayload, type EditableCanDo } from './CanDoEditor'
@@ -541,7 +541,7 @@ export default function V2TcChecklistPage() {
             <span className="ga-ui hidden text-[13px] text-ga-muted sm:inline">
               {t('progress')}: <strong className="font-ga-display text-[16px] text-ga-ink">{progress}%</strong>
             </span>
-            <GaBtn variant="ghost" size="sm" onClick={() => router.push('/v2/teacher/tc-progress')}>{t('viewOverview')}</GaBtn>
+            <GaBtn variant="ghost" size="sm" onClick={() => router.push(classHref('/v2/teacher/tc-progress', classId))}>{t('viewOverview')}</GaBtn>
           </div>
         }
       />

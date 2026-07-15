@@ -515,7 +515,9 @@
         "assignmentsSub": "in this class",
         "avgSpeaking": "Avg speaking score",
         "avgSpeakingSub": "Speaking sessions",
-        "avgSpeakingSubEmpty": "no sessions yet"
+        "avgSpeakingSubEmpty": "no sessions yet",
+        "completed": "Graded",
+        "completedSub": "with a grade"
       },
       "joinRequestsCap": "Join requests",
       "approve": "Approve",
@@ -531,6 +533,9 @@
       "selectStudent": "Select {name}",
       "colStudent": "Student",
       "colCefr": "CEFR",
+      "cefrSelf": "Current level · self-declared at sign-up",
+      "cefrAssessed": "Current level · from an assessment",
+      "cefrTarget": "Goal {level}",
       "colLevel": "Level",
       "colXp": "XP",
       "colSkill": "Skills",

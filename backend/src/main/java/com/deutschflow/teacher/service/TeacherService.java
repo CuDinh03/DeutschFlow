@@ -6,6 +6,7 @@ import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.speaking.repository.UserGrammarErrorRepository;
 import com.deutschflow.teacher.dto.*;
+import com.deutschflow.teacher.entity.AssignmentStatus;
 import com.deutschflow.teacher.entity.ClassAssignment;
 import com.deutschflow.teacher.entity.ClassStudent;
 import com.deutschflow.teacher.entity.ClassStudentId;
@@ -412,13 +413,22 @@ public class TeacherService {
             UserLearningProfile profile = profileMap.get(user.getId());
             int totalXp = xpByUser.getOrDefault(user.getId(), 0);
             ClassStudent cs = evalMap.get(user.getId());
+            // Current level (real ability, default A0) is the roster's CEFR; target is context only.
+            String currentLevel = profile != null && profile.getCurrentLevel() != null
+                    ? profile.getCurrentLevel().name() : "A0";
+            String levelSource = profile != null && profile.getLevelSource() != null
+                    ? profile.getLevelSource() : "SELF";
+            String targetLevel = profile != null && profile.getTargetLevel() != null
+                    ? profile.getTargetLevel().name() : null;
             return new ClassStudentDto(
                     user.getId(),
                     user.getDisplayName(),
                     user.getEmail(),
                     totalXp,
                     XpService.computeLevel(totalXp), // Using streakDays field for level in DTO for now
-                    profile != null && profile.getTargetLevel() != null ? profile.getTargetLevel().name() : "N/A",
+                    currentLevel,
+                    levelSource,
+                    targetLevel,
                     cs != null ? cs.getSkillHoren() : null,
                     cs != null ? cs.getSkillLesen() : null,
                     cs != null ? cs.getSkillSchreiben() : null,
@@ -438,7 +448,7 @@ public class TeacherService {
         List<ClassStudent> students = classStudentRepository.findByIdClassId(classId);
         List<Long> studentIds = students.stream().map(s -> s.getId().getStudentId()).toList();
         if (studentIds.isEmpty()) {
-            return new ClassAnalyticsOverviewDto(0L, 0L, 0L, 0L, 0d, 0d, List.of(), List.of());
+            return new ClassAnalyticsOverviewDto(0L, 0L, 0L, null, null, null, List.of(), List.of());
         }
 
         // S-10: one batched SUM for the whole class instead of getSummary() (4 queries) per student.
@@ -452,22 +462,38 @@ public class TeacherService {
                 .map(row -> new ClassErrorAnalyticsDto((String) row[0], ((Number) row[1]).longValue()))
                 .collect(Collectors.toList());
 
-        long completedAssignments = 0L;
-        long activeSpeakingSessions = 0L;
-        double avgSpeakingScore = 0d;
-        double reviewCoveragePct = 0d;
+        // completedAssignments: REAL count of this class's submissions that carry a confirmed grade.
+        // It used to be hardcoded 0, which contradicted the Gradebook on the same screen (badge "N bài
+        // chờ chấm" next to "hoàn thành 0 bài"). Same source as the gradebook, so the two now agree.
+        List<Long> classAssignmentIds = assignmentRepository.findByClassIdOrderByCreatedAtDesc(classId).stream()
+                .map(ClassAssignment::getId)
+                .toList();
+        long completedAssignments = classAssignmentIds.isEmpty() ? 0L
+                : studentAssignmentRepository.findByAssignmentIds(classAssignmentIds).stream()
+                        .filter(sa -> AssignmentStatus.isFinal(sa.getStatus()))
+                        .count();
+
+        // The speaking / review-coverage cards have no honest class-scoped source (AiSpeakingSession is
+        // not tied to a class, and there is no review-coverage aggregate). Returning 0 read as "the class
+        // did nothing"; null lets the UI hide the card instead of showing a fabricated zero.
+        Long activeSpeakingSessions = null;
+        Double avgSpeakingScore = null;
+        Double reviewCoveragePct = null;
+
+        // actionItems are a static tip, not analysis — keep them but stop dressing them as computed
+        // insight, and drop the v1 href (/teacher/classes/{id}) that the v2 UI never used anyway.
         List<ClassAnalyticsOverviewDto.ActionItemDto> actionItems = topErrors.isEmpty()
                 ? List.of(new ClassAnalyticsOverviewDto.ActionItemDto(
                     "Theo dõi tiến độ",
                     "Chưa có lỗi nổi bật, tiếp tục quan sát nhịp học của lớp.",
                     "LOW",
-                    "/teacher/classes/" + classId))
+                    null))
                 : List.of(
                     new ClassAnalyticsOverviewDto.ActionItemDto(
                         "Ôn lỗi lặp lại nhiều nhất",
                         "Chọn 3 lỗi xuất hiện nhiều nhất và giao luyện tập ngắn cho lớp.",
                         "HIGH",
-                        "/teacher/classes/" + classId)
+                        null)
                 );
 
         return new ClassAnalyticsOverviewDto(

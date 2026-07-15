@@ -515,7 +515,9 @@
         "assignmentsSub": "in dieser Klasse",
         "avgSpeaking": "Ø-Speaking-Note",
         "avgSpeakingSub": "Speaking-Stunden",
-        "avgSpeakingSubEmpty": "noch keine Stunden"
+        "avgSpeakingSubEmpty": "noch keine Stunden",
+        "completed": "Bewertet",
+        "completedSub": "mit Note"
       },
       "joinRequestsCap": "Beitrittsanfragen",
       "approve": "Freigeben",
@@ -531,6 +533,9 @@
       "selectStudent": "{name} auswählen",
       "colStudent": "Lernende(r)",
       "colCefr": "CEFR",
+      "cefrSelf": "Aktuelles Niveau · bei der Anmeldung selbst angegeben",
+      "cefrAssessed": "Aktuelles Niveau · aus einer Einstufung",
+      "cefrTarget": "Ziel {level}",
       "colLevel": "Level",
       "colXp": "XP",
       "colSkill": "Fähigkeiten",

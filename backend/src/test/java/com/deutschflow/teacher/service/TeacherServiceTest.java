@@ -256,6 +256,60 @@ class TeacherServiceTest {
         verify(speakingAiHelpersService).generateScenario(eq(teacherId), eq("Smalltalk"), eq("A2"));
     }
 
+    // ── class analytics: real completedAssignments, honest nulls (wave 4 §5.2) ────
+
+    @Test
+    void getClassAnalytics_completedAssignments_countsConfirmedGradesOnly() {
+        Long teacherId = 1L, classId = 100L;
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)).thenReturn(true);
+        when(classStudentRepository.findByIdClassId(classId)).thenReturn(List.of(
+                ClassStudent.builder().id(new ClassStudentId(classId, 10L)).build()));
+        when(xpService.totalXpForUsers(any())).thenReturn(0L);
+        when(grammarErrorRepository.aggregateErrorCodesForUsers(any(), any())).thenReturn(List.of());
+        when(assignmentRepository.findByClassIdOrderByCreatedAtDesc(classId)).thenReturn(List.of(
+                ClassAssignment.builder().id(900L).classId(classId).build()));
+        when(studentAssignmentRepository.findByAssignmentIds(List.of(900L))).thenReturn(List.of(
+                StudentAssignment.builder().id(1L).assignmentId(900L).studentId(10L).status("EVALUATED").score(80).build(),
+                StudentAssignment.builder().id(2L).assignmentId(900L).studentId(10L).status("AI_GRADED").score(70).build(),
+                StudentAssignment.builder().id(3L).assignmentId(900L).studentId(10L).status("SUBMITTED").build()));
+
+        var dto = teacherService.getClassAnalytics(teacherId, classId);
+
+        // Only the EVALUATED row is a confirmed grade — AI_GRADED (proposal) and SUBMITTED don't count.
+        assertEquals(1L, dto.completedAssignments());
+        // No honest class-scoped source for these → null, so the UI hides the card (not a fake 0).
+        org.junit.jupiter.api.Assertions.assertNull(dto.avgSpeakingScore());
+        org.junit.jupiter.api.Assertions.assertNull(dto.reviewCoveragePct());
+    }
+
+    // ── roster CEFR = current level, not the self-declared target (wave 4 §5.1) ───
+
+    @Test
+    void getClassStudents_cefrColumnIsCurrentLevel_targetShownSeparately() {
+        Long teacherId = 1L, classId = 100L, studentId = 10L;
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)).thenReturn(true);
+        when(classStudentRepository.findByIdClassId(classId)).thenReturn(List.of(
+                ClassStudent.builder().id(new ClassStudentId(classId, studentId)).build()));
+        var user = com.deutschflow.user.entity.User.builder().id(studentId).displayName("Hiệp").email("h@x.com").build();
+        when(userRepository.findAllById(List.of(studentId))).thenReturn(List.of(user));
+        var profile = com.deutschflow.user.entity.UserLearningProfile.builder()
+                .user(user)
+                .currentLevel(com.deutschflow.user.entity.UserLearningProfile.CurrentLevel.A1)
+                .targetLevel(com.deutschflow.user.entity.UserLearningProfile.TargetLevel.B2)
+                .levelSource("SELF")
+                .build();
+        when(profileRepository.findByUserIdIn(List.of(studentId))).thenReturn(List.of(profile));
+        when(xpService.totalXpByUserId(List.of(studentId))).thenReturn(java.util.Map.of(studentId, 0));
+
+        var rows = teacherService.getClassStudents(teacherId, classId);
+
+        // A beginner heading for B2 must read as A1 now — NOT B2 (which the old code showed, so a teacher
+        // could think they were already advanced).
+        assertEquals("A1", rows.get(0).cefrLevel());
+        assertEquals("B2", rows.get(0).targetLevel());
+        assertEquals("SELF", rows.get(0).levelSource());
+    }
+
     @Test
     void getStudentAssignments_Success() {
         Long teacherId = 1L;

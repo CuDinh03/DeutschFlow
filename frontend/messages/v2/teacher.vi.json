@@ -515,7 +515,9 @@
         "assignmentsSub": "trên lớp này",
         "avgSpeaking": "Điểm nói TB",
         "avgSpeakingSub": "phiên Speaking",
-        "avgSpeakingSubEmpty": "chưa có phiên"
+        "avgSpeakingSubEmpty": "chưa có phiên",
+        "completed": "Bài đã chấm",
+        "completedSub": "đã có điểm"
       },
       "joinRequestsCap": "Yêu cầu vào lớp",
       "approve": "Duyệt",
@@ -531,6 +533,9 @@
       "selectStudent": "Chọn {name}",
       "colStudent": "Học viên",
       "colCefr": "CEFR",
+      "cefrSelf": "Trình độ hiện tại · học viên tự khai lúc đăng ký",
+      "cefrAssessed": "Trình độ hiện tại · đã qua bài đánh giá",
+      "cefrTarget": "MT {level}",
       "colLevel": "Cấp độ",
       "colXp": "XP",
       "colSkill": "Kỹ năng",
