@@ -24,7 +24,7 @@ Phần còn lại nhỏ hơn nhiều so với lo ngại ban đầu.
 
 ## 1. Trạng thái hiện tại (đã verify)
 
-- **Web v2 "Galerie" = LIVE 100%** mọi user (hardcode v2-default, không cờ). Rollback = `GALERIE_V2_DISABLED=true`.
+- **Web v2 "Galerie" = LIVE 100%** mọi user (hardcode v2-default, không cờ). ~~Rollback = `GALERIE_V2_DISABLED=true`~~ → ⚠️ **kill-switch ĐÃ GỠ 2026-07-14** (đợt 0 xoá cây v1). Rollback bây giờ = revert commit / Amplify "Redeploy this version". Xem `plans/2026-07-14-xoa-sach-v1-web.md`.
 - **`main` = `37678da8` (#143 B2B finalize)** — chứa **V225/V226/V227** + endpoint B2B mới (`PATCH /api/org/members/{id}/role`, materials, free-teachers) → **CHƯA deploy lên prod** (prod backend còn ~V224).
   - 🔴 **Rủi ro LIVE:** FE của #143 (`/v2/org/roles`, `/v2/teacher/materials`, `/v2/admin/free-teachers`) đang auto-deploy qua Amplify nhưng **backend chưa có endpoint → các trang này 404/vỡ trên prod tới khi deploy.**
 - **iOS:** `feat/native-ios-phase0` — Mốc 4 (M4.1/M4.2/M4.4 ✅, M4.3 defer-minor) + Mốc 5 (M5.1/M5.2 ✅; M5.3 optional; M5.4 Paywall ⏸ chờ Apple). Backend mobile: B3.2 ✅, B3.3 verify-receipt ✅ (#128), B3.1 APNs ☐ (cần `.p8`, không chặn MVP).
