@@ -648,6 +648,32 @@
       "pagePrev": "Zurück",
       "pageNext": "Weiter",
       "pageOf": "Seite {current} / {total}"
+    },
+    "grammarDrafts": {
+      "title": "Grammatik-Aufgabenpool",
+      "subtitle": "Mit KI erzeugen → zur Prüfung einreichen → Admin genehmigt ({pending} in Prüfung)",
+      "refresh": "Aktualisieren",
+      "topicsCap": "Grammatikthemen",
+      "topicsEmpty": "Noch keine Themen auf dieser Stufe.",
+      "generate": "KI erzeugen ({count})",
+      "submitAll": "Alle einreichen",
+      "draftsAll": "Alle meine Entwürfe",
+      "draftsFor": "Aufgaben: „{topic}“",
+      "count": "({count} Aufgaben)",
+      "emptyTitle": "Noch keine Aufgaben",
+      "emptyDesc": "Wähle ein Thema und klicke „KI erzeugen“, um Aufgabenentwürfe zu erstellen.",
+      "exerciseFallback": "Grammatikaufgabe",
+      "difficulty": "Schwierigkeit {level}/5",
+      "toggleAria": "Aufgabe {id} aufklappen",
+      "submitOne": "Diese Aufgabe zur Prüfung einreichen",
+      "rejectReason": "Ablehnungsgrund: {reason}",
+      "generated": "{count} Aufgaben für „{topic}“ erzeugt",
+      "submittedOne": "Aufgabe zur Prüfung eingereicht",
+      "submittedAll": "Alle Entwürfe zur Prüfung eingereicht",
+      "statusDraft": "Entwurf",
+      "statusPending": "In Prüfung",
+      "statusApproved": "Genehmigt",
+      "statusRejected": "Abgelehnt"
     }
   }
 }

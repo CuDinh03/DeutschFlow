@@ -657,7 +657,12 @@
       "backHome": "Back to dashboard",
       "exit": "Exit game",
       "livesLabel": "{lives} lives left",
-      "progressLabel": "Round progress"
+      "progressLabel": "Round progress",
+      "modes": {
+        "label": "Choose game",
+        "blank": "Fill the blank",
+        "lego": "Build a sentence"
+      }
     },
     "news": {
       "title": "German News & Life",
@@ -937,6 +942,68 @@
       "retryTitle": "⚠️ Not enough to pass this node yet",
       "retryDesc": "Listening/Reading require 100% • Speaking/Pronunciation/Writing require ≥ 80 points",
       "retryCta": "🔄 Try again"
+    },
+    "stats": {
+      "title": "Learning statistics",
+      "subtitle": "Your last 7 days — vocabulary, speaking and grammar errors",
+      "openErrorBook": "Open error book",
+      "loading": "Loading statistics…",
+      "loadErrorTitle": "No statistics yet",
+      "loadErrorDesc": "Could not load your learning data. Start learning and come back.",
+      "partialError": "Some data could not be loaded.",
+      "kpi": {
+        "learned": "New words",
+        "reviewed": "Reviewed",
+        "speaking": "Speaking",
+        "due": "Due",
+        "thisWeek": "this week",
+        "words": "words",
+        "toReview": "to review"
+      },
+      "weeklyTitle": "Activity (7 days)",
+      "noActivity": "No activity this week.",
+      "series": {
+        "learned": "Newly learned",
+        "reviewed": "Reviewed",
+        "speaking": "Speaking (min)"
+      },
+      "commonErrorsTitle": "Common errors (7 days)",
+      "noErrorsRecorded": "No errors recorded yet.",
+      "weakPointsTitle": "Weak points",
+      "noWeakPoints": "Not enough data to detect weak points.",
+      "errorTrendTitle": "Error trend (30 days)",
+      "openErrors": "{count} open",
+      "allFixed": "All fixed ✓",
+      "recommendationsTitle": "Recommended for you",
+      "badgesCap": "Badges",
+      "badgesHint": "See every badge you have unlocked on the Achievements page.",
+      "badgesCta": "View badges"
+    },
+    "errors": {
+      "title": "Error book",
+      "subtitle": "Grammar scars — the longer you remember, the faster you improve",
+      "openCount": "{count} unfixed",
+      "reviewToday": "Review today ({count})",
+      "reviewAfter": "Review after {days} days",
+      "practiceFix": "Practice fixing",
+      "lockedTitle": "{count} review tasks are locked today",
+      "lockedDesc": "Upgrade to PRO to practise every grammar scar.",
+      "lockedCta": "Upgrade",
+      "searchPlaceholder": "Search errors…",
+      "reload": "Reload",
+      "loading": "Loading error data…",
+      "loadError": "Cannot load data. Please try again.",
+      "emptyTitle": "Awesome! No errors recorded yet.",
+      "emptyDesc": "Practice speaking so AI can record your grammar errors.",
+      "unfixedCap": "Unfixed errors ({count})",
+      "other": "Other",
+      "fixed": "Fixed",
+      "seenCount": "Seen {count} times",
+      "lastSeen": "Last seen:",
+      "recordedGrammarError": "Recorded grammar error",
+      "allDone": "You have completed all review tasks for today!",
+      "completedCap": "Completed ({count})",
+      "times": "{count} times"
     }
   }
 }

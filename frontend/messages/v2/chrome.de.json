@@ -5,6 +5,7 @@
       "vocabulary": "Wortschatz",
       "grammar": "Grammatik",
       "review-queue": "Wiederholung (SRS)",
+      "st-errors": "Fehlerbuch",
       "lessons": "Lektionen",
       "roadmap": "Lernpfad",
       "speaking": "KI-Sprechen",
@@ -15,6 +16,7 @@
       "st-progress": "Fortschritt",
       "book-session": "1:1-Tutor",
       "st-messages": "Nachrichten",
+      "st-stats": "Statistik",
       "achievements": "Erfolge",
       "tuition": "Studiengebühren",
       "notifications": "Benachrichtigungen",
@@ -75,7 +77,9 @@
       "game": "Spiel",
       "news": "Nachrichten",
       "b1-assessment": "B1-Einstufung",
-      "certificates": "Zertifikate"
+      "certificates": "Zertifikate",
+      "grammar-drafts": "Grammatikaufgaben",
+      "exercises": "Übungsaufgaben"
     },
     "sections": {
       "classMgmt": "Kursverwaltung",

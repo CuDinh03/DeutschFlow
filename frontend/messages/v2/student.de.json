@@ -657,7 +657,12 @@
       "backHome": "Zurück zur Übersicht",
       "exit": "Spiel verlassen",
       "livesLabel": "Noch {lives} Leben",
-      "progressLabel": "Fortschritt der Runde"
+      "progressLabel": "Fortschritt der Runde",
+      "modes": {
+        "label": "Spiel wählen",
+        "blank": "Lücke füllen",
+        "lego": "Satz bauen"
+      }
     },
     "news": {
       "title": "Nachrichten & Leben in Deutschland",
@@ -937,6 +942,68 @@
       "retryTitle": "⚠️ Node noch nicht bestanden",
       "retryDesc": "Hören/Lesen erfordern 100 % • Sprechen/Aussprache/Schreiben erfordern ≥ 80 Punkte",
       "retryCta": "🔄 Erneut versuchen"
+    },
+    "stats": {
+      "title": "Lernstatistik",
+      "subtitle": "Deine letzten 7 Tage — Wortschatz, Sprechen und Grammatikfehler",
+      "openErrorBook": "Fehlerbuch öffnen",
+      "loading": "Statistik wird geladen…",
+      "loadErrorTitle": "Noch keine Statistik",
+      "loadErrorDesc": "Lerndaten konnten nicht geladen werden. Fang an zu lernen und komm zurück.",
+      "partialError": "Ein Teil der Daten konnte nicht geladen werden.",
+      "kpi": {
+        "learned": "Neue Wörter",
+        "reviewed": "Wiederholt",
+        "speaking": "Sprechen",
+        "due": "Fällig",
+        "thisWeek": "diese Woche",
+        "words": "Wörter",
+        "toReview": "zu wiederholen"
+      },
+      "weeklyTitle": "Aktivität (7 Tage)",
+      "noActivity": "Diese Woche keine Aktivität.",
+      "series": {
+        "learned": "Neu gelernt",
+        "reviewed": "Wiederholt",
+        "speaking": "Sprechen (Min.)"
+      },
+      "commonErrorsTitle": "Häufige Fehler (7 Tage)",
+      "noErrorsRecorded": "Noch keine Fehler aufgezeichnet.",
+      "weakPointsTitle": "Schwachpunkte",
+      "noWeakPoints": "Noch nicht genug Daten für Schwachpunkte.",
+      "errorTrendTitle": "Fehlertrend (30 Tage)",
+      "openErrors": "{count} offen",
+      "allFixed": "Alle behoben ✓",
+      "recommendationsTitle": "Empfehlungen für dich",
+      "badgesCap": "Abzeichen",
+      "badgesHint": "Alle freigeschalteten Abzeichen findest du unter Erfolge.",
+      "badgesCta": "Abzeichen ansehen"
+    },
+    "errors": {
+      "title": "Fehlerbibliothek",
+      "subtitle": "Grammatiknarben — je länger du dich erinnerst, desto schneller lernst du",
+      "openCount": "{count} ungelöst",
+      "reviewToday": "Heute wiederholen ({count})",
+      "reviewAfter": "Wiederholen nach {days} Tagen",
+      "practiceFix": "Fehlerbehebung üben",
+      "lockedTitle": "{count} Wiederholungsaufgaben sind heute gesperrt",
+      "lockedDesc": "Upgrade auf PRO, um alle Grammatiknarben zu üben.",
+      "lockedCta": "Upgrade",
+      "searchPlaceholder": "Fehler suchen…",
+      "reload": "Neu laden",
+      "loading": "Fehlerdaten werden geladen…",
+      "loadError": "Daten können nicht geladen werden. Bitte versuchen Sie es erneut.",
+      "emptyTitle": "Großartig! Noch keine Fehler registriert.",
+      "emptyDesc": "Übe das Sprechen, damit die KI deine Grammatikfehler aufzeichnen kann.",
+      "unfixedCap": "Ungelöste Fehler ({count})",
+      "other": "Andere",
+      "fixed": "Behoben",
+      "seenCount": "{count} Mal gesehen",
+      "lastSeen": "Zuletzt gesehen:",
+      "recordedGrammarError": "Aufgezeichneter Grammatikfehler",
+      "allDone": "Du hast alle Wiederholungsaufgaben für heute abgeschlossen!",
+      "completedCap": "Abgeschlossen ({count})",
+      "times": "{count} Mal"
     }
   }
 }

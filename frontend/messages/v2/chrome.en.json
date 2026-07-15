@@ -5,6 +5,7 @@
       "vocabulary": "Vocabulary",
       "grammar": "Grammar",
       "review-queue": "Review (SRS)",
+      "st-errors": "Error book",
       "lessons": "Lessons",
       "roadmap": "Roadmap",
       "speaking": "AI Speaking",
@@ -15,6 +16,7 @@
       "st-progress": "Progress",
       "book-session": "1:1 Tutor",
       "st-messages": "Messages",
+      "st-stats": "Statistics",
       "achievements": "Achievements",
       "tuition": "Tuition",
       "notifications": "Notifications",
@@ -75,7 +77,9 @@
       "game": "Game",
       "news": "German news",
       "b1-assessment": "B1 assessment",
-      "certificates": "Certificates"
+      "certificates": "Certificates",
+      "grammar-drafts": "Grammar exercises",
+      "exercises": "Practice exercises"
     },
     "sections": {
       "classMgmt": "Class Management",

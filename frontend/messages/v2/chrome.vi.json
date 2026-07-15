@@ -5,6 +5,7 @@
       "vocabulary": "Từ vựng",
       "grammar": "Ngữ pháp",
       "review-queue": "Ôn tập (SRS)",
+      "st-errors": "Sổ lỗi",
       "lessons": "Bài học",
       "roadmap": "Lộ trình",
       "speaking": "Luyện nói AI",
@@ -15,6 +16,7 @@
       "st-progress": "Tiến độ",
       "book-session": "Gia sư 1:1",
       "st-messages": "Tin nhắn",
+      "st-stats": "Thống kê",
       "achievements": "Thành tích",
       "tuition": "Học phí",
       "notifications": "Thông báo",
@@ -75,7 +77,9 @@
       "game": "Trò chơi",
       "news": "Tin tức Đức",
       "b1-assessment": "Đánh giá B1",
-      "certificates": "Chứng chỉ"
+      "certificates": "Chứng chỉ",
+      "grammar-drafts": "Bài tập ngữ pháp",
+      "exercises": "Bài tập bổ trợ"
     },
     "sections": {
       "classMgmt": "Quản lý lớp",

@@ -648,6 +648,32 @@
       "pagePrev": "Previous",
       "pageNext": "Next",
       "pageOf": "Page {current} / {total}"
+    },
+    "grammarDrafts": {
+      "title": "Grammar exercise bank",
+      "subtitle": "Generate with AI → submit for review → admin approves ({pending} awaiting review)",
+      "refresh": "Refresh",
+      "topicsCap": "Grammar topics",
+      "topicsEmpty": "No topics at this level yet.",
+      "generate": "AI generate ({count})",
+      "submitAll": "Submit all",
+      "draftsAll": "All my drafts",
+      "draftsFor": "Exercises: “{topic}”",
+      "count": "({count} items)",
+      "emptyTitle": "No exercises yet",
+      "emptyDesc": "Pick a topic and hit “AI generate” to create draft exercises.",
+      "exerciseFallback": "Grammar exercise",
+      "difficulty": "Difficulty {level}/5",
+      "toggleAria": "Expand exercise {id}",
+      "submitOne": "Submit this for review",
+      "rejectReason": "Rejection reason: {reason}",
+      "generated": "Generated {count} exercises for “{topic}”",
+      "submittedOne": "Exercise submitted for review",
+      "submittedAll": "All drafts submitted for review",
+      "statusDraft": "Draft",
+      "statusPending": "Pending review",
+      "statusApproved": "Approved",
+      "statusRejected": "Rejected"
     }
   }
 }

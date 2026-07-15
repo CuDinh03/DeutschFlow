@@ -648,6 +648,32 @@
       "pagePrev": "Trước",
       "pageNext": "Sau",
       "pageOf": "Trang {current} / {total}"
+    },
+    "grammarDrafts": {
+      "title": "Ngân hàng bài tập ngữ pháp",
+      "subtitle": "Sinh bài tập bằng AI → nộp duyệt → admin phê duyệt ({pending} bài đang chờ duyệt)",
+      "refresh": "Làm mới",
+      "topicsCap": "Chủ đề ngữ pháp",
+      "topicsEmpty": "Chưa có chủ đề nào ở cấp độ này.",
+      "generate": "Sinh AI ({count})",
+      "submitAll": "Nộp tất cả",
+      "draftsAll": "Tất cả bản nháp của tôi",
+      "draftsFor": "Bài tập: “{topic}”",
+      "count": "({count} bài)",
+      "emptyTitle": "Chưa có bài tập nào",
+      "emptyDesc": "Chọn một chủ đề rồi bấm “Sinh AI” để tạo bản nháp bài tập.",
+      "exerciseFallback": "Bài tập ngữ pháp",
+      "difficulty": "Độ khó {level}/5",
+      "toggleAria": "Mở chi tiết bài {id}",
+      "submitOne": "Nộp bài này để duyệt",
+      "rejectReason": "Lý do từ chối: {reason}",
+      "generated": "Đã sinh {count} bài tập cho “{topic}”",
+      "submittedOne": "Đã nộp bài tập để duyệt",
+      "submittedAll": "Đã nộp tất cả bản nháp để duyệt",
+      "statusDraft": "Bản nháp",
+      "statusPending": "Chờ duyệt",
+      "statusApproved": "Đã duyệt",
+      "statusRejected": "Bị từ chối"
     }
   }
 }

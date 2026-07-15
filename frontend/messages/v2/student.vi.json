@@ -657,7 +657,12 @@
       "backHome": "Về tổng quan",
       "exit": "Thoát trò chơi",
       "livesLabel": "Còn {lives} mạng",
-      "progressLabel": "Tiến độ lượt chơi"
+      "progressLabel": "Tiến độ lượt chơi",
+      "modes": {
+        "label": "Chọn trò chơi",
+        "blank": "Điền chỗ trống",
+        "lego": "Ghép câu"
+      }
     },
     "news": {
       "title": "Tin tức & Đời sống Đức",
@@ -937,6 +942,68 @@
       "retryTitle": "⚠️ Chưa đủ điều kiện vượt node",
       "retryDesc": "Nghe/Đọc yêu cầu 100% • Nói/Phát âm/Viết yêu cầu ≥ 80 điểm",
       "retryCta": "🔄 Làm lại"
+    },
+    "stats": {
+      "title": "Thống kê học tập",
+      "subtitle": "Tiến bộ 7 ngày gần nhất — từ vựng, luyện nói và lỗi ngữ pháp",
+      "openErrorBook": "Mở sổ lỗi",
+      "loading": "Đang tải thống kê…",
+      "loadErrorTitle": "Chưa có thống kê",
+      "loadErrorDesc": "Không tải được dữ liệu học tập. Hãy bắt đầu học rồi quay lại.",
+      "partialError": "Một phần dữ liệu chưa tải được.",
+      "kpi": {
+        "learned": "Từ mới",
+        "reviewed": "Đã ôn",
+        "speaking": "Luyện nói",
+        "due": "Đến hạn",
+        "thisWeek": "tuần này",
+        "words": "từ vựng",
+        "toReview": "cần ôn lại"
+      },
+      "weeklyTitle": "Hoạt động 7 ngày",
+      "noActivity": "Chưa có hoạt động nào trong tuần.",
+      "series": {
+        "learned": "Học mới",
+        "reviewed": "Ôn lại",
+        "speaking": "Nói (phút)"
+      },
+      "commonErrorsTitle": "Lỗi thường gặp (7 ngày)",
+      "noErrorsRecorded": "Chưa ghi nhận lỗi nào.",
+      "weakPointsTitle": "Điểm yếu",
+      "noWeakPoints": "Chưa đủ dữ liệu để xác định điểm yếu.",
+      "errorTrendTitle": "Xu hướng lỗi (30 ngày)",
+      "openErrors": "{count} lỗi chưa sửa",
+      "allFixed": "Đã sửa hết ✓",
+      "recommendationsTitle": "Gợi ý cho bạn",
+      "badgesCap": "Huy hiệu",
+      "badgesHint": "Xem toàn bộ huy hiệu đã mở khoá ở trang Thành tích.",
+      "badgesCta": "Xem huy hiệu"
+    },
+    "errors": {
+      "title": "Sổ lỗi ngữ pháp",
+      "subtitle": "Vết sẹo ngữ pháp — càng nhớ lâu, càng giỏi nhanh",
+      "openCount": "{count} lỗi chưa sửa",
+      "reviewToday": "Ôn tập hôm nay ({count})",
+      "reviewAfter": "Ôn lại sau {days} ngày",
+      "practiceFix": "Luyện sửa lỗi",
+      "lockedTitle": "Còn {count} bài ôn tập bị khoá hôm nay",
+      "lockedDesc": "Nâng cấp PRO để luyện toàn bộ vết sẹo ngữ pháp.",
+      "lockedCta": "Nâng cấp",
+      "searchPlaceholder": "Tìm kiếm lỗi…",
+      "reload": "Tải lại",
+      "loading": "Đang tải dữ liệu lỗi…",
+      "loadError": "Không thể tải dữ liệu. Vui lòng thử lại.",
+      "emptyTitle": "Tuyệt vời! Chưa ghi nhận lỗi nào.",
+      "emptyDesc": "Hãy luyện nói để AI ghi lại các lỗi ngữ pháp của bạn.",
+      "unfixedCap": "Lỗi chưa sửa ({count})",
+      "other": "Khác",
+      "fixed": "Đã sửa",
+      "seenCount": "Gặp {count} lần",
+      "lastSeen": "Gặp lần cuối:",
+      "recordedGrammarError": "Lỗi ngữ pháp đã ghi nhận",
+      "allDone": "Bạn đã hoàn thành tất cả bài ôn tập hôm nay!",
+      "completedCap": "Đã hoàn thành ({count})",
+      "times": "{count} lần"
     }
   }
 }

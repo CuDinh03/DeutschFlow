@@ -16,6 +16,7 @@ import { ArrowLeft, Heart, Trophy } from 'lucide-react'
 import api from '@/lib/api'
 import { usePageTimeTracker } from '@/hooks/usePageTimeTracker'
 import { GaBtn, GaCap, GaCard, GaPageHdr, LoadingState } from '@/components/ui-v2'
+import { GameModeSwitch } from './GameModeSwitch'
 
 /**
  * /v2/student/game — trò chơi kéo-thả khối từ (Galerie shell).
@@ -417,7 +418,9 @@ export default function V2StudentGamePage() {
       <div className="flex min-h-full flex-col">
         <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
 
-        <div className="flex-1 px-10 py-6">
+        <div className="flex-1 space-y-5 px-10 py-6">
+          <GameModeSwitch active="blank" />
+
           <div className="mx-auto max-w-xl space-y-5">
             {/* Thanh trạng thái: thoát · tiến độ · mạng */}
             <div className="flex items-center gap-3">
