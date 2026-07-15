@@ -23,7 +23,10 @@ const ALL_TABS: { id: Tab; labelKey: 'tabInfo' | 'tabLearning' | 'tabSecurity' }
   { id: 'security', labelKey: 'tabSecurity' },
 ]
 // MANAGER/OWNER/ADMIN không có learning profile → ẩn tab Học tập
-const ROLES_WITHOUT_LEARNING = new Set(['ADMIN', 'OWNER', 'MANAGER'])
+// A teacher has no learner "learning profile" tab — like admins/org roles. (Teachers were previously
+// routed to a separate /v2/teacher/profile that had no password form at all, which is why they were the
+// only role that couldn't change their password; they now use this shared page.)
+const ROLES_WITHOUT_LEARNING = new Set(['ADMIN', 'OWNER', 'MANAGER', 'TEACHER'])
 
 const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
 // v = API enum value (logic key, stays as-is); labelKey resolves the display via t(labelKey).

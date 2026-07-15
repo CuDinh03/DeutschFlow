@@ -17,6 +17,9 @@ public interface LessonMaterialRepository extends JpaRepository<LessonMaterial, 
 
     boolean existsByIdLessonIdAndIdMaterialId(Long lessonId, Long materialId);
 
+    /** How many lessons a material is attached to — used to warn before archiving it. */
+    long countByIdMaterialId(Long materialId);
+
     @Modifying
     long deleteByIdLessonIdAndIdMaterialId(Long lessonId, Long materialId);
 

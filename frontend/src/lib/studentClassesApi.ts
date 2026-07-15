@@ -1,4 +1,5 @@
 import api from '@/lib/api'
+import type { Material } from '@/lib/materialApi'
 
 export interface TeacherSummary {
   id: number
@@ -140,6 +141,24 @@ export async function fetchClassModules(classId: number): Promise<CurriculumModu
 
 export async function joinClassByInviteCode(inviteCode: string): Promise<void> {
   await api.post('/classes/join', { inviteCode })
+}
+
+// ── Lesson materials (student read) ──────────────────────────────────────────
+// The teacher attaches materials to a lesson; these two endpoints are the ONLY way a student reaches
+// them (the whole /v2/materials surface is teacher/admin-gated). Access is by enrollment in the class.
+
+/** Materials the teacher attached to a lesson, for a student enrolled in the class. */
+export async function fetchLessonMaterials(lessonId: number): Promise<Material[]> {
+  const res = await api.get<Material[]>(`/v2/students/classes/lessons/${lessonId}/materials`)
+  return res.data ?? []
+}
+
+/** A fresh resolvable URL for a lesson material (the presigned GET link expires after ~1h). */
+export async function fetchLessonMaterialUrl(lessonId: number, materialId: number): Promise<string> {
+  const res = await api.get<{ url: string }>(
+    `/v2/students/classes/lessons/${lessonId}/materials/${materialId}/url`,
+  )
+  return res.data.url
 }
 
 // ── Competency ledger / Selbstevaluation (Phase 2a) ──────────────────────────

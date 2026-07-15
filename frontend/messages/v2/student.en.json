@@ -269,7 +269,8 @@
       "lessonPathCap": "Class roadmap ({done}/{total} taught)",
       "competency": { "label": "Self-assessment", "notStarted": "Not started", "inProgress": "Learning", "mastered": "Mastered", "summary": "Can-do goals: {mastered}/{total} mastered", "autoHint": "auto" },
       "taughtAt": "Taught · {date}",
-      "notTaught": "Not taught"
+      "notTaught": "Not taught",
+      "materials": { "heading": "Materials", "loading": "Loading…", "empty": "No materials for this lesson yet.", "loadError": "Could not load materials.", "openError": "Could not open the material." }
     },
     "assignment": {
       "titleFallback": "Assignment",

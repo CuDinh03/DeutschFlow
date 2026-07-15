@@ -300,26 +300,62 @@ public class ClassLessonService {
 
     // ── Can-do statements (Phase 1e) ────────────────────────────────────────
 
-    /** Replace all can-do statements for a lesson with the given inputs (empty texts dropped). */
+    /**
+     * Syncs a lesson's can-do statements to the given inputs (empty texts dropped).
+     *
+     * <p>This MERGES by id rather than replacing wholesale. {@code student_competency} references
+     * {@code can_do_statement} with ON DELETE CASCADE (V256), so the previous delete-all + re-insert
+     * gave every statement a fresh id and silently erased the whole class's competency ledger — both
+     * the students' self-assessments and the GRADING-derived rows — on any edit, including fixing a
+     * typo. Now:
+     *
+     * <ul>
+     *   <li>an input carrying a known id → UPDATE in place, id preserved, ledger survives;</li>
+     *   <li>an input with no id (or an id not belonging to this lesson) → INSERT;</li>
+     *   <li>an existing statement the client no longer sends → DELETE. That cascade is intended: the
+     *       target is genuinely gone, so its progress records go with it.</li>
+     * </ul>
+     */
     private void replaceCanDos(Long lessonId, List<CanDoStatementInput> inputs) {
-        canDoRepository.deleteByLessonId(lessonId);
         if (inputs == null) return;
-        List<CanDoStatement> rows = new ArrayList<>();
+
+        Map<Long, CanDoStatement> existing = canDoRepository.findByLessonIdOrderByOrderIndexAsc(lessonId)
+                .stream()
+                .collect(Collectors.toMap(CanDoStatement::getId, c -> c));
+
+        List<CanDoStatement> toSave = new ArrayList<>();
+        Set<Long> keptIds = new HashSet<>();
         int idx = 0;
+
         for (CanDoStatementInput in : inputs) {
             if (in == null) continue; // tolerate a null array element (malformed JSON) — no 500
             String text = in.text() == null ? "" : in.text().trim();
             if (text.isEmpty()) continue;
-            rows.add(CanDoStatement.builder()
-                    .lessonId(lessonId)
-                    .orderIndex(idx++)
-                    .text(text)
-                    .cefrLevel(normalizeCefrLevel(in.cefrLevel()))
-                    .skillTag(normalizeSkillTag(in.skillTag()))
-                    .build());
+
+            // Only trust an id that actually belongs to THIS lesson — a client must not be able to
+            // re-home another lesson's statement (or a statement of another teacher's class) by id.
+            CanDoStatement row = in.id() == null ? null : existing.get(in.id());
+            if (row == null) {
+                row = CanDoStatement.builder().lessonId(lessonId).build();
+            } else {
+                keptIds.add(row.getId());
+            }
+
+            row.setOrderIndex(idx++);
+            row.setText(text);
+            row.setCefrLevel(normalizeCefrLevel(in.cefrLevel()));
+            row.setSkillTag(normalizeSkillTag(in.skillTag()));
+            toSave.add(row);
         }
-        if (!rows.isEmpty()) {
-            canDoRepository.saveAll(rows);
+
+        List<CanDoStatement> removed = existing.values().stream()
+                .filter(c -> !keptIds.contains(c.getId()))
+                .toList();
+        if (!removed.isEmpty()) {
+            canDoRepository.deleteAll(removed);
+        }
+        if (!toSave.isEmpty()) {
+            canDoRepository.saveAll(toSave);
         }
     }
 

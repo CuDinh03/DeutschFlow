@@ -1,5 +1,6 @@
 package com.deutschflow.teacher.service;
 
+import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.teacher.dto.ClassLessonLogDto;
@@ -23,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -67,7 +69,7 @@ public class LessonLogService {
     @Transactional
     public ClassLessonLogDto createLog(Long teacherId, Long classId, CreateLessonLogRequest req) {
         assertTeacherOwnsClass(teacherId, classId);
-        String lessonTitle = validateLessonInClass(classId, req.lessonId());
+        ClassLesson lesson = validateLessonInClass(classId, req.lessonId());
 
         ClassLessonLog log = ClassLessonLog.builder()
                 .classId(classId)
@@ -81,6 +83,12 @@ public class LessonLogService {
                 .build();
         log = lessonLogRepository.save(log);
 
+        // Writing a session log FOR a lesson means the lesson was taught, so mark it completed. Otherwise
+        // the teacher records "đã dạy Lektion 3" here and still has to go tick the same lesson in
+        // tc-checklist for tc-progress to advance — the same event entered twice, and the two screens
+        // disagree if they forget one. Un-ticking stays available in tc-checklist.
+        autoCompleteLesson(lesson, teacherId, req.sessionDate());
+
         List<ClassAttendance> attendances = buildAttendance(log.getId(), req);
         attendanceRepository.saveAll(attendances);
 
@@ -89,7 +97,19 @@ public class LessonLogService {
                 : userRepository.findAllById(studentIds).stream()
                         .collect(Collectors.toMap(User::getId, u -> u));
 
-        return toDto(log, attendances, users, titleMap(req.lessonId(), lessonTitle));
+        return toDto(log, attendances, users, titleMap(req.lessonId(), lesson == null ? null : lesson.getTitle()));
+    }
+
+    /**
+     * Marks a lesson completed when a session log is recorded for it — completedAt from the session date.
+     * No-op if the lesson is null or already completed, so re-editing a log never re-stamps the date.
+     */
+    private void autoCompleteLesson(ClassLesson lesson, Long teacherId, java.time.LocalDate sessionDate) {
+        if (lesson == null || lesson.isCompleted()) return;
+        lesson.setCompleted(true);
+        lesson.setCompletedAt(sessionDate != null ? sessionDate.atStartOfDay() : java.time.LocalDateTime.now());
+        lesson.setCompletedByTeacherId(teacherId);
+        lessonRepository.save(lesson);
     }
 
     @Transactional
@@ -98,7 +118,7 @@ public class LessonLogService {
         ClassLessonLog log = lessonLogRepository.findById(logId)
                 .orElseThrow(() -> new NotFoundException("Buổi học không tồn tại"));
         if (!log.getClassId().equals(classId)) throw new ForbiddenException("Buổi học không thuộc lớp này");
-        String lessonTitle = validateLessonInClass(classId, req.lessonId());
+        ClassLesson lesson = validateLessonInClass(classId, req.lessonId());
 
         log.setLessonId(req.lessonId());
         log.setSessionDate(req.sessionDate());
@@ -107,6 +127,10 @@ public class LessonLogService {
         log.setHomework(req.homework());
         log.setNote(req.note());
         log = lessonLogRepository.save(log);
+
+        // Re-tagging a log to a lesson also marks that lesson taught. (Not un-completing on a change: the
+        // teacher can un-tick in tc-checklist, and un-completing silently on edit would be surprising.)
+        autoCompleteLesson(lesson, teacherId, req.sessionDate());
 
         attendanceRepository.deleteByIdLessonLogId(logId);
         List<ClassAttendance> attendances = buildAttendance(log.getId(), req);
@@ -117,7 +141,7 @@ public class LessonLogService {
                 : userRepository.findAllById(studentIds).stream()
                         .collect(Collectors.toMap(User::getId, u -> u));
 
-        return toDto(log, attendances, users, titleMap(req.lessonId(), lessonTitle));
+        return toDto(log, attendances, users, titleMap(req.lessonId(), lesson == null ? null : lesson.getTitle()));
     }
 
     @Transactional
@@ -139,14 +163,15 @@ public class LessonLogService {
     }
 
     /** If lessonId is set, verify it belongs to this class (reject cross-class) and return its title. */
-    private String validateLessonInClass(Long classId, Long lessonId) {
+    /** Loads the tagged lesson and checks it belongs to the class; null when no lesson is tagged. */
+    private ClassLesson validateLessonInClass(Long classId, Long lessonId) {
         if (lessonId == null) return null;
         ClassLesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new NotFoundException("Bài học không tồn tại"));
         if (!lesson.getClassId().equals(classId)) {
             throw new ForbiddenException("Bài học không thuộc lớp này");
         }
-        return lesson.getTitle();
+        return lesson;
     }
 
     private Map<Long, String> titleMap(Long lessonId, String title) {
@@ -159,11 +184,28 @@ public class LessonLogService {
                 .collect(Collectors.toMap(ClassLesson::getId, ClassLesson::getTitle));
     }
 
+    /** The only attendance values that may be stored. Anything else is a client bug, not a default. */
+    private static final Set<String> ATTENDANCE_STATUSES = Set.of("PRESENT", "LATE", "ABSENT");
+
+    /**
+     * Builds the attendance rows for a log. A student the caller did not send is simply not recorded —
+     * "no row" means "not marked", which is what the certificate/attendance-rate maths needs to be able
+     * to tell apart from "present".
+     *
+     * <p>A missing or unknown status is rejected rather than defaulted. It used to fall back to PRESENT,
+     * which is how a caller that omitted the field could silently mark a student present.
+     */
     private List<ClassAttendance> buildAttendance(Long logId, CreateLessonLogRequest req) {
         if (req.attendance() == null) return List.of();
         List<ClassAttendance> list = new ArrayList<>();
         for (CreateLessonLogRequest.AttendanceInput input : req.attendance()) {
-            String status = input.status() != null ? input.status().toUpperCase() : "PRESENT";
+            // Null-check first: Set.of(...) is an immutable set, and its contains(null) throws NPE.
+            String status = input.status() == null ? null : input.status().toUpperCase();
+            if (status == null || !ATTENDANCE_STATUSES.contains(status)) {
+                throw new BadRequestException(
+                        "Trạng thái điểm danh không hợp lệ cho học viên #" + input.studentId()
+                                + " (chỉ nhận PRESENT, LATE, ABSENT).");
+            }
             list.add(ClassAttendance.builder()
                     .id(new ClassAttendanceId(logId, input.studentId()))
                     .status(status)

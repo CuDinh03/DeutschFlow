@@ -63,6 +63,28 @@ export async function archiveMaterial(id: number): Promise<Material> {
   return res.data
 }
 
+/** GET /v2/materials/archived — the "Đã lưu trữ" filter, so archiving is reversible + discoverable. */
+export async function listArchivedMaterials(): Promise<Material[]> {
+  const res = await api.get<Material[]>('/v2/materials/archived')
+  return res.data ?? []
+}
+
+/** POST /v2/materials/{id}/unarchive — restore an archived material (reappears in its lessons). */
+export async function unarchiveMaterial(id: number): Promise<Material> {
+  const res = await api.post<Material>(`/v2/materials/${id}/unarchive`)
+  return res.data
+}
+
+/** How many lessons/classes a material is attached to — read before archiving to warn the user. */
+export interface AttachmentCount {
+  lessons: number
+  classes: number
+}
+export async function fetchMaterialAttachments(id: number): Promise<AttachmentCount> {
+  const res = await api.get<AttachmentCount>(`/v2/materials/${id}/attachments`)
+  return res.data
+}
+
 /** GET /v2/materials/class/{classId} — materials attached to a class. */
 export async function listClassMaterials(classId: number): Promise<Material[]> {
   const res = await api.get<Material[]>(`/v2/materials/class/${classId}`)

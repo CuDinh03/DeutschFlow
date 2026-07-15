@@ -57,9 +57,11 @@ describe('resolveNotificationHref', () => {
     expect(resolveNotificationHref(notif('CLASS_CHANNEL_MESSAGE', {}), 'student')).toBe('/v2/student/classes')
   })
 
-  it('routes teacher submission events to the per-student grading page', () => {
+  // "Bài cần xem" means there is work to GRADE. It used to open the student's detail page, which is
+  // read-only — the teacher could look at the submission but not grade it from there.
+  it('routes teacher submission events to the grading queue, not the read-only student page', () => {
     expect(resolveNotificationHref(notif('QUIZ_SUBMISSION_RECEIVED', { classId: 2, studentId: 7 }), 'teacher')).toBe(
-      '/v2/teacher/classes/2/students/7',
+      '/v2/teacher/grading',
     )
   })
 

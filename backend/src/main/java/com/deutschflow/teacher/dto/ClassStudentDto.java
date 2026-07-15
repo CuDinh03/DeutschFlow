@@ -14,7 +14,16 @@ public record ClassStudentDto(
         String email,
         Integer xp,
         Integer level,
+        /**
+         * The student's CURRENT CEFR level (default A0). This used to carry {@code targetLevel} — the
+         * level the student wants to reach, self-declared at onboarding — so the roster showed B2/C2 for
+         * a beginner and a teacher could mis-place them. It is now the real current level.
+         */
         String cefrLevel,
+        /** Where {@code cefrLevel} came from: "SELF" (self-declared) or "ASSESSED". */
+        String levelSource,
+        /** The student's TARGET level (their goal), shown as context — not their current ability. */
+        String targetLevel,
         BigDecimal skillHoren,
         BigDecimal skillLesen,
         BigDecimal skillSchreiben,

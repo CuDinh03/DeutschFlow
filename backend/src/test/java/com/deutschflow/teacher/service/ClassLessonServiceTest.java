@@ -346,14 +346,16 @@ class ClassLessonServiceTest {
         });
 
         List<CanDoStatementInput> canDos = List.of(
-                new CanDoStatementInput("Ich kann mich vorstellen.", "a1", "sprechen"),
-                new CanDoStatementInput("   ", null, null),                     // blank → dropped
-                new CanDoStatementInput("Ich kann einen kurzen Text verstehen.", null, null));
+                new CanDoStatementInput(null, "Ich kann mich vorstellen.", "a1", "sprechen"),
+                new CanDoStatementInput(null, "   ", null, null),               // blank → dropped
+                new CanDoStatementInput(null, "Ich kann einen kurzen Text verstehen.", null, null));
 
         service.create(TEACHER_ID, CLASS_ID,
                 new CreateLessonRequest("Lektion 1", null, null, null, null, null, canDos));
 
-        verify(canDoRepository).deleteByLessonId(LESSON_ID);
+        // A fresh lesson has nothing to remove — and nothing is blanket-deleted any more.
+        verify(canDoRepository, never()).deleteByLessonId(any());
+        verify(canDoRepository, never()).deleteAll(any());
         ArgumentCaptor<List<CanDoStatement>> cap = ArgumentCaptor.forClass(List.class);
         verify(canDoRepository).saveAll(cap.capture());
         List<CanDoStatement> rows = cap.getValue();
@@ -363,6 +365,102 @@ class ClassLessonServiceTest {
         assertThat(rows.get(0).getSkillTag()).isEqualTo("SPRECHEN");            // normalized
         assertThat(rows.get(0).getOrderIndex()).isZero();
         assertThat(rows.get(1).getOrderIndex()).isEqualTo(1);                   // 0-based re-sequenced
+    }
+
+    /**
+     * The audit bug: every save deleted the lesson's can-do statements and re-inserted them, so each
+     * one came back with a NEW id. student_competency references can_do_statement ON DELETE CASCADE
+     * (V256), so fixing a typo silently erased the whole class's competency ledger — self-assessments
+     * and grading-derived rows alike. Editing a statement must keep its id.
+     */
+    @Test
+    @DisplayName("update: editing a can-do keeps its id (student_competency survives the cascade)")
+    @SuppressWarnings("unchecked")
+    void update_editingCanDo_preservesId() {
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(true);
+        ClassLesson l = ClassLesson.builder()
+                .id(LESSON_ID).classId(CLASS_ID).orderIndex(0).title("X").completed(false).build();
+        when(lessonRepository.findById(LESSON_ID)).thenReturn(java.util.Optional.of(l));
+        when(lessonRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        CanDoStatement saved = CanDoStatement.builder()
+                .id(77L).lessonId(LESSON_ID).orderIndex(0)
+                .text("Ich kann mich vorstelen.")        // typo the teacher is about to fix
+                .cefrLevel("A1").skillTag("SPRECHEN").build();
+        when(canDoRepository.findByLessonIdOrderByOrderIndexAsc(LESSON_ID)).thenReturn(List.of(saved));
+
+        service.update(TEACHER_ID, CLASS_ID, LESSON_ID,
+                new UpdateLessonRequest(null, null, null, null, null, null, null, null, null, null,
+                        List.of(new CanDoStatementInput(77L, "Ich kann mich vorstellen.", "a1", "sprechen"))));
+
+        // Nothing removed: the statement is still there, just corrected.
+        verify(canDoRepository, never()).deleteByLessonId(any());
+        verify(canDoRepository, never()).deleteAll(any());
+
+        ArgumentCaptor<List<CanDoStatement>> cap = ArgumentCaptor.forClass(List.class);
+        verify(canDoRepository).saveAll(cap.capture());
+        List<CanDoStatement> rows = cap.getValue();
+        assertThat(rows).hasSize(1);
+        assertThat(rows.get(0).getId()).isEqualTo(77L);   // ← the whole point: same row, no cascade
+        assertThat(rows.get(0).getText()).isEqualTo("Ich kann mich vorstellen.");
+    }
+
+    @Test
+    @DisplayName("update: a can-do the client stops sending is deleted; the others keep their ids")
+    @SuppressWarnings("unchecked")
+    void update_removedCanDo_isDeleted_othersKeepIds() {
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(true);
+        ClassLesson l = ClassLesson.builder()
+                .id(LESSON_ID).classId(CLASS_ID).orderIndex(0).title("X").completed(false).build();
+        when(lessonRepository.findById(LESSON_ID)).thenReturn(java.util.Optional.of(l));
+        when(lessonRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        CanDoStatement keep = CanDoStatement.builder()
+                .id(1L).lessonId(LESSON_ID).orderIndex(0).text("Behalten").build();
+        CanDoStatement drop = CanDoStatement.builder()
+                .id(2L).lessonId(LESSON_ID).orderIndex(1).text("Entfernen").build();
+        when(canDoRepository.findByLessonIdOrderByOrderIndexAsc(LESSON_ID)).thenReturn(List.of(keep, drop));
+
+        service.update(TEACHER_ID, CLASS_ID, LESSON_ID,
+                new UpdateLessonRequest(null, null, null, null, null, null, null, null, null, null,
+                        List.of(
+                                new CanDoStatementInput(1L, "Behalten", null, null),
+                                new CanDoStatementInput(null, "Ganz neu", null, null))));
+
+        ArgumentCaptor<List<CanDoStatement>> delCap = ArgumentCaptor.forClass(List.class);
+        verify(canDoRepository).deleteAll(delCap.capture());
+        assertThat(delCap.getValue()).extracting(CanDoStatement::getId).containsExactly(2L);
+
+        ArgumentCaptor<List<CanDoStatement>> cap = ArgumentCaptor.forClass(List.class);
+        verify(canDoRepository).saveAll(cap.capture());
+        List<CanDoStatement> rows = cap.getValue();
+        assertThat(rows).hasSize(2);
+        assertThat(rows.get(0).getId()).isEqualTo(1L);    // survivor keeps its id
+        assertThat(rows.get(1).getId()).isNull();         // brand-new row
+        assertThat(rows.get(1).getOrderIndex()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("update: an id from another lesson is not trusted — it is inserted as a new row")
+    @SuppressWarnings("unchecked")
+    void update_foreignCanDoId_isNotAdopted() {
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(true);
+        ClassLesson l = ClassLesson.builder()
+                .id(LESSON_ID).classId(CLASS_ID).orderIndex(0).title("X").completed(false).build();
+        when(lessonRepository.findById(LESSON_ID)).thenReturn(java.util.Optional.of(l));
+        when(lessonRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(canDoRepository.findByLessonIdOrderByOrderIndexAsc(LESSON_ID)).thenReturn(List.of());
+
+        // id 999 belongs to some other lesson (possibly another teacher's class) — must not be re-homed.
+        service.update(TEACHER_ID, CLASS_ID, LESSON_ID,
+                new UpdateLessonRequest(null, null, null, null, null, null, null, null, null, null,
+                        List.of(new CanDoStatementInput(999L, "Ich kann X.", null, null))));
+
+        ArgumentCaptor<List<CanDoStatement>> cap = ArgumentCaptor.forClass(List.class);
+        verify(canDoRepository).saveAll(cap.capture());
+        assertThat(cap.getValue()).hasSize(1);
+        assertThat(cap.getValue().get(0).getId()).isNull();               // inserted, not adopted
+        assertThat(cap.getValue().get(0).getLessonId()).isEqualTo(LESSON_ID);
     }
 
     @Test
@@ -383,6 +481,7 @@ class ClassLessonServiceTest {
 
     @Test
     @DisplayName("update with an empty canDoStatements list clears all can-dos (delete, no insert)")
+    @SuppressWarnings("unchecked")
     void update_emptyCanDos_clears() {
         when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(true);
         ClassLesson l = ClassLesson.builder()
@@ -390,10 +489,18 @@ class ClassLessonServiceTest {
         when(lessonRepository.findById(LESSON_ID)).thenReturn(java.util.Optional.of(l));
         when(lessonRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
+        CanDoStatement existing = CanDoStatement.builder()
+                .id(3L).lessonId(LESSON_ID).orderIndex(0).text("Weg damit").build();
+        when(canDoRepository.findByLessonIdOrderByOrderIndexAsc(LESSON_ID)).thenReturn(List.of(existing));
+
         service.update(TEACHER_ID, CLASS_ID, LESSON_ID,
                 new UpdateLessonRequest(null, null, null, null, null, null, null, null, null, null, List.of()));
 
-        verify(canDoRepository).deleteByLessonId(LESSON_ID);
+        // Sending [] still means "clear them all" — the rows are gone, so the cascade to
+        // student_competency is correct here (the targets no longer exist).
+        ArgumentCaptor<List<CanDoStatement>> delCap = ArgumentCaptor.forClass(List.class);
+        verify(canDoRepository).deleteAll(delCap.capture());
+        assertThat(delCap.getValue()).extracting(CanDoStatement::getId).containsExactly(3L);
         verify(canDoRepository, never()).saveAll(any());
     }
 
@@ -415,7 +522,7 @@ class ClassLessonServiceTest {
         pts.add(null);
         List<CanDoStatementInput> canDos = new java.util.ArrayList<>();
         canDos.add(null);
-        canDos.add(new CanDoStatementInput("Ich kann X.", null, null));
+        canDos.add(new CanDoStatementInput(null, "Ich kann X.", null, null));
 
         // Must not throw (was NPE → HTTP 500 before the null-element guard).
         service.create(TEACHER_ID, CLASS_ID,

@@ -269,7 +269,8 @@
       "lessonPathCap": "Kurs-Lernpfad ({done}/{total} unterrichtet)",
       "competency": { "label": "Selbsteinschätzung", "notStarted": "Nicht begonnen", "inProgress": "Am Lernen", "mastered": "Beherrscht", "summary": "Kann-Ziele: {mastered}/{total} beherrscht", "autoHint": "auto" },
       "taughtAt": "Unterrichtet · {date}",
-      "notTaught": "Nicht unterrichtet"
+      "notTaught": "Nicht unterrichtet",
+      "materials": { "heading": "Materialien", "loading": "Wird geladen…", "empty": "Noch keine Materialien für diese Lektion.", "loadError": "Materialien konnten nicht geladen werden.", "openError": "Material konnte nicht geöffnet werden." }
     },
     "assignment": {
       "titleFallback": "Aufgabe",

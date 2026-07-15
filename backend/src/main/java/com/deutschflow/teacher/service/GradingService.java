@@ -10,6 +10,7 @@ import com.deutschflow.speaking.ai.OpenAiChatClient;
 import com.deutschflow.teacher.dto.ClassAssignmentDto;
 import com.deutschflow.teacher.dto.StudentAssignmentDto;
 import com.deutschflow.teacher.dto.TeacherSessionEvaluationRequest;
+import com.deutschflow.teacher.entity.AssignmentStatus;
 import com.deutschflow.teacher.entity.ClassAssignment;
 import com.deutschflow.teacher.entity.StudentAssignment;
 import com.deutschflow.teacher.repository.ClassAssignmentRepository;
@@ -46,7 +47,6 @@ public class GradingService {
     private final AiUsageLedgerService aiUsageLedgerService;
     /** Model chấm bài (tách hẳn model nói) — xem {@link GradingModelConfig}. */
     private final GradingModelConfig gradingModelConfig;
-    private final StudentCompetencyService studentCompetencyService;
 
     /** Student-/teacher-safe note when AI grading fails — the raw cause stays in logs/admin alerts only (D8). */
     private static final String GRADING_FAILED_FEEDBACK = "Chưa chấm tự động được, giáo viên sẽ chấm lại.";
@@ -177,10 +177,12 @@ public class GradingService {
 
             for (Long classId : classIds) {
                 List<StudentAssignment> classSubs = byClassId.getOrDefault(classId, List.of());
+                // AI_GRADED still needs the teacher, so it counts as pending — the work isn't done until
+                // someone confirms the proposed score.
                 long pending = classSubs.stream()
-                        .filter(sa -> "SUBMITTED".equals(sa.getStatus()) || "GRADING_FAILED".equals(sa.getStatus()))
+                        .filter(sa -> AssignmentStatus.AWAITING_TEACHER.contains(sa.getStatus()))
                         .count();
-                long graded = classSubs.stream().filter(sa -> "GRADED".equals(sa.getStatus()) || "EVALUATED".equals(sa.getStatus())).count();
+                long graded = classSubs.stream().filter(sa -> AssignmentStatus.isFinal(sa.getStatus())).count();
                 totalPending += pending;
                 totalGraded += graded;
 
@@ -330,12 +332,12 @@ public class GradingService {
             if (sa == null) return;
 
             // Guard the state machine: only grade a submission that is still awaiting a grade. This
-            // prevents an AI grade from (a) overwriting a teacher's authoritative EVALUATED grade, or
-            // (b) re-grading an already-GRADED row — which would re-notify the student and re-spend tokens.
-            // Mirrors the EVALUATED/GRADED guard already in markGradingFailed (previously only the failure
-            // branch was guarded; the success branch was not).
+            // prevents an AI grade from (a) overwriting a teacher's authoritative EVALUATED grade,
+            // (b) re-grading a legacy GRADED row, or (c) re-spending tokens on a row the AI has already
+            // proposed a score for (AI_GRADED). Mirrors the guard in markGradingFailed.
             String currentStatus = sa.getStatus();
-            if (!"SUBMITTED".equals(currentStatus) && !"GRADING_FAILED".equals(currentStatus)) {
+            if (!AssignmentStatus.SUBMITTED.equals(currentStatus)
+                    && !AssignmentStatus.GRADING_FAILED.equals(currentStatus)) {
                 log.info("[AI-Grading] Submission {} not in a gradable state (status={}); skipping AI grade",
                         submissionId, currentStatus);
                 return;
@@ -374,7 +376,12 @@ public class GradingService {
             sa.setFeedback(aiFeedback);
             sa.setAiConfidence(AiGradeResultParser.parseConfidence(responseContent));
             sa.setCriteria(AiGradeResultParser.parseCriteria(responseContent));
-            sa.setStatus("GRADED");
+            // A PROPOSAL, not a grade. The screen promises "AI chấm sơ bộ · giáo viên xác nhận", so the
+            // row stays in the teacher's queue and the student hears nothing until a teacher confirms it
+            // (TeacherService.evaluateAssignment → EVALUATED, which notifies once and writes the ledger).
+            // Writing GRADED here used to announce the raw AI score immediately — and then a teacher who
+            // corrected it sent a second, different "bài đã chấm" notification.
+            sa.setStatus(AssignmentStatus.AI_GRADED);
             sa.setGradedAt(LocalDateTime.now());
             studentAssignmentRepository.save(sa);
 
@@ -382,21 +389,8 @@ public class GradingService {
             // Best-effort: a ledger failure must never fail the grade.
             recordGradingUsage(teacherUserId, result);
 
-            log.info("[AI-Grading] Successfully graded submission {} with score {}", submissionId, aiScore);
-
-            // Notify student
-            userNotificationService.onAssignmentGraded(
-                sa.getStudentId(), "ASSIGNMENT", sa.getAssignmentId(), aiScore, aiFeedback
-            );
-
-            // Auto-update the competency ledger (Phase 2b). Its OWN try/catch (not the outer one):
-            // a ledger error must NOT reach the catch below, which would flip this already-committed
-            // GRADED row to GRADING_FAILED.
-            try {
-                studentCompetencyService.applyGradingResult(sa.getStudentId(), sa.getAssignmentId(), aiScore);
-            } catch (Exception ce) {
-                log.warn("[Competency] applyGradingResult failed for assignment {}: {}", sa.getAssignmentId(), ce.toString());
-            }
+            log.info("[AI-Grading] Proposed score {} for submission {} (awaiting teacher confirmation)",
+                    aiScore, submissionId);
 
         } catch (Exception e) {
             log.error("[AI-Grading] Error grading submission {}", submissionId, e);
@@ -413,10 +407,10 @@ public class GradingService {
     private void markGradingFailed(Long submissionId, String reason) {
         try {
             StudentAssignment sa = studentAssignmentRepository.findById(submissionId).orElse(null);
-            if (sa == null || "EVALUATED".equals(sa.getStatus()) || "GRADED".equals(sa.getStatus())) {
+            if (sa == null || AssignmentStatus.isFinal(sa.getStatus())) {
                 return;
             }
-            sa.setStatus("GRADING_FAILED");
+            sa.setStatus(AssignmentStatus.GRADING_FAILED);
             String r = (reason == null || reason.isBlank()) ? "khong ro nguyen nhan" : reason;
             if (r.length() > 480) r = r.substring(0, 480);
             // Generic student-/teacher-facing note; the raw reason (exception/AI snippet) goes only to the

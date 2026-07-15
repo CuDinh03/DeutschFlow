@@ -16,18 +16,27 @@ const VIOLET = 'var(--ga-violet)'
 const fieldCls =
   'w-full rounded-ga border border-ga-line bg-ga-bg px-3 py-2 text-[13.5px] text-ga-ink outline-none focus:border-ga-accent'
 
-/** An editable can-do row ('' tag = none). */
+/**
+ * An editable can-do row ('' tag = none).
+ *
+ * `id` is the identity of an ALREADY-SAVED statement, and carrying it back to the server is what keeps
+ * a student's competency ledger alive across an edit: student_competency rows hang off can_do_statement
+ * by FK with ON DELETE CASCADE, so a save that deletes and re-inserts the statements (new ids) wipes
+ * every student's self-assessment and grading-derived progress for that lesson. `null` = a new row.
+ */
 export interface EditableCanDo {
+  id: number | null
   text: string
   cefrLevel: string
   skillTag: string
 }
 
-export const emptyCanDo = (): EditableCanDo => ({ text: '', cefrLevel: '', skillTag: '' })
+export const emptyCanDo = (): EditableCanDo => ({ id: null, text: '', cefrLevel: '', skillTag: '' })
 
 /** Seed the editor from a lesson's can-do statements (always at least one blank row). */
 export function seedEditableCanDos(statements: CanDoStatement[] | undefined | null): EditableCanDo[] {
   const rows = (statements ?? []).map((c) => ({
+    id: c.id,
     text: c.text,
     cefrLevel: c.cefrLevel ?? '',
     skillTag: c.skillTag ?? '',
@@ -35,10 +44,11 @@ export function seedEditableCanDos(statements: CanDoStatement[] | undefined | nu
   return rows.length ? rows : [emptyCanDo()]
 }
 
-/** Editor rows → API payload: drop empty-text rows, map '' tag → null. */
+/** Editor rows → API payload: drop empty-text rows, map '' tag → null, keep the id so the server can
+ *  update rows in place instead of replacing them. */
 export function toCanDoPayload(rows: EditableCanDo[]): CanDoStatementInput[] {
   return rows
-    .map((r) => ({ text: r.text.trim(), cefrLevel: r.cefrLevel || null, skillTag: r.skillTag || null }))
+    .map((r) => ({ id: r.id, text: r.text.trim(), cefrLevel: r.cefrLevel || null, skillTag: r.skillTag || null }))
     .filter((r) => r.text.length > 0)
 }
 

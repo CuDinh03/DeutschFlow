@@ -91,6 +91,7 @@ public class MaterialService {
     private final OrgMemberRepository orgMemberRepository;
     private final LessonMaterialRepository lessonMaterialRepository;
     private final ClassLessonRepository lessonRepository;
+    private final com.deutschflow.teacher.repository.ClassStudentRepository classStudentRepository;
 
     /** Creates a PERSONAL (teacher-owned) or ORG (center-owned) material from an uploaded file (≤25MB). */
     @Transactional
@@ -365,7 +366,40 @@ public class MaterialService {
         return toDto(m);
     }
 
-    /** Soft-archive (status → ARCHIVED). PERSONAL: owner; ORG: author or OWNER/MANAGER. */
+    /** Archived materials (the "Đã lưu trữ" filter) — same PERSONAL ∪ ORG scoping as {@link #list}. */
+    @Transactional(readOnly = true)
+    public List<MaterialDto> listArchived(User caller) {
+        List<Material> out = new ArrayList<>(materialRepository
+                .findByOwnerScopeAndTeacherIdAndStatusOrderByCreatedAtDesc(
+                        SCOPE_PERSONAL, caller.getId(), STATUS_ARCHIVED));
+        Long orgId = caller.getOrgId();
+        if (orgId != null && isActiveMember(caller.getId(), orgId)) {
+            out.addAll(materialRepository
+                    .findByOwnerScopeAndOrgIdAndStatusOrderByCreatedAtDesc(SCOPE_ORG, orgId, STATUS_ARCHIVED));
+        }
+        return out.stream().map(this::toDto).toList();
+    }
+
+    /**
+     * How many lessons and classes a material is currently attached to. The UI reads this before
+     * archiving so it can warn ("đang gắn ở N bài học") instead of silently pulling the material out of
+     * every lesson — archiving flips it to ARCHIVED and listForLesson drops non-ACTIVE, so an archive
+     * makes it vanish from the plans it was attached to with no other signal.
+     */
+    @Transactional(readOnly = true)
+    public AttachmentCount attachmentCount(User caller, Long id) {
+        Material m = materialRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy tài liệu."));
+        assertCanAccess(caller, m);
+        return new AttachmentCount(
+                lessonMaterialRepository.countByIdMaterialId(id),
+                classMaterialRepository.countByIdMaterialId(id));
+    }
+
+    /** Attachment counts for a material. */
+    public record AttachmentCount(long lessons, long classes) {}
+
+    /** Soft-archive (status → ARCHIVED). PERSONAL: owner; ORG: author or OWNER/MANAGER. Reversible. */
     @Transactional
     public MaterialDto archive(User caller, Long id) {
         Material m = materialRepository.findById(id)
@@ -374,6 +408,26 @@ public class MaterialService {
             throw new ForbiddenException("Bạn không có quyền lưu trữ tài liệu này.");
         }
         m.setStatus(STATUS_ARCHIVED);
+        return toDto(materialRepository.save(m));
+    }
+
+    /**
+     * Restore an archived material (ARCHIVED → ACTIVE). Its lesson/class attachment rows were never
+     * deleted, so it reappears in exactly the lessons it was attached to — archive is a hide, not a
+     * teardown. Without this there was no way back: nothing set status to ACTIVE except the
+     * upload-complete flow.
+     */
+    @Transactional
+    public MaterialDto unarchive(User caller, Long id) {
+        Material m = materialRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy tài liệu."));
+        if (!canManage(caller, m)) {
+            throw new ForbiddenException("Bạn không có quyền khôi phục tài liệu này.");
+        }
+        if (!STATUS_ARCHIVED.equals(m.getStatus())) {
+            throw new BadRequestException("Chỉ khôi phục được tài liệu đang lưu trữ.");
+        }
+        m.setStatus(STATUS_ACTIVE);
         return toDto(materialRepository.save(m));
     }
 
@@ -453,9 +507,49 @@ public class MaterialService {
     public List<MaterialDto> listForLesson(User caller, Long lessonId) {
         resolveClassForLesson(caller, lessonId);
         // Preserve attach order (order_index) while dropping archived/deleted materials.
-        List<Long> orderedIds = lessonMaterialRepository.findByIdLessonIdOrderByOrderIndexAsc(lessonId).stream()
-                .map(lm -> lm.getId().getMaterialId())
-                .toList();
+        return activeMaterialsInOrder(
+                lessonMaterialRepository.findByIdLessonIdOrderByOrderIndexAsc(lessonId).stream()
+                        .map(lm -> lm.getId().getMaterialId())
+                        .toList());
+    }
+
+    // --------------------------------------------------------------- student read access
+    //
+    // Everything above is teacher/admin/org-scoped (canAccess). Students reach materials on a DIFFERENT
+    // rule entirely: not "do you own/belong-to this material" but "is this material attached to a lesson
+    // or class you are ENROLLED in". A student never lists the library, never sees a material by id, and
+    // only ever gets the ones a teacher chose to attach to their class. This is what turns the attach
+    // feature from a teacher-only shelf into actually handing materials to the class.
+
+    /** Active materials attached to a lesson, for a student enrolled in that lesson's class. */
+    @Transactional(readOnly = true)
+    public List<MaterialDto> listLessonMaterialsForStudent(Long studentId, Long lessonId) {
+        assertStudentInLessonClass(studentId, lessonId);
+        return activeMaterialsInOrder(
+                lessonMaterialRepository.findByIdLessonIdOrderByOrderIndexAsc(lessonId).stream()
+                        .map(lm -> lm.getId().getMaterialId())
+                        .toList());
+    }
+
+    /**
+     * A fresh resolvable URL for one material, for a student — but ONLY if that material is attached to
+     * the given lesson and the student is enrolled in its class. Scoping by lesson (not by material id
+     * alone) means a student cannot probe for arbitrary material ids: the attach link is the capability.
+     */
+    @Transactional(readOnly = true)
+    public String refreshLessonMaterialUrlForStudent(Long studentId, Long lessonId, Long materialId) {
+        assertStudentInLessonClass(studentId, lessonId);
+        if (!lessonMaterialRepository.existsByIdLessonIdAndIdMaterialId(lessonId, materialId)) {
+            throw new NotFoundException("Không tìm thấy tài liệu.");
+        }
+        Material m = materialRepository.findById(materialId)
+                .filter(x -> STATUS_ACTIVE.equals(x.getStatus()))
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy tài liệu."));
+        return resolveUrl(m);
+    }
+
+    /** Active materials for the given ids, keeping the given order and dropping archived/deleted ones. */
+    private List<MaterialDto> activeMaterialsInOrder(List<Long> orderedIds) {
         if (orderedIds.isEmpty()) return List.of();
         Map<Long, Material> byId = materialRepository.findAllById(orderedIds).stream()
                 .filter(m -> STATUS_ACTIVE.equals(m.getStatus()))
@@ -465,6 +559,14 @@ public class MaterialService {
                 .filter(java.util.Objects::nonNull)
                 .map(this::toDto)
                 .toList();
+    }
+
+    private void assertStudentInLessonClass(Long studentId, Long lessonId) {
+        ClassLesson lesson = lessonRepository.findById(lessonId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy bài học."));
+        if (!classStudentRepository.existsByIdClassIdAndIdStudentId(lesson.getClassId(), studentId)) {
+            throw new ForbiddenException("Bạn không thuộc lớp của bài học này.");
+        }
     }
 
     /** Loads the lesson, resolves its class, and enforces the same attach authz as classes. */

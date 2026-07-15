@@ -88,9 +88,27 @@ public class MaterialController {
         return materialService.patch(user, id, req.title(), req.tags(), req.folderId(), req.clearFolder());
     }
 
+    /** Archived materials — the library's "Đã lưu trữ" filter, so archiving is discoverable + reversible. */
+    @GetMapping("/archived")
+    public List<MaterialDto> listArchived(@AuthenticationPrincipal User user) {
+        return materialService.listArchived(user);
+    }
+
+    /** How many lessons/classes this material is attached to — read before archiving to warn the user. */
+    @GetMapping("/{id}/attachments")
+    public MaterialService.AttachmentCount attachments(@AuthenticationPrincipal User user, @PathVariable Long id) {
+        return materialService.attachmentCount(user, id);
+    }
+
     @PostMapping("/{id}/archive")
     public MaterialDto archive(@AuthenticationPrincipal User user, @PathVariable Long id) {
         return materialService.archive(user, id);
+    }
+
+    /** Restore an archived material (ARCHIVED → ACTIVE) — reappears in the lessons it was attached to. */
+    @PostMapping("/{id}/unarchive")
+    public MaterialDto unarchive(@AuthenticationPrincipal User user, @PathVariable Long id) {
+        return materialService.unarchive(user, id);
     }
 
     /** Materials attached to a class (caller must teach it or org-admin the class's org). */

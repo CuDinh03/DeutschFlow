@@ -10,13 +10,16 @@ import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Chấm bài qua ảnh (GaGradeImage) — violet, upload · result.
-// Plumbing reused 1:1 (zero backend): POST /v2/teacher/grading/grade-image
-//   (multipart: file [, topic]) → { transcription, score, feedback }  (Gemini OCR + AI grade).
-// Option-1: the real endpoint is teacher-UPLOAD-driven and returns a single 0–100 score +
-//   feedback. The proto's stored handwriting QUEUE, per-dimension Schreiben RUBRIC, and
-//   save-to-student binding have no backing → dropped (same single-score basis the user
-//   approved for the main grading screen). Score is 0–100 (platform-wide). 10MB cap.
-//   OCR+grading need the AI providers configured (prod); locally it surfaces the error state.
+// POST /v2/teacher/grading/grade-image (multipart: file [, topic]) → { transcription, score,
+//   feedback } (Gemini OCR + AI grade). Score is 0–100 (platform-wide). 10MB cap.
+//
+// SCOPE: this is the tool for a photo that never came through the app — a teacher's own scan, a
+//   sheet handed in on paper. It is stateless on purpose: nothing to save it against.
+//   When the STUDENT submitted a photo, do NOT send the teacher here. The grading screen
+//   (/v2/teacher/grading) now OCR-grades that submission in place via
+//   POST /grading/submissions/{id}/ai-grade-image, which reads the student's file from S3 and
+//   stores the result on the submission as an AI_GRADED proposal. Routing image submissions here
+//   is what forced teachers to download the photo, re-upload it, and retype the score by hand.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const VIOLET = '#7C56C8'

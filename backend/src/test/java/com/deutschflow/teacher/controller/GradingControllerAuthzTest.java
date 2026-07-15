@@ -2,6 +2,7 @@ package com.deutschflow.teacher.controller;
 
 import com.deutschflow.common.quota.FreeTierGuard;
 import com.deutschflow.organization.service.OrgPoolGuard;
+import com.deutschflow.teacher.entity.AssignmentStatus;
 import com.deutschflow.teacher.entity.ClassAssignment;
 import com.deutschflow.teacher.entity.StudentAssignment;
 import com.deutschflow.teacher.repository.ClassAssignmentRepository;
@@ -21,10 +22,14 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -47,10 +52,13 @@ class GradingControllerAuthzTest {
     private static final long CLASS_ASSIGNMENT_ID = 9L;
     private static final long OWNING_CLASS_ID = 50L;
 
+    @Mock com.deutschflow.media.service.S3StorageService s3StorageService;
+
     private GradingController controller() {
         return new GradingController(
                 gradingService, studentAssignmentRepository, classAssignmentRepository,
-                classTeacherRepository, handwritingOcrService, orgPoolGuard, freeTierGuard);
+                classTeacherRepository, handwritingOcrService, s3StorageService,
+                orgPoolGuard, freeTierGuard);
     }
 
     private User teacher() {
@@ -106,5 +114,87 @@ class GradingControllerAuthzTest {
 
         assertThat(res.getStatusCode().value()).isEqualTo(409);
         verify(gradingService, never()).aiGradeAssignment(anyLong(), anyLong());
+    }
+
+    // ── ai-grade-image: same class-scoped authz, plus no fetching URLs we were handed ─────────
+
+    private StudentAssignment stubImageSubmission(String fileUrl) {
+        StudentAssignment sa = StudentAssignment.builder()
+                .id(SUBMISSION_ID).assignmentId(CLASS_ASSIGNMENT_ID).studentId(3L)
+                .status("SUBMITTED").submissionFileUrl(fileUrl).build();
+        when(studentAssignmentRepository.findById(SUBMISSION_ID)).thenReturn(Optional.of(sa));
+        when(classAssignmentRepository.findById(CLASS_ASSIGNMENT_ID)).thenReturn(Optional.of(
+                ClassAssignment.builder().id(CLASS_ASSIGNMENT_ID).classId(OWNING_CLASS_ID).topic("Brief").build()));
+        return sa;
+    }
+
+    @Test
+    @DisplayName("ai-grade-image: 403 khi GV không dạy lớp sở hữu bài tập")
+    void aiGradeImage_deniedWhenTeacherDoesNotOwnAssignmentClass() {
+        stubImageSubmission("https://bucket.s3.amazonaws.com/assignments/900/3_1.jpg");
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(OWNING_CLASS_ID, TEACHER_ID))
+                .thenReturn(false);
+
+        ResponseEntity<?> res = controller().aiGradeSubmissionImage(teacher(), SUBMISSION_ID);
+
+        assertThat(res.getStatusCode().value()).isEqualTo(403);
+        verifyNoInteractions(handwritingOcrService);
+        verify(s3StorageService, never()).downloadBytes(anyString());
+    }
+
+    /**
+     * submissionFileUrl comes straight out of the student's own submit payload, so it is attacker
+     * controlled. The server must never fetch it — it resolves a key against OUR bucket, and a URL that
+     * is not ours resolves to null. This test pins that: a foreign/internal URL must not be downloaded.
+     */
+    @Test
+    @DisplayName("ai-grade-image: URL không thuộc bucket của mình → 400, KHÔNG tải về (chặn SSRF)")
+    void aiGradeImage_refusesAUrlThatIsNotOurs() {
+        stubImageSubmission("http://169.254.169.254/latest/meta-data/");
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(OWNING_CLASS_ID, TEACHER_ID))
+                .thenReturn(true);
+        when(s3StorageService.objectKeyFromOwnUrl(anyString())).thenReturn(null); // not our bucket
+
+        assertThatThrownBy(() -> controller().aiGradeSubmissionImage(teacher(), SUBMISSION_ID))
+                .isInstanceOf(com.deutschflow.common.exception.BadRequestException.class);
+
+        verify(s3StorageService, never()).downloadBytes(anyString());
+        verifyNoInteractions(handwritingOcrService);
+    }
+
+    @Test
+    @DisplayName("ai-grade-image: key thuộc bài tập KHÁC → 400 (một bài không kéo được file của bài khác)")
+    void aiGradeImage_refusesAKeyFromAnotherAssignment() {
+        stubImageSubmission("https://bucket.s3.amazonaws.com/assignments/999/3_1.jpg");
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(OWNING_CLASS_ID, TEACHER_ID))
+                .thenReturn(true);
+        // Our bucket, but the key sits under a DIFFERENT assignment's prefix.
+        when(s3StorageService.objectKeyFromOwnUrl(anyString())).thenReturn("assignments/999/3_1.jpg");
+
+        assertThatThrownBy(() -> controller().aiGradeSubmissionImage(teacher(), SUBMISSION_ID))
+                .isInstanceOf(com.deutschflow.common.exception.BadRequestException.class);
+
+        verify(s3StorageService, never()).downloadBytes(anyString());
+    }
+
+    @Test
+    @DisplayName("ai-grade-image: chấm xong lưu thành AI_GRADED (đề xuất), không phải điểm chính thức")
+    void aiGradeImage_storesProposal() {
+        StudentAssignment sa = stubImageSubmission(
+                "https://bucket.s3.amazonaws.com/assignments/" + CLASS_ASSIGNMENT_ID + "/3_1.jpg");
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(OWNING_CLASS_ID, TEACHER_ID))
+                .thenReturn(true);
+        String key = "assignments/" + CLASS_ASSIGNMENT_ID + "/3_1.jpg";
+        when(s3StorageService.objectKeyFromOwnUrl(anyString())).thenReturn(key);
+        when(s3StorageService.downloadBytes(key)).thenReturn(new byte[]{1, 2, 3});
+        when(handwritingOcrService.ocrAndGrade(any(), anyString(), any(), anyLong()))
+                .thenReturn(new com.deutschflow.teacher.dto.GradeImageResponse("Ich bin …", 72, "Gut, aber …"));
+
+        ResponseEntity<?> res = controller().aiGradeSubmissionImage(teacher(), SUBMISSION_ID);
+
+        assertThat(res.getStatusCode().value()).isEqualTo(200);
+        assertThat(sa.getScore()).isEqualTo(72);
+        assertThat(sa.getStatus()).isEqualTo(AssignmentStatus.AI_GRADED); // proposal, student not told
+        verify(studentAssignmentRepository).save(sa);
     }
 }

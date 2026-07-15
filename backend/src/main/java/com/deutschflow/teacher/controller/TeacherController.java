@@ -213,19 +213,15 @@ public class TeacherController {
      */
     @GetMapping("/dashboard/summary")
     public ResponseEntity<Map<String, Long>> getDashboardSummary(@AuthenticationPrincipal User user) {
-        // Lấy tất cả học sinh thuộc các lớp của giáo viên này
         List<TeacherClassDto> classes = teacherService.getClassesForTeacher(user.getId());
 
-        long pendingReviewCount = classes.stream()
-                .flatMap(cls -> {
-                    try {
-                        return teacherService.getClassStudents(user.getId(), cls.id()).stream();
-                    } catch (Exception e) {
-                        return java.util.stream.Stream.empty();
-                    }
-                })
-                .mapToLong(student -> assignmentRepository.countPendingReview(student.studentId()))
-                .sum();
+        // One source of truth for "bài chờ chấm" — the same number the grading queue shows. This used to
+        // sum countPendingReview(studentId) per student, which (a) counted a student's SUBMITTED work in
+        // EVERY class system-wide (including other teachers' / other centres'), (b) double-counted a
+        // student enrolled in two of this teacher's classes, and (c) missed GRADING_FAILED/AI_GRADED. The
+        // dashboard number and the actual queue therefore rarely matched.
+        Object totalPending = gradingService.getGradingStats(user.getId()).get("totalPending");
+        long pendingReviewCount = totalPending instanceof Number n ? n.longValue() : 0L;
 
         long pendingJoinRequests = classes.stream()
                 .flatMap(cls -> {

@@ -15,14 +15,13 @@ import {
 } from '@/lib/studentClassesApi'
 import { resolvePointTexts } from '@/lib/knowledgePoints'
 import { GaPageHdr, GaBtn, GaCap, TkStatStrip } from '@/components/ui-v2'
+import { LessonMaterials } from './LessonMaterials'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Chi tiết lớp — học viên (GaClassStudent, proto-classroom.jsx) — DETAIL, yellow.
-// Plumbing reused 1:1 (zero backend): fetchClassDetail + fetchClassAssignments +
-// fetchClassLessons. Option-1: proto's feed (no announcements EP) / materials
-// (no student-facing materials list) / members roster (only studentCount exposed)
-// / rank (no leaderboard EP) are DROPPED → backed tabs: Tổng quan · Bài tập · Lộ trình.
-// "Nhắn giáo viên" has no messaging backend → toast.
+// Backed tabs: Tổng quan · Bài tập · Lộ trình. Each lesson in Lộ trình now shows the materials the
+// teacher attached to it (LessonMaterials, lazy-loaded) — the student-facing read path added in wave 3.
+// Still proto-only (no backend): feed / members roster / rank. "Nhắn giáo viên" → toast.
 // ─────────────────────────────────────────────────────────────────────────────
 
 type Tab = 'overview' | 'tasks' | 'lessons'
@@ -31,12 +30,25 @@ const TABS: [Tab, 'tabOverview' | 'tabTasks' | 'tabLessons'][] = [
 ]
 const fmtDate = (d: string | null | undefined) => (d ? format(new Date(d), 'dd/MM/yyyy') : '—')
 
-// StudentAssignment.status → label + tone (real values: PENDING/SUBMITTED/GRADED/GRADING_FAILED).
+/**
+ * StudentAssignment.status → label + tone.
+ * Real values: PENDING / SUBMITTED / AI_GRADED / GRADING_FAILED / GRADED / EVALUATED.
+ *
+ * EVALUATED (a teacher-confirmed grade) used to be missing here and fell through to "chưa nộp" —
+ * a student whose work had been graded by their teacher was told they had not handed it in. It is now
+ * the normal end state, so this had to be handled. AI_GRADED deliberately reads as "đã nộp": the AI's
+ * proposed score is not the student's grade until a teacher confirms it, and they were never told it.
+ */
 function statusMeta(a: StudentAssignment, t: (key: string, values?: Record<string, string | number>) => string): { label: string; color: string } {
   const s = (a.status ?? '').toUpperCase()
-  if (s === 'GRADED') return { label: a.teacherScore != null ? t('status.gradedScore', { score: a.teacherScore }) : t('status.graded'), color: 'var(--ga-green)' }
+  if (s === 'EVALUATED' || s === 'GRADED') {
+    return {
+      label: a.teacherScore != null ? t('status.gradedScore', { score: a.teacherScore }) : t('status.graded'),
+      color: 'var(--ga-green)',
+    }
+  }
   if (s === 'GRADING_FAILED') return { label: t('status.gradingFailed'), color: 'var(--ga-red)' }
-  if (s === 'SUBMITTED' || s === 'GRADING') return { label: t('status.submitted'), color: '#2F6FC9' }
+  if (s === 'SUBMITTED' || s === 'GRADING' || s === 'AI_GRADED') return { label: t('status.submitted'), color: '#2F6FC9' }
   return { label: t('status.pending'), color: 'var(--ga-orange)' }
 }
 
@@ -226,8 +238,11 @@ export default function V2ClassStudentPage() {
             <div className="flex flex-col gap-3.5">
               {tasks.map((tk) => {
                 const sm = statusMeta(tk, t)
-                const submitted = ['SUBMITTED', 'GRADING', 'GRADED'].includes((tk.status ?? '').toUpperCase())
-                const graded = (tk.status ?? '').toUpperCase() === 'GRADED'
+                const st = (tk.status ?? '').toUpperCase()
+                // Handed in — whatever has happened to it since. AI_GRADED counts: the work IS in.
+                const submitted = ['SUBMITTED', 'GRADING', 'AI_GRADED', 'GRADING_FAILED', 'GRADED', 'EVALUATED'].includes(st)
+                // A grade the student may actually see: confirmed only. An AI proposal is not a grade.
+                const graded = st === 'GRADED' || st === 'EVALUATED'
                 return (
                   <div key={tk.id} className="grid grid-cols-[1fr_auto] items-center gap-4 border border-ga-line bg-ga-card px-[22px] py-5">
                     <div className="min-w-0">
@@ -316,6 +331,7 @@ export default function V2ClassStudentPage() {
                             })}
                           </ul>
                         )}
+                        <LessonMaterials lessonId={l.id} />
                       </div>
                       <span className="mt-0.5 shrink-0 text-[12.5px]" style={{ color: l.completed ? 'var(--ga-green)' : 'var(--ga-muted)' }}>
                         {l.completed ? t('taughtAt', { date: fmtDate(l.completedAt) }) : t('notTaught')}

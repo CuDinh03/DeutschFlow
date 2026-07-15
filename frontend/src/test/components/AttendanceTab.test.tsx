@@ -100,3 +100,102 @@ describe('AttendanceTab — attendance preservation on edit', () => {
     expect(payload.attendance.map((a) => a.studentId).sort()).toEqual([1, 99])
   })
 })
+
+/**
+ * The audit bug: a NEW lesson log defaulted every roster student to PRESENT. A teacher who only
+ * wanted to record what was taught (topic + homework) and never touched the attendance section
+ * silently marked the whole class — absentees included — as present. That fabricated attendance
+ * then feeds the attendance rate and the certificate gate.
+ *
+ * Fixed behaviour: unmarked students are UNMARKED (a draft-only value) and are simply NOT sent,
+ * so no attendance row is invented. Marking is explicit — either per student, or one click on
+ * "mark all present" for the common case.
+ */
+describe('AttendanceTab — no fabricated PRESENT on a new log', () => {
+  it('sends no attendance rows when the teacher never touches the attendance section', async () => {
+    const user = userEvent.setup()
+    createLessonLog.mockResolvedValue({ ...log, id: 6, attendance: [] })
+
+    render(
+      <AttendanceTab
+        classId={1}
+        lessonLogs={[]}
+        onLessonLogsChange={vi.fn()}
+        roster={[
+          { studentId: 1, name: 'Anh' },
+          { studentId: 2, name: 'Bình' },
+        ]}
+        lessons={[]}
+        classDisplayName="A1"
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'attendance.addLog' }))
+    await user.type(screen.getByLabelText('attendance.sessionDateLabel'), '2026-07-14')
+    await user.click(screen.getByRole('button', { name: 'save' }))
+
+    await waitFor(() => expect(createLessonLog).toHaveBeenCalledTimes(1))
+    const payload = createLessonLog.mock.calls[0][1] as { attendance: { studentId: number; status: string }[] }
+    // NOT [{1,PRESENT},{2,PRESENT}] — nobody was marked, so nobody is recorded.
+    expect(payload.attendance).toEqual([])
+  })
+
+  it('records only the students the teacher actually marked', async () => {
+    const user = userEvent.setup()
+    createLessonLog.mockResolvedValue({ ...log, id: 7, attendance: [] })
+
+    render(
+      <AttendanceTab
+        classId={1}
+        lessonLogs={[]}
+        onLessonLogsChange={vi.fn()}
+        roster={[
+          { studentId: 1, name: 'Anh' },
+          { studentId: 2, name: 'Bình' },
+        ]}
+        lessons={[]}
+        classDisplayName="A1"
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'attendance.addLog' }))
+    await user.type(screen.getByLabelText('attendance.sessionDateLabel'), '2026-07-14')
+    await user.selectOptions(screen.getByLabelText('Anh'), 'ABSENT')
+    await user.click(screen.getByRole('button', { name: 'save' }))
+
+    await waitFor(() => expect(createLessonLog).toHaveBeenCalledTimes(1))
+    const payload = createLessonLog.mock.calls[0][1] as { attendance: { studentId: number; status: string }[] }
+    expect(payload.attendance).toEqual([{ studentId: 1, status: 'ABSENT' }])
+  })
+
+  it('"mark all present" keeps the one-click path for a fully-present class', async () => {
+    const user = userEvent.setup()
+    createLessonLog.mockResolvedValue({ ...log, id: 8, attendance: [] })
+
+    render(
+      <AttendanceTab
+        classId={1}
+        lessonLogs={[]}
+        onLessonLogsChange={vi.fn()}
+        roster={[
+          { studentId: 1, name: 'Anh' },
+          { studentId: 2, name: 'Bình' },
+        ]}
+        lessons={[]}
+        classDisplayName="A1"
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'attendance.addLog' }))
+    await user.type(screen.getByLabelText('attendance.sessionDateLabel'), '2026-07-14')
+    await user.click(screen.getByRole('button', { name: 'attendance.markAllPresent' }))
+    await user.click(screen.getByRole('button', { name: 'save' }))
+
+    await waitFor(() => expect(createLessonLog).toHaveBeenCalledTimes(1))
+    const payload = createLessonLog.mock.calls[0][1] as { attendance: { studentId: number; status: string }[] }
+    expect(payload.attendance).toEqual([
+      { studentId: 1, status: 'PRESENT' },
+      { studentId: 2, status: 'PRESENT' },
+    ])
+  })
+})

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import {
-  Plus, Mail, ClipboardList, ChevronRight, AlertTriangle, Trophy,
+  Plus, Mail, ChevronRight, AlertTriangle, Trophy,
   ArrowLeft, Sparkles, Mic, PenLine, FileText, BookOpen, SpellCheck, UserPlus, Trash2,
 } from 'lucide-react'
 import { format } from 'date-fns'
@@ -36,7 +36,9 @@ const VIOLET = '#7C56C8'
 
 interface ClassInfo { id: number; name: string; code: string; studentCount: number }
 interface Student {
-  studentId: number; displayName: string; email: string; xp: number; level: number; cefrLevel: string
+  studentId: number; displayName: string; email: string; xp: number; level: number
+  // cefrLevel is the CURRENT level (real ability); targetLevel is the student's goal, shown as context.
+  cefrLevel: string; levelSource: string | null; targetLevel: string | null
   skillHoren: number | null; skillLesen: number | null; skillSchreiben: number | null; skillSprechen: number | null
   evaluatedAt: string | null
 }
@@ -44,7 +46,10 @@ interface Assignment { id: number; topic: string; description: string; assignmen
 interface ActionItem { title: string; detail: string; priority: string }
 interface Analytics {
   totalStudents: number; totalXp: number; completedAssignments: number
-  avgSpeakingScore: number; reviewCoveragePct: number
+  // null when there is no honest source (speaking sessions aren't class-scoped; no review-coverage
+  // aggregate). The card is hidden rather than showing a fabricated 0 that reads as "the class did nothing".
+  activeSpeakingSessions: number | null
+  avgSpeakingScore: number | null; reviewCoveragePct: number | null
   topErrors: { errorCode: string; count: number }[]
   actionItems: ActionItem[]
 }
@@ -311,12 +316,9 @@ export default function V2ClassDetailPage() {
                   { label: t('stats.size'), value: students.length, sub: t('stats.sizeSub', { count: info?.studentCount ?? 0 }) },
                   { label: t('stats.totalXp'), value: (analytics?.totalXp ?? 0).toLocaleString(), sub: t('stats.totalXpSub'), color: '#2F6FC9' },
                   { label: t('stats.assignments'), value: assignments.length, sub: t('stats.assignmentsSub'), color: VIOLET },
-                  {
-                    label: t('stats.avgSpeaking'),
-                    value: analytics?.avgSpeakingScore ? analytics.avgSpeakingScore.toFixed(1) : '—',
-                    sub: analytics?.avgSpeakingScore ? t('stats.avgSpeakingSub') : t('stats.avgSpeakingSubEmpty'),
-                    color: '#1E9E61',
-                  },
+                  // Was "Điểm nói TB — chưa có phiên", which was permanently empty (no class-scoped
+                  // speaking source). Replaced with the real graded-count so the 4th tile carries a fact.
+                  { label: t('stats.completed'), value: analytics?.completedAssignments ?? 0, sub: t('stats.completedSub'), color: '#1E9E61' },
                 ]}
               />
 
@@ -357,30 +359,24 @@ export default function V2ClassDetailPage() {
                       <span className="px-2 py-0.5 text-[11.5px] font-bold" style={{ color: VIOLET, background: 'var(--ga-violet-soft)' }}>
                         {t('selectedCount', { count: selCount })}
                       </span>
-                      {[
-                        { key: 'message' as const, label: t('message'), Icon: Mail },
-                        { key: 'assign' as const, label: t('assign'), Icon: ClipboardList },
-                      ].map(({ key, label, Icon }) => (
-                        <button
-                          key={key}
-                          type="button"
-                          onClick={() => {
-                            if (key === 'message') {
-                              const ids = Object.entries(selected).filter(([, v]) => v).map(([k]) => Number(k))
-                              if (ids.length !== 1) { toast(t('messagePickOne')); return }
-                              const s = students.find((x) => x.studentId === ids[0])
-                              if (s) router.push(`/v2/teacher/messages?to=${s.studentId}&name=${encodeURIComponent(s.displayName)}`)
-                              setSelected({})
-                              return
-                            }
-                            toast.success(t('bulkActionDone', { action: label, count: selCount }))
-                            setSelected({})
-                          }}
-                          className="ga-ui inline-flex items-center gap-1.5 border border-ga-line px-2.5 py-1.5 text-[11.5px] font-semibold text-ga-ink transition-colors hover:border-ga-accent hover:text-ga-accent"
-                        >
-                          <Icon size={13} /> {label}
-                        </button>
-                      ))}
+                      {/* Bulk "Giao bài" removed: it only ever fired a success toast — no request was
+                          sent, so the teacher believed the work was assigned while nothing happened.
+                          createAssignment() fans out to the whole class and takes no studentIds, so
+                          there is no per-selection assign to wire up. Assignments are created from the
+                          "Thêm bài tập" modal (whole class) until the backend supports a subset. */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const ids = Object.entries(selected).filter(([, v]) => v).map(([k]) => Number(k))
+                          if (ids.length !== 1) { toast(t('messagePickOne')); return }
+                          const s = students.find((x) => x.studentId === ids[0])
+                          if (s) router.push(`/v2/teacher/messages?to=${s.studentId}&name=${encodeURIComponent(s.displayName)}`)
+                          setSelected({})
+                        }}
+                        className="ga-ui inline-flex items-center gap-1.5 border border-ga-line px-2.5 py-1.5 text-[11.5px] font-semibold text-ga-ink transition-colors hover:border-ga-accent hover:text-ga-accent"
+                      >
+                        <Mail size={13} /> {t('message')}
+                      </button>
                     </span>
                   )}
                 </div>
@@ -426,7 +422,17 @@ export default function V2ClassDetailPage() {
                           <span className="block truncate text-[11.5px] text-ga-muted">{s.email}</span>
                         </span>
                       </div>
-                      <span className="font-ga-display text-[14px] font-medium text-ga-ink">{s.cefrLevel || '—'}</span>
+                      <span className="flex flex-col leading-tight">
+                        <span
+                          className="font-ga-display text-[14px] font-medium text-ga-ink"
+                          title={s.levelSource === 'ASSESSED' ? t('cefrAssessed') : t('cefrSelf')}
+                        >
+                          {s.cefrLevel || '—'}
+                        </span>
+                        {s.targetLevel && s.targetLevel !== s.cefrLevel && (
+                          <span className="ga-ui text-[10.5px] text-ga-subtle">{t('cefrTarget', { level: s.targetLevel })}</span>
+                        )}
+                      </span>
                       <span className="text-[13.5px] text-ga-muted">{t('levelValue', { level: s.level })}</span>
                       <span className="text-[13.5px] font-semibold text-ga-ink">{s.xp.toLocaleString()}</span>
                       <SkillBars s={s} />
@@ -602,8 +608,14 @@ function AnalyticsTab({ analytics, students, loading }: { analytics: Analytics |
         {[
           { label: t('analyticsStats.totalXp'), value: analytics.totalXp.toLocaleString(), color: '#2F6FC9' },
           { label: t('analyticsStats.completedAssignments'), value: analytics.completedAssignments, color: VIOLET },
-          { label: t('analyticsStats.avgSpeaking'), value: analytics.avgSpeakingScore ? analytics.avgSpeakingScore.toFixed(1) : '—', color: '#1E9E61' },
-          { label: t('analyticsStats.reviewCoverage'), value: `${Math.round(analytics.reviewCoveragePct)}%`, color: '#E07B39' },
+          // Only render the speaking / review-coverage cards when the backend has a real value; a null
+          // means "no source", and a fabricated 0/— card is worse than no card.
+          ...(analytics.avgSpeakingScore != null
+            ? [{ label: t('analyticsStats.avgSpeaking'), value: analytics.avgSpeakingScore.toFixed(1), color: '#1E9E61' }]
+            : []),
+          ...(analytics.reviewCoveragePct != null
+            ? [{ label: t('analyticsStats.reviewCoverage'), value: `${Math.round(analytics.reviewCoveragePct)}%`, color: '#E07B39' }]
+            : []),
         ].map((s) => (
           <div key={s.label} className="border border-ga-line bg-ga-card p-[18px]">
             <span className="block h-[3px] w-8" style={{ background: s.color }} />
@@ -715,6 +727,8 @@ function AddAssignmentModal({ open, onOpenChange, classId, lessons, onCreated }:
   const t = useTranslations('v2.teacher.classDetail')
   const tc = useTranslations('v2.common')
   const [topic, setTopic] = useState('')
+  const [description, setDescription] = useState('')
+  const [attachmentUrl, setAttachmentUrl] = useState('')
   const [type, setType] = useState('GENERAL')
   const [due, setDue] = useState('')
   const [lessonId, setLessonId] = useState('')
@@ -722,19 +736,25 @@ function AddAssignmentModal({ open, onOpenChange, classId, lessons, onCreated }:
 
   const submit = async () => {
     if (!topic.trim()) { toast.error(t('modalTopicRequired')); return }
+    const link = attachmentUrl.trim()
+    if (link && !/^https?:\/\//i.test(link)) { toast.error(t('modalLinkInvalid')); return }
     setSaving(true)
     try {
       await api.post(`/v2/teacher/classes/${classId}/assignments`, {
         topic: topic.trim(),
-        description: '',
+        // Real values now instead of hardcoded '' / null: students saw a one-line topic and no way to
+        // attach a reference. description is shown on the student's assignment page; attachmentUrl is
+        // rendered there as an external link (so it must be a stable URL — allango/Drive/YouTube — not a
+        // presigned S3 link; hosted files reach students via lesson materials instead).
+        description: description.trim(),
         assignmentType: type,
         skill: 'GENERAL',
         dueDate: due ? new Date(due).toISOString() : null,
-        attachmentUrl: null,
+        attachmentUrl: link || null,
         lessonId: lessonId ? Number(lessonId) : null,
       })
       toast.success(t('modalCreateSuccess'))
-      setTopic(''); setType('GENERAL'); setDue(''); setLessonId('')
+      setTopic(''); setDescription(''); setAttachmentUrl(''); setType('GENERAL'); setDue(''); setLessonId('')
       onOpenChange(false)
       onCreated()
     } catch (e: unknown) {
@@ -763,6 +783,25 @@ function AddAssignmentModal({ open, onOpenChange, classId, lessons, onCreated }:
         <div>
           <GaCap className="mb-2 block">{t('modalTopicCap')}</GaCap>
           <input className={field} value={topic} onChange={(e) => setTopic(e.target.value)} placeholder={t('modalTopicPlaceholder')} />
+        </div>
+        <div>
+          <GaCap className="mb-2 block">{t('modalDescCap')}</GaCap>
+          <textarea
+            className={`${field} min-h-[84px] resize-y`}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder={t('modalDescPlaceholder')}
+          />
+        </div>
+        <div>
+          <GaCap className="mb-2 block">{t('modalLinkCap')}</GaCap>
+          <input
+            type="url"
+            className={field}
+            value={attachmentUrl}
+            onChange={(e) => setAttachmentUrl(e.target.value)}
+            placeholder={t('modalLinkPlaceholder')}
+          />
         </div>
         <div className="grid grid-cols-2 gap-3.5">
           <div>
