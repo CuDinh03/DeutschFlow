@@ -69,7 +69,7 @@ public class LessonLogService {
     @Transactional
     public ClassLessonLogDto createLog(Long teacherId, Long classId, CreateLessonLogRequest req) {
         assertTeacherOwnsClass(teacherId, classId);
-        String lessonTitle = validateLessonInClass(classId, req.lessonId());
+        ClassLesson lesson = validateLessonInClass(classId, req.lessonId());
 
         ClassLessonLog log = ClassLessonLog.builder()
                 .classId(classId)
@@ -83,6 +83,12 @@ public class LessonLogService {
                 .build();
         log = lessonLogRepository.save(log);
 
+        // Writing a session log FOR a lesson means the lesson was taught, so mark it completed. Otherwise
+        // the teacher records "đã dạy Lektion 3" here and still has to go tick the same lesson in
+        // tc-checklist for tc-progress to advance — the same event entered twice, and the two screens
+        // disagree if they forget one. Un-ticking stays available in tc-checklist.
+        autoCompleteLesson(lesson, teacherId, req.sessionDate());
+
         List<ClassAttendance> attendances = buildAttendance(log.getId(), req);
         attendanceRepository.saveAll(attendances);
 
@@ -91,7 +97,19 @@ public class LessonLogService {
                 : userRepository.findAllById(studentIds).stream()
                         .collect(Collectors.toMap(User::getId, u -> u));
 
-        return toDto(log, attendances, users, titleMap(req.lessonId(), lessonTitle));
+        return toDto(log, attendances, users, titleMap(req.lessonId(), lesson == null ? null : lesson.getTitle()));
+    }
+
+    /**
+     * Marks a lesson completed when a session log is recorded for it — completedAt from the session date.
+     * No-op if the lesson is null or already completed, so re-editing a log never re-stamps the date.
+     */
+    private void autoCompleteLesson(ClassLesson lesson, Long teacherId, java.time.LocalDate sessionDate) {
+        if (lesson == null || lesson.isCompleted()) return;
+        lesson.setCompleted(true);
+        lesson.setCompletedAt(sessionDate != null ? sessionDate.atStartOfDay() : java.time.LocalDateTime.now());
+        lesson.setCompletedByTeacherId(teacherId);
+        lessonRepository.save(lesson);
     }
 
     @Transactional
@@ -100,7 +118,7 @@ public class LessonLogService {
         ClassLessonLog log = lessonLogRepository.findById(logId)
                 .orElseThrow(() -> new NotFoundException("Buổi học không tồn tại"));
         if (!log.getClassId().equals(classId)) throw new ForbiddenException("Buổi học không thuộc lớp này");
-        String lessonTitle = validateLessonInClass(classId, req.lessonId());
+        ClassLesson lesson = validateLessonInClass(classId, req.lessonId());
 
         log.setLessonId(req.lessonId());
         log.setSessionDate(req.sessionDate());
@@ -109,6 +127,10 @@ public class LessonLogService {
         log.setHomework(req.homework());
         log.setNote(req.note());
         log = lessonLogRepository.save(log);
+
+        // Re-tagging a log to a lesson also marks that lesson taught. (Not un-completing on a change: the
+        // teacher can un-tick in tc-checklist, and un-completing silently on edit would be surprising.)
+        autoCompleteLesson(lesson, teacherId, req.sessionDate());
 
         attendanceRepository.deleteByIdLessonLogId(logId);
         List<ClassAttendance> attendances = buildAttendance(log.getId(), req);
@@ -119,7 +141,7 @@ public class LessonLogService {
                 : userRepository.findAllById(studentIds).stream()
                         .collect(Collectors.toMap(User::getId, u -> u));
 
-        return toDto(log, attendances, users, titleMap(req.lessonId(), lessonTitle));
+        return toDto(log, attendances, users, titleMap(req.lessonId(), lesson == null ? null : lesson.getTitle()));
     }
 
     @Transactional
@@ -141,14 +163,15 @@ public class LessonLogService {
     }
 
     /** If lessonId is set, verify it belongs to this class (reject cross-class) and return its title. */
-    private String validateLessonInClass(Long classId, Long lessonId) {
+    /** Loads the tagged lesson and checks it belongs to the class; null when no lesson is tagged. */
+    private ClassLesson validateLessonInClass(Long classId, Long lessonId) {
         if (lessonId == null) return null;
         ClassLesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new NotFoundException("Bài học không tồn tại"));
         if (!lesson.getClassId().equals(classId)) {
             throw new ForbiddenException("Bài học không thuộc lớp này");
         }
-        return lesson.getTitle();
+        return lesson;
     }
 
     private Map<Long, String> titleMap(Long lessonId, String title) {

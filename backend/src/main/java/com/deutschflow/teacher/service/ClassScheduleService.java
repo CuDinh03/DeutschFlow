@@ -8,6 +8,7 @@ import com.deutschflow.notification.service.UserNotificationService;
 import com.deutschflow.teacher.dto.*;
 import com.deutschflow.teacher.entity.ClassSchedulePattern;
 import com.deutschflow.teacher.entity.ClassSession;
+import com.deutschflow.teacher.entity.ClassTeacher;
 import com.deutschflow.teacher.entity.TeacherClass;
 import com.deutschflow.teacher.repository.ClassSchedulePatternRepository;
 import com.deutschflow.teacher.repository.ClassSessionRepository;
@@ -42,6 +43,7 @@ import java.util.stream.Collectors;
  */
 @Service
 @RequiredArgsConstructor
+@lombok.extern.slf4j.Slf4j
 public class ClassScheduleService {
 
     /** Sinh buổi trước N tuần khi pattern không có ngày kết thúc (effective_to = null). */
@@ -264,6 +266,48 @@ public class ClassScheduleService {
      * lịch dạy của giáo viên ở lớp khác (được đếm vào {@code skipped} để FE cảnh báo). Buổi đã chỉnh
      * tay (override) luôn được giữ và chiếm chỗ trước cả skip.
      */
+    /**
+     * Rolls the 12-week session window forward for every pattern still in effect. An open-ended pattern
+     * ("để trống = vô thời hạn") only ever generated sessions at upsert time — with no job to extend it,
+     * after ~3 months the class silently ran out of sessions and vanished from the weekly grid while the
+     * pattern still existed. A daily job keeps the window full. Idempotent: {@link #regenerate} preserves
+     * overridden (hand-edited) sessions and only re-creates the plain ones, and never notifies students.
+     *
+     * @return number of sessions created across all patterns this run.
+     */
+    @Transactional
+    public int rollForwardActivePatterns() {
+        LocalDate today = LocalDate.now(QuotaVnCalendar.ZONE);
+        List<ClassSchedulePattern> active =
+                patternRepo.findByEffectiveToIsNullOrEffectiveToGreaterThanEqual(today);
+        int created = 0;
+        for (ClassSchedulePattern p : active) {
+            try {
+                // Skip the same teacher-conflict dates the interactive path skips. Use the class's PRIMARY
+                // teacher as the owner for that check; if none is found, just don't skip (empty set).
+                Long ownerTeacherId = primaryTeacherOf(p.getClassId());
+                Set<LocalDate> skip = ownerTeacherId != null
+                        ? findTeacherConflictDates(ownerTeacherId, p.getClassId(), p)
+                        : Set.of();
+                created += regenerate(p, skip).generated();
+            } catch (Exception e) {
+                // One bad pattern must not stop the rest of the classes from rolling forward.
+                log.warn("[schedule-roll] pattern {} (class {}) failed: {}", p.getId(), p.getClassId(), e.toString());
+            }
+        }
+        return created;
+    }
+
+    /** The class's PRIMARY teacher id, or the first teacher, or null when the class has none. */
+    private Long primaryTeacherOf(Long classId) {
+        List<ClassTeacher> teachers = classTeacherRepo.findByIdClassId(classId);
+        return teachers.stream()
+                .filter(ct -> "PRIMARY".equals(ct.getRole()))
+                .map(ct -> ct.getId().getTeacherId())
+                .findFirst()
+                .orElseGet(() -> teachers.stream().map(ct -> ct.getId().getTeacherId()).findFirst().orElse(null));
+    }
+
     private Regen regenerate(ClassSchedulePattern p, Set<LocalDate> skipDates) {
         LocalDate today = LocalDate.now(QuotaVnCalendar.ZONE);   // audit M-9: VN time, not UTC
         List<ClassSession> future = sessionRepo.findByPatternIdAndStartAtGreaterThanEqual(
