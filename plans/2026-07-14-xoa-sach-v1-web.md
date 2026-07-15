@@ -9,11 +9,13 @@
 | Đợt 0 | Chặn mọi đường vào v1 (redirect + nắn link) — **giải quyết ngay "login nhầm"** | ✅ 2026-07-14 · nhánh `chore/v1-lockout-wave0` |
 | Đợt 1 | Bù GAP tính năng v2 còn deep-link về v1 | ✅ 2026-07-15 · PR #220 (11 route v2 mới) |
 | Đợt 2 | Backend đổi URL sinh ra (email, payment, DTO href) | ✅ 2026-07-15 · PR #221 (backend-only) |
-| **Đợt 2.5** | **Port nốt ~13 tính năng THẬT còn kẹt ở v1** — *phát sinh, không có trong plan gốc* | 🔄 đang làm · nhánh `feat/v1-lockout-wave2h` |
-| Đợt 3 | Xóa cây v1 + redirect map + nâng 307→permanent | ⬜ (bị chặn bởi Đợt 2.5) |
+| **Đợt 2.5 + 2.6** | **Port nốt ~22 tính năng THẬT còn kẹt ở v1** (24 route v2 mới) — *phát sinh* | ✅ 2026-07-15 · PR #222 (nhánh `feat/v1-lockout-wave2h`) |
+| Đợt 3 | Xóa cây v1 + redirect map + nâng 307→permanent | ⬜ ← **tiếp theo** (cần deploy #219-#222 + QA trước) |
 | Đợt 4 | Dọn dead code, dependencies, docs, PostHog | ⬜ |
 
-**Thứ tự deploy bắt buộc**: FE (Đợt 0 → 1) → BE (Đợt 2) → FE (Đợt 2.5 → 3) → dọn (Đợt 4).
+**Thứ tự deploy bắt buộc**: FE (Đợt 0 → 1) → BE (Đợt 2) → FE (Đợt 2.5/2.6 → 3) → dọn (Đợt 4).
+
+**Merge stack**: #219 (base main) → #220 (base wave0) → #222 (base wave1) — cả 3 auto-rebase base sang main khi cái trước merge. #221 (backend, base main) merge độc lập rồi `./deploy-backend.sh`.
 
 ### 🚨 Đợt 2.5 phát sinh: plan gốc ĐÁNH GIÁ THẤP khối lượng
 
@@ -25,7 +27,9 @@ Plan gốc (Q9) giả định nhóm route "GAP thuần" chỉ cần **đo PostHo
 
 **Còn lại**: certificates (danh sách của HV), assessment B1, beginner (buổi học đầu), drill từ vựng (`vocab-practice`, `swipe-cards`, `article-quiz`, `vocab-analytics` — v2 chỉ có *tra cứu*), `speaking-history`, `exercise-history`, `grammar-practice` (AI — khác hẳn `/v2/student/grammar` vốn là bài soạn sẵn), `curriculum` (Netzwerk Neu A1), `student/game`, `news`.
 
-**Xóa được ngay, không cần port** (đã có bản v2, hoặc là code chết): `leaderboard`→`/v2/student/achievements` (cùng API) · `grammar-review`→`/v2/student/review` (cùng API) · `groq-usage` (94 dòng, **0 API call**, metrics hardcode `'N/A'`) · `/lesson` (478 dòng, **0 API call**) · `/game` (demo LegoGameScreen) · `/student/practice` (nộp cứng `scorePercent: 100` — không chấm thật).
+**Xóa được ngay, không cần port** (đã có bản v2, hoặc là code chết): `leaderboard`→`/v2/student/achievements` (cùng API) · `grammar-review`→`/v2/student/review` (cùng API) · `groq-usage` (94 dòng, **0 API call**, metrics hardcode `'N/A'`) · `/lesson` (478 dòng, **0 API call**) · `/student/practice` (nộp cứng `scorePercent: 100` — không chấm thật).
+
+> 🚨 **SỬA SAI (rà soát Đợt 2.5): `/game` KHÔNG phải demo — ĐỪNG xoá mù.** `app/game/page.tsx` render `LegoGameScreen`, component đó gọi API thật: `fetchVocabGameQuestions` → **GET `/words?size=&locale=&cefr=`** (`components/game/gameAdapters.ts:412-425`) + **POST `/grammar/validate`** (`LegoGameScreen.tsx:278`) + PostHog `trackFeatureAction('lego_game', …)`. Đây là game **ghép câu từ ngân hàng TỪ VỰNG**, KHÁC hẳn `/v2/student/game` (port của `/student/game` — điền chỗ trống từ **ngân hàng NGỮ PHÁP**). **`/game` vẫn CHƯA được port** → phải port hoặc quyết định xoá có ý thức trước Đợt 3.
 
 ---
 
