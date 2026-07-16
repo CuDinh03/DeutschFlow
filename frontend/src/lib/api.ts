@@ -1,5 +1,5 @@
 import axios, { type AxiosError, type AxiosResponse } from 'axios'
-import { getAccessToken, getRefreshToken, setTokens, recordTokenRefresh, isNative, getPlatform } from '@/lib/authSession'
+import { getAccessToken, getRefreshToken, setTokens, recordTokenRefresh, isNative, getPlatform, clearTokens } from '@/lib/authSession'
 import { useAuthRecoveryStore } from '@/stores/useAuthRecoveryStore'
 
 // ─── Error helpers ────────────────────────────────────────────────────────────
@@ -32,9 +32,17 @@ const backendOrigin = backendUrl.replace(/\/api$/, '')
 const apiBaseUrl = `${backendOrigin}/api`
 const authBaseUrl = `${backendOrigin}/api`
 
-function notifyAuthRecovery(message: string): void {
+function notifyAuthRecovery(message = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'): void {
   useAuthRecoveryStore.getState().setNeedsReauth(message)
 }
+
+// Dead-session latch. Once a token refresh has definitively failed, every subsequent 401 must STOP
+// re-attempting /auth/refresh: a logged-out page fires many parallel API calls, and without this each
+// 401 would POST another refresh until the backend rate-limits us to 429 "Too many refresh attempts"
+// (QA 2026-07-16 — the /v2/admin/users refresh storm). The latch is cleared as soon as a stored access
+// token reappears (successful login/refresh — see the request interceptor), so genuine mid-session
+// expiry can still trigger a fresh refresh later. Module-scoped ⇒ one latch per browser tab.
+let sessionInvalid = false
 
 const api = axios.create({
   baseURL: apiBaseUrl,
@@ -105,7 +113,12 @@ api.interceptors.response.use(
 // Attach access token + platform header automatically
 api.interceptors.request.use((config) => {
   const token = getAccessToken()
-  if (token) config.headers.Authorization = `Bearer ${token}`
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+    // A stored token means we are (re)authenticated — release the dead-session latch so a genuine
+    // future expiry can trigger a fresh refresh again. Cheap and idempotent, so run it every request.
+    sessionInvalid = false
+  }
   config.headers['X-Request-Id'] = crypto.randomUUID()
   if (isNative()) config.headers['X-Platform'] = getPlatform()
   return config
@@ -125,8 +138,16 @@ api.interceptors.response.use(
   (res) => res,
   async (error) => {
     const original = error.config
-    if (error.response?.status === 401 && !original._retry) {
+    if (error.response?.status === 401 && original && !original._retry) {
       original._retry = true
+
+      // Session already known-dead (a prior refresh failed) → do NOT spawn another /auth/refresh.
+      // Surface the ORIGINAL 401 (not a refresh-side 429) so callers route to /v2/login cleanly.
+      // This is what breaks the storm: after the first failed refresh, every other 401 short-circuits.
+      if (sessionInvalid) {
+        notifyAuthRecovery()
+        return Promise.reject(error)
+      }
 
       // Refresh token nằm trong HttpOnly cookie — browser tự gửi khi gọi /api/auth/refresh.
       // Không cần (và không thể) kiểm tra token tồn tại từ JS nữa.
@@ -147,6 +168,7 @@ api.interceptors.response.use(
 
         const { data } = await refreshPromise
         refreshPromise = null
+        sessionInvalid = false
 
         setTokens(data)
         recordTokenRefresh()
@@ -154,8 +176,20 @@ api.interceptors.response.use(
         return api(original)
       } catch (refreshError) {
         refreshPromise = null
-        useAuthRecoveryStore.getState().setNeedsReauth('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.')
-        return Promise.reject(refreshError)
+        // Latch so the NEXT 401 short-circuits above instead of POSTing yet another refresh.
+        sessionInvalid = true
+        // Only a definitive auth rejection (no / expired refresh cookie) means the session is truly
+        // gone — clear the stale client mirror so getAccessToken() stays null and the middleware sees
+        // an anonymous request. Transient failures (429 rate-limit, 5xx, network) leave tokens intact
+        // so recovery is still possible once the latch releases; we just stopped the immediate storm.
+        const refreshStatus = httpStatus(refreshError)
+        if (refreshStatus === 400 || refreshStatus === 401 || refreshStatus === 403) {
+          clearTokens()
+        }
+        notifyAuthRecovery()
+        // Reject with the ORIGINAL 401 (the API call that started this), never the refresh error —
+        // downstream code keys off httpStatus === 401 to redirect, and must not see the raw 429.
+        return Promise.reject(error)
       }
     }
     return Promise.reject(error)

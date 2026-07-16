@@ -265,18 +265,43 @@ export async function middleware(request: NextRequest) {
   // user inside /v2. Strip the "/v2" prefix to reuse the same role/org resolution. Degrade gracefully
   // when no JWT verifier is configured (same posture as the legacy gate below — see the #67 note).
   const hasVerifierForV2 = Boolean(process.env.JWT_SECRET || process.env.JWT_RSA_PUBLIC_KEY)
-  if (pathname.startsWith('/v2/') && hasVerifierForV2) {
+  if (pathname.startsWith('/v2/')) {
     const v2Path = pathname.slice(3) || '/'
     const v2Required = requiredRole(v2Path)
     const v2Org = requiresOrg(v2Path)
     if (v2Required || v2Org) {
       const v2Access = request.cookies.get(AUTH_ACCESS_COOKIE)?.value
+      const hasV2Refresh = Boolean(request.cookies.get(AUTH_REFRESH_COOKIE)?.value)
+
+      // FAIL-SAFE anonymous bounce — runs BEFORE (and independently of) any token verification, so it
+      // holds even when the edge verifier env (JWT_RSA_PUBLIC_KEY / JWT_SECRET) is ABSENT on Amplify.
+      // That absence is exactly why prod leaked the role-area shell to logged-out visitors: the whole
+      // gate used to be wrapped in `&& hasVerifierForV2`, so with no verifier it never ran and the
+      // request fell through to a blank/erroring shell (QA 2026-07-16). A request that carries NEITHER
+      // the access mirror cookie NOR the persistent refresh cookie is an anonymous visitor — send it to
+      // /v2/login. A signed-in user ALWAYS carries at least one of those cookies, so this never bounces
+      // them; deciding it needs no signature check because cookie *presence*, not validity, is enough.
+      if (!v2Access && !hasV2Refresh) {
+        const loginUrl = new URL('/v2/login', request.url)
+        loginUrl.searchParams.set('next', pathname)
+        return redirectTo(loginUrl)
+      }
+
+      // Role/org-aware routing (below) DOES need a verified token. Without a verifier we cannot do that
+      // here, so degrade gracefully — pass the request through and let backend authz enforce (same
+      // posture as the legacy gate further down; see the #67 note). The anonymous bounce above already
+      // protected the only case that can be decided without a signature.
+      if (!hasVerifierForV2) {
+        return passThrough()
+      }
+
       const v2Claims = v2Access ? await verifyAccessToken(v2Access) : null
       const v2Role = v2Claims?.role ?? null
       if (!v2Role) {
-        // Returning user with only the persistent refresh cookie: let the client restore the access
-        // token (matches the legacy !authenticatedRole branch) rather than forcing a re-login.
-        if (request.cookies.get(AUTH_REFRESH_COOKIE)?.value) {
+        // Access cookie missing/invalid but a refresh cookie IS present: a returning user whose access
+        // token has not been restored yet — let the client restore it rather than forcing a re-login.
+        // (Anonymous users, who have no refresh cookie either, were already bounced above.)
+        if (hasV2Refresh) {
           return passThrough()
         }
         const loginUrl = new URL('/v2/login', request.url)
