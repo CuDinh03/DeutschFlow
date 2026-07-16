@@ -1,5 +1,6 @@
 package com.deutschflow.curriculum.controller;
 
+import com.deutschflow.common.WebRoutes;
 import com.deutschflow.curriculum.dto.RoadmapSetupRequest;
 import com.deutschflow.curriculum.dto.RoadmapSetupResultDto;
 import com.deutschflow.curriculum.dto.RoadmapSetupStateDto;
@@ -48,7 +49,7 @@ public class RoadmapSetupController {
                 profile.getCurrentLevel() == UserLearningProfile.CurrentLevel.A0 ? "FOUNDATION_FIRST" : "PERSONALIZED",
                 profile.getCurrentLevel().name(),
                 profile.getTargetLevel().name(),
-                "/roadmap");
+                WebRoutes.STUDENT_ROADMAP);
         return ResponseEntity.ok(response);
     }
 

@@ -516,6 +516,15 @@ app:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
 
+  # Base URL của web, dùng để dựng link nhúng vào EMAIL (hiện là link mời vào tổ chức).
+  # Tách riêng khỏi `cors.allowed-origins`: trước đây link mời lấy origin ĐẦU TIÊN của danh sách CORS,
+  # nên chỉ cần đổi THỨ TỰ các origin trong CORS_ALLOWED_ORIGINS là domain trong email đổi theo — một
+  # cái bẫy im lặng.
+  # Không đặt WEB_URL thì rơi về đúng hành vi cũ (origin đầu của CORS), nên KHÔNG cần thêm env nào
+  # trước khi deploy. Fallback viết ngay ở đây, không ở @Value: nếu khai `${WEB_URL:}` thì khi thiếu
+  # env Spring trả CHUỖI RỖNG (không phải "thiếu khoá"), và fallback bên @Value sẽ không bao giờ chạy.
+  web-url: ${WEB_URL:${CORS_ALLOWED_ORIGINS:http://localhost:3000}}
+
 # ============================================================
 # Payment Gateway — MoMo
 #
@@ -533,12 +542,18 @@ payment:
     secret-key: ${MOMO_SECRET_KEY:dummy}
     api-endpoint: ${MOMO_API_ENDPOINT:http://localhost:8080/dummy}
     ipn-url: ${MOMO_IPN_URL:https://mydeutschflow.com/api/payments/momo/ipn}
-    return-url: ${MOMO_RETURN_URL:https://mydeutschflow.com/payment/success}
+    # Trang người dùng được ví MoMo đá về sau khi thanh toán. Trỏ vào giao diện v2: trang /payment/success
+    # của cây v1 sắp bị xoá (plans/2026-07-14-xoa-sach-v1-web.md). MoMo hiện DISABLED (khoá mặc định là
+    # "dummy" → MomoPaymentService tự tắt), nên đây chỉ là dọn dẹp để default không trỏ vào route sắp chết.
+    # Nếu bật lại MoMo thì phải làm trang xử lý `?momo=success` ở v2 trước.
+    return-url: ${MOMO_RETURN_URL:https://mydeutschflow.com/v2/payment?momo=success}
   stripe:
     secret-key: ${STRIPE_SECRET_KEY:}
     webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
-    success-url: ${STRIPE_SUCCESS_URL:https://mydeutschflow.com/student/pricing?stripe=success}
-    cancel-url: ${STRIPE_CANCEL_URL:https://mydeutschflow.com/student/pricing?stripe=cancel}
+    # Tương tự: /student/pricing thuộc cây v1 sắp xoá. Stripe cũng đang DISABLED (STRIPE_SECRET_KEY rỗng
+    # → StripePaymentService log cảnh báo rồi tự tắt). Trang thanh toán của v2 là /v2/payment.
+    success-url: ${STRIPE_SUCCESS_URL:https://mydeutschflow.com/v2/payment?stripe=success}
+    cancel-url: ${STRIPE_CANCEL_URL:https://mydeutschflow.com/v2/payment?stripe=cancel}
   apple:
     # Apple StoreKit IAP. Apple Root CA is baked into the image (/app/apple-certs, see backend/Dockerfile),
     # so verification is ENABLED by default. Override any of these via env if needed.
