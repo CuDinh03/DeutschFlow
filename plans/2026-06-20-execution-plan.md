@@ -1,5 +1,7 @@
 # DeutschFlow — KẾ HOẠCH THỰC THI 2 mốc phát hành (Web v2 → Native iOS)
 
+> ⚠️ **LỊCH SỬ (2026-06-21).** Nhật ký/checklist bên dưới ghi đúng trạng thái tại thời điểm đó. Mọi nhắc tới rollback bằng `GALERIE_V2_DISABLED` nay **LỖI THỜI** — kill-switch đã bị gỡ 2026-07-14 (đợt 0 xoá cây v1, `plans/2026-07-14-xoa-sach-v1-web.md`). Rollback hiện tại = revert commit / Amplify "Redeploy this version".
+
 > **Vai trò:** Delivery lead · **Ngày:** 2026-06-21 (đặt tên theo cohort `2026-06-20-*`)
 > **Đầu vào:** dựa trên `plans/2026-06-20-v2-cutover-and-deploy-readiness.md` (audit) + xác minh code/git ở phiên này.
 > **Nguyên tắc:** trung thực với trạng thái thật; chỗ chưa chắc ghi `cần xác minh`, **không bịa**.

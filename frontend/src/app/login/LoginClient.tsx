@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
 import { setTokens, clearTokens, recordTokenRefresh } from '@/lib/authSession'
+import { homeFor } from '@/lib/roleRouting'
 import { useUserStore } from '@/stores/useUserStore'
 import { registerPushNotifications } from '@/hooks/usePushNotifications'
 import { DeutschFlowLogo } from '@/components/ui/DeutschFlowLogo'
@@ -19,15 +20,9 @@ import { useIsNative } from '@/lib/native'
 type FieldErrors = Record<string, string>
 
 // ─── Post-login redirect (W1.1 — Galerie v2 "route-in") ───────────────────────
-// The galerie-v2 flag only EVICTS users from /v2 (see V2Gate); nothing routed a
-// flagged user INTO /v2 — post-login always went to legacy. This pulls flagged
-// web users to the v2 home per role. Redirect-map mirrors middleware v2RoleHome
-// (/v2/admin/users, not /v2/admin, is the established admin landing).
-function homeFor(role: string, v2: boolean): string {
-  if (role === 'ADMIN') return v2 ? '/v2/admin/users' : '/admin'
-  if (role === 'TEACHER') return v2 ? '/v2/teacher' : '/teacher'
-  return v2 ? '/v2/student/dashboard' : '/dashboard'
-}
+// Bản đồ vai trò → trang chủ nằm ở `@/lib/roleRouting` (dùng chung với /v2/login). Trước đây trang
+// này giữ bản đồ riêng và bản đó KHÔNG có nhánh OWNER/MANAGER, nên quản lý trung tâm rơi vào mặc
+// định STUDENT và hạ cánh xuống dashboard học viên (chỉ được middleware đá về /v2/org sau đó).
 
 // FULL CUTOVER: Galerie v2 is the default surface for every web user. The
 // per-user `galerie-v2` PostHog flag proved unreliable (person-property
@@ -151,7 +146,7 @@ export default function LoginPage() {
       // Native (Expo) is never sent to the desktop-first v2 surface. Legacy stays
       // reachable via direct links + the GALERIE_V2_DISABLED middleware kill-switch.
       const useV2 = !isNative
-      router.replace(homeFor(user.role, useV2))
+      router.replace(homeFor(user.role, { orgRole: data.orgRole, native: isNative }))
 
       // Fire-and-forget after navigation.
       trackEvent('login_success', { role: user.role, galerie_v2: useV2 })

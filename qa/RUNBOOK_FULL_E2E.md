@@ -5,16 +5,24 @@
 > Môi trường: **live** — Frontend `https://mydeutschflow.com` · API `https://api.mydeutschflow.com` (prefix `/api`).
 
 > **GIAO DIỆN CANONICAL = `/v2/*` (Galerie 2.0 — đã full cutover, là default surface).**
-> `middleware.ts` tự đẩy user đã đăng nhập vào trang `/v2` theo role. UI root cũ (`/login`, `/student`, `/teacher`, `/org`, `/admin`) chỉ còn là **fallback rollback** (bật/tắt bằng env `GALERIE_V2_DISABLED`). Mọi bước UI bên dưới chạy trên `/v2/*`. Phần API không đổi (cùng backend).
+> Mọi bước UI bên dưới chạy trên `/v2/*`. Phần API không đổi (cùng backend).
+>
+> ⚠️ **CẬP NHẬT 2026-07-14 (đợt 0, `plans/2026-07-14-xoa-sach-v1-web.md`):**
+> - Bề mặt đăng nhập v1 **đã bị khai tử**: `/login`, `/register`, `/dashboard` giờ **redirect (307)** sang `/v2/login`, `/v2/register`, `/v2/student/dashboard` (khai báo ở `frontend/next.config.mjs`).
+> - Người **đã đăng nhập** gõ bất kỳ bề mặt login nào (kể cả `/v2/login`) đều bị đá về trang chủ theo vai trò — **không còn thấy form** (trước đây `/v2/login` vẫn hiện form cho người đã đăng nhập).
+> - Mọi lần middleware đá người dùng đều đổ về **v2** (bản đồ `roleHome()` legacy đã bị xoá). Người chưa đăng nhập vào trang cần quyền → `/v2/login?next=<đường-dẫn>` và **được đưa lại đúng chỗ** sau khi đăng nhập.
+> - Kill-switch `GALERIE_V2_DISABLED` **ĐÃ BỊ GỠ** (nó tạo vòng lặp redirect với `/login`→`/v2/login`). Rollback = revert commit / Amplify "Redeploy this version".
+> - Cây v1 sau đăng nhập (`/student/*`, `/teacher/*`, `/admin/*`, `/org/*`, `/speaking`…) **vẫn còn sống** (chưa xoá) — nhưng không có đường nào trong app dẫn vào nữa.
 >
 > Map trang chủ theo role (đăng nhập xong phải đáp đúng vào đây):
 > - ADMIN → `/v2/admin/users`
 > - OWNER / MANAGER → `/v2/org`
 > - TEACHER → `/v2/teacher`
 > - STUDENT → `/v2/student/dashboard`
-> - Đăng nhập: `/v2/login` (có Google SSO + "Ghi nhớ đăng nhập" + "Quên mật khẩu"). Auth dùng cookie `auth_access` / `auth_role` (+ `refresh_token`) — không chỉ localStorage.
+> - Đăng nhập: `/v2/login`. Auth dùng cookie `auth_access` / `auth_role` (+ `refresh_token`) — không chỉ localStorage.
+>   (Lưu ý: nút Google SSO và "Quên mật khẩu" trên trang này hiện chỉ là toast "sắp ra mắt" — chưa nối backend. "Ghi nhớ đăng nhập" chưa nối state. Xem đợt 1 của plan.)
 >
-> **Kiểm tra cutover (đáng test):** root cũ vẫn resolve song song (`/login` không 404). Xác nhận middleware đẩy `/student` → `/v2/student/dashboard`, và sai-role vào `/v2/admin/*` thì bị bounce về home đúng role.
+> **Kiểm tra cutover (đáng test):** `/login` → 307 → `/v2/login` (không 404, không lặp). Đăng nhập rồi gõ lại `/login` → đá thẳng về home đúng role. Sai-role vào `/v2/admin/*` → bounce về home đúng role. `/org/accept?token=…` (link mời qua email) **phải mở được khi CHƯA đăng nhập**.
 
 ---
 
@@ -100,9 +108,12 @@ Mỗi ô ⛔ là một test bắt buộc: gọi đúng endpoint bằng token sai
 ### A. AUTH & PHIÊN
 
 **A1 — Login đúng (mỗi role).**
-UI: vào `/login`, nhập email/PW → vào đúng dashboard theo role (student→`/student`, teacher→`/teacher`, org→`/org`, admin→`/admin`).
+UI: vào `/v2/login`, nhập email/PW → vào đúng home theo role (student→`/v2/student/dashboard`, teacher→`/v2/teacher`, owner/manager→`/v2/org`, admin→`/v2/admin/users`).
 API: `POST /api/auth/login` → `200` + `accessToken`; `GET /api/auth/me $(auth $TOKEN)` → đúng `role`/`orgId`.
 Đối chiếu: role trên UI = role trong `/me`.
+Kèm theo (đợt 0): gõ `/login` → redirect sang `/v2/login`; đăng nhập xong gõ lại `/login` hoặc `/v2/login` → đá thẳng về home, KHÔNG hiện lại form.
+
+**A1b — Deep-link giữ được qua đăng nhập.** Chưa đăng nhập, mở thẳng `/v2/student/review` → bị đá về `/v2/login?next=%2Fv2%2Fstudent%2Freview`; đăng nhập xong phải đáp đúng vào `/v2/student/review` (không phải home). Thử `?next=//evil.com` → phải BỎ QUA (về home), không được rời khỏi domain.
 
 **A2 — Login sai mật khẩu / email lạ hoa-thường.** API → `401`, không lộ "email tồn tại hay không". Thử email viết HOA (vd `User@x.com`) phải vào được như thường (case-insensitive — đã có fix gần đây, xác minh).
 
@@ -110,7 +121,7 @@ API: `POST /api/auth/login` → `200` + `accessToken`; `GET /api/auth/me $(auth 
 
 **A4 — Refresh + reuse detection.** `POST /api/auth/refresh` (kèm cookie jar) → token mới. Dùng **lại** refresh cũ lần 2 → phải bị **từ chối** (reuse detection) và thu hồi session.
 
-**A5 — Logout.** UI bấm logout → quay `/login`, localStorage sạch. API `POST /api/auth/logout` → refresh bị revoke (gọi `/refresh` sau đó → `401`).
+**A5 — Logout.** UI bấm logout → quay `/v2/login`, localStorage sạch. API `POST /api/auth/logout` → refresh bị revoke (gọi `/refresh` sau đó → `401`).
 
 **A6 — Forgot/Reset password** (`/api/auth/forgot-password` → email; `/reset-password` token). Chạy với tài khoản test; xác nhận token cũ không tái dùng.
 
@@ -120,7 +131,8 @@ API: `POST /api/auth/login` → `200` + `accessToken`; `GET /api/auth/me $(auth 
 **B2 — Lead magnet free-grade** (`/giao-vien-mien-phi`, `/free-grade`): nộp bài → `/api/public/free-grade` chấm và trả report; không cần auth.
 **B3 — Public org invitation**: mở `/api/public/org-invitations/{token}` hợp lệ → `200` chi tiết lời mời; token rác → `404/410`. `POST /{token}/accept` gắn người dùng vào org.
 **B4 — Public certificate** tra cứu chứng chỉ bằng mã.
-**B5 — Truy cập trang nội bộ khi chưa login** (`/student`, `/admin`) → middleware đẩy về `/login` (kiểm tra chặn **server-side**, không chỉ ẩn UI).
+**B5 — Truy cập trang nội bộ khi chưa login** (`/v2/student/dashboard`, `/v2/admin/users`) → middleware đẩy về `/v2/login?next=…` (kiểm tra chặn **server-side**, không chỉ ẩn UI).
+**B6 — Link mời org qua email vẫn mở được khi CHƯA đăng nhập**: `/org/accept?token=<token hợp lệ>` → `200`, hiện trang nhận lời mời (KHÔNG bị đá sang login — đá là mất luôn `?token=`). Đây là mắt xích B2B dễ vỡ nhất khi siết auth.
 
 ### C. STUDENT — full hành trình học
 

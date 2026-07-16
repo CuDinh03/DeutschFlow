@@ -4,6 +4,8 @@
 > **Câu hỏi:** Dự án đã chuyển **TOÀN BỘ** sang FE v2 chưa? Cần nâng/làm gì để deploy (1) Web bản mới và (2) Mobile (native iOS) bản mới?
 > **Nguyên tắc:** Mọi kết luận trích từ file/route thật. Thiếu dữ liệu → ghi `chưa rõ — cần kiểm`.
 
+> ⚠️ **CẬP NHẬT 2026-07-14 — phần rollback trong file này đã LỖI THỜI.** Kill-switch `GALERIE_V2_DISABLED` đã bị **gỡ khỏi `middleware.ts`** ở đợt 0 của kế hoạch xoá cây v1 (`plans/2026-07-14-xoa-sach-v1-web.md`): nó tạo vòng lặp redirect vô hạn với `next.config.mjs` redirect `/login`→`/v2/login`. Rollback bây giờ = revert commit / Amplify "Redeploy this version".
+
 ---
 
 ## 0. TL;DR — Bảng 3 cột

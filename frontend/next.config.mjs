@@ -76,6 +76,30 @@ const nextConfig = {
     return [{ source: '/:path*', headers: securityHeaders }];
   },
 
+  // ── Khai tử bề mặt đăng nhập v1 (đợt 0 của kế hoạch xoá cây v1) ───────────────
+  // Vì sao đặt Ở ĐÂY chứ không phải middleware: Amplify phục vụ phần lớn route từ cache CloudFront
+  // mà KHÔNG gọi middleware (xem ghi chú CSP phía trên) — mà /login lại đúng là một trang tĩnh được
+  // prerender (amplify.yml còn ghi chú sự cố "STALE prerendered /login"). Redirect trong next.config
+  // được biên dịch vào routes-manifest và Amplify áp dụng ở tầng CDN, nên nó bắt được cả lượt truy
+  // cập từ cache. Middleware vẫn giữ một lớp bounce nữa (defence-in-depth).
+  //
+  // `permanent: false` (307) là CỐ Ý: 301/308 bị trình duyệt cache vĩnh viễn, nếu phải rollback thì
+  // người dùng vẫn kẹt ở redirect cũ. Cây v1 vẫn còn sống nguyên trong đợt này → giữ đường lui.
+  // Đến đợt xoá hẳn cây v1 mới nâng lên permanent (kèm bảng redirect đầy đủ).
+  //
+  // Query string được Next giữ nguyên khi redirect (nên `?next=` đi xuyên qua an toàn).
+  // trailingSlash: true → khai báo source KHÔNG có dấu "/" cuối; Next tự chuẩn hoá cả hai dạng.
+  async redirects() {
+    return [
+      { source: '/login', destination: '/v2/login', permanent: false },
+      { source: '/register', destination: '/v2/register', permanent: false },
+      // Dashboard học viên legacy: v2 đã có bản đầy đủ và không nơi nào trong /v2 trỏ ngược về đây.
+      // (Các trang v1 khác — /speaking, /student/mock-exam… — CHƯA được redirect: /v2 vẫn đang
+      // deep-link vào chúng vì tính năng chưa port. Chúng chỉ bị xoá/redirect ở đợt sau.)
+      { source: '/dashboard', destination: '/v2/student/dashboard', permanent: false },
+    ];
+  },
+
   experimental: {
     optimizePackageImports: [
       'lucide-react',

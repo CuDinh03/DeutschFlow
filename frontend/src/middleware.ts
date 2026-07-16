@@ -23,17 +23,34 @@ const AUTH_ROLE_COOKIE = 'auth_role'
 // request's Cookie header). Used to avoid bouncing a returning user whose access token has not been
 // restored yet — see the !authenticatedRole branch below.
 const AUTH_REFRESH_COOKIE = 'refresh_token'
-const LOGIN_ROUTES = new Set(['/login', '/register'])
+// Cả bốn bề mặt đăng nhập: hai của v1 (đã được next.config redirect sang v2 — giữ ở đây làm lớp
+// phòng thủ thứ hai) và hai của v2. Người đã đăng nhập gõ vào bất kỳ cái nào đều bị đá về nhà.
+// Trước đây tập này chỉ có path v1, nên `/v2/login` KHÔNG có bounce: user đã đăng nhập vẫn thấy
+// form và đăng nhập lại được — chính là đường dẫn tới "đăng nhập nhầm" mà đợt này phải bịt.
+const LOGIN_ROUTES = new Set(['/login', '/register', '/v2/login', '/v2/register'])
 
-function roleHome(role: Role): string {
-  if (role === 'ADMIN') return '/admin'
-  if (role === 'OWNER' || role === 'MANAGER') return '/org'
-  if (role === 'TEACHER') return '/teacher'
-  return '/student'
+/**
+ * `trailingSlash: true` (next.config.mjs) means every real pathname ends in "/" — the URL the
+ * middleware sees is `/login/`, never `/login`. Any EXACT string comparison below therefore has to
+ * run on the de-slashed form, or it silently never matches (that is how the logged-in→home bounce
+ * and the public `/org/accept` exemption both went dead). Prefix checks (startsWith) are unaffected.
+ */
+function routeKey(pathname: string): string {
+  return pathname.replace(/\/+$/, '') || '/'
 }
 
-// Galerie v2 home per role — used to bounce a wrong-role/unauth user while keeping them inside /v2
-// (the legacy roleHome would kick them out to the legacy surface).
+/**
+ * `?next=` chỉ được phép là đường dẫn NỘI BỘ. Chặn open-redirect: `//evil.com` và
+ * `https://evil.com` đều bị loại; chỉ nhận path bắt đầu bằng đúng một dấu "/".
+ */
+function safeNext(value: string | null): string | null {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) return null
+  return value
+}
+
+// Trang chủ theo vai trò trên Galerie v2 — đích DUY NHẤT của mọi lần đá người dùng trong file này.
+// Bản đồ `roleHome()` legacy (/admin, /teacher, /student, /org) đã bị xoá: nó chính là thứ kéo người
+// đã đăng nhập ngược về UI cũ. Sửa vai trò ở đây thì soát lại `homeFor()` trong `lib/roleRouting.ts`.
 function v2RoleHome(role: Role): string {
   if (role === 'ADMIN') return '/v2/admin/users'
   if (role === 'OWNER' || role === 'MANAGER') return '/v2/org'
@@ -57,20 +74,45 @@ function requiredRole(pathname: string): Role | null {
  * email link with NO existing session (they may not even have an account yet) — the token in the
  * query string is the secret and the page guards itself. Gating it would bounce exactly the users
  * it targets to /login, so it must pass through ungated (mirrors how /onboarding stays guest-reachable).
+ * The exemption compares on routeKey(): the live URL is `/org/accept/` and the un-slashed compare
+ * never matched, so the invite link was gated → /login?next=… , dropping the ?token= secret with it.
  */
 function requiresOrg(pathname: string): boolean {
-  if (pathname === '/org/accept') return false
+  if (routeKey(pathname) === '/org/accept') return false
   return pathname.startsWith('/org')
 }
 
+/**
+ * Funnel onboarding "value-first": KHÁCH (chưa có tài khoản) chạy hết funnel rồi mới đăng ký, nên
+ * hai route này phải lọt qua cổng đăng nhập (xem nhánh `!authenticatedRole` bên dưới).
+ * `/v2/onboarding` là bản port Galerie của `/onboarding` — thiếu nó ở đây thì user mới của v2
+ * (đăng ký xong bị đẩy tới `/v2/onboarding`) và mọi khách vào thẳng đều bị đá về `/v2/login`.
+ *
+ * CHỈ hai path GỐC này được miễn. Hai nhánh con `/v2/onboarding/mock-exam` và
+ * `/v2/onboarding/error-report` không nằm trong tập nào (giống hệt `/onboarding/mock-exam` ở v1):
+ * chúng rơi vào nhánh "trang công khai" và tự gọi API có auth để tự gác mình.
+ */
+const GUEST_ONBOARDING_ROUTES = new Set(['/onboarding', '/v2/onboarding'])
+
 /** Trang học viên nhưng giáo viên/admin vẫn được mở (demo + tránh JWT/cookie STUDENT stale khi DB đã TEACHER). */
 function learnerSharedPaths(): Set<string> {
-  return new Set(['/dashboard', '/speaking', '/roadmap', '/onboarding', '/news'])
+  return new Set(['/dashboard', '/speaking', '/roadmap', '/onboarding', '/v2/onboarding', '/news'])
 }
 
 function requiresLearnerShare(pathname: string): boolean {
-  return learnerSharedPaths().has(pathname)
+  return learnerSharedPaths().has(routeKey(pathname))
 }
+
+/**
+ * Bản /v2 của learnerSharedPaths. Mọi route dưới `/v2/student/*` mặc định bị cổng vai trò
+ * STUDENT chặn (requiredRole('/student/…') === 'STUDENT'), nên một trang vốn DÙNG CHUNG ở v1 sẽ
+ * mất quyền của GV/admin khi port sang đây.
+ *
+ * `/v2/student/news` là port của `/news` — vốn nằm trong learnerSharedPaths() ở trên (GV/admin
+ * cũng đọc báo Đức). Thiếu ngoại lệ này thì sau khi xoá cây v1, GV/admin bấm vào tin tức sẽ bị đá
+ * về trang chủ vai trò của họ.
+ */
+const V2_LEARNER_SHARED = new Set(['/v2/student/news'])
 
 function allowedOnLearnerPath(role: Role): boolean {
   return role === 'STUDENT' || role === 'TEACHER' || role === 'ADMIN'
@@ -206,14 +248,16 @@ export async function middleware(request: NextRequest) {
   const passThrough = () => secure(NextResponse.next({ request: { headers: requestHeaders } }))
   const redirectTo = (url: URL) => secure(NextResponse.redirect(url))
 
-  // UI 2.0 (Galerie v2) EDGE kill-switch. Per-user staged rollout is governed by the PostHog
-  // `galerie-v2` flag client-side (V2Gate, src/app/v2/V2Gate.tsx). This env var is the global
-  // rollback lever: set GALERIE_V2_DISABLED=true to instantly bounce ALL /v2/* traffic to the legacy
-  // equivalent (no PostHog change needed). Unset/false (default) = /v2 served normally and the flag
-  // still decides who sees it → zero behaviour change today. Only ever affects the /v2 prefix.
-  if (pathname.startsWith('/v2') && process.env.GALERIE_V2_DISABLED === 'true') {
-    return redirectTo(new URL(pathname.replace(/^\/v2/, '') || '/', request.url))
-  }
+  // ĐÃ GỠ: kill-switch `GALERIE_V2_DISABLED` (bounce mọi /v2/* về path legacy tương ứng).
+  //
+  // Vì sao phải gỡ NGAY trong đợt này, không đợi tới lúc xoá cây v1: từ nay `next.config.mjs`
+  // redirect /login → /v2/login. Nếu kill-switch còn sống và ai đó bật nó, /v2/login sẽ bị đá về
+  // /login, rồi next.config lại đá ngược lên /v2/login → VÒNG LẶP REDIRECT VÔ HẠN, chết cả site.
+  // Bản thân kill-switch cũng đã mất tác dụng từ lúc cutover: V2Gate là passthrough và chính trang
+  // /login legacy cũng đẩy người dùng sang bề mặt v2 sau khi đăng nhập.
+  //
+  // Rollback thay thế: revert commit / redeploy bản trước trên Amplify (env GALERIE_V2_DISABLED
+  // không còn được đọc ở bất kỳ đâu — xoá nó khỏi Amplify để khỏi ai bật nhầm theo runbook cũ).
 
   // UI 2.0 (Galerie v2) EDGE auth gate. The /v2 role areas have their OWN login (/v2/login) and role
   // homes, so the legacy gating below — which only matches unprefixed paths — never covers them and
@@ -252,6 +296,14 @@ export async function middleware(request: NextRequest) {
         }
         return redirectTo(new URL(v2RoleHome(v2Role), request.url))
       }
+      // Trang /v2 dùng chung cho người học (xem V2_LEARNER_SHARED): STUDENT/TEACHER/ADMIN đều vào
+      // được, đúng như bản v1 tương ứng. Phải xét TRƯỚC cổng vai trò cứng bên dưới.
+      if (V2_LEARNER_SHARED.has(routeKey(pathname))) {
+        if (!allowedOnLearnerPath(v2Role)) {
+          return redirectTo(new URL(v2RoleHome(v2Role), request.url))
+        }
+        return passThrough()
+      }
       if (v2Required !== v2Role) {
         return redirectTo(new URL(v2RoleHome(v2Role), request.url))
       }
@@ -286,15 +338,18 @@ export async function middleware(request: NextRequest) {
   }
 
   // Routes that need no gating (public pages): attach CSP and pass through without a JWT verify.
-  if (!required && !learnerShare && !orgGated && !LOGIN_ROUTES.has(pathname)) {
+  if (!required && !learnerShare && !orgGated && !LOGIN_ROUTES.has(routeKey(pathname))) {
     return passThrough()
   }
 
   const claims = accessCookie ? await verifyAccessToken(accessCookie) : null
   const authenticatedRole = claims?.role ?? null
 
-  if (LOGIN_ROUTES.has(pathname) && authenticatedRole) {
-    return redirectTo(new URL(roleHome(authenticatedRole), request.url))
+  // Đã đăng nhập mà vào bề mặt login (v1 lẫn v2) → về nhà, KHÔNG cho thấy form nữa. Tôn trọng
+  // `?next=` (middleware tự đặt khi đá người chưa đăng nhập ra) để deep-link không bị mất.
+  if (LOGIN_ROUTES.has(routeKey(pathname)) && authenticatedRole) {
+    const next = safeNext(request.nextUrl.searchParams.get('next'))
+    return redirectTo(new URL(next ?? v2RoleHome(authenticatedRole), request.url))
   }
 
   if (!required && !learnerShare && !orgGated) {
@@ -313,19 +368,22 @@ export async function middleware(request: NextRequest) {
     if (hasRefreshSession) {
       return passThrough()
     }
-    // Value-first onboarding: /onboarding is reachable by guests (no account yet). The page runs
-    // the guest funnel and gates signup itself; every other learner path still redirects to /login.
-    if (pathname === '/onboarding') {
+    // Value-first onboarding: /onboarding (v1) và /v2/onboarding (Galerie) đều mở cho khách chưa có
+    // tài khoản. Trang tự chạy funnel guest rồi tự chặn ở bước đăng ký; mọi learner path còn lại
+    // vẫn bị đá về login.
+    if (GUEST_ONBOARDING_ROUTES.has(routeKey(pathname))) {
       return passThrough()
     }
-    const loginUrl = new URL('/login', request.url)
+    // Bề mặt đăng nhập DUY NHẤT từ nay là /v2/login (trang /login legacy đã bị next.config đá sang
+    // đây; đá thẳng tới đích để khỏi tốn một chặng redirect).
+    const loginUrl = new URL('/v2/login', request.url)
     loginUrl.searchParams.set('next', pathname)
     return redirectTo(loginUrl)
   }
 
   if (learnerShare) {
     if (!allowedOnLearnerPath(authenticatedRole)) {
-      return redirectTo(new URL(roleHome(authenticatedRole), request.url))
+      return redirectTo(new URL(v2RoleHome(authenticatedRole), request.url))
     }
     return passThrough()
   }
@@ -333,18 +391,18 @@ export async function middleware(request: NextRequest) {
   if (orgGated) {
     // /org/* is gated by the SEPARATE orgRole claim, NOT the global role: the centre owner is global
     // TEACHER and must keep /teacher access. A logged-in user without OWNER/ADMIN orgRole is bounced
-    // back to their normal home (roleHome(role)) rather than /login — they ARE authenticated, just
-    // not an org admin. Owners reach /org via an in-app link, so we never auto-redirect INTO /org.
+    // back to their normal home rather than to login — they ARE authenticated, just not an org admin.
+    // Owners reach /org via an in-app link, so we never auto-redirect INTO /org.
     if (claims?.orgRole === 'OWNER' || claims?.orgRole === 'MANAGER') {
       return passThrough()
     }
-    return redirectTo(new URL(roleHome(authenticatedRole), request.url))
+    return redirectTo(new URL(v2RoleHome(authenticatedRole), request.url))
   }
 
   if (required !== authenticatedRole) {
-    // If user is STUDENT but tries to access /admin, send them back to /dashboard
-    // instead of a potential redirect loop to /student
-    return redirectTo(new URL(roleHome(authenticatedRole), request.url))
+    // Sai vai trò trên một trang legacy → về NHÀ Ở V2, không phải trang chủ legacy tương ứng.
+    // Đây là mấu chốt của đợt này: mọi ngả đường trong middleware giờ đều đổ về bề mặt v2.
+    return redirectTo(new URL(v2RoleHome(authenticatedRole), request.url))
   }
 
   return passThrough()

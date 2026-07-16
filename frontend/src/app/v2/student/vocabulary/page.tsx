@@ -1,13 +1,17 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { Volume2 } from 'lucide-react'
+import { BarChart3, HelpCircle, Layers, Mic, Volume2 } from 'lucide-react'
 import api from '@/lib/api'
+import { colorForArticle } from '@/lib/vocabWords'
 import { GaPageHdr, TkSearch, GaCap, LoadingState, ErrorBanner } from '@/components/ui-v2'
 
 // Reuse GET /words (the vocabulary store). Tolerant field-picking (shape varies) + gender→color
 // (der=blue / die=red / das=green, DeutschFlow's signature) + search + speak.
+// Trang này là TRA CỨU; 4 bài luyện thật nằm ở các route con (practice · swipe · article-quiz ·
+// analytics) và được vào từ dải "Luyện tập" bên dưới header.
 
 interface Word {
   id: string
@@ -18,7 +22,13 @@ interface Word {
   level: string | null
 }
 
-const ARTICLE_COLOR: Record<string, string> = { der: '#2F6FC9', die: '#DA291C', das: '#1E9E61' }
+/** Dải lối vào các bài luyện — cùng thứ tự với sư phạm: nói → thẻ → mạo từ → thống kê. */
+const DRILLS = [
+  { key: 'practice', href: '/v2/student/vocabulary/practice', Icon: Mic },
+  { key: 'swipe', href: '/v2/student/vocabulary/swipe', Icon: Layers },
+  { key: 'articleQuiz', href: '/v2/student/vocabulary/article-quiz', Icon: HelpCircle },
+  { key: 'analytics', href: '/v2/student/vocabulary/analytics', Icon: BarChart3 },
+] as const
 
 function str(r: Record<string, unknown>, ...keys: string[]): string {
   for (const k of keys) {
@@ -32,7 +42,7 @@ function normalize(r: Record<string, unknown>, i: number): Word {
   let article = str(r, 'gender', 'artikel', 'article').toLowerCase() || null
   if (!article) {
     const first = german.split(/\s+/)[0]?.toLowerCase()
-    if (first && ARTICLE_COLOR[first]) article = first
+    if (first && colorForArticle(first)) article = first
   }
   // normalize gender codes (M/F/N) → articles
   if (article === 'm' || article === 'masculine') article = 'der'
@@ -42,7 +52,7 @@ function normalize(r: Record<string, unknown>, i: number): Word {
     id: str(r, 'id', 'vocabId') || String(i),
     german,
     meaning: str(r, 'meaning', 'vietnamese', 'translation', 'meaningVi', 'vi'),
-    article: article && ARTICLE_COLOR[article] ? article : null,
+    article: article && colorForArticle(article) ? article : null,
     example: str(r, 'exampleDe', 'example', 'sampleSentence') || null,
     level: str(r, 'level', 'cefrLevel', 'cefr') || null,
   }
@@ -107,6 +117,32 @@ export default function V2StudentVocabularyPage() {
         }
       />
       <div className="flex-1 px-10 py-6">
+        {/* Lối vào các bài luyện — trước đây chỉ có ở cây v1, /v2 không có đường nào bấm được. */}
+        <div className="mb-6">
+          <GaCap className="mb-3 block">{t('drills.cap')}</GaCap>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {DRILLS.map(({ key, href, Icon }) => (
+              <Link
+                key={key}
+                href={href}
+                className="group flex items-start gap-3 border border-ga-line bg-ga-card p-4 transition-shadow hover:shadow-ga-card-hover"
+              >
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-ga bg-ga-accent-soft text-ga-accent">
+                  <Icon size={17} aria-hidden />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[14.5px] font-semibold text-ga-ink group-hover:text-ga-accent">
+                    {t(`drills.${key}.title`)}
+                  </span>
+                  <span className="ga-ui mt-0.5 block text-[12.5px] leading-snug text-ga-muted">
+                    {t(`drills.${key}.desc`)}
+                  </span>
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+
         {levels.length > 1 && (
           <div className="mb-5 flex flex-wrap gap-2">
             {levels.map((l) => (
@@ -144,7 +180,7 @@ export default function V2StudentVocabularyPage() {
             <GaCap className="mb-3 block">{t('count', { count: filtered.length })}</GaCap>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {filtered.slice(0, 300).map((w) => {
-                const color = w.article ? ARTICLE_COLOR[w.article] : 'var(--ga-ink)'
+                const color = colorForArticle(w.article) ?? 'var(--ga-ink)'
                 return (
                   <div
                     key={w.id}

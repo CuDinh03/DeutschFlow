@@ -76,7 +76,7 @@ git status            # PHẢI sạch — script abort nếu cây bẩn
 - [ ] `curl -s https://api.mydeutschflow.com/actuator/health` → `{"status":"UP"}`.
 - [ ] **Test xóa tài khoản thật**: tạo 1 account rác, gửi cho nó 1 tin nhắn (hoặc để trống), gọi xóa → phải **thành công** (trước fix thì 500 nếu có tin nhắn).
 - [ ] Web (Amplify build xong): mở `https://mydeutschflow.com/privacy`, `/terms`, `/support` → hiển thị đầy đủ, **không còn `[[…]]`**, ghi "operated by **Cu Dinh**".
-- [ ] Pricing `https://mydeutschflow.com/student/pricing` → chỉ FREE + PRO (coming soon), không còn ULTRA/MoMo/Stripe.
+- [ ] Pricing `https://mydeutschflow.com/v2/payment` → chỉ FREE + PRO (coming soon), không còn ULTRA/MoMo/Stripe. *(Route cũ `/student/pricing` thuộc cây v1 đang gỡ — xem `plans/2026-07-14-xoa-sach-v1-web.md`.)*
 
 ---
 

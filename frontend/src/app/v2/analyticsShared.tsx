@@ -136,6 +136,42 @@ export function GaBars({
   )
 }
 
+// ── Grouped bar chart (multi-series, e.g. học/ôn/nói theo ngày) ─────────────────
+export interface MultiSeries {
+  /** Key trong mỗi điểm dữ liệu. */
+  key: string
+  /** Nhãn hiển thị (đã dịch) — dùng cho tooltip + legend. */
+  name: string
+  color: string
+}
+
+export function GaMultiBars({
+  data,
+  series,
+  height = 190,
+}: {
+  data: Array<Record<string, string | number>>
+  series: MultiSeries[]
+  height?: number
+}) {
+  return (
+    <div style={{ height }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} margin={{ top: 8, right: 6, left: -16, bottom: 0 }} barGap={3}>
+          <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
+          <XAxis dataKey="label" tick={{ fontSize: 11, fill: AXIS }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fontSize: 10, fill: AXIS }} axisLine={false} tickLine={false} width={40} />
+          <Tooltip cursor={{ fill: 'rgba(124,86,200,0.06)' }} contentStyle={TOOLTIP_STYLE} />
+          <Bar dataKey={series[0]?.key} name={series[0]?.name} fill={series[0]?.color} radius={[2, 2, 0, 0]} maxBarSize={14} />
+          {series.slice(1).map((s) => (
+            <Bar key={s.key} dataKey={s.key} name={s.name} fill={s.color} radius={[2, 2, 0, 0]} maxBarSize={14} />
+          ))}
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
 // ── Area chart (cost / time-series trend) ───────────────────────────────────────
 export function GaArea({
   data,

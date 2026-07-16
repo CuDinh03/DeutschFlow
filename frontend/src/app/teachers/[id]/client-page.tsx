@@ -129,7 +129,7 @@ export default function TeacherDetailPage() {
           )}
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <button
-              onClick={() => router.push(`/student/book-session?teacherId=${teacher.id}`)}
+              onClick={() => router.push(`/v2/student/tutor?teacherId=${teacher.id}`)}
               className="inline-flex items-center justify-center gap-2 bg-white text-[#6366F1] font-bold px-6 py-3 rounded-xl hover:bg-white/90 transition-colors"
             >
               <CalendarPlus size={16} /> Đặt lịch học

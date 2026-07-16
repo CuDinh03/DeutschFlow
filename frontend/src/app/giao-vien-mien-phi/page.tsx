@@ -48,7 +48,7 @@ export default function FreeTeacherLandingPage() {
           </p>
           <div className="mt-7 flex flex-wrap justify-center gap-3">
             <Link
-              href="/register"
+              href="/v2/register"
               className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-700/20 transition hover:bg-emerald-800"
             >
               <Sparkles size={16} /> Đăng ký dạy miễn phí
@@ -103,7 +103,7 @@ export default function FreeTeacherLandingPage() {
             Đăng ký tài khoản giáo viên, tạo lớp, và để AI lo phần chấm bài. Hoàn toàn miễn phí.
           </p>
           <Link
-            href="/register"
+            href="/v2/register"
             className="mt-5 inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-bold text-emerald-900 transition hover:bg-emerald-50"
           >
             <Sparkles size={16} /> Đăng ký dạy miễn phí
