@@ -1,6 +1,7 @@
 package com.deutschflow.teacher.service;
 
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.teacher.entity.AssignmentStatus;
 import com.deutschflow.teacher.dto.ClassroomDetailDto;
 import com.deutschflow.teacher.dto.MyClassroomDto;
 import com.deutschflow.teacher.dto.StudentAssignmentDto;
@@ -236,14 +237,18 @@ public class StudentClassroomService {
                 continue;
             }
             String status = sa.getStatus();
-            if ("PENDING".equals(status)) pending++;
-            else if ("SUBMITTED".equals(status)) submitted++;
-            else if ("GRADED".equals(status) || "EVALUATED".equals(status)) {
+            if (AssignmentStatus.PENDING.equals(status)) pending++;
+            else if (AssignmentStatus.isFinal(status)) {
                 graded++;
                 if (sa.getScore() != null) {
                     scoreSum += sa.getScore();
                     scoreCount++;
                 }
+            } else if (AssignmentStatus.isSubmitted(status)) {
+                // SUBMITTED, AI_GRADED (proposal awaiting the teacher) and GRADING_FAILED all mean the
+                // same thing to the student: handed in, no grade yet. AI_GRADED in particular must NOT
+                // read as graded — nobody has confirmed that score, and the student was never told it.
+                submitted++;
             } else {
                 pending++;
             }

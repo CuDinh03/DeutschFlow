@@ -55,15 +55,19 @@ export async function uploadMedia(
   return res.data as MediaAsset
 }
 
+// Xoá/sửa metadata đi qua MediaController (/api/v2/media/{id}) — KHÔNG có route /v2/admin/media/*
+// nào ở backend (đường cũ luôn 404). Quyền do MediaAssetAccessPolicy quyết định: ADMIN toàn quyền,
+// TEACHER chỉ thao tác được trên ảnh do chính mình upload và không thuộc category admin-only.
 export async function deleteMedia(id: number) {
-  return api.delete(`/v2/admin/media/${id}`)
+  return api.delete(`/v2/media/${id}`)
 }
 
+// Gửi chuỗi RỖNG (không phải null) khi người dùng xoá trắng ô: MediaAssetService.updateMediaMetadata
+// bỏ qua field `null` (`if (altText != null)`), nên gửi null = "không đổi" → xoá tag/alt text sẽ im
+// lặng không có tác dụng dù toast báo thành công. Chuỗi rỗng mới là tín hiệu "xoá" mà backend hiểu
+// (tag "" → null, altText "" → "").
 export async function updateMediaMetadata(id: number, altText: string, tag: string) {
-  const res = await api.put(`/v2/admin/media/${id}/metadata`, {
-    altText: altText || null,
-    tag: tag || null,
-  })
+  const res = await api.patch(`/v2/media/${id}`, { altText, tag })
   return res.data as MediaAsset
 }
 

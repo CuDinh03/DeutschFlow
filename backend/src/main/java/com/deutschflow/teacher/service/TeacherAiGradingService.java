@@ -8,6 +8,7 @@ import com.deutschflow.speaking.ai.OpenAiChatClient;
 import com.deutschflow.speaking.ai.ChatMessage;
 import com.deutschflow.speaking.ai.AiChatCompletionResult;
 import com.deutschflow.common.quota.QuotaExceededException;
+import com.deutschflow.teacher.entity.AssignmentStatus;
 import com.deutschflow.notification.service.UserNotificationService;
 import com.deutschflow.organization.service.OrgPoolGuard;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +35,6 @@ public class TeacherAiGradingService {
     private final GradingModelConfig gradingModelConfig;
     private final UserNotificationService userNotificationService;
     private final OrgPoolGuard orgPoolGuard;
-    private final StudentCompetencyService studentCompetencyService;
 
     /** Ước lượng token cho 1 lần chấm Sprechen (transcript vào + ~1000 token feedback ra). */
     private static final long SPEAKING_GRADING_ESTIMATED_TOKENS = 2_000L;
@@ -135,37 +135,21 @@ public class TeacherAiGradingService {
                 final Integer finalAiScore = aiScore;
                 final String finalAiFeedback = aiFeedback;
                 studentAssignmentRepository.findById(session.getAssignmentId()).ifPresent(sa -> {
-                    // Never clobber a teacher-finalized (EVALUATED) or already-GRADED assignment — mirrors
-                    // the guard in markSpeakingGradingFailed and the essay grading path.
-                    if ("EVALUATED".equals(sa.getStatus()) || "GRADED".equals(sa.getStatus())) {
+                    // Never clobber a confirmed grade (EVALUATED, or a legacy GRADED row) — mirrors the
+                    // guard in markSpeakingGradingFailed and the essay grading path.
+                    if (AssignmentStatus.isFinal(sa.getStatus())) {
                         log.info("[Auto-Grading] Linked assignment {} already {}; skip overwrite",
                                 sa.getId(), sa.getStatus());
                         return;
                     }
                     sa.setScore(finalAiScore);
                     sa.setFeedback(finalAiFeedback);
-                    sa.setStatus("GRADED");
+                    // Proposal only — same contract as the essay path: the student is told nothing and the
+                    // competency ledger is untouched until a teacher confirms it (→ EVALUATED).
+                    sa.setStatus(AssignmentStatus.AI_GRADED);
                     sa.setGradedAt(java.time.LocalDateTime.now()); // grade time — NOT submittedAt (keep real submit time)
                     studentAssignmentRepository.save(sa);
-                    log.info("[Auto-Grading] Updated StudentAssignment {} with AI score", sa.getId());
-
-                    // Notify the student their (speaking) assignment was graded — parity with the essay path.
-                    try {
-                        userNotificationService.onAssignmentGraded(
-                                sa.getStudentId(), "ASSIGNMENT", sa.getAssignmentId(), finalAiScore, finalAiFeedback);
-                    } catch (Exception notifyErr) {
-                        log.warn("[Auto-Grading] Could not notify student for assignment {}: {}",
-                                sa.getId(), notifyErr.toString());
-                    }
-
-                    // Auto-update the competency ledger (Phase 2b). Best-effort — never fail the async grade.
-                    try {
-                        studentCompetencyService.applyGradingResult(
-                                sa.getStudentId(), sa.getAssignmentId(), finalAiScore);
-                    } catch (Exception compErr) {
-                        log.warn("[Competency] applyGradingResult failed for assignment {}: {}",
-                                sa.getAssignmentId(), compErr.toString());
-                    }
+                    log.info("[Auto-Grading] Proposed AI score for StudentAssignment {} (awaiting teacher)", sa.getId());
                 });
             }
 
@@ -204,7 +188,7 @@ public class TeacherAiGradingService {
         if (session.getAssignmentId() != null) {
             try {
                 studentAssignmentRepository.findById(session.getAssignmentId()).ifPresent(sa -> {
-                    if ("EVALUATED".equals(sa.getStatus()) || "GRADED".equals(sa.getStatus())) return;
+                    if (AssignmentStatus.isFinal(sa.getStatus())) return;
                     sa.setStatus("GRADING_FAILED");
                     sa.setFeedback(GRADING_FAILED_FEEDBACK);
                     studentAssignmentRepository.save(sa);

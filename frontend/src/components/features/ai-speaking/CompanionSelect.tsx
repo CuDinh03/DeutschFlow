@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, ChevronRight, ArrowLeft, Briefcase, BookOpen, Lock } from "lucide-react";
@@ -14,6 +14,7 @@ import { useTranslations } from "next-intl";
 import { useAiSpeakingQuota } from "@/hooks/useAiSpeakingQuota";
 import { SpeakingQuotaBlockedBanner } from "./SpeakingQuotaBlockedBanner";
 import { useChatStore } from "@/stores/useChatStore";
+import { loadSpeakingSessionIntoStore } from "@/lib/speakingSessionBootstrap";
 import { toast } from "sonner";
 import { spring } from "@/lib/motion";
 import { useStatusBarStyle } from "@/lib/statusBar";
@@ -21,27 +22,34 @@ import { lightImpact, mediumImpact } from "@/lib/haptics";
 
 const CEFR_LEVELS = ["A1", "A2", "B1", "B2"];
 
-export function CompanionSelect() {
+export interface CompanionSelectProps {
+  /** Live conversation engine to enter once the session is created. */
+  chatHref?: string;
+  /** Upgrade surface for the ADVANCED-persona paywall. */
+  pricingHref?: string;
+  /** "Back" target when the store carries no `returnPath`. */
+  homeHref?: string;
+  /**
+   * "page"  — legacy full-viewport route.
+   * "shell" — embedded in the /v2 GaShell `<main>` (already bounded) → fill it instead of
+   *           stacking a second 100vh block inside the scroll container.
+   */
+  layout?: "page" | "shell";
+}
+
+export function CompanionSelect({
+  chatHref = "/speaking/chat",
+  pricingHref = "/student/pricing",
+  homeHref = "/",
+  layout = "page",
+}: CompanionSelectProps = {}) {
   useStatusBarStyle("dark");
   const router = useRouter();
   const searchParams = useSearchParams();
+  const minHeightClass = layout === "shell" ? "min-h-full" : "min-h-screen";
   const t = useTranslations("speaking");
   const { quota, quotaBlocked, quotaLoading } = useAiSpeakingQuota();
-  const {
-    setSessionId,
-    setSelectedCompanion,
-    setResponseSchema,
-    clearChat,
-    addMessage,
-    setSessionMode: storeSetSessionMode,
-    setExperienceLevel: storeSetExperienceLevel,
-    setSessionTopic,
-    setAdaptiveMeta,
-    setPendingRepairGate,
-    setInterviewUiHints,
-    returnPath,
-    setReturnPath,
-  } = useChatStore();
+  const { returnPath, setReturnPath } = useChatStore();
   
   const [selected, setSelected] = useState<PersonaId | null>(null);
   const [sessionMode, setSessionMode] = useState<SpeakingSessionMode>("COMMUNICATION");
@@ -63,6 +71,19 @@ export function CompanionSelect() {
     const cefr = searchParams.get('cefr')
     if (topic) setLessonScenario(topic)
     if (cefr && ['A1', 'A2', 'B1', 'B2'].includes(cefr)) setCefrLevel(cefr)
+  }, [searchParams])
+
+  // Mode from the URL (?mode=INTERVIEW|LESSON). The /v2 speaking launcher has one card per mode,
+  // so the card can land directly on the right tab. Applied ONCE on mount — otherwise every
+  // re-render would snap the user back to the URL's mode after they switch tabs.
+  const urlModeAppliedRef = useRef(false);
+  useEffect(() => {
+    if (urlModeAppliedRef.current) return;
+    const m = (searchParams.get('mode') ?? '').toUpperCase();
+    if (m !== 'INTERVIEW' && m !== 'LESSON') return;
+    urlModeAppliedRef.current = true;
+    setSessionMode(m as SpeakingSessionMode);
+    if (m === 'LESSON') setActiveGroup('special');
   }, [searchParams])
 
   // Remember where the user came from (e.g. the v2 launcher) so back / exit can
@@ -162,56 +183,16 @@ export function CompanionSelect() {
         cefrLevel: sessionMode === "INTERVIEW" ? "C1" : cefrLevel,
       };
 
-      clearChat();
-      setSessionId(session.id);
-      setResponseSchema(
-        (session.responseSchema === "V2" ? "V2" : "V1")
-      );
-      setSelectedCompanion(companion);
-      storeSetSessionMode(sessionMode);
-      setSessionTopic(topicForApi ?? null);
-      if (sessionMode === "INTERVIEW") {
-        storeSetExperienceLevel(experienceLevel);
-      }
+      // Same store bootstrap as the class-assignment entry point (lib/speakingSessionBootstrap).
+      loadSpeakingSessionIntoStore({
+        session,
+        companion,
+        sessionMode,
+        topic: topicForApi ?? null,
+        experienceLevel: sessionMode === "INTERVIEW" ? experienceLevel : null,
+      });
 
-      if (session.initialAiMessage?.adaptive) {
-        setAdaptiveMeta(session.initialAiMessage.adaptive);
-        const a = session.initialAiMessage.adaptive;
-        if (a.forceRepairBeforeContinue && a.primaryRepairErrorCode) {
-          const err = session.initialAiMessage.errors?.find(
-            (e) => e.errorCode === a.primaryRepairErrorCode
-          );
-          setPendingRepairGate({
-            code: a.primaryRepairErrorCode,
-            exampleCorrectDe: err?.exampleCorrectDe ?? undefined,
-            ruleViShort: err?.ruleViShort ?? undefined,
-          });
-        }
-      }
-
-      if (session.initialAiMessage) {
-        const init = session.initialAiMessage;
-        if (init.interviewPhaseKey || init.interviewHintKey) {
-          setInterviewUiHints(init.interviewPhaseKey ?? null, init.interviewHintKey ?? null);
-        }
-        addMessage({
-          id: String(init.messageId || Date.now()),
-          role: "ai",
-          contentDe: init.aiSpeechDe,
-          feedback: {
-            errors: init.errors || [],
-            explanationVi: init.explanationVi || "",
-            suggestions: init.suggestions || [],
-            correction: init.correction || null,
-            grammarPoint: init.grammarPoint || null,
-            action: init.action || null,
-            status: init.status ?? null,
-            feedbackText: init.feedback ?? null,
-          },
-        });
-      }
-
-      router.push("/speaking/chat");
+      router.push(chatHref);
     } catch (error) {
       console.error("Failed to create session", error);
 
@@ -222,7 +203,10 @@ export function CompanionSelect() {
         setCreateSessionError("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
         setTimeout(() => {
           if (typeof window !== 'undefined') {
-            window.location.href = '/login';
+            // Component này dùng chung cho /speaking (v1) và ba trang /v2/student/speaking*,
+            // /v2/student/interviews. Bề mặt đăng nhập DUY NHẤT giờ là /v2/login (next.config đá
+            // /login sang đây) → trỏ thẳng, để trang v2 không còn đường nào rơi ngược vào cây v1.
+            window.location.href = '/v2/login';
           }
         }, 1500);
       } else if (status === 403) {
@@ -261,12 +245,12 @@ export function CompanionSelect() {
   }, [sessionMode, searchParams])
 
   return (
-    <div data-native-page className="min-h-screen flex flex-col w-full" style={{ background: "#080818", color: "#fff" }}>
-      <div className="max-w-[520px] mx-auto w-full flex flex-col min-h-screen">
+    <div data-native-page className={`${minHeightClass} flex flex-col w-full`} style={{ background: "#080818", color: "#fff" }}>
+      <div className={`max-w-[520px] mx-auto w-full flex flex-col ${minHeightClass}`}>
         {/* ── Header ── */}
         <div className="px-5 pt-[calc(3.5rem+env(safe-area-inset-top,0px))] pb-3 flex-shrink-0">
           <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-            <motion.button onClick={() => router.push(returnPath || "/")} className="flex items-center gap-2 mb-4" style={{ color: "rgba(255,255,255,0.5)" }} whileTap={{ scale: 0.92 }}>
+            <motion.button onClick={() => router.push(returnPath || homeHref)} className="flex items-center gap-2 mb-4" style={{ color: "rgba(255,255,255,0.5)" }} whileTap={{ scale: 0.92 }}>
               <div className="w-8 h-8 flex items-center justify-center rounded-full" style={{ background: "rgba(255,255,255,0.08)" }}>
                 <ArrowLeft size={15} />
               </div>
@@ -373,7 +357,7 @@ export function CompanionSelect() {
                   <p className="text-xs text-white/50 mt-0.5">Nhân vật cấp độ ADVANCED chỉ dành cho gói PRO/ULTRA. Nâng cấp để luyện phỏng vấn chuyên sâu.</p>
                 </div>
                 <button
-                  onClick={() => router.push("/student/pricing")}
+                  onClick={() => router.push(pricingHref)}
                   className="shrink-0 text-xs font-black text-yellow-400 hover:text-yellow-300 transition-colors whitespace-nowrap"
                 >
                   Nâng cấp →
@@ -489,7 +473,7 @@ export function CompanionSelect() {
 
         {/* ── CTA ── */}
         <div className="px-4 pb-10 flex-shrink-0 mt-2 space-y-3">
-          {quotaBlocked && <SpeakingQuotaBlockedBanner compact />}
+          {quotaBlocked && <SpeakingQuotaBlockedBanner compact upgradeHref={pricingHref} />}
           <AnimatePresence mode="wait">
             {isReady && selectedPersona ? (
               <motion.button key="cta-active"

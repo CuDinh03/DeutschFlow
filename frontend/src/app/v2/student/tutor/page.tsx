@@ -1,7 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { notFound } from 'next/navigation'
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { notFound, useSearchParams } from 'next/navigation'
 import { BadgeCheck, Clock, CalendarClock } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
@@ -32,7 +32,7 @@ const SESSION_STATUS: Record<string, { label: string; color: string }> = {
   CANCELLED: { label: 'Đã huỷ', color: 'var(--ga-muted)' },
 }
 
-export default function V2BookSessionPage() {
+function BookSessionBody({ preselectId }: { preselectId: number | null }) {
   const [tutors, setTutors] = useState<TeacherProfile[]>([])
   const [mySessions, setMySessions] = useState<MySession[]>([])
   const [selId, setSelId] = useState<number | null>(null)
@@ -43,6 +43,7 @@ export default function V2BookSessionPage() {
   const [duration, setDuration] = useState(60)
   const [notes, setNotes] = useState('')
   const [booking, setBooking] = useState(false)
+  const listRef = useRef<HTMLDivElement>(null)
 
   const loadMine = useCallback(async () => {
     try {
@@ -57,7 +58,10 @@ export default function V2BookSessionPage() {
       const res = await api.get('/v2/teachers/public?size=100')
       const list = (res.data?.content ?? []) as TeacherProfile[]
       setTutors(list)
-      setSelId((prev) => prev ?? list[0]?.id ?? null)
+      // Gia sư đến từ deep-link chỉ được chọn sẵn khi id đó THỰC SỰ có trong danh sách công khai —
+      // hồ sơ có thể đã bị ẩn/xoá từ lúc người dùng lưu link. Không khớp thì im lặng rơi về mặc định.
+      const preselected = preselectId != null && list.some((t) => t.id === preselectId) ? preselectId : null
+      setSelId((prev) => prev ?? preselected ?? list[0]?.id ?? null)
       setError('')
       await loadMine()
     } catch (e: unknown) {
@@ -65,9 +69,16 @@ export default function V2BookSessionPage() {
     } finally {
       setLoading(false)
     }
-  }, [loadMine])
+  }, [loadMine, preselectId])
 
   useEffect(() => { void load() }, [load])
+
+  // Danh sách gia sư có thể dài hơn khung nhìn: chọn sẵn thôi chưa đủ, thẻ được chọn phải LỌT vào
+  // tầm mắt thì người dùng mới tin là link đã "nhớ" đúng người. `block: 'nearest'` → no-op nếu đã thấy.
+  useEffect(() => {
+    if (preselectId == null || selId !== preselectId) return
+    listRef.current?.querySelector<HTMLElement>(`[data-tutor-id="${preselectId}"]`)?.scrollIntoView({ block: 'nearest' })
+  }, [preselectId, selId])
 
   const sel = useMemo(() => tutors.find((t) => t.id === selId) ?? null, [tutors, selId])
 
@@ -118,13 +129,14 @@ export default function V2BookSessionPage() {
                 {tutors.length === 0 ? (
                   <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">Hiện chưa có gia sư nào trên hệ thống.</div>
                 ) : (
-                  <div className="flex flex-col gap-3.5">
+                  <div ref={listRef} className="flex flex-col gap-3.5">
                     {tutors.map((tu) => {
                       const on = selId === tu.id
                       return (
                         <button
                           key={tu.id}
                           type="button"
+                          data-tutor-id={tu.id}
                           onClick={() => setSelId(tu.id)}
                           className="flex items-center gap-4 p-4 text-left transition-colors"
                           style={{ background: on ? 'var(--ga-side-active)' : 'var(--ga-card)', border: `1px solid ${on ? 'var(--ga-yellow)' : 'var(--ga-line)'}` }}
@@ -192,5 +204,23 @@ export default function V2BookSessionPage() {
         )}
       </div>
     </div>
+  )
+}
+
+/**
+ * `?teacherId=` — deep-link từ marketplace công khai (`/teachers/[id]` → "Đặt lịch học"). Tách ra
+ * một component riêng vì `useSearchParams()` bắt buộc phải nằm dưới một <Suspense>, nếu không
+ * `next build` gãy ngay ở bước prerender trang này.
+ */
+function BookSessionParams() {
+  const raw = Number(useSearchParams().get('teacherId'))
+  return <BookSessionBody preselectId={Number.isInteger(raw) && raw > 0 ? raw : null} />
+}
+
+export default function V2BookSessionPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-full flex-col" />}>
+      <BookSessionParams />
+    </Suspense>
   )
 }

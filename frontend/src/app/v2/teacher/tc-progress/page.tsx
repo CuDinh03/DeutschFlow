@@ -13,7 +13,7 @@ import { groupLessonsByModule } from '@/lib/moduleGrouping'
 import { resolvePointTexts } from '@/lib/knowledgePoints'
 import { computePacing, isLessonOverdue, todayIsoLocal, parseIsoDateLocal, type PacingStatus } from '../lessonPacing'
 import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
-import { ClassPicker, useTeacherClasses, pct } from '../tcShared'
+import { ClassPicker, useTeacherClasses, pct, classHref } from '../tcShared'
 
 const VIOLET = '#7C56C8'
 
@@ -105,8 +105,8 @@ export default function V2TcProgressPage() {
         right={
           <div className="flex items-center gap-3">
             <ClassPicker classes={classes} classId={classId} onChange={setClassId} disabled={loadingClasses} />
-            <GaBtn variant="ghost" size="sm" onClick={() => router.push('/v2/teacher/tc-reports')}>{t('viewFullReport')}</GaBtn>
-            <GaBtn variant="yellow" size="sm" onClick={() => router.push('/v2/teacher/tc-checklist')}>{t('openChecklist')}</GaBtn>
+            <GaBtn variant="ghost" size="sm" onClick={() => router.push(classHref('/v2/teacher/tc-reports', classId))}>{t('viewFullReport')}</GaBtn>
+            <GaBtn variant="yellow" size="sm" onClick={() => router.push(classHref('/v2/teacher/tc-checklist', classId))}>{t('openChecklist')}</GaBtn>
           </div>
         }
       />
@@ -122,7 +122,7 @@ export default function V2TcProgressPage() {
           </div>
         ) : lessons.length === 0 ? (
           <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">
-            {t('emptyPrefix')} <button type="button" onClick={() => router.push('/v2/teacher/tc-checklist')} className="font-semibold underline" style={{ color: VIOLET }}>{t('addInChecklist')}</button>
+            {t('emptyPrefix')} <button type="button" onClick={() => router.push(classHref('/v2/teacher/tc-checklist', classId))} className="font-semibold underline" style={{ color: VIOLET }}>{t('addInChecklist')}</button>
           </div>
         ) : (
           <>

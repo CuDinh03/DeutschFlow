@@ -430,6 +430,52 @@ class ClassScheduleServiceTest {
 
     // ── helpers ─────────────────────────────────────────────────────────────────
 
+    // ── roll-forward job (wave 5 §7.5) ────────────────────────────────────────
+
+    @Test
+    @DisplayName("rollForwardActivePatterns regenerates each active pattern, filling the 12-week window")
+    void rollForwardActivePatterns_fillsWindow() {
+        ClassSchedulePattern open = ClassSchedulePattern.builder()
+                .id(99L).classId(CLASS_ID).dayOfWeek((short) 1).startTime(LocalTime.of(18, 0))
+                .durationMinutes(90).defaultMode(ClassSchedulePattern.Mode.OFFLINE)
+                .effectiveFrom(LocalDate.now().minusMonths(4)) // long-running, open-ended
+                .build();
+        when(patternRepo.findByEffectiveToIsNullOrEffectiveToGreaterThanEqual(any()))
+                .thenReturn(List.of(open));
+        // Class has one PRIMARY teacher, who teaches only this class → no cross-class conflict query.
+        when(classTeacherRepo.findByIdClassId(CLASS_ID)).thenReturn(List.of(classTeacher(CLASS_ID)));
+        when(classTeacherRepo.findByIdTeacherId(TEACHER_ID)).thenReturn(List.of(classTeacher(CLASS_ID)));
+        when(sessionRepo.findByPatternIdAndStartAtGreaterThanEqual(eq(99L), any())).thenReturn(List.of());
+
+        int created = service.rollForwardActivePatterns();
+
+        // ~12 weekly occurrences generated into the empty window.
+        ArgumentCaptor<List<ClassSession>> cap = listCaptor();
+        verify(sessionRepo).saveAll(cap.capture());
+        assertThat(cap.getValue()).isNotEmpty();
+        assertThat(cap.getValue()).allMatch(s -> s.getClassId().equals(CLASS_ID) && !s.isOverridden());
+        assertThat(created).isEqualTo(cap.getValue().size());
+    }
+
+    @Test
+    @DisplayName("rollForwardActivePatterns skips a pattern that throws, keeps going for the rest")
+    void rollForwardActivePatterns_isolatesFailures() {
+        ClassSchedulePattern bad = ClassSchedulePattern.builder()
+                .id(1L).classId(CLASS_ID).dayOfWeek((short) 1).startTime(LocalTime.of(18, 0))
+                .durationMinutes(90).defaultMode(ClassSchedulePattern.Mode.OFFLINE)
+                .effectiveFrom(LocalDate.now()).build();
+        when(patternRepo.findByEffectiveToIsNullOrEffectiveToGreaterThanEqual(any()))
+                .thenReturn(List.of(bad));
+        when(classTeacherRepo.findByIdClassId(CLASS_ID)).thenReturn(List.of(classTeacher(CLASS_ID)));
+        when(classTeacherRepo.findByIdTeacherId(TEACHER_ID)).thenReturn(List.of(classTeacher(CLASS_ID)));
+        when(sessionRepo.findByPatternIdAndStartAtGreaterThanEqual(eq(1L), any()))
+                .thenThrow(new RuntimeException("boom"));
+
+        // Does not propagate — the job must survive one bad pattern.
+        int created = service.rollForwardActivePatterns();
+        assertThat(created).isZero();
+    }
+
     private void allowOwner() {
         when(classTeacherRepo.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(true);
     }

@@ -54,7 +54,7 @@ export interface RoleNav {
  *
  * Nhóm:
  *   - Quản lý lớp : trang chủ, kế hoạch + nội dung + lịch sử giảng dạy, chấm bài (text/ảnh),
- *                   thư viện tài liệu, phúc khảo.
+ *                   thư viện tài liệu, thư viện ảnh, phúc khảo.
  *   - Giảng dạy   : tin nhắn học viên.
  *   - Công cụ AI  : ngữ pháp AI, tạo tài liệu AI, tạo ảnh AI.
  *   - Thống kê    : báo cáo & phân tích.
@@ -80,6 +80,14 @@ export const teacherNav: RoleNav = {
         { id: 'grade-image', label: 'Chấm bài qua ảnh', href: '/v2/teacher/grade-image', icon: 'draw' },
         { id: 'tc-reports', label: 'Sổ điểm & Báo cáo', href: '/v2/teacher/tc-reports', icon: 'assessment' },
         { id: 'materials', label: 'Thư viện tài liệu', href: '/v2/teacher/materials', icon: 'menu_book' },
+        // "Thư viện ảnh" (media asset S3) ≠ "Thư viện tài liệu" (file tài liệu): ảnh minh hoạ cho
+        // slide/đề bài, có tag + alt text, upload/sửa/xoá theo uploader.
+        { id: 'tc-media', label: 'Thư viện ảnh', href: '/v2/teacher/media', icon: 'photo_library' },
+        // "Bài tập ngữ pháp" — GV sinh bản nháp (AI) rồi nộp duyệt; admin duyệt ở /v2/admin/grammar-review.
+        // CỐ Ý nằm ngoài section "Công cụ AI" (đang bị ẩn sau TEACHER_AI_TOOLS_ENABLED): đây là đầu vào
+        // DUY NHẤT của hàng đợi duyệt, ẩn nó đi thì admin ngồi duyệt một hàng đợi vĩnh viễn rỗng. Phần
+        // xem/nộp-duyệt bản nháp chạy tốt kể cả khi LLM chết — chỉ nút "Sinh AI" phụ thuộc LLM.
+        { id: 'grammar-drafts', label: 'Bài tập ngữ pháp', href: '/v2/teacher/grammar-drafts', icon: 'quiz' },
       ],
     },
     {
@@ -112,7 +120,9 @@ export const teacherNav: RoleNav = {
     {
       label: 'Tài khoản',
       labelKey: 'account',
-      items: [{ id: 't-profile', label: 'Hồ sơ', href: '/v2/teacher/profile', icon: 'person' }],
+      // Shared profile page (like admin/org/student) — it has the password-change form the old
+      // teacher-only /v2/teacher/profile lacked, which is why teachers couldn't change their password.
+      items: [{ id: 't-profile', label: 'Hồ sơ', href: '/v2/profile', icon: 'person' }],
     },
   ],
 }
@@ -226,8 +236,22 @@ export const studentNav: RoleNav = {
         { id: 'vocabulary', label: 'Từ vựng', href: '/v2/student/vocabulary', icon: 'menu_book' },
         { id: 'grammar', label: 'Ngữ pháp', href: '/v2/student/grammar', icon: 'spellcheck' },
         { id: 'review-queue', label: 'Ôn tập (SRS)', href: '/v2/student/review', icon: 'repeat' },
+        // Thư viện bài tập bổ trợ (GET /practice/exercises · POST /practice/submit) — chấm điểm THẬT
+        // ở v2 (trang v1 nộp cứng scorePercent 100%). KHÁC 'review-queue' (SRS đến hạn).
+        { id: 'exercises', label: 'Bài tập bổ trợ', href: '/v2/student/exercises', icon: 'assignment' },
+        // Sổ lỗi ngữ pháp đầy đủ (GET /error-skills/me · /me/resolved) + drill sửa lỗi.
+        // KHÁC 'review-queue': trang đó chỉ có flashcard SRS + task ngữ pháp ĐẾN HẠN (nút "Xong"),
+        // không có toàn bộ sổ lỗi, không tìm kiếm, không luyện sửa.
+        { id: 'st-errors', label: 'Sổ lỗi', href: '/v2/student/errors', icon: 'error' },
+        // "Bài học" = thư viện VIDEO (mediaApi). "Giáo trình" = đề cương sách Netzwerk Neu A1
+        // (GET /curriculum/netzwerk-neu/a1) — hai bề mặt KHÁC nhau, đừng gộp.
         { id: 'lessons', label: 'Bài học', href: '/v2/student/lessons', icon: 'play_circle' },
+        { id: 'curriculum', label: 'Giáo trình', href: '/v2/student/curriculum', icon: 'library_books' },
         { id: 'roadmap', label: 'Lộ trình', href: '/v2/student/roadmap', icon: 'route' },
+        { id: 'game', label: 'Trò chơi', href: '/v2/student/game', icon: 'sports_esports' },
+        // Tin tức báo Đức (GET /news) — trang learner-shared: GV/admin cũng vào được
+        // (ngoại lệ V2_LEARNER_SHARED trong middleware.ts), dù item chỉ hiện trên nav học viên.
+        { id: 'news', label: 'Tin tức Đức', href: '/v2/student/news', icon: 'newspaper' },
       ],
     },
     {
@@ -235,8 +259,14 @@ export const studentNav: RoleNav = {
       labelKey: 'examPrep',
       items: [
         { id: 'speaking', label: 'Luyện nói AI', href: '/v2/student/speaking', icon: 'mic' },
+        // Bài nói theo tuần: admin ra đề (/v2/admin/weekly-speaking) → học viên nộp + nhận rubric.
+        // Luồng RIÊNG, không phải engine chat AI ở /v2/student/speaking.
+        { id: 'weekly-speaking', label: 'Speaking tuần', href: '/v2/student/weekly-speaking', icon: 'calendar_month' },
         { id: 'mock-exam', label: 'Thi thử', href: '/v2/student/mock-exam', icon: 'quiz' },
         { id: 'exam', label: 'Luyện thi', href: '/v2/student/exam', icon: 'school' },
+        // Đánh giá B1 (GET/POST /assessment/b1/*): 5 tiêu chí readiness + điểm tốt nghiệp.
+        // KHÁC 'mock-exam' (làm đề) — đây là bảng tổng hợp điều kiện đạt chuẩn B1.
+        { id: 'b1-assessment', label: 'Đánh giá B1', href: '/v2/student/assessment', icon: 'fact_check' },
       ],
     },
     {
@@ -256,10 +286,24 @@ export const studentNav: RoleNav = {
       label: 'Cá nhân',
       labelKey: 'personal',
       items: [
+        // Thống kê học tập CÁ NHÂN (GET /user/analytics · /user/error-analytics · /user/recommendations):
+        // từ đã học/ôn, phút nói, xu hướng lỗi, gợi ý. KHÁC 'st-progress' (tiến độ LỚP do GV cập nhật).
+        { id: 'st-stats', label: 'Thống kê', href: '/v2/student/stats', icon: 'query_stats' },
         { id: 'achievements', label: 'Thành tích', href: '/v2/student/achievements', icon: 'emoji_events' },
+        // Lịch sử NỘP BÀI của lộ trình (GET /plan/me/attempts): tuần/buổi · lần thử · điểm · lỗi.
+        // KHÁC 'st-progress' (tiến độ LỚP, do giáo viên cập nhật) — hai nguồn dữ liệu khác nhau.
+        { id: 'st-exercise-history', label: 'Lịch sử làm bài', href: '/v2/student/exercise-history', icon: 'history' },
+        // Chứng chỉ CEFR của CHÍNH học viên (GET /certificates/me · POST /certificates/claim · PDF).
+        // KHÁC trang công khai /certificate/[token] (xác thực chứng chỉ, không cần đăng nhập).
+        { id: 'certificates', label: 'Chứng chỉ', href: '/v2/student/certificates', icon: 'workspace_premium' },
         { id: 'tuition', label: 'Học phí', href: '/v2/student/tuition', icon: 'payments' },
         { id: 'notifications', label: 'Thông báo', href: '/v2/notifications', icon: 'notifications' },
         { id: 'profile', label: 'Hồ sơ', href: '/v2/profile', icon: 'person' },
+        // Port của nav item `guide` trong StudentShell v1 (`/student/guide`). Trang
+        // `/v2/student/welcome` đã tồn tại từ đợt trước nhưng KHÔNG có đường vào nào (không nav,
+        // không link) → thẻ "Buổi học đầu tiên" trên đó là ngõ cụt. Đây cũng là lối duy nhất quay
+        // lại /v2/student/beginner sau khi CTA trên dashboard tắt (sessionsCompleted > 0).
+        { id: 'welcome', label: 'Hướng dẫn', href: '/v2/student/welcome', icon: 'help' },
       ],
     },
   ],

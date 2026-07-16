@@ -52,6 +52,7 @@ class MaterialServiceTest {
     @Mock private OrgMemberRepository orgMemberRepository;
     @Mock private com.deutschflow.material.repository.LessonMaterialRepository lessonMaterialRepository;
     @Mock private com.deutschflow.teacher.repository.ClassLessonRepository lessonRepository;
+    @Mock private com.deutschflow.teacher.repository.ClassStudentRepository classStudentRepository;
 
     private MaterialService service;
 
@@ -59,7 +60,7 @@ class MaterialServiceTest {
     void setUp() {
         service = new MaterialService(materialRepository, folderRepository, classMaterialRepository,
                 s3StorageService, teacherClassRepository, orgMemberRepository,
-                lessonMaterialRepository, lessonRepository);
+                lessonMaterialRepository, lessonRepository, classStudentRepository);
     }
 
     private User user(long id, Long orgId) {
@@ -704,5 +705,99 @@ class MaterialServiceTest {
         assertThatThrownBy(() -> service.create(caller, "PERSONAL", html, "Evil", null, null, null))
                 .isInstanceOf(BadRequestException.class);
         verify(materialRepository, never()).save(any());
+    }
+
+    // --------------------------------------------------------------- student read access (wave 3)
+
+    private com.deutschflow.material.entity.LessonMaterial lm(long lessonId, long materialId, int order) {
+        return com.deutschflow.material.entity.LessonMaterial.builder()
+                .id(new com.deutschflow.material.entity.LessonMaterialId(lessonId, materialId))
+                .orderIndex(order).build();
+    }
+
+    @Test
+    @DisplayName("student lesson materials: enrolled → returns active materials in attach order")
+    void studentLessonMaterials_enrolled_returnsActive() {
+        long studentId = 3L, lessonId = 50L, classId = 9L;
+        when(lessonRepository.findById(lessonId)).thenReturn(Optional.of(
+                ClassLesson.builder().id(lessonId).classId(classId).build()));
+        when(classStudentRepository.existsByIdClassIdAndIdStudentId(classId, studentId)).thenReturn(true);
+        when(lessonMaterialRepository.findByIdLessonIdOrderByOrderIndexAsc(lessonId))
+                .thenReturn(List.of(lm(lessonId, 1L, 0), lm(lessonId, 2L, 1)));
+        when(materialRepository.findAllById(List.of(1L, 2L))).thenReturn(List.of(
+                personalMaterial(1L, 99L), personalMaterial(2L, 99L)));
+        when(s3StorageService.presignedGetUrl(any(), any())).thenReturn("http://x/k.pdf");
+
+        List<MaterialDto> out = service.listLessonMaterialsForStudent(studentId, lessonId);
+
+        assertThat(out).extracting(MaterialDto::id).containsExactly(1L, 2L);
+    }
+
+    @Test
+    @DisplayName("student lesson materials: NOT enrolled → forbidden (no access to another class's files)")
+    void studentLessonMaterials_notEnrolled_forbidden() {
+        long studentId = 3L, lessonId = 50L, classId = 9L;
+        when(lessonRepository.findById(lessonId)).thenReturn(Optional.of(
+                ClassLesson.builder().id(lessonId).classId(classId).build()));
+        when(classStudentRepository.existsByIdClassIdAndIdStudentId(classId, studentId)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.listLessonMaterialsForStudent(studentId, lessonId))
+                .isInstanceOf(ForbiddenException.class);
+        verify(lessonMaterialRepository, never()).findByIdLessonIdOrderByOrderIndexAsc(any());
+    }
+
+    @Test
+    @DisplayName("student material url: material NOT attached to that lesson → not found (can't probe ids)")
+    void studentMaterialUrl_notAttachedToLesson_notFound() {
+        long studentId = 3L, lessonId = 50L, classId = 9L, materialId = 1L;
+        when(lessonRepository.findById(lessonId)).thenReturn(Optional.of(
+                ClassLesson.builder().id(lessonId).classId(classId).build()));
+        when(classStudentRepository.existsByIdClassIdAndIdStudentId(classId, studentId)).thenReturn(true);
+        when(lessonMaterialRepository.existsByIdLessonIdAndIdMaterialId(lessonId, materialId)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.refreshLessonMaterialUrlForStudent(studentId, lessonId, materialId))
+                .isInstanceOf(NotFoundException.class);
+        verify(materialRepository, never()).findById(materialId);
+    }
+
+    // --------------------------------------------------------------- archive/unarchive (wave 3)
+
+    @Test
+    @DisplayName("unarchive: ARCHIVED → ACTIVE (reappears in its lessons)")
+    void unarchive_restoresToActive() {
+        User caller = user(7L, null);
+        Material m = personalMaterial(1L, 7L);
+        m.setStatus("ARCHIVED");
+        when(materialRepository.findById(1L)).thenReturn(Optional.of(m));
+        when(materialRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(s3StorageService.presignedGetUrl(any(), any())).thenReturn("http://x/k.pdf");
+
+        service.unarchive(caller, 1L);
+
+        assertThat(m.getStatus()).isEqualTo("ACTIVE");
+    }
+
+    @Test
+    @DisplayName("unarchive: a material that isn't archived → 400 (nothing to restore)")
+    void unarchive_notArchived_rejected() {
+        User caller = user(7L, null);
+        when(materialRepository.findById(1L)).thenReturn(Optional.of(personalMaterial(1L, 7L))); // ACTIVE
+
+        assertThatThrownBy(() -> service.unarchive(caller, 1L)).isInstanceOf(BadRequestException.class);
+        verify(materialRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("attachmentCount: returns lesson + class counts for the warn-before-archive check")
+    void attachmentCount_returnsCounts() {
+        User caller = user(7L, null);
+        when(materialRepository.findById(1L)).thenReturn(Optional.of(personalMaterial(1L, 7L)));
+        when(lessonMaterialRepository.countByIdMaterialId(1L)).thenReturn(3L);
+        when(classMaterialRepository.countByIdMaterialId(1L)).thenReturn(1L);
+
+        MaterialService.AttachmentCount c = service.attachmentCount(caller, 1L);
+
+        assertThat(c.lessons()).isEqualTo(3L);
+        assertThat(c.classes()).isEqualTo(1L);
     }
 }

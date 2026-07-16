@@ -1,5 +1,37 @@
 {
   "org": {
+    "accept": {
+      "cap": "Lời mời tham gia",
+      "title": "Tham gia tổ chức",
+      "subtitle": "Xác nhận để bắt đầu làm việc cùng trung tâm trên DeutschFlow.",
+      "orgLabel": "Tổ chức",
+      "emailLabel": "Email",
+      "roleLabel": "Vai trò",
+      "roles": {
+        "OWNER": "Chủ tổ chức",
+        "ADMIN": "Quản trị viên",
+        "TEACHER": "Giáo viên",
+        "STUDENT": "Học viên"
+      },
+      "loading": "Đang tải lời mời…",
+      "passwordHint": "Nhập mật khẩu để xác nhận. Nếu bạn <b>đã có tài khoản</b> DeutschFlow với email này, hãy dùng mật khẩu hiện tại. Nếu <b>chưa có</b>, hãy đặt mật khẩu mới và tên hiển thị để tạo tài khoản.",
+      "passwordField": "Mật khẩu",
+      "passwordPlaceholder": "Mật khẩu tài khoản",
+      "displayNameField": "Tên hiển thị",
+      "displayNamePlaceholder": "Nguyễn Văn A",
+      "displayNameHint": "Chỉ dùng khi tạo tài khoản mới.",
+      "submit": "Tham gia tổ chức",
+      "submitting": "Đang xử lý…",
+      "terms": "Bằng việc tham gia, bạn đồng ý với điều khoản sử dụng của DeutschFlow.",
+      "loginCta": "Đến trang đăng nhập",
+      "invalidTitle": "Lời mời không khả dụng",
+      "invalidFallback": "Không tìm thấy lời mời.",
+      "expiredTitle": "Lời mời đã hết hạn",
+      "expiredMessage": "Lời mời gửi tới <b>{email}</b> đã hết hạn. Vui lòng liên hệ quản trị viên tổ chức để được mời lại.",
+      "errorMissingToken": "Liên kết mời không hợp lệ — thiếu mã mời.",
+      "errorLoadFailed": "Không thể tải lời mời. Liên kết có thể đã bị thu hồi hoặc không tồn tại.",
+      "errorAcceptFailed": "Không thể nhận lời mời. Vui lòng thử lại."
+    },
     "overview": {
       "title": "Tổ chức",
       "subtitleDashboard": "Bảng điều khiển tổ chức",

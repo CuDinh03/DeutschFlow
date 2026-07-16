@@ -28,7 +28,19 @@ export interface AttendanceTabProps {
   classDisplayName: string
 }
 
+/** The three values the backend stores. Only these are ever sent on the wire. */
 type AttendanceStatus = 'PRESENT' | 'LATE' | 'ABSENT'
+
+/**
+ * Draft-only status. UNMARKED means "the teacher has not said anything about this student yet" and
+ * is never sent to the backend — no attendance row is written for them.
+ *
+ * This exists because the form used to default every roster student to PRESENT: a teacher who only
+ * wanted to record what was taught, and never scrolled to the attendance section, silently marked
+ * the whole class present — absentees included. That fabricated data flows into the attendance rate
+ * and the certificate gate, so "no answer" must stay distinguishable from "present".
+ */
+type DraftStatus = AttendanceStatus | 'UNMARKED'
 
 /**
  * Normalize a raw status string to the three-value domain. The backend column has no
@@ -83,11 +95,12 @@ function glyphAndColor(entry: LessonLogAttendanceEntry | undefined): { glyph: st
 function buildAttendanceDraft(
   students: { studentId: number; name: string }[],
   log: ClassLessonLog | null,
-): Record<number, AttendanceStatus> {
-  const draft: Record<number, AttendanceStatus> = {}
+): Record<number, DraftStatus> {
+  const draft: Record<number, DraftStatus> = {}
   for (const s of students) {
     const existing = log?.attendance.find((a) => a.studentId === s.studentId)
-    draft[s.studentId] = existing ? normalizeAttendanceStatus(existing.status) : 'PRESENT'
+    // No existing record → UNMARKED. Never assume PRESENT.
+    draft[s.studentId] = existing ? normalizeAttendanceStatus(existing.status) : 'UNMARKED'
   }
   return draft
 }
@@ -105,7 +118,7 @@ export function AttendanceTab(props: AttendanceTabProps) {
   const [lessonId, setLessonId] = useState('')
   const [homework, setHomework] = useState('')
   const [note, setNote] = useState('')
-  const [attendanceDraft, setAttendanceDraft] = useState<Record<number, AttendanceStatus>>({})
+  const [attendanceDraft, setAttendanceDraft] = useState<Record<number, DraftStatus>>({})
   const [saving, setSaving] = useState(false)
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set())
@@ -140,19 +153,30 @@ export function AttendanceTab(props: AttendanceTabProps) {
     setEditingLog(null)
   }
 
-  const setStudentStatus = (studentId: number, status: AttendanceStatus): void => {
+  const setStudentStatus = (studentId: number, status: DraftStatus): void => {
     setAttendanceDraft((prev) => ({ ...prev, [studentId]: status }))
   }
+
+  /** One click for the common case (everyone showed up) — without making it the silent default. */
+  const markAllPresent = (): void => {
+    setAttendanceDraft((prev) => {
+      const next = { ...prev }
+      for (const s of roster) next[s.studentId] = 'PRESENT'
+      return next
+    })
+  }
+
+  const unmarkedCount = roster.filter((s) => (attendanceDraft[s.studentId] ?? 'UNMARKED') === 'UNMARKED').length
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault()
     setSaving(true)
     try {
-      // Attendance the teacher can edit in the form (current roster) …
-      const rosterEntries = roster.map((s) => ({
-        studentId: s.studentId,
-        status: attendanceDraft[s.studentId] ?? 'PRESENT',
-      }))
+      // Attendance the teacher actually marked (current roster). UNMARKED students are dropped:
+      // no row is written, so "not recorded" never masquerades as "present".
+      const rosterEntries = roster
+        .map((s) => ({ studentId: s.studentId, status: attendanceDraft[s.studentId] ?? 'UNMARKED' }))
+        .filter((e): e is { studentId: number; status: AttendanceStatus } => e.status !== 'UNMARKED')
       // … plus preserved records for anyone already on the log but NOT in the current
       // roster (e.g. a student who left the class, or a stale/empty roster) so an edit
       // never silently wipes their attendance.
@@ -241,8 +265,15 @@ export function AttendanceTab(props: AttendanceTabProps) {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>{t('attendance.sessionDateLabel')}</label>
-              <input type="date" required value={sessionDate} onChange={(e) => setSessionDate(e.target.value)} className={fieldCls} />
+              <label className={labelCls} htmlFor="lesson-log-session-date">{t('attendance.sessionDateLabel')}</label>
+              <input
+                id="lesson-log-session-date"
+                type="date"
+                required
+                value={sessionDate}
+                onChange={(e) => setSessionDate(e.target.value)}
+                className={fieldCls}
+              />
             </div>
             <div>
               <label className={labelCls}>{t('attendance.sessionNumberLabel')}</label>
@@ -286,22 +317,43 @@ export function AttendanceTab(props: AttendanceTabProps) {
 
           {roster.length > 0 && (
             <div className="mt-4">
-              <label className={labelCls}>{t('attendance.attendanceLabel')}</label>
+              <div className="mb-1.5 flex items-end justify-between gap-3">
+                <label className={`${labelCls} mb-0`}>{t('attendance.attendanceLabel')}</label>
+                <div className="flex items-center gap-2.5">
+                  {unmarkedCount > 0 && (
+                    <span className="ga-ui text-[12px] font-semibold text-ga-muted">
+                      {t('attendance.unmarkedCount', { count: unmarkedCount })}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={markAllPresent}
+                    className="ga-ui border border-ga-line px-2 py-1 text-[11.5px] font-semibold text-ga-ink transition-colors hover:border-ga-accent hover:text-ga-accent"
+                  >
+                    {t('attendance.markAllPresent')}
+                  </button>
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {roster.map((s) => (
-                  <div key={s.studentId} className="flex items-center gap-2 border border-ga-line bg-ga-bg px-2.5 py-2">
-                    <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-ga-ink">{s.name}</span>
-                    <select
-                      value={attendanceDraft[s.studentId] ?? 'PRESENT'}
-                      onChange={(e) => setStudentStatus(s.studentId, e.target.value as AttendanceStatus)}
-                      className={selectCls}
-                    >
-                      <option value="PRESENT">{t('attendance.statusPresent')}</option>
-                      <option value="LATE">{t('attendance.statusLate')}</option>
-                      <option value="ABSENT">{t('attendance.statusAbsent')}</option>
-                    </select>
-                  </div>
-                ))}
+                {roster.map((s) => {
+                  const status = attendanceDraft[s.studentId] ?? 'UNMARKED'
+                  return (
+                    <div key={s.studentId} className="flex items-center gap-2 border border-ga-line bg-ga-bg px-2.5 py-2">
+                      <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-ga-ink">{s.name}</span>
+                      <select
+                        aria-label={s.name}
+                        value={status}
+                        onChange={(e) => setStudentStatus(s.studentId, e.target.value as DraftStatus)}
+                        className={status === 'UNMARKED' ? `${selectCls} text-ga-subtle` : selectCls}
+                      >
+                        <option value="UNMARKED">{t('attendance.statusUnmarked')}</option>
+                        <option value="PRESENT">{t('attendance.statusPresent')}</option>
+                        <option value="LATE">{t('attendance.statusLate')}</option>
+                        <option value="ABSENT">{t('attendance.statusAbsent')}</option>
+                      </select>
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )}

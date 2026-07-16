@@ -115,6 +115,42 @@ public class S3StorageService {
     }
 
     /**
+     * Resolves one of OUR object keys from a stored URL, or {@code null} if the URL does not point at
+     * this bucket.
+     *
+     * <p>This exists so the server can re-read a file it already holds WITHOUT ever fetching a URL it
+     * was handed. Stored URLs like {@code StudentAssignment.submissionFileUrl} come straight out of a
+     * request body, so treating one as "somewhere to GET from" would be a server-side request forgery:
+     * a student could point it at an internal address and have the backend fetch it for them. Callers
+     * get a key they can only use against our own bucket — and should still check the key's prefix
+     * matches the resource they are working on.
+     */
+    public String objectKeyFromOwnUrl(String url) {
+        if (url == null || url.isBlank()) return null;
+        try {
+            java.net.URI uri = java.net.URI.create(url.trim());
+            java.net.URI ours = java.net.URI.create(bucketContext.publicObjectUrl(""));
+            if (uri.getHost() == null || !uri.getHost().equalsIgnoreCase(ours.getHost())) return null;
+
+            String path = uri.getPath();
+            if (path == null || path.length() <= 1) return null;
+            String key = java.net.URLDecoder.decode(path.substring(1), java.nio.charset.StandardCharsets.UTF_8);
+            // A key that walks upward is never one of ours.
+            return key.contains("..") ? null : key;
+        } catch (IllegalArgumentException e) {
+            return null; // not a URL at all
+        }
+    }
+
+    /** Bytes of an object in our bucket. Only ever call this with a key from {@link #objectKeyFromOwnUrl}. */
+    public byte[] downloadBytes(String objectKey) {
+        return s3Client.getObjectAsBytes(GetObjectRequest.builder()
+                .bucket(bucketContext.bucketName())
+                .key(objectKey)
+                .build()).asByteArray();
+    }
+
+    /**
      * Presigned GET URL for privately viewing/downloading an existing object. Works even when the
      * bucket/prefix is NOT public-read (e.g. teaching materials), and the link expires after
      * {@code ttl}. The browser renders viewable types (PDF/images) inline via the object's stored

@@ -44,6 +44,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -204,6 +206,110 @@ class TeacherServiceTest {
         assertEquals(lessonId, captor.getValue().getLessonId());
     }
 
+    /**
+     * The audit bug: a SPEAKING_SCENARIO was always generated at a hardcoded "A2", so a B1/B2 class got
+     * an A2 scenario. When the assignment links a lesson, the lesson's CEFR level is used instead.
+     */
+    @Test
+    void createAssignment_speakingScenario_usesLinkedLessonCefrLevel() {
+        Long teacherId = 1L, classId = 100L, lessonId = 55L;
+        CreateAssignmentRequest req = new CreateAssignmentRequest(
+                "Im Restaurant", "D", "SPEAKING_SCENARIO", null, null, null, null, lessonId);
+
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)).thenReturn(true);
+        when(lessonRepository.findById(lessonId)).thenReturn(Optional.of(
+                ClassLesson.builder().id(lessonId).classId(classId).orderIndex(0).title("L5").cefrLevel("B1").build()));
+        when(assignmentRepository.save(any(ClassAssignment.class))).thenAnswer(inv -> {
+            ClassAssignment a = inv.getArgument(0);
+            if (a.getId() == null) a.setId(500L);
+            return a;
+        });
+        when(classStudentRepository.findByIdClassId(classId)).thenReturn(List.of());
+        when(speakingAiHelpersService.generateScenario(eq(teacherId), anyString(), anyString()))
+                .thenReturn(com.deutschflow.speaking.service.SpeakingAiHelpersService.PracticeScenario.builder().build());
+
+        teacherService.createAssignment(teacherId, classId, req);
+
+        // B1, taken from the linked lesson — NOT the old hardcoded "A2".
+        verify(speakingAiHelpersService).generateScenario(eq(teacherId), eq("Im Restaurant"), eq("B1"));
+        verify(speakingAiHelpersService, never()).generateScenario(any(), anyString(), eq("A2"));
+    }
+
+    @Test
+    void createAssignment_speakingScenario_noLesson_fallsBackToA2() {
+        Long teacherId = 1L, classId = 100L;
+        CreateAssignmentRequest req = new CreateAssignmentRequest(
+                "Smalltalk", "D", "SPEAKING_SCENARIO", null, null, null, null, null);
+
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)).thenReturn(true);
+        when(assignmentRepository.save(any(ClassAssignment.class))).thenAnswer(inv -> {
+            ClassAssignment a = inv.getArgument(0);
+            if (a.getId() == null) a.setId(501L);
+            return a;
+        });
+        when(classStudentRepository.findByIdClassId(classId)).thenReturn(List.of());
+        when(speakingAiHelpersService.generateScenario(eq(teacherId), anyString(), anyString()))
+                .thenReturn(com.deutschflow.speaking.service.SpeakingAiHelpersService.PracticeScenario.builder().build());
+
+        teacherService.createAssignment(teacherId, classId, req);
+
+        verify(speakingAiHelpersService).generateScenario(eq(teacherId), eq("Smalltalk"), eq("A2"));
+    }
+
+    // ── class analytics: real completedAssignments, honest nulls (wave 4 §5.2) ────
+
+    @Test
+    void getClassAnalytics_completedAssignments_countsConfirmedGradesOnly() {
+        Long teacherId = 1L, classId = 100L;
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)).thenReturn(true);
+        when(classStudentRepository.findByIdClassId(classId)).thenReturn(List.of(
+                ClassStudent.builder().id(new ClassStudentId(classId, 10L)).build()));
+        when(xpService.totalXpForUsers(any())).thenReturn(0L);
+        when(grammarErrorRepository.aggregateErrorCodesForUsers(any(), any())).thenReturn(List.of());
+        when(assignmentRepository.findByClassIdOrderByCreatedAtDesc(classId)).thenReturn(List.of(
+                ClassAssignment.builder().id(900L).classId(classId).build()));
+        when(studentAssignmentRepository.findByAssignmentIds(List.of(900L))).thenReturn(List.of(
+                StudentAssignment.builder().id(1L).assignmentId(900L).studentId(10L).status("EVALUATED").score(80).build(),
+                StudentAssignment.builder().id(2L).assignmentId(900L).studentId(10L).status("AI_GRADED").score(70).build(),
+                StudentAssignment.builder().id(3L).assignmentId(900L).studentId(10L).status("SUBMITTED").build()));
+
+        var dto = teacherService.getClassAnalytics(teacherId, classId);
+
+        // Only the EVALUATED row is a confirmed grade — AI_GRADED (proposal) and SUBMITTED don't count.
+        assertEquals(1L, dto.completedAssignments());
+        // No honest class-scoped source for these → null, so the UI hides the card (not a fake 0).
+        org.junit.jupiter.api.Assertions.assertNull(dto.avgSpeakingScore());
+        org.junit.jupiter.api.Assertions.assertNull(dto.reviewCoveragePct());
+    }
+
+    // ── roster CEFR = current level, not the self-declared target (wave 4 §5.1) ───
+
+    @Test
+    void getClassStudents_cefrColumnIsCurrentLevel_targetShownSeparately() {
+        Long teacherId = 1L, classId = 100L, studentId = 10L;
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)).thenReturn(true);
+        when(classStudentRepository.findByIdClassId(classId)).thenReturn(List.of(
+                ClassStudent.builder().id(new ClassStudentId(classId, studentId)).build()));
+        var user = com.deutschflow.user.entity.User.builder().id(studentId).displayName("Hiệp").email("h@x.com").build();
+        when(userRepository.findAllById(List.of(studentId))).thenReturn(List.of(user));
+        var profile = com.deutschflow.user.entity.UserLearningProfile.builder()
+                .user(user)
+                .currentLevel(com.deutschflow.user.entity.UserLearningProfile.CurrentLevel.A1)
+                .targetLevel(com.deutschflow.user.entity.UserLearningProfile.TargetLevel.B2)
+                .levelSource("SELF")
+                .build();
+        when(profileRepository.findByUserIdIn(List.of(studentId))).thenReturn(List.of(profile));
+        when(xpService.totalXpByUserId(List.of(studentId))).thenReturn(java.util.Map.of(studentId, 0));
+
+        var rows = teacherService.getClassStudents(teacherId, classId);
+
+        // A beginner heading for B2 must read as A1 now — NOT B2 (which the old code showed, so a teacher
+        // could think they were already advanced).
+        assertEquals("A1", rows.get(0).cefrLevel());
+        assertEquals("B2", rows.get(0).targetLevel());
+        assertEquals("SELF", rows.get(0).levelSource());
+    }
+
     @Test
     void getStudentAssignments_Success() {
         Long teacherId = 1L;
@@ -213,11 +319,17 @@ class TeacherServiceTest {
         when(classTeacherRepository.findByIdTeacherId(teacherId)).thenReturn(List.of(ct));
         when(classStudentRepository.existsByIdClassIdAndIdStudentId(100L, studentId)).thenReturn(true);
 
+        // The read is scoped to the assignments of the shared class, not to the student globally.
+        when(assignmentRepository.findByClassIdIn(List.of(100L)))
+                .thenReturn(List.of(ClassAssignment.builder().id(500L).classId(100L).build()));
+
         StudentAssignment sa = StudentAssignment.builder()
                 .id(1L).assignmentId(500L).studentId(studentId).status("SUBMITTED").score(90).feedback("Good")
                 .build();
 
-        when(studentAssignmentRepository.findByStudentIdOrderByCreatedAtDesc(studentId)).thenReturn(List.of(sa));
+        when(studentAssignmentRepository
+                .findByStudentIdAndAssignmentIdInAndDeletedFalseOrderByCreatedAtDesc(studentId, List.of(500L)))
+                .thenReturn(List.of(sa));
 
         List<StudentAssignmentDto> result = teacherService.getStudentAssignments(teacherId, studentId);
 
@@ -476,5 +588,85 @@ class TeacherServiceTest {
         assertThrows(NotFoundException.class,
                 () -> teacherService.getOrCreateScenarioForStudent(assignmentId, studentId));
         verify(speakingAiHelpersService, never()).generateScenario(any(Long.class), anyString(), anyString());
+    }
+
+    // ── student detail: cross-class / cross-tenant scoping ─────────────────────
+
+    /**
+     * The audit bug: access was gated on "do we share ANY class?" and the student's work was then read
+     * by studentId alone. A student enrolled at two centres (common) meant the teacher at centre A could
+     * read every submission, score and feedback the teacher at centre B had produced. The query must be
+     * scoped to the assignments of the classes actually shared.
+     */
+    @Test
+    void getStudentAssignments_returnsOnlyWorkFromClassesSharedWithThisTeacher() {
+        Long teacherId = 1L, studentId = 50L;
+        Long myClassId = 10L;
+
+        // Teacher owns class 10; the student is in it (and also, invisibly here, in someone else's class).
+        when(classTeacherRepository.findByIdTeacherId(teacherId))
+                .thenReturn(List.of(ClassTeacher.builder().id(new ClassTeacherId(myClassId, teacherId)).build()));
+        when(classStudentRepository.existsByIdClassIdAndIdStudentId(myClassId, studentId)).thenReturn(true);
+
+        // Only class 10's assignments may be considered.
+        when(assignmentRepository.findByClassIdIn(List.of(myClassId)))
+                .thenReturn(List.of(ClassAssignment.builder().id(100L).classId(myClassId).topic("Brief").build()));
+
+        StudentAssignment mine = StudentAssignment.builder()
+                .id(1L).assignmentId(100L).studentId(studentId).status("GRADED").score(80).build();
+        when(studentAssignmentRepository
+                .findByStudentIdAndAssignmentIdInAndDeletedFalseOrderByCreatedAtDesc(studentId, List.of(100L)))
+                .thenReturn(List.of(mine));
+
+        List<StudentAssignmentDto> result = teacherService.getStudentAssignments(teacherId, studentId);
+
+        assertEquals(1, result.size());
+        assertEquals(100L, result.get(0).assignmentId());
+        // The unscoped read is gone: no query may fetch this student's work by studentId alone.
+        verify(studentAssignmentRepository, never()).findByStudentIdOrderByCreatedAtDesc(any());
+    }
+
+    // ── notifications point at the right person ───────────────────────────────
+
+    /**
+     * The audit bug: submitting work notified the STUDENT (insertForUser was passed the student's own
+     * principal) with copy written for a teacher, and the teacher was told nothing at all. It also put
+     * the assignment's topic into the "className" field.
+     */
+    @Test
+    void notifyTeachersOfSubmission_notifiesEveryTeacherOfTheClass_withTheRealClassName() {
+        Long classId = 10L, classAssignmentId = 500L, studentId = 50L;
+
+        when(assignmentRepository.findById(classAssignmentId)).thenReturn(java.util.Optional.of(
+                ClassAssignment.builder().id(classAssignmentId).classId(classId).topic("Brief schreiben").build()));
+        when(classRepository.findById(classId)).thenReturn(java.util.Optional.of(
+                TeacherClass.builder().id(classId).name("A1.2 — Thứ 3").build()));
+        // Two teachers on the class (primary + co-teacher): both must hear about it.
+        when(classTeacherRepository.findByIdClassId(classId)).thenReturn(List.of(
+                ClassTeacher.builder().id(new ClassTeacherId(classId, 1L)).build(),
+                ClassTeacher.builder().id(new ClassTeacherId(classId, 2L)).build()));
+
+        teacherService.notifyTeachersOfSubmission(classAssignmentId, studentId, "Nguyễn Vũ Hiệp");
+
+        verify(userNotificationService).onTeacherGradingEvent(
+                eq(1L), eq(classId), eq("A1.2 — Thứ 3"), eq(classAssignmentId),
+                eq(studentId), eq("Nguyễn Vũ Hiệp"), eq("SUBMISSION_RECEIVED"), isNull());
+        verify(userNotificationService).onTeacherGradingEvent(
+                eq(2L), eq(classId), eq("A1.2 — Thứ 3"), eq(classAssignmentId),
+                eq(studentId), eq("Nguyễn Vũ Hiệp"), eq("SUBMISSION_RECEIVED"), isNull());
+        // NOT the assignment topic — that is what the old payload put in the className field.
+        verify(userNotificationService, never()).onTeacherGradingEvent(
+                any(), any(), eq("Brief schreiben"), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void getStudentAssignments_rejectsAStudentTheTeacherSharesNoClassWith() {
+        Long teacherId = 1L, studentId = 50L;
+        when(classTeacherRepository.findByIdTeacherId(teacherId))
+                .thenReturn(List.of(ClassTeacher.builder().id(new ClassTeacherId(10L, teacherId)).build()));
+        when(classStudentRepository.existsByIdClassIdAndIdStudentId(10L, studentId)).thenReturn(false);
+
+        assertThrows(com.deutschflow.common.exception.ConflictException.class,
+                () -> teacherService.getStudentAssignments(teacherId, studentId));
     }
 }

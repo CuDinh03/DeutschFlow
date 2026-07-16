@@ -260,7 +260,7 @@ function ResultCard({ result }: { result: FreeGradeResult }) {
         )}
       </div>
       <Link
-        href="/register"
+        href="/v2/register"
         className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white transition hover:bg-slate-800"
       >
         Luyện thi không giới hạn với DeutschFlow <ArrowRight size={16} />

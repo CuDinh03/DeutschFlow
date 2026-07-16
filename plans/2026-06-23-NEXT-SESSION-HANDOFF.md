@@ -112,7 +112,7 @@
 - **Tài khoản QA:** `admin@local.test`=ADMIN · `teacher@local.test`=org1 OWNER (sẽ bị hạ bởi seed) · `student@deutschflow.com` pw `Admin12345!`. (Local, KHÁC prod.)
 
 ## 7. Rollback
-- Web: env Amplify `GALERIE_V2_DISABLED=true` → middleware bounce `/v2`→legacy.
+- Web: ~~env Amplify `GALERIE_V2_DISABLED=true`~~ → ⚠️ **ĐÃ GỠ 2026-07-14** (đợt 0 xoá cây v1 — kill-switch tạo vòng lặp redirect với `/login`→`/v2/login`). Rollback web = revert commit trên `main` (Amplify auto-deploy) hoặc Amplify Console → "Redeploy this version". Chi tiết: `plans/2026-07-14-xoa-sach-v1-web.md`.
 - Backend: `deploy-backend.sh` blue-green (giữ container cũ tới khi health xanh). Migration **forward-only** — V229/V230 additive (nullable + CHECK), V228 bảng mới → rollback = redeploy ảnh cũ, KHÔNG drop cột.
 
 ---

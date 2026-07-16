@@ -4,6 +4,7 @@ import com.deutschflow.common.quota.AiUsageLedgerService;
 import com.deutschflow.notification.service.UserNotificationService;
 import com.deutschflow.speaking.ai.AiChatCompletionResult;
 import com.deutschflow.speaking.ai.OpenAiChatClient;
+import com.deutschflow.teacher.entity.AssignmentStatus;
 import com.deutschflow.teacher.entity.StudentAssignment;
 import com.deutschflow.teacher.repository.ClassAssignmentRepository;
 import com.deutschflow.teacher.repository.ClassStudentRepository;
@@ -45,14 +46,12 @@ class GradingServiceGuardTest {
     @Mock OpenAiChatClient openAiChatClient;
     @Mock AiUsageLedgerService aiUsageLedgerService;
     @Mock GradingModelConfig gradingModelConfig;
-    @Mock StudentCompetencyService studentCompetencyService;
 
     private GradingService gradingService() {
         return new GradingService(
                 studentAssignmentRepository, classAssignmentRepository, classStudentRepository,
                 classTeacherRepository, teacherClassRepository, userRepository,
-                userNotificationService, openAiChatClient, aiUsageLedgerService, gradingModelConfig,
-                studentCompetencyService);
+                userNotificationService, openAiChatClient, aiUsageLedgerService, gradingModelConfig);
     }
 
     @Test
@@ -88,9 +87,15 @@ class GradingServiceGuardTest {
                 .onAssignmentGraded(any(), any(), any(), any(), any());
     }
 
+    /**
+     * The screen promises "AI chấm sơ bộ · giáo viên xác nhận". The AI pass used to write GRADED, which
+     * announced the raw AI score to the student straight away and dropped the row out of the teacher's
+     * queue — so a teacher who then corrected the score sent a SECOND, different "bài đã chấm" notice.
+     * The AI now only proposes: AI_GRADED, student told nothing, row stays in the queue.
+     */
     @Test
-    @DisplayName("aiGradeAssignment VẪN chấm bài SUBMITTED → GRADED + notify (happy path còn nguyên)")
-    void aiGradeAssignment_gradesSubmitted() {
+    @DisplayName("aiGradeAssignment chấm bài SUBMITTED → AI_GRADED (đề xuất), KHÔNG báo học viên")
+    void aiGradeAssignment_proposesScore_doesNotNotifyStudent() {
         StudentAssignment sa = StudentAssignment.builder()
                 .id(7L).assignmentId(9L).studentId(3L).status("SUBMITTED")
                 .submissionContent("Hallo, ich lerne Deutsch in Berlin.").build();
@@ -103,11 +108,25 @@ class GradingServiceGuardTest {
 
         gradingService().aiGradeAssignment(7L, 1L);
 
-        assertThat(sa.getStatus()).isEqualTo("GRADED");
-        assertThat(sa.getScore()).isEqualTo(82);
+        assertThat(sa.getStatus()).isEqualTo(AssignmentStatus.AI_GRADED);
+        assertThat(sa.getScore()).isEqualTo(82);       // the proposal is stored …
         verify(studentAssignmentRepository).save(sa);
-        verify(userNotificationService)
-                .onAssignmentGraded(eq(3L), eq("ASSIGNMENT"), eq(9L), eq(82), any());
+        // … but nobody is told, and nothing is counted, until a teacher confirms it.
+        verify(userNotificationService, never())
+                .onAssignmentGraded(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("aiGradeAssignment KHÔNG chấm lại bài đã AI_GRADED (không đốt token lần hai)")
+    void aiGradeAssignment_skipsAlreadyProposed() {
+        StudentAssignment sa = StudentAssignment.builder()
+                .id(12L).assignmentId(9L).studentId(3L).status(AssignmentStatus.AI_GRADED).score(75).build();
+        when(studentAssignmentRepository.findById(12L)).thenReturn(Optional.of(sa));
+
+        gradingService().aiGradeAssignment(12L, 1L);
+
+        verifyNoInteractions(openAiChatClient);
+        verify(studentAssignmentRepository, never()).save(any());
     }
 
     @Test
@@ -127,7 +146,7 @@ class GradingServiceGuardTest {
     }
 
     @Test
-    @DisplayName("aiGradeAssignment chấm lại bài GRADING_FAILED (cho retry) → GRADED")
+    @DisplayName("aiGradeAssignment chấm lại bài GRADING_FAILED (cho retry) → AI_GRADED")
     void aiGradeAssignment_retriesFailed() {
         StudentAssignment sa = StudentAssignment.builder()
                 .id(8L).assignmentId(9L).studentId(3L).status("GRADING_FAILED")
@@ -141,7 +160,7 @@ class GradingServiceGuardTest {
 
         gradingService().aiGradeAssignment(8L, 1L);
 
-        assertThat(sa.getStatus()).isEqualTo("GRADED");
+        assertThat(sa.getStatus()).isEqualTo(AssignmentStatus.AI_GRADED);
         assertThat(sa.getScore()).isEqualTo(60);
         verify(studentAssignmentRepository).save(sa);
     }

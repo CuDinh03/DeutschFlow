@@ -8,9 +8,20 @@ import { cn } from "@/lib/utils";
 interface Props {
   className?: string;
   compact?: boolean;
+  /**
+   * Upgrade surface the CTA points at. Injected because this banner is rendered from BOTH the
+   * legacy speaking pages and the /v2 (Galerie) ones — a hardcoded v1 path would deep-link /v2
+   * users back into the shell that is being deleted.
+   * Default is the v1 pricing page: the old target `/student/my-plan` does not exist (404).
+   */
+  upgradeHref?: string;
 }
 
-export function SpeakingQuotaBlockedBanner({ className, compact }: Props) {
+export function SpeakingQuotaBlockedBanner({
+  className,
+  compact,
+  upgradeHref = "/student/pricing",
+}: Props) {
   const t = useTranslations("speaking");
 
   return (
@@ -31,7 +42,7 @@ export function SpeakingQuotaBlockedBanner({ className, compact }: Props) {
           <p className="text-sm font-semibold text-amber-100">{t("quotaBlockedTitle")}</p>
           <p className="text-xs text-amber-200/80 leading-relaxed">{t("quotaBlockedDesc")}</p>
           <Link
-            href="/student/my-plan"
+            href={upgradeHref}
             className="inline-block mt-2 text-xs font-semibold text-cyan-300 hover:text-cyan-200 underline-offset-2 hover:underline"
           >
             {t("quotaBlockedCta")}

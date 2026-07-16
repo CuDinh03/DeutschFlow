@@ -6,6 +6,7 @@ import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.speaking.repository.UserGrammarErrorRepository;
 import com.deutschflow.teacher.dto.*;
+import com.deutschflow.teacher.entity.AssignmentStatus;
 import com.deutschflow.teacher.entity.ClassAssignment;
 import com.deutschflow.teacher.entity.ClassStudent;
 import com.deutschflow.teacher.entity.ClassStudentId;
@@ -144,6 +145,26 @@ public class TeacherService {
                 .status("PENDING")
                 .build();
         joinRequestRepository.save(req);
+
+        // Tell the teachers NOW, while the request is actually pending. The only calls to
+        // onTeacherJoinRequestCreated used to sit inside approveJoinRequest/rejectJoinRequest — so a
+        // teacher was told "X asked to join" only AFTER they had already approved or rejected X, and was
+        // never told when the request arrived. A student could sit unapproved for days.
+        try {
+            User student = userRepository.findById(studentId).orElse(null);
+            for (ClassTeacher ct : classTeacherRepository.findByIdClassId(teacherClass.getId())) {
+                userNotificationService.onTeacherJoinRequestCreated(
+                        ct.getId().getTeacherId(),
+                        teacherClass.getId(),
+                        teacherClass.getName(),
+                        studentId,
+                        student != null ? student.getDisplayName() : "",
+                        student != null ? student.getEmail() : "");
+            }
+        } catch (Exception e) {
+            log.warn("[notifications] Could not notify teachers of join request for class {}: {}",
+                    teacherClass.getId(), e.toString());
+        }
     }
 
     @Transactional(readOnly = true)
@@ -195,8 +216,10 @@ public class TeacherService {
             classStudentRepository.save(classStudent);
         }
 
-        User student = userRepository.findById(req.getStudentId()).orElse(null);
-        // Notify student
+        // Notify the student. The teacher is NOT notified here: they are the one who just clicked
+        // approve. (There used to be an onTeacherJoinRequestCreated call right here, telling the teacher
+        // "X yêu cầu tham gia lớp" immediately after they had approved X. The notification now fires in
+        // joinClass, when the request actually arrives.)
         TeacherClass teacherClass = classRepository.findById(classId).orElse(null);
         User teacher = userRepository.findById(teacherId).orElse(null);
         userNotificationService.onJoinRequestApproved(
@@ -205,17 +228,6 @@ public class TeacherService {
             teacherClass != null ? teacherClass.getName() : "",
             teacher != null ? teacher.getDisplayName() : ""
         );
-
-        if (teacher != null) {
-            userNotificationService.onTeacherJoinRequestCreated(
-                teacherId,
-                classId,
-                teacherClass != null ? teacherClass.getName() : "",
-                req.getStudentId(),
-                student != null ? student.getDisplayName() : "",
-                student != null ? student.getEmail() : ""
-            );
-        }
     }
 
     @Transactional
@@ -238,27 +250,16 @@ public class TeacherService {
         req.setStatus("REJECTED");
         joinRequestRepository.save(req);
 
-        // Notify student
+        // Notify the student. As in approveJoinRequest, the teacher is not told anything: they just
+        // clicked reject.
         TeacherClass teacherClass = classRepository.findById(classId).orElse(null);
         User teacher = userRepository.findById(teacherId).orElse(null);
-        User student = userRepository.findById(req.getStudentId()).orElse(null);
         userNotificationService.onJoinRequestRejected(
             req.getStudentId(),
             classId,
             teacherClass != null ? teacherClass.getName() : "",
             teacher != null ? teacher.getDisplayName() : ""
         );
-
-        if (teacher != null) {
-            userNotificationService.onTeacherJoinRequestCreated(
-                teacherId,
-                classId,
-                teacherClass != null ? teacherClass.getName() : "",
-                req.getStudentId(),
-                student != null ? student.getDisplayName() : "",
-                student != null ? student.getEmail() : ""
-            );
-        }
     }
 
     @Transactional
@@ -412,13 +413,22 @@ public class TeacherService {
             UserLearningProfile profile = profileMap.get(user.getId());
             int totalXp = xpByUser.getOrDefault(user.getId(), 0);
             ClassStudent cs = evalMap.get(user.getId());
+            // Current level (real ability, default A0) is the roster's CEFR; target is context only.
+            String currentLevel = profile != null && profile.getCurrentLevel() != null
+                    ? profile.getCurrentLevel().name() : "A0";
+            String levelSource = profile != null && profile.getLevelSource() != null
+                    ? profile.getLevelSource() : "SELF";
+            String targetLevel = profile != null && profile.getTargetLevel() != null
+                    ? profile.getTargetLevel().name() : null;
             return new ClassStudentDto(
                     user.getId(),
                     user.getDisplayName(),
                     user.getEmail(),
                     totalXp,
                     XpService.computeLevel(totalXp), // Using streakDays field for level in DTO for now
-                    profile != null && profile.getTargetLevel() != null ? profile.getTargetLevel().name() : "N/A",
+                    currentLevel,
+                    levelSource,
+                    targetLevel,
                     cs != null ? cs.getSkillHoren() : null,
                     cs != null ? cs.getSkillLesen() : null,
                     cs != null ? cs.getSkillSchreiben() : null,
@@ -438,7 +448,7 @@ public class TeacherService {
         List<ClassStudent> students = classStudentRepository.findByIdClassId(classId);
         List<Long> studentIds = students.stream().map(s -> s.getId().getStudentId()).toList();
         if (studentIds.isEmpty()) {
-            return new ClassAnalyticsOverviewDto(0L, 0L, 0L, 0L, 0d, 0d, List.of(), List.of());
+            return new ClassAnalyticsOverviewDto(0L, 0L, 0L, null, null, null, List.of(), List.of());
         }
 
         // S-10: one batched SUM for the whole class instead of getSummary() (4 queries) per student.
@@ -452,22 +462,38 @@ public class TeacherService {
                 .map(row -> new ClassErrorAnalyticsDto((String) row[0], ((Number) row[1]).longValue()))
                 .collect(Collectors.toList());
 
-        long completedAssignments = 0L;
-        long activeSpeakingSessions = 0L;
-        double avgSpeakingScore = 0d;
-        double reviewCoveragePct = 0d;
+        // completedAssignments: REAL count of this class's submissions that carry a confirmed grade.
+        // It used to be hardcoded 0, which contradicted the Gradebook on the same screen (badge "N bài
+        // chờ chấm" next to "hoàn thành 0 bài"). Same source as the gradebook, so the two now agree.
+        List<Long> classAssignmentIds = assignmentRepository.findByClassIdOrderByCreatedAtDesc(classId).stream()
+                .map(ClassAssignment::getId)
+                .toList();
+        long completedAssignments = classAssignmentIds.isEmpty() ? 0L
+                : studentAssignmentRepository.findByAssignmentIds(classAssignmentIds).stream()
+                        .filter(sa -> AssignmentStatus.isFinal(sa.getStatus()))
+                        .count();
+
+        // The speaking / review-coverage cards have no honest class-scoped source (AiSpeakingSession is
+        // not tied to a class, and there is no review-coverage aggregate). Returning 0 read as "the class
+        // did nothing"; null lets the UI hide the card instead of showing a fabricated zero.
+        Long activeSpeakingSessions = null;
+        Double avgSpeakingScore = null;
+        Double reviewCoveragePct = null;
+
+        // actionItems are a static tip, not analysis — keep them but stop dressing them as computed
+        // insight, and drop the v1 href (/teacher/classes/{id}) that the v2 UI never used anyway.
         List<ClassAnalyticsOverviewDto.ActionItemDto> actionItems = topErrors.isEmpty()
                 ? List.of(new ClassAnalyticsOverviewDto.ActionItemDto(
                     "Theo dõi tiến độ",
                     "Chưa có lỗi nổi bật, tiếp tục quan sát nhịp học của lớp.",
                     "LOW",
-                    "/teacher/classes/" + classId))
+                    null))
                 : List.of(
                     new ClassAnalyticsOverviewDto.ActionItemDto(
                         "Ôn lỗi lặp lại nhiều nhất",
                         "Chọn 3 lỗi xuất hiện nhiều nhất và giao luyện tập ngắn cho lớp.",
                         "HIGH",
-                        "/teacher/classes/" + classId)
+                        null)
                 );
 
         return new ClassAnalyticsOverviewDto(
@@ -514,7 +540,8 @@ public class TeacherService {
 
         log.info("[Scenario] Lazily generating missing scenario for assignment {} (topic='{}')",
                 assignmentId, ca.getTopic());
-        PracticeScenario generated = speakingAiHelpersService.generateScenario(studentId, ca.getTopic(), "A2");
+        PracticeScenario generated = speakingAiHelpersService.generateScenario(
+                studentId, ca.getTopic(), scenarioLevelFor(ca.getLessonId()));
         AssignmentScenario scenario = assignmentScenarioRepository.save(AssignmentScenario.builder()
                 .assignmentId(ca.getId())
                 .topic(generated.getTopic())
@@ -525,6 +552,22 @@ public class TeacherService {
         ca.setReferenceId(scenario.getId());
         assignmentRepository.save(ca);
         return scenario;
+    }
+
+    /** CEFR default for the whole "generate a speaking scenario" family. */
+    private static final String DEFAULT_SCENARIO_LEVEL = "A2";
+
+    /**
+     * The CEFR level to generate a speaking scenario at. Uses the linked lesson's CEFR when the
+     * assignment is tied to one, so a B1/B2 class no longer gets a hardcoded A2 scenario; falls back to
+     * {@value #DEFAULT_SCENARIO_LEVEL} when the assignment has no lesson or the lesson has no level set.
+     */
+    private String scenarioLevelFor(Long lessonId) {
+        if (lessonId == null) return DEFAULT_SCENARIO_LEVEL;
+        return lessonRepository.findById(lessonId)
+                .map(ClassLesson::getCefrLevel)
+                .filter(l -> l != null && !l.isBlank())
+                .orElse(DEFAULT_SCENARIO_LEVEL);
     }
 
     @Transactional
@@ -557,7 +600,8 @@ public class TeacherService {
         // Khởi tạo kịch bản AI nếu là SPEAKING_SCENARIO
         if ("SPEAKING_SCENARIO".equals(req.assignmentType())) {
             try {
-                PracticeScenario scenario = speakingAiHelpersService.generateScenario(teacherId, req.topic(), "A2");
+                PracticeScenario scenario = speakingAiHelpersService.generateScenario(
+                        teacherId, req.topic(), scenarioLevelFor(savedAssignment.getLessonId()));
                 AssignmentScenario assignmentScenario = AssignmentScenario.builder()
                         .assignmentId(savedAssignment.getId())
                         .topic(scenario.getTopic())
@@ -618,16 +662,82 @@ public class TeacherService {
                 .collect(Collectors.toList());
     }
 
-    @Transactional(readOnly = true)
-    public List<StudentAssignmentDto> getStudentAssignments(Long teacherId, Long studentId) {
-        boolean hasAccess = classTeacherRepository.findByIdTeacherId(teacherId).stream()
-                .anyMatch(ct -> classStudentRepository.existsByIdClassIdAndIdStudentId(ct.getId().getClassId(), studentId));
+    /**
+     * Tell every teacher of the class that a student has handed work in.
+     *
+     * <p>Nobody used to be told. The submit endpoint called {@code insertForUser(user, ...)} where
+     * {@code user} was the {@code @AuthenticationPrincipal} — i.e. the STUDENT — so the student received
+     * a notification written for a teacher ("📥 Bài cần xem — Có bài cần xem từ [their own name]") and the
+     * teacher received nothing at all. A teacher had to keep opening the grading screen to find out that
+     * work had arrived.
+     *
+     * <p>Best-effort: a notification failure must never fail the student's submission.
+     */
+    @Transactional
+    public void notifyTeachersOfSubmission(Long classAssignmentId, Long studentId, String studentName) {
+        try {
+            ClassAssignment ca = assignmentRepository.findById(classAssignmentId).orElse(null);
+            if (ca == null) return;
 
-        if (!hasAccess) {
+            TeacherClass cls = classRepository.findById(ca.getClassId()).orElse(null);
+            // The real class name — this used to be populated with ca.getTopic(), i.e. the title of the
+            // assignment, so the notification named the homework where it claimed to name the class.
+            String className = cls != null ? cls.getName() : "";
+
+            for (ClassTeacher ct : classTeacherRepository.findByIdClassId(ca.getClassId())) {
+                userNotificationService.onTeacherGradingEvent(
+                        ct.getId().getTeacherId(),
+                        ca.getClassId(),
+                        className,
+                        ca.getId(),
+                        studentId,
+                        studentName,
+                        "SUBMISSION_RECEIVED",
+                        null);
+            }
+        } catch (Exception e) {
+            log.warn("[notifications] Could not notify teachers of submission for assignment {}: {}",
+                    classAssignmentId, e.toString());
+        }
+    }
+
+    /**
+     * The classes this teacher and this student actually share. Empty means the teacher has no business
+     * reading anything about the student.
+     *
+     * <p>This is deliberately a LIST, not a boolean. The old code only asked "do we share <em>any</em>
+     * class?" and then read the student's records by {@code studentId} alone — so a teacher who shared
+     * one class with a student also read that student's work from every <em>other</em> class, including
+     * classes run by other teachers at other centres (a student enrolled at two schools is common).
+     * Callers must scope their query to these class ids, not just gate on them.
+     */
+    private List<Long> sharedClassIds(Long teacherId, Long studentId) {
+        return classTeacherRepository.findByIdTeacherId(teacherId).stream()
+                .map(ct -> ct.getId().getClassId())
+                .filter(classId -> classStudentRepository.existsByIdClassIdAndIdStudentId(classId, studentId))
+                .collect(Collectors.toList());
+    }
+
+    /** Ids of every assignment issued in the classes this teacher shares with this student. */
+    private List<Long> sharedAssignmentIds(Long teacherId, Long studentId) {
+        List<Long> classIds = sharedClassIds(teacherId, studentId);
+        if (classIds.isEmpty()) {
             throw new ConflictException("Học viên không thuộc lớp của bạn");
         }
+        return assignmentRepository.findByClassIdIn(classIds).stream()
+                .map(ClassAssignment::getId)
+                .collect(Collectors.toList());
+    }
 
-        return studentAssignmentRepository.findByStudentIdOrderByCreatedAtDesc(studentId)
+    @Transactional(readOnly = true)
+    public List<StudentAssignmentDto> getStudentAssignments(Long teacherId, Long studentId) {
+        List<Long> assignmentIds = sharedAssignmentIds(teacherId, studentId);
+        if (assignmentIds.isEmpty()) return List.of();
+
+        // Scoped by assignment, not by student: the DTO carries score, feedback and the submission
+        // itself, none of which another centre's teacher may see.
+        return studentAssignmentRepository
+                .findByStudentIdAndAssignmentIdInAndDeletedFalseOrderByCreatedAtDesc(studentId, assignmentIds)
                 .stream()
                 .map(this::toStudentAssignmentDto)
                 .collect(Collectors.toList());
@@ -635,16 +745,15 @@ public class TeacherService {
 
     @Transactional(readOnly = true)
     public List<TeacherSpeakingSessionDto> getStudentSpeakingSessions(Long teacherId, Long studentId) {
-        // Teacher can only view if student is in one of their classes
-        boolean hasAccess = classTeacherRepository.findByIdTeacherId(teacherId).stream()
-                .anyMatch(ct -> classStudentRepository.existsByIdClassIdAndIdStudentId(ct.getId().getClassId(), studentId));
+        Set<Long> assignmentIds = new HashSet<>(sharedAssignmentIds(teacherId, studentId));
 
-        if (!hasAccess) {
-            throw new ConflictException("Học viên không thuộc lớp của bạn");
-        }
-
+        // AiSpeakingSession has no classId, so scope by the assignment it was created from. Free-practice
+        // sessions (assignmentId == null) are the student's own work and stay visible to their teacher;
+        // a session tied to ANOTHER class's assignment is not — it carries that teacher's score and
+        // feedback.
         return speakingSessionRepository.findByUserIdOrderByStartedAtDesc(studentId)
                 .stream()
+                .filter(s -> s.getAssignmentId() == null || assignmentIds.contains(s.getAssignmentId()))
                 .map(this::toTeacherSpeakingSessionDto)
                 .collect(Collectors.toList());
     }
@@ -666,31 +775,16 @@ public class TeacherService {
         session.setReviewedAt(java.time.LocalDateTime.now());
         TeacherSpeakingSessionDto result = toTeacherSpeakingSessionDto(speakingSessionRepository.save(session));
 
-        // Notify student
+        // Notify the student that their speaking session has been graded.
+        //
+        // The teacher is deliberately NOT notified. This used to fire onTeacherGradingEvent at the
+        // teacher who had just done the grading — rendered as "📥 Bài cần xem — Có bài cần xem từ X",
+        // i.e. the teacher was told there was work to review about the very session they had just
+        // finished reviewing. It was, in fact, the only place that helper was ever called: teachers got
+        // no notification when work actually arrived, and one bogus one after they finished.
         userNotificationService.onAssignmentGraded(
             session.getUserId(), "SPEAKING", sessionId, req.teacherScore(), req.teacherFeedback()
         );
-
-        User student = userRepository.findById(session.getUserId()).orElse(null);
-        // Find the specific class where both this teacher and the student are enrolled.
-        Long sharedClassId = classTeacherRepository.findByIdTeacherId(teacherId).stream()
-                .filter(ct -> classStudentRepository.existsByIdClassIdAndIdStudentId(ct.getId().getClassId(), session.getUserId()))
-                .map(ct -> ct.getId().getClassId())
-                .findFirst()
-                .orElse(null);
-        TeacherClass teacherClass = sharedClassId != null ? classRepository.findById(sharedClassId).orElse(null) : null;
-        if (teacherClass != null) {
-            userNotificationService.onTeacherGradingEvent(
-                teacherId,
-                teacherClass.getId(),
-                teacherClass.getName(),
-                sessionId,
-                session.getUserId(),
-                student != null ? student.getDisplayName() : "",
-                "SPEAKING_GRADED",
-                req.teacherScore()
-            );
-        }
 
         return result;
     }

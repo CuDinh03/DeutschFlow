@@ -5,11 +5,13 @@ import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.organization.service.OrgPoolGuard;
 import com.deutschflow.teacher.dto.GradeImageResponse;
 import com.deutschflow.teacher.dto.TeacherSessionEvaluationRequest;
+import com.deutschflow.teacher.entity.AssignmentStatus;
 import com.deutschflow.teacher.entity.ClassAssignment;
 import com.deutschflow.teacher.entity.StudentAssignment;
 import com.deutschflow.teacher.repository.ClassAssignmentRepository;
 import com.deutschflow.teacher.repository.StudentAssignmentRepository;
 import com.deutschflow.teacher.repository.ClassTeacherRepository;
+import com.deutschflow.media.service.S3StorageService;
 import com.deutschflow.teacher.service.GradingService;
 import com.deutschflow.teacher.service.HandwritingOcrService;
 import com.deutschflow.user.entity.User;
@@ -34,6 +36,7 @@ public class GradingController {
     private final ClassAssignmentRepository classAssignmentRepository;
     private final ClassTeacherRepository classTeacherRepository;
     private final HandwritingOcrService handwritingOcrService;
+    private final S3StorageService s3StorageService;
     private final OrgPoolGuard orgPoolGuard;
     private final com.deutschflow.common.quota.FreeTierGuard freeTierGuard;
 
@@ -103,10 +106,10 @@ public class GradingController {
             return ResponseEntity.status(403).body(Map.of("error", "Bạn không có quyền chấm bài này"));
         }
 
-        // Reject a finalized/already-graded submission up front (the async job also guards, but a 409
+        // Reject a finalized/already-proposed submission up front (the async job also guards, but a 409
         // gives the teacher immediate feedback instead of a silent no-op).
         String status = sa.getStatus();
-        if (!"SUBMITTED".equals(status) && !"GRADING_FAILED".equals(status)) {
+        if (!AssignmentStatus.SUBMITTED.equals(status) && !AssignmentStatus.GRADING_FAILED.equals(status)) {
             return ResponseEntity.status(409).body(Map.of("error", "Bài này đã được chấm; không thể chấm lại bằng AI."));
         }
 
@@ -146,5 +149,87 @@ public class GradingController {
             throw new BadRequestException("Không đọc được ảnh.");
         }
         return handwritingOcrService.ocrAndGrade(bytes, file.getContentType(), topic, teacher.getId());
+    }
+
+    /**
+     * POST /api/v2/teacher/grading/submissions/{submissionId}/ai-grade-image
+     *
+     * <p>OCR-grades the image the STUDENT handed in, and stores the result on that submission as an
+     * {@link AssignmentStatus#AI_GRADED} proposal — the same contract as the text "Chấm AI" button.
+     *
+     * <p>This closes the loop that made "Chấm bài qua ảnh" a dead end. When a student submitted only a
+     * photo, the AI button on the grading screen was disabled ("bài không có văn bản") and the teacher
+     * was pointed at a separate upload tool that knew nothing about the submission: they had to download
+     * the student's image, re-upload it there, then copy the score and the comments back by hand into
+     * the grading form — typing the same thing twice, with nothing linking the two. The standalone tool
+     * stays for images that never came through the app.
+     */
+    @PostMapping("/submissions/{submissionId}/ai-grade-image")
+    public ResponseEntity<?> aiGradeSubmissionImage(@AuthenticationPrincipal User teacher,
+                                                    @PathVariable Long submissionId) {
+        StudentAssignment sa = studentAssignmentRepository.findById(submissionId)
+                .orElseThrow(() -> new NotFoundException("Bài nộp không tồn tại"));
+
+        // Same class-scoped authorization as the text path (see triggerAiGrade).
+        ClassAssignment ca = classAssignmentRepository.findById(sa.getAssignmentId()).orElse(null);
+        boolean hasAccess = ca != null
+                && classTeacherRepository.existsByIdClassIdAndIdTeacherId(ca.getClassId(), teacher.getId());
+        if (!hasAccess) {
+            return ResponseEntity.status(403).body(Map.of("error", "Bạn không có quyền chấm bài này"));
+        }
+
+        String status = sa.getStatus();
+        if (!AssignmentStatus.SUBMITTED.equals(status) && !AssignmentStatus.GRADING_FAILED.equals(status)) {
+            return ResponseEntity.status(409).body(Map.of("error", "Bài này đã được chấm; không thể chấm lại bằng AI."));
+        }
+
+        // Read the student's file from OUR bucket by key — never by fetching the stored URL, which came
+        // from the student's own submit payload (see S3StorageService.objectKeyFromOwnUrl). The key must
+        // also sit under this assignment's prefix, so one submission cannot pull another's file.
+        String objectKey = s3StorageService.objectKeyFromOwnUrl(sa.getSubmissionFileUrl());
+        String expectedPrefix = "assignments/" + sa.getAssignmentId() + "/";
+        if (objectKey == null || !objectKey.startsWith(expectedPrefix)) {
+            throw new BadRequestException("Bài nộp này không có ảnh hợp lệ để chấm.");
+        }
+        if (!IMAGE_KEY_PATTERN.matcher(objectKey).find()) {
+            throw new BadRequestException("Bài nộp không phải ảnh — hãy chấm thủ công.");
+        }
+
+        orgPoolGuard.assertOrgPoolAvailable(teacher.getId(), IMAGE_GRADE_ESTIMATED_TOKENS);
+        freeTierGuard.assertAndConsume(teacher.getId(), teacher.getOrgId(),
+                com.deutschflow.common.quota.FreeTierGuard.FEATURE_OCR_GRADE);
+
+        byte[] bytes;
+        try {
+            bytes = s3StorageService.downloadBytes(objectKey);
+        } catch (Exception e) {
+            throw new BadRequestException("Không đọc được ảnh bài nộp.");
+        }
+
+        String topic = ca.getTopic();
+        GradeImageResponse graded = handwritingOcrService.ocrAndGrade(
+                bytes, contentTypeOf(objectKey), topic, teacher.getId());
+
+        // A PROPOSAL, exactly like the text path: the student is told nothing and nothing is counted
+        // until the teacher confirms it (→ EVALUATED).
+        sa.setScore(graded.score());
+        sa.setFeedback(graded.feedback());
+        sa.setStatus(AssignmentStatus.AI_GRADED);
+        sa.setGradedAt(java.time.LocalDateTime.now());
+        studentAssignmentRepository.save(sa);
+
+        return ResponseEntity.ok(graded);
+    }
+
+    /** Extensions HandwritingOcrService accepts (it re-checks the mime itself). */
+    private static final java.util.regex.Pattern IMAGE_KEY_PATTERN =
+            java.util.regex.Pattern.compile("\\.(jpe?g|png|webp|heic)$", java.util.regex.Pattern.CASE_INSENSITIVE);
+
+    private static String contentTypeOf(String key) {
+        String k = key.toLowerCase();
+        if (k.endsWith(".png")) return "image/png";
+        if (k.endsWith(".webp")) return "image/webp";
+        if (k.endsWith(".heic")) return "image/heic";
+        return "image/jpeg";
     }
 }

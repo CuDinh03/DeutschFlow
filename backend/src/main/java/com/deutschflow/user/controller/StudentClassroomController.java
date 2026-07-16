@@ -15,6 +15,8 @@ import com.deutschflow.teacher.service.CurriculumModuleService;
 import com.deutschflow.teacher.service.StudentClassroomService;
 import com.deutschflow.teacher.service.StudentCompetencyService;
 import com.deutschflow.teacher.service.StudentEvaluationService;
+import com.deutschflow.material.dto.MaterialDto;
+import com.deutschflow.material.service.MaterialService;
 import com.deutschflow.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -40,6 +42,7 @@ public class StudentClassroomController {
     private final CurriculumModuleService curriculumModuleService;
     private final StudentEvaluationService studentEvaluationService;
     private final StudentCompetencyService studentCompetencyService;
+    private final MaterialService materialService;
 
     @GetMapping
     public ResponseEntity<List<MyClassroomDto>> listMyClasses(@AuthenticationPrincipal User user) {
@@ -106,6 +109,31 @@ public class StudentClassroomController {
             @PathVariable Long classId) {
         return ResponseEntity.ok(studentCompetencyService.getForClass(user.getId(), classId));
     }
+
+    /**
+     * Materials the teacher attached to a lesson, for the enrolled student. This is what actually
+     * delivers a teacher's material to the class: attaching used to be a teacher-only shelf because no
+     * student endpoint could read it (the whole /api/v2/materials surface is TEACHER/ADMIN-gated).
+     * Access is by ENROLLMENT in the lesson's class, not by owning the material.
+     */
+    @GetMapping("/lessons/{lessonId}/materials")
+    public ResponseEntity<List<MaterialDto>> lessonMaterials(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long lessonId) {
+        return ResponseEntity.ok(materialService.listLessonMaterialsForStudent(user.getId(), lessonId));
+    }
+
+    /** A fresh resolvable URL for one lesson material (the presigned GET expires after ~1h). */
+    @GetMapping("/lessons/{lessonId}/materials/{materialId}/url")
+    public ResponseEntity<MaterialUrlResponse> lessonMaterialUrl(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long lessonId,
+            @PathVariable Long materialId) {
+        return ResponseEntity.ok(new MaterialUrlResponse(
+                materialService.refreshLessonMaterialUrlForStudent(user.getId(), lessonId, materialId)));
+    }
+
+    public record MaterialUrlResponse(String url) {}
 
     /** Upsert the student's self-assessment of one can-do of this class (Phase 2a). */
     @PutMapping("/{classId}/competency/{canDoStatementId}")

@@ -7,7 +7,8 @@ import { getMockPacks, getMockPack, type MockExamPack, type MockExamPackDetail }
 import { GaPageHdr, GaCard, GaCap, TkBadge, LoadingState, ErrorBanner } from '@/components/ui-v2'
 
 // Reuse mockPackApi (getMockPacks + getMockPack). Catalog + per-pack exam list. The exam RUNNER
-// is the proven legacy flow (/student/mock-exam) → "Bắt đầu" deep-links there (Option-1).
+// now lives in v2 (/v2/student/mock-exam/run) — "Bắt đầu" carries the exam id + the pack's level,
+// so the runner enters that exam directly instead of asking the user to pick it again.
 
 const LEVEL_COLOR: Record<string, string> = {
   A1: '#1E9E61', A2: '#2F6FC9', B1: '#7C56C8', B2: '#E07B39', C1: '#DA291C',
@@ -127,7 +128,7 @@ export default function V2StudentMockExamPage() {
                                 </p>
                               </div>
                               <a
-                                href="/student/mock-exam"
+                                href={`/v2/student/mock-exam/run?examId=${ex.id}&level=${encodeURIComponent(p.cefrLevel ?? '')}`}
                                 className="ga-ui inline-flex shrink-0 items-center gap-1 rounded-ga bg-ga-accent px-3.5 py-2 text-[12.5px] font-semibold text-ga-accent-ink"
                               >
                                 {t('start')} <ArrowRight size={13} aria-hidden />

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import api, { apiMessage, httpStatus } from '@/lib/api'
 import { clearTokens } from '@/lib/authSession'
+import { homeFor } from '@/lib/roleRouting'
 
 type UseAdminDataOptions<T> = {
   initialData: T
@@ -39,7 +40,10 @@ export default function useAdminData<T>({
   const ensureAdmin = useCallback(async () => {
     const me = await api.get('/auth/me')
     if (me.data.role !== 'ADMIN') {
-      router.push(`/${String(me.data.role).toLowerCase()}`)
+      // Không phải ADMIN → về nhà đúng vai trò (bản đồ dùng chung @/lib/roleRouting). `orgRole` phải
+      // truyền vào: cohort token legacy mang role=TEACHER nhưng thực chất điều hành trung tâm, thiếu
+      // nó thì họ rơi xuống trang giáo viên rồi bị middleware đá ngược — nháy hai lần.
+      router.push(homeFor(me.data.role, { orgRole: me.data.orgRole }))
       throw new Error('redirected')
     }
   }, [router])
@@ -58,7 +62,7 @@ export default function useAdminData<T>({
       if (e instanceof Error && e.message === 'redirected') return
       if (httpStatus(e) === 401) {
         clearTokens()
-        router.push('/login')
+        router.push('/v2/login')
         return
       }
       const status = httpStatus(e)

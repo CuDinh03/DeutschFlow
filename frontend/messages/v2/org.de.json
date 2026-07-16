@@ -1,5 +1,37 @@
 {
   "org": {
+    "accept": {
+      "cap": "Einladung",
+      "title": "Der Organisation beitreten",
+      "subtitle": "Bestätigen Sie, um mit dem Zentrum auf DeutschFlow zu arbeiten.",
+      "orgLabel": "Organisation",
+      "emailLabel": "E-Mail",
+      "roleLabel": "Rolle",
+      "roles": {
+        "OWNER": "Inhaber",
+        "ADMIN": "Administrator",
+        "TEACHER": "Lehrkraft",
+        "STUDENT": "Lernende:r"
+      },
+      "loading": "Einladung wird geladen…",
+      "passwordHint": "Geben Sie Ihr Passwort zur Bestätigung ein. Wenn Sie <b>bereits ein Konto</b> bei DeutschFlow mit dieser E-Mail haben, verwenden Sie Ihr aktuelles Passwort. Falls <b>nicht</b>, legen Sie ein neues Passwort und einen Anzeigenamen an.",
+      "passwordField": "Passwort",
+      "passwordPlaceholder": "Kontopasswort",
+      "displayNameField": "Anzeigename",
+      "displayNamePlaceholder": "Anna Müller",
+      "displayNameHint": "Wird nur bei einem neuen Konto verwendet.",
+      "submit": "Der Organisation beitreten",
+      "submitting": "Wird verarbeitet…",
+      "terms": "Mit dem Beitritt stimmen Sie den Nutzungsbedingungen von DeutschFlow zu.",
+      "loginCta": "Zur Anmeldung",
+      "invalidTitle": "Einladung nicht verfügbar",
+      "invalidFallback": "Einladung nicht gefunden.",
+      "expiredTitle": "Einladung abgelaufen",
+      "expiredMessage": "Die Einladung an <b>{email}</b> ist abgelaufen. Bitte lassen Sie sich von einer Administratorin oder einem Administrator der Organisation erneut einladen.",
+      "errorMissingToken": "Ungültiger Einladungslink — der Einladungscode fehlt.",
+      "errorLoadFailed": "Die Einladung konnte nicht geladen werden. Der Link wurde möglicherweise widerrufen oder existiert nicht.",
+      "errorAcceptFailed": "Die Einladung konnte nicht angenommen werden. Bitte versuchen Sie es erneut."
+    },
     "overview": {
       "title": "Organisation",
       "subtitleDashboard": "Organisations-Dashboard",

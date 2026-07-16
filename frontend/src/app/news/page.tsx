@@ -7,7 +7,8 @@ import { motion } from 'framer-motion'
 import { ArrowLeft, Clock, ExternalLink, Loader2, Newspaper, Search, AlertTriangle, RefreshCw } from 'lucide-react'
 import { DeutschFlowLogo } from '@/components/ui/DeutschFlowLogo'
 import api from '@/lib/api'
-import { getAccessToken } from '@/lib/authSession'
+import { getAccessToken, getAuthRole, getOrgRole } from '@/lib/authSession'
+import { homeFor } from '@/lib/roleRouting'
 
 interface NewsItem {
   title: string;
@@ -29,7 +30,7 @@ export default function NewsPage() {
   useEffect(() => {
     setMounted(true)
     if (!getAccessToken()) {
-      router.replace('/login?next=/news')
+      router.replace('/v2/login?next=/news')
     } else {
       fetchNews()
     }
@@ -65,18 +66,23 @@ export default function NewsPage() {
 
   if (!mounted) return null
 
+  // /news is a learner-SHARED page (see middleware learnerSharedPaths): teachers and admins land
+  // here too, so "back" has to resolve per role instead of hardcoding the student dashboard.
+  // Safe to read the session here — this runs only after the mounted guard above.
+  const home = homeFor(getAuthRole(), { orgRole: getOrgRole() })
+
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
       {/* Navbar */}
       <nav className="sticky top-0 z-50 bg-white border-b border-gray-200">
         <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="w-10 h-10 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-600 transition-colors">
+            <Link href={home} className="w-10 h-10 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-600 transition-colors">
               <ArrowLeft size={20} />
             </Link>
             <DeutschFlowLogo variant="horizontal" size={130} animated={false} />
           </div>
-          <Link href="/dashboard" className="text-sm font-bold text-gray-600 hover:text-gray-900">
+          <Link href={home} className="text-sm font-bold text-gray-600 hover:text-gray-900">
             Về Dashboard
           </Link>
         </div>

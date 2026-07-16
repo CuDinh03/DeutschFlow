@@ -88,6 +88,17 @@ const waveBars = (id: number): number[] =>
 
 interface Draft { score: number | ''; feedback: string }
 
+/**
+ * Feedback to seed the grading form with.
+ *
+ * A GRADING_FAILED row carries a placeholder note the BACKEND wrote about itself ("Chưa chấm tự động
+ * được, giáo viên sẽ chấm lại.") — an ops message, not a teacher's comment. Seeding it into the box
+ * meant a teacher who typed a score and hit save sent that sentence to the student as the official
+ * feedback. Start empty instead and let them write something real.
+ */
+const seedFeedback = (status: string, feedback: string | null): string =>
+  status === 'GRADING_FAILED' ? '' : (feedback ?? '')
+
 export default function V2TeacherGradingPage() {
   const t = useTranslations('v2.teacher.grading')
   const tc = useTranslations('v2.common')
@@ -150,7 +161,7 @@ export default function V2TeacherGradingPage() {
   }, [activeId])
 
   const draft: Draft = active
-    ? drafts[active.id] ?? { score: active.score ?? '', feedback: active.feedback ?? '' }
+    ? drafts[active.id] ?? { score: active.score ?? '', feedback: seedFeedback(active.status, active.feedback) }
     : { score: '', feedback: '' }
 
   const setDraft = (patch: Partial<Draft>) => {
@@ -199,7 +210,9 @@ export default function V2TeacherGradingPage() {
             setAiLoading(false)
             return
           }
-          if ((row.status === 'GRADED' || row.status === 'EVALUATED') && row.score !== null) {
+          // AI_GRADED is what the AI pass now writes: a proposal, not a grade. (GRADED/EVALUATED are
+          // still accepted so a row graded by the old flow, or already confirmed, resolves the poll.)
+          if (['AI_GRADED', 'GRADED', 'EVALUATED'].includes(row.status) && row.score !== null) {
             setDrafts((d) => ({ ...d, [current.id]: { score: row.score as number, feedback: row.feedback ?? '' } }))
             setAiSuggested((m) => ({ ...m, [current.id]: true }))
             setAiAssess((m) => ({ ...m, [current.id]: { confidence: row.aiConfidence ?? null, criteria: row.criteria ?? null } }))
@@ -214,6 +227,33 @@ export default function V2TeacherGradingPage() {
       setAiLoading(false)
     } catch {
       setPanelError(t('aiCallError'))
+      setAiLoading(false)
+    }
+  }
+
+  /**
+   * OCR-grade a submission the student handed in as a PHOTO.
+   *
+   * This used to be a dead end: the AI button was disabled for an image-only submission and the teacher
+   * was sent to the standalone "Chấm bài qua ảnh" tool, which knew nothing about the submission — so
+   * they downloaded the student's photo, re-uploaded it there, and typed the score and comments back
+   * into this form by hand. The backend now reads the student's file straight from S3 and stores the
+   * result on the submission as an AI proposal, same as the text path. Synchronous (a few seconds), so
+   * no polling.
+   */
+  const runAiGradeImage = async () => {
+    if (!active) return
+    const current = active
+    setAiLoading(true)
+    setPanelError('')
+    try {
+      const res = await api.post(`/v2/teacher/grading/submissions/${current.id}/ai-grade-image`)
+      const { score, feedback } = res.data as { transcription: string; score: number; feedback: string }
+      setDrafts((d) => ({ ...d, [current.id]: { score, feedback: feedback ?? '' } }))
+      setAiSuggested((m) => ({ ...m, [current.id]: true }))
+    } catch (e) {
+      setPanelError(apiMessage(e) || t('aiCallError'))
+    } finally {
       setAiLoading(false)
     }
   }
@@ -283,6 +323,9 @@ export default function V2TeacherGradingPage() {
               const m = metaOf(g.assignmentType)
               const on = g.id === activeId
               const failed = g.status === 'GRADING_FAILED'
+              // The AI has proposed a score but nobody has signed it off — the student has not been
+              // told anything yet. Flag it so the teacher knows this row is a confirm, not a fresh grade.
+              const awaitingConfirm = g.status === 'AI_GRADED'
               return (
                 <button
                   key={g.id}
@@ -305,9 +348,19 @@ export default function V2TeacherGradingPage() {
                     <span className="mt-[3px] flex items-center gap-1.5">
                       <m.Icon size={13} style={{ color: TONE_FG[m.tone] }} />
                       <span className="truncate text-[11px] text-ga-muted">{t(`types.${m.labelKey}`)}</span>
+                      {awaitingConfirm && (
+                        <span
+                          className="ga-ui shrink-0 px-1.5 py-px text-[10px] font-bold uppercase tracking-[0.04em]"
+                          style={{ color: 'var(--ga-violet)', background: 'var(--ga-violet-soft)' }}
+                        >
+                          {t('awaitingConfirm')}
+                        </span>
+                      )}
                     </span>
                   </span>
-                  {failed && <AlertTriangle size={14} className="shrink-0 text-ga-red" />}
+                  {failed && (
+                    <AlertTriangle size={14} className="shrink-0 text-ga-red" aria-label={t('aiFailedHint')} />
+                  )}
                 </button>
               )
             })
@@ -349,6 +402,7 @@ export default function V2TeacherGradingPage() {
               criteria={aiAssess[active.id]?.criteria ?? null}
               aiLoading={aiLoading}
               onAi={runAiGrade}
+              onAiImage={runAiGradeImage}
               saving={saving}
               onSave={save}
               error={panelError}
@@ -487,16 +541,21 @@ interface ScoringProps {
   criteria: Record<string, number> | null
   aiLoading: boolean
   onAi: () => void
+  onAiImage: () => void
   saving: boolean
   onSave: () => void
   error: string
   success: string
 }
 
-function Scoring({ item, draft, setDraft, suggested, confidence, criteria, aiLoading, onAi, saving, onSave, error, success }: ScoringProps) {
+function Scoring({ item, draft, setDraft, suggested, confidence, criteria, aiLoading, onAi, onAiImage, saving, onSave, error, success }: ScoringProps) {
   const t = useTranslations('v2.teacher.grading')
   const isAiGradable = item.assignmentType !== 'SPEAKING_SCENARIO'
   const hasText = !!item.submissionContent
+  // A photo of handwritten work. The backend can OCR-grade it in place, so this is no longer a reason
+  // to disable the button and send the teacher off to a separate upload tool.
+  const hasImage = !hasText && !!item.submissionFileUrl && isImageUrl(item.submissionFileUrl)
+  const canAiGrade = hasText || hasImage
 
   return (
     <>
@@ -508,20 +567,24 @@ function Scoring({ item, draft, setDraft, suggested, confidence, criteria, aiLoa
               <p className="ga-ui flex items-center gap-1.5 text-[12.5px] font-bold uppercase tracking-[0.04em]" style={{ color: 'var(--ga-violet)' }}>
                 <Sparkles size={14} /> {t('aiGradeCap')}
               </p>
-              <p className="ga-ui mt-1 text-[12px] text-ga-muted">{t('aiGradeDesc')}</p>
+              <p className="ga-ui mt-1 text-[12px] text-ga-muted">
+                {hasImage ? t('aiGradeImageDesc') : t('aiGradeDesc')}
+              </p>
             </div>
             <button
               type="button"
-              onClick={onAi}
-              disabled={aiLoading || !hasText}
-              title={!hasText ? t('aiNoTextTitle') : undefined}
+              onClick={hasImage ? onAiImage : onAi}
+              disabled={aiLoading || !canAiGrade}
+              title={!canAiGrade ? t('aiNoTextTitle') : undefined}
               className="ga-ui inline-flex shrink-0 items-center gap-2 rounded-ga px-4 py-2 text-[13px] font-bold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-60"
               style={{ background: 'var(--ga-violet)' }}
             >
-              {aiLoading ? <><Loader2 size={15} className="animate-spin" /> {t('aiGradeButtonBusy')}</> : <><Sparkles size={15} /> {t('aiGradeButton')}</>}
+              {aiLoading
+                ? <><Loader2 size={15} className="animate-spin" /> {t('aiGradeButtonBusy')}</>
+                : <><Sparkles size={15} /> {hasImage ? t('aiGradeImageButton') : t('aiGradeButton')}</>}
             </button>
           </div>
-          {!hasText && (
+          {!canAiGrade && (
             <p className="ga-ui mt-2 flex items-start gap-1 text-[11.5px]" style={{ color: 'var(--ga-violet)' }}>
               <AlertCircle size={13} className="mt-0.5 shrink-0" />
               {t('aiNoTextHint')}

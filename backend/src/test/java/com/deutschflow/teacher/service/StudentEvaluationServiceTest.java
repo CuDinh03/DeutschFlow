@@ -115,6 +115,96 @@ class StudentEvaluationServiceTest {
         assertThat(result.skillLesen()).isEqualByComparingTo(bd(7.5));
     }
 
+    // ── certificateEligible ───────────────────────────────────────────────────
+
+    /**
+     * The audit bug: the gate read {@code avgScore >= 5.0}, but avgScore is the mean of
+     * StudentAssignment.score — a 0–100 grade, not the 0–10 skill scale. Anyone above 5/100 was
+     * "eligible". And an empty class read as 100% attendance ({@code totalSessions == 0 ? 1.0}),
+     * so a brand-new class with one bad grade cleared the bar.
+     */
+    @Test
+    @DisplayName("certificate: a 40/100 average is NOT eligible (threshold is on the 0–100 scale)")
+    void certificate_lowAverageOnHundredScale_notEligible() {
+        StudentEvaluationDto result = evaluateWith(40, 10, 10);   // 40/100, perfect attendance
+        assertThat(result.certificateEligible()).isFalse();
+    }
+
+    @Test
+    @DisplayName("certificate: a 60/100 average with 80% attendance IS eligible")
+    void certificate_passingAverageAndAttendance_eligible() {
+        StudentEvaluationDto result = evaluateWith(60, 8, 10);    // 60/100, 8 of 10 sessions
+        assertThat(result.certificateEligible()).isTrue();
+    }
+
+    @Test
+    @DisplayName("certificate: good grades but poor attendance is NOT eligible")
+    void certificate_poorAttendance_notEligible() {
+        StudentEvaluationDto result = evaluateWith(90, 5, 10);    // 90/100 but only 5 of 10
+        assertThat(result.certificateEligible()).isFalse();
+    }
+
+    @Test
+    @DisplayName("certificate: a class with no attendance recorded yet is NOT eligible (no evidence ≠ 100%)")
+    void certificate_noAttendanceEvidence_notEligible() {
+        StudentEvaluationDto result = evaluateWith(90, 0, 0);     // great grade, zero lesson logs
+        assertThat(result.certificateEligible()).isFalse();
+    }
+
+    @Test
+    @DisplayName("certificate: an unconfirmed AI score (AI_GRADED) does not count toward the average")
+    void certificate_unconfirmedAiScore_isNotCounted() {
+        StudentEvaluationDto result = evaluateWith(95, 10, 10, AssignmentStatus.AI_GRADED);
+
+        // The AI proposed 95, but no teacher signed it off — it must not carry a certificate.
+        assertThat(result.avgScore()).isZero();
+        assertThat(result.certificateEligible()).isFalse();
+    }
+
+    /** Builds an evaluation for a student with {@code avgScore}, {@code present} of {@code sessions} attended. */
+    private StudentEvaluationDto evaluateWith(int avgScore, int present, int sessions) {
+        return evaluateWith(avgScore, present, sessions, AssignmentStatus.GRADED);
+    }
+
+    private StudentEvaluationDto evaluateWith(int avgScore, int present, int sessions, String status) {
+        allowAccess();
+        ClassStudent cs = buildClassStudent(CLASS_ID, STUDENT_ID);
+        when(classStudentRepository.findById(new ClassStudentId(CLASS_ID, STUDENT_ID)))
+                .thenReturn(Optional.of(cs));
+        stubStudentAndClass();
+
+        List<ClassLessonLog> logs = new java.util.ArrayList<>();
+        for (int i = 0; i < sessions; i++) {
+            ClassLessonLog log = new ClassLessonLog();
+            log.setId((long) (i + 1));
+            log.setClassId(CLASS_ID);
+            logs.add(log);
+        }
+        when(lessonLogRepository.findByClassIdOrderBySessionDateDesc(CLASS_ID)).thenReturn(logs);
+
+        List<ClassAttendance> attendance = new java.util.ArrayList<>();
+        for (int i = 0; i < sessions; i++) {
+            attendance.add(ClassAttendance.builder()
+                    .id(new ClassAttendanceId((long) (i + 1), STUDENT_ID))
+                    .status(i < present ? "PRESENT" : "ABSENT")
+                    .build());
+        }
+        if (!logs.isEmpty()) {
+            when(attendanceRepository.findByLessonLogIds(anyList())).thenReturn(attendance);
+        }
+
+        ClassAssignment ca = new ClassAssignment();
+        ca.setId(900L);
+        ca.setClassId(CLASS_ID);
+        when(assignmentRepository.findByClassIdOrderByCreatedAtDesc(CLASS_ID)).thenReturn(List.of(ca));
+
+        StudentAssignment sa = StudentAssignment.builder()
+                .id(1L).assignmentId(900L).studentId(STUDENT_ID).score(avgScore).status(status).build();
+        when(studentAssignmentRepository.findByAssignmentIds(anyList())).thenReturn(List.of(sa));
+
+        return service.getEvaluation(TEACHER_ID, CLASS_ID, STUDENT_ID);
+    }
+
     // ── getAllEvaluations ─────────────────────────────────────────────────────
 
     @Test
@@ -228,8 +318,13 @@ class StudentEvaluationServiceTest {
 
     // ── certificate eligibility ───────────────────────────────────────────────
 
+    /**
+     * NB: this used to assert that an average of 6 was eligible — which quietly encoded the bug, because
+     * assignment scores are 0–100, so "6" is 6/100. The intent (a passing student clears the bar) is kept;
+     * the score is now a real pass mark on the scale the data actually uses.
+     */
     @Test
-    @DisplayName("getEvaluation sets certificateEligible true when score >= 5 and attendance >= 80%")
+    @DisplayName("getEvaluation sets certificateEligible true when score >= 50/100 and attendance >= 80%")
     void getEvaluation_eligibleForCertificate_setsFlag() {
         allowAccess();
         ClassStudent cs = buildClassStudent(CLASS_ID, STUDENT_ID);
@@ -252,13 +347,15 @@ class StudentEvaluationServiceTest {
                 buildAttendance(4L, STUDENT_ID, "PRESENT"),
                 buildAttendance(5L, STUDENT_ID, "ABSENT")));
 
-        // avg score = 6
+        // avg score = 60 (out of 100 — a pass), and CONFIRMED: only a teacher-signed grade may count
+        // toward a certificate, never an unreviewed AI proposal (AI_GRADED).
         ClassAssignment a = buildAssignment(10L, CLASS_ID, "GENERAL");
         when(assignmentRepository.findByClassIdOrderByCreatedAtDesc(CLASS_ID)).thenReturn(List.of(a));
         StudentAssignment sa = new StudentAssignment();
         sa.setAssignmentId(10L);
         sa.setStudentId(STUDENT_ID);
-        sa.setScore(6);
+        sa.setScore(60);
+        sa.setStatus(AssignmentStatus.EVALUATED);
         when(studentAssignmentRepository.findByAssignmentIds(List.of(10L))).thenReturn(List.of(sa));
 
         StudentEvaluationDto result = service.getEvaluation(TEACHER_ID, CLASS_ID, STUDENT_ID);

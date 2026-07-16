@@ -13,4 +13,7 @@ public interface ClassMaterialRepository extends JpaRepository<ClassMaterial, Cl
     List<ClassMaterial> findByIdClassId(Long classId);
 
     boolean existsByIdClassIdAndIdMaterialId(Long classId, Long materialId);
+
+    /** How many classes a material is attached to — used to warn before archiving it. */
+    long countByIdMaterialId(Long materialId);
 }

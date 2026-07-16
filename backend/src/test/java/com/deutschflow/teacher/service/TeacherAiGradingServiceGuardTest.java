@@ -9,6 +9,7 @@ import com.deutschflow.speaking.entity.AiSpeakingMessage;
 import com.deutschflow.speaking.entity.AiSpeakingSession;
 import com.deutschflow.speaking.repository.AiSpeakingMessageRepository;
 import com.deutschflow.speaking.repository.AiSpeakingSessionRepository;
+import com.deutschflow.teacher.entity.AssignmentStatus;
 import com.deutschflow.teacher.entity.StudentAssignment;
 import com.deutschflow.teacher.repository.StudentAssignmentRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -44,7 +45,6 @@ class TeacherAiGradingServiceGuardTest {
     @Mock GradingModelConfig gradingModelConfig;
     @Mock UserNotificationService userNotificationService;
     @Mock OrgPoolGuard orgPoolGuard;
-    @Mock StudentCompetencyService studentCompetencyService;
 
     private static final long SESSION_ID = 7L;
     private static final long LINKED_ASSIGNMENT_ID = 100L; // StudentAssignment PK
@@ -54,7 +54,7 @@ class TeacherAiGradingServiceGuardTest {
         return new TeacherAiGradingService(
                 sessionRepository, messageRepository, openAiChatClient,
                 studentAssignmentRepository, aiUsageLedgerService, gradingModelConfig,
-                userNotificationService, orgPoolGuard, studentCompetencyService);
+                userNotificationService, orgPoolGuard);
     }
 
     private AiSpeakingMessage userMsg(String text) {
@@ -94,9 +94,13 @@ class TeacherAiGradingServiceGuardTest {
                 .onAssignmentGraded(any(), any(), any(), any(), any());
     }
 
+    /**
+     * Parity with the essay path: the speaking auto-grade is a PROPOSAL. It used to write GRADED and
+     * notify the student with the raw AI score before any teacher had looked at it.
+     */
     @Test
-    @DisplayName("autoGradeSession thành công → GRADED, set gradedAt (KHÔNG đè submittedAt), báo học viên")
-    void autoGradeSession_success_setsGradedAt_keepsSubmittedAt_notifies() {
+    @DisplayName("autoGradeSession thành công → AI_GRADED (đề xuất), set gradedAt, KHÔNG báo học viên")
+    void autoGradeSession_success_setsGradedAt_keepsSubmittedAt_doesNotNotify() {
         stubGradedSession();
         StudentAssignment linked = StudentAssignment.builder()
                 .id(LINKED_ASSIGNMENT_ID).assignmentId(9L).studentId(55L)
@@ -105,13 +109,13 @@ class TeacherAiGradingServiceGuardTest {
 
         service().autoGradeSession(SESSION_ID);
 
-        assertThat(linked.getStatus()).isEqualTo("GRADED");
+        assertThat(linked.getStatus()).isEqualTo(AssignmentStatus.AI_GRADED);
         assertThat(linked.getScore()).isEqualTo(78);
         assertThat(linked.getGradedAt()).as("gradedAt phải được set").isNotNull();
         assertThat(linked.getSubmittedAt())
                 .as("submittedAt (giờ nộp thật) KHÔNG bị đè bằng giờ chấm").isEqualTo(SUBMITTED_AT);
         verify(studentAssignmentRepository).save(linked);
-        verify(userNotificationService)
-                .onAssignmentGraded(eq(55L), eq("ASSIGNMENT"), eq(9L), eq(78), any());
+        verify(userNotificationService, never())
+                .onAssignmentGraded(any(), any(), any(), any(), any());
     }
 }

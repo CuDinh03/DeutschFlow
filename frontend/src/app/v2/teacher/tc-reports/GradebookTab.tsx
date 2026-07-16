@@ -4,12 +4,53 @@ import { format } from 'date-fns'
 import { FileDown } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { GaBtn, TkBadge } from '@/components/ui-v2'
-import type { Gradebook } from '@/lib/teacherGradebookApi'
+import type { Gradebook, GradebookCell as Cell } from '@/lib/teacherGradebookApi'
 import { ReportPrintHeader, ScoreBadge } from './reportShared'
 
 export interface GradebookTabProps {
   gradebook: Gradebook | null
   classDisplayName: string
+}
+
+/**
+ * One gradebook cell.
+ *
+ * Order matters: STATUS is read before SCORE. An AI_GRADED row carries a score, but it is a proposal
+ * nobody has confirmed — rendering it as a plain score badge (which is what "score != null" first did)
+ * presented the AI's number as the student's grade. And a GRADING_FAILED row used to fall through to
+ * "Chưa nộp", telling the teacher the student never handed the work in when in fact they had, and the
+ * AI had simply failed to grade it.
+ */
+function GradebookCell({ cell, t }: { cell: Cell | undefined; t: (k: string) => string }) {
+  if (cell == null) return <span className="text-ga-subtle">·</span>
+
+  switch (cell.status) {
+    case 'AI_GRADED':
+      return (
+        <TkBadge tone="violet" variant="soft">
+          {t('gradebook.awaitingConfirm')}
+        </TkBadge>
+      )
+    case 'GRADING_FAILED':
+      return (
+        <TkBadge tone="red" variant="soft">
+          {t('gradebook.regradeNeeded')}
+        </TkBadge>
+      )
+    case 'SUBMITTED':
+      return (
+        <TkBadge tone="blue" variant="soft">
+          {t('gradebook.pendingGrade')}
+        </TkBadge>
+      )
+    case 'GRADED':
+    case 'EVALUATED':
+      return cell.score != null
+        ? <ScoreBadge score={cell.score} scale={100} />
+        : <span className="text-[12px] text-ga-muted">{t('gradebook.pendingGrade')}</span>
+    default: // PENDING — assigned but never handed in
+      return <span className="text-[12px] text-ga-muted">{t('gradebook.notSubmitted')}</span>
+  }
 }
 
 type SkillLabelKey = 'horen' | 'lesen' | 'schreiben' | 'sprechen'
@@ -134,24 +175,11 @@ export function GradebookTab(props: GradebookTabProps) {
                       <p className="font-semibold text-ga-ink">{student.name}</p>
                       <p className="text-[12px] text-ga-subtle">{student.email}</p>
                     </th>
-                    {gradebook.assignments.map((assignment) => {
-                      const cell = student.cells[String(assignment.id)]
-                      return (
-                        <td key={assignment.id} className="border-b border-ga-line px-4 py-2.5 align-top">
-                          {cell == null ? (
-                            <span className="text-ga-subtle">·</span>
-                          ) : cell.score != null ? (
-                            <ScoreBadge score={cell.score} scale={100} />
-                          ) : cell.status === 'SUBMITTED' ? (
-                            <TkBadge tone="blue" variant="soft">
-                              {t('gradebook.pendingGrade')}
-                            </TkBadge>
-                          ) : (
-                            <span className="text-[12px] text-ga-muted">{t('gradebook.notSubmitted')}</span>
-                          )}
-                        </td>
-                      )
-                    })}
+                    {gradebook.assignments.map((assignment) => (
+                      <td key={assignment.id} className="border-b border-ga-line px-4 py-2.5 align-top">
+                        <GradebookCell cell={student.cells[String(assignment.id)]} t={t} />
+                      </td>
+                    ))}
                     <td className="border-b border-ga-line px-4 py-2.5 align-top">
                       <ScoreBadge score={student.avgScore} scale={100} />
                     </td>

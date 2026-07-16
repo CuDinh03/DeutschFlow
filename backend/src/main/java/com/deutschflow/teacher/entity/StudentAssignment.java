@@ -27,9 +27,10 @@ public class StudentAssignment {
     @Column(name = "student_id", nullable = false)
     private Long studentId;
 
+    /** See {@link AssignmentStatus} for the values and the state machine. No DB CHECK — plain varchar. */
     @Column(length = 50, nullable = false)
     @Builder.Default
-    private String status = "PENDING"; // PENDING, SUBMITTED, GRADED, GRADING_FAILED, EVALUATED
+    private String status = AssignmentStatus.PENDING;
 
     /** Optimistic-lock version — a stale grade write throws instead of clobbering (auto-grade audit, Đợt 3). */
     @Version

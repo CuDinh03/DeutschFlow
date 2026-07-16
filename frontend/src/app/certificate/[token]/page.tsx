@@ -155,7 +155,7 @@ export default async function CertificatePage({ params }: { params: { token: str
             <span className="text-xs font-bold uppercase tracking-widest">Cấp qua DeutschFlow</span>
           </div>
           <Link
-            href="/register"
+            href="/v2/register"
             className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
           >
             <Sparkles size={16} /> Luyện thi tiếng Đức với DeutschFlow
