@@ -90,13 +90,16 @@
       "learning": "Lernen",
       "examPrep": "Prüfungsvorbereitung",
       "classes": "Kurse",
-      "personal": "Persönlich"
+      "personal": "Persönlich",
+      "ops": "Betrieb",
+      "staff": "Personal"
     },
     "roles": {
       "teacher": "Lehrkraft",
       "admin": "Admin",
       "org": "Organisation",
-      "student": "Schüler"
+      "student": "Schüler",
+      "manager": "Leitung"
     }
   },
   "shell": {

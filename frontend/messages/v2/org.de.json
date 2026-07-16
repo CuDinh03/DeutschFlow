@@ -75,6 +75,52 @@
       "classNoTeacher": "Keine Lehrkraft zugewiesen",
       "classHasTeacher": "Lehrkraft zugewiesen"
     },
+    "manager": {
+      "title": "Betriebsübersicht",
+      "subtitle": "Zentrumsleitung · Aufgaben von heute",
+      "scheduleBtn": "Zentrumsplan",
+      "addTeacherBtn": "Lehrkraft hinzufügen",
+      "viewAll": "Alle ansehen",
+      "loadError": "Betriebsübersicht konnte nicht geladen werden",
+      "loadErrorDesc": "Bitte versuchen Sie es gleich noch einmal.",
+      "stats": {
+        "sessionsToday": "Einheiten heute",
+        "sessionsDisrupted": "{count} abgesagt/verschoben",
+        "sessionsOnTrack": "Alles planmäßig",
+        "openClasses": "Laufende Kurse",
+        "teacherless": "{count} ohne Lehrkraft",
+        "allStaffed": "Alle Kurse besetzt",
+        "students": "Lernende",
+        "active7d": "{count} aktiv in 7 Tagen",
+        "pendingInvites": "Offene Einladungen",
+        "expiringSoon": "{count} laufen bald ab"
+      },
+      "todayCap": "Heute · {date}",
+      "todayEmpty": "Heute sind keine Einheiten geplant.",
+      "sessionMeta": "{count} Lernende",
+      "room": "Raum {room}",
+      "status": {
+        "SCHEDULED": "Planmäßig",
+        "CANCELLED": "Abgesagt",
+        "MOVED": "Verschoben"
+      },
+      "todoCap": "Zu erledigen",
+      "todoEmpty": "Nichts zu erledigen.",
+      "todo": {
+        "teacherless": "{count} Kurse ohne Lehrkraft",
+        "disrupted": "{count} heutige Einheiten abgesagt oder verschoben",
+        "expiringInvites": "{count} Einladungen laufen in {days} Tagen ab",
+        "pendingInvites": "{count} Einladungen ohne Antwort",
+        "seatsFull": "Keine Plätze frei — keine neuen Lernenden möglich",
+        "seatsLow": "Plätze werden knapp — noch {count} frei"
+      },
+      "classesCap": "Kurse",
+      "classesEmpty": "Noch keine Kurse.",
+      "classNoTeacher": "Keine Lehrkraft",
+      "classHasTeacher": "Lehrkraft zugewiesen",
+      "newStudentsCap": "Neue Lernende (7 Tage)",
+      "newStudentsEmpty": "Keine neuen Lernenden in den letzten 7 Tagen."
+    },
     "students": {
       "title": "Schüler der Organisation",
       "subtitle": "Schüler, die Plätze des Zentrums nutzen",

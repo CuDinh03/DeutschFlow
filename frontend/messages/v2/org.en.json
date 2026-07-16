@@ -75,6 +75,52 @@
       "classNoTeacher": "No teacher assigned",
       "classHasTeacher": "Teacher assigned"
     },
+    "manager": {
+      "title": "Operations board",
+      "subtitle": "Centre manager · today's work",
+      "scheduleBtn": "Centre schedule",
+      "addTeacherBtn": "Add teacher",
+      "viewAll": "View all",
+      "loadError": "Could not load the operations board",
+      "loadErrorDesc": "Please try again in a moment.",
+      "stats": {
+        "sessionsToday": "Sessions today",
+        "sessionsDisrupted": "{count} cancelled/moved",
+        "sessionsOnTrack": "All on schedule",
+        "openClasses": "Open classes",
+        "teacherless": "{count} without a teacher",
+        "allStaffed": "All classes staffed",
+        "students": "Students",
+        "active7d": "{count} active in 7 days",
+        "pendingInvites": "Pending invitations",
+        "expiringSoon": "{count} expiring soon"
+      },
+      "todayCap": "Today · {date}",
+      "todayEmpty": "No sessions scheduled today.",
+      "sessionMeta": "{count} students",
+      "room": "Room {room}",
+      "status": {
+        "SCHEDULED": "On schedule",
+        "CANCELLED": "Cancelled",
+        "MOVED": "Moved"
+      },
+      "todoCap": "Needs attention",
+      "todoEmpty": "Nothing needs attention.",
+      "todo": {
+        "teacherless": "{count} classes have no teacher",
+        "disrupted": "{count} of today's sessions were cancelled or moved",
+        "expiringInvites": "{count} invitations expire within {days} days",
+        "pendingInvites": "{count} invitations awaiting a reply",
+        "seatsFull": "No seats left — cannot add new students",
+        "seatsLow": "Running out of seats — {count} left"
+      },
+      "classesCap": "Classes",
+      "classesEmpty": "No classes yet.",
+      "classNoTeacher": "No teacher assigned",
+      "classHasTeacher": "Teacher assigned",
+      "newStudentsCap": "New students (7 days)",
+      "newStudentsEmpty": "No new students in the last 7 days."
+    },
     "students": {
       "title": "Organization students",
       "subtitle": "Students using the center's seats",
