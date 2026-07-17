@@ -88,10 +88,10 @@ export default function V2TeacherMaterialsPage() {
       // Warn with the real attachment count first: archiving pulls the material out of every lesson it
       // is attached to (listForLesson drops non-ACTIVE), so "Lưu trữ" is not the harmless tidy-up it
       // sounds like. It IS reversible now (Restore), which the message also says.
-      const { lessons, classes } = await fetchMaterialAttachments(m.id)
-      const attached = lessons + classes
+      const { lessons, classes, assignments } = await fetchMaterialAttachments(m.id)
+      const attached = lessons + classes + assignments
       const msg = attached > 0
-        ? t('archiveConfirmAttached', { title: m.title, lessons, classes })
+        ? t('archiveConfirmAttached', { title: m.title, lessons, classes, assignments })
         : t('archiveConfirm', { title: m.title })
       if (!window.confirm(msg)) return
       await archiveMaterial(m.id)

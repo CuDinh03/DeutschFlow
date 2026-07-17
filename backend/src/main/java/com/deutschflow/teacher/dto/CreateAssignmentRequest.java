@@ -1,6 +1,7 @@
 package com.deutschflow.teacher.dto;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record CreateAssignmentRequest(
         String topic,
@@ -12,5 +13,7 @@ public record CreateAssignmentRequest(
         LocalDateTime dueDate,
         String attachmentUrl,
         /** Optional link to a ClassLesson in the same class (Phase 1d-D1). */
-        Long lessonId
+        Long lessonId,
+        /** Materials from the teacher's library to attach to this assignment (in pick order). Optional. */
+        List<Long> materialIds
 ) {}

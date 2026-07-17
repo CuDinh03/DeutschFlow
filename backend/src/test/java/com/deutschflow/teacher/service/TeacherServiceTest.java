@@ -107,6 +107,9 @@ class TeacherServiceTest {
     @Mock
     private StudentCompetencyService studentCompetencyService;
 
+    @Mock
+    private com.deutschflow.material.service.MaterialService materialService;
+
     private TeacherService teacherService;
 
     @BeforeEach
@@ -129,7 +132,8 @@ class TeacherServiceTest {
                 assignmentScenarioRepository,
                 s3StorageService,
                 lessonRepository,
-                studentCompetencyService
+                studentCompetencyService,
+                materialService
         );
     }
 
@@ -137,7 +141,7 @@ class TeacherServiceTest {
     void createAssignment_Success() {
         Long teacherId = 1L;
         Long classId = 100L;
-        CreateAssignmentRequest req = new CreateAssignmentRequest("Test Topic", "Test Desc", "GENERAL", null, 10L, LocalDateTime.now().plusDays(7), null, null);
+        CreateAssignmentRequest req = new CreateAssignmentRequest("Test Topic", "Test Desc", "GENERAL", null, 10L, LocalDateTime.now().plusDays(7), null, null, null);
 
         when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)).thenReturn(true);
 
@@ -171,7 +175,7 @@ class TeacherServiceTest {
     void createAssignment_lessonFromOtherClass_throwsForbidden() {
         Long teacherId = 1L, classId = 100L, lessonId = 55L;
         CreateAssignmentRequest req = new CreateAssignmentRequest(
-                "T", "D", "GENERAL", null, null, null, null, lessonId);
+                "T", "D", "GENERAL", null, null, null, null, lessonId, null);
 
         when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)).thenReturn(true);
         when(lessonRepository.findById(lessonId)).thenReturn(Optional.of(
@@ -185,7 +189,7 @@ class TeacherServiceTest {
     void createAssignment_withValidLesson_setsLessonId() {
         Long teacherId = 1L, classId = 100L, lessonId = 55L;
         CreateAssignmentRequest req = new CreateAssignmentRequest(
-                "T", "D", "GENERAL", null, null, null, null, lessonId);
+                "T", "D", "GENERAL", null, null, null, null, lessonId, null);
 
         when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)).thenReturn(true);
         when(lessonRepository.findById(lessonId)).thenReturn(Optional.of(
@@ -214,7 +218,7 @@ class TeacherServiceTest {
     void createAssignment_speakingScenario_usesLinkedLessonCefrLevel() {
         Long teacherId = 1L, classId = 100L, lessonId = 55L;
         CreateAssignmentRequest req = new CreateAssignmentRequest(
-                "Im Restaurant", "D", "SPEAKING_SCENARIO", null, null, null, null, lessonId);
+                "Im Restaurant", "D", "SPEAKING_SCENARIO", null, null, null, null, lessonId, null);
 
         when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)).thenReturn(true);
         when(lessonRepository.findById(lessonId)).thenReturn(Optional.of(
@@ -239,7 +243,7 @@ class TeacherServiceTest {
     void createAssignment_speakingScenario_noLesson_fallsBackToA2() {
         Long teacherId = 1L, classId = 100L;
         CreateAssignmentRequest req = new CreateAssignmentRequest(
-                "Smalltalk", "D", "SPEAKING_SCENARIO", null, null, null, null, null);
+                "Smalltalk", "D", "SPEAKING_SCENARIO", null, null, null, null, null, null);
 
         when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)).thenReturn(true);
         when(assignmentRepository.save(any(ClassAssignment.class))).thenAnswer(inv -> {

@@ -351,6 +351,7 @@
       "dueDate": "Due:",
       "scoreScale": "Score scale:",
       "downloadAttachment": "Download attachment",
+      "materials": { "heading": "Assigned materials", "loading": "Loading…", "openError": "Could not open the material.", "hint": "Click to open a material in your browser." },
       "yourSubmissionCap": "Your submission",
       "speakingCardTitle": "Speak live with the AI",
       "speakingCardDesc": "Open the interview scenario; the AI creates a session and submits the result automatically.",

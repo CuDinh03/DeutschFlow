@@ -12,6 +12,7 @@ import { loadSpeakingSessionIntoStore } from '@/lib/speakingSessionBootstrap'
 import { useChatStore } from '@/stores/useChatStore'
 import { fetchClassAssignments, type StudentAssignment } from '@/lib/studentClassesApi'
 import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
+import { AssignmentMaterials } from './AssignmentMaterials'
 import type { AiCompanion } from '@/types/ai-speaking'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -187,6 +188,9 @@ export default function V2AssignmentPage() {
                   </a>
                 )}
               </div>
+
+              {/* Library materials the teacher handed out with this assignment (click to open in-browser). */}
+              <AssignmentMaterials assignmentId={a.assignmentId} />
 
               {/* Submission / feedback */}
               {isPending ? (

@@ -351,6 +351,7 @@
       "dueDate": "Hạn nộp:",
       "scoreScale": "Thang điểm:",
       "downloadAttachment": "Tải tài liệu đính kèm",
+      "materials": { "heading": "Tài liệu được giao", "loading": "Đang tải…", "openError": "Không mở được tài liệu.", "hint": "Bấm để mở tài liệu trong trình duyệt." },
       "yourSubmissionCap": "Bài nộp của bạn",
       "speakingCardTitle": "Luyện nói trực tiếp với AI",
       "speakingCardDesc": "Mở kịch bản phỏng vấn, AI sẽ tạo phiên rồi tự nộp kết quả.",

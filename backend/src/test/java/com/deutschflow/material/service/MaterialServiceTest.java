@@ -53,6 +53,9 @@ class MaterialServiceTest {
     @Mock private com.deutschflow.material.repository.LessonMaterialRepository lessonMaterialRepository;
     @Mock private com.deutschflow.teacher.repository.ClassLessonRepository lessonRepository;
     @Mock private com.deutschflow.teacher.repository.ClassStudentRepository classStudentRepository;
+    @Mock private com.deutschflow.material.repository.AssignmentMaterialRepository assignmentMaterialRepository;
+    @Mock private com.deutschflow.teacher.repository.ClassAssignmentRepository classAssignmentRepository;
+    @Mock private com.deutschflow.teacher.repository.StudentAssignmentRepository studentAssignmentRepository;
 
     private MaterialService service;
 
@@ -60,7 +63,8 @@ class MaterialServiceTest {
     void setUp() {
         service = new MaterialService(materialRepository, folderRepository, classMaterialRepository,
                 s3StorageService, teacherClassRepository, orgMemberRepository,
-                lessonMaterialRepository, lessonRepository, classStudentRepository);
+                lessonMaterialRepository, lessonRepository, classStudentRepository,
+                assignmentMaterialRepository, classAssignmentRepository, studentAssignmentRepository);
     }
 
     private User user(long id, Long orgId) {
@@ -276,6 +280,10 @@ class MaterialServiceTest {
         return ClassLesson.builder().id(id).classId(classId).orderIndex(0).title("Lektion").build();
     }
 
+    private com.deutschflow.teacher.entity.ClassAssignment assignment(long id, long classId) {
+        return com.deutschflow.teacher.entity.ClassAssignment.builder().id(id).classId(classId).topic("Bài").build();
+    }
+
     @Test
     @DisplayName("attach an ORG material to a lesson of a DIFFERENT org's class → Forbidden (no cross-org leak)")
     void attachToLesson_orgMaterial_otherOrg_forbidden() {
@@ -348,6 +356,96 @@ class MaterialServiceTest {
         List<MaterialDto> out = service.listForLesson(caller, 50L);
 
         assertThat(out).extracting(MaterialDto::id).containsExactly(2L); // archived #1 dropped, order kept
+    }
+
+    // --------------------------------------------------------------- assignment attach
+
+    @Test
+    @DisplayName("attach a PERSONAL material to an assignment of the caller's own class → persists with order_index max+1")
+    void attachToAssignment_personalMaterial_ownClass_persists() {
+        User caller = user(7L, null);
+        when(materialRepository.findById(1L)).thenReturn(Optional.of(personalMaterial(1L, 7L)));
+        when(classAssignmentRepository.findById(90L)).thenReturn(Optional.of(assignment(90L, 5L)));
+        when(teacherClassRepository.findById(5L))
+                .thenReturn(Optional.of(TeacherClass.builder().id(5L).teacherId(7L).build()));
+        when(assignmentMaterialRepository.existsByIdAssignmentIdAndIdMaterialId(90L, 1L)).thenReturn(false);
+        when(assignmentMaterialRepository.findMaxOrderIndex(90L)).thenReturn(1);
+
+        service.attachToAssignment(caller, 1L, 90L);
+
+        ArgumentCaptor<com.deutschflow.material.entity.AssignmentMaterial> cap =
+                ArgumentCaptor.forClass(com.deutschflow.material.entity.AssignmentMaterial.class);
+        verify(assignmentMaterialRepository).save(cap.capture());
+        assertThat(cap.getValue().getId().getAssignmentId()).isEqualTo(90L);
+        assertThat(cap.getValue().getId().getMaterialId()).isEqualTo(1L);
+        assertThat(cap.getValue().getOrderIndex()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("attach to an assignment of a class the caller does not teach → Forbidden")
+    void attachToAssignment_notOwnedClass_forbidden() {
+        User caller = user(7L, null);
+        when(materialRepository.findById(1L)).thenReturn(Optional.of(personalMaterial(1L, 7L)));
+        when(classAssignmentRepository.findById(90L)).thenReturn(Optional.of(assignment(90L, 5L)));
+        when(teacherClassRepository.findById(5L))
+                .thenReturn(Optional.of(TeacherClass.builder().id(5L).teacherId(999L).build()));
+
+        assertThatThrownBy(() -> service.attachToAssignment(caller, 1L, 90L))
+                .isInstanceOf(ForbiddenException.class);
+        verify(assignmentMaterialRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("attach an ORG material to an assignment of a DIFFERENT org's class → Forbidden (no cross-org leak)")
+    void attachToAssignment_orgMaterial_otherOrg_forbidden() {
+        User caller = user(7L, 10L);
+        when(materialRepository.findById(1L)).thenReturn(Optional.of(orgMaterial(1L, 10L, 7L)));
+        when(orgMemberRepository.findByIdOrgIdAndIdUserId(10L, 7L))
+                .thenReturn(Optional.of(member(10L, 7L, "MANAGER", "ACTIVE")));
+        when(classAssignmentRepository.findById(90L)).thenReturn(Optional.of(assignment(90L, 5L)));
+        when(teacherClassRepository.findById(5L))
+                .thenReturn(Optional.of(TeacherClass.builder().id(5L).teacherId(7L).orgId(99L).build()));
+
+        assertThatThrownBy(() -> service.attachToAssignment(caller, 1L, 90L))
+                .isInstanceOf(ForbiddenException.class);
+        verify(assignmentMaterialRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("student who was NOT given the assignment cannot read its materials → Forbidden")
+    void listAssignmentMaterialsForStudent_notAssigned_forbidden() {
+        when(studentAssignmentRepository.findByStudentIdAndAssignmentId(42L, 90L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.listAssignmentMaterialsForStudent(42L, 90L))
+                .isInstanceOf(ForbiddenException.class);
+        verify(assignmentMaterialRepository, never()).findByIdAssignmentIdOrderByOrderIndexAsc(any());
+    }
+
+    @Test
+    @DisplayName("student given the assignment reads its ACTIVE materials in attach order")
+    void listAssignmentMaterialsForStudent_assigned_returnsActive() {
+        when(studentAssignmentRepository.findByStudentIdAndAssignmentId(42L, 90L))
+                .thenReturn(Optional.of(new com.deutschflow.teacher.entity.StudentAssignment()));
+        com.deutschflow.material.entity.AssignmentMaterial am = com.deutschflow.material.entity.AssignmentMaterial.builder()
+                .id(new com.deutschflow.material.entity.AssignmentMaterialId(90L, 2L)).orderIndex(0).attachedBy(7L).build();
+        when(assignmentMaterialRepository.findByIdAssignmentIdOrderByOrderIndexAsc(90L)).thenReturn(List.of(am));
+        when(materialRepository.findAllById(List.of(2L))).thenReturn(List.of(personalMaterial(2L, 7L)));
+        when(s3StorageService.presignedGetUrl(any(), any())).thenReturn("u");
+
+        List<MaterialDto> out = service.listAssignmentMaterialsForStudent(42L, 90L);
+
+        assertThat(out).extracting(MaterialDto::id).containsExactly(2L);
+    }
+
+    @Test
+    @DisplayName("refresh URL for a material NOT attached to the assignment → NotFound (attach link is the capability)")
+    void refreshAssignmentMaterialUrlForStudent_notAttached_notFound() {
+        when(studentAssignmentRepository.findByStudentIdAndAssignmentId(42L, 90L))
+                .thenReturn(Optional.of(new com.deutschflow.teacher.entity.StudentAssignment()));
+        when(assignmentMaterialRepository.existsByIdAssignmentIdAndIdMaterialId(90L, 5L)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.refreshAssignmentMaterialUrlForStudent(42L, 90L, 5L))
+                .isInstanceOf(NotFoundException.class);
     }
 
     // --------------------------------------------------------------- upload guards
@@ -788,16 +886,18 @@ class MaterialServiceTest {
     }
 
     @Test
-    @DisplayName("attachmentCount: returns lesson + class counts for the warn-before-archive check")
+    @DisplayName("attachmentCount: returns lesson + class + assignment counts for the warn-before-archive check")
     void attachmentCount_returnsCounts() {
         User caller = user(7L, null);
         when(materialRepository.findById(1L)).thenReturn(Optional.of(personalMaterial(1L, 7L)));
         when(lessonMaterialRepository.countByIdMaterialId(1L)).thenReturn(3L);
         when(classMaterialRepository.countByIdMaterialId(1L)).thenReturn(1L);
+        when(assignmentMaterialRepository.countByIdMaterialId(1L)).thenReturn(2L);
 
         MaterialService.AttachmentCount c = service.attachmentCount(caller, 1L);
 
         assertThat(c.lessons()).isEqualTo(3L);
         assertThat(c.classes()).isEqualTo(1L);
+        assertThat(c.assignments()).isEqualTo(2L);
     }
 }

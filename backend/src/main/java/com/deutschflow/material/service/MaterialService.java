@@ -6,6 +6,8 @@ import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.material.dto.MaterialDto;
 import com.deutschflow.material.dto.MaterialFolderDto;
 import com.deutschflow.material.dto.PresignUploadResponse;
+import com.deutschflow.material.entity.AssignmentMaterial;
+import com.deutschflow.material.entity.AssignmentMaterialId;
 import com.deutschflow.material.entity.ClassMaterial;
 import com.deutschflow.material.entity.ClassMaterialId;
 import com.deutschflow.material.entity.LessonMaterial;
@@ -18,6 +20,7 @@ import com.deutschflow.material.repository.MaterialFolderRepository;
 import com.deutschflow.material.repository.MaterialRepository;
 import com.deutschflow.media.service.S3StorageService;
 import com.deutschflow.organization.repository.OrgMemberRepository;
+import com.deutschflow.teacher.entity.ClassAssignment;
 import com.deutschflow.teacher.entity.ClassLesson;
 import com.deutschflow.teacher.entity.TeacherClass;
 import com.deutschflow.teacher.repository.ClassLessonRepository;
@@ -92,6 +95,10 @@ public class MaterialService {
     private final LessonMaterialRepository lessonMaterialRepository;
     private final ClassLessonRepository lessonRepository;
     private final com.deutschflow.teacher.repository.ClassStudentRepository classStudentRepository;
+    // Handing library materials to students via an assignment (mirror of the lesson attach above).
+    private final com.deutschflow.material.repository.AssignmentMaterialRepository assignmentMaterialRepository;
+    private final com.deutschflow.teacher.repository.ClassAssignmentRepository classAssignmentRepository;
+    private final com.deutschflow.teacher.repository.StudentAssignmentRepository studentAssignmentRepository;
 
     /** Creates a PERSONAL (teacher-owned) or ORG (center-owned) material from an uploaded file (≤25MB). */
     @Transactional
@@ -393,11 +400,12 @@ public class MaterialService {
         assertCanAccess(caller, m);
         return new AttachmentCount(
                 lessonMaterialRepository.countByIdMaterialId(id),
-                classMaterialRepository.countByIdMaterialId(id));
+                classMaterialRepository.countByIdMaterialId(id),
+                assignmentMaterialRepository.countByIdMaterialId(id));
     }
 
     /** Attachment counts for a material. */
-    public record AttachmentCount(long lessons, long classes) {}
+    public record AttachmentCount(long lessons, long classes, long assignments) {}
 
     /** Soft-archive (status → ARCHIVED). PERSONAL: owner; ORG: author or OWNER/MANAGER. Reversible. */
     @Transactional
@@ -513,6 +521,51 @@ public class MaterialService {
                         .toList());
     }
 
+    // --------------------------------------------------------------- assignment attach
+    //
+    // Same shape as lesson attach, one level over: an assignment belongs to a class, so the attach authz
+    // is "can the caller act on the assignment's class" (canAttachToClass) plus "can the caller access
+    // this material" (canAccess). This is what upgrades "giao bài tập" from a typed topic + one external
+    // link to actually handing library materials (PDF/DOCX/PPTX) to the class.
+
+    /** Attaches a material the caller can access to an assignment of a class the caller teaches (or org-admins). */
+    @Transactional
+    public void attachToAssignment(User caller, Long materialId, Long assignmentId) {
+        Material m = materialRepository.findById(materialId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy tài liệu."));
+        assertCanAccess(caller, m);
+        TeacherClass tc = resolveClassForAssignment(caller, assignmentId);
+        // An ORG material may only be attached within its OWN org (no cross-org leak).
+        if (SCOPE_ORG.equals(m.getOwnerScope()) && !m.getOrgId().equals(tc.getOrgId())) {
+            throw new ForbiddenException("Tài liệu của tổ chức chỉ gắn được vào lớp của tổ chức đó.");
+        }
+        if (!assignmentMaterialRepository.existsByIdAssignmentIdAndIdMaterialId(assignmentId, materialId)) {
+            int nextOrder = assignmentMaterialRepository.findMaxOrderIndex(assignmentId) + 1;
+            assignmentMaterialRepository.save(AssignmentMaterial.builder()
+                    .id(new AssignmentMaterialId(assignmentId, materialId))
+                    .orderIndex(nextOrder)
+                    .attachedBy(caller.getId())
+                    .build());
+        }
+    }
+
+    /** Detaches a material from an assignment (idempotent). Same authz as attach. */
+    @Transactional
+    public void detachFromAssignment(User caller, Long materialId, Long assignmentId) {
+        resolveClassForAssignment(caller, assignmentId);
+        assignmentMaterialRepository.deleteByIdAssignmentIdAndIdMaterialId(assignmentId, materialId);
+    }
+
+    /** Active materials attached to an assignment, in order_index order (teacher/admin view). */
+    @Transactional(readOnly = true)
+    public List<MaterialDto> listForAssignment(User caller, Long assignmentId) {
+        resolveClassForAssignment(caller, assignmentId);
+        return activeMaterialsInOrder(
+                assignmentMaterialRepository.findByIdAssignmentIdOrderByOrderIndexAsc(assignmentId).stream()
+                        .map(am -> am.getId().getMaterialId())
+                        .toList());
+    }
+
     // --------------------------------------------------------------- student read access
     //
     // Everything above is teacher/admin/org-scoped (canAccess). Students reach materials on a DIFFERENT
@@ -540,6 +593,33 @@ public class MaterialService {
     public String refreshLessonMaterialUrlForStudent(Long studentId, Long lessonId, Long materialId) {
         assertStudentInLessonClass(studentId, lessonId);
         if (!lessonMaterialRepository.existsByIdLessonIdAndIdMaterialId(lessonId, materialId)) {
+            throw new NotFoundException("Không tìm thấy tài liệu.");
+        }
+        Material m = materialRepository.findById(materialId)
+                .filter(x -> STATUS_ACTIVE.equals(x.getStatus()))
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy tài liệu."));
+        return resolveUrl(m);
+    }
+
+    /** Active materials attached to an assignment, for a student the assignment was handed to. */
+    @Transactional(readOnly = true)
+    public List<MaterialDto> listAssignmentMaterialsForStudent(Long studentId, Long assignmentId) {
+        assertStudentHasAssignment(studentId, assignmentId);
+        return activeMaterialsInOrder(
+                assignmentMaterialRepository.findByIdAssignmentIdOrderByOrderIndexAsc(assignmentId).stream()
+                        .map(am -> am.getId().getMaterialId())
+                        .toList());
+    }
+
+    /**
+     * A fresh resolvable URL for one material, for a student — but ONLY if that material is attached to
+     * the given assignment and the assignment was handed to that student. Scoping by assignment (not by
+     * material id alone) means a student cannot probe for arbitrary material ids.
+     */
+    @Transactional(readOnly = true)
+    public String refreshAssignmentMaterialUrlForStudent(Long studentId, Long assignmentId, Long materialId) {
+        assertStudentHasAssignment(studentId, assignmentId);
+        if (!assignmentMaterialRepository.existsByIdAssignmentIdAndIdMaterialId(assignmentId, materialId)) {
             throw new NotFoundException("Không tìm thấy tài liệu.");
         }
         Material m = materialRepository.findById(materialId)
@@ -577,6 +657,25 @@ public class MaterialService {
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy lớp học."));
         if (!canAttachToClass(caller, tc)) {
             throw new ForbiddenException("Bạn không có quyền thao tác tài liệu cho bài học này.");
+        }
+        return tc;
+    }
+
+    /** A student may read an assignment's materials only if that assignment was handed to them. */
+    private void assertStudentHasAssignment(Long studentId, Long assignmentId) {
+        if (studentAssignmentRepository.findByStudentIdAndAssignmentId(studentId, assignmentId).isEmpty()) {
+            throw new ForbiddenException("Bạn không được giao bài tập này.");
+        }
+    }
+
+    /** Loads the assignment, resolves its class, and enforces the same attach authz as classes. */
+    private TeacherClass resolveClassForAssignment(User caller, Long assignmentId) {
+        ClassAssignment assignment = classAssignmentRepository.findById(assignmentId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy bài tập."));
+        TeacherClass tc = teacherClassRepository.findById(assignment.getClassId())
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy lớp học."));
+        if (!canAttachToClass(caller, tc)) {
+            throw new ForbiddenException("Bạn không có quyền thao tác tài liệu cho bài tập này.");
         }
         return tc;
     }
