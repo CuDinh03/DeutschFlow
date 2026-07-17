@@ -46,12 +46,14 @@ class GradingServiceGuardTest {
     @Mock OpenAiChatClient openAiChatClient;
     @Mock AiUsageLedgerService aiUsageLedgerService;
     @Mock GradingModelConfig gradingModelConfig;
+    @Mock com.deutschflow.material.service.MaterialService materialService;
 
     private GradingService gradingService() {
         return new GradingService(
                 studentAssignmentRepository, classAssignmentRepository, classStudentRepository,
                 classTeacherRepository, teacherClassRepository, userRepository,
-                userNotificationService, openAiChatClient, aiUsageLedgerService, gradingModelConfig);
+                userNotificationService, openAiChatClient, aiUsageLedgerService, gradingModelConfig,
+                materialService);
     }
 
     @Test
