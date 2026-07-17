@@ -9,6 +9,7 @@ import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.teacher.repository.StudentAssignmentRepository;
 import com.deutschflow.teacher.repository.ClassAssignmentRepository;
+import com.deutschflow.teacher.repository.ClassStudentRepository;
 import com.deutschflow.teacher.entity.ClassAssignment;
 import com.deutschflow.teacher.repository.StudentAssignmentRepository;
 import com.deutschflow.teacher.entity.StudentAssignment;
@@ -47,8 +48,37 @@ public class StudentAssignmentController {
     private final TeacherService teacherService;
     private final StudentAssignmentRepository studentAssignmentRepository;
     private final ClassAssignmentRepository classAssignmentRepository;
+    private final ClassStudentRepository classStudentRepository;
     private final S3StorageService s3StorageService;
     private final com.deutschflow.material.service.MaterialService materialService;
+
+    /**
+     * The assignment the class handed out — resolved and access-checked by ENROLLMENT (the student must be
+     * in the assignment's class), not by an existing StudentAssignment row. A late-joining student has no
+     * row for assignments created before they arrived (see AssignmentBackfillService), so requiring one
+     * here would block them from ever opening or submitting that work.
+     */
+    private ClassAssignment assertAssignmentAccessible(Long studentId, Long assignmentId) {
+        ClassAssignment ca = classAssignmentRepository.findById(assignmentId)
+                .orElseThrow(() -> new NotFoundException("Bài tập không tồn tại"));
+        if (!classStudentRepository.existsByIdClassIdAndIdStudentId(ca.getClassId(), studentId)) {
+            throw new ForbiddenException("Bạn không có quyền với bài tập này");
+        }
+        return ca;
+    }
+
+    /** The student's row for this assignment, lazily created (PENDING) on first write if it's missing. */
+    private StudentAssignment getOrCreateRow(Long studentId, Long assignmentId) {
+        return studentAssignmentRepository.findByStudentIdAndAssignmentId(studentId, assignmentId)
+                .orElseGet(() -> {
+                    assertAssignmentAccessible(studentId, assignmentId);
+                    return studentAssignmentRepository.save(StudentAssignment.builder()
+                            .assignmentId(assignmentId)
+                            .studentId(studentId)
+                            .status("PENDING")
+                            .build());
+                });
+    }
 
     @GetMapping
     @Transactional(readOnly = true)
@@ -86,9 +116,9 @@ public class StudentAssignmentController {
             throw new BadRequestException("Loại file không được phép: " + contentType);
         }
 
-        // Verify the assignment belongs to this student
-        studentAssignmentRepository.findByStudentIdAndAssignmentId(user.getId(), assignmentId)
-                .orElseThrow(() -> new ForbiddenException("Bạn không có quyền upload cho bài tập này"));
+        // Verify the student is enrolled in the assignment's class (a late-joiner may not have a row yet;
+        // the row is created when they actually submit).
+        assertAssignmentAccessible(user.getId(), assignmentId);
 
         String extension = "";
         if (filename != null && filename.contains(".")) {
@@ -109,8 +139,9 @@ public class StudentAssignmentController {
             @PathVariable Long assignmentId,
             @RequestBody SubmitRequest request) {
             
-        StudentAssignment assignment = studentAssignmentRepository.findByStudentIdAndAssignmentId(user.getId(), assignmentId)
-                .orElseThrow(() -> new NotFoundException("Bài tập không tồn tại"));
+        // Late-joiners have no row for pre-join assignments — create it on first submit (with an
+        // enrollment check) so the student isn't permanently blocked from handing the work in.
+        StudentAssignment assignment = getOrCreateRow(user.getId(), assignmentId);
 
         if (!"PENDING".equals(assignment.getStatus())) {
             throw new ConflictException("Bài tập đã được nộp hoặc đã được chấm");
