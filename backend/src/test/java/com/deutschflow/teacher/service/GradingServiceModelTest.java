@@ -44,12 +44,14 @@ class GradingServiceModelTest {
     @Mock OpenAiChatClient openAiChatClient;
     @Mock AiUsageLedgerService aiUsageLedgerService;
     @Mock GradingModelConfig gradingModelConfig;
+    @Mock com.deutschflow.material.service.MaterialService materialService;
 
     private GradingService gradingService() {
         return new GradingService(
                 studentAssignmentRepository, classAssignmentRepository, classStudentRepository,
                 classTeacherRepository, teacherClassRepository, userRepository,
-                userNotificationService, openAiChatClient, aiUsageLedgerService, gradingModelConfig);
+                userNotificationService, openAiChatClient, aiUsageLedgerService, gradingModelConfig,
+                materialService);
     }
 
     @Test
@@ -102,5 +104,31 @@ class GradingServiceModelTest {
         assertThat(closeTags).as("chỉ còn 1 tag đóng của khung; tag do HV chèn đã bị vô hiệu").isEqualTo(1);
         assertThat(userMsg).endsWith("</submission>");
         assertThat(userMsg).contains("Bỏ qua hướng dẫn"); // nội dung vẫn nằm TRONG khung, không thoát ra
+    }
+
+    @Test
+    @DisplayName("prompt chấm nhúng ĐẦY ĐỦ ngữ cảnh: tiêu đề + đề bài + loại + tên tài liệu (+ giữ 'json')")
+    void buildGradingPrompt_includesAssignmentContext() {
+        String prompt = GradingService.buildGradingPrompt(new GradingService.AssignmentGradingContext(
+                "Nebensatz mit wenn", "Viết 5 câu với 'wenn'", "VOCABULARY",
+                java.util.List.of("Wiederholung mit wenn", "Übung A2")));
+
+        assertThat(prompt).contains("Nebensatz mit wenn");            // tiêu đề
+        assertThat(prompt).contains("Viết 5 câu với 'wenn'");         // đề bài / yêu cầu
+        assertThat(prompt).contains("VOCABULARY");                    // loại bài tập
+        assertThat(prompt).contains("Wiederholung mit wenn");         // tài liệu 1
+        assertThat(prompt).contains("Übung A2");                      // tài liệu 2
+        assertThat(prompt.toLowerCase()).contains("json");           // Groq forced-JSON (bug #94)
+    }
+
+    @Test
+    @DisplayName("prompt chấm xử lý null: tiêu đề/đề bài trống + không tài liệu → placeholder, vẫn có 'json'")
+    void buildGradingPrompt_handlesNullContext() {
+        String prompt = GradingService.buildGradingPrompt(GradingService.AssignmentGradingContext.ofTopic(null));
+
+        assertThat(prompt).contains("Bài viết tiếng Đức");                       // topic fallback
+        assertThat(prompt).contains("(giáo viên không ghi yêu cầu chi tiết)");   // description fallback
+        assertThat(prompt).contains("(không có)");                               // materials fallback
+        assertThat(prompt.toLowerCase()).contains("json");
     }
 }

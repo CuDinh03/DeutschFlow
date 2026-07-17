@@ -566,6 +566,27 @@ public class MaterialService {
                         .toList());
     }
 
+    /**
+     * Titles of the ACTIVE materials attached to an assignment, in attach order — INTERNAL server-side
+     * use only (AI grading context). No ACL: this runs inside the async grader, not a user request, and
+     * titles are non-sensitive metadata. Do NOT expose the raw list/URL through this method.
+     */
+    @Transactional(readOnly = true)
+    public List<String> assignmentMaterialTitles(Long assignmentId) {
+        List<Long> ids = assignmentMaterialRepository.findByIdAssignmentIdOrderByOrderIndexAsc(assignmentId).stream()
+                .map(am -> am.getId().getMaterialId())
+                .toList();
+        if (ids.isEmpty()) return List.of();
+        Map<Long, Material> byId = materialRepository.findAllById(ids).stream()
+                .filter(m -> STATUS_ACTIVE.equals(m.getStatus()))
+                .collect(java.util.stream.Collectors.toMap(Material::getId, m -> m));
+        return ids.stream()
+                .map(byId::get)
+                .filter(java.util.Objects::nonNull)
+                .map(Material::getTitle)
+                .toList();
+    }
+
     // --------------------------------------------------------------- student read access
     //
     // Everything above is teacher/admin/org-scoped (canAccess). Students reach materials on a DIFFERENT
