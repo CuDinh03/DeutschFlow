@@ -51,6 +51,7 @@ public class TeacherService {
     private final ClassStudentRepository classStudentRepository;
     private final ClassTeacherRepository classTeacherRepository;
     private final ClassAssignmentRepository assignmentRepository;
+    private final AssignmentBackfillService assignmentBackfillService;
     private final JdbcTemplate jdbcTemplate;
     private final StudentAssignmentRepository studentAssignmentRepository;
     private final com.deutschflow.speaking.repository.AiSpeakingSessionRepository speakingSessionRepository;
@@ -217,6 +218,10 @@ public class TeacherService {
             classStudentRepository.save(classStudent);
         }
 
+        // Give the newcomer the assignments the class already handed out before they joined — otherwise
+        // they'd be counted as "chờ nộp" for work they can't see or submit (idempotent).
+        assignmentBackfillService.ensureAssignmentsForStudent(classId, req.getStudentId());
+
         // Notify the student. The teacher is NOT notified here: they are the one who just clicked
         // approve. (There used to be an onTeacherJoinRequestCreated call right here, telling the teacher
         // "X yêu cầu tham gia lớp" immediately after they had approved X. The notification now fires in
@@ -377,6 +382,10 @@ public class TeacherService {
                 .id(new ClassStudentId(classId, user.getId()))
                 .build();
         classStudentRepository.save(classStudent);
+
+        // Backfill the assignments handed out before this student was added (idempotent) — see
+        // approveJoinRequest for the same guard on the self-join path.
+        assignmentBackfillService.ensureAssignmentsForStudent(classId, user.getId());
 
         // Notify student
         TeacherClass teacherClass = classRepository.findById(classId).orElse(null);

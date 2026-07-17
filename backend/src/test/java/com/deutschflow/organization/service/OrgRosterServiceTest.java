@@ -53,6 +53,7 @@ class OrgRosterServiceTest {
     @Mock private ClassStudentRepository classStudentRepository;
     @Mock private TeacherClassRepository teacherClassRepository;
     @Mock private JdbcTemplate jdbcTemplate;
+    @Mock private com.deutschflow.teacher.service.AssignmentBackfillService assignmentBackfillService;
 
     private OrgRosterService service;
 
@@ -70,6 +71,7 @@ class OrgRosterServiceTest {
                 orgMemberRepository,
                 classStudentRepository,
                 teacherClassRepository,
+                assignmentBackfillService,
                 jdbcTemplate
         );
         // Stub the advisory FOR UPDATE lock — no-op in tests (J).

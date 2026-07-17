@@ -12,6 +12,7 @@ import com.deutschflow.teacher.entity.ClassStudentId;
 import com.deutschflow.teacher.entity.TeacherClass;
 import com.deutschflow.teacher.repository.ClassStudentRepository;
 import com.deutschflow.teacher.repository.TeacherClassRepository;
+import com.deutschflow.teacher.service.AssignmentBackfillService;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -52,6 +53,7 @@ public class OrgRosterService {
     private final OrgMemberRepository orgMemberRepository;
     private final ClassStudentRepository classStudentRepository;
     private final TeacherClassRepository teacherClassRepository;
+    private final AssignmentBackfillService assignmentBackfillService;
     private final JdbcTemplate jdbcTemplate;
 
     /**
@@ -158,6 +160,8 @@ public class OrgRosterService {
                     classStudentRepository.save(ClassStudent.builder()
                             .id(new ClassStudentId(classIdOrNull, user.getId()))
                             .build());
+                    // Provision the class's existing assignments for the imported student (idempotent).
+                    assignmentBackfillService.ensureAssignmentsForStudent(classIdOrNull, user.getId());
                     enrolled++;
                 }
             } catch (Exception ex) {

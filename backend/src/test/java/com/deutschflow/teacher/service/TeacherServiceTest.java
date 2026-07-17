@@ -110,6 +110,9 @@ class TeacherServiceTest {
     @Mock
     private com.deutschflow.material.service.MaterialService materialService;
 
+    @Mock
+    private AssignmentBackfillService assignmentBackfillService;
+
     private TeacherService teacherService;
 
     @BeforeEach
@@ -119,6 +122,7 @@ class TeacherServiceTest {
                 classStudentRepository,
                 classTeacherRepository,
                 assignmentRepository,
+                assignmentBackfillService,
                 jdbcTemplate,
                 studentAssignmentRepository,
                 speakingSessionRepository,

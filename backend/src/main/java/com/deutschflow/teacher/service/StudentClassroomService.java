@@ -159,16 +159,27 @@ public class StudentClassroomService {
     @Transactional(readOnly = true)
     public List<StudentAssignmentDto> listAssignments(Long studentId, Long classId) {
         assertEnrolled(studentId, classId);
+        // Drive the list from the class's assignments (the source of truth for "what was assigned"), not
+        // from the student's StudentAssignment rows. A late-joining student has no row for assignments
+        // handed out before they arrived; keying off rows dropped those from the list entirely — while the
+        // counters (which iterate ClassAssignment) still counted them — so the student saw "chờ nộp" work
+        // they could not open. Left-join each assignment with the student's row and synthesise a
+        // not-yet-started entry where none exists. AssignmentBackfillService keeps the rows in sync going
+        // forward; this net covers any that are still missing (e.g. a pre-V260 join not yet backfilled).
         List<ClassAssignment> classAssignments = assignmentRepository.findByClassIdOrderByCreatedAtDesc(classId);
         if (classAssignments.isEmpty()) return List.of();
 
-        Map<Long, ClassAssignment> assignmentById = classAssignments.stream()
-                .collect(Collectors.toMap(ClassAssignment::getId, a -> a));
-
-        return studentAssignmentRepository.findByAssignmentIds(new ArrayList<>(assignmentById.keySet())).stream()
+        List<Long> assignmentIds = classAssignments.stream().map(ClassAssignment::getId).toList();
+        Map<Long, StudentAssignment> myByAssignmentId = studentAssignmentRepository.findByAssignmentIds(assignmentIds).stream()
                 .filter(sa -> sa.getStudentId().equals(studentId))
-                .sorted(Comparator.comparing(StudentAssignment::getCreatedAt).reversed())
-                .map(sa -> toDto(sa, assignmentById.get(sa.getAssignmentId())))
+                .collect(Collectors.toMap(StudentAssignment::getAssignmentId, sa -> sa, (a, b) -> a));
+
+        // classAssignments is already newest-first, so the merged list keeps that order.
+        return classAssignments.stream()
+                .map(ca -> {
+                    StudentAssignment sa = myByAssignmentId.get(ca.getId());
+                    return sa != null ? toDto(sa, ca) : notStartedDto(ca, studentId);
+                })
                 .toList();
     }
 
@@ -270,6 +281,26 @@ public class StudentClassroomService {
                 a.getSubmissionFileUrl(),
                 ca != null ? ca.getAttachmentUrl() : null,
                 ca != null ? ca.getReferenceId() : null
+        );
+    }
+
+    /**
+     * A not-yet-started assignment the student has no StudentAssignment row for (id is null). The frontend
+     * keys navigation and submission on {@code assignmentId} (the ClassAssignment id), not on this row id,
+     * so the entry is fully openable and submittable; the row is created lazily on first submit/upload.
+     */
+    private StudentAssignmentDto notStartedDto(ClassAssignment ca, Long studentId) {
+        return new StudentAssignmentDto(
+                null, ca.getId(), studentId, "PENDING",
+                null, null, null, ca.getCreatedAt(),
+                ca.getTopic(),
+                ca.getDescription(),
+                ca.getAssignmentType(),
+                ca.getDueDate(),
+                null,
+                null,
+                ca.getAttachmentUrl(),
+                ca.getReferenceId()
         );
     }
 
