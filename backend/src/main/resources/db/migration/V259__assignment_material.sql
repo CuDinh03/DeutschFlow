@@ -1,42 +1,36 @@
 -- ============================================================
--- V259: assignment_material — gắn tài liệu (thư viện) vào bài tập giao cho học viên (M:N)
+-- V259: assignment_material — bổ sung metadata attach (Phase 3) cho bảng NỐI đã có ở V258
 -- ============================================================
--- Trước đây giáo viên chỉ nhập tay topic/description + 1 attachmentUrl (link ngoài) cho một bài tập.
--- Bảng NỐI này cho phép đính KÈM tài liệu có sẵn trong thư viện (materials) vào một bài tập —
--- giống hệt lesson_material (V254)/class_materials: một tài liệu tái sử dụng được cho nhiều bài tập,
--- nên dùng bảng nối M:N thay vì cột đơn trên class_assignments (sẽ khoá tài liệu vào 1 bài tập).
--- order_index cho phép sắp thứ tự tài liệu hiển thị trong một bài tập.
+-- V258 (§4) ĐÃ tạo sẵn bảng NỐI `assignment_material(assignment_id, material_id, order_index)` như
+-- DDL Phase 1 ("attach/detach + API học viên là Phase 3"). Đây CHÍNH là Phase 3: gắn tài liệu thư viện
+-- vào bài tập. Entity AssignmentMaterial thêm hai cột `attached_by` + `attached_at` (mirror
+-- lesson_material V254), nên KHÔNG tạo lại bảng (CREATE IF NOT EXISTS sẽ bị bỏ qua và Hibernate
+-- ddl-auto=validate báo thiếu cột) mà ALTER bảng sẵn có.
 --
--- CASCADE: đây là các dòng NỐI (không phải bản thân tài liệu) — xoá bài tập hoặc xoá tài liệu chỉ
--- gỡ liên kết. Bản thân materials vẫn còn (quản lý riêng qua status ACTIVE/ARCHIVED). Xoá bài tập
--- (nếu có) cũng chỉ gỡ liên kết, không đụng tới tài liệu gốc.
+-- An toàn: tính năng attach chưa từng tồn tại nên bảng đang RỖNG ở mọi môi trường → thêm cột NOT NULL
+-- không rủi ro. Additive, không di trú dữ liệu.
 -- ============================================================
 
-CREATE TABLE IF NOT EXISTS assignment_material (
-    assignment_id BIGINT NOT NULL,
-    material_id   BIGINT NOT NULL,
-    order_index   INT NOT NULL DEFAULT 0,
-    attached_by   BIGINT NOT NULL,
-    attached_at   TIMESTAMP NOT NULL DEFAULT NOW(),
-    PRIMARY KEY (assignment_id, material_id)
-);
+-- attached_at: thêm với DEFAULT NOW() (khớp lesson_material V254); entity cũng set qua @PrePersist.
+ALTER TABLE assignment_material ADD COLUMN IF NOT EXISTS attached_at TIMESTAMP NOT NULL DEFAULT NOW();
 
-CREATE INDEX IF NOT EXISTS idx_assignment_material_assignment
-    ON assignment_material(assignment_id, order_index);
+-- attached_by: thêm nullable trước, back-fill dòng lạc (nếu có) rồi siết NOT NULL đúng như entity.
+ALTER TABLE assignment_material ADD COLUMN IF NOT EXISTS attached_by BIGINT;
+UPDATE assignment_material SET attached_by = 0 WHERE attached_by IS NULL;
+ALTER TABLE assignment_material ALTER COLUMN attached_by SET NOT NULL;
 
--- Đọc ngược "tài liệu này đang gắn ở bao nhiêu bài tập" (cảnh báo trước khi lưu trữ tài liệu).
+-- Đọc ngược "tài liệu này đang gắn ở bao nhiêu bài tập" (cảnh báo trước khi lưu trữ tài liệu) —
+-- V258 mới chỉ có index theo (assignment_id, order_index).
 CREATE INDEX IF NOT EXISTS idx_assignment_material_material
-    ON assignment_material(material_id);
+    ON assignment_material (material_id);
 
+-- V258 tạo FK material KHÔNG có ON DELETE CASCADE. Căn chỉnh theo lesson_material: xoá một tài liệu chỉ
+-- gỡ các dòng NỐI thay vì lỗi FK. Bảng rỗng nên drop+add an toàn.
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_assignment_material_assignment') THEN
-    ALTER TABLE assignment_material
-      ADD CONSTRAINT fk_assignment_material_assignment
-      FOREIGN KEY (assignment_id) REFERENCES class_assignments(id) ON DELETE CASCADE;
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_assignment_material_material') THEN
+    ALTER TABLE assignment_material DROP CONSTRAINT fk_assignment_material_material;
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_assignment_material_material') THEN
-    ALTER TABLE assignment_material
-      ADD CONSTRAINT fk_assignment_material_material
-      FOREIGN KEY (material_id) REFERENCES materials(id) ON DELETE CASCADE;
-  END IF;
+  ALTER TABLE assignment_material
+    ADD CONSTRAINT fk_assignment_material_material
+    FOREIGN KEY (material_id) REFERENCES materials(id) ON DELETE CASCADE;
 END $$;
