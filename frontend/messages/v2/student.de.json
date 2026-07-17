@@ -118,7 +118,10 @@
       "reload": "Neu laden",
       "grammarTasksCap": "Heutige Grammatikaufgaben ({count})",
       "taskCycle": "Zyklus von {days} Tagen",
-      "taskDoneBtn": "Fertig"
+      "taskDoneBtn": "Fertig",
+      "taskTypes": {
+        "REWRITE": "Umschreiben"
+      }
     },
     "lessons": {
       "title": "Lektionsbibliothek",

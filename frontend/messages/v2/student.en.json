@@ -118,7 +118,10 @@
       "reload": "Reload",
       "grammarTasksCap": "Today's grammar tasks ({count})",
       "taskCycle": "{days}-day cycle",
-      "taskDoneBtn": "Done"
+      "taskDoneBtn": "Done",
+      "taskTypes": {
+        "REWRITE": "Rewrite"
+      }
     },
     "lessons": {
       "title": "Lesson library",

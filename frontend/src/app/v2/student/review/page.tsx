@@ -1,10 +1,11 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { Volume2, RotateCcw, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { reviewApi, type VocabReviewCard, type ErrorReviewTaskDto } from '@/lib/reviewApi'
+import { getErrorSnippet } from '@/lib/errors/errorTaxonomy'
 import { GaPageHdr, GaCard, GaCap, GaBtn, LoadingState, ErrorBanner, TkBadge } from '@/components/ui-v2'
 
 // Reuse reviewApi 1:1: getDueVocab + gradeVocab (FSRS flashcards) + getTodayTasks + completeTask
@@ -33,6 +34,7 @@ function speak(text: string) {
 
 export default function V2StudentReviewPage() {
   const t = useTranslations('v2.student.review')
+  const locale = useLocale()
   const [cards, setCards] = useState<VocabReviewCard[]>([])
   const [tasks, setTasks] = useState<ErrorReviewTaskDto[]>([])
   const [idx, setIdx] = useState(0)
@@ -59,6 +61,17 @@ export default function V2StudentReviewPage() {
   useEffect(load, [load])
 
   const card = cards[idx] ?? null
+
+  // Grammar error codes (e.g. "ARTICLE.GENDER_WRONG_DER_DIE_DAS") and task types
+  // ("REWRITE") are internal taxonomy values — never show them raw to learners.
+  // getErrorSnippet is the shared, backend-catalog-aligned label source used across
+  // the app; taskType has no snippet, so fall back to a localized label (then the
+  // humanized code) for any value not yet mapped rather than leaking it.
+  const errorCodeLabel = (code: string): string => getErrorSnippet(code, locale).title
+  const taskTypeLabel = (type: string): string => {
+    const key = `taskTypes.${type.toUpperCase()}`
+    return t.has(key) ? t(key) : type.replace(/_/g, ' ')
+  }
 
   const grade = async (q: number) => {
     if (!card || grading) return
@@ -190,10 +203,10 @@ export default function V2StudentReviewPage() {
                   {tasks.map((task, i) => (
                     <div key={task.id} className={`flex items-center gap-3 px-5 py-3.5 ${i ? 'border-t border-ga-border' : ''}`}>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[14px] font-semibold text-ga-ink">{task.errorCode.replace(/_/g, ' ')}</p>
+                        <p className="text-[14px] font-semibold text-ga-ink">{errorCodeLabel(task.errorCode)}</p>
                         <p className="ga-ui text-[12px] text-ga-muted">{t('taskCycle', { days: task.intervalDays })}</p>
                       </div>
-                      <TkBadge tone="violet">{task.taskType}</TkBadge>
+                      <TkBadge tone="violet">{taskTypeLabel(task.taskType)}</TkBadge>
                       <button
                         type="button"
                         onClick={() => completeTask(task)}

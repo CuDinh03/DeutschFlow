@@ -118,7 +118,10 @@
       "reload": "Tải lại",
       "grammarTasksCap": "Nhiệm vụ ngữ pháp hôm nay ({count})",
       "taskCycle": "Chu kỳ {days} ngày",
-      "taskDoneBtn": "Xong"
+      "taskDoneBtn": "Xong",
+      "taskTypes": {
+        "REWRITE": "Viết lại"
+      }
     },
     "lessons": {
       "title": "Thư viện bài học",
