@@ -36,6 +36,7 @@ public class AppleIapService {
     private final AppleSubscriptionStore store;
     private final SubscriptionActivationService activationService;
     private final PaymentTransactionRepository paymentTransactionRepository;
+    private final AppleIapMetrics metrics;
     private final TransactionTemplate transactionTemplate;
 
     public AppleIapService(AppleJwsVerifier verifier,
@@ -43,12 +44,14 @@ public class AppleIapService {
                            AppleSubscriptionStore store,
                            SubscriptionActivationService activationService,
                            PaymentTransactionRepository paymentTransactionRepository,
+                           AppleIapMetrics metrics,
                            PlatformTransactionManager transactionManager) {
         this.verifier = verifier;
         this.productCatalog = productCatalog;
         this.store = store;
         this.activationService = activationService;
         this.paymentTransactionRepository = paymentTransactionRepository;
+        this.metrics = metrics;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
@@ -124,8 +127,12 @@ public class AppleIapService {
         // Notify admins only on the first time we see this transaction.
         activationService.extendOrActivateApple(userId, product.planCode(), startsAt, expiresAt, isNew);
 
-        log.info("[APPLE VERIFY] Activated plan={} for userId={} (transactionId={}, until={})",
-                product.planCode(), userId, transactionId, expiresAt);
+        // Observability: tag by StoreKit environment so Sandbox activations on the prod server are
+        // visible (the verifier accepts both environments by design — see AppleIapMetrics).
+        metrics.recordActivation(environment, product.planCode(), isNew);
+
+        log.info("[APPLE VERIFY] Activated plan={} for userId={} (transactionId={}, environment={}, until={})",
+                product.planCode(), userId, transactionId, environment, expiresAt);
         return new AppleActivationResult(product.planCode(), expiresAt);
     }
 
