@@ -1,10 +1,32 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { useTracking } from '@/hooks/useTracking'
 
 export default function NotFound() {
   const router = useRouter()
+  const { trackEvent } = useTracking()
+  const sent = useRef(false)
+
+  // Đo lỗ hổng của bảng redirect khi cây v1 bị xoá: bookmark/link cũ trỏ vào một route đã biến mất
+  // mà bảng redirect chưa phủ sẽ rơi vào đây và, trước đợt này, không phát ra tín hiệu nào. `referrer`
+  // phân biệt được người dùng đến từ trong app (link nội bộ còn sót) hay từ ngoài (email/bookmark).
+  useEffect(() => {
+    if (sent.current) return
+    // PostHogProvider gọi posthog.init() trong effect của CHÍNH nó, mà effect của component con luôn
+    // chạy TRƯỚC effect của cha → ở lần tải nguội (gõ thẳng URL hỏng) capture() gọi ngay tại đây sẽ
+    // trúng instance chưa init và bị bỏ im lặng. Hoãn một macrotask để init đã chạy xong.
+    const timer = setTimeout(() => {
+      sent.current = true
+      trackEvent('client_route_not_found', {
+        path: window.location.pathname,
+        referrer: document.referrer || 'direct',
+      })
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [trackEvent])
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">

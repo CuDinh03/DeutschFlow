@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { Check, ArrowRight } from 'lucide-react'
+import { Check, ArrowRight, BookOpen, Dumbbell, Lock } from 'lucide-react'
 import { toast } from 'sonner'
+import api from '@/lib/api'
 import { phaseApi, type PhaseStateResponse, type PhaseType } from '@/lib/phaseApi'
 import { fetchTree, completeNode, levelUp, type TreeResponse } from '@/lib/learning-tree/treeApi'
 import { LearningTree, type TappedNode } from '@/components/learning-tree/LearningTree'
@@ -19,14 +20,40 @@ import {
   GaPageHdr,
   GaCard,
   GaCap,
+  EmptyState,
   LoadingState,
   ErrorBanner,
+  TkBadge,
   TkTabs,
   TkTabsList,
   TkTabsTrigger,
   TkTabsContent,
 } from '@/components/ui-v2'
 import type { Skill, TopicGroup } from '@/lib/learning-tree/core'
+
+/**
+ * Node của lộ trình bài học (`GET /roadmap/me` → RoadmapNodeDto). CHÚ Ý: `id` ở đây là SỐ và là id
+ * duy nhất mà backend bài học/luyện tập chấp nhận (`/skill-tree/{nodeId}/...`,
+ * `/skill-tree/node/{nodeId}/session`).
+ *
+ * Nó KHÔNG PHẢI id của lá trên "Cây học tập" (tab Cây) — cây dùng bảng TreeNode với id CHUỖI qua
+ * `/roadmap/tree` (xem RoadmapTreeController: "Distinct from the legacy week/day roadmap"). Vì vậy
+ * không thể lấy lá cây làm cửa vào runner; tab "Bài học" dưới đây mới là cửa đúng.
+ */
+interface RoadmapNode {
+  id: number
+  code: string
+  title: string
+  subtitle: string
+  emoji: string
+  /** "completed" | "current" | "locked" */
+  state: string
+  xpReward: number
+  lessonsTotal: number
+  lessonsCompleted: number
+  cefrLevel: string
+  description: string
+}
 
 const PHASES: { type: PhaseType; labelKey: string; descKey: string }[] = [
   { type: 'FOUNDATION', labelKey: 'phases.foundationLabel', descKey: 'phases.foundationDesc' },
@@ -119,6 +146,28 @@ export default function V2StudentRoadmapPage() {
       .finally(() => setLeveling(false))
   }, [t])
 
+  // ── Bài học (nodes) — cửa vào bài học thật + runner luyện 4 kỹ năng (lazy-loaded) ──
+  const [nodes, setNodes] = useState<RoadmapNode[]>([])
+  const [nodesLoading, setNodesLoading] = useState(false)
+  const [nodesError, setNodesError] = useState<string | null>(null)
+  const [nodesLoaded, setNodesLoaded] = useState(false)
+
+  const loadNodes = useCallback(() => {
+    setNodesLoading(true)
+    setNodesError(null)
+    api
+      .get<RoadmapNode[]>('/roadmap/me')
+      .then((res) => {
+        setNodes(Array.isArray(res.data) ? res.data : [])
+        setNodesLoaded(true)
+      })
+      .catch(() => setNodesError(t('nodesLoadError')))
+      .finally(() => setNodesLoading(false))
+  }, [t])
+  useEffect(() => {
+    if (tab === 'nodes' && !nodesLoaded && !nodesLoading) loadNodes()
+  }, [tab, nodesLoaded, nodesLoading, loadNodes])
+
   // ── Phase journey (preserved from the previous roadmap; lazy-loaded) ──
   const [phase, setPhase] = useState<PhaseStateResponse | null>(null)
   const [nextActions, setNextActions] = useState<string[]>([])
@@ -151,6 +200,7 @@ export default function V2StudentRoadmapPage() {
         <TkTabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
           <TkTabsList>
             <TkTabsTrigger value="tree">{t('tabTree')}</TkTabsTrigger>
+            <TkTabsTrigger value="nodes">{t('tabNodes')}</TkTabsTrigger>
             <TkTabsTrigger value="phase">{t('tabPhase')}</TkTabsTrigger>
           </TkTabsList>
 
@@ -225,6 +275,114 @@ export default function V2StudentRoadmapPage() {
                 </div>
                 <TreeLegend />
               </>
+            )}
+          </TkTabsContent>
+
+          {/* Bài học tab — cửa DUY NHẤT của /v2 vào bài học thật (5 view) và runner luyện 4 kỹ năng
+              có chấm điểm. Tab "Cây" ở trên chỉ có bài demo hardcode trong NodeLessonPanel
+              (LESSON_BY_GROUP: 6 chủ đề × 1 câu + 1 trắc nghiệm), nên KHÔNG thay thế được runner. */}
+          <TkTabsContent value="nodes" className="min-h-0 flex-1 overflow-auto">
+            {nodesError ? (
+              <ErrorBanner message={nodesError} onRetry={loadNodes} />
+            ) : nodesLoading ? (
+              <LoadingState label={t('nodesLoading')} />
+            ) : nodes.length === 0 ? (
+              <EmptyState title={t('nodesEmptyTitle')} description={t('nodesEmptyDesc')} />
+            ) : (
+              <div className="space-y-3">
+                {nodes.map((node) => {
+                  const locked = node.state === 'locked'
+                  const done = node.state === 'completed'
+                  const percent =
+                    node.lessonsTotal > 0
+                      ? Math.round((node.lessonsCompleted / node.lessonsTotal) * 100)
+                      : 0
+
+                  return (
+                    <GaCard key={node.id} hover className="p-5">
+                      <div className="flex items-start gap-4">
+                        <span
+                          className={`grid h-11 w-11 shrink-0 place-items-center rounded-ga bg-ga-surface text-[22px] ${locked ? 'opacity-50' : ''}`}
+                        >
+                          {locked ? <Lock size={18} className="text-ga-subtle" aria-hidden /> : node.emoji}
+                        </span>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {/* RoadmapNodeDto: `title` = title_de, `subtitle` = title_vi. Bản v1
+                                (RoadmapTreePage) hiện CẢ HAI — chỉ in `title` là học viên Việt chỉ
+                                thấy tiêu đề tiếng Đức. */}
+                            <p
+                              className={`text-[15px] font-semibold ${locked ? 'text-ga-subtle' : 'text-ga-ink'}`}
+                            >
+                              {node.subtitle || node.title}
+                            </p>
+                            <TkBadge tone={done ? 'green' : locked ? 'neutral' : 'yellow'}>
+                              {done ? t('nodeDone') : locked ? t('nodeLocked') : t('nodeCurrent')}
+                            </TkBadge>
+                            <span className="ga-ui rounded-ga-pill bg-ga-accent-soft px-2 py-0.5 text-[11px] font-bold text-ga-accent">
+                              {node.cefrLevel}
+                            </span>
+                            <span className="ga-ui text-[11.5px] text-ga-subtle">+{node.xpReward} XP</span>
+                          </div>
+
+                          {node.subtitle && node.title && (
+                            <p className="ga-ui mt-0.5 text-[12.5px] italic text-ga-subtle">
+                              {node.title}
+                            </p>
+                          )}
+
+                          {node.description && (
+                            <p className="ga-ui mt-1 line-clamp-2 text-[13px] text-ga-muted">
+                              {node.description}
+                            </p>
+                          )}
+
+                          {!locked && (
+                            <div className="mt-2.5 flex items-center gap-2.5">
+                              <span className="h-1.5 w-40 overflow-hidden rounded-ga-pill bg-ga-border">
+                                <span
+                                  className="block h-full rounded-ga-pill"
+                                  style={{
+                                    width: `${percent}%`,
+                                    background: done ? 'var(--ga-green)' : 'var(--ga-accent)',
+                                  }}
+                                />
+                              </span>
+                              <span className="ga-ui text-[12px] text-ga-subtle">
+                                {t('nodeLessons', {
+                                  done: node.lessonsCompleted,
+                                  total: node.lessonsTotal,
+                                })}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Hai cửa: học bài (5 view) · luyện 4 kỹ năng (runner có chấm điểm) */}
+                          {!locked && (
+                            <div className="mt-3.5 flex flex-wrap gap-2">
+                              <Link
+                                href={`/v2/student/learn/${node.id}`}
+                                className="ga-ui inline-flex items-center gap-1.5 rounded-ga bg-ga-accent px-4 py-2 text-[12.5px] font-semibold text-ga-accent-ink transition-opacity hover:opacity-90"
+                              >
+                                <BookOpen size={14} aria-hidden />
+                                {done ? t('nodeRelearn') : t('nodeLearn')}
+                              </Link>
+                              <Link
+                                href={`/v2/student/practice/${node.id}`}
+                                className="ga-ui inline-flex items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-4 py-2 text-[12.5px] font-semibold text-ga-ink transition-colors hover:bg-ga-surface"
+                              >
+                                <Dumbbell size={14} aria-hidden />
+                                {t('nodePractice')}
+                              </Link>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </GaCard>
+                  )
+                })}
+              </div>
             )}
           </TkTabsContent>
 

@@ -8,15 +8,18 @@ import { toast } from 'sonner'
 import { format } from 'date-fns'
 import api, { apiMessage } from '@/lib/api'
 import { aiSpeakingApi } from '@/lib/aiSpeakingApi'
+import { loadSpeakingSessionIntoStore } from '@/lib/speakingSessionBootstrap'
 import { useChatStore } from '@/stores/useChatStore'
 import { fetchClassAssignments, type StudentAssignment } from '@/lib/studentClassesApi'
 import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
+import { AssignmentMaterials } from './AssignmentMaterials'
+import type { AiCompanion } from '@/types/ai-speaking'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Bài tập — nộp & phản hồi (GaAssignment, proto-classroom.jsx) — student↔teacher,
 // yellow. Plumbing reused 1:1 (zero backend): fetchClassAssignments (find by
 // assignmentId) + presigned-url GET → S3 PUT → POST /v2/students/assignments/{id}/submit
-// + (SPEAKING_SCENARIO) scenario→aiSpeakingApi.createSession→/speaking/chat.
+// + (SPEAKING_SCENARIO) scenario→aiSpeakingApi.createSession→/v2/student/speaking/live.
 // Option-1: proto per-dimension rubric (Phát âm/Ngữ pháp/Nội dung) + waveform are
 // fictional → single 0-100 score + teacher feedback (same basis as teacher grading).
 // Backend allows submit only while PENDING (409 otherwise) → no re-submit after graded.
@@ -24,6 +27,19 @@ import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
 
 const fmtDate = (d: string | null | undefined) => (d ? format(new Date(d), 'dd/MM/yyyy') : '—')
 const fmtDateTime = (d: string | null | undefined) => (d ? format(new Date(d), 'dd/MM/yyyy HH:mm') : '—')
+
+// Bài tập nói của lớp dùng persona DEFAULT (gia sư trung tính) — không có PERSONA_TOKENS
+// tương ứng, nên dựng companion tối thiểu ở đây. id 'default' khớp normalizeSpeakingPersona()
+// → avatar/màu DEFAULT, và engine tra i18n `speaking.personaRoleDefault` cho vai trò.
+const SCENARIO_COMPANION = (cefrLevel: string): AiCompanion => ({
+  id: 'default',
+  name: 'DeutschFlow Tutor',
+  avatarUrl: '/companions/default.png',
+  voiceId: 'DEFAULT',
+  voiceFile: null,
+  personality: 'DeutschFlow AI Tutor',
+  cefrLevel,
+})
 
 /**
  * EVALUATED (teacher-confirmed) is the normal end state and used to be missing — it fell through to
@@ -44,7 +60,7 @@ export default function V2AssignmentPage() {
   const tc = useTranslations('v2.common')
   const classId = Number(params.id)
   const assignmentId = Number(params.aid)
-  const { setSessionId, setExperienceLevel } = useChatStore()
+  const { setReturnPath } = useChatStore()
 
   const [a, setA] = useState<StudentAssignment | null>(null)
   const [loading, setLoading] = useState(true)
@@ -108,9 +124,19 @@ export default function V2AssignmentPage() {
       const { data: sc } = await api.get(`/v2/students/assignments/${a.assignmentId}/scenario`)
       const fullTopic = `Chủ đề: ${sc.topic}\n\nMô tả chi tiết: ${sc.scenarioDescription}\n\nGợi ý: ${sc.followUpQuestions}`
       const session = await aiSpeakingApi.createSession(fullTopic, sc.level, 'DEFAULT', 'V1', 'LESSON', null, null, a.id)
-      setSessionId(session.data.id)
-      setExperienceLevel(null)
-      router.push('/speaking/chat')
+      // Bài tập nói của lớp KHÔNG cho chọn nhân vật (persona DEFAULT = gia sư trung tính), nhưng
+      // engine bắt buộc phải có selectedCompanion trong store — thiếu là nó đá ngược về màn chọn
+      // nhân vật và mất luôn phiên vừa tạo. Nạp phiên đúng như màn chọn nhân vật vẫn làm.
+      loadSpeakingSessionIntoStore({
+        session: session.data,
+        companion: SCENARIO_COMPANION(sc.level),
+        sessionMode: 'LESSON',
+        topic: sc.topic,
+        experienceLevel: null,
+      })
+      // Thoát phiên → quay lại đúng bài tập này (không rơi về dashboard).
+      setReturnPath(`/v2/student/classes/${classId}/assignments/${assignmentId}`)
+      router.push('/v2/student/speaking/live')
     } catch {
       toast.error(t('speakingStartError'))
       setBusy(false)
@@ -162,6 +188,9 @@ export default function V2AssignmentPage() {
                   </a>
                 )}
               </div>
+
+              {/* Library materials the teacher handed out with this assignment (click to open in-browser). */}
+              <AssignmentMaterials assignmentId={a.assignmentId} />
 
               {/* Submission / feedback */}
               {isPending ? (

@@ -1,5 +1,37 @@
 {
   "org": {
+    "accept": {
+      "cap": "Invitation",
+      "title": "Join the organisation",
+      "subtitle": "Confirm to start working with the centre on DeutschFlow.",
+      "orgLabel": "Organisation",
+      "emailLabel": "Email",
+      "roleLabel": "Role",
+      "roles": {
+        "OWNER": "Owner",
+        "ADMIN": "Administrator",
+        "TEACHER": "Teacher",
+        "STUDENT": "Student"
+      },
+      "loading": "Loading invitation…",
+      "passwordHint": "Enter your password to confirm. If you <b>already have</b> a DeutschFlow account with this email, use your current password. If you <b>do not</b>, set a new password and display name to create one.",
+      "passwordField": "Password",
+      "passwordPlaceholder": "Account password",
+      "displayNameField": "Display name",
+      "displayNamePlaceholder": "Anna Müller",
+      "displayNameHint": "Only used when creating a new account.",
+      "submit": "Join the organisation",
+      "submitting": "Processing…",
+      "terms": "By joining, you agree to the DeutschFlow terms of use.",
+      "loginCta": "Go to sign in",
+      "invalidTitle": "Invitation unavailable",
+      "invalidFallback": "Invitation not found.",
+      "expiredTitle": "Invitation expired",
+      "expiredMessage": "The invitation sent to <b>{email}</b> has expired. Please ask an organisation administrator to invite you again.",
+      "errorMissingToken": "Invalid invitation link — the invitation code is missing.",
+      "errorLoadFailed": "Could not load the invitation. The link may have been revoked or does not exist.",
+      "errorAcceptFailed": "Could not accept the invitation. Please try again."
+    },
     "overview": {
       "title": "Organization",
       "subtitleDashboard": "Organization dashboard",

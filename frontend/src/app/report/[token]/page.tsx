@@ -96,7 +96,7 @@ export default async function GradeReportPage({ params }: { params: { token: str
             <Link href="/free-grade" className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-700">
               <Sparkles size={16} /> Chấm bài của bạn miễn phí
             </Link>
-            <Link href="/register" className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50">
+            <Link href="/v2/register" className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50">
               Luyện thi với DeutschFlow
             </Link>
           </div>

@@ -11,6 +11,9 @@ import { format } from 'date-fns'
 import { toast } from 'sonner'
 import api, { apiMessage } from '@/lib/api'
 import { listLessons, type ClassLesson } from '@/lib/teacherLessonsApi'
+import { type Material } from '@/lib/materialApi'
+import { AssignmentMaterialPicker } from './AssignmentMaterialPicker'
+import { AssignmentMaterialsStrip } from './AssignmentMaterialsStrip'
 import {
   GaPageHdr, GaBtn, GaCap, TkStatStrip, TkSearch, TkModal,
   TkTabs, TkTabsList, TkTabsTrigger, TkTabsContent,
@@ -476,6 +479,7 @@ export default function V2ClassDetailPage() {
                             <span>{t('due')} <strong className="text-ga-ink">{fmtDate(task.dueDate)}</strong></span>
                             <span>{t('created')} <strong className="text-ga-ink">{fmtDate(task.createdAt)}</strong></span>
                           </div>
+                          <AssignmentMaterialsStrip assignmentId={task.id} />
                         </div>
                         <div className="flex items-center gap-2">
                           {pending > 0 && (
@@ -729,6 +733,7 @@ function AddAssignmentModal({ open, onOpenChange, classId, lessons, onCreated }:
   const [topic, setTopic] = useState('')
   const [description, setDescription] = useState('')
   const [attachmentUrl, setAttachmentUrl] = useState('')
+  const [materials, setMaterials] = useState<Material[]>([])
   const [type, setType] = useState('GENERAL')
   const [due, setDue] = useState('')
   const [lessonId, setLessonId] = useState('')
@@ -745,16 +750,19 @@ function AddAssignmentModal({ open, onOpenChange, classId, lessons, onCreated }:
         // Real values now instead of hardcoded '' / null: students saw a one-line topic and no way to
         // attach a reference. description is shown on the student's assignment page; attachmentUrl is
         // rendered there as an external link (so it must be a stable URL — allango/Drive/YouTube — not a
-        // presigned S3 link; hosted files reach students via lesson materials instead).
+        // presigned S3 link; hosted files reach students via library materials instead).
         description: description.trim(),
         assignmentType: type,
         skill: 'GENERAL',
         dueDate: due ? new Date(due).toISOString() : null,
         attachmentUrl: link || null,
         lessonId: lessonId ? Number(lessonId) : null,
+        // Library materials picked from the teacher's own shelf; the backend re-checks access + class
+        // ownership per id and attaches them to the assignment (in pick order).
+        materialIds: materials.map((m) => m.id),
       })
       toast.success(t('modalCreateSuccess'))
-      setTopic(''); setDescription(''); setAttachmentUrl(''); setType('GENERAL'); setDue(''); setLessonId('')
+      setTopic(''); setDescription(''); setAttachmentUrl(''); setMaterials([]); setType('GENERAL'); setDue(''); setLessonId('')
       onOpenChange(false)
       onCreated()
     } catch (e: unknown) {
@@ -793,6 +801,7 @@ function AddAssignmentModal({ open, onOpenChange, classId, lessons, onCreated }:
             placeholder={t('modalDescPlaceholder')}
           />
         </div>
+        <AssignmentMaterialPicker selected={materials} onChange={setMaterials} />
         <div>
           <GaCap className="mb-2 block">{t('modalLinkCap')}</GaCap>
           <input

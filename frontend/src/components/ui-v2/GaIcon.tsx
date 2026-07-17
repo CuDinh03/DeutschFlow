@@ -49,6 +49,11 @@ import {
   PlayCircle,
   Route,
   Trophy,
+  Library,
+  Gamepad2,
+  Newspaper,
+  Award,
+  History,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -110,6 +115,14 @@ const ICONS: Record<string, LucideIcon> = {
   emoji_events: Trophy,
   schedule: Clock,
   assignment: ClipboardList,
+  library_books: Library,
+  sports_esports: Gamepad2,
+  newspaper: Newspaper,
+  workspace_premium: Award,
+  fact_check: BadgeCheck,
+  // Dùng bởi nav item `st-exercise-history` + EmptyState của /v2/student/exercise-history.
+  // Thiếu khoá này thì GaIcon rơi về fallback `Circle` (một vòng tròn trống) — trông như lỗi UI.
+  history: History,
 }
 
 export interface GaIconProps {
