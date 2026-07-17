@@ -574,6 +574,8 @@
       "materialsNoLibrary": "Deine Bibliothek ist noch leer. Lade Materialien unter „Materialbibliothek\" hoch.",
       "materialsSearchPlaceholder": "Materialien nach Titel suchen zum Anhängen…",
       "materialsNoMatch": "Kein passendes Material gefunden.",
+      "materialsBrowse": "Aus Bibliothek wählen",
+      "materialsClose": "Schließen",
       "modalTopicRequired": "Aufgabentitel eingeben",
       "modalCreateSuccess": "Aufgabe hinzugefügt & der Klasse zugewiesen",
       "modalTopicCap": "Aufgabentitel",

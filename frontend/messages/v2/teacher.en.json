@@ -574,6 +574,8 @@
       "materialsNoLibrary": "Your library is empty yet. Upload materials under \"Material library\".",
       "materialsSearchPlaceholder": "Search materials by title to attach…",
       "materialsNoMatch": "No matching material found.",
+      "materialsBrowse": "Choose from library",
+      "materialsClose": "Close",
       "modalTopicRequired": "Enter an assignment title",
       "modalCreateSuccess": "Assignment added & given to the class",
       "modalTopicCap": "Assignment title",
