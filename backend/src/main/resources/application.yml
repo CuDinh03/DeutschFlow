@@ -559,7 +559,7 @@ payment:
     # so verification is ENABLED by default. Override any of these via env if needed.
     bundle-id: ${APPLE_BUNDLE_ID:com.cudinh.mydeutschflow} # MUST match the app's real bundle id (mobile/app.json)
     app-apple-id: ${APPLE_APP_APPLE_ID:6785281013} # numeric App Store id — REQUIRED for Production verification
-    environment: ${APPLE_IAP_ENVIRONMENT:Sandbox} # Sandbox (TestFlight/review) → flip to Production at go-live
+    environment: ${APPLE_IAP_ENVIRONMENT:Production} # PRIMARY environment tried first; the verifier auto-falls-back to the other (Sandbox↔Production) on env-mismatch, so real buyers AND TestFlight both work
     root-cert-dir: ${APPLE_ROOT_CERT_DIR:/app/apple-certs} # Apple Root CA G3 baked into image
     online-checks: ${APPLE_IAP_ONLINE_CHECKS:false} # OCSP revocation; set true in Production
 
