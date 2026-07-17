@@ -75,10 +75,11 @@ export async function unarchiveMaterial(id: number): Promise<Material> {
   return res.data
 }
 
-/** How many lessons/classes a material is attached to — read before archiving to warn the user. */
+/** How many lessons/classes/assignments a material is attached to — read before archiving to warn the user. */
 export interface AttachmentCount {
   lessons: number
   classes: number
+  assignments: number
 }
 export async function fetchMaterialAttachments(id: number): Promise<AttachmentCount> {
   const res = await api.get<AttachmentCount>(`/v2/materials/${id}/attachments`)
@@ -110,4 +111,20 @@ export async function attachMaterialToLesson(materialId: number, lessonId: numbe
 /** DELETE /v2/materials/{id}/lessons/{lessonId} — detach a material from a lesson. */
 export async function detachMaterialFromLesson(materialId: number, lessonId: number): Promise<void> {
   await api.delete(`/v2/materials/${materialId}/lessons/${lessonId}`)
+}
+
+/** GET /v2/materials/assignment/{assignmentId} — materials attached to an assignment (teacher view). */
+export async function listAssignmentMaterials(assignmentId: number): Promise<Material[]> {
+  const res = await api.get<Material[]>(`/v2/materials/assignment/${assignmentId}`)
+  return res.data ?? []
+}
+
+/** POST /v2/materials/{id}/assignments/{assignmentId} — attach a library material to an assignment. */
+export async function attachMaterialToAssignment(materialId: number, assignmentId: number): Promise<void> {
+  await api.post(`/v2/materials/${materialId}/assignments/${assignmentId}`)
+}
+
+/** DELETE /v2/materials/{id}/assignments/{assignmentId} — detach a material from an assignment. */
+export async function detachMaterialFromAssignment(materialId: number, assignmentId: number): Promise<void> {
+  await api.delete(`/v2/materials/${materialId}/assignments/${assignmentId}`)
 }

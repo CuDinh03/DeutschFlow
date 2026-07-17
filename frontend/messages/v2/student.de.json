@@ -351,6 +351,7 @@
       "dueDate": "Fällig:",
       "scoreScale": "Bewertungsskala:",
       "downloadAttachment": "Anhang herunterladen",
+      "materials": { "heading": "Zugewiesene Materialien", "loading": "Wird geladen…", "openError": "Material konnte nicht geöffnet werden.", "hint": "Zum Öffnen eines Materials im Browser klicken." },
       "yourSubmissionCap": "Deine Abgabe",
       "speakingCardTitle": "Live mit der KI sprechen",
       "speakingCardDesc": "Öffne das Interview-Szenario; die KI erstellt eine Sitzung und gibt das Ergebnis automatisch ab.",

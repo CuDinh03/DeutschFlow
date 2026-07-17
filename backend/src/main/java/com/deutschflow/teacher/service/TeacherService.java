@@ -65,6 +65,7 @@ public class TeacherService {
     private final S3StorageService s3StorageService;
     private final ClassLessonRepository lessonRepository;
     private final StudentCompetencyService studentCompetencyService;
+    private final com.deutschflow.material.service.MaterialService materialService;
 
     @Transactional
     public TeacherClassDto createClass(Long teacherId, String name) {
@@ -628,9 +629,21 @@ public class TeacherService {
 
         studentAssignmentRepository.saveAll(studentAssignments);
 
+        User teacher = userRepository.findById(teacherId).orElse(null);
+
+        // Attach any library materials the teacher picked (in pick order). attachToAssignment re-checks
+        // that the teacher can access each material AND owns the assignment's class, so a bad/inaccessible
+        // id rolls back the whole create (fail fast — the teacher only ever sends ids from their own list).
+        if (req.materialIds() != null && !req.materialIds().isEmpty() && teacher != null) {
+            for (Long materialId : req.materialIds()) {
+                if (materialId != null) {
+                    materialService.attachToAssignment(teacher, materialId, savedAssignment.getId());
+                }
+            }
+        }
+
         // Notify all students in class (async batch)
         TeacherClass teacherClass = classRepository.findById(classId).orElse(null);
-        User teacher = userRepository.findById(teacherId).orElse(null);
         userNotificationService.onNewClassAssignment(
             classId,
             teacherClass != null ? teacherClass.getName() : "",

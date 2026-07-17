@@ -161,6 +161,24 @@ export async function fetchLessonMaterialUrl(lessonId: number, materialId: numbe
   return res.data.url
 }
 
+// ── Assignment materials (student read) ──────────────────────────────────────
+// The teacher attaches library materials when giving the assignment; these two endpoints are the ONLY
+// way a student reaches them. Access is by having been GIVEN the assignment, enforced server-side.
+
+/** Materials the teacher attached to an assignment, for the student it was handed to. */
+export async function fetchAssignmentMaterials(assignmentId: number): Promise<Material[]> {
+  const res = await api.get<Material[]>(`/v2/students/assignments/${assignmentId}/materials`)
+  return res.data ?? []
+}
+
+/** A fresh resolvable URL for an assignment material (the presigned GET link expires after ~1h). */
+export async function fetchAssignmentMaterialUrl(assignmentId: number, materialId: number): Promise<string> {
+  const res = await api.get<{ url: string }>(
+    `/v2/students/assignments/${assignmentId}/materials/${materialId}/url`,
+  )
+  return res.data.url
+}
+
 // ── Competency ledger / Selbstevaluation (Phase 2a) ──────────────────────────
 
 export type CompetencyStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'MASTERED'

@@ -48,6 +48,7 @@ public class StudentAssignmentController {
     private final StudentAssignmentRepository studentAssignmentRepository;
     private final ClassAssignmentRepository classAssignmentRepository;
     private final S3StorageService s3StorageService;
+    private final com.deutschflow.material.service.MaterialService materialService;
 
     @GetMapping
     @Transactional(readOnly = true)
@@ -162,6 +163,30 @@ public class StudentAssignmentController {
         }
     }
     
+    /**
+     * Materials the teacher attached to this assignment, for the student it was handed to. This is the
+     * ONLY way a student reaches those materials (the whole /api/v2/materials surface is TEACHER/ADMIN-
+     * gated). Access is by having been GIVEN the assignment, enforced server-side.
+     */
+    @GetMapping("/{assignmentId}/materials")
+    public ResponseEntity<List<com.deutschflow.material.dto.MaterialDto>> assignmentMaterials(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long assignmentId) {
+        return ResponseEntity.ok(materialService.listAssignmentMaterialsForStudent(user.getId(), assignmentId));
+    }
+
+    /** A fresh resolvable URL for one assignment material (the presigned GET expires after ~1h). */
+    @GetMapping("/{assignmentId}/materials/{materialId}/url")
+    public ResponseEntity<MaterialUrlResponse> assignmentMaterialUrl(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long assignmentId,
+            @PathVariable Long materialId) {
+        return ResponseEntity.ok(new MaterialUrlResponse(
+                materialService.refreshAssignmentMaterialUrlForStudent(user.getId(), assignmentId, materialId)));
+    }
+
+    public record MaterialUrlResponse(String url) {}
+
     @Data
     public static class PresignedUrlResponse {
         private final String url;
