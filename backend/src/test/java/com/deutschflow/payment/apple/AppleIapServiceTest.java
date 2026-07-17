@@ -29,6 +29,7 @@ class AppleIapServiceTest {
     @Mock AppleSubscriptionStore store;
     @Mock SubscriptionActivationService activationService;
     @Mock PaymentTransactionRepository paymentTransactionRepository;
+    @Mock AppleIapMetrics metrics;
     @Mock PlatformTransactionManager transactionManager;
 
     @InjectMocks AppleIapService service;
@@ -98,6 +99,8 @@ class AppleIapServiceTest {
         verify(paymentTransactionRepository).save(any(PaymentTransaction.class));
         verify(store).upsert(eq("orig-1"), eq(USER), eq(PRODUCT), eq("PRO"), eq("ACTIVE"), any(), eq(Boolean.TRUE), any(), eq("txn-1"));
         verify(activationService).extendOrActivateApple(eq(USER), eq("PRO"), any(), any(), eq(true));
+        // Activation is metered (tagged by environment) for the Sandbox-on-prod alert.
+        verify(metrics).recordActivation(any(), eq("PRO"), eq(true));
     }
 
     @Test
