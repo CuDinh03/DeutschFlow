@@ -77,6 +77,22 @@ export interface SubmitAssignmentPayload {
   submissionFileUrl?: string
 }
 
+/** Kind of a library material — mirrors the web `MaterialKind`. */
+export type MaterialKind = 'PDF' | 'DOCX' | 'PPTX' | 'IMAGE' | 'AUDIO' | 'VIDEO' | 'LINK' | 'OTHER'
+
+/** A library material the teacher attached to an assignment (student read view). */
+export interface AssignmentMaterial {
+  id: number
+  title: string
+  kind: MaterialKind
+  /** Presigned GET (file) or the raw external link (LINK); may expire (~1h) — re-sign before opening. */
+  url: string
+  externalUrl: string | null
+  durationSeconds: number | null
+  mimeType: string | null
+  sizeBytes: number | null
+}
+
 export interface ClassLesson {
   id: number
   classId: number
@@ -166,6 +182,23 @@ export async function fetchClassSessions(classId: number): Promise<ClassSession[
 export async function fetchAssignmentDetail(assignmentId: number): Promise<StudentAssignment | null> {
   const res = await api.get<StudentAssignment[]>('/v2/students/assignments')
   return res.data?.find((a) => a.assignmentId === assignmentId) ?? null
+}
+
+/**
+ * Library materials the teacher handed out with this assignment. Only reachable for a student the
+ * assignment was assigned to (enforced server-side); the whole /v2/materials surface is teacher-gated.
+ */
+export async function fetchAssignmentMaterials(assignmentId: number): Promise<AssignmentMaterial[]> {
+  const res = await api.get<AssignmentMaterial[]>(`/v2/students/assignments/${assignmentId}/materials`)
+  return res.data ?? []
+}
+
+/** A fresh resolvable URL for one assignment material — the list `url` is a presigned GET (~1h) that expires. */
+export async function fetchAssignmentMaterialUrl(assignmentId: number, materialId: number): Promise<string> {
+  const res = await api.get<{ url: string }>(
+    `/v2/students/assignments/${assignmentId}/materials/${materialId}/url`,
+  )
+  return res.data.url
 }
 
 /**
