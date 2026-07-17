@@ -129,7 +129,12 @@ public class AppleIapService {
 
         // Observability: tag by StoreKit environment so Sandbox activations on the prod server are
         // visible (the verifier accepts both environments by design — see AppleIapMetrics).
-        metrics.recordActivation(environment, product.planCode(), isNew);
+        // Guarded: a metrics failure must NEVER roll back an activation that already succeeded.
+        try {
+            metrics.recordActivation(environment, product.planCode(), isNew);
+        } catch (RuntimeException e) {
+            log.warn("[APPLE VERIFY] Failed to record activation metric (non-fatal)", e);
+        }
 
         log.info("[APPLE VERIFY] Activated plan={} for userId={} (transactionId={}, environment={}, until={})",
                 product.planCode(), userId, transactionId, environment, expiresAt);
