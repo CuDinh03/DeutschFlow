@@ -5,14 +5,15 @@ import { MotiView } from 'moti'
 import { PlayCircle, ChevronDown, ArrowUpRight } from 'lucide-react-native'
 import { motion, radius, space, useTheme } from '@/lib/theme'
 import { Screen, Card, ThemedText, Icon, Caption, SectionHeader, FadeIn, AppHeader } from '@/components/ui'
-import { useTourStore } from '@/stores/useTourStore'
+import { useSpotlightTour } from '@/components/guide/SpotlightTour'
+import { getDailyGoalMinutes } from '@/lib/dailyGoal'
 import { captureEvent } from '@/lib/analytics'
 import { GUIDE_ITEMS, FAQ, toneStyles, type GuideItem } from '@/components/guide/tourContent'
 import { PRO_UNLOCKED_FREE } from '@/lib/paywall'
 
 export default function GuideScreen() {
   const c = useTheme().colors
-  const show = useTourStore((s) => s.show)
+  const { startTour } = useSpotlightTour()
   // The iOS free build ships with no commercial PRO surface, so drop FAQ entries that mention it.
   const faqs = PRO_UNLOCKED_FREE ? FAQ.filter((entry) => !entry.proOnly) : FAQ
 
@@ -36,11 +37,14 @@ export default function GuideScreen() {
           <Card
             onPress={() => {
               captureEvent('guide_tour_replay_clicked', { from: 'guide_screen' })
-              show()
+              // Tour spotlight chạy trên Trang chủ — bước 1 tự điều hướng về đó.
+              void getDailyGoalMinutes().then((m) =>
+                startTour('home', 'replay', { dailyGoalMinutes: m }),
+              )
             }}
             elevation="lifted"
             accessibilityLabel="Xem lại hướng dẫn nhanh"
-            accessibilityHint="Chạy lại tour giới thiệu bốn tính năng chính"
+            accessibilityHint="Về Trang chủ và chạy lại tour hướng dẫn trên màn hình"
             style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[4] }}>
@@ -62,7 +66,7 @@ export default function GuideScreen() {
                   Xem lại hướng dẫn nhanh
                 </ThemedText>
                 <ThemedText variant="caption" style={{ color: c.onInkMuted }}>
-                  Chạy lại tour giới thiệu 4 tính năng chính
+                  Chạy lại tour chỉ chỗ từng tính năng ngay trên màn hình
                 </ThemedText>
               </View>
             </View>

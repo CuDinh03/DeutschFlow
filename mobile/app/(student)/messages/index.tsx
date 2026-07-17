@@ -38,6 +38,8 @@ export default function MessagesListScreen() {
             icon={MessageCircle}
             title="Chưa có tin nhắn"
             message="Mở trang lớp học → tab Giáo viên → Nhắn tin để bắt đầu trò chuyện."
+            actionLabel="Xem lớp của tôi"
+            onAction={() => router.push('/(student)/classes')}
           />
         </View>
       ) : (

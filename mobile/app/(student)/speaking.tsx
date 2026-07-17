@@ -14,7 +14,7 @@ import {
 import { createAudioPlayer, useAudioRecorder, AudioModule, RecordingPresets, setAudioModeAsync, type AudioPlayer } from 'expo-audio'
 import * as FileSystem from 'expo-file-system/legacy'
 import * as Haptics from 'expo-haptics'
-import { router, useLocalSearchParams } from 'expo-router'
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import { Mic, Send, ChevronRight, Flame, X, Flag, RotateCcw } from 'lucide-react-native'
 import Animated, {
   useSharedValue,
@@ -57,6 +57,9 @@ import {
   type ScreenView,
 } from '@/lib/speakingChat'
 import { usePlanStore } from '@/stores/usePlanStore'
+import { useTourStore } from '@/stores/useTourStore'
+import { useStarterStore } from '@/stores/useStarterStore'
+import { useSpotlightTour } from '@/components/guide/SpotlightTour'
 import { trackFeatureAction } from '@/lib/analytics'
 
 const PULSE_MAX = 1.2
@@ -92,6 +95,19 @@ export default function SpeakingScreen() {
   const [convReport, setConvReport] = useState<ConversationReport | null>(null)
   const [pendingResume, setPendingResume] = useState<ActiveSessionRef | null>(null)
   const [resuming, setResuming] = useState(false)
+
+  // Coach mark ngữ cảnh (onboarding v1 §6): lần đầu vào tab Speaking sau tour
+  // chính → 1 spotlight chỉ vào hàng chọn cách luyện. Bắn đúng 1 lần.
+  const { startTour, activeTourId } = useSpotlightTour()
+  const tourHydrated = useTourStore((s) => s.hydrated)
+  const tourDone = useTourStore((s) => s.done)
+  useFocusEffect(
+    useCallback(() => {
+      if (view !== 'select' || !tourHydrated || !tourDone.home || tourDone.speaking_intro || activeTourId) return
+      const t = setTimeout(() => startTour('speaking_intro', 'auto'), 600)
+      return () => clearTimeout(t)
+    }, [view, tourHydrated, tourDone.home, tourDone.speaking_intro, activeTourId, startTour]),
+  )
 
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY)
   const soundRef = useRef<AudioPlayer | null>(null)
@@ -257,6 +273,8 @@ export default function SpeakingScreen() {
         experienceLevel: args.experienceLevel ?? null,
       })
       const greeting = created.initialAiMessage?.aiSpeechDe ?? 'Hallo! Erzählen Sie mir von sich.'
+      // Checklist "Bắt đầu" (§7.1): tick "Thử 1 buổi Speaking" khi tạo phiên thành công.
+      useStarterStore.getState().markSpeakingSession()
       setSession(created)
       setPhaseKey(
         created.initialAiMessage?.interviewPhaseKey ??

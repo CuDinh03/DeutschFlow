@@ -26,6 +26,8 @@ import {
 } from '@/components/ui'
 import { skillTreeApi, type SkillNode } from '@/lib/skillTreeApi'
 import { nextStudyDay } from '@/lib/roadmapDay'
+import { SpotlightTarget } from '@/components/guide/SpotlightTour'
+import { SPOTLIGHT_TARGETS } from '@/components/guide/spotlightTours'
 
 type StatusTone = 'success' | 'accent' | 'info'
 
@@ -82,7 +84,10 @@ export default function LearnScreen() {
     )
   }
 
-  const resume = inProgress[0]
+  // Hero = "chặng đang sáng": node dở dang nếu có, không thì node khả dụng đầu
+  // tiên — user mới (chưa học gì) vẫn có một chặng bấm được ngay, và spotlight
+  // tour (bước 3/5) có element thật để neo.
+  const resume = inProgress[0] ?? available[0]
 
   return (
     <Screen
@@ -98,7 +103,13 @@ export default function LearnScreen() {
           Falls back to a progress summary when nothing is in progress. */}
       <FadeIn delay={40}>
         <View style={{ paddingHorizontal: space[5], marginTop: space[3] }}>
-          {resume ? <ResumeHero node={resume} /> : <ProgressHero completed={completed} />}
+          {resume ? (
+            <SpotlightTarget id={SPOTLIGHT_TARGETS.learnActiveNode}>
+              <ResumeHero node={resume} />
+            </SpotlightTarget>
+          ) : (
+            <ProgressHero completed={completed} />
+          )}
         </View>
       </FadeIn>
 
@@ -158,15 +169,17 @@ function LearnHeader() {
 // ink surface. Tapping it opens that node (same route as the node rows).
 function ResumeHero({ node }: { node: SkillNode }) {
   const c = useTheme().colors
+  const starting = node.status !== 'IN_PROGRESS'
+  const heroLabel = starting ? 'Bắt đầu học' : 'Tiếp tục học'
   return (
     <Card
       onPress={() => openNode(node)}
-      accessibilityLabel={`Tiếp tục: ${node.title}`}
+      accessibilityLabel={`${heroLabel}: ${node.title}`}
       style={{ backgroundColor: c.inkSurface, borderColor: c.inkSurface }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], marginBottom: space[2] }}>
         <YellowSquare size={8} />
-        <Caption color={c.accent}>Tiếp tục học</Caption>
+        <Caption color={c.accent}>{heroLabel}</Caption>
       </View>
       <ThemedText variant="titleLg" style={{ color: c.onInk }} numberOfLines={2}>
         {node.title}

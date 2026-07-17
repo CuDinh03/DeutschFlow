@@ -123,14 +123,6 @@ export const GUIDE_ITEMS: readonly GuideItem[] = [
   },
 ] as const
 
-/** Concise "what to do next" sequence shown in the one-time welcome tour. */
-export const TOUR_ITEMS: readonly GuideItem[] = [
-  GUIDE_ITEMS[1], // Lộ trình học
-  GUIDE_ITEMS[2], // Nói với AI
-  GUIDE_ITEMS[3], // Ôn tập (SRS)
-  GUIDE_ITEMS[0], // Trang chủ
-] as const
-
 export interface FaqEntry {
   q: string
   a: string

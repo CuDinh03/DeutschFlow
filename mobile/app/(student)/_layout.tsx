@@ -1,11 +1,11 @@
 import { Tabs } from 'expo-router'
 import { TabBar } from '@/components/ui/TabBar'
-import { TourOverlay } from '@/components/guide/TourOverlay'
+import { SpotlightTourProvider } from '@/components/guide/SpotlightTour'
 import { ScreenTimeTracker } from '@/components/analytics/ScreenTimeTracker'
 
 export default function StudentLayout() {
   return (
-    <>
+    <SpotlightTourProvider>
       <Tabs
         screenOptions={{ headerShown: false }}
         tabBar={(props) => <TabBar {...props} />}
@@ -37,10 +37,8 @@ export default function StudentLayout() {
         <Tabs.Screen name="assignments" options={{ href: null }} />
       </Tabs>
 
-      {/* One-time new-user tour; auto-shows once, replayable from the guide screen. */}
-      <TourOverlay />
       {/* Emits feature_session per screen across the whole student area. */}
       <ScreenTimeTracker />
-    </>
+    </SpotlightTourProvider>
   )
 }
