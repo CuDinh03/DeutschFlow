@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  Alert, KeyboardAvoidingView, Linking, Platform, Pressable, RefreshControl, ScrollView, View,
+  Alert, KeyboardAvoidingView, Platform, Pressable, RefreshControl, ScrollView, View,
 } from 'react-native'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { router, useLocalSearchParams } from 'expo-router'
 import * as ImagePicker from 'expo-image-picker'
 import * as DocumentPicker from 'expo-document-picker'
+import * as WebBrowser from 'expo-web-browser'
 import {
   useAudioRecorder,
   RecordingPresets,
@@ -13,14 +14,15 @@ import {
   setAudioModeAsync,
 } from 'expo-audio'
 import {
-  AlertCircle, Camera, CheckCircle2, Clock, FileText, Image as ImageIcon, MessageSquare, Mic,
-  Paperclip, Square, Upload, X,
+  AlertCircle, Camera, CheckCircle2, Clock, ExternalLink, FileText, Image as ImageIcon,
+  Link2, MessageSquare, Mic, Music, Paperclip, Square, Upload, Video as VideoIcon, X,
 } from 'lucide-react-native'
 import { apiMessage } from '@/lib/api'
 import { ensureAiConsent } from '@/lib/aiConsent'
 import {
-  fetchAssignmentDetail, submitAssignment, uploadAssignmentFile,
-  MAX_UPLOAD_BYTES, type StudentAssignment, type UploadFile,
+  fetchAssignmentDetail, fetchAssignmentMaterials, fetchAssignmentMaterialUrl,
+  submitAssignment, uploadAssignmentFile,
+  MAX_UPLOAD_BYTES, type AssignmentMaterial, type MaterialKind, type StudentAssignment, type UploadFile,
 } from '@/lib/studentClassesApi'
 import { radius, space, useTheme } from '@/lib/theme'
 import {
@@ -37,6 +39,24 @@ const typeLabel = (t: string) => TYPE_LABELS[t] ?? 'Bài tập chung'
 
 const isGraded = (status: string) => status === 'GRADED' || status === 'EVALUATED'
 const isSubmitted = (status: string) => status === 'SUBMITTED' || isGraded(status)
+
+const MATERIAL_KIND_ICON: Record<MaterialKind, typeof FileText> = {
+  PDF: FileText, DOCX: FileText, PPTX: FileText, OTHER: FileText,
+  IMAGE: ImageIcon, AUDIO: Music, VIDEO: VideoIcon, LINK: Link2,
+}
+
+/**
+ * Open a document/URL INSIDE the app (SFSafariViewController / Chrome Custom Tab) instead of handing
+ * off to the external browser — the student reads it without leaving the app and without a manual
+ * download. PDFs and images render inline in the in-app browser.
+ */
+async function openInApp(url: string, errMsg = 'Không mở được tài liệu') {
+  try {
+    await WebBrowser.openBrowserAsync(url)
+  } catch {
+    Alert.alert(errMsg)
+  }
+}
 
 export default function AssignmentDetail() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -117,6 +137,7 @@ export default function AssignmentDetail() {
           <StatusRow assignment={a} />
           {isGraded(a.status) && <GradedHero assignment={a} />}
           <DescriptionCard assignment={a} />
+          <MaterialsCard assignmentId={assignmentId} />
 
           {pending && speaking && <SpeakingNotice />}
           {pending && !speaking && (
@@ -217,11 +238,7 @@ function GradedHero({ assignment: a }: { assignment: StudentAssignment }) {
 function DescriptionCard({ assignment: a }: { assignment: StudentAssignment }) {
   const openAttachment = async () => {
     if (!a.attachmentUrl) return
-    try {
-      await Linking.openURL(a.attachmentUrl)
-    } catch {
-      Alert.alert('Không mở được tài liệu đính kèm')
-    }
+    await openInApp(a.attachmentUrl, 'Không mở được tài liệu đính kèm')
   }
   return (
     <View style={{ gap: space[3] }}>
@@ -245,6 +262,84 @@ function DescriptionCard({ assignment: a }: { assignment: StudentAssignment }) {
             />
           )}
         </View>
+      </Card>
+    </View>
+  )
+}
+
+/**
+ * Library materials the teacher handed out with this assignment. Tapping one opens it in the in-app
+ * browser (read without leaving the app / manual download). Hidden entirely when the assignment has
+ * none. The list `url` is a presigned GET (~1h) so we re-sign right before opening.
+ */
+function MaterialsCard({ assignmentId }: { assignmentId: number }) {
+  const c = useTheme().colors
+  const [opening, setOpening] = useState<number | null>(null)
+  const materialsQ = useQuery({
+    queryKey: ['assignment-materials', assignmentId],
+    queryFn: () => fetchAssignmentMaterials(assignmentId),
+    enabled: Number.isFinite(assignmentId),
+    staleTime: 60_000,
+  })
+
+  const open = async (m: AssignmentMaterial) => {
+    setOpening(m.id)
+    try {
+      const fresh = await fetchAssignmentMaterialUrl(assignmentId, m.id)
+      await openInApp(fresh)
+    } catch (e) {
+      Alert.alert(apiMessage(e) || 'Không mở được tài liệu')
+    } finally {
+      setOpening(null)
+    }
+  }
+
+  const items = materialsQ.data ?? []
+  // Nothing to show until we know there's at least one material (keeps the layout clean when empty).
+  if (items.length === 0) return null
+
+  return (
+    <View style={{ gap: space[3] }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+        <YellowSquare size={8} />
+        <Caption>Tài liệu được giao</Caption>
+      </View>
+      <Card>
+        <View style={{ gap: space[2] }}>
+          {items.map((m) => {
+            const KindIcon = MATERIAL_KIND_ICON[m.kind] ?? FileText
+            const busy = opening === m.id
+            return (
+              <Pressable
+                key={m.id}
+                onPress={() => void open(m)}
+                disabled={busy}
+                style={({ pressed }) => ({
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: space[3],
+                  paddingVertical: space[3],
+                  paddingHorizontal: space[3],
+                  borderRadius: radius.md,
+                  borderWidth: 1,
+                  borderColor: c.border,
+                  backgroundColor: c.surface,
+                  opacity: pressed || busy ? 0.6 : 1,
+                })}
+              >
+                <Icon icon={KindIcon} size={16} color="muted" />
+                <ThemedText variant="body" style={{ flex: 1 }} numberOfLines={1}>
+                  {m.title}
+                </ThemedText>
+                <ThemedText variant="caption" color="muted">{m.kind}</ThemedText>
+                <Icon icon={ExternalLink} size={14} color="muted" />
+              </Pressable>
+            )
+          })}
+        </View>
+        <ThemedText variant="caption" color="muted" style={{ marginTop: space[2] }}>
+          Chạm để mở đọc ngay trong ứng dụng.
+        </ThemedText>
       </Card>
     </View>
   )
@@ -501,11 +596,7 @@ function SubmissionView({ assignment: a }: { assignment: StudentAssignment }) {
   const c = useTheme().colors
   const openFile = async () => {
     if (!a.submissionFileUrl) return
-    try {
-      await Linking.openURL(a.submissionFileUrl)
-    } catch {
-      Alert.alert('Không mở được file đã nộp')
-    }
+    await openInApp(a.submissionFileUrl, 'Không mở được file đã nộp')
   }
   return (
     <View style={{ gap: space[5] }}>
