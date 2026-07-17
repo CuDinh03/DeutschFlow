@@ -320,6 +320,8 @@
       "aiGradeCap": "Chấm bằng AI",
       "aiGradeDesc": "AI đọc bài làm → đề xuất điểm + nhận xét",
       "aiGradeButton": "Chấm AI",
+      "aiAlreadyProposed": "AI đã chấm sơ bộ",
+      "aiAlreadyProposedTitle": "AI đã đề xuất điểm cho bài này — xem/chỉnh rồi bấm Lưu. Không chấm lại bằng AI để khỏi tốn token.",
       "aiGradeImageButton": "Chấm ảnh bằng AI",
       "aiGradeImageDesc": "AI đọc chữ viết tay trong bài nộp rồi đề xuất điểm · giáo viên xác nhận",
       "aiGradeButtonBusy": "Đang chấm…",

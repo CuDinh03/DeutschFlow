@@ -320,6 +320,8 @@
       "aiGradeCap": "Grade with AI",
       "aiGradeDesc": "AI reads the work → suggests a score + feedback",
       "aiGradeButton": "Grade with AI",
+      "aiAlreadyProposed": "AI already graded",
+      "aiAlreadyProposedTitle": "AI has proposed a score for this submission — review/adjust it and Save. Re-grading with AI is disabled to avoid re-spending tokens.",
       "aiGradeImageButton": "AI-grade the photo",
       "aiGradeImageDesc": "AI reads the handwriting in the submission and proposes a score · teacher confirms",
       "aiGradeButtonBusy": "Grading…",

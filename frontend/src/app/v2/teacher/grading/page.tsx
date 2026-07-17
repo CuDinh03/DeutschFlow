@@ -225,8 +225,11 @@ export default function V2TeacherGradingPage() {
       }
       setPanelError(t('aiStillProcessing'))
       setAiLoading(false)
-    } catch {
-      setPanelError(t('aiCallError'))
+    } catch (e) {
+      // Surface the server's real reason (409 "đã chấm rồi", 429 org hết token, 403 không có quyền)
+      // instead of a blanket "gọi AI lỗi" — mirrors the image-grade and save paths. The generic
+      // string is only a fallback when the error carries no message (e.g. a network drop).
+      setPanelError(apiMessage(e) || t('aiCallError'))
       setAiLoading(false)
     }
   }
@@ -556,6 +559,13 @@ function Scoring({ item, draft, setDraft, suggested, confidence, criteria, aiLoa
   // to disable the button and send the teacher off to a separate upload tool.
   const hasImage = !hasText && !!item.submissionFileUrl && isImageUrl(item.submissionFileUrl)
   const canAiGrade = hasText || hasImage
+  // The AI has already written a proposal for this row (status AI_GRADED). Re-running AI is blocked
+  // server-side (409, so a teacher can't re-spend tokens on a row already proposed), so present it as
+  // "đã đề xuất" and let the teacher confirm/adjust the existing score below — instead of an enabled
+  // button whose only outcome is that 409. Loading a queued AI_GRADED row counts as "suggested" too,
+  // so the score/feedback carry the AI badge even before the teacher re-triggers anything this session.
+  const alreadyProposed = item.status === 'AI_GRADED'
+  const showSuggested = suggested || alreadyProposed
 
   return (
     <>
@@ -574,14 +584,16 @@ function Scoring({ item, draft, setDraft, suggested, confidence, criteria, aiLoa
             <button
               type="button"
               onClick={hasImage ? onAiImage : onAi}
-              disabled={aiLoading || !canAiGrade}
-              title={!canAiGrade ? t('aiNoTextTitle') : undefined}
+              disabled={aiLoading || !canAiGrade || alreadyProposed}
+              title={alreadyProposed ? t('aiAlreadyProposedTitle') : (!canAiGrade ? t('aiNoTextTitle') : undefined)}
               className="ga-ui inline-flex shrink-0 items-center gap-2 rounded-ga px-4 py-2 text-[13px] font-bold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-60"
               style={{ background: 'var(--ga-violet)' }}
             >
               {aiLoading
                 ? <><Loader2 size={15} className="animate-spin" /> {t('aiGradeButtonBusy')}</>
-                : <><Sparkles size={15} /> {hasImage ? t('aiGradeImageButton') : t('aiGradeButton')}</>}
+                : alreadyProposed
+                  ? <><CheckCircle2 size={15} /> {t('aiAlreadyProposed')}</>
+                  : <><Sparkles size={15} /> {hasImage ? t('aiGradeImageButton') : t('aiGradeButton')}</>}
             </button>
           </div>
           {!canAiGrade && (
@@ -590,7 +602,7 @@ function Scoring({ item, draft, setDraft, suggested, confidence, criteria, aiLoa
               {t('aiNoTextHint')}
             </p>
           )}
-          {suggested && (
+          {showSuggested && (
             <p className="ga-ui mt-2 flex items-center gap-1 text-[11.5px] font-medium" style={{ color: 'var(--ga-violet)' }}>
               <CheckCircle2 size={13} /> {t('aiSuggested')}
             </p>
@@ -638,7 +650,7 @@ function Scoring({ item, draft, setDraft, suggested, confidence, criteria, aiLoa
         <div className="mb-2.5 flex items-center justify-between">
           <span className="ga-ui text-[13px] font-semibold text-ga-ink">
             {t('scoreLabel')} <span className="text-ga-muted">{t('scoreRange')}</span>
-            {suggested && (
+            {showSuggested && (
               <span className="ml-2 rounded-full px-2 py-0.5 text-[11px] font-medium" style={{ color: 'var(--ga-violet)', background: 'var(--ga-violet-soft)' }}>
                 {t('aiSuggestBadge')}
               </span>
@@ -681,7 +693,7 @@ function Scoring({ item, draft, setDraft, suggested, confidence, criteria, aiLoa
       <div className="border-t border-ga-line pt-4">
         <label className="ga-ui mb-2 block text-[12.5px] font-semibold text-ga-muted">
           {t('feedbackLabel')}
-          {suggested && (
+          {showSuggested && (
             <span className="ml-2 rounded-full px-2 py-0.5 text-[11px] font-medium" style={{ color: 'var(--ga-violet)', background: 'var(--ga-violet-soft)' }}>
               {t('aiSuggestBadge')}
             </span>

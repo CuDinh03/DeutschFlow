@@ -320,6 +320,8 @@
       "aiGradeCap": "Mit KI bewerten",
       "aiGradeDesc": "KI liest die Arbeit → schlägt Note + Feedback vor",
       "aiGradeButton": "Mit KI bewerten",
+      "aiAlreadyProposed": "KI hat bewertet",
+      "aiAlreadyProposedTitle": "Die KI hat für diese Abgabe bereits eine Punktzahl vorgeschlagen — prüfen/anpassen und speichern. Eine erneute KI-Bewertung ist deaktiviert, um keine Token erneut zu verbrauchen.",
       "aiGradeImageButton": "Foto mit KI bewerten",
       "aiGradeImageDesc": "Die KI liest die Handschrift der Abgabe und schlägt eine Note vor · Lehrkraft bestätigt",
       "aiGradeButtonBusy": "Bewertung läuft…",
