@@ -84,7 +84,7 @@
 ## 🧪 Xác minh thủ công (không phải code, nhưng nên làm)
 
 - [ ] **Login thật trên prod** (web): đăng nhập → vào dashboard, không loop; đóng/mở lại trình duyệt → không bị bắt login lại. _(Curl không thay được — middleware auth gate giờ đã live.)_
-- [ ] Xác nhận `JWT_RSA_PUBLIC_KEY` có trong **Amplify env** (nếu thiếu, route protected degrade về client-side — không sập nhờ fail-safe).
+- [ ] 🔴 **THIẾU (xác nhận QA prod 2026-07-17):** `JWT_RSA_PUBLIC_KEY` (và `JWT_SECRET`) KHÔNG có trong **Amplify env** → toàn bộ edge auth gate (v1+v2) degrade thành passthrough. Bằng chứng: logged-out `curl /v2/admin/users/` + `/admin/users/` (v1) trả **200 shell** nhưng response vẫn có Report-Only CSP nonce (⇒ middleware CÓ chạy, chỉ là `hasVerifier=false`). **Cần set `JWT_RSA_PUBLIC_KEY` trên Amplify** để bật lại role-based gating (chống HV/GV thấy shell sai vai trò). _Fix defensive đã ship: middleware giờ vẫn đá logged-out về `/v2/login` NGAY CẢ KHI verifier vắng — nhưng gating theo vai trò vẫn cần verifier._
 - [ ] Smoke API thật sau deploy: XP/achievements/teacher-class (các bảng vừa thêm FK ở V196).
 
 ---
