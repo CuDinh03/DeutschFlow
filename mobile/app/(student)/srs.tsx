@@ -16,6 +16,7 @@ import { router } from 'expo-router'
 import { RotateCcw, Check, X, Minus, PartyPopper } from 'lucide-react-native'
 import api, { apiMessage } from '@/lib/api'
 import { trackFeatureAction } from '@/lib/analytics'
+import { useStarterStore } from '@/stores/useStarterStore'
 import { fonts, radius, space, useTheme } from '@/lib/theme'
 import { Screen, ThemedText, Icon, ProgressBar, AppHeader, EmptyState, ErrorState, Skeleton, Caption, YellowSquare, VocabGlyphTile } from '@/components/ui'
 import type { ThemeColors } from '@/lib/theme'
@@ -119,6 +120,8 @@ export default function SrsScreen() {
       // Review is keyed by the vocab string id ("sg01_01"), NOT the schedule row PK — sending
       // the PK made the backend throw "Vocab not found in SRS schedule" on every swipe.
       reviewMutation.mutate({ vocabId: currentCard.vocabId, quality })
+      // Checklist "Bắt đầu" (§7.1): đếm thẻ đã ôn (dừng ở mốc checklist).
+      useStarterStore.getState().bumpSrsReviews()
       advance()
     },
     [currentCard, reviewMutation, advance],
@@ -202,10 +205,10 @@ export default function SrsScreen() {
             message={
               done
                 ? `Bạn đã ôn ${cards.length} thẻ hôm nay. Tuyệt vời!`
-                : 'Không có thẻ nào đến hạn hôm nay. Quay lại sau nhé.'
+                : 'Học bài mới là từ vựng sẽ tự vào hàng chờ ôn ở đây.'
             }
-            actionLabel="Quay lại"
-            onAction={() => router.back()}
+            actionLabel={done ? 'Quay lại' : 'Học từ mới ngay'}
+            onAction={() => (done ? router.back() : router.navigate('/(student)/learn'))}
           />
         </View>
       </Screen>

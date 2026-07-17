@@ -1,10 +1,20 @@
+import { useCallback, useEffect, useState } from 'react'
 import { View, RefreshControl, Pressable } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
-import { router } from 'expo-router'
+import { router, useFocusEffect } from 'expo-router'
 import { MotiView } from 'moti'
 import { Flame, BookOpen, Mic, Star, Map, Bell, Zap, MessageCircle, type LucideIcon } from 'lucide-react-native'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePlanStore } from '@/stores/usePlanStore'
+import { useTourStore } from '@/stores/useTourStore'
+import { useStarterStore } from '@/stores/useStarterStore'
+import { SpotlightTarget, useSpotlightTour } from '@/components/guide/SpotlightTour'
+import { SPOTLIGHT_TARGETS } from '@/components/guide/spotlightTours'
+import { StarterChecklist } from '@/components/guide/StarterChecklist'
+import { ReminderSheet } from '@/components/guide/ReminderSheet'
+import { getDailyGoalMinutes } from '@/lib/dailyGoal'
+import { enableStudyReminder } from '@/lib/studyReminder'
+import { captureEvent } from '@/lib/analytics'
 import api from '@/lib/api'
 import { PAYWALL_ENABLED } from '@/lib/paywall'
 import { gamificationApi } from '@/lib/gamificationApi'
@@ -84,6 +94,96 @@ export default function DashboardScreen() {
   const treeDone = treeNodes.filter((n) => n.status === 'COMPLETED').length
   const pathPct = treeTotal > 0 ? Math.round((treeDone / treeTotal) * 100) : 0
 
+  const { startTour, activeTourId } = useSpotlightTour()
+  const tourHydrated = useTourStore((s) => s.hydrated)
+  const tourDone = useTourStore((s) => s.done)
+  const dueForIntro = srs?.dueCount ?? 0
+
+  // Q4 (plan onboarding v1): tour spotlight chỉ nổ khi user đáp xuống Trang chủ
+  // lần đầu (sau wow moment), delay ~500ms — không auto-mở đè app như tour cũ.
+  useFocusEffect(
+    useCallback(() => {
+      if (!tourHydrated || tourDone.home || activeTourId) return
+      const t = setTimeout(() => {
+        void getDailyGoalMinutes().then((m) => startTour('home', 'auto', { dailyGoalMinutes: m }))
+      }, 500)
+      return () => clearTimeout(t)
+    }, [tourHydrated, tourDone.home, activeTourId, startTour]),
+  )
+
+  // ── Tuần đầu (Phase D): checklist "Bắt đầu" + sheet nhắc học 20:00 ─────────
+  const REMINDER_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000
+  const [reminderOpen, setReminderOpen] = useState(false)
+  const [reminderBusy, setReminderBusy] = useState(false)
+  const [goalMinutes, setGoalMinutes] = useState<number | null>(null)
+  const starterHydrated = useStarterStore((s) => s.hydrated)
+  const reminderEnabled = useStarterStore((s) => s.reminderEnabled)
+  const reminderDeclinedAt = useStarterStore((s) => s.reminderDeclinedAt)
+  const starterSrsReviews = useStarterStore((s) => s.srsReviews)
+  const speakingStarted = useStarterStore((s) => s.speakingSessionStarted)
+
+  useEffect(() => {
+    void useStarterStore.getState().hydrate()
+    void getDailyGoalMinutes().then(setGoalMinutes)
+  }, [])
+
+  // Q3: coach mark SRS tách khỏi tour chính — bắn 1 lần khi thẻ "Ôn tập hôm nay"
+  // render thật (dueSrs > 0) sau khi tour chính đã xong.
+  useFocusEffect(
+    useCallback(() => {
+      if (!tourHydrated || !tourDone.home || tourDone.srs_intro || activeTourId || reminderOpen || dueForIntro <= 0)
+        return
+      const t = setTimeout(() => startTour('srs_intro', 'auto', { dueCount: dueForIntro }), 600)
+      return () => clearTimeout(t)
+    }, [tourHydrated, tourDone.home, tourDone.srs_intro, activeTourId, reminderOpen, dueForIntro, startTour]),
+  )
+
+  const firstActivityDone = treeDone > 0 || starterSrsReviews > 0 || speakingStarted
+
+  // §7.2: pre-permission — sheet ngữ cảnh chỉ SAU khi user hoàn thành hoạt động
+  // đầu tiên, không xin quyền lúc mở app. Từ chối sheet → hỏi lại sau cooldown.
+  useFocusEffect(
+    useCallback(() => {
+      if (!starterHydrated || !tourHydrated || !tourDone.first_sentence) return
+      if (reminderEnabled || reminderOpen || activeTourId || !firstActivityDone) return
+      if (reminderDeclinedAt && Date.now() - reminderDeclinedAt < REMINDER_COOLDOWN_MS) return
+      const t = setTimeout(() => {
+        captureEvent('onb_reminder_sheet_shown', { trigger: 'auto' })
+        setReminderOpen(true)
+      }, 900)
+      return () => clearTimeout(t)
+    }, [
+      starterHydrated,
+      tourHydrated,
+      tourDone.first_sentence,
+      reminderEnabled,
+      reminderOpen,
+      activeTourId,
+      firstActivityDone,
+      reminderDeclinedAt,
+      REMINDER_COOLDOWN_MS,
+    ]),
+  )
+
+  async function acceptReminder() {
+    setReminderBusy(true)
+    const ok = await enableStudyReminder(goalMinutes)
+    setReminderBusy(false)
+    setReminderOpen(false)
+    if (ok) {
+      useStarterStore.getState().markReminderEnabled()
+    } else {
+      // OS từ chối → cũng vào cooldown, không hỏi dồn dập.
+      useStarterStore.getState().declineReminderSheet(Date.now())
+    }
+  }
+
+  function declineReminder() {
+    captureEvent('onb_reminder_sheet_dismissed', {})
+    useStarterStore.getState().declineReminderSheet(Date.now())
+    setReminderOpen(false)
+  }
+
   const firstName = user?.displayName?.split(' ').at(-1) ?? 'bạn'
   const greeting = greetingFor(new Date().getHours())
   const level = xp?.level ?? 1
@@ -150,6 +250,7 @@ export default function DashboardScreen() {
         >
           <View style={{ paddingHorizontal: space[5], marginTop: space[3] }}>
             {/* Streak hero — editorial ink card, the day-one engagement metric */}
+            <SpotlightTarget id={SPOTLIGHT_TARGETS.homeStreak}>
             <Card style={{ backgroundColor: theme.colors.inkSurface, borderColor: theme.colors.inkSurface }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[4] }}>
                 <View
@@ -180,6 +281,7 @@ export default function DashboardScreen() {
                 </View>
               </View>
             </Card>
+            </SpotlightTarget>
 
             {/* Secondary stats */}
             <View style={{ flexDirection: 'row', gap: space[3], marginTop: space[3] }}>
@@ -188,7 +290,20 @@ export default function DashboardScreen() {
             </View>
           </View>
 
+          {/* Tuần đầu (§7.1): checklist "Bắt đầu" — chỉ cho user đã qua onboarding v1,
+              tự biến mất vĩnh viễn khi hoàn thành đủ. */}
+          {tourDone.first_sentence ? (
+            <StarterChecklist
+              lessonDone={treeDone > 0}
+              onEnableReminder={() => {
+                captureEvent('onb_reminder_sheet_shown', { trigger: 'checklist' })
+                setReminderOpen(true)
+              }}
+            />
+          ) : null}
+
           {dueSrs > 0 ? (
+            <SpotlightTarget id={SPOTLIGHT_TARGETS.homeSrsCard}>
             <Card
               onPress={() => router.push('/(student)/srs')}
               bordered
@@ -218,6 +333,7 @@ export default function DashboardScreen() {
                 <Pill label={`${dueSrs} thẻ`} tone="accent" />
               </View>
             </Card>
+            </SpotlightTarget>
           ) : null}
 
           {/* Roadmap progress entry (na-home PathCard) — real skill-tree % to B2. */}
@@ -301,6 +417,14 @@ export default function DashboardScreen() {
           ) : null}
         </MotiView>
       )}
+
+      <ReminderSheet
+        visible={reminderOpen}
+        dailyGoalMinutes={goalMinutes}
+        busy={reminderBusy}
+        onAccept={() => void acceptReminder()}
+        onDecline={declineReminder}
+      />
     </Screen>
   )
 }
