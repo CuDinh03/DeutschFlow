@@ -299,12 +299,17 @@ export function SpotlightTourProvider({ children }: { children: ReactNode }) {
   }, [finish, showStep])
 
   // Tap-through completion: the user tapped the real UI and navigated away.
+  // Only entering a lesson node counts as "completed" — any other navigation
+  // (Android back, deep link, auth redirect) is an abandon at the last step,
+  // else the §8 tour-completion KPI over-counts.
   useEffect(() => {
     const tour = activeRef.current
     const cur = displayRef.current
     if (!tour || !cur) return
     const step = tour.steps[cur.index]
-    if (step?.tapThrough && pathname !== stepPathRef.current) finish('completed')
+    if (step?.tapThrough && pathname !== stepPathRef.current) {
+      finish(pathname.startsWith('/node') ? 'completed' : 'skipped')
+    }
   }, [pathname, finish])
 
   const ctxValue = useMemo<SpotlightContextValue>(
