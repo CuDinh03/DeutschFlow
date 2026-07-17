@@ -116,12 +116,20 @@ export default function V2TeacherGradingPage() {
   const [aiSuggested, setAiSuggested] = useState<Record<number, boolean>>({})
   const [aiAssess, setAiAssess] = useState<Record<number, { confidence: number | null; criteria: Record<string, number> | null }>>({})
 
-  // Transient per-active state.
+  // Transient state keyed BY submission id — same pattern as drafts/aiSuggested/aiAssess. Keeping these
+  // global (a single string/bool) meant a 24s AI-grade poll that finished after the teacher switched
+  // tabs wrote its "still processing"/error/loading onto whatever submission was now on screen, and two
+  // concurrent grades stomped each other. Keyed by id, each submission owns its own transient state.
   const [saving, setSaving] = useState(false)
-  const [aiLoading, setAiLoading] = useState(false)
-  const [panelError, setPanelError] = useState('')
-  const [panelSuccess, setPanelSuccess] = useState('')
+  const [aiLoadingById, setAiLoadingById] = useState<Record<number, boolean>>({})
+  const [panelErrorById, setPanelErrorById] = useState<Record<number, string>>({})
+  const [panelSuccessById, setPanelSuccessById] = useState<Record<number, string>>({})
   const pollRef = useRef(true)
+
+  // Keyed setters — writing state for a specific submission regardless of which tab is active now.
+  const setPanelErrorFor = (id: number, msg: string) => setPanelErrorById((m) => ({ ...m, [id]: msg }))
+  const setPanelSuccessFor = (id: number, msg: string) => setPanelSuccessById((m) => ({ ...m, [id]: msg }))
+  const setAiLoadingFor = (id: number, on: boolean) => setAiLoadingById((m) => ({ ...m, [id]: on }))
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -153,12 +161,8 @@ export default function V2TeacherGradingPage() {
   )
   const active = useMemo(() => queue.find((g) => g.id === activeId) ?? null, [queue, activeId])
 
-  // Reset transient panel state when the active submission changes.
-  useEffect(() => {
-    setPanelError('')
-    setPanelSuccess('')
-    setAiLoading(false)
-  }, [activeId])
+  // Transient state is keyed by submission id, so switching tabs no longer needs to wipe it — each
+  // submission's own error/success/loading is preserved and shown only on its own panel.
 
   const draft: Draft = active
     ? drafts[active.id] ?? { score: active.score ?? '', feedback: seedFeedback(active.status, active.feedback) }
@@ -187,8 +191,8 @@ export default function V2TeacherGradingPage() {
   const runAiGrade = async () => {
     if (!active) return
     const current = active
-    setAiLoading(true)
-    setPanelError('')
+    setAiLoadingFor(current.id, true)
+    setPanelErrorFor(current.id, '')
     // Re-arm the poll guard: React Strict Mode (dev) runs the mount cleanup once, which would
     // otherwise leave pollRef false and make the poll below return immediately (AI-grade hangs).
     pollRef.current = true
@@ -206,8 +210,8 @@ export default function V2TeacherGradingPage() {
           const row = rows.find((r) => r.submissionId === current.id)
           if (!row) continue
           if (row.status === 'GRADING_FAILED') {
-            setPanelError(cleanFailure(row.feedback))
-            setAiLoading(false)
+            setPanelErrorFor(current.id, cleanFailure(row.feedback))
+            setAiLoadingFor(current.id, false)
             return
           }
           // AI_GRADED is what the AI pass now writes: a proposal, not a grade. (GRADED/EVALUATED are
@@ -216,21 +220,21 @@ export default function V2TeacherGradingPage() {
             setDrafts((d) => ({ ...d, [current.id]: { score: row.score as number, feedback: row.feedback ?? '' } }))
             setAiSuggested((m) => ({ ...m, [current.id]: true }))
             setAiAssess((m) => ({ ...m, [current.id]: { confidence: row.aiConfidence ?? null, criteria: row.criteria ?? null } }))
-            setAiLoading(false)
+            setAiLoadingFor(current.id, false)
             return
           }
         } catch {
           // transient — keep polling
         }
       }
-      setPanelError(t('aiStillProcessing'))
-      setAiLoading(false)
+      setPanelErrorFor(current.id, t('aiStillProcessing'))
+      setAiLoadingFor(current.id, false)
     } catch (e) {
       // Surface the server's real reason (409 "đã chấm rồi", 429 org hết token, 403 không có quyền)
       // instead of a blanket "gọi AI lỗi" — mirrors the image-grade and save paths. The generic
       // string is only a fallback when the error carries no message (e.g. a network drop).
-      setPanelError(apiMessage(e) || t('aiCallError'))
-      setAiLoading(false)
+      setPanelErrorFor(current.id, apiMessage(e) || t('aiCallError'))
+      setAiLoadingFor(current.id, false)
     }
   }
 
@@ -247,37 +251,37 @@ export default function V2TeacherGradingPage() {
   const runAiGradeImage = async () => {
     if (!active) return
     const current = active
-    setAiLoading(true)
-    setPanelError('')
+    setAiLoadingFor(current.id, true)
+    setPanelErrorFor(current.id, '')
     try {
       const res = await api.post(`/v2/teacher/grading/submissions/${current.id}/ai-grade-image`)
       const { score, feedback } = res.data as { transcription: string; score: number; feedback: string }
       setDrafts((d) => ({ ...d, [current.id]: { score, feedback: feedback ?? '' } }))
       setAiSuggested((m) => ({ ...m, [current.id]: true }))
     } catch (e) {
-      setPanelError(apiMessage(e) || t('aiCallError'))
+      setPanelErrorFor(current.id, apiMessage(e) || t('aiCallError'))
     } finally {
-      setAiLoading(false)
+      setAiLoadingFor(current.id, false)
     }
   }
 
   const save = async () => {
     if (!active) return
-    if (draft.score === '') { setPanelError(t('enterScore')); return }
+    const current = active
+    if (draft.score === '') { setPanelErrorFor(current.id, t('enterScore')); return }
     setSaving(true)
-    setPanelError('')
-    setPanelSuccess('')
+    setPanelErrorFor(current.id, '')
+    setPanelSuccessFor(current.id, '')
     try {
-      await api.post(`/v2/teacher/assignments/${active.id}/evaluate`, {
+      await api.post(`/v2/teacher/assignments/${current.id}/evaluate`, {
         teacherScore: Number(draft.score),
         teacherFeedback: draft.feedback,
       })
-      setPanelSuccess(t('saveSuccess'))
-      toast.success(t('saveSuccessToast', { name: active.studentName }))
-      const savedId = active.id
-      setTimeout(() => advance(savedId), 700)
+      setPanelSuccessFor(current.id, t('saveSuccess'))
+      toast.success(t('saveSuccessToast', { name: current.studentName }))
+      setTimeout(() => advance(current.id), 700)
     } catch (e: unknown) {
-      setPanelError(apiMessage(e))
+      setPanelErrorFor(current.id, apiMessage(e))
     } finally {
       setSaving(false)
     }
@@ -403,13 +407,13 @@ export default function V2TeacherGradingPage() {
               suggested={!!aiSuggested[active.id]}
               confidence={aiAssess[active.id]?.confidence ?? null}
               criteria={aiAssess[active.id]?.criteria ?? null}
-              aiLoading={aiLoading}
+              aiLoading={!!aiLoadingById[active.id]}
               onAi={runAiGrade}
               onAiImage={runAiGradeImage}
               saving={saving}
               onSave={save}
-              error={panelError}
-              success={panelSuccess}
+              error={panelErrorById[active.id] ?? ''}
+              success={panelSuccessById[active.id] ?? ''}
             />
           )}
         </div>
