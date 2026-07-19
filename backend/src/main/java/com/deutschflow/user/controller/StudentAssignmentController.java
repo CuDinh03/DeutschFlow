@@ -51,6 +51,8 @@ public class StudentAssignmentController {
     private final ClassStudentRepository classStudentRepository;
     private final S3StorageService s3StorageService;
     private final com.deutschflow.material.service.MaterialService materialService;
+    private final com.deutschflow.notification.service.NotificationAutoAckService notificationAutoAckService;
+    private final com.deutschflow.common.transaction.RunAfterCommitService runAfterCommitService;
 
     /**
      * The assignment the class handed out — resolved and access-checked by ENROLLMENT (the student must be
@@ -167,6 +169,15 @@ public class StudentAssignmentController {
         // cần xem từ {studentName}"). The teacher, meanwhile, was told nothing whatsoever.
         teacherService.notifyTeachersOfSubmission(
                 assignment.getAssignmentId(), user.getId(), user.getDisplayName());
+
+        // Nộp bài = đã xử lý xong "📋 Bài tập mới" (NEW_CLASS_ASSIGNMENT) của bài này → tự đánh dấu đã đọc
+        // thông báo cho học viên. Sau commit, best-effort — không ảnh hưởng việc nộp.
+        final Long ackStudentId = user.getId();
+        final Long ackAssignmentId = assignment.getAssignmentId();
+        runAfterCommitService.run(() -> notificationAutoAckService.ackByContext(
+                ackStudentId,
+                Set.of(com.deutschflow.notification.NotificationType.NEW_CLASS_ASSIGNMENT),
+                Map.<String, Object>of("assignmentId", ackAssignmentId)));
 
         return ResponseEntity.ok(new StudentAssignmentDto(
                 assignment.getId(), assignment.getAssignmentId(), assignment.getStudentId(), assignment.getStatus(),

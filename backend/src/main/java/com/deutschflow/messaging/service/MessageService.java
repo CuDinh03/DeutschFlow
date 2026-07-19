@@ -11,6 +11,8 @@ import com.deutschflow.moderation.service.UserBlockService;
 import com.deutschflow.moderation.service.WordFilterService;
 import com.deutschflow.notification.NotificationType;
 import com.deutschflow.notification.service.UserNotificationService;
+import com.deutschflow.notification.service.NotificationAutoAckService;
+import com.deutschflow.common.transaction.RunAfterCommitService;
 import com.deutschflow.teacher.repository.ClassStudentRepository;
 import com.deutschflow.teacher.repository.ClassTeacherRepository;
 import com.deutschflow.user.entity.User;
@@ -46,6 +48,8 @@ public class MessageService {
     private final ClassStudentRepository classStudentRepository;
     private final UserRepository userRepository;
     private final UserNotificationService notificationService;
+    private final NotificationAutoAckService notificationAutoAckService;
+    private final RunAfterCommitService runAfterCommitService;
     private final UserBlockService blockService;
     private final WordFilterService wordFilter;
 
@@ -89,7 +93,12 @@ public class MessageService {
                 ? messageRepository.findBySenderIdAndRecipientIdOrSenderIdAndRecipientIdOrderByIdAsc(
                         me, otherId, otherId, me)
                 : messageRepository.findThreadAfter(me, otherId, afterId);
-        messageRepository.markThreadRead(me, otherId, Instant.now());
+        int marked = messageRepository.markThreadRead(me, otherId, Instant.now());
+        // Mở thread = đọc các tin đến từ otherId → thông báo "💬 Tin nhắn mới" (NEW_MESSAGE) của người đó
+        // cũng không còn "mới". Chỉ ack khi thực sự có tin vừa được đánh dấu đọc (tránh chạy thừa mỗi lần poll).
+        if (marked > 0) {
+            ackMessageNotifications(me, otherId);
+        }
         Set<Long> blocked = blockService.blockedIds(me);
         return thread.stream()
                 .filter(m -> !blocked.contains(m.getSenderId()))
@@ -103,7 +112,22 @@ public class MessageService {
         // listConversations. The UPDATE itself only touches rows addressed to the caller (no leak),
         // but skipping the check let a caller poke arbitrary user ids — defense-in-depth.
         assertCanMessage(me, otherId);
-        return messageRepository.markThreadRead(me, otherId, Instant.now());
+        int marked = messageRepository.markThreadRead(me, otherId, Instant.now());
+        if (marked > 0) {
+            ackMessageNotifications(me, otherId);
+        }
+        return marked;
+    }
+
+    /**
+     * Sau khi tx commit, đánh dấu ĐÃ ĐỌC mọi thông báo {@code NEW_MESSAGE} của {@code me} đến từ
+     * {@code otherId}. Best-effort — chạy off tx, lỗi không ảnh hưởng luồng đọc tin nhắn.
+     */
+    private void ackMessageNotifications(Long me, Long otherId) {
+        runAfterCommitService.run(() -> notificationAutoAckService.ackByContext(
+                me,
+                Set.of(NotificationType.NEW_MESSAGE),
+                Map.<String, Object>of("senderId", otherId)));
     }
 
     /** Total unread messages across all threads (conversation-list badge). */

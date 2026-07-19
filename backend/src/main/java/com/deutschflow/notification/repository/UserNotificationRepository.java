@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 
 public interface UserNotificationRepository extends JpaRepository<UserNotification, Long> {
 
@@ -29,4 +30,42 @@ public interface UserNotificationRepository extends JpaRepository<UserNotificati
     @Modifying
     @Query("DELETE FROM UserNotification n WHERE n.readAt IS NOT NULL AND n.readAt < :cutoff")
     int deleteByReadAtIsNotNullAndReadAtBefore(@Param("cutoff") LocalDateTime cutoff);
+
+    /**
+     * Đánh dấu đã đọc theo NGỮ CẢNH: mọi thông báo chưa đọc của {@code userId}, thuộc {@code types},
+     * có {@code payload_json} CHỨA {@code matchJson} (jsonb containment {@code @>}). Native query vì
+     * dùng toán tử jsonb của Postgres. Lọc {@code recipient_user_id + read_at IS NULL} trước → trúng
+     * index bộ phận {@code idx_user_notifications_recipient_unread}, nên rẻ dù không có GIN index.
+     *
+     * @param matchJson chuỗi JSON hợp lệ (được cast sang jsonb); tham số hoá, không nối chuỗi tay.
+     */
+    @Modifying
+    @Query(value = """
+            UPDATE user_notifications
+               SET read_at = :readAt
+             WHERE recipient_user_id = :userId
+               AND read_at IS NULL
+               AND notification_type IN (:types)
+               AND payload_json @> CAST(:matchJson AS jsonb)
+            """, nativeQuery = true)
+    int markReadByContext(@Param("userId") long userId,
+                          @Param("types") Collection<String> types,
+                          @Param("matchJson") String matchJson,
+                          @Param("readAt") LocalDateTime readAt);
+
+    /**
+     * Đánh dấu đã đọc theo TYPE (không lọc payload): mọi thông báo chưa đọc của {@code userId} thuộc
+     * {@code types}. Dùng cho loại nên đọc bất kể payload (ví dụ nhắc ôn tập khi đã học trong ngày).
+     */
+    @Modifying
+    @Query(value = """
+            UPDATE user_notifications
+               SET read_at = :readAt
+             WHERE recipient_user_id = :userId
+               AND read_at IS NULL
+               AND notification_type IN (:types)
+            """, nativeQuery = true)
+    int markReadByType(@Param("userId") long userId,
+                       @Param("types") Collection<String> types,
+                       @Param("readAt") LocalDateTime readAt);
 }

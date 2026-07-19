@@ -113,6 +113,12 @@ class TeacherServiceTest {
     @Mock
     private AssignmentBackfillService assignmentBackfillService;
 
+    @Mock
+    private com.deutschflow.notification.service.NotificationAutoAckService notificationAutoAckService;
+
+    @Mock
+    private com.deutschflow.common.transaction.RunAfterCommitService runAfterCommitService;
+
     private TeacherService teacherService;
 
     @BeforeEach
@@ -137,7 +143,9 @@ class TeacherServiceTest {
                 s3StorageService,
                 lessonRepository,
                 studentCompetencyService,
-                materialService
+                materialService,
+                notificationAutoAckService,
+                runAfterCommitService
         );
     }
 

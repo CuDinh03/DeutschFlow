@@ -8,6 +8,9 @@ import com.deutschflow.srs.entity.VocabReviewSchedule;
 import com.deutschflow.srs.entity.VocabReviewSchedule.AlgorithmVersion;
 import com.deutschflow.srs.repository.VocabReviewRepository;
 import com.deutschflow.gamification.service.XpService;
+import com.deutschflow.notification.NotificationType;
+import com.deutschflow.notification.service.NotificationAutoAckService;
+import com.deutschflow.common.transaction.RunAfterCommitService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -18,6 +21,7 @@ import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Set;
 
 /**
  * SRS Service — dual-algorithm router (SM-2 legacy + FSRS-4.5).
@@ -47,6 +51,8 @@ public class SrsService {
     private final FsrsService fsrsService;
     private final FsrsWeightProvider fsrsWeightProvider;
     private final XpService xpService;
+    private final NotificationAutoAckService notificationAutoAckService;
+    private final RunAfterCommitService runAfterCommitService;
 
     // ─── Schedule ─────────────────────────────────────────────────────────────
 
@@ -87,6 +93,13 @@ public class SrsService {
     /** Returns the full due queue for today (capped at 500; both SM-2 and FSRS cards). */
     @Transactional(readOnly = true)
     public List<VocabReviewCard> getDueCards(Long userId) {
+        // Mở màn ôn tập = học viên đã tương tác với nhắc "📚 Ôn tập hôm nay"/"🔥 Chuỗi học tập" → tự đánh
+        // dấu đã đọc REVIEW_DUE + STREAK_REMINDER (theo type, không kèm payload). Đây là hook mở-màn (1
+        // lần), KHÔNG phải recordReview (chạy mỗi thẻ) — tránh làm nặng đường ôn tập. Sau commit, best-effort.
+        final Long ackUserId = userId;
+        runAfterCommitService.run(() -> notificationAutoAckService.ackByType(
+                ackUserId,
+                Set.of(NotificationType.REVIEW_DUE, NotificationType.STREAK_REMINDER)));
         return repo.findDueCards(userId, OffsetDateTime.now())
                 .stream()
                 .map(this::toCard)
