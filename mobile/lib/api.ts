@@ -3,6 +3,7 @@ import { Platform } from 'react-native'
 import { API_BASE_URL } from './constants'
 import { getAccessToken, getRefreshToken, setTokens, clearTokens } from './auth'
 import { router } from 'expo-router'
+import { useAuthStore } from '@/stores/useAuthStore'
 
 export function isAxiosErr(e: unknown): e is AxiosError {
   return axios.isAxiosError(e)
@@ -79,6 +80,13 @@ api.interceptors.response.use(
     } catch {
       refreshPromise = null
       await clearTokens()
+      // Reset the auth store too, not just the tokens. Otherwise isLoggedIn stays true after the
+      // bounce: the app shows an authenticated shell whose every request 401s, and — because the
+      // push-token effect keys on the logged-in user id — a re-login by the SAME account would not
+      // re-fire. setUser(null) flips isLoggedIn=false so the next login is a real id transition that
+      // re-registers this device's push token for whoever logs in. (getState() defers the import to
+      // runtime, sidestepping the api ↔ useAuthStore module cycle.)
+      useAuthStore.getState().setUser(null)
       router.replace('/(auth)/login')
       return Promise.reject(error)
     }

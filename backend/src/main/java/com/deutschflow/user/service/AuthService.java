@@ -144,6 +144,9 @@ public class AuthService {
         // Revoke toàn bộ session để buộc đăng nhập lại trên mọi thiết bị.
         if (stored.isRevoked()) {
             refreshTokenRepository.revokeAllByUserId(stored.getUser().getId());
+            // Theft signal: kill the device push token too so the compromised session cannot keep
+            // receiving this account's notifications (the legit device re-registers on next login).
+            userRepository.clearPushToken(stored.getUser().getId());
             log.warn("[AuthService] Refresh token reuse detected for userId={} — all sessions revoked",
                      stored.getUser().getId());
             throw new BadRequestException("Session compromised. Please log in again.");
@@ -162,6 +165,10 @@ public class AuthService {
     @Transactional
     public void logout(Long userId) {
         refreshTokenRepository.revokeAllByUserId(userId);
+        // Logout revokes EVERY session for this account, so its device push token must go too —
+        // otherwise the phone keeps receiving this account's notifications after logout (worst
+        // case: shown to whoever logs in next on that device).
+        userRepository.clearPushToken(userId);
     }
 
     @Transactional
@@ -173,9 +180,20 @@ public class AuthService {
                     platform, token == null ? 0 : token.length(), user.getId());
             return;
         }
+        // The token identifies the DEVICE. If other accounts logged in on this device earlier,
+        // they still hold the same token — strip it from them so this device only ever receives
+        // notifications for the account that is actually logged in.
+        int cleared = userRepository.clearPushTokenFromOtherUsers(token, user.getId());
+        if (cleared > 0) {
+            log.info("[Push] Device token re-assigned to user {} (removed from {} other account(s))",
+                    user.getId(), cleared);
+        }
+        // Native UPDATE, not save(user): push_token is updatable=false on the entity so a later
+        // merge of the (up-to-60s stale) cached principal can never rewrite it. Mirror the value onto
+        // the in-memory principal so anything reading it within this request stays consistent.
+        userRepository.assignPushToken(user.getId(), token, platform);
         user.setPushToken(token);
         user.setPushPlatform(platform);
-        userRepository.save(user);
     }
 
     @Transactional
@@ -227,6 +245,9 @@ public class AuthService {
         userRepository.save(user);
         // Revoke tất cả refresh tokens để buộc đăng nhập lại
         refreshTokenRepository.revokeAllByUserId(user.getId());
+        // …and drop the device push token so no already-logged-out session keeps getting this
+        // account's notifications; the device re-registers on the forced re-login.
+        userRepository.clearPushToken(user.getId());
     }
 
     @Transactional(readOnly = true)
