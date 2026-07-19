@@ -183,7 +183,26 @@
         "notSubmitted": "Not submitted",
         "awaitingConfirm": "Awaiting confirmation",
         "regradeNeeded": "Needs re-grading",
-        "printTitle": "Gradebook"
+        "printTitle": "Gradebook",
+        "viewModeLabel": "Gradebook view",
+        "viewMatrix": "Matrix",
+        "viewList": "List",
+        "groupLabel": "Group by",
+        "groupByAssignment": "By assignment",
+        "groupByStudent": "By student",
+        "filterSkill": "Filter by skill",
+        "skillAll": "All",
+        "skillOther": "Other",
+        "searchPlaceholder": "Search assignments…",
+        "pageLabel": "Items {from}–{to} of {total}",
+        "prevPage": "Previous columns",
+        "nextPage": "Next columns",
+        "avgNote": "The average covers every finalized grade, independent of the columns shown.",
+        "noMatchingAssignments": "No assignments match the filter.",
+        "submittedCount": "{submitted}/{assigned} submitted",
+        "awaitingCount": "{count} to grade",
+        "noDueDate": "No due date",
+        "dueLabel": "Due: {date}"
       },
       "skills": {
         "helperText": "Scores come from the teacher evaluation. If missing, the average of skill-tagged assignments is used instead.",
@@ -437,7 +456,19 @@
       "colStudents": "Students",
       "colAssignments": "Assignments",
       "colAvgScore": "Avg score",
-      "noClasses": "No classes yet."
+      "noClasses": "No classes yet.",
+      "trendTitle": "Score trend by week",
+      "trendScaleNote": "Confirmed grades only · out of 100",
+      "trendEmpty": "Not enough graded data to chart a trend yet.",
+      "skillTitle": "Four-skill distribution",
+      "skillScaleNote": "Skill scores · out of 10",
+      "skillEmpty": "No skill scores yet.",
+      "skill": {
+        "horen": "Listening (Hören)",
+        "lesen": "Reading (Lesen)",
+        "schreiben": "Writing (Schreiben)",
+        "sprechen": "Speaking (Sprechen)"
+      }
     },
     "profile": {
       "title": "Teacher profile",

@@ -183,7 +183,26 @@
         "notSubmitted": "Nicht eingereicht",
         "awaitingConfirm": "Bestätigung ausstehend",
         "regradeNeeded": "Neu zu bewerten",
-        "printTitle": "Notenbuch"
+        "printTitle": "Notenbuch",
+        "viewModeLabel": "Notenbuch-Ansicht",
+        "viewMatrix": "Matrix",
+        "viewList": "Liste",
+        "groupLabel": "Gruppieren nach",
+        "groupByAssignment": "Nach Aufgabe",
+        "groupByStudent": "Nach Lernenden",
+        "filterSkill": "Nach Fertigkeit filtern",
+        "skillAll": "Alle",
+        "skillOther": "Andere",
+        "searchPlaceholder": "Aufgaben suchen…",
+        "pageLabel": "Aufgaben {from}–{to} von {total}",
+        "prevPage": "Vorherige Spalten",
+        "nextPage": "Nächste Spalten",
+        "avgNote": "Der Durchschnitt umfasst alle bestätigten Noten, unabhängig von den angezeigten Spalten.",
+        "noMatchingAssignments": "Keine Aufgaben entsprechen dem Filter.",
+        "submittedCount": "{submitted}/{assigned} eingereicht",
+        "awaitingCount": "{count} zu bewerten",
+        "noDueDate": "Keine Frist",
+        "dueLabel": "Fällig: {date}"
       },
       "skills": {
         "helperText": "Die Werte stammen aus der Lehrerbewertung. Fehlt diese, wird der Durchschnitt der Aufgaben mit dieser Fertigkeit verwendet.",
@@ -437,7 +456,19 @@
       "colStudents": "Lernende",
       "colAssignments": "Aufgaben",
       "colAvgScore": "Ø-Note",
-      "noClasses": "Noch keine Klassen."
+      "noClasses": "Noch keine Klassen.",
+      "trendTitle": "Notenverlauf pro Woche",
+      "trendScaleNote": "Nur bestätigte Noten · von 100",
+      "trendEmpty": "Noch nicht genügend bewertete Daten für einen Verlauf.",
+      "skillTitle": "Verteilung der vier Fertigkeiten",
+      "skillScaleNote": "Fertigkeitsnoten · von 10",
+      "skillEmpty": "Noch keine Fertigkeitsnoten.",
+      "skill": {
+        "horen": "Hören",
+        "lesen": "Lesen",
+        "schreiben": "Schreiben",
+        "sprechen": "Sprechen"
+      }
     },
     "profile": {
       "title": "Lehrkraft-Profil",

@@ -822,6 +822,18 @@
     -webkit-print-color-adjust: exact;
   }
 
+  /*
+   * Multi-page tables (e.g. the gradebook, whose columns are chunked into one landscape page each)
+   * must flow normally: a `position: fixed` box is never fragmented, so it would collapse every
+   * `.print-page-break` chunk onto a single stamped page and clip anything past the page's right
+   * edge. `.print-flow` drops the fixed overlay while keeping the visibility isolation above.
+   */
+  .print-area.print-flow {
+    position: static !important;
+    inset: auto !important;
+    z-index: auto !important;
+  }
+
   /* Keep badge colors */
   .print-color-exact { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 
