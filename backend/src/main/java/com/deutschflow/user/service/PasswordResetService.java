@@ -118,6 +118,9 @@ public class PasswordResetService {
         // AUTH-1: revoke every refresh token for this user so a leaked/stolen session cannot survive a
         // password reset (access tokens are stateless 15-min; the refresh token is the long-lived one).
         refreshTokenRepository.revokeAllByUserId(userId);
+        // The stolen device also holds this account's push token — null it so class-message previews,
+        // grades, etc. stop landing on it. A legitimate device re-registers its token on next login.
+        jdbc.update("UPDATE users SET push_token = NULL, push_platform = NULL WHERE id = ?", userId);
 
         log.info("[PasswordReset] password updated + sessions revoked for email={}***",
                 email.substring(0, Math.min(3, email.length())));

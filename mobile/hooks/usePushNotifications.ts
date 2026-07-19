@@ -84,17 +84,19 @@ async function registerForPushNotifications(): Promise<string | null> {
 }
 
 export function usePushNotifications() {
-  const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
+  // Key registration on the logged-in user's id, NOT a boolean. An Expo push token identifies the
+  // DEVICE, so when a DIFFERENT account logs in on this phone the token must be re-registered for
+  // them (the backend then strips it off the previous account — otherwise this device keeps getting
+  // the previous account's notifications). If we depended on isLoggedIn, an account switch that
+  // never dips through a logged-out render (e.g. after a 401-bounce that leaves isLoggedIn=true)
+  // stays true→true, the effect never re-fires, and the token is never reassigned. undefined while
+  // logged out → the POST is still gated to authenticated sessions.
+  const userId = useAuthStore((s) => s.user?.id)
   const notificationListener = useRef<Notifications.EventSubscription | null>(null)
   const responseListener = useRef<Notifications.EventSubscription | null>(null)
 
-  // Register the Expo push token ONLY for an authenticated session, and re-run
-  // when the user logs in. Posting while logged out hits /profile/me/push-token
-  // with no auth → 401 → the api interceptor's refresh path fails → the user is
-  // bounced to the login screen. Gating on isLoggedIn avoids that race and is the
-  // correct behaviour anyway (a push token belongs to the logged-in user).
   useEffect(() => {
-    if (!isLoggedIn) return
+    if (!userId) return
     void registerForPushNotifications().then(async (token) => {
       if (!token) return
       try {
@@ -105,7 +107,7 @@ export function usePushNotifications() {
         logPush('failed to send token to /profile/me/push-token', error)
       }
     })
-  }, [isLoggedIn])
+  }, [userId])
 
   // Display/routing listeners are auth-independent (tap-routing lands on a screen
   // that itself enforces auth); mount once for the app's lifetime.
