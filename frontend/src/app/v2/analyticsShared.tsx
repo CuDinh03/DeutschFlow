@@ -14,6 +14,8 @@ import {
   Cell,
   AreaChart,
   Area,
+  LineChart,
+  Line,
 } from 'recharts'
 import { GaCard } from '@/components/ui-v2'
 import { cn } from '@/lib/utils'
@@ -210,6 +212,65 @@ export function GaArea({
           />
           <Area type="monotone" dataKey="value" stroke={color} strokeWidth={2} fill={`url(#${gid})`} dot={false} />
         </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
+// ── Multi-series line chart (time-series trend, one line per series) ─────────────
+export interface LineSeries {
+  /** Key into each data row. */
+  key: string
+  /** Display name (localised) for tooltip/legend. */
+  name: string
+  color: string
+}
+
+export function GaLines({
+  data,
+  series,
+  height = 220,
+  valueFmt,
+  yDomain,
+}: {
+  data: Array<Record<string, string | number | null>>
+  series: LineSeries[]
+  height?: number
+  valueFmt?: (v: number) => string
+  yDomain?: [number, number]
+}) {
+  return (
+    <div style={{ height }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
+          <XAxis dataKey="label" tick={{ fontSize: 11, fill: AXIS }} axisLine={false} tickLine={false} />
+          <YAxis
+            domain={yDomain ?? ['auto', 'auto']}
+            tick={{ fontSize: 10, fill: AXIS }}
+            axisLine={false}
+            tickLine={false}
+            width={40}
+            tickFormatter={valueFmt}
+          />
+          <Tooltip
+            formatter={(v: number | string) => (valueFmt ? valueFmt(Number(v)) : String(v))}
+            contentStyle={TOOLTIP_STYLE}
+          />
+          {series.map((s) => (
+            <Line
+              key={s.key}
+              type="monotone"
+              dataKey={s.key}
+              name={s.name}
+              stroke={s.color}
+              strokeWidth={2}
+              dot={{ r: 2 }}
+              connectNulls={false}
+              isAnimationActive={false}
+            />
+          ))}
+        </LineChart>
       </ResponsiveContainer>
     </div>
   )

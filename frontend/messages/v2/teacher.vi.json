@@ -183,7 +183,26 @@
         "notSubmitted": "Chưa nộp",
         "awaitingConfirm": "Chờ xác nhận",
         "regradeNeeded": "Chờ chấm lại",
-        "printTitle": "Sổ điểm"
+        "printTitle": "Sổ điểm",
+        "viewModeLabel": "Chế độ xem sổ điểm",
+        "viewMatrix": "Ma trận",
+        "viewList": "Danh sách",
+        "groupLabel": "Nhóm theo",
+        "groupByAssignment": "Theo bài tập",
+        "groupByStudent": "Theo học viên",
+        "filterSkill": "Lọc theo kỹ năng",
+        "skillAll": "Tất cả",
+        "skillOther": "Khác",
+        "searchPlaceholder": "Tìm bài tập…",
+        "pageLabel": "Bài {from}–{to} / {total}",
+        "prevPage": "Cột trước",
+        "nextPage": "Cột sau",
+        "avgNote": "Điểm TB tính trên toàn bộ bài đã chốt điểm, không phụ thuộc các cột đang xem.",
+        "noMatchingAssignments": "Không có bài tập nào khớp bộ lọc.",
+        "submittedCount": "{submitted}/{assigned} đã nộp",
+        "awaitingCount": "{count} chờ chấm",
+        "noDueDate": "Không hạn nộp",
+        "dueLabel": "Hạn: {date}"
       },
       "skills": {
         "helperText": "Điểm được lấy từ phiếu đánh giá giáo viên. Nếu chưa có, tính trung bình từ bài tập có gắn kỹ năng.",
@@ -437,7 +456,19 @@
       "colStudents": "Học viên",
       "colAssignments": "Bài tập",
       "colAvgScore": "Điểm TB",
-      "noClasses": "Chưa có lớp học nào."
+      "noClasses": "Chưa có lớp học nào.",
+      "trendTitle": "Xu hướng điểm theo tuần",
+      "trendScaleNote": "Chỉ tính điểm đã chốt · thang 100",
+      "trendEmpty": "Chưa đủ dữ liệu điểm để vẽ xu hướng.",
+      "skillTitle": "Phân bố 4 kỹ năng",
+      "skillScaleNote": "Điểm kỹ năng · thang 10",
+      "skillEmpty": "Chưa có điểm kỹ năng nào.",
+      "skill": {
+        "horen": "Nghe (Hören)",
+        "lesen": "Đọc (Lesen)",
+        "schreiben": "Viết (Schreiben)",
+        "sprechen": "Nói (Sprechen)"
+      }
     },
     "profile": {
       "title": "Hồ sơ giáo viên",

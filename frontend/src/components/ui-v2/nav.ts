@@ -78,7 +78,7 @@ export const teacherNav: RoleNav = {
         { id: 'tc-checklist', label: 'Nội dung giảng dạy', href: '/v2/teacher/tc-checklist', icon: 'checklist' },
         { id: 'grading', label: 'Chấm bài', href: '/v2/teacher/grading', icon: 'grading' },
         { id: 'grade-image', label: 'Chấm bài qua ảnh', href: '/v2/teacher/grade-image', icon: 'draw' },
-        { id: 'tc-reports', label: 'Sổ điểm & Báo cáo', href: '/v2/teacher/tc-reports', icon: 'assessment' },
+        { id: 'tc-reports', label: 'Sổ điểm lớp', href: '/v2/teacher/tc-reports', icon: 'assessment' },
         { id: 'materials', label: 'Thư viện tài liệu', href: '/v2/teacher/materials', icon: 'menu_book' },
         // "Thư viện ảnh" (media asset S3) ≠ "Thư viện tài liệu" (file tài liệu): ảnh minh hoạ cho
         // slide/đề bài, có tag + alt text, upload/sửa/xoá theo uploader.
@@ -115,7 +115,7 @@ export const teacherNav: RoleNav = {
     {
       label: 'Thống kê',
       labelKey: 'stats',
-      items: [{ id: 'analytics', label: 'Báo cáo & Phân tích', href: '/v2/teacher/analytics', icon: 'monitoring' }],
+      items: [{ id: 'analytics', label: 'Phân tích giảng dạy', href: '/v2/teacher/analytics', icon: 'monitoring' }],
     },
     {
       label: 'Tài khoản',

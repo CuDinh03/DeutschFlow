@@ -2,7 +2,10 @@ package com.deutschflow.teacher.service;
 
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.teacher.dto.ClassSummaryDto;
+import com.deutschflow.teacher.dto.ClassTrendDto;
 import com.deutschflow.teacher.dto.GradebookDto;
+import com.deutschflow.teacher.dto.SkillDistributionDto;
 import com.deutschflow.teacher.entity.AssignmentStatus;
 import com.deutschflow.teacher.entity.ClassAssignment;
 import com.deutschflow.teacher.entity.ClassStudent;
@@ -19,6 +22,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -27,8 +31,8 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 /**
@@ -86,6 +90,130 @@ public class TeacherReportService {
         result.put("assignmentCount", assignments.size());
         result.put("avgScore", averageScore(assignments));
         return result;
+    }
+
+    /**
+     * Per-class summary rows for every class the teacher owns, in ONE pass (no N+1): sĩ số, số bài
+     * đã giao và điểm trung bình lớp. Batch-loads students, assignments and submissions with three
+     * IN-list queries, then groups in memory — replacing the analytics page's overview + one
+     * classReport request per class. avgScore uses the same confirmed-only, one-vote-per-student
+     * rule as {@link #averageScore}.
+     */
+    @Transactional(readOnly = true)
+    public List<ClassSummaryDto> classesSummary(Long teacherId) {
+        List<TeacherClass> classes = classRepository.findByTeacherId(teacherId);
+        if (classes.isEmpty()) return List.of();
+        List<Long> classIds = classes.stream().map(TeacherClass::getId).toList();
+
+        Map<Long, Long> studentCountByClass = classStudentRepository.findByIdClassIdIn(classIds).stream()
+                .collect(Collectors.groupingBy(cs -> cs.getId().getClassId(), Collectors.counting()));
+
+        List<ClassAssignment> assignments = assignmentRepository.findByClassIdIn(classIds);
+        Map<Long, Long> assignmentCountByClass = assignments.stream()
+                .collect(Collectors.groupingBy(ClassAssignment::getClassId, Collectors.counting()));
+        Map<Long, Long> classIdByAssignment = assignments.stream()
+                .collect(Collectors.toMap(ClassAssignment::getId, ClassAssignment::getClassId, (a, b) -> a));
+
+        List<StudentAssignment> submissions = assignments.isEmpty() ? List.of()
+                : studentAssignmentRepository.findByAssignmentIds(
+                        assignments.stream().map(ClassAssignment::getId).toList());
+        Map<Long, List<StudentAssignment>> submissionsByClass = new HashMap<>();
+        for (StudentAssignment sa : submissions) {
+            Long cId = classIdByAssignment.get(sa.getAssignmentId());
+            if (cId == null) continue;
+            submissionsByClass.computeIfAbsent(cId, k -> new ArrayList<>()).add(sa);
+        }
+
+        List<ClassSummaryDto> rows = new ArrayList<>();
+        for (TeacherClass c : classes) {
+            rows.add(new ClassSummaryDto(
+                    c.getId(),
+                    c.getName(),
+                    studentCountByClass.getOrDefault(c.getId(), 0L),
+                    assignmentCountByClass.getOrDefault(c.getId(), 0L),
+                    averageOfStudentAverages(submissionsByClass.getOrDefault(c.getId(), List.of()))));
+        }
+        return rows;
+    }
+
+    private static final int TREND_MAX_WEEKS = 12;
+
+    /**
+     * Weekly average of confirmed grades per class for the analytics trend chart. Buckets are ISO
+     * weeks, sorted oldest → newest and capped to the most recent {@value #TREND_MAX_WEEKS}. A class
+     * with no confirmed grades (or only grades outside the window) is omitted; within a kept series a
+     * week with no data is a null so the chart draws a gap rather than a false zero.
+     */
+    @Transactional(readOnly = true)
+    public ClassTrendDto weeklyTrends(Long teacherId) {
+        List<TeacherClass> classes = classRepository.findByTeacherId(teacherId);
+        if (classes.isEmpty()) return new ClassTrendDto(List.of(), List.of());
+        List<Long> classIds = classes.stream().map(TeacherClass::getId).toList();
+
+        Map<Long, Map<String, Double>> avgByClassAndWeek = new HashMap<>();
+        TreeSet<String> weeks = new TreeSet<>(); // ISO week strings sort lexicographically = chronological
+        for (Object[] row : studentAssignmentRepository.findWeeklyConfirmedAverages(classIds)) {
+            Long classId = ((Number) row[0]).longValue();
+            String week = (String) row[1];
+            double avg = round1(((Number) row[2]).doubleValue());
+            weeks.add(week);
+            avgByClassAndWeek.computeIfAbsent(classId, k -> new HashMap<>()).put(week, avg);
+        }
+
+        List<String> allWeeks = new ArrayList<>(weeks);
+        List<String> buckets = allWeeks.size() > TREND_MAX_WEEKS
+                ? new ArrayList<>(allWeeks.subList(allWeeks.size() - TREND_MAX_WEEKS, allWeeks.size()))
+                : allWeeks;
+
+        List<ClassTrendDto.Series> series = new ArrayList<>();
+        for (TeacherClass c : classes) {
+            Map<String, Double> byWeek = avgByClassAndWeek.get(c.getId());
+            if (byWeek == null) continue; // no confirmed grades at all
+            List<Double> values = buckets.stream().map(byWeek::get).toList();
+            if (values.stream().allMatch(v -> v == null)) continue; // all data fell outside the window
+            series.add(new ClassTrendDto.Series(c.getId(), c.getName(), values));
+        }
+        return new ClassTrendDto(buckets, series);
+    }
+
+    /**
+     * Cross-class distribution of the four teacher-set skill scores (0–10), averaged over every
+     * student in the teacher's classes. A skill with no ratings is null. Feeds the analytics
+     * skill-distribution chart.
+     */
+    @Transactional(readOnly = true)
+    public SkillDistributionDto skillDistribution(Long teacherId) {
+        List<TeacherClass> classes = classRepository.findByTeacherId(teacherId);
+        if (classes.isEmpty()) return new SkillDistributionDto(null, null, null, null, 0);
+        List<Long> classIds = classes.stream().map(TeacherClass::getId).toList();
+
+        double[] sums = new double[4];
+        int[] counts = new int[4];
+        long rated = 0;
+        for (ClassStudent cs : classStudentRepository.findByIdClassIdIn(classIds)) {
+            BigDecimal[] skills = {
+                    cs.getSkillHoren(), cs.getSkillLesen(), cs.getSkillSchreiben(), cs.getSkillSprechen()
+            };
+            boolean anyRated = false;
+            for (int i = 0; i < skills.length; i++) {
+                if (skills[i] != null) {
+                    sums[i] += skills[i].doubleValue();
+                    counts[i] += 1;
+                    anyRated = true;
+                }
+            }
+            if (anyRated) rated += 1;
+        }
+        return new SkillDistributionDto(
+                skillAverage(sums[0], counts[0]),
+                skillAverage(sums[1], counts[1]),
+                skillAverage(sums[2], counts[2]),
+                skillAverage(sums[3], counts[3]),
+                rated);
+    }
+
+    private static Double skillAverage(double sum, int count) {
+        return count > 0 ? round1(sum / count) : null;
     }
 
     /**
@@ -158,22 +286,41 @@ public class TeacherReportService {
     }
 
     /**
-     * Average of graded student-submission scores across the given assignments (0 when none),
-     * as a 0-100 percentage. Every grade is on a 0-100 scale (AI essay/speaking graders + manual
-     * grading); each score is clamped to [0,100] before averaging so an out-of-range legacy/manual
-     * value can't blow the metric past 100 (this was the "234.4 on a 10-point scale" bug).
+     * Class-level average score across the given assignments (0 when none), on a 0-100 scale.
+     *
+     * <p>Two rules keep this honest and consistent with the gradebook:
+     * <ul>
+     *   <li><b>Confirmed grades only.</b> Only {@link AssignmentStatus#isFinal} grades count. An
+     *       AI_GRADED row carries a score but is an unconfirmed proposal — counting it would let the
+     *       AI silently move the average and would disagree with the gradebook, which already
+     *       excludes it (this was the bug where the same "Điểm TB" differed between the two pages).</li>
+     *   <li><b>One vote per student.</b> Each student's finalized-grade mean is computed first, then
+     *       those per-student means are averaged — so a student who submitted many assignments does
+     *       not outweigh one who submitted few.</li>
+     * </ul>
+     * Every score is clamped to [0,100] first (out-of-range manual entry — the "234.4 on a 10-point
+     * scale" bug).
      */
     private double averageScore(List<ClassAssignment> assignments) {
         if (assignments.isEmpty()) return 0.0;
         List<Long> assignmentIds = assignments.stream().map(ClassAssignment::getId).toList();
-        List<StudentAssignment> submissions = studentAssignmentRepository.findByAssignmentIds(assignmentIds);
-        double avg = submissions.stream()
-                .map(StudentAssignment::getScore)
-                .filter(Objects::nonNull)
-                .mapToInt(TeacherReportService::clampPercent)
-                .average()
-                .orElse(0.0);
-        return round1(avg);
+        return averageOfStudentAverages(studentAssignmentRepository.findByAssignmentIds(assignmentIds));
+    }
+
+    /** Average of each student's finalized-grade mean (see {@link #averageScore}). 0 when none. */
+    private double averageOfStudentAverages(List<StudentAssignment> submissions) {
+        Map<Long, List<Integer>> scoresByStudent = new HashMap<>();
+        for (StudentAssignment sa : submissions) {
+            if (sa.getScore() == null || !AssignmentStatus.isFinal(sa.getStatus())) continue;
+            scoresByStudent
+                    .computeIfAbsent(sa.getStudentId(), k -> new ArrayList<>())
+                    .add(clampPercent(sa.getScore()));
+        }
+        if (scoresByStudent.isEmpty()) return 0.0;
+        double sumOfStudentAverages = scoresByStudent.values().stream()
+                .mapToDouble(scores -> scores.stream().mapToInt(Integer::intValue).average().orElse(0.0))
+                .sum();
+        return round1(sumOfStudentAverages / scoresByStudent.size());
     }
 
     /** Scores are graded on 0-100; clamp defensively (manual entry isn't capped at the source). */
