@@ -1,6 +1,7 @@
 package com.deutschflow.material.controller;
 
 import com.deutschflow.material.dto.MaterialDto;
+import com.deutschflow.material.dto.MaterialPreviewDto;
 import com.deutschflow.material.dto.PresignUploadResponse;
 import com.deutschflow.material.service.MaterialService;
 import com.deutschflow.user.entity.User;
@@ -79,6 +80,16 @@ public class MaterialController {
     @GetMapping("/{id}/url")
     public MaterialUrlResponse url(@AuthenticationPrincipal User user, @PathVariable Long id) {
         return new MaterialUrlResponse(materialService.refreshUrl(user, id));
+    }
+
+    /**
+     * How to render this material in-browser, and the URL to render — "click to read, no download".
+     * Word/PowerPoint/Excel come back as {@code mode=PDF} pointing at a PDF we converted ourselves and
+     * cached; the first call on a given file therefore takes a few seconds, later ones are instant.
+     */
+    @GetMapping("/{id}/preview")
+    public MaterialPreviewDto preview(@AuthenticationPrincipal User user, @PathVariable Long id) {
+        return materialService.preview(user, id);
     }
 
     /** Edit mutable metadata: title / tags / folder (folderId moves into a folder; clearFolder unfiles to root). */

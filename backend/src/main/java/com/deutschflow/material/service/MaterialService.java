@@ -5,6 +5,7 @@ import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.material.dto.MaterialDto;
 import com.deutschflow.material.dto.MaterialFolderDto;
+import com.deutschflow.material.dto.MaterialPreviewDto;
 import com.deutschflow.material.dto.PresignUploadResponse;
 import com.deutschflow.material.entity.AssignmentMaterial;
 import com.deutschflow.material.entity.AssignmentMaterialId;
@@ -90,6 +91,7 @@ public class MaterialService {
     private final MaterialFolderRepository folderRepository;
     private final ClassMaterialRepository classMaterialRepository;
     private final S3StorageService s3StorageService;
+    private final MaterialPreviewService materialPreviewService;
     private final TeacherClassRepository teacherClassRepository;
     private final OrgMemberRepository orgMemberRepository;
     private final LessonMaterialRepository lessonMaterialRepository;
@@ -406,6 +408,24 @@ public class MaterialService {
 
     /** Attachment counts for a material. */
     public record AttachmentCount(long lessons, long classes, long assignments) {}
+
+    /**
+     * What the caller should render in-browser for this material (see {@link MaterialPreviewService}).
+     *
+     * <p>Deliberately NOT {@code @Transactional}: an Office → PDF conversion runs for seconds, and
+     * wrapping it in a transaction would pin a Hikari connection for its whole duration — the exact
+     * shape of the 2026-07-09 pool-exhaustion outage. The reads below each take (and release) their own
+     * connection, so no connection is held while {@code soffice} runs.
+     */
+    public MaterialPreviewDto preview(User caller, Long id) {
+        Material m = materialRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy tài liệu."));
+        assertCanAccess(caller, m);
+        if (!STATUS_ACTIVE.equals(m.getStatus())) {
+            throw new NotFoundException("Không tìm thấy tài liệu.");
+        }
+        return materialPreviewService.preview(m);
+    }
 
     /** Soft-archive (status → ARCHIVED). PERSONAL: owner; ORG: author or OWNER/MANAGER. Reversible. */
     @Transactional

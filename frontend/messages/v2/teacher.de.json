@@ -423,7 +423,17 @@
       "colSize": "Größe",
       "colDate": "Datum",
       "empty": "Noch keine Materialien.",
-      "archive": "Archivieren"
+      "archive": "Archivieren",
+      "previewHint": "Direkt hier lesen — beim ersten Öffnen einer Word-/PowerPoint-Datei kann es einige Sekunden dauern.",
+      "previewLoading": "Vorschau wird vorbereitet…",
+      "previewOf": "Vorschau: {title}",
+      "previewFailed": "Für diese Datei konnte keine Vorschau erstellt werden. Erneut versuchen oder herunterladen.",
+      "previewUnsupported": "Dieses Format lässt sich im Browser nicht anzeigen. Zum Öffnen bitte herunterladen.",
+      "previewLink": "Dieses Material ist ein externer Link und kann hier nicht eingebettet werden.",
+      "openExternal": "Link öffnen",
+      "download": "Herunterladen",
+      "retry": "Erneut versuchen",
+      "close": "Schließen"
     },
     "messages": {
       "title": "Nachrichten",

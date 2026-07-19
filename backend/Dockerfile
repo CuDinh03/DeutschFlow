@@ -25,12 +25,27 @@ RUN test -f /build/target/deutschflow-backend-*.jar
 FROM eclipse-temurin:17-jre-jammy AS runtime
 
 # ffmpeg + DejaVu font: required by the learning-video .mp4 render (Phase B) and its
-# burned-in captions (drawtext). Installed as root before dropping to the app user.
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core \
+# burned-in captions (drawtext).
+#
+# libreoffice-{writer,impress,calc}: headless Office → PDF conversion for the in-browser material
+# preview (MaterialPreviewService). Converting in OUR container is what keeps a center's teaching
+# material off third-party viewers (Office Web Viewer / Google Docs viewer would have to fetch the
+# file to render it). fonts-liberation supplies the metric-compatible Arial/Times/Courier the average
+# Word document asks for — without it, layout reflows and page counts drift.
+#
+# --no-install-recommends is load-bearing: the recommends pull in the whole LibreOffice suite plus a
+# JRE and python-uno (~700MB more) for filters we never invoke.
+#
+# Installed as root before dropping to the app user.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ffmpeg fonts-dejavu-core \
+        libreoffice-writer libreoffice-impress libreoffice-calc fonts-liberation \
     && rm -rf /var/lib/apt/lists/*
 
-# Security: chạy dưới non-root user
-RUN groupadd --system app && useradd --system --gid app app
+# Security: chạy dưới non-root user.
+# --create-home: soffice touches $HOME even when handed an explicit -env:UserInstallation profile;
+# without a writable home it dies with a bare non-zero exit and no diagnostic.
+RUN groupadd --system app && useradd --system --gid app --create-home --home-dir /home/app app
 
 WORKDIR /app
 

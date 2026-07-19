@@ -66,6 +66,23 @@ vi.mock('@/components/ui-v2', () => ({
       {children}
     </button>
   ),
+  // MaterialPreviewModal (rendered by LessonMaterialsPanel) pulls these; stub them so the
+  // partial ui-v2 mock still satisfies every named import it renders.
+  TkModal: ({ open, title, children, footer }: { open?: boolean; title?: React.ReactNode; children?: React.ReactNode; footer?: React.ReactNode }) =>
+    open ? (
+      <div role="dialog">
+        {title}
+        {children}
+        {footer}
+      </div>
+    ) : null,
+  LoadingState: ({ label }: { label?: React.ReactNode }) => <div>{label}</div>,
+  ErrorBanner: ({ message, onRetry }: { message?: React.ReactNode; onRetry?: () => void }) => (
+    <div>
+      {message}
+      {onRetry && <button onClick={onRetry}>retry</button>}
+    </div>
+  ),
 }))
 
 const lesson = (over: Partial<Record<string, unknown>> = {}) => ({

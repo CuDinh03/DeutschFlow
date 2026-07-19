@@ -18,6 +18,7 @@ import {
 import { getOrgRole } from '@/lib/authSession'
 import { GaPageHdr, TkBadge, ErrorBanner, LoadingState, GaBtn } from '@/components/ui-v2'
 import { GaSection } from '../../analyticsShared'
+import { MaterialPreviewModal } from './MaterialPreviewModal'
 
 // Persisted teaching materials (B2B §5). PERSONAL follows the teacher; ORG stays with the center
 // and is visible only while the teacher is an ACTIVE member (enforced server-side).
@@ -41,6 +42,7 @@ export default function V2TeacherMaterialsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<number | null>(null)
+  const [previewing, setPreviewing] = useState<Material | null>(null)
 
   const [title, setTitle] = useState('')
   const [scope, setScope] = useState<MaterialScope>('PERSONAL')
@@ -201,9 +203,15 @@ export default function V2TeacherMaterialsPage() {
                     materials.map((m) => (
                       <tr key={m.id} className="border-b border-ga-border last:border-0 hover:bg-ga-surface">
                         <td className="px-5 py-3">
-                          <a href={m.url} target="_blank" rel="noopener noreferrer" className="text-[14px] font-semibold text-ga-ink hover:underline">
+                          {/* Opens the reader. The raw presigned URL is NOT linked here: for a .docx it
+                              only ever downloads, which is what teachers were hitting. */}
+                          <button
+                            type="button"
+                            onClick={() => setPreviewing(m)}
+                            className="text-left text-[14px] font-semibold text-ga-ink hover:underline"
+                          >
                             {m.title}
-                          </a>
+                          </button>
                           {m.description && <p className="truncate text-[12px] text-ga-muted">{m.description}</p>}
                         </td>
                         <td className="px-5 py-3"><TkBadge tone={KIND_TONE[m.kind] ?? 'blue'}>{m.kind}</TkBadge></td>
@@ -244,6 +252,8 @@ export default function V2TeacherMaterialsPage() {
           </GaSection>
         )}
       </div>
+
+      <MaterialPreviewModal material={previewing} onClose={() => setPreviewing(null)} />
     </div>
   )
 }
