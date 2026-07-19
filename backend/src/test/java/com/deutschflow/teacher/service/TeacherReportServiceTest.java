@@ -341,6 +341,26 @@ class TeacherReportServiceTest {
     }
 
     @Test
+    void skillDistribution_countsAMultiClassStudentOnce() {
+        Long teacherId = 1L;
+        when(classRepository.findByTeacherId(teacherId)).thenReturn(List.of(
+                TeacherClass.builder().id(100L).name("A1").build(),
+                TeacherClass.builder().id(200L).name("A2").build()));
+        // Student 1 is enrolled in BOTH classes (Hören 8.0 in A1, 4.0 in A2); student 2 only in A1 (8.0).
+        // Student 1 collapses to a single mean 6.0 → distribution Hören = (6.0 + 8.0) / 2 = 7.0.
+        // Without dedup it would be (8 + 4 + 8) / 3 = 6.7 and ratedCount 3 — proving the fix.
+        when(classStudentRepository.findByIdClassIdIn(anyList())).thenReturn(List.of(
+                ClassStudent.builder().id(new ClassStudentId(100L, 1L)).skillHoren(BigDecimal.valueOf(8.0)).build(),
+                ClassStudent.builder().id(new ClassStudentId(200L, 1L)).skillHoren(BigDecimal.valueOf(4.0)).build(),
+                ClassStudent.builder().id(new ClassStudentId(100L, 2L)).skillHoren(BigDecimal.valueOf(8.0)).build()));
+
+        SkillDistributionDto dist = service.skillDistribution(teacherId);
+
+        assertEquals(7.0, dist.horen());
+        assertEquals(2L, dist.ratedCount()); // 2 distinct students, not 3 enrollment rows
+    }
+
+    @Test
     void skillDistribution_emptyWhenNoClasses() {
         when(classRepository.findByTeacherId(1L)).thenReturn(List.of());
 

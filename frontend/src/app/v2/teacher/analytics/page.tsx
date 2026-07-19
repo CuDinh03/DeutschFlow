@@ -125,7 +125,10 @@ export default function V2TeacherAnalyticsPage() {
         {loading ? (
           <LoadingState label={t('loading')} />
         ) : (
-          <div className="space-y-[22px]">
+          // print-area (flow variant) so "Xuất PDF" actually prints the analytics content — without
+          // it the global @media print rule hides everything and the PDF comes out blank. The header
+          // + its Export button sit outside this wrapper, so they don't print.
+          <div className="print-area print-flow print-color-exact space-y-[22px]">
             <TkStatStrip
               items={[
                 { label: t('stats.classes'), value: overview?.classCount ?? 0, color: VIOLET },

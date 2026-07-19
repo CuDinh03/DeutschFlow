@@ -29,7 +29,7 @@ export function GradebookMatrix({ students, assignments, t, skillLabel }: Gradeb
       <table className="w-full border-collapse text-left text-[13px]">
         <thead>
           <tr className="bg-ga-side-active">
-            <th className={`sticky left-0 z-20 bg-ga-side-active ${HEADER_CLASSES}`}>
+            <th className={`sticky left-0 z-30 bg-ga-side-active ${HEADER_CLASSES}`}>
               {t('gradebook.studentColumn')}
             </th>
             {assignments.map((assignment) => {
@@ -65,12 +65,15 @@ export function GradebookMatrix({ students, assignments, t, skillLabel }: Gradeb
             const rowBg = rowIndex % 2 === 1 ? 'bg-ga-side-active' : 'bg-ga-card'
             return (
               <tr key={student.studentId} className={rowBg}>
+                {/* z-20 keeps the sticky-left student column above the sticky-right avg column (z-10)
+                    when both pin into the same space on a narrow viewport; max-width + truncate stop a
+                    long name/email from ballooning the column into that overlap. */}
                 <th
                   scope="row"
-                  className={`sticky left-0 z-10 border-b border-ga-line px-4 py-2.5 text-left align-top font-normal ${rowBg}`}
+                  className={`sticky left-0 z-20 max-w-[220px] border-b border-ga-line px-4 py-2.5 text-left align-top font-normal ${rowBg}`}
                 >
-                  <p className="font-semibold text-ga-ink">{student.name}</p>
-                  <p className="text-[12px] text-ga-subtle">{student.email}</p>
+                  <p className="truncate font-semibold text-ga-ink">{student.name}</p>
+                  <p className="truncate text-[12px] text-ga-subtle">{student.email}</p>
                 </th>
                 {assignments.map((assignment) => (
                   <td
