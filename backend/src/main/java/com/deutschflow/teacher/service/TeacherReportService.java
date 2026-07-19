@@ -187,28 +187,48 @@ public class TeacherReportService {
         if (classes.isEmpty()) return new SkillDistributionDto(null, null, null, null, 0);
         List<Long> classIds = classes.stream().map(TeacherClass::getId).toList();
 
-        double[] sums = new double[4];
-        int[] counts = new int[4];
-        long rated = 0;
+        // A student can be enrolled in several of the teacher's classes, each carrying its own skill
+        // row. Collapse to ONE vector per student (mean of their non-null ratings per skill across
+        // enrollments) so a multi-class student counts once — matching the DTO's per-student semantics
+        // and the distinct-student dedup already used by overview().
+        Map<Long, double[]> sumByStudent = new HashMap<>();
+        Map<Long, int[]> countByStudent = new HashMap<>();
         for (ClassStudent cs : classStudentRepository.findByIdClassIdIn(classIds)) {
+            Long studentId = cs.getId().getStudentId();
             BigDecimal[] skills = {
                     cs.getSkillHoren(), cs.getSkillLesen(), cs.getSkillSchreiben(), cs.getSkillSprechen()
             };
-            boolean anyRated = false;
+            double[] sums = sumByStudent.computeIfAbsent(studentId, k -> new double[4]);
+            int[] counts = countByStudent.computeIfAbsent(studentId, k -> new int[4]);
             for (int i = 0; i < skills.length; i++) {
                 if (skills[i] != null) {
                     sums[i] += skills[i].doubleValue();
                     counts[i] += 1;
+                }
+            }
+        }
+
+        double[] skillTotals = new double[4];
+        int[] ratedStudentsPerSkill = new int[4];
+        long rated = 0;
+        for (Long studentId : sumByStudent.keySet()) {
+            double[] sums = sumByStudent.get(studentId);
+            int[] counts = countByStudent.get(studentId);
+            boolean anyRated = false;
+            for (int i = 0; i < 4; i++) {
+                if (counts[i] > 0) {
+                    skillTotals[i] += sums[i] / counts[i]; // this student's mean for skill i
+                    ratedStudentsPerSkill[i] += 1;
                     anyRated = true;
                 }
             }
             if (anyRated) rated += 1;
         }
         return new SkillDistributionDto(
-                skillAverage(sums[0], counts[0]),
-                skillAverage(sums[1], counts[1]),
-                skillAverage(sums[2], counts[2]),
-                skillAverage(sums[3], counts[3]),
+                skillAverage(skillTotals[0], ratedStudentsPerSkill[0]),
+                skillAverage(skillTotals[1], ratedStudentsPerSkill[1]),
+                skillAverage(skillTotals[2], ratedStudentsPerSkill[2]),
+                skillAverage(skillTotals[3], ratedStudentsPerSkill[3]),
                 rated);
     }
 

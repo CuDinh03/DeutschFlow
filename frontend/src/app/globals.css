@@ -834,6 +834,18 @@
     z-index: auto !important;
   }
 
+  /*
+   * A statically-flowed `.print-flow` sheet lives INSIDE the app shell, so it inherits the shell's
+   * layout: the sidebar's 248px box would offset it to the right, and the shell's overflow-hidden /
+   * h-screen wrappers (+ the scrollable <main>) would clip every page past the first. Neutralise the
+   * shell during print. Safe for the fixed-overlay report tabs too — a `position: fixed; inset: 0`
+   * overlay ignores ancestor overflow/height, and only `.print-area` content is ever painted (the
+   * visibility isolation above). Without this, the gradebook PDF prints shifted + truncated.
+   */
+  html, body { height: auto !important; overflow: visible !important; }
+  body * { overflow: visible !important; }
+  aside { display: none !important; }
+
   /* Keep badge colors */
   .print-color-exact { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 
