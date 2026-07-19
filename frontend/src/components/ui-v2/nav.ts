@@ -44,6 +44,12 @@ export interface NavSection {
 /** Toàn bộ nav của một role. */
 export interface RoleNav {
   role: RoleId
+  /**
+   * Khoá i18n của nhãn role trên pill sidebar (messages: v2.nav.roles.<roleLabelKey>).
+   * Bỏ trống = dùng chính `role`. Cần thiết cho biến thể MANAGER: vẫn chạy trong shell 'org'
+   * (accent teal, cùng route) nhưng pill phải đọc là "Quản lý", không phải "Tổ chức".
+   */
+  roleLabelKey?: string
   /** Route gốc của role — đích redirect mặc định sau đăng nhập. */
   rootHref: string
   sections: NavSection[]
@@ -176,13 +182,34 @@ export const adminNav: RoleNav = {
 }
 
 /**
- * orgNav — quản lý trung tâm (org OWNER & MANAGER).
+ * ORG_ITEM — các thanh menu của khu vực /v2/org, khai báo MỘT lần.
+ *
+ * OWNER (`orgNav`) và MANAGER (`managerNav`) đều là org console nhưng bày biện khác nhau, nên item
+ * dùng chung được đặt tên ở đây để hai nav soạn lại từ cùng nguồn — sửa href/icon một chỗ, cả hai
+ * nav cùng đổi. `id` khớp khoá i18n (v2.nav.items.<id>) nên MANAGER tự có nhãn đã dịch.
+ */
+const ORG_ITEM = {
+  overview: { id: 'org', label: 'Tổng quan', href: '/v2/org', icon: 'dashboard' },
+  students: { id: 'org-students', label: 'Học viên', href: '/v2/org/students', icon: 'school' },
+  classes: { id: 'org-classes', label: 'Lớp học', href: '/v2/org/classes', icon: 'groups' },
+  schedule: { id: 'org-schedule', label: 'Lịch trung tâm', href: '/v2/org/schedule', icon: 'schedule' },
+  teachers: { id: 'org-teachers', label: 'Giáo viên', href: '/v2/org/teachers', icon: 'badge' },
+  analytics: { id: 'org-analytics', label: 'Phân tích', href: '/v2/org/analytics', icon: 'monitoring' },
+  finance: { id: 'org-finance', label: 'Tài chính', href: '/v2/org/finance', icon: 'account_balance', ownerOnly: true },
+  billing: { id: 'org-billing', label: 'Gói & Giấy phép', href: '/v2/org/billing', icon: 'receipt', ownerOnly: true },
+  invitations: { id: 'org-invitations', label: 'Lời mời', href: '/v2/org/invitations', icon: 'mail' },
+  roles: { id: 'org-roles', label: 'Phân quyền', href: '/v2/org/roles', icon: 'admin_panel_settings' },
+  profile: { id: 'org-profile', label: 'Hồ sơ', href: '/v2/profile', icon: 'person' },
+} satisfies Record<string, NavItem>
+
+/**
+ * orgNav — giám đốc trung tâm (org OWNER).
  *
  * Một nhóm chính (tổng quan, học viên, lớp, lịch trung tâm, giáo viên, phân tích, tài chính,
  * gói & giấy phép, lời mời, phân quyền) + nhóm "Tài khoản".
  *
- * Phân quyền: item gắn `ownerOnly: true` (tài chính, gói & giấy phép) CHỈ OWNER thấy;
- * MANAGER (nhân sự) bị ẩn. Việc lọc do component sidebar thực hiện dựa trên role org.
+ * Phân quyền: item gắn `ownerOnly: true` (tài chính, gói & giấy phép) CHỈ OWNER thấy. Sidebar vẫn
+ * lọc `ownerOnly` như một lớp phòng thủ thứ hai, kể cả khi MANAGER đã được chuyển sang `managerNav`.
  */
 export const orgNav: RoleNav = {
   role: 'org',
@@ -190,24 +217,61 @@ export const orgNav: RoleNav = {
   sections: [
     {
       items: [
-        { id: 'org', label: 'Tổng quan', href: '/v2/org', icon: 'dashboard' },
-        { id: 'org-students', label: 'Học viên', href: '/v2/org/students', icon: 'school' },
-        { id: 'org-classes', label: 'Lớp học', href: '/v2/org/classes', icon: 'groups' },
-        { id: 'org-schedule', label: 'Lịch trung tâm', href: '/v2/org/schedule', icon: 'schedule' },
-        { id: 'org-teachers', label: 'Giáo viên', href: '/v2/org/teachers', icon: 'badge' },
-        { id: 'org-analytics', label: 'Phân tích', href: '/v2/org/analytics', icon: 'monitoring' },
-        { id: 'org-finance', label: 'Tài chính', href: '/v2/org/finance', icon: 'account_balance', ownerOnly: true },
-        { id: 'org-billing', label: 'Gói & Giấy phép', href: '/v2/org/billing', icon: 'receipt', ownerOnly: true },
-        { id: 'org-invitations', label: 'Lời mời', href: '/v2/org/invitations', icon: 'mail' },
-        { id: 'org-roles', label: 'Phân quyền', href: '/v2/org/roles', icon: 'admin_panel_settings' },
+        ORG_ITEM.overview,
+        ORG_ITEM.students,
+        ORG_ITEM.classes,
+        ORG_ITEM.schedule,
+        ORG_ITEM.teachers,
+        ORG_ITEM.analytics,
+        ORG_ITEM.finance,
+        ORG_ITEM.billing,
+        ORG_ITEM.invitations,
+        ORG_ITEM.roles,
       ],
     },
     {
       label: 'Tài khoản',
       labelKey: 'account',
-      items: [
-        { id: 'org-profile', label: 'Hồ sơ', href: '/v2/profile', icon: 'person' },
-      ],
+      items: [ORG_ITEM.profile],
+    },
+  ],
+}
+
+/**
+ * managerNav — quản lý trung tâm (org MANAGER, "nhân sự").
+ *
+ * Cùng shell 'org' (accent teal, cùng cây route /v2/org) nhưng bày theo ĐÚNG việc của quản lý:
+ * vận hành hằng ngày trước (lịch buổi học, lớp, học viên), rồi nhân sự (giáo viên, lời mời, phân
+ * quyền), rồi thống kê. KHÔNG có Tài chính / Gói & Giấy phép — đó là đặc quyền OWNER (giám đốc),
+ * backend chốt bằng OrgGuard.assertOrgFinance.
+ *
+ * Sidebar chọn nav này khi orgRole ≠ OWNER (xem GaSidebar); trang chủ /v2/org cũng đổi sang
+ * ManagerDashboard tương ứng.
+ */
+export const managerNav: RoleNav = {
+  role: 'org',
+  roleLabelKey: 'manager',
+  rootHref: '/v2/org',
+  sections: [
+    {
+      label: 'Vận hành',
+      labelKey: 'ops',
+      items: [ORG_ITEM.overview, ORG_ITEM.schedule, ORG_ITEM.classes, ORG_ITEM.students],
+    },
+    {
+      label: 'Nhân sự',
+      labelKey: 'staff',
+      items: [ORG_ITEM.teachers, ORG_ITEM.invitations, ORG_ITEM.roles],
+    },
+    {
+      label: 'Thống kê',
+      labelKey: 'stats',
+      items: [ORG_ITEM.analytics],
+    },
+    {
+      label: 'Tài khoản',
+      labelKey: 'account',
+      items: [ORG_ITEM.profile],
     },
   ],
 }
@@ -309,7 +373,12 @@ export const studentNav: RoleNav = {
   ],
 }
 
-/** Tra cứu nav theo role — entry point component sidebar dùng để render đúng menu. */
+/**
+ * Tra cứu nav theo role — entry point component sidebar dùng để render đúng menu.
+ *
+ * `org` trỏ tới nav của OWNER; MANAGER là biến thể trong CÙNG shell 'org' nên không có RoleId
+ * riêng — GaSidebar đọc orgRole từ cookie/JWT rồi đổi sang `managerNav`.
+ */
 export const ROLE_NAV: Record<RoleId, RoleNav> = {
   teacher: teacherNav,
   admin: adminNav,

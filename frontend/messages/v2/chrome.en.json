@@ -90,13 +90,16 @@
       "learning": "Learning",
       "examPrep": "Exam Prep",
       "classes": "Classes",
-      "personal": "Personal"
+      "personal": "Personal",
+      "ops": "Operations",
+      "staff": "Staff"
     },
     "roles": {
       "teacher": "Teacher",
       "admin": "Admin",
       "org": "Organization",
-      "student": "Student"
+      "student": "Student",
+      "manager": "Manager"
     }
   },
   "shell": {

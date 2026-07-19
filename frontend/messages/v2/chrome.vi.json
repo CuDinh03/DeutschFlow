@@ -90,13 +90,16 @@
       "learning": "Học tập",
       "examPrep": "Luyện thi",
       "classes": "Lớp học",
-      "personal": "Cá nhân"
+      "personal": "Cá nhân",
+      "ops": "Vận hành",
+      "staff": "Nhân sự"
     },
     "roles": {
       "teacher": "Giáo viên",
       "admin": "Admin",
       "org": "Tổ chức",
-      "student": "Học viên"
+      "student": "Học viên",
+      "manager": "Quản lý"
     }
   },
   "shell": {
