@@ -855,6 +855,10 @@ public class UserNotificationService {
         // deep-link to the right screen (mobile resolveNotificationRoute), same as an in-app tap.
         Map<String, Object> data = new LinkedHashMap<>(p);
         data.put("type", n.getType().name());
+        // Carry the notification id too so tapping the OS push can mark THIS in-app notification read
+        // (mobile POST /notifications/{id}/read). Without it the badge stays elevated until the user
+        // opens the inbox and taps the row. Backward-safe: older clients ignore the extra field.
+        data.put("notificationId", n.getId());
         expoPushSenderService.sendAsync(token, rendered.title(), rendered.body(), data);
     }
 

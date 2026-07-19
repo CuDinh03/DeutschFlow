@@ -128,6 +128,23 @@ export function usePushNotifications() {
       invalidateNotificationQueries()
       invalidateMessagingQueries()
       const data = response?.notification?.request?.content?.data as Record<string, unknown> | undefined
+
+      // Tapping a push means the user has seen this notification → mark THIS in-app notification read so
+      // the bell badge drops without having to open the inbox and tap the row. The backend carries the
+      // notification id in `data.notificationId` (pushForNotification). Fire-and-forget + best-effort: a
+      // failure must never block the deep-link below. Older pushes lack the id → skipped (badge unchanged).
+      const rawId = data?.notificationId
+      const notificationId =
+        typeof rawId === 'number' ? rawId
+        : typeof rawId === 'string' && /^\d+$/.test(rawId) ? Number(rawId)
+        : null
+      if (notificationId != null) {
+        api
+          .post(`/notifications/${notificationId}/read`)
+          .then(() => invalidateNotificationQueries())
+          .catch((error) => logPush('failed to mark pushed notification read', error))
+      }
+
       const type = typeof data?.type === 'string' ? data.type : ''
       const route = type ? resolveNotificationRoute(type, data ?? null) : null
       router.push(route ?? '/(student)/notifications')

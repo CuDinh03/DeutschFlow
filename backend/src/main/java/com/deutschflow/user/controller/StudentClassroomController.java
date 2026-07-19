@@ -17,6 +17,9 @@ import com.deutschflow.teacher.service.StudentCompetencyService;
 import com.deutschflow.teacher.service.StudentEvaluationService;
 import com.deutschflow.material.dto.MaterialDto;
 import com.deutschflow.material.service.MaterialService;
+import com.deutschflow.notification.NotificationType;
+import com.deutschflow.notification.service.NotificationAutoAckService;
+import com.deutschflow.common.transaction.RunAfterCommitService;
 import com.deutschflow.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -30,6 +33,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/v2/students/classes")
@@ -43,6 +48,8 @@ public class StudentClassroomController {
     private final StudentEvaluationService studentEvaluationService;
     private final StudentCompetencyService studentCompetencyService;
     private final MaterialService materialService;
+    private final NotificationAutoAckService notificationAutoAckService;
+    private final RunAfterCommitService runAfterCommitService;
 
     @GetMapping
     public ResponseEntity<List<MyClassroomDto>> listMyClasses(@AuthenticationPrincipal User user) {
@@ -53,7 +60,23 @@ public class StudentClassroomController {
     public ResponseEntity<ClassroomDetailDto> getClassDetail(
             @AuthenticationPrincipal User user,
             @PathVariable Long classId) {
-        return ResponseEntity.ok(studentClassroomService.getClassDetail(user.getId(), classId));
+        ClassroomDetailDto detail = studentClassroomService.getClassDetail(user.getId(), classId);
+
+        // Mở chi tiết MỘT lớp cụ thể = học viên đã thấy các thông báo ĐIỀU HƯỚNG "được thêm/duyệt vào lớp"
+        // → tự đánh dấu đã đọc theo {classId}. CHỈ 2 loại này: nội dung của chúng ("bạn đã vào lớp X") được
+        // truyền tải trọn vẹn khi mở lớp. KHÔNG đọc CLASS_SESSION_* ở đây — nội dung ("buổi thứ 3 đã huỷ")
+        // chỉ nằm trong thông báo và màn chi tiết lớp không hiển thị lịch; chúng được đọc ở listSessions
+        // (màn lịch học). Cũng KHÔNG đọc TEACHER_ANNOUNCEMENT (nội dung nằm trong chính thông báo).
+        final Long ackStudentId = user.getId();
+        final Long ackClassId = classId;
+        runAfterCommitService.run(() -> notificationAutoAckService.ackByContext(
+                ackStudentId,
+                Set.of(
+                        NotificationType.JOIN_REQUEST_APPROVED,
+                        NotificationType.ADDED_TO_CLASS),
+                Map.<String, Object>of("classId", ackClassId)));
+
+        return ResponseEntity.ok(detail);
     }
 
     @GetMapping("/{classId}/assignments")
@@ -99,7 +122,22 @@ public class StudentClassroomController {
     public ResponseEntity<List<StudentSessionDto>> listSessions(
             @AuthenticationPrincipal User user,
             @PathVariable Long classId) {
-        return ResponseEntity.ok(studentClassroomService.listSessions(user.getId(), classId));
+        List<StudentSessionDto> sessions = studentClassroomService.listSessions(user.getId(), classId);
+
+        // Đây MỚI là màn hiển thị lịch (mobile deep-link CLASS_SESSION_* về /class-schedule/[classId]). Mở
+        // màn này = học viên đã thấy trạng thái lịch hiện tại → tự đánh dấu đã đọc thông báo đổi/huỷ/thêm
+        // buổi của lớp theo {classId}. Sau commit, best-effort.
+        final Long ackStudentId = user.getId();
+        final Long ackClassId = classId;
+        runAfterCommitService.run(() -> notificationAutoAckService.ackByContext(
+                ackStudentId,
+                Set.of(
+                        NotificationType.CLASS_SESSION_SCHEDULED,
+                        NotificationType.CLASS_SESSION_CANCELLED,
+                        NotificationType.CLASS_SESSION_RESCHEDULED),
+                Map.<String, Object>of("classId", ackClassId)));
+
+        return ResponseEntity.ok(sessions);
     }
 
     /** The student's OWN competency (Selbstevaluation) statuses for this class's can-dos (Phase 2a). */
