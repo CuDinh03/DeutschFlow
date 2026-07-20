@@ -109,41 +109,94 @@ const INDUSTRIES = [
   },
 ]
 
-const SECTION = 'mx-auto max-w-[1240px] px-[60px] py-[78px]'
-const H2 = 'font-ga-display text-[44px] font-medium tracking-[-0.015em] text-ga-ink'
+const SECTION = 'mx-auto max-w-[1240px] px-5 py-14 sm:px-8 md:py-[78px] lg:px-[60px]'
+const H2 = 'font-ga-display text-[32px] font-medium tracking-[-0.015em] text-ga-ink sm:text-[38px] lg:text-[44px]'
 
 export function GaLanding() {
   const [ind, setInd] = React.useState(INDUSTRIES[0])
+  const [menuOpen, setMenuOpen] = React.useState(false)
 
   return (
-    <div className="min-h-screen scroll-smooth bg-ga-bg font-ga-ui text-ga-ink">
+    <div className="min-h-screen overflow-x-clip scroll-smooth bg-ga-bg font-ga-ui text-ga-ink">
       {/* Nav */}
-      <nav className="sticky top-0 z-50 flex h-[78px] items-center justify-between border-b border-ga-border bg-ga-bg/90 px-[60px] backdrop-blur-md">
-        <GaLogo />
-        <div className="hidden gap-9 md:flex">
-          {NAV_LINKS.map(([l, id]) => (
-            <a key={id} href={`#${id}`} className="text-[14.5px] font-medium text-ga-muted transition-colors hover:text-ga-ink">
-              {l}
-            </a>
-          ))}
+      <nav className="sticky top-0 z-50 border-b border-ga-border bg-ga-bg/90 backdrop-blur-md">
+        <div className="flex h-16 items-center justify-between gap-2 px-5 sm:px-8 md:h-[78px] xl:px-[60px]">
+          <GaLogo size={26} className="shrink-0 md:hidden" />
+          <GaLogo className="hidden shrink-0 md:inline-flex" />
+          <div className="hidden gap-7 lg:flex xl:gap-9">
+            {NAV_LINKS.map(([l, id]) => (
+              <a key={id} href={`#${id}`} className="whitespace-nowrap text-[14.5px] font-medium text-ga-muted transition-colors hover:text-ga-ink">
+                {l}
+              </a>
+            ))}
+          </div>
+          <div className="flex items-center gap-2 sm:gap-4 md:gap-5">
+            <Link href="/v2/login" className="hidden text-[14.5px] font-semibold text-ga-ink hover:opacity-80 sm:block">
+              Đăng nhập
+            </Link>
+            <GaBtn asChild variant="ink" size="lg" className="h-9 px-3.5 text-[13px] sm:h-11 sm:px-6 sm:text-[14.5px]">
+              <Link href="/v2/register">
+                <YellowSq />
+                <span className="sm:hidden">Học thử</span>
+                <span className="hidden sm:inline">Học thử miễn phí</span>
+              </Link>
+            </GaBtn>
+            <button
+              type="button"
+              onClick={() => setMenuOpen((o) => !o)}
+              aria-expanded={menuOpen}
+              aria-controls="ga-mobile-menu"
+              aria-label={menuOpen ? 'Đóng menu' : 'Mở menu'}
+              className="flex h-9 w-9 shrink-0 items-center justify-center border border-ga-border text-ga-ink lg:hidden"
+            >
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
+                {menuOpen ? (
+                  <path d="M3 3l12 12M15 3L3 15" stroke="currentColor" strokeWidth="1.8" />
+                ) : (
+                  <path d="M2 4.5h14M2 9h14M2 13.5h14" stroke="currentColor" strokeWidth="1.8" />
+                )}
+              </svg>
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-5">
-          <Link href="/v2/login" className="text-[14.5px] font-semibold text-ga-ink hover:opacity-80">
-            Đăng nhập
-          </Link>
-          <GaBtn asChild variant="ink" size="lg">
-            <Link href="/v2/register"><YellowSq />Học thử miễn phí</Link>
-          </GaBtn>
-        </div>
+        {/* Overlay (absolute) so opening/closing never shifts the page — anchor jumps stay accurate. */}
+        {menuOpen && (
+          <div id="ga-mobile-menu" className="absolute inset-x-0 top-full border-y border-ga-border bg-ga-bg shadow-[0_16px_40px_rgba(22,21,19,0.1)] lg:hidden">
+            <div className="flex flex-col px-5 pb-5 sm:px-8">
+              {NAV_LINKS.map(([l, id]) => (
+                <a
+                  key={id}
+                  href={`#${id}`}
+                  onClick={() => setMenuOpen(false)}
+                  className="border-b border-ga-border py-3.5 text-[15px] font-medium text-ga-ink"
+                >
+                  {l}
+                </a>
+              ))}
+              <Link
+                href="/v2/login"
+                onClick={() => setMenuOpen(false)}
+                className="border-b border-ga-border py-3.5 text-[15px] font-semibold text-ga-ink sm:hidden"
+              >
+                Đăng nhập
+              </Link>
+              <GaBtn asChild variant="ink" size="lg" className="mt-5 w-full">
+                <Link href="/v2/register" onClick={() => setMenuOpen(false)}>
+                  <YellowSq />Học thử miễn phí
+                </Link>
+              </GaBtn>
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* Hero */}
-      <section className="mx-auto grid max-w-[1240px] items-center gap-20 px-[60px] pb-[72px] pt-[90px] lg:grid-cols-[1.15fr_1fr]">
+      <section className="mx-auto grid max-w-[1240px] items-center gap-12 px-5 pb-14 pt-10 sm:px-8 sm:pt-14 lg:grid-cols-[1.15fr_1fr] lg:gap-20 lg:px-[60px] lg:pb-[72px] lg:pt-[90px]">
         <div>
           <div className="mb-[26px] inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-ga-muted">
             <YellowSq />AI Interview Coach · Dành cho người Việt đi Đức
           </div>
-          <h1 className="font-ga-display text-[68px] font-medium leading-[1.06] tracking-[-0.02em]">
+          <h1 className="font-ga-display text-[40px] font-medium leading-[1.1] tracking-[-0.02em] sm:text-[54px] lg:text-[68px] lg:leading-[1.06]">
             Vượt qua phỏng vấn tiếng Đức{' '}
             <em className="italic [background:linear-gradient(transparent_58%,var(--ga-yellow)_58%,var(--ga-yellow)_90%,transparent_90%)]">
               ngay lần đầu.
@@ -152,15 +205,15 @@ export function GaLanding() {
           <p className="mt-[26px] max-w-[520px] text-[18px] leading-[1.7] text-ga-muted">
             AI đóng vai HR người Đức — phỏng vấn đúng ngành của bạn, sửa phát âm và chấm điểm từng câu trả lời theo kỳ vọng của nhà tuyển dụng Đức.
           </p>
-          <div className="mt-9 flex gap-3.5">
-            <GaBtn asChild variant="ink" size="lg">
+          <div className="mt-8 flex flex-col gap-3 sm:mt-9 sm:flex-row sm:gap-3.5">
+            <GaBtn asChild variant="ink" size="lg" className="w-full sm:w-auto">
               <Link href="/v2/register"><YellowSq />Bắt đầu miễn phí</Link>
             </GaBtn>
-            <GaBtn asChild variant="ghost" size="lg">
+            <GaBtn asChild variant="ghost" size="lg" className="w-full sm:w-auto">
               <Link href="/v2/login">Xem demo 90 giây</Link>
             </GaBtn>
           </div>
-          <div className="mt-[38px] flex flex-wrap gap-6">
+          <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 sm:mt-[38px]">
             {['2.400+ học viên', '12 ngành nghề', 'Không cần thẻ tín dụng'].map((t) => (
               <span key={t} className="flex items-center gap-1.5 text-[13px] text-ga-muted">
                 <span className="inline-block h-[5px] w-[5px] bg-ga-yellow" />{t}
@@ -169,7 +222,7 @@ export function GaLanding() {
           </div>
         </div>
         {/* Interview preview card */}
-        <div className="border border-ga-border bg-ga-card p-[28px_30px] shadow-[0_8px_48px_rgba(22,21,19,0.07)]">
+        <div className="border border-ga-border bg-ga-card p-5 shadow-[0_8px_48px_rgba(22,21,19,0.07)] sm:p-[28px_30px]">
           <GaCap className="mb-[18px]">Phiên phỏng vấn đang diễn ra</GaCap>
           <div className="mb-[18px] flex items-center gap-3 border-b border-ga-border pb-[18px]">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center bg-ga-ink text-[16px] font-bold text-ga-yellow">S</div>
@@ -201,11 +254,11 @@ export function GaLanding() {
       </section>
 
       {/* Stats bar */}
-      <div className="grid grid-cols-3 border-y border-ga-border">
+      <div className="grid border-y border-ga-border sm:grid-cols-3">
         {[['2.400+', 'học viên đang luyện mỗi tuần'], ['92%', 'đậu phỏng vấn trong 2 lần đầu'], ['4.9/5', 'đánh giá từ học viên tại Đức']].map(([n, l], i) => (
-          <div key={l} className={`py-8 text-center ${i ? 'border-l border-ga-border' : ''}`}>
-            <div className="font-ga-display text-[42px] font-medium">{n}</div>
-            <div className="mt-[9px] text-[14px] text-ga-muted">{l}</div>
+          <div key={l} className={`py-6 text-center sm:py-8 ${i ? 'border-t border-ga-border sm:border-l sm:border-t-0' : ''}`}>
+            <div className="font-ga-display text-[34px] font-medium sm:text-[42px]">{n}</div>
+            <div className="mt-1.5 text-[14px] text-ga-muted sm:mt-[9px]">{l}</div>
           </div>
         ))}
       </div>
@@ -216,8 +269,8 @@ export function GaLanding() {
         <h2 className={`${H2} mb-12 max-w-[700px]`}>Tại sao phỏng vấn tiếng Đức khó hơn bạn nghĩ?</h2>
         <div className="grid border border-ga-border sm:grid-cols-2">
           {PAINS.map((p, i) => (
-            <div key={i} className={`p-[36px_40px] ${i >= 2 ? 'border-t border-ga-border' : ''} ${i % 2 ? 'sm:border-l sm:border-l-ga-border' : ''}`}>
-              <div className="mb-3.5 font-ga-display text-[22px] font-medium italic leading-[1.35]">„{p.title}“</div>
+            <div key={i} className={`p-6 sm:p-[36px_40px] ${i ? 'border-t border-ga-border' : ''} ${i === 1 ? 'sm:border-t-0' : ''} ${i % 2 ? 'sm:border-l sm:border-l-ga-border' : ''}`}>
+              <div className="mb-3.5 font-ga-display text-[20px] font-medium italic leading-[1.35] sm:text-[22px]">„{p.title}“</div>
               <p className="text-[15px] leading-[1.72] text-ga-muted">{p.body}</p>
             </div>
           ))}
@@ -231,7 +284,7 @@ export function GaLanding() {
           <h2 className={`${H2} mb-12`}>Ba bước đến phỏng vấn thành công</h2>
           <div className="grid border border-ga-border md:grid-cols-3">
             {HOW.map((h, i) => (
-              <div key={i} className={`p-[36px_40px] ${i ? 'md:border-l md:border-l-ga-border' : ''}`}>
+              <div key={i} className={`p-6 sm:p-[36px_40px] ${i ? 'border-t border-ga-border md:border-l md:border-l-ga-border md:border-t-0' : ''}`}>
                 <div className="mb-5 font-ga-display text-[56px] font-normal leading-none text-[#D8D3C8]">{h.n}</div>
                 <div className="mb-3 text-[18px] font-bold">{h.title}</div>
                 <p className="text-[15px] leading-[1.72] text-ga-muted">{h.body}</p>
@@ -248,7 +301,7 @@ export function GaLanding() {
         <p className="mb-11 max-w-[560px] text-[17px] leading-[1.6] text-ga-muted">Một nền tảng khép kín — từ luyện nói, học từ, đến luyện thi và theo dõi tiến độ, tất cả cá nhân hóa theo ngành của bạn.</p>
         <div className="grid border border-ga-border md:grid-cols-3">
           {FEATURES.map((f, i) => (
-            <div key={f.name} className={`bg-ga-card p-[30px_32px] transition-shadow hover:shadow-[var(--ga-shadow-card-hover)] ${i % 3 ? 'md:border-l md:border-l-ga-border' : ''} ${i >= 3 ? 'md:border-t md:border-t-ga-border' : ''}`}>
+            <div key={f.name} className={`bg-ga-card p-6 transition-shadow hover:shadow-[var(--ga-shadow-card-hover)] sm:p-[30px_32px] ${i ? 'border-t border-ga-border' : ''} ${i === 1 || i === 2 ? 'md:border-t-0' : ''} ${i % 3 ? 'md:border-l md:border-l-ga-border' : ''}`}>
               <div className="mb-4 flex items-center gap-3">
                 <span className="h-[11px] w-[11px] shrink-0" style={{ background: f.accent }} />
                 <span className="text-[18px] font-bold">{f.name}</span>
@@ -270,7 +323,7 @@ export function GaLanding() {
           </p>
           <div className="grid grid-cols-2 border border-ga-border md:grid-cols-5">
             {PATH_LEVELS.map((lv, i) => (
-              <div key={lv.id} className={`relative p-[28px_26px] ${i ? 'md:border-l md:border-l-ga-border' : ''} ${lv.current ? 'bg-ga-ink text-ga-bg' : ''}`}>
+              <div key={lv.id} className={`relative border-ga-border p-5 sm:p-[28px_26px] ${i ? (i % 2 ? 'border-l' : 'md:border-l') : ''} ${i >= 2 ? 'border-t md:border-t-0' : ''} ${i === PATH_LEVELS.length - 1 ? 'col-span-2 md:col-span-1' : ''} ${lv.current ? 'bg-ga-ink text-ga-bg' : ''}`}>
                 {lv.current && <div className="absolute inset-x-0 top-0 h-[3px] bg-ga-yellow" />}
                 <div className="mb-3.5 flex items-baseline gap-2">
                   <span className={`font-ga-display text-[36px] font-medium leading-none ${lv.current ? 'text-ga-yellow' : 'text-[#D8D3C8]'}`}>{lv.id}</span>
@@ -302,7 +355,7 @@ export function GaLanding() {
                 key={x.id}
                 onClick={() => setInd(x)}
                 style={{ borderTopColor: on ? x.color : 'transparent' }}
-                className={`border-t-[3px] p-[18px_20px] text-left transition-colors ${i ? 'md:border-l md:border-l-ga-border' : ''} ${on ? 'bg-ga-ink text-ga-bg' : 'bg-ga-card text-ga-ink'}`}
+                className={`border-t-[3px] p-[14px_16px] text-left transition-colors sm:p-[18px_20px] ${i ? (i % 2 ? 'border-l border-l-ga-border' : 'md:border-l md:border-l-ga-border') : ''} ${on ? 'bg-ga-ink text-ga-bg' : 'bg-ga-card text-ga-ink'}`}
               >
                 <span className="mb-2.5 inline-block h-[9px] w-[9px]" style={{ background: x.color }} />
                 <div className="mb-1 text-[15.5px] font-bold">{x.label}</div>
@@ -312,7 +365,7 @@ export function GaLanding() {
           })}
         </div>
         <div className="grid border border-t-0 border-ga-border md:grid-cols-[1fr_1.1fr]">
-          <div className="border-ga-border bg-ga-bg p-[28px_32px] md:border-r">
+          <div className="border-ga-border bg-ga-bg p-5 sm:p-[28px_32px] md:border-r">
             <div className="mb-3.5 flex items-center gap-2.5">
               <span className="h-[11px] w-[11px] shrink-0" style={{ background: ind.color }} />
               <span className="text-[18px] font-bold">{ind.label}</span>
@@ -325,7 +378,7 @@ export function GaLanding() {
               </div>
             ))}
           </div>
-          <div className="p-[28px_32px]">
+          <div className="border-t border-ga-border p-5 sm:p-[28px_32px] md:border-t-0">
             <GaCap className="mb-3.5">Câu hỏi phỏng vấn mẫu</GaCap>
             <div className="mb-6 flex flex-col gap-2.5">
               {ind.questions.map((q, i) => (
@@ -356,19 +409,19 @@ export function GaLanding() {
         <p className="mb-11 max-w-[600px] text-[17px] leading-[1.6] text-ga-muted">Luyện đủ 4 phần của Goethe-Zertifikat B1/B2 trong điều kiện sát thi thật, kèm phân tích điểm yếu sau mỗi lần làm.</p>
         <div className="grid grid-cols-2 border border-ga-border md:grid-cols-4">
           {EXAM_PARTS.map((p, i) => (
-            <div key={i} className={`bg-ga-card p-[28px_26px] ${i ? 'md:border-l md:border-l-ga-border' : ''}`}>
+            <div key={i} className={`border-ga-border bg-ga-card p-5 sm:p-[28px_26px] ${i ? (i % 2 ? 'border-l' : 'md:border-l') : ''} ${i >= 2 ? 'border-t md:border-t-0' : ''}`}>
               <div className="mb-[3px] font-ga-display text-[24px] font-medium">{p.de}</div>
               <div className="mb-4 text-[12.5px] text-ga-muted">{p.vi} · {p.time}</div>
               <p className="text-[13.5px] leading-[1.65] text-ga-muted">{p.body}</p>
             </div>
           ))}
         </div>
-        <div className="mt-6 flex flex-wrap items-center gap-[18px] bg-ga-ink p-[22px_28px] text-ga-bg">
-          <div className="min-w-0 flex-1">
+        <div className="mt-6 flex flex-wrap items-center gap-[18px] bg-ga-ink p-5 text-ga-bg sm:p-[22px_28px]">
+          <div className="min-w-0 flex-1 basis-[260px]">
             <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-ga-yellow">Thi thử có chấm AI</div>
-            <div className="font-ga-display text-[21px] font-medium leading-[1.35]">Biết ngay mình ở đâu so với chuẩn B1 — trước khi tốn tiền thi thật.</div>
+            <div className="font-ga-display text-[19px] font-medium leading-[1.35] sm:text-[21px]">Biết ngay mình ở đâu so với chuẩn B1 — trước khi tốn tiền thi thật.</div>
           </div>
-          <GaBtn asChild variant="yellow" size="lg">
+          <GaBtn asChild variant="yellow" size="lg" className="w-full sm:w-auto">
             <Link href="/v2/register"><YellowSq dark />Làm thử miễn phí</Link>
           </GaBtn>
         </div>
@@ -381,7 +434,7 @@ export function GaLanding() {
           <h2 className={`${H2} mb-12`}>Họ đã thành công như thế nào</h2>
           <div className="grid border border-ga-border md:grid-cols-3">
             {TESTIMONIALS.map((t, i) => (
-              <div key={i} className={`p-[36px_40px] ${i ? 'md:border-l md:border-l-ga-border' : ''}`}>
+              <div key={i} className={`p-6 sm:p-[36px_40px] ${i ? 'border-t border-ga-border md:border-l md:border-l-ga-border md:border-t-0' : ''}`}>
                 <div className="mb-3.5 font-ga-display text-[40px] leading-none text-[#E7E3DA]">&ldquo;</div>
                 <p className="mb-6 font-ga-display text-[17px] italic leading-[1.65]">{t.q}</p>
                 <div className="text-[14.5px] font-bold">{t.name}</div>
@@ -394,32 +447,32 @@ export function GaLanding() {
 
       {/* Teachers */}
       <section id="teachers" className="scroll-mt-[78px] border-y border-ga-border bg-ga-card">
-        <div className="mx-auto grid max-w-[1240px] items-center gap-[60px] px-[60px] py-[78px] md:grid-cols-2">
+        <div className="mx-auto grid max-w-[1240px] items-center gap-10 px-5 py-14 sm:px-8 md:grid-cols-2 md:gap-[60px] md:py-[78px] lg:px-[60px]">
           <div>
             <GaCap className="mb-[18px]">Dành cho giáo viên</GaCap>
-            <h2 className="mb-4 font-ga-display text-[42px] font-medium leading-[1.12] tracking-[-0.015em]">Công cụ cho giáo viên & trung tâm tiếng Đức</h2>
+            <h2 className="mb-4 font-ga-display text-[30px] font-medium leading-[1.15] tracking-[-0.015em] sm:text-[36px] md:text-[42px] md:leading-[1.12]">Công cụ cho giáo viên & trung tâm tiếng Đức</h2>
             <p className="mb-[30px] max-w-[480px] text-[16.5px] leading-[1.65] text-ga-muted">Giảm tải việc chấm bài và soạn tài liệu, để bạn tập trung vào điều quan trọng nhất — dạy học viên nói tự tin.</p>
             <div className="mb-[30px] grid grid-cols-2 border border-ga-border">
               {TEACH_VALUE.map((v, i) => (
-                <div key={v.t} className={`p-[22px_24px] ${i % 2 ? 'border-l border-l-ga-border' : ''} ${i >= 2 ? 'border-t border-t-ga-border' : ''}`}>
-                  <div className="mb-2 flex items-center gap-2.5">
-                    <span className="h-2 w-2 shrink-0 bg-ga-violet" />
+                <div key={v.t} className={`p-4 sm:p-[22px_24px] ${i % 2 ? 'border-l border-l-ga-border' : ''} ${i >= 2 ? 'border-t border-t-ga-border' : ''}`}>
+                  <div className="mb-2 flex items-start gap-2.5">
+                    <span className="mt-[6px] h-2 w-2 shrink-0 bg-ga-violet" />
                     <span className="text-[15px] font-bold">{v.t}</span>
                   </div>
                   <p className="text-[13px] leading-[1.6] text-ga-muted">{v.s}</p>
                 </div>
               ))}
             </div>
-            <div className="flex flex-wrap gap-3">
-              <GaBtn asChild variant="ink" size="lg">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <GaBtn asChild variant="ink" size="lg" className="w-full sm:w-auto">
                 <Link href="/v2/register"><YellowSq />Nhận tư vấn cho trung tâm</Link>
               </GaBtn>
-              <GaBtn asChild variant="ghost" size="lg">
+              <GaBtn asChild variant="ghost" size="lg" className="w-full sm:w-auto">
                 <Link href="/v2/login">Xem demo bảng giáo viên →</Link>
               </GaBtn>
             </div>
           </div>
-          <div className="border border-ga-border bg-ga-bg p-[24px_26px]">
+          <div className="border border-ga-border bg-ga-bg p-5 sm:p-[24px_26px]">
             <div className="mb-4 flex items-center justify-between">
               <GaCap>Bảng giáo viên · Lớp K30</GaCap>
               <span className="border border-ga-violet/30 bg-ga-violet-soft p-[4px_10px] text-[10.5px] font-bold text-ga-violet">2 chờ chấm</span>
@@ -443,7 +496,7 @@ export function GaLanding() {
         <h2 className={`${H2} mb-12`}>Chọn gói phù hợp</h2>
         <div className="grid border border-ga-border md:grid-cols-3">
           {PLANS.map((p, i) => (
-            <div key={i} className={`relative p-[36px] ${i ? 'md:border-l md:border-l-ga-border' : ''} ${p.highlight ? 'bg-ga-ink text-ga-bg' : ''}`}>
+            <div key={i} className={`relative p-7 sm:p-[36px] ${i ? 'border-t border-ga-border md:border-l md:border-l-ga-border md:border-t-0' : ''} ${p.highlight ? 'bg-ga-ink text-ga-bg' : ''}`}>
               {p.highlight && <div className="absolute inset-x-0 top-0 h-[3px] bg-ga-yellow" />}
               <GaCap className={`mb-3.5 ${p.highlight ? 'text-ga-muted' : ''}`}>{p.name}</GaCap>
               <div className="mb-1 font-ga-display text-[40px] font-medium">{p.price}</div>
@@ -455,7 +508,7 @@ export function GaLanding() {
                   </div>
                 ))}
               </div>
-              <GaBtn asChild variant={p.highlight ? 'yellow' : 'ink'} size="md">
+              <GaBtn asChild variant={p.highlight ? 'yellow' : 'ink'} size="md" className="w-full md:w-auto">
                 <Link href="/v2/register">{p.cta}</Link>
               </GaBtn>
             </div>
@@ -465,12 +518,12 @@ export function GaLanding() {
 
       {/* CTA footer */}
       <section className="bg-ga-ink text-ga-bg">
-        <div className="mx-auto grid max-w-[1240px] items-center gap-[60px] px-[60px] py-[72px] md:grid-cols-[1fr_auto]">
+        <div className="mx-auto grid max-w-[1240px] items-center gap-8 px-5 py-14 sm:px-8 md:grid-cols-[1fr_auto] md:gap-[60px] md:py-[72px] lg:px-[60px]">
           <div>
             <GaCap className="mb-[18px] text-[#76716A]">Bắt đầu ngay hôm nay</GaCap>
-            <h2 className="font-ga-display text-[50px] font-medium leading-[1.1]">Sẵn sàng cho phỏng vấn tiếng Đức của bạn?</h2>
+            <h2 className="font-ga-display text-[34px] font-medium leading-[1.15] sm:text-[42px] md:text-[50px] md:leading-[1.1]">Sẵn sàng cho phỏng vấn tiếng Đức của bạn?</h2>
           </div>
-          <GaBtn asChild variant="yellow" size="lg">
+          <GaBtn asChild variant="yellow" size="lg" className="w-full md:w-auto">
             <Link href="/v2/register"><YellowSq dark />Học thử miễn phí</Link>
           </GaBtn>
         </div>
@@ -478,7 +531,7 @@ export function GaLanding() {
 
       {/* Site footer — brand + legal/support links */}
       <footer className="border-t border-ga-border bg-ga-bg">
-        <div className="mx-auto flex max-w-[1240px] flex-col gap-6 px-[60px] py-12 md:flex-row md:items-center md:justify-between">
+        <div className="mx-auto flex max-w-[1240px] flex-col gap-6 px-5 py-10 sm:px-8 md:flex-row md:items-center md:justify-between md:py-12 lg:px-[60px]">
           <GaLogo />
           <nav aria-label="Liên kết pháp lý" className="flex flex-wrap items-center gap-x-7 gap-y-2">
             {FOOTER_LINKS.map(([label, href]) => (

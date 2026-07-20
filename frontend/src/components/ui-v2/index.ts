@@ -3,6 +3,7 @@
 export { GaShell } from './GaShell'
 export { GaSidebar } from './GaSidebar'
 export { GaTopBar } from './GaTopBar'
+export { GaShellNavProvider, useGaShellNav, GaSidebarToggle } from './GaShellNav'
 export { GaPageHdr } from './GaPageHdr'
 export { GaLogo } from './GaLogo'
 export { GaBtn } from './GaBtn'
