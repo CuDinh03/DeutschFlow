@@ -577,8 +577,23 @@ ALTER TABLE teacher_classes ADD COLUMN IF NOT EXISTS pay_unit VARCHAR(8);
 - **Xuất CSV/PDF** bảng công cho kế toán (Đ7.4 còn thiếu).
 - **Cấu hình `pay_unit`** theo lớp: cột đã có (V263) nhưng chưa có UI đặt giá trị.
 - **Test tích hợp** cho V263/V264 trên Postgres thật (unique index, CHECK, FK) — unit test hiện dùng mock.
-- **QA trình duyệt có đăng nhập**: đã xác minh hai trang render 200 với i18n đúng, nhưng **chưa thử
-  luồng thật** (ghi công → nộp → duyệt → khoá) vì cần backend + tài khoản teacher/manager.
+- ✅ **QA luồng thật ĐÃ CHẠY (2026-07-20) — 20/20 đạt.** Backend thật + Postgres thật + JWT thật,
+  chạy từ worktree sạch của nhánh PR. Kịch bản: `scratchpad/qa_flow.sh`.
+
+  Đã chứng minh trên hệ chạy thật, không phải mock:
+  | Kiểm chứng | Kết quả |
+  |---|---|
+  | Buổi đã dạy hiện ở gợi ý, ghi công snapshot đúng 90 phút | ✓ |
+  | Ghi trùng cùng buổi → **409** (chống trả thừa công) | ✓ |
+  | Ghi công buổi chưa dạy → **400** | ✓ |
+  | Nộp kỳ → `SUBMITTED`, snapshot 1 buổi / 90 phút | ✓ |
+  | **Xoá dòng công trong kỳ đã nộp → 409** (chốt làm quy trình duyệt có nghĩa) | ✓ |
+  | **Giáo viên tự duyệt kỳ của mình → 403** | ✓ |
+  | Manager duyệt → `APPROVED` → khoá → `LOCKED` → khoá lại **409** | ✓ |
+  | CSV: BOM UTF-8, tiếng Việt nguyên vẹn, `"LOCKED","SESSION",1,90` | ✓ |
+
+  > Lần chạy đầu 9/20 hỏng — **do seed SQL của tôi thiếu `created_at`**, không phải sản phẩm. Bài học:
+  > script QA phải có chốt kiểm tra seed, im lặng ở bước dựng dữ liệu làm mọi kiểm chứng sau đó vô nghĩa.
 
 ## Nhật ký tiến độ
 
