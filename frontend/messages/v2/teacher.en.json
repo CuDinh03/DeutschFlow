@@ -592,13 +592,7 @@
       "modalDueCap": "Due date",
       "modalLessonCap": "Link to lesson",
       "modalLessonNone": "— Not linked —",
-      "modalAssign": "Give to class",
-      "materialsCap": "Materials from library",
-      "materialsRemove": "Remove material",
-      "materialsLoading": "Loading library…",
-      "materialsNoLibrary": "Your library is empty yet. Upload materials under \"Material library\".",
-      "materialsSearchPlaceholder": "Search materials by title to attach…",
-      "materialsNoMatch": "No matching material found."
+      "modalAssign": "Give to class"
     },
     "studentDetail": {
       "nameFallback": "Student #{id}",

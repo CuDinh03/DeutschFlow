@@ -592,13 +592,7 @@
       "modalDueCap": "Fälligkeitsdatum",
       "modalLessonCap": "Mit Lektion verknüpfen",
       "modalLessonNone": "— Nicht verknüpft —",
-      "modalAssign": "Der Klasse zuweisen",
-      "materialsCap": "Materialien aus der Bibliothek",
-      "materialsRemove": "Material entfernen",
-      "materialsLoading": "Bibliothek wird geladen…",
-      "materialsNoLibrary": "Deine Bibliothek ist noch leer. Lade Materialien unter „Materialbibliothek\" hoch.",
-      "materialsSearchPlaceholder": "Materialien nach Titel suchen zum Anhängen…",
-      "materialsNoMatch": "Kein passendes Material gefunden."
+      "modalAssign": "Der Klasse zuweisen"
     },
     "studentDetail": {
       "nameFallback": "Lernende(r) #{id}",

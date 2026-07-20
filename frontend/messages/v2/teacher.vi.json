@@ -592,13 +592,7 @@
       "modalDueCap": "Hạn nộp",
       "modalLessonCap": "Gắn với bài học",
       "modalLessonNone": "— Không gắn —",
-      "modalAssign": "Giao cho lớp",
-      "materialsCap": "Tài liệu từ thư viện",
-      "materialsRemove": "Bỏ tài liệu",
-      "materialsLoading": "Đang tải thư viện…",
-      "materialsNoLibrary": "Thư viện của bạn chưa có tài liệu nào. Hãy tải lên ở mục \"Thư viện tài liệu\".",
-      "materialsSearchPlaceholder": "Tìm tài liệu theo tên để đính kèm…",
-      "materialsNoMatch": "Không tìm thấy tài liệu phù hợp."
+      "modalAssign": "Giao cho lớp"
     },
     "studentDetail": {
       "nameFallback": "Học viên #{id}",
