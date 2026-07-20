@@ -243,7 +243,8 @@
         "printTopicColumn": "Unterrichtsinhalt (Themen)",
         "printHomeworkColumn": "Hausaufgaben",
         "printTeacherSign": "Unterschrift Lehrkraft: ___________________________",
-        "printHeadSign": "Bestätigung Fachleitung: ___________________________"
+        "printHeadSign": "Bestätigung Fachleitung: ___________________________",
+        "rosterUnavailable": "Die Teilnehmerliste konnte nicht geladen werden, daher ist die Anwesenheit derzeit nicht erfassbar. Thema und Hausaufgabe lassen sich weiterhin speichern — bitte die Seite neu laden."
       },
       "evaluation": {
         "helperText": "Abschlussbewertung für jede:n Lernende:n",
@@ -377,7 +378,7 @@
       "enterTitle": "Bitte gib einen Titel ein.",
       "uploadSuccess": "Material hochgeladen.",
       "archiveConfirm": "\"{title}\" archivieren?",
-      "archiveConfirmAttached": "\"{title}\" archivieren? Es ist mit {lessons} Lektion(en) und {classes} Klasse(n) verknüpft — beim Archivieren wird es dort entfernt (später wiederherstellbar).",
+      "archiveConfirmAttached": "„{title}\" archivieren? Es ist an {lessons} Lektionen, {classes} Klassen und {assignments} Aufgaben angehängt — beim Archivieren wird es dort entfernt (später wiederherstellbar).",
       "unarchive": "Wiederherstellen",
       "unarchiveSuccess": "Wiederhergestellt.",
       "viewActive": "Aktiv",
@@ -591,7 +592,13 @@
       "modalDueCap": "Fälligkeitsdatum",
       "modalLessonCap": "Mit Lektion verknüpfen",
       "modalLessonNone": "— Nicht verknüpft —",
-      "modalAssign": "Der Klasse zuweisen"
+      "modalAssign": "Der Klasse zuweisen",
+      "materialsCap": "Materialien aus der Bibliothek",
+      "materialsRemove": "Material entfernen",
+      "materialsLoading": "Bibliothek wird geladen…",
+      "materialsNoLibrary": "Deine Bibliothek ist noch leer. Lade Materialien unter „Materialbibliothek\" hoch.",
+      "materialsSearchPlaceholder": "Materialien nach Titel suchen zum Anhängen…",
+      "materialsNoMatch": "Kein passendes Material gefunden."
     },
     "studentDetail": {
       "nameFallback": "Lernende(r) #{id}",
@@ -636,6 +643,40 @@
       "weaknessesCap": "Häufige Fehler",
       "nextActionsCap": "Empfohlene Maßnahmen",
       "aiRoadmapCap": "Empfohlener Lernpfad (KI)"
+    },
+    "timesheet": {
+      "title": "Meine Arbeitszeit",
+      "subtitle": "Gehaltene Einheiten erfassen und Zeitraum einreichen",
+      "statSessions": "Einheiten",
+      "statMinutes": "Stunden gesamt",
+      "statStatus": "Status",
+      "suggestionsHeading": "Gehaltene, noch nicht erfasste Einheiten",
+      "suggestionsEmpty": "Nichts mehr zu erfassen.",
+      "confirmSession": "Erfassen",
+      "recordsHeading": "Erfasst",
+      "recordsEmpty": "In diesem Zeitraum noch nichts erfasst.",
+      "colWhen": "Zeitpunkt",
+      "colClass": "Kurs",
+      "colDuration": "Dauer",
+      "colRole": "Rolle",
+      "delete": "Löschen",
+      "deleteConfirm": "Diesen Eintrag löschen?",
+      "submit": "Zeitraum einreichen",
+      "submitConfirm": "Zeitraum zur Prüfung einreichen? Danach sind keine Änderungen mehr möglich.",
+      "submitSuccess": "Zeitraum eingereicht.",
+      "recordSuccess": "Einheit erfasst.",
+      "deleteSuccess": "Eintrag gelöscht.",
+      "lockedNotice": "Dieser Zeitraum ist {status} — Einträge können nicht mehr geändert werden.",
+      "rejectedNotice": "Die Leitung hat den Zeitraum zurückgegeben: {reason}",
+      "rolePRIMARY": "Lehrkraft",
+      "roleASSISTANT": "Assistenz",
+      "roleSUBSTITUTE": "Vertretung",
+      "statusOPEN": "Offen",
+      "statusSUBMITTED": "Zur Prüfung",
+      "statusAPPROVED": "Freigegeben",
+      "statusREJECTED": "Zurückgegeben",
+      "statusLOCKED": "Gesperrt",
+      "noMoneyNote": "Die Zeiterfassung erfasst nur Einheiten und Stunden. Die Abrechnung erfolgt extern."
     }
   }
 }

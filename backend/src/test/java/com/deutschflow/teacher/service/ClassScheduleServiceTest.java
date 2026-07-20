@@ -170,7 +170,7 @@ class ClassScheduleServiceTest {
         overridden.setPatternId(99L);
         ClassSession stale = session(501L, CLASS_ID, nextMon.atTime(18, 0), "P.302", false);
         stale.setPatternId(99L);
-        when(sessionRepo.findByPatternIdAndStartAtGreaterThanEqual(eq(99L), any()))
+        when(sessionRepo.findLiveForPattern(eq(99L), any(), any()))
                 .thenReturn(List.of(overridden, stale));
 
         UpsertPatternResult res = service.upsertPattern(TEACHER_ID, CLASS_ID, req);
@@ -445,7 +445,7 @@ class ClassScheduleServiceTest {
         // Class has one PRIMARY teacher, who teaches only this class → no cross-class conflict query.
         when(classTeacherRepo.findByIdClassId(CLASS_ID)).thenReturn(List.of(classTeacher(CLASS_ID)));
         when(classTeacherRepo.findByIdTeacherId(TEACHER_ID)).thenReturn(List.of(classTeacher(CLASS_ID)));
-        when(sessionRepo.findByPatternIdAndStartAtGreaterThanEqual(eq(99L), any())).thenReturn(List.of());
+        when(sessionRepo.findLiveForPattern(eq(99L), any(), any())).thenReturn(List.of());
 
         int created = service.rollForwardActivePatterns();
 
@@ -468,12 +468,164 @@ class ClassScheduleServiceTest {
                 .thenReturn(List.of(bad));
         when(classTeacherRepo.findByIdClassId(CLASS_ID)).thenReturn(List.of(classTeacher(CLASS_ID)));
         when(classTeacherRepo.findByIdTeacherId(TEACHER_ID)).thenReturn(List.of(classTeacher(CLASS_ID)));
-        when(sessionRepo.findByPatternIdAndStartAtGreaterThanEqual(eq(1L), any()))
+        when(sessionRepo.findLiveForPattern(eq(1L), any(), any()))
                 .thenThrow(new RuntimeException("boom"));
 
         // Does not propagate — the job must survive one bad pattern.
         int created = service.rollForwardActivePatterns();
         assertThat(created).isZero();
+    }
+
+    // ── buổi "ma" sau khi dời sang thứ khác (audit H-3, V262) ─────────────────
+
+    @Test
+    @DisplayName("regenerate does NOT resurrect the original weekday after a session was moved away")
+    void upsertPattern_movedSession_noPhantomOnOriginalDay() {
+        LocalDate nextMon = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+        LocalDate effTo = nextMon.plusWeeks(3);              // Thứ Hai: nextMon, +1w, +2w, +3w
+        LocalDate movedFrom = nextMon.plusWeeks(1);          // ô lịch gốc
+        LocalDate movedTo = movedFrom.plusDays(2);           // đã dời sang Thứ Tư
+
+        UpsertPatternRequest req = new UpsertPatternRequest(
+                (short) 1, LocalTime.of(18, 0), 90, "OFFLINE", "P.302", nextMon, effTo);
+
+        allowOwner();
+        when(patternRepo.findByClassIdAndDayOfWeek(CLASS_ID, (short) 1)).thenReturn(List.of());
+        when(patternRepo.save(any())).thenAnswer(inv -> {
+            ClassSchedulePattern p = inv.getArgument(0);
+            p.setId(99L);
+            return p;
+        });
+        ClassSession moved = session(500L, CLASS_ID, movedTo.atTime(18, 0), "P.302", true);
+        moved.setPatternId(99L);
+        moved.setOriginalDate(movedFrom);                    // V262: vẫn chiếm ô lịch gốc
+        when(sessionRepo.findLiveForPattern(eq(99L), any(), any()))
+                .thenReturn(List.of(moved));
+
+        UpsertPatternResult res = service.upsertPattern(TEACHER_ID, CLASS_ID, req);
+
+        ArgumentCaptor<List<ClassSession>> saveCap = listCaptor();
+        verify(sessionRepo).saveAll(saveCap.capture());
+        List<ClassSession> generated = saveCap.getValue();
+
+        // Ô gốc đã có chủ (buổi đã dời) → không sinh lại buổi ma trên Thứ Hai đó.
+        assertThat(generated).noneMatch(s -> s.getStartAt().toLocalDate().equals(movedFrom));
+        assertThat(generated).hasSize(3);
+        // Buổi sinh mới phải ghi ô lịch gốc để lần dời sau vẫn truy được.
+        assertThat(generated).allSatisfy(s ->
+                assertThat(s.getOriginalDate()).isEqualTo(s.getStartAt().toLocalDate()));
+        assertThat(res.keptOverridden()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("regenerate keeps the original slot even when the session was moved BACK into the past")
+    void upsertPattern_sessionMovedBackwards_stillHoldsItsSlot() {
+        LocalDate nextMon = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+        LocalDate effTo = nextMon.plusWeeks(3);
+        LocalDate movedFrom = nextMon.plusWeeks(2);            // ô gốc, ở tương lai
+        LocalDate movedTo = LocalDate.now().minusDays(1);      // dạy bù SỚM, đã thành quá khứ
+
+        UpsertPatternRequest req = new UpsertPatternRequest(
+                (short) 1, LocalTime.of(18, 0), 90, "OFFLINE", "P.302", nextMon, effTo);
+
+        allowOwner();
+        when(patternRepo.findByClassIdAndDayOfWeek(CLASS_ID, (short) 1)).thenReturn(List.of());
+        when(patternRepo.save(any())).thenAnswer(inv -> {
+            ClassSchedulePattern p = inv.getArgument(0);
+            p.setId(99L);
+            return p;
+        });
+        ClassSession movedBack = session(500L, CLASS_ID, movedTo.atTime(18, 0), "P.302", true);
+        movedBack.setPatternId(99L);
+        movedBack.setOriginalDate(movedFrom);
+        // Buổi này KHÔNG còn ở tương lai — chỉ truy vấn theo cả hai trục mới tìm ra nó.
+        when(sessionRepo.findLiveForPattern(eq(99L), any(), any())).thenReturn(List.of(movedBack));
+
+        service.upsertPattern(TEACHER_ID, CLASS_ID, req);
+
+        ArgumentCaptor<List<ClassSession>> saveCap = listCaptor();
+        verify(sessionRepo).saveAll(saveCap.capture());
+        assertThat(saveCap.getValue())
+                .as("ô lịch gốc của buổi đã dạy bù sớm không được sinh lại")
+                .noneMatch(s -> s.getStartAt().toLocalDate().equals(movedFrom));
+    }
+
+    @Test
+    @DisplayName("updateSession moving twice keeps the FIRST original slot (write-once)")
+    void updateSession_movedTwice_keepsFirstOriginalSlot() {
+        LocalDate mon = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+        ClassSession s = session(5L, CLASS_ID, mon.plusDays(2).atTime(18, 0), "P.302", true);
+        s.setPatternId(99L);
+        s.setOriginalDate(mon);                                // đã dời lần 1: Thứ Hai → Thứ Tư
+        when(sessionRepo.findById(5L)).thenReturn(Optional.of(s));
+        allowOwner();
+        when(sessionRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(classRepo.findById(CLASS_ID)).thenReturn(Optional.of(teacherClass(CLASS_ID, "K30")));
+        when(classStudentRepo.countByIdClassId(CLASS_ID)).thenReturn(13L);
+
+        // Dời lần 2: Thứ Tư → Thứ Sáu.
+        service.updateSession(TEACHER_ID, 5L,
+                new UpdateSessionRequest(mon.plusDays(4).atTime(18, 0), null, null, "P.302", null));
+
+        assertThat(s.getOriginalDate())
+                .as("ô gốc phải giữ nguyên Thứ Hai đầu tiên, không trôi theo mỗi lần dời")
+                .isEqualTo(mon);
+    }
+
+    @Test
+    @DisplayName("updateSession does not stamp an original slot on an ad-hoc session (no pattern)")
+    void updateSession_adHocSession_noOriginalSlot() {
+        LocalDateTime mon = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY)).atTime(18, 0);
+        ClassSession s = session(5L, CLASS_ID, mon, "P.302", true);   // patternId = null
+        when(sessionRepo.findById(5L)).thenReturn(Optional.of(s));
+        allowOwner();
+        when(sessionRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(classRepo.findById(CLASS_ID)).thenReturn(Optional.of(teacherClass(CLASS_ID, "K30")));
+        when(classStudentRepo.countByIdClassId(CLASS_ID)).thenReturn(13L);
+
+        service.updateSession(TEACHER_ID, 5L,
+                new UpdateSessionRequest(mon.plusDays(2), null, null, "P.302", null));
+
+        assertThat(s.getOriginalDate()).isNull();
+    }
+
+    @Test
+    @DisplayName("updateSession changing only the room never stamps an original slot")
+    void updateSession_roomOnlyChange_noOriginalSlot() {
+        LocalDateTime mon = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY)).atTime(18, 0);
+        ClassSession s = session(5L, CLASS_ID, mon, "P.302", false);
+        s.setPatternId(99L);
+        when(sessionRepo.findById(5L)).thenReturn(Optional.of(s));
+        allowOwner();
+        when(sessionRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(classRepo.findById(CLASS_ID)).thenReturn(Optional.of(teacherClass(CLASS_ID, "K30")));
+        when(classStudentRepo.countByIdClassId(CLASS_ID)).thenReturn(13L);
+
+        service.updateSession(TEACHER_ID, 5L,
+                new UpdateSessionRequest(null, null, null, "P.999", null));
+
+        assertThat(s.getOriginalDate()).isNull();
+        assertThat(s.getStartAt()).isEqualTo(mon);
+    }
+
+    @Test
+    @DisplayName("updateSession moving a pattern session to another day records its original slot")
+    void updateSession_movingDate_recordsOriginalSlot() {
+        LocalDateTime mon = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY)).atTime(18, 0);
+        ClassSession s = session(5L, CLASS_ID, mon, "P.302", false);
+        s.setPatternId(99L);
+        when(sessionRepo.findById(5L)).thenReturn(Optional.of(s));
+        allowOwner();
+        when(sessionRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(classRepo.findById(CLASS_ID)).thenReturn(Optional.of(teacherClass(CLASS_ID, "K30")));
+        when(classStudentRepo.countByIdClassId(CLASS_ID)).thenReturn(13L);
+
+        LocalDateTime wed = mon.plusDays(2);
+        service.updateSession(TEACHER_ID, 5L, new UpdateSessionRequest(wed, null, null, "P.302", null));
+
+        assertThat(s.getStartAt()).isEqualTo(wed);
+        assertThat(s.getOriginalDate()).isEqualTo(mon.toLocalDate());
+        assertThat(s.isOverridden()).isTrue();
     }
 
     private void allowOwner() {

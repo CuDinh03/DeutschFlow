@@ -30,7 +30,7 @@ interface StudentEval {
   studentId: number; name: string; email: string; classId: number; className: string
   teacherComment: string | null
   skillHoren: number | null; skillLesen: number | null; skillSchreiben: number | null; skillSprechen: number | null
-  avgScore: number; totalSessions: number; presentCount: number; absentCount: number; lateCount: number
+  avgScore: number; recordedSessions: number; presentCount: number; absentCount: number; lateCount: number
   certificateEligible: boolean; evaluatedAt: string | null
 }
 
@@ -843,9 +843,9 @@ export default function TeacherReportsPage() {
                                       </div>
                                     ))}
                                   </div>
-                                  {ev.totalSessions > 0 && (
+                                  {ev.recordedSessions > 0 && (
                                     <p className="text-xs text-slate-500 mt-1.5">
-                                      Chuyên cần: {ev.presentCount + ev.lateCount}/{ev.totalSessions} buổi
+                                      Chuyên cần: {ev.presentCount + ev.lateCount}/{ev.recordedSessions} buổi
                                       {ev.absentCount > 0 && ` · Vắng ${ev.absentCount}`}
                                     </p>
                                   )}
@@ -1140,9 +1140,9 @@ export default function TeacherReportsPage() {
                   <p className="font-black text-slate-800 text-sm">{ev.name}</p>
                   <p className="text-[10px] text-slate-500 mt-0.5">{ev.email}</p>
                   {ev.avgScore > 0 && <p className="text-[10px] text-slate-600 mt-1">Điểm bài tập TB: <strong>{ev.avgScore.toFixed(1)}</strong></p>}
-                  {ev.totalSessions > 0 && (
+                  {ev.recordedSessions > 0 && (
                     <p className="text-[10px] text-slate-600">
-                      Chuyên cần: <strong>{ev.presentCount + ev.lateCount}/{ev.totalSessions}</strong> buổi
+                      Chuyên cần: <strong>{ev.presentCount + ev.lateCount}/{ev.recordedSessions}</strong> buổi
                       {ev.absentCount > 0 && ` (vắng ${ev.absentCount})`}
                     </p>
                   )}

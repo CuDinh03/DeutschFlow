@@ -12,7 +12,8 @@ export interface StudentEvaluation {
   skillSchreiben: number | null
   skillSprechen: number | null
   avgScore: number | null
-  totalSessions: number
+  /** Buổi CÓ ghi nhận điểm danh cho chính học viên này — mẫu số của tỉ lệ chuyên cần. */
+  recordedSessions: number
   presentCount: number
   absentCount: number
   lateCount: number

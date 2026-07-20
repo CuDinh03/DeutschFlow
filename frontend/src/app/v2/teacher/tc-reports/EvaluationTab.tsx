@@ -79,7 +79,7 @@ function AttendanceLine({ evaluation }: { evaluation: StudentEvaluation }) {
     <>
       {t('evaluation.attendanceSummary', {
         present: evaluation.presentCount + evaluation.lateCount,
-        total: evaluation.totalSessions,
+        total: evaluation.recordedSessions,
       })}
       {evaluation.absentCount > 0 && t('evaluation.absentSuffix', { count: evaluation.absentCount })}
     </>
@@ -233,7 +233,7 @@ export function EvaluationTab(props: EvaluationTabProps) {
                       </div>
                     ))}
                   </div>
-                  {evaluation.totalSessions > 0 && (
+                  {evaluation.recordedSessions > 0 && (
                     <p className="mt-1.5 text-[12px] text-ga-muted">
                       <AttendanceLine evaluation={evaluation} />
                     </p>
@@ -270,7 +270,7 @@ export function EvaluationTab(props: EvaluationTabProps) {
                       {t('evaluation.printAvgScore', { score: evaluation.avgScore.toFixed(1) })}
                     </p>
                   )}
-                  {evaluation.totalSessions > 0 && (
+                  {evaluation.recordedSessions > 0 && (
                     <p className="mt-1 text-[12px] text-ga-muted">
                       <AttendanceLine evaluation={evaluation} />
                     </p>

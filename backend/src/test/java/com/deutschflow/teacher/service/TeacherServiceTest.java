@@ -107,6 +107,9 @@ class TeacherServiceTest {
     @Mock
     private StudentCompetencyService studentCompetencyService;
 
+    @Mock
+    private com.deutschflow.material.service.MaterialService materialService;
+
     private TeacherService teacherService;
 
     @BeforeEach
@@ -129,7 +132,8 @@ class TeacherServiceTest {
                 assignmentScenarioRepository,
                 s3StorageService,
                 lessonRepository,
-                studentCompetencyService
+                studentCompetencyService,
+                materialService
         );
     }
 
@@ -137,7 +141,7 @@ class TeacherServiceTest {
     void createAssignment_Success() {
         Long teacherId = 1L;
         Long classId = 100L;
-        CreateAssignmentRequest req = new CreateAssignmentRequest("Test Topic", "Test Desc", "GENERAL", null, 10L, LocalDateTime.now().plusDays(7), null, null);
+        CreateAssignmentRequest req = new CreateAssignmentRequest("Test Topic", "Test Desc", "GENERAL", null, 10L, LocalDateTime.now().plusDays(7), null, null, null);
 
         when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)).thenReturn(true);
 
@@ -171,7 +175,7 @@ class TeacherServiceTest {
     void createAssignment_lessonFromOtherClass_throwsForbidden() {
         Long teacherId = 1L, classId = 100L, lessonId = 55L;
         CreateAssignmentRequest req = new CreateAssignmentRequest(
-                "T", "D", "GENERAL", null, null, null, null, lessonId);
+                "T", "D", "GENERAL", null, null, null, null, lessonId, null);
 
         when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)).thenReturn(true);
         when(lessonRepository.findById(lessonId)).thenReturn(Optional.of(
@@ -185,7 +189,7 @@ class TeacherServiceTest {
     void createAssignment_withValidLesson_setsLessonId() {
         Long teacherId = 1L, classId = 100L, lessonId = 55L;
         CreateAssignmentRequest req = new CreateAssignmentRequest(
-                "T", "D", "GENERAL", null, null, null, null, lessonId);
+                "T", "D", "GENERAL", null, null, null, null, lessonId, null);
 
         when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)).thenReturn(true);
         when(lessonRepository.findById(lessonId)).thenReturn(Optional.of(
@@ -214,7 +218,7 @@ class TeacherServiceTest {
     void createAssignment_speakingScenario_usesLinkedLessonCefrLevel() {
         Long teacherId = 1L, classId = 100L, lessonId = 55L;
         CreateAssignmentRequest req = new CreateAssignmentRequest(
-                "Im Restaurant", "D", "SPEAKING_SCENARIO", null, null, null, null, lessonId);
+                "Im Restaurant", "D", "SPEAKING_SCENARIO", null, null, null, null, lessonId, null);
 
         when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)).thenReturn(true);
         when(lessonRepository.findById(lessonId)).thenReturn(Optional.of(
@@ -239,7 +243,7 @@ class TeacherServiceTest {
     void createAssignment_speakingScenario_noLesson_fallsBackToA2() {
         Long teacherId = 1L, classId = 100L;
         CreateAssignmentRequest req = new CreateAssignmentRequest(
-                "Smalltalk", "D", "SPEAKING_SCENARIO", null, null, null, null, null);
+                "Smalltalk", "D", "SPEAKING_SCENARIO", null, null, null, null, null, null);
 
         when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)).thenReturn(true);
         when(assignmentRepository.save(any(ClassAssignment.class))).thenAnswer(inv -> {
@@ -427,6 +431,58 @@ class TeacherServiceTest {
         assertThrows(com.deutschflow.common.exception.BadRequestException.class,
                 () -> teacherService.addCoTeacher(1L, 100L, "s@y.de"));
         verify(classTeacherRepository, never()).save(any());
+    }
+
+    // ── org isolation khi thêm học viên (N-1) ─────────────────────────────────
+
+    /**
+     * Roster là biên tin cậy mà điểm danh/đánh giá/chứng chỉ đều dựa vào. Nếu giáo viên thêm được
+     * người ngoài tổ chức vào lớp mình, họ tự tạo ra "thành viên hợp lệ" và mọi guard dựa trên
+     * roster đều bị vô hiệu. Quy tắc mirror đúng addCoTeacher.
+     */
+    @Test
+    void addStudentByEmail_rejectsUserFromAnotherOrg() {
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(100L, 1L)).thenReturn(true);
+        when(userRepository.findByEmailIgnoreCase("outsider@other.de")).thenReturn(java.util.Optional.of(
+                com.deutschflow.user.entity.User.builder().id(9001L).orgId(77L)
+                        .role(com.deutschflow.user.entity.User.Role.STUDENT).build()));
+        when(classRepository.findById(100L)).thenReturn(Optional.of(
+                TeacherClass.builder().id(100L).orgId(42L).build()));   // lớp thuộc org 42
+
+        assertThrows(com.deutschflow.common.exception.BadRequestException.class,
+                () -> teacherService.addStudentToClassByEmail(1L, 100L, "outsider@other.de"));
+        verify(classStudentRepository, never()).save(any());
+    }
+
+    @Test
+    void addStudentByEmail_allowsSameOrg() {
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(100L, 1L)).thenReturn(true);
+        when(userRepository.findByEmailIgnoreCase("hv@org.de")).thenReturn(java.util.Optional.of(
+                com.deutschflow.user.entity.User.builder().id(5L).orgId(42L)
+                        .role(com.deutschflow.user.entity.User.Role.STUDENT).build()));
+        when(classRepository.findById(100L)).thenReturn(Optional.of(
+                TeacherClass.builder().id(100L).orgId(42L).build()));
+        when(classStudentRepository.existsByIdClassIdAndIdStudentId(100L, 5L)).thenReturn(false);
+
+        teacherService.addStudentToClassByEmail(1L, 100L, "hv@org.de");
+
+        verify(classStudentRepository).save(any());
+    }
+
+    @Test
+    void addStudentByEmail_personalClassHasNoOrgRestriction() {
+        // Lớp cá nhân (orgId = null) giữ nguyên hành vi cũ — không áp ràng buộc tổ chức.
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(100L, 1L)).thenReturn(true);
+        when(userRepository.findByEmailIgnoreCase("hv@bat-ky.de")).thenReturn(java.util.Optional.of(
+                com.deutschflow.user.entity.User.builder().id(6L).orgId(77L)
+                        .role(com.deutschflow.user.entity.User.Role.STUDENT).build()));
+        when(classRepository.findById(100L)).thenReturn(Optional.of(
+                TeacherClass.builder().id(100L).build()));              // orgId = null
+        when(classStudentRepository.existsByIdClassIdAndIdStudentId(100L, 6L)).thenReturn(false);
+
+        teacherService.addStudentToClassByEmail(1L, 100L, "hv@bat-ky.de");
+
+        verify(classStudentRepository).save(any());
     }
 
     @Test

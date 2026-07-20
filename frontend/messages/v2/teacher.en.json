@@ -243,7 +243,8 @@
         "printTopicColumn": "Lesson content (Themen)",
         "printHomeworkColumn": "Homework (Hausaufgaben)",
         "printTeacherSign": "Teacher signature: ___________________________",
-        "printHeadSign": "Head teacher approval: ___________________________"
+        "printHeadSign": "Head teacher approval: ___________________________",
+        "rosterUnavailable": "The class roster could not be loaded, so attendance cannot be marked right now. You can still save the session topic and homework — reload the page to mark attendance."
       },
       "evaluation": {
         "helperText": "End-of-course evaluation for each student",
@@ -377,7 +378,7 @@
       "enterTitle": "Please enter a title.",
       "uploadSuccess": "Material uploaded.",
       "archiveConfirm": "Archive \"{title}\"?",
-      "archiveConfirmAttached": "Archive \"{title}\"? It is attached to {lessons} lesson(s) and {classes} class(es) — archiving removes it from those (you can restore it later).",
+      "archiveConfirmAttached": "Archive \"{title}\"? It is attached to {lessons} lessons, {classes} classes and {assignments} assignments — archiving removes it from those (you can restore it later).",
       "unarchive": "Restore",
       "unarchiveSuccess": "Restored.",
       "viewActive": "Active",
@@ -591,7 +592,13 @@
       "modalDueCap": "Due date",
       "modalLessonCap": "Link to lesson",
       "modalLessonNone": "— Not linked —",
-      "modalAssign": "Give to class"
+      "modalAssign": "Give to class",
+      "materialsCap": "Materials from library",
+      "materialsRemove": "Remove material",
+      "materialsLoading": "Loading library…",
+      "materialsNoLibrary": "Your library is empty yet. Upload materials under \"Material library\".",
+      "materialsSearchPlaceholder": "Search materials by title to attach…",
+      "materialsNoMatch": "No matching material found."
     },
     "studentDetail": {
       "nameFallback": "Student #{id}",
@@ -636,6 +643,40 @@
       "weaknessesCap": "Common mistakes",
       "nextActionsCap": "Recommended actions",
       "aiRoadmapCap": "Recommended roadmap (AI)"
+    },
+    "timesheet": {
+      "title": "My timesheet",
+      "subtitle": "Record taught sessions and submit your pay period",
+      "statSessions": "Sessions",
+      "statMinutes": "Total hours",
+      "statStatus": "Period status",
+      "suggestionsHeading": "Taught sessions not yet recorded",
+      "suggestionsEmpty": "Nothing left to record.",
+      "confirmSession": "Record",
+      "recordsHeading": "Recorded",
+      "recordsEmpty": "No sessions recorded in this period yet.",
+      "colWhen": "When",
+      "colClass": "Class",
+      "colDuration": "Duration",
+      "colRole": "Role",
+      "delete": "Delete",
+      "deleteConfirm": "Delete this entry?",
+      "submit": "Submit period",
+      "submitConfirm": "Submit this period for review? You will not be able to edit entries afterwards.",
+      "submitSuccess": "Period submitted.",
+      "recordSuccess": "Session recorded.",
+      "deleteSuccess": "Entry deleted.",
+      "lockedNotice": "This period is {status} — entries can no longer be added or changed.",
+      "rejectedNotice": "Your manager sent this period back: {reason}",
+      "rolePRIMARY": "Lead teacher",
+      "roleASSISTANT": "Assistant",
+      "roleSUBSTITUTE": "Substitute",
+      "statusOPEN": "Open",
+      "statusSUBMITTED": "Awaiting review",
+      "statusAPPROVED": "Approved",
+      "statusREJECTED": "Sent back",
+      "statusLOCKED": "Locked",
+      "noMoneyNote": "The timesheet only records sessions and hours. Pay is handled outside by payroll."
     }
   }
 }

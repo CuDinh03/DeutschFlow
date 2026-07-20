@@ -1,7 +1,9 @@
 package com.deutschflow.teacher.service;
 
 import com.deutschflow.common.exception.BadRequestException;
+import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.ForbiddenException;
+import com.deutschflow.common.quota.QuotaVnCalendar;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.teacher.dto.ClassLessonLogDto;
 import com.deutschflow.teacher.dto.CreateLessonLogRequest;
@@ -20,7 +22,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -69,6 +73,7 @@ public class LessonLogService {
     @Transactional
     public ClassLessonLogDto createLog(Long teacherId, Long classId, CreateLessonLogRequest req) {
         assertTeacherOwnsClass(teacherId, classId);
+        assertRecordableSession(classId, req, null);
         ClassLesson lesson = validateLessonInClass(classId, req.lessonId());
 
         ClassLessonLog log = ClassLessonLog.builder()
@@ -89,7 +94,7 @@ public class LessonLogService {
         // disagree if they forget one. Un-ticking stays available in tc-checklist.
         autoCompleteLesson(lesson, teacherId, req.sessionDate());
 
-        List<ClassAttendance> attendances = buildAttendance(log.getId(), req);
+        List<ClassAttendance> attendances = buildAttendance(log.getId(), req, rosterIds(classId));
         attendanceRepository.saveAll(attendances);
 
         List<Long> studentIds = attendances.stream().map(a -> a.getId().getStudentId()).toList();
@@ -118,6 +123,7 @@ public class LessonLogService {
         ClassLessonLog log = lessonLogRepository.findById(logId)
                 .orElseThrow(() -> new NotFoundException("Buổi học không tồn tại"));
         if (!log.getClassId().equals(classId)) throw new ForbiddenException("Buổi học không thuộc lớp này");
+        assertRecordableSession(classId, req, logId);
         ClassLesson lesson = validateLessonInClass(classId, req.lessonId());
 
         log.setLessonId(req.lessonId());
@@ -132,8 +138,22 @@ public class LessonLogService {
         // teacher can un-tick in tc-checklist, and un-completing silently on edit would be surprising.)
         autoCompleteLesson(lesson, teacherId, req.sessionDate());
 
+        // Danh sách học viên hợp lệ = đang trong lớp ∪ đã có điểm danh trên CHÍNH log này.
+        // Vế sau là cố ý: giao diện gửi lại điểm danh của học viên đã rời lớp để việc sửa nhật ký
+        // không xoá mất lịch sử của họ (xem `preserved` trong AttendanceTab.tsx). Phải đọc TRƯỚC khi xoá.
+        Set<Long> allowed = new HashSet<>(rosterIds(classId));
+        attendanceRepository.findByIdLessonLogId(logId)
+                .forEach(a -> allowed.add(a.getId().getStudentId()));
+
+        // Dựng (và validate) TRƯỚC khi xoá: một request bị từ chối không được phép xoá trắng điểm danh cũ.
+        List<ClassAttendance> attendances = buildAttendance(log.getId(), req, allowed);
+
         attendanceRepository.deleteByIdLessonLogId(logId);
-        List<ClassAttendance> attendances = buildAttendance(log.getId(), req);
+        // Ép DELETE xuống DB trước khi INSERT lại CÙNG khoá chính (lesson_log_id, student_id).
+        // deleteByIdLessonLogId chỉ em.remove() vào ActionQueue; không flush thì Hibernate có thể
+        // xếp INSERT trước DELETE và vỡ khoá chính đúng ở ca phổ biến nhất — sửa nhật ký mà giữ
+        // nguyên sĩ số.
+        attendanceRepository.flush();
         attendanceRepository.saveAll(attendances);
 
         List<Long> studentIds = attendances.stream().map(a -> a.getId().getStudentId()).toList();
@@ -155,6 +175,40 @@ public class LessonLogService {
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────
+
+    /**
+     * Nhật ký buổi dạy là căn cứ tính công giáo viên, nên hai điều kiện dưới đây là ràng buộc
+     * tài chính chứ không chỉ là gọt giũa dữ liệu:
+     *
+     * <ul>
+     *   <li><b>Không ghi cho ngày tương lai</b> — nếu không, giáo viên ghi công cho buổi chưa dạy.</li>
+     *   <li><b>Không trùng buổi</b> — bấm Lưu hai lần (double-click / mạng chập) sẽ thành hai bản
+     *       ghi cho cùng một buổi, tức trả thừa công. Chốt ở tầng service chặn được ngay mà không
+     *       cần unique index; index ở tầng DB vẫn nên bổ sung sau khi dọn dữ liệu trùng có sẵn.</li>
+     * </ul>
+     *
+     * @param selfLogId bản ghi đang sửa (bỏ qua khi so trùng); null khi tạo mới.
+     */
+    private void assertRecordableSession(Long classId, CreateLessonLogRequest req, Long selfLogId) {
+        LocalDate sessionDate = req.sessionDate();
+        if (sessionDate == null) {
+            throw new BadRequestException("Thiếu ngày của buổi học.");
+        }
+        LocalDate today = LocalDate.now(QuotaVnCalendar.ZONE);
+        if (sessionDate.isAfter(today)) {
+            throw new BadRequestException(
+                    "Không thể ghi nhật ký cho buổi chưa diễn ra (" + sessionDate + ").");
+        }
+        boolean duplicate = lessonLogRepository.findByClassIdAndSessionDate(classId, sessionDate).stream()
+                .filter(existing -> !existing.getId().equals(selfLogId))
+                .anyMatch(existing -> Objects.equals(existing.getSessionNumber(), req.sessionNumber()));
+        if (duplicate) {
+            throw new ConflictException(
+                    "Lớp này đã có nhật ký cho buổi ngày " + sessionDate
+                            + (req.sessionNumber() != null ? " (buổi " + req.sessionNumber() + ")" : "")
+                            + ". Hãy sửa bản ghi cũ thay vì tạo thêm.");
+        }
+    }
 
     private void assertTeacherOwnsClass(Long teacherId, Long classId) {
         if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
@@ -187,6 +241,13 @@ public class LessonLogService {
     /** The only attendance values that may be stored. Anything else is a client bug, not a default. */
     private static final Set<String> ATTENDANCE_STATUSES = Set.of("PRESENT", "LATE", "ABSENT");
 
+    /** Id của học viên đang thuộc lớp. Dùng làm biên cho mọi dòng điểm danh được ghi. */
+    private Set<Long> rosterIds(Long classId) {
+        return classStudentRepository.findByIdClassId(classId).stream()
+                .map(cs -> cs.getId().getStudentId())
+                .collect(Collectors.toSet());
+    }
+
     /**
      * Builds the attendance rows for a log. A student the caller did not send is simply not recorded —
      * "no row" means "not marked", which is what the certificate/attendance-rate maths needs to be able
@@ -194,10 +255,17 @@ public class LessonLogService {
      *
      * <p>A missing or unknown status is rejected rather than defaulted. It used to fall back to PRESENT,
      * which is how a caller that omitted the field could silently mark a student present.
+     *
+     * <p>{@code allowedStudentIds} giới hạn dòng điểm danh vào đúng học viên của lớp. Trước đây
+     * studentId được nhận thẳng từ client: một giáo viên sở hữu bất kỳ lớp nào có thể ghi điểm danh
+     * cho id tuỳ ý, và response (kèm displayName + email do toDto tra cứu toàn cục) trở thành kênh
+     * liệt kê thông tin cá nhân của mọi người dùng, xuyên tổ chức.
      */
-    private List<ClassAttendance> buildAttendance(Long logId, CreateLessonLogRequest req) {
+    private List<ClassAttendance> buildAttendance(Long logId, CreateLessonLogRequest req,
+                                                  Set<Long> allowedStudentIds) {
         if (req.attendance() == null) return List.of();
         List<ClassAttendance> list = new ArrayList<>();
+        Set<Long> seen = new HashSet<>();
         for (CreateLessonLogRequest.AttendanceInput input : req.attendance()) {
             // Null-check first: Set.of(...) is an immutable set, and its contains(null) throws NPE.
             String status = input.status() == null ? null : input.status().toUpperCase();
@@ -205,6 +273,16 @@ public class LessonLogService {
                 throw new BadRequestException(
                         "Trạng thái điểm danh không hợp lệ cho học viên #" + input.studentId()
                                 + " (chỉ nhận PRESENT, LATE, ABSENT).");
+            }
+            if (input.studentId() == null || !allowedStudentIds.contains(input.studentId())) {
+                throw new BadRequestException(
+                        "Học viên #" + input.studentId() + " không thuộc lớp này.");
+            }
+            // Hai dòng cùng studentId mang cùng khoá chính: hàng sau lặng lẽ ghi đè hàng trước, DB
+            // lưu 1 hàng nhưng response vẫn liệt kê cả 2 → số liệu điểm danh mơ hồ. Từ chối thẳng.
+            if (!seen.add(input.studentId())) {
+                throw new BadRequestException(
+                        "Học viên #" + input.studentId() + " xuất hiện nhiều lần trong danh sách điểm danh.");
             }
             list.add(ClassAttendance.builder()
                     .id(new ClassAttendanceId(logId, input.studentId()))

@@ -3,6 +3,7 @@ package com.deutschflow.teacher.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -55,6 +56,14 @@ public class ClassSession {
     @Column(name = "is_overridden", nullable = false)
     @Builder.Default
     private boolean overridden = false;
+
+    /**
+     * Ngày của ô lịch gốc trong pattern (V262). Giữ nguyên khi buổi bị dời sang ngày khác, để
+     * regenerate biết ô đó đã có chủ và không sinh ra một buổi "ma" trên ngày cũ.
+     * NULL với buổi tạo tay và bản ghi trước V262 — khi đó lấy ngày của {@code startAt}.
+     */
+    @Column(name = "original_date")
+    private LocalDate originalDate;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

@@ -98,17 +98,25 @@ export default function V2TcReportsPage() {
 
   const classDisplayName = classes.find((c) => c.id === classId)?.name ?? ''
 
-  // Class roster for the attendance tab. Sourced from the gradebook when available, but
-  // falls back to the evaluations list (one row per enrolled student) and finally to the
-  // students already recorded across existing lesson logs — so a gradebook fetch failure
-  // no longer leaves the attendance form/print with an empty roster.
+  // Roster used to MARK attendance. Must be authoritative current membership: the gradebook,
+  // falling back to the evaluations list (also one row per enrolled student).
+  //
+  // Deliberately has NO lesson-log fallback. Students recorded on older logs may since have left
+  // the class, and the backend rejects attendance rows for non-members — feeding those ids into
+  // the form would make every save fail with a generic error and leave the teacher unable to
+  // record anything at all.
   const roster = useMemo(() => {
     if (gradebook?.students.length) {
       return gradebook.students.map((s) => ({ studentId: s.studentId, name: s.name }))
     }
-    if (evaluations.length) {
-      return evaluations.map((e) => ({ studentId: e.studentId, name: e.name }))
-    }
+    return evaluations.map((e) => ({ studentId: e.studentId, name: e.name }))
+  }, [gradebook, evaluations])
+
+  // Roster used to DISPLAY history (the printed attendance matrix). When both enrolment endpoints
+  // are down, fall back to whoever appears across the existing logs so the printed sheet is not
+  // blank. Read-only by design — this list must never drive the entry form.
+  const printRoster = useMemo(() => {
+    if (roster.length) return roster
     const seen = new Map<number, string>()
     for (const log of lessonLogs) {
       for (const a of log.attendance) {
@@ -116,7 +124,7 @@ export default function V2TcReportsPage() {
       }
     }
     return Array.from(seen, ([studentId, name]) => ({ studentId, name }))
-  }, [gradebook, evaluations, lessonLogs])
+  }, [roster, lessonLogs])
 
   const failedSectionLabel = failedSections.map((s) => t(SECTION_TAB_KEY[s])).join(', ')
 
@@ -176,6 +184,7 @@ export default function V2TcReportsPage() {
                   lessonLogs={lessonLogs}
                   onLessonLogsChange={setLessonLogs}
                   roster={roster}
+                  printRoster={printRoster}
                   lessons={lessons}
                   classDisplayName={classDisplayName}
                 />

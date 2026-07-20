@@ -243,7 +243,8 @@
         "printTopicColumn": "Nội dung bài học (Themen)",
         "printHomeworkColumn": "Bài tập về nhà (Hausaufgaben)",
         "printTeacherSign": "Ký tên giáo viên: ___________________________",
-        "printHeadSign": "Tổ trưởng xác nhận: ___________________________"
+        "printHeadSign": "Tổ trưởng xác nhận: ___________________________",
+        "rosterUnavailable": "Không tải được danh sách học viên của lớp, nên tạm thời chưa điểm danh được. Bạn vẫn lưu được chủ đề và bài tập của buổi học; hãy tải lại trang để điểm danh."
       },
       "evaluation": {
         "helperText": "Phiếu đánh giá cuối khóa cho từng học viên",
@@ -377,7 +378,7 @@
       "enterTitle": "Hãy nhập tiêu đề.",
       "uploadSuccess": "Đã tải tài liệu lên.",
       "archiveConfirm": "Lưu trữ \"{title}\"?",
-      "archiveConfirmAttached": "Lưu trữ \"{title}\"? Tài liệu đang gắn ở {lessons} bài học và {classes} lớp — lưu trữ sẽ gỡ khỏi các nơi đó (có thể khôi phục lại sau).",
+      "archiveConfirmAttached": "Lưu trữ \"{title}\"? Tài liệu đang gắn ở {lessons} bài học, {classes} lớp và {assignments} bài tập — lưu trữ sẽ gỡ khỏi các nơi đó (có thể khôi phục lại sau).",
       "unarchive": "Khôi phục",
       "unarchiveSuccess": "Đã khôi phục.",
       "viewActive": "Đang dùng",
@@ -591,7 +592,13 @@
       "modalDueCap": "Hạn nộp",
       "modalLessonCap": "Gắn với bài học",
       "modalLessonNone": "— Không gắn —",
-      "modalAssign": "Giao cho lớp"
+      "modalAssign": "Giao cho lớp",
+      "materialsCap": "Tài liệu từ thư viện",
+      "materialsRemove": "Bỏ tài liệu",
+      "materialsLoading": "Đang tải thư viện…",
+      "materialsNoLibrary": "Thư viện của bạn chưa có tài liệu nào. Hãy tải lên ở mục \"Thư viện tài liệu\".",
+      "materialsSearchPlaceholder": "Tìm tài liệu theo tên để đính kèm…",
+      "materialsNoMatch": "Không tìm thấy tài liệu phù hợp."
     },
     "studentDetail": {
       "nameFallback": "Học viên #{id}",
@@ -636,6 +643,40 @@
       "weaknessesCap": "Lỗi sai thường gặp",
       "nextActionsCap": "Hành động đề xuất",
       "aiRoadmapCap": "Lộ trình đề xuất (AI)"
+    },
+    "timesheet": {
+      "title": "Bảng công",
+      "subtitle": "Ghi nhận buổi đã dạy và nộp kỳ công",
+      "statSessions": "Số buổi",
+      "statMinutes": "Tổng giờ",
+      "statStatus": "Trạng thái kỳ",
+      "suggestionsHeading": "Buổi đã dạy chưa ghi công",
+      "suggestionsEmpty": "Không còn buổi nào chờ ghi công.",
+      "confirmSession": "Ghi công",
+      "recordsHeading": "Đã ghi công",
+      "recordsEmpty": "Chưa ghi công buổi nào trong kỳ này.",
+      "colWhen": "Thời gian",
+      "colClass": "Lớp",
+      "colDuration": "Thời lượng",
+      "colRole": "Vai trò",
+      "delete": "Xoá",
+      "deleteConfirm": "Xoá dòng công này?",
+      "submit": "Nộp kỳ công",
+      "submitConfirm": "Nộp kỳ công cho quản lý duyệt? Sau khi nộp bạn không sửa được các dòng công trong kỳ.",
+      "submitSuccess": "Đã nộp kỳ công.",
+      "recordSuccess": "Đã ghi công buổi dạy.",
+      "deleteSuccess": "Đã xoá dòng công.",
+      "lockedNotice": "Kỳ công đang ở trạng thái {status} — không thể thêm hoặc sửa dòng công.",
+      "rejectedNotice": "Quản lý đã trả lại kỳ này: {reason}",
+      "rolePRIMARY": "Đứng lớp",
+      "roleASSISTANT": "Trợ giảng",
+      "roleSUBSTITUTE": "Dạy thay",
+      "statusOPEN": "Đang mở",
+      "statusSUBMITTED": "Chờ duyệt",
+      "statusAPPROVED": "Đã duyệt",
+      "statusREJECTED": "Đã trả lại",
+      "statusLOCKED": "Đã khoá",
+      "noMoneyNote": "Bảng công chỉ ghi số buổi và số giờ. Phần lương do kế toán xử lý bên ngoài."
     }
   }
 }

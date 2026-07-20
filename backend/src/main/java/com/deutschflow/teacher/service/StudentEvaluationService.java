@@ -225,7 +225,13 @@ public class StudentEvaluationService {
         int presentCount = (int) myAtt.stream().filter(a -> "PRESENT".equals(a.getStatus())).count();
         int absentCount  = (int) myAtt.stream().filter(a -> "ABSENT".equals(a.getStatus())).count();
         int lateCount    = (int) myAtt.stream().filter(a -> "LATE".equals(a.getStatus())).count();
-        int totalSessions = logs.size();
+        // Mẫu số của tỉ lệ chuyên cần là số buổi CÓ GHI NHẬN cho CHÍNH học viên này, không phải
+        // toàn bộ nhật ký của lớp. Chia cho logs.size() khiến học viên vào lớp muộn bị tính vắng
+        // những buổi diễn ra trước khi họ vào, và khiến một buổi chỉ ghi chủ đề (không điểm danh
+        // ai) cũng làm phình mẫu số — cả hai đều đánh trượt điều kiện cấp chứng chỉ một cách oan uổng.
+        // Đây cũng chính là ngữ nghĩa "không có dòng = chưa điểm danh ≠ vắng" mà đường ghi,
+        // giao diện và bản in đều đang giữ.
+        int recordedSessions = presentCount + absentCount + lateCount;
 
         // Avg score from assignments
         List<ClassAssignment> assignments = assignmentRepository.findByClassIdOrderByCreatedAtDesc(classId);
@@ -243,11 +249,12 @@ public class StudentEvaluationService {
         }
 
         // Certificate: avg assignment score >= 50/100 AND attendance >= 80% of recorded sessions.
-        // A class with no lesson logs yet has no attendance evidence at all — it must not read as a
-        // perfect 100% (the old `totalSessions == 0 ? 1.0` made a brand-new class instantly eligible).
-        boolean hasAttendanceEvidence = totalSessions > 0;
+        // A student with no attendance rows of their own has no evidence at all — it must not read
+        // as a perfect 100% (the old `totalSessions == 0 ? 1.0` made a brand-new class instantly
+        // eligible). "No evidence" stays ineligible rather than becoming a free pass.
+        boolean hasAttendanceEvidence = recordedSessions > 0;
         double attendanceRate = hasAttendanceEvidence
-                ? (double) (presentCount + lateCount) / totalSessions
+                ? (double) (presentCount + lateCount) / recordedSessions
                 : 0.0;
         boolean eligible = hasAttendanceEvidence
                 && avgScore >= CERT_MIN_AVG_SCORE
@@ -261,7 +268,7 @@ public class StudentEvaluationService {
                 cls != null ? cls.getName() : "",
                 cs.getTeacherComment(),
                 cs.getSkillHoren(), cs.getSkillLesen(), cs.getSkillSchreiben(), cs.getSkillSprechen(),
-                avgScore, totalSessions, presentCount, absentCount, lateCount, eligible,
+                avgScore, recordedSessions, presentCount, absentCount, lateCount, eligible,
                 cs.getEvaluatedAt());
     }
 

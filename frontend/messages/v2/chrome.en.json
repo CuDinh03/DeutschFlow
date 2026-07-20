@@ -66,7 +66,9 @@
       "org-billing": "Plans & Licenses",
       "org-invitations": "Invitations",
       "org-roles": "Roles",
-      "org-profile": "Profile"
+      "org-profile": "Profile",
+      "org-timesheets": "Timesheets",
+      "tc-timesheet": "Timesheets"
     },
     "sections": {
       "classMgmt": "Class Management",

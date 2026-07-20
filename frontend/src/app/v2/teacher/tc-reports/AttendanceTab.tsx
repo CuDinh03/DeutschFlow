@@ -22,7 +22,14 @@ export interface AttendanceTabProps {
   /** Functional-updater setter (the page passes its raw setState) so concurrent saves
    *  compose on the latest list instead of a stale closure snapshot. */
   onLessonLogsChange: Dispatch<SetStateAction<ClassLessonLog[]>>
+  /** Authoritative current membership — the ONLY list allowed to drive the marking form. */
   roster: { studentId: number; name: string }[]
+  /**
+   * Roster for read-only history (printed matrix). Falls back to students seen across existing
+   * logs when the enrolment endpoints fail, so the printed sheet is not blank. Never used as
+   * marking input: those students may have left the class and the backend rejects them.
+   */
+  printRoster: { studentId: number; name: string }[]
   /** Class lessons, for optionally tagging a journal entry with the taught Lektion (Phase 1d-D3). */
   lessons: { id: number; title: string }[]
   classDisplayName: string
@@ -106,7 +113,7 @@ function buildAttendanceDraft(
 }
 
 export function AttendanceTab(props: AttendanceTabProps) {
-  const { classId, lessonLogs, onLessonLogsChange, roster, lessons, classDisplayName } = props
+  const { classId, lessonLogs, onLessonLogsChange, roster, printRoster, lessons, classDisplayName } = props
   const t = useTranslations('v2.teacher.tcReports')
   const tc = useTranslations('v2.common')
 
@@ -315,6 +322,14 @@ export function AttendanceTab(props: AttendanceTabProps) {
             <input type="text" value={note} onChange={(e) => setNote(e.target.value)} className={fieldCls} />
           </div>
 
+          {roster.length === 0 && printRoster.length > 0 && (
+            <div className="mt-4 border border-ga-gold/40 bg-ga-gold/5 px-3 py-2.5">
+              <p className="ga-ui text-[12.5px] leading-relaxed text-ga-muted">
+                {t('attendance.rosterUnavailable')}
+              </p>
+            </div>
+          )}
+
           {roster.length > 0 && (
             <div className="mt-4">
               <div className="mb-1.5 flex items-end justify-between gap-3">
@@ -491,7 +506,7 @@ export function AttendanceTab(props: AttendanceTabProps) {
                     </tr>
                   </thead>
                   <tbody>
-                    {roster.map((s) => {
+                    {printRoster.map((s) => {
                       const absentTotal = lessonLogs.reduce((totalAbsent, log) => {
                         const entry = log.attendance.find((a) => a.studentId === s.studentId)
                         return entry && normalizeAttendanceStatus(entry.status) === 'ABSENT' ? totalAbsent + 1 : totalAbsent

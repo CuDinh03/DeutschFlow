@@ -66,7 +66,9 @@
       "org-billing": "Gói & Giấy phép",
       "org-invitations": "Lời mời",
       "org-roles": "Phân quyền",
-      "org-profile": "Hồ sơ"
+      "org-profile": "Hồ sơ",
+      "org-timesheets": "Chấm công",
+      "tc-timesheet": "Chấm công"
     },
     "sections": {
       "classMgmt": "Quản lý lớp",

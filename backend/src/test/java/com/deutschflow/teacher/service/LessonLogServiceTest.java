@@ -1,6 +1,7 @@
 package com.deutschflow.teacher.service;
 
 import com.deutschflow.common.exception.BadRequestException;
+import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.teacher.dto.ClassLessonLogDto;
@@ -9,6 +10,8 @@ import com.deutschflow.teacher.entity.ClassAttendance;
 import com.deutschflow.teacher.entity.ClassAttendanceId;
 import com.deutschflow.teacher.entity.ClassLesson;
 import com.deutschflow.teacher.entity.ClassLessonLog;
+import com.deutschflow.teacher.entity.ClassStudent;
+import com.deutschflow.teacher.entity.ClassStudentId;
 import com.deutschflow.teacher.repository.ClassAttendanceRepository;
 import com.deutschflow.teacher.repository.ClassLessonLogRepository;
 import com.deutschflow.teacher.repository.ClassLessonRepository;
@@ -21,6 +24,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -109,6 +113,7 @@ class LessonLogServiceTest {
     @DisplayName("createLog persists log and attendance records")
     void createLog_validRequest_savesLogAndAttendance() {
         allowAccess();
+        rosterOf(STUDENT_ID);
         CreateLessonLogRequest req = new CreateLessonLogRequest(
                 LocalDate.of(2026, 6, 10), 1, "Lektion 3", "Write sentences", null,
                 List.of(new CreateLessonLogRequest.AttendanceInput(STUDENT_ID, "PRESENT", null)), null);
@@ -233,6 +238,7 @@ class LessonLogServiceTest {
     @DisplayName("updateLog replaces attendance and updates fields")
     void updateLog_validRequest_updatesAndReplacesAttendance() {
         allowAccess();
+        rosterOf(STUDENT_ID);
         ClassLessonLog existing = buildLog(LOG_ID, CLASS_ID, LocalDate.of(2026, 6, 1));
         when(lessonLogRepository.findById(LOG_ID)).thenReturn(Optional.of(existing));
         when(lessonLogRepository.save(any())).thenReturn(existing);
@@ -295,7 +301,192 @@ class LessonLogServiceTest {
                 .isInstanceOf(ForbiddenException.class);
     }
 
+    // ── biên học viên của lớp (audit H-1: IDOR + rò rỉ PII xuyên tenant) ──────
+
+    @Test
+    @DisplayName("createLog rejects attendance for a student outside the class and never resolves their PII")
+    void createLog_studentNotInClass_isRejected() {
+        allowAccess();
+        rosterOf(STUDENT_ID);
+        stubLogSave();
+
+        CreateLessonLogRequest req = new CreateLessonLogRequest(
+                LocalDate.now(), 1, "Lektion 3", null, null,
+                List.of(new CreateLessonLogRequest.AttendanceInput(999L, "PRESENT", null)), null);
+
+        assertThatThrownBy(() -> service.createLog(TEACHER_ID, CLASS_ID, req))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("999");
+
+        verify(attendanceRepository, never()).saveAll(any());
+        // Không tra cứu user ⇒ displayName/email của người ngoài lớp không bao giờ lọt vào response.
+        verify(userRepository, never()).findAllById(any());
+    }
+
+    @Test
+    @DisplayName("updateLog rejects a student outside the class WITHOUT wiping the existing attendance")
+    void updateLog_studentNotInClass_doesNotDeleteExisting() {
+        allowAccess();
+        ClassLessonLog existing = buildLog(LOG_ID, CLASS_ID, LocalDate.of(2026, 6, 1));
+        when(lessonLogRepository.findById(LOG_ID)).thenReturn(Optional.of(existing));
+        when(lessonLogRepository.save(any())).thenReturn(existing);
+        rosterOf(STUDENT_ID);
+        when(attendanceRepository.findByIdLessonLogId(LOG_ID)).thenReturn(List.of());
+
+        CreateLessonLogRequest req = new CreateLessonLogRequest(
+                LocalDate.of(2026, 6, 10), 2, "Lektion 4", null, null,
+                List.of(new CreateLessonLogRequest.AttendanceInput(999L, "PRESENT", null)), null);
+
+        assertThatThrownBy(() -> service.updateLog(TEACHER_ID, CLASS_ID, LOG_ID, req))
+                .isInstanceOf(BadRequestException.class);
+
+        verify(attendanceRepository, never()).deleteByIdLessonLogId(anyLong());
+        verify(attendanceRepository, never()).saveAll(any());
+    }
+
+    @Test
+    @DisplayName("updateLog still accepts a student who already left the class (edit must not wipe their history)")
+    void updateLog_studentLeftClass_stillAllowed() {
+        allowAccess();
+        ClassLessonLog existing = buildLog(LOG_ID, CLASS_ID, LocalDate.of(2026, 6, 1));
+        when(lessonLogRepository.findById(LOG_ID)).thenReturn(Optional.of(existing));
+        when(lessonLogRepository.save(any())).thenReturn(existing);
+        when(classStudentRepository.findByIdClassId(CLASS_ID)).thenReturn(List.of());   // đã rời lớp
+        when(attendanceRepository.findByIdLessonLogId(LOG_ID))
+                .thenReturn(List.of(buildAttendance(LOG_ID, STUDENT_ID, "PRESENT")));
+        when(userRepository.findAllById(List.of(STUDENT_ID)))
+                .thenReturn(List.of(buildUser(STUDENT_ID, "Đã rời lớp", "left@test.com")));
+
+        CreateLessonLogRequest req = new CreateLessonLogRequest(
+                LocalDate.of(2026, 6, 10), 2, "Lektion 4", null, null,
+                List.of(new CreateLessonLogRequest.AttendanceInput(STUDENT_ID, "ABSENT", null)), null);
+
+        ClassLessonLogDto dto = service.updateLog(TEACHER_ID, CLASS_ID, LOG_ID, req);
+
+        assertThat(dto.attendance()).hasSize(1);
+        assertThat(dto.attendance().get(0).studentId()).isEqualTo(STUDENT_ID);
+        verify(attendanceRepository).saveAll(any());
+    }
+
+    @Test
+    @DisplayName("createLog rejects the same studentId twice instead of silently overwriting")
+    void createLog_duplicateStudentId_isRejected() {
+        allowAccess();
+        rosterOf(STUDENT_ID);
+        stubLogSave();
+
+        CreateLessonLogRequest req = new CreateLessonLogRequest(
+                LocalDate.now(), 1, "Lektion 3", null, null,
+                List.of(new CreateLessonLogRequest.AttendanceInput(STUDENT_ID, "PRESENT", null),
+                        new CreateLessonLogRequest.AttendanceInput(STUDENT_ID, "ABSENT", null)), null);
+
+        assertThatThrownBy(() -> service.createLog(TEACHER_ID, CLASS_ID, req))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("nhiều lần");
+
+        verify(attendanceRepository, never()).saveAll(any());
+    }
+
+    // ── ràng buộc tài chính: nhật ký là căn cứ tính công (M-6, M-7) ───────────
+
+    @Test
+    @DisplayName("createLog refuses a future session date (no pay for a lesson not yet taught)")
+    void createLog_futureSessionDate_isRejected() {
+        allowAccess();
+
+        CreateLessonLogRequest req = new CreateLessonLogRequest(
+                LocalDate.now().plusDays(30), 1, "Lektion 3", null, null, null, null);
+
+        assertThatThrownBy(() -> service.createLog(TEACHER_ID, CLASS_ID, req))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("chưa diễn ra");
+
+        verify(lessonLogRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("createLog refuses a second log for the same session (double-click = double pay)")
+    void createLog_duplicateSession_isRejected() {
+        allowAccess();
+        LocalDate day = LocalDate.now().minusDays(1);
+        ClassLessonLog existing = buildLog(LOG_ID, CLASS_ID, day);
+        existing.setSessionNumber(5);
+        when(lessonLogRepository.findByClassIdAndSessionDate(CLASS_ID, day)).thenReturn(List.of(existing));
+
+        CreateLessonLogRequest req = new CreateLessonLogRequest(day, 5, "Lektion 3", null, null, null, null);
+
+        assertThatThrownBy(() -> service.createLog(TEACHER_ID, CLASS_ID, req))
+                .isInstanceOf(ConflictException.class);
+
+        verify(lessonLogRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("updateLog may keep its own date/session number (it is not a duplicate of itself)")
+    void updateLog_ownRecord_isNotADuplicate() {
+        allowAccess();
+        rosterOf(STUDENT_ID);
+        LocalDate day = LocalDate.now().minusDays(2);
+        ClassLessonLog existing = buildLog(LOG_ID, CLASS_ID, day);
+        existing.setSessionNumber(5);
+        when(lessonLogRepository.findById(LOG_ID)).thenReturn(Optional.of(existing));
+        when(lessonLogRepository.save(any())).thenReturn(existing);
+        when(lessonLogRepository.findByClassIdAndSessionDate(CLASS_ID, day)).thenReturn(List.of(existing));
+        when(attendanceRepository.findByIdLessonLogId(LOG_ID)).thenReturn(List.of());
+
+        CreateLessonLogRequest req = new CreateLessonLogRequest(
+                day, 5, "Lektion 3 (sửa chủ đề)", null, null, null, null);
+
+        service.updateLog(TEACHER_ID, CLASS_ID, LOG_ID, req);
+
+        verify(lessonLogRepository).save(any());
+    }
+
+    // ── xoá-rồi-chèn cùng khoá chính (audit H-2) ──────────────────────────────
+
+    @Test
+    @DisplayName("updateLog flushes the delete before re-inserting the same (logId, studentId) keys")
+    void updateLog_flushesDeleteBeforeReinsert() {
+        allowAccess();
+        ClassLessonLog existing = buildLog(LOG_ID, CLASS_ID, LocalDate.of(2026, 6, 1));
+        when(lessonLogRepository.findById(LOG_ID)).thenReturn(Optional.of(existing));
+        when(lessonLogRepository.save(any())).thenReturn(existing);
+        rosterOf(STUDENT_ID);
+        when(attendanceRepository.findByIdLessonLogId(LOG_ID))
+                .thenReturn(List.of(buildAttendance(LOG_ID, STUDENT_ID, "PRESENT")));
+        when(userRepository.findAllById(List.of(STUDENT_ID)))
+                .thenReturn(List.of(buildUser(STUDENT_ID, "Test", "t@test.com")));
+
+        // Sĩ số giữ nguyên ⇒ khoá chính chèn lại trùng đúng khoá vừa xoá — ca vỡ phổ biến nhất.
+        CreateLessonLogRequest req = new CreateLessonLogRequest(
+                LocalDate.of(2026, 6, 10), 2, "Lektion 4", null, null,
+                List.of(new CreateLessonLogRequest.AttendanceInput(STUDENT_ID, "ABSENT", null)), null);
+
+        service.updateLog(TEACHER_ID, CLASS_ID, LOG_ID, req);
+
+        InOrder ordered = inOrder(attendanceRepository);
+        ordered.verify(attendanceRepository).deleteByIdLessonLogId(LOG_ID);
+        ordered.verify(attendanceRepository).flush();
+        ordered.verify(attendanceRepository).saveAll(any());
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────────
+
+    /** Roster của lớp gồm đúng các studentId truyền vào. */
+    private void rosterOf(Long... studentIds) {
+        when(classStudentRepository.findByIdClassId(CLASS_ID)).thenReturn(
+                java.util.Arrays.stream(studentIds)
+                        .map(sid -> ClassStudent.builder().id(new ClassStudentId(CLASS_ID, sid)).build())
+                        .toList());
+    }
+
+    private void stubLogSave() {
+        when(lessonLogRepository.save(any())).thenAnswer(inv -> {
+            ClassLessonLog l = inv.getArgument(0);
+            l.setId(LOG_ID);
+            return l;
+        });
+    }
 
     private void allowAccess() {
         when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(true);

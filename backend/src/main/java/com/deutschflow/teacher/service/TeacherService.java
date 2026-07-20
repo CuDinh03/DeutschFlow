@@ -65,6 +65,7 @@ public class TeacherService {
     private final S3StorageService s3StorageService;
     private final ClassLessonRepository lessonRepository;
     private final StudentCompetencyService studentCompetencyService;
+    private final com.deutschflow.material.service.MaterialService materialService;
 
     @Transactional
     public TeacherClassDto createClass(Long teacherId, String name) {
@@ -368,6 +369,18 @@ public class TeacherService {
         User user = userRepository.findByEmailIgnoreCase(normalizedEmail)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng với email: " + normalizedEmail));
 
+        // Org isolation — cùng quy tắc đã áp cho co-teacher ở addTeacherToClassByEmail: lớp thuộc
+        // một tổ chức thì chỉ nhận người của chính tổ chức đó.
+        //
+        // Thiếu chốt này thì roster trở thành biên tin cậy do chính giáo viên ghi được: họ thêm một
+        // tài khoản bất kỳ (biết email) vào lớp mình, và mọi kiểm tra dựa trên roster — điểm danh,
+        // đánh giá, chứng chỉ — đều coi người đó là hợp lệ.
+        TeacherClass targetClass = classRepository.findById(classId)
+                .orElseThrow(() -> new NotFoundException("Lớp không tồn tại"));
+        if (targetClass.getOrgId() != null && !targetClass.getOrgId().equals(user.getOrgId())) {
+            throw new BadRequestException("Học viên không thuộc tổ chức của lớp này.");
+        }
+
         if (classStudentRepository.existsByIdClassIdAndIdStudentId(classId, user.getId())) {
             throw new ConflictException("Học viên đã tham gia lớp học này");
         }
@@ -378,7 +391,7 @@ public class TeacherService {
         classStudentRepository.save(classStudent);
 
         // Notify student
-        TeacherClass teacherClass = classRepository.findById(classId).orElse(null);
+        TeacherClass teacherClass = targetClass;
         User teacher = userRepository.findById(teacherId).orElse(null);
         userNotificationService.onAddedToClass(
             user.getId(),
@@ -628,9 +641,21 @@ public class TeacherService {
 
         studentAssignmentRepository.saveAll(studentAssignments);
 
+        User teacher = userRepository.findById(teacherId).orElse(null);
+
+        // Attach any library materials the teacher picked (in pick order). attachToAssignment re-checks
+        // that the teacher can access each material AND owns the assignment's class, so a bad/inaccessible
+        // id rolls back the whole create (fail fast — the teacher only ever sends ids from their own list).
+        if (req.materialIds() != null && !req.materialIds().isEmpty() && teacher != null) {
+            for (Long materialId : req.materialIds()) {
+                if (materialId != null) {
+                    materialService.attachToAssignment(teacher, materialId, savedAssignment.getId());
+                }
+            }
+        }
+
         // Notify all students in class (async batch)
         TeacherClass teacherClass = classRepository.findById(classId).orElse(null);
-        User teacher = userRepository.findById(teacherId).orElse(null);
         userNotificationService.onNewClassAssignment(
             classId,
             teacherClass != null ? teacherClass.getName() : "",
