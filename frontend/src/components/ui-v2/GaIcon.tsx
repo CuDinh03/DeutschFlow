@@ -54,6 +54,8 @@ import {
   Newspaper,
   Award,
   History,
+  Menu,
+  X,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -123,6 +125,9 @@ const ICONS: Record<string, LucideIcon> = {
   // Dùng bởi nav item `st-exercise-history` + EmptyState của /v2/student/exercise-history.
   // Thiếu khoá này thì GaIcon rơi về fallback `Circle` (một vòng tròn trống) — trông như lỗi UI.
   history: History,
+  // Điều hướng mobile: mở/đóng ngăn kéo sidebar (GaTopBar hamburger + GaSidebar nút đóng).
+  menu: Menu,
+  close: X,
 }
 
 export interface GaIconProps {
