@@ -348,13 +348,40 @@
         "action": "Cần hành động",
         "broadcast": "Truyền thông"
       },
+      "tpl": {
+        "system": {
+          "label": "Thông báo hệ thống",
+          "title": "Thông báo từ myDeutschFlow"
+        },
+        "feature": {
+          "label": "Tính năng mới",
+          "title": "myDeutschFlow vừa cập nhật!"
+        },
+        "review": {
+          "label": "Nhắc ôn tập SRS",
+          "title": "Đến giờ ôn tập rồi!",
+          "body": "Bạn có thẻ cần ôn tập hôm nay."
+        },
+        "streak": {
+          "label": "Nhắc streak",
+          "title": "Đừng quên học hôm nay!",
+          "body": "Hãy duy trì chuỗi streak của bạn."
+        }
+      },
       "audience": {
         "all": "Tất cả người dùng",
         "student": "Học viên",
         "teacher": "Giáo viên",
         "free": "Gói miễn phí",
-        "pro": "Gói Pro"
+        "pro": "Gói Pro",
+        "premium": "Gói Premium",
+        "single": "Một người dùng cụ thể"
       },
+      "typeLabel": "Loại thông báo",
+      "emailLabel": "Email người nhận",
+      "emailPlaceholder": "VD: hocvien@example.com",
+      "enterBody": "Nhập nội dung thông báo",
+      "enterEmail": "Nhập email người nhận",
       "enterTitle": "Nhập tiêu đề thông báo",
       "queuedSchedule": "Đã đưa vào hàng đợi lịch gửi",
       "sentTo": "Đã gửi tới {audience}",

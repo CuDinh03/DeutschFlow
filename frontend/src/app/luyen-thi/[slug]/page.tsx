@@ -54,7 +54,7 @@ export default function ExamPage({ params }: { params: { slug: string } }) {
             <Link href="/free-grade" className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-700">
               <Sparkles size={16} /> Chấm thử bài viết miễn phí
             </Link>
-            <Link href="/register" className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-white/10">
+            <Link href="/v2/register" className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-white/10">
               Luyện thi với DeutschFlow
             </Link>
           </div>

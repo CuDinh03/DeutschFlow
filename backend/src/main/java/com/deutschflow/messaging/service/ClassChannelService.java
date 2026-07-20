@@ -7,7 +7,10 @@ import com.deutschflow.messaging.entity.ClassChannelMessage;
 import com.deutschflow.messaging.repository.ClassChannelMessageRepository;
 import com.deutschflow.moderation.service.UserBlockService;
 import com.deutschflow.moderation.service.WordFilterService;
+import com.deutschflow.notification.NotificationType;
 import com.deutschflow.notification.service.UserNotificationService;
+import com.deutschflow.notification.service.NotificationAutoAckService;
+import com.deutschflow.common.transaction.RunAfterCommitService;
 import com.deutschflow.teacher.entity.TeacherClass;
 import com.deutschflow.teacher.repository.ClassStudentRepository;
 import com.deutschflow.teacher.repository.ClassTeacherRepository;
@@ -49,11 +52,23 @@ public class ClassChannelService {
     private final WordFilterService wordFilter;
     private final UserBlockService blockService;
     private final UserNotificationService notificationService;
+    private final NotificationAutoAckService notificationAutoAckService;
+    private final RunAfterCommitService runAfterCommitService;
 
     @Transactional(readOnly = true)
     public List<ClassMessageDto> listMessages(Long userId, Long classId) {
         assertMember(userId, classId);
         boolean callerIsTeacher = isTeacher(userId, classId);
+
+        // Mở kênh chat lớp = đã xem → thông báo "💬 [tên lớp]" (CLASS_CHANNEL_MESSAGE) của lớp này không
+        // còn "mới". Kênh không có read-state riêng nên mở màn là tín hiệu duy nhất. Sau commit của tx
+        // readOnly này (chạy tx ghi riêng), best-effort.
+        final Long ackUserId = userId;
+        final Long ackClassId = classId;
+        runAfterCommitService.run(() -> notificationAutoAckService.ackByContext(
+                ackUserId,
+                Set.of(NotificationType.CLASS_CHANNEL_MESSAGE),
+                Map.<String, Object>of("classId", ackClassId)));
 
         List<ClassChannelMessage> recent = channelRepository.findTop200ByClassIdOrderByIdDesc(classId);
         Set<Long> blocked = blockService.blockedIds(userId);

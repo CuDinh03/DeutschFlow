@@ -13,6 +13,8 @@ import {
 } from 'lucide-react-native'
 import { radius, space, useTheme } from '@/lib/theme'
 import { ThemedText, Icon, Button } from '@/components/ui'
+import { SpotlightTarget } from '@/components/guide/SpotlightTour'
+import { SPOTLIGHT_TARGETS } from '@/components/guide/spotlightTours'
 import {
   PERSONA_LIST,
   PERSONA_GROUPS,
@@ -156,8 +158,11 @@ export function CompanionSelect({ isPro, starting, onStart, initialMode }: Compa
         </ThemedText>
       </View>
 
-      {/* Mode tabs */}
-      <View style={{ flexDirection: 'row', gap: space[2], paddingHorizontal: space[5], marginTop: space[4] }}>
+      {/* Mode tabs — anchor cho coach mark speaking_intro (onboarding v1 §6) */}
+      <SpotlightTarget
+        id={SPOTLIGHT_TARGETS.speakingModeTabs}
+        style={{ flexDirection: 'row', gap: space[2], paddingHorizontal: space[5], marginTop: space[4] }}
+      >
         {MODES.map((m) => {
           const active = mode === m.key
           return (
@@ -182,7 +187,7 @@ export function CompanionSelect({ isPro, starting, onStart, initialMode }: Compa
             </Pressable>
           )
         })}
-      </View>
+      </SpotlightTarget>
 
       {/* Group chips */}
       <ScrollView

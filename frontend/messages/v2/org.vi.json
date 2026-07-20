@@ -1,5 +1,37 @@
 {
   "org": {
+    "accept": {
+      "cap": "Lời mời tham gia",
+      "title": "Tham gia tổ chức",
+      "subtitle": "Xác nhận để bắt đầu làm việc cùng trung tâm trên DeutschFlow.",
+      "orgLabel": "Tổ chức",
+      "emailLabel": "Email",
+      "roleLabel": "Vai trò",
+      "roles": {
+        "OWNER": "Chủ tổ chức",
+        "ADMIN": "Quản trị viên",
+        "TEACHER": "Giáo viên",
+        "STUDENT": "Học viên"
+      },
+      "loading": "Đang tải lời mời…",
+      "passwordHint": "Nhập mật khẩu để xác nhận. Nếu bạn <b>đã có tài khoản</b> DeutschFlow với email này, hãy dùng mật khẩu hiện tại. Nếu <b>chưa có</b>, hãy đặt mật khẩu mới và tên hiển thị để tạo tài khoản.",
+      "passwordField": "Mật khẩu",
+      "passwordPlaceholder": "Mật khẩu tài khoản",
+      "displayNameField": "Tên hiển thị",
+      "displayNamePlaceholder": "Nguyễn Văn A",
+      "displayNameHint": "Chỉ dùng khi tạo tài khoản mới.",
+      "submit": "Tham gia tổ chức",
+      "submitting": "Đang xử lý…",
+      "terms": "Bằng việc tham gia, bạn đồng ý với điều khoản sử dụng của DeutschFlow.",
+      "loginCta": "Đến trang đăng nhập",
+      "invalidTitle": "Lời mời không khả dụng",
+      "invalidFallback": "Không tìm thấy lời mời.",
+      "expiredTitle": "Lời mời đã hết hạn",
+      "expiredMessage": "Lời mời gửi tới <b>{email}</b> đã hết hạn. Vui lòng liên hệ quản trị viên tổ chức để được mời lại.",
+      "errorMissingToken": "Liên kết mời không hợp lệ — thiếu mã mời.",
+      "errorLoadFailed": "Không thể tải lời mời. Liên kết có thể đã bị thu hồi hoặc không tồn tại.",
+      "errorAcceptFailed": "Không thể nhận lời mời. Vui lòng thử lại."
+    },
     "overview": {
       "title": "Tổ chức",
       "subtitleDashboard": "Bảng điều khiển tổ chức",
@@ -42,6 +74,52 @@
       "orgClassesEmpty": "Chưa có lớp nào trong tổ chức.",
       "classNoTeacher": "Chưa phân giáo viên",
       "classHasTeacher": "Đã có giáo viên"
+    },
+    "manager": {
+      "title": "Bảng vận hành",
+      "subtitle": "Quản lý trung tâm · công việc hôm nay",
+      "scheduleBtn": "Lịch trung tâm",
+      "addTeacherBtn": "Thêm giáo viên",
+      "viewAll": "Xem tất cả",
+      "loadError": "Không tải được bảng điều hành",
+      "loadErrorDesc": "Vui lòng thử lại sau ít phút.",
+      "stats": {
+        "sessionsToday": "Buổi học hôm nay",
+        "sessionsDisrupted": "{count} buổi huỷ/dời",
+        "sessionsOnTrack": "Tất cả đúng lịch",
+        "openClasses": "Lớp đang mở",
+        "teacherless": "{count} lớp chưa có giáo viên",
+        "allStaffed": "Đã phân công đủ giáo viên",
+        "students": "Học viên",
+        "active7d": "{count} hoạt động 7 ngày qua",
+        "pendingInvites": "Lời mời đang chờ",
+        "expiringSoon": "{count} sắp hết hạn"
+      },
+      "todayCap": "Lịch hôm nay · {date}",
+      "todayEmpty": "Hôm nay không có buổi học nào.",
+      "sessionMeta": "{count} học viên",
+      "room": "Phòng {room}",
+      "status": {
+        "SCHEDULED": "Đúng lịch",
+        "CANCELLED": "Đã huỷ",
+        "MOVED": "Đã dời"
+      },
+      "todoCap": "Cần xử lý",
+      "todoEmpty": "Không có việc nào cần xử lý.",
+      "todo": {
+        "teacherless": "{count} lớp chưa có giáo viên",
+        "disrupted": "{count} buổi hôm nay bị huỷ hoặc dời",
+        "expiringInvites": "{count} lời mời sắp hết hạn (≤ {days} ngày)",
+        "pendingInvites": "{count} lời mời đang chờ phản hồi",
+        "seatsFull": "Hết ghế — không thêm được học viên mới",
+        "seatsLow": "Sắp hết ghế — còn {count} chỗ"
+      },
+      "classesCap": "Lớp học",
+      "classesEmpty": "Chưa có lớp nào.",
+      "classNoTeacher": "Chưa có giáo viên",
+      "classHasTeacher": "Đã phân công",
+      "newStudentsCap": "Học viên mới (7 ngày)",
+      "newStudentsEmpty": "Chưa có học viên mới trong 7 ngày."
     },
     "students": {
       "title": "Học viên của tổ chức",

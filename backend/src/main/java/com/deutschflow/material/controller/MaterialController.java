@@ -155,6 +155,26 @@ public class MaterialController {
         return ResponseEntity.noContent().build();
     }
 
+    /** Materials attached to an assignment (caller must teach the assignment's class or org-admin it). */
+    @GetMapping("/assignment/{assignmentId}")
+    public List<MaterialDto> listForAssignment(@AuthenticationPrincipal User user, @PathVariable Long assignmentId) {
+        return materialService.listForAssignment(user, assignmentId);
+    }
+
+    @PostMapping("/{id}/assignments/{assignmentId}")
+    public ResponseEntity<Void> attachToAssignment(@AuthenticationPrincipal User user,
+                                                   @PathVariable Long id, @PathVariable Long assignmentId) {
+        materialService.attachToAssignment(user, id, assignmentId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}/assignments/{assignmentId}")
+    public ResponseEntity<Void> detachFromAssignment(@AuthenticationPrincipal User user,
+                                                     @PathVariable Long id, @PathVariable Long assignmentId) {
+        materialService.detachFromAssignment(user, id, assignmentId);
+        return ResponseEntity.noContent().build();
+    }
+
     // --------------------------------------------------------------- request/response bodies
 
     public record CreateLinkRequest(String scope, String url, String title, String description,

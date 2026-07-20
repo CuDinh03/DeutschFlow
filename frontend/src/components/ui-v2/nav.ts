@@ -44,6 +44,12 @@ export interface NavSection {
 /** Toàn bộ nav của một role. */
 export interface RoleNav {
   role: RoleId
+  /**
+   * Khoá i18n của nhãn role trên pill sidebar (messages: v2.nav.roles.<roleLabelKey>).
+   * Bỏ trống = dùng chính `role`. Cần thiết cho biến thể MANAGER: vẫn chạy trong shell 'org'
+   * (accent teal, cùng route) nhưng pill phải đọc là "Quản lý", không phải "Tổ chức".
+   */
+  roleLabelKey?: string
   /** Route gốc của role — đích redirect mặc định sau đăng nhập. */
   rootHref: string
   sections: NavSection[]
@@ -54,7 +60,7 @@ export interface RoleNav {
  *
  * Nhóm:
  *   - Quản lý lớp : trang chủ, kế hoạch + nội dung + lịch sử giảng dạy, chấm bài (text/ảnh),
- *                   thư viện tài liệu, phúc khảo.
+ *                   thư viện tài liệu, thư viện ảnh, phúc khảo.
  *   - Giảng dạy   : tin nhắn học viên.
  *   - Công cụ AI  : ngữ pháp AI, tạo tài liệu AI, tạo ảnh AI.
  *   - Thống kê    : báo cáo & phân tích.
@@ -78,9 +84,17 @@ export const teacherNav: RoleNav = {
         { id: 'tc-checklist', label: 'Nội dung giảng dạy', href: '/v2/teacher/tc-checklist', icon: 'checklist' },
         { id: 'grading', label: 'Chấm bài', href: '/v2/teacher/grading', icon: 'grading' },
         { id: 'grade-image', label: 'Chấm bài qua ảnh', href: '/v2/teacher/grade-image', icon: 'draw' },
-        { id: 'tc-reports', label: 'Sổ điểm & Báo cáo', href: '/v2/teacher/tc-reports', icon: 'assessment' },
+        { id: 'tc-reports', label: 'Sổ điểm lớp', href: '/v2/teacher/tc-reports', icon: 'assessment' },
         { id: 'materials', label: 'Thư viện tài liệu', href: '/v2/teacher/materials', icon: 'menu_book' },
         { id: 'tc-timesheet', label: 'Chấm công', href: '/v2/teacher/tc-timesheet', icon: 'timer' },
+        // "Thư viện ảnh" (media asset S3) ≠ "Thư viện tài liệu" (file tài liệu): ảnh minh hoạ cho
+        // slide/đề bài, có tag + alt text, upload/sửa/xoá theo uploader.
+        { id: 'tc-media', label: 'Thư viện ảnh', href: '/v2/teacher/media', icon: 'photo_library' },
+        // "Bài tập ngữ pháp" — GV sinh bản nháp (AI) rồi nộp duyệt; admin duyệt ở /v2/admin/grammar-review.
+        // CỐ Ý nằm ngoài section "Công cụ AI" (đang bị ẩn sau TEACHER_AI_TOOLS_ENABLED): đây là đầu vào
+        // DUY NHẤT của hàng đợi duyệt, ẩn nó đi thì admin ngồi duyệt một hàng đợi vĩnh viễn rỗng. Phần
+        // xem/nộp-duyệt bản nháp chạy tốt kể cả khi LLM chết — chỉ nút "Sinh AI" phụ thuộc LLM.
+        { id: 'grammar-drafts', label: 'Bài tập ngữ pháp', href: '/v2/teacher/grammar-drafts', icon: 'quiz' },
       ],
     },
     {
@@ -108,7 +122,7 @@ export const teacherNav: RoleNav = {
     {
       label: 'Thống kê',
       labelKey: 'stats',
-      items: [{ id: 'analytics', label: 'Báo cáo & Phân tích', href: '/v2/teacher/analytics', icon: 'monitoring' }],
+      items: [{ id: 'analytics', label: 'Phân tích giảng dạy', href: '/v2/teacher/analytics', icon: 'monitoring' }],
     },
     {
       label: 'Tài khoản',
@@ -169,13 +183,35 @@ export const adminNav: RoleNav = {
 }
 
 /**
- * orgNav — quản lý trung tâm (org OWNER & MANAGER).
+ * ORG_ITEM — các thanh menu của khu vực /v2/org, khai báo MỘT lần.
+ *
+ * OWNER (`orgNav`) và MANAGER (`managerNav`) đều là org console nhưng bày biện khác nhau, nên item
+ * dùng chung được đặt tên ở đây để hai nav soạn lại từ cùng nguồn — sửa href/icon một chỗ, cả hai
+ * nav cùng đổi. `id` khớp khoá i18n (v2.nav.items.<id>) nên MANAGER tự có nhãn đã dịch.
+ */
+const ORG_ITEM = {
+  overview: { id: 'org', label: 'Tổng quan', href: '/v2/org', icon: 'dashboard' },
+  students: { id: 'org-students', label: 'Học viên', href: '/v2/org/students', icon: 'school' },
+  classes: { id: 'org-classes', label: 'Lớp học', href: '/v2/org/classes', icon: 'groups' },
+  schedule: { id: 'org-schedule', label: 'Lịch trung tâm', href: '/v2/org/schedule', icon: 'schedule' },
+  teachers: { id: 'org-teachers', label: 'Giáo viên', href: '/v2/org/teachers', icon: 'badge' },
+  analytics: { id: 'org-analytics', label: 'Phân tích', href: '/v2/org/analytics', icon: 'monitoring' },
+  finance: { id: 'org-finance', label: 'Tài chính', href: '/v2/org/finance', icon: 'account_balance', ownerOnly: true },
+  billing: { id: 'org-billing', label: 'Gói & Giấy phép', href: '/v2/org/billing', icon: 'receipt', ownerOnly: true },
+  invitations: { id: 'org-invitations', label: 'Lời mời', href: '/v2/org/invitations', icon: 'mail' },
+  timesheets: { id: 'org-timesheets', label: 'Chấm công', href: '/v2/org/timesheets', icon: 'timer' },
+  roles: { id: 'org-roles', label: 'Phân quyền', href: '/v2/org/roles', icon: 'admin_panel_settings' },
+  profile: { id: 'org-profile', label: 'Hồ sơ', href: '/v2/profile', icon: 'person' },
+} satisfies Record<string, NavItem>
+
+/**
+ * orgNav — giám đốc trung tâm (org OWNER).
  *
  * Một nhóm chính (tổng quan, học viên, lớp, lịch trung tâm, giáo viên, phân tích, tài chính,
  * gói & giấy phép, lời mời, phân quyền) + nhóm "Tài khoản".
  *
- * Phân quyền: item gắn `ownerOnly: true` (tài chính, gói & giấy phép) CHỈ OWNER thấy;
- * MANAGER (nhân sự) bị ẩn. Việc lọc do component sidebar thực hiện dựa trên role org.
+ * Phân quyền: item gắn `ownerOnly: true` (tài chính, gói & giấy phép) CHỈ OWNER thấy. Sidebar vẫn
+ * lọc `ownerOnly` như một lớp phòng thủ thứ hai, kể cả khi MANAGER đã được chuyển sang `managerNav`.
  */
 export const orgNav: RoleNav = {
   role: 'org',
@@ -183,25 +219,62 @@ export const orgNav: RoleNav = {
   sections: [
     {
       items: [
-        { id: 'org', label: 'Tổng quan', href: '/v2/org', icon: 'dashboard' },
-        { id: 'org-students', label: 'Học viên', href: '/v2/org/students', icon: 'school' },
-        { id: 'org-classes', label: 'Lớp học', href: '/v2/org/classes', icon: 'groups' },
-        { id: 'org-schedule', label: 'Lịch trung tâm', href: '/v2/org/schedule', icon: 'schedule' },
-        { id: 'org-teachers', label: 'Giáo viên', href: '/v2/org/teachers', icon: 'badge' },
-        { id: 'org-analytics', label: 'Phân tích', href: '/v2/org/analytics', icon: 'monitoring' },
-        { id: 'org-finance', label: 'Tài chính', href: '/v2/org/finance', icon: 'account_balance', ownerOnly: true },
-        { id: 'org-billing', label: 'Gói & Giấy phép', href: '/v2/org/billing', icon: 'receipt', ownerOnly: true },
-        { id: 'org-invitations', label: 'Lời mời', href: '/v2/org/invitations', icon: 'mail' },
-        { id: 'org-timesheets', label: 'Chấm công', href: '/v2/org/timesheets', icon: 'timer' },
-        { id: 'org-roles', label: 'Phân quyền', href: '/v2/org/roles', icon: 'admin_panel_settings' },
+        ORG_ITEM.overview,
+        ORG_ITEM.students,
+        ORG_ITEM.classes,
+        ORG_ITEM.schedule,
+        ORG_ITEM.teachers,
+        ORG_ITEM.analytics,
+        ORG_ITEM.finance,
+        ORG_ITEM.billing,
+        ORG_ITEM.invitations,
+        ORG_ITEM.timesheets,
+        ORG_ITEM.roles,
       ],
     },
     {
       label: 'Tài khoản',
       labelKey: 'account',
-      items: [
-        { id: 'org-profile', label: 'Hồ sơ', href: '/v2/profile', icon: 'person' },
-      ],
+      items: [ORG_ITEM.profile],
+    },
+  ],
+}
+
+/**
+ * managerNav — quản lý trung tâm (org MANAGER, "nhân sự").
+ *
+ * Cùng shell 'org' (accent teal, cùng cây route /v2/org) nhưng bày theo ĐÚNG việc của quản lý:
+ * vận hành hằng ngày trước (lịch buổi học, lớp, học viên), rồi nhân sự (giáo viên, lời mời, phân
+ * quyền), rồi thống kê. KHÔNG có Tài chính / Gói & Giấy phép — đó là đặc quyền OWNER (giám đốc),
+ * backend chốt bằng OrgGuard.assertOrgFinance.
+ *
+ * Sidebar chọn nav này khi orgRole ≠ OWNER (xem GaSidebar); trang chủ /v2/org cũng đổi sang
+ * ManagerDashboard tương ứng.
+ */
+export const managerNav: RoleNav = {
+  role: 'org',
+  roleLabelKey: 'manager',
+  rootHref: '/v2/org',
+  sections: [
+    {
+      label: 'Vận hành',
+      labelKey: 'ops',
+      items: [ORG_ITEM.overview, ORG_ITEM.schedule, ORG_ITEM.classes, ORG_ITEM.students],
+    },
+    {
+      label: 'Nhân sự',
+      labelKey: 'staff',
+      items: [ORG_ITEM.teachers, ORG_ITEM.invitations, ORG_ITEM.roles],
+    },
+    {
+      label: 'Thống kê',
+      labelKey: 'stats',
+      items: [ORG_ITEM.analytics],
+    },
+    {
+      label: 'Tài khoản',
+      labelKey: 'account',
+      items: [ORG_ITEM.profile],
     },
   ],
 }
@@ -230,8 +303,22 @@ export const studentNav: RoleNav = {
         { id: 'vocabulary', label: 'Từ vựng', href: '/v2/student/vocabulary', icon: 'menu_book' },
         { id: 'grammar', label: 'Ngữ pháp', href: '/v2/student/grammar', icon: 'spellcheck' },
         { id: 'review-queue', label: 'Ôn tập (SRS)', href: '/v2/student/review', icon: 'repeat' },
+        // Thư viện bài tập bổ trợ (GET /practice/exercises · POST /practice/submit) — chấm điểm THẬT
+        // ở v2 (trang v1 nộp cứng scorePercent 100%). KHÁC 'review-queue' (SRS đến hạn).
+        { id: 'exercises', label: 'Bài tập bổ trợ', href: '/v2/student/exercises', icon: 'assignment' },
+        // Sổ lỗi ngữ pháp đầy đủ (GET /error-skills/me · /me/resolved) + drill sửa lỗi.
+        // KHÁC 'review-queue': trang đó chỉ có flashcard SRS + task ngữ pháp ĐẾN HẠN (nút "Xong"),
+        // không có toàn bộ sổ lỗi, không tìm kiếm, không luyện sửa.
+        { id: 'st-errors', label: 'Sổ lỗi', href: '/v2/student/errors', icon: 'error' },
+        // "Bài học" = thư viện VIDEO (mediaApi). "Giáo trình" = đề cương sách Netzwerk Neu A1
+        // (GET /curriculum/netzwerk-neu/a1) — hai bề mặt KHÁC nhau, đừng gộp.
         { id: 'lessons', label: 'Bài học', href: '/v2/student/lessons', icon: 'play_circle' },
+        { id: 'curriculum', label: 'Giáo trình', href: '/v2/student/curriculum', icon: 'library_books' },
         { id: 'roadmap', label: 'Lộ trình', href: '/v2/student/roadmap', icon: 'route' },
+        { id: 'game', label: 'Trò chơi', href: '/v2/student/game', icon: 'sports_esports' },
+        // Tin tức báo Đức (GET /news) — trang learner-shared: GV/admin cũng vào được
+        // (ngoại lệ V2_LEARNER_SHARED trong middleware.ts), dù item chỉ hiện trên nav học viên.
+        { id: 'news', label: 'Tin tức Đức', href: '/v2/student/news', icon: 'newspaper' },
       ],
     },
     {
@@ -239,8 +326,14 @@ export const studentNav: RoleNav = {
       labelKey: 'examPrep',
       items: [
         { id: 'speaking', label: 'Luyện nói AI', href: '/v2/student/speaking', icon: 'mic' },
+        // Bài nói theo tuần: admin ra đề (/v2/admin/weekly-speaking) → học viên nộp + nhận rubric.
+        // Luồng RIÊNG, không phải engine chat AI ở /v2/student/speaking.
+        { id: 'weekly-speaking', label: 'Speaking tuần', href: '/v2/student/weekly-speaking', icon: 'calendar_month' },
         { id: 'mock-exam', label: 'Thi thử', href: '/v2/student/mock-exam', icon: 'quiz' },
         { id: 'exam', label: 'Luyện thi', href: '/v2/student/exam', icon: 'school' },
+        // Đánh giá B1 (GET/POST /assessment/b1/*): 5 tiêu chí readiness + điểm tốt nghiệp.
+        // KHÁC 'mock-exam' (làm đề) — đây là bảng tổng hợp điều kiện đạt chuẩn B1.
+        { id: 'b1-assessment', label: 'Đánh giá B1', href: '/v2/student/assessment', icon: 'fact_check' },
       ],
     },
     {
@@ -260,16 +353,35 @@ export const studentNav: RoleNav = {
       label: 'Cá nhân',
       labelKey: 'personal',
       items: [
+        // Thống kê học tập CÁ NHÂN (GET /user/analytics · /user/error-analytics · /user/recommendations):
+        // từ đã học/ôn, phút nói, xu hướng lỗi, gợi ý. KHÁC 'st-progress' (tiến độ LỚP do GV cập nhật).
+        { id: 'st-stats', label: 'Thống kê', href: '/v2/student/stats', icon: 'query_stats' },
         { id: 'achievements', label: 'Thành tích', href: '/v2/student/achievements', icon: 'emoji_events' },
+        // Lịch sử NỘP BÀI của lộ trình (GET /plan/me/attempts): tuần/buổi · lần thử · điểm · lỗi.
+        // KHÁC 'st-progress' (tiến độ LỚP, do giáo viên cập nhật) — hai nguồn dữ liệu khác nhau.
+        { id: 'st-exercise-history', label: 'Lịch sử làm bài', href: '/v2/student/exercise-history', icon: 'history' },
+        // Chứng chỉ CEFR của CHÍNH học viên (GET /certificates/me · POST /certificates/claim · PDF).
+        // KHÁC trang công khai /certificate/[token] (xác thực chứng chỉ, không cần đăng nhập).
+        { id: 'certificates', label: 'Chứng chỉ', href: '/v2/student/certificates', icon: 'workspace_premium' },
         { id: 'tuition', label: 'Học phí', href: '/v2/student/tuition', icon: 'payments' },
         { id: 'notifications', label: 'Thông báo', href: '/v2/notifications', icon: 'notifications' },
         { id: 'profile', label: 'Hồ sơ', href: '/v2/profile', icon: 'person' },
+        // Port của nav item `guide` trong StudentShell v1 (`/student/guide`). Trang
+        // `/v2/student/welcome` đã tồn tại từ đợt trước nhưng KHÔNG có đường vào nào (không nav,
+        // không link) → thẻ "Buổi học đầu tiên" trên đó là ngõ cụt. Đây cũng là lối duy nhất quay
+        // lại /v2/student/beginner sau khi CTA trên dashboard tắt (sessionsCompleted > 0).
+        { id: 'welcome', label: 'Hướng dẫn', href: '/v2/student/welcome', icon: 'help' },
       ],
     },
   ],
 }
 
-/** Tra cứu nav theo role — entry point component sidebar dùng để render đúng menu. */
+/**
+ * Tra cứu nav theo role — entry point component sidebar dùng để render đúng menu.
+ *
+ * `org` trỏ tới nav của OWNER; MANAGER là biến thể trong CÙNG shell 'org' nên không có RoleId
+ * riêng — GaSidebar đọc orgRole từ cookie/JWT rồi đổi sang `managerNav`.
+ */
 export const ROLE_NAV: Record<RoleId, RoleNav> = {
   teacher: teacherNav,
   admin: adminNav,

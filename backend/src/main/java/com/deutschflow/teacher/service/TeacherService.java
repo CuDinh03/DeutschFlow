@@ -25,7 +25,10 @@ import com.deutschflow.teacher.entity.AssignmentScenario;
 import com.deutschflow.teacher.repository.AssignmentScenarioRepository;
 import com.deutschflow.speaking.service.SpeakingAiHelpersService;
 import com.deutschflow.speaking.service.SpeakingAiHelpersService.PracticeScenario;
+import com.deutschflow.notification.NotificationType;
 import com.deutschflow.notification.service.UserNotificationService;
+import com.deutschflow.notification.service.NotificationAutoAckService;
+import com.deutschflow.common.transaction.RunAfterCommitService;
 import com.deutschflow.media.service.S3StorageService;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.entity.UserLearningProfile;
@@ -51,6 +54,7 @@ public class TeacherService {
     private final ClassStudentRepository classStudentRepository;
     private final ClassTeacherRepository classTeacherRepository;
     private final ClassAssignmentRepository assignmentRepository;
+    private final AssignmentBackfillService assignmentBackfillService;
     private final JdbcTemplate jdbcTemplate;
     private final StudentAssignmentRepository studentAssignmentRepository;
     private final com.deutschflow.speaking.repository.AiSpeakingSessionRepository speakingSessionRepository;
@@ -65,6 +69,9 @@ public class TeacherService {
     private final S3StorageService s3StorageService;
     private final ClassLessonRepository lessonRepository;
     private final StudentCompetencyService studentCompetencyService;
+    private final com.deutschflow.material.service.MaterialService materialService;
+    private final NotificationAutoAckService notificationAutoAckService;
+    private final RunAfterCommitService runAfterCommitService;
 
     @Transactional
     public TeacherClassDto createClass(Long teacherId, String name) {
@@ -216,6 +223,10 @@ public class TeacherService {
             classStudentRepository.save(classStudent);
         }
 
+        // Give the newcomer the assignments the class already handed out before they joined — otherwise
+        // they'd be counted as "chờ nộp" for work they can't see or submit (idempotent).
+        assignmentBackfillService.ensureAssignmentsForStudent(classId, req.getStudentId());
+
         // Notify the student. The teacher is NOT notified here: they are the one who just clicked
         // approve. (There used to be an onTeacherJoinRequestCreated call right here, telling the teacher
         // "X yêu cầu tham gia lớp" immediately after they had approved X. The notification now fires in
@@ -228,6 +239,13 @@ public class TeacherService {
             teacherClass != null ? teacherClass.getName() : "",
             teacher != null ? teacher.getDisplayName() : ""
         );
+
+        // Yêu cầu đã xử lý → "Yêu cầu tham gia lớp" (CLASS_JOIN_REQUEST_CREATED) không còn cần chú ý với
+        // bất kỳ giáo viên nào của lớp; tự đánh dấu đã đọc sau commit.
+        ackForAllClassTeachersAfterCommit(
+                classId,
+                NotificationType.CLASS_JOIN_REQUEST_CREATED,
+                Map.<String, Object>of("classId", classId, "studentId", req.getStudentId()));
     }
 
     @Transactional
@@ -260,6 +278,12 @@ public class TeacherService {
             teacherClass != null ? teacherClass.getName() : "",
             teacher != null ? teacher.getDisplayName() : ""
         );
+
+        // Yêu cầu đã xử lý → tự đánh dấu đã đọc "Yêu cầu tham gia lớp" cho mọi giáo viên của lớp.
+        ackForAllClassTeachersAfterCommit(
+                classId,
+                NotificationType.CLASS_JOIN_REQUEST_CREATED,
+                Map.<String, Object>of("classId", classId, "studentId", req.getStudentId()));
     }
 
     @Transactional
@@ -388,6 +412,10 @@ public class TeacherService {
                 .id(new ClassStudentId(classId, user.getId()))
                 .build();
         classStudentRepository.save(classStudent);
+
+        // Backfill the assignments handed out before this student was added (idempotent) — see
+        // approveJoinRequest for the same guard on the self-join path.
+        assignmentBackfillService.ensureAssignmentsForStudent(classId, user.getId());
 
         // Notify student
         TeacherClass teacherClass = targetClass;
@@ -640,9 +668,21 @@ public class TeacherService {
 
         studentAssignmentRepository.saveAll(studentAssignments);
 
+        User teacher = userRepository.findById(teacherId).orElse(null);
+
+        // Attach any library materials the teacher picked (in pick order). attachToAssignment re-checks
+        // that the teacher can access each material AND owns the assignment's class, so a bad/inaccessible
+        // id rolls back the whole create (fail fast — the teacher only ever sends ids from their own list).
+        if (req.materialIds() != null && !req.materialIds().isEmpty() && teacher != null) {
+            for (Long materialId : req.materialIds()) {
+                if (materialId != null) {
+                    materialService.attachToAssignment(teacher, materialId, savedAssignment.getId());
+                }
+            }
+        }
+
         // Notify all students in class (async batch)
         TeacherClass teacherClass = classRepository.findById(classId).orElse(null);
-        User teacher = userRepository.findById(teacherId).orElse(null);
         userNotificationService.onNewClassAssignment(
             classId,
             teacherClass != null ? teacherClass.getName() : "",
@@ -834,6 +874,16 @@ public class TeacherService {
             req.teacherScore(), req.teacherFeedback()
         );
 
+        // Tự đánh dấu ĐÃ ĐỌC "📥 Bài cần xem" (QUIZ_SUBMISSION_RECEIVED) cho MỌI giáo viên của lớp: bài
+        // vừa chấm nên không còn "cần xem" với ai trong nhóm co-teaching, kể cả người vào Trung tâm Chấm
+        // bài qua sidebar mà không bao giờ bấm chuông. Sau commit, best-effort — không ảnh hưởng điểm.
+        ackForAllClassTeachersAfterCommit(
+                classAssignment.getClassId(),
+                NotificationType.QUIZ_SUBMISSION_RECEIVED,
+                Map.<String, Object>of(
+                        "assignmentId", assignment.getAssignmentId(),
+                        "studentId", assignment.getStudentId()));
+
         // Auto-update the competency ledger from the grade (Phase 2b) — fire only AFTER this grade tx
         // commits, so a failed commit (e.g. the @Version optimistic-lock conflict this guards against)
         // never leaves an orphan GRADING competency row. Best-effort: a ledger error never affects the grade.
@@ -853,6 +903,19 @@ public class TeacherService {
         }
 
         return result;
+    }
+
+    /**
+     * Sau khi tx nghiệp vụ commit, đánh dấu ĐÃ ĐỌC một loại thông báo cho MỌI giáo viên của lớp. Dùng khi
+     * hành động của bất kỳ giáo viên nào trong lớp "tiêu thụ" thông báo đó cho cả nhóm co-teaching (chấm
+     * bài, duyệt/từ chối yêu cầu vào lớp). Best-effort — chạy off tx nghiệp vụ, lỗi không ảnh hưởng hành động.
+     */
+    private void ackForAllClassTeachersAfterCommit(Long classId, NotificationType type, Map<String, Object> match) {
+        runAfterCommitService.run(() -> {
+            for (ClassTeacher ct : classTeacherRepository.findByIdClassId(classId)) {
+                notificationAutoAckService.ackByContext(ct.getId().getTeacherId(), Set.of(type), match);
+            }
+        });
     }
 
     /** Best-effort competency-ledger update from a grade (Phase 2b): a ledger error never affects the grade. */

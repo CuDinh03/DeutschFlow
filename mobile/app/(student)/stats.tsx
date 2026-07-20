@@ -36,6 +36,7 @@ import {
   FadeIn,
   Skeleton,
   SkillRadar,
+  Button,
 } from '@/components/ui'
 
 interface StatsData {
@@ -252,9 +253,17 @@ export default function StatsScreen() {
                 <ThemedText variant="title">Buổi luyện gần đây</ThemedText>
               </View>
               {sessions.length === 0 ? (
-                <ThemedText variant="caption" color="muted">
-                  Chưa có buổi luyện nào. Hãy bắt đầu một buổi phỏng vấn!
-                </ThemedText>
+                <View style={{ gap: space[3], alignItems: 'flex-start' }}>
+                  <ThemedText variant="caption" color="muted">
+                    Chưa có buổi luyện nào — thử một buổi Speaking đầu tiên nhé.
+                  </ThemedText>
+                  <Button
+                    label="Bắt đầu buổi Speaking"
+                    variant="secondary"
+                    fullWidth={false}
+                    onPress={() => router.navigate('/(student)/speaking')}
+                  />
+                </View>
               ) : (
                 sessions.map((s, i) => <SessionRow key={s.id} session={s} isLast={i === sessions.length - 1} />)
               )}

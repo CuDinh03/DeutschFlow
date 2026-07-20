@@ -1,5 +1,37 @@
 {
   "org": {
+    "accept": {
+      "cap": "Einladung",
+      "title": "Der Organisation beitreten",
+      "subtitle": "Bestätigen Sie, um mit dem Zentrum auf DeutschFlow zu arbeiten.",
+      "orgLabel": "Organisation",
+      "emailLabel": "E-Mail",
+      "roleLabel": "Rolle",
+      "roles": {
+        "OWNER": "Inhaber",
+        "ADMIN": "Administrator",
+        "TEACHER": "Lehrkraft",
+        "STUDENT": "Lernende:r"
+      },
+      "loading": "Einladung wird geladen…",
+      "passwordHint": "Geben Sie Ihr Passwort zur Bestätigung ein. Wenn Sie <b>bereits ein Konto</b> bei DeutschFlow mit dieser E-Mail haben, verwenden Sie Ihr aktuelles Passwort. Falls <b>nicht</b>, legen Sie ein neues Passwort und einen Anzeigenamen an.",
+      "passwordField": "Passwort",
+      "passwordPlaceholder": "Kontopasswort",
+      "displayNameField": "Anzeigename",
+      "displayNamePlaceholder": "Anna Müller",
+      "displayNameHint": "Wird nur bei einem neuen Konto verwendet.",
+      "submit": "Der Organisation beitreten",
+      "submitting": "Wird verarbeitet…",
+      "terms": "Mit dem Beitritt stimmen Sie den Nutzungsbedingungen von DeutschFlow zu.",
+      "loginCta": "Zur Anmeldung",
+      "invalidTitle": "Einladung nicht verfügbar",
+      "invalidFallback": "Einladung nicht gefunden.",
+      "expiredTitle": "Einladung abgelaufen",
+      "expiredMessage": "Die Einladung an <b>{email}</b> ist abgelaufen. Bitte lassen Sie sich von einer Administratorin oder einem Administrator der Organisation erneut einladen.",
+      "errorMissingToken": "Ungültiger Einladungslink — der Einladungscode fehlt.",
+      "errorLoadFailed": "Die Einladung konnte nicht geladen werden. Der Link wurde möglicherweise widerrufen oder existiert nicht.",
+      "errorAcceptFailed": "Die Einladung konnte nicht angenommen werden. Bitte versuchen Sie es erneut."
+    },
     "overview": {
       "title": "Organisation",
       "subtitleDashboard": "Organisations-Dashboard",
@@ -42,6 +74,52 @@
       "orgClassesEmpty": "Noch keine Kurse in der Organisation.",
       "classNoTeacher": "Keine Lehrkraft zugewiesen",
       "classHasTeacher": "Lehrkraft zugewiesen"
+    },
+    "manager": {
+      "title": "Betriebsübersicht",
+      "subtitle": "Zentrumsleitung · Aufgaben von heute",
+      "scheduleBtn": "Zentrumsplan",
+      "addTeacherBtn": "Lehrkraft hinzufügen",
+      "viewAll": "Alle ansehen",
+      "loadError": "Betriebsübersicht konnte nicht geladen werden",
+      "loadErrorDesc": "Bitte versuchen Sie es gleich noch einmal.",
+      "stats": {
+        "sessionsToday": "Einheiten heute",
+        "sessionsDisrupted": "{count} abgesagt/verschoben",
+        "sessionsOnTrack": "Alles planmäßig",
+        "openClasses": "Laufende Kurse",
+        "teacherless": "{count} ohne Lehrkraft",
+        "allStaffed": "Alle Kurse besetzt",
+        "students": "Lernende",
+        "active7d": "{count} aktiv in 7 Tagen",
+        "pendingInvites": "Offene Einladungen",
+        "expiringSoon": "{count} laufen bald ab"
+      },
+      "todayCap": "Heute · {date}",
+      "todayEmpty": "Heute sind keine Einheiten geplant.",
+      "sessionMeta": "{count} Lernende",
+      "room": "Raum {room}",
+      "status": {
+        "SCHEDULED": "Planmäßig",
+        "CANCELLED": "Abgesagt",
+        "MOVED": "Verschoben"
+      },
+      "todoCap": "Zu erledigen",
+      "todoEmpty": "Nichts zu erledigen.",
+      "todo": {
+        "teacherless": "{count} Kurse ohne Lehrkraft",
+        "disrupted": "{count} heutige Einheiten abgesagt oder verschoben",
+        "expiringInvites": "{count} Einladungen laufen in {days} Tagen ab",
+        "pendingInvites": "{count} Einladungen ohne Antwort",
+        "seatsFull": "Keine Plätze frei — keine neuen Lernenden möglich",
+        "seatsLow": "Plätze werden knapp — noch {count} frei"
+      },
+      "classesCap": "Kurse",
+      "classesEmpty": "Noch keine Kurse.",
+      "classNoTeacher": "Keine Lehrkraft",
+      "classHasTeacher": "Lehrkraft zugewiesen",
+      "newStudentsCap": "Neue Lernende (7 Tage)",
+      "newStudentsEmpty": "Keine neuen Lernenden in den letzten 7 Tagen."
     },
     "students": {
       "title": "Schüler der Organisation",

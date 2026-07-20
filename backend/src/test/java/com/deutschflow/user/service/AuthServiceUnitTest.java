@@ -5,6 +5,7 @@ import com.deutschflow.common.security.JwtService;
 import com.deutschflow.common.transaction.RunAfterCommitService;
 import com.deutschflow.notification.events.StudentRegisteredEvent;
 import com.deutschflow.notification.service.UserNotificationService;
+import com.deutschflow.user.dto.ChangePasswordRequest;
 import com.deutschflow.user.dto.LoginRequest;
 import com.deutschflow.user.dto.RefreshRequest;
 import com.deutschflow.user.dto.RegisterRequest;
@@ -318,7 +319,80 @@ class AuthServiceUnitTest {
 
         assertEquals("ExponentPushToken[abc123]", u.getPushToken());
         assertEquals("ios", u.getPushPlatform());
-        verify(userRepository).save(u);
+        // Written via native assignPushToken, NOT save(user): push_token is updatable=false so a
+        // later merge of the cached principal can never resurrect a token another request cleared.
+        verify(userRepository).assignPushToken(5L, "ExponentPushToken[abc123]", "ios");
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void savePushToken_stripsSameDeviceTokenFromOtherAccounts() {
+        // Two accounts logged in on the same iPhone one after another: registering the device
+        // token for the second account must remove it from the first, or the device keeps
+        // receiving the first account's notifications.
+        User u = User.builder()
+                .id(5L).email("a@b.com").passwordHash("x").displayName("A").role(User.Role.STUDENT)
+                .build();
+
+        authService.savePushToken(u, "ExponentPushToken[abc123]", "ios");
+
+        verify(userRepository).clearPushTokenFromOtherUsers("ExponentPushToken[abc123]", 5L);
+        verify(userRepository).assignPushToken(5L, "ExponentPushToken[abc123]", "ios");
+    }
+
+    @Test
+    void savePushToken_doesNotTouchOtherAccountsForRejectedToken() {
+        User u = User.builder()
+                .id(5L).email("a@b.com").passwordHash("x").displayName("A").role(User.Role.STUDENT)
+                .build();
+
+        authService.savePushToken(u, "not-an-expo-token", "ios");
+
+        verify(userRepository, never()).clearPushTokenFromOtherUsers(anyString(), anyLong());
+        verify(userRepository, never()).assignPushToken(anyLong(), anyString(), anyString());
+    }
+
+    @Test
+    void changePassword_revokesSessionsAndClearsPushToken() {
+        // Changing the password force-logs-out every session, so the device push token must go too.
+        User u = User.builder()
+                .id(5L).email("a@b.com").passwordHash("hash").displayName("A").role(User.Role.STUDENT)
+                .build();
+        when(passwordEncoder.matches("oldpass", "hash")).thenReturn(true);
+        when(passwordEncoder.encode("newpass1")).thenReturn("newhash");
+
+        authService.changePassword(u, new ChangePasswordRequest("oldpass", "newpass1"));
+
+        verify(refreshTokenRepository).revokeAllByUserId(5L);
+        verify(userRepository).clearPushToken(5L);
+    }
+
+    @Test
+    void refresh_reuseDetected_revokesAllAndClearsPushToken() {
+        // A revoked refresh token presented again = theft signal → kill every session AND the device
+        // push token, so the compromised device stops receiving this account's notifications.
+        User u = User.builder()
+                .id(7L).email("a@b.com").passwordHash("x").displayName("A").role(User.Role.STUDENT)
+                .build();
+        RefreshToken revoked = RefreshToken.builder()
+                .user(u).token("tok").expiresAt(LocalDateTime.now().plusHours(1)).revoked(true)
+                .build();
+        when(refreshTokenRepository.findByToken("tok")).thenReturn(Optional.of(revoked));
+
+        assertThrows(BadRequestException.class, () -> authService.refresh("tok"));
+
+        verify(refreshTokenRepository).revokeAllByUserId(7L);
+        verify(userRepository).clearPushToken(7L);
+    }
+
+    @Test
+    void logout_revokesSessionsAndDetachesPushToken() {
+        // Logout kills every session for the account, so its device token must go too —
+        // otherwise the phone keeps showing this account's notifications after logout.
+        authService.logout(5L);
+
+        verify(refreshTokenRepository).revokeAllByUserId(5L);
+        verify(userRepository).clearPushToken(5L);
     }
 
     @Test
@@ -331,6 +405,6 @@ class AuthServiceUnitTest {
         authService.savePushToken(u, "740f4707bebcf74f9b7c25d48e3358945f6aa01da5ddb387462c7eaf61bb78ad", "ios");
 
         assertNull(u.getPushToken());
-        verify(userRepository, never()).save(any());
+        verify(userRepository, never()).assignPushToken(anyLong(), anyString(), anyString());
     }
 }

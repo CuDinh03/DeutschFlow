@@ -8,6 +8,8 @@ import { useAuthStore } from '@/stores/useAuthStore'
 import { motion, radius, space, useTheme } from '@/lib/theme'
 import { captureEvent } from '@/lib/analytics'
 import { saveOnboardingDraft, readOnboardingDraft, clearOnboardingDraft } from '@/lib/onboardingDraft'
+import { saveDailyGoalMinutes } from '@/lib/dailyGoal'
+import { MENTOR_META, type OnboardingMentor } from '@/lib/onboardingMentor'
 import { PRO_UNLOCKED_FREE } from '@/lib/paywall'
 import { Screen, ThemedText, Button } from '@/components/ui'
 
@@ -26,30 +28,8 @@ interface OnboardingRoute {
   postAction: string
 }
 
-/** Fixed mentor preview (no upsell shown on iOS — Apple 3.1.1). */
-interface OnboardingMentor {
-  code: string
-  displayName: string
-  difficulty: string
-}
-
-const MENTOR_META: Record<string, { emoji: string; tagline: string }> = {
-  ANNA: { emoji: '🧑‍🏫', tagline: 'Cố vấn nghề & luyện thi' },
-  LUKAS: { emoji: '💻', tagline: 'Tech Lead — CNTT' },
-  EMMA: { emoji: '💼', tagline: 'Business & văn phòng' },
-  KLAUS: { emoji: '👨‍🍳', tagline: 'Bếp trưởng — Nhà hàng' },
-  WEBER: { emoji: '🩺', tagline: 'Bác sĩ da liễu' },
-  SARAH: { emoji: '🏥', tagline: 'Trợ lý y khoa' },
-  SCHNEIDER: { emoji: '👁️', tagline: 'Bác sĩ mắt' },
-  LENA: { emoji: '🛍️', tagline: 'Bán lẻ' },
-  THOMAS: { emoji: '🥐', tagline: 'Thợ làm bánh' },
-  PETRA: { emoji: '🥩', tagline: 'Cửa hàng thịt' },
-  MAX: { emoji: '⚙️', tagline: 'Vận hành máy' },
-  OLIVER: { emoji: '🔧', tagline: 'Thợ CNC' },
-  NIKLAS: { emoji: '🍽️', tagline: 'Phục vụ nhà hàng' },
-  NINA: { emoji: '🏨', tagline: 'Lễ tân khách sạn' },
-  HANNIE: { emoji: '🎤', tagline: 'MC / Truyền thông' },
-}
+// Mentor preview metadata (emoji/tagline theo code) — dùng chung với màn
+// first-sentence, xem lib/onboardingMentor.ts.
 
 const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const
 
@@ -180,11 +160,11 @@ export default function OnboardingScreen() {
           if (active) { setResuming(false); setShowUpsell(true) }
           return
         }
-        const dest =
-          route?.postAction === 'ROADMAP_ALPHABET' || route?.postAction === 'ROADMAP_NODE'
-            ? '/(student)/roadmap'
-            : '/(student)/speaking'
-        router.replace(dest)
+        // Onboarding v1 (Q1): wow "câu tiếng Đức đầu tiên" NGAY SAU signup, thay
+        // routing theo postAction cũ. Màn wow kết thúc tại Trang chủ — nơi
+        // spotlight tour nổ (Q4). dailyGoal lưu on-device cho copy bước streak.
+        await saveDailyGoalMinutes(parseInt(draft.dailyGoal, 10))
+        router.replace('/(auth)/first-sentence')
       } catch (e) {
         // Save failed → hydrate the form so the user can retry instead of losing their answers.
         if (active) {
@@ -257,16 +237,11 @@ export default function OnboardingScreen() {
         setShowUpsell(true)
         return
       }
-      // Roadmap archetypes → roadmap; INTERVIEW_FIRST (iOS upper levels) opens the
-      // speaking screen preset to its INTERVIEW mode. Paywall actions have no mobile
-      // pricing screen (reader-app), so they fall through to the first practice session.
-      if (route?.postAction === 'ROADMAP_ALPHABET' || route?.postAction === 'ROADMAP_NODE') {
-        router.replace('/(student)/roadmap')
-      } else if (route?.postAction === 'INTERVIEW_FIRST') {
-        router.replace({ pathname: '/(student)/speaking', params: { mode: 'INTERVIEW' } })
-      } else {
-        router.replace('/(student)/speaking')
-      }
+      // Onboarding v1 (Q1): mọi archetype (trừ upsell-consent) đều đi qua wow
+      // "câu tiếng Đức đầu tiên" trước, rồi đáp xuống Trang chủ cho spotlight
+      // tour (Q4) — thay routing roadmap/speaking theo postAction cũ.
+      await saveDailyGoalMinutes(parseInt(dailyGoal, 10))
+      router.replace('/(auth)/first-sentence')
     } catch (e) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
       Alert.alert('Không lưu được', apiMessage(e))

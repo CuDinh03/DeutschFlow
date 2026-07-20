@@ -6,7 +6,7 @@
  * are mocked, matching the sibling TcChecklistPage test's approach.
  */
 import React from 'react'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import Page from '@/app/v2/teacher/tc-reports/page'
@@ -129,14 +129,18 @@ async function renderPage() {
 describe('tc-reports — per-class report suite', () => {
   it('renders the gradebook tab (default) with fetched data, no crash', async () => {
     await renderPage()
-    await waitFor(() => expect(screen.getByText('Nguyễn Văn A')).toBeInTheDocument())
-    expect(screen.getByText('90.0')).toBeInTheDocument()
+    await waitFor(() =>
+      expect(within(screen.getByTestId('gradebook-screen')).getByText('Nguyễn Văn A')).toBeInTheDocument(),
+    )
+    expect(within(screen.getByTestId('gradebook-screen')).getByText('90.0')).toBeInTheDocument()
   })
 
   it('switches to the skill-report tab without crashing', async () => {
     const user = userEvent.setup()
     await renderPage()
-    await waitFor(() => expect(screen.getByText('Nguyễn Văn A')).toBeInTheDocument())
+    await waitFor(() =>
+      expect(within(screen.getByTestId('gradebook-screen')).getByText('Nguyễn Văn A')).toBeInTheDocument(),
+    )
 
     await user.click(screen.getByRole('tab', { name: 'tabs.skills' }))
     expect(await screen.findByText('Khá')).toBeInTheDocument()
@@ -145,7 +149,9 @@ describe('tc-reports — per-class report suite', () => {
   it('switches to the attendance tab and opens the add-session form without crashing', async () => {
     const user = userEvent.setup()
     await renderPage()
-    await waitFor(() => expect(screen.getByText('Nguyễn Văn A')).toBeInTheDocument())
+    await waitFor(() =>
+      expect(within(screen.getByTestId('gradebook-screen')).getByText('Nguyễn Văn A')).toBeInTheDocument(),
+    )
 
     await user.click(screen.getByRole('tab', { name: 'tabs.attendance' }))
     expect(await screen.findByText('attendance.countLabel')).toBeInTheDocument()
@@ -157,7 +163,9 @@ describe('tc-reports — per-class report suite', () => {
   it('switches to the evaluation tab and opens the edit form without crashing', async () => {
     const user = userEvent.setup()
     await renderPage()
-    await waitFor(() => expect(screen.getByText('Nguyễn Văn A')).toBeInTheDocument())
+    await waitFor(() =>
+      expect(within(screen.getByTestId('gradebook-screen')).getByText('Nguyễn Văn A')).toBeInTheDocument(),
+    )
 
     await user.click(screen.getByRole('tab', { name: 'tabs.evaluation' }))
     expect(await screen.findByText('evaluation.certificateEligible')).toBeInTheDocument()

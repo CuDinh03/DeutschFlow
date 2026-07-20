@@ -79,6 +79,19 @@ api.interceptors.response.use(
     } catch {
       refreshPromise = null
       await clearTokens()
+      // Reset the auth store too, not just the tokens. Otherwise isLoggedIn stays true after the
+      // bounce: the app shows an authenticated shell whose every request 401s, and — because the
+      // push-token effect keys on the logged-in user id — a re-login by the SAME account would not
+      // re-fire. setUser(null) flips isLoggedIn=false so the next login is a real id transition that
+      // re-registers this device's push token for whoever logs in.
+      //
+      // Loaded with a lazy require, NOT a top-level import: statically importing useAuthStore here
+      // creates an api ↔ useAuthStore cycle that drags analytics/PostHog into api.ts's module graph,
+      // which crashes every jest suite that imports an API wrapper. At runtime (a real 401) the
+      // module is already loaded, so require() just returns it.
+      // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+      const { useAuthStore } = require('@/stores/useAuthStore') as typeof import('@/stores/useAuthStore')
+      useAuthStore.getState().setUser(null)
       router.replace('/(auth)/login')
       return Promise.reject(error)
     }

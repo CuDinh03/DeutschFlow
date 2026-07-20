@@ -822,6 +822,30 @@
     -webkit-print-color-adjust: exact;
   }
 
+  /*
+   * Multi-page tables (e.g. the gradebook, whose columns are chunked into one landscape page each)
+   * must flow normally: a `position: fixed` box is never fragmented, so it would collapse every
+   * `.print-page-break` chunk onto a single stamped page and clip anything past the page's right
+   * edge. `.print-flow` drops the fixed overlay while keeping the visibility isolation above.
+   */
+  .print-area.print-flow {
+    position: static !important;
+    inset: auto !important;
+    z-index: auto !important;
+  }
+
+  /*
+   * A statically-flowed `.print-flow` sheet lives INSIDE the app shell, so it inherits the shell's
+   * layout: the sidebar's 248px box would offset it to the right, and the shell's overflow-hidden /
+   * h-screen wrappers (+ the scrollable <main>) would clip every page past the first. Neutralise the
+   * shell during print. Safe for the fixed-overlay report tabs too — a `position: fixed; inset: 0`
+   * overlay ignores ancestor overflow/height, and only `.print-area` content is ever painted (the
+   * visibility isolation above). Without this, the gradebook PDF prints shifted + truncated.
+   */
+  html, body { height: auto !important; overflow: visible !important; }
+  body * { overflow: visible !important; }
+  aside { display: none !important; }
+
   /* Keep badge colors */
   .print-color-exact { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 

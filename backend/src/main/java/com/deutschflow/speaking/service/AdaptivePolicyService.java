@@ -1,5 +1,6 @@
 package com.deutschflow.speaking.service;
 
+import com.deutschflow.common.WebRoutes;
 import com.deutschflow.speaking.ai.ErrorStructureHints;
 import com.deutschflow.speaking.dto.SpeakingPolicy;
 import com.deutschflow.speaking.dto.TodayPlanDto;
@@ -171,7 +172,8 @@ public class AdaptivePolicyService {
         String speakTopic = policy != null ? policy.topicSuggestion() : "Alltag";
         String speakCefr = policy != null ? policy.cefrEffective() : SpeakingCefrSupport.DEFAULT_BAND;
         TodayRecommendedDto speaking = new TodayRecommendedDto(
-                "/speaking?topic=" + urlEncode(speakTopic != null ? speakTopic : "Alltag")
+                WebRoutes.STUDENT_SPEAKING_SETUP
+                        + "?topic=" + urlEncode(speakTopic != null ? speakTopic : "Alltag")
                         + "&cefr=" + urlEncode(speakCefr != null ? speakCefr : SpeakingCefrSupport.DEFAULT_BAND),
                 speakTopic,
                 speakCefr,
@@ -180,8 +182,12 @@ public class AdaptivePolicyService {
         String vocabTopic = policy != null && policy.topicSuggestion() != null
                 ? policy.topicSuggestion()
                 : (policy != null && !policy.focusCodes().isEmpty() ? policy.focusCodes().get(0) : "Alltag");
+        // Giao diện v2 không có màn "vocab-practice" riêng: sổ từ vựng chính là nơi luyện. Trang này
+        // chưa đọc `?topic=`/`?focus=` (query bị bỏ qua, không lỗi) — vẫn giữ chúng để không mất thông
+        // tin gợi ý và để trang có thể dùng tới sau mà không cần đổi backend.
         TodayRecommendedDto vocab = new TodayRecommendedDto(
-                "/student/vocab-practice?topic=" + urlEncode(vocabTopic)
+                WebRoutes.STUDENT_VOCABULARY
+                        + "?topic=" + urlEncode(vocabTopic)
                         + (policy != null && !policy.focusCodes().isEmpty()
                         ? "&focus=" + urlEncode(policy.focusCodes().get(0)) : ""),
                 vocabTopic,
@@ -190,8 +196,13 @@ public class AdaptivePolicyService {
         );
 
         String weeklyCefr = speakCefr != null ? speakCefr : SpeakingCefrSupport.DEFAULT_BAND;
+        // GAP ĐÃ BIẾT: giao diện v2 CHƯA có màn "bài nói theo tuần" cho học viên (admin có chỗ soạn
+        // prompt, học viên thì chưa có chỗ nộp). Trỏ tạm về trang chủ khu luyện nói để link không chết
+        // sau khi cây v1 bị xoá. Không nơi nào trong frontend đang render href này (grep: chỉ khai báo
+        // kiểu, không dùng), nên đây là payload chết — đổi hoàn toàn an toàn. Khi màn v2 ra đời thì
+        // trỏ thẳng vào nó và mang lại `?cefBand=`.
         TodayRecommendedDto weekly = new TodayRecommendedDto(
-                "/student/weekly-speaking?cefBand=" + urlEncode(weeklyCefr),
+                WebRoutes.STUDENT_SPEAKING + "?cefBand=" + urlEncode(weeklyCefr),
                 null,
                 weeklyCefr,
                 policy != null ? policy.targetStructures() : List.of()

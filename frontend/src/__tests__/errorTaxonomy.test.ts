@@ -17,10 +17,22 @@ describe("getErrorSnippet", () => {
     expect(s.rule).toContain("second position");
   });
 
-  it("returns English snippet for de locale (MVP fallback)", () => {
+  it("returns a German snippet for de locale", () => {
     const en = getErrorSnippet("WORD_ORDER.V2_MAIN_CLAUSE", "en");
     const de = getErrorSnippet("WORD_ORDER.V2_MAIN_CLAUSE", "de");
-    expect(de).toEqual(en);
+    expect(de.title).toBeTruthy();
+    expect(de.rule).toBeTruthy();
+    // German is now translated — must differ from the English fallback
+    expect(de.title).not.toBe(en.title);
+    expect(de.title).toContain("Position 2");
+  });
+
+  it("every code in ALL_ERROR_CODES returns a non-empty German title", () => {
+    for (const code of ALL_ERROR_CODES) {
+      const s = getErrorSnippet(code, "de");
+      expect(s.title.length, `Empty de title for ${code}`).toBeGreaterThan(0);
+      expect(s.title, `de title leaks raw code for ${code}`).not.toBe(code);
+    }
   });
 
   it("returns code as title for unknown error code", () => {

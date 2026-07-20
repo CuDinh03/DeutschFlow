@@ -9,6 +9,7 @@ import { useUserStore } from '@/stores/useUserStore'
 import { getOrgRole, logout } from '@/lib/authSession'
 import { GaLogo } from './GaLogo'
 import { GaIcon } from './GaIcon'
+import { managerNav } from './nav'
 import type { RoleNav } from './nav'
 
 /**
@@ -38,16 +39,19 @@ export function GaSidebar({ nav }: GaSidebarProps) {
   const pathname = usePathname() ?? ''
   const t = useTranslations('v2')
   const user = useUserStore((s) => s.user)
-  const roleLabel = t(`nav.roles.${nav.role}`)
-  const displayName = user?.displayName || roleLabel
-  const email = user?.email || ''
 
-  // Org nav: ownerOnly items (Tài chính, Gói & Giấy phép) are hidden from MANAGER (nhân sự) —
-  // only the OWNER (giám đốc) sees finance/billing. Read from the cookie/JWT after mount (client
-  // only) to stay SSR-safe; before that isOwner=false so the items render hidden, never flashing to
-  // a MANAGER. Backend (OrgGuard.assertOrgFinance) is the real enforcement; this is the UX hide.
+  // Org shell serves TWO org roles. OWNER (giám đốc) gets `orgNav`; MANAGER (nhân sự) gets the
+  // ops-first `managerNav` — same shell/routes, different menu, no finance/billing at all.
+  // orgRole is read from the cookie/JWT after mount (client only) to stay SSR-safe; until then we
+  // assume NOT owner, so an owner-only item can never flash to a MANAGER. The `ownerOnly` filter
+  // below stays as a second layer of defence. Backend (OrgGuard) is the real enforcement.
   const [isOwner, setIsOwner] = React.useState(false)
   React.useEffect(() => { setIsOwner(getOrgRole() === 'OWNER') }, [])
+
+  const resolved: RoleNav = nav.role === 'org' && !isOwner ? managerNav : nav
+  const roleLabel = t(`nav.roles.${resolved.roleLabelKey ?? resolved.role}`)
+  const displayName = user?.displayName || roleLabel
+  const email = user?.email || ''
 
   return (
     <aside className="flex w-[248px] shrink-0 flex-col border-r border-ga-line bg-ga-card p-5">
@@ -59,7 +63,7 @@ export function GaSidebar({ nav }: GaSidebarProps) {
       </span>
 
       <nav className="flex-1 space-y-5 overflow-y-auto" aria-label={t('shell.mainNav')}>
-        {nav.sections.map((section, si) => (
+        {resolved.sections.map((section, si) => (
           <div key={section.labelKey ?? section.label ?? si} className="space-y-0.5">
             {section.label && (
               <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-ga-subtle">
@@ -69,7 +73,7 @@ export function GaSidebar({ nav }: GaSidebarProps) {
               </p>
             )}
             {section.items.filter((item) => !item.ownerOnly || isOwner).map((item) => {
-              const active = isActive(item.href, nav.rootHref, pathname)
+              const active = isActive(item.href, resolved.rootHref, pathname)
               return (
                 <Link
                   key={item.id}

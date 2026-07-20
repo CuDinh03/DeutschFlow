@@ -52,10 +52,17 @@ public class User implements UserDetails {
     @Builder.Default
     private String notificationTimezone = "Asia/Ho_Chi_Minh";
 
-    @Column(name = "push_token")
+    // push_token identifies a DEVICE, not this account, so it is mutated out-of-band by native
+    // queries (AuthService.savePushToken / clearPushToken*) whenever a device is re-assigned or a
+    // session ends. updatable=false keeps Hibernate from ever writing these columns during an
+    // entity merge: the @AuthenticationPrincipal is a User entity cached ~60s (JwtAuthFilter), so a
+    // save(principal) on any endpoint (updateProfile/updateLocale/…) would otherwise resurrect a
+    // stale token that another request already cleared — re-leaking notifications to a logged-out
+    // device. Reads stay live because senders load the recipient fresh (UserNotificationService).
+    @Column(name = "push_token", updatable = false)
     private String pushToken;
 
-    @Column(name = "push_platform", length = 10)
+    @Column(name = "push_platform", length = 10, updatable = false)
     private String pushPlatform;
 
     /** Primary org (B2B tenant). null = không thuộc org nào — giữ nguyên hành xử B2C. */

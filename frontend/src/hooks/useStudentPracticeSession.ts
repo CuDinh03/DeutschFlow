@@ -1,12 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
 import api, { httpStatus } from "@/lib/api";
 import { getAccessToken, clearTokens, tokenCacheReady } from "@/lib/authSession";
 import { toastApiError } from "@/lib/toastApiError";
+import { homeFor } from "@/lib/roleRouting";
 import posthog from "posthog-js";
+
+// Bề mặt đăng nhập DUY NHẤT (xem middleware.ts + next.config redirect /login → /v2/login).
+// Trỏ thẳng vào đây thay vì "/login" để khỏi tốn một chặng redirect, và để hook không còn phụ
+// thuộc vào sự tồn tại của cây v1 khi cây đó bị xoá.
+const LOGIN_ROUTE = "/v2/login";
 
 export type PracticeSessionUser = {
   displayName: string;
@@ -53,6 +59,11 @@ export function useStudentPracticeSession(options?: {
   const requireStudent = options?.requireStudent ?? true;
   const skipOnboardingCheck = options?.skipOnboardingCheck ?? false;
   const router = useRouter();
+  // Hook này dùng chung cho CẢ HAI cây UI (v1 legacy và /v2 Galerie), mà mỗi cây có một funnel
+  // onboarding riêng. Phải giữ người dùng ở đúng cây họ đang đứng: nếu cứng nhắc đá về "/onboarding"
+  // thì một trang /v2/student/* (grammar/practice, mock-exam/run) sẽ ném học viên chưa có lộ trình
+  // ngược vào cây v1 — đúng thứ đợt xoá v1 đang gỡ bỏ.
+  const pathname = usePathname();
   const locale = useLocale();
   const [me, setMe] = useState<PracticeSessionUser | null>(null);
   const [targetLevel, setTargetLevel] = useState("A1");
@@ -71,7 +82,7 @@ export function useStudentPracticeSession(options?: {
     await tokenCacheReady;
     const accessToken = getAccessToken();
     if (!accessToken) {
-      router.replace("/login");
+      router.replace(LOGIN_ROUTE);
       return;
     }
     setLoading(true);
@@ -81,7 +92,12 @@ export function useStudentPracticeSession(options?: {
       const userData = meRes.data;
 
       if (requireStudent && userData.role !== "STUDENT") {
-        router.replace(`/${String(userData.role).toLowerCase()}`);
+        // Trước đây: `/${role.toLowerCase()}` — vừa ném người dùng vào cây v1 (/teacher, /admin),
+        // vừa dựng ra hai route KHÔNG TỒN TẠI cho vai trò OWNER/MANAGER (/owner, /manager → 404).
+        // `homeFor()` là bản đồ vai trò→trang chủ duy nhất, biết OWNER/MANAGER và trả về path /v2 —
+        // trùng đúng với `v2RoleHome()` mà middleware dùng để đá sai-vai-trò, nên hai lớp không đá
+        // ngược nhau. Hai trang /v2/student/* (grammar/practice, mock-exam/run) dùng hook này.
+        router.replace(homeFor(userData.role));
         return;
       }
 
@@ -89,7 +105,7 @@ export function useStudentPracticeSession(options?: {
       if (requireStudent && !skipOnboardingCheck) {
         const statusRes = await api.get<{ hasPlan: boolean }>("/onboarding/status").catch(() => null);
         if (statusRes?.data?.hasPlan === false) {
-          router.replace("/onboarding");
+          router.replace(pathname?.startsWith("/v2/") ? "/v2/onboarding" : "/onboarding");
           return;
         }
       }
@@ -118,7 +134,7 @@ export function useStudentPracticeSession(options?: {
       if (st === 401 || st === 403) {
         clearTokens();
         toastApiError(err, { locale });
-        router.replace("/login");
+        router.replace(LOGIN_ROUTE);
         return;
       }
       // Network error / timeout / server down — expose error so UI can show retry
@@ -132,7 +148,7 @@ export function useStudentPracticeSession(options?: {
     } finally {
       setLoading(false);
     }
-  }, [locale, requireStudent, skipOnboardingCheck, router]);
+  }, [locale, requireStudent, skipOnboardingCheck, router, pathname]);
 
   useEffect(() => {
     void load();

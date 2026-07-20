@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs'
 import { motion, radius, space, useTheme } from '@/lib/theme'
 import { captureEvent } from '@/lib/analytics'
+import { useSpotlightTarget } from '@/components/guide/SpotlightTour'
 import { ThemedText } from './ThemedText'
 
 const ICONS: Record<string, LucideIcon> = {
@@ -186,6 +187,7 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
                   focused={focused}
                   onPress={onPress}
                   onLayout={onTabLayout(index)}
+                  spotlightId={`tab-${route.name}`}
                 />
               )
             })}
@@ -202,10 +204,13 @@ interface TabItemProps {
   focused: boolean
   onPress: () => void
   onLayout: (e: LayoutChangeEvent) => void
+  /** Anchor id so the spotlight tour can highlight this tab (e.g. "tab-learn"). */
+  spotlightId?: string
 }
 
-function TabItem({ icon: LucideComponent, label, focused, onPress, onLayout }: TabItemProps) {
+function TabItem({ icon: LucideComponent, label, focused, onPress, onLayout, spotlightId }: TabItemProps) {
   const theme = useTheme()
+  const spotlightRef = useSpotlightTarget(spotlightId)
   const iconScale = useSharedValue(focused ? 1 : 0.9)
   const press = useSharedValue(1)
 
@@ -221,6 +226,7 @@ function TabItem({ icon: LucideComponent, label, focused, onPress, onLayout }: T
 
   return (
     <Pressable
+      ref={spotlightRef}
       onPress={onPress}
       onLayout={onLayout}
       onPressIn={() => {

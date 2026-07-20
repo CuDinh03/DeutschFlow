@@ -59,4 +59,30 @@ public interface StudentAssignmentRepository extends JpaRepository<StudentAssign
      */
     List<StudentAssignment> findByStudentIdAndAssignmentIdInAndDeletedFalseOrderByCreatedAtDesc(
             Long studentId, List<Long> assignmentIds);
+
+    /**
+     * Weekly average of CONFIRMED grades per class, for the analytics trend chart. Each row is
+     * [class_id, isoWeek ("2026-W24"), avgScore (0-100), gradedCount].
+     *
+     * <p>Bucketed on when the grade actually exists — {@code graded_at}, falling back to
+     * {@code created_at} for legacy rows. Only GRADED/EVALUATED count: {@code graded_at} is also set
+     * when the AI proposes a score (AI_GRADED), so filtering to the final statuses is what keeps
+     * unconfirmed AI numbers out of the trend. Scores are clamped to [0,100] to match the rest of the
+     * reporting. Returned oldest week first; the service keeps only the most recent buckets.
+     */
+    @Query(value = """
+            SELECT ca.class_id,
+                   to_char(date_trunc('week', COALESCE(sa.graded_at, sa.created_at)), 'IYYY-"W"IW'),
+                   AVG(LEAST(GREATEST(sa.score, 0), 100)),
+                   COUNT(*)
+            FROM student_assignments sa
+            JOIN class_assignments ca ON ca.id = sa.assignment_id
+            WHERE ca.class_id IN (:classIds)
+              AND sa.is_deleted = false
+              AND sa.status IN ('GRADED', 'EVALUATED')
+              AND sa.score IS NOT NULL
+            GROUP BY ca.class_id, date_trunc('week', COALESCE(sa.graded_at, sa.created_at))
+            ORDER BY date_trunc('week', COALESCE(sa.graded_at, sa.created_at))
+            """, nativeQuery = true)
+    List<Object[]> findWeeklyConfirmedAverages(@Param("classIds") List<Long> classIds);
 }

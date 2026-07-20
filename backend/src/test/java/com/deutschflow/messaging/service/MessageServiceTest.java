@@ -55,6 +55,8 @@ class MessageServiceTest {
     @Mock private ClassStudentRepository classStudentRepository;
     @Mock private UserRepository userRepository;
     @Mock private UserNotificationService notificationService;
+    @Mock private com.deutschflow.notification.service.NotificationAutoAckService notificationAutoAckService;
+    @Mock private com.deutschflow.common.transaction.RunAfterCommitService runAfterCommitService;
     @Mock private UserBlockService blockService;
     @Mock private WordFilterService wordFilter;
 

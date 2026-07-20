@@ -39,6 +39,8 @@ class ClassChannelServiceTest {
     @Mock private WordFilterService wordFilter;
     @Mock private UserBlockService blockService;
     @Mock private UserNotificationService notificationService;
+    @Mock private com.deutschflow.notification.service.NotificationAutoAckService notificationAutoAckService;
+    @Mock private com.deutschflow.common.transaction.RunAfterCommitService runAfterCommitService;
 
     private ClassChannelService service;
 
@@ -51,7 +53,8 @@ class ClassChannelServiceTest {
     void setUp() {
         service = new ClassChannelService(
                 channelRepository, classStudentRepository, classTeacherRepository, teacherClassRepository,
-                userRepository, wordFilter, blockService, notificationService);
+                userRepository, wordFilter, blockService, notificationService,
+                notificationAutoAckService, runAfterCommitService);
         lenient().when(blockService.blockedIds(any())).thenReturn(java.util.Set.of());
     }
 

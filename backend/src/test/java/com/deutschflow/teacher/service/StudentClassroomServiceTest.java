@@ -198,6 +198,34 @@ class StudentClassroomServiceTest {
     }
 
     @Test
+    @DisplayName("listAssignments includes assignments the late-joiner has no row for (synthetic PENDING)")
+    void listAssignments_includesMissingAsPending() {
+        when(classStudentRepository.existsByIdClassIdAndIdStudentId(CLASS_ID, STUDENT_ID)).thenReturn(true);
+        LocalDateTime now = LocalDateTime.now();
+        ClassAssignment older = assignment(1L, "Trước khi vào lớp", now.minusDays(2)); // no row for this student
+        ClassAssignment newer = assignment(2L, "Sau khi vào lớp", now.minusDays(1));   // has a row
+        // Repo returns newest-first; the merged list must preserve that order.
+        when(assignmentRepository.findByClassIdOrderByCreatedAtDesc(CLASS_ID)).thenReturn(List.of(newer, older));
+
+        StudentAssignment mine = sa(2L, "PENDING", null);
+        mine.setStudentId(STUDENT_ID);
+        when(studentAssignmentRepository.findByAssignmentIds(any())).thenReturn(List.of(mine));
+
+        List<StudentAssignmentDto> out = service.listAssignments(STUDENT_ID, CLASS_ID);
+
+        // Both assignments appear — the list can no longer disagree with the "N bài tập" counter.
+        assertThat(out).hasSize(2);
+        assertThat(out).extracting(StudentAssignmentDto::assignmentId).containsExactly(2L, 1L);
+
+        StudentAssignmentDto missing = out.stream()
+                .filter(d -> d.assignmentId().equals(1L)).findFirst().orElseThrow();
+        assertThat(missing.id()).isNull();                  // no StudentAssignment row yet
+        assertThat(missing.status()).isEqualTo("PENDING");  // rendered as not-yet-started
+        assertThat(missing.topic()).isEqualTo("Trước khi vào lớp");
+        assertThat(missing.studentId()).isEqualTo(STUDENT_ID);
+    }
+
+    @Test
     @DisplayName("listSessions rejects when student not enrolled (P5 IDOR guard)")
     void listSessions_rejectsNonMember() {
         when(classStudentRepository.existsByIdClassIdAndIdStudentId(CLASS_ID, STUDENT_ID)).thenReturn(false);

@@ -10,6 +10,7 @@ import {
 import {
   setTokens, clearTokens, recordTokenRefresh,
 } from '@/lib/authSession'
+import { homeFor } from '@/lib/roleRouting'
 import { useUserStore } from '@/stores/useUserStore'
 import { apiMessage } from '@/lib/api'
 import { DeutschFlowLogo } from '@/components/ui/DeutschFlowLogo'
@@ -99,7 +100,10 @@ export default function OrgAcceptPage() {
         document.cookie = `locale=${auth.locale};path=/;max-age=31536000;SameSite=Lax`
       }
 
-      router.replace('/teacher')
+      // An invitation can be for ANY role (see ROLE_LABELS), not just TEACHER — a student or centre
+      // owner invitee must not land on the teacher surface, so the destination comes from the shared
+      // role map rather than a fixed path.
+      router.replace(homeFor(auth.role, { orgRole: auth.orgRole }))
     } catch (err) {
       setSubmitError(apiMessage(err) || 'Không thể nhận lời mời. Vui lòng thử lại.')
       setSubmitting(false)
@@ -130,7 +134,7 @@ export default function OrgAcceptPage() {
             <h1 className="text-xl font-bold text-slate-800">Lời mời không khả dụng</h1>
             <p className="text-slate-500 text-sm">{loadError ?? 'Không tìm thấy lời mời.'}</p>
             <Link
-              href="/login"
+              href="/v2/login"
               className="mt-2 inline-flex items-center justify-center px-5 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 transition-colors"
             >
               Đến trang đăng nhập
@@ -156,7 +160,7 @@ export default function OrgAcceptPage() {
               Vui lòng liên hệ quản trị viên tổ chức để được mời lại.
             </p>
             <Link
-              href="/login"
+              href="/v2/login"
               className="mt-2 inline-flex items-center justify-center px-5 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 transition-colors"
             >
               Đến trang đăng nhập
