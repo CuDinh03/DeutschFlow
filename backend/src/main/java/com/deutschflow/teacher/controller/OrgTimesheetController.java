@@ -8,6 +8,9 @@ import com.deutschflow.teacher.service.TimesheetPeriodService;
 import com.deutschflow.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -45,6 +48,20 @@ public class OrgTimesheetController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         return periodService.orgSummary(actor.getId(), requireOrgId(actor), from, to);
+    }
+
+    /** Xuất CSV cho kế toán — điểm kết thúc của luồng, vì hệ không tính tiền. */
+    @GetMapping("/export.csv")
+    public ResponseEntity<String> exportCsv(
+            @AuthenticationPrincipal User actor,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        String csv = periodService.exportOrgCsv(actor.getId(), requireOrgId(actor), from, to);
+        return ResponseEntity.ok()
+                .contentType(new MediaType("text", "csv", java.nio.charset.StandardCharsets.UTF_8))
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"cham-cong-" + from + "_" + to + ".csv\"")
+                .body(csv);
     }
 
     @PostMapping("/periods/{periodId}/approve")

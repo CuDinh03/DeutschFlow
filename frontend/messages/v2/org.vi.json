@@ -390,7 +390,8 @@
       "statusAPPROVED": "Đã duyệt",
       "statusREJECTED": "Đã trả lại",
       "statusLOCKED": "Đã khoá",
-      "noMoneyNote": "Hệ thống chỉ chốt số công. Đơn giá và thành tiền do kế toán xử lý bên ngoài."
+      "noMoneyNote": "Hệ thống chỉ chốt số công. Đơn giá và thành tiền do kế toán xử lý bên ngoài.",
+      "export": "Xuất CSV"
     }
   }
 }

@@ -152,6 +152,38 @@ public class TimesheetPeriodService {
         return toDto(periodRepository.save(p), null);
     }
 
+    /**
+     * Xuất bảng công toàn tổ chức ra CSV cho kế toán. Đây là điểm KẾT THÚC của luồng: hệ thống cố ý
+     * không lưu đơn giá và không tính tiền, nên số công đã duyệt phải rời khỏi hệ thống ở đây.
+     *
+     * <p>Định dạng: dấu phẩy, có BOM UTF-8 để Excel trên Windows không vỡ tiếng Việt. Mọi ô đều
+     * được bọc nháy kép và escape nháy trong nội dung — tên lớp/giáo viên có thể chứa dấu phẩy.
+     */
+    @Transactional(readOnly = true)
+    public String exportOrgCsv(Long reviewerId, Long orgId, LocalDate from, LocalDate to) {
+        OrgTimesheetDto data = orgSummary(reviewerId, orgId, from, to);
+        StringBuilder sb = new StringBuilder("\uFEFF");
+        sb.append("Giáo viên,Kỳ bắt đầu,Kỳ kết thúc,Trạng thái,Đơn vị tính,Số buổi,Số phút,Ngày nộp,Ngày duyệt\n");
+        for (PeriodDto p : data.periods()) {
+            sb.append(csv(p.teacherName() != null ? p.teacherName() : "#" + p.teacherId())).append(',')
+              .append(csv(String.valueOf(p.periodStart()))).append(',')
+              .append(csv(String.valueOf(p.periodEnd()))).append(',')
+              .append(csv(p.status())).append(',')
+              .append(csv(p.payUnit())).append(',')
+              .append(p.totalSessions()).append(',')
+              .append(p.totalMinutes()).append(',')
+              .append(csv(p.submittedAt() == null ? "" : p.submittedAt().toString())).append(',')
+              .append(csv(p.reviewedAt() == null ? "" : p.reviewedAt().toString())).append('\n');
+        }
+        return sb.toString();
+    }
+
+    /** Bọc một ô CSV: luôn có nháy kép, nháy bên trong nhân đôi (RFC 4180). */
+    private static String csv(String raw) {
+        String v = raw == null ? "" : raw;
+        return '"' + v.replace("\"", "\"\"") + '"';
+    }
+
     // ── chốt chặn dùng bởi TeacherTimesheetService ────────────────────────────
 
     /**

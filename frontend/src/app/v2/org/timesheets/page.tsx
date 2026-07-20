@@ -9,6 +9,7 @@ import {
   approvePeriod,
   rejectPeriod,
   lockPeriod,
+  downloadOrgTimesheetCsv,
   formatMinutes,
   type OrgTimesheet,
   type TimesheetPeriod,
@@ -54,6 +55,7 @@ export default function OrgTimesheetsPage() {
   const [actingId, setActingId] = useState<number | null>(null)
   const [rejecting, setRejecting] = useState<TimesheetPeriod | null>(null)
   const [rejectReason, setRejectReason] = useState('')
+  const [exporting, setExporting] = useState(false)
 
   // Chốt chống response cũ: đổi khoảng ngày nhanh không được để bản tải trước ghi đè bản mới.
   const loadSeq = useRef(0)
@@ -96,6 +98,17 @@ export default function OrgTimesheetsPage() {
     }
   }
 
+  const exportCsv = async (): Promise<void> => {
+    setExporting(true)
+    try {
+      await downloadOrgTimesheetCsv(from, to)
+    } catch (e) {
+      toast.error(apiMessage(e))
+    } finally {
+      setExporting(false)
+    }
+  }
+
   const confirmReject = async (): Promise<void> => {
     if (!rejecting) return
     if (!rejectReason.trim()) {
@@ -130,6 +143,14 @@ export default function OrgTimesheetsPage() {
             />
           </label>
           <GaBtn onClick={() => void load(from, to)} disabled={loading}>{t('reload')}</GaBtn>
+          <GaBtn
+            variant="ghost"
+            loading={exporting}
+            disabled={loading || !data || data.periods.length === 0}
+            onClick={() => void exportCsv()}
+          >
+            {t('export')}
+          </GaBtn>
         </div>
 
         {loading && <LoadingState variant="skeleton" rows={4} />}

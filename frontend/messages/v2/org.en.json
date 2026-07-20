@@ -390,7 +390,8 @@
       "statusAPPROVED": "Approved",
       "statusREJECTED": "Sent back",
       "statusLOCKED": "Locked",
-      "noMoneyNote": "The system only settles worked units. Rates and amounts are handled outside by payroll."
+      "noMoneyNote": "The system only settles worked units. Rates and amounts are handled outside by payroll.",
+      "export": "Export CSV"
     }
   }
 }

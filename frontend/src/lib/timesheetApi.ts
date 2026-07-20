@@ -142,6 +142,25 @@ export async function lockPeriod(id: number): Promise<TimesheetPeriod> {
   return res.data
 }
 
+/**
+ * Tải CSV bảng công. Endpoint có xác thực nên không dùng được thẻ <a href> thuần — phải đi qua
+ * axios để mang theo header, rồi tự dựng blob và kích hoạt tải xuống.
+ */
+export async function downloadOrgTimesheetCsv(from: string, to: string): Promise<void> {
+  const res = await api.get('/org/timesheet/export.csv', {
+    params: { from, to },
+    responseType: 'blob',
+  })
+  const url = URL.createObjectURL(new Blob([res.data as BlobPart], { type: 'text/csv;charset=utf-8' }))
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `cham-cong-${from}_${to}.csv`
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
 /** Đổi tổng số phút thành chuỗi "12g 30p" — dùng chung cho cả hai màn hình. */
 export function formatMinutes(total: number): string {
   const h = Math.floor(total / 60)

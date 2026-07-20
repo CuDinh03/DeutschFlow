@@ -245,6 +245,40 @@ class TimesheetPeriodServiceTest {
                 .doesNotThrowAnyException();
     }
 
+    // ── xuất CSV cho kế toán ──────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("exportOrgCsv() bọc ô và escape nháy — tên lớp/giáo viên có dấu phẩy không làm vỡ cột")
+    void exportOrgCsv_quotesAndEscapes() {
+        TeacherTimesheetPeriod p = period(Status.APPROVED);
+        p.setTotalSessions(3);
+        p.setTotalMinutes(270);
+        when(periodRepository
+                .findByOrgIdAndPeriodStartGreaterThanEqualAndPeriodStartLessThanEqualOrderByPeriodStartDescTeacherIdAsc(
+                        eq(ORG_ID), any(), any()))
+                .thenReturn(List.of(p));
+        when(userRepository.findAllById(any()))
+                .thenReturn(List.of(com.deutschflow.user.entity.User.builder()
+                        .id(TEACHER_ID).displayName("Nguyễn, Văn \"A\"").build()));
+
+        String csv = service.exportOrgCsv(MANAGER_ID, ORG_ID, START, END);
+
+        assertThat(csv).startsWith("\uFEFF");                       // BOM cho Excel Windows
+        assertThat(csv).contains("\"Nguyễn, Văn \"\"A\"\"\"");  // dấu phẩy + nháy escape đúng
+        assertThat(csv).contains(",3,270,");                       // số công không bọc nháy
+        assertThat(csv).contains("\"APPROVED\"");
+    }
+
+    @Test
+    @DisplayName("exportOrgCsv() vẫn qua OrgGuard — người ngoài tổ chức không xuất được dữ liệu")
+    void exportOrgCsv_notOrgAdmin_isBlocked() {
+        doThrow(new ForbiddenException("không đủ quyền"))
+                .when(orgGuard).assertOrgAdmin(MANAGER_ID, ORG_ID);
+
+        assertThatThrownBy(() -> service.exportOrgCsv(MANAGER_ID, ORG_ID, START, END))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private static TeacherTimesheetPeriod period(Status status) {

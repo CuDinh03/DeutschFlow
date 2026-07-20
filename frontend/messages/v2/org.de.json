@@ -390,7 +390,8 @@
       "statusAPPROVED": "Freigegeben",
       "statusREJECTED": "Zurückgegeben",
       "statusLOCKED": "Gesperrt",
-      "noMoneyNote": "Das System erfasst nur Arbeitseinheiten. Sätze und Beträge werden extern abgerechnet."
+      "noMoneyNote": "Das System erfasst nur Arbeitseinheiten. Sätze und Beträge werden extern abgerechnet.",
+      "export": "CSV exportieren"
     }
   }
 }
