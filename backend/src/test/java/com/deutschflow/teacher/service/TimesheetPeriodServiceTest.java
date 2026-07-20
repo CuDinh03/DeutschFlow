@@ -15,7 +15,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -90,29 +89,28 @@ class TimesheetPeriodServiceTest {
     }
 
     @Test
-    @DisplayName("openPeriod() tạo kỳ mới khi không chồng, snapshot org của giáo viên lúc mở")
+    @DisplayName("openPeriod() tạo kỳ mới (upsert atomic) khi không chồng, snapshot org của giáo viên lúc mở")
     void openPeriod_nonOverlapping_createsAndSnapshotsOrg() {
         LocalDate newStart = LocalDate.of(2026, 8, 1);
         LocalDate newEnd = LocalDate.of(2026, 8, 31);
+        TeacherTimesheetPeriod created = TeacherTimesheetPeriod.builder()
+                .id(PERIOD_ID).teacherId(TEACHER_ID).orgId(ORG_ID)
+                .periodStart(newStart).periodEnd(newEnd).status(Status.OPEN).build();
         when(periodRepository.findByTeacherIdAndPeriodStart(TEACHER_ID, newStart))
-                .thenReturn(Optional.empty());
+                .thenReturn(Optional.empty())        // lần 1: chưa có → đi tạo
+                .thenReturn(Optional.of(created));   // lần 2: sau insertIfAbsent → tra lại
         when(periodRepository
                 .findByTeacherIdAndPeriodStartLessThanEqualAndPeriodEndGreaterThanEqual(
                         eq(TEACHER_ID), any(), any()))
                 .thenReturn(List.of());
         when(userRepository.findById(TEACHER_ID)).thenReturn(Optional.of(
                 com.deutschflow.user.entity.User.builder().id(TEACHER_ID).orgId(ORG_ID).build()));
-        when(periodRepository.save(any())).thenAnswer(inv -> {
-            TeacherTimesheetPeriod p = inv.getArgument(0);
-            p.setId(PERIOD_ID);
-            return p;
-        });
 
         PeriodDto dto = service.openPeriod(TEACHER_ID, newStart, newEnd);
 
-        ArgumentCaptor<TeacherTimesheetPeriod> saved = ArgumentCaptor.forClass(TeacherTimesheetPeriod.class);
-        verify(periodRepository).save(saved.capture());
-        assertThat(saved.getValue().getOrgId()).isEqualTo(ORG_ID);   // snapshot org lúc mở kỳ
+        // Chèn atomic với org snapshot từ user, KHÔNG dùng save() nữa.
+        verify(periodRepository).insertIfAbsent(TEACHER_ID, ORG_ID, newStart, newEnd);
+        verify(periodRepository, never()).save(any());
         assertThat(dto.status()).isEqualTo("OPEN");
         assertThat(dto.periodStart()).isEqualTo(newStart);
         assertThat(dto.periodEnd()).isEqualTo(newEnd);

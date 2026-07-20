@@ -66,15 +66,12 @@ public class TimesheetPeriodService {
         // phía DB; kiểm tra ở đây để trả 409 rõ nghĩa thay vì để DB ném lỗi thô.
         assertNoOverlap(teacherId, periodStart, periodEnd);
 
-        Long orgId = userRepository.findById(teacherId).map(User::getOrgId).orElse(null);
-        TeacherTimesheetPeriod saved = periodRepository.save(TeacherTimesheetPeriod.builder()
-                .teacherId(teacherId)
-                .orgId(orgId)                 // snapshot lúc mở kỳ
-                .periodStart(periodStart)
-                .periodEnd(periodEnd)
-                .status(Status.OPEN)
-                .build());
-        return toDto(saved, null);
+        Long orgId = userRepository.findById(teacherId).map(User::getOrgId).orElse(null);   // snapshot lúc mở
+        // Chèn ATOMIC: hai request mở kỳ đồng thời cùng mốc bắt đầu không làm request thứ hai ném 500 —
+        // ON CONFLICT DO NOTHING rồi cả hai tra lại kỳ đã có (idempotent).
+        periodRepository.insertIfAbsent(teacherId, orgId, periodStart, periodEnd);
+        return toDto(periodRepository.findByTeacherIdAndPeriodStart(teacherId, periodStart)
+                .orElseThrow(() -> new IllegalStateException("Không tra lại được kỳ công vừa mở")), null);
     }
 
     /** Chặn mở kỳ chồng lấp: hai kỳ [a,b] và [c,d] giao nhau khi a &lt;= d AND c &lt;= b. */

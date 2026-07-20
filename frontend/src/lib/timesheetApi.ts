@@ -91,12 +91,6 @@ export async function recordTeaching(data: RecordTeachingInput): Promise<Session
   return res.data
 }
 
-/** PUT /api/v2/teacher/timesheet/records/{id} */
-export async function updateRecord(id: number, data: RecordTeachingInput): Promise<SessionRecord> {
-  const res = await api.put<SessionRecord>(`/v2/teacher/timesheet/records/${id}`, data)
-  return res.data
-}
-
 /** DELETE /api/v2/teacher/timesheet/records/{id} */
 export async function deleteRecord(id: number): Promise<void> {
   await api.delete(`/v2/teacher/timesheet/records/${id}`)

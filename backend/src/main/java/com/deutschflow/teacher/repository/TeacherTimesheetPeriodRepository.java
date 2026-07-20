@@ -2,6 +2,9 @@ package com.deutschflow.teacher.repository;
 
 import com.deutschflow.teacher.entity.TeacherTimesheetPeriod;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
@@ -12,6 +15,20 @@ import java.util.Optional;
 public interface TeacherTimesheetPeriodRepository extends JpaRepository<TeacherTimesheetPeriod, Long> {
 
     Optional<TeacherTimesheetPeriod> findByTeacherIdAndPeriodStart(Long teacherId, LocalDate periodStart);
+
+    /**
+     * Mở kỳ một cách ATOMIC + idempotent: chèn kỳ OPEN nếu chưa có, không làm gì nếu đã có kỳ cùng
+     * {@code (teacher_id, period_start)}. Dùng {@code ON CONFLICT DO NOTHING} thay cho check-rồi-save ở
+     * tầng service để hai request mở kỳ đồng thời không làm request thứ hai ném
+     * {@code DataIntegrityViolationException} (HTTP 500) — cả hai cùng nhận kỳ đã tồn tại.
+     * Các cột status, pay_unit, total_sessions, total_minutes, created_at, updated_at dùng DEFAULT của V264.
+     */
+    @Modifying
+    @Query(value = "INSERT INTO teacher_timesheet_period (teacher_id, org_id, period_start, period_end) "
+            + "VALUES (:teacherId, :orgId, :periodStart, :periodEnd) "
+            + "ON CONFLICT (teacher_id, period_start) DO NOTHING", nativeQuery = true)
+    void insertIfAbsent(@Param("teacherId") Long teacherId, @Param("orgId") Long orgId,
+                        @Param("periodStart") LocalDate periodStart, @Param("periodEnd") LocalDate periodEnd);
 
     /**
      * Các kỳ giao với một khoảng {@code [startLe, endGe]} của giáo viên: {@code period_start <= startLe

@@ -50,6 +50,9 @@ export default function OrgTimesheetsPage() {
   const [from, setFrom] = useState(initial.from)
   const [to, setTo] = useState(initial.to)
   const [data, setData] = useState<OrgTimesheet | null>(null)
+  // Khoảng ngày mà `data` đang thể hiện. Export phải bám theo cái này, không theo ô nhập hiện tại —
+  // nếu không, đổi from/to mà chưa Tải lại sẽ xuất CSV khác với bảng đang hiển thị.
+  const [loadedRange, setLoadedRange] = useState<{ from: string; to: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [actingId, setActingId] = useState<number | null>(null)
@@ -68,6 +71,7 @@ export default function OrgTimesheetsPage() {
       const res = await getOrgTimesheet(f, tt)
       if (seq !== loadSeq.current) return
       setData(res)
+      setLoadedRange({ from: f, to: tt })
     } catch (e) {
       if (seq !== loadSeq.current) return
       setError(apiMessage(e))
@@ -101,15 +105,20 @@ export default function OrgTimesheetsPage() {
   }
 
   const exportCsv = async (): Promise<void> => {
+    if (!loadedRange) return
     setExporting(true)
     try {
-      await downloadOrgTimesheetCsv(from, to)
+      // Xuất đúng khoảng của bảng đang hiển thị, không phải ô nhập (có thể đã đổi mà chưa Tải lại).
+      await downloadOrgTimesheetCsv(loadedRange.from, loadedRange.to)
     } catch (e) {
       toast.error(apiMessage(e))
     } finally {
       setExporting(false)
     }
   }
+
+  // Ô nhập đã đổi so với dữ liệu đang hiển thị → phải Tải lại trước khi xuất.
+  const rangeStale = !loadedRange || from !== loadedRange.from || to !== loadedRange.to
 
   const confirmReject = async (): Promise<void> => {
     if (!rejecting) return
@@ -152,7 +161,7 @@ export default function OrgTimesheetsPage() {
           <GaBtn
             variant="ghost"
             loading={exporting}
-            disabled={loading || !data || data.periods.length === 0}
+            disabled={loading || !data || data.periods.length === 0 || rangeStale}
             onClick={() => void exportCsv()}
           >
             {t('export')}
