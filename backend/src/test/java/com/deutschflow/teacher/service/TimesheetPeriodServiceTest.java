@@ -15,6 +15,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -53,6 +54,68 @@ class TimesheetPeriodServiceTest {
     @BeforeEach
     void setUp() {
         service = new TimesheetPeriodService(periodRepository, recordRepository, userRepository, orgGuard);
+    }
+
+    // ── mở kỳ: chống chồng ngày (HIGH-3) ─────────────────────────────────────
+
+    @Test
+    @DisplayName("openPeriod() từ chối kỳ mới chồng ngày với kỳ đã có — chống trả lương hai lần + 500")
+    void openPeriod_overlappingRange_isRejected() {
+        LocalDate newStart = LocalDate.of(2026, 7, 15);   // chồng 15–31/07 với kỳ [01/07, 31/07]
+        LocalDate newEnd = LocalDate.of(2026, 8, 15);
+        when(periodRepository.findByTeacherIdAndPeriodStart(TEACHER_ID, newStart))
+                .thenReturn(Optional.empty());
+        when(periodRepository
+                .findByTeacherIdAndPeriodStartLessThanEqualAndPeriodEndGreaterThanEqual(
+                        eq(TEACHER_ID), any(), any()))
+                .thenReturn(List.of(period(Status.OPEN)));   // kỳ [01/07, 31/07] đã tồn tại
+
+        assertThatThrownBy(() -> service.openPeriod(TEACHER_ID, newStart, newEnd))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("chồng lấp");
+
+        verify(periodRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("openPeriod() idempotent: mở lại cùng mốc bắt đầu trả về kỳ cũ, không tạo trùng")
+    void openPeriod_sameStart_isReused() {
+        when(periodRepository.findByTeacherIdAndPeriodStart(TEACHER_ID, START))
+                .thenReturn(Optional.of(period(Status.OPEN)));
+
+        PeriodDto dto = service.openPeriod(TEACHER_ID, START, END);
+
+        assertThat(dto.periodStart()).isEqualTo(START);
+        verify(periodRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("openPeriod() tạo kỳ mới khi không chồng, snapshot org của giáo viên lúc mở")
+    void openPeriod_nonOverlapping_createsAndSnapshotsOrg() {
+        LocalDate newStart = LocalDate.of(2026, 8, 1);
+        LocalDate newEnd = LocalDate.of(2026, 8, 31);
+        when(periodRepository.findByTeacherIdAndPeriodStart(TEACHER_ID, newStart))
+                .thenReturn(Optional.empty());
+        when(periodRepository
+                .findByTeacherIdAndPeriodStartLessThanEqualAndPeriodEndGreaterThanEqual(
+                        eq(TEACHER_ID), any(), any()))
+                .thenReturn(List.of());
+        when(userRepository.findById(TEACHER_ID)).thenReturn(Optional.of(
+                com.deutschflow.user.entity.User.builder().id(TEACHER_ID).orgId(ORG_ID).build()));
+        when(periodRepository.save(any())).thenAnswer(inv -> {
+            TeacherTimesheetPeriod p = inv.getArgument(0);
+            p.setId(PERIOD_ID);
+            return p;
+        });
+
+        PeriodDto dto = service.openPeriod(TEACHER_ID, newStart, newEnd);
+
+        ArgumentCaptor<TeacherTimesheetPeriod> saved = ArgumentCaptor.forClass(TeacherTimesheetPeriod.class);
+        verify(periodRepository).save(saved.capture());
+        assertThat(saved.getValue().getOrgId()).isEqualTo(ORG_ID);   // snapshot org lúc mở kỳ
+        assertThat(dto.status()).isEqualTo("OPEN");
+        assertThat(dto.periodStart()).isEqualTo(newStart);
+        assertThat(dto.periodEnd()).isEqualTo(newEnd);
     }
 
     // ── vòng đời ──────────────────────────────────────────────────────────────
@@ -103,6 +166,26 @@ class TimesheetPeriodServiceTest {
 
         assertThat(dto.status()).isEqualTo("SUBMITTED");
         assertThat(dto.rejectReason()).isNull();
+    }
+
+    @Test
+    @DisplayName("submit() KHÔNG dồn công org khác vào kỳ — chống rò payroll xuyên tổ chức")
+    void submit_excludesCrossOrgRecords() {
+        TeacherTimesheetPeriod p = period(Status.OPEN);   // orgId = ORG_ID (42)
+        when(periodRepository.findById(PERIOD_ID)).thenReturn(Optional.of(p));
+        when(recordRepository
+                .findByTeacherIdAndStartedAtGreaterThanEqualAndStartedAtLessThanOrderByStartedAt(
+                        eq(TEACHER_ID), any(), any()))
+                .thenReturn(List.of(
+                        TeacherSessionRecord.builder().orgId(ORG_ID).durationMinutes(90).build(),  // cùng org
+                        TeacherSessionRecord.builder().orgId(999L).durationMinutes(105).build(),    // org khác → loại
+                        TeacherSessionRecord.builder().durationMinutes(60).build()));               // org=null → vẫn tính
+        when(periodRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        PeriodDto dto = service.submit(TEACHER_ID, PERIOD_ID);
+
+        assertThat(dto.totalSessions()).isEqualTo(2);     // buổi org 999 bị loại khỏi kỳ org 42
+        assertThat(dto.totalMinutes()).isEqualTo(150);    // 90 + 60, KHÔNG cộng 105 của org khác
     }
 
     @Test
@@ -210,7 +293,7 @@ class TimesheetPeriodServiceTest {
             when(periodRepository
                     .findByTeacherIdAndPeriodStartLessThanEqualAndPeriodEndGreaterThanEqual(
                             eq(TEACHER_ID), any(), any()))
-                    .thenReturn(Optional.of(period(closed)));
+                    .thenReturn(List.of(period(closed)));
 
             assertThatThrownBy(() -> service.assertRecordEditable(TEACHER_ID, LocalDate.of(2026, 7, 15)))
                     .as("trạng thái %s phải chặn", closed)
@@ -225,7 +308,7 @@ class TimesheetPeriodServiceTest {
             when(periodRepository
                     .findByTeacherIdAndPeriodStartLessThanEqualAndPeriodEndGreaterThanEqual(
                             eq(TEACHER_ID), any(), any()))
-                    .thenReturn(Optional.of(period(open)));
+                    .thenReturn(List.of(period(open)));
 
             assertThatCode(() -> service.assertRecordEditable(TEACHER_ID, LocalDate.of(2026, 7, 15)))
                     .as("trạng thái %s phải cho qua", open)
@@ -239,10 +322,32 @@ class TimesheetPeriodServiceTest {
         when(periodRepository
                 .findByTeacherIdAndPeriodStartLessThanEqualAndPeriodEndGreaterThanEqual(
                         eq(TEACHER_ID), any(), any()))
-                .thenReturn(Optional.empty());
+                .thenReturn(List.of());
 
         assertThatCode(() -> service.assertRecordEditable(TEACHER_ID, LocalDate.of(2026, 7, 15)))
                 .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("orgSummary() đếm đúng giáo viên (distinct) và cộng tổng buổi/phút toàn tổ chức")
+    void orgSummary_aggregatesAcrossTeachers() {
+        TeacherTimesheetPeriod p1 = orgPeriod(1L, 3, 270);
+        TeacherTimesheetPeriod p2 = orgPeriod(1L, 2, 180);   // cùng giáo viên, kỳ thứ hai
+        TeacherTimesheetPeriod p3 = orgPeriod(5L, 4, 360);
+        when(periodRepository
+                .findByOrgIdAndPeriodStartGreaterThanEqualAndPeriodStartLessThanEqualOrderByPeriodStartDescTeacherIdAsc(
+                        eq(ORG_ID), any(), any()))
+                .thenReturn(List.of(p1, p2, p3));
+        when(userRepository.findAllById(any())).thenReturn(List.of(
+                com.deutschflow.user.entity.User.builder().id(1L).displayName("GV Một").build(),
+                com.deutschflow.user.entity.User.builder().id(5L).displayName("GV Năm").build()));
+
+        var summary = service.orgSummary(MANAGER_ID, ORG_ID, START, END);
+
+        assertThat(summary.teacherCount()).isEqualTo(2);     // distinct {1, 5}
+        assertThat(summary.totalSessions()).isEqualTo(9);    // 3 + 2 + 4
+        assertThat(summary.totalMinutes()).isEqualTo(810);   // 270 + 180 + 360
+        assertThat(summary.periods()).hasSize(3);
     }
 
     // ── xuất CSV cho kế toán ──────────────────────────────────────────────────
@@ -286,6 +391,14 @@ class TimesheetPeriodServiceTest {
                 .id(PERIOD_ID).teacherId(TEACHER_ID).orgId(ORG_ID)
                 .periodStart(START).periodEnd(END)
                 .status(status)
+                .build();
+    }
+
+    private static TeacherTimesheetPeriod orgPeriod(Long teacherId, int sessions, int minutes) {
+        return TeacherTimesheetPeriod.builder()
+                .id(teacherId * 100).teacherId(teacherId).orgId(ORG_ID)
+                .periodStart(START).periodEnd(END).status(Status.APPROVED)
+                .totalSessions(sessions).totalMinutes(minutes)
                 .build();
     }
 }

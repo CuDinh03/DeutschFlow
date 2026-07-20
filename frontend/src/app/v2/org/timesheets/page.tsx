@@ -82,7 +82,7 @@ export default function OrgTimesheetsPage() {
     period: TimesheetPeriod,
     action: () => Promise<TimesheetPeriod>,
     successKey: 'approveSuccess' | 'rejectSuccess' | 'lockSuccess',
-  ): Promise<void> => {
+  ): Promise<boolean> => {
     setActingId(period.id)
     try {
       const updated = await action()
@@ -91,8 +91,10 @@ export default function OrgTimesheetsPage() {
         periods: prev.periods.map((p) => (p.id === updated.id ? { ...updated, teacherName: p.teacherName } : p)),
       })
       toast.success(t(successKey))
+      return true
     } catch (e) {
       toast.error(apiMessage(e) || t('reasonRequired'))
+      return false
     } finally {
       setActingId(null)
     }
@@ -117,9 +119,13 @@ export default function OrgTimesheetsPage() {
     }
     const target = rejecting
     const reason = rejectReason.trim()
-    setRejecting(null)
-    setRejectReason('')
-    await runAction(target, () => rejectPeriod(target.id, reason), 'rejectSuccess')
+    // Chỉ đóng modal + xoá lý do KHI trả kỳ thành công. Nếu thất bại (mạng timeout, hoặc 409 do
+    // manager khác vừa đổi trạng thái kỳ), giữ nguyên modal + nội dung để manager thử lại, không bắt gõ lại.
+    const ok = await runAction(target, () => rejectPeriod(target.id, reason), 'rejectSuccess')
+    if (ok) {
+      setRejecting(null)
+      setRejectReason('')
+    }
   }
 
   return (

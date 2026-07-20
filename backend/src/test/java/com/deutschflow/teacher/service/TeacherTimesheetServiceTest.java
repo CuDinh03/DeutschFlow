@@ -32,6 +32,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -175,6 +176,69 @@ class TeacherTimesheetServiceTest {
         assertThatThrownBy(() -> service.updateRecord(TEACHER_ID, 7L,
                 new RecordTeachingRequest(null, null, null, 60, null, null)))
                 .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    @DisplayName("updateRecord() bị chặn khi kỳ CHỨA dòng công hiện tại đã nộp/duyệt/khoá")
+    void updateRecord_sourcePeriodClosed_isRejected() {
+        LocalDateTime recStart = LocalDateTime.of(2026, 7, 10, 18, 0);
+        when(recordRepository.findById(7L)).thenReturn(Optional.of(TeacherSessionRecord.builder()
+                .id(7L).teacherId(TEACHER_ID).startedAt(recStart).durationMinutes(90).build()));
+        doThrow(new ConflictException("Kỳ công đang ở trạng thái APPROVED"))
+                .when(periodService).assertRecordEditable(eq(TEACHER_ID), eq(recStart.toLocalDate()));
+
+        assertThatThrownBy(() -> service.updateRecord(TEACHER_ID, 7L,
+                new RecordTeachingRequest(null, null, null, 60, null, null)))
+                .isInstanceOf(ConflictException.class);
+
+        verify(recordRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("updateRecord() chặn dời buổi sang một kỳ ĐÍCH đã chốt — không tuồn công vào kỳ đã duyệt")
+    void updateRecord_moveIntoClosedPeriod_isRejected() {
+        LocalDateTime srcStart = LocalDateTime.of(2026, 7, 10, 18, 0);   // kỳ nguồn còn mở
+        LocalDateTime destStart = LocalDateTime.of(2026, 7, 5, 18, 0);   // kỳ đích đã chốt
+        when(recordRepository.findById(7L)).thenReturn(Optional.of(TeacherSessionRecord.builder()
+                .id(7L).teacherId(TEACHER_ID).startedAt(srcStart).durationMinutes(90).build()));
+        when(recordRepository.findByTeacherIdAndStartedAt(TEACHER_ID, destStart)).thenReturn(Optional.empty());
+        // Kỳ nguồn (srcStart) cho qua; kỳ đích (destStart) bị chặn.
+        doNothing().when(periodService).assertRecordEditable(eq(TEACHER_ID), eq(srcStart.toLocalDate()));
+        doThrow(new ConflictException("Kỳ công đích đang ở trạng thái LOCKED"))
+                .when(periodService).assertRecordEditable(eq(TEACHER_ID), eq(destStart.toLocalDate()));
+
+        assertThatThrownBy(() -> service.updateRecord(TEACHER_ID, 7L,
+                new RecordTeachingRequest(null, null, destStart, null, null, null)))
+                .isInstanceOf(ConflictException.class);
+
+        verify(recordRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("deleteRecord() không cho xoá dòng công của giáo viên khác (chống IDOR bảng lương)")
+    void deleteRecord_otherTeachersRow_isForbidden() {
+        when(recordRepository.findById(7L)).thenReturn(Optional.of(
+                TeacherSessionRecord.builder().id(7L).teacherId(999L).build()));
+
+        assertThatThrownBy(() -> service.deleteRecord(TEACHER_ID, 7L))
+                .isInstanceOf(ForbiddenException.class);
+
+        verify(recordRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("deleteRecord() bị chặn khi dòng công nằm trong kỳ đã nộp/duyệt/khoá")
+    void deleteRecord_insideClosedPeriod_isRejected() {
+        LocalDateTime recStart = LocalDateTime.of(2026, 7, 10, 18, 0);
+        when(recordRepository.findById(7L)).thenReturn(Optional.of(TeacherSessionRecord.builder()
+                .id(7L).teacherId(TEACHER_ID).startedAt(recStart).durationMinutes(90).build()));
+        doThrow(new ConflictException("Kỳ công đang ở trạng thái APPROVED"))
+                .when(periodService).assertRecordEditable(eq(TEACHER_ID), eq(recStart.toLocalDate()));
+
+        assertThatThrownBy(() -> service.deleteRecord(TEACHER_ID, 7L))
+                .isInstanceOf(ConflictException.class);
+
+        verify(recordRepository, never()).delete(any());
     }
 
     @Test

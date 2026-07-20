@@ -51,19 +51,44 @@ public class TimesheetPeriodService {
     @Transactional
     public PeriodDto openPeriod(Long teacherId, LocalDate periodStart, LocalDate periodEnd) {
         assertValidRange(periodStart, periodEnd);
-        TeacherTimesheetPeriod period = periodRepository
+
+        // Idempotent theo mốc bắt đầu: mở lại đúng kỳ cũ trả về kỳ sẵn có, không tạo trùng.
+        TeacherTimesheetPeriod existing = periodRepository
                 .findByTeacherIdAndPeriodStart(teacherId, periodStart)
-                .orElseGet(() -> {
-                    Long orgId = userRepository.findById(teacherId).map(User::getOrgId).orElse(null);
-                    return periodRepository.save(TeacherTimesheetPeriod.builder()
-                            .teacherId(teacherId)
-                            .orgId(orgId)                 // snapshot lúc mở kỳ
-                            .periodStart(periodStart)
-                            .periodEnd(periodEnd)
-                            .status(Status.OPEN)
-                            .build());
+                .orElse(null);
+        if (existing != null) {
+            return toDto(existing, null);
+        }
+
+        // Kỳ MỚI không được chồng lấp bất kỳ kỳ nào đã có của giáo viên. Không có chốt này thì một buổi
+        // rơi vào hai kỳ: (1) snapshotTotals đếm theo khoảng ngày nên buổi đó được cộng — và trả lương —
+        // ở CẢ hai kỳ; (2) assertRecordEditable khớp nhiều dòng. Ràng buộc EXCLUDE ở V267 là chốt cứng
+        // phía DB; kiểm tra ở đây để trả 409 rõ nghĩa thay vì để DB ném lỗi thô.
+        assertNoOverlap(teacherId, periodStart, periodEnd);
+
+        Long orgId = userRepository.findById(teacherId).map(User::getOrgId).orElse(null);
+        TeacherTimesheetPeriod saved = periodRepository.save(TeacherTimesheetPeriod.builder()
+                .teacherId(teacherId)
+                .orgId(orgId)                 // snapshot lúc mở kỳ
+                .periodStart(periodStart)
+                .periodEnd(periodEnd)
+                .status(Status.OPEN)
+                .build());
+        return toDto(saved, null);
+    }
+
+    /** Chặn mở kỳ chồng lấp: hai kỳ [a,b] và [c,d] giao nhau khi a &lt;= d AND c &lt;= b. */
+    private void assertNoOverlap(Long teacherId, LocalDate start, LocalDate end) {
+        periodRepository
+                .findByTeacherIdAndPeriodStartLessThanEqualAndPeriodEndGreaterThanEqual(teacherId, end, start)
+                .stream()
+                .findFirst()
+                .ifPresent(o -> {
+                    throw new ConflictException(
+                            "Kỳ công " + start + " – " + end + " chồng lấp kỳ đã có "
+                                    + o.getPeriodStart() + " – " + o.getPeriodEnd()
+                                    + ". Mỗi buổi chỉ được thuộc một kỳ công.");
                 });
-        return toDto(period, null);
     }
 
     @Transactional(readOnly = true)
@@ -195,7 +220,9 @@ public class TimesheetPeriodService {
         periodRepository
                 .findByTeacherIdAndPeriodStartLessThanEqualAndPeriodEndGreaterThanEqual(
                         teacherId, onDate, onDate)
+                .stream()
                 .filter(p -> !p.isEditable())
+                .findFirst()
                 .ifPresent(p -> {
                     throw new ConflictException(
                             "Kỳ công " + p.getPeriodStart() + " – " + p.getPeriodEnd()
@@ -241,9 +268,23 @@ public class TimesheetPeriodService {
                 .findByTeacherIdAndStartedAtGreaterThanEqualAndStartedAtLessThanOrderByStartedAt(
                         p.getTeacherId(),
                         p.getPeriodStart().atStartOfDay(),
-                        p.getPeriodEnd().plusDays(1).atStartOfDay());   // [start, end] theo NGÀY
+                        p.getPeriodEnd().plusDays(1).atStartOfDay())    // [start, end] theo NGÀY
+                .stream()
+                .filter(r -> belongsToPeriodOrg(p, r))
+                .toList();
         p.setTotalSessions(records.size());
         p.setTotalMinutes(records.stream().mapToInt(TeacherSessionRecord::getDurationMinutes).sum());
+    }
+
+    /**
+     * Dòng công có được tính vào kỳ này không, xét theo tổ chức. Kỳ snapshot org NHÀ của giáo viên
+     * (V264), còn dòng công snapshot org của LỚP đã dạy. Chỉ loại khi CẢ HAI org đều biết và khác
+     * nhau: giáo viên dạy chéo trung tâm không được dồn công org khác sang kỳ của org nhà — nếu không
+     * manager org A thấy (và trả lương) cả buổi thuộc org B. Dòng công org=null (lớp chưa gắn org) vẫn
+     * tính, giữ nguyên hành vi ca đơn-tổ-chức thông thường.
+     */
+    private static boolean belongsToPeriodOrg(TeacherTimesheetPeriod p, TeacherSessionRecord r) {
+        return p.getOrgId() == null || r.getOrgId() == null || p.getOrgId().equals(r.getOrgId());
     }
 
     private Map<Long, String> teacherNames(List<TeacherTimesheetPeriod> periods) {
