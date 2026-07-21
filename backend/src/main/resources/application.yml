@@ -354,11 +354,17 @@ app:
     groq:
       # Optional: only for AI_CHAT_PROVIDER=groq and/or speech-to-text (Whisper).
       api-key: ${GROQ_API_KEY:}
-      model: ${GROQ_MODEL:meta-llama/llama-4-scout-17b-16e-instruct}
+      # Speaking real-time (greeting + chat từng lượt) — ưu tiên TỐC ĐỘ. gpt-oss-20b ~1000 tok/s,
+      # rẻ nhất trong nhóm hỗ trợ json_schema strict (mọi call đều ép response_format=json_object,
+      # xem GroqChatClient#buildRequestBody nên model BẮT BUỘC phải hỗ trợ JSON mode).
+      # ⚠️ Model Groq bị khai tử theo lịch — https://console.groq.com/docs/deprecations. Tiền lệ:
+      # meta-llama/llama-4-scout-17b-16e-instruct tắt 17/07/2026 làm sập toàn bộ Speaking (503).
+      model: ${GROQ_MODEL:openai/gpt-oss-20b}
       # Model riêng cho CHẤM BÀI (Schreiben + Sprechen + lead-magnet) — TÁCH HẲN `model` ở trên
-      # (speaking real-time cần tốc độ scout-17B). 70B chấm chuẩn hơn ở ngữ pháp/từ vựng; mọi luồng
-      # chấm đọc qua GradingModelConfig. Đo bằng /api/admin/grading-eval rồi tinh chỉnh.
-      grading-model: ${GROQ_GRADING_MODEL:llama-3.3-70b-versatile}
+      # (speaking real-time cần tốc độ; chấm bài cần độ chính xác ngữ pháp/từ vựng). gpt-oss-120b
+      # ~500 tok/s, hỗ trợ json_schema strict; mọi luồng chấm đọc qua GradingModelConfig.
+      # Đo bằng /api/admin/grading-eval rồi tinh chỉnh.
+      grading-model: ${GROQ_GRADING_MODEL:openai/gpt-oss-120b}
       whisper-model: ${GROQ_WHISPER_MODEL:whisper-large-v3}
       # Concurrency caps (fair semaphores). Free tier ~30 RPM: chat 3–4; paid/Dev ~10–20 CCU: chat 6–8, whisper 4–6.
       max-concurrent-chat-requests: ${GROQ_MAX_CONCURRENT_CHAT:5}
