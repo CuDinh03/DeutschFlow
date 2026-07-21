@@ -31,7 +31,13 @@ import java.util.function.Consumer;
  * Supports both blocking and SSE-streaming modes.
  *
  * <p>Endpoint: POST https://api.groq.com/openai/v1/chat/completions
- * <p>Default model: {@code meta-llama/llama-4-scout-17b-16e-instruct}
+ * <p>Default model: {@code openai/gpt-oss-20b}
+ *
+ * <p><b>Model bị khai tử</b> — Groq tắt model theo lịch (https://console.groq.com/docs/deprecations)
+ * và trả HTTP 400 {@code model_decommissioned} sau ngày tắt. Đó là lỗi 4xx nên KHÔNG retry được:
+ * nó bay thẳng thành {@link AiServiceException} ⇒ 503 cho client. Ngày 17/07/2026 model cũ
+ * {@code meta-llama/llama-4-scout-17b-16e-instruct} bị tắt và làm sập toàn bộ luồng Speaking.
+ * Nhánh nhận diện ở {@link #chatCompletionWithRetry} log riêng để lần sau chẩn đoán ra ngay.
  */
 @Component
 @Slf4j
@@ -51,7 +57,7 @@ public class GroqChatClient implements OpenAiChatClient {
 
     public GroqChatClient(
             @Value("${app.ai.groq.api-key:}") String apiKey,
-            @Value("${app.ai.groq.model:meta-llama/llama-4-scout-17b-16e-instruct}") String model,
+            @Value("${app.ai.groq.model:openai/gpt-oss-20b}") String model,
             ObjectMapper objectMapper,
             GroqConcurrencyLimiter concurrencyLimiter,
             com.deutschflow.common.resilience.CircuitBreakers circuitBreakers) {
@@ -129,8 +135,20 @@ public class GroqChatClient implements OpenAiChatClient {
                     lastException = e;
                     sleepBackoff(attempt);
                 } else {
-                    log.error("[Groq] API error {}: {}", statusCode, e.getResponseBodyAsString());
-                    throw new AiServiceException("Groq API error " + statusCode + ": " + e.getMessage(), e);
+                    String body = e.getResponseBodyAsString();
+                    if (isModelDecommissioned(body)) {
+                        // Sự cố vận hành, KHÔNG phải lỗi tạm thời: retry bao nhiêu lần cũng vô ích và
+                        // mọi người dùng đều gãy cùng lúc. Log ERROR nêu đích danh việc cần làm.
+                        log.error("[Groq] MODEL BỊ KHAI TỬ: '{}' không còn được Groq phục vụ. "
+                                        + "Đổi env GROQ_MODEL/GROQ_GRADING_MODEL sang model còn sống "
+                                        + "(https://console.groq.com/docs/deprecations) rồi restart. Body: {}",
+                                effectiveModel, body);
+                    } else {
+                        log.error("[Groq] API error {}: {}", statusCode, body);
+                    }
+                    // Thông điệp lộ ra client (thành `detail` của ProblemDetail 503) nên giữ trung tính:
+                    // không nêu tên nhà cung cấp, không nêu mã lỗi upstream. Chi tiết nằm ở log trên.
+                    throw new AiServiceException("Dịch vụ AI tạm thời không khả dụng, vui lòng thử lại sau.", e);
                 }
             } catch (ResourceAccessException e) {
                 log.warn("[Groq] timeout on attempt {}/{}: {}", attempt, MAX_RETRIES, e.getMessage());
@@ -316,6 +334,15 @@ public class GroqChatClient implements OpenAiChatClient {
         int promptTokens = Math.max(1, (int) Math.ceil(promptChars / 4.0));
         int completionTokens = Math.max(1, (int) Math.ceil(completionChars / 4.0));
         return TokenUsage.estimated(promptTokens, completionTokens, promptTokens + completionTokens);
+    }
+
+    /**
+     * Groq trả HTTP 400 với {@code "code": "model_decommissioned"} khi model đã bị tắt hẳn.
+     * Khớp trên chuỗi thô thay vì parse JSON: thân lỗi là hợp đồng của bên thứ ba, một thay đổi
+     * hình dạng nhỏ không được phép biến việc nhận diện này thành một exception khác.
+     */
+    private boolean isModelDecommissioned(String responseBody) {
+        return responseBody != null && responseBody.contains("model_decommissioned");
     }
 
     private void sleepBackoff(int attempt) {

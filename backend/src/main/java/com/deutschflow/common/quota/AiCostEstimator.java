@@ -33,6 +33,9 @@ public class AiCostEstimator {
     public static final double WHISPER_USD_PER_SEC = 0.006 / 60.0;
 
     private static final ModelRate LLAMA_4_SCOUT = new ModelRate(0.11, 0.34);
+    /** Groq {@code openai/gpt-oss-20b} — model NÓI hiện tại (tra Groq pricing 2026-07). */
+    private static final ModelRate GPT_OSS_20B    = new ModelRate(0.075, 0.30);
+    /** Cũng đúng cho Groq {@code openai/gpt-oss-120b} (model CHẤM hiện tại): $0.15 / $0.60. */
     private static final ModelRate GPT_MINI       = new ModelRate(0.15, 0.60);
     private static final ModelRate EMBEDDING       = new ModelRate(0.02, 0.02);
     private static final ModelRate FREE            = new ModelRate(0.0, 0.0);
@@ -68,6 +71,10 @@ public class AiCostEstimator {
         }
         if (m.contains("embedding")) {
             return EMBEDDING;
+        }
+        if (m.contains("gpt-oss-20b")) {
+            // Phải đứng TRƯỚC nhánh "gpt" chung, nếu không 20b bị tính giá gấp đôi thực tế.
+            return GPT_OSS_20B;
         }
         if (m.contains("gpt") || m.contains("openai")) {
             return GPT_MINI;

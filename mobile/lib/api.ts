@@ -8,11 +8,24 @@ export function isAxiosErr(e: unknown): e is AxiosError {
   return axios.isAxiosError(e)
 }
 
+/**
+ * Thông điệp lỗi để hiển thị cho người dùng.
+ *
+ * Backend trả RFC-7807 Problem Details, nên câu tiếng Việt nằm ở `detail` — KHÔNG phải `message`.
+ * Trước đây hàm này chỉ đọc `message`/`error` nên luôn rơi về chuỗi thô của axios
+ * ("Request failed with status code 503") và mọi thông điệp backend dày công viết đều bị nuốt.
+ * Thứ tự dưới đây đi từ cụ thể nhất tới chung nhất; `title` là chốt chặn cuối trước chuỗi axios.
+ */
 export function apiMessage(e: unknown): string {
   if (isAxiosErr(e)) {
     const d = e.response?.data
-    if (d && typeof d === 'object' && 'message' in d) return String(d.message)
-    if (d && typeof d === 'object' && 'error' in d) return String((d as { error?: unknown }).error)
+    if (d && typeof d === 'object') {
+      const problem = d as Record<string, unknown>
+      for (const key of ['detail', 'message', 'error', 'title'] as const) {
+        const value = problem[key]
+        if (typeof value === 'string' && value.trim()) return value
+      }
+    }
     return e.message ?? 'Lỗi không xác định'
   }
   if (e instanceof Error) return e.message
