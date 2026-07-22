@@ -83,9 +83,11 @@ export interface AiMessageBubble {
 
 // ─── Color tokens shared across components ─────────────────────────────────
 
-export const CYAN   = "#22D3EE";
-export const PURPLE = "#A78BFA";
-export const MINT   = "#2DD4BF";
+// Accent trio. Re-pointed at the Galerie family (`--ga-blue` / `--ga-violet` / `--ga-teal`):
+// the old neon values were mixed for a near-black surface and washed out on paper.
+export const CYAN   = "#2F6FC9";
+export const PURPLE = "#7C56C8";
+export const MINT   = "#11888A";
 
 /** Dark-phone / standalone demo shells */
 export const glass: React.CSSProperties = {
@@ -95,26 +97,30 @@ export const glass: React.CSSProperties = {
   border: "1px solid rgba(255,255,255,0.11)",
 };
 
-/** Typography + surfaces for Speaking inside StudentShell (`#F8FAFF`) */
+/**
+ * Typography + surfaces for Speaking on Galerie warm paper.
+ * Values mirror `styles/galerie.css` (`--ga-ink`, `--ga-muted`, …) and the mobile
+ * `lib/theme/themes.ts` palette, so the speaking flow reads the same on both platforms.
+ */
 export const SPEAKING_LIGHT = {
-  ink: "#0f172a",
-  inkMuted: "#475569",
-  inkSoft: "#64748b",
-  inkFaint: "#94a3b8",
-  line: "rgba(15, 23, 42, 0.08)",
-  lineStrong: "rgba(15, 23, 42, 0.14)",
-  chatUserBg: "#f1f5f9",
-  chatUserBorder: "#e2e8f0",
+  ink: "#161513",
+  inkMuted: "#76716A",
+  inkSoft: "#76716A",
+  inkFaint: "#B3ADA5",
+  line: "#E7E3DA",
+  lineStrong: "#D8D2C6",
+  chatUserBg: "#F6F3EC",
+  chatUserBorder: "#E7E3DA",
 } as const;
 
-/** UIDemo `Speaking.tsx` page background — cyan/violet/teal ambient depth */
-export const SPEAKING_IMMERSIVE_GRADIENT =
-  "linear-gradient(180deg, #0A0F1E 0%, #0F172A 60%, #1A1535 100%)";
+/** Speaking page background — flat warm paper, no gradient (parity with mobile). */
+export const SPEAKING_PAPER_BG = "#FBFAF7";
 
-/** Glass phone panel inside immersive speaking (matches UIDemo phone frame) */
-export const SPEAKING_PHONE_PANEL_BG = "rgba(10, 22, 40, 0.6)";
-
-/** Dark phone / gradient shell (demo-aligned) */
+/**
+ * Kept so the dark-appearance branch of the bubbles still type-checks, but no live
+ * surface passes `appearance="dark"` any more — the speaking flow is light-only,
+ * exactly like the mobile app (mobile has no dark variant at all).
+ */
 export const SPEAKING_DARK = {
   ink: "rgba(255, 255, 255, 0.92)",
   inkMuted: "rgba(255, 255, 255, 0.72)",
@@ -126,11 +132,9 @@ export const SPEAKING_DARK = {
   chatUserBorder: "rgba(255, 255, 255, 0.14)",
 } as const;
 
-/** Cards on pale blue shell — avoids “white-on-white” with dark text */
+/** Card surface on warm paper — hairline border instead of the old blur/glass stack. */
 export const glassLight: React.CSSProperties = {
-  background: "rgba(255, 255, 255, 0.94)",
-  backdropFilter: "blur(12px)",
-  WebkitBackdropFilter: "blur(12px)",
-  border: `1px solid ${SPEAKING_LIGHT.lineStrong}`,
-  boxShadow: "0 1px 3px rgba(15, 23, 42, 0.06)",
+  background: "#FFFFFF",
+  border: `1px solid ${SPEAKING_LIGHT.line}`,
+  boxShadow: "0 4px 20px rgba(22, 21, 19, 0.07)",
 };

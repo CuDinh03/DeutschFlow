@@ -104,12 +104,12 @@ export function SpeakingVoiceVisualizer({ state }: Props) {
         ) : (
           <motion.div
             className="w-1.5 h-1.5 rounded-full"
-            style={{ background: isActive ? (isAI ? PURPLE : CYAN) : "rgba(255,255,255,0.3)" }}
+            style={{ background: isActive ? (isAI ? PURPLE : CYAN) : "var(--ga-subtle)" }}
             animate={{ opacity: isActive ? [1, 0.3, 1] : 1 }}
             transition={{ duration: 0.9, repeat: Infinity }}
           />
         )}
-        <span className="text-xs font-medium" style={{ color: "rgba(255,255,255,0.55)" }}>
+        <span className="text-xs font-medium" style={{ color: "var(--ga-muted)" }}>
           {label}
         </span>
       </motion.div>

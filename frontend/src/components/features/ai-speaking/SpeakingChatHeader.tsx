@@ -46,12 +46,12 @@ export function SpeakingChatHeader({
   const chatBusy = streamStatus === "streaming" || streamStatus === "processing";
 
   return (
-    <header className="flex items-center justify-between gap-2 px-3 sm:px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] border-b border-white/10 bg-[rgba(10,22,40,0.75)] backdrop-blur-md sticky top-0 z-20">
+    <header className="ga-ui flex items-center justify-between gap-2 px-3 sm:px-4 py-3 border-b border-ga-line bg-ga-card sticky top-0 z-20">
       <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
         <button
           type="button"
           onClick={onBack}
-          className="p-2 rounded-full hover:bg-white/10 transition-colors text-white/60 flex-shrink-0"
+          className="p-2 rounded-full hover:bg-ga-side-active transition-colors text-ga-muted flex-shrink-0"
           aria-label={t("back")}
         >
           <ArrowLeft className="w-5 h-5" />
@@ -59,13 +59,13 @@ export function SpeakingChatHeader({
         <SpeakingPersonaMiniAvatar
           personaId={companionId}
           chatBusy={chatBusy}
-          className="w-10 h-10 border-2 border-white/15 flex-shrink-0"
+          className="w-10 h-10 border border-ga-line flex-shrink-0"
         />
         <div className="min-w-0">
-          <h1 className="font-bold text-white leading-tight truncate text-sm sm:text-base">
+          <h1 className="font-ga-display font-medium text-ga-ink leading-tight truncate text-sm sm:text-base">
             {companionName}
           </h1>
-          <p className="text-[11px] text-white/50 font-medium truncate">{subtitle}</p>
+          <p className="text-[11px] text-ga-muted font-medium truncate">{subtitle}</p>
         </div>
       </div>
 
@@ -76,7 +76,7 @@ export function SpeakingChatHeader({
             type="button"
             onClick={() => onAutoTtsChange(!autoTtsEnabled)}
             className={`p-2 rounded-full transition-colors ${
-              autoTtsEnabled ? "text-cyan-400 bg-cyan-500/15" : "text-white/40 hover:text-white/70"
+              autoTtsEnabled ? "text-ga-blue bg-ga-blue-soft" : "text-ga-subtle hover:text-ga-ink"
             }`}
             title={autoTtsEnabled ? tChat("autoTtsOff") : tChat("autoTtsOn")}
           >
@@ -84,7 +84,7 @@ export function SpeakingChatHeader({
           </button>
         </div>
 
-        <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-white/8 border border-white/10 text-[11px] font-mono text-white/55">
+        <div className="flex items-center gap-1 px-2 py-1 rounded-ga-pill border border-ga-line bg-ga-surface text-[11px] font-mono text-ga-muted">
           <Clock size={11} />
           {secondsLabel}
         </div>
@@ -92,7 +92,7 @@ export function SpeakingChatHeader({
         <button
           type="button"
           onClick={onEnd}
-          className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-semibold bg-red-500/15 text-red-300 hover:bg-red-500/25 border border-red-400/25"
+          className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-ga-pill text-[11px] font-semibold bg-ga-red-soft text-ga-red hover:bg-ga-red hover:text-white transition-colors border border-ga-red"
         >
           <X size={12} />
           {t("endButton")}
@@ -102,7 +102,7 @@ export function SpeakingChatHeader({
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="p-2 rounded-full hover:bg-white/10 text-white/60 md:hidden"
+              className="p-2 rounded-full hover:bg-ga-side-active text-ga-muted md:hidden"
               aria-label={tChat("headerMenu")}
             >
               <MoreVertical size={18} />

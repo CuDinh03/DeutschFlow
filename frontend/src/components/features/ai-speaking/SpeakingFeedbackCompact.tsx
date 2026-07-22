@@ -8,10 +8,11 @@ import type { AiMessageBubble } from "@/components/speaking/types";
 interface Props {
   msg: AiMessageBubble;
   isV2: boolean;
-  dark: boolean;
 }
 
-export function SpeakingFeedbackCompact({ msg, isV2, dark }: Props) {
+/** Collapsible correction/explanation block under an AI turn. Warm paper only —
+ *  the speaking surface has no dark variant (parity with the mobile app). */
+export function SpeakingFeedbackCompact({ msg, isV2 }: Props) {
   const t = useTranslations("speaking.chat");
   const [open, setOpen] = useState(false);
 
@@ -25,38 +26,26 @@ export function SpeakingFeedbackCompact({ msg, isV2, dark }: Props) {
   const primary = msg.correction || msg.explanationVi || msg.grammarPoint || "";
 
   return (
-    <div
-      className={`rounded-xl border overflow-hidden ${
-        dark ? "border-white/12 bg-white/[0.04]" : "border-slate-200 bg-slate-50/90"
-      }`}
-    >
+    <div className="ga-ui rounded-ga border border-ga-line bg-ga-surface overflow-hidden">
       <button
         type="button"
         onClick={() => extraCount > 0 && setOpen((o) => !o)}
         className={`w-full flex items-start gap-2 px-3 py-2.5 text-left ${
-          extraCount > 0 ? "cursor-pointer hover:bg-white/5" : "cursor-default"
+          extraCount > 0 ? "cursor-pointer hover:bg-ga-side-active" : "cursor-default"
         }`}
       >
         <span
-          className={`flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${
+          className={`flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-ga-pill ${
             hasCorrection
-              ? "bg-red-600/90 text-white"
-              : dark
-                ? "bg-cyan-900/60 text-cyan-100 border border-cyan-400/30"
-                : "bg-cyan-100 text-cyan-900"
+              ? "bg-ga-red text-white"
+              : "bg-ga-blue-soft text-ga-blue border border-ga-blue"
           }`}
         >
           {hasCorrection ? t("labelQuickFix") : t("labelExplanationShort")}
         </span>
-        <p
-          className={`flex-1 text-[13px] leading-relaxed ${
-            dark ? "text-white/85" : "text-slate-800"
-          }`}
-        >
-          {primary}
-        </p>
+        <p className="flex-1 text-[13px] leading-relaxed text-ga-ink">{primary}</p>
         {extraCount > 0 && (
-          <span className="flex items-center gap-0.5 text-[10px] text-white/50 flex-shrink-0 mt-0.5">
+          <span className="flex items-center gap-0.5 text-[10px] text-ga-muted flex-shrink-0 mt-0.5">
             {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             {!open && t("moreFeedback", { n: extraCount })}
           </span>
@@ -64,14 +53,12 @@ export function SpeakingFeedbackCompact({ msg, isV2, dark }: Props) {
       </button>
 
       {open && (
-        <div className={`px-3 pb-3 space-y-2 border-t ${dark ? "border-white/10" : "border-slate-200"}`}>
+        <div className="px-3 pb-3 space-y-2 border-t border-ga-line">
           {hasExplanation && msg.explanationVi && msg.explanationVi !== primary && (
-            <p className={`text-[12px] leading-relaxed pt-2 ${dark ? "text-white/65" : "text-slate-600"}`}>
-              {msg.explanationVi}
-            </p>
+            <p className="text-[12px] leading-relaxed pt-2 text-ga-muted">{msg.explanationVi}</p>
           )}
           {hasGrammar && msg.grammarPoint && (
-            <p className={`text-[12px] leading-relaxed ${dark ? "text-violet-200/80" : "text-violet-800"}`}>
+            <p className="text-[12px] leading-relaxed text-ga-violet">
               <span className="font-semibold">{t("labelGrammarPoint")}: </span>
               {msg.grammarPoint}
             </p>

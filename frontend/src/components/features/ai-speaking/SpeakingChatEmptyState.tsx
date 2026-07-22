@@ -24,34 +24,30 @@ export function SpeakingChatEmptyState({
 
   return (
     <div className="flex flex-col items-center justify-center text-center py-16 px-4">
-      <div className="relative mb-5">
-        <div
-          className="absolute inset-0 rounded-full blur-2xl opacity-40"
-          style={{ background: "radial-gradient(circle, rgba(34,211,238,0.45) 0%, transparent 70%)" }}
-        />
+      <div className="mb-5">
         <SpeakingPersonaMiniAvatar
           personaId={personaId}
           chatBusy={false}
-          className="relative w-24 h-24 border-2 border-cyan-400/30 shadow-[0_0_40px_rgba(34,211,238,0.25)]"
+          className="w-24 h-24 border border-ga-line"
         />
       </div>
-      <p className="text-white/90 font-semibold text-lg mb-1">
+      <p className="font-ga-display text-ga-ink font-medium text-lg mb-1">
         {t("emptyStart", { name: companionName })}
       </p>
-      {personaRole && <p className="text-sm text-white/45 mb-2 max-w-xs">{personaRole}</p>}
+      {personaRole && <p className="ga-ui text-sm text-ga-muted mb-2 max-w-xs">{personaRole}</p>}
       {sessionTopic && (
-        <p className="text-xs font-medium text-cyan-400/90 mb-4 px-3 py-1 rounded-full border border-cyan-400/25 bg-cyan-500/10">
+        <p className="ga-ui text-xs font-medium text-ga-blue mb-4 px-3 py-1 rounded-ga-pill border border-ga-blue bg-ga-blue-soft">
           {t("sessionMission", { topic: sessionTopic })}
         </p>
       )}
-      <p className="text-[11px] text-white/40 uppercase tracking-wide mb-3">{t("startersTitle")}</p>
+      <p className="ga-ui text-[11px] text-ga-subtle uppercase tracking-[0.08em] mb-3">{t("startersTitle")}</p>
       <div className="flex flex-col gap-2 w-full max-w-sm">
         {starters.map((phrase, i) => (
           <button
             key={i}
             type="button"
             onClick={() => onStarterSelect(phrase)}
-            className="text-left text-sm px-4 py-3 rounded-xl border border-white/12 bg-white/[0.06] text-white/80 hover:border-cyan-400/40 hover:bg-cyan-500/10 transition-colors"
+            className="ga-ui text-left text-sm px-4 py-3 rounded-ga border border-ga-line bg-ga-card text-ga-ink hover:border-ga-accent hover:bg-ga-accent-soft transition-colors"
           >
             {phrase}
           </button>

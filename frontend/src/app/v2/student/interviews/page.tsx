@@ -187,22 +187,19 @@ export default function V2StudentInterviewsPage() {
     (s) => s.createdAt && Date.now() - new Date(s.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000,
   ).length
 
-  // Report view — <SessionSummary> is built for a dark canvas, so it keeps its own surface
-  // (the same treatment the legacy page used) instead of the light Galerie card.
+  // Report view — <SessionSummary> now renders on Galerie warm paper like the rest of
+  // the speaking flow, so this view just uses the page surface.
   if (selected && !loadingMsgs) {
     return (
-      <div
-        className="flex min-h-full flex-col"
-        style={{ background: 'linear-gradient(180deg, #0A0F1E 0%, #0F172A 60%, #1A1535 100%)' }}
-      >
+      <div className="flex min-h-full flex-col bg-ga-bg">
         <div className="mx-auto flex w-full max-w-[560px] flex-1 flex-col overflow-y-auto p-4">
           <div className="mb-4 mt-2 flex items-center justify-between">
             <button
               type="button"
               onClick={closeSession}
-              className="ga-ui flex items-center gap-2 text-[13px] font-semibold text-white/70 transition-colors hover:text-white"
+              className="ga-ui flex items-center gap-2 text-[13px] font-semibold text-ga-muted transition-colors hover:text-ga-ink"
             >
-              <span className="grid h-8 w-8 place-items-center rounded-full bg-white/10">
+              <span className="grid h-8 w-8 place-items-center rounded-full border border-ga-line bg-ga-card">
                 <ArrowLeft size={16} aria-hidden />
               </span>
               {t('closeReport')}
@@ -211,8 +208,7 @@ export default function V2StudentInterviewsPage() {
               <button
                 type="button"
                 onClick={() => downloadReport(reportJson, selected.id)}
-                className="ga-ui flex items-center gap-1.5 rounded-ga px-3 py-1.5 text-[12px] font-semibold text-white/60 transition-colors hover:text-white/90"
-                style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)' }}
+                className="ga-ui flex items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-3 py-1.5 text-[12px] font-semibold text-ga-muted transition-colors hover:text-ga-ink"
               >
                 <Download size={13} aria-hidden /> {t('downloadReport')}
               </button>
@@ -221,20 +217,18 @@ export default function V2StudentInterviewsPage() {
 
           {generatingReport && (
             <div
-              className="mb-4 flex items-center gap-3 rounded-ga px-4 py-3"
-              style={{ background: 'rgba(255,205,0,0.1)', border: '1px solid rgba(255,205,0,0.2)' }}
+              className="mb-4 flex items-center gap-3 rounded-ga border border-ga-yellow bg-ga-yellow-soft px-4 py-3"
             >
-              <Loader2 size={16} className="animate-spin text-yellow-400" aria-hidden />
-              <span className="ga-ui text-[13px] font-medium text-yellow-300">{t('generatingReport')}</span>
+              <Loader2 size={16} className="animate-spin text-ga-gold" aria-hidden />
+              <span className="ga-ui text-[13px] font-medium text-ga-ink">{t('generatingReport')}</span>
             </div>
           )}
 
           {reportError && (
             <div
-              className="mb-4 rounded-ga px-4 py-3"
-              style={{ background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.2)' }}
+              className="mb-4 rounded-ga border border-ga-red bg-ga-red-soft px-4 py-3"
             >
-              <span className="ga-ui text-[13px] text-red-300">{reportError}</span>
+              <span className="ga-ui text-[13px] text-ga-red">{reportError}</span>
             </div>
           )}
 
@@ -253,16 +247,15 @@ export default function V2StudentInterviewsPage() {
 
           {phaseResults.length > 0 && (
             <div
-              className="mt-6 overflow-hidden rounded-ga"
-              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }}
+              className="mt-6 overflow-hidden rounded-ga border border-ga-line bg-ga-card"
             >
-              <div className="border-b border-white/10 px-5 py-4">
-                <h3 className="ga-ui text-[13px] font-semibold text-white/90">{t('phaseCap')}</h3>
+              <div className="border-b border-ga-line px-5 py-4">
+                <h3 className="ga-ui text-[13px] font-semibold text-ga-ink">{t('phaseCap')}</h3>
               </div>
               <div className="space-y-3 p-4">
                 {phaseResults.map((pr) => {
                   const pct = Math.round((pr.score / 10) * 100)
-                  const color = pr.score >= 7 ? '#34d399' : pr.score >= 5 ? '#fbbf24' : '#f87171'
+                  const color = pr.score >= 7 ? '#1E9E61' : pr.score >= 5 ? '#C79A00' : '#DA291C'
                   const parseList = (json: string): string[] => {
                     try {
                       return JSON.parse(json) as string[]
@@ -273,20 +266,20 @@ export default function V2StudentInterviewsPage() {
                   const strengths = parseList(pr.strengthsJson)
                   const weaknesses = parseList(pr.weaknessesJson)
                   return (
-                    <div key={pr.phase} className="rounded-ga p-4" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                    <div key={pr.phase} className="rounded-ga border border-ga-line bg-ga-surface p-4">
                       <div className="mb-2 flex items-center justify-between">
-                        <span className="ga-ui text-[12px] font-semibold text-white/80">{pr.phase}</span>
+                        <span className="ga-ui text-[12px] font-semibold text-ga-ink">{pr.phase}</span>
                         <span className="ga-ui text-[12px] font-bold" style={{ color }}>
                           {pr.score.toFixed(1)}/10
                         </span>
                       </div>
-                      <div className="mb-3 h-1.5 rounded-full bg-white/10">
+                      <div className="mb-3 h-1.5 rounded-full bg-ga-card">
                         <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
                       </div>
                       {strengths.length > 0 && (
                         <ul className="mb-1 space-y-0.5">
                           {strengths.map((s, i) => (
-                            <li key={i} className="ga-ui text-[11px] text-emerald-400">
+                            <li key={i} className="ga-ui text-[11px] text-ga-green">
                               ✓ {s}
                             </li>
                           ))}
@@ -295,7 +288,7 @@ export default function V2StudentInterviewsPage() {
                       {weaknesses.length > 0 && (
                         <ul className="space-y-0.5">
                           {weaknesses.map((w, i) => (
-                            <li key={i} className="ga-ui text-[11px] text-red-400">
+                            <li key={i} className="ga-ui text-[11px] text-ga-red">
                               ✗ {w}
                             </li>
                           ))}

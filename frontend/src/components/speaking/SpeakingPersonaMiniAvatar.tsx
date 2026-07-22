@@ -61,7 +61,7 @@ export function SpeakingPersonaMiniAvatar({ personaId, chatBusy, className }: Pr
   return (
     <div
       className={cn(
-        "relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-white/[0.06]",
+        "relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-ga-card",
         className,
       )}
     >

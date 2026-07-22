@@ -5,13 +5,8 @@ import { Volume2, Info, CheckCircle2, AlertCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { speakGerman } from "@/lib/speechDe";
 import { cn } from "@/lib/utils";
-import {
-  AiMessageBubble,
-  CYAN,
-  MINT,
-  SPEAKING_LIGHT,
-  SPEAKING_DARK,
-} from "./types";
+import { AiMessageBubble, CYAN, MINT, SPEAKING_LIGHT } from "./types";
+import { personaInk, personaSoft } from "@/lib/personaPaper";
 import { UserTextWithErrorSpans } from "./UserTextWithErrorSpans";
 import { parseActionChips } from "./actionChips";
 import { SpeakingPersonaMiniAvatar } from "./SpeakingPersonaMiniAvatar";
@@ -30,7 +25,6 @@ export interface SpeakingMessageBubbleProps {
   sessionResponseSchema?: "V1" | "V2" | string;
   onSuggestionClick?: (text: string) => void;
   onCorrect?: (code: string, correct: string, rule: string) => void;
-  appearance?: "light" | "dark";
   /** For themed action chips (Lukas / Emma). */
   personaId?: string | null;
   /** UIDemo AIChat-style assistant bubble colors (V2 companion layout). */
@@ -51,7 +45,6 @@ export function SpeakingMessageBubble({
   sessionResponseSchema = "V1",
   onSuggestionClick,
   onCorrect: _onCorrect,
-  appearance = "light",
   personaId,
   personaV2Tokens,
   interviewGhost = false,
@@ -63,10 +56,12 @@ export function SpeakingMessageBubble({
   const tChat = useTranslations("speaking.chat");
   const reduceMotion = useReducedMotion();
   const isV2 = sessionResponseSchema === "V2";
-  const d = appearance === "dark";
-  const L = d ? SPEAKING_DARK : SPEAKING_LIGHT;
+  // Warm paper only — the dark chat shell is gone, so there is a single appearance.
+  const L = SPEAKING_LIGHT;
   const pid = normalizeSpeakingPersona(personaId ?? undefined);
   const v2Tokens = personaV2Tokens ?? getPersonaV2VisualTokens(pid);
+  // Persona hue, darkened for text / tinted for fills (lib/personaPaper).
+  const accentInk = personaInk(v2Tokens.accent);
   const actionChips = isV2 ? parseActionChips(msg.action ?? undefined) : [];
 
   if (msg.role === "USER") {
@@ -86,20 +81,11 @@ export function SpeakingMessageBubble({
           </p>
           <motion.div
             whileHover={{ scale: 1.01 }}
-            className={cn(
-              "rounded-2xl rounded-tr-md px-4 py-3 border transition-transform duration-200",
-              d && "border-white/12",
-              pid === "EMMA" && d && "border-amber-400/25 shadow-[0_8px_30px_rgba(245,158,11,0.06)]",
-              pid === "LUKAS" && d && "border-sky-400/25 shadow-[0_8px_30px_rgba(56,189,248,0.06)]",
-            )}
-            style={
-              d
-                ? { background: L.chatUserBg }
-                : { background: L.chatUserBg, borderColor: L.chatUserBorder }
-            }
+            className="rounded-2xl rounded-tr-md px-4 py-3 border transition-transform duration-200"
+            style={{ background: L.chatUserBg, borderColor: L.chatUserBorder }}
           >
             <p className="text-[15px] leading-relaxed break-words" style={{ color: L.ink }}>
-              <UserTextWithErrorSpans text={text} errors={msg.errors} dark={d} />
+              <UserTextWithErrorSpans text={text} errors={msg.errors} />
             </p>
             {msg.errors && msg.errors.length > 0 && (
               <div className="mt-2 space-y-1.5">
@@ -107,9 +93,10 @@ export function SpeakingMessageBubble({
                   {msg.errors.map((e) => (
                     <span
                       key={e.errorCode + (e.wrongSpan ?? "")}
-                      className="text-[9px] font-bold px-2 py-0.5 rounded-full max-w-[160px] truncate border border-white/15"
+                      className="text-[9px] font-bold px-2 py-0.5 rounded-full max-w-[160px] truncate border"
                       style={{
-                        background: "rgba(255,255,255,0.08)",
+                        background: "#FFFFFF",
+                        borderColor: L.line,
                         color: L.inkMuted,
                       }}
                       title={e.errorCode}
@@ -122,7 +109,7 @@ export function SpeakingMessageBubble({
                   <button
                     type="button"
                     onClick={onUserErrorsClick}
-                    className="text-[11px] font-semibold text-cyan-400/90 hover:text-cyan-300 underline-offset-2 hover:underline"
+                    className="text-[11px] font-semibold text-ga-accent hover:text-ga-ink underline-offset-2 hover:underline"
                   >
                     {tChat("viewErrors", { n: msg.errors.length })}
                   </button>
@@ -147,7 +134,7 @@ export function SpeakingMessageBubble({
       <SpeakingPersonaMiniAvatar
         personaId={personaId}
         chatBusy={aiChatBusy || !!msg.isStreaming}
-        className="w-10 h-10 flex-shrink-0 border-2 border-white/15 shadow-[0_0_20px_rgba(34,211,238,0.2)]"
+        className="w-10 h-10 flex-shrink-0 border border-ga-line"
       />
 
       <div className="flex-1 max-w-[min(82%,28rem)] space-y-3">
@@ -164,7 +151,7 @@ export function SpeakingMessageBubble({
             </span>
           )}
           {msg.userInterestDetected && (
-            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full border border-amber-400/30 bg-amber-500/15 text-amber-200">
+            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full border border-ga-yellow bg-ga-yellow-soft text-ga-gold">
               ✨ {msg.userInterestDetected}
             </span>
           )}
@@ -175,11 +162,15 @@ export function SpeakingMessageBubble({
               title={e.errorCode}
               style={{
                 background: e.severity?.toUpperCase().includes("BLOCK")
-                  ? "rgba(248,113,113,0.2)"
+                  ? "var(--ga-red-soft)"
                   : e.severity?.toUpperCase().includes("MAJOR")
-                    ? "rgba(251,146,60,0.18)"
-                    : "rgba(148,163,184,0.2)",
-                color: e.severity?.toUpperCase().includes("BLOCK") ? "#FCA5A5" : "#FDBA74",
+                    ? "var(--ga-orange-soft)"
+                    : "var(--ga-surface)",
+                color: e.severity?.toUpperCase().includes("BLOCK")
+                  ? "var(--ga-red)"
+                  : e.severity?.toUpperCase().includes("MAJOR")
+                    ? "var(--ga-orange)"
+                    : L.inkMuted,
                 borderColor: L.line,
               }}
             >
@@ -191,14 +182,13 @@ export function SpeakingMessageBubble({
         {/* Primary content — V2: large German + muted translation hierarchy */}
         <div
           className={cn(
-            "rounded-2xl rounded-tl-md px-4 py-4 border backdrop-blur-md transition-shadow duration-300",
-            (msg.isStreaming || interviewGhost) &&
-              "shadow-[0_0_32px_rgba(34,211,238,0.12)] df-stream-ghost",
+            "rounded-2xl rounded-tl-md px-4 py-4 border transition-shadow duration-300",
+            (msg.isStreaming || interviewGhost) && "df-stream-ghost",
           )}
           style={{
-            background: v2Tokens.bubble,
-            borderColor: v2Tokens.border,
-            boxShadow: `0 8px 40px rgba(0,0,0,0.35), 0 0 1px ${v2Tokens.accent}40`,
+            // Persona identity survives as a tinted card on paper, not a dark slab.
+            background: personaSoft(v2Tokens.accent, 0.06),
+            borderColor: personaSoft(v2Tokens.accent, 0.3),
           }}
         >
           <div className="flex items-start justify-between gap-3">
@@ -208,34 +198,20 @@ export function SpeakingMessageBubble({
                   "relative leading-snug font-semibold tracking-tight",
                   isV2 ? "text-[17px] sm:text-lg" : "text-[15px]",
                 )}
-                style={{
-                  color: d
-                    ? msg.isStreaming
-                      ? "rgba(255,255,255,0.72)"
-                      : "rgba(255,255,255,0.95)"
-                    : L.ink,
-                }}
+                style={{ color: msg.isStreaming ? L.inkMuted : L.ink }}
               >
-                {msg.isStreaming && (msg.aiSpeechDe?.length ?? 0) > 0 && d && (
-                  <span
-                    aria-hidden
-                    className="pointer-events-none absolute left-0 top-0 z-0 whitespace-pre-wrap break-words text-white/[0.14] blur-[0.3px] transition-opacity"
-                  >
-                    {msg.aiSpeechDe}
-                  </span>
-                )}
                 <span className="relative z-[1]">{msg.aiSpeechDe}</span>
                 {msg.isStreaming && (
                   <motion.span
                     className="inline-block w-[2px] h-[1.1em] ml-1 rounded-full align-middle"
-                    style={{ background: CYAN }}
+                    style={{ background: accentInk }}
                     animate={reduceMotion ? { opacity: 1 } : { opacity: [1, 0] }}
                     transition={reduceMotion ? { duration: 0 } : { duration: 0.55, repeat: Infinity }}
                   />
                 )}
               </p>
               {isV2 && msg.explanationVi ? (
-                <p className="text-sm leading-relaxed" style={{ color: d ? "rgba(255,255,255,0.48)" : SPEAKING_LIGHT.inkMuted }}>
+                <p className="text-sm leading-relaxed" style={{ color: L.inkMuted }}>
                   <span className="text-[10px] font-bold uppercase tracking-wider block mb-1 opacity-70">
                     {t("labelTranslation")}
                   </span>
@@ -253,13 +229,9 @@ export function SpeakingMessageBubble({
                 whileHover={{ scale: 1.08 }}
                 whileTap={{ scale: 0.94 }}
                 className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center border transition-colors"
-                style={
-                  d
-                    ? { background: "rgba(255,255,255,0.1)", borderColor: "rgba(255,255,255,0.14)" }
-                    : { background: "#f1f5f9", borderColor: "rgba(15,23,42,0.12)" }
-                }
+                style={{ background: "#FFFFFF", borderColor: L.line }}
               >
-                <Volume2 size={14} style={{ color: CYAN }} aria-hidden />
+                <Volume2 size={14} style={{ color: accentInk }} aria-hidden />
               </motion.button>
             )}
           </div>
@@ -269,37 +241,30 @@ export function SpeakingMessageBubble({
         {isV2 && msg.feedback && (
           <div
             className={cn(
-              "rounded-2xl border px-4 py-3 flex items-start gap-3 shadow-sm",
-              d ? "border-white/10 bg-white/[0.04]" : "border-slate-200/80 bg-slate-50/90",
-              msg.status === "OFF_TOPIC" && "border-l-4 border-l-red-400 bg-red-500/[0.07]",
-              msg.status === "EXCELLENT" && "border-l-4 border-l-emerald-400 bg-emerald-500/[0.07]",
-              msg.status === "ON_TOPIC_NEEDS_IMPROVEMENT" && "border-l-4 border-l-amber-400 bg-amber-500/[0.07]",
+              "rounded-ga border border-ga-line bg-ga-surface px-4 py-3 flex items-start gap-3",
+              msg.status === "OFF_TOPIC" && "border-l-4 border-l-ga-red bg-ga-red-soft",
+              msg.status === "EXCELLENT" && "border-l-4 border-l-ga-green bg-ga-green-soft",
+              msg.status === "ON_TOPIC_NEEDS_IMPROVEMENT" && "border-l-4 border-l-ga-yellow bg-ga-yellow-soft",
             )}
           >
             {msg.status === "OFF_TOPIC" ? (
-              <AlertCircle size={16} className="flex-shrink-0 text-red-300 mt-0.5" />
+              <AlertCircle size={16} className="flex-shrink-0 text-ga-red mt-0.5" />
             ) : (
-              <CheckCircle2 size={16} className="flex-shrink-0 text-emerald-300/90 mt-0.5" />
+              <CheckCircle2 size={16} className="flex-shrink-0 text-ga-green mt-0.5" />
             )}
-            <p className={cn("text-sm leading-relaxed", d ? "text-white/85" : "text-slate-800")}>{msg.feedback}</p>
+            <p className="text-sm leading-relaxed text-ga-ink">{msg.feedback}</p>
           </div>
         )}
 
         {/* V1 guard feedback (non-V2 contract) */}
         {!isV2 && msg.feedback && (
           <div
-            className={`rounded-2xl px-4 py-3 flex items-center gap-2 border ${
-              d
-                ? msg.status === "OFF_TOPIC"
-                  ? "bg-red-950/50 border-red-400/35 text-red-100"
-                  : msg.status === "EXCELLENT"
-                    ? "bg-emerald-950/45 border-emerald-400/35 text-emerald-100"
-                    : "bg-amber-950/45 border-amber-400/35 text-amber-100"
-                : msg.status === "OFF_TOPIC"
-                  ? "bg-red-50 border-red-200 text-red-800"
-                  : msg.status === "EXCELLENT"
-                    ? "bg-emerald-50 border-emerald-200 text-emerald-900"
-                    : "bg-amber-50 border-amber-200 text-amber-900"
+            className={`rounded-ga px-4 py-3 flex items-center gap-2 border ${
+              msg.status === "OFF_TOPIC"
+                ? "bg-ga-red-soft border-ga-red text-ga-red"
+                : msg.status === "EXCELLENT"
+                  ? "bg-ga-green-soft border-ga-green text-ga-green"
+                  : "bg-ga-yellow-soft border-ga-yellow text-ga-gold"
             }`}
           >
             {msg.status === "OFF_TOPIC" ? <AlertCircle size={14} /> : <CheckCircle2 size={14} />}
@@ -347,11 +312,7 @@ export function SpeakingMessageBubble({
                     type="button"
                     onClick={() => onSuggestionClick?.(s.german_text)}
                     whileHover={{ scale: 1.01 }}
-                    className={
-                      d
-                        ? "w-full text-left rounded-2xl px-4 py-3 bg-white/[0.06] border border-white/12 hover:bg-white/10 transition-colors group-hover:border-amber-400/40"
-                        : "w-full text-left rounded-2xl px-4 py-3 bg-slate-50 border border-slate-200 hover:bg-slate-100/95 transition-colors group-hover:border-amber-400/50"
-                    }
+                    className="w-full text-left rounded-ga px-4 py-3 bg-ga-surface border border-ga-line transition-colors group-hover:border-ga-yellow"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1">
@@ -360,7 +321,7 @@ export function SpeakingMessageBubble({
                             {s.german_text}
                           </p>
                           {s.lego_structure && (
-                            <span className="text-[8px] font-mono px-1.5 py-0.5 rounded bg-slate-100/10 text-white/40 border border-white/10">
+                            <span className="text-[8px] font-mono px-1.5 py-0.5 rounded bg-ga-card text-ga-muted border border-ga-line">
                               {s.lego_structure}
                             </span>
                           )}
@@ -369,7 +330,7 @@ export function SpeakingMessageBubble({
                           {s.vietnamese_translation}
                         </p>
                       </div>
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-white/10 text-white/60">
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-ga-card text-ga-muted border border-ga-line">
                         {s.level}
                       </span>
                     </div>
@@ -378,18 +339,18 @@ export function SpeakingMessageBubble({
                     <div className="group/info relative">
                       <button
                         type="button"
-                        className="p-1.5 rounded-full bg-slate-900/90 border border-white/10 text-white/40 hover:text-amber-400 transition-colors shadow-lg"
+                        className="p-1.5 rounded-full bg-ga-card border border-ga-line text-ga-muted hover:text-ga-gold transition-colors shadow-ga-card-hover"
                       >
                         <Info size={11} />
                       </button>
-                      <div className="invisible group-hover/info:visible absolute bottom-full right-0 mb-2 w-64 p-4 rounded-xl bg-[#0f172a] border border-white/10 shadow-2xl z-20 backdrop-blur-md">
-                        <div className="mb-3 pb-3 border-b border-white/5">
-                          <p className="text-[10px] font-bold text-amber-400 uppercase mb-1">Tại sao dùng câu này?</p>
-                          <p className="text-[12px] text-white/80 leading-relaxed">{s.why_to_use}</p>
+                      <div className="invisible group-hover/info:visible absolute bottom-full right-0 mb-2 w-64 p-4 rounded-ga bg-ga-card border border-ga-line shadow-ga-panel z-20">
+                        <div className="mb-3 pb-3 border-b border-ga-line">
+                          <p className="text-[10px] font-bold text-ga-gold uppercase mb-1">Tại sao dùng câu này?</p>
+                          <p className="text-[12px] text-ga-ink leading-relaxed">{s.why_to_use}</p>
                         </div>
                         <div>
-                          <p className="text-[10px] font-bold text-purple-400 uppercase mb-1">Hoàn cảnh sử dụng:</p>
-                          <p className="text-[12px] text-white/60 leading-relaxed">{s.usage_context}</p>
+                          <p className="text-[10px] font-bold text-ga-violet uppercase mb-1">Hoàn cảnh sử dụng:</p>
+                          <p className="text-[12px] text-ga-muted leading-relaxed">{s.usage_context}</p>
                         </div>
                       </div>
                     </div>
@@ -402,7 +363,7 @@ export function SpeakingMessageBubble({
         })()}
 
         {showExplanations && (
-          <SpeakingFeedbackCompact msg={msg} isV2={isV2} dark={d} />
+          <SpeakingFeedbackCompact msg={msg} isV2={isV2} />
         )}
       </div>
     </motion.div>

@@ -21,12 +21,13 @@ const REACTION_LABEL: Record<PersonaReaction, string> = {
 };
 
 // Ring color hint per reaction — picked up by the breathing halo.
+// Galerie hues — the halo sits on warm paper, so the old neon values are gone.
 const REACTION_RING: Record<PersonaReaction, string> = {
-  idle: "rgba(255,255,255,0.18)",
-  listening: "rgba(56,189,248,0.65)",   // cyan
-  talking: "rgba(168,85,247,0.55)",     // violet
-  thinking: "rgba(251,191,36,0.55)",    // amber
-  concerned: "rgba(248,113,113,0.55)",  // red
+  idle: "rgba(22,21,19,0.10)",
+  listening: "rgba(47,111,201,0.45)",   // blue
+  talking: "rgba(124,86,200,0.40)",     // violet
+  thinking: "rgba(255,205,0,0.50)",     // yellow
+  concerned: "rgba(218,41,28,0.40)",    // red
 };
 
 export function SpeakingPersonaFloat({ personaId, reaction, visible = true }: Props) {
@@ -85,7 +86,7 @@ export function SpeakingPersonaFloat({ personaId, reaction, visible = true }: Pr
               personaId={personaId}
               reaction={reaction}
               // Compact round chat-head: ~56px, fits like a Messenger bubble.
-              className="relative w-14 h-14 rounded-full overflow-hidden border-2 border-white/25 shadow-[0_6px_20px_rgba(0,0,0,0.35)]"
+              className="relative w-14 h-14 rounded-full overflow-hidden border-2 border-ga-line bg-ga-card shadow-ga-card-hover"
             />
           </div>
         </motion.div>

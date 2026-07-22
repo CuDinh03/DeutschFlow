@@ -18,10 +18,10 @@ export function SpeakingQuotaPill({ quota }: Props) {
 
   return (
     <div
-      className={`hidden sm:flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-semibold border ${
+      className={`ga-ui hidden sm:flex items-center gap-1 px-2 py-1 rounded-ga-pill text-[10px] font-semibold border ${
         low
-          ? "bg-red-500/15 text-red-300 border-red-400/30"
-          : "bg-white/8 text-white/55 border-white/12"
+          ? "bg-ga-red-soft text-ga-red border-ga-red"
+          : "bg-ga-surface text-ga-muted border-ga-line"
       }`}
       title={t("quotaHint")}
     >

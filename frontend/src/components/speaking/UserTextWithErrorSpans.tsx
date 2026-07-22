@@ -7,11 +7,10 @@ import type { StructuredErrorItem } from "./types";
 interface Props {
   text: string;
   errors?: StructuredErrorItem[];
-  dark?: boolean;
 }
 
-/** Inline wrong + correction spans over the user utterance */
-export function UserTextWithErrorSpans({ text, errors, dark }: Props) {
+/** Inline wrong + correction spans over the user utterance (warm paper only). */
+export function UserTextWithErrorSpans({ text, errors }: Props) {
   const nodes = useMemo(() => {
     const errs = errors?.filter((e) => e.wrongSpan && text.includes(e.wrongSpan)) ?? [];
     if (!errs.length) return [<span key="plain">{text}</span>];
@@ -30,22 +29,14 @@ export function UserTextWithErrorSpans({ text, errors, dark }: Props) {
       out.push(
         <Fragment key={`e${k++}`}>
           <span
-            className={
-              dark
-                ? "rounded px-0.5 border border-red-400/50 bg-red-950/50 text-red-200"
-                : "rounded px-0.5 border border-red-300 bg-red-100 text-red-900"
-            }
+            className="rounded px-0.5 border border-ga-red bg-ga-red-soft text-ga-red"
             title={getErrorSnippet(e.errorCode, 'vi').title}
           >
             {w}
           </span>
           {e.correctedSpan ? (
             <span
-              className={
-                dark
-                  ? "text-emerald-300/95 text-[12px] font-medium whitespace-nowrap"
-                  : "text-emerald-700 text-[12px] font-medium whitespace-nowrap"
-              }
+              className="text-ga-green text-[12px] font-medium whitespace-nowrap"
             >
               {" → "}
               {e.correctedSpan}
@@ -59,7 +50,7 @@ export function UserTextWithErrorSpans({ text, errors, dark }: Props) {
       out.push(<span key={`t${k++}`}>{text.slice(pos)}</span>);
     }
     return out.length ? out : [<span key="plain">{text}</span>];
-  }, [text, errors, dark]);
+  }, [text, errors]);
 
   return <>{nodes}</>;
 }

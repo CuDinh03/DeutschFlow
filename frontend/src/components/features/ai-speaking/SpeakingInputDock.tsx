@@ -49,7 +49,7 @@ export function SpeakingInputDock({
   const micLabel = showMicBlocked ? t("micRetry") : tChat("micTitle");
 
   return (
-    <footer className="border-t border-white/10 bg-[rgba(8,16,32,0.92)] backdrop-blur-md p-3 sm:p-4">
+    <footer className="ga-ui border-t border-ga-line bg-ga-card p-3 sm:p-4">
       <div className="max-w-3xl mx-auto w-full md:w-[65%] md:mx-0">
         <form
           onSubmit={(e) => {
@@ -66,10 +66,10 @@ export function SpeakingInputDock({
               "flex-shrink-0 rounded-full transition-all flex items-center justify-center",
               "w-14 h-14 sm:w-12 sm:h-12",
               isListening
-                ? "bg-red-500/25 text-red-300 ring-2 ring-red-400/50 animate-pulse shadow-[0_0_24px_rgba(248,113,113,0.35)]"
+                ? "bg-ga-red text-white ring-2 ring-ga-red-soft animate-pulse"
                 : showMicBlocked
-                ? "bg-amber-500/15 text-amber-300 border border-amber-400/35 hover:bg-amber-500/25"
-                : "bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 border border-cyan-400/30",
+                ? "bg-ga-yellow-soft text-ga-gold border border-ga-yellow hover:bg-ga-yellow hover:text-ga-ink"
+                : "bg-ga-ink text-ga-bg hover:opacity-90",
               (micBusy || inputDisabled) && "opacity-40",
             )}
             title={micLabel}
@@ -86,13 +86,13 @@ export function SpeakingInputDock({
 
           <div
             className={cn(
-              "flex-1 flex items-end gap-2 rounded-2xl border px-2 py-1.5 transition-all",
-              "bg-white/[0.06] border-white/12 focus-within:border-cyan-400/40 focus-within:ring-1 focus-within:ring-cyan-400/25",
-              isListening && "border-red-400/35 ring-1 ring-red-400/20",
+              "flex-1 flex items-end gap-2 rounded-ga border px-2 py-1.5 transition-all",
+              "bg-ga-surface border-ga-line focus-within:border-ga-accent focus-within:ring-1 focus-within:ring-ga-accent",
+              isListening && "border-ga-red ring-1 ring-ga-red-soft",
             )}
           >
             {isListening && (
-              <span className="text-[10px] font-bold text-red-400 pl-2 pb-3 animate-pulse flex-shrink-0">
+              <span className="text-[10px] font-bold text-ga-red pl-2 pb-3 animate-pulse flex-shrink-0">
                 {tChat("recordingLive")}
               </span>
             )}
@@ -111,13 +111,13 @@ export function SpeakingInputDock({
                   ? tChat("quotaBlockedInputPlaceholder")
                   : tChat("inputPlaceholder", { name: companionName })
               }
-              className="flex-1 bg-transparent border-none outline-none resize-none max-h-28 min-h-[44px] py-2.5 px-1 text-white/90 placeholder:text-white/35 text-[15px] disabled:opacity-50"
+              className="flex-1 bg-transparent border-none outline-none resize-none max-h-28 min-h-[44px] py-2.5 px-1 text-ga-ink placeholder:text-ga-subtle text-[15px] disabled:opacity-50"
               rows={1}
             />
             <button
               type="submit"
               disabled={!inputText.trim() || !streamIdle || inputDisabled}
-              className="p-2.5 mb-0.5 rounded-xl bg-cyan-500 text-slate-950 hover:bg-cyan-400 transition-colors disabled:opacity-35 flex-shrink-0"
+              className="p-2.5 mb-0.5 rounded-ga bg-ga-yellow text-ga-ink hover:opacity-90 transition-opacity disabled:opacity-35 flex-shrink-0"
               aria-label={tChat("sendMessage")}
             >
               <Send className="w-5 h-5" />
@@ -126,9 +126,9 @@ export function SpeakingInputDock({
         </form>
 
         <div className="text-center mt-2 space-y-0.5">
-          <span className="text-[10px] text-white/40 block">{inputTip}</span>
+          <span className="text-[10px] text-ga-muted block">{inputTip}</span>
           {showSuggestionHint && (
-            <span className="text-[10px] text-cyan-400/50 hidden sm:block">{tChat("shortcutHint")}</span>
+            <span className="text-[10px] text-ga-subtle hidden sm:block">{tChat("shortcutHint")}</span>
           )}
         </div>
       </div>

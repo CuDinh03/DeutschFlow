@@ -39,14 +39,16 @@ interface InterviewReport {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const CYAN = "#22D3EE";
-const PURPLE = "#A78BFA";
-const MINT = "#2DD4BF";
+// Galerie accents — the summary now renders on warm paper, so the neon trio is gone.
+const CYAN = "#2F6FC9";   // --ga-blue
+const PURPLE = "#7C56C8"; // --ga-violet
+const MINT = "#11888A";   // --ga-teal
+const AMBER = "#C79A00";  // --ga-gold
+const CORAL = "#DA291C";  // --ga-red
 const glass = {
-  background: "rgba(255,255,255,0.07)",
-  backdropFilter: "blur(24px)",
-  WebkitBackdropFilter: "blur(24px)",
-  border: "1px solid rgba(255,255,255,0.11)",
+  background: "var(--ga-card)",
+  border: "1px solid var(--ga-line)",
+  boxShadow: "var(--ga-shadow-card-hover)",
 };
 
 function computeScoresFromMessages(messages: ChatMessage[]) {
@@ -69,7 +71,7 @@ function computeScoresFromMessages(messages: ChatMessage[]) {
     { label: "Vocabulary", labelVi: "Từ vựng", score: vocabScore, icon: BookOpen, color: CYAN },
     { label: "Grammar & Syntax", labelVi: "Ngữ pháp & Cú pháp", score: grammarScore, icon: Zap, color: PURPLE },
     { label: "Task Fulfillment", labelVi: "Hoàn thành nhiệm vụ", score: taskScore, icon: Check, color: MINT },
-    { label: "Fluency", labelVi: "Độ trôi chảy", score: fluencyScore, icon: MessageSquare, color: "#F59E0B" },
+    { label: "Fluency", labelVi: "Độ trôi chảy", score: fluencyScore, icon: MessageSquare, color: AMBER },
   ];
   const overallScore = Math.round(rubric.reduce((s, r) => s + r.score, 0) / rubric.length * 10);
   return { rubric, overallScore, totalErrors, totalPerfect, totalExchanges };
@@ -77,8 +79,8 @@ function computeScoresFromMessages(messages: ChatMessage[]) {
 
 function verdictColor(v?: string) {
   if (v === "PASS") return MINT;
-  if (v === "CONDITIONAL_PASS") return "#FBBF24";
-  return "#F87171";
+  if (v === "CONDITIONAL_PASS") return "#C79A00";
+  return "#DA291C";
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -157,13 +159,13 @@ export function SessionSummary({
       <div className="text-center pt-2">
         <motion.div
           className="w-14 h-14 rounded-full mx-auto mb-3 flex items-center justify-center text-2xl"
-          style={{ background: `linear-gradient(145deg, ${CYAN}, ${PURPLE})`, boxShadow: `0 6px 0 0 rgba(0,0,0,0.3), 0 10px 28px rgba(34,211,238,0.3)` }}
+          style={{ background: "var(--ga-yellow-soft)", border: "1px solid var(--ga-yellow)" }}
           initial={{ scale: 0 }} animate={{ scale: 1 }}
           transition={{ ...spring.gentle, delay: 0.1 }}
         >
           {hasAiReport ? "📋" : "🎯"}
         </motion.div>
-        <h2 className="text-white font-extrabold text-xl">
+        <h2 className="font-ga-display text-ga-ink font-medium text-2xl">
           {isInterviewMode ? "Phỏng vấn kết thúc!" : "Buổi luyện nói kết thúc!"}
         </h2>
         {hasAiReport && aiReport?.verdict_label_vi && (
@@ -185,14 +187,14 @@ export function SessionSummary({
                   <stop offset="0%" stopColor={CYAN} /><stop offset="100%" stopColor={PURPLE} />
                 </linearGradient>
               </defs>
-              <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth={10} />
+              <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="var(--ga-line)" strokeWidth={10} />
               <motion.circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="url(#scoreGrad)" strokeWidth={10}
                 strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={animOffset}
-                style={{ filter: `drop-shadow(0 0 8px ${CYAN}80)` }} />
+                 />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-white font-extrabold text-3xl leading-none">{animScore}</span>
-              <span className="text-[10px] font-semibold mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>/ 100</span>
+              <span className="text-ga-ink font-bold text-3xl leading-none">{animScore}</span>
+              <span className="text-[10px] font-semibold mt-0.5" style={{ color: "var(--ga-subtle)" }}>/ 100</span>
             </div>
           </div>
           {/* Stats grid */}
@@ -201,19 +203,19 @@ export function SessionSummary({
               { icon: Clock, label: "Thời gian", value: duration, color: CYAN },
               { icon: TrendingUp, label: "Lượt nói", value: `${totalExchanges}`, color: PURPLE },
               { icon: Check, label: "Hoàn hảo", value: `${totalPerfect}`, color: MINT },
-              { icon: AlertTriangle, label: "Lỗi", value: `${totalErrors}`, color: "#F87171" },
+              { icon: AlertTriangle, label: "Lỗi", value: `${totalErrors}`, color: CORAL },
             ].map(({ icon: Icon, label, value, color }) => (
-              <div key={label} className="rounded-[12px] p-2.5 flex flex-col gap-1" style={{ background: "rgba(255,255,255,0.06)" }}>
+              <div key={label} className="rounded-[12px] p-2.5 flex flex-col gap-1" style={{ background: "var(--ga-surface)" }}>
                 <Icon size={13} style={{ color }} />
-                <span className="text-white font-bold text-base leading-none">{value}</span>
-                <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>{label}</span>
+                <span className="text-ga-ink font-bold text-base leading-none">{value}</span>
+                <span className="text-[10px]" style={{ color: "var(--ga-subtle)" }}>{label}</span>
               </div>
             ))}
           </div>
         </div>
         {hasAiReport && aiReport?.overall_score && (
-          <div className="mt-3 pt-3 border-t" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
-            <span className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>Đánh giá AI: </span>
+          <div className="mt-3 pt-3 border-t" style={{ borderColor: "var(--ga-line)" }}>
+            <span className="text-xs" style={{ color: "var(--ga-muted)" }}>Đánh giá AI: </span>
             <span className="text-sm font-bold" style={{ color: CYAN }}>{aiReport.overall_score}</span>
           </div>
         )}
@@ -222,20 +224,20 @@ export function SessionSummary({
       {/* AI Interview Report — 4 categories */}
       {hasAiReport && aiReport?.categories && aiReport.categories.length > 0 && (
         <div className="rounded-[20px] overflow-hidden" style={glass}>
-          <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
-            <Target size={14} style={{ color: "#FBBF24" }} />
-            <span className="text-white font-semibold text-sm">Đánh giá chi tiết (AI)</span>
+          <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ borderColor: "var(--ga-line)" }}>
+            <Target size={14} style={{ color: AMBER }} />
+            <span className="text-ga-ink font-semibold text-sm">Đánh giá chi tiết (AI)</span>
           </div>
           {aiReport.categories.map((cat, i) => (
-            <motion.div key={i} className="px-4 py-4" style={{ borderTop: i > 0 ? "1px solid rgba(255,255,255,0.05)" : "none" }}
+            <motion.div key={i} className="px-4 py-4" style={{ borderTop: i > 0 ? "1px solid var(--ga-line)" : "none" }}
               initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 + i * 0.1 }}>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-semibold text-white">{cat.name_vi}</span>
+                <span className="text-sm font-semibold text-ga-ink">{cat.name_vi}</span>
                 <span className="text-sm font-bold" style={{ color: cat.score >= 7 ? MINT : cat.score >= 5 ? "#FBBF24" : "#F87171" }}>
                   {cat.score}/10
                 </span>
               </div>
-              <div className="h-1.5 rounded-full overflow-hidden mb-2" style={{ background: "rgba(255,255,255,0.1)" }}>
+              <div className="h-1.5 rounded-full overflow-hidden mb-2" style={{ background: "var(--ga-surface)" }}>
                 <motion.div className="h-full rounded-full"
                   style={{ background: cat.score >= 7 ? MINT : cat.score >= 5 ? "#FBBF24" : "#F87171" }}
                   initial={{ width: 0 }} animate={{ width: `${cat.score * 10}%` }}
@@ -244,17 +246,17 @@ export function SessionSummary({
               {cat.green_flags_vi && cat.green_flags_vi.length > 0 && cat.green_flags_vi.map((f, j) => (
                 <div key={j} className="flex items-start gap-1.5 mb-1">
                   <ThumbsUp size={11} style={{ color: MINT, flexShrink: 0, marginTop: 2 }} />
-                  <span className="text-xs" style={{ color: "rgba(255,255,255,0.65)" }}>{f}</span>
+                  <span className="text-xs" style={{ color: "var(--ga-muted)" }}>{f}</span>
                 </div>
               ))}
               {cat.red_flags_vi && cat.red_flags_vi.length > 0 && cat.red_flags_vi.map((f, j) => (
                 <div key={j} className="flex items-start gap-1.5 mb-1">
                   <ThumbsDown size={11} style={{ color: "#F87171", flexShrink: 0, marginTop: 2 }} />
-                  <span className="text-xs" style={{ color: "rgba(255,255,255,0.55)" }}>{f}</span>
+                  <span className="text-xs" style={{ color: "var(--ga-muted)" }}>{f}</span>
                 </div>
               ))}
               {cat.comment_vi && (
-                <p className="text-xs mt-1 italic" style={{ color: "rgba(255,255,255,0.4)" }}>{cat.comment_vi}</p>
+                <p className="text-xs mt-1 italic" style={{ color: "var(--ga-subtle)" }}>{cat.comment_vi}</p>
               )}
             </motion.div>
           ))}
@@ -266,32 +268,32 @@ export function SessionSummary({
         <div className="rounded-[20px] p-4" style={glass}>
           <div className="flex items-center gap-2 mb-3">
             <MessageSquare size={14} style={{ color: PURPLE }} />
-            <span className="text-white font-semibold text-sm">Tiếng Đức trong phỏng vấn</span>
+            <span className="text-ga-ink font-semibold text-sm">Tiếng Đức trong phỏng vấn</span>
           </div>
           <div className="grid grid-cols-2 gap-2 mb-3">
             {aiReport.german_language.grammar_accuracy_pct && (
-              <div className="rounded-xl p-3" style={{ background: "rgba(255,255,255,0.05)" }}>
-                <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>Độ chính xác ngữ pháp</span>
-                <p className="text-white font-bold text-sm mt-0.5">{aiReport.german_language.grammar_accuracy_pct}</p>
+              <div className="rounded-xl p-3" style={{ background: "var(--ga-surface)" }}>
+                <span className="text-[10px]" style={{ color: "var(--ga-subtle)" }}>Độ chính xác ngữ pháp</span>
+                <p className="text-ga-ink font-bold text-sm mt-0.5">{aiReport.german_language.grammar_accuracy_pct}</p>
               </div>
             )}
             {aiReport.german_language.vocabulary_level && (
-              <div className="rounded-xl p-3" style={{ background: "rgba(255,255,255,0.05)" }}>
-                <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>Mức từ vựng</span>
-                <p className="text-white font-bold text-sm mt-0.5">{aiReport.german_language.vocabulary_level}</p>
+              <div className="rounded-xl p-3" style={{ background: "var(--ga-surface)" }}>
+                <span className="text-[10px]" style={{ color: "var(--ga-subtle)" }}>Mức từ vựng</span>
+                <p className="text-ga-ink font-bold text-sm mt-0.5">{aiReport.german_language.vocabulary_level}</p>
               </div>
             )}
           </div>
           {aiReport.german_language.fluency_vi && (
-            <p className="text-xs mb-2" style={{ color: "rgba(255,255,255,0.6)" }}>{aiReport.german_language.fluency_vi}</p>
+            <p className="text-xs mb-2" style={{ color: "var(--ga-muted)" }}>{aiReport.german_language.fluency_vi}</p>
           )}
           {aiReport.german_language.common_errors_vi && aiReport.german_language.common_errors_vi.length > 0 && (
             <div>
-              <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.35)" }}>Lỗi thường gặp</span>
+              <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--ga-subtle)" }}>Lỗi thường gặp</span>
               {aiReport.german_language.common_errors_vi.map((e, i) => (
                 <div key={i} className="flex items-center gap-1.5 mt-1">
                   <AlertTriangle size={10} style={{ color: "#FBBF24", flexShrink: 0 }} />
-                  <span className="text-xs" style={{ color: "rgba(255,255,255,0.55)" }}>{e}</span>
+                  <span className="text-xs" style={{ color: "var(--ga-muted)" }}>{e}</span>
                 </div>
               ))}
             </div>
@@ -303,8 +305,8 @@ export function SessionSummary({
       {hasAiReport && aiReport?.remediation_vi && aiReport.remediation_vi.length > 0 && (
         <div className="rounded-[20px] p-4" style={glass}>
           <div className="flex items-center gap-2 mb-3">
-            <Lightbulb size={14} style={{ color: "#FBBF24" }} />
-            <span className="text-white font-semibold text-sm">Giải pháp khắc phục</span>
+            <Lightbulb size={14} style={{ color: AMBER }} />
+            <span className="text-ga-ink font-semibold text-sm">Giải pháp khắc phục</span>
           </div>
           {aiReport.remediation_vi.map((r, i) => (
             <div key={i} className="flex items-start gap-2 mb-2">
@@ -312,7 +314,7 @@ export function SessionSummary({
                 style={{ background: "rgba(251,191,36,0.15)", color: "#FBBF24", border: "1px solid rgba(251,191,36,0.3)" }}>
                 {i + 1}
               </div>
-              <span className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.7)" }}>{r}</span>
+              <span className="text-xs leading-relaxed" style={{ color: "var(--ga-muted)" }}>{r}</span>
             </div>
           ))}
         </div>
@@ -323,7 +325,7 @@ export function SessionSummary({
         <div className="rounded-[20px] p-4" style={{ ...glass, background: "rgba(34,211,238,0.06)", border: `1px solid ${CYAN}22` }}>
           <div className="flex items-start gap-2">
             <Star size={14} style={{ color: "#FBBF24", flexShrink: 0, marginTop: 1 }} />
-            <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.8)" }}>{aiReport.encouragement_vi}</p>
+            <p className="text-sm leading-relaxed" style={{ color: "var(--ga-ink)" }}>{aiReport.encouragement_vi}</p>
           </div>
         </div>
       )}
@@ -331,9 +333,9 @@ export function SessionSummary({
       {/* Fallback rubric (non-interview or no AI report) */}
       {!hasAiReport && (
         <div className="rounded-[20px] overflow-hidden" style={glass}>
-          <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
-            <Star size={14} style={{ color: "#FBBF24" }} />
-            <span className="text-white font-semibold text-sm">Rubric chấm điểm</span>
+          <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ borderColor: "var(--ga-line)" }}>
+            <Star size={14} style={{ color: AMBER }} />
+            <span className="text-ga-ink font-semibold text-sm">Rubric chấm điểm</span>
           </div>
           <div className="p-4 space-y-4">
             {rubric.map((r, i) => (
@@ -341,12 +343,12 @@ export function SessionSummary({
                 <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-2">
                     <r.icon size={13} style={{ color: r.color }} />
-                    <span className="text-sm font-semibold text-white">{r.label}</span>
-                    <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>({r.labelVi})</span>
+                    <span className="text-sm font-semibold text-ga-ink">{r.label}</span>
+                    <span className="text-[10px]" style={{ color: "var(--ga-subtle)" }}>({r.labelVi})</span>
                   </div>
                   <span className="text-sm font-bold" style={{ color: r.color }}>{r.score}/10</span>
                 </div>
-                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.1)" }}>
+                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--ga-surface)" }}>
                   <motion.div className="h-full rounded-full"
                     style={{ background: r.color, boxShadow: `0 0 6px ${r.color}60` }}
                     initial={{ width: 0 }} animate={{ width: `${r.score * 10}%` }}
@@ -361,20 +363,20 @@ export function SessionSummary({
       {speakingErrors.length > 0 && (
         <div className="rounded-[20px] p-4" style={glass}>
           <div className="flex items-center gap-2 mb-3">
-            <AlertTriangle size={14} style={{ color: "#FBBF24" }} />
-            <span className="text-white font-semibold text-sm">Lỗi cần ôn lại sau buổi nói</span>
+            <AlertTriangle size={14} style={{ color: AMBER }} />
+            <span className="text-ga-ink font-semibold text-sm">Lỗi cần ôn lại sau buổi nói</span>
           </div>
           <div className="space-y-2 mb-3">
             {speakingErrors.map((error) => (
-              <div key={error} className="rounded-xl px-3 py-2 bg-white/5 border border-white/10 text-sm text-white/75">
+              <div key={error} className="rounded-ga px-3 py-2 bg-ga-surface border border-ga-line text-sm text-ga-ink">
                 {error}
               </div>
             ))}
           </div>
           <button
             onClick={() => onReviewErrors?.(speakingErrors)}
-            className="w-full py-3 rounded-[14px] font-bold text-sm transition-all"
-            style={{ background: "rgba(255,255,255,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.15)" }}
+            className="w-full py-3 rounded-ga font-semibold text-sm transition-colors hover:bg-ga-side-active"
+            style={{ background: "var(--ga-card)", color: "var(--ga-ink)", border: "1px solid var(--ga-line)" }}
           >
             Ôn lại các lỗi này
           </button>
@@ -387,11 +389,11 @@ export function SessionSummary({
           <button
             type="button"
             onClick={onViewHistory}
-            className="w-full py-2.5 rounded-[14px] font-semibold text-sm transition-all"
+            className="w-full py-2.5 rounded-ga font-semibold text-sm transition-opacity hover:opacity-90"
             style={{
-              background: "rgba(34,211,238,0.12)",
+              background: "var(--ga-blue-soft)",
               color: CYAN,
-              border: `1px solid ${CYAN}33`,
+              border: `1px solid ${CYAN}`,
             }}
           >
             {tChat("summaryViewHistory")}
@@ -401,11 +403,11 @@ export function SessionSummary({
           <button
             type="button"
             onClick={onRestart}
-            className="flex items-center justify-center gap-2 flex-1 py-3 rounded-[14px] font-semibold text-sm transition-all"
+            className="flex items-center justify-center gap-2 flex-1 py-3 rounded-ga font-semibold text-sm transition-colors hover:bg-ga-side-active"
             style={{
-              background: "rgba(255,255,255,0.08)",
-              color: "rgba(255,255,255,0.8)",
-              border: "1px solid rgba(255,255,255,0.12)",
+              background: "var(--ga-card)",
+              color: "var(--ga-ink)",
+              border: "1px solid var(--ga-line)",
             }}
           >
             <RotateCcw size={14} /> Luyện lại
@@ -413,12 +415,8 @@ export function SessionSummary({
           <button
             type="button"
             onClick={onExit}
-            className="flex items-center justify-center gap-2 flex-[2] py-3 rounded-[14px] font-bold text-sm transition-all"
-            style={{
-              background: `linear-gradient(135deg, ${CYAN}, ${PURPLE})`,
-              color: "white",
-              boxShadow: `0 5px 0 0 rgba(0,0,0,0.3), 0 8px 20px rgba(34,211,238,0.25)`,
-            }}
+            className="flex items-center justify-center gap-2 flex-[2] py-3 rounded-ga font-semibold text-sm transition-opacity hover:opacity-90"
+            style={{ background: "var(--ga-ink)", color: "var(--ga-bg)" }}
           >
             <ArrowLeft size={14} /> Về trang chủ
           </button>

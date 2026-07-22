@@ -45,7 +45,8 @@ export function SpeakingMobileCopilotSheet({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-40 bg-black/40 md:hidden"
+            className="fixed inset-0 z-40 md:hidden"
+            style={{ background: "rgba(22, 21, 19, 0.45)" }}
             onClick={onClose}
           />
           <motion.div
@@ -53,17 +54,17 @@ export function SpeakingMobileCopilotSheet({
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={spring.nav}
-            className="fixed bottom-0 left-0 right-0 z-50 md:hidden max-h-[70vh] overflow-y-auto rounded-t-3xl bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shadow-2xl"
+            className="ga-ui fixed bottom-0 left-0 right-0 z-50 md:hidden max-h-[70vh] overflow-y-auto rounded-t-[16px] bg-ga-card border-t border-ga-line shadow-ga-panel"
           >
-            <div className="sticky top-0 flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur">
-              <span className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                <Mic size={14} className="text-cyan-500" />
+            <div className="sticky top-0 flex items-center justify-between px-4 py-3 border-b border-ga-line bg-ga-card">
+              <span className="text-sm font-semibold text-ga-ink flex items-center gap-2">
+                <Mic size={14} className="text-ga-accent" />
                 {t("mobileCopilotTitle")}
               </span>
               <button
                 type="button"
                 onClick={onClose}
-                className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500"
+                className="p-2 rounded-full hover:bg-ga-side-active text-ga-muted"
                 aria-label={t("mobileCopilotClose")}
               >
                 <X size={18} />
@@ -76,10 +77,10 @@ export function SpeakingMobileCopilotSheet({
               )}
 
               {lastUserErrors.length > 0 && (
-                <div className="rounded-2xl p-4 border border-red-200 dark:border-red-800 bg-red-50/80 dark:bg-red-950/25">
+                <div className="rounded-ga p-4 border border-ga-red bg-ga-red-soft">
                   <div className="flex items-center gap-2 mb-2">
-                    <AlertCircle size={14} className="text-red-500" />
-                    <span className="text-[10px] font-bold text-red-600 dark:text-red-400 uppercase">
+                    <AlertCircle size={14} className="text-ga-red" />
+                    <span className="text-[10px] font-bold text-ga-red uppercase">
                       {t("correctionsTitle")}
                     </span>
                   </div>
@@ -87,15 +88,15 @@ export function SpeakingMobileCopilotSheet({
                     {lastUserErrors.map((err, idx) => (
                       <li
                         key={`${err.errorCode}-${idx}`}
-                        className="text-sm bg-white dark:bg-slate-800 rounded-lg p-2.5 border border-red-100 dark:border-red-900/40"
+                        className="text-sm bg-ga-card rounded-ga p-2.5 border border-ga-line"
                       >
                         {err.wrongSpan && (
-                          <p className="text-red-500 line-through text-[13px]">
+                          <p className="text-ga-red line-through text-[13px]">
                             &quot;{err.wrongSpan}&quot;
                           </p>
                         )}
                         {err.correctedSpan && (
-                          <p className="text-emerald-700 dark:text-emerald-400 font-medium text-[13px]">
+                          <p className="text-ga-green font-medium text-[13px]">
                             → &quot;{err.correctedSpan}&quot;
                           </p>
                         )}
@@ -108,8 +109,8 @@ export function SpeakingMobileCopilotSheet({
               {showSuggestions && suggestions.length > 0 && (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <Lightbulb size={13} className="text-amber-500" />
-                    <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase">
+                    <Lightbulb size={13} className="text-ga-gold" />
+                    <span className="text-[10px] font-bold text-ga-gold uppercase">
                       {t("suggestionsTitle")}
                     </span>
                   </div>
@@ -121,13 +122,13 @@ export function SpeakingMobileCopilotSheet({
                         onSuggestionSelect(s.german_text);
                         onClose();
                       }}
-                      className="w-full text-left p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                      className="w-full text-left p-3 rounded-ga bg-ga-surface border border-ga-line hover:border-ga-accent transition-colors"
                     >
-                      <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                      <p className="text-sm font-medium text-ga-ink">
                         {s.german_text}
                       </p>
                       {s.vietnamese_translation && (
-                        <p className="text-[12px] text-slate-500 mt-1 italic">
+                        <p className="text-[12px] text-ga-muted mt-1 italic">
                           {s.vietnamese_translation}
                         </p>
                       )}

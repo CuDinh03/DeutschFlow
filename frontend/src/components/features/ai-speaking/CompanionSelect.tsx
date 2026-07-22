@@ -3,8 +3,9 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, ChevronRight, ArrowLeft, Briefcase, BookOpen, Lock } from "lucide-react";
+import { Sparkles, ChevronRight, ArrowLeft, Briefcase, BookOpen, Lock, MessageCircle, GraduationCap } from "lucide-react";
 import { PERSONA_LIST, PERSONA_GROUPS, PersonaId, PersonaGroup, PERSONA_TOKENS } from "@/lib/personas";
+import { personaInk, personaSoft } from "@/lib/personaPaper";
 import { PersonaCard } from "./PersonaCard";
 import { aiSpeakingApi, SpeakingSessionMode } from "@/lib/aiSpeakingApi";
 import { interviewDomainApi, InterviewPersonaInfo } from "@/lib/interviewDomainApi";
@@ -21,6 +22,20 @@ import { useStatusBarStyle } from "@/lib/statusBar";
 import { lightImpact, mediumImpact } from "@/lib/haptics";
 
 const CEFR_LEVELS = ["A1", "A2", "B1", "B2"];
+
+const MODE_TABS = [
+  { mode: "COMMUNICATION" as SpeakingSessionMode, label: "Hội thoại", icon: MessageCircle },
+  { mode: "INTERVIEW" as SpeakingSessionMode, label: "Phỏng vấn", icon: Briefcase },
+  { mode: "LESSON" as SpeakingSessionMode, label: "Luyện tập", icon: GraduationCap },
+];
+
+const EXPERIENCE_LEVELS = [
+  { id: "0-6M", label: "0–6 tháng" },
+  { id: "6-12M", label: "6–12 tháng" },
+  { id: "1-2Y", label: "1–2 năm" },
+  { id: "3Y", label: "3 năm" },
+  { id: "5Y", label: "5+ năm" },
+];
 
 export interface CompanionSelectProps {
   /** Live conversation engine to enter once the session is created. */
@@ -43,7 +58,8 @@ export function CompanionSelect({
   homeHref = "/",
   layout = "page",
 }: CompanionSelectProps = {}) {
-  useStatusBarStyle("dark");
+  // Warm paper → dark glyphs in the iOS status bar.
+  useStatusBarStyle("light");
   const router = useRouter();
   const searchParams = useSearchParams();
   const minHeightClass = layout === "shell" ? "min-h-full" : "min-h-screen";
@@ -114,6 +130,9 @@ export function CompanionSelect({
   };
 
   const selectedPersona = selected ? PERSONA_LIST.find((p) => p.id === selected) : null;
+  // Persona accents were picked for the old dark surface; on paper they only carry text
+  // after being darkened to AA (lib/personaPaper).
+  const selectedInk = selectedPersona ? personaInk(selectedPersona.accent) : "var(--ga-ink)";
 
   // Filter personas by active group AND mode restrictions
   const filteredPersonas = useMemo(() => {
@@ -245,50 +264,51 @@ export function CompanionSelect({
   }, [sessionMode, searchParams])
 
   return (
-    <div data-native-page className={`${minHeightClass} flex flex-col w-full`} style={{ background: "#080818", color: "#fff" }}>
+    <div data-native-page className={`${minHeightClass} flex flex-col w-full bg-ga-bg text-ga-ink`}>
       <div className={`max-w-[520px] mx-auto w-full flex flex-col ${minHeightClass}`}>
         {/* ── Header ── */}
-        <div className="px-5 pt-[calc(3.5rem+env(safe-area-inset-top,0px))] pb-3 flex-shrink-0">
+        <div className="px-5 pt-6 pb-3 flex-shrink-0">
           <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-            <motion.button onClick={() => router.push(returnPath || homeHref)} className="flex items-center gap-2 mb-4" style={{ color: "rgba(255,255,255,0.5)" }} whileTap={{ scale: 0.92 }}>
-              <div className="w-8 h-8 flex items-center justify-center rounded-full" style={{ background: "rgba(255,255,255,0.08)" }}>
+            <motion.button onClick={() => router.push(returnPath || homeHref)} className="ga-ui flex items-center gap-2 mb-4 text-ga-muted transition-colors hover:text-ga-ink" whileTap={{ scale: 0.92 }}>
+              <div className="w-8 h-8 flex items-center justify-center rounded-full border border-ga-line bg-ga-card">
                 <ArrowLeft size={15} />
               </div>
               <span className="text-sm">{returnPath ? "Quay lại" : "Trang chủ"}</span>
             </motion.button>
             <div className="flex items-center gap-2 mb-1">
-              <Sparkles size={16} style={{ color: "#FFCD00" }} />
-              <span className="text-[11px] font-black tracking-widest uppercase" style={{ color: "#FFCD00" }}>DeutschFlow AI</span>
+              <Sparkles size={16} className="text-ga-gold" />
+              <span className="ga-ui text-[11px] font-semibold tracking-[0.08em] uppercase text-ga-gold">DeutschFlow AI</span>
             </div>
-            <h1 className="font-black text-2xl leading-tight text-white">Wähle deinen</h1>
-            <h1 className="font-black text-2xl leading-tight" style={{ color: "#FFCD00" }}>Begleiter</h1>
-            <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.45)" }}>Ai sẽ đồng hành cùng bạn hôm nay?</p>
+            {/* Same title as the mobile screen so both platforms read identically. */}
+            <h1 className="font-ga-display text-[28px] font-medium leading-tight text-ga-ink">Luyện nói</h1>
+            <p className="ga-ui text-sm mt-1 text-ga-muted">Chọn cách luyện và người đồng hành</p>
           </motion.div>
         </div>
 
-        {/* ── Mode Selection (3 tabs) ── */}
+        {/* ── Mode Selection (3 tabs) — same shape as the mobile picker ── */}
         <div className="px-5 pb-3">
-          <motion.div className="flex bg-white/5 p-1 rounded-2xl" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-            {([
-              { mode: "COMMUNICATION" as SpeakingSessionMode, label: "Hội thoại" },
-              { mode: "INTERVIEW" as SpeakingSessionMode, label: "Phỏng vấn" },
-              { mode: "LESSON" as SpeakingSessionMode, label: "Luyện tập" },
-            ]).map(({ mode, label }) => (
-              <button key={mode} onClick={() => handleModeChange(mode)}
-                className={`flex-1 py-2 text-sm font-semibold rounded-xl transition-all ${
-                  sessionMode === mode ? "bg-white/10 text-white shadow-sm" : "text-white/40 hover:text-white/60"
-                }`}
-                style={sessionMode === mode && mode === "LESSON" ? { color: "#FFCD00" } : sessionMode === mode && mode === "INTERVIEW" ? { color: "#FFCD00" } : {}}
-              >
-                {label}
-              </button>
-            ))}
+          <motion.div className="flex gap-2" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+            {MODE_TABS.map(({ mode, label, icon: ModeIcon }) => {
+              const active = sessionMode === mode;
+              return (
+                <button key={mode} onClick={() => handleModeChange(mode)}
+                  className={`ga-ui flex-1 flex flex-col items-center gap-1 py-3 rounded-ga border text-sm font-semibold transition-colors ${
+                    active
+                      ? "border-ga-yellow bg-ga-yellow text-ga-ink"
+                      : "border-ga-line bg-ga-card text-ga-muted hover:text-ga-ink"
+                  }`}
+                >
+                  <ModeIcon size={20} />
+                  {label}
+                </button>
+              );
+            })}
           </motion.div>
         </div>
 
         {quickPick && (
           <div className="px-5 pb-2">
-            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
+            <div className="ga-ui rounded-ga border border-ga-line bg-ga-card px-4 py-3 text-sm text-ga-muted">
               {quickPick}
             </div>
           </div>
@@ -299,8 +319,10 @@ export function CompanionSelect({
           <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1">
             {filteredGroups.map((g) => (
               <motion.button key={g.id} onClick={() => { setActiveGroup(g.id); setSelected(null); }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
-                  activeGroup === g.id ? "bg-white/15 text-white" : "bg-white/5 text-white/40 hover:text-white/60"
+                className={`ga-ui flex items-center gap-1.5 px-3 py-1.5 rounded-ga-pill border text-xs font-semibold whitespace-nowrap transition-colors ${
+                  activeGroup === g.id
+                    ? "border-ga-yellow bg-ga-yellow-soft text-ga-gold"
+                    : "border-ga-line bg-ga-card text-ga-muted hover:text-ga-ink"
                 }`}
                 whileTap={{ scale: 0.95 }}
               >
@@ -329,15 +351,17 @@ export function CompanionSelect({
                     }}
                   />
                   {locked && (
-                    <div className="absolute inset-0 rounded-3xl flex items-center justify-center" style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(2px)" }}>
-                      <Lock size={20} className="text-yellow-400" />
+                    <div className="absolute inset-0 rounded-ga flex items-center justify-center" style={{ background: "rgba(251,250,247,0.65)", backdropFilter: "blur(2px)" }}>
+                      <span className="flex h-9 w-9 items-center justify-center rounded-full border border-ga-line bg-ga-card">
+                        <Lock size={18} className="text-ga-gold" />
+                      </span>
                     </div>
                   )}
                 </div>
               );
             })}
             {filteredPersonas.length === 0 && (
-              <p className="text-center w-full text-white/30 text-sm py-8">
+              <p className="ga-ui text-center w-full text-ga-subtle text-sm py-8">
                 Không có nhân vật nào cho chế độ này trong nhóm đã chọn.
               </p>
             )}
@@ -348,17 +372,16 @@ export function CompanionSelect({
             {lockedNudge && sessionMode === "INTERVIEW" && (
               <motion.div
                 initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }}
-                className="mt-3 rounded-2xl px-4 py-3 flex items-start gap-3"
-                style={{ background: "rgba(255,205,0,0.08)", border: "1px solid rgba(255,205,0,0.25)" }}
+                className="mt-3 rounded-ga border border-ga-yellow bg-ga-yellow-soft px-4 py-3 flex items-start gap-3"
               >
-                <Lock size={16} className="text-yellow-400 mt-0.5 shrink-0" />
+                <Lock size={16} className="text-ga-gold mt-0.5 shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-yellow-200 font-semibold">Nhân vật PRO</p>
-                  <p className="text-xs text-white/50 mt-0.5">Nhân vật cấp độ ADVANCED chỉ dành cho gói PRO/ULTRA. Nâng cấp để luyện phỏng vấn chuyên sâu.</p>
+                  <p className="ga-ui text-sm text-ga-ink font-semibold">Nhân vật PRO</p>
+                  <p className="ga-ui text-xs text-ga-muted mt-0.5">Nhân vật cấp độ ADVANCED chỉ dành cho gói PRO/ULTRA. Nâng cấp để luyện phỏng vấn chuyên sâu.</p>
                 </div>
                 <button
                   onClick={() => router.push(pricingHref)}
-                  className="shrink-0 text-xs font-black text-yellow-400 hover:text-yellow-300 transition-colors whitespace-nowrap"
+                  className="ga-ui shrink-0 text-xs font-bold text-ga-gold hover:text-ga-ink transition-colors whitespace-nowrap"
                 >
                   Nâng cấp →
                 </button>
@@ -373,8 +396,8 @@ export function CompanionSelect({
             <motion.div className="px-5 pb-3 space-y-3" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={spring.gentle}>
               <div>
                 <div className="flex items-center gap-2 mb-2">
-                  <Briefcase size={14} style={{ color: selectedPersona.accent }} />
-                  <span className="text-xs font-bold uppercase tracking-wider" style={{ color: selectedPersona.accent }}>Vị trí ứng tuyển</span>
+                  <Briefcase size={14} style={{ color: selectedInk }} />
+                  <span className="ga-ui text-xs font-bold uppercase tracking-[0.08em]" style={{ color: selectedInk }}>Vị trí ứng tuyển</span>
                 </div>
                 <div className="grid grid-cols-1 gap-2">
                   {(() => {
@@ -382,19 +405,19 @@ export function CompanionSelect({
                       <motion.button
                         key={pos.id}
                         onClick={() => setInterviewPosition(pos.label)}
-                        className="flex items-center justify-between px-4 py-3 rounded-xl text-left transition-all"
+                        className="flex items-center justify-between px-4 py-3 rounded-ga text-left transition-colors"
                         style={{
-                          background: interviewPosition === pos.label ? `${selectedPersona.accent}22` : "rgba(255,255,255,0.04)",
-                          border: interviewPosition === pos.label ? `1.5px solid ${selectedPersona.accent}` : "1.5px solid rgba(255,255,255,0.06)",
+                          background: interviewPosition === pos.label ? personaSoft(selectedPersona.accent, 0.13) : "var(--ga-card)",
+                          border: interviewPosition === pos.label ? `1.5px solid ${selectedPersona.accent}` : "1.5px solid var(--ga-line)",
                         }}
                         whileTap={{ scale: 0.98 }}
                       >
-                        <div>
-                          <span className="text-sm font-semibold text-white">{pos.label}</span>
-                          <span className="text-xs ml-2" style={{ color: "rgba(255,255,255,0.4)" }}>{pos.labelDe}</span>
+                        <div className="min-w-0 break-words">
+                          <span className="ga-ui text-sm font-semibold text-ga-ink">{pos.label}</span>
+                          <span className="ga-ui text-xs ml-2 text-ga-muted">{pos.labelDe}</span>
                         </div>
                         {interviewPosition === pos.label && (
-                          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: selectedPersona.accent }}>
+                          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: selectedInk }}>
                             <span className="text-white text-xs">✓</span>
                           </motion.div>
                         )}
@@ -406,25 +429,19 @@ export function CompanionSelect({
 
               <div>
                 <div className="flex items-center gap-2 mb-2">
-                  <BookOpen size={14} style={{ color: selectedPersona.accent }} />
-                  <span className="text-xs font-bold uppercase tracking-wider" style={{ color: selectedPersona.accent }}>Số năm kinh nghiệm</span>
+                  <BookOpen size={14} style={{ color: selectedInk }} />
+                  <span className="ga-ui text-xs font-bold uppercase tracking-[0.08em]" style={{ color: selectedInk }}>Số năm kinh nghiệm</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {[
-                    { id: "0-6M", label: "0–6 tháng" },
-                    { id: "6-12M", label: "6–12 tháng" },
-                    { id: "1-2Y", label: "1–2 năm" },
-                    { id: "3Y", label: "3 năm" },
-                    { id: "5Y", label: "5+ năm" },
-                  ].map((exp) => (
+                  {EXPERIENCE_LEVELS.map((exp) => (
                     <motion.button
                       key={exp.id}
                       onClick={() => setExperienceLevel(exp.id)}
-                      className="px-3.5 py-2 rounded-xl text-xs font-semibold transition-all"
+                      className="ga-ui px-3.5 py-2 rounded-ga-pill text-xs font-semibold transition-colors"
                       style={{
-                        background: experienceLevel === exp.id ? `${selectedPersona.accent}22` : "rgba(255,255,255,0.04)",
-                        border: experienceLevel === exp.id ? `1.5px solid ${selectedPersona.accent}` : "1.5px solid rgba(255,255,255,0.06)",
-                        color: experienceLevel === exp.id ? selectedPersona.accent : "rgba(255,255,255,0.6)",
+                        background: experienceLevel === exp.id ? personaSoft(selectedPersona.accent, 0.13) : "var(--ga-card)",
+                        border: experienceLevel === exp.id ? `1.5px solid ${selectedPersona.accent}` : "1.5px solid var(--ga-line)",
+                        color: experienceLevel === exp.id ? selectedInk : "var(--ga-muted)",
                       }}
                       whileTap={{ scale: 0.95 }}
                     >
@@ -443,23 +460,23 @@ export function CompanionSelect({
             <motion.div className="px-5 pb-3 space-y-3" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={spring.gentle}>
               <div>
                 <div className="flex items-center gap-2 mb-2">
-                  <BookOpen size={14} style={{ color: selectedPersona.accent }} />
-                  <span className="text-xs font-bold uppercase tracking-wider" style={{ color: selectedPersona.accent }}>Chủ đề bài học</span>
+                  <BookOpen size={14} style={{ color: selectedInk }} />
+                  <span className="ga-ui text-xs font-bold uppercase tracking-[0.08em]" style={{ color: selectedInk }}>Chủ đề bài học</span>
                 </div>
                 <div className="grid grid-cols-1 gap-2">
                   {(selectedPersona.lessonScenarios || []).map((sc) => (
                     <motion.button key={sc.id} onClick={() => setLessonScenario(sc.label)}
-                      className="flex items-center justify-between px-4 py-3 rounded-xl text-left transition-all"
+                      className="flex items-center justify-between px-4 py-3 rounded-ga text-left transition-colors"
                       style={{
-                        background: lessonScenario === sc.label ? `${selectedPersona.accent}22` : "rgba(255,255,255,0.04)",
-                        border: lessonScenario === sc.label ? `1.5px solid ${selectedPersona.accent}` : "1.5px solid rgba(255,255,255,0.06)",
+                        background: lessonScenario === sc.label ? personaSoft(selectedPersona.accent, 0.13) : "var(--ga-card)",
+                        border: lessonScenario === sc.label ? `1.5px solid ${selectedPersona.accent}` : "1.5px solid var(--ga-line)",
                       }} whileTap={{ scale: 0.98 }}>
-                      <div>
-                        <span className="text-sm font-semibold text-white">{sc.label}</span>
-                        <span className="text-xs ml-2" style={{ color: "rgba(255,255,255,0.4)" }}>{sc.labelDe}</span>
+                      <div className="min-w-0 break-words">
+                        <span className="ga-ui text-sm font-semibold text-ga-ink">{sc.label}</span>
+                        <span className="ga-ui text-xs ml-2 text-ga-muted">{sc.labelDe}</span>
                       </div>
                       {lessonScenario === sc.label && (
-                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: selectedPersona.accent }}>
+                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: selectedInk }}>
                           <span className="text-white text-xs">✓</span>
                         </motion.div>
                       )}
@@ -477,8 +494,10 @@ export function CompanionSelect({
           <AnimatePresence mode="wait">
             {isReady && selectedPersona ? (
               <motion.button key="cta-active"
-                className="w-full flex items-center justify-center gap-2.5 py-4 rounded-[18px] font-black text-base text-white disabled:opacity-40 disabled:pointer-events-none"
-                style={{ background: `linear-gradient(135deg, ${selectedPersona.ctaFrom}, ${selectedPersona.ctaTo})`, boxShadow: selectedPersona.ctaShadow }}
+                className="ga-ui w-full flex items-center justify-center gap-2.5 py-4 rounded-ga font-bold text-base text-white transition-opacity hover:opacity-90 disabled:opacity-40 disabled:pointer-events-none"
+                // Flat ink fill instead of the old neon gradient + drop shadow: on paper the
+                // persona hue reads as a solid block, matching the mobile start button.
+                style={{ background: selectedInk }}
                 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
                 transition={spring.gentle}
                 whileTap={{ scale: 0.97, y: 3 }} onClick={handleConfirm} disabled={confirming || quotaBlocked || quotaLoading}>
@@ -496,7 +515,7 @@ export function CompanionSelect({
                 )}
               </motion.button>
             ) : (
-              <motion.p key="cta-hint" className="text-center text-sm" style={{ color: "rgba(255,255,255,0.25)" }}
+              <motion.p key="cta-hint" className="ga-ui text-center text-sm text-ga-subtle"
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 {!selected ? "Vui lòng chọn một nhân vật"
                   : sessionMode === "INTERVIEW" ? "Chọn vị trí và kinh nghiệm"
@@ -512,7 +531,7 @@ export function CompanionSelect({
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 8 }}
-                className="mt-3 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-100"
+                className="ga-ui mt-3 rounded-ga border border-ga-red bg-ga-red-soft px-4 py-3 text-sm text-ga-red"
                 role="alert"
               >
                 {createSessionError}

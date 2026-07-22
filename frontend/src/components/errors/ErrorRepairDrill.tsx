@@ -110,23 +110,23 @@ export default function ErrorRepairDrill({
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div
-        className="w-full max-w-md rounded-[20px] p-6 shadow-xl border border-white/10"
-        style={{ background: "rgba(15,23,42,0.95)" }}
-      >
-        <h3 className="text-white font-bold text-lg mb-1">{snippet.title}</h3>
-        <p className="text-xs font-mono text-amber-300/90 mb-2">{errorCode}</p>
-        <p className="text-sm text-white/70 mb-1">{snippet.rule}</p>
+    <div
+      className="ga-ui fixed inset-0 z-[100] flex items-center justify-center p-4 backdrop-blur-sm"
+      style={{ background: "rgba(22, 21, 19, 0.45)" }}
+    >
+      <div className="w-full max-w-md rounded-ga p-6 shadow-ga-panel border border-ga-line bg-ga-card">
+        <h3 className="font-ga-display text-ga-ink font-medium text-lg mb-1">{snippet.title}</h3>
+        <p className="text-xs font-mono text-ga-gold mb-2">{errorCode}</p>
+        <p className="text-sm text-ga-ink mb-1">{snippet.rule}</p>
         {(ruleViShort || exampleCorrectDe) && (
-          <p className="text-xs text-white/50 mb-4">
+          <p className="text-xs text-ga-muted mb-4">
             {ruleViShort ? `${ruleViShort} ` : ""}
             {exampleCorrectDe ? `→ ${exampleCorrectDe}` : ""}
           </p>
         )}
 
         <div className="flex items-center justify-between mb-2">
-          <label className="block text-xs font-semibold text-white/50">
+          <label className="block text-xs font-semibold text-ga-muted">
             {t("drillPrompt")} (Gõ phím hoặc Đọc to)
           </label>
         </div>
@@ -139,7 +139,7 @@ export default function ErrorRepairDrill({
               setResult("idle");
             }}
             rows={3}
-            className="w-full rounded-xl px-3 py-2 pr-12 text-sm bg-white/10 border border-white/15 text-white placeholder:text-white/30"
+            className="w-full rounded-ga px-3 py-2 pr-12 text-sm bg-ga-surface border border-ga-line text-ga-ink placeholder:text-ga-subtle"
             placeholder={target || "…"}
             disabled={isTranscribing}
           />
@@ -148,9 +148,9 @@ export default function ErrorRepairDrill({
             onClick={handleToggleMic}
             disabled={isTranscribing}
             className={`absolute right-2 bottom-2 p-2 rounded-lg transition-colors ${
-              isRecording 
-                ? "bg-red-500/20 text-red-400 border border-red-500/50 animate-pulse" 
-                : "bg-white/5 text-white/50 hover:text-white/80 border border-transparent"
+              isRecording
+                ? "bg-ga-red text-white border border-ga-red animate-pulse"
+                : "bg-ga-surface text-ga-muted hover:text-ga-ink border border-ga-line"
             }`}
           >
             {isTranscribing ? <Loader2 size={18} className="animate-spin" /> : <Mic size={18} />}
@@ -158,10 +158,10 @@ export default function ErrorRepairDrill({
         </div>
 
         {result === "pass" && (
-          <p className="text-sm font-semibold text-emerald-400 mb-3">{t("drillGood")}</p>
+          <p className="text-sm font-semibold text-ga-green mb-3">{t("drillGood")}</p>
         )}
         {result === "fail" && (
-          <p className="text-sm font-semibold text-amber-400 mb-3">{t("drillRetry")}</p>
+          <p className="text-sm font-semibold text-ga-gold mb-3">{t("drillRetry")}</p>
         )}
 
         <div className="flex gap-3">
@@ -169,7 +169,7 @@ export default function ErrorRepairDrill({
             type="button"
             onClick={handleClose}
             disabled={blocking && result !== "pass"}
-            className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-white/10 text-white/80 hover:bg-white/15 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex-1 py-2.5 rounded-ga text-sm font-semibold border border-ga-line bg-ga-card text-ga-ink hover:bg-ga-side-active disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {blocking && result !== "pass" ? t("drillCloseBlocked") : t("drillClose")}
           </button>
@@ -177,7 +177,7 @@ export default function ErrorRepairDrill({
             type="button"
             disabled={submitting || !attempt.trim()}
             onClick={handleCheck}
-            className="flex-[2] py-2.5 rounded-xl text-sm font-bold bg-gradient-to-r from-amber-500 to-yellow-400 text-white disabled:opacity-40"
+            className="flex-[2] py-2.5 rounded-ga text-sm font-semibold bg-ga-yellow text-ga-ink hover:opacity-90 transition-opacity disabled:opacity-40"
           >
             {t("drillSubmit")}
           </button>

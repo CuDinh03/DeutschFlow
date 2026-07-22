@@ -14,7 +14,6 @@ import { SpeakingLearningStrip } from "@/components/features/ai-speaking/Speakin
 import { SpeakingQuotaBlockedBanner } from "@/components/features/ai-speaking/SpeakingQuotaBlockedBanner";
 import { MicPermissionBanner } from "@/components/features/ai-speaking/MicPermissionBanner";
 import { SpeakingMessageBubble } from "@/components/speaking/SpeakingMessageBubble";
-import { SPEAKING_IMMERSIVE_GRADIENT } from "@/components/speaking/types";
 import ErrorRepairDrill from "@/components/errors/ErrorRepairDrill";
 import { chatMessageToBubble } from "@/lib/chatMessageMapper";
 import { CheckCircle } from "lucide-react";
@@ -87,7 +86,8 @@ function detectInterviewEnd(text: string): boolean {
 }
 
 export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChatExperienceProps) {
-  useStatusBarStyle("dark");
+  // Warm paper → dark glyphs in the iOS status bar.
+  useStatusBarStyle("light");
   const router = useRouter();
   const t = useTranslations("speaking");
   const tChat = useTranslations("speaking.chat");
@@ -430,8 +430,7 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
     return (
       <div
         data-native-page
-        className={`${layout === "shell" ? "min-h-full" : "min-h-screen"} flex flex-col`}
-        style={{ background: "linear-gradient(180deg, #0A0F1E 0%, #0F172A 60%, #1A1535 100%)" }}
+        className={`${layout === "shell" ? "min-h-full" : "min-h-screen"} flex flex-col bg-ga-bg`}
       >
         <div className="max-w-[460px] mx-auto w-full flex flex-col flex-1 p-4 overflow-y-auto">
           <SessionSummary
@@ -518,12 +517,9 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
     .filter(Boolean)
     .join(" · ");
 
-  // ─── CHAT VIEW (immersive dark, 2-column on desktop) ───────
+  // ─── CHAT VIEW (warm paper, 2-column on desktop) ───────────
   return (
-    <div
-      className={`flex flex-col ${layout === "shell" ? "h-full" : "h-screen"}`}
-      style={{ background: SPEAKING_IMMERSIVE_GRADIENT }}
-    >
+    <div className={`flex flex-col bg-ga-bg ${layout === "shell" ? "h-full" : "h-screen"}`}>
       <SpeakingChatHeader
         companionId={selectedCompanion.id}
         companionName={selectedCompanion.name}
@@ -561,11 +557,11 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
         />
       ) : (
         (micError || isTranscribing || isEvaluatingPhoneme) && (
-          <div className="px-4 py-1.5 text-center text-xs bg-white/[0.04] border-b border-white/8">
-            {micError && <span className="text-red-400">{micError}</span>}
-            {!micError && isTranscribing && <span className="text-white/50">{t("transcribing")}</span>}
+          <div className="ga-ui px-4 py-1.5 text-center text-xs bg-ga-card border-b border-ga-line">
+            {micError && <span className="text-ga-red">{micError}</span>}
+            {!micError && isTranscribing && <span className="text-ga-muted">{t("transcribing")}</span>}
             {!micError && isEvaluatingPhoneme && (
-              <span className="text-cyan-400/80">{tChat("phonemeAnalyzing")}</span>
+              <span className="text-ga-blue">{tChat("phonemeAnalyzing")}</span>
             )}
           </div>
         )
@@ -594,7 +590,6 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
                 msg={chatMessageToBubble(msg, index)}
                 showExplanations
                 sessionResponseSchema={responseSchema}
-                appearance="dark"
                 personaId={selectedCompanion.id}
                 interviewGhost={isInterview && msg.role === "ai"}
                 onSuggestionClick={handleSuggestionSelect}
@@ -607,7 +602,6 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
             <StreamStatusIndicator
               status={streamStatus}
               onRetry={streamStatus === "stalled" ? retryLastSend : undefined}
-              immersive
             />
 
             <div ref={messagesEndRef} />
@@ -677,29 +671,29 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+              className="absolute inset-0 backdrop-blur-sm"
+              style={{ background: "rgba(22, 21, 19, 0.45)" }}
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="relative z-10 w-full max-w-sm rounded-3xl bg-white dark:bg-slate-900 shadow-2xl overflow-hidden"
+              className="relative z-10 w-full max-w-sm rounded-ga border border-ga-line bg-ga-card shadow-ga-panel overflow-hidden"
             >
               <div className="p-8 text-center">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-                  <CheckCircle size={32} className="text-emerald-600 dark:text-emerald-400" />
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-ga-green-soft flex items-center justify-center">
+                  <CheckCircle size={32} className="text-ga-green" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">
+                <h3 className="font-ga-display text-lg font-medium text-ga-ink mb-2">
                   {tChat("interviewEndTitle")}
                 </h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+                <p className="ga-ui text-sm text-ga-muted mb-6">
                   {tChat("interviewEndDesc", { name: selectedCompanion.name })}
                 </p>
                 <button
                   onClick={handleEndSession}
-                  className="w-full py-3.5 rounded-2xl text-sm font-bold text-white transition-all hover:opacity-90"
-                  style={{ background: "linear-gradient(135deg, #121212, #333)", boxShadow: "0 4px 16px rgba(0,0,0,0.3)" }}
+                  className="ga-ui w-full py-3.5 rounded-ga bg-ga-ink text-sm font-semibold text-ga-bg transition-opacity hover:opacity-90"
                 >
                   {tChat("interviewEndButton")}
                 </button>

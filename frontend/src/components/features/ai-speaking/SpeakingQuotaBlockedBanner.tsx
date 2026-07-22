@@ -27,7 +27,7 @@ export function SpeakingQuotaBlockedBanner({
   return (
     <div
       className={cn(
-        "rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3",
+        "ga-ui rounded-ga border border-ga-yellow bg-ga-yellow-soft px-4 py-3",
         compact ? "text-left" : "text-center",
         className,
       )}
@@ -35,15 +35,15 @@ export function SpeakingQuotaBlockedBanner({
     >
       <div className={cn("flex gap-3", compact ? "items-start" : "flex-col items-center")}>
         <AlertCircle
-          className={cn("text-amber-400 flex-shrink-0", compact ? "mt-0.5" : "mx-auto")}
+          className={cn("text-ga-gold flex-shrink-0", compact ? "mt-0.5" : "mx-auto")}
           size={compact ? 20 : 28}
         />
         <div className="min-w-0 flex-1 space-y-1">
-          <p className="text-sm font-semibold text-amber-100">{t("quotaBlockedTitle")}</p>
-          <p className="text-xs text-amber-200/80 leading-relaxed">{t("quotaBlockedDesc")}</p>
+          <p className="text-sm font-semibold text-ga-ink">{t("quotaBlockedTitle")}</p>
+          <p className="text-xs text-ga-muted leading-relaxed">{t("quotaBlockedDesc")}</p>
           <Link
             href={upgradeHref}
-            className="inline-block mt-2 text-xs font-semibold text-cyan-300 hover:text-cyan-200 underline-offset-2 hover:underline"
+            className="inline-block mt-2 text-xs font-semibold text-ga-gold hover:text-ga-ink underline-offset-2 hover:underline"
           >
             {t("quotaBlockedCta")}
           </Link>

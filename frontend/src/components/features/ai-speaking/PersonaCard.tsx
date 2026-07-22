@@ -2,6 +2,7 @@ import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { spring } from "@/lib/motion";
 import { PersonaToken } from "@/lib/personas";
+import { personaInk, personaSoft } from "@/lib/personaPaper";
 import { LukasCharacter } from "@/components/speaking/characters/LukasCharacter";
 import { EmmaCharacter } from "@/components/speaking/characters/EmmaCharacter";
 import { KlausCharacter } from "@/components/speaking/characters/KlausCharacter";
@@ -97,51 +98,28 @@ export function PersonaCard({ persona, isSelected, index, onClick }: PersonaCard
     expression = isSelected ? "smiling" : "neutral";
   }
 
+  // Warm paper: the accent survives as border/badge, but anything read gets the
+  // AA-safe ink variant (see lib/personaPaper). No glow — paper has no glow.
+  const ink = personaInk(persona.accent);
+
   return (
     <motion.button
-      className="flex flex-col rounded-[var(--radius-xl)] overflow-hidden relative cursor-pointer text-left"
+      className="flex flex-col rounded-ga overflow-hidden relative cursor-pointer text-left transition-shadow duration-150 hover:shadow-ga-card-hover"
       style={{
         width: "100%",
         height: hasSvg ? 380 : 320,
-        background: isSelected
-          ? `linear-gradient(180deg, ${persona.bg} 0%, rgba(10,10,28,0.92) 100%)`
-          : "rgba(20,20,42,0.9)",
-        border: `2px solid ${isSelected ? persona.accent : "rgba(255,255,255,0.07)"}`,
-        boxShadow: isSelected
-          ? `0 0 32px ${persona.glow}, 0 0 8px ${persona.glow}, inset 0 0 32px ${persona.bg}`
-          : "0 2px 12px rgba(0,0,0,0.35)",
+        background: isSelected ? personaSoft(persona.accent, 0.08) : "var(--ga-card)",
+        border: isSelected ? `2px solid ${persona.accent}` : "1px solid var(--ga-line)",
+        boxShadow: isSelected ? "var(--ga-shadow-card-hover)" : "none",
       }}
       initial={{ opacity: 0, y: 24 }}
-      animate={{ opacity: 1, y: 0 }}
+      animate={{ opacity: 1, y: isSelected ? -4 : 0 }}
       transition={{ delay: index * 0.08, ...spring.gentle }}
       whileTap={{ scale: 0.97 }}
       onClick={onClick}
     >
-      <AnimatePresence>
-        {isSelected && (
-          <motion.div
-            className="absolute inset-0 rounded-[var(--radius-xl)] pointer-events-none"
-            style={{ border: `2px solid ${persona.accent}` }}
-            initial={{ opacity: 0.5, scale: 1 }}
-            animate={{ opacity: [0.5, 0.15, 0.5], scale: [1, 1.01, 1] }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-          />
-        )}
-      </AnimatePresence>
-
       {/* ── Character illustration ── */}
       <div className="flex-1 relative flex items-end justify-center pt-4 px-2 overflow-hidden">
-        <AnimatePresence>
-          {isSelected && (
-            <motion.div
-              className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3/4 h-24 rounded-full"
-              style={{ background: persona.glow, filter: "blur(30px)" }}
-              initial={{ opacity: 0 }} animate={{ opacity: 0.6 }} exit={{ opacity: 0 }}
-            />
-          )}
-        </AnimatePresence>
-
         <motion.div
           className="w-full flex justify-center"
           animate={isSelected ? { y: [0, -6, 0] } : { y: 0 }}
@@ -158,29 +136,19 @@ export function PersonaCard({ persona, isSelected, index, onClick }: PersonaCard
       </div>
 
       {/* ── Card info ────────────────────────────────────────────── */}
-      <div
-        className="px-4 pb-5 pt-3 w-full"
-        style={{
-          background: "linear-gradient(0deg, rgba(10,10,28,0.97) 55%, rgba(10,10,28,0))",
-          backdropFilter: "blur(12px) saturate(160%)",
-          WebkitBackdropFilter: "blur(12px) saturate(160%)",
-        }}
-      >
+      <div className="px-4 pb-5 pt-3 w-full bg-ga-card">
         {/* Tag pill */}
         <span
-          className="inline-block text-[10px] font-bold px-2.5 py-1 rounded-full mb-2"
-          style={{ background: persona.tagBg, color: persona.accent }}
+          className="ga-ui inline-block text-[10px] font-bold px-2.5 py-1 rounded-ga-pill mb-2"
+          style={{ background: personaSoft(persona.accent, 0.14), color: ink }}
         >
           {persona.tag}
         </span>
-        <p className="font-black text-lg text-white mb-0.5">{persona.name}</p>
-        <p className="text-xs font-semibold mb-1.5" style={{ color: persona.accent }}>
+        <p className="font-ga-display text-lg font-medium text-ga-ink mb-0.5">{persona.name}</p>
+        <p className="ga-ui text-xs font-semibold mb-1.5" style={{ color: ink }}>
           {persona.role}
         </p>
-        <p
-          className="text-[11px] leading-relaxed line-clamp-2"
-          style={{ color: "rgba(255,255,255,0.45)" }}
-        >
+        <p className="ga-ui text-[11px] leading-relaxed line-clamp-2 text-ga-muted">
           {persona.desc}
         </p>
       </div>
@@ -190,7 +158,8 @@ export function PersonaCard({ persona, isSelected, index, onClick }: PersonaCard
         {isSelected && (
           <motion.div
             className="absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center"
-            style={{ background: persona.accent }}
+            // Ink rather than raw accent: a white tick on #EAB308 would be unreadable.
+            style={{ background: ink }}
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
