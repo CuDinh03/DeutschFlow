@@ -47,8 +47,10 @@ class TimesheetPeriodServiceTest {
     private static final Long MANAGER_ID = 2L;
     private static final Long ORG_ID = 42L;
     private static final Long PERIOD_ID = 300L;
-    private static final LocalDate START = LocalDate.of(2026, 7, 1);
-    private static final LocalDate END = LocalDate.of(2026, 7, 31);
+    // Kỳ mẫu phải ĐÃ KẾT THÚC: submit() nay từ chối kỳ chưa hết hạn. Dùng ngày ĐỘNG thay vì ngày cứng
+    // để test không tự hỏng khi thời gian trôi qua một mốc cố định.
+    private static final LocalDate END = TeacherTimesheetService.todayVn().minusDays(1);
+    private static final LocalDate START = END.minusDays(30);
 
     @BeforeEach
     void setUp() {
@@ -127,8 +129,8 @@ class TimesheetPeriodServiceTest {
                 .findByTeacherIdAndStartedAtGreaterThanEqualAndStartedAtLessThanOrderByStartedAt(
                         eq(TEACHER_ID), any(), any()))
                 .thenReturn(List.of(
-                        TeacherSessionRecord.builder().durationMinutes(90).build(),
-                        TeacherSessionRecord.builder().durationMinutes(105).build()));
+                        TeacherSessionRecord.builder().orgId(ORG_ID).durationMinutes(90).build(),
+                        TeacherSessionRecord.builder().orgId(ORG_ID).durationMinutes(105).build()));
         when(periodRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         PeriodDto dto = service.submit(TEACHER_ID, PERIOD_ID);
@@ -175,15 +177,31 @@ class TimesheetPeriodServiceTest {
                 .findByTeacherIdAndStartedAtGreaterThanEqualAndStartedAtLessThanOrderByStartedAt(
                         eq(TEACHER_ID), any(), any()))
                 .thenReturn(List.of(
-                        TeacherSessionRecord.builder().orgId(ORG_ID).durationMinutes(90).build(),  // cùng org
-                        TeacherSessionRecord.builder().orgId(999L).durationMinutes(105).build(),    // org khác → loại
-                        TeacherSessionRecord.builder().durationMinutes(60).build()));               // org=null → vẫn tính
+                        TeacherSessionRecord.builder().orgId(ORG_ID).durationMinutes(90).build(),  // cùng org → tính
+                        TeacherSessionRecord.builder().orgId(999L).durationMinutes(105).build(),   // org khác → loại
+                        TeacherSessionRecord.builder().durationMinutes(60).build()));              // org=null → LOẠI
         when(periodRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         PeriodDto dto = service.submit(TEACHER_ID, PERIOD_ID);
 
-        assertThat(dto.totalSessions()).isEqualTo(2);     // buổi org 999 bị loại khỏi kỳ org 42
-        assertThat(dto.totalMinutes()).isEqualTo(150);    // 90 + 60, KHÔNG cộng 105 của org khác
+        // FAIL-CLOSED: kỳ của org 42 chỉ tính dòng công của chính org 42. Dòng công org=null (lớp tư,
+        // hoặc lớp chưa gắn tổ chức) KHÔNG được trung tâm trả — trả thiếu dễ phát hiện hơn trả thừa.
+        assertThat(dto.totalSessions()).isEqualTo(1);
+        assertThat(dto.totalMinutes()).isEqualTo(90);
+    }
+
+    @Test
+    @DisplayName("submit() từ chối kỳ CHƯA kết thúc — nộp sớm sẽ đóng băng vĩnh viễn phần còn lại của kỳ")
+    void submit_beforePeriodEnd_isRejected() {
+        TeacherTimesheetPeriod p = period(Status.OPEN);
+        p.setPeriodEnd(TeacherTimesheetService.todayVn().plusDays(5));   // kỳ còn 5 ngày nữa mới hết
+        when(periodRepository.findById(PERIOD_ID)).thenReturn(Optional.of(p));
+
+        assertThatThrownBy(() -> service.submit(TEACHER_ID, PERIOD_ID))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("chưa nộp được");
+
+        verify(periodRepository, never()).save(any());
     }
 
     @Test
@@ -194,7 +212,7 @@ class TimesheetPeriodServiceTest {
         when(recordRepository
                 .findByTeacherIdAndStartedAtGreaterThanEqualAndStartedAtLessThanOrderByStartedAt(
                         eq(TEACHER_ID), any(), any()))
-                .thenReturn(List.of(TeacherSessionRecord.builder().durationMinutes(60).build()));
+                .thenReturn(List.of(TeacherSessionRecord.builder().orgId(ORG_ID).durationMinutes(60).build()));
         when(periodRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         PeriodDto dto = service.approve(MANAGER_ID, ORG_ID, PERIOD_ID);
@@ -382,6 +400,29 @@ class TimesheetPeriodServiceTest {
                 .isInstanceOf(ForbiddenException.class);
     }
 
+    @Test
+    @DisplayName("exportOrgCsv() CHỈ xuất kỳ đã duyệt/đã khoá — không đưa con số chưa có thẩm quyền cho kế toán")
+    void exportOrgCsv_onlyApprovedAndLocked() {
+        when(periodRepository
+                .findByOrgIdAndPeriodStartGreaterThanEqualAndPeriodStartLessThanEqualOrderByPeriodStartDescTeacherIdAsc(
+                        eq(ORG_ID), any(), any()))
+                .thenReturn(List.of(
+                        orgPeriodWith(1L, Status.APPROVED, 3, 270),
+                        orgPeriodWith(2L, Status.LOCKED, 4, 360),
+                        orgPeriodWith(3L, Status.OPEN, 0, 0),          // chưa nộp: tổng còn mặc định 0
+                        orgPeriodWith(4L, Status.SUBMITTED, 5, 450),   // chưa ai duyệt
+                        orgPeriodWith(5L, Status.REJECTED, 9, 810)));  // snapshot đang bị tranh chấp
+        when(userRepository.findAllById(any())).thenReturn(List.of());
+
+        String csv = service.exportOrgCsv(MANAGER_ID, ORG_ID, START, END);
+
+        assertThat(csv).contains("\"APPROVED\"").contains("\"LOCKED\"");
+        assertThat(csv).doesNotContain("\"OPEN\"")
+                       .doesNotContain("\"SUBMITTED\"")
+                       .doesNotContain("\"REJECTED\"");
+        assertThat(csv.lines().count()).isEqualTo(3);   // 1 dòng tiêu đề + đúng 2 kỳ được trả
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private static TeacherTimesheetPeriod period(Status status) {
@@ -393,9 +434,13 @@ class TimesheetPeriodServiceTest {
     }
 
     private static TeacherTimesheetPeriod orgPeriod(Long teacherId, int sessions, int minutes) {
+        return orgPeriodWith(teacherId, Status.APPROVED, sessions, minutes);
+    }
+
+    private static TeacherTimesheetPeriod orgPeriodWith(Long teacherId, Status status, int sessions, int minutes) {
         return TeacherTimesheetPeriod.builder()
                 .id(teacherId * 100).teacherId(teacherId).orgId(ORG_ID)
-                .periodStart(START).periodEnd(END).status(Status.APPROVED)
+                .periodStart(START).periodEnd(END).status(status)
                 .totalSessions(sessions).totalMinutes(minutes)
                 .build();
     }

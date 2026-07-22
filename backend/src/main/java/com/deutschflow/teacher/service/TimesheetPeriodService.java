@@ -102,6 +102,16 @@ public class TimesheetPeriodService {
         if (p.getStatus() != Status.OPEN && p.getStatus() != Status.REJECTED) {
             throw new ConflictException("Kỳ công đang ở trạng thái " + p.getStatus() + ", không thể nộp lại.");
         }
+        // Nộp khi kỳ CHƯA kết thúc là đóng băng vĩnh viễn phần còn lại của kỳ: assertRecordEditable chặn
+        // theo KHOẢNG NGÀY của kỳ, và không có transition nào mở lại kỳ đã duyệt/khoá — nên buổi dạy sau
+        // ngày nộp sẽ KHÔNG BAO GIỜ ghi công được nữa (giáo viên mất công đã dạy thật).
+        // Muốn chốt sớm thì mở kỳ ngắn hơn: openPeriod nhận from/to tuỳ ý, nên kỳ có thể kết thúc đúng
+        // ngày chốt lương của trung tâm thay vì luôn trọn tháng.
+        if (TeacherTimesheetService.todayVn().isBefore(p.getPeriodEnd())) {
+            throw new ConflictException(
+                    "Kỳ công kéo dài tới " + p.getPeriodEnd() + " nên chưa nộp được. "
+                            + "Nếu cần chốt sớm, hãy mở kỳ kết thúc đúng ngày chốt.");
+        }
         snapshotTotals(p);
         p.setStatus(Status.SUBMITTED);
         p.setSubmittedAt(Instant.now());
@@ -186,7 +196,18 @@ public class TimesheetPeriodService {
         OrgTimesheetDto data = orgSummary(reviewerId, orgId, from, to);
         StringBuilder sb = new StringBuilder("\uFEFF");
         sb.append("Giáo viên,Kỳ bắt đầu,Kỳ kết thúc,Trạng thái,Đơn vị tính,Số buổi,Số phút,Ngày nộp,Ngày duyệt\n");
-        for (PeriodDto p : data.periods()) {
+        // CHỈ xuất kỳ ĐÃ DUYỆT hoặc ĐÃ KHOÁ. orgSummary cố ý trả về mọi trạng thái vì màn hình manager
+        // cần thấy kỳ SUBMITTED để bấm duyệt — nhưng file này là bàn giao cho KẾ TOÁN, nơi mỗi dòng được
+        // hiểu là con số phải trả. Trộn vào đó:
+        //   * OPEN      → total_sessions còn nguyên mặc định 0 (snapshotTotals chưa từng chạy), nên giáo
+        //                 viên đã dạy 18 buổi lại hiện thành 0 buổi;
+        //   * SUBMITTED → chưa ai duyệt, không có thẩm quyền chi trả;
+        //   * REJECTED  → giữ snapshot đang tranh chấp, tức đúng con số manager đã bác bỏ.
+        List<PeriodDto> payable = data.periods().stream()
+                .filter(p -> Status.APPROVED.name().equals(p.status()) || Status.LOCKED.name().equals(p.status()))
+                .toList();
+
+        for (PeriodDto p : payable) {
             sb.append(csv(p.teacherName() != null ? p.teacherName() : "#" + p.teacherId())).append(',')
               .append(csv(String.valueOf(p.periodStart()))).append(',')
               .append(csv(String.valueOf(p.periodEnd()))).append(',')
@@ -281,7 +302,16 @@ public class TimesheetPeriodService {
      * tính, giữ nguyên hành vi ca đơn-tổ-chức thông thường.
      */
     private static boolean belongsToPeriodOrg(TeacherTimesheetPeriod p, TeacherSessionRecord r) {
-        return p.getOrgId() == null || r.getOrgId() == null || p.getOrgId().equals(r.getOrgId());
+        // FAIL-CLOSED có chủ ý: kỳ thuộc một tổ chức thì CHỈ tính dòng công của chính tổ chức đó.
+        // Bản trước bỏ qua khi một trong hai vế NULL, tức fail-OPEN: giáo viên dạy lớp tư (teacher_classes
+        // .org_id = NULL — cột này chỉ đóng dấu lúc TẠO lớp và không bao giờ backfill) vẫn được dồn công
+        // sang kỳ của trung tâm, và trung tâm trả tiền cho buổi không dạy cho họ.
+        // Đánh đổi đã cân nhắc: trả THIẾU dễ phát hiện (giáo viên đối chiếu bảng công của mình rồi khiếu
+        // nại) hơn trả THỪA (rò rỉ tài chính âm thầm, không ai soi). Công của lớp chưa gắn tổ chức vẫn
+        // hiện đầy đủ ở mySheet của giáo viên, chỉ không vào kỳ lương của tổ chức.
+        return p.getOrgId() == null
+                ? r.getOrgId() == null
+                : p.getOrgId().equals(r.getOrgId());
     }
 
     private Map<Long, String> teacherNames(List<TeacherTimesheetPeriod> periods) {
