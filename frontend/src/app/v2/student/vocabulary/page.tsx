@@ -112,11 +112,11 @@ export default function V2StudentVocabularyPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t('searchPlaceholder')}
-            containerClassName="w-[230px]"
+            containerClassName="w-full lg:w-[230px]"
           />
         }
       />
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         {/* Lối vào các bài luyện — trước đây chỉ có ở cây v1, /v2 không có đường nào bấm được. */}
         <div className="mb-6">
           <GaCap className="mb-3 block">{t('drills.cap')}</GaCap>
@@ -150,7 +150,7 @@ export default function V2StudentVocabularyPage() {
                 key={l}
                 type="button"
                 onClick={() => setLevel(l)}
-                className={`ga-ui rounded-ga border px-[14px] py-2 text-[12.5px] font-semibold transition-colors ${
+                className={`ga-ui inline-flex min-h-10 items-center justify-center rounded-ga border px-[14px] py-2 text-[12.5px] font-semibold transition-colors lg:min-h-0 ${
                   level === l
                     ? 'border-ga-ink bg-ga-ink text-ga-card'
                     : 'border-ga-border bg-ga-card text-ga-muted hover:border-ga-ink hover:text-ga-ink'
@@ -171,7 +171,7 @@ export default function V2StudentVocabularyPage() {
         {loading ? (
           <LoadingState label={t('loading')} />
         ) : filtered.length === 0 ? (
-          <div className="border border-ga-line bg-ga-card py-16 text-center">
+          <div className="border border-ga-line bg-ga-card px-4 py-16 text-center lg:px-0">
             <p className="font-ga-display text-[20px] font-medium text-ga-ink">{t('emptyTitle')}</p>
             <p className="ga-ui mt-2 text-[14px] text-ga-muted">{t('emptyDesc')}</p>
           </div>
@@ -188,13 +188,16 @@ export default function V2StudentVocabularyPage() {
                     style={w.article ? { borderLeftWidth: 3, borderLeftColor: color } : undefined}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <p className="font-ga-display text-[19px] font-medium leading-tight" style={{ color }}>
+                      <p
+                        className="min-w-0 break-words font-ga-display text-[19px] font-medium leading-tight"
+                        style={{ color }}
+                      >
                         {w.german}
                       </p>
                       <button
                         type="button"
                         onClick={() => speak(w.german)}
-                        className="shrink-0 text-ga-subtle transition-colors hover:text-ga-accent"
+                        className="-m-3 shrink-0 p-3 text-ga-subtle transition-colors hover:text-ga-accent lg:m-0 lg:p-0"
                         aria-label={t('speakAria')}
                       >
                         <Volume2 size={17} aria-hidden />

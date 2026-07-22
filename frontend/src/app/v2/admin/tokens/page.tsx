@@ -96,7 +96,7 @@ export default function V2AdminTokensPage() {
   return (
     <div className="flex min-h-full flex-col">
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         {error && (
           <div className="mb-5">
             <ErrorBanner message={error} onRetry={load} />
@@ -133,7 +133,7 @@ export default function V2AdminTokensPage() {
 
             <GaSection title={t('topUsers')} bodyClassName="p-0">
               <div className="overflow-x-auto">
-                <table className="w-full text-left">
+                <table className="w-full min-w-[520px] text-left lg:min-w-0">
                   <thead>
                     <tr className="border-b border-ga-border">
                       {[
@@ -162,8 +162,8 @@ export default function V2AdminTokensPage() {
                     ) : (
                       topUsers.map((u) => (
                         <tr key={u.id} className="border-b border-ga-border last:border-0 hover:bg-ga-surface">
-                          <td className="px-5 py-3">
-                            <p className="text-[14px] font-semibold text-ga-ink">{u.displayName || u.email}</p>
+                          <td className="max-w-[220px] px-5 py-3 lg:max-w-none">
+                            <p className="break-words text-[14px] font-semibold text-ga-ink">{u.displayName || u.email}</p>
                             <p className="truncate text-[12px] text-ga-muted">{u.email}</p>
                           </td>
                           <td className="px-5 py-3">

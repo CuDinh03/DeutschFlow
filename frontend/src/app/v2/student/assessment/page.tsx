@@ -112,7 +112,7 @@ export default function V2StudentAssessmentPage() {
     <div className="flex min-h-full flex-col">
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
 
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         {loading ? (
           <LoadingState label={t('loading')} />
         ) : (
@@ -121,13 +121,13 @@ export default function V2StudentAssessmentPage() {
 
             {/* Hero — dark, or green once graduation is confirmed */}
             <div
-              className="p-7 text-ga-bg"
+              className="p-5 text-ga-bg lg:p-7"
               style={{ background: isGraduated ? 'var(--ga-green)' : 'var(--ga-ink)' }}
             >
               <GaCap className="mb-2 block" style={{ color: isGraduated ? 'rgba(255,255,255,0.72)' : '#A39E94' }}>
                 {t('heroCap')}
               </GaCap>
-              <p className="font-ga-display text-[28px] font-medium">
+              <p className="font-ga-display text-[22px] font-medium sm:text-[24px] lg:text-[28px]">
                 {isGraduated ? t('heroTitleGraduated') : t('heroTitle')}
               </p>
               <p
@@ -137,12 +137,12 @@ export default function V2StudentAssessmentPage() {
                 {isGraduated ? t('heroDescGraduated') : t('heroDesc')}
               </p>
 
-              <div className="mt-6 flex items-center gap-5">
+              <div className="mt-6 flex items-center gap-4 lg:gap-5">
                 <ScoreRing score={score} />
-                <div>
-                  <p className="font-ga-display text-[36px] font-medium leading-none">
+                <div className="min-w-0">
+                  <p className="font-ga-display text-[24px] font-medium leading-none sm:text-[28px] lg:text-[36px]">
                     {score}
-                    <span className="ml-1 text-[18px]" style={{ color: 'rgba(255,255,255,0.55)' }}>/100</span>
+                    <span className="ml-1 text-[14px] sm:text-[16px] lg:text-[18px]" style={{ color: 'rgba(255,255,255,0.55)' }}>/100</span>
                   </p>
                   <p className="ga-ui mt-1.5 text-[13px]" style={{ color: 'rgba(255,255,255,0.7)' }}>
                     {score >= 80 ? t('scoreNear') : score >= 40 ? t('scoreProgress') : t('scoreKeepGoing')}
@@ -161,7 +161,7 @@ export default function V2StudentAssessmentPage() {
                   return (
                     <div
                       key={c.key}
-                      className="flex items-center gap-4 px-5 py-4"
+                      className="flex items-center gap-3 px-4 py-4 lg:gap-4 lg:px-5"
                       style={{
                         borderTop: i ? '1px solid var(--ga-border)' : 'none',
                         background: passed ? 'var(--ga-green-soft)' : 'transparent',
@@ -182,9 +182,9 @@ export default function V2StudentAssessmentPage() {
                         <p className="ga-ui text-[12.5px] text-ga-muted">{t(c.descKey)}</p>
                       </div>
                       {passed ? (
-                        <CheckCircle2 size={20} style={{ color: 'var(--ga-green)' }} aria-label={t('passed')} />
+                        <CheckCircle2 size={20} className="shrink-0" style={{ color: 'var(--ga-green)' }} aria-label={t('passed')} />
                       ) : (
-                        <XCircle size={20} className="text-ga-subtle" aria-label={t('notPassed')} />
+                        <XCircle size={20} className="shrink-0 text-ga-subtle" aria-label={t('notPassed')} />
                       )}
                     </div>
                   )
@@ -194,7 +194,7 @@ export default function V2StudentAssessmentPage() {
 
             {/* Mock-exam recorder — only while the criterion is unmet */}
             {!readiness?.mockExamPassed && (
-              <div className="border border-ga-line bg-ga-card p-5">
+              <div className="border border-ga-line bg-ga-card p-4 lg:p-5">
                 <p className="font-ga-display text-[18px] font-medium text-ga-ink">{t('mockExamCap')}</p>
                 <p className="ga-ui mt-1 text-[13px] text-ga-muted">
                   {t.rich('mockExamHint', {
@@ -239,7 +239,7 @@ function ScoreRing({ score }: { score: number }) {
   const circ = 2 * Math.PI * r
   const dash = (Math.max(0, Math.min(100, score)) / 100) * circ
   return (
-    <svg width={72} height={72} viewBox="0 0 72 72" aria-hidden>
+    <svg width={72} height={72} viewBox="0 0 72 72" className="shrink-0" aria-hidden>
       <circle cx={36} cy={36} r={r} fill="none" stroke="rgba(255,255,255,0.16)" strokeWidth={6} />
       <circle
         cx={36}

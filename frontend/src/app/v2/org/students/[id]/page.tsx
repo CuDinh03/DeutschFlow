@@ -62,15 +62,15 @@ export default function V2OrgStudentDetailPage() {
         }
       />
 
-      <div className="flex-1 overflow-auto px-10 py-6">
+      <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
         {loading ? (
           <div className="flex flex-col gap-2">
             {Array.from({ length: 4 }).map((_, i) => <div key={i} className="ga-shimmer h-[54px] border border-ga-line" aria-hidden />)}
           </div>
         ) : error ? (
-          <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadError')}</h2>
-            <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">
+          <div className="border border-ga-line bg-ga-card px-4 py-8 sm:px-8 lg:px-10 lg:py-[52px] text-center">
+            <h2 className="font-ga-display text-[20px] font-medium text-ga-red lg:text-[24px]">{t('loadError')}</h2>
+            <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm break-words text-[14px] text-ga-muted">
               {error} <code className="font-mono text-[12px] text-ga-accent">{`GET /api/org/students/${id}`}</code>
             </p>
             <GaBtn variant="primary" onClick={load}>{tc('retry')}</GaBtn>
@@ -80,7 +80,7 @@ export default function V2OrgStudentDetailPage() {
             <div className="mb-6 flex items-center gap-4">
               <span className="grid h-14 w-14 shrink-0 place-items-center font-ga-display text-[22px] font-medium" style={{ color: TEAL, background: 'var(--ga-teal-soft)' }}>{initial(detail.displayName)}</span>
               <div className="min-w-0">
-                <div className="truncate font-ga-display text-[22px] font-medium text-ga-ink">{detail.displayName || '—'}</div>
+                <div className="truncate font-ga-display text-[18px] font-medium text-ga-ink lg:text-[22px]">{detail.displayName || '—'}</div>
                 <div className="truncate text-[13.5px] text-ga-muted">{detail.email || '—'}</div>
               </div>
             </div>
@@ -96,7 +96,7 @@ export default function V2OrgStudentDetailPage() {
 
             <div className="mb-3.5 mt-[22px]"><GaCap>{t('classesCap')}</GaCap></div>
             {detail.classes.length === 0 ? (
-              <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">
+              <div className="border border-dashed border-ga-line px-4 py-8 text-center text-[14px] text-ga-muted sm:px-8 lg:px-10 lg:py-[40px]">
                 {t('noClasses')}
               </div>
             ) : (
@@ -106,7 +106,7 @@ export default function V2OrgStudentDetailPage() {
                     key={c.classId}
                     type="button"
                     onClick={() => router.push(`/v2/org/classes/${c.classId}`)}
-                    className="flex w-full items-center gap-3 px-5 py-3.5 text-left transition-colors hover:bg-ga-surface"
+                    className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-ga-surface lg:px-5"
                     style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none' }}
                   >
                     <span className="grid h-8 w-8 shrink-0 place-items-center font-ga-display text-[14px] font-medium" style={{ color: TEAL, background: 'var(--ga-teal-soft)' }}>{(c.name[0] ?? 'L').toUpperCase()}</span>

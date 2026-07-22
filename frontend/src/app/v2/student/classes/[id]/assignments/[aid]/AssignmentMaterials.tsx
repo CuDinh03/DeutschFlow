@@ -59,7 +59,7 @@ export function AssignmentMaterials({ assignmentId }: { assignmentId: number }) 
 
   if (loading) {
     return (
-      <div className="border border-ga-line bg-ga-card px-6 py-[22px]">
+      <div className="border border-ga-line bg-ga-card px-4 py-5 lg:px-6 lg:py-[22px]">
         <GaCap className="mb-3 block">{t('heading')}</GaCap>
         <span className="ga-ui inline-flex items-center gap-1.5 text-[13px] text-ga-subtle">
           <Loader2 size={14} className="animate-spin" /> {t('loading')}
@@ -70,7 +70,7 @@ export function AssignmentMaterials({ assignmentId }: { assignmentId: number }) 
   if (items.length === 0) return null
 
   return (
-    <div className="border border-ga-line bg-ga-card px-6 py-[22px]">
+    <div className="border border-ga-line bg-ga-card px-4 py-5 lg:px-6 lg:py-[22px]">
       <GaCap className="mb-3 block">{t('heading')}</GaCap>
       <ul className="flex flex-col gap-1.5">
         {items.map((m) => {

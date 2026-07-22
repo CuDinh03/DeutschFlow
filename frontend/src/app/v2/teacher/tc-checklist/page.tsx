@@ -112,7 +112,7 @@ function KnowledgePointsEditor({
     onChange([...points, emptyPoint()])
   }
 
-  const tagSelectCls = `${fieldCls} w-auto py-1.5 text-[12px]`
+  const tagSelectCls = `${fieldCls} w-auto max-w-full py-1.5 text-[12px]`
 
   return (
     <div className="flex flex-col gap-2.5">
@@ -134,10 +134,10 @@ function KnowledgePointsEditor({
                 }
               }}
               placeholder={placeholder}
-              className={`flex-1 ${fieldCls}`}
+              className={`min-w-0 flex-1 ${fieldCls}`}
             />
           </div>
-          <div className="flex items-center gap-2 pl-6 sm:shrink-0 sm:pl-0">
+          <div className="flex flex-wrap items-center gap-2 pl-6 sm:shrink-0 sm:flex-nowrap sm:pl-0">
             <select aria-label={t('skillTagLabel')} value={p.skillTag} onChange={(e) => setAt(i, { skillTag: e.target.value })} className={tagSelectCls}>
               <option value="">{t('skillTagLabel')}: {t('tagNone')}</option>
               {SKILL_TAG_OPTIONS.map((o) => (
@@ -154,7 +154,7 @@ function KnowledgePointsEditor({
               type="button"
               aria-label={removeLabel}
               onClick={() => removeAt(i)}
-              className="grid h-8 w-8 shrink-0 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-red-soft hover:text-ga-red"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-red-soft hover:text-ga-red lg:h-8 lg:w-8"
             >
               <X size={15} />
             </button>
@@ -164,7 +164,7 @@ function KnowledgePointsEditor({
       <button
         type="button"
         onClick={addRow}
-        className="flex items-center gap-1.5 self-start text-[13px] font-semibold"
+        className="flex min-h-[40px] items-center gap-1.5 self-start text-[13px] font-semibold lg:min-h-0"
         style={{ color: VIOLET }}
       >
         <Plus size={14} /> {addLabel}
@@ -536,7 +536,7 @@ export default function V2TcChecklistPage() {
         title={t('title')}
         subtitle={t('subtitle')}
         right={
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3 lg:flex-nowrap">
             <ClassPicker classes={classes} classId={classId} onChange={setClassId} disabled={loadingClasses} />
             <span className="ga-ui hidden text-[13px] text-ga-muted sm:inline">
               {t('progress')}: <strong className="font-ga-display text-[16px] text-ga-ink">{progress}%</strong>
@@ -546,22 +546,22 @@ export default function V2TcChecklistPage() {
         }
       />
 
-      <div className="flex-1 overflow-auto px-10 py-6">
+      <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
         {/* Add lesson: title + knowledge points */}
         <div className="mb-5 border border-ga-line bg-ga-card p-4">
           <label className={labelCls}>{t('lessonTitleLabel')}</label>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 sm:flex-nowrap">
             <input
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
               placeholder={t('newLessonPlaceholder')}
-              className={`flex-1 ${fieldCls} text-[15px]`}
+              className={`min-w-0 flex-1 ${fieldCls} text-[15px]`}
             />
             <button
               type="button"
               onClick={add}
               disabled={creating || !classId || !newTitle.trim()}
-              className="flex shrink-0 items-center gap-2 rounded-ga bg-ga-ink px-[22px] text-[14px] font-semibold text-ga-bg disabled:opacity-60"
+              className="flex min-h-[40px] shrink-0 items-center gap-2 rounded-ga bg-ga-ink px-[22px] text-[14px] font-semibold text-ga-bg disabled:opacity-60 lg:min-h-0"
             >
               {creating ? <Loader2 size={16} className="animate-spin" /> : <Plus size={18} />} {t('addLesson')}
             </button>
@@ -600,19 +600,19 @@ export default function V2TcChecklistPage() {
         {!error && (
           <div className="mb-5 border border-ga-line bg-ga-card p-4">
             <label className={labelCls}>{t('module.heading')}</label>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2 sm:flex-nowrap">
               <input
                 value={newModuleTitle}
                 onChange={(e) => setNewModuleTitle(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void addModule() } }}
                 placeholder={t('module.addPlaceholder')}
-                className={`flex-1 ${fieldCls}`}
+                className={`min-w-0 flex-1 ${fieldCls}`}
               />
               <button
                 type="button"
                 onClick={addModule}
                 disabled={creatingModule || !classId || !newModuleTitle.trim()}
-                className="flex shrink-0 items-center gap-2 rounded-ga bg-ga-ink px-[18px] text-[14px] font-semibold text-ga-bg disabled:opacity-60"
+                className="flex min-h-[40px] shrink-0 items-center gap-2 rounded-ga bg-ga-ink px-[18px] text-[14px] font-semibold text-ga-bg disabled:opacity-60 lg:min-h-0"
               >
                 {creatingModule ? <Loader2 size={16} className="animate-spin" /> : <FolderPlus size={16} />} {t('module.add')}
               </button>
@@ -620,14 +620,14 @@ export default function V2TcChecklistPage() {
             {orderedModules.length > 0 ? (
               <ul className="mt-3 flex flex-col gap-1.5">
                 {orderedModules.map((m, i) => (
-                  <li key={m.id} className="flex items-center gap-2 rounded-ga border border-ga-line bg-ga-bg px-2.5 py-1.5">
+                  <li key={m.id} className="flex flex-wrap items-center gap-2 rounded-ga border border-ga-line bg-ga-bg px-2.5 py-1.5 sm:flex-nowrap">
                     {editingModuleId === m.id ? (
                       <>
                         <input
                           value={editModuleTitle}
                           onChange={(e) => setEditModuleTitle(e.target.value)}
                           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void saveModule(m) } }}
-                          className={`flex-1 ${fieldCls}`}
+                          className={`min-w-0 flex-1 ${fieldCls}`}
                           autoFocus
                         />
                         <GaBtn variant="primary" size="sm" onClick={() => saveModule(m)} disabled={moduleBusy || !editModuleTitle.trim()}>{t('save')}</GaBtn>
@@ -635,11 +635,11 @@ export default function V2TcChecklistPage() {
                       </>
                     ) : (
                       <>
-                        <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold text-ga-ink">{m.title}</span>
-                        <button type="button" aria-label={t('module.moveUp')} onClick={() => moveModule(i, -1)} disabled={i === 0 || moduleBusy} className="grid h-7 w-7 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-side-active hover:text-ga-ink disabled:pointer-events-none disabled:opacity-30"><ArrowUp size={13} /></button>
-                        <button type="button" aria-label={t('module.moveDown')} onClick={() => moveModule(i, 1)} disabled={i === orderedModules.length - 1 || moduleBusy} className="grid h-7 w-7 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-side-active hover:text-ga-ink disabled:pointer-events-none disabled:opacity-30"><ArrowDown size={13} /></button>
-                        <button type="button" aria-label={t('module.rename')} onClick={() => startEditModule(m)} className="grid h-7 w-7 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-side-active hover:text-ga-ink"><Pencil size={14} /></button>
-                        <button type="button" aria-label={t('module.delete')} onClick={() => removeModule(m)} disabled={moduleBusy} className="grid h-7 w-7 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-red-soft hover:text-ga-red disabled:pointer-events-none disabled:opacity-40"><Trash2 size={14} /></button>
+                        <span className="w-full min-w-0 truncate text-[13.5px] font-semibold text-ga-ink sm:w-auto sm:flex-1">{m.title}</span>
+                        <button type="button" aria-label={t('module.moveUp')} onClick={() => moveModule(i, -1)} disabled={i === 0 || moduleBusy} className="grid h-10 w-10 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-side-active hover:text-ga-ink disabled:pointer-events-none disabled:opacity-30 lg:h-7 lg:w-7"><ArrowUp size={13} /></button>
+                        <button type="button" aria-label={t('module.moveDown')} onClick={() => moveModule(i, 1)} disabled={i === orderedModules.length - 1 || moduleBusy} className="grid h-10 w-10 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-side-active hover:text-ga-ink disabled:pointer-events-none disabled:opacity-30 lg:h-7 lg:w-7"><ArrowDown size={13} /></button>
+                        <button type="button" aria-label={t('module.rename')} onClick={() => startEditModule(m)} className="grid h-10 w-10 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-side-active hover:text-ga-ink lg:h-7 lg:w-7"><Pencil size={14} /></button>
+                        <button type="button" aria-label={t('module.delete')} onClick={() => removeModule(m)} disabled={moduleBusy} className="grid h-10 w-10 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-red-soft hover:text-ga-red disabled:pointer-events-none disabled:opacity-40 lg:h-7 lg:w-7"><Trash2 size={14} /></button>
                       </>
                     )}
                   </li>
@@ -654,13 +654,13 @@ export default function V2TcChecklistPage() {
         {loading ? (
           <div className="flex flex-col gap-2">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="ga-shimmer h-[58px] border border-ga-line" aria-hidden />)}</div>
         ) : error ? (
-          <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
+          <div className="border border-ga-line bg-ga-card px-4 py-10 text-center sm:px-6 lg:px-10 lg:py-[52px]">
             <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadError')}</h2>
             <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">{error}</p>
             <GaBtn variant="primary" onClick={() => classId && load(classId)}>{tc('retry')}</GaBtn>
           </div>
         ) : ordered.length === 0 ? (
-          <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">
+          <div className="border border-dashed border-ga-line px-4 py-[40px] text-center text-[14px] text-ga-muted sm:px-6 lg:px-10">
             {t('empty')}
           </div>
         ) : (
@@ -676,7 +676,7 @@ export default function V2TcChecklistPage() {
                   return (
                     <div key={l.id} style={{ borderTop: gi ? '1px solid var(--ga-line)' : 'none', background: !isEditing && l.completed ? 'var(--ga-green-soft)' : undefined }}>
                   {isEditing ? (
-                    <div className="flex flex-col gap-3 px-5 py-4">
+                    <div className="flex flex-col gap-3 px-4 py-4 lg:px-5">
                       <div>
                         <label className={labelCls}>{t('lessonTitleLabel')}</label>
                         <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className={`${fieldCls} text-[15px]`} />
@@ -713,18 +713,24 @@ export default function V2TcChecklistPage() {
                       </div>
                     </div>
                   ) : (
-                    <div className="flex items-start gap-3.5 px-5 py-4">
+                    <div className="flex flex-wrap items-start gap-x-3 gap-y-2 px-4 py-4 lg:flex-nowrap lg:gap-x-3.5 lg:px-5">
                       <button
                         type="button"
                         aria-label={l.completed ? t('markIncomplete') : t('markComplete')}
                         onClick={() => toggle(l)}
                         disabled={busy === l.id}
-                        className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 transition-colors"
+                        // Vòng tick giữ nguyên 24px (ngôn ngữ thị giác Galerie); vùng chạm được nới
+                        // ra 40px bằng pseudo-element trong suốt — không đổi một pixel hiển thị nào,
+                        // và tắt hẳn từ lg.
+                        className="relative mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 transition-colors after:absolute after:-inset-2 after:content-[''] lg:after:hidden"
                         style={{ borderColor: l.completed ? 'var(--ga-green)' : 'var(--ga-line)', background: l.completed ? 'var(--ga-green)' : 'transparent' }}
                       >
                         {busy === l.id ? <Loader2 size={12} className="animate-spin text-ga-muted" /> : l.completed ? <Check size={14} className="text-white" /> : null}
                       </button>
-                      <div className="min-w-0 flex-1">
+                      {/* Trên khổ hẹp cột nội dung chiếm gần trọn hàng (trừ nút tick + gap) để 2 cụm
+                          nút xuống dòng dưới, thay vì bóp tiêu đề còn ~78px ở 320px. Từ lg: basis-0
+                          + grow = đúng `flex-1` như bản gốc. */}
+                      <div className="min-w-0 grow basis-[calc(100%_-_2.25rem)] lg:basis-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="ga-ui text-[10px] font-bold uppercase tracking-[0.08em] text-ga-subtle">{t('lektion', { index: seqById.get(l.id) ?? 0 })}</span>
                           {l.cefrLevel && (
@@ -740,7 +746,7 @@ export default function V2TcChecklistPage() {
                             <span className="text-[11px] font-medium" style={{ color: 'var(--ga-green)' }}>✓ {format(new Date(l.completedAt), 'dd/MM/yyyy')}</span>
                           )}
                         </div>
-                        <div className="mt-0.5 text-[14.5px] font-semibold text-ga-ink">{l.title}</div>
+                        <div className="mt-0.5 break-words text-[14.5px] font-semibold text-ga-ink">{l.title}</div>
                         {points.length > 0 && (
                           <ul className="mt-1.5 flex flex-col gap-1">
                             {points.map((p, idx) => (
@@ -770,13 +776,13 @@ export default function V2TcChecklistPage() {
                           </div>
                         )}
                         {orderedModules.length > 0 && (
-                          <div className="mt-1.5 flex items-center gap-1.5">
+                          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 lg:flex-nowrap">
                             <span className="ga-ui text-[10px] font-semibold uppercase tracking-[0.06em] text-ga-subtle">{t('module.assignLabel')}</span>
                             <select
                               aria-label={t('module.assignLabel')}
                               value={l.moduleId ?? ''}
                               onChange={(e) => assignModule(l, e.target.value ? Number(e.target.value) : null)}
-                              className="rounded-ga border border-ga-line bg-ga-bg px-1.5 py-0.5 text-[11px] text-ga-ink outline-none focus:border-ga-accent"
+                              className="min-w-0 max-w-full rounded-ga border border-ga-line bg-ga-bg px-1.5 py-0.5 text-[11px] text-ga-ink outline-none focus:border-ga-accent"
                             >
                               <option value="">{t('ungrouped')}</option>
                               {orderedModules.map((m) => (
@@ -792,7 +798,7 @@ export default function V2TcChecklistPage() {
                           aria-label={t('moveUp')}
                           onClick={() => moveWithinGroup(group, gi, -1)}
                           disabled={gi === 0 || reordering || busy === l.id || deletingId === l.id}
-                          className="grid h-6 w-6 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-side-active hover:text-ga-ink disabled:pointer-events-none disabled:opacity-30"
+                          className="grid h-10 w-8 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-side-active hover:text-ga-ink disabled:pointer-events-none disabled:opacity-30 lg:h-6 lg:w-6"
                         >
                           <ArrowUp size={13} />
                         </button>
@@ -801,7 +807,7 @@ export default function V2TcChecklistPage() {
                           aria-label={t('moveDown')}
                           onClick={() => moveWithinGroup(group, gi, 1)}
                           disabled={gi === group.lessons.length - 1 || reordering || busy === l.id || deletingId === l.id}
-                          className="grid h-6 w-6 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-side-active hover:text-ga-ink disabled:pointer-events-none disabled:opacity-30"
+                          className="grid h-10 w-8 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-side-active hover:text-ga-ink disabled:pointer-events-none disabled:opacity-30 lg:h-6 lg:w-6"
                         >
                           <ArrowDown size={13} />
                         </button>
@@ -811,7 +817,7 @@ export default function V2TcChecklistPage() {
                           type="button"
                           aria-label={t('edit')}
                           onClick={() => startEdit(l)}
-                          className="grid h-8 w-8 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-side-active hover:text-ga-ink"
+                          className="grid h-10 w-10 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-side-active hover:text-ga-ink lg:h-8 lg:w-8"
                         >
                           <Pencil size={15} />
                         </button>
@@ -820,7 +826,7 @@ export default function V2TcChecklistPage() {
                           aria-label={t('deleteLesson')}
                           onClick={() => removeLesson(l)}
                           disabled={deletingId === l.id}
-                          className="grid h-8 w-8 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-red-soft hover:text-ga-red"
+                          className="grid h-10 w-10 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-red-soft hover:text-ga-red lg:h-8 lg:w-8"
                         >
                           {deletingId === l.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={15} />}
                         </button>
@@ -835,9 +841,9 @@ export default function V2TcChecklistPage() {
           </div>
         )}
 
-        <div className="mt-4 flex items-center gap-3 border px-[18px] py-3.5" style={{ background: 'var(--ga-violet-soft)', borderColor: 'color-mix(in srgb, var(--ga-violet) 25%, transparent)' }}>
+        <div className="mt-4 flex items-center gap-3 border px-4 py-3.5 lg:px-[18px]" style={{ background: 'var(--ga-violet-soft)', borderColor: 'color-mix(in srgb, var(--ga-violet) 25%, transparent)' }}>
           <Info size={18} style={{ color: VIOLET }} className="shrink-0" />
-          <p className="ga-ui m-0 text-[13px] leading-[1.5] text-ga-ink">
+          <p className="ga-ui m-0 min-w-0 text-[13px] leading-[1.5] text-ga-ink">
             {t.rich('infoNote', { b: (chunks) => <strong>{chunks}</strong> })}
           </p>
         </div>

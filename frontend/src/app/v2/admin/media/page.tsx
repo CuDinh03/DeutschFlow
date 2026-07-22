@@ -73,7 +73,7 @@ export default function V2AdminMediaPage() {
         }
       />
 
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         <AdStatStrip
           className="mb-6"
           cells={[
@@ -85,29 +85,29 @@ export default function V2AdminMediaPage() {
         />
 
         {loading ? (
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="ga-shimmer h-[164px] border border-ga-line" aria-hidden />
             ))}
           </div>
         ) : error ? (
-          <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-            <h2 className="font-ga-display text-[26px] font-medium leading-[1.2] text-ga-red">
+          <div className="border border-ga-line bg-ga-card px-4 py-10 text-center sm:px-6 lg:px-10 lg:py-[52px]">
+            <h2 className="font-ga-display text-[20px] font-medium leading-[1.2] text-ga-red lg:text-[26px]">
               {t('loadError')}
             </h2>
-            <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14.5px] text-ga-muted">
-              {error} <code className="font-mono text-[12px] text-ga-accent">GET /api/v2/media</code>
+            <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm break-words text-[14.5px] text-ga-muted">
+              {error} <code className="break-words font-mono text-[12px] text-ga-accent">GET /api/v2/media</code>
             </p>
             <GaBtn variant="primary" onClick={() => reload({ silent: false })}>
               {tc('retry')}
             </GaBtn>
           </div>
         ) : data.length === 0 ? (
-          <div className="border border-dashed border-ga-line px-10 py-10 text-center">
+          <div className="border border-dashed border-ga-line px-4 py-10 text-center sm:px-6 lg:px-10">
             <p className="ga-ui text-[14.5px] text-ga-muted">{t('empty')}</p>
           </div>
         ) : (
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             {data.map((m) => {
               const c = catOf(m.category)
               return (
@@ -121,7 +121,7 @@ export default function V2AdminMediaPage() {
                   />
                   <div className="flex items-center gap-2 px-3 py-2.5">
                     <span aria-hidden className="h-2 w-2 shrink-0" style={{ background: c.color }} />
-                    <span className="truncate text-[12.5px] text-ga-ink" title={m.originalName ?? ''}>
+                    <span className="min-w-0 truncate text-[12.5px] text-ga-ink" title={m.originalName ?? ''}>
                       {m.tag || c.label}
                     </span>
                   </div>

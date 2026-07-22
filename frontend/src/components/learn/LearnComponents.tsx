@@ -31,7 +31,7 @@ export function VocabTag({
     <button
       type="button"
       onClick={onClick}
-      className={`text-[11px] px-2.5 py-1 rounded-full border font-medium transition-all duration-200
+      className={`inline-flex min-h-[40px] items-center justify-center lg:min-h-0 text-[11px] px-2.5 py-1 rounded-full border font-medium transition-all duration-200
         ${active
           ? "bg-[#FFCD00] text-[#121212] border-[#FFCD00] shadow-sm"
           : "bg-[#F8FAFC] text-[#64748B] border-[#E2E8F0] hover:bg-[#FFCD00]/10 hover:border-[#FFCD00] hover:text-[#121212]"
@@ -129,9 +129,9 @@ export function VocabCard({ vocab, autoPlay = false }: { vocab: VocabItem; autoP
               </svg>
             </button>
           </div>
-          <span className="font-bold text-[#0F172A] text-2xl mt-3 text-center">{vocab.german}</span>
+          <span className="max-w-full font-bold text-[#0F172A] text-xl lg:text-2xl mt-3 text-center break-words">{vocab.german}</span>
           {vocab.ai_speech_hints?.ipa_target && (
-            <span className="text-xs text-[#64748B] font-mono mt-1">{vocab.ai_speech_hints.ipa_target}</span>
+            <span className="max-w-full text-xs text-[#64748B] font-mono mt-1 break-all">{vocab.ai_speech_hints.ipa_target}</span>
           )}
           <div className="absolute bottom-2 text-[10px] text-slate-400 font-medium">Bấm để lật</div>
         </div>

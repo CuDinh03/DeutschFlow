@@ -126,7 +126,7 @@ export default function V2StudentExerciseRunnerPage() {
     return (
       <div className="flex min-h-full flex-col">
         <GaPageHdr accent title={t('title')} />
-        <div className="flex-1 px-10 py-6">
+        <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
           <LoadingState label={t('loading')} />
         </div>
       </div>
@@ -137,7 +137,7 @@ export default function V2StudentExerciseRunnerPage() {
     return (
       <div className="flex min-h-full flex-col">
         <GaPageHdr accent title={t('title')} />
-        <div className="flex-1 space-y-5 px-10 py-6">
+        <div className="flex-1 space-y-5 px-4 py-6 sm:px-6 lg:px-10">
           <ErrorBanner message={error ?? t('notFound')} onRetry={() => void load()} />
           <GaBtn variant="ghost" onClick={() => router.push('/v2/student/exercises')}>
             <ArrowLeft size={15} aria-hidden />
@@ -165,11 +165,11 @@ export default function V2StudentExerciseRunnerPage() {
         }
       />
 
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         <div className="mx-auto max-w-3xl space-y-5">
           {/* Kết quả sau khi nộp */}
           {grade && (
-            <GaCard className="flex flex-col items-center gap-3 px-6 py-10 text-center">
+            <GaCard className="flex flex-col items-center gap-3 px-4 py-8 text-center lg:px-6 lg:py-10">
               <span className="grid h-14 w-14 place-items-center rounded-ga-pill bg-ga-yellow-soft text-ga-gold">
                 <Trophy size={28} aria-hidden />
               </span>
@@ -187,9 +187,9 @@ export default function V2StudentExerciseRunnerPage() {
 
           {/* Bài đọc (nếu có) */}
           {content?.readingText && (
-            <GaCard className="p-7">
+            <GaCard className="p-5 lg:p-7">
               <GaCap className="mb-3 block">{t('readingCap')}</GaCap>
-              <p className="ga-ui whitespace-pre-line text-[15px] leading-relaxed text-ga-ink">
+              <p className="ga-ui whitespace-pre-line break-words text-[15px] leading-relaxed text-ga-ink">
                 {content.readingText}
               </p>
             </GaCard>
@@ -204,9 +204,9 @@ export default function V2StudentExerciseRunnerPage() {
                 const verdict = grade && isGradable ? grade.perQuestion[q.id] : undefined
 
                 return (
-                  <GaCard key={q.id} className="space-y-4 p-6">
+                  <GaCard key={q.id} className="space-y-4 p-4 lg:p-6">
                     <div className="flex items-start justify-between gap-3">
-                      <p className="ga-ui text-[15px] font-semibold text-ga-ink">
+                      <p className="ga-ui min-w-0 break-words text-[15px] font-semibold text-ga-ink">
                         {idx + 1}. {q.question}
                       </p>
                       {verdict !== undefined && (
@@ -228,7 +228,7 @@ export default function V2StudentExerciseRunnerPage() {
                               type="button"
                               disabled={!!grade}
                               onClick={() => setAnswers((prev) => ({ ...prev, [q.id]: opt }))}
-                              className={`ga-ui rounded-ga border px-4 py-2.5 text-[13.5px] font-semibold transition-colors disabled:cursor-default ${
+                              className={`ga-ui rounded-ga border px-4 py-3 text-[13.5px] font-semibold transition-colors disabled:cursor-default lg:py-2.5 ${
                                 isAnswer
                                   ? 'border-ga-green bg-ga-green-soft text-ga-green'
                                   : active
@@ -274,7 +274,7 @@ export default function V2StudentExerciseRunnerPage() {
                     href={exercise.sourceUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="ga-ui inline-flex items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-4 py-2.5 text-[13px] font-semibold text-ga-ink transition-colors hover:bg-ga-surface"
+                    className="ga-ui inline-flex min-h-10 items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-4 py-2.5 text-[13px] font-semibold text-ga-ink transition-colors hover:bg-ga-surface lg:min-h-0"
                   >
                     <ExternalLink size={14} aria-hidden />
                     {t('openSource')}
@@ -287,7 +287,7 @@ export default function V2StudentExerciseRunnerPage() {
           {submitError && <ErrorBanner message={submitError} onRetry={() => void handleSubmit()} />}
 
           {!grade && (
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
               <GaCap className="text-ga-gold">
                 {canGrade ? t('gradedHint', { count: gradable.length }) : t('ungradedHint')}
               </GaCap>

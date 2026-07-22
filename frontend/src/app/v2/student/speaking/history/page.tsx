@@ -97,7 +97,7 @@ function MessageBubble({ msg }: { msg: SessionMessage }) {
       )}
       <div className={`flex max-w-[80%] flex-col gap-1 ${isUser ? 'items-end' : 'items-start'}`}>
         <div
-          className={`ga-ui rounded-ga px-4 py-3 text-[14px] leading-relaxed ${
+          className={`ga-ui rounded-ga px-4 py-3 text-[14px] leading-relaxed break-words ${
             isUser ? 'bg-ga-ink text-ga-bg' : 'border border-ga-line bg-ga-card text-ga-ink'
           }`}
         >
@@ -127,7 +127,7 @@ function MessageBubble({ msg }: { msg: SessionMessage }) {
           <button
             type="button"
             onClick={() => setExpanded((e) => !e)}
-            className="ga-ui mt-0.5 flex items-center gap-1 text-[11px] text-ga-subtle transition-colors hover:text-ga-ink"
+            className="ga-ui mt-0.5 flex min-h-[40px] items-center gap-1 text-[11px] text-ga-subtle transition-colors hover:text-ga-ink lg:min-h-0"
           >
             {expanded ? <ChevronUp size={11} aria-hidden /> : <ChevronDown size={11} aria-hidden />}
             {hasErrors ? t('grammarErrors', { count: msg.errors!.length }) : t('details')}
@@ -215,14 +215,14 @@ export default function V2StudentSpeakingHistoryPage() {
         right={
           <a
             href={NEW_SESSION_HREF}
-            className="ga-ui inline-flex items-center gap-1.5 rounded-ga bg-ga-accent px-4 py-2.5 text-[13px] font-semibold text-ga-accent-ink transition-opacity hover:opacity-90"
+            className="ga-ui inline-flex min-h-[40px] items-center gap-1.5 rounded-ga bg-ga-accent px-4 py-2.5 text-[13px] font-semibold text-ga-accent-ink transition-opacity hover:opacity-90 lg:min-h-0"
           >
             <Plus size={14} aria-hidden /> {t('startNew')}
           </a>
         }
       />
 
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         <div className="mx-auto max-w-3xl space-y-3">
           {selected && (
             <button
@@ -231,7 +231,7 @@ export default function V2StudentSpeakingHistoryPage() {
                 setSelected(null)
                 setMessages([])
               }}
-              className="ga-ui mb-2 flex items-center gap-1.5 text-[13px] font-semibold text-ga-muted transition-colors hover:text-ga-ink"
+              className="ga-ui mb-2 flex min-h-[40px] items-center gap-1.5 text-[13px] font-semibold text-ga-muted transition-colors hover:text-ga-ink lg:min-h-0"
             >
               <ArrowLeft size={15} aria-hidden /> {t('sessionList')}
             </button>
@@ -244,7 +244,7 @@ export default function V2StudentSpeakingHistoryPage() {
               {loading ? (
                 <LoadingState label={t('loading')} />
               ) : sessions.length === 0 ? (
-                <div className="rounded-ga border border-ga-line bg-ga-card py-16 text-center">
+                <div className="rounded-ga border border-ga-line bg-ga-card px-4 py-16 text-center lg:px-0">
                   <Mic size={36} className="mx-auto mb-3 text-ga-subtle" aria-hidden />
                   <p className="font-ga-display text-[20px] font-medium text-ga-ink">{t('noSessions')}</p>
                   <p className="ga-ui mt-2 text-[13px] text-ga-muted">{t('promptStart')}</p>
@@ -263,7 +263,7 @@ export default function V2StudentSpeakingHistoryPage() {
                       <button
                         type="button"
                         onClick={() => openSession(sess)}
-                        className="flex w-full items-start gap-4 px-5 py-4 text-left transition-colors hover:bg-ga-surface"
+                        className="flex w-full items-start gap-3 px-4 py-4 text-left transition-colors hover:bg-ga-surface lg:gap-4 lg:px-5"
                       >
                         <span
                           className="grid h-10 w-10 shrink-0 place-items-center rounded-ga"
@@ -273,7 +273,7 @@ export default function V2StudentSpeakingHistoryPage() {
                         </span>
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
-                            <p className="truncate text-[15px] font-semibold text-ga-ink">
+                            <p className="min-w-0 truncate text-[15px] font-semibold text-ga-ink">
                               {sess.topic ?? t('noTopic')}
                             </p>
                             {sess.cefrLevel && <TkBadge tone="neutral">{sess.cefrLevel}</TkBadge>}
@@ -304,7 +304,7 @@ export default function V2StudentSpeakingHistoryPage() {
           ) : loadingMsgs ? (
             <LoadingState label={t('loadingMessages')} />
           ) : messages.length === 0 ? (
-            <div className="rounded-ga border border-ga-line bg-ga-card py-14 text-center">
+            <div className="rounded-ga border border-ga-line bg-ga-card px-4 py-14 text-center lg:px-0">
               <MessageSquare size={32} className="mx-auto mb-3 text-ga-subtle" aria-hidden />
               <p className="ga-ui text-[13.5px] text-ga-muted">{t('noMessages')}</p>
             </div>

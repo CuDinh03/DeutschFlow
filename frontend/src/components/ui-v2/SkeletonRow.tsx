@@ -10,7 +10,7 @@ export function SkeletonRow({ variant = 'row', className, ...props }: SkeletonRo
   if (variant === 'card') {
     return (
       <div
-        className={cn('rounded-ga border border-ga-line bg-ga-card p-6', className)}
+        className={cn('rounded-ga border border-ga-line bg-ga-card p-4 lg:p-6', className)}
         aria-hidden
         {...props}
       >

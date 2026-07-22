@@ -15,7 +15,7 @@ function TranslateTooltip({
 }) {
   return (
     <div
-      className="fixed z-50 bg-white rounded-xl shadow-2xl border border-[#E2E8F0] p-3 space-y-2 min-w-[200px] max-w-[280px] animate-in fade-in zoom-in-95 duration-150"
+      className="fixed z-50 bg-white rounded-xl shadow-2xl border border-[#E2E8F0] p-3 space-y-2 min-w-0 max-w-[calc(100vw_-_32px)] sm:min-w-[200px] sm:max-w-[280px] animate-in fade-in zoom-in-95 duration-150"
       style={{ left: Math.min(position.x, window.innerWidth - 300), top: position.y + 10 }}
     >
       <div className="flex items-center justify-between">

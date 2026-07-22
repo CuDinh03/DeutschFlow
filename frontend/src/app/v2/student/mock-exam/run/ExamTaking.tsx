@@ -212,9 +212,9 @@ export function ExamTaking({
   return (
     <div className="flex h-full flex-col bg-ga-bg">
       {/* Top bar — timer + submit */}
-      <div className="z-10 flex items-center justify-between border-b border-ga-line bg-ga-card px-6 py-4">
-        <div className="flex items-center gap-4">
-          <h2 className="font-ga-display text-[20px] font-medium text-ga-ink">
+      <div className="z-10 flex flex-wrap items-center justify-between gap-3 border-b border-ga-line bg-ga-card px-4 py-3 lg:gap-0 lg:px-6 lg:py-4">
+        <div className="flex min-w-0 items-center gap-4">
+          <h2 className="min-w-0 break-words font-ga-display text-[16px] font-medium text-ga-ink sm:text-[18px] lg:text-[20px]">
             <span style={{ color: accent }}>{currentSection.name}</span> — {currentSection.label_vi}
           </h2>
           <div className="hidden gap-2 sm:flex">
@@ -235,21 +235,21 @@ export function ExamTaking({
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex shrink-0 items-center gap-3 lg:gap-4">
           {/* < 5 min left = the visual warning the legacy runner had */}
           <div
-            className={`flex items-center gap-2 font-mono text-[20px] font-bold ${
+            className={`flex shrink-0 items-center gap-2 font-mono text-[16px] font-bold lg:text-[20px] ${
               timeLeft < 300 ? 'animate-pulse text-ga-red' : 'text-ga-ink'
             }`}
           >
-            <Clock size={20} aria-hidden />
+            <Clock size={20} className="shrink-0" aria-hidden />
             {formatTime(timeLeft)}
           </div>
           <button
             type="button"
             onClick={() => onSubmit(false)}
             disabled={submitting}
-            className="ga-ui inline-flex items-center gap-2 rounded-ga px-4 py-2 text-[13px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+            className="ga-ui inline-flex shrink-0 items-center gap-2 rounded-ga px-3 py-3 text-[13px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60 lg:px-4 lg:py-2"
             style={{ background: 'var(--ga-green)' }}
           >
             {submitting ? <Loader2 size={16} className="animate-spin" aria-hidden /> : <Send size={16} aria-hidden />}
@@ -271,10 +271,10 @@ export function ExamTaking({
           below-the-fold answer (the Richtig/Falsch & Matching inputs are `sr-only`) then makes the
           browser scroll the shell to reveal the input, pushing all content off-screen and leaving a
           blank overlay. */}
-      <div className="min-h-0 flex-1 overflow-y-auto bg-ga-surface p-6">
+      <div className="min-h-0 flex-1 overflow-y-auto bg-ga-surface p-4 lg:p-6">
         <div className="mx-auto max-w-4xl space-y-8 pb-20">
-          <div className="rounded-ga border border-ga-line bg-ga-card p-6">
-            <h3 className="font-ga-display text-[22px] font-medium text-ga-ink">
+          <div className="rounded-ga border border-ga-line bg-ga-card p-4 lg:p-6">
+            <h3 className="break-words font-ga-display text-[18px] font-medium text-ga-ink sm:text-[20px] lg:text-[22px]">
               {currentSection.name} — {currentSection.label_vi}
             </h3>
             <p className="ga-ui mt-1 text-[13px] text-ga-muted">
@@ -284,14 +284,14 @@ export function ExamTaking({
 
           {currentSection.teile?.map((teil, tIdx) => (
             <div key={teil.teil ?? tIdx} className="overflow-hidden rounded-ga border border-ga-line bg-ga-card">
-              <div className="border-b border-ga-border bg-ga-surface px-6 py-3">
+              <div className="border-b border-ga-border bg-ga-surface px-4 py-3 lg:px-6">
                 <h4 className="ga-ui text-[14px] font-semibold text-ga-ink">{t('teil', { n: teil.teil })}</h4>
-                <p className="ga-ui mt-1 text-[13px] text-ga-muted">{teil.instruction_vi || teil.instruction_de}</p>
+                <p className="ga-ui mt-1 break-words text-[13px] text-ga-muted">{teil.instruction_vi || teil.instruction_de}</p>
               </div>
 
-              <div className="p-6">
+              <div className="p-4 lg:p-6">
                 {teil.context && (
-                  <div className="ga-ui mb-6 whitespace-pre-wrap rounded-ga border border-ga-line bg-ga-surface p-4 text-[13.5px] text-ga-ink">
+                  <div className="ga-ui mb-6 whitespace-pre-wrap break-words rounded-ga border border-ga-line bg-ga-surface p-4 text-[13.5px] text-ga-ink">
                     {teil.context}
                   </div>
                 )}
@@ -314,10 +314,10 @@ export function ExamTaking({
                             label={item.person ? t('listenPerson', { person: item.person }) : t('listenDialog')}
                           />
                         )}
-                        {item.text && <p className="ga-ui mb-3 text-[13.5px] italic text-ga-muted">“{item.text}”</p>}
-                        {item.person && <p className="ga-ui mb-3 text-[13.5px] text-ga-muted">👤 {item.person}</p>}
+                        {item.text && <p className="ga-ui mb-3 break-words text-[13.5px] italic text-ga-muted">“{item.text}”</p>}
+                        {item.person && <p className="ga-ui mb-3 break-words text-[13.5px] text-ga-muted">👤 {item.person}</p>}
 
-                        <p className="ga-ui mb-3 text-[14.5px] font-semibold text-ga-ink">
+                        <p className="ga-ui mb-3 break-words text-[14.5px] font-semibold text-ga-ink">
                           {qIdx + 1}. {item.question || t('questionFallback')}
                         </p>
 
@@ -338,10 +338,10 @@ export function ExamTaking({
                                     value={optKey}
                                     checked={picked}
                                     onChange={() => onAnswerChange(item.id, optKey)}
-                                    className="h-4 w-4 accent-[var(--ga-accent)]"
+                                    className="h-4 w-4 shrink-0 accent-[var(--ga-accent)]"
                                   />
-                                  <span className="ga-ui w-6 text-[13px] font-bold text-ga-subtle">{optKey}</span>
-                                  <span className="ga-ui text-[14px] text-ga-ink">{optVal}</span>
+                                  <span className="ga-ui w-6 shrink-0 text-[13px] font-bold text-ga-subtle">{optKey}</span>
+                                  <span className="ga-ui min-w-0 break-words text-[14px] text-ga-ink">{optVal}</span>
                                 </label>
                               )
                             })}
@@ -431,10 +431,10 @@ export function ExamTaking({
                   {/* Schreiben Teil 2 — email. Answer key stays `email_<teil>` (server contract). */}
                   {teil.input_email && (
                     <div className="space-y-4">
-                      <div className="ga-ui whitespace-pre-wrap rounded-ga border border-ga-line bg-ga-surface p-4 text-[13.5px] text-ga-ink">
+                      <div className="ga-ui whitespace-pre-wrap break-words rounded-ga border border-ga-line bg-ga-surface p-4 text-[13.5px] text-ga-ink">
                         {teil.input_email}
                       </div>
-                      <ul className="ga-ui mb-4 list-disc space-y-1 pl-5 text-[13.5px] text-ga-muted">
+                      <ul className="ga-ui mb-4 list-disc space-y-1 break-words pl-5 text-[13.5px] text-ga-muted">
                         {teil.writing_points?.map((pt, idx) => <li key={idx}>{pt}</li>)}
                       </ul>
                       <textarea
@@ -478,12 +478,12 @@ export function ExamTaking({
             </div>
           ))}
 
-          <div className="flex items-center justify-between pt-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-4">
             <button
               type="button"
               onClick={() => onSectionChange(Math.max(0, currentSectionIdx - 1))}
               disabled={currentSectionIdx === 0}
-              className="ga-ui rounded-ga border border-ga-line bg-ga-card px-6 py-3 text-[13px] font-semibold text-ga-muted transition-colors hover:bg-ga-surface disabled:cursor-not-allowed disabled:opacity-50"
+              className="ga-ui rounded-ga border border-ga-line bg-ga-card px-4 py-3 text-[13px] font-semibold text-ga-muted transition-colors hover:bg-ga-surface disabled:cursor-not-allowed disabled:opacity-50 lg:px-6"
             >
               {t('prevSection')}
             </button>
@@ -492,7 +492,7 @@ export function ExamTaking({
               <button
                 type="button"
                 onClick={() => onSectionChange(Math.min(data.sections.length - 1, currentSectionIdx + 1))}
-                className="ga-ui inline-flex items-center gap-2 rounded-ga bg-ga-accent px-6 py-3 text-[13px] font-semibold text-ga-accent-ink transition-opacity hover:opacity-90"
+                className="ga-ui inline-flex items-center gap-2 rounded-ga bg-ga-accent px-4 py-3 text-[13px] font-semibold text-ga-accent-ink transition-opacity hover:opacity-90 lg:px-6"
               >
                 {t('nextSection')} <ChevronRight size={18} aria-hidden />
               </button>
@@ -501,7 +501,7 @@ export function ExamTaking({
                 type="button"
                 onClick={() => onSubmit(false)}
                 disabled={submitting}
-                className="ga-ui inline-flex items-center gap-2 rounded-ga px-8 py-3 text-[13px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+                className="ga-ui inline-flex items-center gap-2 rounded-ga px-4 py-3 text-[13px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60 lg:px-8"
                 style={{ background: 'var(--ga-green)' }}
               >
                 {submitting ? <Loader2 size={18} className="animate-spin" aria-hidden /> : <Send size={18} aria-hidden />}

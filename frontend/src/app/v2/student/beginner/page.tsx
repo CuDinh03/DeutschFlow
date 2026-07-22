@@ -72,7 +72,7 @@ export default function V2StudentBeginnerPage() {
     <div className="flex min-h-full flex-col">
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
 
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         {loading ? (
           <LoadingState label={t('loading')} />
         ) : error && !session ? (
@@ -82,12 +82,12 @@ export default function V2StudentBeginnerPage() {
             {error && <ErrorBanner message={error} />}
 
             {/* Hero */}
-            <div className="bg-ga-ink p-7 text-ga-bg">
+            <div className="bg-ga-ink p-5 text-ga-bg lg:p-7">
               <GaCap className="mb-2 flex items-center gap-1.5" style={{ color: '#A39E94' }}>
                 <Sparkles size={13} style={{ color: 'var(--ga-yellow)' }} aria-hidden />
                 {t('heroCap')}
               </GaCap>
-              <p className="font-ga-display text-[28px] font-medium">{t('heroTitle')}</p>
+              <p className="font-ga-display text-[22px] font-medium sm:text-[26px] lg:text-[28px]">{t('heroTitle')}</p>
               <p className="ga-ui mt-2 max-w-2xl text-[14.5px] leading-relaxed" style={{ color: '#A39E94' }}>
                 {session?.welcomeMessage}
               </p>
@@ -113,12 +113,12 @@ export default function V2StudentBeginnerPage() {
                   {phraseItems.map((item, i) => (
                     <div
                       key={item.sequenceOrder}
-                      className="flex items-center gap-3.5 px-5 py-3.5"
+                      className="flex items-center gap-3.5 px-4 py-3.5 lg:px-5"
                       style={{ borderTop: i ? '1px solid var(--ga-border)' : 'none' }}
                     >
                       <div className="min-w-0 flex-1">
-                        <p className="text-[14.5px] font-semibold text-ga-ink">{item.titleDe}</p>
-                        <p className="ga-ui text-[12.5px] text-ga-muted">{item.titleVi}</p>
+                        <p className="text-[14.5px] font-semibold text-ga-ink break-words">{item.titleDe}</p>
+                        <p className="ga-ui text-[12.5px] text-ga-muted break-words">{item.titleVi}</p>
                       </div>
                       <SpeakBtn label={t('listen', { text: item.titleDe })} onClick={() => speakWord(item.titleDe)} />
                     </div>
@@ -139,8 +139,8 @@ export default function V2StudentBeginnerPage() {
                 <Mic size={20} aria-hidden />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-[14.5px] font-semibold text-ga-ink">{t('speakingCta')}</p>
-                <p className="ga-ui mt-0.5 text-[13px] text-ga-muted">{session?.firstSpeakingPrompt}</p>
+                <p className="text-[14.5px] font-semibold text-ga-ink break-words">{t('speakingCta')}</p>
+                <p className="ga-ui mt-0.5 text-[13px] text-ga-muted break-words">{session?.firstSpeakingPrompt}</p>
               </div>
               <GaBtn variant="yellow" asChild>
                 <Link href="/v2/student/speaking">
@@ -156,7 +156,7 @@ export default function V2StudentBeginnerPage() {
               </GaBtn>
             ) : (
               <div
-                className="flex flex-col items-center gap-1.5 border px-6 py-6 text-center"
+                className="flex flex-col items-center gap-1.5 border px-4 py-6 text-center lg:px-6"
                 style={{ background: 'var(--ga-green-soft)', borderColor: 'var(--ga-green)' }}
               >
                 <p
@@ -189,9 +189,9 @@ export default function V2StudentBeginnerPage() {
 function VocabCard({ item, onSpeak }: { item: BeginnerItem; onSpeak: (text: string) => void }) {
   const t = useTranslations('v2.student.beginner')
   return (
-    <GaCard className="p-5">
+    <GaCard className="p-4 lg:p-5">
       <div className="flex items-start justify-between gap-3">
-        <p className="font-ga-display text-[26px] font-medium leading-tight text-ga-ink">{item.titleDe}</p>
+        <p className="min-w-0 break-words font-ga-display text-[20px] font-medium leading-tight text-ga-ink lg:text-[26px]">{item.titleDe}</p>
         <SpeakBtn label={t('listen', { text: item.titleDe })} onClick={() => onSpeak(item.titleDe)} />
       </div>
       <p className="ga-ui mt-1.5 text-[13.5px] font-semibold text-ga-muted">{item.titleVi}</p>
@@ -208,7 +208,7 @@ function SpeakBtn({ label, onClick }: { label: string; onClick: () => void }) {
       onClick={onClick}
       aria-label={label}
       title={label}
-      className="grid h-8 w-8 shrink-0 place-items-center rounded-ga border border-ga-line bg-ga-card text-ga-muted transition-colors hover:bg-ga-surface hover:text-ga-ink"
+      className="grid h-10 w-10 shrink-0 place-items-center rounded-ga border border-ga-line bg-ga-card text-ga-muted transition-colors hover:bg-ga-surface hover:text-ga-ink lg:h-8 lg:w-8"
     >
       <Volume2 size={14} aria-hidden />
     </button>

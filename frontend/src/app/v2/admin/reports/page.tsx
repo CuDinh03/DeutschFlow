@@ -110,28 +110,28 @@ export default function V2AdminReportsPage() {
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')}
         right={<GaBtn variant="ghost" size="sm" onClick={load}><RefreshCw size={15} /> {t('refresh')}</GaBtn>} />
 
-      <div className="flex-1 overflow-auto px-10 py-6">
+      <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
         {loading ? (
           <div className="flex flex-col gap-3">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="ga-shimmer h-[80px] border border-ga-line" aria-hidden />)}</div>
         ) : error ? (
-          <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadError')}</h2>
-            <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">{error} <code className="font-mono text-[12px] text-ga-accent">GET /api/admin/reports/*</code></p>
+          <div className="border border-ga-line bg-ga-card px-4 py-10 text-center sm:px-6 lg:px-10 lg:py-[52px]">
+            <h2 className="font-ga-display text-[20px] font-medium text-ga-red lg:text-[24px]">{t('loadError')}</h2>
+            <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm break-words text-[14px] text-ga-muted">{error} <code className="break-words font-mono text-[12px] text-ga-accent">GET /api/admin/reports/*</code></p>
             <GaBtn variant="primary" onClick={load}>{tc('retry')}</GaBtn>
           </div>
         ) : !overview ? (
-          <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">{t('noData')}</div>
+          <div className="border border-dashed border-ga-line px-4 py-[40px] text-center text-[14px] text-ga-muted sm:px-6 lg:px-10">{t('noData')}</div>
         ) : (
           <>
             {/* Action signals */}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               {signals.map((s) => (
-                <div key={s.title} className="border border-ga-line bg-ga-card p-[18px]">
-                  <div className="mb-2 flex items-center justify-between">
+                <div key={s.title} className="border border-ga-line bg-ga-card p-4 lg:p-[18px]">
+                  <div className="mb-2 flex items-center justify-between gap-2">
                     <GaCap>{s.title}</GaCap>
-                    <span className="px-2 py-0.5 text-[10.5px] font-bold" style={badge(s.ok)}>{s.ok ? t('pass') : t('attention')}</span>
+                    <span className="shrink-0 px-2 py-0.5 text-[10.5px] font-bold" style={badge(s.ok)}>{s.ok ? t('pass') : t('attention')}</span>
                   </div>
-                  <div className="font-ga-display text-[26px] font-medium text-ga-ink">{s.value}</div>
+                  <div className="font-ga-display text-[20px] font-medium text-ga-ink lg:text-[26px]">{s.value}</div>
                 </div>
               ))}
             </div>
@@ -161,17 +161,17 @@ export default function V2AdminReportsPage() {
             {/* KPI W4 */}
             <div className="mb-3.5 mt-[22px]"><GaCap>{t('kpiCap')}</GaCap></div>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-              <div className="border border-ga-line bg-ga-card p-[18px]">
+              <div className="border border-ga-line bg-ga-card p-4 lg:p-[18px]">
                 <GaCap>{t('kpiLatency')}</GaCap>
                 <div className="mt-2 font-ga-display text-[22px] font-medium text-ga-ink">{p95 != null ? `${Math.round(p95)} ms` : '—'}</div>
                 <p className="mt-1 text-[12px] font-bold" style={passStyle(p95 != null && p95 < 500)}>{p95 != null && p95 < 500 ? t('kpiLatencyPass') : t('kpiLatencyFail')}</p>
               </div>
-              <div className="border border-ga-line bg-ga-card p-[18px]">
+              <div className="border border-ga-line bg-ga-card p-4 lg:p-[18px]">
                 <GaCap>{t('kpiGrammar')}</GaCap>
                 <div className="mt-2 font-ga-display text-[22px] font-medium text-ga-ink">{grammarPct != null ? `${grammarPct.toFixed(2)}%` : '—'}</div>
                 <p className="mt-1 text-[12px] font-bold" style={passStyle(grammarPct != null && grammarPct >= 100)}>{grammarPct != null && grammarPct >= 100 ? t('kpiGrammarPass') : t('kpiGrammarFail')}</p>
               </div>
-              <div className="border border-ga-line bg-ga-card p-[18px]">
+              <div className="border border-ga-line bg-ga-card p-4 lg:p-[18px]">
                 <GaCap>{t('kpiRuleset')}</GaCap>
                 <div className="mt-2 font-ga-display text-[18px] font-medium text-ga-ink">{ruleset?.version ?? '—'}</div>
                 <p className="ga-ui mt-1 truncate text-[12px] text-ga-muted">{(ruleset?.dimensionsSupported ?? []).join(', ') || t('rulesetEmpty')}</p>
@@ -180,7 +180,8 @@ export default function V2AdminReportsPage() {
 
             {/* Gate checklist */}
             <div className="mb-3.5 mt-[22px]"><GaCap>{t('gateCap')}</GaCap></div>
-            <div className="border border-ga-line bg-ga-card">
+            <div className="overflow-x-auto">
+            <div className="min-w-[640px] border border-ga-line bg-ga-card">
               <div className="grid items-center gap-2 border-b border-ga-line bg-ga-bg px-5 py-[11px]" style={{ gridTemplateColumns: '1fr 130px 120px 110px 80px' }}>
                 {[t('gateColDate'), t('gateColGrammar'), t('gateColErrorRate'), t('gateColP95'), t('gateColGate')].map((h, i) => <span key={i} className={`ga-ui text-[10px] font-bold uppercase tracking-[0.1em] text-ga-muted ${i === 4 ? 'text-right' : ''}`}>{h}</span>)}
               </div>
@@ -195,6 +196,7 @@ export default function V2AdminReportsPage() {
                   <span className="flex justify-end"><span className="px-2 py-0.5 text-[10.5px] font-bold" style={badge(r.allPass)}>{r.allPass ? t('pass') : t('fail')}</span></span>
                 </div>
               ))}
+            </div>
             </div>
 
             {/* Student progress */}
@@ -212,7 +214,8 @@ export default function V2AdminReportsPage() {
                 </select>
               </div>
             </div>
-            <div className="border border-ga-line bg-ga-card">
+            <div className="overflow-x-auto">
+            <div className="min-w-[680px] border border-ga-line bg-ga-card">
               <div className="grid items-center gap-2 border-b border-ga-line bg-ga-bg px-5 py-[11px]" style={{ gridTemplateColumns: '1.4fr 100px 90px 90px 1fr' }}>
                 {[t('progressColStudent'), t('progressColCurrent'), t('progressColCompleted'), t('progressColProgress'), t('progressColLastStudy')].map((h) => <span key={h} className="ga-ui text-[10px] font-bold uppercase tracking-[0.1em] text-ga-muted">{h}</span>)}
               </div>
@@ -228,10 +231,11 @@ export default function V2AdminReportsPage() {
                 </div>
               ))}
             </div>
+            </div>
 
             {/* Wiktionary enrich tool */}
             <div className="mb-3.5 mt-[22px]"><GaCap>{t('wiktionaryCap')}</GaCap></div>
-            <div className="border border-ga-line bg-ga-card p-[18px]">
+            <div className="border border-ga-line bg-ga-card p-4 lg:p-[18px]">
               <div className="flex flex-wrap items-end gap-3">
                 <label className="ga-ui flex items-center gap-2 text-[12px] text-ga-muted">{t('wiktionaryLimit')}
                   <input type="number" min={1} max={2000} className={`${selectCls} w-[100px]`} value={wktLimit} onChange={(e) => setWktLimit(Number(e.target.value) || 0)} />

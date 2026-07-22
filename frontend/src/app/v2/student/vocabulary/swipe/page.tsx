@@ -128,7 +128,7 @@ function SwipeCards() {
 
   if (!me) {
     return (
-      <div className="flex min-h-full flex-col items-center justify-center gap-4 px-10 py-16">
+      <div className="flex min-h-full flex-col items-center justify-center gap-4 px-4 py-16 sm:px-6 lg:px-10">
         <p className="ga-ui max-w-md text-center text-[14px] text-ga-muted">{t('profileError')}</p>
         <GaBtn variant="ghost" onClick={() => void reload()}>
           {t('retry')}
@@ -155,16 +155,16 @@ function SwipeCards() {
         }
       />
 
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         <div className="mx-auto max-w-md space-y-[22px]">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <button
               type="button"
               onClick={() => {
                 if (inDeck) trackFeatureAction('swipe_cards', 'quit', { progress: done, total, mode })
                 router.push('/v2/student/vocabulary')
               }}
-              className="grid h-9 w-9 place-items-center rounded-ga border border-ga-line bg-ga-card text-ga-muted transition-colors hover:bg-ga-surface"
+              className="grid h-10 w-10 place-items-center rounded-ga border border-ga-line bg-ga-card text-ga-muted transition-colors hover:bg-ga-surface lg:h-9 lg:w-9"
               aria-label={t('back')}
             >
               <ArrowLeft size={16} aria-hidden />
@@ -190,12 +190,12 @@ function SwipeCards() {
           {deckLoading ? (
             <LoadingState label={t('loading')} />
           ) : !deck.length && !loadError ? (
-            <GaCard className="px-7 py-14 text-center">
+            <GaCard className="px-4 py-12 text-center lg:px-7 lg:py-14">
               <p className="font-ga-display text-[20px] font-medium text-ga-ink">{t('noWords')}</p>
             </GaCard>
           ) : showComplete ? (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <GaCard className="flex flex-col items-center gap-4 px-6 py-8">
+              <GaCard className="flex flex-col items-center gap-4 px-4 py-8 lg:px-6">
                 <span className="text-[40px]" aria-hidden>
                   🏆
                 </span>
@@ -206,8 +206,8 @@ function SwipeCards() {
                     { value: `${pct}%`, label: t('score'), color: 'var(--ga-blue)' },
                     { value: reviewIds.size, label: t('review'), color: 'var(--ga-red)' },
                   ].map((s) => (
-                    <div key={s.label} className="rounded-ga border border-ga-line bg-ga-surface p-3">
-                      <p className="font-ga-display text-[22px] font-medium" style={{ color: s.color }}>
+                    <div key={s.label} className="rounded-ga border border-ga-line bg-ga-surface p-2 lg:p-3">
+                      <p className="font-ga-display text-[19px] font-medium lg:text-[22px]" style={{ color: s.color }}>
                         {s.value}
                       </p>
                       <p className="ga-ui text-[11px] text-ga-muted">{s.label}</p>

@@ -26,7 +26,7 @@ export interface GradebookMatrixProps {
 export function GradebookMatrix({ students, assignments, t, skillLabel }: GradebookMatrixProps) {
   return (
     <div className="overflow-x-auto border border-ga-line">
-      <table className="w-full border-collapse text-left text-[13px]">
+      <table className="w-full min-w-[640px] border-collapse text-left text-[13px]">
         <thead>
           <tr className="bg-ga-side-active">
             <th className={`sticky left-0 z-30 bg-ga-side-active ${HEADER_CLASSES}`}>

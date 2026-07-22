@@ -161,11 +161,11 @@ function ErrorBook() {
         }
       />
 
-      <div className="flex-1 overflow-auto px-10 py-6">
+      <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
         <div className="mx-auto max-w-2xl space-y-[22px]">
           {/* ── Nhiệm vụ ôn hôm nay ─────────────────────────────────────────── */}
           {(pendingTasks.length > 0 || lockedCount > 0) && (
-            <section className="border border-ga-line bg-ga-yellow-soft p-5">
+            <section className="border border-ga-line bg-ga-yellow-soft p-4 lg:p-5">
               <div className="mb-4 flex items-center gap-2">
                 <Calendar size={16} className="text-ga-gold" aria-hidden />
                 <GaCap className="text-ga-gold">{t('reviewToday', { count: pendingTasks.length })}</GaCap>
@@ -174,7 +174,7 @@ function ErrorBook() {
               {pendingTasks.length > 0 && (
                 <div className="border border-ga-line bg-ga-card">
                   {pendingTasks.map((task, i) => (
-                    <div key={task.id} className={`flex items-center gap-3 px-5 py-3.5 ${i ? 'border-t border-ga-border' : ''}`}>
+                    <div key={task.id} className={`flex items-center gap-3 px-4 py-3.5 lg:px-5 ${i ? 'border-t border-ga-border' : ''}`}>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-[14px] font-semibold text-ga-ink" title={task.errorCode}>
                           {getErrorSnippet(task.errorCode, locale).title}
@@ -193,7 +193,7 @@ function ErrorBook() {
 
               {/* Gate PRO — v1 dùng <PremiumGate> (đẩy sang /student/pricing); v2 trỏ /v2/payment. */}
               {lockedCount > 0 && (
-                <div className="mt-3 flex items-center gap-3 border border-ga-line bg-ga-card px-5 py-3.5">
+                <div className="mt-3 flex items-center gap-3 border border-ga-line bg-ga-card px-4 py-3.5 lg:px-5">
                   <div className="min-w-0 flex-1">
                     <p className="text-[14px] font-semibold text-ga-ink">{t('lockedTitle', { count: lockedCount })}</p>
                     <p className="ga-ui mt-0.5 text-[12.5px] text-ga-muted">{t('lockedDesc')}</p>
@@ -245,7 +245,7 @@ function ErrorBook() {
                       return (
                         <article
                           key={err.errorCode}
-                          className="relative border border-ga-line bg-ga-card p-5 pl-6"
+                          className="relative border border-ga-line bg-ga-card p-4 pl-5 lg:p-5 lg:pl-6"
                           style={repaired ? { borderColor: 'var(--ga-green)' } : undefined}
                         >
                           <span
@@ -273,7 +273,7 @@ function ErrorBook() {
                             </span>
                           </header>
 
-                          <p className="text-[16px] font-semibold text-ga-ink" title={err.errorCode}>{snippet.title}</p>
+                          <p className="break-words text-[16px] font-semibold text-ga-ink" title={err.errorCode}>{snippet.title}</p>
                           {snippet.rule && <p className="ga-ui mt-1 text-[12.5px] leading-snug text-ga-muted">{snippet.rule}</p>}
                           {err.lastSeenAt && (
                             <p className="ga-ui mt-1.5 flex items-center gap-1 text-[12px] text-ga-subtle">
@@ -281,9 +281,9 @@ function ErrorBook() {
                             </p>
                           )}
 
-                          <footer className="mt-4 flex items-center gap-2">
-                            <span className="ga-ui flex flex-1 items-center gap-1.5 text-[12px] font-semibold text-ga-muted">
-                              <Shield size={13} className="text-ga-accent" aria-hidden /> {t('recordedGrammarError')}
+                          <footer className="mt-4 flex flex-wrap items-center gap-2">
+                            <span className="ga-ui flex min-w-0 flex-1 items-center gap-1.5 text-[12px] font-semibold text-ga-muted">
+                              <Shield size={13} className="shrink-0 text-ga-accent" aria-hidden /> {t('recordedGrammarError')}
                             </span>
                             <GaBtn
                               variant={repaired ? 'ghost' : 'primary'}
@@ -305,7 +305,7 @@ function ErrorBook() {
 
               {/* ── Đã xong hết task hôm nay ──────────────────────────────────── */}
               {pendingTasks.length === 0 && tasks.length > 0 && (
-                <p className="border border-ga-line bg-ga-green-soft px-5 py-3.5 text-center text-[13.5px] font-semibold text-ga-green">
+                <p className="border border-ga-line bg-ga-green-soft px-4 py-3.5 text-center text-[13.5px] font-semibold text-ga-green lg:px-5">
                   🎉 {t('allDone')}
                 </p>
               )}
@@ -317,9 +317,9 @@ function ErrorBook() {
                     type="button"
                     onClick={() => setShowResolved((v) => !v)}
                     aria-expanded={showResolved}
-                    className="flex w-full items-center justify-between border border-ga-line bg-ga-green-soft px-5 py-3 transition-colors hover:bg-ga-surface"
+                    className="flex w-full items-center justify-between gap-3 border border-ga-line bg-ga-green-soft px-4 py-3 transition-colors hover:bg-ga-surface lg:px-5"
                   >
-                    <span className="flex items-center gap-2">
+                    <span className="flex min-w-0 items-center gap-2">
                       <CheckCircle2 size={14} className="text-ga-green" aria-hidden />
                       <GaCap className="text-ga-green">{t('completedCap', { count: filteredResolved.length })}</GaCap>
                     </span>
@@ -334,7 +334,7 @@ function ErrorBook() {
                         const style = catStyle(err.errorCode)
                         const snippet = getErrorSnippet(err.errorCode, locale)
                         return (
-                          <div key={err.errorCode} className={`flex items-center gap-3 px-5 py-3 ${i ? 'border-t border-ga-border' : ''}`}>
+                          <div key={err.errorCode} className={`flex items-center gap-2 px-4 py-3 lg:gap-3 lg:px-5 ${i ? 'border-t border-ga-border' : ''}`}>
                             <span
                               className="ga-ui shrink-0 rounded-ga-pill px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em]"
                               style={{ background: `${style.color}18`, color: style.color }}

@@ -147,7 +147,7 @@ export default function V2TeacherDashboardPage() {
         }
       />
 
-      <div className="flex-1 overflow-auto px-[52px] py-[30px]">
+      <div className="flex-1 overflow-auto px-4 py-6 sm:px-8 lg:px-[52px] lg:py-[30px]">
         <TkStatStrip
           items={[
             { label: t('stats.students'), value: totals.students, sub: t('stats.studentsSub', { count: classes.length }) },
@@ -178,19 +178,19 @@ export default function V2TeacherDashboardPage() {
                 onChange={(e) => setNewClass(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && createClass()}
                 placeholder={t('newClassPlaceholder')}
-                className="flex-1 bg-transparent px-5 py-[15px] text-[15px] text-ga-ink outline-none"
+                className="min-w-0 flex-1 bg-transparent px-4 py-[15px] text-[15px] text-ga-ink outline-none lg:px-5"
               />
               <button
                 type="button"
                 onClick={createClass}
                 disabled={creating}
-                className="flex shrink-0 items-center gap-2 bg-ga-ink px-[26px] py-[15px] text-[14px] font-semibold text-ga-bg disabled:opacity-60"
+                className="flex shrink-0 items-center gap-2 bg-ga-ink px-4 py-[15px] text-[14px] font-semibold text-ga-bg disabled:opacity-60 lg:px-[26px]"
               >
                 <Plus size={18} /> {t('createClass')}
               </button>
             </div>
 
-            <div className="mb-[18px] flex items-center justify-between gap-3">
+            <div className="mb-[18px] flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <GaCap>{t('teachingClasses')}</GaCap>
                 <span className="bg-ga-ink px-2.5 py-[3px] text-[11px] font-bold text-ga-bg">{classes.length}</span>
@@ -199,22 +199,22 @@ export default function V2TeacherDashboardPage() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={t('searchClass')}
-                containerClassName="w-[200px]"
+                containerClassName="w-full sm:w-[200px]"
               />
             </div>
 
             {loading ? (
-              <div className="grid grid-cols-2 gap-[18px]">
+              <div className="grid grid-cols-1 gap-[18px] sm:grid-cols-2">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <div key={i} className="ga-shimmer h-[120px] border border-ga-line" aria-hidden />
                 ))}
               </div>
             ) : error ? (
-              <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-                <h2 className="font-ga-display text-[26px] font-medium leading-[1.2] text-ga-red">
+              <div className="border border-ga-line bg-ga-card px-4 py-10 text-center lg:px-10 lg:py-[52px]">
+                <h2 className="font-ga-display text-[20px] font-medium leading-[1.2] text-ga-red lg:text-[26px]">
                   {t('loadClassError')}
                 </h2>
-                <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14.5px] text-ga-muted">
+                <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm break-words text-[14.5px] text-ga-muted">
                   {error} <code className="font-mono text-[12px] text-ga-accent">GET /api/v2/teacher/classes</code>
                 </p>
                 <GaBtn variant="primary" onClick={load}>
@@ -222,24 +222,24 @@ export default function V2TeacherDashboardPage() {
                 </GaBtn>
               </div>
             ) : list.length === 0 ? (
-              <div className="border border-dashed border-ga-line px-10 py-[30px] text-center text-[14px] text-ga-muted">
+              <div className="border border-dashed border-ga-line px-4 py-[30px] text-center text-[14px] text-ga-muted lg:px-10">
                 {classes.length === 0 ? t('noClasses') : t('noClassesFound')}
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-[18px]">
+              <div className="grid grid-cols-1 gap-[18px] sm:grid-cols-2">
                 {list.map((c) => (
                   <div key={c.id} className="border border-ga-line bg-ga-card">
                     <button
                       type="button"
                       onClick={() => router.push(`/v2/teacher/classes/${c.id}`)}
-                      className="flex w-full items-start justify-between gap-3 border-b border-ga-line px-[22px] py-5 text-left transition-colors hover:bg-ga-surface"
+                      className="flex w-full items-start justify-between gap-3 border-b border-ga-line px-4 py-5 text-left transition-colors hover:bg-ga-surface lg:px-[22px]"
                     >
-                      <div className="flex items-center gap-3.5">
+                      <div className="flex min-w-0 items-center gap-3.5">
                         <span className="grid h-[42px] w-[42px] shrink-0 place-items-center bg-ga-side-active font-ga-display text-[20px] font-medium text-ga-ink">
                           {(c.name[0] ?? 'L').toUpperCase()}
                         </span>
-                        <div>
-                          <div className="text-[15.5px] font-bold leading-[1.3] text-ga-ink">{c.name}</div>
+                        <div className="min-w-0">
+                          <div className="break-words text-[15.5px] font-bold leading-[1.3] text-ga-ink">{c.name}</div>
                           <div className="mt-[7px] flex gap-3.5 text-[13px] text-ga-muted">
                             <span>
                               <strong className="text-ga-ink">{c.students}</strong> {t('studentAbbr')}
@@ -259,19 +259,19 @@ export default function V2TeacherDashboardPage() {
                         </span>
                       )}
                     </button>
-                    <div className="flex items-center justify-between gap-2.5 px-[22px] py-3">
-                      <div className="flex gap-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2.5 px-4 py-3 lg:px-[22px]">
+                      <div className="flex flex-wrap gap-2">
                         <button
                           type="button"
                           onClick={() => router.push(`/v2/teacher/classes/${c.id}`)}
-                          className="rounded-ga border border-ga-line px-3 py-[7px] text-[11.5px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent"
+                          className="min-h-[40px] rounded-ga border border-ga-line px-3 py-[7px] text-[11.5px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent lg:min-h-0"
                         >
                           {t('enterClass')}
                         </button>
                         <button
                           type="button"
                           onClick={() => toast(t('aiMaterialsComing'))}
-                          className="rounded-ga border border-ga-line px-3 py-[7px] text-[11.5px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent"
+                          className="min-h-[40px] rounded-ga border border-ga-line px-3 py-[7px] text-[11.5px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent lg:min-h-0"
                         >
                           {t('aiMaterials')}
                         </button>
@@ -290,8 +290,8 @@ export default function V2TeacherDashboardPage() {
 
           {/* Right: grading + join summary (count-only — no list endpoint) */}
           <div className="flex flex-col gap-5">
-            <div className="border border-ga-line bg-ga-card p-[22px]">
-              <div className="mb-3.5 flex items-center justify-between">
+            <div className="border border-ga-line bg-ga-card p-4 lg:p-[22px]">
+              <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2.5">
                   <GaCap>{t('toGradeCap')}</GaCap>
                   {summary.pendingReviewCount > 0 && (
@@ -340,9 +340,9 @@ export default function V2TeacherDashboardPage() {
               )}
             </div>
 
-            <div className="border border-ga-line bg-ga-card p-[22px]">
+            <div className="border border-ga-line bg-ga-card p-4 lg:p-[22px]">
               <GaCap className="mb-3.5 block">{t('joinRequestsCap')}</GaCap>
-              <div className="font-ga-display text-[32px] font-medium leading-none text-ga-ink">
+              <div className="font-ga-display text-[22px] font-medium leading-none text-ga-ink sm:text-[26px] lg:text-[32px]">
                 {summary.pendingJoinRequests}
               </div>
               <p className="mt-2 text-[12.5px] text-ga-muted">{t('joinRequestsWaiting')}</p>

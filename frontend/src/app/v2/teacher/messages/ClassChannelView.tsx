@@ -161,7 +161,7 @@ export function ClassChannelView() {
         ) : (
           <>
             <header className="flex items-center gap-3 border-b border-ga-line px-4 py-3">
-              <button type="button" onClick={() => setActiveId(null)} className="md:hidden" aria-label="Quay lại">
+              <button type="button" onClick={() => setActiveId(null)} className="-ml-1 grid h-10 w-10 shrink-0 place-items-center md:hidden" aria-label="Quay lại">
                 <ArrowLeft size={18} className="text-ga-muted" />
               </button>
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-ga-accent-soft text-ga-accent">
@@ -234,7 +234,7 @@ export function ClassChannelView() {
                 }}
                 rows={1}
                 placeholder="Nhắn cả lớp… (Enter để gửi, Shift+Enter xuống dòng)"
-                className="ga-ui max-h-32 min-h-[40px] flex-1 resize-none rounded-ga border border-ga-line bg-ga-bg px-3.5 py-2 text-[14px] text-ga-ink outline-none focus:border-ga-accent"
+                className="ga-ui max-h-32 min-h-[40px] w-full min-w-0 flex-1 resize-none rounded-ga border border-ga-line bg-ga-bg px-3.5 py-2 text-[14px] text-ga-ink outline-none focus:border-ga-accent"
               />
               <button
                 type="button"

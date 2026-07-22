@@ -28,7 +28,9 @@ export function GaPageHdr({ title, subtitle, eyebrow, right, accent = false, acc
       className={cn(
         // flex-wrap: on narrow widths the right-action slot drops below the title
         // instead of crushing it (fixes class-detail / tc-checklist header cramping).
-        'relative flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-b px-[52px] pb-[26px] pt-9',
+        'relative flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-b',
+        // Đệm trang hạ thang trên mobile (52px × 2 ăn hết 104px của khổ 390px); lg trả lại nguyên bản.
+        'px-4 pb-5 pt-6 sm:px-8 lg:px-[52px] lg:pb-[26px] lg:pt-9',
         className,
       )}
       style={
@@ -46,12 +48,16 @@ export function GaPageHdr({ title, subtitle, eyebrow, right, accent = false, acc
       )}
       <div className="min-w-0">
         {eyebrow && <GaCap className="mb-2">{eyebrow}</GaCap>}
-        <h1 className="font-ga-display text-[36px] font-medium leading-[1.15] tracking-[-0.015em] text-ga-ink">
+        <h1 className="font-ga-display text-[24px] font-medium leading-[1.15] tracking-[-0.015em] text-ga-ink sm:text-[28px] lg:text-[36px]">
           {title}
         </h1>
         {subtitle && <p className="ga-ui mt-2 max-w-2xl text-[14.5px] text-ga-muted">{subtitle}</p>}
       </div>
-      {right && <div className="flex shrink-0 items-center gap-2.5">{right}</div>}
+      {right && (
+        <div className="flex max-w-full shrink-0 flex-wrap items-center gap-2.5 lg:max-w-none lg:flex-nowrap">
+          {right}
+        </div>
+      )}
     </header>
   )
 }

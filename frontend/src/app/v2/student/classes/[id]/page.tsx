@@ -141,8 +141,8 @@ export default function V2ClassStudentPage() {
     return (
       <div className="flex min-h-full flex-col">
         <GaPageHdr accent title={t('titleFallback')} right={<GaBtn variant="ghost" size="sm" onClick={() => router.push('/v2/student/classes')}><ArrowLeft size={14} /> {t('backToClasses')}</GaBtn>} />
-        <div className="flex-1 px-10 py-10">
-          <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
+        <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
+          <div className="border border-ga-line bg-ga-card px-4 py-10 text-center sm:px-6 lg:px-10 lg:py-[52px]">
             <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadErrorTitle')}</h2>
             <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">{error}</p>
             <GaBtn variant="primary" onClick={load}>{tc('retry')}</GaBtn>
@@ -159,7 +159,7 @@ export default function V2ClassStudentPage() {
         title={cls?.name ?? (loading ? t('titleLoading') : t('titleClass'))}
         subtitle={teacherLine}
         right={
-          <div className="flex gap-2.5">
+          <div className="flex flex-wrap gap-2.5">
             <GaBtn variant="ghost" size="sm" onClick={() => router.push('/v2/student/classes')}><ArrowLeft size={14} /> {t('backToClasses')}</GaBtn>
             <GaBtn
               variant="yellow"
@@ -177,13 +177,13 @@ export default function V2ClassStudentPage() {
       />
 
       {/* Tab bar */}
-      <div className="flex shrink-0 border-b border-ga-line bg-ga-card px-10">
+      <div className="flex shrink-0 overflow-x-auto border-b border-ga-line bg-ga-card px-4 sm:px-6 lg:overflow-x-visible lg:px-10">
         {TABS.map(([id, labelKey]) => (
           <button
             key={id}
             type="button"
             onClick={() => setTab(id)}
-            className="ga-ui px-[18px] py-3.5 text-[14px] font-semibold transition-colors"
+            className="ga-ui shrink-0 whitespace-nowrap px-3 py-3.5 text-[14px] font-semibold transition-colors lg:px-[18px]"
             style={{ color: tab === id ? 'var(--ga-ink)' : 'var(--ga-muted)', borderBottom: `2px solid ${tab === id ? 'var(--ga-yellow)' : 'transparent'}` }}
           >
             {t(labelKey)}
@@ -191,7 +191,7 @@ export default function V2ClassStudentPage() {
         ))}
       </div>
 
-      <div className="flex-1 overflow-auto px-10 py-7">
+      <div className="flex-1 overflow-auto px-4 py-5 sm:px-6 lg:px-10 lg:py-7">
         {loading ? (
           <div className="flex flex-col gap-3">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="ga-shimmer h-[64px] border border-ga-line" aria-hidden />)}</div>
         ) : tab === 'overview' ? (
@@ -205,13 +205,13 @@ export default function V2ClassStudentPage() {
               ]}
             />
             <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2">
-              <div className="border border-ga-line bg-ga-card p-6">
+              <div className="border border-ga-line bg-ga-card p-4 lg:p-6">
                 <GaCap className="mb-2 block">{t('currentLessonCap')}</GaCap>
                 <div className="font-ga-display text-[20px] font-medium text-ga-ink">{cls?.currentLessonTitle || t('notStarted')}</div>
                 <div className="mt-3 h-[6px] bg-ga-line"><div className="h-full" style={{ width: `${lessonPct}%`, background: 'var(--ga-yellow)' }} /></div>
                 <div className="mt-2 text-[13px] text-ga-muted">{t('lessonsDone', { done: cls?.lessonCompleted ?? 0, total: cls?.lessonTotal ?? 0 })}</div>
               </div>
-              <div className="border border-ga-line bg-ga-card p-6">
+              <div className="border border-ga-line bg-ga-card p-4 lg:p-6">
                 <GaCap className="mb-2 block">{t('teacherCap')}</GaCap>
                 {(cls?.teachers ?? []).length === 0 ? (
                   <p className="text-[14px] text-ga-muted">{t('noTeacher')}</p>
@@ -233,7 +233,7 @@ export default function V2ClassStudentPage() {
           </>
         ) : tab === 'tasks' ? (
           tasks.length === 0 ? (
-            <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">{t('noTasks')}</div>
+            <div className="border border-dashed border-ga-line px-4 py-8 text-center text-[14px] text-ga-muted sm:px-6 lg:px-10 lg:py-[40px]">{t('noTasks')}</div>
           ) : (
             <div className="flex flex-col gap-3.5">
               {tasks.map((tk) => {
@@ -244,7 +244,7 @@ export default function V2ClassStudentPage() {
                 // A grade the student may actually see: confirmed only. An AI proposal is not a grade.
                 const graded = st === 'GRADED' || st === 'EVALUATED'
                 return (
-                  <div key={tk.id} className="grid grid-cols-[1fr_auto] items-center gap-4 border border-ga-line bg-ga-card px-[22px] py-5">
+                  <div key={tk.id} className="grid grid-cols-1 items-center gap-3 border border-ga-line bg-ga-card px-4 py-4 lg:grid-cols-[1fr_auto] lg:gap-4 lg:px-[22px] lg:py-5">
                     <div className="min-w-0">
                       <div className="mb-1.5 flex items-center gap-2.5">
                         <span className="truncate text-[16px] font-bold text-ga-ink">{tk.topic}</span>
@@ -270,7 +270,7 @@ export default function V2ClassStudentPage() {
         ) : (
           // lessons / lộ trình
           lessons.length === 0 ? (
-            <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">{t('noLessons')}</div>
+            <div className="border border-dashed border-ga-line px-4 py-8 text-center text-[14px] text-ga-muted sm:px-6 lg:px-10 lg:py-[40px]">{t('noLessons')}</div>
           ) : (
             <>
               <GaCap className="mb-4 block">{t('lessonPathCap', { done: doneLessons, total: lessons.length })}</GaCap>
@@ -283,7 +283,7 @@ export default function V2ClassStudentPage() {
                 {lessons.map((l, i) => {
                   const points = resolvePointTexts(l.knowledgePoints, l.description)
                   return (
-                    <div key={l.id} className="flex items-start gap-3.5 px-5 py-3.5" style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
+                    <div key={l.id} className="flex flex-wrap items-start gap-3.5 px-4 py-3.5 lg:flex-nowrap lg:px-5" style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
                       <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full text-[12px] font-bold" style={l.completed ? { background: 'var(--ga-green-soft)', color: 'var(--ga-green)' } : { background: 'var(--ga-side-active)', color: 'var(--ga-muted)' }}>
                         {l.completed ? <Check size={14} /> : i + 1}
                       </span>
@@ -305,7 +305,7 @@ export default function V2ClassStudentPage() {
                               const st: CompetencyStatus = c.id != null ? (competencyMap[c.id] ?? 'NOT_STARTED') : 'NOT_STARTED'
                               const mastered = st === 'MASTERED'
                               return (
-                                <li key={c.id ?? c.orderIndex} className="flex items-start gap-2 text-[12.5px] leading-[1.5]">
+                                <li key={c.id ?? c.orderIndex} className="flex flex-wrap items-start gap-2 text-[12.5px] leading-[1.5] lg:flex-nowrap">
                                   <span className="mt-[2px] shrink-0" style={{ color: mastered ? 'var(--ga-green)' : 'var(--ga-violet)' }}>✓</span>
                                   <span className="min-w-0 flex-1 break-words" style={{ color: 'var(--ga-violet)' }}>
                                     {c.text}
@@ -319,7 +319,7 @@ export default function V2ClassStudentPage() {
                                       value={st}
                                       disabled={savingCanDo === c.id}
                                       onChange={(e) => onSetCompetency(c.id as number, e.target.value as CompetencyStatus)}
-                                      className="shrink-0 rounded-ga border border-ga-line bg-ga-bg px-1.5 py-0.5 text-[11px] text-ga-ink outline-none focus:border-ga-accent disabled:opacity-50"
+                                      className="min-h-[40px] w-full shrink-0 rounded-ga border border-ga-line bg-ga-bg px-1.5 py-1.5 text-[11px] text-ga-ink outline-none focus:border-ga-accent disabled:opacity-50 lg:min-h-0 lg:w-auto lg:py-0.5"
                                     >
                                       <option value="NOT_STARTED">{t('competency.notStarted')}</option>
                                       <option value="IN_PROGRESS">{t('competency.inProgress')}</option>
@@ -333,7 +333,7 @@ export default function V2ClassStudentPage() {
                         )}
                         <LessonMaterials lessonId={l.id} />
                       </div>
-                      <span className="mt-0.5 shrink-0 text-[12.5px]" style={{ color: l.completed ? 'var(--ga-green)' : 'var(--ga-muted)' }}>
+                      <span className="mt-0.5 w-full shrink-0 text-[12.5px] lg:w-auto" style={{ color: l.completed ? 'var(--ga-green)' : 'var(--ga-muted)' }}>
                         {l.completed ? t('taughtAt', { date: fmtDate(l.completedAt) }) : t('notTaught')}
                       </span>
                     </div>

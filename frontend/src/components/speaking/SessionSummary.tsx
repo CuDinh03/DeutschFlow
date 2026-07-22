@@ -161,8 +161,8 @@ export function SessionSummary({
       </div>
 
       {/* Score card */}
-      <div className="rounded-[20px] p-5" style={cardStyle}>
-        <div className="flex items-center gap-5">
+      <div className="rounded-[20px] p-4 sm:p-5" style={cardStyle}>
+        <div className="flex flex-col items-center gap-4 sm:flex-row sm:gap-5">
           <div className="relative flex-shrink-0">
             <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
               <defs>
@@ -189,7 +189,7 @@ export function SessionSummary({
               <span className="text-[10px] font-semibold mt-0.5" style={{ color: T.inkFaint }}>/ 100</span>
             </div>
           </div>
-          <div className="flex-1 grid grid-cols-2 gap-2.5">
+          <div className="w-full grid grid-cols-2 gap-2.5 sm:w-auto sm:flex-1">
             {[
               { icon: Clock,         label: t("summaryDuration"),  value: duration,            color: CYAN      },
               { icon: TrendingUp,    label: t("summaryExchanges"), value: `${totalExchanges}`, color: PURPLE    },
@@ -200,12 +200,12 @@ export function SessionSummary({
                 key={label}
                 className={
                   isDark
-                    ? "rounded-[12px] p-2.5 flex flex-col gap-1 bg-white/5 border border-white/10"
-                    : "rounded-[12px] p-2.5 flex flex-col gap-1 bg-slate-50 border border-slate-100"
+                    ? "min-w-0 rounded-[12px] p-2.5 flex flex-col gap-1 bg-white/5 border border-white/10"
+                    : "min-w-0 rounded-[12px] p-2.5 flex flex-col gap-1 bg-slate-50 border border-slate-100"
                 }
               >
                 <Icon size={13} style={{ color }} />
-                <span className="font-bold text-base leading-none" style={{ color: T.ink }}>{value}</span>
+                <span className="font-bold text-base leading-none break-words" style={{ color: T.ink }}>{value}</span>
                 <span className="text-[10px]" style={{ color: T.inkSoft }}>{label}</span>
               </div>
             ))}
@@ -256,7 +256,7 @@ export function SessionSummary({
                 reduceMotion ? { duration: 0 } : { delay: 0.6 + i * 0.08 }
               }>
               <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: CYAN }} />
-              <span className="font-bold text-sm" style={{ color: T.ink }}>{word}</span>
+              <span className="min-w-0 break-words font-bold text-sm" style={{ color: T.ink }}>{word}</span>
             </motion.div>
           ))}
         </div>

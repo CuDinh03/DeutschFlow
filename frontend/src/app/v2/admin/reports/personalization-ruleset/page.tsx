@@ -68,7 +68,7 @@ export default function V2PersonalizationRulesetPage() {
           </GaBtn>
         }
       />
-      <div className="flex-1 overflow-auto px-10 py-6">
+      <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
         {loading ? (
           <div className="flex flex-col gap-3">
             {Array.from({ length: 3 }).map((_, i) => (
@@ -76,27 +76,27 @@ export default function V2PersonalizationRulesetPage() {
             ))}
           </div>
         ) : error ? (
-          <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadError')}</h2>
-            <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">
-              {error} <code className="font-mono text-[12px] text-ga-accent">GET /api/admin/reports/personalization-ruleset</code>
+          <div className="border border-ga-line bg-ga-card px-4 py-10 text-center sm:px-6 lg:px-10 lg:py-[52px]">
+            <h2 className="font-ga-display text-[20px] font-medium text-ga-red lg:text-[24px]">{t('loadError')}</h2>
+            <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm break-words text-[14px] text-ga-muted">
+              {error} <code className="break-words font-mono text-[12px] text-ga-accent">GET /api/admin/reports/personalization-ruleset</code>
             </p>
             <GaBtn variant="primary" onClick={load}>
               {tc('retry')}
             </GaBtn>
           </div>
         ) : !data ? (
-          <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">{t('noData')}</div>
+          <div className="border border-dashed border-ga-line px-4 py-[40px] text-center text-[14px] text-ga-muted sm:px-6 lg:px-10">{t('noData')}</div>
         ) : (
           <>
             {/* Active version banner */}
-            <div className="flex items-center gap-4 border border-ga-line bg-ga-card p-[22px]">
+            <div className="flex items-center gap-4 border border-ga-line bg-ga-card p-4 lg:p-[22px]">
               <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full" style={{ background: 'var(--ga-accent-soft, rgba(47,111,201,0.12))' }}>
                 <GitBranch size={22} style={{ color: 'var(--ga-accent)' }} />
               </span>
-              <div>
+              <div className="min-w-0">
                 <GaCap>{t('activeVersionCap')}</GaCap>
-                <p className="mt-1 font-ga-display text-[28px] font-medium text-ga-ink">{data.version ?? '—'}</p>
+                <p className="mt-1 break-words font-ga-display text-[20px] font-medium text-ga-ink sm:text-[24px] lg:text-[28px]">{data.version ?? '—'}</p>
               </div>
             </div>
 
@@ -104,7 +104,7 @@ export default function V2PersonalizationRulesetPage() {
               <GaCap>{t('dimensionsCap', { count: dims.length })}</GaCap>
             </div>
             {dims.length === 0 ? (
-              <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">
+              <div className="border border-dashed border-ga-line px-4 py-[40px] text-center text-[14px] text-ga-muted sm:px-6 lg:px-10">
                 {t('noDimensions')}
               </div>
             ) : (

@@ -26,7 +26,10 @@ export function ErrorBanner({
     return (
       <div
         role="alert"
-        className={cn('flex flex-col items-center justify-center gap-3 px-6 py-14 text-center', className)}
+        className={cn(
+          'flex flex-col items-center justify-center gap-3 px-4 py-10 text-center lg:px-6 lg:py-14',
+          className,
+        )}
       >
         <span className="grid h-12 w-12 place-items-center rounded-ga-pill bg-ga-red-soft text-ga-red">
           <GaIcon name="error" size={24} />
@@ -47,7 +50,7 @@ export function ErrorBanner({
     <div
       role="alert"
       className={cn(
-        'flex items-center gap-3 rounded-ga border border-ga-line bg-ga-red-soft px-4 py-3',
+        'flex flex-wrap items-center gap-3 rounded-ga border border-ga-line bg-ga-red-soft px-4 py-3 lg:flex-nowrap',
         className,
       )}
     >

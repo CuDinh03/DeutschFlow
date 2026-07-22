@@ -152,14 +152,14 @@ export function WeeklyChallengeCard({ cefrBand, onSubmitted }: Props) {
         className="w-full flex items-start justify-between gap-2 text-left"
         onClick={() => setExpanded((v) => !v)}
       >
-        <div>
+        <div className="min-w-0">
           <div
             className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold mb-2"
             style={{ background: `${PURPLE}18`, border: `1px solid ${PURPLE}40`, color: PURPLE }}
           >
             <Calendar size={11} /> {t("weeklyBadge")}
           </div>
-          <h3 className="text-[#121212] font-bold text-sm leading-snug pr-2">{prompt.title}</h3>
+          <h3 className="text-[#121212] font-bold text-sm leading-snug pr-2 break-words">{prompt.title}</h3>
           <p className="text-[11px] mt-1 text-[#64748B]">
             {prompt.cefrBand} · {prompt.weekStartDate}
           </p>

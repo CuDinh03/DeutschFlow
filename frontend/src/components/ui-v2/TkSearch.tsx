@@ -13,7 +13,9 @@ export function TkSearch({ containerClassName, className, ...props }: TkSearchPr
   return (
     <div
       className={cn(
-        'flex flex-1 items-center gap-2.5 rounded-ga border border-ga-line bg-ga-card px-4 py-2.5 transition-shadow focus-within:shadow-ga-card-hover',
+        // `min-w-0`: không có nó, `flex-1` giữ min-width:auto = bề rộng mặc định của <input>
+        // (~170px) nên ô tìm kiếm đẩy tràn cả hàng trên khổ hẹp.
+        'flex min-w-0 flex-1 items-center gap-2.5 rounded-ga border border-ga-line bg-ga-card px-4 py-2.5 transition-shadow focus-within:shadow-ga-card-hover',
         containerClassName,
       )}
     >
@@ -21,7 +23,8 @@ export function TkSearch({ containerClassName, className, ...props }: TkSearchPr
       <input
         type="search"
         className={cn(
-          'ga-ui w-full bg-transparent text-[13px] font-medium text-ga-ink outline-none placeholder:text-ga-subtle',
+          // <input> là flex item nên min-width:auto = bề rộng nội tại (~20 ký tự) → phải min-w-0.
+          'ga-ui w-full min-w-0 bg-transparent text-[13px] font-medium text-ga-ink outline-none placeholder:text-ga-subtle',
           className,
         )}
         {...props}

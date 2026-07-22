@@ -139,12 +139,12 @@ export default function V2StudentVocabAnalyticsPage() {
         }
       />
 
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         <div className="mx-auto max-w-xl space-y-[22px]">
           <button
             type="button"
             onClick={() => router.push('/v2/student/vocabulary')}
-            className="grid h-9 w-9 place-items-center rounded-ga border border-ga-line bg-ga-card text-ga-muted transition-colors hover:bg-ga-surface"
+            className="grid h-10 w-10 place-items-center rounded-ga border border-ga-line bg-ga-card text-ga-muted transition-colors hover:bg-ga-surface lg:h-9 lg:w-9"
             aria-label={t('back')}
           >
             <ArrowLeft size={16} aria-hidden />
@@ -156,9 +156,9 @@ export default function V2StudentVocabAnalyticsPage() {
             <LoadingState label={t('analyzing')} />
           ) : coverage ? (
             <>
-              <GaCard className="p-6">
+              <GaCard className="p-4 lg:p-6">
                 <div className="flex items-baseline justify-between gap-3">
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-ga-display text-[22px] font-medium text-ga-ink">{t('vocabCoverage')}</p>
                     <p className="ga-ui mt-1 text-[13px] text-ga-muted">
                       {coverage.totalWords.toLocaleString()} {t('wordsInSystem')}
@@ -167,8 +167,8 @@ export default function V2StudentVocabAnalyticsPage() {
                 </div>
 
                 <div className="mt-5 grid grid-cols-2 gap-3">
-                  <div className="rounded-ga border border-ga-line bg-ga-surface p-4 text-center">
-                    <p className="font-ga-display text-[28px] font-medium text-ga-ink">
+                  <div className="rounded-ga border border-ga-line bg-ga-surface p-3 text-center lg:p-4">
+                    <p className="font-ga-display text-[24px] font-medium text-ga-ink lg:text-[28px]">
                       {Math.round(coverage.nounCoveragePercent)}%
                     </p>
                     <p className="ga-ui mt-1 text-[12.5px] text-ga-muted">{t('nounsWithGender')}</p>
@@ -176,8 +176,8 @@ export default function V2StudentVocabAnalyticsPage() {
                       {coverage.nounWithGender.toLocaleString()} / {coverage.nounWords.toLocaleString()}
                     </p>
                   </div>
-                  <div className="rounded-ga border border-ga-line bg-ga-surface p-4 text-center">
-                    <p className="font-ga-display text-[28px] font-medium text-ga-ink">
+                  <div className="rounded-ga border border-ga-line bg-ga-surface p-3 text-center lg:p-4">
+                    <p className="font-ga-display text-[24px] font-medium text-ga-ink lg:text-[28px]">
                       {Math.round(coverage.verbCoveragePercent)}%
                     </p>
                     <p className="ga-ui mt-1 text-[12.5px] text-ga-muted">{t('verbsConjugated')}</p>
@@ -192,10 +192,10 @@ export default function V2StudentVocabAnalyticsPage() {
                   {genderCells.map(([g, count, color]) => (
                     <div
                       key={g}
-                      className="rounded-ga border bg-ga-card p-3 text-center"
+                      className="rounded-ga border bg-ga-card p-2 text-center lg:p-3"
                       style={{ borderColor: `${color}44` }}
                     >
-                      <p className="font-ga-display text-[20px] font-medium" style={{ color }}>
+                      <p className="font-ga-display text-[17px] font-medium lg:text-[20px]" style={{ color }}>
                         {Number(count).toLocaleString()}
                       </p>
                       <p className="ga-ui text-[12px] font-semibold" style={{ color }}>
@@ -206,7 +206,7 @@ export default function V2StudentVocabAnalyticsPage() {
                 </div>
               </GaCard>
 
-              <GaCard className="p-6">
+              <GaCard className="p-4 lg:p-6">
                 <div className="mb-4 flex items-center gap-2">
                   <BarChart2 size={17} className="text-ga-accent" aria-hidden />
                   <GaCap>{t('vocabDetails')}</GaCap>
@@ -227,7 +227,7 @@ export default function V2StudentVocabAnalyticsPage() {
                     },
                   ].map(({ label, pct, count, color }) => (
                     <div key={label}>
-                      <div className="mb-1 flex items-baseline justify-between">
+                      <div className="mb-1 flex flex-wrap items-baseline justify-between gap-x-2">
                         <span className="ga-ui text-[13.5px] font-semibold text-ga-ink">{label}</span>
                         <span className="ga-ui text-[12px] text-ga-muted">
                           {t('wordsRatio', { ratio: count, percent: pct })}
@@ -245,7 +245,7 @@ export default function V2StudentVocabAnalyticsPage() {
               </GaCard>
 
               {history.length >= 2 && (
-                <GaCard className="p-6">
+                <GaCard className="p-4 lg:p-6">
                   <div className="mb-4 flex items-center gap-2">
                     <TrendingUp size={17} className="text-ga-accent" aria-hidden />
                     <GaCap>{t('historyTitle')}</GaCap>

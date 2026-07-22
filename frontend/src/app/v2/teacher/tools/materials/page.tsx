@@ -27,12 +27,12 @@ export default function V2MaterialsAiPage() {
   const [count, setCount] = useState(5)
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div className="flex min-h-full flex-col lg:h-full lg:overflow-hidden">
       <GaPageHdr accent title="Tạo Tài liệu AI" subtitle="Tự động tạo bài tập, đề kiểm tra và tài liệu học tập cá nhân hoá" />
 
-      <div className="grid min-h-0 flex-1" style={{ gridTemplateColumns: '300px 1fr' }}>
+      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[300px_1fr]">
         {/* Config */}
-        <div className="overflow-auto border-r border-ga-line bg-ga-card px-5 py-6">
+        <div className="border-b border-ga-line bg-ga-card px-4 py-6 sm:px-6 lg:overflow-auto lg:border-b-0 lg:border-r lg:px-5">
           <GaCap className="mb-3 block">Loại tài liệu</GaCap>
           <div className="mb-5 flex flex-col gap-1.5">
             {MAT_TYPES.map((t) => {
@@ -88,7 +88,7 @@ export default function V2MaterialsAiPage() {
                   key={l}
                   type="button"
                   onClick={() => setLevel(l)}
-                  className="ga-ui flex-1 py-2 text-[12px] font-semibold transition-colors"
+                  className="ga-ui min-w-0 flex-1 py-3 text-[12px] font-semibold transition-colors lg:py-2"
                   style={{
                     background: on ? 'var(--ga-ink)' : 'transparent',
                     color: on ? 'var(--ga-bg)' : 'var(--ga-muted)',
@@ -126,12 +126,12 @@ export default function V2MaterialsAiPage() {
         </div>
 
         {/* Preview (idle — no fabricated content until backend exists) */}
-        <div className="grid place-items-center overflow-auto bg-ga-bg px-9 py-7">
+        <div className="grid place-items-center bg-ga-bg px-4 py-8 sm:px-6 lg:overflow-auto lg:px-9 lg:py-7">
           <div className="max-w-md text-center">
             <span className="mx-auto mb-4 grid h-14 w-14 place-items-center" style={{ background: 'var(--ga-violet-soft)' }}>
               <FileText size={26} style={{ color: VIOLET }} />
             </span>
-            <h2 className="font-ga-display text-[22px] font-medium leading-[1.25] text-ga-ink">Bản xem trước tài liệu</h2>
+            <h2 className="font-ga-display text-[20px] font-medium leading-[1.25] text-ga-ink lg:text-[22px]">Bản xem trước tài liệu</h2>
             <p className="ga-ui mt-2 text-[14px] leading-[1.65] text-ga-muted">
               Cấu hình sẽ tạo: <strong className="text-ga-ink">{type}</strong> · chủ đề{' '}
               <strong className="text-ga-ink">{topic}</strong> · trình độ <strong className="text-ga-ink">{level}</strong> ·{' '}

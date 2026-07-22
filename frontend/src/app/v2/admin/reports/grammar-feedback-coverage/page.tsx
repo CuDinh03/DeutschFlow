@@ -80,7 +80,7 @@ export default function V2GrammarFeedbackCoveragePage() {
           </div>
         }
       />
-      <div className="flex-1 overflow-auto px-10 py-6">
+      <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
         {loading ? (
           <div className="flex flex-col gap-2">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -88,17 +88,17 @@ export default function V2GrammarFeedbackCoveragePage() {
             ))}
           </div>
         ) : error ? (
-          <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadError')}</h2>
-            <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">
-              {error} <code className="font-mono text-[12px] text-ga-accent">GET /api/admin/reports/grammar-feedback-coverage</code>
+          <div className="border border-ga-line bg-ga-card px-4 py-10 text-center sm:px-6 lg:px-10 lg:py-[52px]">
+            <h2 className="font-ga-display text-[20px] font-medium text-ga-red lg:text-[24px]">{t('loadError')}</h2>
+            <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm break-words text-[14px] text-ga-muted">
+              {error} <code className="break-words font-mono text-[12px] text-ga-accent">GET /api/admin/reports/grammar-feedback-coverage</code>
             </p>
             <GaBtn variant="primary" onClick={load}>
               {tc('retry')}
             </GaBtn>
           </div>
         ) : rows.length === 0 ? (
-          <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">
+          <div className="border border-dashed border-ga-line px-4 py-[40px] text-center text-[14px] text-ga-muted sm:px-6 lg:px-10">
             {t('emptyRange', { days })}
           </div>
         ) : (
@@ -121,10 +121,10 @@ export default function V2GrammarFeedbackCoveragePage() {
                 .map((r, i) => {
                   const cov = Number(r.coveragePercent ?? 0)
                   return (
-                    <div key={r.snapshotDate} className="px-5 py-3.5" style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
-                      <div className="mb-2 flex items-center justify-between gap-3">
+                    <div key={r.snapshotDate} className="px-4 py-3.5 lg:px-5" style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
+                      <div className="mb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 lg:flex-nowrap">
                         <span className="font-mono text-[12.5px] text-ga-muted">{(r.snapshotDate ?? '').slice(0, 10)}</span>
-                        <span className="flex shrink-0 items-center gap-3 text-[12px] text-ga-muted">
+                        <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-ga-muted lg:flex-nowrap lg:shrink-0">
                           <span>{t('submitsSuffix', { count: Number(r.totalSubmits ?? 0) })}</span>
                           <span>
                             {t('itemsSuffix', { withFb: Number(r.itemsWithFeedback ?? 0), total: Number(r.totalItems ?? 0) })}

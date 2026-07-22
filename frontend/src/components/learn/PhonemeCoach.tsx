@@ -154,7 +154,7 @@ export default function PhonemeCoach({ target, meaningVi, onSuccess }: PhonemeCo
 
         {/* Target phrase */}
         <div className="text-center space-y-2">
-          <p className="text-2xl font-black text-[#0F172A]">{target}</p>
+          <p className="text-xl lg:text-2xl font-black text-[#0F172A] break-words">{target}</p>
           {meaningVi && <p className="text-sm text-[#64748B]">{meaningVi}</p>}
           <button
             type="button"
@@ -224,8 +224,8 @@ export default function PhonemeCoach({ target, meaningVi, onSuccess }: PhonemeCo
               className="space-y-4"
             >
               {/* Score ring */}
-              <div className="flex items-center justify-center gap-5">
-                <div className="relative w-20 h-20">
+              <div className="flex flex-wrap items-center justify-center gap-4 lg:gap-5">
+                <div className="relative w-20 h-20 shrink-0">
                   <svg className="w-20 h-20 -rotate-90" viewBox="0 0 80 80">
                     <circle cx="40" cy="40" r="32" fill="none" stroke="#F1F5F9" strokeWidth="8" />
                     <circle
@@ -245,11 +245,11 @@ export default function PhonemeCoach({ target, meaningVi, onSuccess }: PhonemeCo
                   </div>
                 </div>
 
-                <div>
+                <div className="min-w-0">
                   <p className="text-2xl">{result.emoji}</p>
-                  <p className="text-sm font-bold text-[#0F172A] mt-1">{result.feedbackVi}</p>
+                  <p className="text-sm font-bold text-[#0F172A] mt-1 break-words">{result.feedbackVi}</p>
                   {result.transcribed ? (
-                    <p className="text-xs text-[#64748B] mt-1">
+                    <p className="text-xs text-[#64748B] mt-1 break-words">
                       Nghe được: <em>&ldquo;{result.transcribed}&rdquo;</em>
                     </p>
                   ) : (

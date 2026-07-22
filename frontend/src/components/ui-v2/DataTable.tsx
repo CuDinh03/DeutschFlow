@@ -110,13 +110,25 @@ export function DataTable<T>({
   }
 
   const card = 'overflow-hidden rounded-ga border border-ga-line bg-ga-card'
+  // Thẻ bọc ngoài có `overflow-hidden` nên trên mobile bảng bị CẮT MẤT cột thay vì cuộn được.
+  // Vùng cuộn ngang riêng + min-w cho table giữ cột khỏi bị bóp nát; từ lg tắt cả hai để
+  // hành vi desktop (table `w-full` co theo thẻ) không đổi một pixel.
+  const scroller = 'overflow-x-auto lg:overflow-x-visible'
+  // Bề rộng tối thiểu theo số cột: bảng nhiều cột cần chỗ để không bị bóp nát, bảng 1–2 cột
+  // vẫn vừa khổ hẹp nên không ép cuộn vô cớ. Các chuỗi là literal tĩnh để JIT sinh được class.
+  const tableMin =
+    columns.length >= 5
+      ? 'min-w-[720px] lg:min-w-0'
+      : columns.length >= 3
+        ? 'min-w-[560px] lg:min-w-0'
+        : ''
 
   // ── error / empty take over the whole card ──────────────────────────────
   if (!loading && error) {
     return (
       <div className={cn(card, className)}>
-        <div className="px-10 py-[52px] text-center">
-          <h2 className="font-ga-display text-[26px] font-medium leading-[1.2] text-ga-red">
+        <div className="px-4 py-10 text-center sm:px-6 lg:px-10 lg:py-[52px]">
+          <h2 className="font-ga-display text-[20px] font-medium leading-[1.2] text-ga-red lg:text-[26px]">
             Không tải được danh sách
           </h2>
           <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14.5px] text-ga-muted">
@@ -186,20 +198,22 @@ export function DataTable<T>({
   if (loading) {
     return (
       <div className={cn(card, className)}>
-        <table className="w-full border-collapse">
-          {thead}
-          <tbody>
-            {Array.from({ length: 6 }).map((_, i) => (
-              <tr key={i} className="border-b border-ga-line last:border-0">
-                <td
-                  colSpan={columns.length}
-                  className="ga-shimmer h-[62px] p-0"
-                  aria-hidden
-                />
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className={scroller}>
+          <table className={cn('w-full border-collapse', tableMin)}>
+            {thead}
+            <tbody>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <tr key={i} className="border-b border-ga-line last:border-0">
+                  <td
+                    colSpan={columns.length}
+                    className="ga-shimmer h-[62px] p-0"
+                    aria-hidden
+                  />
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     )
   }
@@ -207,42 +221,47 @@ export function DataTable<T>({
   // ── data ────────────────────────────────────────────────────────────────
   return (
     <div className={cn(card, className)}>
-      <table className="ga-ui w-full border-collapse text-[14.5px]">
-        {thead}
-        <tbody>
-          {rows.map((row, i) => (
-            <tr
-              key={rowKey(row, i)}
-              onClick={onRowClick ? () => onRowClick(row) : undefined}
-              className={cn(
-                'border-b border-ga-line text-ga-ink last:border-0',
-                onRowClick && 'cursor-pointer transition-colors hover:bg-ga-surface',
-                rowClassName?.(row),
-              )}
-            >
-              {columns.map((col) => (
-                <td
-                  key={col.key}
-                  className={cn('px-5 py-3.5 align-middle', alignClass[col.align ?? 'left'], col.className)}
-                >
-                  {col.render ? col.render(row) : (row as Record<string, React.ReactNode>)[col.key]}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className={scroller}>
+        <table className={cn('ga-ui w-full border-collapse text-[14.5px]', tableMin)}>
+          {thead}
+          <tbody>
+            {rows.map((row, i) => (
+              <tr
+                key={rowKey(row, i)}
+                onClick={onRowClick ? () => onRowClick(row) : undefined}
+                className={cn(
+                  'border-b border-ga-line text-ga-ink last:border-0',
+                  onRowClick && 'cursor-pointer transition-colors hover:bg-ga-surface',
+                  rowClassName?.(row),
+                )}
+              >
+                {columns.map((col) => (
+                  <td
+                    key={col.key}
+                    className={cn('px-5 py-3.5 align-middle', alignClass[col.align ?? 'left'], col.className)}
+                  >
+                    {col.render ? col.render(row) : (row as Record<string, React.ReactNode>)[col.key]}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {paginate && (
-        <div className="flex items-center justify-between border-t border-ga-line px-5 py-3.5">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ga-line px-4 py-3 lg:flex-nowrap lg:gap-0 lg:px-5 lg:py-3.5">
           <span className="ga-ui text-[13px] text-ga-muted">
             Hiển thị {from}–{to} trong {sorted.length.toLocaleString('vi-VN')} {itemNoun}
           </span>
-          <div className="flex gap-1.5">
+          <div className="flex flex-wrap gap-1.5 lg:flex-nowrap">
             <PagerBtn disabled={current === 1} onClick={() => setPage(current - 1)}>‹</PagerBtn>
             {pageList(current, totalPages).map((p, i) =>
               p === '…' ? (
-                <span key={`e${i}`} className="grid h-8 w-8 place-items-center text-[12px] text-ga-subtle">
+                <span
+                  key={`e${i}`}
+                  className="grid h-10 w-10 place-items-center text-[12px] text-ga-subtle lg:h-8 lg:w-8"
+                >
                   …
                 </span>
               ) : (
@@ -276,7 +295,8 @@ function PagerBtn({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        'ga-ui grid h-8 w-8 place-items-center rounded-ga border text-[12px] font-semibold transition-colors disabled:opacity-40',
+        // 40px chạm tay trên mobile; từ lg trở lại đúng 32px như thiết kế gốc.
+        'ga-ui grid h-10 w-10 place-items-center rounded-ga border text-[12px] font-semibold transition-colors disabled:opacity-40 lg:h-8 lg:w-8',
         active
           ? 'border-ga-accent bg-ga-accent text-ga-accent-ink'
           : 'border-ga-line bg-ga-card text-ga-ink hover:bg-ga-surface',

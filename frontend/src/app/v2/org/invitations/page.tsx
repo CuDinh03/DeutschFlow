@@ -91,7 +91,7 @@ export default function V2OrgInvitationsPage() {
     <div className="flex min-h-full flex-col">
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
 
-      <div className="flex-1 overflow-auto px-10 py-7">
+      <div className="flex-1 overflow-auto px-4 py-5 sm:px-6 lg:px-10 lg:py-7">
         <TkStatStrip
           items={[
             { label: t('stats.pending'), value: pending.length, sub: t('stats.pendingSub'), color: '#E07B39', alert: pending.length > 0 },
@@ -101,7 +101,7 @@ export default function V2OrgInvitationsPage() {
         />
 
         {/* Invite form */}
-        <div className="mt-6 max-w-[780px] border border-ga-line bg-ga-card p-[26px]">
+        <div className="mt-6 max-w-[780px] border border-ga-line bg-ga-card p-4 sm:p-6 lg:p-[26px]">
           <GaCap className="mb-3.5 block">{t('inviteFormCap')}</GaCap>
           <div className="mb-3.5 flex border border-ga-line">
             <input
@@ -109,14 +109,14 @@ export default function V2OrgInvitationsPage() {
               onChange={(e) => setEmail(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && send()}
               placeholder={t('emailPlaceholder')}
-              className="ga-ui flex-1 bg-transparent px-4 py-3 text-[14.5px] text-ga-ink outline-none"
+              className="ga-ui min-w-0 flex-1 bg-transparent px-3 py-3 text-[14.5px] text-ga-ink outline-none lg:px-4"
             />
             {(['TEACHER', 'STUDENT'] as OrgRole[]).map((r) => (
               <button
                 key={r}
                 type="button"
                 onClick={() => setRole(r)}
-                className="ga-ui border-l border-ga-line px-4 text-[12.5px] font-semibold transition-colors"
+                className="ga-ui shrink-0 border-l border-ga-line px-3 text-[12.5px] font-semibold transition-colors lg:px-4"
                 style={{ background: role === r ? 'var(--ga-ink)' : 'transparent', color: role === r ? 'var(--ga-bg)' : 'var(--ga-muted)' }}
               >
                 {roleLabel(r)}
@@ -140,18 +140,18 @@ export default function V2OrgInvitationsPage() {
         {loading ? (
           <div className="max-w-[780px] flex-col gap-2">{Array.from({ length: 3 }).map((_, i) => <div key={i} className="ga-shimmer mb-2 h-[58px] border border-ga-line" aria-hidden />)}</div>
         ) : error ? (
-          <div className="max-w-[780px] border border-ga-line bg-ga-card px-10 py-[40px] text-center">
-            <p className="ga-ui text-[14px] text-ga-red">{error}</p>
+          <div className="max-w-[780px] border border-ga-line bg-ga-card px-4 py-8 text-center sm:px-8 lg:px-10 lg:py-[40px]">
+            <p className="ga-ui break-words text-[14px] text-ga-red">{error}</p>
             <GaBtn variant="primary" className="mt-3" onClick={load}>{tc('retry')}</GaBtn>
           </div>
         ) : invites.length === 0 ? (
-          <div className="max-w-[780px] border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">{t('empty')}</div>
+          <div className="max-w-[780px] border border-dashed border-ga-line px-4 py-8 text-center text-[14px] text-ga-muted sm:px-8 lg:px-10 lg:py-[40px]">{t('empty')}</div>
         ) : (
           <div className="max-w-[780px] border border-ga-line bg-ga-card">
             {invites.map((iv, i) => {
               const isPending = iv.status === 'PENDING'
               return (
-                <div key={iv.id} className="flex items-center gap-3.5 px-5 py-3.5" style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
+                <div key={iv.id} className="flex flex-wrap items-center gap-3.5 px-4 py-3.5 lg:flex-nowrap lg:px-5" style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
                   <span className="grid h-8 w-8 shrink-0 place-items-center" style={{ background: 'var(--ga-side-active)' }}><Mail size={15} className="text-ga-muted" /></span>
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-[14px] font-semibold text-ga-ink">{iv.email}</div>
@@ -161,9 +161,9 @@ export default function V2OrgInvitationsPage() {
                     {isPending ? t('statusPending') : iv.status === 'ACCEPTED' ? t('statusAccepted') : iv.status === 'EXPIRED' ? t('statusExpired') : t('statusRevoked')}
                   </span>
                   {isPending && (
-                    <div className="flex shrink-0 gap-1.5">
-                      <button type="button" onClick={() => toast(t('resendSoon'))} className="ga-ui border border-ga-line px-2.5 py-1.5 text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent">{t('resend')}</button>
-                      <button type="button" disabled={busy === iv.id} onClick={() => revoke(iv.id)} className="ga-ui border px-2.5 py-1.5 text-[11px] font-semibold disabled:opacity-50" style={{ color: 'var(--ga-red)', borderColor: 'color-mix(in srgb, var(--ga-red) 35%, transparent)' }}>{t('revoke')}</button>
+                    <div className="flex w-full shrink-0 justify-end gap-1.5 lg:w-auto">
+                      <button type="button" onClick={() => toast(t('resendSoon'))} className="ga-ui inline-flex min-h-[40px] items-center justify-center border border-ga-line px-2.5 py-1.5 text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent lg:min-h-0">{t('resend')}</button>
+                      <button type="button" disabled={busy === iv.id} onClick={() => revoke(iv.id)} className="ga-ui inline-flex min-h-[40px] items-center justify-center border px-2.5 py-1.5 text-[11px] font-semibold disabled:opacity-50 lg:min-h-0" style={{ color: 'var(--ga-red)', borderColor: 'color-mix(in srgb, var(--ga-red) 35%, transparent)' }}>{t('revoke')}</button>
                     </div>
                   )}
                 </div>

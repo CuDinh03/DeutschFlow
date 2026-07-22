@@ -112,17 +112,20 @@ function AdStat({
   alert?: boolean
 }) {
   return (
-    <div className="relative border-l border-ga-border px-6 py-[22px]" style={{ background: `${color}0e` }}>
+    <div
+      className="relative min-w-0 border-l border-t border-ga-border px-4 py-4 lg:border-t-0 lg:px-6 lg:py-[22px]"
+      style={{ background: `${color}0e` }}
+    >
       <div className="absolute inset-x-0 top-0 h-[5px]" style={{ background: color }} />
       <p className="ga-ui mb-[10px] text-[10px] font-semibold uppercase tracking-[0.08em] text-ga-muted">
         {label}
       </p>
-      <p className="font-ga-display text-[36px] font-medium leading-none" style={{ color }}>
+      <p className="font-ga-display text-[24px] font-medium leading-none sm:text-[28px] lg:text-[36px]" style={{ color }}>
         {value}
       </p>
       {sub && (
         <p className={cn('ga-ui mt-2 flex items-center gap-1.5 text-[13px]', alert ? 'text-ga-red' : 'text-ga-muted')}>
-          {alert && <span className="inline-block h-1.5 w-1.5 rounded-full bg-ga-red" />}
+          {alert && <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-ga-red" />}
           {sub}
         </p>
       )}
@@ -283,7 +286,7 @@ export default function V2AdminUsersPage() {
             e.stopPropagation()
             setDetailUser(u)
           }}
-          className="ga-ui rounded-ga border border-ga-line px-[10px] py-[6px] text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent"
+          className="ga-ui min-h-[40px] rounded-ga border border-ga-line px-[10px] py-[6px] text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent lg:min-h-0"
         >
           {t('manage')}
         </button>
@@ -303,7 +306,7 @@ export default function V2AdminUsersPage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t('searchPlaceholder')}
-              containerClassName="w-[230px]"
+              containerClassName="w-full sm:w-[230px]"
             />
             <GaBtn variant="yellow" onClick={() => setShowCreate(true)}>
               <UserPlus size={16} aria-hidden />
@@ -313,9 +316,15 @@ export default function V2AdminUsersPage() {
         }
       />
 
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         {/* AdStat strip — always visible (0 when loading) */}
-        <div className="mb-[22px] grid grid-cols-4 border border-ga-border border-l-0">
+        {/*
+          Lưới KPI: mobile 1 cột → sm 2 cột → lg đúng 4 cột như thiết kế gốc (khớp AdStatStrip
+          dùng chung ở admin/organizations · revenue · tokens). Vách ngăn ngang: khi ô xếp chồng,
+          đường kẻ `border-l` biến mất nên mỗi ô tự vẽ `border-t` và khung ngoài tắt `border-t`;
+          từ lg đảo lại đúng như cũ.
+        */}
+        <div className="mb-[22px] grid grid-cols-1 border border-ga-border border-l-0 border-t-0 sm:grid-cols-2 lg:grid-cols-4 lg:border-t">
           <AdStat label={t('stats.totalUsers')} value={counts.total} color="var(--ga-navy)" />
           <AdStat label={t('stats.students')} value={counts.student} color="var(--ga-blue)" />
           <AdStat label={t('stats.teachers')} value={counts.teacher} color="var(--ga-violet)" />
@@ -329,14 +338,14 @@ export default function V2AdminUsersPage() {
         </div>
 
         {/* Role filter */}
-        <div className="mb-[18px] flex gap-2">
+        <div className="mb-[18px] flex flex-wrap gap-2">
           {ROLE_FILTERS.map((f) => (
             <button
               key={f.value}
               type="button"
               onClick={() => setRoleFilter(f.value)}
               className={cn(
-                'ga-ui cursor-pointer rounded-ga border px-[14px] py-2 text-[12.5px] font-semibold transition-colors',
+                'ga-ui min-h-[40px] cursor-pointer rounded-ga border px-[14px] py-2 text-[12.5px] font-semibold transition-colors lg:min-h-0',
                 roleFilter === f.value
                   ? 'border-ga-ink bg-ga-ink text-ga-card'
                   : 'border-ga-border bg-ga-card text-ga-muted hover:border-ga-ink hover:text-ga-ink',
@@ -361,7 +370,7 @@ export default function V2AdminUsersPage() {
           rowClassName={(u) => (!u.isActive ? 'opacity-60' : undefined)}
           onRowClick={(u) => setDetailUser(u)}
           empty={
-            <div className="px-10 py-7 text-center">
+            <div className="px-4 py-5 text-center sm:px-6 lg:px-10 lg:py-7">
               <p className="ga-ui text-[14.5px] text-ga-muted">{t('empty')}</p>
             </div>
           }

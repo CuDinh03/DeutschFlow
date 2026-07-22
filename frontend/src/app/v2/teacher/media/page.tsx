@@ -186,7 +186,7 @@ export default function V2TeacherMediaPage() {
     <div className="flex min-h-full flex-col">
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
 
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         <GaSection title={t('uploadSection')} className="mb-[22px]">
           <div className="grid gap-5 lg:grid-cols-[300px_1fr]">
             <div className="flex flex-col gap-3">
@@ -286,7 +286,7 @@ export default function V2TeacherMediaPage() {
                       onClick={resetUploadForm}
                       disabled={uploading}
                       aria-label={tc('cancel')}
-                      className="grid h-7 w-7 shrink-0 place-items-center text-ga-subtle transition-colors hover:text-ga-ink"
+                      className="grid h-10 w-10 shrink-0 place-items-center text-ga-subtle transition-colors hover:text-ga-ink lg:h-7 lg:w-7"
                     >
                       <X size={15} />
                     </button>
@@ -376,7 +376,7 @@ export default function V2TeacherMediaPage() {
                         onClick={() => handleCopyUrl(item.url, item.id)}
                         title={t('copyUrl')}
                         aria-label={t('copyUrl')}
-                        className="grid h-7 w-7 place-items-center text-ga-subtle transition-colors hover:text-ga-ink"
+                        className="grid h-10 w-10 place-items-center text-ga-subtle transition-colors hover:text-ga-ink lg:h-7 lg:w-7"
                       >
                         {copiedId === item.id ? (
                           <Check size={14} className="text-ga-green" />
@@ -389,7 +389,7 @@ export default function V2TeacherMediaPage() {
                         onClick={() => openEditModal(item)}
                         title={t('edit')}
                         aria-label={t('edit')}
-                        className="grid h-7 w-7 place-items-center text-ga-subtle transition-colors hover:text-ga-ink"
+                        className="grid h-10 w-10 place-items-center text-ga-subtle transition-colors hover:text-ga-ink lg:h-7 lg:w-7"
                       >
                         <Pencil size={14} />
                       </button>
@@ -399,7 +399,7 @@ export default function V2TeacherMediaPage() {
                         rel="noreferrer"
                         title={t('viewOriginal')}
                         aria-label={t('viewOriginal')}
-                        className="grid h-7 w-7 place-items-center text-ga-subtle transition-colors hover:text-ga-ink"
+                        className="grid h-10 w-10 place-items-center text-ga-subtle transition-colors hover:text-ga-ink lg:h-7 lg:w-7"
                       >
                         <ExternalLink size={14} />
                       </a>
@@ -408,7 +408,7 @@ export default function V2TeacherMediaPage() {
                         onClick={() => setDeleteConfirmId(item.id)}
                         title={t('delete')}
                         aria-label={t('delete')}
-                        className="grid h-7 w-7 place-items-center text-ga-subtle transition-colors hover:text-ga-red"
+                        className="grid h-10 w-10 place-items-center text-ga-subtle transition-colors hover:text-ga-red lg:h-7 lg:w-7"
                       >
                         <Trash2 size={14} />
                       </button>

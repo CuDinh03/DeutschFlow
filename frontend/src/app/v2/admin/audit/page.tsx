@@ -113,7 +113,7 @@ export default function AdminAuditPage() {
           </GaBtn>
         }
       />
-      <div className="flex-1 overflow-auto px-[40px] py-6">
+      <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-[40px]">
         <div className="mb-[18px] flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap gap-2">
             {filters.map((f) => {
@@ -122,7 +122,7 @@ export default function AdminAuditPage() {
                 <button
                   key={f}
                   onClick={() => setCat(f)}
-                  className={`rounded-ga border px-3.5 py-2 text-[12.5px] font-semibold transition-colors ${
+                  className={`min-h-[40px] rounded-ga border px-3.5 py-2 text-[12.5px] font-semibold transition-colors lg:min-h-0 ${
                     on ? 'border-ga-ink bg-ga-ink text-ga-bg' : 'border-ga-line bg-ga-card text-ga-muted hover:text-ga-ink'
                   }`}
                 >
@@ -131,34 +131,34 @@ export default function AdminAuditPage() {
               )
             })}
           </div>
-          <div className="flex items-center gap-2 rounded-ga border border-ga-line bg-ga-card px-3 py-2">
-            <GaIcon name="search" size={15} className="text-ga-subtle" />
+          <div className="flex w-full min-w-0 items-center gap-2 rounded-ga border border-ga-line bg-ga-card px-3 py-2 sm:w-auto">
+            <GaIcon name="search" size={15} className="shrink-0 text-ga-subtle" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t('searchPlaceholder')}
-              className="ga-ui w-[240px] max-w-[50vw] border-none bg-transparent text-[13px] text-ga-ink outline-none placeholder:text-ga-subtle"
+              className="ga-ui w-full min-w-0 border-none bg-transparent text-[13px] text-ga-ink outline-none placeholder:text-ga-subtle sm:w-[240px] sm:max-w-[50vw]"
             />
           </div>
         </div>
 
-        <div className="border border-ga-line bg-ga-card">
-          <div className="grid grid-cols-[1.2fr_1.4fr_1.4fr_130px] gap-2 border-b border-ga-line bg-ga-surface px-5 py-3">
+        <div className="overflow-x-auto border border-ga-line bg-ga-card lg:overflow-visible">
+          <div className="grid min-w-[620px] grid-cols-[1.2fr_1.4fr_1.4fr_130px] gap-2 border-b border-ga-line bg-ga-surface px-5 py-3 lg:min-w-0">
             {[t('colActor'), t('colAction'), t('colTarget'), t('colTime')].map((h) => (
               <GaCap key={h} className="text-[10px]">{h}</GaCap>
             ))}
           </div>
 
           {loading && (
-            <div className="px-5 py-[30px] text-center text-[13px] text-ga-muted">{t('loading')}</div>
+            <div className="min-w-[620px] px-5 py-[30px] text-center text-[13px] text-ga-muted lg:min-w-0">{t('loading')}</div>
           )}
           {error && !loading && (
-            <div className="px-5 py-[30px] text-center text-[13px] text-ga-red">
+            <div className="min-w-[620px] px-5 py-[30px] text-center text-[13px] text-ga-red lg:min-w-0">
               {t('loadError')} <button onClick={load} className="font-semibold underline">{t('retry')}</button>
             </div>
           )}
           {!loading && !error && rows.length === 0 && (
-            <div className="px-5 py-[30px] text-center text-[13px] text-ga-muted">{t('empty')}</div>
+            <div className="min-w-[620px] px-5 py-[30px] text-center text-[13px] text-ga-muted lg:min-w-0">{t('empty')}</div>
           )}
 
           {!loading && !error && rows.map((r, i) => {
@@ -166,7 +166,7 @@ export default function AdminAuditPage() {
             return (
               <div
                 key={r.id}
-                className={`grid grid-cols-[1.2fr_1.4fr_1.4fr_130px] items-center gap-2 px-5 py-3 ${i ? 'border-t border-ga-line' : ''}`}
+                className={`grid min-w-[620px] grid-cols-[1.2fr_1.4fr_1.4fr_130px] items-center gap-2 px-5 py-3 lg:min-w-0 ${i ? 'border-t border-ga-line' : ''}`}
               >
                 <div className="flex min-w-0 items-center gap-2.5">
                   <span

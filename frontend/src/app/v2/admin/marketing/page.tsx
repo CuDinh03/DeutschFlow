@@ -24,10 +24,10 @@ function SplitCard({ icon, label, value, total, tone }: { icon: React.ReactNode;
   const t = useTranslations('v2.adminOps.marketing')
   const pct = total > 0 ? Math.round((value / total) * 100) : 0
   return (
-    <div className="border border-ga-line bg-ga-card p-[18px]">
-      <div className="mb-2 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-[13.5px] font-semibold text-ga-ink">{icon} {label}</div>
-        <span className="font-ga-display text-[16px] font-medium text-ga-ink">{value.toLocaleString()}</span>
+    <div className="border border-ga-line bg-ga-card p-4 lg:p-[18px]">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2 text-[13.5px] font-semibold text-ga-ink">{icon} {label}</div>
+        <span className="shrink-0 font-ga-display text-[16px] font-medium text-ga-ink">{value.toLocaleString()}</span>
       </div>
       <span className="block h-2 w-full bg-ga-line"><span className="block h-full" style={{ width: `${pct}%`, background: tone }} /></span>
       <p className="ga-ui mt-1.5 text-[12px] text-ga-muted">{t('pctOfTotal', { pct })}</p>
@@ -71,13 +71,13 @@ export default function V2AdminMarketingPage() {
         }
       />
 
-      <div className="flex-1 overflow-auto px-10 py-6">
+      <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
         {loading ? (
           <div className="flex flex-col gap-3">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="ga-shimmer h-[64px] border border-ga-line" aria-hidden />)}</div>
         ) : error ? (
-          <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadError')}</h2>
-            <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">{error} <code className="font-mono text-[12px] text-ga-accent">GET /api/admin/marketing/*</code></p>
+          <div className="border border-ga-line bg-ga-card px-4 py-10 text-center sm:px-6 lg:px-10 lg:py-[52px]">
+            <h2 className="font-ga-display text-[20px] font-medium text-ga-red lg:text-[24px]">{t('loadError')}</h2>
+            <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm break-words text-[14px] text-ga-muted">{error} <code className="break-words font-mono text-[12px] text-ga-accent">GET /api/admin/marketing/*</code></p>
             <GaBtn variant="primary" onClick={load}>{tc('retry')}</GaBtn>
           </div>
         ) : (
@@ -99,9 +99,10 @@ export default function V2AdminMarketingPage() {
             {/* Recent leads */}
             <div className="mb-3.5 mt-[22px]"><GaCap>{t('recentLeads', { count: leads.length })}</GaCap></div>
             {leads.length === 0 ? (
-              <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">{t('noLeads')}</div>
+              <div className="border border-dashed border-ga-line px-4 py-[40px] text-center text-[14px] text-ga-muted sm:px-6 lg:px-10">{t('noLeads')}</div>
             ) : (
-              <div className="border border-ga-line bg-ga-card">
+              <div className="overflow-x-auto">
+              <div className="min-w-[720px] border border-ga-line bg-ga-card">
                 <div className="grid items-center gap-2 border-b border-ga-line bg-ga-bg px-5 py-[11px]" style={{ gridTemplateColumns: '1.2fr 1.4fr 1fr 70px 110px' }}>
                   {[
                     { key: 'colName', label: t('colName') },
@@ -124,14 +125,16 @@ export default function V2AdminMarketingPage() {
                   </div>
                 ))}
               </div>
+              </div>
             )}
 
             {/* Teacher clusters (B2B org-sales trigger) */}
             <div className="mb-3.5 mt-[22px]"><GaCap>{t('clusters')}</GaCap></div>
             {clusters.length === 0 ? (
-              <div className="border border-dashed border-ga-line px-10 py-[34px] text-center text-[13.5px] text-ga-muted">{t('noClusters')}</div>
+              <div className="border border-dashed border-ga-line px-4 py-[34px] text-center text-[13.5px] text-ga-muted sm:px-6 lg:px-10">{t('noClusters')}</div>
             ) : (
-              <div className="border border-ga-line bg-ga-card">
+              <div className="overflow-x-auto">
+              <div className="min-w-[560px] border border-ga-line bg-ga-card">
                 <div className="grid items-center gap-2 border-b border-ga-line bg-ga-bg px-5 py-[11px]" style={{ gridTemplateColumns: '1.4fr 90px 1.6fr' }}>
                   {[
                     { key: 'colCenter', label: t('colCenter') },
@@ -146,6 +149,7 @@ export default function V2AdminMarketingPage() {
                     <span className="truncate text-[12px] text-ga-muted">{c.contactEmails}</span>
                   </div>
                 ))}
+              </div>
               </div>
             )}
           </>

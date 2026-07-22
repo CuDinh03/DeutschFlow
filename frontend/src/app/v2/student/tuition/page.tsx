@@ -17,7 +17,10 @@ export default function V2StudentTuitionPage() {
     <div className="grid min-h-full place-items-center">
       <div className="text-center">
         <LoadingState label={t('redirecting')} />
-        <Link href="/v2/payment" className="ga-ui text-[13px] font-semibold text-ga-accent underline">
+        <Link
+          href="/v2/payment"
+          className="ga-ui inline-block py-2.5 text-[13px] font-semibold text-ga-accent underline lg:inline lg:py-0"
+        >
           {t('manualLink')}
         </Link>
       </div>

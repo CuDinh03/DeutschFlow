@@ -13,7 +13,12 @@ export function TkTabsList({
 }: React.ComponentProps<typeof TabsPrimitive.List>) {
   return (
     <TabsPrimitive.List
-      className={cn('flex items-center gap-6 border-b border-ga-line', className)}
+      // Nhiều tab nhãn tiếng Việt sẽ tràn trên khổ hẹp → cho cuộn ngang dưới lg
+      // (repo chưa có tiện ích ẩn thanh cuộn nên giữ thanh cuộn mặc định).
+      className={cn(
+        'flex items-center gap-6 overflow-x-auto border-b border-ga-line lg:overflow-x-visible',
+        className,
+      )}
       {...props}
     />
   )
@@ -27,6 +32,9 @@ export function TkTabsTrigger({
     <TabsPrimitive.Trigger
       className={cn(
         'ga-ui -mb-px border-b-2 border-transparent px-1 pb-3 pt-2 text-[13px] font-semibold text-ga-muted transition-colors',
+        // Trong vùng cuộn ngang, tab không được co lại (nhãn sẽ xuống dòng từng chữ);
+        // 40px chạm tay. Từ lg trả lại hành vi co giãn và chiều cao gốc.
+        'min-h-[40px] shrink-0 whitespace-nowrap lg:min-h-0 lg:shrink lg:whitespace-normal',
         'hover:text-ga-ink data-[state=active]:border-ga-accent data-[state=active]:text-ga-ink',
         'outline-none focus-visible:text-ga-ink',
         className,

@@ -280,7 +280,7 @@ function VocabPractice() {
 
   if (!me) {
     return (
-      <div className="flex min-h-full flex-col items-center justify-center gap-4 px-10 py-16">
+      <div className="flex min-h-full flex-col items-center justify-center gap-4 px-4 py-16 sm:px-6 lg:px-10">
         <p className="ga-ui max-w-md text-center text-[14px] text-ga-muted">{t('profileError')}</p>
         <GaBtn variant="ghost" onClick={() => void reload()}>
           {t('retry')}
@@ -306,7 +306,7 @@ function VocabPractice() {
         }
       />
 
-      <div className="relative flex-1 px-10 py-6">
+      <div className="relative flex-1 px-4 py-6 sm:px-6 lg:px-10">
         {showKlausCoach && screen !== 'summary' ? (
           <div className="pointer-events-none fixed bottom-6 right-6 z-30 hidden w-[110px] lg:block">
             <KlausCharacter
@@ -328,7 +328,7 @@ function VocabPractice() {
                 if (screen === 'setup') router.push('/v2/student/vocabulary')
                 else handleRestart()
               }}
-              className="grid h-9 w-9 place-items-center rounded-ga border border-ga-line bg-ga-card text-ga-muted transition-colors hover:bg-ga-surface"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-ga border border-ga-line bg-ga-card text-ga-muted transition-colors hover:bg-ga-surface lg:h-9 lg:w-9"
               aria-label={t('back')}
             >
               <ArrowLeft size={16} aria-hidden />
@@ -341,8 +341,8 @@ function VocabPractice() {
           {/* ── SETUP */}
           {screen === 'setup' && (
             <>
-              <GaCard className="p-6">
-                <p className="font-ga-display text-[24px] font-medium leading-snug text-ga-ink">
+              <GaCard className="p-4 lg:p-6">
+                <p className="font-ga-display text-[20px] font-medium leading-snug text-ga-ink lg:text-[24px]">
                   {t('heroTitle')}
                 </p>
                 <p className="ga-ui mt-2 text-[14px] text-ga-muted">{t('heroSubtitle')}</p>
@@ -382,7 +382,7 @@ function VocabPractice() {
                   <button
                     type="button"
                     onClick={() => setSelTag('')}
-                    className={`ga-ui rounded-ga border px-[14px] py-2 text-[12.5px] font-semibold transition-colors ${
+                    className={`ga-ui inline-flex min-h-10 items-center justify-center rounded-ga border px-[14px] py-2 text-[12.5px] font-semibold transition-colors lg:min-h-0 ${
                       !selTag
                         ? 'border-ga-ink bg-ga-ink text-ga-card'
                         : 'border-ga-border bg-ga-card text-ga-muted hover:border-ga-ink hover:text-ga-ink'
@@ -395,7 +395,7 @@ function VocabPractice() {
                       key={tag.id}
                       type="button"
                       onClick={() => setSelTag(tag.name)}
-                      className={`ga-ui rounded-ga border px-[14px] py-2 text-[12.5px] font-semibold transition-colors ${
+                      className={`ga-ui inline-flex min-h-10 items-center justify-center rounded-ga border px-[14px] py-2 text-[12.5px] font-semibold transition-colors lg:min-h-0 ${
                         selTag === tag.name
                           ? 'border-ga-ink bg-ga-ink text-ga-card'
                           : 'border-ga-border bg-ga-card text-ga-muted hover:border-ga-ink hover:text-ga-ink'
@@ -431,7 +431,7 @@ function VocabPractice() {
               </div>
 
               <GaCard
-                className="border-2 p-8 text-center"
+                className="border-2 p-4 text-center sm:p-6 lg:p-8"
                 style={{
                   borderColor:
                     verdict === 'correct'
@@ -480,7 +480,7 @@ function VocabPractice() {
                 {/* Mạo từ hiển thị riêng, đúng màu giống — KHÔNG BAO GIỜ ẩn. */}
                 {articleLine(current)}
 
-                <p className="font-ga-display text-[40px] font-medium leading-tight text-ga-ink">
+                <p className="break-words font-ga-display text-[26px] font-medium leading-tight text-ga-ink sm:text-[32px] lg:text-[40px]">
                   {current.baseForm}
                 </p>
                 {current.phonetic && (
@@ -505,7 +505,7 @@ function VocabPractice() {
                 )}
               </GaCard>
 
-              <div className="flex items-center justify-center gap-3">
+              <div className="flex flex-wrap items-center justify-center gap-3">
                 <button
                   type="button"
                   onClick={() => setShowMeaning((v) => !v)}
@@ -581,14 +581,16 @@ function VocabPractice() {
           {/* ── SUMMARY */}
           {screen === 'summary' && (
             <>
-              <GaCard className="p-8 text-center">
+              <GaCard className="p-4 text-center sm:p-6 lg:p-8">
                 <Trophy
                   size={40}
                   className="mx-auto mb-3"
                   style={{ color: pct >= 70 ? 'var(--ga-gold)' : 'var(--ga-subtle)' }}
                   aria-hidden
                 />
-                <p className="font-ga-display text-[44px] font-medium leading-none text-ga-ink">{pct}%</p>
+                <p className="font-ga-display text-[32px] font-medium leading-none text-ga-ink sm:text-[38px] lg:text-[44px]">
+                  {pct}%
+                </p>
                 <p className="ga-ui mt-2 text-[14px] text-ga-muted">
                   {score} / {total} {t('correct')}
                 </p>
@@ -606,10 +608,10 @@ function VocabPractice() {
                       .map((r, i) => (
                         <div
                           key={`${r.word.id}-${i}`}
-                          className={`flex items-center justify-between gap-3 px-5 py-3.5 ${i ? 'border-t border-ga-border' : ''}`}
+                          className={`flex items-center justify-between gap-3 px-4 py-3.5 lg:px-5 ${i ? 'border-t border-ga-border' : ''}`}
                         >
                           <div className="min-w-0">
-                            <p className="text-[14.5px] font-semibold text-ga-ink">
+                            <p className="break-words text-[14.5px] font-semibold text-ga-ink">
                               {articleOfInline(r.word)}
                               {r.word.baseForm}
                             </p>
@@ -620,7 +622,7 @@ function VocabPractice() {
                           <button
                             type="button"
                             onClick={() => speakGerman(wordWithArticle(r.word))}
-                            className="shrink-0 text-ga-subtle transition-colors hover:text-ga-accent"
+                            className="-m-3 shrink-0 p-3 text-ga-subtle transition-colors hover:text-ga-accent lg:m-0 lg:p-0"
                             aria-label={t('listen')}
                           >
                             <Volume2 size={16} aria-hidden />

@@ -101,11 +101,11 @@ export default function V2TeacherSchedulePage() {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
-      <div className="flex-1 overflow-auto px-10 py-7">
+      <div className="flex-1 overflow-auto px-4 py-5 sm:px-6 lg:px-10 lg:py-7">
         {error ? (
-          <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadError')}</h2>
-            <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">
+          <div className="border border-ga-line bg-ga-card px-4 py-10 text-center lg:px-10 lg:py-[52px]">
+            <h2 className="font-ga-display text-[20px] font-medium text-ga-red lg:text-[24px]">{t('loadError')}</h2>
+            <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm break-words text-[14px] text-ga-muted">
               {error}{' '}
               <code className="font-mono text-[12px] text-ga-accent">GET /api/v2/teacher/class-schedule/week</code>
             </p>
@@ -114,10 +114,10 @@ export default function V2TeacherSchedulePage() {
             </GaBtn>
           </div>
         ) : (
-          <div className="grid gap-6" style={{ gridTemplateColumns: 'minmax(0, 1fr) 300px' }}>
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
             <div className="min-w-0">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <h2 className="font-ga-display text-[20px] font-medium text-ga-ink">
+                <h2 className="font-ga-display text-[17px] font-medium text-ga-ink lg:text-[20px]">
                   {t('week', { range: `${fmtDate(monday)}–${fmtDate(weekEnd)}/${weekEnd.getFullYear()}` })}
                 </h2>
                 <div className="flex flex-wrap items-center gap-2">
@@ -237,15 +237,16 @@ function WeekGrid({
 
   if (weekClass.length === 0) {
     return (
-      <div className="border border-dashed border-ga-line bg-ga-card px-10 py-[52px] text-center text-[14px] text-ga-muted">
+      <div className="border border-dashed border-ga-line bg-ga-card px-4 py-10 text-center text-[14px] text-ga-muted lg:px-10 lg:py-[52px]">
         {t('emptyWeekPrefix')} <b>{t('addSession')}</b> {t('emptyWeekMid')} <b>{t('fixedSchedule')}</b> {t('emptyWeekSuffix')}
       </div>
     )
   }
 
   return (
-    <div className="overflow-hidden border border-ga-line bg-ga-card">
-      <div className="grid" style={{ gridTemplateColumns: '56px repeat(7,1fr)' }}>
+    <div className="overflow-x-auto overflow-y-hidden border border-ga-line bg-ga-card lg:overflow-hidden">
+      {/* Lưới tuần 8 cột: dưới lg thì cuộn ngang (min-w) thay vì bóp nát cột ngày. */}
+      <div className="grid min-w-[700px] lg:min-w-0" style={{ gridTemplateColumns: '56px repeat(7,1fr)' }}>
         <div className="border-b border-r border-ga-line" />
         {DAYS.map((d, i) => {
           const date = new Date(monday)
@@ -261,7 +262,7 @@ function WeekGrid({
           )
         })}
       </div>
-      <div className="relative grid" style={{ gridTemplateColumns: '56px repeat(7,1fr)', height: GRID_H }}>
+      <div className="relative grid min-w-[700px] lg:min-w-0" style={{ gridTemplateColumns: '56px repeat(7,1fr)', height: GRID_H }}>
         <div className="border-r border-ga-line">
           {hours.map((h) => (
             <div key={h} className="ga-ui px-2 py-1 text-right text-[11px] text-ga-muted" style={{ height: GRID_H / hours.length }}>

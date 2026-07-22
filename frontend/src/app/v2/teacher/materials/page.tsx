@@ -122,7 +122,7 @@ export default function V2TeacherMaterialsPage() {
   return (
     <div className="flex min-h-full flex-col">
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         {error && (
           <div className="mb-5">
             <ErrorBanner message={error} onRetry={() => void load()} />
@@ -130,12 +130,12 @@ export default function V2TeacherMaterialsPage() {
         )}
 
         <GaSection title={t('uploadSection')} className="mb-[22px]">
-          <form onSubmit={handleUpload} className="flex flex-wrap items-end gap-3">
-            <label className="flex flex-col gap-1.5">
+          <form onSubmit={handleUpload} className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+            <label className="flex min-w-0 max-w-full flex-col gap-1.5">
               <span className="ga-ui text-[11px] font-semibold uppercase tracking-[0.08em] text-ga-muted">{t('fileLabel')}</span>
-              <input ref={fileRef} type="file" className="ga-ui text-[13px] text-ga-ink" />
+              <input ref={fileRef} type="file" className="ga-ui max-w-full text-[13px] text-ga-ink" />
             </label>
-            <label className="flex flex-1 flex-col gap-1.5" style={{ minWidth: 200 }}>
+            <label className="flex min-w-0 flex-1 flex-col gap-1.5 sm:min-w-[200px]">
               <span className="ga-ui text-[11px] font-semibold uppercase tracking-[0.08em] text-ga-muted">{t('titleLabel')}</span>
               <input
                 value={title}
@@ -161,13 +161,13 @@ export default function V2TeacherMaterialsPage() {
           </form>
         </GaSection>
 
-        <div className="mb-3 flex items-center gap-1.5">
+        <div className="mb-3 flex flex-wrap items-center gap-1.5">
           {(['active', 'archived'] as const).map((v) => (
             <button
               key={v}
               type="button"
               onClick={() => setView(v)}
-              className="ga-ui rounded-ga border px-3 py-1.5 text-[12.5px] font-semibold transition-colors"
+              className="ga-ui min-h-[40px] rounded-ga border px-3 py-1.5 text-[12.5px] font-semibold transition-colors lg:min-h-0"
               style={view === v
                 ? { borderColor: 'var(--ga-accent)', color: 'var(--ga-accent)', background: 'var(--ga-side-active)' }
                 : { borderColor: 'var(--ga-line)', color: 'var(--ga-muted)' }}
@@ -182,7 +182,7 @@ export default function V2TeacherMaterialsPage() {
         ) : (
           <GaSection title={view === 'archived' ? t('archivedTitle', { count: materials.length }) : t('listTitle', { count: materials.length })} bodyClassName="p-0">
             <div className="overflow-x-auto">
-              <table className="w-full text-left">
+              <table className="w-full min-w-[720px] text-left lg:min-w-0">
                 <thead>
                   <tr className="border-b border-ga-border">
                     {[t('colTitle'), t('colKind'), t('colScope'), t('colSize'), t('colDate'), ''].map((h, i) => (

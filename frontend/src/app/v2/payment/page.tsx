@@ -46,14 +46,14 @@ function PaymentBody() {
   return (
     <div className="flex min-h-full flex-col">
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
-      <div className="flex-1 px-10 py-8">
+      <div className="flex-1 px-4 py-8 sm:px-6 lg:px-10">
         <div className="mx-auto grid max-w-3xl grid-cols-1 gap-6 lg:grid-cols-2">
           {PLANS.map((plan) => {
             const paid = plan.code !== 'FREE'
             return (
               <div
                 key={plan.code}
-                className="relative flex flex-col border bg-ga-card p-7"
+                className="relative flex flex-col border bg-ga-card p-5 lg:p-7"
                 style={{
                   borderColor: plan.highlight ? plan.accent : 'var(--ga-line)',
                   boxShadow: plan.highlight ? 'var(--ga-shadow-card-hover)' : undefined,
@@ -61,15 +61,15 @@ function PaymentBody() {
               >
                 {plan.highlight && (
                   <span
-                    className="ga-ui absolute -top-3 left-7 rounded-ga-pill px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-white"
+                    className="ga-ui absolute -top-3 left-5 rounded-ga-pill px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-white lg:left-7"
                     style={{ background: plan.accent }}
                   >
                     {t('mostPopular')}
                   </span>
                 )}
-                <p className="font-ga-display text-[24px] font-medium text-ga-ink">{t(plan.nameKey)}</p>
-                <div className="mt-3 flex items-baseline gap-1.5">
-                  <span className="font-ga-display text-[34px] font-medium" style={{ color: plan.accent }}>
+                <p className="font-ga-display text-[20px] font-medium text-ga-ink lg:text-[24px]">{t(plan.nameKey)}</p>
+                <div className="mt-3 flex flex-wrap items-baseline gap-1.5">
+                  <span className="font-ga-display text-[26px] font-medium sm:text-[30px] lg:text-[34px]" style={{ color: plan.accent }}>
                     {vnd(plan.priceVnd)}
                   </span>
                   <span className="ga-ui text-[13px] text-ga-muted">{t('perPeriod', { period: t(plan.periodKey) })}</span>

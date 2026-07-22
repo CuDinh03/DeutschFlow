@@ -107,7 +107,7 @@ export default function V2ForgotPasswordPage() {
   return (
     <GaAuthShell>
       <GaCap className="mb-3 block">{t('forgot.cap')}</GaCap>
-      <h1 className="m-0 mb-2 font-ga-display text-[38px] font-medium tracking-[-0.015em] text-ga-ink">
+      <h1 className="m-0 mb-2 font-ga-display text-[26px] font-medium tracking-[-0.015em] text-ga-ink sm:text-[30px] lg:text-[38px]">
         {step === 'request' ? t('forgot.requestTitle') : t('forgot.resetTitle')}
       </h1>
       <p className="m-0 mb-7 text-[15px] text-ga-muted">
@@ -144,7 +144,7 @@ export default function V2ForgotPasswordPage() {
             role="status"
           >
             <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-ga-green" />
-            <div className="text-[13.5px] leading-relaxed text-ga-ink">
+            <div className="min-w-0 flex-1 break-words text-[13.5px] leading-relaxed text-ga-ink">
               {t('forgot.sentNotice', { email: email.trim() })}
             </div>
           </div>
@@ -198,12 +198,12 @@ export default function V2ForgotPasswordPage() {
             {loading ? t('forgot.submitting') : t('forgot.submit')}
           </GaBtn>
 
-          <div className="mb-4 flex items-center justify-between text-[13.5px]">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[13.5px] lg:flex-nowrap lg:gap-0">
             <button
               type="button"
               onClick={resend}
               disabled={loading}
-              className="ga-ui text-ga-muted underline transition-colors hover:text-ga-ink disabled:opacity-50"
+              className="ga-ui min-h-[40px] text-ga-muted underline transition-colors hover:text-ga-ink disabled:opacity-50 lg:min-h-0"
             >
               {t('forgot.resend')}
             </button>
@@ -211,7 +211,7 @@ export default function V2ForgotPasswordPage() {
               type="button"
               onClick={() => { setStep('request'); setCode(''); setPw(''); setConfirm(''); setErrs({}); setError('') }}
               disabled={loading}
-              className="ga-ui text-ga-muted underline transition-colors hover:text-ga-ink disabled:opacity-50"
+              className="ga-ui min-h-[40px] text-ga-muted underline transition-colors hover:text-ga-ink disabled:opacity-50 lg:min-h-0"
             >
               {t('forgot.changeEmail')}
             </button>

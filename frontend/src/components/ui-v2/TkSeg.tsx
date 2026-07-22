@@ -33,6 +33,9 @@ export function TkSeg<T extends string>({
       aria-label={ariaLabel}
       className={cn(
         'inline-flex overflow-hidden rounded-ga border border-ga-line bg-ga-card',
+        // Nhiều lựa chọn sẽ tràn trên khổ hẹp → giới hạn bề rộng + cuộn ngang dưới lg.
+        // `overflow-x-auto` vẫn cắt theo bo góc như `overflow-hidden` cũ.
+        'max-w-full overflow-x-auto lg:max-w-none lg:overflow-hidden',
         '[&>button+button]:border-l [&>button+button]:border-ga-line',
         className,
       )}
@@ -48,6 +51,8 @@ export function TkSeg<T extends string>({
             onClick={() => onValueChange(opt.value)}
             className={cn(
               'ga-ui px-3.5 py-2.5 text-[12.5px] font-semibold transition-colors',
+              // Trong vùng cuộn ngang, ô không được co lại; 40px chạm tay. lg trả về nguyên bản.
+              'min-h-[40px] shrink-0 whitespace-nowrap lg:min-h-0 lg:shrink lg:whitespace-normal',
               active ? 'bg-ga-accent text-ga-accent-ink' : 'text-ga-muted hover:text-ga-ink',
             )}
           >

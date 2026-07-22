@@ -40,7 +40,7 @@ export default function V2StudentLessonsPage() {
   return (
     <div className="flex min-h-full flex-col">
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         {/* Category filter */}
         <div className="mb-5 flex flex-wrap gap-2">
           {categories.map((c) => (
@@ -51,7 +51,7 @@ export default function V2StudentLessonsPage() {
                 setCategory(c)
                 setPage(0)
               }}
-              className={`ga-ui rounded-ga border px-[14px] py-2 text-[12.5px] font-semibold capitalize transition-colors ${
+              className={`ga-ui inline-flex min-h-[40px] items-center rounded-ga border px-[14px] py-2 text-[12.5px] font-semibold capitalize transition-colors lg:min-h-0 ${
                 category === c
                   ? 'border-ga-ink bg-ga-ink text-ga-card'
                   : 'border-ga-border bg-ga-card text-ga-muted hover:border-ga-ink hover:text-ga-ink'
@@ -111,7 +111,7 @@ export default function V2StudentLessonsPage() {
                   type="button"
                   disabled={page === 0}
                   onClick={() => setPage((p) => Math.max(0, p - 1))}
-                  className="ga-ui flex items-center gap-1 rounded-ga border border-ga-line px-3 py-1.5 text-[12px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent disabled:opacity-40"
+                  className="ga-ui flex min-h-[40px] items-center gap-1 rounded-ga border border-ga-line px-3 py-1.5 text-[12px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent disabled:opacity-40 lg:min-h-0"
                 >
                   <ChevronLeft size={14} aria-hidden /> {t('prev')}
                 </button>
@@ -122,7 +122,7 @@ export default function V2StudentLessonsPage() {
                   type="button"
                   disabled={page >= totalPages - 1}
                   onClick={() => setPage((p) => p + 1)}
-                  className="ga-ui flex items-center gap-1 rounded-ga border border-ga-line px-3 py-1.5 text-[12px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent disabled:opacity-40"
+                  className="ga-ui flex min-h-[40px] items-center gap-1 rounded-ga border border-ga-line px-3 py-1.5 text-[12px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent disabled:opacity-40 lg:min-h-0"
                 >
                   {t('next')} <ChevronRight size={14} aria-hidden />
                 </button>

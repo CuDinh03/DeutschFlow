@@ -45,7 +45,7 @@ export function AssignmentMaterialsStrip({ assignmentId }: { assignmentId: numbe
             key={m.id}
             type="button"
             onClick={() => open(m)}
-            className="ga-ui inline-flex max-w-[220px] items-center gap-1.5 rounded-ga border border-ga-line bg-ga-bg px-2 py-1 text-[11.5px] font-medium text-ga-ink transition-colors hover:border-ga-accent"
+            className="ga-ui inline-flex max-w-full items-center gap-1.5 rounded-ga border border-ga-line bg-ga-bg px-2 py-1 text-[11.5px] font-medium text-ga-ink transition-colors hover:border-ga-accent lg:max-w-[220px]"
           >
             <Icon size={12} className="shrink-0 text-ga-subtle" />
             <span className="truncate">{m.title}</span>

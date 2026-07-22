@@ -269,9 +269,12 @@ export default function V2OnboardingPage() {
     } else setStep(s => s + 1);
   };
 
-  const card = "rounded-ga border border-ga-line bg-ga-card p-6 shadow-ga-card-hover space-y-4";
+  const card = "rounded-ga border border-ga-line bg-ga-card p-4 lg:p-6 shadow-ga-card-hover space-y-4";
   const sel = (v: boolean) => `w-full flex items-center gap-3 p-3 rounded-ga border text-left transition-colors duration-150 ${v ? "border-ga-gold bg-ga-yellow-soft" : "border-ga-line hover:border-ga-subtle"}`;
-  const chip = (v: boolean) => `ga-ui text-[12px] px-3 py-1.5 rounded-ga-pill border transition-colors ${v ? "bg-ga-yellow border-ga-gold text-ga-ink font-bold" : "border-ga-line text-ga-muted hover:border-ga-subtle"}`;
+  const chip = (v: boolean) => `ga-ui text-[12px] px-3 py-1.5 min-h-[40px] lg:min-h-0 rounded-ga-pill border transition-colors ${v ? "bg-ga-yellow border-ga-gold text-ga-ink font-bold" : "border-ga-line text-ga-muted hover:border-ga-subtle"}`;
+  // GaBtn ép whitespace-nowrap + h-11: nhãn CTA tiếng Việt dài tràn ngang ở khổ 320px.
+  // Cho xuống dòng trên mobile, từ lg trả lại đúng một dòng/44px như bản gốc.
+  const btnWrap = "h-auto min-h-[44px] whitespace-normal py-2.5 text-center lg:h-11 lg:whitespace-nowrap lg:py-0";
 
   // Post-signup resume: saving the guest's draft profile, then routing on. Avoids a funnel flash.
   if (resuming) {
@@ -305,7 +308,7 @@ export default function V2OnboardingPage() {
               {LEVELS.map(l => (
                 <button key={l.value} type="button" onClick={() => setCurrentLevel(l.value)} className={sel(currentLevel===l.value)}>
                   <span className="text-2xl">{l.emoji}</span>
-                  <div className="flex-1"><p className="ga-ui text-[13.5px] font-bold text-ga-ink">{l.label}</p><p className="text-[12px] text-ga-muted">{l.desc}</p></div>
+                  <div className="min-w-0 flex-1"><p className="ga-ui text-[13.5px] font-bold text-ga-ink">{l.label}</p><p className="text-[12px] text-ga-muted">{l.desc}</p></div>
                   {currentLevel===l.value && <CheckCircle size={18} className="text-ga-gold" />}
                 </button>
               ))}
@@ -383,7 +386,7 @@ export default function V2OnboardingPage() {
               {WEEKLY.map(w => (
                 <button key={w.value} type="button" onClick={() => setWeeklyTarget(w.value)} className={sel(weeklyTarget===w.value)}>
                   <span className="text-3xl">{w.emoji}</span>
-                  <div className="flex-1"><p className="ga-ui text-[13.5px] font-bold text-ga-ink">{w.label}</p><p className="text-[12px] text-ga-muted">{w.desc}</p></div>
+                  <div className="min-w-0 flex-1"><p className="ga-ui text-[13.5px] font-bold text-ga-ink">{w.label}</p><p className="text-[12px] text-ga-muted">{w.desc}</p></div>
                 </button>
               ))}
               {currentLevel === "A0"
@@ -441,7 +444,7 @@ export default function V2OnboardingPage() {
               )}
               <h2 className="font-ga-display text-[24px] font-medium text-ga-ink">Lưu lộ trình của bạn</h2>
               <p className="text-[13.5px] text-ga-muted">Tạo tài khoản miễn phí để giữ tiến độ{mentor ? ` và mentor ${mentor.displayName}` : ""} — chỉ mất 30 giây.</p>
-              <GaBtn variant="yellow" size="lg" className="w-full" onClick={handleGuestSignup}>
+              <GaBtn variant="yellow" size="lg" className={`w-full ${btnWrap}`} onClick={handleGuestSignup}>
                 Tạo tài khoản &amp; lưu lộ trình <ArrowRight size={14}/>
               </GaBtn>
               <p className="text-[12px] text-ga-muted">Đã có tài khoản? <Link href="/v2/login" className="font-bold text-ga-ink underline">Đăng nhập</Link></p>
@@ -465,9 +468,9 @@ export default function V2OnboardingPage() {
 
           {step === 4 && !testResult && questions.length > 0 && (
             <motion.div key="s4t" initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-30}} className={card}>
-              <div className="flex items-center justify-between">
-                <h2 className="font-ga-display text-[24px] font-medium text-ga-ink">Bài kiểm tra xếp lớp</h2>
-                <span className="ga-ui text-[12px] text-ga-subtle">{currentQ+1}/{questions.length}</span>
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="min-w-0 font-ga-display text-[20px] font-medium text-ga-ink lg:text-[24px]">Bài kiểm tra xếp lớp</h2>
+                <span className="ga-ui shrink-0 text-[12px] text-ga-subtle">{currentQ+1}/{questions.length}</span>
               </div>
               <div className="flex gap-1">{questions.map((_,i) => <div key={i} className={`flex-1 h-1 rounded-ga-pill ${i<currentQ?"bg-ga-green":i===currentQ?"bg-ga-yellow":"bg-ga-line"}`} />)}</div>
               {/* Skill chip: same four sections as v1 (HOEREN/SPRECHEN/LESEN/SCHREIBEN), retokenized. */}
@@ -477,7 +480,7 @@ export default function V2OnboardingPage() {
                 questions[currentQ].skillSection==="LESEN"?"bg-ga-green-soft text-ga-green":"bg-ga-violet-soft text-ga-violet"
               }`}>{questions[currentQ].skillSection==="HOEREN"?"🎧 Nghe":questions[currentQ].skillSection==="SPRECHEN"?"🎤 Nói":questions[currentQ].skillSection==="LESEN"?"📚 Đọc":"✍️ Viết"}</span>
               {questions[currentQ].audioTranscript && <div className="rounded-ga bg-ga-surface p-3 text-[12px] text-ga-muted italic">🔊 &quot;{questions[currentQ].audioTranscript}&quot;</div>}
-              <p className="text-[13.5px] font-medium text-ga-ink whitespace-pre-line">{questions[currentQ].questionDe}</p>
+              <p className="text-[13.5px] font-medium text-ga-ink whitespace-pre-line break-words">{questions[currentQ].questionDe}</p>
               {questions[currentQ].questionVi && <p className="text-[12px] text-ga-subtle">{questions[currentQ].questionVi}</p>}
               {questions[currentQ].options ? (
                 <div className="space-y-2">{questions[currentQ].options!.map((opt,i) => (
@@ -490,7 +493,7 @@ export default function V2OnboardingPage() {
                 <textarea value={answers[questions[currentQ].id]??""} onChange={e => setAnswers(a => ({...a,[questions[currentQ].id]:e.target.value}))}
                   placeholder="Viết câu trả lời bằng tiếng Đức..." className="ga-ui w-full rounded-ga border border-ga-line bg-ga-card px-3 py-2 text-[13.5px] text-ga-ink outline-none resize-none" rows={3} />
               )}
-              <div className="flex items-center justify-between pt-2">
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-2 lg:flex-nowrap lg:gap-0">
                 {currentQ > 0
                   ? <GaBtn variant="ghost" onClick={() => setCurrentQ(q=>q-1)}><ArrowLeft size={14}/> Trước</GaBtn>
                   : <div/>}
@@ -515,11 +518,11 @@ export default function V2OnboardingPage() {
                   <p className="mt-1 text-[10.5px] text-ga-muted">Làm lại sau {testResult.retryAfterDays ?? 3} ngày.</p>
                 </div>
               )}
-              <GaBtn variant="ink" size="lg" className="w-full" onClick={() => router.push(ROADMAP_ROUTE)}>
+              <GaBtn variant="ink" size="lg" className={`w-full ${btnWrap}`} onClick={() => router.push(ROADMAP_ROUTE)}>
                 {testResult.passed ? "Bắt đầu lộ trình cá nhân hóa →" : "Xem lộ trình phù hợp →"}
               </GaBtn>
               {route?.paywallAllowed && route.postAction === "PRICING_CTA" && (
-                <GaBtn variant="yellow" size="lg" className="w-full"
+                <GaBtn variant="yellow" size="lg" className={`w-full ${btnWrap}`}
                   onClick={() => { trackEvent('onboarding_pricing_cta_clicked', { currentLevel }); router.push(PRICING_ROUTE); }}>
                   Khám phá gói PRO để mở khóa toàn bộ →
                 </GaBtn>
@@ -529,7 +532,7 @@ export default function V2OnboardingPage() {
         </AnimatePresence>
 
         {step <= 3 && (
-          <div className="flex items-center justify-between mt-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 mt-4 lg:flex-nowrap lg:gap-0">
             {step > 1
               ? <GaBtn variant="ghost" onClick={() => setStep(s=>s-1)}><ArrowLeft size={14}/> Quay lại</GaBtn>
               : <div/>}

@@ -27,7 +27,7 @@ export function SkillReportTab(props: SkillReportTabProps) {
 
   if (students.length === 0) {
     return (
-      <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">
+      <div className="border border-dashed border-ga-line px-4 py-[40px] text-center text-[14px] text-ga-muted sm:px-6 lg:px-10">
         {t('skills.empty')}
       </div>
     )
@@ -42,8 +42,8 @@ export function SkillReportTab(props: SkillReportTabProps) {
 
   return (
     <div>
-      <div className="mb-3 flex items-center justify-between gap-4">
-        <p className="text-[13px] text-ga-muted">{t('skills.helperText')}</p>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 lg:flex-nowrap lg:gap-4">
+        <p className="min-w-0 text-[13px] text-ga-muted">{t('skills.helperText')}</p>
         <GaBtn variant="ghost" size="sm" onClick={() => window.print()}>
           <FileDown size={14} aria-hidden /> {t('skills.exportPdf')}
         </GaBtn>

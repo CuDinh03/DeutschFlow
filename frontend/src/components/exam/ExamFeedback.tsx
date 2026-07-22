@@ -34,9 +34,9 @@ function RubricBar({ label, score, max }: { label: string; score: number; max: n
   const color = pct >= 60 ? '#10B981' : pct >= 40 ? '#F59E0B' : '#EF4444'
   return (
     <div>
-      <div className="flex justify-between text-xs mb-1">
-        <span className="text-[#64748B]">{label}</span>
-        <span className="font-bold text-[#0F172A]">{score}/{max}</span>
+      <div className="flex justify-between gap-2 text-xs mb-1">
+        <span className="min-w-0 break-words text-[#64748B]">{label}</span>
+        <span className="shrink-0 font-bold text-[#0F172A]">{score}/{max}</span>
       </div>
       <div className="h-1.5 bg-[#F1F5F9] rounded-full overflow-hidden">
         <div
@@ -66,12 +66,12 @@ function SchreibenFeedback({ eval: evalData }: { eval: AiEmailEvaluation }) {
   return (
     <div className="space-y-4">
       {/* AI badge */}
-      <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1.5 bg-violet-50 border border-violet-100 rounded-full px-3 py-1">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1.5 bg-violet-50 border border-violet-100 rounded-full px-3 py-1">
           <Sparkles size={13} className="text-violet-500" />
           <span className="text-xs font-bold text-violet-700">Được chấm bởi AI</span>
         </div>
-        <span className="text-xs text-[#94A3B8]">Rubric Goethe A1 chính thức</span>
+        <span className="min-w-0 text-xs text-[#94A3B8]">Rubric Goethe A1 chính thức</span>
       </div>
 
       {/* Rubric breakdown */}
@@ -88,9 +88,9 @@ function SchreibenFeedback({ eval: evalData }: { eval: AiEmailEvaluation }) {
             />
           )
         })}
-        <div className="pt-2 border-t border-[#F1F5F9] flex justify-between items-center">
-          <span className="text-sm font-bold text-[#0F172A]">Tổng điểm email</span>
-          <span className="text-lg font-black text-[#6366F1]">
+        <div className="pt-2 border-t border-[#F1F5F9] flex justify-between items-center gap-2">
+          <span className="min-w-0 text-sm font-bold text-[#0F172A]">Tổng điểm email</span>
+          <span className="shrink-0 text-lg font-black text-[#6366F1]">
             {evalData.total ?? 0}<span className="text-sm font-semibold text-[#94A3B8]">/15</span>
           </span>
         </div>

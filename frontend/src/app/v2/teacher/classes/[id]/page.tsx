@@ -280,7 +280,7 @@ export default function V2ClassDetailPage() {
         title={info?.name ?? t('titleFallback')}
         subtitle={info ? t('subtitle', { code: info.code || '—', count: info.studentCount }) : t('subtitleLoading')}
         right={
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5">
             <GaBtn variant="ghost" size="sm" onClick={() => router.push('/v2/teacher')}>
               <ArrowLeft size={15} /> {t('backToClasses')}
             </GaBtn>
@@ -294,9 +294,9 @@ export default function V2ClassDetailPage() {
         }
       />
 
-      <div className="flex-1 overflow-auto px-10 py-6">
+      <div className="flex-1 overflow-auto px-4 py-5 sm:px-6 lg:px-10 lg:py-6">
         {error ? (
-          <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
+          <div className="border border-ga-line bg-ga-card px-4 py-10 text-center sm:px-6 lg:px-10 lg:py-[52px]">
             <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadError')}</h2>
             <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">
               {error} <code className="font-mono text-[12px] text-ga-accent">{`GET /api/v2/teacher/classes/${id}/…`}</code>
@@ -327,16 +327,16 @@ export default function V2ClassDetailPage() {
 
               {joinRequests.length > 0 && (
                 <div className="mt-[22px] border border-ga-line bg-ga-card">
-                  <div className="border-b border-ga-line px-5 py-3">
+                  <div className="border-b border-ga-line px-4 py-3 lg:px-5">
                     <GaCap>{t('joinRequestsCap')} · {joinRequests.length}</GaCap>
                   </div>
                   <ul>
                     {joinRequests.map((r) => (
-                      <li key={r.id} className="flex items-center gap-3 border-b border-ga-line px-5 py-3 last:border-b-0">
+                      <li key={r.id} className="flex flex-wrap items-center gap-3 border-b border-ga-line px-4 py-3 last:border-b-0 lg:flex-nowrap lg:px-5">
                         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-ga-pill bg-ga-accent text-[13px] font-semibold text-ga-accent-ink">
                           {initial(r.studentName)}
                         </span>
-                        <div className="min-w-0 flex-1">
+                        <div className="min-w-0 flex-1 basis-[150px] lg:basis-0">
                           <p className="truncate text-[14px] font-semibold text-ga-ink">{r.studentName}</p>
                           <p className="ga-ui truncate text-[12.5px] text-ga-muted">{r.studentEmail} · {fmtDate(r.createdAt)}</p>
                         </div>
@@ -354,8 +354,8 @@ export default function V2ClassDetailPage() {
                 </div>
               )}
 
-              <div className="mb-3.5 mt-[22px] flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
+              <div className="mb-3.5 mt-[22px] flex flex-wrap items-center justify-between gap-3 lg:flex-nowrap lg:gap-4">
+                <div className="flex flex-wrap items-center gap-3 lg:flex-nowrap">
                   <GaCap>{t('studentListCap')}</GaCap>
                   {selCount > 0 && (
                     <span className="flex items-center gap-2">
@@ -376,18 +376,18 @@ export default function V2ClassDetailPage() {
                           if (s) router.push(`/v2/teacher/messages?to=${s.studentId}&name=${encodeURIComponent(s.displayName)}`)
                           setSelected({})
                         }}
-                        className="ga-ui inline-flex items-center gap-1.5 border border-ga-line px-2.5 py-1.5 text-[11.5px] font-semibold text-ga-ink transition-colors hover:border-ga-accent hover:text-ga-accent"
+                        className="ga-ui inline-flex min-h-[40px] items-center gap-1.5 border border-ga-line px-2.5 py-1.5 text-[11.5px] font-semibold text-ga-ink transition-colors hover:border-ga-accent hover:text-ga-accent lg:min-h-0"
                       >
                         <Mail size={13} /> {t('message')}
                       </button>
                     </span>
                   )}
                 </div>
-                <TkSearch value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('searchStudent')} containerClassName="w-[220px]" />
+                <TkSearch value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('searchStudent')} containerClassName="w-full sm:w-[220px]" />
               </div>
 
-              <div className="border border-ga-line bg-ga-card">
-                <div className="grid items-center gap-2 border-b border-ga-line bg-ga-bg px-[18px] py-[11px]" style={{ gridTemplateColumns: '34px 1fr 84px 74px 68px 118px 84px' }}>
+              <div className="overflow-x-auto border border-ga-line bg-ga-card lg:overflow-x-visible">
+                <div className="grid min-w-[720px] items-center gap-2 border-b border-ga-line bg-ga-bg px-[18px] py-[11px] lg:min-w-0" style={{ gridTemplateColumns: '34px 1fr 84px 74px 68px 118px 84px' }}>
                   <input
                     type="checkbox"
                     aria-label={t('selectAll')}
@@ -414,7 +414,7 @@ export default function V2ClassDetailPage() {
                   rows.map((s, i) => (
                     <div
                       key={s.studentId}
-                      className="grid items-center gap-2 px-[18px] py-[13px] transition-colors hover:bg-ga-surface"
+                      className="grid min-w-[720px] items-center gap-2 px-[18px] py-[13px] transition-colors hover:bg-ga-surface lg:min-w-0"
                       style={{ gridTemplateColumns: '34px 1fr 84px 74px 68px 118px 84px', borderTop: i ? '1px solid var(--ga-line)' : 'none', background: selected[s.studentId] ? 'var(--ga-violet-soft)' : undefined }}
                     >
                       <input type="checkbox" aria-label={t('selectStudent', { name: s.displayName })} checked={!!selected[s.studentId]} onChange={(e) => setSelected((o) => ({ ...o, [s.studentId]: e.target.checked }))} style={{ accentColor: VIOLET }} />
@@ -462,10 +462,10 @@ export default function V2ClassDetailPage() {
                     const m = metaOf(task.assignmentType)
                     const pending = pendingByAssignment[task.id] ?? 0
                     return (
-                      <div key={task.id} className="grid items-center gap-4 border border-ga-line bg-ga-card px-[22px] py-5" style={{ gridTemplateColumns: '1fr auto' }}>
+                      <div key={task.id} className="flex flex-col items-stretch gap-3 border border-ga-line bg-ga-card px-4 py-4 lg:grid lg:items-center lg:gap-4 lg:px-[22px] lg:py-5" style={{ gridTemplateColumns: '1fr auto' }}>
                         <div className="min-w-0">
                           <div className="mb-2 flex flex-wrap items-center gap-2.5">
-                            <span className="truncate text-[16px] font-bold text-ga-ink">{task.topic}</span>
+                            <span className="min-w-0 truncate text-[16px] font-bold text-ga-ink">{task.topic}</span>
                             <span className="inline-flex items-center gap-1 px-2 py-[3px] text-[10px] font-bold uppercase tracking-[0.06em]" style={{ color: m.tone, background: `color-mix(in srgb, ${m.tone} 12%, transparent)` }}>
                               <m.Icon size={12} /> {t(`types.${m.labelKey}`)}
                             </span>
@@ -481,7 +481,7 @@ export default function V2ClassDetailPage() {
                           </div>
                           <AssignmentMaterialsStrip assignmentId={task.id} />
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           {pending > 0 && (
                             <span className="inline-flex items-center gap-1 px-3 py-[7px] text-[11.5px] font-bold" style={{ color: 'var(--ga-ink)', background: 'var(--ga-yellow-soft)', border: '1px solid var(--ga-yellow)' }}>
                               <AlertTriangle size={13} /> {t('pendingGrade', { count: pending })}
@@ -531,14 +531,14 @@ export default function V2ClassDetailPage() {
                     {teachers.map((tt) => {
                       const primary = tt.role === 'PRIMARY'
                       return (
-                        <li key={tt.teacherId} className="flex items-center gap-3 border-b border-ga-line px-5 py-3.5 last:border-b-0">
+                        <li key={tt.teacherId} className="flex flex-wrap items-center gap-3 border-b border-ga-line px-4 py-3.5 last:border-b-0 lg:flex-nowrap lg:px-5">
                           <span
                             className="grid h-9 w-9 shrink-0 place-items-center rounded-ga-pill text-[13px] font-semibold"
                             style={primary ? { background: 'linear-gradient(135deg,#F5B301,#E8830C)', color: '#fff' } : { background: 'var(--ga-violet-soft)', color: 'var(--ga-violet)' }}
                           >
                             {initial(tt.name)}
                           </span>
-                          <div className="min-w-0 flex-1">
+                          <div className="min-w-0 flex-1 basis-[150px] lg:basis-0">
                             <p className="truncate text-[14px] font-semibold text-ga-ink">{tt.name}</p>
                             <p className="ga-ui truncate text-[12.5px] text-ga-muted">{tt.email || '—'}</p>
                           </div>
@@ -621,9 +621,9 @@ function AnalyticsTab({ analytics, students, loading }: { analytics: Analytics |
             ? [{ label: t('analyticsStats.reviewCoverage'), value: `${Math.round(analytics.reviewCoveragePct)}%`, color: '#E07B39' }]
             : []),
         ].map((s) => (
-          <div key={s.label} className="border border-ga-line bg-ga-card p-[18px]">
+          <div key={s.label} className="min-w-0 border border-ga-line bg-ga-card p-4 lg:p-[18px]">
             <span className="block h-[3px] w-8" style={{ background: s.color }} />
-            <div className="mt-3 font-ga-display text-[28px] font-medium leading-none text-ga-ink">{s.value}</div>
+            <div className="mt-3 break-words font-ga-display text-[22px] font-medium leading-none text-ga-ink sm:text-[26px] lg:text-[28px]">{s.value}</div>
             <GaCap className="mt-2 block">{s.label}</GaCap>
           </div>
         ))}
@@ -631,7 +631,7 @@ function AnalyticsTab({ analytics, students, loading }: { analytics: Analytics |
 
       <div className="mt-[22px] grid grid-cols-1 gap-[22px] lg:grid-cols-[1.3fr_1fr]">
         {/* Top errors */}
-        <div className="border border-ga-line bg-ga-card p-[22px]">
+        <div className="border border-ga-line bg-ga-card p-4 lg:p-[22px]">
           <GaCap className="mb-4 block">{t('topErrorsCap')}</GaCap>
           {analytics.topErrors.length === 0 ? (
             <p className="py-6 text-center text-[13px] text-ga-muted">{t('noErrors')}</p>
@@ -654,7 +654,7 @@ function AnalyticsTab({ analytics, students, loading }: { analytics: Analytics |
         </div>
 
         {/* XP ranking (derived from roster) */}
-        <div className="border border-ga-line bg-ga-card p-[22px]">
+        <div className="border border-ga-line bg-ga-card p-4 lg:p-[22px]">
           <GaCap className="mb-4 flex items-center gap-1.5"><Trophy size={13} /> {t('xpRankingCap')}</GaCap>
           {ranking.length === 0 ? (
             <p className="py-6 text-center text-[13px] text-ga-muted">{t('noStudentsYet')}</p>
@@ -681,7 +681,7 @@ function AnalyticsTab({ analytics, students, loading }: { analytics: Analytics |
           return { ...sk, avg: vs.length ? vs.reduce((a, b) => a + b, 0) / vs.length : null }
         })
         return (
-          <div className="mt-[22px] border border-ga-line bg-ga-card p-[22px]">
+          <div className="mt-[22px] border border-ga-line bg-ga-card p-4 lg:p-[22px]">
             <GaCap className="mb-4 block">{t('classSkillAvgCap', { count: evaluated.length })}</GaCap>
             <div className="flex flex-col gap-3">
               {avgs.map((sk) => {
@@ -704,7 +704,7 @@ function AnalyticsTab({ analytics, students, loading }: { analytics: Analytics |
 
       {/* Action items */}
       {analytics.actionItems.length > 0 && (
-        <div className="mt-[22px] border border-ga-line bg-ga-card p-[22px]">
+        <div className="mt-[22px] border border-ga-line bg-ga-card p-4 lg:p-[22px]">
           <GaCap className="mb-4 block">{t('actionItemsCap')}</GaCap>
           <div className="flex flex-col gap-3">
             {analytics.actionItems.map((a, i) => {
@@ -812,7 +812,7 @@ function AddAssignmentModal({ open, onOpenChange, classId, lessons, onCreated }:
             placeholder={t('modalLinkPlaceholder')}
           />
         </div>
-        <div className="grid grid-cols-2 gap-3.5">
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
           <div>
             <GaCap className="mb-2 block">{t('modalTypeCap')}</GaCap>
             <select className={field} value={type} onChange={(e) => setType(e.target.value)}>

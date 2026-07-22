@@ -183,7 +183,7 @@ export default function V2LoginPage() {
   return (
     <GaAuthShell>
       <GaCap className="mb-3 block">{t('login.cap')}</GaCap>
-      <h1 className="m-0 mb-2 font-ga-display text-[38px] font-medium tracking-[-0.015em] text-ga-ink">{t('login.title')}</h1>
+      <h1 className="m-0 mb-2 font-ga-display text-[26px] font-medium tracking-[-0.015em] text-ga-ink sm:text-[30px] lg:text-[38px]">{t('login.title')}</h1>
       <p className="m-0 mb-7 text-[15px] text-ga-muted">{t('login.subtitle')}</p>
 
       <MaintenanceBanner />
@@ -235,7 +235,7 @@ export default function V2LoginPage() {
         <div className="mb-5 mt-1 flex justify-end">
           <Link
             href="/v2/forgot-password"
-            className="ga-ui text-[13.5px] text-ga-muted underline transition-colors hover:text-ga-ink"
+            className="ga-ui inline-flex min-h-[40px] items-center text-[13.5px] text-ga-muted underline transition-colors hover:text-ga-ink lg:min-h-0"
           >
             {t('login.forgot')}
           </Link>

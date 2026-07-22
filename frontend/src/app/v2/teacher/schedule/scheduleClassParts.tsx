@@ -132,7 +132,7 @@ export function EditSessionModal({
         </>
       }
     >
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Bắt đầu">
           <input type="datetime-local" className={inputCls} value={startAt} onChange={(e) => setStartAt(e.target.value)} />
         </Field>
@@ -251,8 +251,8 @@ export function CreateSessionModal({
       {classes.length === 0 ? (
         <p className="ga-ui text-[13.5px] text-ga-muted">Bạn chưa có lớp nào để thêm buổi.</p>
       ) : (
-        <div className="grid grid-cols-2 gap-4">
-          <div className="col-span-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="col-span-1 sm:col-span-2">
             <Field label="Lớp">
               <select
                 className={inputCls}
@@ -488,7 +488,7 @@ export function PatternModal({
                     type="button"
                     aria-pressed={on}
                     onClick={() => toggleDay(dow)}
-                    className={`h-[38px] rounded-ga border px-3.5 text-[13px] font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ga-accent focus-visible:ring-offset-2 focus-visible:ring-offset-ga-bg ${
+                    className={`h-10 rounded-ga border px-3.5 text-[13px] font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ga-accent focus-visible:ring-offset-2 focus-visible:ring-offset-ga-bg lg:h-[38px] ${
                       on
                         ? 'border-ga-teal bg-ga-teal-soft text-ga-teal'
                         : 'border-ga-line bg-ga-bg text-ga-muted hover:border-ga-teal hover:text-ga-ink'
@@ -501,7 +501,7 @@ export function PatternModal({
             </div>
           </FieldGroup>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Giờ bắt đầu">
               <input type="time" className={inputCls} value={startTime} onChange={(e) => setStartTime(e.target.value)} />
             </Field>
@@ -534,7 +534,7 @@ export function PatternModal({
             </Field>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Áp dụng từ">
               <input type="date" className={inputCls} value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} />
             </Field>
@@ -556,9 +556,9 @@ export function PatternModal({
                 {patterns.map((p) => (
                   <li
                     key={p.id}
-                    className="flex items-center justify-between border border-ga-line bg-ga-bg px-3.5 py-2.5 text-[13px] text-ga-ink"
+                    className="flex items-center justify-between gap-2 border border-ga-line bg-ga-bg px-3.5 py-2.5 text-[13px] text-ga-ink"
                   >
-                    <span>
+                    <span className="min-w-0 break-words">
                       <b>{DOW_LABEL[p.dayOfWeek - 1]}</b> · {p.startTime.slice(0, 5)} · {p.durationMinutes}′ ·{' '}
                       {MODE_LABEL[p.defaultMode]}
                       {p.defaultRoom ? ` · ${p.defaultRoom}` : ''}
@@ -568,7 +568,7 @@ export function PatternModal({
                       aria-label="Xoá lịch cố định"
                       onClick={() => remove(p.id)}
                       disabled={deletingId !== null}
-                      className="grid h-7 w-7 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-red-soft hover:text-ga-red disabled:pointer-events-none disabled:opacity-50"
+                      className="grid h-10 w-10 shrink-0 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-red-soft hover:text-ga-red disabled:pointer-events-none disabled:opacity-50 lg:h-7 lg:w-7"
                     >
                       <Trash2 size={14} />
                     </button>

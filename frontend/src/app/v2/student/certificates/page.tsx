@@ -126,7 +126,7 @@ export default function V2StudentCertificatesPage() {
     <div className="flex min-h-full flex-col">
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
 
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         {loading ? (
           <LoadingState label={t('loading')} />
         ) : (
@@ -140,11 +140,11 @@ export default function V2StudentCertificatesPage() {
             />
 
             {/* Verification note (dark band) */}
-            <div className="bg-ga-ink p-7 text-ga-bg">
+            <div className="bg-ga-ink p-5 text-ga-bg lg:p-7">
               <GaCap className="mb-2 block" style={{ color: '#A39E94' }}>
                 {t('heroCap')}
               </GaCap>
-              <p className="font-ga-display text-[26px] font-medium">{t('heroTitle')}</p>
+              <p className="font-ga-display text-[20px] font-medium lg:text-[26px]">{t('heroTitle')}</p>
               <p className="ga-ui mt-2 max-w-xl text-[14.5px]" style={{ color: '#A39E94' }}>
                 {t('heroDesc')}
               </p>
@@ -186,7 +186,7 @@ export default function V2StudentCertificatesPage() {
                   {locked.map((level, i) => (
                     <div
                       key={level}
-                      className="flex items-center gap-4 px-5 py-4"
+                      className="flex flex-wrap items-center gap-3 px-4 py-4 sm:flex-nowrap lg:gap-4 lg:px-5"
                       style={{ borderTop: i ? '1px solid var(--ga-border)' : 'none' }}
                     >
                       <span className="grid h-11 w-11 shrink-0 place-items-center rounded-ga bg-ga-side-active text-ga-subtle">
@@ -200,6 +200,7 @@ export default function V2StudentCertificatesPage() {
                       <GaBtn
                         variant="ghost"
                         size="sm"
+                        className="w-full shrink-0 sm:w-auto"
                         loading={claiming === level}
                         onClick={() => claim(level)}
                         style={{ color: color(level), borderColor: `${color(level)}55` }}
@@ -222,16 +223,16 @@ function CertificateCard({ cert, onDownload }: { cert: Certificate; onDownload: 
   const t = useTranslations('v2.student.certificates')
   const c = color(cert.cefr_level)
   return (
-    <div className="border bg-ga-card p-5" style={{ borderColor: `${c}55` }}>
-      <div className="flex items-start gap-4">
+    <div className="border bg-ga-card p-4 lg:p-5" style={{ borderColor: `${c}55` }}>
+      <div className="flex items-start gap-3 lg:gap-4">
         <span
-          className="grid h-14 w-14 shrink-0 place-items-center rounded-ga text-white"
+          className="grid h-12 w-12 shrink-0 place-items-center rounded-ga text-white lg:h-14 lg:w-14"
           style={{ background: c }}
         >
           <Award size={28} aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="font-ga-display text-[26px] font-medium leading-none" style={{ color: c }}>
+          <p className="font-ga-display text-[22px] font-medium leading-none lg:text-[26px]" style={{ color: c }}>
             {cert.cefr_level}
           </p>
           <p className="mt-1.5 text-[13.5px] font-semibold text-ga-ink">{t(`levels.${cert.cefr_level}`)}</p>
@@ -245,6 +246,7 @@ function CertificateCard({ cert, onDownload }: { cert: Certificate; onDownload: 
         <GaBtn
           variant="ghost"
           size="sm"
+          className="shrink-0"
           onClick={() => onDownload(cert.id)}
           title={t('download')}
           aria-label={t('download')}
@@ -254,14 +256,14 @@ function CertificateCard({ cert, onDownload }: { cert: Certificate; onDownload: 
       </div>
 
       <div
-        className="mt-4 flex items-center justify-between gap-3 border-t pt-3.5"
+        className="mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t pt-3.5 lg:flex-nowrap"
         style={{ borderColor: `${c}33` }}
       >
-        <span className="ga-ui inline-flex items-center gap-1.5 font-mono text-[12px]" style={{ color: c }}>
-          <ShieldCheck size={13} aria-hidden />
+        <span className="ga-ui inline-flex min-w-0 items-center gap-1.5 break-all font-mono text-[12px]" style={{ color: c }}>
+          <ShieldCheck size={13} className="shrink-0" aria-hidden />
           {cert.certificate_code}
         </span>
-        <span className="ga-ui inline-flex items-center gap-1 text-[11.5px] text-ga-muted">
+        <span className="ga-ui inline-flex shrink-0 items-center gap-1 text-[11.5px] text-ga-muted">
           <Star size={12} className="fill-current" style={{ color: 'var(--ga-gold)' }} aria-hidden />
           {t('verified')}
         </span>

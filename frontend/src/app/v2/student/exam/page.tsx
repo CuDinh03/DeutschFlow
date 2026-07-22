@@ -34,10 +34,10 @@ export default function V2StudentExamPage() {
         title={t('title')}
         subtitle={t('subtitle')}
       />
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         {/* Hero CTA */}
-        <div className="mb-[22px] flex flex-col items-start gap-4 bg-ga-ink p-7 text-ga-bg md:flex-row md:items-center md:justify-between">
-          <div>
+        <div className="mb-[22px] flex flex-col items-start gap-4 bg-ga-ink p-5 text-ga-bg md:flex-row md:items-center md:justify-between lg:p-7">
+          <div className="min-w-0">
             <GaCap className="mb-2 block" style={{ color: '#A39E94' }}>{t('heroCap')}</GaCap>
             <p className="font-ga-display text-[24px] font-medium">{t('heroTitle')}</p>
             <p className="ga-ui mt-1.5 text-[14px]" style={{ color: '#A39E94' }}>
@@ -63,7 +63,7 @@ export default function V2StudentExamPage() {
               >
                 {l.code}
               </span>
-              <div>
+              <div className="min-w-0">
                 <p className="text-[15px] font-semibold text-ga-ink">{l.name}</p>
                 <p className="ga-ui mt-1 text-[13px] text-ga-muted">{t(l.descKey)}</p>
               </div>

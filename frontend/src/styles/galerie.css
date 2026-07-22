@@ -114,6 +114,18 @@
   --ga-accent-ink: #161513;
 }
 
+/* iOS Safari tự PHÓNG TO cả trang khi con trỏ vào ô nhập có font-size < 16px, và sau cú phóng đó
+   trang kéo ngang được — người dùng thấy đúng như "giao diện bị vỡ, sai tỷ lệ". Thang chữ Galerie
+   dùng 12.5–15px cho ô nhập nên dính bẫy này ở mọi biểu mẫu (đăng nhập, hồ sơ, tìm kiếm, soạn tin).
+   Ép 16px chỉ dưới 1024px; từ lg giữ nguyên từng pixel như thiết kế. */
+@media (max-width: 1023px) {
+  .ga-scope input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  .ga-scope textarea,
+  .ga-scope select {
+    font-size: 16px;
+  }
+}
+
 /* Skeleton shimmer (DataTable loading) — 70-admin-users: 1.3s linear sweep. */
 .ga-scope .ga-shimmer {
   background: linear-gradient(90deg, var(--ga-surface), var(--ga-card), var(--ga-surface));

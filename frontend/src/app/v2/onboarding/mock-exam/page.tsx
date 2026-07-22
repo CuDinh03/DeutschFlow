@@ -201,7 +201,7 @@ export default function V2OnboardingMockExamPage() {
       <GaAuthShell showBackToLanding={false}>
         <div className="flex flex-col items-center text-center">
           <div className="mb-7 h-16 w-16 animate-spin rounded-ga-pill border-4 border-ga-line border-t-ga-accent" />
-          <h2 className="font-ga-display text-[26px] font-medium text-ga-ink">
+          <h2 className="font-ga-display text-[20px] font-medium text-ga-ink lg:text-[26px]">
             {phase === 'TRANSCRIBING' ? 'Đang nhận diện giọng nói...' : 'AI đang phân tích trình độ...'}
           </h2>
           <p className="mt-3 text-[14px] text-ga-muted">
@@ -210,7 +210,7 @@ export default function V2OnboardingMockExamPage() {
               : 'Đang đánh giá ngữ pháp, từ vựng, phát âm và độ trôi chảy của bạn.'}
           </p>
           {transcript && phase === 'ANALYZING' && (
-            <GaCard className="mt-6 p-4 text-[13.5px] italic text-ga-muted">
+            <GaCard className="mt-6 max-w-full break-words p-4 text-[13.5px] italic text-ga-muted">
               &ldquo;{transcript.substring(0, 200)}{transcript.length > 200 ? '...' : ''}&rdquo;
             </GaCard>
           )}
@@ -227,9 +227,9 @@ export default function V2OnboardingMockExamPage() {
           <div className="mb-6 grid h-16 w-16 place-items-center rounded-ga-pill bg-ga-red-soft">
             <AlertTriangle size={30} className="text-ga-red" />
           </div>
-          <h2 className="mb-2 font-ga-display text-[26px] font-medium text-ga-ink">Có lỗi xảy ra</h2>
+          <h2 className="mb-2 font-ga-display text-[20px] font-medium text-ga-ink lg:text-[26px]">Có lỗi xảy ra</h2>
           <p className="mb-8 text-[14px] text-ga-muted">{errorMsg}</p>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap justify-center gap-3">
             <GaBtn
               variant="ink"
               size="lg"
@@ -260,7 +260,7 @@ export default function V2OnboardingMockExamPage() {
           </div>
 
           <GaCap>Bài kiểm tra nói</GaCap>
-          <h1 className="m-0 font-ga-display text-[38px] font-medium tracking-[-0.015em] text-ga-ink">
+          <h1 className="m-0 font-ga-display text-[26px] font-medium tracking-[-0.015em] text-ga-ink sm:text-[30px] lg:text-[38px]">
             Bài Test Nói 3 Phút
           </h1>
           <p className="text-[15px] leading-relaxed text-ga-muted">
@@ -269,7 +269,7 @@ export default function V2OnboardingMockExamPage() {
             xác định trình độ CEFR và lập hồ sơ điểm yếu của bạn.
           </p>
 
-          <GaCard className="space-y-3 p-5 text-left">
+          <GaCard className="space-y-3 p-4 text-left lg:p-5">
             <GaCap>💡 Gợi ý nội dung</GaCap>
             <ul className="space-y-2 text-[13.5px] text-ga-muted">
               <li>• Giới thiệu bản thân (tên, tuổi, quê quán)</li>
@@ -303,9 +303,9 @@ export default function V2OnboardingMockExamPage() {
           />
         </div>
 
-        <div className="flex flex-col items-center p-8">
+        <div className="flex flex-col items-center p-5 lg:p-8">
           {/* Timer */}
-          <div className={`mb-6 font-mono text-5xl font-bold tracking-wider ${timeLeft <= 30 ? 'animate-pulse text-ga-red' : 'text-ga-ink'}`}>
+          <div className={`mb-6 font-mono text-4xl font-bold tracking-wider lg:text-5xl ${timeLeft <= 30 ? 'animate-pulse text-ga-red' : 'text-ga-ink'}`}>
             {formatTime(timeLeft)}
           </div>
 

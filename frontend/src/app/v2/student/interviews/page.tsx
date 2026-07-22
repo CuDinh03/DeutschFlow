@@ -197,7 +197,7 @@ export default function V2StudentInterviewsPage() {
             <button
               type="button"
               onClick={closeSession}
-              className="ga-ui flex items-center gap-2 text-[13px] font-semibold text-ga-muted transition-colors hover:text-ga-ink"
+              className="ga-ui flex min-h-[40px] items-center gap-2 text-[13px] font-semibold text-ga-muted transition-colors hover:text-ga-ink lg:min-h-0"
             >
               <span className="grid h-8 w-8 place-items-center rounded-full border border-ga-line bg-ga-card">
                 <ArrowLeft size={16} aria-hidden />
@@ -208,7 +208,7 @@ export default function V2StudentInterviewsPage() {
               <button
                 type="button"
                 onClick={() => downloadReport(reportJson, selected.id)}
-                className="ga-ui flex items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-3 py-1.5 text-[12px] font-semibold text-ga-muted transition-colors hover:text-ga-ink"
+                className="ga-ui flex min-h-[40px] items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-3 py-1.5 text-[12px] font-semibold text-ga-muted transition-colors hover:text-ga-ink lg:min-h-0"
               >
                 <Download size={13} aria-hidden /> {t('downloadReport')}
               </button>
@@ -314,13 +314,13 @@ export default function V2StudentInterviewsPage() {
         right={
           <a
             href={NEW_INTERVIEW_HREF}
-            className="ga-ui inline-flex items-center gap-1.5 rounded-ga bg-ga-accent px-4 py-2.5 text-[13px] font-semibold text-ga-accent-ink transition-opacity hover:opacity-90"
+            className="ga-ui inline-flex min-h-[40px] items-center gap-1.5 rounded-ga bg-ga-accent px-4 py-2.5 text-[13px] font-semibold text-ga-accent-ink transition-opacity hover:opacity-90 lg:min-h-0"
           >
             <Plus size={14} aria-hidden /> {t('newInterview')}
           </a>
         }
       />
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         <div className="mx-auto max-w-3xl space-y-3">
           <div className="flex items-center gap-2">
             <GaCap>{t('sessionCount', { count: sessions.length })}</GaCap>
@@ -331,7 +331,7 @@ export default function V2StudentInterviewsPage() {
           {loading || loadingMsgs ? (
             <LoadingState label={t('loading')} />
           ) : sessions.length === 0 ? (
-            <div className="rounded-ga border border-ga-line bg-ga-card py-16 text-center">
+            <div className="rounded-ga border border-ga-line bg-ga-card px-4 py-16 text-center lg:px-0">
               <Briefcase size={36} className="mx-auto mb-3 text-ga-subtle" aria-hidden />
               <p className="font-ga-display text-[20px] font-medium text-ga-ink">{t('emptyTitle')}</p>
               <p className="ga-ui mt-2 text-[13px] text-ga-muted">{t('emptyDesc')}</p>
@@ -350,7 +350,7 @@ export default function V2StudentInterviewsPage() {
                   <button
                     type="button"
                     onClick={() => openSession(sess)}
-                    className="flex w-full items-start gap-4 px-5 py-4 text-left transition-colors hover:bg-ga-surface"
+                    className="flex w-full items-start gap-3 px-4 py-4 text-left transition-colors hover:bg-ga-surface lg:gap-4 lg:px-5"
                   >
                     <span
                       className="grid h-10 w-10 shrink-0 place-items-center rounded-ga"
@@ -360,7 +360,7 @@ export default function V2StudentInterviewsPage() {
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="truncate text-[15px] font-semibold text-ga-ink">
+                        <p className="min-w-0 truncate text-[15px] font-semibold text-ga-ink">
                           {sess.interviewPosition ?? t('unknownPosition')}
                         </p>
                         {sess.experienceLevel && <TkBadge tone="yellow">{sess.experienceLevel}</TkBadge>}

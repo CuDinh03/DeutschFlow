@@ -54,7 +54,7 @@ export default function V2StudentMockExamPage() {
   return (
     <div className="flex min-h-full flex-col">
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         {error && (
           <div className="mb-5">
             <ErrorBanner message={error} onRetry={load} />
@@ -78,7 +78,7 @@ export default function V2StudentMockExamPage() {
                     type="button"
                     onClick={() => toggle(p)}
                     disabled={p.locked}
-                    className="flex w-full items-center gap-4 px-5 py-4 text-left transition-colors enabled:hover:bg-ga-surface disabled:cursor-not-allowed"
+                    className="flex w-full items-center gap-3 px-4 py-4 text-left transition-colors enabled:hover:bg-ga-surface disabled:cursor-not-allowed lg:gap-4 lg:px-5"
                   >
                     <span
                       className="grid h-12 w-12 shrink-0 place-items-center rounded-ga font-ga-display text-[16px] font-medium text-white"
@@ -97,27 +97,27 @@ export default function V2StudentMockExamPage() {
                       </p>
                     </div>
                     {p.locked ? (
-                      <Lock size={18} className="text-ga-subtle" aria-hidden />
+                      <Lock size={18} className="shrink-0 text-ga-subtle" aria-hidden />
                     ) : (
                       <ChevronRight
                         size={18}
-                        className={`text-ga-subtle transition-transform ${open ? 'rotate-90' : ''}`}
+                        className={`shrink-0 text-ga-subtle transition-transform ${open ? 'rotate-90' : ''}`}
                         aria-hidden
                       />
                     )}
                   </button>
 
                   {open && (
-                    <div className="border-t border-ga-border bg-ga-surface px-5 py-4">
+                    <div className="border-t border-ga-border bg-ga-surface px-4 py-4 lg:px-5">
                       {detailLoading ? (
                         <LoadingState label={t('detailLoading')} />
                       ) : detail && detail.exams.length > 0 ? (
                         <div className="space-y-2">
                           {detail.exams.map((ex) => (
-                            <div key={ex.id} className="flex items-center gap-3 border border-ga-line bg-ga-card px-4 py-3">
+                            <div key={ex.id} className="flex flex-col gap-3 border border-ga-line bg-ga-card px-4 py-3 sm:flex-row sm:items-center">
                               <div className="min-w-0 flex-1">
-                                <p className="text-[14px] font-semibold text-ga-ink">{ex.title}</p>
-                                <p className="ga-ui mt-0.5 flex items-center gap-3 text-[12px] text-ga-muted">
+                                <p className="text-[14px] font-semibold text-ga-ink break-words">{ex.title}</p>
+                                <p className="ga-ui mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-ga-muted">
                                   {ex.timeLimitMinutes != null && (
                                     <span className="inline-flex items-center gap-1">
                                       <Clock size={12} aria-hidden /> {t('examTime', { minutes: ex.timeLimitMinutes })}
@@ -129,7 +129,7 @@ export default function V2StudentMockExamPage() {
                               </div>
                               <a
                                 href={`/v2/student/mock-exam/run?examId=${ex.id}&level=${encodeURIComponent(p.cefrLevel ?? '')}`}
-                                className="ga-ui inline-flex shrink-0 items-center gap-1 rounded-ga bg-ga-accent px-3.5 py-2 text-[12.5px] font-semibold text-ga-accent-ink"
+                                className="ga-ui inline-flex min-h-10 shrink-0 items-center justify-center gap-1 rounded-ga bg-ga-accent px-3.5 py-2.5 text-[12.5px] font-semibold text-ga-accent-ink sm:justify-start sm:py-2 lg:min-h-0"
                               >
                                 {t('start')} <ArrowRight size={13} aria-hidden />
                               </a>

@@ -37,24 +37,27 @@ export function GaAuthShell({
   const t = useTranslations('v2.auth')
   return (
     <div className="flex min-h-screen flex-col bg-ga-bg text-ga-ink">
-      <header className="flex items-center justify-between border-b border-ga-line bg-ga-card px-10 py-6">
+      <header className="flex items-center justify-between gap-3 border-b border-ga-line bg-ga-card px-4 py-5 sm:px-6 lg:gap-0 lg:px-10 lg:py-6">
         {/* Brand name — not translated on purpose. */}
-        <Link href="/" aria-label="DeutschFlow" className="inline-flex">
+        <Link href="/" aria-label="DeutschFlow" className="inline-flex min-w-0">
           <GaLogo />
         </Link>
-        <div className="flex items-center gap-4">
+        <div className="flex shrink-0 items-center gap-2 lg:gap-4">
           {/* The locale cookie is otherwise only written at login (from user.locale) or by the
               in-app toggle, so a first-time EN/DE visitor would be stuck on Vietnamese with no way
               out. The legacy /login carried a LanguageSwitcher for exactly this reason. */}
           <LanguageToggle />
           {showBackToLanding && (
-            <Link href="/" className="ga-ui text-[13.5px] text-ga-muted transition-colors hover:text-ga-ink">
+            <Link
+              href="/"
+              className="ga-ui inline-flex min-h-[40px] items-center whitespace-nowrap text-[13.5px] text-ga-muted transition-colors hover:text-ga-ink lg:min-h-0"
+            >
               {t('shell.backHome')}
             </Link>
           )}
         </div>
       </header>
-      <main className="flex flex-1 items-center justify-center px-6 py-12">
+      <main className="flex flex-1 items-center justify-center px-4 py-8 sm:px-6 sm:py-12">
         <div className="w-full" style={{ maxWidth: wide ? 700 : 440 }}>
           {children}
         </div>
@@ -127,7 +130,7 @@ export function GaField({
             type="button"
             onClick={() => setShow((s) => !s)}
             aria-label={show ? t('field.hidePassword') : t('field.showPassword')}
-            className="absolute right-1.5 top-1/2 grid h-[30px] w-[30px] -translate-y-1/2 place-items-center text-ga-muted transition-colors hover:text-ga-ink"
+            className="absolute right-1.5 top-1/2 grid h-[40px] w-[40px] -translate-y-1/2 place-items-center text-ga-muted transition-colors hover:text-ga-ink lg:h-[30px] lg:w-[30px]"
           >
             {show ? <EyeOff size={18} /> : <Eye size={18} />}
           </button>

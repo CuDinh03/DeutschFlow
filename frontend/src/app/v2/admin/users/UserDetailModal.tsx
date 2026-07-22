@@ -281,7 +281,7 @@ export function UserDetailModal({
                         value={roleValue}
                         onChange={(e) => setRoleValue(e.target.value as GlobalRole)}
                         aria-label="Vai trò hệ thống"
-                        className="ga-ui flex-1 rounded-ga border border-ga-line bg-ga-card px-3 py-2 text-[13px] font-semibold text-ga-ink outline-none"
+                        className="ga-ui min-w-0 flex-1 rounded-ga border border-ga-line bg-ga-card px-3 py-2 text-[13px] font-semibold text-ga-ink outline-none"
                       >
                         {ROLES.map((r) => (
                           <option key={r} value={r}>
@@ -325,7 +325,7 @@ export function UserDetailModal({
                     onChange={(e) => setNewPw(e.target.value)}
                     autoComplete="new-password"
                     placeholder="Mật khẩu mới (≥ 8 ký tự)"
-                    className="ga-ui flex-1 rounded-ga border border-ga-line bg-ga-card px-3 py-2 text-[13px] text-ga-ink outline-none placeholder:text-ga-subtle"
+                    className="ga-ui min-w-0 flex-1 rounded-ga border border-ga-line bg-ga-card px-3 py-2 text-[13px] text-ga-ink outline-none placeholder:text-ga-subtle"
                   />
                   <GaBtn variant="primary" loading={savingPw} disabled={newPw.length < 8} onClick={resetPassword}>
                     Đặt lại
@@ -393,8 +393,8 @@ export function UserDetailModal({
           {/* Usage log */}
           <section>
             <GaCap>Nhật ký usage (200 gần nhất)</GaCap>
-            <div className="mt-2 max-h-64 overflow-y-auto rounded-ga border border-ga-line">
-              <table className="ga-ui w-full border-collapse text-[12.5px]">
+            <div className="mt-2 max-h-64 overflow-x-auto overflow-y-auto rounded-ga border border-ga-line">
+              <table className="ga-ui w-full min-w-[560px] border-collapse text-[12.5px] lg:min-w-0">
                 <thead className="sticky top-0 bg-ga-side-active">
                   <tr>
                     {['Thời điểm', 'Tính năng', 'Provider/Model', 'Tokens'].map((h) => (

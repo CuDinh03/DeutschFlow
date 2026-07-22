@@ -139,7 +139,7 @@ export default function V2ErrorReportPage() {
 
         {/* Header */}
         <div className="text-center">
-          <h1 className="m-0 font-ga-display text-[38px] font-medium tracking-[-0.015em] text-ga-ink">
+          <h1 className="m-0 font-ga-display text-[26px] font-medium tracking-[-0.015em] text-ga-ink sm:text-[30px] lg:text-[38px]">
             Báo Cáo Trình Độ Của Bạn
           </h1>
           <p className="mt-3 text-[15px] text-ga-muted">
@@ -149,15 +149,15 @@ export default function V2ErrorReportPage() {
 
         {/* CEFR Badge */}
         <div className="flex justify-center">
-          <GaCard className="flex items-center gap-6 px-8 py-5">
-            <div>
+          <GaCard className="flex w-full max-w-full flex-col items-center gap-4 px-5 py-4 text-center sm:w-auto sm:flex-row sm:gap-6 sm:text-left lg:px-8 lg:py-5">
+            <div className="min-w-0">
               <GaCap>Trình độ ước tính</GaCap>
-              <p className="mt-1 font-ga-display text-[44px] font-medium leading-none text-ga-accent">{report.estimated_cefr}</p>
+              <p className="mt-1 font-ga-display text-[32px] font-medium leading-none text-ga-accent sm:text-[38px] lg:text-[44px]">{report.estimated_cefr}</p>
             </div>
-            <div className="h-12 w-px bg-ga-line" />
-            <div>
+            <div className="h-px w-full bg-ga-line sm:h-12 sm:w-px" />
+            <div className="min-w-0">
               <GaCap>Điểm trung bình</GaCap>
-              <p className="mt-1 font-ga-display text-[44px] font-medium leading-none" style={{ color: scoreColor(avgScore) }}>
+              <p className="mt-1 font-ga-display text-[32px] font-medium leading-none sm:text-[38px] lg:text-[44px]" style={{ color: scoreColor(avgScore) }}>
                 {avgScore}<span className="text-[16px] text-ga-subtle">/100</span>
               </p>
             </div>
@@ -215,9 +215,9 @@ export default function V2ErrorReportPage() {
                       <div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-ga bg-ga-red-soft">
                         <span className="ga-ui text-[13px] font-bold text-ga-red">{idx + 1}</span>
                       </div>
-                      <div className="flex-1">
-                        <p className="ga-ui text-[14px] font-bold text-ga-ink">{err.message}</p>
-                        <div className="mt-2 rounded-ga border border-ga-line bg-ga-surface p-2.5 font-mono text-[13px] text-ga-muted">
+                      <div className="min-w-0 flex-1">
+                        <p className="ga-ui break-words text-[14px] font-bold text-ga-ink">{err.message}</p>
+                        <div className="mt-2 break-words rounded-ga border border-ga-line bg-ga-surface p-2.5 font-mono text-[13px] text-ga-muted">
                           {err.example}
                         </div>
                       </div>
@@ -240,9 +240,9 @@ export default function V2ErrorReportPage() {
                           <div className="grid h-8 w-8 shrink-0 place-items-center rounded-ga bg-ga-line">
                             <span className="ga-ui text-[13px] font-bold text-ga-subtle">{idx + 3}</span>
                           </div>
-                          <div className="flex-1">
-                            <p className="ga-ui font-bold text-ga-faint">████████████████</p>
-                            <div className="mt-2 rounded-ga bg-ga-surface p-2.5 font-mono text-[13px] text-ga-faint">
+                          <div className="min-w-0 flex-1">
+                            <p className="ga-ui break-all font-bold text-ga-faint">████████████████</p>
+                            <div className="mt-2 break-all rounded-ga bg-ga-surface p-2.5 font-mono text-[13px] text-ga-faint">
                               ████ → ████████
                             </div>
                           </div>
@@ -264,7 +264,14 @@ export default function V2ErrorReportPage() {
 
         {/* CTA Buttons */}
         <div className="flex flex-col justify-center gap-4 pt-2 sm:flex-row">
-          <GaBtn variant="yellow" size="lg" onClick={() => setShowPaywall(true)}>
+          {/* GaBtn ép whitespace-nowrap + h-11 → nhãn dài này tràn ngang ở 320px. Cho xuống dòng
+              trên mobile; từ lg trả lại đúng một dòng/44px như bản gốc. */}
+          <GaBtn
+            variant="yellow"
+            size="lg"
+            className="h-auto min-h-[44px] whitespace-normal py-2.5 text-center lg:h-11 lg:whitespace-nowrap lg:py-0"
+            onClick={() => setShowPaywall(true)}
+          >
             <Crown size={18} />
             Mở khóa toàn bộ lỗi + Lộ trình sửa
           </GaBtn>
@@ -286,9 +293,9 @@ export default function V2ErrorReportPage() {
       >
         <div className="flex flex-col gap-6 md:flex-row">
           {/* Free Tier */}
-          <div className="flex-1 rounded-ga border border-ga-line p-6">
+          <div className="flex-1 rounded-ga border border-ga-line p-4 lg:p-6">
             <h3 className="ga-ui text-[16px] font-bold text-ga-ink">Gói FREE</h3>
-            <div className="mt-1 font-ga-display text-[26px] font-medium text-ga-ink">0đ</div>
+            <div className="mt-1 font-ga-display text-[22px] font-medium text-ga-ink lg:text-[26px]">0đ</div>
             <div className="mt-5 space-y-3 text-[13.5px] text-ga-muted">
               <p className="flex items-start gap-2">
                 <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-ga-green" />
@@ -313,12 +320,12 @@ export default function V2ErrorReportPage() {
           </div>
 
           {/* Pro Tier */}
-          <div className="relative flex-1 rounded-ga border border-ga-gold bg-ga-yellow-soft p-6">
+          <div className="relative flex-1 rounded-ga border border-ga-gold bg-ga-yellow-soft p-4 lg:p-6">
             <div className="ga-ui absolute -top-3 left-1/2 -translate-x-1/2 rounded-ga-pill bg-ga-yellow px-3 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-ga-ink">
               Khuyên dùng
             </div>
             <h3 className="ga-ui text-[16px] font-bold text-ga-ink">Gói PRO</h3>
-            <div className="mt-1 font-ga-display text-[30px] font-medium text-ga-ink">
+            <div className="mt-1 font-ga-display text-[24px] font-medium text-ga-ink lg:text-[30px]">
               299k<span className="text-[15px] text-ga-muted">/tháng</span>
             </div>
             <div className="mt-5 space-y-3 text-[13.5px] text-ga-ink">

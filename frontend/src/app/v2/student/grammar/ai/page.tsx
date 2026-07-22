@@ -145,7 +145,7 @@ export default function V2StudentGrammarAiPage() {
     <div className="flex min-h-full flex-col">
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
 
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         <div className="mx-auto max-w-2xl space-y-[18px]">
           {/* Tabs */}
           <TkSeg
@@ -162,7 +162,7 @@ export default function V2StudentGrammarAiPage() {
 
           {/* CEFR — không áp dụng cho tab văn hoá (giữ đúng v1) */}
           {tab !== 'cultural' && (
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <GaCap>{t('levelLabel')}</GaCap>
               <TkSeg
                 aria-label={t('levelLabel')}
@@ -180,7 +180,7 @@ export default function V2StudentGrammarAiPage() {
                 <button
                   type="button"
                   onClick={() => void loadSuggestions()}
-                  className="ga-ui inline-flex items-center gap-1 text-[12.5px] font-semibold text-ga-accent transition-opacity hover:opacity-80"
+                  className="ga-ui inline-flex min-h-10 items-center gap-1 text-[12.5px] font-semibold text-ga-accent transition-opacity hover:opacity-80 lg:min-h-0"
                 >
                   <RotateCcw size={12} aria-hidden /> {t('refresh')}
                 </button>
@@ -203,7 +203,7 @@ export default function V2StudentGrammarAiPage() {
                         setText(s.example ?? '')
                         setTab('correct')
                       }}
-                      className="w-full px-5 py-4 text-left transition-colors hover:bg-ga-surface"
+                      className="w-full px-4 py-4 text-left transition-colors hover:bg-ga-surface lg:px-5"
                     >
                       <p className="text-[15px] font-semibold text-ga-ink">{s.topic}</p>
                       {s.description && <p className="ga-ui mt-1 text-[13px] text-ga-muted">{s.description}</p>}
@@ -222,9 +222,9 @@ export default function V2StudentGrammarAiPage() {
           {/* Văn hoá Đức */}
           {tab === 'cultural' && (
             <div className="space-y-4">
-              <GaCard className="p-5">
+              <GaCard className="p-4 lg:p-5">
                 <GaCap className="mb-2 block">{t('culturalTopicCap')}</GaCap>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <input
                     value={culturalTopic}
                     onChange={(e) => setCulturalTopic(e.target.value)}
@@ -232,13 +232,13 @@ export default function V2StudentGrammarAiPage() {
                       if (e.key === 'Enter') void runCultural()
                     }}
                     placeholder={t('culturalPlaceholder')}
-                    className="ga-ui flex-1 rounded-ga border border-ga-line bg-ga-card px-3.5 py-2.5 text-[14px] text-ga-ink outline-none focus:border-ga-accent"
+                    className="ga-ui min-w-0 flex-1 basis-40 rounded-ga border border-ga-line bg-ga-card px-3.5 py-2.5 text-[14px] text-ga-ink outline-none focus:border-ga-accent"
                   />
                   <button
                     type="button"
                     onClick={() => void runCultural()}
                     disabled={culturalLoading || !culturalTopic.trim()}
-                    className="ga-ui inline-flex items-center gap-2 rounded-ga bg-ga-accent px-4 py-2.5 text-[13px] font-semibold text-ga-accent-ink transition-opacity hover:opacity-90 disabled:opacity-50"
+                    className="ga-ui inline-flex items-center gap-2 rounded-ga bg-ga-accent px-4 py-3 text-[13px] font-semibold text-ga-accent-ink transition-opacity hover:opacity-90 disabled:opacity-50 lg:py-2.5"
                   >
                     <Globe size={14} aria-hidden /> {t('lookUp')}
                   </button>
@@ -250,7 +250,7 @@ export default function V2StudentGrammarAiPage() {
                       key={chip}
                       type="button"
                       onClick={() => void runCultural(chip)}
-                      className="ga-ui rounded-ga-pill bg-ga-accent-soft px-2.5 py-1 text-[11.5px] font-medium text-ga-accent transition-opacity hover:opacity-80"
+                      className="ga-ui inline-flex min-h-10 items-center rounded-ga-pill bg-ga-accent-soft px-3 py-1 text-[11.5px] font-medium text-ga-accent transition-opacity hover:opacity-80 lg:min-h-0 lg:px-2.5"
                     >
                       {chip}
                     </button>
@@ -261,14 +261,14 @@ export default function V2StudentGrammarAiPage() {
               {culturalLoading && <LoadingState label={t('culturalLoading')} />}
 
               {culturalResult && (
-                <GaCard className="p-6">
+                <GaCard className="p-4 lg:p-6">
                   <div className="mb-3 flex items-center gap-2">
-                    <span className="text-[20px]" aria-hidden>
+                    <span className="shrink-0 text-[20px]" aria-hidden>
                       🇩🇪
                     </span>
-                    <p className="font-ga-display text-[20px] font-medium text-ga-ink">{culturalResult.topic}</p>
+                    <p className="min-w-0 break-words font-ga-display text-[20px] font-medium text-ga-ink">{culturalResult.topic}</p>
                   </div>
-                  <p className="ga-ui whitespace-pre-wrap text-[14px] leading-relaxed text-ga-muted">
+                  <p className="ga-ui whitespace-pre-wrap break-words text-[14px] leading-relaxed text-ga-muted">
                     {culturalResult.culturalContext}
                   </p>
                 </GaCard>
@@ -279,7 +279,7 @@ export default function V2StudentGrammarAiPage() {
           {/* Sửa lỗi · Giải thích · Phân tích */}
           {isTextTab && (
             <div className="space-y-3">
-              <GaCard className="p-5">
+              <GaCard className="p-4 lg:p-5">
                 <textarea
                   value={text}
                   onChange={(e) => setText(e.target.value)}
@@ -291,7 +291,7 @@ export default function V2StudentGrammarAiPage() {
                   type="button"
                   onClick={run}
                   disabled={loading || !text.trim()}
-                  className="ga-ui mt-3 inline-flex items-center gap-2 rounded-ga bg-ga-accent px-4 py-2.5 text-[13px] font-semibold text-ga-accent-ink transition-opacity hover:opacity-90 disabled:opacity-50"
+                  className="ga-ui mt-3 inline-flex items-center gap-2 rounded-ga bg-ga-accent px-4 py-3 text-[13px] font-semibold text-ga-accent-ink transition-opacity hover:opacity-90 disabled:opacity-50 lg:py-2.5"
                 >
                   <RunIcon size={14} aria-hidden />
                   {loading ? t('processing') : t(`actions.${tab}`)}
@@ -301,7 +301,7 @@ export default function V2StudentGrammarAiPage() {
               {loading && <LoadingState label={t('processing')} />}
 
               {result != null && (
-                <GaCard className="p-5">
+                <GaCard className="p-4 lg:p-5">
                   <GaCap className="mb-3 block">{t('resultCap')}</GaCap>
                   {/* Giữ nguyên cách hiển thị của v1: đổ thẳng JSON trả về. Ba endpoint có ba shape
                       khác nhau — render có cấu trúc là việc riêng, không gộp vào đợt port này. */}

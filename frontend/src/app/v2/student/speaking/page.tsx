@@ -106,7 +106,7 @@ export default function V2StudentSpeakingPage() {
                 /student/speaking-history; đây là đường vào duy nhất của trang đó trong /v2. */}
             <a
               href="/v2/student/speaking/history"
-              className="ga-ui inline-flex items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-4 py-2.5 text-[13px] font-semibold text-ga-ink transition-colors hover:bg-ga-surface"
+              className="ga-ui inline-flex min-h-[40px] items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-4 py-2.5 text-[13px] font-semibold text-ga-ink transition-colors hover:bg-ga-surface lg:min-h-0"
             >
               <History size={14} aria-hidden /> {t('historyCta')}
             </a>
@@ -114,21 +114,21 @@ export default function V2StudentSpeakingPage() {
                 /student/interviews page is no longer linked from anywhere in /v2. */}
             <a
               href="/v2/student/interviews"
-              className="ga-ui inline-flex items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-4 py-2.5 text-[13px] font-semibold text-ga-ink transition-colors hover:bg-ga-surface"
+              className="ga-ui inline-flex min-h-[40px] items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-4 py-2.5 text-[13px] font-semibold text-ga-ink transition-colors hover:bg-ga-surface lg:min-h-0"
             >
               <Briefcase size={14} aria-hidden /> {t('interviewResults')}
             </a>
           </>
         }
       />
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         {/* Recommended */}
         {!loading && today?.recommendedSpeaking?.topic && (
           <a href={withReturn(toV2SpeakingHref(today.recommendedSpeaking.href))}>
-            <div className="mb-[22px] flex flex-col items-start gap-4 bg-ga-ink p-7 text-ga-bg md:flex-row md:items-center md:justify-between">
-              <div>
+            <div className="mb-[22px] flex flex-col items-start gap-4 bg-ga-ink p-5 text-ga-bg md:flex-row md:items-center md:justify-between lg:p-7">
+              <div className="min-w-0">
                 <GaCap className="mb-2 block" style={{ color: '#A39E94' }}>{t('recommendedCap')}</GaCap>
-                <p className="font-ga-display text-[24px] font-medium">{today.recommendedSpeaking.topic}</p>
+                <p className="font-ga-display text-[20px] font-medium break-words lg:text-[24px]">{today.recommendedSpeaking.topic}</p>
                 {today.recommendedSpeaking.cefrLevel && (
                   <p className="ga-ui mt-1.5 text-[14px]" style={{ color: '#A39E94' }}>
                     {t('levelLabel', { level: today.recommendedSpeaking.cefrLevel })}

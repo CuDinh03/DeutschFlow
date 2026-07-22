@@ -175,15 +175,15 @@ function ProfileBody() {
   return (
     <div className="flex min-h-full flex-col">
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         {/* Tabs */}
-        <div className="mb-6 flex gap-2">
+        <div className="mb-6 flex flex-wrap gap-2">
           {TABS.map((tabItem) => (
             <button
               key={tabItem.id}
               type="button"
               onClick={() => setTab(tabItem.id)}
-              className={`ga-ui rounded-ga border px-[14px] py-2 text-[13px] font-semibold transition-colors ${
+              className={`ga-ui min-h-[40px] rounded-ga border px-[14px] py-2 text-[13px] font-semibold transition-colors lg:min-h-0 ${
                 tab === tabItem.id
                   ? 'border-ga-ink bg-ga-ink text-ga-card'
                   : 'border-ga-border bg-ga-card text-ga-muted hover:border-ga-ink hover:text-ga-ink'
@@ -197,7 +197,7 @@ function ProfileBody() {
         {loading ? (
           <LoadingState label={t('loading')} />
         ) : (
-          <GaCard className="max-w-2xl p-7">
+          <GaCard className="max-w-2xl p-5 lg:p-7">
             {tab === 'info' && (
               <div className="space-y-5">
                 <Field label={t('fieldDisplayName')}>

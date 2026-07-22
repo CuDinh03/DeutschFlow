@@ -177,8 +177,8 @@ export function SessionSummary({
       </div>
 
       {/* Stats */}
-      <div className="rounded-[20px] p-5" style={glass}>
-        <div className="flex items-center gap-5">
+      <div className="rounded-[20px] p-4 sm:p-5" style={glass}>
+        <div className="flex flex-col items-center gap-4 sm:flex-row sm:gap-5">
           {/* Circular */}
           <div className="relative flex-shrink-0">
             <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
@@ -198,16 +198,16 @@ export function SessionSummary({
             </div>
           </div>
           {/* Stats grid */}
-          <div className="flex-1 grid grid-cols-2 gap-2.5">
+          <div className="w-full grid grid-cols-2 gap-2.5 sm:w-auto sm:flex-1">
             {[
               { icon: Clock, label: "Thời gian", value: duration, color: CYAN },
               { icon: TrendingUp, label: "Lượt nói", value: `${totalExchanges}`, color: PURPLE },
               { icon: Check, label: "Hoàn hảo", value: `${totalPerfect}`, color: MINT },
               { icon: AlertTriangle, label: "Lỗi", value: `${totalErrors}`, color: CORAL },
             ].map(({ icon: Icon, label, value, color }) => (
-              <div key={label} className="rounded-[12px] p-2.5 flex flex-col gap-1" style={{ background: "var(--ga-surface)" }}>
+              <div key={label} className="min-w-0 rounded-[12px] p-2.5 flex flex-col gap-1" style={{ background: "var(--ga-surface)" }}>
                 <Icon size={13} style={{ color }} />
-                <span className="text-ga-ink font-bold text-base leading-none">{value}</span>
+                <span className="text-ga-ink font-bold text-base leading-none break-words">{value}</span>
                 <span className="text-[10px]" style={{ color: "var(--ga-subtle)" }}>{label}</span>
               </div>
             ))}
@@ -231,8 +231,8 @@ export function SessionSummary({
           {aiReport.categories.map((cat, i) => (
             <motion.div key={i} className="px-4 py-4" style={{ borderTop: i > 0 ? "1px solid var(--ga-line)" : "none" }}
               initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 + i * 0.1 }}>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-semibold text-ga-ink">{cat.name_vi}</span>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <span className="min-w-0 break-words text-sm font-semibold text-ga-ink">{cat.name_vi}</span>
                 <span className="text-sm font-bold" style={{ color: cat.score >= 7 ? MINT : cat.score >= 5 ? "#FBBF24" : "#F87171" }}>
                   {cat.score}/10
                 </span>

@@ -147,7 +147,7 @@ export function AdminCreateUserModal({ onClose, onCreated }: { onClose: () => vo
                 type="button"
                 onClick={() => setKind(k.value)}
                 className={
-                  'ga-ui rounded-ga border px-3 py-2 text-left text-[13px] font-semibold transition-colors ' +
+                  'ga-ui min-h-[40px] rounded-ga border px-3 py-2 text-left text-[13px] font-semibold transition-colors lg:min-h-0 ' +
                   (kind === k.value
                     ? 'border-ga-accent bg-ga-accent-soft text-ga-accent'
                     : 'border-ga-line bg-ga-card text-ga-muted hover:border-ga-ink hover:text-ga-ink')
