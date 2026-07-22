@@ -126,5 +126,18 @@ Script: `scratchpad/verify_timesheet_sql.sql` (dùng `SET session_replication_ro
 - Toàn bộ bản vá đã **fast-forward vào head của PR #242** (`1508d280 → 122b8064`), không dùng force.
 - PR #242: base `main`, **MERGEABLE / CLEAN**, 56 file.
 - Hai commit vá: `6c6da5b8` (HIGH-3 + 2 MEDIUM) và `122b8064` (4 LOW).
-- **Việc còn lại duy nhất:** owner quyết định merge PR #242 — merge nghĩa là đưa cả tính năng chấm công lên
-  `main` (hiện `main` chưa có V262–V268). Mọi rào cản kỹ thuật đã dọn.
+- **Việc còn lại:** owner quyết định merge PR #242 — merge nghĩa là đưa cả tính năng chấm công lên `main`
+  (hiện `main` chưa có V262–V268).
+
+> ⚠️ **ĐÍNH CHÍNH (2026-07-22).** Bản đầu của mục này viết *"Mọi rào cản kỹ thuật đã dọn"* — **SAI**.
+> Vòng review 21/07 chỉ soi *diff*, nên bỏ sót một rào cản triển khai: V266 tạo unique index trên
+> `class_lesson_logs` và sẽ **abort deploy** nếu prod còn nhật ký trùng, trong khi bước dọn bắt buộc chỉ được
+> ghi trong comment SQL của chính migration — không có ở `deploy-backend.sh` lẫn runbook, và checkbox chạy
+> script trong plan vẫn chưa tick. Audit tiền-merge ngày 22/07 phát hiện điều này (xem
+> [`BAO_CAO_AUDIT_TIEN_MERGE_PR242_2026-07-22.md`](../../BAO_CAO_AUDIT_TIEN_MERGE_PR242_2026-07-22.md)).
+> **Đã vá:** DML dedupe được đưa vào chính V266, cùng transaction với việc tạo index — bỏ hẳn thao tác tay và
+> đóng luôn cửa sổ đua với container cũ. Kèm theo, bug của chính script dedupe (nhóm trùng ≥3 bản làm vi phạm
+> khoá chính) cũng đã sửa và kiểm chứng trên Postgres thật.
+>
+> **Bài học:** review theo diff không thể thấy rủi ro vận hành. Một tuyên bố "đã dọn mọi rào cản" chỉ nên đưa
+> ra sau khi đã soi cả đường deploy, không chỉ đường code.

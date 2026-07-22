@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import api, { httpStatus } from '@/lib/api'
+import api, { httpStatus, apiMessage } from '@/lib/api'
 import { logout } from '@/lib/authSession'
 import { TeacherShell } from '@/components/layouts/TeacherShell'
 import { usePendingGradingCount } from '@/hooks/usePendingGradingCount'
@@ -224,11 +224,17 @@ export default function TeacherReportsPage() {
     if (!selectedClassId) return
     const fd = new FormData(e.currentTarget)
     const classStudents = gradebook?.students ?? []
-    const attendance = classStudents.map(s => ({
-      studentId: s.studentId,
-      status: (fd.get(`att_${s.studentId}`) as string) ?? 'PRESENT',
-      note: null,
-    }))
+    // CHỈ gửi học viên được đánh dấu tường minh. Trước đây map cả roster và mặc định 'PRESENT',
+    // nên chỉ sửa một lỗi chính tả ở topic cũng ghi khống "có mặt" cho mọi học viên — kể cả người
+    // chưa từng được điểm danh. Với mẫu số chuyên cần theo từng học viên, việc đó CHẾ RA bằng chứng
+    // và có thể bật nhầm điều kiện cấp chứng chỉ. Không đánh dấu = không gửi, khớp hợp đồng của v2.
+    const attendance = classStudents
+      .map(s => ({
+        studentId: s.studentId,
+        status: (fd.get(`att_${s.studentId}`) as string) || '',
+        note: null,
+      }))
+      .filter(a => a.status !== '')
     const payload = {
       sessionDate: fd.get('sessionDate'),
       sessionNumber: fd.get('sessionNumber') ? Number(fd.get('sessionNumber')) : null,
@@ -249,8 +255,10 @@ export default function TeacherReportsPage() {
       }
       setShowLogForm(false)
       setEditingLog(null)
-    } catch {
-      setCrudError('Lưu buổi học thất bại. Vui lòng thử lại.')
+    } catch (e) {
+      // Hiện đúng lý do server trả về (ngày tương lai, trùng buổi…). Nuốt mất thông điệp này khiến
+      // giáo viên bấm lại vô hạn mà không biết phải sửa gì — và buổi dạy đó mất khỏi bảng công.
+      setCrudError(apiMessage(e) || 'Lưu buổi học thất bại. Vui lòng thử lại.')
     } finally { setLogFormLoading(false) }
   }
 
@@ -677,7 +685,9 @@ export default function TeacherReportsPage() {
                                     return (
                                       <div key={s.studentId} className="flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-200">
                                         <span className="text-xs font-medium text-slate-700 flex-1 truncate">{s.name}</span>
-                                        <select name={`att_${s.studentId}`} defaultValue={existing?.status ?? 'PRESENT'} className="text-xs border border-slate-200 rounded px-1 py-0.5 focus:ring-1 focus:ring-indigo-500 outline-none">
+                                        <select name={`att_${s.studentId}`} defaultValue={existing?.status ?? ''} className="text-xs border border-slate-200 rounded px-1 py-0.5 focus:ring-1 focus:ring-indigo-500 outline-none">
+                                          {/* Mặc định KHÔNG điểm danh: học viên chưa được đánh dấu thì không gửi lên, tránh ghi khống "có mặt". */}
+                                          <option value="">— Chưa điểm danh</option>
                                           <option value="PRESENT">✓ Có mặt</option>
                                           <option value="LATE">M Muộn</option>
                                           <option value="ABSENT">V Vắng</option>

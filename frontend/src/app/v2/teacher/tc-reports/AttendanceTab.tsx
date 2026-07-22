@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import { FileDown, Plus, Pencil, Trash2, ChevronDown, ChevronUp, X, Loader2, Save } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
+import { apiMessage } from '@/lib/api'
 import {
   createLessonLog,
   updateLessonLog,
@@ -211,8 +212,10 @@ export function AttendanceTab(props: AttendanceTabProps) {
         onLessonLogsChange((prev) => [...prev, created])
       }
       closeForm()
-    } catch {
-      toast.error(t('attendance.saveError'))
+    } catch (e) {
+      // Hiện đúng lý do server trả về (ngày tương lai, trùng buổi…). Nuốt mất thông điệp này khiến
+      // giáo viên bấm lại vô hạn mà không biết phải sửa gì — và buổi dạy đó mất khỏi bảng công.
+      toast.error(apiMessage(e) || t('attendance.saveError'))
     } finally {
       setSaving(false)
     }

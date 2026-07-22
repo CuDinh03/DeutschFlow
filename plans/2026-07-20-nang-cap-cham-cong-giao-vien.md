@@ -344,7 +344,10 @@ CREATE TABLE IF NOT EXISTS teacher_timesheet_period (
 Đ5 (nối lịch↔log) ──→ Đ6 (bảng công)   ← chỉ khi có nhu cầu nghiệp vụ
 ```
 
-| Đợt | Migration | Rủi ro | Triển khai được ngay? |
+> ⚠️ **Bảng dưới là DỰ KIẾN lúc lập kế hoạch.** Số hiệu migration thực tế đã ship khác: xem bảng
+> "Đối chiếu thực tế" ngay sau đó. Giữ lại bảng gốc để thấy giả định ban đầu.
+
+| Đợt | Migration (dự kiến) | Rủi ro | Triển khai được ngay? |
 |---|---|---|---|
 | Đ0 | — | Thấp | ✅ |
 | Đ1 | — | **Trung bình** (đổi kết quả đủ-điều-kiện chứng chỉ) | ✅ sau khi rà danh sách bị từ chối |
@@ -353,6 +356,22 @@ CREATE TABLE IF NOT EXISTS teacher_timesheet_period (
 | Đ4 | — | Thấp | ✅ |
 | Đ5 | V264 | Trung bình (backfill mơ hồ) | ⛔ chờ quyết định |
 | Đ6 | V265 | Cao (quy trình nghiệp vụ mới) | ⛔ chờ quyết định |
+
+### Đối chiếu thực tế đã ship (cập nhật 2026-07-22)
+
+| Migration thật | Nội dung | Rủi ro deploy |
+|---|---|---|
+| **V262** | `class_sessions.original_date` (cột nullable, không backfill) | Thấp — tương thích ngược |
+| **V263** | `teacher_session_record` + `teacher_classes.pay_unit` | Thấp — bảng/cột mới |
+| **V264** | `teacher_timesheet_period` + vòng đời duyệt | Thấp — bảng mới |
+| **V265** | `class_lesson_logs.created_by` → ON DELETE SET NULL; CHECK `class_attendance.status` dạng NOT VALID | Trung bình — lấy `ACCESS EXCLUSIVE` ngắn trên `users`; bước `VALIDATE CONSTRAINT` vẫn còn nợ |
+| **V266** | **gộp nhật ký trùng (dedupe) RỒI tạo 2 unique index bộ phận** | ~~Cao~~ → **Thấp**: dedupe nay nằm TRONG migration, cùng transaction với việc tạo index, nên **không còn** cần chạy script tay trước deploy và **không còn** cửa sổ đua với container cũ |
+| **V267** | `EXCLUDE USING gist` chống kỳ công chồng ngày (+ `btree_gist`) | Thấp — bảng mới, chưa có dữ liệu prod |
+| **V268** | Gỡ cột chết `teacher_session_record.period_id` + FK + index | Thấp — cột chưa bao giờ được ghi |
+
+🔑 **Rủi ro "phải khảo sát prod trước" ở dòng Đ2 đã được GIẢI QUYẾT** bằng cách đưa DML dedupe vào chính
+V266 (đã kiểm chứng trên Postgres thật với dữ liệu trùng cố ý, gồm ca nhóm ≥3 bản từng làm script tay vỡ
+khoá chính). Script `backend/scripts/*.sql` vẫn giữ để khảo sát/dọn thủ công khi cần.
 
 ## 2. Kiểm thử
 

@@ -59,15 +59,32 @@ WINDOW w AS (
 );
 
 -- 1) Chuyển điểm danh từ bản bị loại sang bản giữ, chỉ khi học viên đó chưa có dòng ở bản giữ.
+--
+-- class_attendance có PRIMARY KEY (lesson_log_id, student_id) nên mỗi (bản giữ, học viên) chỉ được
+-- nhận ĐÚNG MỘT dòng. DISTINCT ON là phần bắt buộc: bản trước dùng một UPDATE với NOT EXISTS, mà mọi
+-- dòng trong cùng một câu lệnh đều thấy CÙNG một ảnh chụp — nên khi một nhóm trùng có từ 3 bản trở
+-- lên và cùng một học viên được đánh dấu ở HAI bản thua nhưng không có ở bản giữ, cả hai dòng đều
+-- qua được NOT EXISTS và cùng chuyển về bản giữ → vi phạm khoá chính và script abort giữa chừng.
+-- Chỉ chuyển một dòng; dòng thừa nằm lại ở bản thua và biến mất theo ON DELETE CASCADE ở bước 2.
+WITH movable AS (
+    SELECT DISTINCT ON (p.keep_id, a.student_id)
+           a.lesson_log_id AS from_log,
+           a.student_id,
+           p.keep_id
+    FROM class_attendance a
+    JOIN dedupe_plan p ON p.id = a.lesson_log_id
+    WHERE p.id <> p.keep_id
+      AND NOT EXISTS (
+          SELECT 1 FROM class_attendance k
+          WHERE k.lesson_log_id = p.keep_id AND k.student_id = a.student_id
+      )
+    ORDER BY p.keep_id, a.student_id, a.lesson_log_id   -- tất định: lấy dòng ở bản thua có id nhỏ nhất
+)
 UPDATE class_attendance a
-SET lesson_log_id = p.keep_id
-FROM dedupe_plan p
-WHERE a.lesson_log_id = p.id
-  AND p.id <> p.keep_id
-  AND NOT EXISTS (
-      SELECT 1 FROM class_attendance k
-      WHERE k.lesson_log_id = p.keep_id AND k.student_id = a.student_id
-  );
+SET lesson_log_id = m.keep_id
+FROM movable m
+WHERE a.lesson_log_id = m.from_log
+  AND a.student_id   = m.student_id;
 
 -- 2) Xoá bản bị loại (điểm danh còn sót của chúng đi theo ON DELETE CASCADE của V208).
 DELETE FROM class_lesson_logs l
