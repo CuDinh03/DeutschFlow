@@ -112,10 +112,37 @@
       "skillTagLabel": "Skill",
       "contentTagLabel": "Type",
       "tagNone": "—",
-      "materials": { "heading": "Lesson materials", "empty": "No materials attached yet.", "detach": "Detach material", "pickPlaceholder": "Pick a material from your library…", "attach": "Attach", "noLibrary": "Your material library is empty." },
-      "canDo": { "heading": "Can-do statements (Ich kann …)", "placeholder": "e.g. Ich kann mich und andere vorstellen.", "add": "Add statement", "remove": "Remove statement", "itemLabel": "Statement {index}", "cefrLabel": "CEFR", "skillLabel": "Skill" },
-      "skillTags": { "HOEREN": "Listening", "LESEN": "Reading", "SCHREIBEN": "Writing", "SPRECHEN": "Speaking" },
-      "contentTags": { "WORTSCHATZ": "Vocabulary", "GRAMMATIK": "Grammar", "AUSSPRACHE": "Pronunciation", "LANDESKUNDE": "Culture", "REDEMITTEL": "Phrases", "STRATEGIE": "Strategy" },
+      "materials": {
+        "heading": "Lesson materials",
+        "empty": "No materials attached yet.",
+        "detach": "Detach material",
+        "pickPlaceholder": "Pick a material from your library…",
+        "attach": "Attach",
+        "noLibrary": "Your material library is empty."
+      },
+      "canDo": {
+        "heading": "Can-do statements (Ich kann …)",
+        "placeholder": "e.g. Ich kann mich und andere vorstellen.",
+        "add": "Add statement",
+        "remove": "Remove statement",
+        "itemLabel": "Statement {index}",
+        "cefrLabel": "CEFR",
+        "skillLabel": "Skill"
+      },
+      "skillTags": {
+        "HOEREN": "Listening",
+        "LESEN": "Reading",
+        "SCHREIBEN": "Writing",
+        "SPRECHEN": "Speaking"
+      },
+      "contentTags": {
+        "WORTSCHATZ": "Vocabulary",
+        "GRAMMATIK": "Grammar",
+        "AUSSPRACHE": "Pronunciation",
+        "LANDESKUNDE": "Culture",
+        "REDEMITTEL": "Phrases",
+        "STRATEGIE": "Strategy"
+      },
       "knowledgeItemLabel": "Knowledge point {index}",
       "knowledgeCount": "{count} knowledge points",
       "cefrLabel": "Level (CEFR)",
@@ -165,7 +192,15 @@
         "competency": "Competency",
         "evaluation": "Evaluations"
       },
-      "competency": { "empty": "No competency goals yet — add can-dos in the Teaching Content screen.", "enrolledLabel": "{count} students", "ungrouped": "Ungrouped", "masteredCount": "{mastered}/{total} mastered", "legendMastered": "Mastered", "legendInProgress": "Learning", "legendNotStarted": "Not started" },
+      "competency": {
+        "empty": "No competency goals yet — add can-dos in the Teaching Content screen.",
+        "enrolledLabel": "{count} students",
+        "ungrouped": "Ungrouped",
+        "masteredCount": "{mastered}/{total} mastered",
+        "legendMastered": "Mastered",
+        "legendInProgress": "Learning",
+        "legendNotStarted": "Not started"
+      },
       "skillLabels": {
         "horen": "Listening (Hören)",
         "lesen": "Reading (Lesen)",
@@ -262,7 +297,8 @@
         "printTopicColumn": "Lesson content (Themen)",
         "printHomeworkColumn": "Homework (Hausaufgaben)",
         "printTeacherSign": "Teacher signature: ___________________________",
-        "printHeadSign": "Head teacher approval: ___________________________"
+        "printHeadSign": "Head teacher approval: ___________________________",
+        "rosterUnavailable": "The class roster could not be loaded, so attendance cannot be marked right now. You can still save the session topic and homework — reload the page to mark attendance."
       },
       "evaluation": {
         "helperText": "End-of-course evaluation for each student",
@@ -749,6 +785,40 @@
       "statusPending": "Pending review",
       "statusApproved": "Approved",
       "statusRejected": "Rejected"
+    },
+    "timesheet": {
+      "title": "My timesheet",
+      "subtitle": "Record taught sessions and submit your pay period",
+      "statSessions": "Sessions",
+      "statMinutes": "Total hours",
+      "statStatus": "Period status",
+      "suggestionsHeading": "Taught sessions not yet recorded",
+      "suggestionsEmpty": "Nothing left to record.",
+      "confirmSession": "Record",
+      "recordsHeading": "Recorded",
+      "recordsEmpty": "No sessions recorded in this period yet.",
+      "colWhen": "When",
+      "colClass": "Class",
+      "colDuration": "Duration",
+      "colRole": "Role",
+      "delete": "Delete",
+      "deleteConfirm": "Delete this entry?",
+      "submit": "Submit period",
+      "submitConfirm": "Submit this period for review? You will not be able to edit entries afterwards.",
+      "submitSuccess": "Period submitted.",
+      "recordSuccess": "Session recorded.",
+      "deleteSuccess": "Entry deleted.",
+      "lockedNotice": "This period is {status} — entries can no longer be added or changed.",
+      "rejectedNotice": "Your manager sent this period back: {reason}",
+      "rolePRIMARY": "Lead teacher",
+      "roleASSISTANT": "Assistant",
+      "roleSUBSTITUTE": "Substitute",
+      "statusOPEN": "Open",
+      "statusSUBMITTED": "Awaiting review",
+      "statusAPPROVED": "Approved",
+      "statusREJECTED": "Sent back",
+      "statusLOCKED": "Locked",
+      "noMoneyNote": "The timesheet only records sessions and hours. Pay is handled outside by payroll."
     }
   }
 }

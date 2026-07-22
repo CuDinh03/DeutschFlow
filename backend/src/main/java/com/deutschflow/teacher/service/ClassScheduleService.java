@@ -178,6 +178,11 @@ public class ClassScheduleService {
         String oldRoom = s.getRoom();
         ClassSession.Status oldStatus = s.getStatus();
 
+        // Trước khi đổi ngày: chốt ô lịch gốc để regenerate không sinh lại buổi trên ngày cũ (V262).
+        // Chỉ áp cho buổi thuộc pattern và chỉ ghi một lần — dời nhiều lần vẫn quy về ô gốc đầu tiên.
+        if (req.startAt() != null && s.getPatternId() != null && s.getOriginalDate() == null) {
+            s.setOriginalDate(oldStart.toLocalDate());
+        }
         if (req.startAt() != null) s.setStartAt(req.startAt());
         if (req.durationMinutes() != null) {
             if (req.durationMinutes() <= 0) throw new BadRequestException("Thời lượng phải lớn hơn 0");
@@ -310,15 +315,20 @@ public class ClassScheduleService {
 
     private Regen regenerate(ClassSchedulePattern p, Set<LocalDate> skipDates) {
         LocalDate today = LocalDate.now(QuotaVnCalendar.ZONE);   // audit M-9: VN time, not UTC
-        List<ClassSession> future = sessionRepo.findByPatternIdAndStartAtGreaterThanEqual(
-                p.getId(), today.atStartOfDay());
+        // Lấy theo CẢ hai trục: còn ở tương lai, HOẶC đã bị dời lùi khỏi tương lai nhưng ô lịch gốc
+        // vẫn ở tương lai. Thiếu vế sau thì buổi dạy bù sớm biến mất khỏi tập ứng viên và ô gốc của
+        // nó bị sinh lại thành buổi ma.
+        List<ClassSession> future = sessionRepo.findLiveForPattern(
+                p.getId(), today.atStartOfDay(), today);
 
         List<ClassSession> stale = future.stream().filter(s -> !s.isOverridden()).toList();
         sessionRepo.deleteAll(stale);
 
+        // Neo theo Ô LỊCH GỐC, không theo startAt hiện tại: một buổi bị dời sang thứ khác vẫn
+        // chiếm chỗ ngày cũ, nếu không ngày cũ trông như còn trống và bị sinh lại thành buổi "ma".
         Set<LocalDate> keptDates = future.stream()
                 .filter(ClassSession::isOverridden)
-                .map(s -> s.getStartAt().toLocalDate())
+                .map(ClassScheduleService::patternSlotDate)
                 .collect(Collectors.toSet());
 
         ClassSession.Mode mode = p.getDefaultMode() == ClassSchedulePattern.Mode.ONLINE
@@ -333,6 +343,7 @@ public class ClassScheduleService {
                     .classId(p.getClassId())
                     .patternId(p.getId())
                     .startAt(d.atTime(p.getStartTime()))
+                    .originalDate(d)                             // V262: ghi ô lịch gốc ngay khi sinh
                     .durationMinutes(p.getDurationMinutes())
                     .mode(mode)
                     .room(mode == ClassSession.Mode.ONLINE ? null : p.getDefaultRoom())
@@ -349,6 +360,15 @@ public class ClassScheduleService {
      * tới effectiveTo (hoặc +{@value #GENERATE_WEEKS} tuần nếu vô thời hạn). Dùng chung cho regenerate
      * và kiểm tra trùng lịch giáo viên để hai bên luôn nhất quán.
      */
+    /**
+     * Ô lịch mà một buổi chiếm trong pattern. Buổi bị dời sang ngày khác vẫn giữ ô gốc qua
+     * {@code originalDate}; bản ghi trước V262 (và buổi tạo tay) không có nên lấy ngày của
+     * {@code startAt} — đúng bằng hành vi cũ, nên dữ liệu sẵn có không đổi cách xử lý.
+     */
+    private static LocalDate patternSlotDate(ClassSession s) {
+        return s.getOriginalDate() != null ? s.getOriginalDate() : s.getStartAt().toLocalDate();
+    }
+
     private List<LocalDate> patternOccurrenceDates(ClassSchedulePattern p) {
         LocalDate today = LocalDate.now(QuotaVnCalendar.ZONE);
         LocalDate genStart = today.isAfter(p.getEffectiveFrom()) ? today : p.getEffectiveFrom();

@@ -86,6 +86,7 @@ export const teacherNav: RoleNav = {
         { id: 'grade-image', label: 'Chấm bài qua ảnh', href: '/v2/teacher/grade-image', icon: 'draw' },
         { id: 'tc-reports', label: 'Sổ điểm lớp', href: '/v2/teacher/tc-reports', icon: 'assessment' },
         { id: 'materials', label: 'Thư viện tài liệu', href: '/v2/teacher/materials', icon: 'menu_book' },
+        { id: 'tc-timesheet', label: 'Chấm công', href: '/v2/teacher/tc-timesheet', icon: 'timer' },
         // "Thư viện ảnh" (media asset S3) ≠ "Thư viện tài liệu" (file tài liệu): ảnh minh hoạ cho
         // slide/đề bài, có tag + alt text, upload/sửa/xoá theo uploader.
         { id: 'tc-media', label: 'Thư viện ảnh', href: '/v2/teacher/media', icon: 'photo_library' },
@@ -198,6 +199,7 @@ const ORG_ITEM = {
   finance: { id: 'org-finance', label: 'Tài chính', href: '/v2/org/finance', icon: 'account_balance', ownerOnly: true },
   billing: { id: 'org-billing', label: 'Gói & Giấy phép', href: '/v2/org/billing', icon: 'receipt', ownerOnly: true },
   invitations: { id: 'org-invitations', label: 'Lời mời', href: '/v2/org/invitations', icon: 'mail' },
+  timesheets: { id: 'org-timesheets', label: 'Chấm công', href: '/v2/org/timesheets', icon: 'timer' },
   roles: { id: 'org-roles', label: 'Phân quyền', href: '/v2/org/roles', icon: 'admin_panel_settings' },
   profile: { id: 'org-profile', label: 'Hồ sơ', href: '/v2/profile', icon: 'person' },
 } satisfies Record<string, NavItem>
@@ -226,6 +228,7 @@ export const orgNav: RoleNav = {
         ORG_ITEM.finance,
         ORG_ITEM.billing,
         ORG_ITEM.invitations,
+        ORG_ITEM.timesheets,
         ORG_ITEM.roles,
       ],
     },

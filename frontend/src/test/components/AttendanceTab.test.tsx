@@ -56,6 +56,7 @@ describe('AttendanceTab — attendance preservation on edit', () => {
         lessonLogs={[log]}
         onLessonLogsChange={onChange}
         roster={[{ studentId: 1, name: 'Anh' }]}
+        printRoster={[]}
         lessons={[]}
         classDisplayName="A1"
       />,
@@ -85,6 +86,7 @@ describe('AttendanceTab — attendance preservation on edit', () => {
         lessonLogs={[log]}
         onLessonLogsChange={onChange}
         roster={[]}
+        printRoster={[]}
         lessons={[]}
         classDisplayName="A1"
       />,
@@ -98,6 +100,48 @@ describe('AttendanceTab — attendance preservation on edit', () => {
     // both original entries survive an empty-roster edit
     expect(payload.attendance).toHaveLength(2)
     expect(payload.attendance.map((a) => a.studentId).sort()).toEqual([1, 99])
+  })
+})
+
+/**
+ * N-3 regression. The page used to fall back to "students seen across existing lesson logs" for the
+ * roster when both enrolment endpoints failed. Those students may have LEFT the class, and the
+ * backend now rejects attendance rows for non-members — so that fallback turned a degraded fetch
+ * into "the teacher cannot save any journal entry at all" (a generic 400 toast, no way forward).
+ *
+ * Fixed shape: the log-derived list is confined to `printRoster` (printed matrix only). It can never
+ * reach the marking form nor the payload; the teacher is told why marking is unavailable and can
+ * still record what was taught.
+ */
+describe('AttendanceTab — a degraded roster never becomes attendance input', () => {
+  it('explains why marking is unavailable and sends no attendance rows', async () => {
+    const user = userEvent.setup()
+    createLessonLog.mockResolvedValue({ ...log, id: 8, attendance: [] })
+
+    render(
+      <AttendanceTab
+        classId={1}
+        lessonLogs={[log]}
+        onLessonLogsChange={vi.fn()}
+        roster={[]}                                              // enrolment endpoints down
+        printRoster={[{ studentId: 99, name: 'Đã rời lớp' }]}     // log-derived, display only
+        lessons={[]}
+        classDisplayName="A1"
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'attendance.addLog' }))
+    expect(screen.getByText('attendance.rosterUnavailable')).toBeInTheDocument()
+    // No marking control is offered for the display-only student.
+    expect(screen.queryByLabelText('Đã rời lớp')).not.toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('attendance.sessionDateLabel'), '2026-07-14')
+    await user.click(screen.getByRole('button', { name: 'save' }))
+
+    await waitFor(() => expect(createLessonLog).toHaveBeenCalledTimes(1))
+    const payload = createLessonLog.mock.calls[0][1] as { attendance: { studentId: number }[] }
+    // Student #99 never reaches the wire → the backend membership guard cannot reject the save.
+    expect(payload.attendance).toEqual([])
   })
 })
 
@@ -125,6 +169,7 @@ describe('AttendanceTab — no fabricated PRESENT on a new log', () => {
           { studentId: 1, name: 'Anh' },
           { studentId: 2, name: 'Bình' },
         ]}
+        printRoster={[]}
         lessons={[]}
         classDisplayName="A1"
       />,
@@ -153,6 +198,7 @@ describe('AttendanceTab — no fabricated PRESENT on a new log', () => {
           { studentId: 1, name: 'Anh' },
           { studentId: 2, name: 'Bình' },
         ]}
+        printRoster={[]}
         lessons={[]}
         classDisplayName="A1"
       />,
@@ -181,6 +227,7 @@ describe('AttendanceTab — no fabricated PRESENT on a new log', () => {
           { studentId: 1, name: 'Anh' },
           { studentId: 2, name: 'Bình' },
         ]}
+        printRoster={[]}
         lessons={[]}
         classDisplayName="A1"
       />,

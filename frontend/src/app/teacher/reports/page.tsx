@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import api, { httpStatus } from '@/lib/api'
+import api, { httpStatus, apiMessage } from '@/lib/api'
 import { logout } from '@/lib/authSession'
 import { TeacherShell } from '@/components/layouts/TeacherShell'
 import { usePendingGradingCount } from '@/hooks/usePendingGradingCount'
@@ -30,7 +30,7 @@ interface StudentEval {
   studentId: number; name: string; email: string; classId: number; className: string
   teacherComment: string | null
   skillHoren: number | null; skillLesen: number | null; skillSchreiben: number | null; skillSprechen: number | null
-  avgScore: number; totalSessions: number; presentCount: number; absentCount: number; lateCount: number
+  avgScore: number; recordedSessions: number; presentCount: number; absentCount: number; lateCount: number
   certificateEligible: boolean; evaluatedAt: string | null
 }
 
@@ -224,11 +224,17 @@ export default function TeacherReportsPage() {
     if (!selectedClassId) return
     const fd = new FormData(e.currentTarget)
     const classStudents = gradebook?.students ?? []
-    const attendance = classStudents.map(s => ({
-      studentId: s.studentId,
-      status: (fd.get(`att_${s.studentId}`) as string) ?? 'PRESENT',
-      note: null,
-    }))
+    // CHỈ gửi học viên được đánh dấu tường minh. Trước đây map cả roster và mặc định 'PRESENT',
+    // nên chỉ sửa một lỗi chính tả ở topic cũng ghi khống "có mặt" cho mọi học viên — kể cả người
+    // chưa từng được điểm danh. Với mẫu số chuyên cần theo từng học viên, việc đó CHẾ RA bằng chứng
+    // và có thể bật nhầm điều kiện cấp chứng chỉ. Không đánh dấu = không gửi, khớp hợp đồng của v2.
+    const attendance = classStudents
+      .map(s => ({
+        studentId: s.studentId,
+        status: (fd.get(`att_${s.studentId}`) as string) || '',
+        note: null,
+      }))
+      .filter(a => a.status !== '')
     const payload = {
       sessionDate: fd.get('sessionDate'),
       sessionNumber: fd.get('sessionNumber') ? Number(fd.get('sessionNumber')) : null,
@@ -249,8 +255,10 @@ export default function TeacherReportsPage() {
       }
       setShowLogForm(false)
       setEditingLog(null)
-    } catch {
-      setCrudError('Lưu buổi học thất bại. Vui lòng thử lại.')
+    } catch (e) {
+      // Hiện đúng lý do server trả về (ngày tương lai, trùng buổi…). Nuốt mất thông điệp này khiến
+      // giáo viên bấm lại vô hạn mà không biết phải sửa gì — và buổi dạy đó mất khỏi bảng công.
+      setCrudError(apiMessage(e) || 'Lưu buổi học thất bại. Vui lòng thử lại.')
     } finally { setLogFormLoading(false) }
   }
 
@@ -677,7 +685,9 @@ export default function TeacherReportsPage() {
                                     return (
                                       <div key={s.studentId} className="flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-200">
                                         <span className="text-xs font-medium text-slate-700 flex-1 truncate">{s.name}</span>
-                                        <select name={`att_${s.studentId}`} defaultValue={existing?.status ?? 'PRESENT'} className="text-xs border border-slate-200 rounded px-1 py-0.5 focus:ring-1 focus:ring-indigo-500 outline-none">
+                                        <select name={`att_${s.studentId}`} defaultValue={existing?.status ?? ''} className="text-xs border border-slate-200 rounded px-1 py-0.5 focus:ring-1 focus:ring-indigo-500 outline-none">
+                                          {/* Mặc định KHÔNG điểm danh: học viên chưa được đánh dấu thì không gửi lên, tránh ghi khống "có mặt". */}
+                                          <option value="">— Chưa điểm danh</option>
                                           <option value="PRESENT">✓ Có mặt</option>
                                           <option value="LATE">M Muộn</option>
                                           <option value="ABSENT">V Vắng</option>
@@ -843,9 +853,9 @@ export default function TeacherReportsPage() {
                                       </div>
                                     ))}
                                   </div>
-                                  {ev.totalSessions > 0 && (
+                                  {ev.recordedSessions > 0 && (
                                     <p className="text-xs text-slate-500 mt-1.5">
-                                      Chuyên cần: {ev.presentCount + ev.lateCount}/{ev.totalSessions} buổi
+                                      Chuyên cần: {ev.presentCount + ev.lateCount}/{ev.recordedSessions} buổi
                                       {ev.absentCount > 0 && ` · Vắng ${ev.absentCount}`}
                                     </p>
                                   )}
@@ -1140,9 +1150,9 @@ export default function TeacherReportsPage() {
                   <p className="font-black text-slate-800 text-sm">{ev.name}</p>
                   <p className="text-[10px] text-slate-500 mt-0.5">{ev.email}</p>
                   {ev.avgScore > 0 && <p className="text-[10px] text-slate-600 mt-1">Điểm bài tập TB: <strong>{ev.avgScore.toFixed(1)}</strong></p>}
-                  {ev.totalSessions > 0 && (
+                  {ev.recordedSessions > 0 && (
                     <p className="text-[10px] text-slate-600">
-                      Chuyên cần: <strong>{ev.presentCount + ev.lateCount}/{ev.totalSessions}</strong> buổi
+                      Chuyên cần: <strong>{ev.presentCount + ev.lateCount}/{ev.recordedSessions}</strong> buổi
                       {ev.absentCount > 0 && ` (vắng ${ev.absentCount})`}
                     </p>
                   )}

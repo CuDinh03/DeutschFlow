@@ -79,7 +79,9 @@
       "b1-assessment": "B1 assessment",
       "certificates": "Certificates",
       "grammar-drafts": "Grammar exercises",
-      "exercises": "Practice exercises"
+      "exercises": "Practice exercises",
+      "org-timesheets": "Timesheets",
+      "tc-timesheet": "Timesheets"
     },
     "sections": {
       "classMgmt": "Class Management",

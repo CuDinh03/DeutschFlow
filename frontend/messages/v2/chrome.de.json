@@ -79,7 +79,9 @@
       "b1-assessment": "B1-Einstufung",
       "certificates": "Zertifikate",
       "grammar-drafts": "Grammatikaufgaben",
-      "exercises": "Übungsaufgaben"
+      "exercises": "Übungsaufgaben",
+      "org-timesheets": "Arbeitszeit",
+      "tc-timesheet": "Arbeitszeit"
     },
     "sections": {
       "classMgmt": "Kursverwaltung",

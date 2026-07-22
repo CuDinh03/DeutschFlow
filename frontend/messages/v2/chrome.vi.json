@@ -79,7 +79,9 @@
       "b1-assessment": "Đánh giá B1",
       "certificates": "Chứng chỉ",
       "grammar-drafts": "Bài tập ngữ pháp",
-      "exercises": "Bài tập bổ trợ"
+      "exercises": "Bài tập bổ trợ",
+      "org-timesheets": "Chấm công",
+      "tc-timesheet": "Chấm công"
     },
     "sections": {
       "classMgmt": "Quản lý lớp",

@@ -445,6 +445,58 @@ class TeacherServiceTest {
         verify(classTeacherRepository, never()).save(any());
     }
 
+    // ── org isolation khi thêm học viên (N-1) ─────────────────────────────────
+
+    /**
+     * Roster là biên tin cậy mà điểm danh/đánh giá/chứng chỉ đều dựa vào. Nếu giáo viên thêm được
+     * người ngoài tổ chức vào lớp mình, họ tự tạo ra "thành viên hợp lệ" và mọi guard dựa trên
+     * roster đều bị vô hiệu. Quy tắc mirror đúng addCoTeacher.
+     */
+    @Test
+    void addStudentByEmail_rejectsUserFromAnotherOrg() {
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(100L, 1L)).thenReturn(true);
+        when(userRepository.findByEmailIgnoreCase("outsider@other.de")).thenReturn(java.util.Optional.of(
+                com.deutschflow.user.entity.User.builder().id(9001L).orgId(77L)
+                        .role(com.deutschflow.user.entity.User.Role.STUDENT).build()));
+        when(classRepository.findById(100L)).thenReturn(Optional.of(
+                TeacherClass.builder().id(100L).orgId(42L).build()));   // lớp thuộc org 42
+
+        assertThrows(com.deutschflow.common.exception.BadRequestException.class,
+                () -> teacherService.addStudentToClassByEmail(1L, 100L, "outsider@other.de"));
+        verify(classStudentRepository, never()).save(any());
+    }
+
+    @Test
+    void addStudentByEmail_allowsSameOrg() {
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(100L, 1L)).thenReturn(true);
+        when(userRepository.findByEmailIgnoreCase("hv@org.de")).thenReturn(java.util.Optional.of(
+                com.deutschflow.user.entity.User.builder().id(5L).orgId(42L)
+                        .role(com.deutschflow.user.entity.User.Role.STUDENT).build()));
+        when(classRepository.findById(100L)).thenReturn(Optional.of(
+                TeacherClass.builder().id(100L).orgId(42L).build()));
+        when(classStudentRepository.existsByIdClassIdAndIdStudentId(100L, 5L)).thenReturn(false);
+
+        teacherService.addStudentToClassByEmail(1L, 100L, "hv@org.de");
+
+        verify(classStudentRepository).save(any());
+    }
+
+    @Test
+    void addStudentByEmail_personalClassHasNoOrgRestriction() {
+        // Lớp cá nhân (orgId = null) giữ nguyên hành vi cũ — không áp ràng buộc tổ chức.
+        when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(100L, 1L)).thenReturn(true);
+        when(userRepository.findByEmailIgnoreCase("hv@bat-ky.de")).thenReturn(java.util.Optional.of(
+                com.deutschflow.user.entity.User.builder().id(6L).orgId(77L)
+                        .role(com.deutschflow.user.entity.User.Role.STUDENT).build()));
+        when(classRepository.findById(100L)).thenReturn(Optional.of(
+                TeacherClass.builder().id(100L).build()));              // orgId = null
+        when(classStudentRepository.existsByIdClassIdAndIdStudentId(100L, 6L)).thenReturn(false);
+
+        teacherService.addStudentToClassByEmail(1L, 100L, "hv@bat-ky.de");
+
+        verify(classStudentRepository).save(any());
+    }
+
     @Test
     void addCoTeacher_savesAssistant_whenValid() {
         when(classTeacherRepository.findById(new ClassTeacherId(100L, 1L))).thenReturn(java.util.Optional.of(

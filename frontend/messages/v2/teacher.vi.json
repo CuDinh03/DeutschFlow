@@ -112,10 +112,37 @@
       "skillTagLabel": "Kỹ năng",
       "contentTagLabel": "Loại",
       "tagNone": "—",
-      "materials": { "heading": "Tài liệu bài học", "empty": "Chưa gắn tài liệu nào.", "detach": "Gỡ tài liệu", "pickPlaceholder": "Chọn tài liệu từ thư viện…", "attach": "Gắn", "noLibrary": "Thư viện của bạn chưa có tài liệu nào." },
-      "canDo": { "heading": "Mục tiêu năng lực (Ich kann …)", "placeholder": "VD: Ich kann mich und andere vorstellen.", "add": "Thêm mục tiêu", "remove": "Xoá mục tiêu", "itemLabel": "Mục tiêu {index}", "cefrLabel": "CEFR", "skillLabel": "Kỹ năng" },
-      "skillTags": { "HOEREN": "Nghe", "LESEN": "Đọc", "SCHREIBEN": "Viết", "SPRECHEN": "Nói" },
-      "contentTags": { "WORTSCHATZ": "Từ vựng", "GRAMMATIK": "Ngữ pháp", "AUSSPRACHE": "Phát âm", "LANDESKUNDE": "Văn hoá", "REDEMITTEL": "Mẫu câu", "STRATEGIE": "Chiến lược" },
+      "materials": {
+        "heading": "Tài liệu bài học",
+        "empty": "Chưa gắn tài liệu nào.",
+        "detach": "Gỡ tài liệu",
+        "pickPlaceholder": "Chọn tài liệu từ thư viện…",
+        "attach": "Gắn",
+        "noLibrary": "Thư viện của bạn chưa có tài liệu nào."
+      },
+      "canDo": {
+        "heading": "Mục tiêu năng lực (Ich kann …)",
+        "placeholder": "VD: Ich kann mich und andere vorstellen.",
+        "add": "Thêm mục tiêu",
+        "remove": "Xoá mục tiêu",
+        "itemLabel": "Mục tiêu {index}",
+        "cefrLabel": "CEFR",
+        "skillLabel": "Kỹ năng"
+      },
+      "skillTags": {
+        "HOEREN": "Nghe",
+        "LESEN": "Đọc",
+        "SCHREIBEN": "Viết",
+        "SPRECHEN": "Nói"
+      },
+      "contentTags": {
+        "WORTSCHATZ": "Từ vựng",
+        "GRAMMATIK": "Ngữ pháp",
+        "AUSSPRACHE": "Phát âm",
+        "LANDESKUNDE": "Văn hoá",
+        "REDEMITTEL": "Mẫu câu",
+        "STRATEGIE": "Chiến lược"
+      },
       "knowledgeItemLabel": "Kiến thức {index}",
       "knowledgeCount": "{count} kiến thức",
       "cefrLabel": "Cấp độ (CEFR)",
@@ -165,7 +192,15 @@
         "competency": "Năng lực",
         "evaluation": "Phiếu đánh giá"
       },
-      "competency": { "empty": "Chưa có mục tiêu năng lực nào — thêm can-do trong màn Nội dung giảng dạy.", "enrolledLabel": "{count} học viên", "ungrouped": "Chưa phân nhóm", "masteredCount": "{mastered}/{total} thành thạo", "legendMastered": "Thành thạo", "legendInProgress": "Đang học", "legendNotStarted": "Chưa bắt đầu" },
+      "competency": {
+        "empty": "Chưa có mục tiêu năng lực nào — thêm can-do trong màn Nội dung giảng dạy.",
+        "enrolledLabel": "{count} học viên",
+        "ungrouped": "Chưa phân nhóm",
+        "masteredCount": "{mastered}/{total} thành thạo",
+        "legendMastered": "Thành thạo",
+        "legendInProgress": "Đang học",
+        "legendNotStarted": "Chưa bắt đầu"
+      },
       "skillLabels": {
         "horen": "Nghe (Hören)",
         "lesen": "Đọc (Lesen)",
@@ -262,7 +297,8 @@
         "printTopicColumn": "Nội dung bài học (Themen)",
         "printHomeworkColumn": "Bài tập về nhà (Hausaufgaben)",
         "printTeacherSign": "Ký tên giáo viên: ___________________________",
-        "printHeadSign": "Tổ trưởng xác nhận: ___________________________"
+        "printHeadSign": "Tổ trưởng xác nhận: ___________________________",
+        "rosterUnavailable": "Không tải được danh sách học viên của lớp, nên tạm thời chưa điểm danh được. Bạn vẫn lưu được chủ đề và bài tập của buổi học; hãy tải lại trang để điểm danh."
       },
       "evaluation": {
         "helperText": "Phiếu đánh giá cuối khóa cho từng học viên",
@@ -749,6 +785,40 @@
       "statusPending": "Chờ duyệt",
       "statusApproved": "Đã duyệt",
       "statusRejected": "Bị từ chối"
+    },
+    "timesheet": {
+      "title": "Bảng công",
+      "subtitle": "Ghi nhận buổi đã dạy và nộp kỳ công",
+      "statSessions": "Số buổi",
+      "statMinutes": "Tổng giờ",
+      "statStatus": "Trạng thái kỳ",
+      "suggestionsHeading": "Buổi đã dạy chưa ghi công",
+      "suggestionsEmpty": "Không còn buổi nào chờ ghi công.",
+      "confirmSession": "Ghi công",
+      "recordsHeading": "Đã ghi công",
+      "recordsEmpty": "Chưa ghi công buổi nào trong kỳ này.",
+      "colWhen": "Thời gian",
+      "colClass": "Lớp",
+      "colDuration": "Thời lượng",
+      "colRole": "Vai trò",
+      "delete": "Xoá",
+      "deleteConfirm": "Xoá dòng công này?",
+      "submit": "Nộp kỳ công",
+      "submitConfirm": "Nộp kỳ công cho quản lý duyệt? Sau khi nộp bạn không sửa được các dòng công trong kỳ.",
+      "submitSuccess": "Đã nộp kỳ công.",
+      "recordSuccess": "Đã ghi công buổi dạy.",
+      "deleteSuccess": "Đã xoá dòng công.",
+      "lockedNotice": "Kỳ công đang ở trạng thái {status} — không thể thêm hoặc sửa dòng công.",
+      "rejectedNotice": "Quản lý đã trả lại kỳ này: {reason}",
+      "rolePRIMARY": "Đứng lớp",
+      "roleASSISTANT": "Trợ giảng",
+      "roleSUBSTITUTE": "Dạy thay",
+      "statusOPEN": "Đang mở",
+      "statusSUBMITTED": "Chờ duyệt",
+      "statusAPPROVED": "Đã duyệt",
+      "statusREJECTED": "Đã trả lại",
+      "statusLOCKED": "Đã khoá",
+      "noMoneyNote": "Bảng công chỉ ghi số buổi và số giờ. Phần lương do kế toán xử lý bên ngoài."
     }
   }
 }

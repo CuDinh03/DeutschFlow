@@ -392,6 +392,18 @@ public class TeacherService {
         User user = userRepository.findByEmailIgnoreCase(normalizedEmail)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng với email: " + normalizedEmail));
 
+        // Org isolation — cùng quy tắc đã áp cho co-teacher ở addTeacherToClassByEmail: lớp thuộc
+        // một tổ chức thì chỉ nhận người của chính tổ chức đó.
+        //
+        // Thiếu chốt này thì roster trở thành biên tin cậy do chính giáo viên ghi được: họ thêm một
+        // tài khoản bất kỳ (biết email) vào lớp mình, và mọi kiểm tra dựa trên roster — điểm danh,
+        // đánh giá, chứng chỉ — đều coi người đó là hợp lệ.
+        TeacherClass targetClass = classRepository.findById(classId)
+                .orElseThrow(() -> new NotFoundException("Lớp không tồn tại"));
+        if (targetClass.getOrgId() != null && !targetClass.getOrgId().equals(user.getOrgId())) {
+            throw new BadRequestException("Học viên không thuộc tổ chức của lớp này.");
+        }
+
         if (classStudentRepository.existsByIdClassIdAndIdStudentId(classId, user.getId())) {
             throw new ConflictException("Học viên đã tham gia lớp học này");
         }
@@ -406,7 +418,7 @@ public class TeacherService {
         assignmentBackfillService.ensureAssignmentsForStudent(classId, user.getId());
 
         // Notify student
-        TeacherClass teacherClass = classRepository.findById(classId).orElse(null);
+        TeacherClass teacherClass = targetClass;
         User teacher = userRepository.findById(teacherId).orElse(null);
         userNotificationService.onAddedToClass(
             user.getId(),

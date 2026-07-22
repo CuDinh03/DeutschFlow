@@ -112,10 +112,37 @@
       "skillTagLabel": "Fertigkeit",
       "contentTagLabel": "Typ",
       "tagNone": "—",
-      "materials": { "heading": "Lektionsmaterialien", "empty": "Noch keine Materialien angehängt.", "detach": "Material entfernen", "pickPlaceholder": "Material aus der Bibliothek wählen…", "attach": "Anhängen", "noLibrary": "Ihre Materialbibliothek ist leer." },
-      "canDo": { "heading": "Kann-Beschreibungen (Ich kann …)", "placeholder": "z. B. Ich kann mich und andere vorstellen.", "add": "Beschreibung hinzufügen", "remove": "Beschreibung entfernen", "itemLabel": "Beschreibung {index}", "cefrLabel": "CEFR", "skillLabel": "Fertigkeit" },
-      "skillTags": { "HOEREN": "Hören", "LESEN": "Lesen", "SCHREIBEN": "Schreiben", "SPRECHEN": "Sprechen" },
-      "contentTags": { "WORTSCHATZ": "Wortschatz", "GRAMMATIK": "Grammatik", "AUSSPRACHE": "Aussprache", "LANDESKUNDE": "Landeskunde", "REDEMITTEL": "Redemittel", "STRATEGIE": "Strategie" },
+      "materials": {
+        "heading": "Lektionsmaterialien",
+        "empty": "Noch keine Materialien angehängt.",
+        "detach": "Material entfernen",
+        "pickPlaceholder": "Material aus der Bibliothek wählen…",
+        "attach": "Anhängen",
+        "noLibrary": "Ihre Materialbibliothek ist leer."
+      },
+      "canDo": {
+        "heading": "Kann-Beschreibungen (Ich kann …)",
+        "placeholder": "z. B. Ich kann mich und andere vorstellen.",
+        "add": "Beschreibung hinzufügen",
+        "remove": "Beschreibung entfernen",
+        "itemLabel": "Beschreibung {index}",
+        "cefrLabel": "CEFR",
+        "skillLabel": "Fertigkeit"
+      },
+      "skillTags": {
+        "HOEREN": "Hören",
+        "LESEN": "Lesen",
+        "SCHREIBEN": "Schreiben",
+        "SPRECHEN": "Sprechen"
+      },
+      "contentTags": {
+        "WORTSCHATZ": "Wortschatz",
+        "GRAMMATIK": "Grammatik",
+        "AUSSPRACHE": "Aussprache",
+        "LANDESKUNDE": "Landeskunde",
+        "REDEMITTEL": "Redemittel",
+        "STRATEGIE": "Strategie"
+      },
       "knowledgeItemLabel": "Lerninhalt {index}",
       "knowledgeCount": "{count} Lerninhalte",
       "cefrLabel": "Niveau (GER)",
@@ -165,7 +192,15 @@
         "competency": "Kompetenz",
         "evaluation": "Bewertungen"
       },
-      "competency": { "empty": "Noch keine Kompetenzziele — füge Kann-Beschreibungen im Bereich Lehrinhalte hinzu.", "enrolledLabel": "{count} Lernende", "ungrouped": "Nicht gruppiert", "masteredCount": "{mastered}/{total} beherrscht", "legendMastered": "Beherrscht", "legendInProgress": "Am Lernen", "legendNotStarted": "Nicht begonnen" },
+      "competency": {
+        "empty": "Noch keine Kompetenzziele — füge Kann-Beschreibungen im Bereich Lehrinhalte hinzu.",
+        "enrolledLabel": "{count} Lernende",
+        "ungrouped": "Nicht gruppiert",
+        "masteredCount": "{mastered}/{total} beherrscht",
+        "legendMastered": "Beherrscht",
+        "legendInProgress": "Am Lernen",
+        "legendNotStarted": "Nicht begonnen"
+      },
       "skillLabels": {
         "horen": "Hören",
         "lesen": "Lesen",
@@ -262,7 +297,8 @@
         "printTopicColumn": "Unterrichtsinhalt (Themen)",
         "printHomeworkColumn": "Hausaufgaben",
         "printTeacherSign": "Unterschrift Lehrkraft: ___________________________",
-        "printHeadSign": "Bestätigung Fachleitung: ___________________________"
+        "printHeadSign": "Bestätigung Fachleitung: ___________________________",
+        "rosterUnavailable": "Die Teilnehmerliste konnte nicht geladen werden, daher ist die Anwesenheit derzeit nicht erfassbar. Thema und Hausaufgabe lassen sich weiterhin speichern — bitte die Seite neu laden."
       },
       "evaluation": {
         "helperText": "Abschlussbewertung für jede:n Lernende:n",
@@ -749,6 +785,40 @@
       "statusPending": "In Prüfung",
       "statusApproved": "Genehmigt",
       "statusRejected": "Abgelehnt"
+    },
+    "timesheet": {
+      "title": "Meine Arbeitszeit",
+      "subtitle": "Gehaltene Einheiten erfassen und Zeitraum einreichen",
+      "statSessions": "Einheiten",
+      "statMinutes": "Stunden gesamt",
+      "statStatus": "Status",
+      "suggestionsHeading": "Gehaltene, noch nicht erfasste Einheiten",
+      "suggestionsEmpty": "Nichts mehr zu erfassen.",
+      "confirmSession": "Erfassen",
+      "recordsHeading": "Erfasst",
+      "recordsEmpty": "In diesem Zeitraum noch nichts erfasst.",
+      "colWhen": "Zeitpunkt",
+      "colClass": "Kurs",
+      "colDuration": "Dauer",
+      "colRole": "Rolle",
+      "delete": "Löschen",
+      "deleteConfirm": "Diesen Eintrag löschen?",
+      "submit": "Zeitraum einreichen",
+      "submitConfirm": "Zeitraum zur Prüfung einreichen? Danach sind keine Änderungen mehr möglich.",
+      "submitSuccess": "Zeitraum eingereicht.",
+      "recordSuccess": "Einheit erfasst.",
+      "deleteSuccess": "Eintrag gelöscht.",
+      "lockedNotice": "Dieser Zeitraum ist {status} — Einträge können nicht mehr geändert werden.",
+      "rejectedNotice": "Die Leitung hat den Zeitraum zurückgegeben: {reason}",
+      "rolePRIMARY": "Lehrkraft",
+      "roleASSISTANT": "Assistenz",
+      "roleSUBSTITUTE": "Vertretung",
+      "statusOPEN": "Offen",
+      "statusSUBMITTED": "Zur Prüfung",
+      "statusAPPROVED": "Freigegeben",
+      "statusREJECTED": "Zurückgegeben",
+      "statusLOCKED": "Gesperrt",
+      "noMoneyNote": "Die Zeiterfassung erfasst nur Einheiten und Stunden. Die Abrechnung erfolgt extern."
     }
   }
 }

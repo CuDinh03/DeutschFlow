@@ -103,7 +103,7 @@ const evaluationFixture = {
   skillSchreiben: null,
   skillSprechen: null,
   avgScore: 85,
-  totalSessions: 10,
+  recordedSessions: 10,
   presentCount: 9,
   absentCount: 1,
   lateCount: 0,
@@ -172,6 +172,38 @@ describe('tc-reports — per-class report suite', () => {
 
     await user.click(screen.getByRole('button', { name: 'evaluation.edit' }))
     expect(screen.getByText('evaluation.formTitle')).toBeInTheDocument()
+  })
+
+  /**
+   * N-3 regression (root cause lives in this page). The roster memo used to fall back to
+   * "students seen across existing lesson logs" when both enrolment endpoints failed. Those
+   * students may have LEFT the class, and the backend rejects attendance rows for non-members —
+   * so the fallback made every save 400 and the teacher could record nothing.
+   *
+   * The log-derived list is now confined to `printRoster`: the printed matrix still lists the
+   * student (history stays visible), but the marking form refuses to offer them.
+   */
+  it('never feeds log-derived students into the marking form when enrolment endpoints fail', async () => {
+    const user = userEvent.setup()
+    getGradebook.mockRejectedValue(new Error('gradebook down'))
+    listEvaluations.mockRejectedValue(new Error('evaluations down'))
+    // The only surviving source names a student who is no longer enrolled.
+    listLessonLogs.mockResolvedValue([{
+      ...lessonLogFixture,
+      attendance: [{ studentId: 99, name: 'Đã rời lớp', email: 'gone@example.com', status: 'ABSENT', note: null }],
+    }])
+
+    render(<Page />)
+    await waitFor(() => expect(listLessonLogs).toHaveBeenCalledWith(1))
+    await user.click(screen.getByRole('tab', { name: 'tabs.attendance' }))
+    await user.click(await screen.findByRole('button', { name: 'attendance.addLog' }))
+
+    // The teacher is told why, instead of hitting a generic save failure.
+    expect(screen.getByText('attendance.rosterUnavailable')).toBeInTheDocument()
+    // No marking control exists for the ex-student, so their id cannot reach the payload.
+    expect(screen.queryByLabelText('Đã rời lớp')).not.toBeInTheDocument()
+    // …but the printed history still lists them.
+    expect(screen.getAllByText('Đã rời lớp').length).toBeGreaterThan(0)
   })
 
   it('shows the select-class prompt when no class is available', async () => {

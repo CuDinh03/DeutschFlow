@@ -161,6 +161,105 @@ class StudentEvaluationServiceTest {
         assertThat(result.certificateEligible()).isFalse();
     }
 
+    // ── mẫu số tỉ lệ chuyên cần (Đợt 1: M-1, M-2, M-3) ────────────────────────
+
+    /**
+     * Bug đợt 1: mẫu số là {@code logs.size()} — TOÀN BỘ nhật ký của lớp — trong khi tử số chỉ đếm
+     * các dòng điểm danh của riêng học viên. Học viên vào lớp muộn (hoặc buổi chỉ ghi chủ đề, không
+     * điểm danh ai) bị chia cho những buổi vốn không thuộc về mình.
+     *
+     * <p>Đúng phải là: mẫu số = số buổi CÓ GHI NHẬN cho chính học viên đó. Ngữ nghĩa
+     * "không có dòng = chưa điểm danh ≠ vắng" mà toàn hệ đang giữ mới được tôn trọng.
+     */
+    @Test
+    @DisplayName("attendance: a late joiner is measured on their OWN sessions, not the whole class")
+    void attendance_lateJoiner_measuredOnOwnSessions() {
+        // Lớp đã dạy 20 buổi; học viên vào từ buổi 13 và có mặt đủ 8 buổi của mình.
+        StudentEvaluationDto r = evaluatePartial(60, 8, 0, 20);
+
+        assertThat(r.recordedSessions()).isEqualTo(8);
+        assertThat(r.presentCount()).isEqualTo(8);
+        assertThat(r.absentCount()).isZero();
+        // 8/8 = 100%, KHÔNG phải 8/20 = 40% → không bị đánh trượt oan.
+        assertThat(r.certificateEligible()).isTrue();
+    }
+
+    @Test
+    @DisplayName("attendance: topic-only logs (nobody marked) do not dilute the denominator")
+    void attendance_topicOnlyLogs_doNotDilute() {
+        // 10 buổi trong sổ, giáo viên chỉ điểm danh 6 buổi; học viên có mặt cả 6.
+        StudentEvaluationDto r = evaluatePartial(60, 6, 0, 10);
+
+        assertThat(r.recordedSessions()).isEqualTo(6);
+        assertThat(r.certificateEligible()).isTrue();
+    }
+
+    @Test
+    @DisplayName("attendance: real absences still pull the rate below the bar")
+    void attendance_realAbsences_stillCount() {
+        // Học viên có 10 dòng: 5 có mặt, 5 vắng → 50% < 80%.
+        StudentEvaluationDto r = evaluatePartial(90, 5, 5, 20);
+
+        assertThat(r.recordedSessions()).isEqualTo(10);
+        assertThat(r.absentCount()).isEqualTo(5);
+        assertThat(r.certificateEligible()).isFalse();
+    }
+
+    @Test
+    @DisplayName("attendance: a student with no rows of their own has no evidence (not 100%)")
+    void attendance_noOwnRows_isNotEvidence() {
+        // Lớp có 20 buổi nhưng học viên này chưa từng được điểm danh.
+        StudentEvaluationDto r = evaluatePartial(90, 0, 0, 20);
+
+        assertThat(r.recordedSessions()).isZero();
+        assertThat(r.certificateEligible()).isFalse();
+    }
+
+    /**
+     * Như {@link #evaluateWith}, nhưng lớp có {@code classLogs} buổi trong khi học viên CHỈ có
+     * {@code present + absent} dòng điểm danh — mô phỏng vào lớp muộn / buổi chỉ ghi chủ đề.
+     */
+    private StudentEvaluationDto evaluatePartial(int avgScore, int present, int absent, int classLogs) {
+        allowAccess();
+        ClassStudent cs = buildClassStudent(CLASS_ID, STUDENT_ID);
+        when(classStudentRepository.findById(new ClassStudentId(CLASS_ID, STUDENT_ID)))
+                .thenReturn(Optional.of(cs));
+        stubStudentAndClass();
+
+        List<ClassLessonLog> logs = new java.util.ArrayList<>();
+        for (int i = 0; i < classLogs; i++) {
+            ClassLessonLog log = new ClassLessonLog();
+            log.setId((long) (i + 1));
+            log.setClassId(CLASS_ID);
+            logs.add(log);
+        }
+        when(lessonLogRepository.findByClassIdOrderBySessionDateDesc(CLASS_ID)).thenReturn(logs);
+
+        // Chỉ sinh dòng điểm danh cho các buổi CUỐI — học viên chưa có mặt ở các buổi đầu.
+        List<ClassAttendance> attendance = new java.util.ArrayList<>();
+        for (int i = 0; i < present + absent; i++) {
+            long logId = (long) (classLogs - i);
+            attendance.add(ClassAttendance.builder()
+                    .id(new ClassAttendanceId(logId, STUDENT_ID))
+                    .status(i < present ? "PRESENT" : "ABSENT")
+                    .build());
+        }
+        if (!logs.isEmpty()) {
+            when(attendanceRepository.findByLessonLogIds(anyList())).thenReturn(attendance);
+        }
+
+        ClassAssignment ca = new ClassAssignment();
+        ca.setId(900L);
+        ca.setClassId(CLASS_ID);
+        when(assignmentRepository.findByClassIdOrderByCreatedAtDesc(CLASS_ID)).thenReturn(List.of(ca));
+        StudentAssignment sa = StudentAssignment.builder()
+                .id(1L).assignmentId(900L).studentId(STUDENT_ID).score(avgScore)
+                .status(AssignmentStatus.GRADED).build();
+        when(studentAssignmentRepository.findByAssignmentIds(anyList())).thenReturn(List.of(sa));
+
+        return service.getEvaluation(TEACHER_ID, CLASS_ID, STUDENT_ID);
+    }
+
     /** Builds an evaluation for a student with {@code avgScore}, {@code present} of {@code sessions} attended. */
     private StudentEvaluationDto evaluateWith(int avgScore, int present, int sessions) {
         return evaluateWith(avgScore, present, sessions, AssignmentStatus.GRADED);
