@@ -67,6 +67,7 @@
       "sessionTitle": "{className} · {place} · {time} · {count} students"
     },
     "tcProgress": {
+      "ungrouped": "Ungrouped",
       "title": "Course progress",
       "subtitle": "Overview of teaching progress by class",
       "openChecklist": "Edit content",

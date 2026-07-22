@@ -770,7 +770,9 @@
     "personaNameLan": "Lan — Erfahrene Migrantin",
     "personaDescLan": "Seit 10 Jahren in Deutschland — Aussprache-Tipps und Integration auf Vietnamesisch.",
     "personaNameMinh": "Minh — Kumpel",
-    "personaDescMinh": "Junger Vietnamese in Deutschland — Straßendeutsch, Vietnamesisch + deutsche Wörter."
+    "personaDescMinh": "Junger Vietnamese in Deutschland — Straßendeutsch, Vietnamesisch + deutsche Wörter.",
+    "continueToSettings": "Weiter zu den Einstellungen",
+    "backToModeAndPersona": "Zurück zu Modus & Begleiter"
   },
   "onboarding": {
     "title": "Lernplan personalisieren",
@@ -1228,7 +1230,9 @@
     "speakingSuccess": "Sprechbereich abgeschlossen (≥ 80% hohe Punktzahl)",
     "listeningSuccess": "Hörbereich abgeschlossen (≥ 80% richtig)",
     "completed": "Abgeschlossen",
-    "listenedAndUnderstood": "Gehört & Verstanden (100%)"
+    "listenedAndUnderstood": "Gehört & Verstanden (100%)",
+    "roadmapContext": "Im Lernpfad",
+    "completedInRoadmap": "des Lernpfads abgeschlossen"
   },
   "analytics": {
     "title": "Vokabel-Statistik",
@@ -1241,7 +1245,9 @@
     "verbsConjugated": "Konjugierte Verben",
     "vocabDetails": "Vokabeldetails",
     "nouns": "Nomen",
-    "verbs": "Verben"
+    "verbs": "Verben",
+    "loadError": "Die Auswertung konnte nicht geladen werden.",
+    "subtitle": "Abdeckung: Nomen mit Genus & konjugierte Verben."
   },
   "history": {
     "notDone": "Unvollständig",

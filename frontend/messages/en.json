@@ -768,7 +768,9 @@
       "stripSuggestions": "{n} hints",
       "stripView": "Open",
       "quotaBlockedInputPlaceholder": "AI quota exceeded — cannot send messages"
-    }
+    },
+    "continueToSettings": "Continue to settings",
+    "backToModeAndPersona": "Back to mode & companion"
   },
   "onboarding": {
     "title": "Personalize your learning plan",
@@ -1226,7 +1228,9 @@
     "speakingSuccess": "Speaking section completed (≥ 80% high scores)",
     "listeningSuccess": "Listening section completed (≥ 80% correct)",
     "completed": "Completed",
-    "listenedAndUnderstood": "Listened & Understood (100%)"
+    "listenedAndUnderstood": "Listened & Understood (100%)",
+    "roadmapContext": "In your roadmap",
+    "completedInRoadmap": "of the roadmap completed"
   },
   "analytics": {
     "title": "Vocabulary Analytics",
@@ -1239,7 +1243,9 @@
     "verbsConjugated": "Conjugated verbs",
     "vocabDetails": "Vocabulary Details",
     "nouns": "Nouns",
-    "verbs": "Verbs"
+    "verbs": "Verbs",
+    "loadError": "Couldn't load the analytics data.",
+    "subtitle": "Nouns with gender & conjugated verbs coverage."
   },
   "history": {
     "notDone": "Incomplete",
