@@ -94,6 +94,28 @@ class ClassScheduleIT extends AbstractPostgresIntegrationTest {
     }
 
     @Test
+    @DisplayName("L-6/V243: pattern Chủ Nhật (ISO day 7) được nhận — CHECK 0-6 cũ từng làm 500 mọi lớp cuối tuần")
+    void upsertPattern_sundayIso7_accepted() {
+        User t = newTeacher();
+        TeacherClass c = newClass(t.getId());
+        link(c.getId(), t.getId());
+
+        LocalDate from = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.SUNDAY));
+        LocalDate to = from.plusWeeks(1); // Sundays: from, +1w → 2
+        UpsertPatternRequest req = new UpsertPatternRequest(
+                (short) 7, LocalTime.of(9, 0), 90, "OFFLINE", "P.101", from, to); // 7 = Sunday (ISO)
+
+        UpsertPatternResult r = service.upsertPattern(t.getId(), c.getId(), req);
+        assertThat(r.generated()).isEqualTo(2);
+
+        List<ClassSession> gen = sessionRepo.findByClassIdAndStartAtBetweenOrderByStartAt(
+                c.getId(), from.atStartOfDay(), to.plusDays(1).atStartOfDay());
+        assertThat(gen).hasSize(2);
+        assertThat(gen).allSatisfy(s ->
+                assertThat(s.getStartAt().getDayOfWeek()).isEqualTo(DayOfWeek.SUNDAY));
+    }
+
+    @Test
     @DisplayName("upsertPattern generates weekly sessions, then keeps the manually-edited one on re-run")
     void upsertPattern_regenerate_keepsOverride() {
         User t = newTeacher();

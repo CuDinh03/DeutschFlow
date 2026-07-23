@@ -85,7 +85,10 @@ public class AdminOrganizationController {
     @PatchMapping("/{id}/invoices/{invoiceId}/status")
     public OrgInvoiceDto updateInvoiceStatus(@PathVariable("id") Long orgId,
                                              @PathVariable Long invoiceId,
-                                             @RequestBody UpdateInvoiceStatusRequest request) {
-        return billingService.updateStatus(orgId, invoiceId, request.status());
+                                             @RequestBody UpdateInvoiceStatusRequest request,
+                                             @AuthenticationPrincipal User admin) {
+        // L-10: audit trail cần danh tính người chuyển trạng thái (PAID = kích hoạt org).
+        return billingService.updateStatus(orgId, invoiceId, request.status(),
+                admin.getId(), admin.getEmail(), String.valueOf(admin.getRole()));
     }
 }

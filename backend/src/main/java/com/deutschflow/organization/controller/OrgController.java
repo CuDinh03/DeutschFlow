@@ -135,6 +135,15 @@ public class OrgController {
         return ResponseEntity.noContent().build();
     }
 
+    /** L-2: xoay token lời mời PENDING khi nghi link lộ — token cũ chết ngay, email mới tự gửi. */
+    @PostMapping("/invitations/{id}/rotate")
+    public OrgInvitationDto rotateInvitation(@AuthenticationPrincipal User user,
+                                             @PathVariable Long id) {
+        Long orgId = requireOrgId(user);
+        orgGuard.assertOrgAdmin(user.getId(), orgId);
+        return orgInvitationService.rotate(orgId, id);
+    }
+
     @DeleteMapping("/members/{userId}")
     public ResponseEntity<Void> removeMember(@AuthenticationPrincipal User user,
                                              @PathVariable Long userId) {
