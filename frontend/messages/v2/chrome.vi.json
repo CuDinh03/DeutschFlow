@@ -106,7 +106,16 @@
   },
   "shell": {
     "logout": "Đăng xuất",
-    "mainNav": "Điều hướng chính"
+    "mainNav": "Điều hướng chính",
+    "searchPlaceholder": "Tìm bài học, từ vựng, lớp…",
+    "searchAria": "Tìm kiếm",
+    "helpAria": "Trợ giúp",
+    "chipAdmin": "● Hệ thống ổn định",
+    "chipTeacher": "Khu vực giáo viên",
+    "chipOrg": "Khu vực tổ chức",
+    "chipStudent": "Khu vực học viên",
+    "languageAria": "Ngôn ngữ",
+    "openNavAria": "Mở menu điều hướng"
   },
   "common": {
     "start": "Bắt đầu",
@@ -119,6 +128,8 @@
     "back": "Quay lại",
     "next": "Tiếp tục",
     "confirm": "Xác nhận",
-    "search": "Tìm kiếm"
+    "search": "Tìm kiếm",
+    "errorTitle": "Đã xảy ra lỗi",
+    "errorLoadFailed": "Không tải được dữ liệu. Vui lòng thử lại."
   }
 }

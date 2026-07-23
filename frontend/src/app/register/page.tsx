@@ -150,7 +150,7 @@ export default function RegisterPage() {
 
             {/* Phone number field — VN format */}
             <div className="form-field">
-              <label className="label">Số điện thoại <span className="text-destructive">*</span></label>
+              <label className="label">{t('phoneLabel')} <span className="text-destructive">*</span></label>
               <input
                 type="tel"
                 required
@@ -169,7 +169,7 @@ export default function RegisterPage() {
                   {fieldErrors['phoneNumber']}
                 </p>
               ) : (
-                <p className="form-help">Số VN 10 chữ số, bắt đầu bằng 03/05/07/08/09</p>
+                <p className="form-help">{t('phoneHelp')}</p>
               )}
             </div>
 

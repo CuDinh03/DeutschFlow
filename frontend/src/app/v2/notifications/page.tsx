@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckCheck } from 'lucide-react'
 import { toast } from 'sonner'
+import { useTranslations } from 'next-intl'
 import { notificationApi, type NotificationItem } from '@/lib/notificationApi'
 import { TYPE_TONE, TYPE_ICON, notifTitle, notifBody, relTime, dayBucket, resolveNotificationHref } from '@/lib/notificationDisplay'
 import { GaPageHdr, GaBtn, ErrorBanner, LoadingState, GaIcon } from '@/components/ui-v2'
@@ -17,6 +18,7 @@ import { RoleShell, useViewerRole } from '../RoleShell'
 function NotificationsBody() {
   const router = useRouter()
   const role = useViewerRole()
+  const t = useTranslations('v2.account.notifications')
   const [items, setItems] = useState<NotificationItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -28,11 +30,11 @@ function NotificationsBody() {
       const res = await notificationApi.list(0, 40)
       setItems(res.data.items ?? [])
     } catch {
-      setError('Không thể tải thông báo.')
+      setError(t('loadError'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
   useEffect(() => { void load() }, [load])
 
   const unread = items.filter((n) => !n.read).length
@@ -50,7 +52,7 @@ function NotificationsBody() {
     setItems((prev) => prev.map((x) => ({ ...x, read: true })))
     try {
       await notificationApi.markAllRead()
-      toast.success('Đã đánh dấu tất cả là đã đọc.')
+      toast.success(t('markedAll'))
     } catch {
       void load()
     }
@@ -76,12 +78,12 @@ function NotificationsBody() {
     <div className="flex min-h-full flex-col">
       <GaPageHdr
         accent
-        title="Thông báo"
-        subtitle={unread > 0 ? `${unread} thông báo chưa đọc` : 'Tất cả đã đọc'}
+        title={t('title')}
+        subtitle={unread > 0 ? t('unreadCount', { count: unread }) : t('allRead')}
         right={
           unread > 0 ? (
             <GaBtn variant="ghost" size="sm" onClick={markAll}>
-              <CheckCheck size={15} aria-hidden /> Đánh dấu đã đọc tất cả
+              <CheckCheck size={15} aria-hidden /> {t('markAll')}
             </GaBtn>
           ) : null
         }
@@ -96,8 +98,8 @@ function NotificationsBody() {
           <LoadingState variant="skeleton" rows={5} />
         ) : items.length === 0 ? (
           <div className="border border-ga-line bg-ga-card py-16 text-center">
-            <p className="font-ga-display text-[20px] font-medium text-ga-ink">Chưa có thông báo</p>
-            <p className="ga-ui mt-2 text-[14px] text-ga-muted">Các cập nhật mới sẽ hiện ở đây.</p>
+            <p className="font-ga-display text-[20px] font-medium text-ga-ink">{t('emptyTitle')}</p>
+            <p className="ga-ui mt-2 text-[14px] text-ga-muted">{t('emptyBody')}</p>
           </div>
         ) : (
           <div className="space-y-6">
@@ -130,7 +132,7 @@ function NotificationsBody() {
                           {body && <p className="ga-ui mt-0.5 break-words text-[13px] text-ga-muted">{body}</p>}
                           <p className="ga-ui mt-1 text-[11.5px] text-ga-subtle">{relTime(n.createdAtUtc)}</p>
                         </div>
-                        {!n.read && <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-ga-accent" aria-label="chưa đọc" />}
+                        {!n.read && <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-ga-accent" aria-label={t('unreadAria')} />}
                       </button>
                     )
                   })}
