@@ -11,9 +11,11 @@ import com.deutschflow.teacher.entity.ClassAttendance;
 import com.deutschflow.teacher.entity.ClassAttendanceId;
 import com.deutschflow.teacher.entity.ClassLesson;
 import com.deutschflow.teacher.entity.ClassLessonLog;
+import com.deutschflow.teacher.entity.TeacherClass;
 import com.deutschflow.teacher.repository.ClassAttendanceRepository;
 import com.deutschflow.teacher.repository.ClassLessonLogRepository;
 import com.deutschflow.teacher.repository.ClassLessonRepository;
+import com.deutschflow.teacher.repository.TeacherClassRepository;
 import com.deutschflow.teacher.repository.ClassStudentRepository;
 import com.deutschflow.teacher.repository.ClassTeacherRepository;
 import com.deutschflow.user.entity.User;
@@ -41,10 +43,33 @@ public class LessonLogService {
     private final ClassStudentRepository classStudentRepository;
     private final ClassLessonRepository lessonRepository;
     private final UserRepository userRepository;
+    private final TeacherClassRepository teacherClassRepository;
 
     @Transactional(readOnly = true)
     public List<ClassLessonLogDto> getLogs(Long teacherId, Long classId) {
         assertTeacherOwnsClass(teacherId, classId);
+        return readLogs(classId);
+    }
+
+    /**
+     * M-17 (G-3): nhật ký buổi dạy cho org-admin (OWNER/MANAGER) — read-only, verify lớp thuộc
+     * đúng org của caller. Lớp org khác trả NotFound (không lộ tồn tại, chuẩn tenant-isolation).
+     */
+    @Transactional(readOnly = true)
+    public List<ClassLessonLogDto> getLogsForOrg(Long orgId, Long classId) {
+        assertClassInOrg(orgId, classId);
+        return readLogs(classId);
+    }
+
+    private void assertClassInOrg(Long orgId, Long classId) {
+        TeacherClass tc = teacherClassRepository.findById(classId)
+                .orElseThrow(() -> new NotFoundException("Lớp học không tồn tại"));
+        if (!orgId.equals(tc.getOrgId())) {
+            throw new NotFoundException("Lớp học không tồn tại");
+        }
+    }
+
+    private List<ClassLessonLogDto> readLogs(Long classId) {
         List<ClassLessonLog> logs = lessonLogRepository
                 .findByClassIdOrderBySessionDateAscSessionNumberAsc(classId);
         if (logs.isEmpty()) return List.of();

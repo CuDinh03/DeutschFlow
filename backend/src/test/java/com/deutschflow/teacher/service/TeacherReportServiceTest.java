@@ -19,6 +19,7 @@ import com.deutschflow.teacher.repository.TeacherClassRepository;
 import com.deutschflow.user.entity.User;
 import com.deutschflow.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -77,6 +78,21 @@ class TeacherReportServiceTest {
     }
 
     // ─── gradebook ───────────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("M-17: gradebookForOrg — lớp của org khác → NotFound, không đọc dữ liệu")
+    void gradebookForOrg_crossOrg_throwsNotFound() {
+        TeacherClass tc = org.mockito.Mockito.mock(TeacherClass.class);
+        when(tc.getOrgId()).thenReturn(7L);
+        when(classRepository.findById(100L)).thenReturn(java.util.Optional.of(tc));
+
+        assertThrows(NotFoundException.class, () -> service.gradebookForOrg(999L, 100L));
+        verify(assignmentRepository, never()).findByClassIdOrderByCreatedAtDesc(org.mockito.ArgumentMatchers.any());
+        // Không cần quyền teacher — và cũng không được rơi vào nhánh check teacher.
+        verify(classTeacherRepository, never())
+                .existsByIdClassIdAndIdTeacherId(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
+
 
     @Test
     void gradebook_throwsForbidden_whenTeacherDoesNotOwnClass() {

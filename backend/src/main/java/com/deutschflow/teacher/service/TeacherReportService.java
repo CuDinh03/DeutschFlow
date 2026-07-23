@@ -246,6 +246,21 @@ public class TeacherReportService {
         if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
             throw new ForbiddenException("Bạn không có quyền xem báo cáo của lớp này");
         }
+        return buildGradebook(classId);
+    }
+
+    /** M-17 (G-3): sổ điểm cho org-admin — verify lớp thuộc org caller; lớp org khác → NotFound. */
+    @Transactional(readOnly = true)
+    public GradebookDto gradebookForOrg(Long orgId, Long classId) {
+        TeacherClass scoped = classRepository.findById(classId)
+                .orElseThrow(() -> new NotFoundException("Lớp học không tồn tại"));
+        if (!orgId.equals(scoped.getOrgId())) {
+            throw new NotFoundException("Lớp học không tồn tại");
+        }
+        return buildGradebook(classId);
+    }
+
+    private GradebookDto buildGradebook(Long classId) {
         TeacherClass teacherClass = classRepository.findById(classId)
                 .orElseThrow(() -> new NotFoundException("Lớp học không tồn tại"));
 

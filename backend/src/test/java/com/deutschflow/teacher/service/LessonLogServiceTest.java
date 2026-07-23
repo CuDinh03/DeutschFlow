@@ -46,6 +46,7 @@ class LessonLogServiceTest {
     @Mock private ClassStudentRepository classStudentRepository;
     @Mock private ClassLessonRepository lessonRepository;
     @Mock private UserRepository userRepository;
+    @Mock private com.deutschflow.teacher.repository.TeacherClassRepository teacherClassRepository;
 
     private LessonLogService service;
 
@@ -59,7 +60,8 @@ class LessonLogServiceTest {
     void setUp() {
         service = new LessonLogService(
                 lessonLogRepository, attendanceRepository,
-                classTeacherRepository, classStudentRepository, lessonRepository, userRepository);
+                classTeacherRepository, classStudentRepository, lessonRepository, userRepository,
+                teacherClassRepository);
     }
 
     // ── getLogs ───────────────────────────────────────────────────────────────
@@ -486,6 +488,40 @@ class LessonLogServiceTest {
             l.setId(LOG_ID);
             return l;
         });
+    }
+
+    // ─── getLogsForOrg (M-17) ────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("M-17: getLogsForOrg — đúng org đọc được nhật ký, KHÔNG cần quyền teacher")
+    void getLogsForOrg_sameOrg_readsWithoutTeacherCheck() {
+        com.deutschflow.teacher.entity.TeacherClass tc =
+                org.mockito.Mockito.mock(com.deutschflow.teacher.entity.TeacherClass.class);
+        org.mockito.Mockito.when(tc.getOrgId()).thenReturn(7L);
+        org.mockito.Mockito.when(teacherClassRepository.findById(CLASS_ID))
+                .thenReturn(java.util.Optional.of(tc));
+        org.mockito.Mockito.when(lessonLogRepository
+                .findByClassIdOrderBySessionDateAscSessionNumberAsc(CLASS_ID))
+                .thenReturn(java.util.List.of());
+
+        org.assertj.core.api.Assertions.assertThat(service.getLogsForOrg(7L, CLASS_ID)).isEmpty();
+        org.mockito.Mockito.verify(classTeacherRepository, org.mockito.Mockito.never())
+                .existsByIdClassIdAndIdTeacherId(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("M-17: getLogsForOrg — lớp của org khác → NotFound, không đọc nhật ký")
+    void getLogsForOrg_crossOrg_throwsNotFound() {
+        com.deutschflow.teacher.entity.TeacherClass tc =
+                org.mockito.Mockito.mock(com.deutschflow.teacher.entity.TeacherClass.class);
+        org.mockito.Mockito.when(tc.getOrgId()).thenReturn(7L);
+        org.mockito.Mockito.when(teacherClassRepository.findById(CLASS_ID))
+                .thenReturn(java.util.Optional.of(tc));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.getLogsForOrg(999L, CLASS_ID))
+                .isInstanceOf(com.deutschflow.common.exception.NotFoundException.class);
+        org.mockito.Mockito.verify(lessonLogRepository, org.mockito.Mockito.never())
+                .findByClassIdOrderBySessionDateAscSessionNumberAsc(org.mockito.ArgumentMatchers.any());
     }
 
     private void allowAccess() {

@@ -29,6 +29,7 @@ import com.deutschflow.user.repository.UserLearningProfileRepository;
 import com.deutschflow.user.repository.UserRepository;
 import com.deutschflow.gamification.service.XpService;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -352,6 +353,58 @@ class TeacherServiceTest {
         assertEquals(1, result.size());
         assertEquals(90, result.get(0).teacherScore());
         assertEquals("SUBMITTED", result.get(0).status());
+    }
+
+    // ─── M-17: org-supervision reads (roster + teacher-classes theo org) ─────────
+
+    @Test
+    @DisplayName("M-17: getClassStudentsForOrg — lớp của org khác → NotFound, không đọc roster")
+    void getClassStudentsForOrg_crossOrg_throwsNotFound() {
+        com.deutschflow.teacher.entity.TeacherClass tc =
+                org.mockito.Mockito.mock(com.deutschflow.teacher.entity.TeacherClass.class);
+        org.mockito.Mockito.when(tc.getOrgId()).thenReturn(7L);
+        org.mockito.Mockito.when(classRepository.findById(10L))
+                .thenReturn(java.util.Optional.of(tc));
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                com.deutschflow.common.exception.NotFoundException.class,
+                () -> teacherService.getClassStudentsForOrg(999L, 10L));
+        org.mockito.Mockito.verify(classStudentRepository, org.mockito.Mockito.never())
+                .findByIdClassId(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("M-17: getClassesForTeacherInOrg — chỉ trả lớp thuộc org caller, lớp org khác vắng mặt")
+    void getClassesForTeacherInOrg_filtersToCallerOrg() {
+        com.deutschflow.teacher.entity.ClassTeacher linkA = org.mockito.Mockito.mock(
+                com.deutschflow.teacher.entity.ClassTeacher.class, org.mockito.Mockito.RETURNS_DEEP_STUBS);
+        com.deutschflow.teacher.entity.ClassTeacher linkB = org.mockito.Mockito.mock(
+                com.deutschflow.teacher.entity.ClassTeacher.class, org.mockito.Mockito.RETURNS_DEEP_STUBS);
+        org.mockito.Mockito.when(linkA.getId().getClassId()).thenReturn(1L);
+        org.mockito.Mockito.when(linkB.getId().getClassId()).thenReturn(2L);
+        org.mockito.Mockito.when(classTeacherRepository.findByIdTeacherId(5L))
+                .thenReturn(java.util.List.of(linkA, linkB));
+
+        com.deutschflow.teacher.entity.TeacherClass inOrg =
+                org.mockito.Mockito.mock(com.deutschflow.teacher.entity.TeacherClass.class);
+        org.mockito.Mockito.when(inOrg.getId()).thenReturn(1L);
+        org.mockito.Mockito.when(inOrg.getOrgId()).thenReturn(7L);
+        com.deutschflow.teacher.entity.TeacherClass otherOrg =
+                org.mockito.Mockito.mock(com.deutschflow.teacher.entity.TeacherClass.class);
+        org.mockito.Mockito.when(otherOrg.getOrgId()).thenReturn(8L);
+        // Lượt 1: lọc theo org trên cả hai lớp; lượt 2 (buildClassDtos): chỉ còn lớp trong org.
+        org.mockito.Mockito.when(classRepository.findAllById(org.mockito.ArgumentMatchers.anyList()))
+                .thenReturn(java.util.List.of(inOrg, otherOrg))
+                .thenReturn(java.util.List.of(inOrg));
+        org.mockito.Mockito.when(jdbcTemplate.queryForList(
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.<Object[]>any()))
+                .thenReturn(java.util.List.of());
+
+        var result = teacherService.getClassesForTeacherInOrg(7L, 5L);
+
+        org.assertj.core.api.Assertions.assertThat(result).hasSize(1);
+        org.assertj.core.api.Assertions.assertThat(result.get(0).id()).isEqualTo(1L);
     }
 
     // ─── IDOR guards: class-scoped reads must verify teacher owns the class ──────

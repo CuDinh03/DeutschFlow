@@ -6,8 +6,14 @@ import { useTranslations } from 'next-intl'
 import { ArrowLeft } from 'lucide-react'
 import { format } from 'date-fns'
 import { apiMessage } from '@/lib/api'
-import { getOrgClassDetail, type OrgClassDetail } from '@/lib/orgApi'
-import { GaPageHdr, GaBtn, GaCap, TkStatStrip, TkSearch } from '@/components/ui-v2'
+import {
+  getOrgClassDetail, getOrgClassGradebook, getOrgClassLessonLogs,
+  type OrgClassDetail, type OrgGradebook, type OrgLessonLog,
+} from '@/lib/orgApi'
+import {
+  GaPageHdr, GaBtn, GaCap, TkStatStrip, TkSearch,
+  TkTabs, TkTabsList, TkTabsTrigger, TkTabsContent, ErrorBanner, LoadingState,
+} from '@/components/ui-v2'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Chi tiết lớp của tổ chức (GaOrgClassDetail) — teal, read-only org-admin (W1.4 + QA Prototype A).
@@ -98,7 +104,15 @@ export default function V2OrgClassDetailPage() {
               ]}
             />
 
-            <div className="mt-[22px] grid grid-cols-1 gap-[22px] lg:grid-cols-[1fr_320px]">
+            <TkTabs defaultValue="students" className="mt-[22px]">
+              <TkTabsList>
+                <TkTabsTrigger value="students">{t('tabs.students')}</TkTabsTrigger>
+                <TkTabsTrigger value="gradebook">{t('tabs.gradebook')}</TkTabsTrigger>
+                <TkTabsTrigger value="logs">{t('tabs.logs')}</TkTabsTrigger>
+              </TkTabsList>
+
+              <TkTabsContent value="students">
+            <div className="mt-[18px] grid grid-cols-1 gap-[22px] lg:grid-cols-[1fr_320px]">
               {/* Roster */}
               <div>
                 <div className="mb-3.5 flex flex-wrap items-center justify-between gap-4">
@@ -166,9 +180,129 @@ export default function V2OrgClassDetailPage() {
                 </div>
               </div>
             </div>
+              </TkTabsContent>
+
+              {/* M-17: hai tab dữ liệu sâu — sổ điểm + nhật ký buổi (read-only, API /api/org mới) */}
+              <TkTabsContent value="gradebook">
+                <div className="mt-[18px]"><OrgGradebookPanel classId={id} /></div>
+              </TkTabsContent>
+              <TkTabsContent value="logs">
+                <div className="mt-[18px]"><OrgLessonLogsPanel classId={id} /></div>
+              </TkTabsContent>
+            </TkTabs>
           </>
         ) : null}
       </div>
+    </div>
+  )
+}
+
+// ─── M-17: Giám sát lớp — panel sổ điểm + nhật ký buổi (read-only, tái dùng DTO teacher) ───
+
+function OrgGradebookPanel({ classId }: { classId: number }) {
+  const ts = useTranslations('v2.org.classDetail.supervision')
+  const [data, setData] = useState<OrgGradebook | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const load = useCallback(async () => {
+    setLoading(true)
+    try { setData(await getOrgClassGradebook(classId)); setError('') }
+    catch (e: unknown) { setError(apiMessage(e)) }
+    finally { setLoading(false) }
+  }, [classId])
+  useEffect(() => { void load() }, [load])
+
+  if (loading) return <LoadingState variant="skeleton" rows={4} />
+  if (error) return <ErrorBanner message={error} onRetry={() => void load()} />
+  if (!data || data.assignments.length === 0) {
+    return <p className="ga-ui border border-ga-line bg-ga-card px-6 py-[30px] text-center text-[14px] text-ga-muted">{ts('gradebookEmpty')}</p>
+  }
+  return (
+    <div className="overflow-x-auto border border-ga-line bg-ga-card">
+      <table className="w-full min-w-[640px] border-collapse">
+        <thead>
+          <tr className="border-b border-ga-line bg-ga-bg">
+            <th className="ga-ui px-[18px] py-[11px] text-left text-[10px] font-bold uppercase tracking-[0.1em] text-ga-muted">{ts('colStudent')}</th>
+            <th className="ga-ui px-3 py-[11px] text-right text-[10px] font-bold uppercase tracking-[0.1em] text-ga-muted">{ts('colAvg')}</th>
+            {data.assignments.map((a) => (
+              <th key={a.id} className="ga-ui max-w-[140px] truncate px-3 py-[11px] text-right text-[10px] font-bold uppercase tracking-[0.1em] text-ga-muted" title={a.topic}>{a.topic}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {data.students.map((s) => (
+            <tr key={s.studentId} className="border-t border-ga-line transition-colors hover:bg-ga-surface">
+              <td className="px-[18px] py-[13px]">
+                <span className="block truncate text-[14px] font-semibold text-ga-ink">{s.name || '—'}</span>
+                <span className="block truncate text-[11.5px] text-ga-muted">{s.email || ''}</span>
+              </td>
+              <td className="px-3 py-[13px] text-right font-ga-display text-[14px] font-medium text-ga-ink">
+                {s.avgScore != null ? s.avgScore.toFixed(1) : '—'}
+              </td>
+              {data.assignments.map((a) => {
+                const cell = s.cells[String(a.id)]
+                return (
+                  <td key={a.id} className="px-3 py-[13px] text-right text-[13px] text-ga-ink">
+                    {cell?.score != null ? cell.score : cell ? ts('cellPending') : '—'}
+                  </td>
+                )
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function OrgLessonLogsPanel({ classId }: { classId: number }) {
+  const ts = useTranslations('v2.org.classDetail.supervision')
+  const [logs, setLogs] = useState<OrgLessonLog[] | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const load = useCallback(async () => {
+    setLoading(true)
+    try { setLogs(await getOrgClassLessonLogs(classId)); setError('') }
+    catch (e: unknown) { setError(apiMessage(e)) }
+    finally { setLoading(false) }
+  }, [classId])
+  useEffect(() => { void load() }, [load])
+
+  if (loading) return <LoadingState variant="skeleton" rows={4} />
+  if (error) return <ErrorBanner message={error} onRetry={() => void load()} />
+  if (!logs || logs.length === 0) {
+    return <p className="ga-ui border border-ga-line bg-ga-card px-6 py-[30px] text-center text-[14px] text-ga-muted">{ts('logsEmpty')}</p>
+  }
+  return (
+    <div className="overflow-x-auto border border-ga-line bg-ga-card">
+      <table className="w-full min-w-[640px] border-collapse">
+        <thead>
+          <tr className="border-b border-ga-line bg-ga-bg">
+            {[ts('colDate'), ts('colSession'), ts('colTopic'), ts('colAttendance'), ts('colHomework')].map((h, i) => (
+              <th key={h} className={`ga-ui px-[18px] py-[11px] text-[10px] font-bold uppercase tracking-[0.1em] text-ga-muted ${i >= 3 ? 'text-right' : 'text-left'}`}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {logs.map((log) => {
+            const present = log.attendance.filter((a) => a.status === 'PRESENT').length
+            return (
+              <tr key={log.id} className="border-t border-ga-line transition-colors hover:bg-ga-surface">
+                <td className="px-[18px] py-[13px] text-[13px] text-ga-ink">{format(new Date(log.sessionDate), 'dd/MM/yyyy')}</td>
+                <td className="px-[18px] py-[13px] text-[13px] text-ga-muted">{log.sessionNumber ?? '—'}</td>
+                <td className="max-w-[280px] px-[18px] py-[13px]">
+                  <span className="block truncate text-[14px] font-semibold text-ga-ink">{log.topic || log.lessonTitle || '—'}</span>
+                  {log.note && <span className="block truncate text-[11.5px] text-ga-muted">{log.note}</span>}
+                </td>
+                <td className="px-[18px] py-[13px] text-right text-[13px] font-semibold text-ga-ink">
+                  {ts('attendanceShort', { present, total: log.attendance.length })}
+                </td>
+                <td className="max-w-[220px] truncate px-[18px] py-[13px] text-right text-[12.5px] text-ga-muted">{log.homework || '—'}</td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
     </div>
   )
 }

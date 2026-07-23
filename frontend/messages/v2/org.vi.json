@@ -227,7 +227,25 @@
       "skillLesen": "Lesen",
       "skillSchreiben": "Schreiben",
       "skillSprechen": "Sprechen",
-      "noSkillScores": "Chưa có điểm kỹ năng nào được chấm."
+      "noSkillScores": "Chưa có điểm kỹ năng nào được chấm.",
+      "tabs": {
+        "students": "Học viên",
+        "gradebook": "Sổ điểm",
+        "logs": "Nhật ký buổi"
+      },
+      "supervision": {
+        "gradebookEmpty": "Lớp chưa có bài tập nào — sổ điểm sẽ hiện khi giáo viên giao bài.",
+        "colStudent": "Học viên",
+        "colAvg": "Điểm TB",
+        "cellPending": "Chưa nộp",
+        "logsEmpty": "Chưa có nhật ký buổi dạy nào.",
+        "colDate": "Ngày",
+        "colSession": "Buổi",
+        "colTopic": "Chủ đề",
+        "colAttendance": "Điểm danh",
+        "colHomework": "Bài về nhà",
+        "attendanceShort": "{present}/{total} có mặt"
+      }
     },
     "schedule": {
       "title": "Lịch trung tâm",
@@ -276,7 +294,14 @@
       "statusLeft": "Đã rời",
       "joined": "Tham gia {date}",
       "assign": "Phân công",
-      "assignSoon": "Phân công lớp (sắp ra mắt)"
+      "assignSoon": "Phân công lớp (sắp ra mắt)",
+      "viewClasses": "Xem lớp",
+      "hideClasses": "Ẩn lớp",
+      "classesPanel": {
+        "loading": "Đang tải…",
+        "empty": "Giáo viên chưa phụ trách lớp nào trong trung tâm.",
+        "meta": "{students} HV · {assignments} bài tập"
+      }
     },
     "analytics": {
       "title": "Phân tích tổ chức",
