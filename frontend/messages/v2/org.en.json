@@ -227,7 +227,25 @@
       "skillLesen": "Lesen",
       "skillSchreiben": "Schreiben",
       "skillSprechen": "Sprechen",
-      "noSkillScores": "No skill scores have been graded yet."
+      "noSkillScores": "No skill scores have been graded yet.",
+      "tabs": {
+        "students": "Students",
+        "gradebook": "Gradebook",
+        "logs": "Lesson logs"
+      },
+      "supervision": {
+        "gradebookEmpty": "No assignments yet — the gradebook fills in once the teacher assigns work.",
+        "colStudent": "Student",
+        "colAvg": "Avg",
+        "cellPending": "Not submitted",
+        "logsEmpty": "No lesson logs yet.",
+        "colDate": "Date",
+        "colSession": "Session",
+        "colTopic": "Topic",
+        "colAttendance": "Attendance",
+        "colHomework": "Homework",
+        "attendanceShort": "{present}/{total} present"
+      }
     },
     "schedule": {
       "title": "Center schedule",
@@ -276,7 +294,14 @@
       "statusLeft": "Left",
       "joined": "Joined {date}",
       "assign": "Assign",
-      "assignSoon": "Assign class (coming soon)"
+      "assignSoon": "Assign class (coming soon)",
+      "viewClasses": "View classes",
+      "hideClasses": "Hide classes",
+      "classesPanel": {
+        "loading": "Loading…",
+        "empty": "This teacher has no classes in the center yet.",
+        "meta": "{students} students · {assignments} assignments"
+      }
     },
     "analytics": {
       "title": "Organization analytics",

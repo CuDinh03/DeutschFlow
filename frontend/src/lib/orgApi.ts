@@ -312,6 +312,54 @@ export async function getOrgStudentDetail(id: number): Promise<OrgStudentDetail>
   return res.data
 }
 
+// ── M-17: Giám sát lớp (org-supervision, read-only — cùng DTO với màn teacher) ──
+
+export interface OrgGradebookCell { status: string; score: number | null; submittedAt: string | null }
+export interface OrgGradebookAssignment {
+  id: number; topic: string; assignmentType: string | null; skill: string | null; dueDate: string | null
+}
+export interface OrgGradebookStudent {
+  studentId: number; name: string | null; email: string | null; avgScore: number | null
+  /** assignmentId → ô điểm; thiếu key = học viên chưa từng được giao bài đó. */
+  cells: Record<string, OrgGradebookCell>
+}
+export interface OrgGradebook {
+  classId: number; className: string
+  assignments: OrgGradebookAssignment[]; students: OrgGradebookStudent[]
+}
+
+export interface OrgLessonLogAttendance {
+  studentId: number; name: string | null; email: string | null; status: string; note: string | null
+}
+export interface OrgLessonLog {
+  id: number; classId: number; sessionDate: string; sessionNumber: number | null
+  topic: string | null; homework: string | null; note: string | null; createdAt: string
+  attendance: OrgLessonLogAttendance[]; lessonId: number | null; lessonTitle: string | null
+}
+
+export interface OrgTeacherClass {
+  id: number; name: string; inviteCode: string | null
+  studentCount: number; quizCount: number; createdAt: string | null
+}
+
+/** GET /org/classes/{id}/gradebook — sổ điểm lớp trong org. 404 nếu lớp khác org. */
+export async function getOrgClassGradebook(id: number): Promise<OrgGradebook> {
+  const res = await api.get<OrgGradebook>(`/org/classes/${id}/gradebook`)
+  return res.data
+}
+
+/** GET /org/classes/{id}/lesson-logs — nhật ký buổi dạy + điểm danh. 404 nếu lớp khác org. */
+export async function getOrgClassLessonLogs(id: number): Promise<OrgLessonLog[]> {
+  const res = await api.get<OrgLessonLog[]>(`/org/classes/${id}/lesson-logs`)
+  return res.data
+}
+
+/** GET /org/teachers/{id}/classes — lớp trong org của một giáo viên (lớp ngoài org vắng mặt). */
+export async function getOrgTeacherClasses(teacherId: number): Promise<OrgTeacherClass[]> {
+  const res = await api.get<OrgTeacherClass[]>(`/org/teachers/${teacherId}/classes`)
+  return res.data
+}
+
 /**
  * POST /org/students/import — bulk-import students from a CSV file
  * (columns: `email,displayName[,phone]`). When `classId` is supplied, every

@@ -6,7 +6,11 @@ import { UserPlus, Mail, Clock } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { apiMessage } from '@/lib/api'
-import { listMembers, listInvitations, revokeInvitation, type OrgMember, type OrgInvitation } from '@/lib/orgApi'
+import Link from 'next/link'
+import {
+  listMembers, listInvitations, revokeInvitation, getOrgTeacherClasses,
+  type OrgMember, type OrgInvitation, type OrgTeacherClass,
+} from '@/lib/orgApi'
 import { GaPageHdr, GaBtn, GaCap } from '@/components/ui-v2'
 import { CreateTeacherModal } from './CreateTeacherModal'
 
@@ -33,6 +37,8 @@ export default function V2OrgTeachersPage() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState<number | null>(null)
   const [showCreate, setShowCreate] = useState(false)
+  // M-17: userId của GV đang mở panel "Lớp phụ trách" (null = đóng hết).
+  const [openTeacher, setOpenTeacher] = useState<number | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -117,7 +123,8 @@ export default function V2OrgTeachersPage() {
             ) : (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {teachers.map((teacher) => (
-                  <div key={teacher.userId} className="flex items-center gap-3 border border-ga-line bg-ga-card px-4 py-4 lg:gap-4 lg:px-[22px] lg:py-5">
+                  <div key={teacher.userId} className="border border-ga-line bg-ga-card">
+                  <div className="flex items-center gap-3 px-4 py-4 lg:gap-4 lg:px-[22px] lg:py-5">
                     <span className="grid h-12 w-12 shrink-0 place-items-center font-ga-display text-[20px] font-medium" style={{ color: VIOLET, background: 'var(--ga-violet-soft)' }}>{initial(teacher.displayName)}</span>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
@@ -129,9 +136,15 @@ export default function V2OrgTeachersPage() {
                       <div className="mt-0.5 truncate text-[12.5px] text-ga-muted">{teacher.email}</div>
                       <div className="mt-1.5 flex items-center gap-1 text-[11.5px] text-ga-subtle"><Clock size={11} /> {t('joined', { date: fmtDate(teacher.joinedAt) })}</div>
                     </div>
+                    {/* M-17: xem các lớp trong org của giáo viên này (GET /api/org/teachers/{id}/classes) */}
+                    <button type="button" onClick={() => setOpenTeacher((cur) => (cur === teacher.userId ? null : teacher.userId))} className="ga-ui inline-flex min-h-[40px] shrink-0 items-center justify-center border border-ga-line px-3 py-2 text-[11.5px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent lg:min-h-0">
+                      {openTeacher === teacher.userId ? t('hideClasses') : t('viewClasses')}
+                    </button>
                     <button type="button" onClick={() => toast(t('assignSoon'))} className="ga-ui inline-flex min-h-[40px] shrink-0 items-center justify-center border border-ga-line px-3 py-2 text-[11.5px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent lg:min-h-0">
                       {t('assign')}
                     </button>
+                  </div>
+                  {openTeacher === teacher.userId && <TeacherClassesPanel teacherId={teacher.userId} />}
                   </div>
                 ))}
               </div>
@@ -142,6 +155,43 @@ export default function V2OrgTeachersPage() {
 
       {showCreate && (
         <CreateTeacherModal onClose={() => setShowCreate(false)} onCreated={() => void load()} />
+      )}
+    </div>
+  )
+}
+
+// ─── M-17: panel "Lớp phụ trách" của một giáo viên (read-only, /api/org/teachers/{id}/classes) ───
+
+function TeacherClassesPanel({ teacherId }: { teacherId: number }) {
+  const tp = useTranslations('v2.org.teachers.classesPanel')
+  const [rows, setRows] = useState<OrgTeacherClass[] | null>(null)
+  const [error, setError] = useState('')
+  useEffect(() => {
+    let alive = true
+    getOrgTeacherClasses(teacherId)
+      .then((d) => { if (alive) { setRows(d); setError('') } })
+      .catch((e: unknown) => { if (alive) setError(apiMessage(e)) })
+    return () => { alive = false }
+  }, [teacherId])
+  return (
+    <div className="border-t border-ga-line bg-ga-bg px-4 py-3.5 lg:px-[22px]">
+      {error ? (
+        <p className="ga-ui text-[12.5px] text-ga-red">{error}</p>
+      ) : rows == null ? (
+        <p className="ga-ui text-[12.5px] text-ga-muted">{tp('loading')}</p>
+      ) : rows.length === 0 ? (
+        <p className="ga-ui text-[12.5px] text-ga-muted">{tp('empty')}</p>
+      ) : (
+        <ul className="flex flex-col gap-2.5">
+          {rows.map((c) => (
+            <li key={c.id}>
+              <Link href={`/v2/org/classes/${c.id}`} className="flex items-center justify-between gap-3">
+                <span className="min-w-0 truncate text-[13px] font-semibold text-ga-ink transition-colors hover:text-ga-accent">{c.name}</span>
+                <span className="ga-ui shrink-0 text-[11.5px] text-ga-muted">{tp('meta', { students: c.studentCount, assignments: c.quizCount })}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   )

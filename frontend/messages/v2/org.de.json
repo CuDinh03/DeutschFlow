@@ -227,7 +227,25 @@
       "skillLesen": "Lesen",
       "skillSchreiben": "Schreiben",
       "skillSprechen": "Sprechen",
-      "noSkillScores": "Es wurden noch keine Fähigkeitswerte bewertet."
+      "noSkillScores": "Es wurden noch keine Fähigkeitswerte bewertet.",
+      "tabs": {
+        "students": "Lernende",
+        "gradebook": "Notenbuch",
+        "logs": "Unterrichtsprotokolle"
+      },
+      "supervision": {
+        "gradebookEmpty": "Noch keine Aufgaben — das Notenbuch füllt sich, sobald Aufgaben vergeben werden.",
+        "colStudent": "Lernende/r",
+        "colAvg": "Ø Note",
+        "cellPending": "Nicht abgegeben",
+        "logsEmpty": "Noch keine Unterrichtsprotokolle.",
+        "colDate": "Datum",
+        "colSession": "Einheit",
+        "colTopic": "Thema",
+        "colAttendance": "Anwesenheit",
+        "colHomework": "Hausaufgabe",
+        "attendanceShort": "{present}/{total} anwesend"
+      }
     },
     "schedule": {
       "title": "Zentrumsplan",
@@ -276,7 +294,14 @@
       "statusLeft": "Ausgetreten",
       "joined": "Beigetreten {date}",
       "assign": "Zuweisen",
-      "assignSoon": "Kurs zuweisen (bald verfügbar)"
+      "assignSoon": "Kurs zuweisen (bald verfügbar)",
+      "viewClasses": "Klassen ansehen",
+      "hideClasses": "Klassen ausblenden",
+      "classesPanel": {
+        "loading": "Wird geladen…",
+        "empty": "Diese Lehrkraft betreut noch keine Klassen im Zentrum.",
+        "meta": "{students} Lernende · {assignments} Aufgaben"
+      }
     },
     "analytics": {
       "title": "Organisationsanalyse",

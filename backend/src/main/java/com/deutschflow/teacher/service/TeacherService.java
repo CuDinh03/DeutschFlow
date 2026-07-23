@@ -101,7 +101,26 @@ public class TeacherService {
         List<ClassTeacher> classTeachers = classTeacherRepository.findByIdTeacherId(teacherId);
         List<Long> classIds = classTeachers.stream().map(ct -> ct.getId().getClassId()).toList();
         if (classIds.isEmpty()) return List.of();
+        return buildClassDtos(classIds);
+    }
 
+    /**
+     * M-17 (G-3): các lớp của {@code teacherId} THUỘC org caller — lớp org khác lặng lẽ vắng mặt
+     * (không lộ tồn tại); giáo viên không thuộc org → danh sách rỗng tự nhiên.
+     */
+    public List<TeacherClassDto> getClassesForTeacherInOrg(Long orgId, Long teacherId) {
+        List<ClassTeacher> links = classTeacherRepository.findByIdTeacherId(teacherId);
+        List<Long> classIds = links.stream().map(ct -> ct.getId().getClassId()).toList();
+        if (classIds.isEmpty()) return List.of();
+        List<Long> inOrg = classRepository.findAllById(classIds).stream()
+                .filter(c -> orgId.equals(c.getOrgId()))
+                .map(TeacherClass::getId)
+                .toList();
+        if (inOrg.isEmpty()) return List.of();
+        return buildClassDtos(inOrg);
+    }
+
+    private List<TeacherClassDto> buildClassDtos(List<Long> classIds) {
         // Batch-load student and assignment counts — avoids N+1 (2 queries per class).
         String placeholders = classIds.stream().map(ignored -> "?").collect(Collectors.joining(","));
         Object[] args = classIds.toArray();
@@ -433,7 +452,25 @@ public class TeacherService {
         if (!classTeacherRepository.existsByIdClassIdAndIdTeacherId(classId, teacherId)) {
             throw new ForbiddenException("Bạn không có quyền xem lớp này");
         }
+        return readRoster(classId);
+    }
 
+    /** M-17 (G-3): roster cho org-admin — verify lớp thuộc org caller; lớp org khác → NotFound. */
+    public List<ClassStudentDto> getClassStudentsForOrg(Long orgId, Long classId) {
+        assertClassInOrg(orgId, classId);
+        return readRoster(classId);
+    }
+
+    /** Cross-org trả NotFound (không phải Forbidden) để không lộ lớp của tenant khác tồn tại. */
+    private void assertClassInOrg(Long orgId, Long classId) {
+        TeacherClass tc = classRepository.findById(classId)
+                .orElseThrow(() -> new NotFoundException("Lớp học không tồn tại"));
+        if (!orgId.equals(tc.getOrgId())) {
+            throw new NotFoundException("Lớp học không tồn tại");
+        }
+    }
+
+    private List<ClassStudentDto> readRoster(Long classId) {
         List<ClassStudent> students = classStudentRepository.findByIdClassId(classId);
         List<Long> studentIds = students.stream().map(s -> s.getId().getStudentId()).toList();
 
