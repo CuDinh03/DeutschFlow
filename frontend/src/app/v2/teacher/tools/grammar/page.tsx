@@ -59,12 +59,12 @@ export default function V2GrammarAiPage() {
   const hasError = result && result.corrected.trim() !== result.original.trim()
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div className="flex min-h-full flex-col lg:h-full lg:overflow-hidden">
       <GaPageHdr accent title="Ngữ pháp AI" subtitle="Kiểm tra và giải thích ngữ pháp tiếng Đức tức thì" />
 
-      <div className="grid min-h-0 flex-1 grid-cols-2 border-t border-ga-line">
+      <div className="grid min-h-0 flex-1 grid-cols-1 border-t border-ga-line lg:grid-cols-2">
         {/* Input */}
-        <div className="flex flex-col overflow-auto border-r border-ga-line px-9 py-7">
+        <div className="flex flex-col border-b border-ga-line px-4 py-5 sm:px-6 lg:overflow-auto lg:border-b-0 lg:border-r lg:px-9 lg:py-7">
           <GaCap className="mb-3 block">Nhập câu cần kiểm tra</GaCap>
           <textarea
             value={input}
@@ -111,7 +111,7 @@ export default function V2GrammarAiPage() {
         </div>
 
         {/* Result */}
-        <div className={`overflow-auto px-9 py-7 ${result ? 'bg-ga-card' : 'bg-ga-bg'}`}>
+        <div className={`px-4 py-5 sm:px-6 lg:overflow-auto lg:px-9 lg:py-7 ${result ? 'bg-ga-card' : 'bg-ga-bg'}`}>
           {loading ? (
             <div className="grid h-full place-items-center text-center text-ga-muted">
               <div>

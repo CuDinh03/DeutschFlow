@@ -78,13 +78,13 @@ export default function V2OrgClassDetailPage() {
         right={<GaBtn variant="ghost" size="sm" onClick={() => router.push('/v2/org/classes')}><ArrowLeft size={15} /> {t('backToClasses')}</GaBtn>}
       />
 
-      <div className="flex-1 overflow-auto px-10 py-6">
+      <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
         {loading ? (
           <div className="flex flex-col gap-2">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="ga-shimmer h-[54px] border border-ga-line" aria-hidden />)}</div>
         ) : error ? (
-          <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadError')}</h2>
-            <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">{error} <code className="font-mono text-[12px] text-ga-accent">{`GET /api/org/classes/${id}`}</code></p>
+          <div className="border border-ga-line bg-ga-card px-4 py-8 sm:px-8 lg:px-10 lg:py-[52px] text-center">
+            <h2 className="font-ga-display text-[20px] font-medium text-ga-red lg:text-[24px]">{t('loadError')}</h2>
+            <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm break-words text-[14px] text-ga-muted">{error} <code className="font-mono text-[12px] text-ga-accent">{`GET /api/org/classes/${id}`}</code></p>
             <GaBtn variant="primary" onClick={load}>{tc('retry')}</GaBtn>
           </div>
         ) : detail ? (
@@ -101,12 +101,12 @@ export default function V2OrgClassDetailPage() {
             <div className="mt-[22px] grid grid-cols-1 gap-[22px] lg:grid-cols-[1fr_320px]">
               {/* Roster */}
               <div>
-                <div className="mb-3.5 flex items-center justify-between gap-4">
+                <div className="mb-3.5 flex flex-wrap items-center justify-between gap-4">
                   <GaCap>{t('rosterCap')}</GaCap>
-                  <TkSearch value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('searchPlaceholder')} containerClassName="w-[200px]" />
+                  <TkSearch value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('searchPlaceholder')} containerClassName="w-full sm:w-[200px]" />
                 </div>
-                <div className="border border-ga-line bg-ga-card">
-                  <div className="grid items-center gap-2 border-b border-ga-line bg-ga-bg px-[18px] py-[11px]" style={{ gridTemplateColumns: GRID }}>
+                <div className="overflow-x-auto border border-ga-line bg-ga-card lg:overflow-visible">
+                  <div className="grid min-w-[640px] items-center gap-2 border-b border-ga-line bg-ga-bg px-[18px] py-[11px] lg:min-w-0" style={{ gridTemplateColumns: GRID }}>
                     {[t('colStudent'), t('colJoined'), t('colHoren'), t('colLesen'), t('colSchreiben'), t('colSprechen')].map((h, i) => (
                       <span key={h} className={`ga-ui text-[10px] font-bold uppercase tracking-[0.1em] text-ga-muted ${i >= 2 ? 'text-right' : ''}`}>{h}</span>
                     ))}
@@ -114,7 +114,7 @@ export default function V2OrgClassDetailPage() {
                   {rows.length === 0 ? (
                     <div className="px-6 py-[30px] text-center text-[14px] text-ga-muted">{detail.students.length === 0 ? t('emptyRoster') : t('emptySearch')}</div>
                   ) : rows.map((s, i) => (
-                    <div key={s.userId} className="grid items-center gap-2 px-[18px] py-[13px] transition-colors hover:bg-ga-surface" style={{ gridTemplateColumns: GRID, borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
+                    <div key={s.userId} className="grid min-w-[640px] items-center gap-2 px-[18px] py-[13px] transition-colors hover:bg-ga-surface lg:min-w-0" style={{ gridTemplateColumns: GRID, borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
                       <button type="button" onClick={() => router.push(`/v2/org/students/${s.userId}`)} className="flex min-w-0 items-center gap-2.5 text-left">
                         <span className="grid h-8 w-8 shrink-0 place-items-center font-ga-display text-[13px] font-medium" style={{ color: TEAL, background: 'var(--ga-teal-soft)' }}>{initial(s.displayName)}</span>
                         <span className="min-w-0">
@@ -133,7 +133,7 @@ export default function V2OrgClassDetailPage() {
 
               {/* Side panel (proto 2-col: real data only) */}
               <div className="flex flex-col gap-[18px]">
-                <div className="border border-ga-line bg-ga-card p-[22px]">
+                <div className="border border-ga-line bg-ga-card p-4 lg:p-[22px]">
                   <GaCap className="mb-3.5 block">{t('teacherCap')}</GaCap>
                   {detail.teacherName ? (
                     <div className="flex items-center gap-3">
@@ -144,11 +144,11 @@ export default function V2OrgClassDetailPage() {
                       </div>
                     </div>
                   ) : (
-                    <button type="button" onClick={() => router.push('/v2/org/teachers')} className="ga-ui w-full border px-3 py-3 text-[12px] font-bold" style={{ color: 'var(--ga-red)', background: 'var(--ga-red-soft)', borderColor: 'color-mix(in srgb, var(--ga-red) 30%, transparent)' }}>{t('assignTeacher')}</button>
+                    <button type="button" onClick={() => router.push('/v2/org/teachers')} className="ga-ui min-h-[40px] w-full border px-3 py-3 text-[12px] font-bold lg:min-h-0" style={{ color: 'var(--ga-red)', background: 'var(--ga-red-soft)', borderColor: 'color-mix(in srgb, var(--ga-red) 30%, transparent)' }}>{t('assignTeacher')}</button>
                   )}
                 </div>
 
-                <div className="border border-ga-line bg-ga-card p-[22px]">
+                <div className="border border-ga-line bg-ga-card p-4 lg:p-[22px]">
                   <GaCap className="mb-3.5 block">{t('skillAvgCap')}</GaCap>
                   {skillAvg.every((s) => s.avg == null) ? (
                     <p className="text-[12.5px] text-ga-muted">{t('noSkillScores')}</p>

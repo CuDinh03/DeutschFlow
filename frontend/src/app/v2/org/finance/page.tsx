@@ -67,7 +67,7 @@ function V2OrgFinanceInner() {
   return (
     <div className="flex min-h-full flex-col" style={financeAccent}>
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         {error && (
           <div className="mb-5">
             <ErrorBanner message={error} onRetry={() => void load()} />
@@ -101,7 +101,7 @@ function V2OrgFinanceInner() {
 
             <GaSection title={t('invoiceHistory')} bodyClassName="p-0">
               <div className="overflow-x-auto">
-                <table className="w-full text-left">
+                <table className="w-full min-w-[680px] text-left lg:min-w-0">
                   <thead>
                     <tr className="border-b border-ga-border">
                       {[t('colPeriod'), t('colIssued'), t('colSeats'), t('colAmount'), t('colStatus')].map((h, i) => (

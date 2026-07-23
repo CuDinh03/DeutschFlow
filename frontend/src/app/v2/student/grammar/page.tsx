@@ -100,20 +100,20 @@ export default function V2StudentGrammarPage() {
                 + runner đang dùng, nên đây là đường vào duy nhất của phần AI trong /v2. */}
             <a
               href={AI_HREF}
-              className="ga-ui inline-flex items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-4 py-2.5 text-[13px] font-semibold text-ga-ink transition-colors hover:bg-ga-surface"
+              className="ga-ui inline-flex min-h-10 items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-4 py-2.5 text-[13px] font-semibold text-ga-ink transition-colors hover:bg-ga-surface lg:min-h-0"
             >
               <Sparkles size={14} aria-hidden /> {t('aiCta')}
             </a>
             <a
               href={PRACTICE_HREF}
-              className="ga-ui inline-flex items-center gap-1.5 rounded-ga bg-ga-accent px-4 py-2.5 text-[13px] font-semibold text-ga-accent-ink transition-opacity hover:opacity-90"
+              className="ga-ui inline-flex min-h-10 items-center gap-1.5 rounded-ga bg-ga-accent px-4 py-2.5 text-[13px] font-semibold text-ga-accent-ink transition-opacity hover:opacity-90 lg:min-h-0"
             >
               <Dumbbell size={14} aria-hidden /> {t('practiceCta')}
             </a>
           </>
         }
       />
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         {error && (
           <div className="mb-5">
             <ErrorBanner message={error} onRetry={load} />
@@ -135,7 +135,7 @@ export default function V2StudentGrammarPage() {
                   <button
                     type="button"
                     onClick={() => toggle(topic)}
-                    className="flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-ga-surface"
+                    className="flex w-full items-center gap-3 px-4 py-4 text-left transition-colors hover:bg-ga-surface lg:gap-4 lg:px-5"
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
@@ -155,7 +155,7 @@ export default function V2StudentGrammarPage() {
                   </button>
 
                   {open && (
-                    <div className="border-t border-ga-border bg-ga-surface px-5 py-4">
+                    <div className="border-t border-ga-border bg-ga-surface px-4 py-4 lg:px-5">
                       {exLoading ? (
                         <LoadingState label={t('exLoading')} />
                       ) : exercises.length > 0 ? (
@@ -173,7 +173,7 @@ export default function V2StudentGrammarPage() {
                               topic ids come from a different endpoint, so we only carry the LEVEL. */}
                           <a
                             href={`/v2/student/grammar/practice${topic.level ? `?cefr=${encodeURIComponent(topic.level)}` : ''}`}
-                            className="ga-ui mt-3 inline-flex items-center gap-1 text-[13px] font-semibold text-ga-accent"
+                            className="ga-ui mt-3 inline-flex min-h-10 items-center gap-1 text-[13px] font-semibold text-ga-accent lg:min-h-0"
                           >
                             {t('practiceThisTopic')} <ArrowRight size={14} aria-hidden />
                           </a>

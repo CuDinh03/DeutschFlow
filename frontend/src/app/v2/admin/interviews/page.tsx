@@ -67,7 +67,7 @@ export default function V2AdminInterviewsPage() {
         title={t('title')}
         subtitle={t('subtitle')}
       />
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         {error && (
           <div className="mb-5">
             <ErrorBanner message={error} onRetry={load} />
@@ -132,9 +132,9 @@ export default function V2AdminInterviewsPage() {
             <div className="grid grid-cols-1 gap-[22px] lg:grid-cols-2">
               <GaSection title={t('sessionsByIndustryTitle')}>
                 {industrySegs.length > 0 ? (
-                  <div className="flex items-center gap-5">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
                     <GaDonut segments={industrySegs} />
-                    <div className="flex-1">
+                    <div className="min-w-0 flex-1">
                       <GaLegend items={industrySegs.map((s) => ({ ...s, display: nfVN.format(s.value) }))} />
                     </div>
                   </div>

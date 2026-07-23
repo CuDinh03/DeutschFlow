@@ -80,7 +80,7 @@ export default function V2StudentNewsPage() {
     <div className="flex min-h-full flex-col">
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
 
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         <div className="mx-auto max-w-4xl space-y-5">
           <div className="flex flex-col gap-3 sm:flex-row">
             <TkSearch
@@ -92,7 +92,7 @@ export default function V2StudentNewsPage() {
             <button
               type="button"
               onClick={() => void fetchNews()}
-              className="ga-ui inline-flex shrink-0 items-center justify-center gap-2 rounded-ga border border-ga-line bg-ga-card px-5 py-2.5 text-[13px] font-semibold text-ga-ink transition-colors hover:bg-ga-surface"
+              className="ga-ui inline-flex min-h-[40px] shrink-0 items-center justify-center gap-2 rounded-ga border border-ga-line bg-ga-card px-5 py-2.5 text-[13px] font-semibold text-ga-ink transition-colors hover:bg-ga-surface lg:min-h-0"
             >
               <RefreshCw size={15} className={loading ? 'animate-spin' : ''} aria-hidden />
               {t('refresh')}
@@ -113,7 +113,7 @@ export default function V2StudentNewsPage() {
                   href={item.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group flex h-full flex-col rounded-ga border border-ga-line bg-ga-card p-5 transition-shadow duration-150 hover:shadow-ga-card-hover"
+                  className="group flex h-full flex-col rounded-ga border border-ga-line bg-ga-card p-4 transition-shadow duration-150 hover:shadow-ga-card-hover lg:p-5"
                 >
                   <div className="mb-3 flex items-start justify-between gap-3">
                     <TkBadge tone={SOURCE_TONE[item.sourceType] ?? 'neutral'}>{item.sourceName}</TkBadge>
@@ -123,7 +123,7 @@ export default function V2StudentNewsPage() {
                     </span>
                   </div>
 
-                  <h2 className="mb-2 line-clamp-2 font-ga-display text-[19px] font-medium leading-snug text-ga-ink transition-colors group-hover:text-ga-accent">
+                  <h2 className="mb-2 line-clamp-2 break-words font-ga-display text-[19px] font-medium leading-snug text-ga-ink transition-colors group-hover:text-ga-accent">
                     {item.title}
                   </h2>
 

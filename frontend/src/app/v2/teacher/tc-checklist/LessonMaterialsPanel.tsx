@@ -98,7 +98,7 @@ export function LessonMaterialsPanel({ lessonId }: { lessonId: number }) {
                     aria-label={t('materials.detach')}
                     onClick={() => detach(m.id)}
                     disabled={busy}
-                    className="grid h-6 w-6 shrink-0 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-red-soft hover:text-ga-red disabled:pointer-events-none disabled:opacity-40"
+                    className="grid h-10 w-8 shrink-0 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-red-soft hover:text-ga-red disabled:pointer-events-none disabled:opacity-40 lg:h-6 lg:w-6"
                   >
                     <X size={13} />
                   </button>
@@ -109,7 +109,7 @@ export function LessonMaterialsPanel({ lessonId }: { lessonId: number }) {
             <p className="mb-2 text-[12px] text-ga-muted">{t('materials.empty')}</p>
           )}
           {options.length > 0 ? (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
               <select value={pick} onChange={(e) => setPick(e.target.value)} className={selectCls}>
                 <option value="">{t('materials.pickPlaceholder')}</option>
                 {options.map((m) => (

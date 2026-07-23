@@ -137,15 +137,15 @@ export default function V2TcReportsPage() {
         right={<ClassPicker classes={classes} classId={classId} onChange={setClassId} disabled={loadingClasses} />}
       />
 
-      <div className="flex-1 overflow-auto px-10 py-6">
+      <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
         {!classId ? (
-          <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">
+          <div className="border border-dashed border-ga-line px-4 py-[40px] text-center text-[14px] text-ga-muted sm:px-6 lg:px-10">
             {t('selectClassPrompt')}
           </div>
         ) : loading ? (
           <div className="ga-shimmer h-[320px] border border-ga-line" aria-hidden />
         ) : error ? (
-          <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
+          <div className="border border-ga-line bg-ga-card px-4 py-10 text-center sm:px-6 lg:px-10 lg:py-[52px]">
             <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadError')}</h2>
             <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">{error}</p>
             <GaBtn variant="primary" onClick={() => classId && load(classId)}>{tc('retry')}</GaBtn>

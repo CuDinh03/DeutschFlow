@@ -151,12 +151,12 @@ export default function V2StudentPracticeNodePage() {
         title={t('title')}
         subtitle={overview ? `${overview.emoji} ${overview.nodeTitleVi}` : t('subtitle')}
       />
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         <div className="mx-auto max-w-3xl space-y-[22px]">
           <button
             type="button"
             onClick={() => router.push('/v2/student/roadmap')}
-            className="ga-ui inline-flex items-center gap-1.5 text-[13px] font-semibold text-ga-muted transition-colors hover:text-ga-ink"
+            className="ga-ui inline-flex min-h-10 items-center gap-1.5 text-[13px] font-semibold text-ga-muted transition-colors hover:text-ga-ink lg:min-h-0"
           >
             <ArrowLeft size={15} aria-hidden /> {t('backToRoadmap')}
           </button>
@@ -165,14 +165,14 @@ export default function V2StudentPracticeNodePage() {
 
           {/* Node header */}
           {overview && (
-            <GaCard className="p-6">
+            <GaCard className="p-4 lg:p-6">
               <div className="flex items-start gap-4">
-                <span className="text-[34px] leading-none">{overview.emoji}</span>
+                <span className="shrink-0 text-[34px] leading-none">{overview.emoji}</span>
                 <div className="min-w-0 flex-1">
-                  <h2 className="font-ga-display text-[22px] font-medium leading-tight text-ga-ink">
+                  <h2 className="font-ga-display text-[20px] font-medium leading-tight text-ga-ink break-words lg:text-[22px]">
                     {overview.nodeTitleVi}
                   </h2>
-                  <p className="ga-ui mt-0.5 text-[13.5px] italic text-ga-muted">{overview.nodeTitle}</p>
+                  <p className="ga-ui mt-0.5 text-[13.5px] italic text-ga-muted break-words">{overview.nodeTitle}</p>
                   <span className="ga-ui mt-2 inline-block rounded-ga-pill bg-ga-accent-soft px-2.5 py-0.5 text-[11px] font-bold text-ga-accent">
                     {overview.cefrLevel}
                   </span>
@@ -190,7 +190,7 @@ export default function V2StudentPracticeNodePage() {
             <>
               {/* Chưa có session nào → mời sinh cả 4 */}
               {!overview?.sessions?.length && (
-                <div className="rounded-ga border-2 border-dashed border-ga-border bg-ga-surface px-6 py-10 text-center">
+                <div className="rounded-ga border-2 border-dashed border-ga-border bg-ga-surface px-4 py-8 text-center sm:px-6 lg:py-10">
                   <Sparkles size={34} className="mx-auto mb-3 text-ga-yellow" aria-hidden />
                   <p className="font-ga-display text-[20px] font-medium text-ga-ink">{t('emptyTitle')}</p>
                   <p className="ga-ui mx-auto mt-2 max-w-sm text-[13.5px] text-ga-muted">{t('emptyDesc')}</p>
@@ -198,7 +198,7 @@ export default function V2StudentPracticeNodePage() {
                     type="button"
                     onClick={() => void handleTriggerAll()}
                     disabled={generating === 'ALL'}
-                    className="ga-ui mt-5 inline-flex items-center gap-2 rounded-ga bg-ga-accent px-5 py-2.5 text-[13.5px] font-semibold text-ga-accent-ink transition-opacity hover:opacity-90 disabled:opacity-50"
+                    className="ga-ui mt-5 inline-flex min-h-10 items-center gap-2 rounded-ga bg-ga-accent px-5 py-2.5 text-[13.5px] font-semibold text-ga-accent-ink transition-opacity hover:opacity-90 disabled:opacity-50 lg:min-h-0"
                   >
                     <Sparkles size={15} aria-hidden />
                     {generating === 'ALL' ? t('generating') : t('generateAll')}
@@ -221,7 +221,7 @@ export default function V2StudentPracticeNodePage() {
                         type="button"
                         onClick={() => !isGenerating && void handleStartSkill(skill)}
                         disabled={isGenerating}
-                        className="w-full p-5 text-left transition-colors hover:bg-ga-surface disabled:cursor-wait"
+                        className="w-full p-4 text-left transition-colors hover:bg-ga-surface disabled:cursor-wait lg:p-5"
                       >
                         <div className="flex items-center gap-3">
                           <span
@@ -287,7 +287,7 @@ export default function V2StudentPracticeNodePage() {
 
               {/* Tổng kết */}
               {overview && overview.sessions.length > 0 && (
-                <GaCard className="p-5 text-center">
+                <GaCard className="p-4 text-center lg:p-5">
                   <GaCap className="mb-2 block">{t('summaryCap')}</GaCap>
                   <p className="ga-ui text-[13.5px] text-ga-muted">
                     {t('summaryXp')} <span className="font-semibold text-ga-ink">{totalXp} XP</span>

@@ -146,24 +146,24 @@ function ExerciseCard({
       : 'var(--ga-red)'
 
   return (
-    <GaCard className="p-5" style={{ borderColor }}>
-      <div className="mb-3 flex items-center gap-2">
-        <span className="ga-ui grid h-6 w-6 place-items-center rounded-full bg-ga-surface text-[11px] font-bold text-ga-muted">
+    <GaCard className="p-4 lg:p-5" style={{ borderColor }}>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <span className="ga-ui grid h-6 w-6 shrink-0 place-items-center rounded-full bg-ga-surface text-[11px] font-bold text-ga-muted">
           {index + 1}
         </span>
-        <span className="ga-ui rounded-ga-pill bg-ga-surface px-2 py-0.5 text-[10px] font-semibold uppercase text-ga-subtle">
+        <span className="ga-ui min-w-0 break-words rounded-ga-pill bg-ga-surface px-2 py-0.5 text-[10px] font-semibold uppercase text-ga-subtle">
           {exercise.type.replace(/_/g, ' ')}
         </span>
       </div>
 
-      <p className="ga-ui mb-3 text-[14px] font-semibold text-ga-ink">{exercise.instruction_vi}</p>
+      <p className="ga-ui mb-3 break-words text-[14px] font-semibold text-ga-ink">{exercise.instruction_vi}</p>
 
       {/* Nghe: phát transcript bằng TTS */}
       {exercise.audio_transcript && (
         <button
           type="button"
           onClick={() => speakDe(exercise.audio_transcript!)}
-          className="ga-ui mb-4 inline-flex items-center gap-2 rounded-ga border px-4 py-2.5 text-[13px] font-semibold transition-opacity hover:opacity-80"
+          className="ga-ui mb-4 inline-flex min-h-10 items-center gap-2 rounded-ga border px-4 py-2.5 text-[13px] font-semibold transition-opacity hover:opacity-80 lg:min-h-0"
           style={{ borderColor: accent, color: accent }}
         >
           <Volume2 size={15} aria-hidden /> {t('listen')}
@@ -173,7 +173,7 @@ function ExerciseCard({
       {/* Đọc: câu trích dẫn */}
       {isReadingType && exercise.statement_de && (
         <div className="mb-4 rounded-ga border border-ga-line bg-ga-surface px-4 py-3">
-          <p className="ga-ui text-[13.5px] italic leading-relaxed text-ga-ink">
+          <p className="ga-ui break-words text-[13.5px] italic leading-relaxed text-ga-ink">
             &laquo;{exercise.statement_de}&raquo;
           </p>
         </div>
@@ -181,14 +181,14 @@ function ExerciseCard({
 
       {exercise.sentence_with_blank && (
         <div className="mb-4 rounded-ga border border-ga-line bg-ga-surface px-4 py-3">
-          <p className="ga-ui text-[14px] font-medium text-ga-ink">{exercise.sentence_with_blank}</p>
+          <p className="ga-ui break-words text-[14px] font-medium text-ga-ink">{exercise.sentence_with_blank}</p>
         </div>
       )}
 
       {/* Nói: câu mẫu + nghe mẫu */}
       {exercise.sentence_de && (exercise.type === 'SPEAKING_REPEAT' || exercise.type === 'SPEAKING_RESPONSE') && (
         <div className="mb-4 rounded-ga border border-ga-line bg-ga-surface px-4 py-3">
-          <p className="font-ga-display text-[17px] font-medium text-ga-ink">{exercise.sentence_de}</p>
+          <p className="break-words font-ga-display text-[17px] font-medium text-ga-ink">{exercise.sentence_de}</p>
           {exercise.sentence_vi && (
             <p className="ga-ui mt-1 text-[12.5px] text-ga-muted">{exercise.sentence_vi}</p>
           )}
@@ -243,7 +243,7 @@ function ExerciseCard({
                   onAnswer(idx)
                 }}
                 disabled={answered}
-                className="ga-ui flex w-full items-center gap-2.5 rounded-ga border-2 px-4 py-3 text-left text-[14px] font-medium transition-colors disabled:cursor-default"
+                className="ga-ui flex w-full items-center gap-2.5 break-words rounded-ga border-2 px-4 py-3 text-left text-[14px] font-medium transition-colors disabled:cursor-default"
                 style={{
                   borderColor: showCorrect
                     ? 'var(--ga-green)'
@@ -272,7 +272,7 @@ function ExerciseCard({
                     String.fromCharCode(65 + idx)
                   )}
                 </span>
-                {opt}
+                <span className="min-w-0 break-words">{opt}</span>
               </button>
             )
           })}
@@ -291,13 +291,13 @@ function ExerciseCard({
             }}
             disabled={answered}
             placeholder={t('answerPlaceholder')}
-            className="ga-ui flex-1 rounded-ga border-2 border-ga-line bg-ga-card px-4 py-3 text-[14px] text-ga-ink outline-none focus:border-ga-accent disabled:opacity-70"
+            className="ga-ui min-w-0 flex-1 rounded-ga border-2 border-ga-line bg-ga-card px-4 py-3 text-[14px] text-ga-ink outline-none focus:border-ga-accent disabled:opacity-70"
           />
           {!answered && (
             <button
               type="button"
               onClick={() => textInput.trim() && onAnswer(textInput.trim())}
-              className="ga-ui grid w-12 place-items-center rounded-ga bg-ga-accent text-ga-accent-ink transition-opacity hover:opacity-90"
+              className="ga-ui grid w-12 shrink-0 place-items-center rounded-ga bg-ga-accent text-ga-accent-ink transition-opacity hover:opacity-90"
               aria-label={t('check')}
             >
               <Check size={16} aria-hidden />
@@ -333,9 +333,9 @@ function ExerciseCard({
           >
             {isCorrect ? t('correct') : t('incorrect')}
           </p>
-          <p className="ga-ui text-[13.5px] text-ga-muted">{exercise.explanation_vi}</p>
+          <p className="ga-ui break-words text-[13.5px] text-ga-muted">{exercise.explanation_vi}</p>
           {!isCorrect && typeof exercise.correct_answer === 'string' && (
-            <p className="ga-ui mt-1 text-[13.5px] font-semibold text-ga-ink">
+            <p className="ga-ui mt-1 break-words text-[13.5px] font-semibold text-ga-ink">
               {t('answerIs')} {exercise.correct_answer}
             </p>
           )}
@@ -546,12 +546,12 @@ export default function V2StudentPracticeRunnerPage() {
             : t('subtitle')
         }
       />
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         <div className="mx-auto max-w-2xl space-y-[22px]">
           <button
             type="button"
             onClick={() => router.push(`/v2/student/practice/${nodeId}`)}
-            className="ga-ui inline-flex items-center gap-1.5 text-[13px] font-semibold text-ga-muted transition-colors hover:text-ga-ink"
+            className="ga-ui inline-flex min-h-10 items-center gap-1.5 text-[13px] font-semibold text-ga-muted transition-colors hover:text-ga-ink lg:min-h-0"
           >
             <ArrowLeft size={15} aria-hidden /> {t('backToSkills')}
           </button>
@@ -560,7 +560,7 @@ export default function V2StudentPracticeRunnerPage() {
 
           {/* Đầu bài + điểm hiện tại */}
           {session && (
-            <GaCard className="flex items-center gap-4 p-5">
+            <GaCard className="flex items-center gap-3 p-4 lg:gap-4 lg:p-5">
               <span
                 className="grid h-12 w-12 shrink-0 place-items-center rounded-full"
                 style={{ background: accent }}
@@ -568,7 +568,7 @@ export default function V2StudentPracticeRunnerPage() {
                 <TreeIcon paths={SKILL_ICONS[skill]} size={22} color="#FFFFFF" strokeWidth={2.4} />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-[15px] font-semibold text-ga-ink">
+                <p className="break-words text-[15px] font-semibold text-ga-ink">
                   {SKILL_LABELS[skill]} · {SKILL_LABELS_DE[skill]}
                 </p>
                 <p className="ga-ui truncate text-[12.5px] text-ga-muted">
@@ -580,7 +580,7 @@ export default function V2StudentPracticeRunnerPage() {
                 </p>
               </div>
               <div className="shrink-0 text-center">
-                <p className="font-ga-display text-[22px] font-medium" style={{ color: accent }}>
+                <p className="whitespace-nowrap font-ga-display text-[18px] font-medium lg:text-[22px]" style={{ color: accent }}>
                   {correctCount}/{exercises.length}
                 </p>
                 <p className="ga-ui text-[11px] text-ga-subtle">{t('correctLabel')}</p>
@@ -592,12 +592,12 @@ export default function V2StudentPracticeRunnerPage() {
 
           {/* Bài đọc (LESEN) */}
           {readingPassage && (
-            <GaCard className="p-5" style={{ borderColor: accent }}>
+            <GaCard className="p-4 lg:p-5" style={{ borderColor: accent }}>
               <div className="mb-3 flex items-center gap-2">
-                <BookOpen size={15} style={{ color: accent }} aria-hidden />
+                <BookOpen size={15} className="shrink-0" style={{ color: accent }} aria-hidden />
                 <GaCap>{readingPassage.text_type || 'Lesetext'}</GaCap>
               </div>
-              <p className="ga-ui whitespace-pre-wrap text-[14px] leading-relaxed text-ga-ink">
+              <p className="ga-ui whitespace-pre-wrap break-words text-[14px] leading-relaxed text-ga-ink">
                 {readingPassage.text_de}
               </p>
             </GaCard>
@@ -637,7 +637,7 @@ export default function V2StudentPracticeRunnerPage() {
           {/* Kết quả */}
           {submitResult && (
             <GaCard
-              className="p-6 text-center"
+              className="p-4 text-center lg:p-6"
               style={{
                 borderColor: submitResult.scorePercent >= 60 ? 'var(--ga-green)' : 'var(--ga-orange)',
                 background:
@@ -650,7 +650,7 @@ export default function V2StudentPracticeRunnerPage() {
                 style={{ color: submitResult.scorePercent >= 60 ? 'var(--ga-green)' : 'var(--ga-orange)' }}
                 aria-hidden
               />
-              <p className="font-ga-display text-[30px] font-medium text-ga-ink">
+              <p className="font-ga-display text-[24px] font-medium text-ga-ink lg:text-[30px]">
                 {submitResult.scorePercent}%
               </p>
               <p className="ga-ui mt-1 text-[13.5px] text-ga-muted">
@@ -667,7 +667,7 @@ export default function V2StudentPracticeRunnerPage() {
                   type="button"
                   onClick={() => void handleGenerateNext()}
                   disabled={generatingNext}
-                  className="ga-ui inline-flex items-center gap-2 rounded-ga px-5 py-2.5 text-[13.5px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+                  className="ga-ui inline-flex min-h-10 items-center gap-2 rounded-ga px-5 py-2.5 text-[13.5px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60 lg:min-h-0"
                   style={{ background: accent }}
                 >
                   {generatingNext ? (
@@ -680,7 +680,7 @@ export default function V2StudentPracticeRunnerPage() {
                 <button
                   type="button"
                   onClick={() => router.push(`/v2/student/practice/${nodeId}`)}
-                  className="ga-ui inline-flex items-center gap-2 rounded-ga border-2 border-ga-line bg-ga-card px-5 py-2.5 text-[13.5px] font-semibold text-ga-muted transition-colors hover:bg-ga-surface"
+                  className="ga-ui inline-flex min-h-10 items-center gap-2 rounded-ga border-2 border-ga-line bg-ga-card px-5 py-2.5 text-[13.5px] font-semibold text-ga-muted transition-colors hover:bg-ga-surface lg:min-h-0"
                 >
                   <ArrowLeft size={14} aria-hidden /> {t('otherSkill')}
                 </button>

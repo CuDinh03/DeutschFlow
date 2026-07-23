@@ -126,7 +126,7 @@ export function NodeLessonPanel({
       style={{ fontFamily: 'var(--ga-vn)' }}
     >
       {/* Header */}
-      <div className="relative flex flex-shrink-0 items-center gap-4 border-b border-ga-line bg-ga-card px-7 py-4">
+      <div className="relative flex flex-shrink-0 items-center gap-3 border-b border-ga-line bg-ga-card px-4 py-4 lg:gap-4 lg:px-7">
         <span className="absolute inset-y-0 left-0 w-1.5" style={{ background: accent }} />
         <button
           type="button"
@@ -141,7 +141,7 @@ export function NodeLessonPanel({
             <span className="h-2.5 w-2.5 rounded-[2px]" style={{ background: accent }} />
             {lesson ? `${lesson.skill} · ${lesson.topicLabel}` : 'Bài học'}
           </div>
-          <div className="font-ga-display text-[26px] font-medium leading-tight text-ga-ink">
+          <div className="font-ga-display text-[20px] font-medium leading-tight text-ga-ink lg:text-[26px]">
             {lesson?.title ?? '…'}
           </div>
         </div>
@@ -153,7 +153,7 @@ export function NodeLessonPanel({
       </div>
 
       {/* Body */}
-      <div className="ga-scroll flex-1 overflow-auto px-10 py-7">
+      <div className="ga-scroll flex-1 overflow-auto px-4 py-5 sm:px-6 lg:px-10 lg:py-7">
         {loading ? (
           <LoadingState label="Đang tải bài học…" />
         ) : error ? (
@@ -161,9 +161,9 @@ export function NodeLessonPanel({
         ) : (
           <div className="mx-auto flex max-w-[680px] flex-col gap-5">
             {/* Lesson card */}
-            <div className="border border-ga-line bg-ga-card p-7">
+            <div className="border border-ga-line bg-ga-card p-5 lg:p-7">
               <GaCap className="mb-3.5 block">Bài học</GaCap>
-              <div className="font-ga-display mb-2 text-[24px] font-medium leading-snug text-ga-ink">{content.de}</div>
+              <div className="font-ga-display mb-2 text-[19px] font-medium leading-snug text-ga-ink lg:text-[24px]">{content.de}</div>
               <div className="ga-ui mb-4 text-[15.5px] text-ga-muted">{content.vi}</div>
               <div className="ga-ui flex items-start gap-2.5 border-t border-ga-line pt-4 text-[14px] leading-relaxed text-ga-ink">
                 <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 bg-ga-yellow" />
@@ -174,7 +174,7 @@ export function NodeLessonPanel({
             </div>
 
             {/* Exercise card */}
-            <div className="border border-ga-line bg-ga-card p-7">
+            <div className="border border-ga-line bg-ga-card p-5 lg:p-7">
               <GaCap className="mb-3.5 block">Bài tập</GaCap>
               <div className="ga-ui mb-4 text-[16px] font-semibold text-ga-ink">{content.q}</div>
               <div className="flex flex-col gap-2.5">
@@ -228,7 +228,7 @@ export function NodeLessonPanel({
       </div>
 
       {/* Footer */}
-      <div className="flex flex-shrink-0 items-center justify-center gap-3 border-t border-ga-line bg-ga-card px-10 py-4">
+      <div className="flex flex-shrink-0 flex-wrap items-center justify-center gap-3 border-t border-ga-line bg-ga-card px-4 py-4 lg:flex-nowrap lg:px-10">
         {!alreadyCompleted ? (
           <GaBtn
             variant="yellow"

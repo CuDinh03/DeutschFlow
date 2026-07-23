@@ -79,10 +79,10 @@ export default function V2OrgSchedulePage() {
     <div className="flex min-h-full flex-col">
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
 
-      <div className="flex-1 overflow-auto px-10 py-6">
+      <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <h2 className="font-ga-display text-[20px] font-medium text-ga-ink">
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 className="font-ga-display text-[17px] font-medium text-ga-ink lg:text-[20px]">
               {t('weekLabel', { from: fmtDate(monday), to: fmtDate(weekEnd), year: weekEnd.getFullYear() })}
             </h2>
             {!loading && !error && <GaCap>{t('sessionCount', { count: total })}</GaCap>}
@@ -103,9 +103,9 @@ export default function V2OrgSchedulePage() {
         {loading ? (
           <div className="ga-shimmer h-[560px] border border-ga-line" aria-hidden />
         ) : error ? (
-          <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadError')}</h2>
-            <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">
+          <div className="border border-ga-line bg-ga-card px-4 py-8 sm:px-8 lg:px-10 lg:py-[52px] text-center">
+            <h2 className="font-ga-display text-[20px] font-medium text-ga-red lg:text-[24px]">{t('loadError')}</h2>
+            <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm break-words text-[14px] text-ga-muted">
               {error} <code className="font-mono text-[12px] text-ga-accent">GET /api/org/schedule/week</code>
             </p>
             <GaBtn variant="primary" onClick={() => void load(monday)}>
@@ -148,78 +148,80 @@ function WeekGrid({ sessions, monday }: { sessions: ClassSession[]; monday: Date
 
   if (week.length === 0) {
     return (
-      <div className="border border-dashed border-ga-line bg-ga-card px-10 py-[52px] text-center text-[14px] text-ga-muted">
+      <div className="border border-dashed border-ga-line bg-ga-card px-4 py-8 text-center text-[14px] text-ga-muted sm:px-8 lg:px-10 lg:py-[52px]">
         {t('emptyWeek')}
       </div>
     )
   }
 
   return (
-    <div className="overflow-hidden border border-ga-line bg-ga-card">
-      <div className="grid" style={{ gridTemplateColumns: '56px repeat(7,1fr)' }}>
-        <div className="border-b border-r border-ga-line" />
-        {DAY_KEYS.map((dk, i) => {
-          const date = new Date(monday)
-          date.setDate(date.getDate() + i)
-          const weekend = i >= 5
-          return (
-            <div key={dk} className={`border-b border-ga-line py-3 text-center ${i < 6 ? 'border-r' : ''}`}>
-              <div className="ga-ui text-[12px] font-bold tracking-[0.08em]" style={{ color: weekend ? 'var(--ga-muted)' : 'var(--ga-ink)' }}>
-                {t(`days.${dk}`)}
+    <div className="overflow-x-auto lg:overflow-visible">
+      <div className="min-w-[760px] overflow-hidden border border-ga-line bg-ga-card lg:min-w-0">
+        <div className="grid" style={{ gridTemplateColumns: '56px repeat(7,1fr)' }}>
+          <div className="border-b border-r border-ga-line" />
+          {DAY_KEYS.map((dk, i) => {
+            const date = new Date(monday)
+            date.setDate(date.getDate() + i)
+            const weekend = i >= 5
+            return (
+              <div key={dk} className={`border-b border-ga-line py-3 text-center ${i < 6 ? 'border-r' : ''}`}>
+                <div className="ga-ui text-[12px] font-bold tracking-[0.08em]" style={{ color: weekend ? 'var(--ga-muted)' : 'var(--ga-ink)' }}>
+                  {t(`days.${dk}`)}
+                </div>
+                <div className="ga-ui mt-1 text-[11px] text-ga-subtle">{fmtDate(date)}</div>
               </div>
-              <div className="ga-ui mt-1 text-[11px] text-ga-subtle">{fmtDate(date)}</div>
-            </div>
-          )
-        })}
-      </div>
-      <div className="relative grid" style={{ gridTemplateColumns: '56px repeat(7,1fr)', height: GRID_H }}>
-        <div className="border-r border-ga-line">
-          {hours.map((h) => (
-            <div key={h} className="ga-ui px-2 py-1 text-right text-[11px] text-ga-muted" style={{ height: GRID_H / hours.length }}>
-              {h}:00
+            )
+          })}
+        </div>
+        <div className="relative grid" style={{ gridTemplateColumns: '56px repeat(7,1fr)', height: GRID_H }}>
+          <div className="border-r border-ga-line">
+            {hours.map((h) => (
+              <div key={h} className="ga-ui px-2 py-1 text-right text-[11px] text-ga-muted" style={{ height: GRID_H / hours.length }}>
+                {h}:00
+              </div>
+            ))}
+          </div>
+          {DAY_KEYS.map((dk, di) => (
+            <div key={dk} className={`relative ${di < 6 ? 'border-r border-ga-line' : ''}`} style={{ background: di >= 5 ? 'var(--ga-bg)' : undefined }}>
+              {Array.from({ length: hours.length - 1 }).map((_, r) => (
+                <div key={r} className="absolute inset-x-0 border-t border-ga-line opacity-50" style={{ top: (GRID_H / hours.length) * (r + 1) }} />
+              ))}
+
+              {week
+                .filter(({ d: dt }) => (dt.getDay() + 6) % 7 === di)
+                .map(({ s, d: dt }) => {
+                  const c = STATUS_COLOR[s.status]
+                  const place = s.mode === 'ONLINE' ? t('mode.online') : s.room ?? t('mode.offline')
+                  return (
+                    <div
+                      key={s.id}
+                      title={t('sessionTitle', { class: s.className, place, time: fmtTime(dt), count: s.studentCount })}
+                      className="absolute overflow-hidden px-1.5 py-1"
+                      style={{
+                        top: blockTop(dt),
+                        left: 4,
+                        right: 4,
+                        height: blockHeight(s.durationMinutes),
+                        background: c.bg,
+                        border: `1px solid color-mix(in srgb, ${c.fg} 35%, transparent)`,
+                        borderLeft: `3px solid ${c.fg}`,
+                      }}
+                    >
+                      <div
+                        className="truncate text-[11px] font-bold leading-tight text-ga-ink"
+                        style={{ textDecoration: s.status === 'CANCELLED' ? 'line-through' : undefined }}
+                      >
+                        {s.className}
+                      </div>
+                      <div className="flex items-center gap-1 truncate text-[10px]" style={{ color: c.fg }}>
+                        <Users size={9} /> {t('sessionMeta', { count: s.studentCount, place })}
+                      </div>
+                    </div>
+                  )
+                })}
             </div>
           ))}
         </div>
-        {DAY_KEYS.map((dk, di) => (
-          <div key={dk} className={`relative ${di < 6 ? 'border-r border-ga-line' : ''}`} style={{ background: di >= 5 ? 'var(--ga-bg)' : undefined }}>
-            {Array.from({ length: hours.length - 1 }).map((_, r) => (
-              <div key={r} className="absolute inset-x-0 border-t border-ga-line opacity-50" style={{ top: (GRID_H / hours.length) * (r + 1) }} />
-            ))}
-
-            {week
-              .filter(({ d: dt }) => (dt.getDay() + 6) % 7 === di)
-              .map(({ s, d: dt }) => {
-                const c = STATUS_COLOR[s.status]
-                const place = s.mode === 'ONLINE' ? t('mode.online') : s.room ?? t('mode.offline')
-                return (
-                  <div
-                    key={s.id}
-                    title={t('sessionTitle', { class: s.className, place, time: fmtTime(dt), count: s.studentCount })}
-                    className="absolute overflow-hidden px-1.5 py-1"
-                    style={{
-                      top: blockTop(dt),
-                      left: 4,
-                      right: 4,
-                      height: blockHeight(s.durationMinutes),
-                      background: c.bg,
-                      border: `1px solid color-mix(in srgb, ${c.fg} 35%, transparent)`,
-                      borderLeft: `3px solid ${c.fg}`,
-                    }}
-                  >
-                    <div
-                      className="truncate text-[11px] font-bold leading-tight text-ga-ink"
-                      style={{ textDecoration: s.status === 'CANCELLED' ? 'line-through' : undefined }}
-                    >
-                      {s.className}
-                    </div>
-                    <div className="flex items-center gap-1 truncate text-[10px]" style={{ color: c.fg }}>
-                      <Users size={9} /> {t('sessionMeta', { count: s.studentCount, place })}
-                    </div>
-                  </div>
-                )
-              })}
-          </div>
-        ))}
       </div>
     </div>
   )

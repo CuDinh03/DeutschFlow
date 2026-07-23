@@ -116,7 +116,7 @@ export default function V2TeacherAnalyticsPage() {
           </GaBtn>
         }
       />
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         {error && (
           <div className="mb-5">
             <ErrorBanner message={error} onRetry={() => void load()} />
@@ -203,7 +203,7 @@ export default function V2TeacherAnalyticsPage() {
 
             <GaSection title={t('byClassDetail')} bodyClassName="p-0">
               <div className="overflow-x-auto">
-                <table className="w-full text-left">
+                <table className="w-full min-w-[640px] text-left">
                   <thead>
                     <tr className="border-b border-ga-border">
                       {[t('colClass'), t('colStudents'), t('colAssignments'), t('colAvgScore')].map((h, i) => (

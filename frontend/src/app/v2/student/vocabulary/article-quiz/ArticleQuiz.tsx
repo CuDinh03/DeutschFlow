@@ -74,8 +74,10 @@ export function ArticleQuiz({
   if (finished) {
     const pct = Math.round((score / words.length) * 100)
     return (
-      <GaCard className="px-7 py-10 text-center">
-        <p className="font-ga-display text-[44px] font-medium leading-none text-ga-ink">{pct}%</p>
+      <GaCard className="px-4 py-10 text-center lg:px-7">
+        <p className="font-ga-display text-[32px] font-medium leading-none text-ga-ink sm:text-[38px] lg:text-[44px]">
+          {pct}%
+        </p>
         <p className="ga-ui mt-2 text-[14px] text-ga-muted">
           {t('scoreLine', { score, total: words.length })}
         </p>
@@ -98,15 +100,17 @@ export function ArticleQuiz({
         </span>
       </div>
 
-      <div className="px-6 py-9 text-center">
+      <div className="px-4 py-7 text-center lg:px-6 lg:py-9">
         <p className="ga-ui mb-2 text-[11px] font-semibold uppercase tracking-widest text-ga-subtle">
           {t('question')}
         </p>
-        <p className="font-ga-display text-[36px] font-medium leading-tight text-ga-ink">{current.word}</p>
+        <p className="break-words font-ga-display text-[24px] font-medium leading-tight text-ga-ink sm:text-[28px] lg:text-[36px]">
+          {current.word}
+        </p>
         <p className="ga-ui mt-2 text-[14px] text-ga-muted">{current.meaning}</p>
       </div>
 
-      <div className="grid grid-cols-3 gap-3 px-6 pb-6">
+      <div className="grid grid-cols-3 gap-2 px-4 pb-4 lg:gap-3 lg:px-6 lg:pb-6">
         {ARTICLES.map((art) => {
           const isChosen = chosenArticle === art
           const isCorrect = art === current.article
@@ -150,7 +154,7 @@ export function ArticleQuiz({
 
       {answerState !== 'unanswered' && (
         <div
-          className="flex items-center justify-between gap-3 border-t px-6 py-4"
+          className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-4 lg:px-6"
           style={{
             borderTopColor: answerState === 'correct' ? 'var(--ga-green)' : 'var(--ga-red)',
             background: answerState === 'correct' ? 'var(--ga-green-soft)' : 'var(--ga-red-soft)',

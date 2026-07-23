@@ -292,7 +292,7 @@ export default function V2TeacherGradingPage() {
   const pct = total ? (graded / total) * 100 : 0
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div className="flex min-h-full flex-col lg:h-full lg:overflow-hidden">
       <GaPageHdr
         accent
         title={t('title')}
@@ -311,9 +311,9 @@ export default function V2TeacherGradingPage() {
         }
       />
 
-      <div className="grid min-h-0 flex-1 overflow-x-auto [&>*]:min-w-0" style={{ gridTemplateColumns: 'minmax(200px,232px) minmax(360px,1fr) minmax(300px,330px)' }}>
+      <div className="flex min-h-0 flex-1 flex-col lg:grid lg:overflow-x-auto [&>*]:min-w-0" style={{ gridTemplateColumns: 'minmax(200px,232px) minmax(360px,1fr) minmax(300px,330px)' }}>
         {/* ── Queue ── */}
-        <div className="flex flex-col overflow-auto border-r border-ga-line bg-ga-card">
+        <div className="flex max-h-[50vh] flex-col overflow-y-auto border-b border-ga-line bg-ga-card lg:max-h-none lg:overflow-auto lg:border-b-0 lg:border-r">
           <div className="px-3.5 pb-2.5 pt-3.5">
             <GaCap className="mb-2.5 block">{t('queueCap')}</GaCap>
             <TkSeg options={BUCKETS} value={filter} onValueChange={setFilter} className="w-full [&>button]:flex-1" aria-label={t('filterAria')} />
@@ -375,9 +375,9 @@ export default function V2TeacherGradingPage() {
         </div>
 
         {/* ── Submission viewer ── */}
-        <div className="overflow-auto border-r border-ga-line px-[30px] py-6">
+        <div className="border-b border-ga-line px-4 py-5 sm:px-6 lg:overflow-auto lg:border-b-0 lg:border-r lg:px-[30px] lg:py-6">
           {error ? (
-            <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
+            <div className="border border-ga-line bg-ga-card px-4 py-10 text-center sm:px-6 lg:px-10 lg:py-[52px]">
               <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadError')}</h2>
               <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">
                 {error} <code className="font-mono text-[12px] text-ga-accent">GET /api/v2/teacher/grading/queue</code>
@@ -385,7 +385,7 @@ export default function V2TeacherGradingPage() {
               <GaBtn variant="primary" onClick={load}>{tc('retry')}</GaBtn>
             </div>
           ) : !active ? (
-            <div className="grid h-full place-items-center text-center">
+            <div className="grid h-full min-h-[180px] place-items-center text-center lg:min-h-0">
               <div>
                 <CheckCircle2 size={40} className="mx-auto mb-3 text-ga-green" />
                 <p className="font-ga-display text-[22px] font-medium text-ga-ink">{t('allGraded')}</p>
@@ -398,7 +398,7 @@ export default function V2TeacherGradingPage() {
         </div>
 
         {/* ── Scoring (single score + feedback + real AI suggest) ── */}
-        <div className="overflow-auto bg-ga-card px-[22px] py-6">
+        <div className="bg-ga-card px-4 py-5 lg:overflow-auto lg:px-[22px] lg:py-6">
           {active && (
             <Scoring
               item={active}
@@ -453,18 +453,18 @@ function Submission({ item }: { item: GradingQueueItem }) {
       </div>
 
       {/* Prompt / task */}
-      <div className="mb-3.5 border border-ga-line bg-ga-bg px-[18px] py-[15px]">
+      <div className="mb-3.5 border border-ga-line bg-ga-bg px-4 py-4 lg:px-[18px] lg:py-[15px]">
         <GaCap className="mb-2 block">{isSpeaking ? t('promptSpeaking') : t('promptWritten')}</GaCap>
-        <div className="font-ga-display text-[15.5px] italic leading-[1.55] text-ga-ink">{item.topic}</div>
+        <div className="break-words font-ga-display text-[15.5px] italic leading-[1.55] text-ga-ink">{item.topic}</div>
         {item.description && <p className="ga-ui mt-2 text-[13.5px] leading-[1.6] text-ga-muted">{item.description}</p>}
       </div>
 
       {/* Submission content */}
       {item.submissionContent ? (
         isSpeaking ? (
-          <div className="mb-[18px] border px-[18px] py-[15px]" style={{ background: 'var(--ga-yellow-soft)', borderColor: 'var(--ga-yellow)' }}>
+          <div className="mb-[18px] border px-4 py-4 lg:px-[18px] lg:py-[15px]" style={{ background: 'var(--ga-yellow-soft)', borderColor: 'var(--ga-yellow)' }}>
             <GaCap className="mb-2 block" style={{ color: '#8B7000' }}>{t('studentAnswer')}</GaCap>
-            <div className="text-[15px] leading-[1.65] text-ga-ink">{item.submissionContent}</div>
+            <div className="break-words text-[15px] leading-[1.65] text-ga-ink">{item.submissionContent}</div>
           </div>
         ) : (
           <>
@@ -473,7 +473,7 @@ function Submission({ item }: { item: GradingQueueItem }) {
               <span className="text-[12px] text-ga-muted">{t('wordCount', { count: wordCount(item.submissionContent) })}</span>
             </div>
             <div
-              className="whitespace-pre-wrap border border-ga-line bg-ga-card px-[22px] py-[18px] text-[15px] leading-[1.75] text-ga-ink"
+              className="whitespace-pre-wrap break-words border border-ga-line bg-ga-card px-4 py-4 text-[15px] leading-[1.75] text-ga-ink lg:px-[22px] lg:py-[18px]"
               style={serif ? { fontFamily: 'var(--ga-display)' } : undefined}
             >
               {item.submissionContent}
@@ -576,8 +576,8 @@ function Scoring({ item, draft, setDraft, suggested, confidence, criteria, aiLoa
       {/* AI suggest */}
       {isAiGradable && (
         <div className="mb-[18px] border p-4" style={{ background: 'var(--ga-violet-soft)', borderColor: 'color-mix(in srgb, var(--ga-violet) 35%, transparent)' }}>
-          <div className="flex items-center justify-between gap-3">
-            <div>
+          <div className="flex flex-wrap items-center justify-between gap-3 lg:flex-nowrap">
+            <div className="min-w-0">
               <p className="ga-ui flex items-center gap-1.5 text-[12.5px] font-bold uppercase tracking-[0.04em]" style={{ color: 'var(--ga-violet)' }}>
                 <Sparkles size={14} /> {t('aiGradeCap')}
               </p>
@@ -590,7 +590,7 @@ function Scoring({ item, draft, setDraft, suggested, confidence, criteria, aiLoa
               onClick={hasImage ? onAiImage : onAi}
               disabled={aiLoading || !canAiGrade || alreadyProposed}
               title={alreadyProposed ? t('aiAlreadyProposedTitle') : (!canAiGrade ? t('aiNoTextTitle') : undefined)}
-              className="ga-ui inline-flex shrink-0 items-center gap-2 rounded-ga px-4 py-2 text-[13px] font-bold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-60"
+              className="ga-ui inline-flex min-h-[40px] shrink-0 items-center gap-2 rounded-ga px-4 py-2 text-[13px] font-bold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-60 lg:min-h-0"
               style={{ background: 'var(--ga-violet)' }}
             >
               {aiLoading
@@ -670,7 +670,7 @@ function Scoring({ item, draft, setDraft, suggested, confidence, criteria, aiLoa
                 key={s}
                 type="button"
                 onClick={() => setDraft({ score: s })}
-                className="ga-ui h-[30px] w-10 text-[12px] font-semibold transition-colors"
+                className="ga-ui h-10 w-11 text-[12px] font-semibold transition-colors lg:h-[30px] lg:w-10"
                 style={{
                   background: on ? 'var(--ga-violet)' : 'transparent',
                   color: on ? '#fff' : 'var(--ga-muted)',

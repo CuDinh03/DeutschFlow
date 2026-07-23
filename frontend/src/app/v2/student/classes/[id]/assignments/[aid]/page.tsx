@@ -156,18 +156,18 @@ export default function V2AssignmentPage() {
         title={a?.topic ?? (loading ? t('titleLoading') : t('titleFallback'))}
         subtitle={a ? t('subtitle', { type: a.assignmentType }) : ''}
         right={
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5">
             {a && <span className="ga-ui px-3 py-[7px] text-[11.5px] font-bold" style={{ color: st.color, background: 'var(--ga-side-active)' }}>{st.label}</span>}
             <GaBtn variant="ghost" size="sm" onClick={() => router.push(`/v2/student/classes/${classId}`)}><ArrowLeft size={14} /> {t('backToClass')}</GaBtn>
           </div>
         }
       />
 
-      <div className="flex-1 overflow-auto px-10 py-7">
+      <div className="flex-1 overflow-auto px-4 py-5 sm:px-6 lg:px-10 lg:py-7">
         {loading ? (
           <div className="ga-shimmer h-[280px] max-w-[1000px] border border-ga-line" aria-hidden />
         ) : error ? (
-          <div className="max-w-[640px] border border-ga-line bg-ga-card px-10 py-[44px] text-center">
+          <div className="max-w-[640px] border border-ga-line bg-ga-card px-4 py-9 text-center sm:px-6 lg:px-10 lg:py-[44px]">
             <p className="ga-ui text-[14px] text-ga-red">{error}</p>
             <GaBtn variant="primary" className="mt-4" onClick={load}>{tc('retry')}</GaBtn>
           </div>
@@ -175,15 +175,15 @@ export default function V2AssignmentPage() {
           <div className="grid max-w-[1000px] grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_320px]">
             <div className="flex flex-col gap-[18px]">
               {/* Instructions */}
-              <div className="border border-ga-line bg-ga-card px-6 py-[22px]">
+              <div className="border border-ga-line bg-ga-card px-4 py-5 lg:px-6 lg:py-[22px]">
                 <GaCap className="mb-3 block">{t('teacherReqCap')}</GaCap>
-                <p className="mb-3.5 text-[15px] leading-relaxed text-ga-ink">{a.description || t('noDescription')}</p>
+                <p className="mb-3.5 break-words text-[15px] leading-relaxed text-ga-ink">{a.description || t('noDescription')}</p>
                 <div className="flex flex-wrap gap-4 text-[13px] text-ga-muted">
                   <span>{t('dueDate')} <strong className="text-ga-ink">{fmtDate(a.dueDate)}</strong></span>
                   <span>{t('scoreScale')} <strong className="text-ga-ink">100</strong></span>
                 </div>
                 {a.attachmentUrl && (
-                  <a href={a.attachmentUrl} target="_blank" rel="noopener noreferrer" className="ga-ui mt-3.5 inline-flex items-center gap-2 border border-ga-line px-3 py-2 text-[13px] font-semibold text-ga-ink transition-colors hover:bg-ga-surface">
+                  <a href={a.attachmentUrl} target="_blank" rel="noopener noreferrer" className="ga-ui mt-3.5 inline-flex min-h-[40px] items-center gap-2 border border-ga-line px-3 py-2 text-[13px] font-semibold text-ga-ink transition-colors hover:bg-ga-surface lg:min-h-0">
                     <Download size={14} /> {t('downloadAttachment')}
                   </a>
                 )}
@@ -194,16 +194,16 @@ export default function V2AssignmentPage() {
 
               {/* Submission / feedback */}
               {isPending ? (
-                <div className="border border-ga-line bg-ga-card p-6">
+                <div className="border border-ga-line bg-ga-card p-4 lg:p-6">
                   <GaCap className="mb-4 block">{t('yourSubmissionCap')}</GaCap>
                   {isSpeaking && (
-                    <div className="mb-4 flex items-center gap-4 border border-dashed border-ga-line bg-ga-bg p-5">
+                    <div className="mb-4 flex flex-wrap items-center gap-4 border border-dashed border-ga-line bg-ga-bg p-4 lg:flex-nowrap lg:p-5">
                       <span className="grid h-[52px] w-[52px] shrink-0 place-items-center rounded-full" style={{ background: 'var(--ga-red)' }}><Mic size={20} className="text-white" /></span>
                       <div className="min-w-0">
                         <div className="text-[14.5px] font-semibold text-ga-ink">{t('speakingCardTitle')}</div>
                         <div className="mt-0.5 text-[13px] text-ga-muted">{t('speakingCardDesc')}</div>
                       </div>
-                      <GaBtn variant="ghost" size="sm" className="ml-auto shrink-0" loading={busy} disabled={busy} onClick={startSpeakingAi}>{t('practiceWithAi')}</GaBtn>
+                      <GaBtn variant="ghost" size="sm" className="w-full shrink-0 lg:ml-auto lg:w-auto" loading={busy} disabled={busy} onClick={startSpeakingAi}>{t('practiceWithAi')}</GaBtn>
                     </div>
                   )}
                   <textarea
@@ -220,22 +220,22 @@ export default function V2AssignmentPage() {
                       setFile(f ?? null)
                     }} />
                     <GaBtn variant="ghost" size="sm" onClick={() => fileRef.current?.click()}><Paperclip size={14} /> {file ? t('changeFile') : t('attachFile')}</GaBtn>
-                    {file && <span className="ga-ui truncate text-[13px] text-ga-muted">{file.name}</span>}
+                    {file && <span className="ga-ui min-w-0 max-w-full truncate text-[13px] text-ga-muted">{file.name}</span>}
                     <GaBtn variant="yellow" size="sm" className="ml-auto" loading={busy} disabled={busy} onClick={submit}>{t('submitToTeacher')}</GaBtn>
                   </div>
                 </div>
               ) : isGraded ? (
-                <div className="border border-ga-line bg-ga-card p-6">
-                  <div className="mb-4 flex items-center justify-between">
+                <div className="border border-ga-line bg-ga-card p-4 lg:p-6">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                     <GaCap>{t('teacherFeedbackCap')}</GaCap>
                     <div className="flex items-baseline gap-1.5">
-                      <span className="font-ga-display text-[40px] font-medium" style={{ color: 'var(--ga-green)' }}>{a.teacherScore ?? '—'}</span>
+                      <span className="font-ga-display text-[28px] font-medium sm:text-[32px] lg:text-[40px]" style={{ color: 'var(--ga-green)' }}>{a.teacherScore ?? '—'}</span>
                       <span className="text-[14px] text-ga-muted">/100</span>
                     </div>
                   </div>
                   {a.teacherFeedback ? (
                     <div className="border-l-[3px] p-4" style={{ background: 'rgba(124,86,200,0.10)', borderColor: '#7C56C8' }}>
-                      <p className="m-0 text-[14.5px] leading-relaxed text-ga-ink">{a.teacherFeedback}</p>
+                      <p className="m-0 break-words text-[14.5px] leading-relaxed text-ga-ink">{a.teacherFeedback}</p>
                     </div>
                   ) : (
                     <p className="text-[14px] text-ga-muted">{t('noDetailedFeedback')}</p>
@@ -243,22 +243,22 @@ export default function V2AssignmentPage() {
                   {a.submissionContent && (
                     <>
                       <GaCap className="mb-2 mt-5 block">{t('yourSubmittedWork')}</GaCap>
-                      <p className="whitespace-pre-wrap border border-ga-line bg-ga-bg p-4 text-[14px] leading-relaxed text-ga-ink">{a.submissionContent}</p>
+                      <p className="whitespace-pre-wrap break-words border border-ga-line bg-ga-bg p-4 text-[14px] leading-relaxed text-ga-ink">{a.submissionContent}</p>
                     </>
                   )}
                   {a.submissionFileUrl && (
-                    <a href={a.submissionFileUrl} target="_blank" rel="noopener noreferrer" className="ga-ui mt-3 inline-flex items-center gap-2 border border-ga-line px-3 py-2 text-[13px] font-semibold text-ga-ink hover:bg-ga-surface"><Download size={14} /> {t('submittedFile')}</a>
+                    <a href={a.submissionFileUrl} target="_blank" rel="noopener noreferrer" className="ga-ui mt-3 inline-flex min-h-[40px] items-center gap-2 border border-ga-line px-3 py-2 text-[13px] font-semibold text-ga-ink hover:bg-ga-surface lg:min-h-0"><Download size={14} /> {t('submittedFile')}</a>
                   )}
                 </div>
               ) : (
                 // submitted / grading / failed
-                <div className="border border-ga-line bg-ga-card p-6">
+                <div className="border border-ga-line bg-ga-card p-4 lg:p-6">
                   <GaCap className="mb-4 block">{t('yourSubmissionCap')}</GaCap>
-                  {a.submissionContent && <p className="mb-4 whitespace-pre-wrap border border-ga-line bg-ga-bg p-4 text-[14px] leading-relaxed text-ga-ink">{a.submissionContent}</p>}
-                  {a.submissionFileUrl && <a href={a.submissionFileUrl} target="_blank" rel="noopener noreferrer" className="ga-ui mb-4 inline-flex items-center gap-2 border border-ga-line px-3 py-2 text-[13px] font-semibold text-ga-ink hover:bg-ga-surface"><Download size={14} /> {t('submittedFile')}</a>}
+                  {a.submissionContent && <p className="mb-4 whitespace-pre-wrap break-words border border-ga-line bg-ga-bg p-4 text-[14px] leading-relaxed text-ga-ink">{a.submissionContent}</p>}
+                  {a.submissionFileUrl && <a href={a.submissionFileUrl} target="_blank" rel="noopener noreferrer" className="ga-ui mb-4 inline-flex min-h-[40px] items-center gap-2 border border-ga-line px-3 py-2 text-[13px] font-semibold text-ga-ink hover:bg-ga-surface lg:min-h-0"><Download size={14} /> {t('submittedFile')}</a>}
                   <div className="flex items-center gap-3 border p-3.5" style={{ background: 'rgba(47,111,201,0.08)', borderColor: 'rgba(47,111,201,0.25)' }}>
-                    <Clock size={18} style={{ color: '#2F6FC9' }} />
-                    <div>
+                    <Clock size={18} className="shrink-0" style={{ color: '#2F6FC9' }} />
+                    <div className="min-w-0">
                       <div className="text-[14px] font-semibold text-ga-ink">{t('waitingGrade')}</div>
                       <div className="mt-0.5 text-[12.5px] text-ga-muted">{t('submittedAt', { time: fmtDateTime(a.submittedAt) })}</div>
                     </div>
@@ -268,7 +268,7 @@ export default function V2AssignmentPage() {
             </div>
 
             {/* Side meta */}
-            <div className="border border-ga-line bg-ga-card px-[22px] py-5">
+            <div className="w-full border border-ga-line bg-ga-card px-4 py-5 lg:px-[22px]">
               <GaCap className="mb-3.5 block">{t('metaCap')}</GaCap>
               {([
                 ['type', a.assignmentType || '—'],
@@ -277,9 +277,9 @@ export default function V2AssignmentPage() {
                 ['submittedAt', a.submittedAt ? fmtDateTime(a.submittedAt) : '—'],
                 ['score', a.teacherScore != null ? `${a.teacherScore}/100` : '—'],
               ] as [string, string][]).map(([k, v], i) => (
-                <div key={k} className="flex justify-between py-[9px] text-[13.5px]" style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
-                  <span className="text-ga-muted">{t(`meta.${k}`)}</span>
-                  <span className="font-medium text-ga-ink">{v}</span>
+                <div key={k} className="flex justify-between gap-3 py-[9px] text-[13.5px]" style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
+                  <span className="shrink-0 text-ga-muted">{t(`meta.${k}`)}</span>
+                  <span className="min-w-0 break-words text-right font-medium text-ga-ink">{v}</span>
                 </div>
               ))}
               {isGraded && (

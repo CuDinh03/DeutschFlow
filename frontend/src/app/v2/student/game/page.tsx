@@ -217,7 +217,7 @@ function DropSlot({
   return (
     <span
       ref={setNodeRef}
-      className={`mx-1.5 my-1 inline-flex h-11 min-w-[90px] items-center justify-center rounded-ga border-2 border-dashed transition-colors ${
+      className={`mx-1.5 my-1 inline-flex h-11 min-w-[70px] items-center justify-center rounded-ga border-2 border-dashed transition-colors lg:min-w-[90px] ${
         isOver ? 'border-ga-gold bg-ga-yellow-soft' : 'border-ga-line bg-ga-surface'
       }`}
     >
@@ -379,7 +379,7 @@ export default function V2StudentGamePage() {
     return (
       <div className="flex min-h-full flex-col">
         <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
-        <div className="flex-1 px-10 py-6">
+        <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
           <LoadingState label={t('loading')} />
         </div>
       </div>
@@ -391,14 +391,14 @@ export default function V2StudentGamePage() {
     return (
       <div className="flex min-h-full flex-col">
         <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
-        <div className="flex-1 px-10 py-6">
+        <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
           <div className="mx-auto max-w-xl">
-            <GaCard className="flex flex-col items-center gap-4 px-6 py-14 text-center">
+            <GaCard className="flex flex-col items-center gap-4 px-4 py-12 text-center sm:px-6 lg:py-14">
               <span className="grid h-14 w-14 place-items-center rounded-ga-pill bg-ga-yellow-soft text-ga-gold">
                 <Trophy size={28} aria-hidden />
               </span>
               <div className="space-y-1">
-                <p className="font-ga-display text-[24px] font-medium text-ga-ink">
+                <p className="font-ga-display text-[20px] font-medium text-ga-ink lg:text-[24px]">
                   {finished ? t('doneTitle', { score, total: questions.length }) : t('emptyTitle')}
                 </p>
                 <p className="ga-ui text-[13px] text-ga-muted">{finished ? t('doneDesc') : t('emptyDesc')}</p>
@@ -418,7 +418,7 @@ export default function V2StudentGamePage() {
       <div className="flex min-h-full flex-col">
         <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
 
-        <div className="flex-1 space-y-5 px-10 py-6">
+        <div className="flex-1 space-y-5 px-4 py-6 sm:px-6 lg:px-10">
           <GameModeSwitch active="blank" />
 
           <div className="mx-auto max-w-xl space-y-5">
@@ -428,7 +428,7 @@ export default function V2StudentGamePage() {
                 type="button"
                 onClick={() => router.push('/v2/student/dashboard')}
                 aria-label={t('exit')}
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-ga border border-ga-line bg-ga-card text-ga-muted transition-colors hover:bg-ga-surface"
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-ga border border-ga-line bg-ga-card text-ga-muted transition-colors hover:bg-ga-surface lg:h-9 lg:w-9"
               >
                 <ArrowLeft size={16} aria-hidden />
               </button>
@@ -460,13 +460,13 @@ export default function V2StudentGamePage() {
               </div>
             </div>
 
-            <GaCap>
+            <GaCap className="break-words">
               {q.category} · {q.level} · {questionIdx + 1}/{questions.length}
             </GaCap>
 
             {/* Câu hỏi + ô trống */}
-            <GaCard className="p-8">
-              <p className="font-ga-display text-[22px] leading-loose text-ga-ink">
+            <GaCard className="p-4 sm:p-6 lg:p-8">
+              <p className="break-words font-ga-display text-[18px] leading-loose text-ga-ink sm:text-[20px] lg:text-[22px]">
                 {q.parts.map((part, i) => (
                   <span key={i}>
                     {part}
@@ -510,7 +510,7 @@ export default function V2StudentGamePage() {
             </AnimatePresence>
 
             {/* Kho khối từ */}
-            <div className="rounded-ga border border-ga-line bg-ga-surface p-6">
+            <div className="rounded-ga border border-ga-line bg-ga-surface p-4 lg:p-6">
               <GaCap className="mb-3 block">{t('poolCap')}</GaCap>
               <div className="flex flex-wrap gap-3">
                 {q.pool.map((item) => (

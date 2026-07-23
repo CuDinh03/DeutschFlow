@@ -67,6 +67,7 @@
       "sessionTitle": "{className} · {place} · {time} · {count} Lernende"
     },
     "tcProgress": {
+      "ungrouped": "Ohne Modul",
       "title": "Kursfortschritt",
       "subtitle": "Überblick über den Unterrichtsfortschritt je Klasse",
       "openChecklist": "Inhalte bearbeiten",

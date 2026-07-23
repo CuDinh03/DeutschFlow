@@ -770,7 +770,9 @@
       "stripSuggestions": "{n} gợi ý",
       "stripView": "Mở",
       "quotaBlockedInputPlaceholder": "Đã hết hạn mức AI — không thể gửi tin"
-    }
+    },
+    "continueToSettings": "Tiếp tục tới cài đặt",
+    "backToModeAndPersona": "Quay lại chọn chế độ & nhân vật"
   },
   "onboarding": {
     "title": "Cá nhân hoá lộ trình học",
@@ -1228,7 +1230,9 @@
     "speakingSuccess": "Đã hoàn thành phần Nói (≥ 80% bài đạt điểm cao)",
     "listeningSuccess": "Đã hoàn thành phần Nghe (≥ 80% đúng)",
     "completed": "Đã hoàn thành",
-    "listenedAndUnderstood": "Đã Nghe & Hiểu (100%)"
+    "listenedAndUnderstood": "Đã Nghe & Hiểu (100%)",
+    "roadmapContext": "Thuộc lộ trình",
+    "completedInRoadmap": "hoàn thành lộ trình"
   },
   "analytics": {
     "title": "Thống kê từ vựng",
@@ -1241,7 +1245,9 @@
     "verbsConjugated": "Động từ có chia",
     "vocabDetails": "Chi tiết từ vựng",
     "nouns": "Danh từ (Nomen)",
-    "verbs": "Động từ (Verben)"
+    "verbs": "Động từ (Verben)",
+    "loadError": "Không thể tải dữ liệu thống kê.",
+    "subtitle": "Độ phủ danh từ có giống & động từ đã chia."
   },
   "history": {
     "notDone": "Chưa xong",

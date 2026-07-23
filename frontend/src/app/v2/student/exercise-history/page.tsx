@@ -107,7 +107,7 @@ export default function V2StudentExerciseHistoryPage() {
     <div className="flex min-h-full flex-col">
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
 
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         <div className="mx-auto max-w-4xl space-y-4">
           <DataTable
             columns={columns}

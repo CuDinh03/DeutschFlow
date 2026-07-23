@@ -144,9 +144,9 @@ export default function V2TeacherSessionsPage() {
         right={<TkSeg options={VIEWS} value={view} onValueChange={setView} aria-label="Chế độ xem" />}
       />
 
-      <div className="flex-1 overflow-auto px-10 py-6">
+      <div className="flex-1 overflow-auto px-4 py-5 sm:px-6 lg:px-10 lg:py-6">
         {error ? (
-          <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
+          <div className="border border-ga-line bg-ga-card px-4 py-10 text-center sm:px-6 lg:px-10 lg:py-[52px]">
             <h2 className="font-ga-display text-[24px] font-medium text-ga-red">Không tải được lịch dạy</h2>
             <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">
               {error} <code className="font-mono text-[12px] text-ga-accent">{`GET /api/teacher-sessions/teacher`}</code>
@@ -155,8 +155,8 @@ export default function V2TeacherSessionsPage() {
           </div>
         ) : noProfile ? (
           isOrgTeacher ? (
-            <div className="border border-dashed border-ga-line bg-ga-card px-10 py-[52px] text-center">
-              <h2 className="font-ga-display text-[22px] font-medium text-ga-ink">Lớp của bạn ở mục “Lịch dạy”</h2>
+            <div className="border border-dashed border-ga-line bg-ga-card px-4 py-10 text-center sm:px-6 lg:px-10 lg:py-[52px]">
+              <h2 className="font-ga-display text-[20px] font-medium text-ga-ink lg:text-[22px]">Lớp của bạn ở mục “Lịch dạy”</h2>
               <p className="ga-ui mx-auto mt-2 max-w-md text-[14px] text-ga-muted">
                 Bạn là giáo viên thuộc trung tâm — buổi 1:1 chỉ dành cho giáo viên tự do trên marketplace. Lịch buổi lớp
                 của bạn nằm ở mục{' '}
@@ -167,8 +167,8 @@ export default function V2TeacherSessionsPage() {
               </p>
             </div>
           ) : (
-            <div className="border border-dashed border-ga-line bg-ga-card px-10 py-[52px] text-center">
-              <h2 className="font-ga-display text-[22px] font-medium text-ga-ink">Chưa có hồ sơ giáo viên công khai</h2>
+            <div className="border border-dashed border-ga-line bg-ga-card px-4 py-10 text-center sm:px-6 lg:px-10 lg:py-[52px]">
+              <h2 className="font-ga-display text-[20px] font-medium text-ga-ink lg:text-[22px]">Chưa có hồ sơ giáo viên công khai</h2>
               <p className="ga-ui mx-auto mt-2 max-w-md text-[14px] text-ga-muted">
                 Buổi học 1:1 cần một hồ sơ công khai để học viên đặt lịch. Tạo hồ sơ trong mục Hồ sơ giáo viên trước.
               </p>
@@ -198,9 +198,9 @@ export default function V2TeacherSessionsPage() {
             </div>
 
             {pending.length > 0 && !loading && (
-              <div className="mt-6 flex items-center gap-3.5 border px-[22px] py-4" style={{ borderColor: 'color-mix(in srgb, var(--ga-orange) 35%, transparent)', background: 'var(--ga-orange-soft)' }}>
+              <div className="mt-6 flex flex-wrap items-center gap-3 border px-4 py-4 lg:flex-nowrap lg:gap-3.5 lg:px-[22px]" style={{ borderColor: 'color-mix(in srgb, var(--ga-orange) 35%, transparent)', background: 'var(--ga-orange-soft)' }}>
                 <span className="h-2 w-2 shrink-0" style={{ background: 'var(--ga-orange)' }} />
-                <span className="flex-1 text-[14px] text-ga-ink">
+                <span className="min-w-0 flex-1 basis-[180px] text-[14px] text-ga-ink lg:basis-0">
                   <strong>{pending.length} buổi</strong> đang chờ bạn xác nhận — phản hồi sớm để giữ slot cho học viên.
                 </span>
                 <GaBtn variant="ghost" size="sm" onClick={() => pending.forEach((s) => updateStatus(s.id, 'CONFIRMED'))}>
@@ -226,8 +226,8 @@ function WeekGrid({ sessions }: { sessions: Session[] }) {
     .filter(({ s, d }) => d >= monday && d < end && s.status !== 'CANCELLED')
 
   return (
-    <div className="overflow-hidden border border-ga-line bg-ga-card">
-      <div className="grid" style={{ gridTemplateColumns: '56px repeat(7,1fr)' }}>
+    <div className="overflow-x-auto border border-ga-line bg-ga-card lg:overflow-hidden">
+      <div className="grid min-w-[620px] lg:min-w-0" style={{ gridTemplateColumns: '56px repeat(7,1fr)' }}>
         <div className="border-b border-r border-ga-line" />
         {DAYS.map((d, i) => {
           const date = new Date(monday); date.setDate(date.getDate() + i)
@@ -240,7 +240,7 @@ function WeekGrid({ sessions }: { sessions: Session[] }) {
           )
         })}
       </div>
-      <div className="relative grid" style={{ gridTemplateColumns: '56px repeat(7,1fr)', height: GRID_H }}>
+      <div className="relative grid min-w-[620px] lg:min-w-0" style={{ gridTemplateColumns: '56px repeat(7,1fr)', height: GRID_H }}>
         <div className="border-r border-ga-line">
           {hours.map((h) => (
             <div key={h} className="ga-ui px-2 py-1 text-right text-[11px] text-ga-muted" style={{ height: GRID_H / hours.length }}>{h}:00</div>
@@ -279,7 +279,7 @@ function WeekGrid({ sessions }: { sessions: Session[] }) {
 function SessionList({ sessions, busy, onUpdate }: { sessions: Session[]; busy: number | null; onUpdate: (id: number, status: string) => void }) {
   const ordered = [...sessions].sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
   if (ordered.length === 0) {
-    return <div className="border border-dashed border-ga-line px-10 py-[52px] text-center text-[14px] text-ga-muted">Chưa có buổi học nào được đặt.</div>
+    return <div className="border border-dashed border-ga-line px-4 py-10 text-center text-[14px] text-ga-muted sm:px-6 lg:px-10 lg:py-[52px]">Chưa có buổi học nào được đặt.</div>
   }
   return (
     <div className="flex flex-col gap-3">
@@ -287,9 +287,9 @@ function SessionList({ sessions, busy, onUpdate }: { sessions: Session[]; busy: 
         const c = statusOf(s.status)
         const d = new Date(s.scheduledAt)
         return (
-          <div key={s.id} className="flex items-center gap-4 border border-ga-line bg-ga-card px-[22px] py-4">
+          <div key={s.id} className="flex flex-wrap items-center gap-3 border border-ga-line bg-ga-card px-4 py-4 lg:flex-nowrap lg:gap-4 lg:px-[22px]">
             <span className="grid h-11 w-11 shrink-0 place-items-center font-ga-display text-[18px] font-medium" style={{ color: VIOLET, background: 'var(--ga-violet-soft)' }}>{initial(s.studentName)}</span>
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 basis-[160px] lg:basis-0">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[15px] font-bold text-ga-ink">{s.studentName}</span>
                 <span className="px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-[0.05em]" style={{ color: c.fg, background: c.bg }}>{c.label}</span>
@@ -309,13 +309,13 @@ function SessionList({ sessions, busy, onUpdate }: { sessions: Session[]; busy: 
             </div>
             <div className="shrink-0">
               {s.status === 'PENDING' ? (
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <GaBtn variant="yellow" size="sm" loading={busy === s.id} onClick={() => onUpdate(s.id, 'CONFIRMED')}><Check size={14} /> Xác nhận</GaBtn>
                   <button
                     type="button"
                     disabled={busy === s.id}
                     onClick={() => onUpdate(s.id, 'CANCELLED')}
-                    className="ga-ui inline-flex items-center gap-1 border px-3 py-2 text-[12px] font-semibold disabled:opacity-50"
+                    className="ga-ui inline-flex min-h-[40px] items-center gap-1 border px-3 py-2 text-[12px] font-semibold disabled:opacity-50 lg:min-h-0"
                     style={{ color: 'var(--ga-red)', borderColor: 'color-mix(in srgb, var(--ga-red) 35%, transparent)' }}
                   >
                     <X size={13} /> Từ chối

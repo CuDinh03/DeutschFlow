@@ -58,7 +58,7 @@ export default function ReviewCard({
             style={{ backfaceVisibility: "hidden" }}
           >
             <p className="text-[10px] font-bold uppercase tracking-widest text-[#94A3B8]">Tiếng Đức</p>
-            <p className="text-3xl font-black text-[#0F172A] text-center">{german}</p>
+            <p className="max-w-full text-2xl lg:text-3xl font-black text-[#0F172A] text-center break-words">{german}</p>
             {speakDe && (
               <button
                 type="button"
@@ -77,7 +77,7 @@ export default function ReviewCard({
             style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
           >
             <p className="text-[10px] font-bold uppercase tracking-widest text-[#92400E]">Tiếng Việt</p>
-            <p className="text-2xl font-black text-[#0F172A] text-center">{meaning}</p>
+            <p className="max-w-full text-xl lg:text-2xl font-black text-[#0F172A] text-center break-words">{meaning}</p>
             {exampleDe && (
               <p className="text-xs text-[#64748B] italic text-center border-t border-[#FDE68A] pt-2 mt-1">
                 &ldquo;{exampleDe}&rdquo;

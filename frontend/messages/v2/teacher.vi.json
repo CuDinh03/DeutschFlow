@@ -67,6 +67,7 @@
       "sessionTitle": "{className} · {place} · {time} · {count} HV"
     },
     "tcProgress": {
+      "ungrouped": "Chưa xếp chương",
       "title": "Tiến độ khóa học",
       "subtitle": "Tổng quan tiến độ giảng dạy theo lớp",
       "openChecklist": "Soạn nội dung",

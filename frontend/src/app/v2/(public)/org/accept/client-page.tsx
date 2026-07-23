@@ -186,7 +186,7 @@ export default function V2OrgAcceptPage() {
           NGOÀI GaShell nên không có sẵn accent theo vai trò. */}
       <div data-role="org">
         <GaCap className="mb-3 block">{t('cap')}</GaCap>
-        <h1 className="m-0 mb-2 font-ga-display text-[38px] font-medium tracking-[-0.015em] text-ga-ink">
+        <h1 className="m-0 mb-2 font-ga-display text-[26px] font-medium tracking-[-0.015em] text-ga-ink sm:text-[30px] lg:text-[38px]">
           {t('title')}
         </h1>
         <p className="m-0 mb-7 text-[15px] text-ga-muted">{t('subtitle')}</p>
@@ -198,11 +198,11 @@ export default function V2OrgAcceptPage() {
             </span>
             <div className="min-w-0">
               <p className="ga-ui m-0 text-[12px] font-semibold text-ga-muted">{t('orgLabel')}</p>
-              <p className="m-0 truncate font-ga-display text-[19px] font-medium text-ga-ink">{preview.orgName}</p>
+              <p className="m-0 truncate font-ga-display text-[17px] font-medium text-ga-ink lg:text-[19px]">{preview.orgName}</p>
             </div>
           </div>
           <div className="ga-ui mt-3.5 flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-ga-line pt-3.5 text-[13px] text-ga-muted">
-            <span>
+            <span className="min-w-0 break-words">
               {t('emailLabel')}: <span className="font-semibold text-ga-ink">{preview.email}</span>
             </span>
             <span>
@@ -277,12 +277,12 @@ function StatusCard({
   const toneClass = tone === 'red' ? 'bg-ga-red-soft text-ga-red' : 'bg-ga-orange-soft text-ga-orange'
   return (
     <GaAuthShell>
-      <div className="flex flex-col items-center rounded-ga border border-ga-line bg-ga-card px-6 py-10 text-center">
+      <div className="flex flex-col items-center rounded-ga border border-ga-line bg-ga-card px-4 py-8 text-center sm:px-6 lg:py-10">
         <span className={`grid h-14 w-14 place-items-center rounded-ga-pill ${toneClass}`}>
           <AlertTriangle size={26} />
         </span>
-        <h1 className="mb-2 mt-5 font-ga-display text-[24px] font-medium text-ga-ink">{title}</h1>
-        <p className="ga-ui m-0 max-w-sm text-[13.5px] leading-relaxed text-ga-muted">{message}</p>
+        <h1 className="mb-2 mt-5 font-ga-display text-[20px] font-medium text-ga-ink lg:text-[24px]">{title}</h1>
+        <p className="ga-ui m-0 max-w-sm break-words text-[13.5px] leading-relaxed text-ga-muted">{message}</p>
         <GaBtn variant="ink" size="lg" className="mt-6" asChild>
           <Link href="/v2/login">{cta}</Link>
         </GaBtn>

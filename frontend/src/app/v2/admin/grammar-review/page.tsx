@@ -107,18 +107,18 @@ export default function V2AdminGrammarReviewPage() {
           : <GaBtn variant="ghost" size="sm" onClick={load}>{t('refresh')}</GaBtn>}
       />
 
-      <div className="flex-1 overflow-auto px-10 py-6">
-        <div className="mb-4 flex items-center gap-2">
+      <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
+        <div className="mb-4 flex flex-wrap items-center gap-2">
           {LEVELS.map((lv) => (
             <button key={lv} type="button" onClick={() => setFilterLevel(lv)}
-              className="ga-ui border px-3 py-1 text-[11.5px] font-bold transition-colors"
+              className="ga-ui border px-3 py-3 text-[11.5px] font-bold transition-colors lg:py-1"
               style={filterLevel === lv ? { color: 'var(--ga-bg)', background: 'var(--ga-accent)', borderColor: 'var(--ga-accent)' } : { color: 'var(--ga-muted)', borderColor: 'var(--ga-line)' }}>
               {lv === 'ALL' ? t('levelAll') : lv}
             </button>
           ))}
           {filtered.length > 0 && (
             <button type="button" onClick={() => setSelected(allSelected ? new Set() : new Set(filtered.map((e) => e.id)))}
-              className="ga-ui ml-auto text-[12px] font-semibold text-ga-accent hover:underline">
+              className="ga-ui ml-auto py-3 text-[12px] font-semibold text-ga-accent hover:underline lg:py-0">
               {allSelected ? t('deselectAll') : t('selectAll')}
             </button>
           )}
@@ -127,13 +127,13 @@ export default function V2AdminGrammarReviewPage() {
         {loading ? (
           <div className="flex flex-col gap-2.5">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="ga-shimmer h-[72px] border border-ga-line" aria-hidden />)}</div>
         ) : error ? (
-          <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadError')}</h2>
-            <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">{error} <code className="font-mono text-[12px] text-ga-accent">GET /api/grammar/syllabus/admin/pending</code></p>
+          <div className="border border-ga-line bg-ga-card px-4 py-10 text-center sm:px-6 lg:px-10 lg:py-[52px]">
+            <h2 className="font-ga-display text-[20px] font-medium text-ga-red lg:text-[24px]">{t('loadError')}</h2>
+            <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm break-words text-[14px] text-ga-muted">{error} <code className="break-words font-mono text-[12px] text-ga-accent">GET /api/grammar/syllabus/admin/pending</code></p>
             <GaBtn variant="primary" onClick={load}>{tc('retry')}</GaBtn>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 border border-dashed border-ga-line px-10 py-[52px] text-center text-ga-muted">
+          <div className="flex flex-col items-center gap-3 border border-dashed border-ga-line px-4 py-10 text-center text-ga-muted sm:px-6 lg:px-10 lg:py-[52px]">
             <CheckCircle2 size={36} className="opacity-30" />
             <p className="text-[14px] font-medium">{t('emptyQueue')}</p>
           </div>
@@ -146,23 +146,23 @@ export default function V2AdminGrammarReviewPage() {
               const isSel = selected.has(ex.id)
               return (
                 <div key={ex.id} className="border bg-ga-card transition-colors" style={{ borderColor: isSel ? 'var(--ga-accent)' : 'var(--ga-line)' }}>
-                  <div className="flex items-start gap-3 p-4">
+                  <div className="flex flex-wrap items-start gap-3 p-4 lg:flex-nowrap">
                     <input type="checkbox" checked={isSel} onChange={() => toggleSelect(ex.id)} className="mt-1 shrink-0" style={{ accentColor: 'var(--ga-accent)' }} aria-label={t('selectAria', { id: ex.id })} />
                     <div className="min-w-0 flex-1">
                       <p className="text-[14px] font-semibold text-ga-ink">{parsed.prompt ?? t('exerciseFallback')}</p>
                       <div className="mt-1 flex flex-wrap items-center gap-2">
                         {ex.cefr_level && <span className="px-1.5 py-0.5 text-[10px] font-bold" style={{ color: 'var(--ga-violet)', background: 'var(--ga-violet-soft)' }}>{ex.cefr_level}</span>}
                         <span className="px-1.5 py-0.5 text-[10px] font-bold uppercase text-ga-muted" style={{ background: 'var(--ga-side-active)' }}>{ex.exercise_type}</span>
-                        {ex.topic_title_vi && <span className="truncate text-[11px] text-ga-subtle">{ex.topic_title_vi}</span>}
+                        {ex.topic_title_vi && <span className="min-w-0 truncate text-[11px] text-ga-subtle">{ex.topic_title_vi}</span>}
                       </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
+                    <div className="flex w-full shrink-0 items-center justify-end gap-2 lg:w-auto">
                       <button type="button" disabled={actionId === ex.id} onClick={() => approve(ex.id)}
-                        className="ga-ui inline-flex items-center gap-1.5 border px-3 py-1.5 text-[11.5px] font-bold transition-colors disabled:opacity-60"
+                        className="ga-ui inline-flex items-center gap-1.5 border px-3 py-3 text-[11.5px] font-bold transition-colors disabled:opacity-60 lg:py-1.5"
                         style={{ color: 'var(--ga-green)', borderColor: 'var(--ga-green)' }}>
                         {actionId === ex.id ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />} {t('approve')}
                       </button>
-                      <button type="button" onClick={() => setExpandedId(open ? null : ex.id)} className="text-ga-muted transition-colors hover:text-ga-ink">
+                      <button type="button" onClick={() => setExpandedId(open ? null : ex.id)} className="flex h-10 w-10 items-center justify-center text-ga-muted transition-colors hover:text-ga-ink lg:h-auto lg:w-auto">
                         {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                       </button>
                     </div>
@@ -180,12 +180,12 @@ export default function V2AdminGrammarReviewPage() {
                         </div>
                       )}
                       {parsed.explanation_vi && <p className="ga-ui text-[12.5px] italic text-ga-muted">{parsed.explanation_vi}</p>}
-                      <div className="flex gap-2">
+                      <div className="flex flex-col gap-2 sm:flex-row">
                         <input type="text" placeholder={t('rejectPlaceholder')} value={rejectReason[ex.id] ?? ''}
                           onChange={(e) => setRejectReason((prev) => ({ ...prev, [ex.id]: e.target.value }))}
-                          className="ga-ui flex-1 border border-ga-line bg-ga-bg px-3 py-2 text-[12.5px] text-ga-ink outline-none focus:border-ga-red" />
+                          className="ga-ui min-w-0 flex-1 border border-ga-line bg-ga-bg px-3 py-3 text-[12.5px] text-ga-ink outline-none focus:border-ga-red sm:py-2" />
                         <button type="button" disabled={actionId === ex.id} onClick={() => reject(ex.id)}
-                          className="ga-ui inline-flex items-center gap-1.5 border px-3 py-2 text-[11.5px] font-bold transition-colors disabled:opacity-60"
+                          className="ga-ui inline-flex items-center justify-center gap-1.5 border px-3 py-3 text-[11.5px] font-bold transition-colors disabled:opacity-60 sm:py-2"
                           style={{ color: 'var(--ga-red)', borderColor: 'var(--ga-red)' }}>
                           {actionId === ex.id ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={12} />} {t('reject')}
                         </button>

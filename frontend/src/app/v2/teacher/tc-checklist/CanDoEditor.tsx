@@ -80,7 +80,7 @@ export function CanDoEditor({ value, onChange }: { value: EditableCanDo[]; onCha
     onChange([...value, emptyCanDo()])
   }
 
-  const selCls = `${fieldCls} w-auto py-1.5 text-[12px]`
+  const selCls = `${fieldCls} w-auto max-w-full py-1.5 text-[12px]`
 
   return (
     <div className="flex flex-col gap-2.5">
@@ -102,10 +102,10 @@ export function CanDoEditor({ value, onChange }: { value: EditableCanDo[]; onCha
                 }
               }}
               placeholder={t('canDo.placeholder')}
-              className={`flex-1 ${fieldCls}`}
+              className={`min-w-0 flex-1 ${fieldCls}`}
             />
           </div>
-          <div className="flex items-center gap-2 pl-6 sm:shrink-0 sm:pl-0">
+          <div className="flex flex-wrap items-center gap-2 pl-6 sm:shrink-0 sm:flex-nowrap sm:pl-0">
             <select aria-label={t('canDo.cefrLabel')} value={r.cefrLevel} onChange={(e) => setAt(i, { cefrLevel: e.target.value })} className={selCls}>
               <option value="">{t('canDo.cefrLabel')}: {t('tagNone')}</option>
               {CEFR_OPTIONS.map((o) => (
@@ -122,7 +122,7 @@ export function CanDoEditor({ value, onChange }: { value: EditableCanDo[]; onCha
               type="button"
               aria-label={t('canDo.remove')}
               onClick={() => removeAt(i)}
-              className="grid h-8 w-8 shrink-0 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-red-soft hover:text-ga-red"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-red-soft hover:text-ga-red lg:h-8 lg:w-8"
             >
               <X size={15} />
             </button>
@@ -132,7 +132,7 @@ export function CanDoEditor({ value, onChange }: { value: EditableCanDo[]; onCha
       <button
         type="button"
         onClick={addRow}
-        className="flex items-center gap-1.5 self-start text-[13px] font-semibold"
+        className="flex min-h-[40px] items-center gap-1.5 self-start text-[13px] font-semibold lg:min-h-0"
         style={{ color: VIOLET }}
       >
         <Plus size={14} /> {t('canDo.add')}

@@ -17,12 +17,18 @@ export interface AdStatCell {
 
 function AdStatItem({ label, value, color, sub, alert }: AdStatCell) {
   return (
-    <div className="relative border-l border-ga-border px-6 py-[22px]" style={{ background: `${color}0e` }}>
+    <div
+      className="relative border-l border-t border-ga-border px-4 py-[22px] lg:border-t-0 lg:px-6"
+      style={{ background: `${color}0e` }}
+    >
       <div className="absolute inset-x-0 top-0 h-[5px]" style={{ background: color }} />
       <p className="ga-ui mb-[10px] text-[11px] font-semibold uppercase tracking-[0.16em] text-ga-muted">
         {label}
       </p>
-      <p className="font-ga-display text-[36px] font-medium leading-none" style={{ color }}>
+      <p
+        className="min-w-0 break-words font-ga-display text-[24px] font-medium leading-none sm:text-[28px] lg:text-[36px]"
+        style={{ color }}
+      >
         {value}
       </p>
       {sub && (
@@ -40,11 +46,22 @@ function AdStatItem({ label, value, color, sub, alert }: AdStatCell) {
   )
 }
 
+/**
+ * Lưới KPI responsive: mobile 1 cột → sm 2 cột → lg đúng N cột như thiết kế gốc.
+ * N là động (`cells.length`) nên KHÔNG thể ghép chuỗi class Tailwind (JIT sẽ không sinh ra
+ * class); giá trị đi qua biến CSS `--ga-adstat-cols` và được đọc lại bằng arbitrary property
+ * ở biến thể `lg:` — từ 1024px kết quả y hệt `repeat(N, minmax(0,1fr))` trước đây.
+ */
+const ADSTAT_COLS =
+  '[grid-template-columns:repeat(1,minmax(0,1fr))] sm:[grid-template-columns:repeat(2,minmax(0,1fr))] lg:[grid-template-columns:repeat(var(--ga-adstat-cols),minmax(0,1fr))]'
+
 export function AdStatStrip({ cells, className }: { cells: AdStatCell[]; className?: string }) {
   return (
     <div
-      className={cn('grid border border-ga-border border-l-0', className)}
-      style={{ gridTemplateColumns: `repeat(${cells.length}, minmax(0, 1fr))` }}
+      // Vách ngăn ngang: khi ô xếp chồng (mobile/sm) đường kẻ `border-l` giữa các ô biến mất,
+      // nên mỗi ô tự vẽ `border-t` và khung ngoài tắt `border-t`. Ở lg đảo lại đúng như cũ.
+      className={cn('grid border border-ga-border border-l-0 border-t-0 lg:border-t', ADSTAT_COLS, className)}
+      style={{ '--ga-adstat-cols': Math.max(1, cells.length) } as React.CSSProperties}
     >
       {cells.map((c, i) => (
         <AdStatItem key={i} {...c} />

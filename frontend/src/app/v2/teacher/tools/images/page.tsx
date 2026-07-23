@@ -61,12 +61,12 @@ export default function V2AiImagesPage() {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div className="flex min-h-full flex-col lg:h-full lg:overflow-hidden">
       <GaPageHdr accent title="Tạo ảnh AI" subtitle="Sinh ảnh minh hoạ cho từ vựng và bài học bằng AI · lưu vào thư viện S3" />
 
-      <div className="grid min-h-0 flex-1" style={{ gridTemplateColumns: '330px 1fr' }}>
+      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[330px_1fr]">
         {/* Config */}
-        <div className="overflow-auto border-r border-ga-line bg-ga-card px-[22px] py-6">
+        <div className="border-b border-ga-line bg-ga-card px-4 py-6 sm:px-6 lg:overflow-auto lg:border-b-0 lg:border-r lg:px-[22px]">
           <GaCap className="mb-2.5 block">Mô tả ảnh (prompt)</GaCap>
           <textarea
             value={prompt}
@@ -145,7 +145,7 @@ export default function V2AiImagesPage() {
         </div>
 
         {/* Gallery */}
-        <div className="overflow-auto px-9 py-7">
+        <div className="px-4 py-5 sm:px-6 lg:overflow-auto lg:px-9 lg:py-7">
           {phase === 'idle' ? (
             <div className="grid h-full place-items-center text-center text-ga-muted">
               <p className="ga-ui text-[14px]">
@@ -167,7 +167,7 @@ export default function V2AiImagesPage() {
                 <GaCap>{phase === 'loading' ? 'Đang sinh ảnh…' : `${assets.length} ảnh · ${style} · ${ratio}`}</GaCap>
                 {phase === 'done' && <GaBtn variant="ghost" size="sm" onClick={gen}>Tạo lại</GaBtn>}
               </div>
-              <div className="grid grid-cols-2 gap-[18px]">
+              <div className="grid grid-cols-1 gap-[18px] sm:grid-cols-2">
                 {phase === 'loading'
                   ? Array.from({ length: COUNT }).map((_, i) => (
                       <div key={i} className="ga-shimmer grid h-[200px] place-items-center border border-ga-line" aria-hidden>

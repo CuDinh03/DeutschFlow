@@ -75,7 +75,7 @@ export default function V2StudentExercisesPage() {
     <div className="flex min-h-full flex-col">
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
 
-      <div className="flex-1 space-y-5 px-10 py-6">
+      <div className="flex-1 space-y-5 px-4 py-6 sm:px-6 lg:px-10">
         <TkSeg
           options={levelOptions}
           value={level}
@@ -92,7 +92,7 @@ export default function V2StudentExercisesPage() {
         ) : (
           <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
             {exercises.map((ex) => (
-              <GaCard key={ex.id} className="flex flex-col gap-4 p-6">
+              <GaCard key={ex.id} className="flex flex-col gap-4 p-4 lg:p-6">
                 <div className="flex items-start justify-between gap-3">
                   <TkBadge tone={ex.exerciseType === 'EXAM' ? 'red' : 'blue'}>
                     {ex.exerciseType === 'EXAM' ? t('typeExam') : t('typeNormal')}
@@ -101,14 +101,14 @@ export default function V2StudentExercisesPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <h2 className="font-ga-display text-[19px] leading-snug text-ga-ink">
+                  <h2 className="font-ga-display text-[19px] leading-snug text-ga-ink break-words">
                     {ex.examName || t('skillPractice', { skill: ex.skillType })}
                   </h2>
                   <p className="ga-ui text-[12.5px] text-ga-muted">
                     {t('skill')}: <span className="font-semibold text-ga-ink">{ex.skillType}</span>
                   </p>
                   {ex.sourceName && (
-                    <p className="ga-ui text-[12.5px] text-ga-muted">
+                    <p className="ga-ui text-[12.5px] text-ga-muted break-words">
                       {t('source')}: {ex.sourceName}
                     </p>
                   )}
@@ -124,14 +124,14 @@ export default function V2StudentExercisesPage() {
                         target="_blank"
                         rel="noopener noreferrer"
                         aria-label={t('openSource')}
-                        className="ga-ui inline-flex items-center gap-1 text-[12.5px] font-semibold text-ga-muted transition-colors hover:text-ga-ink"
+                        className="ga-ui inline-flex min-h-10 min-w-10 items-center justify-center gap-1 text-[12.5px] font-semibold text-ga-muted transition-colors hover:text-ga-ink lg:min-h-0 lg:min-w-0"
                       >
                         <ExternalLink size={13} aria-hidden />
                       </a>
                     )}
                     <Link
                       href={`/v2/student/exercises/${ex.id}`}
-                      className="ga-ui inline-flex items-center gap-1.5 rounded-ga bg-ga-ink px-4 py-2 text-[13px] font-semibold text-ga-bg transition-opacity hover:opacity-90"
+                      className="ga-ui inline-flex min-h-10 items-center gap-1.5 rounded-ga bg-ga-ink px-4 py-2 text-[13px] font-semibold text-ga-bg transition-opacity hover:opacity-90 lg:min-h-0"
                     >
                       {t('start')}
                       <ArrowRight size={14} aria-hidden />

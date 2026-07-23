@@ -124,14 +124,14 @@ export default function V2TeacherProfilePage() {
       />
 
       {/* Tab bar */}
-      <div className="flex gap-1 border-b border-ga-line bg-ga-card px-10">
+      <div className="flex gap-1 overflow-x-auto border-b border-ga-line bg-ga-card px-4 pb-px sm:px-6 lg:overflow-visible lg:px-10 lg:pb-0">
         {TABS.map((tabItem) => (
           <button
             key={tabItem.id}
             type="button"
             onClick={() => setTab(tabItem.id)}
             className={cn(
-              'relative -mb-px border-b-2 px-4 py-3.5 text-[13.5px] font-semibold transition-colors',
+              'relative -mb-px shrink-0 whitespace-nowrap border-b-2 px-3 py-3.5 text-[13.5px] font-semibold transition-colors lg:px-4',
               tab === tabItem.id
                 ? 'border-ga-accent text-ga-ink'
                 : 'border-transparent text-ga-muted hover:text-ga-ink',
@@ -142,18 +142,18 @@ export default function V2TeacherProfilePage() {
         ))}
       </div>
 
-      <div className="flex-1 overflow-auto px-10 py-7">
+      <div className="flex-1 overflow-auto px-4 py-5 sm:px-6 lg:px-10 lg:py-7">
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[300px_1fr] xl:items-start">
           {/* Left card — persists across tabs */}
-          <div className="border border-ga-line bg-ga-card p-7 text-center">
+          <div className="border border-ga-line bg-ga-card p-5 text-center lg:p-7">
             <span
               className="mx-auto mb-4 grid h-[90px] w-[90px] place-items-center rounded-full font-ga-display text-[34px] font-medium text-white"
               style={{ background: VIOLET }}
             >
               {me ? initials(me.displayName) : '–'}
             </span>
-            <div className="text-[20px] font-bold text-ga-ink">{me?.displayName || '—'}</div>
-            <div className="mb-4 mt-1 text-[13.5px] text-ga-muted">
+            <div className="break-words text-[20px] font-bold text-ga-ink">{me?.displayName || '—'}</div>
+            <div className="mb-4 mt-1 break-words text-[13.5px] text-ga-muted">
               {ROLE_LABEL[me?.role ?? ''] ?? me?.role} {me?.orgId ? t('orgWithId', { id: me.orgId }) : `· ${t('personal')}`}
             </div>
             <div className="mb-4 flex border border-ga-line">
@@ -162,7 +162,7 @@ export default function V2TeacherProfilePage() {
                 [studentCount, t('statStudents')],
                 ['—', t('statReviews')],
               ].map(([v, l], i) => (
-                <div key={l as string} className={cn('flex-1 py-3', i && 'border-l border-ga-line')}>
+                <div key={l as string} className={cn('min-w-0 flex-1 py-3', i && 'border-l border-ga-line')}>
                   <div className="font-ga-display text-[18px] font-medium text-ga-ink">{v}</div>
                   <div className="mt-[3px] text-[10.5px] text-ga-muted">{l}</div>
                 </div>
@@ -180,11 +180,11 @@ export default function V2TeacherProfilePage() {
 
           {/* Right content by tab */}
           {tab === 'info' && (
-            <div className="border border-ga-line bg-ga-card px-8 py-7">
+            <div className="border border-ga-line bg-ga-card px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
               <GaCap className="mb-5 block">{t('infoCap')}</GaCap>
               <div className="grid grid-cols-1 gap-x-[22px] sm:grid-cols-2">
                 {fields.map(({ key, label, value, editable }) => (
-                  <div key={key} className="mb-[18px]">
+                  <div key={key} className="mb-[18px] min-w-0">
                     <label className="mb-[7px] block text-[12.5px] font-semibold text-ga-muted">{label}</label>
                     {edit && editable ? (
                       <input
@@ -193,7 +193,7 @@ export default function V2TeacherProfilePage() {
                         className="block w-full rounded-ga border border-ga-line bg-ga-bg px-3.5 py-2.5 text-[15px] text-ga-ink outline-none"
                       />
                     ) : (
-                      <div className="text-[15.5px] font-medium text-ga-ink">{value}</div>
+                      <div className="break-words text-[15.5px] font-medium text-ga-ink">{value}</div>
                     )}
                   </div>
                 ))}
@@ -205,7 +205,7 @@ export default function V2TeacherProfilePage() {
           )}
 
           {tab === 'avail' && (
-            <div className="border border-ga-line bg-ga-card px-8 py-7">
+            <div className="border border-ga-line bg-ga-card px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
               <GaCap className="mb-3 block">{t('availCap')}</GaCap>
               <p className="ga-ui mb-5 max-w-md text-[13.5px] text-ga-subtle">
                 {t('availNote')}
@@ -217,7 +217,7 @@ export default function V2TeacherProfilePage() {
           )}
 
           {tab === 'reviews' && (
-            <div className="border border-dashed border-ga-line px-10 py-[52px] text-center">
+            <div className="border border-dashed border-ga-line px-4 py-10 text-center lg:px-10 lg:py-[52px]">
               <div className="font-ga-display text-[20px] italic text-ga-muted">{t('reviewsEmpty')}</div>
               <p className="ga-ui mx-auto mt-2 max-w-sm text-[13.5px] text-ga-subtle">
                 {t('reviewsNote')}

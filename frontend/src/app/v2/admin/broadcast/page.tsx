@@ -131,11 +131,11 @@ export default function V2AdminBroadcastPage() {
         subtitle={t('subtitle')}
       />
 
-      <div className="grid flex-1 overflow-hidden lg:grid-cols-[1fr_360px]">
+      <div className="grid flex-1 lg:grid-cols-[1fr_360px] lg:overflow-hidden">
         {/* Compose */}
-        <div className="overflow-auto border-r border-ga-line px-9 py-[26px]">
+        <div className="border-b border-ga-line px-4 py-5 sm:px-6 lg:overflow-auto lg:border-b-0 lg:border-r lg:px-9 lg:py-[26px]">
           <GaCap className="mb-2.5 block">{t('categoryLabel')}</GaCap>
-          <div className="mb-[22px] flex gap-2">
+          <div className="mb-[22px] flex flex-col gap-2 sm:flex-row">
             {Object.entries(CAT).map(([id, m]) => {
               const on = cat === id
               return (
@@ -164,14 +164,14 @@ export default function V2AdminBroadcastPage() {
           </div>
 
           <GaCap className="mb-2.5 block">{t('typeLabel')}</GaCap>
-          <div className="mb-[22px] grid grid-cols-2 gap-2">
+          <div className="mb-[22px] grid grid-cols-1 gap-2 sm:grid-cols-2">
             {TPL.map((m) => (
               <button
                 key={m.id}
                 type="button"
                 onClick={() => pickTpl(m)}
                 className={cn(
-                  'flex items-center gap-2 rounded-ga border px-[14px] py-2.5 text-left text-[12.5px] font-semibold transition-colors',
+                  'flex min-h-[40px] items-center gap-2 rounded-ga border px-[14px] py-2.5 text-left text-[12.5px] font-semibold transition-colors lg:min-h-0',
                   tpl.id === m.id
                     ? 'border-ga-ink bg-ga-ink text-ga-card'
                     : 'border-ga-line bg-ga-card text-ga-muted hover:border-ga-ink hover:text-ga-ink',
@@ -193,7 +193,7 @@ export default function V2AdminBroadcastPage() {
                 type="button"
                 onClick={() => setAud(a.id)}
                 className={cn(
-                  'rounded-ga border px-[14px] py-2 text-[12.5px] font-semibold transition-colors',
+                  'min-h-[40px] rounded-ga border px-[14px] py-2 text-[12.5px] font-semibold transition-colors lg:min-h-0',
                   aud === a.id
                     ? 'border-ga-ink bg-ga-ink text-ga-card'
                     : 'border-ga-line bg-ga-card text-ga-muted hover:border-ga-ink hover:text-ga-ink',
@@ -234,15 +234,15 @@ export default function V2AdminBroadcastPage() {
           />
 
           <GaCap className="mb-2.5 block">{t('sendTimeLabel')}</GaCap>
-          <div className="mb-[22px] flex items-center gap-3">
-            <div className="flex border border-ga-line">
+          <div className="mb-[22px] flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+            <div className="flex w-full border border-ga-line sm:w-auto">
               {(['now', 'schedule'] as const).map((id, i) => (
                 <button
                   key={id}
                   type="button"
                   onClick={() => setWhen(id)}
                   className={cn(
-                    'px-4 py-2.5 text-[12.5px] font-semibold transition-colors',
+                    'min-h-[40px] flex-1 px-4 py-2.5 text-[12.5px] font-semibold transition-colors sm:flex-initial lg:min-h-0',
                     i && 'border-l border-ga-line',
                     when === id ? 'bg-ga-ink text-ga-card' : 'bg-transparent text-ga-muted',
                   )}
@@ -256,7 +256,7 @@ export default function V2AdminBroadcastPage() {
                 type="datetime-local"
                 value={at}
                 onChange={(e) => setAt(e.target.value)}
-                className="flex-1 rounded-ga border border-ga-line bg-ga-bg px-[13px] py-2.5 text-[14px] text-ga-ink outline-none"
+                className="w-full min-w-0 flex-1 rounded-ga border border-ga-line bg-ga-bg px-[13px] py-2.5 text-[14px] text-ga-ink outline-none"
               />
             )}
           </div>
@@ -268,10 +268,10 @@ export default function V2AdminBroadcastPage() {
         </div>
 
         {/* Preview + history */}
-        <div className="overflow-auto bg-ga-card px-6 py-[26px]">
+        <div className="bg-ga-card px-4 py-5 lg:overflow-auto lg:px-6 lg:py-[26px]">
           <GaCap className="mb-3.5 block">{t('preview')}</GaCap>
           <div
-            className="flex gap-3.5 border border-ga-line px-[18px] py-4"
+            className="flex gap-3.5 border border-ga-line px-4 py-4 lg:px-[18px]"
             style={{ background: `${catColor}10`, borderLeft: `3px solid ${catColor}` }}
           >
             <Megaphone size={22} aria-hidden style={{ color: catColor, flexShrink: 0 }} />

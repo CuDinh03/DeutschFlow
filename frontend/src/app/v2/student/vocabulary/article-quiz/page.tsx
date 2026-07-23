@@ -72,13 +72,13 @@ export default function V2StudentArticleQuizPage() {
     <div className="flex min-h-full flex-col">
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
 
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         <div className="mx-auto max-w-lg space-y-[22px]">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <button
               type="button"
               onClick={() => router.push('/v2/student/vocabulary')}
-              className="grid h-9 w-9 place-items-center rounded-ga border border-ga-line bg-ga-card text-ga-muted transition-colors hover:bg-ga-surface"
+              className="grid h-10 w-10 place-items-center rounded-ga border border-ga-line bg-ga-card text-ga-muted transition-colors hover:bg-ga-surface lg:h-9 lg:w-9"
               aria-label={t('back')}
             >
               <ArrowLeft size={16} aria-hidden />
@@ -100,7 +100,7 @@ export default function V2StudentArticleQuizPage() {
           {loading ? (
             <LoadingState label={t('loadingWords')} />
           ) : words.length === 0 ? (
-            <GaCard className="px-7 py-14 text-center">
+            <GaCard className="px-4 py-12 text-center lg:px-7 lg:py-14">
               <p className="font-ga-display text-[20px] font-medium text-ga-ink">{t('emptyTitle')}</p>
               <p className="ga-ui mt-2 text-[13px] text-ga-muted">{t('emptyDesc', { level: cefr })}</p>
             </GaCard>

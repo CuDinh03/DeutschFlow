@@ -116,7 +116,7 @@ export default function V2RegisterPage() {
   return (
     <GaAuthShell>
       <GaCap className="mb-3 block">{t('register.cap')}</GaCap>
-      <h1 className="m-0 mb-2 font-ga-display text-[38px] font-medium tracking-[-0.015em] text-ga-ink">{t('register.title')}</h1>
+      <h1 className="m-0 mb-2 font-ga-display text-[26px] font-medium tracking-[-0.015em] text-ga-ink sm:text-[30px] lg:text-[38px]">{t('register.title')}</h1>
       <p className="m-0 mb-7 text-[15px] text-ga-muted">{t('register.subtitle')}</p>
 
       {error && <AuthErrorBanner><strong>{error}</strong></AuthErrorBanner>}
@@ -129,7 +129,7 @@ export default function V2RegisterPage() {
         onSubmit={(e) => { e.preventDefault(); void submit() }}
         noValidate
       >
-        <div className="grid grid-cols-2 gap-x-[18px]">
+        <div className="grid grid-cols-1 gap-x-[18px] sm:grid-cols-2">
           <GaField label={t('register.familyNameLabel')} placeholder={t('register.familyNamePlaceholder')} autoComplete="family-name" value={f.first} onChange={(v) => set('first', v)} error={errs.first} required />
           <GaField label={t('register.givenNameLabel')} placeholder={t('register.givenNamePlaceholder')} autoComplete="given-name" value={f.last} onChange={(v) => set('last', v)} error={errs.last} required />
         </div>

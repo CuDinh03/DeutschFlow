@@ -50,14 +50,14 @@ function TheoryContent({ text }: { text: string }) {
         return line.trim() ? <p key={i} className="text-xs text-[#475569] leading-relaxed">{line}</p> : null;
       })}
       {hasSideBySide && (
-        <div className="grid grid-cols-2 gap-1.5 mt-2">
-          <div className="rounded-lg bg-green-50 border border-green-200 p-2 space-y-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mt-2">
+          <div className="min-w-0 rounded-lg bg-green-50 border border-green-200 p-2 space-y-1">
             <p className="text-[10px] font-bold text-green-700 uppercase">✅ Đúng</p>
-            {goodLines.map((l, i) => <p key={i} className="text-xs text-green-800">{l}</p>)}
+            {goodLines.map((l, i) => <p key={i} className="text-xs text-green-800 break-words">{l}</p>)}
           </div>
-          <div className="rounded-lg bg-red-50 border border-red-200 p-2 space-y-1">
+          <div className="min-w-0 rounded-lg bg-red-50 border border-red-200 p-2 space-y-1">
             <p className="text-[10px] font-bold text-red-700 uppercase">❌ Sai</p>
-            {badLines.map((l, i) => <p key={i} className="text-xs text-red-800">{l}</p>)}
+            {badLines.map((l, i) => <p key={i} className="text-xs text-red-800 break-words">{l}</p>)}
           </div>
         </div>
       )}
@@ -78,7 +78,7 @@ function TheoryCard({ card, index, total }: { card: NodeContent["theory_cards"][
       : "bg-white border-[#E2E8F0]"
     }`}>
       <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex min-w-0 items-center gap-2 flex-wrap">
           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
             card.type === "RULE" ? "bg-[#FFCD00] text-[#121212]"
             : card.type === "EXAMPLE" ? "bg-[#3B82F6] text-white"
@@ -86,7 +86,7 @@ function TheoryCard({ card, index, total }: { card: NodeContent["theory_cards"][
           }`}>
             {card.type === "RULE" ? "QUY TẮC" : card.type === "EXAMPLE" ? "VÍ DỤ" : card.type}
           </span>
-          <span className="text-sm font-bold text-[#0F172A]">{card.title.vi ?? card.title.de}</span>
+          <span className="text-sm font-bold text-[#0F172A] break-words">{card.title.vi ?? card.title.de}</span>
         </div>
         {/* Progress dots */}
         <div className="flex gap-1 shrink-0 pt-0.5">
@@ -210,7 +210,7 @@ export default function GrammarView({ content, isLocked = false }: { content: No
             <button
               onClick={() => setVocabPage(p => Math.max(1, p - 1))}
               disabled={vocabPage === 1}
-              className="p-1.5 rounded-lg border border-[#E2E8F0] text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#121212] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="flex min-h-[40px] min-w-[40px] items-center justify-center lg:min-h-0 lg:min-w-0 p-1.5 rounded-lg border border-[#E2E8F0] text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#121212] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
@@ -222,7 +222,7 @@ export default function GrammarView({ content, isLocked = false }: { content: No
             <button
               onClick={() => setVocabPage(p => Math.min(totalVocabPages, p + 1))}
               disabled={vocabPage === totalVocabPages}
-              className="p-1.5 rounded-lg border border-[#E2E8F0] text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#121212] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="flex min-h-[40px] min-w-[40px] items-center justify-center lg:min-h-0 lg:min-w-0 p-1.5 rounded-lg border border-[#E2E8F0] text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#121212] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
@@ -275,7 +275,7 @@ export default function GrammarView({ content, isLocked = false }: { content: No
 
       {/* ── Practice Quiz / Completion ── */}
       <section className="pt-6 border-t border-[#E2E8F0] mt-8">
-        <div className="bg-[#F8FAFC] rounded-2xl border border-[#E2E8F0] p-6 text-center space-y-4">
+        <div className="bg-[#F8FAFC] rounded-2xl border border-[#E2E8F0] p-4 lg:p-6 text-center space-y-4">
           <h2 className="text-sm font-bold text-[#0F172A] uppercase tracking-wide">
             Kiểm tra mức độ hiểu bài
           </h2>
@@ -284,7 +284,7 @@ export default function GrammarView({ content, isLocked = false }: { content: No
             <div className="space-y-6 text-left mt-4">
               {practiceItems.map((item: any, i: number) => (
                 <div key={i} className="space-y-3 bg-white p-4 rounded-xl border border-[#E2E8F0]">
-                  <p className="text-sm font-bold text-[#0F172A]">{i + 1}. {item.question || "Câu hỏi..."}</p>
+                  <p className="text-sm font-bold text-[#0F172A] break-words">{i + 1}. {item.question || "Câu hỏi..."}</p>
                   <div className="space-y-2">
                     {Array.isArray(item.options) && item.options.map((opt: string, j: number) => {
                       const isSelected = answers[i] === j;

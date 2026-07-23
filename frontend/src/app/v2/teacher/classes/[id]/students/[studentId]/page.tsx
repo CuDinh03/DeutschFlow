@@ -124,7 +124,7 @@ function StudentReport() {
         }
       />
 
-      <div className="flex-1 overflow-auto px-10 py-6">
+      <div className="flex-1 overflow-auto px-4 py-5 sm:px-6 lg:px-10 lg:py-6">
         <TkStatStrip
           items={[
             { label: t('stats.assignments'), value: assignments.length, sub: t('stats.assignmentsSub', { count: gradedCount }), color: VIOLET },
@@ -150,7 +150,7 @@ function StudentReport() {
               ) : (
                 <div className="border border-ga-line bg-ga-card">
                   {assignments.map((a, i) => (
-                    <div key={a.id} className="flex items-center gap-4 px-[18px] py-[13px]" style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
+                    <div key={a.id} className="flex items-center gap-3 px-4 py-[13px] lg:gap-4 lg:px-[18px]" style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-[14px] font-semibold text-ga-ink">{a.topic || t('assignmentFallback', { id: a.assignmentId })}</p>
                         <p className="ga-ui text-[12px] text-ga-muted">{t('submitted', { date: fmt(a.submittedAt) })}</p>
@@ -172,7 +172,7 @@ function StudentReport() {
               ) : (
                 <div className="border border-ga-line bg-ga-card">
                   {speaking.map((s, i) => (
-                    <div key={s.id} className="flex items-center gap-4 px-[18px] py-[13px]" style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
+                    <div key={s.id} className="flex items-center gap-3 px-4 py-[13px] lg:gap-4 lg:px-[18px]" style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-[14px] font-semibold text-ga-ink">{s.topic || t('speakingFallback')}</p>
                         <p className="ga-ui text-[12px] text-ga-muted">{s.cefrLevel} · {fmt(s.startedAt)} · {statusLabel(s.status)}</p>
@@ -188,19 +188,19 @@ function StudentReport() {
             {/* ── AI analysis (lazy, LLM) ── */}
             <TkTabsContent value="analysis">
               {reportLoading ? (
-                <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
+                <div className="border border-ga-line bg-ga-card px-4 py-10 text-center sm:px-6 lg:px-10 lg:py-[52px]">
                   <Sparkles size={28} className="mx-auto mb-3 animate-pulse" style={{ color: VIOLET }} />
                   <p className="text-[14px] text-ga-muted">{t('analysisLoading')}</p>
                 </div>
               ) : reportError ? (
-                <div className="border border-ga-line bg-ga-card px-10 py-[40px] text-center">
-                  <p className="ga-ui mb-4 text-[14px] text-ga-red">{reportError}</p>
+                <div className="border border-ga-line bg-ga-card px-4 py-8 text-center sm:px-6 lg:px-10 lg:py-[40px]">
+                  <p className="ga-ui mb-4 break-words text-[14px] text-ga-red">{reportError}</p>
                   <GaBtn variant="ghost" onClick={() => void fetchReport()}>{tc('retry')}</GaBtn>
                 </div>
               ) : report ? (
                 <Analysis report={report} />
               ) : (
-                <div className="border border-dashed border-ga-line px-10 py-[40px] text-center">
+                <div className="border border-dashed border-ga-line px-4 py-8 text-center sm:px-6 lg:px-10 lg:py-[40px]">
                   <GaBtn variant="yellow" onClick={() => void fetchReport()}><Sparkles size={15} /> {t('generateAnalysis')}</GaBtn>
                 </div>
               )}
@@ -214,7 +214,7 @@ function StudentReport() {
 
 function Empty({ icon: Icon, text }: { icon: typeof Mic; text: string }) {
   return (
-    <div className="border border-dashed border-ga-line px-10 py-[40px] text-center">
+    <div className="border border-dashed border-ga-line px-4 py-8 text-center sm:px-6 lg:px-10 lg:py-[40px]">
       <Icon size={36} className="mx-auto mb-3 text-ga-faint" />
       <p className="text-[14px] text-ga-muted">{text}</p>
     </div>
@@ -232,7 +232,7 @@ const METRIC_ROWS: [keyof Metrics, boolean][] = [
 function MetricCard({ title, m, accent }: { title: string; m: Metrics | null; accent: boolean }) {
   const t = useTranslations('v2.teacher.studentDetail')
   return (
-    <div className="border border-ga-line bg-ga-card p-[18px]" style={accent ? { borderColor: VIOLET } : undefined}>
+    <div className="border border-ga-line bg-ga-card p-4 lg:p-[18px]" style={accent ? { borderColor: VIOLET } : undefined}>
       <GaCap className="mb-3 block" style={accent ? { color: VIOLET } : undefined}>{title}</GaCap>
       <ul className="flex flex-col gap-2">
         {METRIC_ROWS.map(([k, pct]) => (
@@ -256,27 +256,27 @@ function Analysis({ report }: { report: Report }) {
       </div>
 
       {report.topWeaknesses?.length > 0 && (
-        <div className="border border-ga-line bg-ga-card p-[22px]">
+        <div className="border border-ga-line bg-ga-card p-4 lg:p-[22px]">
           <GaCap className="mb-3 flex items-center gap-1.5"><AlertCircle size={13} className="text-ga-red" /> {t('weaknessesCap')}</GaCap>
-          <ul className="list-disc pl-5 text-[13.5px] text-ga-ink">
+          <ul className="list-disc break-words pl-5 text-[13.5px] text-ga-ink">
             {report.topWeaknesses.map((w, i) => <li key={i} className="mb-1">{w}</li>)}
           </ul>
         </div>
       )}
 
       {report.recommendedNextActions?.length > 0 && (
-        <div className="border border-ga-line bg-ga-card p-[22px]">
+        <div className="border border-ga-line bg-ga-card p-4 lg:p-[22px]">
           <GaCap className="mb-3 block">{t('nextActionsCap')}</GaCap>
-          <ul className="list-disc pl-5 text-[13.5px] text-ga-ink">
+          <ul className="list-disc break-words pl-5 text-[13.5px] text-ga-ink">
             {report.recommendedNextActions.map((a, i) => <li key={i} className="mb-1">{a}</li>)}
           </ul>
         </div>
       )}
 
       {report.aiAdvisoryReport && (
-        <div className="border border-ga-line p-[22px]" style={{ background: 'var(--ga-violet-soft)' }}>
+        <div className="border border-ga-line p-4 lg:p-[22px]" style={{ background: 'var(--ga-violet-soft)' }}>
           <GaCap className="mb-3 flex items-center gap-1.5" style={{ color: VIOLET }}><Sparkles size={14} /> {t('aiRoadmapCap')}</GaCap>
-          <div className="whitespace-pre-line text-[14px] leading-relaxed text-ga-ink">{report.aiAdvisoryReport}</div>
+          <div className="whitespace-pre-line break-words text-[14px] leading-relaxed text-ga-ink">{report.aiAdvisoryReport}</div>
         </div>
       )}
     </div>

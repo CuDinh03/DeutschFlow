@@ -100,7 +100,7 @@ export default function V2AdminVocabPage() {
         }
       />
 
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         <AdStatStrip
           className="mb-6"
           cells={[
@@ -120,30 +120,30 @@ export default function V2AdminVocabPage() {
         <GaCap className="mb-3.5 block">{t('queueCap', { count: queue.length })}</GaCap>
 
         {loading ? (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="ga-shimmer h-[130px] border border-ga-line" aria-hidden />
             ))}
           </div>
         ) : error ? (
-          <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-            <h2 className="font-ga-display text-[26px] font-medium leading-[1.2] text-ga-red">
+          <div className="border border-ga-line bg-ga-card px-4 py-10 text-center sm:px-6 lg:px-10 lg:py-[52px]">
+            <h2 className="font-ga-display text-[20px] font-medium leading-[1.2] text-ga-red lg:text-[26px]">
               {t('loadError')}
             </h2>
-            <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14.5px] text-ga-muted">
-              {error} <code className="font-mono text-[12px] text-ga-accent">GET /api/vocabulary/words</code>
+            <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm break-words text-[14.5px] text-ga-muted">
+              {error} <code className="break-words font-mono text-[12px] text-ga-accent">GET /api/vocabulary/words</code>
             </p>
             <GaBtn variant="primary" onClick={() => reload({ silent: false })}>
               {tc('retry')}
             </GaBtn>
           </div>
         ) : queue.length === 0 ? (
-          <div className="border border-dashed border-ga-line px-10 py-10 text-center">
+          <div className="border border-dashed border-ga-line px-4 py-10 text-center sm:px-6 lg:px-10">
             <CheckCircle2 size={32} className="mx-auto mb-2" style={{ color: GREEN }} aria-hidden />
             <p className="font-ga-display text-[18px] italic text-ga-ink">{t('queueDone')}</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {queue.slice(0, QUEUE_CAP).map((w) => (
               <div key={w.id} className="flex gap-4 border border-ga-line bg-ga-card p-4">
                 <div
@@ -162,14 +162,14 @@ export default function V2AdminVocabPage() {
                         {GENDER_MAP[w.gender].label}
                       </span>
                     )}
-                    <span className="font-ga-display text-[18px] font-semibold text-ga-ink">{w.de}</span>
+                    <span className="min-w-0 truncate font-ga-display text-[18px] font-semibold text-ga-ink">{w.de}</span>
                   </div>
                   <p className="mb-3 truncate text-[13px] text-ga-muted">{w.vi || '—'}</p>
                   <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
                       onClick={() => setTarget(w)}
-                      className="rounded-ga px-[11px] py-[6px] text-[11.5px] font-semibold text-white transition-opacity hover:opacity-90"
+                      className="inline-flex min-h-[40px] items-center justify-center rounded-ga px-[11px] py-2.5 text-[11.5px] font-semibold text-white transition-opacity hover:opacity-90 lg:min-h-0 lg:py-[6px]"
                       style={{ background: GREEN }}
                     >
                       {t('attachImage')}
@@ -178,14 +178,14 @@ export default function V2AdminVocabPage() {
                       type="button"
                       disabled
                       title={t('approveNeedsImage')}
-                      className="rounded-ga border border-ga-line px-[11px] py-[6px] text-[11.5px] font-semibold text-ga-subtle disabled:cursor-not-allowed disabled:opacity-60"
+                      className="inline-flex min-h-[40px] items-center justify-center rounded-ga border border-ga-line px-[11px] py-2.5 text-[11.5px] font-semibold text-ga-subtle disabled:cursor-not-allowed disabled:opacity-60 lg:min-h-0 lg:py-[6px]"
                     >
                       {t('approve')}
                     </button>
                     <button
                       type="button"
                       onClick={() => toast(t('rejectSoon'))}
-                      className="rounded-ga px-[11px] py-[6px] text-[11.5px] font-semibold transition-colors"
+                      className="inline-flex min-h-[40px] items-center justify-center rounded-ga px-[11px] py-2.5 text-[11.5px] font-semibold transition-colors lg:min-h-0 lg:py-[6px]"
                       style={{ color: 'var(--ga-red)' }}
                     >
                       {t('reject')}
@@ -288,7 +288,7 @@ function AttachImageModal({
       }
     >
       {loading ? (
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="ga-shimmer aspect-square rounded-ga" aria-hidden />
           ))}
@@ -298,7 +298,7 @@ function AttachImageModal({
       ) : !review?.suggestions.length ? (
         <p className="py-8 text-center text-[14px] text-ga-muted">{t('noSuggestions')}</p>
       ) : (
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {review.suggestions.map((s) => {
             const on = s.unsplashId === selected
             return (

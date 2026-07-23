@@ -234,12 +234,12 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
   return (
     <div className="space-y-4">
       {/* ── Current drill card ── */}
-      <div className="rounded-2xl bg-gradient-to-br from-[#121212] to-[#1E293B] p-6 space-y-4">
-        <div className="flex items-center justify-between">
+      <div className="rounded-2xl bg-gradient-to-br from-[#121212] to-[#1E293B] p-4 lg:p-6 space-y-4">
+        <div className="flex items-center justify-between gap-2">
           <span className="text-[10px] font-bold text-[#FFCD00] uppercase">
             Bài {currentDrillIndex + 1} / {drills.length}
           </span>
-          <div className="flex gap-1">
+          <div className="flex min-w-0 flex-wrap justify-end gap-1">
             {drills.map((_, i) => (
               <div
                 key={i}
@@ -253,7 +253,7 @@ export default function SpeakingView({ content, isLocked = false }: { content: N
         </div>
 
         <div className="text-center space-y-2">
-          <p className="text-xl font-bold text-white">{currentDrill.text}</p>
+          <p className="text-lg lg:text-xl font-bold text-white break-words">{currentDrill.text}</p>
           <p className="text-sm text-white/50">{currentDrill.hint}</p>
         </div>
 

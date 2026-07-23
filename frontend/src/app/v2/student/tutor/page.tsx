@@ -111,12 +111,12 @@ function BookSessionBody({ preselectId }: { preselectId: number | null }) {
     <div className="flex min-h-full flex-col">
       <GaPageHdr accent title="Gia sư 1:1" subtitle="Đặt lịch học trực tiếp với giáo viên" />
 
-      <div className="flex-1 overflow-auto px-10 py-7">
+      <div className="flex-1 overflow-auto px-4 py-5 sm:px-6 lg:px-10 lg:py-7">
         {loading ? (
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]"><div className="ga-shimmer h-[300px] border border-ga-line" aria-hidden /><div className="ga-shimmer h-[300px] border border-ga-line" aria-hidden /></div>
         ) : error ? (
-          <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">Không tải được danh sách gia sư</h2>
+          <div className="border border-ga-line bg-ga-card px-4 py-10 text-center sm:px-8 lg:px-10 lg:py-[52px]">
+            <h2 className="font-ga-display text-[20px] font-medium text-ga-red lg:text-[24px]">Không tải được danh sách gia sư</h2>
             <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">{error}</p>
             <GaBtn variant="primary" onClick={load}>Thử lại</GaBtn>
           </div>
@@ -127,7 +127,7 @@ function BookSessionBody({ preselectId }: { preselectId: number | null }) {
               <div>
                 <GaCap className="mb-4 block">Chọn gia sư ({tutors.length})</GaCap>
                 {tutors.length === 0 ? (
-                  <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">Hiện chưa có gia sư nào trên hệ thống.</div>
+                  <div className="border border-dashed border-ga-line px-4 py-8 text-center text-[14px] text-ga-muted sm:px-8 lg:px-10 lg:py-[40px]">Hiện chưa có gia sư nào trên hệ thống.</div>
                 ) : (
                   <div ref={listRef} className="flex flex-col gap-3.5">
                     {tutors.map((tu) => {
@@ -138,14 +138,14 @@ function BookSessionBody({ preselectId }: { preselectId: number | null }) {
                           type="button"
                           data-tutor-id={tu.id}
                           onClick={() => setSelId(tu.id)}
-                          className="flex items-center gap-4 p-4 text-left transition-colors"
+                          className="flex items-center gap-3 p-3.5 text-left transition-colors lg:gap-4 lg:p-4"
                           style={{ background: on ? 'var(--ga-side-active)' : 'var(--ga-card)', border: `1px solid ${on ? 'var(--ga-yellow)' : 'var(--ga-line)'}` }}
                         >
                           <span className="grid h-[54px] w-[54px] shrink-0 place-items-center rounded-full font-ga-display text-[22px] font-semibold" style={{ color: 'var(--ga-ink)', background: 'var(--ga-yellow-soft)' }}>{initial(tu.name)}</span>
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 text-[15.5px] font-bold text-ga-ink">
                               {tu.name}
-                              {tu.featured && <BadgeCheck size={15} style={{ color: 'var(--ga-green)' }} aria-label="Đã xác thực" />}
+                              {tu.featured && <BadgeCheck size={15} className="shrink-0" style={{ color: 'var(--ga-green)' }} aria-label="Đã xác thực" />}
                             </div>
                             <div className="mt-1 truncate text-[13px] text-ga-muted">{tu.headline || 'Giáo viên tiếng Đức'}</div>
                           </div>
@@ -157,7 +157,7 @@ function BookSessionBody({ preselectId }: { preselectId: number | null }) {
               </div>
 
               {/* Booking panel */}
-              <div className="border border-ga-line bg-ga-card p-[26px]">
+              <div className="border border-ga-line bg-ga-card p-4 lg:p-[26px]">
                 <GaCap className="mb-3.5 block">Đặt lịch {sel ? `· ${sel.name}` : ''}</GaCap>
                 <label className="ga-ui mb-1.5 block text-[12.5px] font-semibold text-ga-muted">Ngày học</label>
                 <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="ga-ui mb-3.5 w-full border border-ga-line bg-ga-bg px-3.5 py-2.5 text-[14px] text-ga-ink outline-none focus:border-ga-ink" />
@@ -166,12 +166,12 @@ function BookSessionBody({ preselectId }: { preselectId: number | null }) {
                 <label className="ga-ui mb-1.5 block text-[12.5px] font-semibold text-ga-muted">Thời lượng</label>
                 <div className="mb-3.5 flex flex-wrap gap-2">
                   {DURATIONS.map((d) => (
-                    <button key={d} type="button" onClick={() => setDuration(d)} className="ga-ui px-3 py-1.5 text-[13px] font-semibold" style={{ background: duration === d ? 'var(--ga-ink)' : 'transparent', color: duration === d ? 'var(--ga-bg)' : 'var(--ga-ink)', border: `1px solid ${duration === d ? 'var(--ga-ink)' : 'var(--ga-line)'}` }}>{d}&apos;</button>
+                    <button key={d} type="button" onClick={() => setDuration(d)} className="ga-ui min-h-[40px] px-3 py-1.5 text-[13px] font-semibold lg:min-h-0" style={{ background: duration === d ? 'var(--ga-ink)' : 'transparent', color: duration === d ? 'var(--ga-bg)' : 'var(--ga-ink)', border: `1px solid ${duration === d ? 'var(--ga-ink)' : 'var(--ga-line)'}` }}>{d}&apos;</button>
                   ))}
                 </div>
                 <label className="ga-ui mb-1.5 block text-[12.5px] font-semibold text-ga-muted">Ghi chú cho gia sư (tuỳ chọn)</label>
                 <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="VD: muốn luyện phỏng vấn ngành điều dưỡng…" className="ga-ui mb-4 w-full resize-y border border-ga-line bg-ga-bg px-3.5 py-2.5 text-[14px] text-ga-ink outline-none focus:border-ga-ink" />
-                <div className="mb-4 flex items-center justify-between border border-ga-line bg-ga-bg px-4 py-3 text-[14px]">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border border-ga-line bg-ga-bg px-4 py-3 text-[14px]">
                   <span className="flex items-center gap-1.5 text-ga-muted"><Clock size={14} /> Thời gian</span>
                   <span className="font-semibold text-ga-ink">{date && time ? `${time} · ${format(new Date(`${date}T${time}`), 'dd/MM')} · ${duration}'` : '—'}</span>
                 </div>
@@ -182,13 +182,13 @@ function BookSessionBody({ preselectId }: { preselectId: number | null }) {
             {/* My booked sessions */}
             <GaCap className="mb-3.5 mt-9 block">Buổi đã đặt ({mySessions.length})</GaCap>
             {mySessions.length === 0 ? (
-              <div className="border border-dashed border-ga-line px-10 py-[36px] text-center text-[14px] text-ga-muted">Bạn chưa đặt buổi học 1:1 nào.</div>
+              <div className="border border-dashed border-ga-line px-4 py-8 text-center text-[14px] text-ga-muted sm:px-8 lg:px-10 lg:py-[36px]">Bạn chưa đặt buổi học 1:1 nào.</div>
             ) : (
               <div className="border border-ga-line bg-ga-card">
                 {mySessions.map((s, i) => {
                   const sm = SESSION_STATUS[(s.status ?? '').toUpperCase()] ?? { label: s.status, color: 'var(--ga-muted)' }
                   return (
-                    <div key={s.id} className="flex items-center gap-3.5 px-5 py-3.5" style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
+                    <div key={s.id} className="flex items-center gap-3 px-4 py-3.5 lg:gap-3.5 lg:px-5" style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
                       <span className="grid h-9 w-9 shrink-0 place-items-center" style={{ background: 'var(--ga-side-active)' }}><CalendarClock size={16} className="text-ga-muted" /></span>
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-[14px] font-semibold text-ga-ink">{s.title}</div>

@@ -201,13 +201,13 @@ export default function V2StudentLearnNodePage() {
         title={session?.titleVi ?? tLearn('lesson')}
         subtitle={session?.moduleTitleVi ?? tLearn('loadingNode')}
       />
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         <div className="mx-auto max-w-3xl space-y-[22px]">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <button
               type="button"
               onClick={() => router.push('/v2/student/roadmap')}
-              className="ga-ui inline-flex items-center gap-1.5 text-[13px] font-semibold text-ga-muted transition-colors hover:text-ga-ink"
+              className="ga-ui inline-flex min-h-[40px] items-center gap-1.5 text-[13px] font-semibold text-ga-muted transition-colors hover:text-ga-ink lg:min-h-0"
             >
               <ArrowLeft size={15} aria-hidden /> {tLearn('backToRoadmap')}
             </button>
@@ -216,7 +216,7 @@ export default function V2StudentLearnNodePage() {
             <button
               type="button"
               onClick={() => router.push(`/v2/student/practice/${nodeId}`)}
-              className="ga-ui inline-flex items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-3.5 py-2 text-[12.5px] font-semibold text-ga-ink transition-colors hover:bg-ga-surface"
+              className="ga-ui inline-flex min-h-[40px] items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-3.5 py-2 text-[12.5px] font-semibold text-ga-ink transition-colors hover:bg-ga-surface lg:min-h-0"
             >
               <Dumbbell size={14} aria-hidden /> {t('toPractice')}
             </button>
@@ -255,7 +255,7 @@ export default function V2StudentLearnNodePage() {
                       v2.student.learnNode (đủ 3 locale) thay vì bê nguyên lỗi sang. */}
                   <div className="ga-ui flex items-center justify-between gap-2 text-[12px]">
                     <GaCap>{t('roadmapContext')}</GaCap>
-                    <span className="truncate text-ga-muted">{roadmapState.title}</span>
+                    <span className="min-w-0 truncate text-ga-muted">{roadmapState.title}</span>
                   </div>
                   <div className="mt-2 flex items-center gap-2">
                     <span className="h-2 flex-1 overflow-hidden rounded-ga-pill bg-ga-border">
@@ -331,7 +331,7 @@ export default function V2StudentLearnNodePage() {
                       type="button"
                       onClick={() => setActiveView(tab.key)}
                       aria-pressed={isActive}
-                      className={`ga-ui flex items-center gap-1.5 whitespace-nowrap rounded-ga px-3 py-2 text-[12.5px] font-semibold transition-colors ${
+                      className={`ga-ui flex min-h-[40px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-ga px-3 py-2 text-[12.5px] font-semibold transition-colors lg:min-h-0 ${
                         isActive
                           ? 'bg-ga-ink text-ga-bg'
                           : isDone
@@ -347,8 +347,8 @@ export default function V2StudentLearnNodePage() {
               </div>
 
               {showRetryBanner && (
-                <div className="flex items-center justify-between gap-3 rounded-ga border border-ga-line bg-ga-yellow-soft p-4">
-                  <div>
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-ga border border-ga-line bg-ga-yellow-soft p-4">
+                  <div className="min-w-0">
                     <p className="ga-ui text-[13.5px] font-semibold text-ga-ink">{t('retryTitle')}</p>
                     <p className="ga-ui mt-0.5 text-[12.5px] text-ga-muted">{t('retryDesc')}</p>
                   </div>
@@ -358,7 +358,7 @@ export default function V2StudentLearnNodePage() {
                       resetTabCompletion()
                       setPhonemeSuccess(new Set())
                     }}
-                    className="ga-ui shrink-0 rounded-ga bg-ga-accent px-4 py-2 text-[12.5px] font-semibold text-ga-accent-ink transition-opacity hover:opacity-90"
+                    className="ga-ui inline-flex min-h-[40px] shrink-0 items-center rounded-ga bg-ga-accent px-4 py-2 text-[12.5px] font-semibold text-ga-accent-ink transition-opacity hover:opacity-90 lg:min-h-0"
                   >
                     {t('retryCta')}
                   </button>

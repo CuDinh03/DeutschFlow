@@ -167,7 +167,7 @@ export default function V2AdminWeeklySpeakingPage() {
         }
       />
 
-      <div className="flex-1 overflow-auto px-10 py-6">
+      <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
         <GaCap className="mb-3.5 block">{t('count', { count: prompts.length })}</GaCap>
 
         {loading ? (
@@ -177,17 +177,17 @@ export default function V2AdminWeeklySpeakingPage() {
             ))}
           </div>
         ) : error ? (
-          <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadError')}</h2>
-            <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">
-              {error} <code className="font-mono text-[12px] text-ga-accent">GET /api/admin/speaking/weekly-prompts</code>
+          <div className="border border-ga-line bg-ga-card px-4 py-10 text-center sm:px-6 lg:px-10 lg:py-[52px]">
+            <h2 className="font-ga-display text-[20px] font-medium text-ga-red lg:text-[24px]">{t('loadError')}</h2>
+            <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm break-words text-[14px] text-ga-muted">
+              {error} <code className="break-words font-mono text-[12px] text-ga-accent">GET /api/admin/speaking/weekly-prompts</code>
             </p>
             <GaBtn variant="primary" onClick={load}>
               {tc('retry')}
             </GaBtn>
           </div>
         ) : prompts.length === 0 ? (
-          <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">
+          <div className="border border-dashed border-ga-line px-4 py-[40px] text-center text-[14px] text-ga-muted sm:px-6 lg:px-10">
             {t('empty')}
           </div>
         ) : (
@@ -198,7 +198,7 @@ export default function V2AdminWeeklySpeakingPage() {
               return (
                 <div
                   key={p.id}
-                  className="flex items-start gap-3.5 border border-ga-line bg-ga-card px-[18px] py-4"
+                  className="flex flex-wrap items-start gap-3.5 border border-ga-line bg-ga-card px-4 py-4 lg:flex-nowrap lg:px-[18px]"
                   style={{ opacity: p.is_active ? 1 : 0.6 }}
                 >
                   <span
@@ -229,11 +229,11 @@ export default function V2AdminWeeklySpeakingPage() {
                     </div>
                     <p className="mt-1 line-clamp-2 text-[12.5px] italic text-ga-subtle">{p.prompt_de}</p>
                   </div>
-                  <div className="flex shrink-0 items-center gap-1.5">
+                  <div className="flex w-full shrink-0 items-center justify-end gap-1.5 lg:w-auto">
                     <button
                       type="button"
                       onClick={() => openEdit(p)}
-                      className="ga-ui inline-flex items-center gap-1 border border-ga-line px-2 py-1.5 text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent"
+                      className="ga-ui inline-flex items-center gap-1 border border-ga-line px-2 py-3 text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent lg:py-1.5"
                     >
                       <Pencil size={12} /> {t('edit')}
                     </button>
@@ -241,7 +241,7 @@ export default function V2AdminWeeklySpeakingPage() {
                       type="button"
                       disabled={deleting === p.id}
                       onClick={() => remove(p)}
-                      className="ga-ui inline-flex items-center gap-1 border border-ga-line px-2 py-1.5 text-[11px] font-semibold text-ga-red transition-colors hover:border-ga-red disabled:opacity-50"
+                      className="ga-ui inline-flex items-center gap-1 border border-ga-line px-2 py-3 text-[11px] font-semibold text-ga-red transition-colors hover:border-ga-red disabled:opacity-50 lg:py-1.5"
                     >
                       {deleting === p.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />} {t('deactivate')}
                     </button>
@@ -270,7 +270,7 @@ export default function V2AdminWeeklySpeakingPage() {
         }
       >
         <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-3.5">
+          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
             <div>
               <GaCap className="mb-2 block">{t('weekStartLabel')}</GaCap>
               <input

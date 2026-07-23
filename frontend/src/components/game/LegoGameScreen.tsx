@@ -46,7 +46,7 @@ function WordBlock({
 }) {
   return (
     <span
-      className={`relative inline-flex select-none items-center gap-2 rounded-[12px] px-5 py-3 text-[22px] font-bold transition-all duration-200 ${
+      className={`relative inline-flex max-w-full select-none items-center gap-2 rounded-[12px] px-3 py-3 text-[18px] lg:px-5 lg:text-[22px] font-bold transition-all duration-200 ${
         floating ? 'scale-[1.03]' : ''
       }`}
       style={{
@@ -58,7 +58,7 @@ function WordBlock({
         opacity: dimmed ? 0.45 : 1,
       }}
     >
-      <span>{item.word}</span>
+      <span className="min-w-0 break-words">{item.word}</span>
       {onRemove ? (
         <button
           type="button"
@@ -95,7 +95,7 @@ function DraggableWord({ item, used }: { item: WordItem; used: boolean }) {
       }}
       {...listeners}
       {...attributes}
-      className="relative select-none rounded-[12px] px-5 py-3 text-[22px] font-bold cursor-grab active:cursor-grabbing transition-all duration-200 hover:-translate-y-[2px] hover:scale-[1.01] focus-visible:outline-none"
+      className="relative max-w-full select-none break-words rounded-[12px] px-3 py-3 text-[18px] lg:px-5 lg:text-[22px] font-bold cursor-grab active:cursor-grabbing transition-all duration-200 hover:-translate-y-[2px] hover:scale-[1.01] focus-visible:outline-none"
       type="button"
       disabled={used}
     >
@@ -123,7 +123,7 @@ function Slot({
   return (
     <span
       ref={setNodeRef}
-      className="inline-flex items-center justify-center rounded-[12px] border-2 border-dashed px-4 py-2 mx-1 min-w-[140px] min-h-[58px] align-middle transition-all duration-200"
+      className="inline-flex max-w-full items-center justify-center rounded-[12px] border-2 border-dashed px-3 py-2 mx-1 min-w-[104px] min-h-[58px] align-middle transition-all duration-200 lg:px-4 lg:min-w-[140px]"
       style={{
         borderColor: isOver ? '#FFCD00' : filledItem ? '#93C5FD' : '#CBD5E1',
         background: isOver ? 'rgba(255,206,0,0.16)' : filledItem ? 'rgba(239,246,255,0.75)' : '#F8FAFF',
@@ -371,11 +371,11 @@ export default function LegoGameScreen() {
       <DndContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
         <div className="max-w-5xl mx-auto flex flex-col h-full">
           {done ? (
-            <div className="bg-white border-2 border-[#E2E8F0] rounded-2xl p-8 text-center shadow-lg df-glass-subtle">
+            <div className="bg-white border-2 border-[#E2E8F0] rounded-2xl p-5 lg:p-8 text-center shadow-lg df-glass-subtle">
               <h2 className="text-2xl font-bold text-[#121212] mb-2">Hoàn thành {variant.title}</h2>
               <p className="text-slate-600 mb-1">Điểm của bạn: <b>{score}</b></p>
               <p className="text-slate-600 mb-6">Bạn đã hoàn thành chế độ chơi độc lập.</p>
-              <div className="flex gap-3 justify-center">
+              <div className="flex flex-wrap gap-3 justify-center">
                 <button
                   className="px-6 py-2.5 rounded-xl bg-[#121212] text-white font-bold"
                   onClick={() => {
@@ -396,7 +396,7 @@ export default function LegoGameScreen() {
               </div>
             </div>
           ) : !q ? (
-            <div className="bg-white border-2 border-[#E2E8F0] rounded-2xl p-8 text-center shadow-lg df-glass-subtle">
+            <div className="bg-white border-2 border-[#E2E8F0] rounded-2xl p-5 lg:p-8 text-center shadow-lg df-glass-subtle">
               <h2 className="text-xl font-bold text-[#121212] mb-2">Không có dữ liệu game</h2>
               <p className="text-slate-600 mb-6">Không có câu hỏi cho chế độ luyện tập hiện tại.</p>
               <button 
@@ -408,8 +408,8 @@ export default function LegoGameScreen() {
             </div>
           ) : (
             <div className="flex flex-col flex-1">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex-1 max-w-md">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+                <div className="min-w-0 flex-1 max-w-md">
                   <div className="flex gap-1 mb-2">
                     {questions.map((_, i) => (
                       <div key={i} className="flex-1 h-2 rounded-full" style={{ background: i < index ? '#FFCD00' : i === index ? '#121212' : '#E2E8F0' }} />
@@ -417,7 +417,7 @@ export default function LegoGameScreen() {
                   </div>
                   <p className="text-xs text-[#64748B]">Frage {index + 1}/{questions.length} · {progress}%</p>
                 </div>
-                <div className="flex items-center gap-6">
+                <div className="flex items-center gap-3 lg:gap-6">
                   <div className="flex items-center gap-2 px-3 py-1.5 rounded-[10px] bg-[#FFF8E1] border border-[#FFCD00]/40">
                     <Star size={14} className="text-[#FFCD00]" fill="#FFCD00" />
                     <span className="font-bold text-[#121212] text-sm">{score}</span>
@@ -433,13 +433,13 @@ export default function LegoGameScreen() {
                 <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-[#FFCD00]/20 text-[#121212]">{q.level}</span>
               </div>
 
-              <h2 className="text-3xl font-bold text-[#121212] mb-1">Baue den deutschen Satz! 🧱</h2>
-              <p className="text-xl text-[#64748B] mb-4">{variant.subtitle}</p>
-              <p className="text-lg text-slate-700 mb-8 p-4 bg-white rounded-2xl border border-[#E2E8F0] shadow-sm df-glass-subtle">
+              <h2 className="text-2xl lg:text-3xl font-bold text-[#121212] mb-1">Baue den deutschen Satz! 🧱</h2>
+              <p className="text-base lg:text-xl text-[#64748B] mb-4">{variant.subtitle}</p>
+              <p className="text-base lg:text-lg text-slate-700 mb-8 p-4 bg-white rounded-2xl border border-[#E2E8F0] shadow-sm df-glass-subtle break-words">
                 {q.prompt}
               </p>
 
-              <div className="bg-white rounded-3xl p-8 mb-8 border-2 border-[#E2E8F0] shadow-md df-glass-subtle">
+              <div className="bg-white rounded-3xl p-4 lg:p-8 mb-8 border-2 border-[#E2E8F0] shadow-md df-glass-subtle">
                 <div className="flex flex-wrap items-center gap-2 mb-6">
                   {q.audioGerman ? (
                     <button
@@ -462,17 +462,17 @@ export default function LegoGameScreen() {
                 </div>
               </div>
 
-              <div className="bg-[#F1F4F9] rounded-2xl p-6 mb-8 border-2 border-[#E2E8F0]">
+              <div className="bg-[#F1F4F9] rounded-2xl p-4 lg:p-6 mb-8 border-2 border-[#E2E8F0]">
                 <p className="text-xs font-bold text-[#94A3B8] mb-4 uppercase tracking-widest">{variant.poolLabel}</p>
                 <div className="flex flex-wrap gap-3">
                   {q.pool.map((item) => <DraggableWord key={item.id} item={item} used={usedIds.has(item.id)} />)}
                 </div>
               </div>
 
-              <div className="flex items-center justify-between mt-auto pt-6 border-t border-[#E2E8F0]">
+              <div className="flex flex-wrap items-center justify-between gap-3 mt-auto pt-6 border-t border-[#E2E8F0]">
                 <div className="relative">
                   {showHint && (
-                    <div className="absolute bottom-full mb-4 left-0 rounded-2xl p-4 w-64 bg-[#121212] text-white text-sm shadow-2xl z-50">
+                    <div className="absolute bottom-full mb-4 left-0 rounded-2xl p-4 w-64 max-w-[calc(100vw_-_48px)] bg-[#121212] text-white text-sm shadow-2xl z-50">
                       <div className="flex items-start gap-3">
                         <Lightbulb className="flex-shrink-0 text-[#FFCD00]" size={20} />
                         <p>{variant.hint}</p>
@@ -492,7 +492,7 @@ export default function LegoGameScreen() {
                   <button
                     onClick={checkAnswer}
                     disabled={!allFilled}
-                    className="px-10 py-4 rounded-2xl font-bold text-lg flex items-center gap-3 transition-all"
+                    className="px-5 py-3 lg:px-10 lg:py-4 rounded-2xl font-bold text-base lg:text-lg flex items-center gap-3 transition-all"
                     style={{
                       background: allFilled ? '#121212' : '#E2E8F0',
                       color: allFilled ? 'white' : '#94A3B8',
@@ -504,7 +504,7 @@ export default function LegoGameScreen() {
                 ) : (
                   <button
                     onClick={next}
-                    className="px-10 py-4 rounded-2xl font-bold text-lg flex items-center gap-3 text-white transition-all"
+                    className="px-5 py-3 lg:px-10 lg:py-4 rounded-2xl font-bold text-base lg:text-lg flex items-center gap-3 text-white transition-all"
                     style={{
                       background: checked === 'correct' ? '#10B981' : '#121212',
                       boxShadow: checked === 'correct' ? '0 5px 0 0 #059669, 0 8px 20px rgba(16,185,129,0.3)' : '0 5px 0 0 #000000, 0 8px 20px rgba(0,48,94,0.25)',

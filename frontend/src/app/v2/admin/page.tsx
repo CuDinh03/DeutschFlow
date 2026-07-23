@@ -75,7 +75,7 @@ export default function V2AdminOverviewPage() {
   return (
     <div className="flex min-h-full flex-col">
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         {error && (
           <div className="mb-5">
             <ErrorBanner message={error} onRetry={load} />
@@ -98,9 +98,9 @@ export default function V2AdminOverviewPage() {
 
               <GaSection title={t('roleDistribution')}>
                 {roleSegs.length > 0 ? (
-                  <div className="flex items-center gap-5">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
                     <GaDonut segments={roleSegs} />
-                    <div className="flex-1">
+                    <div className="min-w-0 flex-1">
                       <GaLegend items={roleSegs.map((s) => ({ ...s, display: nfVN.format(s.value) }))} />
                     </div>
                   </div>
@@ -119,10 +119,10 @@ export default function V2AdminOverviewPage() {
                     className="group flex items-center gap-3 border-t border-ga-border py-3 first:border-0"
                   >
                     <span className="h-1.5 w-1.5 shrink-0 bg-ga-yellow" />
-                    <span className="ga-ui text-[14px] text-ga-ink">{item.text}</span>
+                    <span className="ga-ui min-w-0 text-[14px] text-ga-ink">{item.text}</span>
                     <ArrowRight
                       size={16}
-                      className="ml-auto text-ga-subtle transition-colors group-hover:text-ga-accent"
+                      className="ml-auto shrink-0 text-ga-subtle transition-colors group-hover:text-ga-accent"
                       aria-hidden
                     />
                   </Link>

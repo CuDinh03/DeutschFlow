@@ -25,7 +25,7 @@ export interface GradebookTabProps {
 }
 
 const EMPTY_STATE_CLASSES =
-  'border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted'
+  'border border-dashed border-ga-line px-4 py-[40px] text-center text-[14px] text-ga-muted sm:px-6 lg:px-10'
 
 const VIEW_MODE_STORAGE_KEY = 'df.gradebook.viewMode'
 type ViewMode = 'matrix' | 'list'
@@ -161,7 +161,7 @@ export function GradebookTab({ gradebook, classDisplayName }: GradebookTabProps)
               onValueChange={setSkill}
               options={SKILL_FILTER_ORDER.map((value) => ({ value, label: skillFilterLabel(value) }))}
             />
-            <label className="flex items-center gap-2 rounded-ga border border-ga-line bg-ga-surface px-3 py-2">
+            <label className="flex min-w-0 flex-1 items-center gap-2 rounded-ga border border-ga-line bg-ga-surface px-3 py-2 sm:flex-none">
               <Search size={15} className="text-ga-subtle" aria-hidden />
               <input
                 type="search"

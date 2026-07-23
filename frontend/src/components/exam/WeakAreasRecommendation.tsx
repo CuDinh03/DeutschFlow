@@ -79,8 +79,8 @@ export function WeakAreasRecommendation({ weakAreas }: WeakAreasRecommendationPr
                   {meta.icon}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="font-bold text-sm text-[#0F172A]">{section} — {meta.label}</p>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="min-w-0 font-bold text-sm text-[#0F172A]">{section} — {meta.label}</p>
                     <span
                       className="text-xs font-bold px-2 py-0.5 rounded-full shrink-0"
                       style={{ background: meta.color + '18', color: meta.color }}

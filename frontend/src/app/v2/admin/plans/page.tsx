@@ -82,16 +82,16 @@ export default function V2AdminPlansPage() {
         }
       />
 
-      <div className="flex-1 px-10 py-7">
+      <div className="flex-1 px-4 py-5 sm:px-6 lg:px-10 lg:py-7">
         {loading ? (
-          <div className="grid grid-cols-2 gap-[18px] sm:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-[18px] sm:grid-cols-3 xl:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="ga-shimmer h-[180px] border border-ga-line" aria-hidden />
             ))}
           </div>
         ) : error ? (
-          <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-            <h2 className="font-ga-display text-[26px] font-medium leading-[1.2] text-ga-red">
+          <div className="border border-ga-line bg-ga-card px-4 py-10 text-center sm:px-6 lg:px-10 lg:py-[52px]">
+            <h2 className="font-ga-display text-[20px] font-medium leading-[1.2] text-ga-red lg:text-[26px]">
               {t('loadError')}
             </h2>
             <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14.5px] text-ga-muted">
@@ -102,13 +102,13 @@ export default function V2AdminPlansPage() {
             </GaBtn>
           </div>
         ) : data.length === 0 ? (
-          <div className="border border-dashed border-ga-line px-10 py-10 text-center">
+          <div className="border border-dashed border-ga-line px-4 py-8 text-center sm:px-6 lg:px-10 lg:py-10">
             <p className="ga-ui text-[14.5px] text-ga-muted">{t('empty')}</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-[18px] sm:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-[18px] sm:grid-cols-3 xl:grid-cols-4">
             {data.map((p, i) => (
-              <div key={p.code} className="relative border border-ga-line bg-ga-card p-6">
+              <div key={p.code} className="relative min-w-0 border border-ga-line bg-ga-card p-5 lg:p-6">
                 <div
                   className="absolute inset-x-0 top-0 h-[3px]"
                   style={{ background: TIER_COLORS[i % TIER_COLORS.length] }}
@@ -130,7 +130,7 @@ export default function V2AdminPlansPage() {
                 <button
                   type="button"
                   onClick={() => toast(t('editPlan', { name: p.name }))}
-                  className="ga-ui w-full rounded-ga border border-ga-line py-[9px] text-[12.5px] font-semibold text-ga-ink transition-colors hover:border-ga-accent hover:text-ga-accent"
+                  className="ga-ui min-h-[40px] w-full rounded-ga border border-ga-line py-[9px] text-[12.5px] font-semibold text-ga-ink transition-colors hover:border-ga-accent hover:text-ga-accent lg:min-h-0"
                 >
                   {t('edit')}
                 </button>

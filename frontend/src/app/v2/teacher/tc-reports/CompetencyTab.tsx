@@ -36,7 +36,7 @@ export function CompetencyTab({ competency }: { competency: ClassCompetency | nu
 
   if (!competency || competency.items.length === 0) {
     return (
-      <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">
+      <div className="border border-dashed border-ga-line px-4 py-[40px] text-center text-[14px] text-ga-muted sm:px-6 lg:px-10">
         {t('competency.empty')}
       </div>
     )
@@ -48,7 +48,7 @@ export function CompetencyTab({ competency }: { competency: ClassCompetency | nu
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="ga-ui text-[13px] text-ga-muted">{t('competency.enrolledLabel', { count: enrolled })}</span>
-        <div className="flex items-center gap-3 text-[11px] text-ga-muted">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-ga-muted lg:flex-nowrap">
           <Legend color="var(--ga-green)" label={t('competency.legendMastered')} />
           <Legend color="var(--ga-gold)" label={t('competency.legendInProgress')} />
           <Legend color="var(--ga-side-active)" label={t('competency.legendNotStarted')} />

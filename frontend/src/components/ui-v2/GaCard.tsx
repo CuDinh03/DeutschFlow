@@ -20,7 +20,12 @@ export function GaCard({ className, hover = false, ...props }: GaCardProps) {
 }
 
 export function GaCardHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('flex items-start justify-between gap-4 p-6 pb-0', className)} {...props} />
+  return (
+    <div
+      className={cn('flex flex-wrap items-start justify-between gap-4 p-4 pb-0 lg:flex-nowrap lg:p-6 lg:pb-0', className)}
+      {...props}
+    />
+  )
 }
 
 export function GaCardTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
@@ -30,5 +35,5 @@ export function GaCardTitle({ className, ...props }: React.HTMLAttributes<HTMLHe
 }
 
 export function GaCardBody({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('p-6', className)} {...props} />
+  return <div className={cn('p-4 lg:p-6', className)} {...props} />
 }

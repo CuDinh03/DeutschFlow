@@ -192,11 +192,11 @@ function GrammarPractice() {
   return (
     <div className="flex min-h-full flex-col">
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         <div className="mx-auto max-w-2xl space-y-[22px]">
           {!activeTopic ? (
             <>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <GaCap>{t('topicsCap')}</GaCap>
                 <TkSeg
                   aria-label={t('levelLabel')}
@@ -220,13 +220,13 @@ function GrammarPractice() {
                       <button
                         type="button"
                         onClick={() => openTopic(topic)}
-                        className="flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-ga-surface"
+                        className="flex w-full items-center gap-3 px-4 py-4 text-left transition-colors hover:bg-ga-surface lg:gap-4 lg:px-5"
                       >
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-[15px] font-semibold text-ga-ink">{topic.title_de}</p>
                           <p className="ga-ui mt-0.5 truncate text-[13px] text-ga-muted">{topic.title_vi}</p>
                           <div className="mt-2 flex items-center gap-3">
-                            <span className="h-1.5 w-40 overflow-hidden rounded-ga-pill bg-ga-border">
+                            <span className="h-1.5 w-24 shrink overflow-hidden rounded-ga-pill bg-ga-border sm:w-32 lg:w-40">
                               <span
                                 className="block h-full rounded-ga-pill"
                                 style={{
@@ -235,7 +235,7 @@ function GrammarPractice() {
                                 }}
                               />
                             </span>
-                            <span className="ga-ui text-[12px] text-ga-subtle">
+                            <span className="ga-ui shrink-0 text-[12px] text-ga-subtle">
                               {t('mastery', { percent: topic.mastery_percent })}
                             </span>
                           </div>
@@ -257,7 +257,7 @@ function GrammarPractice() {
                     trackFeatureAction('grammar', 'quit', { topicId: activeTopic.id, progress: currentIdx })
                     resetTopic()
                   }}
-                  className="grid h-9 w-9 place-items-center rounded-ga border border-ga-line bg-ga-card text-ga-muted transition-colors hover:bg-ga-surface"
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-ga border border-ga-line bg-ga-card text-ga-muted transition-colors hover:bg-ga-surface lg:h-9 lg:w-9"
                   aria-label={t('back')}
                 >
                   <ArrowLeft size={16} aria-hidden />
@@ -288,9 +288,9 @@ function GrammarPractice() {
                     <div className="h-full rounded-ga-pill bg-ga-accent transition-[width]" style={{ width: `${progress}%` }} />
                   </div>
 
-                  <GaCard className="p-6">
+                  <GaCard className="p-4 lg:p-6">
                     <GaCap className="mb-3 block">{prompt.options ? t('typeChoice') : t('typeOpen')}</GaCap>
-                    <p className="font-ga-display text-[22px] font-medium leading-snug text-ga-ink">{prompt.prompt}</p>
+                    <p className="break-words font-ga-display text-[18px] font-medium leading-snug text-ga-ink sm:text-[20px] lg:text-[22px]">{prompt.prompt}</p>
 
                     {prompt.options?.length ? (
                       <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -352,7 +352,7 @@ function GrammarPractice() {
 
                   {result && (
                     <div
-                      className="rounded-ga border-2 p-5"
+                      className="rounded-ga border-2 p-4 lg:p-5"
                       style={{
                         borderColor: result.correct ? 'var(--ga-green)' : 'var(--ga-red)',
                         background: result.correct ? 'var(--ga-green-soft)' : 'var(--ga-red-soft)',

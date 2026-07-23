@@ -68,7 +68,7 @@ export default function V2OrgStudentsPage() {
         }
       />
 
-      <div className="flex-1 overflow-auto px-10 py-6">
+      <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
         <TkStatStrip
           items={[
             { label: t('stats.totalStudents'), value: analytics?.studentCount ?? members.length, sub: t('stats.usingSeats') },
@@ -78,32 +78,32 @@ export default function V2OrgStudentsPage() {
           ]}
         />
 
-        <div className="mb-3.5 mt-[22px] flex items-center justify-between gap-3">
+        <div className="mb-3.5 mt-[22px] flex flex-wrap items-center justify-between gap-3">
           <GaCap>{t('count', { count: rows.length })}</GaCap>
-          <TkSearch value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('searchPlaceholder')} containerClassName="w-[240px]" />
+          <TkSearch value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('searchPlaceholder')} containerClassName="w-full sm:w-[240px]" />
         </div>
 
         {loading ? (
           <div className="flex flex-col gap-2">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="ga-shimmer h-[54px] border border-ga-line" aria-hidden />)}</div>
         ) : error ? (
-          <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadError')}</h2>
-            <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">{error} <code className="font-mono text-[12px] text-ga-accent">GET /api/org/members</code></p>
+          <div className="border border-ga-line bg-ga-card px-4 py-8 sm:px-8 lg:px-10 lg:py-[52px] text-center">
+            <h2 className="font-ga-display text-[20px] font-medium text-ga-red lg:text-[24px]">{t('loadError')}</h2>
+            <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm break-words text-[14px] text-ga-muted">{error} <code className="font-mono text-[12px] text-ga-accent">GET /api/org/members</code></p>
             <GaBtn variant="primary" onClick={load}>{tc('retry')}</GaBtn>
           </div>
         ) : rows.length === 0 ? (
-          <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">
+          <div className="border border-dashed border-ga-line px-4 py-8 text-center text-[14px] text-ga-muted sm:px-8 lg:px-10 lg:py-[40px]">
             {members.length === 0 ? t('emptyOrg') : t('emptySearch')}
           </div>
         ) : (
-          <div className="border border-ga-line bg-ga-card">
-            <div className="grid items-center gap-2 border-b border-ga-line bg-ga-bg px-5 py-[11px]" style={{ gridTemplateColumns: '1fr 130px 120px 84px' }}>
+          <div className="overflow-x-auto border border-ga-line bg-ga-card lg:overflow-visible">
+            <div className="grid min-w-[620px] items-center gap-2 border-b border-ga-line bg-ga-bg px-5 py-[11px] lg:min-w-0" style={{ gridTemplateColumns: '1fr 130px 120px 84px' }}>
               {[t('colStudent'), t('colStatus'), t('colJoined'), ''].map((h, i) => (
                 <span key={i} className="ga-ui text-[10px] font-bold uppercase tracking-[0.1em] text-ga-muted">{h}</span>
               ))}
             </div>
             {rows.map((m, i) => (
-              <div key={m.userId} className="grid items-center gap-2 px-5 py-3.5 transition-colors hover:bg-ga-surface" style={{ gridTemplateColumns: '1fr 130px 120px 84px', borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
+              <div key={m.userId} className="grid min-w-[620px] items-center gap-2 px-5 py-3.5 transition-colors hover:bg-ga-surface lg:min-w-0" style={{ gridTemplateColumns: '1fr 130px 120px 84px', borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
                 <div className="flex min-w-0 items-center gap-2.5">
                   <span className="grid h-8 w-8 shrink-0 place-items-center font-ga-display text-[13px] font-medium" style={{ color: TEAL, background: 'var(--ga-teal-soft)' }}>{initial(m.displayName)}</span>
                   <span className="min-w-0">
@@ -117,7 +117,7 @@ export default function V2OrgStudentsPage() {
                   </span>
                 </span>
                 <span className="flex items-center gap-1 text-[12.5px] text-ga-muted"><Clock size={12} /> {fmtDate(m.joinedAt)}</span>
-                <button type="button" onClick={() => router.push(`/v2/org/students/${m.userId}`)} className="ga-ui justify-self-end border border-ga-line px-2.5 py-1.5 text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent">
+                <button type="button" onClick={() => router.push(`/v2/org/students/${m.userId}`)} className="ga-ui inline-flex min-h-[40px] items-center justify-center justify-self-end border border-ga-line px-2.5 py-1.5 text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent lg:min-h-0">
                   {t('profile')}
                 </button>
               </div>

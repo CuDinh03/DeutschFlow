@@ -87,10 +87,15 @@ export function GaSection({
 }) {
   return (
     <GaCard className={cn('overflow-hidden', className)}>
-      <div className="flex items-center justify-between gap-3 border-b border-ga-border px-5 py-[14px]">
-        <h3 className="font-ga-display text-[17px] font-medium text-ga-ink">{title}</h3>
+      {/* Dưới lg: hàng tiêu đề được phép xuống dòng để slot `right` (chú thích / bộ đếm) không
+          bóp tiêu đề còn min-content. Từ lg giữ nguyên một hàng + đệm 20px như thiết kế gốc. */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ga-border px-4 py-[14px] lg:flex-nowrap lg:px-5">
+        <h3 className="min-w-0 font-ga-display text-[17px] font-medium text-ga-ink lg:min-w-[auto]">{title}</h3>
         {right}
       </div>
+      {/* Đệm thân giữ nguyên `p-5` ở MỌI khổ có chủ ý: 9 nơi gọi truyền `bodyClassName="p-0"`
+          (các bảng cuộn ngang) và twMerge chỉ khử được lớp cùng tiền tố — thêm `lg:p-5` sẽ làm
+          các bảng đó mọc lại 20px đệm ở desktop. Đã đo: ở 320px thân section còn ~246px, không tràn. */}
       <div className={cn('p-5', bodyClassName)}>{children}</div>
     </GaCard>
   )
@@ -351,9 +356,11 @@ export function GaBarRow({
   const pct = max > 0 ? Math.round((value / max) * 100) : 0
   return (
     <div className="py-[9px]">
-      <div className="ga-ui mb-1.5 flex items-center justify-between text-[13px]">
-        <span className="text-ga-ink">{label}</span>
-        <span className="font-medium text-ga-muted">{display ?? value}</span>
+      {/* Nhãn (tên ngành / variant / phase) có thể rất dài: không có min-w-0 thì min-content của
+          nhãn đẩy cột giá trị ra khỏi thẻ ở khổ hẹp. Nhãn co + cắt bớt, giá trị không co. */}
+      <div className="ga-ui mb-1.5 flex items-center justify-between gap-2 text-[13px] lg:gap-0">
+        <span className="min-w-0 truncate text-ga-ink">{label}</span>
+        <span className="shrink-0 font-medium text-ga-muted">{display ?? value}</span>
       </div>
       <div className="h-[7px] overflow-hidden rounded-[3px] bg-ga-border">
         <div className="h-full rounded-[3px] transition-[width]" style={{ width: `${pct}%`, background: color }} />

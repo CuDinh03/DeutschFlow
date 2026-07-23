@@ -79,7 +79,7 @@ export function CreateOrgModal({ onClose, onCreated }: { onClose: () => void; on
       {error && <ErrorBanner className="mb-4" message={error} />}
 
       <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="block">
             <GaCap>Tên trung tâm</GaCap>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Trung tâm ABC" className={INPUT_CLS} />
@@ -90,7 +90,7 @@ export function CreateOrgModal({ onClose, onCreated }: { onClose: () => void; on
           </label>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="block">
             <GaCap>Gói</GaCap>
             <input value={planCode} onChange={(e) => setPlanCode(e.target.value)} placeholder="PRO" className={INPUT_CLS} />
@@ -125,7 +125,7 @@ export function CreateOrgModal({ onClose, onCreated }: { onClose: () => void; on
                 className={INPUT_CLS}
               />
             </label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label className="block">
                 <GaCap>Tên Owner</GaCap>
                 <input value={ownerName} onChange={(e) => setOwnerName(e.target.value)} placeholder="Nguyễn Văn A" className={INPUT_CLS} />

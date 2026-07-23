@@ -56,7 +56,7 @@ export default function V2AdminClassesPage() {
     <div className="flex min-h-full flex-col">
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
 
-      <div className="flex-1 overflow-auto px-10 py-6">
+      <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
         <TkStatStrip
           items={[
             { label: t('stats.totalClasses'), value: items.length, sub: t('stats.totalClassesSub') },
@@ -65,9 +65,9 @@ export default function V2AdminClassesPage() {
           ]}
         />
 
-        <div className="mb-3.5 mt-[22px] flex items-center justify-between gap-3">
+        <div className="mb-3.5 mt-[22px] flex flex-wrap items-center justify-between gap-3">
           <GaCap>{t('count', { count: rows.length })}</GaCap>
-          <TkSearch value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('searchPlaceholder')} containerClassName="w-[260px]" />
+          <TkSearch value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('searchPlaceholder')} containerClassName="w-full sm:w-[260px]" />
         </div>
 
         {loading ? (
@@ -75,18 +75,18 @@ export default function V2AdminClassesPage() {
             {Array.from({ length: 6 }).map((_, i) => <div key={i} className="ga-shimmer h-[54px] border border-ga-line" aria-hidden />)}
           </div>
         ) : error ? (
-          <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadError')}</h2>
+          <div className="border border-ga-line bg-ga-card px-4 py-10 text-center sm:px-6 lg:px-10 lg:py-[52px]">
+            <h2 className="font-ga-display text-[20px] font-medium text-ga-red lg:text-[24px]">{t('loadError')}</h2>
             <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">{error} <code className="font-mono text-[12px] text-ga-accent">GET /api/admin/classes</code></p>
             <GaBtn variant="primary" onClick={load}>{tc('retry')}</GaBtn>
           </div>
         ) : rows.length === 0 ? (
-          <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">
+          <div className="border border-dashed border-ga-line px-4 py-8 text-center text-[14px] text-ga-muted sm:px-6 lg:px-10 lg:py-[40px]">
             {items.length === 0 ? t('emptyOrg') : t('emptySearch')}
           </div>
         ) : (
-          <div className="border border-ga-line bg-ga-card">
-            <div className="grid items-center gap-2 border-b border-ga-line bg-ga-bg px-5 py-[11px]" style={{ gridTemplateColumns: GRID }}>
+          <div className="overflow-x-auto border border-ga-line bg-ga-card lg:overflow-visible">
+            <div className="grid min-w-[600px] items-center gap-2 border-b border-ga-line bg-ga-bg px-5 py-[11px] lg:min-w-0" style={{ gridTemplateColumns: GRID }}>
               {[
                 { key: 'colId', label: t('colId') },
                 { key: 'colClass', label: t('colClass') },
@@ -97,7 +97,7 @@ export default function V2AdminClassesPage() {
               ))}
             </div>
             {rows.map((c, i) => (
-              <div key={c.id} className="grid items-center gap-2 px-5 py-3.5 transition-colors hover:bg-ga-surface" style={{ gridTemplateColumns: GRID, borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
+              <div key={c.id} className="grid min-w-[600px] items-center gap-2 px-5 py-3.5 transition-colors hover:bg-ga-surface lg:min-w-0" style={{ gridTemplateColumns: GRID, borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
                 <span className="font-mono text-[12px] text-ga-muted">#{c.id}</span>
                 <span className="truncate text-[14px] font-semibold text-ga-ink">{c.name}</span>
                 <span className="min-w-0 truncate text-[13px] text-ga-muted">

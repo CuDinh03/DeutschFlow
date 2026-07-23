@@ -67,21 +67,21 @@ export default function V2MyClassesPage() {
     <div className="flex min-h-full flex-col">
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
 
-      <div className="flex-1 overflow-auto px-10 py-7">
+      <div className="flex-1 overflow-auto px-4 py-5 sm:px-6 lg:px-10 lg:py-7">
         {/* Join by invite code */}
-        <div className="mb-8 flex max-w-[560px] border border-ga-line bg-ga-card">
+        <div className="mb-8 flex w-full max-w-[560px] border border-ga-line bg-ga-card">
           <input
             value={code}
             onChange={(e) => setCode(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && join()}
             placeholder={t('codePlaceholder')}
-            className="ga-ui flex-1 bg-transparent px-[18px] py-[15px] text-[15px] tracking-[0.04em] text-ga-ink outline-none"
+            className="ga-ui min-w-0 flex-1 bg-transparent px-4 py-3.5 text-[15px] tracking-[0.04em] text-ga-ink outline-none lg:px-[18px] lg:py-[15px]"
           />
           <button
             type="button"
             onClick={join}
             disabled={joining}
-            className="ga-ui flex shrink-0 items-center gap-2 bg-ga-ink px-6 py-[15px] text-[14px] font-semibold text-ga-bg transition-opacity hover:opacity-90 disabled:opacity-60"
+            className="ga-ui flex shrink-0 items-center gap-2 bg-ga-ink px-4 py-3.5 text-[14px] font-semibold text-ga-bg transition-opacity hover:opacity-90 disabled:opacity-60 lg:px-6 lg:py-[15px]"
           >
             <Plus size={16} /> {t('joinBtn')}
           </button>
@@ -94,13 +94,13 @@ export default function V2MyClassesPage() {
             {Array.from({ length: 2 }).map((_, i) => <div key={i} className="ga-shimmer h-[196px] border border-ga-line" aria-hidden />)}
           </div>
         ) : error ? (
-          <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
+          <div className="border border-ga-line bg-ga-card px-4 py-10 text-center sm:px-6 lg:px-10 lg:py-[52px]">
             <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadErrorTitle')}</h2>
             <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">{error}</p>
             <GaBtn variant="primary" onClick={load}>{tc('retry')}</GaBtn>
           </div>
         ) : classes.length === 0 ? (
-          <div className="border border-dashed border-ga-line px-10 py-[44px] text-center">
+          <div className="border border-dashed border-ga-line px-4 py-9 text-center sm:px-6 lg:px-10 lg:py-[44px]">
             <p className="ga-ui text-[14.5px] text-ga-muted">{t('emptyState')}</p>
           </div>
         ) : (
@@ -109,7 +109,7 @@ export default function V2MyClassesPage() {
               const pct = progressPct(c)
               return (
                 <div key={c.id} className="ga-card-hover border border-ga-line bg-ga-card transition-shadow">
-                  <div className="border-b border-ga-line px-6 py-[22px]">
+                  <div className="border-b border-ga-line px-4 py-5 lg:px-6 lg:py-[22px]">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex min-w-0 gap-3.5">
                         <span className="grid h-11 w-11 shrink-0 place-items-center font-ga-display text-[20px] font-semibold text-ga-ink" style={{ background: 'var(--ga-yellow-soft)' }}>
@@ -136,7 +136,7 @@ export default function V2MyClassesPage() {
                       <div className="h-[5px] bg-ga-line"><div className="h-full" style={{ width: `${pct}%`, background: 'var(--ga-yellow)' }} /></div>
                     </div>
                   </div>
-                  <div className="flex gap-2.5 px-6 py-3.5">
+                  <div className="flex flex-wrap gap-2.5 px-4 py-3.5 lg:px-6">
                     <GaBtn variant="yellow" size="sm" onClick={() => router.push(`/v2/student/classes/${c.id}`)}>{t('enterClass')}</GaBtn>
                     <GaBtn variant="ghost" size="sm" onClick={() => toast(t('messageTeacherSoon'))}><MessageSquare size={14} /> {t('messageTeacher')}</GaBtn>
                   </div>

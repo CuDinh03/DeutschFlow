@@ -44,10 +44,10 @@ function coverageColor(p: number): string {
 /** Daily coverage bar row. */
 function CovRow({ date, value, right, idx }: { date: string; value: number; right: string; idx: number }) {
   return (
-    <div className="px-5 py-3" style={{ borderTop: idx ? '1px solid var(--ga-line)' : 'none' }}>
-      <div className="mb-1.5 flex items-center justify-between gap-3 text-[12.5px]">
+    <div className="px-4 py-3 lg:px-5" style={{ borderTop: idx ? '1px solid var(--ga-line)' : 'none' }}>
+      <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[12.5px] lg:flex-nowrap">
         <span className="font-mono text-ga-muted">{(date ?? '').slice(0, 10)}</span>
-        <span className="shrink-0 font-semibold text-ga-ink">{right}</span>
+        <span className="font-semibold text-ga-ink lg:shrink-0">{right}</span>
       </div>
       <span className="block h-1.5 bg-ga-line">
         <span
@@ -111,7 +111,7 @@ export default function V2VocabularyQualityPage() {
           </div>
         }
       />
-      <div className="flex-1 overflow-auto px-10 py-6">
+      <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
         {loading ? (
           <div className="flex flex-col gap-2">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -119,17 +119,17 @@ export default function V2VocabularyQualityPage() {
             ))}
           </div>
         ) : error ? (
-          <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadError')}</h2>
-            <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">
-              {error} <code className="font-mono text-[12px] text-ga-accent">GET /api/admin/reports/vocabulary-quality</code>
+          <div className="border border-ga-line bg-ga-card px-4 py-10 text-center sm:px-6 lg:px-10 lg:py-[52px]">
+            <h2 className="font-ga-display text-[20px] font-medium text-ga-red lg:text-[24px]">{t('loadError')}</h2>
+            <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm break-words text-[14px] text-ga-muted">
+              {error} <code className="break-words font-mono text-[12px] text-ga-accent">GET /api/admin/reports/vocabulary-quality</code>
             </p>
             <GaBtn variant="primary" onClick={load}>
               {tc('retry')}
             </GaBtn>
           </div>
         ) : empty ? (
-          <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">
+          <div className="border border-dashed border-ga-line px-4 py-[40px] text-center text-[14px] text-ga-muted sm:px-6 lg:px-10">
             {t('emptyRange', { days })}
           </div>
         ) : (

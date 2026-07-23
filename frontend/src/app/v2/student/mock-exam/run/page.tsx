@@ -337,20 +337,20 @@ function MockExamRunner() {
   return (
     <div className="flex min-h-full flex-col">
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         <div className="mx-auto max-w-3xl space-y-6">
           {view === 'review' && reviewData ? (
             <>
               <button
                 type="button"
                 onClick={() => setView('result')}
-                className="ga-ui inline-flex items-center gap-2 text-[13px] font-semibold text-ga-muted hover:text-ga-ink"
+                className="ga-ui inline-flex min-h-10 items-center gap-2 text-[13px] font-semibold text-ga-muted hover:text-ga-ink lg:min-h-0"
               >
                 <ArrowLeft size={16} aria-hidden /> {t('backToResult')}
               </button>
 
-              <GaCard className="px-6 py-5">
-                <h2 className="font-ga-display text-[22px] font-medium text-ga-ink">{t('reviewTitle')}</h2>
+              <GaCard className="px-4 py-5 lg:px-6">
+                <h2 className="font-ga-display text-[18px] font-medium text-ga-ink sm:text-[20px] lg:text-[22px]">{t('reviewTitle')}</h2>
                 <p className="ga-ui mt-1 text-[13px] text-ga-muted">{t('reviewTotal', { score: reviewData.totalScore })}</p>
               </GaCard>
 
@@ -363,14 +363,14 @@ function MockExamRunner() {
                   {section.items.map((item, qIdx) => (
                     <div
                       key={item.id}
-                      className="space-y-3 rounded-ga border bg-ga-card p-5"
+                      className="space-y-3 rounded-ga border bg-ga-card p-4 lg:p-5"
                       style={{ borderColor: item.isCorrect ? 'var(--ga-green)' : 'var(--ga-red)' }}
                     >
-                      <p className="ga-ui text-[14px] font-semibold text-ga-ink">
+                      <p className="ga-ui break-words text-[14px] font-semibold text-ga-ink">
                         {qIdx + 1}. {item.prompt}
                       </p>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         {item.userAnswer === null ? (
                           <TkBadge tone="neutral">{t('notAnswered')}</TkBadge>
                         ) : item.isCorrect ? (
@@ -386,7 +386,7 @@ function MockExamRunner() {
                       </div>
 
                       {!item.isCorrect && (
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <TkBadge tone="green">
                             <Check size={12} strokeWidth={3} aria-hidden /> {item.correctAnswer}
                           </TkBadge>
@@ -409,19 +409,19 @@ function MockExamRunner() {
               <button
                 type="button"
                 onClick={() => setView('list')}
-                className="ga-ui inline-flex items-center gap-2 text-[13px] font-semibold text-ga-muted hover:text-ga-ink"
+                className="ga-ui inline-flex min-h-10 items-center gap-2 text-[13px] font-semibold text-ga-muted hover:text-ga-ink lg:min-h-0"
               >
                 <ArrowLeft size={16} aria-hidden /> {t('back')}
               </button>
 
               <div
-                className="rounded-ga p-6 text-white"
+                className="rounded-ga p-4 text-white lg:p-6"
                 style={{ background: selectedAttempt.passed ? 'var(--ga-green)' : 'var(--ga-ink)' }}
               >
                 <div className="flex items-center gap-3">
-                  {selectedAttempt.passed ? <Trophy size={28} aria-hidden /> : <AlertCircle size={28} aria-hidden />}
-                  <div>
-                    <p className="font-ga-display text-[22px] font-medium">
+                  {selectedAttempt.passed ? <Trophy size={28} className="shrink-0" aria-hidden /> : <AlertCircle size={28} className="shrink-0" aria-hidden />}
+                  <div className="min-w-0">
+                    <p className="font-ga-display text-[18px] font-medium sm:text-[20px] lg:text-[22px]">
                       {selectedAttempt.passed ? t('resultPassed') : t('resultFailed')}
                     </p>
                     <p className="ga-ui text-[13px] opacity-80">
@@ -475,7 +475,7 @@ function MockExamRunner() {
             <>
               {/* Available exams */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <GaCap>{t('availableCap')}</GaCap>
                   <TkSeg
                     aria-label={t('availableCap')}
@@ -498,12 +498,12 @@ function MockExamRunner() {
                     return (
                       <GaCard
                         key={exam.id}
-                        className="flex items-start justify-between gap-4 p-5"
+                        className="flex flex-col gap-4 p-4 sm:flex-row sm:items-start sm:justify-between lg:p-5"
                         style={isRecommended ? { borderColor: 'var(--ga-accent)' } : undefined}
                       >
                         <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="text-[15px] font-semibold text-ga-ink">{exam.title}</p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="break-words text-[15px] font-semibold text-ga-ink">{exam.title}</p>
                             {isRecommended && <TkBadge tone="yellow">{t('recommended')}</TkBadge>}
                           </div>
                           <p className="ga-ui mt-1 flex flex-wrap items-center gap-3 text-[12.5px] text-ga-muted">
@@ -516,7 +516,7 @@ function MockExamRunner() {
                         <button
                           type="button"
                           onClick={() => startExam(exam.id, exam.time_limit_minutes, exam.title)}
-                          className="ga-ui inline-flex shrink-0 items-center gap-2 rounded-ga bg-ga-accent px-5 py-2.5 text-[13px] font-semibold text-ga-accent-ink transition-opacity hover:opacity-90"
+                          className="ga-ui inline-flex shrink-0 items-center justify-center gap-2 rounded-ga bg-ga-accent px-5 py-3 text-[13px] font-semibold text-ga-accent-ink transition-opacity hover:opacity-90 sm:justify-start lg:py-2.5"
                         >
                           <Play size={15} aria-hidden /> {t('start')}
                         </button>
@@ -534,7 +534,7 @@ function MockExamRunner() {
                     {attempts.map((att, i) => (
                       <div
                         key={att.id}
-                        className={`flex items-center justify-between gap-4 px-5 py-4 ${i ? 'border-t border-ga-border' : ''}`}
+                        className={`flex flex-wrap items-center justify-between gap-4 px-4 py-4 lg:px-5 ${i ? 'border-t border-ga-border' : ''}`}
                       >
                         <div className="min-w-0">
                           <p className="ga-ui text-[14px] font-semibold text-ga-ink">
@@ -562,7 +562,7 @@ function MockExamRunner() {
                                 setSelectedAttempt(att)
                                 setView('result')
                               }}
-                              className="ga-ui inline-flex items-center gap-1 rounded-ga border border-ga-line px-3 py-1.5 text-[12px] font-semibold text-ga-accent transition-colors hover:bg-ga-surface"
+                              className="ga-ui inline-flex min-h-10 items-center gap-1 rounded-ga border border-ga-line px-3 py-1.5 text-[12px] font-semibold text-ga-accent transition-colors hover:bg-ga-surface lg:min-h-0"
                             >
                               {t('detail')} <ChevronRight size={12} strokeWidth={3} aria-hidden />
                             </button>
@@ -570,7 +570,7 @@ function MockExamRunner() {
                             <button
                               type="button"
                               onClick={() => resumeExam(att)}
-                              className="ga-ui inline-flex items-center gap-1 rounded-ga border border-ga-line px-3 py-1.5 text-[12px] font-semibold transition-colors hover:bg-ga-surface"
+                              className="ga-ui inline-flex min-h-10 items-center gap-1 rounded-ga border border-ga-line px-3 py-1.5 text-[12px] font-semibold transition-colors hover:bg-ga-surface lg:min-h-0"
                               style={{ color: 'var(--ga-green)' }}
                             >
                               {t('resume')} <Play size={12} aria-hidden />

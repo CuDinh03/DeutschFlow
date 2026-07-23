@@ -169,7 +169,7 @@ export function SprechenTeil2Simulator({ onFinish }: { onFinish?: (score: number
 
   if (stage === 'START') {
     return (
-      <div className="flex flex-col items-center justify-center p-12 bg-white rounded-2xl border border-slate-200 shadow-sm">
+      <div className="flex flex-col items-center justify-center p-8 lg:p-12 bg-white rounded-2xl border border-slate-200 shadow-sm">
         <Loader2 className="animate-spin text-indigo-500 mb-4" size={32} />
         <p className="text-slate-500 font-medium">Đang chuẩn bị thẻ bài...</p>
       </div>
@@ -178,7 +178,7 @@ export function SprechenTeil2Simulator({ onFinish }: { onFinish?: (score: number
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-      <div className="bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-4">
+      <div className="bg-gradient-to-r from-indigo-500 to-purple-600 px-4 lg:px-6 py-4">
         <h3 className="font-bold text-white text-lg flex items-center gap-2">
           <Mic size={20} />
           Mock Exam: Sprechen Teil 2
@@ -186,17 +186,17 @@ export function SprechenTeil2Simulator({ onFinish }: { onFinish?: (score: number
         <p className="text-white/80 text-sm">Um Informationen bitten und Informationen geben</p>
       </div>
 
-      <div className="p-6">
+      <div className="p-4 lg:p-6">
         {/* The Card */}
         {card && stage !== 'FINISHED' && (
           <div className="flex flex-col items-center mb-8">
             <p className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Thẻ bài của bạn</p>
-            <div className="w-64 aspect-[3/2] bg-[#FDFDEA] border-2 border-slate-300 shadow-md flex flex-col relative transform transition-transform hover:scale-105">
+            <div className="w-64 max-w-full aspect-[3/2] bg-[#FDFDEA] border-2 border-slate-300 shadow-md flex flex-col relative transform transition-transform hover:scale-105">
               <div className="bg-sky-700 text-white text-center py-2 font-bold text-sm">
                 Thema: {card.thema}
               </div>
               <div className="flex-1 flex items-center justify-center">
-                <span className="font-black text-3xl text-slate-800">{card.wort}</span>
+                <span className="font-black text-3xl text-slate-800 break-words text-center">{card.wort}</span>
               </div>
             </div>
           </div>
@@ -260,7 +260,7 @@ export function SprechenTeil2Simulator({ onFinish }: { onFinish?: (score: number
             <h4 className="font-bold text-slate-800">Kết quả đánh giá AI</h4>
             {evaluations.map((ev, idx) => (
               <div key={idx} className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-                <div className="flex justify-between items-start mb-2">
+                <div className="flex flex-wrap justify-between items-start gap-2 mb-2">
                   <span className="text-xs font-bold uppercase text-slate-500 bg-white px-2 py-1 rounded shadow-sm border border-slate-100">
                     {ev.type === 'USER_ASK' ? 'Lượt 1: Bạn đặt câu hỏi' : 'Lượt 2: Bạn trả lời'}
                   </span>

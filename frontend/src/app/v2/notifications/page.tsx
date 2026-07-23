@@ -86,7 +86,7 @@ function NotificationsBody() {
           ) : null
         }
       />
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         {error && (
           <div className="mb-5">
             <ErrorBanner message={error} onRetry={() => void load()} />
@@ -115,7 +115,7 @@ function NotificationsBody() {
                         key={n.id}
                         type="button"
                         onClick={() => openNotification(n)}
-                        className={`flex w-full items-start gap-3.5 px-5 py-4 text-left transition-colors hover:bg-ga-surface ${
+                        className={`flex w-full items-start gap-3 px-4 py-4 text-left transition-colors hover:bg-ga-surface lg:gap-3.5 lg:px-5 ${
                           i ? 'border-t border-ga-border' : ''
                         }`}
                       >
@@ -126,8 +126,8 @@ function NotificationsBody() {
                           <GaIcon name={TYPE_ICON[n.type] ?? 'notifications'} size={18} />
                         </span>
                         <div className="min-w-0 flex-1">
-                          <p className="text-[14px] font-semibold capitalize text-ga-ink">{notifTitle(n)}</p>
-                          {body && <p className="ga-ui mt-0.5 text-[13px] text-ga-muted">{body}</p>}
+                          <p className="break-words text-[14px] font-semibold capitalize text-ga-ink">{notifTitle(n)}</p>
+                          {body && <p className="ga-ui mt-0.5 break-words text-[13px] text-ga-muted">{body}</p>}
                           <p className="ga-ui mt-1 text-[11.5px] text-ga-subtle">{relTime(n.createdAtUtc)}</p>
                         </div>
                         {!n.read && <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-ga-accent" aria-label="chưa đọc" />}

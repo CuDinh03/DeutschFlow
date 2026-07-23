@@ -174,19 +174,19 @@ export default function V2TeacherGrammarDraftsPage() {
         }
       />
 
-      <div className="flex-1 overflow-auto px-10 py-6">
+      <div className="flex-1 overflow-auto px-4 py-5 sm:px-6 lg:px-10 lg:py-6">
         <div className="grid gap-6 md:grid-cols-3">
           {/* ── Chủ đề ─────────────────────────────────────────────── */}
           <div className="border border-ga-line bg-ga-card p-4">
             <GaCap className="mb-3 block">{t('topicsCap')}</GaCap>
 
-            <div className="mb-3 flex items-center gap-1.5">
+            <div className="mb-3 flex flex-wrap items-center gap-1.5">
               {LEVELS.map((lv) => (
                 <button
                   key={lv}
                   type="button"
                   onClick={() => { setLevel(lv); setSelectedTopic(null) }}
-                  className="ga-ui border px-2.5 py-1 text-[11.5px] font-bold transition-colors"
+                  className="ga-ui min-h-[40px] min-w-[44px] border px-2.5 py-1 text-[11.5px] font-bold transition-colors lg:min-h-0 lg:min-w-0"
                   style={
                     level === lv
                       ? { color: 'var(--ga-bg)', background: 'var(--ga-accent)', borderColor: 'var(--ga-accent)' }
@@ -216,7 +216,7 @@ export default function V2TeacherGrammarDraftsPage() {
                       <button
                         type="button"
                         onClick={() => setSelectedTopic(open ? null : topic)}
-                        className="ga-ui flex w-full items-center justify-between gap-2 border px-3 py-2 text-left text-[13px] font-medium transition-colors"
+                        className="ga-ui flex min-h-[40px] w-full items-center justify-between gap-2 border px-3 py-2 text-left text-[13px] font-medium transition-colors lg:min-h-0"
                         style={
                           open
                             ? { color: 'var(--ga-accent)', borderColor: 'var(--ga-accent)', background: 'var(--ga-accent-soft)' }
@@ -298,7 +298,7 @@ export default function V2TeacherGrammarDraftsPage() {
                           <FileEdit size={14} />
                         </span>
                         <div className="min-w-0 flex-1">
-                          <p className="text-[14px] font-semibold text-ga-ink">{parsed.prompt ?? t('exerciseFallback')}</p>
+                          <p className="break-words text-[14px] font-semibold text-ga-ink">{parsed.prompt ?? t('exerciseFallback')}</p>
                           <div className="mt-1 flex flex-wrap items-center gap-2">
                             <span
                               className="px-1.5 py-0.5 text-[10px] font-bold uppercase text-ga-muted"
@@ -310,7 +310,7 @@ export default function V2TeacherGrammarDraftsPage() {
                               {t('difficulty', { level: ex.difficulty })}
                             </span>
                             {!selectedTopic && ex.topic_title && (
-                              <span className="truncate text-[11px] text-ga-subtle">{ex.topic_title}</span>
+                              <span className="min-w-0 truncate text-[11px] text-ga-subtle">{ex.topic_title}</span>
                             )}
                           </div>
                         </div>
@@ -324,7 +324,7 @@ export default function V2TeacherGrammarDraftsPage() {
                           <button
                             type="button"
                             onClick={() => setExpandedId(open ? null : ex.id)}
-                            className="text-ga-muted transition-colors hover:text-ga-ink"
+                            className="p-2.5 text-ga-muted transition-colors hover:text-ga-ink lg:p-0"
                             aria-label={t('toggleAria', { id: ex.id })}
                           >
                             {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -364,7 +364,7 @@ export default function V2TeacherGrammarDraftsPage() {
                               type="button"
                               disabled={submittingId === ex.id}
                               onClick={() => submitOne(ex.id)}
-                              className="ga-ui inline-flex items-center gap-1.5 border px-3 py-1.5 text-[11.5px] font-bold transition-colors disabled:opacity-60"
+                              className="ga-ui inline-flex min-h-[40px] items-center gap-1.5 border px-3 py-1.5 text-[11.5px] font-bold transition-colors disabled:opacity-60 lg:min-h-0"
                               style={{ color: 'var(--ga-accent)', borderColor: 'var(--ga-accent)' }}
                             >
                               {submittingId === ex.id ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}

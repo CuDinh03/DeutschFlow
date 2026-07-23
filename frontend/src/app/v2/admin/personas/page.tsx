@@ -217,7 +217,7 @@ export default function V2AdminPersonasPage() {
         }
       />
 
-      <div className="flex-1 overflow-auto px-10 py-[26px]">
+      <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10 lg:py-[26px]">
         <AdStatStrip
           className="mb-6"
           cells={[
@@ -235,13 +235,13 @@ export default function V2AdminPersonasPage() {
             ))}
           </div>
         ) : error ? (
-          <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-            <h2 className="font-ga-display text-[26px] font-medium leading-[1.2] text-ga-red">
+          <div className="border border-ga-line bg-ga-card px-4 py-10 text-center sm:px-6 lg:px-10 lg:py-[52px]">
+            <h2 className="font-ga-display text-[20px] font-medium leading-[1.2] text-ga-red lg:text-[26px]">
               {t('loadError')}
             </h2>
-            <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14.5px] text-ga-muted">
+            <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm break-words text-[14.5px] text-ga-muted">
               {error}{' '}
-              <code className="font-mono text-[12px] text-ga-accent">GET /api/admin/interviews/personas</code>
+              <code className="break-words font-mono text-[12px] text-ga-accent">GET /api/admin/interviews/personas</code>
             </p>
             <GaBtn variant="primary" onClick={() => reload({ silent: false })}>
               {tc('retry')}
@@ -259,7 +259,7 @@ export default function V2AdminPersonasPage() {
                     <div
                       key={p.code}
                       className={cn(
-                        'flex items-center gap-4 border border-ga-line bg-ga-card px-5 py-4 transition-opacity',
+                        'flex items-center gap-4 border border-ga-line bg-ga-card px-4 py-4 transition-opacity lg:px-5',
                         isOff && 'opacity-60',
                       )}
                     >
@@ -268,10 +268,10 @@ export default function V2AdminPersonasPage() {
                       </span>
                       <div className="min-w-0 flex-1">
                         <div className="mb-1 flex items-center gap-2">
-                          <span className="text-[15px] font-bold text-ga-ink">{p.label}</span>
+                          <span className="min-w-0 truncate text-[15px] font-bold text-ga-ink">{p.label}</span>
                           {p.difficulty && (
                             <span
-                              className="px-[7px] py-[3px] text-[9px] font-bold tracking-[0.04em]"
+                              className="shrink-0 px-[7px] py-[3px] text-[9px] font-bold tracking-[0.04em]"
                               style={{ color: tierTone(p.difficulty).c, background: tierTone(p.difficulty).s }}
                             >
                               {p.difficulty}
@@ -310,7 +310,7 @@ export default function V2AdminPersonasPage() {
                         <button
                           type="button"
                           onClick={() => toast(t('editSoon'))}
-                          className="rounded-ga border border-ga-line px-[10px] py-[6px] text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent"
+                          className="rounded-ga border border-ga-line px-[10px] py-2.5 text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent lg:py-[6px]"
                         >
                           {t('edit')}
                         </button>
@@ -323,7 +323,7 @@ export default function V2AdminPersonasPage() {
 
             {/* Rubric = per-template (real BE); A/B below stays client-side (proto) */}
             <div className="flex flex-col gap-5">
-              <section className="border border-ga-line bg-ga-card p-5">
+              <section className="border border-ga-line bg-ga-card p-4 lg:p-5">
                 <GaCap className="mb-3 block">{t('rubricCap')}</GaCap>
                 {rubrics.length === 0 ? (
                   <p className="ga-ui text-[13px] italic text-ga-muted">{t('noRubric')}</p>
@@ -348,8 +348,8 @@ export default function V2AdminPersonasPage() {
                     </label>
                     {Object.entries(weights).map(([k, v]) => (
                       <div key={k} className="mb-4">
-                        <div className="mb-[7px] flex items-center justify-between">
-                          <span className="text-[13px] font-semibold text-ga-ink">{criterionLabel(k)}</span>
+                        <div className="mb-[7px] flex items-center justify-between gap-3">
+                          <span className="min-w-0 text-[13px] font-semibold text-ga-ink">{criterionLabel(k)}</span>
                           <span className="font-ga-display text-[16px] font-medium text-ga-ink">{v}%</span>
                         </div>
                         <input
@@ -366,7 +366,7 @@ export default function V2AdminPersonasPage() {
                       </div>
                     ))}
                     <div
-                      className="mt-1 flex items-center justify-between px-3.5 py-3"
+                      className="mt-1 flex items-center justify-between gap-3 px-3.5 py-3"
                       style={{
                         background: sum === 100 ? 'var(--ga-green-soft)' : 'var(--ga-red-soft)',
                         border: `1px solid ${sum === 100 ? 'rgba(30,158,97,0.27)' : 'rgba(218,41,28,0.27)'}`,
@@ -394,8 +394,8 @@ export default function V2AdminPersonasPage() {
               </section>
 
               {/* A/B câu hỏi (client-side) */}
-              <section className="border border-ga-line bg-ga-card p-5">
-                <div className="mb-3.5 flex items-center justify-between gap-3">
+              <section className="border border-ga-line bg-ga-card p-4 lg:p-5">
+                <div className="mb-3.5 flex flex-wrap items-center justify-between gap-3">
                   <GaCap>{t('abCap')}</GaCap>
                   <TkSeg options={AB_MODES} value={abMode} onValueChange={setAbMode} aria-label={t('abModeAria')} />
                 </div>
@@ -451,8 +451,8 @@ function CreatePersonaModal({ onClose }: { onClose: () => void }) {
       size="md"
       title={t('createTitle')}
       footer={
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-[11.5px] text-ga-subtle">{t('createLockedNote')}</span>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span className="min-w-0 text-[11.5px] text-ga-subtle">{t('createLockedNote')}</span>
           <div className="flex gap-2.5">
             <GaBtn variant="ghost" onClick={onClose}>
               {tc('cancel')}
@@ -464,7 +464,7 @@ function CreatePersonaModal({ onClose }: { onClose: () => void }) {
         </div>
       }
     >
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {FIELDS.map((f) => (
           <label key={f.key} className="block">
             <GaCap className="mb-1.5 block">{t(f.labelKey)}</GaCap>

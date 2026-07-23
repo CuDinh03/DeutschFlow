@@ -150,9 +150,9 @@ export function OrgManagerDashboard() {
     return (
       <div className="flex min-h-full flex-col">
         <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
-        <div className="flex-1 px-10 py-10">
-          <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadError')}</h2>
+        <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
+          <div className="border border-ga-line bg-ga-card px-4 py-8 sm:px-8 lg:px-10 lg:py-[52px] text-center">
+            <h2 className="font-ga-display text-[20px] font-medium text-ga-red lg:text-[24px]">{t('loadError')}</h2>
             <p className="ga-ui mx-auto mb-5 mt-3 max-w-md text-[14px] text-ga-muted">{error || t('loadErrorDesc')}</p>
             <GaBtn variant="primary" onClick={load}>{tc('retry')}</GaBtn>
           </div>
@@ -168,7 +168,7 @@ export function OrgManagerDashboard() {
         title={summary?.name ?? t('title')}
         subtitle={t('subtitle')}
         right={
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5">
             <GaBtn asChild variant="ghost" size="sm">
               <Link href="/v2/org/schedule"><CalendarDays size={15} /> {t('scheduleBtn')}</Link>
             </GaBtn>
@@ -179,7 +179,7 @@ export function OrgManagerDashboard() {
         }
       />
 
-      <div className="flex-1 overflow-auto px-10 py-6">
+      <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
         <TkStatStrip
           items={[
             {
@@ -214,7 +214,7 @@ export function OrgManagerDashboard() {
 
         <div className="mt-6 grid grid-cols-1 gap-[22px] lg:grid-cols-[2fr_1fr]">
           {/* Lịch hôm nay — trục thời gian, cột giờ bên trái, thanh trạng thái theo màu */}
-          <div className="border border-ga-line bg-ga-card p-[22px]">
+          <div className="border border-ga-line bg-ga-card p-4 lg:p-[22px]">
             <div className="mb-4 flex items-center justify-between">
               <GaCap>{t('todayCap', { date: fmtDay(new Date()) })}</GaCap>
               <Link href="/v2/org/schedule" className="text-[12.5px] font-semibold underline" style={{ color: TEAL }}>
@@ -234,7 +234,7 @@ export function OrgManagerDashboard() {
                   return (
                     <li
                       key={s.id}
-                      className="flex items-center gap-4 py-3"
+                      className="flex items-center gap-2.5 py-3 lg:gap-4"
                       style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none' }}
                     >
                       <span className="w-[92px] shrink-0 font-ga-display text-[14px] font-medium text-ga-ink">
@@ -262,7 +262,7 @@ export function OrgManagerDashboard() {
           </div>
 
           {/* Cần xử lý — mỗi dòng dẫn thẳng tới trang xử lý được việc đó */}
-          <div className="border border-ga-line bg-ga-card p-[22px]">
+          <div className="border border-ga-line bg-ga-card p-4 lg:p-[22px]">
             <GaCap className="mb-3.5 block">{t('todoCap')}</GaCap>
             {loading ? (
               <div className="ga-shimmer h-[120px]" aria-hidden />
@@ -287,7 +287,7 @@ export function OrgManagerDashboard() {
 
         <div className="mt-[22px] grid grid-cols-1 gap-[22px] lg:grid-cols-2">
           {/* Lớp học — lớp thiếu giáo viên nổi lên đầu, đó là việc quản lý phải xử lý trước */}
-          <div className="border border-ga-line bg-ga-card p-[22px]">
+          <div className="border border-ga-line bg-ga-card p-4 lg:p-[22px]">
             <div className="mb-3.5 flex items-center justify-between">
               <GaCap>{t('classesCap')}</GaCap>
               <Link href="/v2/org/classes" className="text-[12.5px] font-semibold underline" style={{ color: TEAL }}>
@@ -322,7 +322,7 @@ export function OrgManagerDashboard() {
           </div>
 
           {/* Học viên mới nhập (7 ngày) */}
-          <div className="border border-ga-line bg-ga-card p-[22px]">
+          <div className="border border-ga-line bg-ga-card p-4 lg:p-[22px]">
             <div className="mb-3.5 flex items-center justify-between">
               <GaCap>{t('newStudentsCap')}</GaCap>
               <Link href="/v2/org/students" className="text-[12.5px] font-semibold underline" style={{ color: TEAL }}>

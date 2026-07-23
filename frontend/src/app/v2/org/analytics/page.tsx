@@ -51,7 +51,7 @@ export default function V2OrgAnalyticsPage() {
   return (
     <div className="flex min-h-full flex-col">
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         {error && (
           <div className="mb-5">
             <ErrorBanner message={error} onRetry={() => void load()} />
@@ -83,9 +83,9 @@ export default function V2OrgAnalyticsPage() {
             <div className="grid grid-cols-1 gap-[22px] lg:grid-cols-[1fr_1fr]">
               <GaSection title={t('cefrTitle')}>
                 {cefrSegs.length > 0 ? (
-                  <div className="flex items-center gap-5">
+                  <div className="flex flex-col items-center gap-5 sm:flex-row">
                     <GaDonut segments={cefrSegs} />
-                    <div className="flex-1">
+                    <div className="w-full min-w-0 sm:w-auto sm:flex-1">
                       <GaLegend items={cefrSegs.map((s) => ({ ...s, display: nfVN.format(s.value) }))} />
                     </div>
                   </div>
@@ -130,7 +130,7 @@ export default function V2OrgAnalyticsPage() {
 
             <GaSection title={t('classesTitle')} bodyClassName="p-0">
               <div className="overflow-x-auto">
-                <table className="w-full text-left">
+                <table className="w-full min-w-[520px] text-left lg:min-w-0">
                   <thead>
                     <tr className="border-b border-ga-border">
                       {[t('colClass'), t('colCode'), t('colTeacher')].map((h, i) => (

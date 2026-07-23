@@ -63,7 +63,7 @@ export function GradebookList({ students, assignments, group, t, skillLabel }: G
   if (group === 'byAssignment') {
     if (assignments.length === 0) {
       return (
-        <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">
+        <div className="border border-dashed border-ga-line px-4 py-[40px] text-center text-[14px] text-ga-muted sm:px-6 lg:px-10">
           {t('gradebook.noMatchingAssignments')}
         </div>
       )
@@ -94,7 +94,7 @@ export function GradebookList({ students, assignments, group, t, skillLabel }: G
                   </div>
                   <p className="mt-0.5 text-[12px] text-ga-subtle">{formatDue(assignment.dueDate, t)}</p>
                 </div>
-                <div className="flex shrink-0 items-center gap-4 text-[12.5px]">
+                <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1 text-[12.5px] lg:shrink-0 lg:flex-nowrap lg:gap-x-4">
                   <span className="tabular-nums text-ga-muted">
                     {t('gradebook.submittedCount', { submitted: stats.submitted, assigned: stats.assigned })}
                   </span>
@@ -152,7 +152,7 @@ export function GradebookList({ students, assignments, group, t, skillLabel }: G
                 <p className="truncate font-semibold text-ga-ink">{student.name}</p>
                 <p className="mt-0.5 text-[12px] text-ga-subtle">{student.email}</p>
               </div>
-              <div className="flex shrink-0 items-center gap-4 text-[12.5px]">
+              <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1 text-[12.5px] lg:shrink-0 lg:flex-nowrap lg:gap-x-4">
                 <span className="tabular-nums text-ga-muted">
                   {t('gradebook.submittedCount', { submitted: stats.submitted, assigned: stats.assigned })}
                 </span>

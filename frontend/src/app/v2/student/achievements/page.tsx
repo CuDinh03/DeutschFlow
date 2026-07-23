@@ -18,7 +18,7 @@ function AchievementCard({ a }: { a: AchievementDto }) {
   const r = RARITY[a.rarity?.toUpperCase()] ?? RARITY.COMMON
   return (
     <div
-      className={`flex flex-col items-center gap-2 border bg-ga-card p-4 text-center transition-shadow ${
+      className={`flex min-w-0 flex-col items-center gap-2 border bg-ga-card p-4 text-center transition-shadow ${
         a.unlocked ? 'border-ga-line hover:shadow-ga-card-hover' : 'border-ga-border opacity-55'
       }`}
       style={a.unlocked ? { borderColor: `${r.color}55` } : undefined}
@@ -26,9 +26,9 @@ function AchievementCard({ a }: { a: AchievementDto }) {
       <span className={`grid h-14 w-14 place-items-center rounded-full text-[28px] ${a.unlocked ? '' : 'grayscale'}`} style={{ background: `${r.color}14` }}>
         {a.unlocked ? a.iconEmoji : '🔒'}
       </span>
-      <p className="text-[13.5px] font-semibold leading-tight text-ga-ink">{a.nameVi}</p>
-      <p className="ga-ui line-clamp-2 text-[11.5px] text-ga-muted">{a.descriptionVi}</p>
-      <span className="ga-ui mt-auto text-[11px] font-semibold" style={{ color: r.color }}>
+      <p className="text-[13.5px] font-semibold leading-tight text-ga-ink break-words">{a.nameVi}</p>
+      <p className="ga-ui line-clamp-2 break-words text-[11.5px] text-ga-muted">{a.descriptionVi}</p>
+      <span className="ga-ui mt-auto break-words text-[11px] font-semibold" style={{ color: r.color }}>
         {t('rarityReward', { rarity: t(r.labelKey), xp: a.xpReward })}
       </span>
     </div>
@@ -67,7 +67,7 @@ export default function V2AchievementsPage() {
   return (
     <div className="flex min-h-full flex-col">
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         {error && (
           <div className="mb-5">
             <ErrorBanner message={error} onRetry={load} />

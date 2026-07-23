@@ -120,7 +120,7 @@ export default function V2AdminRevenuePage() {
     <div className="flex min-h-full flex-col">
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
 
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         {error && (
           <div className="mb-5">
             <ErrorBanner message={error} onRetry={() => fetchData(page)} />
@@ -149,9 +149,9 @@ export default function V2AdminRevenuePage() {
 
               <GaSection title={t('latestBreakdown')}>
                 {breakdownSegs.length > 0 ? (
-                  <div className="flex items-center gap-5">
+                  <div className="flex flex-col items-center gap-5 sm:flex-row">
                     <GaDonut segments={breakdownSegs} />
-                    <div className="flex-1">
+                    <div className="w-full min-w-0 flex-1">
                       <GaLegend items={breakdownSegs.map((s) => ({ ...s, display: fmtVnd(s.value) }))} />
                     </div>
                   </div>
@@ -171,7 +171,7 @@ export default function V2AdminRevenuePage() {
               bodyClassName="p-0"
             >
               <div className="overflow-x-auto">
-                <table className="w-full text-left">
+                <table className="w-full min-w-[860px] text-left lg:min-w-0">
                   <thead>
                     <tr className="border-b border-ga-border">
                       {[
@@ -229,7 +229,7 @@ export default function V2AdminRevenuePage() {
               </div>
 
               {tx && tx.totalPages > 1 && (
-                <div className="flex items-center justify-between border-t border-ga-border px-5 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ga-border px-5 py-3">
                   <p className="ga-ui text-[12.5px] text-ga-muted">
                     {t('pageInfo', { page: page + 1, total: tx.totalPages })}
                   </p>
@@ -238,7 +238,7 @@ export default function V2AdminRevenuePage() {
                       type="button"
                       disabled={page === 0 || loading}
                       onClick={() => fetchData(page - 1)}
-                      className="ga-ui flex items-center gap-1 rounded-ga border border-ga-line px-3 py-1.5 text-[12px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent disabled:opacity-40"
+                      className="ga-ui flex min-h-[40px] items-center gap-1 rounded-ga border border-ga-line px-3 py-1.5 text-[12px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent disabled:opacity-40 lg:min-h-0"
                     >
                       <ChevronLeft size={14} aria-hidden /> {t('prev')}
                     </button>
@@ -246,7 +246,7 @@ export default function V2AdminRevenuePage() {
                       type="button"
                       disabled={page >= tx.totalPages - 1 || loading}
                       onClick={() => fetchData(page + 1)}
-                      className="ga-ui flex items-center gap-1 rounded-ga border border-ga-line px-3 py-1.5 text-[12px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent disabled:opacity-40"
+                      className="ga-ui flex min-h-[40px] items-center gap-1 rounded-ga border border-ga-line px-3 py-1.5 text-[12px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent disabled:opacity-40 lg:min-h-0"
                     >
                       {t('next')} <ChevronRight size={14} aria-hidden />
                     </button>

@@ -27,7 +27,10 @@ export function GaShell({ role, children, className }: GaShellProps) {
     <GaShellNavProvider>
       <div
         data-role={role}
-        className={cn('flex h-screen overflow-hidden bg-ga-surface text-ga-ink', className)}
+        // h-[100dvh] dưới lg: trên Safari iOS `h-screen` (100vh) TÍNH CẢ phần bị thanh công cụ
+        // động che, nên đáy của <main> nằm khuất dưới thanh địa chỉ — người dùng không chạm tới
+        // được hàng nút cuối trang. dvh đo đúng vùng nhìn thấy. Từ lg trả lại h-screen y như cũ.
+        className={cn('flex h-[100dvh] overflow-hidden bg-ga-surface text-ga-ink lg:h-screen', className)}
       >
         <GaSidebar nav={ROLE_NAV[role]} />
         <div className="flex min-w-0 flex-1 flex-col">

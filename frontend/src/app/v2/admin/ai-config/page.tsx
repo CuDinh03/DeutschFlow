@@ -84,9 +84,9 @@ export default function V2AdminAiConfigPage() {
         }
       />
 
-      <div className="grid flex-1 overflow-hidden lg:grid-cols-[1fr_320px]">
+      <div className="grid flex-1 lg:overflow-hidden lg:grid-cols-[1fr_320px]">
         {/* Left — system prompt */}
-        <div className="overflow-auto border-r border-ga-line px-9 py-[26px]">
+        <div className="border-b border-ga-line px-4 py-5 sm:px-6 lg:overflow-auto lg:border-b-0 lg:border-r lg:px-9 lg:py-[26px]">
           <GaCap className="mb-2.5 block">{t('promptCap')}</GaCap>
           <textarea
             value={prompt}
@@ -96,7 +96,7 @@ export default function V2AdminAiConfigPage() {
             className="block w-full resize-y rounded-ga border border-ga-line bg-ga-bg px-[18px] py-4 font-mono text-[14.5px] leading-[1.7] text-ga-ink outline-none"
           />
           <div
-            className="mt-3.5 px-[18px] py-3.5"
+            className="mt-3.5 px-4 py-3.5 lg:px-[18px]"
             style={{ background: 'var(--ga-navy-soft)', border: '1px solid rgba(39,64,107,0.20)' }}
           >
             <div className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.06em]" style={{ color: 'var(--ga-navy)' }}>
@@ -109,13 +109,13 @@ export default function V2AdminAiConfigPage() {
         </div>
 
         {/* Right — model params */}
-        <div className="overflow-auto bg-ga-card px-6 py-[26px]">
+        <div className="bg-ga-card px-4 py-5 lg:overflow-auto lg:px-6 lg:py-[26px]">
           <GaCap className="mb-[18px] block">{t('paramsCap')}</GaCap>
           {sliders.map((s) => (
             <div key={s.label} className="mb-[22px]">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-[13px] font-semibold text-ga-ink">{s.label}</span>
-                <span className="font-ga-display text-[18px] font-medium text-ga-ink">{s.val}</span>
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <span className="min-w-0 text-[13px] font-semibold text-ga-ink">{s.label}</span>
+                <span className="shrink-0 font-ga-display text-[18px] font-medium text-ga-ink">{s.val}</span>
               </div>
               <input
                 type="range"
@@ -136,10 +136,10 @@ export default function V2AdminAiConfigPage() {
             {MODELS.map(([k, v], i) => (
               <div
                 key={k}
-                className={`flex items-center justify-between py-2 text-[13px] ${i ? 'border-t border-ga-line' : ''}`}
+                className={`flex items-center justify-between gap-3 py-2 text-[13px] ${i ? 'border-t border-ga-line' : ''}`}
               >
-                <span className="text-ga-muted">{t(k)}</span>
-                <span className="font-medium text-ga-ink">{v}</span>
+                <span className="min-w-0 text-ga-muted">{t(k)}</span>
+                <span className="shrink-0 font-medium text-ga-ink">{v}</span>
               </div>
             ))}
           </div>

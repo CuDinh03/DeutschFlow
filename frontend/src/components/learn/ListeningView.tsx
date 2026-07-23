@@ -191,7 +191,7 @@ export default function ListeningView({ content, isLocked = false }: { content: 
       {/* ── Karaoke Transcript ── */}
       {timestamps.length > 0 && (
         <div ref={transcriptRef} className="rounded-xl bg-white border border-[#E2E8F0] p-4 max-h-[300px] overflow-y-auto">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
             <h3 className="text-xs font-bold text-[#94A3B8] uppercase">Transcript</h3>
             {blankIndices.size > 0 && !submitted && !isLocked && (
               <span className="text-[10px] text-[#94A3B8]">
@@ -231,7 +231,7 @@ export default function ListeningView({ content, isLocked = false }: { content: 
                     }}
                     placeholder="___"
                     disabled={submitted || isLocked}
-                    className={`inline-block w-20 text-center text-sm border-b-2 outline-none px-1 py-0.5 transition-colors ${inputClass} ${(submitted || isLocked) ? "cursor-not-allowed" : ""}`}
+                    className={`inline-block w-16 lg:w-20 max-w-full text-center text-sm border-b-2 outline-none px-1 py-0.5 transition-colors ${inputClass} ${(submitted || isLocked) ? "cursor-not-allowed" : ""}`}
                   />
                 );
               }

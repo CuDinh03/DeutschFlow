@@ -303,7 +303,7 @@ export function SwipeCard({
             >
               <p className="ga-ui mb-1 text-[11px] font-bold uppercase tracking-widest text-white/70">{t('wrong')}</p>
               <p className="ga-ui mb-1 text-[12px] font-semibold text-white/70">{t('correctAnswerLabel')}</p>
-              <p className="font-ga-display mb-1 text-[24px] font-medium text-white">{card.expectedAnswer}</p>
+              <p className="font-ga-display mb-1 break-words text-[24px] font-medium text-white">{card.expectedAnswer}</p>
               {card.phonetic ? <p className="ga-ui mb-3 text-[12px] text-white/70">/{card.phonetic}/</p> : <div className="mb-3" />}
               <p className="ga-ui mb-1 text-[10px] font-bold uppercase tracking-widest text-white/50">{t('example')}</p>
               <div className="mb-4 shrink-0 rounded-ga border border-white/20 bg-white/10 px-3 py-2">
@@ -372,7 +372,7 @@ export function SwipeCard({
               <button
                 type="button"
                 onClick={play}
-                className="ga-ui inline-flex items-center gap-1.5 rounded-ga border border-white/30 bg-white/20 px-2 py-1.5 text-[11px] font-medium text-white"
+                className="ga-ui inline-flex min-h-10 items-center gap-1.5 rounded-ga border border-white/30 bg-white/20 px-2 py-1.5 text-[11px] font-medium text-white lg:min-h-0"
               >
                 <Volume2 size={13} aria-hidden />
                 {audioPlaying ? '…' : t('listen')}
@@ -424,7 +424,7 @@ export function SwipeCard({
               <span className="ga-ui mb-2 rounded-ga-pill bg-white/20 px-2 py-0.5 text-[11px] font-bold text-white/90">
                 {c.label}
               </span>
-              <p className="font-ga-display text-center text-[26px] font-medium leading-tight text-white">
+              <p className="font-ga-display break-words text-center text-[26px] font-medium leading-tight text-white">
                 {card.article ? `${card.article} ${card.word}` : card.word}
               </p>
               {card.phonetic ? <p className="ga-ui mt-2 text-[12px] text-white/70">/{card.phonetic}/</p> : null}
@@ -442,7 +442,7 @@ export function SwipeCard({
           >
             <div className="shrink-0 px-6 pb-4 pt-5" style={{ background: c.gradient }}>
               <div className="flex items-start gap-3">
-                <div className="flex-1">
+                <div className="min-w-0 flex-1">
                   <div className="mb-1.5 flex items-center gap-2">
                     <span className="ga-ui rounded-ga-pill bg-white/20 px-2 py-0.5 text-[11px] font-bold text-white">
                       {c.label}
@@ -461,10 +461,10 @@ export function SwipeCard({
               </div>
             </div>
             <div className="flex flex-1 flex-col gap-3 overflow-hidden px-6 py-4">
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
                   <p className="ga-ui mb-0.5 text-[11.5px] font-semibold text-ga-subtle">{t('germanWord')}</p>
-                  <p className="text-[15px] font-bold" style={{ color: c.primary }}>
+                  <p className="break-words text-[15px] font-bold" style={{ color: c.primary }}>
                     {card.article ? `${card.article} ${card.word}` : card.word}
                   </p>
                   {card.phonetic ? <p className="ga-ui mt-0.5 text-[11.5px] text-ga-subtle">/{card.phonetic}/</p> : null}
@@ -472,7 +472,7 @@ export function SwipeCard({
                 <button
                   type="button"
                   onClick={play}
-                  className="ga-ui inline-flex items-center gap-1.5 rounded-ga border px-3 py-2 text-[12px] font-medium transition-colors"
+                  className="ga-ui inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-ga border px-3 py-2 text-[12px] font-medium transition-colors lg:min-h-0"
                   style={{
                     background: audioPlaying ? c.light : 'var(--ga-surface)',
                     color: audioPlaying ? c.primary : 'var(--ga-muted)',

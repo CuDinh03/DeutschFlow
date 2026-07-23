@@ -42,8 +42,8 @@ function SectionCard({ section, data }: { section: string; data: SectionScore })
         style={{ background: meta.color }}
       />
       <div className="pl-2">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div className="flex min-w-0 items-center gap-2">
             <div
               className="w-8 h-8 rounded-lg flex items-center justify-center"
               style={{ background: meta.color + '18', color: meta.color }}
@@ -72,7 +72,7 @@ function SectionCard({ section, data }: { section: string; data: SectionScore })
           </div>
         </div>
 
-        <div className="flex items-end justify-between mb-2">
+        <div className="flex items-end justify-between gap-2 mb-2">
           <p className="text-2xl font-black" style={{ color: meta.color }}>
             {score}
             <span className="text-sm font-semibold text-[#94A3B8]">/{max}</span>
@@ -117,7 +117,7 @@ export function DetailedScoreBreakdown({ detailedScores, totalScore, passed }: D
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="font-bold text-[#0F172A]">Điểm chi tiết theo phần</h3>
         <div className="flex items-center gap-1.5 text-xs text-[#64748B]">
           <div className="w-0.5 h-3 bg-[#CBD5E1] rounded" />
@@ -134,18 +134,18 @@ export function DetailedScoreBreakdown({ detailedScores, totalScore, passed }: D
 
       {/* Total summary */}
       <div
-        className={`rounded-2xl p-4 text-white flex items-center justify-between ${
+        className={`rounded-2xl p-4 text-white flex items-center justify-between gap-3 ${
           passed
             ? 'bg-gradient-to-r from-emerald-500 to-teal-500'
             : 'bg-gradient-to-r from-slate-600 to-slate-700'
         }`}
       >
-        <div>
+        <div className="min-w-0">
           <p className="font-bold text-white/80 text-sm">Tổng điểm (tạm tính)</p>
           <p className="text-xs text-white/60 mt-0.5">Điểm chính thức sau khi chấm xong</p>
         </div>
-        <div className="text-right">
-          <p className="text-3xl font-black">{totalScore}</p>
+        <div className="text-right shrink-0">
+          <p className="text-2xl lg:text-3xl font-black">{totalScore}</p>
           <p className="text-sm text-white/70">/ 100</p>
         </div>
       </div>

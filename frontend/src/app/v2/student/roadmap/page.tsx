@@ -196,7 +196,7 @@ export default function V2StudentRoadmapPage() {
   return (
     <div className="flex h-full flex-col">
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
-      <div className="flex min-h-0 flex-1 flex-col px-10 pb-6 pt-4">
+      <div className="flex min-h-0 flex-1 flex-col px-4 pb-6 pt-4 sm:px-6 lg:px-10">
         <TkTabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
           <TkTabsList>
             <TkTabsTrigger value="tree">{t('tabTree')}</TkTabsTrigger>
@@ -299,8 +299,8 @@ export default function V2StudentRoadmapPage() {
                       : 0
 
                   return (
-                    <GaCard key={node.id} hover className="p-5">
-                      <div className="flex items-start gap-4">
+                    <GaCard key={node.id} hover className="p-4 lg:p-5">
+                      <div className="flex items-start gap-3 lg:gap-4">
                         <span
                           className={`grid h-11 w-11 shrink-0 place-items-center rounded-ga bg-ga-surface text-[22px] ${locked ? 'opacity-50' : ''}`}
                         >
@@ -313,7 +313,7 @@ export default function V2StudentRoadmapPage() {
                                 (RoadmapTreePage) hiện CẢ HAI — chỉ in `title` là học viên Việt chỉ
                                 thấy tiêu đề tiếng Đức. */}
                             <p
-                              className={`text-[15px] font-semibold ${locked ? 'text-ga-subtle' : 'text-ga-ink'}`}
+                              className={`min-w-0 break-words text-[15px] font-semibold ${locked ? 'text-ga-subtle' : 'text-ga-ink'}`}
                             >
                               {node.subtitle || node.title}
                             </p>
@@ -327,7 +327,7 @@ export default function V2StudentRoadmapPage() {
                           </div>
 
                           {node.subtitle && node.title && (
-                            <p className="ga-ui mt-0.5 text-[12.5px] italic text-ga-subtle">
+                            <p className="ga-ui mt-0.5 break-words text-[12.5px] italic text-ga-subtle">
                               {node.title}
                             </p>
                           )}
@@ -339,8 +339,8 @@ export default function V2StudentRoadmapPage() {
                           )}
 
                           {!locked && (
-                            <div className="mt-2.5 flex items-center gap-2.5">
-                              <span className="h-1.5 w-40 overflow-hidden rounded-ga-pill bg-ga-border">
+                            <div className="mt-2.5 flex flex-wrap items-center gap-2.5">
+                              <span className="h-1.5 w-24 shrink-0 overflow-hidden rounded-ga-pill bg-ga-border sm:w-32 lg:w-40">
                                 <span
                                   className="block h-full rounded-ga-pill"
                                   style={{
@@ -363,14 +363,14 @@ export default function V2StudentRoadmapPage() {
                             <div className="mt-3.5 flex flex-wrap gap-2">
                               <Link
                                 href={`/v2/student/learn/${node.id}`}
-                                className="ga-ui inline-flex items-center gap-1.5 rounded-ga bg-ga-accent px-4 py-2 text-[12.5px] font-semibold text-ga-accent-ink transition-opacity hover:opacity-90"
+                                className="ga-ui inline-flex min-h-10 items-center gap-1.5 rounded-ga bg-ga-accent px-4 py-2 text-[12.5px] font-semibold text-ga-accent-ink transition-opacity hover:opacity-90 lg:min-h-0"
                               >
                                 <BookOpen size={14} aria-hidden />
                                 {done ? t('nodeRelearn') : t('nodeLearn')}
                               </Link>
                               <Link
                                 href={`/v2/student/practice/${node.id}`}
-                                className="ga-ui inline-flex items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-4 py-2 text-[12.5px] font-semibold text-ga-ink transition-colors hover:bg-ga-surface"
+                                className="ga-ui inline-flex min-h-10 items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-4 py-2 text-[12.5px] font-semibold text-ga-ink transition-colors hover:bg-ga-surface lg:min-h-0"
                               >
                                 <Dumbbell size={14} aria-hidden />
                                 {t('nodePractice')}
@@ -403,7 +403,7 @@ export default function V2StudentRoadmapPage() {
                     const active = currentIdx === i
                     const tone = done ? 'var(--ga-green)' : active ? 'var(--ga-accent)' : 'var(--ga-subtle)'
                     return (
-                      <div key={p.type} className="flex gap-4">
+                      <div key={p.type} className="flex gap-3 lg:gap-4">
                         <div className="flex flex-col items-center">
                           <span
                             className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-[14px] font-bold text-white"
@@ -418,9 +418,9 @@ export default function V2StudentRoadmapPage() {
                             />
                           )}
                         </div>
-                        <div className={`mb-4 flex-1 border bg-ga-card p-5 ${active ? 'border-ga-accent' : 'border-ga-line'}`}>
-                          <div className="flex items-center gap-2">
-                            <p className="font-ga-display text-[19px] font-medium text-ga-ink">{t(p.labelKey)}</p>
+                        <div className={`mb-4 min-w-0 flex-1 border bg-ga-card p-4 lg:p-5 ${active ? 'border-ga-accent' : 'border-ga-line'}`}>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="break-words font-ga-display text-[19px] font-medium text-ga-ink">{t(p.labelKey)}</p>
                             {active && (
                               <span className="ga-ui rounded-ga-pill bg-ga-accent-soft px-2 py-0.5 text-[11px] font-semibold text-ga-accent">
                                 {t('phaseCurrent')}
@@ -437,7 +437,7 @@ export default function V2StudentRoadmapPage() {
 
                 <div className="grid grid-cols-1 gap-[22px] lg:grid-cols-2">
                   {phase && (
-                    <GaCard className="p-6">
+                    <GaCard className="p-4 lg:p-6">
                       <GaCap className="mb-3 block">{t('currentProgressCap')}</GaCap>
                       <div className="space-y-3">
                         {[
@@ -446,21 +446,21 @@ export default function V2StudentRoadmapPage() {
                           [t('metrics.grammarAccuracy'), `${Math.round(phase.grammarAccuracyPercent)}%`],
                           [t('metrics.sessionsCompleted'), phase.sessionsCompleted],
                         ].map(([k, v]) => (
-                          <div key={String(k)} className="ga-ui flex items-center justify-between text-[13.5px]">
-                            <span className="text-ga-muted">{k}</span>
-                            <span className="font-semibold text-ga-ink">{v}</span>
+                          <div key={String(k)} className="ga-ui flex items-center justify-between gap-3 text-[13.5px]">
+                            <span className="min-w-0 break-words text-ga-muted">{k}</span>
+                            <span className="shrink-0 font-semibold text-ga-ink">{v}</span>
                           </div>
                         ))}
                       </div>
                     </GaCard>
                   )}
 
-                  <GaCard className="p-6">
+                  <GaCard className="p-4 lg:p-6">
                     <GaCap className="mb-3 block">{t('nextActionsCap')}</GaCap>
                     {nextActions.length > 0 ? (
                       <ul className="space-y-2.5">
                         {nextActions.map((a, i) => (
-                          <li key={i} className="ga-ui flex items-start gap-2.5 text-[14px] text-ga-ink">
+                          <li key={i} className="ga-ui flex min-w-0 items-start gap-2.5 break-words text-[14px] text-ga-ink">
                             <ArrowRight size={16} className="mt-0.5 shrink-0 text-ga-accent" aria-hidden />
                             {a}
                           </li>
@@ -471,7 +471,7 @@ export default function V2StudentRoadmapPage() {
                     )}
                     <Link
                       href="/v2/student/dashboard"
-                      className="ga-ui mt-4 inline-flex items-center gap-1 text-[13px] font-semibold text-ga-accent"
+                      className="ga-ui mt-4 inline-flex min-h-10 items-center gap-1 text-[13px] font-semibold text-ga-accent lg:min-h-0"
                     >
                       {t('toDashboard')} <ArrowRight size={14} aria-hidden />
                     </Link>
@@ -491,7 +491,7 @@ function TreeHeader({ tree }: { tree: TreeResponse }) {
   const t = useTranslations('v2.student.roadmap')
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="ga-ui text-[13.5px] text-ga-muted">
+      <div className="ga-ui min-w-0 break-words text-[13.5px] text-ga-muted">
         <span className="font-semibold text-ga-ink">{tree.user.displayName}</span>
         {tree.user.goal ? <span> · {tree.user.goal}</span> : null}
       </div>

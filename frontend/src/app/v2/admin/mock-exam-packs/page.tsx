@@ -93,21 +93,22 @@ export default function V2AdminMockPacksPage() {
         right={<GaBtn variant="yellow" size="sm" onClick={openCreate}><Plus size={15} /> {t('createPack')}</GaBtn>}
       />
 
-      <div className="flex-1 overflow-auto px-10 py-6">
+      <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
         <GaCap className="mb-3.5 block">{t('hint')}</GaCap>
 
         {loading ? (
           <div className="flex flex-col gap-2">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="ga-shimmer h-[54px] border border-ga-line" aria-hidden />)}</div>
         ) : error ? (
-          <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadError')}</h2>
-            <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">{error} <code className="font-mono text-[12px] text-ga-accent">GET /api/admin/mock-exam-packs</code></p>
+          <div className="border border-ga-line bg-ga-card px-4 py-10 text-center sm:px-6 lg:px-10 lg:py-[52px]">
+            <h2 className="font-ga-display text-[20px] font-medium text-ga-red lg:text-[24px]">{t('loadError')}</h2>
+            <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm break-words text-[14px] text-ga-muted">{error} <code className="break-words font-mono text-[12px] text-ga-accent">GET /api/admin/mock-exam-packs</code></p>
             <GaBtn variant="primary" onClick={load}>{tc('retry')}</GaBtn>
           </div>
         ) : packs.length === 0 ? (
-          <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">{t('empty')}</div>
+          <div className="border border-dashed border-ga-line px-4 py-[40px] text-center text-[14px] text-ga-muted sm:px-6 lg:px-10">{t('empty')}</div>
         ) : (
-          <div className="border border-ga-line bg-ga-card">
+          <div className="overflow-x-auto">
+          <div className="min-w-[760px] border border-ga-line bg-ga-card">
             <div className="grid items-center gap-2 border-b border-ga-line bg-ga-bg px-5 py-[11px]" style={{ gridTemplateColumns: GRID }}>
               {[t('colNum'), t('colPack'), t('colLevelFormat'), t('colExams'), t('colAccess'), t('colStatus'), t('colActions')].map((h, i) => (
                 <span key={i} className={`ga-ui text-[10px] font-bold uppercase tracking-[0.1em] text-ga-muted ${i === 3 ? 'text-center' : ''} ${i === 6 ? 'text-right' : ''}`}>{h}</span>
@@ -141,6 +142,7 @@ export default function V2AdminMockPacksPage() {
               </div>
             ))}
           </div>
+          </div>
         )}
       </div>
 
@@ -165,7 +167,7 @@ export default function V2AdminMockPacksPage() {
             <GaCap className="mb-2 block">{t('fieldDescription')}</GaCap>
             <textarea className={`${field} resize-none`} rows={2} value={form.descriptionVi} onChange={(e) => set('descriptionVi', e.target.value)} placeholder={t('descriptionPlaceholder')} />
           </div>
-          <div className="grid grid-cols-2 gap-3.5">
+          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
             <div>
               <GaCap className="mb-2 block">{t('fieldLevel')}</GaCap>
               <select className={field} value={form.cefrLevel} onChange={(e) => set('cefrLevel', e.target.value)}>
@@ -177,7 +179,7 @@ export default function V2AdminMockPacksPage() {
               <input className={field} value={form.examFormat} onChange={(e) => set('examFormat', e.target.value.toUpperCase())} maxLength={30} placeholder="GOETHE" />
             </div>
           </div>
-          <div className="grid grid-cols-2 items-end gap-3.5">
+          <div className="grid grid-cols-1 items-end gap-3.5 sm:grid-cols-2">
             <div>
               <GaCap className="mb-2 block">{t('fieldSortOrder')}</GaCap>
               <input type="number" className={field} value={form.sortOrder} onChange={(e) => set('sortOrder', Number.parseInt(e.target.value, 10) || 0)} />

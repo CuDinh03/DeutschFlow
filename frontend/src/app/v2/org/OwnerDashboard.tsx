@@ -77,9 +77,9 @@ export function OrgOwnerDashboard() {
     return (
       <div className="flex min-h-full flex-col">
         <GaPageHdr accent title={t('title')} subtitle={t('subtitleDashboard')} />
-        <div className="flex-1 px-10 py-10">
-          <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadError')}</h2>
+        <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
+          <div className="border border-ga-line bg-ga-card px-4 py-8 sm:px-8 lg:px-10 lg:py-[52px] text-center">
+            <h2 className="font-ga-display text-[20px] font-medium text-ga-red lg:text-[24px]">{t('loadError')}</h2>
             <p className="ga-ui mx-auto mb-5 mt-3 max-w-md text-[14px] text-ga-muted">
               {error || t('loadErrorDesc')}
             </p>
@@ -97,7 +97,7 @@ export function OrgOwnerDashboard() {
         title={summary?.name ?? t('title')}
         subtitle={t('subtitleB2b')}
         right={
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5">
             <GaBtn variant="ghost" size="sm" onClick={() => toast(t('managePlanSoon'))}>{t('managePlan')}</GaBtn>
             <GaBtn variant="yellow" size="sm" onClick={() => toast(t('inviteMemberSoon'))}>
               <UserPlus size={15} /> {t('inviteMember')}
@@ -106,7 +106,7 @@ export function OrgOwnerDashboard() {
         }
       />
 
-      <div className="flex-1 overflow-auto px-10 py-6">
+      <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
         <TkStatStrip
           items={[
             { label: t('stats.seatsUsed'), value: summary ? `${summary.seatUsed}/${summary.seatLimit}` : '—', sub: t('stats.capacity', { pct: seatPct }), color: TEAL },
@@ -118,7 +118,7 @@ export function OrgOwnerDashboard() {
 
         <div className="mt-6 grid grid-cols-1 gap-[22px] lg:grid-cols-[2fr_1fr]">
           {/* CEFR distribution (real) */}
-          <div className="border border-ga-line bg-ga-card p-[22px]">
+          <div className="border border-ga-line bg-ga-card p-4 lg:p-[22px]">
             <GaCap className="mb-4 block">{t('cefrCap')}</GaCap>
             {loading ? (
               <div className="ga-shimmer h-[170px]" aria-hidden />
@@ -140,24 +140,24 @@ export function OrgOwnerDashboard() {
           </div>
 
           {/* Seat + token meters (real) */}
-          <div className="border border-ga-line bg-ga-card p-[22px]">
+          <div className="border border-ga-line bg-ga-card p-4 lg:p-[22px]">
             <GaCap className="mb-4 block">{t('seatUsageCap')}</GaCap>
-            <div className="mb-1.5 flex items-baseline justify-between">
-              <span className="font-ga-display text-[26px] font-medium text-ga-ink">{seatPct}%</span>
-              <span className="text-[12.5px] text-ga-muted">{t('seatsSuffix', { used: summary?.seatUsed ?? 0, limit: summary?.seatLimit ?? 0 })}</span>
+            <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-3 lg:flex-nowrap lg:gap-x-0">
+              <span className="font-ga-display text-[20px] font-medium text-ga-ink lg:text-[26px]">{seatPct}%</span>
+              <span className="min-w-0 text-[12.5px] text-ga-muted">{t('seatsSuffix', { used: summary?.seatUsed ?? 0, limit: summary?.seatLimit ?? 0 })}</span>
             </div>
             <span className="block h-2.5 bg-ga-bg"><span className="block h-full" style={{ width: `${Math.min(100, seatPct)}%`, background: TEAL }} /></span>
-            <div className="mt-2 flex items-center justify-between text-[12.5px] text-ga-muted">
-              <span>{t('freeSuffix', { count: freeSeats })}</span>
-              <button type="button" onClick={() => toast(t('buySeatsSoon'))} className="font-semibold underline" style={{ color: TEAL }}>{t('buySeats')}</button>
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 text-[12.5px] text-ga-muted lg:flex-nowrap lg:gap-x-0">
+              <span className="min-w-0">{t('freeSuffix', { count: freeSeats })}</span>
+              <button type="button" onClick={() => toast(t('buySeatsSoon'))} className="inline-flex min-h-[40px] items-center font-semibold underline lg:min-h-0" style={{ color: TEAL }}>{t('buySeats')}</button>
             </div>
 
             {analytics && analytics.monthlyTokenPool > 0 && (
               <>
                 <GaCap className="mb-2 mt-5 block">{t('tokenPoolCap')}</GaCap>
-                <div className="mb-1.5 flex items-baseline justify-between">
+                <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-3 lg:flex-nowrap lg:gap-x-0">
                   <span className="font-ga-display text-[20px] font-medium text-ga-ink">{Math.round(analytics.poolUsagePercent)}%</span>
-                  <span className="text-[12px] text-ga-muted">{analytics.tokensThisMonth.toLocaleString('vi-VN')} / {analytics.monthlyTokenPool.toLocaleString('vi-VN')}</span>
+                  <span className="min-w-0 break-words text-[12px] text-ga-muted">{analytics.tokensThisMonth.toLocaleString('vi-VN')} / {analytics.monthlyTokenPool.toLocaleString('vi-VN')}</span>
                 </div>
                 <span className="block h-2 bg-ga-bg"><span className="block h-full" style={{ width: `${Math.min(100, analytics.poolUsagePercent)}%`, background: analytics.poolUsagePercent >= 90 ? 'var(--ga-red)' : analytics.poolUsagePercent >= 70 ? 'var(--ga-orange)' : 'var(--ga-green)' }} /></span>
               </>
@@ -167,7 +167,7 @@ export function OrgOwnerDashboard() {
 
         <div className="mt-[22px] grid grid-cols-1 gap-[22px] lg:grid-cols-2">
           {/* Cần xử lý (derived from real data) */}
-          <div className="border border-ga-line bg-ga-card p-[22px]">
+          <div className="border border-ga-line bg-ga-card p-4 lg:p-[22px]">
             <GaCap className="mb-3.5 block">{t('todoCap')}</GaCap>
             {todos.length === 0 ? (
               <p className="py-4 text-[13.5px] text-ga-muted">{t('todoEmpty')}</p>
@@ -189,7 +189,7 @@ export function OrgOwnerDashboard() {
           </div>
 
           {/* Org classes (real) */}
-          <div className="border border-ga-line bg-ga-card p-[22px]">
+          <div className="border border-ga-line bg-ga-card p-4 lg:p-[22px]">
             <GaCap className="mb-3.5 block">{t('orgClassesCap')}</GaCap>
             {loading ? (
               <div className="ga-shimmer h-[120px]" aria-hidden />

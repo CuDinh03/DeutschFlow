@@ -23,10 +23,10 @@ export default function V2StudentWelcomePage() {
   return (
     <div className="flex min-h-full flex-col">
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
-      <div className="flex-1 px-10 py-6">
-        <div className="mb-[22px] bg-ga-ink p-7 text-ga-bg">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
+        <div className="mb-[22px] bg-ga-ink p-5 text-ga-bg lg:p-7">
           <GaCap className="mb-2 block" style={{ color: '#A39E94' }}>{t('heroCap')}</GaCap>
-          <p className="font-ga-display text-[26px] font-medium">{t('heroTitle')}</p>
+          <p className="font-ga-display text-[20px] font-medium lg:text-[26px]">{t('heroTitle')}</p>
           <p className="ga-ui mt-2 max-w-xl text-[14.5px]" style={{ color: '#A39E94' }}>
             {t('heroDesc')}
           </p>

@@ -70,7 +70,7 @@ export function LessonMaterials({ lessonId }: { lessonId: number }) {
       <button
         type="button"
         onClick={toggle}
-        className="ga-ui inline-flex items-center gap-1.5 text-[12px] font-semibold text-ga-muted transition-colors hover:text-ga-accent"
+        className="ga-ui inline-flex min-h-[40px] items-center gap-1.5 text-[12px] font-semibold text-ga-muted transition-colors hover:text-ga-accent lg:min-h-0"
       >
         <ChevronRight size={13} className="transition-transform" style={{ transform: open ? 'rotate(90deg)' : 'none' }} />
         <Paperclip size={13} /> {t('heading')}
@@ -95,7 +95,7 @@ export function LessonMaterials({ lessonId }: { lessonId: number }) {
                       type="button"
                       onClick={() => openMaterial(m)}
                       disabled={opening === m.id}
-                      className="ga-ui flex w-full items-center gap-2 rounded-ga border border-ga-line bg-ga-bg px-2.5 py-1.5 text-left text-[12.5px] text-ga-ink transition-colors hover:border-ga-accent disabled:opacity-60"
+                      className="ga-ui flex min-h-[40px] w-full items-center gap-2 rounded-ga border border-ga-line bg-ga-bg px-2.5 py-1.5 text-left text-[12.5px] text-ga-ink transition-colors hover:border-ga-accent disabled:opacity-60 lg:min-h-0"
                     >
                       <Icon size={14} className="shrink-0 text-ga-muted" />
                       <span className="min-w-0 flex-1 truncate font-medium">{m.title}</span>

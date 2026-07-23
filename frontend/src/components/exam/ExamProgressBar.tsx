@@ -27,9 +27,9 @@ export function ExamProgressBar({ sections, currentSectionIdx, answeredCount, to
   const overallPct = totalQuestions > 0 ? Math.round((answeredCount / totalQuestions) * 100) : 0
 
   return (
-    <div className="bg-white border-b border-[#E2E8F0] px-6 py-2">
+    <div className="bg-white border-b border-[#E2E8F0] px-4 lg:px-6 py-2">
       {/* Section dots */}
-      <div className="flex items-center gap-2 mb-2">
+      <div className="flex items-center gap-1.5 lg:gap-2 mb-2">
         {sections.map((s, idx) => {
           const color = SECTION_COLORS[s.name] ?? '#6366F1'
           const isDone = idx < currentSectionIdx
@@ -52,14 +52,14 @@ export function ExamProgressBar({ sections, currentSectionIdx, answeredCount, to
               </div>
               {idx < sections.length - 1 && (
                 <div
-                  className="w-8 h-0.5 rounded-full transition-all"
+                  className="w-4 lg:w-8 h-0.5 rounded-full transition-all"
                   style={{ background: idx < currentSectionIdx ? '#94A3B8' : '#E2E8F0' }}
                 />
               )}
             </div>
           )
         })}
-        <span className="ml-auto text-xs font-semibold text-[#64748B]">
+        <span className="ml-auto shrink-0 text-xs font-semibold text-[#64748B]">
           {answeredCount}/{totalQuestions} câu
         </span>
       </div>

@@ -88,7 +88,7 @@ export default function V2StudentDashboardPage() {
           ) : null
         }
       />
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         {error && (
           <div className="mb-5">
             <ErrorBanner message={error} onRetry={load} />
@@ -127,7 +127,7 @@ export default function V2StudentDashboardPage() {
             {phase && phase.sessionsCompleted === 0 && (
               <Link
                 href="/v2/student/beginner"
-                className="flex items-center gap-4 bg-ga-ink p-5 text-ga-bg transition-opacity hover:opacity-95"
+                className="flex items-center gap-4 bg-ga-ink p-4 text-ga-bg transition-opacity hover:opacity-95 lg:p-5"
               >
                 <span
                   className="grid h-11 w-11 shrink-0 place-items-center rounded-ga"
@@ -175,9 +175,13 @@ export default function V2StudentDashboardPage() {
             <div className="grid grid-cols-1 gap-[22px] lg:grid-cols-[1fr_1fr]">
               {/* Phase progress */}
               {phase && (
-                <GaCard className="p-6">
+                <GaCard className="p-4 lg:p-6">
                   <GaCap className="mb-3 block">{t('phaseCap')}</GaCap>
-                  <p className="font-ga-display text-[24px] font-medium text-ga-ink">
+                  {/* break-words: nhãn giai đoạn là chuỗi động ở cỡ 24px. Một token dài không có
+                      chỗ ngắt (từ ghép tiếng Đức, hoặc khoá i18n chưa giải được) sẽ đẩy rộng cả
+                      vùng cuộn — đo được +45px ở khổ 390px. Chỉ ảnh hưởng khi tràn nên desktop
+                      không đổi pixel nào. */}
+                  <p className="break-words font-ga-display text-[24px] font-medium text-ga-ink">
                     {t(`phase.${phase.currentPhase}`)}
                   </p>
                   <div className="mt-4 space-y-3">
@@ -187,9 +191,9 @@ export default function V2StudentDashboardPage() {
                       [t('phaseMetrics.grammarAccuracy'), `${Math.round(phase.grammarAccuracyPercent)}%`],
                       [t('phaseMetrics.sessionsCompleted'), phase.sessionsCompleted],
                     ].map(([k, v]) => (
-                      <div key={String(k)} className="ga-ui flex items-center justify-between text-[13.5px]">
-                        <span className="text-ga-muted">{k}</span>
-                        <span className="font-semibold text-ga-ink">{v}</span>
+                      <div key={String(k)} className="ga-ui flex items-center justify-between gap-3 text-[13.5px]">
+                        <span className="min-w-0 text-ga-muted">{k}</span>
+                        <span className="shrink-0 font-semibold text-ga-ink">{v}</span>
                       </div>
                     ))}
                   </div>
@@ -203,10 +207,10 @@ export default function V2StudentDashboardPage() {
 
               {/* XP level */}
               {xp && (
-                <GaCard className="p-6">
+                <GaCard className="p-4 lg:p-6">
                   <GaCap className="mb-3 block">{t('levelCap')}</GaCap>
-                  <div className="flex items-baseline justify-between">
-                    <p className="font-ga-display text-[26px] font-medium text-ga-ink">{t('levelValue', { level: xp.level })}</p>
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                    <p className="font-ga-display text-[20px] font-medium text-ga-ink lg:text-[26px]">{t('levelValue', { level: xp.level })}</p>
                     <span className="ga-ui text-[13px] text-ga-muted">
                       {xp.progressInLevel} / {xp.progressInLevel + xp.xpNeededForNext} XP
                     </span>

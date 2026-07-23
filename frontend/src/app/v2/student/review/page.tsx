@@ -114,7 +114,7 @@ export default function V2StudentReviewPage() {
           ) : null
         }
       />
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         {error && (
           <div className="mb-5">
             <ErrorBanner message={error} onRetry={load} />
@@ -131,12 +131,12 @@ export default function V2StudentReviewPage() {
                 <div className="h-1 bg-ga-border">
                   <div className="h-full bg-ga-accent transition-[width]" style={{ width: `${(idx / cards.length) * 100}%` }} />
                 </div>
-                <div className="px-7 py-10 text-center">
+                <div className="px-4 py-8 text-center sm:px-7 lg:py-10">
                   {(() => {
                     const art = articleOf(card.german)
                     return (
                       <p
-                        className="font-ga-display text-[40px] font-medium leading-tight"
+                        className="font-ga-display text-[28px] font-medium leading-tight break-words sm:text-[32px] lg:text-[40px]"
                         style={{ color: art ? ARTICLE_COLOR[art] : 'var(--ga-ink)' }}
                       >
                         {card.german}
@@ -146,7 +146,7 @@ export default function V2StudentReviewPage() {
                   <button
                     type="button"
                     onClick={() => speak(card.speakDe || card.german)}
-                    className="ga-ui mt-3 inline-flex items-center gap-1.5 text-[13px] text-ga-muted hover:text-ga-accent"
+                    className="ga-ui mt-3 inline-flex min-h-10 items-center gap-1.5 text-[13px] text-ga-muted hover:text-ga-accent lg:min-h-0"
                   >
                     <Volume2 size={16} aria-hidden /> {t('listen')}
                   </button>
@@ -164,14 +164,16 @@ export default function V2StudentReviewPage() {
                 </div>
 
                 {revealed && (
-                  <div className="grid grid-cols-4 border-t border-ga-border">
-                    {GRADES.map((g) => (
+                  <div className="grid grid-cols-2 border-t border-ga-border lg:grid-cols-4">
+                    {GRADES.map((g, gi) => (
                       <button
                         key={g.q}
                         type="button"
                         disabled={grading}
                         onClick={() => grade(g.q)}
-                        className="ga-ui border-l border-ga-border py-4 text-[13.5px] font-semibold transition-colors first:border-l-0 hover:bg-ga-surface disabled:opacity-50"
+                        className={`ga-ui border-ga-border py-4 text-[13.5px] font-semibold transition-colors hover:bg-ga-surface disabled:opacity-50 ${
+                          gi === 0 ? '' : gi === 2 ? 'lg:border-l' : 'border-l'
+                        } ${gi >= 2 ? 'border-t lg:border-t-0' : ''}`}
                         style={{ color: g.color }}
                       >
                         {t(`grades.${g.labelKey}`)}
@@ -181,7 +183,7 @@ export default function V2StudentReviewPage() {
                 )}
               </GaCard>
             ) : (
-              <GaCard className="px-7 py-14 text-center">
+              <GaCard className="px-4 py-12 text-center sm:px-7 lg:py-14">
                 <p className="text-[40px]">🎉</p>
                 <p className="mt-3 font-ga-display text-[22px] font-medium text-ga-ink">
                   {cards.length === 0 ? t('emptyQueue') : t('doneCount', { count: reviewed })}
@@ -201,16 +203,16 @@ export default function V2StudentReviewPage() {
                 <GaCap className="mb-3 block">{t('grammarTasksCap', { count: tasks.length })}</GaCap>
                 <div className="border border-ga-line bg-ga-card">
                   {tasks.map((task, i) => (
-                    <div key={task.id} className={`flex items-center gap-3 px-5 py-3.5 ${i ? 'border-t border-ga-border' : ''}`}>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[14px] font-semibold text-ga-ink">{errorCodeLabel(task.errorCode)}</p>
+                    <div key={task.id} className={`flex flex-wrap items-center gap-3 px-4 py-3.5 lg:flex-nowrap lg:px-5 ${i ? 'border-t border-ga-border' : ''}`}>
+                      <div className="w-full min-w-0 lg:w-auto lg:flex-1">
+                        <p className="text-[14px] font-semibold text-ga-ink break-words">{errorCodeLabel(task.errorCode)}</p>
                         <p className="ga-ui text-[12px] text-ga-muted">{t('taskCycle', { days: task.intervalDays })}</p>
                       </div>
                       <TkBadge tone="violet">{taskTypeLabel(task.taskType)}</TkBadge>
                       <button
                         type="button"
                         onClick={() => completeTask(task)}
-                        className="ga-ui inline-flex items-center gap-1 rounded-ga border border-ga-line px-3 py-1.5 text-[12px] font-semibold text-ga-muted transition-colors hover:border-ga-green hover:text-ga-green"
+                        className="ga-ui inline-flex min-h-10 items-center gap-1 rounded-ga border border-ga-line px-3 py-1.5 text-[12px] font-semibold text-ga-muted transition-colors hover:border-ga-green hover:text-ga-green lg:min-h-0"
                       >
                         <Check size={14} aria-hidden /> {t('taskDoneBtn')}
                       </button>

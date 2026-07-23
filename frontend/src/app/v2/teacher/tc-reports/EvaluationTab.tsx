@@ -135,8 +135,8 @@ export function EvaluationTab(props: EvaluationTabProps) {
 
   return (
     <div>
-      <div className="mb-3 flex items-center justify-between gap-4">
-        <p className="text-[13px] text-ga-muted">{t('evaluation.helperText')}</p>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 lg:flex-nowrap lg:gap-4">
+        <p className="min-w-0 text-[13px] text-ga-muted">{t('evaluation.helperText')}</p>
         {evaluations.length > 0 && (
           <GaBtn type="button" variant="ghost" size="sm" onClick={() => window.print()}>
             <FileDown size={14} aria-hidden /> {t('evaluation.exportPdf')}
@@ -150,7 +150,8 @@ export function EvaluationTab(props: EvaluationTabProps) {
             <h3 className="text-[14px] font-semibold text-ga-ink">
               {t('evaluation.formTitle', { name: editingEval.name })}
             </h3>
-            <button type="button" onClick={closeEdit} className="text-ga-muted hover:text-ga-ink">
+            {/* Vùng chạm 40px trên mobile qua pseudo-element trong suốt (icon 16px giữ nguyên). */}
+            <button type="button" onClick={closeEdit} className="relative text-ga-muted after:absolute after:-inset-3 after:content-[''] hover:text-ga-ink lg:after:hidden">
               <X size={16} />
             </button>
           </div>
@@ -160,7 +161,7 @@ export function EvaluationTab(props: EvaluationTabProps) {
               void handleSave()
             }}
           >
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {SKILLS.map((skill) => (
                 <div key={skill.field}>
                   <label className="mb-1 block text-[12px] font-medium text-ga-muted" htmlFor={`eval-${skill.field}`}>
@@ -207,7 +208,7 @@ export function EvaluationTab(props: EvaluationTabProps) {
       )}
 
       {evaluations.length === 0 ? (
-        <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">
+        <div className="border border-dashed border-ga-line px-4 py-[40px] text-center text-[14px] text-ga-muted sm:px-6 lg:px-10">
           {t('evaluation.empty')}
         </div>
       ) : (
@@ -225,7 +226,7 @@ export function EvaluationTab(props: EvaluationTabProps) {
                       </TkBadge>
                     )}
                   </div>
-                  <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
                     {SKILLS.map((skill) => (
                       <div key={skill.key} className="flex items-center gap-1.5">
                         <span className="w-16 shrink-0 text-[12px] text-ga-muted">{t(skill.labelKey)}</span>

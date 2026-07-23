@@ -88,12 +88,12 @@ export function ClassPicker({
   disabled?: boolean
 }) {
   return (
-    <div className="relative">
+    <div className="relative max-w-full">
       <select
         value={classId ?? ''}
         onChange={(e) => onChange(Number(e.target.value))}
         disabled={disabled || classes.length === 0}
-        className="ga-ui appearance-none border border-ga-line bg-ga-card py-2 pl-3.5 pr-9 text-[13px] font-semibold text-ga-ink outline-none focus:border-ga-accent disabled:opacity-60"
+        className="ga-ui min-h-[40px] max-w-full appearance-none border border-ga-line bg-ga-card py-2 pl-3.5 pr-9 text-[13px] font-semibold text-ga-ink outline-none focus:border-ga-accent disabled:opacity-60 lg:min-h-0"
       >
         {classes.length === 0 ? <option value="">Chưa có lớp</option> : classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
       </select>

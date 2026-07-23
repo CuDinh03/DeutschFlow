@@ -9,7 +9,7 @@ import { ArrowRight } from 'lucide-react'
  */
 export function TreeSeedState({ displayName }: { displayName?: string }) {
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center gap-6 overflow-hidden border border-ga-line bg-ga-card px-6 py-10 text-center">
+    <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center gap-6 overflow-hidden border border-ga-line bg-ga-card px-4 py-6 text-center sm:px-6 lg:py-10">
       {/* soft ground glow behind the sprout */}
       <div
         aria-hidden

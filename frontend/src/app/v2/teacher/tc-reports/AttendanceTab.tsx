@@ -69,9 +69,9 @@ const fieldCls =
 const selectCls =
   'rounded-ga border border-ga-line bg-ga-card px-1.5 py-1 text-[12px] text-ga-ink outline-none focus:border-ga-accent'
 const iconBtnCls =
-  'grid h-8 w-8 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-side-active hover:text-ga-ink'
+  'grid h-10 w-10 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-side-active hover:text-ga-ink lg:h-8 lg:w-8'
 const deleteBtnCls =
-  'grid h-8 w-8 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-red-soft hover:text-ga-red'
+  'grid h-10 w-10 place-items-center rounded-ga text-ga-subtle transition-colors hover:bg-ga-red-soft hover:text-ga-red lg:h-8 lg:w-8'
 
 function attendanceTone(status: string): 'green' | 'yellow' | 'red' {
   const n = normalizeAttendanceStatus(status)
@@ -248,9 +248,9 @@ export function AttendanceTab(props: AttendanceTabProps) {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-y-2 lg:flex-nowrap">
         <span className="ga-ui text-[13px] text-ga-muted">{t('attendance.countLabel', { count: lessonLogs.length })}</span>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 lg:flex-nowrap">
           {lessonLogs.length > 0 && (
             <GaBtn variant="ghost" size="sm" onClick={() => window.print()}>
               <FileDown size={14} /> {t('attendance.exportPdf')}
@@ -273,7 +273,7 @@ export function AttendanceTab(props: AttendanceTabProps) {
             </button>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className={labelCls} htmlFor="lesson-log-session-date">{t('attendance.sessionDateLabel')}</label>
               <input
@@ -335,9 +335,9 @@ export function AttendanceTab(props: AttendanceTabProps) {
 
           {roster.length > 0 && (
             <div className="mt-4">
-              <div className="mb-1.5 flex items-end justify-between gap-3">
+              <div className="mb-1.5 flex flex-wrap items-end justify-between gap-3 lg:flex-nowrap">
                 <label className={`${labelCls} mb-0`}>{t('attendance.attendanceLabel')}</label>
-                <div className="flex items-center gap-2.5">
+                <div className="flex flex-wrap items-center gap-2.5">
                   {unmarkedCount > 0 && (
                     <span className="ga-ui text-[12px] font-semibold text-ga-muted">
                       {t('attendance.unmarkedCount', { count: unmarkedCount })}
@@ -346,13 +346,13 @@ export function AttendanceTab(props: AttendanceTabProps) {
                   <button
                     type="button"
                     onClick={markAllPresent}
-                    className="ga-ui border border-ga-line px-2 py-1 text-[11.5px] font-semibold text-ga-ink transition-colors hover:border-ga-accent hover:text-ga-accent"
+                    className="ga-ui min-h-[40px] border border-ga-line px-2 py-1 text-[11.5px] font-semibold text-ga-ink transition-colors hover:border-ga-accent hover:text-ga-accent lg:min-h-0"
                   >
                     {t('attendance.markAllPresent')}
                   </button>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {roster.map((s) => {
                   const status = attendanceDraft[s.studentId] ?? 'UNMARKED'
                   return (
@@ -388,7 +388,7 @@ export function AttendanceTab(props: AttendanceTabProps) {
       )}
 
       {lessonLogs.length === 0 && !formOpen && (
-        <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">
+        <div className="border border-dashed border-ga-line px-4 py-[40px] text-center text-[14px] text-ga-muted sm:px-6 lg:px-10">
           {t('attendance.empty')}
         </div>
       )}
@@ -404,8 +404,10 @@ export function AttendanceTab(props: AttendanceTabProps) {
               : dateLabel
             return (
               <div key={log.id} style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
-                <div className="flex items-start gap-3 px-4 py-3">
-                  <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-start gap-3 px-4 py-3 lg:flex-nowrap">
+                  {/* 3 nút hành động đã lên 40px cho chạm tay, chiếm ~128px: dưới lg cho phần mô tả
+                      chiếm trọn hàng và đẩy cụm nút xuống dòng. Từ lg: grow + basis-0 = `flex-1` gốc. */}
+                  <div className="min-w-0 grow basis-full lg:basis-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-[13.5px] font-semibold text-ga-ink">{summaryLabel}</span>
                       <span className="text-[12px] font-semibold" style={{ color: 'var(--ga-green)' }}>

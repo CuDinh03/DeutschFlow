@@ -18,9 +18,10 @@ const gaBtnVariants = cva(
         ink: 'bg-ga-ink text-ga-bg hover:opacity-90',
         ghost: 'border border-ga-line bg-ga-card text-ga-ink hover:bg-ga-surface',
       },
+      // Chiều cao mobile tối thiểu 40px cho chạm tay; từ lg trả lại đúng 32/36/44px gốc.
       size: {
-        sm: 'h-8 px-3 text-[12.5px]',
-        md: 'h-9 px-4 text-[13px]',
+        sm: 'h-10 px-3 text-[12.5px] lg:h-8',
+        md: 'h-10 px-4 text-[13px] lg:h-9',
         lg: 'h-11 px-6 text-[14.5px]',
       },
     },

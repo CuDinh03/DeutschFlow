@@ -35,7 +35,7 @@ export function AudioPlayer({ script, label, compact = false }: AudioPlayerProps
 
   if (compact) {
     return (
-      <div className="flex items-center gap-2 mb-3 bg-sky-50 border border-sky-100 px-3 py-2 rounded-xl w-max">
+      <div className="flex flex-wrap items-center gap-2 mb-3 bg-sky-50 border border-sky-100 px-3 py-2 rounded-xl w-max max-w-full">
         <button
           onClick={handlePrimary}
           disabled={disabled || isLoading}
@@ -67,7 +67,7 @@ export function AudioPlayer({ script, label, compact = false }: AudioPlayerProps
 
   return (
     <div className="bg-sky-50 border border-sky-100 rounded-2xl p-4 mb-6">
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3 lg:gap-4">
         {/* Big play button */}
         <button
           onClick={handlePrimary}
@@ -83,8 +83,8 @@ export function AudioPlayer({ script, label, compact = false }: AudioPlayerProps
         </button>
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-1.5">
-            <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+            <div className="flex min-w-0 items-center gap-1.5">
               {disabled
                 ? <VolumeX size={14} className="text-slate-400" />
                 : <Volume2 size={14} className="text-sky-600" />}

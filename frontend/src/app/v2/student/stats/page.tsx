@@ -153,7 +153,7 @@ export default function V2StudentStatsPage() {
         }
       />
 
-      <div className="flex-1 overflow-auto px-10 py-6">
+      <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
         <div className="mx-auto max-w-4xl space-y-[22px]">
           {loading ? (
             <LoadingState label={t('loading')} />
@@ -193,7 +193,7 @@ export default function V2StudentStatsPage() {
                         { key: 'speaking', name: t('series.speaking'), color: '#E07B39' },
                       ]}
                     />
-                    <div className="mt-3 flex justify-center gap-5">
+                    <div className="mt-3 flex flex-wrap justify-center gap-x-5 gap-y-2">
                       {[
                         ['#2F6FC9', t('series.learned')],
                         ['#1E9E61', t('series.reviewed')],
@@ -283,7 +283,7 @@ export default function V2StudentStatsPage() {
                           />
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-[14px] font-semibold text-ga-ink">{item.title}</span>
-                            <span className="ga-ui mt-0.5 block text-[12.5px] text-ga-muted">{item.description}</span>
+                            <span className="ga-ui mt-0.5 block break-words text-[12.5px] text-ga-muted">{item.description}</span>
                           </span>
                           {href && <ChevronRight size={16} className="mt-1 shrink-0 text-ga-subtle" aria-hidden />}
                         </>
@@ -291,11 +291,11 @@ export default function V2StudentStatsPage() {
                       return (
                         <li key={`${item.type}-${i}`} className={i ? 'border-t border-ga-border' : ''}>
                           {href ? (
-                            <Link href={href} className="flex w-full items-start gap-3 px-5 py-4 text-left transition-colors hover:bg-ga-surface">
+                            <Link href={href} className="flex w-full items-start gap-3 px-4 py-4 text-left transition-colors hover:bg-ga-surface lg:px-5">
                               {body}
                             </Link>
                           ) : (
-                            <div className="flex w-full items-start gap-3 px-5 py-4">{body}</div>
+                            <div className="flex w-full items-start gap-3 px-4 py-4 lg:px-5">{body}</div>
                           )}
                         </li>
                       )
@@ -305,7 +305,7 @@ export default function V2StudentStatsPage() {
               )}
 
               {/* Huy hiệu sống ở /v2/student/achievements — không dựng lại ở đây */}
-              <div className="flex items-center gap-3 border border-ga-line bg-ga-card px-5 py-4">
+              <div className="flex flex-wrap items-center gap-3 border border-ga-line bg-ga-card px-4 py-4 lg:flex-nowrap lg:px-5">
                 <Trophy size={20} className="shrink-0 text-ga-gold" aria-hidden />
                 <div className="min-w-0 flex-1">
                   <GaCap className="block">{t('badgesCap')}</GaCap>

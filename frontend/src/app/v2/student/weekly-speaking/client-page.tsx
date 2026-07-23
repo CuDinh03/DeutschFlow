@@ -144,14 +144,14 @@ export default function WeeklySpeakingClient() {
         right={
           <a
             href="/v2/student/speaking"
-            className="ga-ui inline-flex items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-4 py-2.5 text-[13px] font-semibold text-ga-ink transition-colors hover:bg-ga-surface"
+            className="ga-ui inline-flex min-h-[40px] items-center gap-1.5 rounded-ga border border-ga-line bg-ga-card px-4 py-2.5 text-[13px] font-semibold text-ga-ink transition-colors hover:bg-ga-surface lg:min-h-0"
           >
             <Mic size={14} aria-hidden /> {t('backToSpeaking')}
           </a>
         }
       />
 
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         {loading ? (
           <LoadingState label={t('loading')} />
         ) : (
@@ -169,7 +169,7 @@ export default function WeeklySpeakingClient() {
             {/* key={cefPick}: đổi band ⇒ remount để tải lại đề tuần đúng band (hành vi v1). */}
             <WeeklyChallengeCard key={cefPick} cefrBand={cefPick} onSubmitted={refreshList} />
 
-            <GaCard className="p-6">
+            <GaCard className="p-4 lg:p-6">
               <h2 className="font-ga-display text-[20px] font-medium text-ga-ink">
                 {t('historyTitle')}
               </h2>
@@ -195,7 +195,7 @@ export default function WeeklySpeakingClient() {
                           aria-expanded={open}
                           className="ga-ui flex w-full flex-wrap items-center justify-between gap-2 px-4 py-3 text-left transition-colors hover:bg-ga-side-active"
                         >
-                          <span className="text-[14px] font-semibold text-ga-ink">
+                          <span className="min-w-0 break-words text-[14px] font-semibold text-ga-ink">
                             {row.promptTitle}
                           </span>
                           <span className="flex items-center gap-2 text-[12.5px] text-ga-muted">
@@ -234,7 +234,7 @@ export default function WeeklySpeakingClient() {
                                   </pre>
                                 )}
                                 <GaCap className="pt-1">{t('yourTranscript')}</GaCap>
-                                <p className="ga-ui whitespace-pre-wrap rounded-ga border border-ga-line bg-ga-surface p-3 text-[12.5px] text-ga-ink">
+                                <p className="ga-ui whitespace-pre-wrap break-words rounded-ga border border-ga-line bg-ga-surface p-3 text-[12.5px] text-ga-ink">
                                   {shown.transcript}
                                 </p>
                               </div>

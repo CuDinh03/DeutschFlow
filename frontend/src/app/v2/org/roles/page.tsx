@@ -84,7 +84,7 @@ export default function V2OrgRolesPage() {
   return (
     <div className="flex min-h-full flex-col">
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         {error && (
           <div className="mb-5">
             <ErrorBanner message={error} onRetry={() => void load()} />
@@ -105,7 +105,7 @@ export default function V2OrgRolesPage() {
 
             <GaSection title={t('sectionTitle')} bodyClassName="p-0">
               <div className="overflow-x-auto">
-                <table className="w-full text-left">
+                <table className="w-full min-w-[680px] text-left lg:min-w-0">
                   <thead>
                     <tr className="border-b border-ga-border">
                       {[t('colMember'), t('colRole'), t('colStatus'), t('colJoined'), ''].map((h, i) => (
@@ -146,7 +146,7 @@ export default function V2OrgRolesPage() {
                                   value={m.role}
                                   disabled={busy === m.userId}
                                   onChange={(e) => void handleChangeRole(m, e.target.value as OrgRole)}
-                                  className="ga-ui rounded-ga border border-ga-line bg-ga-surface px-2 py-1 text-[12.5px] font-semibold text-ga-ink transition-colors hover:border-ga-navy disabled:opacity-40"
+                                  className="ga-ui min-h-[40px] rounded-ga border border-ga-line bg-ga-surface px-2 py-1 text-[12.5px] font-semibold text-ga-ink transition-colors hover:border-ga-navy disabled:opacity-40 lg:min-h-0"
                                   aria-label={t('changeRoleAria', { name: m.displayName || m.email })}
                                 >
                                   <option value="MANAGER">{t('optManager')}</option>
@@ -175,7 +175,7 @@ export default function V2OrgRolesPage() {
                                   type="button"
                                   disabled={busy === m.userId}
                                   onClick={() => handleRemove(m)}
-                                  className="ga-ui rounded-ga border border-ga-line px-[10px] py-[6px] text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-red hover:text-ga-red disabled:opacity-40"
+                                  className="ga-ui inline-flex min-h-[40px] items-center justify-center rounded-ga border border-ga-line px-[10px] py-[6px] text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-red hover:text-ga-red disabled:opacity-40 lg:min-h-0"
                                 >
                                   {t('remove')}
                                 </button>

@@ -103,7 +103,7 @@ export default function V2TcProgressPage() {
         title={t('title')}
         subtitle={t('subtitle')}
         right={
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3 lg:flex-nowrap">
             <ClassPicker classes={classes} classId={classId} onChange={setClassId} disabled={loadingClasses} />
             <GaBtn variant="ghost" size="sm" onClick={() => router.push(classHref('/v2/teacher/tc-reports', classId))}>{t('viewFullReport')}</GaBtn>
             <GaBtn variant="yellow" size="sm" onClick={() => router.push(classHref('/v2/teacher/tc-checklist', classId))}>{t('openChecklist')}</GaBtn>
@@ -111,35 +111,35 @@ export default function V2TcProgressPage() {
         }
       />
 
-      <div className="flex-1 overflow-auto px-10 py-6">
+      <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
         {loading ? (
           <div className="ga-shimmer h-[180px] border border-ga-line" aria-hidden />
         ) : error ? (
-          <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
+          <div className="border border-ga-line bg-ga-card px-4 py-10 text-center sm:px-6 lg:px-10 lg:py-[52px]">
             <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadError')}</h2>
             <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">{error}</p>
             <GaBtn variant="primary" onClick={() => classId && load(classId)}>{tc('retry')}</GaBtn>
           </div>
         ) : lessons.length === 0 ? (
-          <div className="border border-dashed border-ga-line px-10 py-[40px] text-center text-[14px] text-ga-muted">
+          <div className="border border-dashed border-ga-line px-4 py-[40px] text-center text-[14px] text-ga-muted sm:px-6 lg:px-10">
             {t('emptyPrefix')} <button type="button" onClick={() => router.push(classHref('/v2/teacher/tc-checklist', classId))} className="font-semibold underline" style={{ color: VIOLET }}>{t('addInChecklist')}</button>
           </div>
         ) : (
           <>
             {/* Hero */}
-            <div className="grid items-center gap-9 bg-ga-ink px-[30px] py-7 text-ga-bg lg:grid-cols-[1.5fr_1fr]">
+            <div className="grid items-center gap-6 bg-ga-ink px-4 py-5 text-ga-bg sm:px-6 lg:grid-cols-[1.5fr_1fr] lg:gap-9 lg:px-[30px] lg:py-7">
               <div>
                 {next ? (
-                  <div className="mb-3.5 flex items-center gap-2.5">
+                  <div className="mb-3.5 flex flex-wrap items-center gap-2.5 lg:flex-nowrap">
                     <span className="ga-ui text-[11px] font-semibold uppercase tracking-[0.14em]" style={{ color: '#A39E94' }}>{t('nextLesson')}</span>
-                    <span className="font-ga-display text-[17px] font-medium text-ga-bg">{next.title}</span>
+                    <span className="min-w-0 break-words font-ga-display text-[17px] font-medium text-ga-bg">{next.title}</span>
                   </div>
                 ) : (
                   <div className="mb-3.5 font-ga-display text-[17px] font-medium text-ga-bg">{t('allDone')}</div>
                 )}
-                <div className="mb-3.5 flex items-baseline gap-2.5">
-                  <span className="font-ga-display text-[54px] font-medium leading-none">{progress}%</span>
-                  <span className="text-[15px]" style={{ color: '#A39E94' }}>{t('completedSummary', { done: done.length, total: lessons.length })}</span>
+                <div className="mb-3.5 flex flex-wrap items-baseline gap-2.5 lg:flex-nowrap">
+                  <span className="font-ga-display text-[36px] font-medium leading-none sm:text-[44px] lg:text-[54px]">{progress}%</span>
+                  <span className="min-w-0 text-[14px] sm:text-[15px]" style={{ color: '#A39E94' }}>{t('completedSummary', { done: done.length, total: lessons.length })}</span>
                 </div>
                 <div className="h-3 bg-white/15">
                   <div className="h-full transition-[width] duration-500" style={{ width: `${progress}%`, background: 'var(--ga-yellow)' }} />
@@ -158,7 +158,7 @@ export default function V2TcProgressPage() {
                   )
                 })()}
               </div>
-              <div className="border-l border-white/15 pl-[30px]">
+              <div className="border-t border-white/15 pt-4 lg:border-l lg:border-t-0 lg:pl-[30px] lg:pt-0">
                 {[
                   [t('taughtSessions'), `${done.length}/${lessons.length}`],
                   [t('lastCompletedLesson'), lastDone ? lastDone.title : '—'],
@@ -178,15 +178,15 @@ export default function V2TcProgressPage() {
             <div className="flex flex-col gap-3.5">
               {lessonGroups.map((group) => (
                 <div key={group.module?.id ?? 'ungrouped'} className="border border-ga-line bg-ga-card">
-                  <div className="flex items-center justify-between border-b border-ga-line px-5 py-2" style={{ background: 'var(--ga-violet-soft)' }}>
-                    <span className="text-[12px] font-bold uppercase tracking-[0.06em]" style={{ color: VIOLET }}>{group.module ? group.module.title : t('ungrouped')}</span>
-                    <span className="text-[12px] font-semibold text-ga-muted">{pct(group.lessons)}%</span>
+                  <div className="flex items-center justify-between gap-2 border-b border-ga-line px-4 py-2 lg:gap-0 lg:px-5" style={{ background: 'var(--ga-violet-soft)' }}>
+                    <span className="min-w-0 break-words text-[12px] font-bold uppercase tracking-[0.06em]" style={{ color: VIOLET }}>{group.module ? group.module.title : t('ungrouped')}</span>
+                    <span className="shrink-0 text-[12px] font-semibold text-ga-muted">{pct(group.lessons)}%</span>
                   </div>
                   {group.lessons.map((l, gi) => {
                     const gnum = seqById.get(l.id) ?? 0
                     const points = resolvePointTexts(l.knowledgePoints, l.description)
                     return (
-                      <div key={l.id} className="flex items-start gap-3.5 px-5 py-3.5" style={{ borderTop: gi ? '1px solid var(--ga-line)' : 'none' }}>
+                      <div key={l.id} className="flex flex-wrap items-start gap-x-3 gap-y-1.5 px-4 py-3.5 lg:flex-nowrap lg:gap-x-3.5 lg:px-5" style={{ borderTop: gi ? '1px solid var(--ga-line)' : 'none' }}>
                     <span
                       className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full border text-[11px] font-bold"
                       style={{
@@ -197,7 +197,10 @@ export default function V2TcProgressPage() {
                     >
                       {l.completed ? <Check size={14} /> : gnum}
                     </span>
-                    <div className="min-w-0 flex-1">
+                    {/* Cột nội dung chiếm gần trọn hàng dưới lg (trừ badge số thứ tự + gap) để nhãn
+                        ngày/trạng thái xuống dòng thay vì bóp tiêu đề còn ~107px ở 320px.
+                        Từ lg: grow + basis-0 = đúng `flex-1` như bản gốc. */}
+                    <div className="min-w-0 grow basis-[calc(100%_-_2.5rem)] lg:basis-0">
                       <div className="flex items-center gap-2">
                         <span className="truncate text-[14px] font-semibold text-ga-ink">{l.title}</span>
                         {l.cefrLevel && (

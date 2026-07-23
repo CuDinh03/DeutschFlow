@@ -237,7 +237,7 @@ export default function V2AdminOrgsPage() {
                 type="button"
                 disabled={activating === org.id}
                 onClick={() => doActivate(org.id)}
-                className="rounded-ga bg-ga-yellow px-3 py-2 text-[11.5px] font-bold text-ga-ink transition-opacity disabled:opacity-60"
+                className="min-h-[40px] rounded-ga bg-ga-yellow px-3 py-2 text-[11.5px] font-bold text-ga-ink transition-opacity disabled:opacity-60 lg:min-h-0"
               >
                 {activating === org.id ? t('activating') : t('activate')}
               </button>
@@ -250,7 +250,7 @@ export default function V2AdminOrgsPage() {
             <button
               type="button"
               onClick={() => setDetail(row)}
-              className="rounded-ga border border-ga-line px-[10px] py-[6px] text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent"
+              className="min-h-[40px] rounded-ga border border-ga-line px-[10px] py-[6px] text-[11px] font-semibold text-ga-muted transition-colors hover:border-ga-accent hover:text-ga-accent lg:min-h-0"
             >
               {t('viewFinance')}
             </button>
@@ -274,10 +274,10 @@ export default function V2AdminOrgsPage() {
         }
       />
 
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         {/* Privacy notice — platform admin sees finance only */}
         <div
-          className="mb-[22px] flex items-center gap-3 border px-[18px] py-[13px]"
+          className="mb-[22px] flex items-start gap-3 border px-4 py-[13px] lg:items-center lg:px-[18px]"
           style={{ background: 'var(--ga-navy-soft)', borderColor: 'rgba(39,64,107,0.20)' }}
         >
           <ShieldCheck size={20} aria-hidden style={{ color: 'var(--ga-navy)', flexShrink: 0 }} />
@@ -318,7 +318,7 @@ export default function V2AdminOrgsPage() {
           itemNoun={t('col.org')}
           pageSize={0}
           empty={
-            <div className="px-10 py-7 text-center">
+            <div className="px-4 py-5 text-center sm:px-6 lg:px-10 lg:py-7">
               <p className="ga-ui text-[14.5px] text-ga-muted">{t('emptyOrgs')}</p>
             </div>
           }
@@ -375,9 +375,9 @@ function OrgFinanceModal({ row, onClose }: { row: OrgRow | null; onClose: () => 
           <GaCap className="mb-2.5 block">{t('modal.contractInfo')}</GaCap>
           <div className="grid grid-cols-2 gap-px border border-ga-line bg-ga-line sm:grid-cols-3">
             {facts.map(([k, v]) => (
-              <div key={k} className="bg-ga-card px-3.5 py-3">
+              <div key={k} className="min-w-0 bg-ga-card px-3.5 py-3">
                 <div className="ga-ui text-[10.5px] font-semibold uppercase tracking-[0.08em] text-ga-subtle">{k}</div>
-                <div className="mt-1 text-[14px] font-semibold text-ga-ink">{v}</div>
+                <div className="mt-1 break-words text-[14px] font-semibold text-ga-ink">{v}</div>
               </div>
             ))}
           </div>
@@ -389,8 +389,8 @@ function OrgFinanceModal({ row, onClose }: { row: OrgRow | null; onClose: () => 
           {issued.length === 0 ? (
             <div className="border border-dashed border-ga-line px-4 py-6 text-center text-[13px] text-ga-muted">{t('modal.noIssued')}</div>
           ) : (
-            <div className="border border-ga-line">
-              <div className="grid grid-cols-[1fr_64px_110px_92px] gap-2 border-b border-ga-line bg-ga-bg px-3.5 py-2 text-[10px] font-bold uppercase tracking-[0.08em] text-ga-muted">
+            <div className="overflow-x-auto border border-ga-line lg:overflow-visible">
+              <div className="grid min-w-[440px] grid-cols-[1fr_64px_110px_92px] gap-2 border-b border-ga-line bg-ga-bg px-3.5 py-2 text-[10px] font-bold uppercase tracking-[0.08em] text-ga-muted lg:min-w-0">
                 <span>{t('modal.colPeriod')}</span><span className="text-right">{t('modal.colSeats')}</span><span className="text-right">{t('modal.colAmount')}</span><span className="text-right">{t('modal.colStatus')}</span>
               </div>
               {issued.map((inv, i) => {
@@ -398,7 +398,7 @@ function OrgFinanceModal({ row, onClose }: { row: OrgRow | null; onClose: () => 
                 const stLabel = st ? t(`modal.invStatus.${st.labelKey}`) : inv.status
                 const tone = PAY_TONE[st?.tone ?? 'none']
                 return (
-                  <div key={inv.id} className="grid grid-cols-[1fr_64px_110px_92px] items-center gap-2 px-3.5 py-2.5 text-[12.5px]" style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
+                  <div key={inv.id} className="grid min-w-[440px] grid-cols-[1fr_64px_110px_92px] items-center gap-2 px-3.5 py-2.5 text-[12.5px] lg:min-w-0" style={{ borderTop: i ? '1px solid var(--ga-line)' : 'none' }}>
                     <span className="text-ga-ink">{fmtDate(inv.periodStart)} – {fmtDate(inv.periodEnd)}</span>
                     <span className="text-right text-ga-muted">{inv.seats}</span>
                     <span className="text-right font-semibold text-ga-ink">{vndFull(inv.amountVnd)}</span>
@@ -415,10 +415,10 @@ function OrgFinanceModal({ row, onClose }: { row: OrgRow | null; onClose: () => 
         {/* Locked learning data (privacy) */}
         <div>
           <GaCap className="mb-2.5 block">{t('modal.learningData')}</GaCap>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {LOCKED_FIELD_KEYS.map((f) => (
-              <div key={f} className="flex items-center gap-2 border border-dashed border-ga-line bg-ga-bg px-3 py-2.5 text-[12.5px] text-ga-subtle">
-                <Lock size={13} className="shrink-0" /> {t(`modal.lockedFields.${f}`)} <span className="ml-auto text-[10.5px]">{t('modal.noAccess')}</span>
+              <div key={f} className="flex min-w-0 items-center gap-2 border border-dashed border-ga-line bg-ga-bg px-3 py-2.5 text-[12.5px] text-ga-subtle">
+                <Lock size={13} className="shrink-0" /> {t(`modal.lockedFields.${f}`)} <span className="ml-auto shrink-0 text-[10.5px]">{t('modal.noAccess')}</span>
               </div>
             ))}
           </div>

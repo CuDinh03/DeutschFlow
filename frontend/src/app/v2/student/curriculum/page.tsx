@@ -129,9 +129,13 @@ function LessonCard({
           {lesson.grammarPoints && lesson.grammarPoints.length > 0 && (
             <div className={lesson.themes?.length ? '' : 'pt-3'}>
               <GaCap className="mb-1.5 block">{t('grammar')}</GaCap>
+              {/* Nội dung bài học là text node TRẦN trong flex (`{g}` dưới đây) → trở thành mục ẩn
+                  danh có min-width:auto, tức min-content = từ dài nhất. Một từ ghép tiếng Đức dài sẽ
+                  đẩy tràn khung ở 320px (bề rộng khả dụng chỉ ~232px). `overflow-wrap:anywhere`
+                  (khác `break-words`) hạ cả min-content nên khối co được; từ lg trả lại `normal`. */}
               <ul className="space-y-1">
                 {lesson.grammarPoints.map((g, i) => (
-                  <li key={i} className="ga-ui flex gap-1.5 text-[12.5px] text-ga-muted">
+                  <li key={i} className="ga-ui flex gap-1.5 text-[12.5px] text-ga-muted [overflow-wrap:anywhere] lg:[overflow-wrap:normal]">
                     <span className="text-ga-accent" aria-hidden>
                       •
                     </span>
@@ -149,7 +153,7 @@ function LessonCard({
                 {vocab.slice(0, 20).map((v, i) => (
                   <span
                     key={i}
-                    className="rounded-ga border border-ga-line bg-ga-surface px-2 py-0.5 font-mono text-[12px] text-ga-muted"
+                    className="rounded-ga border border-ga-line bg-ga-surface px-2 py-0.5 font-mono text-[12px] text-ga-muted [overflow-wrap:anywhere] lg:[overflow-wrap:normal]"
                   >
                     {v}
                   </span>
@@ -166,9 +170,10 @@ function LessonCard({
           {goals.length > 0 && (
             <div>
               <GaCap className="mb-1.5 block">{t('communicativeGoals')}</GaCap>
+              {/* Cùng lý do như danh sách ngữ pháp phía trên: text node trần trong flex. */}
               <ul className="space-y-1">
                 {goals.map((g, i) => (
-                  <li key={i} className="ga-ui flex gap-1.5 text-[12.5px] text-ga-muted">
+                  <li key={i} className="ga-ui flex gap-1.5 text-[12.5px] text-ga-muted [overflow-wrap:anywhere] lg:[overflow-wrap:normal]">
                     <span className="text-ga-green" aria-hidden>
                       ✓
                     </span>
@@ -283,10 +288,10 @@ export default function V2StudentCurriculumPage() {
     <div className="flex min-h-full flex-col">
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
 
-      <div className="flex-1 px-10 py-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
         <div className="mx-auto max-w-2xl space-y-4">
           {curriculum && !error && (
-            <GaCard className="flex items-center gap-3 p-5">
+            <GaCard className="flex items-center gap-3 p-4 lg:p-5">
               <span className="grid h-12 w-12 shrink-0 place-items-center rounded-ga bg-ga-accent-soft text-ga-accent">
                 <BookOpen size={22} aria-hidden />
               </span>

@@ -104,7 +104,7 @@ export function AvailabilityPanel() {
 
   if (error) {
     return (
-      <div className="border border-dashed border-ga-line px-10 py-[52px] text-center">
+      <div className="border border-dashed border-ga-line px-4 py-10 text-center sm:px-6 lg:px-10 lg:py-[52px]">
         <div className="font-ga-display text-[20px] italic text-ga-muted">Không tải được khung giờ rảnh</div>
         <p className="ga-ui mx-auto mb-4 mt-2 max-w-sm text-[13.5px] text-ga-subtle">Có lỗi khi tải khung giờ. Thử lại nhé.</p>
         <GaBtn variant="ghost" onClick={() => void load()}>
@@ -115,13 +115,13 @@ export function AvailabilityPanel() {
   }
 
   return (
-    <div className="border border-ga-line bg-ga-card px-8 py-7">
-      <div className="mb-[18px] flex items-center justify-between gap-4">
-        <div>
+    <div className="border border-ga-line bg-ga-card px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
+      <div className="mb-[18px] flex flex-wrap items-center justify-between gap-4 lg:flex-nowrap">
+        <div className="min-w-0">
           <GaCap>Chọn khung giờ rảnh trong tuần</GaCap>
           <p className="mt-1 text-[12.5px] text-ga-subtle">Học viên đặt buổi 1:1 trong các khung này. Lịch lặp lại mỗi tuần.</p>
         </div>
-        <div className="flex shrink-0 items-center gap-2.5">
+        <div className="flex shrink-0 flex-wrap items-center gap-2.5">
           <span className="text-[13px] text-ga-muted">{loading ? 'Đang tải…' : `${blockCount} khung giờ`}</span>
           <GaBtn variant="ghost" disabled={loading || saving || blockCount === 0} onClick={() => setSelected(new Set())}>
             Xoá hết
@@ -132,43 +132,46 @@ export function AvailabilityPanel() {
         </div>
       </div>
 
-      <div
-        aria-hidden={loading}
-        className={loading ? 'pointer-events-none opacity-40' : ''}
-        style={{ display: 'grid', gridTemplateColumns: '64px repeat(7, minmax(0, 1fr))', gap: '4px' }}
-      >
-        <div />
-        {DAYS.map((d) => (
-          <div key={d} className="pb-1 text-center text-[11.5px] font-bold text-ga-ink">
-            {d}
-          </div>
-        ))}
+      {/* Lưới 8 cột bó cứng 420px → cuộn ngang trong khung riêng dưới sm (mẫu D); từ sm trở lên fluid như cũ. */}
+      <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:overflow-visible sm:px-0">
+        <div
+          aria-hidden={loading}
+          className={`min-w-[420px] sm:min-w-0 ${loading ? 'pointer-events-none opacity-40' : ''}`}
+          style={{ display: 'grid', gridTemplateColumns: '64px repeat(7, minmax(0, 1fr))', gap: '4px' }}
+        >
+          <div />
+          {DAYS.map((d) => (
+            <div key={d} className="pb-1 text-center text-[11.5px] font-bold text-ga-ink">
+              {d}
+            </div>
+          ))}
 
-        {AV_HOURS.map((h) => (
-          <div key={h} className="contents">
-            <div className="flex items-center justify-end pr-2 text-[11px] font-semibold text-ga-muted">{pad2(h)}:00</div>
-            {DAYS.map((_, day) => {
-              const on = selected.has(avKey(day, h))
-              return (
-                <button
-                  key={avKey(day, h)}
-                  type="button"
-                  aria-pressed={on}
-                  aria-label={`${DAYS[day]} ${pad2(h)}:00`}
-                  onClick={() => toggle(day, h)}
-                  className="h-[34px] rounded-ga border text-[12px] font-bold transition-colors"
-                  style={{
-                    borderColor: on ? VIOLET : 'var(--ga-line)',
-                    background: on ? 'var(--ga-violet-soft)' : 'transparent',
-                    color: on ? VIOLET : 'var(--ga-faint)',
-                  }}
-                >
-                  {on ? '✓' : ''}
-                </button>
-              )
-            })}
-          </div>
-        ))}
+          {AV_HOURS.map((h) => (
+            <div key={h} className="contents">
+              <div className="flex items-center justify-end pr-2 text-[11px] font-semibold text-ga-muted">{pad2(h)}:00</div>
+              {DAYS.map((_, day) => {
+                const on = selected.has(avKey(day, h))
+                return (
+                  <button
+                    key={avKey(day, h)}
+                    type="button"
+                    aria-pressed={on}
+                    aria-label={`${DAYS[day]} ${pad2(h)}:00`}
+                    onClick={() => toggle(day, h)}
+                    className="h-10 rounded-ga border text-[12px] font-bold transition-colors sm:h-[34px]"
+                    style={{
+                      borderColor: on ? VIOLET : 'var(--ga-line)',
+                      background: on ? 'var(--ga-violet-soft)' : 'transparent',
+                      color: on ? VIOLET : 'var(--ga-faint)',
+                    }}
+                  >
+                    {on ? '✓' : ''}
+                  </button>
+                )
+              })}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )

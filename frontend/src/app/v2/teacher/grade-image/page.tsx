@@ -69,12 +69,12 @@ export default function V2GradeImagePage() {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div className="flex min-h-full flex-col lg:h-full lg:overflow-hidden">
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
 
-      <div className="grid min-h-0 flex-1" style={{ gridTemplateColumns: '1fr 380px' }}>
+      <div className="flex min-h-0 flex-1 flex-col lg:grid" style={{ gridTemplateColumns: '1fr 380px' }}>
         {/* Upload + preview */}
-        <div className="overflow-auto border-r border-ga-line px-8 py-7">
+        <div className="border-b border-ga-line px-4 py-6 sm:px-6 lg:overflow-auto lg:border-b-0 lg:border-r lg:px-8 lg:py-7">
           <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={(e) => pickFile(e.target.files?.[0])} />
 
           {!file ? (
@@ -84,7 +84,7 @@ export default function V2GradeImagePage() {
               onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
               onDragLeave={() => setDragging(false)}
               onDrop={(e) => { e.preventDefault(); setDragging(false); pickFile(e.dataTransfer.files?.[0]) }}
-              className="grid h-[360px] w-full place-items-center border-2 border-dashed text-center transition-colors"
+              className="grid h-[240px] w-full place-items-center border-2 border-dashed text-center transition-colors lg:h-[360px]"
               style={{ borderColor: dragging ? VIOLET : 'var(--ga-line)', background: dragging ? 'var(--ga-violet-soft)' : 'var(--ga-bg)' }}
             >
               <div>
@@ -97,7 +97,7 @@ export default function V2GradeImagePage() {
             </button>
           ) : (
             <>
-              <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-3 lg:flex-nowrap">
                 <div className="flex min-w-0 items-center gap-2 text-[13px] text-ga-muted">
                   <ImageIcon size={15} className="shrink-0" />
                   <span className="truncate">{file.name}</span>
@@ -113,7 +113,7 @@ export default function V2GradeImagePage() {
                 </div>
               </div>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={previewUrl} alt={t('handwritingAlt')} className={`w-full border border-ga-line object-contain transition-[max-height] duration-300 ${zoom ? 'max-h-[760px]' : 'max-h-[420px]'}`} />
+              <img src={previewUrl} alt={t('handwritingAlt')} className={`w-full border border-ga-line object-contain transition-[max-height] duration-300 ${zoom ? 'max-h-[760px]' : 'max-h-[300px] lg:max-h-[420px]'}`} />
               <div className="mt-4">
                 <GaCap className="mb-2 block">{t('topicCap')}</GaCap>
                 <input
@@ -131,16 +131,16 @@ export default function V2GradeImagePage() {
         </div>
 
         {/* Result */}
-        <div className="overflow-auto bg-ga-card px-[22px] py-7">
+        <div className="bg-ga-card px-4 py-6 lg:overflow-auto lg:px-[22px] lg:py-7">
           {phase === 'loading' ? (
-            <div className="grid h-full place-items-center text-center text-ga-muted">
+            <div className="grid h-full min-h-[160px] place-items-center text-center text-ga-muted lg:min-h-0">
               <div>
                 <Loader2 size={28} className="mx-auto mb-3 animate-spin text-ga-accent" />
                 <p className="ga-ui text-[14px]">{t('grading')}</p>
               </div>
             </div>
           ) : phase === 'error' ? (
-            <div className="grid h-full place-items-center text-center">
+            <div className="grid h-full min-h-[160px] place-items-center text-center lg:min-h-0">
               <div>
                 <X size={32} className="mx-auto mb-3 text-ga-red" />
                 <p className="font-ga-display text-[20px] font-medium text-ga-ink">{t('gradeError')}</p>
@@ -149,13 +149,13 @@ export default function V2GradeImagePage() {
               </div>
             </div>
           ) : !result ? (
-            <div className="grid h-full place-items-center text-center text-ga-muted">
+            <div className="grid h-full min-h-[160px] place-items-center text-center text-ga-muted lg:min-h-0">
               <p className="ga-ui max-w-[220px] text-[14px]">{t.rich('idleHint', { b: (chunks) => <strong className="text-ga-ink">{chunks}</strong> })}</p>
             </div>
           ) : (
             <>
               {/* Score */}
-              <div className="mb-5 border px-5 py-4 text-center" style={{ background: 'var(--ga-violet-soft)', borderColor: 'color-mix(in srgb, var(--ga-violet) 35%, transparent)' }}>
+              <div className="mb-5 border px-4 py-4 text-center lg:px-5" style={{ background: 'var(--ga-violet-soft)', borderColor: 'color-mix(in srgb, var(--ga-violet) 35%, transparent)' }}>
                 <div className="ga-ui flex items-center justify-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.08em]" style={{ color: VIOLET }}>
                   <Sparkles size={13} /> {t('aiScoreCap')}
                 </div>
@@ -165,9 +165,9 @@ export default function V2GradeImagePage() {
               </div>
 
               {/* OCR transcription */}
-              <div className="mb-4 border border-ga-line bg-ga-bg px-[18px] py-4">
+              <div className="mb-4 border border-ga-line bg-ga-bg px-4 py-4 lg:px-[18px]">
                 <GaCap className="mb-2 flex items-center gap-1.5"><ScanText size={13} /> {t('ocrCap')}</GaCap>
-                <p className="m-0 whitespace-pre-wrap font-ga-display text-[14.5px] italic leading-[1.65] text-ga-ink">{result.transcription}</p>
+                <p className="m-0 whitespace-pre-wrap break-words font-ga-display text-[14.5px] italic leading-[1.65] text-ga-ink">{result.transcription}</p>
                 <p className="ga-ui mt-2 text-[11.5px] text-ga-subtle">{t('ocrReviewHint')}</p>
               </div>
 
@@ -179,7 +179,7 @@ export default function V2GradeImagePage() {
                 rows={5}
                 className="ga-ui mb-3.5 block w-full resize-y border border-ga-line bg-ga-bg px-3 py-2.5 text-[14px] leading-[1.6] text-ga-ink outline-none focus:border-ga-accent"
               />
-              <div className="flex gap-2.5">
+              <div className="flex flex-wrap gap-2.5">
                 <GaBtn variant="ghost" size="sm" onClick={() => { void navigator.clipboard?.writeText(`${result.score}/100\n\n${feedback}`); toast.success(t('copySuccess')) }}>
                   <Copy size={14} /> {t('copy')}
                 </GaBtn>

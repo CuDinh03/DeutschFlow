@@ -77,13 +77,13 @@ export default function V2AdminTrainingDatasetPage() {
     <div className="flex min-h-full flex-col">
       <GaPageHdr accent title={t('title')} subtitle={t('subtitle')} />
 
-      <div className="flex-1 overflow-auto px-10 py-6">
+      <div className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-10">
         {loading ? (
           <div className="flex flex-col gap-3">{Array.from({ length: 2 }).map((_, i) => <div key={i} className="ga-shimmer h-[120px] border border-ga-line" aria-hidden />)}</div>
         ) : error ? (
-          <div className="border border-ga-line bg-ga-card px-10 py-[52px] text-center">
-            <h2 className="font-ga-display text-[24px] font-medium text-ga-red">{t('loadError')}</h2>
-            <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm text-[14px] text-ga-muted">{error} <code className="font-mono text-[12px] text-ga-accent">GET /api/admin/training-dataset/stats</code></p>
+          <div className="border border-ga-line bg-ga-card px-4 py-10 text-center sm:px-6 lg:px-10 lg:py-[52px]">
+            <h2 className="font-ga-display text-[20px] font-medium text-ga-red lg:text-[24px]">{t('loadError')}</h2>
+            <p className="ga-ui mx-auto mb-5 mt-3 max-w-sm break-words text-[14px] text-ga-muted">{error} <code className="break-words font-mono text-[12px] text-ga-accent">GET /api/admin/training-dataset/stats</code></p>
             <GaBtn variant="primary" onClick={load}>{tc('retry')}</GaBtn>
           </div>
         ) : (
@@ -99,12 +99,12 @@ export default function V2AdminTrainingDatasetPage() {
             <div className="mb-3.5 mt-[22px]"><GaCap>{t('exportCap')}</GaCap></div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {EXPORTS.map(({ key, titleKey, descKey, tone }) => (
-                <div key={key} className="border border-ga-line bg-ga-card p-[22px]">
+                <div key={key} className="border border-ga-line bg-ga-card p-4 lg:p-[22px]">
                   <div className="mb-2 flex items-center gap-2">
-                    <span className="grid h-9 w-9 place-items-center" style={{ background: `color-mix(in srgb, ${tone} 14%, transparent)`, color: tone }}>
+                    <span className="grid h-9 w-9 shrink-0 place-items-center" style={{ background: `color-mix(in srgb, ${tone} 14%, transparent)`, color: tone }}>
                       {key === 'conversations' ? <MessageSquare size={18} /> : <AlertTriangle size={18} />}
                     </span>
-                    <h2 className="font-ga-display text-[16px] font-medium text-ga-ink">{t(titleKey)}</h2>
+                    <h2 className="min-w-0 font-ga-display text-[16px] font-medium text-ga-ink">{t(titleKey)}</h2>
                   </div>
                   <p className="ga-ui mb-4 text-[13px] leading-relaxed text-ga-muted">{t(descKey)}</p>
                   <GaBtn variant="primary" size="sm" loading={downloading === key} onClick={() => handleDownload(key)}>

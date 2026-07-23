@@ -139,7 +139,7 @@ export default function WritingView({ content, isLocked = false }: { content: No
         />
 
         {/* Footer bar */}
-        <div className="flex items-center justify-between px-4 py-2 border-t border-[#F1F5F9]">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 border-t border-[#F1F5F9]">
           <div className="flex items-center gap-3">
             {/* Word count */}
             <span className={`text-xs font-mono ${wordCount >= minWords ? "text-green-600" : "text-[#94A3B8]"}`}>
@@ -190,7 +190,7 @@ export default function WritingView({ content, isLocked = false }: { content: No
                   {err.type === "grammar" ? "Ngữ pháp" : err.type === "spelling" ? "Chính tả" : "Phong cách"}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs">
+                  <p className="text-xs break-words">
                     <span className="line-through text-red-400">{err.original}</span>
                     <span className="mx-1">→</span>
                     <span className="font-bold text-green-600">{err.corrected}</span>
