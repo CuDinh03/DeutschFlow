@@ -1,5 +1,6 @@
 import * as React from 'react'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { GaIcon } from './GaIcon'
 import { GaSidebarToggle } from './GaShellNav'
 import { TeacherPendingPill } from './TeacherPendingPill'
@@ -31,14 +32,15 @@ const HELP_HREF: Record<RoleId, string> = {
   admin: '/support',
 }
 
-const ROLE_CHIP: Record<RoleId, string> = {
-  admin: '● Hệ thống ổn định',
-  teacher: 'Khu vực giáo viên',
-  org: 'Khu vực tổ chức',
-  student: 'Khu vực học viên',
+const ROLE_CHIP_KEY: Record<RoleId, string> = {
+  admin: 'chipAdmin',
+  teacher: 'chipTeacher',
+  org: 'chipOrg',
+  student: 'chipStudent',
 }
 
 export function GaTopBar({ role }: GaTopBarProps) {
+  const t = useTranslations('v2.shell')
   return (
     <header className="flex h-[58px] shrink-0 items-center gap-3 border-b border-ga-line bg-ga-card px-4 lg:gap-4 lg:px-6">
       <GaSidebarToggle />
@@ -47,8 +49,8 @@ export function GaTopBar({ role }: GaTopBarProps) {
         <GaIcon name="search" size={18} className="text-ga-subtle" />
         <input
           type="search"
-          placeholder="Tìm bài học, từ vựng, lớp…"
-          aria-label="Tìm kiếm"
+          placeholder={t('searchPlaceholder')}
+          aria-label={t('searchAria')}
           className="ga-ui min-w-0 flex-1 border-none bg-transparent text-[14px] text-ga-ink outline-none placeholder:text-ga-subtle"
         />
       </label>
@@ -60,7 +62,7 @@ export function GaTopBar({ role }: GaTopBarProps) {
             className="hidden whitespace-nowrap rounded-ga px-3 py-[7px] text-[12.5px] font-semibold md:inline-flex"
             style={{ background: 'rgba(30,158,97,0.12)', color: '#1E9E61' }}
           >
-            {ROLE_CHIP.admin}
+            {t(ROLE_CHIP_KEY.admin)}
           </span>
         ) : role === 'teacher' ? (
           <div className="hidden md:block">
@@ -68,7 +70,7 @@ export function GaTopBar({ role }: GaTopBarProps) {
           </div>
         ) : (
           <span className="hidden whitespace-nowrap rounded-ga bg-ga-accent-soft px-3 py-[7px] text-[12.5px] font-semibold text-ga-accent md:inline-flex">
-            {ROLE_CHIP[role]}
+            {t(ROLE_CHIP_KEY[role])}
           </span>
         )}
 
@@ -78,7 +80,7 @@ export function GaTopBar({ role }: GaTopBarProps) {
 
         <Link
           href={HELP_HREF[role]}
-          aria-label="Trợ giúp"
+          aria-label={t('helpAria')}
           className="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-ga border border-ga-line text-ga-muted transition-colors hover:bg-ga-surface hover:text-ga-ink"
         >
           <GaIcon name="help" size={20} />

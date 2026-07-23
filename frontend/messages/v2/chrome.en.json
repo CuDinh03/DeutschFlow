@@ -106,7 +106,16 @@
   },
   "shell": {
     "logout": "Log out",
-    "mainNav": "Main navigation"
+    "mainNav": "Main navigation",
+    "searchPlaceholder": "Search lessons, vocabulary, classes…",
+    "searchAria": "Search",
+    "helpAria": "Help",
+    "chipAdmin": "● System healthy",
+    "chipTeacher": "Teacher area",
+    "chipOrg": "Organization area",
+    "chipStudent": "Student area",
+    "languageAria": "Language",
+    "openNavAria": "Open navigation menu"
   },
   "common": {
     "start": "Start",
@@ -119,6 +128,8 @@
     "back": "Back",
     "next": "Next",
     "confirm": "Confirm",
-    "search": "Search"
+    "search": "Search",
+    "errorTitle": "Something went wrong",
+    "errorLoadFailed": "Couldn't load data. Please try again."
   }
 }

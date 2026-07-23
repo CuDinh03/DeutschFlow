@@ -39,6 +39,7 @@ type FieldErrors = Record<string, string>
 const MAINTENANCE_MSG = process.env.NEXT_PUBLIC_MAINTENANCE_MESSAGE ?? ''
 
 function MaintenanceBanner() {
+  const t = useTranslations('auth')
   const [visible, setVisible] = useState(true)
   if (!MAINTENANCE_MSG || !visible) return null
   return (
@@ -66,13 +67,13 @@ function MaintenanceBanner() {
         </span>
         {/* Message */}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-amber-800">🔧 Máy chủ đang bảo trì</p>
+          <p className="text-sm font-semibold text-amber-800">{t('maintenanceTitle')}</p>
           <p className="text-xs text-amber-700 mt-0.5 leading-relaxed">{MAINTENANCE_MSG}</p>
         </div>
         {/* Dismiss */}
         <button
           onClick={() => setVisible(false)}
-          aria-label="Đóng thông báo"
+          aria-label={t('dismissAria')}
           className="mt-0.5 flex-shrink-0 p-0.5 rounded-full text-amber-600 hover:text-amber-900 hover:bg-amber-200/60 transition-colors"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
