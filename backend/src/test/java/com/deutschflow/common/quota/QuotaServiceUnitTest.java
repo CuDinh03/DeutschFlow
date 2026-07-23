@@ -20,8 +20,8 @@ class QuotaServiceUnitTest {
     @Mock
     JdbcTemplate jdbcTemplate;
 
-    // Default mock returns false from wouldExceedOrgPool → org-pool gate is a no-op here,
-    // so all existing personal-quota assertions are unaffected.
+    // Chỉ để thoả constructor — các test ở đây không đi qua assertAllowed nên tryReserve
+    // (gate org H-3) không bao giờ được gọi trên mock này.
     @Mock
     OrgQuotaService orgQuotaService;
 

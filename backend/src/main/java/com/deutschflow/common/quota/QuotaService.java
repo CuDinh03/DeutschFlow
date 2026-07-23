@@ -54,11 +54,14 @@ public class QuotaService {
      * tách rời với bước DEBIT ({@link #applyUsageDebit}) chạy SAU lời gọi LLM (cách nhau 2-10s).
      * Vì vậy N request đồng thời của cùng một user đều có thể pass check trước khi request đầu
      * tiên kịp debit → overage tối đa ≈ (số request đồng thời) × (token/request). Đây là đánh đổi
-     * có chủ đích: overage chỉ ở cấp <b>per-user</b> (không phải org — org pool đã atomic, xem
-     * {@code org_monthly_token_counters}) và đã bị chặn trên bởi {@code AiRateLimiterService}
-     * (req/window/user). Hard-cap (reserve token atomic trước LLM, reconcile sau) sẽ phải sửa
-     * 20+ call-site và bị hoãn — symptom của overage được ghi ở {@link #applyUsageDebit}
+     * có chủ đích ở cấp <b>per-user</b> (ví cá nhân), đã bị chặn trên bởi {@code AiRateLimiterService}
+     * (req/window/user); symptom của overage được ghi ở {@link #applyUsageDebit}
      * (marker {@code [Quota][P-9/P-11][OVERAGE]}) để log-based alert đếm được.
+     *
+     * <p><b>Cấp ORG thì KHÁC (H-3, 2026-07-23):</b> pool org là hạn mức doanh thu/COGS theo hợp đồng
+     * nên là <b>hard-cap thật</b> — {@code OrgQuotaService.tryReserve} cộng trước est vào counter
+     * bằng một câu conditional-upsert atomic (commit REQUIRES_NEW ngay tại gate), charge sau LLM chỉ
+     * ghi delta, đường chết được {@code OrgReservationRefundFilter} hoàn trả.
      */
     @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     public QuotaSnapshot assertAllowed(long userId, Instant nowUtc, long estimatedMinTokens) {
@@ -82,8 +85,14 @@ public class QuotaService {
         }
         // Org-level shared monthly pool (opt-in: only when the user's org has monthly_token_pool > 0).
         // B2C / non-org users and unconfigured pools are never gated here — personal quota is the only limit.
-        if (orgQuotaService.wouldExceedOrgPool(userId, estimatedMinTokens)) {
-            throw new QuotaExceededException("Tổ chức đã dùng hết ngân sách token AI tháng này.", snap);
+        // H-3: reserve atomic (cộng trước est vào counter trong tx REQUIRES_NEW riêng) thay cho
+        // check-then-act — N request đồng thời không còn cùng lách qua pool. Suất giữ chỗ được charge
+        // đối soát delta (AiUsageLedgerService) hoặc filter hoàn trả cuối request nếu LLM fail.
+        var reservation = orgQuotaService.tryReserve(userId, estimatedMinTokens)
+                .orElseThrow(() -> new QuotaExceededException(
+                        "Tổ chức đã dùng hết ngân sách token AI tháng này.", snap));
+        if (reservation.metered()) {
+            OrgReservationHolder.replace(reservation, orgQuotaService::refund);
         }
         return snap;
     }

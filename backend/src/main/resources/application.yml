@@ -270,6 +270,11 @@ app:
     # chính mình thêm vào — nên kẻ tấn công KHÔNG thể giả mạo XFF để né rate-limit.
     # 0 = không có proxy (dùng socket address). 1 = một proxy (mặc định). 2 = CloudFront→ALB.
     trusted-proxy-count: ${APP_SECURITY_TRUSTED_PROXY_COUNT:1}
+    # M-2/L-5: fixed-window theo IP cho TOÀN BỘ /api/public/** (Redis, chia sẻ giữa node;
+    # Redis chết → fail-open). free-grade vẫn giữ cap riêng chặt hơn của LeadMagnetService.
+    public-rate-limit:
+      enabled: ${APP_SECURITY_PUBLIC_RATE_LIMIT_ENABLED:true}
+      per-minute: ${APP_SECURITY_PUBLIC_RATE_LIMIT_PER_MINUTE:30}
 
   # Gói miễn phí cho GV tự do (non-org): hạn mức/ngày cho tính năng AI ĐẮT (checklist D6).
   # Chấm bài text (core) KHÔNG bị cap; chỉ PPTX & OCR-ảnh. GV thuộc org dùng org token-pool.

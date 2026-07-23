@@ -3,7 +3,10 @@ package com.deutschflow.organization.service;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Optional;
 
 /**
  * Hạn mức token AI cấp-org (monthly pool): vừa báo cáo, vừa enforcement.
@@ -15,7 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>{@code pool_unlimited = false & monthly_token_pool > 0} → metered theo pool.</li>
  *   <li>{@code pool_unlimited = false & pool = 0} → CHƯA cấu hình → cap (fail-safe, đóng backdoor).</li>
  * </ul>
- * {@link #wouldExceedOrgPool} được {@code QuotaService.assertAllowed} và {@code OrgPoolGuard} gọi để chặn.
+ * {@link #tryReserve} được {@code QuotaService.assertAllowed} và {@code OrgPoolGuard} gọi để chặn
+ * (H-3: reserve-then-reconcile, không còn check-then-act).
  */
 @Service
 @Slf4j
@@ -65,16 +69,113 @@ public class OrgQuotaService {
     }
 
     /**
-     * True nếu việc nạp thêm {@code estimatedTokens} cho user này sẽ vượt hạn mức org (xem bảng quyết
-     * định ở class doc). User B2C (không có {@code org_members} row) → false. Gọi từ
-     * {@code QuotaService.assertAllowed} và {@code OrgPoolGuard}.
+     * Suất giữ chỗ trong pool token tháng của org, tạo bởi {@link #tryReserve} tại gate và
+     * đối soát tại charge ({@code AiUsageLedgerService}).
      *
-     * <p>Dùng {@code org_members} làm nguồn tenant duy nhất (T-1/D-1) — không đọc
-     * {@code users.org_id} để tránh drift giữa hai nguồn.
+     * @param orgId          org của user tại thời điểm gate; {@code null} = B2C (không giữ gì)
+     * @param reservedTokens số token đã CỘNG TRƯỚC vào counter (0 với B2C / unlimited / est=0)
      */
-    @Transactional(readOnly = true)
-    public boolean wouldExceedOrgPool(long userId, long estimatedTokens) {
-        Long orgId = jdbcTemplate.query(
+    public record OrgReservation(Long orgId, long reservedTokens) {
+        /** B2C / không có gì để giữ. */
+        public static final OrgReservation NONE = new OrgReservation(null, 0L);
+
+        /** true khi thật sự có token đã cộng trước vào counter (cần reconcile/refund). */
+        public boolean metered() {
+            return orgId != null && reservedTokens > 0L;
+        }
+    }
+
+    /**
+     * H-3 (audit B2B 07-04) — đóng TOCTOU của gate pool org bằng <b>reserve-then-reconcile</b>:
+     * thay vì "đọc usage rồi quyết" (N request đồng thời cùng lách), token ước lượng được CỘNG
+     * TRƯỚC vào counter bằng MỘT câu conditional-upsert atomic; hết chỗ → {@code Optional.empty()}
+     * (caller ném 429). Charge thật sau LLM chỉ ghi phần chênh (delta = actual − reserved) qua
+     * {@code AiUsageLedgerService}; request chết trước khi charge được filter cuối request hoàn trả
+     * ({@code OrgReservationRefundFilter}).
+     *
+     * <p>Bảng quyết định giữ nguyên V237 (xem class doc): B2C và {@code unlimited} → cho qua không
+     * giữ gì; {@code pool=0 & !unlimited} → cap fail-safe (P-14); metered → giữ chỗ atomic.
+     *
+     * <p>{@code REQUIRES_NEW}: suất giữ phải COMMIT ngay khi method trả về để mọi request đồng thời
+     * nhìn thấy — kể cả khi caller ({@code QuotaService.assertAllowed}) đang ở transaction read-only.
+     *
+     * <p>Dùng {@code org_members} (status ACTIVE) làm nguồn tenant duy nhất (T-1/D-1/M-5) —
+     * không đọc {@code users.org_id} để tránh drift giữa hai nguồn.
+     *
+     * <p>Biên tháng: reserve sát nửa đêm cuối tháng rồi refund/charge rơi sang tháng mới sẽ đối soát
+     * vào row tháng mới (row cũ giữ phần est lẻ) — lệch một-request chấp nhận được, tự hết khi sang kỳ.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Optional<OrgReservation> tryReserve(long userId, long estimatedTokens) {
+        Long orgId = resolveActiveOrgId(userId);
+        if (orgId == null) {
+            return Optional.of(OrgReservation.NONE); // không thuộc org nào (B2C)
+        }
+        OrgPoolConfig cfg = loadPoolConfig(orgId);
+        long est = Math.max(estimatedTokens, 0L);
+        if (cfg.unlimited()) {
+            return Optional.of(new OrgReservation(orgId, 0L));
+        }
+        if (cfg.pool() <= 0L) {
+            if (est == 0L) {
+                return Optional.of(new OrgReservation(orgId, 0L));
+            }
+            // pool = 0 & !unlimited → org CHƯA cấu hình ngân sách → cap (V237 fail-safe; đóng backdoor
+            // P-14/M-5, trước đây pool=0 bị coi là "unlimited"). ⚠ Cần chạy deploy-gate (set
+            // pool_unlimited=true / pool>0 cho org hợp lệ) TRƯỚC deploy — xem audit/prod_verify_section6.sql (ITEM 5).
+            log.warn("[OrgPool][P-14] Chặn AI: orgId={} chưa cấu hình pool token (pool=0, pool_unlimited=false). "
+                    + "Set monthly_token_pool>0 hoặc bật pool_unlimited qua admin.", orgId);
+            return Optional.empty();
+        }
+        if (est == 0L) {
+            return Optional.of(new OrgReservation(orgId, 0L)); // không tiêu thụ ước lượng → không giữ chỗ
+        }
+        if (est > cfg.pool()) {
+            return Optional.empty(); // một request đã lớn hơn cả pool — chặn không cần đụng counter
+        }
+        // MỘT câu atomic: row chưa có → INSERT est (an toàn vì est <= pool); row đã có → chỉ cộng khi
+        // không vượt pool. 0 row trả về = hết chỗ. Không còn khe đọc-rồi-quyết cho request khác chen.
+        Long newUsed = jdbcTemplate.query("""
+                        INSERT INTO org_monthly_token_counters (org_id, month_start, tokens_used)
+                        VALUES (?, date_trunc('month', now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date, ?)
+                        ON CONFLICT (org_id, month_start) DO UPDATE
+                            SET tokens_used = org_monthly_token_counters.tokens_used + EXCLUDED.tokens_used
+                            WHERE org_monthly_token_counters.tokens_used + EXCLUDED.tokens_used <= ?
+                        RETURNING tokens_used
+                        """,
+                rs -> rs.next() ? rs.getLong(1) : null,
+                orgId, est, cfg.pool());
+        if (newUsed == null) {
+            log.warn("[OrgPool][H-3] Hết pool: orgId={} không còn chỗ cho est={} (pool={})",
+                    orgId, est, cfg.pool());
+            return Optional.empty();
+        }
+        maybeAlert80(orgId, cfg.pool(), newUsed - est, est);
+        return Optional.of(new OrgReservation(orgId, est));
+    }
+
+    /**
+     * Hoàn trả suất giữ chỗ chưa được charge tiêu thụ (request lỗi trước LLM, LLM ném exception,
+     * hoặc gate async đã nhường việc charge cho job). {@code GREATEST(..., 0)} chống âm khi counter
+     * bị chỉnh tay giữa chừng. No-op cho reservation không metered.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void refund(OrgReservation reservation) {
+        if (reservation == null || !reservation.metered()) {
+            return;
+        }
+        jdbcTemplate.update("""
+                        UPDATE org_monthly_token_counters
+                           SET tokens_used = GREATEST(tokens_used - ?, 0)
+                         WHERE org_id = ?
+                           AND month_start = date_trunc('month', now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date
+                        """,
+                reservation.reservedTokens(), reservation.orgId());
+    }
+
+    /** Org ACTIVE của user theo {@code org_members} (nguồn tenant duy nhất); null = B2C. */
+    private Long resolveActiveOrgId(long userId) {
+        return jdbcTemplate.query(
                 "SELECT org_id FROM org_members WHERE user_id = ? AND status = 'ACTIVE' LIMIT 1",
                 rs -> {
                     if (!rs.next()) {
@@ -84,24 +185,6 @@ public class OrgQuotaService {
                     return rs.wasNull() ? null : v;
                 },
                 userId);
-        if (orgId == null) {
-            return false; // không thuộc org nào (B2C)
-        }
-        OrgPoolConfig cfg = loadPoolConfig(orgId);
-        boolean metered = !cfg.unlimited() && cfg.pool() > 0L;
-        // Chỉ query usage khi thực sự metered (O(1) counter lookup); unlimited / pool=0 không cần.
-        long used = metered ? orgUsageThisMonth(orgId) : 0L;
-        boolean blocked = poolBlocks(cfg.pool(), cfg.unlimited(), used, estimatedTokens);
-        if (metered) {
-            maybeAlert80(orgId, cfg.pool(), used, estimatedTokens);
-        } else if (blocked) {
-            // pool = 0 & !unlimited → org CHƯA cấu hình ngân sách → cap (V237 fail-safe; đóng backdoor
-            // P-14/M-5, trước đây pool=0 bị coi là "unlimited"). ⚠ Cần chạy deploy-gate (set
-            // pool_unlimited=true / pool>0 cho org hợp lệ) TRƯỚC deploy — xem audit/prod_verify_section6.sql (ITEM 5).
-            log.warn("[OrgPool][P-14] Chặn AI: orgId={} chưa cấu hình pool token (pool=0, pool_unlimited=false). "
-                    + "Set monthly_token_pool>0 hoặc bật pool_unlimited qua admin.", orgId);
-        }
-        return blocked;
     }
 
     /**
