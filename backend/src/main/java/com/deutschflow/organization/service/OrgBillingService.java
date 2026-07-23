@@ -11,11 +11,13 @@ import com.deutschflow.organization.repository.OrgInvoiceRepository;
 import com.deutschflow.organization.repository.OrgMemberRepository;
 import com.deutschflow.organization.repository.OrganizationRepository;
 import com.deutschflow.notification.service.UserNotificationService;
+import com.deutschflow.common.audit.AuditLogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -56,6 +58,7 @@ public class OrgBillingService {
     private final OrgMemberRepository memberRepo;
     private final UserNotificationService userNotificationService;
     private final AdminOrgService adminOrgService;
+    private final AuditLogService auditLogService;
 
     @Value("${app.payment.sepay.bank-account:}")
     private String bankAccount;
@@ -115,9 +118,16 @@ public class OrgBillingService {
                 .toList();
     }
 
-    /** Transitions an invoice's status; rejects cross-org access and unknown statuses. */
+    /**
+     * Transitions an invoice's status; rejects cross-org access and unknown statuses.
+     *
+     * <p>L-10 (audit B2B 07-04): đổi trạng thái hoá đơn là thao tác TIỀN (PAID kích hoạt org) nên
+     * mỗi lần chuyển được ghi audit trail ({@code org_invoice_status_changed}) kèm actor + from→to —
+     * trước đây không ai trả lời được "ai đã đánh dấu hoá đơn này PAID".
+     */
     @Transactional
-    public OrgInvoiceDto updateStatus(Long orgId, Long invoiceId, String status) {
+    public OrgInvoiceDto updateStatus(Long orgId, Long invoiceId, String status,
+                                      Long actorId, String actorEmail, String actorRole) {
         OrgInvoice invoice = invoiceRepo.findById(invoiceId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy hoá đơn"));
         if (!invoice.getOrgId().equals(orgId)) {
@@ -135,6 +145,15 @@ public class OrgBillingService {
         boolean nowPaid = STATUS_PAID.equals(status) && !STATUS_PAID.equals(current);
         invoice.setStatus(status);
         OrgInvoiceDto dto = toDto(invoiceRepo.save(invoice));
+        Map<String, Object> auditMeta = new HashMap<>();
+        auditMeta.put("orgId", orgId);
+        auditMeta.put("from", current);
+        auditMeta.put("to", status);
+        if (invoice.getPaymentCode() != null) {
+            auditMeta.put("paymentCode", invoice.getPaymentCode());
+        }
+        auditLogService.log("org_invoice_status_changed", actorId, actorEmail, actorRole,
+                "ORG_INVOICE", String.valueOf(invoiceId), auditMeta);
         if (nowPaid) {
             // Audit M-16: a manually-reconciled payment must provision the org identically to the
             // SePay webhook path (org ACTIVE + validUntil + re-grant entitlements), not just notify.

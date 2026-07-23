@@ -117,6 +117,35 @@ public class OrgInvitationService {
     }
 
     /**
+     * L-2 (audit B2B 07-04): xoay token của lời mời PENDING — token cũ vô hiệu NGAY LẬP TỨC,
+     * thu hẹp cửa sổ phơi nhiễm bearer-token 7 ngày về một nút bấm khi admin nghi link bị lộ
+     * (forward nhầm, dán vào kênh chung). Hạn dùng được đặt lại đủ {@code INVITE_TTL_DAYS} và
+     * email mời được gửi lại với link mới.
+     *
+     * @throws BadRequestException nếu lời mời không còn PENDING (đã nhận/thu hồi/hết hạn)
+     */
+    @Transactional
+    public OrgInvitationDto rotate(Long orgId, Long invitationId) {
+        OrgInvitation invitation = invitationRepository.findById(invitationId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy lời mời."));
+        if (!orgId.equals(invitation.getOrgId())) {
+            throw new ForbiddenException("Lời mời không thuộc tổ chức của bạn.");
+        }
+        if (!STATUS_PENDING.equals(invitation.getStatus())) {
+            throw new BadRequestException("Chỉ xoay được token của lời mời đang chờ.");
+        }
+        invitation.setToken(UUID.randomUUID().toString());
+        invitation.setExpiresAt(Instant.now().plus(INVITE_TTL_DAYS, ChronoUnit.DAYS));
+        invitationRepository.save(invitation);
+
+        String orgName = organizationRepository.findById(orgId)
+                .map(Organization::getName)
+                .orElse("");
+        mailer.sendInvite(invitation.getEmail(), orgName, invitation.getRole(), invitation.getToken());
+        return toDto(invitation);
+    }
+
+    /**
      * Public token preview — READ-ONLY. Computes the {@code expired} flag on the fly so the
      * client can render an "expired" state, but never mutates the invite (a GET must not write).
      * Flipping the row to EXPIRED is left to {@link #accept} (a POST) or a cleanup job.

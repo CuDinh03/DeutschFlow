@@ -395,6 +395,51 @@ class OrgInvitationServiceTest {
         verify(userRepository, never()).save(any(User.class));
     }
 
+    // ------------------------------------------------------------------ rotate (L-2)
+
+    @Test
+    @DisplayName("rotate: PENDING của org mình → token MỚI, hạn đặt lại, email mời gửi lại")
+    void rotate_ownOrgPending_issuesNewTokenAndResends() {
+        OrgInvitation inv = pendingInvitation("t@school.edu", Instant.now().plus(1, ChronoUnit.DAYS));
+        Instant oldExpiry = inv.getExpiresAt();
+        when(invitationRepository.findById(42L)).thenReturn(Optional.of(inv));
+        when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(orgNamed("ATB")));
+
+        service.rotate(ORG_ID, 42L);
+
+        assertThat(inv.getToken()).isNotEqualTo(TOKEN); // token cũ chết ngay
+        assertThat(inv.getExpiresAt()).isAfter(oldExpiry); // hạn được đặt lại đủ TTL
+        assertThat(inv.getStatus()).isEqualTo("PENDING");
+        verify(invitationRepository).save(inv);
+        verify(mailer).sendInvite(eq("t@school.edu"), eq("ATB"), eq("TEACHER"), eq(inv.getToken()));
+    }
+
+    @Test
+    @DisplayName("rotate: lời mời của org khác → Forbidden, token giữ nguyên")
+    void rotate_crossOrg_throwsForbidden() {
+        OrgInvitation inv = pendingInvitation("t@school.edu", Instant.now().plus(7, ChronoUnit.DAYS));
+        when(invitationRepository.findById(42L)).thenReturn(Optional.of(inv));
+
+        assertThatThrownBy(() -> service.rotate(999L, 42L))
+                .isInstanceOf(ForbiddenException.class);
+        assertThat(inv.getToken()).isEqualTo(TOKEN);
+        verify(invitationRepository, never()).save(any());
+        verify(mailer, never()).sendInvite(anyString(), anyString(), anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("rotate: lời mời không còn PENDING → BadRequest, không đổi gì")
+    void rotate_nonPending_throwsBadRequest() {
+        OrgInvitation inv = pendingInvitation("t@school.edu", Instant.now().plus(7, ChronoUnit.DAYS));
+        inv.setStatus("REVOKED");
+        when(invitationRepository.findById(42L)).thenReturn(Optional.of(inv));
+
+        assertThatThrownBy(() -> service.rotate(ORG_ID, 42L))
+                .isInstanceOf(BadRequestException.class);
+        assertThat(inv.getToken()).isEqualTo(TOKEN);
+        verify(invitationRepository, never()).save(any());
+    }
+
     // ------------------------------------------------------------------ revoke (B7 cross-org scoping)
 
     @Test

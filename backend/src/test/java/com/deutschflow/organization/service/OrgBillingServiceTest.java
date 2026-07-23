@@ -36,6 +36,11 @@ class OrgBillingServiceTest {
     @Mock private OrgMemberRepository memberRepo;
     @Mock private UserNotificationService userNotificationService;
     @Mock private AdminOrgService adminOrgService;
+    @Mock private com.deutschflow.common.audit.AuditLogService auditLogService;
+
+    private static final Long ACTOR_ID = 900L;
+    private static final String ACTOR_EMAIL = "admin@test.local";
+    private static final String ACTOR_ROLE = "ADMIN";
 
     private OrgBillingService service;
 
@@ -47,7 +52,7 @@ class OrgBillingServiceTest {
     @BeforeEach
     void setUp() {
         service = new OrgBillingService(invoiceRepo, organizationRepository, memberRepo,
-                userNotificationService, adminOrgService);
+                userNotificationService, adminOrgService, auditLogService);
     }
 
     // ------------------------------------------------------------------ helpers
@@ -175,7 +180,7 @@ class OrgBillingServiceTest {
         when(invoiceRepo.findById(INVOICE_ID)).thenReturn(Optional.of(inv));
 
         // Caller claims OTHER_ORG_ID but invoice belongs to ORG_ID
-        assertThatThrownBy(() -> service.updateStatus(OTHER_ORG_ID, INVOICE_ID, "SENT"))
+        assertThatThrownBy(() -> service.updateStatus(OTHER_ORG_ID, INVOICE_ID, "SENT", ACTOR_ID, ACTOR_EMAIL, ACTOR_ROLE))
                 .isInstanceOf(ForbiddenException.class);
     }
 
@@ -187,7 +192,7 @@ class OrgBillingServiceTest {
         OrgInvoice inv = savedInvoice(INVOICE_ID, ORG_ID, "DRAFT");
         when(invoiceRepo.findById(INVOICE_ID)).thenReturn(Optional.of(inv));
 
-        assertThatThrownBy(() -> service.updateStatus(ORG_ID, INVOICE_ID, "INVALID_STATUS"))
+        assertThatThrownBy(() -> service.updateStatus(ORG_ID, INVOICE_ID, "INVALID_STATUS", ACTOR_ID, ACTOR_EMAIL, ACTOR_ROLE))
                 .isInstanceOf(BadRequestException.class);
     }
 
@@ -197,7 +202,7 @@ class OrgBillingServiceTest {
         OrgInvoice inv = savedInvoice(INVOICE_ID, ORG_ID, "DRAFT");
         when(invoiceRepo.findById(INVOICE_ID)).thenReturn(Optional.of(inv));
 
-        assertThatThrownBy(() -> service.updateStatus(ORG_ID, INVOICE_ID, null))
+        assertThatThrownBy(() -> service.updateStatus(ORG_ID, INVOICE_ID, null, ACTOR_ID, ACTOR_EMAIL, ACTOR_ROLE))
                 .isInstanceOf(BadRequestException.class);
     }
 
@@ -210,11 +215,36 @@ class OrgBillingServiceTest {
         when(invoiceRepo.findById(INVOICE_ID)).thenReturn(Optional.of(inv));
         when(invoiceRepo.save(any(OrgInvoice.class))).thenAnswer(i -> i.getArgument(0));
 
-        OrgInvoiceDto dto = service.updateStatus(ORG_ID, INVOICE_ID, "SENT");
+        OrgInvoiceDto dto = service.updateStatus(ORG_ID, INVOICE_ID, "SENT", ACTOR_ID, ACTOR_EMAIL, ACTOR_ROLE);
 
         assertThat(dto.status()).isEqualTo("SENT");
         assertThat(dto.id()).isEqualTo(INVOICE_ID);
         assertThat(dto.orgId()).isEqualTo(ORG_ID);
+    }
+
+    @Test
+    @DisplayName("L-10: mỗi lần chuyển trạng thái ghi audit trail với actor + from→to")
+    void updateStatus_writesAuditTrail() {
+        OrgInvoice inv = savedInvoice(INVOICE_ID, ORG_ID, "DRAFT");
+        when(invoiceRepo.findById(INVOICE_ID)).thenReturn(Optional.of(inv));
+        when(invoiceRepo.save(any(OrgInvoice.class))).thenAnswer(i -> i.getArgument(0));
+
+        service.updateStatus(ORG_ID, INVOICE_ID, "SENT", ACTOR_ID, ACTOR_EMAIL, ACTOR_ROLE);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<java.util.Map<String, Object>> meta = ArgumentCaptor.forClass(java.util.Map.class);
+        verify(auditLogService).log(
+                org.mockito.ArgumentMatchers.eq("org_invoice_status_changed"),
+                org.mockito.ArgumentMatchers.eq(ACTOR_ID),
+                org.mockito.ArgumentMatchers.eq(ACTOR_EMAIL),
+                org.mockito.ArgumentMatchers.eq(ACTOR_ROLE),
+                org.mockito.ArgumentMatchers.eq("ORG_INVOICE"),
+                org.mockito.ArgumentMatchers.eq(String.valueOf(INVOICE_ID)),
+                meta.capture());
+        assertThat(meta.getValue())
+                .containsEntry("orgId", ORG_ID)
+                .containsEntry("from", "DRAFT")
+                .containsEntry("to", "SENT");
     }
 
     @Test
@@ -225,7 +255,7 @@ class OrgBillingServiceTest {
             when(invoiceRepo.findById(INVOICE_ID)).thenReturn(Optional.of(inv));
             when(invoiceRepo.save(any(OrgInvoice.class))).thenAnswer(i -> i.getArgument(0));
 
-            OrgInvoiceDto dto = service.updateStatus(ORG_ID, INVOICE_ID, status);
+            OrgInvoiceDto dto = service.updateStatus(ORG_ID, INVOICE_ID, status, ACTOR_ID, ACTOR_EMAIL, ACTOR_ROLE);
             assertThat(dto.status()).isEqualTo(status);
         }
     }
@@ -251,7 +281,7 @@ class OrgBillingServiceTest {
     void updateStatus_paidToDraft_rejected() {
         when(invoiceRepo.findById(INVOICE_ID)).thenReturn(Optional.of(savedInvoice(INVOICE_ID, ORG_ID, "PAID")));
 
-        assertThatThrownBy(() -> service.updateStatus(ORG_ID, INVOICE_ID, "DRAFT"))
+        assertThatThrownBy(() -> service.updateStatus(ORG_ID, INVOICE_ID, "DRAFT", ACTOR_ID, ACTOR_EMAIL, ACTOR_ROLE))
                 .isInstanceOf(BadRequestException.class);
         verify(invoiceRepo, org.mockito.Mockito.never()).save(any());
     }
@@ -261,7 +291,7 @@ class OrgBillingServiceTest {
     void updateStatus_voidToPaid_rejected() {
         when(invoiceRepo.findById(INVOICE_ID)).thenReturn(Optional.of(savedInvoice(INVOICE_ID, ORG_ID, "VOID")));
 
-        assertThatThrownBy(() -> service.updateStatus(ORG_ID, INVOICE_ID, "PAID"))
+        assertThatThrownBy(() -> service.updateStatus(ORG_ID, INVOICE_ID, "PAID", ACTOR_ID, ACTOR_EMAIL, ACTOR_ROLE))
                 .isInstanceOf(BadRequestException.class);
         verify(adminOrgService, org.mockito.Mockito.never()).activateForPaidInvoice(any());
     }
@@ -275,7 +305,7 @@ class OrgBillingServiceTest {
         when(invoiceRepo.findById(INVOICE_ID)).thenReturn(Optional.of(inv));
         when(invoiceRepo.save(any(OrgInvoice.class))).thenAnswer(i -> i.getArgument(0));
 
-        service.updateStatus(ORG_ID, INVOICE_ID, "PAID");
+        service.updateStatus(ORG_ID, INVOICE_ID, "PAID", ACTOR_ID, ACTOR_EMAIL, ACTOR_ROLE);
 
         verify(adminOrgService).activateForPaidInvoice(inv);
         verify(userNotificationService).onOrgInvoicePaid(org.mockito.ArgumentMatchers.eq(ORG_ID),
@@ -289,7 +319,7 @@ class OrgBillingServiceTest {
         when(invoiceRepo.findById(INVOICE_ID)).thenReturn(Optional.of(inv));
         when(invoiceRepo.save(any(OrgInvoice.class))).thenAnswer(i -> i.getArgument(0));
 
-        service.updateStatus(ORG_ID, INVOICE_ID, "PAID");
+        service.updateStatus(ORG_ID, INVOICE_ID, "PAID", ACTOR_ID, ACTOR_EMAIL, ACTOR_ROLE);
 
         verify(adminOrgService, org.mockito.Mockito.never()).activateForPaidInvoice(any());
     }
