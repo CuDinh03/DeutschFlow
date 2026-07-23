@@ -6,9 +6,10 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Unit tests for the pure org-pool decision used by {@code QuotaService.assertAllowed}.
- * The JDBC plumbing of {@link OrgQuotaService#wouldExceedOrgPool} is thin; the branching
- * logic lives in the pure {@link OrgQuotaService#exceeds} method tested exhaustively here.
+ * Unit tests for the pure org-pool decision helpers. Since H-3 the enforcement itself lives in
+ * {@link OrgQuotaService#tryReserve} (atomic conditional-upsert, covered by
+ * {@code OrgPoolReserveConcurrencyIT} against real Postgres); the pure branching helpers
+ * ({@link OrgQuotaService#exceeds}, {@code poolBlocks}, {@code usagePercent}) stay tested here.
  */
 class OrgQuotaServiceTest {
 

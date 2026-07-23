@@ -1,5 +1,6 @@
 package com.deutschflow.organization.service;
 
+import com.deutschflow.common.quota.OrgReservationHolder;
 import com.deutschflow.common.quota.QuotaExceededException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,17 +25,26 @@ public class OrgPoolGuard {
     /**
      * Ném {@link QuotaExceededException} (→ HTTP 429) khi org của {@code userId} sẽ vượt
      * pool token tháng này nếu nạp thêm {@code estimatedTokens}. No-op khi user null,
-     * không thuộc org, hoặc org chưa cấu hình pool.
+     * không thuộc org, hoặc org unlimited.
+     *
+     * <p>H-3: gate giờ GIỮ CHỖ atomic ({@code tryReserve}) thay vì chỉ kiểm tra. Với tính năng
+     * charge ĐỒNG BỘ trong cùng request, charge sẽ tiêu thụ suất và ghi delta. Với tính năng
+     * async (job PPTX/chấm bài): job charge đủ số thật ở worker-thread, còn suất giữ ở thread
+     * request được {@code OrgReservationRefundFilter} hoàn trả khi request kết thúc — net không
+     * double-count; cửa sổ race thu về khoảng thời gian controller (ms) thay vì cả vòng đời job.
      */
     public void assertOrgPoolAvailable(Long userId, long estimatedTokens) {
         if (userId == null) {
             return;
         }
-        if (orgQuotaService.wouldExceedOrgPool(userId, estimatedTokens)) {
+        var reservation = orgQuotaService.tryReserve(userId, estimatedTokens).orElseThrow(() -> {
             log.warn("Org token pool exhausted — blocking expensive AI request for userId={}", userId);
-            throw new QuotaExceededException(
+            return new QuotaExceededException(
                     "Tổ chức đã dùng hết ngân sách token AI tháng này. Vui lòng liên hệ quản trị nền tảng để nâng hạn mức.",
                     null);
+        });
+        if (reservation.metered()) {
+            OrgReservationHolder.replace(reservation, orgQuotaService::refund);
         }
     }
 }

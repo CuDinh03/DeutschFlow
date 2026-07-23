@@ -62,9 +62,9 @@ class AiUsageLedgerServiceUnitTest {
     void recordStt_chargesByDuration() {
         service.recordStt(42L, "STT_TRANSCRIBE", "whisper-large-v3", 10.0);
 
-        // stt_usage_events insert always happens.
+        // stt_usage_events insert always happens (M-4: userId lặp lại cho subquery org_members).
         verify(jdbcTemplate).update(contains("stt_usage_events"), eq(42L), eq("STT_TRANSCRIBE"),
-                eq("whisper-large-v3"), eq(10.0));
+                eq("whisper-large-v3"), eq(10.0), eq(42L));
 
         // 10s * 20 tokens/s = 200 token-equivalents charged to counter + wallet.
         ArgumentCaptor<Long> tokens = ArgumentCaptor.forClass(Long.class);
@@ -78,9 +78,59 @@ class AiUsageLedgerServiceUnitTest {
     void recordStt_zeroDuration_noCharge() {
         service.recordStt(42L, "STT_TRANSCRIBE", "whisper-large-v3", 0.0);
 
-        verify(jdbcTemplate).update(contains("stt_usage_events"), any(), any(), any(), any());
+        verify(jdbcTemplate).update(contains("stt_usage_events"), any(), any(), any(), any(), any());
         verify(jdbcTemplate, never()).update(contains("org_monthly_token_counters"), any(), any());
         verify(quotaService, never()).applyUsageDebit(anyLong(), anyLong(), any());
+    }
+
+    // ── H-3 reconcile — charge chỉ ghi delta khi request đã giữ chỗ tại gate ──
+
+    @org.junit.jupiter.api.AfterEach
+    void clearHolder() {
+        OrgReservationHolder.take();
+    }
+
+    @Test
+    @DisplayName("với reservation trong holder: charge ghi delta = actual − reserved vào đúng org đã giữ")
+    void record_withReservation_writesDeltaOnly() {
+        OrgReservationHolder.replace(
+                new com.deutschflow.organization.service.OrgQuotaService.OrgReservation(11L, 400L),
+                r -> { throw new AssertionError("không có suất cũ để hoàn"); });
+
+        service.record(7L, "GROQ", "gpt-oss-20b", 100, 400, 500, "SPEAKING_CHAT", null, null);
+
+        // delta = 500 − 400 = +100, ghi thẳng theo orgId 11 (không subquery org_members).
+        verify(jdbcTemplate).update(contains("org_monthly_token_counters"), eq(11L), eq(100L), eq(100L));
+        // Ví cá nhân vẫn debit đủ số thật.
+        verify(quotaService).applyUsageDebit(eq(7L), eq(500L), any(Instant.class));
+        // Suất đã được tiêu thụ — holder phải trống để filter cuối request không hoàn nhầm.
+        assertThat(OrgReservationHolder.take()).isNull();
+    }
+
+    @Test
+    @DisplayName("delta âm (thực tế ít hơn ước lượng) vẫn được ghi để trả lại phần giữ thừa")
+    void record_actualBelowReserved_negativeDelta() {
+        OrgReservationHolder.replace(
+                new com.deutschflow.organization.service.OrgQuotaService.OrgReservation(11L, 800L),
+                r -> { throw new AssertionError(); });
+
+        service.record(7L, "GROQ", "gpt-oss-20b", 100, 200, 300, "SPEAKING_CHAT", null, null);
+
+        verify(jdbcTemplate).update(contains("org_monthly_token_counters"), eq(11L), eq(-500L), eq(-500L));
+    }
+
+    @Test
+    @DisplayName("delta = 0 (ước lượng trúng) → không đụng counter, chỉ debit ví")
+    void record_exactReservation_skipsCounter() {
+        OrgReservationHolder.replace(
+                new com.deutschflow.organization.service.OrgQuotaService.OrgReservation(11L, 500L),
+                r -> { throw new AssertionError(); });
+
+        service.record(7L, "GROQ", "gpt-oss-20b", 100, 400, 500, "SPEAKING_CHAT", null, null);
+
+        verify(jdbcTemplate, never()).update(contains("org_monthly_token_counters"),
+                any(), any(), any());
+        verify(quotaService).applyUsageDebit(eq(7L), eq(500L), any(Instant.class));
     }
 
     @Test
