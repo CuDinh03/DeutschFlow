@@ -139,6 +139,7 @@ export function useAiSpeakingSession(opts: {
 
       let currentDe = "";
       let audioStreamed = false;
+      let aiSpeechForFallback: string | null = null;
       streamAbortRef.current?.abort();
       audioQueueRef.current?.stop(); // barge-in: stop the previous turn's audio on a new reply
       const audioQueue = autoTtsEnabled ? getAudioQueue() : null;
@@ -203,6 +204,7 @@ export function useAiSpeakingSession(opts: {
               mode: sessionMode,
             });
           }
+          aiSpeechForFallback = meta.aiSpeechDe ?? null;
           // XTTS streaming already voiced the reply per-sentence; fall back to on-device TTS only
           // when no audio was streamed (XTTS off / not configured / persona without a voice).
           if (!audioStreamed) maybeSpeakAi(meta.aiSpeechDe);
@@ -239,6 +241,11 @@ export function useAiSpeakingSession(opts: {
           // Backend confirmed streaming audio is coming → suppress on-device TTS at "done"
           // (audio events arrive after "done", so we can't infer this from their arrival).
           audioStreamed = true;
+        },
+        () => {
+          // XTTS announced audio but delivered none (server unreachable / all sentences failed) →
+          // speak the reply on-device so it is never silent.
+          if (aiSpeechForFallback) maybeSpeakAi(aiSpeechForFallback);
         },
       );
     },
