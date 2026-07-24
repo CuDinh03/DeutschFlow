@@ -176,10 +176,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(QuotaExceededException.class)
     public ResponseEntity<ProblemDetail> handleQuotaExceeded(QuotaExceededException ex,
                                                              HttpServletRequest request) {
-        Map<String, Object> ext = null;
+        Map<String, Object> ext = new java.util.LinkedHashMap<>();
+        ext.put("code", "QUOTA_EXCEEDED");
         if (ex.getSnapshot() != null) {
             var s = ex.getSnapshot();
-            ext = new java.util.LinkedHashMap<>();
             ext.put("planCode", s.planCode());
             ext.put("unlimitedInternal", s.unlimitedInternal());
             ext.put("dailyTokenGrant", s.dailyTokenGrant());
@@ -211,7 +211,7 @@ public class GlobalExceptionHandler {
                 request.getRequestURI(),
                 LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
                 null,
-                Map.of("retryAfterSeconds", retryAfter)
+                Map.of("code", "RATE_LIMITED", "retryAfterSeconds", retryAfter)
         );
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                 .header("Retry-After", String.valueOf(retryAfter))
@@ -220,12 +220,34 @@ public class GlobalExceptionHandler {
     }
 
     // --- 503 — upstream AI provider unavailable / returned nothing usable ---
+    // Audit speaking 24/07 (BE-3): kèm `extensions.code` máy-đọc-được (AiErrorCode) để client chọn
+    // thông điệp + hành vi retry, và header Retry-After khi nơi ném biết thời điểm nên thử lại
+    // (AI_BUSY từ semaphore/breaker). `detail` đã là câu tiếng Việt trung tính từ nơi ném.
     @ExceptionHandler(com.deutschflow.speaking.exception.AiServiceException.class)
     public ResponseEntity<ProblemDetail> handleAiServiceUnavailable(
             com.deutschflow.speaking.exception.AiServiceException ex,
             HttpServletRequest request) {
-        return problem(HttpStatus.SERVICE_UNAVAILABLE, "ai-unavailable", "AI Service Unavailable",
-                ex.getMessage(), request.getRequestURI(), null, null);
+        Map<String, Object> ext = new java.util.LinkedHashMap<>();
+        ext.put("code", ex.getCode().name());
+        Integer retryAfter = ex.getRetryAfterSeconds();
+        if (retryAfter != null) {
+            ext.put("retryAfterSeconds", retryAfter);
+        }
+        var body = new ProblemDetail(
+                BASE_TYPE + "ai-unavailable",
+                "AI Service Unavailable",
+                HttpStatus.SERVICE_UNAVAILABLE.value(),
+                ex.getMessage(),
+                request.getRequestURI(),
+                LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+                null,
+                ext
+        );
+        ResponseEntity.BodyBuilder builder = ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE);
+        if (retryAfter != null) {
+            builder = builder.header("Retry-After", String.valueOf(retryAfter));
+        }
+        return builder.contentType(PROBLEM_JSON).body(body);
     }
 
     // --- 503 — AI provider bean not configured (e.g. Bedrock disabled, missing env vars) ---
@@ -237,7 +259,7 @@ public class GlobalExceptionHandler {
         log.warn("[503] Service not configured on {}: {}", request.getRequestURI(), ex.getMessage());
         return problem(HttpStatus.SERVICE_UNAVAILABLE, "ai-unavailable", "AI Service Unavailable",
                 "Tính năng AI này chưa được cấu hình trên môi trường hiện tại. Vui lòng thử lại sau.",
-                request.getRequestURI(), null, null);
+                request.getRequestURI(), null, Map.of("code", "AI_NOT_CONFIGURED"));
     }
 
     // --- 401/403 — let Spring Security handle these, do NOT swallow them ---
@@ -300,7 +322,7 @@ public class GlobalExceptionHandler {
                 request.getRequestURI(),
                 LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
                 null,
-                Map.of("retryAfterSeconds", retryAfter)
+                Map.of("code", "DB_UNAVAILABLE", "retryAfterSeconds", retryAfter)
         );
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                 .header("Retry-After", String.valueOf(retryAfter))
@@ -318,7 +340,8 @@ public class GlobalExceptionHandler {
         String errorId = "ERR-" + Long.toHexString(ERROR_SEQ.incrementAndGet()).toUpperCase();
         log.error("[500][{}] Unhandled exception on {}", errorId, request.getRequestURI(), ex);
         return problem(HttpStatus.INTERNAL_SERVER_ERROR, "internal-error", "Internal Server Error",
-                "An unexpected error occurred. Reference: " + errorId, request.getRequestURI(), null, null);
+                "An unexpected error occurred. Reference: " + errorId, request.getRequestURI(), null,
+                Map.of("code", "INTERNAL"));
     }
 
     // --- builder ---

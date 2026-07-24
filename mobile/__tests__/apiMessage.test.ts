@@ -1,7 +1,12 @@
 /**
- * Hồi quy cho sự cố 21/07/2026: Groq khai tử model nói → backend trả 503 kèm câu tiếng Việt ở
- * `detail` (RFC-7807), nhưng apiMessage chỉ đọc `message`/`error` nên người dùng chỉ thấy chuỗi thô
- * "Request failed with status code 503". Bộ test này khoá thứ tự đọc trường lại.
+ * Hồi quy cho 2 sự cố:
+ * - 21/07/2026: Groq khai tử model nói → backend trả 503 kèm câu tiếng Việt ở `detail` (RFC-7807),
+ *   nhưng apiMessage chỉ đọc `message`/`error` nên người dùng chỉ thấy chuỗi thô. Bộ test khoá
+ *   thứ tự đọc trường lại.
+ * - 23/07/2026 (audit speaking, R-M1): các ca KHÔNG có body dùng được (timeout, mất mạng, 5xx
+ *   không body JSON) rơi về `e.message` thô của axios — "Request failed with status code 503",
+ *   "timeout of 15000ms exceeded" hiện nguyên văn trong Alert. Từ nay fallback PHẢI là câu tiếng
+ *   Việt phân loại theo nguyên nhân; chuỗi axios không bao giờ được lộ ra UI.
  */
 import { apiMessage } from '@/lib/api'
 
@@ -56,14 +61,28 @@ describe('apiMessage', () => {
     )
   })
 
-  it('lùi về message của axios khi body không có trường nào dùng được', () => {
+  it('5xx không có body dùng được → câu "hệ thống đang bận", KHÔNG lộ chuỗi axios', () => {
     expect(apiMessage(axiosError({ timestamp: '2026-07-21T05:40:20' }))).toBe(
-      'Request failed with status code 503',
+      'Hệ thống đang bận, vui lòng thử lại sau ít phút.',
     )
   })
 
-  it('xử lý lỗi mạng (không có response)', () => {
-    expect(apiMessage({ isAxiosError: true, message: 'Network Error' })).toBe('Network Error')
+  it('4xx không có body dùng được → câu chung chung, KHÔNG lộ mã HTTP', () => {
+    expect(apiMessage(axiosError({}, 404, 'Request failed with status code 404'))).toBe(
+      'Yêu cầu không thực hiện được, vui lòng thử lại.',
+    )
+  })
+
+  it('timeout axios → câu "kết nối chậm", KHÔNG lộ "timeout of 15000ms exceeded"', () => {
+    expect(
+      apiMessage({ isAxiosError: true, code: 'ECONNABORTED', message: 'timeout of 15000ms exceeded' }),
+    ).toBe('Kết nối chậm — máy chủ có thể vẫn đang xử lý. Thử lại sau ít giây.')
+  })
+
+  it('xử lý lỗi mạng (không có response) → câu "mất kết nối", KHÔNG lộ "Network Error"', () => {
+    expect(apiMessage({ isAxiosError: true, message: 'Network Error' })).toBe(
+      'Mất kết nối mạng. Kiểm tra Wi-Fi/4G rồi thử lại.',
+    )
   })
 
   it('xử lý Error thường và giá trị lạ', () => {

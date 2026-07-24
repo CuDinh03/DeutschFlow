@@ -47,9 +47,15 @@ export interface WeeklySubmissionDetail {
 }
 
 export const weeklyApi = {
+  // 60s, not the 15s default: backend chấm rubric bằng LLM đồng bộ trong request này (audit R-M2);
+  // 15s cũ nổ "timeout" trong khi server vẫn chấm xong và trừ quota, còn bản ghi âm thì mất.
   submit: (promptId: number, transcript: string, cefrBand: string) =>
     api
-      .post<WeeklySubmitResponse>('/ai-speaking/weekly/submissions', { promptId, transcript, cefrBand })
+      .post<WeeklySubmitResponse>(
+        '/ai-speaking/weekly/submissions',
+        { promptId, transcript, cefrBand },
+        { timeout: 60_000 },
+      )
       .then((r) => r.data),
 
   getSubmission: (id: number | string) =>

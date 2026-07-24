@@ -231,7 +231,8 @@ export const speakingApi = {
           experienceLevel: params.experienceLevel ?? null,
           assignmentId: null,
         },
-        { timeout: 30_000 },
+        // Backend worst-case khi Groq nghẽn ≈ 30s (semaphore 10s + deadline 20s) — chừa headroom.
+        { timeout: 40_000 },
       )
       .then((r) => r.data),
 
@@ -251,26 +252,36 @@ export const speakingApi = {
       .then((r) => r.data.transcript)
   },
 
-  /** Submit a text answer (typed, or a transcript) and get the next AI turn. */
+  /**
+   * Submit a text answer (typed, or a transcript) and get the next AI turn.
+   * 45s, not the 15s default (audit R-M2): một lượt LLM khi Groq nghẽn có thể mất tới ~30s
+   * phía backend (semaphore 10s + deadline 20s); 15s cũ làm client timeout TRƯỚC server —
+   * server vẫn chạy tiếp, vẫn trừ quota, còn user thấy "timeout of 15000ms exceeded".
+   */
   chat: (sessionId: number, userMessage: string) =>
     api
-      .post<AiChatResponse>(`/ai-speaking/sessions/${sessionId}/chat`, { userMessage })
+      .post<AiChatResponse>(`/ai-speaking/sessions/${sessionId}/chat`, { userMessage }, { timeout: 45_000 })
       .then((r) => r.data),
 
-  /** End the session; in INTERVIEW mode this triggers report generation. */
+  /**
+   * End the session. KHÔNG phải call rẻ: backend chấm điểm tổng kết bằng LLM ĐỒNG BỘ bên trong
+   * (INTERVIEW lẫn COMMUNICATION/LESSON) nên cần trần rộng hơn cả chat.
+   */
   endSession: (sessionId: number) =>
     api
-      .patch<AiSpeakingSession>(`/ai-speaking/sessions/${sessionId}/end`)
+      .patch<AiSpeakingSession>(`/ai-speaking/sessions/${sessionId}/end`, undefined, { timeout: 60_000 })
       .then((r) => r.data),
 
   /** Structured, machine-readable interview report for a completed session. */
   getReport: (sessionId: number) =>
-    api.get<InterviewReport>(`/interviews/${sessionId}/report`).then((r) => r.data),
+    api
+      .get<InterviewReport>(`/interviews/${sessionId}/report`, { timeout: 30_000 })
+      .then((r) => r.data),
 
   /** AI evaluation summary for a completed COMMUNICATION / LESSON session. */
   getConversationReport: (sessionId: number) =>
     api
-      .get<ConversationReport>(`/ai-speaking/sessions/${sessionId}/report`)
+      .get<ConversationReport>(`/ai-speaking/sessions/${sessionId}/report`, { timeout: 30_000 })
       .then((r) => r.data),
 
   /** Persisted transcript for a session — used to rehydrate after interruption. */

@@ -122,6 +122,20 @@ export function SpeakingMessageBubble({
     );
   }
 
+  // Audit speaking 24/07 (R-W2): shell AI rỗng (placeholder còn sót sau lỗi stream, hoặc message
+  // hỏng từ resume) không được render thành bong bóng trống vĩnh viễn — history page đã có guard
+  // tương tự. Vẫn render khi đang stream (ghost) hoặc khi có feedback/badge đi kèm.
+  if (
+    !msg.isStreaming &&
+    !msg.aiSpeechDe?.trim() &&
+    !msg.correction &&
+    !msg.explanationVi &&
+    !msg.feedback &&
+    !msg.newWord
+  ) {
+    return null;
+  }
+
   return (
     <motion.div
       layout

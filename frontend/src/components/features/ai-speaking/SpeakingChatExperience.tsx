@@ -601,7 +601,11 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
 
             <StreamStatusIndicator
               status={streamStatus}
-              onRetry={streamStatus === "stalled" ? retryLastSend : undefined}
+              onRetry={
+                streamStatus === "stalled" || streamStatus === "error"
+                  ? retryLastSend
+                  : undefined
+              }
             />
 
             <div ref={messagesEndRef} />
@@ -642,7 +646,11 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
         isListening={isListening}
         isTranscribing={isTranscribing}
         isEvaluatingPhoneme={isEvaluatingPhoneme}
-        streamIdle={streamStatus === "idle"}
+        // "error"/"stalled" vẫn cho gửi tiếp (audit R-W1): trước đây error là trạng thái hút —
+        // không đường về idle nên nút gửi disabled vĩnh viễn, chỉ phím Enter ngầm thoát được.
+        streamIdle={
+          streamStatus === "idle" || streamStatus === "stalled" || streamStatus === "error"
+        }
         repairBlocking={!!repairGate?.blocking}
         quotaBlocked={quotaBlocked}
         micBlocked={!!micErrorKind}

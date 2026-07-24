@@ -374,7 +374,9 @@ app:
       # Concurrency caps (fair semaphores). Free tier ~30 RPM: chat 3–4; paid/Dev ~10–20 CCU: chat 6–8, whisper 4–6.
       max-concurrent-chat-requests: ${GROQ_MAX_CONCURRENT_CHAT:5}
       max-concurrent-whisper-requests: ${GROQ_MAX_CONCURRENT_WHISPER:4}
-      semaphore-acquire-timeout-seconds: ${GROQ_SEMAPHORE_ACQUIRE_SEC:90}
+      # Fail-fast khi nghẽn: server phải bỏ cuộc TRƯỚC client (mobile chờ 15–45s). 90s cũ là
+      # nguồn 503 dây chuyền đêm 23/07 (audit speaking R-B1).
+      semaphore-acquire-timeout-seconds: ${GROQ_SEMAPHORE_ACQUIRE_SEC:10}
     gemini:
       api-key: ${GEMINI_API_KEY:}
     google:

@@ -223,11 +223,18 @@ export function useAiSpeakingSession(opts: {
             trackFeatureAction("ai_speaking", "stream_stalled", { mode: sessionMode });
             return;
           }
+          // Audit speaking 24/07 (R-W1/R-W2): lỗi stream không còn là hố hút. Gỡ shell AI rỗng
+          // (giữ phần đã stream dở nếu có), và giữ lại text vừa gửi để nút "Gửi lại" hoạt động —
+          // trước đây draft bị xoá trước khi gửi nên turn fail là user mất trắng câu vừa soạn,
+          // còn chip "try again" không có hành động nào.
+          if (currentDe) {
+            updateLastMessage({ contentDe: currentDe, isStreaming: false });
+          } else {
+            removeStreamingPlaceholder();
+          }
           setStreamStatus("error");
-          updateLastMessage({
-            contentDe: currentDe || "",
-            isStreaming: false,
-          });
+          setRetryUserText(trimmed);
+          trackFeatureAction("ai_speaking", "stream_error", { mode: sessionMode });
           console.error("Chat stream error:", err);
         },
         (frame) => {

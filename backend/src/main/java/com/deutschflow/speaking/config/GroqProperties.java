@@ -27,8 +27,10 @@ public class GroqProperties {
     private int maxConcurrentWhisperRequests = 4;
 
     /**
-     * Fair queue: max seconds to wait for a permit before {@code AI service is busy}.
-     * Should be &lt; frontend stream stall timeout and SSE emitter timeout.
+     * Fair queue: max seconds to wait for a permit before failing fast with "AI đang bận" (503 +
+     * Retry-After). Audit speaking 24/07 (R-B1): 90s cũ vượt xa trần chờ của mọi client
+     * (mobile 15–45s, web 8–40s) — client luôn timeout trước còn request thì xếp hàng chết;
+     * 10s đảm bảo server bỏ cuộc TRƯỚC client và hàng chờ xả nhanh khi Groq nghẽn.
      */
-    private int semaphoreAcquireTimeoutSeconds = 90;
+    private int semaphoreAcquireTimeoutSeconds = 10;
 }

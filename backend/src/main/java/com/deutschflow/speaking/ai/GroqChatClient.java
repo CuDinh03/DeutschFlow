@@ -1,5 +1,6 @@
 package com.deutschflow.speaking.ai;
 
+import com.deutschflow.speaking.exception.AiErrorCode;
 import com.deutschflow.speaking.exception.AiServiceException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -46,8 +47,24 @@ import java.util.function.Consumer;
 public class GroqChatClient implements OpenAiChatClient {
 
     private static final String GROQ_BASE_URL = "https://api.groq.com/openai/v1/chat/completions";
-    private static final int MAX_RETRIES = 5;
-    private static final long[] BACKOFF_MILLIS = {2_000L, 4_000L, 8_000L, 16_000L, 32_000L};
+
+    // ── Ngân sách thời gian một lượt gọi blocking (audit speaking 24/07, R-B1) ──
+    // Trước đây: 5 attempt × (10s connect + 60s read) + backoff 62s ≈ 502s worst-case, trong khi
+    // mobile chỉ chờ 15–45s và web 8–40s → client LUÔN timeout trước, còn 5 permit semaphore bị
+    // ghim hàng phút làm mọi request sau 503 dây chuyền (đúng sự cố đêm 23/07). Nguyên tắc mới:
+    // server phải bỏ cuộc TRƯỚC client. Trần cứng REQUEST_DEADLINE_MILLIS chặn tổng
+    // (attempt + backoff); một attempt treo tối đa connect 5s + read 15s = 20s.
+    private static final int MAX_ATTEMPTS = 3;
+    private static final long[] BACKOFF_MILLIS = {2_000L, 4_000L};
+    private static final long REQUEST_DEADLINE_MILLIS = 20_000L;
+    /** Gợi ý Retry-After khi nghẽn cục bộ (semaphore) — permit thường mở sau vài giây. */
+    private static final int BUSY_RETRY_AFTER_SECONDS = 15;
+    /** Gợi ý Retry-After khi breaker OPEN — khớp wait-duration-in-open-state 30s trong yml. */
+    private static final int BREAKER_OPEN_RETRY_AFTER_SECONDS = 30;
+    /** Stream: khoảng lặng tối đa giữa 2 token trước khi coi là treo (thay cho 120s cũ). */
+    private static final Duration STREAM_TOKEN_GAP_TIMEOUT = Duration.ofSeconds(30);
+    /** Stream: trần tổng cho cả lượt sinh — dưới SSE emitter timeout 180s và stall-guard FE 90s. */
+    private static final long STREAM_TOTAL_AWAIT_SECONDS = 90;
 
     private final RestClient restClient;
     private final WebClient webClient;
@@ -70,8 +87,8 @@ public class GroqChatClient implements OpenAiChatClient {
         this.circuitBreakers = circuitBreakers;
 
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(10_000);
-        factory.setReadTimeout(60_000);
+        factory.setConnectTimeout(5_000);
+        factory.setReadTimeout(15_000);
 
         this.restClient = RestClient.builder()
                 .baseUrl(GROQ_BASE_URL)
@@ -102,17 +119,20 @@ public class GroqChatClient implements OpenAiChatClient {
             acquired = concurrencyLimiter.tryAcquireChat();
             if (!acquired) {
                 log.warn("[Groq] Semaphore timeout — too many concurrent AI requests");
-                throw new AiServiceException("AI service is busy. Please try again shortly.");
+                throw new AiServiceException(AiErrorCode.AI_BUSY,
+                        "Trợ lý AI đang bận, vui lòng thử lại sau ít giây.", BUSY_RETRY_AFTER_SECONDS);
             }
             // Circuit-breaker guarded (semaphore stays OUTSIDE so local backpressure isn't counted
-            // as an upstream failure). When Groq is down the breaker trips and we skip the 5× retry.
+            // as an upstream failure). When Groq is down the breaker trips and we skip the retry loop.
             return circuitBreakers.call(
                     "groqChat",
                     () -> chatCompletionWithRetry(requestBody, effectiveModel),
-                    () -> new AiServiceException("AI đang quá tải, thử lại sau ít phút."));
+                    () -> new AiServiceException(AiErrorCode.AI_BUSY,
+                            "AI đang quá tải, thử lại sau ít phút.", BREAKER_OPEN_RETRY_AFTER_SECONDS));
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
-            throw new AiServiceException("AI request interrupted.", ie);
+            throw new AiServiceException(AiErrorCode.AI_INTERRUPTED,
+                    "Yêu cầu AI bị gián đoạn, vui lòng thử lại.", null, ie);
         } finally {
             if (acquired) {
                 concurrencyLimiter.releaseChat();
@@ -121,8 +141,9 @@ public class GroqChatClient implements OpenAiChatClient {
     }
 
     private AiChatCompletionResult chatCompletionWithRetry(String requestBody, String effectiveModel) {
+        long deadlineNanos = System.nanoTime() + REQUEST_DEADLINE_MILLIS * 1_000_000L;
         Exception lastException = null;
-        for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
             try {
                 String responseBody = restClient.post()
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
@@ -132,11 +153,7 @@ public class GroqChatClient implements OpenAiChatClient {
                 return extractResult(responseBody, effectiveModel);
             } catch (RestClientResponseException e) {
                 int statusCode = e.getStatusCode().value();
-                if (statusCode == 429 || statusCode >= 500) {
-                    log.warn("[Groq] {} on attempt {}/{}", statusCode, attempt, MAX_RETRIES);
-                    lastException = e;
-                    sleepBackoff(attempt);
-                } else {
+                if (statusCode != 429 && statusCode < 500) {
                     String body = e.getResponseBodyAsString();
                     if (isModelUnavailable(body)) {
                         // Sự cố vận hành, KHÔNG phải lỗi tạm thời: retry bao nhiêu lần cũng vô ích và
@@ -153,13 +170,19 @@ public class GroqChatClient implements OpenAiChatClient {
                     // không nêu tên nhà cung cấp, không nêu mã lỗi upstream. Chi tiết nằm ở log trên.
                     throw new AiServiceException("Dịch vụ AI tạm thời không khả dụng, vui lòng thử lại sau.", e);
                 }
-            } catch (ResourceAccessException e) {
-                log.warn("[Groq] timeout on attempt {}/{}: {}", attempt, MAX_RETRIES, e.getMessage());
+                log.warn("[Groq] {} on attempt {}/{}", statusCode, attempt, MAX_ATTEMPTS);
                 lastException = e;
-                sleepBackoff(attempt);
+            } catch (ResourceAccessException e) {
+                log.warn("[Groq] timeout on attempt {}/{}: {}", attempt, MAX_ATTEMPTS, e.getMessage());
+                lastException = e;
+            }
+            if (attempt < MAX_ATTEMPTS && !backoffWithinDeadline(attempt, deadlineNanos)) {
+                log.warn("[Groq] bỏ retry sau attempt {}/{}: chạm trần {}ms cho một lượt gọi",
+                        attempt, MAX_ATTEMPTS, REQUEST_DEADLINE_MILLIS);
+                break;
             }
         }
-        throw new AiServiceException("Groq AI service is temporarily unavailable.", lastException);
+        throw new AiServiceException("Trợ lý AI đang bận, vui lòng thử lại sau ít phút.", lastException);
     }
 
     // -----------------------------------------------------------------------
@@ -180,13 +203,36 @@ public class GroqChatClient implements OpenAiChatClient {
             acquired = concurrencyLimiter.tryAcquireChat();
             if (!acquired) {
                 log.warn("[Groq] Semaphore timeout (stream) — too many concurrent AI requests");
-                throw new AiServiceException("AI service is busy. Please try again shortly.");
+                throw new AiServiceException(AiErrorCode.AI_BUSY,
+                        "Trợ lý AI đang bận, vui lòng thử lại sau ít giây.", BUSY_RETRY_AFTER_SECONDS);
             }
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
-            throw new AiServiceException("AI stream request interrupted.", ie);
+            throw new AiServiceException(AiErrorCode.AI_INTERRUPTED,
+                    "Yêu cầu AI bị gián đoạn, vui lòng thử lại.", null, ie);
         }
 
+        try {
+            // Audit 24/07, R-B2: nhánh stream đi qua CÙNG breaker "groqChat" với nhánh blocking.
+            // Trước đây stream gọi thẳng WebClient nên khi Groq chết, các stream fail liên tiếp
+            // KHÔNG được đếm — breaker không bao giờ mở từ web /v2, mỗi user treo đủ 120s.
+            // Cancel (barge-in/leave) trả false = success với breaker, đúng vì không phải lỗi upstream.
+            return circuitBreakers.call(
+                    "groqChat",
+                    () -> pumpStream(requestBody, effectiveModel, messages, onToken, onComplete, cancelled),
+                    () -> new AiServiceException(AiErrorCode.AI_BUSY,
+                            "AI đang quá tải, thử lại sau ít phút.", BREAKER_OPEN_RETRY_AFTER_SECONDS));
+        } finally {
+            if (acquired) {
+                concurrencyLimiter.releaseChat();
+            }
+        }
+    }
+
+    /** Thân stream tách riêng để bọc breaker; mọi lỗi upstream nổi lên dạng {@link AiServiceException}. */
+    private boolean pumpStream(String requestBody, String effectiveModel, List<ChatMessage> messages,
+                               Consumer<String> onToken, Consumer<AiChatCompletionResult> onComplete,
+                               AtomicBoolean cancelled) {
         try {
             StringBuilder full = new StringBuilder();
             CountDownLatch done = new CountDownLatch(1);
@@ -200,7 +246,7 @@ public class GroqChatClient implements OpenAiChatClient {
                     .retrieve()
                     .bodyToFlux(new ParameterizedTypeReference<ServerSentEvent<String>>() {})
                     .takeWhile(evt -> cancelled == null || !cancelled.get())
-                    .timeout(Duration.ofSeconds(120))
+                    .timeout(STREAM_TOKEN_GAP_TIMEOUT)
                     .subscribe(
                             evt -> handleServerSentEvent(evt, full, onToken),
                             err -> {
@@ -210,18 +256,22 @@ public class GroqChatClient implements OpenAiChatClient {
                             done::countDown
                     );
 
-            boolean completed = done.await(125, TimeUnit.SECONDS);
+            boolean completed = done.await(STREAM_TOTAL_AWAIT_SECONDS, TimeUnit.SECONDS);
             if (!completed) {
-                throw new AiServiceException("Groq streaming timed out.");
+                log.warn("[Groq-stream] không hoàn tất trong {}s — coi là treo", STREAM_TOTAL_AWAIT_SECONDS);
+                throw new AiServiceException(AiErrorCode.AI_TIMEOUT,
+                        "Trợ lý AI phản hồi quá chậm, vui lòng thử lại.", null);
             }
             if (cancelled != null && cancelled.get()) {
                 return false;
             }
             if (errorRef[0] != null) {
-                throw new AiServiceException("Groq streaming failed: " + errorRef[0].getMessage(), errorRef[0]);
+                log.warn("[Groq-stream] upstream error: {}", errorRef[0].getMessage());
+                throw new AiServiceException(AiErrorCode.AI_UPSTREAM_UNAVAILABLE,
+                        "Dịch vụ AI tạm thời gián đoạn, vui lòng thử lại.", null, errorRef[0]);
             }
             if (full.length() == 0) {
-                throw new AiServiceException("Groq streaming returned empty response.");
+                throw new AiServiceException("Dịch vụ AI trả về phản hồi rỗng, vui lòng thử lại.");
             }
 
             TokenUsage usage = estimateUsage(messages, full.toString());
@@ -234,11 +284,9 @@ public class GroqChatClient implements OpenAiChatClient {
                 log.debug("[Groq-stream] cancelled during WebClient pump");
                 return false;
             }
-            throw new AiServiceException("Groq streaming failed: " + e.getMessage(), e);
-        } finally {
-            if (acquired) {
-                concurrencyLimiter.releaseChat();
-            }
+            log.warn("[Groq-stream] pump failed: {}", e.getMessage());
+            throw new AiServiceException(AiErrorCode.AI_UPSTREAM_UNAVAILABLE,
+                    "Dịch vụ AI tạm thời gián đoạn, vui lòng thử lại.", null, e);
         }
     }
 
@@ -358,12 +406,22 @@ public class GroqChatClient implements OpenAiChatClient {
                 && (responseBody.contains("model_decommissioned") || responseBody.contains("model_not_found"));
     }
 
-    private void sleepBackoff(int attempt) {
+    /**
+     * Ngủ backoff cho attempt vừa hỏng nếu vẫn còn nằm trong trần thời gian của lượt gọi;
+     * trả {@code false} khi ngân sách đã cạn (bỏ retry, fail ngay) hoặc thread bị interrupt.
+     */
+    private boolean backoffWithinDeadline(int attempt, long deadlineNanos) {
         long delay = BACKOFF_MILLIS[Math.min(attempt - 1, BACKOFF_MILLIS.length - 1)];
+        long remainingMillis = (deadlineNanos - System.nanoTime()) / 1_000_000L;
+        if (remainingMillis <= delay) {
+            return false;
+        }
         try {
             Thread.sleep(delay);
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
+            return false;
         }
+        return true;
     }
 }

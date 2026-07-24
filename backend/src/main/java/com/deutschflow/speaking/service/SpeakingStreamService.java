@@ -2,6 +2,7 @@ package com.deutschflow.speaking.service;
 
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.speaking.ai.AiChatCompletionResult;
+import com.deutschflow.speaking.exception.AiServiceException;
 import com.deutschflow.speaking.ai.AiResponseDto;
 import com.deutschflow.speaking.dto.AiSpeakingChatResponse;
 import com.deutschflow.speaking.metrics.SpeakingMetrics;
@@ -133,7 +134,8 @@ public class SpeakingStreamService {
             AiSpeakingServiceImpl.SpeakingChatPrep prep = transactionTemplate.execute(
                     status -> chatPrepService.prepareSpeakingChatTurn(userId, sessionId, userMessage));
             if (prep == null) {
-                emitter.completeWithError(new IllegalStateException("prepareSpeakingChatTurn returned null"));
+                sendErrorEventAndComplete(emitter,
+                        new IllegalStateException("prepareSpeakingChatTurn returned null"));
                 return;
             }
 
@@ -145,7 +147,8 @@ public class SpeakingStreamService {
             }
         } catch (Exception ex) {
             log.error("[SSE] Stream error", ex);
-            emitter.completeWithError(ex);
+            speakingMetrics.recordChatRequest("stream", "error");
+            sendErrorEventAndComplete(emitter, ex);
         } finally {
             sessionTurnGuard.release(sessionId);
         }
@@ -204,7 +207,7 @@ public class SpeakingStreamService {
         } catch (Exception ex) {
             log.error("[SSE] Error in onComplete handler", ex);
             speakingMetrics.recordChatRequest("stream", "error");
-            emitter.completeWithError(ex);
+            sendErrorEventAndComplete(emitter, ex);
         }
     }
 
@@ -231,6 +234,29 @@ public class SpeakingStreamService {
                         sendAudioEvent(emitter, emitterLock, index, text, voiceId, pcm);
                     }
                 });
+    }
+
+    /**
+     * Audit speaking 24/07 (R-B2): SSE đã commit 200 nên khi lỗi giữa stream, client không thể
+     * nhận ProblemDetail — phát event {@code error} mang JSON {@code {code, message}} máy-đọc-được
+     * rồi đóng emitter SẠCH ({@code complete}, không {@code completeWithError}) để client đọc được
+     * event thay vì chỉ thấy kết nối đứt ("Connection error" trơ trọi trên web /v2 đêm 23/07).
+     * {@code message} là câu tiếng Việt an toàn để hiển thị; chi tiết kỹ thuật chỉ nằm trong log.
+     */
+    private void sendErrorEventAndComplete(SseEmitter emitter, Exception ex) {
+        String code = ex instanceof AiServiceException aiEx ? aiEx.getCode().name() : "INTERNAL";
+        String message = ex instanceof AiServiceException
+                ? ex.getMessage()
+                : "Có lỗi xảy ra, vui lòng thử lại.";
+        try {
+            var payload = objectMapper.createObjectNode();
+            payload.put("code", code);
+            payload.put("message", message);
+            emitter.send(SseEmitter.event().name("error").data(objectMapper.writeValueAsString(payload)));
+        } catch (Exception sendEx) {
+            log.trace("[SSE] Could not send error event: {}", sendEx.getMessage());
+        }
+        completeQuietly(emitter);
     }
 
     /** Send one SSE event under the per-stream lock; failures are logged, never thrown. */
