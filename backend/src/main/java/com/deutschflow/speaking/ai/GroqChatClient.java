@@ -46,7 +46,7 @@ import java.util.function.Consumer;
 @Slf4j
 public class GroqChatClient implements OpenAiChatClient {
 
-    private static final String GROQ_BASE_URL = "https://api.groq.com/openai/v1/chat/completions";
+    static final String GROQ_BASE_URL = "https://api.groq.com/openai/v1/chat/completions";
 
     // ── Ngân sách thời gian một lượt gọi blocking (audit speaking 24/07, R-B1) ──
     // Trước đây: 5 attempt × (10s connect + 60s read) + backoff 62s ≈ 502s worst-case, trong khi
@@ -74,12 +74,28 @@ public class GroqChatClient implements OpenAiChatClient {
     private final String apiKey;
     private final String defaultModel;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public GroqChatClient(
             @Value("${app.ai.groq.api-key:}") String apiKey,
             @Value("${app.ai.groq.model:openai/gpt-oss-20b}") String model,
             ObjectMapper objectMapper,
             GroqConcurrencyLimiter concurrencyLimiter,
             com.deutschflow.common.resilience.CircuitBreakers circuitBreakers) {
+        this(apiKey, model, objectMapper, concurrencyLimiter, circuitBreakers, GROQ_BASE_URL);
+    }
+
+    /**
+     * Endpoint-overridable constructor. Production always uses {@link #GROQ_BASE_URL}; tests point it
+     * at a local stub server so the retry/deadline/timeout budget of R-B1 can be exercised for real
+     * instead of being asserted by reading the source.
+     */
+    GroqChatClient(
+            String apiKey,
+            String model,
+            ObjectMapper objectMapper,
+            GroqConcurrencyLimiter concurrencyLimiter,
+            com.deutschflow.common.resilience.CircuitBreakers circuitBreakers,
+            String baseUrl) {
         this.apiKey = apiKey;
         this.defaultModel = model;
         this.objectMapper = objectMapper;
@@ -91,13 +107,13 @@ public class GroqChatClient implements OpenAiChatClient {
         factory.setReadTimeout(15_000);
 
         this.restClient = RestClient.builder()
-                .baseUrl(GROQ_BASE_URL)
+                .baseUrl(baseUrl)
                 .requestFactory(factory)
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .build();
 
         this.webClient = WebClient.builder()
-                .baseUrl(GROQ_BASE_URL)
+                .baseUrl(baseUrl)
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .build();
 
