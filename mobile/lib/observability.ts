@@ -57,6 +57,39 @@ export function reportError(error: unknown): void {
   sentry?.captureException(error)
 }
 
+/** Ngữ cảnh kèm theo một lỗi API, đủ để nhóm và đo tần suất mà không kèm dữ liệu người dùng. */
+export type ApiErrorContext = {
+  /** Đường dẫn đã bỏ id số — `/ai-speaking/sessions/{id}/chat`. Dùng làm tag nhóm. */
+  endpoint: string
+  method: string
+  /** HTTP status, hoặc `network` khi không có response (mất mạng), `timeout` khi axios huỷ. */
+  status: string
+  /** `extensions.code` của RFC-7807 (AI_BUSY, QUOTA_EXCEEDED…) nếu backend có gửi. */
+  aiCode?: string
+}
+
+/**
+ * Báo cáo một lỗi API kèm tag để đếm được theo mã.
+ *
+ * Audit speaking 24/07 (R-M6): trước đây mọi lỗi đã catch chỉ dẫn tới `Alert.alert`, còn log API
+ * bị bọc trong `__DEV__` — nên **không có bất kỳ số liệu nào** về tần suất 503/timeout thật trên
+ * prod. Đêm 23/07 không ai biết đang có sự cố cho tới khi người dùng chụp màn hình gửi.
+ *
+ * Không gửi thân request/response: chúng chứa câu nói của người học. Chỉ endpoint + status + mã lỗi.
+ */
+export function reportApiError(error: unknown, context: ApiErrorContext): void {
+  sentry?.captureException(error, {
+    tags: {
+      endpoint: context.endpoint,
+      method: context.method,
+      status: context.status,
+      ...(context.aiCode ? { ai_code: context.aiCode } : {}),
+    },
+    // `api` để tách hẳn khỏi crash JS trong Sentry — hai loại này cần hai cách xử lý khác nhau.
+    fingerprint: ['api', context.endpoint, context.status, context.aiCode ?? ''],
+  })
+}
+
 /** Root wrapper — Sentry.wrap when enabled, identity passthrough otherwise. */
 export function wrapWithObservability<T>(component: T): T {
   return sentry ? (sentry.wrap(component as never) as T) : component

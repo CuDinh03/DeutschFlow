@@ -207,4 +207,20 @@ class GlobalExceptionHandlerTest {
         assertThat(body.title()).doesNotContain("AI");
         assertThat(body.detail()).doesNotContain("phiên học");
     }
+    /**
+     * R-M6: URI thành tag Prometheus, nên id số phải được gộp TRƯỚC. Không gộp thì mỗi phiên đẻ một
+     * chuỗi tag riêng — hệ metric phình vô hạn và cảnh báo 503-rate mất tác dụng.
+     */
+    @Test
+    @DisplayName("normalizeUri gộp id số thành {id} để tag không nổ cardinality")
+    void normalizeUriCollapsesNumericIds() {
+        assertThat(GlobalExceptionHandler.normalizeUri("/api/ai-speaking/sessions/8421/chat"))
+                .isEqualTo("/api/ai-speaking/sessions/{id}/chat");
+        assertThat(GlobalExceptionHandler.normalizeUri("/api/classes/12/students/34"))
+                .isEqualTo("/api/classes/{id}/students/{id}");
+        assertThat(GlobalExceptionHandler.normalizeUri("/api/ai-speaking/transcribe"))
+                .isEqualTo("/api/ai-speaking/transcribe");
+        assertThat(GlobalExceptionHandler.normalizeUri(null)).isEqualTo("unknown");
+        assertThat(GlobalExceptionHandler.normalizeUri("  ")).isEqualTo("unknown");
+    }
 }
