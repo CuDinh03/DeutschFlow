@@ -77,10 +77,13 @@ public class InterviewPromptBuilder {
         String resolvedIndustry = personaEntity.map(InterviewPersonaEntity::getIndustry)
                 .orElse(industry != null ? industry : "Allgemein");
 
-        Optional<InterviewRubricService.RubricSnapshot> rubric =
-                rubricService.snapshotForIndustry(resolvedIndustry);
-
         InterviewPhase phase = plan.phase();
+
+        // Phase rubric first, industry OVERALL as fallback: a HARD_SKILLS turn should be steered by
+        // HARD_SKILLS criteria/weights when an admin has defined them, not by the generic rubric.
+        Optional<InterviewRubricService.RubricSnapshot> rubric =
+                rubricService.snapshotForPhase(resolvedIndustry, phase.name(), cefrLevel);
+
         String phaseName = switch (phase) {
             case INTRO -> "Begrüßung & Selbstvorstellung";
             case ICE_BREAKER -> "Ice-Breaker";

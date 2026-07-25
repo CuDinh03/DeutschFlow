@@ -266,7 +266,10 @@ public class AiResponseParser {
         if (node == null || node.isNull() || !node.isObject()) {
             return null;
         }
-        boolean addressed = node.path("addressed_question").asBoolean(true);
+        // Default false, not true: a missing field is absence of evidence that the candidate
+        // addressed the question, and every other guard in the interview layer (anti-sycophancy
+        // cap, verdict reconciliation) defaults toward the conservative reading.
+        boolean addressed = node.path("addressed_question").asBoolean(false);
         boolean phaseGoalMet = node.path("phase_goal_met").asBoolean(false);
         return new AiResponseDto.InterviewMeta.Analysis(
                 addressed,

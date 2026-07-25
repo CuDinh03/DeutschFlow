@@ -60,6 +60,24 @@ class AiResponseParserTest {
     }
 
     @Test
+    void parse_interviewMetaAnalysis_missingAddressedQuestion_defaultsFalse() {
+        // A field the LLM omitted is absence of evidence, not evidence the question was addressed.
+        String json = """
+                {
+                  "ai_speech_de": "Verstehe.",
+                  "interview_meta": {
+                    "ack_de": "Verstehe.",
+                    "question_de": "Und dann?",
+                    "analysis": { "depth": "SHALLOW" }
+                  }
+                }
+                """;
+        var analysis = parser.parse(json).interviewMeta().analysis();
+        assertThat(analysis).isNotNull();
+        assertThat(analysis.addressedQuestion()).isFalse();
+    }
+
+    @Test
     void parse_interviewMetaWithoutAnalysis_backwardCompatible() {
         String json = """
                 {

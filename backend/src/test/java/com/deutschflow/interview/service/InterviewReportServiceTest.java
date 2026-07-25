@@ -96,7 +96,46 @@ class InterviewReportServiceTest {
         assertThat(r.verdict()).isEqualTo("NOT_PASS");
     }
 
+    @Test
+    @DisplayName("the STAR drill is recommended only to candidates actually flagged for missing STAR")
+    void starDrillOnlyWhenStarIsMissing() {
+        AiSpeakingSession session = session("{\"overall_score\":\"7.0/10\",\"verdict\":\"PASS\"}");
+        when(phaseEvalService.getPhaseResults(1L)).thenReturn(List.of());
+        // 3 STAR_SOFT turns that DID use STAR — the old negated `starPresent` read counted all of them
+        when(turnPersistenceService.getTurnsForSession(1L)).thenReturn(starSoftTurns(3, false));
+
+        assertThat(service.buildStructuredReport(session).recommendedDrills())
+                .noneMatch(d -> d.contains("STAR"));
+    }
+
+    @Test
+    @DisplayName("the STAR drill still fires when more than one turn is flagged")
+    void starDrillFiresOnFlaggedTurns() {
+        AiSpeakingSession session = session("{\"overall_score\":\"7.0/10\",\"verdict\":\"PASS\"}");
+        when(phaseEvalService.getPhaseResults(1L)).thenReturn(List.of());
+        when(turnPersistenceService.getTurnsForSession(1L)).thenReturn(starSoftTurns(3, true));
+
+        assertThat(service.buildStructuredReport(session).recommendedDrills())
+                .anyMatch(d -> d.contains("STAR"));
+    }
+
     // ── helpers ────────────────────────────────────────────────────────────────
+
+    private static List<InterviewTurn> starSoftTurns(int n, boolean missingStar) {
+        List<InterviewTurn> list = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            list.add(InterviewTurn.builder()
+                    .sessionId(1L)
+                    .turnIndex(i)
+                    .phase("STAR_SOFT")
+                    .questionText("Frage " + i)
+                    .userAnswer("Antwort " + i)
+                    .answerAnalysisJson("{\"missingStar\":" + missingStar + "}")
+                    .build());
+        }
+        return list;
+    }
+
 
     private static AiSpeakingSession session(String reportJson) {
         AiSpeakingSession s = new AiSpeakingSession();
