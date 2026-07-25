@@ -1,5 +1,7 @@
 package com.deutschflow.teacher.service;
 
+import com.deutschflow.common.audit.AuditActor;
+import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.ForbiddenException;
@@ -15,11 +17,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -29,6 +33,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -40,6 +45,7 @@ class TimesheetPeriodServiceTest {
     @Mock private TeacherSessionRecordRepository recordRepository;
     @Mock private UserRepository userRepository;
     @Mock private OrgGuard orgGuard;
+    @Mock private AuditLogService auditLogService;
 
     private TimesheetPeriodService service;
 
@@ -49,6 +55,9 @@ class TimesheetPeriodServiceTest {
     private static final Long OWNER_ID = 3L;
     private static final Long ORG_ID = 42L;
     private static final Long PERIOD_ID = 300L;
+    private static final AuditActor TEACHER = new AuditActor(TEACHER_ID, "gv@tt.vn", "TEACHER");
+    private static final AuditActor MANAGER = new AuditActor(MANAGER_ID, "ql@tt.vn", "MANAGER");
+    private static final AuditActor OWNER = new AuditActor(OWNER_ID, "gd@tt.vn", "OWNER");
     // Kỳ mẫu phải ĐÃ KẾT THÚC: submit() nay từ chối kỳ chưa hết hạn. Dùng ngày ĐỘNG thay vì ngày cứng
     // để test không tự hỏng khi thời gian trôi qua một mốc cố định.
     private static final LocalDate END = TeacherTimesheetService.todayVn().minusDays(1);
@@ -56,7 +65,8 @@ class TimesheetPeriodServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new TimesheetPeriodService(periodRepository, recordRepository, userRepository, orgGuard);
+        service = new TimesheetPeriodService(periodRepository, recordRepository, userRepository, orgGuard,
+                auditLogService);
     }
 
     // ── mở kỳ: chống chồng ngày (HIGH-3) ─────────────────────────────────────
@@ -135,7 +145,7 @@ class TimesheetPeriodServiceTest {
                         TeacherSessionRecord.builder().orgId(ORG_ID).durationMinutes(105).build()));
         when(periodRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        PeriodDto dto = service.submit(TEACHER_ID, PERIOD_ID);
+        PeriodDto dto = service.submit(TEACHER, PERIOD_ID);
 
         assertThat(dto.status()).isEqualTo("SUBMITTED");
         assertThat(dto.totalSessions()).isEqualTo(2);
@@ -148,7 +158,7 @@ class TimesheetPeriodServiceTest {
     void submit_alreadySubmitted_isRejected() {
         when(periodRepository.findById(PERIOD_ID)).thenReturn(Optional.of(period(Status.SUBMITTED)));
 
-        assertThatThrownBy(() -> service.submit(TEACHER_ID, PERIOD_ID))
+        assertThatThrownBy(() -> service.submit(TEACHER, PERIOD_ID))
                 .isInstanceOf(ConflictException.class);
         verify(periodRepository, never()).save(any());
     }
@@ -164,7 +174,7 @@ class TimesheetPeriodServiceTest {
                         eq(TEACHER_ID), any(), any())).thenReturn(List.of());
         when(periodRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        PeriodDto dto = service.submit(TEACHER_ID, PERIOD_ID);
+        PeriodDto dto = service.submit(TEACHER, PERIOD_ID);
 
         assertThat(dto.status()).isEqualTo("SUBMITTED");
         assertThat(dto.rejectReason()).isNull();
@@ -184,7 +194,7 @@ class TimesheetPeriodServiceTest {
                         TeacherSessionRecord.builder().durationMinutes(60).build()));              // org=null → LOẠI
         when(periodRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        PeriodDto dto = service.submit(TEACHER_ID, PERIOD_ID);
+        PeriodDto dto = service.submit(TEACHER, PERIOD_ID);
 
         // FAIL-CLOSED: kỳ của org 42 chỉ tính dòng công của chính org 42. Dòng công org=null (lớp tư,
         // hoặc lớp chưa gắn tổ chức) KHÔNG được trung tâm trả — trả thiếu dễ phát hiện hơn trả thừa.
@@ -199,7 +209,7 @@ class TimesheetPeriodServiceTest {
         p.setPeriodEnd(TeacherTimesheetService.todayVn().plusDays(5));   // kỳ còn 5 ngày nữa mới hết
         when(periodRepository.findById(PERIOD_ID)).thenReturn(Optional.of(p));
 
-        assertThatThrownBy(() -> service.submit(TEACHER_ID, PERIOD_ID))
+        assertThatThrownBy(() -> service.submit(TEACHER, PERIOD_ID))
                 .isInstanceOf(ConflictException.class)
                 .hasMessageContaining("chưa nộp được");
 
@@ -217,7 +227,7 @@ class TimesheetPeriodServiceTest {
                 .thenReturn(List.of(TeacherSessionRecord.builder().orgId(ORG_ID).durationMinutes(60).build()));
         when(periodRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        PeriodDto dto = service.approve(MANAGER_ID, ORG_ID, PERIOD_ID);
+        PeriodDto dto = service.approve(MANAGER, ORG_ID, PERIOD_ID);
 
         assertThat(dto.status()).isEqualTo("APPROVED");
         assertThat(dto.totalMinutes()).isEqualTo(60);
@@ -230,14 +240,14 @@ class TimesheetPeriodServiceTest {
     void approve_notSubmitted_isRejected() {
         when(periodRepository.findById(PERIOD_ID)).thenReturn(Optional.of(period(Status.OPEN)));
 
-        assertThatThrownBy(() -> service.approve(MANAGER_ID, ORG_ID, PERIOD_ID))
+        assertThatThrownBy(() -> service.approve(MANAGER, ORG_ID, PERIOD_ID))
                 .isInstanceOf(ConflictException.class);
     }
 
     @Test
     @DisplayName("reject() bắt buộc có lý do — giáo viên phải biết sửa gì")
     void reject_requiresReason() {
-        assertThatThrownBy(() -> service.reject(MANAGER_ID, ORG_ID, PERIOD_ID, "  "))
+        assertThatThrownBy(() -> service.reject(MANAGER, ORG_ID, PERIOD_ID, "  "))
                 .isInstanceOf(BadRequestException.class);
         verify(periodRepository, never()).save(any());
     }
@@ -249,7 +259,7 @@ class TimesheetPeriodServiceTest {
         when(periodRepository.findById(PERIOD_ID)).thenReturn(Optional.of(p));
         when(periodRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        PeriodDto dto = service.reject(MANAGER_ID, ORG_ID, PERIOD_ID, "Thiếu buổi 12/07");
+        PeriodDto dto = service.reject(MANAGER, ORG_ID, PERIOD_ID, "Thiếu buổi 12/07");
 
         assertThat(dto.status()).isEqualTo("REJECTED");
         assertThat(dto.rejectReason()).isEqualTo("Thiếu buổi 12/07");
@@ -260,7 +270,7 @@ class TimesheetPeriodServiceTest {
     @DisplayName("lock() chỉ khoá được kỳ đã duyệt")
     void lock_onlyAfterApproved() {
         when(periodRepository.findById(PERIOD_ID)).thenReturn(Optional.of(period(Status.SUBMITTED)));
-        assertThatThrownBy(() -> service.lock(OWNER_ID, ORG_ID, PERIOD_ID))
+        assertThatThrownBy(() -> service.lock(OWNER, ORG_ID, PERIOD_ID))
                 .isInstanceOf(ConflictException.class);
     }
 
@@ -271,7 +281,7 @@ class TimesheetPeriodServiceTest {
         when(periodRepository.findById(PERIOD_ID)).thenReturn(Optional.of(p));
         when(periodRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        PeriodDto dto = service.lock(OWNER_ID, ORG_ID, PERIOD_ID);
+        PeriodDto dto = service.lock(OWNER, ORG_ID, PERIOD_ID);
 
         assertThat(dto.status()).isEqualTo("LOCKED");
         assertThat(dto.editable()).isFalse();
@@ -287,7 +297,7 @@ class TimesheetPeriodServiceTest {
         doThrow(new ForbiddenException("Chỉ chủ sở hữu tổ chức mới được thao tác này"))
                 .when(orgGuard).assertOrgOwner(MANAGER_ID, ORG_ID);
 
-        assertThatThrownBy(() -> service.lock(MANAGER_ID, ORG_ID, PERIOD_ID))
+        assertThatThrownBy(() -> service.lock(MANAGER, ORG_ID, PERIOD_ID))
                 .isInstanceOf(ForbiddenException.class);
         // Chặn TRƯỚC khi chạm dữ liệu: manager không đọc được kỳ, cũng không ghi gì.
         verify(periodRepository, never()).findById(any());
@@ -304,10 +314,10 @@ class TimesheetPeriodServiceTest {
                         eq(TEACHER_ID), any(), any()))
                 .thenReturn(List.of());
 
-        assertThat(service.approve(MANAGER_ID, ORG_ID, PERIOD_ID).status()).isEqualTo("APPROVED");
+        assertThat(service.approve(MANAGER, ORG_ID, PERIOD_ID).status()).isEqualTo("APPROVED");
 
         when(periodRepository.findById(PERIOD_ID)).thenReturn(Optional.of(period(Status.SUBMITTED)));
-        assertThat(service.reject(MANAGER_ID, ORG_ID, PERIOD_ID, "Thiếu buổi 12/07").status())
+        assertThat(service.reject(MANAGER, ORG_ID, PERIOD_ID, "Thiếu buổi 12/07").status())
                 .isEqualTo("REJECTED");
 
         // Không nhánh nào của duyệt/trả lại được phép đòi quyền chủ sở hữu.
@@ -323,7 +333,7 @@ class TimesheetPeriodServiceTest {
         other.setOrgId(999L);                                   // kỳ thuộc org khác
         when(periodRepository.findById(PERIOD_ID)).thenReturn(Optional.of(other));
 
-        assertThatThrownBy(() -> service.approve(MANAGER_ID, ORG_ID, PERIOD_ID))
+        assertThatThrownBy(() -> service.approve(MANAGER, ORG_ID, PERIOD_ID))
                 .isInstanceOf(ForbiddenException.class);
         verify(periodRepository, never()).save(any());
     }
@@ -334,7 +344,7 @@ class TimesheetPeriodServiceTest {
         doThrow(new ForbiddenException("không đủ quyền"))
                 .when(orgGuard).assertOrgAdmin(MANAGER_ID, ORG_ID);
 
-        assertThatThrownBy(() -> service.approve(MANAGER_ID, ORG_ID, PERIOD_ID))
+        assertThatThrownBy(() -> service.approve(MANAGER, ORG_ID, PERIOD_ID))
                 .isInstanceOf(ForbiddenException.class);
         verify(periodRepository, never()).findById(any());
     }
@@ -460,6 +470,65 @@ class TimesheetPeriodServiceTest {
                        .doesNotContain("\"SUBMITTED\"")
                        .doesNotContain("\"REJECTED\"");
         assertThat(csv.lines().count()).isEqualTo(3);   // 1 dòng tiêu đề + đúng 2 kỳ được trả
+    }
+
+    // ── vết audit: mỗi lần chuyển trạng thái kỳ công để lại đúng một dòng ─────
+
+    @Test
+    @DisplayName("mỗi lần chuyển trạng thái ghi ĐÚNG MỘT dòng audit, kèm actor và số công đã chốt")
+    void stateTransitions_eachWriteExactlyOneAuditRow() {
+        when(periodRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(recordRepository
+                .findByTeacherIdAndStartedAtGreaterThanEqualAndStartedAtLessThanOrderByStartedAt(
+                        eq(TEACHER_ID), any(), any()))
+                .thenReturn(List.of(
+                        TeacherSessionRecord.builder().orgId(ORG_ID).durationMinutes(90).build()));
+
+        when(periodRepository.findById(PERIOD_ID)).thenReturn(Optional.of(period(Status.OPEN)));
+        service.submit(TEACHER, PERIOD_ID);
+        when(periodRepository.findById(PERIOD_ID)).thenReturn(Optional.of(period(Status.SUBMITTED)));
+        service.approve(MANAGER, ORG_ID, PERIOD_ID);
+        when(periodRepository.findById(PERIOD_ID)).thenReturn(Optional.of(period(Status.SUBMITTED)));
+        service.reject(MANAGER, ORG_ID, PERIOD_ID, "Thiếu buổi 12/07");
+        when(periodRepository.findById(PERIOD_ID)).thenReturn(Optional.of(period(Status.APPROVED)));
+        service.lock(OWNER, ORG_ID, PERIOD_ID);
+
+        ArgumentCaptor<String> events = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<AuditActor> actors = ArgumentCaptor.forClass(AuditActor.class);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> metas = ArgumentCaptor.forClass(Map.class);
+        verify(auditLogService, times(4))
+                .log(events.capture(), actors.capture(), eq("TIMESHEET_PERIOD"),
+                        eq(String.valueOf(PERIOD_ID)), metas.capture());
+
+        assertThat(events.getAllValues()).containsExactly(
+                "teacher_timesheet_submitted", "teacher_timesheet_approved",
+                "teacher_timesheet_rejected", "teacher_timesheet_locked");
+        // Ai làm gì: nộp là giáo viên, duyệt/trả là quản lý, khoá là giám đốc.
+        assertThat(actors.getAllValues()).containsExactly(TEACHER, MANAGER, MANAGER, OWNER);
+
+        // orgId phải có mặt trong MỌI dòng — audit_logs chưa có cột org_id, đây là thứ cho phép
+        // backfill cột đó sau này mà không mất lịch sử.
+        assertThat(metas.getAllValues()).allSatisfy(m -> assertThat(m).containsEntry("orgId", ORG_ID));
+        assertThat(metas.getAllValues().get(0))
+                .containsEntry("status", "SUBMITTED")
+                .containsEntry("totalSessions", 1)
+                .containsEntry("totalMinutes", 90);
+        // Lý do trả lại phải nằm trong vết — đó là thứ giải thích vì sao kỳ bị đẩy ngược.
+        assertThat(metas.getAllValues().get(2)).containsEntry("reason", "Thiếu buổi 12/07");
+        assertThat(metas.getAllValues().get(3)).containsEntry("status", "LOCKED");
+    }
+
+    @Test
+    @DisplayName("thao tác BỊ TỪ CHỐI không để lại vết — vết chỉ dành cho việc đã thực sự xảy ra")
+    void rejectedOperation_writesNoAuditRow() {
+        doThrow(new ForbiddenException("không phải chủ sở hữu"))
+                .when(orgGuard).assertOrgOwner(MANAGER_ID, ORG_ID);
+
+        assertThatThrownBy(() -> service.lock(MANAGER, ORG_ID, PERIOD_ID))
+                .isInstanceOf(ForbiddenException.class);
+
+        verify(auditLogService, never()).log(any(), any(AuditActor.class), any(), any(), any());
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────

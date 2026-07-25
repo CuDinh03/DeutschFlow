@@ -1,5 +1,7 @@
 package com.deutschflow.organization.service;
 
+import com.deutschflow.common.audit.AuditActor;
+import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
@@ -14,7 +16,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
@@ -46,14 +50,17 @@ public class OrgRosterService {
     private final OrganizationRepository organizationRepository;
     private final TeacherClassRepository teacherClassRepository;
     private final OrgRosterRowImporter rowImporter;
+    private final AuditLogService auditLogService;
 
     /**
      * Imports students from raw CSV text. Columns: {@code email,displayName[,phone]} (comma).
      * The first non-empty line is treated as a header only when its first column equals {@code "email"}.
      *
      * @param classIdOrNull when non-null, every imported student is also enrolled into this class
+     * @param actor         người bấm import — vết tổng kết mang danh tính này
      */
-    public RosterImportResultDto importStudents(Long orgId, String csvText, Long classIdOrNull) {
+    public RosterImportResultDto importStudents(Long orgId, String csvText, Long classIdOrNull,
+                                                AuditActor actor) {
         Organization org = organizationRepository.findById(orgId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy tổ chức: id=" + orgId));
 
@@ -137,6 +144,25 @@ public class OrgRosterService {
         if (seatLimitHit) {
             log.info("Roster import for org {} stopped early at seat limit {}", orgId, org.getSeatLimit());
         }
+
+        // MỘT dòng vết cho cả lần import, không phải mỗi học viên một dòng: import 30 học viên là
+        // MỘT hành động của một người, và 30 dòng audit làm ngập màn hình vết mà không thêm thông
+        // tin nào — chi tiết từng dòng lỗi đã nằm trong RosterImportResultDto trả về cho người bấm.
+        //
+        // Phương thức này cố ý KHÔNG @Transactional (xem javadoc class), nên dòng vết này tự commit
+        // độc lập với các transaction-một-dòng ở trên. Đúng ý muốn: import hỏng một phần vẫn phải để
+        // lại vết, kèm đúng con số đã đếm được — khác với các mutation đơn lẻ ở nơi khác, nơi vết đi
+        // chung transaction nghiệp vụ nên thao tác thất bại không để lại gì.
+        Map<String, Object> meta = new LinkedHashMap<>();
+        meta.put("orgId", orgId);
+        meta.put("classId", classIdOrNull);
+        meta.put("total", total);
+        meta.put("created", created);
+        meta.put("linked", linked);
+        meta.put("enrolled", enrolled);
+        meta.put("failed", failed);
+        meta.put("seatLimitHit", seatLimitHit);
+        auditLogService.log("org_member_imported", actor, "ORG", String.valueOf(orgId), meta);
         return new RosterImportResultDto(total, created, linked, enrolled, failed, errors);
     }
 

@@ -81,6 +81,25 @@ public class AuditLogService {
         return out;
     }
 
+    /**
+     * Ghi vết cho một mutation, actor gói trong {@link AuditActor}.
+     *
+     * <p>Chạy TRONG transaction nghiệp vụ đang mở: {@code JdbcTemplate} lấy connection qua
+     * {@code DataSourceUtils} nên dùng chung connection với JPA — chính cơ chế mà
+     * {@code OrgMembershipService} dựa vào để giữ {@code SELECT … FOR UPDATE} tới lúc commit. Hệ
+     * quả cố ý: nghiệp vụ rollback thì vết cũng biến mất, chỉ thao tác THÀNH CÔNG mới để lại vết.
+     */
+    public void log(
+            String eventName,
+            AuditActor actor,
+            String targetType,
+            String targetId,
+            Map<String, Object> metadata
+    ) {
+        AuditActor a = actor == null ? new AuditActor(null, null, null) : actor;
+        log(eventName, a.id(), a.email(), a.role(), targetType, targetId, metadata);
+    }
+
     public void log(
             String eventName,
             Long actorUserId,

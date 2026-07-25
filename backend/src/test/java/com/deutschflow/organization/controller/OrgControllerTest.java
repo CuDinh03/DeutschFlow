@@ -1,5 +1,6 @@
 package com.deutschflow.organization.controller;
 
+import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.organization.dto.OrgClassDto;
 import com.deutschflow.organization.dto.OrgMemberDto;
@@ -29,6 +30,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -178,7 +180,7 @@ class OrgControllerTest {
         mvc.perform(delete("/api/org/members/77"))
                 .andExpect(status().isForbidden());
 
-        verify(orgMembershipService, never()).removeMember(anyLong(), anyLong());
+        verify(orgMembershipService, never()).removeMember(anyLong(), anyLong(), any());
         verify(orgEntitlementService, never()).revokeStudent(anyLong());
     }
 
@@ -187,7 +189,7 @@ class OrgControllerTest {
     @Test
     @DisplayName("transfer-ownership: OWNER hợp lệ → 200 + thành viên chủ sở hữu mới")
     void transferOwnership_owner_returns200() throws Exception {
-        when(orgMembershipService.transferOwnership(eq(10L), eq(1L), eq(77L)))
+        when(orgMembershipService.transferOwnership(eq(10L), any(AuditActor.class), eq(77L)))
                 .thenReturn(new OrgMemberDto(77L, "new@trungtam.com", "Chủ mới", "OWNER", "ACTIVE", Instant.now()));
 
         mvc.perform(post("/api/org/members/77/transfer-ownership"))
@@ -205,6 +207,6 @@ class OrgControllerTest {
         mvc.perform(post("/api/org/members/77/transfer-ownership"))
                 .andExpect(status().isForbidden());
 
-        verify(orgMembershipService, never()).transferOwnership(anyLong(), anyLong(), anyLong());
+        verify(orgMembershipService, never()).transferOwnership(anyLong(), any(), anyLong());
     }
 }

@@ -1,5 +1,6 @@
 package com.deutschflow.teacher.controller;
 
+import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.teacher.dto.TimesheetDtos.RecordTeachingRequest;
 import com.deutschflow.teacher.dto.TimesheetDtos.SessionRecordDto;
 import com.deutschflow.teacher.dto.TimesheetDtos.TimesheetSummaryDto;
@@ -48,14 +49,14 @@ public class TeacherTimesheetController {
     @ResponseStatus(HttpStatus.CREATED)
     public SessionRecordDto record(@AuthenticationPrincipal User teacher,
                                    @RequestBody RecordTeachingRequest req) {
-        return timesheetService.record(teacher.getId(), req);
+        return timesheetService.record(AuditActor.of(teacher), req);
     }
 
     @PutMapping("/records/{recordId}")
     public SessionRecordDto updateRecord(@AuthenticationPrincipal User teacher,
                                          @PathVariable Long recordId,
                                          @RequestBody RecordTeachingRequest req) {
-        return timesheetService.updateRecord(teacher.getId(), recordId, req);
+        return timesheetService.updateRecord(AuditActor.of(teacher), recordId, req);
     }
 
     // ── kỳ công ───────────────────────────────────────────────────────────────
@@ -77,12 +78,12 @@ public class TeacherTimesheetController {
     /** Nộp kỳ cho manager duyệt. Sau bước này, dòng công trong kỳ bị đóng băng. */
     @PostMapping("/periods/{periodId}/submit")
     public PeriodDto submit(@AuthenticationPrincipal User teacher, @PathVariable Long periodId) {
-        return periodService.submit(teacher.getId(), periodId);
+        return periodService.submit(AuditActor.of(teacher), periodId);
     }
 
     @DeleteMapping("/records/{recordId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteRecord(@AuthenticationPrincipal User teacher, @PathVariable Long recordId) {
-        timesheetService.deleteRecord(teacher.getId(), recordId);
+        timesheetService.deleteRecord(AuditActor.of(teacher), recordId);
     }
 }

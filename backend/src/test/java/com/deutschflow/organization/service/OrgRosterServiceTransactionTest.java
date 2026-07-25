@@ -1,5 +1,7 @@
 package com.deutschflow.organization.service;
 
+import com.deutschflow.common.audit.AuditActor;
+import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.organization.dto.RosterImportResultDto;
 import com.deutschflow.organization.entity.OrgMember;
 import com.deutschflow.organization.entity.OrgMemberId;
@@ -76,6 +78,7 @@ import static org.mockito.Mockito.when;
 class OrgRosterServiceTransactionTest {
 
     private static final Long ORG_ID = 10L;
+    private static final AuditActor ACTOR = new AuditActor(2L, "manager@tt.vn", "MANAGER");
     private static final long SEAT_LIMIT = 5L;
 
     private AnnotationConfigApplicationContext ctx;
@@ -89,6 +92,7 @@ class OrgRosterServiceTransactionTest {
     private TeacherClassRepository teacherClassRepository;
     private AssignmentBackfillService assignmentBackfillService;
     private JdbcTemplate jdbcTemplate;
+    private AuditLogService auditLogService;
 
     private OrgRosterService service;
 
@@ -109,6 +113,7 @@ class OrgRosterServiceTransactionTest {
         teacherClassRepository = mock(TeacherClassRepository.class);
         assignmentBackfillService = mock(AssignmentBackfillService.class);
         jdbcTemplate = mock(JdbcTemplate.class);
+        auditLogService = mock(AuditLogService.class);
 
         // A mocked Connection is enough: begin/commit/rollback/close are no-ops, and the
         // rollback-only flag we are asserting on lives on Spring's ConnectionHolder, not in the DB.
@@ -128,6 +133,9 @@ class OrgRosterServiceTransactionTest {
         ctx.registerBean(TeacherClassRepository.class, () -> teacherClassRepository);
         ctx.registerBean(AssignmentBackfillService.class, () -> assignmentBackfillService);
         ctx.registerBean(JdbcTemplate.class, () -> jdbcTemplate);
+        // OrgMembershipService nay ghi vết audit cho mọi thay đổi thành viên, nên context tối
+        // giản này cũng cần bean đó. Mock: bài test đo RANH GIỚI TRANSACTION, không đo vết.
+        ctx.registerBean(AuditLogService.class, () -> auditLogService);
         // Real and proxied — these are the beans whose transaction boundaries are under test.
         ctx.registerBean(OrgMembershipService.class);
         ctx.registerBean(OrgRosterRowImporter.class);
@@ -214,7 +222,7 @@ class OrgRosterServiceTransactionTest {
                 bob@school.edu,Bob
                 carol@school.edu,Carol""";
 
-        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null);
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
 
         assertThat(result.total()).isEqualTo(3);
         assertThat(result.failed()).as("only Bob's row fails").isEqualTo(1);
@@ -241,7 +249,7 @@ class OrgRosterServiceTransactionTest {
                 bob@school.edu,Bob""";
 
         assertThatCode(() -> {
-            RosterImportResultDto result = service.importStudents(ORG_ID, csv, null);
+            RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
             assertThat(result.linked()).isEqualTo(1);
             assertThat(result.failed()).isEqualTo(1);
         }).doesNotThrowAnyException();
@@ -258,7 +266,7 @@ class OrgRosterServiceTransactionTest {
                 alice@school.edu,Alice
                 carol@school.edu,Carol""";
 
-        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null);
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
 
         assertThat(result.linked()).isEqualTo(2);
         assertThat(result.failed()).isZero();
