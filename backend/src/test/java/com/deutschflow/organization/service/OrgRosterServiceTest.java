@@ -62,17 +62,24 @@ class OrgRosterServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new OrgRosterService(
-                organizationRepository,
+        // The per-row DB work lives in OrgRosterRowImporter (its own REQUIRES_NEW transaction).
+        // Constructed directly here, so it is unproxied and its @Transactional is inert — these
+        // tests exercise the import logic, not the transaction boundary. That boundary is covered
+        // by OrgRosterServiceTransactionTest, which needs a real Spring context to observe it.
+        OrgRosterRowImporter rowImporter = new OrgRosterRowImporter(
                 userRepository,
                 passwordEncoder,
                 membershipService,
                 entitlementService,
                 orgMemberRepository,
                 classStudentRepository,
-                teacherClassRepository,
                 assignmentBackfillService,
                 jdbcTemplate
+        );
+        service = new OrgRosterService(
+                organizationRepository,
+                teacherClassRepository,
+                rowImporter
         );
         // Stub the advisory FOR UPDATE lock — no-op in tests (J).
         lenient().when(jdbcTemplate.queryForObject(
