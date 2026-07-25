@@ -51,9 +51,9 @@ class TurnEvaluatorCooldownIntegrationTest extends AbstractPostgresIntegrationTe
 
         AiResponseDto clean = new AiResponseDto("Ok", null, null, null, null, null, List.of(), "EXCELLENT", 0.9, "Gut", List.of(), null);
 
-        turnEvaluatorService.recordTurn(userId, 1L, 101L, clean, policy);
-        turnEvaluatorService.recordTurn(userId, 1L, 102L, clean, policy);
-        turnEvaluatorService.recordTurn(userId, 1L, 103L, clean, policy);
+        turnEvaluatorService.recordTurn(userId, 1L, 101L, clean, true, policy);
+        turnEvaluatorService.recordTurn(userId, 1L, 102L, clean, true, policy);
+        turnEvaluatorService.recordTurn(userId, 1L, 103L, clean, true, policy);
 
         SpeakingUserState state = stateRepository.findById(userId).orElseThrow();
         String json = state.getCooldownCodesJson();

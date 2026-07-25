@@ -6,6 +6,8 @@ import com.deutschflow.common.quota.QuotaExceededException;
 import com.deutschflow.speaking.ai.AiChatCompletionResult;
 import com.deutschflow.speaking.exception.AiErrorCode;
 import com.deutschflow.speaking.exception.AiServiceException;
+import com.deutschflow.speaking.ai.AiParseOutcome;
+import com.deutschflow.speaking.ai.AiParseStatus;
 import com.deutschflow.speaking.ai.AiResponseDto;
 import com.deutschflow.speaking.dto.AiSpeakingChatResponse;
 import com.deutschflow.speaking.metrics.SpeakingMetrics;
@@ -189,10 +191,12 @@ public class SpeakingStreamService {
                                         SpeakingTurnFinalizer finalizer,
                                         SpeakingTtsPipeline ttsPipeline) {
         try {
-            AiResponseDto parsed = chatCompletionService.parseAndPostProcess(ai, userMessage, prep);
+            AiParseOutcome outcome = chatCompletionService.parseAndPostProcess(ai, userMessage, prep);
+            AiResponseDto parsed = outcome.dto();
+            boolean reliableParse = outcome.status() == AiParseStatus.STRUCTURED;
             AiSpeakingChatResponse donePayload = Objects.requireNonNull(
                     transactionTemplate.execute(status ->
-                            finalizer.finalizeTurn(prep, userMessage, ai, parsed, "SPEAKING_STREAM")));
+                            finalizer.finalizeTurn(prep, userMessage, ai, parsed, reliableParse, "SPEAKING_STREAM")));
             speakingMetrics.recordChatRequest("stream", "ok");
             // "done" carries the structured payload — send it the moment the LLM finishes (text is ready).
             sendQuietly(emitter, emitterLock, "done", objectMapper.writeValueAsString(donePayload));
