@@ -8,6 +8,8 @@ import com.deutschflow.media.entity.MediaAsset;
 import com.deutschflow.common.quota.AiUsageLedgerService;
 import com.deutschflow.media.service.MediaAssetService;
 import com.deutschflow.organization.service.OrgPoolGuard;
+import com.deutschflow.speaking.exception.AiErrorCode;
+import com.deutschflow.speaking.exception.AiServiceException;
 import com.deutschflow.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,7 +45,11 @@ public class AiImageGenerationService {
     public AiImageGenerateResponse generate(AiImageGenerateRequest request, User user) {
         ImageGenerationProvider provider = providerProvider.getIfAvailable(() -> null);
         if (provider == null) {
-            throw new IllegalStateException("AI image provider is not configured");
+            // Audit R-B8: dùng exception AI chuyên biệt (→ 503 + code AI_NOT_CONFIGURED qua handler
+            // AiServiceException) thay vì IllegalStateException chung. Nhờ đó handler ISE-→503 rộng có
+            // thể được gỡ, để ISE nghiệp vụ khác rơi về 500 đúng bản chất, không đội lốt "lỗi AI".
+            throw new AiServiceException(AiErrorCode.AI_NOT_CONFIGURED,
+                    "Tính năng tạo ảnh AI chưa được cấu hình trên môi trường hiện tại.", null);
         }
 
         // Clamp số ảnh (Bedrock đắt) và gate pool token cấp-org TRƯỚC khi đốt tiền (audit P-16).

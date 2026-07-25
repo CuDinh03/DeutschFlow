@@ -25,6 +25,15 @@ import java.io.IOException;
 public class PronunciationController {
 
     private final PronunciationScorerService scorerService;
+    // Audit R-B7: endpoint gọi Whisper STT y như /transcribe → phải gate như /transcribe.
+    private final com.deutschflow.speaking.AiRateLimiterService aiRateLimiterService;
+    private final com.deutschflow.common.quota.QuotaService quotaService;
+    private final com.deutschflow.organization.service.OrgPoolGuard orgPoolGuard;
+
+    private static final long STT_ESTIMATED_TOKENS = 200L;
+
+    @org.springframework.beans.factory.annotation.Value("${app.ai.transcribe.max-bytes:8388608}")
+    private long transcribeMaxBytes;
 
     @PostMapping("/pronunciation-check")
     @PreAuthorize("isAuthenticated()")
@@ -32,6 +41,21 @@ public class PronunciationController {
             @AuthenticationPrincipal User user,
             @RequestPart("audio") MultipartFile audio,
             @RequestPart("expectedText") @NotBlank @Size(max = 500) String expectedText) throws IOException {
+
+        // R-B7: quota ví + pool org (endpoint tốn Whisper) + rate-limit per-user (bucket PHONEME).
+        quotaService.assertAllowed(user.getId(), java.time.Instant.now(), STT_ESTIMATED_TOKENS);
+        orgPoolGuard.assertOrgPoolAvailable(user.getId(), STT_ESTIMATED_TOKENS);
+        if (!aiRateLimiterService.allow(com.deutschflow.speaking.AiRateLimiterService.Bucket.PHONEME, user.getId())) {
+            throw new com.deutschflow.common.exception.RateLimitExceededException(
+                    "Too many pronunciation checks. Please slow down.",
+                    aiRateLimiterService.retryAfterSeconds(
+                            com.deutschflow.speaking.AiRateLimiterService.Bucket.PHONEME, user.getId()));
+        }
+        // Cap size + content-type TRƯỚC getBytes() — nếu không, tối đa 25MB (trần multipart) đã vào heap.
+        if (!com.deutschflow.speaking.util.TranscribeUploads.isAllowedAudioContentType(audio.getContentType())
+                || audio.getSize() > transcribeMaxBytes) {
+            return ResponseEntity.badRequest().build();
+        }
 
         byte[] bytes = audio.getBytes();
         if (bytes.length == 0) {
