@@ -135,6 +135,14 @@ export function SessionSummary({
 
   const hasAiReport = isInterviewMode && aiReport !== null;
 
+  // Audit 24/07 (R-G1/R-G4): điểm vòng tròn + rubric cho phiên KHÔNG có báo cáo AI được suy ra từ
+  // số lượt/số lỗi phía client (computeScoresFromMessages) — KHÔNG phải AI chấm. Với 1 câu 0 lỗi nó
+  // ra 68/100 (Từ vựng/Ngữ pháp 10/10) khiến người học tin nhầm trình độ. Chặn con số ảo: dưới ngưỡng
+  // lượt nói tối thiểu thì KHÔNG hiển thị điểm, chỉ mời nói thêm; từ ngưỡng trở lên hiển thị nhưng gắn
+  // nhãn "tự đánh giá nhanh" thay vì "rubric chấm điểm" để không giả danh chấm điểm chính thức.
+  const MIN_TURNS_FOR_SCORE = 3;
+  const showScore = hasAiReport || totalExchanges >= MIN_TURNS_FOR_SCORE;
+
   // Animated score counter
   const [animScore, setAnimScore] = useState(0);
   useEffect(() => {
@@ -179,23 +187,37 @@ export function SessionSummary({
       {/* Stats */}
       <div className="rounded-[20px] p-4 sm:p-5" style={glass}>
         <div className="flex flex-col items-center gap-4 sm:flex-row sm:gap-5">
-          {/* Circular */}
+          {/* Circular — chỉ hiện điểm khi đủ dữ liệu (R-G1); nếu không, mời nói thêm */}
           <div className="relative flex-shrink-0">
-            <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
-              <defs>
-                <linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor={CYAN} /><stop offset="100%" stopColor={PURPLE} />
-                </linearGradient>
-              </defs>
-              <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="var(--ga-line)" strokeWidth={10} />
-              <motion.circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="url(#scoreGrad)" strokeWidth={10}
-                strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={animOffset}
-                 />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-ga-ink font-bold text-3xl leading-none">{animScore}</span>
-              <span className="text-[10px] font-semibold mt-0.5" style={{ color: "var(--ga-subtle)" }}>/ 100</span>
-            </div>
+            {showScore ? (
+              <>
+                <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
+                  <defs>
+                    <linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor={CYAN} /><stop offset="100%" stopColor={PURPLE} />
+                    </linearGradient>
+                  </defs>
+                  <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="var(--ga-line)" strokeWidth={10} />
+                  <motion.circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="url(#scoreGrad)" strokeWidth={10}
+                    strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={animOffset}
+                     />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-ga-ink font-bold text-3xl leading-none">{animScore}</span>
+                  <span className="text-[10px] font-semibold mt-0.5" style={{ color: "var(--ga-subtle)" }}>/ 100</span>
+                </div>
+              </>
+            ) : (
+              <div
+                className="flex flex-col items-center justify-center rounded-full text-center px-4"
+                style={{ width: size, height: size, background: "var(--ga-surface)", border: "1px solid var(--ga-line)" }}
+              >
+                <span className="text-2xl leading-none mb-1">💬</span>
+                <span className="text-[11px] font-medium leading-tight" style={{ color: "var(--ga-muted)" }}>
+                  Nói thêm vài câu<br />để nhận đánh giá
+                </span>
+              </div>
+            )}
           </div>
           {/* Stats grid */}
           <div className="w-full grid grid-cols-2 gap-2.5 sm:w-auto sm:flex-1">
@@ -330,12 +352,27 @@ export function SessionSummary({
         </div>
       )}
 
-      {/* Fallback rubric (non-interview or no AI report) */}
-      {!hasAiReport && (
+      {/* Chưa đủ dữ liệu để chấm — mời nói thêm thay vì hiện điểm ảo (R-G1) */}
+      {!hasAiReport && !showScore && (
+        <div className="rounded-[20px] p-4 flex items-start gap-3" style={glass}>
+          <MessageSquare size={16} style={{ color: CYAN, flexShrink: 0, marginTop: 2 }} />
+          <div>
+            <p className="text-sm font-semibold text-ga-ink mb-1">Chưa đủ để chấm điểm</p>
+            <p className="text-xs leading-relaxed" style={{ color: "var(--ga-muted)" }}>
+              Bạn mới nói {totalExchanges} câu. Hãy trò chuyện thêm ít nhất {MIN_TURNS_FOR_SCORE} câu
+              để nhận đánh giá sát trình độ hơn — một hai câu chưa đủ để chấm công bằng.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Tự đánh giá nhanh (phiên không có báo cáo AI, đã đủ số câu) — KHÔNG phải chấm điểm chính thức */}
+      {!hasAiReport && showScore && (
         <div className="rounded-[20px] overflow-hidden" style={glass}>
           <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ borderColor: "var(--ga-line)" }}>
             <Star size={14} style={{ color: AMBER }} />
-            <span className="text-ga-ink font-semibold text-sm">Rubric chấm điểm</span>
+            <span className="text-ga-ink font-semibold text-sm">Tự đánh giá nhanh</span>
+            <span className="text-[10px]" style={{ color: "var(--ga-subtle)" }}>(ước lượng theo số lỗi ghi nhận)</span>
           </div>
           <div className="p-4 space-y-4">
             {rubric.map((r, i) => (

@@ -111,6 +111,8 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
   const [viewMode, setViewMode] = useState<ViewMode>("chat");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [seconds, setSeconds] = useState(0);
+  // Thời lượng thực từ server (endedAt − startedAt), điền khi kết thúc; fallback về đồng hồ FE (R-G8).
+  const [serverDurationSec, setServerDurationSec] = useState<number | null>(null);
   const [showEndPopup, setShowEndPopup] = useState(false);
   const [greetingSpoken, setGreetingSpoken] = useState(false);
   const [mobileCopilotOpen, setMobileCopilotOpen] = useState(false);
@@ -338,6 +340,14 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
         if (res.data?.interviewReportJson) {
           setInterviewReportJson(res.data.interviewReportJson);
         }
+        // Audit 24/07 R-G8: thời lượng buổi nói = endedAt − startedAt của server (thời gian thực của
+        // phiên), thay cho đồng hồ FE vốn đếm cả lúc chờ AI/TTS/idle/lỗi mạng và reset khi reload.
+        if (res.data?.startedAt && res.data?.endedAt) {
+          const ms = new Date(res.data.endedAt).getTime() - new Date(res.data.startedAt).getTime();
+          if (Number.isFinite(ms) && ms >= 0) {
+            setServerDurationSec(Math.round(ms / 1000));
+          }
+        }
         trackFeatureAction('ai_speaking', 'completed', { mode: sessionMode, messagesCount: messages.length });
       } catch (err) {
         console.error("Failed to end session", err);
@@ -435,7 +445,7 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
         <div className="max-w-[460px] mx-auto w-full flex flex-col flex-1 p-4 overflow-y-auto">
           <SessionSummary
             messages={messages}
-            duration={formatTime(seconds)}
+            duration={formatTime(serverDurationSec ?? seconds)}
             isInterviewMode={sessionMode === "INTERVIEW"}
             interviewReportJson={useChatStore.getState().interviewReportJson}
             onReviewErrors={async (errors) => {
