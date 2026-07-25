@@ -1,12 +1,12 @@
 import { renderHook, waitFor } from '@testing-library/react'
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { useIsOrgOwner } from './OwnerOnly'
 
-const getOrgRole = vi.fn<[], string>()
-vi.mock('@/lib/authSession', () => ({ getOrgRole: () => getOrgRole() }))
-
-// Kéo vào SAU vi.mock để hook thấy bản mock (vi.mock được hoist, import tĩnh thì không).
-const { useIsOrgOwner } = await import('./OwnerOnly')
+// vi.hoisted chạy TRƯỚC cả vi.mock lẫn các import tĩnh, nên hook thấy đúng bản mock này mà không
+// cần `await import()` ở top-level (tsconfig của repo không cho phép top-level await).
+const getOrgRole = vi.hoisted(() => vi.fn<() => string>())
+vi.mock('@/lib/authSession', () => ({ getOrgRole }))
 
 describe('useIsOrgOwner — cổng vai trò cho nút khoá kỳ công', () => {
   beforeEach(() => getOrgRole.mockReset())
@@ -22,7 +22,7 @@ describe('useIsOrgOwner — cổng vai trò cho nút khoá kỳ công', () => {
       return <span>{isOwner === null ? 'chua-biet' : String(isOwner)}</span>
     }
     expect(renderToString(<Probe />)).toContain('chua-biet')
-    expect(getOrgRole).not.toHaveBeenCalled()   // không đọc cookie khi render trên server
+    expect(getOrgRole).not.toHaveBeenCalled() // không đọc cookie khi render trên server
   })
 
   it('OWNER → true (thấy nút khoá kỳ)', async () => {
