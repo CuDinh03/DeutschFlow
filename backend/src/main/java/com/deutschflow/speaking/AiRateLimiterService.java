@@ -109,9 +109,58 @@ public class AiRateLimiterService {
         return check(key, l.max(), l.windowSeconds());
     }
 
-    /** Seconds the client should wait before retrying after a refusal in {@code bucket}. */
+    /**
+     * Số giây tới khi user có 1 slot trống trở lại trong {@code bucket} (audit 24/07 R-B6).
+     *
+     * <p>Trước đây {@link #retryAfterSeconds(Bucket)} trả về CẢ window (tới 3600s) — client tuân thủ
+     * {@code Retry-After} sẽ bị khoá 1 giờ dù slot mở lại sau vài giây. Với sliding-window, slot kế
+     * tiếp mở đúng lúc lần gọi CŨ NHẤT còn trong cửa sổ rời đi ⇒ {@code oldest + window - now}.
+     * Không đọc được lần gọi cũ nhất (Redis lỗi / vừa hết hạn) thì trả 1s.
+     */
+    public int retryAfterSeconds(Bucket bucket, long userId) {
+        Limit l = limits.get(bucket);
+        String key = "ai:" + bucket.name().toLowerCase(Locale.ROOT) + "|" + userId;
+        Long oldestMs = oldestHitMillis(key);
+        if (oldestMs == null) {
+            return 1;
+        }
+        long remainMs = l.windowSeconds() * 1000L - (System.currentTimeMillis() - oldestMs);
+        if (remainMs <= 1000L) {
+            return 1;
+        }
+        return (int) Math.min(l.windowSeconds(), (remainMs + 999L) / 1000L);
+    }
+
+    /** @deprecated dùng {@link #retryAfterSeconds(Bucket, long)} — bản này trả cả window (R-B6). */
+    @Deprecated
     public int retryAfterSeconds(Bucket bucket) {
         return (int) limits.get(bucket).windowSeconds();
+    }
+
+    /** Mốc ms của lần gọi CŨ NHẤT còn trong cửa sổ, hoặc null nếu không có / không đọc được. */
+    private Long oldestHitMillis(String key) {
+        if (redis != null) {
+            try {
+                var oldest = redis.opsForZSet().rangeWithScores("rl:" + key, 0, 0);
+                if (oldest != null && !oldest.isEmpty()) {
+                    Double score = oldest.iterator().next().getScore();
+                    return score != null ? score.longValue() : null;
+                }
+                return null;
+            } catch (Exception e) {
+                // fall through to in-memory
+            }
+        }
+        Deque<Instant> deque = attempts.get(key);
+        if (deque != null) {
+            synchronized (deque) {
+                Instant first = deque.peekFirst();
+                if (first != null) {
+                    return first.toEpochMilli();
+                }
+            }
+        }
+        return null;
     }
 
     private boolean check(String key, int max, long windowSeconds) {

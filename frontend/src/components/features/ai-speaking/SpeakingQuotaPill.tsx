@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import type { AiSpeakingQuota } from "@/lib/aiSpeakingApi";
 import { shouldShowAiSpeakingQuota } from "@/lib/authSession";
+import { isUnlimitedAiSpeakingQuota } from "@/lib/aiSpeakingQuota";
 
 interface Props {
   quota: AiSpeakingQuota | null;
@@ -13,8 +14,11 @@ export function SpeakingQuotaPill({ quota }: Props) {
 
   if (!shouldShowAiSpeakingQuota()) return null;
   if (!quota) return null;
+  // R-W6: gói nội bộ (unlimited) không hiển thị badge số dư — thay vì in "AI ~999999999 left".
+  if (isUnlimitedAiSpeakingQuota(quota)) return null;
 
   const low = quota.remainingSpendable <= 0 || !quota.canStartSession;
+  const remaining = Math.max(0, Math.round(quota.remainingSpendable)).toLocaleString("vi-VN");
 
   return (
     <div
@@ -25,7 +29,7 @@ export function SpeakingQuotaPill({ quota }: Props) {
       }`}
       title={t("quotaHint")}
     >
-      <span>{t("quotaRemaining", { n: Math.max(0, Math.round(quota.remainingSpendable)) })}</span>
+      <span>{t("quotaRemaining", { n: remaining })}</span>
     </div>
   );
 }

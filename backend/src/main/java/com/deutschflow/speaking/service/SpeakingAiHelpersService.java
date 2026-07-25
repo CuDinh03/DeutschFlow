@@ -4,6 +4,7 @@ import com.deutschflow.common.quota.AiUsageLedgerService;
 import com.deutschflow.speaking.ai.AiChatCompletionResult;
 import com.deutschflow.speaking.ai.ChatMessage;
 import com.deutschflow.speaking.ai.OpenAiChatClient;
+import com.deutschflow.speaking.exception.AiServiceException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -37,6 +38,20 @@ public class SpeakingAiHelpersService {
         }
     }
 
+    /**
+     * Audit 24/07 (R-B3): giữ nguyên {@link AiServiceException} để {@code GlobalExceptionHandler} trả
+     * đúng 503 "AI tạm thời không khả dụng" (client phân biệt được lỗi hệ thống với bug). Lỗi khác bọc
+     * thành RuntimeException KHÔNG kèm {@code e.getMessage()} — tránh lộ chi tiết upstream ra client;
+     * chi tiết đã nằm ở log. Trước đây mọi lỗi thành 500 kèm nguyên văn message.
+     */
+    private RuntimeException aiHelperFailure(Exception e, String context) {
+        log.error("[SpeakingAiHelpers] {}", context, e);
+        if (e instanceof AiServiceException ai) {
+            return ai;
+        }
+        return new RuntimeException(context, e);
+    }
+
     public String generateConversationResponse(Long userId, String userMessage, String context, String level) {
         log.info("Generating conversation response for level: {}", level);
         try {
@@ -45,8 +60,7 @@ public class SpeakingAiHelpersService {
             recordUsage(userId, result, "SPEAKING_AI_CONVERSATION");
             return result.content();
         } catch (Exception e) {
-            log.error("Error generating conversation response", e);
-            throw new RuntimeException("Conversation generation failed: " + e.getMessage(), e);
+            throw aiHelperFailure(e, "Conversation generation failed");
         }
     }
 
@@ -88,8 +102,7 @@ public class SpeakingAiHelpersService {
                     .build();
 
         } catch (Exception e) {
-            log.error("Error providing feedback", e);
-            throw new RuntimeException("Feedback generation failed: " + e.getMessage(), e);
+            throw aiHelperFailure(e, "Feedback generation failed");
         }
     }
 
@@ -121,8 +134,7 @@ public class SpeakingAiHelpersService {
                     .build();
 
         } catch (Exception e) {
-            log.error("Error generating scenario", e);
-            throw new RuntimeException("Scenario generation failed: " + e.getMessage(), e);
+            throw aiHelperFailure(e, "Scenario generation failed");
         }
     }
 
@@ -139,8 +151,7 @@ public class SpeakingAiHelpersService {
             recordUsage(userId, result, "SPEAKING_AI_ERROR_PRACTICE");
             return result.content();
         } catch (Exception e) {
-            log.error("Error generating error practice", e);
-            throw new RuntimeException("Error practice generation failed: " + e.getMessage(), e);
+            throw aiHelperFailure(e, "Error practice generation failed");
         }
     }
 
@@ -156,8 +167,7 @@ public class SpeakingAiHelpersService {
             recordUsage(userId, result, "SPEAKING_AI_CULTURAL");
             return result.content();
         } catch (Exception e) {
-            log.error("Error providing cultural context", e);
-            throw new RuntimeException("Cultural context generation failed: " + e.getMessage(), e);
+            throw aiHelperFailure(e, "Cultural context generation failed");
         }
     }
 
@@ -174,8 +184,7 @@ public class SpeakingAiHelpersService {
             recordUsage(userId, result, "SPEAKING_AI_ROLEPLAY");
             return result.content();
         } catch (Exception e) {
-            log.error("Error generating role-play", e);
-            throw new RuntimeException("Role-play generation failed: " + e.getMessage(), e);
+            throw aiHelperFailure(e, "Role-play generation failed");
         }
     }
 

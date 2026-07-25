@@ -2,6 +2,8 @@ package com.deutschflow.speaking.service;
 
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.speaking.ai.AiChatCompletionResult;
+import com.deutschflow.speaking.ai.AiParseOutcome;
+import com.deutschflow.speaking.ai.AiParseStatus;
 import com.deutschflow.speaking.ai.AiResponseDto;
 import com.deutschflow.speaking.ai.OpenAiChatClient;
 import com.deutschflow.speaking.contract.SpeakingResponseSchema;
@@ -33,6 +35,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -168,8 +171,8 @@ class SpeakingStreamServiceUnitTest {
         when(chatPrepService.prepareSpeakingChatTurn(USER_ID, SESSION_ID, USER_MESSAGE)).thenReturn(prep());
         when(systemConfigService.getDouble(eq("ai.temperature"), any())).thenReturn(0.35);
         streamClientCompletes(true);
-        when(chatCompletionService.parseAndPostProcess(any(), eq(USER_MESSAGE), any())).thenReturn(parsedDto());
-        when(finalizer.finalizeTurn(any(), eq(USER_MESSAGE), any(), any(), eq("SPEAKING_STREAM")))
+        when(chatCompletionService.parseAndPostProcess(any(), eq(USER_MESSAGE), any())).thenReturn(new AiParseOutcome(parsedDto(), AiParseStatus.STRUCTURED));
+        when(finalizer.finalizeTurn(any(), eq(USER_MESSAGE), any(), any(), anyBoolean(), eq("SPEAKING_STREAM")))
                 .thenReturn(doneResponse());
         when(objectMapper.writeValueAsString(any())).thenReturn("{\"messageId\":99}");
 
@@ -179,7 +182,7 @@ class SpeakingStreamServiceUnitTest {
         // Assert — guard taken, prep loaded, finalize ran with the stream purpose
         verify(sessionTurnGuard).tryAcquire(SESSION_ID);
         verify(chatPrepService).prepareSpeakingChatTurn(USER_ID, SESSION_ID, USER_MESSAGE);
-        verify(finalizer).finalizeTurn(any(), eq(USER_MESSAGE), any(), any(), eq("SPEAKING_STREAM"));
+        verify(finalizer).finalizeTurn(any(), eq(USER_MESSAGE), any(), any(), anyBoolean(), eq("SPEAKING_STREAM"));
         // "done" payload serialized + sent, emitter completed normally (not errored)
         verify(objectMapper).writeValueAsString(doneResponse());
         verify(emitter).send(any(SseEmitter.SseEventBuilder.class));
@@ -210,7 +213,7 @@ class SpeakingStreamServiceUnitTest {
         service.startStream(USER_ID, SESSION_ID, USER_MESSAGE, emitter, new AtomicBoolean(true), false, finalizer);
 
         // Assert — no finalize, cancel event + complete, guard released
-        verify(finalizer, never()).finalizeTurn(any(), any(), any(), any(), any());
+        verify(finalizer, never()).finalizeTurn(any(), any(), any(), any(), anyBoolean(), any());
         verify(emitter).send(any(SseEmitter.SseEventBuilder.class)); // the "Stream cancelled." error event
         verify(emitter).complete();
         verify(emitter, never()).completeWithError(any());
@@ -242,7 +245,7 @@ class SpeakingStreamServiceUnitTest {
         assertThat(capturedErrorPayload()).contains("\"code\":\"INTERNAL\"");
         verify(emitter).complete();
         verify(emitter, never()).completeWithError(any());
-        verify(finalizer, never()).finalizeTurn(any(), any(), any(), any(), any());
+        verify(finalizer, never()).finalizeTurn(any(), any(), any(), any(), anyBoolean(), any());
         verify(sessionTurnGuard).release(SESSION_ID);
         verify(speakingMetrics).recordChatRequest("stream", "error");
     }
@@ -269,7 +272,7 @@ class SpeakingStreamServiceUnitTest {
         assertThat(capturedErrorPayload()).contains("\"code\":\"INTERNAL\"");
         verify(emitter).complete();
         verify(emitter, never()).completeWithError(any());
-        verify(finalizer, never()).finalizeTurn(any(), any(), any(), any(), any());
+        verify(finalizer, never()).finalizeTurn(any(), any(), any(), any(), anyBoolean(), any());
         verify(chatCompletionService, never()).chatClientFor(any());
         verify(sessionTurnGuard).release(SESSION_ID);
     }
@@ -309,7 +312,7 @@ class SpeakingStreamServiceUnitTest {
         // never dispatched, never released (it was never acquired)
         verify(speakingStreamExecutor, never()).execute(any());
         verify(sessionTurnGuard, never()).release(SESSION_ID);
-        verify(finalizer, never()).finalizeTurn(any(), any(), any(), any(), any());
+        verify(finalizer, never()).finalizeTurn(any(), any(), any(), any(), anyBoolean(), any());
         verify(speakingMetrics).recordChatRequest("stream_start", "error");
     }
 
@@ -341,8 +344,8 @@ class SpeakingStreamServiceUnitTest {
         transactionRunsInline();
         when(chatPrepService.prepareSpeakingChatTurn(USER_ID, SESSION_ID, USER_MESSAGE)).thenReturn(prep());
         when(systemConfigService.getDouble(eq("ai.temperature"), any())).thenReturn(0.35);
-        when(chatCompletionService.parseAndPostProcess(any(), eq(USER_MESSAGE), any())).thenReturn(parsedDto());
-        when(finalizer.finalizeTurn(any(), eq(USER_MESSAGE), any(), any(), eq("SPEAKING_STREAM"))).thenReturn(doneResponse());
+        when(chatCompletionService.parseAndPostProcess(any(), eq(USER_MESSAGE), any())).thenReturn(new AiParseOutcome(parsedDto(), AiParseStatus.STRUCTURED));
+        when(finalizer.finalizeTurn(any(), eq(USER_MESSAGE), any(), any(), anyBoolean(), eq("SPEAKING_STREAM"))).thenReturn(doneResponse());
         try {
             when(objectMapper.writeValueAsString(any())).thenReturn("{}");
         } catch (Exception ignored) {

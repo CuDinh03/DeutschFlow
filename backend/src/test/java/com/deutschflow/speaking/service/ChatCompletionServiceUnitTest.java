@@ -173,7 +173,7 @@ class ChatCompletionServiceUnitTest {
         // Act — COMMUNICATION mode → no interview post-processing, dto passes through (errors sanitized)
         AiResponseDto result = service.parseAndPostProcess(
                 aiResult("raw-json"), "ich gestern ging",
-                prep(SpeakingSessionMode.COMMUNICATION, SpeakingResponseSchema.V2, null));
+                prep(SpeakingSessionMode.COMMUNICATION, SpeakingResponseSchema.V2, null)).dto();
 
         // Assert
         verify(responseParser).parseWithOutcome("raw-json", SpeakingResponseSchema.V2);

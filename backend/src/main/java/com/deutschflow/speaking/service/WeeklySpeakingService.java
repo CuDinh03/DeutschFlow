@@ -1,6 +1,7 @@
 package com.deutschflow.speaking.service;
 
 import com.deutschflow.common.exception.BadRequestException;
+import com.deutschflow.speaking.exception.AiServiceException;
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.NotFoundException;
 import com.deutschflow.common.quota.AiUsageLedgerService;
@@ -153,15 +154,20 @@ public class WeeklySpeakingService {
                 request.audioDurationSec(),
                 Integer.toString(wc));
 
+        // Audit 24/07 R-G5: floor 1024 (trước 256) để JSON rubric không bị cắt cụt khi quota gần cạn.
         var snap = quotaService.getSnapshot(userId, Instant.now());
-        int maxTokens = (int) Math.min(8192L, Math.min(4096L, Math.max(256L, snap.remainingThisMonth())));
+        int maxTokens = (int) Math.min(4096L, Math.max(1024L, snap.remainingThisMonth()));
 
         AiChatCompletionResult ai;
         try {
             ai = openAiChatClient.chatCompletion(List.of(sys, usr), null, 0.2, maxTokens);
+        } catch (AiServiceException e) {
+            throw e; // giữ 503 "AI bận" chuẩn — KHÔNG hạ thành 400 (audit R-B3)
         } catch (Exception e) {
+            // R-B3: LLM chết là lỗi HỆ THỐNG (503), không phải lỗi request của user (400). Trước đây
+            // trả BadRequestException khiến FE tưởng bài nộp sai định dạng và không cho thử lại.
             log.warn("Weekly rubric LLM failed: {}", e.getMessage());
-            throw new BadRequestException("Grading temporarily unavailable.");
+            throw new AiServiceException("Chưa chấm được bài tuần lúc này, vui lòng thử lại sau.");
         }
 
         if (ai.usage() != null) {

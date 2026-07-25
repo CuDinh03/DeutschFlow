@@ -73,11 +73,14 @@ public class ChatCompletionService {
         return mode == SpeakingSessionMode.INTERVIEW ? groqChatClient : openAiChatClient;
     }
 
-    public AiResponseDto parseAndPostProcess(AiChatCompletionResult ai, String userMessage,
+    public AiParseOutcome parseAndPostProcess(AiChatCompletionResult ai, String userMessage,
                                              AiSpeakingServiceImpl.SpeakingChatPrep prep) {
         AiParseOutcome parseOutcome = responseParser.parseWithOutcome(ai.content(), prep.responseSchema());
         speakingMetrics.recordAiParseOutcome(parseOutcome.status());
-        return applyInterviewPostProcessing(parseOutcome.dto(), userMessage, prep);
+        // R-G2(a): trả kèm status parse (interview post-processing chỉ đổi dto, không đổi độ tin cậy
+        // parse) — downstream dùng để KHÔNG tính turn parse-fail là "hoàn hảo" ở adaptive engine.
+        AiResponseDto dto = applyInterviewPostProcessing(parseOutcome.dto(), userMessage, prep);
+        return new AiParseOutcome(dto, parseOutcome.status());
     }
 
     public AiResponseDto applyInterviewPostProcessing(AiResponseDto parsedRaw, String userMessage,

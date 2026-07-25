@@ -103,6 +103,7 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
     pendingRepairGate,
     setPendingRepairGate,
     setInterviewReportJson,
+    setConversationReport,
     clearChat,
     returnPath,
   } = useChatStore();
@@ -111,6 +112,8 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
   const [viewMode, setViewMode] = useState<ViewMode>("chat");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [seconds, setSeconds] = useState(0);
+  // Thời lượng thực từ server (endedAt − startedAt), điền khi kết thúc; fallback về đồng hồ FE (R-G8).
+  const [serverDurationSec, setServerDurationSec] = useState<number | null>(null);
   const [showEndPopup, setShowEndPopup] = useState(false);
   const [greetingSpoken, setGreetingSpoken] = useState(false);
   const [mobileCopilotOpen, setMobileCopilotOpen] = useState(false);
@@ -338,6 +341,25 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
         if (res.data?.interviewReportJson) {
           setInterviewReportJson(res.data.interviewReportJson);
         }
+        // Audit 24/07 R-G8: thời lượng buổi nói = endedAt − startedAt của server (thời gian thực của
+        // phiên), thay cho đồng hồ FE vốn đếm cả lúc chờ AI/TTS/idle/lỗi mạng và reset khi reload.
+        if (res.data?.startedAt && res.data?.endedAt) {
+          const ms = new Date(res.data.endedAt).getTime() - new Date(res.data.startedAt).getTime();
+          if (Number.isFinite(ms) && ms >= 0) {
+            setServerDurationSec(Math.round(ms / 1000));
+          }
+        }
+        // GR-1 (R-G1/R-G7): phiên COMMUNICATION/LESSON lấy báo cáo AI THẬT (typed) để thay điểm heuristic
+        // bịa. parseReport chỉ đọc JSON đã lưu ở /end (không gọi LLM lại) nên report sẵn sàng ngay.
+        // Lỗi mạng/429 → giữ null → SessionSummary rơi về guard/heuristic cũ (degrade an toàn, không crash).
+        if (sessionMode !== "INTERVIEW") {
+          try {
+            const rep = await aiSpeakingApi.getConversationReport(sid);
+            setConversationReport(rep.data ?? null);
+          } catch {
+            setConversationReport(null);
+          }
+        }
         trackFeatureAction('ai_speaking', 'completed', { mode: sessionMode, messagesCount: messages.length });
       } catch (err) {
         console.error("Failed to end session", err);
@@ -414,6 +436,7 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
 
   // These hooks MUST be called before any conditional returns to obey Rules of Hooks
   const interviewPhaseKey = useChatStore((s) => s.interviewPhaseKey);
+  const streamErrorMessage = useChatStore((s) => s.streamErrorMessage);
   const interviewHintKey = useChatStore((s) => s.interviewHintKey);
 
   // ─── Guard: redirect if no companion (after all hooks) ─────
@@ -435,9 +458,10 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
         <div className="max-w-[460px] mx-auto w-full flex flex-col flex-1 p-4 overflow-y-auto">
           <SessionSummary
             messages={messages}
-            duration={formatTime(seconds)}
+            duration={formatTime(serverDurationSec ?? seconds)}
             isInterviewMode={sessionMode === "INTERVIEW"}
             interviewReportJson={useChatStore.getState().interviewReportJson}
+            conversationReport={useChatStore.getState().conversationReport}
             onReviewErrors={async (errors) => {
               await importReviewErrors(errors);
               clearChat();
@@ -601,6 +625,7 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
 
             <StreamStatusIndicator
               status={streamStatus}
+              errorMessage={streamErrorMessage}
               onRetry={
                 streamStatus === "stalled" || streamStatus === "error"
                   ? retryLastSend

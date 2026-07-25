@@ -75,12 +75,14 @@ class GradingEvalServiceTest {
     }
 
     @Test
-    @DisplayName("default model list gồm 3 ứng viên free chính")
+    @DisplayName("default model list chỉ gồm model Groq còn sống — không còn llama đã/sắp khai tử (R-B5)")
     void defaultModels() {
         assertThat(GradingEvalService.DEFAULT_MODELS)
                 .containsExactly(
-                        "llama-3.3-70b-versatile",
-                        "meta-llama/llama-4-scout-17b-16e-instruct",
-                        "openai/gpt-oss-120b");
+                        "openai/gpt-oss-120b",
+                        "openai/gpt-oss-20b");
+        // Chốt chặn hồi quy: không được để model Groq đã khai tử quay lại danh sách mặc định.
+        assertThat(GradingEvalService.DEFAULT_MODELS)
+                .noneMatch(m -> m.contains("llama"));
     }
 }

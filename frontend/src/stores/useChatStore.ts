@@ -6,6 +6,7 @@ import type {
   SpeakingResponseSchemaId,
   ErrorItem,
   AdaptiveMeta,
+  ConversationReport,
 } from "@/lib/aiSpeakingApi";
 
 export interface ChatMessage {
@@ -41,6 +42,9 @@ interface ChatState {
   /** Interview mode: interviewReportJson returned from endSession. */
   interviewReportJson: string | null;
   setInterviewReportJson: (json: string | null) => void;
+  /** COMMUNICATION/LESSON: báo cáo AI cuối buổi (typed) lấy từ GET /report sau khi kết thúc (GR-1). */
+  conversationReport: ConversationReport | null;
+  setConversationReport: (report: ConversationReport | null) => void;
 
   /** Interview orchestrator phase key from last AI turn. */
   interviewPhaseKey: string | null;
@@ -88,7 +92,10 @@ interface ChatState {
   
   streamStatus: StreamStatus;
   setStreamStatus: (status: StreamStatus) => void;
-  
+  /** Thông điệp lỗi thân thiện (tiếng Việt) từ backend cho lượt stream lỗi — null khi không có (R-W5). */
+  streamErrorMessage: string | null;
+  setStreamErrorMessage: (msg: string | null) => void;
+
   clearChat: () => void;
 }
 
@@ -104,6 +111,8 @@ export const useChatStore = create<ChatState>((set) => ({
 
   interviewReportJson: null,
   setInterviewReportJson: (json) => set({ interviewReportJson: json }),
+  conversationReport: null,
+  setConversationReport: (report) => set({ conversationReport: report }),
 
   interviewPhaseKey: null,
   interviewHintKey: null,
@@ -152,14 +161,18 @@ export const useChatStore = create<ChatState>((set) => ({
     
   streamStatus: "idle",
   setStreamStatus: (status) => set({ streamStatus: status }),
-  
+  streamErrorMessage: null,
+  setStreamErrorMessage: (msg) => set({ streamErrorMessage: msg }),
+
   clearChat: () => set({
     messages: [],
     streamStatus: "idle",
+    streamErrorMessage: null,
     sessionId: null,
     sessionMode: null,
     experienceLevel: null,
     interviewReportJson: null,
+    conversationReport: null,
     interviewPhaseKey: null,
     interviewHintKey: null,
     responseSchema: "V1",

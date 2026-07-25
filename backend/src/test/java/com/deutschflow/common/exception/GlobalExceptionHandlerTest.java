@@ -183,4 +183,28 @@ class GlobalExceptionHandlerTest {
         // Câu chữ lộ ra client phải trung tính: không tên vendor, không tiếng Anh kỹ thuật.
         assertThat(body.detail()).doesNotContain("Groq").doesNotContain("unavailable.");
     }
+
+    /**
+     * R-B8: đã GỠ handler riêng cho IllegalStateException (trước map MỌI ISE → 503 "AI Service
+     * Unavailable" quá rộng). ISE nghiệp vụ nay rơi về 500 internal-error chung, KHÔNG đội lốt lỗi AI
+     * và KHÔNG lộ message nghiệp vụ gốc.
+     */
+    @Test
+    @DisplayName("R-B8: IllegalStateException nghiệp vụ → 500 internal-error, không đội lốt 503 AI")
+    void illegalStateBusiness_mapsTo500_notAiUnavailable() {
+        var ex = new IllegalStateException("Chỉ có thể đánh giá phiên học đã hoàn thành");
+
+        ResponseEntity<ProblemDetail> response =
+                handler.handleGeneral(ex, requestTo("/api/teacher/sessions/1/evaluate"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+        ProblemDetail body = response.getBody();
+        assertThat(body).isNotNull();
+        assertThat(body.status()).isEqualTo(500);
+        assertThat(body.type()).endsWith("internal-error");
+        assertThat(body.extensions()).containsEntry("code", "INTERNAL");
+        // KHÔNG còn nhãn "AI ... chưa cấu hình", KHÔNG lộ message nghiệp vụ gốc.
+        assertThat(body.title()).doesNotContain("AI");
+        assertThat(body.detail()).doesNotContain("phiên học");
+    }
 }

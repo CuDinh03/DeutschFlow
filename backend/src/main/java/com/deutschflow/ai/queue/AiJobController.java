@@ -1,7 +1,10 @@
 package com.deutschflow.ai.queue;
 
+import com.deutschflow.common.exception.ForbiddenException;
+import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.common.quota.QuotaService;
+import com.deutschflow.organization.service.OrgPoolGuard;
 import com.deutschflow.user.entity.User;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -11,6 +14,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.time.Instant;
 import java.util.Map;
 
 /**
@@ -29,6 +33,16 @@ public class AiJobController {
 
     private final AiJobRepository aiJobRepository;
     private final AiJobSseRegistry sseRegistry;
+    private final QuotaService quotaService;
+    private final OrgPoolGuard orgPoolGuard;
+
+    /**
+     * Ước lượng token để chặn pool org TRƯỚC khi enqueue (audit 24/07 R-B4). Trước đây submit không
+     * gate quota/pool và worker chỉ ghi ledger SAU khi tiêu — user hết quota hoặc org cạn pool vẫn
+     * đốt Whisper + Groq không giới hạn qua hàng đợi. Pronunciation ≈ Whisper ngắn; report ≈ 1 lượt LLM.
+     */
+    private static final long PRONUNCIATION_JOB_ESTIMATED_TOKENS = 500L;
+    private static final long INTERVIEW_REPORT_JOB_ESTIMATED_TOKENS = 1_500L;
 
     // ──────────────────────────────────────────────────────────────
     // Submit pronunciation evaluation job
@@ -43,6 +57,11 @@ public class AiJobController {
         if (originalText == null || originalText.isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("error", "originalText is required"));
         }
+
+        // R-B4: gate quota cá nhân + pool org TRƯỚC khi enqueue (fail-fast 429), thay vì để worker
+        // tiêu AI rồi mới ghi ledger. assertAllowed/assertOrgPoolAvailable ném QuotaExceededException.
+        quotaService.assertAllowed(user.getId(), Instant.now(), 1L);
+        orgPoolGuard.assertOrgPoolAvailable(user.getId(), PRONUNCIATION_JOB_ESTIMATED_TOKENS);
 
         AiJob job = AiJob.builder()
                 .jobType(AiJob.TYPE_PRONUNCIATION_EVAL)
@@ -73,6 +92,10 @@ public class AiJobController {
             return ResponseEntity.badRequest().body(Map.of("error", "sessionId is required"));
         }
 
+        // R-B4: gate quota + pool org trước khi enqueue (xem submitPronunciationEval).
+        quotaService.assertAllowed(user.getId(), Instant.now(), 1L);
+        orgPoolGuard.assertOrgPoolAvailable(user.getId(), INTERVIEW_REPORT_JOB_ESTIMATED_TOKENS);
+
         AiJob job = AiJob.builder()
                 .jobType(AiJob.TYPE_INTERVIEW_REPORT)
                 .userId(user.getId())
@@ -97,12 +120,13 @@ public class AiJobController {
             @AuthenticationPrincipal User user,
             @PathVariable Long jobId) {
 
-        // Kiểm tra job thuộc về user này
+        // Kiểm tra job thuộc về user này. R-B4: dùng đúng domain-exception để ra 404/403 (trước đây
+        // IllegalArgumentException/SecurityException rơi xuống handler chung → 500 ERR-x sai mã).
         AiJob job = aiJobRepository.findById(jobId)
-                .orElseThrow(() -> new IllegalArgumentException("Job không tìm thấy: " + jobId));
+                .orElseThrow(() -> new NotFoundException("Job không tìm thấy: " + jobId));
 
         if (!job.getUserId().equals(user.getId())) {
-            throw new SecurityException("Không có quyền truy cập job này");
+            throw new ForbiddenException("Không có quyền truy cập job này");
         }
 
         // Nếu job đã COMPLETED (worker xong trước khi client connect), trả ngay

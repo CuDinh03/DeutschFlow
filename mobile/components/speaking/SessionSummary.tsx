@@ -29,6 +29,17 @@ function verdictPresentation(verdict: string | null): { label: string; tone: 'su
   }
 }
 
+// Audit 24/07 R-G3: điểm phỏng vấn ở backend là thang 0–10 (InterviewReportService), KHÔNG phải
+// /100. Trước đây UI dán nhãn "/100" + progress bar chia 100 nên 7.5/10 hiện thành "8 / 100" và
+// thanh chỉ ~8%. Hiển thị nguyên thang /10, giữ 1 chữ số thập phân khi có phần lẻ.
+const SCORE_MAX = 10
+function formatScore10(score: number): string {
+  return Number.isInteger(score) ? String(score) : score.toFixed(1)
+}
+function scoreFraction(score: number): number {
+  return Math.max(0, Math.min(1, score / SCORE_MAX))
+}
+
 function BulletList({ items, tone, icon }: { items: string[]; tone: Tone; icon: typeof CheckCircle2 }) {
   if (items.length === 0) return null
   return (
@@ -51,7 +62,7 @@ export function SessionSummary({ report, onPracticeAgain, onDone }: SessionSumma
   const theme = useTheme()
   const c = theme.colors
   const verdict = verdictPresentation(report.verdict)
-  const score = report.overallScore != null ? Math.round(report.overallScore) : null
+  const score = report.overallScore != null ? report.overallScore : null
 
   return (
     <ScrollView
@@ -65,9 +76,9 @@ export function SessionSummary({ report, onPracticeAgain, onDone }: SessionSumma
           <Pill label={verdict.label} tone={verdict.tone} />
           {score != null ? (
             <View style={{ alignItems: 'center' }}>
-              <ThemedText variant="displayLg">{score}</ThemedText>
+              <ThemedText variant="displayLg">{formatScore10(score)}</ThemedText>
               <ThemedText variant="caption" color="muted">
-                điểm tổng / 100
+                điểm tổng / 10
               </ThemedText>
             </View>
           ) : null}
@@ -115,7 +126,7 @@ export function SessionSummary({ report, onPracticeAgain, onDone }: SessionSumma
               <ThemedText variant="bodyStrong">Chi tiết theo giai đoạn</ThemedText>
             </View>
             {report.phaseResults.map((phase, i) => {
-              const phaseScore = phase.score != null ? Math.round(phase.score) : 0
+              const phaseScore = phase.score != null ? phase.score : 0
               return (
                 <View key={`${phase.phase}-${i}`} style={{ gap: space[2] }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -123,10 +134,10 @@ export function SessionSummary({ report, onPracticeAgain, onDone }: SessionSumma
                       {phase.phase}
                     </ThemedText>
                     <ThemedText variant="label" color="muted">
-                      {phaseScore}/100
+                      {formatScore10(phaseScore)}/10
                     </ThemedText>
                   </View>
-                  <ProgressBar value={phaseScore / 100} />
+                  <ProgressBar value={scoreFraction(phaseScore)} />
                 </View>
               )
             })}

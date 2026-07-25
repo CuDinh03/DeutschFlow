@@ -40,6 +40,7 @@ export function useAiSpeakingSession(opts: {
     updateLastUserMessage,
     streamStatus,
     setStreamStatus,
+    setStreamErrorMessage,
     setMessages,
   } = useChatStore();
 
@@ -120,6 +121,7 @@ export function useAiSpeakingSession(opts: {
 
       const trimmed = userText.trim();
       setRetryUserText(null);
+      setStreamErrorMessage(null);
       setStreamStatus("processing");
 
       if (!options?.skipUserBubble) {
@@ -212,8 +214,11 @@ export function useAiSpeakingSession(opts: {
             setTimeout(onInterviewEnded, 1800);
           }
         },
-        (err) => {
-          if (err.includes("429")) {
+        (err, info) => {
+          // Audit 24/07 (R-W5): phân loại theo mã lỗi backend, không chỉ đoán chuỗi "429". Hết
+          // lượt / vượt tần suất → làm mới quota (mở luồng nâng cấp/đếm ngược ở tầng trên).
+          const code = info?.code;
+          if (code === "QUOTA_EXCEEDED" || code === "RATE_LIMITED" || err.includes("429")) {
             void refreshQuota();
           }
           if (err === AI_SPEAKING_STREAM_STALLED) {
@@ -232,6 +237,9 @@ export function useAiSpeakingSession(opts: {
           } else {
             removeStreamingPlaceholder();
           }
+          // R-W5: hiển thị câu tiếng Việt thân thiện của backend (nếu có) thay vì chip generic
+          // "Connection error" — user biết chính xác nên chờ, nâng cấp, hay thử lại.
+          setStreamErrorMessage(info?.message ?? null);
           setStreamStatus("error");
           setRetryUserText(trimmed);
           trackFeatureAction("ai_speaking", "stream_error", { mode: sessionMode });
@@ -254,6 +262,7 @@ export function useAiSpeakingSession(opts: {
       updateLastMessage,
       updateLastUserMessage,
       setStreamStatus,
+      setStreamErrorMessage,
       openAdaptiveRepairIfNeeded,
       maybeSpeakAi,
       removeStreamingPlaceholder,
