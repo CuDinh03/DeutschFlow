@@ -463,7 +463,8 @@ export const aiSpeakingApi = {
     experienceLevel?: ExperienceLevel | string | null,
     assignmentId?: number | null,
   ) =>
-    // BUG FIX #1: Use longer timeout for session creation (30s instead of default 8s)
+    // Trần riêng cho tạo phiên (default 8s quá ngắn): backend worst-case khi Groq nghẽn ≈ 30s
+    // (semaphore 10s + deadline 20s, audit speaking 24/07 R-B1) — 40s chừa headroom mạng.
     api.post<AiSpeakingSession>('/ai-speaking/sessions', {
       topic: topic ?? null,
       cefrLevel: cefrLevel ?? null,
@@ -473,7 +474,7 @@ export const aiSpeakingApi = {
       interviewPosition: interviewPosition ?? null,
       experienceLevel: experienceLevel ?? null,
       assignmentId: assignmentId ?? null,
-    }, { timeout: 30000 }),
+    }, { timeout: 40000 }),
 
   chat: (sessionId: number, userMessage: string) =>
     api.post<AiChatResponse>(`/ai-speaking/sessions/${sessionId}/chat`, { userMessage }),

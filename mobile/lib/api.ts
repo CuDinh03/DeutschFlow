@@ -12,9 +12,13 @@ export function isAxiosErr(e: unknown): e is AxiosError {
  * Thông điệp lỗi để hiển thị cho người dùng.
  *
  * Backend trả RFC-7807 Problem Details, nên câu tiếng Việt nằm ở `detail` — KHÔNG phải `message`.
- * Trước đây hàm này chỉ đọc `message`/`error` nên luôn rơi về chuỗi thô của axios
- * ("Request failed with status code 503") và mọi thông điệp backend dày công viết đều bị nuốt.
- * Thứ tự dưới đây đi từ cụ thể nhất tới chung nhất; `title` là chốt chặn cuối trước chuỗi axios.
+ * Thứ tự đọc đi từ cụ thể nhất tới chung nhất; `title` là chốt chặn cuối trước lớp phân loại.
+ *
+ * KHÔNG BAO GIỜ trả về chuỗi kỹ thuật của axios (audit speaking 24/07, R-M1): đêm 23/07 người
+ * dùng thấy nguyên văn "Request failed with status code 503" / "timeout of 15000ms exceeded"
+ * vì nhánh fallback cũ trả `e.message`. Mọi ca không có body dùng được (timeout, mất mạng,
+ * 5xx không body JSON) giờ được phân loại thành câu tiếng Việt thân thiện tại đây — một điểm
+ * duy nhất phủ toàn bộ ~79 call-site Alert của app.
  */
 export function apiMessage(e: unknown): string {
   if (isAxiosErr(e)) {
@@ -26,7 +30,16 @@ export function apiMessage(e: unknown): string {
         if (typeof value === 'string' && value.trim()) return value
       }
     }
-    return e.message ?? 'Lỗi không xác định'
+    if (e.code === 'ECONNABORTED' || e.code === 'ETIMEDOUT' || /timeout/i.test(e.message ?? '')) {
+      return 'Kết nối chậm — máy chủ có thể vẫn đang xử lý. Thử lại sau ít giây.'
+    }
+    if (!e.response) {
+      return 'Mất kết nối mạng. Kiểm tra Wi-Fi/4G rồi thử lại.'
+    }
+    if (e.response.status >= 500) {
+      return 'Hệ thống đang bận, vui lòng thử lại sau ít phút.'
+    }
+    return 'Yêu cầu không thực hiện được, vui lòng thử lại.'
   }
   if (e instanceof Error) return e.message
   return 'Lỗi không xác định'

@@ -50,8 +50,10 @@ import static org.mockito.Mockito.when;
  * and the streaming client is driven to invoke (or skip) the completion callback.
  *
  * <p>Covers the four streaming outcomes: happy path (finalize + "done" + complete + guard release),
- * cancellation (no finalize, cancel "error" event + complete + release), error (completeWithError +
- * release in finally), and a null prep (completeWithError, no finalize).
+ * cancellation (no finalize, cancel "error" event + complete + release), error (structured "error"
+ * event with a machine-readable code + CLEAN complete + release in finally — audit speaking 24/07
+ * R-B2: completeWithError chỉ làm đứt kết nối nên client không bao giờ đọc được lý do), and a null
+ * prep (same error-event contract, no finalize).
  */
 @ExtendWith(MockitoExtension.class)
 class SpeakingStreamServiceUnitTest {
@@ -221,22 +223,28 @@ class SpeakingStreamServiceUnitTest {
     // ---------------------------------------------------------------------
 
     @Test
-    @DisplayName("startStream error: an exception during the flow completes the emitter with error and STILL releases the guard")
-    void startStream_error_completesWithErrorAndReleasesGuard() {
+    @DisplayName("startStream error: gửi event `error` có code máy-đọc-được, đóng SẠCH emitter và vẫn nhả guard")
+    void startStream_error_completesWithErrorAndReleasesGuard() throws Exception {
         // Arrange
         when(sessionTurnGuard.tryAcquire(SESSION_ID)).thenReturn(true);
         executorRunsInline();
         transactionRunsInline();
+        stubErrorEventSerialization();
         RuntimeException boom = new IllegalStateException("prep blew up");
         when(chatPrepService.prepareSpeakingChatTurn(USER_ID, SESSION_ID, USER_MESSAGE)).thenThrow(boom);
 
         // Act
         service.startStream(USER_ID, SESSION_ID, USER_MESSAGE, emitter, new AtomicBoolean(false), false, finalizer);
 
-        // Assert — emitter errored, no finalize, guard released in finally
-        verify(emitter).completeWithError(boom);
+        // Assert — hợp đồng audit R-B2: event lỗi + complete() (KHÔNG completeWithError, vì SSE đã
+        // commit 200 nên completeWithError chỉ làm client thấy "kết nối đứt" không lý do)
+        verify(emitter).send(any(SseEmitter.SseEventBuilder.class));
+        assertThat(capturedErrorPayload()).contains("\"code\":\"INTERNAL\"");
+        verify(emitter).complete();
+        verify(emitter, never()).completeWithError(any());
         verify(finalizer, never()).finalizeTurn(any(), any(), any(), any(), any());
         verify(sessionTurnGuard).release(SESSION_ID);
+        verify(speakingMetrics).recordChatRequest("stream", "error");
     }
 
     // ---------------------------------------------------------------------
@@ -244,22 +252,43 @@ class SpeakingStreamServiceUnitTest {
     // ---------------------------------------------------------------------
 
     @Test
-    @DisplayName("startStream null prep: completeWithError and no finalize when prepareSpeakingChatTurn returns null")
-    void startStream_nullPrep_completesWithErrorNoFinalize() {
+    @DisplayName("startStream null prep: gửi event `error` rồi đóng sạch, không finalize khi prepareSpeakingChatTurn trả null")
+    void startStream_nullPrep_completesWithErrorNoFinalize() throws Exception {
         // Arrange
         when(sessionTurnGuard.tryAcquire(SESSION_ID)).thenReturn(true);
         executorRunsInline();
         transactionRunsInline();
+        stubErrorEventSerialization();
         when(chatPrepService.prepareSpeakingChatTurn(USER_ID, SESSION_ID, USER_MESSAGE)).thenReturn(null);
 
         // Act
         service.startStream(USER_ID, SESSION_ID, USER_MESSAGE, emitter, new AtomicBoolean(false), false, finalizer);
 
-        // Assert — errored out before streaming, finalize never reached, guard still released
-        verify(emitter).completeWithError(any(IllegalStateException.class));
+        // Assert — dừng trước khi stream, event lỗi + đóng sạch, guard vẫn nhả
+        verify(emitter).send(any(SseEmitter.SseEventBuilder.class));
+        assertThat(capturedErrorPayload()).contains("\"code\":\"INTERNAL\"");
+        verify(emitter).complete();
+        verify(emitter, never()).completeWithError(any());
         verify(finalizer, never()).finalizeTurn(any(), any(), any(), any(), any());
         verify(chatCompletionService, never()).chatClientFor(any());
         verify(sessionTurnGuard).release(SESSION_ID);
+    }
+
+    /**
+     * {@code objectMapper} là mock nên phải cho createObjectNode trả node THẬT để
+     * sendErrorEventAndComplete dựng được payload; writeValueAsString trả JSON của chính node
+     * đó (toString của ObjectNode là JSON hợp lệ) để test soi được field {@code code}.
+     */
+    private void stubErrorEventSerialization() throws Exception {
+        when(objectMapper.createObjectNode()).thenAnswer(inv -> new ObjectMapper().createObjectNode());
+        when(objectMapper.writeValueAsString(any())).thenAnswer(inv -> inv.getArgument(0).toString());
+    }
+
+    /** JSON của payload event `error` vừa được serialize (đi qua writeValueAsString đã stub). */
+    private String capturedErrorPayload() throws Exception {
+        var captor = org.mockito.ArgumentCaptor.forClass(Object.class);
+        verify(objectMapper).writeValueAsString(captor.capture());
+        return String.valueOf(captor.getValue());
     }
 
     // ---------------------------------------------------------------------

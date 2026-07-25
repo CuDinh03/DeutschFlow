@@ -74,7 +74,7 @@ export function StreamStatusIndicator({ status, onRetry }: StreamStatusIndicator
           )}
         </div>
 
-        {status === "stalled" && onRetry && (
+        {(status === "stalled" || status === "error") && onRetry && (
           <button
             type="button"
             onClick={onRetry}

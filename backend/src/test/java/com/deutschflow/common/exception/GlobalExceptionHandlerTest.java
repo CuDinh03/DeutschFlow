@@ -138,4 +138,49 @@ class GlobalExceptionHandlerTest {
         assertThat(body.status()).isEqualTo(503);
         assertThat(body.detail()).doesNotContain("5000ms"); // no leak of the wrapped cause's message
     }
+
+    /**
+     * Audit speaking 24/07 (BE-3): 503 AI phải mang {@code extensions.code} máy-đọc-được để client
+     * phân loại, và header {@code Retry-After} khi nơi ném biết thời điểm nên thử lại (AI_BUSY từ
+     * semaphore/breaker). Đêm 23/07 client chỉ nhận được 503 trần nên mọi lỗi hiển thị như nhau.
+     */
+    @Test
+    @DisplayName("AiServiceException AI_BUSY → 503 + extensions.code + Retry-After header")
+    void aiBusy_mapsTo503_withCodeAndRetryAfter() {
+        var ex = new com.deutschflow.speaking.exception.AiServiceException(
+                com.deutschflow.speaking.exception.AiErrorCode.AI_BUSY,
+                "Trợ lý AI đang bận, vui lòng thử lại sau ít giây.", 15);
+
+        ResponseEntity<ProblemDetail> response =
+                handler.handleAiServiceUnavailable(ex, requestTo("/api/ai-speaking/sessions"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+        assertThat(response.getHeaders().getFirst("Retry-After")).isEqualTo("15");
+        ProblemDetail body = response.getBody();
+        assertThat(body).isNotNull();
+        assertThat(body.type()).endsWith("ai-unavailable");
+        assertThat(body.extensions()).containsEntry("code", "AI_BUSY")
+                .containsEntry("retryAfterSeconds", 15);
+        assertThat(body.detail()).isEqualTo("Trợ lý AI đang bận, vui lòng thử lại sau ít giây.");
+    }
+
+    /** Constructor cũ (message-only) phải giữ tương thích: code mặc định, không Retry-After. */
+    @Test
+    @DisplayName("AiServiceException legacy → 503 với code mặc định AI_UPSTREAM_UNAVAILABLE, không Retry-After")
+    void aiLegacy_mapsTo503_defaultCode_noRetryAfter() {
+        var ex = new com.deutschflow.speaking.exception.AiServiceException(
+                "Dịch vụ AI tạm thời không khả dụng, vui lòng thử lại sau.");
+
+        ResponseEntity<ProblemDetail> response =
+                handler.handleAiServiceUnavailable(ex, requestTo("/api/ai-speaking/sessions/1/chat"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+        assertThat(response.getHeaders().getFirst("Retry-After")).isNull();
+        ProblemDetail body = response.getBody();
+        assertThat(body).isNotNull();
+        assertThat(body.extensions()).containsEntry("code", "AI_UPSTREAM_UNAVAILABLE");
+        assertThat(body.extensions()).doesNotContainKey("retryAfterSeconds");
+        // Câu chữ lộ ra client phải trung tính: không tên vendor, không tiếng Anh kỹ thuật.
+        assertThat(body.detail()).doesNotContain("Groq").doesNotContain("unavailable.");
+    }
 }
