@@ -1,5 +1,6 @@
 package com.deutschflow.organization.controller;
 
+import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.organization.dto.CreateTeacherRequest;
@@ -112,7 +113,7 @@ public class OrgController {
         }
         User.CreatedVia via = "OWNER".equals(callerRole) ? User.CreatedVia.OWNER : User.CreatedVia.MANAGER;
         OrgMemberDto created = orgInvitationService.preCreateTeacher(
-                orgId, body.email(), body.displayName(), body.password(), via);
+                orgId, body.email(), body.displayName(), body.password(), via, AuditActor.of(user));
         // preCreateTeacher always creates a fresh user (rejects existing email), so this is a real new account.
         userNotificationService.onAccountProvisioned(
                 created.userId(), created.email(), created.displayName(), via.name());
@@ -149,7 +150,7 @@ public class OrgController {
                                              @PathVariable Long userId) {
         Long orgId = requireOrgId(user);
         orgGuard.assertOrgAdmin(user.getId(), orgId);
-        orgMembershipService.removeMember(orgId, userId);
+        orgMembershipService.removeMember(orgId, userId, AuditActor.of(user));
         // Removed student loses the org-granted plan; web/Apple subs are left untouched.
         orgEntitlementService.revokeStudent(userId);
         return ResponseEntity.noContent().build();
@@ -165,7 +166,7 @@ public class OrgController {
                                          @jakarta.validation.Valid @RequestBody com.deutschflow.organization.dto.ChangeRoleRequest body) {
         Long orgId = requireOrgId(user);
         orgGuard.assertOrgOwner(user.getId(), orgId);
-        return orgMembershipService.changeRole(orgId, userId, body.role());
+        return orgMembershipService.changeRole(orgId, userId, body.role(), AuditActor.of(user));
     }
 
     /**
@@ -180,7 +181,7 @@ public class OrgController {
                                           @PathVariable Long userId) {
         Long orgId = requireOrgId(user);
         orgGuard.assertOrgOwner(user.getId(), orgId);
-        return orgMembershipService.transferOwnership(orgId, user.getId(), userId);
+        return orgMembershipService.transferOwnership(orgId, AuditActor.of(user), userId);
     }
 
     /**
@@ -190,7 +191,7 @@ public class OrgController {
     @PostMapping("/membership/leave")
     public ResponseEntity<Void> leaveOrg(@AuthenticationPrincipal User user) {
         Long orgId = requireOrgId(user);
-        orgMembershipService.selfLeave(orgId, user.getId());
+        orgMembershipService.selfLeave(orgId, AuditActor.of(user));
         return ResponseEntity.noContent().build();
     }
 
@@ -246,7 +247,7 @@ public class OrgController {
         } catch (java.io.IOException ex) {
             throw new BadRequestException("Không đọc được file CSV");
         }
-        return orgRosterService.importStudents(orgId, csvText, classId);
+        return orgRosterService.importStudents(orgId, csvText, classId, AuditActor.of(user));
     }
 
     @GetMapping("/students")

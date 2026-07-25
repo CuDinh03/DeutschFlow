@@ -1,5 +1,7 @@
 package com.deutschflow.organization.service;
 
+import com.deutschflow.common.audit.AuditActor;
+import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
@@ -23,7 +25,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -55,6 +59,7 @@ public class OrgRosterService {
     private final TeacherClassRepository teacherClassRepository;
     private final AssignmentBackfillService assignmentBackfillService;
     private final JdbcTemplate jdbcTemplate;
+    private final AuditLogService auditLogService;
 
     /**
      * Imports students from raw CSV text. Columns: {@code email,displayName[,phone]} (comma).
@@ -63,7 +68,8 @@ public class OrgRosterService {
      * @param classIdOrNull when non-null, every imported student is also enrolled into this class
      */
     @Transactional
-    public RosterImportResultDto importStudents(Long orgId, String csvText, Long classIdOrNull) {
+    public RosterImportResultDto importStudents(Long orgId, String csvText, Long classIdOrNull,
+                                                AuditActor actor) {
         Organization org = organizationRepository.findById(orgId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy tổ chức: id=" + orgId));
 
@@ -174,6 +180,19 @@ public class OrgRosterService {
         if (seatLimitHit) {
             log.info("Roster import for org {} stopped early at seat limit {}", orgId, org.getSeatLimit());
         }
+        // MỘT dòng vết cho cả lần import, không phải mỗi học viên một dòng: import 30 học viên là
+        // MỘT hành động của một người, và 30 dòng audit làm ngập màn hình vết mà không thêm thông
+        // tin nào — chi tiết từng dòng lỗi đã nằm trong RosterImportResultDto trả về cho người bấm.
+        Map<String, Object> meta = new LinkedHashMap<>();
+        meta.put("orgId", orgId);
+        meta.put("classId", classIdOrNull);
+        meta.put("total", total);
+        meta.put("created", created);
+        meta.put("linked", linked);
+        meta.put("enrolled", enrolled);
+        meta.put("failed", failed);
+        meta.put("seatLimitHit", seatLimitHit);
+        auditLogService.log("org_member_imported", actor, "ORG", String.valueOf(orgId), meta);
         return new RosterImportResultDto(total, created, linked, enrolled, failed, errors);
     }
 

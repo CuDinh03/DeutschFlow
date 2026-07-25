@@ -1,5 +1,7 @@
 package com.deutschflow.teacher.service;
 
+import com.deutschflow.common.audit.AuditActor;
+import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.ForbiddenException;
@@ -20,11 +22,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -50,15 +54,19 @@ class TeacherTimesheetServiceTest {
 
     private TeacherTimesheetService service;
 
+    @Mock private AuditLogService auditLogService;
     private static final Long TEACHER_ID = 1L;
     private static final Long CLASS_ID = 10L;
     private static final Long ORG_ID = 42L;
     private static final Long SESSION_ID = 500L;
+    /** Giáo viên đang thao tác — mọi thay đổi dòng công nay ghi vết kèm danh tính này. */
+    private static final AuditActor ACTOR = new AuditActor(TEACHER_ID, "gv@tt.vn", "TEACHER");
 
     @BeforeEach
     void setUp() {
         service = new TeacherTimesheetService(
-                recordRepository, sessionRepository, classTeacherRepository, classRepository, periodService);
+                recordRepository, sessionRepository, classTeacherRepository, classRepository, periodService,
+                auditLogService);
     }
 
     // ── snapshot: số công phải tự đứng vững ───────────────────────────────────
@@ -83,7 +91,7 @@ class TeacherTimesheetServiceTest {
             return r;
         });
 
-        SessionRecordDto dto = service.record(TEACHER_ID,
+        SessionRecordDto dto = service.record(ACTOR,
                 new RecordTeachingRequest(SESSION_ID, null, null, null, null, null));
 
         assertThat(dto.startedAt()).isEqualTo(start);
@@ -104,7 +112,7 @@ class TeacherTimesheetServiceTest {
         when(recordRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         // Buổi kéo dài hơn kế hoạch 15 phút — hợp đồng tính theo giờ phải ăn theo con số này.
-        SessionRecordDto dto = service.record(TEACHER_ID,
+        SessionRecordDto dto = service.record(ACTOR,
                 new RecordTeachingRequest(SESSION_ID, null, null, 105, null, null));
 
         assertThat(dto.durationMinutes()).isEqualTo(105);
@@ -118,7 +126,7 @@ class TeacherTimesheetServiceTest {
         LocalDateTime future = LocalDateTime.now().plusDays(3);
         allowTeaches();
 
-        assertThatThrownBy(() -> service.record(TEACHER_ID,
+        assertThatThrownBy(() -> service.record(ACTOR,
                 new RecordTeachingRequest(null, CLASS_ID, future, 90, null, null)))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("chưa diễn ra");
@@ -134,7 +142,7 @@ class TeacherTimesheetServiceTest {
         when(recordRepository.findByTeacherIdAndStartedAt(TEACHER_ID, start))
                 .thenReturn(Optional.of(TeacherSessionRecord.builder().id(3L).build()));
 
-        assertThatThrownBy(() -> service.record(TEACHER_ID,
+        assertThatThrownBy(() -> service.record(ACTOR,
                 new RecordTeachingRequest(null, CLASS_ID, start, 90, null, null)))
                 .isInstanceOf(ConflictException.class);
 
@@ -146,7 +154,7 @@ class TeacherTimesheetServiceTest {
     void record_classNotTaught_isForbidden() {
         when(classTeacherRepository.existsByIdClassIdAndIdTeacherId(CLASS_ID, TEACHER_ID)).thenReturn(false);
 
-        assertThatThrownBy(() -> service.record(TEACHER_ID,
+        assertThatThrownBy(() -> service.record(ACTOR,
                 new RecordTeachingRequest(null, CLASS_ID, LocalDateTime.now().minusDays(1), 90, null, null)))
                 .isInstanceOf(ForbiddenException.class);
 
@@ -161,7 +169,7 @@ class TeacherTimesheetServiceTest {
         s.setStatus(ClassSession.Status.CANCELLED);
         when(sessionRepository.findById(SESSION_ID)).thenReturn(Optional.of(s));
 
-        assertThatThrownBy(() -> service.record(TEACHER_ID,
+        assertThatThrownBy(() -> service.record(ACTOR,
                 new RecordTeachingRequest(SESSION_ID, null, null, null, null, null)))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("huỷ");
@@ -173,7 +181,7 @@ class TeacherTimesheetServiceTest {
         when(recordRepository.findById(7L)).thenReturn(Optional.of(
                 TeacherSessionRecord.builder().id(7L).teacherId(999L).build()));
 
-        assertThatThrownBy(() -> service.updateRecord(TEACHER_ID, 7L,
+        assertThatThrownBy(() -> service.updateRecord(ACTOR, 7L,
                 new RecordTeachingRequest(null, null, null, 60, null, null)))
                 .isInstanceOf(ForbiddenException.class);
     }
@@ -187,7 +195,7 @@ class TeacherTimesheetServiceTest {
         doThrow(new ConflictException("Kỳ công đang ở trạng thái APPROVED"))
                 .when(periodService).assertRecordEditable(eq(TEACHER_ID), eq(recStart.toLocalDate()));
 
-        assertThatThrownBy(() -> service.updateRecord(TEACHER_ID, 7L,
+        assertThatThrownBy(() -> service.updateRecord(ACTOR, 7L,
                 new RecordTeachingRequest(null, null, null, 60, null, null)))
                 .isInstanceOf(ConflictException.class);
 
@@ -207,7 +215,7 @@ class TeacherTimesheetServiceTest {
         doThrow(new ConflictException("Kỳ công đích đang ở trạng thái LOCKED"))
                 .when(periodService).assertRecordEditable(eq(TEACHER_ID), eq(destStart.toLocalDate()));
 
-        assertThatThrownBy(() -> service.updateRecord(TEACHER_ID, 7L,
+        assertThatThrownBy(() -> service.updateRecord(ACTOR, 7L,
                 new RecordTeachingRequest(null, null, destStart, null, null, null)))
                 .isInstanceOf(ConflictException.class);
 
@@ -220,7 +228,7 @@ class TeacherTimesheetServiceTest {
         when(recordRepository.findById(7L)).thenReturn(Optional.of(
                 TeacherSessionRecord.builder().id(7L).teacherId(999L).build()));
 
-        assertThatThrownBy(() -> service.deleteRecord(TEACHER_ID, 7L))
+        assertThatThrownBy(() -> service.deleteRecord(ACTOR, 7L))
                 .isInstanceOf(ForbiddenException.class);
 
         verify(recordRepository, never()).delete(any());
@@ -235,7 +243,7 @@ class TeacherTimesheetServiceTest {
         doThrow(new ConflictException("Kỳ công đang ở trạng thái APPROVED"))
                 .when(periodService).assertRecordEditable(eq(TEACHER_ID), eq(recStart.toLocalDate()));
 
-        assertThatThrownBy(() -> service.deleteRecord(TEACHER_ID, 7L))
+        assertThatThrownBy(() -> service.deleteRecord(ACTOR, 7L))
                 .isInstanceOf(ConflictException.class);
 
         verify(recordRepository, never()).delete(any());
@@ -250,7 +258,7 @@ class TeacherTimesheetServiceTest {
         doThrow(new ConflictException("Kỳ công đang ở trạng thái APPROVED"))
                 .when(periodService).assertRecordEditable(TEACHER_ID, start.toLocalDate());
 
-        assertThatThrownBy(() -> service.record(TEACHER_ID,
+        assertThatThrownBy(() -> service.record(ACTOR,
                 new RecordTeachingRequest(null, CLASS_ID, start, 90, null, null)))
                 .isInstanceOf(ConflictException.class);
 
@@ -338,6 +346,71 @@ class TeacherTimesheetServiceTest {
         assertThatThrownBy(() -> service.mySheet(
                 TEACHER_ID, LocalDateTime.now(), LocalDateTime.now().minusDays(1)))
                 .isInstanceOf(BadRequestException.class);
+    }
+
+    // ── vết audit cho dòng công ───────────────────────────────────────────────
+
+    @Test
+    @DisplayName("updateRecord() ghi vết kèm GIÁ TRỊ CŨ — sửa giờ/thời lượng là thao tác ra tiền")
+    void updateRecord_auditCarriesBeforeValues() {
+        LocalDateTime start = LocalDateTime.now().minusDays(2).withNano(0);
+        TeacherSessionRecord existing = TeacherSessionRecord.builder()
+                .id(7L).teacherId(TEACHER_ID).classId(CLASS_ID).orgId(ORG_ID)
+                .classNameSnapshot("K30 · B1").startedAt(start).durationMinutes(90)
+                .teacherRole(TeacherSessionRecord.TeacherRole.PRIMARY).build();
+        when(recordRepository.findById(7L)).thenReturn(Optional.of(existing));
+        when(recordRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.updateRecord(ACTOR, 7L, new RecordTeachingRequest(null, null, null, 120, null, null));
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> meta = ArgumentCaptor.forClass(Map.class);
+        verify(auditLogService).log(eq("teacher_session_record_updated"), eq(ACTOR),
+                eq("SESSION_RECORD"), eq("7"), meta.capture());
+
+        // Giá trị MỚI ở gốc, giá trị CŨ nằm dưới khoá "before" — không có vế cũ thì đọc vết lên
+        // chỉ biết "có người sửa", không biết đã sửa từ đâu sang đâu.
+        assertThat(meta.getValue()).containsEntry("durationMinutes", 120).containsEntry("orgId", ORG_ID);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> before = (Map<String, Object>) meta.getValue().get("before");
+        assertThat(before).containsEntry("durationMinutes", 90);
+    }
+
+    @Test
+    @DisplayName("deleteRecord() chụp dòng công TRƯỚC khi xoá — sau delete không còn gì để mô tả")
+    void deleteRecord_auditCapturesRowBeforeDeletion() {
+        LocalDateTime start = LocalDateTime.now().minusDays(2).withNano(0);
+        when(recordRepository.findById(7L)).thenReturn(Optional.of(TeacherSessionRecord.builder()
+                .id(7L).teacherId(TEACHER_ID).classId(CLASS_ID).orgId(ORG_ID)
+                .classNameSnapshot("K30 · B1").startedAt(start).durationMinutes(90)
+                .teacherRole(TeacherSessionRecord.TeacherRole.PRIMARY).build()));
+
+        service.deleteRecord(ACTOR, 7L);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> meta = ArgumentCaptor.forClass(Map.class);
+        verify(auditLogService).log(eq("teacher_session_record_deleted"), eq(ACTOR),
+                eq("SESSION_RECORD"), eq("7"), meta.capture());
+        assertThat(meta.getValue())
+                .containsEntry("durationMinutes", 90)
+                .containsEntry("className", "K30 · B1")
+                .containsEntry("orgId", ORG_ID);
+    }
+
+    @Test
+    @DisplayName("ghi công vào kỳ đã chốt bị từ chối thì KHÔNG để lại vết")
+    void record_blockedByClosedPeriod_writesNoAudit() {
+        LocalDateTime start = LocalDateTime.now().minusDays(1).withNano(0);
+        allowTeaches();
+        when(recordRepository.findByTeacherIdAndStartedAt(TEACHER_ID, start)).thenReturn(Optional.empty());
+        doThrow(new ConflictException("kỳ đã chốt"))
+                .when(periodService).assertRecordEditable(eq(TEACHER_ID), any());
+
+        assertThatThrownBy(() -> service.record(ACTOR,
+                new RecordTeachingRequest(null, CLASS_ID, start, 90, null, null)))
+                .isInstanceOf(ConflictException.class);
+
+        verify(auditLogService, never()).log(any(), any(AuditActor.class), any(), any(), any());
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────

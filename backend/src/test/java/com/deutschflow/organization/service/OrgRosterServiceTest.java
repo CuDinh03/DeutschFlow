@@ -1,6 +1,8 @@
 package com.deutschflow.organization.service;
 
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.common.audit.AuditActor;
+import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.organization.dto.RosterImportResultDto;
 import com.deutschflow.organization.entity.OrgMember;
 import com.deutschflow.organization.entity.OrgMemberId;
@@ -26,6 +28,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -57,6 +60,10 @@ class OrgRosterServiceTest {
 
     private OrgRosterService service;
 
+    @Mock private AuditLogService auditLogService;
+
+    /** Người bấm import — vết tổng kết mang danh tính này. */
+    private static final AuditActor ACTOR = new AuditActor(2L, "manager@tt.vn", "MANAGER");
     private static final Long ORG_ID = 10L;
     private static final Long CLASS_ID = 55L;
 
@@ -72,7 +79,8 @@ class OrgRosterServiceTest {
                 classStudentRepository,
                 teacherClassRepository,
                 assignmentBackfillService,
-                jdbcTemplate
+                jdbcTemplate,
+                auditLogService
         );
         // Stub the advisory FOR UPDATE lock — no-op in tests (J).
         lenient().when(jdbcTemplate.queryForObject(
@@ -82,6 +90,33 @@ class OrgRosterServiceTest {
         // CLASS_ID belongs to ORG_ID by default so the existing classId tests pass the IDOR guard.
         lenient().when(teacherClassRepository.findById(CLASS_ID))
                 .thenReturn(Optional.of(TeacherClass.builder().id(CLASS_ID).orgId(ORG_ID).build()));
+    }
+
+    @Test
+    @DisplayName("import ghi ĐÚNG MỘT dòng vết tổng kết, không phải mỗi học viên một dòng")
+    void importStudents_writesExactlyOneSummaryAudit() {
+        stubOrg(org(0, "PRO"));
+        String csv = "a@x.com,A\nb@x.com,B\nc@x.com,C";
+        when(userRepository.findByEmailIgnoreCase(anyString())).thenReturn(Optional.empty());
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> {
+            User u = inv.getArgument(0);
+            u.setId(100L);
+            return u;
+        });
+
+        service.importStudents(ORG_ID, csv, null, ACTOR);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> meta = ArgumentCaptor.forClass(Map.class);
+        // 3 học viên → vẫn CHỈ 1 dòng audit: import là MỘT hành động của MỘT người. Ghi từng dòng
+        // sẽ nhấn chìm màn hình vết mà không thêm thông tin — chi tiết lỗi đã nằm ở DTO trả về.
+        verify(auditLogService).log(eq("org_member_imported"), eq(ACTOR),
+                eq("ORG"), eq(String.valueOf(ORG_ID)), meta.capture());
+        assertThat(meta.getValue())
+                .containsEntry("orgId", ORG_ID)
+                .containsEntry("total", 3)
+                .containsEntry("created", 3)
+                .containsEntry("failed", 0);
     }
 
     // ------------------------------------------------------------------ helpers
@@ -125,7 +160,7 @@ class OrgRosterServiceTest {
         User created = savedStudent(1L, "alice@school.edu");
         when(userRepository.save(any(User.class))).thenReturn(created);
 
-        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null);
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
 
         assertThat(result.created()).isEqualTo(1);
         assertThat(result.linked()).isEqualTo(0);
@@ -157,7 +192,7 @@ class OrgRosterServiceTest {
                 .thenReturn(Optional.of(new OrgMember()));
 
         String csv = "bob@school.edu,Bob Nguyen";
-        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null);
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
 
         assertThat(result.linked()).isEqualTo(1);
         assertThat(result.created()).isEqualTo(0);
@@ -184,7 +219,7 @@ class OrgRosterServiceTest {
         when(classStudentRepository.existsByIdClassIdAndIdStudentId(CLASS_ID, 7L)).thenReturn(false);
 
         String csv = "charlie@school.edu,Charlie";
-        RosterImportResultDto result = service.importStudents(ORG_ID, csv, CLASS_ID);
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, CLASS_ID, ACTOR);
 
         assertThat(result.enrolled()).isEqualTo(1);
 
@@ -207,7 +242,7 @@ class OrgRosterServiceTest {
         when(classStudentRepository.existsByIdClassIdAndIdStudentId(CLASS_ID, 8L)).thenReturn(true);
 
         String csv = "diana@school.edu,Diana";
-        RosterImportResultDto result = service.importStudents(ORG_ID, csv, CLASS_ID);
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, CLASS_ID, ACTOR);
 
         assertThat(result.enrolled()).isEqualTo(0);
         verify(classStudentRepository, never()).save(any());
@@ -230,7 +265,7 @@ class OrgRosterServiceTest {
         when(passwordEncoder.encode(anyString())).thenReturn("hashed");
         when(userRepository.save(any(User.class))).thenReturn(created);
 
-        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null);
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
 
         assertThat(result.failed()).isEqualTo(1);
         assertThat(result.created()).isEqualTo(1);
@@ -252,7 +287,7 @@ class OrgRosterServiceTest {
         when(passwordEncoder.encode(anyString())).thenReturn("hashed");
         when(userRepository.save(any(User.class))).thenReturn(created);
 
-        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null);
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
 
         assertThat(result.failed()).isEqualTo(1);
         assertThat(result.created()).isEqualTo(1);
@@ -268,7 +303,7 @@ class OrgRosterServiceTest {
 
         String csv = "bad-one\nbad-two\nbad-three";
 
-        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null);
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
 
         assertThat(result.failed()).isEqualTo(3);
         assertThat(result.created()).isEqualTo(0);
@@ -290,7 +325,7 @@ class OrgRosterServiceTest {
         when(membershipService.countByRole(ORG_ID, "STUDENT")).thenReturn(5L);
 
         String csv = "over@school.edu,Over Limit";
-        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null);
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
 
         assertThat(result.failed()).isEqualTo(1);
         assertThat(result.created()).isEqualTo(0);
@@ -326,7 +361,7 @@ class OrgRosterServiceTest {
                 .thenReturn(1L);  // second student check: at limit
         when(userRepository.findByEmailIgnoreCase("second@school.edu")).thenReturn(Optional.empty());
 
-        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null);
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
 
         assertThat(result.created()).isEqualTo(1);
         assertThat(result.failed()).isEqualTo(1);
@@ -346,7 +381,7 @@ class OrgRosterServiceTest {
         when(passwordEncoder.encode(anyString())).thenReturn("hashed");
         when(userRepository.save(any(User.class))).thenReturn(created);
 
-        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null);
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
 
         assertThat(result.created()).isEqualTo(1);
         assertThat(result.failed()).isEqualTo(0);
@@ -368,7 +403,7 @@ class OrgRosterServiceTest {
         when(passwordEncoder.encode(anyString())).thenReturn("hashed");
         when(userRepository.save(any(User.class))).thenReturn(created);
 
-        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null);
+        RosterImportResultDto result = service.importStudents(ORG_ID, csv, null, ACTOR);
 
         assertThat(result.total()).isEqualTo(1); // header not counted
         assertThat(result.created()).isEqualTo(1);
@@ -381,7 +416,7 @@ class OrgRosterServiceTest {
     void importStudents_orgNotFound_throwsNotFoundException() {
         when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.importStudents(ORG_ID, "a@b.com", null))
+        assertThatThrownBy(() -> service.importStudents(ORG_ID, "a@b.com", null, ACTOR))
                 .isInstanceOf(NotFoundException.class);
     }
 
@@ -399,7 +434,7 @@ class OrgRosterServiceTest {
         User created = savedStudent(20L, "noname@school.edu");
         when(userRepository.save(any(User.class))).thenReturn(created);
 
-        service.importStudents(ORG_ID, csv, null);
+        service.importStudents(ORG_ID, csv, null, ACTOR);
 
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
         verify(userRepository).save(captor.capture());
@@ -417,7 +452,7 @@ class OrgRosterServiceTest {
         when(teacherClassRepository.findById(foreignClassId))
                 .thenReturn(Optional.of(TeacherClass.builder().id(foreignClassId).orgId(999L).build()));
 
-        assertThatThrownBy(() -> service.importStudents(ORG_ID, "a@b.com,A", foreignClassId))
+        assertThatThrownBy(() -> service.importStudents(ORG_ID, "a@b.com,A", foreignClassId, ACTOR))
                 .isInstanceOf(ForbiddenException.class);
 
         verify(membershipService, never()).upsertMember(anyLong(), anyLong(), anyString());
@@ -431,7 +466,7 @@ class OrgRosterServiceTest {
         stubOrg(org);
         when(teacherClassRepository.findById(404L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.importStudents(ORG_ID, "a@b.com,A", 404L))
+        assertThatThrownBy(() -> service.importStudents(ORG_ID, "a@b.com,A", 404L, ACTOR))
                 .isInstanceOf(BadRequestException.class);
 
         verify(membershipService, never()).upsertMember(anyLong(), anyLong(), anyString());
