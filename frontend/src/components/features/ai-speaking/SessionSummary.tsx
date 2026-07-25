@@ -8,9 +8,10 @@ import {
   Clock, TrendingUp, Check, AlertTriangle,
   BookOpen, RotateCcw, ArrowLeft, Star,
   Briefcase, Users, Heart, Zap, MessageSquare,
-  ThumbsUp, ThumbsDown, Target, Lightbulb,
+  ThumbsUp, ThumbsDown, Target, Lightbulb, Sparkles,
 } from "lucide-react";
 import type { ChatMessage } from "@/stores/useChatStore";
+import type { ConversationReport } from "@/lib/aiSpeakingApi";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -90,6 +91,8 @@ interface SessionSummaryProps {
   duration: string;
   isInterviewMode: boolean;
   interviewReportJson?: string | null;
+  /** GR-1: báo cáo AI thật (typed) cho COMMUNICATION/LESSON — thay điểm heuristic bịa khi có. */
+  conversationReport?: ConversationReport | null;
   onRestart: () => void;
   onExit: () => void;
   onReviewErrors?: (errors: string[]) => void;
@@ -101,6 +104,7 @@ export function SessionSummary({
   duration,
   isInterviewMode,
   interviewReportJson,
+  conversationReport,
   onRestart,
   onExit,
   onReviewErrors,
@@ -142,6 +146,27 @@ export function SessionSummary({
   // nhãn "tự đánh giá nhanh" thay vì "rubric chấm điểm" để không giả danh chấm điểm chính thức.
   const MIN_TURNS_FOR_SCORE = 3;
   const showScore = hasAiReport || totalExchanges >= MIN_TURNS_FOR_SCORE;
+
+  // GR-1: báo cáo AI THẬT cho COMMUNICATION/LESSON (khác luồng interview). Khi có, thay hẳn khối
+  // heuristic bịa. Điểm /10 (KHÔNG scale). convHasContent (parity mobile ConversationSummary) = có bất
+  // kỳ nội dung nào; nếu report rỗng (0 lượt) thì hiện lời chúc mừng thay Card trống.
+  const hasConversationReport = !isInterviewMode && conversationReport != null;
+  const convScore = conversationReport?.overallScore != null
+    ? Math.round(conversationReport.overallScore * 10) / 10
+    : null;
+  const convHasGrammar =
+    !!conversationReport?.grammarAccuracy || (conversationReport?.commonErrors.length ?? 0) > 0;
+  const convHasContent =
+    hasConversationReport &&
+    (convScore != null ||
+      !!conversationReport?.summary ||
+      (conversationReport?.strengths.length ?? 0) > 0 ||
+      (conversationReport?.improvements.length ?? 0) > 0 ||
+      convHasGrammar ||
+      !!conversationReport?.vocabulary ||
+      !!conversationReport?.fluency ||
+      (conversationReport?.recommendedNext.length ?? 0) > 0 ||
+      !!conversationReport?.encouragement);
 
   // Animated score counter
   const [animScore, setAnimScore] = useState(0);
@@ -187,37 +212,56 @@ export function SessionSummary({
       {/* Stats */}
       <div className="rounded-[20px] p-4 sm:p-5" style={glass}>
         <div className="flex flex-col items-center gap-4 sm:flex-row sm:gap-5">
-          {/* Circular — chỉ hiện điểm khi đủ dữ liệu (R-G1); nếu không, mời nói thêm */}
+          {/* Điểm: report AI thật (/10) > vòng heuristic (/100) > mời nói thêm (min-turn guard, R-G1) */}
           <div className="relative flex-shrink-0">
-            {showScore ? (
-              <>
-                <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
-                  <defs>
-                    <linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor={CYAN} /><stop offset="100%" stopColor={PURPLE} />
-                    </linearGradient>
-                  </defs>
-                  <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="var(--ga-line)" strokeWidth={10} />
-                  <motion.circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="url(#scoreGrad)" strokeWidth={10}
-                    strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={animOffset}
-                     />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-ga-ink font-bold text-3xl leading-none">{animScore}</span>
-                  <span className="text-[10px] font-semibold mt-0.5" style={{ color: "var(--ga-subtle)" }}>/ 100</span>
+            {(() => {
+              // Báo cáo AI thật cho COMMUNICATION/LESSON: điểm /10, chỉ hiện khi đủ lượt (showScore).
+              if (hasConversationReport && convScore != null && showScore) {
+                return (
+                  <div
+                    className="flex flex-col items-center justify-center rounded-full text-center"
+                    style={{ width: size, height: size, background: "var(--ga-surface)", border: "1px solid var(--ga-line)" }}
+                  >
+                    <span className="text-ga-ink font-bold text-4xl leading-none">{convScore}</span>
+                    <span className="text-[11px] font-semibold mt-1" style={{ color: "var(--ga-subtle)" }}>điểm / 10</span>
+                  </div>
+                );
+              }
+              // Heuristic /100 (chỉ khi KHÔNG có report AI) — giữ hành vi cũ.
+              if (!hasConversationReport && showScore) {
+                return (
+                  <>
+                    <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
+                      <defs>
+                        <linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stopColor={CYAN} /><stop offset="100%" stopColor={PURPLE} />
+                        </linearGradient>
+                      </defs>
+                      <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="var(--ga-line)" strokeWidth={10} />
+                      <motion.circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="url(#scoreGrad)" strokeWidth={10}
+                        strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={animOffset}
+                         />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-ga-ink font-bold text-3xl leading-none">{animScore}</span>
+                      <span className="text-[10px] font-semibold mt-0.5" style={{ color: "var(--ga-subtle)" }}>/ 100</span>
+                    </div>
+                  </>
+                );
+              }
+              // Chưa đủ lượt để chấm điểm → mời nói thêm.
+              return (
+                <div
+                  className="flex flex-col items-center justify-center rounded-full text-center px-4"
+                  style={{ width: size, height: size, background: "var(--ga-surface)", border: "1px solid var(--ga-line)" }}
+                >
+                  <span className="text-2xl leading-none mb-1">💬</span>
+                  <span className="text-[11px] font-medium leading-tight" style={{ color: "var(--ga-muted)" }}>
+                    Nói thêm vài câu<br />để nhận đánh giá
+                  </span>
                 </div>
-              </>
-            ) : (
-              <div
-                className="flex flex-col items-center justify-center rounded-full text-center px-4"
-                style={{ width: size, height: size, background: "var(--ga-surface)", border: "1px solid var(--ga-line)" }}
-              >
-                <span className="text-2xl leading-none mb-1">💬</span>
-                <span className="text-[11px] font-medium leading-tight" style={{ color: "var(--ga-muted)" }}>
-                  Nói thêm vài câu<br />để nhận đánh giá
-                </span>
-              </div>
-            )}
+              );
+            })()}
           </div>
           {/* Stats grid */}
           <div className="w-full grid grid-cols-2 gap-2.5 sm:w-auto sm:flex-1">
@@ -352,8 +396,120 @@ export function SessionSummary({
         </div>
       )}
 
+      {/* GR-1: BÁO CÁO AI THẬT cho COMMUNICATION/LESSON (parity mobile ConversationSummary) — thay
+          hẳn khối heuristic bịa khi có. Điểm /10 đã render ở vòng trên; đây là phần nhận xét định tính. */}
+      {hasConversationReport && conversationReport && (
+        <>
+          {conversationReport.summary && (
+            <div className="rounded-[20px] p-4" style={glass}>
+              <p className="text-sm leading-relaxed" style={{ color: "var(--ga-muted)" }}>{conversationReport.summary}</p>
+            </div>
+          )}
+
+          {conversationReport.strengths.length > 0 && (
+            <div className="rounded-[20px] p-4" style={glass}>
+              <div className="flex items-center gap-2 mb-3">
+                <Check size={14} style={{ color: MINT }} />
+                <span className="text-ga-ink font-semibold text-sm">Điểm mạnh</span>
+              </div>
+              {conversationReport.strengths.map((s, i) => (
+                <div key={i} className="flex items-start gap-1.5 mb-1">
+                  <Check size={12} style={{ color: MINT, flexShrink: 0, marginTop: 3 }} />
+                  <span className="text-xs" style={{ color: "var(--ga-muted)" }}>{s}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {conversationReport.improvements.length > 0 && (
+            <div className="rounded-[20px] p-4" style={glass}>
+              <div className="flex items-center gap-2 mb-3">
+                <AlertTriangle size={14} style={{ color: CORAL }} />
+                <span className="text-ga-ink font-semibold text-sm">Cần cải thiện</span>
+              </div>
+              {conversationReport.improvements.map((s, i) => (
+                <div key={i} className="flex items-start gap-1.5 mb-1">
+                  <AlertTriangle size={12} style={{ color: CORAL, flexShrink: 0, marginTop: 3 }} />
+                  <span className="text-xs" style={{ color: "var(--ga-muted)" }}>{s}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {convHasGrammar && (
+            <div className="rounded-[20px] p-4" style={glass}>
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="flex items-center gap-2">
+                  <Zap size={14} style={{ color: PURPLE }} />
+                  <span className="text-ga-ink font-semibold text-sm">Ngữ pháp</span>
+                </div>
+                {conversationReport.grammarAccuracy && (
+                  <span className="text-xs font-bold" style={{ color: PURPLE }}>{conversationReport.grammarAccuracy}</span>
+                )}
+              </div>
+              {conversationReport.commonErrors.map((s, i) => (
+                <div key={i} className="flex items-start gap-1.5 mb-1">
+                  <AlertTriangle size={12} style={{ color: CORAL, flexShrink: 0, marginTop: 3 }} />
+                  <span className="text-xs" style={{ color: "var(--ga-muted)" }}>{s}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {(conversationReport.vocabulary || conversationReport.fluency) && (
+            <div className="rounded-[20px] p-4 space-y-2" style={glass}>
+              {conversationReport.vocabulary && (
+                <div className="flex items-start gap-2">
+                  <BookOpen size={14} style={{ color: CYAN, flexShrink: 0, marginTop: 2 }} />
+                  <span className="text-xs leading-relaxed" style={{ color: "var(--ga-muted)" }}>{conversationReport.vocabulary}</span>
+                </div>
+              )}
+              {conversationReport.fluency && (
+                <div className="flex items-start gap-2">
+                  <Sparkles size={14} style={{ color: AMBER, flexShrink: 0, marginTop: 2 }} />
+                  <span className="text-xs leading-relaxed" style={{ color: "var(--ga-muted)" }}>{conversationReport.fluency}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {conversationReport.recommendedNext.length > 0 && (
+            <div className="rounded-[20px] p-4" style={glass}>
+              <div className="flex items-center gap-2 mb-3">
+                <Target size={14} style={{ color: AMBER }} />
+                <span className="text-ga-ink font-semibold text-sm">Luyện tiếp theo</span>
+              </div>
+              {conversationReport.recommendedNext.map((s, i) => (
+                <div key={i} className="flex items-start gap-1.5 mb-1">
+                  <Target size={12} style={{ color: AMBER, flexShrink: 0, marginTop: 3 }} />
+                  <span className="text-xs" style={{ color: "var(--ga-muted)" }}>{s}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {conversationReport.encouragement && (
+            <div className="rounded-[20px] p-4" style={{ ...glass, background: "rgba(34,211,238,0.06)", border: `1px solid ${CYAN}22` }}>
+              <div className="flex items-start gap-2">
+                <Sparkles size={14} style={{ color: AMBER, flexShrink: 0, marginTop: 1 }} />
+                <p className="text-sm leading-relaxed" style={{ color: "var(--ga-ink)" }}>{conversationReport.encouragement}</p>
+              </div>
+            </div>
+          )}
+
+          {!convHasContent && (
+            <div className="rounded-[20px] p-4 text-center" style={glass}>
+              <p className="text-sm leading-relaxed" style={{ color: "var(--ga-muted)" }}>
+                Buổi luyện nói đã hoàn thành! 🎉<br />
+                Lần này chưa có đánh giá chi tiết, nhưng mỗi câu bạn nói đều là một bước tiến. Tiếp tục luyện nhé!
+              </p>
+            </div>
+          )}
+        </>
+      )}
+
       {/* Chưa đủ dữ liệu để chấm — mời nói thêm thay vì hiện điểm ảo (R-G1) */}
-      {!hasAiReport && !showScore && (
+      {!hasAiReport && !hasConversationReport && !showScore && (
         <div className="rounded-[20px] p-4 flex items-start gap-3" style={glass}>
           <MessageSquare size={16} style={{ color: CYAN, flexShrink: 0, marginTop: 2 }} />
           <div>
@@ -367,7 +523,7 @@ export function SessionSummary({
       )}
 
       {/* Tự đánh giá nhanh (phiên không có báo cáo AI, đã đủ số câu) — KHÔNG phải chấm điểm chính thức */}
-      {!hasAiReport && showScore && (
+      {!hasAiReport && !hasConversationReport && showScore && (
         <div className="rounded-[20px] overflow-hidden" style={glass}>
           <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ borderColor: "var(--ga-line)" }}>
             <Star size={14} style={{ color: AMBER }} />

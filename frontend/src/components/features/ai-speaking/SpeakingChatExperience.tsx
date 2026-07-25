@@ -103,6 +103,7 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
     pendingRepairGate,
     setPendingRepairGate,
     setInterviewReportJson,
+    setConversationReport,
     clearChat,
     returnPath,
   } = useChatStore();
@@ -348,6 +349,17 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
             setServerDurationSec(Math.round(ms / 1000));
           }
         }
+        // GR-1 (R-G1/R-G7): phiên COMMUNICATION/LESSON lấy báo cáo AI THẬT (typed) để thay điểm heuristic
+        // bịa. parseReport chỉ đọc JSON đã lưu ở /end (không gọi LLM lại) nên report sẵn sàng ngay.
+        // Lỗi mạng/429 → giữ null → SessionSummary rơi về guard/heuristic cũ (degrade an toàn, không crash).
+        if (sessionMode !== "INTERVIEW") {
+          try {
+            const rep = await aiSpeakingApi.getConversationReport(sid);
+            setConversationReport(rep.data ?? null);
+          } catch {
+            setConversationReport(null);
+          }
+        }
         trackFeatureAction('ai_speaking', 'completed', { mode: sessionMode, messagesCount: messages.length });
       } catch (err) {
         console.error("Failed to end session", err);
@@ -449,6 +461,7 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
             duration={formatTime(serverDurationSec ?? seconds)}
             isInterviewMode={sessionMode === "INTERVIEW"}
             interviewReportJson={useChatStore.getState().interviewReportJson}
+            conversationReport={useChatStore.getState().conversationReport}
             onReviewErrors={async (errors) => {
               await importReviewErrors(errors);
               clearChat();

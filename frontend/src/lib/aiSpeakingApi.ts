@@ -459,6 +459,27 @@ export function chatStream(
   return ctrl
 }
 
+/**
+ * Mirror của backend `ConversationReportDto` — đánh giá AI cuối buổi cho phiên COMMUNICATION/LESSON
+ * (đối trọng conversational của InterviewReport). `overallScore` là thang /10 (KHÔNG scale). Backend
+ * `parseReport` chịu lỗi JSON hỏng/field thiếu → có thể trả DTO rỗng (mọi field null/[]), không throw.
+ */
+export interface ConversationReport {
+  sessionId: number
+  topic: string | null
+  levelEstimate: string | null
+  overallScore: number | null
+  summary: string | null
+  strengths: string[]
+  improvements: string[]
+  grammarAccuracy: string | null
+  commonErrors: string[]
+  vocabulary: string | null
+  fluency: string | null
+  recommendedNext: string[]
+  encouragement: string | null
+}
+
 // ─── API calls ────────────────────────────────────────────────────────────────
 
 export const aiSpeakingApi = {
@@ -521,4 +542,12 @@ export const aiSpeakingApi = {
 
   endSession: (sessionId: number) =>
     api.patch<AiSpeakingSession>(`/ai-speaking/sessions/${sessionId}/end`),
+
+  /**
+   * Báo cáo AI cuối buổi cho phiên COMMUNICATION/LESSON (GR-1). Backend `parseReport` chỉ ĐỌC JSON
+   * đã lưu ở `/end` (không gọi LLM lại), nên report luôn sẵn sàng sau `endSession`. Bucket rate-limit
+   * REPORT riêng. Timeout 30s parity mobile.
+   */
+  getConversationReport: (sessionId: number | string) =>
+    api.get<ConversationReport>(`/ai-speaking/sessions/${sessionId}/report`, { timeout: 30_000 }),
 }

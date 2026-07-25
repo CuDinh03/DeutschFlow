@@ -6,6 +6,7 @@ import type {
   SpeakingResponseSchemaId,
   ErrorItem,
   AdaptiveMeta,
+  ConversationReport,
 } from "@/lib/aiSpeakingApi";
 
 export interface ChatMessage {
@@ -41,6 +42,9 @@ interface ChatState {
   /** Interview mode: interviewReportJson returned from endSession. */
   interviewReportJson: string | null;
   setInterviewReportJson: (json: string | null) => void;
+  /** COMMUNICATION/LESSON: báo cáo AI cuối buổi (typed) lấy từ GET /report sau khi kết thúc (GR-1). */
+  conversationReport: ConversationReport | null;
+  setConversationReport: (report: ConversationReport | null) => void;
 
   /** Interview orchestrator phase key from last AI turn. */
   interviewPhaseKey: string | null;
@@ -107,6 +111,8 @@ export const useChatStore = create<ChatState>((set) => ({
 
   interviewReportJson: null,
   setInterviewReportJson: (json) => set({ interviewReportJson: json }),
+  conversationReport: null,
+  setConversationReport: (report) => set({ conversationReport: report }),
 
   interviewPhaseKey: null,
   interviewHintKey: null,
@@ -166,6 +172,7 @@ export const useChatStore = create<ChatState>((set) => ({
     sessionMode: null,
     experienceLevel: null,
     interviewReportJson: null,
+    conversationReport: null,
     interviewPhaseKey: null,
     interviewHintKey: null,
     responseSchema: "V1",
