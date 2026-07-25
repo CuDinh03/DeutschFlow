@@ -33,6 +33,10 @@ import java.time.LocalDate;
  * <p>Dùng {@code assertOrgAdmin} (OWNER|MANAGER) chứ không phải {@code assertOrgFinance} (OWNER-only):
  * bảng công chỉ chứa SỐ BUỔI/SỐ PHÚT, không có đơn giá hay thành tiền, nên đây là dữ liệu vận hành
  * của MANAGER. Nếu sau này gắn tiền vào thì phải đổi sang {@code assertOrgFinance}.
+ *
+ * <p><b>Ngoại lệ: {@code /lock} là OWNER-only</b> ({@code assertOrgOwner} trong service). Khoá kỳ là
+ * chữ ký chốt sổ cuối cùng — số sau đó rời hệ thống thành tiền lương — nên nó thuộc giám đốc trung
+ * tâm, không phải người duyệt hằng ngày. Duyệt/trả lại vẫn là việc của MANAGER.
  */
 @RestController
 @RequestMapping("/api/org/timesheet")
@@ -76,6 +80,7 @@ public class OrgTimesheetController {
         return periodService.reject(actor.getId(), requireOrgId(actor), periodId, req.reason());
     }
 
+    /** OWNER-only (xem javadoc class): giám đốc trung tâm là người chốt sổ cuối cùng. */
     @PostMapping("/periods/{periodId}/lock")
     public PeriodDto lock(@AuthenticationPrincipal User actor, @PathVariable Long periodId) {
         return periodService.lock(actor.getId(), requireOrgId(actor), periodId);

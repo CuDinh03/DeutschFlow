@@ -488,6 +488,7 @@
       "rejectSuccess": "Zeitraum zurückgegeben.",
       "lockSuccess": "Zeitraum gesperrt.",
       "lockHint": "Das Sperren ist endgültig. Exportieren Sie die Daten vorher für die Lohnbuchhaltung.",
+      "lockOwnerOnly": "Wartet auf Sperrung durch Leitung",
       "statusOPEN": "Offen",
       "statusSUBMITTED": "Zur Prüfung",
       "statusAPPROVED": "Freigegeben",

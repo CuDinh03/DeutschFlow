@@ -16,6 +16,7 @@ import {
   type PeriodStatus,
 } from '@/lib/timesheetApi'
 import { GaPageHdr, GaBtn, GaCap, TkBadge, TkModal, LoadingState, ErrorBanner } from '@/components/ui-v2'
+import { useIsOrgOwner } from '../OwnerOnly'
 
 /**
  * Tổng hợp chấm công toàn trung tâm — OWNER và MANAGER.
@@ -23,6 +24,9 @@ import { GaPageHdr, GaBtn, GaCap, TkBadge, TkModal, LoadingState, ErrorBanner } 
  * Chỉ hiển thị SỐ CÔNG (số buổi, số giờ). Đơn giá và thành tiền cố ý không có trong hệ thống, nên
  * màn hình này không cần quyền tài chính (`assertOrgFinance`, OWNER-only) — backend gác bằng
  * `assertOrgAdmin` (OWNER|MANAGER).
+ *
+ * Ngoại lệ duy nhất: **khoá kỳ là OWNER-only** (`assertOrgOwner`). MANAGER duyệt/trả lại như cũ
+ * nhưng thấy chú thích thay cho nút khoá — chốt sổ là chữ ký cuối của giám đốc trung tâm.
  */
 
 const STATUS_TONE: Record<PeriodStatus, 'neutral' | 'yellow' | 'green' | 'red' | 'navy'> = {
@@ -46,6 +50,7 @@ function defaultRange(): { from: string; to: string } {
 export default function OrgTimesheetsPage() {
   const t = useTranslations('v2.org.timesheets')
   const initial = useMemo(defaultRange, [])
+  const isOwner = useIsOrgOwner()
 
   const [from, setFrom] = useState(initial.from)
   const [to, setTo] = useState(initial.to)
@@ -226,11 +231,18 @@ export default function OrgTimesheetsPage() {
                                 </GaBtn>
                               </>
                             )}
-                            {p.status === 'APPROVED' && (
+                            {/* Kỳ đã duyệt: chỉ giám đốc thấy nút khoá. `null` = chưa biết vai trò
+                                (hydration) → chưa vẽ nhánh nào, tránh nháy nút sai vai. */}
+                            {p.status === 'APPROVED' && isOwner === true && (
                               <GaBtn size="sm" disabled={actingId === p.id} title={t('lockHint')}
                                 onClick={() => void runAction(p, () => lockPeriod(p.id), 'lockSuccess')}>
                                 {t('lock')}
                               </GaBtn>
+                            )}
+                            {p.status === 'APPROVED' && isOwner === false && (
+                              <span className="text-[11.5px] leading-tight text-ga-muted">
+                                {t('lockOwnerOnly')}
+                              </span>
                             )}
                           </div>
                         </Td>
