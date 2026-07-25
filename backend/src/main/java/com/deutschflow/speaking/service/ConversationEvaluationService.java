@@ -10,6 +10,7 @@ import com.deutschflow.speaking.dto.ConversationReportDto;
 import com.deutschflow.speaking.entity.AiSpeakingMessage;
 import com.deutschflow.speaking.entity.AiSpeakingSession;
 import com.deutschflow.speaking.repository.AiSpeakingMessageRepository;
+import com.deutschflow.teacher.service.GradingModelConfig;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +42,7 @@ public class ConversationEvaluationService {
     private final QuotaService quotaService;
     private final AiUsageLedgerService ledgerService;
     private final ObjectMapper objectMapper;
+    private final GradingModelConfig gradingModelConfig;
 
     /** Generates the evaluation JSON for a conversation/lesson session. Null when there is nothing to assess. */
     public String generateReport(AiSpeakingSession session, Long userId) {
@@ -61,11 +63,15 @@ public class ConversationEvaluationService {
                     new ChatMessage("user", "Hãy đánh giá buổi luyện nói dựa trên toàn bộ cuộc hội thoại ở trên và xuất kết quả dưới dạng JSON.")
             );
 
-            var snapshot = quotaService.assertAllowed(userId, Instant.now(), 1L);
-            int maxTokens = (int) Math.max(1L, Math.min(EVAL_MAX_TOKENS, snapshot.remainingThisMonth()));
+            // Audit 24/07 R-G5: KHÔNG kẹp maxTokens theo quota còn lại nữa. Trước đây
+            // min(1000, remainingThisMonth) khiến user gần cạn quota nhận JSON cụt → parse fail
+            // → report rỗng im lặng NHƯNG token vẫn bị trừ. Report cuối phiên chạy đúng 1 lần;
+            // assertAllowed dưới đây đã chặn user thực sự hết quota, nên cấp trọn ngân sách token
+            // cố định để JSON luôn đóng đủ. R-G6: dùng MODEL CHẤM (gpt-oss-120b) thay model nói.
+            quotaService.assertAllowed(userId, Instant.now(), 1L);
 
             AiChatCompletionResult result = openAiChatClient.chatCompletion(
-                    aiMessages, null, EVAL_TEMPERATURE, maxTokens);
+                    aiMessages, gradingModelConfig.model(), EVAL_TEMPERATURE, EVAL_MAX_TOKENS);
 
             if (result.usage() != null) {
                 ledgerService.record(userId, result.provider(), result.model(),

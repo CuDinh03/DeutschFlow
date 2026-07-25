@@ -113,7 +113,7 @@ public class AIGrammarController {
         if (!aiRateLimiterService.allow(AiRateLimiterService.Bucket.TEXT, user.getId())) {
             throw new RateLimitExceededException(
                     "Too many AI requests. Please slow down.",
-                    aiRateLimiterService.retryAfterSeconds(AiRateLimiterService.Bucket.TEXT));
+                    aiRateLimiterService.retryAfterSeconds(AiRateLimiterService.Bucket.TEXT, user.getId()));
         }
     }
 }

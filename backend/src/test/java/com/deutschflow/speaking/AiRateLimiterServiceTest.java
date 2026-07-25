@@ -67,10 +67,36 @@ class AiRateLimiterServiceTest {
     }
 
     @Test
-    @DisplayName("retryAfter exposes the configured window for the client")
+    @DisplayName("retryAfter (legacy, deprecated) exposes the configured window for the client")
     void retryAfterExposed() {
         var limiter = limiter(60, 3600);
         assertThat(limiter.retryAfterSeconds(Bucket.TRANSCRIBE)).isEqualTo(3600);
+    }
+
+    @Test
+    @DisplayName("per-user retryAfter phản ánh thời điểm slot mở, KHÔNG trả cả window (R-B6)")
+    void retryAfterPerUserReflectsOldestHit() {
+        // window 3600s, max 1: sau hit đầu, slot chỉ mở lại khi hit cũ nhất rời cửa sổ ⇒ ~3600s,
+        // nhưng KHÔNG được vượt window và phải > 0. Quan trọng: với user CHƯA hit thì trả 1 (không 3600).
+        var limiter = limiter(1, 3600);
+
+        // Chưa có hit nào cho user 2 → không khoá oan 1 giờ.
+        assertThat(limiter.retryAfterSeconds(Bucket.TRANSCRIBE, 2L)).isEqualTo(1);
+
+        assertThat(limiter.allow(Bucket.TRANSCRIBE, 1L)).isTrue();
+        int retry = limiter.retryAfterSeconds(Bucket.TRANSCRIBE, 1L);
+        // Vừa hit xong nên còn gần trọn cửa sổ, nhưng phải nằm trong (0, window].
+        assertThat(retry).isGreaterThan(0).isLessThanOrEqualTo(3600);
+    }
+
+    @Test
+    @DisplayName("per-user retryAfter ngắn khi window nhỏ")
+    void retryAfterShortWindow() {
+        var limiter = limiter(1, 5);
+        assertThat(limiter.allow(Bucket.CHAT, 7L)).isTrue();
+        // Cửa sổ 5s: retry phải ≤ 5s (trước đây trả nguyên window bất kể — vẫn ≤ window, nhưng đây
+        // chốt rằng giá trị bám theo window nhỏ chứ không phải một hằng 3600 nào đó).
+        assertThat(limiter.retryAfterSeconds(Bucket.CHAT, 7L)).isBetween(1, 5);
     }
 
     @Test

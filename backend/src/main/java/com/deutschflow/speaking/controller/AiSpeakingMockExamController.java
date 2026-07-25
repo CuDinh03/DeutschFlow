@@ -229,7 +229,7 @@ public class AiSpeakingMockExamController {
         if (!aiRateLimiterService.allow(com.deutschflow.speaking.AiRateLimiterService.Bucket.EVAL, userId)) {
             throw new com.deutschflow.common.exception.RateLimitExceededException(
                     "Too many evaluations. Please slow down.",
-                    aiRateLimiterService.retryAfterSeconds(com.deutschflow.speaking.AiRateLimiterService.Bucket.EVAL));
+                    aiRateLimiterService.retryAfterSeconds(com.deutschflow.speaking.AiRateLimiterService.Bucket.EVAL, userId));
         }
     }
 }
