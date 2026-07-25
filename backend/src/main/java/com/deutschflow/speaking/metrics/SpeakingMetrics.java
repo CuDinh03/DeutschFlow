@@ -72,6 +72,24 @@ public class SpeakingMetrics {
     }
 
     /**
+     * Một lượt AI hỏng, đếm theo {@link com.deutschflow.speaking.exception.AiErrorCode}.
+     *
+     * <p>Audit speaking 24/07 (R-M6 / §7.6): đêm 23/07 không ai biết prod đang 503 hàng loạt cho tới
+     * khi người dùng chụp màn hình gửi. {@code http.server.requests{status=503}} của Spring Boot chỉ
+     * cho biết CÓ 503, không cho biết vì sao — nghẽn cục bộ (AI_BUSY), upstream chết
+     * (AI_UPSTREAM_UNAVAILABLE) hay chưa cấu hình (AI_NOT_CONFIGURED) đòi ba cách xử lý khác nhau.
+     * Counter này tách chúng ra để đặt cảnh báo đúng chỗ (ngưỡng xem runbook §Observability).
+     *
+     * @param code mã lỗi máy-đọc-được, đã có sẵn trên mọi AiServiceException
+     * @param endpoint URI mẫu (không phải URI thật có id) để tránh nổ cardinality của Prometheus
+     */
+    public void recordAiFailure(String code, String endpoint) {
+        registry.counter("speaking.ai.failures",
+                "code", code == null ? "unknown" : code,
+                "endpoint", endpoint == null ? "unknown" : endpoint).increment();
+    }
+
+    /**
      * A learner's grammar mistake failed to persist — the SRS review signal was LOST for this turn.
      * {@code kind} = "structured" | "legacy". Alert if this counter is ever non-trivial.
      */

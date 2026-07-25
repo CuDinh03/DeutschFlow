@@ -2,6 +2,7 @@ import axios, { type AxiosError, type AxiosResponse } from 'axios'
 import { Platform } from 'react-native'
 import { API_BASE_URL } from './constants'
 import { getAccessToken, getRefreshToken, setTokens, clearTokens } from './auth'
+import { reportApiError } from './observability'
 import { router } from 'expo-router'
 
 export function isAxiosErr(e: unknown): e is AxiosError {
@@ -17,6 +18,37 @@ export function isTransientFailure(err: unknown): boolean {
   if (!isAxiosErr(err)) return false
   const status = err.response?.status
   return status == null || status >= 500
+}
+
+/**
+ * Mã lỗi máy-đọc-được backend gửi trong `extensions.code` của ProblemDetail (AI_BUSY,
+ * QUOTA_EXCEEDED, STT_FAILED…). Dùng làm tag telemetry, KHÔNG dùng để hiển thị.
+ */
+export function apiErrorCode(e: unknown): string | undefined {
+  if (!isAxiosErr(e)) return undefined
+  const d = e.response?.data
+  if (!d || typeof d !== 'object') return undefined
+  const code = (d as Record<string, unknown>).code
+  return typeof code === 'string' && code.trim() ? code : undefined
+}
+
+/**
+ * Nhãn status cho telemetry: mã HTTP, hoặc `timeout`/`network` khi không có response — hai ca này
+ * chiếm phần lớn sự cố đêm 23/07 nhưng không có mã HTTP nào để đếm.
+ */
+export function apiStatusLabel(e: unknown): string {
+  if (!isAxiosErr(e)) return 'unknown'
+  if (e.response) return String(e.response.status)
+  if (e.code === 'ECONNABORTED' || e.code === 'ETIMEDOUT' || /timeout/i.test(e.message ?? '')) {
+    return 'timeout'
+  }
+  return 'network'
+}
+
+/** `/ai-speaking/sessions/8421/chat` → `/ai-speaking/sessions/{id}/chat` (gộp tag, tránh nổ cardinality). */
+export function normalizeEndpoint(url: string | undefined): string {
+  if (!url) return 'unknown'
+  return url.split('?')[0].replace(/\/\d+/g, '/{id}')
 }
 
 /**
@@ -54,6 +86,35 @@ export function apiMessage(e: unknown): string {
   }
   if (e instanceof Error) return e.message
   return 'Lỗi không xác định'
+}
+
+/**
+ * Gửi lỗi API tới Sentry — MỘT chỗ duy nhất phủ toàn bộ call-site, cùng triết lý với `apiMessage`
+ * (R-M1 vá một dòng, sạch cả 79 Alert). Rải `captureException` vào từng catch màn hình vừa bỏ sót
+ * vừa đếm trùng khi một lỗi đi qua nhiều lớp.
+ *
+ * Lọc có chủ đích — chỉ báo cáo thứ phản ánh sức khoẻ hệ thống:
+ *  • mất mạng / timeout: chiếm phần lớn sự cố đêm 23/07, không có mã HTTP nào để đếm;
+ *  • 5xx: lỗi phía server;
+ *  • 429: chạm trần quota/rate-limit — cần biết tần suất để chỉnh hạn mức.
+ * BỎ QUA 401 (đường refresh token tự xử lý) và 4xx còn lại (server từ chối có chủ đích:
+ * sai định dạng, không đủ quyền…) — đưa vào chỉ làm nhiễu tín hiệu.
+ */
+export function shouldReportApiFailure(error: unknown): boolean {
+  if (!isAxiosErr(error)) return false
+  const status = error.response?.status
+  return status == null || status >= 500 || status === 429
+}
+
+function reportApiFailure(error: AxiosError): void {
+  if (!shouldReportApiFailure(error)) return
+
+  reportApiError(error, {
+    endpoint: normalizeEndpoint(error.config?.url),
+    method: error.config?.method?.toUpperCase() ?? 'UNKNOWN',
+    status: apiStatusLabel(error),
+    aiCode: apiErrorCode(error),
+  })
 }
 
 const api = axios.create({
@@ -104,6 +165,11 @@ api.interceptors.response.use(
       await new Promise((resolve) => setTimeout(resolve, 700))
       return api(transientCfg)
     }
+
+    // Báo cáo SAU nhánh retry: một GET hỏng thoáng qua rồi thử lại thành công thì người dùng
+    // không thấy lỗi nào — đếm nó vào telemetry sẽ thổi phồng tần suất sự cố. Lượt thử lại nếu
+    // hỏng tiếp sẽ quay lại chính interceptor này và được báo cáo đúng một lần.
+    reportApiFailure(error)
 
     const original = error.config as typeof error.config & { _retry?: boolean }
     if (error.response?.status !== 401 || original?._retry) {

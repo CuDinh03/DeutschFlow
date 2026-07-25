@@ -41,6 +41,18 @@ public class GlobalExceptionHandler {
     /** Monotonic counter to correlate a client-facing error reference with the server log. */
     private static final AtomicLong ERROR_SEQ = new AtomicLong();
 
+    /** Số trong URI (id phiên, id lớp…) → `{id}`, nếu không mỗi phiên đẻ một chuỗi tag Prometheus. */
+    private static final java.util.regex.Pattern URI_ID_SEGMENT = java.util.regex.Pattern.compile("/\\d+");
+
+    /**
+     * Đếm lỗi AI theo mã (R-M6). Field injection có chủ ý, KHÔNG phải constructor: lớp này được
+     * {@code new GlobalExceptionHandler()} trực tiếp ở 5 chỗ trong test (standalone MockMvc), và
+     * thêm constructor thứ hai chính là thứ vừa làm cả ApplicationContext không load ở PR #264.
+     * {@code required = false} ⇒ null trong test, mọi lần ghi metric đều đi qua null-check.
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.deutschflow.speaking.metrics.SpeakingMetrics speakingMetrics;
+
     // --- 400 Bad Request ---
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ProblemDetail> handleBadRequest(BadRequestException ex,
@@ -233,6 +245,7 @@ public class GlobalExceptionHandler {
         if (retryAfter != null) {
             ext.put("retryAfterSeconds", retryAfter);
         }
+        recordAiFailure(ex.getCode().name(), request.getRequestURI());
         var body = new ProblemDetail(
                 BASE_TYPE + "ai-unavailable",
                 "AI Service Unavailable",
@@ -339,6 +352,22 @@ public class GlobalExceptionHandler {
     }
 
     // --- builder ---
+    /** Ghi nhận một lỗi AI để đo tần suất theo mã; im lặng khi chạy ngoài Spring (test standalone). */
+    private void recordAiFailure(String code, String requestUri) {
+        if (speakingMetrics == null) {
+            return;
+        }
+        speakingMetrics.recordAiFailure(code, normalizeUri(requestUri));
+    }
+
+    /** {@code /api/ai-speaking/sessions/8421/chat} → {@code /api/ai-speaking/sessions/{id}/chat}. */
+    static String normalizeUri(String uri) {
+        if (uri == null || uri.isBlank()) {
+            return "unknown";
+        }
+        return URI_ID_SEGMENT.matcher(uri).replaceAll("/{id}");
+    }
+
     private ResponseEntity<ProblemDetail> problem(HttpStatus status,
                                                   String errorCode,
                                                   String title,

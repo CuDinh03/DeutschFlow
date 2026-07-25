@@ -137,3 +137,66 @@ Các bước (PostHog dashboard → Feature flags):
 - [ ] **Compliance trước submit** (Mốc 6): UI xoá tài khoản (`DELETE /api/profile/me` đã có), App Privacy labels, quyết ATT (PostHog), `NSMicrophoneUsageDescription` (đã khai), screenshots, demo account, privacy-policy URL.
 
 Backend đã sẵn cho IAP: `AppleIapController` (`/verify`,`/sync`,`/notifications`,`/account-token`,`/products`) + `AppleIapService` — chỉ chờ tạo product + ký client StoreKit (M5.4).
+
+---
+
+## 6. Observability — cảnh báo sự cố AI (thêm 26/07, audit speaking R-M6/§7.6)
+
+> **Vì sao có mục này:** đêm 23/07 prod trả 503 hàng loạt suốt ~6 phút và **không ai biết** cho tới khi người dùng chụp màn hình gửi. Metric đã có nhưng không ai đặt ngưỡng — nên phần này là *ngưỡng + người nhận*, không phải chỉ tên metric.
+
+### 6.1 Metric hiện có
+
+| Metric | Nguồn | Nói lên điều gì |
+|---|---|---|
+| `speaking_ai_failures_total{code,endpoint}` | `SpeakingMetrics.recordAiFailure`, ghi ở `GlobalExceptionHandler` cho **mọi** `AiServiceException` | **Vì sao** lỗi: `AI_BUSY` (nghẽn cục bộ) · `AI_UPSTREAM_UNAVAILABLE` (Groq chết) · `AI_TIMEOUT` · `STT_FAILED` · `AI_NOT_CONFIGURED` (thiếu env). `endpoint` đã gộp id (`/sessions/{id}/chat`) |
+| `http_server_requests_seconds_count{status="503"}` | Spring Boot | **Có** 503 hay không — không nói vì sao |
+| `resilience4j_circuitbreaker_state{name="groqChat"}` | resilience4j | breaker đã mở chưa |
+| `speaking_chat_requests_total{kind,status}` | có sẵn | lưu lượng lượt nói |
+
+Tất cả ở `/actuator/prometheus` (ADMIN-gated ở prod, xem `SecurityConfig`).
+
+### 6.2 Ngưỡng cảnh báo đề xuất
+
+```yaml
+# Groq/upstream chết — đây là chùm triệu chứng đêm 23/07
+- alert: SpeakingAiUpstreamFailing
+  expr: sum(rate(speaking_ai_failures_total{code="AI_UPSTREAM_UNAVAILABLE"}[5m])) > 0.2
+  for: 3m          # ~1 lỗi/5s liên tục 3 phút — bỏ qua nhiễu lẻ tẻ
+  severity: page
+
+# Nghẽn cục bộ: semaphore hết permit. Khác hẳn ca trên — Groq vẫn sống, ta thiếu permit.
+- alert: SpeakingAiSaturated
+  expr: sum(rate(speaking_ai_failures_total{code="AI_BUSY"}[5m])) > 0.1
+  for: 5m
+  severity: warn   # cân nhắc nâng app.ai.groq.max-concurrent-chat-requests
+
+# Breaker mở = mọi user đang bị từ chối ngay lập tức
+- alert: SpeakingBreakerOpen
+  expr: resilience4j_circuitbreaker_state{name="groqChat",state="open"} == 1
+  for: 1m
+  severity: page
+
+# Thiếu env sau deploy — bắt được ngay thay vì chờ user báo
+- alert: SpeakingAiNotConfigured
+  expr: increase(speaking_ai_failures_total{code="AI_NOT_CONFIGURED"}[10m]) > 0
+  for: 0m
+  severity: page
+```
+
+**Người nhận:** chưa có on-call → đặt nhận qua email/Telegram của owner. Alert không có người nhận thì bằng không có alert.
+
+### 6.3 Phía mobile (Sentry)
+
+`lib/api.ts` báo cáo lỗi API tại **interceptor** — một chỗ phủ toàn bộ call-site. Chỉ gửi 5xx / 429 / timeout / mất mạng; **bỏ qua** 401 (đường refresh tự xử lý) và 4xx từ chối có chủ đích. Tag: `endpoint` (đã gộp id), `method`, `status` (`503`/`timeout`/`network`), `ai_code` (`extensions.code` của backend). Không gửi thân request/response — chúng chứa câu nói của người học.
+
+⚠️ **Chưa bật:** `extra.sentryDsn` còn rỗng ⇒ toàn bộ đường telemetry là no-op. Trước khi đặt DSN thật phải verify bản **Release trên iPhone thật** không crash lúc khởi động (xem đầu `lib/observability.ts` — lỗi SIGABRT của @sentry/react-native 7.2.0 chỉ tái hiện trên release + New Arch).
+
+### 6.4 Kiểm chứng sau deploy
+
+```bash
+# 1. Counter đã xuất hiện (sau khi có ít nhất một lỗi AI)
+curl -s -u admin:<pw> https://<backend>/actuator/prometheus | grep speaking_ai_failures
+
+# 2. Ép một lỗi AI_NOT_CONFIGURED trên staging: bỏ trống GROQ_API_KEY rồi gọi thử một lượt nói,
+#    xác nhận counter tăng đúng code và alert bắn.
+```
