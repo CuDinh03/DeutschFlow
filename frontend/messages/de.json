@@ -672,6 +672,8 @@
     "weeklyAlreadySubmitted": "Du hast diese Woche schon abgegeben.",
     "weeklyRecordingHint": "Aufnahme… Mikro erneut tippen zum Stoppen.",
     "weeklyNoPrompt": "Kein wöchentliches Thema für dein Level. Anderes CEFR wählen oder später erneut prüfen.",
+    "weeklyLoadFailed": "Wochenthema konnte nicht geladen werden. Verbindung prüfen und erneut versuchen.",
+    "weeklyRetry": "Erneut versuchen",
     "weeklyYourTranscript": "Dein eingereichter Text",
     "levelRangeHint": "Freies Sprechen: wählbar von {floor} bis {ceil} nach Lernprofil.",
     "cefrC1Desc": "Fortgeschritten",

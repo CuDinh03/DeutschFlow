@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { mergeTranscriptIntoDraft } from "@/lib/speakingDraft";
 import { useChatStore } from "@/stores/useChatStore";
 import { StreamStatusIndicator } from "@/components/features/ai-speaking/StreamStatusIndicator";
 import { SessionSummary } from "@/components/features/ai-speaking/SessionSummary";
@@ -384,7 +385,9 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
       setMicError(t("errorQuota"));
       return;
     }
-    toggleMic((text) => setInputText(text));
+    // R-W8: transcript về SAU khi người dùng đã gõ tiếp thì không được ghi đè — ghép vào cuối.
+    // Dùng dạng hàm để đọc giá trị mới nhất, tránh closure cũ của lượt bấm mic.
+    toggleMic((text) => setInputText((prev) => mergeTranscriptIntoDraft(prev, text)));
   }, [toggleMic, quotaBlocked, setMicError, t]);
 
   const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
@@ -699,11 +702,18 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
       {/* ── Interview End Popup ─────────────────────────────────── */}
       <AnimatePresence>
         {showEndPopup && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="speaking-end-popup-title"
+            aria-describedby="speaking-end-popup-desc"
+          >
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              aria-hidden
               className="absolute inset-0 backdrop-blur-sm"
               style={{ background: "rgba(22, 21, 19, 0.45)" }}
             />
@@ -718,14 +728,18 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
                 <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-ga-green-soft flex items-center justify-center">
                   <CheckCircle size={32} className="text-ga-green" />
                 </div>
-                <h3 className="font-ga-display text-lg font-medium text-ga-ink mb-2">
+                <h3
+                  id="speaking-end-popup-title"
+                  className="font-ga-display text-lg font-medium text-ga-ink mb-2"
+                >
                   {tChat("interviewEndTitle")}
                 </h3>
-                <p className="ga-ui text-sm text-ga-muted mb-6">
+                <p id="speaking-end-popup-desc" className="ga-ui text-sm text-ga-muted mb-6">
                   {tChat("interviewEndDesc", { name: selectedCompanion.name })}
                 </p>
                 <button
                   onClick={handleEndSession}
+                  autoFocus
                   className="ga-ui w-full py-3.5 rounded-ga bg-ga-ink text-sm font-semibold text-ga-bg transition-opacity hover:opacity-90"
                 >
                   {tChat("interviewEndButton")}

@@ -80,6 +80,8 @@ export function SpeakingChatHeader({
               autoTtsEnabled ? "text-ga-blue bg-ga-blue-soft" : "text-ga-subtle hover:text-ga-ink"
             }`}
             title={autoTtsEnabled ? tChat("autoTtsOff") : tChat("autoTtsOn")}
+            aria-label={autoTtsEnabled ? tChat("autoTtsOff") : tChat("autoTtsOn")}
+            aria-pressed={autoTtsEnabled}
           >
             {autoTtsEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
           </button>

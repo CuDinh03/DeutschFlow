@@ -176,27 +176,42 @@ export default function V2StudentSpeakingHistoryPage() {
   const [messages, setMessages] = useState<SessionMessage[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingMsgs, setLoadingMsgs] = useState(false)
+  /**
+   * R-W10: lỗi tải KHÔNG được biến thành empty-state. Trước đây `.catch(() => setSessions([]))`
+   * khiến một lượt 500 hiện y hệt "bạn chưa có buổi nói nào" — người dùng tưởng mất dữ liệu và
+   * không có nút nào để thử lại.
+   */
+  const [loadFailed, setLoadFailed] = useState(false)
+  const [msgsFailed, setMsgsFailed] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
+    setLoading(true)
+    setLoadFailed(false)
     api
       .get('/ai-speaking/sessions?size=20&sort=startedAt,desc')
       .then((res) => {
         const data = res.data
         setSessions(Array.isArray(data) ? data : (data?.content ?? data?.items ?? []))
       })
-      .catch(() => setSessions([]))
+      .catch(() => {
+        setSessions([])
+        setLoadFailed(true)
+      })
       .finally(() => setLoading(false))
-  }, [])
+  }, [reloadKey])
 
   const openSession = async (sess: SpeakingSession) => {
     setSelected(sess)
     setLoadingMsgs(true)
+    setMsgsFailed(false)
     try {
       const res = await api.get(`/ai-speaking/sessions/${sess.id}/messages`)
       const raw = Array.isArray(res.data) ? res.data : (res.data?.content ?? [])
       setMessages(mapSessionMessages(raw))
     } catch {
       setMessages([])
+      setMsgsFailed(true)   // "buổi nói này rỗng" và "tải hỏng" là hai chuyện khác nhau
     } finally {
       setLoadingMsgs(false)
     }
@@ -243,6 +258,20 @@ export default function V2StudentSpeakingHistoryPage() {
 
               {loading ? (
                 <LoadingState label={t('loading')} />
+              ) : loadFailed ? (
+                <div
+                  role="alert"
+                  className="rounded-ga border border-ga-line bg-ga-card px-4 py-16 text-center lg:px-0"
+                >
+                  <p className="font-ga-display text-[20px] font-medium text-ga-ink">{t('loadFailed')}</p>
+                  <button
+                    type="button"
+                    onClick={() => setReloadKey((v) => v + 1)}
+                    className="ga-ui mt-5 inline-flex items-center gap-1.5 rounded-ga bg-ga-ink px-5 py-2.5 text-[13px] font-semibold text-ga-bg transition-opacity hover:opacity-90"
+                  >
+                    {t('retry')}
+                  </button>
+                </div>
               ) : sessions.length === 0 ? (
                 <div className="rounded-ga border border-ga-line bg-ga-card px-4 py-16 text-center lg:px-0">
                   <Mic size={36} className="mx-auto mb-3 text-ga-subtle" aria-hidden />
@@ -303,6 +332,21 @@ export default function V2StudentSpeakingHistoryPage() {
             </>
           ) : loadingMsgs ? (
             <LoadingState label={t('loadingMessages')} />
+          ) : msgsFailed ? (
+            <div
+              role="alert"
+              className="rounded-ga border border-ga-line bg-ga-card px-4 py-14 text-center lg:px-0"
+            >
+              <MessageSquare size={32} className="mx-auto mb-3 text-ga-subtle" aria-hidden />
+              <p className="ga-ui text-[13.5px] text-ga-muted">{t('loadMessagesFailed')}</p>
+              <button
+                type="button"
+                onClick={() => void openSession(selected)}
+                className="ga-ui mt-4 inline-flex items-center gap-1.5 rounded-ga border border-ga-line px-4 py-2 text-[13px] font-semibold text-ga-ink transition-colors hover:bg-ga-surface"
+              >
+                {t('retry')}
+              </button>
+            </div>
           ) : messages.length === 0 ? (
             <div className="rounded-ga border border-ga-line bg-ga-card px-4 py-14 text-center lg:px-0">
               <MessageSquare size={32} className="mx-auto mb-3 text-ga-subtle" aria-hidden />

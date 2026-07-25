@@ -22,6 +22,13 @@ export function WeeklyChallengeCard({ cefrBand, onSubmitted }: Props) {
   const [expanded, setExpanded] = useState(true);
   const [prompt, setPrompt] = useState<WeeklyPromptResponse | null>(null);
   const [fetched, setFetched] = useState(false);
+  /**
+   * R-W10: phân biệt "tuần này chưa có đề" (404 — trạng thái bình thường) với "tải hỏng"
+   * (500/mất mạng). Trước đây catch chỉ xử lý 404 nên MỌI lỗi khác rơi vào khoảng trống:
+   * `prompt` ở nguyên null ⇒ UI báo "chưa có đề tuần này" trong khi backend đang 500.
+   */
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const [transcript, setTranscript] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -34,6 +41,7 @@ export function WeeklyChallengeCard({ cefrBand, onSubmitted }: Props) {
   useEffect(() => {
     setPrompt(null);
     setFetched(false);
+    setLoadFailed(false);
     setResult(null);
     setTranscript("");
     setSubmitErr(null);
@@ -52,9 +60,10 @@ export function WeeklyChallengeCard({ cefrBand, onSubmitted }: Props) {
       .catch((e: unknown) => {
         if (cancelled) return;
         if (httpStatus(e) === 404) {
-          setPrompt(null);
+          setPrompt(null);   // thật sự chưa có đề cho band này
           return;
         }
+        setLoadFailed(true); // tải hỏng — KHÔNG được hiển thị như "chưa có đề"
       })
       .finally(() => {
         if (!cancelled) setFetched(true);
@@ -63,7 +72,7 @@ export function WeeklyChallengeCard({ cefrBand, onSubmitted }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [cefrBand]);
+  }, [cefrBand, reloadKey]);
 
   useEffect(() => {
     return () => {
@@ -132,6 +141,23 @@ export function WeeklyChallengeCard({ cefrBand, onSubmitted }: Props) {
   }, [prompt, result, weeklyRec, t]);
 
   if (!fetched) return null;
+  if (loadFailed) {
+    return (
+      <div
+        role="alert"
+        className="rounded-[20px] border border-[#E2E8F0] bg-[#F8FAFC] p-6 text-center text-sm text-[#64748B]"
+      >
+        <p>{t("weeklyLoadFailed")}</p>
+        <button
+          type="button"
+          onClick={() => setReloadKey((v) => v + 1)}
+          className="mt-3 rounded-full border border-[#CBD5E1] px-4 py-1.5 text-[13px] font-semibold text-[#334155] transition-colors hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+        >
+          {t("weeklyRetry")}
+        </button>
+      </div>
+    );
+  }
   if (!prompt) {
     return (
       <div className="rounded-[20px] border border-[#E2E8F0] bg-[#F8FAFC] p-6 text-center text-sm text-[#64748B]">

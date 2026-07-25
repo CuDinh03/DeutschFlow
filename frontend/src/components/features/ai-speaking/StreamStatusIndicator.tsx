@@ -28,6 +28,11 @@ export function StreamStatusIndicator({ status, errorMessage, onRetry }: StreamS
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -10 }}
         className="flex flex-col items-center justify-center my-4 gap-2"
+        // A11y (§9): trạng thái stream đổi mà không có thao tác nào của người dùng, nên phải được
+        // đọc lên. `assertive` cho error/stalled — đó là lúc người dùng cần hành động ngay;
+        // `polite` cho các trạng thái tiến trình để không cắt ngang lời AI đang đọc.
+        aria-live={status === "error" || status === "stalled" ? "assertive" : "polite"}
+        aria-atomic="true"
       >
         <div className="ga-ui flex items-center gap-3 px-4 py-2 rounded-ga-pill border border-ga-line bg-ga-card">
           {status === "listening" && (
