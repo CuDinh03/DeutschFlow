@@ -130,6 +130,18 @@ export interface AiSpeakingSession {
   interviewReportJson: string | null
 }
 
+/** Mirrors backend `AiSpeakingQuotaDto` (GET /ai-speaking/quota). */
+export interface AiSpeakingQuota {
+  canStartSession: boolean
+  remainingSpendable: number
+  planCode: string
+}
+
+/** Gói nội bộ không giới hạn — badge số dư nên ẩn thay vì in sentinel 999999999 (audit R-W6/R-M9). */
+export function isUnlimitedQuota(quota: AiSpeakingQuota | null | undefined): boolean {
+  return !!quota && quota.planCode === 'INTERNAL'
+}
+
 /** Mirrors `InterviewReportDto`. */
 export interface InterviewPhaseResult {
   phase: string
@@ -295,6 +307,13 @@ export const speakingApi = {
         params: { size, sort: 'startedAt,desc' },
       })
       .then((r) => r.data.content ?? []),
+
+  /**
+   * Số dư lượt AI của học viên (audit R-M9): hiển thị TRƯỚC khi soạn câu để không đập tường 429 sau
+   * khi đã mất công gõ/ghi âm. Chỉ role học viên mới có ý nghĩa; gói nội bộ trả sentinel unlimited.
+   */
+  getQuota: () =>
+    api.get<AiSpeakingQuota>('/ai-speaking/quota').then((r) => r.data),
 
   /**
    * Server-side TTS (persona voice). Returns base64 MP3 to play via expo-av —

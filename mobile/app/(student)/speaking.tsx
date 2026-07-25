@@ -27,10 +27,12 @@ import { handleAiError } from '@/lib/upsell'
 import { ensureAiConsent } from '@/lib/aiConsent'
 import {
   speakingApi,
+  isUnlimitedQuota,
   type SpeakingSessionMode,
   type AiSpeakingSession,
   type InterviewReport,
   type ConversationReport,
+  type AiSpeakingQuota,
 } from '@/lib/speakingApi'
 import {
   loadActiveSession,
@@ -87,6 +89,16 @@ export default function SpeakingScreen() {
   const [stage, setStage] = useState<StageState>('idle')
   const [reaction, setReaction] = useState<Reaction>(null)
   const [starting, setStarting] = useState(false)
+  const [quota, setQuota] = useState<AiSpeakingQuota | null>(null)
+
+  // R-M9: nạp số dư lượt AI mỗi khi về màn chọn — hiển thị TRƯỚC khi user soạn câu/ghi âm, thay vì để
+  // họ đập tường 429 sau khi đã mất công. Lỗi mạng thì nuốt (pill chỉ ẩn, không chặn luồng).
+  useEffect(() => {
+    if (view !== 'select') return
+    let alive = true
+    speakingApi.getQuota().then((q) => { if (alive) setQuota(q) }).catch(() => {})
+    return () => { alive = false }
+  }, [view])
   const [sending, setSending] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
   const [transcribing, setTranscribing] = useState(false)
@@ -627,6 +639,28 @@ export default function SpeakingScreen() {
                 )}
               </View>
             </Card>
+          </View>
+        ) : null}
+
+        {quota && !isUnlimitedQuota(quota) ? (
+          <View style={{ paddingHorizontal: space[5], paddingTop: space[3] }}>
+            <View
+              style={{
+                alignSelf: 'flex-start',
+                paddingHorizontal: space[3],
+                paddingVertical: space[1],
+                borderRadius: radius.full,
+                backgroundColor: quota.canStartSession ? c.surface : c.dangerSoft,
+                borderWidth: 1,
+                borderColor: quota.canStartSession ? c.border : c.danger,
+              }}
+            >
+              <ThemedText variant="caption" color={quota.canStartSession ? 'muted' : 'danger'}>
+                {quota.canStartSession
+                  ? `Còn ~${Math.max(0, Math.round(quota.remainingSpendable)).toLocaleString('vi-VN')} lượt AI`
+                  : 'Đã dùng hết lượt AI — nâng cấp để tiếp tục'}
+              </ThemedText>
+            </View>
           </View>
         ) : null}
 
