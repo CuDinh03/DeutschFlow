@@ -81,6 +81,19 @@ api.interceptors.response.use(
       console.warn(`[API] ${cfg?.method?.toUpperCase() ?? '?'} ${cfg?.url ?? '?'} → ${status}`, body)
     }
 
+    // MB-4 (audit R-M4): thử lại MỘT lần cho GET idempotent khi lỗi thoáng qua — mất mạng, timeout,
+    // hoặc 502/503 lúc backend cold-start / blue-green deploy. CHỈ GET: POST/PATCH có thể tạo bản
+    // ghi hoặc trừ quota nên không tự thử lại (tránh double-charge, R-M5). Backoff ngắn cố định.
+    const transientCfg = error.config as (typeof error.config & { _transientRetry?: boolean }) | undefined
+    const method = transientCfg?.method?.toLowerCase()
+    const st = error.response?.status
+    const isTransient = !error.response || error.code === 'ECONNABORTED' || st === 502 || st === 503
+    if (transientCfg && method === 'get' && isTransient && !transientCfg._transientRetry) {
+      transientCfg._transientRetry = true
+      await new Promise((resolve) => setTimeout(resolve, 700))
+      return api(transientCfg)
+    }
+
     const original = error.config as typeof error.config & { _retry?: boolean }
     if (error.response?.status !== 401 || original?._retry) {
       return Promise.reject(error)
