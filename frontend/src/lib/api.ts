@@ -13,15 +13,30 @@ export function httpStatus(e: unknown): number {
   return isAxiosErr(e) ? (e.response?.status ?? 0) : 0
 }
 
-/** Human-readable message from an Axios error or generic Error. */
+/**
+ * Thông điệp lỗi thân thiện cho người dùng.
+ *
+ * Audit 24/07 (R-W7, song song R-M1 mobile): KHÔNG BAO GIỜ trả chuỗi kỹ thuật của axios
+ * ("Network Error" / "timeout of ...ms exceeded" / "Request failed with status code 503").
+ * Đọc `detail` của RFC-7807 ProblemDetail TRƯỚC (câu tiếng Việt backend dày công viết nằm ở đó),
+ * rồi tới message/error/title; khi không có body dùng được thì phân loại thành câu tiếng Việt.
+ */
 export function apiMessage(e: unknown): string {
   if (isAxiosErr(e)) {
     const d = e.response?.data
-    if (d && typeof d === 'object' && 'message' in d) return String(d.message)
-    if (d && typeof d === 'object' && 'error' in d) return String((d as { error?: unknown }).error)
-    if (d && typeof d === 'object' && 'detail' in d) return String((d as { detail?: unknown }).detail)
-    if (d && typeof d === 'object' && 'title' in d) return String((d as { title?: unknown }).title)
-    return e.message ?? 'Lỗi không xác định'
+    if (d && typeof d === 'object') {
+      const problem = d as Record<string, unknown>
+      for (const key of ['detail', 'message', 'error', 'title'] as const) {
+        const v = problem[key]
+        if (typeof v === 'string' && v.trim()) return v
+      }
+    }
+    if (e.code === 'ECONNABORTED' || /timeout/i.test(e.message ?? '')) {
+      return 'Kết nối chậm — máy chủ có thể vẫn đang xử lý. Thử lại sau ít giây.'
+    }
+    if (!e.response) return 'Mất kết nối mạng. Kiểm tra đường truyền rồi thử lại.'
+    if ((e.response.status ?? 0) >= 500) return 'Hệ thống đang bận, vui lòng thử lại sau ít phút.'
+    return 'Yêu cầu không thực hiện được, vui lòng thử lại.'
   }
   if (e instanceof Error) return e.message
   return 'Lỗi không xác định'

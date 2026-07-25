@@ -30,11 +30,17 @@ public class GradingEvalService {
     private static final int MAX_CASES = 50;
     private static final int WITHIN_THRESHOLD = 5;
 
-    /** Bộ model mặc định khi request không chỉ định — ứng viên free chính cho chấm tiếng Đức. */
+    /**
+     * Bộ model mặc định khi request không chỉ định — ứng viên free chính cho chấm tiếng Đức.
+     *
+     * <p>Audit 24/07 (R-B5/R-G6): đã gỡ {@code llama-3.3-70b-versatile} (Groq khai tử 16/08/2026)
+     * và {@code meta-llama/llama-4-scout-17b-16e-instruct} (chết 17/07/2026) — trước đây chạy harness
+     * mặc định sau 16/08 sẽ fail 2/3 ứng viên. Chỉ giữ các model Groq còn sống; muốn so model khác thì
+     * truyền {@code req.models()} tường minh.
+     */
     static final List<String> DEFAULT_MODELS = List.of(
-            "llama-3.3-70b-versatile",
-            "meta-llama/llama-4-scout-17b-16e-instruct",
-            "openai/gpt-oss-120b");
+            "openai/gpt-oss-120b",
+            "openai/gpt-oss-20b");
 
     private final GradingService gradingService;
 

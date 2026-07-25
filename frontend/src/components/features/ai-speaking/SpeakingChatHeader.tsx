@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { AiSpeakingQuota } from "@/lib/aiSpeakingApi";
 import { shouldShowAiSpeakingQuota } from "@/lib/authSession";
+import { isUnlimitedAiSpeakingQuota } from "@/lib/aiSpeakingQuota";
 import type { StreamStatus } from "@/types/ai-speaking";
 
 interface Props {
@@ -112,9 +113,11 @@ export function SpeakingChatHeader({
             <DropdownMenuItem onClick={() => onAutoTtsChange(!autoTtsEnabled)}>
               {autoTtsEnabled ? tChat("autoTtsOff") : tChat("autoTtsOn")}
             </DropdownMenuItem>
-            {showQuota && quota && (
+            {showQuota && quota && !isUnlimitedAiSpeakingQuota(quota) && (
               <DropdownMenuItem disabled className="text-xs opacity-80">
-                {tChat("quotaRemaining", { n: Math.max(0, Math.round(quota.remainingSpendable)) })}
+                {tChat("quotaRemaining", {
+                  n: Math.max(0, Math.round(quota.remainingSpendable)).toLocaleString("vi-VN"),
+                })}
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />

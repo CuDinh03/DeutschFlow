@@ -250,17 +250,11 @@ public class GlobalExceptionHandler {
         return builder.contentType(PROBLEM_JSON).body(body);
     }
 
-    // --- 503 — AI provider bean not configured (e.g. Bedrock disabled, missing env vars) ---
-    // IllegalStateException from ObjectProvider.getIfAvailable when no ImageGenerationProvider bean
-    // is registered would otherwise fall through to handleGeneral and masquerade as a scary 500 "ERR-x".
-    @ExceptionHandler(IllegalStateException.class)
-    public ResponseEntity<ProblemDetail> handleIllegalState(IllegalStateException ex,
-                                                            HttpServletRequest request) {
-        log.warn("[503] Service not configured on {}: {}", request.getRequestURI(), ex.getMessage());
-        return problem(HttpStatus.SERVICE_UNAVAILABLE, "ai-unavailable", "AI Service Unavailable",
-                "Tính năng AI này chưa được cấu hình trên môi trường hiện tại. Vui lòng thử lại sau.",
-                request.getRequestURI(), null, Map.of("code", "AI_NOT_CONFIGURED"));
-    }
+    // Audit R-B8: KHÔNG còn handler riêng cho IllegalStateException. Trước đây map MỌI ISE → 503
+    // "AI Service Unavailable" — quá rộng: lỗi state-machine/nghiệp vụ (vd "Chỉ đánh giá phiên đã
+    // hoàn thành") cũng đội lốt "AI chưa cấu hình", làm nhiễu chẩn đoán các đợt 503 THẬT. Nay ISE
+    // nghiệp vụ rơi về 500 internal-error chung (đúng bản chất, đã che sau ERR-x). Nguồn ISE cố ý duy
+    // nhất — thiếu ImageGenerationProvider — đã đổi sang AiServiceException(AI_NOT_CONFIGURED) → 503.
 
     // --- 401/403 — let Spring Security handle these, do NOT swallow them ---
     @ExceptionHandler({AccessDeniedException.class, AuthenticationException.class})

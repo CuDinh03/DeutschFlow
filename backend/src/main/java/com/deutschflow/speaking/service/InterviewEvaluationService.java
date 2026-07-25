@@ -11,6 +11,7 @@ import com.deutschflow.speaking.repository.AiSpeakingMessageRepository;
 import com.deutschflow.common.quota.AiUsageLedgerService;
 import com.deutschflow.common.quota.QuotaExceededException;
 import com.deutschflow.common.quota.QuotaService;
+import com.deutschflow.teacher.service.GradingModelConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -37,6 +38,7 @@ public class InterviewEvaluationService {
     private final QuotaService quotaService;
     private final AiUsageLedgerService ledgerService;
     private final InterviewStateCodec interviewStateCodec;
+    private final GradingModelConfig gradingModelConfig;
 
     /**
      * Generates a JSON evaluation report for the given interview session.
@@ -59,11 +61,12 @@ public class InterviewEvaluationService {
                     new ChatMessage("user", "Hãy đánh giá buổi phỏng vấn dựa trên toàn bộ cuộc hội thoại ở trên và xuất kết quả dưới dạng JSON.")
             );
 
-            var snapshot = quotaService.assertAllowed(userId, Instant.now(), 1L);
-            int maxTokens = (int) Math.max(1L, Math.min(EVAL_MAX_TOKENS, snapshot.remainingThisMonth()));
+            // Audit 24/07 R-G5/R-G6: cấp trọn ngân sách token cố định (không kẹp theo quota còn lại,
+            // tránh JSON cụt → report rỗng nhưng vẫn trừ token) và dùng MODEL CHẤM thay model nói.
+            quotaService.assertAllowed(userId, Instant.now(), 1L);
 
             AiChatCompletionResult result = openAiChatClient.chatCompletion(
-                    aiMessages, null, EVAL_TEMPERATURE, maxTokens);
+                    aiMessages, gradingModelConfig.model(), EVAL_TEMPERATURE, EVAL_MAX_TOKENS);
 
             if (result.usage() != null) {
                 ledgerService.record(userId, result.provider(), result.model(),

@@ -13,11 +13,14 @@ export const MessageBubble = memo(function MessageBubble({
   personaId,
   active = false,
   onUseSuggestion,
+  onRetry,
 }: {
   turn: ChatTurn
   personaId: PersonaId
   active?: boolean
   onUseSuggestion?: (text: string) => void
+  /** MB-3: có mặt khi user turn ở trạng thái 'failed' — bấm để gửi lại (giữ nguyên câu). */
+  onRetry?: () => void
 }) {
   const { colors } = useTheme()
   const isUser = turn.role === 'user'
@@ -48,6 +51,20 @@ export const MessageBubble = memo(function MessageBubble({
           <RevealText text={turn.content} active={active} variant="body" color="primary" />
         )}
       </View>
+
+      {isUser && turn.status === 'failed' && onRetry ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Gửi lại câu trả lời"
+          onPress={onRetry}
+          hitSlop={8}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: space[1], paddingTop: space[1] }}
+        >
+          <ThemedText variant="caption" color="danger">
+            Gửi lỗi · Chạm để gửi lại
+          </ThemedText>
+        </Pressable>
+      ) : null}
 
       {showCorrection ? (
         <View style={{ maxWidth: '92%' }}>

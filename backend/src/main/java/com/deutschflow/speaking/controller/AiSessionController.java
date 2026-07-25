@@ -184,7 +184,9 @@ public class AiSessionController {
     /** Throw 429 (with Retry-After) when this user has spent their per-window budget for {@code bucket}. */
     private void requireAiBudget(Bucket bucket, long userId, String message) {
         if (!aiRateLimiterService.allow(bucket, userId)) {
-            throw new RateLimitExceededException(message, aiRateLimiterService.retryAfterSeconds(bucket));
+            // R-B6: Retry-After = giây tới khi slot mở thật cho user này, không phải cả window 3600s.
+            // (Đây là đường rate-limit của chat/stream/report/transcribe — bucket chính.)
+            throw new RateLimitExceededException(message, aiRateLimiterService.retryAfterSeconds(bucket, userId));
         }
     }
 

@@ -54,7 +54,7 @@ public class PhonemeController {
         if (!aiRateLimiterService.allow(com.deutschflow.speaking.AiRateLimiterService.Bucket.PHONEME, user.getId())) {
             throw new com.deutschflow.common.exception.RateLimitExceededException(
                     "Too many pronunciation checks. Please slow down.",
-                    aiRateLimiterService.retryAfterSeconds(com.deutschflow.speaking.AiRateLimiterService.Bucket.PHONEME));
+                    aiRateLimiterService.retryAfterSeconds(com.deutschflow.speaking.AiRateLimiterService.Bucket.PHONEME, user.getId()));
         }
         if (audioFile.isEmpty()) {
             return ResponseEntity.badRequest().build();
@@ -74,6 +74,10 @@ public class PhonemeController {
             PhonemeEvalResponse result = phonemeService.evaluate(bytes, filename, target, user.getId());
             return ResponseEntity.ok(result);
 
+        } catch (com.deutschflow.speaking.exception.AiServiceException e) {
+            // R-B3: để lỗi AI nổi lên GlobalExceptionHandler → 503 ProblemDetail có code + thông điệp
+            // thân thiện, thay vì nuốt thành 500 body rỗng (client không biết nên thử lại).
+            throw e;
         } catch (Exception e) {
             log.error("[Phoneme] Evaluation failed for user {}: {}", user.getId(), e.getMessage());
             return ResponseEntity.internalServerError().build();

@@ -39,6 +39,13 @@ public class TeacherAiGradingService {
     /** Ước lượng token cho 1 lần chấm Sprechen (transcript vào + ~1000 token feedback ra). */
     private static final long SPEAKING_GRADING_ESTIMATED_TOKENS = 2_000L;
 
+    /**
+     * Số lượt nói tối thiểu của HỌC SINH trước khi cho điểm /100 (audit 24/07 R-G4). Dưới ngưỡng này
+     * không đủ mẫu để chấm công bằng — 1 câu đúng ngữ pháp từng ra 100/100 ảo khiến giáo viên và học
+     * viên tin nhầm trình độ. Phiên quá ngắn được bỏ qua (không có ai_score, không đưa vào hàng chờ).
+     */
+    private static final int MIN_USER_TURNS_FOR_GRADE = 3;
+
     /** Student-/teacher-safe note when auto-grading fails — the raw cause stays in logs/admin alerts only (D8). */
     private static final String GRADING_FAILED_FEEDBACK = "Chưa chấm tự động được, giáo viên sẽ chấm lại.";
 
@@ -55,8 +62,13 @@ public class TeacherAiGradingService {
             if (session == null) return;
 
             List<AiSpeakingMessage> messages = messageRepository.findBySessionIdOrderByCreatedAtAsc(sessionId);
-            if (messages.size() <= 2) {
-                log.info("[Auto-Grading] Session {} has too few messages, skipping", sessionId);
+            long userTurns = messages.stream()
+                    .filter(m -> m.getRole() == AiSpeakingMessage.MessageRole.USER
+                            && m.getUserText() != null && !m.getUserText().isBlank())
+                    .count();
+            if (userTurns < MIN_USER_TURNS_FOR_GRADE) {
+                log.info("[Auto-Grading] Session {} has only {} learner turn(s) (<{}), skipping AI score",
+                        sessionId, userTurns, MIN_USER_TURNS_FOR_GRADE);
                 return;
             }
 

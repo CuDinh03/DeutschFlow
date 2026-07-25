@@ -217,9 +217,12 @@ public class AiResponseParser {
             if (item == null || item.isNull()) continue;
             String code = textOrNull(item, "error_code");
             if (code == null || !ErrorCatalog.isValid(code)) {
-                if (code != null) {
-                    log.debug("Dropped error with unknown error_code: {}", code);
-                }
+                // Audit R-G2: KHÔNG drop im lặng. Lỗi thật mang mã ngoài catalog (prompt drift / model
+                // mới) từng biến mất không dấu vết (log.debug tắt ở prod; nhánh code==null hoàn toàn im).
+                // Nâng lên warn + log cả case thiếu error_code để thấy tỉ lệ drop (chỉ báo cần cập nhật
+                // ErrorCatalog). Vẫn GIỮ hành vi drop (không đẩy mã lạ xuống DB) — không phá hợp đồng.
+                log.warn("[AiResponseParser] Dropped error — {} error_code: {}",
+                        code == null ? "missing" : "unknown", code == null ? "(none)" : code);
                 continue;
             }
             String severity = textOrNull(item, "severity");
