@@ -103,7 +103,22 @@ public class InterviewRubricService {
     public record RubricSnapshot(Long templateId, int version, String criteriaJson, String weightJson) {}
 
     public Optional<RubricSnapshot> snapshotForIndustry(String industry) {
-        return findOverallRubric(industry)
-                .map(t -> new RubricSnapshot(t.getId(), t.getVersion(), t.getCriteriaJson(), t.getWeightJson()));
+        return findOverallRubric(industry).map(InterviewRubricService::toSnapshot);
+    }
+
+    /**
+     * Phase-scoped snapshot, falling back to the industry OVERALL rubric when no template covers
+     * this phase. Phase templates (e.g. IT/HARD_SKILLS) previously reached nothing at all: the
+     * prompt only ever saw the OVERALL rubric, so an admin editing phase criteria or weights
+     * changed no observable behaviour.
+     */
+    public Optional<RubricSnapshot> snapshotForPhase(String industry, String phase, String cefrLevel) {
+        return findPhaseRubric(industry, phase, cefrLevel)
+                .map(InterviewRubricService::toSnapshot)
+                .or(() -> snapshotForIndustry(industry));
+    }
+
+    private static RubricSnapshot toSnapshot(InterviewRubricTemplate t) {
+        return new RubricSnapshot(t.getId(), t.getVersion(), t.getCriteriaJson(), t.getWeightJson());
     }
 }

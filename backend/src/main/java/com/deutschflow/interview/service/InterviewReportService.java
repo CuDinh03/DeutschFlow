@@ -201,8 +201,11 @@ public class InterviewReportService {
                 .count();
         if (hypotheticalTurns > 2) drills.add("Luyện trả lời cụ thể: thay câu trả lời giả thuyết bằng ví dụ có thật");
 
+        // The analysis record emits `missingStar`, never `starPresent`: the old negated read of a
+        // key that is always absent made this true for EVERY STAR_SOFT turn, so the STAR drill was
+        // recommended to every candidate — including those who structured their answers well.
         long missingStar = turns.stream()
-                .filter(t -> "STAR_SOFT".equals(t.getPhase()) && !containsAnalysisFlag(t, "starPresent"))
+                .filter(t -> "STAR_SOFT".equals(t.getPhase()) && containsAnalysisFlag(t, "missingStar"))
                 .count();
         if (missingStar > 1) drills.add("Luyện cấu trúc STAR (Situation → Task → Action → Result) cho câu hỏi behavioral");
 
