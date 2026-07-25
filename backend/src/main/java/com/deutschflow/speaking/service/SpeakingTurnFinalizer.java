@@ -29,5 +29,6 @@ public interface SpeakingTurnFinalizer {
                                         String userMessage,
                                         AiChatCompletionResult ai,
                                         AiResponseDto parsed,
+                                        boolean reliableParse,
                                         String purpose);
 }

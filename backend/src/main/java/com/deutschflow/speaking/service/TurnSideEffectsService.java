@@ -80,6 +80,7 @@ public class TurnSideEffectsService {
     public void applyTurnSideEffects(AiSpeakingServiceImpl.SpeakingChatPrep prep,
                                      String userMessage,
                                      AiResponseDto parsed,
+                                     boolean reliableParse,
                                      AiChatCompletionResult ai,
                                      Long assistantMessageId,
                                      UserLearningProfile effectiveProfile,
@@ -88,7 +89,11 @@ public class TurnSideEffectsService {
                                      String ledgerPurpose) {
         grammarPersistenceService.persistGrammarFeedback(prep.userId(), prep.sessionId(), assistantMessageId, userMessage, parsed, effectiveProfile);
         learningProgressService.updateUserLearningProgress(prep.userId(), parsed);
-        recordAssistantTurnMetrics(parsed);
+        // R-G2(a): chỉ ghi metric accuracy khi parse tin cậy — parse-fail (errors=[]) không được tính
+        // là turn "sạch" (noMajor=true) làm lệch tỉ lệ accuracy quan sát.
+        if (reliableParse) {
+            recordAssistantTurnMetrics(parsed);
+        }
 
         try {
             if (ai.usage() != null) {
@@ -112,7 +117,7 @@ public class TurnSideEffectsService {
             learningProgressService.mergeInterest(profile, parsed.userInterestDetected());
         }
 
-        turnEvaluatorService.recordTurn(prep.userId(), prep.sessionId(), assistantMessageId, parsed, prep.policy());
+        turnEvaluatorService.recordTurn(prep.userId(), prep.sessionId(), assistantMessageId, parsed, reliableParse, prep.policy());
 
         trainingDatasetService.recordConversationTurn(
                 prep.userId(), prep.sessionId(), prep.cefrLevel(), prep.topic(),

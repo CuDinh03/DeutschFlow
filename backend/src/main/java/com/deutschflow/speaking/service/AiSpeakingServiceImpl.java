@@ -2,6 +2,8 @@ package com.deutschflow.speaking.service;
 
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.speaking.ai.AiParseOutcome;
+import com.deutschflow.speaking.ai.AiParseStatus;
 import com.deutschflow.speaking.ai.AiResponseDto;
 import com.deutschflow.speaking.ai.AiResponseParser;
 import com.deutschflow.speaking.ai.AiChatCompletionResult;
@@ -406,10 +408,12 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
                 Objects.requireNonNull(transactionTemplate.execute(status -> chatPrepService.prepareSpeakingChatTurn(userId, sessionId, userMessage)));
 
         AiChatCompletionResult ai = chatCompletionService.runChatCompletion(prep);
-        AiResponseDto parsed = chatCompletionService.parseAndPostProcess(ai, userMessage, prep);
+        AiParseOutcome outcome = chatCompletionService.parseAndPostProcess(ai, userMessage, prep);
+        AiResponseDto parsed = outcome.dto();
+        boolean reliableParse = outcome.status() == AiParseStatus.STRUCTURED;
 
         return Objects.requireNonNull(transactionTemplate.execute(
-                status -> finalizeSpeakingChatPersistence(prep, userMessage, ai, parsed, "SPEAKING_CHAT")));
+                status -> finalizeSpeakingChatPersistence(prep, userMessage, ai, parsed, reliableParse, "SPEAKING_CHAT")));
     }
 
     private AiSpeakingChatResponse finalizeSpeakingChatPersistence(
@@ -417,6 +421,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
             String userMessage,
             AiChatCompletionResult ai,
             AiResponseDto parsed,
+            boolean reliableParse,
             String ledgerPurpose) {
 
         AiSpeakingSession session = loadSessionForUser(prep.userId(), prep.sessionId());
@@ -444,7 +449,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
                 .build();
         assistantMsg = messageRepository.save(assistantMsg);
 
-        turnSideEffectsService.applyTurnSideEffects(prep, userMessage, parsed, ai, assistantMsg.getId(), effectiveProfile, profile, session, ledgerPurpose);
+        turnSideEffectsService.applyTurnSideEffects(prep, userMessage, parsed, reliableParse, ai, assistantMsg.getId(), effectiveProfile, profile, session, ledgerPurpose);
 
         AdaptiveMetaDto adaptive = AdaptiveMetaDto.fromPolicyAndResponse(prep.policy(), parsed);
         if (adaptive != null && adaptive.forceRepairBeforeContinue()) {

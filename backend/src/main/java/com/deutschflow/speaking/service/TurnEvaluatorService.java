@@ -45,8 +45,16 @@ public class TurnEvaluatorService {
                            Long sessionId,
                            Long assistantMessageId,
                            AiResponseDto parsed,
+                           boolean reliableParse,
                            SpeakingPolicy policyAtTurn) {
         if (!adaptiveEnabled || policyAtTurn == null || !policyAtTurn.enabled()) {
+            return;
+        }
+        // Audit R-G2(a): parse-fail (JSON hỏng → errors=[] KHÔNG phải vì "sạch") thì BỎ QUA khỏi adaptive.
+        // Nếu không, turn không tin cậy bị lưu như "0 lỗi" → tính rolling-accuracy 100% ảo, tăng
+        // repair-streak → đóng cooldown lỗi, và boost độ khó — tất cả dựa trên dữ liệu bịa. Xem như
+        // turn này KHÔNG có dữ liệu đánh giá (metric parse-outcome đã ghi ở parseAndPostProcess).
+        if (!reliableParse) {
             return;
         }
 
