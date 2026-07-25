@@ -81,13 +81,13 @@ class OrgRosterServiceTest {
                 orgMemberRepository,
                 classStudentRepository,
                 assignmentBackfillService,
-                jdbcTemplate,
-                auditLogService
+                jdbcTemplate
         );
         service = new OrgRosterService(
                 organizationRepository,
                 teacherClassRepository,
-                rowImporter
+                rowImporter,
+                auditLogService
         );
         // Stub the advisory FOR UPDATE lock — no-op in tests (J).
         lenient().when(jdbcTemplate.queryForObject(
