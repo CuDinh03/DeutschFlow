@@ -488,6 +488,7 @@
       "rejectSuccess": "Period sent back.",
       "lockSuccess": "Period locked.",
       "lockHint": "Locking is final — there is no way back. Export the data for payroll first.",
+      "lockOwnerOnly": "Awaiting director's lock",
       "statusOPEN": "Open",
       "statusSUBMITTED": "Awaiting review",
       "statusAPPROVED": "Approved",

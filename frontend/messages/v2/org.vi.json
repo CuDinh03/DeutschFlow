@@ -488,6 +488,7 @@
       "rejectSuccess": "Đã trả lại kỳ công.",
       "lockSuccess": "Đã khoá kỳ công.",
       "lockHint": "Khoá kỳ là bước cuối — sau khi khoá không quay lại được. Hãy xuất dữ liệu cho kế toán trước.",
+      "lockOwnerOnly": "Chờ Giám đốc khoá",
       "statusOPEN": "Đang mở",
       "statusSUBMITTED": "Chờ duyệt",
       "statusAPPROVED": "Đã duyệt",

@@ -17,6 +17,27 @@ import { LoadingState } from '@/components/ui-v2'
  * execute (see middleware.ts CSP note). Renders a neutral loading state until ownership is
  * confirmed, so protected content never flashes for a non-owner.
  */
+/**
+ * Owner check for a SINGLE control inside a page a MANAGER is allowed to use.
+ *
+ * Distinct from {@link OrgOwnerOnly}, which bounces the whole page: an org-admin page may host one
+ * owner-only action (khoá kỳ công) while the rest of it stays MANAGER's daily work — bouncing there
+ * would take away the approve/reject they legitimately own.
+ *
+ * Returns `null` until the role is known, so the caller renders neither branch during hydration: the
+ * role lives in a cookie/JWT that only exists client-side, so an eager `false` would flash the
+ * fallback at an owner, and an eager `true` would flash an owner-only button at a manager.
+ *
+ * UX layer only — `OrgGuard.assertOrgOwner` on the backend is the authority.
+ */
+export function useIsOrgOwner(): boolean | null {
+  const [isOwner, setIsOwner] = React.useState<boolean | null>(null)
+  React.useEffect(() => {
+    setIsOwner(getOrgRole() === 'OWNER')
+  }, [])
+  return isOwner
+}
+
 export function OrgOwnerOnly({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const [state, setState] = React.useState<'checking' | 'owner'>('checking')

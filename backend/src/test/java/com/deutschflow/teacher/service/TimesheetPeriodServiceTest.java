@@ -45,6 +45,8 @@ class TimesheetPeriodServiceTest {
 
     private static final Long TEACHER_ID = 1L;
     private static final Long MANAGER_ID = 2L;
+    /** Giám đốc trung tâm — người DUY NHẤT khoá được kỳ công (lock = assertOrgOwner). */
+    private static final Long OWNER_ID = 3L;
     private static final Long ORG_ID = 42L;
     private static final Long PERIOD_ID = 300L;
     // Kỳ mẫu phải ĐÃ KẾT THÚC: submit() nay từ chối kỳ chưa hết hạn. Dùng ngày ĐỘNG thay vì ngày cứng
@@ -258,7 +260,7 @@ class TimesheetPeriodServiceTest {
     @DisplayName("lock() chỉ khoá được kỳ đã duyệt")
     void lock_onlyAfterApproved() {
         when(periodRepository.findById(PERIOD_ID)).thenReturn(Optional.of(period(Status.SUBMITTED)));
-        assertThatThrownBy(() -> service.lock(MANAGER_ID, ORG_ID, PERIOD_ID))
+        assertThatThrownBy(() -> service.lock(OWNER_ID, ORG_ID, PERIOD_ID))
                 .isInstanceOf(ConflictException.class);
     }
 
@@ -269,10 +271,47 @@ class TimesheetPeriodServiceTest {
         when(periodRepository.findById(PERIOD_ID)).thenReturn(Optional.of(p));
         when(periodRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        PeriodDto dto = service.lock(MANAGER_ID, ORG_ID, PERIOD_ID);
+        PeriodDto dto = service.lock(OWNER_ID, ORG_ID, PERIOD_ID);
 
         assertThat(dto.status()).isEqualTo("LOCKED");
         assertThat(dto.editable()).isFalse();
+    }
+
+    // ── chốt sổ là chữ ký của GIÁM ĐỐC, không phải của người duyệt hằng ngày ───
+
+    @Test
+    @DisplayName("lock() từ chối MANAGER — chỉ chủ sở hữu (giám đốc) mới chốt sổ được")
+    void lock_byManager_isForbidden() {
+        // OrgGuard là mock nên mặc định KHÔNG chặn gì: phải stub tường minh, nếu không test này
+        // xanh cả khi lock() vẫn dùng assertOrgAdmin — đúng cái bẫy "test mã hoá lại chính bug".
+        doThrow(new ForbiddenException("Chỉ chủ sở hữu tổ chức mới được thao tác này"))
+                .when(orgGuard).assertOrgOwner(MANAGER_ID, ORG_ID);
+
+        assertThatThrownBy(() -> service.lock(MANAGER_ID, ORG_ID, PERIOD_ID))
+                .isInstanceOf(ForbiddenException.class);
+        // Chặn TRƯỚC khi chạm dữ liệu: manager không đọc được kỳ, cũng không ghi gì.
+        verify(periodRepository, never()).findById(any());
+        verify(periodRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("MANAGER vẫn duyệt và trả lại kỳ như cũ — siết quyền chỉ chạm vào lock()")
+    void approveAndReject_byManager_remainAllowed() {
+        when(periodRepository.findById(PERIOD_ID)).thenReturn(Optional.of(period(Status.SUBMITTED)));
+        when(periodRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(recordRepository
+                .findByTeacherIdAndStartedAtGreaterThanEqualAndStartedAtLessThanOrderByStartedAt(
+                        eq(TEACHER_ID), any(), any()))
+                .thenReturn(List.of());
+
+        assertThat(service.approve(MANAGER_ID, ORG_ID, PERIOD_ID).status()).isEqualTo("APPROVED");
+
+        when(periodRepository.findById(PERIOD_ID)).thenReturn(Optional.of(period(Status.SUBMITTED)));
+        assertThat(service.reject(MANAGER_ID, ORG_ID, PERIOD_ID, "Thiếu buổi 12/07").status())
+                .isEqualTo("REJECTED");
+
+        // Không nhánh nào của duyệt/trả lại được phép đòi quyền chủ sở hữu.
+        verify(orgGuard, never()).assertOrgOwner(any(), any());
     }
 
     // ── cách ly tổ chức ───────────────────────────────────────────────────────

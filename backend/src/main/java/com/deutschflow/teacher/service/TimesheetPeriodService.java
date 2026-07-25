@@ -172,9 +172,18 @@ public class TimesheetPeriodService {
         return toDto(periodRepository.save(p), null);
     }
 
-    /** Khoá kỳ — trạng thái cuối, không quay lại được. Dùng sau khi đã xuất dữ liệu cho kế toán. */
+    /**
+     * Khoá kỳ — trạng thái cuối, không quay lại được. Dùng sau khi đã xuất dữ liệu cho kế toán.
+     *
+     * <p><b>OWNER-only</b>, khác {@code approve/reject}: khoá kỳ là chữ ký cuối cùng biến số công
+     * thành con số trả lương, nên nó thuộc về giám đốc trung tâm chứ không phải người duyệt hằng
+     * ngày. MANAGER vẫn duyệt/trả lại như cũ — chỉ mất quyền chốt sổ. Kiểm tra chủ sở hữu chạy
+     * TRƯỚC {@link #reviewablePeriod} để một MANAGER nhận đúng lỗi "chỉ chủ sở hữu" thay vì lỗi
+     * chéo tổ chức.
+     */
     @Transactional
     public PeriodDto lock(Long reviewerId, Long orgId, Long periodId) {
+        orgGuard.assertOrgOwner(reviewerId, orgId);
         TeacherTimesheetPeriod p = reviewablePeriod(reviewerId, orgId, periodId);
         if (p.getStatus() != Status.APPROVED) {
             throw new ConflictException("Chỉ khoá được kỳ đã duyệt (hiện tại: " + p.getStatus() + ").");
