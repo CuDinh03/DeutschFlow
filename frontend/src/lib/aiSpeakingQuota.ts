@@ -9,15 +9,18 @@ export function isAiSpeakingQuotaBlocked(
 }
 
 /**
- * Ngưỡng coi là "không giới hạn" (audit 24/07 R-W6). Backend trả sentinel 999_999_999 cho gói
- * INTERNAL (QuotaService) — không được in số thô "999999999" ra badge. Không user thật nào có tới
- * 100 triệu token khả dụng, nên mọi giá trị ≥ ngưỡng này là unlimited.
+ * Mã gói "không giới hạn" (audit 24/07 R-W6). Backend (`QuotaService`) chỉ gán số dư sentinel
+ * 999_999_999 cho đúng gói này, và badge không được in số thô đó ra.
+ *
+ * Dùng {@code planCode} làm NGUỒN CHÂN LÝ thay vì so số dư với một ngưỡng: gói trả phí có
+ * {@code walletCap = dailyGrant × walletCapDays} có thể lớn tuỳ cấu hình (ví dụ ULTRA từng là
+ * 2_000_000 × 90 = 180M ở V73 trước khi bị hạ) — so ngưỡng sẽ ẩn nhầm badge của người trả phí.
  */
-export const UNLIMITED_QUOTA_THRESHOLD = 100_000_000;
+const UNLIMITED_PLAN_CODE = "INTERNAL";
 
-/** True khi số dư là sentinel unlimited (gói nội bộ) — badge nên ẩn thay vì in số khổng lồ. */
+/** True khi gói là loại không giới hạn (nội bộ) — badge nên ẩn thay vì in số dư khổng lồ. */
 export function isUnlimitedAiSpeakingQuota(
   quota: AiSpeakingQuota | null | undefined,
 ): boolean {
-  return !!quota && quota.remainingSpendable >= UNLIMITED_QUOTA_THRESHOLD;
+  return !!quota && quota.planCode === UNLIMITED_PLAN_CODE;
 }
