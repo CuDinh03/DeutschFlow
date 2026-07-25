@@ -263,7 +263,7 @@ export function chatStream(
   userMessage: string,
   onToken: (delta: string) => void,
   onDone: (meta: AiChatResponse) => void,
-  onError: (err: string) => void,
+  onError: (err: string, info?: { code?: string; message?: string }) => void,
   onAudio?: (frame: PcmAudioFrame) => void,
   streamAudio = false,
   onAudioStart?: () => void
@@ -401,7 +401,18 @@ export function chatStream(
           if (!settled) {
             settled = true
             clearStall()
-            onError(data)
+            // Backend (P0) phát {code, message}: code để client phân loại (quota / bận / timeout…),
+            // message là câu tiếng Việt thân thiện để hiển thị. Data không phải JSON → giữ nguyên.
+            let code: string | undefined
+            let message: string | undefined
+            try {
+              const parsed = JSON.parse(data) as { code?: string; message?: string }
+              code = parsed.code
+              message = parsed.message
+            } catch {
+              /* data thô — không phải JSON */
+            }
+            onError(code ?? data, { code, message })
           }
         }
       }

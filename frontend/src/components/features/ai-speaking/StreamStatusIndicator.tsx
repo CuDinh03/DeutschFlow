@@ -8,12 +8,14 @@ import { useTranslations } from "next-intl";
 
 interface StreamStatusIndicatorProps {
   status: StreamStatus;
+  /** Câu lỗi tiếng Việt thân thiện từ backend (R-W5) — hiển thị thay chip "Lỗi kết nối" generic khi có. */
+  errorMessage?: string | null;
   onRetry?: () => void;
 }
 
 /** Live pill under the transcript. Single (warm-paper) appearance — the speaking
  *  flow no longer has a dark shell, so the old `immersive` variant is gone. */
-export function StreamStatusIndicator({ status, onRetry }: StreamStatusIndicatorProps) {
+export function StreamStatusIndicator({ status, errorMessage, onRetry }: StreamStatusIndicatorProps) {
   const t = useTranslations("speaking.chat");
 
   if (status === "idle") return null;
@@ -62,7 +64,9 @@ export function StreamStatusIndicator({ status, onRetry }: StreamStatusIndicator
           {status === "error" && (
             <>
               <AlertTriangle className="w-4 h-4 text-ga-red" />
-              <span className="text-sm font-medium text-ga-red">{t("statusError")}</span>
+              <span className="text-sm font-medium text-ga-red">
+                {errorMessage?.trim() ? errorMessage : t("statusError")}
+              </span>
             </>
           )}
 

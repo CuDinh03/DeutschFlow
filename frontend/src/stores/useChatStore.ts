@@ -88,7 +88,10 @@ interface ChatState {
   
   streamStatus: StreamStatus;
   setStreamStatus: (status: StreamStatus) => void;
-  
+  /** Thông điệp lỗi thân thiện (tiếng Việt) từ backend cho lượt stream lỗi — null khi không có (R-W5). */
+  streamErrorMessage: string | null;
+  setStreamErrorMessage: (msg: string | null) => void;
+
   clearChat: () => void;
 }
 
@@ -152,10 +155,13 @@ export const useChatStore = create<ChatState>((set) => ({
     
   streamStatus: "idle",
   setStreamStatus: (status) => set({ streamStatus: status }),
-  
+  streamErrorMessage: null,
+  setStreamErrorMessage: (msg) => set({ streamErrorMessage: msg }),
+
   clearChat: () => set({
     messages: [],
     streamStatus: "idle",
+    streamErrorMessage: null,
     sessionId: null,
     sessionMode: null,
     experienceLevel: null,

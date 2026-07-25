@@ -1,7 +1,10 @@
 package com.deutschflow.speaking.service;
 
 import com.deutschflow.common.exception.ConflictException;
+import com.deutschflow.common.exception.RateLimitExceededException;
+import com.deutschflow.common.quota.QuotaExceededException;
 import com.deutschflow.speaking.ai.AiChatCompletionResult;
+import com.deutschflow.speaking.exception.AiErrorCode;
 import com.deutschflow.speaking.exception.AiServiceException;
 import com.deutschflow.speaking.ai.AiResponseDto;
 import com.deutschflow.speaking.dto.AiSpeakingChatResponse;
@@ -244,10 +247,25 @@ public class SpeakingStreamService {
      * {@code message} là câu tiếng Việt an toàn để hiển thị; chi tiết kỹ thuật chỉ nằm trong log.
      */
     private void sendErrorEventAndComplete(SseEmitter emitter, Exception ex) {
-        String code = ex instanceof AiServiceException aiEx ? aiEx.getCode().name() : "INTERNAL";
-        String message = ex instanceof AiServiceException
-                ? ex.getMessage()
-                : "Có lỗi xảy ra, vui lòng thử lại.";
+        // Audit 24/07 R-W5: phân biệt quota/rate-limit ngay trong stream path. Trước đây chỉ
+        // AiServiceException mới có mã; QuotaExceededException/RateLimitExceededException (ném từ
+        // prepareSpeakingChatTurn trong TX) rơi thành "INTERNAL" nên web hiện chip "Connection error"
+        // sai bản chất. Giờ mỗi loại có mã riêng để client chọn đúng thông điệp + hành vi (nâng cấp / đợi).
+        final String code;
+        final String message;
+        if (ex instanceof AiServiceException aiEx) {
+            code = aiEx.getCode().name();
+            message = aiEx.getMessage();
+        } else if (ex instanceof QuotaExceededException qe) {
+            code = AiErrorCode.QUOTA_EXCEEDED.name();
+            message = qe.getMessage() != null ? qe.getMessage() : "Bạn đã dùng hết lượt AI của gói hiện tại.";
+        } else if (ex instanceof RateLimitExceededException rle) {
+            code = AiErrorCode.RATE_LIMITED.name();
+            message = rle.getMessage() != null ? rle.getMessage() : "Bạn thao tác hơi nhanh, chờ chút rồi thử lại.";
+        } else {
+            code = "INTERNAL";
+            message = "Có lỗi xảy ra, vui lòng thử lại.";
+        }
         try {
             var payload = objectMapper.createObjectNode();
             payload.put("code", code);

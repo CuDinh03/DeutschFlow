@@ -424,6 +424,7 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
 
   // These hooks MUST be called before any conditional returns to obey Rules of Hooks
   const interviewPhaseKey = useChatStore((s) => s.interviewPhaseKey);
+  const streamErrorMessage = useChatStore((s) => s.streamErrorMessage);
   const interviewHintKey = useChatStore((s) => s.interviewHintKey);
 
   // ─── Guard: redirect if no companion (after all hooks) ─────
@@ -611,6 +612,7 @@ export function SpeakingChatExperience({ routes, layout = "page" }: SpeakingChat
 
             <StreamStatusIndicator
               status={streamStatus}
+              errorMessage={streamErrorMessage}
               onRetry={
                 streamStatus === "stalled" || streamStatus === "error"
                   ? retryLastSend

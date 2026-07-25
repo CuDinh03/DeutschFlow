@@ -21,5 +21,11 @@ public enum AiErrorCode {
     AI_INTERRUPTED,
 
     /** Tính năng AI chưa được cấu hình trên môi trường hiện tại (thiếu env/bean). */
-    AI_NOT_CONFIGURED
+    AI_NOT_CONFIGURED,
+
+    /** Hết hạn mức token AI của gói — client mời nâng cấp, KHÔNG phải lỗi hệ thống. */
+    QUOTA_EXCEEDED,
+
+    /** Vượt giới hạn tần suất tạm thời — client đợi rồi thử lại (kèm Retry-After). */
+    RATE_LIMITED
 }
