@@ -30,6 +30,7 @@ import {
   isUnlimitedQuota,
   type SpeakingSessionMode,
   type AiSpeakingSession,
+  type AiChatResponse,
   type InterviewReport,
   type ConversationReport,
   type AiSpeakingQuota,
@@ -55,9 +56,16 @@ import {
   emptyConversationReport,
   mapMessagesToTurns,
   phaseLabel,
+  makeUserTurn,
+  setTurnStatus,
+  attachFeedbackToTurn,
+  serverHasUserText,
+  mergeFailedTurns,
+  newTurnId,
   type ChatTurn,
   type ScreenView,
 } from '@/lib/speakingChat'
+import { isTransientFailure } from '@/lib/api'
 import { usePlanStore } from '@/stores/usePlanStore'
 import { useTourStore } from '@/stores/useTourStore'
 import { useStarterStore } from '@/stores/useStarterStore'
@@ -83,6 +91,9 @@ export default function SpeakingScreen() {
   const [view, setView] = useState<ScreenView>('select')
   const [session, setSession] = useState<AiSpeakingSession | null>(null)
   const [messages, setMessages] = useState<ChatTurn[]>([])
+  // Async gửi/nhận đóng băng `messages` trong closure → dùng ref để retryTurn đọc turn hiện tại (MB-3).
+  const messagesRef = useRef<ChatTurn[]>([])
+  useEffect(() => { messagesRef.current = messages }, [messages])
   const [phaseKey, setPhaseKey] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
   const [typing, setTyping] = useState(false)
@@ -292,7 +303,7 @@ export default function SpeakingScreen() {
         created.initialAiMessage?.interviewPhaseKey ??
           (args.sessionMode === 'INTERVIEW' ? 'INTRO' : null),
       )
-      setMessages([{ role: 'assistant', content: greeting, feedback: created.initialAiMessage ?? undefined }])
+      setMessages([{ id: newTurnId(), role: 'assistant', content: greeting, feedback: created.initialAiMessage ?? undefined }])
       setReport(null)
       setPendingResume(null)
       void saveActiveSession({
@@ -313,50 +324,79 @@ export default function SpeakingScreen() {
     }
   }
 
+  // Gom side-effect của 1 lượt AI thành công (phase, reaction+TTS+haptics, scroll). Tách để cả
+  // deliverTurn lẫn nhánh reconcile (adopt transcript server khi retry) dùng chung.
+  function applyAiTurnSideEffects(res: AiChatResponse) {
+    if (res.interviewPhaseKey) setPhaseKey(res.interviewPhaseKey)
+    const r = reactionFor(res, session?.sessionMode)
+    speakGerman(res.aiSpeechDe ?? '', () => {
+      flashReaction(r)
+      if (r === 'praise') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+      else if (r === 'wrong' || r === 'offtopic')
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)
+    })
+    scrollToEnd()
+  }
+
+  // Lõi gửi 1 lượt (submit + retry cùng dùng). Turn user đã nằm trong `messages` với id ổn định;
+  // ta chỉ đổi status của NÓ (sent/failed) thay vì mồ côi — R-M3. `reconcileFirst` chỉ bật khi RETRY.
+  async function deliverTurn(turnId: string, content: string, opts: { reconcileFirst: boolean }) {
+    if (!session) return
+    setSending(true)
+    setStage('thinking')
+    setReaction(null)
+    scrollToEnd()
+    try {
+      // R-M5: trước khi RETRY, đồng bộ transcript — bắt ca "client timeout nhưng server ĐÃ nhận + ĐÃ
+      // trừ quota". Nếu server đã có câu này → KHÔNG re-POST (tránh double-charge), adopt transcript.
+      if (opts.reconcileFirst) {
+        const serverTurns = mapMessagesToTurns(await speakingApi.getMessages(session.id))
+        if (serverHasUserText(serverTurns, content)) {
+          setMessages((prev) => mergeFailedTurns(serverTurns, prev))
+          const lastAssistant = [...serverTurns].reverse().find((t) => t.role === 'assistant')
+          if (lastAssistant?.feedback) applyAiTurnSideEffects(lastAssistant.feedback)
+          return
+        }
+      }
+      const res = await speakingApi.chat(session.id, content)
+      // Gắn feedback (correction) vào ĐÚNG user turn theo id + đánh dấu 'sent', rồi thêm turn AI.
+      setMessages((prev) => [
+        ...attachFeedbackToTurn(setTurnStatus(prev, turnId, 'sent'), turnId, res),
+        { id: newTurnId(), role: 'assistant', content: res.aiSpeechDe ?? '…', feedback: res },
+      ])
+      applyAiTurnSideEffects(res)
+      if (res.isSessionEnded) await finishSession()
+    } catch (e) {
+      // R-M3: KHÔNG mồ côi — giữ câu user, đánh dấu 'failed' (kèm có nên tự thử lại) để hiện nút Gửi lại.
+      setMessages((prev) => setTurnStatus(prev, turnId, 'failed', isTransientFailure(e)))
+      setStage('idle')
+      handleAiError(e)
+    } finally {
+      setSending(false)
+    }
+  }
+
   async function submitAnswer(text: string) {
     const trimmed = text.trim()
     if (!trimmed || !session || sending) return
     // 5.1.1(i): a resumed session can run after consent was revoked in Profile — re-check before
     // sending typed text to the third-party AI. Instant no-op when consent is already granted.
     if (!(await ensureAiConsent())) return
+    // Câu nằm trong turn 'sending' (có nút Gửi lại nếu fail) → xoá draft an toàn, không còn mất câu.
+    const turn = makeUserTurn(trimmed)
     setDraft('')
-    setMessages((prev) => [...prev, { role: 'user', content: trimmed }])
-    setSending(true)
-    setStage('thinking')
-    setReaction(null)
-    scrollToEnd()
-    try {
-      const res = await speakingApi.chat(session.id, trimmed)
-      // The correction targets the learner's turn (rendered under the user bubble); the suggestions
-      // answer the AI's new question (rendered under the assistant bubble). Same payload feeds both —
-      // MessageBubble picks the relevant half per role. Attach to the most recent user turn.
-      setMessages((prev) => {
-        const next = prev.slice()
-        for (let k = next.length - 1; k >= 0; k--) {
-          if (next[k].role === 'user') {
-            next[k] = { ...next[k], feedback: res }
-            break
-          }
-        }
-        next.push({ role: 'assistant', content: res.aiSpeechDe ?? '…', feedback: res })
-        return next
-      })
-      if (res.interviewPhaseKey) setPhaseKey(res.interviewPhaseKey)
-      const r = reactionFor(res, session.sessionMode)
-      speakGerman(res.aiSpeechDe ?? '', () => {
-        flashReaction(r)
-        if (r === 'praise') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-        else if (r === 'wrong' || r === 'offtopic')
-          void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)
-      })
-      scrollToEnd()
-      if (res.isSessionEnded) await finishSession()
-    } catch (e) {
-      setStage('idle')
-      handleAiError(e)
-    } finally {
-      setSending(false)
-    }
+    setMessages((prev) => [...prev, turn])
+    await deliverTurn(turn.id, trimmed, { reconcileFirst: false })
+  }
+
+  // Gửi lại 1 lượt đã fail (nút trong bubble). Reconcile trước để không double-charge (R-M5).
+  async function retryTurn(id: string) {
+    if (sending || !session) return
+    const turn = messagesRef.current.find((t) => t.id === id)
+    if (!turn || turn.status !== 'failed') return
+    if (!(await ensureAiConsent())) return
+    setMessages((prev) => setTurnStatus(prev, id, 'sending'))
+    await deliverTurn(id, turn.content, { reconcileFirst: true })
   }
 
   // Type a suggested reply into the input bar character-by-character, then auto-send.
@@ -546,7 +586,9 @@ export default function SpeakingScreen() {
         experienceLevel: null,
         interviewReportJson: null,
       })
-      setMessages(turns)
+      // Server là chân lý cho mọi turn đã persist, nhưng GIỮ user turn 'failed' (chưa lên server) để
+      // user còn Gửi lại sau resume — thay vì bốc hơi như trước (R-M3). Câu đã lưu sẽ trùng → bị loại.
+      setMessages((prev) => mergeFailedTurns(turns, prev))
       setPhaseKey(null)
       setReport(null)
       setPendingResume(null)
@@ -733,11 +775,12 @@ export default function SpeakingScreen() {
           const isLastAssistant = i === messages.length - 1 && msg.role === 'assistant'
           return (
             <MessageBubble
-              key={i}
+              key={msg.id}
               turn={msg}
               personaId={personaId}
               active={isLastAssistant && stage === 'speaking'}
               onUseSuggestion={onUseSuggestion}
+              onRetry={msg.status === 'failed' ? () => void retryTurn(msg.id) : undefined}
             />
           )
         })}

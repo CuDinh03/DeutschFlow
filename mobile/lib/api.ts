@@ -9,6 +9,17 @@ export function isAxiosErr(e: unknown): e is AxiosError {
 }
 
 /**
+ * Lỗi THOÁNG QUA (đáng thử lại): mất mạng / timeout (không có response) hoặc 5xx. 4xx là server từ
+ * chối có chủ đích (hết quota, sai định dạng…) → KHÔNG tự thử lại. Dùng cho outbox lượt speaking
+ * (MB-3) và song song cách phân loại của chat outbox DM/class.
+ */
+export function isTransientFailure(err: unknown): boolean {
+  if (!isAxiosErr(err)) return false
+  const status = err.response?.status
+  return status == null || status >= 500
+}
+
+/**
  * Thông điệp lỗi để hiển thị cho người dùng.
  *
  * Backend trả RFC-7807 Problem Details, nên câu tiếng Việt nằm ở `detail` — KHÔNG phải `message`.
