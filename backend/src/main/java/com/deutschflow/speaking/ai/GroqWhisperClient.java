@@ -1,5 +1,6 @@
 package com.deutschflow.speaking.ai;
 
+import com.deutschflow.speaking.exception.AiErrorCode;
 import com.deutschflow.speaking.exception.AiServiceException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,26 +25,45 @@ import java.util.UUID;
 @Slf4j
 public class GroqWhisperClient {
 
-    private static final String WHISPER_URL = "https://api.groq.com/openai/v1/audio/transcriptions";
+    static final String WHISPER_URL = "https://api.groq.com/openai/v1/audio/transcriptions";
 
     /** Per-request cap. The JDK HttpClient only had a connect timeout; without this a stalled
      *  Groq response would hold the STT thread (and its Whisper semaphore permit) indefinitely. */
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(60);
 
+    /** Khớp gợi ý Retry-After của {@link GroqChatClient}: nghẽn cục bộ vài giây, breaker 30s. */
+    private static final int BUSY_RETRY_AFTER_SECONDS = 15;
+    private static final int BREAKER_OPEN_RETRY_AFTER_SECONDS = 30;
+
     private final String apiKey;
+    private final String endpointUrl;
     private final String whisperModel;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
     private final GroqConcurrencyLimiter concurrencyLimiter;
     private final com.deutschflow.common.resilience.CircuitBreakers circuitBreakers;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public GroqWhisperClient(
             @Value("${app.ai.groq.api-key:}") String apiKey,
             @Value("${app.ai.groq.whisper-model:whisper-large-v3}") String whisperModel,
             ObjectMapper objectMapper,
             GroqConcurrencyLimiter concurrencyLimiter,
             com.deutschflow.common.resilience.CircuitBreakers circuitBreakers) {
+        this(apiKey, whisperModel, objectMapper, concurrencyLimiter, circuitBreakers, WHISPER_URL);
+    }
+
+    /** Endpoint-overridable constructor — tests point it at một stub HTTP cục bộ (xem
+     *  {@code GroqWhisperClientErrorTest}); production luôn dùng {@link #WHISPER_URL}. */
+    GroqWhisperClient(
+            String apiKey,
+            String whisperModel,
+            ObjectMapper objectMapper,
+            GroqConcurrencyLimiter concurrencyLimiter,
+            com.deutschflow.common.resilience.CircuitBreakers circuitBreakers,
+            String endpointUrl) {
         this.apiKey = apiKey;
+        this.endpointUrl = endpointUrl;
         this.whisperModel = whisperModel;
         this.objectMapper = objectMapper;
         this.concurrencyLimiter = concurrencyLimiter;
@@ -52,6 +72,25 @@ public class GroqWhisperClient {
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
         log.info("GroqWhisperClient initialized — model: {}", whisperModel);
+    }
+
+    /**
+     * Audit speaking 24/07 (§8.1/§8.2): {@code detail} của ProblemDetail hiện thẳng lên UI, nên câu
+     * chữ ở đây phải trung tính — không tên nhà cung cấp ("Whisper"/"Groq"), không mã HTTP trần,
+     * không nguyên văn lỗi upstream. #252 đã dọn {@link GroqChatClient} nhưng bỏ sót client này:
+     * "Whisper transcription failed: HTTP 500" và "Whisper verbose error: {message}" vẫn tới người
+     * dùng. Chi tiết kỹ thuật chuyển hết vào log.
+     */
+    private AiServiceException upstreamFailure(String phase, int statusCode) {
+        log.error("[Whisper] {} failed: HTTP {}", phase, statusCode);
+        return new AiServiceException(AiErrorCode.AI_UPSTREAM_UNAVAILABLE,
+                "Dịch vụ nhận diện giọng nói tạm thời không khả dụng, vui lòng thử lại sau.", null);
+    }
+
+    private AiServiceException transportFailure(String phase, Exception e) {
+        log.error("[Whisper] {} error", phase, e);
+        return new AiServiceException(AiErrorCode.AI_UPSTREAM_UNAVAILABLE,
+                "Dịch vụ nhận diện giọng nói tạm thời không khả dụng, vui lòng thử lại sau.", null, e);
     }
 
     public String getWhisperModel() {
@@ -72,14 +111,15 @@ public class GroqWhisperClient {
      */
     public VerboseTranscript transcribeVerbose(byte[] audioBytes, String filename, String language, String prompt) {
         if (apiKey == null || apiKey.isBlank()) {
-            throw new AiServiceException("Groq API key is not configured.");
+            throw new AiServiceException(AiErrorCode.AI_NOT_CONFIGURED,
+                    "Tính năng nhận diện giọng nói chưa được bật trên hệ thống.", null);
         }
 
         String boundary = "----FormBoundary" + UUID.randomUUID().toString().replace("-", "");
         byte[] body = buildMultipartBody(boundary, audioBytes, filename, language, prompt, true);
 
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(WHISPER_URL))
+                .uri(URI.create(endpointUrl))
                 .header("Authorization", "Bearer " + apiKey)
                 .header("Content-Type", "multipart/form-data; boundary=" + boundary)
                 .timeout(REQUEST_TIMEOUT)
@@ -89,15 +129,18 @@ public class GroqWhisperClient {
         boolean acquired = false;
         try {
             acquired = concurrencyLimiter.tryAcquireWhisper();
-            if (!acquired) throw new AiServiceException("Speech recognition is busy.");
+            if (!acquired) throw new AiServiceException(AiErrorCode.AI_BUSY,
+                    "Nhận diện giọng nói đang bận, vui lòng thử lại sau ít giây.", BUSY_RETRY_AFTER_SECONDS);
             // Circuit-breaker guarded (semaphore stays OUTSIDE — local backpressure ≠ upstream failure).
             return circuitBreakers.call(
                     "groqWhisper",
                     () -> sendAndParseVerbose(request),
-                    () -> new AiServiceException("Nhận diện giọng nói đang quá tải, thử lại sau ít phút."));
+                    () -> new AiServiceException(AiErrorCode.AI_BUSY,
+                            "Nhận diện giọng nói đang quá tải, thử lại sau ít phút.", BREAKER_OPEN_RETRY_AFTER_SECONDS));
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
-            throw new AiServiceException("Whisper verbose request interrupted.", ie);
+            throw new AiServiceException(AiErrorCode.AI_INTERRUPTED,
+                    "Yêu cầu nhận diện giọng nói bị gián đoạn, vui lòng thử lại.", null, ie);
         } finally {
             if (acquired) concurrencyLimiter.releaseWhisper();
         }
@@ -109,7 +152,7 @@ public class GroqWhisperClient {
         try {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             if (response.statusCode() != 200) {
-                throw new AiServiceException("Whisper verbose failed: HTTP " + response.statusCode());
+                throw upstreamFailure("verbose", response.statusCode());
             }
             JsonNode root = objectMapper.readTree(response.body());
             String text = root.path("text").asText("");
@@ -141,9 +184,10 @@ public class GroqWhisperClient {
             throw e;
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
-            throw new AiServiceException("Whisper verbose request interrupted.", ie);
+            throw new AiServiceException(AiErrorCode.AI_INTERRUPTED,
+                    "Yêu cầu nhận diện giọng nói bị gián đoạn, vui lòng thử lại.", null, ie);
         } catch (Exception e) {
-            throw new AiServiceException("Whisper verbose error: " + e.getMessage(), e);
+            throw transportFailure("verbose", e);
         }
     }
 
@@ -161,7 +205,8 @@ public class GroqWhisperClient {
      */
     public TranscribeResult transcribe(byte[] audioBytes, String filename, String language, String prompt) {
         if (apiKey == null || apiKey.isBlank()) {
-            throw new AiServiceException("Groq API key is not configured.");
+            throw new AiServiceException(AiErrorCode.AI_NOT_CONFIGURED,
+                    "Tính năng nhận diện giọng nói chưa được bật trên hệ thống.", null);
         }
 
         String boundary = "----FormBoundary" + UUID.randomUUID().toString().replace("-", "");
@@ -169,7 +214,7 @@ public class GroqWhisperClient {
         byte[] body = buildMultipartBody(boundary, audioBytes, filename, language, prompt, true);
 
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(WHISPER_URL))
+                .uri(URI.create(endpointUrl))
                 .header("Authorization", "Bearer " + apiKey)
                 .header("Content-Type", "multipart/form-data; boundary=" + boundary)
                 .timeout(REQUEST_TIMEOUT)
@@ -181,16 +226,19 @@ public class GroqWhisperClient {
             acquired = concurrencyLimiter.tryAcquireWhisper();
             if (!acquired) {
                 log.warn("[Whisper] Semaphore timeout — too many concurrent STT requests");
-                throw new AiServiceException("Speech recognition is busy. Please try again shortly.");
+                throw new AiServiceException(AiErrorCode.AI_BUSY,
+                        "Nhận diện giọng nói đang bận, vui lòng thử lại sau ít giây.", BUSY_RETRY_AFTER_SECONDS);
             }
             // Circuit-breaker guarded (semaphore stays OUTSIDE — local backpressure ≠ upstream failure).
             return circuitBreakers.call(
                     "groqWhisper",
                     () -> sendAndParseTranscribe(request, prompt, audioBytes.length),
-                    () -> new AiServiceException("Nhận diện giọng nói đang quá tải, thử lại sau ít phút."));
+                    () -> new AiServiceException(AiErrorCode.AI_BUSY,
+                            "Nhận diện giọng nói đang quá tải, thử lại sau ít phút.", BREAKER_OPEN_RETRY_AFTER_SECONDS));
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
-            throw new AiServiceException("Whisper request interrupted.", ie);
+            throw new AiServiceException(AiErrorCode.AI_INTERRUPTED,
+                    "Yêu cầu nhận diện giọng nói bị gián đoạn, vui lòng thử lại.", null, ie);
         } finally {
             if (acquired) {
                 concurrencyLimiter.releaseWhisper();
@@ -205,12 +253,13 @@ public class GroqWhisperClient {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             if (response.statusCode() != 200) {
                 log.error("[Whisper] HTTP {}: {}", response.statusCode(), response.body());
-                throw new AiServiceException("Whisper transcription failed: HTTP " + response.statusCode());
+                throw upstreamFailure("transcribe", response.statusCode());
             }
             JsonNode root = objectMapper.readTree(response.body());
             String text = root.path("text").asText(null);
             if (text == null || text.isBlank()) {
-                throw new AiServiceException("Whisper returned empty transcript.");
+                throw new AiServiceException(AiErrorCode.STT_FAILED,
+                        "Chưa nghe rõ — bạn nói lại hoặc gõ tay nhé.", null);
             }
             double durationSeconds = root.path("duration").asDouble(0);
             log.info("[Whisper] target='{}' -> transcribed='{}' ({} bytes, {}s)",
@@ -221,9 +270,10 @@ public class GroqWhisperClient {
             throw e;
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
-            throw new AiServiceException("Whisper request interrupted.", ie);
+            throw new AiServiceException(AiErrorCode.AI_INTERRUPTED,
+                    "Yêu cầu nhận diện giọng nói bị gián đoạn, vui lòng thử lại.", null, ie);
         } catch (Exception e) {
-            throw new AiServiceException("Whisper transcription error: " + e.getMessage(), e);
+            throw transportFailure("transcribe", e);
         }
     }
 
@@ -297,7 +347,8 @@ public class GroqWhisperClient {
             System.arraycopy(suffix, 0, combined, prefix.length + audioBytes.length, suffix.length);
             return combined;
         } catch (Exception e) {
-            throw new AiServiceException("Failed to build multipart body", e);
+            throw new AiServiceException(AiErrorCode.STT_FAILED,
+                    "Không đọc được bản ghi âm, bạn thử ghi lại nhé.", null, e);
         }
     }
 }

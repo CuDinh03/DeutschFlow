@@ -24,6 +24,9 @@ public enum AiErrorCode {
     AI_NOT_CONFIGURED,
 
     /** Hết hạn mức token AI của gói — client mời nâng cấp, KHÔNG phải lỗi hệ thống. */
+    /** Nhận diện giọng nói không ra chữ (im lặng, nhiễu, định dạng lạ) — user nói lại hoặc gõ tay. */
+    STT_FAILED,
+
     QUOTA_EXCEEDED,
 
     /** Vượt giới hạn tần suất tạm thời — client đợi rồi thử lại (kèm Retry-After). */
