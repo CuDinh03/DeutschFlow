@@ -4,6 +4,8 @@ import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.common.audit.AuditActor;
+import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.organization.dto.OrgMemberDto;
 import com.deutschflow.organization.entity.OrgMember;
 import com.deutschflow.organization.entity.OrgMemberId;
@@ -21,6 +23,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.ResultSetExtractor;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -46,11 +49,17 @@ class OrgMembershipServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private JdbcTemplate jdbcTemplate;
 
+    @Mock private AuditLogService auditLogService;
+
+    /** Người thao tác — mọi mutation thành viên nay ghi vết kèm danh tính này. */
+    private static final AuditActor ACTOR = new AuditActor(2L, "owner@tt.vn", "OWNER");
+    /** Các luồng tự-thao-tác (rời org, chuyển quyền) — actor CHÍNH là USER_ID. */
+    private static final AuditActor ACTOR_SELF = new AuditActor(USER_ID, "self@tt.vn", "OWNER");
     private OrgMembershipService service;
 
     @BeforeEach
     void setUp() {
-        service = new OrgMembershipService(memberRepo, userRepository, jdbcTemplate);
+        service = new OrgMembershipService(memberRepo, userRepository, jdbcTemplate, auditLogService);
     }
 
     private User studentUser() {
@@ -181,7 +190,7 @@ class OrgMembershipServiceTest {
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
         when(memberRepo.existsByIdUserIdAndRoleInAndStatus(eq(USER_ID), anySet(), eq("ACTIVE"))).thenReturn(false);
 
-        service.removeMember(ORG_ID, USER_ID);
+        service.removeMember(ORG_ID, USER_ID, ACTOR);
 
         assertThat(active.getStatus()).isEqualTo("REVOKED");
         assertThat(active.getLeftAt()).isNotNull();
@@ -199,7 +208,7 @@ class OrgMembershipServiceTest {
         when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID))
                 .thenReturn(Optional.of(member("OWNER", "ACTIVE")));
 
-        assertThatThrownBy(() -> service.removeMember(ORG_ID, USER_ID))
+        assertThatThrownBy(() -> service.removeMember(ORG_ID, USER_ID, ACTOR))
                 .isInstanceOf(BadRequestException.class);
 
         verify(memberRepo, never()).save(any());
@@ -217,7 +226,7 @@ class OrgMembershipServiceTest {
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
         when(memberRepo.existsByIdUserIdAndRoleInAndStatus(eq(USER_ID), anySet(), eq("ACTIVE"))).thenReturn(false);
 
-        service.selfLeave(ORG_ID, USER_ID);
+        service.selfLeave(ORG_ID, ACTOR_SELF);
 
         assertThat(active.getStatus()).isEqualTo("LEFT");
         assertThat(active.getLeftAt()).isNotNull();
@@ -232,7 +241,7 @@ class OrgMembershipServiceTest {
         when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID))
                 .thenReturn(Optional.of(member("OWNER", "ACTIVE")));
 
-        assertThatThrownBy(() -> service.selfLeave(ORG_ID, USER_ID))
+        assertThatThrownBy(() -> service.selfLeave(ORG_ID, ACTOR_SELF))
                 .isInstanceOf(BadRequestException.class);
 
         verify(userRepository, never()).save(any());
@@ -243,7 +252,7 @@ class OrgMembershipServiceTest {
     void selfLeave_nonMember_throwsForbidden() {
         when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.selfLeave(ORG_ID, USER_ID))
+        assertThatThrownBy(() -> service.selfLeave(ORG_ID, ACTOR_SELF))
                 .isInstanceOf(ForbiddenException.class);
     }
 
@@ -264,7 +273,7 @@ class OrgMembershipServiceTest {
         when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.of(m));
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(teacherUser(ORG_ID)));
 
-        OrgMemberDto dto = service.changeRole(ORG_ID, USER_ID, "manager");
+        OrgMemberDto dto = service.changeRole(ORG_ID, USER_ID, "manager", ACTOR);
 
         assertThat(m.getRole()).isEqualTo("MANAGER");
         assertThat(dto.role()).isEqualTo("MANAGER");
@@ -273,7 +282,7 @@ class OrgMembershipServiceTest {
     @Test
     @DisplayName("changeRole rejects a non-staff target role")
     void changeRole_invalidRole_throwsBadRequest() {
-        assertThatThrownBy(() -> service.changeRole(ORG_ID, USER_ID, "STUDENT"))
+        assertThatThrownBy(() -> service.changeRole(ORG_ID, USER_ID, "STUDENT", ACTOR))
                 .isInstanceOf(BadRequestException.class);
         verify(memberRepo, never()).save(any());
     }
@@ -284,7 +293,7 @@ class OrgMembershipServiceTest {
         when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID))
                 .thenReturn(Optional.of(member("OWNER", "ACTIVE")));
 
-        assertThatThrownBy(() -> service.changeRole(ORG_ID, USER_ID, "MANAGER"))
+        assertThatThrownBy(() -> service.changeRole(ORG_ID, USER_ID, "MANAGER", ACTOR))
                 .isInstanceOf(BadRequestException.class);
     }
 
@@ -294,7 +303,7 @@ class OrgMembershipServiceTest {
         when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID))
                 .thenReturn(Optional.of(member("STUDENT", "ACTIVE")));
 
-        assertThatThrownBy(() -> service.changeRole(ORG_ID, USER_ID, "TEACHER"))
+        assertThatThrownBy(() -> service.changeRole(ORG_ID, USER_ID, "TEACHER", ACTOR))
                 .isInstanceOf(BadRequestException.class);
     }
 
@@ -303,7 +312,7 @@ class OrgMembershipServiceTest {
     void changeRole_missing_throwsNotFound() {
         when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.changeRole(ORG_ID, USER_ID, "MANAGER"))
+        assertThatThrownBy(() -> service.changeRole(ORG_ID, USER_ID, "MANAGER", ACTOR))
                 .isInstanceOf(NotFoundException.class);
     }
 
@@ -312,7 +321,7 @@ class OrgMembershipServiceTest {
     void removeMember_missing_throwsNotFound() {
         when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.removeMember(ORG_ID, USER_ID))
+        assertThatThrownBy(() -> service.removeMember(ORG_ID, USER_ID, ACTOR))
                 .isInstanceOf(NotFoundException.class);
         verify(memberRepo, never()).save(any());
     }
@@ -331,7 +340,7 @@ class OrgMembershipServiceTest {
         when(userRepository.findById(NEW_OWNER_ID)).thenReturn(Optional.of(targetUser));
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(ownerUser));
 
-        OrgMemberDto dto = service.transferOwnership(ORG_ID, USER_ID, NEW_OWNER_ID);
+        OrgMemberDto dto = service.transferOwnership(ORG_ID, ACTOR_SELF, NEW_OWNER_ID);
 
         // Ownership seat moved: exactly one OWNER (the target), old owner is now MANAGER — never zero.
         assertThat(target.getRole()).isEqualTo("OWNER");
@@ -352,7 +361,7 @@ class OrgMembershipServiceTest {
         when(userRepository.findById(NEW_OWNER_ID)).thenReturn(Optional.of(userWith(NEW_OWNER_ID, User.Role.TEACHER)));
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(userWith(USER_ID, User.Role.OWNER)));
 
-        service.transferOwnership(ORG_ID, USER_ID, NEW_OWNER_ID);
+        service.transferOwnership(ORG_ID, ACTOR_SELF, NEW_OWNER_ID);
 
         assertThat(target.getRole()).isEqualTo("OWNER");
         assertThat(currentOwner.getRole()).isEqualTo("MANAGER");
@@ -361,7 +370,7 @@ class OrgMembershipServiceTest {
     @Test
     @DisplayName("transferOwnership rejects transferring to yourself")
     void transferOwnership_sameUser_throwsBadRequest() {
-        assertThatThrownBy(() -> service.transferOwnership(ORG_ID, USER_ID, USER_ID))
+        assertThatThrownBy(() -> service.transferOwnership(ORG_ID, ACTOR_SELF, USER_ID))
                 .isInstanceOf(BadRequestException.class);
 
         verify(memberRepo, never()).save(any());
@@ -373,7 +382,7 @@ class OrgMembershipServiceTest {
         when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID))
                 .thenReturn(Optional.of(member(USER_ID, "MANAGER", "ACTIVE")));
 
-        assertThatThrownBy(() -> service.transferOwnership(ORG_ID, USER_ID, NEW_OWNER_ID))
+        assertThatThrownBy(() -> service.transferOwnership(ORG_ID, ACTOR_SELF, NEW_OWNER_ID))
                 .isInstanceOf(ForbiddenException.class);
 
         verify(memberRepo, never()).save(any());
@@ -384,7 +393,7 @@ class OrgMembershipServiceTest {
     void transferOwnership_callerNotMember_throwsForbidden() {
         when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.transferOwnership(ORG_ID, USER_ID, NEW_OWNER_ID))
+        assertThatThrownBy(() -> service.transferOwnership(ORG_ID, ACTOR_SELF, NEW_OWNER_ID))
                 .isInstanceOf(ForbiddenException.class);
 
         verify(memberRepo, never()).save(any());
@@ -397,7 +406,7 @@ class OrgMembershipServiceTest {
                 .thenReturn(Optional.of(member(USER_ID, "OWNER", "ACTIVE")));
         when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, NEW_OWNER_ID)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.transferOwnership(ORG_ID, USER_ID, NEW_OWNER_ID))
+        assertThatThrownBy(() -> service.transferOwnership(ORG_ID, ACTOR_SELF, NEW_OWNER_ID))
                 .isInstanceOf(NotFoundException.class);
 
         verify(memberRepo, never()).save(any());
@@ -411,7 +420,7 @@ class OrgMembershipServiceTest {
         when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, NEW_OWNER_ID))
                 .thenReturn(Optional.of(member(NEW_OWNER_ID, "STUDENT", "ACTIVE")));
 
-        assertThatThrownBy(() -> service.transferOwnership(ORG_ID, USER_ID, NEW_OWNER_ID))
+        assertThatThrownBy(() -> service.transferOwnership(ORG_ID, ACTOR_SELF, NEW_OWNER_ID))
                 .isInstanceOf(BadRequestException.class);
 
         verify(memberRepo, never()).save(any());
@@ -423,5 +432,77 @@ class OrgMembershipServiceTest {
         when(memberRepo.countByIdOrgIdAndRoleAndStatus(ORG_ID, "OWNER", "ACTIVE")).thenReturn(1L);
 
         assertThat(service.countActiveOwners(ORG_ID)).isEqualTo(1L);
+    }
+
+    // ----------------------------------------------------------------- vết audit
+
+    @Test
+    @DisplayName("changeRole ghi vết kèm vai trò CŨ → MỚI")
+    void changeRole_writesAuditWithFromTo() {
+        OrgMember m = member("TEACHER", "ACTIVE");
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.of(m));
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(teacherUser(ORG_ID)));
+
+        service.changeRole(ORG_ID, USER_ID, "MANAGER", ACTOR);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> meta = ArgumentCaptor.forClass(Map.class);
+        verify(auditLogService).log(eq("org_member_role_changed"), eq(ACTOR),
+                eq("ORG_MEMBER"), eq(String.valueOf(USER_ID)), meta.capture());
+        assertThat(meta.getValue())
+                .containsEntry("from", "TEACHER")
+                .containsEntry("to", "MANAGER")
+                .containsEntry("orgId", ORG_ID)
+                .containsEntry("targetUserId", USER_ID);
+    }
+
+    @Test
+    @DisplayName("removeMember ghi vết kèm vai trò người bị gỡ — vai trò đó biến mất sau khi gỡ")
+    void removeMember_writesAuditWithRole() {
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID))
+                .thenReturn(Optional.of(member("TEACHER", "ACTIVE")));
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(teacherUser(ORG_ID)));
+        when(memberRepo.existsByIdUserIdAndRoleInAndStatus(eq(USER_ID), anySet(), eq("ACTIVE")))
+                .thenReturn(false);
+
+        service.removeMember(ORG_ID, USER_ID, ACTOR);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> meta = ArgumentCaptor.forClass(Map.class);
+        verify(auditLogService).log(eq("org_member_removed"), eq(ACTOR),
+                eq("ORG_MEMBER"), eq(String.valueOf(USER_ID)), meta.capture());
+        assertThat(meta.getValue()).containsEntry("role", "TEACHER").containsEntry("status", "REVOKED");
+    }
+
+    @Test
+    @DisplayName("transferOwnership ghi vết trên TỔ CHỨC, không phải trên một thành viên")
+    void transferOwnership_writesOrgScopedAudit() {
+        OrgMember owner = member("OWNER", "ACTIVE");
+        OrgMember target = member(NEW_OWNER_ID, "MANAGER", "ACTIVE");
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID)).thenReturn(Optional.of(owner));
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, NEW_OWNER_ID)).thenReturn(Optional.of(target));
+
+        service.transferOwnership(ORG_ID, ACTOR_SELF, NEW_OWNER_ID);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> meta = ArgumentCaptor.forClass(Map.class);
+        // target_type = ORG: đây là lần đổi chủ của tổ chức, tra theo org mới thấy được nó.
+        verify(auditLogService).log(eq("org_ownership_transferred"), eq(ACTOR_SELF),
+                eq("ORG"), eq(String.valueOf(ORG_ID)), meta.capture());
+        assertThat(meta.getValue())
+                .containsEntry("fromUserId", USER_ID)
+                .containsEntry("toUserId", NEW_OWNER_ID);
+    }
+
+    @Test
+    @DisplayName("gỡ OWNER bị chặn thì không có vết — vết chỉ dành cho việc đã thực sự xảy ra")
+    void removeOwner_blocked_writesNoAudit() {
+        when(memberRepo.findByIdOrgIdAndIdUserId(ORG_ID, USER_ID))
+                .thenReturn(Optional.of(member("OWNER", "ACTIVE")));
+
+        assertThatThrownBy(() -> service.removeMember(ORG_ID, USER_ID, ACTOR))
+                .isInstanceOf(com.deutschflow.common.exception.BadRequestException.class);
+
+        verify(auditLogService, never()).log(any(), any(AuditActor.class), any(), any(), any());
     }
 }

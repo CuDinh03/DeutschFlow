@@ -1,5 +1,6 @@
 package com.deutschflow.teacher.controller;
 
+import com.deutschflow.common.audit.AuditActor;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.teacher.dto.TimesheetPeriodDtos.OrgTimesheetDto;
 import com.deutschflow.teacher.dto.TimesheetPeriodDtos.PeriodDto;
@@ -70,20 +71,20 @@ public class OrgTimesheetController {
 
     @PostMapping("/periods/{periodId}/approve")
     public PeriodDto approve(@AuthenticationPrincipal User actor, @PathVariable Long periodId) {
-        return periodService.approve(actor.getId(), requireOrgId(actor), periodId);
+        return periodService.approve(AuditActor.of(actor), requireOrgId(actor), periodId);
     }
 
     @PostMapping("/periods/{periodId}/reject")
     public PeriodDto reject(@AuthenticationPrincipal User actor,
                             @PathVariable Long periodId,
                             @RequestBody ReviewRequest req) {
-        return periodService.reject(actor.getId(), requireOrgId(actor), periodId, req.reason());
+        return periodService.reject(AuditActor.of(actor), requireOrgId(actor), periodId, req.reason());
     }
 
     /** OWNER-only (xem javadoc class): giám đốc trung tâm là người chốt sổ cuối cùng. */
     @PostMapping("/periods/{periodId}/lock")
     public PeriodDto lock(@AuthenticationPrincipal User actor, @PathVariable Long periodId) {
-        return periodService.lock(actor.getId(), requireOrgId(actor), periodId);
+        return periodService.lock(AuditActor.of(actor), requireOrgId(actor), periodId);
     }
 
     /** orgId luôn từ principal — không nhận từ client để tránh giả mạo tổ chức. */

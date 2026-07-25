@@ -1,5 +1,7 @@
 package com.deutschflow.organization.service;
 
+import com.deutschflow.common.audit.AuditActor;
+import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.ForbiddenException;
@@ -26,7 +28,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -56,6 +60,7 @@ public class OrgInvitationService {
     private final OrgInvitationMailer mailer;
     private final PasswordEncoder passwordEncoder;
     private final AuthService authService;
+    private final AuditLogService auditLogService;
 
     /**
      * Creates a PENDING teacher invitation and emails the accept link (best-effort).
@@ -210,6 +215,17 @@ public class OrgInvitationService {
         invitation.setAcceptedAt(Instant.now());
         invitationRepository.save(invitation);
 
+        // Actor là CHÍNH người nhận lời mời, không phải người đã gửi: đây là endpoint công khai,
+        // không có principal, và hành động "gia nhập" là của họ. Người mời nằm trong metadata.
+        Map<String, Object> meta = new LinkedHashMap<>();
+        meta.put("orgId", invitation.getOrgId());
+        meta.put("targetUserId", user.getId());
+        meta.put("role", invitation.getRole());
+        meta.put("invitationId", invitation.getId());
+        meta.put("invitedBy", invitation.getInvitedBy());
+        auditLogService.log("org_member_joined_via_invitation", AuditActor.of(user),
+                "ORG_MEMBER", String.valueOf(user.getId()), meta);
+
         log.info("[OrgInvite] invitation {} accepted by userId={} (org={}, role={})",
                 invitation.getId(), user.getId(), invitation.getOrgId(), invitation.getRole());
 
@@ -225,7 +241,8 @@ public class OrgInvitationService {
      */
     @Transactional
     public OrgMemberDto preCreateTeacher(Long orgId, String email, String displayName,
-                                         String rawPassword, User.CreatedVia createdVia) {
+                                         String rawPassword, User.CreatedVia createdVia,
+                                         AuditActor actor) {
         String normEmail = normalizeEmail(email);
         if (normEmail.isBlank()) {
             throw new BadRequestException("Email không được để trống.");
@@ -247,6 +264,14 @@ public class OrgInvitationService {
                 .createdVia(createdVia)
                 .build());
         membershipService.upsertMember(orgId, teacher.getId(), "TEACHER");
+        Map<String, Object> addMeta = new LinkedHashMap<>();
+        addMeta.put("orgId", orgId);
+        addMeta.put("targetUserId", teacher.getId());
+        addMeta.put("role", "TEACHER");
+        addMeta.put("email", normEmail);
+        addMeta.put("createdVia", createdVia.name());
+        auditLogService.log("org_member_added", actor,
+                "ORG_MEMBER", String.valueOf(teacher.getId()), addMeta);
         log.info("[Org] Pre-created TEACHER userId={} (email={}) cho org {} (createdVia={})",
                 teacher.getId(), normEmail, orgId, createdVia);
         return new OrgMemberDto(teacher.getId(), teacher.getEmail(), teacher.getDisplayName(),

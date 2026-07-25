@@ -3,6 +3,8 @@ package com.deutschflow.organization.service;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ForbiddenException;
 import com.deutschflow.common.exception.NotFoundException;
+import com.deutschflow.common.audit.AuditActor;
+import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.organization.dto.AcceptInviteRequest;
 import com.deutschflow.organization.dto.InvitationPreviewDto;
 import com.deutschflow.organization.entity.OrgInvitation;
@@ -26,6 +28,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -65,6 +68,9 @@ class OrgInvitationServiceTest {
     private static final Long ACTOR_ID = 1L;
     private static final String TOKEN = "test-token-abc-123";
 
+    @Mock private AuditLogService auditLogService;
+    /** Org-admin đã bấm tạo giáo viên — vết org_member_added mang danh tính này. */
+    private static final AuditActor ACTOR = new AuditActor(2L, "owner@tt.vn", "OWNER");
     @BeforeEach
     void setUp() {
         service = new OrgInvitationService(
@@ -75,8 +81,67 @@ class OrgInvitationServiceTest {
                 membershipService,
                 mailer,
                 passwordEncoder,
-                authService
+                authService,
+                auditLogService
         );
+    }
+
+    @Test
+    @DisplayName("accept ghi vết với actor là CHÍNH người nhận lời mời, không phải người gửi")
+    void accept_auditActorIsTheJoiner() {
+        OrgInvitation invitation = pendingInvitation("newteacher@school.edu", Instant.now().plusSeconds(3600));
+        invitation.setInvitedBy(9L);
+        when(invitationRepository.findByTokenAndStatus(TOKEN, "PENDING"))
+                .thenReturn(Optional.of(invitation));
+        when(userRepository.findByEmailIgnoreCase("newteacher@school.edu")).thenReturn(Optional.empty());
+        when(userRepository.existsByEmailIgnoreCase("newteacher@school.edu")).thenReturn(false);
+        User createdUser = User.builder()
+                .id(200L).email("newteacher@school.edu").role(User.Role.TEACHER)
+                .displayName("New Teacher").passwordHash("encoded-password").orgId(ORG_ID).build();
+        when(passwordEncoder.encode("Secret1!")).thenReturn("encoded-password");
+        when(userRepository.save(any(User.class))).thenReturn(createdUser);
+        when(userRepository.findById(200L)).thenReturn(Optional.of(createdUser));
+        when(authService.issueSession(any(User.class))).thenReturn(dummyAuthResponse(200L));
+
+        service.accept(TOKEN, new AcceptInviteRequest("New Teacher", "Secret1!"));
+
+        ArgumentCaptor<AuditActor> actor = ArgumentCaptor.forClass(AuditActor.class);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> meta = ArgumentCaptor.forClass(Map.class);
+        // Endpoint nhận lời mời là công khai (chưa có phiên), nên actor không thể lấy từ principal —
+        // và hành động "gia nhập" vốn là của chính họ. Người gửi lời mời nằm trong metadata.
+        verify(auditLogService).log(eq("org_member_joined_via_invitation"), actor.capture(),
+                eq("ORG_MEMBER"), eq("200"), meta.capture());
+        assertThat(actor.getValue().id()).isEqualTo(200L);
+        assertThat(actor.getValue().email()).isEqualTo("newteacher@school.edu");
+        assertThat(meta.getValue())
+                .containsEntry("orgId", ORG_ID)
+                .containsEntry("role", "TEACHER")
+                .containsEntry("invitedBy", 9L);
+    }
+
+    @Test
+    @DisplayName("preCreateTeacher ghi vết org_member_added với actor là org-admin đã bấm tạo")
+    void preCreateTeacher_writesAuditWithAdminActor() {
+        when(userRepository.existsByEmailIgnoreCase("t@x.com")).thenReturn(false);
+        when(passwordEncoder.encode("secret123")).thenReturn("hashed");
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> {
+            User u = inv.getArgument(0);
+            u.setId(300L);
+            return u;
+        });
+
+        service.preCreateTeacher(ORG_ID, " T@x.com ", "Teacher X", "secret123",
+                User.CreatedVia.OWNER, ACTOR);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> meta = ArgumentCaptor.forClass(Map.class);
+        verify(auditLogService).log(eq("org_member_added"), eq(ACTOR),
+                eq("ORG_MEMBER"), eq("300"), meta.capture());
+        assertThat(meta.getValue())
+                .containsEntry("role", "TEACHER")
+                .containsEntry("email", "t@x.com")          // đã chuẩn hoá, không phải " T@x.com "
+                .containsEntry("createdVia", "OWNER");
     }
 
     // ------------------------------------------------------------------ helpers
@@ -375,7 +440,7 @@ class OrgInvitationServiceTest {
         });
 
         com.deutschflow.organization.dto.OrgMemberDto dto =
-                service.preCreateTeacher(ORG_ID, " T@x.com ", "Teacher X", "secret123", User.CreatedVia.OWNER);
+                service.preCreateTeacher(ORG_ID, " T@x.com ", "Teacher X", "secret123", User.CreatedVia.OWNER, ACTOR);
 
         assertThat(cap.getValue().getRole()).isEqualTo(User.Role.TEACHER);
         assertThat(cap.getValue().getCreatedVia()).isEqualTo(User.CreatedVia.OWNER);
@@ -390,7 +455,7 @@ class OrgInvitationServiceTest {
     void preCreateTeacher_duplicateEmail_conflict() {
         when(userRepository.existsByEmailIgnoreCase("dup@x.com")).thenReturn(true);
         assertThatThrownBy(() ->
-                service.preCreateTeacher(ORG_ID, "dup@x.com", "D", "secret123", User.CreatedVia.MANAGER))
+                service.preCreateTeacher(ORG_ID, "dup@x.com", "D", "secret123", User.CreatedVia.MANAGER, ACTOR))
                 .isInstanceOf(com.deutschflow.common.exception.ConflictException.class);
         verify(userRepository, never()).save(any(User.class));
     }

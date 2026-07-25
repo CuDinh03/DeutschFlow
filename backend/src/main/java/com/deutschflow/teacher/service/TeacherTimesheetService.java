@@ -1,5 +1,7 @@
 package com.deutschflow.teacher.service;
 
+import com.deutschflow.common.audit.AuditActor;
+import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.ForbiddenException;
@@ -23,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -51,6 +54,7 @@ public class TeacherTimesheetService {
     private final ClassTeacherRepository classTeacherRepository;
     private final TeacherClassRepository classRepository;
     private final TimesheetPeriodService periodService;
+    private final AuditLogService auditLogService;
 
     /** Bảng công của giáo viên trong kỳ [from, to), kèm các buổi đã qua mà chưa ghi công. */
     @Transactional(readOnly = true)
@@ -118,7 +122,8 @@ public class TeacherTimesheetService {
 
     /** Ghi nhận một buổi đã dạy. Snapshot mọi giá trị dùng để tính công. */
     @Transactional
-    public SessionRecordDto record(Long teacherId, RecordTeachingRequest req) {
+    public SessionRecordDto record(AuditActor actor, RecordTeachingRequest req) {
+        Long teacherId = actor.id();
         ClassSession session = null;
         Long classId = req.classId();
         LocalDateTime startedAt = req.startedAt();
@@ -159,13 +164,19 @@ public class TeacherTimesheetService {
                 .teacherRole(parseRole(req.teacherRole()))
                 .note(req.note())
                 .build();
-        return toDto(recordRepository.save(rec));
+        TeacherSessionRecord saved = recordRepository.save(rec);
+        auditLogService.log("teacher_session_record_created", actor,
+                "SESSION_RECORD", String.valueOf(saved.getId()), snapshot(saved, null));
+        return toDto(saved);
     }
 
     /** Sửa một dòng công (thời lượng thực tế, ghi chú, vai trò). */
     @Transactional
-    public SessionRecordDto updateRecord(Long teacherId, Long recordId, RecordTeachingRequest req) {
+    public SessionRecordDto updateRecord(AuditActor actor, Long recordId, RecordTeachingRequest req) {
+        Long teacherId = actor.id();
         TeacherSessionRecord rec = ownedRecord(teacherId, recordId);
+        // Chụp giá trị CŨ trước mọi setter — entity bị sửa tại chỗ nên sau đây không lấy lại được.
+        Map<String, Object> before = snapshot(rec, null);
         // Kỳ CHỨA dòng công hiện tại phải còn mở…
         periodService.assertRecordEditable(teacherId, rec.getStartedAt().toLocalDate());
 
@@ -185,17 +196,48 @@ public class TeacherTimesheetService {
         if (req.teacherRole() != null) rec.setTeacherRole(parseRole(req.teacherRole()));
         if (req.note() != null) rec.setNote(req.note());
 
-        return toDto(recordRepository.save(rec));
+        TeacherSessionRecord saved = recordRepository.save(rec);
+        auditLogService.log("teacher_session_record_updated", actor,
+                "SESSION_RECORD", String.valueOf(saved.getId()), snapshot(saved, before));
+        return toDto(saved);
     }
 
     @Transactional
-    public void deleteRecord(Long teacherId, Long recordId) {
+    public void deleteRecord(AuditActor actor, Long recordId) {
+        Long teacherId = actor.id();
         TeacherSessionRecord rec = ownedRecord(teacherId, recordId);
         periodService.assertRecordEditable(teacherId, rec.getStartedAt().toLocalDate());
+        // Chụp trước khi xoá: sau delete không còn gì để mô tả dòng công vừa biến mất.
+        Map<String, Object> before = snapshot(rec, null);
         recordRepository.delete(rec);
+        auditLogService.log("teacher_session_record_deleted", actor,
+                "SESSION_RECORD", String.valueOf(recordId), before);
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────
+
+    /**
+     * Mô tả một dòng công cho vết audit. {@code before} khác null thì gắn kèm dưới khoá {@code
+     * before} — sửa giờ/thời lượng là thao tác ra tiền, đọc vết mà không thấy giá trị cũ thì không
+     * biết đã đổi cái gì.
+     *
+     * <p>{@code orgId} luôn có mặt dù {@code audit_logs} chưa có cột riêng: đó là khoá để backfill
+     * cột {@code org_id} sau này mà không mất lịch sử.
+     */
+    private static Map<String, Object> snapshot(TeacherSessionRecord rec, Map<String, Object> before) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("orgId", rec.getOrgId());
+        m.put("teacherId", rec.getTeacherId());
+        m.put("classId", rec.getClassId());
+        m.put("className", rec.getClassNameSnapshot());
+        m.put("startedAt", String.valueOf(rec.getStartedAt()));
+        m.put("durationMinutes", rec.getDurationMinutes());
+        m.put("teacherRole", rec.getTeacherRole() == null ? null : rec.getTeacherRole().name());
+        if (before != null) {
+            m.put("before", before);
+        }
+        return m;
+    }
 
     private TeacherSessionRecord ownedRecord(Long teacherId, Long recordId) {
         TeacherSessionRecord rec = recordRepository.findById(recordId)

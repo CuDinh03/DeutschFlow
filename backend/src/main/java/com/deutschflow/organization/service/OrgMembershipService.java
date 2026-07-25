@@ -1,5 +1,7 @@
 package com.deutschflow.organization.service;
 
+import com.deutschflow.common.audit.AuditActor;
+import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.ForbiddenException;
@@ -17,6 +19,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -46,6 +50,7 @@ public class OrgMembershipService {
     private final OrgMemberRepository memberRepo;
     private final UserRepository userRepository;
     private final JdbcTemplate jdbcTemplate;
+    private final AuditLogService auditLogService;
 
     /**
      * Inserts a new org membership or reactivates an existing one, sets {@code users.org_id},
@@ -115,8 +120,9 @@ public class OrgMembershipService {
      * membership remains).
      */
     @Transactional
-    public void removeMember(Long orgId, Long userId) {
-        deactivate(orgId, userId, STATUS_REVOKED);
+    public void removeMember(Long orgId, Long userId, AuditActor actor) {
+        String role = deactivate(orgId, userId, STATUS_REVOKED);
+        audit("org_member_removed", actor, orgId, userId, meta("role", role, "status", STATUS_REVOKED));
     }
 
     /**
@@ -127,17 +133,20 @@ public class OrgMembershipService {
      * @throws BadRequestException if the caller is the OWNER
      */
     @Transactional
-    public void selfLeave(Long orgId, Long userId) {
+    public void selfLeave(Long orgId, AuditActor actor) {
+        Long userId = actor.id();
         OrgMember member = memberRepo.findByIdOrgIdAndIdUserId(orgId, userId)
                 .filter(m -> STATUS_ACTIVE.equals(m.getStatus()))
                 .orElseThrow(() -> new ForbiddenException("Bạn không thuộc tổ chức này."));
         if (ROLE_OWNER.equals(member.getRole())) {
             throw new BadRequestException("Chủ sở hữu không thể tự rời — hãy chuyển quyền sở hữu trước.");
         }
+        String role = member.getRole();
         member.setStatus(STATUS_LEFT);
         member.setLeftAt(Instant.now());
         memberRepo.save(member);
         detachUser(orgId, userId);
+        audit("org_member_left", actor, orgId, userId, meta("role", role, "status", STATUS_LEFT));
     }
 
     /** Counts ACTIVE members of the given role in the org (seat counting). */
@@ -154,7 +163,7 @@ public class OrgMembershipService {
      * {@code users.role} is kept in lock-step with the new org role (MANAGER ↔ TEACHER).
      */
     @Transactional
-    public OrgMemberDto changeRole(Long orgId, Long targetUserId, String newRole) {
+    public OrgMemberDto changeRole(Long orgId, Long targetUserId, String newRole, AuditActor actor) {
         String role = newRole == null ? "" : newRole.trim().toUpperCase();
         if (!ASSIGNABLE_ROLES.contains(role)) {
             throw new BadRequestException("Chỉ được đổi sang MANAGER hoặc TEACHER.");
@@ -168,6 +177,7 @@ public class OrgMembershipService {
         if (!ASSIGNABLE_ROLES.contains(member.getRole())) {
             throw new BadRequestException("Chỉ đổi vai trò giữa MANAGER và TEACHER — học viên không đổi qua đây.");
         }
+        String previousRole = member.getRole();
         member.setRole(role);
         memberRepo.save(member);
 
@@ -176,6 +186,7 @@ public class OrgMembershipService {
             syncPlatformRole(u, role);   // MANAGER ↔ TEACHER also flips the platform identity
             userRepository.save(u);
         }
+        audit("org_member_role_changed", actor, orgId, targetUserId, meta("from", previousRole, "to", role));
         return toDto(targetUserId, u, member);
     }
 
@@ -196,7 +207,8 @@ public class OrgMembershipService {
      * @throws BadRequestException if the target is the caller, or is not an ACTIVE staff member
      */
     @Transactional
-    public OrgMemberDto transferOwnership(Long orgId, Long currentOwnerUserId, Long newOwnerUserId) {
+    public OrgMemberDto transferOwnership(Long orgId, AuditActor actor, Long newOwnerUserId) {
+        Long currentOwnerUserId = actor.id();
         if (currentOwnerUserId.equals(newOwnerUserId)) {
             throw new BadRequestException("Chủ sở hữu mới phải khác chủ sở hữu hiện tại.");
         }
@@ -232,6 +244,9 @@ public class OrgMembershipService {
             userRepository.save(u);
         });
 
+        // Vết ghi trên chính tổ chức, không phải trên một thành viên: đây là lần đổi chủ của org.
+        audit("org_ownership_transferred", actor, orgId, null,
+                meta("fromUserId", currentOwnerUserId, "toUserId", newOwnerUserId));
         return toDto(newOwnerUserId, newOwnerUser, newOwner);
     }
 
@@ -243,6 +258,36 @@ public class OrgMembershipService {
 
     // ----------------------------------------------------------------- internals
 
+    /**
+     * Vết cho một thay đổi thành viên.
+     *
+     * <p><b>Cố ý KHÔNG đặt trong {@link #upsertMember}</b> dù đó là cửa vào chung của mọi đường thêm
+     * thành viên: cùng một lệnh upsert phục vụ bốn câu chuyện khác hẳn nhau — org-admin tạo giáo
+     * viên, import CSV, người được mời tự bấm nhận lời, và admin nền tảng dựng org — với bốn loại
+     * actor khác nhau, một trong số đó còn không có principal. Gộp cả bốn vào một event name thì vết
+     * đọc lên vô nghĩa, nên mỗi đường tự ghi vết của mình tại call-site nghiệp vụ.
+     */
+    private void audit(String event, AuditActor actor, Long orgId, Long targetUserId,
+                       Map<String, Object> extra) {
+        Map<String, Object> meta = new LinkedHashMap<>();
+        meta.put("orgId", orgId);
+        if (targetUserId != null) {
+            meta.put("targetUserId", targetUserId);
+        }
+        meta.putAll(extra);
+        auditLogService.log(event, actor,
+                targetUserId != null ? "ORG_MEMBER" : "ORG",
+                String.valueOf(targetUserId != null ? targetUserId : orgId),
+                meta);
+    }
+
+    private static Map<String, Object> meta(String k1, Object v1, String k2, Object v2) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put(k1, v1);
+        m.put(k2, v2);
+        return m;
+    }
+
     private OrgMemberDto toDto(Long userId, User user, OrgMember member) {
         return new OrgMemberDto(
                 userId,
@@ -253,7 +298,7 @@ public class OrgMembershipService {
                 member.getJoinedAt());
     }
 
-    private void deactivate(Long orgId, Long userId, String status) {
+    private String deactivate(Long orgId, Long userId, String status) {
         OrgMember member = memberRepo.findByIdOrgIdAndIdUserId(orgId, userId)
                 .orElseThrow(() -> new NotFoundException("Thành viên không tồn tại trong tổ chức."));
         // Owner-protection (mirrors selfLeave/changeRole): the OWNER is NEVER removed through the
@@ -267,10 +312,12 @@ public class OrgMembershipService {
             throw new BadRequestException(
                     "Không thể gỡ chủ sở hữu khỏi tổ chức — hãy chuyển quyền sở hữu cho người khác trước.");
         }
+        String role = member.getRole();
         member.setStatus(status);
         member.setLeftAt(Instant.now());
         memberRepo.save(member);
         detachUser(orgId, userId);
+        return role;
     }
 
     /**

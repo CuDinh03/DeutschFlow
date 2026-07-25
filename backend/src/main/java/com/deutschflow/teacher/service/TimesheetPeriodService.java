@@ -1,5 +1,7 @@
 package com.deutschflow.teacher.service;
 
+import com.deutschflow.common.audit.AuditActor;
+import com.deutschflow.common.audit.AuditLogService;
 import com.deutschflow.common.exception.BadRequestException;
 import com.deutschflow.common.exception.ConflictException;
 import com.deutschflow.common.exception.ForbiddenException;
@@ -20,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -44,6 +47,7 @@ public class TimesheetPeriodService {
     private final TeacherSessionRecordRepository recordRepository;
     private final UserRepository userRepository;
     private final OrgGuard orgGuard;
+    private final AuditLogService auditLogService;
 
     // ── phía giáo viên ────────────────────────────────────────────────────────
 
@@ -97,7 +101,8 @@ public class TimesheetPeriodService {
 
     /** Giáo viên nộp kỳ. Chốt số công tại thời điểm nộp — đó là con số manager sẽ xem. */
     @Transactional
-    public PeriodDto submit(Long teacherId, Long periodId) {
+    public PeriodDto submit(AuditActor actor, Long periodId) {
+        Long teacherId = actor.id();
         TeacherTimesheetPeriod p = ownPeriod(teacherId, periodId);
         if (p.getStatus() != Status.OPEN && p.getStatus() != Status.REJECTED) {
             throw new ConflictException("Kỳ công đang ở trạng thái " + p.getStatus() + ", không thể nộp lại.");
@@ -116,7 +121,9 @@ public class TimesheetPeriodService {
         p.setStatus(Status.SUBMITTED);
         p.setSubmittedAt(Instant.now());
         p.setRejectReason(null);
-        return toDto(periodRepository.save(p), null);
+        PeriodDto dto = toDto(periodRepository.save(p), null);
+        audit("teacher_timesheet_submitted", actor, p, null);
+        return dto;
     }
 
     // ── phía manager (OWNER | MANAGER của tổ chức) ────────────────────────────
@@ -145,31 +152,35 @@ public class TimesheetPeriodService {
 
     /** Duyệt kỳ. Chốt lại số công tại thời điểm duyệt — đó là con số được trả. */
     @Transactional
-    public PeriodDto approve(Long reviewerId, Long orgId, Long periodId) {
-        TeacherTimesheetPeriod p = reviewablePeriod(reviewerId, orgId, periodId);
+    public PeriodDto approve(AuditActor actor, Long orgId, Long periodId) {
+        TeacherTimesheetPeriod p = reviewablePeriod(actor.id(), orgId, periodId);
         if (p.getStatus() != Status.SUBMITTED) {
             throw new ConflictException("Chỉ duyệt được kỳ đã nộp (hiện tại: " + p.getStatus() + ").");
         }
         snapshotTotals(p);
         p.setStatus(Status.APPROVED);
-        stampReview(p, reviewerId);
-        return toDto(periodRepository.save(p), null);
+        stampReview(p, actor.id());
+        PeriodDto dto = toDto(periodRepository.save(p), null);
+        audit("teacher_timesheet_approved", actor, p, null);
+        return dto;
     }
 
     /** Trả kỳ về cho giáo viên sửa. Bắt buộc có lý do — nếu không họ không biết phải sửa gì. */
     @Transactional
-    public PeriodDto reject(Long reviewerId, Long orgId, Long periodId, String reason) {
+    public PeriodDto reject(AuditActor actor, Long orgId, Long periodId, String reason) {
         if (reason == null || reason.isBlank()) {
             throw new BadRequestException("Cần nêu lý do trả lại kỳ công.");
         }
-        TeacherTimesheetPeriod p = reviewablePeriod(reviewerId, orgId, periodId);
+        TeacherTimesheetPeriod p = reviewablePeriod(actor.id(), orgId, periodId);
         if (p.getStatus() != Status.SUBMITTED) {
             throw new ConflictException("Chỉ trả lại được kỳ đã nộp (hiện tại: " + p.getStatus() + ").");
         }
         p.setStatus(Status.REJECTED);
         p.setRejectReason(reason.trim());
-        stampReview(p, reviewerId);
-        return toDto(periodRepository.save(p), null);
+        stampReview(p, actor.id());
+        PeriodDto dto = toDto(periodRepository.save(p), null);
+        audit("teacher_timesheet_rejected", actor, p, p.getRejectReason());
+        return dto;
     }
 
     /**
@@ -182,15 +193,17 @@ public class TimesheetPeriodService {
      * chéo tổ chức.
      */
     @Transactional
-    public PeriodDto lock(Long reviewerId, Long orgId, Long periodId) {
-        orgGuard.assertOrgOwner(reviewerId, orgId);
-        TeacherTimesheetPeriod p = reviewablePeriod(reviewerId, orgId, periodId);
+    public PeriodDto lock(AuditActor actor, Long orgId, Long periodId) {
+        orgGuard.assertOrgOwner(actor.id(), orgId);
+        TeacherTimesheetPeriod p = reviewablePeriod(actor.id(), orgId, periodId);
         if (p.getStatus() != Status.APPROVED) {
             throw new ConflictException("Chỉ khoá được kỳ đã duyệt (hiện tại: " + p.getStatus() + ").");
         }
         p.setStatus(Status.LOCKED);
-        stampReview(p, reviewerId);
-        return toDto(periodRepository.save(p), null);
+        stampReview(p, actor.id());
+        PeriodDto dto = toDto(periodRepository.save(p), null);
+        audit("teacher_timesheet_locked", actor, p, null);
+        return dto;
     }
 
     /**
@@ -282,6 +295,29 @@ public class TimesheetPeriodService {
             throw new ForbiddenException("Kỳ công không thuộc tổ chức của bạn");
         }
         return p;
+    }
+
+    /**
+     * Vết cho một lần chuyển trạng thái kỳ công. Gọi SAU khi đã save, để metadata mang đúng con số
+     * vừa chốt (snapshotTotals chạy ở submit/approve nên tổng có thể khác lúc vào hàm).
+     *
+     * <p>Ghi kèm {@code orgId} trong metadata dù {@code audit_logs} chưa có cột riêng — đó là thứ
+     * cho phép sau này backfill cột {@code org_id} mà không mất lịch sử, và là khoá để mở màn audit
+     * cho chính trung tâm (hiện chỉ admin nền tảng đọc được bảng này).
+     */
+    private void audit(String event, AuditActor actor, TeacherTimesheetPeriod p, String reason) {
+        Map<String, Object> meta = new LinkedHashMap<>();
+        meta.put("orgId", p.getOrgId());
+        meta.put("teacherId", p.getTeacherId());
+        meta.put("periodStart", String.valueOf(p.getPeriodStart()));
+        meta.put("periodEnd", String.valueOf(p.getPeriodEnd()));
+        meta.put("status", p.getStatus().name());
+        meta.put("totalSessions", p.getTotalSessions());
+        meta.put("totalMinutes", p.getTotalMinutes());
+        if (reason != null) {
+            meta.put("reason", reason);
+        }
+        auditLogService.log(event, actor, "TIMESHEET_PERIOD", String.valueOf(p.getId()), meta);
     }
 
     private void stampReview(TeacherTimesheetPeriod p, Long reviewerId) {
