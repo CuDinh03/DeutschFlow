@@ -35,6 +35,14 @@ public interface UserXpEventRepository extends JpaRepository<UserXpEvent, Long> 
     /** Check if a specific one-time event already exists. */
     boolean existsByUserIdAndEventType(Long userId, UserXpEvent.XpEventType eventType);
 
+    /**
+     * Whether this user already earned {@code eventType} for a specific session. Used to make
+     * per-session awards (e.g. SESSION_COMPLETE) idempotent when a session can be "ended" more than
+     * once — auto-close on CLOSING_FAREWELL followed by a manual/retried end (audit R-M7).
+     */
+    boolean existsByUserIdAndEventTypeAndRefSessionId(
+            Long userId, UserXpEvent.XpEventType eventType, Long refSessionId);
+
     /** Count satellite/industry node completions */
     @Query("SELECT COUNT(e) FROM UserXpEvent e WHERE e.userId = :userId AND e.eventType = 'SATELLITE_COMPLETE'")
     long countSatelliteCompleteByUserId(@Param("userId") Long userId);

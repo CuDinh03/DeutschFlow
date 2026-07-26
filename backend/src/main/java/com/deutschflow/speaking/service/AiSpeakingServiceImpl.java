@@ -84,6 +84,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
     private final TurnSideEffectsService turnSideEffectsService;
     private final ChatCompletionService chatCompletionService;
     private final SpeakingStreamService speakingStreamService;
+    private final SpeakingChatIdempotencyService chatIdempotencyService;
 
     public AiSpeakingServiceImpl(
             TransactionTemplate transactionTemplate,
@@ -108,7 +109,8 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
             ChatPrepService chatPrepService,
             TurnSideEffectsService turnSideEffectsService,
             ChatCompletionService chatCompletionService,
-            SpeakingStreamService speakingStreamService) {
+            SpeakingStreamService speakingStreamService,
+            SpeakingChatIdempotencyService chatIdempotencyService) {
         this.transactionTemplate = transactionTemplate;
         this.sessionRepository = sessionRepository;
         this.messageRepository = messageRepository;
@@ -132,6 +134,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         this.turnSideEffectsService = turnSideEffectsService;
         this.chatCompletionService = chatCompletionService;
         this.speakingStreamService = speakingStreamService;
+        this.chatIdempotencyService = chatIdempotencyService;
     }
 
     @Override
@@ -381,14 +384,30 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
     }
 
     @Override
-    public AiSpeakingChatResponse chat(Long userId, Long sessionId, String userMessage) {
+    public AiSpeakingChatResponse chat(Long userId, Long sessionId, String userMessage, String clientTurnId) {
+        // R-M5 idempotency replay — checked BEFORE the turn guard and BEFORE prepareSpeakingChatTurn.
+        // Order matters: prep runs assertAllowed which, for org-pooled users, performs a REAL atomic
+        // token reservation. Short-circuiting here means a retry of an already-completed turn neither
+        // re-reserves org tokens, nor calls the LLM, nor re-debits quota — it just replays the
+        // original response. (A retry that races the FIRST call while it is still in flight finds no
+        // cache yet and hits the turn guard → 409, which is the correct concurrent-turn behaviour.)
+        var replay = chatIdempotencyService.lookup(userId, sessionId, clientTurnId);
+        if (replay.isPresent()) {
+            speakingMetrics.recordChatRequest("blocking", "idempotent_replay");
+            return replay.get();
+        }
+
         Instant chatStart = Instant.now();
         boolean failed = false;
         try {
             if (!sessionTurnGuard.tryAcquire(sessionId)) {
                 throw new ConflictException("This interview turn is already being processed.");
             }
-            return chatInner(userId, sessionId, userMessage);
+            AiSpeakingChatResponse response = chatInner(userId, sessionId, userMessage);
+            // Cache only AFTER the finalize transaction has committed (chatInner returned) so a replay
+            // can never hand back a response for a turn whose quota debit / persistence rolled back.
+            chatIdempotencyService.remember(userId, sessionId, clientTurnId, response);
+            return response;
         } catch (RuntimeException e) {
             failed = true;
             throw e;

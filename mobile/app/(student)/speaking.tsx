@@ -358,7 +358,9 @@ export default function SpeakingScreen() {
           return
         }
       }
-      const res = await speakingApi.chat(session.id, content)
+      // R-M5: turnId (ổn định qua mọi lần Gửi lại của lượt này) đi kèm làm khoá idempotency —
+      // retry cùng khoá → server replay response cũ, không gọi LLM/trừ quota lần nữa.
+      const res = await speakingApi.chat(session.id, content, turnId)
       // Gắn feedback (correction) vào ĐÚNG user turn theo id + đánh dấu 'sent', rồi thêm turn AI.
       setMessages((prev) => [
         ...attachFeedbackToTurn(setTurnStatus(prev, turnId, 'sent'), turnId, res),
@@ -501,9 +503,27 @@ export default function SpeakingScreen() {
     if (!session || finishing) return
     setFinishing(true)
     trackFeatureAction('ai_speaking', 'completed', { mode: session.sessionMode })
+
+    // R-M7: buổi nói phải ĐÓNG XONG trên server TRƯỚC khi ta xoá tham chiếu resume và hiện tổng kết.
+    // Trước đây `endSession(...).catch(() => undefined)` nuốt lỗi rồi vẫn `clearActiveSession()` +
+    // hiện summary. Nếu end hỏng (mạng/timeout/5xx): (a) phiên còn ACTIVE trên server nhưng client
+    // mất tham chiếu → user KHÔNG resume được nữa; (b) báo cáo đọc ra là của phiên CHƯA đóng → sai.
+    // Backend `PATCH /end` idempotent với phiên đã ENDED (kể cả đường auto-finish CLOSING_FAREWELL)
+    // nên gọi lại an toàn — chỉ ném khi lỗi thật.
     try {
-      await speakingApi.endSession(session.id).catch(() => undefined)
-      void clearActiveSession()
+      await speakingApi.endSession(session.id)
+    } catch (e) {
+      // Phiên VẪN active + activeSession còn nguyên → user tiếp tục nói hoặc bấm Kết thúc lại được.
+      handleAiError(e, 'Chưa kết thúc được buổi nói')
+      setFinishing(false)
+      return
+    }
+
+    // End thành công (điểm đã chấm + lưu server): giờ mới an toàn xoá tham chiếu resume.
+    // Từ đây phiên KHÔNG còn active — lỗi đọc báo cáo không được giữ lại activeSession nữa
+    // (giữ nguyên hành vi báo cáo cũ; đây KHÔNG phải phạm vi R-M7).
+    void clearActiveSession()
+    try {
       if (session.sessionMode === 'INTERVIEW') {
         const built = await speakingApi.getReport(session.id)
         setReport(built)
@@ -518,7 +538,7 @@ export default function SpeakingScreen() {
       }
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
     } catch (e) {
-      handleAiError(e, 'Không thể tạo báo cáo')
+      handleAiError(e, 'Không tải được báo cáo')
     } finally {
       setFinishing(false)
     }
