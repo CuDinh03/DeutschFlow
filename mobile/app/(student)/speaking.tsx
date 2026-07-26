@@ -59,7 +59,6 @@ import {
   makeUserTurn,
   setTurnStatus,
   attachFeedbackToTurn,
-  serverHasUserText,
   mergeFailedTurns,
   newTurnId,
   type ChatTurn,
@@ -339,27 +338,22 @@ export default function SpeakingScreen() {
   }
 
   // Lõi gửi 1 lượt (submit + retry cùng dùng). Turn user đã nằm trong `messages` với id ổn định;
-  // ta chỉ đổi status của NÓ (sent/failed) thay vì mồ côi — R-M3. `reconcileFirst` chỉ bật khi RETRY.
-  async function deliverTurn(turnId: string, content: string, opts: { reconcileFirst: boolean }) {
+  // ta chỉ đổi status của NÓ (sent/failed) thay vì mồ côi — R-M3.
+  async function deliverTurn(turnId: string, content: string) {
     if (!session) return
     setSending(true)
     setStage('thinking')
     setReaction(null)
     scrollToEnd()
     try {
-      // R-M5: trước khi RETRY, đồng bộ transcript — bắt ca "client timeout nhưng server ĐÃ nhận + ĐÃ
-      // trừ quota". Nếu server đã có câu này → KHÔNG re-POST (tránh double-charge), adopt transcript.
-      if (opts.reconcileFirst) {
-        const serverTurns = mapMessagesToTurns(await speakingApi.getMessages(session.id))
-        if (serverHasUserText(serverTurns, content)) {
-          setMessages((prev) => mergeFailedTurns(serverTurns, prev))
-          const lastAssistant = [...serverTurns].reverse().find((t) => t.role === 'assistant')
-          if (lastAssistant?.feedback) applyAiTurnSideEffects(lastAssistant.feedback)
-          return
-        }
-      }
-      // R-M5: turnId (ổn định qua mọi lần Gửi lại của lượt này) đi kèm làm khoá idempotency —
-      // retry cùng khoá → server replay response cũ, không gọi LLM/trừ quota lần nữa.
+      // R-M5: chống double-charge bằng khoá CHÍNH XÁC, không phải khớp-mờ. `turnId` (ổn định qua mọi
+      // lần Gửi lại của lượt này) đi kèm làm clientTurnId — lượt đã xong trên server → backend replay
+      // response cũ (không gọi LLM, không trừ quota); lượt chưa xong → xử lý mới.
+      //
+      // Bỏ pre-check `serverHasUserText` (khớp-mờ theo nội dung) của #259: nó FALSE-POSITIVE khi hai
+      // lượt trùng text (vd người dùng nói "Ja" hai lần) → bỏ NHẦM câu mới và replay câu cũ, im lặng.
+      // Khoá chính xác thay thế nó đúng đắn hơn. (Đánh đổi: Redis vắng thì backend không dedup, retry
+      // có thể trừ quota lần nữa — hiếm và deploy có Redis; chấp nhận để KHÔNG bao giờ nuốt câu user.)
       const res = await speakingApi.chat(session.id, content, turnId)
       // Gắn feedback (correction) vào ĐÚNG user turn theo id + đánh dấu 'sent', rồi thêm turn AI.
       setMessages((prev) => [
@@ -388,7 +382,7 @@ export default function SpeakingScreen() {
     const turn = makeUserTurn(trimmed)
     setDraft('')
     setMessages((prev) => [...prev, turn])
-    await deliverTurn(turn.id, trimmed, { reconcileFirst: false })
+    await deliverTurn(turn.id, trimmed)
   }
 
   // Gửi lại 1 lượt đã fail (nút trong bubble). Reconcile trước để không double-charge (R-M5).
@@ -398,7 +392,7 @@ export default function SpeakingScreen() {
     if (!turn || turn.status !== 'failed') return
     if (!(await ensureAiConsent())) return
     setMessages((prev) => setTurnStatus(prev, id, 'sending'))
-    await deliverTurn(id, turn.content, { reconcileFirst: true })
+    await deliverTurn(id, turn.content)
   }
 
   // Type a suggested reply into the input bar character-by-character, then auto-send.

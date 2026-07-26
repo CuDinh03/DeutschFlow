@@ -54,6 +54,19 @@ public class SessionLifecycleService {
      * effects, and trigger teacher auto-grading — returning the final persisted session.
      */
     public AiSpeakingSession closeSession(Long userId, Long sessionId) {
+        // R-M7 idempotency: a session can be ended more than once — the client retries "Kết thúc"
+        // after a lost end-response, or ends manually after the CLOSING_FAREWELL auto-close. If it is
+        // ALREADY ended AND a report was already produced, short-circuit: re-running would call the
+        // end-of-session evaluation LLM again (re-debiting quota) and re-award XP/teacher-grading for
+        // the same session. The report-present check matters because the auto-close sets ENDED at
+        // chat time WITHOUT a report — that first real end still needs to generate one, and a first
+        // end whose generation FAILED (report == null) is still allowed to retry.
+        AiSpeakingSession existing = Objects.requireNonNull(transactionTemplate.execute(
+                status -> loadSessionForUser(userId, sessionId)));
+        if (existing.getStatus() == SessionStatus.ENDED && existing.getInterviewReportJson() != null) {
+            return existing;
+        }
+
         AiSpeakingSession closedSession = Objects.requireNonNull(transactionTemplate.execute(
                 status -> closeSpeakingSession(userId, sessionId)));
 

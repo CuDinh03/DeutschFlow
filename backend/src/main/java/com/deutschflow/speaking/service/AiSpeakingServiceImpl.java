@@ -399,10 +399,17 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
 
         Instant chatStart = Instant.now();
         boolean failed = false;
+        // Release the turn guard ONLY when THIS call acquired it. Releasing unconditionally in the
+        // finally would let a request that LOST the race (tryAcquire == false → 409) wipe out the
+        // in-flight holder's lock — the guard has no per-holder fencing token — freeing it for a
+        // third overlapping request to run concurrently and double-charge. The streaming path
+        // (SpeakingStreamService) already guards its release this way; the blocking path must too.
+        boolean acquired = false;
         try {
             if (!sessionTurnGuard.tryAcquire(sessionId)) {
                 throw new ConflictException("This interview turn is already being processed.");
             }
+            acquired = true;
             AiSpeakingChatResponse response = chatInner(userId, sessionId, userMessage);
             // Cache only AFTER the finalize transaction has committed (chatInner returned) so a replay
             // can never hand back a response for a turn whose quota debit / persistence rolled back.
@@ -412,7 +419,9 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
             failed = true;
             throw e;
         } finally {
-            sessionTurnGuard.release(sessionId);
+            if (acquired) {
+                sessionTurnGuard.release(sessionId);
+            }
             speakingMetrics.recordChatRequest("blocking", failed ? "error" : "ok");
             speakingMetrics.recordChatLatency("blocking", Duration.between(chatStart, Instant.now()));
         }
