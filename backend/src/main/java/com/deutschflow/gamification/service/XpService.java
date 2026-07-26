@@ -90,6 +90,14 @@ public class XpService {
     @CacheEvict(value = "classLeaderboard", allEntries = true)
     public void awardSessionComplete(Long userId, Long sessionId) {
         lockUserXp(userId);
+        // R-M7: a session can be closed more than once — the backend auto-ends on CLOSING_FAREWELL and
+        // the learner may then tap "Kết thúc" (or a client-timeout retry re-hits PATCH /end, which is
+        // idempotent server-side). Without this guard each end awarded +30 SESSION_COMPLETE again.
+        if (sessionId != null
+                && xpEventRepository.existsByUserIdAndEventTypeAndRefSessionId(
+                        userId, XpEventType.SESSION_COMPLETE, sessionId)) {
+            return;
+        }
         int oldLevel = currentLevel(userId);
         boolean isFirst = !xpEventRepository.existsByUserIdAndEventType(userId, XpEventType.FIRST_SESSION);
         if (isFirst) {

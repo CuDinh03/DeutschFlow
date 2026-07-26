@@ -125,7 +125,7 @@ public class AiSessionController {
             @PathVariable Long id,
             @RequestBody @Valid AiSpeakingChatRequest request) {
         requireAiBudget(Bucket.CHAT, user.getId(), "Too many chat turns. Please slow down.");
-        return aiSpeakingService.chat(user.getId(), id, request.userMessage());
+        return aiSpeakingService.chat(user.getId(), id, request.userMessage(), request.clientTurnId());
     }
 
     @PostMapping("/sessions/{id}/chat/stream")

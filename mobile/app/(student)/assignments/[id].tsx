@@ -288,7 +288,9 @@ function MaterialsCard({ assignmentId }: { assignmentId: number }) {
       const fresh = await fetchAssignmentMaterialUrl(assignmentId, m.id)
       await openInApp(fresh)
     } catch (e) {
-      Alert.alert(apiMessage(e) || 'Không mở được tài liệu')
+      // R-M10: message-as-title — Alert.alert(title, message). Trước đây chuỗi lỗi bị nhét làm
+      // TIÊU ĐỀ (đậm, không body), còn tiêu đề thật thì mất.
+      Alert.alert('Không mở được tài liệu', apiMessage(e))
     } finally {
       setOpening(null)
     }

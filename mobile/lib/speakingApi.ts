@@ -182,19 +182,6 @@ export interface ConversationReport {
 
 // ── Mapping helpers ──────────────────────────────────────────────────────────
 
-/** Backend interview `experienceLevel` enum: 0-6M | 6-12M | 1-2Y | 3Y | 5Y. */
-export function experienceForDifficulty(difficulty: string): string {
-  switch (difficulty) {
-    case 'BEGINNER':
-      return '0-6M'
-    case 'ADVANCED':
-      return '3Y'
-    case 'INTERMEDIATE':
-    default:
-      return '1-2Y'
-  }
-}
-
 // ── API surface ──────────────────────────────────────────────────────────────
 
 export const speakingApi = {
@@ -203,31 +190,11 @@ export const speakingApi = {
     api.get<InterviewPersona[]>('/interviews/personas').then((r) => r.data),
 
   /**
-   * Start a mock-interview speaking session for the given persona.
-   * Matches the web `CompanionSelect` INTERVIEW payload: topic = role,
-   * cefrLevel = "C1", sessionMode = "INTERVIEW".
-   */
-  startInterview: (persona: InterviewPersona) =>
-    api
-      .post<AiSpeakingSession>(
-        '/ai-speaking/sessions',
-        {
-          topic: persona.roleTitle,
-          cefrLevel: 'C1',
-          persona: persona.code,
-          responseSchema: null,
-          sessionMode: 'INTERVIEW',
-          interviewPosition: persona.roleTitle,
-          experienceLevel: experienceForDifficulty(persona.difficulty),
-          assignmentId: null,
-        },
-        { timeout: 30_000 },
-      )
-      .then((r) => r.data),
-
-  /**
    * Generalized session start for all three modes (COMMUNICATION / LESSON / INTERVIEW).
    * Mirrors the web `aiSpeakingApi.createSession` payload.
+   *
+   * (R-M10: xoá `startInterview` — dead code 0 caller với payload cứng cefrLevel="C1".
+   * Mọi phiên phỏng vấn nay đi qua `createSession({ sessionMode: 'INTERVIEW', ... })`.)
    */
   createSession: (params: CreateSessionParams) =>
     api
@@ -270,9 +237,16 @@ export const speakingApi = {
    * phía backend (semaphore 10s + deadline 20s); 15s cũ làm client timeout TRƯỚC server —
    * server vẫn chạy tiếp, vẫn trừ quota, còn user thấy "timeout of 15000ms exceeded".
    */
-  chat: (sessionId: number, userMessage: string) =>
+  chat: (sessionId: number, userMessage: string, clientTurnId?: string) =>
     api
-      .post<AiChatResponse>(`/ai-speaking/sessions/${sessionId}/chat`, { userMessage }, { timeout: 45_000 })
+      .post<AiChatResponse>(
+        `/ai-speaking/sessions/${sessionId}/chat`,
+        // R-M5: gửi khoá idempotency ổn định của lượt này. Client timeout ở 45s nhưng server có thể
+        // đã xong (đã trừ quota) — khi user Gửi lại CÙNG khoá, backend trả lại response cũ thay vì
+        // gọi LLM + trừ quota lần nữa. retryTurn tái dùng đúng turn.id nên khoá trùng khớp tự nhiên.
+        { userMessage, clientTurnId },
+        { timeout: 45_000 },
+      )
       .then((r) => r.data),
 
   /**

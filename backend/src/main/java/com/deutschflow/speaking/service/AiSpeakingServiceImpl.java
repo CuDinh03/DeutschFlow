@@ -84,6 +84,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
     private final TurnSideEffectsService turnSideEffectsService;
     private final ChatCompletionService chatCompletionService;
     private final SpeakingStreamService speakingStreamService;
+    private final SpeakingChatIdempotencyService chatIdempotencyService;
 
     public AiSpeakingServiceImpl(
             TransactionTemplate transactionTemplate,
@@ -108,7 +109,8 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
             ChatPrepService chatPrepService,
             TurnSideEffectsService turnSideEffectsService,
             ChatCompletionService chatCompletionService,
-            SpeakingStreamService speakingStreamService) {
+            SpeakingStreamService speakingStreamService,
+            SpeakingChatIdempotencyService chatIdempotencyService) {
         this.transactionTemplate = transactionTemplate;
         this.sessionRepository = sessionRepository;
         this.messageRepository = messageRepository;
@@ -132,6 +134,7 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
         this.turnSideEffectsService = turnSideEffectsService;
         this.chatCompletionService = chatCompletionService;
         this.speakingStreamService = speakingStreamService;
+        this.chatIdempotencyService = chatIdempotencyService;
     }
 
     @Override
@@ -381,19 +384,44 @@ public class AiSpeakingServiceImpl implements AiSpeakingService {
     }
 
     @Override
-    public AiSpeakingChatResponse chat(Long userId, Long sessionId, String userMessage) {
+    public AiSpeakingChatResponse chat(Long userId, Long sessionId, String userMessage, String clientTurnId) {
+        // R-M5 idempotency replay — checked BEFORE the turn guard and BEFORE prepareSpeakingChatTurn.
+        // Order matters: prep runs assertAllowed which, for org-pooled users, performs a REAL atomic
+        // token reservation. Short-circuiting here means a retry of an already-completed turn neither
+        // re-reserves org tokens, nor calls the LLM, nor re-debits quota — it just replays the
+        // original response. (A retry that races the FIRST call while it is still in flight finds no
+        // cache yet and hits the turn guard → 409, which is the correct concurrent-turn behaviour.)
+        var replay = chatIdempotencyService.lookup(userId, sessionId, clientTurnId);
+        if (replay.isPresent()) {
+            speakingMetrics.recordChatRequest("blocking", "idempotent_replay");
+            return replay.get();
+        }
+
         Instant chatStart = Instant.now();
         boolean failed = false;
+        // Release the turn guard ONLY when THIS call acquired it. Releasing unconditionally in the
+        // finally would let a request that LOST the race (tryAcquire == false → 409) wipe out the
+        // in-flight holder's lock — the guard has no per-holder fencing token — freeing it for a
+        // third overlapping request to run concurrently and double-charge. The streaming path
+        // (SpeakingStreamService) already guards its release this way; the blocking path must too.
+        boolean acquired = false;
         try {
             if (!sessionTurnGuard.tryAcquire(sessionId)) {
                 throw new ConflictException("This interview turn is already being processed.");
             }
-            return chatInner(userId, sessionId, userMessage);
+            acquired = true;
+            AiSpeakingChatResponse response = chatInner(userId, sessionId, userMessage);
+            // Cache only AFTER the finalize transaction has committed (chatInner returned) so a replay
+            // can never hand back a response for a turn whose quota debit / persistence rolled back.
+            chatIdempotencyService.remember(userId, sessionId, clientTurnId, response);
+            return response;
         } catch (RuntimeException e) {
             failed = true;
             throw e;
         } finally {
-            sessionTurnGuard.release(sessionId);
+            if (acquired) {
+                sessionTurnGuard.release(sessionId);
+            }
             speakingMetrics.recordChatRequest("blocking", failed ? "error" : "ok");
             speakingMetrics.recordChatLatency("blocking", Duration.between(chatStart, Instant.now()));
         }

@@ -20,7 +20,12 @@ public interface AiSpeakingService {
                                        String interviewPosition, String experienceLevel,
                                        Long assignmentId);
 
-    AiSpeakingChatResponse chat(Long userId, Long sessionId, String userMessage);
+    /**
+     * Runs one blocking chat turn. {@code clientTurnId} (nullable) is an idempotency key: a retry
+     * carrying the same key within the TTL replays the first response without re-calling the LLM or
+     * re-debiting quota (audit R-M5). Null → no idempotency (legacy clients / non-idempotent callers).
+     */
+    AiSpeakingChatResponse chat(Long userId, Long sessionId, String userMessage, String clientTurnId);
 
     void chatStream(
             Long userId,

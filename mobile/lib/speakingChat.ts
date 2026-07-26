@@ -27,11 +27,17 @@ export type ScreenView = 'select' | 'chat' | 'summary'
 
 // ─── Helpers thuần cho outbox lượt speaking (MB-3) — tách khỏi speaking.tsx để jest test trực tiếp ──
 
+// Nonce ngẫu nhiên sinh MỘT lần mỗi lần app khởi động. Cần cho R-M5: `turn.id` được gửi lên backend
+// làm khoá idempotency; nếu chỉ là counter `t-1, t-2…` thì sau khi app reload (counter về 0) một lượt
+// MỚI trong CÙNG phiên lại mint `t-1`, trùng khoá đã cache trên server trong cửa sổ TTL → server
+// replay nhầm response cũ. Nonce theo mỗi lần chạy đảm bảo khoá không đụng qua các lần reload; counter
+// vẫn giữ để id ổn định trong danh sách render + deterministic phần đuôi cho test.
+const _launchNonce = Math.random().toString(36).slice(2, 8)
 let _turnSeq = 0
-/** Id client ổn định cho 1 turn. Counter (không Date.now) → deterministic trong test + đủ unique/list. */
+/** Id client ổn định cho 1 turn — duy nhất qua các lần reload (khoá idempotency backend, R-M5). */
 export function newTurnId(): string {
   _turnSeq += 1
-  return `t-${_turnSeq}`
+  return `t-${_launchNonce}-${_turnSeq}`
 }
 
 /** Tạo user turn ở trạng thái đang gửi (optimistic). */
