@@ -330,7 +330,13 @@
       },
       "taughtAt": "Taught · {date}",
       "notTaught": "Not taught",
-      "materials": { "heading": "Materials", "loading": "Loading…", "empty": "No materials for this lesson yet.", "loadError": "Could not load materials.", "openError": "Could not open the material." }
+      "materials": {
+        "heading": "Materials",
+        "loading": "Loading…",
+        "empty": "No materials for this lesson yet.",
+        "loadError": "Could not load materials.",
+        "openError": "Could not open the material."
+      }
     },
     "assignment": {
       "titleFallback": "Assignment",
@@ -354,7 +360,12 @@
       "dueDate": "Due:",
       "scoreScale": "Score scale:",
       "downloadAttachment": "Download attachment",
-      "materials": { "heading": "Assigned materials", "loading": "Loading…", "openError": "Could not open the material.", "hint": "Click to open a material in your browser." },
+      "materials": {
+        "heading": "Assigned materials",
+        "loading": "Loading…",
+        "openError": "Could not open the material.",
+        "hint": "Click to open a material in your browser."
+      },
       "yourSubmissionCap": "Your submission",
       "speakingCardTitle": "Speak live with the AI",
       "speakingCardDesc": "Open the interview scenario; the AI creates a session and submits the result automatically.",
@@ -573,6 +584,9 @@
       "noSessions": "No sessions yet",
       "promptStart": "Start practicing speaking with AI!",
       "noMessages": "No messages in this session.",
+      "loadFailed": "Couldn't load your speaking history. Check your connection and try again.",
+      "loadMessagesFailed": "Couldn't load this session's transcript.",
+      "retry": "Try again",
       "noTopic": "No topic",
       "messages": "{count} messages",
       "completed": "Completed",

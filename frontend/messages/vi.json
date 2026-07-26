@@ -700,6 +700,8 @@
     "weeklyAlreadySubmitted": "Bạn đã gửi bài cho chủ đề tuần này.",
     "weeklyRecordingHint": "Đang ghi âm… nhấn lại mic để dừng.",
     "weeklyNoPrompt": "Chưa có đề nói tuần này cho trình độ của bạn. Thử chỉnh band CEFR hoặc đợi admin cập nhật.",
+    "weeklyLoadFailed": "Không tải được đề nói tuần này. Kiểm tra kết nối rồi thử lại.",
+    "weeklyRetry": "Thử lại",
     "weeklyYourTranscript": "Nộp dựng của bạn",
     "levelRangeHint": "Luyện nói tự do: được chọn từ {floor} đến {ceil} (theo hồ sơ lộ trình).",
     "cefrC1Desc": "Nâng cao",

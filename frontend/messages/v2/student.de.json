@@ -330,7 +330,13 @@
       },
       "taughtAt": "Unterrichtet · {date}",
       "notTaught": "Nicht unterrichtet",
-      "materials": { "heading": "Materialien", "loading": "Wird geladen…", "empty": "Noch keine Materialien für diese Lektion.", "loadError": "Materialien konnten nicht geladen werden.", "openError": "Material konnte nicht geöffnet werden." }
+      "materials": {
+        "heading": "Materialien",
+        "loading": "Wird geladen…",
+        "empty": "Noch keine Materialien für diese Lektion.",
+        "loadError": "Materialien konnten nicht geladen werden.",
+        "openError": "Material konnte nicht geöffnet werden."
+      }
     },
     "assignment": {
       "titleFallback": "Aufgabe",
@@ -354,7 +360,12 @@
       "dueDate": "Fällig:",
       "scoreScale": "Bewertungsskala:",
       "downloadAttachment": "Anhang herunterladen",
-      "materials": { "heading": "Zugewiesene Materialien", "loading": "Wird geladen…", "openError": "Material konnte nicht geöffnet werden.", "hint": "Zum Öffnen eines Materials im Browser klicken." },
+      "materials": {
+        "heading": "Zugewiesene Materialien",
+        "loading": "Wird geladen…",
+        "openError": "Material konnte nicht geöffnet werden.",
+        "hint": "Zum Öffnen eines Materials im Browser klicken."
+      },
       "yourSubmissionCap": "Deine Abgabe",
       "speakingCardTitle": "Live mit der KI sprechen",
       "speakingCardDesc": "Öffne das Interview-Szenario; die KI erstellt eine Sitzung und gibt das Ergebnis automatisch ab.",
@@ -573,6 +584,9 @@
       "noSessions": "Noch keine Sitzungen",
       "promptStart": "Beginnen Sie mit dem KI-Sprechtraining!",
       "noMessages": "Keine Nachrichten in dieser Sitzung.",
+      "loadFailed": "Sprech-Verlauf konnte nicht geladen werden. Verbindung prüfen und erneut versuchen.",
+      "loadMessagesFailed": "Der Gesprächsverlauf konnte nicht geladen werden.",
+      "retry": "Erneut versuchen",
       "noTopic": "Kein Thema",
       "messages": "{count} Nachrichten",
       "completed": "Abgeschlossen",

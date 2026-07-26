@@ -698,6 +698,8 @@
     "weeklyAlreadySubmitted": "You already submitted for this week's prompt.",
     "weeklyRecordingHint": "Recording… tap mic again to stop.",
     "weeklyNoPrompt": "No weekly prompt for your level yet. Try another band or wait for admins to publish one.",
+    "weeklyLoadFailed": "Couldn't load this week's prompt. Check your connection and try again.",
+    "weeklyRetry": "Try again",
     "weeklyYourTranscript": "Your submission",
     "levelRangeHint": "Free-speaking level: choose from {floor} to {ceil} based on your learning profile.",
     "cefrC1Desc": "Advanced",

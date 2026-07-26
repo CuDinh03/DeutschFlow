@@ -8,8 +8,8 @@ import { SpeakingChatExperience } from '@/components/features/ai-speaking/Speaki
 // Phiên được nạp vào useChatStore trước khi vào đây (từ /v2/student/speaking/setup hoặc từ
 // bài tập SPEAKING_SCENARIO của lớp); vào thẳng route này khi store rỗng → tự đá về setup.
 //
-// `history: null` — lịch sử phiên nói chưa có bản v2 (/student/speaking-history vẫn là v1),
-// nên nút "Xem lịch sử" trong màn tổng kết bị ẩn thay vì deep-link ngược về v1.
+// R-W10: comment cũ ghi "lịch sử chưa có bản v2" và để `history: null`, nên nút "Xem lịch sử"
+// trong màn tổng kết bị ẩn OAN — /v2/student/speaking/history đã tồn tại và i18n đủ từ lâu.
 export default function V2StudentSpeakingLivePage() {
   return (
     <SpeakingChatExperience
@@ -17,7 +17,7 @@ export default function V2StudentSpeakingLivePage() {
       routes={{
         setup: '/v2/student/speaking/setup',
         review: '/v2/student/review',
-        history: null,
+        history: '/v2/student/speaking/history',
         home: '/v2/student/dashboard',
         pricing: '/v2/payment',
       }}
