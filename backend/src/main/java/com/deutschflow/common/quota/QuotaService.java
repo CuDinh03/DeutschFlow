@@ -135,6 +135,16 @@ public class QuotaService {
         }
 
         ensureWalletRow(userId);
+        // B5 (xác nhận prod 26/07, user 96): PHẢI cộng dồn ví tới hôm nay TRƯỚC khi trừ.
+        // Đường gate hot-path dùng buildSnapshotReadOnly — tính số dư ẢO mà không ghi; đường ghi
+        // accrual duy nhất trước đây là buildSnapshot, vốn chỉ được Admin/Weekly gọi. Hệ quả:
+        // user mới (trial PRO, chưa ai accrue ví) qua gate với 400k ảo, nhưng debit chạy trên ví
+        // THẬT 0đ → GREATEST(0, 0−n)=0 → remaining<=0 → downgradePaidPlansToDefault ngay lần
+        // dùng AI đầu tiên (chuỗi STT→[OVERAGE] balance=0→DEFAULT khớp cùng giây 07:32:23).
+        // Áp cho MỌI ngả cấp gói ví (trial đăng ký, IAP, SePay, org entitlement) tại một chỗ.
+        long accrualDailyGrant = Math.max(0L, row.dailyGrant());
+        int accrualCapDays = Math.max(0, row.walletCapDays());
+        accrueWalletThroughToday(userId, row, accrualCapDays > 0 ? accrualCapDays * accrualDailyGrant : 0L, now);
         Long currentBalance = jdbcTemplate.queryForObject(
                 "SELECT balance FROM user_ai_token_wallets WHERE user_id = ?", Long.class, userId);
         long walletBalance = currentBalance != null ? currentBalance : 0L;

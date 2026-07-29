@@ -179,6 +179,45 @@ class QuotaBillingIntegrationTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
+    void ledgerDebit_freshTrialNeverAccrued_accruesBeforeDebit_keepsPro() {
+        // B5 (xác nhận prod 26/07, user 96): trial PRO vừa provision, CHƯA có dòng ví nào —
+        // lần dùng AI đầu tiên từng giết luôn trial (debit chạy trên ví thật 0đ → downgrade).
+        User u = userRepository.save(User.builder()
+                .email("quota-it-b5@test.com")
+                .passwordHash("$2a$10$h")
+                .displayName("QB5")
+                .role(User.Role.STUDENT)
+                .build());
+        userRepository.flush();
+
+        Instant now = Instant.now();
+        insertSubscription(u.getId(), "PRO",
+                Timestamp.from(now.minusSeconds(600)),
+                Timestamp.from(now.plusSeconds(7L * 86400)));
+        // cố ý KHÔNG insert user_ai_token_wallets
+
+        // đúng con số vụ thật: STT 23,87s ≈ 477 token-tương-đương
+        aiUsageLedgerService.record(u.getId(), "x", "m", 0, 477, 477, "TEST", null, null);
+
+        Integer activePro = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(*) FROM user_subscriptions
+                        WHERE user_id = ? AND status = 'ACTIVE' AND plan_code = 'PRO'
+                        """, Integer.class, u.getId());
+        Integer activeDefault = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(*) FROM user_subscriptions
+                        WHERE user_id = ? AND status = 'ACTIVE' AND plan_code = 'DEFAULT'
+                        """, Integer.class, u.getId());
+        assertThat(activePro).as("trial PRO phải sống sót qua lần debit đầu tiên").isEqualTo(1);
+        assertThat(activeDefault).as("không được downgrade về DEFAULT").isZero();
+
+        Long grant = jdbcTemplate.queryForObject(
+                "SELECT daily_token_grant FROM subscription_plans WHERE code = 'PRO'", Long.class);
+        Long balance = jdbcTemplate.queryForObject(
+                "SELECT balance FROM user_ai_token_wallets WHERE user_id = ?", Long.class, u.getId());
+        assertThat(balance).as("ví phải được cộng dồn ngày đầu rồi mới trừ").isEqualTo(grant - 477L);
+    }
+
+    @Test
     void internalPlan_isUnlimitedAndSkipsWalletDebitOnUsage() {
         User u = userRepository.save(User.builder()
                 .email("quota-it-int@test.com")
