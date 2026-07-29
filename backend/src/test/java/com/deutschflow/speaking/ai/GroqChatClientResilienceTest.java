@@ -98,6 +98,35 @@ class GroqChatClientResilienceTest {
     }
 
     @Test
+    @DisplayName("400 json_validate_failed: ĐƯỢC retry và thành công ở attempt 2 — hồi quy greeting 29/07")
+    void retriesOnJsonValidateFailedAndSucceeds() {
+        // Đúng body Groq trả trên prod 29/07 khi gpt-oss-20b hết completion budget giữa chừng.
+        respondWithSequence(
+                new StubResponse(400, "{\"error\":{\"message\":\"Failed to generate JSON.\","
+                        + "\"type\":\"invalid_request_error\",\"code\":\"json_validate_failed\","
+                        + "\"failed_generation\":\"max completion tokens reached before generating a valid document\"}}"),
+                new StubResponse(200, "{\"choices\":[{\"message\":{\"content\":\"{\\\"ai_speech_de\\\":\\\"Hallo\\\"}\"}}],"
+                        + "\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":1,\"total_tokens\":2}}"));
+
+        var result = client().chatCompletion(messages(), null, 0.7, 100);
+
+        assertThat(result).isNotNull();
+        assertThat(requestCount.get()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("400 json_validate_failed lặp cả 3 attempt: bỏ cuộc với AiServiceException, không lặp vô hạn")
+    void jsonValidateFailedExhaustsRetriesThenFails() {
+        respondWith(400, "{\"error\":{\"message\":\"Failed to generate JSON.\","
+                + "\"code\":\"json_validate_failed\",\"failed_generation\":\"\"}}");
+
+        assertThatThrownBy(() -> client().chatCompletion(messages(), null, 0.7, 100))
+                .isInstanceOf(AiServiceException.class);
+
+        assertThat(requestCount.get()).isEqualTo(3);
+    }
+
+    @Test
     @DisplayName("model bị khai tử (404 model_not_found): fail ngay 1 attempt — hồi quy outage 17/07")
     void doesNotRetryOnDecommissionedModel() {
         respondWith(404, "{\"error\":{\"message\":\"The model `x` does not exist or you do not have "
@@ -205,18 +234,26 @@ class GroqChatClientResilienceTest {
     // ── helpers ──────────────────────────────────────────────────────────────
 
     private void respondWith(int status, String body) {
+        respondWithSequence(new StubResponse(status, body));
+    }
+
+    /** Mỗi request nhận response kế tiếp trong dãy; hết dãy thì lặp lại response cuối. */
+    private void respondWithSequence(StubResponse... responses) {
         server.createContext("/chat", exchange -> {
-            requestCount.incrementAndGet();
+            int index = Math.min(requestCount.getAndIncrement(), responses.length - 1);
+            StubResponse response = responses[index];
             receivedBodies.add(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
-            byte[] payload = body.getBytes(StandardCharsets.UTF_8);
+            byte[] payload = response.body().getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type", "application/json");
-            exchange.sendResponseHeaders(status, payload.length);
+            exchange.sendResponseHeaders(response.status(), payload.length);
             try (OutputStream os = exchange.getResponseBody()) {
                 os.write(payload);
             }
         });
         server.start();
     }
+
+    private record StubResponse(int status, String body) {}
 
     private GroqChatClient client() {
         return client(breakersOpeningAfter(100));

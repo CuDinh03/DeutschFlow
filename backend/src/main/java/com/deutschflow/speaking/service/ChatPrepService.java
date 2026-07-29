@@ -61,8 +61,21 @@ import java.util.stream.Collectors;
 @Slf4j
 public class ChatPrepService {
 
-    /** Cap completion tokens per turn (quota snapshot may be lower). */
-    private static final int SPEAKING_MAX_COMPLETION_TOKENS = 512;
+    /**
+     * Cap completion tokens per turn/greeting (config {@code ai.maxTokens} có thể đè).
+     * 2000 chứ không phải 512: {@code gpt-oss-20b} là model reasoning — {@code max_tokens} của Groq
+     * đếm CẢ token "nghĩ" lẫn JSON trả về, nên 512/1024 làm greeting chết chập chờn với
+     * {@code json_validate_failed: "max completion tokens reached before generating a valid
+     * document"} (đo prod 29/07, session 437/441). Đây là TRẦN — token thật tính theo usage.
+     */
+    private static final int SPEAKING_MAX_COMPLETION_TOKENS = 2000;
+
+    /**
+     * Sàn của clamp-theo-quota bên dưới: ví gần cạn mà cấp cap tí hon (vd 50 token) thì JSON chắc
+     * chắn cụt → parse fail nhưng token VẪN bị trừ — cùng bệnh R-G5 đã vá cho eval ở PR #257
+     * (Weekly floor 256→1024). Overage nhỏ được P-9 soft-cap chấp nhận và log [OVERAGE].
+     */
+    private static final long MIN_COMPLETION_TOKENS_FLOOR = 1_024L;
 
     private final AiSpeakingSessionRepository sessionRepository;
     private final AiSpeakingMessageRepository messageRepository;
@@ -187,8 +200,22 @@ public class ChatPrepService {
 
     public int resolveGreetingMaxTokens(long userId) {
         var greetSnapshot = quotaService.assertAllowed(userId, Instant.now(), 1L);
+        return clampCompletionBudget(greetSnapshot.remainingThisMonth());
+    }
+
+    private int clampCompletionBudget(long remainingThisMonth) {
         int maxTokensConfig = systemConfigService.getInteger("ai.maxTokens", SPEAKING_MAX_COMPLETION_TOKENS);
-        return (int) Math.max(1L, Math.min(maxTokensConfig, greetSnapshot.remainingThisMonth()));
+        return clampCompletionBudget(maxTokensConfig, remainingThisMonth);
+    }
+
+    /**
+     * min(config, remaining) nhưng không bao giờ dưới {@link #MIN_COMPLETION_TOKENS_FLOOR} —
+     * xem chú thích tại hằng số. Config vẫn là trần tuyệt đối. (Tách static thuần để test
+     * không cần mock — cùng kiểu {@code OrgQuotaService.poolBlocks}.)
+     */
+    static int clampCompletionBudget(int maxTokensConfig, long remainingThisMonth) {
+        long floored = Math.max(remainingThisMonth, MIN_COMPLETION_TOKENS_FLOOR);
+        return (int) Math.max(1L, Math.min(maxTokensConfig, floored));
     }
 
     public AiSpeakingServiceImpl.SpeakingChatPrep prepareSpeakingChatTurn(long userId, long sessionId, String userMessage) {
@@ -310,8 +337,7 @@ public class ChatPrepService {
 
     private int resolveMaxTokens(long userId) {
         var snapshot = quotaService.assertAllowed(userId, Instant.now(), 1L);
-        int maxTokensConfig = systemConfigService.getInteger("ai.maxTokens", SPEAKING_MAX_COMPLETION_TOKENS);
-        return (int) Math.max(1L, Math.min(maxTokensConfig, snapshot.remainingThisMonth()));
+        return clampCompletionBudget(snapshot.remainingThisMonth());
     }
 
     private AiSpeakingSession loadSessionForUser(Long userId, Long sessionId) {
