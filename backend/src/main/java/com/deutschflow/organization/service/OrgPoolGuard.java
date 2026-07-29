@@ -11,9 +11,10 @@ import org.springframework.stereotype.Service;
  * {@code QuotaService.assertAllowed} (PPTX, chấm bài) — gọi đồng bộ tại controller
  * TRƯỚC khi khởi chạy job để giáo viên nhận phản hồi 429 ngay thay vì lỗi async im lặng.
  *
- * <p>Giáo viên B2C (không thuộc org) và org chưa cấu hình pool ({@code monthly_token_pool <= 0})
- * luôn được cho qua — B2C không đổi. Token tiêu thụ của tính năng được ghi ledger dưới chính
- * {@code userId} này nên việc kiểm tra theo org của user là nhất quán với cách tính usage.
+ * <p>Giáo viên B2C (không thuộc org) và HỌC VIÊN org (kênh ví cá nhân — 2 kênh 26/07) luôn được
+ * cho qua; staff org đi theo bảng V237 (unlimited / metered / pool=0 fail-safe cap). Token tiêu thụ
+ * của tính năng được ghi ledger dưới chính {@code userId} này nên việc kiểm tra theo org của user
+ * là nhất quán với cách tính usage.
  */
 @Service
 @RequiredArgsConstructor
@@ -38,10 +39,15 @@ public class OrgPoolGuard {
             return;
         }
         var reservation = orgQuotaService.tryReserve(userId, estimatedTokens).orElseThrow(() -> {
-            log.warn("Org token pool exhausted — blocking expensive AI request for userId={}", userId);
-            return new QuotaExceededException(
-                    "Tổ chức đã dùng hết ngân sách token AI tháng này. Vui lòng liên hệ quản trị nền tảng để nâng hạn mức.",
-                    null);
+            // Empty chỉ xảy ra cho STAFF org (B2C/STUDENT luôn được NONE — 2 kênh 26/07) nên
+            // membership chắc chắn tồn tại; resolve lại ở đường lỗi để tách mã "đã cạn" vs
+            // "chưa cấu hình" (client hiển thị đúng trạng thái, không CTA nâng cấp — P0-02).
+            log.warn("Org token pool blocked — expensive AI request denied for userId={}", userId);
+            var membership = orgQuotaService.resolveActiveMembership(userId);
+            boolean configured = membership != null && orgQuotaService.isPoolConfigured(membership.orgId());
+            return configured
+                    ? QuotaExceededException.orgBudgetExhausted(null)
+                    : QuotaExceededException.orgBudgetNotConfigured(null);
         });
         if (reservation.metered()) {
             OrgReservationHolder.replace(reservation, orgQuotaService::refund);

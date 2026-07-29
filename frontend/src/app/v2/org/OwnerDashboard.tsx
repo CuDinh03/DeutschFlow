@@ -160,6 +160,8 @@ export function OrgOwnerDashboard() {
                   <span className="min-w-0 break-words text-[12px] text-ga-muted">{analytics.tokensThisMonth.toLocaleString('vi-VN')} / {analytics.monthlyTokenPool.toLocaleString('vi-VN')}</span>
                 </div>
                 <span className="block h-2 bg-ga-bg"><span className="block h-full" style={{ width: `${Math.min(100, analytics.poolUsagePercent)}%`, background: analytics.poolUsagePercent >= 90 ? 'var(--ga-red)' : analytics.poolUsagePercent >= 70 ? 'var(--ga-orange)' : 'var(--ga-green)' }} /></span>
+                {/* 2 kênh token (26/07): pool giờ thuần chi phí GV — nói rõ để OWNER khỏi tưởng HV tiêu vào đây */}
+                <p className="mt-2 text-[12px] leading-snug text-ga-muted">{t('poolStudentNote')}</p>
               </>
             )}
           </div>

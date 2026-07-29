@@ -185,11 +185,19 @@ public class GlobalExceptionHandler {
     }
 
     // --- 429 Quota exceeded ---
+    // 2 kênh token (26/07): code + type phân biệt ví cá nhân (QUOTA_EXCEEDED → client mời nâng cấp)
+    // với pool trung tâm (ORG_BUDGET_* → "liên hệ quản trị", KHÔNG CTA nâng cấp — P0-02). Mobile cũ
+    // nhận diện upsell qua type kết thúc "quota-exceeded" nên 2 mã org PHẢI mang type khác.
     @ExceptionHandler(QuotaExceededException.class)
     public ResponseEntity<ProblemDetail> handleQuotaExceeded(QuotaExceededException ex,
                                                              HttpServletRequest request) {
+        String slug = switch (ex.getCode()) {
+            case ORG_BUDGET_EXHAUSTED -> "org-budget-exhausted";
+            case ORG_BUDGET_NOT_CONFIGURED -> "org-budget-not-configured";
+            default -> "quota-exceeded";
+        };
         Map<String, Object> ext = new java.util.LinkedHashMap<>();
-        ext.put("code", "QUOTA_EXCEEDED");
+        ext.put("code", ex.getCode().name());
         if (ex.getSnapshot() != null) {
             var s = ex.getSnapshot();
             ext.put("planCode", s.planCode());
@@ -206,7 +214,7 @@ public class GlobalExceptionHandler {
             ext.put("subscriptionStartsAtUtc", s.subscriptionStartsAtUtc());
             ext.put("subscriptionEndsAtUtc", s.subscriptionEndsAtUtc());
         }
-        return problem(HttpStatus.TOO_MANY_REQUESTS, "quota-exceeded", "Quota Exceeded",
+        return problem(HttpStatus.TOO_MANY_REQUESTS, slug, "Quota Exceeded",
                 ex.getMessage(), request.getRequestURI(), null, ext);
     }
 

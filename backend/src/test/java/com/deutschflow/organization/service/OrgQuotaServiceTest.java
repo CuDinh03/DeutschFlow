@@ -104,4 +104,18 @@ class OrgQuotaServiceTest {
         assertThat(OrgQuotaService.poolBlocks(1_000L, false, 600L, 400L)).isFalse(); // exactly at pool
         assertThat(OrgQuotaService.poolBlocks(1_000L, false, 600L, 401L)).isTrue();  // over pool
     }
+
+    // --- 2 kênh token (26/07): ranh giới duy nhất là org_members.role ---
+
+    @Test
+    @DisplayName("OrgMembership.staff(): OWNER/MANAGER/TEACHER là kênh trung tâm, STUDENT là kênh ví cá nhân")
+    void membership_staffBoundary() {
+        assertThat(new OrgQuotaService.OrgMembership(7L, "OWNER").staff()).isTrue();
+        assertThat(new OrgQuotaService.OrgMembership(7L, "MANAGER").staff()).isTrue();
+        assertThat(new OrgQuotaService.OrgMembership(7L, "TEACHER").staff()).isTrue();
+        assertThat(new OrgQuotaService.OrgMembership(7L, "STUDENT").staff()).isFalse();
+        // Role lạ/di sản (vd 'ADMIN' trước V225) nghiêng về kênh trung tâm — an toàn: không bao giờ
+        // cấp nhầm pool cho học viên, và staff không bị rơi về ví cá nhân.
+        assertThat(new OrgQuotaService.OrgMembership(7L, "ADMIN").staff()).isTrue();
+    }
 }

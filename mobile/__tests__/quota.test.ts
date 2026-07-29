@@ -1,4 +1,4 @@
-import { isQuotaExceededError, isTrialExpiredError, quotaExceededMessage } from '@/lib/quota'
+import { isOrgBudgetError, isQuotaExceededError, isTrialExpiredError, quotaExceededMessage } from '@/lib/quota'
 
 const BASE = 'https://deutschflow.com/errors/'
 
@@ -24,6 +24,19 @@ const rateLimited = axiosError(429, {
   detail: 'Too many requests.',
 })
 
+// 2 kênh token (26/07): lỗi ngân sách TRUNG TÂM (kênh staff) — không bao giờ được upsell cá nhân.
+const orgExhausted = axiosError(429, {
+  type: `${BASE}org-budget-exhausted`,
+  detail: 'Ngân sách AI của trung tâm đã hết cho tháng này. Vui lòng liên hệ quản trị trung tâm.',
+  extensions: { code: 'ORG_BUDGET_EXHAUSTED' },
+})
+
+const orgNotConfigured = axiosError(429, {
+  type: `${BASE}org-budget-not-configured`,
+  detail: 'Trung tâm chưa được cấp ngân sách AI. Vui lòng liên hệ quản trị trung tâm.',
+  extensions: { code: 'ORG_BUDGET_NOT_CONFIGURED' },
+})
+
 describe('isQuotaExceededError', () => {
   it('is true for a 429 quota-exceeded problem (trial expiry and daily exhaustion)', () => {
     expect(isQuotaExceededError(trialExpired)).toBe(true)
@@ -45,6 +58,31 @@ describe('isQuotaExceededError', () => {
   it('falls back to quota wording when the problem type is missing', () => {
     expect(isQuotaExceededError(axiosError(429, { detail: 'Gói dùng thử đã hết hạn.' }))).toBe(true)
     expect(isQuotaExceededError(axiosError(429, { detail: 'Some unrelated error' }))).toBe(false)
+  })
+
+  it('is false for org-budget 429s (center channel must not trigger a personal upsell)', () => {
+    expect(isQuotaExceededError(orgExhausted)).toBe(false)
+    expect(isQuotaExceededError(orgNotConfigured)).toBe(false)
+  })
+})
+
+describe('isOrgBudgetError', () => {
+  it('detects both org-budget codes via extensions.code', () => {
+    expect(isOrgBudgetError(orgExhausted)).toBe(true)
+    expect(isOrgBudgetError(orgNotConfigured)).toBe(true)
+  })
+
+  it('detects via problem type when extensions are stripped (older proxies)', () => {
+    expect(isOrgBudgetError(axiosError(429, { type: `${BASE}org-budget-exhausted` }))).toBe(true)
+    expect(isOrgBudgetError(axiosError(429, { type: `${BASE}org-budget-not-configured` }))).toBe(true)
+  })
+
+  it('is false for personal quota, rate limit, and non-429s', () => {
+    expect(isOrgBudgetError(trialExpired)).toBe(false)
+    expect(isOrgBudgetError(dailyExhausted)).toBe(false)
+    expect(isOrgBudgetError(rateLimited)).toBe(false)
+    expect(isOrgBudgetError(axiosError(500, { type: `${BASE}org-budget-exhausted` }))).toBe(false)
+    expect(isOrgBudgetError(null)).toBe(false)
   })
 })
 

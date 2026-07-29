@@ -23,11 +23,24 @@ public enum AiErrorCode {
     /** Tính năng AI chưa được cấu hình trên môi trường hiện tại (thiếu env/bean). */
     AI_NOT_CONFIGURED,
 
-    /** Hết hạn mức token AI của gói — client mời nâng cấp, KHÔNG phải lỗi hệ thống. */
     /** Nhận diện giọng nói không ra chữ (im lặng, nhiễu, định dạng lạ) — user nói lại hoặc gõ tay. */
     STT_FAILED,
 
+    /** Hết hạn mức token AI của VÍ CÁ NHÂN (kênh học viên/B2C) — client mời nâng cấp, KHÔNG phải lỗi hệ thống. */
     QUOTA_EXCEEDED,
+
+    /**
+     * Pool AI của trung tâm ĐÃ CẠN tháng này (kênh staff org — 2 kênh token 26/07).
+     * Client hiển thị "liên hệ quản trị trung tâm", KHÔNG mời nâng cấp gói cá nhân (P0-02).
+     */
+    ORG_BUDGET_EXHAUSTED,
+
+    /**
+     * Trung tâm CHƯA được cấp ngân sách AI ({@code pool=0 & !unlimited} — fail-safe V237/P-14).
+     * Tách khỏi {@link #ORG_BUDGET_EXHAUSTED} để hết cảnh "chưa cấu hình" đội lốt "đã dùng hết"
+     * (bài học org 6/ATB + org 7). Client cũng KHÔNG mời nâng cấp cá nhân.
+     */
+    ORG_BUDGET_NOT_CONFIGURED,
 
     /** Vượt giới hạn tần suất tạm thời — client đợi rồi thử lại (kèm Retry-After). */
     RATE_LIMITED

@@ -282,7 +282,7 @@ function TokenPoolCard({ analytics }: { analytics: OrgAnalytics | null }) {
         <Sparkles size={36} />
       </div>
       <p className="mb-1 text-sm font-bold uppercase tracking-wider text-indigo-500">
-        Token AI tháng này
+        Ngân sách AI giáo viên tháng này
       </p>
       <p className="text-3xl font-black text-slate-800">
         {used.toLocaleString('vi-VN')}
@@ -308,7 +308,10 @@ function TokenPoolCard({ analytics }: { analytics: OrgAnalytics | null }) {
           </div>
         </>
       ) : (
-        <p className="mt-2 text-xs text-slate-500">Chưa cấu hình hạn mức (không giới hạn).</p>
+        <p className="mt-2 text-xs text-slate-500">
+          Trung tâm chưa được cấp ngân sách AI cho giáo viên. Học viên dùng ví cá nhân theo gói —
+          không trừ vào đây.
+        </p>
       )}
     </div>
   )

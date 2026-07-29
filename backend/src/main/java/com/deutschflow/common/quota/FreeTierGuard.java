@@ -15,13 +15,15 @@ import java.time.temporal.ChronoUnit;
  * Hạn mức theo NGÀY cho tính năng AI ĐẮT (PPTX, OCR-ảnh) ở gói miễn phí — checklist D6
  * ("unlimited chấm core + cap AI đắt"). Chấm bài text (core) KHÔNG gọi guard này.
  *
- * <p><b>M-5 — ai bị cap (đóng backdoor org member):</b>
+ * <p><b>M-5 — ai bị cap (đóng backdoor org member):</b> PPTX/OCR là tính năng GIÁO VIÊN nên
+ * "org member" ở đây thực tế là STAFF org (2 kênh 26/07 — học viên org không bao giờ tới guard này;
+ * nếu tới, đối xử như staff theo bảng dưới, fail-safe về phía cap):
  * <ul>
  *   <li>GV B2C ({@code orgId == null}) → cap (như cũ).</li>
- *   <li>Org member, {@code pool_unlimited = true} → KHÔNG cap (unlimited có chủ đích).</li>
- *   <li>Org member, {@code monthly_token_pool > 0} → KHÔNG cap ở đây (metered bởi
+ *   <li>Staff org, {@code pool_unlimited = true} → KHÔNG cap (unlimited có chủ đích).</li>
+ *   <li>Staff org, {@code monthly_token_pool > 0} → KHÔNG cap ở đây (metered bởi
  *       {@link com.deutschflow.organization.service.OrgPoolGuard}).</li>
- *   <li>Org member, {@code pool = 0 & !unlimited} → <b>cap</b> (default fail-safe; trước M-5
+ *   <li>Staff org, {@code pool = 0 & !unlimited} → <b>cap</b> (default fail-safe; trước M-5
  *       org member bỏ qua hoàn toàn → dùng PPTX/OCR đắt miễn phí không giới hạn).</li>
  * </ul>
  */

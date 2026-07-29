@@ -11,9 +11,15 @@ import java.util.Optional;
 /**
  * Hạn mức token AI cấp-org (monthly pool): vừa báo cáo, vừa enforcement.
  *
- * <p>Bảng quyết định (V237 / M-5 / P-14), khớp {@link com.deutschflow.common.quota.FreeTierGuard#orgMemberCapped}:
+ * <p><b>2 kênh token (đã quyết 26/07):</b> pool trung tâm CHỈ dành cho staff org
+ * ({@code role != 'STUDENT'} trong {@code org_members} — OWNER/MANAGER/TEACHER). Học viên org đi kênh
+ * VÍ CÁ NHÂN (entitlement từ gói org hoặc tự mua IAP) và {@link #tryReserve} trả
+ * {@link OrgReservation#NONE} như B2C — GV chấm hàng loạt không bao giờ chặn/trừ vào phần học viên
+ * và ngược lại (P0-01/P0-02).
+ *
+ * <p>Bảng quyết định cho STAFF (V237 / M-5 / P-14), khớp {@link com.deutschflow.common.quota.FreeTierGuard#orgMemberCapped}:
  * <ul>
- *   <li>B2C (không thuộc org) → cho qua (không đổi).</li>
+ *   <li>B2C (không thuộc org) hoặc STUDENT → cho qua, không giữ gì.</li>
  *   <li>{@code pool_unlimited = true} → unlimited THẬT, cho qua.</li>
  *   <li>{@code pool_unlimited = false & monthly_token_pool > 0} → metered theo pool.</li>
  *   <li>{@code pool_unlimited = false & pool = 0} → CHƯA cấu hình → cap (fail-safe, đóng backdoor).</li>
@@ -93,8 +99,9 @@ public class OrgQuotaService {
      * {@code AiUsageLedgerService}; request chết trước khi charge được filter cuối request hoàn trả
      * ({@code OrgReservationRefundFilter}).
      *
-     * <p>Bảng quyết định giữ nguyên V237 (xem class doc): B2C và {@code unlimited} → cho qua không
-     * giữ gì; {@code pool=0 & !unlimited} → cap fail-safe (P-14); metered → giữ chỗ atomic.
+     * <p>Bảng quyết định (xem class doc): B2C, STUDENT org (kênh ví cá nhân) và {@code unlimited}
+     * → cho qua không giữ gì; {@code pool=0 & !unlimited} → cap fail-safe (P-14); metered → giữ
+     * chỗ atomic.
      *
      * <p>{@code REQUIRES_NEW}: suất giữ phải COMMIT ngay khi method trả về để mọi request đồng thời
      * nhìn thấy — kể cả khi caller ({@code QuotaService.assertAllowed}) đang ở transaction read-only.
@@ -107,10 +114,25 @@ public class OrgQuotaService {
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Optional<OrgReservation> tryReserve(long userId, long estimatedTokens) {
-        Long orgId = resolveActiveOrgId(userId);
-        if (orgId == null) {
-            return Optional.of(OrgReservation.NONE); // không thuộc org nào (B2C)
+        OrgMembership membership = resolveActiveMembership(userId);
+        if (membership == null || !membership.staff()) {
+            // B2C, hoặc HỌC VIÊN org (kênh 1 — ví cá nhân; pool trung tâm không gate, không trừ).
+            return Optional.of(OrgReservation.NONE);
         }
+        return reserveForOrg(membership.orgId(), estimatedTokens);
+    }
+
+    /**
+     * Biến thể cho caller ĐÃ resolve membership (tránh query org_members lần hai trên hot-path
+     * {@code QuotaService.assertAllowed}). Cùng ngữ nghĩa {@code REQUIRES_NEW} với
+     * {@link #tryReserve(long, long)} — suất giữ phải commit ngay khi trả về.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Optional<OrgReservation> tryReserveForOrg(long orgId, long estimatedTokens) {
+        return reserveForOrg(orgId, estimatedTokens);
+    }
+
+    private Optional<OrgReservation> reserveForOrg(long orgId, long estimatedTokens) {
         OrgPoolConfig cfg = loadPoolConfig(orgId);
         long est = Math.max(estimatedTokens, 0L);
         if (cfg.unlimited()) {
@@ -173,18 +195,42 @@ public class OrgQuotaService {
                 reservation.reservedTokens(), reservation.orgId());
     }
 
-    /** Org ACTIVE của user theo {@code org_members} (nguồn tenant duy nhất); null = B2C. */
-    private Long resolveActiveOrgId(long userId) {
-        return jdbcTemplate.query(
-                "SELECT org_id FROM org_members WHERE user_id = ? AND status = 'ACTIVE' LIMIT 1",
-                rs -> {
-                    if (!rs.next()) {
-                        return null;
-                    }
-                    long v = rs.getLong(1);
-                    return rs.wasNull() ? null : v;
-                },
+    /**
+     * Membership ACTIVE của user trong org, kèm vai trò — RANH GIỚI duy nhất của 2 kênh token
+     * (26/07): {@code role = STUDENT} → kênh ví cá nhân; mọi role khác → kênh pool trung tâm.
+     */
+    public record OrgMembership(long orgId, String role) {
+        /** Kênh 2 (pool trung tâm): OWNER/MANAGER/TEACHER — mọi vai trò trừ STUDENT. */
+        public boolean staff() {
+            return !"STUDENT".equals(role);
+        }
+    }
+
+    /**
+     * Membership ACTIVE của user theo {@code org_members} (nguồn tenant duy nhất — T-1/D-1/M-5);
+     * {@code null} = B2C. User thuộc ≥2 org: ưu tiên membership STAFF trước STUDENT rồi tie-break
+     * {@code org_id} nhỏ nhất — thay cho {@code LIMIT 1} không ORDER BY mơ hồ trước đây.
+     * Không mở transaction riêng: một SELECT, join tx của caller (gate read-only lẫn charge read-write).
+     */
+    public OrgMembership resolveActiveMembership(long userId) {
+        return jdbcTemplate.query("""
+                        SELECT org_id, role FROM org_members
+                        WHERE user_id = ? AND status = 'ACTIVE'
+                        ORDER BY (role = 'STUDENT'), org_id
+                        LIMIT 1
+                        """,
+                rs -> rs.next() ? new OrgMembership(rs.getLong(1), rs.getString(2)) : null,
                 userId);
+    }
+
+    /**
+     * {@code true} khi org ĐÃ được cấp ngân sách AI (unlimited hoặc pool > 0) — caller dùng để chọn
+     * mã lỗi {@code ORG_BUDGET_EXHAUSTED} (đã cạn) vs {@code ORG_BUDGET_NOT_CONFIGURED} (chưa cấu
+     * hình) khi {@link #tryReserve} trả empty. Chỉ chạy trên đường lỗi — không tốn hot-path.
+     */
+    public boolean isPoolConfigured(long orgId) {
+        OrgPoolConfig cfg = loadPoolConfig(orgId);
+        return cfg.unlimited() || cfg.pool() > 0L;
     }
 
     /**

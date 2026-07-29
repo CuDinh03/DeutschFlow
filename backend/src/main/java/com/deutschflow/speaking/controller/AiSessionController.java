@@ -10,6 +10,7 @@ import com.deutschflow.common.exception.RateLimitExceededException;
 import com.deutschflow.common.quota.AiUsageLedgerService;
 import com.deutschflow.common.quota.QuotaService;
 import com.deutschflow.organization.service.OrgPoolGuard;
+import com.deutschflow.organization.service.OrgQuotaService;
 import com.deutschflow.speaking.ai.GroqWhisperClient.TranscribeResult;
 import com.deutschflow.speaking.AiRateLimiterService;
 import com.deutschflow.speaking.AiRateLimiterService.Bucket;
@@ -51,6 +52,7 @@ public class AiSessionController {
     private final com.deutschflow.speaking.ai.GroqWhisperClient groqWhisperClient;
     private final QuotaService quotaService;
     private final OrgPoolGuard orgPoolGuard;
+    private final OrgQuotaService orgQuotaService;
     private final AiRateLimiterService aiRateLimiterService;
     private final AiUsageLedgerService ledgerService;
 
@@ -60,11 +62,28 @@ public class AiSessionController {
     @Value("${app.ai.transcribe.max-bytes:8388608}")
     private long transcribeMaxBytes;
 
+    /** Sentinel "không giới hạn" cho pool org — cùng quy ước 999_999_999 của gói INTERNAL. */
+    private static final long ORG_POOL_UNLIMITED_SENTINEL = 999_999_999L;
+
     @GetMapping("/quota")
     public AiSpeakingQuotaDto quota(@AuthenticationPrincipal User user) {
         var s = quotaService.getSnapshotReadOnly(user.getId(), Instant.now());
+        if (!s.unlimitedInternal()) {
+            // 2 kênh token (26/07): pill của staff org phải phản ánh POOL TRUNG TÂM — gate của họ
+            // không còn là ví cá nhân, nếu trả snapshot ví (thường 0đ) client sẽ tự chặn oan
+            // trước khi backend kịp cho qua bằng pool.
+            var membership = orgQuotaService.resolveActiveMembership(user.getId());
+            if (membership != null && membership.staff()) {
+                long orgId = membership.orgId();
+                if (!orgQuotaService.isPoolConfigured(orgId)) {
+                    return new AiSpeakingQuotaDto(false, 0L, s.planCode(), true);
+                }
+                long remaining = Math.min(orgQuotaService.remainingPool(orgId), ORG_POOL_UNLIMITED_SENTINEL);
+                return new AiSpeakingQuotaDto(remaining > 0L, remaining, s.planCode(), true);
+            }
+        }
         boolean can = s.unlimitedInternal() || s.remainingSpendable() > 0L;
-        return new AiSpeakingQuotaDto(can, s.remainingSpendable(), s.planCode());
+        return new AiSpeakingQuotaDto(can, s.remainingSpendable(), s.planCode(), false);
     }
 
     @PostMapping("/sessions")

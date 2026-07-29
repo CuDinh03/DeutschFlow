@@ -36,6 +36,8 @@ export interface AiSpeakingQuota {
   canStartSession: boolean
   remainingSpendable: number
   planCode: string
+  /** true = số liệu là NGÂN SÁCH TRUNG TÂM (kênh staff org — 2 kênh token 26/07), không phải ví cá nhân. */
+  orgBudget?: boolean
 }
 
 export interface AiSpeakingSession {

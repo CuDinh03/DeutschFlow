@@ -29,8 +29,32 @@ class QuotaExceededHandlerIntegrationTest extends AbstractPostgresIntegrationTes
                 .andExpect(content().contentTypeCompatibleWith(MediaType.valueOf("application/problem+json")))
                 .andExpect(jsonPath("$.type").value("https://deutschflow.com/errors/quota-exceeded"))
                 .andExpect(jsonPath("$.status").value(429))
+                .andExpect(jsonPath("$.extensions.code").value("QUOTA_EXCEEDED"))
                 .andExpect(jsonPath("$.extensions.planCode").value("FREE"))
                 .andExpect(jsonPath("$.extensions.remainingThisMonth").value(0));
+    }
+
+    // 2 kênh token (26/07): mã org phải mang TYPE khác "quota-exceeded" — mobile cũ nhận diện
+    // upsell qua đuôi type, nên type riêng là thứ chặn CTA "Nâng cấp" mời nhầm staff (P0-02).
+
+    @Test
+    @WithMockUser(roles = "TEACHER")
+    void orgBudgetExhausted_shouldCarryOwnTypeAndCode() throws Exception {
+        mockMvc.perform(get("/api/test/org-budget-exhausted"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.valueOf("application/problem+json")))
+                .andExpect(jsonPath("$.type").value("https://deutschflow.com/errors/org-budget-exhausted"))
+                .andExpect(jsonPath("$.extensions.code").value("ORG_BUDGET_EXHAUSTED"));
+    }
+
+    @Test
+    @WithMockUser(roles = "TEACHER")
+    void orgBudgetNotConfigured_shouldCarryOwnTypeAndCode() throws Exception {
+        mockMvc.perform(get("/api/test/org-budget-not-configured"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.valueOf("application/problem+json")))
+                .andExpect(jsonPath("$.type").value("https://deutschflow.com/errors/org-budget-not-configured"))
+                .andExpect(jsonPath("$.extensions.code").value("ORG_BUDGET_NOT_CONFIGURED"));
     }
 }
 

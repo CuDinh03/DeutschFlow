@@ -122,6 +122,8 @@ export default function V2OrgAnalyticsPage() {
                           }}
                         />
                       </div>
+                      {/* 2 kênh token (26/07): pool = thuần chi phí GV, học viên không tiêu vào đây */}
+                      <p className="ga-ui mt-1.5 text-[12px] leading-snug text-ga-muted">{t('poolStudentNote')}</p>
                     </div>
                   )}
                 </div>
