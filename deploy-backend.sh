@@ -357,7 +357,13 @@ DOCKER_ARGS=(
   -e EDGE_TTS_URL=http://172.17.0.1:5050
   -e "REDIS_HOST=deutschflow-redis"
   -e REDIS_PORT=6379
-  --memory="1500m"
+  # 29/07: 1500m → 2200m. JVM đạt RSS ~1.46GB là kernel OOM-kill (cgroup CONSTRAINT_MEMCG,
+  # dmesg ghi nhận cả 25/07 lẫn 29/07 — container sống sát mép từ lâu; sau deploy 29/07 thành
+  # crash-loop 502). Host t3.medium 3.8GB: backend 2200m + redis + nginx + edge-tts vẫn dư.
+  # MaxRAMPercentage=65 (~1.43GB heap) để JVM tự ghìm heap dưới trần cgroup thay vì để
+  # native+heap trôi tự do tới lúc bị giết (image không set JAVA_OPTS nào trước đây).
+  --memory="2200m"
+  -e JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=65.0"
 )
 if [ "$HAS_GOOGLE_SA" = "true" ] && [ -f /home/ubuntu/google-sa.json ]; then
   DOCKER_ARGS+=(-v /home/ubuntu/google-sa.json:/run/secrets/google-sa.json:ro)
