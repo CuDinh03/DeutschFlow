@@ -171,23 +171,34 @@ public class GroqChatClient implements OpenAiChatClient {
                 int statusCode = e.getStatusCode().value();
                 if (statusCode != 429 && statusCode < 500) {
                     String body = e.getResponseBodyAsString();
-                    if (isModelUnavailable(body)) {
-                        // Sự cố vận hành, KHÔNG phải lỗi tạm thời: retry bao nhiêu lần cũng vô ích và
-                        // mọi người dùng đều gãy cùng lúc. Log ERROR nêu đích danh việc cần làm.
-                        log.error("[Groq] MODEL KHÔNG DÙNG ĐƯỢC: '{}' đã bị khai tử, hoặc tài khoản "
-                                        + "không có quyền truy cập. Đổi env GROQ_MODEL/GROQ_GRADING_MODEL "
-                                        + "sang model còn sống (https://console.groq.com/docs/deprecations), "
-                                        + "đối chiếu GET /openai/v1/models, rồi restart. Body: {}",
-                                effectiveModel, body);
+                    // json_validate_failed là kết quả SINH (model nhả JSON hỏng/cụt trong json-mode),
+                    // không phải request sai — gọi lại với temperature > 0 thường ra bản hợp lệ.
+                    // Groq gói nó trong 400 nên phải tách riêng khỏi nhóm 4xx chết-hẳn (đo prod
+                    // 29/07: greeting gpt-oss-20b dính "max completion tokens reached").
+                    if (isJsonValidateFailed(body)) {
+                        log.warn("[Groq] json_validate_failed on attempt {}/{} — retrying generation. Body: {}",
+                                attempt, MAX_ATTEMPTS, body);
+                        lastException = e;
                     } else {
-                        log.error("[Groq] API error {}: {}", statusCode, body);
+                        if (isModelUnavailable(body)) {
+                            // Sự cố vận hành, KHÔNG phải lỗi tạm thời: retry bao nhiêu lần cũng vô ích và
+                            // mọi người dùng đều gãy cùng lúc. Log ERROR nêu đích danh việc cần làm.
+                            log.error("[Groq] MODEL KHÔNG DÙNG ĐƯỢC: '{}' đã bị khai tử, hoặc tài khoản "
+                                            + "không có quyền truy cập. Đổi env GROQ_MODEL/GROQ_GRADING_MODEL "
+                                            + "sang model còn sống (https://console.groq.com/docs/deprecations), "
+                                            + "đối chiếu GET /openai/v1/models, rồi restart. Body: {}",
+                                    effectiveModel, body);
+                        } else {
+                            log.error("[Groq] API error {}: {}", statusCode, body);
+                        }
+                        // Thông điệp lộ ra client (thành `detail` của ProblemDetail 503) nên giữ trung tính:
+                        // không nêu tên nhà cung cấp, không nêu mã lỗi upstream. Chi tiết nằm ở log trên.
+                        throw new AiServiceException("Dịch vụ AI tạm thời không khả dụng, vui lòng thử lại sau.", e);
                     }
-                    // Thông điệp lộ ra client (thành `detail` của ProblemDetail 503) nên giữ trung tính:
-                    // không nêu tên nhà cung cấp, không nêu mã lỗi upstream. Chi tiết nằm ở log trên.
-                    throw new AiServiceException("Dịch vụ AI tạm thời không khả dụng, vui lòng thử lại sau.", e);
+                } else {
+                    log.warn("[Groq] {} on attempt {}/{}", statusCode, attempt, MAX_ATTEMPTS);
+                    lastException = e;
                 }
-                log.warn("[Groq] {} on attempt {}/{}", statusCode, attempt, MAX_ATTEMPTS);
-                lastException = e;
             } catch (ResourceAccessException e) {
                 log.warn("[Groq] timeout on attempt {}/{}: {}", attempt, MAX_ATTEMPTS, e.getMessage());
                 lastException = e;
@@ -420,6 +431,17 @@ public class GroqChatClient implements OpenAiChatClient {
     static boolean isModelUnavailable(String responseBody) {
         return responseBody != null
                 && (responseBody.contains("model_decommissioned") || responseBody.contains("model_not_found"));
+    }
+
+    /**
+     * Groq 400 {@code json_validate_failed}: model không sinh nổi JSON hợp lệ trong json-mode
+     * (thường "max completion tokens reached before generating a valid document" với model
+     * reasoning, hoặc output hỏng ngẫu nhiên). Là kết quả sinh chứ không phải request sai →
+     * retryable, khác hẳn nhóm 4xx chết-hẳn. Khớp chuỗi thô cùng lý do với
+     * {@link #isModelUnavailable}.
+     */
+    static boolean isJsonValidateFailed(String responseBody) {
+        return responseBody != null && responseBody.contains("json_validate_failed");
     }
 
     /**
