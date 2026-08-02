@@ -365,6 +365,12 @@ app:
       # ⚠️ Model Groq bị khai tử theo lịch — https://console.groq.com/docs/deprecations. Tiền lệ:
       # meta-llama/llama-4-scout-17b-16e-instruct tắt 17/07/2026 làm sập toàn bộ Speaking (503).
       model: ${GROQ_MODEL:openai/gpt-oss-20b}
+      # Reasoning effort cho MODEL NÓI real-time (`model` ở trên). gpt-oss là reasoning model — token
+      # "nghĩ" tính CHUNG vào max_tokens; ở mức mặc định model nghĩ nhiều nên với lượt chat NẶNG (lịch
+      # sử + RAG context) nó cạn budget completion TRƯỚC khi đóng xong JSON ⇒ json_validate_failed /
+      # lỗi stream ⇒ 503 (greeting nhẹ thì thoát). "low" chừa trọn budget cho JSON. low|medium|high;
+      # để RỖNG để tắt (không gửi tham số). CHỈ áp cho `model`, KHÔNG áp cho `grading-model`.
+      reasoning-effort: ${GROQ_REASONING_EFFORT:low}
       # Model riêng cho CHẤM BÀI (Schreiben + Sprechen + lead-magnet) — TÁCH HẲN `model` ở trên
       # (speaking real-time cần tốc độ; chấm bài cần độ chính xác ngữ pháp/từ vựng). gpt-oss-120b
       # ~500 tok/s, hỗ trợ json_schema strict; mọi luồng chấm đọc qua GradingModelConfig.

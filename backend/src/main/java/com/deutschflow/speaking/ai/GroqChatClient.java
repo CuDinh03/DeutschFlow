@@ -73,6 +73,11 @@ public class GroqChatClient implements OpenAiChatClient {
     private final com.deutschflow.common.resilience.CircuitBreakers circuitBreakers;
     private final String apiKey;
     private final String defaultModel;
+    /**
+     * Reasoning effort ("low"/"medium"/"high") gửi kèm CHỈ cho model NÓI real-time
+     * ({@link #defaultModel}). Rỗng ⇒ không gửi (giữ hành vi cũ). Xem {@link #buildRequestBody}.
+     */
+    private final String reasoningEffort;
 
     @org.springframework.beans.factory.annotation.Autowired
     public GroqChatClient(
@@ -80,8 +85,9 @@ public class GroqChatClient implements OpenAiChatClient {
             @Value("${app.ai.groq.model:openai/gpt-oss-20b}") String model,
             ObjectMapper objectMapper,
             GroqConcurrencyLimiter concurrencyLimiter,
-            com.deutschflow.common.resilience.CircuitBreakers circuitBreakers) {
-        this(apiKey, model, objectMapper, concurrencyLimiter, circuitBreakers, GROQ_BASE_URL);
+            com.deutschflow.common.resilience.CircuitBreakers circuitBreakers,
+            @Value("${app.ai.groq.reasoning-effort:low}") String reasoningEffort) {
+        this(apiKey, model, objectMapper, concurrencyLimiter, circuitBreakers, reasoningEffort, GROQ_BASE_URL);
     }
 
     /**
@@ -95,12 +101,14 @@ public class GroqChatClient implements OpenAiChatClient {
             ObjectMapper objectMapper,
             GroqConcurrencyLimiter concurrencyLimiter,
             com.deutschflow.common.resilience.CircuitBreakers circuitBreakers,
+            String reasoningEffort,
             String baseUrl) {
         this.apiKey = apiKey;
         this.defaultModel = model;
         this.objectMapper = objectMapper;
         this.concurrencyLimiter = concurrencyLimiter;
         this.circuitBreakers = circuitBreakers;
+        this.reasoningEffort = reasoningEffort == null ? "" : reasoningEffort.trim();
 
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(5_000);
@@ -117,7 +125,8 @@ public class GroqChatClient implements OpenAiChatClient {
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .build();
 
-        log.info("GroqChatClient initialized — model: {}", model);
+        log.info("GroqChatClient initialized — model: {}, reasoning_effort: {}",
+                model, this.reasoningEffort.isBlank() ? "(unset)" : this.reasoningEffort);
     }
 
     // -----------------------------------------------------------------------
@@ -337,6 +346,17 @@ public class GroqChatClient implements OpenAiChatClient {
             responseFormat.put("type", "json_object");
             if (stream) {
                 root.put("stream", true);
+            }
+            // gpt-oss là REASONING model: token "nghĩ" tính CHUNG vào max_tokens. Ở mức mặc định model
+            // nghĩ nhiều nên với lượt chat NẶNG (lịch sử + RAG context, khác greeting nhẹ) nó cạn budget
+            // completion TRƯỚC khi đóng xong JSON → Groq trả 400 json_validate_failed (blocking) / lỗi
+            // stream (web) → 503; 2 lần liên tiếp mở luôn breaker làm cả hội thoại mới chết theo. Bản vá
+            // d1769766 chỉ nới max_tokens (512→2000) mà chưa chặn phần "nghĩ" — đây là mắt xích còn thiếu.
+            // reasoning_effort=low chừa trọn budget cho JSON. Chỉ áp cho MODEL NÓI real-time
+            // (defaultModel); model CHẤM bài (grading-model, luôn truyền tường minh) giữ nguyên hành vi.
+            if (reasoningEffort != null && !reasoningEffort.isBlank()
+                    && defaultModel != null && defaultModel.equals(model)) {
+                root.put("reasoning_effort", reasoningEffort.trim());
             }
 
             ArrayNode messagesArray = root.putArray("messages");
