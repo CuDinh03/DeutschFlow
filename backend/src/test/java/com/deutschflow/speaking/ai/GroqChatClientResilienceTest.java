@@ -184,6 +184,47 @@ class GroqChatClientResilienceTest {
         assertThat(body).contains("json");
     }
 
+    // ── reasoning_effort: chặn model reasoning đốt cạn budget completion trước khi đóng JSON ──
+
+    private static final String OK_JSON_RESPONSE =
+            "{\"choices\":[{\"message\":{\"content\":\"{\\\"ai_speech_de\\\":\\\"Hallo\\\"}\"}}],"
+                    + "\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":1,\"total_tokens\":2}}";
+
+    @Test
+    @DisplayName("model NÓI real-time: request PHẢI kèm reasoning_effort=low để không cạn budget → 503")
+    void realtimeModelCarriesReasoningEffort() {
+        respondWith(200, OK_JSON_RESPONSE);
+
+        // model=null ⇒ effectiveModel = defaultModel (model nói real-time).
+        clientWithEffort("low").chatCompletion(messages(), null, 0.7, 2000);
+
+        assertThat(receivedBodies).hasSize(1);
+        assertThat(receivedBodies.get(0)).contains("\"reasoning_effort\":\"low\"");
+    }
+
+    @Test
+    @DisplayName("model CHẤM bài (truyền tường minh, khác defaultModel): KHÔNG kèm reasoning_effort")
+    void gradingModelOmitsReasoningEffort() {
+        respondWith(200, OK_JSON_RESPONSE);
+
+        // gpt-oss-120b được truyền tường minh — grading giữ nguyên hành vi, không bị ép low.
+        clientWithEffort("low").chatCompletion(messages(), "openai/gpt-oss-120b", 0.2, 2000);
+
+        assertThat(receivedBodies).hasSize(1);
+        assertThat(receivedBodies.get(0)).doesNotContain("reasoning_effort");
+    }
+
+    @Test
+    @DisplayName("reasoning-effort rỗng: KHÔNG gửi tham số (van thoát tắt qua env)")
+    void blankReasoningEffortOmitsParam() {
+        respondWith(200, OK_JSON_RESPONSE);
+
+        clientWithEffort("").chatCompletion(messages(), null, 0.7, 2000);
+
+        assertThat(receivedBodies).hasSize(1);
+        assertThat(receivedBodies.get(0)).doesNotContain("reasoning_effort");
+    }
+
     // ── Circuit breaker (R-B1: breaker phải cắt sớm thay vì để mỗi request đốt 20s) ──
 
     @Test
@@ -261,12 +302,18 @@ class GroqChatClientResilienceTest {
 
     private GroqChatClient client(CircuitBreakers breakers) {
         return new GroqChatClient("test-key", "openai/gpt-oss-20b", objectMapper,
-                new GroqConcurrencyLimiter(limiterProps(5, 10)), breakers, baseUrl);
+                new GroqConcurrencyLimiter(limiterProps(5, 10)), breakers, "low", baseUrl);
     }
 
     private GroqChatClient client(GroqConcurrencyLimiter limiter) {
         return new GroqChatClient("test-key", "openai/gpt-oss-20b", objectMapper,
-                limiter, breakersOpeningAfter(100), baseUrl);
+                limiter, breakersOpeningAfter(100), "low", baseUrl);
+    }
+
+    /** Client với defaultModel + reasoning effort tùy chọn (rỗng = không gửi tham số). */
+    private GroqChatClient clientWithEffort(String effort) {
+        return new GroqChatClient("test-key", "openai/gpt-oss-20b", objectMapper,
+                new GroqConcurrencyLimiter(limiterProps(5, 10)), breakersOpeningAfter(100), effort, baseUrl);
     }
 
     private static com.deutschflow.speaking.config.GroqProperties limiterProps(int chatPermits, int acquireSeconds) {
